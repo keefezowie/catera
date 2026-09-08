@@ -1,0 +1,35 @@
+{
+  "measuredAt": "2026-09-08T15:00:43.041Z",
+  "engine": "PostgreSQL 17.10 on x86_64-windows, compiled by msvc-19.44.35226, 64-bit",
+  "scope": "Local native PostgreSQL; five warm full-workspace RPC samples per dataset. Excludes network, SSR and browser rendering. Synthetic sizes are fixtures, not business volumes or product capacity.",
+  "benchmarks": [
+    {
+      "syntheticCustomersAdded": 100,
+      "syntheticDeliveriesAdded": 2000,
+      "snapshotMs": [
+        88,
+        91,
+        94,
+        95,
+        95
+      ],
+      "medianMs": 94,
+      "maxMs": 95,
+      "responseBytes": 1293329
+    },
+    {
+      "syntheticCustomersAdded": 500,
+      "syntheticDeliveriesAdded": 10000,
+      "snapshotMs": [
+        1210,
+        1233,
+        1322,
+        1543,
+        1544
+      ],
+      "medianMs": 1322,
+      "maxMs": 1544,
+      "responseBytes": 6224929
+    }
+  ]
+}

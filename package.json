@@ -1,0 +1,52 @@
+{
+  "name": "catera",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --hostname 127.0.0.1",
+    "build": "next build",
+    "start": "next start --hostname 127.0.0.1",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "test:postgres": "node tests/postgres-concurrency.mjs",
+    "db:types": "node scripts/generate-types.mjs",
+    "provision": "node --env-file-if-exists=.env.local scripts/provision.mjs",
+    "check": "npm run typecheck && npm test && npm run build",
+    "demo:reset": "node scripts/demo-reset.mjs",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"tests/**/*.{ts,mjs}\" \"scripts/*.mjs\" \"messages/*.json\" \"*.{json,ts,mjs}\"",
+    "benchmark": "node tests/postgres-concurrency.mjs --benchmark",
+    "health": "node --env-file-if-exists=.env.local scripts/health-report.mjs"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "0.5.8",
+    "@radix-ui/react-dialog": "1.1.23",
+    "@supabase/ssr": "0.8.0",
+    "@supabase/supabase-js": "2.116.0",
+    "lucide-react": "0.577.0",
+    "next": "16.3.4",
+    "next-intl": "4.14.2",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
+    "@emnapi/wasi-threads": "1.2.3",
+    "@playwright/test": "1.63.0",
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/node": "24.13.3",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.7",
+    "embedded-postgres": "17.10.0-beta.17",
+    "pg": "8.23.0",
+    "prettier": "3.9.6",
+    "tailwindcss": "4.3.3",
+    "typescript": "5.9.3",
+    "vitest": "4.1.11"
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "type": "module"
+}
