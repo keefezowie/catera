@@ -1,1 +1,22 @@
-{ "regions": ["sin1"] }
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "regions": [
+    "sin1"
+  ],
+  "env": {
+    "CATERA_DEMO_MODE": "false",
+    "CATERA_HOSTED_DEMO_MODE": "true",
+    "NEXT_PUBLIC_SUPABASE_URL": "https://otmanljypltxkwjcebni.supabase.co",
+    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_kLgllSw5elrhI42sAqmdhQ_GM0Nw-r8",
+    "CATERA_HOSTED_DEMO_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im90bWFubGp5cGx0eGt3amNlYm5pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg5MjkyMzYsImV4cCI6MjEwNDUwNTIzNn0.0l0_o6RFk5IlVEexwT2BAvKKDQP2WKpk7uG9DHBTJgQ"
+  },
+  "build": {
+    "env": {
+      "CATERA_DEMO_MODE": "false",
+      "CATERA_HOSTED_DEMO_MODE": "true",
+      "NEXT_PUBLIC_SUPABASE_URL": "https://otmanljypltxkwjcebni.supabase.co",
+      "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_kLgllSw5elrhI42sAqmdhQ_GM0Nw-r8",
+      "CATERA_HOSTED_DEMO_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im90bWFubGp5cGx0eGt3amNlYm5pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg5MjkyMzYsImV4cCI6MjEwNDUwNTIzNn0.0l0_o6RFk5IlVEexwT2BAvKKDQP2WKpk7uG9DHBTJgQ"
+    }
+  }
+}

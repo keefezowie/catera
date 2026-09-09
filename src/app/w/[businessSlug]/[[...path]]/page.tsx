@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { getSnapshot } from "@/lib/data";
 import { demoEnabled } from "@/lib/demo-db";
+import { hostedDemoEnabled } from "@/lib/hosted-demo-config";
 import { Shell } from "@/components/shell";
 import { Operations } from "@/components/operations";
 import { Customers, Packages, Menus } from "@/components/records";
@@ -65,7 +66,7 @@ export default async function WorkspacePage({
     } else notFound();
   }
   return (
-    <Shell snapshot={s} demo={demoEnabled()}>
+    <Shell snapshot={s} demo={demoEnabled() || hostedDemoEnabled()}>
       {content}
     </Shell>
   );

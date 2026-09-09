@@ -1,10 +1,26 @@
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { demoEnabled } from "@/lib/demo-db";
 import { demoLogin, setLocale } from "@/app/actions";
 import { AuthForm } from "@/components/auth-form";
-export default async function Login() {
-  const t = await getTranslations(),
-    demo = demoEnabled();
+import { hostedDemoEnabled } from "@/lib/hosted-demo-config";
+import { DemoSubmitButton } from "@/components/demo-submit-button";
+export default async function Login({ searchParams }: {
+  searchParams: Promise<{ demoError?: string }>;
+}) {
+  const t = await getTranslations();
+  const locale = await getLocale();
+  const localDemo = demoEnabled();
+  const hosted = hostedDemoEnabled();
+  const demo = localDemo || hosted;
+  const misconfigured = !localDemo &&
+    process.env.CATERA_HOSTED_DEMO_MODE === "true" && !hosted;
+  const { demoError } = await searchParams;
+  const description = locale === "en"
+    ? "Choose a role to explore Catera. No email or password needed. This is a shared demo: changes are visible to other visitors. Use sample data only."
+    : "Pilih peran untuk mencoba Catera. Tanpa email atau kata sandi. Demo ini dipakai bersama: perubahan terlihat oleh pengunjung lain. Gunakan data contoh saja.";
+  const failure = locale === "en"
+    ? "The demo could not be opened. Please try again in a moment."
+    : "Demo belum bisa dibuka. Silakan coba lagi sebentar.";
   return (
     <main className="auth-layout">
       <section className="auth-story">
@@ -28,25 +44,25 @@ export default async function Login() {
         <div className="auth-form">
           <h2>{t("signIn")}</h2>
           <p className="muted">
-            {t(demo ? "demoDescription" : "signInDescription")}
+            {hosted ? description : t(demo ? "demoDescription" : "signInDescription")}
           </p>
+          {demoError && demo && <p role="alert">{failure}</p>}
           {demo ? (
             <div className="stack demo-options">
               <span className="demo-label">{t("demo")}</span>
               {(["owner", "admin", "subscriber"] as const).map((role) => (
                 <form key={role} action={demoLogin}>
                   <input type="hidden" name="role" value={role} />
-                  <button
-                    className={
-                      "button full " +
-                      (role === "owner" ? "primary" : "secondary")
-                    }
-                  >
-                    {t("demo" + role[0].toUpperCase() + role.slice(1))}
-                  </button>
+                  <DemoSubmitButton
+                    primary={role === "owner"}
+                    label={t("demo" + role[0].toUpperCase() + role.slice(1))}
+                    pendingLabel={locale === "en" ? "Opening demo…" : "Membuka demo…"}
+                  />
                 </form>
               ))}
             </div>
+          ) : misconfigured ? (
+            <p role="alert">{failure}</p>
           ) : (
             <AuthForm />
           )}

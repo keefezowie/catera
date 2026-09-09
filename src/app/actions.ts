@@ -1,11 +1,13 @@
 "use server";
 import { revalidatePath } from "next/cache";
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { setDemoSession, supabase } from "@/lib/auth";
 import { demoEnabled } from "@/lib/demo-db";
+import { hostedDemoEnabled, parseDemoRole } from "@/lib/hosted-demo-config";
+import { startHostedDemoSession } from "@/lib/hosted-demo";
 import { rpc } from "@/lib/data";
 import { commandSchemas, errorCode } from "@/lib/validation";
 import type { CommandResult } from "@/lib/types";
@@ -44,12 +46,28 @@ export async function command(
   }
 }
 export async function demoLogin(form: FormData) {
-  const role = form.get("role");
-  if (!["owner", "admin", "subscriber"].includes(String(role))) return;
-  await setDemoSession(role as "owner" | "admin" | "subscriber");
+  const role = parseDemoRole(form.get("role"));
+  if (!role) return;
+  if (hostedDemoEnabled()) {
+    let failed = false;
+    try {
+      await startHostedDemoSession(role);
+    } catch {
+      failed = true;
+      console.warn(JSON.stringify({ event: "catera.hosted_demo_login_failed" }));
+    }
+    // redirect throws; keep it outside the login error handler.
+    if (failed) redirect("/login?demoError=1");
+  } else {
+    // The existing local-only guard remains intact.
+    await setDemoSession(role);
+  }
   redirect("/workspaces");
 }
 export async function sendCode(_state: { error: string }, form: FormData) {
+  // A hosted demo must never activate real addresses or send login email.
+  if (process.env.CATERA_HOSTED_DEMO_MODE === "true")
+    return { error: "AUTH_NOT_CONFIGURED" };
   const email = String(form.get("email") || "")
     .trim()
     .toLowerCase();
@@ -89,6 +107,8 @@ export async function sendCode(_state: { error: string }, form: FormData) {
   redirect("/verify");
 }
 export async function verifyCode(_state: { error: string }, form: FormData) {
+  if (process.env.CATERA_HOSTED_DEMO_MODE === "true")
+    return { error: "AUTH_NOT_CONFIGURED" };
   const email = (await cookies()).get("catera_pending_email")?.value;
   if (!email) return { error: "EMAIL_REQUIRED" };
   const { error } = await (
@@ -104,7 +124,10 @@ export async function verifyCode(_state: { error: string }, form: FormData) {
 }
 export async function logout() {
   if (demoEnabled()) (await cookies()).delete("catera_demo");
-  else await (await supabase()).auth.signOut();
+  else await (await supabase()).auth.signOut({
+    // Logging out one visitor must not end every shared demo session.
+    scope: hostedDemoEnabled() ? "local" : "global",
+  });
   redirect("/login");
 }
 export async function setLocale(form: FormData) {
