@@ -19,15 +19,23 @@ export function MascotAnimation({
   const [visible, setVisible] = useState(false);
   const [foreground, setForeground] = useState(true);
   useEffect(() => {
-    // Cached images may finish before React hydrates and attaches onLoad.
-    const cached = new Set<string>();
+    // Decode cached and newly loaded layers before replacing the poster.
+    let live = true;
     root.current
       ?.querySelectorAll<HTMLImageElement>(".mascot-layer")
       .forEach((img) => {
-        if (img.complete && img.naturalWidth > 0)
-          cached.add(img.src.split("/").pop()!.replace(".png", ""));
+        img
+          .decode()
+          .then(() => {
+            if (live)
+              setLoaded((old) =>
+                new Set(old).add(img.src.split("/").pop()!.replace(".png", "")),
+              );
+          })
+          .catch(() => {
+            if (live) setFailed(true);
+          });
       });
-    setLoaded((old) => new Set([...old, ...cached]));
     const update = () => setForeground(!document.hidden);
     update();
     document.addEventListener("visibilitychange", update);
@@ -36,6 +44,7 @@ export function MascotAnimation({
     );
     if (root.current) observer.observe(root.current);
     return () => {
+      live = false;
       observer.disconnect();
       document.removeEventListener("visibilitychange", update);
     };
@@ -77,7 +86,6 @@ export function MascotAnimation({
                 alt=""
                 width={size}
                 height={size}
-                onLoad={() => setLoaded((old) => new Set(old).add(name))}
                 onError={() => setFailed(true)}
               />
             ))}
@@ -88,7 +96,6 @@ export function MascotAnimation({
           alt=""
           width={size}
           height={size}
-          onLoad={() => setLoaded((old) => new Set(old).add("sparkles"))}
           onError={() => setFailed(true)}
         />
       </div>
@@ -107,20 +114,24 @@ export function MascotLoading({
   active?: boolean;
   startup?: boolean;
 }) {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setVisible(true), motion.delay);
+    return () => clearTimeout(timer);
+  }, []);
   return (
     <div
       className={`mascot-loading${startup ? " mascot-startup" : ""}`}
       role="status"
       aria-live="polite"
-      aria-busy="true"
       aria-label={label}
     >
       <div
         className="mascot-loading-visual"
         aria-hidden="true"
-        style={{ animationDelay: `${motion.delay}ms` }}
+        data-visible={visible}
       >
-        <MascotAnimation size={size} active={active} />
+        <MascotAnimation size={size} active={active && visible} />
         <p>{label}</p>
       </div>
     </div>

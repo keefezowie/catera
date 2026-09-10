@@ -1,0 +1,15 @@
+{
+  "date": "2026-09-10",
+  "changes": ["Persistent marketplace shell and content loading boundary", "Decoded artwork handoff and continuous blink blending", "Reduced-motion reveal fix"],
+  "browserTests": {"mascotPassed": 8, "navigationPassed": 2},
+  "nativeTests": {"iosPassed": 24, "androidPassed": 24},
+  "coreTestsPassed": 48,
+  "postgresScenariosPassed": 5,
+  "brandVerification": "passed",
+  "typecheck": "passed",
+  "build": "passed",
+  "nativeExports": ["android", "ios"],
+  "screenshots": ["scoped-390.png", "scoped-1440.png", "scoped-seller.png"],
+  "nativeDeviceValidation": "unavailable on this host",
+  "productionDeployed": false
+}

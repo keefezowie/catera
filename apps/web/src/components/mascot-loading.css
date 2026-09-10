@@ -11,13 +11,24 @@
   min-height: 100svh;
   background: #fff7e9;
 }
+.site-main > .mascot-loading {
+  min-height: 65vh;
+}
+.ops-main > .mascot-loading {
+  min-height: calc(100svh - 160px);
+}
 .mascot-loading-visual {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 16px;
   visibility: hidden;
-  animation: mascot-reveal 0s forwards;
+  opacity: 0;
+  transition: opacity 120ms ease-out;
+}
+.mascot-loading-visual[data-visible="true"] {
+  visibility: visible;
+  opacity: 1;
 }
 .mascot-loading-visual p {
   margin: 0;
@@ -42,24 +53,24 @@
   inset: 0;
 }
 .mascot-rig {
-  visibility: hidden;
+  opacity: 0;
 }
-.mascot-animation[data-ready="true"][data-active="true"] .mascot-rig {
-  visibility: visible;
+.mascot-animation[data-ready="true"] .mascot-rig {
+  opacity: 1;
 }
-.mascot-animation[data-ready="true"][data-active="true"] .mascot-poster {
-  visibility: hidden;
+.mascot-animation[data-ready="true"] .mascot-poster {
+  opacity: 0;
 }
 .mascot-body {
   transform-origin: 50% 80%;
   animation: mascot-bob var(--mascot-duration) ease-in-out infinite;
 }
 .mascot-half {
-  animation: mascot-half var(--mascot-duration) steps(1, end) infinite;
+  animation: mascot-half var(--mascot-duration) linear infinite;
   opacity: 0;
 }
 .mascot-closed {
-  animation: mascot-blink var(--mascot-duration) steps(1, end) infinite;
+  animation: mascot-blink var(--mascot-duration) linear infinite;
   opacity: 0;
 }
 .mascot-sparkles {
@@ -69,11 +80,6 @@
 .mascot-animation[data-active="false"] *,
 .mascot-animation[data-ready="false"] * {
   animation-play-state: paused;
-}
-@keyframes mascot-reveal {
-  to {
-    visibility: visible;
-  }
 }
 @keyframes mascot-bob {
   0%,
@@ -94,35 +100,37 @@
 }
 @keyframes mascot-half {
   0%,
-  48.75%,
+  45%,
   53.75%,
   100% {
     opacity: 0;
   }
   46.25%,
-  51.25% {
+  52.5% {
     opacity: 1;
   }
 }
 @keyframes mascot-blink {
   0%,
+  47.5%,
   51.25%,
   100% {
     opacity: 0;
   }
-  48.75% {
+  48.75%,
+  50% {
     opacity: 1;
   }
 }
 @keyframes mascot-sparkle {
   0%,
   100% {
-    transform: scale(0.95);
-    opacity: 0.85;
+    transform: scale(1);
+    opacity: 1;
   }
   50% {
     transform: scale(1.05);
-    opacity: 1;
+    opacity: 0.9;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -130,7 +138,7 @@
     display: none;
   }
   .mascot-animation .mascot-poster {
-    visibility: visible !important;
+    opacity: 1 !important;
   }
   .mascot-animation * {
     animation: none;

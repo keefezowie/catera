@@ -34,7 +34,7 @@ import {
   type Offer,
   type Locale,
 } from "@catera/domain";
-import { Provider, useApp, api } from "./context";
+import { Provider, CatalogProvider, useApp, api } from "./context";
 import { Brand, ErrorNotice } from "./ui";
 import { Select, SelectOption } from "./select";
 import { catalogHref, howItWorksHref } from "@/lib/navigation";
@@ -47,22 +47,43 @@ const Onboarding = dynamic(() => import("./seller").then((m) => m.Onboarding));
 const Admin = dynamic(() => import("./admin").then((m) => m.Admin));
 export function Application({
   path,
-  actor,
   offers,
-  demo,
-  locale,
   issue,
 }: {
   path: string[];
-  actor: Actor | null;
   offers: Offer[];
-  demo: boolean;
-  locale: Locale;
   issue: string | null;
 }) {
   return (
-    <Provider actor={actor} offers={offers} demo={demo} initialLocale={locale}>
+    <CatalogProvider offers={offers}>
       <App path={path} issue={issue} />
+    </CatalogProvider>
+  );
+}
+// Lives above the route loading boundary so shared chrome keeps its DOM and state.
+export function ApplicationLayout({
+  actor,
+  demo,
+  locale,
+  children,
+}: {
+  actor: Actor | null;
+  demo: boolean;
+  locale: Locale;
+  children: ReactNode;
+}) {
+  const pathname = usePathname();
+  const root = pathname.split("/")[1];
+  return (
+    <Provider actor={actor} offers={[]} demo={demo} initialLocale={locale}>
+      <Shell
+        operational={
+          ["seller", "admin"].includes(root) &&
+          pathname !== "/seller/onboarding"
+        }
+      >
+        {children}
+      </Shell>
     </Provider>
   );
 }
@@ -90,16 +111,14 @@ function App({ path, issue }: { path: string[]; issue: string | null }) {
   else if (root === "brand") body = <AssetGallery />;
   else body = <Catalog caterer={root === "locations" ? id : undefined} />;
   return (
-    <Shell
-      operational={["seller", "admin"].includes(root) && id !== "onboarding"}
-    >
+    <>
       {issue &&
       ["", "discover", "search", "locations", "categories"].includes(root) ? (
         <ErrorNotice message="Catera belum terhubung ke lingkungan V1. Konfigurasi Supabase diperlukan sebelum layanan tersedia." />
       ) : (
         body
       )}
-    </Shell>
+    </>
   );
 }
 const customerNav = [

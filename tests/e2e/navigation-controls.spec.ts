@@ -50,5 +50,6 @@ test('marketplace section links preserve state and dropdowns work by keyboard an
 test('legacy discover address redirects to the English catalog anchor',async({page})=>{
   await page.goto('/discover?source=test');
   await expect(page).toHaveURL(/\/\?source=test#packages$/);
-  await expect(page.locator('#packages')).toBeVisible();
+  // Ignore Next's temporary streamed subtree outside the live content region.
+  await expect(page.locator('#main #packages')).toBeVisible();
 });

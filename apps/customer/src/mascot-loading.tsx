@@ -83,25 +83,26 @@ export function MascotAnimation({
     ],
   }));
   const half = useAnimatedStyle(() => ({
-    opacity:
-      (progress.value >= motion.blink[0] && progress.value < motion.blink[1]) ||
-      (progress.value >= motion.blink[2] && progress.value < motion.blink[3])
-        ? 1
-        : 0,
+    opacity: interpolate(
+      progress.value,
+      [...motion.halfOpacityTimes],
+      [0, 0, 1, 1, 0, 0],
+    ),
   }));
   const closed = useAnimatedStyle(() => ({
-    opacity:
-      progress.value >= motion.blink[1] && progress.value < motion.blink[2]
-        ? 1
-        : 0,
+    opacity: interpolate(
+      progress.value,
+      [...motion.closedOpacityTimes],
+      [0, 0, 1, 1, 0, 0],
+    ),
   }));
   const sparkle = useAnimatedStyle(() => ({
     transform: [
       {
-        scale: 0.95 + (0.1 * (1 - Math.cos(progress.value * Math.PI * 2))) / 2,
+        scale: 1 + (0.05 * (1 - Math.cos(progress.value * Math.PI * 2))) / 2,
       },
     ],
-    opacity: interpolate(progress.value, [0, 0.5, 1], [0.85, 1, 0.85]),
+    opacity: interpolate(progress.value, [0, 0.5, 1], [1, 0.9, 1]),
   }));
   const loadedLayer = (name: string) => () =>
     setLoaded((old) => new Set(old).add(name));

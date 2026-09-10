@@ -31,6 +31,18 @@ type Context = {
   setLocale: (l: Locale) => void;
 };
 const AppContext = createContext<Context>(null!);
+const CatalogContext = createContext<Offer[] | null>(null);
+export function CatalogProvider({
+  offers,
+  children,
+}: {
+  offers: Offer[];
+  children: ReactNode;
+}) {
+  return (
+    <CatalogContext.Provider value={offers}>{children}</CatalogContext.Provider>
+  );
+}
 export function Provider({
   actor,
   offers,
@@ -159,7 +171,11 @@ export function Provider({
     </AppContext.Provider>
   );
 }
-export const useApp = () => useContext(AppContext);
+export const useApp = () => {
+  const app = useContext(AppContext);
+  const offers = useContext(CatalogContext);
+  return offers ? { ...app, offers } : app;
+};
 export function useResource<T>(key: string, load: () => Promise<T>) {
   const { revision } = useApp();
   const [data, setData] = useState<T | null>(null),
