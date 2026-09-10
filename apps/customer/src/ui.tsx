@@ -1,4 +1,5 @@
-import { useRef, useState, type ReactNode, type RefObject } from "react";
+import { useCallback, useRef, useState, type ReactNode, type RefObject } from "react";
+import { MascotLoading } from "./mascot-loading";
 import {
   ScrollView,
   View,
@@ -6,7 +7,6 @@ import {
   Pressable,
   TextInput,
   Image,
-  ActivityIndicator,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
@@ -18,7 +18,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import {
   errors,
@@ -494,9 +494,14 @@ export function Empty({
   );
 }
 export function Gate({ children }: { children: ReactNode }) {
-  const { actor, ready, error, refresh } = useNative();
+  const { actor, ready, error, refresh, t } = useNative();
+  const [focused, setFocused] = useState(false);
+  useFocusEffect(useCallback(() => {
+    setFocused(true);
+    return () => setFocused(false);
+  }, []));
   if (!ready)
-    return <ActivityIndicator style={{ margin: 80 }} color={C.forest} />;
+    return <MascotLoading active={focused} label={t("Menyiapkan Catera untuk Anda…", "Getting Catera ready for you…")} />;
   if (error)
     return (
       <Screen title="Belum dapat terhubung">

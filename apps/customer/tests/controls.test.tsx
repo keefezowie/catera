@@ -17,7 +17,7 @@ jest.mock("../src/context", () => ({
   }),
   apiBase: "http://localhost:3000",
 }));
-jest.mock("expo-router", () => ({ router: { push: jest.fn() } }));
+jest.mock("expo-router", () => ({ router: { push: jest.fn() }, useFocusEffect: (effect: () => void) => require("react").useEffect(effect, []) }));
 jest.mock("@react-native-community/datetimepicker", () => ({
   __esModule: true,
   default: () => null,

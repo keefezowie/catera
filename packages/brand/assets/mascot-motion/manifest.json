@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "source": "assets/mascot.png",
+  "sourceSha256": "0bcb91dd7768dfd565e43c7c68c625e9c5bbaa82b338b4c426f05c254ff96b89",
+  "sources": [
+    {
+      "file": "motion-sources/half.png",
+      "width": 1254,
+      "height": 1254,
+      "hasAlpha": false,
+      "sha256": "e06d3166c72bc7f61163f29182d02e5d2cda9cba1fc16065f116346b2d0153a1"
+    },
+    {
+      "file": "motion-sources/closed.png",
+      "width": 1254,
+      "height": 1254,
+      "hasAlpha": false,
+      "sha256": "e86e8905efa3d43bba97a63cab72e3f6f27c49562aab6de123da4aa13fff9562"
+    }
+  ],
+  "patch": {
+    "left": 458,
+    "top": 796,
+    "width": 174,
+    "height": 146,
+    "feather": 14
+  },
+  "canvas": 480,
+  "bodyPivot": [
+    0.5,
+    0.8
+  ],
+  "sparklePivot": [
+    0.84,
+    0.39
+  ],
+  "totalBytes": 363926,
+  "files": [
+    {
+      "file": "neutral.png",
+      "width": 480,
+      "height": 480,
+      "bytes": 173905,
+      "sha256": "685420aa77b8642ee8e9d7663494a581c8ee00f654c315053cf451fd8fb1a270"
+    },
+    {
+      "file": "body.png",
+      "width": 480,
+      "height": 480,
+      "bytes": 168324,
+      "sha256": "6c5574bc7d90cc3efe3ff23895b457aaefbe5edaa131e81043b3eaec103e7c95"
+    },
+    {
+      "file": "half.png",
+      "width": 480,
+      "height": 480,
+      "bytes": 7752,
+      "sha256": "5910663802ffc85da534f9b8cc84cf83d2c30aad40d131d812e10528125c09cf"
+    },
+    {
+      "file": "closed.png",
+      "width": 480,
+      "height": 480,
+      "bytes": 6913,
+      "sha256": "07350327c565ee9391b355e1b520d75c72cca447c66739bf510b68f3318fcb2d"
+    },
+    {
+      "file": "sparkles.png",
+      "width": 480,
+      "height": 480,
+      "bytes": 7032,
+      "sha256": "479aedf1ce9f2319cd7054cb2c9f6b7662d3028bf41d49c3ff04d6f62dbe4db2"
+    }
+  ],
+  "notes": "Original body and sparkles preserved. Generated blink artwork used only inside feathered eye patches. Opaque generated backgrounds are not used. Runtime PNG derivatives contain real alpha; no upscaling."
+}

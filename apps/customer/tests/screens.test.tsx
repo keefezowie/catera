@@ -28,6 +28,7 @@ jest.mock("../src/context", () => ({
   nativeApi: { request: jest.fn() },
 }));
 jest.mock("expo-router", () => ({
+  useFocusEffect: (effect: () => void) => require("react").useEffect(effect, []),
   router: { replace: jest.fn(), push: jest.fn() },
   useLocalSearchParams: () => ({ next: "/checkout/package-1?portions=2" }),
 }));

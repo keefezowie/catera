@@ -5,6 +5,7 @@ import { X, ArrowRight, LoaderCircle, Check, AlertCircle } from "lucide-react";
 import { useState, type ReactNode, type FormEvent } from "react";
 import { errors, statusLabel } from "@catera/domain";
 import { useApp } from "./context";
+import { MascotLoading } from "./mascot-loading";
 export function Brand({ small = false }: { small?: boolean }) {
   return (
     <Link
@@ -70,12 +71,8 @@ export function Empty({
   );
 }
 export function Loading() {
-  return (
-    <div className="loading-content" role="status">
-      <LoaderCircle className="spin" size={24} />
-      <span>Memuat…</span>
-    </div>
-  );
+  const { locale } = useApp();
+  return <MascotLoading label={locale === "en" ? "Getting Catera ready for you…" : "Menyiapkan Catera untuk Anda…"} />;
 }
 export function ErrorNotice({
   message,

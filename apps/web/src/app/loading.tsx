@@ -1,1 +1,8 @@
-export default function Loading(){return <main className="loading-page" role="status"><div className="skeleton"/><p>Menyiapkan Catera untuk Anda…</p></main>}
+import { MascotLoading } from "../components/mascot-loading";
+export default function Loading() {
+  return (
+    <main>
+      <MascotLoading startup />
+    </main>
+  );
+}

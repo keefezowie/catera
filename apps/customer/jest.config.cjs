@@ -12,6 +12,7 @@ module.exports = {
     "^@catera/api-client$": "<rootDir>/../../packages/api-client/src/index.ts",
   },
   transformIgnorePatterns: [
-    "node_modules/(?!((jest-)?react-native|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|expo-.*|@expo/.*|react-navigation|@react-navigation/.*|@catera/.*)/)",
+    "node_modules/(?!((jest-)?react-native|react-native-reanimated|react-native-worklets|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|expo-.*|@expo/.*|react-navigation|@react-navigation/.*|@catera/.*)/)",
   ],
+  setupFilesAfterEnv: ["<rootDir>/tests/setup.cjs"],
 };

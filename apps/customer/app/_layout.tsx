@@ -1,7 +1,8 @@
 import { Stack } from "expo-router";
 import { useFonts } from "expo-font";
 import { StatusBar } from "expo-status-bar";
-import { ActivityIndicator, View, Text } from "react-native";
+import { View, Text } from "react-native";
+import { MascotLoading } from "../src/mascot-loading";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { NativeProvider, useNative } from "../src/context";
 
@@ -74,7 +75,7 @@ export default function Layout() {
         <Text>Font tidak dapat dimuat. Mulai ulang aplikasi.</Text>
       </View>
     );
-  if (!loaded) return <ActivityIndicator color="#163D2E" style={{ flex: 1 }} />;
+  if (!loaded) return <MascotLoading startup />;
   return (
     <SafeAreaProvider>
       <NativeProvider>

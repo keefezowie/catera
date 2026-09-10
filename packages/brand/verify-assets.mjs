@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import sharp from 'sharp';
+import './verify-mascot-motion.mjs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';

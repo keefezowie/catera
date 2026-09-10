@@ -1,0 +1,21 @@
+{
+  "date": "2026-09-10",
+  "runtimeArtworkBytes": 363926,
+  "typecheck": "passed",
+  "productionBuild": "passed",
+  "coreTests": { "passed": 48 },
+  "nativeTests": { "iosPassed": 24, "androidPassed": 24 },
+  "nativeExports": { "ios": "passed", "android": "passed" },
+  "brandVerification": "passed, including original asset hashes and motion source/runtime alpha verification",
+  "postgres": { "passedScenarios": 5, "port": 25439, "evidence": "../verification/postgres.json" },
+  "browser": {
+    "mascotPassed": 3,
+    "navigationPassed": 2,
+    "broaderRunPassed": 6,
+    "broaderRunFailed": 2,
+    "failures": ["Checkout authorization error prevented schedule preview", "Seller production CSV export link absent"],
+    "visualPageErrors": []
+  },
+  "nativeDeviceValidation": "unavailable: no Android SDK/emulator or iOS simulator",
+  "deployed": false
+}

@@ -42,3 +42,5 @@ This is the implementation status of the user-approved September 9, 2026 overhau
 - packages/brand/manifest.*.json: asset provenance and honest dimensions/alpha metadata.
 
 No production deployment, real transaction, SMS/email to customers, or hosted database reset was performed during this implementation.
+
+September 10 mascot loading implementation: see [MASCOT-MOTION.md](MASCOT-MOTION.md) and `output/mascot-motion/` for blink provenance, web/native integration and local verification. Native physical-device motion/accessibility validation remains a release gate.

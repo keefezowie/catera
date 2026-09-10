@@ -4,6 +4,8 @@ Updated September 9, 2026. This record supersedes pilot policies in archive/pilo
 
 ## Implemented foundation
 
+September 10: the approved animated bento now serves major web/native loading states. See [mascot implementation and verification](MASCOT-MOTION.md) for artwork provenance, accessibility behavior, local evidence and outstanding physical-device checks.
+
 - npm workspaces: apps/web (Next 16.3.4), apps/customer (Expo 57 / React Native 0.86), shared domain, API client, backend, design tokens and brand packages.
 - The old source, tests, scripts and documents are preserved in archive/pilot. No hosted pilot code, project data or deployment was changed. The pilot Supabase reference is explicitly refused by the V1 backend.
 - The lockfile was repaired. A fresh directory containing only workspace manifests and package-lock.json successfully ran npm ci, installing 1295 packages on Node 24.14.1. Evidence: output/install-verification.json.
