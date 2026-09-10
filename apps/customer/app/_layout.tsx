@@ -1,2 +1,85 @@
-import {Stack} from 'expo-router';import {useFonts} from 'expo-font';import {StatusBar} from 'expo-status-bar';import {ActivityIndicator,View,Text} from 'react-native';import {SafeAreaProvider} from 'react-native-safe-area-context';import {NativeProvider} from '../src/context';
-export default function Layout(){const[loaded,error]=useFonts({Jakarta:require('../../../packages/brand/assets/fonts/PlusJakartaSans[wght].ttf')});if(error)return <View><Text>Font tidak dapat dimuat. Mulai ulang aplikasi.</Text></View>;if(!loaded)return <ActivityIndicator color="#163D2E" style={{flex:1}}/>;return <SafeAreaProvider><NativeProvider><StatusBar style="dark"/><Stack screenOptions={{headerTintColor:'#163D2E',headerStyle:{backgroundColor:'#FDFAF3'},headerTitleStyle:{fontFamily:'Jakarta'},contentStyle:{backgroundColor:'#FDFAF3'},headerBackTitle:'Kembali'}}><Stack.Screen name="(tabs)" options={{headerShown:false}}/><Stack.Screen name="login" options={{title:'Masuk',presentation:'modal'}}/><Stack.Screen name="package/[id]" options={{title:'Detail paket'}}/><Stack.Screen name="checkout/[id]" options={{title:'Porsi & jadwal'}}/><Stack.Screen name="payment/[id]" options={{title:'Pembayaran'}}/><Stack.Screen name="delivery/[id]" options={{title:'Pengantaran'}}/><Stack.Screen name="subscriptions/[id]" options={{title:'Langganan'}}/><Stack.Screen name="support" options={{title:'Bantuan'}}/><Stack.Screen name="addresses" options={{title:'Alamat'}}/><Stack.Screen name="compare" options={{title:'Bandingkan paket'}}/><Stack.Screen name="notifications" options={{title:'Notifikasi'}}/></Stack></NativeProvider></SafeAreaProvider>}
+import { Stack } from "expo-router";
+import { useFonts } from "expo-font";
+import { StatusBar } from "expo-status-bar";
+import { ActivityIndicator, View, Text } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { NativeProvider, useNative } from "../src/context";
+
+function Navigation() {
+  const { t } = useNative();
+  return (
+    <>
+      <StatusBar style="dark" />
+      <Stack
+        screenOptions={{
+          headerTintColor: "#163D2E",
+          headerStyle: { backgroundColor: "#FDFAF3" },
+          headerTitleStyle: { fontFamily: "Jakarta" },
+          contentStyle: { backgroundColor: "#FDFAF3" },
+          headerBackTitle: t("Kembali", "Back"),
+        }}
+      >
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="login"
+          options={{ title: t("Masuk", "Sign in"), presentation: "modal" }}
+        />
+        <Stack.Screen
+          name="package/[id]"
+          options={{ title: t("Detail paket", "Package details") }}
+        />
+        <Stack.Screen
+          name="checkout/[id]"
+          options={{ title: t("Porsi & jadwal", "Portions & schedule") }}
+        />
+        <Stack.Screen
+          name="payment/[id]"
+          options={{ title: t("Pembayaran", "Payment") }}
+        />
+        <Stack.Screen
+          name="delivery/[id]"
+          options={{ title: t("Pengantaran", "Delivery") }}
+        />
+        <Stack.Screen
+          name="subscriptions/[id]"
+          options={{ title: t("Langganan", "Subscription") }}
+        />
+        <Stack.Screen
+          name="support"
+          options={{ title: t("Bantuan", "Support") }}
+        />
+        <Stack.Screen
+          name="addresses"
+          options={{ title: t("Alamat", "Addresses") }}
+        />
+        <Stack.Screen
+          name="compare"
+          options={{ title: t("Bandingkan paket", "Compare packages") }}
+        />
+        <Stack.Screen
+          name="notifications"
+          options={{ title: t("Notifikasi", "Notifications") }}
+        />
+      </Stack>
+    </>
+  );
+}
+export default function Layout() {
+  const [loaded, error] = useFonts({
+    Jakarta: require("../../../packages/brand/assets/fonts/PlusJakartaSans[wght].ttf"),
+  });
+  if (error)
+    return (
+      <View>
+        <Text>Font tidak dapat dimuat. Mulai ulang aplikasi.</Text>
+      </View>
+    );
+  if (!loaded) return <ActivityIndicator color="#163D2E" style={{ flex: 1 }} />;
+  return (
+    <SafeAreaProvider>
+      <NativeProvider>
+        <Navigation />
+      </NativeProvider>
+    </SafeAreaProvider>
+  );
+}

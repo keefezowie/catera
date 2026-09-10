@@ -17,6 +17,7 @@ import { router } from "expo-router";
 import { createClient } from "@supabase/supabase-js";
 import { createApi } from "@catera/api-client";
 import { type Actor, type Offer, type Locale, errors } from "@catera/domain";
+import { signInNative } from "./auth";
 export const apiBase = (process.env.EXPO_PUBLIC_API_URL || "").replace(
   /\/$/,
   "",
@@ -76,7 +77,8 @@ type Value = {
     action: string,
     payload: unknown,
   ) => Promise<T>;
-  login: (phone: string, token: string, name: string) => Promise<void>;
+  login: (phone: string, token: string, name: string) => Promise<Actor>;
+  passwordLogin: (email: string, password: string) => Promise<Actor>;
   demoLogin: () => Promise<void>;
   logout: () => Promise<void>;
   setLocale: (l: Locale) => void;
@@ -97,13 +99,18 @@ export function NativeProvider({ children }: { children: ReactNode }) {
   const refresh = useCallback(async () => {
     try {
       if (!apiBase) throw new Error("NOT_CONFIGURED");
-      const [catalog, me] = await Promise.all([
+      const [catalogResult, meResult] = await Promise.allSettled([
         nativeApi.catalog("?limit=100"),
         nativeApi.me(),
       ]);
-      setOffers(catalog.items);
-      setActor(me.actor);
-      setDemo(me.demo);
+      if (meResult.status === "fulfilled") {
+        setActor(meResult.value.actor);
+        setDemo(meResult.value.demo);
+      }
+      if (catalogResult.status === "fulfilled")
+        setOffers(catalogResult.value.items);
+      if (meResult.status === "rejected") throw meResult.reason;
+      if (catalogResult.status === "rejected") throw catalogResult.reason;
       setError("");
       setRevision((r) => r + 1);
     } catch (e) {
@@ -182,24 +189,43 @@ export function NativeProvider({ children }: { children: ReactNode }) {
     };
   }, [actor?.id, demo]);
   async function login(phone: string, token: string, name: string) {
+    if (!supabase) throw new Error("NOT_CONFIGURED");
     const r = await nativeApi.request<{
       session: { access_token: string; refresh_token: string };
     }>("auth/verify", { phone, token, name });
-    if (!supabase) throw new Error("NOT_CONFIGURED");
     const { error } = await supabase.auth.setSession(r.session);
     if (error) throw error;
+    await SecureStore.deleteItemAsync("catera.demo.token");
+    const me = await nativeApi.me();
+    if (!me.actor) throw new Error("UNAUTHORIZED");
+    setActor(me.actor);
     await refresh();
+    return me.actor;
+  }
+  async function passwordLogin(email: string, password: string) {
+    if (!supabase) throw new Error("NOT_CONFIGURED");
+    const signedIn = await signInNative(
+      supabase,
+      email,
+      password,
+      Crypto.randomUUID(),
+    );
+    await SecureStore.deleteItemAsync("catera.demo.token");
+    setActor(signedIn);
+    await refresh();
+    return signedIn;
   }
   async function demoLogin() {
     const r = await nativeApi.request<{ token: string }>("auth/demo", {
       role: "customer",
     });
+    await supabase?.auth.signOut({ scope: "local" });
     await SecureStore.setItemAsync("catera.demo.token", r.token);
     await refresh();
   }
   async function logout() {
     await SecureStore.deleteItemAsync("catera.demo.token");
-    await supabase?.auth.signOut();
+    await supabase?.auth.signOut({ scope: "local" });
     setActor(null);
     setRevision((r) => r + 1);
     router.replace("/discover");
@@ -260,6 +286,7 @@ export function NativeProvider({ children }: { children: ReactNode }) {
         refresh,
         command,
         login,
+        passwordLogin,
         demoLogin,
         logout,
         setLocale,
@@ -271,11 +298,14 @@ export function NativeProvider({ children }: { children: ReactNode }) {
   );
 }
 export const useNative = () => useContext(Context);
-export const nativeLink = (href: string) =>
-  href
+export const nativeLink = (href: string) => {
+  if (href === "/#packages") return "/discover";
+  if (href === "/#how-it-works") return "/discover?section=how-it-works";
+  return href
     .replace(/^\/deliveries\//, "/delivery/")
     .replace(/^\/packages\//, "/package/")
     .replace(/^\/home$/, "/");
+};
 export function useData<T>(key: string, loader: () => Promise<T>) {
   const { revision } = useNative();
   const [data, setData] = useState<T | null>(null),

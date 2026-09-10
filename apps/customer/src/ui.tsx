@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode, type RefObject } from "react";
 import {
   ScrollView,
   View,
@@ -10,7 +10,10 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  Modal,
   RefreshControl,
+  AccessibilityInfo,
+  findNodeHandle,
   type TextInputProps,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -50,12 +53,14 @@ export function Screen({
   children,
   title,
   refresh,
+  scrollRef,
 }: {
   children: ReactNode;
   title?: string;
   refresh?: () => void;
+  scrollRef?: RefObject<ScrollView | null>;
 }) {
-  const { demo } = useNative();
+  const { demo, t } = useNative();
   return (
     <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
       <KeyboardAvoidingView
@@ -63,6 +68,7 @@ export function Screen({
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScrollView
+          ref={scrollRef}
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.page}
           refreshControl={
@@ -77,7 +83,10 @@ export function Screen({
         >
           {demo && (
             <Txt kind="small" style={styles.demo}>
-              Demo sintetis · Tidak ada transaksi uang
+              {t(
+                "Demo sintetis · Tidak ada transaksi uang",
+                "Synthetic demo · No money transactions",
+              )}
             </Txt>
           )}
           {title && <Txt kind="title">{title}</Txt>}
@@ -137,20 +146,35 @@ export function Run({
   label,
   action,
   secondary = false,
+  successMessage,
 }: {
   label: string;
   action: () => Promise<unknown>;
   secondary?: boolean;
+  successMessage?: string;
 }) {
+  const { t } = useNative();
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [success, setSuccess] = useState(false);
   return (
     <View style={styles.stack}>
-      {error ? <Txt style={styles.error}>{error}</Txt> : null}
-      {success ? <Txt kind="small">Perubahan tersimpan.</Txt> : null}
+      {error ? (
+        <View
+          accessible
+          accessibilityRole="alert"
+          accessibilityLiveRegion="polite"
+        >
+          <Txt style={styles.error}>{error}</Txt>
+        </View>
+      ) : null}
+      {success && successMessage !== "" ? (
+        <Txt kind="small">
+          {successMessage ?? t("Perubahan tersimpan.", "Changes saved.")}
+        </Txt>
+      ) : null}
       <Btn
-        label={busy ? "Memproses…" : label}
+        label={busy ? t("Memproses…", "Processing…") : label}
         disabled={busy}
         secondary={secondary}
         onPress={async () => {
@@ -161,7 +185,20 @@ export function Run({
             await action();
             setSuccess(true);
           } catch (e) {
-            setError(errors[(e as Error).message] || (e as Error).message);
+            const code = (e as Error).message;
+            setError(
+              code === "INVALID_CREDENTIALS"
+                ? t(
+                    "Email atau kata sandi tidak cocok. Coba lagi.",
+                    "Email or password is incorrect. Try again.",
+                  )
+                : code === "AUTH_RATE_LIMITED"
+                  ? t(
+                      "Terlalu banyak percobaan. Tunggu sebentar lalu coba lagi.",
+                      "Too many attempts. Wait a moment and try again.",
+                    )
+                  : errors[code] || code,
+            );
           } finally {
             setBusy(false);
           }
@@ -176,7 +213,7 @@ export function Field({ label, ...props }: { label: string } & TextInputProps) {
       <Txt kind="label">{label}</Txt>
       <TextInput
         accessibilityLabel={label}
-        placeholderTextColor="#757B6E"
+        placeholderTextColor={C.muted}
         style={[
           styles.input,
           props.multiline && { minHeight: 100, textAlignVertical: "top" },
@@ -197,32 +234,117 @@ export function Select({
   value: string;
   onChange: (v: string) => void;
 }) {
+  const [open, setOpen] = useState(false);
+  const { t } = useNative();
+  const trigger = useRef<View>(null);
+  const heading = useRef<View>(null);
+  function focus(target: View | null) {
+    const handle = target && findNodeHandle(target);
+    if (handle) AccessibilityInfo.setAccessibilityFocus(handle);
+  }
+  function close() {
+    setOpen(false);
+    requestAnimationFrame(() => focus(trigger.current));
+  }
+  const selected =
+    options.find((o) => o.value === value)?.label ||
+    t("Pilih opsi", "Choose an option");
   return (
     <View style={styles.stack}>
       <Txt kind="label">{label}</Txt>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.chips}
+      <Pressable
+        ref={trigger}
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        accessibilityValue={{ text: selected }}
+        accessibilityState={{ expanded: open }}
+        onPress={() => setOpen(true)}
+        style={styles.nativeSelectTrigger}
       >
-        {options.map((o) => (
+        <Txt style={{ flex: 1 }}>{selected}</Txt>
+        <Ionicons name="chevron-down" size={17} color={C.forest} />
+      </Pressable>
+      <Modal
+        visible={open}
+        transparent
+        animationType="none"
+        onShow={() => focus(heading.current)}
+        onDismiss={() => focus(trigger.current)}
+        onRequestClose={close}
+      >
+        <SafeAreaView style={styles.selectBackdrop}>
           <Pressable
-            accessibilityRole="radio"
-            accessibilityState={{ checked: value === o.value }}
-            key={o.value}
-            onPress={() => onChange(o.value)}
-            style={[styles.chip, value === o.value && styles.selectedChip]}
+            style={StyleSheet.absoluteFill}
+            accessible={false}
+            onPress={close}
+          />
+          <View
+            style={styles.selectSheet}
+            accessibilityViewIsModal
+            onAccessibilityEscape={close}
           >
-            <Txt
-              kind="small"
-              style={{ color: value === o.value ? C.cream : C.forest }}
+            <View style={[styles.row, { justifyContent: "space-between" }]}>
+              <View
+                ref={heading}
+                accessible
+                accessibilityRole="header"
+                accessibilityLabel={label}
+                style={{ flex: 1 }}
+              >
+                <Txt kind="heading">{label}</Txt>
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("Tutup pilihan", "Close options")}
+                onPress={close}
+                style={styles.qty}
+              >
+                <Ionicons name="close" size={22} color={C.forest} />
+              </Pressable>
+            </View>
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={{ gap: 8 }}
             >
-              {o.label}
-            </Txt>
-          </Pressable>
-        ))}
-      </ScrollView>
+              {options.map((o) => (
+                <Pressable
+                  key={o.value}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: value === o.value }}
+                  onPress={() => {
+                    onChange(o.value);
+                    close();
+                  }}
+                  style={[
+                    styles.nativeOption,
+                    value === o.value && styles.nativeOptionSelected,
+                  ]}
+                >
+                  <Txt style={{ flex: 1 }}>{o.label}</Txt>
+                  {value === o.value && (
+                    <Ionicons name="checkmark" size={19} color={C.forest} />
+                  )}
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        </SafeAreaView>
+      </Modal>
     </View>
+  );
+}
+export function LanguageSelect() {
+  const { locale, setLocale, t } = useNative();
+  return (
+    <Select
+      label={t("Bahasa", "Language")}
+      value={locale}
+      onChange={(value) => setLocale(value as "id" | "en")}
+      options={[
+        { value: "id", label: "Bahasa Indonesia" },
+        { value: "en", label: "English" },
+      ]}
+    />
   );
 }
 export function DayPicker({
@@ -400,7 +522,7 @@ export function Gate({ children }: { children: ReactNode }) {
   return children;
 }
 export function OfferCard({ offer: o }: { offer: Offer }) {
-  const { compare, toggleCompare, area, locale } = useNative();
+  const { compare, toggleCompare, area, locale, t } = useNative();
   return (
     <View style={styles.offer}>
       <Pressable
@@ -418,7 +540,7 @@ export function OfferCard({ offer: o }: { offer: Offer }) {
           <Pressable
             accessibilityRole="checkbox"
             accessibilityState={{ checked: compare.includes(o.id) }}
-            accessibilityLabel={"Bandingkan " + o.name}
+            accessibilityLabel={t("Bandingkan ", "Compare ") + o.name}
             onPress={() => toggleCompare(o.id)}
             style={styles.qty}
           >
@@ -431,11 +553,11 @@ export function OfferCard({ offer: o }: { offer: Offer }) {
         </View>
         <Txt kind="heading">{o.name}</Txt>
         <Txt kind="small">
-          {mealLabel(o.meal, locale)} · {o.days} hari ·{" "}
-          {o.flexible ? "Fleksibel" : "Tetap"}
+          {mealLabel(o.meal, locale)} · {o.days} {t("hari", "days")} ·{" "}
+          {o.flexible ? t("Fleksibel", "Flexible") : t("Tetap", "Fixed")}
         </Txt>
         <Txt kind="small">
-          {o.trialPrice ? "Bisa coba 1 hari · " : ""}
+          {o.trialPrice ? t("Bisa coba 1 hari · ", "One-day trial · ") : ""}
           {o.tags.join(" · ")}
         </Txt>
         <View
@@ -447,11 +569,12 @@ export function OfferCard({ offer: o }: { offer: Offer }) {
           <View>
             <Txt kind="heading">{currency(o.price)}</Txt>
             <Txt kind="small">
-              / porsi / hari{o.meal === "both" ? " · 2 kali makan" : ""}
+              {t("/ porsi / hari", "/ portion / day")}
+              {o.meal === "both" ? t(" · 2 kali makan", " · 2 meals") : ""}
             </Txt>
           </View>
           <Btn
-            label="Lihat paket"
+            label={t("Lihat paket", "View package")}
             secondary
             onPress={() => router.push(("/package/" + o.id) as never)}
           />
@@ -464,8 +587,8 @@ export function OfferCard({ offer: o }: { offer: Offer }) {
           }}
         >
           {area && !o.areas.includes(area)
-            ? "Di luar area pengantaran"
-            : "Pengantaran termasuk"}
+            ? t("Di luar area pengantaran", "Outside delivery area")
+            : t("Pengantaran termasuk", "Delivery included")}
         </Txt>
       </View>
     </View>
@@ -542,6 +665,45 @@ export const styles = StyleSheet.create({
     backgroundColor: "#FFFEF9",
   },
   chips: { gap: 8, paddingVertical: 4 },
+  nativeSelectTrigger: {
+    minHeight: 48,
+    borderWidth: 1,
+    borderColor: C.line,
+    borderRadius: 9,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#FFFEF9",
+  },
+  selectBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(15,38,28,0.35)",
+    justifyContent: "center",
+    padding: 22,
+  },
+  selectSheet: {
+    backgroundColor: C.cream,
+    borderRadius: 16,
+    padding: 18,
+    gap: 8,
+    maxHeight: "82%",
+    maxWidth: 520,
+    width: "100%",
+    alignSelf: "center",
+    flexShrink: 1,
+  },
+  nativeOption: {
+    minHeight: 48,
+    borderRadius: 9,
+    paddingHorizontal: 13,
+    paddingVertical: 12,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  nativeOptionSelected: { backgroundColor: C.soft },
   chip: {
     paddingVertical: 13,
     paddingHorizontal: 15,

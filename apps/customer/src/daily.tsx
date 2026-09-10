@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { View, Pressable, Switch } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import * as SecureStore from "expo-secure-store";
+import * as WebBrowser from "expo-web-browser";
 import {
   currency,
   localDay,
@@ -13,7 +14,7 @@ import {
   type Conversation,
   type Address,
 } from "@catera/domain";
-import { nativeApi, useNative, useData, nativeLink } from "./context";
+import { nativeApi, useNative, useData, nativeLink, apiBase } from "./context";
 import {
   Screen,
   Txt,
@@ -23,6 +24,7 @@ import {
   Panel,
   Photo,
   Select,
+  LanguageSelect,
   Facts,
   Empty,
   Gate,
@@ -623,59 +625,93 @@ export function MessagesScreen() {
   );
 }
 export function AccountScreen() {
-  const { actor, locale, setLocale, enablePush, logout } = useNative();
+  const { actor, enablePush, logout, t } = useNative();
   const s = useData<CustomerState>("account:" + actor?.id, () =>
     nativeApi.customer(),
   );
   return (
     <Gate>
-      <Screen title="Akunmu, keseharianmu.">
+      <Screen
+        title={t("Akunmu, keseharianmu.", "Your account, your everyday.")}
+      >
         <Panel>
           <Txt kind="heading">{actor?.name}</Txt>
-          <Txt>Makanan baik untuk hari-hari yang lebih baik.</Txt>
+          <Txt>
+            {t(
+              "Makanan baik untuk hari-hari yang lebih baik.",
+              "Good meals for better everyday living.",
+            )}
+          </Txt>
         </Panel>
+        {actor && actor.role !== "customer" && (
+          <View style={styles.stack}>
+            <Txt>
+              {t(
+                "Kelola katering dan administrasi melalui ruang kerja web. Masuk kembali di browser dengan akun yang sama.",
+                "Manage catering and administration in your web workspace. Sign in again in the browser with the same account.",
+              )}
+            </Txt>
+            <Run
+              secondary
+              label={
+                actor.role === "platform_admin"
+                  ? t("Buka Catera Admin", "Open Catera Admin")
+                  : t("Buka ruang kerja katerer", "Open caterer workspace")
+              }
+              successMessage=""
+              action={() =>
+                WebBrowser.openBrowserAsync(
+                  apiBase +
+                    (actor.role === "platform_admin" ? "/admin" : "/seller"),
+                )
+              }
+            />
+          </View>
+        )}
         <Btn
           secondary
-          label="Alamat pengantaran"
+          label={t("Alamat pengantaran", "Delivery addresses")}
           icon="location-outline"
           onPress={() => router.push("/addresses")}
         />
         <Btn
           secondary
-          label="Notifikasi"
+          label={t("Notifikasi", "Notifications")}
           icon="notifications-outline"
           onPress={() => router.push("/notifications")}
         />
         <Btn
           secondary
-          label="Bantuan & pembatalan"
+          label={t("Bantuan & pembatalan", "Support & cancellation")}
           icon="help-circle-outline"
           onPress={() => router.push("/support")}
         />
-        <Select
-          label="Bahasa / Language"
-          value={locale}
-          onChange={(v) => setLocale(v as "id" | "en")}
-          options={[
-            { label: "Indonesia", value: "id" },
-            { label: "English", value: "en" },
-          ]}
-        />
+        <LanguageSelect />
         <Run
-          label="Aktifkan notifikasi pengantaran"
+          label={t(
+            "Aktifkan notifikasi pengantaran",
+            "Enable delivery notifications",
+          )}
           secondary
           action={enablePush}
         />
-        <Txt kind="heading">Paket saya</Txt>
+        <Txt kind="heading">{t("Paket saya", "My packages")}</Txt>
         {s.data?.subscriptions.map((s) => (
           <Btn
             key={s.id}
             secondary
-            label={s.snapshot.offer.name + " · " + s.remaining + " hari"}
+            label={
+              s.snapshot.offer.name + " · " + s.remaining + t(" hari", " days")
+            }
             onPress={() => router.push(("/subscriptions/" + s.id) as never)}
           />
         ))}
-        <Run secondary label="Keluar" action={logout} />
+        <Run
+          secondary
+          label={t("Keluar", "Sign out")}
+          action={logout}
+          successMessage=""
+        />
       </Screen>
     </Gate>
   );

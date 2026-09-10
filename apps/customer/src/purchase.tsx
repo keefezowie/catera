@@ -1,5 +1,11 @@
-import { useEffect, useState } from "react";
-import { View, Image, Switch } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import {
+  View,
+  Image,
+  Switch,
+  ScrollView,
+  AccessibilityInfo,
+} from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import * as WebBrowser from "expo-web-browser";
@@ -15,6 +21,7 @@ import {
   areaOptions,
 } from "@catera/domain";
 import { useNative, nativeApi, useData } from "./context";
+import { nativeReturnPath, nativeSignInPath } from "./auth";
 import {
   Screen,
   Txt,
@@ -25,6 +32,7 @@ import {
   Photo,
   OfferCard,
   Select,
+  LanguageSelect,
   Qty,
   Facts,
   Empty,
@@ -34,10 +42,20 @@ import {
   styles,
 } from "./ui";
 export function Discover() {
+  const { section } = useLocalSearchParams<{ section?: string }>();
   const { offers, area, setArea, compare, error, refresh, t } = useNative();
   const [search, setSearch] = useState(""),
     [meal, setMeal] = useState("all"),
     [trial, setTrial] = useState(false);
+  const scroll = useRef<ScrollView>(null);
+  const sections = useRef({ packages: 0, how: 0 });
+  async function scrollTo(section: "packages" | "how") {
+    const reduceMotion = await AccessibilityInfo.isReduceMotionEnabled();
+    scroll.current?.scrollTo({
+      y: sections.current[section],
+      animated: !reduceMotion,
+    });
+  }
   const filtered = offers
     .filter(
       (o) =>
@@ -53,18 +71,31 @@ export function Discover() {
       (a, b) => Number(b.areas.includes(area)) - Number(a.areas.includes(area)),
     );
   return (
-    <Screen refresh={refresh}>
+    <Screen refresh={refresh} scrollRef={scroll}>
       <Image
         source={require("../../../packages/brand/assets/wordmark.png")}
         style={{ width: 148, height: 50, alignSelf: "center" }}
         resizeMode="contain"
       />
+      <LanguageSelect />
+      <View style={styles.row}>
+        <Btn
+          secondary
+          label={t("Jelajah katering", "Explore caterers")}
+          onPress={() => void scrollTo("packages")}
+        />
+        <Btn
+          secondary
+          label={t("Cara berlangganan", "How it works")}
+          onPress={() => void scrollTo("how")}
+        />
+      </View>
       <Select
         label={t("Area pengantaran", "Delivery area")}
         value={area}
         onChange={setArea}
         options={[
-          { value: "", label: "Pilih area" },
+          { value: "", label: t("Pilih area", "Choose your area") },
           ...areaOptions.map((v) => ({ value: v, label: v })),
         ]}
       />
@@ -72,7 +103,10 @@ export function Discover() {
         label={t("Cari makanan favorit", "Find your favorite meals")}
         value={search}
         onChangeText={setSearch}
-        placeholder="Paket, menu, atau katerer"
+        placeholder={t(
+          "Paket, menu, atau katerer",
+          "Package, meal, or caterer",
+        )}
       />
       <View
         style={{
@@ -86,29 +120,41 @@ export function Discover() {
           kind="title"
           style={{ color: C.cream, fontSize: 35, lineHeight: 43 }}
         >
-          Makan enak.{"\n"}Setiap hari.
+          {t("Makan enak.\nSetiap hari.", "Eat well.\nEvery day.")}
         </Txt>
         <Txt style={{ color: "#DDE7D5", fontSize: 12 }}>
-          Pilih makanannya, atur jadwalnya, nikmati harinya.
+          {t(
+            "Pilih makanannya, atur jadwalnya, nikmati harinya.",
+            "Choose your meals, plan your schedule, enjoy your day.",
+          )}
         </Txt>
         <Photo src="/assets/food/ayam-panggang.png" height={190} />
       </View>
-      <Txt kind="heading">Mau makan apa hari ini?</Txt>
+      <View
+        nativeID="packages"
+        onLayout={(event) => {
+          sections.current.packages = event.nativeEvent.layout.y;
+        }}
+      >
+        <Txt kind="heading">
+          {t("Mau makan apa hari ini?", "What sounds good today?")}
+        </Txt>
+      </View>
       <Select
-        label="Waktu makan"
+        label={t("Waktu makan", "Meal time")}
         value={meal}
         onChange={setMeal}
         options={[
-          { label: "Semua paket", value: "all" },
-          { label: "Makan siang", value: "lunch" },
-          { label: "Makan malam", value: "dinner" },
-          { label: "Siang + malam", value: "both" },
+          { label: t("Semua paket", "All packages"), value: "all" },
+          { label: t("Makan siang", "Lunch"), value: "lunch" },
+          { label: t("Makan malam", "Dinner"), value: "dinner" },
+          { label: t("Siang + malam", "Lunch + dinner"), value: "both" },
         ]}
       />
       <View style={[styles.row, { justifyContent: "space-between" }]}>
-        <Txt>Paket yang bisa dicoba dulu</Txt>
+        <Txt>{t("Paket yang bisa dicoba dulu", "Packages with a trial")}</Txt>
         <Switch
-          accessibilityLabel="Trial tersedia"
+          accessibilityLabel={t("Trial tersedia", "Trial available")}
           value={trial}
           onValueChange={setTrial}
           trackColor={{ true: C.forest }}
@@ -117,22 +163,69 @@ export function Discover() {
       {error && <Txt style={styles.error}>{error}</Txt>}
       {compare.length > 0 && (
         <Btn
-          label={"Bandingkan " + compare.length + " paket"}
+          label={
+            t("Bandingkan ", "Compare ") +
+            compare.length +
+            t(" paket", " packages")
+          }
           onPress={() => router.push("/compare")}
         />
       )}
       <Txt kind="small">
-        {filtered.length} paket untuk hari-hari yang lebih baik
+        {filtered.length}{" "}
+        {t(
+          "paket untuk hari-hari yang lebih baik",
+          "packages for better everyday meals",
+        )}
       </Txt>
       {filtered.map((o) => (
         <OfferCard key={o.id} offer={o} />
       ))}
       {!filtered.length && (
         <Empty
-          title="Belum ada paket yang cocok."
-          body="Coba pencarian atau filter lain."
+          title={t("Belum ada paket yang cocok.", "No matching packages yet.")}
+          body={t(
+            "Coba pencarian atau filter lain.",
+            "Try another search or filter.",
+          )}
         />
       )}
+      <View
+        nativeID="how-it-works"
+        style={styles.stack}
+        onLayout={(event) => {
+          sections.current.how = event.nativeEvent.layout.y;
+          if (section === "how-it-works")
+            scroll.current?.scrollTo({
+              y: sections.current.how,
+              animated: false,
+            });
+        }}
+      >
+        <Txt kind="heading">{t("Cara berlangganan", "How it works")}</Txt>
+        <Txt>
+          {t(
+            "Pilih katerer dan paket yang menjangkau alamatmu.",
+            "Choose a caterer and package that deliver to your address.",
+          )}
+        </Txt>
+        <Txt>
+          {t(
+            "Tentukan porsi dan tanggal mulai, lalu tinjau jadwal serta harga sebelum membayar.",
+            "Set portions and a start date, then review the schedule and price before paying.",
+          )}
+        </Txt>
+        <Txt>
+          {t(
+            "Pantau pengantaran di Jadwal. Beli paket berikutnya saat kamu siap; tidak ada perpanjangan otomatis.",
+            "Track deliveries in Calendar. Buy your next package when ready; there is no automatic renewal.",
+          )}
+        </Txt>
+        <Btn
+          label={t("Temukan paketmu", "Find your package")}
+          onPress={() => void scrollTo("packages")}
+        />
+      </View>
     </Screen>
   );
 }
@@ -331,16 +424,24 @@ export function Comparison() {
   );
 }
 export function LoginScreen() {
-  const { demo, demoLogin, login } = useNative();
+  const { demo, demoLogin, login, passwordLogin, t } = useNative();
   const p = useLocalSearchParams<{ next?: string }>();
   const [phone, setPhone] = useState(""),
+    [email, setEmail] = useState(""),
+    [password, setPassword] = useState(""),
     [token, setToken] = useState(""),
     [name, setName] = useState(""),
-    [sent, setSent] = useState(false);
-  const next =
-    p.next?.startsWith("/") && !p.next.startsWith("//") ? p.next : "/";
+    [sent, setSent] = useState(false),
+    [method, setMethod] = useState<"email" | "phone">("email");
+  const next = nativeReturnPath(p.next);
   return (
-    <Screen title="Hari yang baik, dimulai dari makan.">
+    <Screen
+      title={t(
+        "Hari yang baik, dimulai dari makan.",
+        "A good day starts with a good meal.",
+      )}
+    >
+      <LanguageSelect />
       <Image
         source={require("../../../packages/brand/assets/welcome.png")}
         style={{ width: 220, height: 200, alignSelf: "center" }}
@@ -348,7 +449,11 @@ export function LoginScreen() {
       />
       {demo ? (
         <Run
-          label="Jelajah sebagai pelanggan demo"
+          label={t(
+            "Jelajah sebagai pelanggan demo",
+            "Explore as a demo customer",
+          )}
+          successMessage=""
           action={async () => {
             await demoLogin();
             router.replace(next as never);
@@ -356,51 +461,117 @@ export function LoginScreen() {
         />
       ) : (
         <>
-          <Field
-            label="Nomor ponsel"
-            keyboardType="phone-pad"
-            autoComplete="tel"
-            value={phone}
-            onChangeText={setPhone}
-            placeholder="+6281234567890"
-            editable={!sent}
+          <Select
+            label={t("Metode masuk", "Sign-in method")}
+            value={method}
+            onChange={(v) => setMethod(v as "email" | "phone")}
+            options={[
+              {
+                label: t("Email & kata sandi", "Email & password"),
+                value: "email",
+              },
+              { label: t("Kode ponsel", "Phone code"), value: "phone" },
+            ]}
           />
-          {sent && (
+          {method === "email" ? (
             <>
               <Field
-                label="Kode OTP"
-                value={token}
-                onChangeText={setToken}
-                keyboardType="number-pad"
-                autoComplete="sms-otp"
-                maxLength={6}
+                label="Email"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                maxLength={254}
+                autoComplete="email"
+                value={email}
+                onChangeText={setEmail}
+                placeholder="nama@contoh.com"
               />
               <Field
-                label="Nama"
-                value={name}
-                onChangeText={setName}
-                autoComplete="name"
+                label={t("Kata sandi", "Password")}
+                secureTextEntry
+                autoCapitalize="none"
+                autoCorrect={false}
+                maxLength={256}
+                value={password}
+                onChangeText={setPassword}
+                autoComplete="password"
               />
+              <Run
+                label={t("Masuk", "Sign in")}
+                successMessage=""
+                action={async () => {
+                  const actor = await passwordLogin(email, password);
+                  router.replace(nativeSignInPath(actor, next) as never);
+                }}
+              />
+              <Txt kind="small">
+                {t(
+                  "Belum punya akun? Gunakan kode ponsel untuk mendaftar.",
+                  "New here? Use a phone code to register.",
+                )}
+              </Txt>
             </>
-          )}
-          <Run
-            label={sent ? "Verifikasi & masuk" : "Kirim kode OTP"}
-            action={async () => {
-              if (!sent) {
-                await nativeApi.request("auth/send", { phone });
-                setSent(true);
-              } else {
-                await login(phone, token, name);
-                router.replace(next as never);
-              }
-            }}
-          />
-          {sent && (
-            <Btn
-              secondary
-              label="Ubah nomor / kirim ulang"
-              onPress={() => setSent(false)}
-            />
+          ) : (
+            <>
+              <Field
+                label={t("Nomor ponsel", "Phone number")}
+                keyboardType="phone-pad"
+                autoComplete="tel"
+                value={phone}
+                onChangeText={setPhone}
+                placeholder="+6281234567890"
+                editable={!sent}
+              />
+              {sent && (
+                <>
+                  <Field
+                    label={t("Kode OTP", "Verification code")}
+                    value={token}
+                    onChangeText={setToken}
+                    keyboardType="number-pad"
+                    autoComplete="sms-otp"
+                    maxLength={6}
+                  />
+                  <Field
+                    label={t("Nama", "Name")}
+                    value={name}
+                    onChangeText={setName}
+                    autoComplete="name"
+                  />
+                </>
+              )}
+              <Run
+                key={sent ? "verify" : "send"}
+                label={
+                  sent
+                    ? t("Verifikasi & masuk", "Verify & sign in")
+                    : t("Kirim kode OTP", "Send verification code")
+                }
+                successMessage=""
+                action={async () => {
+                  if (!sent) {
+                    await nativeApi.request("auth/send", { phone });
+                    setSent(true);
+                  } else {
+                    const actor = await login(phone, token, name);
+                    router.replace(nativeSignInPath(actor, next) as never);
+                  }
+                }}
+              />
+              {sent && (
+                <Btn
+                  secondary
+                  label={t(
+                    "Ubah nomor / kirim ulang",
+                    "Change number / resend",
+                  )}
+                  onPress={() => {
+                    setSent(false);
+                    setToken("");
+                  }}
+                />
+              )}
+            </>
           )}
         </>
       )}
