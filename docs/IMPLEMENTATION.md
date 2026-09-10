@@ -1,66 +1,52 @@
-# Implementation baseline
+# Catera V1 implementation record
 
-Implemented from the approved September 2026 plan. Historical planning-only and troubleshooting instructions in the original handoff remain reference material; the current implementation request supersedes them.
+Updated September 9, 2026. This record supersedes pilot policies in archive/pilot. It describes the implementation; it does not certify production launch.
 
-## Structure
+## Implemented foundation
 
-One Next.js App Router application serves both roles. Server actions validate Zod inputs, verify the current user, invoke database RPCs with the caller's identity, and invalidate tenant UI data. Tenant slugs select context; database membership establishes authority. The browser receives only the authorized workspace snapshot. It refreshes on focus and every 30 seconds while visible; successful changes refresh immediately and announce an in-app confirmation.
+- npm workspaces: apps/web (Next 16.3.4), apps/customer (Expo 57 / React Native 0.86), shared domain, API client, backend, design tokens and brand packages.
+- The old source, tests, scripts and documents are preserved in archive/pilot. No hosted pilot code, project data or deployment was changed. The pilot Supabase reference is explicitly refused by the V1 backend.
+- The lockfile was repaired. A fresh directory containing only workspace manifests and package-lock.json successfully ran npm ci, installing 1295 packages on Node 24.14.1. Evidence: output/install-verification.json.
+- npm run dev explicitly opts into persistent synthetic PGlite storage. Hosted mode requires Supabase; missing configuration never selects demo storage.
 
-| Location | Responsibility |
-|---|---|
-| `src/app/actions.ts`, `src/lib/auth.ts`, `src/proxy.ts` | Validated commands, OTP/session lifecycle, cookie refresh |
-| `src/lib/data.ts`, `src/lib/types.ts` | Server access and application DTOs |
-| `src/lib/database.generated.ts` | Generated database table, insert, update, and RPC types |
-| `supabase/migrations/202609080001_core.sql` | Schema, tenant constraints, privileges, RLS, transactional commands, freezes and reconciliation |
-| `src/components/operations.tsx`, `delivery-detail.tsx` | Daily delivery cycle and explicit changes/fulfillment |
-| `src/components/records.tsx`, `settings.tsx` | Customers, packages, purchases, recurrence, menus and policies |
-| `src/components/portal.tsx` | Subscriber overview, schedule, package and profile |
-| `src/app/api/exports/[id]/route.ts` | Authorized immutable-version print/CSV delivery manifests |
-| `src/lib/demo-db.ts`, `demo-seed.ts` | Explicit persistent synthetic environment |
-| `scripts/provision.mjs`, `install-cron.sql`, `health-report.mjs` | Controlled onboarding and operational tools |
+## Web and native surfaces
 
-## Command boundary
+Public discovery supports area priority, search, meal filters, fixed/flexible/trial filters, package detail, seller profiles, price comparisons at a shared quantity, upcoming menus and purchase-linked reviews. Customers have a global account and calendar across caterers, independent from seller workspaces.
 
-`execute_command(business_slug, action, payload, request_id)` runs one database transaction. It locks the business row before checking membership, the idempotency receipt, versions and current eligibility. This deliberately serializes mutations **within** a caterer for a conservative pilot accounting boundary. Different caterers have independent locks. Database time uses `clock_timestamp()` after acquiring locks, so waiting requests cannot retain pre-cutoff permission.
+Checkout reviews fixed portions, start date, address, generated delivery dates, discount/promotion, included delivery, service fee and terms. The reviewed quote is checked again transactionally to prevent silent price changes. Web session storage and native SecureStore retain drafts; server checkout IDs retain payment state. /return/ID offers native and web continuation and never asserts payment success.
 
-Only authenticated callers may run application RPCs. Every privileged function sets an explicit search path. Direct client DML is revoked on all workflow/ledger tables; RLS further restricts the few tables exposed for direct reads. Composite foreign keys bind grants to purchases/customers, reservations to their delivery and grant, deliveries to tenant-owned menus/slots/patterns, and reversals to their tenant's original entries.
+Subscriber home puts the next meal and a lunch/dinner agenda before flat active subscriptions. Date changes use server availability and a review step; daily address changes apply to linked meals. Remaining delivery days, delivery statuses, support history, messaging, purchase-linked reviews and explicit renewal are present on web/native. Native has five Expo Router tabs, phone OTP, secure sessions, payment recovery and push registration.
 
-Commands use actor-scoped request UUIDs. Reusing a UUID with different input is rejected. Delivery and record edits carry expected versions; recurrence carries its pattern version. Commands commit reservation/ledger effects, delivery events, audit metadata and the successful receipt together. Purchase, schedule and delivery operations return the affected record or pattern and a quota summary. Failed commands return stable error codes; routine logs contain the action, code and request ID, never the payload or customer details.
+Seller web provides day/meal context across schedule, production and delivery, portion totals including trials, immutable production revisions, print/CSV manifests, guided package editing, dated menus, capacity, verification, customer relationships, messages/support, transactions and staff invitations. Lunch and dinner fulfill independently while retaining one daily capacity commitment. The admin has true pending verification and all-seller views, reasoned decisions, support/refund review, manual payout approval/reconciliation, promotions, review moderation and audit.
 
-Configuration publication (menu offerings, slots, date exceptions, business settings and access changes) also carries the expected business policy version. Concurrent stale configuration forms are rejected and must be reloaded before review.
+## Domain and transaction boundary
 
-## Entitlements and scheduling
+The v1 schema is separate from pilot tables. PostgreSQL security-definer RPCs expose explicit resources and commands with a fixed empty search path. Business tables have RLS and no direct client writes. Authenticated identity comes from Supabase; seller membership and platform-admin checks are re-evaluated inside transactions. Command request IDs retain results and reject payload changes. Purchased terms and production snapshots reject rewriting.
 
-Each external purchase snapshots its package terms and creates one quota grant. The append-only ledger stores grants, consumption, reversals and owner adjustments. Remaining is the ledger balance; reserved is the count of active reservations; available excludes reservations and grants currently outside validity. Future-starting purchases can still schedule service dates within their future validity; the current availability card remains zero until the start date.
+Package rows serialize capacity decisions; actor locks serialize customer entitlements. All scheduled dates reserve together. Combined packages reserve portions once/date, not once/meal. Replacement capacity is acquired before the old date is released. Duplicate dates, active/pending overlaps, cutoff violations, out-of-area addresses, trial reuse and capacity reductions below bookings are rejected. Closures affecting bookings require resolving those bookings first.
 
-Generation previews weekdays, slots and a bounded date range, then commits the full batch or rejects it. Allocation uses earliest expiry, purchase creation time, then ID. One active customer/date/slot occurrence is allowed. Cancelled occurrences remain tombstones: a regeneration never silently recreates a skip. A reviewed recurrence revision preserves retained deliveries and their choices/addresses, cancels only the removed unlocked future occurrences, releases their reservations, and atomically adds eligible new ones. It does not rewrite earlier or delivered history.
+Xendit calls are isolated in packages/backend/src/payments.ts. Payment sessions use a 15-minute checkout deadline bounded by cutoff; an adapter refuses sessions below the provider's minimum window. Callback tokens, payment/request IDs, amount/currency and event deduplication are checked. Delayed payment reacquires the full reservation or creates a visible payment exception. Redirects cannot activate a subscription.
 
-Rescheduling preserves the reservation's grant and checks source/target cutoffs, package validity, destination slot, duplicate and menu availability. Skip releases the reservation. Neither action extends validity. Profile address changes affect only future bookings; each existing delivery retains its snapshot until explicitly reviewed and changed.
+Cancellation requests retain reservations and hold disputed seller allocations. Caterers respond; only Catera admins authorize refunds or cancellation. Refund execution and split reconciliation remain separate. Admin reconciliation records seller deductions, provider evidence, reasons and audit. Payout approval allocates only available, undisputed funds; failures restore allocations only once. Commercial policies must be approved configuration; the local fee examples are fictional.
 
-## Fulfillment and production
+A transactional outbox persists notification and financial jobs with leases, retries and deduplication. Persistent inbox and Expo push share event provenance; push tickets are checked and invalid tokens removed. A minimal RLS-protected public event table emits only user ID/topic for scoped Supabase Realtime invalidation. No blanket full-workspace polling remains; payment status has a scoped pending-checkout refresh. Catalog and message/history reads are bounded; calendars use date windows. Large-scale admin/customer-history pagination needs further expansion before high-volume operation.
 
-```mermaid
-stateDiagram-v2
-    Scheduled --> Ready: complete frozen production
-    Ready --> OutForDelivery: dispatch
-    OutForDelivery --> Delivered: consume one reservation
-    OutForDelivery --> Failed: keep reservation
-    Failed --> OutForDelivery: retry
-    Failed --> Cancelled: release reservation
-    Scheduled --> Cancelled: skip
-    Delivered --> OutForDelivery: owner reversal and restored reservation
-```
+## Migration and legacy import
 
-Duplicate delivered confirmation is a no-op even with a fresh request ID. A mistaken confirmation is reversed with a compensating entry linked to its original debit, a reason, and a restored reservation. Operational status never changes on navigation, date selection or detail opening. Completion may be recorded late against an existing reservation after grant expiry.
+Apply only the five 20260909 migrations to a separate new V1 project, in filename order. 202609090003_hardening.sql is generated by scripts/compile-migration.mjs from canonical SQL helpers and the service definitions. Before any deployment, compile it and review the diff; once migrations are applied remotely, append a new migration for further changes. The old 202609080001_core.sql is pilot history, not the V1 setup path.
 
-The default cutoff is 21:00 on the preceding day in Asia/Jakarta. The business timezone and per-date exceptions produce stored cutoff instants. Settings changes affect unlocked work and cannot silently force it across an already elapsed cutoff. Closed dates cannot retain active bookings.
+Legacy import is seller-only, explicit preview then confirmation. It validates customer/package/address, remaining days, fixed portions and external receipt reference. Preview reserves nothing. Confirmation acquires every remaining date transactionally and creates a labeled legacy subscription without inventing a new payment or seller allocation. It does not automatically ingest the hosted pilot.
 
-At cutoff, a published default is assigned to missing selections. Frozen versions retain customer, meal and address snapshots; an absent default creates an incomplete version and blocks readiness. A late admin edit requires a reason and first ensures that the original cutoff version exists. Changes to frozen production/dispatch information append a version and an explicit difference list. Normal fulfillment statuses do not alter the production version. Print/CSV outputs identify the service date, slot, revision and timestamp; CSV fields neutralize spreadsheet formulas and printable text is escaped.
+## Brand deliverables and limits
 
-## Release boundary and scale
+Sixteen identity/illustration PNGs and six food photographs were generated individually. No board crops, sprites or enlargement of the reference were used. Exact prompts, reference provenance, intended uses, actual dimensions, hashes and font licensing are in packages/brand. /brand exposes reusable individual files; shared components consume the assets and tokens.
 
-The local demo uses the same migration/functions with a minimal local Auth shim. It proves application behavior, not hosted Auth delivery or deployed infrastructure. Supabase and Vercel configuration, a sender domain, private Git remote and a verified hosted backup restore are still external release work.
+The generator returned 1254-pixel square masters and 2172-pixel-wide wordmark/horizontal masters, below the requested 2048/4096 targets. The identity PNGs have clean opaque cream backgrounds, not alpha. Transparent-master cleanup, adaptive foreground finalization and derivative export packs remain unfinished pending a response to the cleanup permission request. These are not labeled as completed production assets. Food photographs are 1448 x 1086 and may be used only in synthetic listings.
 
-The current read model returns a tenant workspace snapshot, then filters and paginates operational lists in the browser. The recorded 10,000-delivery fixture produces a 6.2 MB response and ~1.3 second local database median. Introduce date/customer-scoped reads and server pagination before a larger deployment or substantial history growth. The benchmark is evidence about this implementation, not a product limit or confirmed business volume. Per-business write serialization is another deliberate pilot tradeoff to remeasure under realistic traffic.
+## Verification and unverified gates
 
-The planned deferred commercial and integration features remain outside this pilot.
+Local evidence includes typechecking, 40 domain/database/provider tests, real PostgreSQL concurrency tests, customer/seller/admin Playwright journeys, WCAG serious/critical checks on account, responsive captures at 390/768/1440, native component tests under both iOS and Android presets, a Next production build and both native bundle exports. See output/verification, output/install-verification.json, output/V1-FINISH-REVIEW.md and output/V1-FINISH-VERDICT.md.
+
+The reviewer scored all four web corrections resolved; the overall disposition remains fix because true-alpha artwork is outstanding. Native controls were corrected to 48 dp in source, but no native simulator/device screenshots or signed Android/iOS build were available. Exports and component tests must not be presented as physical device proof.
+
+Not verified: hosted Supabase migration/RLS/realtime, SMS/SMTP delivery, an actual Xendit sandbox or merchant transaction, provider settlement topology and reconciliation, EAS development builds, native return links/push on devices, backup restoration and production alerts. English exists for navigation and major customer paths; complete operational/native copy coverage and locale-specific visual QA remain a release task. See the runbook for launch gates.

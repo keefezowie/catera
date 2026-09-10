@@ -1,0 +1,1 @@
+{"name":"@catera/backend","version":"1.0.0","private":true,"type":"module","exports":"./src/index.ts","dependencies":{"@catera/domain":"1.0.0","@electric-sql/pglite":"0.5.8","@supabase/supabase-js":"2.116.0"}}

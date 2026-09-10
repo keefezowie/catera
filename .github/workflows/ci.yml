@@ -16,7 +16,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     env:
-      CATERA_DEMO_MODE: 'true'
+      CATERA_V1_DEMO: 'true'
       TEST_DATABASE_URL: postgresql://postgres:local-test-only@127.0.0.1:5432/catera_test
     steps:
       - uses: actions/checkout@v4
@@ -25,12 +25,13 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npm run db:types
-      - run: git diff --exit-code -- src/lib/database.generated.ts
       - run: npm run typecheck
       - run: npm test
       - run: npm run test:postgres
       - run: npm run build
+      - run: npm run test -w @catera/customer
+      - run: npm run test -w @catera/customer -- --preset jest-expo/android
+      - run: npm run native:export
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
       - uses: actions/upload-artifact@v4

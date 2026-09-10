@@ -1,0 +1,1 @@
+import type {MetadataRoute} from 'next';export default function manifest():MetadataRoute.Manifest{return {name:'Catera — Good Food on Repeat',short_name:'Catera',description:'Makanan baik untuk hari-hari Anda.',start_url:'/home',display:'standalone',background_color:'#FFF7E9',theme_color:'#163D2E',icons:[{src:'/assets/app-icon.png',sizes:'any',type:'image/png',purpose:'any'}]}}

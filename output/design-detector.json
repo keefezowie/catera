@@ -1,0 +1,1220 @@
+[
+  {
+    "antipattern": "design-system-font",
+    "name": "Font outside DESIGN.md",
+    "description": "A font is used that is not declared in DESIGN.md typography. Use the documented type system or update DESIGN.md if this is an intentional brand addition.",
+    "severity": "warning",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 1,
+    "snippet": "font-family: Jakarta is not declared in DESIGN.md typography",
+    "ignoreValue": "Jakarta",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 4,
+    "snippet": "Undocumented color #e9eedf is outside DESIGN.md colors",
+    "ignoreValue": "#e9eedf",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 4,
+    "snippet": "Undocumented color #36513d is outside DESIGN.md colors",
+    "ignoreValue": "#36513d",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 4,
+    "snippet": "Undocumented color #dfe2d5 is outside DESIGN.md colors",
+    "ignoreValue": "#dfe2d5",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 4,
+    "snippet": "Undocumented color #dae7d5 is outside DESIGN.md colors",
+    "ignoreValue": "#dae7d5",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 4,
+    "snippet": "Undocumented color #dce7d5 is outside DESIGN.md colors",
+    "ignoreValue": "#dce7d5",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 4,
+    "snippet": "Undocumented color #e6af69 is outside DESIGN.md colors",
+    "ignoreValue": "#e6af69",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 4,
+    "snippet": "Undocumented color #99531e is outside DESIGN.md colors",
+    "ignoreValue": "#99531e",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 4,
+    "snippet": "Undocumented color #f6f2e8 is outside DESIGN.md colors",
+    "ignoreValue": "#f6f2e8",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 4,
+    "snippet": "Undocumented color #736143 is outside DESIGN.md colors",
+    "ignoreValue": "#736143",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 4,
+    "snippet": "Undocumented color #476338 is outside DESIGN.md colors",
+    "ignoreValue": "#476338",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 4,
+    "snippet": "Undocumented color #d8dfcf is outside DESIGN.md colors",
+    "ignoreValue": "#d8dfcf",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 4,
+    "snippet": "Undocumented color #5b6e4d is outside DESIGN.md colors",
+    "ignoreValue": "#5b6e4d",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 4,
+    "snippet": "Undocumented color #955020 is outside DESIGN.md colors",
+    "ignoreValue": "#955020",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 4,
+    "snippet": "Undocumented color #adbaa1 is outside DESIGN.md colors",
+    "ignoreValue": "#adbaa1",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 4,
+    "snippet": "border-radius: 10px is outside the DESIGN.md rounded scale",
+    "ignoreValue": "10px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 4,
+    "snippet": "border-radius: 16px is outside the DESIGN.md rounded scale",
+    "ignoreValue": "16px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 4,
+    "snippet": "border-radius: 9px is outside the DESIGN.md rounded scale",
+    "ignoreValue": "9px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 4,
+    "snippet": "border-radius: 6px is outside the DESIGN.md rounded scale",
+    "ignoreValue": "6px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 4,
+    "snippet": "border-radius: 5px is outside the DESIGN.md rounded scale",
+    "ignoreValue": "5px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 4,
+    "snippet": "font-size: 10px is off the DESIGN.md type ramp",
+    "ignoreValue": "10px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 4,
+    "snippet": "font-size: 11px is off the DESIGN.md type ramp",
+    "ignoreValue": "11px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 4,
+    "snippet": "font-size: clamp(38px,4.3vw,62px) has fluid endpoints 38px and 62px off the DESIGN.md type ramp",
+    "ignoreValue": "38px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 4,
+    "snippet": "font-size: 75px is off the DESIGN.md type ramp",
+    "ignoreValue": "75px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 4,
+    "snippet": "font-size: 26px is off the DESIGN.md type ramp",
+    "ignoreValue": "26px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 4,
+    "snippet": "font-size: 9px is off the DESIGN.md type ramp",
+    "ignoreValue": "9px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 4,
+    "snippet": "font-size: 20px is off the DESIGN.md type ramp",
+    "ignoreValue": "20px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 4,
+    "snippet": "font-size: 30px is off the DESIGN.md type ramp",
+    "ignoreValue": "30px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 5,
+    "snippet": "Undocumented color #945219 is outside DESIGN.md colors",
+    "ignoreValue": "#945219",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 5,
+    "snippet": "Undocumented color #546b42 is outside DESIGN.md colors",
+    "ignoreValue": "#546b42",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 5,
+    "snippet": "Undocumented color #aebb9f is outside DESIGN.md colors",
+    "ignoreValue": "#aebb9f",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 5,
+    "snippet": "Undocumented color #fff0da is outside DESIGN.md colors",
+    "ignoreValue": "#fff0da",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 5,
+    "snippet": "Undocumented color #815219 is outside DESIGN.md colors",
+    "ignoreValue": "#815219",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 5,
+    "snippet": "Undocumented color #fcebe4 is outside DESIGN.md colors",
+    "ignoreValue": "#fcebe4",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 5,
+    "snippet": "Undocumented color #913c2d is outside DESIGN.md colors",
+    "ignoreValue": "#913c2d",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 5,
+    "snippet": "Undocumented color #e7f0e0 is outside DESIGN.md colors",
+    "ignoreValue": "#e7f0e0",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 5,
+    "snippet": "Undocumented color #3f6030 is outside DESIGN.md colors",
+    "ignoreValue": "#3f6030",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 5,
+    "snippet": "Undocumented color #5b714c is outside DESIGN.md colors",
+    "ignoreValue": "#5b714c",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 5,
+    "snippet": "Undocumented color #e8e9e0 is outside DESIGN.md colors",
+    "ignoreValue": "#e8e9e0",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 5,
+    "snippet": "Undocumented color #878c7f is outside DESIGN.md colors",
+    "ignoreValue": "#878c7f",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 5,
+    "snippet": "Undocumented color #c6d9c5 is outside DESIGN.md colors",
+    "ignoreValue": "#c6d9c5",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 5,
+    "snippet": "Undocumented color #14291fd0 is outside DESIGN.md colors",
+    "ignoreValue": "#14291fd0",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 5,
+    "snippet": "Undocumented color #0b201f30 is outside DESIGN.md colors",
+    "ignoreValue": "#0b201f30",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 5,
+    "snippet": "Undocumented color #ccd4c2 is outside DESIGN.md colors",
+    "ignoreValue": "#ccd4c2",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 5,
+    "snippet": "border-radius: 20px is outside the DESIGN.md rounded scale",
+    "ignoreValue": "20px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-radius",
+    "name": "Radius outside DESIGN.md",
+    "description": "A border-radius value is outside the DESIGN.md rounded scale. Use a documented radius token or update the design system if the new shape is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 5,
+    "snippet": "border-radius: 2px is outside the DESIGN.md rounded scale",
+    "ignoreValue": "2px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 5,
+    "snippet": "font-size: 16px is off the DESIGN.md type ramp",
+    "ignoreValue": "16px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 5,
+    "snippet": "font-size: 21px is off the DESIGN.md type ramp",
+    "ignoreValue": "21px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 5,
+    "snippet": "font-size: 27px is off the DESIGN.md type ramp",
+    "ignoreValue": "27px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 5,
+    "snippet": "font-size: 10px!important is off the DESIGN.md type ramp",
+    "ignoreValue": "10px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 5,
+    "snippet": "font-size: 45px is off the DESIGN.md type ramp",
+    "ignoreValue": "45px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 5,
+    "snippet": "font-size: 22px is off the DESIGN.md type ramp",
+    "ignoreValue": "22px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 5,
+    "snippet": "font-size: 18px is off the DESIGN.md type ramp",
+    "ignoreValue": "18px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 5,
+    "snippet": "font-size: 25px is off the DESIGN.md type ramp",
+    "ignoreValue": "25px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 5,
+    "snippet": "font-size: 38px is off the DESIGN.md type ramp",
+    "ignoreValue": "38px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 5,
+    "snippet": "font-size: 29px is off the DESIGN.md type ramp",
+    "ignoreValue": "29px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 5,
+    "snippet": "font-size: 17px is off the DESIGN.md type ramp",
+    "ignoreValue": "17px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 5,
+    "snippet": "font-size: 35px is off the DESIGN.md type ramp",
+    "ignoreValue": "35px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 6,
+    "snippet": "Undocumented color #dfe4d7 is outside DESIGN.md colors",
+    "ignoreValue": "#dfe4d7",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 6,
+    "snippet": "Undocumented color #e8eddf is outside DESIGN.md colors",
+    "ignoreValue": "#e8eddf",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 6,
+    "snippet": "Undocumented color #cdd7c2 is outside DESIGN.md colors",
+    "ignoreValue": "#cdd7c2",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 6,
+    "snippet": "Undocumented color #95a48c is outside DESIGN.md colors",
+    "ignoreValue": "#95a48c",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 9,
+    "snippet": "font-size: 50px is off the DESIGN.md type ramp",
+    "ignoreValue": "50px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 9,
+    "snippet": "font-size: 17px is off the DESIGN.md type ramp",
+    "ignoreValue": "17px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 9,
+    "snippet": "font-size: 18px is off the DESIGN.md type ramp",
+    "ignoreValue": "18px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 10,
+    "snippet": "Undocumented color #14291fb0 is outside DESIGN.md colors",
+    "ignoreValue": "#14291fb0",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 10,
+    "snippet": "font-size: 43px is off the DESIGN.md type ramp",
+    "ignoreValue": "43px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 10,
+    "snippet": "font-size: 55px is off the DESIGN.md type ramp",
+    "ignoreValue": "55px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 10,
+    "snippet": "font-size: 9px is off the DESIGN.md type ramp",
+    "ignoreValue": "9px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 10,
+    "snippet": "font-size: 10px is off the DESIGN.md type ramp",
+    "ignoreValue": "10px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 10,
+    "snippet": "font-size: 26px is off the DESIGN.md type ramp",
+    "ignoreValue": "26px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 10,
+    "snippet": "font-size: 29px is off the DESIGN.md type ramp",
+    "ignoreValue": "29px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 10,
+    "snippet": "font-size: 25px is off the DESIGN.md type ramp",
+    "ignoreValue": "25px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 10,
+    "snippet": "font-size: 28px is off the DESIGN.md type ramp",
+    "ignoreValue": "28px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-color",
+    "name": "Color outside DESIGN.md",
+    "description": "A literal color is outside the DESIGN.md palette and sidecar tonal ramps. This may be legitimate, but it should be an intentional design-system addition rather than drift.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 11,
+    "snippet": "Undocumented color #626c58 is outside DESIGN.md colors",
+    "ignoreValue": "#626c58",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 11,
+    "snippet": "font-size: 11px is off the DESIGN.md type ramp",
+    "ignoreValue": "11px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 11,
+    "snippet": "font-size: 45px is off the DESIGN.md type ramp",
+    "ignoreValue": "45px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 11,
+    "snippet": "font-size: 58px is off the DESIGN.md type ramp",
+    "ignoreValue": "58px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 11,
+    "snippet": "font-size: 23px is off the DESIGN.md type ramp",
+    "ignoreValue": "23px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 11,
+    "snippet": "font-size: 22px is off the DESIGN.md type ramp",
+    "ignoreValue": "22px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 11,
+    "snippet": "font-size: 31px is off the DESIGN.md type ramp",
+    "ignoreValue": "31px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 11,
+    "snippet": "font-size: 8px is off the DESIGN.md type ramp",
+    "ignoreValue": "8px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 11,
+    "snippet": "font-size: 16px is off the DESIGN.md type ramp",
+    "ignoreValue": "16px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 11,
+    "snippet": "font-size: 24px is off the DESIGN.md type ramp",
+    "ignoreValue": "24px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 14,
+    "snippet": "font-size: 30px is off the DESIGN.md type ramp",
+    "ignoreValue": "30px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 14,
+    "snippet": "font-size: 10px is off the DESIGN.md type ramp",
+    "ignoreValue": "10px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  },
+  {
+    "antipattern": "design-system-font-size",
+    "name": "Font size outside DESIGN.md",
+    "description": "A literal font-size is off the type ramp documented in DESIGN.md typography. Use a documented size step or update the design system if the new step is intentional.",
+    "severity": "advisory",
+    "category": "quality",
+    "file": "D:\\Project\\Catera\\catera\\apps\\web\\src\\app\\globals.css",
+    "line": 15,
+    "snippet": "font-size: 11px is off the DESIGN.md type ramp",
+    "ignoreValue": "11px",
+    "importedBy": [
+      "layout.tsx"
+    ]
+  }
+]

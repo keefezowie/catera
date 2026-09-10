@@ -1,58 +1,56 @@
-# Catera
+# Catera V1 — Good Food on Repeat
 
-Good Food on Repeat.
-
-A catering subscription pilot with an Indonesian-first operational workspace and subscriber portal. Next.js, TypeScript, Supabase/Postgres, and a persistent local PostgreSQL-compatible demo run the same domain migration and transactional commands.
+Indonesian catering marketplace with responsive customer, seller and admin web, plus an Expo customer app for Android/iOS. One versioned API and transactional PostgreSQL services power both platforms.
 
 ## Run locally
 
-Requirements: Node.js 24 and npm. No account, Docker, or hosted credentials are needed for the synthetic demo.
+Requires Node 24 or newer. From the repository root:
 
-```powershell
+```sh
 npm ci
-Copy-Item .env.example .env.local
 npm run dev
 ```
 
-On macOS/Linux, use `cp .env.example .env.local`. Open **http://127.0.0.1:3000**. Choose **Masuk sebagai pemilik**, **admin**, or **pelanggan**. The owner and subscriber belong to two separate synthetic businesses; the admin belongs to Dapur Hijau only. Change language with ID / EN.
+Open http://127.0.0.1:3000. Browse before login; /login offers explicit synthetic customer, owner, staff and platform-admin roles. /brand is the identity asset gallery. No real payment or customer data is used. Data persists under .data/v1; startup does not reset it. A labeled operating fixture supplies today's trial meals.
 
-The explicit `CATERA_DEMO_MODE=true` flag uses a local PGlite database in `.data/postgres`. Data survives navigation and server restarts. The demo does not send email. It is disabled on Vercel even if the flag is accidentally set. Never expose the demo server publicly or enter real customer information.
+For Supabase, copy .env.example to apps/web/.env.local, configure a separate V1 project, and use npm run dev:web. Missing configuration produces an unavailable state; it never falls back to demo data. The hosted pilot database is protected.
 
-To restore the original fixtures, stop the server, run `npm run demo:reset`, and start it again. This **moves the old synthetic database into a timestamped backup**, rather than deleting it. The two fixtures are Dapur Hijau and Rasa Rumah; dates are relative to initialization. Generate fresh fixtures after a long gap or a migration change.
+## Native app
 
-## Working pilot workflows
+```sh
+npm run dev:native
+npm run native:export
+```
 
-- Owner/admin: customer and package management, external purchase recording, quota grants, reviewed schedule generation and recurrence revision, menus/defaults, daily scheduling, versioned production, dispatch, failure/retry/cancellation, CSV and print.
-- Owner: business policy, slots/date exceptions, invitations and access revocation, quota adjustments and delivery-confirmation reversal.
-- Subscriber: next delivery, quota and purchase history, meal selection, skip/reschedule, individual address changes with review, and profile defaults.
-- Database: tenant checks and composite constraints, RLS, protected writes, idempotent commands, version conflicts, expiry-aware reservations, cutoff enforcement, immutable production versions, audit history, and reconciliation.
+Copy apps/customer/.env.example to apps/customer/.env.local. Both platforms call the same API. A physical device needs a reachable HTTPS backend. SecureStore persists sessions and checkout context. The catera://payment/ID link returns to the payment status screen. Configure EAS, Android/iOS credentials and development builds before testing push and external payment returns. An export is not a signed device build.
 
-Hosted email OTP and cron are implemented but require configuration. No payment checkout, billing, invoice, reminder, WhatsApp, analytics, or driver/kitchen account flows are included.
+## Checks
 
-## Verification
-
-```powershell
+```sh
 npm run typecheck
 npm test
 npm run test:postgres
-npm run build
 npm run test:e2e
+npm run test -w @catera/customer
+npm run test -w @catera/customer -- --preset jest-expo/android
+npm run build
+npm run native:export
 ```
 
-`test:postgres` starts a disposable native PostgreSQL 17 cluster bound to localhost, tests concurrent requests, and stops it. Alternatively, supply `TEST_DATABASE_URL` for a **fresh, empty database named `catera_test`**. Existing databases are never cleared. Generated test clusters stay under ignored `.data/tests`.
+Install Chromium with npx playwright install chromium, or set PLAYWRIGHT_CHROMIUM_EXECUTABLE to an installed binary. PostgreSQL tests start a disposable embedded database unless TEST_DATABASE_URL names an empty catera_test database; existing V1 data is never reset. Browser tests add synthetic future purchases/support cases without erasing existing demo work.
 
-Playwright uses Microsoft Edge on Windows by default. Set `PLAYWRIGHT_CHANNEL=chromium` and run `npx playwright install chromium` to use Chromium on another machine; CI installs Chromium automatically. Browser tests mutate only the synthetic fixture and expect a fresh demo database for repeat runs. Stop the server and run `demo:reset` first when repeating the whole suite.
+## Workspace
 
-`npm run benchmark` also measures full-workspace queries against synthetic datasets and writes `docs/verification/benchmark.json`. `npm run db:types` regenerates TypeScript table types from the migration. `npm run format` formats application source without changing the supplied skill files.
+| Directory | Purpose |
+|---|---|
+| apps/web | Next.js public/customer/seller/admin UI and API |
+| apps/customer | Expo Router customer app |
+| packages/domain | Shared types, validation, scheduling and pricing |
+| packages/api-client | Typed web/native API client |
+| packages/backend | SQL service bridge, payment adapter and explicit demo setup |
+| packages/design-tokens | Shared palette, typography, spacing, focus and motion |
+| packages/brand | Individual assets, fonts, prompts and manifests |
+| supabase/migrations/20260909* | V1 schema, services, hardening, storage and realtime |
+| archive/pilot | Preserved pre-V1 implementation and baseline records |
 
-## Handoff and deployment
-
-- [Implementation and policy decisions](docs/IMPLEMENTATION.md)
-- [Deployment, onboarding, monitoring, and recovery runbook](docs/RUNBOOK.md)
-- [Verification evidence and outstanding release gates](docs/VERIFICATION.md)
-- [Design system](DESIGN.md) and [approved UI direction](docs/UI-BRIEF.md)
-- [Original product baseline](PRODUCT.md) and [screen scope](Catera-Shape-Brief.md)
-
-Source is on branch `codex/catera-pilot`. No remote repository or public deployment has been created. Create a **private** Git repository before connecting hosting. Keep `.env.local`, `.data`, customer exports, and credentials out of Git. The supplied `tools/impeccable` files and artwork are preserved in the project.
-
-Local verification is not production release approval. Before real use, complete the environment-specific email, hosted migration/RLS, jobs, backup restoration, and monitoring gates in the runbook.
+See [implementation record](docs/IMPLEMENTATION.md), [milestone plan](docs/CATERA-V1-IMPLEMENTATION-PLAN.md), [release runbook](docs/RUNBOOK.md), and [asset limitations](packages/brand/README.md). No production deployment or hosted database migration has been performed by this overhaul.

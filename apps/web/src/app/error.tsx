@@ -1,0 +1,1 @@
+'use client';export default function ErrorPage({reset}:{reset:()=>void}){return <main className="error-page"><h1>Ada yang belum berhasil dimuat.</h1><p>Data Anda tetap tersimpan. Silakan coba sekali lagi.</p><button onClick={reset}>Coba lagi</button></main>}

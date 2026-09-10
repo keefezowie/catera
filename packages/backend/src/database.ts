@@ -1,0 +1,146 @@
+import { PGlite } from "@electric-sql/pglite";
+import { readFile, mkdir } from "node:fs/promises";
+import path from "node:path";
+import { createClient } from "@supabase/supabase-js";
+import { localBootstrap, seedSQL } from "./seed";
+const globalDb = globalThis as unknown as { cateraV1?: Promise<PGlite> };
+export const demoEnabled = () =>
+  process.env.CATERA_V1_DEMO === "true" && !process.env.VERCEL;
+export function projectRoot() {
+  return (
+    process.env.CATERA_PROJECT_ROOT ||
+    (/apps[\\/]web$/.test(process.cwd())
+      ? path.resolve(process.cwd(), "../..")
+      : process.cwd())
+  );
+}
+export async function createDemoDatabase(inMemory = false) {
+  const folder = path.join(projectRoot(), ".data", "v1");
+  if (!inMemory) await mkdir(folder, { recursive: true });
+  const db = new PGlite(inMemory ? undefined : folder);
+  await db.waitReady;
+  const r = await db.query<{ exists: boolean }>(
+    "select exists(select 1 from pg_namespace where nspname='v1')",
+  );
+  if (!r.rows[0].exists) {
+    await db.exec(localBootstrap);
+    for (const file of [
+      "202609090001_marketplace.sql",
+      "202609090002_services.sql",
+    ])
+      await db.exec(
+        await readFile(
+          path.join(projectRoot(), "supabase/migrations", file),
+          "utf8",
+        ),
+      );
+    await db.exec(
+      await readFile(
+        path.join(
+          projectRoot(),
+          "supabase/migrations/202609090003_hardening.sql",
+        ),
+        "utf8",
+      ),
+    );
+    await db.exec(seedSQL());
+  } else {
+    await db.exec(
+      await readFile(
+        path.join(
+          projectRoot(),
+          "supabase/migrations/202609090003_hardening.sql",
+        ),
+        "utf8",
+      ),
+    );
+  }
+  await db.exec(
+    await readFile(
+      path.join(projectRoot(), "supabase/migrations/202609090005_realtime.sql"),
+      "utf8",
+    ),
+  );
+  if (!inMemory)
+    await db.exec(
+      await readFile(
+        path.join(projectRoot(), "packages/backend/src/fixture.sql"),
+        "utf8",
+      ),
+    );
+  return db;
+}
+export async function getDemoDatabase() {
+  if (!demoEnabled()) throw new Error("DEMO_DISABLED");
+  return (globalDb.cateraV1 ??= createDemoDatabase());
+}
+export async function localRpc<T>(
+  db: PGlite,
+  actor: string | null,
+  name: string,
+  args: unknown[],
+  system = false,
+): Promise<T> {
+  if (
+    ![
+      "catera_v1_read",
+      "catera_v1_command",
+      "catera_v1_system",
+      "catera_v1_manifest",
+      "catera_v1_reconcile",
+    ].includes(name)
+  )
+    throw new Error("INVALID_RPC");
+  return db.transaction(async (tx) => {
+    await tx.query(
+      "select set_config('request.jwt.claim.sub',$1,true),set_config('catera.demo','true',true),set_config('request.jwt.claims',$2,true)",
+      [
+        actor || "",
+        JSON.stringify({
+          role: system ? "service_role" : actor ? "authenticated" : "anon",
+        }),
+      ],
+    );
+    const r = await tx.query<{ value: T }>(
+      "select public." +
+        name +
+        "(" +
+        args.map((_, i) => "$" + (i + 1)).join(",") +
+        ") value",
+      args,
+    );
+    return r.rows[0].value;
+  });
+}
+export async function rpc<T>(
+  actor: string | null,
+  accessToken: string | null,
+  name: string,
+  args: Record<string, unknown>,
+  system = false,
+): Promise<T> {
+  if (demoEnabled())
+    return localRpc<T>(
+      await getDemoDatabase(),
+      actor,
+      name,
+      Object.values(args),
+      system,
+    );
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = system
+    ? process.env.SUPABASE_SECRET_KEY
+    : process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  if (!url || !key) throw new Error("NOT_CONFIGURED");
+  if (url.includes("otmanljypltxkwjcebni"))
+    throw new Error("PILOT_DATABASE_PROTECTED");
+  const client = createClient(url, key, {
+    auth: { persistSession: false },
+    global: {
+      headers: accessToken ? { Authorization: "Bearer " + accessToken } : {},
+    },
+  });
+  const { data, error } = await client.rpc(name, args);
+  if (error) throw new Error(error.message);
+  return data as T;
+}

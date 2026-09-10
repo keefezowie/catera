@@ -1,103 +1,137 @@
-# Pilot operating runbook
+# Catera V1 operating runbook
 
-Status: local implementation and synthetic verification. Hosted staging/production, external email delivery, and hosted restoration have not been configured or verified. Record evidence for every release gate below before adding real customers.
+Updated September 9, 2026. **Local verification is not production approval.** The hosted pilot remains unchanged. This runbook supersedes `archive/pilot/docs/RUNBOOK.md`.
 
-## Environments and private source
+## 1. Environment boundary
 
-Use separate Supabase projects and Vercel environments for staging and production. Keep staging synthetic. Create the Git remote as private, preserve branch `codex/catera-pilot`, and connect only that private repository to CI/hosting. The application has no public remote configured at handoff.
+Create separate V1 staging and production Supabase projects, storage, SMS credentials, Xendit credentials and application hosts. Staging uses invented customers and test payment methods only. Never point V1 at the old pilot project, run a demo seed against hosted storage, copy customer fixtures into tests, or replace an existing database to repair a local test. The backend rejects the known pilot reference.
 
-Choose Singapore for the database project. `vercel.json` sets the function region to `sin1`; verify the effective region in the deployment. Use Node.js 24, `npm ci`, `npm run build`, and the Next.js preset. Run CI on a clean checkout before deployment. CI provides an isolated PostgreSQL service; local tests can use embedded PostgreSQL instead.
+Use Node 24 and the committed npm lockfile. The web application is `apps/web`; build from the repository root with `npm ci` then `npm run build`, or configure monorepo hosting to run the equivalent workspace command with shared package access. The Expo application is `apps/customer`. Do not deploy `archive/pilot` as V1.
 
-Set hosted application environment variables through the provider's protected settings:
+`npm run dev` explicitly starts persistent, synthetic local storage. Hosted environments set `CATERA_V1_DEMO=false`; missing Supabase configuration produces an error. Demo identities and payment confirmation endpoints are unavailable in hosted mode. Production deployment is a separate operation and has not been performed.
 
-| Variable | Purpose |
+## 2. Configuration
+
+Copy the example files locally, then enter secrets through the host's protected environment settings. Never add credentials to Git or public Expo variables.
+
+| Server variable | Required use |
 |---|---|
-| `CATERA_DEMO_MODE=false` | Hosted persistence and real authentication |
-| `NEXT_PUBLIC_SUPABASE_URL` | Environment-specific Supabase URL |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Public project client key |
-| `SUPABASE_SECRET_KEY` | Server-only activation of explicitly invited accounts |
-| `DATABASE_URL` | Operator commands only; do not add to browser configuration |
+| `CATERA_V1_DEMO=false` | Real Supabase persistence and authentication |
+| `CATERA_PUBLIC_URL` | Canonical HTTPS V1 web origin, including payment return routes |
+| `NEXT_PUBLIC_SUPABASE_URL` | Environment-specific Supabase project |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Browser and API authentication |
+| `SUPABASE_SECRET_KEY` | Server-only service RPC and validated food uploads |
+| `XENDIT_SECRET_KEY` | Environment-specific Xendit API access |
+| `XENDIT_WEBHOOK_TOKEN` | Callback verification token |
+| `CATERA_XENDIT_ROUTING_JSON` | Approved caterer UUID to account ID / split rule ID routing |
+| `CATERA_PAYOUT_RECIPIENTS_JSON` | Approved caterer UUID to recipient and purposeCode configuration |
+| `CRON_SECRET` | Bearer authorization for `/api/jobs` |
+| `EXPO_ACCESS_TOKEN` | Server-only Expo push security token if enabled for the project |
+| `DATABASE_URL` | Private operator migration/backup access only |
 
-Use a separate uncommitted operator environment file for database credentials. `CATERA_SESSION_SECRET` is for local synthetic sessions only. Do not store Resend's SMTP password in frontend variables or Git; configure it in Supabase Auth.
+Native public configuration is `EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, and `EXPO_PUBLIC_EAS_PROJECT_ID`. These contain no service, payment, SMS or push access secrets. A phone must reach the API URL; its localhost is not the development computer. Configure distinct staging/production builds and validate that the app's API and Supabase project belong to the same environment.
 
-## Database installation
+`TEST_DATABASE_URL` is only for a disposable database named `catera_test`. The concurrency runner refuses existing V1 tables and never resets an existing database. `CATERA_SESSION_SECRET` is only for local synthetic sessions.
 
-The schema migration is authoritative and runs once on a new Supabase project. Auth roles/schema already exist on Supabase; **never apply the local Auth shim or demo seed to a hosted environment**.
+## 3. Fresh V1 database installation
 
-With the Supabase CLI installed and authenticated for the intended environment, link the project and inspect the migration target before applying:
+Before applying SQL, record the project reference, intended environment, operator, migration hashes and backup status. An operator with database-owner access applies **only** these V1 migrations, in this order:
 
-```text
-supabase link --project-ref YOUR_PROJECT_REF
-supabase db push
-```
+1. `supabase/migrations/202609090001_marketplace.sql`
+2. `supabase/migrations/202609090002_services.sql`
+3. `supabase/migrations/202609090003_hardening.sql`
+4. `supabase/migrations/202609090004_storage.sql`
+5. `supabase/migrations/202609090005_realtime.sql`
 
-Alternatively, the database owner can execute `supabase/migrations/202609080001_core.sql` on a fresh project in the SQL editor. Keep migration history consistent with the chosen method. Future changes must be new migrations, not edits to an already applied migration.
+The `202609080001_core.sql` migration is retained pilot history. Do not blindly push the mixed migration directory to a fresh V1 project. Use a V1-only migration staging directory with the Supabase CLI, or apply the reviewed SQL files in the hosted SQL editor while keeping a matching migration ledger. Never apply `localBootstrap`, `seedSQL`, `fixture.sql`, or `.data` contents to a hosted project.
 
-Verify RLS on all business tables, `authenticated` cannot insert/update/delete protected tables, `anon` cannot execute application commands, and authenticated callers cannot execute private helpers, cron or integrity functions. With two staging businesses and two signed-in roles, repeat forged-ID and revoked-membership tests against the hosted RPC, not only the local shim.
+The hardening migration is generated by `node scripts/compile-migration.mjs`. Review any resulting diff before first installation. Once a migration has been deployed, make further changes in a new additive migration instead of editing applied history.
 
-## Email access
+Hosted Supabase supplies Auth roles and schemas. The private `v1` schema must not be added to the public Data API exposed schemas. Public RPC functions have explicit grants and fixed search paths; protected business tables have RLS and no direct client writes. Verify anonymous catalog reads, authenticated RPC access, revoked staff access, cross-caterer IDs, cross-customer IDs, platform-admin separation and service-only job access using real hosted sessions.
 
-Disable public signup; enable email authentication and confirmation. Customize the email OTP template to display `{{ .Token }}` and direct users back to Catera's `/verify` screen. Set the environment's site URL and permitted redirect URLs in Supabase. Catera requests `shouldCreateUser: false`; the server creates an Auth account only for an existing pending invitation. Manual provisioning creates the first owner account without sending a message.
+Storage migration creates `catera-v1-food` only where the Supabase storage schema exists. Validate owner-authorized JPEG/PNG/WebP uploads, size limits, public image delivery and rejected direct writes. Seller photographs belong to their listings; generated meal photographs are synthetic fixtures only.
 
-Configure Resend SMTP with a verified sender domain and its supplied host, port and credentials. Supabase's built-in sender is intended for testing and has delivery restrictions. Follow the current [Supabase custom SMTP guide](https://supabase.com/docs/guides/auth/auth-smtp). Verify the sender's DNS setup and actual delivery to an invited address outside the project team.
+Realtime migration publishes a minimal `catera_v1_events` table when the `supabase_realtime` publication is present. Verify two signed-in customers receive only their own events, reconnect correctly and refresh affected views. Business table contents and message bodies are not published by this channel.
 
-Check: correct code, wrong code, expired/reused code, expired session, logout, multi-business workspace choice, subscriber activation, and immediate rejection after membership revocation. A customer may remain unlinked indefinitely. Staff record the invitation in Settings and give the customer the login URL using the existing onboarding process; automated invitation announcements are not part of this pilot.
+## 4. Identity and first administrators
 
-## Onboard a caterer
+Enable customer phone OTP and configure a supported SMS provider. Configure site URL, allowed redirects, OTP expiry/rate limits and abuse controls for each environment. Verify new signup, returning login, wrong/expired/reused codes, refresh, logout, native secure storage, login-preserved checkout and account access after session expiry. Web sessions use Supabase SSR cookies; native uses SecureStore. No payment is considered successful because login or a return link completed.
 
-From a private operator environment containing the intended project's credentials:
+Configure verified SMTP for Auth email and operational account communication where email is enabled. The implemented customer notification channels are the persistent inbox and Expo push; an SMTP configuration is not evidence that application email messages are being sent. Record actual test delivery without including codes or secrets in the evidence.
 
-```text
-node --env-file=.env.operator scripts/provision.mjs dapur-contoh "Dapur Contoh" owner@example.com
-```
+The first platform administrator is an operator-provisioned, verified Auth identity. After that identity has a `v1.profiles` row, a database owner may promote that exact known UUID to `platform_admin` in a transaction and add a `v1.audit` record with the authorizing operator and reason. Do not grant this role through a public client, give seller owners this role, or use a demo UUID. Verify the identity and action in the audit record before continuing.
 
-This creates the business, its lunch/dinner slots, owner membership and audit entry. It sends no email. Repeated provisioning does not create a duplicate business or membership. Confirm the owner by email OTP, then let that owner configure policies, add customers, define packages, record external purchases, invite subscribers/staff, publish menus, and review schedules in the UI.
+Seller applications start as drafts. Sellers submit evidence; a Catera admin requests corrections, approves, or suspends with a reason. Staff join using seller-issued invitation codes. Test consumed/wrong codes and removal of financial privileges. Suspension blocks new sales while existing fulfillment obligations remain visible.
 
-Review purchase start dates and validity carefully. A grant's purchased terms are immutable; package edits affect later purchases. Use an owner quota adjustment with a reason for a legitimate entitlement correction. Do not edit or delete ledger rows manually.
+## 5. Commercial and payment setup
 
-## Automatic work and monitoring
+No production fee percentages, refund amounts or settlement dates are implied by demo examples. Obtain explicit commercial approval for service fee, marketplace/invited seller fees, tax treatment, promotions, refund handling, dispute holds and payout timing. Record the approver and effective date. An operator installs these approved values in `v1.policies` with `approved=true` and `synthetic=false`, and records an audit event. The schema has one current policy row; each purchase retains its own immutable policy snapshot. Without approved configuration, quoting fails closed.
 
-Enable `pg_cron`, then execute `scripts/install-cron.sql` as the database owner. It installs an every-minute production freeze and a 15-minute integrity check, replacing only Catera's named jobs when rerun. Inspect runs in the Supabase Cron dashboard. [Supabase Cron documentation](https://supabase.com/docs/guides/cron)
+Confirm the Xendit account is enabled for the selected session, refund, split and payout products. Configure sandbox credentials first. The adapter uses payment sessions, optional xenPlatform headers, refunds and the V3 payout API; available products and beneficiary formats depend on the merchant account. Set seller routing only after verifying the actual settlement topology. A provider split and a manual payout must never pay the same seller allocation twice.
 
-Cutoff checks remain synchronous even if cron is delayed. A late admin edit ensures the baseline freeze first. If no default exists, the incomplete production version is visible in Production; publish the missing default with a reason before marking deliveries ready.
+Register the environment's HTTPS `/api/webhooks/xendit` endpoint and callback token. The API accepts verified completed/expired payment-session callbacks and refund callbacks. Provider settlement and payout completion are reconciled by an authorized admin using independent provider evidence; redirects are not callbacks and do not authorize fulfillment.
 
-```text
-node --env-file=.env.operator scripts/health-report.mjs
-```
+Run and record these sandbox scenarios:
 
-The command prints aggregate overdue-freeze, unresolved-failure, incomplete-production, integrity and cron-failure counts. It emits no customer details and exits 2 for an actionable condition or stale/missing reconciliation. Connect it to the pilot operator's monitoring system, and verify the alert destination before release. Hosted alert delivery is not configured in this checkout.
+- A successful payment creates one subscription and one financial allocation, even after repeated callbacks.
+- Browser and native background/return recover the server checkout state without losing fixed portions, address or schedule.
+- An expired session releases temporary capacity; delayed payment reacquires every date or enters a visible support exception.
+- Out-of-order events, unknown IDs, wrong tokens, amount/currency mismatches and payload reuse cannot alter purchases.
+- A provider timeout/retry does not create a second session, refund or payout.
+- A refund keeps split reconciliation visible until an admin records amount, seller deduction, evidence and reason.
+- An approved payout cannot include disputed or already released allocations; failed payout reconciliation restores availability once.
 
-Application rejections log only `event=catera.command_rejected`, command action, stable error code and request ID. Search these events in Vercel logs for failure spikes and correlate request IDs with restricted audit data when needed. Never enable full payload logging. Auth failures and email deliverability are monitored in Supabase/Resend.
+The application aims for 15-minute holds bounded by the first applicable cutoff. The adapter refuses a payment session with less than the provider-supported minimum window. Verify the configured provider deadline matches the server hold. Alert on checkout exceptions rather than silently marking late payments fulfilled.
 
-For a failed delivery, inspect its event history, then explicitly retry or cancel. The reservation remains until resolution. For an incorrect delivery confirmation, the owner chooses **Batalkan konfirmasi terkirim** with a reason; the app appends a reversal and restores the reservation.
+References: [Supabase phone login](https://supabase.com/docs/guides/auth/phone-login), [Xendit payment sessions](https://docs.xendit.co/docs/payment-sessions), [Xendit split payments](https://docs.xendit.co/docs/split-payments).
 
-## Backups, restoration and incident handling
+## 6. Scheduled jobs and notifications
 
-Check the actual project's backup schedule, retention and restore options. Do not assume a subscription tier provides a particular recovery guarantee. Supabase documents database backups and their scope, including the distinction from Storage objects. [Database backups](https://supabase.com/docs/guides/platform/backups)
+Configure a protected scheduler to GET `/api/jobs` every minute with a Bearer CRON_SECRET authorization header. Do not expose the secret in a public URL. The handler expires holds, creates reminders, claims outbox work with a lease, retries financial/push jobs and checks Expo push receipts. It returns processed count and health counters. No hosted scheduler was configured during local implementation.
 
-Before real use:
+Verify retry/backoff, duplicate delivery handling, lease recovery after a crashed worker, invalid-device removal and read/unread inbox persistence. Notification deduplication is keyed to its underlying event. Split reconciliation jobs stay outstanding until an explicit admin reconciliation.
 
-1. Record a synthetic staged purchase, upcoming reservations, delivered usage and a production revision. Export that selected version and record non-sensitive counts and checksums.
-2. Take the configured hosted backup. Restore it into a separate isolated recovery environment using the project's supported restore procedure. Never use production as a test destination.
-3. Reapply/verify application configuration, Auth settings and cron jobs as needed. Verify membership isolation and compare ledger/reservation totals, production revision content and the selected export.
-4. Run `select public.check_integrity();` as an operator and require `[]`. Confirm access and email behavior. Record recovery point, elapsed restore time and the operator/evidence.
+Alert on non-200 job responses, stale unprocessed work, repeated failures, payment exceptions and oversold commitments. Add provider reconciliation for paid transactions, refunds, split movements and payout status. Log event/checkout/job IDs and error codes; redact tokens, phone numbers, addresses and raw payment credentials.
 
-The automated local PGlite backup test verifies data round-tripping only. It does not establish hosted recovery time, Auth recovery, credentials, SMTP configuration or provider disaster recovery.
+## 7. Operations and service recovery
 
-During an accounting incident, stop affected operational writes, preserve logs and a backup, inspect immutable audit/ledger history, and resolve through a documented compensating command or reviewed corrective migration. Do not delete history to make totals match. For an application regression, return to a verified deployment compatible with the current schema; database rollback needs a reviewed forward repair or a tested restore procedure. Recovery may require reconciling real deliveries completed after the recovery point.
+Seller day/meal selection must stay consistent through schedule → production → delivery. Freeze an immutable production revision, inspect meal-level menu/portion/trial totals, and verify print and CSV output before kitchen handoff. Combined packages have one capacity reservation per day, with independently fulfilled lunch and dinner entries. Address/date changes move the daily commitment together.
 
-## Release checklist
+Do not reduce capacity below commitments or close a booked date without resolving affected bookings. A failed replacement reservation must leave the old booking intact. Check cutoff using the caterer's configured timezone, including a request that crosses cutoff during processing.
 
-- [ ] Private remote and clean-checkout CI green; deployment commit recorded.
-- [ ] Separate staging/production credentials, Singapore placement and demo disabled.
-- [ ] Fresh hosted migration and caller-JWT/RLS tests verified across two caterers.
-- [ ] Custom SMTP and OTP/session/invitation journeys verified externally.
-- [ ] Purchase → reserve → default/freeze → ready → dispatch → delivered → history verified in staging.
-- [ ] Subscriber meal/skip/reschedule/address changes agree with staff views.
-- [ ] Cutoff race, missing defaults, revisions, failed delivery and owner reversal rehearsed.
-- [ ] Cron runs, failed-job visibility and actionable alert delivery verified.
-- [ ] Hosted backup restored separately and reconciliation/export checks passed.
-- [ ] Realistic pilot dataset/network performance measured; larger history uses scoped/paginated reads.
-- [ ] Named pilot operator accepts the runbook and records release evidence.
+All cancellation/refund requests enter support and retain bookings on submission. The seller responds first; a Catera administrator approves a financial resolution with amount and reason. Review future obligations, delivered portions and held seller allocations before approval. Never manually delete reservations, rewrite purchase snapshots, or modify financial rows to clear a queue.
 
-Keep the release checklist unapproved until the external checks actually pass. No real customers are part of the supplied fixtures.
+For external prepaid subscriptions, use the seller's legacy import preview with verified customer, package, saved address, remaining days, fixed portions and external receipt reference. Review every generated date and source before confirmation. Preview reserves nothing; confirmation reserves all remaining dates transactionally and labels the subscription as legacy. It does not create an invented provider payment or fresh payout allocation. No automatic hosted-pilot import exists.
+
+## 8. Native development and release evidence
+
+Install the environment's development build using `apps/customer/eas.json`; `expo-dev-client` is included. Configure an EAS project, Apple signing and APNs, Android signing and FCM credentials. Use test identities and Xendit sandbox. The local machine has not produced signed Android/iOS builds or device evidence.
+
+On both Android and iOS verify public browsing, OTP, checkout, backgrounding, interrupted network, `catera://payment/<checkout UUID>` return, push permission denial/approval, foreground/background/terminated push navigation, rescheduling review, support, reviews and renewal. Verify native text scaling, screen reader labels, safe areas, keyboard avoidance and touch targets on actual devices. Shared API rules must reject the same invalid actions as web.
+
+`npm run native:export` and the iOS/Android Jest presets verify bundles and components, not these device flows. Keep device model, OS, build ID, API environment, test date and redacted screenshots with release evidence. [Expo push setup](https://docs.expo.dev/push-notifications/push-notifications-setup/).
+
+## 9. Verification, backup and rollback
+
+Run `npm ci`, `npm run typecheck`, `npm test`, `npm run build`, `npm run test:postgres`, `npm run test:e2e`, both native Jest presets and `npm run native:export` from a clean checkout. CI runs these with isolated PostgreSQL. Examine concurrency failures before rerunning; do not weaken assertions or reset a shared database.
+
+Before launch, restore a recent staging backup into a separate project and compare purchase counts, reservations, payments, audit history and storage objects. Exercise application rollback against the new schema; database recovery requires a planned migration or restored environment, never a destructive reset of customer data. Record recovery point/time and operator. Backups and monitoring must be operational before collecting real payments.
+
+## 10. Release ledger
+
+| Gate | Current evidence / status |
+|---|---|
+| Reproducible local installation | Passed, isolated clean npm ci; `output/install-verification.json` |
+| Type, domain/database/provider, concurrency, browser, builds | Local evidence in `output/verification`; rerun final commit in CI |
+| Web visual review | Four corrections verified; `output/V1-FINISH-VERDICT.md` |
+| Brand alpha and requested master/export sizes | Open: opaque generated masters are below target sizes; no crops or artificial enlargement |
+| Complete English and accessibility/device QA | Partial English support and local checks; full locale/device evidence required |
+| Hosted Supabase Auth/RLS/storage/realtime | Not configured or verified |
+| SMS / SMTP and push delivery | Not verified with staging/production credentials |
+| Xendit sandbox / merchant settlement topology | Adapter and contract tests only; actual transactions required |
+| Approved commercial policies | Required; local examples are fictional |
+| Signed Android/iOS development builds and return/push | Not run on devices |
+| Backup restore, scheduler and alerts | Not verified in hosted environment |
+| High-volume pagination and load testing | Additional admin/customer-history pagination and hosted load evidence required |
+
+Do not mark open gates passed because a local screen renders or a test double responds successfully. Record evidence and explicit commercial/operational authorization before enabling real transactions.

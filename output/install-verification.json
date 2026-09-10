@@ -1,0 +1,7 @@
+{
+  "target": "D:\\Project\\Catera\\catera\\.data\\install-verification-1788970624716",
+  "node": "v24.14.1",
+  "command": "npm ci --prefer-offline --no-audit --no-fund",
+  "exitCode": 0,
+  "at": "2026-09-09T16:17:47.238Z"
+}

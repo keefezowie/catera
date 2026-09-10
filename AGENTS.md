@@ -1,12 +1,12 @@
 # Catera
 
-The user authorized implementation of the September 2026 plan. PRODUCT.md and Catera-Shape-Brief.md contain the inherited product baseline; docs/IMPLEMENTATION.md records subsequent confirmed policies. Historical stop/planning-only instructions in CODEX-HANDOFF.md are superseded by the implementation request.
+The user authorized the September 9, 2026 Catera V1 marketplace overhaul. PRODUCT.md is the current product baseline; docs/IMPLEMENTATION.md records implementation and docs/CATERA-V1-IMPLEMENTATION-PLAN.md tracks release evidence. Pilot instructions in archive/pilot are superseded and must not steer V1 work.
 
-Use the supplied tools/impeccable/SKILL.md for design work. Preserve the approved artwork, palette, delivery-cycle direction, Indonesian-first interface, and code-first preference. Do not reopen naming or concept selection.
+Use the supplied tools/impeccable/SKILL.md for design work. Preserve the latest approved palette, individually regenerated artwork, food-led discovery, delivery-cycle direction, Indonesian-first interface, and code-first preference. Never crop the reference board or mislabel opaque/upscaled assets as transparent/high-resolution masters. Do not reopen naming or concept selection.
 
 Keep tenant authorization and entitlement changes in database transactions. Never replace production storage with demo data silently. Demo mode is explicit and synthetic. Do not expose secrets or real customer fixtures.
 
-Run npm run typecheck, npm test, npm run build and relevant browser tests after material changes. Production release requires configured Supabase, SMTP, and verified deployment gates in docs/RUNBOOK.md.
+Run npm run typecheck, npm test, npm run build, relevant browser/native tests and PostgreSQL concurrency checks after material changes. Production release requires separate Supabase, SMS/SMTP, Xendit and mobile credentials, plus the gates in docs/RUNBOOK.md. Preserve the existing hosted pilot.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

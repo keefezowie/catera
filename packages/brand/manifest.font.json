@@ -1,0 +1,347 @@
+{
+  "schemaVersion": 1,
+  "family": "Plus Jakarta Sans",
+  "downloadedDate": "2026-09-09",
+  "purpose": "Self-hosted web and native font assets for Catera.",
+  "source": {
+    "repository": "https://github.com/tokotype/PlusJakartaSans",
+    "author": "Gumpita Rahayu / Tokotype",
+    "branchAtDownload": "master",
+    "commit": "18d1cd2f7ea10481919d2f05c1f7064b7307fc26",
+    "treeApi": "https://api.github.com/repos/tokotype/PlusJakartaSans/git/trees/18d1cd2f7ea10481919d2f05c1f7064b7307fc26?recursive=1",
+    "relatedOfficialDistribution": "https://github.com/google/fonts/tree/main/ofl/plusjakartasans",
+    "selection": "Official Tokotype variable TTF and variable WOFF2 files from one pinned commit. Each file preserves its upstream filename and original bytes."
+  },
+  "license": {
+    "spdx": "OFL-1.1",
+    "name": "SIL Open Font License, Version 1.1",
+    "path": "assets/fonts/OFL.txt",
+    "repositoryPath": "packages/brand/assets/fonts/OFL.txt",
+    "sourceUrl": "https://raw.githubusercontent.com/tokotype/PlusJakartaSans/18d1cd2f7ea10481919d2f05c1f7064b7307fc26/OFL.txt",
+    "bytes": 4402,
+    "sha256": "995c7199cab65954f545996326755daee7b63cc6b42b06c13da1f9502ab08a99",
+    "gitBlob": "ea69b0ca12a02556c436680ea0a159efb7a748fa",
+    "copyright": "Copyright 2020 The Plus Jakarta Sans Project Authors (https://github.com/tokotype/PlusJakartaSans)",
+    "distributionNote": "Keep the bundled OFL.txt and copyright notice with redistributed font assets. Font files retain their upstream license."
+  },
+  "verified": {
+    "upstreamGitBlobMatches": true,
+    "allFourVariableFontsParsed": true,
+    "method": "Checked TrueType/WOFF2 signatures, decompressed WOFF2 table data, and read embedded name, fvar, maxp, and OS/2 tables. Verified each downloaded file against the pinned official repository git blob hash and recorded SHA-256.",
+    "applicationRendering": "Not tested in an application by this asset-only task."
+  },
+  "integrationNotes": {
+    "web": "Use the .woff2 files for upright and italic variable font faces, weight range 200 800.",
+    "native": "Use the .ttf files. Runtime support for variable fonts and weight-axis selection must be checked in the consuming native application.",
+    "fullFamilyName": "Plus Jakarta Sans",
+    "weightRange": {
+      "minimum": 200,
+      "default": 400,
+      "maximum": 800
+    },
+    "transformations": "None. No conversions, subsetting, font-name changes, or synthetic substitutes."
+  },
+  "assets": [
+    {
+      "filename": "PlusJakartaSans[wght].ttf",
+      "path": "assets/fonts/PlusJakartaSans[wght].ttf",
+      "repositoryPath": "packages/brand/assets/fonts/PlusJakartaSans[wght].ttf",
+      "format": "ttf",
+      "recommendedTarget": "native",
+      "style": "normal",
+      "sourceUrl": "https://raw.githubusercontent.com/tokotype/PlusJakartaSans/18d1cd2f7ea10481919d2f05c1f7064b7307fc26/fonts/variable/PlusJakartaSans%5Bwght%5D.ttf",
+      "bytes": 176288,
+      "sha256": "89b3fb38aa0d275d7a731d0d817a4f1622b316b4d7fbdedcf02ee9099ff68bc8",
+      "gitBlob": "0cb13a998ed525ba226d911b10d6c4c4f923a961",
+      "upstreamGitBlobVerified": true,
+      "metadata": {
+        "file": "PlusJakartaSans[wght].ttf",
+        "family": "Plus Jakarta Sans",
+        "subfamily": "Regular",
+        "fullName": "Plus Jakarta Sans Regular",
+        "version": "Version 2.071;gftools[0.9.30]",
+        "postScriptName": "PlusJakartaSans-Regular",
+        "axes": [
+          {
+            "tag": "wght",
+            "min": 200,
+            "default": 400,
+            "max": 800
+          }
+        ],
+        "instances": [
+          {
+            "name": "ExtraLight",
+            "coordinates": {
+              "wght": 200
+            }
+          },
+          {
+            "name": "Light",
+            "coordinates": {
+              "wght": 300
+            }
+          },
+          {
+            "name": "Regular",
+            "coordinates": {
+              "wght": 400
+            }
+          },
+          {
+            "name": "Medium",
+            "coordinates": {
+              "wght": 500
+            }
+          },
+          {
+            "name": "SemiBold",
+            "coordinates": {
+              "wght": 600
+            }
+          },
+          {
+            "name": "Bold",
+            "coordinates": {
+              "wght": 700
+            }
+          },
+          {
+            "name": "ExtraBold",
+            "coordinates": {
+              "wght": 800
+            }
+          }
+        ],
+        "glyphs": 1188,
+        "embeddingFsType": 0
+      }
+    },
+    {
+      "filename": "PlusJakartaSans-Italic[wght].ttf",
+      "path": "assets/fonts/PlusJakartaSans-Italic[wght].ttf",
+      "repositoryPath": "packages/brand/assets/fonts/PlusJakartaSans-Italic[wght].ttf",
+      "format": "ttf",
+      "recommendedTarget": "native",
+      "style": "italic",
+      "sourceUrl": "https://raw.githubusercontent.com/tokotype/PlusJakartaSans/18d1cd2f7ea10481919d2f05c1f7064b7307fc26/fonts/variable/PlusJakartaSans-Italic%5Bwght%5D.ttf",
+      "bytes": 183188,
+      "sha256": "9529eb888668b6a3c6dd75b6341a2fc5263fb6c9e788822e6117c29dd9e8b115",
+      "gitBlob": "82b042caaaf271beb9e3cbd95ba4741a3d5b8926",
+      "upstreamGitBlobVerified": true,
+      "metadata": {
+        "file": "PlusJakartaSans-Italic[wght].ttf",
+        "family": "Plus Jakarta Sans",
+        "subfamily": "Italic",
+        "fullName": "Plus Jakarta Sans Italic",
+        "version": "Version 2.071;gftools[0.9.30]",
+        "postScriptName": "PlusJakartaSans-Italic",
+        "axes": [
+          {
+            "tag": "wght",
+            "min": 200,
+            "default": 400,
+            "max": 800
+          }
+        ],
+        "instances": [
+          {
+            "name": "ExtraLight Italic",
+            "coordinates": {
+              "wght": 200
+            }
+          },
+          {
+            "name": "Light Italic",
+            "coordinates": {
+              "wght": 300
+            }
+          },
+          {
+            "name": "Italic",
+            "coordinates": {
+              "wght": 400
+            }
+          },
+          {
+            "name": "Medium Italic",
+            "coordinates": {
+              "wght": 500
+            }
+          },
+          {
+            "name": "SemiBold Italic",
+            "coordinates": {
+              "wght": 600
+            }
+          },
+          {
+            "name": "Bold Italic",
+            "coordinates": {
+              "wght": 700
+            }
+          },
+          {
+            "name": "ExtraBold Italic",
+            "coordinates": {
+              "wght": 800
+            }
+          }
+        ],
+        "glyphs": 1188,
+        "embeddingFsType": 0
+      }
+    },
+    {
+      "filename": "PlusJakartaSans[wght].woff2",
+      "path": "assets/fonts/PlusJakartaSans[wght].woff2",
+      "repositoryPath": "packages/brand/assets/fonts/PlusJakartaSans[wght].woff2",
+      "format": "woff2",
+      "recommendedTarget": "web",
+      "style": "normal",
+      "sourceUrl": "https://raw.githubusercontent.com/tokotype/PlusJakartaSans/18d1cd2f7ea10481919d2f05c1f7064b7307fc26/fonts/webfonts/PlusJakartaSans%5Bwght%5D.woff2",
+      "bytes": 60612,
+      "sha256": "49c62cf1fb70f225ea113361f0134a48858c3a7d0175173aa3e38a0c6c8539d2",
+      "gitBlob": "eebac44580986b89ed54b1dfc23209ce82ebc073",
+      "upstreamGitBlobVerified": true,
+      "metadata": {
+        "file": "PlusJakartaSans[wght].woff2",
+        "family": "Plus Jakarta Sans",
+        "subfamily": "Regular",
+        "fullName": "Plus Jakarta Sans Regular",
+        "version": "Version 2.071;gftools[0.9.30]",
+        "postScriptName": "PlusJakartaSans-Regular",
+        "axes": [
+          {
+            "tag": "wght",
+            "min": 200,
+            "default": 400,
+            "max": 800
+          }
+        ],
+        "instances": [
+          {
+            "name": "ExtraLight",
+            "coordinates": {
+              "wght": 200
+            }
+          },
+          {
+            "name": "Light",
+            "coordinates": {
+              "wght": 300
+            }
+          },
+          {
+            "name": "Regular",
+            "coordinates": {
+              "wght": 400
+            }
+          },
+          {
+            "name": "Medium",
+            "coordinates": {
+              "wght": 500
+            }
+          },
+          {
+            "name": "SemiBold",
+            "coordinates": {
+              "wght": 600
+            }
+          },
+          {
+            "name": "Bold",
+            "coordinates": {
+              "wght": 700
+            }
+          },
+          {
+            "name": "ExtraBold",
+            "coordinates": {
+              "wght": 800
+            }
+          }
+        ],
+        "glyphs": 1188,
+        "embeddingFsType": 0
+      }
+    },
+    {
+      "filename": "PlusJakartaSans-Italic[wght].woff2",
+      "path": "assets/fonts/PlusJakartaSans-Italic[wght].woff2",
+      "repositoryPath": "packages/brand/assets/fonts/PlusJakartaSans-Italic[wght].woff2",
+      "format": "woff2",
+      "recommendedTarget": "web",
+      "style": "italic",
+      "sourceUrl": "https://raw.githubusercontent.com/tokotype/PlusJakartaSans/18d1cd2f7ea10481919d2f05c1f7064b7307fc26/fonts/webfonts/PlusJakartaSans-Italic%5Bwght%5D.woff2",
+      "bytes": 65896,
+      "sha256": "c2b725042062d631489ce126ba1ebccf387453aacd8a46579631e8ec77004ec3",
+      "gitBlob": "2d6ea8ca2ef378f908dcf349480b839f8f1c8b74",
+      "upstreamGitBlobVerified": true,
+      "metadata": {
+        "file": "PlusJakartaSans-Italic[wght].woff2",
+        "family": "Plus Jakarta Sans",
+        "subfamily": "Italic",
+        "fullName": "Plus Jakarta Sans Italic",
+        "version": "Version 2.071;gftools[0.9.30]",
+        "postScriptName": "PlusJakartaSans-Italic",
+        "axes": [
+          {
+            "tag": "wght",
+            "min": 200,
+            "default": 400,
+            "max": 800
+          }
+        ],
+        "instances": [
+          {
+            "name": "ExtraLight Italic",
+            "coordinates": {
+              "wght": 200
+            }
+          },
+          {
+            "name": "Light Italic",
+            "coordinates": {
+              "wght": 300
+            }
+          },
+          {
+            "name": "Italic",
+            "coordinates": {
+              "wght": 400
+            }
+          },
+          {
+            "name": "Medium Italic",
+            "coordinates": {
+              "wght": 500
+            }
+          },
+          {
+            "name": "SemiBold Italic",
+            "coordinates": {
+              "wght": 600
+            }
+          },
+          {
+            "name": "Bold Italic",
+            "coordinates": {
+              "wght": 700
+            }
+          },
+          {
+            "name": "ExtraBold Italic",
+            "coordinates": {
+              "wght": 800
+            }
+          }
+        ],
+        "glyphs": 1188,
+        "embeddingFsType": 0
+      }
+    }
+  ]
+}
+

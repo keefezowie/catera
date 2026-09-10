@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-08T15:17:48.377Z",
-  "title": "Design System: Catera",
+  "generatedAt": "2026-09-09T16:42:29.256Z",
+  "title": "Design System: Catera V1",
   "extensions": {
     "colorMeta": {
       "forest": {
@@ -18,8 +18,36 @@
           "oklch(95.00% 0.05208 165.29)"
         ]
       },
-      "cream": {
+      "forest-hover": {
+        "role": "primary",
+        "displayName": "Forest hover",
+        "tonalRamp": [
+          "oklch(15.00% 0.06479 161.69)",
+          "oklch(26.43% 0.06479 161.69)",
+          "oklch(37.86% 0.06479 161.69)",
+          "oklch(49.29% 0.06479 161.69)",
+          "oklch(60.71% 0.06479 161.69)",
+          "oklch(72.14% 0.06479 161.69)",
+          "oklch(83.57% 0.06479 161.69)",
+          "oklch(95.00% 0.06479 161.69)"
+        ]
+      },
+      "sunrise": {
         "role": "secondary",
+        "displayName": "Sunrise",
+        "tonalRamp": [
+          "oklch(15.00% 0.17220 49.40)",
+          "oklch(26.43% 0.17220 49.40)",
+          "oklch(37.86% 0.17220 49.40)",
+          "oklch(49.29% 0.17220 49.40)",
+          "oklch(60.71% 0.17220 49.40)",
+          "oklch(72.14% 0.17220 49.40)",
+          "oklch(83.57% 0.17220 49.40)",
+          "oklch(95.00% 0.17220 49.40)"
+        ]
+      },
+      "cream": {
+        "role": "neutral",
         "displayName": "Cream",
         "tonalRamp": [
           "oklch(15.00% 0.02034 81.78)",
@@ -32,23 +60,9 @@
           "oklch(95.00% 0.02034 81.78)"
         ]
       },
-      "orange": {
-        "role": "secondary",
-        "displayName": "Artwork orange",
-        "tonalRamp": [
-          "oklch(15.00% 0.17220 49.40)",
-          "oklch(26.43% 0.17220 49.40)",
-          "oklch(37.86% 0.17220 49.40)",
-          "oklch(49.29% 0.17220 49.40)",
-          "oklch(60.71% 0.17220 49.40)",
-          "oklch(72.14% 0.17220 49.40)",
-          "oklch(83.57% 0.17220 49.40)",
-          "oklch(95.00% 0.17220 49.40)"
-        ]
-      },
-      "ink": {
+      "charcoal": {
         "role": "neutral",
-        "displayName": "Charcoal ink",
+        "displayName": "Charcoal",
         "tonalRamp": [
           "oklch(15.00% 0.00000 89.88)",
           "oklch(26.43% 0.00000 89.88)",
@@ -58,334 +72,399 @@
           "oklch(72.14% 0.00000 89.88)",
           "oklch(83.57% 0.00000 89.88)",
           "oklch(95.00% 0.00000 89.88)"
-        ]
-      },
-      "muted": {
-        "role": "neutral",
-        "displayName": "Muted green-gray",
-        "tonalRamp": [
-          "oklch(15.00% 0.02082 160.63)",
-          "oklch(26.43% 0.02082 160.63)",
-          "oklch(37.86% 0.02082 160.63)",
-          "oklch(49.29% 0.02082 160.63)",
-          "oklch(60.71% 0.02082 160.63)",
-          "oklch(72.14% 0.02082 160.63)",
-          "oklch(83.57% 0.02082 160.63)",
-          "oklch(95.00% 0.02082 160.63)"
-        ]
-      },
-      "line": {
-        "role": "neutral",
-        "displayName": "Fine separator",
-        "tonalRamp": [
-          "oklch(15.00% 0.01027 145.49)",
-          "oklch(26.43% 0.01027 145.49)",
-          "oklch(37.86% 0.01027 145.49)",
-          "oklch(49.29% 0.01027 145.49)",
-          "oklch(60.71% 0.01027 145.49)",
-          "oklch(72.14% 0.01027 145.49)",
-          "oklch(83.57% 0.01027 145.49)",
-          "oklch(95.00% 0.01027 145.49)"
         ]
       },
       "surface": {
         "role": "neutral",
-        "displayName": "White surface",
+        "displayName": "Surface",
         "tonalRamp": [
-          "oklch(15.00% 0.00000 89.88)",
-          "oklch(26.43% 0.00000 89.88)",
-          "oklch(37.86% 0.00000 89.88)",
-          "oklch(49.29% 0.00000 89.88)",
-          "oklch(60.71% 0.00000 89.88)",
-          "oklch(72.14% 0.00000 89.88)",
-          "oklch(83.57% 0.00000 89.88)",
-          "oklch(95.00% 0.00000 89.88)"
+          "oklch(15.00% 0.00537 95.10)",
+          "oklch(26.43% 0.00537 95.10)",
+          "oklch(37.86% 0.00537 95.10)",
+          "oklch(49.29% 0.00537 95.10)",
+          "oklch(60.71% 0.00537 95.10)",
+          "oklch(72.14% 0.00537 95.10)",
+          "oklch(83.57% 0.00537 95.10)",
+          "oklch(95.00% 0.00537 95.10)"
         ]
       },
       "canvas": {
         "role": "neutral",
-        "displayName": "Pale canvas",
+        "displayName": "Canvas",
         "tonalRamp": [
-          "oklch(15.00% 0.00447 134.85)",
-          "oklch(26.43% 0.00447 134.85)",
-          "oklch(37.86% 0.00447 134.85)",
-          "oklch(49.29% 0.00447 134.85)",
-          "oklch(60.71% 0.00447 134.85)",
-          "oklch(72.14% 0.00447 134.85)",
-          "oklch(83.57% 0.00447 134.85)",
-          "oklch(95.00% 0.00447 134.85)"
+          "oklch(15.00% 0.00978 87.47)",
+          "oklch(26.43% 0.00978 87.47)",
+          "oklch(37.86% 0.00978 87.47)",
+          "oklch(49.29% 0.00978 87.47)",
+          "oklch(60.71% 0.00978 87.47)",
+          "oklch(72.14% 0.00978 87.47)",
+          "oklch(83.57% 0.00978 87.47)",
+          "oklch(95.00% 0.00978 87.47)"
         ]
       },
       "sage": {
         "role": "primary",
-        "displayName": "Sage support",
+        "displayName": "Sage",
         "tonalRamp": [
-          "oklch(15.00% 0.01123 141.26)",
-          "oklch(26.43% 0.01123 141.26)",
-          "oklch(37.86% 0.01123 141.26)",
-          "oklch(49.29% 0.01123 141.26)",
-          "oklch(60.71% 0.01123 141.26)",
-          "oklch(72.14% 0.01123 141.26)",
-          "oklch(83.57% 0.01123 141.26)",
-          "oklch(95.00% 0.01123 141.26)"
+          "oklch(15.00% 0.01359 120.28)",
+          "oklch(26.43% 0.01359 120.28)",
+          "oklch(37.86% 0.01359 120.28)",
+          "oklch(49.29% 0.01359 120.28)",
+          "oklch(60.71% 0.01359 120.28)",
+          "oklch(72.14% 0.01359 120.28)",
+          "oklch(83.57% 0.01359 120.28)",
+          "oklch(95.00% 0.01359 120.28)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted",
+        "tonalRamp": [
+          "oklch(15.00% 0.01514 141.76)",
+          "oklch(26.43% 0.01514 141.76)",
+          "oklch(37.86% 0.01514 141.76)",
+          "oklch(49.29% 0.01514 141.76)",
+          "oklch(60.71% 0.01514 141.76)",
+          "oklch(72.14% 0.01514 141.76)",
+          "oklch(83.57% 0.01514 141.76)",
+          "oklch(95.00% 0.01514 141.76)"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Line",
+        "tonalRamp": [
+          "oklch(15.00% 0.01476 110.90)",
+          "oklch(26.43% 0.01476 110.90)",
+          "oklch(37.86% 0.01476 110.90)",
+          "oklch(49.29% 0.01476 110.90)",
+          "oklch(60.71% 0.01476 110.90)",
+          "oklch(72.14% 0.01476 110.90)",
+          "oklch(83.57% 0.01476 110.90)",
+          "oklch(95.00% 0.01476 110.90)"
         ]
       },
       "danger": {
-        "role": "error",
+        "role": "semantic",
         "displayName": "Danger",
         "tonalRamp": [
-          "oklch(15.00% 0.15865 25.29)",
-          "oklch(26.43% 0.15865 25.29)",
-          "oklch(37.86% 0.15865 25.29)",
-          "oklch(49.29% 0.15865 25.29)",
-          "oklch(60.71% 0.15865 25.29)",
-          "oklch(72.14% 0.15865 25.29)",
-          "oklch(83.57% 0.15865 25.29)",
-          "oklch(95.00% 0.15865 25.29)"
+          "oklch(15.00% 0.15303 29.67)",
+          "oklch(26.43% 0.15303 29.67)",
+          "oklch(37.86% 0.15303 29.67)",
+          "oklch(49.29% 0.15303 29.67)",
+          "oklch(60.71% 0.15303 29.67)",
+          "oklch(72.14% 0.15303 29.67)",
+          "oklch(83.57% 0.15303 29.67)",
+          "oklch(95.00% 0.15303 29.67)"
+        ]
+      },
+      "focus": {
+        "role": "semantic",
+        "displayName": "Focus",
+        "tonalRamp": [
+          "oklch(15.00% 0.14002 51.75)",
+          "oklch(26.43% 0.14002 51.75)",
+          "oklch(37.86% 0.14002 51.75)",
+          "oklch(49.29% 0.14002 51.75)",
+          "oklch(60.71% 0.14002 51.75)",
+          "oklch(72.14% 0.14002 51.75)",
+          "oklch(83.57% 0.14002 51.75)",
+          "oklch(95.00% 0.14002 51.75)"
+        ]
+      },
+      "field-border": {
+        "role": "neutral",
+        "displayName": "Field border",
+        "tonalRamp": [
+          "oklch(15.00% 0.01816 120.73)",
+          "oklch(26.43% 0.01816 120.73)",
+          "oklch(37.86% 0.01816 120.73)",
+          "oklch(49.29% 0.01816 120.73)",
+          "oklch(60.71% 0.01816 120.73)",
+          "oklch(72.14% 0.01816 120.73)",
+          "oklch(83.57% 0.01816 120.73)",
+          "oklch(95.00% 0.01816 120.73)"
+        ]
+      },
+      "secondary-border": {
+        "role": "neutral",
+        "displayName": "Secondary border",
+        "tonalRamp": [
+          "oklch(15.00% 0.02299 126.27)",
+          "oklch(26.43% 0.02299 126.27)",
+          "oklch(37.86% 0.02299 126.27)",
+          "oklch(49.29% 0.02299 126.27)",
+          "oklch(60.71% 0.02299 126.27)",
+          "oklch(72.14% 0.02299 126.27)",
+          "oklch(83.57% 0.02299 126.27)",
+          "oklch(95.00% 0.02299 126.27)"
         ]
       },
       "scheduled-bg": {
-        "role": "neutral",
+        "role": "semantic",
         "displayName": "Scheduled background",
         "tonalRamp": [
-          "oklch(15.00% 0.01232 121.70)",
-          "oklch(26.43% 0.01232 121.70)",
-          "oklch(37.86% 0.01232 121.70)",
-          "oklch(49.29% 0.01232 121.70)",
-          "oklch(60.71% 0.01232 121.70)",
-          "oklch(72.14% 0.01232 121.70)",
-          "oklch(83.57% 0.01232 121.70)",
-          "oklch(95.00% 0.01232 121.70)"
+          "oklch(15.00% 0.01517 123.04)",
+          "oklch(26.43% 0.01517 123.04)",
+          "oklch(37.86% 0.01517 123.04)",
+          "oklch(49.29% 0.01517 123.04)",
+          "oklch(60.71% 0.01517 123.04)",
+          "oklch(72.14% 0.01517 123.04)",
+          "oklch(83.57% 0.01517 123.04)",
+          "oklch(95.00% 0.01517 123.04)"
         ]
       },
       "scheduled-ink": {
-        "role": "neutral",
-        "displayName": "Scheduled text",
+        "role": "semantic",
+        "displayName": "Scheduled ink",
         "tonalRamp": [
-          "oklch(15.00% 0.04659 129.61)",
-          "oklch(26.43% 0.04659 129.61)",
-          "oklch(37.86% 0.04659 129.61)",
-          "oklch(49.29% 0.04659 129.61)",
-          "oklch(60.71% 0.04659 129.61)",
-          "oklch(72.14% 0.04659 129.61)",
-          "oklch(83.57% 0.04659 129.61)",
-          "oklch(95.00% 0.04659 129.61)"
+          "oklch(15.00% 0.05453 135.80)",
+          "oklch(26.43% 0.05453 135.80)",
+          "oklch(37.86% 0.05453 135.80)",
+          "oklch(49.29% 0.05453 135.80)",
+          "oklch(60.71% 0.05453 135.80)",
+          "oklch(72.14% 0.05453 135.80)",
+          "oklch(83.57% 0.05453 135.80)",
+          "oklch(95.00% 0.05453 135.80)"
         ]
       }
     },
     "typographyMeta": {
       "headline": {
-        "displayName": "Operational page heading",
-        "purpose": "Recurring page headings; responsive overrides remain in source."
+        "displayName": "Web headline",
+        "purpose": "Base page headline; marketplace display treatment remains surface-specific."
       },
       "title": {
-        "displayName": "Section title",
-        "purpose": "Default h2 hierarchy; specific containers have local sizes."
+        "displayName": "Web title",
+        "purpose": "Reusable h2 heading; individual sections have documented overrides."
       },
       "subheading": {
-        "displayName": "Subheading",
-        "purpose": "Default h3 hierarchy."
+        "displayName": "Web subheading",
+        "purpose": "Reusable h3 heading."
       },
       "body": {
-        "displayName": "Body",
-        "purpose": "Default interface text; paragraphs have a more open line height."
-      },
-      "body-small": {
-        "displayName": "Compact body",
-        "purpose": "Forms, tables, and detail text."
+        "displayName": "Web body",
+        "purpose": "Default web body text."
       },
       "label": {
-        "displayName": "Field label",
-        "purpose": "Visible labels above form controls."
+        "displayName": "Web field label",
+        "purpose": "Compact forest field labels."
       },
       "button": {
-        "displayName": "Button label",
-        "purpose": "Explicit action text."
+        "displayName": "Web button",
+        "purpose": "Standard 48px-minimum web action text."
+      },
+      "button-small": {
+        "displayName": "Compact action",
+        "purpose": "Compact and text button typography."
+      },
+      "status": {
+        "displayName": "Web status",
+        "purpose": "Read-only status tags, not interactive controls."
       }
     },
     "shadows": [
       {
+        "name": "feedback",
+        "value": "0 14px 38px #163d2e12",
+        "purpose": "Toast feedback; runtime --shadow."
+      },
+      {
+        "name": "package-hover",
+        "value": "0 12px 28px #163d2e10",
+        "purpose": "Subtle package-card hover."
+      },
+      {
+        "name": "floating-comparison",
+        "value": "0 8px 40px #163d2e35",
+        "purpose": "Floating comparison action."
+      },
+      {
         "name": "dialog",
-        "value": "0 16px 55px #163d2e24",
-        "purpose": "Temporary centered dialog."
-      },
-      {
-        "name": "delivery-drawer",
-        "value": "-6px 0 35px #14382620",
-        "purpose": "Adjacent delivery detail."
-      },
-      {
-        "name": "save-feedback",
-        "value": "0 4px 16px #163d2e22",
-        "purpose": "Fixed save confirmation."
+        "value": "0 20px 70px #0b201f30",
+        "purpose": "Dialog layer above the #14291fd0 overlay."
       }
     ],
     "motion": [
       {
-        "name": "control-transition",
-        "value": "background 0.18s, color 0.18s, border-color 0.18s",
-        "purpose": "Shared button hover feedback."
+        "name": "ease",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Shared easing (--ease)."
       },
       {
-        "name": "drawer-entry",
-        "value": "drawer-in 0.2s cubic-bezier(0.22, 1, 0.36, 1)",
-        "purpose": "Delivery drawer enters from 30px right with opacity 0.6 to 1."
+        "name": "button-background",
+        "value": "180ms",
+        "purpose": "Button background transition; shared motion duration."
       },
       {
-        "name": "overlay-entry",
-        "value": "fade-in 0.18s ease-out",
-        "purpose": "Temporary overlay fades from opacity 0 to 1."
+        "name": "package-shadow",
+        "value": "300ms",
+        "purpose": "Package-card shadow transition."
       },
       {
-        "name": "mobile-navigation",
-        "value": "transform 0.2s ease-out",
-        "purpose": "Off-canvas mobile sidebar."
+        "name": "food-hover",
+        "value": "500ms",
+        "purpose": "Food photograph transition to scale(1.025)."
       },
       {
-        "name": "loading",
-        "value": "pulse 1s ease-in-out infinite alternate",
-        "purpose": "Loading skeleton opacity varies from 0.45 to 0.8; reduced motion removes all animations and transitions."
+        "name": "ops-drawer",
+        "value": "250ms",
+        "purpose": "Operational drawer transform."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "prefers-reduced-motion: reduce",
+        "purpose": "Disables animations, transitions, and smooth scrolling."
       }
     ],
     "breakpoints": [
       {
-        "name": "wide-min",
+        "name": "wide",
         "value": "1500px"
       },
       {
-        "name": "compact-desktop-max",
-        "value": "1200px"
+        "name": "compact-desktop",
+        "value": "1150px"
       },
       {
-        "name": "mobile-tablet-max",
+        "name": "tablet",
         "value": "800px"
       },
       {
-        "name": "narrow-phone-max",
-        "value": "370px"
+        "name": "phone",
+        "value": "560px"
       }
     ]
   },
   "components": [
     {
-      "name": "Button / primary",
+      "name": "Primary button",
       "kind": "button",
       "refersTo": "button-primary",
-      "description": "Explicit primary form action.",
-      "html": "<button class=\"ds-button ds-primary\" type=\"button\">Simpan</button>",
-      "css": ".ds-button{font-family:Arial,\"Segoe UI\",sans-serif;border:1px solid transparent;border-radius:8px;min-height:40px;padding:9px 15px;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-size:13px;font-weight:600;line-height:1.35;transition:background .18s,color .18s,border-color .18s;text-align:center;cursor:pointer;touch-action:manipulation}.ds-button:focus-visible{outline:3px solid #eaa154;outline-offset:3px}.ds-button:disabled{cursor:not-allowed;opacity:.5}@media(max-width:800px){.ds-button{min-height:44px}}@media(prefers-reduced-motion:reduce){.ds-button,.ds-nav{transition:none!important}}.ds-primary{background:var(--forest,#163d2e);color:#fff}.ds-primary:hover{background:#25513f}"
+      "description": "Existing primary action variant; label is an Indonesian preview.",
+      "html": "<button type=\"button\" class=\"ds-btn-primary\">Lihat paket<svg aria-hidden=\"true\" width=\"17\" height=\"17\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 12h14M12 5l7 7-7 7\"/></svg></button>",
+      "css": ".ds-btn-primary{font-family:Jakarta,sans-serif;display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:48px;padding:12px 20px;border:1px solid transparent;border-radius:10px;background:var(--forest, #163D2E);color:var(--cream, #FFF7E9);font-size:13px;font-weight:650;line-height:1.6;text-align:center;cursor:pointer;transition:background .18s,box-shadow .2s var(--ease,cubic-bezier(.16,1,.3,1));}.ds-btn-primary:hover{background:var(--forest-hover, #25553F);}.ds-btn-primary:focus-visible{outline:3px solid var(--focus, #B65B13);outline-offset:4px;}.ds-btn-primary:disabled{cursor:not-allowed;opacity:.5;pointer-events:none;}@media(prefers-reduced-motion:reduce){.ds-btn-primary,.ds-btn-secondary,.ds-btn-cream,.ds-package-card{transition:none!important;}}"
     },
     {
-      "name": "Button / secondary",
+      "name": "Secondary button",
       "kind": "button",
       "refersTo": "button-secondary",
-      "description": "Review, edit, and supporting actions.",
-      "html": "<button class=\"ds-button ds-secondary\" type=\"button\">Tinjau</button>",
-      "css": ".ds-button{font-family:Arial,\"Segoe UI\",sans-serif;border:1px solid transparent;border-radius:8px;min-height:40px;padding:9px 15px;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-size:13px;font-weight:600;line-height:1.35;transition:background .18s,color .18s,border-color .18s;text-align:center;cursor:pointer;touch-action:manipulation}.ds-button:focus-visible{outline:3px solid #eaa154;outline-offset:3px}.ds-button:disabled{cursor:not-allowed;opacity:.5}@media(max-width:800px){.ds-button{min-height:44px}}@media(prefers-reduced-motion:reduce){.ds-button,.ds-nav{transition:none!important}}.ds-secondary{background:#fff;border-color:#d7e0d7;color:var(--forest,#163d2e)}.ds-secondary:hover{background:var(--sage,#edf3ec);border-color:#b8cdb9}"
+      "description": "Existing secondary action variant; label is an Indonesian preview.",
+      "html": "<button type=\"button\" class=\"ds-btn-secondary\">Ganti tanggal<svg aria-hidden=\"true\" width=\"17\" height=\"17\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 12h14M12 5l7 7-7 7\"/></svg></button>",
+      "css": ".ds-btn-secondary{font-family:Jakarta,sans-serif;display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:48px;padding:12px 20px;border:1px solid #CDD4C4;border-radius:10px;background:transparent;color:var(--forest, #163D2E);font-size:13px;font-weight:650;line-height:1.6;text-align:center;cursor:pointer;transition:background .18s,box-shadow .2s var(--ease,cubic-bezier(.16,1,.3,1));}.ds-btn-secondary:hover{background:var(--soft, #F0F3E9);}.ds-btn-secondary:focus-visible{outline:3px solid var(--focus, #B65B13);outline-offset:4px;}.ds-btn-secondary:disabled{cursor:not-allowed;opacity:.5;pointer-events:none;}@media(prefers-reduced-motion:reduce){.ds-btn-primary,.ds-btn-secondary,.ds-btn-cream,.ds-package-card{transition:none!important;}}"
     },
     {
-      "name": "Button / ghost",
-      "kind": "button",
-      "refersTo": "button-ghost",
-      "description": "Low-emphasis cancellation action.",
-      "html": "<button class=\"ds-button ds-ghost\" type=\"button\">Batal</button>",
-      "css": ".ds-button{font-family:Arial,\"Segoe UI\",sans-serif;border:1px solid transparent;border-radius:8px;min-height:40px;padding:9px 15px;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-size:13px;font-weight:600;line-height:1.35;transition:background .18s,color .18s,border-color .18s;text-align:center;cursor:pointer;touch-action:manipulation}.ds-button:focus-visible{outline:3px solid #eaa154;outline-offset:3px}.ds-button:disabled{cursor:not-allowed;opacity:.5}@media(max-width:800px){.ds-button{min-height:44px}}@media(prefers-reduced-motion:reduce){.ds-button,.ds-nav{transition:none!important}}.ds-ghost{background:transparent;color:var(--forest,#163d2e)}.ds-ghost:hover{background:var(--sage,#edf3ec)}"
-    },
-    {
-      "name": "Button / cream",
+      "name": "Cream button",
       "kind": "button",
       "refersTo": "button-cream",
-      "description": "Light action inside a forest delivery surface.",
-      "html": "<button class=\"ds-button ds-cream\" type=\"button\">Lihat detail</button>",
-      "css": ".ds-button{font-family:Arial,\"Segoe UI\",sans-serif;border:1px solid transparent;border-radius:8px;min-height:40px;padding:9px 15px;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-size:13px;font-weight:600;line-height:1.35;transition:background .18s,color .18s,border-color .18s;text-align:center;cursor:pointer;touch-action:manipulation}.ds-button:focus-visible{outline:3px solid #eaa154;outline-offset:3px}.ds-button:disabled{cursor:not-allowed;opacity:.5}@media(max-width:800px){.ds-button{min-height:44px}}@media(prefers-reduced-motion:reduce){.ds-button,.ds-nav{transition:none!important}}.ds-cream{background:var(--cream,#fff7e9);color:var(--forest,#163d2e)}.ds-cream:hover{background:#ffe8c5}"
+      "description": "Existing cream action variant; label is an Indonesian preview.",
+      "html": "<button type=\"button\" class=\"ds-btn-cream\">Jelajahi paket<svg aria-hidden=\"true\" width=\"17\" height=\"17\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 12h14M12 5l7 7-7 7\"/></svg></button>",
+      "css": ".ds-btn-cream{font-family:Jakarta,sans-serif;display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:48px;padding:12px 20px;border:1px solid transparent;border-radius:10px;background:var(--cream, #FFF7E9);color:var(--forest, #163D2E);font-size:13px;font-weight:650;line-height:1.6;text-align:center;cursor:pointer;transition:background .18s,box-shadow .2s var(--ease,cubic-bezier(.16,1,.3,1));}.ds-btn-cream:hover{background:#FBE6C8;}.ds-btn-cream:focus-visible{outline:3px solid var(--focus, #B65B13);outline-offset:4px;}.ds-btn-cream:disabled{cursor:not-allowed;opacity:.5;pointer-events:none;}@media(prefers-reduced-motion:reduce){.ds-btn-primary,.ds-btn-secondary,.ds-btn-cream,.ds-package-card{transition:none!important;}}"
     },
     {
-      "name": "Icon button",
+      "name": "Text button",
       "kind": "button",
-      "description": "Compact close control with an accessible label; existing 36px size is not a general touch-target guarantee.",
-      "html": "<button class=\"ds-icon-button\" type=\"button\" aria-label=\"Tutup\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M18 6 6 18M6 6l12 12\"/></svg></button>",
-      "css": ".ds-icon-button{display:inline-flex;align-items:center;justify-content:center;flex:none;width:36px;height:36px;padding:7px;border:0;background:transparent;border-radius:7px;color:var(--muted,#65736b);cursor:pointer}.ds-icon-button:hover{background:var(--sage,#edf3ec);color:var(--forest,#163d2e)}.ds-icon-button:focus-visible{outline:3px solid #eaa154;outline-offset:3px}"
+      "refersTo": "button-text",
+      "description": "Quiet contextual action with an underline on hover.",
+      "html": "<button type=\"button\" class=\"ds-btn-text\">Lihat semua</button>",
+      "css": ".ds-btn-text{font-family:Jakarta,sans-serif;display:inline-flex;align-items:center;border:0;background:none;color:var(--forest, #163D2E);font-size:12px;line-height:1.6;font-weight:650;padding:10px 0;min-height:44px;cursor:pointer;}.ds-btn-text:hover{text-decoration:underline;}.ds-btn-text:focus-visible{outline:3px solid var(--focus, #B65B13);outline-offset:4px;}.ds-btn-text:disabled{cursor:not-allowed;opacity:.5;pointer-events:none;}"
     },
     {
-      "name": "Labeled text field",
+      "name": "Labeled field",
       "kind": "input",
       "refersTo": "input",
-      "description": "Visible Indonesian field label and native text input, with the global keyboard focus treatment.",
-      "html": "<label class=\"ds-label\">Kota<input class=\"ds-input\" name=\"city\" placeholder=\"Nama kota\" /></label>",
-      "css": ".ds-label{font-family:Arial,\"Segoe UI\",sans-serif;display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:600;line-height:1.55;color:var(--forest,#163d2e)}.ds-input{font-family:Arial,\"Segoe UI\",sans-serif;min-height:41px;border:1px solid #d9e1d7;border-radius:7px;background:#fff;color:var(--ink,#2e2e2e);padding:10px 12px;width:100%;max-width:100%;font-size:13px;font-weight:400;line-height:1.55;caret-color:var(--forest,#163d2e)}.ds-input::placeholder{color:#62705e}.ds-input:focus-visible{outline:3px solid #eaa154;outline-offset:3px}"
+      "description": "Existing labeled text field; the wrapper supplies its 12px type, with current muted placeholder and keyboard focus.",
+      "html": "<label class=\"ds-field\"><span>Nama alamat</span><input class=\"ds-input\" type=\"text\" placeholder=\"Contoh: Rumah\" /></label>",
+      "css": ".ds-field{font-family:Jakarta,sans-serif;display:flex;flex-direction:column;gap:8px;font-size:12px;line-height:1.6;}.ds-field>span{color:var(--forest, #163D2E);font-weight:650;}.ds-input{font-family:Jakarta,sans-serif;font-size:12px;line-height:1.6;color:var(--ink, #2E2E2E);background:var(--surface, #FFFEFA);border:1px solid #CFD3C6;border-radius:9px;min-height:44px;padding:11px 13px;max-width:100%;caret-color:var(--forest, #163D2E);}.ds-input::placeholder{color:var(--muted, #60675F);}.ds-input:focus-visible{outline:3px solid var(--focus, #B65B13);outline-offset:4px;}"
     },
     {
-      "name": "Desktop navigation",
+      "name": "Operations navigation",
       "kind": "nav",
       "refersTo": "nav-selected",
-      "description": "Outlined SVG icon and sentence-case label; current page uses a forest fill. Mobile subscriber navigation has its own documented layout.",
-      "html": "<nav aria-label=\"Operasional\"><a class=\"ds-nav ds-selected\" href=\"#jadwal\" aria-current=\"page\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M8 2v4m8-4v4M3 10h18\"/><rect x=\"3\" y=\"4\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01\"/></svg>Jadwal</a></nav>",
-      "css": ".ds-nav{font-family:Arial,\"Segoe UI\",sans-serif;display:flex;align-items:center;gap:12px;min-height:43px;margin:4px 0;border:0;width:100%;background:transparent;padding:10px 12px;border-radius:7px;color:#68736b;font-size:13px;font-weight:550;line-height:1.55;text-decoration:none;transition:background .18s,color .18s}.ds-nav:hover{background:#f2f4ed;color:var(--forest,#163d2e)}.ds-nav.ds-selected{background:var(--forest,#163d2e);color:#fff}.ds-nav:focus-visible{outline:3px solid #eaa154;outline-offset:3px}@media(prefers-reduced-motion:reduce){.ds-button,.ds-nav{transition:none!important}}"
+      "description": "Selected workspace destination and quiet sibling link; seller/admin menus remain distinct in the app.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Contoh navigasi operasional\"><a class=\"ds-nav-link ds-selected\" href=\"#hari-ini\" aria-current=\"page\"><svg aria-hidden=\"true\" width=\"19\" height=\"19\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-6v-7h-4v7H4a1 1 0 0 1-1-1Z\"/></svg>Hari ini</a><a class=\"ds-nav-link\" href=\"#jadwal\"><svg aria-hidden=\"true\" width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M12 6v6l4 2\"/></svg>Jadwal</a></nav>",
+      "css": ".ds-nav{display:flex;flex-direction:column;gap:3px;max-width:244px;}.ds-nav-link{font-family:Jakarta,sans-serif;display:flex;align-items:center;gap:12px;padding:11px 13px;min-height:44px;font-size:12px;line-height:1.6;font-weight:550;color:#52604D;border-radius:8px;text-decoration:none;}.ds-nav-link.ds-selected{background:var(--forest, #163D2E);color:var(--cream, #FFF7E9);}.ds-nav-link:hover:not(.ds-selected){background:#EDF1E5;}.ds-nav-link svg{flex-shrink:0;}.ds-nav-link:focus-visible{outline:3px solid var(--focus, #B65B13);outline-offset:4px;}"
     },
     {
-      "name": "Scheduled status",
+      "name": "Meal filter",
+      "kind": "chip",
+      "refersTo": "chip-selected",
+      "description": "Selected and unselected meal controls with the implemented 44px web minimum height.",
+      "html": "<div class=\"ds-chips\" role=\"group\" aria-label=\"Waktu makan\"><button type=\"button\" class=\"ds-chip ds-selected\" aria-pressed=\"true\">Semua</button><button type=\"button\" class=\"ds-chip\" aria-pressed=\"false\">Makan siang</button></div>",
+      "css": ".ds-chips{display:flex;gap:10px;align-items:center;overflow:auto;padding-bottom:16px;}.ds-chip{font-family:Jakarta,sans-serif;display:flex;align-items:center;gap:9px;white-space:nowrap;min-height:44px;border:1px solid var(--line, #E2E3D8);border-radius:9px;background:transparent;padding:10px 18px;font-size:12px;line-height:1.6;color:var(--forest, #163D2E);font-weight:600;cursor:pointer;}.ds-chip.ds-selected{background:var(--forest, #163D2E);border-color:var(--forest, #163D2E);color:var(--cream, #FFF7E9);}.ds-chip:hover:not(.ds-selected){background:var(--soft, #F0F3E9);}.ds-chip:focus-visible{outline:3px solid var(--focus, #B65B13);outline-offset:4px;}.ds-chip:disabled{cursor:not-allowed;opacity:.5;pointer-events:none;}"
+    },
+    {
+      "name": "Delivery status",
       "kind": "chip",
       "refersTo": "status-scheduled",
-      "description": "Noninteractive translated status with text and a dot; final responsive override increases label legibility.",
+      "description": "Read-only status label; its dot supports the text instead of replacing it.",
       "html": "<span class=\"ds-status\"><span aria-hidden=\"true\"></span>Terjadwal</span>",
-      "css": ".ds-status{font-family:Arial,\"Segoe UI\",sans-serif;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;font-size:10px;line-height:1.5;border-radius:5px;padding:4px 7px;background:#eff2e9;color:#556347}.ds-status>span{width:4px;height:4px;border-radius:50%;background:currentColor}@media(max-width:800px){.ds-status{font-size:12px;padding:4px 6px}}"
+      "css": ".ds-status{font-family:Jakarta,sans-serif;display:inline-flex;align-items:center;gap:5px;padding:4px 8px;background:#EDF1E6;border-radius:5px;font-size:10px;line-height:1.6;color:#4F6445;white-space:nowrap;width:max-content;}.ds-status>span{width:4px;height:4px;background:currentColor;border-radius:50%;}"
     },
     {
-      "name": "Operational list surface",
+      "name": "Package card body",
       "kind": "card",
-      "refersTo": "list-surface",
-      "description": "Flat white list with its own toolbar and fine separators. Synthetic example only.",
-      "html": "<section class=\"ds-list\"><div class=\"ds-toolbar\"><h2>Jadwal</h2></div><table class=\"ds-table\"><thead><tr><th>Pelanggan</th><th>Status</th></tr></thead><tbody><tr><td>Contoh sintetis</td><td>Terjadwal</td></tr></tbody></table></section>",
-      "css": ".ds-list{font-family:Arial,\"Segoe UI\",sans-serif;border:1px solid var(--line,#e1e7e1);border-radius:12px;background:#fff;overflow:hidden;color:var(--ink,#2e2e2e);line-height:1.55}.ds-toolbar{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:20px 22px}.ds-toolbar h2{margin:0;font-size:16px;font-weight:650;line-height:1.35;letter-spacing:-.015em}.ds-table{border-collapse:collapse;width:100%;text-align:left;background:#fff;font-size:13px;font-variant-numeric:tabular-nums}.ds-table th{background:#f8faf7;font-size:11px;color:#596858;font-weight:500;white-space:nowrap;padding:12px 22px;border-top:1px solid var(--line,#e1e7e1);border-bottom:1px solid var(--line,#e1e7e1)}.ds-table td{padding:16px 22px;vertical-align:middle}.ds-table tbody tr:hover{background:#fdfefb}@media(max-width:800px){.ds-toolbar{padding:16px;gap:13px}}"
+      "refersTo": "package-card",
+      "description": "Existing card boundary and body hierarchy. The panel omits the photograph; runtime cards use the provenance-tracked food images.",
+      "html": "<article class=\"ds-package-card\"><div class=\"ds-package-body\"><div class=\"ds-caterer\">Demo sintetis</div><h3 class=\"ds-package-title\"><a class=\"ds-package-link\" href=\"#paket\">Paket makan siang</a></h3><p class=\"ds-package-meta\">Pengantaran termasuk · Paket fleksibel</p></div></article>",
+      "css": ".ds-package-card{font-family:Jakarta,sans-serif;border:1px solid var(--line, #E2E3D8);border-radius:var(--radius,16px);overflow:hidden;background:var(--surface, #FFFEFA);color:var(--ink, #2E2E2E);min-width:0;transition:box-shadow .3s var(--ease,cubic-bezier(.16,1,.3,1));}.ds-package-card:hover{box-shadow:0 12px 28px #163d2e10;}.ds-package-body{padding:20px;}.ds-caterer{font-size:11px;line-height:1.6;color:var(--muted, #60675F);margin-bottom:8px;}.ds-package-title{margin:0 0 7px;font-size:19px;font-weight:750;line-height:1.22;letter-spacing:-.02em;color:var(--forest, #163D2E);}.ds-package-link{color:inherit;text-decoration:none;}.ds-package-meta{font-size:11px;line-height:1.6;margin:0;color:var(--muted, #60675F);}.ds-package-link:focus-visible{outline:3px solid var(--focus, #B65B13);outline-offset:4px;}@media(prefers-reduced-motion:reduce){.ds-btn-primary,.ds-btn-secondary,.ds-btn-cream,.ds-package-card{transition:none!important;}}"
     },
     {
-      "name": "Quota summary",
+      "name": "Meal agenda row",
       "kind": "custom",
-      "description": "Three tabular totals keep remaining, reserved, and available delivery quotas distinct. Zero values are synthetic preview content.",
-      "html": "<div class=\"ds-quota\"><div><strong>0</strong><span>Tersisa</span></div><div><strong>0</strong><span>Terjadwal</span></div><div><strong>0</strong><span>Bisa dijadwalkan</span></div></div>",
-      "css": ".ds-quota{font-family:Arial,\"Segoe UI\",sans-serif;display:grid;grid-template-columns:repeat(3,1fr);gap:20px;padding:22px 0;line-height:1.55}.ds-quota>div{display:flex;flex-direction:column;gap:7px}.ds-quota>div+div{border-left:1px solid var(--line,#e1e7e1);padding-left:22px}.ds-quota strong{font-variant-numeric:tabular-nums;font-size:28px;line-height:1;color:var(--forest,#163d2e);font-weight:550;letter-spacing:-.04em}.ds-quota span{font-size:11px;color:var(--muted,#65736b)}@media(max-width:800px){.ds-quota{gap:12px}.ds-quota>div+div{padding-left:16px}.ds-quota strong{font-size:27px}.ds-quota span{font-size:10px}}"
+      "refersTo": "meal-agenda",
+      "description": "The current sage agenda and open lunch/dinner row structure; preview content is explicitly synthetic.",
+      "html": "<section class=\"ds-agenda\" aria-label=\"Contoh agenda\"><h2 class=\"ds-agenda-title\">Agenda hari ini</h2><div class=\"ds-agenda-row\"><svg aria-hidden=\"true\" width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M12 6v6l4 2\"/></svg><div><small class=\"ds-agenda-label\">Makan siang</small><strong class=\"ds-agenda-name\">Menu demo sintetis</strong><p class=\"ds-agenda-copy\">Lihat detail pengantaran</p></div></div></section>",
+      "css": ".ds-agenda{font-family:Jakarta,sans-serif;padding:28px;background:var(--soft, #F0F3E9);border-radius:16px;color:var(--ink, #2E2E2E);}.ds-agenda-title{margin:0 0 10px;color:var(--forest, #163D2E);font-size:24px;font-weight:750;line-height:1.22;letter-spacing:-.025em;}.ds-agenda-row{display:grid;grid-template-columns:22px minmax(0,1fr);gap:12px;padding:22px 0;align-items:start;border-bottom:1px solid var(--line, #E2E3D8);}.ds-agenda-row:last-child{border-bottom:0;}.ds-agenda-row>svg{margin-top:3px;color:var(--forest, #163D2E);}.ds-agenda-label{display:block;font-size:12px;line-height:1.6;color:var(--muted, #60675F);margin-bottom:8px;}.ds-agenda-name{display:block;font-size:18px;line-height:1.6;font-weight:750;}.ds-agenda-copy{font-size:12px;line-height:1.6;margin:8px 0 0;color:var(--muted, #60675F);}"
     }
   ],
   "narrative": {
     "northStar": "Delivery cycle",
-    "overview": "Catera is warm, calm, and organized recurring-catering software. Its approved bento mascot and rounded wordmark supply the personality; quiet surfaces and a compact sans-serif hierarchy keep daily work legible. Indonesian is the primary interface language, with English supported. Preserve the exact name and tagline, “Good Food on Repeat.”\n\nThis records the implemented interface as of 8 September 2026. The visual source of truth is [the global stylesheet](src/app/globals.css), including its final cascade overrides, and [the components](src/components/). The approved identity is [the original brand board](public/brand/catera-board.png); the inherited direction is [the implementation contract](docs/UI-BRIEF.md). [PRODUCT.md](PRODUCT.md) and [the shape brief](Catera-Shape-Brief.md) retain approved product context; subsequent policies live in [the implementation record](docs/IMPLEMENTATION.md). This document describes visual behavior, not hosted or production readiness.",
+    "overview": "Catera makes recurring meals feel tangible, warm, and organized. Food photography carries discovery; the rounded illustrated wordmark and occasional bento mascot add personality. Forest actions, cream fields, and a clear Jakarta hierarchy connect the customer experience to quieter, denser seller and platform-admin workspaces. Indonesian is the primary interface language; preserve the name Catera and the tagline “Good Food on Repeat.”\n\nThis records the built September 9, 2026 V1 marketplace world. The code-first direction is already approved; there is no page comp or new concept-selection step. PRODUCT.md provides the current product baseline, while docs/V1-UI-BRIEF.md owns surface composition. The archived pilot design is historical evidence and does not steer new V1 screens.",
     "keyCharacteristics": [
-      "Forest actions and emphasis on a pale canvas, with cream and the original artwork adding warmth.",
-      "Operational typography, explicit status text, and tabular numbers.",
-      "Open lists and light borders; raised layers are reserved for overlays and save feedback.",
-      "Responsive detail views preserve the context needed to act."
+      "Food photographs lead discovery; brand illustrations appear at supporting moments.",
+      "Warm surfaces, forest emphasis, and a compact, expressive sans-serif hierarchy.",
+      "Daily meal context stays legible alongside quieter subscription and operational lists.",
+      "Text names states and actions; color supports their meaning.",
+      "Web and native share identity assets while retaining their implemented platform-specific dimensions."
     ],
     "rules": [
       {
-        "name": "The State Has Words Rule.",
-        "body": "Status color accompanies readable text. Preserve the distinction between neutral scheduling, green readiness/completion, amber delivery activity, warm failure, and gray cancellation.",
+        "name": "Food First",
+        "body": "Use meal photography for food discovery and the next-meal focal point; keep the mascot as supporting brand warmth.",
         "section": "colors"
       },
       {
-        "name": "The Operational Type Rule.",
-        "body": "Use the shared sans-serif roles for interface content and the supplied raster artwork for the brand wordmark. Keep status labels and customer names legible when the layout narrows.",
+        "name": "One Interface Family",
+        "body": "Use the self-hosted Jakarta face for interface text. Keep the illustrated wordmark separate from live UI typography.",
         "section": "typography"
       },
       {
-        "name": "The Temporary Layer Rule.",
-        "body": "Keep ordinary data surfaces flat. Use the existing soft elevation treatments for temporary overlays and confirmation feedback.",
+        "name": "Quiet Work",
+        "body": "Use borders and tonal surfaces for ordinary content; reserve stronger depth for floating feedback and modal layers.",
         "section": "elevation"
+      },
+      {
+        "name": "Truthful State",
+        "body": "Pair state color with explicit text, and make the selected filter and its empty result visible.",
+        "section": "components"
       }
     ],
     "dos": [
-      "**Do** preserve the supplied board, Catera name, and exact “Good Food on Repeat.” tagline.",
-      "**Do** write Indonesian-first interface copy and check the same layout with English labels.",
-      "**Do** use the shared forest, cream, neutral surfaces, and operational type roles.",
-      "**Do** pair status colors with words, keep keyboard focus visible, and honor reduced motion.",
-      "**Do** verify new list and detail surfaces at desktop, tablet, and phone widths with long content and empty/error states.",
-      "**Do** keep synthetic previews explicitly labeled and release claims separate from visual review."
+      "Do use the approved forest, sunrise, cream, and charcoal identity with the current supporting tokens.",
+      "Do preserve complete brand compositions, intrinsic aspect ratios, provenance, and the actual dimensions of every generated asset.",
+      "Do lead food discovery with meal photography; use synthetic food only in explicitly labeled demo listings.",
+      "Do maintain distinct customer, seller, and platform-admin navigation with Indonesian-first labels.",
+      "Do keep the next meal and lunch/dinner agenda adjacent on wide customer home and ordered before flat subscriptions on phone.",
+      "Do preserve text labels, keyboard focus, reduced-motion handling, and the native source’s 48 dp control sizing."
     ],
     "donts": [
-      "**Don't** reconstruct or substitute the approved artwork with a typed wordmark or glyph mascot.",
-      "**Don't** squeeze the three operational stages into parallel phone columns.",
-      "**Don't** use color changes or navigation alone to imply a successful mutation or quota deduction.",
-      "**Don't** promote one-off display styling, tiny secondary captions, or historical overridden crop values into reusable tokens.",
-      "**Don't** add shadows to ordinary lists and cards when borders and tonal separation already establish their structure."
+      "Don't crop the reference board or extract a sprite to create a runtime brand asset.",
+      "Don't describe an opaque PNG, matte, checkerboard, blend mode, or upscaled derivative as a true transparent or high-resolution master.",
+      "Don't reuse the superseded pilot palette, system-font hierarchy, or tenant-only surface model for V1.",
+      "Don't replace food photographs with mascot decoration or recreate the wordmark as interface text.",
+      "Don't turn customer-home subscription rows back into nested cards or imply a pending verification workload when the selected queue is empty.",
+      "Don't treat the web verdict, native source checks, or this documentation as device visual approval or production-release approval."
     ]
   }
 }

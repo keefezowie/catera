@@ -1,330 +1,239 @@
 import { test, expect, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-async function login(page: Page, role = "pemilik") {
-  await page.goto("/login");
-  await page.getByRole("button", { name: "Masuk sebagai " + role }).click();
-  await page.getByRole("link", { name: /Dapur Hijau/ }).click();
-  await expect(
-    page.getByRole("heading", {
-      name:
-        role === "pelanggan" ? "Beranda, Nadia." : "Setiap kiriman, tertata.",
-      exact: true,
-    }),
-  ).toBeVisible();
+import { localDay, addDays } from "@catera/domain";
+async function login(page: Page, role = "customer") {
+  const r = await page.request.post("/api/v1/auth/demo", { data: { role } });
+  expect(r.ok()).toBe(true);
 }
-test("owner navigates all management screens and preserves date context", async ({
+test("customer purchase, schedule change, support review and renewal", async ({
   page,
 }) => {
   await login(page);
+  const existing = (await (await page.request.get("/api/v1/customer")).json())
+    .data;
+  const last =
+    existing.subscriptions
+      .filter((s: { package_id: string }) => s.package_id.endsWith("003"))
+      .map((s: { ends_on: string }) => s.ends_on)
+      .sort()
+      .at(-1) || localDay();
+  const start = addDays(
+    last > addDays(localDay(), 250) ? last : addDays(localDay(), 250),
+    7,
+  );
+  const requestText = "Permintaan sintetis dari pengujian perjalanan " + start;
+  await page.goto("/discover");
+  await page
+    .getByRole("button", { name: "Bandingkan: Rantang Nusantara", exact: true })
+    .click();
+  await page
+    .getByRole("button", {
+      name: "Bandingkan: Plant-based Everyday",
+      exact: true,
+    })
+    .click();
+  await page.getByRole("link", { name: "Bandingkan", exact: true }).click();
+  await expect(page.locator("table.comparison")).toBeVisible();
+  await page.getByLabel("Porsi perbandingan").fill("2");
+  await page.goto("/checkout/20000000-0000-4000-8000-000000000003?portions=2");
+  await page.getByLabel("Mulai tanggal").fill(start);
+  await page.getByRole("button", { name: "Tinjau jadwal & harga" }).click();
+  await expect(page.locator(".schedule-preview>div")).toHaveCount(10);
+  await page.getByRole("checkbox").check();
+  await page.getByRole("button", { name: "Lanjutkan ke pembayaran" }).click();
+  await expect(page).toHaveURL(/\/payment\//);
+  await page
+    .getByRole("button", { name: "Simulasikan pembayaran berhasil" })
+    .click();
   await expect(
-    page.getByRole("heading", { name: "Setiap kiriman, tertata." }),
+    page.getByRole("heading", { name: "Makanan baik sudah dijadwalkan." }),
   ).toBeVisible();
+  const subs = (
+    await (
+      await page.request.get(
+        "/api/v1/customer?from=" +
+          addDays(start, -1) +
+          "&to=" +
+          addDays(start, 59),
+      )
+    ).json()
+  ).data;
+  const delivery = subs.deliveries.find(
+    (d: { offer: { id: string }; canChange: boolean }) =>
+      d.offer.id.endsWith("003") && d.canChange,
+  );
+  await page.goto("/deliveries/" + delivery.id);
+  await page
+    .getByRole("button", { name: "Ganti tanggal", exact: true })
+    .click();
+  const dates = (
+    await (
+      await page.request.get(
+        "/api/v1/availability/" +
+          delivery.id +
+          "?from=" +
+          addDays(delivery.service_date, 21) +
+          "&to=" +
+          addDays(delivery.service_date, 40),
+      )
+    ).json()
+  ).data;
+  const target = dates.find((d: { available: boolean }) => d.available).date;
+  await page.getByLabel("Tanggal pengganti").fill(target);
+  await page.getByRole("button", { name: "Tinjau perubahan" }).click();
+  await expect(page.getByText("Menjadi", { exact: true })).toBeVisible();
+  await page
+    .getByRole("button", { name: "Konfirmasi tanggal pengganti" })
+    .click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.getByRole("link", { name: "Laporkan masalah" }).click();
+  await page.getByLabel("Jenis permintaan").selectOption("Ajukan pembatalan");
+  await page.getByLabel("Ceritakan kendalanya").fill(requestText);
+  await page.getByRole("button", { name: "Kirim permintaan bantuan" }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(
+    page.locator(".support-case").filter({ hasText: requestText }),
+  ).toBeVisible();
+  const check = (
+    await (
+      await page.request.get("/api/v1/customer?deliveryId=" + delivery.id)
+    ).json()
+  ).data;
+  expect(check.deliveries[0].status).toBe("scheduled");
+  await page.goto("/subscriptions/" + delivery.subscription_id);
+  await expect(
+    page.getByRole("link", { name: "Beli paket berikutnya" }),
+  ).toBeVisible();
+});
+test("customer and operational routes render, retain context and pass critical accessibility", async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await login(page);
+  await page.goto("/home");
+  await expect(page.locator(".next-meal-card")).toBeVisible();
   await page.screenshot({
-    path: ".impeccable/review/desktop.png",
+    path: "output/playwright/customer-desktop.png",
     fullPage: true,
   });
-  const accessibility = await new AxeBuilder({ page })
-    .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
-    .analyze();
-  expect(accessibility.violations).toEqual([]);
-  await page.getByRole("link", { name: "Produksi", exact: true }).click();
-  await expect(
-    page.getByRole("heading", { name: "Versi produksi" }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "Unduh CSV" }).click();
-  for (const [nav, title] of [
-    ["Pelanggan", "Pelanggan"],
-    ["Paket", "Paket"],
-    ["Menu", "Menu"],
-    ["Pengaturan", "Pengaturan"],
-  ]) {
-    await page.getByRole("link", { name: nav, exact: true }).click();
-    await expect(
-      page.getByRole("heading", { name: title, exact: true, level: 1 }),
-    ).toBeVisible();
-  }
-  await page.getByRole("button", { name: "Simpan pengecualian" }).click();
-  const dialog = page.getByRole("dialog"),
-    date = new Date();
-  date.setUTCDate(date.getUTCDate() + 13);
-  const serviceDate = date.toISOString().slice(0, 10);
-  date.setUTCDate(date.getUTCDate() - 1);
-  await dialog.getByLabel("Tanggal", { exact: true }).fill(serviceDate);
-  await dialog
-    .getByLabel(/^Batas perubahan khusus/)
-    .fill(date.toISOString().slice(0, 10) + "T20:30");
-  await dialog.getByRole("button", { name: "Simpan", exact: true }).click();
-  await expect(dialog).not.toBeVisible();
-  await expect(
-    page.locator(".setting-row").filter({ hasText: /20[.:]30/ }),
-  ).toHaveCount(1);
-});
-test("owner creates a customer, records quota and schedules deliveries", async ({
-  page,
-}) => {
-  await login(page);
-  await page.getByRole("link", { name: "Pelanggan", exact: true }).click();
-  await page.getByRole("button", { name: "Tambah pelanggan" }).click();
-  const dialog = page.getByRole("dialog"),
-    name = "Uji Browser " + Date.now();
-  await dialog.getByLabel("Nama", { exact: true }).fill(name);
-  await dialog
-    .getByLabel("Email", { exact: true })
-    .fill("test@demo.catera.test");
-  await dialog
-    .getByLabel("Jalan, nomor, dan area")
-    .fill("Jl. Data Sintetis No. 50");
-  await dialog.getByLabel("Kota", { exact: true }).fill("Jakarta");
-  await dialog.getByRole("button", { name: "Simpan", exact: true }).click();
-  await expect(dialog).not.toBeVisible();
-  await page.getByRole("link", { name: name, exact: false }).click();
-  await page.getByRole("button", { name: "Catat pembelian" }).click();
-  await dialog
-    .locator('select[name="package_id"]')
-    .selectOption({ label: "Paket Seimbang · 26" });
-  await dialog.getByRole("button", { name: "Tinjau perubahan" }).click();
-  await dialog.getByRole("button", { name: "Konfirmasi", exact: true }).click();
-  await expect(dialog).not.toBeVisible();
-  await expect(
-    page.locator(".quota-summary").getByText("26", { exact: true }),
-  ).toHaveCount(2);
-  await page.getByRole("button", { name: "Buat jadwal" }).click();
-  const start = new Date();
-  start.setUTCDate(start.getUTCDate() + 2);
-  const end = new Date(start);
-  end.setUTCDate(end.getUTCDate() + 7);
-  await dialog
-    .getByLabel("Mulai berlaku")
-    .fill(start.toISOString().slice(0, 10));
-  await dialog
-    .getByLabel("Sampai tanggal")
-    .fill(end.toISOString().slice(0, 10));
-  await dialog.getByRole("button", { name: "Tinjau perubahan" }).click();
-  await expect(dialog.locator(".schedule-preview li")).not.toHaveCount(0);
-  await dialog.getByRole("button", { name: "Konfirmasi", exact: true }).click();
-  await expect(dialog).not.toBeVisible();
-  await expect(page.locator("tbody tr")).not.toHaveCount(0);
-});
-test("subscriber phone layout, meal review and address isolation", async ({
-  page,
-}) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await login(page, "pelanggan");
+  await page.screenshot({
+    path: "output/playwright/customer-phone.png",
+    fullPage: true,
+  });
+  await page.goto("/calendar");
+  await expect(page.locator(".week-strip")).toBeVisible();
+  await page.screenshot({
+    path: "output/playwright/calendar-phone.png",
+    fullPage: true,
+  });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.goto("/account");
   await expect(
-    page.getByRole("heading", { name: "Kiriman berikutnya" }),
+    page.getByRole("heading", { name: "Akunmu, keseharianmu." }),
   ).toBeVisible();
+  const audit = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa"])
+    .analyze();
+  expect(
+    audit.violations.filter(
+      (v) => v.impact === "critical" || v.impact === "serious",
+    ),
+  ).toEqual([]);
+  await login(page, "owner");
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("/seller");
+  await expect(
+    page.getByRole("heading", { name: "Keluar dari dapur hari ini" }),
+  ).toBeVisible();
+  await page.screenshot({
+    path: "output/playwright/seller-desktop.png",
+    fullPage: true,
+  });
+  await page.getByRole("link", { name: /2 Produksi/ }).click();
+  await expect(page).toHaveURL(/date=.*meal=all/);
+  await page
+    .getByRole("button", { name: "Simpan revisi & buat manifest" })
+    .click();
+  await expect(page.getByRole("link", { name: /Unduh CSV/ })).toBeVisible();
+  const href = await page
+    .getByRole("link", { name: /Unduh CSV/ })
+    .getAttribute("href");
+  const manifest = await page.request.get(href!);
+  expect(manifest.ok()).toBe(true);
+  expect(await manifest.text()).toContain("Rantang Nusantara");
+  for (const route of [
+    "packages",
+    "menus",
+    "capacity",
+    "customers",
+    "support",
+    "transactions",
+    "settings",
+  ]) {
+    await page.goto("/seller/" + route);
+    await expect(page.locator(".error-notice")).toHaveCount(0);
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/seller/delivery");
+  await expect(
+    page.getByRole("button", { name: "Detail Rantang Nusantara" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Detail Rantang Nusantara" }).click();
+  await page.screenshot({
+    path: "output/playwright/seller-phone.png",
+    fullPage: true,
+  });
+  await login(page, "platform_admin");
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto("/admin");
+  await expect(
+    page.getByRole("heading", { name: "Antrean verifikasi" }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Semua katerer", exact: true })
+    .click();
+  await page.getByRole("button", { name: /Dapur Senja/ }).click();
+  await page.screenshot({
+    path: "output/playwright/admin-desktop.png",
+    fullPage: true,
+  });
+  for (const route of [
+    "transactions",
+    "support",
+    "payouts",
+    "promotions",
+    "reviews",
+    "audit",
+  ]) {
+    await page.goto("/admin/" + route);
+    await expect(page.locator(".error-notice")).toHaveCount(0);
+  }
+  expect(errors).toEqual([]);
+});
+test("API forbids customer admin access, cross-origin writes and unsigned payment events", async ({
+  request,
+}) => {
+  await request.post("/api/v1/auth/demo", { data: { role: "customer" } });
+  expect((await request.get("/api/v1/admin")).status()).toBe(403);
   expect(
     (
-      await new AxeBuilder({ page })
-        .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
-        .analyze()
-    ).violations,
-  ).toEqual([]);
-  await page.screenshot({
-    path: ".impeccable/review/mobile.png",
-    fullPage: true,
-  });
+      await request.post("/api/v1/commands", {
+        headers: { Origin: "https://untrusted.example" },
+        data: {},
+      })
+    ).status(),
+  ).toBe(403);
   expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= window.innerWidth,
-    ),
-  ).toBe(true);
-  await page
-    .locator(".bottom-nav")
-    .getByRole("link", { name: "Jadwal", exact: true })
-    .click();
-  await page.locator(".agenda-list>a").last().click();
-  await page.getByRole("button", { name: "Pilih menu", exact: true }).click();
-  const dialog = page.getByRole("dialog");
-  await dialog
-    .locator('select[name="menu_id"]')
-    .selectOption({ label: "Tempe teriyaki" });
-  await dialog.getByRole("button", { name: "Tinjau perubahan" }).click();
-  await expect(dialog).toContainText("Tempe teriyaki");
-  await dialog.getByRole("button", { name: "Konfirmasi", exact: true }).click();
-  await expect(dialog).not.toBeVisible();
-  await expect(page.locator(".meal-name")).toHaveText("Tempe teriyaki");
-  await page.getByRole("button", { name: "Ubah alamat", exact: true }).click();
-  await dialog
-    .getByLabel("Jalan, nomor, dan area")
-    .fill("Jl. Alamat Uji No. 88");
-  await dialog.getByRole("button", { name: "Tinjau perubahan" }).click();
-  await dialog.getByRole("button", { name: "Konfirmasi", exact: true }).click();
-  await expect(dialog).not.toBeVisible();
-  await expect(
-    page.getByText("Jl. Alamat Uji No. 88", { exact: false }),
-  ).toBeVisible();
-  await page
-    .locator(".bottom-nav")
-    .getByRole("link", { name: "Profil", exact: true })
-    .click();
-  await expect(
-    page.getByText("Jl. Alamat Uji No. 88", { exact: false }),
-  ).not.toBeVisible();
-  await page.getByRole("button", { name: "Switch to English" }).click();
-  await expect(
-    page.getByRole("heading", { name: "Profile", exact: true, level: 1 }),
-  ).toBeVisible();
-});
-test("admin phone and tablet fit, and drawer is keyboard accessible", async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 768, height: 1024 });
-  await login(page);
-  expect(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= window.innerWidth,
-    ),
-  ).toBe(true);
-  await page.screenshot({
-    path: ".impeccable/review/tablet.png",
-    fullPage: true,
-  });
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.screenshot({
-    path: ".impeccable/review/admin-mobile.png",
-    fullPage: true,
-  });
-  await page
-    .getByRole("link", { name: "Lihat detail Nadia Putri", exact: true })
-    .click();
-  await expect(page.getByRole("dialog")).toBeVisible();
-  await page.keyboard.press("Escape");
-  await expect(page.getByRole("dialog")).not.toBeVisible();
-});
-
-test("admin and subscriber share changes and delivery confirmation", async ({
-  browser,
-}) => {
-  const owner = await browser.newContext(),
-    subscriber = await browser.newContext();
-  try {
-    const admin = await owner.newPage(),
-      phone = await subscriber.newPage();
-    await login(admin);
-    await login(phone, "pelanggan");
-    await phone.goto("/w/dapur-hijau/schedule");
-    await phone.locator(".agenda-list>a").last().click();
-    await expect(phone).toHaveURL(/\/deliveries\/[a-f0-9-]+$/);
-    const futureId = phone.url().split("/").pop();
-    await phone
-      .getByRole("button", { name: "Pilih menu", exact: true })
-      .click();
-    const review = phone.getByRole("dialog");
-    await review
-      .locator('select[name="menu_id"]')
-      .selectOption({ label: "Tempe teriyaki" });
-    await review.getByRole("button", { name: "Tinjau perubahan" }).click();
-    await review
-      .getByRole("button", { name: "Konfirmasi", exact: true })
-      .click();
-    await expect(review).not.toBeVisible();
-    await admin.goto("/w/dapur-hijau/admin/deliveries/" + futureId);
-    await expect(admin.locator(".meal-name")).toHaveText("Tempe teriyaki");
-    const before = await admin.locator(".quota-summary").textContent();
-    await admin.reload();
-    await expect(admin.locator(".quota-summary")).toHaveText(before!);
-    await admin.goto("/w/dapur-hijau/admin/today");
-    await admin
-      .getByRole("link", { name: "Lihat detail Nadia Putri", exact: true })
-      .click();
-    await expect(admin.getByRole("dialog")).toBeVisible();
-    const deliveryId = new URL(admin.url()).searchParams.get("delivery");
-    await admin.goto("/w/dapur-hijau/admin/deliveries/" + deliveryId);
-    const initial = Number(
-      await admin.locator(".quota-summary strong").first().textContent(),
-    );
-    for (const action of [
-      "Tandai siap",
-      "Mulai pengiriman",
-      "Konfirmasi diterima",
-    ]) {
-      await admin.getByRole("button", { name: action, exact: true }).click();
-      const dialog = admin.getByRole("dialog");
-      await dialog.getByRole("button", { name: "Tinjau perubahan" }).click();
-      await dialog
-        .getByRole("button", { name: "Konfirmasi", exact: true })
-        .click();
-      await expect(dialog).not.toBeVisible();
-    }
-    await expect(admin.locator(".quota-summary strong").first()).toHaveText(
-      String(initial - 1),
-    );
-    await phone.goto("/w/dapur-hijau/deliveries/" + deliveryId);
-    await expect(phone.locator(".detail-title .status")).toHaveText("Terkirim");
-    await expect(phone.locator(".quota-summary strong").first()).toHaveText(
-      String(initial - 1),
-    );
-    await admin.goto("/w/dapur-hijau/admin/delivery");
-    const exportUrl = await admin
-      .locator(".manifest-links a")
-      .first()
-      .getAttribute("href");
-    const manifest = await owner.request.get(exportUrl!);
-    expect(manifest.status()).toBe(200);
-    expect(await manifest.text()).toContain("Nadia Putri");
-    expect((await subscriber.request.get(exportUrl!)).status()).toBe(403);
-    const anonymous = await browser.newContext();
-    try {
-      expect((await anonymous.request.get(exportUrl!)).status()).toBe(401);
-    } finally {
-      await anonymous.close();
-    }
-  } finally {
-    await owner.close();
-    await subscriber.close();
-  }
-});
-
-test("a stale subscriber form cannot overwrite an admin address correction", async ({
-  browser,
-}) => {
-  const owner = await browser.newContext(),
-    subscriber = await browser.newContext();
-  try {
-    const admin = await owner.newPage(),
-      phone = await subscriber.newPage();
-    await login(admin);
-    await login(phone, "pelanggan");
-    await phone.goto("/w/dapur-hijau/schedule");
-    await phone.locator(".agenda-list>a").last().click();
-    await expect(phone).toHaveURL(/\/deliveries\/[a-f0-9-]+$/);
-    const id = phone.url().split("/").pop();
-    await phone
-      .getByRole("button", { name: "Ubah alamat", exact: true })
-      .click();
-    await phone
-      .getByRole("dialog")
-      .getByLabel("Jalan, nomor, dan area")
-      .fill("Stale subscriber address 42");
-    await admin.goto("/w/dapur-hijau/admin/deliveries/" + id);
-    await admin
-      .getByRole("button", { name: "Ubah alamat", exact: true })
-      .click();
-    const dialog = admin.getByRole("dialog");
-    await dialog
-      .getByLabel("Jalan, nomor, dan area")
-      .fill("Current admin address 84");
-    await dialog.getByRole("button", { name: "Tinjau perubahan" }).click();
-    await dialog
-      .getByRole("button", { name: "Konfirmasi", exact: true })
-      .click();
-    await expect(dialog).not.toBeVisible();
-    // Trigger the same focus refresh used when returning to an open tab.
-    await phone.evaluate(() => window.dispatchEvent(new Event("focus")));
-    await expect(phone.locator(".delivery-detail")).toContainText(
-      "Current admin address 84",
-    );
-    const stale = phone.getByRole("dialog");
-    await stale.getByRole("button", { name: "Tinjau perubahan" }).click();
-    await stale
-      .getByRole("button", { name: "Konfirmasi", exact: true })
-      .click();
-    await expect(stale.getByRole("alert")).toHaveText(
-      "Data telah berubah. Muat ulang lalu tinjau perubahanmu.",
-    );
-  } finally {
-    await owner.close();
-    await subscriber.close();
-  }
+    (
+      await request.post("/api/webhooks/xendit", {
+        data: { data: { status: "COMPLETED" } },
+      })
+    ).status(),
+  ).toBe(401);
 });

@@ -1,0 +1,326 @@
+{
+  "schemaVersion": 1,
+  "collection": "Catera synthetic demo meal photography",
+  "createdDate": "2026-09-09",
+  "generationMode": "built-in image_gen",
+  "tool": "image_gen.imagegen",
+  "useCase": "photorealistic-natural",
+  "usage": "Exclusively synthetic demo meal listings. These generated dishes do not represent actual menus, sellers, customer orders, or restaurant photography.",
+  "artDirection": "Individual appetizing meal photographs, three-quarter overhead, warm cream limestone tabletop, matte off-white ceramic plate, forest-green linen, natural daylight from upper left, generous tight food framing, natural food colors, no text or logos.",
+  "propPalette": {
+    "forest": "#163D2E",
+    "cream": "#FFF7E9",
+    "orange": "#F47B2A"
+  },
+  "requestedDimensions": {
+    "width": 2048,
+    "height": 1536,
+    "aspectRatio": "4:3"
+  },
+  "actualDimensionsNote": "The built-in tool returned 1448x1086 pixels for every image despite a 2048x1536 request. Files preserve those original native dimensions. No resizing, artificial upscaling, cropping, compositing, or photo-sheet extraction was performed.",
+  "qualityReview": {
+    "performed": true,
+    "method": "Inspected each full individual image emitted by the generation tool, then verified the copied PNG file dimensions and SHA-256 hashes.",
+    "result": "Six coherent food photographs with clear requested meal identities, plausible food textures, warm neutral setting, generous framing, no text, logos, watermarks, hands, or multi-panel layouts.",
+    "caveat": "Synthetic imagery: appearance is illustrative, not evidence of any real menu item."
+  },
+  "assets": [
+    {
+      "id": "ayam-panggang",
+      "title": "Ayam panggang",
+      "path": "assets/food/ayam-panggang.png",
+      "repositoryPath": "packages/brand/assets/food/ayam-panggang.png",
+      "altId": "Ayam panggang berlapis kecap dengan nasi putih, tumis buncis dan wortel, timun, sambal, serta jeruk nipis.",
+      "synthetic": true,
+      "generationCall": 1,
+      "prompt": "Use case: photorealistic-natural. Asset type: individual synthetic demo meal photograph for Catera's Indonesian catering marketplace. Create exactly one finished food photograph, not a collage or grid. Subject: an appetizing generous Indonesian grilled chicken meal with one beautifully caramelized ayam panggang chicken leg and thigh, fluffy white rice, sauteed green beans and carrot, fresh cucumber, a small spoonful of red sambal, and a lime wedge. Plate the meal naturally on a matte off-white shallow ceramic plate. Scene: warm cream limestone tabletop with a restrained forest-green linen napkin partly visible at an edge. Composition: tight premium editorial food photography from three-quarter overhead, the one plate centered and filling about 85 percent of the frame; the chicken must be prominent and food look plentiful, realistic and hand-plated. Light: soft natural daylight from upper left, warm appetizing tones, gentle shadows, crisp food texture with realistic highlights; not oily or oversaturated. Palette in props: cream #FFF7E9 and earthy forest #163D2E, optional very small orange #F47B2A accent; keep food colors natural. Output desired: landscape 4:3, 2048x1536 pixels if supported, full-bleed. No text, no logo, no watermark, no packaging, no hands, no people, no utensils covering food, no multi-panel layout. This is a wholly synthetic demo listing and must not imply a real restaurant or seller.",
+      "source": {
+        "kind": "generated",
+        "provider": "OpenAI",
+        "tool": "image_gen.imagegen",
+        "mode": "built-in",
+        "originalPath": "C:\\Users\\nidal\\.codex\\generated_images\\01a08689-d647-7f63-b117-e2bddb3bed29\\exec-cf40820e-32cb-4192-bef0-81dea3b522b7.png",
+        "referenceImages": [],
+        "originalFileSha256": "6dd8c3cb58de8f8d20dbbcc01fa578f1db5a3a107a4d2a0f36f3bce89f5ebccb"
+      },
+      "file": {
+        "format": "png",
+        "width": 1448,
+        "height": 1086,
+        "aspectRatio": "4:3",
+        "bytes": 2726188,
+        "sha256": "b801f24a85a71226d3448f27fabe36dec93e49d6014ab5fe47184bd8d508a77c",
+        "decodedPixelSha256": "a3f350a44f871d36a56f0b7ac3a8aa3a2a8a32c816e9ff085631436c70c04f59"
+      },
+      "transformations": [
+        {
+          "type": "metadata-only",
+          "operation": "embed-exact-generation-prompt",
+          "tool": "tools/impeccable/scripts/embed-prompt.mjs",
+          "pixelsChanged": false
+        }
+      ],
+      "visuallyInspected": true,
+      "embeddedProvenance": {
+        "tool": "tools/impeccable/scripts/embed-prompt.mjs",
+        "format": "PNG tEXt",
+        "keyword": "impeccable:prompt",
+        "exactManifestPrompt": true,
+        "verifiedAt": "2026-09-09T14:57:42.560Z",
+        "promptSha256": "ed12f28a8a6e19077dc9ab0d169d203c3cc562b60482604d33f23b252f8a1faf",
+        "originalFileSha256": "6dd8c3cb58de8f8d20dbbcc01fa578f1db5a3a107a4d2a0f36f3bce89f5ebccb",
+        "imagePixelsUnchanged": true,
+        "verification": "Decoded all PNG scanlines and compared pixel SHA-256 before/after. Every pre-existing non-prompt PNG chunk is byte-identical."
+      }
+    },
+    {
+      "id": "salmon-teriyaki",
+      "title": "Salmon teriyaki",
+      "path": "assets/food/salmon-teriyaki.png",
+      "repositoryPath": "packages/brand/assets/food/salmon-teriyaki.png",
+      "altId": "Salmon teriyaki dengan nasi putih, brokoli, pita wortel, dan irisan timun.",
+      "synthetic": true,
+      "generationCall": 2,
+      "prompt": "Use case: photorealistic-natural. Asset type: individual synthetic demo meal photograph for Catera's Indonesian catering marketplace. Create exactly one finished food photograph, not a collage or grid. Subject: a generous Indonesian healthy-catering style salmon teriyaki meal, featuring one thick grilled salmon fillet with amber teriyaki glaze and a few sesame seeds, fluffy white rice, bright steamed broccoli, carrot ribbons, and fresh cucumber. Plate the meal naturally on a matte off-white shallow ceramic plate. Scene: warm cream limestone tabletop with a restrained forest-green linen napkin partly visible at an edge. Composition: tight premium editorial food photography from three-quarter overhead, the one plate centered and filling about 85 percent of the frame; salmon must be prominent with real flaking flesh and food look plentiful and hand-plated. Light: soft natural daylight from upper left, warm appetizing tones, gentle shadows, crisp food texture with realistic highlights; not oily or oversaturated. Palette in props: cream #FFF7E9 and earthy forest #163D2E, optional very small orange #F47B2A accent; keep food colors natural. Output desired: landscape 4:3, 2048x1536 pixels if supported, full-bleed. No text, no logo, no watermark, no packaging, no hands, no people, no utensils covering food, no multi-panel layout. This is a wholly synthetic demo listing and must not imply a real restaurant or seller.",
+      "source": {
+        "kind": "generated",
+        "provider": "OpenAI",
+        "tool": "image_gen.imagegen",
+        "mode": "built-in",
+        "originalPath": "C:\\Users\\nidal\\.codex\\generated_images\\01a08689-d647-7f63-b117-e2bddb3bed29\\exec-9253f100-f6c9-4863-bf18-839b790d7aa0.png",
+        "referenceImages": [],
+        "originalFileSha256": "1838f610f040fa85f40c8f19e358bfdc53a45a6f336e4aaf207b6caf7fa080e0"
+      },
+      "file": {
+        "format": "png",
+        "width": 1448,
+        "height": 1086,
+        "aspectRatio": "4:3",
+        "bytes": 2698723,
+        "sha256": "d078d9861fe099d24876e599b1637285a455a39fbe8c929748bd1bcd4052dd1e",
+        "decodedPixelSha256": "b7e5799202764e7cacfc71bb9d93378908bdcc89022282d2f6f858cce42fe528"
+      },
+      "transformations": [
+        {
+          "type": "metadata-only",
+          "operation": "embed-exact-generation-prompt",
+          "tool": "tools/impeccable/scripts/embed-prompt.mjs",
+          "pixelsChanged": false
+        }
+      ],
+      "visuallyInspected": true,
+      "embeddedProvenance": {
+        "tool": "tools/impeccable/scripts/embed-prompt.mjs",
+        "format": "PNG tEXt",
+        "keyword": "impeccable:prompt",
+        "exactManifestPrompt": true,
+        "verifiedAt": "2026-09-09T14:57:42.560Z",
+        "promptSha256": "5885bb93472dd31e0765d1c307554604291ed06bde7f0c2ed8baa9d42619ad21",
+        "originalFileSha256": "1838f610f040fa85f40c8f19e358bfdc53a45a6f336e4aaf207b6caf7fa080e0",
+        "imagePixelsUnchanged": true,
+        "verification": "Decoded all PNG scanlines and compared pixel SHA-256 before/after. Every pre-existing non-prompt PNG chunk is byte-identical."
+      }
+    },
+    {
+      "id": "nasi-nusantara",
+      "title": "Nasi nusantara",
+      "path": "assets/food/nasi-nusantara.png",
+      "repositoryPath": "packages/brand/assets/food/nasi-nusantara.png",
+      "altId": "Nasi Nusantara dengan ayam berbumbu, tempe orek, tumis sayur, timun, sambal, dan kerupuk.",
+      "synthetic": true,
+      "generationCall": 3,
+      "prompt": "Use case: photorealistic-natural. Asset type: individual synthetic demo meal photograph for Catera's Indonesian catering marketplace. Create exactly one finished food photograph, not a collage or grid. Subject: an abundant Indonesian homestyle nasi Nusantara meal with a mound of fluffy white rice, tender golden spiced chicken pieces, caramelized tempe orek batons, sauteed long beans and cabbage, cucumber slices, a little red sambal, and a small crisp kerupuk. Plate the meal naturally on a matte off-white shallow ceramic plate with a modest banana-leaf lining under some food. Scene: warm cream limestone tabletop with a restrained forest-green linen napkin partly visible at an edge. Composition: tight premium editorial food photography from three-quarter overhead, the one plate centered and filling about 85 percent of the frame; distinguish all the sides and make the food look plentiful, realistic and hand-plated, not geometrically arranged. Light: soft natural daylight from upper left, warm appetizing tones, gentle shadows, crisp food texture with realistic highlights; not oily or oversaturated. Palette in props: cream #FFF7E9 and earthy forest #163D2E, optional very small orange #F47B2A accent; keep food colors natural. Output desired: landscape 4:3, 2048x1536 pixels if supported, full-bleed. No text, no logo, no watermark, no packaging, no hands, no people, no utensils covering food, no multi-panel layout. This is a wholly synthetic demo listing and must not imply a real restaurant or seller.",
+      "source": {
+        "kind": "generated",
+        "provider": "OpenAI",
+        "tool": "image_gen.imagegen",
+        "mode": "built-in",
+        "originalPath": "C:\\Users\\nidal\\.codex\\generated_images\\01a08689-d647-7f63-b117-e2bddb3bed29\\exec-db0edc63-f1d9-4bf8-8062-986547167a34.png",
+        "referenceImages": [],
+        "originalFileSha256": "c0eed6a3849f2c2b030bde258e129a5474fc61a9036c2bb38630baa9f936165d"
+      },
+      "file": {
+        "format": "png",
+        "width": 1448,
+        "height": 1086,
+        "aspectRatio": "4:3",
+        "bytes": 2762002,
+        "sha256": "c89e3f118fc28403eb97df6d74469c255aa9a6600b1666599d665c8f1a88f951",
+        "decodedPixelSha256": "547e9119921af40b0bf665bf2bc4357b2e8875347327b12157247b7939f287ca"
+      },
+      "transformations": [
+        {
+          "type": "metadata-only",
+          "operation": "embed-exact-generation-prompt",
+          "tool": "tools/impeccable/scripts/embed-prompt.mjs",
+          "pixelsChanged": false
+        }
+      ],
+      "visuallyInspected": true,
+      "embeddedProvenance": {
+        "tool": "tools/impeccable/scripts/embed-prompt.mjs",
+        "format": "PNG tEXt",
+        "keyword": "impeccable:prompt",
+        "exactManifestPrompt": true,
+        "verifiedAt": "2026-09-09T14:57:42.560Z",
+        "promptSha256": "fcf2128942898c8cd8244d1232affd2998e96005cb1201d75b811248398244ea",
+        "originalFileSha256": "c0eed6a3849f2c2b030bde258e129a5474fc61a9036c2bb38630baa9f936165d",
+        "imagePixelsUnchanged": true,
+        "verification": "Decoded all PNG scanlines and compared pixel SHA-256 before/after. Every pre-existing non-prompt PNG chunk is byte-identical."
+      }
+    },
+    {
+      "id": "plant-based",
+      "title": "Plant-based",
+      "path": "assets/food/plant-based.png",
+      "repositoryPath": "packages/brand/assets/food/plant-based.png",
+      "altId": "Tahu panggang dan tempe dengan nasi merah, tumis sayuran hijau, brokoli, wortel, timun, dan sambal jeruk.",
+      "synthetic": true,
+      "generationCall": 4,
+      "prompt": "Use case: photorealistic-natural. Asset type: individual synthetic demo meal photograph for Catera's Indonesian catering marketplace. Create exactly one finished food photograph, not a collage or grid. Subject: a colorful abundant Indonesian plant-based meal with golden grilled tofu and crisp glazed tempeh pieces, a mound of nutty red rice, garlicky sauteed leafy greens, broccoli, carrot, fresh cucumber, and a small bright chili-lime relish. Entire meal strictly vegetarian and plant based: no meat, no fish, no eggs, no dairy. Plate the meal naturally on a matte off-white shallow ceramic plate. Scene: warm cream limestone tabletop with a restrained forest-green linen napkin partly visible at an edge. Composition: tight premium editorial food photography from three-quarter overhead, the one plate centered and filling about 85 percent of the frame; tofu and recognizably textured tempeh must be prominent, food plentiful and realistically hand-plated. Light: soft natural daylight from upper left, warm appetizing tones, gentle shadows, crisp food texture with realistic highlights; not oily or oversaturated. Palette in props: cream #FFF7E9 and earthy forest #163D2E, optional very small orange #F47B2A accent; keep food colors natural. Output desired: landscape 4:3, 2048x1536 pixels if supported, full-bleed. No text, no logo, no watermark, no packaging, no hands, no people, no utensils covering food, no multi-panel layout. This is a wholly synthetic demo listing and must not imply a real restaurant or seller.",
+      "source": {
+        "kind": "generated",
+        "provider": "OpenAI",
+        "tool": "image_gen.imagegen",
+        "mode": "built-in",
+        "originalPath": "C:\\Users\\nidal\\.codex\\generated_images\\01a08689-d647-7f63-b117-e2bddb3bed29\\exec-17c85f4f-f84c-4663-a677-a47d3961a61f.png",
+        "referenceImages": [],
+        "originalFileSha256": "fe186b8f087573d8a983b4339307fc604943ded897ad45da0290ea5b8dcdcccc"
+      },
+      "file": {
+        "format": "png",
+        "width": 1448,
+        "height": 1086,
+        "aspectRatio": "4:3",
+        "bytes": 2895158,
+        "sha256": "920a361066643c09ecf74ea0bf986b6055f096c3d60cc8b66e5e68b00e37d0f1",
+        "decodedPixelSha256": "ade3eed6fcdd9662a32bbe370a7fff70ef6a1ae3afafc739e97340e728fdd86e"
+      },
+      "transformations": [
+        {
+          "type": "metadata-only",
+          "operation": "embed-exact-generation-prompt",
+          "tool": "tools/impeccable/scripts/embed-prompt.mjs",
+          "pixelsChanged": false
+        }
+      ],
+      "visuallyInspected": true,
+      "embeddedProvenance": {
+        "tool": "tools/impeccable/scripts/embed-prompt.mjs",
+        "format": "PNG tEXt",
+        "keyword": "impeccable:prompt",
+        "exactManifestPrompt": true,
+        "verifiedAt": "2026-09-09T14:57:42.560Z",
+        "promptSha256": "7e22b41878e7c83c52b102e07d7214516552c8e58a81da422029edf23929b671",
+        "originalFileSha256": "fe186b8f087573d8a983b4339307fc604943ded897ad45da0290ea5b8dcdcccc",
+        "imagePixelsUnchanged": true,
+        "verification": "Decoded all PNG scanlines and compared pixel SHA-256 before/after. Every pre-existing non-prompt PNG chunk is byte-identical."
+      }
+    },
+    {
+      "id": "ayam-sambal",
+      "title": "Ayam sambal",
+      "path": "assets/food/ayam-sambal.png",
+      "repositoryPath": "packages/brand/assets/food/ayam-sambal.png",
+      "altId": "Ayam sambal dengan nasi putih, tumis kangkung, tempe goreng, timun, dan jeruk nipis.",
+      "synthetic": true,
+      "generationCall": 5,
+      "prompt": "Use case: photorealistic-natural. Asset type: individual synthetic demo meal photograph for Catera's Indonesian catering marketplace. Create exactly one finished food photograph, not a collage or grid. Subject: a generous Indonesian ayam sambal meal with succulent golden fried chicken pieces coated partly in freshly pounded vivid red sambal, a mound of fluffy white rice, sauteed green leafy vegetables, crunchy cucumber slices, golden fried tempeh, and a small lime wedge. The chicken's crisp skin and the sambal's natural chili texture are the focal point, with appetizing realistic textures. Plate the meal naturally on a matte off-white shallow ceramic plate. Scene: warm cream limestone tabletop with a restrained forest-green linen napkin partly visible at an edge. Composition: tight premium editorial food photography from three-quarter overhead, the one plate centered and filling about 85 percent of the frame; food looks plentiful and hand-plated, no unnatural symmetry. Light: soft natural daylight from upper left, warm appetizing tones, gentle shadows, crisp food texture with realistic highlights; not oily or oversaturated. Palette in props: cream #FFF7E9 and earthy forest #163D2E, optional very small orange #F47B2A accent; keep food colors natural. Output desired: landscape 4:3, 2048x1536 pixels if supported, full-bleed. No text, no logo, no watermark, no packaging, no hands, no people, no utensils covering food, no multi-panel layout. This is a wholly synthetic demo listing and must not imply a real restaurant or seller.",
+      "source": {
+        "kind": "generated",
+        "provider": "OpenAI",
+        "tool": "image_gen.imagegen",
+        "mode": "built-in",
+        "originalPath": "C:\\Users\\nidal\\.codex\\generated_images\\01a08689-d647-7f63-b117-e2bddb3bed29\\exec-9d405255-cee8-409d-b249-b69796d0acb5.png",
+        "referenceImages": [],
+        "originalFileSha256": "a95c28bc16ef71bdbd5b0391c6c2fd9434ad2752cdcf09aa0d4d7507947309d6"
+      },
+      "file": {
+        "format": "png",
+        "width": 1448,
+        "height": 1086,
+        "aspectRatio": "4:3",
+        "bytes": 2842630,
+        "sha256": "d91786a2e895f92c632443ae71951dc8c7087e17b1b3d3d2f6423950ed1bb67c",
+        "decodedPixelSha256": "83a7e83bd78579f9565af8abb27ba7d3f1a5359d7476c2eaa15468da88eecc82"
+      },
+      "transformations": [
+        {
+          "type": "metadata-only",
+          "operation": "embed-exact-generation-prompt",
+          "tool": "tools/impeccable/scripts/embed-prompt.mjs",
+          "pixelsChanged": false
+        }
+      ],
+      "visuallyInspected": true,
+      "embeddedProvenance": {
+        "tool": "tools/impeccable/scripts/embed-prompt.mjs",
+        "format": "PNG tEXt",
+        "keyword": "impeccable:prompt",
+        "exactManifestPrompt": true,
+        "verifiedAt": "2026-09-09T14:57:42.560Z",
+        "promptSha256": "3411935bcc917c86d0ab39d316d29bd495c91ecc5c7da3bfeb3d9adcda4f31c3",
+        "originalFileSha256": "a95c28bc16ef71bdbd5b0391c6c2fd9434ad2752cdcf09aa0d4d7507947309d6",
+        "imagePixelsUnchanged": true,
+        "verification": "Decoded all PNG scanlines and compared pixel SHA-256 before/after. Every pre-existing non-prompt PNG chunk is byte-identical."
+      }
+    },
+    {
+      "id": "ikan-kuning",
+      "title": "Ikan bumbu kuning",
+      "path": "assets/food/ikan-kuning.png",
+      "repositoryPath": "packages/brand/assets/food/ikan-kuning.png",
+      "altId": "Ikan bumbu kuning dengan nasi putih, tumis buncis dan wortel, timun, cabai, dan jeruk nipis.",
+      "synthetic": true,
+      "generationCall": 6,
+      "prompt": "Use case: photorealistic-natural. Asset type: individual synthetic demo meal photograph for Catera's Indonesian catering marketplace. Create exactly one finished food photograph, not a collage or grid. Subject: an appetizing generous Indonesian ikan bumbu kuning meal with two tender pieces of cooked fish fillet in a rich natural golden turmeric sauce, a mound of fluffy white rice, sauteed green beans and carrots, fresh cucumber, a little sliced red chili, and a lime wedge. Fish should be unmistakably cooked fish with delicate flaking flesh and a small amount of sauce, not soup. Plate the meal naturally on a matte off-white shallow ceramic plate. Scene: warm cream limestone tabletop with a restrained forest-green linen napkin partly visible at an edge. Composition: tight premium editorial food photography from three-quarter overhead, the one plate centered and filling about 85 percent of the frame; fish prominent, food looks plentiful, realistic and hand-plated. Light: soft natural daylight from upper left, warm appetizing tones, gentle shadows, crisp food texture with realistic highlights; not oily or oversaturated. Palette in props: cream #FFF7E9 and earthy forest #163D2E, optional very small orange #F47B2A accent; keep food colors natural. Output desired: landscape 4:3, 2048x1536 pixels if supported, full-bleed. No text, no logo, no watermark, no packaging, no hands, no people, no utensils covering food, no multi-panel layout. This is a wholly synthetic demo listing and must not imply a real restaurant or seller.",
+      "source": {
+        "kind": "generated",
+        "provider": "OpenAI",
+        "tool": "image_gen.imagegen",
+        "mode": "built-in",
+        "originalPath": "C:\\Users\\nidal\\.codex\\generated_images\\01a08689-d647-7f63-b117-e2bddb3bed29\\exec-52774643-3bc0-44c0-b242-4c708426f7fc.png",
+        "referenceImages": [],
+        "originalFileSha256": "b5ce8c9f0b6f87672e2407e85f377a81d120697bd9e9a216c7e666addc069702"
+      },
+      "file": {
+        "format": "png",
+        "width": 1448,
+        "height": 1086,
+        "aspectRatio": "4:3",
+        "bytes": 2551464,
+        "sha256": "b6590fbaa49d472c5524d67e00e2de8eba90f81418e3a1de16d94d528f6248ef",
+        "decodedPixelSha256": "e02cb93109bb45b63422aaa54f969706045807ee7a902c7eba0635b8a19aaac3"
+      },
+      "transformations": [
+        {
+          "type": "metadata-only",
+          "operation": "embed-exact-generation-prompt",
+          "tool": "tools/impeccable/scripts/embed-prompt.mjs",
+          "pixelsChanged": false
+        }
+      ],
+      "visuallyInspected": true,
+      "embeddedProvenance": {
+        "tool": "tools/impeccable/scripts/embed-prompt.mjs",
+        "format": "PNG tEXt",
+        "keyword": "impeccable:prompt",
+        "exactManifestPrompt": true,
+        "verifiedAt": "2026-09-09T14:57:42.560Z",
+        "promptSha256": "4c1be7c77203ce514f84602f11c4cb487bfa1a6bbeb42bf01a7cee9ca4f1ed58",
+        "originalFileSha256": "b5ce8c9f0b6f87672e2407e85f377a81d120697bd9e9a216c7e666addc069702",
+        "imagePixelsUnchanged": true,
+        "verification": "Decoded all PNG scanlines and compared pixel SHA-256 before/after. Every pre-existing non-prompt PNG chunk is byte-identical."
+      }
+    }
+  ],
+  "embeddedProvenanceReview": {
+    "performed": true,
+    "tool": "tools/impeccable/scripts/embed-prompt.mjs",
+    "verifiedAt": "2026-09-09T14:57:42.560Z",
+    "assetsVerified": 6,
+    "exactGenerationPromptsEmbedded": true,
+    "pixelsUnchanged": true,
+    "method": "Invoked the supplied Impeccable embed-prompt tool separately for each asset, read each prompt back with --read, decoded PNG scanlines to compare pixel hashes, and compared all non-prompt PNG chunks byte-for-byte."
+  }
+}

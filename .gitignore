@@ -11,3 +11,8 @@ playwright-report/
 .vercel/
 supabase/.temp/
 coverage/
+.expo/
+dist/
+apps/web/public/assets/
+apps/customer/android/
+apps/customer/ios/

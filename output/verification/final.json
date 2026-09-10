@@ -1,0 +1,96 @@
+{
+  "verifiedAt": "2026-09-09T16:50:38.110Z",
+  "scope": "Local, explicitly synthetic Catera V1. Hosted pilot unchanged.",
+  "fullPlanComplete": false,
+  "checks": [
+    {
+      "command": "npm ci --prefer-offline --no-audit --no-fund",
+      "result": "passed",
+      "evidence": "output/install-verification.json",
+      "notes": "Fresh isolated workspace manifests and lockfile; Node 24.14.1."
+    },
+    {
+      "command": "npm run typecheck",
+      "result": "passed",
+      "notes": "Web routes/TypeScript, Expo TypeScript and shared packages."
+    },
+    {
+      "command": "npm test",
+      "result": "passed",
+      "testFiles": 5,
+      "tests": 40
+    },
+    {
+      "command": "npm run test:postgres",
+      "result": "passed",
+      "checks": 5,
+      "evidence": "output/verification/postgres.json",
+      "notes": "PostgreSQL 17; all five V1 migrations, simultaneous purchases/payment confirmations/replacement dates and Realtime RLS."
+    },
+    {
+      "command": "npm run build",
+      "result": "passed",
+      "notes": "Next 16.3.4 production build including proxy and API routes."
+    },
+    {
+      "command": "npx playwright test",
+      "result": "passed",
+      "tests": 4,
+      "notes": "Chromium; customer purchase/change/support/renewal, role routes, CSV, API isolation, responsive layout and serious/critical account accessibility."
+    },
+    {
+      "command": "npm run test -w @catera/customer",
+      "result": "passed",
+      "preset": "jest-expo/ios",
+      "tests": 4
+    },
+    {
+      "command": "npm run test -w @catera/customer -- --preset jest-expo/android",
+      "result": "passed",
+      "preset": "jest-expo/android",
+      "tests": 4
+    },
+    {
+      "command": "npm run native:export",
+      "result": "passed",
+      "platforms": [
+        "android",
+        "ios"
+      ],
+      "evidence": "apps/customer/dist/metadata.json",
+      "notes": "Bundles only, not signed builds or device E2E."
+    },
+    {
+      "command": "node packages/brand/verify-assets.mjs",
+      "result": "passed",
+      "assets": 16,
+      "notes": "Hashes, embedded prompts and actual dimensions/alpha metadata; this is provenance validation, not transparent-export acceptance."
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed",
+      "notes": "Line-ending normalization warnings only."
+    }
+  ],
+  "visualReview": {
+    "evidence": "output/V1-FINISH-VERDICT.md",
+    "resolvedWebFindings": 4,
+    "disposition": "fix",
+    "reason": "True-alpha asset exports remain unfinished.",
+    "captureDirectory": ".impeccable/review",
+    "widths": [
+      390,
+      768,
+      1440
+    ],
+    "nativeDeviceApproved": false
+  },
+  "remaining": [
+    "Transparent identity masters, requested supported master resolutions and reusable derivative icon/export packs. Cleanup permission question is pending.",
+    "Complete English UI coverage and locale visual QA; additional high-volume history pagination.",
+    "Separate hosted Supabase configuration, SMS/SMTP, storage/Realtime isolation and session tests.",
+    "Actual Xendit sandbox transactions, approved commercial configuration and merchant settlement/reconciliation topology.",
+    "Signed Android/iOS development builds, physical-device return links/push and full native E2E/accessibility.",
+    "Hosted scheduler/alerts, backup restore, remote CI and production launch evidence."
+  ]
+}
