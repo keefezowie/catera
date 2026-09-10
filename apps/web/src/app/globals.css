@@ -580,14 +580,17 @@ td strong {
   padding: 22px 44px;
   display: flex;
   gap: 28px;
-  align-items: center;
+  align-items: flex-end;
 }
 .delivery-selector {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 10px;
   color: var(--forest);
   flex-shrink: 0;
+}
+.delivery-selector > svg {
+  margin-bottom: 12px;
 }
 .delivery-selector label {
   display: flex;
@@ -621,7 +624,7 @@ td strong {
   border: 0;
   width: 100%;
   font-size: 12px;
-  min-height: 44px;
+  min-height: 42px;
   padding: 10px 0;
 }
 .search-field:focus-within {
