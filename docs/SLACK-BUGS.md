@@ -18,7 +18,11 @@ September 10, 2026 — fixed the marketplace navigation and responsive discovery
 
 ## Validation and push gate
 
+<<<<<<< HEAD
 Base: `9bea733` on `v1`; fix commit `5965246` is pushed to `origin/v1`. Full browser suite is not passing.
+=======
+Base: `9bea733` on `v1`; fetch confirmed HEAD and origin/v1 matched before edits. No commit or push yet: full browser suite is not passing.
+>>>>>>> origin/v1
 
 - Typecheck, 48 unit tests and production build passed during this run; final build/typecheck repeated after anchor correction.
 - Navigation regression suite: 3/3 passed with installed Google Chrome via `PLAYWRIGHT_CHROMIUM_EXECUTABLE`. Covers desktop anchor selection, direct anchor load, scroll back to top, 1440/390px hero/filter order, stable filtering, language gap/touch target, mobile route navigation, reload and Back.
@@ -31,4 +35,8 @@ Base: `9bea733` on `v1`; fix commit `5965246` is pushed to `origin/v1`. Full bro
 
 ## Next run
 
+<<<<<<< HEAD
 Continue from `5965246` before starting duplicate work. Resolve the two journey failures, rerun the full required checks, then stage only intended source/tests/docs and selected evidence. Existing uncommitted artwork, APK, attachments and prior output changes belong to other work. Never force-push or include unrelated files. Record the next commit and verified remote hash here after a successful push. Notify in the originating task only for meaningful changes; Slack posting is not authorized.
+=======
+Continue these uncommitted fixes before starting duplicate work. Resolve the two journey failures, rerun the full required checks, then stage only intended source/tests/docs and selected evidence. Existing uncommitted artwork, APK, attachments and prior output changes belong to other work. Never force-push or include unrelated files. Record the commit and verified remote hash here after a successful push. Notify in the originating task only for meaningful changes; Slack posting is not authorized.
+>>>>>>> origin/v1
