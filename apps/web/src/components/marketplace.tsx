@@ -154,92 +154,91 @@ export function Catalog({ caterer }: { caterer?: string }) {
     });
   return (
     <>
-      <div className="market-toolbar">
-        <div className="delivery-selector">
-          <MapPin size={20} />
-          <label>
-            <span>{t("Area pengantaran", "Delivery area")}</span>
-            <Select
-              value={area}
-              onValueChange={(value) => setArea(value)}
-              aria-label="Area pengantaran"
-            >
-              <SelectOption value="">
-                {t("Pilih area Anda", "Choose your area")}
-              </SelectOption>
-              {areaOptions.map((a) => (
-                <SelectOption key={a}>{a}</SelectOption>
-              ))}
-            </Select>
+      <section className="market-hero">
+        <div className="hero-copy">
+          <h1>
+            {t("Makan enak.", "Eat well.")}
+            <br />
+            {t("Setiap hari.", "Every day.")}
+            <Asterisk className="hero-dot" aria-hidden="true" />
+          </h1>
+          <p>
+            {t(
+              "Katering yang pas untuk keseharian Anda. Pilih makanannya, atur jadwalnya, nikmati harinya.",
+              "Catering that fits your everyday. Choose your meals, set your schedule, enjoy your day.",
+            )}
+          </p>
+          <a className="button cream" href="#packages">
+            {t("Temukan paketmu", "Find your meals")}
+            <ArrowUpRight size={19} />
+          </a>
+          <div className="hero-benefits">
+            <span>
+              <Check size={15} />
+              {t("Pengantaran termasuk", "Delivery included")}
+            </span>
+            <span>
+              <Check size={15} />
+              {t("Bisa coba dulu", "Try before subscribing")}
+            </span>
+          </div>
+        </div>
+        <div className="hero-food">
+          <img
+            src="/assets/food/ayam-panggang.png"
+            alt="Ayam panggang, nasi hangat, dan sayuran segar"
+            fetchPriority="high"
+            width="724"
+            height="543"
+          />
+          <div className="hero-food-caption">
+            <span>
+              <Sun size={18} />
+              {t("Satu urusan berkurang.", "One less thing to plan.")}
+            </span>
+            <strong>
+              {t(
+                "Satu hari lebih menyenangkan.",
+                "A little more joy every day.",
+              )}
+            </strong>
+          </div>
+        </div>
+      </section>
+      <section className="catalog-section" id="packages">
+        <div className="market-toolbar">
+          <div className="delivery-selector">
+            <MapPin size={20} />
+            <label>
+              <span>{t("Area pengantaran", "Delivery area")}</span>
+              <Select
+                value={area}
+                onValueChange={(value) => setArea(value)}
+                aria-label="Area pengantaran"
+              >
+                <SelectOption value="">
+                  {t("Pilih area Anda", "Choose your area")}
+                </SelectOption>
+                {areaOptions.map((a) => (
+                  <SelectOption key={a}>{a}</SelectOption>
+                ))}
+              </Select>
+            </label>
+          </div>
+          <label className="search-field">
+            <Search size={19} />
+            <input
+              placeholder={t(
+                "Cari paket, menu, atau katerer favorit…",
+                "Find a package, meal, or favorite caterer…",
+              )}
+              aria-label="Cari katering"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </label>
         </div>
-        <label className="search-field">
-          <Search size={19} />
-          <input
-            placeholder={t(
-              "Cari paket, menu, atau katerer favorit…",
-              "Find a package, meal, or favorite caterer…",
-            )}
-            aria-label="Cari katering"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </label>
-      </div>
-      {!search && meal === "all" && (
-        <section className="market-hero">
-          <div className="hero-copy">
-            <h1>
-              {t("Makan enak.", "Eat well.")}
-              <br />
-              {t("Setiap hari.", "Every day.")}
-              <Asterisk className="hero-dot" aria-hidden="true" />
-            </h1>
-            <p>
-              {t(
-                "Katering yang pas untuk keseharian Anda. Pilih makanannya, atur jadwalnya, nikmati harinya.",
-                "Catering that fits your everyday. Choose your meals, set your schedule, enjoy your day.",
-              )}
-            </p>
-            <a className="button cream" href="#packages">
-              {t("Temukan paketmu", "Find your meals")}
-              <ArrowUpRight size={19} />
-            </a>
-            <div className="hero-benefits">
-              <span>
-                <Check size={15} />
-                {t("Pengantaran termasuk", "Delivery included")}
-              </span>
-              <span>
-                <Check size={15} />
-                {t("Bisa coba dulu", "Try before subscribing")}
-              </span>
-            </div>
-          </div>
-          <div className="hero-food">
-            <img
-              src="/assets/food/ayam-panggang.png"
-              alt="Ayam panggang, nasi hangat, dan sayuran segar"
-              fetchPriority="high"
-              width="724"
-              height="543"
-            />
-            <div className="hero-food-caption">
-              <span>
-                <Sun size={18} />
-                {t("Satu urusan berkurang.", "One less thing to plan.")}
-              </span>
-              <strong>
-                {t(
-                  "Satu hari lebih menyenangkan.",
-                  "A little more joy every day.",
-                )}
-              </strong>
-            </div>
-          </div>
-        </section>
-      )}
-      <section className="catalog-section" id="packages">
+
         <div className="section-heading">
           <div>
             <h2>{t("Mau makan apa hari ini?", "What sounds good today?")}</h2>

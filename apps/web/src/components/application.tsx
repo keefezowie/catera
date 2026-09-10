@@ -27,7 +27,7 @@ import {
   LayoutDashboard,
   Image as ImageIcon,
 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   areaOptions,
   type Actor,
@@ -139,6 +139,74 @@ function Shell({
     useApp();
   const pathname = usePathname();
   const [menu, setMenu] = useState(false);
+  const [section, setSection] = useState("packages");
+  useEffect(() => {
+    if (pathname !== "/") return;
+    let frame = 0;
+    let initialAnchor = location.hash.slice(1);
+    const update = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        if (["packages", "how-it-works"].includes(initialAnchor)) {
+          const target = document.getElementById(initialAnchor);
+          if (target) {
+            target.scrollIntoView({ behavior: "instant" });
+            initialAnchor = "";
+          }
+        }
+        const how = document.getElementById("how-it-works");
+        setSection(
+          how &&
+            (how.getBoundingClientRect().top <= innerHeight * 0.4 ||
+              (scrollY + innerHeight >=
+                document.documentElement.scrollHeight - 2 &&
+                how.getBoundingClientRect().top < innerHeight))
+            ? "how-it-works"
+            : "packages",
+        );
+      });
+    };
+    const observer = new ResizeObserver(update);
+    observer.observe(document.body);
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    window.addEventListener("hashchange", update);
+    update();
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+      window.removeEventListener("hashchange", update);
+    };
+  }, [pathname]);
+  const root = pathname.split("/")[1];
+  const customerDestination = ["home", "subscriptions"].includes(root)
+    ? "/home"
+    : ["calendar", "deliveries"].includes(root)
+      ? "/calendar"
+      : ["messages", "support"].includes(root)
+        ? "/messages"
+        : ["account", "addresses", "notifications", "login"].includes(root)
+          ? "/account"
+          : [
+                "",
+                "discover",
+                "search",
+                "locations",
+                "categories",
+                "packages",
+                "caterers",
+                "compare",
+                "checkout",
+                "payment",
+              ].includes(root)
+            ? catalogHref
+            : null;
+  const exploring =
+    customerDestination === catalogHref &&
+    (pathname !== "/" || section !== "how-it-works");
+  const howActive = pathname === "/" && section === "how-it-works";
   const isAdmin = pathname.startsWith("/admin");
   const links = isAdmin
     ? ([
@@ -262,22 +330,43 @@ function Shell({
             <Brand />
             <nav className="desktop-nav">
               <Link
-                className={
-                  ["/", "/discover"].includes(pathname) ? "selected" : ""
-                }
+                className={exploring ? "selected" : ""}
+                aria-current={exploring ? "location" : undefined}
                 href={catalogHref}
               >
                 {t("Jelajah katering", "Explore catering")}
               </Link>
               {actor ? (
                 <>
-                  <Link href="/home">{t("Makanan saya", "My meals")}</Link>
-                  <Link href="/calendar">
+                  <Link
+                    href="/home"
+                    className={
+                      customerDestination === "/home" ? "selected" : ""
+                    }
+                    aria-current={
+                      customerDestination === "/home" ? "page" : undefined
+                    }
+                  >
+                    {t("Makanan saya", "My meals")}
+                  </Link>
+                  <Link
+                    href="/calendar"
+                    className={
+                      customerDestination === "/calendar" ? "selected" : ""
+                    }
+                    aria-current={
+                      customerDestination === "/calendar" ? "page" : undefined
+                    }
+                  >
                     {t("Jadwal makan", "Meal calendar")}
                   </Link>
                 </>
               ) : (
-                <Link href={howItWorksHref}>
+                <Link
+                  href={howItWorksHref}
+                  className={howActive ? "selected" : ""}
+                  aria-current={howActive ? "location" : undefined}
+                >
                   {t("Cara berlangganan", "How it works")}
                 </Link>
               )}
@@ -351,12 +440,8 @@ function Shell({
               <Link
                 key={href}
                 href={href}
-                className={
-                  pathname === href ||
-                  (href === catalogHref && pathname === "/")
-                    ? "selected"
-                    : ""
-                }
+                className={customerDestination === href ? "selected" : ""}
+                aria-current={customerDestination === href ? "page" : undefined}
               >
                 <Icon size={21} />
                 <span>{t(id, en)}</span>
