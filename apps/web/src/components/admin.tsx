@@ -1,4 +1,5 @@
 "use client";
+import { Select, SelectOption } from "./select";
 import { useState } from "react";
 import {
   Plus,
@@ -168,11 +169,17 @@ export function Admin({ view }: { view: string }) {
                   }}
                 >
                   <Field label="Keputusan">
-                    <select name="status" defaultValue={seller.status}>
-                      <option value="approved">Setujui katerer</option>
-                      <option value="corrections">Minta perbaikan</option>
-                      <option value="suspended">Tangguhkan penjualan</option>
-                    </select>
+                    <Select name="status" defaultValue={seller.status}>
+                      <SelectOption value="approved">
+                        Setujui katerer
+                      </SelectOption>
+                      <SelectOption value="corrections">
+                        Minta perbaikan
+                      </SelectOption>
+                      <SelectOption value="suspended">
+                        Tangguhkan penjualan
+                      </SelectOption>
+                    </Select>
                   </Field>
                   <Field label="Alasan / koreksi yang diperlukan">
                     <textarea name="reason" required minLength={5} />
@@ -280,13 +287,13 @@ export function Admin({ view }: { view: string }) {
               }}
             >
               <Field label="Katerer">
-                <select name="catererId">
+                <Select name="catererId">
                   {a.caterers.map((c) => (
-                    <option key={c.id} value={c.id}>
+                    <SelectOption key={c.id} value={c.id}>
                       {c.name}
-                    </option>
+                    </SelectOption>
                   ))}
-                </select>
+                </Select>
               </Field>
               <Field label="Catatan pemeriksaan">
                 <textarea name="reason" minLength={5} required />
@@ -329,12 +336,14 @@ export function Admin({ view }: { view: string }) {
                       }}
                     >
                       <Field label="Hasil provider">
-                        <select name="status">
-                          <option value="succeeded">Dana diterima</option>
-                          <option value="failed">
+                        <Select name="status">
+                          <SelectOption value="succeeded">
+                            Dana diterima
+                          </SelectOption>
+                          <SelectOption value="failed">
                             Gagal, pulihkan alokasi
-                          </option>
-                        </select>
+                          </SelectOption>
+                        </Select>
                       </Field>
                       <Field label="Referensi provider">
                         <input name="reference" required minLength={3} />

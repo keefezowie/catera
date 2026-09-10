@@ -1,4 +1,5 @@
 "use client";
+import { Select, SelectOption } from "./select";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
@@ -132,7 +133,7 @@ export function Customer({ view, id }: { view: string; id?: string }) {
         }
       >
         {view === "home" && (
-          <Link className="button secondary" href="/discover">
+          <Link className="button secondary" href="/#packages">
             {t("Temukan favorit baru", "Find a new favorite")}
             <ArrowUpRight size={17} />
           </Link>
@@ -147,7 +148,7 @@ export function Customer({ view, id }: { view: string; id?: string }) {
               <Empty
                 title="Belum ada makanan berikutnya"
                 description="Yuk, temukan paket untuk keseharianmu."
-                href="/discover"
+                href="/#packages"
                 label="Jelajah katering"
               />
             )}
@@ -227,7 +228,7 @@ export function Customer({ view, id }: { view: string; id?: string }) {
                 <SubscriptionCard key={s.id} subscription={s} compact />
               ))}
             {!c.subscriptions.length && <p>Belum ada paket aktif.</p>}
-            <Link className="add-package" href="/discover">
+            <Link className="add-package" href="/#packages">
               <Plus size={20} />
               {t("Tambah paket yang kamu suka", "Add another favorite")}
             </Link>
@@ -545,11 +546,11 @@ function SubscriptionDetail({
             ["value", "Nilai paket"],
           ].map(([name, label]) => (
             <Field key={name} label={label}>
-              <select name={name} defaultValue="5">
+              <Select name={name} defaultValue="5">
                 {[5, 4, 3, 2, 1].map((n) => (
-                  <option key={n}>{n}</option>
+                  <SelectOption key={n}>{n}</SelectOption>
                 ))}
-              </select>
+              </Select>
             </Field>
           ))}
           <Field label="Ulasan">
@@ -722,13 +723,13 @@ export function DeliveryPage({ id }: { id: string }) {
             }}
           >
             <Field label="Alamat baru">
-              <select name="addressId" defaultValue={d.address.id}>
+              <Select name="addressId" defaultValue={d.address.id}>
                 {state.data.addresses.map((a) => (
-                  <option key={a.id} value={a.id}>
+                  <SelectOption key={a.id} value={a.id}>
                     {a.label} — {a.line}
-                  </option>
+                  </SelectOption>
                 ))}
-              </select>
+              </Select>
             </Field>
           </ActionForm>
         ) : (
@@ -922,7 +923,7 @@ export function Messages() {
             <Empty
               title="Belum ada percakapan"
               description="Buka profil katerer untuk mulai bertanya."
-              href="/discover"
+              href="/#packages"
               label="Jelajah katerer"
             />
           )}
@@ -1105,14 +1106,14 @@ export function Account({ view }: { view: string }) {
             />
           </Field>
           <Field label="Area">
-            <select
+            <Select
               name="area"
               defaultValue={editing?.area || "Jakarta Selatan"}
             >
               {areaOptions.map((a) => (
-                <option key={a}>{a}</option>
+                <SelectOption key={a}>{a}</SelectOption>
               ))}
-            </select>
+            </Select>
           </Field>
           <Field label="Kota">
             <input
@@ -1212,20 +1213,20 @@ export function Support() {
           }}
         >
           <Field label="Paket terkait">
-            <select
+            <Select
               name="subscriptionId"
               required
               defaultValue={params.get("subscription") || undefined}
             >
               {state.data.subscriptions.map((s) => (
-                <option key={s.id} value={s.id}>
+                <SelectOption key={s.id} value={s.id}>
                   {s.snapshot.offer.name}
-                </option>
+                </SelectOption>
               ))}
-            </select>
+            </Select>
           </Field>
           <Field label="Jenis permintaan">
-            <select name="subject">
+            <Select name="subject">
               {[
                 "Makanan belum diterima",
                 "Pengantaran terlambat",
@@ -1235,9 +1236,9 @@ export function Support() {
                 "Ajukan pembatalan",
                 "Lainnya",
               ].map((x) => (
-                <option key={x}>{x}</option>
+                <SelectOption key={x}>{x}</SelectOption>
               ))}
-            </select>
+            </Select>
           </Field>
           <Field label="Ceritakan kendalanya">
             <textarea

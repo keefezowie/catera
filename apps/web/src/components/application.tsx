@@ -36,6 +36,8 @@ import {
 } from "@catera/domain";
 import { Provider, useApp, api } from "./context";
 import { Brand, ErrorNotice } from "./ui";
+import { Select, SelectOption } from "./select";
+import { catalogHref, howItWorksHref } from "@/lib/navigation";
 import { Catalog, PackagePage, Compare, CatererPage } from "./marketplace";
 import { Customer, DeliveryPage, Messages, Account, Support } from "./customer";
 import { CheckoutPage, PaymentPage, Login } from "./purchase";
@@ -91,7 +93,8 @@ function App({ path, issue }: { path: string[]; issue: string | null }) {
     <Shell
       operational={["seller", "admin"].includes(root) && id !== "onboarding"}
     >
-      {issue ? (
+      {issue &&
+      ["", "discover", "search", "locations", "categories"].includes(root) ? (
         <ErrorNotice message="Catera belum terhubung ke lingkungan V1. Konfigurasi Supabase diperlukan sebelum layanan tersedia." />
       ) : (
         body
@@ -101,7 +104,7 @@ function App({ path, issue }: { path: string[]; issue: string | null }) {
 }
 const customerNav = [
   ["/home", "Beranda", "Home", Home],
-  ["/discover", "Jelajah", "Discover", Compass],
+  [catalogHref, "Jelajah", "Discover", Compass],
   ["/calendar", "Jadwal", "Calendar", CalendarDays],
   ["/messages", "Pesan", "Messages", MessageCircle],
   ["/account", "Akun", "Account", UserRound],
@@ -243,7 +246,7 @@ function Shell({
                 className={
                   ["/", "/discover"].includes(pathname) ? "selected" : ""
                 }
-                href="/discover"
+                href={catalogHref}
               >
                 {t("Jelajah katering", "Explore catering")}
               </Link>
@@ -255,22 +258,25 @@ function Shell({
                   </Link>
                 </>
               ) : (
-                <a href="/#cara-kerja">
+                <Link href={howItWorksHref}>
                   {t("Cara berlangganan", "How it works")}
-                </a>
+                </Link>
               )}
               <Link href={actor?.catererId ? "/seller" : "/seller/onboarding"}>
                 {t("Untuk katerer", "For caterers")} <ArrowUpRight size={13} />
               </Link>
             </nav>
             <div className="header-actions">
-              <button
+              <Select
                 className="locale-switch"
-                onClick={() => setLocale(locale === "id" ? "en" : "id")}
+                aria-label={t("Bahasa", "Language")}
+                value={locale}
+                displayValue={locale.toUpperCase()}
+                onValueChange={(value) => setLocale(value as Locale)}
               >
-                {locale.toUpperCase()}
-                <ChevronDown size={12} />
-              </button>
+                <SelectOption value="id">Bahasa Indonesia</SelectOption>
+                <SelectOption value="en">English</SelectOption>
+              </Select>
               {actor ? (
                 <>
                   <Link
@@ -309,7 +315,7 @@ function Shell({
               </p>
             </div>
             <div>
-              <Link href="/discover">
+              <Link href={catalogHref}>
                 {t("Jelajah katering", "Explore catering")}
               </Link>
               <Link href="/seller/onboarding">
@@ -328,7 +334,7 @@ function Shell({
                 href={href}
                 className={
                   pathname === href ||
-                  (href === "/discover" && pathname === "/")
+                  (href === catalogHref && pathname === "/")
                     ? "selected"
                     : ""
                 }

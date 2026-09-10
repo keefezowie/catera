@@ -1,4 +1,5 @@
 "use client";
+import { Select, SelectOption } from "./select";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -26,6 +27,8 @@ import {
   areaOptions,
 } from "@catera/domain";
 import { api, useApp, useResource } from "./context";
+import { signedInPath, safeReturnPath } from "@/lib/navigation";
+import type { Actor } from "@catera/domain";
 import {
   Heading,
   ActionForm,
@@ -39,11 +42,9 @@ export function Login() {
   const { demo, t } = useApp();
   const q = useSearchParams();
   const [phone, setPhone] = useState(""),
-    [sent, setSent] = useState(false);
-  const next =
-    q.get("next")?.startsWith("/") && !q.get("next")?.startsWith("//")
-      ? q.get("next")!
-      : "/home";
+    [sent, setSent] = useState(false),
+    [method, setMethod] = useState<"email" | "phone">("email");
+  const next = safeReturnPath(q.get("next")) || "/home";
   return (
     <div className="login-layout">
       <section className="login-story">
@@ -111,63 +112,127 @@ export function Login() {
             </div>
           </>
         ) : (
-          <ActionForm
-            submit={
-              sent
-                ? t("Verifikasi & masuk", "Verify & sign in")
-                : t("Kirim kode OTP", "Send OTP code")
-            }
-            onSubmit={async (f) => {
-              if (!sent) {
-                await api.request("auth/send", { phone });
-                setSent(true);
-              } else {
-                await api.request("auth/verify", {
-                  phone,
-                  token: f.get("token"),
-                  name: f.get("name"),
-                });
-                location.assign(next);
-              }
-            }}
-          >
-            <Field label={t("Nomor WhatsApp / ponsel", "Mobile number")}>
-              <input
-                type="tel"
-                name="phone"
-                placeholder="+6281234567890"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                required
-                autoComplete="tel"
-                disabled={sent}
-              />
-            </Field>
-            {sent && (
-              <>
-                <Field label="Kode OTP">
+          <>
+            <div
+              className="auth-methods"
+              aria-label={t("Metode masuk", "Sign-in method")}
+            >
+              <button
+                type="button"
+                aria-pressed={method === "email"}
+                onClick={() => setMethod("email")}
+              >
+                {t("Email & kata sandi", "Email & password")}
+              </button>
+              <button
+                type="button"
+                aria-pressed={method === "phone"}
+                onClick={() => setMethod("phone")}
+              >
+                {t("Kode ponsel", "Phone code")}
+              </button>
+            </div>
+            {method === "email" ? (
+              <ActionForm
+                submit={t("Masuk", "Sign in")}
+                onSubmit={async (form) => {
+                  const result = await api.request<{ actor: Actor }>(
+                    "auth/password",
+                    {
+                      email: form.get("email"),
+                      password: form.get("password"),
+                    },
+                  );
+                  location.assign(signedInPath(result.actor, q.get("next")));
+                }}
+              >
+                <Field label="Email">
                   <input
-                    name="token"
-                    inputMode="numeric"
-                    pattern="[0-9]{6}"
-                    maxLength={6}
-                    autoComplete="one-time-code"
+                    type="email"
+                    name="email"
+                    autoComplete="username"
+                    placeholder="nama@contoh.com"
                     required
+                    maxLength={254}
                   />
                 </Field>
-                <Field label="Nama">
-                  <input name="name" autoComplete="name" required />
+                <Field label={t("Kata sandi", "Password")}>
+                  <input
+                    type="password"
+                    name="password"
+                    autoComplete="current-password"
+                    required
+                    maxLength={256}
+                  />
                 </Field>
-                <button
-                  type="button"
-                  className="text-button"
-                  onClick={() => setSent(false)}
-                >
-                  Ubah nomor / kirim ulang
-                </button>
-              </>
+                <p className="small muted">
+                  {t(
+                    "Belum punya akun? Gunakan kode ponsel untuk mendaftar atau masuk.",
+                    "New here? Use a phone code to register or sign in.",
+                  )}
+                </p>
+              </ActionForm>
+            ) : (
+              <ActionForm
+                submit={
+                  sent
+                    ? t("Verifikasi & masuk", "Verify & sign in")
+                    : t("Kirim kode OTP", "Send OTP code")
+                }
+                onSubmit={async (f) => {
+                  if (!sent) {
+                    await api.request("auth/send", { phone });
+                    setSent(true);
+                  } else {
+                    await api.request("auth/verify", {
+                      phone,
+                      token: f.get("token"),
+                      name: f.get("name"),
+                    });
+                    const result = await api.request<{ actor: Actor }>("me");
+                    location.assign(signedInPath(result.actor, q.get("next")));
+                  }
+                }}
+              >
+                <Field label={t("Nomor WhatsApp / ponsel", "Mobile number")}>
+                  <input
+                    type="tel"
+                    name="phone"
+                    placeholder="+6281234567890"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    required
+                    autoComplete="tel"
+                    disabled={sent}
+                  />
+                </Field>
+                {sent && (
+                  <>
+                    <Field label="Kode OTP">
+                      <input
+                        name="token"
+                        inputMode="numeric"
+                        pattern="[0-9]{6}"
+                        maxLength={6}
+                        autoComplete="one-time-code"
+                        required
+                      />
+                    </Field>
+                    <Field label="Nama">
+                      <input name="name" autoComplete="name" required />
+                    </Field>
+                    <button
+                      type="button"
+                      className="text-button"
+                      onClick={() => setSent(false)}
+                    >
+                      Ubah nomor / kirim ulang
+                    </button>
+                  </>
+                )}
+              </ActionForm>
             )}
-          </ActionForm>
+          </>
         )}
         <p className="small muted">
           {t(
@@ -241,8 +306,13 @@ export function CheckoutPage({ id }: { id: string }) {
     setQuote(null);
     setStep(1);
   }, [portions, date, address, promo]);
-  if (actor && state.error) return <div className="narrow"><ErrorNotice message={state.error} retry={state.reload}/></div>;
-  if (actor && (!restored || !state.data)) return <Loading/>;
+  if (actor && state.error)
+    return (
+      <div className="narrow">
+        <ErrorNotice message={state.error} retry={state.reload} />
+      </div>
+    );
+  if (actor && (!restored || !state.data)) return <Loading />;
   if (!p)
     return (
       <Empty title="Paket tidak ditemukan" href="/" label="Jelajah paket" />
@@ -361,18 +431,18 @@ export function CheckoutPage({ id }: { id: string }) {
                 />
               </Field>
               <Field label={t("Alamat pengantaran", "Delivery address")}>
-                <select
+                <Select
                   required
                   value={address}
-                  onChange={(e) => setAddress(e.target.value)}
+                  onValueChange={(value) => setAddress(value)}
                 >
-                  <option value="">Pilih alamat</option>
+                  <SelectOption value="">Pilih alamat</SelectOption>
                   {state.data?.addresses.map((a) => (
-                    <option key={a.id} value={a.id}>
+                    <SelectOption key={a.id} value={a.id}>
                       {a.label} — {a.line}, {a.area}
-                    </option>
+                    </SelectOption>
                   ))}
-                </select>
+                </Select>
               </Field>
               <Link
                 className="text-button"

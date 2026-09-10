@@ -1,4 +1,5 @@
 "use client";
+import { Select, SelectOption } from "./select";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useState } from "react";
@@ -81,24 +82,24 @@ export function Seller({ view }: { view: string }) {
           )
         }
       />
-      <select
+      <Select
         aria-label="Waktu makan"
         value={meal}
-        onChange={(e) =>
+        onValueChange={(value) =>
           router.replace(
             "/seller/" +
               (view === "today" ? "" : view) +
               "?date=" +
               date +
               "&meal=" +
-              e.target.value,
+              value,
           )
         }
       >
-        <option value="all">Siang & malam</option>
-        <option value="lunch">Makan siang</option>
-        <option value="dinner">Makan malam</option>
-      </select>
+        <SelectOption value="all">Siang & malam</SelectOption>
+        <SelectOption value="lunch">Makan siang</SelectOption>
+        <SelectOption value="dinner">Makan malam</SelectOption>
+      </Select>
     </div>
   );
   const operational = ["today", "schedule", "production", "delivery"].includes(
@@ -542,20 +543,20 @@ function Deliveries({
             >
               {d.meals.length > 1 && (
                 <Field label="Waktu makan">
-                  <select
+                  <Select
                     value={selectedMeal}
-                    onChange={(e) => setSelectedMeal(e.target.value)}
+                    onValueChange={(value) => setSelectedMeal(value)}
                   >
                     {d.meals.map((m) => (
-                      <option value={m.meal} key={m.meal}>
+                      <SelectOption value={m.meal} key={m.meal}>
                         {mealLabel(m.meal)}
-                      </option>
+                      </SelectOption>
                     ))}
-                  </select>
+                  </Select>
                 </Field>
               )}
               <Field label="Status berikutnya">
-                <select
+                <Select
                   name="status"
                   key={currentMeal?.meal + ":" + currentMeal?.status}
                 >
@@ -569,7 +570,7 @@ function Deliveries({
                           ? ["delivered", "issue"]
                           : ["out_for_delivery"]
                   ).map((s) => (
-                    <option key={s} value={s}>
+                    <SelectOption key={s} value={s}>
                       {s === "preparing"
                         ? "Mulai menyiapkan"
                         : s === "out_for_delivery"
@@ -577,9 +578,9 @@ function Deliveries({
                           : s === "delivered"
                             ? "Sudah diterima"
                             : "Ada kendala"}
-                    </option>
+                    </SelectOption>
                   ))}
-                </select>
+                </Select>
               </Field>
             </ActionForm>
           )}
@@ -749,14 +750,14 @@ function OfferEditor({
               />
             </Field>
             <Field label="Waktu makan">
-              <select
+              <Select
                 value={value.meal}
-                onChange={(e) => set("meal", e.target.value)}
+                onValueChange={(value) => set("meal", value)}
               >
-                <option value="lunch">Makan siang</option>
-                <option value="dinner">Makan malam</option>
-                <option value="both">Makan siang + malam</option>
-              </select>
+                <SelectOption value="lunch">Makan siang</SelectOption>
+                <SelectOption value="dinner">Makan malam</SelectOption>
+                <SelectOption value="both">Makan siang + malam</SelectOption>
+              </Select>
             </Field>
             <Field label="Durasi pengantaran (hari)">
               <input
@@ -785,18 +786,17 @@ function OfferEditor({
               porsi per hari.
             </p>
             <Field label="Diskon kuantitas">
-              <select
+              <Select
                 value={value.tiers.length ? "yes" : "no"}
-                onChange={(e) =>
-                  set(
-                    "tiers",
-                    e.target.value === "yes" ? [{ min: 3, percent: 5 }] : [],
-                  )
+                onValueChange={(value) =>
+                  set("tiers", value === "yes" ? [{ min: 3, percent: 5 }] : [])
                 }
               >
-                <option value="no">Tanpa diskon</option>
-                <option value="yes">Gunakan tingkatan diskon</option>
-              </select>
+                <SelectOption value="no">Tanpa diskon</SelectOption>
+                <SelectOption value="yes">
+                  Gunakan tingkatan diskon
+                </SelectOption>
+              </Select>
             </Field>
             {value.tiers.map((tier, i) => (
               <div className="form-row" key={i}>
@@ -920,31 +920,28 @@ function OfferEditor({
         ) : step === 3 ? (
           <>
             <Field label="Perubahan jadwal">
-              <select
+              <Select
                 value={String(value.flexible)}
-                onChange={(e) => set("flexible", e.target.value === "true")}
+                onValueChange={(value) => set("flexible", value === "true")}
               >
-                <option value="true">
+                <SelectOption value="true">
                   Paket fleksibel · boleh ganti tanggal sebelum cutoff
-                </option>
-                <option value="false">
+                </SelectOption>
+                <SelectOption value="false">
                   Paket tetap · tanggal tidak dapat dipindah
-                </option>
-              </select>
+                </SelectOption>
+              </Select>
             </Field>
             <Field label="Trial satu hari">
-              <select
+              <Select
                 value={value.trialPrice === null ? "no" : "yes"}
-                onChange={(e) =>
-                  set(
-                    "trialPrice",
-                    e.target.value === "yes" ? value.price : null,
-                  )
+                onValueChange={(selected) =>
+                  set("trialPrice", selected === "yes" ? value.price : null)
                 }
               >
-                <option value="yes">Tersedia</option>
-                <option value="no">Tidak tersedia</option>
-              </select>
+                <SelectOption value="yes">Tersedia</SelectOption>
+                <SelectOption value="no">Tidak tersedia</SelectOption>
+              </Select>
             </Field>
             {value.trialPrice !== null && (
               <div className="form-row">
@@ -1076,17 +1073,17 @@ function OfferEditor({
               ]}
             />
             <Field label="Status penawaran">
-              <select
+              <Select
                 value={value.status}
-                onChange={(e) => set("status", e.target.value)}
+                onValueChange={(value) => set("status", value)}
               >
-                <option value="draft">Simpan draf</option>
-                <option value="published">
+                <SelectOption value="draft">Simpan draf</SelectOption>
+                <SelectOption value="published">
                   Tayangkan setelah verifikasi katerer
-                </option>
-                <option value="paused">Jeda penjualan baru</option>
-                <option value="retired">Arsipkan</option>
-              </select>
+                </SelectOption>
+                <SelectOption value="paused">Jeda penjualan baru</SelectOption>
+                <SelectOption value="retired">Arsipkan</SelectOption>
+              </Select>
             </Field>
           </>
         )}
@@ -1128,23 +1125,23 @@ function MenuEditor({ state: s, date }: { state: SellerState; date: string }) {
         }}
       >
         <Field label="Paket">
-          <select name="packageId">
+          <Select name="packageId">
             {s.offers.map((o) => (
-              <option value={o.id} key={o.id}>
+              <SelectOption value={o.id} key={o.id}>
                 {o.name}
-              </option>
+              </SelectOption>
             ))}
-          </select>
+          </Select>
         </Field>
         <div className="form-row">
           <Field label="Tanggal">
             <input type="date" name="date" defaultValue={date} required />
           </Field>
           <Field label="Waktu makan">
-            <select name="meal">
-              <option value="lunch">Makan siang</option>
-              <option value="dinner">Makan malam</option>
-            </select>
+            <Select name="meal">
+              <SelectOption value="lunch">Makan siang</SelectOption>
+              <SelectOption value="dinner">Makan malam</SelectOption>
+            </Select>
           </Field>
         </div>
         <Field label="Nama menu">
@@ -1181,13 +1178,13 @@ function Capacity({ state: s, date }: { state: SellerState; date: string }) {
         }}
       >
         <Field label="Paket">
-          <select name="packageId">
+          <Select name="packageId">
             {s.offers.map((o) => (
-              <option key={o.id} value={o.id}>
+              <SelectOption key={o.id} value={o.id}>
                 {o.name}
-              </option>
+              </SelectOption>
             ))}
-          </select>
+          </Select>
         </Field>
         <Field label="Tanggal">
           <input type="date" name="date" defaultValue={date} required />

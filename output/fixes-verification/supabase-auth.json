@@ -1,0 +1,30 @@
+[
+  {
+    "role": "customer",
+    "signIn": true,
+    "roleVerified": true,
+    "adminBoundaryVerified": true,
+    "signOut": true
+  },
+  {
+    "role": "owner",
+    "signIn": true,
+    "roleVerified": true,
+    "adminBoundaryVerified": true,
+    "signOut": true
+  },
+  {
+    "role": "staff",
+    "signIn": true,
+    "roleVerified": true,
+    "adminBoundaryVerified": true,
+    "signOut": true
+  },
+  {
+    "role": "platform_admin",
+    "signIn": true,
+    "roleVerified": true,
+    "adminBoundaryVerified": true,
+    "signOut": true
+  }
+]

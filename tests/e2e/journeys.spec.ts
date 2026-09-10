@@ -87,7 +87,8 @@ test("customer purchase, schedule change, support review and renewal", async ({
     .click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.getByRole("link", { name: "Laporkan masalah" }).click();
-  await page.getByLabel("Jenis permintaan").selectOption("Ajukan pembatalan");
+  await page.getByRole("combobox", { name: "Jenis permintaan" }).click();
+  await page.getByRole("option", { name: "Ajukan pembatalan", exact: true }).click();
   await page.getByLabel("Ceritakan kendalanya").fill(requestText);
   await page.getByRole("button", { name: "Kirim permintaan bantuan" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -125,7 +126,7 @@ test("customer and operational routes render, retain context and pass critical a
   await page.goto("/calendar");
   await expect(page.locator(".week-strip")).toBeVisible();
   await page.screenshot({
-    path: "output/playwright/calendar-phone.png",
+    path: "output/fixes-verification/calendar-phone.png",
     fullPage: true,
   });
   expect(
@@ -145,9 +146,15 @@ test("customer and operational routes render, retain context and pass critical a
       (v) => v.impact === "critical" || v.impact === "serious",
     ),
   ).toEqual([]);
+  const customerState = (await (await page.request.get("/api/v1/customer")).json()).data;
+  const serviceDate = customerState.deliveries.find(
+    (delivery: { offer: { id: string }; status: string }) =>
+      delivery.offer.id.endsWith("001") && delivery.status === "scheduled",
+  )?.service_date;
+  expect(serviceDate).toBeTruthy();
   await login(page, "owner");
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.goto("/seller");
+  await page.goto("/seller?date=" + serviceDate);
   await expect(
     page.getByRole("heading", { name: "Keluar dari dapur hari ini" }),
   ).toBeVisible();
@@ -166,7 +173,7 @@ test("customer and operational routes render, retain context and pass critical a
     .getAttribute("href");
   const manifest = await page.request.get(href!);
   expect(manifest.ok()).toBe(true);
-  expect(await manifest.text()).toContain("Rantang Nusantara");
+  expect(await manifest.text()).toContain("Ayam Panggang Harian");
   for (const route of [
     "packages",
     "menus",
@@ -180,11 +187,11 @@ test("customer and operational routes render, retain context and pass critical a
     await expect(page.locator(".error-notice")).toHaveCount(0);
   }
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/seller/delivery");
+  await page.goto("/seller/delivery?date=" + serviceDate);
   await expect(
-    page.getByRole("button", { name: "Detail Rantang Nusantara" }),
+    page.getByRole("button", { name: "Detail Ayam Panggang Harian" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Detail Rantang Nusantara" }).click();
+  await page.getByRole("button", { name: "Detail Ayam Panggang Harian" }).click();
   await page.screenshot({
     path: "output/playwright/seller-phone.png",
     fullPage: true,

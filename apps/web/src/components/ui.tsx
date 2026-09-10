@@ -147,6 +147,7 @@ export function ActionForm({
 }) {
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
+  const { t } = useApp();
   async function handle(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (busy || disabled) return;
@@ -158,7 +159,11 @@ export function ActionForm({
     } catch (e) {
       const code =
         (e as { code?: string; message?: string }).code || (e as Error).message;
-      setError(errors[code] || code || "Belum berhasil. Silakan coba lagi.");
+      setError(code === "INVALID_CREDENTIALS"
+        ? t("Email atau kata sandi tidak cocok. Silakan coba lagi.", "Email or password is incorrect. Please try again.")
+        : code === "AUTH_RATE_LIMITED"
+          ? t("Terlalu banyak percobaan masuk. Tunggu sebentar lalu coba lagi.", "Too many sign-in attempts. Please wait and try again.")
+          : errors[code] || code || "Belum berhasil. Silakan coba lagi.");
     } finally {
       setBusy(false);
     }
@@ -173,7 +178,7 @@ export function ActionForm({
         ) : (
           <Check size={17} />
         )}{" "}
-        {busy ? "Menyimpan…" : submit}
+        {busy ? t("Memproses…", "Processing…") : submit}
       </button>
     </form>
   );

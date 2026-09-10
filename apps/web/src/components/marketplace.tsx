@@ -1,4 +1,5 @@
 "use client";
+import { Select, SelectOption } from "./select";
 import Link from "next/link";
 import { useState } from "react";
 import {
@@ -158,18 +159,18 @@ export function Catalog({ caterer }: { caterer?: string }) {
           <MapPin size={20} />
           <label>
             <span>{t("Area pengantaran", "Delivery area")}</span>
-            <select
+            <Select
               value={area}
-              onChange={(e) => setArea(e.target.value)}
+              onValueChange={(value) => setArea(value)}
               aria-label="Area pengantaran"
             >
-              <option value="">
+              <SelectOption value="">
                 {t("Pilih area Anda", "Choose your area")}
-              </option>
+              </SelectOption>
               {areaOptions.map((a) => (
-                <option key={a}>{a}</option>
+                <SelectOption key={a}>{a}</SelectOption>
               ))}
-            </select>
+            </Select>
           </label>
         </div>
         <label className="search-field">
@@ -200,7 +201,7 @@ export function Catalog({ caterer }: { caterer?: string }) {
                 "Catering that fits your everyday. Choose your meals, set your schedule, enjoy your day.",
               )}
             </p>
-            <a className="button cream" href="#paket">
+            <a className="button cream" href="#packages">
               {t("Temukan paketmu", "Find your meals")}
               <ArrowUpRight size={19} />
             </a>
@@ -238,7 +239,7 @@ export function Catalog({ caterer }: { caterer?: string }) {
           </div>
         </section>
       )}
-      <section className="catalog-section" id="paket">
+      <section className="catalog-section" id="packages">
         <div className="section-heading">
           <div>
             <h2>{t("Mau makan apa hari ini?", "What sounds good today?")}</h2>
@@ -344,17 +345,17 @@ export function Catalog({ caterer }: { caterer?: string }) {
           </p>
           <label>
             {t("Urutkan:", "Sort:")}{" "}
-            <select value={sort} onChange={(e) => setSort(e.target.value)}>
-              <option value="recommended">
+            <Select value={sort} onValueChange={(value) => setSort(value)}>
+              <SelectOption value="recommended">
                 {t("Rekomendasi", "Recommended")}
-              </option>
-              <option value="price">
+              </SelectOption>
+              <SelectOption value="price">
                 {t("Harga terendah", "Lowest price")}
-              </option>
-              <option value="rating">
+              </SelectOption>
+              <SelectOption value="rating">
                 {t("Rating tertinggi", "Highest rated")}
-              </option>
-            </select>
+              </SelectOption>
+            </Select>
           </label>
         </div>
         <div className="package-grid">
@@ -372,7 +373,7 @@ export function Catalog({ caterer }: { caterer?: string }) {
           />
         )}
       </section>
-      <section className="how-it-works" id="cara-kerja">
+      <section className="how-it-works" id="how-it-works">
         <div>
           <h2>
             {t("Makanan sudah dipikirkan.", "Meals, already taken care of.")}
@@ -450,7 +451,7 @@ export function PackagePage({ slug }: { slug: string }) {
   return (
     <div className="content package-detail">
       <div className="breadcrumbs">
-        <Link href="/discover">{t("Jelajah", "Discover")}</Link>
+        <Link href="/#packages">{t("Jelajah", "Discover")}</Link>
         <span>/</span>
         <Link href={"/caterers/" + p.catererSlug}>{p.caterer}</Link>
         <span>/</span>
@@ -838,7 +839,7 @@ export function Compare() {
         <Empty
           title="Belum ada paket untuk dibandingkan"
           description="Pilih tanda + pada kartu paket yang menarik untukmu."
-          href="/discover"
+          href="/#packages"
           label="Jelajah paket"
         />
       )}

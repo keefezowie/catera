@@ -358,6 +358,8 @@ export const statusLabel = (status: string, locale: Locale = "id") =>
 export const errors: Record<string, string> = {
   PRICE_CHANGED: "Harga atau ketentuan berubah. Tinjau ulang sebelum membayar.",
   UNAUTHORIZED: "Silakan masuk kembali.",
+  INVALID_CREDENTIALS: "Email atau kata sandi tidak cocok. Silakan coba lagi.",
+  AUTH_RATE_LIMITED: "Terlalu banyak percobaan masuk. Tunggu sebentar lalu coba lagi.",
   FORBIDDEN: "Akun ini tidak memiliki akses.",
   CAPACITY:
     "Porsi pada salah satu tanggal sudah habis. Pilih tanggal mulai atau jumlah porsi lain.",
