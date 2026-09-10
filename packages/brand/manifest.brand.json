@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "brand": "Catera",
   "tagline": "Good Food on Repeat.",
   "createdAt": "2026-09-09T14:45:21.138Z",
@@ -10,13 +10,11 @@
     "charcoal": "#2E2E2E"
   },
   "paletteNote": "These are the approved target tokens. Generated PNGs contain antialiasing and tonal variations; they are not exact-color separations.",
-  "status": "All sixteen requested compositions generated and inspected. Alpha and requested large master dimensions remain unmet by the built-in generator.",
+  "status": "Fifteen transparent UI derivatives verified; opaque app icon and original generated masters retained.",
   "limitations": [
-    "The built-in generator returned RGB PNGs. Two transparency attempts produced baked checkerboard pixels and were rejected.",
-    "Only clean cream/forest matte generations are delivered. Do not claim these files are transparent.",
-    "The requested 2048px mascot and 4096px wordmark dimensions were not honored by the generator. Actual native dimensions are recorded per asset. No files were upscaled.",
-    "adaptive-foreground.png is an opaque composition master and requires an approved transparency workflow before use as a true Android adaptive foreground.",
-    "No editable vector source is available; no raster has been disguised as SVG."
+    "Original generations are opaque and retained in masters/. The UI cutouts are derived alpha PNGs, not newly generated masters.",
+    "Actual dimensions remain 1254x1254 or 2172x724; requested 2048/4096 master sizes remain unmet. No upscaling.",
+    "No editable vector source or platform-specific icon export pack is included."
   ],
   "assets": [
     {
@@ -24,28 +22,39 @@
       "file": "assets/mascot.png",
       "width": 1254,
       "height": 1254,
-      "colorType": 2,
-      "hasAlphaChannel": false,
-      "bytes": 1146895,
-      "sha256": "344bd4ca399952b17541d95cd7c38225e0ab52592d72b7ddcaa1744dce2da61f",
-      "pixelDataSha256": "2d34730d697484ef03d82178cbd78c71ef09a388254e45c7960478a9c8f5ab83",
+      "colorType": 6,
+      "hasAlphaChannel": true,
+      "bytes": 921569,
+      "sha256": "0bcb91dd7768dfd565e43c7c68c625e9c5bbaa82b338b4c426f05c254ff96b89",
+      "pixelDataSha256": "a6e6f69ae0917641cb4be06919f6688d5df53dd048e6f2dbb6ac15d259c37bc7",
       "format": "image/png",
-      "nativeGeneratedMaster": true,
+      "nativeGeneratedMaster": false,
       "upscaled": false,
       "vector": false,
-      "background": "opaque cream matte",
+      "background": "transparent alpha",
       "use": "Standalone brand character for sign-in, onboarding, and brand communication.",
       "promptFile": "prompts/mascot.txt",
       "source": {
         "generator": "built-in image_gen",
         "generatedOriginal": "C:\\Users\\nidal\\.codex\\generated_images\\01a08689-a123-7ac3-82e3-6fdcfa29ade0\\exec-841c5e51-d7d9-4ddf-814d-dc02cf0b998c.png",
         "referenceRole": "Identity guidance only; no reference-board pixels extracted.",
-        "originalPixelDataSha256": "2d34730d697484ef03d82178cbd78c71ef09a388254e45c7960478a9c8f5ab83"
+        "originalPixelDataSha256": "2d34730d697484ef03d82178cbd78c71ef09a388254e45c7960478a9c8f5ab83",
+        "retainedMaster": "masters/mascot.png",
+        "retainedMasterSha256": "344bd4ca399952b17541d95cd7c38225e0ab52592d72b7ddcaa1744dce2da61f"
       },
       "review": {
         "visuallyInspected": true,
         "spellingChecked": false,
-        "transparentMasterReady": false
+        "transparentMasterReady": true
+      },
+      "alpha": {
+        "transparentPixels": 924939,
+        "opaquePixels": 645587,
+        "partialAlphaPixels": 1990
+      },
+      "derivation": {
+        "script": "transparent-assets.mjs",
+        "method": "Background segmentation and edge matte removal from the individual original; no resizing or regeneration."
       }
     },
     {
@@ -53,28 +62,39 @@
       "file": "assets/wordmark.png",
       "width": 2172,
       "height": 724,
-      "colorType": 2,
-      "hasAlphaChannel": false,
-      "bytes": 911590,
-      "sha256": "30ec0db1edf0e79d6b289227f80f9dbf19f62dc8eb41c7858d48adc3ac9231e5",
-      "pixelDataSha256": "c203093cc1e612ffc5e17082a64519c3d0233b87ac39cac6facc4eb30a7698d9",
+      "colorType": 6,
+      "hasAlphaChannel": true,
+      "bytes": 274935,
+      "sha256": "c236ecd0546ec5b5a2f766978329a3a56f39e8bb0a1ee7adc478dae3751554ae",
+      "pixelDataSha256": "b0ad6355dc9318c0f0abafe04fd0bdc401c2205aa428a0bbeb08336ba67e3d5c",
       "format": "image/png",
-      "nativeGeneratedMaster": true,
+      "nativeGeneratedMaster": false,
       "upscaled": false,
       "vector": false,
-      "background": "opaque cream matte",
+      "background": "transparent alpha",
       "use": "Primary horizontal wordmark with tagline, for cream headers and brand introductions.",
       "promptFile": "prompts/wordmark.txt",
       "source": {
         "generator": "built-in image_gen",
         "generatedOriginal": "C:\\Users\\nidal\\.codex\\generated_images\\01a08689-a123-7ac3-82e3-6fdcfa29ade0\\exec-c38ab025-48f2-4bd2-99fe-0163e695f694.png",
         "referenceRole": "Identity guidance only; no reference-board pixels extracted.",
-        "originalPixelDataSha256": "c203093cc1e612ffc5e17082a64519c3d0233b87ac39cac6facc4eb30a7698d9"
+        "originalPixelDataSha256": "c203093cc1e612ffc5e17082a64519c3d0233b87ac39cac6facc4eb30a7698d9",
+        "retainedMaster": "masters/wordmark.png",
+        "retainedMasterSha256": "30ec0db1edf0e79d6b289227f80f9dbf19f62dc8eb41c7858d48adc3ac9231e5"
       },
       "review": {
         "visuallyInspected": true,
         "spellingChecked": true,
-        "transparentMasterReady": false
+        "transparentMasterReady": true
+      },
+      "alpha": {
+        "transparentPixels": 1368192,
+        "opaquePixels": 198729,
+        "partialAlphaPixels": 5607
+      },
+      "derivation": {
+        "script": "transparent-assets.mjs",
+        "method": "Background segmentation and edge matte removal from the individual original; no resizing or regeneration."
       }
     },
     {
@@ -82,28 +102,39 @@
       "file": "assets/lockup-horizontal.png",
       "width": 2172,
       "height": 724,
-      "colorType": 2,
-      "hasAlphaChannel": false,
-      "bytes": 1106281,
-      "sha256": "455e6dc85c3a9f6cc209d253acb2440efef724dc5399e70d6425540afa9c62c5",
-      "pixelDataSha256": "2b0ff9a7bd0480d2bdc76b8a1b8057c3b1d2a28f1d9e8bddbe94772ceec18ecd",
+      "colorType": 6,
+      "hasAlphaChannel": true,
+      "bytes": 669200,
+      "sha256": "7b943edaa0dd38a5dc4f3cec62a93adf92489531660c4f9f4e673afb36a65a7f",
+      "pixelDataSha256": "5c3d0ec0fb7208be2c9617f09a3be8ecbca2ab3a85262b538724e66d25df3e53",
       "format": "image/png",
-      "nativeGeneratedMaster": true,
+      "nativeGeneratedMaster": false,
       "upscaled": false,
       "vector": false,
-      "background": "opaque cream matte",
+      "background": "transparent alpha",
       "use": "Combined mascot and wordmark for horizontal brand placements.",
       "promptFile": "prompts/lockup-horizontal.txt",
       "source": {
         "generator": "built-in image_gen",
         "generatedOriginal": "C:\\Users\\nidal\\.codex\\generated_images\\01a08689-a123-7ac3-82e3-6fdcfa29ade0\\exec-6490aa1c-19de-4fc1-9ef3-76d6fc4d17b3.png",
         "referenceRole": "Identity guidance only; no reference-board pixels extracted.",
-        "originalPixelDataSha256": "2b0ff9a7bd0480d2bdc76b8a1b8057c3b1d2a28f1d9e8bddbe94772ceec18ecd"
+        "originalPixelDataSha256": "2b0ff9a7bd0480d2bdc76b8a1b8057c3b1d2a28f1d9e8bddbe94772ceec18ecd",
+        "retainedMaster": "masters/lockup-horizontal.png",
+        "retainedMasterSha256": "455e6dc85c3a9f6cc209d253acb2440efef724dc5399e70d6425540afa9c62c5"
       },
       "review": {
         "visuallyInspected": true,
         "spellingChecked": true,
-        "transparentMasterReady": false
+        "transparentMasterReady": true
+      },
+      "alpha": {
+        "transparentPixels": 1143597,
+        "opaquePixels": 422141,
+        "partialAlphaPixels": 6790
+      },
+      "derivation": {
+        "script": "transparent-assets.mjs",
+        "method": "Background segmentation and edge matte removal from the individual original; no resizing or regeneration."
       }
     },
     {
@@ -111,28 +142,39 @@
       "file": "assets/lockup-stacked.png",
       "width": 1254,
       "height": 1254,
-      "colorType": 2,
-      "hasAlphaChannel": false,
-      "bytes": 1218084,
-      "sha256": "9bddfd2a3dbbdf2a5ad1f578095814c3a8b7db6077fb40fdb19dd8a37b55699a",
-      "pixelDataSha256": "ac678b6f56e41addcc97343a7e5a6877f5ceb55b0e69ab575ee61fca480a270d",
+      "colorType": 6,
+      "hasAlphaChannel": true,
+      "bytes": 855045,
+      "sha256": "c220d8fa3511237306300747b6dfdafa04172b12e7edced2bb9b9d7326383bfe",
+      "pixelDataSha256": "9bfd4defe6bdadf98d65b6629e13f38d354d1bdc0403e4f79fe9b32ba0e07a92",
       "format": "image/png",
-      "nativeGeneratedMaster": true,
+      "nativeGeneratedMaster": false,
       "upscaled": false,
       "vector": false,
-      "background": "opaque cream matte",
+      "background": "transparent alpha",
       "use": "Combined mascot and wordmark for square and vertical brand placements.",
       "promptFile": "prompts/lockup-stacked.txt",
       "source": {
         "generator": "built-in image_gen",
         "generatedOriginal": "C:\\Users\\nidal\\.codex\\generated_images\\01a08689-a123-7ac3-82e3-6fdcfa29ade0\\exec-cf0165bd-905e-4ee0-99e0-da422368599c.png",
         "referenceRole": "Identity guidance only; no reference-board pixels extracted.",
-        "originalPixelDataSha256": "ac678b6f56e41addcc97343a7e5a6877f5ceb55b0e69ab575ee61fca480a270d"
+        "originalPixelDataSha256": "ac678b6f56e41addcc97343a7e5a6877f5ceb55b0e69ab575ee61fca480a270d",
+        "retainedMaster": "masters/lockup-stacked.png",
+        "retainedMasterSha256": "9bddfd2a3dbbdf2a5ad1f578095814c3a8b7db6077fb40fdb19dd8a37b55699a"
       },
       "review": {
         "visuallyInspected": true,
         "spellingChecked": true,
-        "transparentMasterReady": false
+        "transparentMasterReady": true
+      },
+      "alpha": {
+        "transparentPixels": 1016919,
+        "opaquePixels": 549306,
+        "partialAlphaPixels": 6291
+      },
+      "derivation": {
+        "script": "transparent-assets.mjs",
+        "method": "Background segmentation and edge matte removal from the individual original; no resizing or regeneration."
       }
     },
     {
@@ -156,12 +198,19 @@
         "generator": "built-in image_gen",
         "generatedOriginal": "C:\\Users\\nidal\\.codex\\generated_images\\01a08689-a123-7ac3-82e3-6fdcfa29ade0\\exec-84ecec9e-3897-4779-aaba-177eedfe24b1.png",
         "referenceRole": "Identity guidance only; no reference-board pixels extracted.",
-        "originalPixelDataSha256": "c0a0df7667bf71ba67ae5f101a630d85131f613b2085c63dabdf72018c75f9f5"
+        "originalPixelDataSha256": "c0a0df7667bf71ba67ae5f101a630d85131f613b2085c63dabdf72018c75f9f5",
+        "retainedMaster": "masters/app-icon.png",
+        "retainedMasterSha256": "ee643432d4ac9e0a808df5ff129cb4ff2eba265817b69e9c78a4ad7b9e50c8e2"
       },
       "review": {
         "visuallyInspected": true,
         "spellingChecked": true,
         "transparentMasterReady": false
+      },
+      "alpha": {
+        "transparentPixels": 0,
+        "opaquePixels": 1572516,
+        "partialAlphaPixels": 0
       }
     },
     {
@@ -169,28 +218,39 @@
       "file": "assets/logo-forest.png",
       "width": 1254,
       "height": 1254,
-      "colorType": 2,
-      "hasAlphaChannel": false,
-      "bytes": 1162886,
-      "sha256": "d252cb2d4210666439fc5e27e7fcbb83d31805f73aa8bd92d6162070d329bdf6",
-      "pixelDataSha256": "42c54d45bf9b2aac6ba5c44a9571e5cd6ed6beaa4a4022c1c1536117d6b06702",
+      "colorType": 6,
+      "hasAlphaChannel": true,
+      "bytes": 574131,
+      "sha256": "f5fab08a1d4501ab4798f88e56798223742d95eb2a8f6578f834c3283fb3b3de",
+      "pixelDataSha256": "b9e3a67b3e277eff0cb0c68a5fbf518893f9dbb659f5376028d37d874ab6a584",
       "format": "image/png",
-      "nativeGeneratedMaster": true,
+      "nativeGeneratedMaster": false,
       "upscaled": false,
       "vector": false,
-      "background": "opaque cream matte",
-      "use": "Forest monochrome interpretation on a cream matte.",
+      "background": "transparent alpha",
+      "use": "Forest monochrome logo on transparent background for light surfaces.",
       "promptFile": "prompts/logo-forest.txt",
       "source": {
         "generator": "built-in image_gen",
         "generatedOriginal": "C:\\Users\\nidal\\.codex\\generated_images\\01a08689-a123-7ac3-82e3-6fdcfa29ade0\\exec-83119494-9ecc-43ff-a1a3-5907856144ce.png",
         "referenceRole": "Identity guidance only; no reference-board pixels extracted.",
-        "originalPixelDataSha256": "42c54d45bf9b2aac6ba5c44a9571e5cd6ed6beaa4a4022c1c1536117d6b06702"
+        "originalPixelDataSha256": "42c54d45bf9b2aac6ba5c44a9571e5cd6ed6beaa4a4022c1c1536117d6b06702",
+        "retainedMaster": "masters/logo-forest.png",
+        "retainedMasterSha256": "d252cb2d4210666439fc5e27e7fcbb83d31805f73aa8bd92d6162070d329bdf6"
       },
       "review": {
         "visuallyInspected": true,
         "spellingChecked": true,
-        "transparentMasterReady": false
+        "transparentMasterReady": true
+      },
+      "alpha": {
+        "transparentPixels": 1197323,
+        "opaquePixels": 362335,
+        "partialAlphaPixels": 12858
+      },
+      "derivation": {
+        "script": "transparent-assets.mjs",
+        "method": "Background segmentation and edge matte removal from the individual original; no resizing or regeneration."
       }
     },
     {
@@ -198,28 +258,39 @@
       "file": "assets/logo-light.png",
       "width": 1254,
       "height": 1254,
-      "colorType": 2,
-      "hasAlphaChannel": false,
-      "bytes": 1224035,
-      "sha256": "e6828a51f29118110cb80719e56e9fef9e1c85a4f0610d414ce72e1163adda97",
-      "pixelDataSha256": "78f70f08ff855f20ba8b639f6e4446a857c38ff9e93ec621e6ec87f608d8d194",
+      "colorType": 6,
+      "hasAlphaChannel": true,
+      "bytes": 499369,
+      "sha256": "784995e133d0aa9272d9ee347ed5f6d503070a78e1ad2dc9f81269258b66ec6c",
+      "pixelDataSha256": "9f97ae934b2c8ed7877608808e8521b6d77d9d04a92c4a9227824f07e777f7c9",
       "format": "image/png",
-      "nativeGeneratedMaster": true,
+      "nativeGeneratedMaster": false,
       "upscaled": false,
       "vector": false,
-      "background": "opaque forest matte",
-      "use": "Cream monochrome interpretation on a forest matte.",
+      "background": "transparent alpha",
+      "use": "Cream monochrome logo on transparent background for dark surfaces.",
       "promptFile": "prompts/logo-light.txt",
       "source": {
         "generator": "built-in image_gen",
         "generatedOriginal": "C:\\Users\\nidal\\.codex\\generated_images\\01a08689-a123-7ac3-82e3-6fdcfa29ade0\\exec-874226e4-f745-43bc-8c8b-2cf415d6824f.png",
         "referenceRole": "Identity guidance only; no reference-board pixels extracted.",
-        "originalPixelDataSha256": "78f70f08ff855f20ba8b639f6e4446a857c38ff9e93ec621e6ec87f608d8d194"
+        "originalPixelDataSha256": "78f70f08ff855f20ba8b639f6e4446a857c38ff9e93ec621e6ec87f608d8d194",
+        "retainedMaster": "masters/logo-light.png",
+        "retainedMasterSha256": "e6828a51f29118110cb80719e56e9fef9e1c85a4f0610d414ce72e1163adda97"
       },
       "review": {
         "visuallyInspected": true,
         "spellingChecked": true,
-        "transparentMasterReady": false
+        "transparentMasterReady": true
+      },
+      "alpha": {
+        "transparentPixels": 1256332,
+        "opaquePixels": 306538,
+        "partialAlphaPixels": 9646
+      },
+      "derivation": {
+        "script": "transparent-assets.mjs",
+        "method": "Background segmentation and edge matte removal from the individual original; no resizing or regeneration."
       }
     },
     {
@@ -227,28 +298,39 @@
       "file": "assets/adaptive-foreground.png",
       "width": 1254,
       "height": 1254,
-      "colorType": 2,
-      "hasAlphaChannel": false,
-      "bytes": 1091060,
-      "sha256": "561e034728482e48ef30349224f0354cf69b9e822b67b9fe45c9a624bae3f346",
-      "pixelDataSha256": "47742321036d618fcb393e566e47b30cc582abb74a9e3af5ce924ee93230aabe",
+      "colorType": 6,
+      "hasAlphaChannel": true,
+      "bytes": 661416,
+      "sha256": "e3b9749fbc770a3102771a5858e7f6e429a819a53e1d85e38d27bce5fcaf9840",
+      "pixelDataSha256": "84545f9986dab78bd0ed80c058808f875292047042f4579f0d77a17801145985",
       "format": "image/png",
-      "nativeGeneratedMaster": true,
+      "nativeGeneratedMaster": false,
       "upscaled": false,
       "vector": false,
-      "background": "opaque cream matte",
-      "use": "Mascot with extra safe-area margin; alpha extraction is still required for an Android foreground layer.",
+      "background": "transparent alpha",
+      "use": "Transparent mascot foreground with original safe-area margin.",
       "promptFile": "prompts/adaptive-foreground.txt",
       "source": {
         "generator": "built-in image_gen",
         "generatedOriginal": "C:\\Users\\nidal\\.codex\\generated_images\\01a08689-a123-7ac3-82e3-6fdcfa29ade0\\exec-c5edeeca-05f6-4ff6-9278-9538fa69875a.png",
         "referenceRole": "Identity guidance only; no reference-board pixels extracted.",
-        "originalPixelDataSha256": "47742321036d618fcb393e566e47b30cc582abb74a9e3af5ce924ee93230aabe"
+        "originalPixelDataSha256": "47742321036d618fcb393e566e47b30cc582abb74a9e3af5ce924ee93230aabe",
+        "retainedMaster": "masters/adaptive-foreground.png",
+        "retainedMasterSha256": "561e034728482e48ef30349224f0354cf69b9e822b67b9fe45c9a624bae3f346"
       },
       "review": {
         "visuallyInspected": true,
         "spellingChecked": false,
-        "transparentMasterReady": false
+        "transparentMasterReady": true
+      },
+      "alpha": {
+        "transparentPixels": 1145283,
+        "opaquePixels": 425480,
+        "partialAlphaPixels": 1753
+      },
+      "derivation": {
+        "script": "transparent-assets.mjs",
+        "method": "Background segmentation and edge matte removal from the individual original; no resizing or regeneration."
       }
     },
     {
@@ -256,28 +338,39 @@
       "file": "assets/leaf.png",
       "width": 1254,
       "height": 1254,
-      "colorType": 2,
-      "hasAlphaChannel": false,
-      "bytes": 882999,
-      "sha256": "bc53584f8b5db5171f21ce636281ea462f236961f0457362bd0c9b8fa7fe1bdf",
-      "pixelDataSha256": "0a4fc72c30131363d6985f18623920ed91f71d10c251a212c9d74bc131e64a43",
+      "colorType": 6,
+      "hasAlphaChannel": true,
+      "bytes": 199327,
+      "sha256": "de8207e433c02952b27e1ed3c1a3256d6df2d06184e9cdb92676e7b9109336bf",
+      "pixelDataSha256": "60d42bb9a547b091b5f358ac5a8d97eb94301f9bb545df4bf9dade857d152f31",
       "format": "image/png",
-      "nativeGeneratedMaster": true,
+      "nativeGeneratedMaster": false,
       "upscaled": false,
       "vector": false,
-      "background": "opaque cream matte",
+      "background": "transparent alpha",
       "use": "Decorative brand sprout supporting freshness messaging.",
       "promptFile": "prompts/leaf.txt",
       "source": {
         "generator": "built-in image_gen",
         "generatedOriginal": "C:\\Users\\nidal\\.codex\\generated_images\\01a08689-a123-7ac3-82e3-6fdcfa29ade0\\exec-dcf8517b-8054-4006-9628-73c9eab51456.png",
         "referenceRole": "Identity guidance only; no reference-board pixels extracted.",
-        "originalPixelDataSha256": "0a4fc72c30131363d6985f18623920ed91f71d10c251a212c9d74bc131e64a43"
+        "originalPixelDataSha256": "0a4fc72c30131363d6985f18623920ed91f71d10c251a212c9d74bc131e64a43",
+        "retainedMaster": "masters/leaf.png",
+        "retainedMasterSha256": "bc53584f8b5db5171f21ce636281ea462f236961f0457362bd0c9b8fa7fe1bdf"
       },
       "review": {
         "visuallyInspected": true,
         "spellingChecked": false,
-        "transparentMasterReady": false
+        "transparentMasterReady": true
+      },
+      "alpha": {
+        "transparentPixels": 1393584,
+        "opaquePixels": 176651,
+        "partialAlphaPixels": 2281
+      },
+      "derivation": {
+        "script": "transparent-assets.mjs",
+        "method": "Background segmentation and edge matte removal from the individual original; no resizing or regeneration."
       }
     },
     {
@@ -285,28 +378,39 @@
       "file": "assets/heart.png",
       "width": 1254,
       "height": 1254,
-      "colorType": 2,
-      "hasAlphaChannel": false,
-      "bytes": 842048,
-      "sha256": "1a42d91bde60cb5bd2ed69317e8f24f05ee8827c7cc4e2ebf903aed9222fb8e7",
-      "pixelDataSha256": "675c92d9889ecd7eee63ca0a97389abe3e158b99dc92c339fa4710b1a341d425",
+      "colorType": 6,
+      "hasAlphaChannel": true,
+      "bytes": 203938,
+      "sha256": "c23b4f5b5cc149f65030919a08921935f80d33d563dce1426187f7cdfc4d5814",
+      "pixelDataSha256": "b35c16f6a21556329f789f07db7fd6ade0bfe32dac414a60a8d43b77c1f2de51",
       "format": "image/png",
-      "nativeGeneratedMaster": true,
+      "nativeGeneratedMaster": false,
       "upscaled": false,
       "vector": false,
-      "background": "opaque cream matte",
+      "background": "transparent alpha",
       "use": "Decorative brand heart supporting care and reduced planning messaging.",
       "promptFile": "prompts/heart.txt",
       "source": {
         "generator": "built-in image_gen",
         "generatedOriginal": "C:\\Users\\nidal\\.codex\\generated_images\\01a08689-a123-7ac3-82e3-6fdcfa29ade0\\exec-81da11bf-0165-467b-81c3-d3fd3372c2b5.png",
         "referenceRole": "Identity guidance only; no reference-board pixels extracted.",
-        "originalPixelDataSha256": "675c92d9889ecd7eee63ca0a97389abe3e158b99dc92c339fa4710b1a341d425"
+        "originalPixelDataSha256": "675c92d9889ecd7eee63ca0a97389abe3e158b99dc92c339fa4710b1a341d425",
+        "retainedMaster": "masters/heart.png",
+        "retainedMasterSha256": "1a42d91bde60cb5bd2ed69317e8f24f05ee8827c7cc4e2ebf903aed9222fb8e7"
       },
       "review": {
         "visuallyInspected": true,
         "spellingChecked": false,
-        "transparentMasterReady": false
+        "transparentMasterReady": true
+      },
+      "alpha": {
+        "transparentPixels": 1327081,
+        "opaquePixels": 244379,
+        "partialAlphaPixels": 1056
+      },
+      "derivation": {
+        "script": "transparent-assets.mjs",
+        "method": "Background segmentation and edge matte removal from the individual original; no resizing or regeneration."
       }
     },
     {
@@ -314,28 +418,39 @@
       "file": "assets/utensils.png",
       "width": 1254,
       "height": 1254,
-      "colorType": 2,
-      "hasAlphaChannel": false,
-      "bytes": 855178,
-      "sha256": "e81aba7fb6973e61539390b60dcbc9d79173234eae1b0c4be68f88d08d89d715",
-      "pixelDataSha256": "5dcc76eae8bc66d7b31f1f9c47c9899df3edfe544445a71a7b2a21d5c8dd2675",
+      "colorType": 6,
+      "hasAlphaChannel": true,
+      "bytes": 222945,
+      "sha256": "37e04ecf921fcb2d62ded796dfdc36c3b1780e1e4980c17ed2b6f8fb07fa46e6",
+      "pixelDataSha256": "e97460018e8e098d6fe8fea5be18fb396bbc19e45eb3cbe9966a83090e514076",
       "format": "image/png",
-      "nativeGeneratedMaster": true,
+      "nativeGeneratedMaster": false,
       "upscaled": false,
       "vector": false,
-      "background": "opaque cream matte",
+      "background": "transparent alpha",
       "use": "Decorative fork and spoon supporting meal messaging.",
       "promptFile": "prompts/utensils.txt",
       "source": {
         "generator": "built-in image_gen",
         "generatedOriginal": "C:\\Users\\nidal\\.codex\\generated_images\\01a08689-a123-7ac3-82e3-6fdcfa29ade0\\exec-6d59b87e-3437-4355-b356-9a81fb2a6bbc.png",
         "referenceRole": "Identity guidance only; no reference-board pixels extracted.",
-        "originalPixelDataSha256": "5dcc76eae8bc66d7b31f1f9c47c9899df3edfe544445a71a7b2a21d5c8dd2675"
+        "originalPixelDataSha256": "5dcc76eae8bc66d7b31f1f9c47c9899df3edfe544445a71a7b2a21d5c8dd2675",
+        "retainedMaster": "masters/utensils.png",
+        "retainedMasterSha256": "e81aba7fb6973e61539390b60dcbc9d79173234eae1b0c4be68f88d08d89d715"
       },
       "review": {
         "visuallyInspected": true,
         "spellingChecked": false,
-        "transparentMasterReady": false
+        "transparentMasterReady": true
+      },
+      "alpha": {
+        "transparentPixels": 1362473,
+        "opaquePixels": 207929,
+        "partialAlphaPixels": 2114
+      },
+      "derivation": {
+        "script": "transparent-assets.mjs",
+        "method": "Background segmentation and edge matte removal from the individual original; no resizing or regeneration."
       }
     },
     {
@@ -343,28 +458,39 @@
       "file": "assets/repeat.png",
       "width": 1254,
       "height": 1254,
-      "colorType": 2,
-      "hasAlphaChannel": false,
-      "bytes": 912910,
-      "sha256": "a5d9da9af0af5a1bd59dd312595c1f283ae07da04ca859cb4071e5565d3f042f",
-      "pixelDataSha256": "eddb7b5566378c7602c1a8f72c1885b4187125e3afd2081c0a54cc6e3e50afce",
+      "colorType": 6,
+      "hasAlphaChannel": true,
+      "bytes": 232302,
+      "sha256": "37480519bdfd71b02866e46a5204b536481081f550e532411499331e02b8a96d",
+      "pixelDataSha256": "17feb90b19ee46098f0adf7da9cc1e6af40067b779e46a9655b8f143d8a5b30b",
       "format": "image/png",
-      "nativeGeneratedMaster": true,
+      "nativeGeneratedMaster": false,
       "upscaled": false,
       "vector": false,
-      "background": "opaque cream matte",
+      "background": "transparent alpha",
       "use": "Decorative recurring-meal symbol.",
       "promptFile": "prompts/repeat.txt",
       "source": {
         "generator": "built-in image_gen",
         "generatedOriginal": "C:\\Users\\nidal\\.codex\\generated_images\\01a08689-a123-7ac3-82e3-6fdcfa29ade0\\exec-ef213f6f-decb-4f0c-bc74-818a5acaae7b.png",
         "referenceRole": "Identity guidance only; no reference-board pixels extracted.",
-        "originalPixelDataSha256": "eddb7b5566378c7602c1a8f72c1885b4187125e3afd2081c0a54cc6e3e50afce"
+        "originalPixelDataSha256": "eddb7b5566378c7602c1a8f72c1885b4187125e3afd2081c0a54cc6e3e50afce",
+        "retainedMaster": "masters/repeat.png",
+        "retainedMasterSha256": "a5d9da9af0af5a1bd59dd312595c1f283ae07da04ca859cb4071e5565d3f042f"
       },
       "review": {
         "visuallyInspected": true,
         "spellingChecked": false,
-        "transparentMasterReady": false
+        "transparentMasterReady": true
+      },
+      "alpha": {
+        "transparentPixels": 1354383,
+        "opaquePixels": 216094,
+        "partialAlphaPixels": 2039
+      },
+      "derivation": {
+        "script": "transparent-assets.mjs",
+        "method": "Background segmentation and edge matte removal from the individual original; no resizing or regeneration."
       }
     },
     {
@@ -372,28 +498,39 @@
       "file": "assets/sparkle.png",
       "width": 1254,
       "height": 1254,
-      "colorType": 2,
-      "hasAlphaChannel": false,
-      "bytes": 796552,
-      "sha256": "b7d26b8b97da0d20dbec90385a7caea69aa224d8532002e4fe5304fa2526b3fb",
-      "pixelDataSha256": "a4f756686cf1f7539bb7038efcb250edb982c6e107d8fc06e14d950082c9ae23",
+      "colorType": 6,
+      "hasAlphaChannel": true,
+      "bytes": 159063,
+      "sha256": "e45ee7c8899c1fc8f85b10d093cc4e73507c236544b6c8cf31e78928b05f9863",
+      "pixelDataSha256": "73a3787c39e7bf21fa68e4c9d46a9853caa8d955794a2323997da7379cf8667b",
       "format": "image/png",
-      "nativeGeneratedMaster": true,
+      "nativeGeneratedMaster": false,
       "upscaled": false,
       "vector": false,
-      "background": "opaque cream matte",
+      "background": "transparent alpha",
       "use": "Decorative Sunrise sparkle pair.",
       "promptFile": "prompts/sparkle.txt",
       "source": {
         "generator": "built-in image_gen",
         "generatedOriginal": "C:\\Users\\nidal\\.codex\\generated_images\\01a08689-a123-7ac3-82e3-6fdcfa29ade0\\exec-17f00066-9fb1-46ab-8e1a-519e25d80ae7.png",
         "referenceRole": "Identity guidance only; no reference-board pixels extracted.",
-        "originalPixelDataSha256": "a4f756686cf1f7539bb7038efcb250edb982c6e107d8fc06e14d950082c9ae23"
+        "originalPixelDataSha256": "a4f756686cf1f7539bb7038efcb250edb982c6e107d8fc06e14d950082c9ae23",
+        "retainedMaster": "masters/sparkle.png",
+        "retainedMasterSha256": "b7d26b8b97da0d20dbec90385a7caea69aa224d8532002e4fe5304fa2526b3fb"
       },
       "review": {
         "visuallyInspected": true,
         "spellingChecked": false,
-        "transparentMasterReady": false
+        "transparentMasterReady": true
+      },
+      "alpha": {
+        "transparentPixels": 1431613,
+        "opaquePixels": 139870,
+        "partialAlphaPixels": 1033
+      },
+      "derivation": {
+        "script": "transparent-assets.mjs",
+        "method": "Background segmentation and edge matte removal from the individual original; no resizing or regeneration."
       }
     },
     {
@@ -401,28 +538,39 @@
       "file": "assets/welcome.png",
       "width": 1254,
       "height": 1254,
-      "colorType": 2,
-      "hasAlphaChannel": false,
-      "bytes": 1163271,
-      "sha256": "f9ecad016a9de1bfe85ca303284d24fd4eebe6ab2cc123513729aab67f4c9d03",
-      "pixelDataSha256": "1895a81a90d719726c72596e1e930b6d95d2442a10a4878942021d58296ccc05",
+      "colorType": 6,
+      "hasAlphaChannel": true,
+      "bytes": 861965,
+      "sha256": "d4c3de20d6dff85f4806b31adc35844936bf86df750bf60d89121e945883a178",
+      "pixelDataSha256": "05a5436b5c8ac11ed3d712f9465d8fc9dc10539e7943c3851c4fb1445d8be2e6",
       "format": "image/png",
-      "nativeGeneratedMaster": true,
+      "nativeGeneratedMaster": false,
       "upscaled": false,
       "vector": false,
-      "background": "opaque cream matte",
+      "background": "transparent alpha",
       "use": "Welcome or onboarding illustration for a recurring meal routine.",
       "promptFile": "prompts/welcome.txt",
       "source": {
         "generator": "built-in image_gen",
         "generatedOriginal": "C:\\Users\\nidal\\.codex\\generated_images\\01a08689-a123-7ac3-82e3-6fdcfa29ade0\\exec-f0d4bc43-4244-41b5-bf03-80c34e104290.png",
         "referenceRole": "Identity guidance only; no reference-board pixels extracted.",
-        "originalPixelDataSha256": "1895a81a90d719726c72596e1e930b6d95d2442a10a4878942021d58296ccc05"
+        "originalPixelDataSha256": "1895a81a90d719726c72596e1e930b6d95d2442a10a4878942021d58296ccc05",
+        "retainedMaster": "masters/welcome.png",
+        "retainedMasterSha256": "f9ecad016a9de1bfe85ca303284d24fd4eebe6ab2cc123513729aab67f4c9d03"
       },
       "review": {
         "visuallyInspected": true,
         "spellingChecked": false,
-        "transparentMasterReady": false
+        "transparentMasterReady": true
+      },
+      "alpha": {
+        "transparentPixels": 1009165,
+        "opaquePixels": 560263,
+        "partialAlphaPixels": 3088
+      },
+      "derivation": {
+        "script": "transparent-assets.mjs",
+        "method": "Background segmentation and edge matte removal from the individual original; no resizing or regeneration."
       }
     },
     {
@@ -430,28 +578,39 @@
       "file": "assets/empty-calendar.png",
       "width": 1254,
       "height": 1254,
-      "colorType": 2,
-      "hasAlphaChannel": false,
-      "bytes": 1122090,
-      "sha256": "98208153c728a8815de9ef09d0fd9a7850c00c7729da80c349c0b5475caaaa3c",
-      "pixelDataSha256": "c6971c12065e1efc2b27a76553864433553af1e23faea676d51ad5be62632b28",
+      "colorType": 6,
+      "hasAlphaChannel": true,
+      "bytes": 892585,
+      "sha256": "dd05f93a4a78f689ab7925569287716cf83ce6b5d40613094e5e56a2a17242c6",
+      "pixelDataSha256": "8b2cb3a3214b53f37aaa616f09b77124caca140a68913c4cac3b249722c3c64e",
       "format": "image/png",
-      "nativeGeneratedMaster": true,
+      "nativeGeneratedMaster": false,
       "upscaled": false,
       "vector": false,
-      "background": "opaque cream matte",
+      "background": "transparent alpha",
       "use": "Illustration for an empty meal schedule.",
       "promptFile": "prompts/empty-calendar.txt",
       "source": {
         "generator": "built-in image_gen",
         "generatedOriginal": "C:\\Users\\nidal\\.codex\\generated_images\\01a08689-a123-7ac3-82e3-6fdcfa29ade0\\exec-e9a215cf-1701-4946-8754-95dba30954a6.png",
         "referenceRole": "Identity guidance only; no reference-board pixels extracted.",
-        "originalPixelDataSha256": "c6971c12065e1efc2b27a76553864433553af1e23faea676d51ad5be62632b28"
+        "originalPixelDataSha256": "c6971c12065e1efc2b27a76553864433553af1e23faea676d51ad5be62632b28",
+        "retainedMaster": "masters/empty-calendar.png",
+        "retainedMasterSha256": "98208153c728a8815de9ef09d0fd9a7850c00c7729da80c349c0b5475caaaa3c"
       },
       "review": {
         "visuallyInspected": true,
         "spellingChecked": false,
-        "transparentMasterReady": false
+        "transparentMasterReady": true
+      },
+      "alpha": {
+        "transparentPixels": 891758,
+        "opaquePixels": 673826,
+        "partialAlphaPixels": 6932
+      },
+      "derivation": {
+        "script": "transparent-assets.mjs",
+        "method": "Background segmentation and edge matte removal from the individual original; no resizing or regeneration."
       }
     },
     {
@@ -459,29 +618,41 @@
       "file": "assets/confirmation.png",
       "width": 1254,
       "height": 1254,
-      "colorType": 2,
-      "hasAlphaChannel": false,
-      "bytes": 1125718,
-      "sha256": "2cd096a8d323d1b5433c9dd883db8e7630767d80b0937b3bba83dfc41d456908",
-      "pixelDataSha256": "379d5d18ef607f1ad0f725430bfa4db9ca8fd07f7683897f9f73555ed926ceaa",
+      "colorType": 6,
+      "hasAlphaChannel": true,
+      "bytes": 800292,
+      "sha256": "c49cbbaf06ae593ef67bd6c9dcf0e50f051b680aeb0f0915c318d008d6f4d91b",
+      "pixelDataSha256": "f9269ff791cbc4d00e953aa0074fb65c3ca662776bc30b3c0effa9ea02947f2b",
       "format": "image/png",
-      "nativeGeneratedMaster": true,
+      "nativeGeneratedMaster": false,
       "upscaled": false,
       "vector": false,
-      "background": "opaque cream matte",
+      "background": "transparent alpha",
       "use": "Illustration accompanying a successfully saved action.",
       "promptFile": "prompts/confirmation.txt",
       "source": {
         "generator": "built-in image_gen",
         "generatedOriginal": "C:\\Users\\nidal\\.codex\\generated_images\\01a08689-a123-7ac3-82e3-6fdcfa29ade0\\exec-e7501b52-14a3-40c9-ac8e-dd7301f2143e.png",
         "referenceRole": "Identity guidance only; no reference-board pixels extracted.",
-        "originalPixelDataSha256": "379d5d18ef607f1ad0f725430bfa4db9ca8fd07f7683897f9f73555ed926ceaa"
+        "originalPixelDataSha256": "379d5d18ef607f1ad0f725430bfa4db9ca8fd07f7683897f9f73555ed926ceaa",
+        "retainedMaster": "masters/confirmation.png",
+        "retainedMasterSha256": "2cd096a8d323d1b5433c9dd883db8e7630767d80b0937b3bba83dfc41d456908"
       },
       "review": {
         "visuallyInspected": true,
         "spellingChecked": false,
-        "transparentMasterReady": false
+        "transparentMasterReady": true
+      },
+      "alpha": {
+        "transparentPixels": 1034445,
+        "opaquePixels": 535901,
+        "partialAlphaPixels": 2170
+      },
+      "derivation": {
+        "script": "transparent-assets.mjs",
+        "method": "Background segmentation and edge matte removal from the individual original; no resizing or regeneration."
       }
     }
-  ]
+  ],
+  "updatedAt": "2026-09-10T05:38:33.245Z"
 }

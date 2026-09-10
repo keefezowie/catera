@@ -1,0 +1,20 @@
+{
+  "branch": "v1",
+  "transparentAssets": 15,
+  "opaqueAppIcons": 1,
+  "webCopiesMatch": true,
+  "checks": {
+    "alpha": "passed; decoded pixel counts, edges, provenance and hashes",
+    "typecheck": "passed",
+    "unit": "40 passed",
+    "postgresConcurrency": "passed",
+    "nativeIos": "4 passed",
+    "nativeAndroid": "4 passed",
+    "productionBuild": "passed",
+    "browser": "desktop and 390px phone passed using installed Chrome"
+  },
+  "limitations": [
+    "Native device screenshots and APK rebuild not performed.",
+    "Original generated dimensions retained; no upscaling."
+  ]
+}

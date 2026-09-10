@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import sharp from 'sharp';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
@@ -25,68 +26,58 @@ function inspect(file) {
   return { width, height, colorType, hasAlphaChannel: colorType === 4 || colorType === 6, bytes: data.length, sha256: sha(data), pixelDataSha256: sha(Buffer.concat(imageChunks)), prompt };
 }
 
-const uses = {
-  mascot: 'Standalone brand character for sign-in, onboarding, and brand communication.',
-  wordmark: 'Primary horizontal wordmark with tagline, for cream headers and brand introductions.',
-  'lockup-horizontal': 'Combined mascot and wordmark for horizontal brand placements.',
-  'lockup-stacked': 'Combined mascot and wordmark for square and vertical brand placements.',
-  'app-icon': 'Opaque square app-icon master; platform tooling applies its own corner mask.',
-  'logo-forest': 'Forest monochrome interpretation on a cream matte.',
-  'logo-light': 'Cream monochrome interpretation on a forest matte.',
-  'adaptive-foreground': 'Mascot with extra safe-area margin; alpha extraction is still required for an Android foreground layer.',
-  leaf: 'Decorative brand sprout supporting freshness messaging.',
-  heart: 'Decorative brand heart supporting care and reduced planning messaging.',
-  utensils: 'Decorative fork and spoon supporting meal messaging.',
-  repeat: 'Decorative recurring-meal symbol.',
-  sparkle: 'Decorative Sunrise sparkle pair.',
-  welcome: 'Welcome or onboarding illustration for a recurring meal routine.',
-  'empty-calendar': 'Illustration for an empty meal schedule.',
-  confirmation: 'Illustration accompanying a successfully saved action.'
-};
-
 const manifestPath = path.join(root, 'manifest.brand.json');
-if (process.argv.includes('--refresh-manifest')) {
-  const records = JSON.parse(fs.readFileSync(path.join(root, 'generation-records.json'), 'utf8'));
-  const assets = records.map((record) => {
-    const file = `assets/${record.name}.png`;
-    const metadata = inspect(path.join(root, file));
-    const source = inspect(record.sourcePath);
-    if (metadata.pixelDataSha256 !== source.pixelDataSha256) throw new Error(`Master pixels differ from generated original: ${file}`);
-    const { prompt, ...dimensionsAndHashes } = metadata;
-    if (prompt !== record.prompt) throw new Error(`Embedded prompt mismatch: ${file}`);
-    return {
-      id: record.name, file, ...dimensionsAndHashes,
-      format: 'image/png', nativeGeneratedMaster: true, upscaled: false, vector: false,
-      background: record.name === 'app-icon' || record.name === 'logo-light' ? 'opaque forest matte' : 'opaque cream matte',
-      use: uses[record.name], promptFile: `prompts/${record.name}.txt`,
-      source: { generator: 'built-in image_gen', generatedOriginal: record.sourcePath, referenceRole: 'Identity guidance only; no reference-board pixels extracted.', originalPixelDataSha256: source.pixelDataSha256 },
-      review: { visuallyInspected: true, spellingChecked: ['wordmark', 'lockup-horizontal', 'lockup-stacked', 'app-icon', 'logo-forest', 'logo-light'].includes(record.name), transparentMasterReady: false }
-    };
-  });
-  const manifest = {
-    schemaVersion: 1, brand: 'Catera', tagline: 'Good Food on Repeat.', createdAt: new Date().toISOString(),
-    palette: { forest: '#163D2E', sunrise: '#F47B2A', cream: '#FFF7E9', charcoal: '#2E2E2E' },
-    paletteNote: 'These are the approved target tokens. Generated PNGs contain antialiasing and tonal variations; they are not exact-color separations.',
-    status: 'All sixteen requested compositions generated and inspected. Alpha and requested large master dimensions remain unmet by the built-in generator.',
-    limitations: [
-      'The built-in generator returned RGB PNGs. Two transparency attempts produced baked checkerboard pixels and were rejected.',
-      'Only clean cream/forest matte generations are delivered. Do not claim these files are transparent.',
-      'The requested 2048px mascot and 4096px wordmark dimensions were not honored by the generator. Actual native dimensions are recorded per asset. No files were upscaled.',
-      'adaptive-foreground.png is an opaque composition master and requires an approved transparency workflow before use as a true Android adaptive foreground.',
-      'No editable vector source is available; no raster has been disguised as SVG.'
-    ],
-    assets
-  };
-  fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
-}
-
 const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+const refresh = process.argv.includes('--refresh-manifest');
 for (const asset of manifest.assets) {
-  const actual = inspect(path.join(root, asset.file));
-  for (const key of ['width', 'height', 'hasAlphaChannel', 'sha256', 'pixelDataSha256']) {
-    if (actual[key] !== asset[key]) throw new Error(`${asset.file}: ${key} does not match manifest`);
+  const file = path.join(root, asset.file);
+  const actual = inspect(file);
+  const originalFile = 'masters/' + asset.id + '.png';
+  const original = inspect(path.join(root, originalFile));
+  if (original.pixelDataSha256 !== asset.source.originalPixelDataSha256) throw new Error(asset.id + ': original master changed');
+  if (actual.width !== original.width || actual.height !== original.height) throw new Error(asset.id + ': dimensions changed');
+  const {data, info} = await sharp(file).ensureAlpha().raw().toBuffer({resolveWithObject:true});
+  let transparentPixels=0, opaquePixels=0, partialAlphaPixels=0;
+  for(let i=3;i<data.length;i+=4) {
+    if(data[i]===0) transparentPixels++; else if(data[i]===255) opaquePixels++; else partialAlphaPixels++;
   }
-  if (actual.prompt !== fs.readFileSync(path.join(root, asset.promptFile), 'utf8')) throw new Error(`${asset.file}: prompt file mismatch`);
-  console.log(`${asset.id}: ${actual.width}x${actual.height}, alpha=${actual.hasAlphaChannel}, native pixels and prompt verified`);
+  const isCutout = asset.id !== 'app-icon';
+  if (isCutout) {
+    if (!actual.hasAlphaChannel || transparentPixels < info.width*info.height*.1 || !opaquePixels || !partialAlphaPixels)
+      throw new Error(asset.id + ': missing genuine cutout transparency or antialiased edges');
+    for(let x=0;x<info.width;x++) for(const y of [0,info.height-1])
+      if(data[(y*info.width+x)*4+3]!==0) throw new Error(asset.id + ': opaque top/bottom border');
+    for(let y=0;y<info.height;y++) for(const x of [0,info.width-1])
+      if(data[(y*info.width+x)*4+3]!==0) throw new Error(asset.id + ': opaque side border');
+  } else if(transparentPixels || partialAlphaPixels) throw new Error('App icon must remain opaque');
+  const alpha = {transparentPixels, opaquePixels, partialAlphaPixels};
+  if (refresh) {
+    const {prompt, ...metadata} = actual;
+    Object.assign(asset, metadata, {nativeGeneratedMaster: !isCutout, background: isCutout ? 'transparent alpha' : 'opaque forest matte', alpha});
+    asset.source.retainedMaster = originalFile;
+    asset.source.retainedMasterSha256 = original.sha256;
+    if(isCutout) asset.derivation = {script:'transparent-assets.mjs', method:'Background segmentation and edge matte removal from the individual original; no resizing or regeneration.'};
+    asset.review.transparentMasterReady = isCutout;
+    if(asset.id === 'logo-forest') asset.use='Forest monochrome logo on transparent background for light surfaces.';
+    if(asset.id === 'logo-light') asset.use='Cream monochrome logo on transparent background for dark surfaces.';
+    if(asset.id === 'adaptive-foreground') asset.use='Transparent mascot foreground with original safe-area margin.';
+  }
+  for (const key of ['width', 'height', 'hasAlphaChannel', 'sha256', 'pixelDataSha256'])
+    if(actual[key]!==asset[key]) throw new Error(asset.id + ': ' + key + ' does not match manifest');
+  if (asset.source.retainedMasterSha256 !== original.sha256) throw new Error(asset.id + ': retained master hash mismatch');
+  if (JSON.stringify(asset.alpha)!==JSON.stringify(alpha)) throw new Error(asset.id + ': alpha statistics mismatch');
+  if(actual.prompt !== fs.readFileSync(path.join(root,asset.promptFile),'utf8')) throw new Error(asset.id + ': prompt file mismatch');
+  console.log(asset.id + ': ' + actual.width + 'x' + actual.height + ', transparent pixels=' + transparentPixels);
 }
-console.log(`Verified ${manifest.assets.length} brand masters.`);
+if(refresh) {
+  manifest.schemaVersion=2;
+  manifest.updatedAt=new Date().toISOString();
+  manifest.status='Fifteen transparent UI derivatives verified; opaque app icon and original generated masters retained.';
+  manifest.limitations=[
+    'Original generations are opaque and retained in masters/. The UI cutouts are derived alpha PNGs, not newly generated masters.',
+    'Actual dimensions remain 1254x1254 or 2172x724; requested 2048/4096 master sizes remain unmet. No upscaling.',
+    'No editable vector source or platform-specific icon export pack is included.'
+  ];
+  fs.writeFileSync(manifestPath,JSON.stringify(manifest,null,2)+'\n');
+}
+console.log('Verified ' + manifest.assets.length + ' brand assets, source provenance and decoded alpha pixels.');

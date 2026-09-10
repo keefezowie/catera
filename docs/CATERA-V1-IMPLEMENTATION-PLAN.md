@@ -5,7 +5,7 @@ This is the implementation status of the user-approved September 9, 2026 overhau
 | Milestone | Delivered | Remaining gate |
 |---|---|---|
 | 1. Restore foundation | Repaired lockfile; verified fresh npm ci; workspaces; shared types/API/services; archived pilot; isolated explicit synthetic database | CI must run on the eventual remote branch; never connect V1 to the pilot |
-| 2. Brand and shells | Individual regenerated identity/food assets; manifests/gallery; shared font/tokens; separate customer/seller/admin web; native tabs; reviewed web compositions | Real alpha, requested master resolution and derivative icon exports; device visual evidence |
+| 2. Brand and shells | Individual regenerated identity/food assets; manifests/gallery; shared font/tokens; separate customer/seller/admin web; native tabs; reviewed web compositions | Requested master resolution and derivative icon exports; device visual evidence (true-alpha derivatives verified September 10) |
 | 3. Identity, catalog, onboarding | Phone OTP implementation, saved areas/addresses, coverage, comparisons, seller verification, guided packages, menus and capacity | Separate Supabase auth/storage/realtime configuration and real SMS/SMTP tests |
 | 4. Purchasing | Shared quote/hold/activation rules, trials, quantity discounts, immutable purchase snapshots, Xendit adapter, callback verification, payment recovery, native/web return bridge | Xendit sandbox end-to-end evidence; approved fees and split topology; device payment returns |
 | 5. Daily operations and recovery | Global calendar, reviewable date/address changes, independent meal fulfillment, production/manifests, messages/inbox/push outbox, reviews, support/refunds, admin payout release/reconciliation, manual renewal | Actual push delivery/receipt tests and merchant refund/payout reconciliation; complete English copy QA; expanded history pagination at scale |
@@ -21,7 +21,7 @@ This is the implementation status of the user-approved September 9, 2026 overhau
 
 ## Remaining work in execution order
 
-1. Finish the asset acceptance gate when cleanup is authorized: derive true-alpha files from regenerated originals, retain masters/prompts, inspect edges at actual UI sizes, provide supported master resolutions and individual icon/favicon/PWA export packs. Do not resize the board or label interpolation as regeneration.
+1. True-alpha derivatives completed September 10 with originals/prompts retained and edges inspected on contrasting surfaces. Finish the remaining asset acceptance gates: provide supported master resolutions and individual icon/favicon/PWA export packs. Do not resize the board or label interpolation as regeneration.
 2. Provision fresh staging Supabase and configure SMS, SMTP, storage and scoped Realtime. Apply only V1 migrations and use synthetic seller/customer accounts. Verify revocation, tenant isolation and native/web session refresh against hosted auth.
 3. Configure Xendit sandbox, server-side account/split routes, approved fictional staging fees and payout recipients. Exercise payment, callback retries, expiration, late payment, refund, split reconciliation and payout failure. Record actual provider IDs in private evidence, never in public fixtures.
 4. Create Android/iOS EAS development builds. Test full purchase and return links, background/terminated state recovery, notifications and receipt handling, font scaling, screen reader and keyboard behavior on supported phones/tablets. Finish complete English UI copy and locale layout verification.
