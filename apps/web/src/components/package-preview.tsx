@@ -9,6 +9,7 @@ import {
   type Offer,
 } from "@catera/domain";
 import { useApp } from "./context";
+import { Button } from "./form-controls";
 
 const icons = [Flame, Dumbbell, Wheat, Droplet];
 export function NutritionStrip({ menu }: { menu: MealMenu }) {
@@ -73,7 +74,7 @@ export function PackagePreview({
             aria-label={t("Pratinjau menu", "Menu preview")}
           >
             {["lunch", "dinner"].map((value) => (
-              <button
+              <Button
                 type="button"
                 key={value}
                 aria-pressed={menu.meal === value}
@@ -81,7 +82,7 @@ export function PackagePreview({
                 onClick={() => onMealChange(value)}
               >
                 {value === "lunch" ? t("Siang", "Lunch") : t("Malam", "Dinner")}
-              </button>
+              </Button>
             ))}
           </div>
         )}

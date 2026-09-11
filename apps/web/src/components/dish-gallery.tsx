@@ -8,6 +8,7 @@ import {
   type Dish,
 } from "@catera/domain";
 import { useApp } from "./context";
+import { Button } from "./form-controls";
 import { Dialog } from "./ui";
 import { NutritionStrip } from "./package-preview";
 
@@ -27,7 +28,7 @@ function DishTile({
   return (
     <li className="dish-tile">
       {!!dish.image && !failed && !duplicate && (
-        <button
+        <Button
           type="button"
           className="dish-photo"
           aria-label={t("Lihat foto ", "View photo ") + dish.name}
@@ -42,7 +43,7 @@ function DishTile({
             onError={() => setFailed(true)}
           />
           <span>{t("Lihat foto", "View photo")}</span>
-        </button>
+        </Button>
       )}
       <div className="dish-description">
         {group && <span className="dish-component">{group}</span>}
@@ -50,13 +51,13 @@ function DishTile({
         {dish.serving && <p className="dish-serving">{dish.serving}</p>}
         {dish.description && <p>{dish.description}</p>}
         {duplicate && !failed && (
-          <button
+          <Button
             type="button"
             className="contents-link"
             onClick={(e) => onOpen(dish, e.currentTarget)}
           >
             {t("Lihat foto hidangan", "View dish photo")}
-          </button>
+          </Button>
         )}
       </div>
     </li>

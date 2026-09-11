@@ -34,7 +34,9 @@ import {
 } from "lucide-react";
 import { currency, mealLabel, areaOptions, type Offer } from "@catera/domain";
 import { useApp, api, useResource } from "./context";
+import { Button, Checkbox, TextInput } from "./form-controls";
 import { Heading, Empty, Facts } from "./ui";
+import { NumericInput } from "./numeric-input";
 export function PackageCard({
   offer,
   preview = false,
@@ -138,7 +140,7 @@ export function PackageCard({
               : t("Di luar area pengantaran", "Outside delivery area")}
           </p>
           <div className="package-actions">
-            <button
+            <Button
               type="button"
               disabled={preview}
               aria-pressed={compared}
@@ -153,7 +155,7 @@ export function PackageCard({
               {compared
                 ? t("Dibandingkan", "Comparing")
                 : t("Bandingkan", "Compare")}
-            </button>
+            </Button>
             <Link href={"/packages/" + offer.slug} {...navigation}>
               {t("Lihat paket", "View package")}
               <ArrowRight size={16} aria-hidden="true" />
@@ -226,7 +228,7 @@ export function Catalog({ caterer }: { caterer?: string }) {
           </div>
           <label className="search-field">
             <Search size={19} />
-            <input
+            <TextInput
               placeholder={t(
                 "Cari paket, menu, atau katerer favorit…",
                 "Find a package, meal, or favorite caterer…",
@@ -248,12 +250,12 @@ export function Catalog({ caterer }: { caterer?: string }) {
               )}
             </p>
           </div>
-          <button
+          <Button
             className={"button secondary small " + (filters ? "active" : "")}
             onClick={() => setFilters(!filters)}
           >
             <SlidersHorizontal size={17} /> Filter
-          </button>
+          </Button>
         </div>
         <div className="meal-filter-row">
           {[
@@ -264,36 +266,35 @@ export function Catalog({ caterer }: { caterer?: string }) {
           ].map(([key, id, en, Icon]) => {
             const C = Icon as typeof Sun;
             return (
-              <button
+              <Button
                 key={key as string}
                 className={meal === key ? "selected" : ""}
                 onClick={() => setMeal(key as string)}
               >
                 <C size={19} />
                 {t(id as string, en as string)}
-              </button>
+              </Button>
             );
           })}
           <span className="filter-divider" />
-          <button
+          <Button
             className={diet ? "selected" : ""}
             onClick={() => setDiet(!diet)}
           >
             <Leaf size={18} /> Plant-based
-          </button>
-          <button
+          </Button>
+          <Button
             className={trial ? "selected" : ""}
             onClick={() => setTrial(!trial)}
           >
             <Heart size={18} />
             {t("Coba dulu", "Try first")}
-          </button>
+          </Button>
         </div>
         {filters && (
           <div className="filter-panel">
             <label>
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={flex}
                 onChange={(e) => setFlex(e.target.checked)}
               />
@@ -304,15 +305,15 @@ export function Catalog({ caterer }: { caterer?: string }) {
                 "Harga maksimum / porsi / hari",
                 "Maximum price / portion / day",
               )}
-              <input
-                type="number"
+              <NumericInput
                 value={max}
-                onChange={(e) => setMax(e.target.value)}
+                onDraftChange={setMax}
                 placeholder="Rp 100.000"
                 min="1000"
+                normalizeOnBlur={false}
               />
             </label>
-            <button
+            <Button
               className="text-button"
               onClick={() => {
                 setFlex(false);
@@ -324,7 +325,7 @@ export function Catalog({ caterer }: { caterer?: string }) {
               }}
             >
               {t("Hapus filter", "Reset filters")}
-            </button>
+            </Button>
           </div>
         )}
         <div className="results-bar">
@@ -620,23 +621,23 @@ export function PackagePage({
           <div className="portion-control">
             <label>{t("Jumlah porsi", "Portions")}</label>
             <div>
-              <button
+              <Button
                 className="icon-button"
                 aria-label="Kurangi porsi"
                 disabled={portions === 1}
                 onClick={() => setPortions(portions - 1)}
               >
                 <Minus size={16} />
-              </button>
+              </Button>
               <strong>{portions}</strong>
-              <button
+              <Button
                 className="icon-button"
                 aria-label="Tambah porsi"
                 disabled={portions === 100}
                 onClick={() => setPortions(portions + 1)}
               >
                 <Plus size={16} />
-              </button>
+              </Button>
             </div>
           </div>
           <p className="small muted">
@@ -678,14 +679,14 @@ export function PackagePage({
               {currency(p.trialPrice * portions, locale)}
             </Link>
           )}
-          <button
+          <Button
             className="text-button centered"
             onClick={() => toggleCompare(p.id)}
           >
             {compare.includes(p.id)
               ? t("Hapus perbandingan", "Remove comparison")
               : t("Bandingkan paket", "Compare package")}
-          </button>
+          </Button>
           <p className="purchase-footnote">
             {t(
               "Biaya layanan ditampilkan saat checkout. Tidak ada perpanjangan otomatis.",
@@ -699,11 +700,8 @@ export function PackagePage({
 }
 export function Compare() {
   const { offers, compare, toggleCompare, t, locale } = useApp();
-  const [portionInput, setPortionInput] = useState("1");
-  const portions = Math.max(
-    1,
-    Math.min(100, Number.parseInt(portionInput, 10) || 1),
-  );
+  const [portionValue, setPortionValue] = useState(1);
+  const portions = Math.max(1, Math.min(100, portionValue || 1));
   const selected = offers.filter((p) => compare.includes(p.id));
   return (
     <div className="content">
@@ -718,34 +716,13 @@ export function Compare() {
         <>
           <label className="inline-field">
             {t("Porsi setiap hari", "Portions per day")}
-            <input
+            <NumericInput
               aria-label="Porsi perbandingan"
-              type="number"
-              min="1"
-              max="100"
-              step="1"
-              value={portionInput}
-              onFocus={(e) => e.currentTarget.select()}
-              onClick={(e) => e.currentTarget.select()}
-              onChange={(e) => {
-                const value = e.target.value;
-                if (value === "") {
-                  setPortionInput("");
-                  return;
-                }
-                const next = Number(value);
-                setPortionInput(
-                  String(
-                    !Number.isFinite(next) || next < 0
-                      ? 1
-                      : Math.min(100, Math.floor(next)),
-                  ),
-                );
-              }}
-              onBlur={() => setPortionInput(String(portions))}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") e.currentTarget.blur();
-              }}
+              min={1}
+              max={100}
+              step={1}
+              value={portionValue}
+              onValueChange={setPortionValue}
             />
           </label>
           <div className="comparison-scroll">
@@ -758,12 +735,12 @@ export function Compare() {
                       <img src={p.image} alt={p.name} />
                       <h3>{p.name}</h3>
                       <p>{p.caterer}</p>
-                      <button
+                      <Button
                         className="text-button"
                         onClick={() => toggleCompare(p.id)}
                       >
                         {t("Hapus", "Remove")}
-                      </button>
+                      </Button>
                     </th>
                   ))}
                 </tr>

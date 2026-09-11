@@ -14,6 +14,7 @@ import {
 import { errors, statusLabel } from "@catera/domain";
 import { useApp } from "./context";
 import { MascotLoading } from "./mascot-loading";
+import { Button } from "./form-controls";
 export function Brand({ small = false }: { small?: boolean }) {
   return (
     <Link
@@ -103,9 +104,9 @@ export function ErrorNotice({
       <div>
         {message}
         {retry && (
-          <button className="text-button" onClick={retry}>
+          <Button variant="text" onClick={retry}>
             Coba lagi
-          </button>
+          </Button>
         )}
       </div>
     </div>
@@ -208,14 +209,14 @@ export function ActionForm({
     >
       {children}
       {error && <ErrorNotice message={error} />}
-      <button type="submit" className="button" disabled={busy || disabled}>
+      <Button type="submit" variant="primary" disabled={busy || disabled}>
         {busy ? (
           <LoaderCircle className="spin" size={18} />
         ) : (
           <Check size={17} />
         )}{" "}
         {busy ? t("Memproses…", "Processing…") : submit}
-      </button>
+      </Button>
     </form>
   );
 }

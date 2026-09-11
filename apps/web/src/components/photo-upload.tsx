@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { FileUpload } from "./file-upload";
 import { useApp } from "./context";
+import { Button } from "./form-controls";
 
 /** Keeps storage addresses internal and commits only successful uploads. */
 export function PhotoUpload({
@@ -108,7 +109,7 @@ export function PhotoUpload({
               "Choose a file to replace the photo",
             )}
           </span>
-          <button
+          <Button
             type="button"
             className="text-button"
             disabled={busy}
@@ -119,7 +120,7 @@ export function PhotoUpload({
             }}
           >
             {t("Hapus foto", "Remove photo")}
-          </button>
+          </Button>
         </div>
       )}
       {success && (

@@ -38,6 +38,7 @@ import {
 } from "../lib/meal-calendar";
 import { useMealCalendar } from "./use-meal-calendar";
 import { useApp } from "./context";
+import { Button, TextInput } from "./form-controls";
 import { Heading, Status } from "./ui";
 
 const minimum = "1900-01-01",
@@ -432,7 +433,7 @@ export function MealCalendar() {
       />
       <div className="meal-calendar">
         <div className="coverage-toolbar">
-          <button
+          <Button
             ref={monthButton}
             className="calendar-month-button"
             popoverTarget="calendar-date-picker"
@@ -448,16 +449,16 @@ export function MealCalendar() {
             <CalendarDays size={19} />
             {format(visible, { month: "long", year: "numeric" })}
             <ChevronRight size={16} />
-          </button>
+          </Button>
           <div className="calendar-shortcuts">
-            <button
+            <Button
               className="button secondary small"
               onClick={() => jump(today, false, true)}
             >
               {t("Hari ini", "Today")}
-            </button>
+            </Button>
             {next && (
-              <button className="calendar-next" onClick={() => jump(next)}>
+              <Button className="calendar-next" onClick={() => jump(next)}>
                 {t("Pengantaran berikutnya", "Next delivery")}
                 <span>
                   {format(next, {
@@ -467,18 +468,18 @@ export function MealCalendar() {
                   })}
                   <ChevronRight size={16} />
                 </span>
-              </button>
+              </Button>
             )}
           </div>
         </div>
         <div className="coverage-navigation">
-          <button
+          <Button
             className="icon-button calendar-scroll-arrow"
             aria-label={t("Tanggal sebelumnya", "Earlier dates")}
             onClick={() => scrollPage(-1)}
           >
             <ChevronLeft />
-          </button>
+          </Button>
           <div
             ref={strip}
             className="coverage-strip"
@@ -511,7 +512,7 @@ export function MealCalendar() {
                   )
                 : "";
               return (
-                <button
+                <Button
                   key={day}
                   data-day={day}
                   data-coverage={coverage}
@@ -584,17 +585,17 @@ export function MealCalendar() {
                       </span>
                     )}
                   </span>
-                </button>
+                </Button>
               );
             })}
           </div>
-          <button
+          <Button
             className="icon-button calendar-scroll-arrow"
             aria-label={t("Tanggal berikutnya", "Later dates")}
             onClick={() => scrollPage(1)}
           >
             <ChevronRight />
-          </button>
+          </Button>
         </div>
         <div className="coverage-summary" aria-live="polite">
           <span>
@@ -624,7 +625,7 @@ export function MealCalendar() {
                 "Part of the schedule could not be loaded.",
               )}
             </span>
-            <button
+            <Button
               className="text-button"
               onClick={() =>
                 failed.forEach((m) => {
@@ -633,7 +634,7 @@ export function MealCalendar() {
               }
             >
               {t("Coba lagi", "Try again")}
-            </button>
+            </Button>
           </div>
         )}
         <div
@@ -641,15 +642,15 @@ export function MealCalendar() {
           role="group"
           aria-label={t("Tampilan jadwal", "Schedule view")}
         >
-          <button aria-pressed={mode === "day"} onClick={() => setMode("day")}>
+          <Button aria-pressed={mode === "day"} onClick={() => setMode("day")}>
             {t("Per hari", "By day")}
-          </button>
-          <button
+          </Button>
+          <Button
             aria-pressed={mode === "upcoming"}
             onClick={() => setMode("upcoming")}
           >
             {t("Mendatang", "Upcoming")}
-          </button>
+          </Button>
         </div>
         <div
           className="calendar-details"
@@ -706,14 +707,14 @@ export function MealCalendar() {
                   </p>
                 )}
               {last && last > agendaEnd && (
-                <button
+                <Button
                   className="button secondary"
                   onClick={() =>
                     setAgendaEnd(monthEnd(shiftMonth(agendaEnd, 1)))
                   }
                 >
                   {t("Muat bulan berikutnya", "Load next month")}
-                </button>
+                </Button>
               )}
             </>
           )}
@@ -734,50 +735,50 @@ export function MealCalendar() {
       >
         <div className="calendar-picker-title">
           <h2>{t("Pilih tanggal", "Choose a date")}</h2>
-          <button
+          <Button
             className="icon-button"
             aria-label={t("Tutup", "Close")}
             onClick={closePicker}
           >
             <X size={20} />
-          </button>
+          </Button>
         </div>
         <div className="calendar-picker-navigation">
-          <button
+          <Button
             className="icon-button"
             aria-label={t("Tahun sebelumnya", "Previous year")}
             disabled={pickerMonth < "1901-01-01"}
             onClick={() => setPickerMonth(shiftMonth(pickerMonth, -12))}
           >
             <ChevronsLeft size={18} />
-          </button>
-          <button
+          </Button>
+          <Button
             className="icon-button"
             aria-label={t("Bulan sebelumnya", "Previous month")}
             disabled={pickerMonth === minimum}
             onClick={() => setPickerMonth(shiftMonth(pickerMonth, -1))}
           >
             <ChevronLeft size={18} />
-          </button>
+          </Button>
           <strong aria-live="polite">
             {format(pickerMonth, { month: "long", year: "numeric" })}
           </strong>
-          <button
+          <Button
             className="icon-button"
             aria-label={t("Bulan berikutnya", "Next month")}
             disabled={pickerMonth === "9998-12-01"}
             onClick={() => setPickerMonth(shiftMonth(pickerMonth, 1))}
           >
             <ChevronRight size={18} />
-          </button>
-          <button
+          </Button>
+          <Button
             className="icon-button"
             aria-label={t("Tahun berikutnya", "Next year")}
             disabled={pickerMonth >= "9998-01-01"}
             onClick={() => setPickerMonth(shiftMonth(pickerMonth, 12))}
           >
             <ChevronsRight size={18} />
-          </button>
+          </Button>
         </div>
         <div
           className="calendar-picker-grid"
@@ -790,7 +791,7 @@ export function MealCalendar() {
             </span>
           ))}
           {pickerDays.map((day) => (
-            <button
+            <Button
               key={day}
               data-picker-day={day}
               disabled={!validDay(day)}
@@ -810,7 +811,7 @@ export function MealCalendar() {
               onKeyDown={(e) => pickerKey(e, day)}
             >
               {Number(day.slice(8))}
-            </button>
+            </Button>
           ))}
         </div>
         <form
@@ -824,7 +825,7 @@ export function MealCalendar() {
             {t("Langsung ke tanggal", "Jump to date")}
           </label>
           <div>
-            <input
+            <TextInput
               id="calendar-direct-date"
               type="text"
               inputMode="text"
@@ -835,13 +836,13 @@ export function MealCalendar() {
               required
               onChange={(e) => setEnteredDate(e.target.value)}
             />
-            <button
+            <Button
               className="button"
               type="submit"
               disabled={!validDay(enteredDate)}
             >
               {t("Lihat", "Go")}
-            </button>
+            </Button>
           </div>
         </form>
       </div>

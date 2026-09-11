@@ -4,6 +4,7 @@ import {
   MascotAnimation,
   MascotLoading,
 } from "../../../components/mascot-loading";
+import { Button, Checkbox } from "../../../components/form-controls";
 
 export function MascotPreview() {
   const [active, setActive] = useState(true);
@@ -17,18 +18,17 @@ export function MascotPreview() {
       <div
         style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 24 }}
       >
-        <button className="button" onClick={() => setActive(!active)}>
+        <Button className="button" onClick={() => setActive(!active)}>
           {active ? "Jeda" : "Putar"}
-        </button>
+        </Button>
         <label>
-          <input
-            type="checkbox"
+          <Checkbox
             checked={reduced}
             onChange={(e) => setReduced(e.target.checked)}
           />{" "}
           Kurangi gerakan
         </label>
-        <button
+        <Button
           className="button secondary"
           onClick={() => {
             setRun((n) => n + 1);
@@ -36,10 +36,10 @@ export function MascotPreview() {
           }}
         >
           Mulai memuat
-        </button>
-        <button className="button secondary" onClick={() => setLoading(false)}>
+        </Button>
+        <Button className="button secondary" onClick={() => setLoading(false)}>
           Selesai
-        </button>
+        </Button>
       </div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 16 }}>
         {(["#FFF7E9", "#FFFFFF", "#163D2E"] as const).map((background, i) => (

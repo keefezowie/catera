@@ -35,6 +35,7 @@ import {
   type Locale,
 } from "@catera/domain";
 import { Provider, CatalogProvider, useApp, api } from "./context";
+import { Button } from "./form-controls";
 import { Brand, ErrorNotice } from "./ui";
 import { Select, SelectOption } from "./select";
 import { catalogHref, howItWorksHref } from "@/lib/navigation";
@@ -297,20 +298,20 @@ function Shell({
             </div>
           </aside>
           {menu && (
-            <button
+            <Button
               className="sidebar-backdrop"
               aria-label="Tutup menu"
               onClick={() => setMenu(false)}
             />
           )}
           <header className="ops-topbar">
-            <button
+            <Button
               className="icon-button mobile-only"
               onClick={() => setMenu(!menu)}
               aria-label="Menu"
             >
               <Menu />
-            </button>
+            </Button>
             <span>
               {isAdmin
                 ? "Marketplace & kepercayaan"
@@ -323,7 +324,7 @@ function Shell({
             >
               <Bell size={21} />
             </Link>
-            <button
+            <Button
               className="avatar"
               onClick={() => {
                 api.request("auth/logout", {}).then(() => location.assign("/"));
@@ -331,7 +332,7 @@ function Shell({
               title="Keluar"
             >
               {actor?.name[0]}
-            </button>
+            </Button>
           </header>
         </>
       ) : (
@@ -474,7 +475,7 @@ function Shell({
                 {t("Bandingkan", "Compare")}
                 <ArrowUpRight size={16} />
               </Link>
-              <button
+              <Button
                 className="icon-button compare-clear"
                 type="button"
                 onClick={clearCompare}
@@ -488,7 +489,7 @@ function Shell({
                 )}
               >
                 <X size={18} aria-hidden="true" />
-              </button>
+              </Button>
             </aside>
           )}
         </>

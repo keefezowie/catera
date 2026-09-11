@@ -48,6 +48,7 @@ import {
   type SupportCase,
 } from "@catera/domain";
 import { api, useApp, useResource } from "./context";
+import { Button, Checkbox, TextArea, TextInput } from "./form-controls";
 import {
   Heading,
   Status,
@@ -60,6 +61,8 @@ import {
   Facts,
 } from "./ui";
 import { Messages } from "./customer";
+import { NumericInput } from "./numeric-input";
+import { TimeInput } from "./time-input";
 
 export function Seller({ view }: { view: string }) {
   const { actor, t } = useApp();
@@ -427,13 +430,13 @@ function Production({
             baris produksi.
           </p>
         </div>
-        <button
+        <Button
           className="button secondary small"
           onClick={() => window.print()}
         >
           <Printer size={16} />
           Cetak
-        </button>
+        </Button>
       </div>
       <ProductionRows deliveries={deliveries} meal={meal} />
       <ActionForm
@@ -507,13 +510,13 @@ function Deliveries({
                     <Status status={x.status} />
                   </td>
                   <td>
-                    <button
+                    <Button
                       className="text-button"
                       onClick={() => setSelected(x.id)}
                       aria-label={"Detail " + x.offer.name}
                     >
                       Detail <ArrowUpRight size={15} />
-                    </button>
+                    </Button>
                   </td>
                 </tr>
               ))}
@@ -526,9 +529,9 @@ function Deliveries({
       </section>
       {d && (
         <aside className="panel detail-panel">
-          <button className="text-button" onClick={() => setSelected("")}>
+          <Button className="text-button" onClick={() => setSelected("")}>
             Tutup detail
-          </button>
+          </Button>
           <img className="detail-food" src={d.offer.image} alt={d.offer.name} />
           <h2>{d.offer.name}</h2>
           <Facts
@@ -622,10 +625,10 @@ function Packages({ state: s }: { state: SellerState }) {
       <div className="section-heading">
         <p>Harga dan aturan baru berlaku untuk pembelian berikutnya.</p>
         {actor?.role === "owner" && (
-          <button className="button" onClick={() => setEditing(null)}>
+          <Button className="button" onClick={() => setEditing(null)}>
             <Plus size={17} />
             Buat paket
-          </button>
+          </Button>
         )}
       </div>
       <div className="seller-packages">
@@ -650,12 +653,12 @@ function Packages({ state: s }: { state: SellerState }) {
               </strong>
             </div>
             {actor?.role === "owner" && (
-              <button
+              <Button
                 className="button secondary small"
                 onClick={() => setEditing(o)}
               >
                 Kelola paket <ArrowRight size={16} />
-              </button>
+              </Button>
             )}
           </article>
         ))}
@@ -827,7 +830,7 @@ function OfferEditor({
         aria-label={t("Langkah paket", "Package steps")}
       >
         {offerSteps.map((i, order) => (
-          <button
+          <Button
             type="button"
             key={i}
             className={i === step ? "selected" : ""}
@@ -836,7 +839,7 @@ function OfferEditor({
             onClick={() => navigate(i)}
           >
             {order + 1}. {labels[i]}
-          </button>
+          </Button>
         ))}
       </div>
       <ActionForm
@@ -954,7 +957,7 @@ function OfferEditor({
               error={fieldError("name")}
               label="Nama paket"
             >
-              <input
+              <TextInput
                 required
                 minLength={3}
                 maxLength={100}
@@ -967,7 +970,7 @@ function OfferEditor({
               error={fieldError("description")}
               label="Cerita paket"
             >
-              <textarea
+              <TextArea
                 required
                 minLength={10}
                 maxLength={1500}
@@ -994,13 +997,12 @@ function OfferEditor({
               error={fieldError("days")}
               label="Durasi pengantaran (hari)"
             >
-              <input
-                type="number"
+              <NumericInput
                 min={1}
                 max={60}
                 required
                 value={value.days}
-                onChange={(e) => set("days", Number(e.target.value))}
+                onValueChange={(next) => set("days", next)}
               />
             </Field>
           </>
@@ -1011,12 +1013,11 @@ function OfferEditor({
               error={fieldError("price")}
               label="Harga per porsi / hari (pengantaran termasuk)"
             >
-              <input
-                type="number"
+              <NumericInput
                 min={1000}
                 required
                 value={value.price}
-                onChange={(e) => set("price", Number(e.target.value))}
+                onValueChange={(next) => set("price", next)}
               />
             </Field>
             <p>
@@ -1047,15 +1048,14 @@ function OfferEditor({
                   error={fieldError("tiers")}
                   label="Mulai porsi"
                 >
-                  <input
-                    type="number"
+                  <NumericInput
                     min={1}
                     value={tier.min}
-                    onChange={(e) =>
+                    onValueChange={(next) =>
                       set(
                         "tiers",
                         value.tiers.map((t, n) =>
-                          n === i ? { ...t, min: Number(e.target.value) } : t,
+                          n === i ? { ...t, min: next } : t,
                         ),
                       )
                     }
@@ -1066,18 +1066,15 @@ function OfferEditor({
                   error={fieldError("tiers")}
                   label="Diskon (%)"
                 >
-                  <input
-                    type="number"
+                  <NumericInput
                     min={0}
                     max={90}
                     value={tier.percent}
-                    onChange={(e) =>
+                    onValueChange={(next) =>
                       set(
                         "tiers",
                         value.tiers.map((t, n) =>
-                          n === i
-                            ? { ...t, percent: Number(e.target.value) }
-                            : t,
+                          n === i ? { ...t, percent: next } : t,
                         ),
                       )
                     }
@@ -1086,7 +1083,7 @@ function OfferEditor({
               </div>
             ))}
             {value.tiers.length > 0 && (
-              <button
+              <Button
                 type="button"
                 className="text-button"
                 onClick={() =>
@@ -1094,7 +1091,7 @@ function OfferEditor({
                 }
               >
                 Tambah tingkatan
-              </button>
+              </Button>
             )}
           </>
         ) : step === "schedule" ? (
@@ -1105,8 +1102,7 @@ function OfferEditor({
                 {["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"].map(
                   (d, i) => (
                     <label key={d}>
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={value.weekdays.includes(i)}
                         onChange={(e) =>
                           set(
@@ -1131,7 +1127,7 @@ function OfferEditor({
                   key={m}
                   label={mealLabel(m)}
                 >
-                  <input
+                  <TextInput
                     required
                     value={value.windows[m as "lunch" | "dinner"]}
                     onChange={(e) =>
@@ -1159,15 +1155,14 @@ function OfferEditor({
                   ][d]
                 }
               >
-                <input
-                  type="number"
+                <NumericInput
                   min={0}
                   required
                   value={value.capacity[String(d)] || 0}
-                  onChange={(e) =>
+                  onValueChange={(next) =>
                     set("capacity", {
                       ...value.capacity,
-                      [d]: Number(e.target.value),
+                      [d]: next,
                     })
                   }
                 />
@@ -1215,12 +1210,11 @@ function OfferEditor({
                   error={fieldError("trialPrice")}
                   label="Harga trial per porsi"
                 >
-                  <input
-                    type="number"
+                  <NumericInput
                     min={1000}
                     required
                     value={value.trialPrice}
-                    onChange={(e) => set("trialPrice", Number(e.target.value))}
+                    onValueChange={(next) => set("trialPrice", next)}
                   />
                 </Field>
                 <Field
@@ -1228,11 +1222,10 @@ function OfferEditor({
                   error={fieldError("trialMax")}
                   label="Maksimum porsi trial"
                 >
-                  <input
-                    type="number"
+                  <NumericInput
                     min={1}
                     value={value.trialMax || 1}
-                    onChange={(e) => set("trialMax", Number(e.target.value))}
+                    onValueChange={(next) => set("trialMax", next)}
                   />
                 </Field>
               </div>
@@ -1256,20 +1249,20 @@ function OfferEditor({
               )}
             </div>
             {demo && (
-              <button
+              <Button
                 type="button"
                 className="text-button"
                 onClick={() => set("image", "/assets/food/ayam-panggang.png")}
               >
                 Gunakan foto sintetis demo
-              </button>
+              </Button>
             )}
             <Field
               fieldKey="tags"
               error={fieldError("tags")}
               label="Kategori (pisahkan koma)"
             >
-              <input
+              <TextInput
                 value={value.tags.join(", ")}
                 onChange={(e) =>
                   set(
@@ -1340,14 +1333,14 @@ function OfferEditor({
               )}
             </p>
             <div className="preview-tabs">
-              <button
+              <Button
                 type="button"
                 className={"button " + (preview === "card" ? "" : "secondary")}
                 onClick={() => setPreview("card")}
               >
                 {t("Kartu penelusuran", "Discovery card")}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 className={
                   "button " + (preview === "detail" ? "" : "secondary")
@@ -1355,7 +1348,7 @@ function OfferEditor({
                 onClick={() => setPreview("detail")}
               >
                 {t("Detail paket", "Package details")}
-              </button>
+              </Button>
             </div>
             <div className={"listing-preview " + preview}>
               {preview === "card" ? (
@@ -1384,17 +1377,17 @@ function OfferEditor({
           </>
         )}
         {step !== "offer" && (
-          <button
+          <Button
             className="text-button"
             type="button"
             onClick={() => navigate(offerSteps[offerSteps.indexOf(step) - 1])}
           >
             Kembali
-          </button>
+          </Button>
         )}
       </ActionForm>
       {saveError && <ErrorNotice message={saveError} />}
-      <button
+      <Button
         type="button"
         className="text-button"
         disabled={pending > 0 || savingDraft}
@@ -1418,7 +1411,7 @@ function OfferEditor({
         {savingDraft
           ? t("Menyimpan…", "Saving…")
           : t("Simpan draf", "Save draft")}
-      </button>
+      </Button>
     </div>
   );
 }
@@ -1575,14 +1568,14 @@ function DatedContentsForm({
             )}
           </p>
           <Field label={t("Nama menu", "Menu name")}>
-            <input
+            <TextInput
               required
               value={menu.name}
               onChange={(e) => setMenu({ ...menu, name: e.target.value })}
             />
           </Field>
           <Field label={t("Isi menu", "Menu description")}>
-            <textarea
+            <TextArea
               value={menu.description}
               onChange={(e) =>
                 setMenu({ ...menu, description: e.target.value })
@@ -1630,16 +1623,10 @@ function Capacity({ state: s, date }: { state: SellerState; date: string }) {
           <DatePicker name="date" defaultValue={date} required />
         </Field>
         <Field label="Kapasitas porsi">
-          <input
-            type="number"
-            name="slots"
-            min={0}
-            required
-            defaultValue={100}
-          />
+          <NumericInput name="slots" min={0} required defaultValue={100} />
         </Field>
         <label className="checkbox">
-          <input type="checkbox" name="closed" />
+          <Checkbox name="closed" />
           Tutup penjualan pada tanggal ini
         </label>
         <p className="notice">
@@ -1660,12 +1647,12 @@ function Customers({ state: s }: { state: SellerState }) {
         <div className="section-heading">
           <h2>Hubungan pelanggan</h2>
           {actor?.role === "owner" && (
-            <button
+            <Button
               className="button secondary small"
               onClick={() => setShowImport(true)}
             >
               Impor langganan prabayar
-            </button>
+            </Button>
           )}
         </div>
         <div className="table-wrap">
@@ -1736,7 +1723,7 @@ function ImportForm({
             memiliki akun dan alamat. Impor tidak menagih pembayaran baru.
           </p>
           <Field label="Data JSON (maksimal 100 baris)">
-            <textarea
+            <TextArea
               className="code-input"
               name="rows"
               required
@@ -1754,16 +1741,16 @@ function ImportForm({
           </p>
           <pre>{JSON.stringify(preview.rows, null, 2)}</pre>
           <label className="checkbox">
-            <input required type="checkbox" />
+            <Checkbox required />
             Saya telah memverifikasi pembayaran dan hak pengantaran ini.
           </label>
-          <button
+          <Button
             type="button"
             className="text-button"
             onClick={() => setPreview(null)}
           >
             Perbaiki data
-          </button>
+          </Button>
         </>
       )}
     </ActionForm>
@@ -1785,7 +1772,7 @@ export function SupportQueue({
       <div className="master-detail">
         <div>
           {cases.map((x) => (
-            <button
+            <Button
               key={x.id}
               className={"queue-row " + (selected === x.id ? "selected" : "")}
               onClick={() => setSelected(x.id)}
@@ -1797,7 +1784,7 @@ export function SupportQueue({
                 </small>
               </span>
               <Status status={x.status} />
-            </button>
+            </Button>
           ))}
           {!cases.length && (
             <p className="quiet-empty">Belum ada permintaan bantuan.</p>
@@ -1829,11 +1816,10 @@ export function SupportQueue({
                   }}
                 >
                   <Field label="Alasan keputusan">
-                    <textarea name="reason" minLength={5} required />
+                    <TextArea name="reason" minLength={5} required />
                   </Field>
                   <Field label="Jumlah refund (Rp)">
-                    <input
-                      type="number"
+                    <NumericInput
                       name="amount"
                       min={0}
                       required
@@ -1841,7 +1827,7 @@ export function SupportQueue({
                     />
                   </Field>
                   <label className="checkbox">
-                    <input name="cancelRemaining" type="checkbox" />
+                    <Checkbox name="cancelRemaining" />
                     Batalkan sisa pengantaran dan lepaskan pemesanan
                   </label>
                   <p className="notice">
@@ -1861,7 +1847,7 @@ export function SupportQueue({
                     }}
                   >
                     <Field label="Tanggapan katerer">
-                      <textarea name="response" required minLength={5} />
+                      <TextArea name="response" required minLength={5} />
                     </Field>
                   </ActionForm>
                   <ActionForm
@@ -1950,10 +1936,10 @@ function SellerSettings({ state: s }: { state: SellerState }) {
           }}
         >
           <Field label="Nama katerer">
-            <input name="name" required defaultValue={s.caterer.name} />
+            <TextInput name="name" required defaultValue={s.caterer.name} />
           </Field>
           <Field label="Tentang katerer">
-            <textarea
+            <TextArea
               name="description"
               required
               defaultValue={s.caterer.description}
@@ -1963,8 +1949,7 @@ function SellerSettings({ state: s }: { state: SellerState }) {
             <legend>Area pengantaran</legend>
             {areaOptions.map((a) => (
               <label className="checkbox" key={a}>
-                <input
-                  type="checkbox"
+                <Checkbox
                   name="areas"
                   value={a}
                   defaultChecked={s.caterer.area.includes(a)}
@@ -1974,8 +1959,7 @@ function SellerSettings({ state: s }: { state: SellerState }) {
             ))}
           </fieldset>
           <Field label="Cutoff sehari sebelumnya">
-            <input
-              type="time"
+            <TimeInput
               name="cutoff"
               required
               defaultValue={s.caterer.cutoff.slice(0, 5)}
@@ -2075,10 +2059,10 @@ export function Onboarding() {
             }}
           >
             <Field label="Nama katerer">
-              <input name="name" required minLength={3} />
+              <TextInput name="name" required minLength={3} />
             </Field>
             <Field label="Alamat halaman katerer">
-              <input
+              <TextInput
                 name="slug"
                 required
                 pattern="[a-z0-9-]+"
@@ -2086,13 +2070,13 @@ export function Onboarding() {
               />
             </Field>
             <Field label="Tentang makananmu">
-              <textarea name="description" required minLength={10} />
+              <TextArea name="description" required minLength={10} />
             </Field>
             <fieldset>
               <legend>Area pengantaran</legend>
               {areaOptions.map((a) => (
                 <label className="checkbox" key={a}>
-                  <input type="checkbox" name="areas" value={a} />
+                  <Checkbox name="areas" value={a} />
                   {a}
                 </label>
               ))}
@@ -2112,7 +2096,7 @@ export function Onboarding() {
               }}
             >
               <Field label="Kode undangan">
-                <input required name="code" />
+                <TextInput required name="code" />
               </Field>
             </ActionForm>
           </details>

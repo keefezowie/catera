@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { currency, type AdminState } from "@catera/domain";
 import { api, useApp, useResource } from "./context";
+import { Button, Checkbox, TextArea, TextInput } from "./form-controls";
 import {
   Heading,
   Loading,
@@ -22,6 +23,7 @@ import {
   Facts,
 } from "./ui";
 import { SupportQueue, TransactionRows } from "./seller";
+import { NumericInput } from "./numeric-input";
 export function Admin({ view }: { view: string }) {
   const { perform } = useApp();
   const state = useResource<AdminState>("admin:" + view, () => api.admin());
@@ -92,7 +94,7 @@ export function Admin({ view }: { view: string }) {
             <section className="panel">
               <h2>Antrean verifikasi</h2>
               <div className="queue-filters">
-                <button
+                <Button
                   className={filter === "submitted" ? "selected" : ""}
                   onClick={() => {
                     setFilter("submitted");
@@ -100,13 +102,13 @@ export function Admin({ view }: { view: string }) {
                   }}
                 >
                   Menunggu tinjauan
-                </button>
-                <button
+                </Button>
+                <Button
                   className={filter === "all" ? "selected" : ""}
                   onClick={() => setFilter("all")}
                 >
                   Semua katerer
-                </button>
+                </Button>
               </div>
               {filter === "submitted" &&
                 !a.caterers.some((c) => c.status === "submitted") && (
@@ -118,7 +120,7 @@ export function Admin({ view }: { view: string }) {
               {a.caterers
                 .filter((c) => filter === "all" || c.status === "submitted")
                 .map((c) => (
-                  <button
+                  <Button
                     className={
                       "queue-row " + (selected === c.id ? "selected" : "")
                     }
@@ -131,7 +133,7 @@ export function Admin({ view }: { view: string }) {
                     </span>
                     <Status status={c.status} />
                     <ArrowUpRight size={17} />
-                  </button>
+                  </Button>
                 ))}
             </section>
             {seller && (
@@ -183,7 +185,7 @@ export function Admin({ view }: { view: string }) {
                     </Select>
                   </Field>
                   <Field label="Alasan / koreksi yang diperlukan">
-                    <textarea name="reason" required minLength={5} />
+                    <TextArea name="reason" required minLength={5} />
                   </Field>
                   <p className="notice">
                     Penangguhan menghentikan penjualan baru. Pengantaran aktif
@@ -238,8 +240,7 @@ export function Admin({ view }: { view: string }) {
                               }}
                             >
                               <Field label="Potongan alokasi katerer (Rp)">
-                                <input
-                                  type="number"
+                                <NumericInput
                                   name="sellerDeduction"
                                   min={0}
                                   max={r.amount}
@@ -247,14 +248,14 @@ export function Admin({ view }: { view: string }) {
                                 />
                               </Field>
                               <Field label="Referensi penyelesaian provider">
-                                <input
+                                <TextInput
                                   name="reference"
                                   required
                                   minLength={3}
                                 />
                               </Field>
                               <Field label="Alasan & rekonsiliasi biaya split">
-                                <textarea
+                                <TextArea
                                   name="reason"
                                   required
                                   minLength={5}
@@ -297,10 +298,10 @@ export function Admin({ view }: { view: string }) {
                 </Select>
               </Field>
               <Field label="Catatan pemeriksaan">
-                <textarea name="reason" minLength={5} required />
+                <TextArea name="reason" minLength={5} required />
               </Field>
               <label className="checkbox">
-                <input required type="checkbox" />
+                <Checkbox required />
                 Transaksi, pengembalian dana, dan saldo sengketa telah
                 diperiksa.
               </label>
@@ -347,10 +348,10 @@ export function Admin({ view }: { view: string }) {
                         </Select>
                       </Field>
                       <Field label="Referensi provider">
-                        <input name="reference" required minLength={3} />
+                        <TextInput name="reference" required minLength={3} />
                       </Field>
                       <Field label="Catatan pemeriksaan">
-                        <textarea name="reason" required minLength={5} />
+                        <TextArea name="reason" required minLength={5} />
                       </Field>
                     </ActionForm>
                   </details>
@@ -366,10 +367,10 @@ export function Admin({ view }: { view: string }) {
         <section className="panel">
           <div className="section-heading">
             <h2>Kode promosi</h2>
-            <button className="button small" onClick={() => setOpen(true)}>
+            <Button className="button small" onClick={() => setOpen(true)}>
               <Plus size={17} />
               Buat promosi
-            </button>
+            </Button>
           </div>
           {a.promotions.map((p) => (
             <div className="queue-row" key={p.id}>
@@ -402,7 +403,7 @@ export function Admin({ view }: { view: string }) {
               }}
             >
               <Field label="Kode">
-                <input
+                <TextInput
                   name="code"
                   required
                   pattern="[A-Za-z0-9_-]+"
@@ -410,7 +411,7 @@ export function Admin({ view }: { view: string }) {
                 />
               </Field>
               <Field label="Diskon (%)">
-                <input name="percent" type="number" min={1} max={90} required />
+                <NumericInput name="percent" min={1} max={90} required />
               </Field>
               <p>
                 Promosi berlaku untuk pembelian berikutnya. Nilai diskon
@@ -437,7 +438,7 @@ export function Admin({ view }: { view: string }) {
                 }}
               >
                 <Field label="Alasan moderasi">
-                  <input name="reason" required minLength={5} />
+                  <TextInput name="reason" required minLength={5} />
                 </Field>
               </ActionForm>
             </div>

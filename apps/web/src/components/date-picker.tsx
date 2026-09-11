@@ -20,6 +20,7 @@ import {
   weekStart,
 } from "../lib/meal-calendar";
 import { useApp } from "./context";
+import { Button, HiddenInput } from "./form-controls";
 
 const earliestDay = "1900-01-01";
 const latestDay = "9998-12-31";
@@ -209,8 +210,8 @@ export function DatePicker({
     <span
       className={`date-picker${compact ? " date-picker-compact" : ""}${className ? ` ${className}` : ""}`}
     >
-      {name && <input type="hidden" name={name} value={selected} />}
-      <button
+      {name && <HiddenInput name={name} value={selected} />}
+      <Button
         ref={triggerRef}
         id={triggerId}
         type="button"
@@ -235,7 +236,7 @@ export function DatePicker({
       >
         <CalendarDays size={17} aria-hidden="true" />
         <span>{displayValue}</span>
-      </button>
+      </Button>
       <div
         id={popoverId}
         ref={popoverRef}
@@ -253,7 +254,7 @@ export function DatePicker({
         }}
       >
         <div className="date-picker-header">
-          <button
+          <Button
             type="button"
             className="icon-button"
             aria-label={t("Bulan sebelumnya", "Previous month")}
@@ -262,11 +263,11 @@ export function DatePicker({
             onClick={() => setVisibleMonth(shiftMonth(visibleMonth, -1))}
           >
             <ChevronLeft size={18} />
-          </button>
+          </Button>
           <strong aria-live="polite">
             {format(visibleMonth, { month: "long", year: "numeric" })}
           </strong>
-          <button
+          <Button
             type="button"
             className="icon-button"
             aria-label={t("Bulan berikutnya", "Next month")}
@@ -275,7 +276,7 @@ export function DatePicker({
             onClick={() => setVisibleMonth(shiftMonth(visibleMonth, 1))}
           >
             <ChevronRight size={18} />
-          </button>
+          </Button>
         </div>
         <div
           className="date-picker-grid"
@@ -294,7 +295,7 @@ export function DatePicker({
           {days.map((day) => {
             const unavailable = day < min || day > max;
             return (
-              <button
+              <Button
                 key={day}
                 type="button"
                 role="gridcell"
@@ -314,30 +315,30 @@ export function DatePicker({
                 onKeyDown={(event) => handleDayKeyDown(event, day)}
               >
                 {Number(day.slice(8))}
-              </button>
+              </Button>
             );
           })}
         </div>
         <div className="date-picker-footer">
           {allowClear && !required ? (
-            <button
+            <Button
               type="button"
               className="text-button"
               onClick={() => choose("")}
             >
               {t("Hapus", "Clear")}
-            </button>
+            </Button>
           ) : (
             <span />
           )}
-          <button
+          <Button
             type="button"
             className="text-button"
             disabled={!todayAvailable}
             onClick={() => choose(today)}
           >
             {t("Hari ini", "Today")}
-          </button>
+          </Button>
         </div>
       </div>
     </span>

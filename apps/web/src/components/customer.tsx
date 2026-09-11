@@ -43,6 +43,7 @@ import {
   type Locale,
 } from "@catera/domain";
 import { useApp, useResource, api } from "./context";
+import { Button, TextArea, TextInput } from "./form-controls";
 import {
   Heading,
   Loading,
@@ -60,7 +61,11 @@ const dateLabel = (d: string, locale: Locale = "id") =>
     { weekday: "long", day: "numeric", month: "long" },
   );
 export function Customer(props: { view: string; id?: string }) {
-  return props.view === "calendar" ? <MealCalendar /> : <CustomerOverview {...props} />;
+  return props.view === "calendar" ? (
+    <MealCalendar />
+  ) : (
+    <CustomerOverview {...props} />
+  );
 }
 function CustomerOverview({ view, id }: { view: string; id?: string }) {
   const { actor, t, locale } = useApp();
@@ -414,10 +419,10 @@ function SubscriptionDetail({
         {deliveries.some(
           (d) => d.subscription_id === s.id && d.status === "delivered",
         ) && (
-          <button className="button secondary" onClick={() => setReview(true)}>
+          <Button className="button secondary" onClick={() => setReview(true)}>
             <Star size={17} />
             {t("Tulis ulasan", "Write a review")}
-          </button>
+          </Button>
         )}
       </div>
       <p className="notice">
@@ -468,7 +473,7 @@ function SubscriptionDetail({
             </Field>
           ))}
           <Field label="Ulasan">
-            <textarea name="body" required maxLength={2000} />
+            <TextArea name="body" required maxLength={2000} />
           </Field>
         </ActionForm>
       </Dialog>
@@ -552,17 +557,17 @@ export function DeliveryPage({ id }: { id: string }) {
       />
       <div className="action-row">
         {canAddress && (
-          <button
+          <Button
             className="button secondary"
             onClick={() => setDialog("address")}
           >
             <MapPin size={17} />
             {t("Ubah alamat", "Change address")}
-          </button>
+          </Button>
         )}
         {d.canChange && (
           <>
-            <button
+            <Button
               className="button"
               onClick={() => {
                 setDialog("reschedule");
@@ -571,8 +576,8 @@ export function DeliveryPage({ id }: { id: string }) {
             >
               <CalendarDays size={17} />
               {t("Ganti tanggal", "Change date")}
-            </button>
-            <button
+            </Button>
+            <Button
               className="button secondary"
               onClick={() => {
                 setDialog("skip");
@@ -580,7 +585,7 @@ export function DeliveryPage({ id }: { id: string }) {
               }}
             >
               {t("Lewati & pilih pengganti", "Skip & choose replacement")}
-            </button>
+            </Button>
           </>
         )}
         <Link
@@ -746,7 +751,7 @@ export function Messages() {
             </div>
           )}
           {state.data.map((x) => (
-            <button
+            <Button
               key={x.id}
               className={
                 "conversation-preview " +
@@ -763,7 +768,7 @@ export function Messages() {
                   {x.messages.at(-1)?.body.slice(0, 60) || "Mulai percakapan"}
                 </small>
               </div>
-            </button>
+            </Button>
           ))}
         </aside>
         <section className="conversation">
@@ -824,7 +829,7 @@ export function Messages() {
                 <label className="sr-only" htmlFor="message-body">
                   Pesan
                 </label>
-                <textarea
+                <TextArea
                   id="message-body"
                   name="body"
                   placeholder={t("Tulis pesan…", "Write a message…")}
@@ -931,22 +936,22 @@ export function Account({ view }: { view: string }) {
                 </Link>
               );
             })}
-            <button onClick={() => setLocale(locale === "id" ? "en" : "id")}>
+            <Button onClick={() => setLocale(locale === "id" ? "en" : "id")}>
               <span>Bahasa / Language</span>
               <strong>{locale === "id" ? "Indonesia" : "English"}</strong>
-            </button>
+            </Button>
           </div>
         </>
       )}
       <div className="section-heading spaced">
         <h2>{t("Alamat tersimpan", "Saved addresses")}</h2>
-        <button
+        <Button
           className="button secondary small"
           onClick={() => setEditing(null)}
         >
           <Plus size={17} />
           {t("Tambah alamat", "Add address")}
-        </button>
+        </Button>
       </div>
       {c.addresses.map((a) => (
         <div className="address-card" key={a.id}>
@@ -959,13 +964,13 @@ export function Account({ view }: { view: string }) {
             </p>
             <small>{a.instructions}</small>
           </div>
-          <button className="text-button" onClick={() => setEditing(a)}>
+          <Button className="text-button" onClick={() => setEditing(a)}>
             {t("Ubah", "Edit")}
-          </button>
+          </Button>
         </div>
       ))}
       {view === "account" && (
-        <button
+        <Button
           className="text-button spaced danger"
           onClick={async () => {
             await api.request("auth/logout", {});
@@ -974,7 +979,7 @@ export function Account({ view }: { view: string }) {
         >
           <LogOut size={17} />
           {t("Keluar", "Sign out")}
-        </button>
+        </Button>
       )}
       <Dialog
         open={editing !== undefined}
@@ -1002,7 +1007,7 @@ export function Account({ view }: { view: string }) {
           }}
         >
           <Field label="Label alamat">
-            <input
+            <TextInput
               name="label"
               defaultValue={editing?.label}
               placeholder="Rumah / Kantor"
@@ -1011,7 +1016,7 @@ export function Account({ view }: { view: string }) {
             />
           </Field>
           <Field label="Jalan, nomor, dan detail alamat">
-            <textarea
+            <TextArea
               name="line"
               defaultValue={editing?.line}
               required
@@ -1030,14 +1035,14 @@ export function Account({ view }: { view: string }) {
             </Select>
           </Field>
           <Field label="Kota">
-            <input
+            <TextInput
               name="city"
               defaultValue={editing?.city || "Jakarta"}
               required
             />
           </Field>
           <Field label="Petunjuk pengantaran">
-            <textarea
+            <TextArea
               name="instructions"
               defaultValue={editing?.instructions}
               maxLength={400}
@@ -1070,10 +1075,10 @@ export function Support() {
           "Tell us what happened. Your caterer responds first, with Catera available to help.",
         )}
       >
-        <button className="button" onClick={() => setOpen(true)}>
+        <Button className="button" onClick={() => setOpen(true)}>
           <Plus size={17} />
           {t("Ajukan bantuan", "Request help")}
-        </button>
+        </Button>
       </Heading>
       <p className="notice">
         {t(
@@ -1155,7 +1160,7 @@ export function Support() {
             </Select>
           </Field>
           <Field label="Ceritakan kendalanya">
-            <textarea
+            <TextArea
               name="description"
               required
               minLength={5}

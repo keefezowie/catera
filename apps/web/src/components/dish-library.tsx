@@ -9,6 +9,7 @@ import {
   selectLibraryDish,
 } from "@catera/domain";
 import { api, useApp, useResource } from "./context";
+import { Button, Checkbox, TextInput } from "./form-controls";
 import { ActionForm, Field, ErrorNotice } from "./ui";
 import { Select, SelectOption } from "./select";
 import { PhotoUpload } from "./photo-upload";
@@ -90,8 +91,7 @@ export function DishFields({
             source.version > (dish.sourceDishVersion || 0) && (
               <>
                 <label className="check-field">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={resetServing}
                     onChange={(e) => setResetServing(e.target.checked)}
                   />
@@ -100,7 +100,7 @@ export function DishFields({
                     "Also use the latest serving size",
                   )}
                 </label>
-                <button
+                <Button
                   type="button"
                   className="text-button"
                   disabled={busy}
@@ -111,7 +111,7 @@ export function DishFields({
                   }
                 >
                   {t("Gunakan versi terbaru", "Use latest version")}
-                </button>
+                </Button>
               </>
             )}
         </div>
@@ -125,7 +125,7 @@ export function DishFields({
           }
           label={t("Nama hidangan", "Dish name")}
         >
-          <input
+          <TextInput
             data-dish-name
             maxLength={120}
             value={dish.name}
@@ -137,7 +137,7 @@ export function DishFields({
           error={errors[fieldPrefix + ".serving"]}
           label={t("Ukuran saji (opsional)", "Serving size (optional)")}
         >
-          <input
+          <TextInput
             maxLength={100}
             placeholder="150 g / 2 potong"
             value={dish.serving}
@@ -158,7 +158,7 @@ export function DishFields({
         error={errors[fieldPrefix + ".description"]}
         label={t("Deskripsi (opsional)", "Description (optional)")}
       >
-        <input
+        <TextInput
           maxLength={600}
           value={dish.description}
           onChange={(e) => onChange({ description: e.target.value })}
@@ -174,7 +174,7 @@ export function DishFields({
         }}
       />
       {reusable && !dish.sourceDishId && (
-        <button
+        <Button
           type="button"
           className="text-button"
           disabled={busy || uploading || !dish.name.trim()}
@@ -210,7 +210,7 @@ export function DishFields({
           {busy
             ? t("Menyimpan…", "Saving…")
             : t("Simpan ke daftar hidangan", "Save to dish library")}
-        </button>
+        </Button>
       )}
       {saved && (
         <p role="status">
@@ -241,7 +241,7 @@ export function DishLibrary({ dishes }: { dishes: LibraryDish[] }) {
             )}
           </p>
         </div>
-        <button
+        <Button
           type="button"
           className="button"
           onClick={() => {
@@ -250,18 +250,17 @@ export function DishLibrary({ dishes }: { dishes: LibraryDish[] }) {
           }}
         >
           {t("Buat hidangan", "Create dish")}
-        </button>
+        </Button>
       </div>
       <Field label={t("Cari hidangan", "Search dishes")}>
-        <input
+        <TextInput
           type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
       </Field>
       <label className="check-field">
-        <input
-          type="checkbox"
+        <Checkbox
           checked={archived}
           onChange={(e) => setArchived(e.target.checked)}
         />
@@ -283,7 +282,7 @@ export function DishLibrary({ dishes }: { dishes: LibraryDish[] }) {
                 {d.archived ? t(" · Diarsipkan", " · Archived") : ""}
               </p>
             </div>
-            <button
+            <Button
               type="button"
               className="text-button"
               onClick={() => {
@@ -292,8 +291,8 @@ export function DishLibrary({ dishes }: { dishes: LibraryDish[] }) {
               }}
             >
               {t("Edit", "Edit")}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               className="text-button"
               onClick={async () => {
@@ -316,7 +315,7 @@ export function DishLibrary({ dishes }: { dishes: LibraryDish[] }) {
               }}
             >
               {d.archived ? t("Pulihkan", "Restore") : t("Arsipkan", "Archive")}
-            </button>
+            </Button>
           </div>
         ))}
       {!dishes.length && (
@@ -379,14 +378,14 @@ function LibraryForm({
         onChange={(p) => setDish((d) => ({ ...d, ...p }))}
         onBusyChange={setBusy}
       />
-      <button
+      <Button
         className="text-button"
         type="button"
         disabled={busy}
         onClick={done}
       >
         {t("Batal", "Cancel")}
-      </button>
+      </Button>
     </ActionForm>
   );
 }

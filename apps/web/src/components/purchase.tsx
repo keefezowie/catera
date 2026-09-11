@@ -29,6 +29,7 @@ import {
   areaOptions,
 } from "@catera/domain";
 import { api, useApp, useResource } from "./context";
+import { Button, Checkbox, TextInput } from "./form-controls";
 import { signedInPath, safeReturnPath } from "@/lib/navigation";
 import type { Actor } from "@catera/domain";
 import {
@@ -119,20 +120,20 @@ export function Login() {
               className="auth-methods"
               aria-label={t("Metode masuk", "Sign-in method")}
             >
-              <button
+              <Button
                 type="button"
                 aria-pressed={method === "email"}
                 onClick={() => setMethod("email")}
               >
                 {t("Email & kata sandi", "Email & password")}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 aria-pressed={method === "phone"}
                 onClick={() => setMethod("phone")}
               >
                 {t("Kode ponsel", "Phone code")}
-              </button>
+              </Button>
             </div>
             {method === "email" ? (
               <ActionForm
@@ -149,7 +150,7 @@ export function Login() {
                 }}
               >
                 <Field label="Email">
-                  <input
+                  <TextInput
                     type="email"
                     name="email"
                     autoComplete="username"
@@ -159,7 +160,7 @@ export function Login() {
                   />
                 </Field>
                 <Field label={t("Kata sandi", "Password")}>
-                  <input
+                  <TextInput
                     type="password"
                     name="password"
                     autoComplete="current-password"
@@ -197,7 +198,7 @@ export function Login() {
                 }}
               >
                 <Field label={t("Nomor WhatsApp / ponsel", "Mobile number")}>
-                  <input
+                  <TextInput
                     type="tel"
                     name="phone"
                     placeholder="+6281234567890"
@@ -211,7 +212,7 @@ export function Login() {
                 {sent && (
                   <>
                     <Field label="Kode OTP">
-                      <input
+                      <TextInput
                         name="token"
                         inputMode="numeric"
                         pattern="[0-9]{6}"
@@ -221,15 +222,15 @@ export function Login() {
                       />
                     </Field>
                     <Field label="Nama">
-                      <input name="name" autoComplete="name" required />
+                      <TextInput name="name" autoComplete="name" required />
                     </Field>
-                    <button
+                    <Button
                       type="button"
                       className="text-button"
                       onClick={() => setSent(false)}
                     >
                       Ubah nomor / kirim ulang
-                    </button>
+                    </Button>
                   </>
                 )}
               </ActionForm>
@@ -402,7 +403,7 @@ export function CheckoutPage({ id }: { id: string }) {
               <div className="portion-control">
                 <strong>{t("Porsi setiap hari", "Portions per day")}</strong>
                 <div>
-                  <button
+                  <Button
                     type="button"
                     className="icon-button"
                     disabled={portions <= 1}
@@ -410,9 +411,9 @@ export function CheckoutPage({ id }: { id: string }) {
                     onClick={() => setPortions((p) => p - 1)}
                   >
                     <Minus size={16} />
-                  </button>
+                  </Button>
                   <strong>{portions}</strong>
-                  <button
+                  <Button
                     type="button"
                     className="icon-button"
                     disabled={portions >= 100}
@@ -420,7 +421,7 @@ export function CheckoutPage({ id }: { id: string }) {
                     onClick={() => setPortions((p) => p + 1)}
                   >
                     <Plus size={16} />
-                  </button>
+                  </Button>
                 </div>
               </div>
               <Field label={t("Mulai tanggal", "Start date")}>
@@ -460,7 +461,7 @@ export function CheckoutPage({ id }: { id: string }) {
               <Field
                 label={t("Kode promo (opsional)", "Promo code (optional)")}
               >
-                <input
+                <TextInput
                   value={promo}
                   onChange={(e) => setPromo(e.target.value)}
                   placeholder="Kode promo"
@@ -492,13 +493,13 @@ export function CheckoutPage({ id }: { id: string }) {
               >
                 <div className="section-heading">
                   <h2>{t("Jadwal makananmu", "Your meal schedule")}</h2>
-                  <button
+                  <Button
                     type="button"
                     className="text-button"
                     onClick={() => setStep(1)}
                   >
                     Ubah
-                  </button>
+                  </Button>
                 </div>
                 <div className="schedule-preview">
                   {quote.dates.map((d, i) => (
@@ -535,7 +536,7 @@ export function CheckoutPage({ id }: { id: string }) {
                   </p>
                 </div>
                 <label className="checkbox-row">
-                  <input type="checkbox" required />
+                  <Checkbox required />
                   {t(
                     "Saya sudah memeriksa jadwal, alamat, dan aturan paket.",
                     "I have reviewed the schedule, address, and package rules.",
@@ -738,10 +739,10 @@ export function PaymentPage({ id }: { id: string }) {
           {t("Buat jadwal baru", "Choose a new schedule")}
         </Link>
       )}
-      <button className="button secondary" onClick={state.reload}>
+      <Button className="button secondary" onClick={state.reload}>
         <RefreshCw size={17} />
         {t("Periksa status", "Check status")}
-      </button>
+      </Button>
     </div>
   );
 }

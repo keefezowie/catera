@@ -7,6 +7,7 @@ import Autoplay from "embla-carousel-autoplay";
 import { ArrowLeft, ArrowRight, ArrowUpRight, Pause, Play } from "lucide-react";
 import type { Offer } from "@catera/domain";
 import { useApp } from "./context";
+import { Button } from "./form-controls";
 import { HeroIntroduction } from "./hero-introduction";
 import { featuredOffers } from "../lib/featured-offers";
 
@@ -181,7 +182,7 @@ function CatererCarousel({ offers }: { offers: Offer[] }) {
       </div>
       {multiple && (
         <div className="featured-controls">
-          <button
+          <Button
             type="button"
             onClick={() =>
               navigate((selected - 1 + offers.length) % offers.length)
@@ -189,10 +190,10 @@ function CatererCarousel({ offers }: { offers: Offer[] }) {
             aria-label={t("Katerer sebelumnya", "Previous caterer")}
           >
             <ArrowLeft size={18} />
-          </button>
+          </Button>
           <div className="featured-dots">
             {offers.map((offer, index) => (
-              <button
+              <Button
                 type="button"
                 key={offer.id}
                 aria-label={t("Tampilkan ", "Show ") + offer.caterer}
@@ -200,18 +201,18 @@ function CatererCarousel({ offers }: { offers: Offer[] }) {
                 onClick={() => navigate(index)}
               >
                 <span />
-              </button>
+              </Button>
             ))}
           </div>
-          <button
+          <Button
             type="button"
             onClick={() => navigate((selected + 1) % offers.length)}
             aria-label={t("Katerer berikutnya", "Next caterer")}
           >
             <ArrowRight size={18} />
-          </button>
+          </Button>
           {!reducedMotion && (
-            <button
+            <Button
               type="button"
               className="featured-playback"
               aria-label={
@@ -231,7 +232,7 @@ function CatererCarousel({ offers }: { offers: Offer[] }) {
               }}
             >
               {paused ? <Play size={16} /> : <Pause size={16} />}
-            </button>
+            </Button>
           )}
         </div>
       )}

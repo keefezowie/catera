@@ -3,6 +3,7 @@
 import { useId, useState } from "react";
 import { LoaderCircle, Upload } from "lucide-react";
 import { useApp } from "./context";
+import { FileInput } from "./form-controls";
 
 /** Single-file picker. The caller owns upload, validation, and error handling. */
 export function FileUpload({
@@ -35,9 +36,8 @@ export function FileUpload({
         aria-busy={busy}
         data-disabled={disabled || busy}
       >
-        <input
+        <FileInput
           id={id}
-          type="file"
           accept={accept}
           disabled={disabled || busy}
           aria-describedby={`${id}-status${hint ? ` ${id}-hint` : ""}`}

@@ -139,9 +139,11 @@ input::placeholder,
 textarea::placeholder {
   color: #73796e;
 }
-input,
+input:not([type="hidden"]):not([type="checkbox"]):not([type="file"]),
 select,
-textarea {
+textarea,
+.catera-input,
+.catera-textarea {
   border: 1px solid #cfd3c6;
   border-radius: 9px;
   padding: 11px 13px;
@@ -157,6 +159,61 @@ textarea {
   resize: vertical;
   min-height: 110px;
   width: 100%;
+}
+.checkbox-control {
+  position: relative;
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+}
+.checkbox-control .catera-checkbox {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  min-height: 20px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--field-border, #cfd3c6);
+  border-radius: 9px;
+  background: var(--surface);
+  cursor: pointer;
+  transition:
+    background 0.18s,
+    border-color 0.18s,
+    box-shadow 0.18s var(--ease);
+}
+.checkbox-control .catera-checkbox:checked {
+  border-color: var(--forest);
+  background: var(--forest);
+}
+.checkbox-control .catera-checkbox:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+.checkbox-control .catera-checkbox:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.checkbox-mark {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--cream);
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.8);
+  transition:
+    opacity 0.18s,
+    transform 0.18s var(--ease);
+}
+.checkbox-control .catera-checkbox:checked + .checkbox-mark {
+  opacity: 1;
+  transform: scale(1);
+}
+.checkbox-control:has(.catera-checkbox:disabled) {
+  opacity: 0.5;
 }
 input[type="checkbox"] {
   min-height: 20px;
@@ -568,6 +625,74 @@ td strong {
 .delivery-selector .select-trigger { min-width: 190px; font-size: 13px; font-weight: 750; margin-top: 4px; }
 .results-bar .select-trigger { width: auto; font-size: 12px; min-width: 150px; }
 .ops-date .select-trigger { width: auto; }
+.time-input {
+  display: inline-flex;
+  width: 100%;
+  min-width: 0;
+}
+.time-input-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--field-border, #cfd3c6);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--forest);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+  cursor: pointer;
+}
+.time-input-trigger > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.time-input-trigger:hover { border-color: var(--forest); }
+.time-input-trigger:focus-visible,
+.time-input-trigger[aria-expanded="true"] {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+.time-input-trigger:disabled { cursor: not-allowed; opacity: .5; }
+.time-input-popover {
+  position: fixed;
+  top: var(--time-input-top, 12px);
+  left: var(--time-input-left, 12px);
+  width: min(320px, calc(100vw - 24px));
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px;
+  background: var(--surface);
+  color: var(--forest);
+  box-shadow: 0 14px 38px rgb(22 61 46 / 16%);
+  font-family: inherit;
+}
+.time-input-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+.time-input-fields .select-trigger { font-variant-numeric: tabular-nums; }
+.time-input-colon {
+  color: var(--forest);
+  font-size: 20px;
+  font-weight: 750;
+}
+.time-input-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
 #packages, #how-it-works { scroll-margin-top: 112px; }
 @media (prefers-reduced-motion: no-preference) { html { scroll-behavior: smooth; } }
 .auth-methods { display: flex; gap: 6px; padding: 5px; margin: 24px 0; background: var(--soft); border-radius: 12px; }

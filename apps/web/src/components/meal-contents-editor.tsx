@@ -11,9 +11,11 @@ import {
   type Nutrition,
 } from "@catera/domain";
 import { useApp } from "./context";
+import { Button, TextInput } from "./form-controls";
 import { Field, ErrorNotice } from "./ui";
 import { Select, SelectOption } from "./select";
 import { DishFields, useDishLibrary } from "./dish-library";
+import { NumericInput } from "./numeric-input";
 
 export function MealContentsEditor({
   menu,
@@ -129,7 +131,7 @@ export function MealContentsEditor({
           {n + 1}
         </legend>
         <div className="dish-editor-actions">
-          <button
+          <Button
             type="button"
             className="text-button"
             disabled={
@@ -139,8 +141,8 @@ export function MealContentsEditor({
             onClick={() => move(i.id, -1)}
           >
             <ArrowUp size={18} />
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             className="text-button"
             disabled={
@@ -151,9 +153,9 @@ export function MealContentsEditor({
             onClick={() => move(i.id, 1)}
           >
             <ArrowDown size={18} />
-          </button>
+          </Button>
           {type === "ala_carte" && !fixedComposition && (
-            <button
+            <Button
               type="button"
               className="text-button"
               aria-label={t("Hapus hidangan ", "Remove dish ") + (n + 1)}
@@ -162,7 +164,7 @@ export function MealContentsEditor({
               }
             >
               <Trash2 size={18} />
-            </button>
+            </Button>
           )}
         </div>
         <DishFields
@@ -217,7 +219,7 @@ export function MealContentsEditor({
                   }
                   label={t("Komponen", "Component")}
                 >
-                  <input
+                  <TextInput
                     maxLength={60}
                     value={g.name}
                     disabled={fixedComposition}
@@ -237,20 +239,19 @@ export function MealContentsEditor({
                   }
                   label={t("Jumlah hidangan", "Dish slots")}
                 >
-                  <input
-                    type="number"
+                  <NumericInput
                     min={1}
                     max={30}
                     value={g.slots}
                     disabled={fixedComposition}
-                    onChange={(e) => setSlots(g.id, Number(e.target.value))}
+                    onValueChange={(slots) => setSlots(g.id, slots)}
                   />
                 </Field>
               </div>
               {items.filter((i) => i.groupId === g.id).map(dishEditor)}
               {!fixedComposition && (
                 <div className="component-actions">
-                  <button
+                  <Button
                     type="button"
                     className="text-button"
                     disabled={index === 0}
@@ -260,8 +261,8 @@ export function MealContentsEditor({
                     onClick={() => moveGroup(index, -1)}
                   >
                     <ArrowUp size={18} />
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
                     className="text-button"
                     disabled={index === groups.length - 1}
@@ -271,8 +272,8 @@ export function MealContentsEditor({
                     onClick={() => moveGroup(index, 1)}
                   >
                     <ArrowDown size={18} />
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
                     className="text-button"
                     onClick={() =>
@@ -287,7 +288,7 @@ export function MealContentsEditor({
                   >
                     <Trash2 size={18} />
                     {t("Hapus komponen", "Remove component")}
-                  </button>
+                  </Button>
                 </div>
               )}
             </section>
@@ -345,7 +346,7 @@ export function MealContentsEditor({
         <>
           {items.map(dishEditor)}
           {!fixedComposition && (
-            <button
+            <Button
               type="button"
               className="text-button"
               disabled={items.length >= 60}
@@ -353,7 +354,7 @@ export function MealContentsEditor({
             >
               <Plus size={18} />
               {t("Tambah hidangan", "Add dish")}
-            </button>
+            </Button>
           )}
         </>
       )}
@@ -390,11 +391,11 @@ export function MealContentsEditor({
               error={errors[fieldPrefix + ".nutrition." + key]}
               label={label}
             >
-              <input
-                type="number"
+              <NumericInput
                 min={0}
                 step="any"
                 value={menu.nutrition?.[key] ?? ""}
+                normalizeOnBlur={false}
                 onChange={(e) => {
                   const nutrition = { ...menu.nutrition };
                   if (e.target.value === "") delete nutrition[key];
