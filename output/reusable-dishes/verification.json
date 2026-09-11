@@ -1,0 +1,46 @@
+{
+  "at": "2026-09-10T13:38:17.136Z",
+  "scope": "Reusable dishes and reliable package editor",
+  "environment": "Explicit synthetic local demo; hosted pilot unchanged",
+  "checks": {
+    "typecheck": "passed",
+    "unitAndDatabase": {
+      "passed": 64
+    },
+    "productionWebBuild": "passed; isolated .next-dishes-build",
+    "browser": {
+      "passed": 6,
+      "config": "playwright.dishes.config.ts",
+      "viewportWidths": [
+        390,
+        768,
+        1440
+      ],
+      "seriousOrCriticalAxeViolations": 0,
+      "consoleErrorsInDishJourney": 0
+    },
+    "iosComponents": {
+      "passed": 26
+    },
+    "androidComponents": {
+      "passed": 26
+    },
+    "postgres": [
+      "Five simultaneous purchases: exactly three committed at capacity three; complete schedules reserved.",
+      "Five simultaneous payment confirmations: one subscription and one allocation.",
+      "A full replacement date rejects rescheduling without changing the original booking.",
+      "Two eligible customers race for one replacement slot: exactly one succeeds; the other retains the original confirmed reservation.",
+      "Realtime signals enforce customer-specific SELECT access and reject direct authenticated writes.",
+      "Concurrent content edits and checkout preserve a complete purchased revision and whole-portion reservations; simultaneous dated-menu saves accept exactly one version.",
+      "Concurrent library edits reject stale versions; archive leaves purchased contents untouched."
+    ],
+    "migrationGenerator": "passed",
+    "diffWhitespace": "passed"
+  },
+  "notPerformed": [
+    "Physical iOS/Android device checks",
+    "Hosted migration and storage verification"
+  ],
+  "migration": "20260910130548_reusable_dishes.sql",
+  "localPreview": "http://127.0.0.1:3102"
+}

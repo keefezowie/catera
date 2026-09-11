@@ -23,6 +23,8 @@ type SelectProps = {
   displayValue?: ReactNode;
   "aria-label"?: string;
   "aria-labelledby"?: string;
+  "aria-invalid"?: boolean;
+  "aria-describedby"?: string;
 };
 
 /** Shared, keyboard-accessible select with a viewport-aware, portaled menu. */
@@ -36,6 +38,8 @@ export function Select({
   id,
   "aria-label": label,
   "aria-labelledby": labelledBy,
+  "aria-invalid": invalid,
+  "aria-describedby": describedBy,
   ...props
 }: SelectProps) {
   const options = Children.toArray(children).filter(
@@ -62,6 +66,8 @@ export function Select({
         id={id}
         aria-label={label}
         aria-labelledby={labelledBy}
+        aria-invalid={invalid}
+        aria-describedby={describedBy}
         className={`select-trigger ${className}`}
       >
         <SelectPrimitive.Value placeholder={placeholder}>
@@ -81,7 +87,11 @@ export function Select({
           <SelectPrimitive.ScrollUpButton className="select-scroll">
             <ChevronUp size={16} />
           </SelectPrimitive.ScrollUpButton>
-          <SelectPrimitive.Viewport className="select-options" role="group" tabIndex={0}>
+          <SelectPrimitive.Viewport
+            className="select-options"
+            role="group"
+            tabIndex={0}
+          >
             {children}
           </SelectPrimitive.Viewport>
           <SelectPrimitive.ScrollDownButton className="select-scroll">

@@ -226,6 +226,8 @@ it("direct RPC rejects invalid published offer data and preserves the old offer"
 it("dated menu edits appear in deliveries without changing the purchase snapshot", async () => {
   const c = await read<CustomerState>("customer");
   const d = c.deliveries.find((d) => d.offer.id === P[0])!;
+  const currentMenu = d.offer.menus.find((m) => m.meal === "lunch")!;
+  const replacementDish = currentMenu.items![0].name + " pengganti";
   await command(
     "menu.save",
     {
@@ -233,20 +235,25 @@ it("dated menu edits appear in deliveries without changing the purchase snapshot
       packageId: P[0],
       date: d.service_date,
       meal: "lunch",
+      contentRevision: d.offer.contentRevision ?? 0,
+      version: 0,
       details: {
-        name: "Menu pengganti terkonfirmasi",
-        description: "Data sintetis",
-        image: d.offer.image,
+        ...currentMenu,
+        items: currentMenu.items!.map((item, index) =>
+          index === 0 ? { ...item, name: replacementDish } : item,
+        ),
       },
     },
     U.owner,
   );
   const fresh = await read<CustomerState>("customer");
-  expect(fresh.deliveries.find((x) => x.id === d.id)?.offer.menus[0].name).toBe(
-    "Menu pengganti terkonfirmasi",
-  );
+  expect(
+    fresh.deliveries
+      .find((x) => x.id === d.id)
+      ?.offer.menus.find((m) => m.meal === "lunch")?.items?.[0].name,
+  ).toBe(replacementDish);
   expect(
     fresh.subscriptions.find((s) => s.id === d.subscription_id)?.snapshot.offer
-      .menus[0].name,
-  ).toBe("Ayam Panggang Harian");
+      .menus.find((m) => m.meal === "lunch")?.items?.[0].name,
+  ).toBe("Nasi putih");
 });

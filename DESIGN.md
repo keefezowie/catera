@@ -5,6 +5,7 @@ colors:
   forest: "#163D2E"
   forest-hover: "#25553F"
   sunrise: "#F47B2A"
+  sunrise-ink: "#9B4309"
   cream: "#FFF7E9"
   charcoal: "#2E2E2E"
   surface: "#FFFEFA"
@@ -140,6 +141,16 @@ components:
 
 # Design System: Catera V1
 
+## Package discovery and dish photography — September 10, 2026
+
+Discovery cards group the package cover, seller/package identity, delivery commitment and meal preview, then price/delivery/actions. Seller identity is readable and semibold; duration has a distinct anchor. Component counts replace exhaustive ingredients on cards. À la carte uses the explicit dish count; legacy menus remain unsplit. The labeled comparison action lives beside “Lihat paket”; “Lihat isi paket” links to the selected meal in details.
+
+Combined offers always identify both meals. Siang/Malam controls preview one meal's contents and nutrition without changing the offering. Optional nutrition uses four icon/label/value positions with explicit units, unavailable marks for missing values, genuine zeroes, and a per-meal caterer-estimate caption. Source labels distinguish example and dated menus.
+
+Package details use a two-column included-dish gallery, collapsing on narrow screens or enlarged text. Photos retain dish names, serving amounts, descriptions and component labels; missing/failed photos leave text entries. A single dish matching the cover has a photo-viewing link instead of a duplicate large image. Enlarged photos use contain sizing and accessible close/focus behavior. Checkout and purchased-menu renderers retain their existing presentation. The palette, Jakarta typography and supplied artwork are unchanged.
+
+Responsive browser evidence and verification notes are recorded in `output/package-presentation/` and `docs/PACKAGE-CONTENTS.md`. This is local verification, not a hosted release or physical-device certification.
+
 ## Overview
 
 **Creative North Star: "Delivery cycle"**
@@ -170,7 +181,7 @@ The identity combines botanical forest, sunrise warmth, cream paper, and charcoa
 
 ### Secondary
 
-- **Sunrise** supplies small brand accents and the desktop navigation marker. It is not the default action fill.
+- **Sunrise** supplies small brand accents and the desktop navigation marker. Its darker ink companion keeps small accent text accessible on quiet surfaces. Sunrise is not the default action fill.
 - **Cream** supplies warm identity fields and text on forest actions. It is distinct from the paler content surface and canvas.
 
 ### Neutral
@@ -203,13 +214,13 @@ The marketplace’s display headline is a surface-specific expression: `clamp(38
 
 Native’s actual reusable source ramp is different from the web and from the exported suggested typography values:
 
-| Native role | Size / line-height | Weight | Tracking |
-| --- | --- | --- | --- |
-| Title | 30 / 39 | 700 | −0.8 |
-| Heading | 21 / 28 | 700 | −0.4 |
-| Body | 14 / 23 | default | normal |
-| Small | 11 / 18 | default | normal |
-| Label | 12 / 23 | 700 | normal |
+| Native role | Size / line-height | Weight  | Tracking |
+| ----------- | ------------------ | ------- | -------- |
+| Title       | 30 / 39            | 700     | −0.8     |
+| Heading     | 21 / 28            | 700     | −0.4     |
+| Body        | 14 / 23            | default | normal   |
+| Small       | 11 / 18            | default | normal   |
+| Label       | 12 / 23            | 700     | normal   |
 
 These are React Native style values, not measured device pixels. Shared exports currently suggest body 16, small 14, title 24, and heading 32, but the native styles do not consume that scale. Do not claim rendered parity or silently replace the built ramp with those exports.
 
@@ -266,6 +277,10 @@ Quiet near-white fields have a light stroke, rounded corners, and a 44px web min
 
 Native inputs have a 48 minimum height, 13 padding, a `#C9D2BE` border, and `#FFFEF9` fill. Forms keep error messages near the action; button loading states use a spinner and explicit saving text.
 
+### Date picker
+
+Web date fields use the shared `DatePicker` component instead of the browser-native date control. Its anchored popover uses a Monday-first month grid, Indonesian-first month and weekday labels, explicit previous/next-month controls, a “Hari ini” shortcut, min/max date constraints, and complete arrow-key, Home/End, and Page Up/Page Down navigation. The compact variant belongs in operational toolbars; the standard variant fills a form field and submits an ISO `YYYY-MM-DD` value through its `name` prop. Keep date selection in this component so browsers do not introduce a second visual language.
+
 ### Chips / Status
 
 Meal filters are outlined 44px-minimum controls, filled forest with cream text when selected. Native chips have a 48 minimum height. Queue filters visibly name “Semua katerer” and “Menunggu tinjauan”; the pending-empty view states the absence of work and directs the user to all caterers.
@@ -287,6 +302,18 @@ Customer desktop navigation is compact, with a sunrise dot at the selected link.
 ### Meal agenda
 
 The next-meal panel pairs a generous photograph with caterer, portions, date, time, address, and action. The adjacent sage agenda splits lunch and dinner into open rows with a meal icon, explicit details, and status. On phone it follows the next meal and precedes subscriptions. The sidecar’s agenda preview represents this existing pattern without introducing a new page layout.
+
+### Customer meal calendar
+
+The web customer schedule uses a continuous meal-coverage strip within a centered 1040px maximum-width column. A compact month control, “Hari ini”, and the next-delivery shortcut lead into the strip; the selected-week summary, “Per hari” / “Mendatang” control, and meal details align below it. Desktop date cells are fixed at 112px wide by 120px minimum height with 12px corners and 44px paging arrows outside the strip. At 650px and below, cells become 92px wide by 116px minimum height, the arrows disappear, shortcuts take a second row, and the summary and details lose their desktop 52px side inset. Horizontal overflow exposes the next partially visible date on phone. These are local calendar rules; Expo adoption is deferred.
+
+Today uses Jakarta's calendar date with a Sunrise dot and accessible dark-orange “Hari ini” label; selection uses a two-pixel forest ring without replacing coverage. Empty days remain transparent, while any covered day uses the quiet scheduled background. Covered cards use Sunrise sun and forest moon icons as their sole visual coverage cue, with both icons shown when both meals are covered; the former footer rail is removed. The package count sits alongside the icons, while the complete button description still names lunch and dinner for assistive technology. “Belum ada makan”, loading, and error remain visible text states and never claim coverage or a package count. Coverage counts each meal once per day, regardless of portions or multiple caterers; delivered meals count and cancelled meals do not. The summary names the Monday–Sunday week containing the selected date and counts covered lunch and dinner days separately.
+
+Scrolling, paging, and extending the bounded 151-day strip preserve selection; extending its window preserves the first visible date and pixel offset. Clicking a visible date updates its details without repositioning the strip. The month label follows the visible range. Only explicit today, next-delivery, or picker jumps move the strip and selection together. Keyboard focus remains visibly outlined, and navigating focus does not select a date until activation.
+
+The calendar's month control opens its own centered, lightly dimmed popover: a Monday-first six-week grid, previous/next month and year buttons, and an ISO `YYYY-MM-DD` text field with a “Lihat” submit action. The field is a text input; submission is enabled only for a valid supported date. The grid has one roving Tab stop: arrows move one day or week, Home/End move to the week's boundaries, Page Up/Down change month, and Shift with Page Up/Down changes year. Tab then reaches direct date entry; closing or selecting restores focus to the month control. Picker days have a 44px minimum height; at 380px and below the grid removes gaps and uses the available panel width. This dedicated coverage-calendar picker is separate from the shared form-field DatePicker described above.
+
+Monthly loading and failures remain visible as ellipses or error marks with accessible state text; unknown data never appears as an uncovered meal. Incomplete week data produces a loading or unavailable summary, and failed required months expose “Coba lagi”. The day view retains cancelled entries and groups food-thumbnail delivery links under lunch and dinner headings, showing caterer, package, portions, address label, and status. “Mendatang” lists dates chronologically from today, then lunch and dinner, omits delivered/cancelled fulfillments, and offers another month until the final upcoming delivery. Its empty state appears only when the requested months are loaded. The surface reuses existing food images and identity; it introduces no new artwork. The behavior contract and release evidence live in [the meal-calendar record](docs/MEAL-CALENDAR.md).
 
 ### Brand artwork and image truth
 

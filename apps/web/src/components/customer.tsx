@@ -1,5 +1,8 @@
 "use client";
+import { MealCalendar } from "./meal-calendar";
 import { Select, SelectOption } from "./select";
+import { DatePicker } from "./date-picker";
+import { PackageContents } from "./package-contents";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
@@ -56,10 +59,12 @@ const dateLabel = (d: string, locale: Locale = "id") =>
     locale === "id" ? "id-ID" : "en-GB",
     { weekday: "long", day: "numeric", month: "long" },
   );
-export function Customer({ view, id }: { view: string; id?: string }) {
+export function Customer(props: { view: string; id?: string }) {
+  return props.view === "calendar" ? <MealCalendar /> : <CustomerOverview {...props} />;
+}
+function CustomerOverview({ view, id }: { view: string; id?: string }) {
   const { actor, t, locale } = useApp();
-  const [date, setDate] = useState(localDay()),
-    [all, setAll] = useState(false);
+  const [date] = useState(localDay());
   const state = useResource<CustomerState>("customer:" + date, () =>
     api.customer("?from=" + addDays(date, -7) + "&to=" + addDays(date, 60)),
   );
@@ -100,8 +105,6 @@ export function Customer({ view, id }: { view: string; id?: string }) {
         )}
       </div>
     );
-  const days = Array.from({ length: 7 }, (_, i) => addDays(date, i));
-  const rows = c.deliveries.filter((d) => all || d.service_date === date);
   return (
     <div
       className={"content " + (view === "home" ? "home-page" : "calendar-page")}
@@ -257,97 +260,7 @@ export function Customer({ view, id }: { view: string; id?: string }) {
               ))}
           </div>
         </>
-      ) : (
-        <>
-          <div className="calendar-toolbar">
-            <div>
-              <button
-                className="icon-button"
-                onClick={() => setDate(addDays(date, -7))}
-                aria-label="Minggu sebelumnya"
-              >
-                <ChevronLeft />
-              </button>
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                aria-label="Tanggal jadwal"
-              />
-              <button
-                className="icon-button"
-                onClick={() => setDate(addDays(date, 7))}
-                aria-label="Minggu berikutnya"
-              >
-                <ChevronRight />
-              </button>
-            </div>
-            <button
-              className="button secondary small"
-              onClick={() => setAll(!all)}
-            >
-              {all
-                ? t("Lihat per hari", "Day view")
-                : t("Semua mendatang", "Upcoming agenda")}
-            </button>
-          </div>
-          <div className="week-strip">
-            {days.map((d) => (
-              <button
-                key={d}
-                onClick={() => {
-                  setDate(d);
-                  setAll(false);
-                }}
-                className={date === d ? "selected" : ""}
-              >
-                <small>
-                  {new Date(d + "T12:00:00").toLocaleDateString(
-                    locale === "id" ? "id-ID" : "en-GB",
-                    { weekday: "short" },
-                  )}
-                </small>
-                <strong>{d.slice(8)}</strong>
-                <span>
-                  {c.deliveries.filter(
-                    (x) => x.service_date === d && x.status !== "cancelled",
-                  ).length > 0
-                    ? "•"
-                    : ""}
-                </span>
-              </button>
-            ))}
-          </div>
-          <div className="day-agenda">
-            <h2>
-              {all
-                ? t("Makanan mendatang", "Upcoming meals")
-                : dateLabel(date, locale)}
-            </h2>
-            {["lunch", "dinner"].map((meal) => (
-              <section key={meal}>
-                <h3 className="meal-divider">
-                  {meal === "lunch" ? <Sun size={21} /> : <Moon size={21} />}{" "}
-                  {mealLabel(meal, locale)}
-                </h3>
-                {rows
-                  .filter((d) => d.meals.some((m) => m.meal === meal))
-                  .map((d) => (
-                    <DeliveryRow key={d.id} delivery={d} />
-                  ))}
-                {!rows.some((d) => d.meals.some((m) => m.meal === meal)) && (
-                  <p className="quiet-empty">
-                    {t(
-                      "Belum ada makanan di jadwal ini.",
-                      "No meals scheduled here yet.",
-                    )}
-                  </p>
-                )}
-              </section>
-            ))}
-          </div>
-        </>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -458,6 +371,7 @@ function SubscriptionDetail({
   return (
     <>
       <SubscriptionCard subscription={s} />
+      <PackageContents offer={s.snapshot.offer} />
       <Facts
         rows={[
           [
@@ -607,6 +521,7 @@ export function DeliveryPage({ id }: { id: string }) {
           ),
         )}
       </div>
+      <PackageContents offer={d.offer} />
       <Facts
         rows={[
           ...d.meals.map(
@@ -764,13 +679,12 @@ export function DeliveryPage({ id }: { id: string }) {
             }}
           >
             <Field label="Tanggal pengganti">
-              <input
+              <DatePicker
                 required
-                type="date"
                 min={localDay()}
                 value={replacement}
-                onChange={(e) => {
-                  setReplacement(e.target.value);
+                onValueChange={(value) => {
+                  setReplacement(value);
                   setReview(false);
                 }}
               />

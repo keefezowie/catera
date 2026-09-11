@@ -1,5 +1,7 @@
 "use client";
 import { Select, SelectOption } from "./select";
+import { DatePicker } from "./date-picker";
+import { PackageContents } from "./package-contents";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -422,12 +424,11 @@ export function CheckoutPage({ id }: { id: string }) {
                 </div>
               </div>
               <Field label={t("Mulai tanggal", "Start date")}>
-                <input
-                  type="date"
+                <DatePicker
                   required
                   min={localDay()}
                   value={date}
-                  onChange={(e) => setDate(e.target.value)}
+                  onValueChange={setDate}
                 />
               </Field>
               <Field label={t("Alamat pengantaran", "Delivery address")}>
@@ -549,6 +550,7 @@ export function CheckoutPage({ id }: { id: string }) {
           <div>
             <small>{p.caterer}</small>
             <h2>{p.name}</h2>
+            <PackageContents offer={quote?.offer || p} />
             <p>
               {trial ? "Trial 1 hari" : p.days + " " + t("hari", "days")} ·{" "}
               {mealLabel(p.meal, locale)} · {portions} {t("porsi", "portions")}

@@ -1,4 +1,5 @@
 "use client";
+import { menuSummary } from "@catera/domain";
 import { Select, SelectOption } from "./select";
 import { useState } from "react";
 import {
@@ -143,7 +144,7 @@ export function Admin({ view }: { view: string }) {
                       <strong>{o.name}</strong>
                       <small>
                         {currency(o.price)} / porsi / hari · {o.days} hari ·{" "}
-                        {o.menus.map((m) => m.name).join(", ")}
+                        {o.menus.map(menuSummary).join(", ")}
                       </small>
                     </span>
                     <Status status={o.status} />

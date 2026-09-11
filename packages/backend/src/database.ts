@@ -1,8 +1,14 @@
 import { PGlite } from "@electric-sql/pglite";
-import { readFile, mkdir } from "node:fs/promises";
+import { readFile, mkdir, readdir } from "node:fs/promises";
 import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
-import { localBootstrap, seedSQL } from "./seed";
+import {
+  localBootstrap,
+  refreshDemoCatalogSQL,
+  retireDemoFixturePackagesSQL,
+  seedSQL,
+} from "./seed";
+import { contentsFixturesSQL } from "./contents-fixtures";
 const globalDb = globalThis as unknown as { cateraV1?: Promise<PGlite> };
 export const demoEnabled = () =>
   process.env.CATERA_V1_DEMO === "true" && !process.env.VERCEL;
@@ -15,7 +21,8 @@ export function projectRoot() {
   );
 }
 export async function createDemoDatabase(inMemory = false) {
-  const folder = path.join(projectRoot(), ".data", "v1");
+  const folder =
+    process.env.CATERA_DEMO_DATA_DIR || path.join(projectRoot(), ".data", "v1");
   if (!inMemory) await mkdir(folder, { recursive: true });
   const db = new PGlite(inMemory ? undefined : folder);
   await db.waitReady;
@@ -44,7 +51,13 @@ export async function createDemoDatabase(inMemory = false) {
       ),
     );
     await db.exec(seedSQL());
-  } else {
+  } else if (
+    !(
+      await db.query<{ exists: boolean }>(
+        "select to_regclass('v1.content_revisions') is not null as exists",
+      )
+    ).rows[0].exists
+  ) {
     await db.exec(
       await readFile(
         path.join(
@@ -68,6 +81,57 @@ export async function createDemoDatabase(inMemory = false) {
         "utf8",
       ),
     );
+  if (
+    !(
+      await db.query<{ exists: boolean }>(
+        "select to_regclass('v1.content_revisions') is not null as exists",
+      )
+    ).rows[0].exists
+  ) {
+    const file = (
+      await readdir(path.join(projectRoot(), "supabase/migrations"))
+    ).find((f) => f.endsWith("_package_contents.sql"));
+    if (!file) throw new Error("CONTENTS_MIGRATION_MISSING");
+    await db.exec(
+      "begin;" +
+        (await readFile(
+          path.join(projectRoot(), "supabase/migrations", file),
+          "utf8",
+        )) +
+        "\ncommit;",
+    );
+  }
+  if (
+    !(
+      await db.query<{ exists: boolean }>(
+        "select to_regclass('v1.dishes') is not null as exists",
+      )
+    ).rows[0].exists
+  ) {
+    const file = (
+      await readdir(path.join(projectRoot(), "supabase/migrations"))
+    ).find((f) => f.endsWith("_reusable_dishes.sql"));
+    if (!file) throw new Error("DISHES_MIGRATION_MISSING");
+    await db.exec(
+      "begin;" +
+        (await readFile(
+          path.join(projectRoot(), "supabase/migrations", file),
+          "utf8",
+        )) +
+        "\ncommit;",
+    );
+  }
+  if (!inMemory) {
+    if (process.env.CATERA_V1_FIXTURES === "true")
+      await db.exec(contentsFixturesSQL());
+    else await db.exec(retireDemoFixturePackagesSQL());
+    await db.exec(refreshDemoCatalogSQL());
+  }
+  if (!(await db.query<{ installed: boolean }>(
+    "select position('calendarMeta' in pg_get_functiondef('public.catera_v1_read(text,jsonb)'::regprocedure)) > 0 as installed",
+  )).rows[0].installed) {
+    await db.exec(await readFile(path.join(projectRoot(), "supabase/migrations/20260910160000_calendar_metadata.sql"), "utf8"));
+  }
   return db;
 }
 export async function getDemoDatabase() {

@@ -1,0 +1,60 @@
+{
+  "date": "2026-09-10",
+  "scope": "Local responsive web and Expo package cards and dish-photo browsing",
+  "checks": {
+    "typecheck": "passed",
+    "vitest": {
+      "status": "passed",
+      "tests": 75
+    },
+    "webBuild": "passed",
+    "native": {
+      "iosTests": 31,
+      "androidTests": 31,
+      "iosExport": "passed",
+      "androidExport": "passed"
+    },
+    "postgresConcurrency": {
+      "status": "passed",
+      "scenarios": 7
+    },
+    "browser": {
+      "status": "passed",
+      "distinctScenarios": 12,
+      "coverage": [
+        "contents and reusable dishes (6)",
+        "package gallery and preview (3)",
+        "guest comparison and login (1)",
+        "purchase, reschedule, support and renewal (1)",
+        "long names, serving descriptions and 12 components at 320px and 200% text (1)"
+      ],
+      "browser": "Installed Chrome",
+      "baseURL": "http://127.0.0.1:3120",
+      "isolatedData": ".data/package-presentation-e2e",
+      "viewerAxeSeriousCritical": 0
+    },
+    "visual": {
+      "rounds": 2,
+      "widths": [
+        1440,
+        390,
+        320
+      ],
+      "status": "confirmed",
+      "correction": "Limit desktop dish gallery to two columns; use scalable typography"
+    }
+  },
+  "screenshots": [
+    "card-1440.png",
+    "card-390.png",
+    "card-320.png",
+    "dishes-1440.png",
+    "dishes-390.png",
+    "dishes-320.png"
+  ],
+  "limitations": [
+    "Native physical-device visuals and real assistive-technology behavior not verified",
+    "No deployment, migration or signed APK",
+    "Test photo fixtures reuse explicitly synthetic meal photos; no individual dish assets generated"
+  ]
+}

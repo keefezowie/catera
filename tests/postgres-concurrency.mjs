@@ -1,12 +1,14 @@
 import pg from "pg";
 import assert from "node:assert/strict";
-import { readFile, mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { readFile, readdir, mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { createServer } from "node:net";
 // tsx supplies the workspace's TypeScript package exports to Node.
 import {
   localBootstrap,
   seedSQL,
   PACKAGE_IDS,
+  DEMO_ACTORS, CATERER_IDS,
 } from "../packages/backend/src/seed.ts";
 import { addDays, localDay } from "@catera/domain";
 let embedded, pool;
@@ -39,21 +41,25 @@ try {
     const { default: EmbeddedPostgres } = await import("embedded-postgres");
     await mkdir(".data/tests", { recursive: true });
     const dir = await mkdtemp(path.resolve(".data/tests/postgres-v1-"));
+    const port = await new Promise((resolve, reject) => {
+      const socket = createServer(); socket.once('error', reject);
+      socket.listen(0, '127.0.0.1', () => { const port = socket.address().port; socket.close(error => error ? reject(error) : resolve(port)); });
+    });
     embedded = new EmbeddedPostgres({
       databaseDir: dir,
       user: "postgres",
       password: "local-synthetic-test",
-      port: 55439,
+      port,
+      initdbFlags: ['--encoding=UTF8'],
       persistent: true,
       postgresFlags: ["-h", "127.0.0.1"],
-      onLog: () => {},
-      onError: () => {},
+      onLog: (message) => { if (process.env.CATERA_POSTGRES_DEBUG) console.log(message); },
+      onError: (message) => console.error(message),
     });
     await embedded.initialise();
     await embedded.start();
     await embedded.createDatabase("catera_test");
-    url =
-      "postgresql://postgres:local-synthetic-test@127.0.0.1:55439/catera_test";
+    url = `postgresql://postgres:local-synthetic-test@127.0.0.1:${port}/catera_test`;
   }
   if (new URL(url).pathname !== "/catera_test")
     throw Error("Use an empty disposable database named catera_test");
@@ -76,6 +82,9 @@ try {
   ])
     await pool.query(await readFile("supabase/migrations/" + file, "utf8"));
   await pool.query(seedSQL());
+  await pool.query(await readFile("supabase/migrations/20260910120930_package_contents.sql", "utf8"));
+  for (const f of (await readdir("supabase/migrations")).filter(f => f.endsWith("_reusable_dishes.sql"))) await pool.query(await readFile("supabase/migrations/" + f, "utf8"));
+  await pool.query(await readFile("supabase/migrations/20260910160000_calendar_metadata.sql", "utf8"));
   const users = Array.from({ length: 5 }, () => crypto.randomUUID());
   const addresses = [];
   for (const user of users) {
@@ -209,9 +218,41 @@ try {
     await scoped.query("rollback");
   } finally { scoped.release(); }
   evidence.push("Realtime signals enforce customer-specific SELECT access and reject direct authenticated writes.");
+  const contentsOffer = { ...(await pool.query("select offer from v1.packages where id=$1", [PACKAGE_IDS[0]])).rows[0].offer,
+    status: 'published', packageType: 'ala_carte', menus: [{meal:'lunch',name:'Ayam, tempe',description:'Synthetic concurrency fixture',image:'',composition:[],items:[{id:'a',name:'Ayam'},{id:'b',name:'Tempe'}],nutrition:{proteinG:40}}] };
+  const created = await cmd('package.save', {catererId:CATERER_IDS[0],slug:'concurrent-contents',offer:contentsOffer}, DEMO_ACTORS.owner);
+  const editOffer = {...contentsOffer, menus:[{...contentsOffer.menus[0],nutrition:{proteinG:45}}]};
+  const racing = await Promise.allSettled([
+    cmd('package.save',{catererId:CATERER_IDS[0],id:created.id,version:1,offer:editOffer},DEMO_ACTORS.owner),
+    cmd('package.save',{catererId:CATERER_IDS[0],id:created.id,version:1,offer:editOffer},DEMO_ACTORS.owner),
+    cmd('checkout.create',{packageId:created.id,addressId:addresses[0],portions:2,startDate:addDays(localDay(),70),trial:false},users[0]),
+  ]);
+  assert.equal(racing.slice(0,2).filter(r=>r.status==='fulfilled').length,1);
+  assert.equal(racing[2].status,'fulfilled');
+  const purchased=racing[2].value, revision=purchased.quote.offer.contentRevision;
+  const stored=(await pool.query('select contents from v1.content_revisions where package_id=$1 and revision=$2',[created.id,revision])).rows[0].contents;
+  assert.deepEqual(purchased.quote.offer.menus,stored.menus);
+  assert((await pool.query('select portions from v1.reservations where checkout_id=$1',[purchased.id])).rows.every(r=>r.portions===2));
+  await cmd('checkout.demo_pay',{id:purchased.id},users[0]);
+  const menuPayload={catererId:CATERER_IDS[0],packageId:created.id,contentRevision:revision,version:0,date:purchased.quote.dates[0],meal:'lunch',details:{...stored.menus[0],nutrition:null}};
+  const menus=await Promise.allSettled([cmd('menu.save',menuPayload,DEMO_ACTORS.owner),cmd('menu.save',menuPayload,DEMO_ACTORS.owner)]);
+  assert.equal(menus.filter(r=>r.status==='fulfilled').length,1);
+  assert.match(menus.find(r=>r.status==='rejected').reason.message,/CONFLICT/);
+  evidence.push('Concurrent content edits and checkout preserve a complete purchased revision and whole-portion reservations; simultaneous dated-menu saves accept exactly one version.');
+  const dish = await cmd('dish.save', {catererId:CATERER_IDS[0],details:{name:'Concurrent synthetic dish',description:'',serving:'150 g',image:''}},DEMO_ACTORS.owner);
+  const dishEdits=await Promise.allSettled([1,2].map(n=>cmd('dish.save',{catererId:CATERER_IDS[0],id:dish.id,version:dish.version,details:{name:'Dish '+n,description:'',serving:'200 g',image:''}},DEMO_ACTORS.owner)));
+  assert.equal(dishEdits.filter(r=>r.status==='fulfilled').length,1);
+  assert.match(dishEdits.find(r=>r.status==='rejected').reason.message,/CONFLICT/);
+  const frozenBefore=(await pool.query('select quote::text from v1.checkouts where id=$1',[purchased.id])).rows[0].quote;
+  const version=dishEdits.find(r=>r.status==='fulfilled').value.version;
+  await cmd('dish.archive',{catererId:CATERER_IDS[0],id:dish.id,version,archived:true},DEMO_ACTORS.owner);
+  assert.equal((await pool.query('select quote::text from v1.checkouts where id=$1',[purchased.id])).rows[0].quote,frozenBefore);
+  evidence.push('Concurrent library edits reject stale versions; archive leaves purchased contents untouched.');
   await mkdir("output/verification", { recursive: true });
+  const evidencePath = process.env.CATERA_POSTGRES_EVIDENCE || "output/verification/postgres.json";
+  await mkdir(path.dirname(evidencePath), { recursive: true });
   await writeFile(
-    "output/verification/postgres.json",
+    evidencePath,
     JSON.stringify({ at: new Date().toISOString(), passed: evidence }, null, 2),
   );
   console.log(evidence.join("\n"));

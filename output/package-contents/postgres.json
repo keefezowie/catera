@@ -1,0 +1,11 @@
+{
+  "at": "2026-09-10T12:28:21.767Z",
+  "passed": [
+    "Five simultaneous purchases: exactly three committed at capacity three; complete schedules reserved.",
+    "Five simultaneous payment confirmations: one subscription and one allocation.",
+    "A full replacement date rejects rescheduling without changing the original booking.",
+    "Two eligible customers race for one replacement slot: exactly one succeeds; the other retains the original confirmed reservation.",
+    "Realtime signals enforce customer-specific SELECT access and reject direct authenticated writes.",
+    "Concurrent content edits and checkout preserve a complete purchased revision and whole-portion reservations; simultaneous dated-menu saves accept exactly one version."
+  ]
+}

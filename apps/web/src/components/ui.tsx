@@ -2,7 +2,15 @@
 import Link from "next/link";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X, ArrowRight, LoaderCircle, Check, AlertCircle } from "lucide-react";
-import { useState, type ReactNode, type FormEvent } from "react";
+import {
+  useState,
+  useId,
+  cloneElement,
+  isValidElement,
+  type ReactElement,
+  type ReactNode,
+  type FormEvent,
+} from "react";
 import { errors, statusLabel } from "@catera/domain";
 import { useApp } from "./context";
 import { MascotLoading } from "./mascot-loading";
@@ -72,7 +80,15 @@ export function Empty({
 }
 export function Loading() {
   const { locale } = useApp();
-  return <MascotLoading label={locale === "en" ? "Getting Catera ready for you…" : "Menyiapkan Catera untuk Anda…"} />;
+  return (
+    <MascotLoading
+      label={
+        locale === "en"
+          ? "Getting Catera ready for you…"
+          : "Menyiapkan Catera untuk Anda…"
+      }
+    />
+  );
 }
 export function ErrorNotice({
   message,
@@ -101,25 +117,34 @@ export function Dialog({
   title,
   description,
   children,
+  className = "",
+  closeLabel = "Tutup",
+  onCloseAutoFocus,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   title: string;
   description?: string;
   children: ReactNode;
+  className?: string;
+  closeLabel?: string;
+  onCloseAutoFocus?: (event: Event) => void;
 }) {
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className="dialog-overlay" />
-        <DialogPrimitive.Content className="dialog">
+        <DialogPrimitive.Content
+          className={"dialog " + className}
+          onCloseAutoFocus={onCloseAutoFocus}
+        >
           <DialogPrimitive.Title>{title}</DialogPrimitive.Title>
           <DialogPrimitive.Description>
             {description || "Periksa detail sebelum menyimpan perubahan."}
           </DialogPrimitive.Description>
           <DialogPrimitive.Close
             className="icon-button close"
-            aria-label="Tutup"
+            aria-label={closeLabel}
           >
             <X size={20} />
           </DialogPrimitive.Close>
@@ -135,12 +160,14 @@ export function ActionForm({
   submit = "Simpan",
   className = "",
   disabled = false,
+  noValidate = false,
 }: {
   onSubmit: (f: FormData) => Promise<void>;
   children: ReactNode;
   submit?: string;
   className?: string;
   disabled?: boolean;
+  noValidate?: boolean;
 }) {
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
@@ -156,17 +183,29 @@ export function ActionForm({
     } catch (e) {
       const code =
         (e as { code?: string; message?: string }).code || (e as Error).message;
-      setError(code === "INVALID_CREDENTIALS"
-        ? t("Email atau kata sandi tidak cocok. Silakan coba lagi.", "Email or password is incorrect. Please try again.")
-        : code === "AUTH_RATE_LIMITED"
-          ? t("Terlalu banyak percobaan masuk. Tunggu sebentar lalu coba lagi.", "Too many sign-in attempts. Please wait and try again.")
-          : errors[code] || code || "Belum berhasil. Silakan coba lagi.");
+      setError(
+        code === "INVALID_CREDENTIALS"
+          ? t(
+              "Email atau kata sandi tidak cocok. Silakan coba lagi.",
+              "Email or password is incorrect. Please try again.",
+            )
+          : code === "AUTH_RATE_LIMITED"
+            ? t(
+                "Terlalu banyak percobaan masuk. Tunggu sebentar lalu coba lagi.",
+                "Too many sign-in attempts. Please wait and try again.",
+              )
+            : errors[code] || code || "Belum berhasil. Silakan coba lagi.",
+      );
     } finally {
       setBusy(false);
     }
   }
   return (
-    <form onSubmit={handle} className={"form " + className}>
+    <form
+      onSubmit={handle}
+      noValidate={noValidate}
+      className={"form " + className}
+    >
       {children}
       {error && <ErrorNotice message={error} />}
       <button type="submit" className="button" disabled={busy || disabled}>
@@ -183,14 +222,39 @@ export function ActionForm({
 export function Field({
   label,
   children,
+  error,
+  fieldKey,
 }: {
   label: string;
   children: ReactNode;
+  error?: string;
+  fieldKey?: string;
 }) {
+  const errorId = useId();
+  const control = isValidElement(children)
+    ? cloneElement(
+        children as ReactElement<{
+          "aria-invalid"?: boolean;
+          "aria-describedby"?: string;
+          "aria-labelledby"?: string;
+        }>,
+        {
+          "aria-labelledby": errorId + "-label",
+          ...(error
+            ? { "aria-invalid": true, "aria-describedby": errorId }
+            : {}),
+        },
+      )
+    : children;
   return (
-    <label className="field">
-      <span>{label}</span>
-      {children}
+    <label className="field" data-editor-field={fieldKey}>
+      <span id={errorId + "-label"}>{label}</span>
+      {control}
+      {error && (
+        <small id={errorId} className="field-error">
+          {error}
+        </small>
+      )}
     </label>
   );
 }

@@ -1,0 +1,335 @@
+.package-card-v2 {
+  display: flex;
+  flex-direction: column;
+}
+.package-card-v2 .package-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px;
+}
+.package-card-v2 .caterer-line {
+  font-size: 0.875rem;
+  color: var(--forest);
+  margin-bottom: 6px;
+  align-items: baseline;
+}
+.package-card-v2 .caterer-line strong {
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+.package-card-v2 .caterer-line > span {
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+.package-card-v2 .package-body h3 {
+  font-size: 1.3125rem;
+  line-height: 1.3;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.package-commitment {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.package-duration {
+  color: var(--forest);
+  font-size: 1.75rem;
+  line-height: 1.1;
+  min-width: 52px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.package-duration span {
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.package-commitment > div {
+  border-left: 1px solid var(--line);
+  padding-left: 16px;
+  display: grid;
+  gap: 6px;
+  font-size: 0.8125rem;
+}
+.package-commitment > div > span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.package-commitment svg {
+  flex-shrink: 0;
+  color: var(--forest);
+}
+.preview-heading {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.preview-source {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.meal-switch {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--soft);
+  border-radius: 9px;
+}
+.meal-switch button {
+  border: 0;
+  border-radius: 6px;
+  padding: 9px 13px;
+  background: transparent;
+  color: var(--forest);
+  font-size: 0.75rem;
+  font-weight: 650;
+}
+.meal-switch button[aria-pressed="true"] {
+  background: var(--forest);
+  color: var(--cream);
+}
+.composition-preview {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  font-size: 0.875rem;
+  margin: 0 0 4px;
+}
+.contents-link {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  min-height: 40px;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  color: var(--forest);
+  background: transparent;
+  border: 0;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.nutrition-strip {
+  margin-top: 12px;
+}
+.nutrition-strip dl {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+.nutrition-strip dt {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 0.6875rem;
+  color: var(--muted);
+}
+.nutrition-strip dt svg {
+  color: var(--forest);
+}
+.nutrition-strip dd {
+  margin: 5px 0 0;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  color: var(--forest);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.nutrition-strip > p {
+  margin: 9px 0 0;
+  font-size: 0.6875rem;
+  color: var(--muted);
+}
+.package-footer {
+  margin-top: auto;
+  border-top: 1px solid var(--line);
+  padding-top: 18px;
+}
+.package-card-v2 .card-price strong {
+  font-size: 1.5625rem;
+}
+.package-card-v2 .card-price small {
+  font-size: 0.75rem;
+  display: block;
+  margin: 2px 0 0;
+}
+.package-card-v2 .delivery-included {
+  border: 0;
+  margin: 8px 0 14px;
+  padding: 0;
+  font-size: 0.75rem;
+}
+.package-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.package-actions button,
+.package-actions a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  border-radius: 9px;
+}
+.package-actions button {
+  border: 1px solid var(--line);
+  background: transparent;
+  padding: 9px 12px;
+  color: var(--forest);
+}
+.package-actions button[aria-pressed="true"] {
+  background: var(--soft);
+  border-color: var(--forest);
+}
+.package-actions a {
+  padding: 10px 14px;
+  background: var(--forest);
+  color: var(--cream);
+}
+.package-actions a:hover {
+  background: var(--forest-hover);
+}
+.package-card-v2 [aria-disabled="true"] {
+  cursor: default;
+}
+.dish-gallery {
+  container-type: inline-size;
+  display: grid;
+  gap: 32px;
+}
+.gallery-meal {
+  min-width: 0;
+  scroll-margin-top: 100px;
+}
+.gallery-heading {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.gallery-heading h3 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+.gallery-heading span,
+.gallery-composition {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+.gallery-composition {
+  margin-bottom: 16px;
+}
+.dish-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px 18px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.dish-grid.single-dish {
+  grid-template-columns: minmax(0, 1fr);
+}
+.dish-tile {
+  min-width: 0;
+}
+.dish-photo {
+  display: block;
+  position: relative;
+  width: 100%;
+  border: 0;
+  padding: 0;
+  background: var(--soft);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.dish-photo img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+.single-dish .dish-photo img {
+  max-height: 340px;
+}
+.dish-photo > span {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  background: var(--cream);
+  color: var(--forest);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+}
+.dish-description {
+  padding-top: 12px;
+  overflow-wrap: anywhere;
+}
+.dish-component {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.dish-description h4 {
+  margin: 3px 0;
+  font-size: 1.0625rem;
+  color: var(--forest);
+}
+.dish-description p {
+  margin: 5px 0;
+  font-size: 0.875rem;
+}
+.dish-description .dish-serving {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+.dish-viewer {
+  width: min(900px, calc(100vw - 32px));
+  max-width: 900px;
+}
+.dish-viewer > img {
+  display: block;
+  width: 100%;
+  max-height: 68vh;
+  object-fit: contain;
+}
+.dish-gallery .nutrition-strip {
+  max-width: 440px;
+  margin-top: 22px;
+}
+@media (max-width: 359px) {
+  .dish-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .package-card-v2 .package-body {
+    padding: 16px;
+  }
+  .nutrition-strip dl {
+    gap: 4px;
+  }
+}
+@container (max-width: 22rem) {
+  .dish-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.nutrition-strip dt {
+  overflow-wrap: anywhere;
+}

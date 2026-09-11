@@ -31,6 +31,18 @@ Indonesian is the default and English remains supported. Use explicit language: 
 
 Brand artwork must be generated as individual reusable files. Neither board crops nor sprite extraction may ship. Master resolution and real alpha transparency are asset acceptance criteria; limitations must be recorded, never hidden by upscaling or checkerboard backgrounds. Synthetic food photos are for labeled demo listings only; production sellers provide their own images.
 
+## Package contents
+
+A package is a caterer-defined offering sold at one price per complete portion per delivery day. À la carte may contain one dish or multiple dishes. Nasi box defines component slots (for example, nasi, two lauk, vegetables and soup), with named dishes that can change by date. Caterers can add custom component categories and serving descriptions. Lunch and dinner have independent contents; multiple dishes do not multiply capacity reservations.
+
+Calories, protein, carbohydrates and fat are optional caterer-entered estimates per complete meal portion. Missing values remain unavailable; zero is a value. Dated menus carry their own nutrition and never inherit estimates for different dishes. The platform neither calculates nutrition nor infers high-protein claims.
+
+Content revisions are immutable and snapshotted with purchases. Dated changes target the purchased revision and preserve its composition. Customers choose a listed offering; individual customer/per-portion dish choices remain outside V1.
+
+Caterers may optionally save dishes to their own reusable library. Selecting one copies its details into a stable package/menu slot. Package-specific serving overrides are allowed; library changes are applied explicitly and never propagate automatically into offerings or purchases. Archived dishes remain readable in existing contents.
+
+Nasi box editing groups each component with its dish fields. Photos use upload progress, confirmation and previews, with storage addresses hidden. Every forward wizard action validates preceding steps; incomplete work has a separate draft-save action. Review displays the actual discovery-card and package-detail presentation with purchase actions disabled.
+
 ## V1 boundary
 
 No automatic renewal, wallet, variable daily portions, per-portion menu customization, courier dispatch, corporate/event catering or advanced inventory.

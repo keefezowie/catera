@@ -74,6 +74,7 @@ export default async function Page({
   const s = await session();
   if (
     [
+      "checkout",
       "payment",
       "home",
       "calendar",

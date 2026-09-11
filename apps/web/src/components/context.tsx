@@ -22,6 +22,7 @@ type Context = {
   setArea: (v: string) => void;
   compare: string[];
   toggleCompare: (id: string) => void;
+  clearCompare: () => void;
   revision: number;
   perform: <T = Record<string, unknown>>(
     action: string,
@@ -129,6 +130,13 @@ export function Provider({
       return next;
     });
   }
+  function clearCompare() {
+    setCompare((current) => {
+      if (current.length === 0) return current;
+      sessionStorage.removeItem("catera-compare");
+      return [];
+    });
+  }
   const perform = useCallback(
     async <T,>(action: string, payload: unknown): Promise<T> => {
       const hash = action + JSON.stringify(payload);
@@ -154,6 +162,7 @@ export function Provider({
         setArea,
         compare,
         toggleCompare,
+        clearCompare,
         revision,
         perform,
         notify: setToast,

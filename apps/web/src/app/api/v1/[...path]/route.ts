@@ -12,6 +12,9 @@ import {
   checkoutSchema,
   commandSchema,
   offerSchema,
+  menuSaveSchema,
+  dishSaveSchema,
+  dishArchiveSchema,
   type Checkout,
 } from "@catera/domain";
 import { session, supabase, demoToken } from "@/lib/auth";
@@ -22,6 +25,8 @@ type Context = { params: Promise<{ path: string[] }> };
 const ok = (data: unknown) =>
   Response.json({ data }, { headers: { "Cache-Control": "no-store" } });
 const codes = [
+  "CLASSIFY_PACKAGE",
+  "COMPOSITION_CHANGED",
   "INVALID_CREDENTIALS",
   "AUTH_RATE_LIMITED",
   "PRICE_CHANGED",
@@ -63,13 +68,13 @@ function failure(e: unknown) {
           ? 401
           : code === "AUTH_RATE_LIMITED"
             ? 429
-          : code === "FORBIDDEN"
-            ? 403
-            : code === "NOT_FOUND"
-              ? 404
-              : code === "NOT_CONFIGURED"
-                ? 503
-                : 400,
+            : code === "FORBIDDEN"
+              ? 403
+              : code === "NOT_FOUND"
+                ? 404
+                : code === "NOT_CONFIGURED"
+                  ? 503
+                  : 400,
     },
   );
 }
@@ -204,6 +209,10 @@ export async function POST(request: Request, context: Context) {
         command.payload = checkoutSchema.parse(command.payload);
       if (command.action === "address.save")
         command.payload = addressSchema.parse(command.payload);
+      if (command.action === "menu.save")
+        command.payload = menuSaveSchema.parse(command.payload);
+      if (command.action === "dish.save") command.payload = dishSaveSchema.parse(command.payload);
+      if (command.action === "dish.archive") command.payload = dishArchiveSchema.parse(command.payload);
       if (command.action === "package.save")
         command.payload = {
           ...command.payload,

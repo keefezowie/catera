@@ -135,8 +135,17 @@ function Shell({
   children: ReactNode;
   operational: boolean;
 }) {
-  const { actor, demo, t, locale, setLocale, area, setArea, compare } =
-    useApp();
+  const {
+    actor,
+    demo,
+    t,
+    locale,
+    setLocale,
+    area,
+    setArea,
+    compare,
+    clearCompare,
+  } = useApp();
   const pathname = usePathname();
   const [menu, setMenu] = useState(false);
   const [section, setSection] = useState("packages");
@@ -225,6 +234,7 @@ function Shell({
         ["/seller/delivery", "Pengiriman", Truck],
         ["/seller/packages", "Paket", Package],
         ["/seller/menus", "Menu", Leaf],
+        ["/seller/dishes", "Daftar hidangan", Leaf],
         ["/seller/capacity", "Kapasitas", ClipboardList],
         ["/seller/customers", "Pelanggan", Users],
         ["/seller/support", "Pesan & bantuan", MessageCircle],
@@ -435,21 +445,28 @@ function Shell({
             </div>
             <p>Good Food on Repeat.</p>
           </footer>
-          <nav className="mobile-bottom">
-            {customerNav.map(([href, id, en, Icon]) => (
-              <Link
-                key={href}
-                href={href}
-                className={customerDestination === href ? "selected" : ""}
-                aria-current={customerDestination === href ? "page" : undefined}
-              >
-                <Icon size={21} />
-                <span>{t(id, en)}</span>
-              </Link>
-            ))}
-          </nav>
+          {actor && (
+            <nav className="mobile-bottom">
+              {customerNav.map(([href, id, en, Icon]) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className={customerDestination === href ? "selected" : ""}
+                  aria-current={
+                    customerDestination === href ? "page" : undefined
+                  }
+                >
+                  <Icon size={21} />
+                  <span>{t(id, en)}</span>
+                </Link>
+              ))}
+            </nav>
+          )}
           {compare.length > 0 && !pathname.startsWith("/compare") && (
-            <div className="compare-floating">
+            <aside
+              className="compare-floating"
+              aria-label={t("Pilihan perbandingan", "Comparison selection")}
+            >
               <span>
                 {compare.length} {t("paket dipilih", "packages selected")}
               </span>
@@ -457,7 +474,22 @@ function Shell({
                 {t("Bandingkan", "Compare")}
                 <ArrowUpRight size={16} />
               </Link>
-            </div>
+              <button
+                className="icon-button compare-clear"
+                type="button"
+                onClick={clearCompare}
+                aria-label={t(
+                  "Hapus semua paket dari perbandingan",
+                  "Clear all packages from comparison",
+                )}
+                title={t(
+                  "Hapus semua paket dari perbandingan",
+                  "Clear all packages from comparison",
+                )}
+              >
+                <X size={18} aria-hidden="true" />
+              </button>
+            </aside>
           )}
         </>
       )}

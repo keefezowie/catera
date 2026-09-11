@@ -1,4 +1,16 @@
-import { useCallback, useRef, useState, type ReactNode, type RefObject } from "react";
+import { PackagePreview } from "./package-preview";
+import {
+  menuSummary,
+  packageTypeLabel,
+  nutritionSummary,
+} from "@catera/domain";
+import {
+  useCallback,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { MascotLoading } from "./mascot-loading";
 import {
   ScrollView,
@@ -496,12 +508,22 @@ export function Empty({
 export function Gate({ children }: { children: ReactNode }) {
   const { actor, ready, error, refresh, t } = useNative();
   const [focused, setFocused] = useState(false);
-  useFocusEffect(useCallback(() => {
-    setFocused(true);
-    return () => setFocused(false);
-  }, []));
+  useFocusEffect(
+    useCallback(() => {
+      setFocused(true);
+      return () => setFocused(false);
+    }, []),
+  );
   if (!ready)
-    return <MascotLoading active={focused} label={t("Menyiapkan Catera untuk Anda…", "Getting Catera ready for you…")} />;
+    return (
+      <MascotLoading
+        active={focused}
+        label={t(
+          "Menyiapkan Catera untuk Anda…",
+          "Getting Catera ready for you…",
+        )}
+      />
+    );
   if (error)
     return (
       <Screen title="Belum dapat terhubung">
@@ -528,73 +550,199 @@ export function Gate({ children }: { children: ReactNode }) {
 }
 export function OfferCard({ offer: o }: { offer: Offer }) {
   const { compare, toggleCompare, area, locale, t } = useNative();
+  const [meal, setMeal] = useState("lunch");
+  const compared = compare.includes(o.id);
+  const outside = !!area && !o.areas.includes(area);
+  const open = () => router.push(("/package/" + o.id) as never);
   return (
     <View style={styles.offer}>
-      <Pressable
-        accessibilityRole="link"
-        accessibilityLabel={o.name}
-        onPress={() => router.push(("/package/" + o.id) as never)}
-      >
-        <Photo src={o.image} />
-      </Pressable>
-      <View style={styles.offerBody}>
-        <View style={[styles.row, { justifyContent: "space-between" }]}>
-          <Txt kind="small" style={{ color: C.muted }}>
-            {o.caterer}
-          </Txt>
-          <Pressable
-            accessibilityRole="checkbox"
-            accessibilityState={{ checked: compare.includes(o.id) }}
-            accessibilityLabel={t("Bandingkan ", "Compare ") + o.name}
-            onPress={() => toggleCompare(o.id)}
-            style={styles.qty}
-          >
-            <Ionicons
-              name={compare.includes(o.id) ? "checkmark" : "add"}
-              size={20}
-              color={C.forest}
-            />
-          </Pressable>
-        </View>
-        <Txt kind="heading">{o.name}</Txt>
-        <Txt kind="small">
-          {mealLabel(o.meal, locale)} · {o.days} {t("hari", "days")} ·{" "}
-          {o.flexible ? t("Fleksibel", "Flexible") : t("Tetap", "Fixed")}
-        </Txt>
-        <Txt kind="small">
-          {o.trialPrice ? t("Bisa coba 1 hari · ", "One-day trial · ") : ""}
-          {o.tags.join(" · ")}
-        </Txt>
-        <View
-          style={[
-            styles.row,
-            { justifyContent: "space-between", marginTop: 10 },
-          ]}
+      <View>
+        <Pressable
+          accessibilityRole="link"
+          accessibilityLabel={o.name}
+          onPress={open}
         >
-          <View>
-            <Txt kind="heading">{currency(o.price)}</Txt>
-            <Txt kind="small">
-              {t("/ porsi / hari", "/ portion / day")}
-              {o.meal === "both" ? t(" · 2 kali makan", " · 2 meals") : ""}
+          <Photo src={o.image} />
+        </Pressable>
+        {!!o.trialPrice && (
+          <View
+            style={{
+              position: "absolute",
+              top: 14,
+              left: 14,
+              backgroundColor: C.cream,
+              borderRadius: 7,
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+            }}
+          >
+            <Txt style={{ color: C.forest, fontSize: 12 }}>
+              {t("Bisa coba dulu", "Trial available")}
             </Txt>
           </View>
-          <Btn
-            label={t("Lihat paket", "View package")}
-            secondary
-            onPress={() => router.push(("/package/" + o.id) as never)}
-          />
+        )}
+      </View>
+      <View style={[styles.offerBody, { gap: 20 }]}>
+        <View style={{ gap: 5 }}>
+          <View
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              gap: 12,
+            }}
+          >
+            <Txt
+              style={{
+                flex: 1,
+                fontSize: 15,
+                fontWeight: "600",
+                color: C.forest,
+              }}
+            >
+              {o.caterer}
+            </Txt>
+            <View
+              style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
+            >
+              {!!o.rating && (
+                <Ionicons name="star" size={13} color={C.forest} />
+              )}
+              <Txt style={{ fontSize: 12 }}>
+                {o.rating || t("Baru", "New")}
+                {o.reviewCount > 0 ? " (" + o.reviewCount + ")" : ""}
+              </Txt>
+            </View>
+          </View>
+          <Pressable accessibilityRole="link" onPress={open}>
+            <Txt
+              style={{
+                fontSize: 21,
+                lineHeight: 28,
+                fontWeight: "700",
+                color: C.forest,
+              }}
+            >
+              {o.name}
+            </Txt>
+          </Pressable>
         </View>
-        <Txt
-          kind="small"
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 18 }}>
+          <View style={{ minWidth: 48 }}>
+            <Txt
+              style={{
+                fontSize: 28,
+                lineHeight: 34,
+                fontWeight: "700",
+                color: C.forest,
+              }}
+            >
+              {o.days}
+            </Txt>
+            <Txt style={{ fontSize: 13 }}>{t("hari", "days")}</Txt>
+          </View>
+          <View
+            style={{
+              flex: 1,
+              gap: 5,
+              borderLeftWidth: 1,
+              borderLeftColor: C.line,
+              paddingLeft: 16,
+            }}
+          >
+            <View
+              style={{ flexDirection: "row", alignItems: "center", gap: 7 }}
+            >
+              <Ionicons
+                name={o.meal === "dinner" ? "moon-outline" : "sunny-outline"}
+                size={16}
+                color={C.forest}
+              />
+              <Txt style={{ flex: 1, fontSize: 13 }}>
+                {mealLabel(o.meal, locale)}
+              </Txt>
+            </View>
+            <View
+              style={{ flexDirection: "row", alignItems: "center", gap: 7 }}
+            >
+              <Ionicons name="calendar-outline" size={16} color={C.forest} />
+              <Txt style={{ flex: 1, fontSize: 13 }}>
+                {o.flexible
+                  ? t("Jadwal fleksibel", "Flexible schedule")
+                  : t("Jadwal tetap", "Fixed schedule")}
+              </Txt>
+            </View>
+          </View>
+        </View>
+        <PackagePreview offer={o} meal={meal} onMealChange={setMeal} />
+        <View
           style={{
-            color: area && !o.areas.includes(area) ? "#915022" : C.muted,
-            marginTop: 9,
+            borderTopWidth: 1,
+            borderTopColor: C.line,
+            paddingTop: 18,
+            gap: 7,
           }}
         >
-          {area && !o.areas.includes(area)
-            ? t("Di luar area pengantaran", "Outside delivery area")
-            : t("Pengantaran termasuk", "Delivery included")}
-        </Txt>
+          <Txt
+            style={{
+              fontSize: 25,
+              lineHeight: 32,
+              fontWeight: "700",
+              color: C.forest,
+            }}
+          >
+            {currency(o.price, locale)}
+          </Txt>
+          <Txt style={{ fontSize: 12, color: C.muted }}>
+            {t("/ porsi / hari", "/ portion / day")}
+            {o.meal === "both" ? t(" · 2 kali makan", " · 2 meals") : ""}
+          </Txt>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 7 }}>
+            <Ionicons name="car-outline" size={16} color={C.muted} />
+            <Txt
+              style={{
+                flex: 1,
+                fontSize: 12,
+                color: outside ? "#915022" : C.muted,
+              }}
+            >
+              {outside
+                ? t("Di luar area pengantaran", "Outside delivery area")
+                : t("Pengantaran termasuk", "Delivery included")}
+            </Txt>
+          </View>
+          <View
+            style={{
+              flexDirection: "row",
+              flexWrap: "wrap",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12,
+              marginTop: 8,
+            }}
+          >
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ selected: compared }}
+              onPress={() => toggleCompare(o.id)}
+              style={{
+                minHeight: 44,
+                paddingHorizontal: 12,
+                justifyContent: "center",
+                backgroundColor: compared ? C.soft : "transparent",
+                borderWidth: 1,
+                borderColor: compared ? C.forest : C.line,
+                borderRadius: 9,
+              }}
+            >
+              <Txt style={{ fontSize: 13 }}>
+                {compared
+                  ? t("Dibandingkan", "Comparing")
+                  : t("Bandingkan", "Compare")}
+              </Txt>
+            </Pressable>
+            <Btn label={t("Lihat paket", "View package")} onPress={open} />
+          </View>
+        </View>
       </View>
     </View>
   );

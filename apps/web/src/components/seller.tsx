@@ -1,8 +1,27 @@
 "use client";
+import { MealContentsEditor, PackageContents } from "./package-contents";
+import {
+  contentsIssues,
+  menuItems,
+  menuSummary,
+  type MealMenu,
+  type PackageType,
+} from "@catera/domain";
 import { Select, SelectOption } from "./select";
+import { DatePicker } from "./date-picker";
+import { PhotoUpload } from "./photo-upload";
+import { DishLibrary } from "./dish-library";
+import { PackageCard, PackagePage } from "./marketplace";
+import {
+  offerEditorIssues,
+  offerSteps,
+  type OfferStep,
+  type EditorIssue,
+  type Caterer,
+} from "@catera/domain";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Plus,
   ArrowRight,
@@ -66,17 +85,16 @@ export function Seller({ view }: { view: string }) {
   const context = "?date=" + date + "&meal=" + meal;
   const dateControls = (
     <div className="ops-date">
-      <CalendarDays size={18} />
-      <input
-        type="date"
+      <DatePicker
+        compact
         aria-label="Tanggal operasional"
         value={date}
-        onChange={(e) =>
+        onValueChange={(value) =>
           router.replace(
             "/seller/" +
               (view === "today" ? "" : view) +
               "?date=" +
-              e.target.value +
+              value +
               "&meal=" +
               meal,
           )
@@ -120,6 +138,7 @@ export function Seller({ view }: { view: string }) {
                 delivery: "Sampai dengan baik.",
                 packages: "Paket dari dapurmu.",
                 menus: "Menu yang dinanti.",
+                dishes: "Daftar hidangan",
                 capacity: "Ruang untuk setiap porsi.",
                 customers: "Pelanggan",
                 support: "Pesan & bantuan",
@@ -265,6 +284,8 @@ export function Seller({ view }: { view: string }) {
         <Production deliveries={rows} meal={meal} date={date} />
       ) : view === "packages" ? (
         <Packages state={s} />
+      ) : view === "dishes" ? (
+        <DishLibrary dishes={s.dishes || []} />
       ) : view === "menus" ? (
         <MenuEditor state={s} date={date} />
       ) : view === "capacity" ? (
@@ -327,9 +348,10 @@ function ProductionRows({
     for (const m of d.meals.filter((m) => meal === "all" || m.meal === meal)) {
       const menu = d.offer.menus
         .filter((x) => x.meal === m.meal)
-        .map((x) => x.name)
+        .map(menuSummary)
         .join(", ");
-      const key = d.offer.id + m.meal + menu;
+      const key =
+        d.offer.id + ":" + (d.offer.contentRevision || 0) + ":" + m.meal + menu;
       const g = groups.get(key) || {
         offer: d.offer,
         meal: m.meal,
@@ -609,10 +631,16 @@ function Packages({ state: s }: { state: SellerState }) {
       <div className="seller-packages">
         {s.offers.map((o) => (
           <article className="panel" key={o.id}>
-            <img src={o.image} alt={o.name} />
+            {o.image ? (
+              <img src={o.image} alt={o.name} />
+            ) : (
+              <div className="package-image-placeholder">
+                Foto belum ditambahkan
+              </div>
+            )}
             <div>
               <Status status={o.status} />
-              <h2>{o.name}</h2>
+              <h2>{o.name || "Draf tanpa nama"}</h2>
               <p>
                 {o.days} hari · {mealLabel(o.meal)} ·{" "}
                 {o.flexible ? "Fleksibel" : "Tetap"}
@@ -642,6 +670,7 @@ function Packages({ state: s }: { state: SellerState }) {
         <OfferEditor
           key={editing?.id || "new"}
           offer={editing}
+          caterer={s.caterer}
           catererId={s.caterer.id}
           done={() => setEditing(undefined)}
         />
@@ -667,71 +696,264 @@ const blankOffer = {
   windows: { lunch: "11.00–13.00", dinner: "17.00–19.00" },
   tags: [],
   image: "",
-  menus: [],
+  packageType: null as PackageType | null,
+  menus: [] as MealMenu[],
   status: "draft",
 };
 function OfferEditor({
   offer,
   catererId,
+  caterer,
   done,
 }: {
   offer: Offer | null | undefined;
   catererId: string;
+  caterer: Caterer;
   done: () => void;
 }) {
-  const { perform, demo } = useApp();
-  const [step, setStep] = useState(0);
-  const [uploadError, setUploadError] = useState("");
-  const [uploading, setUploading] = useState(false);
+  const { perform, demo, t } = useApp();
+  const [step, setStep] = useState<OfferStep>("offer");
+  const [pending, setPending] = useState(0),
+    [savingDraft, setSavingDraft] = useState(false);
+  const [issues, setIssues] = useState<EditorIssue[]>([]),
+    [saveError, setSaveError] = useState("");
+  const [preview, setPreview] = useState("card");
+  const editor = useRef<HTMLDivElement>(null);
+  const onBusyChange = (busy: boolean) =>
+    setPending((n) => Math.max(0, n + (busy ? 1 : -1)));
   const [value, setValue] = useState({ ...blankOffer, ...offer });
+  const typeDrafts = useRef<Partial<Record<PackageType, MealMenu[]>>>({});
   const set = (key: string, v: unknown) =>
     setValue((x) => ({ ...x, [key]: v }));
-  const labels = [
-    "Penawaran",
-    "Harga",
-    "Hari & waktu",
-    "Fleksibilitas",
-    "Menu & foto",
-    "Tinjau",
-  ];
+  const labels: Record<OfferStep, string> = {
+    offer: t("Penawaran", "Offer"),
+    contents: t("Isi paket & foto", "Contents & photos"),
+    pricing: t("Harga", "Pricing"),
+    schedule: t("Hari & waktu", "Schedule"),
+    flexibility: t("Fleksibilitas", "Flexibility"),
+    review: t("Tinjau", "Review"),
+  };
+  const activeValue = {
+    ...value,
+    menus: value.menus.filter(
+      (m) => value.meal === "both" || m.meal === value.meal,
+    ),
+  };
+  const fieldError = (key: string) =>
+    issues.find((i) => i.path === key || i.path.startsWith(key + "."))?.message;
+  const showIssues = (found: EditorIssue[]) => {
+    setIssues(found);
+    if (found[0]) setStep(found[0].step);
+  };
+  useEffect(() => {
+    if (!issues.length) return;
+    const container = editor.current;
+    let target: HTMLElement | null | undefined;
+    for (const issue of issues) {
+      for (const key of [issue.path, issue.path.split(".")[0]]) {
+        const field = container?.querySelector<HTMLElement>(
+          '[data-editor-field="' + CSS.escape(key) + '"]',
+        );
+        target = field?.querySelector<HTMLElement>(
+          'input, textarea, [role="combobox"]',
+        );
+        if (target) break;
+      }
+      if (target) break;
+    }
+    target ||=
+      container?.querySelector<HTMLElement>('[data-dish-name][value=""]') ||
+      container?.querySelector<HTMLElement>("[data-editor-errors]");
+    const disclosure = target?.closest("details");
+    if (disclosure) disclosure.open = true;
+    target?.focus();
+    target?.scrollIntoView({ block: "nearest" });
+  }, [issues, step]);
+  const navigate = (next: OfferStep) => {
+    if (pending || savingDraft) return false;
+    if (offerSteps.indexOf(next) > offerSteps.indexOf(step)) {
+      const found = offerEditorIssues(activeValue).filter(
+        (i) => offerSteps.indexOf(i.step) < offerSteps.indexOf(next),
+      );
+      if (found.length) {
+        showIssues(found);
+        return false;
+      }
+    }
+    setIssues([]);
+    setStep(next);
+    return true;
+  };
+  const save = async (draft: boolean) => {
+    if (pending) return;
+    const found = offerEditorIssues(activeValue, draft);
+    if (found.length) {
+      showIssues(found);
+      return;
+    }
+    await perform("package.save", {
+      catererId,
+      id: offer?.id,
+      version: offer?.version,
+      slug:
+        offer?.slug ||
+        (value.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "draf") +
+          "-" +
+          crypto.randomUUID().slice(0, 6),
+      offer: { ...activeValue, status: draft ? "draft" : value.status },
+    });
+    done();
+  };
+  const previewOffer: Offer = {
+    id: "preview",
+    slug: "preview",
+    catererId,
+    caterer: caterer.name,
+    catererSlug: caterer.slug,
+    areas: caterer.area,
+    cutoff: caterer.cutoff,
+    timezone: caterer.timezone,
+    rating: null,
+    reviewCount: 0,
+    sellerStatus: caterer.status,
+    version: 0,
+    ...offer,
+    ...activeValue,
+  };
   return (
-    <>
-      <div className="editor-progress">
-        {labels.map((l, i) => (
+    <div ref={editor} className="offer-editor">
+      <div
+        className="editor-progress"
+        aria-label={t("Langkah paket", "Package steps")}
+      >
+        {offerSteps.map((i, order) => (
           <button
             type="button"
-            key={l}
+            key={i}
             className={i === step ? "selected" : ""}
-            onClick={() => setStep(i)}
+            disabled={pending > 0 || savingDraft}
+            aria-current={i === step ? "step" : undefined}
+            onClick={() => navigate(i)}
           >
-            {i + 1}. {l}
+            {order + 1}. {labels[i]}
           </button>
         ))}
       </div>
       <ActionForm
-        submit={step < 5 ? "Lanjutkan" : "Simpan paket"}
+        noValidate
+        disabled={pending > 0 || savingDraft}
+        submit={
+          step !== "review"
+            ? t("Lanjutkan", "Continue")
+            : t("Simpan paket", "Save package")
+        }
         onSubmit={async () => {
-          if (step < 5) {
-            setStep(step + 1);
+          if (step !== "review") {
+            navigate(offerSteps[offerSteps.indexOf(step) + 1]);
             return;
           }
-          await perform("package.save", {
-            catererId,
-            id: offer?.id,
-            version: offer?.version,
-            slug:
-              offer?.slug ||
-              value.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") +
-                "-" +
-                crypto.randomUUID().slice(0, 6),
-            offer: value,
-          });
-          done();
+          await save(value.status === "draft");
         }}
       >
-        {step === 0 ? (
+        {!!issues.length && (
+          <div
+            className="error-notice"
+            role="alert"
+            tabIndex={-1}
+            data-editor-errors
+          >
+            <strong>
+              {t(
+                "Lengkapi isian sebelum melanjutkan",
+                "Complete the fields before continuing",
+              )}
+            </strong>
+            <ul>
+              {issues
+                .filter((i) => i.step === step)
+                .map((i, n) => (
+                  <li key={n}>{i.message}</li>
+                ))}
+            </ul>
+          </div>
+        )}
+        {step === "offer" ? (
           <>
-            <Field label="Nama paket">
+            <Field
+              fieldKey="packageType"
+              error={fieldError("packageType")}
+              label={t("Jenis paket", "Package type")}
+            >
+              <Select
+                value={value.packageType || ""}
+                onValueChange={(selected) => {
+                  const packageType = selected as PackageType;
+                  setValue((v) => {
+                    if (v.packageType)
+                      typeDrafts.current[v.packageType] = v.menus;
+                    return {
+                      ...v,
+                      packageType,
+                      menus:
+                        typeDrafts.current[packageType] ||
+                        [
+                          ...new Set([
+                            ...v.menus.map((m) => m.meal),
+                            ...(v.meal === "both"
+                              ? ["lunch", "dinner"]
+                              : [v.meal]),
+                          ]),
+                        ].map((meal) => {
+                          const m = v.menus.find((x) => x.meal === meal) || {
+                            meal,
+                            name: "",
+                            description: "",
+                            image: "",
+                            items: [],
+                          };
+                          const items = menuItems(m).map(
+                            ({ groupId, ...i }) => i,
+                          );
+                          if (packageType === "ala_carte")
+                            return { ...m, items, composition: [] };
+                          if (m.composition?.length) return m;
+                          const id = crypto.randomUUID();
+                          if (!items.length)
+                            items.push({
+                              id: crypto.randomUUID(),
+                              name: "",
+                              description: "",
+                              image: "",
+                              serving: "",
+                            });
+                          return {
+                            ...m,
+                            composition: [
+                              {
+                                id,
+                                name: "Lauk",
+                                slots: Math.max(items.length, 1),
+                              },
+                            ],
+                            items: items.map((i) => ({ ...i, groupId: id })),
+                          };
+                        }),
+                    };
+                  });
+                }}
+              >
+                <SelectOption value="" disabled>
+                  {t("Pilih jenis paket", "Choose package type")}
+                </SelectOption>
+                <SelectOption value="ala_carte">À la carte</SelectOption>
+                <SelectOption value="nasi_box">Nasi box</SelectOption>
+              </Select>
+            </Field>
+            <Field
+              fieldKey="name"
+              error={fieldError("name")}
+              label="Nama paket"
+            >
               <input
                 required
                 minLength={3}
@@ -740,7 +962,11 @@ function OfferEditor({
                 onChange={(e) => set("name", e.target.value)}
               />
             </Field>
-            <Field label="Cerita paket">
+            <Field
+              fieldKey="description"
+              error={fieldError("description")}
+              label="Cerita paket"
+            >
               <textarea
                 required
                 minLength={10}
@@ -749,7 +975,11 @@ function OfferEditor({
                 onChange={(e) => set("description", e.target.value)}
               />
             </Field>
-            <Field label="Waktu makan">
+            <Field
+              fieldKey="meal"
+              error={fieldError("meal")}
+              label="Waktu makan"
+            >
               <Select
                 value={value.meal}
                 onValueChange={(value) => set("meal", value)}
@@ -759,7 +989,11 @@ function OfferEditor({
                 <SelectOption value="both">Makan siang + malam</SelectOption>
               </Select>
             </Field>
-            <Field label="Durasi pengantaran (hari)">
+            <Field
+              fieldKey="days"
+              error={fieldError("days")}
+              label="Durasi pengantaran (hari)"
+            >
               <input
                 type="number"
                 min={1}
@@ -770,9 +1004,13 @@ function OfferEditor({
               />
             </Field>
           </>
-        ) : step === 1 ? (
+        ) : step === "pricing" ? (
           <>
-            <Field label="Harga per porsi / hari (pengantaran termasuk)">
+            <Field
+              fieldKey="price"
+              error={fieldError("price")}
+              label="Harga per porsi / hari (pengantaran termasuk)"
+            >
               <input
                 type="number"
                 min={1000}
@@ -785,7 +1023,11 @@ function OfferEditor({
               Untuk siang + malam, harga ini sudah mencakup kedua makanan per
               porsi per hari.
             </p>
-            <Field label="Diskon kuantitas">
+            <Field
+              fieldKey="tiers"
+              error={fieldError("tiers")}
+              label="Diskon kuantitas"
+            >
               <Select
                 value={value.tiers.length ? "yes" : "no"}
                 onValueChange={(value) =>
@@ -800,7 +1042,11 @@ function OfferEditor({
             </Field>
             {value.tiers.map((tier, i) => (
               <div className="form-row" key={i}>
-                <Field label="Mulai porsi">
+                <Field
+                  fieldKey="tiers"
+                  error={fieldError("tiers")}
+                  label="Mulai porsi"
+                >
                   <input
                     type="number"
                     min={1}
@@ -815,7 +1061,11 @@ function OfferEditor({
                     }
                   />
                 </Field>
-                <Field label="Diskon (%)">
+                <Field
+                  fieldKey="tiers"
+                  error={fieldError("tiers")}
+                  label="Diskon (%)"
+                >
                   <input
                     type="number"
                     min={0}
@@ -847,9 +1097,9 @@ function OfferEditor({
               </button>
             )}
           </>
-        ) : step === 2 ? (
+        ) : step === "schedule" ? (
           <>
-            <fieldset>
+            <fieldset data-editor-field="weekdays">
               <legend>Hari operasional</legend>
               <div className="weekday-checks">
                 {["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"].map(
@@ -875,7 +1125,12 @@ function OfferEditor({
             </fieldset>
             <div className="form-row">
               {["lunch", "dinner"].map((m) => (
-                <Field key={m} label={mealLabel(m)}>
+                <Field
+                  fieldKey={"windows." + m}
+                  error={fieldError("windows." + m)}
+                  key={m}
+                  label={mealLabel(m)}
+                >
                   <input
                     required
                     value={value.windows[m as "lunch" | "dinner"]}
@@ -888,6 +1143,8 @@ function OfferEditor({
             </div>
             {value.weekdays.map((d) => (
               <Field
+                fieldKey={"capacity." + d}
+                error={fieldError("capacity")}
                 key={d}
                 label={
                   "Kapasitas porsi · " +
@@ -917,9 +1174,13 @@ function OfferEditor({
               </Field>
             ))}
           </>
-        ) : step === 3 ? (
+        ) : step === "flexibility" ? (
           <>
-            <Field label="Perubahan jadwal">
+            <Field
+              fieldKey="flexible"
+              error={fieldError("flexible")}
+              label="Perubahan jadwal"
+            >
               <Select
                 value={String(value.flexible)}
                 onValueChange={(value) => set("flexible", value === "true")}
@@ -932,7 +1193,11 @@ function OfferEditor({
                 </SelectOption>
               </Select>
             </Field>
-            <Field label="Trial satu hari">
+            <Field
+              fieldKey="trialPrice"
+              error={fieldError("trialPrice")}
+              label="Trial satu hari"
+            >
               <Select
                 value={value.trialPrice === null ? "no" : "yes"}
                 onValueChange={(selected) =>
@@ -945,7 +1210,11 @@ function OfferEditor({
             </Field>
             {value.trialPrice !== null && (
               <div className="form-row">
-                <Field label="Harga trial per porsi">
+                <Field
+                  fieldKey="trialPrice"
+                  error={fieldError("trialPrice")}
+                  label="Harga trial per porsi"
+                >
                   <input
                     type="number"
                     min={1000}
@@ -954,7 +1223,11 @@ function OfferEditor({
                     onChange={(e) => set("trialPrice", Number(e.target.value))}
                   />
                 </Field>
-                <Field label="Maksimum porsi trial">
+                <Field
+                  fieldKey="trialMax"
+                  error={fieldError("trialMax")}
+                  label="Maksimum porsi trial"
+                >
                   <input
                     type="number"
                     min={1}
@@ -969,49 +1242,19 @@ function OfferEditor({
               pembatalan masuk peninjauan bantuan.
             </p>
           </>
-        ) : step === 4 ? (
+        ) : step === "contents" ? (
           <>
-            <Field label="Unggah foto makanan">
-              <input
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                disabled={uploading}
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  setUploading(true);
-                  setUploadError("");
-                  try {
-                    const form = new FormData();
-                    form.set("file", file);
-                    const response = await fetch("/api/uploads", {
-                      method: "POST",
-                      body: form,
-                    });
-                    if (!response.ok) throw new Error(await response.text());
-                    const r = await response.json();
-                    set("image", r.data.url);
-                  } catch (e) {
-                    setUploadError((e as Error).message);
-                  } finally {
-                    setUploading(false);
-                  }
-                }}
-              />
-            </Field>
-            {uploading && <p>Foto sedang diunggah…</p>}
-            {uploadError && <ErrorNotice message={uploadError} />}
-            <Field label="Foto makanan (URL milik katerer)">
-              <input
-                required
-                type={demo ? "text" : "url"}
+            <div data-editor-field="image">
+              <PhotoUpload
+                label={t("Foto paket", "Package photo")}
                 value={value.image}
-                placeholder={
-                  demo ? "/assets/food/ayam-panggang.png" : "https://…"
-                }
-                onChange={(e) => set("image", e.target.value)}
+                onChange={(image) => set("image", image)}
+                onBusyChange={onBusyChange}
               />
-            </Field>
+              {fieldError("image") && (
+                <p className="field-error">{fieldError("image")}</p>
+              )}
+            </div>
             {demo && (
               <button
                 type="button"
@@ -1021,7 +1264,11 @@ function OfferEditor({
                 Gunakan foto sintetis demo
               </button>
             )}
-            <Field label="Kategori (pisahkan koma)">
+            <Field
+              fieldKey="tags"
+              error={fieldError("tags")}
+              label="Kategori (pisahkan koma)"
+            >
               <input
                 value={value.tags.join(", ")}
                 onChange={(e) =>
@@ -1032,46 +1279,95 @@ function OfferEditor({
                 }
               />
             </Field>
-            {(value.meal === "both" ? ["lunch", "dinner"] : [value.meal]).map(
-              (m) => (
-                <Field key={m} label={"Menu awal · " + mealLabel(m)}>
-                  <input
-                    required
-                    value={value.menus.find((x) => x.meal === m)?.name || ""}
-                    onChange={(e) =>
+            {!value.packageType ? (
+              <p>
+                {t(
+                  "Pilih jenis paket pada langkah Penawaran.",
+                  "Choose a package type in Offer.",
+                )}
+              </p>
+            ) : (
+              (value.meal === "both" ? ["lunch", "dinner"] : [value.meal]).map(
+                (meal) => (
+                  <MealContentsEditor
+                    key={meal}
+                    fieldPrefix={
+                      "menus." +
+                      activeValue.menus.findIndex((m) => m.meal === meal)
+                    }
+                    errors={Object.fromEntries(
+                      issues.map((i) => [i.path, i.message]),
+                    )}
+                    onBusyChange={onBusyChange}
+                    type={value.packageType!}
+                    menu={
+                      value.menus.find((m) => m.meal === meal) || {
+                        meal,
+                        name: "",
+                        description: "",
+                        image: "",
+                        items: [],
+                        composition: [],
+                      }
+                    }
+                    onChange={(menu) =>
                       set("menus", [
-                        ...value.menus.filter((x) => x.meal !== m),
-                        {
-                          name: e.target.value,
-                          description: "",
-                          meal: m,
-                          image: value.image,
-                        },
+                        ...value.menus.filter((m) => m.meal !== meal),
+                        menu,
                       ])
                     }
                   />
-                </Field>
-              ),
+                ),
+              )
             )}
+            <h3>{t("Akan dilihat pelanggan", "Customer preview")}</h3>
+            <PackageContents
+              offer={{
+                ...value,
+                menus: value.menus.filter(
+                  (m) => value.meal === "both" || m.meal === value.meal,
+                ),
+              }}
+            />
           </>
         ) : (
           <>
-            <Facts
-              rows={[
-                ["Paket", value.name],
-                ["Durasi", value.days + " hari"],
-                ["Waktu makan", mealLabel(value.meal)],
-                ["Harga", currency(value.price) + "/ porsi / hari"],
-                ["Pengantaran", "Termasuk"],
-                ["Jadwal", value.flexible ? "Fleksibel" : "Tetap"],
-                [
-                  "Trial",
-                  value.trialPrice === null
-                    ? "Tidak tersedia"
-                    : currency(value.trialPrice),
-                ],
-              ]}
-            />
+            <h3>{t("Pratinjau pelanggan", "Customer preview")}</h3>
+            <p>
+              {t(
+                "Tampilan menggunakan isian Anda saat ini. Tindakan pembelian dinonaktifkan dalam pratinjau.",
+                "This preview uses your current entries. Purchase actions are disabled here.",
+              )}
+            </p>
+            <div className="preview-tabs">
+              <button
+                type="button"
+                className={"button " + (preview === "card" ? "" : "secondary")}
+                onClick={() => setPreview("card")}
+              >
+                {t("Kartu penelusuran", "Discovery card")}
+              </button>
+              <button
+                type="button"
+                className={
+                  "button " + (preview === "detail" ? "" : "secondary")
+                }
+                onClick={() => setPreview("detail")}
+              >
+                {t("Detail paket", "Package details")}
+              </button>
+            </div>
+            <div className={"listing-preview " + preview}>
+              {preview === "card" ? (
+                <PackageCard offer={previewOffer} preview />
+              ) : (
+                <PackagePage
+                  slug={previewOffer.slug}
+                  offer={previewOffer}
+                  preview
+                />
+              )}
+            </div>
             <Field label="Status penawaran">
               <Select
                 value={value.status}
@@ -1087,74 +1383,218 @@ function OfferEditor({
             </Field>
           </>
         )}
-        {step > 0 && (
+        {step !== "offer" && (
           <button
             className="text-button"
             type="button"
-            onClick={() => setStep(step - 1)}
+            onClick={() => navigate(offerSteps[offerSteps.indexOf(step) - 1])}
           >
             Kembali
           </button>
         )}
       </ActionForm>
-    </>
+      {saveError && <ErrorNotice message={saveError} />}
+      <button
+        type="button"
+        className="text-button"
+        disabled={pending > 0 || savingDraft}
+        onClick={async () => {
+          setSavingDraft(true);
+          setSaveError("");
+          try {
+            await save(true);
+          } catch {
+            setSaveError(
+              t(
+                "Draf belum tersimpan. Muat ulang jika data telah berubah, lalu coba lagi.",
+                "Draft could not be saved. Reload if data changed, then retry.",
+              ),
+            );
+          } finally {
+            setSavingDraft(false);
+          }
+        }}
+      >
+        {savingDraft
+          ? t("Menyimpan…", "Saving…")
+          : t("Simpan draf", "Save draft")}
+      </button>
+    </div>
   );
 }
 function MenuEditor({ state: s, date }: { state: SellerState; date: string }) {
-  const { perform } = useApp();
+  const { t } = useApp();
+  const revisions = s.contentRevisions || [];
+  const [selection, setSelection] = useState("");
+  const [meal, setMeal] = useState("lunch");
+  const selected =
+    revisions.find((r) => r.packageId + ":" + r.revision === selection) ||
+    revisions[0];
+  if (!selected)
+    return <Empty title={t("Belum ada paket", "No packages yet")} />;
+  const activeMeal =
+    selected.contents.meal === "both" ? meal : selected.contents.meal;
+  const existing = s.datedMenus?.find(
+    (m) =>
+      m.package_id === selected.packageId &&
+      m.content_revision === selected.revision &&
+      m.meal === activeMeal,
+  );
+  const template = selected.contents.menus.find((m) => m.meal === activeMeal);
   return (
     <section className="panel form-panel">
-      <h2>Menu untuk tanggal tertentu</h2>
+      <h2>{t("Menu untuk tanggal tertentu", "Menu for a delivery date")}</h2>
       <p>
-        Perubahan menu tersampaikan kepada pelanggan dengan pengantaran pada
-        tanggal ini.
+        {date} ·{" "}
+        {t(
+          "Perubahan dikirim ke pelanggan pada versi isi paket ini.",
+          "Updates reach customers with this contents revision.",
+        )}
       </p>
-      <ActionForm
-        onSubmit={async (f) => {
-          await perform("menu.save", {
-            catererId: s.caterer.id,
-            packageId: f.get("packageId"),
-            date: f.get("date"),
-            meal: f.get("meal"),
-            details: {
-              name: f.get("name"),
-              description: f.get("description"),
-              image: f.get("image"),
-            },
-          });
-        }}
-      >
-        <Field label="Paket">
-          <Select name="packageId">
-            {s.offers.map((o) => (
-              <SelectOption value={o.id} key={o.id}>
-                {o.name}
-              </SelectOption>
-            ))}
+      <Field label={t("Paket dan versi isi", "Package and contents revision")}>
+        <Select
+          value={selected.packageId + ":" + selected.revision}
+          onValueChange={setSelection}
+        >
+          {revisions.map((r) => (
+            <SelectOption
+              key={r.packageId + ":" + r.revision}
+              value={r.packageId + ":" + r.revision}
+            >
+              {r.name} · {t("Versi", "Revision")} {r.revision}
+            </SelectOption>
+          ))}
+        </Select>
+      </Field>
+      {selected.contents.meal === "both" && (
+        <Field label={t("Waktu makan", "Meal")}>
+          <Select value={meal} onValueChange={setMeal}>
+            <SelectOption value="lunch">
+              {t("Makan siang", "Lunch")}
+            </SelectOption>
+            <SelectOption value="dinner">
+              {t("Makan malam", "Dinner")}
+            </SelectOption>
           </Select>
         </Field>
-        <div className="form-row">
-          <Field label="Tanggal">
-            <input type="date" name="date" defaultValue={date} required />
-          </Field>
-          <Field label="Waktu makan">
-            <Select name="meal">
-              <SelectOption value="lunch">Makan siang</SelectOption>
-              <SelectOption value="dinner">Makan malam</SelectOption>
-            </Select>
-          </Field>
-        </div>
-        <Field label="Nama menu">
-          <input name="name" required />
-        </Field>
-        <Field label="Isi menu / perubahan">
-          <textarea name="description" required />
-        </Field>
-        <Field label="URL foto">
-          <input name="image" />
-        </Field>
-      </ActionForm>
+      )}
+      {template ? (
+        <DatedContentsForm
+          key={[
+            selected.packageId,
+            selected.revision,
+            date,
+            activeMeal,
+            existing?.version || 0,
+          ].join(":")}
+          catererId={s.caterer.id}
+          packageId={selected.packageId}
+          revision={selected.revision}
+          version={existing?.version || 0}
+          date={date}
+          type={selected.contents.packageType}
+          initial={
+            existing
+              ? { ...existing.details, meal: activeMeal }
+              : { ...template, meal: activeMeal, nutrition: null }
+          }
+        />
+      ) : (
+        <p>
+          {t(
+            "Lengkapi isi paket sebelum membuat menu bertanggal.",
+            "Complete package contents before scheduling a menu.",
+          )}
+        </p>
+      )}
     </section>
+  );
+}
+function DatedContentsForm({
+  catererId,
+  packageId,
+  revision,
+  version,
+  date,
+  type,
+  initial,
+}: {
+  catererId: string;
+  packageId: string;
+  revision: number;
+  version: number;
+  date: string;
+  type?: PackageType;
+  initial: MealMenu;
+}) {
+  const { perform, t } = useApp();
+  const [menu, setMenu] = useState(initial);
+  const [pending, setPending] = useState(0);
+  return (
+    <ActionForm
+      disabled={pending > 0}
+      onSubmit={async () => {
+        const issues = contentsIssues(
+          { packageType: type, meal: menu.meal, menus: [menu] },
+          true,
+        );
+        if (issues.length) throw new Error(issues.join(". "));
+        const { meal, source, ...details } = menu;
+        if (!type) {
+          delete details.nutrition;
+          delete details.items;
+          delete details.composition;
+        }
+        await perform("menu.save", {
+          catererId,
+          packageId,
+          contentRevision: revision,
+          version,
+          date,
+          meal,
+          details,
+        });
+      }}
+    >
+      {type ? (
+        <MealContentsEditor
+          menu={menu}
+          type={type}
+          fixedComposition
+          onBusyChange={(busy) =>
+            setPending((n) => Math.max(0, n + (busy ? 1 : -1)))
+          }
+          onChange={setMenu}
+        />
+      ) : (
+        <>
+          <p>
+            {t(
+              "Menu dari pembelian lama. Jenis paket belum diklasifikasikan.",
+              "Legacy purchase menu. Package type is unclassified.",
+            )}
+          </p>
+          <Field label={t("Nama menu", "Menu name")}>
+            <input
+              required
+              value={menu.name}
+              onChange={(e) => setMenu({ ...menu, name: e.target.value })}
+            />
+          </Field>
+          <Field label={t("Isi menu", "Menu description")}>
+            <textarea
+              value={menu.description}
+              onChange={(e) =>
+                setMenu({ ...menu, description: e.target.value })
+              }
+            />
+          </Field>
+        </>
+      )}
+      <PackageContents
+        offer={{ packageType: type, menus: [{ ...menu, source: "dated" }] }}
+      />
+    </ActionForm>
   );
 }
 function Capacity({ state: s, date }: { state: SellerState; date: string }) {
@@ -1187,7 +1627,7 @@ function Capacity({ state: s, date }: { state: SellerState; date: string }) {
           </Select>
         </Field>
         <Field label="Tanggal">
-          <input type="date" name="date" defaultValue={date} required />
+          <DatePicker name="date" defaultValue={date} required />
         </Field>
         <Field label="Kapasitas porsi">
           <input

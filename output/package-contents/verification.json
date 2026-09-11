@@ -1,0 +1,15 @@
+{
+  "date": "2026-09-10",
+  "feature": "Customizable package contents and optional meal macros",
+  "scope": "Local synthetic verification; no hosted deployment",
+  "typecheck": "passed",
+  "domainDatabaseTests": { "passed": 55, "files": 7 },
+  "postgresConcurrency": { "passed": 6, "evidence": "postgres.json" },
+  "browserJourneys": { "passed": 3, "config": "playwright.contents.config.ts", "browser": "Installed Google Chrome" },
+  "nativeComponentTests": { "iosPassed": 26, "androidPassed": 26 },
+  "webProductionBuild": "passed",
+  "nativeBundleExports": { "ios": "passed", "android": "passed" },
+  "visualReview": { "widths": [390, 768, 1440], "horizontalOverflow": false, "sellerDialogSeriousOrCriticalAxeViolations": 0, "impeccableDetectorFindings": 0 },
+  "migration": "supabase/migrations/20260910120930_package_contents.sql",
+  "remainingReleaseGates": ["Hosted V1 migration and RLS verification", "Signed mobile builds and physical-device checks", "Existing provider and production release gates in docs/RUNBOOK.md"]
+}

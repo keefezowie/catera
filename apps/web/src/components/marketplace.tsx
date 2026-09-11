@@ -1,9 +1,17 @@
 "use client";
+import "./package-presentation.css";
+import { FeaturedHero } from "./featured-hero";
 import { Select, SelectOption } from "./select";
+import { PackagePreview } from "./package-preview";
+import { PackageContents } from "./package-contents";
+import {
+  menuSummary,
+  packageTypeLabel,
+  nutritionSummary,
+} from "@catera/domain";
 import Link from "next/link";
 import { useState } from "react";
 import {
-  Asterisk,
   Search,
   MapPin,
   SlidersHorizontal,
@@ -27,13 +35,30 @@ import {
 import { currency, mealLabel, areaOptions, type Offer } from "@catera/domain";
 import { useApp, api, useResource } from "./context";
 import { Heading, Empty, Facts } from "./ui";
-export function PackageCard({ offer }: { offer: Offer }) {
+export function PackageCard({
+  offer,
+  preview = false,
+}: {
+  offer: Offer;
+  preview?: boolean;
+}) {
   const { area, compare, toggleCompare, locale, t } = useApp();
+  const [meal, setMeal] = useState("lunch");
   const covered = !area || offer.areas.includes(area);
+  const compared = compare.includes(offer.id);
+  const navigation = {
+    "aria-disabled": preview,
+    tabIndex: preview ? -1 : undefined,
+    onClick: (event: React.MouseEvent) => {
+      if (preview) event.preventDefault();
+    },
+  };
   return (
-    <article className={"package-card " + (!covered ? "outside" : "")}>
+    <article
+      className={"package-card package-card-v2 " + (!covered ? "outside" : "")}
+    >
       <div className="package-image">
-        <Link href={"/packages/" + offer.slug}>
+        <Link href={"/packages/" + offer.slug} {...navigation}>
           <img
             src={offer.image}
             alt={offer.name}
@@ -42,77 +67,99 @@ export function PackageCard({ offer }: { offer: Offer }) {
             loading="lazy"
           />
         </Link>
-        {offer.trialPrice && (
+        {!!offer.trialPrice && (
           <span className="image-label">
             {t("Bisa coba dulu", "Trial available")}
           </span>
         )}
-        <button
-          className={
-            "compare-add " + (compare.includes(offer.id) ? "active" : "")
-          }
-          onClick={() => toggleCompare(offer.id)}
-          aria-label={
-            (compare.includes(offer.id)
-              ? "Hapus dari perbandingan: "
-              : "Bandingkan: ") + offer.name
-          }
-        >
-          {compare.includes(offer.id) ? (
-            <Check size={18} />
-          ) : (
-            <Plus size={18} />
-          )}
-        </button>
       </div>
       <div className="package-body">
-        <div className="caterer-line">
-          <span>{offer.caterer}</span>
-          <span>
-            <Star size={13} fill={offer.rating ? "currentColor" : "none"} />
-            {offer.rating || t("Baru", "New")}
-            {offer.reviewCount > 0 && <small>({offer.reviewCount})</small>}
-          </span>
-        </div>
-        <Link href={"/packages/" + offer.slug}>
-          <h3>{offer.name}</h3>
-        </Link>
-        <p className="package-meta">
-          {mealLabel(offer.meal, locale)}
-          <span>·</span>
-          {offer.days} {t("hari", "days")}
-        </p>
-        <div className="package-chips">
-          <span className={offer.flexible ? "flexible" : ""}>
-            {offer.flexible ? <CalendarDays size={13} /> : <Clock size={13} />}{" "}
-            {offer.flexible
-              ? t("Jadwal fleksibel", "Flexible schedule")
-              : t("Jadwal tetap", "Fixed schedule")}
-          </span>
-          <span>{offer.tags[0]}</span>
-        </div>
-        <div className="card-price">
-          <div>
-            <strong>{currency(offer.price, locale)}</strong>
-            <small>
-              / {t("porsi / hari", "portion / day")}
-              {offer.meal === "both" ? " · 2×" : ""}
-            </small>
+        <div className="package-identity">
+          <div className="caterer-line">
+            <strong>{offer.caterer}</strong>
+            <span>
+              {!!offer.rating && (
+                <Star size={14} fill="currentColor" aria-hidden="true" />
+              )}
+              {offer.rating || t("Baru", "New")}
+              {offer.reviewCount > 0 && <small>({offer.reviewCount})</small>}
+            </span>
           </div>
-          <Link
-            href={"/packages/" + offer.slug}
-            className="circle-link"
-            aria-label={"Lihat " + offer.name}
-          >
-            <ArrowUpRight size={20} />
+          <Link href={"/packages/" + offer.slug} {...navigation}>
+            <h3>{offer.name}</h3>
           </Link>
         </div>
-        <p className={"delivery-included " + (!covered ? "unavailable" : "")}>
-          <Truck size={14} />
-          {covered
-            ? t("Pengantaran termasuk", "Delivery included")
-            : t("Di luar area pengantaran", "Outside delivery area")}
-        </p>
+        <div className="package-commitment">
+          <strong className="package-duration">
+            {offer.days}
+            <span>{t("hari", "days")}</span>
+          </strong>
+          <div>
+            <span>
+              {offer.meal === "both" ? (
+                <SunMoon size={16} aria-hidden="true" />
+              ) : offer.meal === "dinner" ? (
+                <Moon size={16} aria-hidden="true" />
+              ) : (
+                <Sun size={16} aria-hidden="true" />
+              )}
+              {mealLabel(offer.meal, locale)}
+            </span>
+            <span>
+              <CalendarDays size={16} aria-hidden="true" />
+              {offer.flexible
+                ? t("Jadwal fleksibel", "Flexible schedule")
+                : t("Jadwal tetap", "Fixed schedule")}
+            </span>
+          </div>
+        </div>
+        <PackagePreview
+          offer={offer}
+          meal={meal}
+          onMealChange={setMeal}
+          preview={preview}
+        />
+        <div className="package-footer">
+          <div className="card-price">
+            <div>
+              <strong>{currency(offer.price, locale)}</strong>
+              <small>
+                {t("/ porsi / hari", "/ portion / day")}
+                {offer.meal === "both"
+                  ? t(" · 2 kali makan", " · 2 meals")
+                  : ""}
+              </small>
+            </div>
+          </div>
+          <p className={"delivery-included " + (!covered ? "unavailable" : "")}>
+            <Truck size={15} aria-hidden="true" />
+            {covered
+              ? t("Pengantaran termasuk", "Delivery included")
+              : t("Di luar area pengantaran", "Outside delivery area")}
+          </p>
+          <div className="package-actions">
+            <button
+              type="button"
+              disabled={preview}
+              aria-pressed={compared}
+              aria-label={
+                (compared
+                  ? t("Hapus dari perbandingan: ", "Remove from comparison: ")
+                  : t("Bandingkan: ", "Compare: ")) + offer.name
+              }
+              onClick={() => toggleCompare(offer.id)}
+            >
+              {compared && <Check size={15} aria-hidden="true" />}
+              {compared
+                ? t("Dibandingkan", "Comparing")
+                : t("Bandingkan", "Compare")}
+            </button>
+            <Link href={"/packages/" + offer.slug} {...navigation}>
+              {t("Lihat paket", "View package")}
+              <ArrowRight size={16} aria-hidden="true" />
+            </Link>
+          </div>
+        </div>
       </div>
     </article>
   );
@@ -121,6 +168,7 @@ export function Catalog({ caterer }: { caterer?: string }) {
   const { offers, area, setArea, t, locale } = useApp();
   const [search, setSearch] = useState(""),
     [meal, setMeal] = useState("all"),
+    [packageType, setPackageType] = useState("all"),
     [flex, setFlex] = useState(false),
     [trial, setTrial] = useState(false),
     [diet, setDiet] = useState(false),
@@ -131,12 +179,13 @@ export function Catalog({ caterer }: { caterer?: string }) {
     .filter(
       (p) =>
         (meal === "all" || p.meal === meal) &&
+        (packageType === "all" || p.packageType === packageType) &&
         (!flex || p.flexible) &&
         (!trial || p.trialPrice) &&
         (!diet || p.tags.includes("Plant-based")) &&
         (!max || p.price <= Number(max)) &&
         (!search ||
-          [p.name, p.caterer, ...p.tags]
+          [p.name, p.caterer, ...p.tags, ...p.menus.map(menuSummary)]
             .join(" ")
             .toLowerCase()
             .includes(search.toLowerCase())),
@@ -154,57 +203,7 @@ export function Catalog({ caterer }: { caterer?: string }) {
     });
   return (
     <>
-      <section className="market-hero">
-        <div className="hero-copy">
-          <h1>
-            {t("Makan enak.", "Eat well.")}
-            <br />
-            {t("Setiap hari.", "Every day.")}
-            <Asterisk className="hero-dot" aria-hidden="true" />
-          </h1>
-          <p>
-            {t(
-              "Katering yang pas untuk keseharian Anda. Pilih makanannya, atur jadwalnya, nikmati harinya.",
-              "Catering that fits your everyday. Choose your meals, set your schedule, enjoy your day.",
-            )}
-          </p>
-          <a className="button cream" href="#packages">
-            {t("Temukan paketmu", "Find your meals")}
-            <ArrowUpRight size={19} />
-          </a>
-          <div className="hero-benefits">
-            <span>
-              <Check size={15} />
-              {t("Pengantaran termasuk", "Delivery included")}
-            </span>
-            <span>
-              <Check size={15} />
-              {t("Bisa coba dulu", "Try before subscribing")}
-            </span>
-          </div>
-        </div>
-        <div className="hero-food">
-          <img
-            src="/assets/food/ayam-panggang.png"
-            alt="Ayam panggang, nasi hangat, dan sayuran segar"
-            fetchPriority="high"
-            width="724"
-            height="543"
-          />
-          <div className="hero-food-caption">
-            <span>
-              <Sun size={18} />
-              {t("Satu urusan berkurang.", "One less thing to plan.")}
-            </span>
-            <strong>
-              {t(
-                "Satu hari lebih menyenangkan.",
-                "A little more joy every day.",
-              )}
-            </strong>
-          </div>
-        </div>
-      </section>
+      <FeaturedHero />
       <section className="catalog-section" id="packages">
         <div className="market-toolbar">
           <div className="delivery-selector">
@@ -357,6 +356,16 @@ export function Catalog({ caterer }: { caterer?: string }) {
             </Select>
           </label>
         </div>
+        <label className="field package-type-filter">
+          <span>{t("Jenis paket", "Package type")}</span>
+          <Select value={packageType} onValueChange={setPackageType}>
+            <SelectOption value="all">
+              {t("Semua jenis", "All types")}
+            </SelectOption>
+            <SelectOption value="ala_carte">À la carte</SelectOption>
+            <SelectOption value="nasi_box">Nasi box</SelectOption>
+          </Select>
+        </label>
         <div className="package-grid">
           {filtered.map((p) => (
             <PackageCard key={p.id} offer={p} />
@@ -422,9 +431,17 @@ export function Catalog({ caterer }: { caterer?: string }) {
 function PackageIcon({ size = 18 }: { size?: number }) {
   return <CalendarDays size={size} />;
 }
-export function PackagePage({ slug }: { slug: string }) {
+export function PackagePage({
+  slug,
+  offer,
+  preview = false,
+}: {
+  slug: string;
+  offer?: Offer;
+  preview?: boolean;
+}) {
   const { offers, t, locale, area, compare, toggleCompare } = useApp();
-  const p = offers.find((x) => x.slug === slug || x.id === slug);
+  const p = offer || offers.find((x) => x.slug === slug || x.id === slug);
   const [portions, setPortions] = useState(1);
   const reviews = useResource<
     {
@@ -435,7 +452,9 @@ export function PackagePage({ slug }: { slug: string }) {
       reply: string;
     }[]
   >("reviews:" + p?.id, () =>
-    p ? api.request("reviews/" + p.id) : Promise.resolve([]),
+    p && p.id !== "preview"
+      ? api.request("reviews/" + p.id)
+      : Promise.resolve([]),
   );
   if (!p)
     return (
@@ -448,7 +467,7 @@ export function PackagePage({ slug }: { slug: string }) {
   );
   const total = Math.round(p.price * p.days * portions * (1 - tier / 100));
   return (
-    <div className="content package-detail">
+    <div inert={preview} className="content package-detail">
       <div className="breadcrumbs">
         <Link href="/#packages">{t("Jelajah", "Discover")}</Link>
         <span>/</span>
@@ -485,25 +504,19 @@ export function PackagePage({ slug }: { slug: string }) {
             </span>
           </div>
           <section className="detail-section">
-            <h2>{t("Menu yang menantimu", "Meals to look forward to")}</h2>
+            <h2>{t("Isi paket", "Included dishes")}</h2>
             <p>
               {t(
                 "Menu disediakan katerer. Semua porsi menerima menu yang sama.",
                 "Menus are supplied by the caterer. All portions receive the same menu.",
               )}
             </p>
-            <div className="menu-list">
-              {p.menus.map((m, i) => (
-                <div key={i}>
-                  <img src={m.image} alt={m.name} />
-                  <div>
-                    <small>{mealLabel(m.meal, locale)}</small>
-                    <h3>{m.name}</h3>
-                    <p>{m.description}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <PackageContents
+              offer={p}
+              presentation="gallery"
+              coverImage={p.image}
+              preview={preview}
+            />
           </section>
           <section className="detail-section">
             <h2>{t("Jelas dari awal", "Know before you subscribe")}</h2>
@@ -686,7 +699,11 @@ export function PackagePage({ slug }: { slug: string }) {
 }
 export function Compare() {
   const { offers, compare, toggleCompare, t, locale } = useApp();
-  const [portions, setPortions] = useState(1);
+  const [portionInput, setPortionInput] = useState("1");
+  const portions = Math.max(
+    1,
+    Math.min(100, Number.parseInt(portionInput, 10) || 1),
+  );
   const selected = offers.filter((p) => compare.includes(p.id));
   return (
     <div className="content">
@@ -706,10 +723,29 @@ export function Compare() {
               type="number"
               min="1"
               max="100"
-              value={portions}
-              onChange={(e) =>
-                setPortions(Math.max(1, Math.min(100, Number(e.target.value))))
-              }
+              step="1"
+              value={portionInput}
+              onFocus={(e) => e.currentTarget.select()}
+              onClick={(e) => e.currentTarget.select()}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value === "") {
+                  setPortionInput("");
+                  return;
+                }
+                const next = Number(value);
+                setPortionInput(
+                  String(
+                    !Number.isFinite(next) || next < 0
+                      ? 1
+                      : Math.min(100, Math.floor(next)),
+                  ),
+                );
+              }}
+              onBlur={() => setPortionInput(String(portions))}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") e.currentTarget.blur();
+              }}
             />
           </label>
           <div className="comparison-scroll">
@@ -804,10 +840,31 @@ export function Compare() {
                     ),
                   ],
                   [
-                    "Menu",
+                    t("Jenis paket", "Package type"),
                     ...selected.map((p) =>
-                      p.menus.map((m) => m.name).join(", "),
+                      packageTypeLabel(p.packageType, locale),
                     ),
+                  ],
+                  [
+                    t(
+                      "Gizi per porsi · estimasi katerer",
+                      "Nutrition per portion · caterer estimate",
+                    ),
+                    ...selected.map((p) =>
+                      p.menus
+                        .map(
+                          (m) =>
+                            mealLabel(m.meal, locale) +
+                            ": " +
+                            (nutritionSummary(m.nutrition, locale) ||
+                              t("Belum tersedia", "Unavailable")),
+                        )
+                        .join("; "),
+                    ),
+                  ],
+                  [
+                    "Menu",
+                    ...selected.map((p) => p.menus.map(menuSummary).join("; ")),
                   ],
                 ].map((r, i) => (
                   <tr key={i}>

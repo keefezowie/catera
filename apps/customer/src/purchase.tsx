@@ -1,3 +1,5 @@
+import { PackageContents } from "./package-contents";
+import { menuSummary } from "@catera/domain";
 import { useEffect, useRef, useState } from "react";
 import {
   View,
@@ -46,6 +48,7 @@ export function Discover() {
   const { offers, area, setArea, compare, error, refresh, t } = useNative();
   const [search, setSearch] = useState(""),
     [meal, setMeal] = useState("all"),
+    [packageType, setPackageType] = useState("all"),
     [trial, setTrial] = useState(false);
   const scroll = useRef<ScrollView>(null);
   const sections = useRef({ packages: 0, how: 0 });
@@ -60,11 +63,12 @@ export function Discover() {
     .filter(
       (o) =>
         (!search ||
-          [o.name, o.caterer, ...o.tags]
+          [o.name, o.caterer, ...o.tags, ...o.menus.map(menuSummary)]
             .join(" ")
             .toLowerCase()
             .includes(search.toLowerCase())) &&
         (meal === "all" || o.meal === meal) &&
+        (packageType === "all" || o.packageType === packageType) &&
         (!trial || o.trialPrice),
     )
     .sort(
@@ -178,6 +182,16 @@ export function Discover() {
           "packages for better everyday meals",
         )}
       </Txt>
+      <Select
+        label={t("Jenis paket", "Package type")}
+        value={packageType}
+        onChange={setPackageType}
+        options={[
+          { value: "all", label: t("Semua jenis", "All types") },
+          { value: "ala_carte", label: "À la carte" },
+          { value: "nasi_box", label: "Nasi box" },
+        ]}
+      />
       {filtered.map((o) => (
         <OfferCard key={o.id} offer={o} />
       ))}
@@ -230,8 +244,17 @@ export function Discover() {
   );
 }
 export function PackageScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const { offers, area, setArea, compare, toggleCompare } = useNative();
+  const { id, section, meal } = useLocalSearchParams<{
+    id: string;
+    section?: string;
+    meal?: string;
+  }>();
+  const { offers, area, setArea, compare, toggleCompare, t, locale } =
+    useNative();
+  const scrollRef = useRef<ScrollView>(null);
+  const [contentsY, setContentsY] = useState<number | null>(null);
+  const [mealOffsets, setMealOffsets] = useState<Record<string, number>>({});
+  const jumped = useRef("");
   const [qty, setQty] = useState(1);
   const o = offers.find((o) => o.id === id);
   const reviews = useData<
@@ -243,6 +266,26 @@ export function PackageScreen() {
       reply: string;
     }[]
   >("reviews:" + id, () => nativeApi.request("reviews/" + id));
+  const targetMeal = meal === "lunch" || meal === "dinner" ? meal : undefined;
+  useEffect(() => {
+    const key = id + ":" + section + ":" + meal;
+    if (
+      !o ||
+      section !== "contents" ||
+      (meal && !targetMeal) ||
+      (targetMeal && !o.menus.some((m) => m.meal === targetMeal)) ||
+      contentsY == null ||
+      jumped.current === key
+    )
+      return;
+    const offset = targetMeal ? mealOffsets[targetMeal] : 0;
+    if (offset == null) return;
+    const frame = requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ y: contentsY + offset, animated: false });
+      jumped.current = key;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [id, section, meal, targetMeal, contentsY, mealOffsets, o]);
   if (!o)
     return (
       <Screen>
@@ -252,7 +295,7 @@ export function PackageScreen() {
   const total = price(o, qty);
   const inArea = !area || o.areas.includes(area);
   return (
-    <Screen>
+    <Screen scrollRef={scrollRef}>
       <Photo src={o.image} height={275} />
       <Txt kind="small">{o.caterer}</Txt>
       <Txt kind="title">{o.name}</Txt>
@@ -263,6 +306,36 @@ export function PackageScreen() {
         onChange={setArea}
         options={areaOptions.map((v) => ({ value: v, label: v }))}
       />
+      <View style={{ gap: 4 }}>
+        <Txt>
+          {o.days} {t("hari", "days")} · {mealLabel(o.meal, locale)}
+        </Txt>
+        <Txt kind="small">
+          {o.flexible
+            ? t("Jadwal fleksibel", "Flexible schedule")
+            : t("Jadwal tetap", "Fixed schedule")}{" "}
+          ·{" "}
+          {inArea
+            ? t("Pengantaran termasuk", "Delivery included")
+            : t("Di luar area pengantaran", "Outside delivery area")}
+        </Txt>
+      </View>
+      <Txt kind="heading">{t("Isi paket", "Included dishes")}</Txt>
+      <View
+        nativeID="package-contents"
+        onLayout={(e) => setContentsY(e.nativeEvent.layout.y)}
+      >
+        <PackageContents
+          offer={o}
+          presentation="gallery"
+          coverImage={o.image}
+          onMealLayout={(value, y) =>
+            setMealOffsets((previous) =>
+              previous[value] === y ? previous : { ...previous, [value]: y },
+            )
+          }
+        />
+      </View>
       <Panel>
         <Txt kind="heading">{currency(o.price)} / porsi / hari</Txt>
         <Txt kind="small">
@@ -312,16 +385,6 @@ export function PackageScreen() {
           otomatis.
         </Txt>
       </Panel>
-      <Txt kind="heading">Menu yang menantimu</Txt>
-      {o.menus.map((m, i) => (
-        <Panel key={i}>
-          <Photo src={m.image || o.image} height={170} />
-          <Txt kind="heading">{m.name}</Txt>
-          <Txt kind="small">
-            {mealLabel(m.meal)} · {m.description}
-          </Txt>
-        </Panel>
-      ))}
       <Facts
         rows={[
           [
@@ -386,6 +449,7 @@ export function Comparison() {
           <Panel key={o.id}>
             <Photo src={o.image} height={150} />
             <Txt kind="heading">{o.name}</Txt>
+            <PackageContents offer={o} />
             <Txt kind="small">{o.caterer}</Txt>
             <Facts
               rows={[
@@ -675,6 +739,7 @@ export function CheckoutScreen() {
       <Txt kind="small">
         {o.caterer} · {trial ? "Trial 1 hari" : o.days + " hari"}
       </Txt>
+      <PackageContents offer={quote?.offer || o} />
       {!quote ? (
         <>
           <Qty

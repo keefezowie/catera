@@ -1,3 +1,4 @@
+import { PackageContents } from "./package-contents";
 import { useEffect, useState } from "react";
 import { View, Pressable, Switch } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
@@ -217,6 +218,7 @@ export function DeliveryScreen() {
         {d ? (
           <>
             <Photo src={d.offer.image} height={230} />
+            <PackageContents offer={d.offer} />
             <Txt kind="heading">{d.offer.name}</Txt>
             <Status status={d.status} />
             <Facts
@@ -410,6 +412,7 @@ export function SubscriptionScreen() {
         {s && (
           <>
             <Photo src={s.snapshot.offer.image} height={220} />
+            <PackageContents offer={s.snapshot.offer} />
             <Txt kind="heading">{s.snapshot.offer.name}</Txt>
             <Txt>{s.snapshot.offer.caterer}</Txt>
             <Status status={s.status} />

@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { localDay, addDays } from "@catera/domain";
+import { pickDate } from "./date-picker";
 async function login(page: Page, role = "customer") {
   const r = await page.request.post("/api/v1/auth/demo", { data: { role } });
   expect(r.ok()).toBe(true);
@@ -36,7 +37,7 @@ test("customer purchase, schedule change, support review and renewal", async ({
   await expect(page.locator("table.comparison")).toBeVisible();
   await page.getByLabel("Porsi perbandingan").fill("2");
   await page.goto("/checkout/20000000-0000-4000-8000-000000000003?portions=2");
-  await page.getByLabel("Mulai tanggal").fill(start);
+  await pickDate(page, "Mulai tanggal", start);
   await page.getByRole("button", { name: "Tinjau jadwal & harga" }).click();
   await expect(page.locator(".schedule-preview>div")).toHaveCount(10);
   await page.getByRole("checkbox").check();
@@ -79,7 +80,7 @@ test("customer purchase, schedule change, support review and renewal", async ({
     ).json()
   ).data;
   const target = dates.find((d: { available: boolean }) => d.available).date;
-  await page.getByLabel("Tanggal pengganti").fill(target);
+  await pickDate(page, "Tanggal pengganti", target);
   await page.getByRole("button", { name: "Tinjau perubahan" }).click();
   await expect(page.getByText("Menjadi", { exact: true })).toBeVisible();
   await page
@@ -124,7 +125,7 @@ test("customer and operational routes render, retain context and pass critical a
     fullPage: true,
   });
   await page.goto("/calendar");
-  await expect(page.locator(".week-strip")).toBeVisible();
+  await expect(page.locator("#main .coverage-strip")).toBeVisible();
   await page.screenshot({
     path: "output/fixes-verification/calendar-phone.png",
     fullPage: true,

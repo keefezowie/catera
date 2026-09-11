@@ -1,4 +1,15 @@
 import { z } from "zod";
+import {
+  menuSchema,
+  contentsIssues,
+  type MealMenu,
+  type PackageType,
+  type ContentRevision,
+  type DatedMenu,
+} from "./contents";
+export * from "./contents";
+export * from "./package-presentation";
+export * from "./offer-editor";
 
 export const mealTypes = ["lunch", "dinner", "both"] as const;
 export type MealType = (typeof mealTypes)[number];
@@ -54,7 +65,9 @@ export type Offer = {
   areas: string[];
   cutoff: string;
   timezone: string;
-  menus: { name: string; description: string; image: string; meal: string }[];
+  menus: MealMenu[];
+  packageType?: PackageType | null;
+  contentRevision?: number;
   rating: number | null;
   reviewCount: number;
   status: string;
@@ -146,6 +159,10 @@ export type Notice = {
   created_at: string;
 };
 export type CustomerState = {
+  calendarMeta?: {
+    nextDeliveryDate: string | null;
+    lastUpcomingDeliveryDate: string | null;
+  };
   subscriptions: Subscription[];
   deliveries: Delivery[];
   addresses: Address[];
@@ -153,6 +170,9 @@ export type CustomerState = {
   cases: SupportCase[];
 };
 export type SellerState = {
+  dishes?: import("./contents").LibraryDish[];
+  contentRevisions?: ContentRevision[];
+  datedMenus?: DatedMenu[];
   caterer: Caterer;
   offers: Offer[];
   deliveries: Delivery[];
@@ -219,36 +239,65 @@ export const commandSchema = z.object({
   payload: z.record(z.string(), z.unknown()),
   requestId: z.uuid(),
 });
-export const offerSchema = z.object({
-  name: z.string().trim().min(3).max(100),
-  description: z.string().trim().min(10).max(1500),
-  price: z.number().int().min(1000),
-  days: z.number().int().min(1).max(60),
-  meal: z.enum(mealTypes),
-  weekdays: z.array(z.number().int().min(0).max(6)).min(1),
-  flexible: z.boolean(),
-  trialPrice: z.number().int().min(1000).nullable(),
-  trialMax: z.number().int().min(1).nullable(),
-  capacity: z.record(z.string(), z.number().int().min(0)),
-  tiers: z.array(
-    z.object({
-      min: z.number().int().min(1),
-      percent: z.number().min(0).max(90),
-    }),
-  ),
-  windows: z.object({ lunch: z.string().min(3), dinner: z.string().min(3) }),
-  tags: z.array(z.string().max(40)),
-  image: z.string().max(500),
-  menus: z.array(
-    z.object({
-      name: z.string(),
-      description: z.string(),
-      image: z.string(),
-      meal: z.string(),
-    }),
-  ),
-  status: z.enum(["draft", "published", "paused", "retired"]),
-});
+export const offerSchema = z
+  .object({
+    name: z.string().trim().max(100),
+    description: z.string().trim().max(1500),
+    price: z.number().int().min(1000).max(10000000),
+    days: z.number().int().min(1).max(60),
+    meal: z.enum(mealTypes),
+    weekdays: z.array(z.number().int().min(0).max(6)).max(7),
+    flexible: z.boolean(),
+    trialPrice: z.number().int().min(1000).nullable(),
+    trialMax: z.number().int().min(1).nullable(),
+    capacity: z.record(z.string(), z.number().int().min(0)),
+    tiers: z.array(
+      z.object({
+        min: z.number().int().min(1),
+        percent: z.number().min(0).max(90),
+      }),
+    ),
+    windows: z.object({ lunch: z.string().min(3), dinner: z.string().min(3) }),
+    tags: z.array(z.string().max(40)),
+    image: z.string().max(500),
+    packageType: z.enum(["ala_carte", "nasi_box"]).nullable().optional(),
+    menus: z.array(menuSchema).max(2),
+    status: z.enum(["draft", "published", "paused", "retired"]),
+  })
+  .superRefine((o, ctx) => {
+    const complete = o.status !== "draft";
+    for (const [key, min] of [
+      ["name", 3],
+      ["description", 10],
+    ] as const)
+      if ((complete || o[key].length > 0) && o[key].length < min)
+        ctx.addIssue({
+          code: "custom",
+          path: [key],
+          message: `Minimal ${min} karakter / At least ${min} characters`,
+        });
+    if (complete && !o.weekdays.length)
+      ctx.addIssue({
+        code: "custom",
+        path: ["weekdays"],
+        message: "Pilih hari pengantaran / Choose operating days",
+      });
+    if (complete && !o.image.trim())
+      ctx.addIssue({
+        code: "custom",
+        path: ["image"],
+        message: "Unggah foto paket / Upload a package photo",
+      });
+    for (const d of o.weekdays)
+      if (o.capacity[String(d)] === undefined)
+        ctx.addIssue({
+          code: "custom",
+          path: ["capacity"],
+          message: "Isi kapasitas / Enter capacity",
+        });
+    for (const message of contentsIssues(o, o.status !== "draft"))
+      ctx.addIssue({ code: "custom", path: ["menus"], message });
+  });
 export const areaOptions = [
   "Jakarta Selatan",
   "Jakarta Pusat",
@@ -356,10 +405,15 @@ export const statusLabel = (status: string, locale: Locale = "id") =>
         payment_exception: "Pembayaran perlu ditinjau",
       }[status] || status;
 export const errors: Record<string, string> = {
+  CLASSIFY_PACKAGE:
+    "Pilih jenis paket dan lengkapi isi paket sebelum menyimpan.",
+  COMPOSITION_CHANGED:
+    "Isi menu harus sesuai komposisi yang dibeli. Gunakan versi isi paket yang benar.",
   PRICE_CHANGED: "Harga atau ketentuan berubah. Tinjau ulang sebelum membayar.",
   UNAUTHORIZED: "Silakan masuk kembali.",
   INVALID_CREDENTIALS: "Email atau kata sandi tidak cocok. Silakan coba lagi.",
-  AUTH_RATE_LIMITED: "Terlalu banyak percobaan masuk. Tunggu sebentar lalu coba lagi.",
+  AUTH_RATE_LIMITED:
+    "Terlalu banyak percobaan masuk. Tunggu sebentar lalu coba lagi.",
   FORBIDDEN: "Akun ini tidak memiliki akses.",
   CAPACITY:
     "Porsi pada salah satu tanggal sudah habis. Pilih tanggal mulai atau jumlah porsi lain.",
