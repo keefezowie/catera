@@ -1,0 +1,13 @@
+{
+  "at": "2026-09-11T14:21:04.490Z",
+  "passed": [
+    "Five simultaneous purchases: exactly three committed at capacity three; complete schedules reserved.",
+    "Five simultaneous payment confirmations: one subscription and one allocation.",
+    "A full replacement date rejects rescheduling without changing the original booking.",
+    "Two eligible customers race for one replacement slot: exactly one succeeds; the other retains the original confirmed reservation.",
+    "Realtime signals enforce customer-specific SELECT access and reject direct authenticated writes.",
+    "Concurrent content edits and checkout preserve a complete purchased revision and whole-portion reservations; simultaneous dated-menu saves accept exactly one version.",
+    "Concurrent library edits reject stale versions; archive leaves purchased contents untouched.",
+    "Slot menu batches: concurrent writers accept exactly one complete batch, a later-date conflict rolls back earlier dates, and idempotent retry does not increment versions twice."
+  ]
+}

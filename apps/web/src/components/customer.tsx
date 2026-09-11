@@ -714,7 +714,7 @@ export function DeliveryPage({ id }: { id: string }) {
   );
 }
 export function Messages() {
-  const { actor, t, perform, offers } = useApp();
+  const { actor, workspace, t, perform, offers } = useApp();
   const query = useSearchParams();
   const selectedCaterer = query.get("caterer");
   const state = useResource<Conversation[]>("conversations", () =>
@@ -762,7 +762,7 @@ export function Messages() {
               <span className="mini-avatar">{x.caterer[0]}</span>
               <div>
                 <strong>
-                  {actor?.role === "customer" ? x.caterer : x.customer}
+                  {workspace === "customer" ? x.caterer : x.customer}
                 </strong>
                 <small>
                   {x.messages.at(-1)?.body.slice(0, 60) || "Mulai percakapan"}

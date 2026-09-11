@@ -19,6 +19,9 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:postgres": "node --import tsx tests/postgres-concurrency.mjs",
+    "demo:baseline": "node --import tsx scripts/v1-demo-baseline.mts",
+    "demo:verify:hosted": "node scripts/verify-demo-accounts.mjs",
+    "demo:verify:restore": "node --import tsx scripts/verify-demo-baseline-restore.mjs",
     "native:export": "npm run export -w @catera/customer",
     "assets": "node scripts/sync-assets.mjs",
     "check": "npm run typecheck && npm test && npm run build"

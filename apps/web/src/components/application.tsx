@@ -4,7 +4,6 @@ import { usePathname } from "next/navigation";
 import {
   Bell,
   MapPin,
-  ChevronDown,
   Home,
   Compass,
   CalendarDays,
@@ -20,7 +19,6 @@ import {
   ShieldCheck,
   ClipboardList,
   LifeBuoy,
-  LogOut,
   Menu,
   X,
   Leaf,
@@ -33,15 +31,17 @@ import {
   type Actor,
   type Offer,
   type Locale,
+  type Workspace,
 } from "@catera/domain";
-import { Provider, CatalogProvider, useApp, api } from "./context";
+import { Provider, CatalogProvider, useApp } from "./context";
 import { Button } from "./form-controls";
 import { Brand, ErrorNotice } from "./ui";
-import { Select, SelectOption } from "./select";
+import { LocaleSwitch } from "./locale-switch";
 import { catalogHref, howItWorksHref } from "@/lib/navigation";
 import { Catalog, PackagePage, Compare, CatererPage } from "./marketplace";
 import { Customer, DeliveryPage, Messages, Account, Support } from "./customer";
 import { CheckoutPage, PaymentPage, Login } from "./purchase";
+import { ProfileMenu } from "./profile-menu";
 import dynamic from "next/dynamic";
 const Seller = dynamic(() => import("./seller").then((m) => m.Seller));
 const Onboarding = dynamic(() => import("./seller").then((m) => m.Onboarding));
@@ -66,17 +66,25 @@ export function ApplicationLayout({
   actor,
   demo,
   locale,
+  workspace,
   children,
 }: {
   actor: Actor | null;
   demo: boolean;
   locale: Locale;
+  workspace: Workspace;
   children: ReactNode;
 }) {
   const pathname = usePathname();
   const root = pathname.split("/")[1];
   return (
-    <Provider actor={actor} offers={[]} demo={demo} initialLocale={locale}>
+    <Provider
+      actor={actor}
+      workspace={workspace}
+      offers={[]}
+      demo={demo}
+      initialLocale={locale}
+    >
       <Shell
         operational={
           ["seller", "admin"].includes(root) &&
@@ -136,17 +144,7 @@ function Shell({
   children: ReactNode;
   operational: boolean;
 }) {
-  const {
-    actor,
-    demo,
-    t,
-    locale,
-    setLocale,
-    area,
-    setArea,
-    compare,
-    clearCompare,
-  } = useApp();
+  const { actor, demo, t, area, setArea, compare, clearCompare } = useApp();
   const pathname = usePathname();
   const [menu, setMenu] = useState(false);
   const [section, setSection] = useState("packages");
@@ -220,29 +218,37 @@ function Shell({
   const isAdmin = pathname.startsWith("/admin");
   const links = isAdmin
     ? ([
-        ["/admin/sellers", "Katerer", ShieldCheck],
-        ["/admin/transactions", "Transaksi", Wallet],
-        ["/admin/support", "Bantuan & refund", LifeBuoy],
-        ["/admin/payouts", "Pencairan", Wallet],
-        ["/admin/promotions", "Promosi", Leaf],
-        ["/admin/reviews", "Moderasi ulasan", MessageCircle],
-        ["/admin/audit", "Jejak audit", ClipboardList],
+        ["/admin/sellers", t("Katerer", "Caterers"), ShieldCheck],
+        ["/admin/transactions", t("Transaksi", "Transactions"), Wallet],
+        [
+          "/admin/support",
+          t("Bantuan & refund", "Support & refunds"),
+          LifeBuoy,
+        ],
+        ["/admin/payouts", t("Pencairan", "Payouts"), Wallet],
+        ["/admin/promotions", t("Promosi", "Promotions"), Leaf],
+        [
+          "/admin/reviews",
+          t("Moderasi ulasan", "Review moderation"),
+          MessageCircle,
+        ],
+        ["/admin/audit", t("Jejak audit", "Audit trail"), ClipboardList],
       ] as const)
     : ([
-        ["/seller", "Hari ini", LayoutDashboard],
-        ["/seller/schedule", "Jadwal", CalendarDays],
-        ["/seller/production", "Produksi", ChefHat],
-        ["/seller/delivery", "Pengiriman", Truck],
-        ["/seller/packages", "Paket", Package],
-        ["/seller/menus", "Menu", Leaf],
-        ["/seller/dishes", "Daftar hidangan", Leaf],
-        ["/seller/capacity", "Kapasitas", ClipboardList],
-        ["/seller/customers", "Pelanggan", Users],
-        ["/seller/support", "Pesan & bantuan", MessageCircle],
+        ["/seller", t("Hari ini", "Today"), LayoutDashboard],
+        ["/seller/schedule", t("Jadwal", "Schedule"), CalendarDays],
+        ["/seller/packages", t("Paket", "Packages"), Package],
+        ["/seller/menus", t("Menu", "Menus"), Leaf],
+        ["/seller/customers", t("Pelanggan", "Customers"), Users],
+        [
+          "/seller/support",
+          t("Pesan & bantuan", "Messages & support"),
+          MessageCircle,
+        ],
         ...(actor?.role === "owner"
           ? ([
-              ["/seller/transactions", "Transaksi", Wallet],
-              ["/seller/settings", "Pengaturan", Settings],
+              ["/seller/transactions", t("Transaksi", "Transactions"), Wallet],
+              ["/seller/settings", t("Pengaturan", "Settings"), Settings],
             ] as const)
           : []),
       ] as const);
@@ -268,7 +274,11 @@ function Shell({
                 {isAdmin ? <ShieldCheck size={21} /> : <ChefHat size={21} />}
               </span>
               <div>
-                <strong>{isAdmin ? "Catera Admin" : "Ruang katerer"}</strong>
+                <strong>
+                  {isAdmin
+                    ? "Catera Admin"
+                    : t("Ruang katerer", "Caterer workspace")}
+                </strong>
                 <small>{actor?.name}</small>
               </div>
             </div>
@@ -293,14 +303,15 @@ function Shell({
                 Good days.
               </strong>
               <Link href="/">
-                Lihat marketplace <ArrowUpRight size={16} />
+                {t("Lihat marketplace", "View marketplace")}{" "}
+                <ArrowUpRight size={16} />
               </Link>
             </div>
           </aside>
           {menu && (
             <Button
               className="sidebar-backdrop"
-              aria-label="Tutup menu"
+              aria-label={t("Tutup menu", "Close menu")}
               onClick={() => setMenu(false)}
             />
           )}
@@ -308,31 +319,27 @@ function Shell({
             <Button
               className="icon-button mobile-only"
               onClick={() => setMenu(!menu)}
-              aria-label="Menu"
+              aria-label={t("Menu", "Menu")}
             >
               <Menu />
             </Button>
             <span>
               {isAdmin
-                ? "Marketplace & kepercayaan"
-                : "Makanan baik dimulai dari dapur yang tertata."}
+                ? t("Marketplace & kepercayaan", "Marketplace & trust")
+                : t(
+                    "Makanan baik dimulai dari dapur yang tertata.",
+                    "Good food starts with an organized kitchen.",
+                  )}
             </span>
+            <LocaleSwitch />
             <Link
               href="/notifications"
               className="icon-button"
-              aria-label="Notifikasi"
+              aria-label={t("Notifikasi", "Notifications")}
             >
               <Bell size={21} />
             </Link>
-            <Button
-              className="avatar"
-              onClick={() => {
-                api.request("auth/logout", {}).then(() => location.assign("/"));
-              }}
-              title="Keluar"
-            >
-              {actor?.name[0]}
-            </Button>
+            <ProfileMenu />
           </header>
         </>
       ) : (
@@ -386,16 +393,7 @@ function Shell({
               </Link>
             </nav>
             <div className="header-actions">
-              <Select
-                className="locale-switch"
-                aria-label={t("Bahasa", "Language")}
-                value={locale}
-                displayValue={locale.toUpperCase()}
-                onValueChange={(value) => setLocale(value as Locale)}
-              >
-                <SelectOption value="id">Bahasa Indonesia</SelectOption>
-                <SelectOption value="en">English</SelectOption>
-              </Select>
+              <LocaleSwitch />
               {actor ? (
                 <>
                   <Link
@@ -405,9 +403,7 @@ function Shell({
                   >
                     <Bell size={20} />
                   </Link>
-                  <Link href="/account" className="avatar" aria-label="Akun">
-                    {actor.name[0]}
-                  </Link>
+                  <ProfileMenu />
                 </>
               ) : (
                 <Link className="button small" href="/login">

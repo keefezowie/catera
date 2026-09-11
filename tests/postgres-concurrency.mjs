@@ -1,4 +1,6 @@
 import pg from "pg";
+import { verifySlotMenuConcurrency } from "./postgres-slot-menus.mjs";
+import { verifySellerOperations } from "./postgres-seller-operations.mjs";
 import assert from "node:assert/strict";
 import { readFile, readdir, mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -85,6 +87,17 @@ try {
   await pool.query(await readFile("supabase/migrations/20260910120930_package_contents.sql", "utf8"));
   for (const f of (await readdir("supabase/migrations")).filter(f => f.endsWith("_reusable_dishes.sql"))) await pool.query(await readFile("supabase/migrations/" + f, "utf8"));
   await pool.query(await readFile("supabase/migrations/20260910160000_calendar_metadata.sql", "utf8"));
+  for (const f of (await readdir("supabase/migrations")).filter(f => f.endsWith("_slot_menu_calendar.sql"))) await pool.query(await readFile("supabase/migrations/" + f, "utf8"));
+  await pool.query(await readFile("supabase/migrations/20260911150000_shared_recurring_capacity.sql", "utf8"));
+  const demoUpgrade = await readFile("packages/backend/src/demo-slot-upgrade.sql", "utf8");
+  await pool.query("begin;select set_config('catera.demo','true',true);" + demoUpgrade + "commit;");
+  const demoHash = async () => (await pool.query("select md5(string_agg(offer::text,'|' order by id)) hash from v1.packages")).rows[0].hash;
+  const normalizedHash = await demoHash();
+  await pool.query("begin;select set_config('catera.demo','true',true);" + demoUpgrade + "commit;");
+  assert.equal(await demoHash(), normalizedHash);
+  assert.equal((await pool.query("select count(*)::int n from v1.menus where not v1.valid_slot_menu(details,true,false)")).rows[0].n, 0);
+  evidence.push("Synthetic slot conversion is repeatable on PostgreSQL; dated menus validate and package templates remain stable.");
+  await pool.query(await readFile("supabase/migrations/20260911150142_seller_operations.sql", "utf8"));
   const users = Array.from({ length: 5 }, () => crypto.randomUUID());
   const addresses = [];
   for (const user of users) {
@@ -248,6 +261,8 @@ try {
   await cmd('dish.archive',{catererId:CATERER_IDS[0],id:dish.id,version,archived:true},DEMO_ACTORS.owner);
   assert.equal((await pool.query('select quote::text from v1.checkouts where id=$1',[purchased.id])).rows[0].quote,frozenBefore);
   evidence.push('Concurrent library edits reject stale versions; archive leaves purchased contents untouched.');
+  await verifySlotMenuConcurrency(pool, cmd, evidence);
+  await verifySellerOperations(pool, cmd, evidence);
   await mkdir("output/verification", { recursive: true });
   const evidencePath = process.env.CATERA_POSTGRES_EVIDENCE || "output/verification/postgres.json";
   await mkdir(path.dirname(evidencePath), { recursive: true });

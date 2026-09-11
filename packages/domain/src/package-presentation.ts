@@ -12,7 +12,7 @@ export function compositionPreview(
   type?: PackageType | null,
   locale = "id",
 ) {
-  if (type === "nasi_box" && menu.composition?.length)
+  if ((type === "nasi_box" || menu.contentModel === "slots") && menu.composition?.length)
     return menu.composition.map((g) => `${g.slots} ${g.name}`).join(" · ");
   if (type === "ala_carte" && menu.items) {
     const count = menuItems(menu).length;
@@ -45,6 +45,7 @@ export function nutritionMetrics(
 }
 
 export function menuSourceLabel(menu: MealMenu, locale = "id") {
+  if (menu.contentModel === "slots" && !menu.items?.length) return locale === "id" ? "Menu belum ditentukan" : "Menu not yet set";
   return menu.source === "dated"
     ? locale === "id"
       ? "Menu tanggal ini"

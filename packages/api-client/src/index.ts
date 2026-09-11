@@ -7,6 +7,9 @@ import type {
   Quote,
   Checkout,
   Conversation,
+  MenuMonth,
+  SellerOperationsState,
+  SellerCalendar,
 } from "@catera/domain";
 export class ApiError extends Error {
   constructor(
@@ -44,6 +47,12 @@ export function createApi(base = "", token?: () => Promise<string | null>) {
     customer: (query = "") => request<CustomerState>("customer" + query),
     seller: (id: string, date: string) =>
       request<SellerState>("seller/" + id + "?date=" + date),
+    sellerOperations: (id: string, date?: string) =>
+      request<SellerOperationsState>("seller/" + id + (date ? "?date=" + date : "")),
+    sellerCalendar: (id: string, params: Record<string, string>) =>
+      request<SellerCalendar>("seller-calendar/" + id + "?" + new URLSearchParams(params)),
+    menuMonth: (packageId: string, revision: number, month: string, meal: string) =>
+      request<MenuMonth>("menu-month?" + new URLSearchParams({ packageId, revision: String(revision), month, meal })),
     admin: () => request<AdminState>("admin"),
     conversations: () => request<Conversation[]>("conversations"),
     quote: (payload: unknown) => request<Quote>("quote", payload),

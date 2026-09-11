@@ -9,8 +9,11 @@ import {
 } from "@catera/backend";
 import {
   addressSchema,
+  menuBatchSaveSchema,
+  categorySaveSchema,
   checkoutSchema,
   commandSchema,
+  deliveryBatchSchema,
   offerSchema,
   menuSaveSchema,
   dishSaveSchema,
@@ -20,8 +23,22 @@ import {
 import { session, supabase, demoToken } from "@/lib/auth";
 import { passwordSignIn } from "@/lib/password-auth";
 import type { Actor } from "@catera/domain";
+import {
+  canSwitchWorkspace,
+  defaultWorkspace,
+  defaultWorkspaceForRole,
+  workspaceCookieName,
+} from "@/lib/workspace";
 export const runtime = "nodejs";
 type Context = { params: Promise<{ path: string[] }> };
+async function setWorkspaceCookie(value: ReturnType<typeof defaultWorkspace>) {
+  (await cookies()).set(workspaceCookieName, value, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+  });
+}
 const ok = (data: unknown) =>
   Response.json({ data }, { headers: { "Cache-Control": "no-store" } });
 const codes = [
@@ -92,6 +109,8 @@ export async function GET(request: Request, context: Context) {
         "availability",
         "customer",
         "seller",
+        "seller-calendar",
+        "menu-month",
         "admin",
         "conversations",
         "checkout",
@@ -126,19 +145,39 @@ export async function POST(request: Request, context: Context) {
           path: "/",
           maxAge: 86400,
         });
+        await setWorkspaceCookie(defaultWorkspaceForRole(role));
         return ok({ token, id: DEMO_ACTORS[role] });
+      }
+      if (path[1] === "workspace") {
+        const workspace = z.enum(["customer", "caterer"]).parse(a.workspace);
+        const current = await session(request);
+        if (!current.actor) throw new Error("UNAUTHORIZED");
+        if (!canSwitchWorkspace(current.actor) && workspace !== "customer")
+          throw new Error("FORBIDDEN");
+        if (
+          current.actor.role === "platform_admin" ||
+          (current.actor.role !== "customer" &&
+            current.actor.role !== "owner" &&
+            current.actor.role !== "staff")
+        )
+          throw new Error("FORBIDDEN");
+        await setWorkspaceCookie(workspace);
+        return ok({ workspace });
       }
       if (path[1] === "logout") {
         (await cookies()).delete("catera_v1_demo");
+        (await cookies()).delete(workspaceCookieName);
         if (!demoEnabled())
           await (await supabase()).auth.signOut({ scope: "local" });
         return ok({});
       }
       if (demoEnabled()) throw new Error("FORBIDDEN");
       const client = await supabase();
-      if (path[1] === "password")
-        return ok(
-          await passwordSignIn(client, a, async (id, token, name) => {
+      if (path[1] === "password") {
+        const result = await passwordSignIn(
+          client,
+          a,
+          async (id, token, name) => {
             await rpc(id, token, "catera_v1_command", {
               action: "profile.ensure",
               payload: { name },
@@ -148,8 +187,11 @@ export async function POST(request: Request, context: Context) {
               resource: "actor",
               params: {},
             });
-          }),
+          },
         );
+        await setWorkspaceCookie(defaultWorkspace(result.actor));
+        return ok(result);
+      }
       const phone = z
         .string()
         .regex(/^\+62\d{8,13}$/)
@@ -182,6 +224,13 @@ export async function POST(request: Request, context: Context) {
             request_id: crypto.randomUUID(),
           },
         );
+        const actor = await rpc<Actor>(
+          data.user.id,
+          data.session?.access_token || null,
+          "catera_v1_read",
+          { resource: "actor", params: {} },
+        );
+        await setWorkspaceCookie(defaultWorkspace(actor));
         return ok({
           session: data.session
             ? {
@@ -205,12 +254,15 @@ export async function POST(request: Request, context: Context) {
     }
     if (path[0] === "commands") {
       const command = commandSchema.parse(a);
+      if (command.action === "delivery.statusBatch") command.payload = deliveryBatchSchema.parse(command.payload);
       if (command.action === "checkout.create")
         command.payload = checkoutSchema.parse(command.payload);
       if (command.action === "address.save")
         command.payload = addressSchema.parse(command.payload);
       if (command.action === "menu.save")
         command.payload = menuSaveSchema.parse(command.payload);
+      if (command.action === "menu.saveBatch") command.payload = menuBatchSaveSchema.parse(command.payload);
+      if (command.action === "category.save") command.payload = categorySaveSchema.parse(command.payload);
       if (command.action === "dish.save") command.payload = dishSaveSchema.parse(command.payload);
       if (command.action === "dish.archive") command.payload = dishArchiveSchema.parse(command.payload);
       if (command.action === "package.save")

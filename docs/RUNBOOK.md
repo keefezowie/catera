@@ -103,7 +103,7 @@ Alert on non-200 job responses, stale unprocessed work, repeated failures, payme
 
 Seller day/meal selection must stay consistent through schedule → production → delivery. Freeze an immutable production revision, inspect meal-level menu/portion/trial totals, and verify print and CSV output before kitchen handoff. Combined packages have one capacity reservation per day, with independently fulfilled lunch and dinner entries. Address/date changes move the daily commitment together.
 
-Do not reduce capacity below commitments or close a booked date without resolving affected bookings. A failed replacement reservation must leave the old booking intact. Check cutoff using the caterer's configured timezone, including a request that crosses cutoff during processing.
+Recurring package capacity is shared across the selected operating weekdays. Existing date-specific capacity rows are read-only legacy exceptions; do not create new overrides through normal seller operations. Do not reduce capacity below commitments or close a booked date without resolving affected bookings. A failed replacement reservation must leave the old booking intact. Check cutoff using the caterer's configured timezone, including a request that crosses cutoff during processing.
 
 All cancellation/refund requests enter support and retain bookings on submission. The seller responds first; a Catera administrator approves a financial resolution with amount and reason. Review future obligations, delivered portions and held seller allocations before approval. Never manually delete reservations, rewrite purchase snapshots, or modify financial rows to clear a queue.
 

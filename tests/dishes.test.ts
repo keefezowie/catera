@@ -16,6 +16,8 @@ import {
   selectLibraryDish,
   dishSaveSchema,
   offerEditorIssues,
+  sharedCapacityValue,
+  withSharedCapacity,
   type LibraryDish,
   type SellerState,
   type Offer,
@@ -79,6 +81,24 @@ it("guards all required steps and permits incomplete drafts without permitting p
     expect.arrayContaining(["packageType", "name", "description", "image"]),
   );
   expect(offerEditorIssues(offering())).toEqual([]);
+  const mismatched = {
+    ...offering(),
+    capacity: { ...offering().capacity, "1": 101 },
+  };
+  expect(
+    offerEditorIssues(mismatched).some((i) =>
+      i.message.includes("Kapasitas harus sama"),
+    ),
+  ).toBe(true);
+  expect(offerEditorIssues({ ...mismatched, weekdays: [6] })).toEqual([]);
+  expect(sharedCapacityValue(mismatched.capacity, mismatched.weekdays)).toBe(
+    101,
+  );
+  expect(sharedCapacityValue({ "1": 42, "6": 0 }, [])).toBe(42);
+  expect(withSharedCapacity(mismatched.capacity, [1, 2], 55)).toMatchObject({
+    "1": 55,
+    "2": 55,
+  });
   expect(offerEditorIssues({ ...offering(), price: 0 })[0].step).toBe(
     "pricing",
   );
@@ -271,6 +291,7 @@ it("rejects malformed direct package RPC writes and classifies saved drafts befo
     { weekdays: [1.2] },
     { image: "" },
     { capacity: { 1: -1 } },
+    { capacity: { ...offering().capacity, "1": 101 } },
     { tags: [5] },
   ])
     await expect(

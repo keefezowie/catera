@@ -1,6 +1,7 @@
 import { View, Image } from "react-native";
 import {
   menuItems,
+  menuSourceLabel,
   menuSummary,
   mealLabel,
   packageTypeLabel,
@@ -39,9 +40,7 @@ export function PackageContents({
         <View key={m.meal} style={{ gap: 8 }}>
           <Txt kind="small">
             {mealLabel(m.meal, locale)} ·{" "}
-            {m.source === "dated"
-              ? t("Menu tanggal ini", "Menu for this date")
-              : t("Menu awal / contoh", "Initial / example menu")}
+            {menuSourceLabel(m, locale)}
           </Txt>
           {!!m.composition?.length && (
             <Txt>

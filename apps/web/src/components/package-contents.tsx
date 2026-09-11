@@ -1,6 +1,7 @@
 "use client";
 import {
   menuItems,
+  menuSourceLabel,
   menuSummary,
   mealLabel,
   nutritionSummary,
@@ -35,9 +36,7 @@ export function PackageContents({
         <section key={m.meal} className="meal-contents">
           <p className="contents-caption">
             {mealLabel(m.meal, locale)} ·{" "}
-            {m.source === "dated"
-              ? t("Menu tanggal ini", "Menu for this date")
-              : t("Menu awal / contoh", "Initial / example menu")}
+            {menuSourceLabel(m, locale)}
           </p>
           {!!m.composition?.length && (
             <p>

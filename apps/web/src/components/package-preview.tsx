@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
-import { Flame, Dumbbell, Wheat, Droplet, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import { nutritionFields } from "./nutrition-fields";
 import {
   compositionPreview,
   nutritionMetrics,
@@ -11,7 +12,6 @@ import {
 import { useApp } from "./context";
 import { Button } from "./form-controls";
 
-const icons = [Flame, Dumbbell, Wheat, Droplet];
 export function NutritionStrip({ menu }: { menu: MealMenu }) {
   const { locale, t } = useApp();
   const metrics = nutritionMetrics(menu.nutrition, locale);
@@ -20,7 +20,7 @@ export function NutritionStrip({ menu }: { menu: MealMenu }) {
     <div className="nutrition-strip">
       <dl>
         {metrics.map((metric, index) => {
-          const Icon = icons[index];
+          const Icon = nutritionFields[index].Icon;
           return (
             <div key={metric.key}>
               <dt>

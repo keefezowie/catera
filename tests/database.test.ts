@@ -13,6 +13,7 @@ import {
   type CustomerState,
   type Checkout,
   type Quote,
+  type Offer,
 } from "@catera/domain";
 let db: PGlite;
 const command = (
@@ -173,18 +174,48 @@ it("prevents capacity reduction below paid demand", async () => {
   const d = (await read<CustomerState>("customer")).deliveries.find(
     (x) => x.offer.catererId === CATERER_IDS[0],
   )!;
+  const seller = await read<{ offers: Offer[] }>(
+    "seller",
+    { id: CATERER_IDS[0] },
+    DEMO_ACTORS.owner,
+  );
+  const offer = seller.offers.find((x) => x.id === d.offer.id)!;
+  const capacity = Object.fromEntries(
+    Object.keys(offer.capacity).map((weekday) => [weekday, 0]),
+  );
   await expect(
     command(
-      "capacity.save",
+      "package.save",
       {
         catererId: CATERER_IDS[0],
-        packageId: d.offer.id,
-        date: d.service_date,
-        slots: 0,
+        id: offer.id,
+        version: offer.version,
+        slug: offer.slug,
+        offer: { ...offer, capacity },
       },
       DEMO_ACTORS.owner,
     ),
   ).rejects.toThrow("CAPACITY");
+});
+it("rejects retired date-capacity commands without changing legacy rows", async () => {
+  const packageId = PACKAGE_IDS[0];
+  const date = addDays(localDay(), 180);
+  const before = await db.query(
+    "select * from v1.capacity where package_id=$1 and service_date=$2",
+    [packageId, date],
+  );
+  await expect(
+    command(
+      "capacity.save",
+      { catererId: CATERER_IDS[0], packageId, date, slots: 0, closed: true },
+      DEMO_ACTORS.owner,
+    ),
+  ).rejects.toThrow("INVALID_ACTION");
+  const after = await db.query(
+    "select * from v1.capacity where package_id=$1 and service_date=$2",
+    [packageId, date],
+  );
+  expect(after.rows).toEqual(before.rows);
 });
 it("requires the caller to own the delivery or work for its caterer", async () => {
   const d = (await read<CustomerState>("customer")).deliveries.find(

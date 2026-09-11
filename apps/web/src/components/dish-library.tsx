@@ -7,6 +7,7 @@ import {
   localDay,
   libraryDishDetailsSchema,
   selectLibraryDish,
+  type DishCategory,
 } from "@catera/domain";
 import { api, useApp, useResource } from "./context";
 import { Button, Checkbox, TextInput } from "./form-controls";
@@ -340,12 +341,14 @@ export function DishLibrary({ dishes }: { dishes: LibraryDish[] }) {
     </section>
   );
 }
-function LibraryForm({
+export function LibraryForm({
   initial,
   done,
+  categories = [],
 }: {
   initial: LibraryDish | null;
   done: () => void;
+  categories?: DishCategory[];
 }) {
   const { actor, perform, t } = useApp();
   const [dish, setDish] = useState<Dish>(
@@ -357,6 +360,7 @@ function LibraryForm({
       disabled={busy}
       submit={t("Simpan hidangan", "Save dish")}
       onSubmit={async () => {
+        if (categories.length && !dish.categoryId) throw new Error(t("Pilih kategori hidangan.", "Choose a dish category."));
         await perform("dish.save", {
           catererId: actor!.catererId,
           id: initial?.id,
@@ -371,6 +375,12 @@ function LibraryForm({
           ? t("Edit hidangan", "Edit dish")
           : t("Hidangan baru", "New dish")}
       </h3>
+      {!!categories.length && <Field label={t("Kategori hidangan", "Dish category")}>
+        <Select value={dish.categoryId || ""} onValueChange={categoryId => setDish(d => ({ ...d, categoryId }))}>
+          <SelectOption value="" disabled>{t("Pilih kategori", "Choose category")}</SelectOption>
+          {categories.map(c => <SelectOption key={c.id} value={c.id}>{c.name}</SelectOption>)}
+        </Select>
+      </Field>}
       <DishFields
         dish={dish}
         library={[]}

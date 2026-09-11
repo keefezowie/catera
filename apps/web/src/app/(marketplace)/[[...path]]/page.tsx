@@ -1,7 +1,9 @@
 import { redirect, permanentRedirect, notFound } from "next/navigation";
+import { cookies } from "next/headers";
 import { rpc } from "@catera/backend";
 import type { Offer } from "@catera/domain";
 import { session } from "@/lib/auth";
+import { resolveWorkspace, workspaceCookieName } from "@/lib/workspace";
 import { Application } from "@/components/application";
 export const dynamic = "force-dynamic";
 const routes = [
@@ -72,6 +74,13 @@ export default async function Page({
       "/" + (query.size ? "?" + query.toString() : "") + "#packages",
     );
   const s = await session();
+  const jar = await cookies();
+  if (
+    path.length === 0 &&
+    resolveWorkspace(s.actor, jar.get(workspaceCookieName)?.value) ===
+      "caterer"
+  )
+    redirect("/seller");
   if (
     [
       "checkout",
@@ -103,6 +112,8 @@ export default async function Page({
     path[1] !== "onboarding"
   )
     notFound();
+  if (path[0] === "seller" && path[1] === "capacity")
+    redirect("/seller/packages");
   let offers: Offer[] = [];
   let issue: string | null = null;
   try {

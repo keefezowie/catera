@@ -3,12 +3,15 @@ import AxeBuilder from "@axe-core/playwright";
 import { mkdir } from "node:fs/promises";
 import type { Offer } from "@catera/domain";
 
+const evidenceDir =
+  process.env.CATERA_PRESENTATION_EVIDENCE || "output/package-presentation";
 let box: Offer, single: Offer;
 test.beforeAll(async ({ request }) => {
-  await mkdir("output/package-presentation", { recursive: true });
+  await mkdir(evidenceDir, { recursive: true });
   await request.post("/api/v1/auth/demo", { data: { role: "owner" } });
-  const base: Offer = (await (await request.get("/api/v1/catalog?limit=100")).json()).data
-    .items[0];
+  const base: Offer = (
+    await (await request.get("/api/v1/catalog?limit=100")).json()
+  ).data.items[0];
   const create = async (slug: string, overrides: Partial<Offer>) => {
     const result = await request.post("/api/v1/commands", {
       data: {
@@ -22,8 +25,9 @@ test.beforeAll(async ({ request }) => {
       },
     });
     expect(result.ok(), await result.text()).toBe(true);
-    const items: Offer[] = (await (await request.get("/api/v1/catalog?limit=100")).json())
-      .data.items;
+    const items: Offer[] = (
+      await (await request.get("/api/v1/catalog?limit=100")).json()
+    ).data.items;
     return items.find((o) => o.slug === slug)!;
   };
   const dish = (id: string, name: string, image: string, groupId = "lauk") => ({
@@ -169,7 +173,7 @@ test("responsive cards and galleries, duplicate single photo, English and text e
     await expect(card).toHaveCount(1);
     await page.evaluate(() => document.fonts.ready);
     await card.screenshot({
-      path: `output/package-presentation/card-${width}.png`,
+      path: `${evidenceDir}/card-${width}.png`,
     });
     expect(
       await page.evaluate(
@@ -184,7 +188,7 @@ test("responsive cards and galleries, duplicate single photo, English and text e
     ).toHaveJSProperty("complete", true);
     await page
       .locator("#isi-paket-lunch")
-      .screenshot({ path: `output/package-presentation/dishes-${width}.png` });
+      .screenshot({ path: `${evidenceDir}/dishes-${width}.png` });
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,
@@ -226,10 +230,19 @@ test("seller card preview allows meal inspection without navigation or purchasin
     has: page.getByRole("heading", { name: box.name, exact: true }),
   });
   await row.getByRole("button", { name: "Kelola paket", exact: true }).click();
+  await page.getByRole("button", { name: /2\. Isi/ }).click();
+  const customRows = page
+    .locator(".composition-row")
+    .filter({ hasText: "Pelengkap spesial" });
+  for (let i = 0; i < 2; i++) {
+    await customRows.first().getByRole("combobox").click();
+    await page.getByRole("option", { name: "Buah", exact: true }).click();
+  }
   await page.getByRole("button", { name: /6\. Tinjau/ }).click();
   const card = page.locator(".listing-preview .package-card");
   await card.getByRole("button", { name: "Malam", exact: true }).click();
-  await expect(card).toContainText("27 g");
+  await expect(card).toContainText("Menu belum ditentukan");
+  await expect(card).not.toContainText("27 g");
   await expect(
     card.getByRole("button", { name: /^Bandingkan:/ }),
   ).toBeDisabled();
@@ -278,10 +291,9 @@ test("long names, serving descriptions and many components remain readable at en
   });
   expect(result.ok(), await result.text()).toBe(true);
   await page.setViewportSize({ width: 320, height: 1000 });
+  await page.request.post("/api/v1/auth/demo", { data: { role: "customer" } });
   await page.goto("/#packages");
-  await page
-    .getByRole("textbox", { name: "Cari katering" })
-    .fill(longName);
+  await page.getByRole("textbox", { name: "Cari katering" }).fill(longName);
   const card = page.locator(".package-card");
   await expect(card).toHaveCount(1);
   await page.evaluate(() => {

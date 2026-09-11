@@ -178,7 +178,6 @@ test("customer and operational routes render, retain context and pass critical a
   for (const route of [
     "packages",
     "menus",
-    "capacity",
     "customers",
     "support",
     "transactions",
@@ -187,6 +186,11 @@ test("customer and operational routes render, retain context and pass critical a
     await page.goto("/seller/" + route);
     await expect(page.locator(".error-notice")).toHaveCount(0);
   }
+  await page.goto("/seller/capacity");
+  await expect(page).toHaveURL(/\/seller\/packages$/);
+  await expect(
+    page.getByRole("link", { name: "Kapasitas", exact: true }),
+  ).toHaveCount(0);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/seller/delivery?date=" + serviceDate);
   await expect(

@@ -17,3 +17,16 @@ dist/
 apps/web/public/assets/
 apps/customer/android/
 apps/customer/ios/
+
+# Local agent/browser artifacts and disposable verification media
+.codex-remote-attachments/
+.playwright-cli/
+output/**/*.png
+output/**/*.jpg
+output/**/*.jpeg
+output/**/*.apk
+output/**/test-results/
+output/**/test-results*/
+output/**/playwright.config.*
+output/slack-design-scan.json
+tests/output/

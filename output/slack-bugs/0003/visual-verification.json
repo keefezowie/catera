@@ -1,0 +1,23 @@
+{
+  "at": "2026-09-11T15:25:25.196Z",
+  "unitTests": 96,
+  "browserScenarios": 17,
+  "postgresScenarios": 10,
+  "typecheck": "passed",
+  "build": "passed",
+  "nativeExport": [
+    "android",
+    "ios"
+  ],
+  "baselineVersion": "2026.09.11.2",
+  "baselineRepeatRestore": "passed",
+  "localDemo": {
+    "port": 3000,
+    "catalogPackages": 14,
+    "slotCatalogPackages": 14,
+    "selectableRevisions": 19,
+    "allSelectableRevisionsUseSlots": true,
+    "pageErrors": []
+  },
+  "hostedDeployment": false
+}

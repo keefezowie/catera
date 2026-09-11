@@ -228,6 +228,8 @@ it("dated menu edits appear in deliveries without changing the purchase snapshot
   const d = c.deliveries.find((d) => d.offer.id === P[0])!;
   const currentMenu = d.offer.menus.find((m) => m.meal === "lunch")!;
   const replacementDish = currentMenu.items![0].name + " pengganti";
+  const snapshotBefore = c.subscriptions.find(s => s.id === d.subscription_id)!.snapshot;
+  const version = (await db.query<{ version: number }>("select version from v1.menus where package_id=$1 and service_date=$2 and meal='lunch' and content_revision=$3", [P[0], d.service_date, d.offer.contentRevision ?? 0])).rows[0]?.version ?? 0;
   await command(
     "menu.save",
     {
@@ -236,11 +238,11 @@ it("dated menu edits appear in deliveries without changing the purchase snapshot
       date: d.service_date,
       meal: "lunch",
       contentRevision: d.offer.contentRevision ?? 0,
-      version: 0,
+      version,
       details: {
         ...currentMenu,
         items: currentMenu.items!.map((item, index) =>
-          index === 0 ? { ...item, name: replacementDish } : item,
+          index === 0 ? { ...item, name: replacementDish, sourceDishId: undefined, sourceDishVersion: undefined, sourceServing: undefined } : item,
         ),
       },
     },
@@ -253,7 +255,6 @@ it("dated menu edits appear in deliveries without changing the purchase snapshot
       ?.offer.menus.find((m) => m.meal === "lunch")?.items?.[0].name,
   ).toBe(replacementDish);
   expect(
-    fresh.subscriptions.find((s) => s.id === d.subscription_id)?.snapshot.offer
-      .menus.find((m) => m.meal === "lunch")?.items?.[0].name,
-  ).toBe("Nasi putih");
+    fresh.subscriptions.find((s) => s.id === d.subscription_id)?.snapshot,
+  ).toEqual(snapshotBefore);
 });

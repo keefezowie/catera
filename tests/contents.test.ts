@@ -98,23 +98,22 @@ it("seeds customer demo offers with real package, menu and dish structure", asyn
   expect(box.packageType).toBe("nasi_box");
   expect(box.menus[0].composition).toEqual(
     expect.arrayContaining([
-      expect.objectContaining({ id: "nasi", slots: 1 }),
-      expect.objectContaining({ id: "lauk", slots: 1 }),
+      expect.objectContaining({ categoryId: "rice", slots: 1 }),
+      expect.objectContaining({ categoryId: "main", slots: 1 }),
     ]),
   );
-  expect(box.menus[0].items).toHaveLength(4);
+  expect(box.menus[0].items).toHaveLength(0);
+  expect(box.menus[0].contentModel).toBe("slots");
 
   const alaCarte = catalog.items.find((offer) => offer.id === P[4])!;
   expect(alaCarte.packageType).toBe("ala_carte");
-  expect(alaCarte.menus[0].items).toHaveLength(4);
-  expect(alaCarte.menus[0].composition).toBeUndefined();
+  expect(alaCarte.menus[0].items).toHaveLength(0);
+  expect(alaCarte.menus[0].composition?.reduce((n, g) => n + g.slots, 0)).toBe(4);
 
   const combined = catalog.items.find((offer) => offer.id === P[2])!;
   expect(combined.meal).toBe("both");
   expect(combined.menus.map((menu) => menu.meal)).toEqual(["lunch", "dinner"]);
-  expect(combined.menus[0].items?.[1].name).not.toBe(
-    combined.menus[1].items?.[1].name,
-  );
+  expect(combined.menus.every(m => m.contentModel === "slots" && m.items?.length === 0 && m.nutrition === null)).toBe(true);
 });
 it("validates complete dishes, box slots, custom components and partial/zero nutrition", () => {
   expect(offerSchema.safeParse(contents()).success).toBe(true);

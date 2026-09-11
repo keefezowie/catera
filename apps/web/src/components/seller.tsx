@@ -1,20 +1,20 @@
 "use client";
-import { MealContentsEditor, PackageContents } from "./package-contents";
+import { SellerOperations } from "./seller-operations";
+import { PackageContents } from "./package-contents";
 import {
-  contentsIssues,
-  menuItems,
-  menuSummary,
   type MealMenu,
   type PackageType,
 } from "@catera/domain";
 import { Select, SelectOption } from "./select";
-import { DatePicker } from "./date-picker";
 import { PhotoUpload } from "./photo-upload";
-import { DishLibrary } from "./dish-library";
+import { CompositionEditor, compositionDraft } from "./composition-editor";
+import { MenuCalendar } from "./menu-calendar";
 import { PackageCard, PackagePage } from "./marketplace";
 import {
   offerEditorIssues,
   offerSteps,
+  sharedCapacityValue,
+  withSharedCapacity,
   type OfferStep,
   type EditorIssue,
   type Caterer,
@@ -26,15 +26,7 @@ import {
   Plus,
   ArrowRight,
   ArrowUpRight,
-  ChefHat,
-  Clock,
-  Truck,
   Package,
-  Download,
-  Printer,
-  CalendarDays,
-  Check,
-  ChevronRight,
   Users,
 } from "lucide-react";
 import {
@@ -44,7 +36,6 @@ import {
   areaOptions,
   type SellerState,
   type Offer,
-  type Delivery,
   type SupportCase,
 } from "@catera/domain";
 import { api, useApp, useResource } from "./context";
@@ -58,18 +49,23 @@ import {
   ActionForm,
   Field,
   Dialog,
-  Facts,
 } from "./ui";
 import { Messages } from "./customer";
 import { NumericInput } from "./numeric-input";
 import { TimeInput } from "./time-input";
 
 export function Seller({ view }: { view: string }) {
+  const { actor } = useApp();
+  if (!actor?.catererId) return <Onboarding />;
+  if (["today", "schedule", "production", "delivery"].includes(view)) return <SellerOperations view={view} />;
+  return <SellerWorkspace view={view} />;
+}
+function SellerWorkspace({ view }: { view: string }) {
   const { actor, t } = useApp();
   const query = useSearchParams();
   const router = useRouter();
   const date = query.get("date") || localDay();
-  const meal = query.get("meal") || "all";
+  useEffect(() => { if (view === "dishes") router.replace("/seller/menus?library=1"); }, [view, router]);
   const state = useResource<SellerState>(
     "seller:" + actor?.catererId + ":" + date,
     () => api.seller(actor!.catererId!, date),
@@ -82,81 +78,14 @@ export function Seller({ view }: { view: string }) {
       <Loading />
     );
   const s = state.data;
-  const rows = s.deliveries.filter(
-    (d) => meal === "all" || d.meals.some((m) => m.meal === meal),
-  );
-  const context = "?date=" + date + "&meal=" + meal;
-  const dateControls = (
-    <div className="ops-date">
-      <DatePicker
-        compact
-        aria-label="Tanggal operasional"
-        value={date}
-        onValueChange={(value) =>
-          router.replace(
-            "/seller/" +
-              (view === "today" ? "" : view) +
-              "?date=" +
-              value +
-              "&meal=" +
-              meal,
-          )
-        }
-      />
-      <Select
-        aria-label="Waktu makan"
-        value={meal}
-        onValueChange={(value) =>
-          router.replace(
-            "/seller/" +
-              (view === "today" ? "" : view) +
-              "?date=" +
-              date +
-              "&meal=" +
-              value,
-          )
-        }
-      >
-        <SelectOption value="all">Siang & malam</SelectOption>
-        <SelectOption value="lunch">Makan siang</SelectOption>
-        <SelectOption value="dinner">Makan malam</SelectOption>
-      </Select>
-    </div>
-  );
-  const operational = ["today", "schedule", "production", "delivery"].includes(
-    view,
-  );
   return (
     <>
       <Heading
-        title={
-          view === "today"
-            ? t(
-                "Selamat berkarya, " + s.caterer.name + ".",
-                "A good day at " + s.caterer.name + ".",
-              )
-            : {
-                schedule: "Jadwal pengantaran",
-                production: "Siapkan dengan tepat.",
-                delivery: "Sampai dengan baik.",
-                packages: "Paket dari dapurmu.",
-                menus: "Menu yang dinanti.",
-                dishes: "Daftar hidangan",
-                capacity: "Ruang untuk setiap porsi.",
-                customers: "Pelanggan",
-                support: "Pesan & bantuan",
-                transactions: "Transaksi & pencairan",
-                settings: "Pengaturan katerer",
-              }[view] || view
-        }
-        description={
-          view === "today"
-            ? "Semua yang perlu disiapkan, dalam satu pandangan."
-            : s.caterer.name
-        }
-      >
-        {operational && dateControls}
-      </Heading>
+        title={{
+          packages: "Paket dari dapurmu.", menus: "Menu yang dinanti.", dishes: "Daftar hidangan", customers: "Pelanggan", support: "Pesan & bantuan", transactions: "Transaksi & pencairan", settings: "Pengaturan katerer",
+        }[view] || view}
+        description={s.caterer.name}
+      />
       {s.caterer.status !== "approved" && (
         <p className="notice">
           Status verifikasi: <Status status={s.caterer.status} /> · Penjualan
@@ -164,135 +93,10 @@ export function Seller({ view }: { view: string }) {
           menjadi tanggung jawab katerer.
         </p>
       )}
-      {operational && (
-        <>
-          <div className="ops-metrics">
-            {[
-              [
-                ChefHat,
-                "Porsi hari ini",
-                rows
-                  .filter((d) => d.status !== "cancelled")
-                  .reduce(
-                    (n, d) =>
-                      n + d.portions * (meal === "all" ? d.meals.length : 1),
-                    0,
-                  ),
-                "Termasuk porsi trial",
-              ],
-              [Package, "Pengantaran", rows.length, "Jadwal " + date],
-              [
-                Clock,
-                "Batas perubahan",
-                s.caterer.cutoff.slice(0, 5),
-                s.caterer.timezone,
-              ],
-              [
-                Truck,
-                "Perlu perhatian",
-                rows.filter((d) => d.status === "issue").length +
-                  s.cases.filter((c) => c.status !== "resolved").length,
-                "Pengantaran & bantuan",
-              ],
-            ].map(([Icon, label, value, caption]) => {
-              const I = Icon as typeof ChefHat;
-              return (
-                <div key={label as string}>
-                  <I size={21} />
-                  <span>{label as string}</span>
-                  <strong>{value as string | number}</strong>
-                  <small>{caption as string}</small>
-                </div>
-              );
-            })}
-          </div>
-          <nav className="workflow-tabs">
-            {[
-              ["schedule", "Jadwal", CalendarDays],
-              ["production", "Produksi", ChefHat],
-              ["delivery", "Pengiriman", Truck],
-            ].map(([key, label, Icon], i) => {
-              const I = Icon as typeof ChefHat;
-              return (
-                <Link
-                  className={view === key ? "selected" : ""}
-                  href={"/seller/" + key + context}
-                  key={key as string}
-                >
-                  <span>{i + 1}</span>
-                  <I size={18} />
-                  {label as string}
-                  <ChevronRight size={17} />
-                </Link>
-              );
-            })}
-          </nav>
-        </>
-      )}
-      {view === "today" ? (
-        <>
-          <div className="ops-two-col">
-            <section className="panel">
-              <div className="section-heading">
-                <div>
-                  <h2>Keluar dari dapur hari ini</h2>
-                  <p>Porsi yang sudah dibayar dan perlu disiapkan.</p>
-                </div>
-                <Link
-                  className="text-button"
-                  href={"/seller/production" + context}
-                >
-                  Lihat produksi <ArrowUpRight size={17} />
-                </Link>
-              </div>
-              <ProductionRows deliveries={rows} meal={meal} />
-            </section>
-            <section className="panel">
-              <h2>Perlu ditindaklanjuti</h2>
-              {s.cases
-                .filter((c) => c.status !== "resolved")
-                .map((c) => (
-                  <Link className="queue-row" key={c.id} href="/seller/support">
-                    <span>
-                      <strong>{c.subject}</strong>
-                      <small>{c.description}</small>
-                    </span>
-                    <Status status={c.status} />
-                  </Link>
-                ))}
-              {!s.cases.some((c) => c.status !== "resolved") && (
-                <div className="quiet-empty">
-                  <Check size={25} />
-                  <p>Semua permintaan sudah tertangani.</p>
-                </div>
-              )}
-              <div className="soft-callout">
-                <img src="/assets/mascot.png" alt="" />
-                <p>
-                  Persiapan yang tenang.
-                  <br />
-                  <strong>Makanan yang menyenangkan.</strong>
-                </p>
-              </div>
-            </section>
-          </div>
-          <section className="panel spaced">
-            <h2>Langganan & trial terbaru</h2>
-            <TransactionRows rows={s.transactions.slice(0, 5)} />
-          </section>
-        </>
-      ) : view === "schedule" || view === "delivery" ? (
-        <Deliveries deliveries={rows} fulfillment={view === "delivery"} />
-      ) : view === "production" ? (
-        <Production deliveries={rows} meal={meal} date={date} />
-      ) : view === "packages" ? (
+      {view === "packages" ? (
         <Packages state={s} />
-      ) : view === "dishes" ? (
-        <DishLibrary dishes={s.dishes || []} />
-      ) : view === "menus" ? (
-        <MenuEditor state={s} date={date} />
-      ) : view === "capacity" ? (
-        <Capacity state={s} date={date} />
+      ) : view === "dishes" || view === "menus" ? (
+        <MenuCalendar state={s} date={date} />
       ) : view === "customers" ? (
         <Customers state={s} />
       ) : view === "support" ? (
@@ -330,293 +134,6 @@ export function Seller({ view }: { view: string }) {
   );
 }
 
-function ProductionRows({
-  deliveries,
-  meal,
-}: {
-  deliveries: Delivery[];
-  meal: string;
-}) {
-  const groups = new Map<
-    string,
-    {
-      offer: Offer;
-      meal: string;
-      portions: number;
-      trial: number;
-      menu: string;
-    }
-  >();
-  for (const d of deliveries.filter((d) => d.status !== "cancelled"))
-    for (const m of d.meals.filter((m) => meal === "all" || m.meal === meal)) {
-      const menu = d.offer.menus
-        .filter((x) => x.meal === m.meal)
-        .map(menuSummary)
-        .join(", ");
-      const key =
-        d.offer.id + ":" + (d.offer.contentRevision || 0) + ":" + m.meal + menu;
-      const g = groups.get(key) || {
-        offer: d.offer,
-        meal: m.meal,
-        portions: 0,
-        trial: 0,
-        menu,
-      };
-      g.portions += d.portions;
-      if (d.trial) g.trial += d.portions;
-      groups.set(key, g);
-    }
-  return groups.size ? (
-    <div className="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Paket / menu</th>
-            <th>Waktu makan</th>
-            <th className="number">Porsi</th>
-            <th className="number">Termasuk trial</th>
-          </tr>
-        </thead>
-        <tbody>
-          {[...groups].map(([key, g]) => (
-            <tr key={key}>
-              <td>
-                <div className="table-product">
-                  <img src={g.offer.image} alt="" />
-                  <div>
-                    <strong>{g.offer.name}</strong>
-                    <small>{g.menu}</small>
-                  </div>
-                </div>
-              </td>
-              <td>{mealLabel(g.meal)}</td>
-              <td className="number">
-                <strong>{g.portions}</strong>
-              </td>
-              <td className="number">{g.trial}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  ) : (
-    <Empty
-      title="Dapur belum punya jadwal hari ini"
-      description="Pilih tanggal yang memiliki pengantaran untuk melihat kebutuhan produksi."
-    />
-  );
-}
-function Production({
-  deliveries,
-  meal,
-  date,
-}: {
-  deliveries: Delivery[];
-  meal: string;
-  date: string;
-}) {
-  const { actor, perform } = useApp();
-  const [revision, setRevision] = useState<{
-    id: string;
-    revision: number;
-  } | null>(null);
-  return (
-    <section className="panel">
-      <div className="section-heading">
-        <div>
-          <h2>Daftar produksi · {date}</h2>
-          <p>
-            Jumlah di bawah mencakup trial. Paket siang + malam memiliki dua
-            baris produksi.
-          </p>
-        </div>
-        <Button
-          className="button secondary small"
-          onClick={() => window.print()}
-        >
-          <Printer size={16} />
-          Cetak
-        </Button>
-      </div>
-      <ProductionRows deliveries={deliveries} meal={meal} />
-      <ActionForm
-        submit="Simpan revisi & buat manifest"
-        onSubmit={async () =>
-          setRevision(
-            await perform("production.freeze", {
-              catererId: actor!.catererId,
-              date,
-            }),
-          )
-        }
-      >
-        <p className="notice">
-          Setiap revisi menyimpan kondisi pesanan saat ini. Buat revisi baru
-          jika jadwal berubah.
-        </p>
-      </ActionForm>
-      {revision && (
-        <a className="button spaced" href={"/api/manifests/" + revision.id}>
-          <Download size={18} />
-          Unduh CSV · revisi {revision.revision}
-        </a>
-      )}
-    </section>
-  );
-}
-function Deliveries({
-  deliveries,
-  fulfillment,
-}: {
-  deliveries: Delivery[];
-  fulfillment: boolean;
-}) {
-  const { perform } = useApp();
-  const [selected, setSelected] = useState(""),
-    [selectedMeal, setSelectedMeal] = useState("lunch");
-  const d = deliveries.find((d) => d.id === selected);
-  const currentMeal =
-    d?.meals.find((m) => m.meal === selectedMeal) || d?.meals[0];
-  return (
-    <div className={"master-detail " + (d ? "has-detail" : "")}>
-      <section className="panel">
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Paket</th>
-                <th>Tujuan</th>
-                <th>Porsi</th>
-                <th>Status</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {deliveries.map((x) => (
-                <tr key={x.id} className={d?.id === x.id ? "selected" : ""}>
-                  <td>
-                    <strong>{x.offer.name}</strong>
-                    <small>
-                      {mealLabel(x.offer.meal)}
-                      {x.trial ? " · Trial" : ""}
-                    </small>
-                  </td>
-                  <td>
-                    {x.address.label}
-                    <small>{x.address.area}</small>
-                  </td>
-                  <td>{x.portions}</td>
-                  <td>
-                    <Status status={x.status} />
-                  </td>
-                  <td>
-                    <Button
-                      className="text-button"
-                      onClick={() => setSelected(x.id)}
-                      aria-label={"Detail " + x.offer.name}
-                    >
-                      Detail <ArrowUpRight size={15} />
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {!deliveries.length && (
-          <Empty title="Tidak ada pengantaran pada tanggal ini" />
-        )}
-      </section>
-      {d && (
-        <aside className="panel detail-panel">
-          <Button className="text-button" onClick={() => setSelected("")}>
-            Tutup detail
-          </Button>
-          <img className="detail-food" src={d.offer.image} alt={d.offer.name} />
-          <h2>{d.offer.name}</h2>
-          <Facts
-            rows={[
-              ["Tanggal", d.service_date],
-              ["Porsi", d.portions],
-              ...d.meals.map(
-                (m) =>
-                  [
-                    mealLabel(m.meal),
-                    <Status key={m.meal} status={m.status} />,
-                  ] as [string, React.ReactNode],
-              ),
-              ["Alamat", d.address.line + ", " + d.address.area],
-              ["Catatan", d.address.instructions || "—"],
-              [
-                "Batas perubahan",
-                new Date(d.cutoff_at).toLocaleString("id-ID"),
-              ],
-            ]}
-          />
-          {fulfillment && d.status !== "cancelled" && (
-            <ActionForm
-              submit="Perbarui pengantaran"
-              disabled={currentMeal?.status === "delivered"}
-              onSubmit={async (f) => {
-                await perform("delivery.status", {
-                  id: d.id,
-                  version: d.version,
-                  meal: currentMeal?.meal,
-                  status: f.get("status"),
-                });
-              }}
-            >
-              {d.meals.length > 1 && (
-                <Field label="Waktu makan">
-                  <Select
-                    value={selectedMeal}
-                    onValueChange={(value) => setSelectedMeal(value)}
-                  >
-                    {d.meals.map((m) => (
-                      <SelectOption value={m.meal} key={m.meal}>
-                        {mealLabel(m.meal)}
-                      </SelectOption>
-                    ))}
-                  </Select>
-                </Field>
-              )}
-              <Field label="Status berikutnya">
-                <Select
-                  name="status"
-                  key={currentMeal?.meal + ":" + currentMeal?.status}
-                >
-                  {(currentMeal?.status === "delivered"
-                    ? ["delivered"]
-                    : currentMeal?.status === "scheduled"
-                      ? ["preparing"]
-                      : currentMeal?.status === "preparing"
-                        ? ["out_for_delivery"]
-                        : currentMeal?.status === "out_for_delivery"
-                          ? ["delivered", "issue"]
-                          : ["out_for_delivery"]
-                  ).map((s) => (
-                    <SelectOption key={s} value={s}>
-                      {s === "preparing"
-                        ? "Mulai menyiapkan"
-                        : s === "out_for_delivery"
-                          ? "Dalam pengantaran"
-                          : s === "delivered"
-                            ? "Sudah diterima"
-                            : "Ada kendala"}
-                    </SelectOption>
-                  ))}
-                </Select>
-              </Field>
-            </ActionForm>
-          )}
-          <Link className="button secondary spaced" href="/seller/support">
-            Pesan & bantuan
-          </Link>
-        </aside>
-      )}
-    </div>
-  );
-}
 function Packages({ state: s }: { state: SellerState }) {
   const { actor } = useApp();
   const [editing, setEditing] = useState<Offer | null | undefined>();
@@ -724,8 +241,8 @@ function OfferEditor({
   const editor = useRef<HTMLDivElement>(null);
   const onBusyChange = (busy: boolean) =>
     setPending((n) => Math.max(0, n + (busy ? 1 : -1)));
-  const [value, setValue] = useState({ ...blankOffer, ...offer });
-  const typeDrafts = useRef<Partial<Record<PackageType, MealMenu[]>>>({});
+  const [value, setValue] = useState(() => ({ ...blankOffer, ...offer, menus: (offer?.menus || []).map(compositionDraft) }));
+
   const set = (key: string, v: unknown) =>
     setValue((x) => ({ ...x, [key]: v }));
   const labels: Record<OfferStep, string> = {
@@ -738,6 +255,11 @@ function OfferEditor({
   };
   const activeValue = {
     ...value,
+    capacity: withSharedCapacity(
+      value.capacity,
+      value.weekdays,
+      sharedCapacityValue(value.capacity, value.weekdays),
+    ),
     menus: value.menus.filter(
       (m) => value.meal === "both" || m.meal === value.meal,
     ),
@@ -889,61 +411,7 @@ function OfferEditor({
             >
               <Select
                 value={value.packageType || ""}
-                onValueChange={(selected) => {
-                  const packageType = selected as PackageType;
-                  setValue((v) => {
-                    if (v.packageType)
-                      typeDrafts.current[v.packageType] = v.menus;
-                    return {
-                      ...v,
-                      packageType,
-                      menus:
-                        typeDrafts.current[packageType] ||
-                        [
-                          ...new Set([
-                            ...v.menus.map((m) => m.meal),
-                            ...(v.meal === "both"
-                              ? ["lunch", "dinner"]
-                              : [v.meal]),
-                          ]),
-                        ].map((meal) => {
-                          const m = v.menus.find((x) => x.meal === meal) || {
-                            meal,
-                            name: "",
-                            description: "",
-                            image: "",
-                            items: [],
-                          };
-                          const items = menuItems(m).map(
-                            ({ groupId, ...i }) => i,
-                          );
-                          if (packageType === "ala_carte")
-                            return { ...m, items, composition: [] };
-                          if (m.composition?.length) return m;
-                          const id = crypto.randomUUID();
-                          if (!items.length)
-                            items.push({
-                              id: crypto.randomUUID(),
-                              name: "",
-                              description: "",
-                              image: "",
-                              serving: "",
-                            });
-                          return {
-                            ...m,
-                            composition: [
-                              {
-                                id,
-                                name: "Lauk",
-                                slots: Math.max(items.length, 1),
-                              },
-                            ],
-                            items: items.map((i) => ({ ...i, groupId: id })),
-                          };
-                        }),
-                    };
-                  });
-                }}
+                onValueChange={(selected) => set("packageType", selected)}
               >
                 <SelectOption value="" disabled>
                   {t("Pilih jenis paket", "Choose package type")}
@@ -1105,12 +573,23 @@ function OfferEditor({
                       <Checkbox
                         checked={value.weekdays.includes(i)}
                         onChange={(e) =>
-                          set(
-                            "weekdays",
-                            e.target.checked
-                              ? [...value.weekdays, i]
-                              : value.weekdays.filter((x) => x !== i),
-                          )
+                          setValue((current) => {
+                            const weekdays = e.target.checked
+                              ? [...current.weekdays, i].sort((a, b) => a - b)
+                              : current.weekdays.filter((x) => x !== i);
+                            return {
+                              ...current,
+                              weekdays,
+                              capacity: withSharedCapacity(
+                                current.capacity,
+                                weekdays,
+                                sharedCapacityValue(
+                                  current.capacity,
+                                  current.weekdays,
+                                ),
+                              ),
+                            };
+                          })
                         }
                       />
                       {d}
@@ -1135,39 +614,31 @@ function OfferEditor({
                     }
                   />
                 </Field>
-              ))}
+                ))}
             </div>
-            {value.weekdays.map((d) => (
-              <Field
-                fieldKey={"capacity." + d}
-                error={fieldError("capacity")}
-                key={d}
-                label={
-                  "Kapasitas porsi · " +
-                  [
-                    "Minggu",
-                    "Senin",
-                    "Selasa",
-                    "Rabu",
-                    "Kamis",
-                    "Jumat",
-                    "Sabtu",
-                  ][d]
+            <Field
+              fieldKey="capacity"
+              error={fieldError("capacity")}
+              label={t("Kapasitas porsi per hari", "Portions per operating day")}
+            >
+              <NumericInput
+                min={0}
+                required
+                value={sharedCapacityValue(value.capacity, value.weekdays)}
+                onValueChange={(next) =>
+                  set(
+                    "capacity",
+                    withSharedCapacity(value.capacity, value.weekdays, next),
+                  )
                 }
-              >
-                <NumericInput
-                  min={0}
-                  required
-                  value={value.capacity[String(d)] || 0}
-                  onValueChange={(next) =>
-                    set("capacity", {
-                      ...value.capacity,
-                      [d]: next,
-                    })
-                  }
-                />
-              </Field>
-            ))}
+              />
+            </Field>
+            <p className="notice">
+              {t(
+                "Kapasitas ini berlaku sama untuk setiap hari operasional yang dipilih.",
+                "This capacity applies equally to every selected operating day.",
+              )}
+            </p>
           </>
         ) : step === "flexibility" ? (
           <>
@@ -1272,6 +743,7 @@ function OfferEditor({
                 }
               />
             </Field>
+            {offer && offer.menus.some(m => m.contentModel !== "slots") && <p role="note">{t("Versi baru: tinjau kategori dan jumlah slot. Menu dan pembelian versi lama tetap tersimpan.", "New revision: review categories and slot counts. Previous menus and purchases stay intact.")}</p>}
             {!value.packageType ? (
               <p>
                 {t(
@@ -1282,17 +754,8 @@ function OfferEditor({
             ) : (
               (value.meal === "both" ? ["lunch", "dinner"] : [value.meal]).map(
                 (meal) => (
-                  <MealContentsEditor
+                  <CompositionEditor
                     key={meal}
-                    fieldPrefix={
-                      "menus." +
-                      activeValue.menus.findIndex((m) => m.meal === meal)
-                    }
-                    errors={Object.fromEntries(
-                      issues.map((i) => [i.path, i.message]),
-                    )}
-                    onBusyChange={onBusyChange}
-                    type={value.packageType!}
                     menu={
                       value.menus.find((m) => m.meal === meal) || {
                         meal,
@@ -1413,229 +876,6 @@ function OfferEditor({
           : t("Simpan draf", "Save draft")}
       </Button>
     </div>
-  );
-}
-function MenuEditor({ state: s, date }: { state: SellerState; date: string }) {
-  const { t } = useApp();
-  const revisions = s.contentRevisions || [];
-  const [selection, setSelection] = useState("");
-  const [meal, setMeal] = useState("lunch");
-  const selected =
-    revisions.find((r) => r.packageId + ":" + r.revision === selection) ||
-    revisions[0];
-  if (!selected)
-    return <Empty title={t("Belum ada paket", "No packages yet")} />;
-  const activeMeal =
-    selected.contents.meal === "both" ? meal : selected.contents.meal;
-  const existing = s.datedMenus?.find(
-    (m) =>
-      m.package_id === selected.packageId &&
-      m.content_revision === selected.revision &&
-      m.meal === activeMeal,
-  );
-  const template = selected.contents.menus.find((m) => m.meal === activeMeal);
-  return (
-    <section className="panel form-panel">
-      <h2>{t("Menu untuk tanggal tertentu", "Menu for a delivery date")}</h2>
-      <p>
-        {date} ·{" "}
-        {t(
-          "Perubahan dikirim ke pelanggan pada versi isi paket ini.",
-          "Updates reach customers with this contents revision.",
-        )}
-      </p>
-      <Field label={t("Paket dan versi isi", "Package and contents revision")}>
-        <Select
-          value={selected.packageId + ":" + selected.revision}
-          onValueChange={setSelection}
-        >
-          {revisions.map((r) => (
-            <SelectOption
-              key={r.packageId + ":" + r.revision}
-              value={r.packageId + ":" + r.revision}
-            >
-              {r.name} · {t("Versi", "Revision")} {r.revision}
-            </SelectOption>
-          ))}
-        </Select>
-      </Field>
-      {selected.contents.meal === "both" && (
-        <Field label={t("Waktu makan", "Meal")}>
-          <Select value={meal} onValueChange={setMeal}>
-            <SelectOption value="lunch">
-              {t("Makan siang", "Lunch")}
-            </SelectOption>
-            <SelectOption value="dinner">
-              {t("Makan malam", "Dinner")}
-            </SelectOption>
-          </Select>
-        </Field>
-      )}
-      {template ? (
-        <DatedContentsForm
-          key={[
-            selected.packageId,
-            selected.revision,
-            date,
-            activeMeal,
-            existing?.version || 0,
-          ].join(":")}
-          catererId={s.caterer.id}
-          packageId={selected.packageId}
-          revision={selected.revision}
-          version={existing?.version || 0}
-          date={date}
-          type={selected.contents.packageType}
-          initial={
-            existing
-              ? { ...existing.details, meal: activeMeal }
-              : { ...template, meal: activeMeal, nutrition: null }
-          }
-        />
-      ) : (
-        <p>
-          {t(
-            "Lengkapi isi paket sebelum membuat menu bertanggal.",
-            "Complete package contents before scheduling a menu.",
-          )}
-        </p>
-      )}
-    </section>
-  );
-}
-function DatedContentsForm({
-  catererId,
-  packageId,
-  revision,
-  version,
-  date,
-  type,
-  initial,
-}: {
-  catererId: string;
-  packageId: string;
-  revision: number;
-  version: number;
-  date: string;
-  type?: PackageType;
-  initial: MealMenu;
-}) {
-  const { perform, t } = useApp();
-  const [menu, setMenu] = useState(initial);
-  const [pending, setPending] = useState(0);
-  return (
-    <ActionForm
-      disabled={pending > 0}
-      onSubmit={async () => {
-        const issues = contentsIssues(
-          { packageType: type, meal: menu.meal, menus: [menu] },
-          true,
-        );
-        if (issues.length) throw new Error(issues.join(". "));
-        const { meal, source, ...details } = menu;
-        if (!type) {
-          delete details.nutrition;
-          delete details.items;
-          delete details.composition;
-        }
-        await perform("menu.save", {
-          catererId,
-          packageId,
-          contentRevision: revision,
-          version,
-          date,
-          meal,
-          details,
-        });
-      }}
-    >
-      {type ? (
-        <MealContentsEditor
-          menu={menu}
-          type={type}
-          fixedComposition
-          onBusyChange={(busy) =>
-            setPending((n) => Math.max(0, n + (busy ? 1 : -1)))
-          }
-          onChange={setMenu}
-        />
-      ) : (
-        <>
-          <p>
-            {t(
-              "Menu dari pembelian lama. Jenis paket belum diklasifikasikan.",
-              "Legacy purchase menu. Package type is unclassified.",
-            )}
-          </p>
-          <Field label={t("Nama menu", "Menu name")}>
-            <TextInput
-              required
-              value={menu.name}
-              onChange={(e) => setMenu({ ...menu, name: e.target.value })}
-            />
-          </Field>
-          <Field label={t("Isi menu", "Menu description")}>
-            <TextArea
-              value={menu.description}
-              onChange={(e) =>
-                setMenu({ ...menu, description: e.target.value })
-              }
-            />
-          </Field>
-        </>
-      )}
-      <PackageContents
-        offer={{ packageType: type, menus: [{ ...menu, source: "dated" }] }}
-      />
-    </ActionForm>
-  );
-}
-function Capacity({ state: s, date }: { state: SellerState; date: string }) {
-  const { perform } = useApp();
-  return (
-    <section className="panel form-panel">
-      <h2>Kapasitas & hari tutup</h2>
-      <p>
-        Satu slot adalah satu porsi. Paket siang + malam memakai kapasitas
-        sekali per hari.
-      </p>
-      <ActionForm
-        onSubmit={async (f) => {
-          await perform("capacity.save", {
-            catererId: s.caterer.id,
-            packageId: f.get("packageId"),
-            date: f.get("date"),
-            slots: Number(f.get("slots")),
-            closed: f.get("closed") === "on",
-          });
-        }}
-      >
-        <Field label="Paket">
-          <Select name="packageId">
-            {s.offers.map((o) => (
-              <SelectOption key={o.id} value={o.id}>
-                {o.name}
-              </SelectOption>
-            ))}
-          </Select>
-        </Field>
-        <Field label="Tanggal">
-          <DatePicker name="date" defaultValue={date} required />
-        </Field>
-        <Field label="Kapasitas porsi">
-          <NumericInput name="slots" min={0} required defaultValue={100} />
-        </Field>
-        <label className="checkbox">
-          <Checkbox name="closed" />
-          Tutup penjualan pada tanggal ini
-        </label>
-        <p className="notice">
-          Kapasitas tidak boleh di bawah pesanan yang sudah dijanjikan. Untuk
-          menutup tanggal yang terisi, selesaikan perubahan atau pembatalan
-          melalui bantuan lebih dulu.
-        </p>
-      </ActionForm>
-    </section>
   );
 }
 function Customers({ state: s }: { state: SellerState }) {

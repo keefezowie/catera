@@ -1,5 +1,5 @@
 create or replace function v1.valid_offer(o jsonb) returns boolean language plpgsql immutable set search_path='' as $$
-declare w jsonb;t jsonb;k text;lo int;complete boolean;
+declare w jsonb;t jsonb;k text;lo int;complete boolean;shared_capacity numeric;
 begin
  if o is null or jsonb_typeof(o)<>'object' or not(o ?& array['name','description','price','days','meal','flexible','weekdays','status','capacity','tiers','menus','image','windows','tags','trialPrice','trialMax']) then return false;end if;
  complete:=o->>'status'<>'draft';
@@ -23,6 +23,8 @@ begin
  end loop;
  for w in select * from jsonb_array_elements(o->'weekdays') loop
   if jsonb_typeof(w)<>'number' or w::text::numeric not between 0 and 6 or w::text::numeric<>trunc(w::text::numeric) or not(o->'capacity' ? w::text) then return false;end if;
+  if shared_capacity is null then shared_capacity:=(o->'capacity'->>(w::text))::numeric;
+  elsif shared_capacity is distinct from (o->'capacity'->>(w::text))::numeric then return false;end if;
  end loop;
  if jsonb_typeof(o->'tiers')<>'array' or jsonb_typeof(o->'tags')<>'array' or jsonb_typeof(o->'menus')<>'array' or jsonb_array_length(o->'menus')>2 then return false;end if;
  for t in select * from jsonb_array_elements(o->'tiers') loop

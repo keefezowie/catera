@@ -14,6 +14,8 @@ export * from "./offer-editor";
 export const mealTypes = ["lunch", "dinner", "both"] as const;
 export type MealType = (typeof mealTypes)[number];
 export type Locale = "id" | "en";
+export type WorkspaceMode = "customer" | "caterer";
+export type Workspace = WorkspaceMode | "admin";
 export type Actor = {
   id: string;
   name: string;
@@ -101,6 +103,7 @@ export type Subscription = {
   remaining: number;
   legacy: boolean;
 };
+export * from "./seller-operations";
 export type Delivery = {
   id: string;
   subscription_id: string;
@@ -170,6 +173,7 @@ export type CustomerState = {
   cases: SupportCase[];
 };
 export type SellerState = {
+  categories?: import("./contents").DishCategory[];
   dishes?: import("./contents").LibraryDish[];
   contentRevisions?: ContentRevision[];
   datedMenus?: DatedMenu[];
@@ -295,6 +299,17 @@ export const offerSchema = z
           path: ["capacity"],
           message: "Isi kapasitas / Enter capacity",
         });
+    const activeCapacity = o.weekdays.map((d) => o.capacity[String(d)]);
+    if (
+      activeCapacity.every((capacity): capacity is number => capacity !== undefined) &&
+      new Set(activeCapacity).size > 1
+    )
+      ctx.addIssue({
+        code: "custom",
+        path: ["capacity"],
+        message:
+          "Kapasitas harus sama untuk semua hari operasional / Capacity must be the same for every operating day",
+      });
     for (const message of contentsIssues(o, o.status !== "draft"))
       ctx.addIssue({ code: "custom", path: ["menus"], message });
   });

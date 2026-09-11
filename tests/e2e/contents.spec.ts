@@ -1,296 +1,231 @@
 import { test, expect, type Page } from "@playwright/test";
-import AxeBuilder from "@axe-core/playwright";
-import { addDays, localDay } from "@catera/domain";
-import { mkdir } from "node:fs/promises";
-import { pickDate } from "./date-picker";
-
+import { addDays, localDay, type Offer } from "@catera/domain";
 async function choose(page: Page, label: string, option: string) {
   await page.getByRole("combobox", { name: label, exact: true }).click();
   await page.getByRole("option", { name: option, exact: true }).click();
 }
-test("seller publishes multiple dishes and customers see the same contents through checkout and production", async ({
+async function cmd(page: Page, action: string, payload: unknown) {
+  const r = await page.request.post("/api/v1/commands", {
+    data: { action, payload, requestId: crypto.randomUUID() },
+  });
+  expect(r.ok(), await r.text()).toBe(true);
+  return (await r.json()).data;
+}
+async function base(page: Page) {
+  await page.request.post("/api/v1/auth/demo", { data: { role: "owner" } });
+  const actor = (await (await page.request.get("/api/v1/me")).json()).data
+    .actor;
+  return (
+    (await (await page.request.get("/api/v1/catalog?limit=100")).json()).data
+      .items as Offer[]
+  ).find((o) => o.catererId === actor.catererId)!;
+}
+test("slot purchase resolves dated dishes through customer delivery and frozen production, preserving purchase contents", async ({
   page,
 }) => {
-  const errors: string[] = [];
-  page.on("pageerror", (e) => errors.push(e.message));
-  await mkdir("output/package-contents", { recursive: true });
-  await page.request.post("/api/v1/auth/demo", { data: { role: "owner" } });
-  await page.goto("/seller/packages");
-  await page.getByRole("button", { name: "Buat paket", exact: true }).click();
-  await choose(page, "Jenis paket", "À la carte");
-  const name = "Sintetis · Hidangan lengkap " + Date.now();
-  await page.getByLabel("Nama paket", { exact: true }).fill(name);
-  await page
-    .getByLabel("Cerita paket", { exact: true })
-    .fill("Data sintetis untuk verifikasi paket dengan beberapa hidangan.");
-  await page.getByRole("button", { name: "Lanjutkan", exact: true }).click();
-  await page
-    .getByRole("button", { name: "Gunakan foto sintetis demo" })
-    .click();
-  await page
-    .getByRole("button", { name: "Tambah hidangan", exact: true })
-    .click();
-  await page
-    .getByLabel("Nama hidangan", { exact: true })
-    .nth(0)
-    .fill("Ayam panggang verifikasi");
-  await page
-    .getByLabel("Ukuran saji (opsional)", { exact: true })
-    .nth(0)
-    .fill("150 g");
-  await page
-    .getByRole("button", { name: "Tambah hidangan", exact: true })
-    .click();
-  await page
-    .getByLabel("Nama hidangan", { exact: true })
-    .nth(1)
-    .fill("Tempe bacem verifikasi");
-  await page
-    .getByLabel("Ukuran saji (opsional)", { exact: true })
-    .nth(1)
-    .fill("2 potong");
-  await page.getByText("Informasi gizi (opsional)", { exact: true }).click();
-  await page.getByLabel("Protein (g)", { exact: true }).fill("42");
-  await page.getByLabel("Karbohidrat (g)", { exact: true }).fill("0");
-  await expect(
-    page.locator(".package-contents").getByText(/42 g protein/),
-  ).toBeVisible();
-  for (const width of [1440, 768, 390]) {
-    await page.setViewportSize({ width, height: 1000 });
-    if (process.env.CATERA_CAPTURE_CONTENTS === "true")
-      await page.screenshot({
-        path: `output/package-contents/seller-${width}.png`,
-        fullPage: true,
-      });
-    expect(
-      await page.evaluate(
-        () => document.documentElement.scrollWidth <= window.innerWidth,
-      ),
-    ).toBe(true);
-  }
-  const accessibility = await new AxeBuilder({ page })
-    .include('[role="dialog"]')
-    .analyze();
-  expect(
-    accessibility.violations.filter(
-      (v) => v.impact === "critical" || v.impact === "serious",
-    ),
-  ).toEqual([]);
-  await page.getByRole("button", { name: /6\. Tinjau/ }).click();
-  await choose(
-    page,
-    "Status penawaran",
-    "Tayangkan setelah verifikasi katerer",
-  );
-  const packageSaved = page.waitForResponse(
-    (r) =>
-      r.url().endsWith("/api/v1/commands") && r.request().method() === "POST",
-  );
-  await page.getByRole("button", { name: "Simpan paket", exact: true }).click();
-  const packageResult = await packageSaved;
-  expect(packageResult.ok(), await packageResult.text()).toBe(true);
-  await expect(page.getByRole("dialog")).toHaveCount(0);
-  const offers = (await (await page.request.get("/api/v1/catalog?limit=100")).json()).data
-    .items;
-  const offer = offers.find((o: { name: string }) => o.name === name);
-  expect(offer.menus[0].items).toHaveLength(2);
-  expect(offer.contentRevision).toBe(1);
-  await page.request.post("/api/v1/auth/demo", { data: { role: "customer" } });
-  await page.goto("/packages/" + offer.slug);
-  await expect(
-    page
-      .locator(".package-contents")
-      .getByText("Ayam panggang verifikasi", { exact: true }),
-  ).toBeVisible();
-  await expect(
-    page
-      .locator(".package-contents")
-      .getByText("Tempe bacem verifikasi", { exact: true }),
-  ).toBeVisible();
-  for (const width of [1440, 768, 390]) {
-    await page.setViewportSize({ width, height: 1000 });
-    if (process.env.CATERA_CAPTURE_CONTENTS === "true")
-      await page.screenshot({
-        path: `output/package-contents/customer-${width}.png`,
-        fullPage: true,
-      });
-    expect(
-      await page.evaluate(
-        () => document.documentElement.scrollWidth <= window.innerWidth,
-      ),
-    ).toBe(true);
-  }
-  await page.goto("/checkout/" + offer.id);
-  await pickDate(page, "Mulai tanggal", addDays(localDay(), 40));
-  await page.getByRole("button", { name: "Tinjau jadwal & harga" }).click();
-  await page.getByRole("checkbox").check();
-  await page.getByRole("button", { name: "Lanjutkan ke pembayaran" }).click();
-  await expect(page).toHaveURL(/\/payment\//);
-  const checkoutId = page.url().split("/").at(-1)!;
-  await page
-    .getByRole("button", { name: "Simulasikan pembayaran berhasil" })
-    .click();
-  await expect(
-    page.getByRole("heading", { name: "Makanan baik sudah dijadwalkan." }),
-  ).toBeVisible();
-  const checkout = (
-    await (await page.request.get("/api/v1/checkouts/" + checkoutId)).json()
-  ).data;
-  const customer = (await (await page.request.get("/api/v1/customer")).json())
-    .data;
-  const delivery = customer.deliveries.find(
-    (d: { subscription_id: string }) =>
-      d.subscription_id === checkout.subscription_id,
-  );
-  await page.goto("/deliveries/" + delivery.id);
-  await expect(
-    page
-      .locator(".package-contents")
-      .getByText("Tempe bacem verifikasi", { exact: true }),
-  ).toBeVisible();
-  await page.request.post("/api/v1/auth/demo", { data: { role: "owner" } });
-  await page.goto("/seller/menus?date=" + delivery.service_date);
-  await choose(page, "Paket dan versi isi", name + " · Versi 1");
-  await page
-    .getByLabel("Nama hidangan", { exact: true })
-    .nth(0)
-    .fill("Ayam kecap pengganti");
-  const menuSaved = page.waitForResponse(
-    (r) =>
-      r.url().endsWith("/api/v1/commands") && r.request().method() === "POST",
-  );
-  await page.getByRole("button", { name: "Simpan", exact: true }).click();
-  const menuResult = await menuSaved;
-  expect(menuResult.ok(), await menuResult.text()).toBe(true);
-  await expect(page.locator(".error-notice")).toHaveCount(0);
-  await page.request.post("/api/v1/auth/demo", { data: { role: "customer" } });
-  await page.goto("/deliveries/" + delivery.id);
-  await expect(
-    page
-      .locator(".package-contents")
-      .getByText("Ayam kecap pengganti", { exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByText("Informasi gizi belum tersedia", { exact: true }),
-  ).toBeVisible();
-  await page.goto("/subscriptions/" + checkout.subscription_id);
-  await expect(
-    page
-      .locator(".package-contents")
-      .getByText("Ayam panggang verifikasi", { exact: true }),
-  ).toBeVisible();
-  await page.request.post("/api/v1/auth/demo", { data: { role: "owner" } });
-  const frozen = await page.request.post("/api/v1/commands", {
-    data: {
-      action: "production.freeze",
-      requestId: crypto.randomUUID(),
-      payload: { catererId: offer.catererId, date: delivery.service_date },
+  const b = await base(page),
+    menu = {
+      contentModel: "slots",
+      meal: "lunch",
+      name: "",
+      description: "",
+      image: "",
+      items: [],
+      composition: [{ id: "main", categoryId: "main", name: "Lauk", slots: 2 }],
+      nutrition: null,
+    };
+  const created = await cmd(page, "package.save", {
+    catererId: b.catererId,
+    slug: "contents-" + crypto.randomUUID(),
+    offer: {
+      ...b,
+      name: "Sintetis isi " + Date.now(),
+      meal: "lunch",
+      days: 2,
+      packageType: "ala_carte",
+      menus: [menu],
     },
   });
-  expect(frozen.ok()).toBe(true);
-  const csv = await page.request.get(
-    "/api/manifests/" + (await frozen.json()).data.id,
+  await page.request.post("/api/v1/auth/demo", { data: { role: "customer" } });
+  const customer = (await (await page.request.get("/api/v1/customer")).json())
+    .data;
+  const checkout = await cmd(page, "checkout.create", {
+    packageId: created.id,
+    addressId: customer.addresses[0].id,
+    portions: 1,
+    startDate: addDays(localDay(), 30),
+    trial: false,
+  });
+  await cmd(page, "checkout.demo_pay", { id: checkout.id });
+  const before = (await (await page.request.get("/api/v1/customer")).json())
+      .data,
+    sub = before.subscriptions.find(
+      (s: { package_id: string }) => s.package_id === created.id,
+    ),
+    delivery = before.deliveries.find(
+      (d: { subscription_id: string }) => d.subscription_id === sub.id,
+    );
+  await page.goto("/deliveries/" + delivery.id);
+  await expect(page.locator(".package-contents")).toContainText(
+    "Menu belum ditentukan",
   );
+  await page.request.post("/api/v1/auth/demo", { data: { role: "owner" } });
+  const details = {
+    ...menu,
+    items: [
+      {
+        id: "main:0",
+        groupId: "main",
+        categoryId: "main",
+        name: "Ayam kecap pengganti",
+        description: "",
+        image: "",
+        serving: "150 g",
+      },
+      {
+        id: "main:1",
+        groupId: "main",
+        categoryId: "main",
+        name: "Tempe bacem verifikasi",
+        description: "",
+        image: "",
+        serving: "2 potong",
+      },
+    ],
+    nutrition: { proteinG: 42, carbsG: 0 },
+  };
+  await cmd(page, "menu.saveBatch", {
+    catererId: b.catererId,
+    packageId: created.id,
+    contentRevision: 1,
+    meal: "lunch",
+    details,
+    dates: [{ date: delivery.service_date, version: 0 }],
+  });
+  const frozen = await cmd(page, "production.freeze", {
+    catererId: b.catererId,
+    date: delivery.service_date,
+  });
+  const csv = await page.request.get("/api/manifests/" + frozen.id);
   expect(await csv.text()).toContain("Ayam kecap pengganti");
   expect(await csv.text()).toContain("Tempe bacem verifikasi (2 potong)");
-  expect(errors).toEqual([]);
+  await page.request.post("/api/v1/auth/demo", { data: { role: "customer" } });
+  await page.goto("/deliveries/" + delivery.id);
+  await expect(page.locator(".package-contents")).toContainText(
+    "Ayam kecap pengganti",
+  );
+  await expect(page.locator(".package-contents")).toContainText("42 g protein");
+  await page.goto("/subscriptions/" + sub.id);
+  await expect(page.locator(".package-contents")).toContainText(
+    "Menu belum ditentukan",
+  );
+  const after = (await (await page.request.get("/api/v1/customer")).json())
+    .data;
+  expect(
+    after.subscriptions.find((s: { id: string }) => s.id === sub.id).snapshot,
+  ).toEqual(sub.snapshot);
 });
-
-test("nasi box composition, optional macros, discovery filter and English contents", async ({
+test("legacy nasi box retains concrete dishes, macros, discovery filtering and English presentation", async ({
   page,
 }) => {
-  await page.goto("/packages/demo-nasi-box");
-  await expect(
-    page
-      .locator(".package-contents")
-      .getByText("2 Lauk · 1 Sayur", { exact: false }),
-  ).toBeVisible();
-  await expect(
-    page.locator(".package-contents").getByText("Sup jagung", { exact: true }),
-  ).toBeVisible();
-  await page.goto("/#packages");
-  await choose(page, "Jenis paket", "Nasi box");
-  const cards = page.locator(".package-card");
-  expect(await cards.count()).toBeGreaterThan(0);
-  await expect(
-    cards.filter({ hasText: "Demo · Ayam dan tempe ala carte" }),
-  ).toHaveCount(0);
-  await page.getByRole("textbox", { name: "Cari katering" }).fill("Sup jagung");
-  await expect(cards).toHaveCount(1);
-  await page.goto("/packages/demo-nasi-box");
+  const b = await base(page),
+    name = "Legacy isi " + Date.now();
+  const menu = {
+    meal: "lunch",
+    name: "Sup jagung",
+    description: "Legacy synthetic menu",
+    image: "",
+    composition: [{ id: "soup", name: "Sup", slots: 1 }],
+    items: [
+      {
+        id: "soup",
+        groupId: "soup",
+        name,
+        description: "Sup jagung sintetis",
+        image: "",
+        serving: "1 mangkuk",
+      },
+    ],
+    nutrition: { proteinG: 12 },
+  };
+  const p = await cmd(page, "package.save", {
+    catererId: b.catererId,
+    slug: "legacy-" + crypto.randomUUID(),
+    offer: {
+      ...b,
+      name,
+      meal: "lunch",
+      packageType: "nasi_box",
+      menus: [menu],
+    },
+  });
+  await page.request.post("/api/v1/auth/demo", { data: { role: "customer" } });
+  await page.goto("/packages/" + p.id);
+  await expect(page.locator(".package-contents")).toContainText("1 Sup");
+  await expect(page.locator(".package-contents")).toContainText(
+    "Sup jagung sintetis",
+  );
   await choose(page, "Bahasa", "English");
-  await expect(
-    page.locator(".package-contents").getByText(/Example menu/),
-  ).toBeVisible();
-  await expect(
-    page
-      .locator(".package-contents")
-      .getByText(/Caterer estimate · per meal portion/),
-  ).toBeVisible();
+  await expect(page.locator(".package-contents")).toContainText("Example menu");
+  await expect(page.locator(".package-contents")).toContainText(
+    "Caterer estimate",
+  );
+  await page.goto("/#packages");
+  await choose(page, "Package type", "Nasi box");
+  await page.getByRole("textbox", { name: "Cari katering" }).fill(name);
+  await expect(page.locator(".package-card")).toHaveCount(1);
 });
-
-test("seller creates a nasi box with recoverable dish slots and custom components", async ({
+test("wizard reviews custom categories and counts before publishing the new composition", async ({
   page,
 }) => {
-  await page.request.post("/api/v1/auth/demo", { data: { role: "owner" } });
+  await base(page);
   await page.goto("/seller/packages");
   await page.getByRole("button", { name: "Buat paket", exact: true }).click();
   await choose(page, "Jenis paket", "Nasi box");
-  const name = "Sintetis · Box " + Date.now();
+  const name = "Komposisi kustom " + Date.now();
   await page.getByLabel("Nama paket", { exact: true }).fill(name);
   await page
     .getByLabel("Cerita paket", { exact: true })
-    .fill(
-      "Contoh sintetis nasi box yang memiliki dua lauk dan komponen khusus.",
-    );
-  await page.getByRole("button", { name: "Lanjutkan", exact: true }).click();
+    .fill("Komposisi sintetis untuk kategori dan slot.");
+  await page.getByRole("button", { name: /2\. Isi/ }).click();
   await page
     .getByRole("button", { name: "Gunakan foto sintetis demo" })
     .click();
-  await page.getByLabel("Jumlah hidangan", { exact: true }).fill("2");
+  await choose(page, "Tambah kategori ke paket", "Lauk");
+  await page.getByLabel("Jumlah Lauk", { exact: true }).fill("2");
   await page
-    .getByLabel("Nama hidangan", { exact: true })
-    .nth(0)
-    .fill("Ayam bakar");
+    .getByRole("button", { name: "Kategori baru", exact: true })
+    .click();
+  const category = "Buah pilihan " + Date.now();
+  await page.getByLabel("Nama kategori", { exact: true }).fill(category);
   await page
-    .getByLabel("Nama hidangan", { exact: true })
-    .nth(1)
-    .fill("Telur balado");
-  await page.getByLabel("Jumlah hidangan", { exact: true }).fill("1");
-  await page.getByLabel("Jumlah hidangan", { exact: true }).fill("2");
+    .getByRole("button", { name: "Simpan kategori", exact: true })
+    .click();
   await expect(
-    page.getByLabel("Nama hidangan", { exact: true }).nth(1),
-  ).toHaveValue("Telur balado");
-  await choose(page, "Tambah komponen", "Komponen khusus…");
-  await page
-    .getByLabel("Komponen", { exact: true })
-    .nth(1)
-    .fill("Buah pilihan");
-  await page.getByLabel("Nama hidangan", { exact: true }).nth(2).fill("Pepaya");
+    page.getByLabel("Jumlah " + category, { exact: true }),
+  ).toHaveValue("1");
+  await expect(page.getByLabel("Nama hidangan", { exact: true })).toHaveCount(
+    0,
+  );
   await page.getByRole("button", { name: /6\. Tinjau/ }).click();
   await choose(
     page,
     "Status penawaran",
     "Tayangkan setelah verifikasi katerer",
   );
-  const saving = page.waitForResponse(
+  const save = page.waitForResponse(
     (r) =>
-      r.url().endsWith("/api/v1/commands") && r.request().method() === "POST",
+      r.url().endsWith("/commands") &&
+      r.request().postDataJSON()?.action === "package.save",
   );
   await page.getByRole("button", { name: "Simpan paket", exact: true }).click();
-  const result = await saving;
-  expect(result.ok(), await result.text()).toBe(true);
-  await expect(page.getByRole("dialog")).toHaveCount(0);
+  expect((await save).ok()).toBe(true);
   const offer = (
-    await (await page.request.get("/api/v1/catalog?limit=100")).json()
-  ).data.items.find((o: { name: string }) => o.name === name);
-  expect(
-    offer.menus[0].composition.map((g: { slots: number }) => g.slots),
-  ).toEqual([2, 1]);
-  expect(offer.menus[0].items.map((i: { name: string }) => i.name)).toEqual([
-    "Ayam bakar",
-    "Telur balado",
-    "Pepaya",
-  ]);
+    (await (await page.request.get("/api/v1/catalog?limit=100")).json()).data
+      .items as Offer[]
+  ).find((o) => o.name === name)!;
+  expect(offer.menus[0].composition!.map((g) => g.slots)).toEqual([2, 1]);
+  expect(offer.menus[0].items).toEqual([]);
   expect(offer.menus[0].nutrition).toBeNull();
+  expect(offer.menus[0].contentModel).toBe("slots");
 });

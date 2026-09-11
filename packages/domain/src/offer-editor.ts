@@ -27,6 +27,27 @@ const fieldStep: Record<string, OfferStep> = {
   trialPrice: "flexibility",
   trialMax: "flexibility",
 };
+export function sharedCapacityValue(
+  capacity: Record<string, number>,
+  weekdays: number[],
+): number {
+  const values = weekdays.length
+    ? weekdays.map((weekday) => capacity[String(weekday)] ?? 0)
+    : Object.values(capacity);
+  return values.reduce(
+    (maximum, value) => Math.max(maximum, value),
+    0,
+  );
+}
+export function withSharedCapacity(
+  capacity: Record<string, number>,
+  weekdays: number[],
+  value: number,
+): Record<string, number> {
+  const next = { ...capacity };
+  for (const weekday of weekdays) next[String(weekday)] = value;
+  return next;
+}
 export function offerEditorIssues(
   value: Record<string, unknown>,
   draft = false,

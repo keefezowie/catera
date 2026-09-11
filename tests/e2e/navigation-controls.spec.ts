@@ -168,3 +168,57 @@ test("legacy discover address redirects to the English catalog anchor", async ({
   // Ignore Next's temporary streamed subtree outside the live content region.
   await expect(page.locator("#main #packages")).toBeVisible();
 });
+
+test("seller workspace exposes the locale switch and keeps the choice on reload", async ({
+  page,
+}) => {
+  const auth = await page.request.post("/api/v1/auth/demo", {
+    data: { role: "owner" },
+  });
+  expect(auth.ok()).toBe(true);
+
+  await page.goto("/seller");
+  const topbar = page.locator(".ops-topbar");
+  const language = topbar.locator(".locale-switch");
+  await expect(language).toBeVisible();
+  await expect(
+    page.locator("#main h1"),
+  ).toBeVisible();
+  await expect(page.locator("#main h1")).toHaveText("Hari ini");
+
+  await language.click();
+  await page.getByRole("option", { name: "English", exact: true }).click();
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  await expect(topbar.locator(".locale-switch")).toContainText("EN");
+  await expect(
+    page.locator("#main h1"),
+  ).toBeVisible();
+  await expect(page.locator("#main h1")).toHaveText("Today");
+  await expect(page.locator(".ops-sidebar")).toContainText("Schedule");
+
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  await expect(page.locator(".ops-topbar .locale-switch")).toContainText("EN");
+  await expect(
+    page.locator("#main h1"),
+  ).toBeVisible();
+  await expect(page.locator("#main h1")).toHaveText("Today");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/seller");
+  await expect(page.locator(".ops-topbar .locale-switch")).toBeVisible();
+  await expect(page.locator(".ops-topbar .locale-switch")).toContainText("EN");
+  await expect(page.locator("#main h1")).toHaveText("Today");
+  expect(
+    await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth <=
+        document.documentElement.clientWidth,
+    ),
+  ).toBe(true);
+  fs.mkdirSync("output/slack-bugs/0005", { recursive: true });
+  await page.screenshot({
+    path: "output/slack-bugs/0005/seller-phone.png",
+    fullPage: true,
+    animations: "disabled",
+  });
+});

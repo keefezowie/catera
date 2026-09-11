@@ -1,0 +1,188 @@
+.seller-operations {
+  min-width: 0;
+}
+.ops-calendar {
+  margin-bottom: 24px;
+}
+.ops-month-controls,
+.ops-filter-row,
+.ops-package-filter,
+.ops-meal-tabs,
+.ops-bulk-toolbar,
+.ops-detail-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.ops-month-controls strong {
+  font-size: 17px;
+}
+.ops-package-filter {
+  overflow-x: auto;
+  padding: 4px 0 16px;
+}
+.ops-package-filter button {
+  flex-shrink: 0;
+}
+.seller-operations .ops-package-filter .button.is-selected,
+.seller-operations .ops-package-filter .button.is-selected:hover {
+  background: var(--forest);
+  color: var(--cream);
+  border-color: var(--forest);
+}
+.ops-filter-row {
+  justify-content: space-between;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.ops-filter-row > .select-trigger {
+  width: auto;
+  min-width: 175px;
+}
+.ops-meal-tabs {
+  gap: 4px;
+  background: var(--soft);
+  border-radius: 10px;
+  padding: 4px;
+}
+.ops-meal-tabs button {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 8px 18px;
+  border: 0;
+  background: transparent;
+  border-radius: 8px;
+  color: var(--forest);
+}
+.ops-meal-tabs .selected {
+  background: var(--forest);
+  color: var(--cream);
+}
+.seller-operations .ops-metrics {
+  margin-bottom: 24px;
+}
+.ops-support-link {
+  margin: -12px 0 20px;
+  display: inline-flex;
+}
+.ops-orders-panel {
+  min-width: 0;
+}
+.ops-orders-panel .section-heading h2 {
+  margin: 0;
+}
+.ops-bulk-toolbar {
+  flex-wrap: wrap;
+  background: var(--soft);
+  padding: 14px;
+  border-radius: 10px;
+  margin-bottom: 16px;
+}
+.ops-bulk-toolbar .select-trigger {
+  width: auto;
+  min-width: 155px;
+}
+.ops-order-table {
+  min-width: 660px;
+}
+.ops-order-table td {
+  vertical-align: top;
+}
+.ops-order-table td small {
+  max-width: 32ch;
+  white-space: normal;
+}
+.ops-order-table th:first-child:has(input) {
+  width: 48px;
+}
+.ops-detail-actions {
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+.ops-production {
+  border-top: 1px solid var(--line);
+}
+.ops-production > summary {
+  padding: 18px 4px;
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--forest);
+}
+.ops-production > .panel {
+  margin-top: 4px;
+}
+.seller-operations .coverage-day {
+  min-height: 135px;
+}
+.seller-operations .coverage-day .coverage-info {
+  flex-direction: column;
+  gap: 7px;
+}
+.seller-operations .coverage-day .coverage-info small {
+  white-space: nowrap;
+}
+.seller-operations .coverage-day.is-selected small {
+  color: inherit;
+}
+.seller-operations .coverage-strip {
+  scrollbar-color: var(--forest) var(--soft);
+}
+@media (max-width: 800px) {
+  .ops-order-layout.has-detail {
+    display: flex;
+    flex-direction: column;
+  }
+  .ops-order-layout.has-detail .detail-panel {
+    order: -1;
+  }
+  .ops-month-controls {
+    gap: 6px;
+  }
+  .ops-calendar .coverage-toolbar {
+    align-items: flex-start;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 560px) {
+  .ops-meal-tabs {
+    width: 100%;
+  }
+  .ops-meal-tabs button {
+    flex: 1;
+    padding-inline: 12px;
+  }
+  .ops-bulk-toolbar > strong {
+    width: 100%;
+  }
+  .ops-bulk-toolbar .select-trigger {
+    flex: 1;
+  }
+  .ops-order-table {
+    min-width: 620px;
+  }
+  .ops-calendar .calendar-shortcuts {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .ops-month-controls strong {
+    font-size: 14px;
+  }
+}
+@media print {
+  .seller-operations > :not(.ops-production),
+  .ops-production > summary,
+  .ops-production button,
+  .ops-production form,
+  .ops-production a {
+    display: none !important;
+  }
+  .ops-production,
+  .ops-production > .panel {
+    display: block !important;
+    border: 0;
+  }
+}

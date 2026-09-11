@@ -128,10 +128,42 @@ export async function createDemoDatabase(inMemory = false) {
     await db.exec(refreshDemoCatalogSQL());
   }
   if (!(await db.query<{ installed: boolean }>(
-    "select position('calendarMeta' in pg_get_functiondef('public.catera_v1_read(text,jsonb)'::regprocedure)) > 0 as installed",
+    "select to_regprocedure('public.catera_v1_read_operations_base(text,jsonb)') is not null or position('calendarMeta' in pg_get_functiondef('public.catera_v1_read(text,jsonb)'::regprocedure)) > 0 as installed",
   )).rows[0].installed) {
     await db.exec(await readFile(path.join(projectRoot(), "supabase/migrations/20260910160000_calendar_metadata.sql"), "utf8"));
   }
+  if (!(await db.query<{ installed: boolean }>(
+    "select to_regclass('v1.dish_categories') is not null as installed",
+  )).rows[0].installed) {
+    const file = (await readdir(path.join(projectRoot(), "supabase/migrations"))).find(f => f.endsWith("_slot_menu_calendar.sql"));
+    if (!file) throw new Error("SLOT_MENU_MIGRATION_MISSING");
+    await db.exec("begin;" + await readFile(path.join(projectRoot(), "supabase/migrations", file), "utf8") + "\ncommit;");
+  }
+  if (!(await db.query<{ installed: boolean }>(
+    "select to_regprocedure('public.catera_v1_command_legacy(text,jsonb,uuid)') is not null as installed",
+  )).rows[0].installed) {
+    await db.exec(
+      "begin;" +
+        (await readFile(
+          path.join(
+            projectRoot(),
+            "supabase/migrations/20260911150000_shared_recurring_capacity.sql",
+          ),
+          "utf8",
+        )) +
+        "\ncommit;",
+    );
+  }
+  if (!(await db.query<{ installed: boolean }>(
+    "select to_regprocedure('public.catera_v1_read_operations_base(text,jsonb)') is not null as installed",
+  )).rows[0].installed) {
+    await db.exec("begin;" + await readFile(path.join(projectRoot(), "supabase/migrations/20260911150142_seller_operations.sql"), "utf8") + "\ncommit;");
+  }
+  // This constructor owns synthetic PGlite storage; hosted RPC never enters it.
+  await db.transaction(async tx => {
+    await tx.query("select set_config('catera.demo','true',true)");
+    await tx.exec(await readFile(path.join(projectRoot(), "packages/backend/src/demo-slot-upgrade.sql"), "utf8"));
+  });
   return db;
 }
 export async function getDemoDatabase() {

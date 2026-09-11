@@ -114,11 +114,11 @@ const alaCarteMenu = (
 });
 
 /**
- * Customer-facing local demo offers. These deliberately exercise the real
- * package model: a package is purchased for a schedule, each menu is scoped
- * to a meal, and each menu contains the dishes or component slots delivered.
+ * Synthetic recipe fixtures used by the bootstrap and baseline generator.
+ * demo-slot-upgrade.sql splits these into category-only package templates,
+ * categorized library dishes, and dated recipes before the demo is served.
  */
-const DEMO_OFFERS: DemoOffer[] = [
+export const DEMO_OFFERS: DemoOffer[] = [
   {
     name: "Ayam Panggang Harian",
     description:
@@ -385,7 +385,7 @@ export function refreshDemoCatalogSQL() {
   return `do $$ declare p v1.packages; next_offer jsonb; rev int; begin
   ${DEMO_OFFERS.map(
     (offer, i) => `select * into p from v1.packages where id='${PACKAGE_IDS[i]}';
-  if found and (p.offer->>'packageType' is null or jsonb_typeof(p.offer->'menus'->0->'items') is distinct from 'array' or jsonb_typeof(p.offer->'menus'->0->'items'->0->'image') is distinct from 'string') then
+  if found and p.offer->'menus'->0->>'contentModel' is distinct from 'slots' and (p.offer->>'packageType' is null or jsonb_typeof(p.offer->'menus'->0->'items') is distinct from 'array' or jsonb_typeof(p.offer->'menus'->0->'items'->0->'image') is distinct from 'string') then
     select coalesce(max(revision),-1)+1 into rev from v1.content_revisions where package_id=p.id;
     next_offer:=${q({ ...offer, status: "published" })};
     next_offer:=jsonb_set(next_offer,'{contentRevision}',to_jsonb(rev),true);

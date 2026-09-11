@@ -10,10 +10,17 @@ import {
 } from "react";
 import { createApi } from "@catera/api-client";
 import { createBrowserClient } from "@supabase/ssr";
-import { errors, type Actor, type Offer, type Locale } from "@catera/domain";
+import {
+  errors,
+  type Actor,
+  type Offer,
+  type Locale,
+  type Workspace,
+} from "@catera/domain";
 export const api = createApi();
 type Context = {
   actor: Actor | null;
+  workspace: Workspace;
   offers: Offer[];
   demo: boolean;
   locale: Locale;
@@ -46,12 +53,14 @@ export function CatalogProvider({
 }
 export function Provider({
   actor,
+  workspace,
   offers,
   demo,
   initialLocale,
   children,
 }: {
   actor: Actor | null;
+  workspace: Workspace;
   offers: Offer[];
   demo: boolean;
   initialLocale: Locale;
@@ -154,6 +163,7 @@ export function Provider({
     <AppContext.Provider
       value={{
         actor,
+        workspace,
         offers,
         demo,
         locale,

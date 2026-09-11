@@ -8,12 +8,12 @@ This September 9, 2026 baseline replaces the tenant-specific pilot. The user app
 
 - Public marketplace: address/area selection, search, food-led packages, seller profiles, menus, reviews and comparison of up to three offers at one quantity.
 - Global customer account: Beranda, Jelajah, Jadwal, Pesan, Akun. One calendar across caterers, immutable purchases, saved addresses, support, delivery changes and explicit renewal.
-- Caterer web: today, schedule, production and delivery with selected date/meal context; publishing, menus, portions-based capacity, customers, support, transactions and staff.
+- Caterer web: Hari ini updates delivery statuses through separate lunch/dinner tabs and atomic bulk actions. Jadwal provides a date/package order dashboard with production and whole-day manifest revisions. Publishing, menus, portions-based capacity, customers, support, transactions and staff remain separate workspaces.
 - Catera admin web: verification, listing/review moderation, transactions, support/refunds, payout approval, promotions and permanent audit history. Platform admins are distinct from seller owners.
 
 ## Product rules
 
-1. One slot means one portion for one package/date. A combined lunch/dinner offer reserves its quantity once per day. Its meal fulfillments have separate delivery statuses and share the day's address and date.
+1. One slot means one portion for one package/date. A combined lunch/dinner offer reserves its quantity once per day. Its meal fulfillments have separate delivery statuses and share the day's address and date. Recurring package capacity is one value shared by every selected operating weekday; date-specific capacity rows are legacy data and are not seller-editable.
 2. Reserve the complete generated schedule atomically. Portions and purchased terms are fixed. Menu updates can be communicated without rewriting the purchase snapshot.
 3. Cutoff uses the caterer's timezone. A date change must reserve the replacement before releasing the original. Reject duplicate dates, overlapping active/pending subscriptions, unavailable destinations and capacity reductions below commitments.
 4. Trial defaults to one eligible delivery day, with a seller price and optional portion maximum. Only one successful trial per customer/caterer.
@@ -33,15 +33,17 @@ Brand artwork must be generated as individual reusable files. Neither board crop
 
 ## Package contents
 
-A package is a caterer-defined offering sold at one price per complete portion per delivery day. À la carte may contain one dish or multiple dishes. Nasi box defines component slots (for example, nasi, two lauk, vegetables and soup), with named dishes that can change by date. Caterers can add custom component categories and serving descriptions. Lunch and dinner have independent contents; multiple dishes do not multiply capacity reservations.
+A package is a caterer-defined container sold at one price per complete portion per delivery day. Both À la carte and Nasi box define category slots (for example, one rice, two mains and one soup), separately for lunch and dinner. Counts describe dishes within a complete portion and never multiply capacity reservations. Packages can be published and purchased before specific dated menus exist; customers see “Menu belum ditentukan” until the caterer assigns dishes.
 
 Calories, protein, carbohydrates and fat are optional caterer-entered estimates per complete meal portion. Missing values remain unavailable; zero is a value. Dated menus carry their own nutrition and never inherit estimates for different dishes. The platform neither calculates nutrition nor infers high-protein claims.
 
 Content revisions are immutable and snapshotted with purchases. Dated changes target the purchased revision and preserve its composition. Customers choose a listed offering; individual customer/per-portion dish choices remain outside V1.
 
-Caterers may optionally save dishes to their own reusable library. Selecting one copies its details into a stable package/menu slot. Package-specific serving overrides are allowed; library changes are applied explicitly and never propagate automatically into offerings or purchases. Archived dishes remain readable in existing contents.
+Caterers manage their dish library inside Menu. Built-in categories are Nasi, Lauk, Sayur, Sup, Buah and Dessert; custom categories belong to one caterer. Library dishes and package slots use the same category IDs. Selecting a dish copies its saved details and serving size into a stable dated-menu slot. Library changes are applied explicitly and never propagate automatically into menus or purchases. Archived dishes remain readable in existing contents; uncategorized dishes must be categorized before assignment to slots.
 
-Nasi box editing groups each component with its dish fields. Photos use upload progress, confirmation and previews, with storage addresses hidden. Every forward wizard action validates preceding steps; incomplete work has a separate draft-save action. Review displays the actual discovery-card and package-detail presentation with purchase actions disabled.
+Package editing defines only category counts, alongside the offer's cover photo and commercial terms. The Menu calendar expands in place into a visual package card for one or several selected dates. Large clickable placeholders follow the package composition; selecting one filters the library to its category. Desktop users drag dishes into slots, then advance automatically to the next empty slot. Keyboard selection and the phone tap picker provide equivalent access. Optional menu-level nutrition uses the shared calorie/protein/carbohydrate/fat icon treatment. Saving requires complete dish slots and applies the same menu atomically to all selected dates. Photos retain upload feedback, every wizard step validates prerequisites, and incomplete packages have a separate draft-save action.
+
+All packages use this one assembly workflow. The explicitly synthetic demo graph is converted together to category-slot templates and dated recipes; this demo-only conversion never runs against live storage. Production purchase snapshots and dated revision boundaries remain immutable.
 
 ## V1 boundary
 

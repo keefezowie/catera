@@ -3,6 +3,8 @@ import AxeBuilder from "@axe-core/playwright";
 import { mkdirSync } from "node:fs";
 import { addDays, localDay } from "../../packages/domain/src/index";
 
+const evidenceDir = process.env.CATERA_CALENDAR_EVIDENCE || "output/meal-calendar";
+
 test("picker has one date Tab stop, full keyboard navigation and usable mobile text entry", async ({
   page,
 }) => {
@@ -46,8 +48,8 @@ test("picker has one date Tab stop, full keyboard navigation and usable mobile t
       }),
     );
   expect(sizes.every((r) => r.width >= 44 && r.height >= 44)).toBe(true);
-  mkdirSync("output/meal-calendar", { recursive: true });
-  await page.screenshot({ path: "output/meal-calendar/picker-320.png" });
+  mkdirSync(evidenceDir, { recursive: true });
+  await page.screenshot({ path: `${evidenceDir}/picker-320.png` });
   await page.keyboard.press("Escape");
   await expect(page.locator(".calendar-month-button")).toBeFocused();
 });
@@ -204,15 +206,15 @@ test("day cards layer all meal coverage states with today and selection", async 
   );
   await expect(selectedToday).toHaveCSS("min-height", "120px");
 
-  mkdirSync("output/meal-calendar", { recursive: true });
+  mkdirSync(evidenceDir, { recursive: true });
   await page.screenshot({
-    path: "output/meal-calendar/calendar-states-1440.png",
+    path: `${evidenceDir}/calendar-states-1440.png`,
     fullPage: true,
   });
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(selectedToday).toHaveCSS("min-height", "116px");
   await page.screenshot({
-    path: "output/meal-calendar/calendar-states-390.png",
+    path: `${evidenceDir}/calendar-states-390.png`,
     fullPage: true,
   });
 
@@ -360,7 +362,7 @@ test("desktop and phone are accessible, localized and free of page overflow", as
   page,
 }) => {
   await login(page);
-  mkdirSync("output/meal-calendar", { recursive: true });
+  mkdirSync(evidenceDir, { recursive: true });
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: width === 390 ? 844 : 1000 });
     await page.getByRole("button", { name: "Hari ini", exact: true }).click();
@@ -379,7 +381,7 @@ test("desktop and phone are accessible, localized and free of page overflow", as
       ),
     ).toEqual([]);
     await page.screenshot({
-      path: `output/meal-calendar/calendar-${width}.png`,
+      path: `${evidenceDir}/calendar-${width}.png`,
       fullPage: true,
     });
     await page.locator(".calendar-month-button").click();
@@ -392,7 +394,7 @@ test("desktop and phone are accessible, localized and free of page overflow", as
         ["serious", "critical"].includes(v.impact || ""),
       ),
     ).toEqual([]);
-    await page.screenshot({ path: `output/meal-calendar/picker-${width}.png` });
+    await page.screenshot({ path: `${evidenceDir}/picker-${width}.png` });
     await page.keyboard.press("Escape");
   }
   await page.setViewportSize({ width: 1440, height: 1000 });
