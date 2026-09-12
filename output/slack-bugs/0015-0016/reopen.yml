@@ -1,0 +1,234 @@
+- generic [active] [ref=f1e1]:
+  - generic [ref=f1e2]:
+    - link "Lewati ke konten" [ref=f1e3] [cursor=pointer]:
+      - /url: "#main"
+    - generic [ref=f1e4]: Demo eksplorasi · Katerer, menu, dan transaksi menggunakan data sintetis.
+    - complementary [ref=f1e5]:
+      - link "Catera — Good Food on Repeat" [ref=f1e6] [cursor=pointer]:
+        - /url: /
+        - img "Catera" [ref=f1e7]
+      - generic [ref=f1e12]:
+        - strong [ref=f1e13]: Ruang katerer
+        - text: Arini — Dapur Senja
+      - navigation [ref=f1e14]:
+        - link "Hari ini" [ref=f1e15] [cursor=pointer]:
+          - /url: /seller
+        - link "Jadwal" [ref=f1e21] [cursor=pointer]:
+          - /url: /seller/schedule
+        - link "Paket" [ref=f1e24] [cursor=pointer]:
+          - /url: /seller/packages
+        - link "Menu" [ref=f1e29] [cursor=pointer]:
+          - /url: /seller/menus
+        - link "Pelanggan" [ref=f1e33] [cursor=pointer]:
+          - /url: /seller/customers
+        - link "Pesan & bantuan" [ref=f1e39] [cursor=pointer]:
+          - /url: /seller/support
+        - link "Transaksi" [ref=f1e42] [cursor=pointer]:
+          - /url: /seller/transactions
+        - link "Pengaturan" [ref=f1e46] [cursor=pointer]:
+          - /url: /seller/settings
+      - generic [ref=f1e50]:
+        - strong [ref=f1e51]: Good food.Good days.
+        - link "Lihat marketplace" [ref=f1e52] [cursor=pointer]:
+          - /url: /
+    - banner [ref=f1e56]:
+      - generic [ref=f1e57]: Makanan baik dimulai dari dapur yang tertata.
+      - combobox "Bahasa" [ref=f1e58] [cursor=pointer]:
+        - generic: ID
+      - link "Notifikasi" [ref=f1e61] [cursor=pointer]:
+        - /url: /notifications
+      - button "Buka menu akun" [ref=f1e66] [cursor=pointer]:
+        - generic [aria-hidden] [ref=f1e67]: A
+    - main [ref=f1e68]:
+      - generic [ref=f1e70]:
+        - heading "Menu yang dinanti." [level=1] [ref=f1e71]
+        - paragraph [ref=f1e72]: Dapur Senja
+      - generic [ref=f1e73]:
+        - generic [ref=f1e75]:
+          - generic [ref=f1e76]: Paket dan versi isi
+          - combobox "Paket dan versi isi" [ref=f1e77] [cursor=pointer]:
+            - generic: Ayam Panggang Harian · Versi 0
+        - generic [ref=f1e80]:
+          - region "Kalender menu" [ref=f1e81]:
+            - generic [ref=f1e82]:
+              - generic [ref=f1e83]:
+                - button "Bulan sebelumnya" [ref=f1e84] [cursor=pointer]
+                - heading "September 2026" [level=2] [ref=f1e87]
+                - button "Bulan berikutnya" [ref=f1e88] [cursor=pointer]
+              - generic [ref=f1e91]:
+                - generic [ref=f1e92]: Makan siang
+                - button "Pilih beberapa tanggal" [ref=f1e93] [cursor=pointer]
+              - generic "Tanggal menu" [ref=f1e94]:
+                - generic [ref=f1e95]: Sen
+                - generic [ref=f1e96]: Sel
+                - generic [ref=f1e97]: Rab
+                - generic [ref=f1e98]: Kam
+                - generic [ref=f1e99]: Jum
+                - generic [ref=f1e100]: Sab
+                - generic [ref=f1e101]: Min
+                - button "1 Sep · Belum diisi · Hanya baca" [ref=f1e103] [cursor=pointer]:
+                  - strong [ref=f1e104]: "1"
+                  - generic [ref=f1e105]: Belum diisi
+                  - generic [ref=f1e106]: Hanya baca
+                - button "2 Sep · Belum diisi · Hanya baca" [ref=f1e107] [cursor=pointer]:
+                  - strong [ref=f1e108]: "2"
+                  - generic [ref=f1e109]: Belum diisi
+                  - generic [ref=f1e110]: Hanya baca
+                - button "3 Sep · Belum diisi · Hanya baca" [ref=f1e111] [cursor=pointer]:
+                  - strong [ref=f1e112]: "3"
+                  - generic [ref=f1e113]: Belum diisi
+                  - generic [ref=f1e114]: Hanya baca
+                - button "4 Sep · Belum diisi · Hanya baca" [ref=f1e115] [cursor=pointer]:
+                  - strong [ref=f1e116]: "4"
+                  - generic [ref=f1e117]: Belum diisi
+                  - generic [ref=f1e118]: Hanya baca
+                - button "5 Sep · Belum diisi · Hanya baca" [ref=f1e119] [cursor=pointer]:
+                  - strong [ref=f1e120]: "5"
+                  - generic [ref=f1e121]: Belum diisi
+                  - generic [ref=f1e122]: Hanya baca
+                - button "6 Sep · Belum diisi · Hanya baca" [ref=f1e123] [cursor=pointer]:
+                  - strong [ref=f1e124]: "6"
+                  - generic [ref=f1e125]: Belum diisi
+                  - generic [ref=f1e126]: Hanya baca
+                - button "7 Sep · Belum diisi · Hanya baca" [ref=f1e127] [cursor=pointer]:
+                  - strong [ref=f1e128]: "7"
+                  - generic [ref=f1e129]: Belum diisi
+                  - generic [ref=f1e130]: Hanya baca
+                - button "8 Sep · Belum diisi · Hanya baca" [ref=f1e131] [cursor=pointer]:
+                  - strong [ref=f1e132]: "8"
+                  - generic [ref=f1e133]: Belum diisi
+                  - generic [ref=f1e134]: Hanya baca
+                - button "9 Sep · Belum diisi · Hanya baca" [ref=f1e135] [cursor=pointer]:
+                  - strong [ref=f1e136]: "9"
+                  - generic [ref=f1e137]: Belum diisi
+                  - generic [ref=f1e138]: Hanya baca
+                - button "10 Sep · Belum diisi · Hanya baca" [ref=f1e139] [cursor=pointer]:
+                  - strong [ref=f1e140]: "10"
+                  - generic [ref=f1e141]: Belum diisi
+                  - generic [ref=f1e142]: Hanya baca
+                - button "11 Sep · Belum diisi · Hanya baca" [ref=f1e143] [cursor=pointer]:
+                  - strong [ref=f1e144]: "11"
+                  - generic [ref=f1e145]: Belum diisi
+                  - generic [ref=f1e146]: Hanya baca
+                - button "12 Sep · Belum diisi" [ref=f1e147] [cursor=pointer]:
+                  - strong [ref=f1e148]: "12"
+                  - generic [ref=f1e149]: Belum diisi
+                - button "13 Sep · Belum diisi" [ref=f1e150] [cursor=pointer]:
+                  - strong [ref=f1e151]: "13"
+                  - generic [ref=f1e152]: Belum diisi
+                - button "14 Sep · Nasi putih, Ayam panggang bumbu rempah, Tumis buncis wortel, Sambal dan lalapan" [ref=f1e153] [cursor=pointer]:
+                  - strong [ref=f1e154]: "14"
+                  - generic "Nasi putih, Ayam panggang bumbu rempah, Tumis buncis wortel, Sambal dan lalapan" [ref=f1e155]:
+                    - generic [ref=f1e156]: Nasi putih
+                    - generic [ref=f1e157]: Ayam panggang bumbu rempah
+                    - generic [ref=f1e158]: +2 hidangan
+                - button "15 Sep · Nasi putih, Ayam panggang bumbu rempah, Tumis buncis wortel, Sambal dan lalapan" [ref=f1e159] [cursor=pointer]:
+                  - strong [ref=f1e160]: "15"
+                  - generic "Nasi putih, Ayam panggang bumbu rempah, Tumis buncis wortel, Sambal dan lalapan" [ref=f1e161]:
+                    - generic [ref=f1e162]: Nasi putih
+                    - generic [ref=f1e163]: Ayam panggang bumbu rempah
+                    - generic [ref=f1e164]: +2 hidangan
+                - button "16 Sep · Nasi putih, Ayam panggang bumbu rempah, Tumis buncis wortel, Sambal dan lalapan" [ref=f1e165] [cursor=pointer]:
+                  - strong [ref=f1e166]: "16"
+                  - generic "Nasi putih, Ayam panggang bumbu rempah, Tumis buncis wortel, Sambal dan lalapan" [ref=f1e167]:
+                    - generic [ref=f1e168]: Nasi putih
+                    - generic [ref=f1e169]: Ayam panggang bumbu rempah
+                    - generic [ref=f1e170]: +2 hidangan
+                - button "17 Sep · Nasi putih, Ayam panggang bumbu rempah, Tumis buncis wortel, Sambal dan lalapan" [ref=f1e171] [cursor=pointer]:
+                  - strong [ref=f1e172]: "17"
+                  - generic "Nasi putih, Ayam panggang bumbu rempah, Tumis buncis wortel, Sambal dan lalapan" [ref=f1e173]:
+                    - generic [ref=f1e174]: Nasi putih
+                    - generic [ref=f1e175]: Ayam panggang bumbu rempah
+                    - generic [ref=f1e176]: +2 hidangan
+                - button "18 Sep · Nasi putih, Ayam panggang bumbu rempah, Tumis buncis wortel, Sambal dan lalapan" [ref=f1e177] [cursor=pointer]:
+                  - strong [ref=f1e178]: "18"
+                  - generic "Nasi putih, Ayam panggang bumbu rempah, Tumis buncis wortel, Sambal dan lalapan" [ref=f1e179]:
+                    - generic [ref=f1e180]: Nasi putih
+                    - generic [ref=f1e181]: Ayam panggang bumbu rempah
+                    - generic [ref=f1e182]: +2 hidangan
+                - button "19 Sep · Belum diisi" [ref=f1e183] [cursor=pointer]:
+                  - strong [ref=f1e184]: "19"
+                  - generic [ref=f1e185]: Belum diisi
+                - button "20 Sep · Belum diisi" [ref=f1e186] [cursor=pointer]:
+                  - strong [ref=f1e187]: "20"
+                  - generic [ref=f1e188]: Belum diisi
+                - button "21 Sep · Belum diisi" [ref=f1e189] [cursor=pointer]:
+                  - strong [ref=f1e190]: "21"
+                  - generic [ref=f1e191]: Belum diisi
+                - button "22 Sep · Belum diisi" [ref=f1e192] [cursor=pointer]:
+                  - strong [ref=f1e193]: "22"
+                  - generic [ref=f1e194]: Belum diisi
+                - button "23 Sep · Belum diisi" [ref=f1e195] [cursor=pointer]:
+                  - strong [ref=f1e196]: "23"
+                  - generic [ref=f1e197]: Belum diisi
+                - button "24 Sep · Belum diisi" [ref=f1e198] [cursor=pointer]:
+                  - strong [ref=f1e199]: "24"
+                  - generic [ref=f1e200]: Belum diisi
+                - button "25 Sep · Belum diisi" [ref=f1e201] [cursor=pointer]:
+                  - strong [ref=f1e202]: "25"
+                  - generic [ref=f1e203]: Belum diisi
+                - button "26 Sep · Belum diisi" [ref=f1e204] [cursor=pointer]:
+                  - strong [ref=f1e205]: "26"
+                  - generic [ref=f1e206]: Belum diisi
+                - button "27 Sep · Belum diisi" [ref=f1e207] [cursor=pointer]:
+                  - strong [ref=f1e208]: "27"
+                  - generic [ref=f1e209]: Belum diisi
+                - button "28 Sep · Belum diisi" [ref=f1e210] [cursor=pointer]:
+                  - strong [ref=f1e211]: "28"
+                  - generic [ref=f1e212]: Belum diisi
+                - button "29 Sep · Belum diisi" [ref=f1e213] [cursor=pointer]:
+                  - strong [ref=f1e214]: "29"
+                  - generic [ref=f1e215]: Belum diisi
+                - button "30 Sep · Belum diisi" [ref=f1e216] [cursor=pointer]:
+                  - strong [ref=f1e217]: "30"
+                  - generic [ref=f1e218]: Belum diisi
+          - complementary [ref=f1e219]:
+            - region "Pustaka hidangan" [ref=f1e220]:
+              - generic [ref=f1e221]:
+                - heading "Pustaka hidangan" [level=2] [ref=f1e222]
+                - button "Tambah" [ref=f1e223] [cursor=pointer]
+              - generic [ref=f1e225]:
+                - generic [ref=f1e226]: Cari hidangan
+                - searchbox "Cari hidangan" [ref=f1e227]
+              - group [ref=f1e228]:
+                - generic "Buah 0" [ref=f1e229] [cursor=pointer]:
+                  - text: Buah
+                  - generic [ref=f1e230]: "0"
+              - group [ref=f1e231]:
+                - generic "Dessert 0" [ref=f1e232] [cursor=pointer]:
+                  - text: Dessert
+                  - generic [ref=f1e233]: "0"
+              - group [ref=f1e234]:
+                - generic "Lauk 9" [ref=f1e235] [cursor=pointer]:
+                  - text: Lauk
+                  - generic [ref=f1e236]: "9"
+              - group [ref=f1e237]:
+                - generic "Nasi 1" [ref=f1e238] [cursor=pointer]:
+                  - text: Nasi
+                  - generic [ref=f1e239]: "1"
+              - group [ref=f1e240]:
+                - generic "Sayur 4" [ref=f1e241] [cursor=pointer]:
+                  - text: Sayur
+                  - generic [ref=f1e242]: "4"
+              - group [ref=f1e243]:
+                - generic "Sup 4" [ref=f1e244] [cursor=pointer]:
+                  - text: Sup
+                  - generic [ref=f1e245]: "4"
+              - group [ref=f1e246]:
+                - generic "Camilan 1789203806259 1" [ref=f1e247] [cursor=pointer]:
+                  - text: Camilan 1789203806259
+                  - generic [ref=f1e248]: "1"
+              - group [ref=f1e249]:
+                - generic "Pelengkap 3" [ref=f1e250] [cursor=pointer]:
+                  - text: Pelengkap
+                  - generic [ref=f1e251]: "3"
+              - group [ref=f1e252]:
+                - generic "Belum dikategorikan 0" [ref=f1e253] [cursor=pointer]:
+                  - text: Belum dikategorikan
+                  - generic [ref=f1e254]: "0"
+              - generic [ref=f1e255]:
+                - checkbox "Tampilkan arsip" [ref=f1e257] [cursor=pointer]
+                - text: Tampilkan arsip
+              - button "Kategori baru" [ref=f1e259] [cursor=pointer]
+  - status
+  - alert [ref=f1e261]

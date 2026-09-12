@@ -1,0 +1,230 @@
+- generic [ref=f7e1]:
+  - generic [ref=f7e2]:
+    - link "Skip to content" [ref=f7e570] [cursor=pointer]:
+      - /url: "#main"
+    - generic [ref=f7e4]: Exploration demo · Caterers, meals, and transactions are synthetic.
+    - complementary [ref=f7e5]:
+      - link "Catera — Good Food on Repeat" [ref=f7e6] [cursor=pointer]:
+        - /url: /
+        - img "Catera" [ref=f7e7]
+      - generic [ref=f7e12]:
+        - strong [ref=f7e13]: Caterer workspace
+        - text: Arini — Dapur Senja
+      - navigation [ref=f7e14]:
+        - link "Today" [ref=f7e571] [cursor=pointer]:
+          - /url: /seller
+        - link "Schedule" [ref=f7e572] [cursor=pointer]:
+          - /url: /seller/schedule
+        - link "Packages" [ref=f7e573] [cursor=pointer]:
+          - /url: /seller/packages
+        - link "Menus" [ref=f7e574] [cursor=pointer]:
+          - /url: /seller/menus
+        - link "Customers" [ref=f7e575] [cursor=pointer]:
+          - /url: /seller/customers
+        - link "Messages & support" [ref=f7e576] [cursor=pointer]:
+          - /url: /seller/support
+        - link "Transactions" [ref=f7e577] [cursor=pointer]:
+          - /url: /seller/transactions
+        - link "Settings" [ref=f7e578] [cursor=pointer]:
+          - /url: /seller/settings
+      - generic [ref=f7e50]:
+        - strong [ref=f7e51]: Good food.Good days.
+        - link "View marketplace" [ref=f7e579] [cursor=pointer]:
+          - /url: /
+    - banner [ref=f7e56]:
+      - generic [ref=f7e57]: Good food starts with an organized kitchen.
+      - combobox "Language" [active] [ref=f7e580] [cursor=pointer]:
+        - generic: EN
+      - link "Notifications" [ref=f7e581] [cursor=pointer]:
+        - /url: /notifications
+      - button "Open account menu" [ref=f7e582] [cursor=pointer]:
+        - generic [aria-hidden] [ref=f7e67]: A
+    - main [ref=f7e68]:
+      - generic [ref=f7e70]:
+        - heading "Menus your customers are waiting for." [level=1] [ref=f7e583]
+        - paragraph [ref=f7e72]: Dapur Senja
+      - generic [ref=f7e73]:
+        - generic [ref=f7e75]:
+          - generic [ref=f7e76]: Package and contents revision
+          - combobox "Package and contents revision" [ref=f7e584] [cursor=pointer]:
+            - generic: Ayam Panggang Harian · Revision 0
+        - generic [ref=f7e80]:
+          - region "Menu calendar" [ref=f7e585]:
+            - generic [ref=f7e82]:
+              - generic [ref=f7e425]:
+                - button "Previous month" [ref=f7e586] [cursor=pointer]
+                - heading "September 2026" [level=2] [ref=f7e429]
+                - button "Next month" [ref=f7e587] [cursor=pointer]
+              - generic [ref=f7e433]:
+                - generic [ref=f7e434]: Lunch
+                - button "Select multiple dates" [ref=f7e588] [cursor=pointer]
+              - generic "Menu dates" [ref=f7e589]:
+                - generic [ref=f7e590]: Mon
+                - generic [ref=f7e591]: Tue
+                - generic [ref=f7e592]: Wed
+                - generic [ref=f7e593]: Thu
+                - generic [ref=f7e594]: Fri
+                - generic [ref=f7e595]: Sat
+                - generic [ref=f7e596]: Sun
+                - button "1 Sept · Not set · Read only" [ref=f7e597] [cursor=pointer]:
+                  - strong [ref=f7e446]: "1"
+                  - generic [ref=f7e447]: Not set
+                  - generic [ref=f7e448]: Read only
+                - button "2 Sept · Not set · Read only" [ref=f7e598] [cursor=pointer]:
+                  - strong [ref=f7e450]: "2"
+                  - generic [ref=f7e451]: Not set
+                  - generic [ref=f7e452]: Read only
+                - button "3 Sept · Not set · Read only" [ref=f7e599] [cursor=pointer]:
+                  - strong [ref=f7e454]: "3"
+                  - generic [ref=f7e455]: Not set
+                  - generic [ref=f7e456]: Read only
+                - button "4 Sept · Not set · Read only" [ref=f7e600] [cursor=pointer]:
+                  - strong [ref=f7e458]: "4"
+                  - generic [ref=f7e459]: Not set
+                  - generic [ref=f7e460]: Read only
+                - button "5 Sept · Not set · Read only" [ref=f7e601] [cursor=pointer]:
+                  - strong [ref=f7e462]: "5"
+                  - generic [ref=f7e463]: Not set
+                  - generic [ref=f7e464]: Read only
+                - button "6 Sept · Not set · Read only" [ref=f7e602] [cursor=pointer]:
+                  - strong [ref=f7e466]: "6"
+                  - generic [ref=f7e467]: Not set
+                  - generic [ref=f7e468]: Read only
+                - button "7 Sept · Not set · Read only" [ref=f7e603] [cursor=pointer]:
+                  - strong [ref=f7e470]: "7"
+                  - generic [ref=f7e471]: Not set
+                  - generic [ref=f7e472]: Read only
+                - button "8 Sept · Not set · Read only" [ref=f7e604] [cursor=pointer]:
+                  - strong [ref=f7e474]: "8"
+                  - generic [ref=f7e475]: Not set
+                  - generic [ref=f7e476]: Read only
+                - button "9 Sept · Not set · Read only" [ref=f7e605] [cursor=pointer]:
+                  - strong [ref=f7e478]: "9"
+                  - generic [ref=f7e479]: Not set
+                  - generic [ref=f7e480]: Read only
+                - button "10 Sept · Not set · Read only" [ref=f7e606] [cursor=pointer]:
+                  - strong [ref=f7e482]: "10"
+                  - generic [ref=f7e483]: Not set
+                  - generic [ref=f7e484]: Read only
+                - button "11 Sept · Not set · Read only" [ref=f7e607] [cursor=pointer]:
+                  - strong [ref=f7e486]: "11"
+                  - generic [ref=f7e487]: Not set
+                  - generic [ref=f7e488]: Read only
+                - button "12 Sept · Not set" [ref=f7e608] [cursor=pointer]:
+                  - strong [ref=f7e490]: "12"
+                  - generic [ref=f7e491]: Not set
+                - button "13 Sept · Not set" [ref=f7e609] [cursor=pointer]:
+                  - strong [ref=f7e493]: "13"
+                  - generic [ref=f7e494]: Not set
+                - button "14 Sept · Nasi putih, Ayam panggang bumbu rempah, Tumis buncis wortel, Sambal dan lalapan" [ref=f7e610] [cursor=pointer]:
+                  - strong [ref=f7e496]: "14"
+                  - generic "Nasi putih, Ayam panggang bumbu rempah, Tumis buncis wortel, Sambal dan lalapan" [ref=f7e497]:
+                    - generic [ref=f7e498]: Nasi putih
+                    - generic [ref=f7e499]: Ayam panggang bumbu rempah
+                    - generic [ref=f7e500]: +2 dishes
+                - button "15 Sept · Nasi putih, Ayam panggang bumbu rempah, Tumis buncis wortel, Sambal dan lalapan" [ref=f7e611] [cursor=pointer]:
+                  - strong [ref=f7e502]: "15"
+                  - generic "Nasi putih, Ayam panggang bumbu rempah, Tumis buncis wortel, Sambal dan lalapan" [ref=f7e503]:
+                    - generic [ref=f7e504]: Nasi putih
+                    - generic [ref=f7e505]: Ayam panggang bumbu rempah
+                    - generic [ref=f7e506]: +2 dishes
+                - button "16 Sept · Nasi putih, Ayam panggang bumbu rempah, Tumis buncis wortel, Sambal dan lalapan" [ref=f7e612] [cursor=pointer]:
+                  - strong [ref=f7e508]: "16"
+                  - generic "Nasi putih, Ayam panggang bumbu rempah, Tumis buncis wortel, Sambal dan lalapan" [ref=f7e509]:
+                    - generic [ref=f7e510]: Nasi putih
+                    - generic [ref=f7e511]: Ayam panggang bumbu rempah
+                    - generic [ref=f7e512]: +2 dishes
+                - button "17 Sept · Nasi putih, Ayam panggang bumbu rempah, Tumis buncis wortel, Sambal dan lalapan" [ref=f7e613] [cursor=pointer]:
+                  - strong [ref=f7e514]: "17"
+                  - generic "Nasi putih, Ayam panggang bumbu rempah, Tumis buncis wortel, Sambal dan lalapan" [ref=f7e515]:
+                    - generic [ref=f7e516]: Nasi putih
+                    - generic [ref=f7e517]: Ayam panggang bumbu rempah
+                    - generic [ref=f7e518]: +2 dishes
+                - button "18 Sept · Nasi putih, Ayam panggang bumbu rempah, Tumis buncis wortel, Sambal dan lalapan" [ref=f7e614] [cursor=pointer]:
+                  - strong [ref=f7e520]: "18"
+                  - generic "Nasi putih, Ayam panggang bumbu rempah, Tumis buncis wortel, Sambal dan lalapan" [ref=f7e521]:
+                    - generic [ref=f7e522]: Nasi putih
+                    - generic [ref=f7e523]: Ayam panggang bumbu rempah
+                    - generic [ref=f7e524]: +2 dishes
+                - button "19 Sept · Not set" [ref=f7e615] [cursor=pointer]:
+                  - strong [ref=f7e526]: "19"
+                  - generic [ref=f7e527]: Not set
+                - button "20 Sept · Not set" [ref=f7e616] [cursor=pointer]:
+                  - strong [ref=f7e529]: "20"
+                  - generic [ref=f7e530]: Not set
+                - button "21 Sept · Not set" [ref=f7e617] [cursor=pointer]:
+                  - strong [ref=f7e532]: "21"
+                  - generic [ref=f7e533]: Not set
+                - button "22 Sept · Not set" [ref=f7e618] [cursor=pointer]:
+                  - strong [ref=f7e535]: "22"
+                  - generic [ref=f7e536]: Not set
+                - button "23 Sept · Not set" [ref=f7e619] [cursor=pointer]:
+                  - strong [ref=f7e538]: "23"
+                  - generic [ref=f7e539]: Not set
+                - button "24 Sept · Not set" [ref=f7e620] [cursor=pointer]:
+                  - strong [ref=f7e541]: "24"
+                  - generic [ref=f7e542]: Not set
+                - button "25 Sept · Not set" [ref=f7e621] [cursor=pointer]:
+                  - strong [ref=f7e544]: "25"
+                  - generic [ref=f7e545]: Not set
+                - button "26 Sept · Not set" [ref=f7e622] [cursor=pointer]:
+                  - strong [ref=f7e547]: "26"
+                  - generic [ref=f7e548]: Not set
+                - button "27 Sept · Not set" [ref=f7e623] [cursor=pointer]:
+                  - strong [ref=f7e550]: "27"
+                  - generic [ref=f7e551]: Not set
+                - button "28 Sept · Not set" [ref=f7e624] [cursor=pointer]:
+                  - strong [ref=f7e553]: "28"
+                  - generic [ref=f7e554]: Not set
+                - button "29 Sept · Not set" [ref=f7e625] [cursor=pointer]:
+                  - strong [ref=f7e556]: "29"
+                  - generic [ref=f7e557]: Not set
+                - button "30 Sept · Not set" [ref=f7e626] [cursor=pointer]:
+                  - strong [ref=f7e559]: "30"
+                  - generic [ref=f7e560]: Not set
+          - complementary [ref=f7e219]:
+            - region "Dish library" [ref=f7e627]:
+              - generic [ref=f7e221]:
+                - heading "Dish library" [level=2] [ref=f7e628]
+                - button "Add" [ref=f7e629] [cursor=pointer]
+              - generic [ref=f7e225]:
+                - generic [ref=f7e226]: Search dishes
+                - searchbox "Search dishes" [ref=f7e630]
+              - group [ref=f7e631]:
+                - generic "Fruit 0" [ref=f7e632] [cursor=pointer]:
+                  - text: Fruit
+                  - generic [ref=f7e633]: "0"
+              - group [ref=f7e634]:
+                - generic "Dessert 0" [ref=f7e635] [cursor=pointer]:
+                  - text: Dessert
+                  - generic [ref=f7e636]: "0"
+              - group [ref=f7e325]:
+                - generic "Main dish 5" [ref=f7e637] [cursor=pointer]:
+                  - text: Main dish
+                  - generic [ref=f7e327]: "5"
+              - group [ref=f7e638]:
+                - generic "Rice 1" [ref=f7e639] [cursor=pointer]:
+                  - text: Rice
+                  - generic [ref=f7e640]: "1"
+              - group [ref=f7e641]:
+                - generic "Vegetable 4" [ref=f7e642] [cursor=pointer]:
+                  - text: Vegetable
+                  - generic [ref=f7e643]: "4"
+              - group [ref=f7e644]:
+                - generic "Soup 0" [ref=f7e645] [cursor=pointer]:
+                  - text: Soup
+                  - generic [ref=f7e646]: "0"
+              - group [ref=f7e647]:
+                - generic "Pelengkap 3" [ref=f7e648] [cursor=pointer]:
+                  - text: Pelengkap
+                  - generic [ref=f7e649]: "3"
+              - group [ref=f7e650]:
+                - generic "Uncategorized 0" [ref=f7e651] [cursor=pointer]:
+                  - text: Uncategorized
+                  - generic [ref=f7e652]: "0"
+              - generic [ref=f7e653]:
+                - checkbox "Show archived" [ref=f7e655] [cursor=pointer]
+                - text: Show archived
+              - button "New category" [ref=f7e656] [cursor=pointer]
+  - status
+  - alert [ref=f7e258]

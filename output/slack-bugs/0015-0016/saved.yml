@@ -1,0 +1,113 @@
+- generic [ref=f7e1]:
+  - generic [ref=f7e2]:
+    - link "Skip to content" [ref=f7e570] [cursor=pointer]:
+      - /url: "#main"
+    - generic [ref=f7e4]: Exploration demo · Caterers, meals, and transactions are synthetic.
+    - complementary [ref=f7e5]:
+      - link "Catera — Good Food on Repeat" [ref=f7e6] [cursor=pointer]:
+        - /url: /
+        - img "Catera" [ref=f7e7]
+      - generic [ref=f7e12]:
+        - strong [ref=f7e13]: Caterer workspace
+        - text: Arini — Dapur Senja
+      - navigation [ref=f7e14]:
+        - link "Today" [ref=f7e571] [cursor=pointer]:
+          - /url: /seller
+        - link "Schedule" [ref=f7e572] [cursor=pointer]:
+          - /url: /seller/schedule
+        - link "Packages" [ref=f7e573] [cursor=pointer]:
+          - /url: /seller/packages
+        - link "Menus" [ref=f7e574] [cursor=pointer]:
+          - /url: /seller/menus
+        - link "Customers" [ref=f7e575] [cursor=pointer]:
+          - /url: /seller/customers
+        - link "Messages & support" [ref=f7e576] [cursor=pointer]:
+          - /url: /seller/support
+        - link "Transactions" [ref=f7e577] [cursor=pointer]:
+          - /url: /seller/transactions
+        - link "Settings" [ref=f7e578] [cursor=pointer]:
+          - /url: /seller/settings
+      - generic [ref=f7e50]:
+        - strong [ref=f7e51]: Good food.Good days.
+        - link "View marketplace" [ref=f7e579] [cursor=pointer]:
+          - /url: /
+    - banner [ref=f7e56]:
+      - generic [ref=f7e57]: Good food starts with an organized kitchen.
+      - combobox "Language" [ref=f7e580] [cursor=pointer]:
+        - generic: EN
+      - link "Notifications" [ref=f7e581] [cursor=pointer]:
+        - /url: /notifications
+      - button "Open account menu" [ref=f7e582] [cursor=pointer]:
+        - generic [aria-hidden] [ref=f7e67]: A
+    - main [ref=f7e68]:
+      - generic [ref=f7e70]:
+        - heading "Menus your customers are waiting for." [level=1] [ref=f7e583]
+        - paragraph [ref=f7e72]: Dapur Senja
+      - generic [ref=f7e73]:
+        - generic [ref=f7e75]:
+          - generic [ref=f7e76]: Package and contents revision
+          - combobox "Package and contents revision" [ref=f7e584] [cursor=pointer]:
+            - generic: Ayam Panggang Harian · Revision 0
+        - generic [ref=f7e80]:
+          - region "Menu calendar" [ref=f7e585]:
+            - generic [ref=f7e82]:
+              - button "Back to calendar" [ref=f7e657] [cursor=pointer]
+              - paragraph [ref=f7e660]: Ayam Panggang Harian
+              - heading "Menu for 18 Sept" [active] [level=2] [ref=f7e661]
+              - paragraph [ref=f7e662]: Lunch · One menu for every selected date.
+              - status [ref=f7e663]: 4/4 slots filled
+              - generic [ref=f7e664]:
+                - generic [ref=f7e665]:
+                  - 'button "Rice 1: Nasi putih. Choose dish" [pressed] [ref=f7e666] [cursor=pointer]':
+                    - generic [ref=f7e672]:
+                      - generic [ref=f7e673]: Rice 1
+                      - strong [ref=f7e674]: Nasi putih
+                      - generic [ref=f7e675]: 180 g
+                  - 'button "Clear Rice 1: Nasi putih" [ref=f7e678] [cursor=pointer]'
+                - generic [ref=f7e682]:
+                  - 'button "Main dish 1: Ayam panggang bumbu rempah. Choose dish" [ref=f7e683] [cursor=pointer]':
+                    - generic [ref=f7e689]:
+                      - generic [ref=f7e690]: Main dish 1
+                      - strong [ref=f7e691]: Ayam panggang bumbu rempah
+                      - generic [ref=f7e692]: 150 g
+                  - 'button "Clear Main dish 1: Ayam panggang bumbu rempah" [ref=f7e695] [cursor=pointer]'
+                - generic [ref=f7e699]:
+                  - 'button "Vegetable 1: Tumis buncis wortel. Choose dish" [ref=f7e700] [cursor=pointer]':
+                    - generic [ref=f7e706]:
+                      - generic [ref=f7e707]: Vegetable 1
+                      - strong [ref=f7e708]: Tumis buncis wortel
+                      - generic [ref=f7e709]: 100 g
+                  - 'button "Clear Vegetable 1: Tumis buncis wortel" [ref=f7e712] [cursor=pointer]'
+                - generic [ref=f7e716]:
+                  - 'button "Pelengkap 1: Sambal dan lalapan. Choose dish" [ref=f7e717] [cursor=pointer]':
+                    - generic [ref=f7e723]:
+                      - generic [ref=f7e724]: Pelengkap 1
+                      - strong [ref=f7e725]: Sambal dan lalapan
+                      - generic [ref=f7e726]: 30 g
+                  - 'button "Clear Pelengkap 1: Sambal dan lalapan" [ref=f7e729] [cursor=pointer]'
+              - button "Save menu" [ref=f7e733] [cursor=pointer]
+          - complementary [ref=f7e219]:
+            - region "Dish library" [ref=f7e627]:
+              - generic [ref=f7e221]:
+                - heading "Dish library" [level=2] [ref=f7e628]
+                - button "Add" [ref=f7e629] [cursor=pointer]
+              - generic [ref=f7e225]:
+                - generic [ref=f7e226]: Search dishes
+                - searchbox "Search dishes" [ref=f7e630]
+              - paragraph [ref=f7e734]: "Slot category: Rice."
+              - group [ref=f7e638]:
+                - generic "Rice 1" [ref=f7e639] [cursor=pointer]:
+                  - text: Rice
+                  - generic [ref=f7e640]: "1"
+                - generic [ref=f7e735]:
+                  - generic "Drag dish" [ref=f7e736]
+                  - generic [ref=f7e742]:
+                    - strong [ref=f7e743]: Nasi putih
+                    - generic [ref=f7e744]: 180 g
+                    - generic [ref=f7e745]:
+                      - button "Choose" [ref=f7e746] [cursor=pointer]
+                      - button "Edit" [ref=f7e747] [cursor=pointer]
+                      - button "Archive" [ref=f7e748] [cursor=pointer]
+              - button "New category" [ref=f7e656] [cursor=pointer]
+  - status
+  - alert [ref=f7e258]

@@ -1,0 +1,23 @@
+{
+  "date": "2026-09-12",
+  "url": "http://127.0.0.1:3013/seller/packages",
+  "synthetic": true,
+  "desktop": {
+    "width": 1440,
+    "scrollWidth": 1440
+  },
+  "mobile": {
+    "width": 390,
+    "scrollWidth": 390
+  },
+  "passed": [
+    "owner suspend action",
+    "remaining delivery archive disabled",
+    "unused package archive enabled",
+    "archive action and reload persistence",
+    "published editor absent",
+    "catalog hides suspended and archived packages",
+    "no browser errors or framework overlay",
+    "desktop and phone screenshot inspection"
+  ]
+}

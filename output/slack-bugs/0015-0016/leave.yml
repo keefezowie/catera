@@ -1,0 +1,110 @@
+- generic:
+  - generic [aria-hidden]:
+    - link:
+      - /url: "#main"
+      - text: Lewati ke konten
+    - generic: Demo eksplorasi · Katerer, menu, dan transaksi menggunakan data sintetis.
+    - complementary:
+      - link:
+        - /url: /
+      - generic:
+        - generic:
+          - strong: Ruang katerer
+          - text: Arini — Dapur Senja
+      - navigation:
+        - link:
+          - /url: /seller
+          - text: Hari ini
+        - link:
+          - /url: /seller/schedule
+          - text: Jadwal
+        - link:
+          - /url: /seller/packages
+          - text: Paket
+        - link:
+          - /url: /seller/menus
+          - text: Menu
+        - link:
+          - /url: /seller/customers
+          - text: Pelanggan
+        - link:
+          - /url: /seller/support
+          - text: Pesan & bantuan
+        - link:
+          - /url: /seller/transactions
+          - text: Transaksi
+        - link:
+          - /url: /seller/settings
+          - text: Pengaturan
+      - generic:
+        - strong: Good food. Good days.
+        - link:
+          - /url: /
+          - text: Lihat marketplace
+    - banner:
+      - button
+      - generic: Makanan baik dimulai dari dapur yang tertata.
+      - combobox:
+        - generic: ID
+      - link:
+        - /url: /notifications
+      - generic:
+        - button:
+          - generic [aria-hidden]: A
+    - main:
+      - generic:
+        - generic:
+          - heading [level=1]: Menu yang dinanti.
+          - paragraph: Dapur Senja
+      - generic:
+        - generic:
+          - generic:
+            - generic: Paket dan versi isi
+            - combobox:
+              - generic: Ayam Panggang Harian · Versi 0
+          - button: Pustaka hidangan
+        - generic:
+          - region:
+            - generic:
+              - button: Kembali ke kalender
+              - paragraph: Ayam Panggang Harian
+              - heading [level=2]: Menu 19 Sep
+              - paragraph: Makan siang · Satu menu untuk seluruh tanggal terpilih.
+              - status: 1/4 slot terisi
+              - generic:
+                - generic:
+                  - button:
+                    - generic:
+                      - generic: Nasi 1
+                      - strong: Nasi putih
+                      - generic: 180 g
+                  - button
+                - generic:
+                  - button [pressed]:
+                    - generic:
+                      - generic: Lauk 1
+                      - strong: Taruh hidangan di sini
+                      - generic: Ketuk untuk memilih hidangan
+                - generic:
+                  - button:
+                    - generic:
+                      - generic: Sayur 1
+                      - strong: Taruh hidangan di sini
+                      - generic: Ketuk untuk memilih hidangan
+                - generic:
+                  - button:
+                    - generic:
+                      - generic: Pelengkap 1
+                      - strong: Taruh hidangan di sini
+                      - generic: Ketuk untuk memilih hidangan
+              - button [disabled]: Simpan menu
+  - status
+  - alert
+  - dialog [ref=f7e415]:
+    - heading "Simpan perubahan menu?" [level=2] [ref=f7e416]
+    - paragraph [ref=f7e417]: Menu belum lengkap. Lanjutkan mengisi slot kosong atau buang perubahan untuk kembali.
+    - button "Tutup" [active] [ref=f7e418] [cursor=pointer]
+    - generic [ref=f7e422]:
+      - button "Simpan" [disabled]
+      - button "Buang perubahan" [ref=f7e423] [cursor=pointer]
+      - button "Lanjut mengedit" [ref=f7e424] [cursor=pointer]

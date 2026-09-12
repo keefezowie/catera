@@ -1,0 +1,86 @@
+- generic [ref=f7e1]:
+  - generic [ref=f7e2]:
+    - link "Lewati ke konten" [ref=f7e3] [cursor=pointer]:
+      - /url: "#main"
+    - generic [ref=f7e4]: Demo eksplorasi · Katerer, menu, dan transaksi menggunakan data sintetis.
+    - complementary [ref=f7e5]:
+      - link "Catera — Good Food on Repeat" [ref=f7e6] [cursor=pointer]:
+        - /url: /
+        - img "Catera" [ref=f7e7]
+      - generic [ref=f7e12]:
+        - strong [ref=f7e13]: Ruang katerer
+        - text: Arini — Dapur Senja
+      - navigation [ref=f7e14]:
+        - link "Hari ini" [ref=f7e15] [cursor=pointer]:
+          - /url: /seller
+        - link "Jadwal" [ref=f7e21] [cursor=pointer]:
+          - /url: /seller/schedule
+        - link "Paket" [ref=f7e24] [cursor=pointer]:
+          - /url: /seller/packages
+        - link "Menu" [ref=f7e29] [cursor=pointer]:
+          - /url: /seller/menus
+        - link "Pelanggan" [ref=f7e33] [cursor=pointer]:
+          - /url: /seller/customers
+        - link "Pesan & bantuan" [ref=f7e39] [cursor=pointer]:
+          - /url: /seller/support
+        - link "Transaksi" [ref=f7e42] [cursor=pointer]:
+          - /url: /seller/transactions
+        - link "Pengaturan" [ref=f7e46] [cursor=pointer]:
+          - /url: /seller/settings
+      - generic [ref=f7e50]:
+        - strong [ref=f7e51]: Good food.Good days.
+        - link "Lihat marketplace" [ref=f7e52] [cursor=pointer]:
+          - /url: /
+    - banner [ref=f7e56]:
+      - button "Menu" [ref=f7e409] [cursor=pointer]
+      - generic [ref=f7e57]: Makanan baik dimulai dari dapur yang tertata.
+      - combobox "Bahasa" [ref=f7e58] [cursor=pointer]:
+        - generic: ID
+      - link "Notifikasi" [ref=f7e61] [cursor=pointer]:
+        - /url: /notifications
+      - button "Buka menu akun" [ref=f7e66] [cursor=pointer]:
+        - generic [aria-hidden] [ref=f7e67]: A
+    - main [ref=f7e68]:
+      - generic [ref=f7e70]:
+        - heading "Menu yang dinanti." [level=1] [ref=f7e71]
+        - paragraph [ref=f7e72]: Dapur Senja
+      - generic [ref=f7e73]:
+        - generic [ref=f7e74]:
+          - generic [ref=f7e75]:
+            - generic [ref=f7e76]: Paket dan versi isi
+            - combobox "Paket dan versi isi" [ref=f7e77] [cursor=pointer]:
+              - generic: Ayam Panggang Harian · Versi 0
+          - button "Pustaka hidangan" [ref=f7e411] [cursor=pointer]
+        - region "Kalender menu" [ref=f7e81]:
+          - generic [ref=f7e82]:
+            - button "Kembali ke kalender" [ref=f7e259] [cursor=pointer]
+            - paragraph [ref=f7e262]: Ayam Panggang Harian
+            - heading "Menu 19 Sep" [active] [level=2] [ref=f7e263]
+            - paragraph [ref=f7e264]: Makan siang · Satu menu untuk seluruh tanggal terpilih.
+            - status [ref=f7e265]: 1/4 slot terisi
+            - generic [ref=f7e266]:
+              - generic [ref=f7e267]:
+                - 'button "Nasi 1: Nasi putih. Pilih hidangan" [ref=f7e314] [cursor=pointer]':
+                  - generic [ref=f7e271]:
+                    - generic [ref=f7e272]: Nasi 1
+                    - strong [ref=f7e273]: Nasi putih
+                    - generic [ref=f7e274]: 180 g
+                - 'button "Kosongkan Nasi 1: Nasi putih" [ref=f7e321] [cursor=pointer]'
+              - 'button "Lauk 1: Belum diisi. Pilih hidangan" [pressed] [ref=f7e276] [cursor=pointer]':
+                - generic [ref=f7e279]:
+                  - generic [ref=f7e280]: Lauk 1
+                  - strong [ref=f7e281]: Taruh hidangan di sini
+                  - generic [ref=f7e282]: Ketuk untuk memilih hidangan
+              - 'button "Sayur 1: Belum diisi. Pilih hidangan" [ref=f7e284] [cursor=pointer]':
+                - generic [ref=f7e287]:
+                  - generic [ref=f7e288]: Sayur 1
+                  - strong [ref=f7e289]: Taruh hidangan di sini
+                  - generic [ref=f7e290]: Ketuk untuk memilih hidangan
+              - 'button "Pelengkap 1: Belum diisi. Pilih hidangan" [ref=f7e292] [cursor=pointer]':
+                - generic [ref=f7e295]:
+                  - generic [ref=f7e296]: Pelengkap 1
+                  - strong [ref=f7e297]: Taruh hidangan di sini
+                  - generic [ref=f7e298]: Ketuk untuk memilih hidangan
+            - button "Simpan menu" [disabled]
+  - status
+  - alert [ref=f7e258]

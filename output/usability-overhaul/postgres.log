@@ -1,0 +1,15 @@
+
+> catera@1.0.0 test:postgres
+> node --import tsx tests/postgres-concurrency.mjs
+
+Synthetic slot conversion is repeatable on PostgreSQL; dated menus validate and package templates remain stable.
+Five simultaneous purchases: exactly three committed at capacity three; complete schedules reserved.
+Five simultaneous payment confirmations: one subscription and one allocation.
+A full replacement date rejects rescheduling without changing the original booking.
+Two eligible customers race for one replacement slot: exactly one succeeds; the other retains the original confirmed reservation.
+Realtime signals enforce customer-specific SELECT access and reject direct authenticated writes.
+Concurrent published content edits are rejected while checkout preserves the purchased revision and whole-portion reservations; simultaneous dated-menu saves accept exactly one version.
+Concurrent library edits reject stale versions; archive leaves purchased contents untouched.
+Slot menu batches: concurrent writers accept exactly one complete batch, a later-date conflict rolls back earlier dates, and idempotent retry does not increment versions twice.
+Seller bulk status: reversed concurrent batches accept one version without deadlock, dinner stays independent, retries are idempotent, cross-tenant access fails, and stale batches roll back audit/notifications.
+Package suspension serializes with checkout; concurrent archive accepts one version; archive/payment races preserve deliveries or create a payment exception; legacy RPC bypass is denied.

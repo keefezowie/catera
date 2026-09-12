@@ -77,7 +77,7 @@
     "resolvedWebFindings": 4,
     "disposition": "fix",
     "reason": "True-alpha asset exports remain unfinished.",
-    "captureDirectory": ".impeccable/review",
+    "captureDirectory": "output/visual-review",
     "widths": [
       390,
       768,

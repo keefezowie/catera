@@ -1,0 +1,14 @@
+
+> catera@1.0.0 typecheck
+> npm run typecheck -w @catera/web && npm run typecheck -w @catera/customer && tsc -p tsconfig.json
+
+
+> @catera/web@1.0.0 typecheck
+> next typegen && tsc --noEmit
+
+Generating route types...
+✓ Types generated successfully
+
+> @catera/customer@1.0.0 typecheck
+> tsc --noEmit
+

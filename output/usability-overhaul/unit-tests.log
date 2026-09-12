@@ -1,0 +1,13 @@
+
+> catera@1.0.0 test
+> vitest run
+
+
+ RUN  v4.1.11 D:/Project/Catera/catera
+
+
+ Test Files  16 passed (16)
+      Tests  106 passed (106)
+   Start at  17:48:30
+   Duration  35.42s (transform 431ms, setup 0ms, import 3.09s, tests 29.05s, environment 1ms)
+

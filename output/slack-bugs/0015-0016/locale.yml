@@ -1,0 +1,249 @@
+- generic:
+  - generic [aria-hidden]:
+    - link:
+      - /url: "#main"
+      - text: Lewati ke konten
+    - generic: Demo eksplorasi · Katerer, menu, dan transaksi menggunakan data sintetis.
+    - complementary:
+      - link:
+        - /url: /
+      - generic:
+        - generic:
+          - strong: Ruang katerer
+          - text: Arini — Dapur Senja
+      - navigation:
+        - link:
+          - /url: /seller
+          - text: Hari ini
+        - link:
+          - /url: /seller/schedule
+          - text: Jadwal
+        - link:
+          - /url: /seller/packages
+          - text: Paket
+        - link:
+          - /url: /seller/menus
+          - text: Menu
+        - link:
+          - /url: /seller/customers
+          - text: Pelanggan
+        - link:
+          - /url: /seller/support
+          - text: Pesan & bantuan
+        - link:
+          - /url: /seller/transactions
+          - text: Transaksi
+        - link:
+          - /url: /seller/settings
+          - text: Pengaturan
+      - generic:
+        - strong: Good food. Good days.
+        - link:
+          - /url: /
+          - text: Lihat marketplace
+    - banner:
+      - generic: Makanan baik dimulai dari dapur yang tertata.
+      - combobox [expanded]:
+        - generic: ID
+      - link:
+        - /url: /notifications
+      - generic:
+        - button:
+          - generic [aria-hidden]: A
+    - main:
+      - generic:
+        - generic:
+          - heading [level=1]: Menu yang dinanti.
+          - paragraph: Dapur Senja
+      - generic:
+        - generic:
+          - generic:
+            - generic: Paket dan versi isi
+            - combobox:
+              - generic: Ayam Panggang Harian · Versi 0
+        - generic:
+          - region:
+            - generic:
+              - generic:
+                - button
+                - heading [level=2]: September 2026
+                - button
+              - generic:
+                - generic: Makan siang
+                - button: Pilih beberapa tanggal
+              - generic:
+                - generic: Sen
+                - generic: Sel
+                - generic: Rab
+                - generic: Kam
+                - generic: Jum
+                - generic: Sab
+                - generic: Min
+                - button:
+                  - strong: "1"
+                  - generic: Belum diisi
+                  - generic: Hanya baca
+                - button:
+                  - strong: "2"
+                  - generic: Belum diisi
+                  - generic: Hanya baca
+                - button:
+                  - strong: "3"
+                  - generic: Belum diisi
+                  - generic: Hanya baca
+                - button:
+                  - strong: "4"
+                  - generic: Belum diisi
+                  - generic: Hanya baca
+                - button:
+                  - strong: "5"
+                  - generic: Belum diisi
+                  - generic: Hanya baca
+                - button:
+                  - strong: "6"
+                  - generic: Belum diisi
+                  - generic: Hanya baca
+                - button:
+                  - strong: "7"
+                  - generic: Belum diisi
+                  - generic: Hanya baca
+                - button:
+                  - strong: "8"
+                  - generic: Belum diisi
+                  - generic: Hanya baca
+                - button:
+                  - strong: "9"
+                  - generic: Belum diisi
+                  - generic: Hanya baca
+                - button:
+                  - strong: "10"
+                  - generic: Belum diisi
+                  - generic: Hanya baca
+                - button:
+                  - strong: "11"
+                  - generic: Belum diisi
+                  - generic: Hanya baca
+                - button:
+                  - strong: "12"
+                  - generic: Belum diisi
+                - button:
+                  - strong: "13"
+                  - generic: Belum diisi
+                - button:
+                  - strong: "14"
+                  - generic:
+                    - generic: Nasi putih
+                    - generic: Ayam panggang bumbu rempah
+                    - generic: +2 hidangan
+                - button:
+                  - strong: "15"
+                  - generic:
+                    - generic: Nasi putih
+                    - generic: Ayam panggang bumbu rempah
+                    - generic: +2 hidangan
+                - button:
+                  - strong: "16"
+                  - generic:
+                    - generic: Nasi putih
+                    - generic: Ayam panggang bumbu rempah
+                    - generic: +2 hidangan
+                - button:
+                  - strong: "17"
+                  - generic:
+                    - generic: Nasi putih
+                    - generic: Ayam panggang bumbu rempah
+                    - generic: +2 hidangan
+                - button:
+                  - strong: "18"
+                  - generic:
+                    - generic: Nasi putih
+                    - generic: Ayam panggang bumbu rempah
+                    - generic: +2 hidangan
+                - button:
+                  - strong: "19"
+                  - generic: Belum diisi
+                - button:
+                  - strong: "20"
+                  - generic: Belum diisi
+                - button:
+                  - strong: "21"
+                  - generic: Belum diisi
+                - button:
+                  - strong: "22"
+                  - generic: Belum diisi
+                - button:
+                  - strong: "23"
+                  - generic: Belum diisi
+                - button:
+                  - strong: "24"
+                  - generic: Belum diisi
+                - button:
+                  - strong: "25"
+                  - generic: Belum diisi
+                - button:
+                  - strong: "26"
+                  - generic: Belum diisi
+                - button:
+                  - strong: "27"
+                  - generic: Belum diisi
+                - button:
+                  - strong: "28"
+                  - generic: Belum diisi
+                - button:
+                  - strong: "29"
+                  - generic: Belum diisi
+                - button:
+                  - strong: "30"
+                  - generic: Belum diisi
+          - complementary:
+            - region:
+              - generic:
+                - heading [level=2]: Pustaka hidangan
+                - button: Tambah
+              - generic:
+                - generic: Cari hidangan
+                - searchbox
+              - group:
+                - generic:
+                  - text: Buah
+                  - generic: "0"
+              - group:
+                - generic:
+                  - text: Dessert
+                  - generic: "0"
+              - group:
+                - generic:
+                  - text: Lauk
+                  - generic: "5"
+              - group:
+                - generic:
+                  - text: Nasi
+                  - generic: "1"
+              - group:
+                - generic:
+                  - text: Sayur
+                  - generic: "4"
+              - group:
+                - generic:
+                  - text: Sup
+                  - generic: "0"
+              - group:
+                - generic:
+                  - text: Pelengkap
+                  - generic: "3"
+              - group:
+                - generic:
+                  - text: Belum dikategorikan
+                  - generic: "0"
+              - generic:
+                - generic:
+                  - checkbox
+                - text: Tampilkan arsip
+              - generic:
+                - button: Kategori baru
+  - status
+  - alert
+  - listbox [ref=f7e561]:
+    - group [ref=f7e562]:
+      - option "Bahasa Indonesia" [active] [selected] [ref=f7e563] [cursor=pointer]
+      - option "English" [ref=f7e568] [cursor=pointer]
