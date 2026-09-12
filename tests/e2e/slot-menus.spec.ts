@@ -103,6 +103,149 @@ const day = (page: Page, n: number) =>
   page.locator(".menu-day").filter({
     has: page.locator("strong", { hasText: new RegExp("^" + n + "$") }),
   });
+
+test("tablet calendar previews use workspace width and the library restores focus", async ({
+  page,
+}) => {
+  const f = await fixture(page, 5);
+  const names = [
+    "Ayam panggang bumbu rempah Nusantara",
+    "Ikan kukus dengan sambal kecombrang",
+    "Tempe",
+    "Tahu",
+    "Telur",
+    "Sup sayuran",
+  ];
+  await command(page, "menu.saveBatch", {
+    catererId,
+    packageId: f.id,
+    contentRevision: 1,
+    meal: "lunch",
+    dates: [{ date, version: 0 }],
+    details: {
+      ...f.menus[0],
+      items: names.map((name, i) => ({
+        id: i < 5 ? `main:${i}` : "soup:0",
+        groupId: i < 5 ? "main" : "soup",
+        categoryId: i < 5 ? "main" : "soup",
+        name,
+        description: "",
+        image: "",
+        serving: "",
+      })),
+    },
+  });
+  await page.reload();
+  await choose(page, "Paket", f.name);
+  await mkdir("output/menu-tablet", { recursive: true });
+  for (const [width, height] of [
+    [1280, 720],
+    [1194, 700],
+    [1024, 650],
+    [768, 1024],
+    [390, 844],
+    [1440, 1000],
+  ]) {
+    await page.setViewportSize({ width, height });
+    await expect(page.locator(".menu-library-desktop")).toBeHidden();
+    const card = day(page, 10);
+    await expect(card).toHaveAccessibleName(new RegExp(names.join(", ")));
+    const panelWidth = await page
+      .locator(".menu-main")
+      .evaluate(
+        (el) =>
+          el.clientWidth -
+          parseFloat(getComputedStyle(el).paddingLeft) -
+          parseFloat(getComputedStyle(el).paddingRight),
+      );
+    if (panelWidth >= 700) {
+      await expect(card.locator(".menu-day-dish")).toHaveCount(2);
+      await expect(card.locator(".menu-day-dishes")).toBeVisible();
+      await expect(card.locator(".menu-day-more")).toHaveText("+4 hidangan");
+      await expect(card.locator(".menu-day-dish").first()).toHaveCSS(
+        "font-size",
+        "13px",
+      );
+      await expect(card).toHaveCSS("height", "132px");
+    } else {
+      await expect(card.locator(".menu-day-dishes")).toBeHidden();
+      await expect(card.locator(".menu-day-count")).toHaveText("6");
+    }
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    expect((await card.boundingBox())!.width).toBeGreaterThanOrEqual(44);
+    expect(
+      await card.evaluate((el) =>
+        Array.from(el.querySelectorAll<HTMLElement>("span")).every(
+          (child) =>
+            !child.getClientRects().length ||
+            child.getBoundingClientRect().right <=
+              el.getBoundingClientRect().right,
+        ),
+      ),
+    ).toBe(true);
+    const trigger = page.locator(".menu-library-trigger");
+    expect((await trigger.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    await trigger.click();
+    await expect(
+      page.getByRole("dialog", { name: "Pustaka hidangan" }),
+    ).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(trigger).toBeFocused();
+    await page.locator(".menu-month-heading").scrollIntoViewIfNeeded();
+    await page.screenshot({
+      path: `output/menu-tablet/calendar-${width}.png`,
+      fullPage: true,
+    });
+  }
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page
+    .context()
+    .addCookies([
+      { name: "catera_locale", value: "en", url: "http://127.0.0.1:3000" },
+    ]);
+  await page.reload();
+  await choose(page, "Package", f.name);
+  await expect(day(page, 10).locator(".menu-day-more")).toHaveText("+4 dishes");
+  await page
+    .context()
+    .addCookies([
+      { name: "catera_locale", value: "id", url: "http://127.0.0.1:3000" },
+    ]);
+  await page.reload();
+  await choose(page, "Paket", f.name);
+  await day(page, 11).click();
+  const slot = page.locator(".menu-slot-select").first();
+  await slot.click();
+  await expect(
+    page.getByRole("dialog", { name: "Pustaka hidangan" }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(slot).toBeFocused();
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await expect(page.locator(".menu-library-desktop")).toBeVisible();
+  // Available width, rather than device width, controls the picker.
+  await page.locator(".menu-workspace").evaluate((el) => {
+    el.style.width = "900px";
+  });
+  await expect(page.locator(".menu-library-desktop")).toBeHidden();
+  await slot.click();
+  await expect(
+    page.getByRole("dialog", { name: "Pustaka hidangan" }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await page.goto("/seller/menus?date=" + addDays(localDay(), -2));
+  await choose(page, "Paket", f.name);
+  const readOnly = page.locator(".menu-day").and(page.getByRole("button", { name: /Hanya baca/ })).first();
+  await expect(readOnly.locator(".menu-day-heading svg")).toBeVisible();
+  await readOnly.click();
+  await expect(page.getByText("Menu tanggal ini hanya dapat dilihat.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Simpan menu", exact: true })).toHaveCount(0);
+});
+
 test("calendar batch, search, drag/drop and conflict recovery retain the draft", async ({
   page,
 }) => {
@@ -337,11 +480,7 @@ test("all seeded package revisions use slots and the combined package separates 
     (r: { name: string }) => r.name === "Rantang Nusantara",
   );
   await page.goto("/seller/menus?date=" + date);
-  await choose(
-    page,
-    "Paket",
-    combined.name,
-  );
+  await choose(page, "Paket", combined.name);
   await day(page, 12).click();
   await expect(page.locator(".menu-slot")).toHaveCount(4);
   expect(
@@ -500,7 +639,9 @@ test("package wizard publishes composition only and customers buy before dated m
       r.url().endsWith("/commands") &&
       r.request().postDataJSON()?.action === "package.save",
   );
-  await page.getByRole("button", { name: "Tayangkan paket", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Tayangkan paket", exact: true })
+    .click();
   const response = await save;
   expect(response.ok(), await response.text()).toBe(true);
   const id = (await response.json()).data.id;
@@ -526,7 +667,10 @@ test("package wizard publishes composition only and customers buy before dated m
     (d: { offer: Offer }) => d.offer.id === id,
   );
   await page.goto("/deliveries/" + delivery.id);
-  await page.locator(".optional-section > summary").filter({ hasText: "Isi paket" }).click();
+  await page
+    .locator(".optional-section > summary")
+    .filter({ hasText: "Isi paket" })
+    .click();
   await expect(
     page
       .locator(".package-contents")

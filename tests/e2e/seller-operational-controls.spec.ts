@@ -152,7 +152,8 @@ test("UI sweep: focus rings, support count, composition controls and centered pr
     fullPage: true,
   });
   await page.goto("/seller/menus");
-  const library = page.locator(".menu-library-desktop");
+  await page.getByRole("button", { name: "Pustaka hidangan", exact: true }).click();
+  const library = page.getByRole("dialog", { name: "Pustaka hidangan" });
   await library.getByRole("button", { name: "Tambah", exact: true }).click();
   const input = library.getByRole("textbox", {
     name: "Nama hidangan",
@@ -161,7 +162,7 @@ test("UI sweep: focus rings, support count, composition controls and centered pr
   await input.focus();
   const clearance = await input.evaluate((el) => {
     const box = el.getBoundingClientRect(),
-      scroll = el.closest("aside")!.getBoundingClientRect();
+      scroll = el.closest('[role="dialog"]')!.getBoundingClientRect();
     const style = getComputedStyle(el),
       ring = parseFloat(style.outlineWidth) + parseFloat(style.outlineOffset);
     return {
@@ -173,6 +174,7 @@ test("UI sweep: focus rings, support count, composition controls and centered pr
   expect(clearance.left).toBeGreaterThanOrEqual(clearance.ring);
   expect(clearance.right).toBeGreaterThanOrEqual(clearance.ring);
   await library.screenshot({ path: "output/ui-sweep/dish-focus.png" });
+  await library.getByRole("button", { name: "Tutup", exact: true }).click();
   // Keep Menu's loaded styles in the page while navigating into the package editor.
   await page
     .locator(".ops-sidebar")

@@ -6,7 +6,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Library,
+  LockKeyhole,
   Save,
+  Utensils,
 } from "lucide-react";
 import {
   defaultDishCategories,
@@ -73,6 +75,9 @@ export function MenuCalendar({
   const deferred = useRef<(() => void) | null>(null);
   const editorHeading = useRef<HTMLHeadingElement>(null);
   const calendarHeading = useRef<HTMLHeadingElement>(null);
+  const libraryTrigger = useRef<HTMLButtonElement>(null);
+  const libraryReturnTarget = useRef<HTMLElement | null>(null);
+  const desktopLibrary = useRef<HTMLElement>(null);
   const wasEditing = useRef(false);
   useLayoutEffect(() => {
     if (wasEditing.current && !edit) calendarHeading.current?.focus();
@@ -255,6 +260,11 @@ export function MenuCalendar({
       ...items.slice(0, position),
     ].find((i) => !i.name);
     setSlot(next?.id || id);
+    if (libraryOpen) {
+      libraryReturnTarget.current = document.querySelector<HTMLButtonElement>(
+        `[data-slot-id="${CSS.escape(next?.id || id)}"] .menu-slot-select`,
+      );
+    }
     setLibraryOpen(false);
     setDragging(null);
   }
@@ -408,14 +418,23 @@ export function MenuCalendar({
         )}
         <Button
           type="button"
-          className="text-button menu-mobile-library"
-          onClick={() => setLibraryOpen(true)}
+          ref={libraryTrigger}
+          className="text-button menu-library-trigger"
+          onClick={() => {
+            libraryReturnTarget.current = libraryTrigger.current;
+            setLibraryOpen(true);
+          }}
         >
           <Library size={18} />
           {t("Pustaka hidangan", "Dish library")}
         </Button>
       </div>
-      <div className="menu-columns">
+      <div
+        className={
+          "menu-columns" +
+          (edit && !edit.readOnly ? " menu-columns-editor" : "")
+        }
+      >
         <MenuPanel mode={edit ? "editor" : "calendar"}>
           {!edit ? (
             <>
@@ -465,6 +484,13 @@ export function MenuCalendar({
                     : t("Pilih beberapa tanggal", "Select multiple dates")}
                 </Button>
               </div>
+              <p className="menu-calendar-legend">
+                <LockKeyhole size={14} aria-hidden="true" />
+                {t(
+                  "Hanya baca · Ketuk tanggal untuk melihat menu",
+                  "Read only · Tap a date to view its menu",
+                )}
+              </p>
               {resource.error ? (
                 <ErrorNotice message={resource.error} retry={resource.reload} />
               ) : !data ? (
@@ -531,35 +557,58 @@ export function MenuCalendar({
                                 : openDates([day])
                             }
                           >
-                            <strong>{Number(day.slice(-2))}</strong>
+                            <span
+                              className="menu-day-heading"
+                              aria-hidden="true"
+                            >
+                              <strong>{Number(day.slice(-2))}</strong>
+                              {!d.editable && <LockKeyhole size={13} />}
+                            </span>
                             {d.version ? (
-                              <span
-                                className="menu-day-dishes"
-                                title={menuNames.join(", ")}
-                              >
-                                {menuNames.length ? (
-                                  menuNames.slice(0, 2).map((name, index) => (
-                                    <span className="menu-day-dish" key={index}>
-                                      {name}
+                              <>
+                                <span
+                                  className="menu-day-dishes"
+                                  title={menuNames.join(", ")}
+                                >
+                                  {menuNames.length ? (
+                                    menuNames.slice(0, 2).map((name, index) => (
+                                      <span
+                                        className="menu-day-dish"
+                                        key={index}
+                                      >
+                                        {name}
+                                      </span>
+                                    ))
+                                  ) : (
+                                    <span>
+                                      {t("Menu tersimpan", "Saved menu")}
                                     </span>
-                                  ))
-                                ) : (
-                                  <span>
-                                    {t("Menu tersimpan", "Saved menu")}
-                                  </span>
-                                )}
-                                {menuNames.length > 2 && (
-                                  <span className="menu-day-more">
-                                    +{menuNames.length - 2}{" "}
-                                    {t("hidangan", "dishes")}
-                                  </span>
-                                )}
-                              </span>
+                                  )}
+                                  {menuNames.length > 2 && (
+                                    <span className="menu-day-more">
+                                      +{menuNames.length - 2}{" "}
+                                      {t("hidangan", "dishes")}
+                                    </span>
+                                  )}
+                                </span>
+                                <span
+                                  className="menu-day-count"
+                                  aria-hidden="true"
+                                >
+                                  {menuNames.length ? (
+                                    <>
+                                      <Utensils size={12} />
+                                      {menuNames.length}
+                                    </>
+                                  ) : (
+                                    t("Terisi", "Saved")
+                                  )}
+                                </span>
+                              </>
                             ) : (
-                              <span>{t("Belum diisi", "Not set")}</span>
-                            )}
-                            {!d.editable && (
-                              <small>{t("Hanya baca", "Read only")}</small>
+                              <span className="menu-day-empty">
+                                {t("Belum diisi", "Not set")}
+                              </span>
                             )}
                           </Button>
                         ) : (
@@ -648,8 +697,11 @@ export function MenuCalendar({
                     busy={busy}
                     onSelect={(id) => {
                       setSlot(id);
-                      if (window.matchMedia("(max-width:850px)").matches)
+                      if (!desktopLibrary.current?.getClientRects().length) {
+                        libraryReturnTarget.current =
+                          document.activeElement as HTMLElement;
                         setLibraryOpen(true);
+                      }
                     }}
                     onDrop={(id, dishId) => {
                       const dish = s.dishes?.find((d) => d.id === dishId);
@@ -741,19 +793,22 @@ export function MenuCalendar({
             </>
           )}
         </MenuPanel>
-        <aside className="menu-library-desktop">{library}</aside>
+        <aside ref={desktopLibrary} className="menu-library-desktop">
+          {library}
+        </aside>
       </div>
       <Dialog
         onCloseAutoFocus={(event) => {
           event.preventDefault();
           // Restore after Radix removes its focus trap and scroll lock.
           requestAnimationFrame(() => {
-            const target = document.querySelector<HTMLButtonElement>(
-              `[data-slot-id="${CSS.escape(slot)}"] .menu-slot-select`,
-            );
-            (target || editorHeading.current || calendarHeading.current)?.focus(
-              { preventScroll: true },
-            );
+            const target = libraryReturnTarget.current;
+            (target?.isConnected
+              ? target
+              : libraryTrigger.current ||
+                editorHeading.current ||
+                calendarHeading.current
+            )?.focus({ preventScroll: true });
           });
         }}
         open={libraryOpen}

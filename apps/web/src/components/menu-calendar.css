@@ -1,4 +1,5 @@
 .menu-workspace {
+  container: menu-workspace / inline-size;
   min-width: 0;
   color: var(--ink);
 }
@@ -33,11 +34,12 @@
 }
 .menu-columns {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(290px, 360px);
+  grid-template-columns: minmax(0, 1fr);
   gap: 28px;
   align-items: start;
 }
 .menu-main {
+  container: menu-panel / inline-size;
   box-sizing: border-box;
   overflow: clip;
   background: var(--surface);
@@ -308,7 +310,7 @@
 .menu-month-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 4px;
+  gap: 8px;
 }
 .menu-weekday {
   text-align: center;
@@ -323,7 +325,8 @@
   justify-content: flex-start;
   align-items: start;
   gap: 10px;
-  min-height: 100px;
+  height: 132px;
+  box-sizing: border-box;
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 10px;
@@ -346,23 +349,22 @@
   min-width: 0;
 }
 .menu-day .menu-day-dish {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  display: block;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   overflow: hidden;
-  overflow-wrap: anywhere;
 }
 .menu-day .menu-day-more {
   font-weight: 700;
 }
 .menu-day strong {
-  font-size: 17px;
+  font-size: 18px;
   font-variant-numeric: tabular-nums;
 }
 .menu-day span,
 .menu-day small {
-  font-size: 11px;
-  line-height: 1.3;
+  font-size: 13px;
+  line-height: 1.4;
   font-weight: 500;
 }
 .menu-month-grid .menu-day:hover {
@@ -378,6 +380,7 @@
   outline-offset: 2px;
 }
 .menu-library-desktop {
+  display: none;
   position: sticky;
   top: 24px;
   min-width: 0;
@@ -472,37 +475,62 @@
   font-size: 12px;
   min-height: 44px;
 }
-.menu-mobile-library {
-  display: none !important;
+.menu-library-trigger {
+  flex-shrink: 0;
+}
+.menu-day .menu-day-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+.menu-day-heading svg {
+  flex-shrink: 0;
+}
+.menu-day .menu-day-count {
+  display: none;
+}
+.menu-day-empty,
+.menu-calendar-legend {
+  color: var(--muted);
+}
+.menu-day.selected .menu-day-empty {
+  color: inherit;
+}
+.menu-calendar-legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  margin: 0 0 12px;
+}
+.menu-calendar-legend svg {
+  flex-shrink: 0;
+}
+.menu-day.selected .menu-day-heading strong {
+  text-decoration: underline;
+  text-underline-offset: 4px;
 }
 .menu-library-dialog {
   width: min(560px, calc(100vw - 24px));
   max-height: 90dvh;
   overflow-y: auto;
 }
-@media (max-width: 1100px) {
-  .menu-columns {
-    grid-template-columns: minmax(0, 1fr) 290px;
-    gap: 16px;
+@container menu-workspace (min-width: 1000px) {
+  .menu-columns-editor {
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 24px;
   }
+  .menu-columns-editor .menu-library-desktop {
+    display: block;
+  }
+}
+@container menu-workspace (max-width: 800px) {
   .menu-main {
     padding: 16px;
   }
-  .menu-month-grid .menu-day {
-    padding: 8px 5px;
-    min-height: 88px;
-  }
 }
-@media (max-width: 850px) {
-  .menu-columns {
-    display: block;
-  }
-  .menu-library-desktop {
-    display: none;
-  }
-  .menu-mobile-library {
-    display: inline-flex !important;
-  }
+@container menu-workspace (max-width: 500px) {
   .menu-main {
     padding: 12px;
   }
@@ -512,18 +540,29 @@
   .menu-month-heading h2 {
     font-size: 19px;
   }
-  .menu-day span {
-    font-size: 10px;
-  }
+}
+@container menu-panel (width < 700px) {
   .menu-month-grid {
     gap: 3px;
   }
   .menu-month-grid .menu-day {
-    min-height: 76px;
+    height: 96px;
     padding: 8px 4px;
   }
-  .menu-day small {
-    font-size: 9px;
+  .menu-day .menu-day-dishes {
+    display: none;
+  }
+  .menu-day .menu-day-count {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+  }
+  .menu-day-count svg {
+    flex-shrink: 0;
+  }
+  .menu-day span {
+    font-size: 12px;
   }
   .menu-selection-bar {
     flex-wrap: wrap;
