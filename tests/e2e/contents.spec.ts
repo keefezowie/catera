@@ -210,7 +210,7 @@ test("wizard reviews custom categories and counts before publishing the new comp
   await expect(page.getByLabel("Nama hidangan", { exact: true })).toHaveCount(
     0,
   );
-  await page.getByRole("button", { name: /6\. Tinjau/ }).click();
+  await page.getByRole("button", { name: /5\. Periksa/ }).click();
   await choose(
     page,
     "Status penawaran",
@@ -221,7 +221,7 @@ test("wizard reviews custom categories and counts before publishing the new comp
       r.url().endsWith("/commands") &&
       r.request().postDataJSON()?.action === "package.save",
   );
-  await page.getByRole("button", { name: "Simpan paket", exact: true }).click();
+  await page.getByRole("button", { name: "Tayangkan paket", exact: true }).click();
   expect((await save).ok()).toBe(true);
   const offer = (
     (await (await page.request.get("/api/v1/catalog?limit=100")).json()).data

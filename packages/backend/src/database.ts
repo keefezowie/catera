@@ -250,6 +250,22 @@ export async function createDemoDatabase(inMemory = false) {
         "\ncommit;",
     );
   }
+  const usability = await db.query<{ installed: string | null }>(
+    "select to_regprocedure('public.catera_v1_read_usability_base(text,jsonb)') as installed",
+  );
+  if (!usability.rows[0]?.installed) {
+    await db.exec(
+      "begin;\n" +
+        (await readFile(
+          path.join(
+            projectRoot(),
+            "supabase/migrations/20260912100853_usability_read_options.sql",
+          ),
+          "utf8",
+        )) +
+        "\ncommit;",
+    );
+  }
   return db;
 }
 export async function getDemoDatabase() {

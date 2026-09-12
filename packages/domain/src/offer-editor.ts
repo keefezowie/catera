@@ -4,7 +4,6 @@ export const offerSteps = [
   "contents",
   "pricing",
   "schedule",
-  "flexibility",
   "review",
 ] as const;
 export type OfferStep = (typeof offerSteps)[number];
@@ -13,9 +12,9 @@ const fieldStep: Record<string, OfferStep> = {
   name: "offer",
   description: "offer",
   meal: "offer",
-  days: "offer",
+  days: "schedule",
   packageType: "offer",
-  nutrition: "offer",
+  nutrition: "contents",
   image: "contents",
   tags: "contents",
   menus: "contents",
@@ -24,9 +23,9 @@ const fieldStep: Record<string, OfferStep> = {
   weekdays: "schedule",
   capacity: "schedule",
   windows: "schedule",
-  flexible: "flexibility",
-  trialPrice: "flexibility",
-  trialMax: "flexibility",
+  flexible: "schedule",
+  trialPrice: "pricing",
+  trialMax: "pricing",
 };
 export function sharedCapacityValue(
   capacity: Record<string, number>,

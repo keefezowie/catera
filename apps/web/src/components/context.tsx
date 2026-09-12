@@ -18,6 +18,61 @@ import {
   type Workspace,
 } from "@catera/domain";
 export const api = createApi();
+const actionMessages: Record<string, [string, string]> = {
+  "package.save": ["Paket tersimpan.", "Package saved."],
+  "package.suspend": [
+    "Penjualan paket ditangguhkan.",
+    "Package sales suspended.",
+  ],
+  "package.archive": ["Paket diarsipkan.", "Package archived."],
+  "seller.save": ["Profil katerer tersimpan.", "Caterer profile saved."],
+  "seller.submit": [
+    "Verifikasi diajukan. Catera akan meninjau profilmu.",
+    "Verification requested. Catera will review your profile.",
+  ],
+  "menu.save": ["Menu tersimpan.", "Menu saved."],
+  "menu.saveBatch": [
+    "Menu untuk tanggal terpilih tersimpan.",
+    "Menus saved for the selected dates.",
+  ],
+  "dish.save": ["Hidangan tersimpan di pustaka.", "Dish saved to the library."],
+  "delivery.statusBatch": [
+    "Status pesanan diperbarui.",
+    "Order statuses updated.",
+  ],
+  "delivery.status": [
+    "Status pengantaran diperbarui.",
+    "Delivery status updated.",
+  ],
+  "delivery.reschedule": [
+    "Tanggal pengantaran diganti.",
+    "Delivery date changed.",
+  ],
+  "delivery.address": [
+    "Alamat pengantaran diperbarui.",
+    "Delivery address updated.",
+  ],
+  "production.freeze": [
+    "Daftar dapur dan pengantaran tersimpan.",
+    "Kitchen and delivery list saved.",
+  ],
+  "import.preview": [
+    "Pratinjau siap. Belum ada langganan dibuat.",
+    "Preview ready. No subscriptions created yet.",
+  ],
+  "import.commit": [
+    "Langganan prabayar berhasil diimpor.",
+    "Prepaid subscriptions imported.",
+  ],
+  "support.create": ["Permintaan bantuan terkirim.", "Support request sent."],
+  "support.respond": ["Tanggapan bantuan terkirim.", "Support response sent."],
+  "message.send": ["Pesan terkirim.", "Message sent."],
+  "admin.verify": [
+    "Keputusan verifikasi tersimpan.",
+    "Verification decision saved.",
+  ],
+  "address.save": ["Alamat tersimpan.", "Address saved."],
+};
 type Context = {
   actor: Actor | null;
   workspace: Workspace;
@@ -153,8 +208,15 @@ export function Provider({
       keys.current.set(hash, key);
       const result = await api.command<T>(action, payload, key);
       keys.current.delete(hash);
-      setRevision((v) => v + 1);
-      setToast(locale === "id" ? "Perubahan tersimpan." : "Changes saved.");
+      if (action !== "import.preview") setRevision((v) => v + 1);
+      const message = actionMessages[action];
+      setToast(
+        message
+          ? message[locale === "id" ? 0 : 1]
+          : locale === "id"
+            ? "Perubahan tersimpan."
+            : "Changes saved.",
+      );
       return result;
     },
     [locale],

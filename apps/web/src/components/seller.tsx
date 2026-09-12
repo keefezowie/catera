@@ -1,5 +1,7 @@
 "use client";
 import { SellerOperations } from "./seller-operations";
+import { PrepaidImport } from "./prepaid-import";
+import { SellerReadiness } from "./seller-readiness";
 import { PackageContents } from "./package-contents";
 import { type MealMenu, type PackageType } from "@catera/domain";
 import { Select, SelectOption } from "./select";
@@ -19,7 +21,24 @@ import {
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
-import { Plus, ArrowRight, ArrowUpRight, Package, Users } from "lucide-react";
+import {
+  Plus,
+  ArrowRight,
+  ArrowLeft,
+  ArrowUpRight,
+  Package,
+  Users,
+  ImageIcon,
+  Wallet,
+  CalendarDays,
+  ClipboardCheck,
+  Save,
+  X,
+  MessageCircle,
+  LifeBuoy,
+} from "lucide-react";
+import { OptionalSection } from "./optional-section";
+import { TagInput } from "./tag-input";
 import {
   currency,
   localizedMessage,
@@ -29,6 +48,7 @@ import {
   type SellerState,
   type Offer,
   type SupportCase,
+  type Conversation,
 } from "@catera/domain";
 import { api, useApp, useResource } from "./context";
 import { Button, Checkbox, TextArea, TextInput } from "./form-controls";
@@ -94,16 +114,7 @@ function SellerWorkspace({ view }: { view: string }) {
         }
         description={s.caterer.name}
       />
-      {s.caterer.status !== "approved" && (
-        <p className="notice">
-          {t("Status verifikasi:", "Verification status:")}{" "}
-          <Status status={s.caterer.status} /> ·{" "}
-          {t(
-            "Penjualan baru tersedia setelah disetujui. Pengantaran yang sudah dibeli tetap menjadi tanggung jawab katerer.",
-            "New sales become available after approval. Already-purchased deliveries remain the caterer's responsibility.",
-          )}
-        </p>
-      )}
+      <SellerReadiness caterer={s.caterer} offers={s.offers} />
       {view === "packages" ? (
         <Packages state={s} />
       ) : view === "dishes" || view === "menus" ? (
@@ -111,10 +122,7 @@ function SellerWorkspace({ view }: { view: string }) {
       ) : view === "customers" ? (
         <Customers state={s} />
       ) : view === "support" ? (
-        <>
-          <SupportQueue cases={s.cases} />
-          <Messages />
-        </>
+        <SellerInbox cases={s.cases} />
       ) : view === "transactions" ? (
         <>
           <section className="panel">
@@ -152,6 +160,9 @@ function SellerWorkspace({ view }: { view: string }) {
 function Packages({ state: s }: { state: SellerState }) {
   const { actor, t, locale } = useApp();
   const [editing, setEditing] = useState<Offer | null | undefined>();
+  const [dirty, setDirty] = useState(false),
+    [editorBusy, setEditorBusy] = useState(false),
+    [discard, setDiscard] = useState(false);
   return (
     <>
       <div className="section-heading">
@@ -205,9 +216,16 @@ function Packages({ state: s }: { state: SellerState }) {
         ))}
       </div>
       <Dialog
+        className="package-dialog"
+        description={t(
+          "Siapkan paket selangkah demi selangkah. Draf dapat dilanjutkan nanti.",
+          "Set up your package step by step. Save a draft to continue later.",
+        )}
         open={editing !== undefined}
         onOpenChange={(o) => {
-          if (!o) setEditing(undefined);
+          if (o || editorBusy) return;
+          if (dirty) setDiscard(true);
+          else setEditing(undefined);
         }}
         title={
           editing
@@ -220,8 +238,38 @@ function Packages({ state: s }: { state: SellerState }) {
           offer={editing}
           caterer={s.caterer}
           catererId={s.caterer.id}
-          done={() => setEditing(undefined)}
+          onDirtyChange={setDirty}
+          onEditorBusyChange={setEditorBusy}
+          done={() => {
+            setDirty(false);
+            setEditing(undefined);
+          }}
         />
+      </Dialog>
+      <Dialog
+        open={discard}
+        onOpenChange={setDiscard}
+        title={t("Tutup tanpa menyimpan?", "Close without saving?")}
+        description={t(
+          "Perubahan terakhir belum disimpan. Kembali ke paket untuk menyimpan draf.",
+          "Your latest changes are not saved. Return to the package to save a draft.",
+        )}
+      >
+        <div className="dialog-actions">
+          <Button variant="primary" onClick={() => setDiscard(false)}>
+            {t("Lanjut mengedit", "Keep editing")}
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setDiscard(false);
+              setDirty(false);
+              setEditing(undefined);
+            }}
+          >
+            {t("Buang perubahan", "Discard changes")}
+          </Button>
+        </div>
       </Dialog>
     </>
   );
@@ -307,11 +355,15 @@ function OfferEditor({
   catererId,
   caterer,
   done,
+  onDirtyChange,
+  onEditorBusyChange,
 }: {
   offer: Offer | null | undefined;
   catererId: string;
   caterer: Caterer;
   done: () => void;
+  onDirtyChange: (dirty: boolean) => void;
+  onEditorBusyChange: (busy: boolean) => void;
 }) {
   const { perform, demo, t, locale } = useApp();
   const [step, setStep] = useState<OfferStep>("offer");
@@ -319,6 +371,7 @@ function OfferEditor({
     [savingDraft, setSavingDraft] = useState(false);
   const [issues, setIssues] = useState<EditorIssue[]>([]),
     [saveError, setSaveError] = useState("");
+  const [saving, setSaving] = useState(false);
   const [preview, setPreview] = useState("card");
   const editor = useRef<HTMLDivElement>(null);
   const onBusyChange = (busy: boolean) =>
@@ -330,15 +383,44 @@ function OfferEditor({
     menus: (offer?.menus || []).map(compositionDraft),
   }));
 
+  const initialValue = useRef(JSON.stringify(value));
+  const dirty = JSON.stringify(value) !== initialValue.current;
+  useEffect(() => {
+    onDirtyChange(dirty);
+  }, [dirty, onDirtyChange]);
+  useEffect(() => {
+    onEditorBusyChange(pending > 0 || saving || savingDraft);
+  }, [pending, saving, savingDraft, onEditorBusyChange]);
+  useEffect(() => {
+    if (!dirty) return;
+    const guard = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", guard);
+    return () => window.removeEventListener("beforeunload", guard);
+  }, [dirty]);
+  useEffect(() => {
+    const fields = editor.current?.querySelector<HTMLElement>(".editor-fields");
+    if (fields) fields.scrollTop = 0;
+    editor.current?.querySelector<HTMLElement>(".editor-step-title")?.focus();
+  }, [step]);
+
   const set = (key: string, v: unknown) =>
     setValue((x) => ({ ...x, [key]: v }));
   const labels: Record<OfferStep, string> = {
-    offer: t("Penawaran", "Offer"),
-    contents: t("Isi paket & foto", "Contents & photos"),
+    offer: t("Paket", "Package"),
+    contents: t("Isi", "Contents"),
     pricing: t("Harga", "Pricing"),
-    schedule: t("Hari & waktu", "Schedule"),
-    flexibility: t("Fleksibilitas", "Flexibility"),
-    review: t("Tinjau", "Review"),
+    schedule: t("Jadwal", "Schedule"),
+    review: t("Periksa", "Review"),
+  };
+  const stepIcons = {
+    offer: Package,
+    contents: ImageIcon,
+    pricing: Wallet,
+    schedule: CalendarDays,
+    review: ClipboardCheck,
   };
   const activeValue = {
     ...value,
@@ -407,18 +489,23 @@ function OfferEditor({
       showIssues(found);
       return;
     }
-    await perform("package.save", {
-      catererId,
-      id: offer?.id,
-      version: offer?.version,
-      slug:
-        offer?.slug ||
-        (value.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "draf") +
-          "-" +
-          crypto.randomUUID().slice(0, 6),
-      offer: { ...activeValue, status: draft ? "draft" : value.status },
-    });
-    done();
+    setSaving(true);
+    try {
+      await perform("package.save", {
+        catererId,
+        id: offer?.id,
+        version: offer?.version,
+        slug:
+          offer?.slug ||
+          (value.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "draf") +
+            "-" +
+            crypto.randomUUID().slice(0, 6),
+        offer: { ...activeValue, status: draft ? "draft" : value.status },
+      });
+      done();
+    } finally {
+      setSaving(false);
+    }
   };
   const previewOffer: Offer = {
     id: "preview",
@@ -442,26 +529,105 @@ function OfferEditor({
         className="editor-progress"
         aria-label={t("Langkah paket", "Package steps")}
       >
-        {offerSteps.map((i, order) => (
-          <Button
-            type="button"
-            key={i}
-            className={i === step ? "selected" : ""}
-            disabled={pending > 0 || savingDraft}
-            aria-current={i === step ? "step" : undefined}
-            onClick={() => navigate(i)}
-          >
-            {order + 1}. {labels[i]}
-          </Button>
-        ))}
+        {offerSteps.map((i, order) => {
+          const Icon = stepIcons[i];
+          return (
+            <Button
+              type="button"
+              key={i}
+              className={i === step ? "selected" : ""}
+              disabled={pending > 0 || savingDraft || saving}
+              aria-current={i === step ? "step" : undefined}
+              onClick={() => navigate(i)}
+            >
+              <Icon size={20} aria-hidden="true" />
+              <span>
+                {order + 1}. {labels[i]}
+              </span>
+            </Button>
+          );
+        })}
+      </div>
+      <div className="editor-mobile-progress">
+        <span>
+          {t("Langkah", "Step")} {offerSteps.indexOf(step) + 1} /{" "}
+          {offerSteps.length}
+        </span>
+        <Select
+          aria-label={t("Langkah paket", "Package steps")}
+          value={step}
+          disabled={pending > 0 || savingDraft || saving}
+          onValueChange={(next) => navigate(next as OfferStep)}
+        >
+          {offerSteps.map((i, order) => (
+            <SelectOption key={i} value={i}>
+              {order + 1}. {labels[i]}
+            </SelectOption>
+          ))}
+        </Select>
       </div>
       <ActionForm
+        actions={(submitButton, formBusy) => (
+          <div className="editor-footer">
+            <div className="editor-footer-main">
+              <Button
+                variant="secondary"
+                type="button"
+                disabled={
+                  step === "offer" || formBusy || pending > 0 || savingDraft
+                }
+                onClick={() =>
+                  navigate(offerSteps[offerSteps.indexOf(step) - 1])
+                }
+              >
+                <ArrowLeft size={18} aria-hidden="true" />
+                {t("Kembali", "Back")}
+              </Button>
+              {submitButton}
+            </div>
+            <Button
+              type="button"
+              className="text-button"
+              disabled={pending > 0 || savingDraft || formBusy || saving}
+              onClick={async () => {
+                setSavingDraft(true);
+                setSaveError("");
+                try {
+                  await save(true);
+                } catch {
+                  setSaveError(
+                    t(
+                      "Draf belum tersimpan. Muat ulang jika data telah berubah, lalu coba lagi.",
+                      "Draft could not be saved. Reload if data changed, then retry.",
+                    ),
+                  );
+                } finally {
+                  setSavingDraft(false);
+                }
+              }}
+            >
+              <Save size={17} aria-hidden="true" />
+              {savingDraft
+                ? t("Menyimpan…", "Saving…")
+                : t("Simpan draf", "Save draft")}
+            </Button>
+          </div>
+        )}
+        submitIcon={
+          step === "review" ? (
+            <Save size={18} aria-hidden="true" />
+          ) : (
+            <ArrowRight size={18} aria-hidden="true" />
+          )
+        }
         noValidate
         disabled={pending > 0 || savingDraft}
         submit={
           step !== "review"
             ? t("Lanjutkan", "Continue")
-            : t("Simpan paket", "Save package")
+            : value.status === "published"
+              ? t("Tayangkan paket", "Publish package")
+              : t("Simpan paket", "Save package")
         }
         onSubmit={async () => {
           if (step !== "review") {
@@ -471,420 +637,451 @@ function OfferEditor({
           await save(value.status === "draft");
         }}
       >
-        {!!issues.length && (
-          <div
-            className="error-notice"
-            role="alert"
-            tabIndex={-1}
-            data-editor-errors
-          >
-            <strong>
-              {t(
-                "Lengkapi isian sebelum melanjutkan",
-                "Complete the fields before continuing",
-              )}
-            </strong>
-            <ul>
-              {issues
-                .filter((i) => i.step === step)
-                .map((i, n) => (
-                  <li key={n}>{localizedMessage(i.message, locale)}</li>
-                ))}
-            </ul>
-          </div>
-        )}
-        {step === "offer" ? (
-          <>
-            <Field
-              fieldKey="packageType"
-              error={fieldError("packageType")}
-              label={t("Jenis paket", "Package type")}
+        <div className="editor-fields">
+          <h3 className="editor-step-title" tabIndex={-1}>
+            {labels[step]}
+          </h3>
+          {!!issues.length && (
+            <div
+              className="error-notice"
+              role="alert"
+              tabIndex={-1}
+              data-editor-errors
             >
-              <Select
-                value={value.packageType || ""}
-                onValueChange={(selected) => set("packageType", selected)}
+              <strong>
+                {t(
+                  "Lengkapi isian sebelum melanjutkan",
+                  "Complete the fields before continuing",
+                )}
+              </strong>
+              <ul>
+                {issues
+                  .filter((i) => i.step === step)
+                  .map((i, n) => (
+                    <li key={n}>{localizedMessage(i.message, locale)}</li>
+                  ))}
+              </ul>
+            </div>
+          )}
+          {step === "offer" ? (
+            <>
+              <Field
+                fieldKey="packageType"
+                error={fieldError("packageType")}
+                label={t("Jenis paket", "Package type")}
               >
-                <SelectOption value="" disabled>
-                  {t("Pilih jenis paket", "Choose package type")}
-                </SelectOption>
-                <SelectOption value="ala_carte">
-                  {t("À la carte", "À la carte")}
-                </SelectOption>
-                <SelectOption value="nasi_box">
-                  {t("Nasi box", "Rice box")}
-                </SelectOption>
-              </Select>
-            </Field>
-            <Field
-              fieldKey="name"
-              error={fieldError("name")}
-              label={t("Nama paket", "Package name")}
-            >
-              <TextInput
-                required
-                minLength={3}
-                maxLength={100}
-                value={value.name}
-                onChange={(e) => set("name", e.target.value)}
-              />
-            </Field>
-            <Field
-              fieldKey="description"
-              error={fieldError("description")}
-              label={t("Cerita paket", "Package story")}
-            >
-              <TextArea
-                required
-                minLength={10}
-                maxLength={1500}
-                value={value.description}
-                onChange={(e) => set("description", e.target.value)}
-              />
-            </Field>
-            <Field
-              fieldKey="meal"
-              error={fieldError("meal")}
-              label={t("Waktu makan", "Meal time")}
-            >
-              <Select
-                value={value.meal}
-                onValueChange={(value) => set("meal", value)}
+                <Select
+                  value={value.packageType || ""}
+                  onValueChange={(selected) => set("packageType", selected)}
+                >
+                  <SelectOption value="" disabled>
+                    {t("Pilih jenis paket", "Choose package type")}
+                  </SelectOption>
+                  <SelectOption value="ala_carte">
+                    {t("À la carte", "À la carte")}
+                  </SelectOption>
+                  <SelectOption value="nasi_box">
+                    {t("Nasi box", "Rice box")}
+                  </SelectOption>
+                </Select>
+              </Field>
+              <Field
+                fieldKey="name"
+                error={fieldError("name")}
+                label={t("Nama paket", "Package name")}
               >
-                <SelectOption value="lunch">
-                  {t("Makan siang", "Lunch")}
-                </SelectOption>
-                <SelectOption value="dinner">
-                  {t("Makan malam", "Dinner")}
-                </SelectOption>
-                <SelectOption value="both">
-                  {t("Makan siang + malam", "Lunch + dinner")}
-                </SelectOption>
-              </Select>
-            </Field>
-            <Field
-              fieldKey="days"
-              error={fieldError("days")}
-              label={t("Durasi pengantaran (hari)", "Delivery duration (days)")}
-            >
-              <NumericInput
-                min={1}
-                max={60}
-                required
-                value={value.days}
-                onValueChange={(next) => set("days", next)}
-              />
-            </Field>
-            <PackageNutritionEditor
-              value={value.nutrition}
-              error={fieldError("nutrition")}
-              onChange={(nutrition) => set("nutrition", nutrition)}
-            />
-          </>
-        ) : step === "pricing" ? (
-          <>
-            <Field
-              fieldKey="price"
-              error={fieldError("price")}
-              label={t(
-                "Harga per porsi / hari (pengantaran termasuk)",
-                "Price per portion / day (delivery included)",
-              )}
-            >
-              <NumericInput
-                min={1000}
-                required
-                value={value.price}
-                onValueChange={(next) => set("price", next)}
-              />
-            </Field>
-            <p>
-              {t(
-                "Untuk siang + malam, harga ini sudah mencakup kedua makanan per porsi per hari.",
-                "For lunch + dinner, this price covers both meals per portion per day.",
-              )}
-            </p>
-            <Field
-              fieldKey="tiers"
-              error={fieldError("tiers")}
-              label={t("Diskon kuantitas", "Quantity discount")}
-            >
-              <Select
-                value={value.tiers.length ? "yes" : "no"}
-                onValueChange={(value) =>
-                  set("tiers", value === "yes" ? [{ min: 3, percent: 5 }] : [])
-                }
+                <TextInput
+                  required
+                  minLength={3}
+                  maxLength={100}
+                  value={value.name}
+                  onChange={(e) => set("name", e.target.value)}
+                />
+              </Field>
+              <Field
+                fieldKey="description"
+                error={fieldError("description")}
+                label={t("Cerita paket", "Package story")}
               >
-                <SelectOption value="no">
-                  {t("Tanpa diskon", "No discount")}
-                </SelectOption>
-                <SelectOption value="yes">
-                  {t("Gunakan tingkatan diskon", "Use discount tiers")}
-                </SelectOption>
-              </Select>
-            </Field>
-            {value.tiers.map((tier, i) => (
-              <div className="form-row" key={i}>
+                <TextArea
+                  required
+                  minLength={10}
+                  maxLength={1500}
+                  value={value.description}
+                  onChange={(e) => set("description", e.target.value)}
+                />
+              </Field>
+              <Field
+                fieldKey="meal"
+                error={fieldError("meal")}
+                label={t("Waktu makan", "Meal time")}
+              >
+                <Select
+                  value={value.meal}
+                  onValueChange={(value) => set("meal", value)}
+                >
+                  <SelectOption value="lunch">
+                    {t("Makan siang", "Lunch")}
+                  </SelectOption>
+                  <SelectOption value="dinner">
+                    {t("Makan malam", "Dinner")}
+                  </SelectOption>
+                  <SelectOption value="both">
+                    {t("Makan siang + malam", "Lunch + dinner")}
+                  </SelectOption>
+                </Select>
+              </Field>
+            </>
+          ) : step === "pricing" ? (
+            <>
+              <Field
+                fieldKey="price"
+                error={fieldError("price")}
+                label={t(
+                  "Harga per porsi / hari (pengantaran termasuk)",
+                  "Price per portion / day (delivery included)",
+                )}
+              >
+                <NumericInput
+                  min={1000}
+                  required
+                  value={value.price}
+                  onValueChange={(next) => set("price", next)}
+                />
+              </Field>
+              {value.meal === "both" && (
+                <p>
+                  {t(
+                    "Untuk siang + malam, harga ini sudah mencakup kedua makanan per porsi per hari.",
+                    "For lunch + dinner, this price covers both meals per portion per day.",
+                  )}
+                </p>
+              )}
+              <OptionalSection
+                title={t(
+                  "Diskon jumlah porsi (opsional)",
+                  "Quantity discounts (optional)",
+                )}
+                initiallyOpen={value.tiers.length > 0}
+                invalid={!!fieldError("tiers")}
+              >
                 <Field
                   fieldKey="tiers"
                   error={fieldError("tiers")}
-                  label={t("Mulai porsi", "Starting portions")}
+                  label={t("Diskon kuantitas", "Quantity discount")}
                 >
-                  <NumericInput
-                    min={1}
-                    value={tier.min}
-                    onValueChange={(next) =>
+                  <Select
+                    value={value.tiers.length ? "yes" : "no"}
+                    onValueChange={(value) =>
                       set(
                         "tiers",
-                        value.tiers.map((t, n) =>
-                          n === i ? { ...t, min: next } : t,
-                        ),
+                        value === "yes" ? [{ min: 3, percent: 5 }] : [],
                       )
                     }
-                  />
+                  >
+                    <SelectOption value="no">
+                      {t("Tanpa diskon", "No discount")}
+                    </SelectOption>
+                    <SelectOption value="yes">
+                      {t("Gunakan tingkatan diskon", "Use discount tiers")}
+                    </SelectOption>
+                  </Select>
                 </Field>
-                <Field
-                  fieldKey="tiers"
-                  error={fieldError("tiers")}
-                  label={t("Diskon (%)", "Discount (%)")}
-                >
-                  <NumericInput
-                    min={0}
-                    max={90}
-                    value={tier.percent}
-                    onValueChange={(next) =>
-                      set(
-                        "tiers",
-                        value.tiers.map((t, n) =>
-                          n === i ? { ...t, percent: next } : t,
-                        ),
-                      )
-                    }
-                  />
-                </Field>
-              </div>
-            ))}
-            {value.tiers.length > 0 && (
-              <Button
-                type="button"
-                className="text-button"
-                onClick={() =>
-                  set("tiers", [...value.tiers, { min: 5, percent: 10 }])
-                }
-              >
-                {t("Tambah tingkatan", "Add tier")}
-              </Button>
-            )}
-          </>
-        ) : step === "schedule" ? (
-          <>
-            <fieldset data-editor-field="weekdays">
-              <legend>{t("Hari operasional", "Operating days")}</legend>
-              <div className="weekday-checks">
-                {["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"].map(
-                  (d, i) => (
-                    <label key={d}>
-                      <Checkbox
-                        checked={value.weekdays.includes(i)}
-                        onChange={(e) =>
-                          setValue((current) => {
-                            const weekdays = e.target.checked
-                              ? [...current.weekdays, i].sort((a, b) => a - b)
-                              : current.weekdays.filter((x) => x !== i);
-                            return {
-                              ...current,
-                              weekdays,
-                              capacity: withSharedCapacity(
-                                current.capacity,
-                                weekdays,
-                                sharedCapacityValue(
-                                  current.capacity,
-                                  current.weekdays,
-                                ),
-                              ),
-                            };
-                          })
+                {value.tiers.map((tier, i) => (
+                  <div className="form-row" key={i}>
+                    <Field
+                      fieldKey="tiers"
+                      error={fieldError("tiers")}
+                      label={t("Mulai porsi", "Starting portions")}
+                    >
+                      <NumericInput
+                        min={1}
+                        value={tier.min}
+                        onValueChange={(next) =>
+                          set(
+                            "tiers",
+                            value.tiers.map((t, n) =>
+                              n === i ? { ...t, min: next } : t,
+                            ),
+                          )
                         }
                       />
-                      {d}
-                    </label>
-                  ),
-                )}
-              </div>
-            </fieldset>
-            <div className="form-row">
-              {["lunch", "dinner"].map((m) => (
-                <Field
-                  fieldKey={"windows." + m}
-                  error={fieldError("windows." + m)}
-                  key={m}
-                  label={mealLabel(m, locale)}
-                >
-                  <TextInput
-                    required
-                    value={value.windows[m as "lunch" | "dinner"]}
-                    onChange={(e) =>
-                      set("windows", { ...value.windows, [m]: e.target.value })
+                    </Field>
+                    <Field
+                      fieldKey="tiers"
+                      error={fieldError("tiers")}
+                      label={t("Diskon (%)", "Discount (%)")}
+                    >
+                      <NumericInput
+                        min={0}
+                        max={90}
+                        value={tier.percent}
+                        onValueChange={(next) =>
+                          set(
+                            "tiers",
+                            value.tiers.map((t, n) =>
+                              n === i ? { ...t, percent: next } : t,
+                            ),
+                          )
+                        }
+                      />
+                    </Field>
+                  </div>
+                ))}
+                {value.tiers.length > 0 && (
+                  <Button
+                    type="button"
+                    className="text-button"
+                    onClick={() =>
+                      set("tiers", [...value.tiers, { min: 5, percent: 10 }])
                     }
-                  />
-                </Field>
-              ))}
-            </div>
-            <Field
-              fieldKey="capacity"
-              error={fieldError("capacity")}
-              label={t(
-                "Kapasitas porsi per hari",
-                "Portions per operating day",
-              )}
-            >
-              <NumericInput
-                min={0}
-                required
-                value={sharedCapacityValue(value.capacity, value.weekdays)}
-                onValueChange={(next) =>
-                  set(
-                    "capacity",
-                    withSharedCapacity(value.capacity, value.weekdays, next),
-                  )
-                }
-              />
-            </Field>
-            <p className="notice">
-              {t(
-                "Kapasitas ini berlaku sama untuk setiap hari operasional yang dipilih.",
-                "This capacity applies equally to every selected operating day.",
-              )}
-            </p>
-          </>
-        ) : step === "flexibility" ? (
-          <>
-            <Field
-              fieldKey="flexible"
-              error={fieldError("flexible")}
-              label={t("Perubahan jadwal", "Schedule changes")}
-            >
-              <Select
-                value={String(value.flexible)}
-                onValueChange={(value) => set("flexible", value === "true")}
+                  >
+                    {t("Tambah tingkatan", "Add tier")}
+                  </Button>
+                )}
+              </OptionalSection>
+              <OptionalSection
+                title={t(
+                  "Coba satu hari (opsional)",
+                  "One-day trial (optional)",
+                )}
+                initiallyOpen={value.trialPrice !== null}
+                invalid={!!fieldError("trialPrice") || !!fieldError("trialMax")}
               >
-                <SelectOption value="true">
-                  {t(
-                    "Paket fleksibel · boleh ganti tanggal sebelum cutoff",
-                    "Flexible package · dates can change before cutoff",
-                  )}
-                </SelectOption>
-                <SelectOption value="false">
-                  {t(
-                    "Paket tetap · tanggal tidak dapat dipindah",
-                    "Fixed package · dates cannot be changed",
-                  )}
-                </SelectOption>
-              </Select>
-            </Field>
-            <Field
-              fieldKey="trialPrice"
-              error={fieldError("trialPrice")}
-              label={t("Trial satu hari", "One-day trial")}
-            >
-              <Select
-                value={value.trialPrice === null ? "no" : "yes"}
-                onValueChange={(selected) =>
-                  set("trialPrice", selected === "yes" ? value.price : null)
-                }
-              >
-                <SelectOption value="yes">
-                  {t("Tersedia", "Available")}
-                </SelectOption>
-                <SelectOption value="no">
-                  {t("Tidak tersedia", "Unavailable")}
-                </SelectOption>
-              </Select>
-            </Field>
-            {value.trialPrice !== null && (
-              <div className="form-row">
                 <Field
                   fieldKey="trialPrice"
                   error={fieldError("trialPrice")}
-                  label={t("Harga trial per porsi", "Trial price per portion")}
+                  label={t("Trial satu hari", "One-day trial")}
                 >
-                  <NumericInput
-                    min={1000}
-                    required
-                    value={value.trialPrice}
-                    onValueChange={(next) => set("trialPrice", next)}
-                  />
+                  <Select
+                    value={value.trialPrice === null ? "no" : "yes"}
+                    onValueChange={(selected) =>
+                      set("trialPrice", selected === "yes" ? value.price : null)
+                    }
+                  >
+                    <SelectOption value="yes">
+                      {t("Tersedia", "Available")}
+                    </SelectOption>
+                    <SelectOption value="no">
+                      {t("Tidak tersedia", "Unavailable")}
+                    </SelectOption>
+                  </Select>
                 </Field>
-                <Field
-                  fieldKey="trialMax"
-                  error={fieldError("trialMax")}
-                  label={t("Maksimum porsi trial", "Maximum trial portions")}
-                >
-                  <NumericInput
-                    min={1}
-                    value={value.trialMax || 1}
-                    onValueChange={(next) => set("trialMax", next)}
-                  />
-                </Field>
-              </div>
-            )}
-            <p className="notice">
-              {t(
-                "Satu trial berhasil dibeli per pelanggan per katerer. Semua pembatalan masuk peninjauan bantuan.",
-                "One trial can be bought per customer per caterer. All cancellations go through support review.",
-              )}
-            </p>
-          </>
-        ) : step === "contents" ? (
-          <>
-            <div data-editor-field="image">
-              <PhotoUpload
-                label={t("Foto paket", "Package photo")}
-                value={value.image}
-                onChange={(image) => set("image", image)}
-                onBusyChange={onBusyChange}
-              />
-              {fieldError("image") && (
-                <p className="field-error">{fieldError("image")}</p>
-              )}
-            </div>
-            {demo && (
-              <Button
-                type="button"
-                className="text-button"
-                onClick={() => set("image", "/assets/food/ayam-panggang.png")}
+                {value.trialPrice !== null && (
+                  <div className="form-row">
+                    <Field
+                      fieldKey="trialPrice"
+                      error={fieldError("trialPrice")}
+                      label={t(
+                        "Harga trial per porsi",
+                        "Trial price per portion",
+                      )}
+                    >
+                      <NumericInput
+                        min={1000}
+                        required
+                        value={value.trialPrice}
+                        onValueChange={(next) => set("trialPrice", next)}
+                      />
+                    </Field>
+                    <Field
+                      fieldKey="trialMax"
+                      error={fieldError("trialMax")}
+                      label={t(
+                        "Maksimum porsi trial",
+                        "Maximum trial portions",
+                      )}
+                    >
+                      <NumericInput
+                        min={1}
+                        value={value.trialMax || 1}
+                        onValueChange={(next) => set("trialMax", next)}
+                      />
+                    </Field>
+                  </div>
+                )}
+                <p className="field-hint">
+                  {t(
+                    "Satu kali coba per pelanggan per katerer.",
+                    "One trial per customer per caterer.",
+                  )}
+                </p>
+              </OptionalSection>
+            </>
+          ) : step === "schedule" ? (
+            <>
+              <Field
+                fieldKey="days"
+                error={fieldError("days")}
+                label={t(
+                  "Durasi pengantaran (hari)",
+                  "Delivery duration (days)",
+                )}
               >
-                {t("Gunakan foto sintetis demo", "Use synthetic demo photo")}
-              </Button>
-            )}
-            <Field
-              fieldKey="tags"
-              error={fieldError("tags")}
-              label={t(
-                "Kategori (pisahkan koma)",
-                "Categories (comma-separated)",
-              )}
-            >
-              <TextInput
-                value={value.tags.join(", ")}
-                onChange={(e) =>
-                  set(
-                    "tags",
-                    e.target.value.split(",").map((x) => x.trim()),
-                  )
-                }
-              />
-            </Field>
+                <NumericInput
+                  min={1}
+                  max={60}
+                  required
+                  value={value.days}
+                  onValueChange={(next) => set("days", next)}
+                />
+              </Field>
+              <Field
+                fieldKey="flexible"
+                error={fieldError("flexible")}
+                label={t("Perubahan jadwal", "Schedule changes")}
+              >
+                <Select
+                  value={String(value.flexible)}
+                  onValueChange={(value) => set("flexible", value === "true")}
+                >
+                  <SelectOption value="true">
+                    {t(
+                      "Paket fleksibel · boleh ganti tanggal sebelum cutoff",
+                      "Flexible package · dates can change before cutoff",
+                    )}
+                  </SelectOption>
+                  <SelectOption value="false">
+                    {t(
+                      "Paket tetap · tanggal tidak dapat dipindah",
+                      "Fixed package · dates cannot be changed",
+                    )}
+                  </SelectOption>
+                </Select>
+              </Field>
 
-            {!value.packageType ? (
-              <p>
+              <fieldset data-editor-field="weekdays">
+                <legend>{t("Hari operasional", "Operating days")}</legend>
+                <div className="weekday-checks">
+                  {["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"].map(
+                    (d, i) => (
+                      <label key={d}>
+                        <Checkbox
+                          checked={value.weekdays.includes(i)}
+                          onChange={(e) =>
+                            setValue((current) => {
+                              const weekdays = e.target.checked
+                                ? [...current.weekdays, i].sort((a, b) => a - b)
+                                : current.weekdays.filter((x) => x !== i);
+                              return {
+                                ...current,
+                                weekdays,
+                                capacity: withSharedCapacity(
+                                  current.capacity,
+                                  weekdays,
+                                  sharedCapacityValue(
+                                    current.capacity,
+                                    current.weekdays,
+                                  ),
+                                ),
+                              };
+                            })
+                          }
+                        />
+                        {d}
+                      </label>
+                    ),
+                  )}
+                </div>
+              </fieldset>
+              <div className="form-row">
+                {["lunch", "dinner"].map((m) => (
+                  <Field
+                    fieldKey={"windows." + m}
+                    error={fieldError("windows." + m)}
+                    key={m}
+                    label={mealLabel(m, locale)}
+                  >
+                    <TextInput
+                      required
+                      value={value.windows[m as "lunch" | "dinner"]}
+                      onChange={(e) =>
+                        set("windows", {
+                          ...value.windows,
+                          [m]: e.target.value,
+                        })
+                      }
+                    />
+                  </Field>
+                ))}
+              </div>
+              <Field
+                fieldKey="capacity"
+                error={fieldError("capacity")}
+                label={t(
+                  "Kapasitas porsi per hari",
+                  "Portions per operating day",
+                )}
+              >
+                <NumericInput
+                  min={0}
+                  required
+                  value={sharedCapacityValue(value.capacity, value.weekdays)}
+                  onValueChange={(next) =>
+                    set(
+                      "capacity",
+                      withSharedCapacity(value.capacity, value.weekdays, next),
+                    )
+                  }
+                />
+              </Field>
+              <p className="notice">
                 {t(
-                  "Pilih jenis paket pada langkah Penawaran.",
-                  "Choose a package type in Offer.",
+                  "Kapasitas ini berlaku sama untuk setiap hari operasional yang dipilih.",
+                  "This capacity applies equally to every selected operating day.",
                 )}
               </p>
-            ) : (
-              (value.meal === "both" ? ["lunch", "dinner"] : [value.meal]).map(
-                (meal) => (
+            </>
+          ) : step === "contents" ? (
+            <>
+              <div data-editor-field="image">
+                <PhotoUpload
+                  label={t("Foto paket", "Package photo")}
+                  value={value.image}
+                  onChange={(image) => set("image", image)}
+                  onBusyChange={onBusyChange}
+                />
+                {fieldError("image") && (
+                  <p className="field-error">{fieldError("image")}</p>
+                )}
+              </div>
+              {demo && (
+                <Button
+                  type="button"
+                  className="text-button"
+                  onClick={() => set("image", "/assets/food/ayam-panggang.png")}
+                >
+                  {t("Gunakan foto sintetis demo", "Use synthetic demo photo")}
+                </Button>
+              )}
+              <TagInput
+                value={value.tags}
+                onChange={(tags) => set("tags", tags)}
+              />
+              <OptionalSection
+                title={t("Informasi gizi (opsional)", "Nutrition (optional)")}
+                initiallyOpen={!!value.nutrition}
+                invalid={!!fieldError("nutrition")}
+              >
+                <PackageNutritionEditor
+                  value={value.nutrition}
+                  error={fieldError("nutrition")}
+                  onChange={(nutrition) => set("nutrition", nutrition)}
+                />
+              </OptionalSection>
+
+              {!value.packageType ? (
+                <p>
+                  {t(
+                    "Pilih jenis paket pada langkah Penawaran.",
+                    "Choose a package type in Offer.",
+                  )}
+                </p>
+              ) : (
+                (value.meal === "both"
+                  ? ["lunch", "dinner"]
+                  : [value.meal]
+                ).map((meal) => (
                   <CompositionEditor
                     key={meal}
                     menu={
@@ -904,116 +1101,85 @@ function OfferEditor({
                       ])
                     }
                   />
-                ),
-              )
-            )}
-            <h3>{t("Akan dilihat pelanggan", "Customer preview")}</h3>
-            <PackageContents
-              offer={{
-                ...value,
-                menus: value.menus.filter(
-                  (m) => value.meal === "both" || m.meal === value.meal,
-                ),
-              }}
-            />
-          </>
-        ) : (
-          <>
-            <h3>{t("Pratinjau pelanggan", "Customer preview")}</h3>
-            <p>
-              {t(
-                "Tampilan menggunakan isian Anda saat ini. Tindakan pembelian dinonaktifkan dalam pratinjau.",
-                "This preview uses your current entries. Purchase actions are disabled here.",
+                ))
               )}
-            </p>
-            <div className="preview-tabs">
-              <Button
-                type="button"
-                className={"button " + (preview === "card" ? "" : "secondary")}
-                onClick={() => setPreview("card")}
-              >
-                {t("Kartu penelusuran", "Discovery card")}
-              </Button>
-              <Button
-                type="button"
-                className={
-                  "button " + (preview === "detail" ? "" : "secondary")
-                }
-                onClick={() => setPreview("detail")}
-              >
-                {t("Detail paket", "Package details")}
-              </Button>
-            </div>
-            <div className={"listing-preview " + preview}>
-              {preview === "card" ? (
-                <PackageCard offer={previewOffer} preview />
-              ) : (
-                <PackagePage
-                  slug={previewOffer.slug}
-                  offer={previewOffer}
-                  preview
-                />
-              )}
-            </div>
-            <Field label={t("Status penawaran", "Offer status")}>
-              <Select
-                value={value.status}
-                onValueChange={(value) => set("status", value)}
-              >
-                <SelectOption value="draft">
-                  {t("Simpan draf", "Save draft")}
-                </SelectOption>
-                <SelectOption value="published">
-                  {t(
-                    "Tayangkan setelah verifikasi katerer",
-                    "Publish after caterer approval",
-                  )}
-                </SelectOption>
-              </Select>
-            </Field>
-          </>
-        )}
-        {step !== "offer" && (
-          <Button
-            className="text-button"
-            type="button"
-            onClick={() => navigate(offerSteps[offerSteps.indexOf(step) - 1])}
-          >
-            {t("Kembali", "Back")}
-          </Button>
-        )}
+              <h3>{t("Akan dilihat pelanggan", "Customer preview")}</h3>
+              <PackageContents
+                offer={{
+                  ...value,
+                  menus: value.menus.filter(
+                    (m) => value.meal === "both" || m.meal === value.meal,
+                  ),
+                }}
+              />
+            </>
+          ) : (
+            <>
+              <h3>{t("Pratinjau pelanggan", "Customer preview")}</h3>
+              <p>
+                {t(
+                  "Tampilan menggunakan isian Anda saat ini. Tindakan pembelian dinonaktifkan dalam pratinjau.",
+                  "This preview uses your current entries. Purchase actions are disabled here.",
+                )}
+              </p>
+              <div className="preview-tabs">
+                <Button
+                  type="button"
+                  className={
+                    "button " + (preview === "card" ? "" : "secondary")
+                  }
+                  onClick={() => setPreview("card")}
+                >
+                  {t("Kartu penelusuran", "Discovery card")}
+                </Button>
+                <Button
+                  type="button"
+                  className={
+                    "button " + (preview === "detail" ? "" : "secondary")
+                  }
+                  onClick={() => setPreview("detail")}
+                >
+                  {t("Detail paket", "Package details")}
+                </Button>
+              </div>
+              <div className={"listing-preview " + preview}>
+                {preview === "card" ? (
+                  <PackageCard offer={previewOffer} preview />
+                ) : (
+                  <PackagePage
+                    slug={previewOffer.slug}
+                    offer={previewOffer}
+                    preview
+                  />
+                )}
+              </div>
+              <Field label={t("Status penawaran", "Offer status")}>
+                <Select
+                  value={value.status}
+                  onValueChange={(value) => set("status", value)}
+                >
+                  <SelectOption value="draft">
+                    {t("Simpan draf", "Save draft")}
+                  </SelectOption>
+                  <SelectOption value="published">
+                    {t(
+                      "Tayangkan setelah verifikasi katerer",
+                      "Publish after caterer approval",
+                    )}
+                  </SelectOption>
+                </Select>
+              </Field>
+            </>
+          )}
+          {saveError && <ErrorNotice message={saveError} />}
+        </div>
       </ActionForm>
-      {saveError && <ErrorNotice message={saveError} />}
-      <Button
-        type="button"
-        className="text-button"
-        disabled={pending > 0 || savingDraft}
-        onClick={async () => {
-          setSavingDraft(true);
-          setSaveError("");
-          try {
-            await save(true);
-          } catch {
-            setSaveError(
-              t(
-                "Draf belum tersimpan. Muat ulang jika data telah berubah, lalu coba lagi.",
-                "Draft could not be saved. Reload if data changed, then retry.",
-              ),
-            );
-          } finally {
-            setSavingDraft(false);
-          }
-        }}
-      >
-        {savingDraft
-          ? t("Menyimpan…", "Saving…")
-          : t("Simpan draf", "Save draft")}
-      </Button>
     </div>
   );
 }
 function Customers({ state: s }: { state: SellerState }) {
   const [showImport, setShowImport] = useState(false);
+  const [importBusy, setImportBusy] = useState(false);
   const { actor, t } = useApp();
   return (
     <>
@@ -1029,121 +1195,129 @@ function Customers({ state: s }: { state: SellerState }) {
             </Button>
           )}
         </div>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>{t("Pelanggan", "Customer")}</th>
-                <th>{t("Akuisisi awal", "Acquisition source")}</th>
-                <th>{t("Identitas akun", "Account identity")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {s.customers.map((c) => (
-                <tr key={c.id}>
-                  <td>{c.name}</td>
-                  <td>{c.source}</td>
-                  <td>
-                    <code>{c.id}</code>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {s.customers.length ? (
+          <div className="customer-records">
+            {s.customers.map((c) => (
+              <article className="queue-row" key={c.id}>
+                <Users size={22} aria-hidden="true" />
+                <div>
+                  <strong>{c.name}</strong>
+                  <small>
+                    {c.source === "legacy"
+                      ? t("Langganan prabayar", "Prepaid subscription")
+                      : c.source === "invited"
+                        ? t("Melalui undangan", "Invited customer")
+                        : t("Melalui Catera", "Via Catera")}
+                  </small>
+                </div>
+                <details className="record-details">
+                  <summary>{t("Detail akun", "Account details")}</summary>
+                  <code>{c.id}</code>
+                </details>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="quiet-empty">
+            {t(
+              "Pelanggan akan muncul setelah terhubung melalui undangan atau pembelian.",
+              "Customers appear after connecting through an invitation or purchase.",
+            )}
+          </p>
+        )}
       </section>
       <Dialog
         open={showImport}
-        onOpenChange={setShowImport}
+        onOpenChange={(open) => {
+          if (!importBusy) setShowImport(open);
+        }}
         title={t("Impor langganan prabayar", "Import prepaid subscriptions")}
+        description={t(
+          "Masukkan langganan yang sudah dibayar, lalu periksa sebelum mengimpor.",
+          "Enter prepaid subscriptions, then review before importing.",
+        )}
       >
-        <ImportForm
+        <PrepaidImport
           catererId={s.caterer.id}
+          onBusyChange={setImportBusy}
           done={() => setShowImport(false)}
         />
       </Dialog>
     </>
   );
 }
-function ImportForm({
-  catererId,
-  done,
-}: {
-  catererId: string;
-  done: () => void;
-}) {
-  const { perform, t } = useApp();
-  const [preview, setPreview] = useState<{
-    id: string;
-    rows: unknown[];
-  } | null>(null);
+function SellerInbox({ cases }: { cases: SupportCase[] }) {
+  const { t } = useApp();
+  const [tab, setTab] = useState("messages");
+  const conversations = useResource<Conversation[]>("seller-inbox-count", () =>
+    api.conversations(),
+  );
+  const openCases = cases.filter(
+    (c) => !["resolved", "closed", "refunded", "rejected"].includes(c.status),
+  ).length;
   return (
-    <ActionForm
-      submit={
-        preview
-          ? t("Konfirmasi impor", "Confirm import")
-          : t("Periksa & buat pratinjau", "Review & preview")
-      }
-      onSubmit={async (f) => {
-        if (preview) {
-          await perform("import.commit", { catererId, id: preview.id });
-          done();
-        } else {
-          const rows = JSON.parse(String(f.get("rows")));
-          setPreview(await perform("import.preview", { catererId, rows }));
-        }
-      }}
-    >
-      {!preview ? (
-        <>
-          <p>
-            {t(
-              "Hanya langganan yang sudah dibayar di luar Catera. Pelanggan harus memiliki akun dan alamat. Impor tidak menagih pembayaran baru.",
-              "Only subscriptions paid outside Catera can be imported. Customers must have an account and address. Imports do not charge a new payment.",
-            )}
-          </p>
-          <Field
-            label={t(
-              "Data JSON (maksimal 100 baris)",
-              "JSON data (maximum 100 rows)",
-            )}
-          >
-            <TextArea
-              className="code-input"
-              name="rows"
-              required
-              placeholder={
-                '[{"customerId":"…","packageId":"…","addressId":"…","portions":1,"startDate":"2026-10-01","remainingDays":3,"externalReference":"receipt-verified"}]'
-              }
-            />
-          </Field>
-        </>
-      ) : (
-        <>
-          <p>
-            {t(
-              `${preview.rows.length} langganan akan dibuat. Semua tanggal dan kapasitas diperiksa kembali saat konfirmasi.`,
-              `${preview.rows.length} subscriptions will be created. All dates and capacity are checked again on confirmation.`,
-            )}
-          </p>
-          <pre>{JSON.stringify(preview.rows, null, 2)}</pre>
-          <label className="checkbox">
-            <Checkbox required />
-            {t(
-              "Saya telah memverifikasi pembayaran dan hak pengantaran ini.",
-              "I have verified this payment and delivery entitlement.",
-            )}
-          </label>
-          <Button
-            type="button"
-            className="text-button"
-            onClick={() => setPreview(null)}
-          >
-            {t("Perbaiki data", "Edit data")}
-          </Button>
-        </>
-      )}
-    </ActionForm>
+    <>
+      <div
+        className="workspace-tabs"
+        role="tablist"
+        aria-label={t("Pesan & bantuan", "Messages & support")}
+        onKeyDown={(e) => {
+          if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) {
+            e.preventDefault();
+            const next =
+              e.key === "Home"
+                ? "messages"
+                : e.key === "End"
+                  ? "help"
+                  : tab === "messages"
+                    ? "help"
+                    : "messages";
+            setTab(next);
+            document.getElementById("inbox-tab-" + next)?.focus();
+          }
+        }}
+      >
+        <Button
+          role="tab"
+          id="inbox-tab-messages"
+          aria-selected={tab === "messages"}
+          aria-controls="inbox-messages"
+          tabIndex={tab === "messages" ? 0 : -1}
+          onClick={() => setTab("messages")}
+        >
+          <MessageCircle size={19} />
+          {t("Pesan", "Messages")}{" "}
+          {conversations.data && <span>({conversations.data.length})</span>}
+        </Button>
+        <Button
+          role="tab"
+          id="inbox-tab-help"
+          aria-selected={tab === "help"}
+          aria-controls="inbox-help"
+          tabIndex={tab === "help" ? 0 : -1}
+          onClick={() => setTab("help")}
+        >
+          <LifeBuoy size={19} />
+          {t("Bantuan", "Support")} ({openCases})
+        </Button>
+      </div>
+      <section
+        role="tabpanel"
+        id="inbox-messages"
+        aria-labelledby="inbox-tab-messages"
+        hidden={tab !== "messages"}
+      >
+        <Messages embedded />
+      </section>
+      <section
+        role="tabpanel"
+        id="inbox-help"
+        aria-labelledby="inbox-tab-help"
+        hidden={tab !== "help"}
+      >
+        <SupportQueue cases={cases} />
+      </section>
+    </>
   );
 }
 export function SupportQueue({
@@ -1192,9 +1366,10 @@ export function SupportQueue({
           <div className="support-decision">
             <h3>{c.subject}</h3>
             <p>{c.description}</p>
-            <p className="muted">
-              {t("Kasus", "Case")} {c.id}
-            </p>
+            <details className="record-details">
+              <summary>{t("Nomor kasus", "Case ID")}</summary>
+              <code>{c.id}</code>
+            </details>
             {c.resolution && (
               <div className="support-response">
                 {c.resolution}
@@ -1287,7 +1462,7 @@ export function TransactionRows({
   const { t, locale } = useApp();
   return rows.length ? (
     <div className="table-wrap">
-      <table>
+      <table className="record-table">
         <thead>
           <tr>
             <th>{t("Pembelian", "Purchase")}</th>
@@ -1300,27 +1475,31 @@ export function TransactionRows({
         <tbody>
           {rows.map((c) => (
             <tr key={c.id}>
-              <td>
+              <td data-label={t("Pembelian", "Purchase")}>
                 <strong>{c.quote.offer.name}</strong>
                 <small>
-                  {c.quote.trial ? t("Trial · ", "Trial · ") : ""}
-                  {c.id.slice(0, 8)}
+                  {c.customerName}
+                  {c.quote.trial ? t(" · Coba paket", " · Trial") : ""}
                 </small>
+                <details className="record-details">
+                  <summary>{t("Nomor pembelian", "Purchase ID")}</summary>
+                  <code>{c.id}</code>
+                </details>
               </td>
-              <td>
+              <td data-label={t("Porsi × hari", "Portions × days")}>
                 {c.quote.portions} × {c.quote.dates.length}
               </td>
-              <td>
+              <td data-label={t("Total pelanggan", "Customer total")}>
                 {currency(c.quote.total, locale)}
                 <small>
                   {t("Biaya layanan", "Service fee")}{" "}
                   {currency(c.quote.serviceFee, locale)}
                 </small>
               </td>
-              <td>
+              <td data-label={t("Status", "Status")}>
                 <Status status={c.state} />
               </td>
-              <td>
+              <td data-label={t("Waktu", "Time")}>
                 {new Date(c.created_at).toLocaleDateString(
                   locale === "id" ? "id-ID" : "en-GB",
                 )}
@@ -1344,6 +1523,12 @@ function SellerSettings({ state: s }: { state: SellerState }) {
       <section className="panel">
         <h2>{t("Profil & pengantaran", "Profile & delivery")}</h2>
         <ActionForm
+          submit={t("Simpan profil", "Save profile")}
+          submitIcon={<Save size={18} />}
+          successMessage={t(
+            "Profil dan area pengantaran tersimpan.",
+            "Profile and delivery area saved.",
+          )}
           onSubmit={async (f) => {
             await perform("seller.save", {
               catererId: s.caterer.id,
@@ -1378,7 +1563,12 @@ function SellerSettings({ state: s }: { state: SellerState }) {
               </label>
             ))}
           </fieldset>
-          <Field label={t("Cutoff sehari sebelumnya", "Previous-day cutoff")}>
+          <Field
+            label={t(
+              "Batas perubahan sehari sebelumnya",
+              "Previous-day change deadline",
+            )}
+          >
             <TimeInput
               name="cutoff"
               required
@@ -1389,7 +1579,7 @@ function SellerSettings({ state: s }: { state: SellerState }) {
         </ActionForm>
       </section>
       <section className="panel">
-        <h2>{t("Verifikasi", "Verification")}</h2>
+        <h2 id="verification">{t("Verifikasi", "Verification")}</h2>
         <Status status={s.caterer.status} />
         {s.caterer.review_note && (
           <p className="notice">{s.caterer.review_note}</p>
@@ -1410,11 +1600,15 @@ function SellerSettings({ state: s }: { state: SellerState }) {
             <span />
           </ActionForm>
         )}
-        <h2 className="spaced">{t("Tim katerer", "Caterer team")}</h2>
+      </section>
+      <section className="panel">
+        <h2>{t("Tim katerer", "Caterer team")}</h2>
         {s.staff.map((st) => (
           <div className="queue-row" key={st.user_id}>
             <span>{st.name}</span>
-            <small>{st.role}</small>
+            <small>
+              {st.role === "owner" ? t("Pemilik", "Owner") : t("Staf", "Staff")}
+            </small>
           </div>
         ))}
         <ActionForm

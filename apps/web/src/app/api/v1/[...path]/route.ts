@@ -113,6 +113,7 @@ export async function GET(request: Request, context: Context) {
         "customer",
         "seller",
         "seller-calendar",
+        "seller-import-options",
         "menu-month",
         "admin",
         "conversations",

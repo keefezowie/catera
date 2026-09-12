@@ -178,7 +178,7 @@ test("customer and operational routes render, retain context and pass critical a
   );
   await page.locator(".ops-production > summary").click();
   await page
-    .getByRole("button", { name: "Simpan revisi & buat manifest" })
+    .getByRole("button", { name: "Simpan daftar pengantaran" })
     .click();
   await expect(page.getByRole("link", { name: /Unduh CSV/ })).toBeVisible();
   const href = await page

@@ -25,7 +25,7 @@ import {
   LayoutDashboard,
   Image as ImageIcon,
 } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useState, type ReactNode } from "react";
 import {
   areaOptions,
   type Actor,
@@ -35,7 +35,7 @@ import {
 } from "@catera/domain";
 import { Provider, CatalogProvider, useApp } from "./context";
 import { Button } from "./form-controls";
-import { Brand, ErrorNotice } from "./ui";
+import { Brand, ErrorNotice, Dialog } from "./ui";
 import { LocaleSwitch } from "./locale-switch";
 import { catalogHref, howItWorksHref } from "@/lib/navigation";
 import { validDay } from "@/lib/meal-calendar";
@@ -286,7 +286,7 @@ function Shell({
       )}
       {operational ? (
         <>
-          <aside className={"ops-sidebar " + (menu ? "open" : "")}>
+          <aside className={"ops-sidebar " + (menu && isAdmin ? "open" : "")}>
             <Brand />
             <div className="workspace-label">
               <span className="workspace-icon">
@@ -302,16 +302,26 @@ function Shell({
               </div>
             </div>
             <nav>
-              {links.map(([href, label, Icon]) => (
-                <Link
-                  key={href}
-                  className={pathname === href ? "selected" : ""}
-                  href={workspaceHref(href)}
-                  onClick={() => setMenu(false)}
-                >
-                  <Icon size={19} />
-                  {label}
-                </Link>
+              {links.map(([href, label, Icon], index) => (
+                <Fragment key={href}>
+                  {!isAdmin && (index === 0 || index === 4) && (
+                    <p className="nav-group-label">
+                      {index === 0
+                        ? t("Kegiatan harian", "Daily work")
+                        : t("Kelola usaha", "Business")}
+                    </p>
+                  )}
+                  <Link
+                    key={href}
+                    className={pathname === href ? "selected" : ""}
+                    href={workspaceHref(href)}
+                    aria-current={pathname === href ? "page" : undefined}
+                    onClick={() => setMenu(false)}
+                  >
+                    <Icon size={19} />
+                    {label}
+                  </Link>
+                </Fragment>
               ))}
             </nav>
             <div className="sidebar-foot">
@@ -327,7 +337,7 @@ function Shell({
               </Link>
             </div>
           </aside>
-          {menu && (
+          {menu && isAdmin && (
             <Button
               className="sidebar-backdrop"
               aria-label={t("Tutup menu", "Close menu")}
@@ -360,6 +370,67 @@ function Shell({
             </Link>
             <ProfileMenu />
           </header>
+          {!isAdmin && (
+            <>
+              <nav
+                className="seller-bottom"
+                aria-label={t("Navigasi katerer", "Caterer navigation")}
+              >
+                {links.slice(0, 4).map(([href, label, Icon]) => (
+                  <Link
+                    key={href}
+                    href={workspaceHref(href)}
+                    aria-current={pathname === href ? "page" : undefined}
+                  >
+                    <Icon size={21} aria-hidden="true" />
+                    <span>{label}</span>
+                  </Link>
+                ))}
+                <Button
+                  type="button"
+                  aria-haspopup="dialog"
+                  aria-expanded={menu}
+                  onClick={() => setMenu(true)}
+                  className={
+                    links.slice(4).some(([href]) => href === pathname)
+                      ? "selected"
+                      : ""
+                  }
+                >
+                  <Menu size={21} aria-hidden="true" />
+                  <span>{t("Lainnya", "More")}</span>
+                </Button>
+              </nav>
+              <Dialog
+                open={menu}
+                onOpenChange={setMenu}
+                title={t("Kelola usaha", "Manage your business")}
+                description={t(
+                  "Pelanggan, bantuan, dan pengaturan katerer.",
+                  "Customers, support, and caterer settings.",
+                )}
+              >
+                <nav className="business-links">
+                  {links.slice(4).map(([href, label, Icon]) => (
+                    <Link
+                      key={href}
+                      href={href}
+                      onClick={() => setMenu(false)}
+                      aria-current={pathname === href ? "page" : undefined}
+                    >
+                      <Icon size={22} aria-hidden="true" />
+                      <span>{label}</span>
+                      <ArrowUpRight size={18} aria-hidden="true" />
+                    </Link>
+                  ))}
+                  <Link href="/" onClick={() => setMenu(false)}>
+                    <Compass size={22} aria-hidden="true" />
+                    {t("Lihat marketplace", "View marketplace")}
+                  </Link>
+                </nav>
+              </Dialog>
+            </>
+          )}
         </>
       ) : (
         <header className="site-header">
@@ -418,7 +489,7 @@ function Shell({
                   <Link
                     href="/notifications"
                     className="icon-button"
-                  aria-label={t("Notifikasi", "Notifications")}
+                    aria-label={t("Notifikasi", "Notifications")}
                   >
                     <Bell size={20} />
                   </Link>
@@ -478,35 +549,44 @@ function Shell({
               ))}
             </nav>
           )}
-          {compare.length > 0 && !pathname.startsWith("/compare") && (
-            <aside
-              className="compare-floating"
-              aria-label={t("Pilihan perbandingan", "Comparison selection")}
-            >
-              <span>
-                {compare.length} {t("paket dipilih", "packages selected")}
-              </span>
-              <Link className="button small" href="/compare">
-                {t("Bandingkan", "Compare")}
-                <ArrowUpRight size={16} />
-              </Link>
-              <Button
-                className="icon-button compare-clear"
-                type="button"
-                onClick={clearCompare}
-                aria-label={t(
-                  "Hapus semua paket dari perbandingan",
-                  "Clear all packages from comparison",
-                )}
-                title={t(
-                  "Hapus semua paket dari perbandingan",
-                  "Clear all packages from comparison",
-                )}
+          {compare.length > 0 &&
+            [
+              "",
+              "discover",
+              "search",
+              "locations",
+              "categories",
+              "packages",
+              "caterers",
+            ].includes(root) && (
+              <aside
+                className="compare-floating"
+                aria-label={t("Pilihan perbandingan", "Comparison selection")}
               >
-                <X size={18} aria-hidden="true" />
-              </Button>
-            </aside>
-          )}
+                <span>
+                  {compare.length} {t("paket dipilih", "packages selected")}
+                </span>
+                <Link className="button small" href="/compare">
+                  {t("Bandingkan", "Compare")}
+                  <ArrowUpRight size={16} />
+                </Link>
+                <Button
+                  className="icon-button compare-clear"
+                  type="button"
+                  onClick={clearCompare}
+                  aria-label={t(
+                    "Hapus semua paket dari perbandingan",
+                    "Clear all packages from comparison",
+                  )}
+                  title={t(
+                    "Hapus semua paket dari perbandingan",
+                    "Clear all packages from comparison",
+                  )}
+                >
+                  <X size={18} aria-hidden="true" />
+                </Button>
+              </aside>
+            )}
         </>
       )}
     </div>

@@ -49,7 +49,7 @@ test("operational date and meal period are separate responsive controls", async 
       ]);
       expect(dateBox).not.toBeNull();
       expect(mealBox).not.toBeNull();
-      expect(mealBox!.y).toBeGreaterThanOrEqual(dateBox!.y + dateBox!.height);
+      expect(mealBox!.y >= dateBox!.y + dateBox!.height + 11 || mealBox!.x >= dateBox!.x + dateBox!.width + 11).toBe(true);
       expect(mealBox!.height).toBeGreaterThanOrEqual(44);
       expect(dateBox!.height).toBeGreaterThanOrEqual(44);
       expect(
@@ -79,7 +79,7 @@ test("cutoff editor stays in a 24-hour format", async ({ page }) => {
   await page.goto("/seller/settings");
 
   const cutoff = page.getByRole("button", {
-    name: "Cutoff sehari sebelumnya",
+    name: "Batas perubahan sehari sebelumnya",
   });
   await expect(cutoff).toHaveText(/^\d{2}:\d{2}$/);
   await expect(page.locator('input[name="cutoff"]')).toHaveValue(
@@ -197,7 +197,7 @@ test("UI sweep: focus rings, support count, composition controls and centered pr
   await expect(category.locator("svg")).toHaveClass(/lucide-minus/);
   await category.click();
   await expect(category).toHaveAttribute("aria-expanded", "false");
-  await page.getByRole("button", { name: /6\. Tinjau/ }).click();
+  await page.getByRole("button", { name: /5\. Periksa/ }).click();
   const preview = page.locator(".listing-preview.card");
   await expect(preview).toBeVisible();
   for (const width of [1440, 768, 390]) {

@@ -47,7 +47,7 @@ test("Today splits meals and addresses, bulk updates, and retains conflict selec
     },
   });
   await main
-    .getByRole("button", { name: "Perbarui status", exact: true })
+    .getByRole("button", { name: /^Mulai siapkan ·/ })
     .click();
   await expect(main.getByRole("alert")).toContainText("Pesanan telah berubah");
   await expect(main.getByText("3 dipilih", { exact: true })).toBeVisible();
@@ -61,7 +61,7 @@ test("Today splits meals and addresses, bulk updates, and retains conflict selec
   for (const row of await scheduled.all())
     await row.getByRole("checkbox").check();
   await main
-    .getByRole("button", { name: "Perbarui status", exact: true })
+    .getByRole("button", { name: /^Mulai siapkan ·/ })
     .click();
   await expect(main.locator("tbody .status-preparing")).toHaveCount(3);
   await main.getByRole("tab", { name: "Malam", exact: true }).click();
@@ -98,7 +98,7 @@ test("Schedule filters, redirects, exports a whole-day CSV, and renders desktop/
   await packages.getByRole("button").nth(1).click();
   await expect(main.locator(".ops-order-table tbody tr")).toHaveCount(1);
   await main
-    .getByRole("button", { name: "Simpan revisi & buat manifest" })
+    .getByRole("button", { name: "Simpan daftar pengantaran" })
     .click();
   const csv = main.getByRole("link", { name: /Unduh CSV/ });
   await expect(csv).toBeVisible();
@@ -108,7 +108,7 @@ test("Schedule filters, redirects, exports a whole-day CSV, and renders desktop/
   expect(text).toContain("Jalan Sintetis Kantor 2");
   expect(text).toContain("Jalan Sintetis Rumah 1");
   await expect(
-    main.getByRole("button", { name: "Simpan revisi & buat manifest" }),
+    main.getByRole("button", { name: "Simpan daftar pengantaran" }),
   ).toBeEnabled();
   await expect(csv).toBeVisible();
   await packages

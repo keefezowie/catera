@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { menuSummary, type Delivery, type Offer } from "@catera/domain";
-import { Printer, Download } from "lucide-react";
+import { Printer, Download, Save } from "lucide-react";
 import { useApp } from "./context";
 import { Button } from "./form-controls";
 import { ActionForm, Empty } from "./ui";
@@ -110,12 +110,13 @@ export function Production({
       <div className="section-heading">
         <div>
           <h2>
-            {t("Daftar produksi", "Production list")} · {date}
+            {t("Daftar dapur & pengantaran", "Kitchen & delivery list")} ·{" "}
+            {date}
           </h2>
           <p>
             {t(
-              "Seluruh paket, siang dan malam, pada tanggal ini. Filter dashboard tidak membatasi produksi atau CSV. Termasuk trial.",
-              "All packages, lunch and dinner, on this date. Dashboard filters do not limit production or CSV. Includes trials.",
+              "Sehari penuh: semua paket, termasuk coba paket, makan siang dan malam. Filter di atas tidak mengubah daftar ini.",
+              "Whole day: all packages, including trials, lunch and dinner. The filters above do not change this list.",
             )}
           </p>
         </div>
@@ -130,10 +131,12 @@ export function Production({
       <ProductionRows deliveries={deliveries} meal={meal} />
       <ActionForm
         disabled={loading}
-        submit={t(
-          "Simpan revisi & buat manifest",
-          "Save revision & create manifest",
+        submitIcon={<Save size={18} aria-hidden="true" />}
+        successMessage={t(
+          "Daftar tersimpan. Unduh salinan di bawah.",
+          "List saved. Download a copy below.",
         )}
+        submit={t("Simpan daftar pengantaran", "Save delivery list")}
         onSubmit={async () =>
           setRevision(
             await perform("production.freeze", {

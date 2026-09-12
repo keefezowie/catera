@@ -3,6 +3,7 @@ import { MealCalendar } from "./meal-calendar";
 import { Select, SelectOption } from "./select";
 import { DatePicker } from "./date-picker";
 import { PackageContents } from "./package-contents";
+import { OptionalSection } from "./optional-section";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
@@ -154,7 +155,10 @@ function CustomerOverview({ view, id }: { view: string; id?: string }) {
               <NextMeal delivery={next} />
             ) : (
               <Empty
-                title={t("Belum ada makanan berikutnya", "No upcoming meals yet")}
+                title={t(
+                  "Belum ada makanan berikutnya",
+                  "No upcoming meals yet",
+                )}
                 description={t(
                   "Yuk, temukan paket untuk keseharianmu.",
                   "Find a package for your everyday routine.",
@@ -274,18 +278,26 @@ function CustomerOverview({ view, id }: { view: string; id?: string }) {
     </div>
   );
 }
-function NextMeal({ delivery: d }: { delivery: Delivery }) {
+function NextMeal({
+  delivery: d,
+  detail = false,
+}: {
+  delivery: Delivery;
+  detail?: boolean;
+}) {
   const { t, locale } = useApp();
   const upcoming =
     d.meals.find((m) => !["delivered", "cancelled"].includes(m.status)) ||
     d.meals[0];
   return (
-    <section className="next-meal-card">
+    <section className={"next-meal-card" + (detail ? " delivery-summary" : "")}>
       <div className="next-meal-photo">
         <img src={d.offer.image} alt={d.offer.name} />
         <span className="image-label">
           <Clock size={14} />
-          {t("Makanan berikutnya", "Your next meal")}
+          {detail
+            ? t("Pengantaran", "Delivery")
+            : t("Makanan berikutnya", "Your next meal")}
         </span>
       </div>
       <div className="next-meal-content">
@@ -293,7 +305,7 @@ function NextMeal({ delivery: d }: { delivery: Delivery }) {
           <span>{d.offer.caterer}</span>
           <Status status={upcoming.status} />
         </div>
-        <h2>{d.offer.name}</h2>
+        {detail ? <h1>{d.offer.name}</h1> : <h2>{d.offer.name}</h2>}
         <p>
           {dateLabel(d.service_date, locale)} · {d.portions}{" "}
           {t("porsi", "portions")}
@@ -308,13 +320,16 @@ function NextMeal({ delivery: d }: { delivery: Delivery }) {
           </span>
           <span>
             <MapPin size={16} />
-            {d.address.label} · {d.address.area}
+            {d.address.label} · {detail ? d.address.line + ", " : ""}
+            {d.address.area}
           </span>
         </div>
-        <Link className="button" href={"/deliveries/" + d.id}>
-          {t("Lihat pengantaran", "View delivery")}
-          <ArrowRight size={18} />
-        </Link>
+        {!detail && (
+          <Link className="button" href={"/deliveries/" + d.id}>
+            {t("Lihat pengantaran", "View delivery")}
+            <ArrowRight size={18} />
+          </Link>
+        )}
       </div>
     </section>
   );
@@ -378,7 +393,9 @@ function SubscriptionDetail({
   const { t, locale, perform } = useApp();
   const [review, setReview] = useState(false);
   if (!s)
-    return <Empty title={t("Langganan tidak ditemukan", "Subscription not found")} />;
+    return (
+      <Empty title={t("Langganan tidak ditemukan", "Subscription not found")} />
+    );
   return (
     <>
       <SubscriptionCard subscription={s} />
@@ -400,12 +417,17 @@ function SubscriptionDetail({
           ],
           [
             t("Aturan", "Terms"),
-            s.snapshot.offer.flexible ? t("Fleksibel", "Flexible") : t("Tetap", "Fixed"),
+            s.snapshot.offer.flexible
+              ? t("Fleksibel", "Flexible")
+              : t("Tetap", "Fixed"),
           ],
           [
             t("Asal pembelian", "Purchase source"),
             s.legacy
-              ? t("Langganan lama / pembayaran eksternal", "Legacy subscription / external payment")
+              ? t(
+                  "Langganan lama / pembayaran eksternal",
+                  "Legacy subscription / external payment",
+                )
               : "Catera",
           ],
         ]}
@@ -501,7 +523,9 @@ export function DeliveryPage({ id }: { id: string }) {
   if (!state.data) return <Loading />;
   const d = state.data.deliveries.find((d) => d.id === id);
   if (!d)
-    return <Empty title={t("Pengantaran tidak ditemukan", "Delivery not found")} />;
+    return (
+      <Empty title={t("Pengantaran tidak ditemukan", "Delivery not found")} />
+    );
   const canAddress =
     d.status === "scheduled" && new Date(d.cutoff_at) > new Date();
   return (
@@ -510,64 +534,8 @@ export function DeliveryPage({ id }: { id: string }) {
         <ArrowLeft size={17} />
         {t("Jadwal makan", "Meal calendar")}
       </Link>
-      <NextMeal delivery={d} />
-      <div className="delivery-timeline">
-        {["scheduled", "preparing", "out_for_delivery", "delivered"].map(
-          (s, i) => (
-            <div
-              key={s}
-              className={
-                [
-                  "scheduled",
-                  "preparing",
-                  "out_for_delivery",
-                  "delivered",
-                ].indexOf(d.status) >= i
-                  ? "complete"
-                  : ""
-              }
-            >
-              <span>
-                <Check size={15} />
-              </span>
-              <Status status={s} />
-            </div>
-          ),
-        )}
-      </div>
-      <PackageContents offer={d.offer} />
-      <Facts
-        rows={[
-          ...d.meals.map(
-            (m) =>
-              [
-                mealLabel(m.meal, locale),
-                <Status key={m.meal} status={m.status} />,
-              ] as [string, React.ReactNode],
-          ),
-          [
-            t("Alamat lengkap", "Full address"),
-            d.address.line + ", " + d.address.area,
-          ],
-          [
-            t("Catatan pengantaran", "Delivery instructions"),
-            d.address.instructions || "—",
-          ],
-          [
-            t("Batas perubahan", "Change cutoff"),
-            new Date(d.cutoff_at).toLocaleString(
-              locale === "id" ? "id-ID" : "en-GB",
-              { timeZone: d.offer.timezone },
-            ),
-          ],
-          [t("Porsi", "Portions"), d.portions],
-          [
-            t("Jadwal", "Schedule"),
-            d.offer.flexible ? t("Fleksibel", "Flexible") : t("Tetap", "Fixed"),
-          ],
-        ]}
-      />
-      <div className="action-row">
+      <NextMeal delivery={d} detail />
+      <div className="action-row delivery-actions">
         {canAddress && (
           <Button
             className="button secondary"
@@ -611,6 +579,31 @@ export function DeliveryPage({ id }: { id: string }) {
           {t("Laporkan masalah", "Report an issue")}
         </Link>
       </div>
+
+      <div className="delivery-timeline">
+        {["scheduled", "preparing", "out_for_delivery", "delivered"].map(
+          (s, i) => (
+            <div
+              key={s}
+              className={
+                [
+                  "scheduled",
+                  "preparing",
+                  "out_for_delivery",
+                  "delivered",
+                ].indexOf(d.status) >= i
+                  ? "complete"
+                  : ""
+              }
+            >
+              <span>
+                <Check size={15} />
+              </span>
+              <Status status={s} />
+            </div>
+          ),
+        )}
+      </div>
       {!d.canChange && (
         <p className="notice">
           {d.offer.flexible
@@ -624,6 +617,44 @@ export function DeliveryPage({ id }: { id: string }) {
               )}
         </p>
       )}
+      <OptionalSection title={t("Alamat & ketentuan", "Address & rules")}>
+        <Facts
+          rows={[
+            ...d.meals.map(
+              (m) =>
+                [
+                  mealLabel(m.meal, locale),
+                  <Status key={m.meal} status={m.status} />,
+                ] as [string, React.ReactNode],
+            ),
+            [
+              t("Alamat lengkap", "Full address"),
+              d.address.line + ", " + d.address.area,
+            ],
+            [
+              t("Catatan pengantaran", "Delivery instructions"),
+              d.address.instructions || "—",
+            ],
+            [
+              t("Batas perubahan", "Change cutoff"),
+              new Date(d.cutoff_at).toLocaleString(
+                locale === "id" ? "id-ID" : "en-GB",
+                { timeZone: d.offer.timezone },
+              ),
+            ],
+            [t("Porsi", "Portions"), d.portions],
+            [
+              t("Jadwal", "Schedule"),
+              d.offer.flexible
+                ? t("Fleksibel", "Flexible")
+                : t("Tetap", "Fixed"),
+            ],
+          ]}
+        />
+      </OptionalSection>
+      <OptionalSection title={t("Isi paket", "Package contents")}>
+        <PackageContents offer={d.offer} />
+      </OptionalSection>
       <Dialog
         open={!!dialog}
         onOpenChange={(o) => {
@@ -735,7 +766,7 @@ export function DeliveryPage({ id }: { id: string }) {
     </div>
   );
 }
-export function Messages() {
+export function Messages({ embedded = false }: { embedded?: boolean }) {
   const { actor, workspace, t, perform, offers, locale } = useApp();
   const query = useSearchParams();
   const selectedCaterer = query.get("caterer");
@@ -755,14 +786,18 @@ export function Messages() {
       ? offers.find((o) => o.catererId === selectedCaterer)
       : null;
   return (
-    <div className="content messages-page">
-      <Heading
-        title={t("Obrolan yang bikin jelas.", "A little conversation helps.")}
-        description={t(
-          "Tanya menu, atur pengantaran, atau sampaikan sesuatu ke katerermu.",
-          "Ask about meals, coordinate a delivery, or talk to your caterer.",
-        )}
-      />
+    <div
+      className={embedded ? "messages-page embedded" : "content messages-page"}
+    >
+      {!embedded && (
+        <Heading
+          title={t("Obrolan yang bikin jelas.", "A little conversation helps.")}
+          description={t(
+            "Tanya menu, atur pengantaran, atau sampaikan sesuatu ke katerermu.",
+            "Ask about meals, coordinate a delivery, or talk to your caterer.",
+          )}
+        />
+      )}
       <div className="messages-layout">
         <aside>
           <h2>{t("Percakapan", "Conversations")}</h2>
@@ -781,13 +816,16 @@ export function Messages() {
               }
               onClick={() => setSelected(x.id)}
             >
-              <span className="mini-avatar">{x.caterer[0]}</span>
+              <span className="mini-avatar">
+                {(workspace === "customer" ? x.caterer : x.customer)[0]}
+              </span>
               <div>
                 <strong>
                   {workspace === "customer" ? x.caterer : x.customer}
                 </strong>
                 <small>
-                  {x.messages.at(-1)?.body.slice(0, 60) || "Mulai percakapan"}
+                  {x.messages.at(-1)?.body.slice(0, 60) ||
+                    t("Mulai percakapan", "Start a conversation")}
                 </small>
               </div>
             </Button>
@@ -798,15 +836,27 @@ export function Messages() {
             <>
               <header>
                 <span className="mini-avatar">
-                  {(newCaterer?.caterer || c?.caterer || "C")[0]}
+                  {
+                    (newCaterer?.caterer ||
+                      (workspace === "customer" ? c?.caterer : c?.customer) ||
+                      "C")[0]
+                  }
                 </span>
                 <div>
-                  <h2>{newCaterer?.caterer || c?.caterer}</h2>
+                  <h2>
+                    {newCaterer?.caterer ||
+                      (workspace === "customer" ? c?.caterer : c?.customer)}
+                  </h2>
                   <p>
-                    {t(
-                      "Koordinasi langsung dengan katerer",
-                      "Coordinate directly with your caterer",
-                    )}
+                    {workspace !== "customer"
+                      ? t(
+                          "Koordinasi dengan pelanggan",
+                          "Coordinate with your customer",
+                        )
+                      : t(
+                          "Koordinasi langsung dengan katerer",
+                          "Coordinate directly with your caterer",
+                        )}
                   </p>
                 </div>
               </header>
@@ -828,10 +878,13 @@ export function Messages() {
                     >
                       <p>{m.body}</p>
                       <small>
-                        {new Date(m.created_at).toLocaleTimeString(locale === "id" ? "id-ID" : "en-GB", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
+                        {new Date(m.created_at).toLocaleTimeString(
+                          locale === "id" ? "id-ID" : "en-GB",
+                          {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          },
+                        )}
                       </small>
                     </div>
                   ))}
@@ -948,10 +1001,20 @@ export function Account({ view }: { view: string }) {
             {[
               ["/subscriptions", t("Paket saya", "My packages"), Package],
               ["/notifications", t("Notifikasi", "Notifications"), Bell],
-              ["/support", t("Bantuan & pembatalan", "Support & cancellation"), LifeBuoy],
+              [
+                "/support",
+                t("Bantuan & pembatalan", "Support & cancellation"),
+                LifeBuoy,
+              ],
               ["/messages", t("Pesan", "Messages"), MessageCircle],
               ...(actor?.catererId
-                ? [["/seller", t("Ruang katerer", "Caterer workspace"), Settings]]
+                ? [
+                    [
+                      "/seller",
+                      t("Ruang katerer", "Caterer workspace"),
+                      Settings,
+                    ],
+                  ]
                 : []),
             ].map(([href, label, Icon]) => {
               const I = Icon as typeof Bell;
@@ -1013,7 +1076,11 @@ export function Account({ view }: { view: string }) {
         onOpenChange={(open) => {
           if (!open) setEditing(undefined);
         }}
-        title={editing ? t("Ubah alamat", "Edit address") : t("Tambah alamat", "Add address")}
+        title={
+          editing
+            ? t("Ubah alamat", "Edit address")
+            : t("Tambah alamat", "Add address")
+        }
         description={t(
           "Alamat pengantaran yang sudah dijadwalkan hanya berubah jika Anda mengubahnya dari detail pengantaran.",
           "A scheduled delivery address can only be changed from its delivery details.",
@@ -1045,7 +1112,12 @@ export function Account({ view }: { view: string }) {
               maxLength={40}
             />
           </Field>
-          <Field label={t("Jalan, nomor, dan detail alamat", "Street, number, and address details")}>
+          <Field
+            label={t(
+              "Jalan, nomor, dan detail alamat",
+              "Street, number, and address details",
+            )}
+          >
             <TextArea
               name="line"
               defaultValue={editing?.line}
@@ -1144,7 +1216,10 @@ export function Support() {
       ))}
       {!state.data.cases.length && (
         <Empty
-          title={t("Semoga setiap makanan menyenangkan.", "Here’s to enjoyable meals.")}
+          title={t(
+            "Semoga setiap makanan menyenangkan.",
+            "Here’s to enjoyable meals.",
+          )}
           description={t(
             "Jika ada kendala, semua permintaan bantuan akan tampil di sini.",
             "If anything goes wrong, all support requests will appear here.",

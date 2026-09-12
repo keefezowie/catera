@@ -176,6 +176,34 @@ export type CustomerState = {
   notifications: Notice[];
   cases: SupportCase[];
 };
+export type SellerImportOptions = {
+  customers: {
+    id: string;
+    name: string;
+    source: string;
+    addresses: Address[];
+  }[];
+  packages: {
+    id: string;
+    name: string;
+    days: number;
+    areas: string[];
+    meal: string;
+  }[];
+};
+export type PrepaidImportRow = {
+  customerId: string;
+  packageId: string;
+  addressId: string;
+  portions: number;
+  startDate: string;
+  remainingDays: number;
+  externalReference: string;
+};
+export type PrepaidImportPreview = {
+  id: string;
+  rows: (PrepaidImportRow & { preview: Quote & { address: Address } })[];
+};
 export type SellerState = {
   categories?: import("./contents").DishCategory[];
   dishes?: import("./contents").LibraryDish[];
@@ -187,6 +215,7 @@ export type SellerState = {
   cases: SupportCase[];
   customers: { id: string; name: string; source: string }[];
   transactions: {
+    customerName?: string | null;
     id: string;
     state: string;
     quote: Quote;
@@ -199,6 +228,7 @@ export type AdminState = {
   caterers: Caterer[];
   cases: SupportCase[];
   transactions: {
+    customerName?: string | null;
     id: string;
     state: string;
     quote: Quote;
@@ -209,10 +239,17 @@ export type AdminState = {
     action: string;
     created_at: string;
     actor_id: string;
+    actorName?: string | null;
     details: unknown;
   }[];
   promotions: { id: string; code: string; percent: number; active: boolean }[];
-  payouts: { id: string; caterer_id: string; amount: number; status: string }[];
+  payouts: {
+    id: string;
+    caterer_id: string;
+    catererName?: string | null;
+    amount: number;
+    status: string;
+  }[];
   reviews: { id: string; body: string; rating: number; hidden: boolean }[];
   refunds: {
     id: string;

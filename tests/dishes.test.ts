@@ -106,8 +106,10 @@ it("guards all required steps and permits incomplete drafts without permitting p
     "schedule",
   );
   expect(offerEditorIssues({ ...offering(), trialPrice: -1 })[0].step).toBe(
-    "flexibility",
+    "pricing",
   );
+  expect(offerEditorIssues({ ...offering(), days: 0 })[0].step).toBe("schedule");
+  expect(offerEditorIssues({ ...offering(), nutrition: { proteinG: { min: 50, max: 30 } } })[0].step).toBe("contents");
   expect(offerEditorIssues({ ...offering(), name: "a" }, true)[0].step).toBe(
     "offer",
   );

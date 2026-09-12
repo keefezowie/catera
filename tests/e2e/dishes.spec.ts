@@ -18,13 +18,12 @@ test("every forward tab and keyboard submit validate prerequisites; incomplete d
   for (const label of [
     /2\. Isi/,
     /3\. Harga/,
-    /4\. Hari/,
-    /5\. Fleksibilitas/,
-    /6\. Tinjau/,
+    /4\. Jadwal/,
+    /5\. Periksa/,
   ]) {
     await page.getByRole("button", { name: label }).click();
     await expect(
-      page.getByRole("button", { name: /1\. Penawaran/ }),
+      page.getByRole("button", { name: /1\. Paket/ }),
     ).toHaveAttribute("aria-current", "step");
     await expect(
       page.getByRole("combobox", { name: "Jenis paket", exact: true }),
@@ -32,7 +31,7 @@ test("every forward tab and keyboard submit validate prerequisites; incomplete d
   }
   await page.getByLabel("Nama paket", { exact: true }).press("Enter");
   await expect(
-    page.getByRole("button", { name: /1\. Penawaran/ }),
+    page.getByRole("button", { name: /1\. Paket/ }),
   ).toHaveAttribute("aria-current", "step");
   const saving = page.waitForResponse(
     (r) =>
@@ -51,12 +50,12 @@ test("every forward tab and keyboard submit validate prerequisites; incomplete d
     .getByLabel("Cerita paket", { exact: true })
     .fill("Data sintetis untuk validasi langkah.");
   await page.getByRole("button", { name: /2\. Isi/ }).click();
-  await page.getByRole("button", { name: /6\. Tinjau/ }).click();
+  await page.getByRole("button", { name: /5\. Periksa/ }).click();
   await expect(page.getByRole("button", { name: /2\. Isi/ })).toHaveAttribute(
     "aria-current",
     "step",
   );
-  await page.getByRole("button", { name: /1\. Penawaran/ }).click();
+  await page.getByRole("button", { name: /1\. Paket/ }).click();
   await page.getByLabel("Nama paket", { exact: true }).fill("");
   await page.getByRole("button", { name: /2\. Isi/ }).click();
   await expect(page.getByLabel("Nama paket", { exact: true })).toBeFocused();
@@ -79,7 +78,7 @@ test("uses one shared recurring capacity for every selected operating day", asyn
     .click();
   await choose(page, "Tambah kategori ke paket", "Nasi");
   await page.getByRole("button", { name: /3\. Harga/ }).click();
-  await page.getByRole("button", { name: /4\. Hari/ }).click();
+  await page.getByRole("button", { name: /4\. Jadwal/ }).click();
 
   const capacity = page.getByLabel("Kapasitas porsi per hari", { exact: true });
   await expect(capacity).toHaveCount(1);
@@ -200,7 +199,7 @@ test("upload failure preserves the old photo and pending uploads block navigatio
   await page
     .getByLabel("Foto paket", { exact: true })
     .setInputFiles("apps/web/public/assets/food/ayam-panggang.png");
-  await expect(page.getByRole("button", { name: /6\. Tinjau/ })).toBeDisabled();
+  await expect(page.getByRole("button", { name: /5\. Periksa/ })).toBeDisabled();
   await expect(
     page.getByRole("button", { name: "Lanjutkan", exact: true }),
   ).toBeDisabled();
@@ -211,12 +210,12 @@ test("upload failure preserves the old photo and pending uploads block navigatio
       { exact: true },
     ),
   ).toBeVisible();
-  await expect(page.locator(".photo-preview")).toHaveAttribute(
+  await expect(page.locator(".photo-thumbnail img")).toHaveAttribute(
     "src",
     "/assets/food/ayam-panggang.png",
   );
   await page.getByRole("button", { name: "Hapus foto", exact: true }).click();
-  await expect(page.locator(".photo-preview")).toHaveCount(0);
+  await expect(page.locator(".photo-thumbnail img")).toHaveCount(0);
   await page.unroute("**/api/uploads");
 });
 
@@ -243,7 +242,7 @@ test("owner can upload a validated package photo", async ({ page }) => {
   await expect(
     page.getByText("Foto berhasil diunggah", { exact: true }),
   ).toBeVisible();
-  await expect(page.locator(".photo-preview")).toHaveAttribute(
+  await expect(page.locator(".photo-thumbnail img")).toHaveAttribute(
     "src",
     /^\/api\/uploads\?file=[0-9a-f-]{36}\.png$/,
   );

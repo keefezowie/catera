@@ -4,6 +4,8 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X, ArrowRight, LoaderCircle, Check, AlertCircle } from "lucide-react";
 import {
   useState,
+  useRef,
+  useEffect,
   useId,
   cloneElement,
   isValidElement,
@@ -168,6 +170,9 @@ export function ActionForm({
   className = "",
   disabled = false,
   noValidate = false,
+  submitIcon,
+  actions,
+  successMessage,
 }: {
   onSubmit: (f: FormData) => Promise<void>;
   children: ReactNode;
@@ -175,18 +180,33 @@ export function ActionForm({
   className?: string;
   disabled?: boolean;
   noValidate?: boolean;
+  submitIcon?: ReactNode;
+  actions?: (submitButton: ReactNode, busy: boolean) => ReactNode;
+  successMessage?: string;
 }) {
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const { t, locale } = useApp();
+  const [saved, setSaved] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!error) return;
+    const field = formRef.current?.querySelector<HTMLElement>(
+      '[aria-invalid="true"]',
+    );
+    (field || errorRef.current)?.focus();
+  }, [error]);
   async function handle(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (busy || disabled) return;
     const f = new FormData(e.currentTarget);
     setBusy(true);
     setError("");
+    setSaved(false);
     try {
       await onSubmit(f);
+      setSaved(true);
     } catch (e) {
       const code =
         (e as { code?: string; message?: string }).code || (e as Error).message;
@@ -211,22 +231,37 @@ export function ActionForm({
       setBusy(false);
     }
   }
+  const submitButton = (
+    <Button type="submit" variant="primary" disabled={busy || disabled}>
+      {busy ? (
+        <LoaderCircle className="spin" size={18} aria-hidden="true" />
+      ) : (
+        submitIcon || <Check size={17} aria-hidden="true" />
+      )}
+      {busy ? t("Memproses…", "Processing…") : submit || t("Simpan", "Save")}
+    </Button>
+  );
   return (
     <form
+      ref={formRef}
       onSubmit={handle}
       noValidate={noValidate}
       className={"form " + className}
+      onChange={() => setSaved(false)}
     >
       {children}
-      {error && <ErrorNotice message={error} />}
-      <Button type="submit" variant="primary" disabled={busy || disabled}>
-        {busy ? (
-          <LoaderCircle className="spin" size={18} />
-        ) : (
-          <Check size={17} />
-        )}{" "}
-        {busy ? t("Memproses…", "Processing…") : submit || t("Simpan", "Save")}
-      </Button>
+      {error && (
+        <div ref={errorRef} tabIndex={-1} className="form-error">
+          <ErrorNotice message={error} />
+        </div>
+      )}
+      {saved && successMessage && (
+        <p className="save-status" role="status">
+          <Check size={18} aria-hidden="true" />
+          {successMessage}
+        </p>
+      )}
+      {actions ? actions(submitButton, busy) : submitButton}
     </form>
   );
 }

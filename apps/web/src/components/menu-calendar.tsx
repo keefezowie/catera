@@ -1,7 +1,13 @@
 "use client";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, ChevronLeft, ChevronRight, Library } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  Library,
+  Save,
+} from "lucide-react";
 import {
   defaultDishCategories,
   mealLabel,
@@ -352,9 +358,7 @@ export function MenuCalendar({
   return (
     <div className="menu-workspace">
       <div className="menu-context">
-        <Field
-          label={t("Paket dan versi isi", "Package and contents revision")}
-        >
+        <Field label={t("Paket", "Package")}>
           <Select
             value={selected.packageId + ":" + selected.revision}
             disabled={busy}
@@ -371,7 +375,11 @@ export function MenuCalendar({
                 key={r.packageId + ":" + r.revision}
                 value={r.packageId + ":" + r.revision}
               >
-                {r.name} · {t("Versi", "Revision")} {r.revision}
+                {r.name}
+                {revisions.filter((other) => other.packageId === r.packageId)
+                  .length > 1
+                  ? ` · ${t("Isi", "Contents")} ${r.revision}`
+                  : ""}
               </SelectOption>
             ))}
           </Select>
@@ -677,20 +685,38 @@ export function MenuCalendar({
                       )}
                     </p>
                   )}
-                  <Button
-                    variant="primary"
-                    type="button"
-                    disabled={
-                      busy ||
-                      validation().length > 0 ||
-                      !edit.menu.items?.length
-                    }
-                    onClick={requestSave}
-                  >
-                    {busy
-                      ? t("Menyimpan…", "Saving…")
-                      : t("Simpan menu", "Save menu")}
-                  </Button>
+                  <div className="menu-save-bar">
+                    <span>
+                      <strong>{edit.dates.map(fmt).join(", ")}</strong> ·{" "}
+                      {mealLabel(activeMeal, locale)}
+                      <small>
+                        {validation().length
+                          ? t(
+                              "Lengkapi setiap tempat hidangan untuk menyimpan.",
+                              "Fill every dish slot to save.",
+                            )
+                          : t(
+                              "Semua hidangan terisi. Siap disimpan.",
+                              "All dish slots filled. Ready to save.",
+                            )}
+                      </small>
+                    </span>
+                    <Button
+                      variant="primary"
+                      type="button"
+                      disabled={
+                        busy ||
+                        validation().length > 0 ||
+                        !edit.menu.items?.length
+                      }
+                      onClick={requestSave}
+                    >
+                      <Save size={18} />
+                      {busy
+                        ? t("Menyimpan…", "Saving…")
+                        : t("Simpan menu", "Save menu")}
+                    </Button>
+                  </div>
                 </>
               )}
             </>

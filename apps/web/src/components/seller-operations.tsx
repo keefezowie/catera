@@ -16,6 +16,10 @@ import {
   MapPin,
   Utensils,
   ArrowUpRight,
+  ChefHat,
+  Check,
+  X,
+  ArrowLeft,
 } from "lucide-react";
 import {
   addDays,
@@ -32,6 +36,7 @@ import { Select, SelectOption } from "./select";
 import { DatePicker } from "./date-picker";
 import { Heading, Loading, ErrorNotice, Empty, Status, Facts } from "./ui";
 import { Production } from "./seller-production";
+import { SellerReadiness } from "./seller-readiness";
 import {
   datesBetween,
   monthOf,
@@ -182,18 +187,8 @@ function OperationsPage({
                 "Prepare, deliver, and update every order.",
               )
         }
-      >
-        {!schedule && (
-          <div className="ops-date">
-            <DatePicker
-              compact
-              aria-label={t("Tanggal operasional", "Operational date")}
-              value={date}
-              onValueChange={(value) => navigate({ date: value })}
-            />
-          </div>
-        )}
-      </Heading>
+      ></Heading>
+      <SellerReadiness caterer={s.caterer} offers={s.offers} />
       {s.caterer.status !== "approved" && (
         <p className="notice">
           {t("Status verifikasi", "Verification status")}:{" "}
@@ -237,6 +232,17 @@ function OperationsPage({
         </div>
       )}
       <div className="ops-filter-row">
+        {
+          <div className="ops-date">
+            <DatePicker
+              compact
+              aria-label={t("Tanggal operasional", "Operational date")}
+              value={date}
+              onValueChange={(value) => navigate({ date: value })}
+            />
+          </div>
+        }
+
         <div
           className="ops-meal-tabs"
           role="tablist"
@@ -413,7 +419,9 @@ function OperationsPage({
           id="production"
           open={query.get("production") === "1" || undefined}
         >
-          <summary>{t("Produksi & manifest", "Production & manifest")}</summary>
+          <summary>
+            {t("Daftar dapur & pengantaran", "Kitchen & delivery lists")}
+          </summary>
           {s.operationalDate !== date ? (
             <Loading />
           ) : (
@@ -652,6 +660,9 @@ function OrderTable({
   const [target, setTarget] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const detailRef = useRef<HTMLElement>(null);
+  const opener = useRef<HTMLElement | null>(null);
   const all = useRef<HTMLInputElement>(null);
   const eligible = rows.filter(
     (d) =>
@@ -667,6 +678,40 @@ function OrderTable({
     : [];
   const effectiveTarget = options.includes(target) ? target : options[0] || "";
   const d = rows.find((d) => d.id === detail);
+  const actionLabel = (status: string) =>
+    ({
+      preparing: t("Mulai siapkan", "Start preparing"),
+      out_for_delivery: t("Mulai antar", "Start delivery"),
+      delivered: t("Tandai diterima", "Mark delivered"),
+      issue: t("Tandai kendala", "Report issue"),
+    })[status] || statusLabel(status, locale);
+  const actionIcon = (status: string) =>
+    status === "preparing" ? (
+      <ChefHat size={18} aria-hidden="true" />
+    ) : status === "out_for_delivery" ? (
+      <Truck size={18} aria-hidden="true" />
+    ) : status === "issue" ? (
+      <CircleAlert size={18} aria-hidden="true" />
+    ) : (
+      <Check size={18} aria-hidden="true" />
+    );
+  function openDetail(id: string, button: HTMLElement) {
+    opener.current = button;
+    setDetail(id);
+  }
+  function closeDetail() {
+    setDetail("");
+    requestAnimationFrame(() => opener.current?.focus());
+  }
+  useEffect(() => {
+    if (detail) {
+      detailRef.current?.focus();
+      detailRef.current?.scrollIntoView({
+        block: "start",
+        behavior: "instant",
+      });
+    }
+  }, [detail]);
   useEffect(() => {
     if (all.current)
       all.current.indeterminate =
@@ -676,6 +721,7 @@ function OrderTable({
     if (busy || loading) return;
     setBusy(true);
     setError("");
+    setSuccess("");
     try {
       await perform("delivery.statusBatch", {
         catererId,
@@ -685,6 +731,9 @@ function OrderTable({
         items: items.map((d) => ({ id: d.id, version: d.version })),
       });
       setSelected([]);
+      setSuccess(
+        `${items.length} ${t("pesanan diperbarui", "orders updated")} · ${statusLabel(status, locale)}`,
+      );
     } catch (e) {
       const code = (e as { code?: string }).code;
       setError(
@@ -731,6 +780,12 @@ function OrderTable({
             )}
           </p>
         )}
+        {success && (
+          <p role="status" className="save-status">
+            <Check size={18} aria-hidden="true" />
+            {success}
+          </p>
+        )}
         {error && (
           <div role="alert" className="notice error">
             {error}
@@ -767,9 +822,10 @@ function OrderTable({
                   disabled={busy || loading || chosen.length > 500}
                   onClick={() => update(chosen, effectiveTarget)}
                 >
+                  {actionIcon(effectiveTarget)}
                   {busy
                     ? t("Menyimpan…", "Saving…")
-                    : t("Perbarui status", "Update status")}
+                    : `${actionLabel(effectiveTarget)} · ${chosen.length}`}
                 </Button>
               </>
             ) : (
@@ -797,32 +853,37 @@ function OrderTable({
             </Button>
           </div>
         )}
+        {!schedule && rows.length > 0 && (
+          <label className="checkbox ops-select-all">
+            <Checkbox
+              ref={all}
+              aria-label={t("Pilih semua pesanan", "Select all orders")}
+              disabled={!eligible.length || busy || loading}
+              checked={eligible.length > 0 && chosen.length === eligible.length}
+              onChange={(e) =>
+                setSelected(e.target.checked ? eligible.map((d) => d.id) : [])
+              }
+            />
+            <span>{t("Pilih semua pesanan", "Select all orders")}</span>
+          </label>
+        )}
         {loading && !rows.length ? (
           <Loading />
         ) : rows.length ? (
           <div className="table-wrap">
-            <table className={"ops-order-table" + (schedule ? " ops-schedule-table" : "")}>
+            <table
+              role="table"
+              className={
+                "ops-order-table" + (schedule ? " ops-schedule-table" : "")
+              }
+            >
               <thead>
                 <tr>
                   {!schedule && (
                     <th>
-                      <Checkbox
-                        ref={all}
-                        aria-label={t(
-                          "Pilih semua pesanan",
-                          "Select all orders",
-                        )}
-                        disabled={!eligible.length || busy || loading}
-                        checked={
-                          eligible.length > 0 &&
-                          chosen.length === eligible.length
-                        }
-                        onChange={(e) =>
-                          setSelected(
-                            e.target.checked ? eligible.map((d) => d.id) : [],
-                          )
-                        }
-                      />
+                      <span className="sr-only">
+                        {t("Pilih pesanan", "Select orders")}
+                      </span>
                     </th>
                   )}
                   <th>{t("Pelanggan", "Customer")}</th>
@@ -868,7 +929,10 @@ function OrderTable({
                         />
                       </td>
                     )}
-                    <td>
+                    <td
+                      data-cell="customer"
+                      data-label={t("Pelanggan", "Customer")}
+                    >
                       <strong>{x.customer.name}</strong>
                       {!schedule && (
                         <small>
@@ -877,7 +941,7 @@ function OrderTable({
                         </small>
                       )}
                     </td>
-                    <td>
+                    <td data-cell="address" data-label={t("Alamat", "Address")}>
                       <strong>{x.address.label}</strong>
                       <small>
                         {x.address.line}, {x.address.area}
@@ -885,14 +949,20 @@ function OrderTable({
                     </td>
                     {schedule && (
                       <>
-                        <td>
+                        <td
+                          data-cell="package"
+                          data-label={t("Paket", "Package")}
+                        >
                           {x.offer.name}
                           {x.trial && <small>{t("Trial", "Trial")}</small>}
                           {x.status === "cancelled" && (
                             <Status status="cancelled" />
                           )}
                         </td>
-                        <td>
+                        <td
+                          data-cell="meal"
+                          data-label={t("Waktu makan", "Meal")}
+                        >
                           {x.meals
                             .filter((m) => meal === "all" || m.meal === meal)
                             .map((m) => (
@@ -905,25 +975,56 @@ function OrderTable({
                         </td>
                       </>
                     )}
-                    <td className="number">
+                    <td
+                      data-cell="portions"
+                      data-label={t("Porsi", "Portions")}
+                      className="number"
+                    >
                       {x.portions}
                       {schedule && meal === "all" && x.meals.length > 1 && (
                         <small>{t("per waktu makan", "per meal")}</small>
                       )}
                     </td>
                     {!schedule && (
-                      <td>
+                      <td data-cell="status" data-label={t("Status", "Status")}>
                         <Status status={fulfillmentStatus(x, meal)} />
                       </td>
                     )}
-                    <td>
+                    <td data-cell="actions">
                       <Button
                         className="text-button"
                         aria-label={`${t("Detail", "Details")} ${x.customer.name}, ${x.address.label}, ${x.offer.name}`}
-                        onClick={() => setDetail(x.id)}
+                        onClick={(event) =>
+                          openDetail(x.id, event.currentTarget)
+                        }
                       >
                         {t("Detail", "Details")} <ArrowUpRight size={15} />
                       </Button>
+                      {!schedule &&
+                        date <= today &&
+                        nextDeliveryStatuses(fulfillmentStatus(x, meal))
+                          .slice(0, 1)
+                          .map((next) => (
+                            <Button
+                              key={next}
+                              type="button"
+                              className="button secondary small order-next"
+                              disabled={busy || loading}
+                              aria-label={`${actionLabel(next)}: ${x.customer.name}, ${x.offer.name}`}
+                              onClick={() => update([x], next)}
+                            >
+                              {actionIcon(next)}
+                              {actionLabel(next)}
+                            </Button>
+                          ))}
+                      {!schedule && date > today && (
+                        <small>
+                          {t(
+                            "Tersedia pada hari pengantaran",
+                            "Available on delivery day",
+                          )}
+                        </small>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -942,10 +1043,13 @@ function OrderTable({
       </section>
       {d && (
         <aside
+          ref={detailRef}
+          tabIndex={-1}
           className="panel detail-panel"
           aria-label={t("Detail pesanan", "Order details")}
         >
-          <Button className="text-button" onClick={() => setDetail("")}>
+          <Button className="text-button" onClick={closeDetail}>
+            <ArrowLeft size={18} aria-hidden="true" />
             {t("Tutup detail", "Close details")}
           </Button>
           <h2>{d.customer.name}</h2>
@@ -989,7 +1093,8 @@ function OrderTable({
                   disabled={busy || loading}
                   onClick={() => update([d], s)}
                 >
-                  {statusLabel(s, locale)}
+                  {actionIcon(s)}
+                  {actionLabel(s)}
                 </Button>
               ))}
             </div>

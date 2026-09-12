@@ -1,6 +1,7 @@
 "use client";
 import { Select, SelectOption } from "./select";
 import { DatePicker } from "./date-picker";
+import { OptionalSection } from "./optional-section";
 import { PackageContents } from "./package-contents";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -464,16 +465,21 @@ export function CheckoutPage({ id }: { id: string }) {
                 <Plus size={16} />
                 {t("Tambah alamat", "Add an address")}
               </Link>
-              <Field
-                label={t("Kode promo (opsional)", "Promo code (optional)")}
+              <OptionalSection
+                title={t("Punya kode promo?", "Have a promo code?")}
+                initiallyOpen={!!promo}
               >
-                <TextInput
-                  value={promo}
-                  onChange={(e) => setPromo(e.target.value)}
-                  placeholder={t("Kode promo", "Promo code")}
-                  maxLength={40}
-                />
-              </Field>
+                <Field
+                  label={t("Kode promo (opsional)", "Promo code (optional)")}
+                >
+                  <TextInput
+                    value={promo}
+                    onChange={(e) => setPromo(e.target.value)}
+                    placeholder={t("Kode promo", "Promo code")}
+                    maxLength={40}
+                  />
+                </Field>
+              </OptionalSection>
             </ActionForm>
           ) : (
             quote && (
@@ -561,8 +567,9 @@ export function CheckoutPage({ id }: { id: string }) {
             <p>
               {trial
                 ? t("Trial 1 hari", "1-day trial")
-                : p.days + " " + t("hari", "days")} ·{" "}
-              {mealLabel(p.meal, locale)} · {portions} {t("porsi", "portions")}
+                : p.days + " " + t("hari", "days")}{" "}
+              · {mealLabel(p.meal, locale)} · {portions}{" "}
+              {t("porsi", "portions")}
             </p>
             <Facts
               rows={[
@@ -585,10 +592,10 @@ export function CheckoutPage({ id }: { id: string }) {
                   : []),
                 ...(quote?.promotion
                   ? [
-                        [t("Promo", "Promo"), "− " + currency(quote.promotion, locale)] as [
-                        string,
-                        string,
-                      ],
+                      [
+                        t("Promo", "Promo"),
+                        "− " + currency(quote.promotion, locale),
+                      ] as [string, string],
                     ]
                   : []),
                 [t("Pengantaran", "Delivery"), t("Termasuk", "Included")],

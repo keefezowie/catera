@@ -78,3 +78,9 @@ The web calendar now separates continuous date browsing from selection, exposes 
 # Package presentation update — September 10, 2026
 
 Responsive web and Expo package cards now share concise composition/nutrition formatting, prominent seller/duration hierarchy, labeled comparison and direct contents links. Package details use an opt-in dish gallery with enlarged photo viewing; the standard contents presentation remains in checkout and purchased records. See `docs/PACKAGE-CONTENTS.md` for behavior and `output/package-presentation/verification.json` for local acceptance evidence. Existing uncommitted changes and stored purchase semantics were preserved. This update does not deploy or migrate hosted services.
+
+# Web usability sweep — September 12, 2026
+
+Implemented the approved five-step package wizard, persistent draft/navigation controls, compact photo tools, discovery-label chips, responsive order cards, owner readiness checklist, guided prepaid importer, grouped seller navigation, menu saving context, messages/support tabs, shopping-only comparison controls, and simpler delivery/admin details. The additive owner-scoped import-options read and authorized display-name joins are validated in disposable databases. Existing financial commands, purchased snapshots, tenant boundaries, and the hosted pilot remain intact.
+
+Local verification includes root typecheck, 106 unit tests, production build, PostgreSQL concurrency checks, and 48 focused browser tests across the affected journeys. Phone/tablet/desktop and both languages are covered, with zoom-equivalent reflow and accessibility checks. See [CATERA-USABILITY-SWEEP.md](CATERA-USABILITY-SWEEP.md) for findings, screenshots, test evidence, migration ordering, and the five-caterer study protocol. The representative-user study and hosted deployment remain outstanding. Native development is paused.

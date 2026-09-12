@@ -14,6 +14,7 @@ export function FileUpload({
   disabled = false,
   busy = false,
   onSelect,
+  compact = false,
 }: {
   label: string;
   accept?: string;
@@ -22,6 +23,7 @@ export function FileUpload({
   disabled?: boolean;
   busy?: boolean;
   onSelect: (file: File) => void | Promise<void>;
+  compact?: boolean;
 }) {
   const id = useId();
   const { t } = useApp();
@@ -32,7 +34,7 @@ export function FileUpload({
         {label}
       </label>
       <div
-        className="file-upload"
+        className={"file-upload" + (compact ? " file-upload-compact" : "")}
         aria-busy={busy}
         data-disabled={disabled || busy}
       >
@@ -40,7 +42,11 @@ export function FileUpload({
           id={id}
           accept={accept}
           disabled={disabled || busy}
-          aria-describedby={`${id}-status${hint ? ` ${id}-hint` : ""}`}
+          aria-describedby={
+            [!compact && `${id}-status`, hint && `${id}-hint`]
+              .filter(Boolean)
+              .join(" ") || undefined
+          }
           onChange={(event) => {
             const file = event.currentTarget.files?.[0];
             event.currentTarget.value = "";
@@ -59,14 +65,16 @@ export function FileUpload({
             ? t("Mengunggah…", "Uploading…")
             : actionLabel || t("Pilih file", "Choose file")}
         </span>
-        <span
-          className="file-upload-name"
-          id={`${id}-status`}
-          role="status"
-          title={filename}
-        >
-          {filename || t("Belum ada file dipilih", "No file selected")}
-        </span>
+        {!compact && (
+          <span
+            className="file-upload-name"
+            id={`${id}-status`}
+            role="status"
+            title={filename}
+          >
+            {filename || t("Belum ada file dipilih", "No file selected")}
+          </span>
+        )}
       </div>
       {hint && (
         <small className="field-hint" id={`${id}-hint`}>

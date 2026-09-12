@@ -93,7 +93,7 @@ async function fixture(page: Page, mainSlots = 1) {
     },
   });
   await page.goto("/seller/menus?date=" + date);
-  await choose(page, "Paket dan versi isi", name + " · Versi 1");
+  await choose(page, "Paket", name);
   await expect(page.locator(".menu-day")).toHaveCount(
     new Date(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0).getDate(),
   );
@@ -339,8 +339,8 @@ test("all seeded package revisions use slots and the combined package separates 
   await page.goto("/seller/menus?date=" + date);
   await choose(
     page,
-    "Paket dan versi isi",
-    combined.name + " · Versi " + combined.revision,
+    "Paket",
+    combined.name,
   );
   await day(page, 12).click();
   await expect(page.locator(".menu-slot")).toHaveCount(4);
@@ -489,7 +489,7 @@ test("package wizard publishes composition only and customers buy before dated m
   await expect(page.getByLabel("Nama hidangan", { exact: true })).toHaveCount(
     0,
   );
-  await page.getByRole("button", { name: /6\. Tinjau/ }).click();
+  await page.getByRole("button", { name: /5\. Periksa/ }).click();
   await choose(
     page,
     "Status penawaran",
@@ -500,7 +500,7 @@ test("package wizard publishes composition only and customers buy before dated m
       r.url().endsWith("/commands") &&
       r.request().postDataJSON()?.action === "package.save",
   );
-  await page.getByRole("button", { name: "Simpan paket", exact: true }).click();
+  await page.getByRole("button", { name: "Tayangkan paket", exact: true }).click();
   const response = await save;
   expect(response.ok(), await response.text()).toBe(true);
   const id = (await response.json()).data.id;
@@ -526,6 +526,7 @@ test("package wizard publishes composition only and customers buy before dated m
     (d: { offer: Offer }) => d.offer.id === id,
   );
   await page.goto("/deliveries/" + delivery.id);
+  await page.locator(".optional-section > summary").filter({ hasText: "Isi paket" }).click();
   await expect(
     page
       .locator(".package-contents")
@@ -574,7 +575,7 @@ test("mixed dates start empty, reject a wrong category and confirm slot and date
     dates: [{ date, version: 0 }],
   });
   await page.reload();
-  await choose(page, "Paket dan versi isi", f.name + " · Versi 1");
+  await choose(page, "Paket", f.name);
   await page
     .getByRole("button", { name: "Pilih beberapa tanggal", exact: true })
     .click();
