@@ -11,7 +11,7 @@ import {
 import { createApi } from "@catera/api-client";
 import { createBrowserClient } from "@supabase/ssr";
 import {
-  errors,
+  errorLabel,
   type Actor,
   type Offer,
   type Locale,
@@ -196,7 +196,7 @@ export const useApp = () => {
   return offers ? { ...app, offers } : app;
 };
 export function useResource<T>(key: string, load: () => Promise<T>) {
-  const { revision } = useApp();
+  const { revision, locale } = useApp();
   const [data, setData] = useState<T | null>(null),
     [error, setError] = useState(""),
     [loading, setLoading] = useState(true),
@@ -214,7 +214,12 @@ export function useResource<T>(key: string, load: () => Promise<T>) {
       })
       .catch((e) => {
         if (live)
-          setError(errors[e.code] || "Data belum berhasil dimuat. Coba lagi.");
+          setError(
+            errorLabel(e.code || "", locale) ||
+              (locale === "en"
+                ? "Data could not be loaded. Try again."
+                : "Data belum berhasil dimuat. Coba lagi."),
+          );
       })
       .finally(() => {
         if (live) setLoading(false);

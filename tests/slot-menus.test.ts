@@ -364,17 +364,17 @@ it("allows purchases before menus exist, resolves dated dishes and preserves the
     cal.dates.find((d) => d.date === checkout.quote.dates[0])?.editable,
   ).toBe(false);
 });
-it("creates a new slot revision when a legacy listing is edited without rewriting old contents", async () => {
+it("rejects a new slot revision for a published legacy listing without rewriting old contents", async () => {
   const original = await db.query<{ contents: unknown }>(
     "select contents from v1.content_revisions where package_id=$1 and revision=$2",
     [base.id, base.contentRevision || 0],
   );
-  await cmd("package.save", {
+  await expect(cmd("package.save", {
     id: base.id,
     catererId: K[0],
     version: base.version,
     offer: { ...base, menus: [template()], meal: "lunch" },
-  });
+  })).rejects.toThrow("PACKAGE_IMMUTABLE");
   const same = await db.query<{ contents: unknown }>(
     "select contents from v1.content_revisions where package_id=$1 and revision=$2",
     [base.id, base.contentRevision || 0],

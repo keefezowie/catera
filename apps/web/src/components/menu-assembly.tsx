@@ -1,12 +1,10 @@
 "use client";
 import { useLayoutEffect, useRef, type ReactNode } from "react";
 import { Check, ImageIcon, Plus, X } from "lucide-react";
-import type { LibraryDish, MealMenu, Nutrition } from "@catera/domain";
+import type { LibraryDish, MealMenu } from "@catera/domain";
 import { defaultDishCategories } from "@catera/domain";
 import { useApp } from "./context";
 import { Button } from "./form-controls";
-import { NumericInput } from "./numeric-input";
-import { nutritionFields } from "./nutrition-fields";
 
 /** Keep the library still while the calendar becomes the assembly card. */
 export function MenuPanel({
@@ -208,54 +206,5 @@ export function MenuSlots({
           }),
       )}
     </div>
-  );
-}
-
-export function MenuNutrition({
-  value,
-  disabled,
-  onChange,
-}: {
-  value: Nutrition | null | undefined;
-  disabled: boolean;
-  onChange: (n: Nutrition | null) => void;
-}) {
-  const { t } = useApp();
-  return (
-    <fieldset className="menu-nutrition" disabled={disabled}>
-      <legend>{t("Informasi gizi (opsional)", "Nutrition (optional)")}</legend>
-      <div className="menu-nutrition-fields">
-        {nutritionFields.map(({ key, Icon, label, labelEn, unit }) => (
-          <label key={key}>
-            <span>
-              <Icon size={16} aria-hidden="true" />
-              {t(label, labelEn)}
-            </span>
-            <span className="menu-nutrition-value">
-              <NumericInput
-                min={0}
-                step="any"
-                normalizeOnBlur={false}
-                aria-label={`${t(label, labelEn)} (${unit === "kkal" ? t("kkal", "kcal") : unit})`}
-                value={value?.[key] ?? ""}
-                onChange={(e) => {
-                  const next = { ...value };
-                  if (e.target.value === "") delete next[key];
-                  else next[key] = Number(e.target.value);
-                  onChange(Object.keys(next).length ? next : null);
-                }}
-              />
-              <span>{unit === "kkal" ? t("kkal", "kcal") : unit}</span>
-            </span>
-          </label>
-        ))}
-      </div>
-      <p>
-        {t(
-          "Estimasi katerer · per porsi makan",
-          "Caterer estimate · per meal portion",
-        )}
-      </p>
-    </fieldset>
   );
 }

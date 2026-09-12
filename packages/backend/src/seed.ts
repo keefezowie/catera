@@ -1,4 +1,9 @@
-import { addDays, localDay } from "@catera/domain";
+import {
+  addDays,
+  localDay,
+  packageNutrition,
+  type Nutrition,
+} from "@catera/domain";
 export const DEMO_ACTORS = {
   customer: "00000000-0000-4000-8000-000000000001",
   owner: "00000000-0000-4000-8000-000000000002",
@@ -35,7 +40,7 @@ type DemoMenu = {
   image: string;
   items: DemoDish[];
   composition?: { id: string; name: string; slots: number }[];
-  nutrition: {
+  nutrition?: {
     caloriesKcal?: number;
     proteinG?: number;
     carbsG?: number;
@@ -60,6 +65,7 @@ type DemoOffer = {
   windows: { lunch: string; dinner: string };
   packageType: "ala_carte" | "nasi_box";
   menus: DemoMenu[];
+  nutrition?: Nutrition | null;
 };
 
 const dish = (
@@ -86,7 +92,8 @@ const boxMenu = (
 ): DemoMenu => ({
   meal,
   name,
-  description: "Satu porsi lengkap. Menu dapat berganti sesuai tanggal pengantaran.",
+  description:
+    "Satu porsi lengkap. Menu dapat berganti sesuai tanggal pengantaran.",
   image,
   composition: [
     { id: "nasi", name: "Nasi", slots: 1 },
@@ -118,7 +125,7 @@ const alaCarteMenu = (
  * demo-slot-upgrade.sql splits these into category-only package templates,
  * categorized library dishes, and dated recipes before the demo is served.
  */
-export const DEMO_OFFERS: DemoOffer[] = [
+const DEMO_OFFER_RECIPES: DemoOffer[] = [
   {
     name: "Ayam Panggang Harian",
     description:
@@ -136,7 +143,15 @@ export const DEMO_OFFERS: DemoOffer[] = [
       { min: 3, percent: 5 },
       { min: 5, percent: 10 },
     ],
-    capacity: { "0": 0, "1": 100, "2": 100, "3": 100, "4": 100, "5": 100, "6": 0 },
+    capacity: {
+      "0": 0,
+      "1": 100,
+      "2": 100,
+      "3": 100,
+      "4": 100,
+      "5": 100,
+      "6": 0,
+    },
     windows: { lunch: "11.00–13.00", dinner: "17.00–19.00" },
     packageType: "nasi_box",
     menus: [
@@ -145,10 +160,34 @@ export const DEMO_OFFERS: DemoOffer[] = [
         "Nasi box ayam panggang",
         "/assets/food/ayam-panggang.png",
         [
-          dish("nasi", "Nasi putih", "180 g", "Nasi pulen sebagai sumber karbohidrat.", "nasi"),
-          dish("lauk", "Ayam panggang bumbu rempah", "150 g", "Ayam panggang berbumbu dengan rasa gurih dan hangat.", "lauk"),
-          dish("sayur", "Tumis buncis wortel", "100 g", "Sayuran tumis sederhana yang dimasak setiap pagi.", "sayur"),
-          dish("pelengkap", "Sambal dan lalapan", "30 g", "Sambal rumahan dan lalapan segar.", "pelengkap"),
+          dish(
+            "nasi",
+            "Nasi putih",
+            "180 g",
+            "Nasi pulen sebagai sumber karbohidrat.",
+            "nasi",
+          ),
+          dish(
+            "lauk",
+            "Ayam panggang bumbu rempah",
+            "150 g",
+            "Ayam panggang berbumbu dengan rasa gurih dan hangat.",
+            "lauk",
+          ),
+          dish(
+            "sayur",
+            "Tumis buncis wortel",
+            "100 g",
+            "Sayuran tumis sederhana yang dimasak setiap pagi.",
+            "sayur",
+          ),
+          dish(
+            "pelengkap",
+            "Sambal dan lalapan",
+            "30 g",
+            "Sambal rumahan dan lalapan segar.",
+            "pelengkap",
+          ),
         ],
         { caloriesKcal: 620, proteinG: 32, carbsG: 78, fatG: 20 },
       ),
@@ -171,7 +210,15 @@ export const DEMO_OFFERS: DemoOffer[] = [
       { min: 3, percent: 5 },
       { min: 5, percent: 10 },
     ],
-    capacity: { "0": 0, "1": 100, "2": 100, "3": 100, "4": 100, "5": 100, "6": 0 },
+    capacity: {
+      "0": 0,
+      "1": 100,
+      "2": 100,
+      "3": 100,
+      "4": 100,
+      "5": 100,
+      "6": 0,
+    },
     windows: { lunch: "11.00–13.00", dinner: "17.00–19.00" },
     packageType: "ala_carte",
     menus: [
@@ -180,9 +227,24 @@ export const DEMO_OFFERS: DemoOffer[] = [
         "Salmon teriyaki dan pelengkap",
         "/assets/food/salmon-teriyaki.png",
         [
-          dish("salmon", "Salmon teriyaki", "120 g", "Fillet salmon dengan saus teriyaki ringan."),
-          dish("nasi", "Nasi putih", "180 g", "Nasi pulen yang disajikan hangat."),
-          dish("sayur", "Brokoli kukus", "100 g", "Brokoli kukus dengan wortel."),
+          dish(
+            "salmon",
+            "Salmon teriyaki",
+            "120 g",
+            "Fillet salmon dengan saus teriyaki ringan.",
+          ),
+          dish(
+            "nasi",
+            "Nasi putih",
+            "180 g",
+            "Nasi pulen yang disajikan hangat.",
+          ),
+          dish(
+            "sayur",
+            "Brokoli kukus",
+            "100 g",
+            "Brokoli kukus dengan wortel.",
+          ),
         ],
         { caloriesKcal: 580, proteinG: 34, fatG: 22 },
       ),
@@ -205,7 +267,15 @@ export const DEMO_OFFERS: DemoOffer[] = [
       { min: 3, percent: 5 },
       { min: 5, percent: 10 },
     ],
-    capacity: { "0": 0, "1": 100, "2": 100, "3": 100, "4": 100, "5": 100, "6": 0 },
+    capacity: {
+      "0": 0,
+      "1": 100,
+      "2": 100,
+      "3": 100,
+      "4": 100,
+      "5": 100,
+      "6": 0,
+    },
     windows: { lunch: "11.00–13.00", dinner: "17.00–19.00" },
     packageType: "nasi_box",
     menus: [
@@ -214,10 +284,34 @@ export const DEMO_OFFERS: DemoOffer[] = [
         "Rantang Nusantara siang",
         "/assets/food/nasi-nusantara.png",
         [
-          dish("nasi", "Nasi putih", "180 g", "Nasi pulen sebagai dasar menu siang.", "nasi"),
-          dish("lauk", "Ayam bumbu rujak", "150 g", "Ayam berbumbu rempah dengan rasa gurih pedas ringan.", "lauk"),
-          dish("sayur", "Sayur asem", "150 ml", "Sayur asem dengan jagung dan kacang panjang.", "sayur"),
-          dish("pelengkap", "Sambal dan kerupuk", "30 g", "Pelengkap untuk menyesuaikan selera.", "pelengkap"),
+          dish(
+            "nasi",
+            "Nasi putih",
+            "180 g",
+            "Nasi pulen sebagai dasar menu siang.",
+            "nasi",
+          ),
+          dish(
+            "lauk",
+            "Ayam bumbu rujak",
+            "150 g",
+            "Ayam berbumbu rempah dengan rasa gurih pedas ringan.",
+            "lauk",
+          ),
+          dish(
+            "sayur",
+            "Sayur asem",
+            "150 ml",
+            "Sayur asem dengan jagung dan kacang panjang.",
+            "sayur",
+          ),
+          dish(
+            "pelengkap",
+            "Sambal dan kerupuk",
+            "30 g",
+            "Pelengkap untuk menyesuaikan selera.",
+            "pelengkap",
+          ),
         ],
         { caloriesKcal: 640, proteinG: 30, carbsG: 82, fatG: 19 },
       ),
@@ -226,10 +320,34 @@ export const DEMO_OFFERS: DemoOffer[] = [
         "Rantang Nusantara malam",
         "/assets/food/ikan-kuning.png",
         [
-          dish("nasi", "Nasi putih", "180 g", "Nasi pulen sebagai dasar menu malam.", "nasi"),
-          dish("lauk", "Ikan kembung balado", "140 g", "Ikan kembung dengan sambal balado rumahan.", "lauk"),
-          dish("sayur", "Tumis kangkung", "100 g", "Kangkung tumis bawang putih.", "sayur"),
-          dish("pelengkap", "Acar timun", "50 g", "Acar timun dan wortel yang segar.", "pelengkap"),
+          dish(
+            "nasi",
+            "Nasi putih",
+            "180 g",
+            "Nasi pulen sebagai dasar menu malam.",
+            "nasi",
+          ),
+          dish(
+            "lauk",
+            "Ikan kembung balado",
+            "140 g",
+            "Ikan kembung dengan sambal balado rumahan.",
+            "lauk",
+          ),
+          dish(
+            "sayur",
+            "Tumis kangkung",
+            "100 g",
+            "Kangkung tumis bawang putih.",
+            "sayur",
+          ),
+          dish(
+            "pelengkap",
+            "Acar timun",
+            "50 g",
+            "Acar timun dan wortel yang segar.",
+            "pelengkap",
+          ),
         ],
         { caloriesKcal: 610, proteinG: 29, carbsG: 76, fatG: 21 },
       ),
@@ -252,7 +370,15 @@ export const DEMO_OFFERS: DemoOffer[] = [
       { min: 3, percent: 5 },
       { min: 5, percent: 10 },
     ],
-    capacity: { "0": 0, "1": 100, "2": 100, "3": 100, "4": 100, "5": 100, "6": 0 },
+    capacity: {
+      "0": 0,
+      "1": 100,
+      "2": 100,
+      "3": 100,
+      "4": 100,
+      "5": 100,
+      "6": 0,
+    },
     windows: { lunch: "11.00–13.00", dinner: "17.00–19.00" },
     packageType: "nasi_box",
     menus: [
@@ -262,11 +388,41 @@ export const DEMO_OFFERS: DemoOffer[] = [
           "Nasi box nabati",
           "/assets/food/plant-based.png",
           [
-            dish("nasi", "Nasi merah", "180 g", "Nasi merah pulen dengan rasa gurih alami.", "nasi"),
-            dish("lauk-1", "Tahu panggang", "2 potong", "Tahu panggang berbumbu kecap ringan.", "lauk"),
-            dish("lauk-2", "Tempe orek", "60 g", "Tempe orek dengan rasa manis gurih.", "lauk"),
-            dish("sayur", "Tumis sayur hijau", "120 g", "Sayuran hijau, brokoli, dan wortel.", "sayur"),
-            dish("pelengkap", "Sambal kemangi", "25 g", "Sambal kemangi tanpa bahan hewani.", "pelengkap"),
+            dish(
+              "nasi",
+              "Nasi merah",
+              "180 g",
+              "Nasi merah pulen dengan rasa gurih alami.",
+              "nasi",
+            ),
+            dish(
+              "lauk-1",
+              "Tahu panggang",
+              "2 potong",
+              "Tahu panggang berbumbu kecap ringan.",
+              "lauk",
+            ),
+            dish(
+              "lauk-2",
+              "Tempe orek",
+              "60 g",
+              "Tempe orek dengan rasa manis gurih.",
+              "lauk",
+            ),
+            dish(
+              "sayur",
+              "Tumis sayur hijau",
+              "120 g",
+              "Sayuran hijau, brokoli, dan wortel.",
+              "sayur",
+            ),
+            dish(
+              "pelengkap",
+              "Sambal kemangi",
+              "25 g",
+              "Sambal kemangi tanpa bahan hewani.",
+              "pelengkap",
+            ),
           ],
           { caloriesKcal: 590, proteinG: 24, carbsG: 84, fatG: 17 },
         ),
@@ -296,7 +452,15 @@ export const DEMO_OFFERS: DemoOffer[] = [
       { min: 3, percent: 5 },
       { min: 5, percent: 10 },
     ],
-    capacity: { "0": 0, "1": 100, "2": 100, "3": 100, "4": 100, "5": 100, "6": 0 },
+    capacity: {
+      "0": 0,
+      "1": 100,
+      "2": 100,
+      "3": 100,
+      "4": 100,
+      "5": 100,
+      "6": 0,
+    },
     windows: { lunch: "11.00–13.00", dinner: "17.00–19.00" },
     packageType: "ala_carte",
     menus: [
@@ -305,9 +469,24 @@ export const DEMO_OFFERS: DemoOffer[] = [
         "Lauk rumahan dan pelengkap",
         "/assets/food/ayam-sambal.png",
         [
-          dish("ayam", "Ayam sambal rumahan", "150 g", "Ayam dengan sambal merah yang dibuat segar."),
-          dish("tempe", "Tempe bacem", "2 potong", "Tempe bacem dengan rasa manis gurih."),
-          dish("nasi", "Nasi putih", "180 g", "Nasi pulen yang disajikan hangat."),
+          dish(
+            "ayam",
+            "Ayam sambal rumahan",
+            "150 g",
+            "Ayam dengan sambal merah yang dibuat segar.",
+          ),
+          dish(
+            "tempe",
+            "Tempe bacem",
+            "2 potong",
+            "Tempe bacem dengan rasa manis gurih.",
+          ),
+          dish(
+            "nasi",
+            "Nasi putih",
+            "180 g",
+            "Nasi pulen yang disajikan hangat.",
+          ),
           dish("lalapan", "Lalapan segar", "50 g", "Timun dan daun kemangi."),
         ],
         null,
@@ -331,7 +510,15 @@ export const DEMO_OFFERS: DemoOffer[] = [
       { min: 3, percent: 5 },
       { min: 5, percent: 10 },
     ],
-    capacity: { "0": 0, "1": 100, "2": 100, "3": 100, "4": 100, "5": 100, "6": 0 },
+    capacity: {
+      "0": 0,
+      "1": 100,
+      "2": 100,
+      "3": 100,
+      "4": 100,
+      "5": 100,
+      "6": 0,
+    },
     windows: { lunch: "11.00–13.00", dinner: "17.00–19.00" },
     packageType: "nasi_box",
     menus: [
@@ -340,16 +527,46 @@ export const DEMO_OFFERS: DemoOffer[] = [
         "Nasi box ikan bumbu kuning",
         "/assets/food/ikan-kuning.png",
         [
-          dish("nasi", "Nasi putih", "180 g", "Nasi pulen yang disajikan hangat.", "nasi"),
-          dish("lauk", "Ikan bumbu kuning", "140 g", "Ikan dengan bumbu kunyit dan rempah segar.", "lauk"),
-          dish("sayur", "Tumis buncis dan wortel", "100 g", "Sayuran tumis dengan tekstur renyah.", "sayur"),
-          dish("pelengkap", "Acar timun wortel", "50 g", "Acar segar sebagai penyeimbang rasa.", "pelengkap"),
+          dish(
+            "nasi",
+            "Nasi putih",
+            "180 g",
+            "Nasi pulen yang disajikan hangat.",
+            "nasi",
+          ),
+          dish(
+            "lauk",
+            "Ikan bumbu kuning",
+            "140 g",
+            "Ikan dengan bumbu kunyit dan rempah segar.",
+            "lauk",
+          ),
+          dish(
+            "sayur",
+            "Tumis buncis dan wortel",
+            "100 g",
+            "Sayuran tumis dengan tekstur renyah.",
+            "sayur",
+          ),
+          dish(
+            "pelengkap",
+            "Acar timun wortel",
+            "50 g",
+            "Acar segar sebagai penyeimbang rasa.",
+            "pelengkap",
+          ),
         ],
         { caloriesKcal: 570, proteinG: 31, carbsG: 74, fatG: 16 },
       ),
     ],
   },
 ];
+
+export const DEMO_OFFERS: DemoOffer[] = DEMO_OFFER_RECIPES.map((offer) => ({
+  ...offer,
+  nutrition: packageNutrition(offer),
+  menus: offer.menus.map(({ nutrition: _legacyNutrition, ...menu }) => menu),
+}));
 
 export function seedSQL() {
   const images = [
@@ -384,7 +601,10 @@ export function seedSQL() {
 export function refreshDemoCatalogSQL() {
   return `do $$ declare p v1.packages; next_offer jsonb; rev int; begin
   ${DEMO_OFFERS.map(
-    (offer, i) => `select * into p from v1.packages where id='${PACKAGE_IDS[i]}';
+    (
+      offer,
+      i,
+    ) => `select * into p from v1.packages where id='${PACKAGE_IDS[i]}';
   if found and p.offer->'menus'->0->>'contentModel' is distinct from 'slots' and (p.offer->>'packageType' is null or jsonb_typeof(p.offer->'menus'->0->'items') is distinct from 'array' or jsonb_typeof(p.offer->'menus'->0->'items'->0->'image') is distinct from 'string') then
     select coalesce(max(revision),-1)+1 into rev from v1.content_revisions where package_id=p.id;
     next_offer:=${q({ ...offer, status: "published" })};

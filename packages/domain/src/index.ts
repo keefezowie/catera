@@ -1,8 +1,10 @@
 import { z } from "zod";
 import {
   menuSchema,
+  nutritionSchema,
   contentsIssues,
   type MealMenu,
+  type Nutrition,
   type PackageType,
   type ContentRevision,
   type DatedMenu,
@@ -68,11 +70,13 @@ export type Offer = {
   cutoff: string;
   timezone: string;
   menus: MealMenu[];
+  nutrition?: Nutrition | null;
   packageType?: PackageType | null;
   contentRevision?: number;
   rating: number | null;
   reviewCount: number;
   status: string;
+  canArchive?: boolean;
   sellerStatus: string;
   version: number;
 };
@@ -266,7 +270,8 @@ export const offerSchema = z
     image: z.string().max(500),
     packageType: z.enum(["ala_carte", "nasi_box"]).nullable().optional(),
     menus: z.array(menuSchema).max(2),
-    status: z.enum(["draft", "published", "paused", "retired"]),
+    nutrition: nutritionSchema.nullable().optional(),
+    status: z.enum(["draft", "published", "suspended", "retired"]),
   })
   .superRefine((o, ctx) => {
     const complete = o.status !== "draft";
@@ -301,7 +306,9 @@ export const offerSchema = z
         });
     const activeCapacity = o.weekdays.map((d) => o.capacity[String(d)]);
     if (
-      activeCapacity.every((capacity): capacity is number => capacity !== undefined) &&
+      activeCapacity.every(
+        (capacity): capacity is number => capacity !== undefined,
+      ) &&
       new Set(activeCapacity).size > 1
     )
       ctx.addIssue({
@@ -391,7 +398,33 @@ export const mealLabel = (meal: string, locale: Locale = "id") =>
   })[meal] || meal;
 export const statusLabel = (status: string, locale: Locale = "id") =>
   locale === "en"
-    ? status.replaceAll("_", " ")
+    ? {
+        scheduled: "Scheduled",
+        preparing: "Preparing",
+        out_for_delivery: "Out for delivery",
+        delivered: "Delivered",
+        issue: "Issue reported",
+        pending: "Payment pending",
+        paid: "Paid",
+        expired: "Expired",
+        active: "Active",
+        completed: "Completed",
+        cancelled: "Cancelled",
+        open: "Awaiting response",
+        responded: "Caterer responded",
+        escalated: "Under Catera review",
+        resolved: "Resolved",
+        draft: "Draft",
+        submitted: "Submitted",
+        corrections: "Needs changes",
+        approved: "Approved",
+        suspended: "Suspended",
+        published: "Published",
+        paused: "Paused",
+        retired: "Archived",
+        refunded: "Refunded",
+        payment_exception: "Payment under review",
+      }[status] || status.replaceAll("_", " ")
     : {
         scheduled: "Terjadwal",
         preparing: "Disiapkan",
@@ -430,6 +463,11 @@ export const errors: Record<string, string> = {
   AUTH_RATE_LIMITED:
     "Terlalu banyak percobaan masuk. Tunggu sebentar lalu coba lagi.",
   FORBIDDEN: "Akun ini tidak memiliki akses.",
+  PACKAGE_IMMUTABLE:
+    "Paket yang sudah tayang tidak dapat diubah. Buat paket baru.",
+  SUSPEND_FIRST: "Tangguhkan paket sebelum mengarsipkannya.",
+  PACKAGE_HAS_DELIVERIES:
+    "Selesaikan seluruh pengantaran dan tunggu pembayaran tertunda sebelum mengarsipkan paket.",
   CAPACITY:
     "Porsi pada salah satu tanggal sudah habis. Pilih tanggal mulai atau jumlah porsi lain.",
   CUTOFF: "Batas perubahan sudah lewat. Pilih tanggal berikutnya.",
@@ -450,3 +488,46 @@ export const errors: Record<string, string> = {
   BOOKED_DATE:
     "Tanggal ini memiliki pesanan. Selesaikan pesanan sebelum menutupnya.",
 };
+const errorsEn: Record<string, string> = {
+  CLASSIFY_PACKAGE:
+    "Choose a package type and complete the package contents before saving.",
+  COMPOSITION_CHANGED:
+    "The menu must match the purchased composition. Use the correct package revision.",
+  PRICE_CHANGED: "The price or terms changed. Review them before paying.",
+  UNAUTHORIZED: "Please sign in again.",
+  INVALID_CREDENTIALS: "Email or password is incorrect. Please try again.",
+  AUTH_RATE_LIMITED: "Too many sign-in attempts. Please wait and try again.",
+  FORBIDDEN: "This account does not have access.",
+  PACKAGE_IMMUTABLE:
+    "Published packages cannot be edited. Create a new package.",
+  SUSPEND_FIRST: "Suspend the package before archiving it.",
+  PACKAGE_HAS_DELIVERIES:
+    "Complete all deliveries and wait for pending payments before archiving this package.",
+  CAPACITY:
+    "One or more dates no longer have enough capacity. Choose another start date or portion count.",
+  CUTOFF: "The change cutoff has passed. Choose a later date.",
+  COVERAGE: "This address is outside the caterer's delivery area.",
+  CONFLICT: "The data changed. Reload before trying again.",
+  OVERLAP: "The same package is already active during these dates.",
+  TRIAL_USED: "You have already bought a trial from this caterer.",
+  FIXED_PACKAGE: "This package has fixed dates. Contact the caterer for help.",
+  DUPLICATE_DATE: "This subscription already has a delivery on that date.",
+  INVALID_DATE: "The date is not an operating day for this package.",
+  INVALID_INPUT: "Check the information you entered.",
+  NOT_FOUND: "The requested data was not found.",
+  NOT_CONFIGURED: "This service is not configured. Please contact Catera.",
+  PAYMENT_PENDING: "Payment has not been confirmed.",
+  AMOUNT_INVALID: "The amount exceeds the refundable balance.",
+  BOOKED_DATE: "This date has orders. Complete them before closing the date.",
+};
+export function errorLabel(code: string, locale: Locale = "id") {
+  return (locale === "en" ? errorsEn[code] : errors[code]) || "";
+}
+export function localizedMessage(message: string, locale: Locale = "id") {
+  const separator = " / ";
+  const split = message.indexOf(separator);
+  if (split < 0) return message;
+  return locale === "en"
+    ? message.slice(split + separator.length)
+    : message.slice(0, split);
+}

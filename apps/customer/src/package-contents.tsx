@@ -1,11 +1,14 @@
 import { View, Image } from "react-native";
 import {
+  compositionPreview,
+  componentLabel,
   menuItems,
   menuSourceLabel,
   menuSummary,
   mealLabel,
   packageTypeLabel,
   nutritionSummary,
+  packageNutrition,
   type Offer,
 } from "@catera/domain";
 import { useNative, apiBase } from "./context";
@@ -18,13 +21,14 @@ export function PackageContents({
   coverImage,
   onMealLayout,
 }: {
-  offer: Pick<Offer, "menus" | "packageType">;
+  offer: Pick<Offer, "menus" | "packageType" | "nutrition">;
   compact?: boolean;
   presentation?: "default" | "gallery";
   coverImage?: string;
   onMealLayout?: (meal: string, y: number) => void;
 }) {
   const { t, locale } = useNative();
+  const nutrition = packageNutrition(offer);
   if (presentation === "gallery")
     return (
       <DishGallery
@@ -36,19 +40,23 @@ export function PackageContents({
   return (
     <View style={{ gap: 12 }}>
       <Txt kind="small">{packageTypeLabel(offer.packageType, locale)}</Txt>
+      {(!!nutritionSummary(nutrition, locale) || !compact) && (
+        <Txt kind="small">
+          {nutritionSummary(nutrition, locale)
+            ? `${nutritionSummary(nutrition, locale)}\n${t("Per porsi makan · estimasi katerer", "Per meal portion · caterer estimate")}`
+            : t("Informasi gizi belum tersedia", "Nutrition unavailable")}
+        </Txt>
+      )}
       {offer.menus.map((m) => (
         <View key={m.meal} style={{ gap: 8 }}>
           <Txt kind="small">
-            {mealLabel(m.meal, locale)} ·{" "}
-            {menuSourceLabel(m, locale)}
+            {mealLabel(m.meal, locale)} · {menuSourceLabel(m, locale)}
           </Txt>
           {!!m.composition?.length && (
-            <Txt>
-              {m.composition.map((g) => `${g.slots} ${g.name}`).join(" · ")}
-            </Txt>
+            <Txt>{compositionPreview(m, offer.packageType, locale)}</Txt>
           )}
           {compact ? (
-            <Txt kind="small">{menuSummary(m)}</Txt>
+            <Txt kind="small">{menuSummary(m, locale)}</Txt>
           ) : (
             menuItems(m).map((i) => (
               <View key={i.id} style={{ flexDirection: "row", gap: 12 }}>
@@ -65,7 +73,12 @@ export function PackageContents({
                 <View style={{ flex: 1 }}>
                   {!!i.groupId && (
                     <Txt kind="small">
-                      {m.composition?.find((g) => g.id === i.groupId)?.name}
+                      {(() => {
+                        const group = m.composition?.find(
+                          (g) => g.id === i.groupId,
+                        );
+                        return group ? componentLabel(group, locale) : null;
+                      })()}
                     </Txt>
                   )}
                   <Txt>
@@ -76,13 +89,6 @@ export function PackageContents({
                 </View>
               </View>
             ))
-          )}
-          {(!!nutritionSummary(m.nutrition, locale) || !compact) && (
-            <Txt kind="small">
-              {nutritionSummary(m.nutrition, locale)
-                ? `${nutritionSummary(m.nutrition, locale)}\n${t("Per porsi · estimasi katerer", "Per portion · caterer estimate")}`
-                : t("Informasi gizi belum tersedia", "Nutrition unavailable")}
-            </Txt>
           )}
         </View>
       ))}

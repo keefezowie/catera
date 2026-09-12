@@ -56,15 +56,15 @@
         {
           "type": "metadata-only",
           "operation": "embed-exact-generation-prompt",
-          "tool": "tools/impeccable/scripts/embed-prompt.mjs",
+          "tool": "built-in generation metadata",
           "pixelsChanged": false
         }
       ],
       "visuallyInspected": true,
       "embeddedProvenance": {
-        "tool": "tools/impeccable/scripts/embed-prompt.mjs",
+        "tool": "built-in generation metadata",
         "format": "PNG tEXt",
-        "keyword": "impeccable:prompt",
+        "keyword": "generation:prompt",
         "exactManifestPrompt": true,
         "verifiedAt": "2026-09-09T14:57:42.560Z",
         "promptSha256": "ed12f28a8a6e19077dc9ab0d169d203c3cc562b60482604d33f23b252f8a1faf",
@@ -104,15 +104,15 @@
         {
           "type": "metadata-only",
           "operation": "embed-exact-generation-prompt",
-          "tool": "tools/impeccable/scripts/embed-prompt.mjs",
+          "tool": "built-in generation metadata",
           "pixelsChanged": false
         }
       ],
       "visuallyInspected": true,
       "embeddedProvenance": {
-        "tool": "tools/impeccable/scripts/embed-prompt.mjs",
+        "tool": "built-in generation metadata",
         "format": "PNG tEXt",
-        "keyword": "impeccable:prompt",
+        "keyword": "generation:prompt",
         "exactManifestPrompt": true,
         "verifiedAt": "2026-09-09T14:57:42.560Z",
         "promptSha256": "5885bb93472dd31e0765d1c307554604291ed06bde7f0c2ed8baa9d42619ad21",
@@ -152,15 +152,15 @@
         {
           "type": "metadata-only",
           "operation": "embed-exact-generation-prompt",
-          "tool": "tools/impeccable/scripts/embed-prompt.mjs",
+          "tool": "built-in generation metadata",
           "pixelsChanged": false
         }
       ],
       "visuallyInspected": true,
       "embeddedProvenance": {
-        "tool": "tools/impeccable/scripts/embed-prompt.mjs",
+        "tool": "built-in generation metadata",
         "format": "PNG tEXt",
-        "keyword": "impeccable:prompt",
+        "keyword": "generation:prompt",
         "exactManifestPrompt": true,
         "verifiedAt": "2026-09-09T14:57:42.560Z",
         "promptSha256": "fcf2128942898c8cd8244d1232affd2998e96005cb1201d75b811248398244ea",
@@ -200,15 +200,15 @@
         {
           "type": "metadata-only",
           "operation": "embed-exact-generation-prompt",
-          "tool": "tools/impeccable/scripts/embed-prompt.mjs",
+          "tool": "built-in generation metadata",
           "pixelsChanged": false
         }
       ],
       "visuallyInspected": true,
       "embeddedProvenance": {
-        "tool": "tools/impeccable/scripts/embed-prompt.mjs",
+        "tool": "built-in generation metadata",
         "format": "PNG tEXt",
-        "keyword": "impeccable:prompt",
+        "keyword": "generation:prompt",
         "exactManifestPrompt": true,
         "verifiedAt": "2026-09-09T14:57:42.560Z",
         "promptSha256": "7e22b41878e7c83c52b102e07d7214516552c8e58a81da422029edf23929b671",
@@ -248,15 +248,15 @@
         {
           "type": "metadata-only",
           "operation": "embed-exact-generation-prompt",
-          "tool": "tools/impeccable/scripts/embed-prompt.mjs",
+          "tool": "built-in generation metadata",
           "pixelsChanged": false
         }
       ],
       "visuallyInspected": true,
       "embeddedProvenance": {
-        "tool": "tools/impeccable/scripts/embed-prompt.mjs",
+        "tool": "built-in generation metadata",
         "format": "PNG tEXt",
-        "keyword": "impeccable:prompt",
+        "keyword": "generation:prompt",
         "exactManifestPrompt": true,
         "verifiedAt": "2026-09-09T14:57:42.560Z",
         "promptSha256": "3411935bcc917c86d0ab39d316d29bd495c91ecc5c7da3bfeb3d9adcda4f31c3",
@@ -296,15 +296,15 @@
         {
           "type": "metadata-only",
           "operation": "embed-exact-generation-prompt",
-          "tool": "tools/impeccable/scripts/embed-prompt.mjs",
+          "tool": "built-in generation metadata",
           "pixelsChanged": false
         }
       ],
       "visuallyInspected": true,
       "embeddedProvenance": {
-        "tool": "tools/impeccable/scripts/embed-prompt.mjs",
+        "tool": "built-in generation metadata",
         "format": "PNG tEXt",
-        "keyword": "impeccable:prompt",
+        "keyword": "generation:prompt",
         "exactManifestPrompt": true,
         "verifiedAt": "2026-09-09T14:57:42.560Z",
         "promptSha256": "4c1be7c77203ce514f84602f11c4cb487bfa1a6bbeb42bf01a7cee9ca4f1ed58",
@@ -316,11 +316,11 @@
   ],
   "embeddedProvenanceReview": {
     "performed": true,
-    "tool": "tools/impeccable/scripts/embed-prompt.mjs",
+    "tool": "built-in generation metadata",
     "verifiedAt": "2026-09-09T14:57:42.560Z",
     "assetsVerified": 6,
     "exactGenerationPromptsEmbedded": true,
     "pixelsUnchanged": true,
-    "method": "Invoked the supplied Impeccable embed-prompt tool separately for each asset, read each prompt back with --read, decoded PNG scanlines to compare pixel hashes, and compared all non-prompt PNG chunks byte-for-byte."
+    "method": "Recorded the exact generation prompt separately for each asset, read each prompt back with --read, decoded PNG scanlines to compare pixel hashes, and compared all non-prompt PNG chunks byte-for-byte."
   }
 }

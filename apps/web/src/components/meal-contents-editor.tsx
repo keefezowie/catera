@@ -2,13 +2,14 @@
 import { useRef } from "react";
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import {
+  componentLabel,
+  localizedMessage,
   mealLabel,
   menuItems,
   menuSummary,
   type Dish,
   type MealMenu,
   type PackageType,
-  type Nutrition,
 } from "@catera/domain";
 import { useApp } from "./context";
 import { Button, TextInput } from "./form-controls";
@@ -16,6 +17,26 @@ import { Field, ErrorNotice } from "./ui";
 import { Select, SelectOption } from "./select";
 import { DishFields, useDishLibrary } from "./dish-library";
 import { NumericInput } from "./numeric-input";
+
+const componentOptions = [
+  ["Nasi", "Rice"],
+  ["Lauk", "Main dish"],
+  ["Sayur", "Vegetable"],
+  ["Sup", "Soup"],
+  ["Buah", "Fruit"],
+  ["Minuman", "Drink"],
+  ["Sambal / pelengkap", "Sambal / side"],
+] as const;
+
+function localizedComponentName(
+  group: { name: string; categoryId?: string },
+  locale: "id" | "en",
+) {
+  const option = componentOptions.find(([id]) => id === group.name);
+  return locale === "en" && option
+    ? option[1]
+    : componentLabel(group, locale);
+}
 
 export function MealContentsEditor({
   menu,
@@ -41,6 +62,12 @@ export function MealContentsEditor({
   current.current = menu;
   const items = menu.items ?? menuItems(menu),
     groups = menu.composition ?? [];
+  const localizedErrors = Object.fromEntries(
+    Object.entries(errors).map(([key, message]) => [
+      key,
+      localizedMessage(message, locale),
+    ]),
+  );
   const change = (patch: Partial<MealMenu>, foodChanged = false) => {
     const previous = current.current;
     const m = {
@@ -50,7 +77,7 @@ export function MealContentsEditor({
       ...(foodChanged ? { nutrition: null } : {}),
       ...patch,
     };
-    current.current = { ...m, name: menuSummary(m) };
+    current.current = { ...m, name: menuSummary(m, locale) };
     onChange(current.current);
   };
   const blank = (groupId?: string): Dish => ({
@@ -126,8 +153,12 @@ export function MealContentsEditor({
     return (
       <fieldset className="dish-editor" key={i.id}>
         <legend>
-          {groups.find((g) => g.id === i.groupId)?.name ||
-            t("Hidangan", "Dish")}{" "}
+          {(() => {
+            const group = groups.find((g) => g.id === i.groupId);
+            return group
+              ? localizedComponentName(group, locale)
+              : t("Hidangan", "Dish");
+          })()}{" "}
           {n + 1}
         </legend>
         <div className="dish-editor-actions">
@@ -169,7 +200,7 @@ export function MealContentsEditor({
         </div>
         <DishFields
           fieldPrefix={fieldPrefix + ".items." + position}
-          errors={errors}
+          errors={localizedErrors}
           dish={i}
           library={library.data?.dishes || []}
           onChange={(p) => update(i.id, p)}
@@ -209,7 +240,7 @@ export function MealContentsEditor({
             <section
               className="component-editor"
               key={g.id}
-              aria-label={g.name}
+              aria-label={componentLabel(g, locale)}
             >
               <div className="component-row">
                 <Field
@@ -322,17 +353,9 @@ export function MealContentsEditor({
                 <SelectOption value="" disabled>
                   {t("Pilih komponen", "Choose component")}
                 </SelectOption>
-                {[
-                  "Nasi",
-                  "Lauk",
-                  "Sayur",
-                  "Sup",
-                  "Buah",
-                  "Minuman",
-                  "Sambal / pelengkap",
-                ].map((x) => (
-                  <SelectOption key={x} value={x}>
-                    {x}
+                {componentOptions.map(([id, en]) => (
+                  <SelectOption key={id} value={id}>
+                    {t(id, en)}
                   </SelectOption>
                 ))}
                 <SelectOption value="custom">
@@ -358,57 +381,6 @@ export function MealContentsEditor({
           )}
         </>
       )}
-      <details className="nutrition-editor">
-        <summary>
-          {t("Informasi gizi (opsional)", "Nutrition (optional)")}
-        </summary>
-        <p>
-          {t("Per porsi ", "Per portion of ")}
-          {mealLabel(menu.meal, locale).toLowerCase()} ·{" "}
-          {t(
-            "Estimasi dari katerer. Kosongkan nilai yang belum tersedia.",
-            "Caterer estimate. Leave unavailable values blank.",
-          )}
-        </p>
-        <p>
-          {t(
-            "Isi ulang informasi gizi setelah mengubah hidangan atau ukuran saji.",
-            "Re-enter nutrition after changing dishes or serving sizes.",
-          )}
-        </p>
-        <div className="form-row">
-          {(
-            [
-              ["caloriesKcal", t("Kalori (kkal)", "Calories (kcal)")],
-              ["proteinG", "Protein (g)"],
-              ["carbsG", t("Karbohidrat (g)", "Carbs (g)")],
-              ["fatG", t("Lemak (g)", "Fat (g)")],
-            ] as [keyof Nutrition, string][]
-          ).map(([key, label]) => (
-            <Field
-              key={key}
-              fieldKey={fieldPrefix + ".nutrition." + key}
-              error={errors[fieldPrefix + ".nutrition." + key]}
-              label={label}
-            >
-              <NumericInput
-                min={0}
-                step="any"
-                value={menu.nutrition?.[key] ?? ""}
-                normalizeOnBlur={false}
-                onChange={(e) => {
-                  const nutrition = { ...menu.nutrition };
-                  if (e.target.value === "") delete nutrition[key];
-                  else nutrition[key] = Number(e.target.value);
-                  change({
-                    nutrition: Object.keys(nutrition).length ? nutrition : null,
-                  });
-                }}
-              />
-            </Field>
-          ))}
-        </div>
-      </details>
     </section>
   );
 }

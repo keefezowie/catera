@@ -140,7 +140,7 @@ export function DishFields({
         >
           <TextInput
             maxLength={100}
-            placeholder="150 g / 2 potong"
+            placeholder={t("150 g / 2 potong", "150 g / 2 pieces")}
             value={dish.serving}
             onChange={(e) => onChange({ serving: e.target.value })}
           />

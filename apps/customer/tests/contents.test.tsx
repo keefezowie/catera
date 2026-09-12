@@ -19,6 +19,7 @@ jest.mock("../src/context", () => ({
 }));
 const offer = {
   packageType: "nasi_box" as const,
+  nutrition: { proteinG: { min: 35, max: 40 }, carbsG: 0 },
   menus: [
     {
       meal: "lunch",
@@ -48,25 +49,27 @@ const offer = {
     },
   ],
 };
-test("shows every dish, serving, component count and zero macro", () => {
+test("shows every dish, serving, component count and package nutrition range", () => {
   mockLocale.value = "id";
   const screen = render(<PackageContents offer={offer} />);
   expect(screen.getByText("2 Lauk")).toBeTruthy();
   expect(screen.getByText("Ayam · 150 g")).toBeTruthy();
   expect(screen.getByText("Tempe · 2 potong")).toBeTruthy();
   expect(screen.getByText(/0 g karbohidrat/)).toBeTruthy();
+  expect(screen.getByText(/35–40 g protein/)).toBeTruthy();
 });
-test("dated menus with absent macros show unavailable, including English", () => {
+test("missing package nutrition shows unavailable, including English", () => {
   mockLocale.value = "en";
   const screen = render(
     <PackageContents
       offer={{
         ...offer,
+        nutrition: null,
         menus: [{ ...offer.menus[0], source: "dated", nutrition: null }],
       }}
     />,
   );
   expect(screen.getByText(/Menu for this date/)).toBeTruthy();
   expect(screen.getByText("Nutrition unavailable")).toBeTruthy();
-  expect(screen.queryByText(/40 g protein/)).toBeNull();
+  expect(screen.queryByText(/35–40 g protein/)).toBeNull();
 });

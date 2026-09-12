@@ -36,7 +36,10 @@ export function HeroIntroduction() {
       <div className="hero-food">
         <img
           src="/assets/food/ayam-panggang.png"
-          alt="Ayam panggang, nasi hangat, dan sayuran segar"
+          alt={t(
+            "Ayam panggang, nasi hangat, dan sayuran segar",
+            "Roast chicken, warm rice and fresh vegetables",
+          )}
           fetchPriority="high"
           width="724"
           height="543"

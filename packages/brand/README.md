@@ -2,7 +2,7 @@
 
 Sixteen independently regenerated PNG compositions based on the approved Catera identity. The board was used only as visual guidance. The unchanged generated originals are retained in `masters/`. The reusable UI files in `assets/` are transparent derivatives at the original dimensions, without board extraction, cropping, upscaling, tracing, or a raster disguised as SVG.
 
-The exact generation prompts are in `prompts/` and embedded in each PNG as `impeccable:prompt`. `generation-records.json` records the original generated-file paths. `manifest.brand.json` records dimensions, alpha status, intended uses, hashes, and source provenance.
+The exact generation prompts are in `prompts/` and embedded in each PNG as prompt metadata. `generation-records.json` records the original generated-file paths. `manifest.brand.json` records dimensions, alpha status, intended uses, hashes, and source provenance.
 
 ## Current delivery status
 

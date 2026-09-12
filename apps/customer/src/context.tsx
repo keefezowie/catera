@@ -16,7 +16,7 @@ import Constants from "expo-constants";
 import { router } from "expo-router";
 import { createClient } from "@supabase/supabase-js";
 import { createApi } from "@catera/api-client";
-import { type Actor, type Offer, type Locale, errors } from "@catera/domain";
+import { type Actor, type Offer, type Locale, errorLabel } from "@catera/domain";
 import { signInNative } from "./auth";
 export const apiBase = (process.env.EXPO_PUBLIC_API_URL || "").replace(
   /\/$/,
@@ -115,13 +115,15 @@ export function NativeProvider({ children }: { children: ReactNode }) {
       setRevision((r) => r + 1);
     } catch (e) {
       setError(
-        errors[(e as Error).message] ||
-          "Tidak dapat terhubung. Periksa koneksi dan coba lagi.",
+        errorLabel((e as Error).message, locale) ||
+          (locale === "en"
+            ? "Unable to connect. Check your connection and try again."
+            : "Tidak dapat terhubung. Periksa koneksi dan coba lagi."),
       );
     } finally {
       setReady(true);
     }
-  }, []);
+  }, [locale]);
   const command = useCallback(
     async <T,>(action: string, payload: unknown): Promise<T> => {
       const key = action + JSON.stringify(payload),
@@ -250,20 +252,27 @@ export function NativeProvider({ children }: { children: ReactNode }) {
     });
   }
   async function enablePush() {
+    const translate = (id: string, en: string) => (locale === "id" ? id : en);
     const projectId = Constants.expoConfig?.extra?.eas?.projectId;
     if (!projectId)
       throw new Error(
-        "Push memerlukan development build dan EAS project yang dikonfigurasi.",
+        translate(
+          "Push memerlukan development build dan EAS project yang dikonfigurasi.",
+          "Push notifications require a configured development build and EAS project.",
+        ),
       );
     if (Platform.OS === "android")
       await Notifications.setNotificationChannelAsync("default", {
-        name: "Pengantaran & bantuan",
+        name: translate("Pengantaran & bantuan", "Deliveries & support"),
         importance: Notifications.AndroidImportance.DEFAULT,
       });
     const permission = await Notifications.requestPermissionsAsync();
     if (permission.status !== "granted")
       throw new Error(
-        "Izin notifikasi belum diberikan. Ubah dari pengaturan perangkat.",
+        translate(
+          "Izin notifikasi belum diberikan. Ubah dari pengaturan perangkat.",
+          "Notification permission was not granted. Change it in device settings.",
+        ),
       );
     const { data } = await Notifications.getExpoPushTokenAsync({ projectId });
     await command("device.register", { token: data });
@@ -307,7 +316,7 @@ export const nativeLink = (href: string) => {
     .replace(/^\/home$/, "/");
 };
 export function useData<T>(key: string, loader: () => Promise<T>) {
-  const { revision } = useNative();
+  const { revision, locale } = useNative();
   const [data, setData] = useState<T | null>(null),
     [error, setError] = useState("");
   const load = useRef(loader);
@@ -324,7 +333,11 @@ export function useData<T>(key: string, loader: () => Promise<T>) {
         }
       })
       .catch((e) => {
-        if (live) setError(errors[e.code] || e.message);
+        if (live)
+          setError(
+            errorLabel(e.code || e.message || "", locale) ||
+              (locale === "en" ? "Something went wrong." : e.message),
+          );
       });
     return () => {
       live = false;

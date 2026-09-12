@@ -154,10 +154,13 @@ function CustomerOverview({ view, id }: { view: string; id?: string }) {
               <NextMeal delivery={next} />
             ) : (
               <Empty
-                title="Belum ada makanan berikutnya"
-                description="Yuk, temukan paket untuk keseharianmu."
+                title={t("Belum ada makanan berikutnya", "No upcoming meals yet")}
+                description={t(
+                  "Yuk, temukan paket untuk keseharianmu.",
+                  "Find a package for your everyday routine.",
+                )}
                 href="/#packages"
-                label="Jelajah katering"
+                label={t("Jelajah katering", "Explore caterers")}
               />
             )}
             <section className="daily-agenda">
@@ -235,7 +238,9 @@ function CustomerOverview({ view, id }: { view: string; id?: string }) {
               .map((s) => (
                 <SubscriptionCard key={s.id} subscription={s} compact />
               ))}
-            {!c.subscriptions.length && <p>Belum ada paket aktif.</p>}
+            {!c.subscriptions.length && (
+              <p>{t("Belum ada paket aktif.", "No active packages yet.")}</p>
+            )}
             <Link className="add-package" href="/#packages">
               <Plus size={20} />
               {t("Tambah paket yang kamu suka", "Add another favorite")}
@@ -372,7 +377,8 @@ function SubscriptionDetail({
 }) {
   const { t, locale, perform } = useApp();
   const [review, setReview] = useState(false);
-  if (!s) return <Empty title="Langganan tidak ditemukan" />;
+  if (!s)
+    return <Empty title={t("Langganan tidak ditemukan", "Subscription not found")} />;
   return (
     <>
       <SubscriptionCard subscription={s} />
@@ -394,11 +400,13 @@ function SubscriptionDetail({
           ],
           [
             t("Aturan", "Terms"),
-            s.snapshot.offer.flexible ? "Fleksibel" : "Tetap",
+            s.snapshot.offer.flexible ? t("Fleksibel", "Flexible") : t("Tetap", "Fixed"),
           ],
           [
             t("Asal pembelian", "Purchase source"),
-            s.legacy ? "Langganan lama / pembayaran eksternal" : "Catera",
+            s.legacy
+              ? t("Langganan lama / pembayaran eksternal", "Legacy subscription / external payment")
+              : "Catera",
           ],
         ]}
       />
@@ -442,10 +450,10 @@ function SubscriptionDetail({
       <Dialog
         open={review}
         onOpenChange={setReview}
-        title="Ceritakan pengalamanmu"
+        title={t("Ceritakan pengalamanmu", "Tell us about your experience")}
       >
         <ActionForm
-          submit="Kirim ulasan"
+          submit={t("Kirim ulasan", "Send review")}
           onSubmit={async (f) => {
             await perform("review.save", {
               subscriptionId: s.id,
@@ -459,10 +467,10 @@ function SubscriptionDetail({
           }}
         >
           {[
-            ["rating", "Keseluruhan"],
-            ["food", "Makanan"],
-            ["delivery", "Pengantaran"],
-            ["value", "Nilai paket"],
+            ["rating", t("Keseluruhan", "Overall")],
+            ["food", t("Makanan", "Food")],
+            ["delivery", t("Pengantaran", "Delivery")],
+            ["value", t("Nilai paket", "Package value")],
           ].map(([name, label]) => (
             <Field key={name} label={label}>
               <Select name={name} defaultValue="5">
@@ -472,7 +480,7 @@ function SubscriptionDetail({
               </Select>
             </Field>
           ))}
-          <Field label="Ulasan">
+          <Field label={t("Ulasan", "Review")}>
             <TextArea name="body" required maxLength={2000} />
           </Field>
         </ActionForm>
@@ -492,7 +500,8 @@ export function DeliveryPage({ id }: { id: string }) {
     return <ErrorNotice message={state.error} retry={state.reload} />;
   if (!state.data) return <Loading />;
   const d = state.data.deliveries.find((d) => d.id === id);
-  if (!d) return <Empty title="Pengantaran tidak ditemukan" />;
+  if (!d)
+    return <Empty title={t("Pengantaran tidak ditemukan", "Delivery not found")} />;
   const canAddress =
     d.status === "scheduled" && new Date(d.cutoff_at) > new Date();
   return (
@@ -552,7 +561,10 @@ export function DeliveryPage({ id }: { id: string }) {
             ),
           ],
           [t("Porsi", "Portions"), d.portions],
-          [t("Jadwal", "Schedule"), d.offer.flexible ? "Fleksibel" : "Tetap"],
+          [
+            t("Jadwal", "Schedule"),
+            d.offer.flexible ? t("Fleksibel", "Flexible") : t("Tetap", "Fixed"),
+          ],
         ]}
       />
       <div className="action-row">
@@ -619,20 +631,26 @@ export function DeliveryPage({ id }: { id: string }) {
         }}
         title={
           dialog === "address"
-            ? "Ubah alamat pengantaran"
+            ? t("Ubah alamat pengantaran", "Change delivery address")
             : dialog === "skip"
-              ? "Pilih tanggal pengganti"
-              : "Ganti tanggal pengantaran"
+              ? t("Pilih tanggal pengganti", "Choose a replacement date")
+              : t("Ganti tanggal pengantaran", "Reschedule delivery")
         }
         description={
           d.offer.meal === "both"
-            ? "Makan siang dan malam berpindah bersama dengan alamat yang sama."
-            : "Porsi dan ketentuan paket tidak berubah."
+            ? t(
+                "Makan siang dan malam berpindah bersama dengan alamat yang sama.",
+                "Lunch and dinner move together using the same address.",
+              )
+            : t(
+                "Porsi dan ketentuan paket tidak berubah.",
+                "Portions and package terms stay unchanged.",
+              )
         }
       >
         {dialog === "address" ? (
           <ActionForm
-            submit="Simpan alamat pengantaran"
+            submit={t("Simpan alamat pengantaran", "Save delivery address")}
             onSubmit={async (f) => {
               await perform("delivery.address", {
                 id: d.id,
@@ -642,7 +660,7 @@ export function DeliveryPage({ id }: { id: string }) {
               setDialog("");
             }}
           >
-            <Field label="Alamat baru">
+            <Field label={t("Alamat baru", "New address")}>
               <Select name="addressId" defaultValue={d.address.id}>
                 {state.data.addresses.map((a) => (
                   <SelectOption key={a.id} value={a.id}>
@@ -655,7 +673,9 @@ export function DeliveryPage({ id }: { id: string }) {
         ) : (
           <ActionForm
             submit={
-              review ? "Konfirmasi tanggal pengganti" : "Tinjau perubahan"
+              review
+                ? t("Konfirmasi tanggal pengganti", "Confirm replacement date")
+                : t("Tinjau perubahan", "Review change")
             }
             onSubmit={async () => {
               if (!review) {
@@ -683,7 +703,7 @@ export function DeliveryPage({ id }: { id: string }) {
               setDialog("");
             }}
           >
-            <Field label="Tanggal pengganti">
+            <Field label={t("Tanggal pengganti", "Replacement date")}>
               <DatePicker
                 required
                 min={localDay()}
@@ -697,15 +717,17 @@ export function DeliveryPage({ id }: { id: string }) {
             {review && (
               <Facts
                 rows={[
-                  ["Dari", dateLabel(d.service_date, locale)],
-                  ["Menjadi", dateLabel(replacement, locale)],
-                  ["Porsi", d.portions],
+                  [t("Dari", "From"), dateLabel(d.service_date, locale)],
+                  [t("Menjadi", "To"), dateLabel(replacement, locale)],
+                  [t("Porsi", "Portions"), d.portions],
                 ]}
               />
             )}
             <p className="notice">
-              Tanggal lama tetap aman apabila tanggal baru penuh. Pengantaran
-              tidak hangus.
+              {t(
+                "Tanggal lama tetap aman apabila tanggal baru penuh. Pengantaran tidak hangus.",
+                "Your original date remains safe if the new date is full. No delivery is lost.",
+              )}
             </p>
           </ActionForm>
         )}
@@ -714,7 +736,7 @@ export function DeliveryPage({ id }: { id: string }) {
   );
 }
 export function Messages() {
-  const { actor, workspace, t, perform, offers } = useApp();
+  const { actor, workspace, t, perform, offers, locale } = useApp();
   const query = useSearchParams();
   const selectedCaterer = query.get("caterer");
   const state = useResource<Conversation[]>("conversations", () =>
@@ -806,7 +828,7 @@ export function Messages() {
                     >
                       <p>{m.body}</p>
                       <small>
-                        {new Date(m.created_at).toLocaleTimeString("id-ID", {
+                        {new Date(m.created_at).toLocaleTimeString(locale === "id" ? "id-ID" : "en-GB", {
                           hour: "2-digit",
                           minute: "2-digit",
                         })}
@@ -840,10 +862,13 @@ export function Messages() {
             </>
           ) : (
             <Empty
-              title="Belum ada percakapan"
-              description="Buka profil katerer untuk mulai bertanya."
+              title={t("Belum ada percakapan", "No conversations yet")}
+              description={t(
+                "Buka profil katerer untuk mulai bertanya.",
+                "Open a caterer profile to start a conversation.",
+              )}
               href="/#packages"
-              label="Jelajah katerer"
+              label={t("Jelajah katerer", "Explore caterers")}
             />
           )}
         </section>
@@ -891,7 +916,9 @@ export function Account({ view }: { view: string }) {
             </Link>
           </div>
         ))}
-        {!c.notifications.length && <Empty title="Belum ada kabar baru" />}
+        {!c.notifications.length && (
+          <Empty title={t("Belum ada kabar baru", "No new updates yet")} />
+        )}
       </div>
     );
   return (
@@ -919,12 +946,12 @@ export function Account({ view }: { view: string }) {
           </div>
           <div className="account-links">
             {[
-              ["/subscriptions", "Paket saya", Package],
-              ["/notifications", "Notifikasi", Bell],
-              ["/support", "Bantuan & pembatalan", LifeBuoy],
-              ["/messages", "Pesan", MessageCircle],
+              ["/subscriptions", t("Paket saya", "My packages"), Package],
+              ["/notifications", t("Notifikasi", "Notifications"), Bell],
+              ["/support", t("Bantuan & pembatalan", "Support & cancellation"), LifeBuoy],
+              ["/messages", t("Pesan", "Messages"), MessageCircle],
               ...(actor?.catererId
-                ? [["/seller", "Ruang katerer", Settings]]
+                ? [["/seller", t("Ruang katerer", "Caterer workspace"), Settings]]
                 : []),
             ].map(([href, label, Icon]) => {
               const I = Icon as typeof Bell;
@@ -937,7 +964,7 @@ export function Account({ view }: { view: string }) {
               );
             })}
             <Button onClick={() => setLocale(locale === "id" ? "en" : "id")}>
-              <span>Bahasa / Language</span>
+              <span>{t("Bahasa", "Language")}</span>
               <strong>{locale === "id" ? "Indonesia" : "English"}</strong>
             </Button>
           </div>
@@ -986,8 +1013,11 @@ export function Account({ view }: { view: string }) {
         onOpenChange={(open) => {
           if (!open) setEditing(undefined);
         }}
-        title={editing ? "Ubah alamat" : "Tambah alamat"}
-        description="Alamat pengantaran yang sudah dijadwalkan hanya berubah jika Anda mengubahnya dari detail pengantaran."
+        title={editing ? t("Ubah alamat", "Edit address") : t("Tambah alamat", "Add address")}
+        description={t(
+          "Alamat pengantaran yang sudah dijadwalkan hanya berubah jika Anda mengubahnya dari detail pengantaran.",
+          "A scheduled delivery address can only be changed from its delivery details.",
+        )}
       >
         <ActionForm
           onSubmit={async (f) => {
@@ -1006,16 +1036,16 @@ export function Account({ view }: { view: string }) {
               location.assign(next);
           }}
         >
-          <Field label="Label alamat">
+          <Field label={t("Label alamat", "Address label")}>
             <TextInput
               name="label"
               defaultValue={editing?.label}
-              placeholder="Rumah / Kantor"
+              placeholder={t("Rumah / Kantor", "Home / Office")}
               required
               maxLength={40}
             />
           </Field>
-          <Field label="Jalan, nomor, dan detail alamat">
+          <Field label={t("Jalan, nomor, dan detail alamat", "Street, number, and address details")}>
             <TextArea
               name="line"
               defaultValue={editing?.line}
@@ -1024,7 +1054,7 @@ export function Account({ view }: { view: string }) {
               maxLength={240}
             />
           </Field>
-          <Field label="Area">
+          <Field label={t("Area", "Area")}>
             <Select
               name="area"
               defaultValue={editing?.area || "Jakarta Selatan"}
@@ -1034,14 +1064,14 @@ export function Account({ view }: { view: string }) {
               ))}
             </Select>
           </Field>
-          <Field label="Kota">
+          <Field label={t("Kota", "City")}>
             <TextInput
               name="city"
               defaultValue={editing?.city || "Jakarta"}
               required
             />
           </Field>
-          <Field label="Petunjuk pengantaran">
+          <Field label={t("Petunjuk pengantaran", "Delivery instructions")}>
             <TextArea
               name="instructions"
               defaultValue={editing?.instructions}
@@ -1054,7 +1084,7 @@ export function Account({ view }: { view: string }) {
   );
 }
 export function Support() {
-  const { t, perform } = useApp();
+  const { t, perform, locale } = useApp();
   const params = useSearchParams();
   const state = useResource<CustomerState>("support", () => api.customer());
   const [open, setOpen] = useState(
@@ -1097,12 +1127,12 @@ export function Support() {
             <div className="support-response">
               <strong>{t("Tanggapan", "Response")}</strong>
               <p>{c.resolution}</p>
-              {!!c.amount && <p>{currency(c.amount)}</p>}
+              {!!c.amount && <p>{currency(c.amount, locale)}</p>}
             </div>
           )}
           {c.status === "responded" && (
             <ActionForm
-              submit="Minta Catera meninjau"
+              submit={t("Minta Catera meninjau", "Ask Catera to review")}
               onSubmit={async () => {
                 await perform("support.escalate", { id: c.id });
               }}
@@ -1114,13 +1144,20 @@ export function Support() {
       ))}
       {!state.data.cases.length && (
         <Empty
-          title="Semoga setiap makanan menyenangkan."
-          description="Jika ada kendala, semua permintaan bantuan akan tampil di sini."
+          title={t("Semoga setiap makanan menyenangkan.", "Here’s to enjoyable meals.")}
+          description={t(
+            "Jika ada kendala, semua permintaan bantuan akan tampil di sini.",
+            "If anything goes wrong, all support requests will appear here.",
+          )}
         />
       )}
-      <Dialog open={open} onOpenChange={setOpen} title="Ceritakan yang terjadi">
+      <Dialog
+        open={open}
+        onOpenChange={setOpen}
+        title={t("Ceritakan yang terjadi", "Tell us what happened")}
+      >
         <ActionForm
-          submit="Kirim permintaan bantuan"
+          submit={t("Kirim permintaan bantuan", "Send support request")}
           onSubmit={async (f) => {
             await perform("support.create", {
               subscriptionId: f.get("subscriptionId"),
@@ -1131,7 +1168,7 @@ export function Support() {
             setOpen(false);
           }}
         >
-          <Field label="Paket terkait">
+          <Field label={t("Paket terkait", "Related package")}>
             <Select
               name="subscriptionId"
               required
@@ -1144,22 +1181,22 @@ export function Support() {
               ))}
             </Select>
           </Field>
-          <Field label="Jenis permintaan">
+          <Field label={t("Jenis permintaan", "Request type")}>
             <Select name="subject">
               {[
-                "Makanan belum diterima",
-                "Pengantaran terlambat",
-                "Menu tidak sesuai",
-                "Kemasan rusak",
-                "Kualitas makanan",
-                "Ajukan pembatalan",
-                "Lainnya",
-              ].map((x) => (
-                <SelectOption key={x}>{x}</SelectOption>
+                ["Makanan belum diterima", "Meal not received"],
+                ["Pengantaran terlambat", "Delivery is late"],
+                ["Menu tidak sesuai", "Menu is incorrect"],
+                ["Kemasan rusak", "Packaging is damaged"],
+                ["Kualitas makanan", "Food quality"],
+                ["Ajukan pembatalan", "Request cancellation"],
+                ["Lainnya", "Other"],
+              ].map(([id, en]) => (
+                <SelectOption key={id}>{t(id, en)}</SelectOption>
               ))}
             </Select>
           </Field>
-          <Field label="Ceritakan kendalanya">
+          <Field label={t("Ceritakan kendalanya", "Tell us what happened")}>
             <TextArea
               name="description"
               required

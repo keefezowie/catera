@@ -184,12 +184,14 @@ function OperationsPage({
         }
       >
         {!schedule && (
-          <DatePicker
-            compact
-            aria-label={t("Tanggal operasional", "Operational date")}
-            value={date}
-            onValueChange={(value) => navigate({ date: value })}
-          />
+          <div className="ops-date">
+            <DatePicker
+              compact
+              aria-label={t("Tanggal operasional", "Operational date")}
+              value={date}
+              onValueChange={(value) => navigate({ date: value })}
+            />
+          </div>
         )}
       </Heading>
       {s.caterer.status !== "approved" && (
@@ -377,6 +379,7 @@ function OperationsPage({
       {!schedule && cases > 0 && (
         <Link className="text-button ops-support-link" href="/seller/support">
           {t("Lihat bantuan terbuka", "View open support cases")}{" "}
+          <span className="ops-count-badge">{cases}</span>
           <ArrowUpRight size={15} />
         </Link>
       )}
@@ -798,7 +801,7 @@ function OrderTable({
           <Loading />
         ) : rows.length ? (
           <div className="table-wrap">
-            <table className="ops-order-table">
+            <table className={"ops-order-table" + (schedule ? " ops-schedule-table" : "")}>
               <thead>
                 <tr>
                   {!schedule && (
@@ -870,7 +873,7 @@ function OrderTable({
                       {!schedule && (
                         <small>
                           {x.offer.name}
-                          {x.trial ? " · Trial" : ""}
+                          {x.trial ? " · " + t("Trial", "Trial") : ""}
                         </small>
                       )}
                     </td>
@@ -884,7 +887,7 @@ function OrderTable({
                       <>
                         <td>
                           {x.offer.name}
-                          {x.trial && <small>Trial</small>}
+                          {x.trial && <small>{t("Trial", "Trial")}</small>}
                           {x.status === "cancelled" && (
                             <Status status="cancelled" />
                           )}

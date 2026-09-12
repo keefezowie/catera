@@ -207,7 +207,7 @@ it("address edits cannot mutate a pending purchase address", async () => {
   );
   expect(d.rows.every((x) => x.address.area === "Jakarta Selatan")).toBe(true);
 });
-it("direct RPC rejects invalid published offer data and preserves the old offer", async () => {
+it("direct RPC rejects published offer edits and preserves the old offer", async () => {
   const catalog = await read<{ items: Offer[] }>("catalog");
   const o = catalog.items.find((x) => x.id === P[0])!;
   await expect(
@@ -221,7 +221,7 @@ it("direct RPC rejects invalid published offer data and preserves the old offer"
       },
       U.owner,
     ),
-  ).rejects.toThrow("INVALID_INPUT");
+  ).rejects.toThrow("PACKAGE_IMMUTABLE");
 });
 it("dated menu edits appear in deliveries without changing the purchase snapshot", async () => {
   const c = await read<CustomerState>("customer");

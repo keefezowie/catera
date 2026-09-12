@@ -62,7 +62,7 @@ test("seller accounts default to seller and can switch workspaces", async ({
 
     await trigger.click();
     await menu.getByRole("menuitemradio", { name: /Pelanggan/ }).click();
-    await expect(page).toHaveURL(/^http:\/\/127\.0\.0\.1:3000\/$/);
+    await expect(page).toHaveURL("/");
     await expect(page.locator(".customer-layout")).toBeVisible();
     await expect(page.locator(".ops-layout")).toHaveCount(0);
     await expect(
@@ -76,7 +76,7 @@ test("seller accounts default to seller and can switch workspaces", async ({
     expect((await me.json()).data.actor.role).toBe("owner");
 
     await page.reload();
-    await expect(page).toHaveURL(/^http:\/\/127\.0\.0\.1:3000\/$/);
+    await expect(page).toHaveURL("/");
     await expect(page.locator(".customer-layout")).toBeVisible();
     const customerMenu = page.getByRole("button", {
       name: "Buka menu akun",

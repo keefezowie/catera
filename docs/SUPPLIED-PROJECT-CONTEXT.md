@@ -88,7 +88,7 @@ The exploration sequence changed during the project. Earlier discussions conside
 
 No specific font family, finalized component library, complete screen map, or responsive specification is confirmed in this handoff.
 
-## 7. Work mode, Cloud, and Impeccable
+## 7. Work mode and Cloud
 
 The user reported that attempting to use Work mode returned this exact error:
 
@@ -102,13 +102,7 @@ The user supplied this troubleshooting thread and asked for the project problem 
 https://community.openai.com/t/codex-could-not-use-this-project-for-a-local-chat-repair/1392960
 ```
 
-The user also wants to use **Work mode with Cloud while retaining the Impeccable skill**, referring to:
-
-```text
-https://impeccable.style/docs/
-```
-
-These are recorded requests, not verified technical outcomes. The available context does not establish a successful repair, an installed Impeccable skill, or a verified Cloud configuration. Do not tell the user that any of those steps are complete without inspecting the actual environment or other supporting evidence.
+The user previously wanted to use Work mode with Cloud. This is a recorded request, not a verified technical outcome. Do not claim that configuration is complete without inspecting the actual environment or other supporting evidence.
 
 The current request is to migrate the project context to another project. It is not confirmation that the underlying error has been repaired.
 
@@ -132,4 +126,4 @@ An earlier searchable reference is titled **“Catera Brand Moodboard: Good Food
 
 Continue the existing Catera project from this context rather than restarting product or brand discovery. Preserve the recurring-catering model, the rule that one quota equals one delivery, the Indonesian-first direction with English support, and the approved Catera name, tagline, mascot, wordmark, and Forest & Cream palette.
 
-Build on supplied assets and code. Keep confirmed decisions separate from proposals and unresolved requirements. Do not invent prior approvals, completed implementation, installed tools, or successful repairs. When Work-mode or Impeccable configuration becomes relevant, inspect the actual environment and verify compatibility before claiming the setup works.
+Build on supplied assets and code. Keep confirmed decisions separate from proposals and unresolved requirements. Do not invent prior approvals, completed implementation, installed tools, or successful repairs. When Work-mode configuration becomes relevant, inspect the actual environment and verify compatibility before claiming the setup works.

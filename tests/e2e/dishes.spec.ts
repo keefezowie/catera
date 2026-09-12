@@ -219,3 +219,32 @@ test("upload failure preserves the old photo and pending uploads block navigatio
   await expect(page.locator(".photo-preview")).toHaveCount(0);
   await page.unroute("**/api/uploads");
 });
+
+test("owner can upload a validated package photo", async ({ page }) => {
+  await openEditor(page);
+  await choose(page, "Jenis paket", "À la carte");
+  await page.getByLabel("Nama paket", { exact: true }).fill("Sintetis foto");
+  await page
+    .getByLabel("Cerita paket", { exact: true })
+    .fill("Data sintetis unggah foto berhasil.");
+  await page.getByRole("button", { name: /2\. Isi/ }).click();
+
+  const uploaded = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/api/uploads") &&
+      response.request().method() === "POST",
+  );
+  await page
+    .getByLabel("Foto paket", { exact: true })
+    .setInputFiles("apps/web/public/assets/food/ayam-panggang.png");
+
+  const response = await uploaded;
+  expect(response.ok(), await response.text()).toBe(true);
+  await expect(
+    page.getByText("Foto berhasil diunggah", { exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".photo-preview")).toHaveAttribute(
+    "src",
+    /^\/api\/uploads\?file=[0-9a-f-]{36}\.png$/,
+  );
+});

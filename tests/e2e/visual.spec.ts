@@ -6,8 +6,14 @@ test("marketplace desktop and phone render with food, filters and navigation", a
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: /Makan enak/ })).toBeVisible();
-  await expect(page.locator(".package-card")).toHaveCount(6);
+  await expect(
+    page.getByRole("region", { name: "Katerer pilihan" }),
+  ).toBeVisible();
+  const catalog = (
+    await (await page.request.get("/api/v1/catalog?limit=100")).json()
+  ).data.items as { name: string; meal: string }[];
+  expect(catalog.length).toBeGreaterThanOrEqual(6);
+  await expect(page.locator(".package-card")).toHaveCount(catalog.length);
   await page.evaluate(() => document.fonts.ready);
   await expect(page.locator("[data-nextjs-dialog]")).toHaveCount(0);
   fs.mkdirSync("output/playwright", { recursive: true });
@@ -26,6 +32,10 @@ test("marketplace desktop and phone render with food, filters and navigation", a
     ),
   ).toBe(true);
   await page.getByRole("button", { name: "Makan siang", exact: true }).click();
-  await expect(page.locator(".package-card")).toHaveCount(4);
+  const lunch = catalog.filter((offer) => offer.meal === "lunch");
+  await expect(page.locator(".package-card")).toHaveCount(lunch.length);
+  await expect(page.locator(".package-card h3")).toHaveText(
+    lunch.map((offer) => offer.name),
+  );
   expect(errors).toEqual([]);
 });

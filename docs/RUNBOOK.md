@@ -8,7 +8,7 @@ Create separate V1 staging and production Supabase projects, storage, SMS creden
 
 Use Node 24 and the committed npm lockfile. The web application is `apps/web`; build from the repository root with `npm ci` then `npm run build`, or configure monorepo hosting to run the equivalent workspace command with shared package access. The Expo application is `apps/customer`. Do not deploy `archive/pilot` as V1.
 
-`npm run dev` explicitly starts persistent, synthetic local storage. Hosted environments set `CATERA_V1_DEMO=false`; missing Supabase configuration produces an error. Demo identities and payment confirmation endpoints are unavailable in hosted mode. Production deployment is a separate operation and has not been performed.
+`npm run dev` uses the configured Supabase environment by default. Set `CATERA_V1_DEMO=true` explicitly to start persistent, synthetic local storage. Missing Supabase configuration produces an error. Demo identities and payment confirmation endpoints are unavailable in hosted mode. Production deployment is a separate operation and has not been performed.
 
 ## 2. Configuration
 
@@ -20,7 +20,7 @@ Copy the example files locally, then enter secrets through the host's protected 
 | `CATERA_PUBLIC_URL` | Canonical HTTPS V1 web origin, including payment return routes |
 | `NEXT_PUBLIC_SUPABASE_URL` | Environment-specific Supabase project |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Browser and API authentication |
-| `SUPABASE_SECRET_KEY` | Server-only service RPC and validated food uploads |
+| `SUPABASE_SECRET_KEY` | Server-only service RPC and background jobs |
 | `XENDIT_SECRET_KEY` | Environment-specific Xendit API access |
 | `XENDIT_WEBHOOK_TOKEN` | Callback verification token |
 | `CATERA_XENDIT_ROUTING_JSON` | Approved caterer UUID to account ID / split rule ID routing |
@@ -44,6 +44,13 @@ Before applying SQL, record the project reference, intended environment, operato
 5. `supabase/migrations/202609090005_realtime.sql`
 6. `supabase/migrations/20260910120930_package_contents.sql`
 7. `supabase/migrations/20260910130548_reusable_dishes.sql`
+8. `supabase/migrations/20260910160000_calendar_metadata.sql`
+9. `supabase/migrations/20260911134456_slot_menu_calendar.sql`
+10. `supabase/migrations/20260911150000_shared_recurring_capacity.sql`
+11. `supabase/migrations/20260911150142_seller_operations.sql`
+12. `supabase/migrations/20260912085515_owner_food_upload_policy.sql`
+
+September 11, 2026: these migrations are installed on Catera V1 (`ygzfdqrljunngfrdygzt`). See [hosted migration verification](SUPABASE-MIGRATION-VERIFICATION-2026-09-11.md) for hosted ledger mappings and test scope. This does not constitute production launch approval. Existing hosted listings and purchase snapshots were preserved; category assignment and conversion of current listings to new slot revisions are separate content operations.
 
 Apply the reusable-dishes migration before deploying the new seller editor. See [compatibility and verification](REUSABLE-DISHES.md). Library changes do not rewrite existing purchases or production snapshots; incomplete drafts cannot be published without full validation and explicit package classification.
 
@@ -55,7 +62,7 @@ The contents migration creates immutable revisions, revision-scoped dated menus 
 
 Hosted Supabase supplies Auth roles and schemas. The private `v1` schema must not be added to the public Data API exposed schemas. Public RPC functions have explicit grants and fixed search paths; protected business tables have RLS and no direct client writes. Verify anonymous catalog reads, authenticated RPC access, revoked staff access, cross-caterer IDs, cross-customer IDs, platform-admin separation and service-only job access using real hosted sessions.
 
-Storage migration creates `catera-v1-food` only where the Supabase storage schema exists. Validate owner-authorized JPEG/PNG/WebP uploads, size limits, public image delivery and rejected direct writes. Seller photographs belong to their listings; generated meal photographs are synthetic fixtures only.
+Storage migrations create `catera-v1-food` only where the Supabase storage schema exists. The upload API validates JPEG/PNG/WebP bytes and size before writing with the signed-in owner session; Storage RLS limits inserts to a new UUID filename inside that owner's caterer folder. Validate owner-authorized uploads, size limits, public image delivery, cross-caterer rejection, overwrite rejection and unauthenticated rejection. Seller photographs belong to their listings; generated meal photographs are synthetic fixtures only.
 
 Realtime migration publishes a minimal `catera_v1_events` table when the `supabase_realtime` publication is present. Verify two signed-in customers receive only their own events, reconnect correctly and refresh affected views. Business table contents and message bodies are not published by this channel.
 

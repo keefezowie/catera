@@ -33,7 +33,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import {
-  errors,
+  errorLabel,
   statusLabel,
   type Offer,
   currency,
@@ -165,7 +165,7 @@ export function Run({
   secondary?: boolean;
   successMessage?: string;
 }) {
-  const { t } = useNative();
+  const { t, locale } = useNative();
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [success, setSuccess] = useState(false);
@@ -209,7 +209,7 @@ export function Run({
                       "Terlalu banyak percobaan. Tunggu sebentar lalu coba lagi.",
                       "Too many attempts. Wait a moment and try again.",
                     )
-                  : errors[code] || code,
+                  : errorLabel(code, locale) || code,
             );
           } finally {
             setBusy(false);
@@ -371,13 +371,14 @@ export function DayPicker({
   min?: string;
 }) {
   const [open, setOpen] = useState(false);
+  const { locale, t } = useNative();
   return (
     <View style={styles.stack}>
       <Txt kind="label">{label}</Txt>
       <Btn
         secondary
         icon="calendar-outline"
-        label={new Date(value + "T12:00:00").toLocaleDateString("id-ID", {
+        label={new Date(value + "T12:00:00").toLocaleDateString(locale === "id" ? "id-ID" : "en-GB", {
           weekday: "long",
           day: "numeric",
           month: "long",
@@ -404,7 +405,11 @@ export function DayPicker({
         />
       )}
       {open && Platform.OS === "ios" && (
-        <Btn secondary label="Selesai" onPress={() => setOpen(false)} />
+        <Btn
+          secondary
+          label={t("Selesai", "Done")}
+          onPress={() => setOpen(false)}
+        />
       )}
     </View>
   );
@@ -418,13 +423,14 @@ export function Qty({
   onChange: (v: number) => void;
   max?: number;
 }) {
+  const { t } = useNative();
   return (
     <View style={[styles.row, { justifyContent: "space-between" }]}>
-      <Txt kind="label">Porsi setiap hari</Txt>
+      <Txt kind="label">{t("Porsi setiap hari", "Portions per day")}</Txt>
       <View style={styles.row}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Kurangi porsi"
+          accessibilityLabel={t("Kurangi porsi", "Decrease portions")}
           onPress={() => onChange(Math.max(1, value - 1))}
           style={styles.qty}
         >
@@ -433,7 +439,7 @@ export function Qty({
         <Txt kind="heading">{value}</Txt>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Tambah porsi"
+          accessibilityLabel={t("Tambah porsi", "Increase portions")}
           onPress={() => onChange(Math.min(max, value + 1))}
           style={styles.qty}
         >
@@ -480,19 +486,21 @@ export function Facts({ rows }: { rows: [string, ReactNode][] }) {
   );
 }
 export function Status({ status }: { status: string }) {
+  const { locale } = useNative();
   return (
     <Txt kind="small" style={styles.status}>
-      {statusLabel(status)}
+      {statusLabel(status, locale)}
     </Txt>
   );
 }
 export function Empty({
-  title = "Belum ada makanan di sini.",
-  body = "Temukan paket untuk keseharianmu.",
+  title,
+  body,
 }: {
   title?: string;
   body?: string;
 }) {
+  const { t } = useNative();
   return (
     <View style={styles.empty}>
       <Image
@@ -500,8 +508,12 @@ export function Empty({
         style={{ width: 145, height: 145 }}
         resizeMode="contain"
       />
-      <Txt kind="heading">{title}</Txt>
-      <Txt style={{ textAlign: "center" }}>{body}</Txt>
+      <Txt kind="heading">
+        {title || t("Belum ada makanan di sini.", "No meals here yet.")}
+      </Txt>
+      <Txt style={{ textAlign: "center" }}>
+        {body || t("Temukan paket untuk keseharianmu.", "Find a package for your everyday routine.")}
+      </Txt>
     </View>
   );
 }
@@ -526,22 +538,28 @@ export function Gate({ children }: { children: ReactNode }) {
     );
   if (error)
     return (
-      <Screen title="Belum dapat terhubung">
+      <Screen title={t("Belum dapat terhubung", "Could not connect")}>
         <Txt>{error}</Txt>
-        <Run label="Coba lagi" action={refresh} />
+        <Run label={t("Coba lagi", "Try again")} action={refresh} />
       </Screen>
     );
   if (!actor)
     return (
-      <Screen title="Makanan favorit, dalam satu tempat.">
+      <Screen title={t("Makanan favorit, dalam satu tempat.", "Favorite meals, all in one place.")}>
         <Empty
-          title="Masuk untuk melihat makananmu."
-          body="Jadwal, pesan, dan semua katerermu terhubung dalam satu akun."
+          title={t("Masuk untuk melihat makananmu.", "Sign in to see your meals.")}
+          body={t(
+            "Jadwal, pesan, dan semua katerermu terhubung dalam satu akun.",
+            "Your schedule, messages, and caterers in one account.",
+          )}
         />
-        <Btn label="Masuk / Daftar" onPress={() => router.push("/login")} />
+        <Btn
+          label={t("Masuk / Daftar", "Sign in / Sign up")}
+          onPress={() => router.push("/login")}
+        />
         <Btn
           secondary
-          label="Jelajah dulu"
+          label={t("Jelajah dulu", "Browse first")}
           onPress={() => router.push("/discover")}
         />
       </Screen>

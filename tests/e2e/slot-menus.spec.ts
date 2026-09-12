@@ -144,8 +144,7 @@ test("calendar batch, search, drag/drop and conflict recovery retain the draft",
   );
   await expect(page.locator(".menu-slot").nth(1)).toContainText(f.soup.name);
   await expect(page.locator(".menu-slot input")).toHaveCount(0);
-  await page.getByText("Informasi gizi (opsional)", { exact: true }).click();
-  await page.getByLabel("Protein (g)", { exact: true }).fill("0");
+  await expect(page.getByLabel("Protein (g)", { exact: true })).toHaveCount(0);
   await page
     .getByRole("button", { name: "Kembali ke kalender", exact: true })
     .click();
@@ -166,15 +165,35 @@ test("calendar batch, search, drag/drop and conflict recovery retain the draft",
   );
   await page.getByRole("button", { name: "Simpan menu", exact: true }).click();
   expect((await saved).ok()).toBe(true);
-  await expect(
-    page.locator(".menu-day").filter({ hasText: "Terisi" }),
-  ).toHaveCount(2);
+  await expect(page.locator(".menu-day.configured")).toHaveCount(2);
+  await expect(day(page, 10)).toContainText(f.chicken.name);
+  await expect(day(page, 10)).toContainText(f.soup.name);
+  await expect(day(page, 10)).not.toContainText("Terisi");
   // A concurrent update must retain the local draft and leave the entire batch unchanged.
   await page
     .getByRole("button", { name: "Selesai memilih", exact: true })
     .click();
+  await expect(day(page, 10)).toHaveCSS(
+    "background-color",
+    "rgb(240, 243, 233)",
+  );
+  await expect(day(page, 10)).toHaveCSS("color", "rgb(22, 61, 46)");
+  await expect(day(page, 10)).toHaveAccessibleName(
+    new RegExp(f.chicken.name + ", " + f.soup.name),
+  );
+  await page.screenshot({
+    path: "output/slack-bugs/0003/calendar-configured-desktop.png",
+    fullPage: true,
+  });
   await day(page, 10).click();
-  await page.getByLabel("Kalori (kkal)", { exact: true }).fill("777");
+  // Make a local dish change before another operator saves this date.
+  await page.locator(".menu-slot-select").first().click();
+  await lib.getByLabel("Cari hidangan", { exact: true }).fill(f.chicken.name);
+  await lib.getByRole("button", { name: "Pilih", exact: true }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Ganti hidangan", exact: true })
+    .click();
   const cal = (
     await (
       await page.request.get(
@@ -196,9 +215,10 @@ test("calendar batch, search, drag/drop and conflict recovery retain the draft",
     .getByRole("button", { name: "Ganti dan simpan", exact: true })
     .click();
   await expect(page.getByText(/Menu berubah sejak dibuka/)).toBeVisible();
-  await expect(page.getByLabel("Kalori (kkal)", { exact: true })).toHaveValue(
-    "777",
+  await expect(page.locator(".menu-slot").first()).toContainText(
+    f.chicken.name,
   );
+  await expect(page.locator(".menu-completion")).toHaveText("2/2 slot terisi");
   await page
     .getByRole("button", { name: "Muat ulang tanggal", exact: true })
     .click();
@@ -259,7 +279,7 @@ test("visual assembly advances through repeated slots, wraps, supports keyboard 
   await lib.getByRole("button", { name: "Pilih", exact: true }).focus();
   await page.keyboard.press("Enter");
   await expect(page.locator(".menu-completion")).toHaveText("3/3 slot terisi");
-  await page.getByLabel("Protein (g)", { exact: true }).fill("0");
+  await expect(page.getByLabel("Protein (g)", { exact: true })).toHaveCount(0);
   await slots.first().focus();
   await page.keyboard.press("Enter");
   await lib.getByRole("button", { name: "Pilih", exact: true }).click();
@@ -268,16 +288,16 @@ test("visual assembly advances through repeated slots, wraps, supports keyboard 
   });
   await expect(replace).toBeVisible();
   await replace.getByRole("button", { name: "Tutup", exact: true }).click();
-  await expect(page.getByLabel("Protein (g)", { exact: true })).toHaveValue(
-    "0",
+  await expect(page.locator(".menu-completion")).toHaveText("3/3 slot terisi");
+  await expect(page.locator(".menu-slot").first()).toContainText(
+    f.chicken.name,
   );
   await page
     .locator(".menu-slot")
     .first()
     .getByRole("button", { name: /^Kosongkan/ })
     .click();
-  await expect(page.getByLabel("Protein (g)", { exact: true })).toHaveValue("");
-  await expect(page.getByText(/Hidangan berubah\. Isi ulang/)).toBeVisible();
+  await expect(page.locator(".menu-completion")).toHaveText("2/3 slot terisi");
   await expect(
     page.getByRole("button", { name: "Simpan menu", exact: true }),
   ).toBeDisabled();
@@ -389,9 +409,25 @@ test("phone keyboard/touch picker, category creation, library editing and legacy
     fullPage: true,
   });
   await page.getByRole("button", { name: "Simpan menu", exact: true }).click();
-  await expect(
-    page.locator(".menu-day").filter({ hasText: "Terisi" }),
-  ).toHaveCount(1);
+  await expect(page.locator(".menu-day.configured")).toHaveCount(1);
+  await expect
+    .poll(() =>
+      page
+        .locator(".menu-main")
+        .evaluate(
+          (el) =>
+            el
+              .getAnimations({ subtree: true })
+              .filter((animation) => animation.playState === "running").length,
+        ),
+    )
+    .toBe(0);
+  await expect(page.locator(".menu-month-heading h2")).toBeFocused();
+  await page.screenshot({
+    path: "output/slack-bugs/0003/calendar-configured-phone.png",
+    fullPage: true,
+  });
+  await expect(page.locator(".menu-month-heading h2")).toBeFocused();
   await page
     .getByRole("button", { name: "Pustaka hidangan", exact: true })
     .click();
@@ -506,14 +542,22 @@ test("mixed dates start empty, reject a wrong category and confirm slot and date
     ...f.menus[0],
     items: [
       {
-        ...f.chicken,
+        name: f.chicken.name,
+        description: f.chicken.description,
+        image: f.chicken.image,
+        serving: f.chicken.serving,
+        categoryId: "main",
         id: "main:0",
         groupId: "main",
         sourceDishId: f.chicken.id,
         sourceDishVersion: f.chicken.version,
       },
       {
-        ...f.soup,
+        name: f.soup.name,
+        description: f.soup.description,
+        image: f.soup.image,
+        serving: f.soup.serving,
+        categoryId: "soup",
         id: "soup:0",
         groupId: "soup",
         sourceDishId: f.soup.id,
@@ -586,7 +630,5 @@ test("mixed dates start empty, reject a wrong category and confirm slot and date
   await confirm
     .getByRole("button", { name: "Ganti dan simpan", exact: true })
     .click();
-  await expect(
-    page.locator(".menu-day").filter({ hasText: "Terisi" }),
-  ).toHaveCount(2);
+  await expect(page.locator(".menu-day.configured")).toHaveCount(2);
 });

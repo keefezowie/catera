@@ -35,6 +35,7 @@ import {
   styles,
 } from "./ui";
 function Meal({ delivery: d, meal }: { delivery: Delivery; meal?: string }) {
+  const { t, locale } = useNative();
   const current =
     d.meals.find((m) => m.meal === meal) ||
     d.meals.find((m) => !["delivered", "cancelled"].includes(m.status)) ||
@@ -48,15 +49,15 @@ function Meal({ delivery: d, meal }: { delivery: Delivery; meal?: string }) {
       </View>
       <Txt kind="heading">{d.offer.name}</Txt>
       <Txt kind="small">
-        {new Date(d.service_date + "T12:00:00").toLocaleDateString("id-ID", {
+        {new Date(d.service_date + "T12:00:00").toLocaleDateString(locale === "id" ? "id-ID" : "en-GB", {
           weekday: "long",
           day: "numeric",
           month: "long",
         })}{" "}
-        · {d.portions} porsi
+        · {d.portions} {t("porsi", "portions")}
       </Txt>
       <Txt kind="small">
-        {mealLabel(current.meal)} ·{" "}
+        {mealLabel(current.meal, locale)} ·{" "}
         {current.meal === "dinner"
           ? d.offer.windows.dinner
           : d.offer.windows.lunch}
@@ -65,7 +66,7 @@ function Meal({ delivery: d, meal }: { delivery: Delivery; meal?: string }) {
         {d.address.label} · {d.address.area}
       </Txt>
       <Btn
-        label="Lihat pengantaran"
+        label={t("Lihat pengantaran", "View delivery")}
         secondary
         onPress={() => router.push(("/delivery/" + d.id) as never)}
       />
@@ -73,7 +74,7 @@ function Meal({ delivery: d, meal }: { delivery: Delivery; meal?: string }) {
   );
 }
 export function Home() {
-  const { actor, t } = useNative();
+  const { actor, t, locale } = useNative();
   const s = useData<CustomerState>("home:" + actor?.id, () =>
     nativeApi.customer(),
   );
@@ -97,22 +98,27 @@ export function Home() {
         )}
         refresh={s.reload}
       >
-        <Txt>Lebih sedikit memikirkan makan. Lebih banyak menikmati hari.</Txt>
+        <Txt>
+          {t(
+            "Lebih sedikit memikirkan makan. Lebih banyak menikmati hari.",
+            "Less meal planning. More enjoying your day.",
+          )}
+        </Txt>
         {s.error && <Txt style={styles.error}>{s.error}</Txt>}
-        <Txt kind="heading">Makanan berikutnya</Txt>
+        <Txt kind="heading">{t("Makanan berikutnya", "Next meal")}</Txt>
         {next ? (
           <Meal delivery={next} />
         ) : (
-          <Empty title="Belum ada makanan berikutnya." />
+          <Empty title={t("Belum ada makanan berikutnya.", "No upcoming meals yet.")} />
         )}
         {pending && (
           <Btn
             secondary
-            label="Lanjutkan pembelian terakhir"
+            label={t("Lanjutkan pembelian terakhir", "Continue your last purchase")}
             onPress={() => router.push(("/payment/" + pending) as never)}
           />
         )}
-        <Txt kind="heading">Agenda makan</Txt>
+        <Txt kind="heading">{t("Agenda makan", "Meal agenda")}</Txt>
         {s.data?.deliveries
           .filter(
             (d) =>
@@ -123,18 +129,18 @@ export function Home() {
             d.meals.map((m) => (
               <Panel key={d.id + m.meal}>
                 <Txt kind="small">
-                  {mealLabel(m.meal)} ·{" "}
+                  {mealLabel(m.meal, locale)} ·{" "}
                   {d.offer.windows[m.meal as "lunch" | "dinner"]}
                 </Txt>
                 <Txt kind="heading">{d.offer.name}</Txt>
                 <Txt kind="small">
-                  {d.offer.caterer} · {d.portions} porsi
+                  {d.offer.caterer} · {d.portions} {t("porsi", "portions")}
                 </Txt>
                 <Status status={m.status} />
               </Panel>
             )),
           )}
-        <Txt kind="heading">Paket aktif</Txt>
+        <Txt kind="heading">{t("Paket aktif", "Active packages")}</Txt>
         {s.data?.subscriptions
           .filter((s) => s.status === "active")
           .map((s) => (
@@ -142,17 +148,18 @@ export function Home() {
               <Txt kind="small">{s.snapshot.offer.caterer}</Txt>
               <Txt kind="heading">{s.snapshot.offer.name}</Txt>
               <Txt>
-                {s.remaining} hari tersisa · {s.portions} porsi tetap
+                {s.remaining} {t("hari tersisa", "days remaining")} · {s.portions}{" "}
+                {t("porsi tetap", "fixed portions")}
               </Txt>
               <Btn
                 secondary
-                label="Kelola langganan"
+                label={t("Kelola langganan", "Manage subscription")}
                 onPress={() => router.push(("/subscriptions/" + s.id) as never)}
               />
             </Panel>
           ))}
         <Btn
-          label="Temukan favorit baru"
+          label={t("Temukan favorit baru", "Find a new favorite")}
           onPress={() => router.push("/discover")}
         />
       </Screen>
@@ -162,7 +169,7 @@ export function Home() {
 export function Calendar() {
   const [date, setDate] = useState(localDay()),
     [all, setAll] = useState(false);
-  const { actor } = useNative();
+  const { actor, t, locale } = useNative();
   const s = useData<CustomerState>("calendar:" + date + actor?.id, () =>
     nativeApi.customer("?from=" + date + "&to=" + addDays(date, 60)),
   );
@@ -170,29 +177,32 @@ export function Calendar() {
     s.data?.deliveries.filter((d) => all || d.service_date === date) || [];
   return (
     <Gate>
-      <Screen title="Hari-hari yang sudah terencana." refresh={s.reload}>
-        <Txt>Semua paket dan katerer, dalam satu jadwal.</Txt>
-        <DayPicker label="Jadwal makanan" value={date} onChange={setDate} />
+      <Screen
+        title={t("Hari-hari yang sudah terencana.", "Your meals, all in one place.")}
+        refresh={s.reload}
+      >
+        <Txt>{t("Semua paket dan katerer, dalam satu jadwal.", "Every package and caterer, in one calendar.")}</Txt>
+        <DayPicker label={t("Jadwal makanan", "Meal schedule")} value={date} onChange={setDate} />
         <View style={styles.row}>
           <Switch
             value={all}
             onValueChange={setAll}
-            accessibilityLabel="Semua pengantaran mendatang"
+            accessibilityLabel={t("Semua pengantaran mendatang", "All upcoming deliveries")}
             trackColor={{ true: C.forest }}
           />
-          <Txt>Semua mendatang</Txt>
+          <Txt>{t("Semua mendatang", "All upcoming")}</Txt>
         </View>
         {s.error && <Txt style={styles.error}>{s.error}</Txt>}
         {["lunch", "dinner"].map((meal) => (
           <View key={meal} style={{ gap: 18 }}>
-            <Txt kind="heading">{mealLabel(meal)}</Txt>
+            <Txt kind="heading">{mealLabel(meal, locale)}</Txt>
             {rows
               .filter((d) => d.meals.some((m) => m.meal === meal))
               .map((d) => (
                 <Meal key={d.id} delivery={d} meal={meal} />
               ))}
             {!rows.some((d) => d.meals.some((m) => m.meal === meal)) && (
-              <Txt>Belum ada makanan di jadwal ini.</Txt>
+              <Txt>{t("Belum ada makanan di jadwal ini.", "No meals on this schedule.")}</Txt>
             )}
           </View>
         ))}
@@ -202,7 +212,7 @@ export function Calendar() {
 }
 export function DeliveryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { command } = useNative();
+  const { command, t, locale } = useNative();
   const state = useData<CustomerState>("delivery:" + id, () =>
     nativeApi.customer("?deliveryId=" + id),
   );
@@ -213,7 +223,7 @@ export function DeliveryScreen() {
   const d = state.data?.deliveries.find((d) => d.id === id);
   return (
     <Gate>
-      <Screen title="Makanan untuk harimu." refresh={state.reload}>
+      <Screen title={t("Makanan untuk harimu.", "Meals for your day.")} refresh={state.reload}>
         {state.error && <Txt style={styles.error}>{state.error}</Txt>}
         {d ? (
           <>
@@ -223,19 +233,19 @@ export function DeliveryScreen() {
             <Status status={d.status} />
             <Facts
               rows={[
-                ["Katerer", d.offer.caterer],
-                ["Tanggal", d.service_date],
-                ["Makanan", mealLabel(d.offer.meal)],
-                ["Porsi tetap", d.portions],
-                ["Alamat", d.address.line + ", " + d.address.area],
-                ["Catatan", d.address.instructions || "—"],
-                ["Cutoff", new Date(d.cutoff_at).toLocaleString("id-ID")],
+                [t("Katerer", "Caterer"), d.offer.caterer],
+                [t("Tanggal", "Date"), d.service_date],
+                [t("Makanan", "Meal"), mealLabel(d.offer.meal, locale)],
+                [t("Porsi tetap", "Fixed portions"), d.portions],
+                [t("Alamat", "Address"), d.address.line + ", " + d.address.area],
+                [t("Catatan", "Note"), d.address.instructions || "—"],
+                [t("Batas perubahan", "Change cutoff"), new Date(d.cutoff_at).toLocaleString(locale === "id" ? "id-ID" : "en-GB")],
               ]}
             />
             {d.canChange && (
               <>
                 <Btn
-                  label="Ganti tanggal"
+                  label={t("Ganti tanggal", "Change date")}
                   onPress={() => {
                     setAction("reschedule");
                     setReview(false);
@@ -243,7 +253,7 @@ export function DeliveryScreen() {
                 />
                 <Btn
                   secondary
-                  label="Lewati & pilih pengganti"
+                  label={t("Lewati & pilih pengganti", "Skip & choose a replacement")}
                   onPress={() => {
                     setAction("skip");
                     setReview(false);
@@ -254,13 +264,13 @@ export function DeliveryScreen() {
             {d.status === "scheduled" && new Date(d.cutoff_at) > new Date() && (
               <Btn
                 secondary
-                label="Ubah alamat"
+                label={t("Ubah alamat", "Change address")}
                 onPress={() => setAction("address")}
               />
             )}
             <Btn
               secondary
-              label="Hubungi katerer"
+              label={t("Hubungi katerer", "Contact caterer")}
               onPress={() =>
                 router.push({
                   pathname: "/messages",
@@ -270,7 +280,7 @@ export function DeliveryScreen() {
             />
             <Btn
               secondary
-              label="Laporkan masalah / ajukan pembatalan"
+              label={t("Laporkan masalah / ajukan pembatalan", "Report an issue / request cancellation")}
               onPress={() =>
                 router.push({
                   pathname: "/support",
@@ -282,18 +292,21 @@ export function DeliveryScreen() {
               <Panel>
                 <Txt kind="heading">
                   {action === "address"
-                    ? "Alamat pengantaran baru"
-                    : "Pilih tanggal pengganti"}
+                    ? t("Alamat pengantaran baru", "New delivery address")
+                    : t("Pilih tanggal pengganti", "Choose a replacement date")}
                 </Txt>
                 {d.offer.meal === "both" && (
                   <Txt>
-                    Siang dan malam berpindah bersama, dengan alamat yang sama.
+                    {t(
+                      "Siang dan malam berpindah bersama, dengan alamat yang sama.",
+                      "Lunch and dinner move together using the same address.",
+                    )}
                   </Txt>
                 )}
                 {action === "address" ? (
                   <>
                     <Select
-                      label="Alamat tersimpan"
+                      label={t("Alamat tersimpan", "Saved address")}
                       value={address}
                       onChange={setAddress}
                       options={
@@ -304,7 +317,7 @@ export function DeliveryScreen() {
                       }
                     />
                     <Run
-                      label="Konfirmasi alamat"
+                      label={t("Konfirmasi alamat", "Confirm address")}
                       action={async () => {
                         await command("delivery.address", {
                           id,
@@ -318,7 +331,7 @@ export function DeliveryScreen() {
                 ) : (
                   <>
                     <DayPicker
-                      label="Tanggal baru"
+                      label={t("Tanggal baru", "New date")}
                       value={target}
                       min={localDay()}
                       onChange={(v) => {
@@ -329,21 +342,23 @@ export function DeliveryScreen() {
                     {review && (
                       <Facts
                         rows={[
-                          ["Dari", d.service_date],
-                          ["Menjadi", target],
-                          ["Porsi", d.portions],
+                          [t("Dari", "From"), d.service_date],
+                          [t("Menjadi", "To"), target],
+                          [t("Porsi", "Portions"), d.portions],
                         ]}
                       />
                     )}
                     <Txt kind="small">
-                      Jika tanggal baru penuh, tanggal lama tetap aman. Tidak
-                      ada hak makanan yang hilang.
+                      {t(
+                        "Jika tanggal baru penuh, tanggal lama tetap aman. Tidak ada hak makanan yang hilang.",
+                        "If the new date is full, your original date remains safe. No meal entitlement is lost.",
+                      )}
                     </Txt>
                     <Run
                       label={
                         review
-                          ? "Konfirmasi tanggal pengganti"
-                          : "Tinjau perubahan"
+                          ? t("Konfirmasi tanggal pengganti", "Confirm replacement date")
+                          : t("Tinjau perubahan", "Review change")
                       }
                       action={async () => {
                         if (!review) {
@@ -373,22 +388,29 @@ export function DeliveryScreen() {
                     />
                   </>
                 )}
-                <Btn secondary label="Batal" onPress={() => setAction("")} />
+                <Btn
+                  secondary
+                  label={t("Batal", "Cancel")}
+                  onPress={() => setAction("")}
+                />
               </Panel>
             )}
             {!d.canChange && (
               <Txt kind="small">
                 {d.offer.flexible
-                  ? "Batas perubahan sudah lewat atau pengantaran sedang diproses."
-                  : "Paket ini memiliki jadwal tetap."}{" "}
-                Hubungi katerer jika membutuhkan bantuan.
+                  ? t(
+                      "Batas perubahan sudah lewat atau pengantaran sedang diproses.",
+                      "The change cutoff has passed or delivery is being processed.",
+                    )
+                  : t("Paket ini memiliki jadwal tetap.", "This package uses fixed dates.")}{" "}
+                {t("Hubungi katerer jika membutuhkan bantuan.", "Contact the caterer if you need help.")}
               </Txt>
             )}
           </>
         ) : (
           <Empty
-            title="Memuat pengantaran…"
-            body="Tarik halaman untuk memuat ulang."
+            title={t("Memuat pengantaran…", "Loading delivery…")}
+            body={t("Tarik halaman untuk memuat ulang.", "Pull to refresh.")}
           />
         )}
       </Screen>
@@ -397,7 +419,7 @@ export function DeliveryScreen() {
 }
 export function SubscriptionScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { command, offers } = useNative();
+  const { command, offers, t, locale } = useNative();
   const state = useData<CustomerState>("subscription:" + id, () =>
     nativeApi.customer("?from=2020-01-01&to=2040-01-01"),
   );
@@ -408,7 +430,7 @@ export function SubscriptionScreen() {
   const current = offers.find((o) => o.id === s?.package_id);
   return (
     <Gate>
-      <Screen title="Paket yang menemani harimu." refresh={state.reload}>
+      <Screen title={t("Paket yang menemani harimu.", "The packages that keep you going.")} refresh={state.reload}>
         {s && (
           <>
             <Photo src={s.snapshot.offer.image} height={220} />
@@ -418,35 +440,41 @@ export function SubscriptionScreen() {
             <Status status={s.status} />
             <Facts
               rows={[
-                ["Sisa pengantaran", s.remaining + " hari"],
-                ["Porsi tetap", s.portions],
-                ["Mulai / selesai", s.starts_on + " — " + s.ends_on],
-                ["Pembelian", currency(s.snapshot.total)],
-                ["Aturan", s.snapshot.offer.flexible ? "Fleksibel" : "Tetap"],
+                [t("Sisa pengantaran", "Remaining deliveries"), s.remaining + " " + t("hari", "days")],
+                [t("Porsi tetap", "Fixed portions"), s.portions],
+                [t("Mulai / selesai", "Start / end"), s.starts_on + " — " + s.ends_on],
+                [t("Pembelian", "Purchase"), currency(s.snapshot.total, locale)],
+                [
+                  t("Aturan", "Terms"),
+                  s.snapshot.offer.flexible ? t("Fleksibel", "Flexible") : t("Tetap", "Fixed"),
+                ],
               ]}
             />
             {current ? (
               <Panel>
-                <Txt kind="heading">Lanjutkan hari-hari baik.</Txt>
+                <Txt kind="heading">{t("Lanjutkan hari-hari baik.", "Keep the good days going.")}</Txt>
                 <Facts
                   rows={[
                     [
-                      "Harga dahulu / porsi / hari",
-                      currency(s.snapshot.offer.price),
+                      t("Harga dahulu / porsi / hari", "Previous price / portion / day"),
+                      currency(s.snapshot.offer.price, locale),
                     ],
-                    ["Harga sekarang", currency(current.price)],
-                    ["Durasi sekarang", current.days + " hari"],
+                    [t("Harga sekarang", "Current price"), currency(current.price, locale)],
+                    [t("Durasi sekarang", "Current duration"), current.days + " " + t("hari", "days")],
                     [
-                      "Aturan sekarang",
-                      current.flexible ? "Fleksibel" : "Tetap",
+                      t("Aturan sekarang", "Current terms"),
+                      current.flexible ? t("Fleksibel", "Flexible") : t("Tetap", "Fixed"),
                     ],
                   ]}
                 />
                 <Txt kind="small">
-                  Perpanjangan adalah pembelian baru dengan ketentuan terkini.
+                  {t(
+                    "Perpanjangan adalah pembelian baru dengan ketentuan terkini.",
+                    "A renewal is a new purchase under the current terms.",
+                  )}
                 </Txt>
                 <Btn
-                  label="Beli paket berikutnya"
+                  label={t("Beli paket berikutnya", "Buy the next package")}
                   onPress={() =>
                     router.push({
                       pathname: "/checkout/[id]",
@@ -456,11 +484,16 @@ export function SubscriptionScreen() {
                 />
               </Panel>
             ) : (
-              <Txt>Paket ini sedang tidak tersedia untuk pembelian baru.</Txt>
+                <Txt>
+                  {t(
+                    "Paket ini sedang tidak tersedia untuk pembelian baru.",
+                    "This package is not currently available for new purchases.",
+                  )}
+                </Txt>
             )}
             <Btn
               secondary
-              label="Ajukan bantuan / pembatalan"
+              label={t("Ajukan bantuan / pembatalan", "Request help / cancellation")}
               onPress={() =>
                 router.push({
                   pathname: "/support",
@@ -473,7 +506,7 @@ export function SubscriptionScreen() {
             ) && (
               <Btn
                 secondary
-                label="Tulis ulasan"
+                label={t("Tulis ulasan", "Write a review")}
                 onPress={() => setReview(!review)}
               />
             )}
@@ -481,7 +514,7 @@ export function SubscriptionScreen() {
               {review && (
                 <Panel>
                   <Select
-                    label="Penilaian"
+                    label={t("Penilaian", "Rating")}
                     value={rating}
                     onChange={setRating}
                     options={[1, 2, 3, 4, 5].map((n) => ({
@@ -490,13 +523,13 @@ export function SubscriptionScreen() {
                     }))}
                   />
                   <Field
-                    label="Pengalamanmu"
+                    label={t("Pengalamanmu", "Your experience")}
                     multiline
                     value={body}
                     onChangeText={setBody}
                   />
                   <Run
-                    label="Kirim ulasan"
+                    label={t("Kirim ulasan", "Send review")}
                     action={async () => {
                       await command("review.save", {
                         subscriptionId: id,
@@ -525,7 +558,7 @@ export function SubscriptionScreen() {
   );
 }
 export function MessagesScreen() {
-  const { actor, offers, command } = useNative();
+  const { actor, offers, command, t, locale } = useNative();
   const params = useLocalSearchParams<{ caterer?: string }>();
   const state = useData<Conversation[]>("messages:" + actor?.id, () =>
     nativeApi.conversations(),
@@ -539,10 +572,10 @@ export function MessagesScreen() {
   const caterer = conversation?.caterer_id || params.caterer;
   return (
     <Gate>
-      <Screen title="Obrolan yang bikin jelas." refresh={state.reload}>
+      <Screen title={t("Obrolan yang bikin jelas.", "Conversations that make things clear.")} refresh={state.reload}>
         {state.error && <Txt style={styles.error}>{state.error}</Txt>}
         <Select
-          label="Percakapan"
+          label={t("Percakapan", "Conversation")}
           value={conversation?.id || ""}
           onChange={setSelected}
           options={
@@ -556,8 +589,10 @@ export function MessagesScreen() {
                 offers.find((o) => o.catererId === caterer)?.caterer}
             </Txt>
             <Txt kind="small">
-              Lakukan pembayaran melalui Catera agar transaksi dan bantuan
-              tercatat.
+              {t(
+                "Lakukan pembayaran melalui Catera agar transaksi dan bantuan tercatat.",
+                "Pay through Catera so your transaction and support history are recorded.",
+              )}
             </Txt>
             {conversation?.messages.map((m) => (
               <View
@@ -584,7 +619,7 @@ export function MessagesScreen() {
                     marginTop: 6,
                   }}
                 >
-                  {new Date(m.created_at).toLocaleTimeString("id-ID", {
+                  {new Date(m.created_at).toLocaleTimeString(locale === "id" ? "id-ID" : "en-GB", {
                     hour: "2-digit",
                     minute: "2-digit",
                   })}
@@ -592,14 +627,14 @@ export function MessagesScreen() {
               </View>
             ))}
             <Field
-              label="Pesan"
+              label={t("Pesan", "Message")}
               value={body}
               onChangeText={setBody}
               multiline
               maxLength={2000}
             />
             <Run
-              label="Kirim pesan"
+              label={t("Kirim pesan", "Send message")}
               action={async () => {
                 const result = await command<{ id: string }>("message.send", {
                   conversationId: conversation?.id,
@@ -614,11 +649,14 @@ export function MessagesScreen() {
         ) : (
           <>
             <Empty
-              title="Belum ada percakapan."
-              body="Buka detail paket untuk bertanya kepada katerer."
+              title={t("Belum ada percakapan.", "No conversations yet.")}
+              body={t(
+                "Buka detail paket untuk bertanya kepada katerer.",
+                "Open a package detail page to ask the caterer a question.",
+              )}
             />
             <Btn
-              label="Jelajah katering"
+              label={t("Jelajah katering", "Explore caterers")}
               onPress={() => router.push("/discover")}
             />
           </>
@@ -720,17 +758,17 @@ export function AccountScreen() {
   );
 }
 export function Addresses() {
-  const { command } = useNative();
+  const { command, t } = useNative();
   const s = useData<CustomerState>("addresses", () => nativeApi.customer());
   const [editing, setEditing] = useState<Address | null | undefined>(),
-    [label, setLabel] = useState("Rumah"),
+    [label, setLabel] = useState(t("Rumah", "Home")),
     [line, setLine] = useState(""),
     [area, setArea] = useState("Jakarta Selatan"),
     [city, setCity] = useState("Jakarta"),
     [instructions, setInstructions] = useState("");
   function edit(a: Address | null) {
     setEditing(a);
-    setLabel(a?.label || "Rumah");
+    setLabel(a?.label || t("Rumah", "Home"));
     setLine(a?.line || "");
     setArea(a?.area || "Jakarta Selatan");
     setCity(a?.city || "Jakarta");
@@ -738,7 +776,7 @@ export function Addresses() {
   }
   return (
     <Gate>
-      <Screen title="Makanan diantar ke mana?" refresh={s.reload}>
+      <Screen title={t("Makanan diantar ke mana?", "Where should meals be delivered?")} refresh={s.reload}>
         {s.error && <Txt style={styles.error}>{s.error}</Txt>}
         {s.data?.addresses.map((a) => (
           <Panel key={a.id}>
@@ -747,38 +785,44 @@ export function Addresses() {
             <Txt kind="small">
               {a.area}, {a.city}
             </Txt>
-            <Btn secondary label="Ubah alamat" onPress={() => edit(a)} />
+            <Btn
+              secondary
+              label={t("Ubah alamat", "Edit address")}
+              onPress={() => edit(a)}
+            />
           </Panel>
         ))}
-        <Btn label="Tambah alamat" onPress={() => edit(null)} />
+        <Btn label={t("Tambah alamat", "Add address")} onPress={() => edit(null)} />
         {editing !== undefined && (
           <Panel>
-            <Field label="Label alamat" value={label} onChangeText={setLabel} />
+            <Field label={t("Label alamat", "Address label")} value={label} onChangeText={setLabel} />
             <Field
-              label="Jalan, nomor, detail"
+              label={t("Jalan, nomor, detail", "Street, number, details")}
               value={line}
               onChangeText={setLine}
               multiline
             />
             <Select
-              label="Area"
+              label={t("Area", "Area")}
               value={area}
               onChange={setArea}
               options={areaOptions.map((v) => ({ value: v, label: v }))}
             />
-            <Field label="Kota" value={city} onChangeText={setCity} />
+            <Field label={t("Kota", "City")} value={city} onChangeText={setCity} />
             <Field
-              label="Petunjuk pengantaran"
+              label={t("Petunjuk pengantaran", "Delivery instructions")}
               value={instructions}
               onChangeText={setInstructions}
               multiline
             />
             <Txt kind="small">
-              Alamat pengantaran yang sudah dijadwalkan hanya berubah melalui
-              detail pengantaran.
+              {t(
+                "Alamat pengantaran yang sudah dijadwalkan hanya berubah melalui detail pengantaran.",
+                "A scheduled delivery address can only be changed from the delivery details.",
+              )}
             </Txt>
             <Run
-              label="Simpan alamat"
+              label={t("Simpan alamat", "Save address")}
               action={async () => {
                 await command("address.save", {
                   id: editing?.id,
@@ -794,7 +838,7 @@ export function Addresses() {
             />
             <Btn
               secondary
-              label="Batal"
+              label={t("Batal", "Cancel")}
               onPress={() => setEditing(undefined)}
             />
           </Panel>
@@ -808,7 +852,7 @@ export function SupportScreen() {
     subscription?: string;
     delivery?: string;
   }>();
-  const { command } = useNative();
+  const { command, t, locale } = useNative();
   const s = useData<CustomerState>("support", () => nativeApi.customer());
   const [open, setOpen] = useState(!!params.subscription || !!params.delivery),
     [subscription, setSubscription] = useState(params.subscription || ""),
@@ -816,20 +860,24 @@ export function SupportScreen() {
     [description, setDescription] = useState("");
   return (
     <Gate>
-      <Screen title="Kami bantu sampai selesai." refresh={s.reload}>
+      <Screen title={t("Kami bantu sampai selesai.", "We’ll help see it through.")} refresh={s.reload}>
         <Txt>
-          Ceritakan kendalamu. Katerer merespons lebih dulu, dan Catera siap
-          membantu jika perlu.
+          {t(
+            "Ceritakan kendalamu. Katerer merespons lebih dulu, dan Catera siap membantu jika perlu.",
+            "Tell us what happened. The caterer responds first, and Catera can step in if needed.",
+          )}
         </Txt>
         <Txt kind="small">
-          Jadwal tetap berjalan sampai keputusan pembatalan dikonfirmasi. Refund
-          selalu ditinjau.
+          {t(
+            "Jadwal tetap berjalan sampai keputusan pembatalan dikonfirmasi. Refund selalu ditinjau.",
+            "Your schedule continues until a cancellation decision is confirmed. Refunds are always reviewed.",
+          )}
         </Txt>
-        <Btn label="Ajukan bantuan" onPress={() => setOpen(!open)} />
+        <Btn label={t("Ajukan bantuan", "Request support")} onPress={() => setOpen(!open)} />
         {open && (
           <Panel>
             <Select
-              label="Paket terkait"
+              label={t("Paket terkait", "Related package")}
               value={subscription}
               onChange={setSubscription}
               options={
@@ -840,28 +888,28 @@ export function SupportScreen() {
               }
             />
             <Select
-              label="Jenis permintaan"
+              label={t("Jenis permintaan", "Request type")}
               value={subject}
               onChange={setSubject}
               options={[
-                "Makanan belum diterima",
-                "Pengantaran terlambat",
-                "Menu tidak sesuai",
-                "Kemasan rusak",
-                "Kualitas makanan",
-                "Ajukan pembatalan",
-                "Lainnya",
-              ].map((v) => ({ value: v, label: v }))}
+                ["Makanan belum diterima", "Meal not received"],
+                ["Pengantaran terlambat", "Delivery is late"],
+                ["Menu tidak sesuai", "Menu is incorrect"],
+                ["Kemasan rusak", "Packaging is damaged"],
+                ["Kualitas makanan", "Food quality"],
+                ["Ajukan pembatalan", "Request cancellation"],
+                ["Lainnya", "Other"],
+              ].map(([id, en]) => ({ value: id, label: t(id, en) }))}
             />
             <Field
-              label="Ceritakan kendalanya"
+              label={t("Ceritakan kendalanya", "Tell us what happened")}
               multiline
               value={description}
               onChangeText={setDescription}
               maxLength={2000}
             />
             <Run
-              label="Kirim permintaan bantuan"
+              label={t("Kirim permintaan bantuan", "Send support request")}
               action={async () => {
                 await command("support.create", {
                   subscriptionId: subscription,
@@ -881,10 +929,14 @@ export function SupportScreen() {
             <Status status={c.status} />
             <Txt>{c.description}</Txt>
             {c.resolution && <Txt>{c.resolution}</Txt>}
-            {!!c.amount && <Txt>Refund disetujui: {currency(c.amount)}</Txt>}
+            {!!c.amount && (
+              <Txt>
+                {t("Refund disetujui", "Refund approved")}: {currency(c.amount, locale)}
+              </Txt>
+            )}
             {c.status === "responded" && (
               <Run
-                label="Minta Catera meninjau"
+                label={t("Minta Catera meninjau", "Ask Catera to review")}
                 action={() => command("support.escalate", { id: c.id })}
               />
             )}
@@ -892,8 +944,11 @@ export function SupportScreen() {
         ))}
         {!s.data?.cases.length && !open && (
           <Empty
-            title="Semoga setiap makanan menyenangkan."
-            body="Semua permintaan bantuan akan tampil di sini."
+            title={t("Semoga setiap makanan menyenangkan.", "Here’s to enjoyable meals.")}
+            body={t(
+              "Semua permintaan bantuan akan tampil di sini.",
+              "All support requests will appear here.",
+            )}
           />
         )}
         {s.error && <Txt style={styles.error}>{s.error}</Txt>}
@@ -902,11 +957,11 @@ export function SupportScreen() {
   );
 }
 export function NotificationsScreen() {
-  const { command } = useNative();
+  const { command, t, locale } = useNative();
   const s = useData<CustomerState>("notifications", () => nativeApi.customer());
   return (
     <Gate>
-      <Screen title="Kabar untukmu." refresh={s.reload}>
+      <Screen title={t("Kabar untukmu.", "Updates for you.")} refresh={s.reload}>
         {s.data?.notifications.map((n) => (
           <Pressable
             key={n.id}
@@ -919,14 +974,17 @@ export function NotificationsScreen() {
           >
             <Txt>{n.body}</Txt>
             <Txt kind="small">
-              {new Date(n.created_at).toLocaleString("id-ID")}
+              {new Date(n.created_at).toLocaleString(locale === "id" ? "id-ID" : "en-GB")}
             </Txt>
           </Pressable>
         ))}
         {!s.data?.notifications.length && (
           <Empty
-            title="Belum ada kabar baru."
-            body="Kabar makanan dan bantuan akan hadir di sini."
+            title={t("Belum ada kabar baru.", "No new updates yet.")}
+            body={t(
+              "Kabar makanan dan bantuan akan hadir di sini.",
+              "Meal and support updates will appear here.",
+            )}
           />
         )}
       </Screen>

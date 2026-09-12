@@ -1,10 +1,13 @@
 "use client";
 import {
+  compositionPreview,
+  componentLabel,
   menuItems,
   menuSourceLabel,
   menuSummary,
   mealLabel,
   nutritionSummary,
+  packageNutrition,
   packageTypeLabel,
   type Offer,
 } from "@catera/domain";
@@ -18,13 +21,14 @@ export function PackageContents({
   coverImage,
   preview = false,
 }: {
-  offer: Pick<Offer, "menus" | "packageType">;
+  offer: Pick<Offer, "menus" | "packageType" | "nutrition">;
   compact?: boolean;
   presentation?: "default" | "gallery";
   coverImage?: string;
   preview?: boolean;
 }) {
   const { locale, t } = useApp();
+  const nutrition = packageNutrition(offer);
   if (presentation === "gallery")
     return (
       <DishGallery offer={offer} coverImage={coverImage} preview={preview} />
@@ -32,19 +36,30 @@ export function PackageContents({
   return (
     <div className={compact ? "contents-summary" : "package-contents"}>
       <strong>{packageTypeLabel(offer.packageType, locale)}</strong>
+      {(nutritionSummary(nutrition, locale) || !compact) && (
+        <p className="nutrition-line">
+          {nutritionSummary(nutrition, locale) ||
+            t("Informasi gizi belum tersedia", "Nutrition unavailable")}
+          {nutritionSummary(nutrition, locale) && (
+            <small>
+              {t(
+                "Per porsi makan · estimasi katerer",
+                "Per meal portion · caterer estimate",
+              )}
+            </small>
+          )}
+        </p>
+      )}
       {offer.menus.map((m) => (
         <section key={m.meal} className="meal-contents">
           <p className="contents-caption">
-            {mealLabel(m.meal, locale)} ·{" "}
-            {menuSourceLabel(m, locale)}
+            {mealLabel(m.meal, locale)} · {menuSourceLabel(m, locale)}
           </p>
           {!!m.composition?.length && (
-            <p>
-              {m.composition.map((g) => `${g.slots} ${g.name}`).join(" · ")}
-            </p>
+            <p>{compositionPreview(m, offer.packageType, locale)}</p>
           )}
           {compact ? (
-            <p>{menuSummary(m)}</p>
+            <p>{menuSummary(m, locale)}</p>
           ) : (
             <ul className="dish-list">
               {menuItems(m).map((i) => (
@@ -61,7 +76,12 @@ export function PackageContents({
                   <div>
                     {i.groupId && (
                       <small>
-                        {m.composition?.find((g) => g.id === i.groupId)?.name}
+                        {(() => {
+                          const group = m.composition?.find(
+                            (g) => g.id === i.groupId,
+                          );
+                          return group ? componentLabel(group, locale) : null;
+                        })()}
                       </small>
                     )}
                     <strong>{i.name}</strong>
@@ -71,20 +91,6 @@ export function PackageContents({
                 </li>
               ))}
             </ul>
-          )}
-          {(nutritionSummary(m.nutrition, locale) || !compact) && (
-            <p className="nutrition-line">
-              {nutritionSummary(m.nutrition, locale) ||
-                t("Informasi gizi belum tersedia", "Nutrition unavailable")}
-              {nutritionSummary(m.nutrition, locale) && (
-                <small>
-                  {t(
-                    "Per porsi · estimasi katerer",
-                    "Per portion · caterer estimate",
-                  )}
-                </small>
-              )}
-            </p>
           )}
         </section>
       ))}

@@ -197,6 +197,26 @@ test("Schedule keeps keyboard focus across dates and supports English and narrow
   await expect(
     main.getByRole("tab", { name: "Dinner", exact: true }),
   ).toHaveAttribute("aria-selected", "true");
+  await page
+    .locator(".ops-sidebar")
+    .getByRole("link", { name: "Today", exact: true })
+    .click();
+  await expect(page).toHaveURL(
+    (url) =>
+      url.pathname === "/seller" &&
+      url.searchParams.get("date") === date &&
+      url.searchParams.get("meal") === "dinner",
+  );
+  await page
+    .locator(".ops-sidebar")
+    .getByRole("link", { name: "Schedule", exact: true })
+    .click();
+  await expect(page).toHaveURL(
+    (url) =>
+      url.pathname === "/seller/schedule" &&
+      url.searchParams.get("date") === date &&
+      url.searchParams.get("meal") === "dinner",
+  );
   await page.setViewportSize({ width: 320, height: 740 });
   await expect(main.locator(".ops-order-table tbody tr")).toHaveCount(3);
   const wrap = main.locator(".ops-orders-panel .table-wrap");

@@ -1,3 +1,5 @@
+-- Package-level nutrition supports either a fixed value or an inclusive range.
+-- Existing menu-level values remain readable in immutable historical snapshots.
 create or replace function v1.valid_nutrition(nutrition jsonb) returns boolean language plpgsql immutable set search_path='' as $$
 declare metric record;bounds jsonb;
 begin
@@ -18,6 +20,28 @@ begin
  return true;
 exception when others then return false;
 end $$;
+
+-- Backfill editable package records from legacy menu estimates. Immutable
+-- checkout and subscription snapshots are deliberately left untouched.
+with nutrient_values as (
+ select p.id,metric.key,(metric.value#>>'{}')::numeric as minimum,(metric.value#>>'{}')::numeric as maximum
+ from v1.packages p
+ cross join lateral jsonb_array_elements(coalesce(p.offer->'menus','[]')) menu
+ cross join lateral jsonb_each(coalesce(menu->'nutrition','{}')) metric
+ where not(p.offer ? 'nutrition') and jsonb_typeof(metric.value)='number'
+ union all
+ select p.id,metric.key,(metric.value#>>'{}')::numeric,(metric.value#>>'{}')::numeric
+ from v1.packages p join v1.menus m on m.package_id=p.id and m.content_revision=coalesce((p.offer->>'contentRevision')::int,0)
+ cross join lateral jsonb_each(coalesce(m.details->'nutrition','{}')) metric
+ where not(p.offer ? 'nutrition') and jsonb_typeof(metric.value)='number'
+), nutrient_bounds as (
+ select id,key,min(minimum) minimum,max(maximum) maximum from nutrient_values group by id,key
+), package_values as (
+ select id,jsonb_object_agg(key,case when minimum=maximum then to_jsonb(minimum) else jsonb_build_object('min',minimum,'max',maximum) end) nutrition
+ from nutrient_bounds group by id
+)
+update v1.packages p set offer=jsonb_set(p.offer,'{nutrition}',v.nutrition,true),version=p.version+1
+from package_values v where p.id=v.id;
 
 create or replace function v1.valid_offer(o jsonb) returns boolean language plpgsql immutable set search_path='' as $$
 declare w jsonb;t jsonb;k text;lo int;complete boolean;shared_capacity numeric;
@@ -54,5 +78,5 @@ begin
  for t in select * from jsonb_array_elements(o->'tags') loop if jsonb_typeof(t)<>'string' or length(t#>>'{}')>40 then return false;end if;end loop;
  if not v1.valid_nutrition(o->'nutrition') then return false;end if;
  return coalesce(v1.valid_contents(o,complete),false);
- exception when others then return false;
+exception when others then return false;
 end $$;

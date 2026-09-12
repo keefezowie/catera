@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, ChevronLeft, ChevronRight, Library } from "lucide-react";
 import {
@@ -7,6 +7,7 @@ import {
   mealLabel,
   selectLibraryDish,
   slotMenuIssues,
+  localizedMessage,
   type SellerState,
   type MealMenu,
   type LibraryDish,
@@ -15,7 +16,7 @@ import { api, useApp, useResource } from "./context";
 import { Button } from "./form-controls";
 import { Select, SelectOption } from "./select";
 import { Dialog, ErrorNotice, Field } from "./ui";
-import { MenuPanel, MenuSlots, MenuNutrition } from "./menu-assembly";
+import { MenuPanel, MenuSlots } from "./menu-assembly";
 import { PackageContents } from "./package-contents";
 import { MenuLibrary } from "./menu-library";
 import {
@@ -63,10 +64,14 @@ export function MenuCalendar({
     dish: LibraryDish;
   } | null>(null);
   const [dragging, setDragging] = useState<LibraryDish | null>(null);
-  const [nutritionCleared, setNutritionCleared] = useState(false);
   const deferred = useRef<(() => void) | null>(null);
   const editorHeading = useRef<HTMLHeadingElement>(null);
   const calendarHeading = useRef<HTMLHeadingElement>(null);
+  const wasEditing = useRef(false);
+  useLayoutEffect(() => {
+    if (wasEditing.current && !edit) calendarHeading.current?.focus();
+    wasEditing.current = Boolean(edit);
+  }, [edit]);
   const revisions = s.contentRevisions || [],
     selected =
       revisions.find((r) => r.packageId + ":" + r.revision === selection) ||
@@ -110,7 +115,6 @@ export function MenuCalendar({
     guard(() => {
       setEdit(null);
       setError("");
-      setTimeout(() => calendarHeading.current?.focus(), 0);
     });
   }
   useEffect(() => {
@@ -148,18 +152,20 @@ export function MenuCalendar({
       JSON.stringify(d.details ? { ...d.details, source: undefined } : null),
     );
     const different = new Set(signatures).size > 1;
+    const savedMenu =
+      !different && entries[0]?.version ? entries[0].details : null;
     let menu: MealMenu = structuredClone(
-      !different && entries[0]?.details
-        ? { ...entries[0].details, meal: activeMeal }
+      savedMenu
+        ? { ...savedMenu, meal: activeMeal }
         : { ...template, nutrition: null },
     );
-    if (
-      !readOnly &&
-      menu.contentModel === "slots" &&
-      (different || !menu.items?.length)
-    )
+    if (menu.contentModel === "slots" && (!savedMenu || !menu.items?.length))
       menu = {
         ...menu,
+        name: "",
+        description: "",
+        image: "",
+        source: undefined,
         items: (menu.composition || []).flatMap((g) =>
           Array.from({ length: g.slots }, (_, n) => ({
             id: g.id + ":" + n,
@@ -173,9 +179,13 @@ export function MenuCalendar({
         ),
         nutrition: null,
       };
-    else if (different)
+    else if (!savedMenu)
       menu = {
         ...menu,
+        name: "",
+        description: "",
+        image: "",
+        source: undefined,
         items: menu.items?.map((i) => ({
           ...i,
           name: "",
@@ -183,6 +193,7 @@ export function MenuCalendar({
           image: "",
           sourceDishId: undefined,
           sourceDishVersion: undefined,
+          serving: "",
         })),
         nutrition: null,
       };
@@ -195,7 +206,6 @@ export function MenuCalendar({
       existing: entries.filter((d) => d.version > 0).map((d) => d.date),
     });
     setSlot(menu.items?.find((i) => !i.name)?.id || menu.items?.[0]?.id || "");
-    setNutritionCleared(false);
     setDirty(false);
     setError("");
     setTimeout(() => editorHeading.current?.focus(), 0);
@@ -232,7 +242,6 @@ export function MenuCalendar({
     const items = edit.menu.items!.map((i) =>
       i.id === id ? selectLibraryDish(i, dish) : i,
     );
-    if (edit.menu.nutrition) setNutritionCleared(true);
     change({ ...edit.menu, items, nutrition: null });
     const position = items.findIndex((i) => i.id === id);
     const next = [
@@ -253,7 +262,9 @@ export function MenuCalendar({
     if (!edit || !selected || busy || edit.readOnly) return;
     const issues = validation();
     if (issues.length) {
-      setError(issues.join(". "));
+      setError(
+        issues.map((issue) => localizedMessage(issue, locale)).join(". "),
+      );
       setConfirmSave(false);
       return;
     }
@@ -302,7 +313,9 @@ export function MenuCalendar({
   function requestSave() {
     const issues = validation();
     if (issues.length) {
-      setError(issues.join(". "));
+      setError(
+        issues.map((issue) => localizedMessage(issue, locale)).join(". "),
+      );
       return;
     }
     if (edit?.existing.length) setConfirmSave(true);
@@ -467,12 +480,22 @@ export function MenuCalendar({
                     {datesBetween(weekStart(month), monthEnd(month)).map(
                       (day) => {
                         const d = data.dates.find((x) => x.date === day);
+                        const dishNames =
+                          d?.details?.items
+                            ?.map((item) => item.name.trim())
+                            .filter(Boolean) || [];
+                        const menuNames = dishNames.length
+                          ? dishNames
+                          : d?.details?.name
+                            ? [d.details.name]
+                            : [];
                         return d ? (
                           <Button
                             key={day}
                             type="button"
                             className={
                               "menu-day" +
+                              (d.version ? " configured" : "") +
                               (dates.includes(day) ? " selected" : "")
                             }
                             aria-pressed={
@@ -482,7 +505,8 @@ export function MenuCalendar({
                               fmt(day) +
                               " · " +
                               (d.version
-                                ? t("Menu terisi", "Menu set")
+                                ? menuNames.join(", ") ||
+                                  t("Menu terisi", "Menu configured")
                                 : t("Belum diisi", "Not set")) +
                               (!d.editable
                                 ? t(" · Hanya baca", " · Read only")
@@ -500,11 +524,32 @@ export function MenuCalendar({
                             }
                           >
                             <strong>{Number(day.slice(-2))}</strong>
-                            <span>
-                              {d.version
-                                ? t("Terisi", "Set")
-                                : t("Belum diisi", "Not set")}
-                            </span>
+                            {d.version ? (
+                              <span
+                                className="menu-day-dishes"
+                                title={menuNames.join(", ")}
+                              >
+                                {menuNames.length ? (
+                                  menuNames.slice(0, 2).map((name, index) => (
+                                    <span className="menu-day-dish" key={index}>
+                                      {name}
+                                    </span>
+                                  ))
+                                ) : (
+                                  <span>
+                                    {t("Menu tersimpan", "Saved menu")}
+                                  </span>
+                                )}
+                                {menuNames.length > 2 && (
+                                  <span className="menu-day-more">
+                                    +{menuNames.length - 2}{" "}
+                                    {t("hidangan", "dishes")}
+                                  </span>
+                                )}
+                              </span>
+                            ) : (
+                              <span>{t("Belum diisi", "Not set")}</span>
+                            )}
                             {!d.editable && (
                               <small>{t("Hanya baca", "Read only")}</small>
                             )}
@@ -604,7 +649,6 @@ export function MenuCalendar({
                       setDragging(null);
                     }}
                     onRemove={(id) => {
-                      if (edit.menu.nutrition) setNutritionCleared(true);
                       change({
                         ...edit.menu,
                         items: edit.menu.items!.map((i) =>
@@ -633,21 +677,6 @@ export function MenuCalendar({
                       )}
                     </p>
                   )}
-                  {nutritionCleared && (
-                    <p className="menu-nutrition-notice" role="status">
-                      {t(
-                        "Hidangan berubah. Isi ulang estimasi gizi untuk menu ini.",
-                        "Dishes changed. Re-enter nutrition estimates for this menu.",
-                      )}
-                    </p>
-                  )}
-                  <MenuNutrition
-                    value={edit.menu.nutrition}
-                    disabled={busy}
-                    onChange={(nutrition) =>
-                      change({ ...edit.menu, nutrition })
-                    }
-                  />
                   <Button
                     variant="primary"
                     type="button"
@@ -725,18 +754,29 @@ export function MenuCalendar({
           }
         }}
         title={t("Simpan perubahan menu?", "Save menu changes?")}
-        description={t(
-          "Draft belum disimpan. Pilih simpan atau buang sebelum meninggalkan editor.",
-          "This draft has not been saved. Save or discard before leaving the editor.",
-        )}
+        description={
+          validation().length
+            ? t(
+                "Menu belum lengkap. Lanjutkan mengisi slot kosong atau buang perubahan untuk kembali.",
+                "This menu is incomplete. Keep editing to fill the empty slots, or discard your changes to go back.",
+              )
+            : t(
+                "Draft belum disimpan. Pilih simpan atau buang sebelum meninggalkan editor.",
+                "This draft has not been saved. Save or discard before leaving the editor.",
+              )
+        }
       >
-        <div className="button-row">
-          <Button variant="primary" disabled={busy} onClick={requestSave}>
+        <div className="menu-leave-actions">
+          <Button
+            variant="primary"
+            disabled={busy || validation().length > 0}
+            onClick={requestSave}
+          >
             {t("Simpan", "Save")}
           </Button>
           <Button
             disabled={busy}
-            className="text-button"
+            variant="secondary"
             onClick={() => {
               setDirty(false);
               setLeaving(false);
@@ -748,7 +788,8 @@ export function MenuCalendar({
             {t("Buang perubahan", "Discard changes")}
           </Button>
           <Button
-            className="text-button"
+            variant="secondary"
+            disabled={busy}
             onClick={() => {
               setLeaving(false);
               deferred.current = null;

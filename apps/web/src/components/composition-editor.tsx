@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Minus, Plus, Trash2 } from "lucide-react";
 import {
   defaultDishCategories,
   mealLabel,
@@ -13,6 +13,15 @@ import { Button, TextInput } from "./form-controls";
 import { NumericInput } from "./numeric-input";
 import { Field, ErrorNotice } from "./ui";
 import { Select, SelectOption } from "./select";
+
+function categoryLabel(
+  category: Pick<DishCategory, "name" | "nameEn"> | undefined,
+  locale: "id" | "en",
+) {
+  return locale === "en"
+    ? category?.nameEn || category?.name || ""
+    : category?.name || "";
+}
 
 export function CategoryCreate({
   onCreated,
@@ -29,9 +38,10 @@ export function CategoryCreate({
       <Button
         type="button"
         className="text-button"
+        aria-expanded={open}
         onClick={() => setOpen(!open)}
       >
-        <Plus size={16} />
+        {open ? <Minus size={16} aria-hidden="true" /> : <Plus size={16} aria-hidden="true" />}
         {t("Kategori baru", "New category")}
       </Button>
       {open && (
@@ -147,14 +157,28 @@ export function CompositionEditor({
                 )
                 .map((c) => (
                   <SelectOption key={c.id} value={c.id}>
-                    {locale === "en" ? c.nameEn || c.name : c.name}
+                    {categoryLabel(c, locale)}
                   </SelectOption>
                 ))}
             </Select>
           </Field>
-          <Field label={t("Jumlah ", "Count ") + g.name}>
+          <Field
+            label={
+              t("Jumlah ", "Count ") +
+              categoryLabel(
+                categories.find((c) => c.id === g.categoryId),
+                locale,
+              )
+            }
+          >
             <NumericInput
-              aria-label={t("Jumlah ", "Count ") + g.name}
+              aria-label={
+                t("Jumlah ", "Count ") +
+                categoryLabel(
+                  categories.find((c) => c.id === g.categoryId),
+                  locale,
+                )
+              }
               value={g.slots}
               min={1}
               max={30}
@@ -166,7 +190,13 @@ export function CompositionEditor({
           <Button
             type="button"
             className="text-button"
-            aria-label={t("Hapus ", "Remove ") + g.name}
+            aria-label={
+              t("Hapus ", "Remove ") +
+              categoryLabel(
+                categories.find((c) => c.id === g.categoryId),
+                locale,
+              )
+            }
             onClick={() => update(groups.filter((x) => x.id !== g.id))}
           >
             <Trash2 size={18} />
@@ -197,7 +227,7 @@ export function CompositionEditor({
             .filter((c) => !groups.some((g) => g.categoryId === c.id))
             .map((c) => (
               <SelectOption key={c.id} value={c.id}>
-                {locale === "en" ? c.nameEn || c.name : c.name}
+                {categoryLabel(c, locale)}
               </SelectOption>
             ))}
         </Select>

@@ -10,8 +10,8 @@ import { router } from "expo-router";
 import {
   compositionPreview,
   nutritionMetrics,
+  packageNutrition,
   menuSourceLabel,
-  type MealMenu,
   type Offer,
 } from "@catera/domain";
 import { useNative } from "./context";
@@ -36,9 +36,13 @@ const icons = [
   "nutrition-outline",
   "water-outline",
 ] as const;
-export function NutritionStrip({ menu }: { menu: MealMenu }) {
+export function NutritionStrip({
+  nutrition,
+}: {
+  nutrition: Offer["nutrition"];
+}) {
   const { locale, t } = useNative();
-  const metrics = nutritionMetrics(menu.nutrition, locale);
+  const metrics = nutritionMetrics(nutrition, locale);
   if (!metrics.length) return null;
   return (
     <View style={{ gap: 9, marginTop: 12 }}>
@@ -177,7 +181,7 @@ export function PackagePreview({
           {t("Lihat isi paket", "See included dishes")}
         </PreviewText>
       </Pressable>
-      <NutritionStrip menu={menu} />
+      <NutritionStrip nutrition={packageNutrition(offer)} />
     </View>
   );
 }

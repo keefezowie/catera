@@ -147,11 +147,10 @@ for (const width of [390, 1440])
           .locator(".mobile-bottom")
           .getByRole("link", { name: "Pesan", exact: true })
           .click();
-      else
-        await page
-          .locator(".site-header")
-          .getByRole("link", { name: "Akun", exact: true })
-          .click();
+      else {
+        await header.getByRole("button", { name: "Buka menu akun" }).click();
+        await page.getByRole("menuitem", { name: "Akun", exact: true }).click();
+      }
       await expect.poll(() => requested).toBe(true);
       const loader = page.locator("#main .mascot-loading");
       await expect(loader).toBeVisible();
@@ -166,7 +165,10 @@ for (const width of [390, 1440])
           "retained",
         );
       await expect(loader.locator(".mascot-loading-visual")).toBeVisible();
-      await expect(loader.locator(".mascot-loading-visual")).toHaveCSS("opacity","1");
+      await expect(loader.locator(".mascot-loading-visual")).toHaveCSS(
+        "opacity",
+        "1",
+      );
       await page.screenshot({
         path: `output/mascot-motion/scoped-${width}.png`,
         fullPage: true,

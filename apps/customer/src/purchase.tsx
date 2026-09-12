@@ -45,7 +45,7 @@ import {
 } from "./ui";
 export function Discover() {
   const { section } = useLocalSearchParams<{ section?: string }>();
-  const { offers, area, setArea, compare, error, refresh, t } = useNative();
+  const { offers, area, setArea, compare, error, refresh, t, locale } = useNative();
   const [search, setSearch] = useState(""),
     [meal, setMeal] = useState("all"),
     [packageType, setPackageType] = useState("all"),
@@ -63,7 +63,7 @@ export function Discover() {
     .filter(
       (o) =>
         (!search ||
-          [o.name, o.caterer, ...o.tags, ...o.menus.map(menuSummary)]
+          [o.name, o.caterer, ...o.tags, ...o.menus.map((m) => menuSummary(m, locale))]
             .join(" ")
             .toLowerCase()
             .includes(search.toLowerCase())) &&
@@ -188,8 +188,8 @@ export function Discover() {
         onChange={setPackageType}
         options={[
           { value: "all", label: t("Semua jenis", "All types") },
-          { value: "ala_carte", label: "À la carte" },
-          { value: "nasi_box", label: "Nasi box" },
+          { value: "ala_carte", label: t("À la carte", "À la carte") },
+          { value: "nasi_box", label: t("Nasi box", "Rice box") },
         ]}
       />
       {filtered.map((o) => (
@@ -289,7 +289,7 @@ export function PackageScreen() {
   if (!o)
     return (
       <Screen>
-        <Empty title="Paket tidak ditemukan." />
+        <Empty title={t("Paket tidak ditemukan.", "Package not found.")} />
       </Screen>
     );
   const total = price(o, qty);
@@ -301,7 +301,7 @@ export function PackageScreen() {
       <Txt kind="title">{o.name}</Txt>
       <Txt>{o.description}</Txt>
       <Select
-        label="Area pengantaran"
+        label={t("Area pengantaran", "Delivery area")}
         value={area}
         onChange={setArea}
         options={areaOptions.map((v) => ({ value: v, label: v }))}
@@ -337,22 +337,33 @@ export function PackageScreen() {
         />
       </View>
       <Panel>
-        <Txt kind="heading">{currency(o.price)} / porsi / hari</Txt>
+        <Txt kind="heading">
+          {currency(o.price, locale)} / {t("porsi / hari", "portion / day")}
+        </Txt>
         <Txt kind="small">
-          {mealLabel(o.meal)} · {o.days} hari ·{" "}
-          {o.flexible ? "Paket fleksibel" : "Paket tetap"}
+          {mealLabel(o.meal, locale)} · {o.days} {t("hari", "days")} ·{" "}
+          {o.flexible
+            ? t("Paket fleksibel", "Flexible package")
+            : t("Paket tetap", "Fixed package")}
         </Txt>
         <Qty value={qty} onChange={setQty} />
         <Facts
           rows={[
-            ["Harga paket", currency(total.total)],
-            ["Diskon kuantitas", total.discountPercent + "%"],
-            ["Pengantaran", "Termasuk"],
+            [t("Harga paket", "Package price"), currency(total.total, locale)],
+            [
+              t("Diskon kuantitas", "Quantity discount"),
+              total.discountPercent + "%",
+            ],
+            [t("Pengantaran", "Delivery"), t("Termasuk", "Included")],
           ]}
         />
         <Btn
           disabled={!inArea}
-          label={inArea ? "Pilih paket ini" : "Di luar area pengantaran"}
+          label={
+            inArea
+              ? t("Pilih paket ini", "Choose this package")
+              : t("Di luar area pengantaran", "Outside delivery area")
+          }
           onPress={() =>
             router.push({
               pathname: "/checkout/[id]",
@@ -364,7 +375,11 @@ export function PackageScreen() {
           <Btn
             disabled={!inArea}
             secondary
-            label={"Coba 1 hari · " + currency(o.trialPrice * qty)}
+            label={
+              t("Coba 1 hari", "Try 1 day") +
+              " · " +
+              currency(o.trialPrice * qty, locale)
+            }
             onPress={() =>
               router.push({
                 pathname: "/checkout/[id]",
@@ -376,36 +391,52 @@ export function PackageScreen() {
         <Btn
           secondary
           label={
-            compare.includes(id) ? "Hapus perbandingan" : "Bandingkan paket"
+            compare.includes(id)
+              ? t("Hapus perbandingan", "Remove comparison")
+              : t("Bandingkan paket", "Compare package")
           }
           onPress={() => toggleCompare(id)}
         />
         <Txt kind="small">
-          Biaya layanan ditampilkan saat checkout. Tidak ada perpanjangan
-          otomatis.
+          {t(
+            "Biaya layanan ditampilkan saat checkout. Tidak ada perpanjangan otomatis.",
+            "Service fee appears at checkout. No automatic renewal.",
+          )}
         </Txt>
       </Panel>
       <Facts
         rows={[
           [
-            "Jadwal",
+            t("Jadwal", "Schedule"),
             o.weekdays
-              .map((d) => ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"][d])
+              .map((d) =>
+                (locale === "id"
+                  ? ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"]
+                  : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"])[d],
+              )
               .join(", "),
           ],
           [
-            "Waktu pengantaran",
+            t("Waktu pengantaran", "Delivery window"),
             o.meal === "both"
               ? o.windows.lunch + " & " + o.windows.dinner
               : o.windows[o.meal],
           ],
-          ["Cutoff", o.cutoff.slice(0, 5) + " sehari sebelumnya"],
-          ["Pembatalan", "Ditinjau melalui bantuan Catera"],
+          [
+            t("Batas perubahan", "Change cutoff"),
+            o.cutoff.slice(0, 5) +
+              " " +
+              t("sehari sebelumnya", "the day before delivery"),
+          ],
+          [
+            t("Pembatalan", "Cancellation"),
+            t("Ditinjau melalui bantuan Catera", "Reviewed through Catera support"),
+          ],
         ]}
       />
       <Btn
         secondary
-        label="Tanya katerer"
+        label={t("Tanya katerer", "Ask the caterer")}
         onPress={() =>
           router.push({
             pathname: "/messages",
@@ -413,7 +444,7 @@ export function PackageScreen() {
           })
         }
       />
-      <Txt kind="heading">Ulasan terverifikasi</Txt>
+      <Txt kind="heading">{t("Ulasan terverifikasi", "Verified reviews")}</Txt>
       {reviews.data?.map((r) => (
         <Panel key={r.id}>
           <Txt kind="label">
@@ -429,19 +460,26 @@ export function PackageScreen() {
       ))}
       {!reviews.data?.length && (
         <Txt>
-          Belum ada ulasan. Hanya pelanggan yang sudah menerima makanan dapat
-          mengulas.
+          {t(
+            "Belum ada ulasan. Hanya pelanggan yang sudah menerima makanan dapat mengulas.",
+            "No reviews yet. Only customers who have received a meal can review.",
+          )}
         </Txt>
       )}
     </Screen>
   );
 }
 export function Comparison() {
-  const { offers, compare } = useNative();
+  const { offers, compare, t, locale } = useNative();
   const [qty, setQty] = useState(1);
   return (
-    <Screen title="Pilih yang paling pas.">
-      <Txt>Jumlah porsi sama untuk setiap paket.</Txt>
+    <Screen title={t("Pilih yang paling pas.", "Find your best fit.")}>
+      <Txt>
+        {t(
+          "Jumlah porsi sama untuk setiap paket.",
+          "The same portion quantity applies to every package.",
+        )}
+      </Txt>
       <Qty value={qty} onChange={setQty} />
       {offers
         .filter((o) => compare.includes(o.id))
@@ -453,36 +491,44 @@ export function Comparison() {
             <Txt kind="small">{o.caterer}</Txt>
             <Facts
               rows={[
-                ["Total paket", currency(price(o, qty).total)],
+                [t("Total paket", "Package total"), currency(price(o, qty).total, locale)],
                 [
-                  "Per porsi / hari",
-                  currency(price(o, qty).total / o.days / qty),
+                  t("Per porsi / hari", "Per portion / day"),
+                  currency(price(o, qty).total / o.days / qty, locale),
                 ],
                 [
-                  "Jumlah makanan",
+                  t("Jumlah makanan", "Meal count"),
                   o.days * (o.meal === "both" ? 2 : 1) +
-                    " kali makan per porsi",
+                    " " + t("kali makan per porsi", "meals per portion"),
                 ],
-                ["Durasi", o.days + " hari"],
-                ["Waktu makan", mealLabel(o.meal)],
-                ["Jadwal", o.flexible ? "Fleksibel" : "Tetap"],
+                [t("Durasi", "Duration"), o.days + " " + t("hari", "days")],
+                [t("Waktu makan", "Meal time"), mealLabel(o.meal, locale)],
                 [
-                  "Trial",
-                  o.trialPrice
-                    ? currency(o.trialPrice * qty)
-                    : "Tidak tersedia",
+                  t("Jadwal", "Schedule"),
+                  o.flexible ? t("Fleksibel", "Flexible") : t("Tetap", "Fixed"),
                 ],
-                ["Pengantaran", "Termasuk"],
+                [
+                  t("Trial", "Trial"),
+                  o.trialPrice
+                    ? currency(o.trialPrice * qty, locale)
+                    : t("Tidak tersedia", "Unavailable"),
+                ],
+                [t("Pengantaran", "Delivery"), t("Termasuk", "Included")],
               ]}
             />
             <Btn
-              label="Lihat paket"
+              label={t("Lihat paket", "View package")}
               onPress={() => router.push(("/package/" + o.id) as never)}
             />
           </Panel>
         ))}
       {!compare.length && (
-        <Empty title="Pilih hingga tiga paket dari Jelajah." />
+        <Empty
+          title={t(
+            "Pilih hingga tiga paket dari Jelajah.",
+            "Choose up to three packages from Discover.",
+          )}
+        />
       )}
     </Screen>
   );
@@ -540,7 +586,7 @@ export function LoginScreen() {
           {method === "email" ? (
             <>
               <Field
-                label="Email"
+                label={t("Email", "Email")}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -548,7 +594,7 @@ export function LoginScreen() {
                 autoComplete="email"
                 value={email}
                 onChangeText={setEmail}
-                placeholder="nama@contoh.com"
+                placeholder={t("nama@contoh.com", "name@example.com")}
               />
               <Field
                 label={t("Kata sandi", "Password")}
@@ -648,7 +694,7 @@ export function CheckoutScreen() {
     portions,
     trial: trialParam,
   } = useLocalSearchParams<{ id: string; portions?: string; trial?: string }>();
-  const { actor, offers, command } = useNative();
+  const { actor, offers, command, t, locale } = useNative();
   const trial = trialParam === "1",
     key = "catera.checkout." + id + "." + trial;
   const o = offers.find((o) => o.id === id);
@@ -700,15 +746,20 @@ export function CheckoutScreen() {
   if (!o)
     return (
       <Screen>
-        <Empty title="Paket tidak ditemukan" />
+        <Empty title={t("Paket tidak ditemukan", "Package not found")} />
       </Screen>
     );
   if (!actor)
     return (
-      <Screen title="Pilihanmu tetap tersimpan.">
-        <Txt>Masuk untuk memilih alamat dan mengamankan jadwal makanan.</Txt>
+      <Screen title={t("Pilihanmu tetap tersimpan.", "Your selection is saved.")}>
+        <Txt>
+          {t(
+            "Masuk untuk memilih alamat dan mengamankan jadwal makanan.",
+            "Sign in to choose an address and reserve your meals.",
+          )}
+        </Txt>
         <Btn
-          label="Masuk & lanjutkan"
+          label={t("Masuk & lanjutkan", "Sign in & continue")}
           onPress={() =>
             router.push({
               pathname: "/login",
@@ -730,14 +781,14 @@ export function CheckoutScreen() {
     <Screen
       title={
         trial
-          ? "Kenalan lewat satu kali makan."
-          : "Siapkan hari-hari yang lebih enak."
+          ? t("Kenalan lewat satu kali makan.", "Start with a first taste.")
+          : t("Siapkan hari-hari yang lebih enak.", "Make room for good meals.")
       }
     >
       <Photo src={o.image} height={170} />
       <Txt kind="heading">{o.name}</Txt>
       <Txt kind="small">
-        {o.caterer} · {trial ? "Trial 1 hari" : o.days + " hari"}
+        {o.caterer} · {trial ? t("Trial 1 hari", "1-day trial") : o.days + " " + t("hari", "days")}
       </Txt>
       <PackageContents offer={quote?.offer || o} />
       {!quote ? (
@@ -748,13 +799,13 @@ export function CheckoutScreen() {
             max={trial ? o.trialMax || 100 : 100}
           />
           <DayPicker
-            label="Mulai tanggal"
+            label={t("Mulai tanggal", "Start date")}
             value={date}
             onChange={setDate}
             min={localDay()}
           />
           <Select
-            label="Alamat pengantaran"
+            label={t("Alamat pengantaran", "Delivery address")}
             value={address}
             onChange={setAddress}
             options={
@@ -766,17 +817,17 @@ export function CheckoutScreen() {
           />
           <Btn
             secondary
-            label="Tambah alamat"
+            label={t("Tambah alamat", "Add an address")}
             onPress={() => router.push("/addresses")}
           />
           <Field
-            label="Kode promo (opsional)"
+            label={t("Kode promo (opsional)", "Promo code (optional)")}
             value={promo}
             onChangeText={setPromo}
             autoCapitalize="characters"
           />
           <Run
-            label="Tinjau jadwal & harga"
+            label={t("Tinjau jadwal & harga", "Review schedule & price")}
             action={async () =>
               setQuote(
                 await nativeApi.quote({
@@ -793,51 +844,62 @@ export function CheckoutScreen() {
         </>
       ) : (
         <Panel>
-          <Txt kind="heading">Jadwal makananmu</Txt>
+          <Txt kind="heading">{t("Jadwal makananmu", "Your meal schedule")}</Txt>
           {quote.dates.map((d) => (
             <Txt key={d}>
-              {new Date(d + "T12:00:00").toLocaleDateString("id-ID", {
+              {new Date(d + "T12:00:00").toLocaleDateString(locale === "id" ? "id-ID" : "en-GB", {
                 weekday: "long",
                 day: "numeric",
                 month: "long",
               })}{" "}
-              · {qty} porsi
+              · {qty} {t("porsi", "portions")}
             </Txt>
           ))}
           <Facts
             rows={[
-              ["Harga paket", currency(quote.subtotal)],
-              ["Diskon porsi", currency(quote.discount)],
-              ["Promo", currency(quote.promotion)],
-              ["Pengantaran", "Termasuk"],
-              ["Biaya layanan", currency(quote.serviceFee)],
-              ["Total", currency(quote.total)],
+              [t("Harga paket", "Package subtotal"), currency(quote.subtotal, locale)],
+              [t("Diskon porsi", "Portion discount"), currency(quote.discount, locale)],
+              [t("Promo", "Promo"), currency(quote.promotion, locale)],
+              [t("Pengantaran", "Delivery"), t("Termasuk", "Included")],
+              [t("Biaya layanan", "Service fee"), currency(quote.serviceFee, locale)],
+              [t("Total", "Total"), currency(quote.total, locale)],
             ]}
           />
           <Txt kind="small">
             {o.flexible
-              ? "Tanggal dapat dipindah sebelum cutoff sesuai kapasitas."
-              : "Paket memiliki tanggal tetap."}{" "}
-            Semua pembatalan dan refund ditinjau melalui bantuan. Tidak ada
-            perpanjangan otomatis.
+              ? t(
+                  "Tanggal dapat dipindah sebelum cutoff sesuai kapasitas.",
+                  "Dates can be moved before cutoff, subject to capacity.",
+                )
+              : t("Paket memiliki tanggal tetap.", "This package uses fixed dates.")}{" "}
+            {t(
+              "Semua pembatalan dan refund ditinjau melalui bantuan. Tidak ada perpanjangan otomatis.",
+              "Cancellation and refund requests are reviewed through support. No automatic renewal.",
+            )}
           </Txt>
           <View style={styles.row}>
             <Switch
               value={accepted}
-              accessibilityLabel="Setujui jadwal alamat dan aturan"
+              accessibilityLabel={t("Setujui jadwal alamat dan aturan", "Agree to the schedule, address, and terms")}
               onValueChange={setAccepted}
               trackColor={{ true: C.forest }}
             />
             <Txt kind="small" style={{ flex: 1 }}>
-              Saya sudah memeriksa jadwal, alamat, dan ketentuan.
+              {t(
+                "Saya sudah memeriksa jadwal, alamat, dan ketentuan.",
+                "I have reviewed the schedule, address, and terms.",
+              )}
             </Txt>
           </View>
           <Run
-            label="Lanjutkan ke pembayaran"
+            label={t("Lanjutkan ke pembayaran", "Continue to payment")}
             action={async () => {
               if (!accepted)
                 throw new Error(
-                  "Periksa dan setujui ketentuan terlebih dahulu.",
+                  t(
+                    "Periksa dan setujui ketentuan terlebih dahulu.",
+                    "Review and agree to the terms first.",
+                  ),
                 );
               const c = await command<Checkout>("checkout.create", {
                 expectedQuote: quote,
@@ -853,7 +915,11 @@ export function CheckoutScreen() {
               router.replace(("/payment/" + c.id) as never);
             }}
           />
-          <Btn secondary label="Ubah pilihan" onPress={() => setQuote(null)} />
+          <Btn
+            secondary
+            label={t("Ubah pilihan", "Edit selection")}
+            onPress={() => setQuote(null)}
+          />
         </Panel>
       )}
     </Screen>
@@ -861,7 +927,7 @@ export function CheckoutScreen() {
 }
 export function PaymentScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { demo, command } = useNative();
+  const { demo, command, t, locale } = useNative();
   const state = useData<Checkout>("payment:" + id, () =>
     nativeApi.checkout(id),
   );
@@ -876,8 +942,8 @@ export function PaymentScreen() {
       <Screen
         title={
           c?.subscription_id
-            ? "Makanan baik sudah dijadwalkan."
-            : "Satu langkah menuju makan enak."
+            ? t("Makanan baik sudah dijadwalkan.", "Good meals are on the calendar.")
+            : t("Satu langkah menuju makan enak.", "One step away from good meals.")
         }
         refresh={state.reload}
       >
@@ -892,16 +958,16 @@ export function PaymentScreen() {
                   resizeMode="contain"
                 />
                 <Txt>
-                  {c.quote.offer.name} · {c.quote.portions} porsi ·{" "}
-                  {c.quote.dates.length} hari
+                  {c.quote.offer.name} · {c.quote.portions} {t("porsi", "portions")} ·{" "}
+                  {c.quote.dates.length} {t("hari", "days")}
                 </Txt>
                 <Btn
-                  label="Lihat jadwal makan"
+                  label={t("Lihat jadwal makan", "View meal calendar")}
                   onPress={() => router.replace("/calendar")}
                 />
                 <Btn
                   secondary
-                  label="Detail langganan"
+                  label={t("Detail langganan", "Subscription details")}
                   onPress={() =>
                     router.push(
                       ("/subscriptions/" + c.subscription_id) as never,
@@ -913,39 +979,46 @@ export function PaymentScreen() {
               <>
                 <Facts
                   rows={[
-                    ["Paket", c.quote.offer.name],
-                    ["Total", currency(c.quote.total)],
+                    [t("Paket", "Package"), c.quote.offer.name],
+                    [t("Total", "Total"), currency(c.quote.total, locale)],
                     [
-                      "Batas pembayaran",
-                      new Date(c.expires_at).toLocaleString("id-ID"),
+                      t("Batas pembayaran", "Payment deadline"),
+                      new Date(c.expires_at).toLocaleString(locale === "id" ? "id-ID" : "en-GB"),
                     ],
                   ]}
                 />
                 {c.state === "payment_exception" ? (
                   <Txt>
-                    Pembayaran diterima setelah jadwal tidak tersedia. Tim
-                    Catera sedang meninjau penyelesaiannya.
+                    {t(
+                      "Pembayaran diterima setelah jadwal tidak tersedia. Tim Catera sedang meninjau penyelesaiannya.",
+                      "Payment arrived after the schedule became unavailable. Catera is reviewing the resolution.",
+                    )}
                   </Txt>
                 ) : new Date(c.expires_at) > new Date() ? (
                   demo ? (
                     <Run
-                      label="Simulasikan pembayaran berhasil"
+                      label={t("Simulasikan pembayaran berhasil", "Simulate successful payment")}
                       action={() => command("checkout.demo_pay", { id })}
                     />
                   ) : c.payment_url ? (
                     <Run
-                      label="Buka pembayaran aman"
+                      label={t("Buka pembayaran aman", "Open secure payment")}
                       action={async () => {
                         await WebBrowser.openBrowserAsync(c.payment_url!);
                         state.reload();
                       }}
                     />
                   ) : (
-                    <Txt>Tautan pembayaran sedang disiapkan.</Txt>
+                    <Txt>
+                      {t(
+                        "Tautan pembayaran sedang disiapkan.",
+                        "Your payment link is being prepared.",
+                      )}
+                    </Txt>
                   )
                 ) : (
                   <Btn
-                    label="Pilih jadwal baru"
+                    label={t("Pilih jadwal baru", "Choose a new schedule")}
                     onPress={() =>
                       router.replace(
                         ("/checkout/" + c.quote.packageId) as never,
@@ -954,10 +1027,16 @@ export function PaymentScreen() {
                   />
                 )}
                 <Txt kind="small">
-                  Kembali dari pembayaran tidak membuktikan transaksi berhasil.
-                  Status diperiksa dari server.
+                  {t(
+                    "Kembali dari pembayaran tidak membuktikan transaksi berhasil. Status diperiksa dari server.",
+                    "Returning from payment does not prove the transaction succeeded. Status is checked with the server.",
+                  )}
                 </Txt>
-                <Btn secondary label="Periksa status" onPress={state.reload} />
+                <Btn
+                  secondary
+                  label={t("Periksa status", "Check status")}
+                  onPress={state.reload}
+                />
               </>
             )}
           </>

@@ -25,7 +25,7 @@ import {
 import { SupportQueue, TransactionRows } from "./seller";
 import { NumericInput } from "./numeric-input";
 export function Admin({ view }: { view: string }) {
-  const { perform } = useApp();
+  const { perform, t, locale } = useApp();
   const state = useResource<AdminState>("admin:" + view, () => api.admin());
   const [selected, setSelected] = useState("");
   const [open, setOpen] = useState(false);
@@ -43,16 +43,16 @@ export function Admin({ view }: { view: string }) {
       <Heading
         title={
           {
-            sellers: "Katerer & kepercayaan",
-            transactions: "Transaksi marketplace",
-            support: "Bantuan & pengembalian dana",
-            payouts: "Pencairan dana katerer",
-            promotions: "Promosi yang terukur",
-            reviews: "Ulasan pelanggan",
-            audit: "Jejak keputusan",
-          }[view] || "Catera Admin"
+            sellers: t("Katerer & kepercayaan", "Caterers & trust"),
+            transactions: t("Transaksi marketplace", "Marketplace transactions"),
+            support: t("Bantuan & pengembalian dana", "Support & refunds"),
+            payouts: t("Pencairan dana katerer", "Caterer payouts"),
+            promotions: t("Promosi yang terukur", "Measured promotions"),
+            reviews: t("Ulasan pelanggan", "Customer reviews"),
+            audit: t("Jejak keputusan", "Decision trail"),
+          }[view] || t("Catera Admin", "Catera Admin")
         }
-        description="Keputusan yang jelas. Bukti yang dapat ditelusuri."
+        description={t("Keputusan yang jelas. Bukti yang dapat ditelusuri.", "Clear decisions. Traceable evidence.")}
       />
       {view === "sellers" ? (
         <>
@@ -60,22 +60,22 @@ export function Admin({ view }: { view: string }) {
             {[
               [
                 ShieldCheck,
-                "Menunggu tinjauan",
+                t("Menunggu tinjauan", "Awaiting review"),
                 a.caterers.filter((c) => c.status === "submitted").length,
               ],
               [
                 ShieldCheck,
-                "Katerer aktif",
+                t("Katerer aktif", "Active caterers"),
                 a.caterers.filter((c) => c.status === "approved").length,
               ],
               [
                 LifeBuoy,
-                "Permintaan terbuka",
+                t("Permintaan terbuka", "Open requests"),
                 a.cases.filter((c) => c.status !== "resolved").length,
               ],
               [
                 Wallet,
-                "Pembayaran bermasalah",
+                t("Pembayaran bermasalah", "Payment issues"),
                 a.transactions.filter((c) => c.state === "payment_exception")
                   .length,
               ],
@@ -92,7 +92,7 @@ export function Admin({ view }: { view: string }) {
           </div>
           <div className="master-detail">
             <section className="panel">
-              <h2>Antrean verifikasi</h2>
+              <h2>{t("Antrean verifikasi", "Verification queue")}</h2>
               <div className="queue-filters">
                 <Button
                   className={filter === "submitted" ? "selected" : ""}
@@ -101,20 +101,22 @@ export function Admin({ view }: { view: string }) {
                     setSelected("");
                   }}
                 >
-                  Menunggu tinjauan
+                  {t("Menunggu tinjauan", "Awaiting review")}
                 </Button>
                 <Button
                   className={filter === "all" ? "selected" : ""}
                   onClick={() => setFilter("all")}
                 >
-                  Semua katerer
+                  {t("Semua katerer", "All caterers")}
                 </Button>
               </div>
               {filter === "submitted" &&
                 !a.caterers.some((c) => c.status === "submitted") && (
                   <p className="quiet-empty">
-                    Tidak ada pengajuan yang menunggu tinjauan. Buka Semua
-                    katerer untuk melihat mitra dan statusnya.
+                    {t(
+                      "Tidak ada pengajuan yang menunggu tinjauan. Buka Semua katerer untuk melihat mitra dan statusnya.",
+                      "No applications are awaiting review. Open All caterers to see partners and their status.",
+                    )}
                   </p>
                 )}
               {a.caterers
@@ -145,8 +147,8 @@ export function Admin({ view }: { view: string }) {
                     <span>
                       <strong>{o.name}</strong>
                       <small>
-                        {currency(o.price)} / porsi / hari · {o.days} hari ·{" "}
-                        {o.menus.map(menuSummary).join(", ")}
+                        {currency(o.price, locale)} {t("/ porsi / hari", "/ portion / day")} · {o.days} {t("hari", "days")} ·{" "}
+                        {o.menus.map((m) => menuSummary(m, locale)).join(", ")}
                       </small>
                     </span>
                     <Status status={o.status} />
@@ -154,14 +156,14 @@ export function Admin({ view }: { view: string }) {
                 ))}
                 <Facts
                   rows={[
-                    ["Area", seller.area.join(", ")],
-                    ["Cutoff", seller.cutoff],
-                    ["Zona waktu", seller.timezone],
-                    ["Revisi", seller.version],
+                    [t("Area", "Area"), seller.area.join(", ")],
+                    [t("Cutoff", "Cutoff"), seller.cutoff],
+                    [t("Zona waktu", "Time zone"), seller.timezone],
+                    [t("Revisi", "Revision"), seller.version],
                   ]}
                 />
                 <ActionForm
-                  submit="Simpan keputusan verifikasi"
+                  submit={t("Simpan keputusan verifikasi", "Save verification decision")}
                   onSubmit={async (f) => {
                     await perform("admin.verify", {
                       id: seller.id,
@@ -171,25 +173,27 @@ export function Admin({ view }: { view: string }) {
                     });
                   }}
                 >
-                  <Field label="Keputusan">
+                  <Field label={t("Keputusan", "Decision")}>
                     <Select name="status" defaultValue={seller.status}>
                       <SelectOption value="approved">
-                        Setujui katerer
+                        {t("Setujui katerer", "Approve caterer")}
                       </SelectOption>
                       <SelectOption value="corrections">
-                        Minta perbaikan
+                        {t("Minta perbaikan", "Request changes")}
                       </SelectOption>
                       <SelectOption value="suspended">
-                        Tangguhkan penjualan
+                        {t("Tangguhkan penjualan", "Suspend sales")}
                       </SelectOption>
                     </Select>
                   </Field>
-                  <Field label="Alasan / koreksi yang diperlukan">
+                  <Field label={t("Alasan / koreksi yang diperlukan", "Reason / required changes")}>
                     <TextArea name="reason" required minLength={5} />
                   </Field>
                   <p className="notice">
-                    Penangguhan menghentikan penjualan baru. Pengantaran aktif
-                    tetap harus dipenuhi.
+                    {t(
+                      "Penangguhan menghentikan penjualan baru. Pengantaran aktif tetap harus dipenuhi.",
+                      "Suspension stops new sales. Active deliveries must still be fulfilled.",
+                    )}
                   </p>
                 </ActionForm>
               </section>
@@ -204,14 +208,14 @@ export function Admin({ view }: { view: string }) {
         <>
           <SupportQueue cases={a.cases} admin />
           <section className="panel spaced">
-            <h2>Proses refund</h2>
+            <h2>{t("Proses refund", "Refund processing")}</h2>
             <div className="table-wrap">
               <table>
                 <thead>
                   <tr>
-                    <th>Kasus</th>
-                    <th>Jumlah</th>
-                    <th>Status provider / rekonsiliasi</th>
+                    <th>{t("Kasus", "Case")}</th>
+                    <th>{t("Jumlah", "Amount")}</th>
+                    <th>{t("Status provider / rekonsiliasi", "Provider / reconciliation status")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -220,14 +224,14 @@ export function Admin({ view }: { view: string }) {
                       <td>
                         <code>{r.case_id}</code>
                       </td>
-                      <td>{currency(r.amount)}</td>
+                      <td>{currency(r.amount, locale)}</td>
                       <td>
                         <Status status={r.state} />
                         {r.state === "succeeded" && !r.reconciliation && (
                           <details>
-                            <summary>Rekonsiliasi refund</summary>
+                            <summary>{t("Rekonsiliasi refund", "Refund reconciliation")}</summary>
                             <ActionForm
-                              submit="Konfirmasi rekonsiliasi"
+                              submit={t("Konfirmasi rekonsiliasi", "Confirm reconciliation")}
                               onSubmit={async (f) => {
                                 await perform("reconcile.refund", {
                                   id: r.id,
@@ -239,7 +243,7 @@ export function Admin({ view }: { view: string }) {
                                 });
                               }}
                             >
-                              <Field label="Potongan alokasi katerer (Rp)">
+                              <Field label={t("Potongan alokasi katerer (Rp)", "Caterer allocation deduction (IDR)")}>
                                 <NumericInput
                                   name="sellerDeduction"
                                   min={0}
@@ -247,14 +251,14 @@ export function Admin({ view }: { view: string }) {
                                   required
                                 />
                               </Field>
-                              <Field label="Referensi penyelesaian provider">
+                              <Field label={t("Referensi penyelesaian provider", "Provider settlement reference")}>
                                 <TextInput
                                   name="reference"
                                   required
                                   minLength={3}
                                 />
                               </Field>
-                              <Field label="Alasan & rekonsiliasi biaya split">
+                              <Field label={t("Alasan & rekonsiliasi biaya split", "Reason & split-fee reconciliation")}>
                                 <TextArea
                                   name="reason"
                                   required
@@ -271,16 +275,16 @@ export function Admin({ view }: { view: string }) {
               </table>
             </div>
             {!a.refunds.length && (
-              <p className="quiet-empty">Belum ada refund yang disetujui.</p>
+              <p className="quiet-empty">{t("Belum ada refund yang disetujui.", "No approved refunds yet.")}</p>
             )}
           </section>
         </>
       ) : view === "payouts" ? (
         <div className="ops-two-col">
           <section className="panel">
-            <h2>Setujui pelepasan dana</h2>
+            <h2>{t("Setujui pelepasan dana", "Approve fund release")}</h2>
             <ActionForm
-              submit="Setujui pencairan tersedia"
+              submit={t("Setujui pencairan tersedia", "Approve available payout")}
               onSubmit={async (f) => {
                 await perform("payout.approve", {
                   catererId: f.get("catererId"),
@@ -288,7 +292,7 @@ export function Admin({ view }: { view: string }) {
                 });
               }}
             >
-              <Field label="Katerer">
+              <Field label={t("Katerer", "Caterer")}>
                 <Select name="catererId">
                   {a.caterers.map((c) => (
                     <SelectOption key={c.id} value={c.id}>
@@ -297,37 +301,40 @@ export function Admin({ view }: { view: string }) {
                   ))}
                 </Select>
               </Field>
-              <Field label="Catatan pemeriksaan">
+              <Field label={t("Catatan pemeriksaan", "Review notes")}>
                 <TextArea name="reason" minLength={5} required />
               </Field>
               <label className="checkbox">
                 <Checkbox required />
-                Transaksi, pengembalian dana, dan saldo sengketa telah
-                diperiksa.
+                {t(
+                  "Transaksi, pengembalian dana, dan saldo sengketa telah diperiksa.",
+                  "Transactions, refunds, and disputed balances have been reviewed.",
+                )}
               </label>
               <p className="notice">
-                Server menghitung saldo yang dapat dilepas. Dana dalam sengketa
-                dikecualikan. Status berhasil hanya dicatat setelah konfirmasi
-                penyelesaian.
+                {t(
+                  "Server menghitung saldo yang dapat dilepas. Dana dalam sengketa dikecualikan. Status berhasil hanya dicatat setelah konfirmasi penyelesaian.",
+                  "The server calculates the releasable balance. Disputed funds are excluded. Success is recorded only after settlement is confirmed.",
+                )}
               </p>
             </ActionForm>
           </section>
           <section className="panel">
-            <h2>Riwayat pencairan</h2>
+            <h2>{t("Riwayat pencairan", "Payout history")}</h2>
             {a.payouts.map((p) => (
               <div className="queue-row" key={p.id}>
                 <span>
                   <strong>
                     {a.caterers.find((c) => c.id === p.caterer_id)?.name}
                   </strong>
-                  <small>{currency(p.amount)}</small>
+                  <small>{currency(p.amount, locale)}</small>
                 </span>
                 <Status status={p.status} />
                 {!["succeeded", "failed"].includes(p.status) && (
                   <details>
-                    <summary>Rekonsiliasi pencairan</summary>
+                    <summary>{t("Rekonsiliasi pencairan", "Payout reconciliation")}</summary>
                     <ActionForm
-                      submit="Catat penyelesaian"
+                      submit={t("Catat penyelesaian", "Record settlement")}
                       onSubmit={async (f) => {
                         await perform("reconcile.payout", {
                           id: p.id,
@@ -337,20 +344,20 @@ export function Admin({ view }: { view: string }) {
                         });
                       }}
                     >
-                      <Field label="Hasil provider">
+                      <Field label={t("Hasil provider", "Provider result")}>
                         <Select name="status">
                           <SelectOption value="succeeded">
-                            Dana diterima
+                            {t("Dana diterima", "Funds received")}
                           </SelectOption>
                           <SelectOption value="failed">
-                            Gagal, pulihkan alokasi
+                            {t("Gagal, pulihkan alokasi", "Failed, restore allocation")}
                           </SelectOption>
                         </Select>
                       </Field>
-                      <Field label="Referensi provider">
+                      <Field label={t("Referensi provider", "Provider reference")}>
                         <TextInput name="reference" required minLength={3} />
                       </Field>
-                      <Field label="Catatan pemeriksaan">
+                      <Field label={t("Catatan pemeriksaan", "Review notes")}>
                         <TextArea name="reason" required minLength={5} />
                       </Field>
                     </ActionForm>
@@ -359,17 +366,17 @@ export function Admin({ view }: { view: string }) {
               </div>
             ))}
             {!a.payouts.length && (
-              <p className="quiet-empty">Belum ada pencairan.</p>
+              <p className="quiet-empty">{t("Belum ada pencairan.", "No payouts yet.")}</p>
             )}
           </section>
         </div>
       ) : view === "promotions" ? (
         <section className="panel">
           <div className="section-heading">
-            <h2>Kode promosi</h2>
+            <h2>{t("Kode promosi", "Promotion codes")}</h2>
             <Button className="button small" onClick={() => setOpen(true)}>
               <Plus size={17} />
-              Buat promosi
+              {t("Buat promosi", "Create promotion")}
             </Button>
           </div>
           {a.promotions.map((p) => (
@@ -378,7 +385,7 @@ export function Admin({ view }: { view: string }) {
               <span>{p.percent}%</span>
               <Status status={p.active ? "active" : "paused"} />
               <ActionForm
-                submit={p.active ? "Jeda" : "Aktifkan"}
+                submit={p.active ? t("Jeda", "Pause") : t("Aktifkan", "Activate")}
                 onSubmit={async () => {
                   await perform("promotion.save", {
                     code: p.code,
@@ -391,7 +398,7 @@ export function Admin({ view }: { view: string }) {
               </ActionForm>
             </div>
           ))}
-          <Dialog open={open} onOpenChange={setOpen} title="Promosi baru">
+          <Dialog open={open} onOpenChange={setOpen} title={t("Promosi baru", "New promotion")}>
             <ActionForm
               onSubmit={async (f) => {
                 await perform("promotion.save", {
@@ -402,7 +409,7 @@ export function Admin({ view }: { view: string }) {
                 setOpen(false);
               }}
             >
-              <Field label="Kode">
+              <Field label={t("Kode", "Code")}>
                 <TextInput
                   name="code"
                   required
@@ -410,25 +417,27 @@ export function Admin({ view }: { view: string }) {
                   maxLength={40}
                 />
               </Field>
-              <Field label="Diskon (%)">
+              <Field label={t("Diskon (%)", "Discount (%)")}>
                 <NumericInput name="percent" min={1} max={90} required />
               </Field>
               <p>
-                Promosi berlaku untuk pembelian berikutnya. Nilai diskon
-                disimpan pada pembelian.
+                {t(
+                  "Promosi berlaku untuk pembelian berikutnya. Nilai diskon disimpan pada pembelian.",
+                  "Promotions apply to the next purchase. The discount value is saved with the purchase.",
+                )}
               </p>
             </ActionForm>
           </Dialog>
         </section>
       ) : view === "reviews" ? (
         <section className="panel">
-          <h2>Ulasan pembelian terverifikasi</h2>
+          <h2>{t("Ulasan pembelian terverifikasi", "Verified purchase reviews")}</h2>
           {a.reviews.map((r) => (
             <div className="support-case" key={r.id}>
               <strong>{r.rating} / 5</strong>
               <p>{r.body}</p>
               <ActionForm
-                submit={r.hidden ? "Tampilkan ulasan" : "Sembunyikan ulasan"}
+                submit={r.hidden ? t("Tampilkan ulasan", "Show review") : t("Sembunyikan ulasan", "Hide review")}
                 onSubmit={async (f) => {
                   await perform("review.moderate", {
                     id: r.id,
@@ -437,46 +446,48 @@ export function Admin({ view }: { view: string }) {
                   });
                 }}
               >
-                <Field label="Alasan moderasi">
+                <Field label={t("Alasan moderasi", "Moderation reason")}>
                   <TextInput name="reason" required minLength={5} />
                 </Field>
               </ActionForm>
             </div>
           ))}
           {!a.reviews.length && (
-            <p className="quiet-empty">Belum ada ulasan.</p>
+            <p className="quiet-empty">{t("Belum ada ulasan.", "No reviews yet.")}</p>
           )}
         </section>
       ) : (
         <section className="panel">
-          <h2>Riwayat audit</h2>
+          <h2>{t("Riwayat audit", "Audit history")}</h2>
           <p>
-            Riwayat bersifat permanen dan tidak dapat diedit. Menampilkan 100
-            kejadian terbaru.
+            {t(
+              "Riwayat bersifat permanen dan tidak dapat diedit. Menampilkan 100 kejadian terbaru.",
+              "This history is permanent and cannot be edited. Showing the 100 most recent events.",
+            )}
           </p>
           <div className="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>Waktu</th>
-                  <th>Aksi</th>
-                  <th>Pelaku</th>
-                  <th>Detail</th>
+                  <th>{t("Waktu", "Time")}</th>
+                  <th>{t("Aksi", "Action")}</th>
+                  <th>{t("Pelaku", "Actor")}</th>
+                  <th>{t("Detail", "Details")}</th>
                 </tr>
               </thead>
               <tbody>
                 {a.audit.map((e) => (
                   <tr key={e.id}>
-                    <td>{new Date(e.created_at).toLocaleString("id-ID")}</td>
+                    <td>{new Date(e.created_at).toLocaleString(locale === "id" ? "id-ID" : "en-GB")}</td>
                     <td>
                       <strong>{e.action}</strong>
                     </td>
                     <td>
-                      <code>{e.actor_id?.slice(0, 8) || "Sistem"}</code>
+                      <code>{e.actor_id?.slice(0, 8) || t("Sistem", "System")}</code>
                     </td>
                     <td>
                       <details>
-                        <summary>Lihat catatan</summary>
+                        <summary>{t("Lihat catatan", "View notes")}</summary>
                         <pre>{JSON.stringify(e.details, null, 2)}</pre>
                       </details>
                     </td>

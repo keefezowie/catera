@@ -66,6 +66,7 @@ export function contentsFixturesSQL() {
         description:
           "Contoh sintetis untuk menjelajahi isi paket. Foto dan nilai gizi adalah data demonstrasi.",
         packageType,
+        nutrition,
         menus: [
           {
             name: items.map((i) => i.name).join(", "),
@@ -74,7 +75,6 @@ export function contentsFixturesSQL() {
             meal: "lunch",
             composition,
             items,
-            nutrition,
           },
         ],
       };

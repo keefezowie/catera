@@ -1,5 +1,6 @@
 import pg from "pg";
 import { verifySlotMenuConcurrency } from "./postgres-slot-menus.mjs";
+import { verifyPackageLifecycle } from "./postgres-package-lifecycle.mjs";
 import { verifySellerOperations } from "./postgres-seller-operations.mjs";
 import assert from "node:assert/strict";
 import { readFile, readdir, mkdir, mkdtemp, writeFile } from "node:fs/promises";
@@ -231,6 +232,8 @@ try {
     await scoped.query("rollback");
   } finally { scoped.release(); }
   evidence.push("Realtime signals enforce customer-specific SELECT access and reject direct authenticated writes.");
+  await pool.query(await readFile("supabase/migrations/20260911163608_package_lifecycle.sql", "utf8"));
+  await pool.query(await readFile("supabase/migrations/20260911163659_package_nutrition_ranges.sql", "utf8"));
   const contentsOffer = { ...(await pool.query("select offer from v1.packages where id=$1", [PACKAGE_IDS[0]])).rows[0].offer,
     status: 'published', packageType: 'ala_carte', menus: [{meal:'lunch',name:'Ayam, tempe',description:'Synthetic concurrency fixture',image:'',composition:[],items:[{id:'a',name:'Ayam'},{id:'b',name:'Tempe'}],nutrition:{proteinG:40}}] };
   const created = await cmd('package.save', {catererId:CATERER_IDS[0],slug:'concurrent-contents',offer:contentsOffer}, DEMO_ACTORS.owner);
@@ -240,7 +243,8 @@ try {
     cmd('package.save',{catererId:CATERER_IDS[0],id:created.id,version:1,offer:editOffer},DEMO_ACTORS.owner),
     cmd('checkout.create',{packageId:created.id,addressId:addresses[0],portions:2,startDate:addDays(localDay(),70),trial:false},users[0]),
   ]);
-  assert.equal(racing.slice(0,2).filter(r=>r.status==='fulfilled').length,1);
+  assert.equal(racing.slice(0,2).filter(r=>r.status==='fulfilled').length,0);
+  for (const r of racing.slice(0,2)) assert.match(r.reason.message,/PACKAGE_IMMUTABLE/);
   assert.equal(racing[2].status,'fulfilled');
   const purchased=racing[2].value, revision=purchased.quote.offer.contentRevision;
   const stored=(await pool.query('select contents from v1.content_revisions where package_id=$1 and revision=$2',[created.id,revision])).rows[0].contents;
@@ -251,7 +255,7 @@ try {
   const menus=await Promise.allSettled([cmd('menu.save',menuPayload,DEMO_ACTORS.owner),cmd('menu.save',menuPayload,DEMO_ACTORS.owner)]);
   assert.equal(menus.filter(r=>r.status==='fulfilled').length,1);
   assert.match(menus.find(r=>r.status==='rejected').reason.message,/CONFLICT/);
-  evidence.push('Concurrent content edits and checkout preserve a complete purchased revision and whole-portion reservations; simultaneous dated-menu saves accept exactly one version.');
+  evidence.push('Concurrent published content edits are rejected while checkout preserves the purchased revision and whole-portion reservations; simultaneous dated-menu saves accept exactly one version.');
   const dish = await cmd('dish.save', {catererId:CATERER_IDS[0],details:{name:'Concurrent synthetic dish',description:'',serving:'150 g',image:''}},DEMO_ACTORS.owner);
   const dishEdits=await Promise.allSettled([1,2].map(n=>cmd('dish.save',{catererId:CATERER_IDS[0],id:dish.id,version:dish.version,details:{name:'Dish '+n,description:'',serving:'200 g',image:''}},DEMO_ACTORS.owner)));
   assert.equal(dishEdits.filter(r=>r.status==='fulfilled').length,1);
@@ -263,6 +267,7 @@ try {
   evidence.push('Concurrent library edits reject stale versions; archive leaves purchased contents untouched.');
   await verifySlotMenuConcurrency(pool, cmd, evidence);
   await verifySellerOperations(pool, cmd, evidence);
+  await verifyPackageLifecycle(pool, cmd, evidence);
   await mkdir("output/verification", { recursive: true });
   const evidencePath = process.env.CATERA_POSTGRES_EVIDENCE || "output/verification/postgres.json";
   await mkdir(path.dirname(evidencePath), { recursive: true });

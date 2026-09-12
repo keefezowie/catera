@@ -41,6 +41,7 @@ function contents(box = false) {
   return {
     ...base,
     packageType: box ? ("nasi_box" as const) : ("ala_carte" as const),
+    nutrition: { proteinG: { min: 35, max: 45 }, carbsG: 0 },
     menus: [
       {
         meal: "lunch",
@@ -66,7 +67,6 @@ function contents(box = false) {
             ...(box ? { groupId: "lauk" } : {}),
           },
         ],
-        nutrition: { proteinG: 40, carbsG: 0 },
       },
     ],
   };
@@ -108,20 +108,38 @@ it("seeds customer demo offers with real package, menu and dish structure", asyn
   const alaCarte = catalog.items.find((offer) => offer.id === P[4])!;
   expect(alaCarte.packageType).toBe("ala_carte");
   expect(alaCarte.menus[0].items).toHaveLength(0);
-  expect(alaCarte.menus[0].composition?.reduce((n, g) => n + g.slots, 0)).toBe(4);
+  expect(alaCarte.menus[0].composition?.reduce((n, g) => n + g.slots, 0)).toBe(
+    4,
+  );
 
   const combined = catalog.items.find((offer) => offer.id === P[2])!;
   expect(combined.meal).toBe("both");
   expect(combined.menus.map((menu) => menu.meal)).toEqual(["lunch", "dinner"]);
-  expect(combined.menus.every(m => m.contentModel === "slots" && m.items?.length === 0 && m.nutrition === null)).toBe(true);
+  expect(
+    combined.menus.every(
+      (m) =>
+        m.contentModel === "slots" &&
+        m.items?.length === 0 &&
+        m.nutrition === null,
+    ),
+  ).toBe(true);
+  expect(combined.nutrition).toEqual({
+    caloriesKcal: { min: 610, max: 640 },
+    proteinG: { min: 29, max: 30 },
+    carbsG: { min: 76, max: 82 },
+    fatG: { min: 19, max: 21 },
+  });
 });
-it("validates complete dishes, box slots, custom components and partial/zero nutrition", () => {
+it("validates package nutrition as fixed values or inclusive ranges", () => {
   expect(offerSchema.safeParse(contents()).success).toBe(true);
   const box = contents(true);
   box.menus[0].composition[0].name = "Camilan khusus";
   expect(offerSchema.safeParse(box).success).toBe(true);
-  expect(nutritionSummary({ proteinG: 40, carbsG: 0 })).toContain(
-    "0 g karbohidrat",
+  expect(
+    nutritionSummary({ proteinG: { min: 35, max: 45 }, carbsG: 0 }),
+  ).toContain("0 g karbohidrat");
+  expect(nutritionSummary({ proteinG: { min: 35, max: 45 } })).toBe(
+    "35–45 g protein",
   );
   expect(nutritionSummary(null)).toBe("");
   box.menus[0].composition[0].slots = 3;
@@ -130,15 +148,35 @@ it("validates complete dishes, box slots, custom components and partial/zero nut
   expect(
     offerSchema.safeParse({
       ...contents(),
-      menus: [{ ...contents().menus[0], nutrition: { proteinG: -1 } }],
+      nutrition: { proteinG: { min: 45, max: 35 } },
     }).success,
   ).toBe(false);
   expect(
     offerSchema.safeParse({
       ...contents(),
-      menus: [{ ...contents().menus[0], nutrition: { proteinG: Infinity } }],
+      nutrition: { proteinG: Infinity },
     }).success,
   ).toBe(false);
+});
+it("enforces package nutrition ranges in PostgreSQL", async () => {
+  const result = await db.query<{
+    fixed: boolean;
+    range: boolean;
+    reversed: boolean;
+    extra: boolean;
+  }>(`
+    select
+      v1.valid_nutrition('{"proteinG":35}'::jsonb) fixed,
+      v1.valid_nutrition('{"proteinG":{"min":35,"max":45}}'::jsonb) range,
+      v1.valid_nutrition('{"proteinG":{"min":45,"max":35}}'::jsonb) reversed,
+      v1.valid_nutrition('{"proteinG":{"min":35,"max":45,"note":"x"}}'::jsonb) extra
+  `);
+  expect(result.rows[0]).toEqual({
+    fixed: true,
+    range: true,
+    reversed: false,
+    extra: false,
+  });
 });
 it("adapts legacy menus without inferring contents or type", () => {
   const legacy = {
@@ -155,6 +193,7 @@ it("creates structured offers and reserves whole portions, including combined me
   const { id } = await create(true);
   const c = await command<Checkout>("checkout.create", input(id), U.customer);
   expect(c.quote.offer.contentRevision).toBe(1);
+  expect(c.quote.offer.nutrition).toEqual(contents(true).nutrition);
   expect(c.quote.offer.menus[0].items).toHaveLength(2);
   expect(c.quote.subtotal).toBe(base.price * 2 * base.days);
   const reservations = await db.query<{ portions: number }>(
@@ -211,12 +250,23 @@ it("isolates dated menus by purchased revision, clears nutrition and preserves s
       },
     ],
   };
-  await command("package.save", {
-    catererId: K[0],
+  await expect(
+    command("package.save", {
+      catererId: K[0],
+      id,
+      version: current.version,
+      offer: next,
+    }),
+  ).rejects.toThrow("PACKAGE_IMMUTABLE");
+  // Historical revision fixture: legacy purchased revisions remain serviceable.
+  await db.query(
+    "insert into v1.content_revisions(package_id,revision,contents) values($1,2,v1.contents_template($2::jsonb))",
+    [id, JSON.stringify(next)],
+  );
+  await db.query("update v1.packages set offer=$2::jsonb where id=$1", [
     id,
-    version: current.version,
-    offer: next,
-  });
+    JSON.stringify({ ...next, contentRevision: 2 }),
+  ]);
   const date = c.quote.dates[0],
     details = {
       ...c.quote.offer.menus[0],

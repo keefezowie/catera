@@ -8,6 +8,7 @@ import {
   menuSummary,
   packageTypeLabel,
   nutritionSummary,
+  packageNutrition,
 } from "@catera/domain";
 import Link from "next/link";
 import { useState } from "react";
@@ -187,7 +188,12 @@ export function Catalog({ caterer }: { caterer?: string }) {
         (!diet || p.tags.includes("Plant-based")) &&
         (!max || p.price <= Number(max)) &&
         (!search ||
-          [p.name, p.caterer, ...p.tags, ...p.menus.map(menuSummary)]
+          [
+            p.name,
+            p.caterer,
+            ...p.tags,
+            ...p.menus.map((m) => menuSummary(m, locale)),
+          ]
             .join(" ")
             .toLowerCase()
             .includes(search.toLowerCase())),
@@ -215,7 +221,7 @@ export function Catalog({ caterer }: { caterer?: string }) {
               <Select
                 value={area}
                 onValueChange={(value) => setArea(value)}
-                aria-label="Area pengantaran"
+                aria-label={t("Area pengantaran", "Delivery area")}
               >
                 <SelectOption value="">
                   {t("Pilih area Anda", "Choose your area")}
@@ -233,7 +239,7 @@ export function Catalog({ caterer }: { caterer?: string }) {
                 "Cari paket, menu, atau katerer favorit…",
                 "Find a package, meal, or favorite caterer…",
               )}
-              aria-label="Cari katering"
+              aria-label={t("Cari katering", "Search caterers")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -254,7 +260,7 @@ export function Catalog({ caterer }: { caterer?: string }) {
             className={"button secondary small " + (filters ? "active" : "")}
             onClick={() => setFilters(!filters)}
           >
-            <SlidersHorizontal size={17} /> Filter
+            <SlidersHorizontal size={17} /> {t("Filter", "Filter")}
           </Button>
         </div>
         <div className="meal-filter-row">
@@ -281,7 +287,7 @@ export function Catalog({ caterer }: { caterer?: string }) {
             className={diet ? "selected" : ""}
             onClick={() => setDiet(!diet)}
           >
-            <Leaf size={18} /> Plant-based
+            <Leaf size={18} /> {t("Plant-based", "Plant-based")}
           </Button>
           <Button
             className={trial ? "selected" : ""}
@@ -308,7 +314,7 @@ export function Catalog({ caterer }: { caterer?: string }) {
               <NumericInput
                 value={max}
                 onDraftChange={setMax}
-                placeholder="Rp 100.000"
+                placeholder={t("Rp 100.000", "IDR 100,000")}
                 min="1000"
                 normalizeOnBlur={false}
               />
@@ -363,8 +369,12 @@ export function Catalog({ caterer }: { caterer?: string }) {
             <SelectOption value="all">
               {t("Semua jenis", "All types")}
             </SelectOption>
-            <SelectOption value="ala_carte">À la carte</SelectOption>
-            <SelectOption value="nasi_box">Nasi box</SelectOption>
+            <SelectOption value="ala_carte">
+              {t("À la carte", "À la carte")}
+            </SelectOption>
+            <SelectOption value="nasi_box">
+              {t("Nasi box", "Rice box")}
+            </SelectOption>
           </Select>
         </label>
         <div className="package-grid">
@@ -459,7 +469,11 @@ export function PackagePage({
   );
   if (!p)
     return (
-      <Empty title="Paket tidak ditemukan" href="/" label="Jelajah paket" />
+      <Empty
+        title={t("Paket tidak ditemukan", "Package not found")}
+        href="/"
+        label={t("Jelajah paket", "Browse packages")}
+      />
     );
   const eligible = !area || p.areas.includes(area);
   const tier = Math.max(
@@ -623,7 +637,7 @@ export function PackagePage({
             <div>
               <Button
                 className="icon-button"
-                aria-label="Kurangi porsi"
+                aria-label={t("Kurangi porsi", "Decrease portions")}
                 disabled={portions === 1}
                 onClick={() => setPortions(portions - 1)}
               >
@@ -632,7 +646,7 @@ export function PackagePage({
               <strong>{portions}</strong>
               <Button
                 className="icon-button"
-                aria-label="Tambah porsi"
+                aria-label={t("Tambah porsi", "Increase portions")}
                 disabled={portions === 100}
                 onClick={() => setPortions(portions + 1)}
               >
@@ -717,7 +731,7 @@ export function Compare() {
           <label className="inline-field">
             {t("Porsi setiap hari", "Portions per day")}
             <NumericInput
-              aria-label="Porsi perbandingan"
+              aria-label={t("Porsi perbandingan", "Comparison portions")}
               min={1}
               max={100}
               step={1}
@@ -748,7 +762,7 @@ export function Compare() {
               <tbody>
                 {[
                   [
-                    "Harga paket",
+                    t("Harga paket", "Package price"),
                     ...selected.map((p) =>
                       currency(
                         Math.round(
@@ -769,7 +783,7 @@ export function Compare() {
                     ),
                   ],
                   [
-                    "Per porsi / hari",
+                    t("Per porsi / hari", "Per portion / day"),
                     ...selected.map((p) =>
                       currency(
                         Math.round(
@@ -787,30 +801,36 @@ export function Compare() {
                       ),
                     ),
                   ],
-                  ["Durasi", ...selected.map((p) => p.days + " hari")],
                   [
-                    "Waktu makan",
+                    t("Durasi", "Duration"),
+                    ...selected.map((p) => p.days + " " + t("hari", "days")),
+                  ],
+                  [
+                    t("Waktu makan", "Meal time"),
                     ...selected.map((p) => mealLabel(p.meal, locale)),
                   ],
                   [
-                    "Jadwal",
+                    t("Jadwal", "Schedule"),
                     ...selected.map((p) =>
-                      p.flexible ? "Fleksibel" : "Tetap",
+                      p.flexible
+                        ? t("Fleksibel", "Flexible")
+                        : t("Tetap", "Fixed"),
                     ),
                   ],
                   [
-                    "Trial 1 hari",
+                    t("Trial 1 hari", "1-day trial"),
                     ...selected.map((p) =>
                       p.trialPrice
                         ? currency(p.trialPrice * portions, locale)
-                        : "Tidak tersedia",
+                        : t("Tidak tersedia", "Unavailable"),
                     ),
                   ],
                   [
-                    "Pengantaran",
+                    t("Pengantaran", "Delivery"),
                     ...selected.map(
                       (p) =>
-                        "Termasuk · " +
+                        t("Termasuk", "Included") +
+                        " · " +
                         (p.meal === "dinner"
                           ? p.windows.dinner
                           : p.windows.lunch),
@@ -827,21 +847,17 @@ export function Compare() {
                       "Gizi per porsi · estimasi katerer",
                       "Nutrition per portion · caterer estimate",
                     ),
-                    ...selected.map((p) =>
-                      p.menus
-                        .map(
-                          (m) =>
-                            mealLabel(m.meal, locale) +
-                            ": " +
-                            (nutritionSummary(m.nutrition, locale) ||
-                              t("Belum tersedia", "Unavailable")),
-                        )
-                        .join("; "),
+                    ...selected.map(
+                      (p) =>
+                        nutritionSummary(packageNutrition(p), locale) ||
+                        t("Belum tersedia", "Unavailable"),
                     ),
                   ],
                   [
-                    "Menu",
-                    ...selected.map((p) => p.menus.map(menuSummary).join("; ")),
+                    t("Menu", "Menu"),
+                    ...selected.map((p) =>
+                      p.menus.map((m) => menuSummary(m, locale)).join("; "),
+                    ),
                   ],
                 ].map((r, i) => (
                   <tr key={i}>
@@ -858,7 +874,7 @@ export function Compare() {
                         className="button full"
                         href={"/packages/" + p.slug}
                       >
-                        Lihat paket
+                        {t("Lihat paket", "View package")}
                         <ArrowRight size={15} />
                       </Link>
                     </td>
@@ -870,10 +886,16 @@ export function Compare() {
         </>
       ) : (
         <Empty
-          title="Belum ada paket untuk dibandingkan"
-          description="Pilih tanda + pada kartu paket yang menarik untukmu."
+          title={t(
+            "Belum ada paket untuk dibandingkan",
+            "No packages to compare yet",
+          )}
+          description={t(
+            "Pilih tanda + pada kartu paket yang menarik untukmu.",
+            "Choose + on package cards that catch your eye.",
+          )}
           href="/#packages"
-          label="Jelajah paket"
+          label={t("Jelajah paket", "Browse packages")}
         />
       )}
     </div>
@@ -883,7 +905,8 @@ export function CatererPage({ slug }: { slug: string }) {
   const { offers, t, perform, actor } = useApp();
   const list = offers.filter((p) => p.catererSlug === slug);
   const p = list[0];
-  if (!p) return <Empty title="Katerer tidak ditemukan" />;
+  if (!p)
+    return <Empty title={t("Katerer tidak ditemukan", "Caterer not found")} />;
   return (
     <div className="content">
       <section className="caterer-cover">

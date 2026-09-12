@@ -37,18 +37,28 @@ export async function generateMetadata({
   params: Promise<{ path?: string[] }>;
 }) {
   const { path = [] } = await params;
+  const english = (await cookies()).get("catera_locale")?.value === "en";
   return {
     title:
       (
-        {
-          discover: "Jelajah katering",
-          home: "Makanan berikutnya",
-          calendar: "Jadwal makan",
-          seller: "Ruang katerer",
-          admin: "Catera Admin",
-          login: "Masuk",
-        } as Record<string, string>
-      )[path[0]] || "Katering untuk hari-hari Anda",
+        (english
+          ? {
+              discover: "Explore catering",
+              home: "Next meal",
+              calendar: "Meal calendar",
+              seller: "Caterer workspace",
+              admin: "Catera Admin",
+              login: "Sign in",
+            }
+          : {
+              discover: "Jelajah katering",
+              home: "Makanan berikutnya",
+              calendar: "Jadwal makan",
+              seller: "Ruang katerer",
+              admin: "Catera Admin",
+              login: "Masuk",
+            }) as Record<string, string>
+      )[path[0]] || (english ? "Catering for your everyday" : "Katering untuk hari-hari Anda"),
   };
 }
 export default async function Page({

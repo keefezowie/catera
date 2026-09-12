@@ -5,16 +5,20 @@ import { nutritionFields } from "./nutrition-fields";
 import {
   compositionPreview,
   nutritionMetrics,
+  packageNutrition,
   menuSourceLabel,
-  type MealMenu,
   type Offer,
 } from "@catera/domain";
 import { useApp } from "./context";
 import { Button } from "./form-controls";
 
-export function NutritionStrip({ menu }: { menu: MealMenu }) {
+export function NutritionStrip({
+  nutrition,
+}: {
+  nutrition: Offer["nutrition"];
+}) {
   const { locale, t } = useApp();
-  const metrics = nutritionMetrics(menu.nutrition, locale);
+  const metrics = nutritionMetrics(nutrition, locale);
   if (!metrics.length) return null;
   return (
     <div className="nutrition-strip">
@@ -103,7 +107,7 @@ export function PackagePreview({
         {t("Lihat isi paket", "See included dishes")}
         <ArrowRight size={14} aria-hidden="true" />
       </Link>
-      <NutritionStrip menu={menu} />
+      <NutritionStrip nutrition={packageNutrition(offer)} />
     </div>
   );
 }

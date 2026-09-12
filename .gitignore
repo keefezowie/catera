@@ -7,8 +7,7 @@ node_modules/
 test-results/
 playwright-report/
 *.tsbuildinfo
-.impeccable/review/
-.impeccable/config.local.json
+.visual-review/
 .vercel/
 supabase/.temp/
 coverage/

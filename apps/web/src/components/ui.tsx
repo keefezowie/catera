@@ -11,7 +11,7 @@ import {
   type ReactNode,
   type FormEvent,
 } from "react";
-import { errors, statusLabel } from "@catera/domain";
+import { errorLabel, statusLabel } from "@catera/domain";
 import { useApp } from "./context";
 import { MascotLoading } from "./mascot-loading";
 import { Button } from "./form-controls";
@@ -98,6 +98,7 @@ export function ErrorNotice({
   message: string;
   retry?: () => void;
 }) {
+  const { t } = useApp();
   return (
     <div className="error-notice" role="alert">
       <AlertCircle size={20} />
@@ -105,7 +106,7 @@ export function ErrorNotice({
         {message}
         {retry && (
           <Button variant="text" onClick={retry}>
-            Coba lagi
+            {t("Coba lagi", "Try again")}
           </Button>
         )}
       </div>
@@ -119,7 +120,7 @@ export function Dialog({
   description,
   children,
   className = "",
-  closeLabel = "Tutup",
+  closeLabel,
   onCloseAutoFocus,
 }: {
   open: boolean;
@@ -131,6 +132,7 @@ export function Dialog({
   closeLabel?: string;
   onCloseAutoFocus?: (event: Event) => void;
 }) {
+  const { t } = useApp();
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
@@ -141,11 +143,15 @@ export function Dialog({
         >
           <DialogPrimitive.Title>{title}</DialogPrimitive.Title>
           <DialogPrimitive.Description>
-            {description || "Periksa detail sebelum menyimpan perubahan."}
+            {description ||
+              t(
+                "Periksa detail sebelum menyimpan perubahan.",
+                "Review the details before saving your changes.",
+              )}
           </DialogPrimitive.Description>
           <DialogPrimitive.Close
             className="icon-button close"
-            aria-label={closeLabel}
+            aria-label={closeLabel || t("Tutup", "Close")}
           >
             <X size={20} />
           </DialogPrimitive.Close>
@@ -158,7 +164,7 @@ export function Dialog({
 export function ActionForm({
   onSubmit,
   children,
-  submit = "Simpan",
+  submit,
   className = "",
   disabled = false,
   noValidate = false,
@@ -172,7 +178,7 @@ export function ActionForm({
 }) {
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
-  const { t } = useApp();
+  const { t, locale } = useApp();
   async function handle(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (busy || disabled) return;
@@ -195,7 +201,11 @@ export function ActionForm({
                 "Terlalu banyak percobaan masuk. Tunggu sebentar lalu coba lagi.",
                 "Too many sign-in attempts. Please wait and try again.",
               )
-            : errors[code] || code || "Belum berhasil. Silakan coba lagi.",
+            : errorLabel(code, locale) ||
+              t(
+                "Belum berhasil. Silakan coba lagi.",
+                "It did not work. Please try again.",
+              ),
       );
     } finally {
       setBusy(false);
@@ -215,7 +225,7 @@ export function ActionForm({
         ) : (
           <Check size={17} />
         )}{" "}
-        {busy ? t("Memproses…", "Processing…") : submit}
+        {busy ? t("Memproses…", "Processing…") : submit || t("Simpan", "Save")}
       </Button>
     </form>
   );

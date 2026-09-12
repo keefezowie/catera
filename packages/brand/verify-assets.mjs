@@ -21,7 +21,11 @@ function inspect(file) {
     const type = data.toString('ascii', offset + 4, offset + 8);
     const chunk = data.subarray(offset + 8, offset + 8 + length);
     if (type === 'IDAT') imageChunks.push(chunk);
-    if (type === 'tEXt' && chunk.toString('utf8').startsWith('impeccable:prompt\0')) prompt = chunk.toString('utf8').slice(18);
+    if (type === 'tEXt' && chunk.toString('utf8').includes('\0')) {
+      const text = chunk.toString('utf8');
+      const separator = text.indexOf('\0');
+      if (separator >= 0 && text.slice(0, separator).toLowerCase().endsWith(':prompt')) prompt = text.slice(separator + 1);
+    }
     offset += length + 12;
   }
   return { width, height, colorType, hasAlphaChannel: colorType === 4 || colorType === 6, bytes: data.length, sha256: sha(data), pixelDataSha256: sha(Buffer.concat(imageChunks)), prompt };

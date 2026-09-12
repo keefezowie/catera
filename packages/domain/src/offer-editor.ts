@@ -15,6 +15,7 @@ const fieldStep: Record<string, OfferStep> = {
   meal: "offer",
   days: "offer",
   packageType: "offer",
+  nutrition: "offer",
   image: "contents",
   tags: "contents",
   menus: "contents",
@@ -34,10 +35,7 @@ export function sharedCapacityValue(
   const values = weekdays.length
     ? weekdays.map((weekday) => capacity[String(weekday)] ?? 0)
     : Object.values(capacity);
-  return values.reduce(
-    (maximum, value) => Math.max(maximum, value),
-    0,
-  );
+  return values.reduce((maximum, value) => Math.max(maximum, value), 0);
 }
 export function withSharedCapacity(
   capacity: Record<string, number>,

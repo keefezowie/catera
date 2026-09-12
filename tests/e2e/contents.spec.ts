@@ -43,6 +43,7 @@ test("slot purchase resolves dated dishes through customer delivery and frozen p
       meal: "lunch",
       days: 2,
       packageType: "ala_carte",
+      nutrition: { proteinG: { min: 35, max: 45 }, carbsG: 0 },
       menus: [menu],
     },
   });
@@ -92,7 +93,7 @@ test("slot purchase resolves dated dishes through customer delivery and frozen p
         serving: "2 potong",
       },
     ],
-    nutrition: { proteinG: 42, carbsG: 0 },
+    nutrition: null,
   };
   await cmd(page, "menu.saveBatch", {
     catererId: b.catererId,
@@ -114,7 +115,9 @@ test("slot purchase resolves dated dishes through customer delivery and frozen p
   await expect(page.locator(".package-contents")).toContainText(
     "Ayam kecap pengganti",
   );
-  await expect(page.locator(".package-contents")).toContainText("42 g protein");
+  await expect(page.locator(".package-contents")).toContainText(
+    "35–45 g protein",
+  );
   await page.goto("/subscriptions/" + sub.id);
   await expect(page.locator(".package-contents")).toContainText(
     "Menu belum ditentukan",
@@ -171,8 +174,8 @@ test("legacy nasi box retains concrete dishes, macros, discovery filtering and E
     "Caterer estimate",
   );
   await page.goto("/#packages");
-  await choose(page, "Package type", "Nasi box");
-  await page.getByRole("textbox", { name: "Cari katering" }).fill(name);
+  await choose(page, "Package type", "Rice box");
+  await page.getByRole("textbox", { name: "Search caterers" }).fill(name);
   await expect(page.locator(".package-card")).toHaveCount(1);
 });
 test("wizard reviews custom categories and counts before publishing the new composition", async ({

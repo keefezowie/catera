@@ -1,10 +1,7 @@
 "use client";
 import { SellerOperations } from "./seller-operations";
 import { PackageContents } from "./package-contents";
-import {
-  type MealMenu,
-  type PackageType,
-} from "@catera/domain";
+import { type MealMenu, type PackageType } from "@catera/domain";
 import { Select, SelectOption } from "./select";
 import { PhotoUpload } from "./photo-upload";
 import { CompositionEditor, compositionDraft } from "./composition-editor";
@@ -22,15 +19,10 @@ import {
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
-import {
-  Plus,
-  ArrowRight,
-  ArrowUpRight,
-  Package,
-  Users,
-} from "lucide-react";
+import { Plus, ArrowRight, ArrowUpRight, Package, Users } from "lucide-react";
 import {
   currency,
+  localizedMessage,
   localDay,
   mealLabel,
   areaOptions,
@@ -53,19 +45,24 @@ import {
 import { Messages } from "./customer";
 import { NumericInput } from "./numeric-input";
 import { TimeInput } from "./time-input";
+import { PackageNutritionEditor } from "./package-nutrition-editor";
+import { packageNutrition } from "@catera/domain";
 
 export function Seller({ view }: { view: string }) {
   const { actor } = useApp();
   if (!actor?.catererId) return <Onboarding />;
-  if (["today", "schedule", "production", "delivery"].includes(view)) return <SellerOperations view={view} />;
+  if (["today", "schedule", "production", "delivery"].includes(view))
+    return <SellerOperations view={view} />;
   return <SellerWorkspace view={view} />;
 }
 function SellerWorkspace({ view }: { view: string }) {
-  const { actor, t } = useApp();
+  const { actor, t, locale } = useApp();
   const query = useSearchParams();
   const router = useRouter();
   const date = query.get("date") || localDay();
-  useEffect(() => { if (view === "dishes") router.replace("/seller/menus?library=1"); }, [view, router]);
+  useEffect(() => {
+    if (view === "dishes") router.replace("/seller/menus?library=1");
+  }, [view, router]);
   const state = useResource<SellerState>(
     "seller:" + actor?.catererId + ":" + date,
     () => api.seller(actor!.catererId!, date),
@@ -81,16 +78,30 @@ function SellerWorkspace({ view }: { view: string }) {
   return (
     <>
       <Heading
-        title={{
-          packages: "Paket dari dapurmu.", menus: "Menu yang dinanti.", dishes: "Daftar hidangan", customers: "Pelanggan", support: "Pesan & bantuan", transactions: "Transaksi & pencairan", settings: "Pengaturan katerer",
-        }[view] || view}
+        title={
+          {
+            packages: t("Paket dari dapurmu.", "Packages from your kitchen."),
+            menus: t(
+              "Menu yang dinanti.",
+              "Menus your customers are waiting for.",
+            ),
+            dishes: t("Daftar hidangan", "Dish library"),
+            customers: t("Pelanggan", "Customers"),
+            support: t("Pesan & bantuan", "Messages & support"),
+            transactions: t("Transaksi & pencairan", "Transactions & payouts"),
+            settings: t("Pengaturan katerer", "Caterer settings"),
+          }[view] || view
+        }
         description={s.caterer.name}
       />
       {s.caterer.status !== "approved" && (
         <p className="notice">
-          Status verifikasi: <Status status={s.caterer.status} /> · Penjualan
-          baru tersedia setelah disetujui. Pengantaran yang sudah dibeli tetap
-          menjadi tanggung jawab katerer.
+          {t("Status verifikasi:", "Verification status:")}{" "}
+          <Status status={s.caterer.status} /> ·{" "}
+          {t(
+            "Penjualan baru tersedia setelah disetujui. Pengantaran yang sudah dibeli tetap menjadi tanggung jawab katerer.",
+            "New sales become available after approval. Already-purchased deliveries remain the caterer's responsibility.",
+          )}
         </p>
       )}
       {view === "packages" ? (
@@ -107,23 +118,27 @@ function SellerWorkspace({ view }: { view: string }) {
       ) : view === "transactions" ? (
         <>
           <section className="panel">
-            <h2>Riwayat pembelian</h2>
+            <h2>{t("Riwayat pembelian", "Purchase history")}</h2>
             <TransactionRows rows={s.transactions} />
           </section>
           <section className="panel spaced">
-            <h2>Pencairan</h2>
+            <h2>{t("Pencairan", "Payouts")}</h2>
             <p>
-              Pencairan ditinjau dan disetujui Catera. Dana dalam sengketa
-              ditahan.
+              {t(
+                "Pencairan ditinjau dan disetujui Catera. Dana dalam sengketa ditahan.",
+                "Payouts are reviewed and approved by Catera. Disputed funds are held.",
+              )}
             </p>
             {s.payouts.map((p) => (
               <div className="queue-row" key={p.id}>
-                <strong>{currency(p.amount)}</strong>
+                <strong>{currency(p.amount, locale)}</strong>
                 <Status status={p.status} />
               </div>
             ))}
             {!s.payouts.length && (
-              <p className="quiet-empty">Belum ada pencairan.</p>
+              <p className="quiet-empty">
+                {t("Belum ada pencairan.", "No payouts yet.")}
+              </p>
             )}
           </section>
         </>
@@ -135,16 +150,21 @@ function SellerWorkspace({ view }: { view: string }) {
 }
 
 function Packages({ state: s }: { state: SellerState }) {
-  const { actor } = useApp();
+  const { actor, t, locale } = useApp();
   const [editing, setEditing] = useState<Offer | null | undefined>();
   return (
     <>
       <div className="section-heading">
-        <p>Harga dan aturan baru berlaku untuk pembelian berikutnya.</p>
+        <p>
+          {t(
+            "Paket yang sudah tayang tidak dapat diubah. Buat paket baru untuk penawaran berbeda.",
+            "Published packages cannot be edited. Create a new package for a different offer.",
+          )}
+        </p>
         {actor?.role === "owner" && (
           <Button className="button" onClick={() => setEditing(null)}>
             <Plus size={17} />
-            Buat paket
+            {t("Buat paket", "Create package")}
           </Button>
         )}
       </div>
@@ -155,27 +175,31 @@ function Packages({ state: s }: { state: SellerState }) {
               <img src={o.image} alt={o.name} />
             ) : (
               <div className="package-image-placeholder">
-                Foto belum ditambahkan
+                {t("Foto belum ditambahkan", "No photo added")}
               </div>
             )}
             <div>
               <Status status={o.status} />
-              <h2>{o.name || "Draf tanpa nama"}</h2>
+              <h2>{o.name || t("Draf tanpa nama", "Untitled draft")}</h2>
               <p>
-                {o.days} hari · {mealLabel(o.meal)} ·{" "}
-                {o.flexible ? "Fleksibel" : "Tetap"}
+                {o.days} {t("hari", "days")} · {mealLabel(o.meal, locale)} ·{" "}
+                {o.flexible ? t("Fleksibel", "Flexible") : t("Tetap", "Fixed")}
               </p>
               <strong>
-                {currency(o.price)} <small>/ porsi / hari</small>
+                {currency(o.price, locale)}{" "}
+                <small>{t("/ porsi / hari", "/ portion / day")}</small>
               </strong>
             </div>
-            {actor?.role === "owner" && (
+            {actor?.role === "owner" && o.status === "draft" && (
               <Button
                 className="button secondary small"
                 onClick={() => setEditing(o)}
               >
-                Kelola paket <ArrowRight size={16} />
+                {t("Kelola paket", "Manage package")} <ArrowRight size={16} />
               </Button>
+            )}
+            {actor?.role === "owner" && o.status !== "draft" && (
+              <PackageLifecycle offer={o} />
             )}
           </article>
         ))}
@@ -185,7 +209,11 @@ function Packages({ state: s }: { state: SellerState }) {
         onOpenChange={(o) => {
           if (!o) setEditing(undefined);
         }}
-        title={editing ? "Kelola paket" : "Paket baru"}
+        title={
+          editing
+            ? t("Kelola paket", "Manage package")
+            : t("Paket baru", "New package")
+        }
       >
         <OfferEditor
           key={editing?.id || "new"}
@@ -198,6 +226,59 @@ function Packages({ state: s }: { state: SellerState }) {
     </>
   );
 }
+function PackageLifecycle({ offer }: { offer: Offer }) {
+  const { perform, t } = useApp();
+  if (offer.status === "retired")
+    return (
+      <p className="package-lifecycle">
+        {t(
+          "Paket diarsipkan. Riwayat pembelian tetap tersimpan.",
+          "Package archived. Purchase history is preserved.",
+        )}
+      </p>
+    );
+  const suspended = offer.status === "suspended";
+  return (
+    <div className="package-lifecycle">
+      <p>
+        {suspended
+          ? t(
+              "Tidak menerima pembelian baru dan tidak tampil di Jelajah. Pengantaran pelanggan tetap berjalan.",
+              "Hidden from discovery and closed to new purchases. Existing deliveries continue.",
+            )
+          : t(
+              "Tangguhkan penjualan sebelum mengarsipkan paket. Pelanggan yang sudah membeli tetap dilayani.",
+              "Suspend sales before archiving. Existing customers will still receive their deliveries.",
+            )}
+      </p>
+      {suspended && !offer.canArchive && (
+        <p className="notice">
+          {t(
+            "Arsip tersedia setelah seluruh pengantaran selesai dan tidak ada pembayaran tertunda.",
+            "Archive becomes available after all deliveries finish and no payments are pending.",
+          )}
+        </p>
+      )}
+      <ActionForm
+        submit={
+          suspended
+            ? t("Arsipkan paket", "Archive package")
+            : t("Tangguhkan paket", "Suspend package")
+        }
+        disabled={suspended && !offer.canArchive}
+        children={null}
+        onSubmit={() =>
+          perform(suspended ? "package.archive" : "package.suspend", {
+            catererId: offer.catererId,
+            id: offer.id,
+            version: offer.version,
+          })
+        }
+      />
+    </div>
+  );
+}
+
 const blankOffer = {
   name: "",
   description: "",
@@ -216,6 +297,7 @@ const blankOffer = {
   windows: { lunch: "11.00–13.00", dinner: "17.00–19.00" },
   tags: [],
   image: "",
+  nutrition: null,
   packageType: null as PackageType | null,
   menus: [] as MealMenu[],
   status: "draft",
@@ -231,7 +313,7 @@ function OfferEditor({
   caterer: Caterer;
   done: () => void;
 }) {
-  const { perform, demo, t } = useApp();
+  const { perform, demo, t, locale } = useApp();
   const [step, setStep] = useState<OfferStep>("offer");
   const [pending, setPending] = useState(0),
     [savingDraft, setSavingDraft] = useState(false);
@@ -241,7 +323,12 @@ function OfferEditor({
   const editor = useRef<HTMLDivElement>(null);
   const onBusyChange = (busy: boolean) =>
     setPending((n) => Math.max(0, n + (busy ? 1 : -1)));
-  const [value, setValue] = useState(() => ({ ...blankOffer, ...offer, menus: (offer?.menus || []).map(compositionDraft) }));
+  const [value, setValue] = useState(() => ({
+    ...blankOffer,
+    ...offer,
+    nutrition: offer ? packageNutrition(offer) : null,
+    menus: (offer?.menus || []).map(compositionDraft),
+  }));
 
   const set = (key: string, v: unknown) =>
     setValue((x) => ({ ...x, [key]: v }));
@@ -264,8 +351,12 @@ function OfferEditor({
       (m) => value.meal === "both" || m.meal === value.meal,
     ),
   };
-  const fieldError = (key: string) =>
-    issues.find((i) => i.path === key || i.path.startsWith(key + "."))?.message;
+  const fieldError = (key: string) => {
+    const issue = issues.find(
+      (i) => i.path === key || i.path.startsWith(key + "."),
+    );
+    return issue ? localizedMessage(issue.message, locale) : undefined;
+  };
   const showIssues = (found: EditorIssue[]) => {
     setIssues(found);
     if (found[0]) setStep(found[0].step);
@@ -397,7 +488,7 @@ function OfferEditor({
               {issues
                 .filter((i) => i.step === step)
                 .map((i, n) => (
-                  <li key={n}>{i.message}</li>
+                  <li key={n}>{localizedMessage(i.message, locale)}</li>
                 ))}
             </ul>
           </div>
@@ -416,14 +507,18 @@ function OfferEditor({
                 <SelectOption value="" disabled>
                   {t("Pilih jenis paket", "Choose package type")}
                 </SelectOption>
-                <SelectOption value="ala_carte">À la carte</SelectOption>
-                <SelectOption value="nasi_box">Nasi box</SelectOption>
+                <SelectOption value="ala_carte">
+                  {t("À la carte", "À la carte")}
+                </SelectOption>
+                <SelectOption value="nasi_box">
+                  {t("Nasi box", "Rice box")}
+                </SelectOption>
               </Select>
             </Field>
             <Field
               fieldKey="name"
               error={fieldError("name")}
-              label="Nama paket"
+              label={t("Nama paket", "Package name")}
             >
               <TextInput
                 required
@@ -436,7 +531,7 @@ function OfferEditor({
             <Field
               fieldKey="description"
               error={fieldError("description")}
-              label="Cerita paket"
+              label={t("Cerita paket", "Package story")}
             >
               <TextArea
                 required
@@ -449,21 +544,27 @@ function OfferEditor({
             <Field
               fieldKey="meal"
               error={fieldError("meal")}
-              label="Waktu makan"
+              label={t("Waktu makan", "Meal time")}
             >
               <Select
                 value={value.meal}
                 onValueChange={(value) => set("meal", value)}
               >
-                <SelectOption value="lunch">Makan siang</SelectOption>
-                <SelectOption value="dinner">Makan malam</SelectOption>
-                <SelectOption value="both">Makan siang + malam</SelectOption>
+                <SelectOption value="lunch">
+                  {t("Makan siang", "Lunch")}
+                </SelectOption>
+                <SelectOption value="dinner">
+                  {t("Makan malam", "Dinner")}
+                </SelectOption>
+                <SelectOption value="both">
+                  {t("Makan siang + malam", "Lunch + dinner")}
+                </SelectOption>
               </Select>
             </Field>
             <Field
               fieldKey="days"
               error={fieldError("days")}
-              label="Durasi pengantaran (hari)"
+              label={t("Durasi pengantaran (hari)", "Delivery duration (days)")}
             >
               <NumericInput
                 min={1}
@@ -473,13 +574,21 @@ function OfferEditor({
                 onValueChange={(next) => set("days", next)}
               />
             </Field>
+            <PackageNutritionEditor
+              value={value.nutrition}
+              error={fieldError("nutrition")}
+              onChange={(nutrition) => set("nutrition", nutrition)}
+            />
           </>
         ) : step === "pricing" ? (
           <>
             <Field
               fieldKey="price"
               error={fieldError("price")}
-              label="Harga per porsi / hari (pengantaran termasuk)"
+              label={t(
+                "Harga per porsi / hari (pengantaran termasuk)",
+                "Price per portion / day (delivery included)",
+              )}
             >
               <NumericInput
                 min={1000}
@@ -489,13 +598,15 @@ function OfferEditor({
               />
             </Field>
             <p>
-              Untuk siang + malam, harga ini sudah mencakup kedua makanan per
-              porsi per hari.
+              {t(
+                "Untuk siang + malam, harga ini sudah mencakup kedua makanan per porsi per hari.",
+                "For lunch + dinner, this price covers both meals per portion per day.",
+              )}
             </p>
             <Field
               fieldKey="tiers"
               error={fieldError("tiers")}
-              label="Diskon kuantitas"
+              label={t("Diskon kuantitas", "Quantity discount")}
             >
               <Select
                 value={value.tiers.length ? "yes" : "no"}
@@ -503,9 +614,11 @@ function OfferEditor({
                   set("tiers", value === "yes" ? [{ min: 3, percent: 5 }] : [])
                 }
               >
-                <SelectOption value="no">Tanpa diskon</SelectOption>
+                <SelectOption value="no">
+                  {t("Tanpa diskon", "No discount")}
+                </SelectOption>
                 <SelectOption value="yes">
-                  Gunakan tingkatan diskon
+                  {t("Gunakan tingkatan diskon", "Use discount tiers")}
                 </SelectOption>
               </Select>
             </Field>
@@ -514,7 +627,7 @@ function OfferEditor({
                 <Field
                   fieldKey="tiers"
                   error={fieldError("tiers")}
-                  label="Mulai porsi"
+                  label={t("Mulai porsi", "Starting portions")}
                 >
                   <NumericInput
                     min={1}
@@ -532,7 +645,7 @@ function OfferEditor({
                 <Field
                   fieldKey="tiers"
                   error={fieldError("tiers")}
-                  label="Diskon (%)"
+                  label={t("Diskon (%)", "Discount (%)")}
                 >
                   <NumericInput
                     min={0}
@@ -558,14 +671,14 @@ function OfferEditor({
                   set("tiers", [...value.tiers, { min: 5, percent: 10 }])
                 }
               >
-                Tambah tingkatan
+                {t("Tambah tingkatan", "Add tier")}
               </Button>
             )}
           </>
         ) : step === "schedule" ? (
           <>
             <fieldset data-editor-field="weekdays">
-              <legend>Hari operasional</legend>
+              <legend>{t("Hari operasional", "Operating days")}</legend>
               <div className="weekday-checks">
                 {["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"].map(
                   (d, i) => (
@@ -604,7 +717,7 @@ function OfferEditor({
                   fieldKey={"windows." + m}
                   error={fieldError("windows." + m)}
                   key={m}
-                  label={mealLabel(m)}
+                  label={mealLabel(m, locale)}
                 >
                   <TextInput
                     required
@@ -614,12 +727,15 @@ function OfferEditor({
                     }
                   />
                 </Field>
-                ))}
+              ))}
             </div>
             <Field
               fieldKey="capacity"
               error={fieldError("capacity")}
-              label={t("Kapasitas porsi per hari", "Portions per operating day")}
+              label={t(
+                "Kapasitas porsi per hari",
+                "Portions per operating day",
+              )}
             >
               <NumericInput
                 min={0}
@@ -645,24 +761,30 @@ function OfferEditor({
             <Field
               fieldKey="flexible"
               error={fieldError("flexible")}
-              label="Perubahan jadwal"
+              label={t("Perubahan jadwal", "Schedule changes")}
             >
               <Select
                 value={String(value.flexible)}
                 onValueChange={(value) => set("flexible", value === "true")}
               >
                 <SelectOption value="true">
-                  Paket fleksibel · boleh ganti tanggal sebelum cutoff
+                  {t(
+                    "Paket fleksibel · boleh ganti tanggal sebelum cutoff",
+                    "Flexible package · dates can change before cutoff",
+                  )}
                 </SelectOption>
                 <SelectOption value="false">
-                  Paket tetap · tanggal tidak dapat dipindah
+                  {t(
+                    "Paket tetap · tanggal tidak dapat dipindah",
+                    "Fixed package · dates cannot be changed",
+                  )}
                 </SelectOption>
               </Select>
             </Field>
             <Field
               fieldKey="trialPrice"
               error={fieldError("trialPrice")}
-              label="Trial satu hari"
+              label={t("Trial satu hari", "One-day trial")}
             >
               <Select
                 value={value.trialPrice === null ? "no" : "yes"}
@@ -670,8 +792,12 @@ function OfferEditor({
                   set("trialPrice", selected === "yes" ? value.price : null)
                 }
               >
-                <SelectOption value="yes">Tersedia</SelectOption>
-                <SelectOption value="no">Tidak tersedia</SelectOption>
+                <SelectOption value="yes">
+                  {t("Tersedia", "Available")}
+                </SelectOption>
+                <SelectOption value="no">
+                  {t("Tidak tersedia", "Unavailable")}
+                </SelectOption>
               </Select>
             </Field>
             {value.trialPrice !== null && (
@@ -679,7 +805,7 @@ function OfferEditor({
                 <Field
                   fieldKey="trialPrice"
                   error={fieldError("trialPrice")}
-                  label="Harga trial per porsi"
+                  label={t("Harga trial per porsi", "Trial price per portion")}
                 >
                   <NumericInput
                     min={1000}
@@ -691,7 +817,7 @@ function OfferEditor({
                 <Field
                   fieldKey="trialMax"
                   error={fieldError("trialMax")}
-                  label="Maksimum porsi trial"
+                  label={t("Maksimum porsi trial", "Maximum trial portions")}
                 >
                   <NumericInput
                     min={1}
@@ -702,8 +828,10 @@ function OfferEditor({
               </div>
             )}
             <p className="notice">
-              Satu trial berhasil dibeli per pelanggan per katerer. Semua
-              pembatalan masuk peninjauan bantuan.
+              {t(
+                "Satu trial berhasil dibeli per pelanggan per katerer. Semua pembatalan masuk peninjauan bantuan.",
+                "One trial can be bought per customer per caterer. All cancellations go through support review.",
+              )}
             </p>
           </>
         ) : step === "contents" ? (
@@ -725,13 +853,16 @@ function OfferEditor({
                 className="text-button"
                 onClick={() => set("image", "/assets/food/ayam-panggang.png")}
               >
-                Gunakan foto sintetis demo
+                {t("Gunakan foto sintetis demo", "Use synthetic demo photo")}
               </Button>
             )}
             <Field
               fieldKey="tags"
               error={fieldError("tags")}
-              label="Kategori (pisahkan koma)"
+              label={t(
+                "Kategori (pisahkan koma)",
+                "Categories (comma-separated)",
+              )}
             >
               <TextInput
                 value={value.tags.join(", ")}
@@ -743,7 +874,7 @@ function OfferEditor({
                 }
               />
             </Field>
-            {offer && offer.menus.some(m => m.contentModel !== "slots") && <p role="note">{t("Versi baru: tinjau kategori dan jumlah slot. Menu dan pembelian versi lama tetap tersimpan.", "New revision: review categories and slot counts. Previous menus and purchases stay intact.")}</p>}
+
             {!value.packageType ? (
               <p>
                 {t(
@@ -824,17 +955,20 @@ function OfferEditor({
                 />
               )}
             </div>
-            <Field label="Status penawaran">
+            <Field label={t("Status penawaran", "Offer status")}>
               <Select
                 value={value.status}
                 onValueChange={(value) => set("status", value)}
               >
-                <SelectOption value="draft">Simpan draf</SelectOption>
-                <SelectOption value="published">
-                  Tayangkan setelah verifikasi katerer
+                <SelectOption value="draft">
+                  {t("Simpan draf", "Save draft")}
                 </SelectOption>
-                <SelectOption value="paused">Jeda penjualan baru</SelectOption>
-                <SelectOption value="retired">Arsipkan</SelectOption>
+                <SelectOption value="published">
+                  {t(
+                    "Tayangkan setelah verifikasi katerer",
+                    "Publish after caterer approval",
+                  )}
+                </SelectOption>
               </Select>
             </Field>
           </>
@@ -845,7 +979,7 @@ function OfferEditor({
             type="button"
             onClick={() => navigate(offerSteps[offerSteps.indexOf(step) - 1])}
           >
-            Kembali
+            {t("Kembali", "Back")}
           </Button>
         )}
       </ActionForm>
@@ -880,18 +1014,18 @@ function OfferEditor({
 }
 function Customers({ state: s }: { state: SellerState }) {
   const [showImport, setShowImport] = useState(false);
-  const { actor } = useApp();
+  const { actor, t } = useApp();
   return (
     <>
       <section className="panel">
         <div className="section-heading">
-          <h2>Hubungan pelanggan</h2>
+          <h2>{t("Hubungan pelanggan", "Customer relationships")}</h2>
           {actor?.role === "owner" && (
             <Button
               className="button secondary small"
               onClick={() => setShowImport(true)}
             >
-              Impor langganan prabayar
+              {t("Impor langganan prabayar", "Import prepaid subscriptions")}
             </Button>
           )}
         </div>
@@ -899,9 +1033,9 @@ function Customers({ state: s }: { state: SellerState }) {
           <table>
             <thead>
               <tr>
-                <th>Pelanggan</th>
-                <th>Akuisisi awal</th>
-                <th>Identitas akun</th>
+                <th>{t("Pelanggan", "Customer")}</th>
+                <th>{t("Akuisisi awal", "Acquisition source")}</th>
+                <th>{t("Identitas akun", "Account identity")}</th>
               </tr>
             </thead>
             <tbody>
@@ -921,7 +1055,7 @@ function Customers({ state: s }: { state: SellerState }) {
       <Dialog
         open={showImport}
         onOpenChange={setShowImport}
-        title="Impor langganan prabayar"
+        title={t("Impor langganan prabayar", "Import prepaid subscriptions")}
       >
         <ImportForm
           catererId={s.caterer.id}
@@ -938,14 +1072,18 @@ function ImportForm({
   catererId: string;
   done: () => void;
 }) {
-  const { perform } = useApp();
+  const { perform, t } = useApp();
   const [preview, setPreview] = useState<{
     id: string;
     rows: unknown[];
   } | null>(null);
   return (
     <ActionForm
-      submit={preview ? "Konfirmasi impor" : "Periksa & buat pratinjau"}
+      submit={
+        preview
+          ? t("Konfirmasi impor", "Confirm import")
+          : t("Periksa & buat pratinjau", "Review & preview")
+      }
       onSubmit={async (f) => {
         if (preview) {
           await perform("import.commit", { catererId, id: preview.id });
@@ -959,10 +1097,17 @@ function ImportForm({
       {!preview ? (
         <>
           <p>
-            Hanya langganan yang sudah dibayar di luar Catera. Pelanggan harus
-            memiliki akun dan alamat. Impor tidak menagih pembayaran baru.
+            {t(
+              "Hanya langganan yang sudah dibayar di luar Catera. Pelanggan harus memiliki akun dan alamat. Impor tidak menagih pembayaran baru.",
+              "Only subscriptions paid outside Catera can be imported. Customers must have an account and address. Imports do not charge a new payment.",
+            )}
           </p>
-          <Field label="Data JSON (maksimal 100 baris)">
+          <Field
+            label={t(
+              "Data JSON (maksimal 100 baris)",
+              "JSON data (maximum 100 rows)",
+            )}
+          >
             <TextArea
               className="code-input"
               name="rows"
@@ -976,20 +1121,25 @@ function ImportForm({
       ) : (
         <>
           <p>
-            {preview.rows.length} langganan akan dibuat. Semua tanggal dan
-            kapasitas diperiksa kembali saat konfirmasi.
+            {t(
+              `${preview.rows.length} langganan akan dibuat. Semua tanggal dan kapasitas diperiksa kembali saat konfirmasi.`,
+              `${preview.rows.length} subscriptions will be created. All dates and capacity are checked again on confirmation.`,
+            )}
           </p>
           <pre>{JSON.stringify(preview.rows, null, 2)}</pre>
           <label className="checkbox">
             <Checkbox required />
-            Saya telah memverifikasi pembayaran dan hak pengantaran ini.
+            {t(
+              "Saya telah memverifikasi pembayaran dan hak pengantaran ini.",
+              "I have verified this payment and delivery entitlement.",
+            )}
           </label>
           <Button
             type="button"
             className="text-button"
             onClick={() => setPreview(null)}
           >
-            Perbaiki data
+            {t("Perbaiki data", "Edit data")}
           </Button>
         </>
       )}
@@ -1003,12 +1153,16 @@ export function SupportQueue({
   cases: SupportCase[];
   admin?: boolean;
 }) {
-  const { perform } = useApp();
+  const { perform, t, locale } = useApp();
   const [selected, setSelected] = useState("");
   const c = cases.find((c) => c.id === selected);
   return (
     <section className="panel">
-      <h2>{admin ? "Permintaan & keputusan" : "Permintaan bantuan"}</h2>
+      <h2>
+        {admin
+          ? t("Permintaan & keputusan", "Requests & decisions")
+          : t("Permintaan bantuan", "Support requests")}
+      </h2>
       <div className="master-detail">
         <div>
           {cases.map((x) => (
@@ -1020,31 +1174,40 @@ export function SupportQueue({
               <span>
                 <strong>{x.subject}</strong>
                 <small>
-                  {new Date(x.created_at).toLocaleDateString("id-ID")}
+                  {new Date(x.created_at).toLocaleDateString(
+                    locale === "id" ? "id-ID" : "en-GB",
+                  )}
                 </small>
               </span>
               <Status status={x.status} />
             </Button>
           ))}
           {!cases.length && (
-            <p className="quiet-empty">Belum ada permintaan bantuan.</p>
+            <p className="quiet-empty">
+              {t("Belum ada permintaan bantuan.", "No support requests yet.")}
+            </p>
           )}
         </div>
         {c && (
           <div className="support-decision">
             <h3>{c.subject}</h3>
             <p>{c.description}</p>
-            <p className="muted">Kasus {c.id}</p>
+            <p className="muted">
+              {t("Kasus", "Case")} {c.id}
+            </p>
             {c.resolution && (
               <div className="support-response">
                 {c.resolution}
-                {!!c.amount && <strong>{currency(c.amount)}</strong>}
+                {!!c.amount && <strong>{currency(c.amount, locale)}</strong>}
               </div>
             )}
             {c.status !== "resolved" &&
               (admin ? (
                 <ActionForm
-                  submit="Simpan keputusan keuangan"
+                  submit={t(
+                    "Simpan keputusan keuangan",
+                    "Save financial decision",
+                  )}
                   onSubmit={async (f) => {
                     await perform("support.resolve", {
                       id: c.id,
@@ -1055,10 +1218,10 @@ export function SupportQueue({
                     setSelected("");
                   }}
                 >
-                  <Field label="Alasan keputusan">
+                  <Field label={t("Alasan keputusan", "Decision reason")}>
                     <TextArea name="reason" minLength={5} required />
                   </Field>
-                  <Field label="Jumlah refund (Rp)">
+                  <Field label={t("Jumlah refund (Rp)", "Refund amount (IDR)")}>
                     <NumericInput
                       name="amount"
                       min={0}
@@ -1068,17 +1231,22 @@ export function SupportQueue({
                   </Field>
                   <label className="checkbox">
                     <Checkbox name="cancelRemaining" />
-                    Batalkan sisa pengantaran dan lepaskan pemesanan
+                    {t(
+                      "Batalkan sisa pengantaran dan lepaskan pemesanan",
+                      "Cancel remaining deliveries and release the reservation",
+                    )}
                   </label>
                   <p className="notice">
-                    Refund diproses terpisah dari keputusan. Biaya split
-                    memerlukan rekonsiliasi eksplisit.
+                    {t(
+                      "Refund diproses terpisah dari keputusan. Biaya split memerlukan rekonsiliasi eksplisit.",
+                      "Refunds are processed separately from the decision. Split fees require explicit reconciliation.",
+                    )}
                   </p>
                 </ActionForm>
               ) : (
                 <>
                   <ActionForm
-                    submit="Kirim tanggapan"
+                    submit={t("Kirim tanggapan", "Send response")}
                     onSubmit={async (f) => {
                       await perform("support.respond", {
                         id: c.id,
@@ -1086,19 +1254,21 @@ export function SupportQueue({
                       });
                     }}
                   >
-                    <Field label="Tanggapan katerer">
+                    <Field label={t("Tanggapan katerer", "Caterer response")}>
                       <TextArea name="response" required minLength={5} />
                     </Field>
                   </ActionForm>
                   <ActionForm
-                    submit="Eskalasi ke Catera"
+                    submit={t("Eskalasi ke Catera", "Escalate to Catera")}
                     onSubmit={async () => {
                       await perform("support.escalate", { id: c.id });
                     }}
                   >
                     <p>
-                      Keputusan refund dan pembatalan keuangan dilakukan oleh
-                      Catera.
+                      {t(
+                        "Keputusan refund dan pembatalan keuangan dilakukan oleh Catera.",
+                        "Refund and financial cancellation decisions are handled by Catera.",
+                      )}
                     </p>
                   </ActionForm>
                 </>
@@ -1114,16 +1284,17 @@ export function TransactionRows({
 }: {
   rows: SellerState["transactions"];
 }) {
+  const { t, locale } = useApp();
   return rows.length ? (
     <div className="table-wrap">
       <table>
         <thead>
           <tr>
-            <th>Pembelian</th>
-            <th>Porsi × hari</th>
-            <th>Total pelanggan</th>
-            <th>Status</th>
-            <th>Waktu</th>
+            <th>{t("Pembelian", "Purchase")}</th>
+            <th>{t("Porsi × hari", "Portions × days")}</th>
+            <th>{t("Total pelanggan", "Customer total")}</th>
+            <th>{t("Status", "Status")}</th>
+            <th>{t("Waktu", "Time")}</th>
           </tr>
         </thead>
         <tbody>
@@ -1132,7 +1303,7 @@ export function TransactionRows({
               <td>
                 <strong>{c.quote.offer.name}</strong>
                 <small>
-                  {c.quote.trial ? "Trial · " : ""}
+                  {c.quote.trial ? t("Trial · ", "Trial · ") : ""}
                   {c.id.slice(0, 8)}
                 </small>
               </td>
@@ -1140,29 +1311,38 @@ export function TransactionRows({
                 {c.quote.portions} × {c.quote.dates.length}
               </td>
               <td>
-                {currency(c.quote.total)}
-                <small>Biaya layanan {currency(c.quote.serviceFee)}</small>
+                {currency(c.quote.total, locale)}
+                <small>
+                  {t("Biaya layanan", "Service fee")}{" "}
+                  {currency(c.quote.serviceFee, locale)}
+                </small>
               </td>
               <td>
                 <Status status={c.state} />
               </td>
-              <td>{new Date(c.created_at).toLocaleDateString("id-ID")}</td>
+              <td>
+                {new Date(c.created_at).toLocaleDateString(
+                  locale === "id" ? "id-ID" : "en-GB",
+                )}
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
     </div>
   ) : (
-    <p className="quiet-empty">Belum ada pembelian.</p>
+    <p className="quiet-empty">
+      {t("Belum ada pembelian.", "No purchases yet.")}
+    </p>
   );
 }
 function SellerSettings({ state: s }: { state: SellerState }) {
-  const { perform } = useApp();
+  const { perform, t } = useApp();
   const [invite, setInvite] = useState("");
   return (
     <div className="ops-two-col">
       <section className="panel">
-        <h2>Profil & pengantaran</h2>
+        <h2>{t("Profil & pengantaran", "Profile & delivery")}</h2>
         <ActionForm
           onSubmit={async (f) => {
             await perform("seller.save", {
@@ -1175,10 +1355,10 @@ function SellerSettings({ state: s }: { state: SellerState }) {
             });
           }}
         >
-          <Field label="Nama katerer">
+          <Field label={t("Nama katerer", "Caterer name")}>
             <TextInput name="name" required defaultValue={s.caterer.name} />
           </Field>
-          <Field label="Tentang katerer">
+          <Field label={t("Tentang katerer", "About the caterer")}>
             <TextArea
               name="description"
               required
@@ -1186,7 +1366,7 @@ function SellerSettings({ state: s }: { state: SellerState }) {
             />
           </Field>
           <fieldset>
-            <legend>Area pengantaran</legend>
+            <legend>{t("Area pengantaran", "Delivery area")}</legend>
             {areaOptions.map((a) => (
               <label className="checkbox" key={a}>
                 <Checkbox
@@ -1198,7 +1378,7 @@ function SellerSettings({ state: s }: { state: SellerState }) {
               </label>
             ))}
           </fieldset>
-          <Field label="Cutoff sehari sebelumnya">
+          <Field label={t("Cutoff sehari sebelumnya", "Previous-day cutoff")}>
             <TimeInput
               name="cutoff"
               required
@@ -1209,18 +1389,20 @@ function SellerSettings({ state: s }: { state: SellerState }) {
         </ActionForm>
       </section>
       <section className="panel">
-        <h2>Verifikasi</h2>
+        <h2>{t("Verifikasi", "Verification")}</h2>
         <Status status={s.caterer.status} />
         {s.caterer.review_note && (
           <p className="notice">{s.caterer.review_note}</p>
         )}
         <p>
-          Lengkapi profil dan setidaknya satu draf paket sebelum mengajukan
-          peninjauan.
+          {t(
+            "Lengkapi profil dan setidaknya satu draf paket sebelum mengajukan peninjauan.",
+            "Complete your profile and at least one package draft before requesting review.",
+          )}
         </p>
         {["draft", "corrections"].includes(s.caterer.status) && (
           <ActionForm
-            submit="Ajukan verifikasi"
+            submit={t("Ajukan verifikasi", "Request verification")}
             onSubmit={async () => {
               await perform("seller.submit", { catererId: s.caterer.id });
             }}
@@ -1228,7 +1410,7 @@ function SellerSettings({ state: s }: { state: SellerState }) {
             <span />
           </ActionForm>
         )}
-        <h2 className="spaced">Tim katerer</h2>
+        <h2 className="spaced">{t("Tim katerer", "Caterer team")}</h2>
         {s.staff.map((st) => (
           <div className="queue-row" key={st.user_id}>
             <span>{st.name}</span>
@@ -1236,7 +1418,7 @@ function SellerSettings({ state: s }: { state: SellerState }) {
           </div>
         ))}
         <ActionForm
-          submit="Buat undangan staf"
+          submit={t("Buat undangan staf", "Create staff invite")}
           onSubmit={async () => {
             const r = await perform<{ code: string }>("staff.invite", {
               catererId: s.caterer.id,
@@ -1245,13 +1427,19 @@ function SellerSettings({ state: s }: { state: SellerState }) {
           }}
         >
           <p>
-            Staf menangani operasi. Akses keuangan dan pengaturan dibatasi untuk
-            pemilik.
+            {t(
+              "Staf menangani operasi. Akses keuangan dan pengaturan dibatasi untuk pemilik.",
+              "Staff handle operations. Financial and settings access is limited to the owner.",
+            )}
           </p>
         </ActionForm>
         {invite && (
           <div className="notice">
-            Bagikan kode kepada staf yang dimaksud: <code>{invite}</code>
+            {t(
+              "Bagikan kode kepada staf yang dimaksud:",
+              "Share this code with the staff member:",
+            )}{" "}
+            <code>{invite}</code>
           </div>
         )}
       </section>
@@ -1259,35 +1447,51 @@ function SellerSettings({ state: s }: { state: SellerState }) {
   );
 }
 export function Onboarding() {
-  const { actor, perform } = useApp();
+  const { actor, perform, t } = useApp();
   return (
     <div className="content narrow-wide">
       <Heading
-        title="Makanan dari dapurmu. Hari baik untuk banyak orang."
-        description="Bangun langganan yang berulang dengan ritme dapur yang kamu tentukan."
+        title={t(
+          "Makanan dari dapurmu. Hari baik untuk banyak orang.",
+          "Meals from your kitchen. Better days for many people.",
+        )}
+        description={t(
+          "Bangun langganan yang berulang dengan ritme dapur yang kamu tentukan.",
+          "Build recurring subscriptions around the rhythm of your kitchen.",
+        )}
       />
       {!actor ? (
         <>
           <img
             className="onboarding-art"
             src="/assets/welcome.png"
-            alt="Ilustrasi kotak makanan Catera"
+            alt={t(
+              "Ilustrasi kotak makanan Catera",
+              "Catera meal box illustration",
+            )}
           />
           <Link className="button" href="/login?next=/seller/onboarding">
-            Masuk untuk menjadi mitra <ArrowRight size={18} />
+            {t("Masuk untuk menjadi mitra", "Sign in to become a partner")}{" "}
+            <ArrowRight size={18} />
           </Link>
         </>
       ) : actor.catererId ? (
         <div className="panel">
-          <h2>Ruang katerermu siap dilengkapi.</h2>
+          <h2>
+            {t(
+              "Ruang katerermu siap dilengkapi.",
+              "Your caterer workspace is ready to set up.",
+            )}
+          </h2>
           <Link className="button" href="/seller/packages">
-            Siapkan paket pertama <ArrowRight size={18} />
+            {t("Siapkan paket pertama", "Set up your first package")}{" "}
+            <ArrowRight size={18} />
           </Link>
         </div>
       ) : (
         <section className="panel">
           <ActionForm
-            submit="Buat profil katerer"
+            submit={t("Buat profil katerer", "Create caterer profile")}
             onSubmit={async (f) => {
               await perform("seller.create", {
                 name: f.get("name"),
@@ -1298,22 +1502,22 @@ export function Onboarding() {
               location.assign("/seller/packages");
             }}
           >
-            <Field label="Nama katerer">
+            <Field label={t("Nama katerer", "Caterer name")}>
               <TextInput name="name" required minLength={3} />
             </Field>
-            <Field label="Alamat halaman katerer">
+            <Field label={t("Alamat halaman katerer", "Caterer page address")}>
               <TextInput
                 name="slug"
                 required
                 pattern="[a-z0-9-]+"
-                placeholder="dapur-kamu"
+                placeholder={t("dapur-kamu", "your-kitchen")}
               />
             </Field>
-            <Field label="Tentang makananmu">
+            <Field label={t("Tentang makananmu", "About your food")}>
               <TextArea name="description" required minLength={10} />
             </Field>
             <fieldset>
-              <legend>Area pengantaran</legend>
+              <legend>{t("Area pengantaran", "Delivery area")}</legend>
               {areaOptions.map((a) => (
                 <label className="checkbox" key={a}>
                   <Checkbox name="areas" value={a} />
@@ -1322,20 +1526,24 @@ export function Onboarding() {
               ))}
             </fieldset>
             <p className="notice">
-              Profil dimulai sebagai draf. Catera meninjau profil dan paket
-              sebelum penjualan dibuka.
+              {t(
+                "Profil dimulai sebagai draf. Catera meninjau profil dan paket sebelum penjualan dibuka.",
+                "Your profile starts as a draft. Catera reviews your profile and packages before opening sales.",
+              )}
             </p>
           </ActionForm>
           <details className="spaced">
-            <summary>Saya diundang sebagai staf</summary>
+            <summary>
+              {t("Saya diundang sebagai staf", "I was invited as staff")}
+            </summary>
             <ActionForm
-              submit="Terima undangan"
+              submit={t("Terima undangan", "Accept invite")}
               onSubmit={async (f) => {
                 await perform("invite.accept", { code: f.get("code") });
                 location.assign("/seller");
               }}
             >
-              <Field label="Kode undangan">
+              <Field label={t("Kode undangan", "Invite code")}>
                 <TextInput required name="code" />
               </Field>
             </ActionForm>

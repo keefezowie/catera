@@ -1,9 +1,12 @@
 "use client";
 import { useRef, useState } from "react";
 import {
+  compositionPreview,
+  componentLabel,
   menuItems,
   mealLabel,
   menuSourceLabel,
+  packageNutrition,
   type Offer,
   type Dish,
 } from "@catera/domain";
@@ -69,7 +72,7 @@ export function DishGallery({
   coverImage,
   preview = false,
 }: {
-  offer: Pick<Offer, "menus" | "packageType">;
+  offer: Pick<Offer, "menus" | "packageType" | "nutrition">;
   coverImage?: string;
   preview?: boolean;
 }) {
@@ -79,6 +82,7 @@ export function DishGallery({
   const trigger = useRef<HTMLButtonElement | null>(null);
   return (
     <div className="package-contents dish-gallery">
+      <NutritionStrip nutrition={packageNutrition(offer)} />
       {offer.menus.map((menu) => {
         const dishes = menuItems(menu);
         return (
@@ -94,9 +98,7 @@ export function DishGallery({
             </div>
             {!!menu.composition?.length && (
               <p className="gallery-composition">
-                {menu.composition
-                  .map((g) => `${g.slots} ${g.name}`)
-                  .join(" · ")}
+                {compositionPreview(menu, offer.packageType, locale)}
               </p>
             )}
             <ul
@@ -108,9 +110,12 @@ export function DishGallery({
                 <DishTile
                   key={`${dish.id}:${dish.image}`}
                   dish={dish}
-                  group={
-                    menu.composition?.find((g) => g.id === dish.groupId)?.name
-                  }
+                  group={(() => {
+                    const group = menu.composition?.find(
+                      (g) => g.id === dish.groupId,
+                    );
+                    return group ? componentLabel(group, locale) : undefined;
+                  })()}
                   duplicate={
                     dishes.length === 1 &&
                     !!dish.image &&
@@ -124,7 +129,6 @@ export function DishGallery({
                 />
               ))}
             </ul>
-            <NutritionStrip menu={menu} />
           </section>
         );
       })}

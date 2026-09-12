@@ -65,7 +65,7 @@ test("marketplace section links preserve state and dropdowns work by keyboard an
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
-  await page.getByRole("combobox", { name: "Area pengantaran" }).click();
+  await page.getByRole("combobox", { name: "Delivery area" }).click();
   const list = page.getByRole("listbox");
   const bounds = await list.boundingBox();
   expect(bounds!.x).toBeGreaterThanOrEqual(0);
@@ -82,7 +82,7 @@ test("marketplace section links preserve state and dropdowns work by keyboard an
   await page.screenshot({ path: "output/fixes-verification/area-phone.png" });
   await page.keyboard.press("Escape");
   await expect(
-    page.getByRole("combobox", { name: "Area pengantaran" }),
+    page.getByRole("combobox", { name: "Delivery area" }),
   ).toBeFocused();
   await page.getByRole("combobox", { name: "Language", exact: true }).click();
   await page.screenshot({
@@ -111,7 +111,7 @@ test("Slack bugs: hero leads filters and current navigation persists across rout
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/");
-    const hero = page.locator(".market-hero");
+    const hero = page.locator("#main .featured-hero");
     const toolbar = page.locator(".market-toolbar");
     await expect(hero).toBeVisible();
     const h = (await hero.boundingBox())!;
@@ -181,27 +181,21 @@ test("seller workspace exposes the locale switch and keeps the choice on reload"
   const topbar = page.locator(".ops-topbar");
   const language = topbar.locator(".locale-switch");
   await expect(language).toBeVisible();
-  await expect(
-    page.locator("#main h1"),
-  ).toBeVisible();
+  await expect(page.locator("#main h1")).toBeVisible();
   await expect(page.locator("#main h1")).toHaveText("Hari ini");
 
   await language.click();
   await page.getByRole("option", { name: "English", exact: true }).click();
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
   await expect(topbar.locator(".locale-switch")).toContainText("EN");
-  await expect(
-    page.locator("#main h1"),
-  ).toBeVisible();
+  await expect(page.locator("#main h1")).toBeVisible();
   await expect(page.locator("#main h1")).toHaveText("Today");
   await expect(page.locator(".ops-sidebar")).toContainText("Schedule");
 
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
   await expect(page.locator(".ops-topbar .locale-switch")).toContainText("EN");
-  await expect(
-    page.locator("#main h1"),
-  ).toBeVisible();
+  await expect(page.locator("#main h1")).toBeVisible();
   await expect(page.locator("#main h1")).toHaveText("Today");
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/seller");

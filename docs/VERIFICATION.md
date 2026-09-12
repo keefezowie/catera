@@ -10,7 +10,7 @@ Verified locally on 8 September 2026 with Node.js 24, Windows, Microsoft Edge an
 | Operational report | Native PostgreSQL: aggregate output correctly reports missing cron and zero ledger discrepancies |
 | Browser journeys | Six Playwright journeys cover management navigation/date policy, purchase/scheduling, subscriber changes, responsive/keyboard behavior, shared fulfillment/accounting, and a stale form after background refresh |
 | Accessibility | Automated WCAG 2 A/AA and 2.1 AA checks passed on admin and subscriber home; this is scoped automated evidence, not an accessibility certification |
-| Responsive review | Desktop 1440px, tablet 768px, phone 390px captures checked; Impeccable reviewer scored both listed material fixes resolved, disposition `ship` at fix scope |
+| Responsive review | Desktop 1440px, tablet 768px, phone 390px captures checked; both listed material fixes resolved, disposition `ship` at fix scope |
 | Production compilation | Next.js production build passed |
 | Clean dependency install | Isolated source copy: `npm ci` and production build passed with its own dependencies; no hosted credentials needed |
 | Backup round trip | PGlite dump/load preserves deliveries, grants, ledger, reservations and frozen production; reconciliation returns `[]` |

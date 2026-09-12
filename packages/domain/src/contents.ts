@@ -3,7 +3,32 @@ import { z } from "zod";
 export const packageTypes = ["ala_carte", "nasi_box"] as const;
 export type PackageType = (typeof packageTypes)[number];
 const text = (max: number) => z.string().trim().max(max);
+const nutrientRangeSchema = z
+  .object({
+    min: z.number().finite().nonnegative(),
+    max: z.number().finite().nonnegative(),
+  })
+  .strict()
+  .refine((value) => value.max >= value.min, {
+    message:
+      "Nilai maksimum harus sama atau lebih besar / Maximum must be greater than or equal to minimum",
+    path: ["max"],
+  });
+export const nutrientValueSchema = z.union([
+  z.number().finite().nonnegative(),
+  nutrientRangeSchema,
+]);
+export type NutrientValue = z.infer<typeof nutrientValueSchema>;
 export const nutritionSchema = z
+  .object({
+    caloriesKcal: nutrientValueSchema.optional(),
+    proteinG: nutrientValueSchema.optional(),
+    carbsG: nutrientValueSchema.optional(),
+    fatG: nutrientValueSchema.optional(),
+  })
+  .strict();
+export type Nutrition = z.infer<typeof nutritionSchema>;
+const legacyMenuNutritionSchema = z
   .object({
     caloriesKcal: z.number().finite().nonnegative().optional(),
     proteinG: z.number().finite().nonnegative().optional(),
@@ -11,7 +36,6 @@ export const nutritionSchema = z
     fatG: z.number().finite().nonnegative().optional(),
   })
   .strict();
-export type Nutrition = z.infer<typeof nutritionSchema>;
 export const dishSchema = z.object({
   id: text(80).min(1),
   name: text(120),
@@ -91,11 +115,22 @@ export const menuSchema = z.object({
   meal: z.enum(["lunch", "dinner"]),
   items: z.array(dishSchema).max(60).optional(),
   composition: z.array(componentSchema).max(20).optional(),
-  nutrition: nutritionSchema.nullable().optional(),
+  nutrition: legacyMenuNutritionSchema.nullable().optional(),
   source: z.enum(["initial", "dated"]).optional(),
 });
 export type Dish = z.infer<typeof dishSchema>;
 export type ComponentGroup = z.infer<typeof componentSchema>;
+export function componentLabel(
+  group: Pick<ComponentGroup, "name" | "categoryId">,
+  locale: "id" | "en" = "id",
+) {
+  if (locale === "en")
+    return (
+      defaultDishCategories.find((category) => category.id === group.categoryId)
+        ?.nameEn || group.name
+    );
+  return group.name;
+}
 export type MealMenu = Omit<z.infer<typeof menuSchema>, "meal"> & {
   meal: string;
 };
@@ -194,7 +229,7 @@ export function slotMenuIssues(
   if (template) {
     if (items.length || m.nutrition != null)
       issues.push(
-        "Atur hidangan dan gizi melalui kalender Menu / Set dishes and nutrition in the menu calendar",
+        "Atur hidangan melalui kalender Menu dan gizi pada paket / Set dishes in the Menu calendar and nutrition on the package",
       );
   } else if (
     (complete &&
@@ -280,12 +315,14 @@ export function menuItems(m: MealMenu): Dish[] {
     ]
   );
 }
-export function menuSummary(m: MealMenu): string {
-  if (pendingMenu(m)) return "Menu belum ditentukan";
+export function menuSummary(m: MealMenu, locale: "id" | "en" = "id"): string {
+  if (pendingMenu(m))
+    return locale === "en" ? "Menu not yet set" : "Menu belum ditentukan";
   return menuItems(m)
     .map((i) => {
-      const group = m.composition?.find((g) => g.id === i.groupId)?.name;
-      return `${group ? group + ": " : ""}${i.name}${i.serving ? " (" + i.serving + ")" : ""}`;
+      const group = m.composition?.find((g) => g.id === i.groupId);
+      const groupLabel = group ? componentLabel(group, locale) : undefined;
+      return `${groupLabel ? groupLabel + ": " : ""}${i.name}${i.serving ? " (" + i.serving + ")" : ""}`;
     })
     .join(", ");
 }
@@ -293,7 +330,9 @@ export function packageTypeLabel(type?: PackageType | null, locale = "id") {
   return type === "ala_carte"
     ? "À la carte"
     : type === "nasi_box"
-      ? "Nasi box"
+      ? locale === "id"
+        ? "Nasi box"
+        : "Rice box"
       : locale === "id"
         ? "Paket katering"
         : "Catering package";
@@ -307,6 +346,39 @@ export function nutritionSummary(
       ? ["kkal", "g protein", "g karbohidrat", "g lemak"]
       : ["kcal", "g protein", "g carbs", "g fat"];
   return (["caloriesKcal", "proteinG", "carbsG", "fatG"] as const)
-    .flatMap((key, i) => (n?.[key] == null ? [] : [`${n[key]} ${labels[i]}`]))
+    .flatMap((key, i) => {
+      const value = n?.[key];
+      if (value == null) return [];
+      const amount =
+        typeof value === "number" ? String(value) : `${value.min}–${value.max}`;
+      return [`${amount} ${labels[i]}`];
+    })
     .join(" · ");
+}
+
+export function nutrientBounds(value: NutrientValue | null | undefined) {
+  if (value == null) return null;
+  return typeof value === "number"
+    ? { min: value, max: value }
+    : { min: value.min, max: value.max };
+}
+
+/** Prefer package-level nutrition; aggregate legacy menu values without rewriting snapshots. */
+export function packageNutrition(offer: {
+  nutrition?: Nutrition | null;
+  menus?: MealMenu[];
+}): Nutrition | null {
+  if (offer.nutrition && Object.keys(offer.nutrition).length)
+    return offer.nutrition;
+  const result: Nutrition = {};
+  for (const key of ["caloriesKcal", "proteinG", "carbsG", "fatG"] as const) {
+    const bounds = (offer.menus || [])
+      .map((menu) => nutrientBounds(menu.nutrition?.[key]))
+      .filter((value): value is { min: number; max: number } => !!value);
+    if (!bounds.length) continue;
+    const min = Math.min(...bounds.map((value) => value.min));
+    const max = Math.max(...bounds.map((value) => value.max));
+    result[key] = min === max ? min : { min, max };
+  }
+  return Object.keys(result).length ? result : null;
 }

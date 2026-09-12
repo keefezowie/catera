@@ -2,7 +2,7 @@
 
 The user authorized the September 9, 2026 Catera V1 marketplace overhaul. PRODUCT.md is the current product baseline; docs/IMPLEMENTATION.md records implementation and docs/CATERA-V1-IMPLEMENTATION-PLAN.md tracks release evidence. Pilot instructions in archive/pilot are superseded and must not steer V1 work.
 
-Use the supplied tools/impeccable/SKILL.md for design work. Preserve the latest approved palette, individually regenerated artwork, food-led discovery, delivery-cycle direction, Indonesian-first interface, and code-first preference. Never crop the reference board or mislabel opaque/upscaled assets as transparent/high-resolution masters. Do not reopen naming or concept selection.
+Use Astra's UI/UX capabilities for design work. Preserve the latest approved palette, individually regenerated artwork, food-led discovery, delivery-cycle direction, Indonesian-first interface, and code-first preference. Never crop the reference board or mislabel opaque/upscaled assets as transparent/high-resolution masters. Do not reopen naming or concept selection.
 
 Keep tenant authorization and entitlement changes in database transactions. Never replace production storage with demo data silently. Demo mode is explicit and synthetic. Do not expose secrets or real customer fixtures.
 

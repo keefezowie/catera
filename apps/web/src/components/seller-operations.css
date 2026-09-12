@@ -67,6 +67,22 @@
 .ops-support-link {
   margin: -12px 0 20px;
   display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.ops-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding-inline: 6px;
+  border-radius: 11px;
+  background: var(--danger);
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 .ops-orders-panel {
   min-width: 0;
@@ -86,7 +102,42 @@
   min-width: 155px;
 }
 .ops-order-table {
-  min-width: 660px;
+  min-width: 760px;
+}
+.ops-schedule-table {
+  min-width: 960px;
+}
+.ops-schedule-table td:nth-child(3) {
+  min-width: 160px;
+}
+.ops-schedule-table td:nth-child(4) {
+  min-width: 110px;
+}
+.ops-order-table th {
+  white-space: nowrap;
+}
+.ops-order-table :is(td, th) {
+  padding: 16px;
+}
+.ops-order-table td {
+  overflow-wrap: anywhere;
+}
+.ops-order-table td:has(> strong) {
+  min-width: 150px;
+}
+.ops-order-table td:has(> strong + small) {
+  min-width: 190px;
+}
+.ops-order-table .number {
+  min-width: 90px;
+}
+.ops-order-table :is(td, th):last-child {
+  width: 100px;
+}
+.ops-order-table td:last-child .text-button {
+  padding: 0;
+  min-height: 24px;
+  white-space: nowrap;
 }
 .ops-order-table td {
   vertical-align: top;
@@ -95,8 +146,9 @@
   max-width: 32ch;
   white-space: normal;
 }
-.ops-order-table th:first-child:has(input) {
+.ops-order-table :is(th, td):first-child:has(input) {
   width: 48px;
+  min-width: 48px;
 }
 .ops-detail-actions {
   flex-wrap: wrap;
@@ -160,9 +212,6 @@
   }
   .ops-bulk-toolbar .select-trigger {
     flex: 1;
-  }
-  .ops-order-table {
-    min-width: 620px;
   }
   .ops-calendar .calendar-shortcuts {
     width: 100%;

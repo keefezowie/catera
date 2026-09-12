@@ -12,9 +12,12 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
+  compositionPreview,
+  componentLabel,
   menuItems,
   mealLabel,
   menuSourceLabel,
+  packageNutrition,
   type Offer,
   type Dish,
 } from "@catera/domain";
@@ -78,7 +81,7 @@ export function DishGallery({
   coverImage,
   onMealLayout,
 }: {
-  offer: Pick<Offer, "menus" | "packageType">;
+  offer: Pick<Offer, "menus" | "packageType" | "nutrition">;
   coverImage?: string;
   onMealLayout?: (meal: string, y: number) => void;
 }) {
@@ -105,6 +108,7 @@ export function DishGallery({
   };
   return (
     <View style={{ gap: 28 }}>
+      <NutritionStrip nutrition={packageNutrition(offer)} />
       {offer.menus.map((menu) => {
         const dishes = menuItems(menu);
         const columns = width >= 360 && fontScale < 1.3 && dishes.length > 1;
@@ -120,11 +124,7 @@ export function DishGallery({
               <Txt style={S.secondary}>{menuSourceLabel(menu, locale)}</Txt>
             </View>
             {!!menu.composition?.length && (
-              <Txt>
-                {menu.composition
-                  .map((g) => `${g.slots} ${g.name}`)
-                  .join(" · ")}
-              </Txt>
+              <Txt>{compositionPreview(menu, offer.packageType, locale)}</Txt>
             )}
             <View style={S.grid}>
               {dishes.map((dish) => (
@@ -134,9 +134,12 @@ export function DishGallery({
                 >
                   <DishTile
                     dish={dish}
-                    group={
-                      menu.composition?.find((g) => g.id === dish.groupId)?.name
-                    }
+                    group={(() => {
+                      const group = menu.composition?.find(
+                        (g) => g.id === dish.groupId,
+                      );
+                      return group ? componentLabel(group, locale) : undefined;
+                    })()}
                     duplicate={
                       dishes.length === 1 &&
                       !!dish.image &&
@@ -151,7 +154,6 @@ export function DishGallery({
                 </View>
               ))}
             </View>
-            <NutritionStrip menu={menu} />
           </View>
         );
       })}

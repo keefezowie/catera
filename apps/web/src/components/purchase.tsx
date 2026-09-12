@@ -149,12 +149,12 @@ export function Login() {
                   location.assign(signedInPath(result.actor, q.get("next")));
                 }}
               >
-                <Field label="Email">
+                <Field label={t("Email", "Email")}>
                   <TextInput
                     type="email"
                     name="email"
                     autoComplete="username"
-                    placeholder="nama@contoh.com"
+                    placeholder={t("nama@contoh.com", "name@example.com")}
                     required
                     maxLength={254}
                   />
@@ -211,7 +211,7 @@ export function Login() {
                 </Field>
                 {sent && (
                   <>
-                    <Field label="Kode OTP">
+                    <Field label={t("Kode OTP", "Verification code")}>
                       <TextInput
                         name="token"
                         inputMode="numeric"
@@ -221,7 +221,7 @@ export function Login() {
                         required
                       />
                     </Field>
-                    <Field label="Nama">
+                    <Field label={t("Nama", "Name")}>
                       <TextInput name="name" autoComplete="name" required />
                     </Field>
                     <Button
@@ -229,7 +229,7 @@ export function Login() {
                       className="text-button"
                       onClick={() => setSent(false)}
                     >
-                      Ubah nomor / kirim ulang
+                      {t("Ubah nomor / kirim ulang", "Change number / resend")}
                     </Button>
                   </>
                 )}
@@ -318,7 +318,11 @@ export function CheckoutPage({ id }: { id: string }) {
   if (actor && (!restored || !state.data)) return <Loading />;
   if (!p)
     return (
-      <Empty title="Paket tidak ditemukan" href="/" label="Jelajah paket" />
+      <Empty
+        title={t("Paket tidak ditemukan", "Package not found")}
+        href="/"
+        label={t("Jelajah paket", "Browse packages")}
+      />
     );
   if (!actor)
     return (
@@ -407,7 +411,7 @@ export function CheckoutPage({ id }: { id: string }) {
                     type="button"
                     className="icon-button"
                     disabled={portions <= 1}
-                    aria-label="Kurangi porsi"
+                    aria-label={t("Kurangi porsi", "Decrease portions")}
                     onClick={() => setPortions((p) => p - 1)}
                   >
                     <Minus size={16} />
@@ -417,7 +421,7 @@ export function CheckoutPage({ id }: { id: string }) {
                     type="button"
                     className="icon-button"
                     disabled={portions >= 100}
-                    aria-label="Tambah porsi"
+                    aria-label={t("Tambah porsi", "Increase portions")}
                     onClick={() => setPortions((p) => p + 1)}
                   >
                     <Plus size={16} />
@@ -438,7 +442,9 @@ export function CheckoutPage({ id }: { id: string }) {
                   value={address}
                   onValueChange={(value) => setAddress(value)}
                 >
-                  <SelectOption value="">Pilih alamat</SelectOption>
+                  <SelectOption value="">
+                    {t("Pilih alamat", "Choose an address")}
+                  </SelectOption>
                   {state.data?.addresses.map((a) => (
                     <SelectOption key={a.id} value={a.id}>
                       {a.label} — {a.line}, {a.area}
@@ -464,7 +470,7 @@ export function CheckoutPage({ id }: { id: string }) {
                 <TextInput
                   value={promo}
                   onChange={(e) => setPromo(e.target.value)}
-                  placeholder="Kode promo"
+                  placeholder={t("Kode promo", "Promo code")}
                   maxLength={40}
                 />
               </Field>
@@ -498,7 +504,7 @@ export function CheckoutPage({ id }: { id: string }) {
                     className="text-button"
                     onClick={() => setStep(1)}
                   >
-                    Ubah
+                    {t("Ubah", "Edit")}
                   </Button>
                 </div>
                 <div className="schedule-preview">
@@ -553,7 +559,9 @@ export function CheckoutPage({ id }: { id: string }) {
             <h2>{p.name}</h2>
             <PackageContents offer={quote?.offer || p} />
             <p>
-              {trial ? "Trial 1 hari" : p.days + " " + t("hari", "days")} ·{" "}
+              {trial
+                ? t("Trial 1 hari", "1-day trial")
+                : p.days + " " + t("hari", "days")} ·{" "}
               {mealLabel(p.meal, locale)} · {portions} {t("porsi", "portions")}
             </p>
             <Facts
@@ -570,14 +578,14 @@ export function CheckoutPage({ id }: { id: string }) {
                 ...(quote?.discount
                   ? [
                       [
-                        "Diskon porsi",
+                        t("Diskon porsi", "Portion discount"),
                         "− " + currency(quote.discount, locale),
                       ] as [string, string],
                     ]
                   : []),
                 ...(quote?.promotion
                   ? [
-                      ["Promo", "− " + currency(quote.promotion, locale)] as [
+                        [t("Promo", "Promo"), "− " + currency(quote.promotion, locale)] as [
                         string,
                         string,
                       ],
@@ -593,7 +601,7 @@ export function CheckoutPage({ id }: { id: string }) {
               ]}
             />
             <div className="total-row">
-              <strong>Total</strong>
+              <strong>{t("Total", "Total")}</strong>
               <strong>{quote ? currency(quote.total, locale) : "—"}</strong>
             </div>
             <p className="small muted">
@@ -679,7 +687,7 @@ export function PaymentPage({ id }: { id: string }) {
       <Facts
         rows={[
           [t("Paket", "Package"), c.quote.offer.name],
-          ["Total", currency(c.quote.total, locale)],
+          [t("Total", "Total"), currency(c.quote.total, locale)],
           [
             t("Batas pembayaran", "Time remaining"),
             `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`,
@@ -688,9 +696,10 @@ export function PaymentPage({ id }: { id: string }) {
       />
       {c.state === "payment_exception" ? (
         <p className="notice">
-          Pembayaran diterima setelah jadwal tidak tersedia. Tim Catera akan
-          meninjau penyelesaiannya. Anda tidak akan menerima langganan tanpa
-          kapasitas.
+          {t(
+            "Pembayaran diterima setelah jadwal tidak tersedia. Tim Catera akan meninjau penyelesaiannya. Anda tidak akan menerima langganan tanpa kapasitas.",
+            "Payment arrived after the schedule became unavailable. Catera will review the resolution. You will not receive a subscription without capacity.",
+          )}
         </p>
       ) : seconds > 0 ? (
         <>

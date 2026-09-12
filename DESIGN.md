@@ -145,7 +145,7 @@ components:
 
 Discovery cards group the package cover, seller/package identity, delivery commitment and meal preview, then price/delivery/actions. Seller identity is readable and semibold; duration has a distinct anchor. Component counts replace exhaustive ingredients on cards. À la carte uses the explicit dish count; legacy menus remain unsplit. The labeled comparison action lives beside “Lihat paket”; “Lihat isi paket” links to the selected meal in details.
 
-Combined offers always identify both meals. Siang/Malam controls preview one meal's contents and nutrition without changing the offering. Optional nutrition uses four icon/label/value positions with explicit units, unavailable marks for missing values, genuine zeroes, and a per-meal caterer-estimate caption. Source labels distinguish example and dated menus.
+Combined offers always identify both meals. Siang/Malam controls preview one meal's contents without changing the offering. Optional package nutrition uses four icon/label/value positions with explicit units, fixed values or minimum–maximum ranges, unavailable marks for missing values, genuine zeroes, and a per-meal-portion caterer-estimate caption. Source labels distinguish example and dated menus.
 
 Package details use a two-column included-dish gallery, collapsing on narrow screens or enlarged text. Photos retain dish names, serving amounts, descriptions and component labels; missing/failed photos leave text entries. A single dish matching the cover has a photo-viewing link instead of a duplicate large image. Enlarged photos use contain sizing and accessible close/focus behavior. Checkout and purchased-menu renderers retain their existing presentation. The palette, Jakarta typography and supplied artwork are unchanged.
 
@@ -323,7 +323,7 @@ The delivered square masters are 1254 × 1254; wordmark and horizontal lockup ar
 
 The six [synthetic food images](packages/brand/manifest.food.json) are 1448 × 1086 at 4:3. They serve explicitly labeled demo listings. Production sellers supply their own food images. Do not claim that generated food establishes a real seller’s meal or endorsement.
 
-The [finish verdict](output/V1-FINISH-VERDICT.md) resolves four bounded web findings using the existing desktop, tablet, phone, and viewport captures in `.impeccable/review/`, including `admin-pending-empty.png`. Overall disposition remains **fix** for unfinished transparent artwork; high-resolution master acceptance also remains open in the asset manifest. Native source now gives quantity/compare controls 48 × 48 and chips a 48 minimum height. No native device visual approval, gesture/large-text/dark-appearance approval, push verification, or return-link certification is supplied by this documentation.
+The [finish verdict](output/V1-FINISH-VERDICT.md) resolves four bounded web findings using the existing desktop, tablet, phone, and viewport captures in `output/visual-review/`, including `admin-pending-empty.png`. Overall disposition remains **fix** for unfinished transparent artwork; high-resolution master acceptance also remains open in the asset manifest. Native source now gives quantity/compare controls 48 × 48 and chips a 48 minimum height. No native device visual approval, gesture/large-text/dark-appearance approval, push verification, or return-link certification is supplied by this documentation.
 
 ## Do's and Don'ts
 

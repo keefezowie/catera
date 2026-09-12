@@ -1,6 +1,6 @@
 import { session } from "@/lib/auth";
 import { rpc } from "@catera/backend";
-import { menuSummary } from "@catera/domain";
+import { menuSummary, statusLabel } from "@catera/domain";
 import type { Delivery } from "@catera/domain";
 export async function GET(
   request: Request,
@@ -21,38 +21,46 @@ export async function GET(
         .replace(/^[=+@\-]/, "'")
         .replaceAll('"', '""') +
       '"';
+    const locale = /(?:^|;\s*)catera_locale=en(?:;|$)/.test(
+      request.headers.get("cookie") || "",
+    )
+      ? "en"
+      : "id";
+    const tr = (id: string, en: string) => (locale === "id" ? id : en);
     const rows = [
       [
-        "Tanggal",
-        "Revisi",
-        "Paket",
-        "Waktu makan",
-        "Menu",
-        "Porsi",
-        "Trial",
-        "Jendela pengantaran",
-        "Alamat",
-        "Area",
-        "Petunjuk",
-        "Status",
+        tr("Tanggal", "Date"),
+        tr("Revisi", "Revision"),
+        tr("Paket", "Package"),
+        tr("Waktu makan", "Meal period"),
+        tr("Menu", "Menu"),
+        tr("Porsi", "Portions"),
+        tr("Trial", "Trial"),
+        tr("Jendela pengantaran", "Delivery window"),
+        tr("Alamat", "Address"),
+        tr("Area", "Area"),
+        tr("Petunjuk", "Instructions"),
+        tr("Status", "Status"),
       ],
       ...v.entries.flatMap((d) =>
         d.meals.map((meal) => [
           v.service_date,
           v.revision,
           d.offer.name,
-          meal.meal === "lunch" ? "Makan siang" : "Makan malam",
+          meal.meal === "lunch"
+            ? tr("Makan siang", "Lunch")
+            : tr("Makan malam", "Dinner"),
           d.offer.menus
             .filter((menu) => menu.meal === meal.meal)
-            .map(menuSummary)
+            .map((menu) => menuSummary(menu, locale))
             .join("; "),
           d.portions,
-          d.trial ? "Ya" : "Tidak",
+          d.trial ? tr("Ya", "Yes") : tr("Tidak", "No"),
           d.offer.windows[meal.meal as "lunch" | "dinner"],
           d.address.line,
           d.address.area,
           d.address.instructions,
-          meal.status,
+          statusLabel(meal.status, locale),
         ]),
       ),
     ];

@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   Bell,
   MapPin,
@@ -38,6 +38,7 @@ import { Button } from "./form-controls";
 import { Brand, ErrorNotice } from "./ui";
 import { LocaleSwitch } from "./locale-switch";
 import { catalogHref, howItWorksHref } from "@/lib/navigation";
+import { validDay } from "@/lib/meal-calendar";
 import { Catalog, PackagePage, Compare, CatererPage } from "./marketplace";
 import { Customer, DeliveryPage, Messages, Account, Support } from "./customer";
 import { CheckoutPage, PaymentPage, Login } from "./purchase";
@@ -97,6 +98,7 @@ export function ApplicationLayout({
   );
 }
 function App({ path, issue }: { path: string[]; issue: string | null }) {
+  const { t } = useApp();
   let body: ReactNode;
   const root = path[0] || "";
   const id = path[1];
@@ -123,7 +125,12 @@ function App({ path, issue }: { path: string[]; issue: string | null }) {
     <>
       {issue &&
       ["", "discover", "search", "locations", "categories"].includes(root) ? (
-        <ErrorNotice message="Catera belum terhubung ke lingkungan V1. Konfigurasi Supabase diperlukan sebelum layanan tersedia." />
+        <ErrorNotice
+          message={t(
+            "Catera belum terhubung ke lingkungan V1. Konfigurasi Supabase diperlukan sebelum layanan tersedia.",
+            "Catera is not connected to the V1 environment. Supabase configuration is required before the service is available.",
+          )}
+        />
       ) : (
         body
       )}
@@ -146,6 +153,18 @@ function Shell({
 }) {
   const { actor, demo, t, area, setArea, compare, clearCompare } = useApp();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const operationsPaths = ["/seller", "/seller/schedule"];
+  function workspaceHref(href: string) {
+    if (!operationsPaths.includes(pathname) || !operationsPaths.includes(href))
+      return href;
+    const query = new URLSearchParams();
+    const date = searchParams.get("date") || "";
+    const meal = searchParams.get("meal");
+    if (validDay(date)) query.set("date", date);
+    if (meal === "lunch" || meal === "dinner") query.set("meal", meal);
+    return query.size ? href + "?" + query : href;
+  }
   const [menu, setMenu] = useState(false);
   const [section, setSection] = useState("packages");
   useEffect(() => {
@@ -287,7 +306,7 @@ function Shell({
                 <Link
                   key={href}
                   className={pathname === href ? "selected" : ""}
-                  href={href}
+                  href={workspaceHref(href)}
                   onClick={() => setMenu(false)}
                 >
                   <Icon size={19} />
@@ -399,7 +418,7 @@ function Shell({
                   <Link
                     href="/notifications"
                     className="icon-button"
-                    aria-label="Notifikasi"
+                  aria-label={t("Notifikasi", "Notifications")}
                   >
                     <Bell size={20} />
                   </Link>
@@ -494,6 +513,7 @@ function Shell({
   );
 }
 function AssetGallery() {
+  const { t } = useApp();
   const names = [
     "mascot",
     "wordmark",
@@ -514,9 +534,12 @@ function AssetGallery() {
   ];
   return (
     <div className="content">
-      <h1>Identitas Catera</h1>
+      <h1>{t("Identitas Catera", "Catera identity")}</h1>
       <p className="lead">
-        Good Food on Repeat. Aset individual yang dapat digunakan kembali.
+        {t(
+          "Good Food on Repeat. Aset individual yang dapat digunakan kembali.",
+          "Good Food on Repeat. Individual assets ready to reuse.",
+        )}
       </p>
       <div className="asset-grid">
         {names.map((n) => (
@@ -524,7 +547,7 @@ function AssetGallery() {
             <img src={"/assets/" + n + ".png"} alt={n} />
             <strong>{n}</strong>
             <span>
-              PNG master <ImageIcon size={14} />
+              {t("PNG master", "PNG master")} <ImageIcon size={14} />
             </span>
           </a>
         ))}

@@ -12,7 +12,7 @@ function ProductionRows({
   deliveries: Delivery[];
   meal: string;
 }) {
-  const { t } = useApp();
+  const { t, locale } = useApp();
   const groups = new Map<
     string,
     {
@@ -27,7 +27,7 @@ function ProductionRows({
     for (const m of d.meals.filter((m) => meal === "all" || m.meal === meal)) {
       const menu = d.offer.menus
         .filter((x) => x.meal === m.meal)
-        .map(menuSummary)
+        .map((menu) => menuSummary(menu, locale))
         .join(", ");
       const key =
         d.offer.id + ":" + (d.offer.contentRevision || 0) + ":" + m.meal + menu;

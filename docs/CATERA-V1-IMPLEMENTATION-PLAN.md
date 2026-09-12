@@ -41,7 +41,7 @@ This is the implementation status of the user-approved September 9, 2026 overhau
 - tests/e2e: web journeys and responsive checks.
 - apps/customer/tests: native component behavior on iOS/Android presets.
 - apps/customer/dist: generated native bundles (ignored build output, not a signed app).
-- .impeccable/review: reviewed desktop/phone/tablet captures.
+- output/visual-review: reviewed desktop/phone/tablet captures.
 - output/V1-FINISH-REVIEW.md and V1-FINISH-VERDICT.md: finite design review and fix scores.
 - packages/brand/manifest.*.json: asset provenance and honest dimensions/alpha metadata.
 

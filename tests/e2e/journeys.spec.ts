@@ -89,7 +89,9 @@ test("customer purchase, schedule change, support review and renewal", async ({
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.getByRole("link", { name: "Laporkan masalah" }).click();
   await page.getByRole("combobox", { name: "Jenis permintaan" }).click();
-  await page.getByRole("option", { name: "Ajukan pembatalan", exact: true }).click();
+  await page
+    .getByRole("option", { name: "Ajukan pembatalan", exact: true })
+    .click();
   await page.getByLabel("Ceritakan kendalanya").fill(requestText);
   await page.getByRole("button", { name: "Kirim permintaan bantuan" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -147,7 +149,9 @@ test("customer and operational routes render, retain context and pass critical a
       (v) => v.impact === "critical" || v.impact === "serious",
     ),
   ).toEqual([]);
-  const customerState = (await (await page.request.get("/api/v1/customer")).json()).data;
+  const customerState = (
+    await (await page.request.get("/api/v1/customer")).json()
+  ).data;
   const serviceDate = customerState.deliveries.find(
     (delivery: { offer: { id: string }; status: string }) =>
       delivery.offer.id.endsWith("001") && delivery.status === "scheduled",
@@ -157,14 +161,22 @@ test("customer and operational routes render, retain context and pass critical a
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/seller?date=" + serviceDate);
   await expect(
-    page.getByRole("heading", { name: "Keluar dari dapur hari ini" }),
+    page.getByRole("heading", { name: "Hari ini", exact: true, level: 1 }),
   ).toBeVisible();
   await page.screenshot({
     path: "output/playwright/seller-desktop.png",
     fullPage: true,
   });
-  await page.getByRole("link", { name: /2 Produksi/ }).click();
-  await expect(page).toHaveURL(/date=.*meal=all/);
+  await page
+    .locator(".ops-sidebar")
+    .getByRole("link", { name: "Jadwal", exact: true })
+    .click();
+  await expect(page).toHaveURL(
+    (url) =>
+      url.pathname === "/seller/schedule" &&
+      url.searchParams.get("date") === serviceDate,
+  );
+  await page.locator(".ops-production > summary").click();
   await page
     .getByRole("button", { name: "Simpan revisi & buat manifest" })
     .click();
@@ -175,6 +187,15 @@ test("customer and operational routes render, retain context and pass critical a
   const manifest = await page.request.get(href!);
   expect(manifest.ok()).toBe(true);
   expect(await manifest.text()).toContain("Ayam Panggang Harian");
+  await page
+    .locator(".ops-sidebar")
+    .getByRole("link", { name: "Hari ini", exact: true })
+    .click();
+  await expect(page).toHaveURL(
+    (url) =>
+      url.pathname === "/seller" &&
+      url.searchParams.get("date") === serviceDate,
+  );
   for (const route of [
     "packages",
     "menus",
@@ -194,9 +215,14 @@ test("customer and operational routes render, retain context and pass critical a
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/seller/delivery?date=" + serviceDate);
   await expect(
-    page.getByRole("button", { name: "Detail Ayam Panggang Harian" }),
+    page
+      .getByRole("button", { name: /^Detail .*Ayam Panggang Harian/ })
+      .first(),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Detail Ayam Panggang Harian" }).click();
+  await page
+    .getByRole("button", { name: /^Detail .*Ayam Panggang Harian/ })
+    .first()
+    .click();
   await page.screenshot({
     path: "output/playwright/seller-phone.png",
     fullPage: true,

@@ -170,7 +170,7 @@ it("rejects unverified reviews", async () => {
     }),
   ).rejects.toThrow("FORBIDDEN");
 });
-it("prevents capacity reduction below paid demand", async () => {
+it("rejects changes to published capacity, preserving paid demand", async () => {
   const d = (await read<CustomerState>("customer")).deliveries.find(
     (x) => x.offer.catererId === CATERER_IDS[0],
   )!;
@@ -195,7 +195,7 @@ it("prevents capacity reduction below paid demand", async () => {
       },
       DEMO_ACTORS.owner,
     ),
-  ).rejects.toThrow("CAPACITY");
+  ).rejects.toThrow("PACKAGE_IMMUTABLE");
 });
 it("rejects retired date-capacity commands without changing legacy rows", async () => {
   const packageId = PACKAGE_IDS[0];

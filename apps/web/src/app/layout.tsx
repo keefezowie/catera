@@ -1,8 +1,40 @@
-import {webVariables} from '@catera/design-tokens';
-import {Analytics} from '@vercel/analytics/next';
-import {SpeedInsights} from '@vercel/speed-insights/next';
-import type {Metadata} from 'next';
-import {cookies} from 'next/headers';
-import './globals.css';
-export const metadata:Metadata={title:{default:'Catera — Good Food on Repeat',template:'%s · Catera'},description:'Temukan katering harian, atur jadwal makan, dan nikmati makanan yang Anda sukai. Pengantaran termasuk.',manifest:'/manifest.webmanifest',icons:{icon:'/assets/app-icon.png',apple:'/assets/app-icon.png'}};
-export default async function RootLayout({children}:{children:React.ReactNode}){const locale=(await cookies()).get('catera_locale')?.value==='en'?'en':'id';return <html style={webVariables as React.CSSProperties} lang={locale} data-scroll-behavior="smooth"><body>{children}<Analytics /><SpeedInsights /></body></html>}
+import { webVariables } from "@catera/design-tokens";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
+import type { Metadata } from "next";
+import { cookies } from "next/headers";
+import "./globals.css";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = (await cookies()).get("catera_locale")?.value === "en" ? "en" : "id";
+  return {
+    title: { default: "Catera — Good Food on Repeat", template: "%s · Catera" },
+    description:
+      locale === "en"
+        ? "Find everyday catering, plan your meals, and enjoy food you love. Delivery included."
+        : "Temukan katering harian, atur jadwal makan, dan nikmati makanan yang Anda sukai. Pengantaran termasuk.",
+    manifest: "/manifest.webmanifest",
+    icons: { icon: "/assets/app-icon.png", apple: "/assets/app-icon.png" },
+  };
+}
+
+export default async function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const locale = (await cookies()).get("catera_locale")?.value === "en" ? "en" : "id";
+  return (
+    <html
+      style={webVariables as React.CSSProperties}
+      lang={locale}
+      data-scroll-behavior="smooth"
+    >
+      <body>
+        {children}
+        <Analytics />
+        <SpeedInsights />
+      </body>
+    </html>
+  );
+}

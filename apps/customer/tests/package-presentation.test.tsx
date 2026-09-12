@@ -50,6 +50,7 @@ const offer = {
       source: "dated",
     },
   ],
+  nutrition: { proteinG: { min: 35, max: 45 }, carbsG: 0 },
 } as Offer;
 beforeEach(() => {
   mockLocale.value = "id";
@@ -59,15 +60,15 @@ function Preview() {
   const [meal, setMeal] = useState("lunch");
   return <PackagePreview offer={offer} meal={meal} onMealChange={setMeal} />;
 }
-test("switches only the menu preview and carries selected dinner into contents navigation", () => {
+test("switches only the menu preview while retaining package nutrition", () => {
   const screen = render(<Preview />);
   expect(screen.getByText("2 hidangan")).toBeTruthy();
-  expect(screen.getByText("45 g")).toBeTruthy();
+  expect(screen.getByText("35–45 g")).toBeTruthy();
   expect(screen.getByText("0 g")).toBeTruthy();
   fireEvent.press(screen.getByText("Malam"));
   expect(screen.getByText("1 hidangan")).toBeTruthy();
   expect(screen.getByText("Menu tanggal ini")).toBeTruthy();
-  expect(screen.queryByText("45 g")).toBeNull();
+  expect(screen.getByText("35–45 g")).toBeTruthy();
   fireEvent.press(screen.getByText("Lihat isi paket"));
   expect(router.push).toHaveBeenCalledWith({
     pathname: "/package/[id]",

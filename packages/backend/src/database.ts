@@ -127,21 +127,50 @@ export async function createDemoDatabase(inMemory = false) {
     else await db.exec(retireDemoFixturePackagesSQL());
     await db.exec(refreshDemoCatalogSQL());
   }
-  if (!(await db.query<{ installed: boolean }>(
-    "select to_regprocedure('public.catera_v1_read_operations_base(text,jsonb)') is not null or position('calendarMeta' in pg_get_functiondef('public.catera_v1_read(text,jsonb)'::regprocedure)) > 0 as installed",
-  )).rows[0].installed) {
-    await db.exec(await readFile(path.join(projectRoot(), "supabase/migrations/20260910160000_calendar_metadata.sql"), "utf8"));
+  if (
+    !(
+      await db.query<{ installed: boolean }>(
+        "select to_regprocedure('public.catera_v1_read_operations_base(text,jsonb)') is not null or position('calendarMeta' in pg_get_functiondef('public.catera_v1_read(text,jsonb)'::regprocedure)) > 0 as installed",
+      )
+    ).rows[0].installed
+  ) {
+    await db.exec(
+      await readFile(
+        path.join(
+          projectRoot(),
+          "supabase/migrations/20260910160000_calendar_metadata.sql",
+        ),
+        "utf8",
+      ),
+    );
   }
-  if (!(await db.query<{ installed: boolean }>(
-    "select to_regclass('v1.dish_categories') is not null as installed",
-  )).rows[0].installed) {
-    const file = (await readdir(path.join(projectRoot(), "supabase/migrations"))).find(f => f.endsWith("_slot_menu_calendar.sql"));
+  if (
+    !(
+      await db.query<{ installed: boolean }>(
+        "select to_regclass('v1.dish_categories') is not null as installed",
+      )
+    ).rows[0].installed
+  ) {
+    const file = (
+      await readdir(path.join(projectRoot(), "supabase/migrations"))
+    ).find((f) => f.endsWith("_slot_menu_calendar.sql"));
     if (!file) throw new Error("SLOT_MENU_MIGRATION_MISSING");
-    await db.exec("begin;" + await readFile(path.join(projectRoot(), "supabase/migrations", file), "utf8") + "\ncommit;");
+    await db.exec(
+      "begin;" +
+        (await readFile(
+          path.join(projectRoot(), "supabase/migrations", file),
+          "utf8",
+        )) +
+        "\ncommit;",
+    );
   }
-  if (!(await db.query<{ installed: boolean }>(
-    "select to_regprocedure('public.catera_v1_command_legacy(text,jsonb,uuid)') is not null as installed",
-  )).rows[0].installed) {
+  if (
+    !(
+      await db.query<{ installed: boolean }>(
+        "select to_regprocedure('public.catera_v1_command_legacy(text,jsonb,uuid)') is not null as installed",
+      )
+    ).rows[0].installed
+  ) {
     await db.exec(
       "begin;" +
         (await readFile(
@@ -154,16 +183,73 @@ export async function createDemoDatabase(inMemory = false) {
         "\ncommit;",
     );
   }
-  if (!(await db.query<{ installed: boolean }>(
-    "select to_regprocedure('public.catera_v1_read_operations_base(text,jsonb)') is not null as installed",
-  )).rows[0].installed) {
-    await db.exec("begin;" + await readFile(path.join(projectRoot(), "supabase/migrations/20260911150142_seller_operations.sql"), "utf8") + "\ncommit;");
+  if (
+    !(
+      await db.query<{ installed: boolean }>(
+        "select to_regprocedure('public.catera_v1_read_operations_base(text,jsonb)') is not null as installed",
+      )
+    ).rows[0].installed
+  ) {
+    await db.exec(
+      "begin;" +
+        (await readFile(
+          path.join(
+            projectRoot(),
+            "supabase/migrations/20260911150142_seller_operations.sql",
+          ),
+          "utf8",
+        )) +
+        "\ncommit;",
+    );
+  }
+  if (
+    !(
+      await db.query<{ installed: boolean }>(
+        "select to_regprocedure('v1.valid_nutrition(jsonb)') is not null as installed",
+      )
+    ).rows[0].installed
+  ) {
+    await db.exec(
+      "begin;" +
+        (await readFile(
+          path.join(
+            projectRoot(),
+            "supabase/migrations/20260911163659_package_nutrition_ranges.sql",
+          ),
+          "utf8",
+        )) +
+        "\ncommit;",
+    );
   }
   // This constructor owns synthetic PGlite storage; hosted RPC never enters it.
-  await db.transaction(async tx => {
+  await db.transaction(async (tx) => {
     await tx.query("select set_config('catera.demo','true',true)");
-    await tx.exec(await readFile(path.join(projectRoot(), "packages/backend/src/demo-slot-upgrade.sql"), "utf8"));
+    await tx.exec(
+      await readFile(
+        path.join(projectRoot(), "packages/backend/src/demo-slot-upgrade.sql"),
+        "utf8",
+      ),
+    );
   });
+  if (
+    !(
+      await db.query<{ installed: boolean }>(
+        "select to_regprocedure('v1.package_obligations(uuid)') is not null as installed",
+      )
+    ).rows[0].installed
+  ) {
+    await db.exec(
+      "begin;" +
+        (await readFile(
+          path.join(
+            projectRoot(),
+            "supabase/migrations/20260911163608_package_lifecycle.sql",
+          ),
+          "utf8",
+        )) +
+        "\ncommit;",
+    );
+  }
   return db;
 }
 export async function getDemoDatabase() {

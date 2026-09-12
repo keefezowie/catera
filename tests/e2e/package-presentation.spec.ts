@@ -59,20 +59,26 @@ test.beforeAll(async ({ request }) => {
         "custom",
       ),
     ],
-    nutrition: { caloriesKcal: 650, proteinG: 45, carbsG: 0, fatG: 18 },
+    nutrition: null,
   };
   const suffix = Date.now();
   box = await create("photo-box-" + suffix, {
     name: "Demo · Paket siang dan malam " + suffix,
     packageType: "nasi_box",
     meal: "both",
+    nutrition: {
+      caloriesKcal: { min: 610, max: 650 },
+      proteinG: { min: 27, max: 45 },
+      carbsG: 0,
+      fatG: 18,
+    },
     menus: [
       lunch,
       {
         ...lunch,
         meal: "dinner",
         name: "Menu malam sintetis",
-        nutrition: { proteinG: 27 },
+        nutrition: null,
         items: lunch.items.map((d) => ({ ...d, name: d.name + " malam" })),
       },
     ],
@@ -80,6 +86,7 @@ test.beforeAll(async ({ request }) => {
   single = await create("photo-single-" + suffix, {
     name: "Demo · Satu hidangan " + suffix,
     packageType: "ala_carte",
+    nutrition: null,
     menus: [
       {
         ...lunch,
@@ -103,12 +110,12 @@ test("card meal switch, comparison, contents navigation, photo failure and viewe
   await expect(card.locator(".composition-preview")).toHaveText(
     "2 Lauk · 1 Sayur · 1 Pelengkap spesial",
   );
-  await expect(card).toContainText("650 kkal");
+  await expect(card).toContainText("610–650 kkal");
   await expect(card).toContainText("0 g");
   const price = (await card.locator(".card-price").textContent())!;
   await card.getByRole("button", { name: "Malam", exact: true }).click();
-  await expect(card).toContainText("27 g");
-  await expect(card).not.toContainText("650 kkal");
+  await expect(card).toContainText("27–45 g");
+  await expect(card).toContainText("610–650 kkal");
   await expect(card.locator(".card-price")).toHaveText(price);
   await card
     .getByRole("button", { name: "Bandingkan: " + box.name, exact: true })
@@ -225,9 +232,17 @@ test("seller card preview allows meal inspection without navigation or purchasin
   page,
 }) => {
   await page.request.post("/api/v1/auth/demo", { data: { role: "owner" } });
+  const name = "Sintetis pratinjau draf " + Date.now();
+  const draft = await page.request.post("/api/v1/commands", { data: {
+    action: "package.save", requestId: crypto.randomUUID(), payload: {
+      catererId: box.catererId, slug: "preview-draft-" + crypto.randomUUID(),
+      offer: { ...box, name, status: "draft" },
+    },
+  }});
+  expect(draft.ok(), await draft.text()).toBe(true);
   await page.goto("/seller/packages");
   const row = page.locator(".panel").filter({
-    has: page.getByRole("heading", { name: box.name, exact: true }),
+    has: page.getByRole("heading", { name, exact: true }),
   });
   await row.getByRole("button", { name: "Kelola paket", exact: true }).click();
   await page.getByRole("button", { name: /2\. Isi/ }).click();
