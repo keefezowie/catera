@@ -369,15 +369,70 @@ it("rejects a new slot revision for a published legacy listing without rewriting
     "select contents from v1.content_revisions where package_id=$1 and revision=$2",
     [base.id, base.contentRevision || 0],
   );
-  await expect(cmd("package.save", {
-    id: base.id,
-    catererId: K[0],
-    version: base.version,
-    offer: { ...base, menus: [template()], meal: "lunch" },
-  })).rejects.toThrow("PACKAGE_IMMUTABLE");
+  await expect(
+    cmd("package.save", {
+      id: base.id,
+      catererId: K[0],
+      version: base.version,
+      offer: { ...base, menus: [template()], meal: "lunch" },
+    }),
+  ).rejects.toThrow("PACKAGE_IMMUTABLE");
   const same = await db.query<{ contents: unknown }>(
     "select contents from v1.content_revisions where package_id=$1 and revision=$2",
     [base.id, base.contentRevision || 0],
   );
   expect(same.rows).toEqual(original.rows);
+});
+
+it("uses the customer cutoff for today, tomorrow, and menu saves in the caterer timezone", async () => {
+  const { id } = await create();
+  const original = (
+    await db.query<{ cutoff: string; timezone: string }>(
+      "select cutoff::text, timezone from v1.caterers where id=$1",
+      [K[0]],
+    )
+  ).rows[0];
+  try {
+    for (const timezone of ["Asia/Jakarta", "Asia/Makassar", "Asia/Jayapura"]) {
+      // Position tomorrow's cutoff just before/after now without mocking browser time.
+      for (const minutes of [2, 0, -2]) {
+        const { tomorrow, today } = (
+          await db.query<{ tomorrow: string; today: string }>(
+            "update v1.caterers set timezone=$2, cutoff=((clock_timestamp() at time zone $2) + make_interval(mins => $3))::time where id=$1 returning (((clock_timestamp() at time zone $2) + make_interval(mins => $3))::date+1)::text tomorrow, (clock_timestamp() at time zone $2)::date::text today",
+            [K[0], timezone, minutes],
+          )
+        ).rows[0];
+        const result = await read<MenuMonth>("menu-month", {
+          packageId: id,
+          revision: 1,
+          month: tomorrow.slice(0, 7) + "-01",
+          meal: "lunch",
+        });
+        expect(result.dates.find((d) => d.date === tomorrow)?.editable).toBe(
+          minutes > 0,
+        );
+        const locked = await db.query<{ editable: boolean }>(
+          "select v1.menu_editable($1,1,$2,'lunch') editable",
+          [id, today],
+        );
+        expect(locked.rows[0].editable).toBe(false);
+        if (minutes <= 0) {
+          await expect(
+            cmd(
+              "menu.saveBatch",
+              batch(id, filled(), [{ date: tomorrow, version: 0 }]),
+            ),
+          ).rejects.toThrow("CUTOFF");
+          await expect(
+            cmd("menu.save", { ...batch(id), date: tomorrow, version: 0 }),
+          ).rejects.toThrow("CUTOFF");
+        }
+      }
+    }
+  } finally {
+    await db.query(
+      "update v1.caterers set cutoff=$2::time, timezone=$3 where id=$1",
+      [K[0], original.cutoff, original.timezone],
+    );
+  }
 });

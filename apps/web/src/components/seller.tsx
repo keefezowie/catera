@@ -32,6 +32,7 @@ import {
   Wallet,
   CalendarDays,
   ClipboardCheck,
+  ShieldCheck,
   Save,
   X,
   MessageCircle,
@@ -1578,13 +1579,23 @@ function SellerSettings({ state: s }: { state: SellerState }) {
           <p>{s.caterer.timezone}</p>
         </ActionForm>
       </section>
-      <section className="panel">
-        <h2 id="verification">{t("Verifikasi", "Verification")}</h2>
-        <Status status={s.caterer.status} />
+      <section className="panel verification-panel">
+        <div className="verification-heading">
+          <h2 id="verification">{t("Verifikasi", "Verification")}</h2>
+          <Status status={s.caterer.status} />
+        </div>
         {s.caterer.review_note && (
-          <p className="notice">{s.caterer.review_note}</p>
+          <div className="verification-note">
+            <ShieldCheck size={18} aria-hidden="true" />
+            <div>
+              <strong>
+                {t("Catatan verifikasi", "Verification note")}
+              </strong>
+              <p>{s.caterer.review_note}</p>
+            </div>
+          </div>
         )}
-        <p>
+        <p className="verification-help">
           {t(
             "Lengkapi profil dan setidaknya satu draf paket sebelum mengajukan peninjauan.",
             "Complete your profile and at least one package draft before requesting review.",
@@ -1592,6 +1603,7 @@ function SellerSettings({ state: s }: { state: SellerState }) {
         </p>
         {["draft", "corrections"].includes(s.caterer.status) && (
           <ActionForm
+            className="verification-form"
             submit={t("Ajukan verifikasi", "Request verification")}
             onSubmit={async () => {
               await perform("seller.submit", { catererId: s.caterer.id });

@@ -491,13 +491,13 @@
   display: none;
 }
 .menu-day-empty,
-.menu-calendar-legend {
+.menu-panel-content > .menu-calendar-legend {
   color: var(--muted);
 }
 .menu-day.selected .menu-day-empty {
   color: inherit;
 }
-.menu-calendar-legend {
+.menu-panel-content > .menu-calendar-legend {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -546,8 +546,12 @@
     gap: 3px;
   }
   .menu-month-grid .menu-day {
-    height: 96px;
-    padding: 8px 4px;
+    height: 64px;
+    padding: 6px 4px;
+    gap: 4px;
+  }
+  .menu-day .menu-day-empty {
+    display: none;
   }
   .menu-day .menu-day-dishes {
     display: none;

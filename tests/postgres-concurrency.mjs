@@ -90,6 +90,7 @@ try {
   await pool.query(await readFile("supabase/migrations/20260910160000_calendar_metadata.sql", "utf8"));
   for (const f of (await readdir("supabase/migrations")).filter(f => f.endsWith("_slot_menu_calendar.sql"))) await pool.query(await readFile("supabase/migrations/" + f, "utf8"));
   await pool.query(await readFile("supabase/migrations/20260911150000_shared_recurring_capacity.sql", "utf8"));
+  await pool.query(await readFile("supabase/migrations/20260913052558_menu_customer_cutoff.sql", "utf8"));
   const demoUpgrade = await readFile("packages/backend/src/demo-slot-upgrade.sql", "utf8");
   await pool.query("begin;select set_config('catera.demo','true',true);" + demoUpgrade + "commit;");
   const demoHash = async () => (await pool.query("select md5(string_agg(offer::text,'|' order by id)) hash from v1.packages")).rows[0].hash;

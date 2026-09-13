@@ -266,6 +266,15 @@ export async function createDemoDatabase(inMemory = false) {
         "\ncommit;",
     );
   }
+  await db.exec(
+    await readFile(
+      path.join(
+        projectRoot(),
+        "supabase/migrations/20260913052558_menu_customer_cutoff.sql",
+      ),
+      "utf8",
+    ),
+  );
   return db;
 }
 export async function getDemoDatabase() {

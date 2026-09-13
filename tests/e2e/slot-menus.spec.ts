@@ -170,6 +170,8 @@ test("tablet calendar previews use workspace width and the library restores focu
     } else {
       await expect(card.locator(".menu-day-dishes")).toBeHidden();
       await expect(card.locator(".menu-day-count")).toHaveText("6");
+      await expect(card).toHaveCSS("height", "64px");
+      await expect(day(page, 11).locator(".menu-day-empty")).toBeHidden();
     }
     expect(
       await page.evaluate(
@@ -237,13 +239,18 @@ test("tablet calendar previews use workspace width and the library restores focu
     page.getByRole("dialog", { name: "Pustaka hidangan" }),
   ).toBeVisible();
   await page.keyboard.press("Escape");
-  await page.goto("/seller/menus?date=" + addDays(localDay(), -2));
+  await page.goto("/seller/menus?date=" + localDay());
   await choose(page, "Paket", f.name);
-  const readOnly = page.locator(".menu-day").and(page.getByRole("button", { name: /Hanya baca/ })).first();
+  const readOnly = day(page, Number(localDay().slice(-2)));
+  await expect(readOnly).toHaveAccessibleName(/Hanya baca/);
   await expect(readOnly.locator(".menu-day-heading svg")).toBeVisible();
   await readOnly.click();
-  await expect(page.getByText("Menu tanggal ini hanya dapat dilihat.", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Simpan menu", exact: true })).toHaveCount(0);
+  await expect(
+    page.getByText("Menu tanggal ini hanya dapat dilihat.", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Simpan menu", exact: true }),
+  ).toHaveCount(0);
 });
 
 test("calendar batch, search, drag/drop and conflict recovery retain the draft", async ({
