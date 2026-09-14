@@ -1,4 +1,5 @@
 import pg from "pg";
+import { verifyCustomerChoice } from './postgres-customer-choice.mjs';
 import { verifySlotMenuConcurrency } from "./postgres-slot-menus.mjs";
 import { verifyPackageLifecycle } from "./postgres-package-lifecycle.mjs";
 import { verifySellerOperations } from "./postgres-seller-operations.mjs";
@@ -269,6 +270,7 @@ try {
   await verifySlotMenuConcurrency(pool, cmd, evidence);
   await verifySellerOperations(pool, cmd, evidence);
   await verifyPackageLifecycle(pool, cmd, evidence);
+  await verifyCustomerChoice(pool, cmd, evidence);
   await mkdir("output/verification", { recursive: true });
   const evidencePath = process.env.CATERA_POSTGRES_EVIDENCE || "output/verification/postgres.json";
   await mkdir(path.dirname(evidencePath), { recursive: true });

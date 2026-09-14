@@ -15,6 +15,7 @@ export function MenuLibrary({
   onPick,
   disabled = false,
   onDragChange,
+  manage = true,
 }: {
   dishes: LibraryDish[];
   categories: DishCategory[];
@@ -22,6 +23,7 @@ export function MenuLibrary({
   onPick?: (dish: LibraryDish) => void;
   disabled?: boolean;
   onDragChange?: (dish: LibraryDish | null) => void;
+  manage?: boolean;
 }) {
   const { actor, perform, t, locale } = useApp();
   const [search, setSearch] = useState(""),
@@ -48,14 +50,16 @@ export function MenuLibrary({
     >
       <div className="section-heading">
         <h2>{t("Pustaka hidangan", "Dish library")}</h2>
-        <Button
-          type="button"
-          className="text-button"
-          onClick={() => setForm("new")}
-        >
-          <Plus size={18} />
-          {t("Tambah", "Add")}
-        </Button>
+        {manage && (
+          <Button
+            type="button"
+            className="text-button"
+            onClick={() => setForm("new")}
+          >
+            <Plus size={18} />
+            {t("Tambah", "Add")}
+          </Button>
+        )}
       </div>
       {form !== null ? (
         <LibraryForm
@@ -172,43 +176,47 @@ export function MenuLibrary({
                             {t("Pilih", "Choose")}
                           </Button>
                         )}
-                        <Button
-                          type="button"
-                          className="text-button"
-                          onClick={() => setForm(d)}
-                        >
-                          {t("Edit", "Edit")}
-                        </Button>
-                        <Button
-                          type="button"
-                          className="text-button"
-                          disabled={busy}
-                          onClick={async () => {
-                            setBusy(true);
-                            try {
-                              await perform("dish.archive", {
-                                catererId: actor!.catererId,
-                                id: d.id,
-                                version: d.version,
-                                archived: !d.archived,
-                              });
-                              setError("");
-                            } catch {
-                              setError(
-                                t(
-                                  "Daftar berubah. Muat ulang lalu coba lagi.",
-                                  "The library changed. Reload and retry.",
-                                ),
-                              );
-                            } finally {
-                              setBusy(false);
-                            }
-                          }}
-                        >
-                          {d.archived
-                            ? t("Pulihkan", "Restore")
-                            : t("Arsipkan", "Archive")}
-                        </Button>
+                        {manage && (
+                          <>
+                            <Button
+                              type="button"
+                              className="text-button"
+                              onClick={() => setForm(d)}
+                            >
+                              {t("Edit", "Edit")}
+                            </Button>
+                            <Button
+                              type="button"
+                              className="text-button"
+                              disabled={busy}
+                              onClick={async () => {
+                                setBusy(true);
+                                try {
+                                  await perform("dish.archive", {
+                                    catererId: actor!.catererId,
+                                    id: d.id,
+                                    version: d.version,
+                                    archived: !d.archived,
+                                  });
+                                  setError("");
+                                } catch {
+                                  setError(
+                                    t(
+                                      "Daftar berubah. Muat ulang lalu coba lagi.",
+                                      "The library changed. Reload and retry.",
+                                    ),
+                                  );
+                                } finally {
+                                  setBusy(false);
+                                }
+                              }}
+                            >
+                              {d.archived
+                                ? t("Pulihkan", "Restore")
+                                : t("Arsipkan", "Archive")}
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -221,7 +229,7 @@ export function MenuLibrary({
               {t("Hidangan tidak ditemukan.", "No matching dishes.")}
             </p>
           )}
-          {!picking && (
+          {manage && !picking && (
             <label className="check-field">
               <Checkbox
                 checked={archived}
@@ -230,7 +238,7 @@ export function MenuLibrary({
               {t("Tampilkan arsip", "Show archived")}
             </label>
           )}
-          <CategoryCreate />
+          {manage && <CategoryCreate />}
           {error && <ErrorNotice message={error} />}
         </>
       )}

@@ -58,7 +58,7 @@ export function PackageContents({
           {!!m.composition?.length && (
             <p>{compositionPreview(m, offer.packageType, locale)}</p>
           )}
-          {compact ? (
+          {compact || m.selectionStatus === 'pending' || m.selectionStatus === 'caterer_choice' ? (
             <p>{menuSummary(m, locale)}</p>
           ) : (
             <ul className="dish-list">

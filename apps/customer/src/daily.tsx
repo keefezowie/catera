@@ -435,6 +435,21 @@ export function SubscriptionScreen() {
           <>
             <Photo src={s.snapshot.offer.image} height={220} />
             <PackageContents offer={s.snapshot.offer} />
+            {s.snapshot.offer.menuSelectionMode === "customer" && (
+              <Btn
+                secondary
+                icon="open-outline"
+                label={t(
+                  "Pilih menu di situs web",
+                  "Choose your menu on the website",
+                )}
+                onPress={() => {
+                  void WebBrowser.openBrowserAsync(
+                    apiBase + "/subscriptions/" + s.id + "/menu",
+                  );
+                }}
+              />
+            )}
             <Txt kind="heading">{s.snapshot.offer.name}</Txt>
             <Txt>{s.snapshot.offer.caterer}</Txt>
             <Status status={s.status} />

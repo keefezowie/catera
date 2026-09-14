@@ -275,6 +275,26 @@ export async function createDemoDatabase(inMemory = false) {
       "utf8",
     ),
   );
+  if (
+    !(
+      await db.query<{ installed: boolean }>(
+        "select to_regclass('v1.customer_menus') is not null as installed",
+      )
+    ).rows[0].installed
+  ) {
+    const file = (
+      await readdir(path.join(projectRoot(), "supabase/migrations"))
+    ).find((f) => f.endsWith("_customer_choice_menus.sql"));
+    if (!file) throw new Error("CHOICE_MIGRATION_MISSING");
+    await db.exec(
+      "begin;\n" +
+        (await readFile(
+          path.join(projectRoot(), "supabase/migrations", file),
+          "utf8",
+        )) +
+        "\ncommit;",
+    );
+  }
   return db;
 }
 export async function getDemoDatabase() {

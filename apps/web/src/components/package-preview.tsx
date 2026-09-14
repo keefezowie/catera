@@ -90,7 +90,7 @@ export function PackagePreview({
             ))}
           </div>
         )}
-        <span className="preview-source">{menuSourceLabel(menu, locale)}</span>
+        <span className="preview-source">{offer.menuSelectionMode === 'customer' ? t('Pilih menu sendiri', 'Choose your menu') : menuSourceLabel(menu, locale)}</span>
       </div>
       <p className="composition-preview">
         {compositionPreview(menu, offer.packageType, locale)}

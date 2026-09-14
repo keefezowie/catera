@@ -47,6 +47,8 @@ export const dishSchema = z.object({
   sourceDishId: z.uuid().optional(),
   sourceDishVersion: z.number().int().positive().optional(),
   sourceServing: text(100).optional(),
+  optionId: z.uuid().optional(),
+  optionVersion: z.number().int().positive().optional(),
 });
 export const libraryDishDetailsSchema = dishSchema
   .pick({
@@ -117,6 +119,7 @@ export const menuSchema = z.object({
   composition: z.array(componentSchema).max(20).optional(),
   nutrition: legacyMenuNutritionSchema.nullable().optional(),
   source: z.enum(["initial", "dated"]).optional(),
+  selectionStatus: z.enum(["pending", "selected", "caterer_choice"]).optional(),
 });
 export type Dish = z.infer<typeof dishSchema>;
 export type ComponentGroup = z.infer<typeof componentSchema>;
@@ -316,6 +319,10 @@ export function menuItems(m: MealMenu): Dish[] {
   );
 }
 export function menuSummary(m: MealMenu, locale: "id" | "en" = "id"): string {
+  if (m.selectionStatus === "pending")
+    return locale === "en" ? "Choose your menu" : "Pilih menu sendiri";
+  if (m.selectionStatus === "caterer_choice")
+    return locale === "en" ? "Caterer chooses" : "Katerer memilih";
   if (pendingMenu(m))
     return locale === "en" ? "Menu not yet set" : "Menu belum ditentukan";
   return menuItems(m)

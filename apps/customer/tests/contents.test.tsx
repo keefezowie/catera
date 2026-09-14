@@ -49,6 +49,21 @@ const offer = {
     },
   ],
 };
+test("customer-choice statuses remain explicit without inventing dishes", () => {
+  mockLocale.value = "en";
+  const screen = render(
+    <PackageContents
+      offer={{
+        ...offer,
+        menus: [
+          { ...offer.menus[0], items: [], selectionStatus: "caterer_choice" },
+        ],
+      }}
+    />,
+  );
+  expect(screen.getByText(/Caterer chooses/)).toBeTruthy();
+  expect(screen.queryByText("Ayam · 150 g")).toBeNull();
+});
 test("shows every dish, serving, component count and package nutrition range", () => {
   mockLocale.value = "id";
   const screen = render(<PackageContents offer={offer} />);

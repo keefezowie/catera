@@ -61,6 +61,12 @@ export function nutritionMetrics(
 }
 
 export function menuSourceLabel(menu: MealMenu, locale = "id") {
+  if (menu.selectionStatus === "selected")
+    return locale === "id" ? "Pilihan pelanggan" : "Customer selection";
+  if (menu.selectionStatus === "pending")
+    return locale === "id" ? "Pilih menu sendiri" : "Choose your menu";
+  if (menu.selectionStatus === "caterer_choice")
+    return locale === "id" ? "Katerer memilih" : "Caterer chooses";
   if (menu.contentModel === "slots" && !menu.items?.length)
     return locale === "id" ? "Menu belum ditentukan" : "Menu not yet set";
   return menu.source === "dated"

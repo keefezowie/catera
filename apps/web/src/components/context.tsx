@@ -19,6 +19,9 @@ import {
 } from "@catera/domain";
 export const api = createApi();
 const actionMessages: Record<string, [string, string]> = {
+  'packageOption.save': ['Pilihan paket diperbarui.', 'Package options updated.'],
+  'customerMenu.saveBatch': ['Menu pilihan Anda tersimpan.', 'Your menu choices are saved.'],
+  'customerMenu.resetBatch': ['Menu diserahkan ke katerer.', 'The caterer will choose the menu.'],
   "package.save": ["Paket tersimpan.", "Package saved."],
   "package.suspend": [
     "Penjualan paket ditangguhkan.",

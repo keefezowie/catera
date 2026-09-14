@@ -308,6 +308,8 @@ export function NativeProvider({ children }: { children: ReactNode }) {
 }
 export const useNative = () => useContext(Context);
 export const nativeLink = (href: string) => {
+  const choice = href.match(/^\/subscriptions\/([0-9a-f-]+)\/menu(?:\?.*)?$/i);
+  if (choice) return "/subscriptions/" + choice[1];
   if (href === "/#packages") return "/discover";
   if (href === "/#how-it-works") return "/discover?section=how-it-works";
   return href

@@ -72,6 +72,7 @@ export type Offer = {
   menus: MealMenu[];
   nutrition?: Nutrition | null;
   packageType?: PackageType | null;
+  menuSelectionMode?: "caterer" | "customer";
   contentRevision?: number;
   rating: number | null;
   reviewCount: number;
@@ -108,6 +109,7 @@ export type Subscription = {
   legacy: boolean;
 };
 export * from "./seller-operations";
+export * from "./customer-choice";
 export type Delivery = {
   id: string;
   subscription_id: string;
@@ -306,6 +308,7 @@ export const offerSchema = z
     tags: z.array(z.string().max(40)),
     image: z.string().max(500),
     packageType: z.enum(["ala_carte", "nasi_box"]).nullable().optional(),
+    menuSelectionMode: z.enum(["caterer", "customer"]).optional(),
     menus: z.array(menuSchema).max(2),
     nutrition: nutritionSchema.nullable().optional(),
     status: z.enum(["draft", "published", "suspended", "retired"]),
@@ -411,6 +414,9 @@ export function packageSubtotal(
 ) {
   return offer.price * offer.days * portions;
 }
+export function perMealPrice(offer: Pick<Offer, "price" | "meal">) {
+  return offer.price / (offer.meal === "both" ? 2 : 1);
+}
 export function price(
   offer: Pick<Offer, "price" | "days" | "tiers" | "trialPrice">,
   portions: number,
@@ -496,6 +502,10 @@ export const statusLabel = (status: string, locale: Locale = "id") =>
         payment_exception: "Pembayaran perlu ditinjau",
       }[status] || status;
 export const errors: Record<string, string> = {
+  INSUFFICIENT_OPTIONS:
+    "Sediakan cukup hidangan aktif yang berbeda untuk setiap kategori paket.",
+  OPTION_CHANGED:
+    "Pilihan hidangan telah berubah. Muat ulang dan pilih hidangan yang tersedia.",
   CLASSIFY_PACKAGE:
     "Pilih jenis paket dan lengkapi isi paket sebelum menyimpan.",
   COMPOSITION_CHANGED:
@@ -532,6 +542,9 @@ export const errors: Record<string, string> = {
     "Tanggal ini memiliki pesanan. Selesaikan pesanan sebelum menutupnya.",
 };
 const errorsEn: Record<string, string> = {
+  INSUFFICIENT_OPTIONS:
+    "Provide enough distinct active dishes for each package category.",
+  OPTION_CHANGED: "Dish options changed. Reload and choose available dishes.",
   CLASSIFY_PACKAGE:
     "Choose a package type and complete the package contents before saving.",
   COMPOSITION_CHANGED:

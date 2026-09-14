@@ -1,4 +1,5 @@
 "use client";
+import { ChoiceRules, PackageChoiceLibrary } from './package-choice-library';
 import "./package-presentation.css";
 import { FeaturedHero } from "./featured-hero";
 import { Select, SelectOption } from "./select";
@@ -38,6 +39,7 @@ import {
   mealLabel,
   areaOptions,
   packageSubtotal,
+  perMealPrice,
   type Offer,
 } from "@catera/domain";
 import { useApp, api, useResource } from "./context";
@@ -136,9 +138,11 @@ export function PackageCard({
             </small>
             <strong>{currency(packageSubtotal(offer), locale)}</strong>
             <small className="package-unit-price">
-              {currency(offer.price, locale)}{" "}
-              {t("/ porsi / hari", "/ portion / day")}
-              {offer.meal === "both" ? t(" · 2 kali makan", " · 2 meals") : ""}
+              {currency(perMealPrice(offer), locale)}{" "}
+              {t("/ sekali makan", "/ meal")}
+              {offer.meal === "both"
+                ? t(" · 2 kali makan / hari", " · 2 meals / day")
+                : ""}
             </small>
           </div>
           <p className={"delivery-included " + (!covered ? "unavailable" : "")}>
@@ -193,7 +197,7 @@ export function Catalog({ caterer }: { caterer?: string }) {
         (!flex || p.flexible) &&
         (!trial || p.trialPrice) &&
         (!diet || p.tags.includes("Plant-based")) &&
-        (!max || p.price <= Number(max)) &&
+        (!max || perMealPrice(p) <= Number(max)) &&
         (!search ||
           [
             p.name,
@@ -211,7 +215,7 @@ export function Catalog({ caterer }: { caterer?: string }) {
       if (area && a.areas.includes(area) !== b.areas.includes(area))
         return -coverage;
       return sort === "price"
-        ? a.price - b.price
+        ? perMealPrice(a) - perMealPrice(b)
         : sort === "rating"
           ? (b.rating || 0) - (a.rating || 0)
           : 0;
@@ -315,14 +319,14 @@ export function Catalog({ caterer }: { caterer?: string }) {
             </label>
             <label>
               {t(
-                "Harga maksimum / porsi / hari",
-                "Maximum price / portion / day",
+                "Harga maksimum / sekali makan",
+                "Maximum price / meal",
               )}
               <NumericInput
                 value={max}
                 onDraftChange={setMax}
                 placeholder={t("Rp 100.000", "IDR 100,000")}
-                min="1000"
+                min="500"
                 normalizeOnBlur={false}
               />
             </label>
@@ -527,12 +531,12 @@ export function PackagePage({
           </div>
           <section className="detail-section">
             <h2>{t("Isi paket", "Included dishes")}</h2>
-            <p>
+            {p.menuSelectionMode === 'customer' ? (preview ? <ChoiceRules /> : <PackageChoiceLibrary offer={p} />) : <p>
               {t(
                 "Menu disediakan katerer. Semua porsi menerima menu yang sama.",
                 "Menus are supplied by the caterer. All portions receive the same menu.",
               )}
-            </p>
+            </p>}
             <PackageContents
               offer={p}
               presentation="gallery"
@@ -632,8 +636,8 @@ export function PackagePage({
             {p.days} {t("hari makanan baik", "days of good meals")}
           </span>
           <h2>
-            {currency(p.price, locale)}
-            <small> / {t("porsi / hari", "portion / day")}</small>
+            {currency(perMealPrice(p), locale)}
+            <small> / {t("sekali makan", "meal")}</small>
           </h2>
           <p>
             {mealLabel(p.meal, locale)}
@@ -790,11 +794,12 @@ export function Compare() {
                     ),
                   ],
                   [
-                    t("Per porsi / hari", "Per portion / day"),
+                    t("Per sekali makan", "Per meal"),
                     ...selected.map((p) =>
                       currency(
-                        Math.round(
-                          p.price *
+                        perMealPrice({
+                          price:
+                            p.price *
                             (1 -
                               Math.max(
                                 0,
@@ -803,7 +808,8 @@ export function Compare() {
                                   .map((x) => x.percent),
                               ) /
                                 100),
-                        ),
+                          meal: p.meal,
+                        }),
                         locale,
                       ),
                     ),

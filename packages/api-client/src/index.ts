@@ -11,6 +11,8 @@ import type {
   SellerOperationsState,
   SellerCalendar,
   SellerImportOptions,
+  PackageDish,
+  CustomerMenuMonth,
 } from "@catera/domain";
 export class ApiError extends Error {
   constructor(
@@ -72,6 +74,15 @@ export function createApi(base = "", token?: () => Promise<string | null>) {
             month,
             meal,
           }),
+      ),
+    packageOptions: (packageId: string) =>
+      request<PackageDish[]>(
+        "package-options?" + new URLSearchParams({ packageId }),
+      ),
+    customerMenuMonth: (subscriptionId: string, month: string, meal: string) =>
+      request<CustomerMenuMonth>(
+        "customer-menu-month?" +
+          new URLSearchParams({ subscriptionId, month, meal }),
       ),
     admin: () => request<AdminState>("admin"),
     conversations: () => request<Conversation[]>("conversations"),

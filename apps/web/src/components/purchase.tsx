@@ -1,4 +1,5 @@
 "use client";
+import { PackageChoiceLibrary } from './package-choice-library';
 import { Select, SelectOption } from "./select";
 import { DatePicker } from "./date-picker";
 import { OptionalSection } from "./optional-section";
@@ -564,6 +565,7 @@ export function CheckoutPage({ id }: { id: string }) {
             <small>{p.caterer}</small>
             <h2>{p.name}</h2>
             <PackageContents offer={quote?.offer || p} />
+            {(quote?.offer || p).menuSelectionMode === 'customer' && <PackageChoiceLibrary offer={quote?.offer || p} />}
             <p>
               {trial
                 ? t("Trial 1 hari", "1-day trial")

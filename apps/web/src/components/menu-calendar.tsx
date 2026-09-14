@@ -19,6 +19,8 @@ import {
   type SellerState,
   type MealMenu,
   type LibraryDish,
+  type Subscription,
+  type CustomerMenuMonth,
 } from "@catera/domain";
 import { api, useApp, useResource } from "./context";
 import { Button } from "./form-controls";
@@ -47,9 +49,11 @@ type Edit = {
 export function MenuCalendar({
   state: s,
   date,
+  subscription,
 }: {
-  state: SellerState;
+  state?: SellerState;
   date: string;
+  subscription?: Subscription;
 }) {
   const { t, locale, perform } = useApp();
   const router = useRouter();
@@ -65,6 +69,7 @@ export function MenuCalendar({
     [confirmSave, setConfirmSave] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
+  const [resetConfirm, setResetConfirm] = useState(false);
   const [slot, setSlot] = useState(""),
     [libraryOpen, setLibraryOpen] = useState(query.get("library") === "1");
   const [replacement, setReplacement] = useState<{
@@ -83,7 +88,20 @@ export function MenuCalendar({
     if (wasEditing.current && !edit) calendarHeading.current?.focus();
     wasEditing.current = Boolean(edit);
   }, [edit]);
-  const revisions = s.contentRevisions || [],
+  const revisions = subscription
+      ? [
+          {
+            packageId: subscription.package_id,
+            revision: subscription.snapshot.offer.contentRevision || 0,
+            name: subscription.snapshot.offer.name,
+            contents: subscription.snapshot.offer,
+          },
+        ]
+      : (s?.contentRevisions || []).filter(
+          (r) =>
+            s?.offers.find((o) => o.id === r.packageId)?.menuSelectionMode !==
+            "customer",
+        ),
     selected =
       revisions.find((r) => r.packageId + ":" + r.revision === selection) ||
       revisions[0];
@@ -92,6 +110,7 @@ export function MenuCalendar({
       ? meal
       : selected?.contents.meal || "lunch";
   const context = [
+    subscription?.id || "seller",
     selected?.packageId,
     selected?.revision,
     month,
@@ -100,16 +119,20 @@ export function MenuCalendar({
   const resource = useResource("menu-month:" + context, async () => ({
     context,
     value: selected
-      ? await api.menuMonth(
-          selected.packageId,
-          selected.revision,
-          month,
-          activeMeal,
-        )
+      ? subscription
+        ? await api.customerMenuMonth(subscription.id, month, activeMeal)
+        : await api.menuMonth(
+            selected.packageId,
+            selected.revision,
+            month,
+            activeMeal,
+          )
       : { dates: [], categories: defaultDishCategories },
   }));
   const data = resource.data?.context === context ? resource.data.value : null;
-  const categories = s.categories || data?.categories || defaultDishCategories;
+  const customerData = subscription ? (data as CustomerMenuMonth | null) : null;
+  const dishes = customerData?.options || s?.dishes || [];
+  const categories = s?.categories || data?.categories || defaultDishCategories;
   const template = selected?.contents.menus.find((m) => m.meal === activeMeal);
   const activeSlot = edit?.menu.items?.find((i) => i.id === slot);
   const categoryId = edit?.menu.composition?.find(
@@ -208,6 +231,8 @@ export function MenuCalendar({
         })),
         nutrition: null,
       };
+    if (subscription && readOnly && !savedMenu)
+      menu = { ...menu, items: [], selectionStatus: "caterer_choice" };
     setEdit({
       dates: chosen.slice().sort(),
       versions: Object.fromEntries(entries.map((d) => [d.date, d.version])),
@@ -246,12 +271,31 @@ export function MenuCalendar({
       );
       return;
     }
+    if (
+      subscription &&
+      edit.menu.items?.some((i) => i.id !== id && i.optionId === dish.id)
+    ) {
+      setError(
+        t(
+          "Pilih hidangan berbeda untuk setiap slot.",
+          "Choose a different dish for each slot.",
+        ),
+      );
+      return;
+    }
     if (item.name && !confirmed) {
       setReplacement({ id, dish });
       return;
     }
     const items = edit.menu.items!.map((i) =>
-      i.id === id ? selectLibraryDish(i, dish) : i,
+      i.id === id
+        ? {
+            ...selectLibraryDish(i, dish),
+            ...(subscription
+              ? { optionId: dish.id, optionVersion: dish.version }
+              : {}),
+          }
+        : i,
     );
     change({ ...edit.menu, items, nutrition: null });
     const position = items.findIndex((i) => i.id === id);
@@ -288,17 +332,29 @@ export function MenuCalendar({
     setError("");
     try {
       const { meal: ignored, source, ...details } = edit.menu;
-      await perform("menu.saveBatch", {
-        catererId: s.caterer.id,
-        packageId: selected.packageId,
-        contentRevision: selected.revision,
-        meal: activeMeal,
-        dates: edit.dates.map((date) => ({
-          date,
-          version: edit.versions[date],
-        })),
-        details,
-      });
+      if (subscription) {
+        await perform("customerMenu.saveBatch", {
+          subscriptionId: subscription.id,
+          meal: activeMeal,
+          days: customerDays(),
+          choices: edit.menu.items?.map((i) => ({
+            slotId: i.id,
+            optionId: i.optionId,
+            optionVersion: i.optionVersion,
+          })),
+        });
+      } else
+        await perform("menu.saveBatch", {
+          catererId: s!.caterer.id,
+          packageId: selected.packageId,
+          contentRevision: selected.revision,
+          meal: activeMeal,
+          dates: edit.dates.map((date) => ({
+            date,
+            version: edit.versions[date],
+          })),
+          details,
+        });
       setDirty(false);
       setConfirmSave(false);
       setLeaving(false);
@@ -312,15 +368,20 @@ export function MenuCalendar({
       setLeaving(false);
       deferred.current = null;
       setError(
-        (e as { code?: string }).code === "CONFLICT"
+        (e as { code?: string }).code === "OPTION_CHANGED"
           ? t(
-              "Menu berubah sejak dibuka. Draft Anda tetap ada; muat ulang tanggal sebelum mencoba lagi.",
-              "Menus changed since opening. Your draft is retained; reload the dates before retrying.",
+              "Pilihan hidangan telah diperbarui. Draf Anda tetap ada; muat ulang tanggal dan pilih hidangan yang tersedia.",
+              "Dish options changed. Your draft is retained; reload the dates and choose available dishes.",
             )
-          : t(
-              "Menu belum tersimpan. Periksa kelengkapan, kategori, dan status tanggal; lalu coba lagi.",
-              "Menus were not saved. Check completeness, categories and date status, then retry.",
-            ),
+          : (e as { code?: string }).code === "CONFLICT"
+            ? t(
+                "Menu berubah sejak dibuka. Draft Anda tetap ada; muat ulang tanggal sebelum mencoba lagi.",
+                "Menus changed since opening. Your draft is retained; reload the dates before retrying.",
+              )
+            : t(
+                "Menu belum tersimpan. Periksa kelengkapan, kategori, dan status tanggal; lalu coba lagi.",
+                "Menus were not saved. Check completeness, categories and date status, then retry.",
+              ),
       );
     } finally {
       setBusy(false);
@@ -337,6 +398,40 @@ export function MenuCalendar({
     if (edit?.existing.length) setConfirmSave(true);
     else void save();
   }
+  function customerDays() {
+    return edit?.dates.map((date) => {
+      const d = customerData?.dates.find((d) => d.date === date);
+      return {
+        id: d?.dayId,
+        date,
+        deliveryVersion: d?.deliveryVersion,
+        version: edit.versions[date],
+      };
+    });
+  }
+  async function resetCustomerMenu() {
+    if (!subscription || !edit || edit.readOnly || busy) return;
+    setBusy(true);
+    try {
+      await perform("customerMenu.resetBatch", {
+        subscriptionId: subscription.id,
+        meal: activeMeal,
+        days: customerDays(),
+      });
+      setDirty(false);
+      setEdit(null);
+      resource.reload();
+    } catch {
+      setError(
+        t(
+          "Menu berubah atau batas waktu telah lewat. Muat ulang tanggal.",
+          "Menu changed or cutoff passed. Reload the dates.",
+        ),
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
   if (!selected)
     return (
       <div className="menu-workspace">
@@ -346,12 +441,15 @@ export function MenuCalendar({
             "Create a package to start planning menus.",
           )}
         </p>
-        <MenuLibrary dishes={s.dishes || []} categories={categories} />
+        {!subscription && (
+          <MenuLibrary dishes={dishes} categories={categories} />
+        )}
       </div>
     );
   const library = (
     <MenuLibrary
-      dishes={s.dishes || []}
+      dishes={dishes}
+      manage={!subscription}
       categories={categories}
       categoryId={categoryId}
       onPick={edit && !edit.readOnly ? (d) => assign(slot, d) : undefined}
@@ -366,7 +464,39 @@ export function MenuCalendar({
       timeZone: "UTC",
     }).format(new Date(day + "T12:00:00Z"));
   return (
-    <div className="menu-workspace">
+    <div
+      className={
+        "menu-workspace" + (subscription ? " menu-workspace-customer" : "")
+      }
+    >
+      <Dialog
+        open={resetConfirm}
+        onOpenChange={setResetConfirm}
+        title={t("Serahkan menu ke katerer?", "Let the caterer choose?")}
+        description={t(
+          "Pilihan tersimpan untuk tanggal ini akan dihapus. Pengantaran tetap berjalan.",
+          "Saved choices for these dates will be cleared. Deliveries continue.",
+        )}
+      >
+        <Button
+          variant="primary"
+          disabled={busy}
+          onClick={() => {
+            setResetConfirm(false);
+            void resetCustomerMenu();
+          }}
+        >
+          {t("Ya, serahkan ke katerer", "Yes, let caterer choose")}
+        </Button>
+      </Dialog>
+      {subscription && (
+        <p className="notice">
+          {t(
+            "Semua pilihan termasuk harga paket. Simpan sebelum batas waktu; jika belum memilih, katerer menentukan hidangan. Satu menu untuk semua porsi.",
+            "All choices are included. Save before cutoff; otherwise the caterer chooses. One menu applies to all portions.",
+          )}
+        </p>
+      )}
       <div className="menu-context">
         <Field label={t("Paket", "Package")}>
           <Select
@@ -529,7 +659,7 @@ export function MenuCalendar({
                             type="button"
                             className={
                               "menu-day" +
-                              (d.version ? " configured" : "") +
+                              (d.details ? " configured" : "") +
                               (dates.includes(day) ? " selected" : "")
                             }
                             aria-pressed={
@@ -538,10 +668,14 @@ export function MenuCalendar({
                             aria-label={
                               fmt(day) +
                               " · " +
-                              (d.version
+                              (d.details
                                 ? menuNames.join(", ") ||
                                   t("Menu terisi", "Menu configured")
-                                : t("Belum diisi", "Not set")) +
+                                : subscription
+                                  ? !d.editable
+                                    ? t("Katerer memilih", "Caterer chooses")
+                                    : t("Pilih menu", "Choose menu")
+                                  : t("Belum diisi", "Not set")) +
                               (!d.editable
                                 ? t(" · Hanya baca", " · Read only")
                                 : "")
@@ -564,7 +698,7 @@ export function MenuCalendar({
                               <strong>{Number(day.slice(-2))}</strong>
                               {!d.editable && <LockKeyhole size={13} />}
                             </span>
-                            {d.version ? (
+                            {d.details ? (
                               <>
                                 <span
                                   className="menu-day-dishes"
@@ -607,10 +741,22 @@ export function MenuCalendar({
                               </>
                             ) : (
                               <span className="menu-day-empty">
-                                {t("Belum diisi", "Not set")}
+                                {subscription
+                                  ? !d.editable
+                                    ? t("Katerer memilih", "Caterer chooses")
+                                    : t("Pilih menu", "Choose menu")
+                                  : t("Belum diisi", "Not set")}
                               </span>
                             )}
                           </Button>
+                        ) : subscription ? (
+                          <span
+                            key={day}
+                            className="menu-day menu-day-unavailable"
+                            aria-hidden="true"
+                          >
+                            {Number(day.slice(-2))}
+                          </span>
                         ) : (
                           <span key={day} className="menu-day-outside" />
                         );
@@ -647,6 +793,25 @@ export function MenuCalendar({
                 {t("Kembali ke kalender", "Back to calendar")}
               </Button>
               <p className="menu-package-name">{selected.name}</p>
+              {subscription && (
+                <p>
+                  {t("Batas waktu", "Cutoff")}:{" "}
+                  {customerData?.dates
+                    .filter((d) => edit.dates.includes(d.date))
+                    .map((d) =>
+                      new Intl.DateTimeFormat(
+                        locale === "id" ? "id-ID" : "en-GB",
+                        {
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                          timeZone: subscription.snapshot.offer.timezone,
+                        },
+                      ).format(new Date(d.cutoffAt)),
+                    )
+                    .join(" · ")}{" "}
+                  ({subscription.snapshot.offer.timezone})
+                </p>
+              )}
               <h2 ref={editorHeading} tabIndex={-1}>
                 {t("Menu ", "Menu for ")}
                 {edit.dates.map(fmt).join(", ")}
@@ -704,7 +869,7 @@ export function MenuCalendar({
                       }
                     }}
                     onDrop={(id, dishId) => {
-                      const dish = s.dishes?.find((d) => d.id === dishId);
+                      const dish = dishes.find((d) => d.id === dishId);
                       if (dish) assign(id, dish);
                       setDragging(null);
                     }}
@@ -738,6 +903,16 @@ export function MenuCalendar({
                     </p>
                   )}
                   <div className="menu-save-bar">
+                    {subscription && (
+                      <Button
+                        variant="secondary"
+                        type="button"
+                        disabled={busy}
+                        onClick={() => setResetConfirm(true)}
+                      >
+                        {t("Serahkan ke katerer", "Let caterer choose")}
+                      </Button>
+                    )}
                     <span>
                       <strong>{edit.dates.map(fmt).join(", ")}</strong> ·{" "}
                       {mealLabel(activeMeal, locale)}
@@ -815,8 +990,12 @@ export function MenuCalendar({
         onOpenChange={setLibraryOpen}
         title={t("Pustaka hidangan", "Dish library")}
         description={t(
-          "Cari atau tambahkan hidangan berdasarkan kategori.",
-          "Search or add dishes by category.",
+          subscription
+            ? "Pilih hidangan dari pustaka paket sesuai kategori slot."
+            : "Cari atau tambahkan hidangan berdasarkan kategori.",
+          subscription
+            ? "Choose package dishes matching the slot category."
+            : "Search or add dishes by category.",
         )}
         className="menu-library-dialog"
       >

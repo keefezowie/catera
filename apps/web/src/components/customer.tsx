@@ -399,6 +399,7 @@ function SubscriptionDetail({
   return (
     <>
       <SubscriptionCard subscription={s} />
+      {s.snapshot.offer.menuSelectionMode === 'customer' && <Link className="button" href={'/subscriptions/' + s.id + '/menu'}>{t('Pilih menu sendiri', 'Choose your menu')}</Link>}
       <PackageContents offer={s.snapshot.offer} />
       <Facts
         rows={[
@@ -536,6 +537,7 @@ export function DeliveryPage({ id }: { id: string }) {
       </Link>
       <NextMeal delivery={d} detail />
       <div className="action-row delivery-actions">
+        {d.offer.menuSelectionMode === 'customer' && <Link className="button secondary" href={'/subscriptions/' + d.subscription_id + '/menu?date=' + d.service_date}>{t('Menu pilihan Anda', 'Your menu choices')}</Link>}
         {canAddress && (
           <Button
             className="button secondary"

@@ -9,6 +9,9 @@ import {
 } from "@catera/backend";
 import {
   addressSchema,
+  packageOptionSchema,
+  customerMenuSaveSchema,
+  customerMenuResetSchema,
   menuBatchSaveSchema,
   categorySaveSchema,
   checkoutSchema,
@@ -65,6 +68,8 @@ const codes = [
   "PACKAGE_IMMUTABLE",
   "SUSPEND_FIRST",
   "PACKAGE_HAS_DELIVERIES",
+  "INSUFFICIENT_OPTIONS",
+  "OPTION_CHANGED",
   "AMOUNT_INVALID",
   "INVALID_STATE",
   "PILOT_DATABASE_PROTECTED",
@@ -115,6 +120,8 @@ export async function GET(request: Request, context: Context) {
         "seller-calendar",
         "seller-import-options",
         "menu-month",
+        "package-options",
+        "customer-menu-month",
         "admin",
         "conversations",
         "checkout",
@@ -258,6 +265,9 @@ export async function POST(request: Request, context: Context) {
     }
     if (path[0] === "commands") {
       const command = commandSchema.parse(a);
+      if (command.action === 'packageOption.save') command.payload = packageOptionSchema.parse(command.payload);
+      if (command.action === 'customerMenu.saveBatch') command.payload = customerMenuSaveSchema.parse(command.payload);
+      if (command.action === 'customerMenu.resetBatch') command.payload = customerMenuResetSchema.parse(command.payload);
       if (command.action === "delivery.statusBatch") command.payload = deliveryBatchSchema.parse(command.payload);
       if (command.action === "checkout.create")
         command.payload = checkoutSchema.parse(command.payload);

@@ -1,5 +1,7 @@
 # Catera V1 implementation and release plan
 
+September 14 customer-choice extension: [implementation and verification](CUSTOMER-CHOICE.md) describes the additive package subtype, editable option libraries and delivery-specific selections. Separate V1 migration, job-schedule verification and hosted release gates remain required.
+
 September 10 package-editor follow-up: [reusable dishes and reliable editing](REUSABLE-DISHES.md) records local delivery, migration order, snapshot preservation and verification. Hosted migration and physical-device checks remain separate gates.
 
 This is the implementation status of the user-approved September 9, 2026 overhaul. PRODUCT.md defines scope. This plan replaces the tenant-specific pilot plan and distinguishes delivered local functionality from remaining release work.

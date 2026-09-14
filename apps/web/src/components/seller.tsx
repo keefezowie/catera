@@ -1,4 +1,8 @@
 "use client";
+import {
+  ChoiceDishChecklist,
+  PackageChoiceLibrary,
+} from "./package-choice-library";
 import { SellerOperations } from "./seller-operations";
 import { PrepaidImport } from "./prepaid-import";
 import { SellerReadiness } from "./seller-readiness";
@@ -47,6 +51,7 @@ import {
   mealLabel,
   areaOptions,
   packageSubtotal,
+  perMealPrice,
   type SellerState,
   type Offer,
   type SupportCase,
@@ -120,7 +125,21 @@ function SellerWorkspace({ view }: { view: string }) {
       {view === "packages" ? (
         <Packages state={s} />
       ) : view === "dishes" || view === "menus" ? (
-        <MenuCalendar state={s} date={date} />
+        <>
+          <MenuCalendar state={s} date={date} />
+          {s.offers
+            .filter(
+              (o) =>
+                o.menuSelectionMode === "customer" && o.status !== "retired",
+            )
+            .map((o) => (
+              <PackageChoiceLibrary
+                key={o.id}
+                offer={o}
+                dishes={s.dishes || []}
+              />
+            ))}
+        </>
       ) : view === "customers" ? (
         <Customers state={s} />
       ) : view === "support" ? (
@@ -240,6 +259,7 @@ function Packages({ state: s }: { state: SellerState }) {
           offer={editing}
           caterer={s.caterer}
           catererId={s.caterer.id}
+          dishes={s.dishes || []}
           onDirtyChange={setDirty}
           onEditorBusyChange={setEditorBusy}
           done={() => {
@@ -356,6 +376,7 @@ function OfferEditor({
   offer,
   catererId,
   caterer,
+  dishes,
   done,
   onDirtyChange,
   onEditorBusyChange,
@@ -363,6 +384,7 @@ function OfferEditor({
   offer: Offer | null | undefined;
   catererId: string;
   caterer: Caterer;
+  dishes: import("@catera/domain").LibraryDish[];
   done: () => void;
   onDirtyChange: (dirty: boolean) => void;
   onEditorBusyChange: (busy: boolean) => void;
@@ -375,6 +397,39 @@ function OfferEditor({
     [saveError, setSaveError] = useState("");
   const [saving, setSaving] = useState(false);
   const [preview, setPreview] = useState("card");
+  const [choiceDishIds, setChoiceDishIds] = useState<string[]>([]);
+  const initialChoiceIds = useRef("[]");
+  const [choiceLoaded, setChoiceLoaded] = useState(
+    !offer || offer.menuSelectionMode !== "customer",
+  );
+  useEffect(() => {
+    if (offer?.menuSelectionMode !== "customer") return;
+    let active = true;
+    api
+      .packageOptions(offer.id)
+      .then((options) => {
+        if (active) {
+          const ids = options
+            .filter((o) => !o.archived)
+            .map((o) => o.sourceDishId);
+          initialChoiceIds.current = JSON.stringify([...ids].sort());
+          setChoiceDishIds(ids);
+          setChoiceLoaded(true);
+        }
+      })
+      .catch(() => {
+        if (active)
+          setSaveError(
+            t(
+              "Pustaka paket gagal dimuat. Buka kembali editor.",
+              "Package library failed to load. Reopen the editor.",
+            ),
+          );
+      });
+    return () => {
+      active = false;
+    };
+  }, [offer?.id]);
   const editor = useRef<HTMLDivElement>(null);
   const onBusyChange = (busy: boolean) =>
     setPending((n) => Math.max(0, n + (busy ? 1 : -1)));
@@ -388,7 +443,9 @@ function OfferEditor({
   const [daysDraft, setDaysDraft] = useState(String(value.days));
 
   const initialValue = useRef(JSON.stringify(value));
-  const dirty = JSON.stringify(value) !== initialValue.current;
+  const dirty =
+    JSON.stringify(value) !== initialValue.current ||
+    JSON.stringify([...choiceDishIds].sort()) !== initialChoiceIds.current;
   useEffect(() => {
     onDirtyChange(dirty);
   }, [dirty, onDirtyChange]);
@@ -500,6 +557,31 @@ function OfferEditor({
   };
   const save = async (draft: boolean) => {
     if (pending) return;
+    if (!choiceLoaded) return;
+    if (
+      !draft &&
+      value.menuSelectionMode === "customer" &&
+      activeValue.menus.some((m) =>
+        m.composition?.some(
+          (g) =>
+            dishes.filter(
+              (d) =>
+                choiceDishIds.includes(d.id) &&
+                !d.archived &&
+                d.categoryId === g.categoryId,
+            ).length < g.slots,
+        ),
+      )
+    ) {
+      setSaveError(
+        t(
+          "Pilih cukup hidangan berbeda untuk setiap kategori.",
+          "Choose enough distinct dishes for every category.",
+        ),
+      );
+      setStep("contents");
+      return;
+    }
     const found = offerEditorIssues(activeValue, draft);
     if (found.length) {
       showIssues(found);
@@ -511,6 +593,8 @@ function OfferEditor({
         catererId,
         id: offer?.id,
         version: offer?.version,
+        choiceDishIds:
+          value.menuSelectionMode === "customer" ? choiceDishIds : undefined,
         slug:
           offer?.slug ||
           (value.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "draf") +
@@ -806,6 +890,22 @@ function OfferEditor({
                         "days",
                       )} · 1 ${t("porsi", "portion")}`}
                 </small>
+                {previewPackageTotal !== null && (
+                  <small className="package-meal-price">
+                    {t("Setara", "Equivalent to")}{" "}
+                    {currency(
+                      perMealPrice({
+                        price: previewPrice,
+                        meal: value.meal,
+                      }),
+                      locale,
+                    )}{" "}
+                    {t("/ sekali makan", "/ meal")}
+                    {value.meal === "both"
+                      ? t(" · 2 kali makan / hari", " · 2 meals / day")
+                      : ""}
+                  </small>
+                )}
               </output>
               {value.meal === "both" && (
                 <p className="field-hint">
@@ -1144,6 +1244,35 @@ function OfferEditor({
                     }
                   />
                 ))
+              )}
+              <Field
+                label={t("Siapa yang memilih menu?", "Who chooses the menu?")}
+              >
+                <Select
+                  value={value.menuSelectionMode || "caterer"}
+                  onValueChange={(v) => set("menuSelectionMode", v)}
+                >
+                  <SelectOption value="caterer">
+                    {t("Katerer", "Caterer")}
+                  </SelectOption>
+                  <SelectOption value="customer">
+                    {t(
+                      "Pelanggan · Pilih menu sendiri",
+                      "Customer · Choose your menu",
+                    )}
+                  </SelectOption>
+                </Select>
+              </Field>
+              {value.menuSelectionMode === "customer" && (
+                <ChoiceDishChecklist
+                  dishes={dishes.filter((d) =>
+                    activeValue.menus.some((m) =>
+                      m.composition?.some((g) => g.categoryId === d.categoryId),
+                    ),
+                  )}
+                  selected={choiceDishIds}
+                  onChange={setChoiceDishIds}
+                />
               )}
               <h3>{t("Akan dilihat pelanggan", "Customer preview")}</h3>
               <PackageContents
@@ -1629,9 +1758,7 @@ function SellerSettings({ state: s }: { state: SellerState }) {
           <div className="verification-note">
             <ShieldCheck size={18} aria-hidden="true" />
             <div>
-              <strong>
-                {t("Catatan verifikasi", "Verification note")}
-              </strong>
+              <strong>{t("Catatan verifikasi", "Verification note")}</strong>
               <p>{s.caterer.review_note}</p>
             </div>
           </div>

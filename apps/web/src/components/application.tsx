@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { CustomerMenu } from './customer-menu';
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   Bell,
@@ -117,6 +118,7 @@ function App({ path, issue }: { path: string[]; issue: string | null }) {
     body =
       id === "onboarding" ? <Onboarding /> : <Seller view={id || "today"} />;
   else if (root === "admin") body = <Admin view={id || "sellers"} />;
+  else if (root === 'subscriptions' && path[2] === 'menu' && id) body = <CustomerMenu id={id} />;
   else if (["home", "calendar", "subscriptions"].includes(root))
     body = <Customer view={root} id={id} />;
   else if (root === "brand") body = <AssetGallery />;

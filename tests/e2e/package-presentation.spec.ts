@@ -1,7 +1,12 @@
 import { test, expect, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { mkdir } from "node:fs/promises";
-import { currency, packageSubtotal, type Offer } from "@catera/domain";
+import {
+  currency,
+  packageSubtotal,
+  perMealPrice,
+  type Offer,
+} from "@catera/domain";
 
 const evidenceDir =
   process.env.CATERA_PRESENTATION_EVIDENCE || "output/package-presentation";
@@ -117,10 +122,10 @@ test("card meal switch, comparison, contents navigation, photo failure and viewe
     currency(packageSubtotal(box)),
   );
   await expect(card.locator(".package-unit-price")).toContainText(
-    currency(box.price),
+    currency(perMealPrice(box)),
   );
   await expect(card.locator(".package-unit-price")).toContainText(
-    "2 kali makan",
+    "/ sekali makan · 2 kali makan / hari",
   );
   await expect(card).toContainText("610–650 kkal");
   await expect(card).toContainText("0 g");
@@ -283,11 +288,14 @@ test("seller pricing and card preview stay aligned without persisting a total", 
     .fill("41000");
   await expect(priceSummary).toContainText(currency(287000));
   await expect(priceSummary).toContainText("Rp 41.000 × 7 hari · 1 porsi");
+  await expect(priceSummary).toContainText(
+    "Setara Rp 20.500 / sekali makan · 2 kali makan / hari",
+  );
   await page.getByRole("button", { name: /5\. Periksa/ }).click();
   const card = page.locator(".listing-preview .package-card");
   await expect(card.locator(".card-price strong")).toHaveText(currency(287000));
   await expect(card.locator(".package-unit-price")).toContainText(
-    currency(41000),
+    currency(20500),
   );
   await card.getByRole("button", { name: "Malam", exact: true }).click();
   await expect(card).toContainText("Menu belum ditentukan");

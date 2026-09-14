@@ -578,3 +578,14 @@
     gap: 8px;
   }
 }
+.menu-workspace-customer .menu-save-bar {
+  position: static;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+.menu-workspace-customer .menu-day-unavailable {
+  opacity: 0.35;
+  background: transparent;
+  border-color: transparent;
+  pointer-events: none;
+}

@@ -3,6 +3,7 @@ import {
   schedule,
   price,
   packageSubtotal,
+  perMealPrice,
   addDays,
   addressSchema,
 } from "@catera/domain";
@@ -39,6 +40,11 @@ describe("shared customer and native rules", () => {
   it("calculates the base package subtotal from the daily rate and duration", () => {
     expect(packageSubtotal({ price: 35000, days: 5 })).toBe(175000);
     expect(packageSubtotal({ price: 35000, days: 5 }, 3)).toBe(525000);
+  });
+  it("derives a per-meal rate from the package's daily meal count", () => {
+    expect(perMealPrice({ price: 35000, meal: "lunch" })).toBe(35000);
+    expect(perMealPrice({ price: 35000, meal: "dinner" })).toBe(35000);
+    expect(perMealPrice({ price: 35000, meal: "both" })).toBe(17500);
   });
   it("uses one-day trial pricing without regular quantity discounts", () =>
     expect(
