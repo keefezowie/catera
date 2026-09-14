@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { schedule, price, addDays, addressSchema } from "@catera/domain";
+import {
+  schedule,
+  price,
+  packageSubtotal,
+  addDays,
+  addressSchema,
+} from "@catera/domain";
 describe("shared customer and native rules", () => {
   it("generates all operating dates across weekends and closures", () =>
     expect(schedule("2026-09-11", 4, [1, 2, 3, 4, 5], ["2026-09-14"])).toEqual([
@@ -30,6 +36,10 @@ describe("shared customer and native rules", () => {
       discountPercent: 5,
       total: 665000,
     }));
+  it("calculates the base package subtotal from the daily rate and duration", () => {
+    expect(packageSubtotal({ price: 35000, days: 5 })).toBe(175000);
+    expect(packageSubtotal({ price: 35000, days: 5 }, 3)).toBe(525000);
+  });
   it("uses one-day trial pricing without regular quantity discounts", () =>
     expect(
       price(

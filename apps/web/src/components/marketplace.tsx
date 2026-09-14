@@ -33,7 +33,13 @@ import {
   MessageCircle,
   ChevronDown,
 } from "lucide-react";
-import { currency, mealLabel, areaOptions, type Offer } from "@catera/domain";
+import {
+  currency,
+  mealLabel,
+  areaOptions,
+  packageSubtotal,
+  type Offer,
+} from "@catera/domain";
 import { useApp, api, useResource } from "./context";
 import { Button, Checkbox, TextInput } from "./form-controls";
 import { Heading, Empty, Facts } from "./ui";
@@ -124,15 +130,16 @@ export function PackageCard({
         />
         <div className="package-footer">
           <div className="card-price">
-            <div>
-              <strong>{currency(offer.price, locale)}</strong>
-              <small>
-                {t("/ porsi / hari", "/ portion / day")}
-                {offer.meal === "both"
-                  ? t(" · 2 kali makan", " · 2 meals")
-                  : ""}
-              </small>
-            </div>
+            <small className="package-total-label">
+              {t("Total paket", "Package total")} · 1 {t("porsi", "portion")} ×{" "}
+              {offer.days} {t("hari", "days")}
+            </small>
+            <strong>{currency(packageSubtotal(offer), locale)}</strong>
+            <small className="package-unit-price">
+              {currency(offer.price, locale)}{" "}
+              {t("/ porsi / hari", "/ portion / day")}
+              {offer.meal === "both" ? t(" · 2 kali makan", " · 2 meals") : ""}
+            </small>
           </div>
           <p className={"delivery-included " + (!covered ? "unavailable" : "")}>
             <Truck size={15} aria-hidden="true" />

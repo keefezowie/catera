@@ -12,7 +12,7 @@ const fieldStep: Record<string, OfferStep> = {
   name: "offer",
   description: "offer",
   meal: "offer",
-  days: "schedule",
+  days: "pricing",
   packageType: "offer",
   nutrition: "contents",
   image: "contents",

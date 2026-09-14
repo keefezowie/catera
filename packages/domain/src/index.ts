@@ -405,6 +405,12 @@ export function schedule(
   if (result.length !== days) throw new Error("NO_AVAILABILITY");
   return result;
 }
+export function packageSubtotal(
+  offer: Pick<Offer, "price" | "days">,
+  portions = 1,
+) {
+  return offer.price * offer.days * portions;
+}
 export function price(
   offer: Pick<Offer, "price" | "days" | "tiers" | "trialPrice">,
   portions: number,
@@ -416,9 +422,9 @@ export function price(
         0,
         ...offer.tiers.filter((t) => portions >= t.min).map((t) => t.percent),
       );
-  const subtotal =
-    (trial ? (offer.trialPrice ?? offer.price) : offer.price * offer.days) *
-    portions;
+  const subtotal = trial
+    ? (offer.trialPrice ?? offer.price) * portions
+    : packageSubtotal(offer, portions);
   const discount = Math.round((subtotal * percent) / 100);
   return {
     subtotal,

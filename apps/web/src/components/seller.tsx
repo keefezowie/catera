@@ -46,6 +46,7 @@ import {
   localDay,
   mealLabel,
   areaOptions,
+  packageSubtotal,
   type SellerState,
   type Offer,
   type SupportCase,
@@ -383,6 +384,8 @@ function OfferEditor({
     nutrition: offer ? packageNutrition(offer) : null,
     menus: (offer?.menus || []).map(compositionDraft),
   }));
+  const [priceDraft, setPriceDraft] = useState(String(value.price));
+  const [daysDraft, setDaysDraft] = useState(String(value.days));
 
   const initialValue = useRef(JSON.stringify(value));
   const dirty = JSON.stringify(value) !== initialValue.current;
@@ -412,7 +415,7 @@ function OfferEditor({
   const labels: Record<OfferStep, string> = {
     offer: t("Paket", "Package"),
     contents: t("Isi", "Contents"),
-    pricing: t("Harga", "Pricing"),
+    pricing: t("Durasi & harga", "Duration & price"),
     schedule: t("Jadwal", "Schedule"),
     review: t("Periksa", "Review"),
   };
@@ -434,6 +437,18 @@ function OfferEditor({
       (m) => value.meal === "both" || m.meal === value.meal,
     ),
   };
+  const previewPrice = Number(priceDraft);
+  const previewDays = Number(daysDraft);
+  const validPricePreview =
+    Number.isInteger(previewPrice) &&
+    previewPrice >= 1000 &&
+    previewPrice <= 10000000 &&
+    Number.isInteger(previewDays) &&
+    previewDays >= 1 &&
+    previewDays <= 60;
+  const previewPackageTotal = validPricePreview
+    ? packageSubtotal({ price: previewPrice, days: previewDays })
+    : null;
   const fieldError = (key: string) => {
     const issue = issues.find(
       (i) => i.path === key || i.path.startsWith(key + "."),
@@ -736,6 +751,23 @@ function OfferEditor({
           ) : step === "pricing" ? (
             <>
               <Field
+                fieldKey="days"
+                error={fieldError("days")}
+                label={t(
+                  "Durasi pengantaran (hari)",
+                  "Delivery duration (days)",
+                )}
+              >
+                <NumericInput
+                  min={1}
+                  max={60}
+                  required
+                  value={value.days}
+                  onDraftChange={setDaysDraft}
+                  onValueChange={(next) => set("days", next)}
+                />
+              </Field>
+              <Field
                 fieldKey="price"
                 error={fieldError("price")}
                 label={t(
@@ -747,11 +779,36 @@ function OfferEditor({
                   min={1000}
                   required
                   value={value.price}
+                  onDraftChange={setPriceDraft}
                   onValueChange={(next) => set("price", next)}
                 />
               </Field>
+              <output className="package-price-summary" aria-live="polite">
+                <span>
+                  {t(
+                    "Total paket yang dilihat pelanggan",
+                    "Package total shown to customers",
+                  )}
+                </span>
+                <strong>
+                  {previewPackageTotal === null
+                    ? "—"
+                    : currency(previewPackageTotal, locale)}
+                </strong>
+                <small>
+                  {previewPackageTotal === null
+                    ? t(
+                        "Lengkapi durasi dan harga harian.",
+                        "Complete the duration and daily price.",
+                      )
+                    : `${currency(previewPrice, locale)} × ${previewDays} ${t(
+                        "hari",
+                        "days",
+                      )} · 1 ${t("porsi", "portion")}`}
+                </small>
+              </output>
               {value.meal === "both" && (
-                <p>
+                <p className="field-hint">
                   {t(
                     "Untuk siang + malam, harga ini sudah mencakup kedua makanan per porsi per hari.",
                     "For lunch + dinner, this price covers both meals per portion per day.",
@@ -911,22 +968,6 @@ function OfferEditor({
             </>
           ) : step === "schedule" ? (
             <>
-              <Field
-                fieldKey="days"
-                error={fieldError("days")}
-                label={t(
-                  "Durasi pengantaran (hari)",
-                  "Delivery duration (days)",
-                )}
-              >
-                <NumericInput
-                  min={1}
-                  max={60}
-                  required
-                  value={value.days}
-                  onValueChange={(next) => set("days", next)}
-                />
-              </Field>
               <Field
                 fieldKey="flexible"
                 error={fieldError("flexible")}

@@ -154,13 +154,30 @@
   border-top: 1px solid var(--line);
   padding-top: 18px;
 }
+.package-card-v2 .card-price {
+  display: grid;
+  justify-items: start;
+  gap: 3px;
+}
 .package-card-v2 .card-price strong {
   font-size: 1.5625rem;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
 }
 .package-card-v2 .card-price small {
   font-size: 0.75rem;
   display: block;
-  margin: 2px 0 0;
+  margin: 0;
+}
+.package-card-v2 .card-price .package-total-label {
+  color: var(--muted);
+}
+.package-card-v2 .card-price .package-unit-price {
+  color: var(--forest);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  margin-top: 2px;
+  overflow-wrap: anywhere;
 }
 .package-card-v2 .delivery-included {
   border: 0;

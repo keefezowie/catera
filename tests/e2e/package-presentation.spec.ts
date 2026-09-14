@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { mkdir } from "node:fs/promises";
-import type { Offer } from "@catera/domain";
+import { currency, packageSubtotal, type Offer } from "@catera/domain";
 
 const evidenceDir =
   process.env.CATERA_PRESENTATION_EVIDENCE || "output/package-presentation";
@@ -109,6 +109,18 @@ test("card meal switch, comparison, contents navigation, photo failure and viewe
   });
   await expect(card.locator(".composition-preview")).toHaveText(
     "2 Lauk · 1 Sayur · 1 Pelengkap spesial",
+  );
+  await expect(card.locator(".package-total-label")).toHaveText(
+    `Total paket · 1 porsi × ${box.days} hari`,
+  );
+  await expect(card.locator(".card-price strong")).toHaveText(
+    currency(packageSubtotal(box)),
+  );
+  await expect(card.locator(".package-unit-price")).toContainText(
+    currency(box.price),
+  );
+  await expect(card.locator(".package-unit-price")).toContainText(
+    "2 kali makan",
   );
   await expect(card).toContainText("610–650 kkal");
   await expect(card).toContainText("0 g");
@@ -228,7 +240,7 @@ test("responsive cards and galleries, duplicate single photo, English and text e
   ).toBe(true);
 });
 
-test("seller card preview allows meal inspection without navigation or purchasing", async ({
+test("seller pricing and card preview stay aligned without persisting a total", async ({
   page,
 }) => {
   await page.request.post("/api/v1/auth/demo", { data: { role: "owner" } });
@@ -246,15 +258,37 @@ test("seller card preview allows meal inspection without navigation or purchasin
   });
   await row.getByRole("button", { name: "Kelola paket", exact: true }).click();
   await page.getByRole("button", { name: /2\. Isi/ }).click();
-  const customRows = page
-    .locator(".composition-row")
+  const customCategories = page
+    .getByRole("combobox", { name: "Kategori", exact: true })
     .filter({ hasText: "Pelengkap spesial" });
+  await expect(customCategories).toHaveCount(2);
   for (let i = 0; i < 2; i++) {
-    await customRows.first().getByRole("combobox").click();
-    await page.getByRole("option", { name: "Buah", exact: true }).click();
+    await customCategories.first().click();
+    await page
+      .getByRole("option", { name: "Buah segar", exact: true })
+      .click();
   }
-  await page.getByRole("button", { name: /6\. Tinjau/ }).click();
+  await page.getByRole("button", { name: /3\. Durasi & harga/ }).click();
+  const duration = page.getByLabel("Durasi pengantaran (hari)", {
+    exact: true,
+  });
+  const priceSummary = page.locator(".package-price-summary");
+  await duration.fill("");
+  await expect(priceSummary.locator("strong")).toHaveText("—");
+  await duration.fill("7");
+  await page
+    .getByLabel("Harga per porsi / hari (pengantaran termasuk)", {
+      exact: true,
+    })
+    .fill("41000");
+  await expect(priceSummary).toContainText(currency(287000));
+  await expect(priceSummary).toContainText("Rp 41.000 × 7 hari · 1 porsi");
+  await page.getByRole("button", { name: /5\. Periksa/ }).click();
   const card = page.locator(".listing-preview .package-card");
+  await expect(card.locator(".card-price strong")).toHaveText(currency(287000));
+  await expect(card.locator(".package-unit-price")).toContainText(
+    currency(41000),
+  );
   await card.getByRole("button", { name: "Malam", exact: true }).click();
   await expect(card).toContainText("Menu belum ditentukan");
   await expect(card).not.toContainText("27 g");
@@ -264,6 +298,17 @@ test("seller card preview allows meal inspection without navigation or purchasin
   await expect(
     card.getByRole("link", { name: "Lihat paket", exact: true }),
   ).toHaveAttribute("aria-disabled", "true");
+  const saveRequest = page.waitForRequest(
+    (request) =>
+      request.url().endsWith("/api/v1/commands") &&
+      request.method() === "POST" &&
+      request.postDataJSON()?.action === "package.save",
+  );
+  await page.getByRole("button", { name: "Simpan draf", exact: true }).click();
+  const savedOffer = (await saveRequest).postDataJSON().payload.offer;
+  expect(savedOffer.price).toBe(41000);
+  expect(savedOffer.days).toBe(7);
+  expect(savedOffer).not.toHaveProperty("packageTotal");
 });
 
 test("long names, serving descriptions and many components remain readable at enlarged text", async ({

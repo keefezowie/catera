@@ -20,7 +20,9 @@ export default defineConfig({
       PORT: "3120",
       CATERA_PUBLIC_URL: "http://127.0.0.1:3120",
       CATERA_NEXT_DIST_DIR: ".next-package-presentation",
-      CATERA_DEMO_DATA_DIR: process.cwd() + "/.data/package-presentation-e2e",
+      CATERA_DEMO_DATA_DIR:
+        process.cwd() + "/.data/package-presentation-price-e2e",
+      CATERA_V1_DEMO: "true",
       CATERA_V1_FIXTURES: "true",
     },
   },

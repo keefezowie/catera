@@ -4596,6 +4596,25 @@ textarea::placeholder {
 .dish-editor-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .dish-editor-actions button, .component-row button { min-width: 44px; min-height: 44px; }
 .field-hint { color: #60675F; font-size: 13px; }
+.package-price-summary {
+  display: grid;
+  gap: 4px;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--soft);
+  color: var(--forest);
+}
+.package-price-summary > span,
+.package-price-summary > small {
+  color: var(--muted);
+  font-size: 13px;
+}
+.package-price-summary > strong {
+  font-size: 1.5rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
 .nutrition-editor { margin-block: 20px; }
 .nutrition-editor summary { cursor: pointer; min-height: 44px; padding-block: 12px; font-weight: 650; }
 .package-type-filter { max-width: 280px; margin-bottom: 20px; }
