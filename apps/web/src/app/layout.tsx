@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import "./globals.css";
 import "./usability.css";
+import "./overlays.css";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = (await cookies()).get("catera_locale")?.value === "en" ? "en" : "id";

@@ -412,12 +412,14 @@ export function MenuCalendar({
   async function resetCustomerMenu() {
     if (!subscription || !edit || edit.readOnly || busy) return;
     setBusy(true);
+    setError("");
     try {
       await perform("customerMenu.resetBatch", {
         subscriptionId: subscription.id,
         meal: activeMeal,
         days: customerDays(),
       });
+      setResetConfirm(false);
       setDirty(false);
       setEdit(null);
       resource.reload();
@@ -470,6 +472,8 @@ export function MenuCalendar({
       }
     >
       <Dialog
+        size="confirmation"
+        busy={busy}
         open={resetConfirm}
         onOpenChange={setResetConfirm}
         title={t("Serahkan menu ke katerer?", "Let the caterer choose?")}
@@ -482,12 +486,13 @@ export function MenuCalendar({
           variant="primary"
           disabled={busy}
           onClick={() => {
-            setResetConfirm(false);
             void resetCustomerMenu();
           }}
         >
           {t("Ya, serahkan ke katerer", "Yes, let caterer choose")}
         </Button>
+        <Button data-dialog-safe variant="secondary" disabled={busy} onClick={() => setResetConfirm(false)}>{t("Batal", "Cancel")}</Button>
+        {error && <ErrorNotice message={error} />}
       </Dialog>
       {subscription && (
         <p className="notice">
@@ -998,6 +1003,7 @@ export function MenuCalendar({
             : "Search or add dishes by category.",
         )}
         className="menu-library-dialog"
+        size="editor"
       >
         {library}
       </Dialog>
@@ -1006,6 +1012,8 @@ export function MenuCalendar({
           event.preventDefault();
           (editorHeading.current || calendarHeading.current)?.focus();
         }}
+        size="confirmation"
+        busy={busy}
         open={leaving}
         onOpenChange={(o) => {
           if (!busy) {
@@ -1048,6 +1056,7 @@ export function MenuCalendar({
             {t("Buang perubahan", "Discard changes")}
           </Button>
           <Button
+            data-dialog-safe
             variant="secondary"
             disabled={busy}
             onClick={() => {
@@ -1064,6 +1073,8 @@ export function MenuCalendar({
           event.preventDefault();
           (editorHeading.current || calendarHeading.current)?.focus();
         }}
+        size="confirmation"
+        busy={busy}
         open={confirmSave}
         onOpenChange={(o) => {
           if (!busy) setConfirmSave(o);
@@ -1078,12 +1089,16 @@ export function MenuCalendar({
         <Button variant="primary" disabled={busy} onClick={() => void save()}>
           {t("Ganti dan simpan", "Replace and save")}
         </Button>
+        <Button data-dialog-safe variant="secondary" disabled={busy} onClick={() => setConfirmSave(false)}>{t("Batal", "Cancel")}</Button>
+        {error && <ErrorNotice message={error} />}
       </Dialog>
       <Dialog
         onCloseAutoFocus={(event) => {
           event.preventDefault();
           editorHeading.current?.focus();
         }}
+        size="confirmation"
+        busy={busy}
         open={!!replacement}
         onOpenChange={(o) => {
           if (!o) setReplacement(null);
@@ -1100,6 +1115,7 @@ export function MenuCalendar({
         >
           {t("Ganti hidangan", "Replace dish")}
         </Button>
+        <Button data-dialog-safe variant="secondary" onClick={() => setReplacement(null)}>{t("Batal", "Cancel")}</Button>
       </Dialog>
     </div>
   );

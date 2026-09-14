@@ -6,7 +6,11 @@ import {
   useState,
   useRef,
   useEffect,
+  useLayoutEffect,
+  useCallback,
   useId,
+  createContext,
+  useContext,
   cloneElement,
   isValidElement,
   type ReactElement,
@@ -17,6 +21,9 @@ import { errorLabel, statusLabel } from "@catera/domain";
 import { useApp } from "./context";
 import { MascotLoading } from "./mascot-loading";
 import { Button } from "./form-controls";
+import { FormPending, OverlayLevel, useDialogLayer } from "./overlay";
+const DialogBusy = createContext<((change: number) => void) | null>(null);
+const focusReturns = new WeakMap<HTMLElement, HTMLElement[]>();
 export function Brand({ small = false }: { small?: boolean }) {
   return (
     <Link
@@ -124,6 +131,10 @@ export function Dialog({
   className = "",
   closeLabel,
   onCloseAutoFocus,
+  onOpenAutoFocus,
+  size = "form",
+  busy = false,
+  id,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
@@ -133,31 +144,117 @@ export function Dialog({
   className?: string;
   closeLabel?: string;
   onCloseAutoFocus?: (event: Event) => void;
+  onOpenAutoFocus?: (event: Event) => void;
+  size?: "confirmation" | "form" | "editor" | "media";
+  busy?: boolean;
+  id?: string;
 }) {
   const { t } = useApp();
+  const { level, inactive } = useDialogLayer(open);
+  const returnTargets = useRef<HTMLElement[]>([]);
+  const panel = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    if (!open) return;
+    const target = document.activeElement;
+    if (target instanceof HTMLElement) {
+      const parent = target.closest<HTMLElement>(".dialog");
+      returnTargets.current = [
+        target,
+        ...(parent ? focusReturns.get(parent) || [] : []),
+      ];
+    }
+  }, [open]);
+  const [pendingForms, setPendingForms] = useState(0);
+  const changeBusy = useCallback(
+    (change: number) => setPendingForms((count) => Math.max(0, count + change)),
+    [],
+  );
+  const pending = busy || pendingForms > 0;
   return (
-    <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
+    <DialogPrimitive.Root
+      open={open}
+      onOpenChange={(next) => {
+        if (!pending && !inactive) onOpenChange(next);
+      }}
+    >
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="dialog-overlay" />
+        <DialogPrimitive.Overlay
+          className="dialog-overlay"
+          style={{ zIndex: level }}
+        />
         <DialogPrimitive.Content
-          className={"dialog " + className}
-          onCloseAutoFocus={onCloseAutoFocus}
+          id={id}
+          ref={panel}
+          className={"dialog dialog-" + size + " " + className}
+          style={{ zIndex: level + 1 }}
+          data-dialog-size={size}
+          inert={inactive || undefined}
+          aria-busy={pending || undefined}
+          {...(!description ? { "aria-describedby": undefined } : {})}
+          onInteractOutside={(event) => {
+            if (size === "confirmation" || pending || inactive)
+              event.preventDefault();
+          }}
+          onEscapeKeyDown={(event) => {
+            if (pending || inactive) event.preventDefault();
+          }}
+          onOpenAutoFocus={(event) => {
+            if (panel.current)
+              focusReturns.set(panel.current, returnTargets.current);
+            onOpenAutoFocus?.(event);
+            if (event.defaultPrevented) return;
+            if (size === "confirmation") {
+              event.preventDefault();
+              (
+                panel.current?.querySelector<HTMLElement>(
+                  "[data-dialog-safe]",
+                ) ||
+                panel.current?.querySelector<HTMLElement>(".close") ||
+                panel.current
+              )?.focus();
+            }
+          }}
+          onCloseAutoFocus={(event) => {
+            onCloseAutoFocus?.(event);
+            if (!event.defaultPrevented) {
+              event.preventDefault();
+              // Both child and parent can unmount together (discard/save).
+              // Wait for Radix to release focus traps and parent inert state.
+              const targets = returnTargets.current;
+              requestAnimationFrame(() => {
+                targets
+                  .find(
+                    (target) =>
+                      target.isConnected && !target.closest("[inert]"),
+                  )
+                  ?.focus({ preventScroll: true });
+              });
+            }
+          }}
         >
           <DialogPrimitive.Title>{title}</DialogPrimitive.Title>
-          <DialogPrimitive.Description>
-            {description ||
-              t(
-                "Periksa detail sebelum menyimpan perubahan.",
-                "Review the details before saving your changes.",
-              )}
-          </DialogPrimitive.Description>
+          {description && (
+            <DialogPrimitive.Description>
+              {description}
+            </DialogPrimitive.Description>
+          )}
           <DialogPrimitive.Close
             className="icon-button close"
+            disabled={pending}
             aria-label={closeLabel || t("Tutup", "Close")}
           >
             <X size={20} />
           </DialogPrimitive.Close>
-          {children}
+          <OverlayLevel.Provider value={level + 1}>
+            <DialogBusy.Provider value={changeBusy}>
+              {size === "editor" &&
+              !className.split(" ").includes("package-dialog") ? (
+                <div className="dialog-body">{children}</div>
+              ) : (
+                children
+              )}
+            </DialogBusy.Provider>
+          </OverlayLevel.Provider>
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>
@@ -190,16 +287,31 @@ export function ActionForm({
   const [saved, setSaved] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const errorRef = useRef<HTMLDivElement>(null);
+  const submitting = useRef(false);
+  const changeDialogBusy = useContext(DialogBusy);
+  useEffect(() => {
+    if (!busy || !changeDialogBusy) return;
+    changeDialogBusy(1);
+    return () => changeDialogBusy(-1);
+  }, [busy, changeDialogBusy]);
   useEffect(() => {
     if (!error) return;
     const field = formRef.current?.querySelector<HTMLElement>(
       '[aria-invalid="true"]',
     );
+    if (field) {
+      let parent = field.parentElement;
+      while (parent) {
+        if (parent instanceof HTMLDetailsElement) parent.open = true;
+        parent = parent.parentElement;
+      }
+    }
     (field || errorRef.current)?.focus();
   }, [error]);
   async function handle(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (busy || disabled) return;
+    if (submitting.current || disabled) return;
+    submitting.current = true;
     const f = new FormData(e.currentTarget);
     setBusy(true);
     setError("");
@@ -228,6 +340,7 @@ export function ActionForm({
               ),
       );
     } finally {
+      submitting.current = false;
       setBusy(false);
     }
   }
@@ -246,10 +359,11 @@ export function ActionForm({
       ref={formRef}
       onSubmit={handle}
       noValidate={noValidate}
+      aria-busy={busy || undefined}
       className={"form " + className}
       onChange={() => setSaved(false)}
     >
-      {children}
+      <FormPending.Provider value={busy}>{children}</FormPending.Provider>
       {error && (
         <div ref={errorRef} tabIndex={-1} className="form-error">
           <ErrorNotice message={error} />

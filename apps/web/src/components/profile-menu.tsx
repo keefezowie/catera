@@ -22,10 +22,13 @@ export function ProfileMenu() {
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
+  const [ready, setReady] = useState(false);
+  useEffect(() => setReady(true), []);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   function closeMenu(returnFocus = false) {
+    if (pending) return;
     setOpen(false);
     if (returnFocus) requestAnimationFrame(() => triggerRef.current?.focus());
   }
@@ -33,6 +36,7 @@ export function ProfileMenu() {
   useEffect(() => {
     if (!open) return;
     const frame = requestAnimationFrame(() => {
+      if (pending) return;
       menuRef.current
         ?.querySelector<HTMLElement>("[data-profile-menu-item]")
         ?.focus();
@@ -50,10 +54,11 @@ export function ProfileMenu() {
       cancelAnimationFrame(frame);
       document.removeEventListener("pointerdown", onPointerDown);
     };
-  }, [open]);
+  }, [open, pending]);
 
   function handleMenuKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key === "Escape") {
+      event.stopPropagation();
       event.preventDefault();
       closeMenu(true);
       return;
@@ -137,6 +142,7 @@ export function ProfileMenu() {
         className="profile-menu-trigger"
         type="button"
         aria-label={t("Buka menu akun", "Open account menu")}
+        disabled={pending || !ready}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls="profile-menu"
@@ -164,6 +170,15 @@ export function ProfileMenu() {
           aria-label={t("Menu akun", "Account menu")}
           aria-busy={pending || undefined}
           onKeyDown={handleMenuKeyDown}
+          onBlur={(event) => {
+            if (
+              !event.currentTarget.contains(
+                event.relatedTarget as Node | null,
+              ) &&
+              event.relatedTarget !== triggerRef.current
+            )
+              closeMenu();
+          }}
         >
           <div className="profile-menu-identity">
             <span className="avatar" aria-hidden="true">

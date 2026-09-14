@@ -139,7 +139,8 @@ test("integrated library edits, category retention and archival versions", async
     },
   });
   await page.goto("/seller/menus");
-  const lib = page.locator(".menu-library-desktop");
+  await page.getByRole("button", { name: "Pustaka hidangan", exact: true }).click();
+  const lib = page.getByRole("dialog", { name: "Pustaka hidangan" });
   await lib.getByLabel("Cari hidangan", { exact: true }).fill(name);
   const row = lib.locator(".menu-library-row").filter({ hasText: name });
   await row.getByRole("button", { name: "Edit", exact: true }).click();

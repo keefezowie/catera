@@ -270,7 +270,7 @@ test("seller pricing and card preview stay aligned without persisting a total", 
   for (let i = 0; i < 2; i++) {
     await customCategories.first().click();
     await page
-      .getByRole("option", { name: "Buah segar", exact: true })
+      .getByRole("option", { name: "Buah", exact: true })
       .click();
   }
   await page.getByRole("button", { name: /3\. Durasi & harga/ }).click();

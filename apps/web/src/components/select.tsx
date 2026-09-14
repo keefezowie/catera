@@ -1,5 +1,6 @@
 "use client";
 
+import { useOverlayLevel, useFormPending } from "./overlay";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { Check, ChevronDown, ChevronUp } from "lucide-react";
 import { Children, isValidElement, useState, type ReactNode } from "react";
@@ -42,6 +43,8 @@ export function Select({
   "aria-describedby": describedBy,
   ...props
 }: SelectProps) {
+  const level = useOverlayLevel();
+  const pending = useFormPending();
   const options = Children.toArray(children).filter(
     isValidElement<OptionProps>,
   );
@@ -55,6 +58,7 @@ export function Select({
   return (
     <SelectPrimitive.Root
       {...props}
+      disabled={props.disabled || pending}
       value={current}
       onValueChange={(next) => {
         const selected = next === emptyOption ? "" : next;
@@ -80,6 +84,7 @@ export function Select({
       <SelectPrimitive.Portal>
         <SelectPrimitive.Content
           className="select-menu"
+          style={{ zIndex: level + 1 }}
           position="popper"
           sideOffset={6}
           collisionPadding={12}

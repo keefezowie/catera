@@ -1,5 +1,6 @@
 "use client";
 
+import { useFormPending } from "./overlay";
 import { Check } from "lucide-react";
 import {
   type ButtonHTMLAttributes,
@@ -50,9 +51,11 @@ function buttonClasses(
 /** Shared button boundary for app actions, icon controls, and surface-specific controls. */
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   function Button({ variant, size = "default", className, ...props }, ref) {
+    const pending = useFormPending();
     return (
       <button
         {...props}
+        disabled={props.disabled || pending}
         ref={ref}
         className={buttonClasses(variant, size, className)}
       />

@@ -18,7 +18,6 @@ import {
   ChevronsRight,
   Moon,
   Sun,
-  X,
 } from "lucide-react";
 import { addDays, localDay, type Delivery } from "@catera/domain";
 import {
@@ -39,7 +38,7 @@ import {
 import { useMealCalendar } from "./use-meal-calendar";
 import { useApp } from "./context";
 import { Button, TextInput } from "./form-controls";
-import { Heading, Status } from "./ui";
+import { Dialog, Heading, Status } from "./ui";
 
 const minimum = "1900-01-01",
   maximum = "9998-12-31";
@@ -213,7 +212,7 @@ export function MealCalendar() {
   }, [start, restored, selected]);
 
   useLayoutEffect(() => {
-    if (pickerOpen && pickerFocus.current) {
+    if (pickerOpen && picker.current && pickerFocus.current) {
       picker.current
         ?.querySelector<HTMLButtonElement>(
           `[data-picker-day="${pickerFocus.current}"]`,
@@ -316,7 +315,7 @@ export function MealCalendar() {
     }
   }
   function closePicker() {
-    picker.current?.hidePopover();
+    setPickerOpen(false);
   }
   function pick(day: string) {
     jump(day);
@@ -436,7 +435,6 @@ export function MealCalendar() {
           <Button
             ref={monthButton}
             className="calendar-month-button"
-            popoverTarget="calendar-date-picker"
             aria-haspopup="dialog"
             aria-expanded={pickerOpen}
             onClick={() => {
@@ -444,6 +442,7 @@ export function MealCalendar() {
               setPickerActive(selected);
               setEnteredDate(selected);
               pickerFocus.current = selected;
+              setPickerOpen(true);
             }}
           >
             <CalendarDays size={19} />
@@ -720,132 +719,128 @@ export function MealCalendar() {
           )}
         </div>
       </div>
-      <div
+      <Dialog
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        title={t("Pilih tanggal jadwal", "Choose schedule date")}
+        className="calendar-picker-dialog"
         id="calendar-date-picker"
-        ref={picker}
-        popover="auto"
-        role="dialog"
-        aria-label={t("Pilih tanggal jadwal", "Choose schedule date")}
-        className="calendar-date-picker"
-        onToggle={(event) => {
-          const open = event.newState === "open";
-          setPickerOpen(open);
-          if (!open) monthButton.current?.focus();
+        onOpenAutoFocus={(event) => {
+          event.preventDefault();
+          picker.current
+            ?.querySelector<HTMLElement>(`[data-picker-day="${pickerActive}"]`)
+            ?.focus({ preventScroll: true });
+        }}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          monthButton.current?.focus({ preventScroll: true });
         }}
       >
-        <div className="calendar-picker-title">
-          <h2>{t("Pilih tanggal", "Choose a date")}</h2>
-          <Button
-            className="icon-button"
-            aria-label={t("Tutup", "Close")}
-            onClick={closePicker}
-          >
-            <X size={20} />
-          </Button>
-        </div>
-        <div className="calendar-picker-navigation">
-          <Button
-            className="icon-button"
-            aria-label={t("Tahun sebelumnya", "Previous year")}
-            disabled={pickerMonth < "1901-01-01"}
-            onClick={() => setPickerMonth(shiftMonth(pickerMonth, -12))}
-          >
-            <ChevronsLeft size={18} />
-          </Button>
-          <Button
-            className="icon-button"
-            aria-label={t("Bulan sebelumnya", "Previous month")}
-            disabled={pickerMonth === minimum}
-            onClick={() => setPickerMonth(shiftMonth(pickerMonth, -1))}
-          >
-            <ChevronLeft size={18} />
-          </Button>
-          <strong aria-live="polite">
-            {format(pickerMonth, { month: "long", year: "numeric" })}
-          </strong>
-          <Button
-            className="icon-button"
-            aria-label={t("Bulan berikutnya", "Next month")}
-            disabled={pickerMonth === "9998-12-01"}
-            onClick={() => setPickerMonth(shiftMonth(pickerMonth, 1))}
-          >
-            <ChevronRight size={18} />
-          </Button>
-          <Button
-            className="icon-button"
-            aria-label={t("Tahun berikutnya", "Next year")}
-            disabled={pickerMonth >= "9998-01-01"}
-            onClick={() => setPickerMonth(shiftMonth(pickerMonth, 12))}
-          >
-            <ChevronsRight size={18} />
-          </Button>
-        </div>
-        <div
-          className="calendar-picker-grid"
-          role="group"
-          aria-label={t("Hari dalam bulan", "Days in month")}
-        >
-          {datesBetween("2026-09-07", "2026-09-13").map((day) => (
-            <span key={day} aria-hidden="true">
-              {format(day, { weekday: "short" })}
-            </span>
-          ))}
-          {pickerDays.map((day) => (
+        <div ref={picker}>
+          <div className="calendar-picker-navigation">
             <Button
-              key={day}
-              data-picker-day={day}
-              disabled={!validDay(day)}
-              className={monthOf(day) !== pickerMonth ? "outside-month" : ""}
-              aria-label={format(day)}
-              aria-pressed={selected === day}
-              aria-current={day === today ? "date" : undefined}
-              tabIndex={
-                (pickerDays.includes(pickerActive)
-                  ? pickerActive
-                  : pickerMonth) === day
-                  ? 0
-                  : -1
-              }
-              onFocus={() => setPickerActive(day)}
-              onClick={() => pick(day)}
-              onKeyDown={(e) => pickerKey(e, day)}
+              className="icon-button"
+              aria-label={t("Tahun sebelumnya", "Previous year")}
+              disabled={pickerMonth < "1901-01-01"}
+              onClick={() => setPickerMonth(shiftMonth(pickerMonth, -12))}
             >
-              {Number(day.slice(8))}
+              <ChevronsLeft size={18} />
             </Button>
-          ))}
-        </div>
-        <form
-          className="calendar-date-entry"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (validDay(enteredDate)) pick(enteredDate);
-          }}
-        >
-          <label htmlFor="calendar-direct-date">
-            {t("Langsung ke tanggal", "Jump to date")}
-          </label>
-          <div>
-            <TextInput
-              id="calendar-direct-date"
-              type="text"
-              inputMode="text"
-              autoComplete="off"
-              placeholder="YYYY-MM-DD"
-              pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
-              value={enteredDate}
-              required
-              onChange={(e) => setEnteredDate(e.target.value)}
-            />
             <Button
-              className="button"
-              type="submit"
-              disabled={!validDay(enteredDate)}
+              className="icon-button"
+              aria-label={t("Bulan sebelumnya", "Previous month")}
+              disabled={pickerMonth === minimum}
+              onClick={() => setPickerMonth(shiftMonth(pickerMonth, -1))}
             >
-              {t("Lihat", "Go")}
+              <ChevronLeft size={18} />
+            </Button>
+            <strong aria-live="polite">
+              {format(pickerMonth, { month: "long", year: "numeric" })}
+            </strong>
+            <Button
+              className="icon-button"
+              aria-label={t("Bulan berikutnya", "Next month")}
+              disabled={pickerMonth === "9998-12-01"}
+              onClick={() => setPickerMonth(shiftMonth(pickerMonth, 1))}
+            >
+              <ChevronRight size={18} />
+            </Button>
+            <Button
+              className="icon-button"
+              aria-label={t("Tahun berikutnya", "Next year")}
+              disabled={pickerMonth >= "9998-01-01"}
+              onClick={() => setPickerMonth(shiftMonth(pickerMonth, 12))}
+            >
+              <ChevronsRight size={18} />
             </Button>
           </div>
-        </form>
-      </div>
+          <div
+            className="calendar-picker-grid"
+            role="group"
+            aria-label={t("Hari dalam bulan", "Days in month")}
+          >
+            {datesBetween("2026-09-07", "2026-09-13").map((day) => (
+              <span key={day} aria-hidden="true">
+                {format(day, { weekday: "short" })}
+              </span>
+            ))}
+            {pickerDays.map((day) => (
+              <Button
+                key={day}
+                data-picker-day={day}
+                disabled={!validDay(day)}
+                className={monthOf(day) !== pickerMonth ? "outside-month" : ""}
+                aria-label={format(day)}
+                aria-pressed={selected === day}
+                aria-current={day === today ? "date" : undefined}
+                tabIndex={
+                  (pickerDays.includes(pickerActive)
+                    ? pickerActive
+                    : pickerMonth) === day
+                    ? 0
+                    : -1
+                }
+                onFocus={() => setPickerActive(day)}
+                onClick={() => pick(day)}
+                onKeyDown={(e) => pickerKey(e, day)}
+              >
+                {Number(day.slice(8))}
+              </Button>
+            ))}
+          </div>
+          <form
+            className="calendar-date-entry"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (validDay(enteredDate)) pick(enteredDate);
+            }}
+          >
+            <label htmlFor="calendar-direct-date">
+              {t("Langsung ke tanggal", "Jump to date")}
+            </label>
+            <div>
+              <TextInput
+                id="calendar-direct-date"
+                type="text"
+                inputMode="text"
+                autoComplete="off"
+                placeholder="YYYY-MM-DD"
+                pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
+                value={enteredDate}
+                required
+                onChange={(e) => setEnteredDate(e.target.value)}
+              />
+              <Button
+                className="button"
+                type="submit"
+                disabled={!validDay(enteredDate)}
+              >
+                {t("Lihat", "Go")}
+              </Button>
+            </div>
+          </form>
+        </div>
+      </Dialog>
     </div>
   );
 }

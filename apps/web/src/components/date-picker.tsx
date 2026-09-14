@@ -5,7 +5,6 @@ import "./date-picker.css";
 import { addDays, localDay } from "@catera/domain";
 import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import {
-  useEffect,
   useId,
   useLayoutEffect,
   useRef,
@@ -19,6 +18,7 @@ import {
   validDay,
   weekStart,
 } from "../lib/meal-calendar";
+import { AnchoredPopover } from "./anchored-popover";
 import { useApp } from "./context";
 import { Button, HiddenInput } from "./form-controls";
 
@@ -82,7 +82,6 @@ export function DatePicker({
   const [open, setOpen] = useState(false);
   const [focusDay, setFocusDay] = useState(initialFocus);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const popoverRef = useRef<HTMLDivElement>(null);
 
   const language = locale === "en" ? "en-GB" : "id-ID";
   const format = (day: string, options: Intl.DateTimeFormatOptions) =>
@@ -104,47 +103,15 @@ export function DatePicker({
   const canGoForward = shiftMonth(visibleMonth, 1) <= monthOf(max);
   const todayAvailable = today >= min && today <= max;
 
-  function placePopover() {
-    const trigger = triggerRef.current;
-    const popover = popoverRef.current;
-    if (!trigger || !popover) return;
-    const anchor = trigger.getBoundingClientRect();
-    const width = popover.offsetWidth || 336;
-    const height = popover.offsetHeight || 430;
-    const roomBelow = window.innerHeight - anchor.bottom;
-    const top =
-      roomBelow >= height + 12
-        ? anchor.bottom + 8
-        : Math.max(12, anchor.top - height - 8);
-    const left = Math.min(
-      Math.max(12, anchor.left),
-      Math.max(12, window.innerWidth - width - 12),
-    );
-    popover.style.setProperty("--date-picker-top", `${top}px`);
-    popover.style.setProperty("--date-picker-left", `${left}px`);
-  }
-
-  useEffect(() => {
-    if (!open) return;
-    const reposition = () => placePopover();
-    window.addEventListener("resize", reposition);
-    window.addEventListener("scroll", reposition, true);
-    return () => {
-      window.removeEventListener("resize", reposition);
-      window.removeEventListener("scroll", reposition, true);
-    };
-  }, [open]);
-
   useLayoutEffect(() => {
-    if (!open) return;
-    placePopover();
-    popoverRef.current
-      ?.querySelector<HTMLButtonElement>(`[data-calendar-day="${focusDay}"]`)
-      ?.focus({ preventScroll: true });
-  }, [focusDay, open, visibleMonth]);
-
+    if (open)
+      document
+        .getElementById(popoverId)
+        ?.querySelector<HTMLElement>(`[data-calendar-day="${focusDay}"]`)
+        ?.focus({ preventScroll: true });
+  }, [focusDay, open, visibleMonth, popoverId]);
   function close() {
-    popoverRef.current?.hidePopover();
+    setOpen(false);
   }
 
   function update(next: string) {
@@ -211,47 +178,41 @@ export function DatePicker({
       className={`date-picker${compact ? " date-picker-compact" : ""}${className ? ` ${className}` : ""}`}
     >
       {name && <HiddenInput name={name} value={selected} />}
-      <Button
-        ref={triggerRef}
-        id={triggerId}
-        type="button"
-        className="date-picker-trigger"
-        popoverTarget={popoverId}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        aria-label={ariaLabel}
-        aria-labelledby={ariaLabelledBy}
-        aria-describedby={ariaDescribedBy}
-        aria-invalid={ariaInvalid}
-        aria-required={required}
-        data-value={selected}
-        disabled={disabled}
-        onClick={() => {
-          const next = validDay(selected)
-            ? selected
-            : clampDay(today, min, max);
-          setVisibleMonth(monthOf(next));
-          setFocusDay(next);
-        }}
-      >
-        <CalendarDays size={17} aria-hidden="true" />
-        <span>{displayValue}</span>
-      </Button>
-      <div
+      <AnchoredPopover
+        open={open}
+        onOpenChange={setOpen}
+        trigger={
+          <Button
+            ref={triggerRef}
+            id={triggerId}
+            type="button"
+            className="date-picker-trigger"
+            aria-haspopup="dialog"
+            aria-expanded={open}
+            aria-label={ariaLabel}
+            aria-labelledby={ariaLabelledBy}
+            aria-describedby={ariaDescribedBy}
+            aria-invalid={ariaInvalid}
+            aria-required={required}
+            data-value={selected}
+            disabled={disabled}
+            onClick={() => {
+              const next = validDay(selected)
+                ? selected
+                : clampDay(today, min, max);
+              setVisibleMonth(monthOf(next));
+              setFocusDay(next);
+            }}
+          >
+            <CalendarDays size={17} aria-hidden="true" />
+            <span>{displayValue}</span>
+          </Button>
+        }
         id={popoverId}
-        ref={popoverRef}
-        popover="auto"
-        role="dialog"
         aria-label={t("Pilih tanggal", "Choose a date")}
         className="date-picker-popover"
         data-open={open || undefined}
         data-visible-month={visibleMonth.slice(0, 7)}
-        onToggle={(event) => {
-          const isOpen = event.newState === "open";
-          setOpen(isOpen);
-          if (isOpen) requestAnimationFrame(placePopover);
-          else triggerRef.current?.focus({ preventScroll: true });
-        }}
       >
         <div className="date-picker-header">
           <Button
@@ -340,7 +301,7 @@ export function DatePicker({
             {t("Hari ini", "Today")}
           </Button>
         </div>
-      </div>
+      </AnchoredPopover>
     </span>
   );
 }

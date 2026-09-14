@@ -1,7 +1,8 @@
 "use client";
 
 import { Check, Clock } from "lucide-react";
-import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { AnchoredPopover } from "./anchored-popover";
 import { useApp } from "./context";
 import { Select, SelectOption } from "./select";
 import { Button, HiddenInput } from "./form-controls";
@@ -61,78 +62,11 @@ export function TimeInput({
   const [draft, setDraft] = useState(() => parts(selected));
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const popoverRef = useRef<HTMLDivElement>(null);
   const { t } = useApp();
 
   useEffect(() => {
     if (!open) setDraft(parts(selected));
   }, [open, selected]);
-
-  function placePopover() {
-    const trigger = triggerRef.current;
-    const popover = popoverRef.current;
-    if (!trigger || !popover) return;
-    const anchor = trigger.getBoundingClientRect();
-    const width = popover.offsetWidth || 320;
-    const height = popover.offsetHeight || 210;
-    const roomBelow = window.innerHeight - anchor.bottom;
-    const top =
-      roomBelow >= height + 12
-        ? anchor.bottom + 8
-        : Math.max(12, anchor.top - height - 8);
-    const left = Math.min(
-      Math.max(12, anchor.left),
-      Math.max(12, window.innerWidth - width - 12),
-    );
-    popover.style.setProperty("--time-input-top", `${top}px`);
-    popover.style.setProperty("--time-input-left", `${left}px`);
-  }
-
-  useEffect(() => {
-    if (!open) return;
-    const reposition = () => placePopover();
-    window.addEventListener("resize", reposition);
-    window.addEventListener("scroll", reposition, true);
-    return () => {
-      window.removeEventListener("resize", reposition);
-      window.removeEventListener("scroll", reposition, true);
-    };
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const dismissOutside = (event: PointerEvent) => {
-      const target = event.target;
-      if (!(target instanceof Element)) return;
-      if (
-        popoverRef.current?.contains(target) ||
-        triggerRef.current?.contains(target) ||
-        target.closest(".select-menu")
-      ) {
-        return;
-      }
-      popoverRef.current?.hidePopover();
-    };
-    document.addEventListener("pointerdown", dismissOutside);
-    return () => document.removeEventListener("pointerdown", dismissOutside);
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const dismissOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      const target = event.target;
-      if (target instanceof Element && target.closest(".select-menu")) return;
-      event.preventDefault();
-      popoverRef.current?.hidePopover();
-    };
-    document.addEventListener("keydown", dismissOnEscape);
-    return () => document.removeEventListener("keydown", dismissOnEscape);
-  }, [open]);
-
-  useLayoutEffect(() => {
-    if (open) placePopover();
-  }, [open, draft.hour, draft.minute]);
 
   function update(next: string) {
     if (!controlled) setInternalValue(next);
@@ -141,48 +75,44 @@ export function TimeInput({
 
   function commit() {
     update(`${draft.hour}:${draft.minute}`);
-    popoverRef.current?.hidePopover();
+    setOpen(false);
   }
 
   return (
     <span className={`time-input${className ? ` ${className}` : ""}`}>
       {name && <HiddenInput name={name} value={selected || ""} />}
-      <Button
-        ref={triggerRef}
-        id={triggerId}
-        type="button"
-        className="time-input-trigger"
-        popoverTarget={popoverId}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        aria-label={ariaLabel}
-        aria-labelledby={ariaLabelledBy}
-        aria-describedby={ariaDescribedBy}
-        aria-invalid={ariaInvalid}
-        aria-required={required}
-        data-value={selected}
-        disabled={disabled}
-        onClick={() => setDraft(parts(selected))}
-      >
-        <Clock size={17} aria-hidden="true" />
-        <span>
-          {validTime(selected) ? selected : t("Pilih waktu", "Choose a time")}
-        </span>
-      </Button>
-      <div
+      <AnchoredPopover
+        open={open}
+        onOpenChange={setOpen}
+        trigger={
+          <Button
+            ref={triggerRef}
+            id={triggerId}
+            type="button"
+            className="time-input-trigger"
+            aria-haspopup="dialog"
+            aria-expanded={open}
+            aria-label={ariaLabel}
+            aria-labelledby={ariaLabelledBy}
+            aria-describedby={ariaDescribedBy}
+            aria-invalid={ariaInvalid}
+            aria-required={required}
+            data-value={selected}
+            disabled={disabled}
+            onClick={() => setDraft(parts(selected))}
+          >
+            <Clock size={17} aria-hidden="true" />
+            <span>
+              {validTime(selected)
+                ? selected
+                : t("Pilih waktu", "Choose a time")}
+            </span>
+          </Button>
+        }
         id={popoverId}
-        ref={popoverRef}
-        popover="manual"
-        role="dialog"
         aria-label={t("Pilih waktu", "Choose a time")}
         className="time-input-popover"
         data-open={open || undefined}
-        onToggle={(event) => {
-          const isOpen = event.newState === "open";
-          setOpen(isOpen);
-          if (isOpen) requestAnimationFrame(placePopover);
-          else triggerRef.current?.focus({ preventScroll: true });
-        }}
       >
         <div className="time-input-fields">
           <Select
@@ -221,7 +151,7 @@ export function TimeInput({
             {t("Simpan", "Save")}
           </Button>
         </div>
-      </div>
+      </AnchoredPopover>
     </span>
   );
 }

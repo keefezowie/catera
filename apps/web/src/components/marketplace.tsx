@@ -269,6 +269,8 @@ export function Catalog({ caterer }: { caterer?: string }) {
           </div>
           <Button
             className={"button secondary small " + (filters ? "active" : "")}
+            aria-expanded={filters}
+            aria-controls="marketplace-filters"
             onClick={() => setFilters(!filters)}
           >
             <SlidersHorizontal size={17} /> {t("Filter", "Filter")}
@@ -309,7 +311,7 @@ export function Catalog({ caterer }: { caterer?: string }) {
           </Button>
         </div>
         {filters && (
-          <div className="filter-panel">
+          <div id="marketplace-filters" className="filter-panel" role="region" aria-label={t("Filter paket", "Filters")}>
             <label>
               <Checkbox
                 checked={flex}

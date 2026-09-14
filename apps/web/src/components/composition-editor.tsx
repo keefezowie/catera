@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useId, useRef, useEffect } from "react";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import {
   defaultDishCategories,
@@ -29,62 +29,75 @@ export function CategoryCreate({
   onCreated?: (category: DishCategory) => void;
 }) {
   const { actor, perform, t } = useApp();
+  const id = useId();
+  const input = useRef<HTMLInputElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
   const [name, setName] = useState(""),
     [open, setOpen] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
+  useEffect(() => {
+    if (open) input.current?.focus();
+  }, [open]);
   return (
     <div className="category-create">
       <Button
         type="button"
         className="text-button"
+        ref={trigger}
+        disabled={busy}
+        aria-controls={id}
         aria-expanded={open}
         onClick={() => setOpen(!open)}
       >
-        {open ? <Minus size={16} aria-hidden="true" /> : <Plus size={16} aria-hidden="true" />}
+        {open ? (
+          <Minus size={16} aria-hidden="true" />
+        ) : (
+          <Plus size={16} aria-hidden="true" />
+        )}
         {t("Kategori baru", "New category")}
       </Button>
-      {open && (
-        <div>
-          <Field label={t("Nama kategori", "Category name")}>
-            <TextInput
-              value={name}
-              maxLength={60}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </Field>
-          <Button
-            variant="primary"
-            type="button"
-            disabled={busy || !name.trim()}
-            onClick={async () => {
-              setBusy(true);
-              setError("");
-              try {
-                const c = await perform<DishCategory>("category.save", {
-                  catererId: actor!.catererId,
-                  name: name.trim(),
-                });
-                onCreated?.(c);
-                setName("");
-                setOpen(false);
-              } catch {
-                setError(
-                  t(
-                    "Kategori belum tersimpan. Periksa nama atau muat ulang.",
-                    "Category not saved. Check its name or reload.",
-                  ),
-                );
-              } finally {
-                setBusy(false);
-              }
-            }}
-          >
-            {t("Simpan kategori", "Save category")}
-          </Button>
-          {error && <ErrorNotice message={error} />}
-        </div>
-      )}
+      <div id={id} hidden={!open}>
+        <Field label={t("Nama kategori", "Category name")}>
+          <TextInput
+            ref={input}
+            value={name}
+            maxLength={60}
+            onChange={(e) => setName(e.target.value)}
+          />
+        </Field>
+        <Button
+          variant="primary"
+          type="button"
+          disabled={busy || !name.trim()}
+          onClick={async () => {
+            setBusy(true);
+            setError("");
+            try {
+              const c = await perform<DishCategory>("category.save", {
+                catererId: actor!.catererId,
+                name: name.trim(),
+              });
+              onCreated?.(c);
+              setName("");
+              setOpen(false);
+              trigger.current?.focus();
+            } catch {
+              setError(
+                t(
+                  "Kategori belum tersimpan. Periksa nama atau muat ulang.",
+                  "Category not saved. Check its name or reload.",
+                ),
+              );
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          {t("Simpan kategori", "Save category")}
+        </Button>
+        {error && <ErrorNotice message={error} />}
+      </div>
     </div>
   );
 }

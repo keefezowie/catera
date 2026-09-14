@@ -133,6 +133,7 @@ export function DishGallery({
         );
       })}
       <Dialog
+        size="media"
         open={!!selected}
         onOpenChange={(open) => {
           if (!open) setSelected(null);

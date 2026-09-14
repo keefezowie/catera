@@ -238,6 +238,8 @@ function Packages({ state: s }: { state: SellerState }) {
       </div>
       <Dialog
         className="package-dialog"
+        size="editor"
+        busy={editorBusy}
         description={t(
           "Siapkan paket selangkah demi selangkah. Draf dapat dilanjutkan nanti.",
           "Set up your package step by step. Save a draft to continue later.",
@@ -269,6 +271,7 @@ function Packages({ state: s }: { state: SellerState }) {
         />
       </Dialog>
       <Dialog
+        size="confirmation"
         open={discard}
         onOpenChange={setDiscard}
         title={t("Tutup tanpa menyimpan?", "Close without saving?")}
@@ -278,7 +281,7 @@ function Packages({ state: s }: { state: SellerState }) {
         )}
       >
         <div className="dialog-actions">
-          <Button variant="primary" onClick={() => setDiscard(false)}>
+          <Button data-dialog-safe variant="primary" onClick={() => setDiscard(false)}>
             {t("Lanjut mengedit", "Keep editing")}
           </Button>
           <Button
@@ -1398,6 +1401,8 @@ function Customers({ state: s }: { state: SellerState }) {
         )}
       </section>
       <Dialog
+        size="editor"
+        busy={importBusy}
         open={showImport}
         onOpenChange={(open) => {
           if (!importBusy) setShowImport(open);

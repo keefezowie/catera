@@ -1,0 +1,205 @@
+/* Shared surface hierarchy. Component CSS may style contents, not layer order. */
+body .dialog {
+  --dialog-width: 620px;
+  width: min(var(--dialog-width), calc(100vw - 32px));
+  max-width: var(--dialog-width);
+  max-height: calc(100dvh - 32px);
+  overscroll-behavior: contain;
+  scroll-padding-block: 24px;
+  overflow-wrap: anywhere;
+}
+body .dialog-confirmation {
+  --dialog-width: 440px;
+  padding: 28px;
+}
+body .dialog-editor,
+body .dialog-media {
+  --dialog-width: 860px;
+}
+body .calendar-picker-dialog {
+  --dialog-width: 440px;
+}
+body .dialog-editor:not(.package-dialog) {
+  display: flex;
+  flex-direction: column;
+}
+.dialog-editor > :is(h2, p, .close) {
+  flex-shrink: 0;
+}
+.dialog-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px;
+  scroll-padding-block: 16px;
+}
+.menu-library-dialog .menu-library > .section-heading > h2 {
+  display: none;
+}
+.menu-library-dialog .menu-library > .section-heading {
+  justify-content: flex-end;
+}
+.dialog-media > img {
+  display: block;
+  width: 100%;
+  max-height: 65dvh;
+  object-fit: contain;
+}
+.calendar-picker-dialog :is(button, input):focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+.calendar-picker-dialog .icon-button {
+  min-width: 44px;
+  min-height: 44px;
+}
+body .dialog-confirmation > button:not(.close) {
+  margin: 12px 12px 0 0;
+}
+body .profile-menu-panel {
+  max-height: calc(100dvh - 110px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+body .dialog-overlay {
+  background: rgb(14 35 26 / 55%);
+}
+body .dialog {
+  box-shadow:
+    0 24px 80px rgb(5 22 15 / 28%),
+    0 0 0 1px rgb(22 61 46 / 8%);
+}
+body .dialog[inert] {
+  pointer-events: none;
+}
+body .dialog > h2 {
+  margin-top: 0;
+  padding-right: 36px;
+  line-height: 1.3;
+}
+body .dialog > p {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+body .dialog-confirmation > h2 {
+  font-size: 22px;
+}
+.dialog-actions,
+.menu-leave-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 24px;
+}
+.dialog-actions > button,
+.menu-leave-actions > button {
+  min-height: 44px;
+}
+.dialog .close {
+  min-width: 44px;
+  min-height: 44px;
+}
+.dialog :is(input, textarea, select) {
+  scroll-margin-block: 24px;
+}
+.dialog :is(.form, .field, .optional-fields) {
+  min-width: 0;
+}
+
+/* Floating UI supplies coordinates and available space through Radix Popper. */
+body :is(.date-picker-popover, .time-input-popover) {
+  position: relative;
+  inset: auto;
+  max-height: min(
+    calc(100dvh - 24px),
+    var(--radix-popover-content-available-height)
+  );
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.select-menu {
+  overscroll-behavior: contain;
+}
+body .select-menu {
+  min-width: min(var(--radix-select-trigger-width), calc(100vw - 24px));
+}
+.optional-section:focus-within,
+.category-create:focus-within {
+  border-color: var(--forest);
+}
+:is(.optional-section, .record-details, .library-category, .spaced)
+  > summary:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+:is(.record-details, .library-category) > summary {
+  min-height: 44px;
+  align-content: center;
+  cursor: pointer;
+}
+details > summary:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+}
+.record-table details > .form {
+  margin-top: 12px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.category-create > div {
+  margin-top: 12px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.category-create > div[hidden] {
+  display: none;
+}
+
+@media (max-width: 559px) {
+  body .dialog {
+    padding: 24px 20px;
+  }
+  body .dialog-editor {
+    width: 100vw;
+    max-width: 100vw;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+    padding: max(18px, env(safe-area-inset-top))
+      max(16px, env(safe-area-inset-right))
+      max(18px, env(safe-area-inset-bottom))
+      max(16px, env(safe-area-inset-left));
+  }
+  body .package-dialog {
+    padding-bottom: 0;
+  }
+  .package-dialog .editor-footer {
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
+  .dialog-actions,
+  .menu-leave-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .dialog-confirmation .dialog-actions > button {
+    width: 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dialog,
+  .dialog-overlay {
+    animation: none;
+  }
+}
+@media (max-width: 380px) {
+  body .calendar-picker-dialog {
+    width: calc(100vw - 8px);
+    padding: 20px 12px;
+  }
+}

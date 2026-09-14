@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { FileUpload } from "./file-upload";
 import { useApp } from "./context";
 import { Button } from "./form-controls";
-import { Dialog } from "./ui";
+import { Dialog, ErrorNotice } from "./ui";
 import { Expand, Trash2, Check } from "lucide-react";
 
 /** Keeps storage addresses internal and commits only successful uploads. */
@@ -23,6 +23,7 @@ export function PhotoUpload({
     [error, setError] = useState(""),
     [success, setSuccess] = useState(false);
   const [preview, setPreview] = useState(false);
+  const [previewFailed, setPreviewFailed] = useState(false);
   const alive = useRef(true),
     abort = useRef<AbortController | null>(null);
   const callbacks = useRef({ onChange, onBusyChange });
@@ -43,7 +44,10 @@ export function PhotoUpload({
             type="button"
             className="photo-thumbnail"
             aria-label={t("Lihat foto: ", "Preview photo: ") + label}
-            onClick={() => setPreview(true)}
+            onClick={() => {
+              setPreviewFailed(false);
+              setPreview(true);
+            }}
           >
             <img src={value} alt="" />
             <Expand size={18} aria-hidden="true" />
@@ -148,13 +152,24 @@ export function PhotoUpload({
         </p>
       )}
       <Dialog
+        size="media"
         open={preview && !!value}
         onOpenChange={setPreview}
         title={label}
         description={t("Pratinjau foto lengkap.", "Full photo preview.")}
         className="photo-preview-dialog"
       >
-        <img src={value} alt={label} />
+        {previewFailed ? (
+          <ErrorNotice
+            message={t(
+              "Foto belum dapat ditampilkan.",
+              "This photo could not be displayed.",
+            )}
+            retry={() => setPreviewFailed(false)}
+          />
+        ) : (
+          <img src={value} alt={label} onError={() => setPreviewFailed(true)} />
+        )}
       </Dialog>
     </div>
   );
