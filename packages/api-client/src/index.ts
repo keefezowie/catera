@@ -16,7 +16,13 @@ import type {
   RenewalContext,
   SellerCustomersState,
   PilotState,
-  SettlementState,
+  SettlementResponse,
+  SettlementReport,
+  SettlementPage,
+  SettlementPayout,
+  SettlementCursor,
+  SettlementHistoryKind,
+  SettlementReportingUnavailable,
 } from "@catera/domain";
 export class ApiError extends Error {
   constructor(
@@ -108,7 +114,39 @@ export function createApi(base = "", token?: () => Promise<string | null>) {
         "pilot/" + id + "?" + new URLSearchParams({ from, to }),
       ),
     settlement: (id: string) =>
-      request<SettlementState>("seller-settlement/" + id),
+      request<SettlementResponse>("seller-settlement/" + id),
+    settlementReport: (id: string, days: 7 | 30) =>
+      request<SettlementReport | SettlementReportingUnavailable>(
+        "seller-settlement-report/" + id + "?days=" + days,
+      ),
+    settlementHistory: (
+      id: string,
+      kind: SettlementHistoryKind,
+      cursor?: SettlementCursor,
+    ) =>
+      request<SettlementPage | SettlementReportingUnavailable>(
+        "seller-settlement-history/" +
+          id +
+          "?" +
+          new URLSearchParams({
+            kind,
+            ...(cursor ? { cursor: JSON.stringify(cursor) } : {}),
+          }),
+      ),
+    settlementPayout: (
+      id: string,
+      payoutId: string,
+      cursor?: SettlementCursor,
+    ) =>
+      request<SettlementPayout | SettlementReportingUnavailable>(
+        "seller-settlement-payout/" +
+          id +
+          "?" +
+          new URLSearchParams({
+            payoutId,
+            ...(cursor ? { cursor: JSON.stringify(cursor) } : {}),
+          }),
+      ),
     checkout: (id: string) => request<Checkout>("checkouts/" + id),
     command: <T = Record<string, unknown>>(
       action: string,

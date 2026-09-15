@@ -1,3 +1,7 @@
+import {
+  readSettlementResource,
+  readSettlementReporting,
+} from "@/lib/settlement-read";
 import { assertSameOrigin } from "@/lib/request-origin";
 import { cookies } from "next/headers";
 import { z } from "zod";
@@ -132,6 +136,9 @@ export async function GET(request: Request, context: Context) {
         "seller-customers",
         "pilot",
         "seller-settlement",
+        "seller-settlement-report",
+        "seller-settlement-history",
+        "seller-settlement-payout",
         "settlement-controls",
         "reviews",
         "availability",
@@ -149,7 +156,55 @@ export async function GET(request: Request, context: Context) {
     )
       throw new Error("NOT_FOUND");
     if (path[1]) params.id = path[1];
-    return ok(await rpc(s.id, s.token, "catera_v1_read", { resource, params }));
+    const read = () =>
+      rpc(s.id, s.token, "catera_v1_read", { resource, params });
+    if (
+      [
+        "seller-settlement-report",
+        "seller-settlement-history",
+        "seller-settlement-payout",
+      ].includes(resource)
+    ) {
+      z.string().uuid().parse(params.id);
+      if (resource === "seller-settlement-report")
+        z.enum(["7", "30"]).parse(params.days ?? "30");
+      if (resource === "seller-settlement-history")
+        z.enum(["payouts", "entries", "holds"]).parse(params.kind);
+      if (resource === "seller-settlement-payout")
+        z.string().uuid().parse(params.payoutId);
+      if (params.cursor) {
+        if (params.cursor.length > 300) throw new Error("INVALID_INPUT");
+        let cursor: unknown;
+        try {
+          cursor = JSON.parse(params.cursor);
+        } catch {
+          throw new Error("INVALID_INPUT");
+        }
+        z.object({
+          at: z.string().datetime({ offset: true }),
+          id: z.string().uuid(),
+        })
+          .strict()
+          .parse(cursor);
+      }
+      return ok(
+        await readSettlementReporting(
+          s.actor,
+          params.id,
+          () =>
+            rpc(s.id, s.token, "catera_v1_read", {
+              resource: "seller-settlement",
+              params: { id: params.id },
+            }),
+          read,
+        ),
+      );
+    }
+    return ok(
+      resource === "seller-settlement" || resource === "settlement-controls"
+        ? await readSettlementResource(s.actor, resource, params.id, read)
+        : await read(),
+    );
   } catch (e) {
     return failure(e);
   }

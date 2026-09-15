@@ -151,40 +151,56 @@ function SellerWorkspace({ view }: { view: string }) {
       ) : view === "support" ? (
         <SellerInbox cases={s.cases} />
       ) : view === "transactions" ? (
-        <>
-          {actor.role === "owner" && (
-            <SellerSettlement catererId={s.caterer.id} />
-          )}
-          <section className="panel">
-            <h2>{t("Riwayat pembelian", "Purchase history")}</h2>
-            <TransactionRows rows={s.transactions} />
-          </section>
-          <section className="panel spaced">
-            <h2>{t("Pencairan pembelian lama", "Legacy purchase payouts")}</h2>
-            <p>
-              {t(
-                "Pencairan ditinjau dan disetujui Catera. Dana dalam sengketa ditahan.",
-                "Payouts are reviewed and approved by Catera. Disputed funds are held.",
-              )}
-            </p>
-            {s.payouts
-              .filter((p) => !p.settlement_run_id)
-              .map((p) => (
-                <div className="queue-row" key={p.id}>
-                  <strong>{currency(p.amount, locale)}</strong>
-                  <Status status={p.status} />
-                </div>
-              ))}
-            {!s.payouts.some((p) => !p.settlement_run_id) && (
-              <p className="quiet-empty">
-                {t("Belum ada pencairan.", "No payouts yet.")}
-              </p>
-            )}
-          </section>
-        </>
+        <SellerTransactions state={s} />
       ) : (
         <SellerSettings state={s} />
       )}
+    </>
+  );
+}
+
+function SellerTransactions({ state: s }: { state: SellerState }) {
+  const { t, locale, actor } = useApp();
+  const purchases = (
+    <section className="settlement-purchases">
+      <h2>{t("Riwayat pembelian", "Purchase history")}</h2>
+      <TransactionRows rows={s.transactions} />
+    </section>
+  );
+  const legacy = (
+    <section className="panel spaced">
+      <h2>{t("Pencairan pembelian lama", "Legacy purchase payouts")}</h2>
+      <p>
+        {t(
+          "Pencairan ditinjau dan disetujui Catera. Dana dalam sengketa ditahan.",
+          "Payouts are reviewed and approved by Catera. Disputed funds are held.",
+        )}
+      </p>
+      {s.payouts
+        .filter((p) => !p.settlement_run_id)
+        .map((p) => (
+          <div className="queue-row" key={p.id}>
+            <strong>{currency(p.amount, locale)}</strong>
+            <Status status={p.status} />
+          </div>
+        ))}
+      {!s.payouts.some((p) => !p.settlement_run_id) && (
+        <p className="quiet-empty">
+          {t("Belum ada pencairan.", "No payouts yet.")}
+        </p>
+      )}
+    </section>
+  );
+  return actor?.role === "owner" ? (
+    <SellerSettlement
+      catererId={s.caterer.id}
+      purchases={purchases}
+      legacy={legacy}
+    />
+  ) : (
+    <>
+      <section className="panel">{purchases}</section>
+      {legacy}
     </>
   );
 }
@@ -1454,7 +1470,8 @@ function Customers({ state: s }: { state: SellerState }) {
 }
 function SellerInbox({ cases }: { cases: SupportCase[] }) {
   const { t } = useApp();
-  const [tab, setTab] = useState("messages");
+  const requestedCase = useSearchParams().get("case");
+  const [tab, setTab] = useState(requestedCase ? "help" : "messages");
   const conversations = useResource<Conversation[]>("seller-inbox-count", () =>
     api.conversations(),
   );
@@ -1521,7 +1538,11 @@ function SellerInbox({ cases }: { cases: SupportCase[] }) {
         aria-labelledby="inbox-tab-help"
         hidden={tab !== "help"}
       >
-        <SupportQueue cases={cases} />
+        <SupportQueue
+          key={requestedCase || "all"}
+          cases={cases}
+          initialSelected={requestedCase || ""}
+        />
       </section>
     </>
   );
@@ -1529,12 +1550,14 @@ function SellerInbox({ cases }: { cases: SupportCase[] }) {
 export function SupportQueue({
   cases,
   admin = false,
+  initialSelected = "",
 }: {
   cases: SupportCase[];
   admin?: boolean;
+  initialSelected?: string;
 }) {
   const { perform, t, locale } = useApp();
-  const [selected, setSelected] = useState("");
+  const [selected, setSelected] = useState(initialSelected);
   const c = cases.find((c) => c.id === selected);
   return (
     <section className="panel">

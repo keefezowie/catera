@@ -2,6 +2,7 @@
 import { menuSummary } from "@catera/domain";
 import { Select, SelectOption } from "./select";
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Plus,
   ShieldCheck,
@@ -25,6 +26,7 @@ import {
 import { SupportQueue, TransactionRows } from "./seller";
 import { NumericInput } from "./numeric-input";
 export function Admin({ view }: { view: string }) {
+  const requestedCase = useSearchParams().get("case") || "";
   const { perform, t, locale } = useApp();
   const state = useResource<AdminState>("admin:" + view, () => api.admin());
   const [selected, setSelected] = useState("");
@@ -222,7 +224,12 @@ export function Admin({ view }: { view: string }) {
         </section>
       ) : view === "support" ? (
         <>
-          <SupportQueue cases={a.cases} admin />
+          <SupportQueue
+            key={requestedCase}
+            cases={a.cases}
+            admin
+            initialSelected={requestedCase}
+          />
           <section className="panel spaced">
             <h2>{t("Proses refund", "Refund processing")}</h2>
             <div className="table-wrap">

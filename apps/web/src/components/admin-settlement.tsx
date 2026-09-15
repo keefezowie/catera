@@ -1,4 +1,5 @@
 "use client";
+import type { SettlementControls } from "@catera/domain";
 import { NumericInput } from "./numeric-input";
 import { useState } from "react";
 import { api, useApp, useResource } from "./context";
@@ -17,6 +18,7 @@ function PolicyEditor({ seller }: { seller: string }) {
     ) : (
       <Loading />
     );
+  if ("unavailable" in state.data) return null;
   const policy = state.data.policy;
   return (
     <>
@@ -130,9 +132,7 @@ export function AdminSettlement() {
   const [seller, setSeller] = useState("");
   const state = useResource("settlement-admin", () => api.admin());
   const controls = useResource("settlement-controls", () =>
-    api.request<{ multiCycle: boolean; automaticPayouts: boolean }>(
-      "settlement-controls",
-    ),
+    api.request<SettlementControls>("settlement-controls"),
   );
   if (!state.data)
     return state.error ? (
@@ -168,6 +168,13 @@ export function AdminSettlement() {
         <h2>{t("Kontrol peluncuran", "Rollout controls")}</h2>
         {controls.error ? (
           <ErrorNotice message={controls.error} retry={controls.reload} />
+        ) : controls.data && "unavailable" in controls.data ? (
+          <p>
+            {t(
+              "Fitur pencairan belum diaktifkan pada lingkungan ini.",
+              "Settlement features have not been activated in this environment.",
+            )}
+          </p>
         ) : !controls.data ? (
           <Loading />
         ) : (
