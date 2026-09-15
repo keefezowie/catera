@@ -295,6 +295,33 @@ export async function createDemoDatabase(inMemory = false) {
         "\ncommit;",
     );
   }
+  for (const [capability, suffix] of [
+    ["v1.customer_records", "_paid_seller_pilot.sql"],
+    ["v1.package_duration_revisions", "_multi_cycle.sql"],
+    ["v1.settlement_entries", "_earned_settlement.sql"],
+  ]) {
+    if (
+      !(
+        await db.query<{ installed: boolean }>(
+          "select to_regclass($1) is not null as installed",
+          [capability],
+        )
+      ).rows[0].installed
+    ) {
+      const file = (
+        await readdir(path.join(projectRoot(), "supabase/migrations"))
+      ).find((f) => f.endsWith(suffix));
+      if (!file) throw new Error("MIGRATION_MISSING: " + suffix);
+      await db.exec(
+        "begin;\n" +
+          (await readFile(
+            path.join(projectRoot(), "supabase/migrations", file),
+            "utf8",
+          )) +
+          "\ncommit;",
+      );
+    }
+  }
   return db;
 }
 export async function getDemoDatabase() {

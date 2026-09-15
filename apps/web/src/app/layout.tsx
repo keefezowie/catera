@@ -6,9 +6,12 @@ import { cookies } from "next/headers";
 import "./globals.css";
 import "./usability.css";
 import "./overlays.css";
+import "./pilot.css";
+import "./settlement.css";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const locale = (await cookies()).get("catera_locale")?.value === "en" ? "en" : "id";
+  const locale =
+    (await cookies()).get("catera_locale")?.value === "en" ? "en" : "id";
   return {
     title: { default: "Catera — Good Food on Repeat", template: "%s · Catera" },
     description:
@@ -25,7 +28,8 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const locale = (await cookies()).get("catera_locale")?.value === "en" ? "en" : "id";
+  const locale =
+    (await cookies()).get("catera_locale")?.value === "en" ? "en" : "id";
   return (
     <html
       style={webVariables as React.CSSProperties}

@@ -94,3 +94,8 @@ Compact menu calendar cells are 64px tall below 700px of panel width (previously
 The additive `20260913052558_menu_customer_cutoff.sql` migration makes calendar reads and single/batch menu writes use the same previous-day `v1.cutoff` as customers. Existing matching subscriptions also retain their snapshotted cutoff, and delivered meals remain locked. Local synthetic databases install the same function on startup. Hosted rollout requires this migration and the web deployment; neither was applied in this task.
 
 Validation: root typecheck, 107 unit tests, production build, PostgreSQL concurrency checks with the new migration, and all seven slot-menu browser scenarios passed. Browser checks cover phone/tablet/desktop layouts, accessible names, keyboard interaction, and today's read-only editor. Screenshot: `output/menu-cutoff-phone.png`. Browser verification used a separate `.data/menu-cutoff-verification` synthetic database because the existing local demo encountered an unrelated nutrition backfill error (`cannot call jsonb_each on a non-object`).
+
+
+## Multi-cycle purchases and earned settlement — September 15, 2026
+
+Implemented consecutive delivery-day cycles on existing packages, immutable duration pricing revisions, full upfront checkout/schedule reservation, explicit chained renewal, and delivery-earned weekly seller settlement. New promotions are disabled while historical snapshots remain readable. Existing one-cycle records and legacy settlement are preserved. See [MULTI-CYCLE-PURCHASES.md](MULTI-CYCLE-PURCHASES.md) for exact pricing, ledger, file ownership, tests, migrations and release gates. Local verification does not imply hosted migration, deployment or provider/bank approval.

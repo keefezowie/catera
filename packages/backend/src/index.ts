@@ -12,4 +12,8 @@ export {
   createPayout,
   createSplitRule,
   verifyCallback,
+  assertEarnedCollection,
+  payoutRequest,
+  lookupPayout,
+  payoutEvent,
 } from "./payments";

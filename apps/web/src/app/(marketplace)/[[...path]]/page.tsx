@@ -26,6 +26,8 @@ const routes = [
   "notifications",
   "support",
   "checkout",
+  "renew",
+  "claim",
   "payment",
   "seller",
   "admin",
@@ -58,7 +60,10 @@ export async function generateMetadata({
               admin: "Catera Admin",
               login: "Masuk",
             }) as Record<string, string>
-      )[path[0]] || (english ? "Catering for your everyday" : "Katering untuk hari-hari Anda"),
+      )[path[0]] ||
+      (english
+        ? "Catering for your everyday"
+        : "Katering untuk hari-hari Anda"),
   };
 }
 export default async function Page({
@@ -87,13 +92,14 @@ export default async function Page({
   const jar = await cookies();
   if (
     path.length === 0 &&
-    resolveWorkspace(s.actor, jar.get(workspaceCookieName)?.value) ===
-      "caterer"
+    resolveWorkspace(s.actor, jar.get(workspaceCookieName)?.value) === "caterer"
   )
     redirect("/seller");
   if (
     [
       "checkout",
+      "renew",
+      "claim",
       "payment",
       "home",
       "calendar",

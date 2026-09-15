@@ -1,0 +1,38 @@
+{
+  "at": "2026-09-14T16:57:09.995Z",
+  "branch": "v1",
+  "baseCommit": "0c0eb791f6130edcfe43838ec5947f4ed377e7d2",
+  "changesCommitted": false,
+  "migrationSha256": "46ebc732c2068084d7180a59a7ecf5ee0200def69a40704514900c85d803ec91",
+  "typecheck": "passed: web, shared packages and paused native client",
+  "unitTests": {
+    "passed": 131,
+    "files": 18,
+    "focusedPilot": 15
+  },
+  "build": "passed",
+  "postgres": {
+    "passed": 15,
+    "evidence": "paid-pilot-postgres.json"
+  },
+  "browser": {
+    "passedAcrossRuns": 6,
+    "locales": [
+      "id",
+      "en"
+    ],
+    "importWidths": [
+      390,
+      1440
+    ],
+    "finalFreshServerRerun": "blocked by automatic approval review: blocked by policy"
+  },
+  "hosted": {
+    "changed": false,
+    "definitionMatches": 12,
+    "missingBaselineMigrations": 5,
+    "newPilotMigrationApplied": false,
+    "stagingTarget": "pending user input"
+  },
+  "realPaymentReadiness": "not verified"
+}

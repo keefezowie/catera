@@ -30,6 +30,8 @@ async function xendit(
   return r.json();
 }
 export async function createPaymentSession(c: Checkout) {
+  if (c.quote.settlementModel === "delivery_earned_v1")
+    assertEarnedCollection(c.quote.offer.catererId);
   const origin = process.env.CATERA_PUBLIC_URL;
   if (!origin?.startsWith("https://")) throw new Error("NOT_CONFIGURED");
   if (new Date(c.expires_at).getTime() - Date.now() < 600000)
@@ -84,29 +86,94 @@ export async function createPayout(payout: {
   id: string;
   amount: number;
   caterer_id: string;
+  recipient_request?: Record<string, unknown> | null;
+}) {
+  return xendit(
+    "/v3/payouts",
+    payout.recipient_request ?? payoutRequest(payout),
+    payout.id,
+    { "api-version": "2025-09-01" },
+  );
+}
+export function assertEarnedCollection(catererId: string) {
+  const route = JSON.parse(process.env.CATERA_XENDIT_ROUTING_JSON || "{}")[
+    catererId
+  ];
+  if (
+    process.env.CATERA_CONTROLLED_COLLECTION !== "true" ||
+    route?.accountId ||
+    route?.splitRuleId
+  )
+    throw new Error("SETTLEMENT_NOT_CONFIGURED");
+}
+export function payoutRequest(payout: {
+  id: string;
+  amount: number;
+  caterer_id: string;
 }) {
   const config = JSON.parse(process.env.CATERA_PAYOUT_RECIPIENTS_JSON || "{}")[
     payout.caterer_id
   ];
   if (!config?.recipient || !config?.purposeCode)
     throw new Error("PAYOUT_RECIPIENT_NOT_CONFIGURED");
-  return xendit(
-    "/v3/payouts",
-    {
-      reference_id: payout.id,
-      recipient: config.recipient,
-      payout_details: {
-        source_currency: "IDR",
-        source_amount: payout.amount,
-        destination_currency: "IDR",
-      },
-      source_of_fund: "BUSINESS_REVENUE",
-      purpose_code: config.purposeCode,
-      description: "Catera approved seller settlement",
+  if (
+    !Number.isInteger(payout.amount) ||
+    payout.amount < (config.minimumAmount ?? 1) ||
+    payout.amount > (config.maximumAmount ?? 2147483647)
+  )
+    throw new Error("PAYOUT_CHANNEL_LIMIT");
+  return {
+    reference_id: payout.id,
+    recipient: config.recipient,
+    payout_details: {
+      source_currency: "IDR",
+      source_amount: payout.amount,
+      destination_currency: "IDR",
     },
-    payout.id,
-    { "api-version": "2025-09-01" },
-  );
+    source_of_fund: "BUSINESS_REVENUE",
+    purpose_code: config.purposeCode,
+    description: "Catera approved seller settlement",
+  };
+}
+export async function lookupPayout(providerId: string) {
+  if (!/^po-[a-zA-Z0-9-]+$/.test(providerId)) throw new Error("INVALID_INPUT");
+  const key = process.env.XENDIT_SECRET_KEY;
+  if (!key) throw new Error("NOT_CONFIGURED");
+  const r = await fetch("https://api.xendit.co/v3/payouts/" + providerId, {
+    headers: {
+      Authorization: "Basic " + Buffer.from(key + ":").toString("base64"),
+      "api-version": "2025-09-01",
+    },
+    signal: AbortSignal.timeout(20000),
+  });
+  if (!r.ok) throw new Error("PAYMENT_PROVIDER_" + r.status);
+  return r.json();
+}
+export function payoutEvent(data: Record<string, unknown>, eventKey: string) {
+  const statuses: Record<string, string> = {
+    SUCCEEDED: "succeeded",
+    FAILED: "failed",
+    REJECTED: "rejected",
+    REVERSED: "reversed",
+    PENDING_COMPLIANCE: "pending_compliance",
+    PENDING_COMPLIANCE_REVIEW: "pending_compliance",
+    ACCEPTED: "pending",
+    REQUESTED: "pending",
+    ROUTING: "pending",
+    READY: "pending",
+    LOCKED: "pending",
+  };
+  const status = statuses[String(data.status)];
+  if (!status) throw new Error("INVALID_STATE");
+  return {
+    id: data.reference_id,
+    providerId: data.payout_id,
+    amount: data.source_amount,
+    currency: data.source_currency,
+    status,
+    eventKey,
+    failureCode: data.failure_code ?? null,
+  };
 }
 // Optional xenPlatform routing. The approved settlement topology supplies account IDs;
 // a caller cannot substitute bank or sub-account destinations in a checkout command.

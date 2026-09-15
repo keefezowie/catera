@@ -13,6 +13,10 @@ import type {
   SellerImportOptions,
   PackageDish,
   CustomerMenuMonth,
+  RenewalContext,
+  SellerCustomersState,
+  PilotState,
+  SettlementState,
 } from "@catera/domain";
 export class ApiError extends Error {
   constructor(
@@ -87,6 +91,24 @@ export function createApi(base = "", token?: () => Promise<string | null>) {
     admin: () => request<AdminState>("admin"),
     conversations: () => request<Conversation[]>("conversations"),
     quote: (payload: unknown) => request<Quote>("quote", payload),
+    renewalContext: (id: string, packageId?: string, cycles = 1) =>
+      request<RenewalContext>(
+        "renewal-context/" +
+          id +
+          "?" +
+          new URLSearchParams({
+            cycles: String(cycles),
+            ...(packageId ? { packageId } : {}),
+          }),
+      ),
+    sellerCustomers: (id: string, query = "") =>
+      request<SellerCustomersState>("seller-customers/" + id + query),
+    pilot: (id: string, from: string, to: string) =>
+      request<PilotState>(
+        "pilot/" + id + "?" + new URLSearchParams({ from, to }),
+      ),
+    settlement: (id: string) =>
+      request<SettlementState>("seller-settlement/" + id),
     checkout: (id: string) => request<Checkout>("checkouts/" + id),
     command: <T = Record<string, unknown>>(
       action: string,

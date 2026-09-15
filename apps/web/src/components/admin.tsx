@@ -335,7 +335,7 @@ export function Admin({ view }: { view: string }) {
       ) : view === "payouts" ? (
         <div className="ops-two-col">
           <section className="panel">
-            <h2>{t("Setujui pelepasan dana", "Approve fund release")}</h2>
+            <h2>{t("Pencairan pembelian lama", "Legacy purchase payouts")}</h2>
             <ActionForm
               submit={t(
                 "Setujui pencairan tersedia",
@@ -387,46 +387,47 @@ export function Admin({ view }: { view: string }) {
                   <small>{currency(p.amount, locale)}</small>
                 </span>
                 <Status status={p.status} />
-                {!["succeeded", "failed"].includes(p.status) && (
-                  <details>
-                    <summary>
-                      {t("Rekonsiliasi pencairan", "Payout reconciliation")}
-                    </summary>
-                    <ActionForm
-                      submit={t("Catat penyelesaian", "Record settlement")}
-                      onSubmit={async (f) => {
-                        await perform("reconcile.payout", {
-                          id: p.id,
-                          status: f.get("status"),
-                          reference: f.get("reference"),
-                          reason: f.get("reason"),
-                        });
-                      }}
-                    >
-                      <Field label={t("Hasil provider", "Provider result")}>
-                        <Select name="status">
-                          <SelectOption value="succeeded">
-                            {t("Dana diterima", "Funds received")}
-                          </SelectOption>
-                          <SelectOption value="failed">
-                            {t(
-                              "Gagal, pulihkan alokasi",
-                              "Failed, restore allocation",
-                            )}
-                          </SelectOption>
-                        </Select>
-                      </Field>
-                      <Field
-                        label={t("Referensi provider", "Provider reference")}
+                {!p.settlement_run_id &&
+                  !["succeeded", "failed"].includes(p.status) && (
+                    <details>
+                      <summary>
+                        {t("Rekonsiliasi pencairan", "Payout reconciliation")}
+                      </summary>
+                      <ActionForm
+                        submit={t("Catat penyelesaian", "Record settlement")}
+                        onSubmit={async (f) => {
+                          await perform("reconcile.payout", {
+                            id: p.id,
+                            status: f.get("status"),
+                            reference: f.get("reference"),
+                            reason: f.get("reason"),
+                          });
+                        }}
                       >
-                        <TextInput name="reference" required minLength={3} />
-                      </Field>
-                      <Field label={t("Catatan pemeriksaan", "Review notes")}>
-                        <TextArea name="reason" required minLength={5} />
-                      </Field>
-                    </ActionForm>
-                  </details>
-                )}
+                        <Field label={t("Hasil provider", "Provider result")}>
+                          <Select name="status">
+                            <SelectOption value="succeeded">
+                              {t("Dana diterima", "Funds received")}
+                            </SelectOption>
+                            <SelectOption value="failed">
+                              {t(
+                                "Gagal, pulihkan alokasi",
+                                "Failed, restore allocation",
+                              )}
+                            </SelectOption>
+                          </Select>
+                        </Field>
+                        <Field
+                          label={t("Referensi provider", "Provider reference")}
+                        >
+                          <TextInput name="reference" required minLength={3} />
+                        </Field>
+                        <Field label={t("Catatan pemeriksaan", "Review notes")}>
+                          <TextArea name="reason" required minLength={5} />
+                        </Field>
+                      </ActionForm>
+                    </details>
+                  )}
               </div>
             ))}
             {!a.payouts.length && (
@@ -438,68 +439,19 @@ export function Admin({ view }: { view: string }) {
         </div>
       ) : view === "promotions" ? (
         <section className="panel">
-          <div className="section-heading">
-            <h2>{t("Kode promosi", "Promotion codes")}</h2>
-            <Button className="button small" onClick={() => setOpen(true)}>
-              <Plus size={17} />
-              {t("Buat promosi", "Create promotion")}
-            </Button>
-          </div>
+          <h2>{t("Promosi historis", "Historical promotions")}</h2>
+          <p>
+            {t(
+              "Kode promosi tidak tersedia untuk pembelian baru. Diskon porsi dan durasi ditanggung katerer.",
+              "Promotion codes are disabled for new purchases. Portion and multi-cycle discounts are seller-funded.",
+            )}
+          </p>
           {a.promotions.map((p) => (
             <div className="queue-row" key={p.id}>
               <strong>{p.code}</strong>
               <span>{p.percent}%</span>
-              <Status status={p.active ? "active" : "paused"} />
-              <ActionForm
-                submit={
-                  p.active ? t("Jeda", "Pause") : t("Aktifkan", "Activate")
-                }
-                onSubmit={async () => {
-                  await perform("promotion.save", {
-                    code: p.code,
-                    percent: p.percent,
-                    active: !p.active,
-                  });
-                }}
-              >
-                <span />
-              </ActionForm>
             </div>
           ))}
-          <Dialog
-            open={open}
-            onOpenChange={setOpen}
-            title={t("Promosi baru", "New promotion")}
-          >
-            <ActionForm
-              onSubmit={async (f) => {
-                await perform("promotion.save", {
-                  code: f.get("code"),
-                  percent: Number(f.get("percent")),
-                  active: true,
-                });
-                setOpen(false);
-              }}
-            >
-              <Field label={t("Kode", "Code")}>
-                <TextInput
-                  name="code"
-                  required
-                  pattern="[A-Za-z0-9_-]+"
-                  maxLength={40}
-                />
-              </Field>
-              <Field label={t("Diskon (%)", "Discount (%)")}>
-                <NumericInput name="percent" min={1} max={90} required />
-              </Field>
-              <p>
-                {t(
-                  "Promosi berlaku untuk pembelian berikutnya. Nilai diskon disimpan pada pembelian.",
-                  "Promotions apply to the next purchase. The discount value is saved with the purchase.",
-                )}
-              </p>
-            </ActionForm>
-          </Dialog>
         </section>
       ) : view === "reviews" ? (
         <section className="panel">

@@ -9,7 +9,7 @@ This September 9, 2026 baseline replaces the tenant-specific pilot. The user app
 - Public marketplace: address/area selection, search, food-led packages, seller profiles, menus, reviews and comparison of up to three offers at one quantity.
 - Global customer account: Beranda, Jelajah, Jadwal, Pesan, Akun. One calendar across caterers, immutable purchases, saved addresses, support, delivery changes and explicit renewal.
 - Caterer web: Hari ini updates delivery statuses through separate lunch/dinner tabs and atomic bulk actions. Jadwal provides a date/package order dashboard with production and whole-day manifest revisions. Publishing, menus, portions-based capacity, customers, support, transactions and staff remain separate workspaces.
-- Catera admin web: verification, listing/review moderation, transactions, support/refunds, payout approval, promotions and permanent audit history. Platform admins are distinct from seller owners.
+- Catera admin web: verification, listing/review moderation, transactions, support/refunds, legacy payout approval, delivery-earned weekly settlement, historical promotions and permanent audit history. Platform admins are distinct from seller owners.
 
 ## Product rules
 
@@ -23,6 +23,12 @@ This September 9, 2026 baseline replaces the tenant-specific pilot. The user app
 8. Delivery is included; the service fee is itemized. Fees, attribution, discounts and promotions are purchase snapshots. Invited attribution is verified before first purchase and cannot be downgraded retroactively.
 9. Every reservation, entitlement, role-sensitive operation and audit effect belongs to the same database transaction. Commands and provider events are idempotent.
 
+## Multi-cycle purchasing and settlement
+
+Customers may buy selected durations of one through six consecutive package delivery-day cycles, paid in full upfront. One cycle remains the default; cycles are not calendar months. Portions remain fixed and every delivery is reserved atomically within the new purchase's 366-day booking horizon. Owners version duration options and seller-funded savings on the same package. Portion discounts apply before duration discounts. Temporary promotions are disabled for new purchases; historical promotion pricing remains unchanged. Explicit renewal creates a new term after the current term.
+
+New purchases earn seller settlement one complete delivered day at a time; combined lunch/dinner requires both meals. Eligible unheld earnings are scheduled weekly on Monday at 09:00 Asia/Jakarta, with approved policies and provider configuration. Refunds, recoveries and payout events preserve an append-only audit trail. Older allocations retain legacy settlement. See [MULTI-CYCLE-PURCHASES.md](docs/MULTI-CYCLE-PURCHASES.md) for the pricing, migration, and rollout contract.
+
 ## Brand and content
 
 Forest #163D2E, Sunrise #F47B2A, Cream #FFF7E9, Charcoal #2E2E2E. Self-hosted Plus Jakarta Sans is shared between platforms. The illustrated wordmark is separate from interface type. Discovery leads with food; the bento mascot provides occasional warmth. Customer screens are generous and warm; operations are restrained and denser.
@@ -33,7 +39,7 @@ Brand artwork must be generated as individual reusable files. Neither board crop
 
 ## Package lifecycle
 
-Drafts can be completed before publication. Once published, a package's commercial terms and composition are immutable; caterers create a new package for a different offering. Published packages must be suspended before archival. A suspended package is hidden from discovery and rejects new checkout and imported purchases, while existing purchased deliveries and dated menus continue. Archive is available only after all delivery days are delivered or cancelled and no live pending payment holds remain. A late payment after archival enters the existing support exception path instead of creating new deliveries. Archiving preserves purchase history; physical deletion and reopening are not seller actions.
+Drafts can be completed before publication. Once published, a package's base commercial terms and composition are immutable; duration options and their discounts are a narrow versioned exception affecting only future purchases; caterers create a new package for a different offering. Published packages must be suspended before archival. A suspended package is hidden from discovery and rejects new checkout and imported purchases, while existing purchased deliveries and dated menus continue. Archive is available only after all delivery days are delivered or cancelled and no live pending payment holds remain. A late payment after archival enters the existing support exception path instead of creating new deliveries. Archiving preserves purchase history; physical deletion and reopening are not seller actions.
 
 ## Package contents
 

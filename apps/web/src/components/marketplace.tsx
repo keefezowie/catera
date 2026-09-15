@@ -1,5 +1,6 @@
 "use client";
-import { ChoiceRules, PackageChoiceLibrary } from './package-choice-library';
+import { durationOptions } from "@catera/domain";
+import { ChoiceRules, PackageChoiceLibrary } from "./package-choice-library";
 import "./package-presentation.css";
 import { FeaturedHero } from "./featured-hero";
 import { Select, SelectOption } from "./select";
@@ -311,7 +312,12 @@ export function Catalog({ caterer }: { caterer?: string }) {
           </Button>
         </div>
         {filters && (
-          <div id="marketplace-filters" className="filter-panel" role="region" aria-label={t("Filter paket", "Filters")}>
+          <div
+            id="marketplace-filters"
+            className="filter-panel"
+            role="region"
+            aria-label={t("Filter paket", "Filters")}
+          >
             <label>
               <Checkbox
                 checked={flex}
@@ -320,10 +326,7 @@ export function Catalog({ caterer }: { caterer?: string }) {
               {t("Jadwal fleksibel saja", "Flexible packages only")}
             </label>
             <label>
-              {t(
-                "Harga maksimum / sekali makan",
-                "Maximum price / meal",
-              )}
+              {t("Harga maksimum / sekali makan", "Maximum price / meal")}
               <NumericInput
                 value={max}
                 onDraftChange={setMax}
@@ -533,12 +536,20 @@ export function PackagePage({
           </div>
           <section className="detail-section">
             <h2>{t("Isi paket", "Included dishes")}</h2>
-            {p.menuSelectionMode === 'customer' ? (preview ? <ChoiceRules /> : <PackageChoiceLibrary offer={p} />) : <p>
-              {t(
-                "Menu disediakan katerer. Semua porsi menerima menu yang sama.",
-                "Menus are supplied by the caterer. All portions receive the same menu.",
-              )}
-            </p>}
+            {p.menuSelectionMode === "customer" ? (
+              preview ? (
+                <ChoiceRules />
+              ) : (
+                <PackageChoiceLibrary offer={p} />
+              )
+            ) : (
+              <p>
+                {t(
+                  "Menu disediakan katerer. Semua porsi menerima menu yang sama.",
+                  "Menus are supplied by the caterer. All portions receive the same menu.",
+                )}
+              </p>
+            )}
             <PackageContents
               offer={p}
               presentation="gallery"
@@ -671,6 +682,18 @@ export function PackagePage({
             {t(
               "1 porsi = 1 orang setiap kali makan.",
               "1 portion = 1 person per meal.",
+            )}
+          </p>
+          <p className="small muted">
+            1 {t("periode", "cycle")} = {p.days}{" "}
+            {t("hari pengantaran", "delivery days")}.{" "}
+            {t("Pilihan durasi", "Available durations")}:{" "}
+            {durationOptions(p)
+              .map((o) => o.cycles)
+              .join(", ")}{" "}
+            {t(
+              "periode. Dibayar penuh di awal; pilih durasi saat checkout.",
+              "cycles. Paid upfront; choose duration at checkout.",
             )}
           </p>
           {tier > 0 && (

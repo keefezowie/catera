@@ -54,3 +54,8 @@ September 10 mascot loading implementation: see [MASCOT-MOTION.md](MASCOT-MOTION
 ## Web calendar release evidence — September 10, 2026
 
 Implemented continuous meal coverage on responsive web; Expo deferred. The strip distinguishes empty, lunch-only, dinner-only and combined days while preserving coverage beneath independent today and selection states. Redundant checklist rows, coverage labels and the footer rail were replaced by palette-aligned sun/moon icons with an active-package count in 120px desktop and 116px mobile cards. Local typecheck, 77 unit/database tests, production build, seven PostgreSQL concurrency/RLS checks and all 10 browser journeys passed. Earlier independent review resolved the picker accessibility findings; the current visual review verified the distilled day-state treatment at desktop and 390px. See [MEAL-CALENDAR.md](MEAL-CALENDAR.md). Hosted gate: apply `20260910160000_calendar_metadata.sql` after reusable dishes and before the web rollout. No hosted migration or deployment was performed for this change.
+
+
+## Multi-cycle purchases and earned settlement — September 15, 2026
+
+Implemented consecutive delivery-day cycles on existing packages, immutable duration pricing revisions, full upfront checkout/schedule reservation, explicit chained renewal, and delivery-earned weekly seller settlement. New promotions are disabled while historical snapshots remain readable. Existing one-cycle records and legacy settlement are preserved. See [MULTI-CYCLE-PURCHASES.md](MULTI-CYCLE-PURCHASES.md) for exact pricing, ledger, file ownership, tests, migrations and release gates. Local verification does not imply hosted migration, deployment or provider/bank approval.

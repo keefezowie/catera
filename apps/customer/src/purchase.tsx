@@ -45,7 +45,8 @@ import {
 } from "./ui";
 export function Discover() {
   const { section } = useLocalSearchParams<{ section?: string }>();
-  const { offers, area, setArea, compare, error, refresh, t, locale } = useNative();
+  const { offers, area, setArea, compare, error, refresh, t, locale } =
+    useNative();
   const [search, setSearch] = useState(""),
     [meal, setMeal] = useState("all"),
     [packageType, setPackageType] = useState("all"),
@@ -63,7 +64,12 @@ export function Discover() {
     .filter(
       (o) =>
         (!search ||
-          [o.name, o.caterer, ...o.tags, ...o.menus.map((m) => menuSummary(m, locale))]
+          [
+            o.name,
+            o.caterer,
+            ...o.tags,
+            ...o.menus.map((m) => menuSummary(m, locale)),
+          ]
             .join(" ")
             .toLowerCase()
             .includes(search.toLowerCase())) &&
@@ -409,10 +415,11 @@ export function PackageScreen() {
           [
             t("Jadwal", "Schedule"),
             o.weekdays
-              .map((d) =>
-                (locale === "id"
-                  ? ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"]
-                  : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"])[d],
+              .map(
+                (d) =>
+                  (locale === "id"
+                    ? ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"]
+                    : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"])[d],
               )
               .join(", "),
           ],
@@ -430,7 +437,10 @@ export function PackageScreen() {
           ],
           [
             t("Pembatalan", "Cancellation"),
-            t("Ditinjau melalui bantuan Catera", "Reviewed through Catera support"),
+            t(
+              "Ditinjau melalui bantuan Catera",
+              "Reviewed through Catera support",
+            ),
           ],
         ]}
       />
@@ -491,7 +501,10 @@ export function Comparison() {
             <Txt kind="small">{o.caterer}</Txt>
             <Facts
               rows={[
-                [t("Total paket", "Package total"), currency(price(o, qty).total, locale)],
+                [
+                  t("Total paket", "Package total"),
+                  currency(price(o, qty).total, locale),
+                ],
                 [
                   t("Per porsi / hari", "Per portion / day"),
                   currency(price(o, qty).total / o.days / qty, locale),
@@ -499,7 +512,8 @@ export function Comparison() {
                 [
                   t("Jumlah makanan", "Meal count"),
                   o.days * (o.meal === "both" ? 2 : 1) +
-                    " " + t("kali makan per porsi", "meals per portion"),
+                    " " +
+                    t("kali makan per porsi", "meals per portion"),
                 ],
                 [t("Durasi", "Duration"), o.days + " " + t("hari", "days")],
                 [t("Waktu makan", "Meal time"), mealLabel(o.meal, locale)],
@@ -701,7 +715,6 @@ export function CheckoutScreen() {
   const [qty, setQty] = useState(Number(portions) || 1),
     [date, setDate] = useState(addDays(localDay(), 2)),
     [address, setAddress] = useState(""),
-    [promo, setPromo] = useState(""),
     [quote, setQuote] = useState<Quote | null>(null),
     [accepted, setAccepted] = useState(false),
     [restored, setRestored] = useState(false);
@@ -724,21 +737,17 @@ export function CheckoutScreen() {
           setQty(d.qty);
           setDate(d.date);
           setAddress(d.address);
-          setPromo(d.promo);
         } catch {}
       setRestored(true);
     });
   }, [key]);
   useEffect(() => {
     if (restored) {
-      SecureStore.setItemAsync(
-        key,
-        JSON.stringify({ qty, date, address, promo }),
-      );
+      SecureStore.setItemAsync(key, JSON.stringify({ qty, date, address }));
       setQuote(null);
       setAccepted(false);
     }
-  }, [qty, date, address, promo, restored, key]);
+  }, [qty, date, address, restored, key]);
   useEffect(() => {
     if (restored && !address && customer.data?.addresses[0])
       setAddress(customer.data.addresses[0].id);
@@ -751,7 +760,9 @@ export function CheckoutScreen() {
     );
   if (!actor)
     return (
-      <Screen title={t("Pilihanmu tetap tersimpan.", "Your selection is saved.")}>
+      <Screen
+        title={t("Pilihanmu tetap tersimpan.", "Your selection is saved.")}
+      >
         <Txt>
           {t(
             "Masuk untuk memilih alamat dan mengamankan jadwal makanan.",
@@ -788,7 +799,10 @@ export function CheckoutScreen() {
       <Photo src={o.image} height={170} />
       <Txt kind="heading">{o.name}</Txt>
       <Txt kind="small">
-        {o.caterer} · {trial ? t("Trial 1 hari", "1-day trial") : o.days + " " + t("hari", "days")}
+        {o.caterer} ·{" "}
+        {trial
+          ? t("Trial 1 hari", "1-day trial")
+          : o.days + " " + t("hari", "days")}
       </Txt>
       <PackageContents offer={quote?.offer || o} />
       {!quote ? (
@@ -820,12 +834,7 @@ export function CheckoutScreen() {
             label={t("Tambah alamat", "Add an address")}
             onPress={() => router.push("/addresses")}
           />
-          <Field
-            label={t("Kode promo (opsional)", "Promo code (optional)")}
-            value={promo}
-            onChangeText={setPromo}
-            autoCapitalize="characters"
-          />
+
           <Run
             label={t("Tinjau jadwal & harga", "Review schedule & price")}
             action={async () =>
@@ -836,7 +845,6 @@ export function CheckoutScreen() {
                   portions: qty,
                   startDate: date,
                   trial,
-                  promo,
                 }),
               )
             }
@@ -844,24 +852,45 @@ export function CheckoutScreen() {
         </>
       ) : (
         <Panel>
-          <Txt kind="heading">{t("Jadwal makananmu", "Your meal schedule")}</Txt>
+          <Txt kind="heading">
+            {t("Jadwal makananmu", "Your meal schedule")}
+          </Txt>
           {quote.dates.map((d) => (
             <Txt key={d}>
-              {new Date(d + "T12:00:00").toLocaleDateString(locale === "id" ? "id-ID" : "en-GB", {
-                weekday: "long",
-                day: "numeric",
-                month: "long",
-              })}{" "}
+              {new Date(d + "T12:00:00").toLocaleDateString(
+                locale === "id" ? "id-ID" : "en-GB",
+                {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
+                },
+              )}{" "}
               · {qty} {t("porsi", "portions")}
             </Txt>
           ))}
           <Facts
             rows={[
-              [t("Harga paket", "Package subtotal"), currency(quote.subtotal, locale)],
-              [t("Diskon porsi", "Portion discount"), currency(quote.discount, locale)],
-              [t("Promo", "Promo"), currency(quote.promotion, locale)],
+              [
+                t("Harga paket", "Package subtotal"),
+                currency(quote.subtotal, locale),
+              ],
+              [
+                t("Diskon porsi", "Portion discount"),
+                currency(quote.discount, locale),
+              ],
+              [
+                t("Diskon durasi", "Multi-cycle discount"),
+                currency(quote.durationDiscount ?? 0, locale),
+              ],
+              [
+                t("Promo saat pembelian", "Promotion at purchase"),
+                currency(quote.promotion, locale),
+              ],
               [t("Pengantaran", "Delivery"), t("Termasuk", "Included")],
-              [t("Biaya layanan", "Service fee"), currency(quote.serviceFee, locale)],
+              [
+                t("Biaya layanan", "Service fee"),
+                currency(quote.serviceFee, locale),
+              ],
               [t("Total", "Total"), currency(quote.total, locale)],
             ]}
           />
@@ -871,7 +900,10 @@ export function CheckoutScreen() {
                   "Tanggal dapat dipindah sebelum cutoff sesuai kapasitas.",
                   "Dates can be moved before cutoff, subject to capacity.",
                 )
-              : t("Paket memiliki tanggal tetap.", "This package uses fixed dates.")}{" "}
+              : t(
+                  "Paket memiliki tanggal tetap.",
+                  "This package uses fixed dates.",
+                )}{" "}
             {t(
               "Semua pembatalan dan refund ditinjau melalui bantuan. Tidak ada perpanjangan otomatis.",
               "Cancellation and refund requests are reviewed through support. No automatic renewal.",
@@ -880,7 +912,10 @@ export function CheckoutScreen() {
           <View style={styles.row}>
             <Switch
               value={accepted}
-              accessibilityLabel={t("Setujui jadwal alamat dan aturan", "Agree to the schedule, address, and terms")}
+              accessibilityLabel={t(
+                "Setujui jadwal alamat dan aturan",
+                "Agree to the schedule, address, and terms",
+              )}
               onValueChange={setAccepted}
               trackColor={{ true: C.forest }}
             />
@@ -908,7 +943,6 @@ export function CheckoutScreen() {
                 portions: qty,
                 startDate: date,
                 trial,
-                promo,
               });
               await SecureStore.setItemAsync("catera.pendingPayment", c.id);
               await SecureStore.deleteItemAsync(key);
@@ -942,8 +976,14 @@ export function PaymentScreen() {
       <Screen
         title={
           c?.subscription_id
-            ? t("Makanan baik sudah dijadwalkan.", "Good meals are on the calendar.")
-            : t("Satu langkah menuju makan enak.", "One step away from good meals.")
+            ? t(
+                "Makanan baik sudah dijadwalkan.",
+                "Good meals are on the calendar.",
+              )
+            : t(
+                "Satu langkah menuju makan enak.",
+                "One step away from good meals.",
+              )
         }
         refresh={state.reload}
       >
@@ -958,8 +998,9 @@ export function PaymentScreen() {
                   resizeMode="contain"
                 />
                 <Txt>
-                  {c.quote.offer.name} · {c.quote.portions} {t("porsi", "portions")} ·{" "}
-                  {c.quote.dates.length} {t("hari", "days")}
+                  {c.quote.offer.name} · {c.quote.portions}{" "}
+                  {t("porsi", "portions")} · {c.quote.dates.length}{" "}
+                  {t("hari", "days")}
                 </Txt>
                 <Btn
                   label={t("Lihat jadwal makan", "View meal calendar")}
@@ -980,10 +1021,19 @@ export function PaymentScreen() {
                 <Facts
                   rows={[
                     [t("Paket", "Package"), c.quote.offer.name],
-                    [t("Total", "Total"), currency(c.quote.total, locale)],
+                    [
+                      t("Durasi", "Duration"),
+                      `${c.quote.cycles ?? 1} ${t("periode", "cycles")} · ${c.quote.dates.length} ${t("hari", "days")}`,
+                    ],
+                    [
+                      t("Dibayar penuh di awal", "Paid in full upfront"),
+                      currency(c.quote.total, locale),
+                    ],
                     [
                       t("Batas pembayaran", "Payment deadline"),
-                      new Date(c.expires_at).toLocaleString(locale === "id" ? "id-ID" : "en-GB"),
+                      new Date(c.expires_at).toLocaleString(
+                        locale === "id" ? "id-ID" : "en-GB",
+                      ),
                     ],
                   ]}
                 />
@@ -997,7 +1047,10 @@ export function PaymentScreen() {
                 ) : new Date(c.expires_at) > new Date() ? (
                   demo ? (
                     <Run
-                      label={t("Simulasikan pembayaran berhasil", "Simulate successful payment")}
+                      label={t(
+                        "Simulasikan pembayaran berhasil",
+                        "Simulate successful payment",
+                      )}
                       action={() => command("checkout.demo_pay", { id })}
                     />
                   ) : c.payment_url ? (

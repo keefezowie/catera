@@ -1,6 +1,8 @@
 "use client";
 import Link from "next/link";
-import { CustomerMenu } from './customer-menu';
+import { CustomerMenu } from "./customer-menu";
+import { RenewCustomer, ClaimCustomer } from "./customer-pilot";
+import { AdminSettlement } from "./admin-settlement";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   Bell,
@@ -104,6 +106,9 @@ function App({ path, issue }: { path: string[]; issue: string | null }) {
   const root = path[0] || "";
   const id = path[1];
   if (root === "login") body = <Login />;
+  else if (root === "renew") body = <RenewCustomer id={id} />;
+  else if (root === "claim") body = <ClaimCustomer token={id} />;
+  else if (root === "admin" && id === "settlement") body = <AdminSettlement />;
   else if (root === "packages") body = <PackagePage slug={id} />;
   else if (root === "caterers") body = <CatererPage slug={id} />;
   else if (root === "compare") body = <Compare />;
@@ -118,7 +123,8 @@ function App({ path, issue }: { path: string[]; issue: string | null }) {
     body =
       id === "onboarding" ? <Onboarding /> : <Seller view={id || "today"} />;
   else if (root === "admin") body = <Admin view={id || "sellers"} />;
-  else if (root === 'subscriptions' && path[2] === 'menu' && id) body = <CustomerMenu id={id} />;
+  else if (root === "subscriptions" && path[2] === "menu" && id)
+    body = <CustomerMenu id={id} />;
   else if (["home", "calendar", "subscriptions"].includes(root))
     body = <Customer view={root} id={id} />;
   else if (root === "brand") body = <AssetGallery />;
@@ -247,6 +253,11 @@ function Shell({
           LifeBuoy,
         ],
         ["/admin/payouts", t("Pencairan", "Payouts"), Wallet],
+        [
+          "/admin/settlement",
+          t("Pendapatan & jadwal", "Earnings & schedule"),
+          CalendarDays,
+        ],
         ["/admin/promotions", t("Promosi", "Promotions"), Leaf],
         [
           "/admin/reviews",

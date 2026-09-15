@@ -1,0 +1,140 @@
+{
+  "checkedAt": "2026-09-14",
+  "project": "ygzfdqrljunngfrdygzt",
+  "method": "Normalized SQL definition matching; not migration timestamps",
+  "records": [
+    {
+      "file": "202609080001_core.sql",
+      "version": null,
+      "name": null,
+      "repository_definition_hash": "4dd07efe3a43b88b6086e5cc180ab11a",
+      "hosted_definition_hash": null
+    },
+    {
+      "file": "202609090001_marketplace.sql",
+      "version": "20260910045628",
+      "name": "v1_marketplace",
+      "repository_definition_hash": "242fde09c0a509ed8d7f0e63f1a28f84",
+      "hosted_definition_hash": "242fde09c0a509ed8d7f0e63f1a28f84"
+    },
+    {
+      "file": "202609090002_services.sql",
+      "version": "20260910045631",
+      "name": "v1_services",
+      "repository_definition_hash": "3acc610e4c969d37a1f1dd18c3718b89",
+      "hosted_definition_hash": "3acc610e4c969d37a1f1dd18c3718b89"
+    },
+    {
+      "file": "202609090003_hardening.sql",
+      "version": "20260910045634",
+      "name": "v1_hardening",
+      "repository_definition_hash": "522610b662f3febe7be566717fc5bd7b",
+      "hosted_definition_hash": "522610b662f3febe7be566717fc5bd7b"
+    },
+    {
+      "file": "202609090004_storage.sql",
+      "version": "20260910045636",
+      "name": "v1_storage",
+      "repository_definition_hash": "e89077176480c06bab6ee5de390e1be8",
+      "hosted_definition_hash": "e89077176480c06bab6ee5de390e1be8"
+    },
+    {
+      "file": "202609090005_realtime.sql",
+      "version": "20260910045639",
+      "name": "v1_realtime",
+      "repository_definition_hash": "60f98a109efb6969ff061082a6f879d2",
+      "hosted_definition_hash": "60f98a109efb6969ff061082a6f879d2"
+    },
+    {
+      "file": "20260910120930_package_contents.sql",
+      "version": "20260911052147",
+      "name": "v1_package_contents",
+      "repository_definition_hash": "f5e871d8e2825f0fa0e30cabc771d791",
+      "hosted_definition_hash": "f5e871d8e2825f0fa0e30cabc771d791"
+    },
+    {
+      "file": "20260910130548_reusable_dishes.sql",
+      "version": "20260911052149",
+      "name": "v1_reusable_dishes",
+      "repository_definition_hash": "cf8bfcfc3505abc660593252197159ac",
+      "hosted_definition_hash": "cf8bfcfc3505abc660593252197159ac"
+    },
+    {
+      "file": "20260910160000_calendar_metadata.sql",
+      "version": "20260911052152",
+      "name": "v1_calendar_metadata",
+      "repository_definition_hash": "563dcfc7c3f84d599df7554373d8eef1",
+      "hosted_definition_hash": "563dcfc7c3f84d599df7554373d8eef1"
+    },
+    {
+      "file": "20260911134456_slot_menu_calendar.sql",
+      "version": "20260911154708",
+      "name": "v1_slot_menu_calendar",
+      "repository_definition_hash": "9c6e55bdf69aa078779e08e99fd0700a",
+      "hosted_definition_hash": "9c6e55bdf69aa078779e08e99fd0700a"
+    },
+    {
+      "file": "20260911150000_shared_recurring_capacity.sql",
+      "version": "20260911154713",
+      "name": "v1_shared_recurring_capacity",
+      "repository_definition_hash": "2c17be20ddd1f09b0fddc2a3f880c8a7",
+      "hosted_definition_hash": "2c17be20ddd1f09b0fddc2a3f880c8a7"
+    },
+    {
+      "file": "20260911150142_seller_operations.sql",
+      "version": "20260911154721",
+      "name": "v1_seller_operations",
+      "repository_definition_hash": "9759de173463118fffbd9003496627f9",
+      "hosted_definition_hash": "9759de173463118fffbd9003496627f9"
+    },
+    {
+      "file": "20260911163608_package_lifecycle.sql",
+      "version": null,
+      "name": null,
+      "repository_definition_hash": "849c17bf93bd92680d4c30954905a550",
+      "hosted_definition_hash": null
+    },
+    {
+      "file": "20260911163659_package_nutrition_ranges.sql",
+      "version": null,
+      "name": null,
+      "repository_definition_hash": "fc33d696e226b3387dc150e1937616e6",
+      "hosted_definition_hash": null
+    },
+    {
+      "file": "20260912085515_owner_food_upload_policy.sql",
+      "version": "20260912085854",
+      "name": "owner_food_upload_policy",
+      "repository_definition_hash": "e21ed8adad7a1702fdc2c518faa5c715",
+      "hosted_definition_hash": "e21ed8adad7a1702fdc2c518faa5c715"
+    },
+    {
+      "file": "20260912100853_usability_read_options.sql",
+      "version": null,
+      "name": null,
+      "repository_definition_hash": "82ee7de0946abe42da07ddba817a681b",
+      "hosted_definition_hash": null
+    },
+    {
+      "file": "20260913052558_menu_customer_cutoff.sql",
+      "version": null,
+      "name": null,
+      "repository_definition_hash": "0dc87526152d1adb800da5032c231233",
+      "hosted_definition_hash": null
+    },
+    {
+      "file": "20260914055559_customer_choice_menus.sql",
+      "version": null,
+      "name": null,
+      "repository_definition_hash": "b166a3f78690791968a94ef75789877a",
+      "hosted_definition_hash": null
+    },
+    {
+      "file": "20260914160856_paid_seller_pilot.sql",
+      "version": null,
+      "name": null,
+      "repository_definition_hash": "e69cf94d434035a60f464e55239877cf",
+      "hosted_definition_hash": null
+    }
+  ]
+}

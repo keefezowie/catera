@@ -4,6 +4,9 @@ import {
   verifyCallback,
   createRefund,
   createPayout,
+  assertEarnedCollection,
+  payoutRequest,
+  payoutEvent,
 } from "../packages/backend/src/payments";
 import { assertSameOrigin } from "../apps/web/src/lib/request-origin";
 import type { Checkout } from "@catera/domain";
@@ -38,14 +41,12 @@ it("same-origin writes use the browser host, without accepting a foreign site", 
 it("payment adapter preserves amount, deadline, idempotency and safe return IDs", async () => {
   vi.stubEnv("XENDIT_SECRET_KEY", "fictional-contract-key");
   vi.stubEnv("CATERA_PUBLIC_URL", "https://catera.example");
-  const fetch = vi
-    .fn()
-    .mockResolvedValue(
-      Response.json({
-        payment_session_id: "session-1",
-        payment_link_url: "https://checkout.xendit.test/session-1",
-      }),
-    );
+  const fetch = vi.fn().mockResolvedValue(
+    Response.json({
+      payment_session_id: "session-1",
+      payment_link_url: "https://checkout.xendit.test/session-1",
+    }),
+  );
   vi.stubGlobal("fetch", fetch);
   const c = {
     id: crypto.randomUUID(),
@@ -102,4 +103,68 @@ it("provider callbacks require the configured token and financial requests use p
   await expect(
     createPayout({ id: "payout-1", amount: 10000, caterer_id: "unknown" }),
   ).rejects.toThrow("PAYOUT_RECIPIENT_NOT_CONFIGURED");
+});
+
+it("earned settlement refuses seller split routing and retains the captured payout request on retry", async () => {
+  vi.stubEnv("CATERA_CONTROLLED_COLLECTION", "false");
+  expect(() => assertEarnedCollection("seller")).toThrow(
+    "SETTLEMENT_NOT_CONFIGURED",
+  );
+  vi.stubEnv("CATERA_CONTROLLED_COLLECTION", "true");
+  vi.stubEnv(
+    "CATERA_XENDIT_ROUTING_JSON",
+    JSON.stringify({ seller: { accountId: "synthetic-account" } }),
+  );
+  expect(() => assertEarnedCollection("seller")).toThrow(
+    "SETTLEMENT_NOT_CONFIGURED",
+  );
+  vi.stubEnv("CATERA_XENDIT_ROUTING_JSON", "{}");
+  expect(() => assertEarnedCollection("seller")).not.toThrow();
+  const p = { id: "payout-synthetic", amount: 15000, caterer_id: "seller" };
+  vi.stubEnv(
+    "CATERA_PAYOUT_RECIPIENTS_JSON",
+    JSON.stringify({
+      seller: {
+        recipient: {
+          type: "BANK_ACCOUNT",
+          account_details: { account_number: "synthetic" },
+        },
+        purposeCode: "OTHER",
+        minimumAmount: 10000,
+        maximumAmount: 20000,
+      },
+    }),
+  );
+  const request = payoutRequest(p);
+  expect(() => payoutRequest({ ...p, amount: 25000 })).toThrow(
+    "PAYOUT_CHANNEL_LIMIT",
+  );
+  vi.stubEnv("CATERA_PAYOUT_RECIPIENTS_JSON", "{}");
+  vi.stubEnv("XENDIT_SECRET_KEY", "fictional-key");
+  const fetch = vi
+    .fn()
+    .mockImplementation(async () =>
+      Response.json({ payout_id: "po-synthetic", status: "ACCEPTED" }),
+    );
+  vi.stubGlobal("fetch", fetch);
+  await createPayout({ ...p, recipient_request: request });
+  await createPayout({ ...p, recipient_request: request });
+  expect(fetch.mock.calls[0][0]).toBe("https://api.xendit.co/v3/payouts");
+  expect(fetch.mock.calls[0][1].headers["idempotency-key"]).toBe(p.id);
+  expect(JSON.parse(fetch.mock.calls[1][1].body)).toEqual(request);
+  expect(
+    payoutEvent(
+      {
+        reference_id: p.id,
+        payout_id: "po-synthetic",
+        source_amount: 15000,
+        source_currency: "IDR",
+        status: "REVERSED",
+      },
+      "event",
+    ),
+  ).toMatchObject({ id: p.id, status: "reversed", amount: 15000 });
+  expect(() => payoutEvent({ status: "UNKNOWN" }, "event")).toThrow(
+    "INVALID_STATE",
+  );
 });

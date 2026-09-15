@@ -1,5 +1,5 @@
 {
-  "at": "2026-09-14T06:12:19.325Z",
+  "at": "2026-09-15T10:40:41.011Z",
   "passed": [
     "Synthetic slot conversion is repeatable on PostgreSQL; dated menus validate and package templates remain stable.",
     "Five simultaneous purchases: exactly three committed at capacity three; complete schedules reserved.",
@@ -13,6 +13,9 @@
     "Seller bulk status: reversed concurrent batches accept one version without deadlock, dinner stays independent, retries are idempotent, cross-tenant access fails, and stale batches roll back audit/notifications.",
     "Package suspension serializes with checkout; concurrent archive accepts one version; archive/payment races preserve deliveries or create a payment exception; legacy RPC bypass is denied.",
     "Customer menu PostgreSQL races: exactly one optimistic save; retirement serializes with selection; saved historical options survive; reschedule preserves delivery identity; production captures complete versions; cancellation rejects waiting saves.",
-    "Customer-menu and package-option data remain private to authorized transactional RPCs."
+    "Customer-menu and package-option data remain private to authorized transactional RPCs.",
+    "Multi-cycle: three buyers compete for capacity on the 60th date; exactly one complete purchase commits, repeated activation credits no duplicates, and only one early renewal succeeds.",
+    "Concurrent delivery completion produces exactly one earned seller credit.",
+    "Concurrent weekly workers reserve earnings once; concurrent transfer preparations reuse one captured recipient, success callbacks pay once, and reversal callbacks release once."
   ]
 }

@@ -1,4 +1,8 @@
 "use client";
+import {
+  PurchasePriceBreakdown,
+  PurchaseSchedule,
+} from "./purchase-price-breakdown";
 import { MealCalendar } from "./meal-calendar";
 import { Select, SelectOption } from "./select";
 import { DatePicker } from "./date-picker";
@@ -399,7 +403,11 @@ function SubscriptionDetail({
   return (
     <>
       <SubscriptionCard subscription={s} />
-      {s.snapshot.offer.menuSelectionMode === 'customer' && <Link className="button" href={'/subscriptions/' + s.id + '/menu'}>{t('Pilih menu sendiri', 'Choose your menu')}</Link>}
+      {s.snapshot.offer.menuSelectionMode === "customer" && (
+        <Link className="button" href={"/subscriptions/" + s.id + "/menu"}>
+          {t("Pilih menu sendiri", "Choose your menu")}
+        </Link>
+      )}
       <PackageContents offer={s.snapshot.offer} />
       <Facts
         rows={[
@@ -433,11 +441,18 @@ function SubscriptionDetail({
           ],
         ]}
       />
+      <details className="spaced">
+        <summary>
+          {t(
+            "Harga & jadwal saat pembelian",
+            "Original purchase price & schedule",
+          )}
+        </summary>
+        <PurchasePriceBreakdown quote={s.snapshot} />
+        <PurchaseSchedule quote={s.snapshot} />
+      </details>
       <div className="action-row">
-        <Link
-          className="button"
-          href={"/checkout/" + s.package_id + "?portions=" + s.portions}
-        >
+        <Link className="button" href={"/renew/" + s.id}>
           {t("Beli paket berikutnya", "Buy the next package")}
           <ArrowRight size={17} />
         </Link>
@@ -537,7 +552,19 @@ export function DeliveryPage({ id }: { id: string }) {
       </Link>
       <NextMeal delivery={d} detail />
       <div className="action-row delivery-actions">
-        {d.offer.menuSelectionMode === 'customer' && <Link className="button secondary" href={'/subscriptions/' + d.subscription_id + '/menu?date=' + d.service_date}>{t('Menu pilihan Anda', 'Your menu choices')}</Link>}
+        {d.offer.menuSelectionMode === "customer" && (
+          <Link
+            className="button secondary"
+            href={
+              "/subscriptions/" +
+              d.subscription_id +
+              "/menu?date=" +
+              d.service_date
+            }
+          >
+            {t("Menu pilihan Anda", "Your menu choices")}
+          </Link>
+        )}
         {canAddress && (
           <Button
             className="button secondary"

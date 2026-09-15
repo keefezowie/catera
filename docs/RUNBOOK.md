@@ -148,3 +148,8 @@ Before launch, restore a recent staging backup into a separate project and compa
 | High-volume pagination and load testing | Additional admin/customer-history pagination and hosted load evidence required |
 
 Do not mark open gates passed because a local screen renders or a test double responds successfully. Record evidence and explicit commercial/operational authorization before enabling real transactions.
+
+
+## 11. Multi-cycle and delivery-earned settlement rollout
+
+Follow [MULTI-CYCLE-PURCHASES.md](MULTI-CYCLE-PURCHASES.md) in dependency order. Both new migrations require the paid-seller-pilot and customer-choice baseline. Enable controlled collection and non-synthetic settlement/pricing policies before new real purchases; prevent seller split routing from duplicating weekly transfers. Keep multi-cycle sales and automatic payout dispatch independently gated. Weekly settlement uses Monday 09:00 Asia/Jakarta, catches up through the authenticated jobs endpoint, and carries small balances forward. Verify Xendit V3 callbacks, merchant/recipient identity, pending lookups, refund recovery, chunk limits, and scheduler health in sandbox before enabling dispatch. Rollback must retain earning/ledger readers and pending transfer reconciliation; never apply the old payout worker to new-model allocations.

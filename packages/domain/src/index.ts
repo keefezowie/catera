@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { durationOptionsSchema } from "./purchase-pricing";
 import {
   menuSchema,
   nutritionSchema,
@@ -12,6 +13,9 @@ import {
 export * from "./contents";
 export * from "./package-presentation";
 export * from "./offer-editor";
+export * from "./pilot";
+export * from "./purchase-pricing";
+export * from "./settlement";
 
 export const mealTypes = ["lunch", "dinner", "both"] as const;
 export type MealType = (typeof mealTypes)[number];
@@ -47,6 +51,7 @@ export type Caterer = {
   offers?: Offer[];
 };
 export type Offer = {
+  durationPricing?: import("./purchase-pricing").DurationPricing;
   id: string;
   slug: string;
   catererId: string;
@@ -82,6 +87,24 @@ export type Offer = {
   version: number;
 };
 export type Quote = {
+  pricingVersion?: number;
+  cycles?: number;
+  daysPerCycle?: number;
+  durationDiscount?: number;
+  durationDiscountPercent?: number;
+  packageNet?: number;
+  sellerNet?: number;
+  sellerFeePercent?: number;
+  bookingThrough?: string;
+  renewedFrom?: string | null;
+  pricingPolicy?: {
+    id: string;
+    model: string;
+    cohort: string;
+    synthetic: boolean;
+    [key: string]: unknown;
+  };
+  settlementModel?: string;
   packageId: string;
   portions: number;
   trial: boolean;
@@ -98,6 +121,8 @@ export type Quote = {
   offer: Offer;
 };
 export type Subscription = {
+  renewed_from?: string | null;
+  customer_record_id?: string | null;
   id: string;
   package_id: string;
   snapshot: Quote;
@@ -125,6 +150,7 @@ export type Delivery = {
   canChange: boolean;
 };
 export type Checkout = {
+  customer_record_id?: string | null;
   id: string;
   state: string;
   quote: Quote;
@@ -133,6 +159,8 @@ export type Checkout = {
   payment_url: string | null;
 };
 export type SupportCase = {
+  customer_record_id?: string | null;
+  customerName?: string | null;
   id: string;
   subject: string;
   description: string;
@@ -140,7 +168,7 @@ export type SupportCase = {
   created_at: string;
   delivery_id: string | null;
   subscription_id: string | null;
-  user_id: string;
+  user_id: string | null;
   caterer_id: string;
   resolution: string | null;
   amount: number | null;
@@ -224,7 +252,13 @@ export type SellerState = {
     created_at: string;
   }[];
   staff: { user_id: string; name: string; role: string }[];
-  payouts: { id: string; amount: number; status: string; created_at: string }[];
+  payouts: {
+    id: string;
+    amount: number;
+    status: string;
+    created_at: string;
+    settlement_run_id?: string | null;
+  }[];
 };
 export type AdminState = {
   caterers: Caterer[];
@@ -246,6 +280,7 @@ export type AdminState = {
   }[];
   promotions: { id: string; code: string; percent: number; active: boolean }[];
   payouts: {
+    settlement_run_id?: string | null;
     id: string;
     caterer_id: string;
     catererName?: string | null;
@@ -272,6 +307,8 @@ export const addressSchema = z.object({
   version: z.number().int().optional(),
 });
 export const checkoutSchema = z.object({
+  cycles: z.number().int().min(1).max(6).default(1),
+  renewedFrom: z.uuid().optional(),
   packageId: z.uuid(),
   addressId: z.uuid(),
   portions: z.number().int().min(1).max(100),
@@ -288,6 +325,12 @@ export const commandSchema = z.object({
 });
 export const offerSchema = z
   .object({
+    durationPricing: z
+      .object({
+        revision: z.number().int().nonnegative(),
+        options: durationOptionsSchema,
+      })
+      .optional(),
     name: z.string().trim().max(100),
     description: z.string().trim().max(1500),
     price: z.number().int().min(1000).max(10000000),
@@ -467,6 +510,10 @@ export const statusLabel = (status: string, locale: Locale = "id") =>
         submitted: "Submitted",
         corrections: "Needs changes",
         approved: "Approved",
+        submitting: "Submitting transfer",
+        processing: "Transfer processing",
+        pending_compliance: "Provider review",
+        reversed: "Transfer reversed",
         suspended: "Suspended",
         published: "Published",
         paused: "Paused",
@@ -494,6 +541,10 @@ export const statusLabel = (status: string, locale: Locale = "id") =>
         submitted: "Diajukan",
         corrections: "Perlu perbaikan",
         approved: "Disetujui",
+        submitting: "Mengirim pencairan",
+        processing: "Pencairan diproses",
+        pending_compliance: "Peninjauan provider",
+        reversed: "Pencairan dikembalikan",
         suspended: "Ditangguhkan",
         published: "Tayang",
         paused: "Dijeda",
@@ -502,6 +553,15 @@ export const statusLabel = (status: string, locale: Locale = "id") =>
         payment_exception: "Pembayaran perlu ditinjau",
       }[status] || status;
 export const errors: Record<string, string> = {
+  DURATION_UNAVAILABLE: "Durasi ini belum tersedia. Pilih durasi lain.",
+  BOOKING_HORIZON:
+    "Seluruh pengantaran harus selesai dalam 366 hari ke depan. Pilih durasi lebih pendek atau tanggal lebih awal.",
+  PROMOTIONS_DISABLED:
+    "Kode promosi tidak digunakan. Diskon paket dihitung otomatis.",
+  AMOUNT_TOO_LARGE: "Nilai pembelian terlalu besar. Kurangi porsi atau durasi.",
+  SETTLEMENT_SCHEDULED:
+    "Pendapatan pengantaran dicairkan melalui jadwal mingguan.",
+  SETTLEMENT_NOT_CONFIGURED: "Konfigurasi pencairan katerer belum siap.",
   INSUFFICIENT_OPTIONS:
     "Sediakan cukup hidangan aktif yang berbeda untuk setiap kategori paket.",
   OPTION_CHANGED:
@@ -542,6 +602,18 @@ export const errors: Record<string, string> = {
     "Tanggal ini memiliki pesanan. Selesaikan pesanan sebelum menutupnya.",
 };
 const errorsEn: Record<string, string> = {
+  DURATION_UNAVAILABLE:
+    "This duration is unavailable. Choose another duration.",
+  BOOKING_HORIZON:
+    "All deliveries must finish within the next 366 days. Choose a shorter term or earlier start.",
+  PROMOTIONS_DISABLED:
+    "Promotion codes are not used. Package discounts apply automatically.",
+  AMOUNT_TOO_LARGE:
+    "This purchase exceeds the amount limit. Reduce portions or duration.",
+  SETTLEMENT_SCHEDULED:
+    "Delivery earnings are paid through the weekly settlement schedule.",
+  SETTLEMENT_NOT_CONFIGURED:
+    "The caterer’s settlement configuration is not ready.",
   INSUFFICIENT_OPTIONS:
     "Provide enough distinct active dishes for each package category.",
   OPTION_CHANGED: "Dish options changed. Reload and choose available dishes.",

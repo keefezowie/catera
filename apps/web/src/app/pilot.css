@@ -1,0 +1,11 @@
+.pilot-workspace { display: grid; gap: 1rem; min-width: 0; }
+.pilot-customer-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 1rem; }
+.pilot-customer-grid > .panel { min-width: 0; }
+.pilot-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; }
+.pilot-tags { display: flex; flex-wrap: wrap; gap: .5rem; margin-block: .75rem; }
+.pilot-tags > span { border: 1px solid currentColor; border-radius: 999px; padding: .25rem .65rem; font-size: .8rem; }
+.pilot-subscription { border-top: 1px solid #ddd8d0; margin-top: 1rem; padding-top: 1rem; overflow-wrap: anywhere; }
+.pilot-delivery { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding-block: .6rem; flex-wrap: wrap; }
+.pilot-template { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .8rem; }
+.pilot-workspace .action-row { flex-wrap: wrap; }
+@media (max-width: 600px) { .pilot-workspace .ops-metrics { grid-template-columns: 1fr 1fr; } }

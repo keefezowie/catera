@@ -1,5 +1,10 @@
 "use client";
-import { PackageChoiceLibrary } from './package-choice-library';
+import { PackageChoiceLibrary } from "./package-choice-library";
+import {
+  PurchasePriceBreakdown,
+  PurchaseSchedule,
+} from "./purchase-price-breakdown";
+import { durationOptions } from "@catera/domain";
 import { Select, SelectOption } from "./select";
 import { DatePicker } from "./date-picker";
 import { OptionalSection } from "./optional-section";
@@ -256,14 +261,19 @@ export function CheckoutPage({ id }: { id: string }) {
   const [portions, setPortions] = useState(
       Math.max(1, Math.min(100, Number(params.get("portions")) || 1)),
     ),
-    [date, setDate] = useState(addDays(localDay(), 2)),
-    [address, setAddress] = useState(""),
-    [promo, setPromo] = useState(""),
+    [date, setDate] = useState(
+      params.get("startDate") || addDays(localDay(), 2),
+    ),
+    [address, setAddress] = useState(params.get("addressId") || ""),
+    [cycles, setCycles] = useState(
+      Math.max(1, Math.min(6, Number(params.get("cycles")) || 1)),
+    ),
     [quote, setQuote] = useState<Quote | null>(null),
     [step, setStep] = useState(1),
     [restored, setRestored] = useState(false);
   const trial = params.get("trial") === "1";
-  const draftKey = `catera.checkout.${id}.${trial}`;
+  const renewedFrom = params.get("renewedFrom") || undefined;
+  const draftKey = `catera.checkout.${id}.${trial}.${renewedFrom || ""}`;
   useEffect(() => {
     try {
       const saved = sessionStorage.getItem(draftKey);
@@ -273,7 +283,12 @@ export function CheckoutPage({ id }: { id: string }) {
           setPortions(Math.max(1, Math.min(100, draft.portions)));
         if (/^\d{4}-\d{2}-\d{2}$/.test(draft.date)) setDate(draft.date);
         if (typeof draft.address === "string") setAddress(draft.address);
-        if (typeof draft.promo === "string") setPromo(draft.promo);
+        if (
+          Number.isInteger(draft.cycles) &&
+          draft.cycles >= 1 &&
+          draft.cycles <= 6
+        )
+          setCycles(trial ? 1 : draft.cycles);
       }
     } catch {
       /* A blocked storage setting must not prevent checkout. */
@@ -285,13 +300,13 @@ export function CheckoutPage({ id }: { id: string }) {
       try {
         sessionStorage.setItem(
           draftKey,
-          JSON.stringify({ portions, date, address, promo }),
+          JSON.stringify({ portions, date, address, cycles }),
         );
       } catch {
         /* Keep checkout usable without storage. */
       }
     }
-  }, [restored, draftKey, portions, date, address, promo]);
+  }, [restored, draftKey, portions, date, address, cycles]);
   const state = useResource<CustomerState>("checkout-customer", () =>
     actor
       ? api.customer()
@@ -310,7 +325,7 @@ export function CheckoutPage({ id }: { id: string }) {
   useEffect(() => {
     setQuote(null);
     setStep(1);
-  }, [portions, date, address, promo]);
+  }, [portions, date, address, cycles]);
   if (actor && state.error)
     return (
       <div className="narrow">
@@ -392,7 +407,8 @@ export function CheckoutPage({ id }: { id: string }) {
                   portions,
                   startDate: date,
                   trial,
-                  promo,
+                  cycles: trial ? 1 : cycles,
+                  renewedFrom,
                   invite: params.get("invite") || "",
                 });
                 setQuote(q);
@@ -466,21 +482,35 @@ export function CheckoutPage({ id }: { id: string }) {
                 <Plus size={16} />
                 {t("Tambah alamat", "Add an address")}
               </Link>
-              <OptionalSection
-                title={t("Punya kode promo?", "Have a promo code?")}
-                initiallyOpen={!!promo}
-              >
-                <Field
-                  label={t("Kode promo (opsional)", "Promo code (optional)")}
-                >
-                  <TextInput
-                    value={promo}
-                    onChange={(e) => setPromo(e.target.value)}
-                    placeholder={t("Kode promo", "Promo code")}
-                    maxLength={40}
-                  />
+              {!trial && (
+                <Field label={t("Durasi paket", "Package duration")}>
+                  <Select
+                    value={String(cycles)}
+                    onValueChange={(value) => setCycles(Number(value))}
+                  >
+                    {durationOptions(p).map((option) => (
+                      <SelectOption
+                        key={option.cycles}
+                        value={String(option.cycles)}
+                      >
+                        {option.cycles} {t("periode", "cycles")} ·{" "}
+                        {option.cycles * p.days}{" "}
+                        {t("hari pengantaran", "delivery days")}
+                        {option.discountPercent
+                          ? ` · −${option.discountPercent}%`
+                          : ""}
+                      </SelectOption>
+                    ))}
+                  </Select>
+                  <p className="small muted">
+                    1 {t("periode", "cycle")} = {p.days}{" "}
+                    {t(
+                      "hari pengantaran. Diskon durasi dihitung setelah diskon porsi.",
+                      "delivery days. Multi-cycle savings apply after the portion discount.",
+                    )}
+                  </p>
                 </Field>
-              </OptionalSection>
+              )}
             </ActionForm>
           ) : (
             quote && (
@@ -494,7 +524,8 @@ export function CheckoutPage({ id }: { id: string }) {
                     portions,
                     startDate: date,
                     trial,
-                    promo,
+                    cycles: trial ? 1 : cycles,
+                    renewedFrom,
                     invite: params.get("invite") || "",
                   });
                   try {
@@ -514,22 +545,8 @@ export function CheckoutPage({ id }: { id: string }) {
                     {t("Ubah", "Edit")}
                   </Button>
                 </div>
-                <div className="schedule-preview">
-                  {quote.dates.map((d, i) => (
-                    <div key={d}>
-                      <span>{String(i + 1).padStart(2, "0")}</span>
-                      <strong>
-                        {new Date(d + "T12:00:00").toLocaleDateString(
-                          locale === "id" ? "id-ID" : "en-GB",
-                          { weekday: "short", day: "numeric", month: "long" },
-                        )}
-                      </strong>
-                      <span>
-                        {portions} {t("porsi", "portions")}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                <PurchasePriceBreakdown quote={quote} />
+                <PurchaseSchedule quote={quote} />
                 <div className="notice">
                   <ShieldCheck size={20} />
                   <p>
@@ -565,58 +582,32 @@ export function CheckoutPage({ id }: { id: string }) {
             <small>{p.caterer}</small>
             <h2>{p.name}</h2>
             <PackageContents offer={quote?.offer || p} />
-            {(quote?.offer || p).menuSelectionMode === 'customer' && <PackageChoiceLibrary offer={quote?.offer || p} />}
+            {(quote?.offer || p).menuSelectionMode === "customer" && (
+              <PackageChoiceLibrary offer={quote?.offer || p} />
+            )}
             <p>
               {trial
                 ? t("Trial 1 hari", "1-day trial")
-                : p.days + " " + t("hari", "days")}{" "}
+                : p.days * cycles + " " + t("hari", "days")}{" "}
               · {mealLabel(p.meal, locale)} · {portions}{" "}
               {t("porsi", "portions")}
             </p>
-            <Facts
-              rows={[
-                [
-                  t("Harga paket", "Package subtotal"),
-                  currency(
-                    quote?.subtotal ||
-                      (trial ? p.trialPrice || p.price : p.price * p.days) *
-                        portions,
-                    locale,
-                  ),
-                ],
-                ...(quote?.discount
-                  ? [
-                      [
-                        t("Diskon porsi", "Portion discount"),
-                        "− " + currency(quote.discount, locale),
-                      ] as [string, string],
-                    ]
-                  : []),
-                ...(quote?.promotion
-                  ? [
-                      [
-                        t("Promo", "Promo"),
-                        "− " + currency(quote.promotion, locale),
-                      ] as [string, string],
-                    ]
-                  : []),
-                [t("Pengantaran", "Delivery"), t("Termasuk", "Included")],
-                [
-                  t("Biaya layanan Catera", "Catera service fee"),
-                  quote
-                    ? currency(quote.serviceFee, locale)
-                    : t("Dihitung saat tinjau", "Calculated on review"),
-                ],
-              ]}
-            />
+            {!quote && (
+              <p>
+                {t(
+                  "Tinjau jadwal untuk melihat harga lengkap.",
+                  "Review the schedule to see the full price.",
+                )}
+              </p>
+            )}
             <div className="total-row">
               <strong>{t("Total", "Total")}</strong>
               <strong>{quote ? currency(quote.total, locale) : "—"}</strong>
             </div>
             <p className="small muted">
               {t(
-                "Tidak ada perpanjangan otomatis. Pembayaran diproses di dalam Catera.",
-                "No automatic renewal. Your purchase is processed through Catera.",
+                "Dibayar penuh di awal. Tidak diperpanjang otomatis.",
+                "Paid in full upfront. No automatic renewal.",
               )}
             </p>
           </div>
@@ -753,7 +744,19 @@ export function PaymentPage({ id }: { id: string }) {
           </p>
         </>
       ) : (
-        <Link className="button" href={"/checkout/" + c.quote.packageId}>
+        <Link
+          className="button"
+          href={
+            c.quote.renewedFrom
+              ? "/renew/" + c.quote.renewedFrom
+              : "/checkout/" +
+                c.quote.packageId +
+                "?cycles=" +
+                (c.quote.cycles ?? 1) +
+                "&portions=" +
+                c.quote.portions
+          }
+        >
           {t("Buat jadwal baru", "Choose a new schedule")}
         </Link>
       )}

@@ -1,5 +1,11 @@
 "use client";
 import {
+  PackageDurationEditor,
+  DurationOptionsFields,
+} from "./package-duration-editor";
+import { SellerSettlement } from "./seller-settlement";
+import { SellerCustomers } from "./seller-customers";
+import {
   ChoiceDishChecklist,
   PackageChoiceLibrary,
 } from "./package-choice-library";
@@ -141,30 +147,35 @@ function SellerWorkspace({ view }: { view: string }) {
             ))}
         </>
       ) : view === "customers" ? (
-        <Customers state={s} />
+        <SellerCustomers catererId={s.caterer.id} />
       ) : view === "support" ? (
         <SellerInbox cases={s.cases} />
       ) : view === "transactions" ? (
         <>
+          {actor.role === "owner" && (
+            <SellerSettlement catererId={s.caterer.id} />
+          )}
           <section className="panel">
             <h2>{t("Riwayat pembelian", "Purchase history")}</h2>
             <TransactionRows rows={s.transactions} />
           </section>
           <section className="panel spaced">
-            <h2>{t("Pencairan", "Payouts")}</h2>
+            <h2>{t("Pencairan pembelian lama", "Legacy purchase payouts")}</h2>
             <p>
               {t(
                 "Pencairan ditinjau dan disetujui Catera. Dana dalam sengketa ditahan.",
                 "Payouts are reviewed and approved by Catera. Disputed funds are held.",
               )}
             </p>
-            {s.payouts.map((p) => (
-              <div className="queue-row" key={p.id}>
-                <strong>{currency(p.amount, locale)}</strong>
-                <Status status={p.status} />
-              </div>
-            ))}
-            {!s.payouts.length && (
+            {s.payouts
+              .filter((p) => !p.settlement_run_id)
+              .map((p) => (
+                <div className="queue-row" key={p.id}>
+                  <strong>{currency(p.amount, locale)}</strong>
+                  <Status status={p.status} />
+                </div>
+              ))}
+            {!s.payouts.some((p) => !p.settlement_run_id) && (
               <p className="quiet-empty">
                 {t("Belum ada pencairan.", "No payouts yet.")}
               </p>
@@ -189,8 +200,8 @@ function Packages({ state: s }: { state: SellerState }) {
       <div className="section-heading">
         <p>
           {t(
-            "Paket yang sudah tayang tidak dapat diubah. Buat paket baru untuk penawaran berbeda.",
-            "Published packages cannot be edited. Create a new package for a different offer.",
+            "Harga dasar dan isi paket yang sudah tayang tetap. Pilihan durasi dan diskonnya dapat diatur untuk pembelian berikutnya.",
+            "Published base prices and contents stay fixed. You can update duration options and savings for future purchases.",
           )}
         </p>
         {actor?.role === "owner" && (
@@ -233,6 +244,10 @@ function Packages({ state: s }: { state: SellerState }) {
             {actor?.role === "owner" && o.status !== "draft" && (
               <PackageLifecycle offer={o} />
             )}
+            {actor?.role === "owner" &&
+              ["draft", "published"].includes(o.status) && (
+                <PackageDurationEditor offer={o} />
+              )}
           </article>
         ))}
       </div>
@@ -281,7 +296,11 @@ function Packages({ state: s }: { state: SellerState }) {
         )}
       >
         <div className="dialog-actions">
-          <Button data-dialog-safe variant="primary" onClick={() => setDiscard(false)}>
+          <Button
+            data-dialog-safe
+            variant="primary"
+            onClick={() => setDiscard(false)}
+          >
             {t("Lanjut mengedit", "Keep editing")}
           </Button>
           <Button
@@ -367,6 +386,10 @@ const blankOffer = {
     number
   >,
   tiers: [],
+  durationPricing: {
+    revision: 0,
+    options: [{ cycles: 1, discountPercent: 0 }],
+  },
   windows: { lunch: "11.00–13.00", dinner: "17.00–19.00" },
   tags: [],
   image: "",
@@ -841,8 +864,8 @@ function OfferEditor({
                 fieldKey="days"
                 error={fieldError("days")}
                 label={t(
-                  "Durasi pengantaran (hari)",
-                  "Delivery duration (days)",
+                  "Hari pengantaran per periode",
+                  "Delivery days per cycle",
                 )}
               >
                 <NumericInput
@@ -910,6 +933,13 @@ function OfferEditor({
                   </small>
                 )}
               </output>
+              <DurationOptionsFields
+                days={value.days}
+                options={value.durationPricing.options}
+                onChange={(options) =>
+                  set("durationPricing", { ...value.durationPricing, options })
+                }
+              />
               {value.meal === "both" && (
                 <p className="field-hint">
                   {t(

@@ -1,4 +1,6 @@
+import { verifyEarnedSettlement } from "./postgres-earned-settlement.mjs";
 import pg from "pg";
+import { verifyMultiCycle } from './postgres-multi-cycle.mjs';
 import { verifyCustomerChoice } from './postgres-customer-choice.mjs';
 import { verifySlotMenuConcurrency } from "./postgres-slot-menus.mjs";
 import { verifyPackageLifecycle } from "./postgres-package-lifecycle.mjs";
@@ -271,6 +273,8 @@ try {
   await verifySellerOperations(pool, cmd, evidence);
   await verifyPackageLifecycle(pool, cmd, evidence);
   await verifyCustomerChoice(pool, cmd, evidence);
+  await verifyMultiCycle(pool, cmd, evidence);
+  await verifyEarnedSettlement(pool, cmd, evidence);
   await mkdir("output/verification", { recursive: true });
   const evidencePath = process.env.CATERA_POSTGRES_EVIDENCE || "output/verification/postgres.json";
   await mkdir(path.dirname(evidencePath), { recursive: true });

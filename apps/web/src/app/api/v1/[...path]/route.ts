@@ -5,6 +5,7 @@ import {
   demoEnabled,
   rpc,
   createPaymentSession,
+  assertEarnedCollection,
   DEMO_ACTORS,
 } from "@catera/backend";
 import {
@@ -15,6 +16,8 @@ import {
   menuBatchSaveSchema,
   categorySaveSchema,
   checkoutSchema,
+  durationPricingSchema,
+  normalizeCustomerPhone,
   commandSchema,
   deliveryBatchSchema,
   offerSchema,
@@ -22,6 +25,7 @@ import {
   dishSaveSchema,
   dishArchiveSchema,
   type Checkout,
+  type Quote,
 } from "@catera/domain";
 import { session, supabase, demoToken } from "@/lib/auth";
 import { passwordSignIn } from "@/lib/password-auth";
@@ -45,6 +49,17 @@ async function setWorkspaceCookie(value: ReturnType<typeof defaultWorkspace>) {
 const ok = (data: unknown) =>
   Response.json({ data }, { headers: { "Cache-Control": "no-store" } });
 const codes = [
+  "DURATION_UNAVAILABLE",
+  "BOOKING_HORIZON",
+  "PROMOTIONS_DISABLED",
+  "AMOUNT_TOO_LARGE",
+  "SETTLEMENT_SCHEDULED",
+  "SETTLEMENT_NOT_CONFIGURED",
+  "PHONE_VERIFICATION_REQUIRED",
+  "CLAIM_UNAVAILABLE",
+  "IMPORT_LIMIT",
+  "DUPLICATE_IMPORT",
+  "SETTLEMENT_PROVIDER_RECONCILIATION",
   "CLASSIFY_PACKAGE",
   "COMPOSITION_CHANGED",
   "INVALID_CREDENTIALS",
@@ -113,6 +128,11 @@ export async function GET(request: Request, context: Context) {
     if (
       ![
         "catalog",
+        "renewal-context",
+        "seller-customers",
+        "pilot",
+        "seller-settlement",
+        "settlement-controls",
         "reviews",
         "availability",
         "customer",
@@ -144,6 +164,29 @@ export async function POST(request: Request, context: Context) {
     const a = JSON.parse(raw);
     const { path } = await context.params;
     if (path[0] === "auth") {
+      if (["phone-send", "phone-verify"].includes(path[1])) {
+        const s = await session(request);
+        if (!s.id || demoEnabled())
+          throw new Error("PHONE_VERIFICATION_REQUIRED");
+        const client = await supabase();
+        const current = await client.auth.getUser();
+        if (current.error || current.data.user?.id !== s.id)
+          throw new Error("FORBIDDEN");
+        const phone = normalizeCustomerPhone(z.string().parse(a.phone));
+        const result =
+          path[1] === "phone-send"
+            ? await client.auth.updateUser({ phone })
+            : await client.auth.verifyOtp({
+                phone,
+                token: z
+                  .string()
+                  .regex(/^\d{6}$/)
+                  .parse(a.token),
+                type: "phone_change",
+              });
+        if (result.error) throw new Error("PHONE_VERIFICATION_REQUIRED");
+        return ok({ sent: true });
+      }
       if (path[1] === "demo") {
         const role = z
           .enum(["customer", "owner", "staff", "platform_admin"])
@@ -265,20 +308,67 @@ export async function POST(request: Request, context: Context) {
     }
     if (path[0] === "commands") {
       const command = commandSchema.parse(a);
-      if (command.action === 'packageOption.save') command.payload = packageOptionSchema.parse(command.payload);
-      if (command.action === 'customerMenu.saveBatch') command.payload = customerMenuSaveSchema.parse(command.payload);
-      if (command.action === 'customerMenu.resetBatch') command.payload = customerMenuResetSchema.parse(command.payload);
-      if (command.action === "delivery.statusBatch") command.payload = deliveryBatchSchema.parse(command.payload);
+      if (command.action === "customer.claim") {
+        if (demoEnabled()) throw new Error("PHONE_VERIFICATION_REQUIRED");
+        const client = await supabase();
+        const verified = await client.auth.getUser(s.token || undefined);
+        const user = verified.data.user;
+        if (
+          verified.error ||
+          user?.id !== s.id ||
+          !user.phone ||
+          !user.phone_confirmed_at
+        )
+          throw new Error("PHONE_VERIFICATION_REQUIRED");
+        return ok(
+          await rpc(
+            null,
+            null,
+            "catera_v1_system",
+            {
+              action: "pilot.claim",
+              payload: {
+                userId: s.id,
+                verifiedPhone: normalizeCustomerPhone(user.phone),
+                token: z.string().min(20).max(200).parse(command.payload.token),
+                requestId: command.requestId,
+              },
+            },
+            true,
+          ),
+        );
+      }
+      if (command.action === "package.durationPricing.save")
+        command.payload = durationPricingSchema.parse(command.payload);
+      if (command.action === "packageOption.save")
+        command.payload = packageOptionSchema.parse(command.payload);
+      if (command.action === "customerMenu.saveBatch")
+        command.payload = customerMenuSaveSchema.parse(command.payload);
+      if (command.action === "customerMenu.resetBatch")
+        command.payload = customerMenuResetSchema.parse(command.payload);
+      if (command.action === "delivery.statusBatch")
+        command.payload = deliveryBatchSchema.parse(command.payload);
       if (command.action === "checkout.create")
         command.payload = checkoutSchema.parse(command.payload);
+      if (command.action === "checkout.create" && !demoEnabled()) {
+        const q = await rpc<Quote>(s.id, s.token, "catera_v1_read", {
+          resource: "quote",
+          params: command.payload,
+        });
+        assertEarnedCollection(q.offer.catererId);
+      }
       if (command.action === "address.save")
         command.payload = addressSchema.parse(command.payload);
       if (command.action === "menu.save")
         command.payload = menuSaveSchema.parse(command.payload);
-      if (command.action === "menu.saveBatch") command.payload = menuBatchSaveSchema.parse(command.payload);
-      if (command.action === "category.save") command.payload = categorySaveSchema.parse(command.payload);
-      if (command.action === "dish.save") command.payload = dishSaveSchema.parse(command.payload);
-      if (command.action === "dish.archive") command.payload = dishArchiveSchema.parse(command.payload);
+      if (command.action === "menu.saveBatch")
+        command.payload = menuBatchSaveSchema.parse(command.payload);
+      if (command.action === "category.save")
+        command.payload = categorySaveSchema.parse(command.payload);
+      if (command.action === "dish.save")
+        command.payload = dishSaveSchema.parse(command.payload);
+      if (command.action === "dish.archive")
+        command.payload = dishArchiveSchema.parse(command.payload);
       if (command.action === "package.save")
         command.payload = {
           ...command.payload,

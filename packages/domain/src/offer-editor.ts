@@ -20,6 +20,7 @@ const fieldStep: Record<string, OfferStep> = {
   menus: "contents",
   price: "pricing",
   tiers: "pricing",
+  durationPricing: "pricing",
   weekdays: "schedule",
   capacity: "schedule",
   windows: "schedule",
