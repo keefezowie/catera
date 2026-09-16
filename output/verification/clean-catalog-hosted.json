@@ -1,0 +1,26 @@
+[
+  {
+    "role": "customer",
+    "login": true,
+    "reads": true,
+    "adminBoundary": true
+  },
+  {
+    "role": "owner",
+    "login": true,
+    "reads": true,
+    "adminBoundary": true
+  },
+  {
+    "role": "staff",
+    "login": true,
+    "reads": true,
+    "adminBoundary": true
+  },
+  {
+    "role": "platform_admin",
+    "login": true,
+    "reads": true,
+    "adminBoundary": true
+  }
+]

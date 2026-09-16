@@ -1,0 +1,13 @@
+{
+  "counts": {
+    "packages": 9,
+    "dishes": 27,
+    "menus": 245,
+    "subscriptions": 14,
+    "deliveries": 66,
+    "customer_menus": 5
+  },
+  "repeatReset": true,
+  "rollbackPreservesCatalog": true,
+  "roleReads": true
+}

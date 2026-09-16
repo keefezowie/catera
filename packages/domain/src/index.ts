@@ -134,6 +134,7 @@ export type Subscription = {
   legacy: boolean;
 };
 export * from "./seller-operations";
+export * from "./seller-experience";
 export * from "./customer-choice";
 export type Delivery = {
   id: string;
@@ -578,6 +579,8 @@ export const errors: Record<string, string> = {
   AUTH_RATE_LIMITED:
     "Terlalu banyak percobaan masuk. Tunggu sebentar lalu coba lagi.",
   FORBIDDEN: "Akun ini tidak memiliki akses.",
+  CUSTOMER_NOT_LINKED:
+    "Undang pelanggan untuk menghubungkan akun sebelum mengirim pesan.",
   PACKAGE_IMMUTABLE:
     "Paket yang sudah tayang tidak dapat diubah. Buat paket baru.",
   SUSPEND_FIRST: "Tangguhkan paket sebelum mengarsipkannya.",
@@ -628,6 +631,8 @@ const errorsEn: Record<string, string> = {
   INVALID_CREDENTIALS: "Email or password is incorrect. Please try again.",
   AUTH_RATE_LIMITED: "Too many sign-in attempts. Please wait and try again.",
   FORBIDDEN: "This account does not have access.",
+  CUSTOMER_NOT_LINKED:
+    "Invite this customer to link an account before sending messages.",
   PACKAGE_IMMUTABLE:
     "Published packages cannot be edited. Create a new package.",
   SUSPEND_FIRST: "Suspend the package before archiving it.",

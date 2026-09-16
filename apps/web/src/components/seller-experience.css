@@ -1,0 +1,132 @@
+.ops-metric-button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  gap: 8px;
+  padding: 20px;
+  background: var(--cream, #fff7e9);
+  border: 1px solid #d9e1db;
+  border-radius: 16px;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+.ops-metric-button strong {
+  font-size: 1.7rem;
+}
+.ops-metric-button:focus-visible {
+  outline: 3px solid #f47b2a;
+  outline-offset: 2px;
+}
+.payout-state > p {
+  margin: 0;
+  min-width: 110px;
+}
+.payout-state {
+  margin: 18px 0;
+}
+.ops-group-heading th {
+  background: #edf3ee;
+  text-align: left;
+  padding: 14px !important;
+}
+.ops-group-heading small {
+  display: block;
+  font-weight: 400;
+  margin-top: 4px;
+  white-space: normal;
+}
+.menu-day:disabled {
+  opacity: 0.55;
+  background: #eee !important;
+  color: #606960;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.customer-month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 5px;
+  margin: 18px 0;
+}
+.customer-month-grid > strong {
+  text-align: center;
+  font-size: 0.8rem;
+}
+.customer-month-grid > button {
+  min-height: 58px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #dbe2dc;
+  border-radius: 10px;
+  background: #fff;
+  color: #163d2e;
+}
+.customer-month-grid > button.has-delivery {
+  background: #eaf3ed;
+}
+.customer-month-grid > button.selected {
+  outline: 2px solid #f47b2a;
+}
+.customer-month-grid > button:disabled {
+  opacity: 0.35;
+}
+.calendar-month-heading {
+  justify-content: space-between;
+}
+.customer-delivery-calendar .action-row > * {
+  min-width: 0;
+}
+.seller-settings-sections {
+  display: grid;
+  gap: 20px;
+}
+.seller-settings-sections .panel {
+  min-width: 0;
+}
+.payout-state {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.request-row {
+  border-top: 1px solid #dbe2dc;
+  padding: 16px 0;
+  overflow-wrap: anywhere;
+}
+.workspace-label[href] {
+  color: inherit;
+  text-decoration: none;
+}
+.workspace-label[href]:focus-visible {
+  outline: 3px solid #f47b2a;
+}
+@media (max-width: 560px) {
+  .ops-order-table .ops-group-heading {
+    display: block;
+  }
+  .ops-order-table .ops-group-heading th:last-child {
+    display: block;
+    width: 100%;
+    white-space: normal;
+  }
+  .customer-month-grid {
+    gap: 3px;
+  }
+  .customer-month-grid > button {
+    min-height: 48px;
+    padding: 4px;
+  }
+  .customer-delivery-calendar .action-row {
+    flex-wrap: wrap;
+  }
+  .customer-delivery-calendar .pilot-delivery {
+    flex-wrap: wrap;
+  }
+  .ops-metric-button {
+    padding: 14px;
+  }
+}

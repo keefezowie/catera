@@ -1,0 +1,43 @@
+{
+  "date": "2026-09-16",
+  "baseCommit": "5bdda99c4be1c09cb743ca2cd359a79a1ecfa7da",
+  "scope": "Slack ID0017-ID0027 local web implementation",
+  "environment": "Explicit synthetic local demo; final browser checks against production build on 127.0.0.1:3017 with installed Chrome",
+  "checks": {
+    "typecheck": "passed: web, native, workspace",
+    "unit": { "files": 26, "tests": 184, "status": "passed" },
+    "build": "passed after final mobile CSS correction",
+    "postgres": { "scenarios": 17, "status": "passed", "evidence": "postgres.json" },
+    "browser": {
+      "distinctTargetedScenariosPassedAcrossRuns": 57,
+      "newSellerExperienceScenariosPassed": 9,
+      "finalProductionRun": "8 passed; bank scenario blocked by an interrupted prior synthetic submission, then passed after fixture recovery",
+      "otherFocusedProductionChecks": "7 slot-menu and 2 customer-choice scenarios passed",
+      "viewports": [390, 1440],
+      "locales": ["id", "en"],
+      "fullSuiteGreen": false,
+      "unpassedBroaderScenarios": [
+        "2 retired admin promotion-control scenarios",
+        "2 preloaded purchase-dispute disclosure scenarios",
+        "2 legacy Pilot results heading scenarios"
+      ]
+    },
+    "diffCheck": "passed",
+    "migrationMatchesDemoSQL": "DECE9AA82DB0FFE92236190B273C90EA3E6693A119616DF40A2E4447B77086C4"
+  },
+  "openAcceptanceGates": [
+    "Apply settlement-reporting and seller-experience migrations to approved V1 environment",
+    "Coordinate upload policy and web deployment",
+    "Verify real Supabase staging/food storage uploads through 8 MiB from Vercel",
+    "Reproduce original tester delivery-change failure using designated hosted synthetic records",
+    "Verify reviewed recipient mapping and payout lifecycle through Xendit sandbox"
+  ],
+  "performed": {
+    "hostedMigration": false,
+    "deployment": false,
+    "slackPosting": false,
+    "payoutDispatch": false,
+    "commit": false,
+    "push": false
+  }
+}

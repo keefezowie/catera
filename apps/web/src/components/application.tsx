@@ -36,7 +36,7 @@ import {
   type Locale,
   type Workspace,
 } from "@catera/domain";
-import { Provider, CatalogProvider, useApp } from "./context";
+import { Provider, CatalogProvider, useApp, api, useResource } from "./context";
 import { Button } from "./form-controls";
 import { Brand, ErrorNotice, Dialog } from "./ui";
 import { LocaleSwitch } from "./locale-switch";
@@ -280,9 +280,9 @@ function Shell({
         ...(actor?.role === "owner"
           ? ([
               ["/seller/transactions", t("Transaksi", "Transactions"), Wallet],
-              ["/seller/settings", t("Pengaturan", "Settings"), Settings],
             ] as const)
           : []),
+        ["/seller/settings", t("Pengaturan", "Settings"), Settings],
       ] as const);
   return (
     <div className={operational ? "ops-layout" : "customer-layout"}>
@@ -301,19 +301,7 @@ function Shell({
         <>
           <aside className={"ops-sidebar " + (menu && isAdmin ? "open" : "")}>
             <Brand />
-            <div className="workspace-label">
-              <span className="workspace-icon">
-                {isAdmin ? <ShieldCheck size={21} /> : <ChefHat size={21} />}
-              </span>
-              <div>
-                <strong>
-                  {isAdmin
-                    ? "Catera Admin"
-                    : t("Ruang katerer", "Caterer workspace")}
-                </strong>
-                <small>{actor?.name}</small>
-              </div>
-            </div>
+            <WorkspaceIdentity isAdmin={isAdmin} />
             <nav>
               {links.map(([href, label, Icon], index) => (
                 <Fragment key={href}>
@@ -646,5 +634,40 @@ function AssetGallery() {
         ))}
       </div>
     </div>
+  );
+}
+
+function WorkspaceIdentity({ isAdmin }: { isAdmin: boolean }) {
+  const { actor, t } = useApp();
+  const identity = useResource<{ name: string } | null>(
+    "identity:" + actor?.catererId,
+    () =>
+      !isAdmin && actor?.catererId
+        ? api.request("seller-identity/" + actor.catererId)
+        : Promise.resolve(null),
+  );
+  const content = (
+    <>
+      <span className="workspace-icon">
+        {isAdmin ? <ShieldCheck size={21} /> : <ChefHat size={21} />}
+      </span>
+      <div>
+        <strong>
+          {isAdmin ? "Catera Admin" : t("Ruang katerer", "Caterer workspace")}
+        </strong>
+        <small>
+          {isAdmin
+            ? actor?.name
+            : identity.data?.name || t("Profil katerer", "Caterer profile")}
+        </small>
+      </div>
+    </>
+  );
+  return isAdmin ? (
+    <div className="workspace-label">{content}</div>
+  ) : (
+    <Link className="workspace-label" href="/seller/profile">
+      {content}
+    </Link>
   );
 }

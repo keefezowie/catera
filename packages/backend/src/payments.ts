@@ -106,14 +106,19 @@ export function assertEarnedCollection(catererId: string) {
   )
     throw new Error("SETTLEMENT_NOT_CONFIGURED");
 }
-export function payoutRequest(payout: {
-  id: string;
-  amount: number;
-  caterer_id: string;
-}) {
-  const config = JSON.parse(process.env.CATERA_PAYOUT_RECIPIENTS_JSON || "{}")[
-    payout.caterer_id
-  ];
+export function payoutRequest(
+  payout: {
+    id: string;
+    amount: number;
+    caterer_id: string;
+  },
+  approved?: { recipient: Record<string, unknown>; purposeCode: string } | null,
+) {
+  const config =
+    approved ??
+    JSON.parse(process.env.CATERA_PAYOUT_RECIPIENTS_JSON || "{}")[
+      payout.caterer_id
+    ];
   if (!config?.recipient || !config?.purposeCode)
     throw new Error("PAYOUT_RECIPIENT_NOT_CONFIGURED");
   if (

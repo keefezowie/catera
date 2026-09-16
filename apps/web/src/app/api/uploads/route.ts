@@ -1,5 +1,9 @@
+import {
+  validateFoodImage,
+  uploadError,
+  uploadStorage,
+} from "@/lib/food-upload";
 import { assertSameOrigin } from "@/lib/request-origin";
-import { createClient } from "@supabase/supabase-js";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { session } from "@/lib/auth";
@@ -32,6 +36,7 @@ export async function POST(request: Request) {
     }
 
     const bytes = Buffer.from(await file.arrayBuffer());
+    await validateFoodImage(bytes);
     const type = bytes
       .subarray(0, 8)
       .equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
@@ -53,23 +58,7 @@ export async function POST(request: Request) {
       await writeFile(path.join(folder(), name), bytes);
       url = `/api/uploads?file=${name}`;
     } else {
-      const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-      if (
-        !base ||
-        !key ||
-        !currentSession.token ||
-        base.includes("otmanljypltxkwjcebni")
-      ) {
-        throw new Error("NOT_CONFIGURED");
-      }
-
-      const client = createClient(base, key, {
-        auth: { persistSession: false },
-        global: {
-          headers: { Authorization: `Bearer ${currentSession.token}` },
-        },
-      });
+      const client = uploadStorage();
       const object = `${currentSession.actor.catererId}/${name}`;
       const { error } = await client.storage
         .from("catera-v1-food")
@@ -94,6 +83,11 @@ export async function POST(request: Request) {
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
+    if (
+      error instanceof Error &&
+      ["INVALID_SIZE", "INVALID_TYPE", "UNAUTHORIZED"].includes(error.message)
+    )
+      return uploadError(error);
     if (error instanceof Error && error.message === "FORBIDDEN") {
       return errorResponse("FORBIDDEN", "Request origin is not allowed", 403);
     }

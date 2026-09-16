@@ -1,5 +1,7 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { CustomerDeliveryCalendar } from "./customer-delivery-calendar";
 import {
   UserPlus,
   Upload,
@@ -23,6 +25,7 @@ import {
   type PilotImportRow,
   type PilotImportPreview,
   type Delivery,
+  type DeliveryChangeResult,
   type Address,
 } from "@catera/domain";
 import { api, useApp, useResource } from "./context";
@@ -34,7 +37,10 @@ import { DatePicker } from "./date-picker";
 import { PilotPanel } from "./pilot-panel";
 
 export function SellerCustomers({ catererId }: { catererId: string }) {
-  const { actor, t, locale, perform } = useApp();
+  const { actor, t, locale, perform, notify } = useApp();
+  const query = useSearchParams();
+  const [lastChange, setLastChange] = useState<DeliveryChangeResult>();
+  const changed = lastChange?.delivery;
   const [actionError, setActionError] = useState("");
   const [followup, setFollowup] = useState(false);
   const fail = (e: unknown) =>
@@ -46,7 +52,12 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
         ),
     );
   const [offset, setOffset] = useState(0),
-    [selected, setSelected] = useState("");
+    [selected, setSelected] = useState(query.get("customerRecordId") || "");
+  const linkedCustomer = query.get("customerRecordId") || "";
+  useEffect(() => {
+    setSelected(linkedCustomer);
+    setLastChange(undefined);
+  }, [linkedCustomer]);
   const state = useResource(
     "pilot-customers:" +
       catererId +
@@ -55,13 +66,20 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
       ":" +
       offset +
       ":" +
-      followup,
+      followup +
+      ":" +
+      (query.get("customerId") || ""),
     () =>
       api.sellerCustomers(
         catererId,
         selected
           ? "?customerRecordId=" + selected
-          : "?offset=" + offset + (followup ? "&followup=true" : ""),
+          : "?offset=" +
+              offset +
+              (followup ? "&followup=true" : "") +
+              (query.get("customerId")
+                ? "&customerId=" + query.get("customerId")
+                : ""),
       ),
   );
   const [editing, setEditing] = useState<SellerCustomer | null | undefined>();
@@ -86,7 +104,39 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
     ) : (
       <Loading />
     );
-  const data = state.data,
+  const data = {
+      ...state.data,
+      customers: state.data.customers.map((c) => ({
+        ...c,
+        subscriptions: c.subscriptions.map((s) => {
+          const previous = s.deliveries.find((d) => d.id === changed?.id);
+          if (
+            !lastChange ||
+            !changed ||
+            !previous ||
+            previous.version > changed.version
+          )
+            return s;
+          const deliveries = s.deliveries.map((d) =>
+            d.id === changed.id ? changed : d,
+          );
+          return {
+            ...s,
+            ...lastChange.subscription,
+            deliveries,
+            next_delivery:
+              deliveries
+                .filter(
+                  (d) =>
+                    d.status === "scheduled" &&
+                    d.service_date >= localDay(new Date(), d.offer.timezone),
+                )
+                .map((d) => d.service_date)
+                .sort()[0] || null,
+          };
+        }),
+      })),
+    },
     owner = actor?.role === "owner",
     current = data.customers.find((c) => c.id === selected);
   const runImport = async (rows: PilotImportRow[]) =>
@@ -103,6 +153,19 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
   };
   return (
     <div className="pilot-workspace">
+      {state.error && (
+        <ErrorNotice
+          message={
+            changed
+              ? t(
+                  "Perubahan tersimpan, tetapi jadwal belum berhasil dimuat ulang.",
+                  "Change saved, but the schedule could not be refreshed.",
+                )
+              : state.error
+          }
+          retry={state.reload}
+        />
+      )}
       {actionError && <ErrorNotice message={actionError} />}
       {!selected && (
         <div className="action-row">
@@ -253,6 +316,23 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
                 )}
               </p>
             )}
+            {(selected || query.get("customerId")) && (
+              <CustomerDeliveryCalendar
+                key={c.id}
+                changed={changed}
+                deliveries={c.subscriptions
+                  .flatMap((s) => s.deliveries)
+                  .map((d) =>
+                    changed?.id === d.id && changed.version >= d.version
+                      ? changed
+                      : d,
+                  )}
+                onChange={(d) => {
+                  setChange(d);
+                  setChangeKind(d.canChange ? "date" : "address");
+                }}
+              />
+            )}
             {c.subscriptions.map((s) => (
               <section className="pilot-subscription" key={s.id}>
                 <h3>{s.package_name}</h3>
@@ -363,27 +443,6 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
                     )}
                   </small>
                 )}
-                {selected &&
-                  s.deliveries.map((d) => (
-                    <div className="pilot-delivery" key={d.id}>
-                      <div>
-                        <strong>{d.service_date}</strong>
-                        <p>{d.address.line}</p>
-                      </div>
-                      {d.status === "scheduled" &&
-                        new Date(d.cutoff_at) > new Date() && (
-                          <Button
-                            className="button secondary"
-                            onClick={() => {
-                              setChange(d);
-                              setChangeKind(d.canChange ? "date" : "address");
-                            }}
-                          >
-                            {t("Ubah sesuai permintaan", "Change on request")}
-                          </Button>
-                        )}
-                    </div>
-                  ))}
               </section>
             ))}
           </article>
@@ -761,15 +820,24 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
             key={change.id + changeKind}
             submit={t("Simpan perubahan", "Save change")}
             onSubmit={async (f) => {
-              await perform("customer.deliveryChange", {
-                catererId,
-                id: change.id,
-                version: change.version,
-                reason: f.get("reason"),
-                ...(changeKind === "date"
-                  ? { date: f.get("date") }
-                  : { address: addressFrom(f) }),
-              });
+              const result = await perform<DeliveryChangeResult>(
+                "customer.deliveryChange",
+                {
+                  catererId,
+                  id: change.id,
+                  version: change.version,
+                  reason: f.get("reason"),
+                  ...(changeKind === "date"
+                    ? { date: f.get("date") }
+                    : { address: addressFrom(f) }),
+                },
+              );
+              setLastChange(result);
+              notify(
+                changeKind === "date"
+                  ? `${change.service_date} → ${result.delivery.service_date} ${t("diperbarui", "updated")}`
+                  : `${result.delivery.service_date}: ${t("Alamat diperbarui", "Address updated")} · ${result.delivery.address.line}`,
+              );
               setChange(null);
             }}
           >

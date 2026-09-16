@@ -1,4 +1,5 @@
 "use client";
+import { PayoutSetupCard } from "./seller-account";
 import { useId, useState, type ReactNode, type KeyboardEvent } from "react";
 import {
   CalendarDays,
@@ -92,6 +93,7 @@ function SettlementScreen({
   };
   return (
     <div className="settlement-screen">
+      <PayoutSetupCard catererId={catererId} />
       <BalanceOverview s={s} onHolds={() => setDetail("holds")} />
       {s.reportingVersion ? (
         <SettlementChart key={catererId} catererId={catererId} />

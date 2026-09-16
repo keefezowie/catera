@@ -34,7 +34,7 @@ export function SellerReadiness({
     {
       title: t("Profil & area pengantaran", "Profile & delivery area"),
       done: profile,
-      href: "/seller/settings",
+      href: "/seller/profile",
       Icon: Store,
     },
     {
@@ -46,7 +46,7 @@ export function SellerReadiness({
     {
       title: t("Verifikasi katerer", "Caterer verification"),
       done: approved,
-      href: "/seller/settings#verification",
+      href: "/seller/profile#verification",
       Icon: ShieldCheck,
     },
     {

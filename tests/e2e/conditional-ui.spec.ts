@@ -94,7 +94,7 @@ test("time dropdown closes before its picker and preserves cancellation", async 
   page,
 }) => {
   await login(page);
-  await page.goto("/seller/settings");
+  await page.goto("/seller/profile");
   const trigger = page.getByRole("button", {
     name: "Batas perubahan sehari sebelumnya",
   });
@@ -314,7 +314,7 @@ for (const viewport of [
   }) => {
     await login(page);
     await page.setViewportSize(viewport);
-    await page.goto("/seller/settings");
+    await page.goto("/seller/profile");
     await page
       .getByRole("button", { name: "Batas perubahan sehari sebelumnya" })
       .click();

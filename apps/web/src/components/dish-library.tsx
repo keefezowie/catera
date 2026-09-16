@@ -14,6 +14,7 @@ import { Button, Checkbox, TextInput } from "./form-controls";
 import { ActionForm, Field, ErrorNotice } from "./ui";
 import { Select, SelectOption } from "./select";
 import { PhotoUpload } from "./photo-upload";
+import { CategoryCreate } from "./composition-editor";
 
 export function useDishLibrary() {
   const { actor } = useApp();
@@ -350,17 +351,31 @@ export function LibraryForm({
   done: () => void;
   categories?: DishCategory[];
 }) {
-  const { actor, perform, t } = useApp();
+  const { actor, perform, t, locale } = useApp();
   const [dish, setDish] = useState<Dish>(
     initial || { id: "new", name: "", description: "", image: "", serving: "" },
   );
   const [busy, setBusy] = useState(false);
+  const [createdCategories, setCreatedCategories] = useState<DishCategory[]>(
+    [],
+  );
+  const [categoryBusy, setCategoryBusy] = useState(false);
+  const availableCategories = [
+    ...new Map(
+      [...categories, ...createdCategories].map((c) => [c.id, c]),
+    ).values(),
+  ];
+  const categoryName = (category?: DishCategory) =>
+    locale === "en" ? category?.nameEn || category?.name : category?.name;
   return (
     <ActionForm
-      disabled={busy}
+      disabled={busy || categoryBusy}
       submit={t("Simpan hidangan", "Save dish")}
       onSubmit={async () => {
-        if (categories.length && !dish.categoryId) throw new Error(t("Pilih kategori hidangan.", "Choose a dish category."));
+        if (categories.length && !dish.categoryId)
+          throw new Error(
+            t("Pilih kategori hidangan.", "Choose a dish category."),
+          );
         await perform("dish.save", {
           catererId: actor!.catererId,
           id: initial?.id,
@@ -375,12 +390,36 @@ export function LibraryForm({
           ? t("Edit hidangan", "Edit dish")
           : t("Hidangan baru", "New dish")}
       </h3>
-      {!!categories.length && <Field label={t("Kategori hidangan", "Dish category")}>
-        <Select value={dish.categoryId || ""} onValueChange={categoryId => setDish(d => ({ ...d, categoryId }))}>
-          <SelectOption value="" disabled>{t("Pilih kategori", "Choose category")}</SelectOption>
-          {categories.map(c => <SelectOption key={c.id} value={c.id}>{c.name}</SelectOption>)}
-        </Select>
-      </Field>}
+      {!!availableCategories.length && (
+        <Field label={t("Kategori hidangan", "Dish category")}>
+          <Select
+            value={dish.categoryId || ""}
+            displayValue={categoryName(
+              availableCategories.find((c) => c.id === dish.categoryId),
+            )}
+            onValueChange={(categoryId) => {
+              if (categoryId) setDish((d) => ({ ...d, categoryId }));
+            }}
+          >
+            <SelectOption value="" disabled>
+              {t("Pilih kategori", "Choose category")}
+            </SelectOption>
+            {availableCategories.map((c) => (
+              <SelectOption key={c.id} value={c.id}>
+                {categoryName(c)}
+              </SelectOption>
+            ))}
+          </Select>
+        </Field>
+      )}
+      <CategoryCreate
+        label={t("Tambah kategori", "Add category")}
+        onBusyChange={setCategoryBusy}
+        onCreated={(category) => {
+          setCreatedCategories((cs) => [...cs, category]);
+          setDish((d) => ({ ...d, categoryId: category.id }));
+        }}
+      />
       <DishFields
         dish={dish}
         library={[]}

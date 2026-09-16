@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -27,6 +27,8 @@ import {
   fulfillmentStatus,
   nextDeliveryStatuses,
   scheduleSummary,
+  destinationKey,
+  operationalGroups,
   type SellerOperationsState,
   type SellerDelivery,
 } from "@catera/domain";
@@ -34,7 +36,15 @@ import { api, useApp, useResource } from "./context";
 import { Button, Checkbox } from "./form-controls";
 import { Select, SelectOption } from "./select";
 import { DatePicker } from "./date-picker";
-import { Heading, Loading, ErrorNotice, Empty, Status, Facts } from "./ui";
+import {
+  Heading,
+  Loading,
+  ErrorNotice,
+  Empty,
+  Status,
+  Facts,
+  Dialog,
+} from "./ui";
 import { Production } from "./seller-production";
 import { SellerReadiness } from "./seller-readiness";
 import {
@@ -162,7 +172,26 @@ function OperationsPage({
           ? d.status === "cancelled"
           : d.status !== "cancelled")),
   );
-  const summary = scheduleSummary(rows, meal);
+  const includeCancelled = schedule && status !== "active";
+  const summary = scheduleSummary(rows, meal, includeCancelled);
+  const [metric, setMetric] = useState<"customers" | "destinations" | null>(
+    null,
+  );
+  const metricRows = rows.filter(
+    (d) =>
+      (includeCancelled || d.status !== "cancelled") &&
+      d.meals.some(
+        (m) =>
+          (includeCancelled || m.status !== "cancelled") &&
+          (meal === "all" || m.meal === meal),
+      ),
+  );
+  const metricGroups = new Map<string, SellerDelivery[]>();
+  for (const row of metricRows) {
+    const key =
+      metric === "customers" ? row.customer.id : destinationKey(row.address);
+    metricGroups.set(key, [...(metricGroups.get(key) || []), row]);
+  }
   const active = rows.filter((d) => fulfillmentStatus(d, meal) !== "cancelled");
   const issues = active.filter(
     (d) => fulfillmentStatus(d, meal) === "issue",
@@ -372,7 +401,26 @@ function OperationsPage({
             ]
         ).map(([Icon, label, value, caption]) => {
           const I = Icon as typeof Package;
-          return (
+          const clickable = schedule && (Icon === Users || Icon === MapPin);
+          const contents = (
+            <>
+              <I size={21} />
+              <span>{String(label)}</span>
+              <strong>{String(value)}</strong>
+              <small>{String(caption)}</small>
+            </>
+          );
+          return clickable ? (
+            <button
+              className="ops-metric-button"
+              key={String(label)}
+              onClick={() =>
+                setMetric(Icon === Users ? "customers" : "destinations")
+              }
+            >
+              {contents}
+            </button>
+          ) : (
             <div key={String(label)}>
               <I size={21} />
               <span>{String(label)}</span>
@@ -382,6 +430,56 @@ function OperationsPage({
           );
         })}
       </div>
+      <Dialog
+        open={!!metric}
+        onOpenChange={(open) => {
+          if (!open) setMetric(null);
+        }}
+        title={
+          metric === "customers"
+            ? t("Pelanggan unik", "Unique customers")
+            : t("Tujuan unik", "Unique destinations")
+        }
+      >
+        <p>
+          {date} · {t("Sesuai filter aktif", "Matching active filters")}
+        </p>
+        {[...metricGroups].map(([key, items]) => (
+          <section className="panel" key={key}>
+            <h3>
+              {metric === "customers"
+                ? items[0].customer.name
+                : `${items[0].address.line}, ${items[0].address.area}, ${items[0].address.city}`}
+            </h3>
+            <p>
+              {items.length} {t("pesanan", "orders")} ·{" "}
+              {scheduleSummary(items, meal, includeCancelled).portions}{" "}
+              {t("porsi makan", "meal portions")}
+            </p>
+            {[
+              ...new Map(
+                items.map((d) => [d.customer.id, d.customer]),
+              ).values(),
+            ].map((c) => (
+              <p key={c.id}>
+                <Link
+                  href={`/seller/customers?${c.recordId ? "customerRecordId=" + c.recordId : "customerId=" + c.id}`}
+                >
+                  {c.name}
+                </Link>
+              </p>
+            ))}
+          </section>
+        ))}
+        {!metricGroups.size && (
+          <p>
+            {t(
+              "Tidak ada pesanan sesuai filter.",
+              "No orders match these filters.",
+            )}
+          </p>
+        )}
+      </Dialog>
       {!schedule && cases > 0 && (
         <Link className="text-button ops-support-link" href="/seller/support">
           {t("Lihat bantuan terbuka", "View open support cases")}{" "}
@@ -657,6 +755,8 @@ function OrderTable({
   const { t, locale, perform } = useApp();
   const [selected, setSelected] = useState<string[]>([]);
   const [detail, setDetail] = useState("");
+  const [grouping, setGrouping] = useState("package");
+  const groups = operationalGroups(rows, meal, schedule ? "flat" : grouping);
   const [target, setTarget] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -867,6 +967,23 @@ function OrderTable({
             <span>{t("Pilih semua pesanan", "Select all orders")}</span>
           </label>
         )}
+        {!schedule && (
+          <Select
+            aria-label={t("Kelompokkan pesanan", "Group orders")}
+            value={grouping}
+            onValueChange={setGrouping}
+          >
+            <SelectOption value="package">
+              {t("Paket & menu", "Package & menu")}
+            </SelectOption>
+            <SelectOption value="area">
+              {t("Paket, menu & area", "Package, menu & area")}
+            </SelectOption>
+            <SelectOption value="flat">
+              {t("Daftar biasa", "Flat list")}
+            </SelectOption>
+          </Select>
+        )}
         {loading && !rows.length ? (
           <Loading />
         ) : rows.length ? (
@@ -900,133 +1017,159 @@ function OrderTable({
                 </tr>
               </thead>
               <tbody>
-                {rows.map((x) => (
-                  <tr
-                    key={x.id}
-                    className={
-                      selected.includes(x.id) || detail === x.id
-                        ? "selected"
-                        : ""
-                    }
-                  >
-                    {!schedule && (
-                      <td>
-                        <Checkbox
-                          aria-label={`${t("Pilih", "Select")} ${x.customer.name}, ${x.address.label}, ${x.offer.name}`}
-                          checked={chosen.some((d) => d.id === x.id)}
-                          disabled={
-                            !eligible.some((d) => d.id === x.id) ||
-                            busy ||
-                            loading
-                          }
-                          onChange={(e) =>
-                            setSelected(
-                              e.target.checked
-                                ? [...selected, x.id]
-                                : selected.filter((id) => id !== x.id),
-                            )
-                          }
-                        />
-                      </td>
+                {groups.map((group) => (
+                  <Fragment key={group.key}>
+                    {!schedule && grouping !== "flat" && (
+                      <tr className="ops-group-heading">
+                        <th colSpan={6} scope="rowgroup">
+                          {group.name}
+                          {group.area ? ` · ${group.area}` : ""}
+                          <small>
+                            {group.menu ||
+                              t("Katerer memilih", "Caterer chooses")}{" "}
+                            · {group.rows.length} {t("pesanan", "orders")} ·{" "}
+                            {group.portions} {t("porsi", "portions")}
+                          </small>
+                        </th>
+                      </tr>
                     )}
-                    <td
-                      data-cell="customer"
-                      data-label={t("Pelanggan", "Customer")}
-                    >
-                      <strong>{x.customer.name}</strong>
-                      {!schedule && (
-                        <small>
-                          {x.offer.name}
-                          {x.trial ? " · " + t("Trial", "Trial") : ""}
-                        </small>
-                      )}
-                    </td>
-                    <td data-cell="address" data-label={t("Alamat", "Address")}>
-                      <strong>{x.address.label}</strong>
-                      <small>
-                        {x.address.line}, {x.address.area}
-                      </small>
-                    </td>
-                    {schedule && (
-                      <>
-                        <td
-                          data-cell="package"
-                          data-label={t("Paket", "Package")}
-                        >
-                          {x.offer.name}
-                          {x.trial && <small>{t("Trial", "Trial")}</small>}
-                          {x.status === "cancelled" && (
-                            <Status status="cancelled" />
-                          )}
-                        </td>
-                        <td
-                          data-cell="meal"
-                          data-label={t("Waktu makan", "Meal")}
-                        >
-                          {x.meals
-                            .filter((m) => meal === "all" || m.meal === meal)
-                            .map((m) => (
-                              <small key={m.meal}>
-                                {m.meal === "lunch"
-                                  ? t("Siang", "Lunch")
-                                  : t("Malam", "Dinner")}
-                              </small>
-                            ))}
-                        </td>
-                      </>
-                    )}
-                    <td
-                      data-cell="portions"
-                      data-label={t("Porsi", "Portions")}
-                      className="number"
-                    >
-                      {x.portions}
-                      {schedule && meal === "all" && x.meals.length > 1 && (
-                        <small>{t("per waktu makan", "per meal")}</small>
-                      )}
-                    </td>
-                    {!schedule && (
-                      <td data-cell="status" data-label={t("Status", "Status")}>
-                        <Status status={fulfillmentStatus(x, meal)} />
-                      </td>
-                    )}
-                    <td data-cell="actions">
-                      <Button
-                        className="text-button"
-                        aria-label={`${t("Detail", "Details")} ${x.customer.name}, ${x.address.label}, ${x.offer.name}`}
-                        onClick={(event) =>
-                          openDetail(x.id, event.currentTarget)
+                    {group.rows.map((x) => (
+                      <tr
+                        key={x.id}
+                        className={
+                          selected.includes(x.id) || detail === x.id
+                            ? "selected"
+                            : ""
                         }
                       >
-                        {t("Detail", "Details")} <ArrowUpRight size={15} />
-                      </Button>
-                      {!schedule &&
-                        date <= today &&
-                        nextDeliveryStatuses(fulfillmentStatus(x, meal))
-                          .slice(0, 1)
-                          .map((next) => (
-                            <Button
-                              key={next}
-                              type="button"
-                              className="button secondary small order-next"
-                              disabled={busy || loading}
-                              aria-label={`${actionLabel(next)}: ${x.customer.name}, ${x.offer.name}`}
-                              onClick={() => update([x], next)}
-                            >
-                              {actionIcon(next)}
-                              {actionLabel(next)}
-                            </Button>
-                          ))}
-                      {!schedule && date > today && (
-                        <small>
-                          {t(
-                            "Tersedia pada hari pengantaran",
-                            "Available on delivery day",
+                        {!schedule && (
+                          <td>
+                            <Checkbox
+                              aria-label={`${t("Pilih", "Select")} ${x.customer.name}, ${x.address.label}, ${x.offer.name}`}
+                              checked={chosen.some((d) => d.id === x.id)}
+                              disabled={
+                                !eligible.some((d) => d.id === x.id) ||
+                                busy ||
+                                loading
+                              }
+                              onChange={(e) =>
+                                setSelected(
+                                  e.target.checked
+                                    ? [...selected, x.id]
+                                    : selected.filter((id) => id !== x.id),
+                                )
+                              }
+                            />
+                          </td>
+                        )}
+                        <td
+                          data-cell="customer"
+                          data-label={t("Pelanggan", "Customer")}
+                        >
+                          <strong>{x.customer.name}</strong>
+                          {!schedule && (
+                            <small>
+                              {x.offer.name}
+                              {x.trial ? " · " + t("Trial", "Trial") : ""}
+                            </small>
                           )}
-                        </small>
-                      )}
-                    </td>
-                  </tr>
+                        </td>
+                        <td
+                          data-cell="address"
+                          data-label={t("Alamat", "Address")}
+                        >
+                          <strong>{x.address.label}</strong>
+                          <small>
+                            {x.address.line}, {x.address.area}
+                          </small>
+                        </td>
+                        {schedule && (
+                          <>
+                            <td
+                              data-cell="package"
+                              data-label={t("Paket", "Package")}
+                            >
+                              {x.offer.name}
+                              {x.trial && <small>{t("Trial", "Trial")}</small>}
+                              {x.status === "cancelled" && (
+                                <Status status="cancelled" />
+                              )}
+                            </td>
+                            <td
+                              data-cell="meal"
+                              data-label={t("Waktu makan", "Meal")}
+                            >
+                              {x.meals
+                                .filter(
+                                  (m) => meal === "all" || m.meal === meal,
+                                )
+                                .map((m) => (
+                                  <small key={m.meal}>
+                                    {m.meal === "lunch"
+                                      ? t("Siang", "Lunch")
+                                      : t("Malam", "Dinner")}
+                                  </small>
+                                ))}
+                            </td>
+                          </>
+                        )}
+                        <td
+                          data-cell="portions"
+                          data-label={t("Porsi", "Portions")}
+                          className="number"
+                        >
+                          {x.portions}
+                          {schedule && meal === "all" && x.meals.length > 1 && (
+                            <small>{t("per waktu makan", "per meal")}</small>
+                          )}
+                        </td>
+                        {!schedule && (
+                          <td
+                            data-cell="status"
+                            data-label={t("Status", "Status")}
+                          >
+                            <Status status={fulfillmentStatus(x, meal)} />
+                          </td>
+                        )}
+                        <td data-cell="actions">
+                          <Button
+                            className="text-button"
+                            aria-label={`${t("Detail", "Details")} ${x.customer.name}, ${x.address.label}, ${x.offer.name}`}
+                            onClick={(event) =>
+                              openDetail(x.id, event.currentTarget)
+                            }
+                          >
+                            {t("Detail", "Details")} <ArrowUpRight size={15} />
+                          </Button>
+                          {!schedule &&
+                            date <= today &&
+                            nextDeliveryStatuses(fulfillmentStatus(x, meal))
+                              .slice(0, 1)
+                              .map((next) => (
+                                <Button
+                                  key={next}
+                                  type="button"
+                                  className="button secondary small order-next"
+                                  disabled={busy || loading}
+                                  aria-label={`${actionLabel(next)}: ${x.customer.name}, ${x.offer.name}`}
+                                  onClick={() => update([x], next)}
+                                >
+                                  {actionIcon(next)}
+                                  {actionLabel(next)}
+                                </Button>
+                              ))}
+                          {!schedule && date > today && (
+                            <small>
+                              {t(
+                                "Tersedia pada hari pengantaran",
+                                "Available on delivery day",
+                              )}
+                            </small>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </Fragment>
                 ))}
               </tbody>
             </table>

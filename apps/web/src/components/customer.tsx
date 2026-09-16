@@ -4,6 +4,7 @@ import {
   PurchaseSchedule,
 } from "./purchase-price-breakdown";
 import { MealCalendar } from "./meal-calendar";
+import { StartConversation } from "./start-conversation";
 import { Select, SelectOption } from "./select";
 import { DatePicker } from "./date-picker";
 import { PackageContents } from "./package-contents";
@@ -830,6 +831,9 @@ export function Messages({ embedded = false }: { embedded?: boolean }) {
       <div className="messages-layout">
         <aside>
           <h2>{t("Percakapan", "Conversations")}</h2>
+          {embedded && actor?.catererId && (
+            <StartConversation onStarted={setSelected} />
+          )}
           {newCaterer && (
             <div className="conversation-preview active">
               <span className="mini-avatar">{newCaterer.caterer[0]}</span>

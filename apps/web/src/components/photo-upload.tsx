@@ -18,7 +18,7 @@ export function PhotoUpload({
   onChange: (url: string) => void;
   onBusyChange?: (busy: boolean) => void;
 }) {
-  const { t } = useApp();
+  const { t, demo } = useApp();
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [success, setSuccess] = useState(false);
@@ -88,28 +88,92 @@ export function PhotoUpload({
             const controller = new AbortController();
             abort.current = controller;
             try {
-              const body = new FormData();
-              body.set("file", file);
-              const response = await fetch("/api/uploads", {
-                method: "POST",
-                body,
-                signal: controller.signal,
-              });
-              if (!response.ok) throw Error("UPLOAD_FAILED");
-              const result = await response.json();
+              const json = async (url: string, body: unknown) => {
+                const response = await fetch(url, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(body),
+                  signal: controller.signal,
+                });
+                const result = await response.json().catch(() => ({}));
+                if (!response.ok)
+                  throw Error(result.error?.code || "UPLOAD_UNAVAILABLE");
+                return result;
+              };
+              let result;
+              if (demo) {
+                const body = new FormData();
+                body.set("file", file);
+                const response = await fetch("/api/uploads", {
+                  method: "POST",
+                  body,
+                  signal: controller.signal,
+                });
+                result = await response.json();
+                if (!response.ok)
+                  throw Error(result.error?.code || "UPLOAD_UNAVAILABLE");
+              } else {
+                const prepared = await json("/api/uploads/prepare", {
+                  size: file.size,
+                  type: file.type,
+                });
+                const uploaded = await fetch(prepared.data.url, {
+                  method: "PUT",
+                  headers: {
+                    "Content-Type": file.type,
+                    "cache-control": "max-age=0",
+                  },
+                  body: file,
+                  signal: controller.signal,
+                });
+                if (!uploaded.ok)
+                  throw Error(
+                    uploaded.status === 413
+                      ? "INVALID_SIZE"
+                      : uploaded.status === 401 || uploaded.status === 403
+                        ? "UPLOAD_EXPIRED"
+                        : "UPLOAD_UNAVAILABLE",
+                  );
+                result = await json("/api/uploads/complete", {
+                  object: prepared.data.object,
+                });
+              }
               if (typeof result.data?.url !== "string")
                 throw Error("UPLOAD_FAILED");
               if (alive.current) {
                 callbacks.current.onChange(result.data.url);
                 setSuccess(true);
               }
-            } catch {
+            } catch (error) {
               if (alive.current)
                 setError(
-                  t(
-                    "Foto belum berhasil diunggah. Pilih file untuk mencoba lagi.",
-                    "Upload failed. Choose a file to retry.",
-                  ),
+                  error instanceof Error &&
+                    ["UNAUTHORIZED", "FORBIDDEN"].includes(error.message)
+                    ? t(
+                        "Masuk kembali dengan akun pemilik katerer.",
+                        "Sign in again with the caterer owner account.",
+                      )
+                    : error instanceof Error && error.message === "INVALID_SIZE"
+                      ? t(
+                          "Ukuran foto maksimal 8 MB.",
+                          "The photo must be at most 8 MB.",
+                        )
+                      : error instanceof Error &&
+                          error.message === "INVALID_TYPE"
+                        ? t(
+                            "File bukan gambar PNG, JPG, atau WebP yang valid.",
+                            "The file is not a valid PNG, JPG, or WebP image.",
+                          )
+                        : error instanceof Error &&
+                            error.message === "UPLOAD_EXPIRED"
+                          ? t(
+                              "Sesi unggah kedaluwarsa. Pilih file lagi.",
+                              "Upload session expired. Choose the file again.",
+                            )
+                          : t(
+                              "Foto belum berhasil diunggah. Pilih file untuk mencoba lagi.",
+                              "Upload failed. Choose a file to retry.",
+                            ),
                 );
             } finally {
               abort.current = null;

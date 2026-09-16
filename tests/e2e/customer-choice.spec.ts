@@ -127,7 +127,7 @@ async function selectDish(page: Page, index: number, name: string) {
     lib = page.getByRole("dialog", { name: "Pustaka hidangan", exact: true });
   }
   await expect(
-    lib.getByRole("button", { name: "Tambah", exact: true }),
+    lib.getByRole("button", { name: "Tambah hidangan", exact: true }),
   ).toHaveCount(0);
   await expect(
     lib.getByRole("button", { name: "Edit", exact: true }),

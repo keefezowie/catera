@@ -2,6 +2,7 @@ import {
   submitEarnedPayout,
   reconcileEarnedPayouts,
 } from "@/lib/settlement-jobs";
+import { stagingBucket, uploadStorage } from "@/lib/food-upload";
 import {
   rpc,
   demoEnabled,
@@ -26,6 +27,19 @@ export async function GET(request: Request) {
   )
     return new Response("Unauthorized", { status: 401 });
   await system("maintenance");
+  if (!demoEnabled()) {
+    try {
+      const expired = await system<string[]>("upload.expired");
+      if (expired.length) {
+        const { error } = await uploadStorage()
+          .storage.from(stagingBucket)
+          .remove(expired);
+        if (error) console.warn("Staged food upload cleanup failed");
+      }
+    } catch {
+      console.warn("Staged food upload cleanup unavailable");
+    }
+  }
   await system("settlement.run");
   const reconciliation = await reconcileEarnedPayouts();
   const jobs =

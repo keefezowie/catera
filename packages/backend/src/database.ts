@@ -342,6 +342,26 @@ export async function createDemoDatabase(inMemory = false) {
         "\ncommit;",
     );
   }
+  if (
+    !(
+      await db.query<{ installed: boolean }>(
+        "select to_regclass('v1.payout_destinations') is not null as installed",
+      )
+    ).rows[0].installed
+  ) {
+    const file = (
+      await readdir(path.join(projectRoot(), "supabase/migrations"))
+    ).find((f) => f.endsWith("_seller_experience.sql"));
+    if (!file) throw new Error("EXPERIENCE_MIGRATION_MISSING");
+    await db.exec(
+      "begin;\n" +
+        (await readFile(
+          path.join(projectRoot(), "supabase/migrations", file),
+          "utf8",
+        )) +
+        "\ncommit;",
+    );
+  }
   return db;
 }
 export async function getDemoDatabase() {

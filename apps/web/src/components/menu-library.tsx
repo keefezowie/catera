@@ -6,7 +6,6 @@ import { useApp } from "./context";
 import { Button, TextInput, Checkbox } from "./form-controls";
 import { Field, ErrorNotice } from "./ui";
 import { LibraryForm } from "./dish-library";
-import { CategoryCreate } from "./composition-editor";
 
 export function MenuLibrary({
   dishes,
@@ -57,7 +56,7 @@ export function MenuLibrary({
             onClick={() => setForm("new")}
           >
             <Plus size={18} />
-            {t("Tambah", "Add")}
+            {t("Tambah hidangan", "Add dish")}
           </Button>
         )}
       </div>
@@ -238,7 +237,6 @@ export function MenuLibrary({
               {t("Tampilkan arsip", "Show archived")}
             </label>
           )}
-          {manage && <CategoryCreate />}
           {error && <ErrorNotice message={error} />}
         </>
       )}

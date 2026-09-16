@@ -3,6 +3,7 @@ import {
   PackageDurationEditor,
   DurationOptionsFields,
 } from "./package-duration-editor";
+import { SellerAccountSettings } from "./seller-account";
 import { SellerSettlement } from "./seller-settlement";
 import { SellerCustomers } from "./seller-customers";
 import {
@@ -95,6 +96,13 @@ function SellerWorkspace({ view }: { view: string }) {
   const date = query.get("date") || localDay();
   useEffect(() => {
     if (view === "dishes") router.replace("/seller/menus?library=1");
+    const redirectVerification = () => {
+      if (view === "settings" && window.location.hash === "#verification")
+        router.replace("/seller/profile#verification");
+    };
+    redirectVerification();
+    window.addEventListener("hashchange", redirectVerification);
+    return () => window.removeEventListener("hashchange", redirectVerification);
   }, [view, router]);
   const state = useResource<SellerState>(
     "seller:" + actor?.catererId + ":" + date,
@@ -122,7 +130,8 @@ function SellerWorkspace({ view }: { view: string }) {
             customers: t("Pelanggan", "Customers"),
             support: t("Pesan & bantuan", "Messages & support"),
             transactions: t("Transaksi & pencairan", "Transactions & payouts"),
-            settings: t("Pengaturan katerer", "Caterer settings"),
+            settings: t("Pengaturan", "Settings"),
+            profile: t("Profil katerer", "Caterer profile"),
           }[view] || view
         }
         description={s.caterer.name}
@@ -152,8 +161,10 @@ function SellerWorkspace({ view }: { view: string }) {
         <SellerInbox cases={s.cases} />
       ) : view === "transactions" ? (
         <SellerTransactions state={s} />
+      ) : view === "profile" ? (
+        <SellerProfile state={s} />
       ) : (
-        <SellerSettings state={s} />
+        <SellerAccountSettings state={s} />
       )}
     </>
   );
@@ -1744,9 +1755,26 @@ export function TransactionRows({
     </p>
   );
 }
-function SellerSettings({ state: s }: { state: SellerState }) {
-  const { perform, t } = useApp();
-  const [invite, setInvite] = useState("");
+function SellerProfile({ state: s }: { state: SellerState }) {
+  const { actor, perform, t } = useApp();
+  if (actor?.role !== "owner")
+    return (
+      <section className="panel">
+        <h2>{s.caterer.name}</h2>
+        <p>{s.caterer.description}</p>
+        <p>{s.caterer.area.join(", ")}</p>
+        <p>
+          {s.caterer.cutoff} · {s.caterer.timezone}
+        </p>
+        <Status status={s.caterer.status} />
+        <p>{s.caterer.review_note}</p>
+        {s.caterer.status === "approved" && (
+          <Link href={"/caterers/" + s.caterer.slug}>
+            {t("Lihat profil publik", "View public profile")}
+          </Link>
+        )}
+      </section>
+    );
   return (
     <div className="ops-two-col">
       <section className="panel">
@@ -1840,39 +1868,24 @@ function SellerSettings({ state: s }: { state: SellerState }) {
         )}
       </section>
       <section className="panel">
-        <h2>{t("Tim katerer", "Caterer team")}</h2>
-        {s.staff.map((st) => (
-          <div className="queue-row" key={st.user_id}>
-            <span>{st.name}</span>
-            <small>
-              {st.role === "owner" ? t("Pemilik", "Owner") : t("Staf", "Staff")}
-            </small>
-          </div>
-        ))}
-        <ActionForm
-          submit={t("Buat undangan staf", "Create staff invite")}
-          onSubmit={async () => {
-            const r = await perform<{ code: string }>("staff.invite", {
-              catererId: s.caterer.id,
-            });
-            setInvite(r.code);
-          }}
-        >
+        <h2>{t("Pratinjau profil publik", "Public profile preview")}</h2>
+        <h3>{s.caterer.name}</h3>
+        <p>{s.caterer.description}</p>
+        <p>{s.caterer.area.join(", ")}</p>
+        {s.caterer.status === "approved" ? (
+          <Link
+            className="button secondary"
+            href={"/caterers/" + s.caterer.slug}
+          >
+            {t("Lihat profil publik", "View public profile")}
+          </Link>
+        ) : (
           <p>
             {t(
-              "Staf menangani operasi. Akses keuangan dan pengaturan dibatasi untuk pemilik.",
-              "Staff handle operations. Financial and settings access is limited to the owner.",
+              "Profil tersedia untuk umum setelah disetujui.",
+              "Your profile becomes public after approval.",
             )}
           </p>
-        </ActionForm>
-        {invite && (
-          <div className="notice">
-            {t(
-              "Bagikan kode kepada staf yang dimaksud:",
-              "Share this code with the staff member:",
-            )}{" "}
-            <code>{invite}</code>
-          </div>
         )}
       </section>
     </div>

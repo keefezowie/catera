@@ -1,4 +1,5 @@
 "use client";
+import { AccountHelp, PayoutDestinationQueue } from "./seller-account";
 import { menuSummary } from "@catera/domain";
 import { Select, SelectOption } from "./select";
 import { useState } from "react";
@@ -224,6 +225,7 @@ export function Admin({ view }: { view: string }) {
         </section>
       ) : view === "support" ? (
         <>
+          <AccountHelp admin />
           <SupportQueue
             key={requestedCase}
             cases={a.cases}
@@ -341,6 +343,7 @@ export function Admin({ view }: { view: string }) {
         </>
       ) : view === "payouts" ? (
         <div className="ops-two-col">
+          <PayoutDestinationQueue />
           <section className="panel">
             <h2>{t("Pencairan pembelian lama", "Legacy purchase payouts")}</h2>
             <ActionForm

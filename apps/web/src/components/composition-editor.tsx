@@ -25,8 +25,12 @@ function categoryLabel(
 
 export function CategoryCreate({
   onCreated,
+  onBusyChange,
+  label,
 }: {
   onCreated?: (category: DishCategory) => void;
+  onBusyChange?: (busy: boolean) => void;
+  label?: string;
 }) {
   const { actor, perform, t } = useApp();
   const id = useId();
@@ -55,7 +59,7 @@ export function CategoryCreate({
         ) : (
           <Plus size={16} aria-hidden="true" />
         )}
-        {t("Kategori baru", "New category")}
+        {label || t("Kategori baru", "New category")}
       </Button>
       <div id={id} hidden={!open}>
         <Field label={t("Nama kategori", "Category name")}>
@@ -64,6 +68,9 @@ export function CategoryCreate({
             value={name}
             maxLength={60}
             onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.preventDefault();
+            }}
           />
         </Field>
         <Button
@@ -72,6 +79,7 @@ export function CategoryCreate({
           disabled={busy || !name.trim()}
           onClick={async () => {
             setBusy(true);
+            onBusyChange?.(true);
             setError("");
             try {
               const c = await perform<DishCategory>("category.save", {
@@ -91,6 +99,7 @@ export function CategoryCreate({
               );
             } finally {
               setBusy(false);
+              onBusyChange?.(false);
             }
           }}
         >

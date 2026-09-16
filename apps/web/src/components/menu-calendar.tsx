@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import {
   defaultDishCategories,
+  localDay,
   mealLabel,
   selectLibraryDish,
   slotMenuIssues,
@@ -56,6 +57,21 @@ export function MenuCalendar({
   subscription?: Subscription;
 }) {
   const { t, locale, perform } = useApp();
+  const timezone =
+    s?.caterer.timezone ||
+    subscription?.snapshot.offer.timezone ||
+    "Asia/Jakarta";
+  const [now, setNow] = useState(() => new Date());
+  const today = localDay(now, timezone);
+  useEffect(() => {
+    const refresh = () => setNow(new Date());
+    const timer = window.setInterval(refresh, 30000);
+    window.addEventListener("focus", refresh);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+    };
+  }, []);
   const router = useRouter();
   const query = useSearchParams();
   const [selection, setSelection] = useState(""),
@@ -179,6 +195,11 @@ export function MenuCalendar({
     };
   }, [dirty, router]);
   function openDates(chosen: string[]) {
+    if (
+      !subscription &&
+      chosen.some((day) => day < localDay(new Date(), timezone))
+    )
+      return;
     if (!template || !data) return;
     const entries = data.dates.filter((d) => chosen.includes(d.date));
     const readOnly = entries.some((d) => !d.editable);
@@ -491,7 +512,14 @@ export function MenuCalendar({
         >
           {t("Ya, serahkan ke katerer", "Yes, let caterer choose")}
         </Button>
-        <Button data-dialog-safe variant="secondary" disabled={busy} onClick={() => setResetConfirm(false)}>{t("Batal", "Cancel")}</Button>
+        <Button
+          data-dialog-safe
+          variant="secondary"
+          disabled={busy}
+          onClick={() => setResetConfirm(false)}
+        >
+          {t("Batal", "Cancel")}
+        </Button>
         {error && <ErrorNotice message={error} />}
       </Dialog>
       {subscription && (
@@ -685,7 +713,10 @@ export function MenuCalendar({
                                 ? t(" · Hanya baca", " · Read only")
                                 : "")
                             }
-                            disabled={multi && !d.editable}
+                            disabled={
+                              (!subscription && day < today) ||
+                              (multi && !d.editable)
+                            }
                             onClick={() =>
                               multi
                                 ? setDates((v) =>
@@ -1089,7 +1120,14 @@ export function MenuCalendar({
         <Button variant="primary" disabled={busy} onClick={() => void save()}>
           {t("Ganti dan simpan", "Replace and save")}
         </Button>
-        <Button data-dialog-safe variant="secondary" disabled={busy} onClick={() => setConfirmSave(false)}>{t("Batal", "Cancel")}</Button>
+        <Button
+          data-dialog-safe
+          variant="secondary"
+          disabled={busy}
+          onClick={() => setConfirmSave(false)}
+        >
+          {t("Batal", "Cancel")}
+        </Button>
         {error && <ErrorNotice message={error} />}
       </Dialog>
       <Dialog
@@ -1115,7 +1153,13 @@ export function MenuCalendar({
         >
           {t("Ganti hidangan", "Replace dish")}
         </Button>
-        <Button data-dialog-safe variant="secondary" onClick={() => setReplacement(null)}>{t("Batal", "Cancel")}</Button>
+        <Button
+          data-dialog-safe
+          variant="secondary"
+          onClick={() => setReplacement(null)}
+        >
+          {t("Batal", "Cancel")}
+        </Button>
       </Dialog>
     </div>
   );

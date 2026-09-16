@@ -24,7 +24,13 @@ export type SettlementState = {
     allocation_id: string | null;
     day_id: string | null;
   }[];
-  payouts: { id: string; amount: number; status: string; created_at: string }[];
+  payouts: {
+    id: string;
+    amount: number;
+    status: string;
+    created_at: string;
+    failure_code?: string | null;
+  }[];
   policy: {
     id: string;
     enabled: boolean;

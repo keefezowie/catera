@@ -578,7 +578,10 @@ test("phone keyboard/touch picker, category creation, library editing and legacy
     .getByRole("button", { name: "Pustaka hidangan", exact: true })
     .click();
   await dialog
-    .getByRole("button", { name: "Kategori baru", exact: true })
+    .getByRole("button", { name: "Tambah hidangan", exact: true })
+    .click();
+  await dialog
+    .getByRole("button", { name: "Tambah kategori", exact: true })
     .click();
   const category = "Camilan " + Date.now();
   await dialog.getByLabel("Nama kategori", { exact: true }).fill(category);
@@ -586,13 +589,8 @@ test("phone keyboard/touch picker, category creation, library editing and legacy
     .getByRole("button", { name: "Simpan kategori", exact: true })
     .click();
   await expect(
-    dialog.locator("summary").filter({ hasText: category }),
-  ).toBeVisible();
-  await dialog.getByRole("button", { name: "Tambah", exact: true }).click();
-  await dialog
-    .getByRole("combobox", { name: "Kategori hidangan", exact: true })
-    .click();
-  await page.getByRole("option", { name: category, exact: true }).click();
+    dialog.getByRole("combobox", { name: "Kategori hidangan", exact: true }),
+  ).toContainText(category);
   await dialog
     .getByLabel("Nama hidangan", { exact: true })
     .fill("Puding sintetis");

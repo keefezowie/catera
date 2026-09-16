@@ -76,7 +76,7 @@ test("operational date and meal period are separate responsive controls", async 
 
 test("cutoff editor stays in a 24-hour format", async ({ page }) => {
   await login(page);
-  await page.goto("/seller/settings");
+  await page.goto("/seller/profile");
 
   const cutoff = page.getByRole("button", {
     name: "Batas perubahan sehari sebelumnya",
@@ -154,7 +154,7 @@ test("UI sweep: focus rings, support count, composition controls and centered pr
   await page.goto("/seller/menus");
   await page.getByRole("button", { name: "Pustaka hidangan", exact: true }).click();
   const library = page.getByRole("dialog", { name: "Pustaka hidangan" });
-  await library.getByRole("button", { name: "Tambah", exact: true }).click();
+  await library.getByRole("button", { name: "Tambah hidangan", exact: true }).click();
   const input = library.getByRole("textbox", {
     name: "Nama hidangan",
     exact: true,

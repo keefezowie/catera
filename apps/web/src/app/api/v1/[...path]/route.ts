@@ -1,3 +1,5 @@
+import { enrichPayoutSetup } from "@/lib/payout-setup";
+import type { PayoutSetup } from "@catera/domain";
 import {
   readSettlementResource,
   readSettlementReporting,
@@ -75,6 +77,7 @@ const codes = [
   "CUTOFF",
   "COVERAGE",
   "CONFLICT",
+  "CUSTOMER_NOT_LINKED",
   "OVERLAP",
   "TRIAL_USED",
   "FIXED_PACKAGE",
@@ -134,6 +137,12 @@ export async function GET(request: Request, context: Context) {
         "catalog",
         "renewal-context",
         "seller-customers",
+        "seller-identity",
+        "message-customers",
+        "payout-setup",
+        "payout-destination-queue",
+        "payout-destination-detail",
+        "account-requests",
         "pilot",
         "seller-settlement",
         "seller-settlement-report",
@@ -156,6 +165,13 @@ export async function GET(request: Request, context: Context) {
     )
       throw new Error("NOT_FOUND");
     if (path[1]) params.id = path[1];
+    if (resource === "payout-setup") {
+      const state = await rpc<PayoutSetup>(s.id, s.token, "catera_v1_read", {
+        resource,
+        params,
+      });
+      return ok(enrichPayoutSetup(state, params.id));
+    }
     const read = () =>
       rpc(s.id, s.token, "catera_v1_read", { resource, params });
     if (

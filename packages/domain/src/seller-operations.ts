@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { Delivery, SellerState } from "./index";
 
 export type SellerDelivery = Delivery & {
-  customer: { id: string; name: string };
+  customer: { id: string; name: string; recordId?: string };
 };
 export type SellerOperationsState = Omit<SellerState, "deliveries"> & {
   deliveries: SellerDelivery[];
@@ -44,12 +44,25 @@ export function fulfillmentStatus(d: Delivery, meal: string) {
     ? "cancelled"
     : d.meals.find((m) => m.meal === meal)?.status || "cancelled";
 }
-export function scheduleSummary(rows: SellerDelivery[], meal: string) {
+export function destinationKey(address: SellerDelivery["address"]) {
+  return JSON.stringify(
+    [address.line, address.area, address.city].map((v) =>
+      v.trim().toLowerCase().replace(/\s+/g, " "),
+    ),
+  );
+}
+export function scheduleSummary(
+  rows: SellerDelivery[],
+  meal: string,
+  includeCancelled = false,
+) {
   const active = rows.filter(
     (d) =>
-      d.status !== "cancelled" &&
+      (includeCancelled || d.status !== "cancelled") &&
       d.meals.some(
-        (m) => m.status !== "cancelled" && (meal === "all" || m.meal === meal),
+        (m) =>
+          (includeCancelled || m.status !== "cancelled") &&
+          (meal === "all" || m.meal === meal),
       ),
   );
   return {
@@ -60,18 +73,82 @@ export function scheduleSummary(rows: SellerDelivery[], meal: string) {
         d.portions *
           d.meals.filter(
             (m) =>
-              m.status !== "cancelled" && (meal === "all" || m.meal === meal),
+              (includeCancelled || m.status !== "cancelled") &&
+              (meal === "all" || m.meal === meal),
           ).length,
       0,
     ),
     customers: new Set(active.map((d) => d.customer.id)).size,
-    destinations: new Set(
-      active.map((d) =>
-        [
-          d.address.line.trim().toLowerCase(),
-          d.address.area.trim().toLowerCase(),
-        ].join("|"),
-      ),
-    ).size,
+    destinations: new Set(active.map((d) => destinationKey(d.address))).size,
   };
+}
+
+export function operationalGroups(
+  rows: SellerDelivery[],
+  meal: string,
+  mode: string,
+) {
+  const groups = new Map<
+    string,
+    {
+      key: string;
+      name: string;
+      area: string;
+      menu: string;
+      rows: SellerDelivery[];
+      portions: number;
+    }
+  >();
+  for (const row of rows) {
+    const menus = row.offer.menus.filter(
+      (m) => meal === "all" || m.meal === meal,
+    );
+    const signature = JSON.stringify(
+      menus
+        .map((m) => ({
+          meal: m.meal,
+          selectionStatus: m.selectionStatus,
+          items: (m.items || [])
+            .map((i) => [
+              i.optionId || i.sourceDishId,
+              i.optionVersion || i.sourceDishVersion,
+              i.categoryId,
+              i.name,
+              i.serving,
+              i.description,
+              i.image,
+            ])
+            .sort(),
+        }))
+        .sort((a, b) => a.meal.localeCompare(b.meal)),
+    );
+    const area = mode === "area" ? row.address.area.trim() : "";
+    const key =
+      mode === "flat"
+        ? "flat"
+        : JSON.stringify([row.offer.id, signature, area.toLowerCase()]);
+    let group = groups.get(key);
+    if (!group) {
+      group = {
+        key,
+        name: row.offer.name,
+        area,
+        menu: menus
+          .flatMap((m) => (m.items || []).map((i) => i.name))
+          .filter(Boolean)
+          .join(", "),
+        rows: [],
+        portions: 0,
+      };
+      groups.set(key, group);
+    }
+    group.rows.push(row);
+    group.portions += row.portions;
+  }
+  return [...groups.values()].sort(
+    (a, b) =>
+      a.name.localeCompare(b.name) ||
+      a.menu.localeCompare(b.menu) ||
+      a.area.localeCompare(b.area),
+  );
 }

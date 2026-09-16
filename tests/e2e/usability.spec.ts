@@ -310,7 +310,7 @@ test("readiness follows correction, submission and an admin decision", async ({ 
     await decision("Minta perbaikan");
     await login(page);
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto("/seller/settings");
+    await page.goto("/seller/profile");
     await expect(page.locator(".seller-readiness")).toContainText("Synthetic usability verification review.");
     await page.getByRole("button", { name: "Ajukan verifikasi" }).click();
     await expect(page.locator(".seller-readiness")).toContainText("Profil sedang ditinjau Catera");

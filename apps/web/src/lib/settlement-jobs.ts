@@ -27,7 +27,13 @@ export async function submitEarnedPayout(p: Payout) {
           payout_details: { source_amount: p.amount },
           recipient: { synthetic: true },
         }
-      : payoutRequest(p));
+      : payoutRequest(
+          p,
+          await system<{
+            recipient: Record<string, unknown>;
+            purposeCode: string;
+          } | null>("payout.destination", { catererId: p.caterer_id }),
+        ));
   const ready = await system<Payout | null>("payout.prepare", {
     id: p.id,
     request,
