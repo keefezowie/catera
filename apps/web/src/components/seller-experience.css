@@ -1,24 +1,3 @@
-.ops-metric-button {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  text-align: left;
-  gap: 8px;
-  padding: 20px;
-  background: var(--cream, #fff7e9);
-  border: 1px solid #d9e1db;
-  border-radius: 16px;
-  color: inherit;
-  cursor: pointer;
-  font: inherit;
-}
-.ops-metric-button strong {
-  font-size: 1.7rem;
-}
-.ops-metric-button:focus-visible {
-  outline: 3px solid #f47b2a;
-  outline-offset: 2px;
-}
 .payout-state > p {
   margin: 0;
   min-width: 110px;
@@ -125,8 +104,5 @@
   }
   .customer-delivery-calendar .pilot-delivery {
     flex-wrap: wrap;
-  }
-  .ops-metric-button {
-    padding: 14px;
   }
 }

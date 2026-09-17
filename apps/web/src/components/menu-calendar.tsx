@@ -29,6 +29,7 @@ import { Select, SelectOption } from "./select";
 import { Dialog, ErrorNotice, Field } from "./ui";
 import { MenuPanel, MenuSlots } from "./menu-assembly";
 import { PackageContents } from "./package-contents";
+import { PackageChoiceLibrary } from "./package-choice-library";
 import { MenuLibrary } from "./menu-library";
 import {
   monthOf,
@@ -113,14 +114,17 @@ export function MenuCalendar({
             contents: subscription.snapshot.offer,
           },
         ]
-      : (s?.contentRevisions || []).filter(
-          (r) =>
-            s?.offers.find((o) => o.id === r.packageId)?.menuSelectionMode !==
-            "customer",
-        ),
+      : s?.contentRevisions || [],
     selected =
       revisions.find((r) => r.packageId + ":" + r.revision === selection) ||
       revisions[0];
+  const choiceOffer = !subscription
+    ? s?.offers.find(
+        (offer) =>
+          offer.id === selected?.packageId &&
+          offer.menuSelectionMode === "customer",
+      )
+    : undefined;
   const activeMeal =
     selected?.contents.meal === "both"
       ? meal
@@ -134,16 +138,17 @@ export function MenuCalendar({
   ].join(":");
   const resource = useResource("menu-month:" + context, async () => ({
     context,
-    value: selected
-      ? subscription
-        ? await api.customerMenuMonth(subscription.id, month, activeMeal)
-        : await api.menuMonth(
-            selected.packageId,
-            selected.revision,
-            month,
-            activeMeal,
-          )
-      : { dates: [], categories: defaultDishCategories },
+    value:
+      selected && !choiceOffer
+        ? subscription
+          ? await api.customerMenuMonth(subscription.id, month, activeMeal)
+          : await api.menuMonth(
+              selected.packageId,
+              selected.revision,
+              month,
+              activeMeal,
+            )
+        : { dates: [], categories: defaultDishCategories },
   }));
   const data = resource.data?.context === context ? resource.data.value : null;
   const customerData = subscription ? (data as CustomerMenuMonth | null) : null;
@@ -557,7 +562,7 @@ export function MenuCalendar({
             ))}
           </Select>
         </Field>
-        {selected.contents.meal === "both" && (
+        {!choiceOffer && selected.contents.meal === "both" && (
           <Field label={t("Waktu makan", "Meal")}>
             <Select
               value={activeMeal}
@@ -592,422 +597,436 @@ export function MenuCalendar({
           {t("Pustaka hidangan", "Dish library")}
         </Button>
       </div>
-      <div
-        className={
-          "menu-columns" +
-          (edit && !edit.readOnly ? " menu-columns-editor" : "")
-        }
-      >
-        <MenuPanel mode={edit ? "editor" : "calendar"}>
-          {!edit ? (
-            <>
-              <div className="menu-month-heading">
-                <Button
-                  type="button"
-                  className="text-button"
-                  aria-label={t("Bulan sebelumnya", "Previous month")}
-                  onClick={() => {
-                    setMonth(shiftMonth(month, -1));
-                    setDates([]);
-                  }}
-                >
-                  <ChevronLeft />
-                </Button>
-                <h2 ref={calendarHeading} tabIndex={-1}>
-                  {new Intl.DateTimeFormat(
-                    locale === "id" ? "id-ID" : "en-GB",
-                    { month: "long", year: "numeric", timeZone: "UTC" },
-                  ).format(new Date(month + "T12:00:00Z"))}
-                </h2>
-                <Button
-                  type="button"
-                  className="text-button"
-                  aria-label={t("Bulan berikutnya", "Next month")}
-                  onClick={() => {
-                    setMonth(shiftMonth(month, 1));
-                    setDates([]);
-                  }}
-                >
-                  <ChevronRight />
-                </Button>
-              </div>
-              <div className="menu-selection-bar">
-                <span>{mealLabel(activeMeal, locale)}</span>
-                <Button
-                  type="button"
-                  className="text-button"
-                  aria-pressed={multi}
-                  onClick={() => {
-                    setMulti(!multi);
-                    setDates([]);
-                  }}
-                >
-                  {multi
-                    ? t("Selesai memilih", "Finish selection")
-                    : t("Pilih beberapa tanggal", "Select multiple dates")}
-                </Button>
-              </div>
-              <p className="menu-calendar-legend">
-                <LockKeyhole size={14} aria-hidden="true" />
-                {t(
-                  "Hanya baca · Ketuk tanggal untuk melihat menu",
-                  "Read only · Tap a date to view its menu",
-                )}
-              </p>
-              {resource.error ? (
-                <ErrorNotice message={resource.error} retry={resource.reload} />
-              ) : !data ? (
-                <p role="status">
-                  {t("Memuat kalender…", "Loading calendar…")}
-                </p>
-              ) : (
-                <>
-                  <div
-                    className="menu-month-grid"
-                    aria-label={t("Tanggal menu", "Menu dates")}
+      {choiceOffer ? (
+        <PackageChoiceLibrary
+          key={choiceOffer.id}
+          offer={choiceOffer}
+          dishes={s?.dishes || []}
+        />
+      ) : (
+        <div
+          className={
+            "menu-columns" +
+            (edit && !edit.readOnly ? " menu-columns-editor" : "")
+          }
+        >
+          <MenuPanel mode={edit ? "editor" : "calendar"}>
+            {!edit ? (
+              <>
+                <div className="menu-month-heading">
+                  <Button
+                    type="button"
+                    className="text-button"
+                    aria-label={t("Bulan sebelumnya", "Previous month")}
+                    onClick={() => {
+                      setMonth(shiftMonth(month, -1));
+                      setDates([]);
+                    }}
                   >
-                    {(locale === "id"
-                      ? ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"]
-                      : ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-                    ).map((d) => (
-                      <span className="menu-weekday" key={d}>
-                        {d}
-                      </span>
-                    ))}
-                    {datesBetween(weekStart(month), monthEnd(month)).map(
-                      (day) => {
-                        const d = data.dates.find((x) => x.date === day);
-                        const dishNames =
-                          d?.details?.items
-                            ?.map((item) => item.name.trim())
-                            .filter(Boolean) || [];
-                        const menuNames = dishNames.length
-                          ? dishNames
-                          : d?.details?.name
-                            ? [d.details.name]
-                            : [];
-                        return d ? (
-                          <Button
-                            key={day}
-                            type="button"
-                            className={
-                              "menu-day" +
-                              (d.details ? " configured" : "") +
-                              (dates.includes(day) ? " selected" : "")
-                            }
-                            aria-pressed={
-                              multi ? dates.includes(day) : undefined
-                            }
-                            aria-label={
-                              fmt(day) +
-                              " · " +
-                              (d.details
-                                ? menuNames.join(", ") ||
-                                  t("Menu terisi", "Menu configured")
-                                : subscription
-                                  ? !d.editable
-                                    ? t("Katerer memilih", "Caterer chooses")
-                                    : t("Pilih menu", "Choose menu")
-                                  : t("Belum diisi", "Not set")) +
-                              (!d.editable
-                                ? t(" · Hanya baca", " · Read only")
-                                : "")
-                            }
-                            disabled={
-                              (!subscription && day < today) ||
-                              (multi && !d.editable)
-                            }
-                            onClick={() =>
-                              multi
-                                ? setDates((v) =>
-                                    v.includes(day)
-                                      ? v.filter((x) => x !== day)
-                                      : [...v, day],
-                                  )
-                                : openDates([day])
-                            }
-                          >
+                    <ChevronLeft />
+                  </Button>
+                  <h2 ref={calendarHeading} tabIndex={-1}>
+                    {new Intl.DateTimeFormat(
+                      locale === "id" ? "id-ID" : "en-GB",
+                      { month: "long", year: "numeric", timeZone: "UTC" },
+                    ).format(new Date(month + "T12:00:00Z"))}
+                  </h2>
+                  <Button
+                    type="button"
+                    className="text-button"
+                    aria-label={t("Bulan berikutnya", "Next month")}
+                    onClick={() => {
+                      setMonth(shiftMonth(month, 1));
+                      setDates([]);
+                    }}
+                  >
+                    <ChevronRight />
+                  </Button>
+                </div>
+                <div className="menu-selection-bar">
+                  <span>{mealLabel(activeMeal, locale)}</span>
+                  <Button
+                    type="button"
+                    className="text-button"
+                    aria-pressed={multi}
+                    onClick={() => {
+                      setMulti(!multi);
+                      setDates([]);
+                    }}
+                  >
+                    {multi
+                      ? t("Selesai memilih", "Finish selection")
+                      : t("Pilih beberapa tanggal", "Select multiple dates")}
+                  </Button>
+                </div>
+                <p className="menu-calendar-legend">
+                  <LockKeyhole size={14} aria-hidden="true" />
+                  {t(
+                    "Hanya baca · Ketuk tanggal untuk melihat menu",
+                    "Read only · Tap a date to view its menu",
+                  )}
+                </p>
+                {resource.error ? (
+                  <ErrorNotice
+                    message={resource.error}
+                    retry={resource.reload}
+                  />
+                ) : !data ? (
+                  <p role="status">
+                    {t("Memuat kalender…", "Loading calendar…")}
+                  </p>
+                ) : (
+                  <>
+                    <div
+                      className="menu-month-grid"
+                      aria-label={t("Tanggal menu", "Menu dates")}
+                    >
+                      {(locale === "id"
+                        ? ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"]
+                        : ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+                      ).map((d) => (
+                        <span className="menu-weekday" key={d}>
+                          {d}
+                        </span>
+                      ))}
+                      {datesBetween(weekStart(month), monthEnd(month)).map(
+                        (day) => {
+                          const d = data.dates.find((x) => x.date === day);
+                          const dishNames =
+                            d?.details?.items
+                              ?.map((item) => item.name.trim())
+                              .filter(Boolean) || [];
+                          const menuNames = dishNames.length
+                            ? dishNames
+                            : d?.details?.name
+                              ? [d.details.name]
+                              : [];
+                          return d ? (
+                            <Button
+                              key={day}
+                              type="button"
+                              className={
+                                "menu-day" +
+                                (d.details ? " configured" : "") +
+                                (dates.includes(day) ? " selected" : "")
+                              }
+                              aria-pressed={
+                                multi ? dates.includes(day) : undefined
+                              }
+                              aria-label={
+                                fmt(day) +
+                                " · " +
+                                (d.details
+                                  ? menuNames.join(", ") ||
+                                    t("Menu terisi", "Menu configured")
+                                  : subscription
+                                    ? !d.editable
+                                      ? t("Katerer memilih", "Caterer chooses")
+                                      : t("Pilih menu", "Choose menu")
+                                    : t("Belum diisi", "Not set")) +
+                                (!d.editable
+                                  ? t(" · Hanya baca", " · Read only")
+                                  : "")
+                              }
+                              disabled={
+                                (!subscription && day < today) ||
+                                (multi && !d.editable)
+                              }
+                              onClick={() =>
+                                multi
+                                  ? setDates((v) =>
+                                      v.includes(day)
+                                        ? v.filter((x) => x !== day)
+                                        : [...v, day],
+                                    )
+                                  : openDates([day])
+                              }
+                            >
+                              <span
+                                className="menu-day-heading"
+                                aria-hidden="true"
+                              >
+                                <strong>{Number(day.slice(-2))}</strong>
+                                {!d.editable && <LockKeyhole size={13} />}
+                              </span>
+                              {d.details ? (
+                                <>
+                                  <span
+                                    className="menu-day-dishes"
+                                    title={menuNames.join(", ")}
+                                  >
+                                    {menuNames.length ? (
+                                      menuNames
+                                        .slice(0, 2)
+                                        .map((name, index) => (
+                                          <span
+                                            className="menu-day-dish"
+                                            key={index}
+                                          >
+                                            {name}
+                                          </span>
+                                        ))
+                                    ) : (
+                                      <span>
+                                        {t("Menu tersimpan", "Saved menu")}
+                                      </span>
+                                    )}
+                                    {menuNames.length > 2 && (
+                                      <span className="menu-day-more">
+                                        +{menuNames.length - 2}{" "}
+                                        {t("hidangan", "dishes")}
+                                      </span>
+                                    )}
+                                  </span>
+                                  <span
+                                    className="menu-day-count"
+                                    aria-hidden="true"
+                                  >
+                                    {menuNames.length ? (
+                                      <>
+                                        <Utensils size={12} />
+                                        {menuNames.length}
+                                      </>
+                                    ) : (
+                                      t("Terisi", "Saved")
+                                    )}
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="menu-day-empty">
+                                  {subscription
+                                    ? !d.editable
+                                      ? t("Katerer memilih", "Caterer chooses")
+                                      : t("Pilih menu", "Choose menu")
+                                    : t("Belum diisi", "Not set")}
+                                </span>
+                              )}
+                            </Button>
+                          ) : subscription ? (
                             <span
-                              className="menu-day-heading"
+                              key={day}
+                              className="menu-day menu-day-unavailable"
                               aria-hidden="true"
                             >
-                              <strong>{Number(day.slice(-2))}</strong>
-                              {!d.editable && <LockKeyhole size={13} />}
+                              {Number(day.slice(-2))}
                             </span>
-                            {d.details ? (
-                              <>
-                                <span
-                                  className="menu-day-dishes"
-                                  title={menuNames.join(", ")}
-                                >
-                                  {menuNames.length ? (
-                                    menuNames.slice(0, 2).map((name, index) => (
-                                      <span
-                                        className="menu-day-dish"
-                                        key={index}
-                                      >
-                                        {name}
-                                      </span>
-                                    ))
-                                  ) : (
-                                    <span>
-                                      {t("Menu tersimpan", "Saved menu")}
-                                    </span>
-                                  )}
-                                  {menuNames.length > 2 && (
-                                    <span className="menu-day-more">
-                                      +{menuNames.length - 2}{" "}
-                                      {t("hidangan", "dishes")}
-                                    </span>
-                                  )}
-                                </span>
-                                <span
-                                  className="menu-day-count"
-                                  aria-hidden="true"
-                                >
-                                  {menuNames.length ? (
-                                    <>
-                                      <Utensils size={12} />
-                                      {menuNames.length}
-                                    </>
-                                  ) : (
-                                    t("Terisi", "Saved")
-                                  )}
-                                </span>
-                              </>
-                            ) : (
-                              <span className="menu-day-empty">
-                                {subscription
-                                  ? !d.editable
-                                    ? t("Katerer memilih", "Caterer chooses")
-                                    : t("Pilih menu", "Choose menu")
-                                  : t("Belum diisi", "Not set")}
-                              </span>
-                            )}
-                          </Button>
-                        ) : subscription ? (
-                          <span
-                            key={day}
-                            className="menu-day menu-day-unavailable"
-                            aria-hidden="true"
-                          >
-                            {Number(day.slice(-2))}
-                          </span>
-                        ) : (
-                          <span key={day} className="menu-day-outside" />
-                        );
-                      },
+                          ) : (
+                            <span key={day} className="menu-day-outside" />
+                          );
+                        },
+                      )}
+                    </div>
+                    {multi && (
+                      <div className="menu-selection-footer">
+                        <span>
+                          {dates.length}{" "}
+                          {t("tanggal dipilih", "dates selected")}
+                        </span>
+                        <Button
+                          variant="primary"
+                          type="button"
+                          disabled={!dates.length}
+                          onClick={() => openDates(dates)}
+                        >
+                          {t("Atur menu", "Edit menu")}
+                        </Button>
+                      </div>
                     )}
-                  </div>
-                  {multi && (
-                    <div className="menu-selection-footer">
+                  </>
+                )}
+              </>
+            ) : (
+              <>
+                <Button
+                  type="button"
+                  className="text-button"
+                  disabled={busy}
+                  onClick={back}
+                >
+                  <ArrowLeft size={18} />
+                  {t("Kembali ke kalender", "Back to calendar")}
+                </Button>
+                <p className="menu-package-name">{selected.name}</p>
+                {subscription && (
+                  <p>
+                    {t("Batas waktu", "Cutoff")}:{" "}
+                    {customerData?.dates
+                      .filter((d) => edit.dates.includes(d.date))
+                      .map((d) =>
+                        new Intl.DateTimeFormat(
+                          locale === "id" ? "id-ID" : "en-GB",
+                          {
+                            dateStyle: "medium",
+                            timeStyle: "short",
+                            timeZone: subscription.snapshot.offer.timezone,
+                          },
+                        ).format(new Date(d.cutoffAt)),
+                      )
+                      .join(" · ")}{" "}
+                    ({subscription.snapshot.offer.timezone})
+                  </p>
+                )}
+                <h2 ref={editorHeading} tabIndex={-1}>
+                  {t("Menu ", "Menu for ")}
+                  {edit.dates.map(fmt).join(", ")}
+                </h2>
+                <p>
+                  {mealLabel(activeMeal, locale)} ·{" "}
+                  {t(
+                    "Satu menu untuk seluruh tanggal terpilih.",
+                    "One menu for every selected date.",
+                  )}
+                </p>
+                {!edit.readOnly && (
+                  <p className="menu-completion" role="status">
+                    {edit.menu.items?.filter((i) => i.name).length || 0}/
+                    {edit.menu.items?.length || 0}{" "}
+                    {t("slot terisi", "slots filled")}
+                  </p>
+                )}
+                {edit.different && (
+                  <p role="status">
+                    {t(
+                      "Menu berbeda. Susun satu menu pengganti untuk seluruh tanggal terpilih.",
+                      "Different menus. Build one replacement menu for every selected date.",
+                    )}
+                  </p>
+                )}
+                {edit.readOnly ? (
+                  <>
+                    <p>
+                      {t(
+                        "Menu tanggal ini hanya dapat dilihat.",
+                        "This date's menu is read only.",
+                      )}
+                    </p>
+                    <PackageContents
+                      offer={{
+                        packageType: selected.contents.packageType,
+                        menus: [edit.menu],
+                      }}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <MenuSlots
+                      menu={edit.menu}
+                      activeId={slot}
+                      dragging={dragging}
+                      busy={busy}
+                      onSelect={(id) => {
+                        setSlot(id);
+                        if (!desktopLibrary.current?.getClientRects().length) {
+                          libraryReturnTarget.current =
+                            document.activeElement as HTMLElement;
+                          setLibraryOpen(true);
+                        }
+                      }}
+                      onDrop={(id, dishId) => {
+                        const dish = dishes.find((d) => d.id === dishId);
+                        if (dish) assign(id, dish);
+                        setDragging(null);
+                      }}
+                      onRemove={(id) => {
+                        change({
+                          ...edit.menu,
+                          items: edit.menu.items!.map((i) =>
+                            i.id === id
+                              ? {
+                                  id: i.id,
+                                  groupId: i.groupId,
+                                  categoryId: i.categoryId,
+                                  name: "",
+                                  description: "",
+                                  image: "",
+                                  serving: "",
+                                }
+                              : i,
+                          ),
+                          nutrition: null,
+                        });
+                        setSlot(id);
+                      }}
+                    />
+                    {!edit.menu.composition?.length && (
+                      <p>
+                        {t(
+                          "Tambahkan komposisi paket sebelum menyusun menu.",
+                          "Add the package composition before assembling a menu.",
+                        )}
+                      </p>
+                    )}
+                    <div className="menu-save-bar">
+                      {subscription && (
+                        <Button
+                          variant="secondary"
+                          type="button"
+                          disabled={busy}
+                          onClick={() => setResetConfirm(true)}
+                        >
+                          {t("Serahkan ke katerer", "Let caterer choose")}
+                        </Button>
+                      )}
                       <span>
-                        {dates.length} {t("tanggal dipilih", "dates selected")}
+                        <strong>{edit.dates.map(fmt).join(", ")}</strong> ·{" "}
+                        {mealLabel(activeMeal, locale)}
+                        <small>
+                          {validation().length
+                            ? t(
+                                "Lengkapi setiap tempat hidangan untuk menyimpan.",
+                                "Fill every dish slot to save.",
+                              )
+                            : t(
+                                "Semua hidangan terisi. Siap disimpan.",
+                                "All dish slots filled. Ready to save.",
+                              )}
+                        </small>
                       </span>
                       <Button
                         variant="primary"
                         type="button"
-                        disabled={!dates.length}
-                        onClick={() => openDates(dates)}
+                        disabled={
+                          busy ||
+                          validation().length > 0 ||
+                          !edit.menu.items?.length
+                        }
+                        onClick={requestSave}
                       >
-                        {t("Atur menu", "Edit menu")}
+                        <Save size={18} />
+                        {busy
+                          ? t("Menyimpan…", "Saving…")
+                          : t("Simpan menu", "Save menu")}
                       </Button>
                     </div>
-                  )}
-                </>
-              )}
-            </>
-          ) : (
-            <>
-              <Button
-                type="button"
-                className="text-button"
-                disabled={busy}
-                onClick={back}
-              >
-                <ArrowLeft size={18} />
-                {t("Kembali ke kalender", "Back to calendar")}
-              </Button>
-              <p className="menu-package-name">{selected.name}</p>
-              {subscription && (
-                <p>
-                  {t("Batas waktu", "Cutoff")}:{" "}
-                  {customerData?.dates
-                    .filter((d) => edit.dates.includes(d.date))
-                    .map((d) =>
-                      new Intl.DateTimeFormat(
-                        locale === "id" ? "id-ID" : "en-GB",
-                        {
-                          dateStyle: "medium",
-                          timeStyle: "short",
-                          timeZone: subscription.snapshot.offer.timezone,
-                        },
-                      ).format(new Date(d.cutoffAt)),
-                    )
-                    .join(" · ")}{" "}
-                  ({subscription.snapshot.offer.timezone})
-                </p>
-              )}
-              <h2 ref={editorHeading} tabIndex={-1}>
-                {t("Menu ", "Menu for ")}
-                {edit.dates.map(fmt).join(", ")}
-              </h2>
-              <p>
-                {mealLabel(activeMeal, locale)} ·{" "}
-                {t(
-                  "Satu menu untuk seluruh tanggal terpilih.",
-                  "One menu for every selected date.",
+                  </>
                 )}
-              </p>
-              {!edit.readOnly && (
-                <p className="menu-completion" role="status">
-                  {edit.menu.items?.filter((i) => i.name).length || 0}/
-                  {edit.menu.items?.length || 0}{" "}
-                  {t("slot terisi", "slots filled")}
-                </p>
-              )}
-              {edit.different && (
-                <p role="status">
-                  {t(
-                    "Menu berbeda. Susun satu menu pengganti untuk seluruh tanggal terpilih.",
-                    "Different menus. Build one replacement menu for every selected date.",
-                  )}
-                </p>
-              )}
-              {edit.readOnly ? (
-                <>
-                  <p>
-                    {t(
-                      "Menu tanggal ini hanya dapat dilihat.",
-                      "This date's menu is read only.",
-                    )}
-                  </p>
-                  <PackageContents
-                    offer={{
-                      packageType: selected.contents.packageType,
-                      menus: [edit.menu],
-                    }}
-                  />
-                </>
-              ) : (
-                <>
-                  <MenuSlots
-                    menu={edit.menu}
-                    activeId={slot}
-                    dragging={dragging}
-                    busy={busy}
-                    onSelect={(id) => {
-                      setSlot(id);
-                      if (!desktopLibrary.current?.getClientRects().length) {
-                        libraryReturnTarget.current =
-                          document.activeElement as HTMLElement;
-                        setLibraryOpen(true);
-                      }
-                    }}
-                    onDrop={(id, dishId) => {
-                      const dish = dishes.find((d) => d.id === dishId);
-                      if (dish) assign(id, dish);
-                      setDragging(null);
-                    }}
-                    onRemove={(id) => {
-                      change({
-                        ...edit.menu,
-                        items: edit.menu.items!.map((i) =>
-                          i.id === id
-                            ? {
-                                id: i.id,
-                                groupId: i.groupId,
-                                categoryId: i.categoryId,
-                                name: "",
-                                description: "",
-                                image: "",
-                                serving: "",
-                              }
-                            : i,
-                        ),
-                        nutrition: null,
-                      });
-                      setSlot(id);
-                    }}
-                  />
-                  {!edit.menu.composition?.length && (
-                    <p>
-                      {t(
-                        "Tambahkan komposisi paket sebelum menyusun menu.",
-                        "Add the package composition before assembling a menu.",
-                      )}
-                    </p>
-                  )}
-                  <div className="menu-save-bar">
-                    {subscription && (
-                      <Button
-                        variant="secondary"
-                        type="button"
-                        disabled={busy}
-                        onClick={() => setResetConfirm(true)}
-                      >
-                        {t("Serahkan ke katerer", "Let caterer choose")}
-                      </Button>
-                    )}
-                    <span>
-                      <strong>{edit.dates.map(fmt).join(", ")}</strong> ·{" "}
-                      {mealLabel(activeMeal, locale)}
-                      <small>
-                        {validation().length
-                          ? t(
-                              "Lengkapi setiap tempat hidangan untuk menyimpan.",
-                              "Fill every dish slot to save.",
-                            )
-                          : t(
-                              "Semua hidangan terisi. Siap disimpan.",
-                              "All dish slots filled. Ready to save.",
-                            )}
-                      </small>
-                    </span>
-                    <Button
-                      variant="primary"
-                      type="button"
-                      disabled={
-                        busy ||
-                        validation().length > 0 ||
-                        !edit.menu.items?.length
-                      }
-                      onClick={requestSave}
-                    >
-                      <Save size={18} />
-                      {busy
-                        ? t("Menyimpan…", "Saving…")
-                        : t("Simpan menu", "Save menu")}
-                    </Button>
-                  </div>
-                </>
-              )}
-            </>
-          )}
-          {error && (
-            <>
-              <ErrorNotice message={error} />
-              <Button
-                type="button"
-                className="text-button"
-                onClick={() =>
-                  guard(() => {
-                    setDirty(false);
-                    setEdit(null);
-                    setError("");
-                    resource.reload();
-                  })
-                }
-              >
-                {t("Muat ulang tanggal", "Reload dates")}
-              </Button>
-            </>
-          )}
-        </MenuPanel>
-        <aside ref={desktopLibrary} className="menu-library-desktop">
-          {library}
-        </aside>
-      </div>
+              </>
+            )}
+            {error && (
+              <>
+                <ErrorNotice message={error} />
+                <Button
+                  type="button"
+                  className="text-button"
+                  onClick={() =>
+                    guard(() => {
+                      setDirty(false);
+                      setEdit(null);
+                      setError("");
+                      resource.reload();
+                    })
+                  }
+                >
+                  {t("Muat ulang tanggal", "Reload dates")}
+                </Button>
+              </>
+            )}
+          </MenuPanel>
+          <aside ref={desktopLibrary} className="menu-library-desktop">
+            {library}
+          </aside>
+        </div>
+      )}
       <Dialog
         onCloseAutoFocus={(event) => {
           event.preventDefault();

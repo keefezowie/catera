@@ -1,0 +1,3397 @@
+diff --git a/PRODUCT.md b/PRODUCT.md
+index ebd5c38..5322459 100644
+--- a/PRODUCT.md
++++ b/PRODUCT.md
+@@ -11,6 +11,8 @@ This September 9, 2026 baseline replaces the tenant-specific pilot. The user app
+ - Caterer web: Hari ini updates delivery statuses through separate lunch/dinner tabs and atomic bulk actions. Jadwal provides a date/package order dashboard with production and whole-day manifest revisions. Publishing, menus, portions-based capacity, customers, support, transactions and staff remain separate workspaces.
+ - Catera admin web: verification, listing/review moderation, transactions, support/refunds, legacy payout approval, delivery-earned weekly settlement, historical promotions and permanent audit history. Platform admins are distinct from seller owners.
+ 
++September 17 seller workspace update: Schedule customer/destination metrics group and filter the order list in place. Menu has one package selector; caterer-selected packages show the dated calendar, while customer-choice packages show their available dish library. New customers and subscriptions originate from customer purchases. Manual customer creation, prepaid imports and externally recorded renewals are removed from the marketplace workspace; historical records remain readable and existing customer details and delivery requests remain manageable.
++
+ ## Product rules
+ 
+ 1. One slot means one portion for one package/date. A combined lunch/dinner offer reserves its quantity once per day. Its meal fulfillments have separate delivery statuses and share the day's address and date. Recurring package capacity is one value shared by every selected operating weekday; date-specific capacity rows are legacy data and are not seller-editable.
+diff --git a/apps/web/src/app/api/v1/[...path]/route.ts b/apps/web/src/app/api/v1/[...path]/route.ts
+index d79c22e..fdf70a4 100644
+--- a/apps/web/src/app/api/v1/[...path]/route.ts
++++ b/apps/web/src/app/api/v1/[...path]/route.ts
+@@ -379,6 +379,14 @@ export async function POST(request: Request, context: Context) {
+     }
+     if (path[0] === "commands") {
+       const command = commandSchema.parse(a);
++      // New customer relationships and subscriptions originate in checkout.
++      // Keep historical records editable, but retire manual acquisition paths.
++      if (
++        command.action === "import.preview" ||
++        command.action === "import.commit" ||
++        (command.action === "customer.save" && !command.payload.id)
++      )
++        throw new Error("NOT_AVAILABLE");
+       if (command.action === "customer.claim") {
+         if (demoEnabled()) throw new Error("PHONE_VERIFICATION_REQUIRED");
+         const client = await supabase();
+diff --git a/apps/web/src/app/globals.css b/apps/web/src/app/globals.css
+index f849344..e57d83b 100644
+--- a/apps/web/src/app/globals.css
++++ b/apps/web/src/app/globals.css
+@@ -2696,14 +2696,14 @@ td strong {
+   background: var(--surface);
+   margin-bottom: 28px;
+ }
+-.ops-metrics > div {
++.ops-metrics > :is(div, button) {
+   padding: 20px 24px;
+   border-right: 1px solid var(--line);
+   display: grid;
+   grid-template-columns: 1fr auto;
+   gap: 8px;
+ }
+-.ops-metrics > div:last-child {
++.ops-metrics > :is(div, button):last-child {
+   border: 0;
+ }
+ .ops-metrics svg {
+@@ -3147,7 +3147,7 @@ td strong {
+     flex-direction: column;
+     gap: 15px;
+   }
+-  .ops-metrics > div {
++  .ops-metrics > :is(div, button) {
+     padding: 18px;
+   }
+   .ops-two-col {
+@@ -4148,13 +4148,13 @@ td strong {
+   .ops-metrics {
+     grid-template-columns: 1fr 1fr;
+   }
+-  .ops-metrics > div {
++  .ops-metrics > :is(div, button) {
+     padding: 17px 18px;
+   }
+-  .ops-metrics > div:nth-child(2) {
++  .ops-metrics > :is(div, button):nth-child(2) {
+     border-right: 0;
+   }
+-  .ops-metrics > div:nth-child(-n + 2) {
++  .ops-metrics > :is(div, button):nth-child(-n + 2) {
+     border-bottom: 1px solid var(--line);
+   }
+   .ops-metrics strong {
+diff --git a/apps/web/src/app/usability.css b/apps/web/src/app/usability.css
+index 47ab4cb..f8df0bf 100644
+--- a/apps/web/src/app/usability.css
++++ b/apps/web/src/app/usability.css
+@@ -612,7 +612,7 @@ body .ops-main .ops-order-table [data-cell="actions"] .text-button {
+   .seller-operations .ops-metrics {
+     margin-bottom: 16px;
+   }
+-  .seller-operations .ops-metrics > div {
++  .seller-operations .ops-metrics > :is(div, button) {
+     padding: 16px;
+   }
+   .ops-topbar > span {
+diff --git a/apps/web/src/components/menu-calendar.tsx b/apps/web/src/components/menu-calendar.tsx
+index 47d2a48..2cb2130 100644
+--- a/apps/web/src/components/menu-calendar.tsx
++++ b/apps/web/src/components/menu-calendar.tsx
+@@ -29,6 +29,7 @@ import { Select, SelectOption } from "./select";
+ import { Dialog, ErrorNotice, Field } from "./ui";
+ import { MenuPanel, MenuSlots } from "./menu-assembly";
+ import { PackageContents } from "./package-contents";
++import { PackageChoiceLibrary } from "./package-choice-library";
+ import { MenuLibrary } from "./menu-library";
+ import {
+   monthOf,
+@@ -113,14 +114,17 @@ export function MenuCalendar({
+             contents: subscription.snapshot.offer,
+           },
+         ]
+-      : (s?.contentRevisions || []).filter(
+-          (r) =>
+-            s?.offers.find((o) => o.id === r.packageId)?.menuSelectionMode !==
+-            "customer",
+-        ),
++      : s?.contentRevisions || [],
+     selected =
+       revisions.find((r) => r.packageId + ":" + r.revision === selection) ||
+       revisions[0];
++  const choiceOffer = !subscription
++    ? s?.offers.find(
++        (offer) =>
++          offer.id === selected?.packageId &&
++          offer.menuSelectionMode === "customer",
++      )
++    : undefined;
+   const activeMeal =
+     selected?.contents.meal === "both"
+       ? meal
+@@ -134,16 +138,17 @@ export function MenuCalendar({
+   ].join(":");
+   const resource = useResource("menu-month:" + context, async () => ({
+     context,
+-    value: selected
+-      ? subscription
+-        ? await api.customerMenuMonth(subscription.id, month, activeMeal)
+-        : await api.menuMonth(
+-            selected.packageId,
+-            selected.revision,
+-            month,
+-            activeMeal,
+-          )
+-      : { dates: [], categories: defaultDishCategories },
++    value:
++      selected && !choiceOffer
++        ? subscription
++          ? await api.customerMenuMonth(subscription.id, month, activeMeal)
++          : await api.menuMonth(
++              selected.packageId,
++              selected.revision,
++              month,
++              activeMeal,
++            )
++        : { dates: [], categories: defaultDishCategories },
+   }));
+   const data = resource.data?.context === context ? resource.data.value : null;
+   const customerData = subscription ? (data as CustomerMenuMonth | null) : null;
+@@ -557,7 +562,7 @@ export function MenuCalendar({
+             ))}
+           </Select>
+         </Field>
+-        {selected.contents.meal === "both" && (
++        {!choiceOffer && selected.contents.meal === "both" && (
+           <Field label={t("Waktu makan", "Meal")}>
+             <Select
+               value={activeMeal}
+@@ -592,422 +597,436 @@ export function MenuCalendar({
+           {t("Pustaka hidangan", "Dish library")}
+         </Button>
+       </div>
+-      <div
+-        className={
+-          "menu-columns" +
+-          (edit && !edit.readOnly ? " menu-columns-editor" : "")
+-        }
+-      >
+-        <MenuPanel mode={edit ? "editor" : "calendar"}>
+-          {!edit ? (
+-            <>
+-              <div className="menu-month-heading">
+-                <Button
+-                  type="button"
+-                  className="text-button"
+-                  aria-label={t("Bulan sebelumnya", "Previous month")}
+-                  onClick={() => {
+-                    setMonth(shiftMonth(month, -1));
+-                    setDates([]);
+-                  }}
+-                >
+-                  <ChevronLeft />
+-                </Button>
+-                <h2 ref={calendarHeading} tabIndex={-1}>
+-                  {new Intl.DateTimeFormat(
+-                    locale === "id" ? "id-ID" : "en-GB",
+-                    { month: "long", year: "numeric", timeZone: "UTC" },
+-                  ).format(new Date(month + "T12:00:00Z"))}
+-                </h2>
+-                <Button
+-                  type="button"
+-                  className="text-button"
+-                  aria-label={t("Bulan berikutnya", "Next month")}
+-                  onClick={() => {
+-                    setMonth(shiftMonth(month, 1));
+-                    setDates([]);
+-                  }}
+-                >
+-                  <ChevronRight />
+-                </Button>
+-              </div>
+-              <div className="menu-selection-bar">
+-                <span>{mealLabel(activeMeal, locale)}</span>
+-                <Button
+-                  type="button"
+-                  className="text-button"
+-                  aria-pressed={multi}
+-                  onClick={() => {
+-                    setMulti(!multi);
+-                    setDates([]);
+-                  }}
+-                >
+-                  {multi
+-                    ? t("Selesai memilih", "Finish selection")
+-                    : t("Pilih beberapa tanggal", "Select multiple dates")}
+-                </Button>
+-              </div>
+-              <p className="menu-calendar-legend">
+-                <LockKeyhole size={14} aria-hidden="true" />
+-                {t(
+-                  "Hanya baca · Ketuk tanggal untuk melihat menu",
+-                  "Read only · Tap a date to view its menu",
+-                )}
+-              </p>
+-              {resource.error ? (
+-                <ErrorNotice message={resource.error} retry={resource.reload} />
+-              ) : !data ? (
+-                <p role="status">
+-                  {t("Memuat kalender…", "Loading calendar…")}
+-                </p>
+-              ) : (
+-                <>
+-                  <div
+-                    className="menu-month-grid"
+-                    aria-label={t("Tanggal menu", "Menu dates")}
++      {choiceOffer ? (
++        <PackageChoiceLibrary
++          key={choiceOffer.id}
++          offer={choiceOffer}
++          dishes={s?.dishes || []}
++        />
++      ) : (
++        <div
++          className={
++            "menu-columns" +
++            (edit && !edit.readOnly ? " menu-columns-editor" : "")
++          }
++        >
++          <MenuPanel mode={edit ? "editor" : "calendar"}>
++            {!edit ? (
++              <>
++                <div className="menu-month-heading">
++                  <Button
++                    type="button"
++                    className="text-button"
++                    aria-label={t("Bulan sebelumnya", "Previous month")}
++                    onClick={() => {
++                      setMonth(shiftMonth(month, -1));
++                      setDates([]);
++                    }}
+                   >
+-                    {(locale === "id"
+-                      ? ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"]
+-                      : ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+-                    ).map((d) => (
+-                      <span className="menu-weekday" key={d}>
+-                        {d}
+-                      </span>
+-                    ))}
+-                    {datesBetween(weekStart(month), monthEnd(month)).map(
+-                      (day) => {
+-                        const d = data.dates.find((x) => x.date === day);
+-                        const dishNames =
+-                          d?.details?.items
+-                            ?.map((item) => item.name.trim())
+-                            .filter(Boolean) || [];
+-                        const menuNames = dishNames.length
+-                          ? dishNames
+-                          : d?.details?.name
+-                            ? [d.details.name]
+-                            : [];
+-                        return d ? (
+-                          <Button
+-                            key={day}
+-                            type="button"
+-                            className={
+-                              "menu-day" +
+-                              (d.details ? " configured" : "") +
+-                              (dates.includes(day) ? " selected" : "")
+-                            }
+-                            aria-pressed={
+-                              multi ? dates.includes(day) : undefined
+-                            }
+-                            aria-label={
+-                              fmt(day) +
+-                              " · " +
+-                              (d.details
+-                                ? menuNames.join(", ") ||
+-                                  t("Menu terisi", "Menu configured")
+-                                : subscription
+-                                  ? !d.editable
+-                                    ? t("Katerer memilih", "Caterer chooses")
+-                                    : t("Pilih menu", "Choose menu")
+-                                  : t("Belum diisi", "Not set")) +
+-                              (!d.editable
+-                                ? t(" · Hanya baca", " · Read only")
+-                                : "")
+-                            }
+-                            disabled={
+-                              (!subscription && day < today) ||
+-                              (multi && !d.editable)
+-                            }
+-                            onClick={() =>
+-                              multi
+-                                ? setDates((v) =>
+-                                    v.includes(day)
+-                                      ? v.filter((x) => x !== day)
+-                                      : [...v, day],
+-                                  )
+-                                : openDates([day])
+-                            }
+-                          >
++                    <ChevronLeft />
++                  </Button>
++                  <h2 ref={calendarHeading} tabIndex={-1}>
++                    {new Intl.DateTimeFormat(
++                      locale === "id" ? "id-ID" : "en-GB",
++                      { month: "long", year: "numeric", timeZone: "UTC" },
++                    ).format(new Date(month + "T12:00:00Z"))}
++                  </h2>
++                  <Button
++                    type="button"
++                    className="text-button"
++                    aria-label={t("Bulan berikutnya", "Next month")}
++                    onClick={() => {
++                      setMonth(shiftMonth(month, 1));
++                      setDates([]);
++                    }}
++                  >
++                    <ChevronRight />
++                  </Button>
++                </div>
++                <div className="menu-selection-bar">
++                  <span>{mealLabel(activeMeal, locale)}</span>
++                  <Button
++                    type="button"
++                    className="text-button"
++                    aria-pressed={multi}
++                    onClick={() => {
++                      setMulti(!multi);
++                      setDates([]);
++                    }}
++                  >
++                    {multi
++                      ? t("Selesai memilih", "Finish selection")
++                      : t("Pilih beberapa tanggal", "Select multiple dates")}
++                  </Button>
++                </div>
++                <p className="menu-calendar-legend">
++                  <LockKeyhole size={14} aria-hidden="true" />
++                  {t(
++                    "Hanya baca · Ketuk tanggal untuk melihat menu",
++                    "Read only · Tap a date to view its menu",
++                  )}
++                </p>
++                {resource.error ? (
++                  <ErrorNotice
++                    message={resource.error}
++                    retry={resource.reload}
++                  />
++                ) : !data ? (
++                  <p role="status">
++                    {t("Memuat kalender…", "Loading calendar…")}
++                  </p>
++                ) : (
++                  <>
++                    <div
++                      className="menu-month-grid"
++                      aria-label={t("Tanggal menu", "Menu dates")}
++                    >
++                      {(locale === "id"
++                        ? ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"]
++                        : ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
++                      ).map((d) => (
++                        <span className="menu-weekday" key={d}>
++                          {d}
++                        </span>
++                      ))}
++                      {datesBetween(weekStart(month), monthEnd(month)).map(
++                        (day) => {
++                          const d = data.dates.find((x) => x.date === day);
++                          const dishNames =
++                            d?.details?.items
++                              ?.map((item) => item.name.trim())
++                              .filter(Boolean) || [];
++                          const menuNames = dishNames.length
++                            ? dishNames
++                            : d?.details?.name
++                              ? [d.details.name]
++                              : [];
++                          return d ? (
++                            <Button
++                              key={day}
++                              type="button"
++                              className={
++                                "menu-day" +
++                                (d.details ? " configured" : "") +
++                                (dates.includes(day) ? " selected" : "")
++                              }
++                              aria-pressed={
++                                multi ? dates.includes(day) : undefined
++                              }
++                              aria-label={
++                                fmt(day) +
++                                " · " +
++                                (d.details
++                                  ? menuNames.join(", ") ||
++                                    t("Menu terisi", "Menu configured")
++                                  : subscription
++                                    ? !d.editable
++                                      ? t("Katerer memilih", "Caterer chooses")
++                                      : t("Pilih menu", "Choose menu")
++                                    : t("Belum diisi", "Not set")) +
++                                (!d.editable
++                                  ? t(" · Hanya baca", " · Read only")
++                                  : "")
++                              }
++                              disabled={
++                                (!subscription && day < today) ||
++                                (multi && !d.editable)
++                              }
++                              onClick={() =>
++                                multi
++                                  ? setDates((v) =>
++                                      v.includes(day)
++                                        ? v.filter((x) => x !== day)
++                                        : [...v, day],
++                                    )
++                                  : openDates([day])
++                              }
++                            >
++                              <span
++                                className="menu-day-heading"
++                                aria-hidden="true"
++                              >
++                                <strong>{Number(day.slice(-2))}</strong>
++                                {!d.editable && <LockKeyhole size={13} />}
++                              </span>
++                              {d.details ? (
++                                <>
++                                  <span
++                                    className="menu-day-dishes"
++                                    title={menuNames.join(", ")}
++                                  >
++                                    {menuNames.length ? (
++                                      menuNames
++                                        .slice(0, 2)
++                                        .map((name, index) => (
++                                          <span
++                                            className="menu-day-dish"
++                                            key={index}
++                                          >
++                                            {name}
++                                          </span>
++                                        ))
++                                    ) : (
++                                      <span>
++                                        {t("Menu tersimpan", "Saved menu")}
++                                      </span>
++                                    )}
++                                    {menuNames.length > 2 && (
++                                      <span className="menu-day-more">
++                                        +{menuNames.length - 2}{" "}
++                                        {t("hidangan", "dishes")}
++                                      </span>
++                                    )}
++                                  </span>
++                                  <span
++                                    className="menu-day-count"
++                                    aria-hidden="true"
++                                  >
++                                    {menuNames.length ? (
++                                      <>
++                                        <Utensils size={12} />
++                                        {menuNames.length}
++                                      </>
++                                    ) : (
++                                      t("Terisi", "Saved")
++                                    )}
++                                  </span>
++                                </>
++                              ) : (
++                                <span className="menu-day-empty">
++                                  {subscription
++                                    ? !d.editable
++                                      ? t("Katerer memilih", "Caterer chooses")
++                                      : t("Pilih menu", "Choose menu")
++                                    : t("Belum diisi", "Not set")}
++                                </span>
++                              )}
++                            </Button>
++                          ) : subscription ? (
+                             <span
+-                              className="menu-day-heading"
++                              key={day}
++                              className="menu-day menu-day-unavailable"
+                               aria-hidden="true"
+                             >
+-                              <strong>{Number(day.slice(-2))}</strong>
+-                              {!d.editable && <LockKeyhole size={13} />}
++                              {Number(day.slice(-2))}
+                             </span>
+-                            {d.details ? (
+-                              <>
+-                                <span
+-                                  className="menu-day-dishes"
+-                                  title={menuNames.join(", ")}
+-                                >
+-                                  {menuNames.length ? (
+-                                    menuNames.slice(0, 2).map((name, index) => (
+-                                      <span
+-                                        className="menu-day-dish"
+-                                        key={index}
+-                                      >
+-                                        {name}
+-                                      </span>
+-                                    ))
+-                                  ) : (
+-                                    <span>
+-                                      {t("Menu tersimpan", "Saved menu")}
+-                                    </span>
+-                                  )}
+-                                  {menuNames.length > 2 && (
+-                                    <span className="menu-day-more">
+-                                      +{menuNames.length - 2}{" "}
+-                                      {t("hidangan", "dishes")}
+-                                    </span>
+-                                  )}
+-                                </span>
+-                                <span
+-                                  className="menu-day-count"
+-                                  aria-hidden="true"
+-                                >
+-                                  {menuNames.length ? (
+-                                    <>
+-                                      <Utensils size={12} />
+-                                      {menuNames.length}
+-                                    </>
+-                                  ) : (
+-                                    t("Terisi", "Saved")
+-                                  )}
+-                                </span>
+-                              </>
+-                            ) : (
+-                              <span className="menu-day-empty">
+-                                {subscription
+-                                  ? !d.editable
+-                                    ? t("Katerer memilih", "Caterer chooses")
+-                                    : t("Pilih menu", "Choose menu")
+-                                  : t("Belum diisi", "Not set")}
+-                              </span>
+-                            )}
+-                          </Button>
+-                        ) : subscription ? (
+-                          <span
+-                            key={day}
+-                            className="menu-day menu-day-unavailable"
+-                            aria-hidden="true"
+-                          >
+-                            {Number(day.slice(-2))}
+-                          </span>
+-                        ) : (
+-                          <span key={day} className="menu-day-outside" />
+-                        );
+-                      },
+-                    )}
+-                  </div>
+-                  {multi && (
+-                    <div className="menu-selection-footer">
+-                      <span>
+-                        {dates.length} {t("tanggal dipilih", "dates selected")}
+-                      </span>
+-                      <Button
+-                        variant="primary"
+-                        type="button"
+-                        disabled={!dates.length}
+-                        onClick={() => openDates(dates)}
+-                      >
+-                        {t("Atur menu", "Edit menu")}
+-                      </Button>
+-                    </div>
+-                  )}
+-                </>
+-              )}
+-            </>
+-          ) : (
+-            <>
+-              <Button
+-                type="button"
+-                className="text-button"
+-                disabled={busy}
+-                onClick={back}
+-              >
+-                <ArrowLeft size={18} />
+-                {t("Kembali ke kalender", "Back to calendar")}
+-              </Button>
+-              <p className="menu-package-name">{selected.name}</p>
+-              {subscription && (
+-                <p>
+-                  {t("Batas waktu", "Cutoff")}:{" "}
+-                  {customerData?.dates
+-                    .filter((d) => edit.dates.includes(d.date))
+-                    .map((d) =>
+-                      new Intl.DateTimeFormat(
+-                        locale === "id" ? "id-ID" : "en-GB",
+-                        {
+-                          dateStyle: "medium",
+-                          timeStyle: "short",
+-                          timeZone: subscription.snapshot.offer.timezone,
++                          ) : (
++                            <span key={day} className="menu-day-outside" />
++                          );
+                         },
+-                      ).format(new Date(d.cutoffAt)),
+-                    )
+-                    .join(" · ")}{" "}
+-                  ({subscription.snapshot.offer.timezone})
+-                </p>
+-              )}
+-              <h2 ref={editorHeading} tabIndex={-1}>
+-                {t("Menu ", "Menu for ")}
+-                {edit.dates.map(fmt).join(", ")}
+-              </h2>
+-              <p>
+-                {mealLabel(activeMeal, locale)} ·{" "}
+-                {t(
+-                  "Satu menu untuk seluruh tanggal terpilih.",
+-                  "One menu for every selected date.",
++                      )}
++                    </div>
++                    {multi && (
++                      <div className="menu-selection-footer">
++                        <span>
++                          {dates.length}{" "}
++                          {t("tanggal dipilih", "dates selected")}
++                        </span>
++                        <Button
++                          variant="primary"
++                          type="button"
++                          disabled={!dates.length}
++                          onClick={() => openDates(dates)}
++                        >
++                          {t("Atur menu", "Edit menu")}
++                        </Button>
++                      </div>
++                    )}
++                  </>
+                 )}
+-              </p>
+-              {!edit.readOnly && (
+-                <p className="menu-completion" role="status">
+-                  {edit.menu.items?.filter((i) => i.name).length || 0}/
+-                  {edit.menu.items?.length || 0}{" "}
+-                  {t("slot terisi", "slots filled")}
+-                </p>
+-              )}
+-              {edit.different && (
+-                <p role="status">
++              </>
++            ) : (
++              <>
++                <Button
++                  type="button"
++                  className="text-button"
++                  disabled={busy}
++                  onClick={back}
++                >
++                  <ArrowLeft size={18} />
++                  {t("Kembali ke kalender", "Back to calendar")}
++                </Button>
++                <p className="menu-package-name">{selected.name}</p>
++                {subscription && (
++                  <p>
++                    {t("Batas waktu", "Cutoff")}:{" "}
++                    {customerData?.dates
++                      .filter((d) => edit.dates.includes(d.date))
++                      .map((d) =>
++                        new Intl.DateTimeFormat(
++                          locale === "id" ? "id-ID" : "en-GB",
++                          {
++                            dateStyle: "medium",
++                            timeStyle: "short",
++                            timeZone: subscription.snapshot.offer.timezone,
++                          },
++                        ).format(new Date(d.cutoffAt)),
++                      )
++                      .join(" · ")}{" "}
++                    ({subscription.snapshot.offer.timezone})
++                  </p>
++                )}
++                <h2 ref={editorHeading} tabIndex={-1}>
++                  {t("Menu ", "Menu for ")}
++                  {edit.dates.map(fmt).join(", ")}
++                </h2>
++                <p>
++                  {mealLabel(activeMeal, locale)} ·{" "}
+                   {t(
+-                    "Menu berbeda. Susun satu menu pengganti untuk seluruh tanggal terpilih.",
+-                    "Different menus. Build one replacement menu for every selected date.",
++                    "Satu menu untuk seluruh tanggal terpilih.",
++                    "One menu for every selected date.",
+                   )}
+                 </p>
+-              )}
+-              {edit.readOnly ? (
+-                <>
+-                  <p>
++                {!edit.readOnly && (
++                  <p className="menu-completion" role="status">
++                    {edit.menu.items?.filter((i) => i.name).length || 0}/
++                    {edit.menu.items?.length || 0}{" "}
++                    {t("slot terisi", "slots filled")}
++                  </p>
++                )}
++                {edit.different && (
++                  <p role="status">
+                     {t(
+-                      "Menu tanggal ini hanya dapat dilihat.",
+-                      "This date's menu is read only.",
++                      "Menu berbeda. Susun satu menu pengganti untuk seluruh tanggal terpilih.",
++                      "Different menus. Build one replacement menu for every selected date.",
+                     )}
+                   </p>
+-                  <PackageContents
+-                    offer={{
+-                      packageType: selected.contents.packageType,
+-                      menus: [edit.menu],
+-                    }}
+-                  />
+-                </>
+-              ) : (
+-                <>
+-                  <MenuSlots
+-                    menu={edit.menu}
+-                    activeId={slot}
+-                    dragging={dragging}
+-                    busy={busy}
+-                    onSelect={(id) => {
+-                      setSlot(id);
+-                      if (!desktopLibrary.current?.getClientRects().length) {
+-                        libraryReturnTarget.current =
+-                          document.activeElement as HTMLElement;
+-                        setLibraryOpen(true);
+-                      }
+-                    }}
+-                    onDrop={(id, dishId) => {
+-                      const dish = dishes.find((d) => d.id === dishId);
+-                      if (dish) assign(id, dish);
+-                      setDragging(null);
+-                    }}
+-                    onRemove={(id) => {
+-                      change({
+-                        ...edit.menu,
+-                        items: edit.menu.items!.map((i) =>
+-                          i.id === id
+-                            ? {
+-                                id: i.id,
+-                                groupId: i.groupId,
+-                                categoryId: i.categoryId,
+-                                name: "",
+-                                description: "",
+-                                image: "",
+-                                serving: "",
+-                              }
+-                            : i,
+-                        ),
+-                        nutrition: null,
+-                      });
+-                      setSlot(id);
+-                    }}
+-                  />
+-                  {!edit.menu.composition?.length && (
++                )}
++                {edit.readOnly ? (
++                  <>
+                     <p>
+                       {t(
+-                        "Tambahkan komposisi paket sebelum menyusun menu.",
+-                        "Add the package composition before assembling a menu.",
++                        "Menu tanggal ini hanya dapat dilihat.",
++                        "This date's menu is read only.",
+                       )}
+                     </p>
+-                  )}
+-                  <div className="menu-save-bar">
+-                    {subscription && (
++                    <PackageContents
++                      offer={{
++                        packageType: selected.contents.packageType,
++                        menus: [edit.menu],
++                      }}
++                    />
++                  </>
++                ) : (
++                  <>
++                    <MenuSlots
++                      menu={edit.menu}
++                      activeId={slot}
++                      dragging={dragging}
++                      busy={busy}
++                      onSelect={(id) => {
++                        setSlot(id);
++                        if (!desktopLibrary.current?.getClientRects().length) {
++                          libraryReturnTarget.current =
++                            document.activeElement as HTMLElement;
++                          setLibraryOpen(true);
++                        }
++                      }}
++                      onDrop={(id, dishId) => {
++                        const dish = dishes.find((d) => d.id === dishId);
++                        if (dish) assign(id, dish);
++                        setDragging(null);
++                      }}
++                      onRemove={(id) => {
++                        change({
++                          ...edit.menu,
++                          items: edit.menu.items!.map((i) =>
++                            i.id === id
++                              ? {
++                                  id: i.id,
++                                  groupId: i.groupId,
++                                  categoryId: i.categoryId,
++                                  name: "",
++                                  description: "",
++                                  image: "",
++                                  serving: "",
++                                }
++                              : i,
++                          ),
++                          nutrition: null,
++                        });
++                        setSlot(id);
++                      }}
++                    />
++                    {!edit.menu.composition?.length && (
++                      <p>
++                        {t(
++                          "Tambahkan komposisi paket sebelum menyusun menu.",
++                          "Add the package composition before assembling a menu.",
++                        )}
++                      </p>
++                    )}
++                    <div className="menu-save-bar">
++                      {subscription && (
++                        <Button
++                          variant="secondary"
++                          type="button"
++                          disabled={busy}
++                          onClick={() => setResetConfirm(true)}
++                        >
++                          {t("Serahkan ke katerer", "Let caterer choose")}
++                        </Button>
++                      )}
++                      <span>
++                        <strong>{edit.dates.map(fmt).join(", ")}</strong> ·{" "}
++                        {mealLabel(activeMeal, locale)}
++                        <small>
++                          {validation().length
++                            ? t(
++                                "Lengkapi setiap tempat hidangan untuk menyimpan.",
++                                "Fill every dish slot to save.",
++                              )
++                            : t(
++                                "Semua hidangan terisi. Siap disimpan.",
++                                "All dish slots filled. Ready to save.",
++                              )}
++                        </small>
++                      </span>
+                       <Button
+-                        variant="secondary"
++                        variant="primary"
+                         type="button"
+-                        disabled={busy}
+-                        onClick={() => setResetConfirm(true)}
++                        disabled={
++                          busy ||
++                          validation().length > 0 ||
++                          !edit.menu.items?.length
++                        }
++                        onClick={requestSave}
+                       >
+-                        {t("Serahkan ke katerer", "Let caterer choose")}
++                        <Save size={18} />
++                        {busy
++                          ? t("Menyimpan…", "Saving…")
++                          : t("Simpan menu", "Save menu")}
+                       </Button>
+-                    )}
+-                    <span>
+-                      <strong>{edit.dates.map(fmt).join(", ")}</strong> ·{" "}
+-                      {mealLabel(activeMeal, locale)}
+-                      <small>
+-                        {validation().length
+-                          ? t(
+-                              "Lengkapi setiap tempat hidangan untuk menyimpan.",
+-                              "Fill every dish slot to save.",
+-                            )
+-                          : t(
+-                              "Semua hidangan terisi. Siap disimpan.",
+-                              "All dish slots filled. Ready to save.",
+-                            )}
+-                      </small>
+-                    </span>
+-                    <Button
+-                      variant="primary"
+-                      type="button"
+-                      disabled={
+-                        busy ||
+-                        validation().length > 0 ||
+-                        !edit.menu.items?.length
+-                      }
+-                      onClick={requestSave}
+-                    >
+-                      <Save size={18} />
+-                      {busy
+-                        ? t("Menyimpan…", "Saving…")
+-                        : t("Simpan menu", "Save menu")}
+-                    </Button>
+-                  </div>
+-                </>
+-              )}
+-            </>
+-          )}
+-          {error && (
+-            <>
+-              <ErrorNotice message={error} />
+-              <Button
+-                type="button"
+-                className="text-button"
+-                onClick={() =>
+-                  guard(() => {
+-                    setDirty(false);
+-                    setEdit(null);
+-                    setError("");
+-                    resource.reload();
+-                  })
+-                }
+-              >
+-                {t("Muat ulang tanggal", "Reload dates")}
+-              </Button>
+-            </>
+-          )}
+-        </MenuPanel>
+-        <aside ref={desktopLibrary} className="menu-library-desktop">
+-          {library}
+-        </aside>
+-      </div>
++                    </div>
++                  </>
++                )}
++              </>
++            )}
++            {error && (
++              <>
++                <ErrorNotice message={error} />
++                <Button
++                  type="button"
++                  className="text-button"
++                  onClick={() =>
++                    guard(() => {
++                      setDirty(false);
++                      setEdit(null);
++                      setError("");
++                      resource.reload();
++                    })
++                  }
++                >
++                  {t("Muat ulang tanggal", "Reload dates")}
++                </Button>
++              </>
++            )}
++          </MenuPanel>
++          <aside ref={desktopLibrary} className="menu-library-desktop">
++            {library}
++          </aside>
++        </div>
++      )}
+       <Dialog
+         onCloseAutoFocus={(event) => {
+           event.preventDefault();
+diff --git a/apps/web/src/components/package-choice-library.css b/apps/web/src/components/package-choice-library.css
+index c879d00..0260d47 100644
+--- a/apps/web/src/components/package-choice-library.css
++++ b/apps/web/src/components/package-choice-library.css
+@@ -5,6 +5,102 @@
+   border-radius: 18px;
+   background: var(--surface, #fffdf8);
+ }
++.choice-library-heading {
++  display: flex;
++  justify-content: space-between;
++  align-items: flex-start;
++  gap: 24px;
++}
++.choice-library-heading h2 {
++  margin: 10px 0;
++}
++.choice-library-heading p {
++  max-width: 70ch;
++  color: var(--muted);
++  line-height: 1.7;
++}
++.choice-mode {
++  display: inline-flex;
++  gap: 8px;
++  align-items: center;
++  font-size: 12px;
++  font-weight: 700;
++  color: var(--forest);
++}
++.choice-active-count {
++  padding: 8px 12px;
++  background: var(--soft);
++  border-radius: 8px;
++  font-size: 12px;
++  white-space: nowrap;
++}
++.choice-composition {
++  display: flex;
++  gap: 16px;
++  flex-wrap: wrap;
++  margin-block: 16px;
++}
++.choice-composition > div {
++  display: flex;
++  gap: 12px;
++  flex-wrap: wrap;
++  padding: 12px 16px;
++  border: 1px solid var(--line);
++  border-radius: 8px;
++  font-size: 13px;
++}
++.choice-option-grid {
++  display: grid;
++  grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr));
++  gap: 16px;
++  margin-block: 20px 28px;
++}
++.choice-option-card {
++  min-width: 0;
++  overflow: hidden;
++  border: 1px solid var(--line);
++  border-radius: 12px;
++}
++.choice-option-card.is-retired {
++  background: var(--soft);
++}
++.choice-option-card > img,
++.choice-option-placeholder {
++  width: 100%;
++  height: 145px;
++  object-fit: cover;
++}
++.choice-option-placeholder {
++  display: grid;
++  place-items: center;
++  background: var(--soft);
++  color: var(--muted);
++}
++.choice-option-info {
++  padding: 14px 14px 8px;
++  display: grid;
++  gap: 6px;
++}
++.choice-option-info small {
++  color: var(--muted);
++}
++.choice-option-actions {
++  display: flex;
++  flex-wrap: wrap;
++  gap: 8px;
++  padding: 8px 14px 14px;
++}
++.choice-option-actions .button {
++  min-height: 40px;
++  padding: 8px 10px;
++  font-size: 12px;
++}
++@media (max-width: 600px) {
++  .choice-library-heading {
++    flex-direction: column;
++    gap: 8px;
++  }
++}
+ .package-choice-library .action-row {
+   padding-block: 12px;
+   border-bottom: 1px solid var(--line, #d8dccd);
+diff --git a/apps/web/src/components/package-choice-library.tsx b/apps/web/src/components/package-choice-library.tsx
+index 28b30cd..8044e7a 100644
+--- a/apps/web/src/components/package-choice-library.tsx
++++ b/apps/web/src/components/package-choice-library.tsx
+@@ -1,4 +1,5 @@
+ "use client";
++import { Plus, RefreshCw, Archive, RotateCcw, Utensils } from "lucide-react";
+ import { useState } from "react";
+ import { type Offer, type LibraryDish } from "@catera/domain";
+ import { api, useApp, useResource } from "./context";
+@@ -113,10 +114,54 @@ export function PackageChoiceLibrary({
+   );
+   return (
+     <section className="package-choice-library">
+-      <h3>
+-        {offer.name} · {t("Pilih menu sendiri", "Choose your menu")}
+-      </h3>
+-      <ChoiceRules />
++      {dishes ? (
++        <>
++          <div className="choice-library-heading">
++            <div>
++              <span className="choice-mode">
++                <Utensils size={16} />
++                {t("Pilih menu sendiri", "Choose your menu")}
++              </span>
++              <h2>
++                {t("Pilihan hidangan pelanggan", "Customer dish options")}
++              </h2>
++              <p>
++                {t(
++                  "Kelola hidangan yang bisa dipilih pelanggan untuk paket ini. Pilihan dibuat setelah berlangganan, sebelum batas waktu pengantaran.",
++                  "Manage the dishes customers can choose for this package. Customers select after subscribing, before the delivery cutoff.",
++                )}
++              </p>
++            </div>
++            <strong className="choice-active-count">
++              {options.filter((d) => !d.archived).length}{" "}
++              {t("hidangan aktif", "active dishes")}
++            </strong>
++          </div>
++          <div className="choice-composition">
++            {offer.menus.map((menu) => (
++              <div key={menu.meal}>
++                <strong>
++                  {menu.meal === "lunch"
++                    ? t("Siang", "Lunch")
++                    : t("Malam", "Dinner")}
++                </strong>
++                <span>
++                  {menu.composition
++                    ?.map((group) => `${group.slots} ${group.name}`)
++                    .join(" · ")}
++                </span>
++              </div>
++            ))}
++          </div>
++        </>
++      ) : (
++        <>
++          <h3>
++            {offer.name} · {t("Pilih menu sendiri", "Choose your menu")}
++          </h3>
++          <ChoiceRules />
++        </>
++      )}
+       {resource.error && (
+         <ErrorNotice message={resource.error} retry={resource.reload} />
+       )}
+@@ -134,32 +179,71 @@ export function PackageChoiceLibrary({
+               "Saved customer choices must still be fulfilled. Updates apply to new selections only.",
+             )}
+           </p>
+-          {options.map((d) => (
+-            <div className="action-row" key={d.id}>
+-              <strong>{d.name}</strong>
+-              <span>{d.serving}</span>
+-              <Button
+-                variant="secondary"
+-                disabled={busy}
+-                onClick={() =>
+-                  save({ id: d.id, version: d.version, archived: !d.archived })
+-                }
+-              >
+-                {d.archived
+-                  ? t("Pulihkan", "Restore")
+-                  : t("Nonaktifkan", "Retire")}
+-              </Button>
+-              <Button
+-                variant="secondary"
+-                disabled={busy || d.archived}
+-                onClick={() =>
+-                  save({ id: d.id, version: d.version, refresh: true })
++          <div className="choice-option-grid">
++            {options.map((d) => (
++              <article
++                className={
++                  "choice-option-card" + (d.archived ? " is-retired" : "")
+                 }
++                key={d.id}
+               >
+-                {t("Gunakan versi terbaru", "Use latest version")}
+-              </Button>
+-            </div>
+-          ))}
++                {d.image ? (
++                  <img src={d.image} alt="" />
++                ) : (
++                  <div className="choice-option-placeholder">
++                    <Utensils size={26} />
++                  </div>
++                )}
++                <div className="choice-option-info">
++                  <strong>{d.name}</strong>
++                  <small>
++                    {d.serving} ·{" "}
++                    {d.archived
++                      ? t("Nonaktif", "Inactive")
++                      : t("Aktif", "Active")}
++                  </small>
++                </div>
++                <div className="choice-option-actions">
++                  <Button
++                    variant="secondary"
++                    disabled={busy}
++                    onClick={() =>
++                      save({
++                        id: d.id,
++                        version: d.version,
++                        archived: !d.archived,
++                      })
++                    }
++                  >
++                    {d.archived ? (
++                      <RotateCcw size={15} />
++                    ) : (
++                      <Archive size={15} />
++                    )}
++                    {d.archived
++                      ? t("Pulihkan", "Restore")
++                      : t("Nonaktifkan", "Retire")}
++                  </Button>
++                  <Button
++                    variant="secondary"
++                    disabled={busy || d.archived}
++                    onClick={() =>
++                      save({ id: d.id, version: d.version, refresh: true })
++                    }
++                  >
++                    <RefreshCw size={15} />
++                    {t("Perbarui", "Refresh")}
++                  </Button>
++                </div>
++              </article>
++            ))}
++          </div>
++          <h3>
++            {t(
++              "Tambahkan pilihan dari pustaka",
++              "Add options from your library",
++            )}
++          </h3>
+           {dishes
+             .filter(
+               (d) =>
+@@ -172,9 +256,10 @@ export function PackageChoiceLibrary({
+                 <span>{d.name}</span>
+                 <Button
+                   variant="secondary"
+-                  disabled={busy}
++                  disabled={busy || !resource.data}
+                   onClick={() => save({ sourceDishId: d.id })}
+                 >
++                  <Plus size={16} />
+                   {t("Tambahkan ke paket", "Add to package")}
+                 </Button>
+               </div>
+diff --git a/apps/web/src/components/prepaid-import.tsx b/apps/web/src/components/prepaid-import.tsx
+deleted file mode 100644
+index 06e34b0..0000000
+--- a/apps/web/src/components/prepaid-import.tsx
++++ /dev/null
+@@ -1,400 +0,0 @@
+-"use client";
+-import { useState } from "react";
+-import { Plus, Trash2, ClipboardCheck, ArrowLeft, Check } from "lucide-react";
+-import {
+-  addDays,
+-  localDay,
+-  mealLabel,
+-  type SellerImportOptions,
+-  type PrepaidImportRow,
+-  type PrepaidImportPreview,
+-} from "@catera/domain";
+-import { api, useApp, useResource } from "./context";
+-import { ActionForm, Field, Loading, ErrorNotice, Empty } from "./ui";
+-import { Button, Checkbox, TextInput } from "./form-controls";
+-import { Select, SelectOption } from "./select";
+-import { NumericInput } from "./numeric-input";
+-import { DatePicker } from "./date-picker";
+-
+-type Draft = PrepaidImportRow & { key: string };
+-const newRow = (): Draft => ({
+-  key: crypto.randomUUID(),
+-  customerId: "",
+-  packageId: "",
+-  addressId: "",
+-  portions: 1,
+-  startDate: addDays(localDay(), 2),
+-  remainingDays: 1,
+-  externalReference: "",
+-});
+-export function PrepaidImport({
+-  catererId,
+-  done,
+-  onBusyChange,
+-}: {
+-  catererId: string;
+-  done: () => void;
+-  onBusyChange: (busy: boolean) => void;
+-}) {
+-  const { t, perform, locale } = useApp();
+-  const options = useResource<SellerImportOptions>(
+-    "import-options:" + catererId,
+-    () => api.sellerImportOptions(catererId),
+-  );
+-  const [rows, setRows] = useState<Draft[]>(() => [newRow()]);
+-  const [preview, setPreview] = useState<PrepaidImportPreview | null>(null);
+-  const [busy, setBusy] = useState(false);
+-  const [attempted, setAttempted] = useState(false);
+-  const update = (key: string, change: Partial<Draft>) => {
+-    setRows((current) =>
+-      current.map((row) => (row.key === key ? { ...row, ...change } : row)),
+-    );
+-    setPreview(null);
+-  };
+-  if (options.error)
+-    return <ErrorNotice message={options.error} retry={options.reload} />;
+-  if (!options.data) return <Loading />;
+-  const choices = options.data;
+-  if (!choices.customers.length)
+-    return (
+-      <Empty
+-        title={t("Belum ada pelanggan terhubung", "No connected customers yet")}
+-        description={t(
+-          "Pelanggan perlu memiliki akun Catera dan terhubung ke katerer ini melalui undangan atau pembelian sebelum dapat dipilih.",
+-          "Customers need a Catera account connected to this caterer through an invitation or purchase before they can be selected.",
+-        )}
+-      />
+-    );
+-  if (!choices.packages.length)
+-    return (
+-      <Empty
+-        title={t("Terbitkan paket terlebih dahulu", "Publish a package first")}
+-        description={t(
+-          "Impor membutuhkan katerer yang sudah disetujui dan paket yang sedang dijual.",
+-          "Imports require an approved caterer and a published package.",
+-        )}
+-      />
+-    );
+-  return (
+-    <ActionForm
+-      submit={
+-        preview
+-          ? t("Konfirmasi impor", "Confirm import")
+-          : t("Periksa langganan", "Review subscriptions")
+-      }
+-      submitIcon={preview ? <Check size={18} /> : <ClipboardCheck size={18} />}
+-      onSubmit={async () => {
+-        setBusy(true);
+-        onBusyChange(true);
+-        try {
+-          if (preview) {
+-            await perform("import.commit", { catererId, id: preview.id });
+-            done();
+-          } else {
+-            setAttempted(true);
+-            const incomplete = rows.findIndex(
+-              (r) => !r.customerId || !r.packageId || !r.addressId,
+-            );
+-            if (incomplete >= 0) {
+-              document
+-                .querySelector<HTMLButtonElement>(
+-                  `[data-import-row="${rows[incomplete].key}"] [data-missing="true"] button`,
+-                )
+-                ?.focus();
+-              throw new Error("INVALID_INPUT");
+-            }
+-            setPreview(
+-              await perform<PrepaidImportPreview>("import.preview", {
+-                catererId,
+-                rows: rows.map(({ key, ...row }) => row),
+-              }),
+-            );
+-          }
+-        } finally {
+-          setBusy(false);
+-          onBusyChange(false);
+-        }
+-      }}
+-    >
+-      <p className="notice">
+-        {t(
+-          "Untuk langganan yang sudah dibayar di luar Catera. Tidak ada pembayaran baru yang ditagih.",
+-          "For subscriptions already paid outside Catera. No new payment will be charged.",
+-        )}
+-      </p>
+-      {preview ? (
+-        <>
+-          <p role="status">
+-            {t(
+-              `${preview.rows.length} langganan siap diperiksa. Tanggal dan kapasitas diperiksa lagi saat konfirmasi.`,
+-              `${preview.rows.length} subscriptions ready for review. Dates and capacity are checked again on confirmation.`,
+-            )}
+-          </p>
+-          <div className="import-preview">
+-            {preview.rows.map((r, index) => (
+-              <article key={index}>
+-                <h3>
+-                  {choices.customers.find((c) => c.id === r.customerId)?.name} ·{" "}
+-                  {r.preview.offer.name}
+-                </h3>
+-                <p>
+-                  {r.portions} {t("porsi", "portions")} ×{" "}
+-                  {r.preview.dates.length} {t("hari", "days")} ·{" "}
+-                  {mealLabel(r.preview.offer.meal, locale)}
+-                </p>
+-                <p>
+-                  {r.preview.address.label} · {r.preview.address.line},{" "}
+-                  {r.preview.address.area}
+-                </p>
+-                <p>
+-                  {t("Tanggal pengantaran", "Delivery dates")}:{" "}
+-                  {r.preview.dates
+-                    .map((d) =>
+-                      new Date(d + "T12:00:00Z").toLocaleDateString(
+-                        locale === "id" ? "id-ID" : "en-GB",
+-                        { day: "numeric", month: "short", timeZone: "UTC" },
+-                      ),
+-                    )
+-                    .join(", ")}
+-                </p>
+-                <small>
+-                  {t("Bukti pembayaran", "Payment reference")}:{" "}
+-                  {r.externalReference}
+-                </small>
+-              </article>
+-            ))}
+-          </div>
+-          <Button
+-            type="button"
+-            className="button secondary"
+-            disabled={busy}
+-            onClick={() => setPreview(null)}
+-          >
+-            <ArrowLeft size={18} />
+-            {t("Perbaiki data", "Edit data")}
+-          </Button>
+-          <label className="checkbox">
+-            <Checkbox required />
+-            {t(
+-              "Saya telah memverifikasi pembayaran dan hak pengantaran ini.",
+-              "I have verified this payment and delivery entitlement.",
+-            )}
+-          </label>
+-        </>
+-      ) : (
+-        <>
+-          {rows.map((row, index) => {
+-            const customer = choices.customers.find(
+-              (c) => c.id === row.customerId,
+-            );
+-            const offer = choices.packages.find((p) => p.id === row.packageId);
+-            const addresses =
+-              customer?.addresses.filter(
+-                (a) => !offer || offer.areas.includes(a.area),
+-              ) || [];
+-            return (
+-              <fieldset
+-                className="import-row"
+-                key={row.key}
+-                data-import-row={row.key}
+-                disabled={busy}
+-              >
+-                <legend>
+-                  {t("Langganan", "Subscription")} {index + 1}
+-                </legend>
+-                <div className="form-grid">
+-                  <div data-missing={!row.customerId}>
+-                    <Field
+-                      label={t("Pelanggan", "Customer")}
+-                      error={
+-                        attempted && !row.customerId
+-                          ? t(
+-                              "Pilih sebelum melanjutkan.",
+-                              "Choose before continuing.",
+-                            )
+-                          : undefined
+-                      }
+-                    >
+-                      <Select
+-                        value={row.customerId}
+-                        onValueChange={(customerId) =>
+-                          update(row.key, { customerId, addressId: "" })
+-                        }
+-                      >
+-                        <SelectOption value="">
+-                          {t("Pilih pelanggan", "Choose customer")}
+-                        </SelectOption>
+-                        {choices.customers.map((c) => (
+-                          <SelectOption key={c.id} value={c.id}>
+-                            {c.name}
+-                          </SelectOption>
+-                        ))}
+-                      </Select>
+-                    </Field>
+-                  </div>
+-                  <div data-missing={!row.packageId}>
+-                    <Field
+-                      label={t("Paket", "Package")}
+-                      error={
+-                        attempted && !row.packageId
+-                          ? t(
+-                              "Pilih sebelum melanjutkan.",
+-                              "Choose before continuing.",
+-                            )
+-                          : undefined
+-                      }
+-                    >
+-                      <Select
+-                        value={row.packageId}
+-                        onValueChange={(packageId) =>
+-                          update(row.key, {
+-                            packageId,
+-                            addressId: "",
+-                            remainingDays: 1,
+-                          })
+-                        }
+-                      >
+-                        <SelectOption value="">
+-                          {t("Pilih paket", "Choose package")}
+-                        </SelectOption>
+-                        {choices.packages.map((p) => (
+-                          <SelectOption key={p.id} value={p.id}>
+-                            {p.name}
+-                          </SelectOption>
+-                        ))}
+-                      </Select>
+-                    </Field>
+-                  </div>
+-                </div>
+-                <div data-missing={!row.addressId}>
+-                  <Field
+-                    label={t("Alamat pengantaran", "Delivery address")}
+-                    error={
+-                      attempted && !row.addressId
+-                        ? t(
+-                            "Pilih sebelum melanjutkan.",
+-                            "Choose before continuing.",
+-                          )
+-                        : undefined
+-                    }
+-                  >
+-                    <Select
+-                      value={row.addressId}
+-                      disabled={!customer || !addresses.length}
+-                      onValueChange={(addressId) =>
+-                        update(row.key, { addressId })
+-                      }
+-                    >
+-                      <SelectOption value="">
+-                        {t("Pilih alamat", "Choose address")}
+-                      </SelectOption>
+-                      {addresses.map((a) => (
+-                        <SelectOption key={a.id} value={a.id}>
+-                          {a.label} · {a.line}, {a.area}
+-                        </SelectOption>
+-                      ))}
+-                    </Select>
+-                  </Field>
+-                </div>
+-                {customer && !addresses.length && (
+-                  <p className="notice">
+-                    {customer.addresses.length
+-                      ? t(
+-                          "Belum ada alamat di area paket ini. Pilih paket lain atau minta pelanggan menambah alamat yang terjangkau.",
+-                          "No address is in this package's delivery area. Choose another package or ask the customer to add an address in the delivery area.",
+-                        )
+-                      : t(
+-                          "Pelanggan ini belum menyimpan alamat. Minta pelanggan menambah alamat di Akun → Alamat sebelum mengimpor.",
+-                          "This customer has no saved address. Ask them to add one in Account → Addresses before importing.",
+-                        )}
+-                  </p>
+-                )}
+-                <div className="form-grid">
+-                  <Field label={t("Porsi per hari", "Portions per day")}>
+-                    <NumericInput
+-                      required
+-                      min={1}
+-                      max={100}
+-                      value={row.portions}
+-                      onValueChange={(v) =>
+-                        update(row.key, { portions: Number(v) })
+-                      }
+-                    />
+-                  </Field>
+-                  <Field
+-                    label={t(
+-                      "Sisa hari yang sudah dibayar",
+-                      "Remaining prepaid days",
+-                    )}
+-                  >
+-                    <NumericInput
+-                      required
+-                      min={1}
+-                      max={offer?.days || 365}
+-                      value={row.remainingDays}
+-                      onValueChange={(v) =>
+-                        update(row.key, { remainingDays: Number(v) })
+-                      }
+-                    />
+-                  </Field>
+-                  <Field label={t("Mulai pengantaran", "First delivery")}>
+-                    <DatePicker
+-                      required
+-                      value={row.startDate}
+-                      min={localDay()}
+-                      onValueChange={(startDate) =>
+-                        update(row.key, { startDate })
+-                      }
+-                    />
+-                  </Field>
+-                  <Field
+-                    label={t("Nomor bukti pembayaran", "Payment reference")}
+-                  >
+-                    <TextInput
+-                      required
+-                      minLength={3}
+-                      maxLength={160}
+-                      value={row.externalReference}
+-                      placeholder={t(
+-                        "Contoh: Kuitansi-123",
+-                        "Example: Receipt-123",
+-                      )}
+-                      onChange={(e) =>
+-                        update(row.key, { externalReference: e.target.value })
+-                      }
+-                    />
+-                  </Field>
+-                </div>
+-                {rows.length > 1 && (
+-                  <Button
+-                    type="button"
+-                    className="text-button"
+-                    aria-label={t(
+-                      `Hapus langganan ${index + 1}`,
+-                      `Remove subscription ${index + 1}`,
+-                    )}
+-                    onClick={() =>
+-                      setRows((all) => all.filter((r) => r.key !== row.key))
+-                    }
+-                  >
+-                    <Trash2 size={18} />
+-                    {t("Hapus baris", "Remove row")}
+-                  </Button>
+-                )}
+-              </fieldset>
+-            );
+-          })}
+-          <Button
+-            type="button"
+-            className="button secondary"
+-            disabled={busy || rows.length >= 100}
+-            onClick={() => setRows((all) => [...all, newRow()])}
+-          >
+-            <Plus size={18} />
+-            {t("Tambah langganan", "Add subscription")} ({rows.length}/100)
+-          </Button>
+-        </>
+-      )}
+-    </ActionForm>
+-  );
+-}
+diff --git a/apps/web/src/components/seller-customers.tsx b/apps/web/src/components/seller-customers.tsx
+index 8b94147..5debd73 100644
+--- a/apps/web/src/components/seller-customers.tsx
++++ b/apps/web/src/components/seller-customers.tsx
+@@ -3,11 +3,8 @@ import { useEffect, useState } from "react";
+ import { useSearchParams } from "next/navigation";
+ import { CustomerDeliveryCalendar } from "./customer-delivery-calendar";
+ import {
+-  UserPlus,
+-  Upload,
+   Send,
+   CalendarDays,
+-  Wallet,
+   ArrowLeft,
+   Pencil,
+   Check,
+@@ -19,11 +16,7 @@ import {
+   localDay,
+   currency,
+   normalizeCustomerPhone,
+-  pilotImportRows,
+   type SellerCustomer,
+-  type CustomerSubscription,
+-  type PilotImportRow,
+-  type PilotImportPreview,
+   type Delivery,
+   type DeliveryChangeResult,
+   type Address,
+@@ -32,7 +25,6 @@ import { api, useApp, useResource } from "./context";
+ import { ActionForm, Dialog, Empty, ErrorNotice, Field, Loading } from "./ui";
+ import { Button, TextInput, TextArea } from "./form-controls";
+ import { Select, SelectOption } from "./select";
+-import { NumericInput } from "./numeric-input";
+ import { DatePicker } from "./date-picker";
+ import { PilotPanel } from "./pilot-panel";
+ 
+@@ -82,12 +74,7 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
+                 : ""),
+       ),
+   );
+-  const [editing, setEditing] = useState<SellerCustomer | null | undefined>();
+-  const [importing, setImporting] = useState(false),
+-    [renewing, setRenewing] = useState<CustomerSubscription | null>(null);
+-  const [preview, setPreview] = useState<PilotImportPreview | null>(null),
+-    [bulk, setBulk] = useState(""),
+-    [bulkError, setBulkError] = useState("");
++  const [editing, setEditing] = useState<SellerCustomer | undefined>();
+   const [share, setShare] = useState<{
+     url: string;
+     message: string;
+@@ -95,9 +82,6 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
+   } | null>(null);
+   const [change, setChange] = useState<Delivery | null>(null),
+     [changeKind, setChangeKind] = useState("date");
+-  const [busy, setBusy] = useState(false),
+-    [packageId, setPackageId] = useState(""),
+-    [recordId, setRecordId] = useState("");
+   if (!state.data)
+     return state.error ? (
+       <ErrorNotice message={state.error} retry={state.reload} />
+@@ -137,20 +121,7 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
+         }),
+       })),
+     },
+-    owner = actor?.role === "owner",
+-    current = data.customers.find((c) => c.id === selected);
+-  const runImport = async (rows: PilotImportRow[]) =>
+-    setPreview(
+-      await perform<PilotImportPreview>("import.preview", { catererId, rows }),
+-    );
+-  const closeImport = () => {
+-    if (!busy) {
+-      setImporting(false);
+-      setPreview(null);
+-      setRenewing(null);
+-      setBulkError("");
+-    }
+-  };
++    owner = actor?.role === "owner";
+   return (
+     <div className="pilot-workspace">
+       {state.error && (
+@@ -191,42 +162,20 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
+           </Button>
+         </div>
+       )}
+-      <div className="action-row">
+-        {selected && (
++      {selected && (
++        <div className="action-row">
+           <Button className="button secondary" onClick={() => setSelected("")}>
+             <ArrowLeft size={18} />
+             {t("Semua pelanggan", "All customers")}
+           </Button>
+-        )}
+-        {owner && (
+-          <>
+-            <Button className="button" onClick={() => setEditing(null)}>
+-              <UserPlus size={18} />
+-              {t("Tambah pelanggan", "Add customer")}
+-            </Button>
+-            <Button
+-              className="button secondary"
+-              onClick={() => {
+-                setImporting(true);
+-                setRecordId(current?.id || "");
+-                setPackageId(data.packages[0]?.id || "");
+-              }}
+-            >
+-              <Upload size={18} />
+-              {t("Impor prabayar", "Import prepaid")}
+-            </Button>
+-          </>
+-        )}
+-      </div>
++        </div>
++      )}
+       {!data.customers.length && (
+         <Empty
+-          title={t(
+-            "Mulai dari pelanggan yang sudah Anda layani",
+-            "Start with your existing customers",
+-          )}
++          title={t("Belum ada pelanggan berlangganan", "No subscribers yet")}
+           description={t(
+-            "Tambahkan pelanggan dan jadwal prabayar. Pelanggan dapat membuat akun nanti.",
+-            "Add customers and prepaid schedules. Customers can create an account later.",
++            "Pelanggan muncul otomatis setelah membeli langganan paket Anda.",
++            "Customers appear automatically after purchasing one of your packages.",
+           )}
+         />
+       )}
+@@ -310,10 +259,7 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
+             </div>
+             {!c.subscriptions.length && (
+               <p className="muted">
+-                {t(
+-                  "Belum ada jadwal. Impor langganan yang sudah dibayar.",
+-                  "No schedule yet. Import an already-paid subscription.",
+-                )}
++                {t("Belum ada langganan aktif.", "No active subscription yet.")}
+               </p>
+             )}
+             {(selected || query.get("customerId")) && (
+@@ -394,28 +340,6 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
+                           {t("Siapkan pengingat", "Prepare reminder")}
+                         </Button>
+                       )}
+-                      {owner && (
+-                        <Button
+-                          className="button secondary"
+-                          onClick={() => {
+-                            setRenewing(s);
+-                            setImporting(true);
+-                            setRecordId(c.id);
+-                            setPackageId(
+-                              data.packages.find((p) => p.id === s.package_id)
+-                                ?.id ||
+-                                data.packages[0]?.id ||
+-                                "",
+-                            );
+-                          }}
+-                        >
+-                          <Wallet size={16} />
+-                          {t(
+-                            "Catat pembayaran eksternal",
+-                            "Record external renewal",
+-                          )}
+-                        </Button>
+-                      )}
+                       <Button
+                         className="text-button"
+                         onClick={() =>
+@@ -477,17 +401,13 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
+       )}
+ 
+       <Dialog
+-        open={editing !== undefined}
++        open={!!editing}
+         onOpenChange={(open) => {
+           if (!open) setEditing(undefined);
+         }}
+-        title={
+-          editing
+-            ? t("Edit pelanggan", "Edit customer")
+-            : t("Tambah pelanggan", "Add customer")
+-        }
++        title={t("Edit pelanggan", "Edit customer")}
+       >
+-        {editing !== undefined && (
++        {editing && (
+           <ActionForm
+             key={editing?.id || "new"}
+             submit={t("Simpan pelanggan", "Save customer")}
+@@ -524,246 +444,6 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
+           </ActionForm>
+         )}
+       </Dialog>
+-      <Dialog
+-        open={importing}
+-        onOpenChange={(open) => {
+-          if (!open) closeImport();
+-        }}
+-        busy={busy}
+-        size="editor"
+-        title={
+-          renewing
+-            ? t(
+-                "Pembelian berikutnya dibayar eksternal",
+-                "Externally paid renewal",
+-              )
+-            : t("Impor langganan prabayar", "Import prepaid subscriptions")
+-        }
+-      >
+-        {preview ? (
+-          <>
+-            <p>
+-              {t(
+-                "Periksa pelanggan, tanggal, dan porsi. Belum ada jadwal yang dipesan.",
+-                "Review customers, dates, and portions. No schedule is reserved yet.",
+-              )}
+-            </p>
+-            {preview.rows.map((r, i) => (
+-              <div className="pilot-subscription" key={i}>
+-                <strong>{r.customerName}</strong>
+-                <p>
+-                  {r.preview.offer.name} · {r.portions} {t("porsi", "portions")}
+-                </p>
+-                <p>{r.preview.dates.join(" · ")}</p>
+-                <small>
+-                  {r.newCustomer
+-                    ? t(
+-                        "Pelanggan baru, akun belum diperlukan",
+-                        "New customer; no account required",
+-                      )
+-                    : t("Pelanggan yang sudah tercatat", "Existing customer")}
+-                </small>
+-              </div>
+-            ))}
+-            <ActionForm
+-              submit={t("Konfirmasi impor", "Confirm import")}
+-              onSubmit={async () => {
+-                setBusy(true);
+-                try {
+-                  await perform("import.commit", { catererId, id: preview.id });
+-                  setPreview(null);
+-                  setImporting(false);
+-                  setRenewing(null);
+-                } finally {
+-                  setBusy(false);
+-                }
+-              }}
+-            >
+-              <p className="notice">
+-                {t(
+-                  "Pembayaran telah diterima di luar Catera. Impor ini tidak membuat pembayaran atau pencairan baru.",
+-                  "Payment was received outside Catera. This import creates no new payment or payout.",
+-                )}
+-              </p>
+-            </ActionForm>
+-            <Button className="text-button" onClick={() => setPreview(null)}>
+-              <ArrowLeft size={16} />
+-              {t("Kembali mengedit", "Back to edit")}
+-            </Button>
+-          </>
+-        ) : (
+-          <>
+-            {!renewing && (
+-              <details className="panel">
+-                <summary>
+-                  {t("CSV / tempel dari Excel", "CSV / paste from Excel")}
+-                </summary>
+-                <p>
+-                  {t(
+-                    "Gunakan judul kolom berikut. Isi paket dengan nama paket yang sama persis. Maksimal 100 baris.",
+-                    "Use these column headers and the exact package name. Maximum 100 rows.",
+-                  )}
+-                </p>
+-                <pre className="pilot-template">
+-                  name,phone,line,area,city,package,portions,startDate,remainingDays,externalReference
+-                </pre>
+-                <Field label={t("File CSV", "CSV file")}>
+-                  <input
+-                    type="file"
+-                    accept=".csv,text/csv"
+-                    onChange={async (e) => {
+-                      const file = e.target.files?.[0];
+-                      if (file) {
+-                        if (file.size > 140000) {
+-                          setBulkError(
+-                            t(
+-                              "File terlalu besar. Maksimal 140 KB.",
+-                              "File too large. Maximum 140 KB.",
+-                            ),
+-                          );
+-                          return;
+-                        }
+-                        setBulk(await file.text());
+-                        setBulkError("");
+-                      }
+-                    }}
+-                  />
+-                </Field>
+-                <Field label={t("Data tabel", "Table data")}>
+-                  <TextArea
+-                    value={bulk}
+-                    onChange={(e) => {
+-                      setBulk(e.target.value);
+-                      setBulkError("");
+-                    }}
+-                    rows={6}
+-                  />
+-                </Field>
+-                {bulkError && <p role="alert">{bulkError}</p>}
+-                <ActionForm
+-                  children={null}
+-                  submit={t("Periksa tabel", "Review table")}
+-                  onSubmit={async () => {
+-                    try {
+-                      await runImport(
+-                        pilotImportRows(bulk, data.packages, data.customers),
+-                      );
+-                    } catch (e) {
+-                      setBulkError(
+-                        t(
+-                          "Periksa kolom, nomor telepon, dan nama paket. Detail: ",
+-                          "Check columns, phone numbers, and package names. Details: ",
+-                        ) + (e instanceof Error ? e.message : ""),
+-                      );
+-                      throw e;
+-                    }
+-                  }}
+-                />
+-              </details>
+-            )}
+-            <ActionForm
+-              key={renewing?.id || "import"}
+-              submit={t("Periksa jadwal", "Review schedule")}
+-              onSubmit={async (f) => {
+-                if (!recordId || !packageId) throw new Error("INVALID_INPUT");
+-                const c = data.customers.find((c) => c.id === recordId)!;
+-                await runImport([
+-                  {
+-                    customerRecordId: recordId,
+-                    address: c.address,
+-                    packageId,
+-                    portions: Number(f.get("portions")),
+-                    remainingDays: Number(f.get("remainingDays")),
+-                    startDate: String(f.get("startDate")),
+-                    externalReference: String(f.get("externalReference")),
+-                    ...(renewing ? { renewedFrom: renewing.id } : {}),
+-                  },
+-                ]);
+-              }}
+-            >
+-              <Field label={t("Pelanggan", "Customer")}>
+-                <Select
+-                  value={recordId}
+-                  onValueChange={setRecordId}
+-                  disabled={!!renewing}
+-                >
+-                  <SelectOption value="">
+-                    {t("Pilih pelanggan", "Choose customer")}
+-                  </SelectOption>
+-                  {data.customers.map((c) => (
+-                    <SelectOption key={c.id} value={c.id}>
+-                      {c.name}
+-                    </SelectOption>
+-                  ))}
+-                </Select>
+-              </Field>
+-              <Field label={t("Paket", "Package")}>
+-                <Select value={packageId} onValueChange={setPackageId}>
+-                  <SelectOption value="">
+-                    {t("Pilih paket", "Choose package")}
+-                  </SelectOption>
+-                  {data.packages.map((p) => (
+-                    <SelectOption key={p.id} value={p.id}>
+-                      {p.name}
+-                    </SelectOption>
+-                  ))}
+-                </Select>
+-              </Field>
+-              <Field label={t("Porsi tetap", "Fixed portions")}>
+-                <NumericInput
+-                  name="portions"
+-                  min={1}
+-                  max={100}
+-                  defaultValue={renewing?.portions || 1}
+-                  required
+-                />
+-              </Field>
+-              <Field
+-                label={t(
+-                  "Sisa hari yang sudah dibayar",
+-                  "Remaining prepaid delivery days",
+-                )}
+-              >
+-                <NumericInput
+-                  name="remainingDays"
+-                  min={1}
+-                  max={60}
+-                  defaultValue={
+-                    renewing
+-                      ? data.packages.find((p) => p.id === packageId)?.days || 1
+-                      : 1
+-                  }
+-                  required
+-                />
+-              </Field>
+-              <Field label={t("Mulai pengantaran", "First delivery")}>
+-                <DatePicker
+-                  name="startDate"
+-                  defaultValue={
+-                    renewing
+-                      ? addDays(renewing.ends_on, 1)
+-                      : addDays(localDay(), 2)
+-                  }
+-                  required
+-                />
+-              </Field>
+-              <Field
+-                label={t(
+-                  "Referensi bukti pembayaran",
+-                  "Payment receipt reference",
+-                )}
+-              >
+-                <TextInput
+-                  name="externalReference"
+-                  required
+-                  minLength={3}
+-                  maxLength={120}
+-                />
+-              </Field>
+-            </ActionForm>
+-          </>
+-        )}
+-      </Dialog>
+       <Dialog
+         open={!!share}
+         onOpenChange={(open) => {
+diff --git a/apps/web/src/components/seller-experience.css b/apps/web/src/components/seller-experience.css
+index 03dce93..369d490 100644
+--- a/apps/web/src/components/seller-experience.css
++++ b/apps/web/src/components/seller-experience.css
+@@ -1,24 +1,3 @@
+-.ops-metric-button {
+-  display: flex;
+-  flex-direction: column;
+-  align-items: flex-start;
+-  text-align: left;
+-  gap: 8px;
+-  padding: 20px;
+-  background: var(--cream, #fff7e9);
+-  border: 1px solid #d9e1db;
+-  border-radius: 16px;
+-  color: inherit;
+-  cursor: pointer;
+-  font: inherit;
+-}
+-.ops-metric-button strong {
+-  font-size: 1.7rem;
+-}
+-.ops-metric-button:focus-visible {
+-  outline: 3px solid #f47b2a;
+-  outline-offset: 2px;
+-}
+ .payout-state > p {
+   margin: 0;
+   min-width: 110px;
+@@ -126,7 +105,4 @@
+   .customer-delivery-calendar .pilot-delivery {
+     flex-wrap: wrap;
+   }
+-  .ops-metric-button {
+-    padding: 14px;
+-  }
+ }
+diff --git a/apps/web/src/components/seller-operations.css b/apps/web/src/components/seller-operations.css
+index 73559db..4174be4 100644
+--- a/apps/web/src/components/seller-operations.css
++++ b/apps/web/src/components/seller-operations.css
+@@ -87,6 +87,117 @@
+ .ops-orders-panel {
+   min-width: 0;
+ }
++.seller-operations .ops-metric-button {
++  appearance: none;
++  min-width: 0;
++  margin: 0;
++  border: 0;
++  border-right: 1px solid var(--line);
++  border-radius: 0;
++  background: transparent;
++  font: inherit;
++  text-align: left;
++  cursor: pointer;
++}
++.seller-operations .ops-metric-button:last-child {
++  border-radius: 0 12px 12px 0;
++}
++.seller-operations .ops-metric-button:hover,
++.seller-operations .ops-metric-button[aria-pressed="true"] {
++  background: var(--soft);
++}
++.seller-operations .ops-metric-button[aria-pressed="true"] {
++  box-shadow: inset 0 -3px var(--forest);
++}
++.seller-operations .ops-metric-button:focus-visible {
++  outline: 2px solid var(--forest);
++  outline-offset: -4px;
++}
++.ops-list-toolbar,
++.ops-list-filter {
++  display: flex;
++  align-items: center;
++  justify-content: space-between;
++  flex-wrap: wrap;
++  gap: 12px;
++  margin-bottom: 16px;
++}
++.ops-list-toolbar:empty {
++  display: none;
++}
++.ops-list-toolbar .select-trigger,
++.ops-list-filter .select-trigger {
++  width: auto;
++  min-width: 220px;
++  max-width: 100%;
++}
++.ops-list-toolbar .ops-select-all {
++  margin: 0;
++}
++.ops-group-summary {
++  display: flex;
++  align-items: center;
++  justify-content: space-between;
++  gap: 16px;
++  white-space: normal;
++}
++.ops-group-summary > div {
++  min-width: 0;
++}
++.ops-group-summary strong {
++  font-size: 14px;
++  color: var(--forest);
++}
++.ops-group-summary small {
++  max-width: 75ch;
++  line-height: 1.6;
++}
++.ops-group-summary > span {
++  flex-shrink: 0;
++  font-size: 12px;
++  font-weight: 500;
++  color: var(--muted);
++}
++.ops-orders-panel .ops-order-table td[data-cell="actions"] {
++  min-width: 164px;
++}
++.ops-orders-panel .ops-order-table .order-next {
++  margin-top: 8px;
++}
++@media (max-width: 800px) {
++  .ops-group-summary {
++    align-items: flex-start;
++    flex-direction: column;
++    gap: 6px;
++  }
++  .ops-order-table .ops-group-heading {
++    display: block;
++  }
++  .ops-orders-panel .ops-order-table .ops-group-heading th:last-child {
++    display: block;
++    width: 100%;
++    white-space: normal;
++  }
++  .ops-orders-panel .ops-order-table tbody .ops-group-heading {
++    display: block;
++    padding: 0;
++    border: 0;
++    border-radius: 8px;
++    overflow: hidden;
++    background: var(--soft);
++  }
++  .ops-orders-panel .ops-order-table td[data-cell="actions"] {
++    width: auto;
++    min-width: 0;
++  }
++}
++@media (max-width: 560px) {
++  .ops-list-toolbar .select-trigger,
++  .ops-list-filter .select-trigger {
++    width: 100%;
++    min-width: 0;
++  }
++}
+ .ops-orders-panel .section-heading h2 {
+   margin: 0;
+ }
+diff --git a/apps/web/src/components/seller-operations.tsx b/apps/web/src/components/seller-operations.tsx
+index 5060340..cb0619a 100644
+--- a/apps/web/src/components/seller-operations.tsx
++++ b/apps/web/src/components/seller-operations.tsx
+@@ -36,15 +36,7 @@ import { api, useApp, useResource } from "./context";
+ import { Button, Checkbox } from "./form-controls";
+ import { Select, SelectOption } from "./select";
+ import { DatePicker } from "./date-picker";
+-import {
+-  Heading,
+-  Loading,
+-  ErrorNotice,
+-  Empty,
+-  Status,
+-  Facts,
+-  Dialog,
+-} from "./ui";
++import { Heading, Loading, ErrorNotice, Empty, Status, Facts } from "./ui";
+ import { Production } from "./seller-production";
+ import { SellerReadiness } from "./seller-readiness";
+ import {
+@@ -174,24 +166,27 @@ function OperationsPage({
+   );
+   const includeCancelled = schedule && status !== "active";
+   const summary = scheduleSummary(rows, meal, includeCancelled);
+-  const [metric, setMetric] = useState<"customers" | "destinations" | null>(
+-    null,
+-  );
+-  const metricRows = rows.filter(
+-    (d) =>
+-      (includeCancelled || d.status !== "cancelled") &&
+-      d.meals.some(
+-        (m) =>
+-          (includeCancelled || m.status !== "cancelled") &&
+-          (meal === "all" || m.meal === meal),
+-      ),
+-  );
+-  const metricGroups = new Map<string, SellerDelivery[]>();
+-  for (const row of metricRows) {
+-    const key =
+-      metric === "customers" ? row.customer.id : destinationKey(row.address);
+-    metricGroups.set(key, [...(metricGroups.get(key) || []), row]);
+-  }
++  const grouping =
++    schedule && ["customers", "destinations"].includes(query.get("group") || "")
++      ? query.get("group")!
++      : "flat";
++  const groupKey = (row: SellerDelivery) =>
++    grouping === "customers" ? row.customer.id : destinationKey(row.address);
++  const groupOptions = [
++    ...new Map(
++      rows.map((row) => [
++        groupKey(row),
++        grouping === "customers"
++          ? row.customer.name
++          : `${row.address.line}, ${row.address.area}`,
++      ]),
++    ).entries(),
++  ];
++  const selectedGroup = query.get("filter") || "";
++  const filteredRows =
++    grouping !== "flat" && selectedGroup
++      ? rows.filter((row) => groupKey(row) === selectedGroup)
++      : rows;
+   const active = rows.filter((d) => fulfillmentStatus(d, meal) !== "cancelled");
+   const issues = active.filter(
+     (d) => fulfillmentStatus(d, meal) === "issue",
+@@ -413,9 +408,22 @@ function OperationsPage({
+           return clickable ? (
+             <button
+               className="ops-metric-button"
++              type="button"
++              aria-pressed={
++                grouping === (Icon === Users ? "customers" : "destinations")
++              }
++              aria-controls="ops-orders"
+               key={String(label)}
+               onClick={() =>
+-                setMetric(Icon === Users ? "customers" : "destinations")
++                navigate({
++                  group:
++                    grouping === (Icon === Users ? "customers" : "destinations")
++                      ? ""
++                      : Icon === Users
++                        ? "customers"
++                        : "destinations",
++                  filter: "",
++                })
+               }
+             >
+               {contents}
+@@ -430,56 +438,6 @@ function OperationsPage({
+           );
+         })}
+       </div>
+-      <Dialog
+-        open={!!metric}
+-        onOpenChange={(open) => {
+-          if (!open) setMetric(null);
+-        }}
+-        title={
+-          metric === "customers"
+-            ? t("Pelanggan unik", "Unique customers")
+-            : t("Tujuan unik", "Unique destinations")
+-        }
+-      >
+-        <p>
+-          {date} · {t("Sesuai filter aktif", "Matching active filters")}
+-        </p>
+-        {[...metricGroups].map(([key, items]) => (
+-          <section className="panel" key={key}>
+-            <h3>
+-              {metric === "customers"
+-                ? items[0].customer.name
+-                : `${items[0].address.line}, ${items[0].address.area}, ${items[0].address.city}`}
+-            </h3>
+-            <p>
+-              {items.length} {t("pesanan", "orders")} ·{" "}
+-              {scheduleSummary(items, meal, includeCancelled).portions}{" "}
+-              {t("porsi makan", "meal portions")}
+-            </p>
+-            {[
+-              ...new Map(
+-                items.map((d) => [d.customer.id, d.customer]),
+-              ).values(),
+-            ].map((c) => (
+-              <p key={c.id}>
+-                <Link
+-                  href={`/seller/customers?${c.recordId ? "customerRecordId=" + c.recordId : "customerId=" + c.id}`}
+-                >
+-                  {c.name}
+-                </Link>
+-              </p>
+-            ))}
+-          </section>
+-        ))}
+-        {!metricGroups.size && (
+-          <p>
+-            {t(
+-              "Tidak ada pesanan sesuai filter.",
+-              "No orders match these filters.",
+-            )}
+-          </p>
+-        )}
+-      </Dialog>
+       {!schedule && cases > 0 && (
+         <Link className="text-button ops-support-link" href="/seller/support">
+           {t("Lihat bantuan terbuka", "View open support cases")}{" "}
+@@ -500,7 +458,49 @@ function OperationsPage({
+       >
+         <OrderTable
+           key={date + ":" + meal + ":" + packageId + ":" + status}
+-          rows={rows}
++          rows={filteredRows}
++          scheduleGrouping={grouping}
++          scheduleFilter={
++            schedule && grouping !== "flat" ? (
++              <div className="ops-list-filter">
++                <Select
++                  aria-label={t(
++                    grouping === "customers"
++                      ? "Filter pelanggan"
++                      : "Filter tujuan",
++                    grouping === "customers"
++                      ? "Customer filter"
++                      : "Destination filter",
++                  )}
++                  value={selectedGroup}
++                  onValueChange={(value) => navigate({ filter: value })}
++                >
++                  <SelectOption value="">
++                    {t(
++                      grouping === "customers"
++                        ? "Semua pelanggan"
++                        : "Semua tujuan",
++                      grouping === "customers"
++                        ? "All customers"
++                        : "All destinations",
++                    )}
++                  </SelectOption>
++                  {groupOptions.map(([key, label]) => (
++                    <SelectOption key={key} value={key}>
++                      {label}
++                    </SelectOption>
++                  ))}
++                </Select>
++                <Button
++                  className="text-button"
++                  onClick={() => navigate({ group: "", filter: "" })}
++                >
++                  <X size={16} />
++                  {t("Hapus filter", "Clear filter")}
++                </Button>
++              </div>
++            ) : undefined
++          }
+           meal={meal}
+           date={date}
+           today={s.today}
+@@ -741,8 +741,12 @@ function OrderTable({
+   schedule,
+   loading,
+   refresh,
++  scheduleGrouping,
++  scheduleFilter,
+ }: {
+   rows: SellerDelivery[];
++  scheduleGrouping: string;
++  scheduleFilter?: React.ReactNode;
+   meal: string;
+   date: string;
+   today: string;
+@@ -756,7 +760,27 @@ function OrderTable({
+   const [selected, setSelected] = useState<string[]>([]);
+   const [detail, setDetail] = useState("");
+   const [grouping, setGrouping] = useState("package");
+-  const groups = operationalGroups(rows, meal, schedule ? "flat" : grouping);
++  const groups =
++    schedule && scheduleGrouping !== "flat"
++      ? [
++          ...Map.groupBy(rows, (row) =>
++            scheduleGrouping === "customers"
++              ? row.customer.id
++              : destinationKey(row.address),
++          ),
++        ].map(([key, items]) => ({
++          key,
++          rows: items,
++          name:
++            scheduleGrouping === "customers"
++              ? items[0].customer.name
++              : items[0].address.line,
++          area:
++            scheduleGrouping === "destinations" ? items[0].address.area : "",
++          menu: "",
++          portions: scheduleSummary(items, meal, true).portions,
++        }))
++      : operationalGroups(rows, meal, schedule ? "flat" : grouping);
+   const [target, setTarget] = useState("");
+   const [busy, setBusy] = useState(false);
+   const [error, setError] = useState("");
+@@ -953,37 +977,42 @@ function OrderTable({
+             </Button>
+           </div>
+         )}
+-        {!schedule && rows.length > 0 && (
+-          <label className="checkbox ops-select-all">
+-            <Checkbox
+-              ref={all}
+-              aria-label={t("Pilih semua pesanan", "Select all orders")}
+-              disabled={!eligible.length || busy || loading}
+-              checked={eligible.length > 0 && chosen.length === eligible.length}
+-              onChange={(e) =>
+-                setSelected(e.target.checked ? eligible.map((d) => d.id) : [])
+-              }
+-            />
+-            <span>{t("Pilih semua pesanan", "Select all orders")}</span>
+-          </label>
+-        )}
+-        {!schedule && (
+-          <Select
+-            aria-label={t("Kelompokkan pesanan", "Group orders")}
+-            value={grouping}
+-            onValueChange={setGrouping}
+-          >
+-            <SelectOption value="package">
+-              {t("Paket & menu", "Package & menu")}
+-            </SelectOption>
+-            <SelectOption value="area">
+-              {t("Paket, menu & area", "Package, menu & area")}
+-            </SelectOption>
+-            <SelectOption value="flat">
+-              {t("Daftar biasa", "Flat list")}
+-            </SelectOption>
+-          </Select>
+-        )}
++        {scheduleFilter}
++        <div className="ops-list-toolbar">
++          {!schedule && rows.length > 0 && (
++            <label className="checkbox ops-select-all">
++              <Checkbox
++                ref={all}
++                aria-label={t("Pilih semua pesanan", "Select all orders")}
++                disabled={!eligible.length || busy || loading}
++                checked={
++                  eligible.length > 0 && chosen.length === eligible.length
++                }
++                onChange={(e) =>
++                  setSelected(e.target.checked ? eligible.map((d) => d.id) : [])
++                }
++              />
++              <span>{t("Pilih semua pesanan", "Select all orders")}</span>
++            </label>
++          )}
++          {!schedule && (
++            <Select
++              aria-label={t("Kelompokkan pesanan", "Group orders")}
++              value={grouping}
++              onValueChange={setGrouping}
++            >
++              <SelectOption value="package">
++                {t("Paket & menu", "Package & menu")}
++              </SelectOption>
++              <SelectOption value="area">
++                {t("Paket, menu & area", "Package, menu & area")}
++              </SelectOption>
++              <SelectOption value="flat">
++                {t("Daftar biasa", "Flat list")}
++              </SelectOption>
++            </Select>
++          )}
++        </div>
+         {loading && !rows.length ? (
+           <Loading />
+         ) : rows.length ? (
+@@ -1019,17 +1048,33 @@ function OrderTable({
+               <tbody>
+                 {groups.map((group) => (
+                   <Fragment key={group.key}>
+-                    {!schedule && grouping !== "flat" && (
++                    {(schedule
++                      ? scheduleGrouping !== "flat"
++                      : grouping !== "flat") && (
+                       <tr className="ops-group-heading">
+                         <th colSpan={6} scope="rowgroup">
+-                          {group.name}
+-                          {group.area ? ` · ${group.area}` : ""}
+-                          <small>
+-                            {group.menu ||
+-                              t("Katerer memilih", "Caterer chooses")}{" "}
+-                            · {group.rows.length} {t("pesanan", "orders")} ·{" "}
+-                            {group.portions} {t("porsi", "portions")}
+-                          </small>
++                          <div className="ops-group-summary">
++                            <div>
++                              <strong>
++                                {group.name}
++                                {group.area ? ` · ${group.area}` : ""}
++                              </strong>
++                              {!schedule && (
++                                <small>
++                                  {group.menu ||
++                                    t("Katerer memilih", "Caterer chooses")}
++                                </small>
++                              )}
++                            </div>
++                            <span>
++                              {group.rows.length} {t("pesanan", "orders")} ·{" "}
++                              {group.portions}{" "}
++                              {t(
++                                schedule ? "porsi makan" : "porsi",
++                                schedule ? "meal portions" : "portions",
++                              )}
++                            </span>
++                          </div>
+                         </th>
+                       </tr>
+                     )}
+@@ -1067,9 +1112,9 @@ function OrderTable({
+                           data-label={t("Pelanggan", "Customer")}
+                         >
+                           <strong>{x.customer.name}</strong>
+-                          {!schedule && (
++                          {!schedule && (grouping === "flat" || x.trial) && (
+                             <small>
+-                              {x.offer.name}
++                              {grouping === "flat" ? x.offer.name : ""}
+                               {x.trial ? " · " + t("Trial", "Trial") : ""}
+                             </small>
+                           )}
+diff --git a/apps/web/src/components/seller.tsx b/apps/web/src/components/seller.tsx
+index 89c970c..7183f38 100644
+--- a/apps/web/src/components/seller.tsx
++++ b/apps/web/src/components/seller.tsx
+@@ -6,12 +6,8 @@ import {
+ import { SellerAccountSettings } from "./seller-account";
+ import { SellerSettlement } from "./seller-settlement";
+ import { SellerCustomers } from "./seller-customers";
+-import {
+-  ChoiceDishChecklist,
+-  PackageChoiceLibrary,
+-} from "./package-choice-library";
++import { ChoiceDishChecklist } from "./package-choice-library";
+ import { SellerOperations } from "./seller-operations";
+-import { PrepaidImport } from "./prepaid-import";
+ import { SellerReadiness } from "./seller-readiness";
+ import { PackageContents } from "./package-contents";
+ import { type MealMenu, type PackageType } from "@catera/domain";
+@@ -140,21 +136,7 @@ function SellerWorkspace({ view }: { view: string }) {
+       {view === "packages" ? (
+         <Packages state={s} />
+       ) : view === "dishes" || view === "menus" ? (
+-        <>
+-          <MenuCalendar state={s} date={date} />
+-          {s.offers
+-            .filter(
+-              (o) =>
+-                o.menuSelectionMode === "customer" && o.status !== "retired",
+-            )
+-            .map((o) => (
+-              <PackageChoiceLibrary
+-                key={o.id}
+-                offer={o}
+-                dishes={s.dishes || []}
+-              />
+-            ))}
+-        </>
++        <MenuCalendar state={s} date={date} />
+       ) : view === "customers" ? (
+         <SellerCustomers catererId={s.caterer.id} />
+       ) : view === "support" ? (
+@@ -1408,77 +1390,6 @@ function OfferEditor({
+     </div>
+   );
+ }
+-function Customers({ state: s }: { state: SellerState }) {
+-  const [showImport, setShowImport] = useState(false);
+-  const [importBusy, setImportBusy] = useState(false);
+-  const { actor, t } = useApp();
+-  return (
+-    <>
+-      <section className="panel">
+-        <div className="section-heading">
+-          <h2>{t("Hubungan pelanggan", "Customer relationships")}</h2>
+-          {actor?.role === "owner" && (
+-            <Button
+-              className="button secondary small"
+-              onClick={() => setShowImport(true)}
+-            >
+-              {t("Impor langganan prabayar", "Import prepaid subscriptions")}
+-            </Button>
+-          )}
+-        </div>
+-        {s.customers.length ? (
+-          <div className="customer-records">
+-            {s.customers.map((c) => (
+-              <article className="queue-row" key={c.id}>
+-                <Users size={22} aria-hidden="true" />
+-                <div>
+-                  <strong>{c.name}</strong>
+-                  <small>
+-                    {c.source === "legacy"
+-                      ? t("Langganan prabayar", "Prepaid subscription")
+-                      : c.source === "invited"
+-                        ? t("Melalui undangan", "Invited customer")
+-                        : t("Melalui Catera", "Via Catera")}
+-                  </small>
+-                </div>
+-                <details className="record-details">
+-                  <summary>{t("Detail akun", "Account details")}</summary>
+-                  <code>{c.id}</code>
+-                </details>
+-              </article>
+-            ))}
+-          </div>
+-        ) : (
+-          <p className="quiet-empty">
+-            {t(
+-              "Pelanggan akan muncul setelah terhubung melalui undangan atau pembelian.",
+-              "Customers appear after connecting through an invitation or purchase.",
+-            )}
+-          </p>
+-        )}
+-      </section>
+-      <Dialog
+-        size="editor"
+-        busy={importBusy}
+-        open={showImport}
+-        onOpenChange={(open) => {
+-          if (!importBusy) setShowImport(open);
+-        }}
+-        title={t("Impor langganan prabayar", "Import prepaid subscriptions")}
+-        description={t(
+-          "Masukkan langganan yang sudah dibayar, lalu periksa sebelum mengimpor.",
+-          "Enter prepaid subscriptions, then review before importing.",
+-        )}
+-      >
+-        <PrepaidImport
+-          catererId={s.caterer.id}
+-          onBusyChange={setImportBusy}
+-          done={() => setShowImport(false)}
+-        />
+-      </Dialog>
+-    </>
+-  );
+-}
+ function SellerInbox({ cases }: { cases: SupportCase[] }) {
+   const { t } = useApp();
+   const requestedCase = useSearchParams().get("case");
+diff --git a/docs/IMPLEMENTATION.md b/docs/IMPLEMENTATION.md
+index 5f4b735..3fdfffe 100644
+--- a/docs/IMPLEMENTATION.md
++++ b/docs/IMPLEMENTATION.md
+@@ -1,5 +1,7 @@
+ # Catera V1 implementation record
+ 
++September 17 — Seller workspace UI: Schedule metrics now group/filter the order list inline with URL-persisted selections. Summary cards share one layout; Today has a compact selection/grouping toolbar and responsive group headings. Menu uses one package selector for calendars and customer-choice dish management. Manual customer creation, prepaid imports and external renewal entry are removed; the web command API rejects their creation actions while preserving historical records and existing-customer edits. Verified locally with typecheck, 184 unit/integration tests, production build, PostgreSQL concurrency checks and 16 relevant browser scenarios, including 390/768/1440px layouts, customer-selected menus, option management, delivery changes and messaging. No hosted data or deployment changed.
++
+ September 14 — Customer-choice subtypes for both package types: independent package option libraries, customer-owned delivery menus, cutoff fallback, kitchen/manifest integration and existing notification jobs. See [customer-choice implementation](CUSTOMER-CHOICE.md). Hosted migration and deployment remain separate.
+ 
+ September 11 — ID 0006: seller Today owns meal-specific fulfillment and atomic multi-order updates; Schedule owns the calendar/package dashboard and whole-day production/CSV. Seller reads now carry customer identity and timezone-aware operational dates; a bounded calendar aggregate and tenant/version-checked bulk command share the forward migration and synthetic demo implementation. Verified: 96 unit tests, typecheck/build, Android/iOS export, ten PostgreSQL checks, and ten related browser scenarios across final/focused runs. See [seller operations](SELLER-OPERATIONS.md) for behavior and reproduction. No hosted deployment.
+diff --git a/output/verification/postgres.json b/output/verification/postgres.json
+index 595e4a2..232dbb5 100644
+--- a/output/verification/postgres.json
++++ b/output/verification/postgres.json
+@@ -1,5 +1,5 @@
+ {
+-  "at": "2026-09-16T05:42:10.766Z",
++  "at": "2026-09-17T13:03:35.553Z",
+   "passed": [
+     "Synthetic slot conversion is repeatable on PostgreSQL; dated menus validate and package templates remain stable.",
+     "Five simultaneous purchases: exactly three committed at capacity three; complete schedules reserved.",
+@@ -16,6 +16,7 @@
+     "Customer-menu and package-option data remain private to authorized transactional RPCs.",
+     "Multi-cycle: three buyers compete for capacity on the 60th date; exactly one complete purchase commits, repeated activation credits no duplicates, and only one early renewal succeeds.",
+     "Concurrent delivery completion produces exactly one earned seller credit.",
+-    "Concurrent weekly workers reserve earnings once; concurrent transfer preparations reuse one captured recipient, success callbacks pay once, and reversal callbacks release once."
++    "Concurrent weekly workers reserve earnings once; concurrent transfer preparations reuse one captured recipient, success callbacks pay once, and reversal callbacks release once.",
++    "Concurrent seller first messages create one conversation and preserve all messages. Concurrent bank reviews accept one version; replacement approval racing transfer retry preserves its captured recipient. Private bank/account-request tables reject direct authenticated reads; audit records mask bank numbers."
+   ]
+ }
+\ No newline at end of file
+diff --git a/playwright.slack.config.ts b/playwright.slack.config.ts
+index c4fe577..b01fec2 100644
+--- a/playwright.slack.config.ts
++++ b/playwright.slack.config.ts
+@@ -4,6 +4,7 @@ export default defineConfig({
+   ...base,
+   testMatch: [
+     "seller-experience.spec.ts",
++    "seller-workspace-ui.spec.ts",
+     "slot-menus.spec.ts",
+     "conditional-ui.spec.ts",
+     "settlement-dashboard.spec.ts",
+diff --git a/tests/e2e/customer-choice.spec.ts b/tests/e2e/customer-choice.spec.ts
+index 82d1878..c2810f2 100644
+--- a/tests/e2e/customer-choice.spec.ts
++++ b/tests/e2e/customer-choice.spec.ts
+@@ -177,11 +177,8 @@ test("seller configures customer choice; customer selects; kitchen and CSV prese
+   await expect(page.locator(".package-contents")).toContainText(f.names[0]);
+   await page.request.post("/api/v1/auth/demo", { data: { role: "owner" } });
+   await page.goto("/seller/menus");
+-  await expect(
+-    page
+-      .locator(".package-choice-library")
+-      .filter({ hasText: f.subscription.snapshot.offer.name }),
+-  ).toContainText(f.names[0]);
++  await choose(page, "Paket", f.subscription.snapshot.offer.name);
++  await expect(page.locator(".package-choice-library")).toContainText(f.names[0]);
+   const frozen = await cmd(page, "production.freeze", {
+     catererId: f.base.catererId,
+     date,
+diff --git a/tests/e2e/paid-pilot.spec.ts b/tests/e2e/paid-pilot.spec.ts
+index 2eb26bc..d3bd2f7 100644
+--- a/tests/e2e/paid-pilot.spec.ts
++++ b/tests/e2e/paid-pilot.spec.ts
+@@ -1,200 +1,27 @@
+ import { test, expect } from "@playwright/test";
+-import AxeBuilder from "@axe-core/playwright";
+-import { addDays, localDay } from "@catera/domain";
+-import { mkdir } from "node:fs/promises";
+-const cid = "10000000-0000-4000-8000-000000000001";
++
++// The former paid-pilot entry points are retired from the marketplace workspace.
+ for (const locale of ["id", "en"])
+   for (const width of [390, 1440])
+-    test(`paid pilot customer import ${locale} ${width}`, async ({
++    test(`customers have no manual acquisition controls ${locale} ${width}`, async ({
+       page,
+       baseURL,
+     }) => {
+-      const t = (id: string, en: string) => (locale === "id" ? id : en),
+-        errors: string[] = [];
+-      page.on("pageerror", (e) => errors.push(e.message));
+       await page
+         .context()
+         .addCookies([{ name: "catera_locale", value: locale, url: baseURL! }]);
+       await page.setViewportSize({ width, height: 900 });
+       await page.request.post("/api/v1/auth/demo", { data: { role: "owner" } });
+-      const options = await (
+-        await page.request.get("/api/v1/seller-import-options?id=" + cid)
+-      ).json();
+-      const source = options.data || options;
+-      const offer = source.packages.find((p: any) => p.meal === "both");
+-      const address = source.customers.flatMap((c: any) => c.addresses)[0];
+       await page.goto("/seller/customers");
+-      await page
+-        .getByRole("button", {
+-          name: t("Impor prabayar", "Import prepaid"),
+-          exact: true,
+-        })
+-        .click();
+-      const dialog = page.getByRole("dialog");
+-      await dialog
+-        .getByText(t("CSV / tempel dari Excel", "CSV / paste from Excel"), {
+-          exact: true,
+-        })
+-        .click();
+-      const name = "Synthetic " + locale + " " + width,
+-        phone = "+628888" + (locale === "en" ? "1" : "2") + width + "123";
+-      await dialog
+-        .getByLabel(t("Data tabel", "Table data"), { exact: true })
+-        .fill(
+-          "name\tphone\tline\tarea\tcity\tpackage\tportions\tstartDate\tremainingDays\texternalReference\n" +
+-            [
+-              name,
+-              phone,
+-              address.line,
+-              address.area,
+-              address.city,
+-              offer.id,
+-              1,
+-              addDays(localDay(), 80),
+-              3,
+-              "browser-" + locale + width,
+-            ].join("\t"),
+-        );
+-      await dialog
+-        .getByRole("button", {
+-          name: t("Periksa tabel", "Review table"),
+-          exact: true,
+-        })
+-        .click();
+-      await expect(dialog.getByText(name, { exact: true })).toBeVisible();
+-      await expect(
+-        dialog.getByText(
+-          t(
+-            "Pelanggan baru, akun belum diperlukan",
+-            "New customer; no account required",
+-          ),
+-          { exact: true },
+-        ),
+-      ).toBeVisible();
+-      await dialog
+-        .getByRole("button", {
+-          name: t("Konfirmasi impor", "Confirm import"),
+-          exact: true,
+-        })
+-        .click();
+-      await expect(dialog).not.toBeVisible();
+-      const card = page
+-        .locator("article.panel")
+-        .filter({ has: page.getByRole("heading", { name, exact: true }) });
+-      await expect(card).toBeVisible();
++      await expect(page.locator(".pilot-customer-grid")).toBeVisible();
+       await expect(
+-        card.getByText(t("Dikelola katerer", "Seller managed"), {
+-          exact: true,
++        page.getByRole("button", {
++          name: /Tambah pelanggan|Add customer|Impor|Import|Catat pembayaran eksternal|Record external renewal/,
+         }),
+-      ).toBeVisible();
+-      await expect(
+-        card.getByText(/3 (hari pengantaran tersisa|delivery days remaining)/),
+-      ).toBeVisible();
+-      await card
+-        .getByRole("button", {
+-          name: t("Undang pelanggan", "Invite customer"),
+-          exact: true,
+-        })
+-        .click();
+-      await expect(
+-        dialog.getByRole("link", { name: t("Buka WhatsApp", "Open WhatsApp") }),
+-      ).toHaveAttribute("href", /^https:\/\/wa.me\//);
+-      await expect(
+-        dialog.getByText(
+-          t(
+-            "Anda memilih kapan mengirim. Catera tidak dapat memastikan pesan WhatsApp terkirim atau dibaca.",
+-            "You choose when to send. Catera cannot confirm WhatsApp delivery or reading.",
+-          ),
+-          { exact: true },
+-        ),
+-      ).toBeVisible();
+-      await page.keyboard.press("Escape");
+-      await expect(dialog).not.toBeVisible();
++      ).toHaveCount(0);
+       expect(
+         await page.evaluate(
+           () => document.documentElement.scrollWidth <= innerWidth,
+         ),
+       ).toBe(true);
+-      expect(
+-        (await new AxeBuilder({ page }).include(".pilot-workspace").analyze())
+-          .violations,
+-      ).toEqual([]);
+-      await mkdir("output/playwright/paid-pilot", { recursive: true });
+-      await page.screenshot({
+-        path: `output/playwright/paid-pilot/customers-${locale}-${width}.png`,
+-        fullPage: true,
+-      });
+-      expect(errors).toEqual([]);
+-    });
+-for (const locale of ["id", "en"])
+-  test(`renewal and pilot reporting ${locale}`, async ({ page, baseURL }) => {
+-    const t = (id: string, en: string) => (locale === "id" ? id : en);
+-    await page
+-      .context()
+-      .addCookies([{ name: "catera_locale", value: locale, url: baseURL! }]);
+-    await page.request.post("/api/v1/auth/demo", {
+-      data: { role: "customer" },
+     });
+-    const response = await (await page.request.get("/api/v1/customer")).json();
+-    const data = response.data || response;
+-    await page.goto("/renew/" + data.subscriptions[0].id);
+-    await page
+-      .getByRole("button", {
+-        name: t(
+-          "Gunakan alamat & tinjau pembelian",
+-          "Use address & review purchase",
+-        ),
+-        exact: true,
+-      })
+-      .click();
+-    const link = page.getByRole("link", {
+-      name: t("Lanjutkan ke pembayaran", "Continue to checkout"),
+-      exact: true,
+-    });
+-    await expect(link).toHaveAttribute("href", /renewedFrom=/);
+-    await link.click();
+-    await expect(page).toHaveURL(/addressId=/);
+-    await expect(
+-      page
+-        .getByText(t("Porsi setiap hari", "Portions per day"), { exact: true })
+-        .first(),
+-    ).toBeVisible();
+-    await page
+-      .getByRole("button", {
+-        name: t("Tinjau jadwal & harga", "Review schedule & price"),
+-        exact: true,
+-      })
+-      .click();
+-    await expect(
+-      page.getByRole("heading", {
+-        name: t("Jadwal makananmu", "Your meal schedule"),
+-        exact: true,
+-      }),
+-    ).toBeVisible();
+-    await page.request.post("/api/v1/auth/demo", {
+-      data: { role: "platform_admin" },
+-    });
+-    await page.goto("/admin/pilot");
+-    await expect(
+-      page.getByRole("heading", {
+-        name: t("Hasil pilot", "Pilot results"),
+-        exact: true,
+-      }),
+-    ).toBeVisible();
+-    await expect(
+-      page.getByText(
+-        t(
+-          "Konfigurasi sintetis. Bukan persetujuan untuk menerima pembayaran nyata.",
+-          "Synthetic configuration. This is not approval to accept real payments.",
+-        ),
+-        { exact: true },
+-      ),
+-    ).toBeVisible();
+-    await expect(
+-      page.getByText(t("Belum diketahui", "Unknown"), { exact: true }).first(),
+-    ).toBeVisible();
+-    expect(
+-      (await new AxeBuilder({ page }).include(".pilot-workspace").analyze())
+-        .violations,
+-    ).toEqual([]);
+-  });
+diff --git a/tests/e2e/seller-experience.spec.ts b/tests/e2e/seller-experience.spec.ts
+index 4c01f87..27962a7 100644
+--- a/tests/e2e/seller-experience.spec.ts
++++ b/tests/e2e/seller-experience.spec.ts
+@@ -245,7 +245,8 @@ test("owner bank review and account help remain separate from settlement dispatc
+   ).data;
+   expect(JSON.stringify(setup)).not.toContain("112233445566");
+   expect(setup.dispatchEnabled).toBe(false);
+-  const helpDetails = "Synthetic account deletion assistance only " + Date.now();
++  const helpDetails =
++    "Synthetic account deletion assistance only " + Date.now();
+   await choose(page, "Request type", "Request account deletion");
+   await page
+     .locator("#help")
+@@ -253,9 +254,7 @@ test("owner bank review and account help remain separate from settlement dispatc
+     .fill(helpDetails);
+   await page.getByRole("button", { name: "Send request", exact: true }).click();
+   await expect(
+-    page
+-      .locator("#help .request-row")
+-      .filter({ hasText: helpDetails }),
++    page.locator("#help .request-row").filter({ hasText: helpDetails }),
+   ).toBeVisible();
+   await page.request.post("/api/v1/auth/demo", {
+     data: { role: "platform_admin" },
+@@ -304,7 +303,7 @@ test("owner bank review and account help remain separate from settlement dispatc
+   await expect(page.locator("#main")).toContainText("Dapur Senja");
+ });
+ 
+-test("seller starts linked customer messages and offers invitations for unclaimed customers", async ({
++test("seller starts messages with subscribed customers", async ({
+   page,
+   baseURL,
+ }) => {
+@@ -312,35 +311,16 @@ test("seller starts linked customer messages and offers invitations for unclaime
+     .context()
+     .addCookies([{ name: "catera_locale", value: "en", url: baseURL! }]);
+   await page.request.post("/api/v1/auth/demo", { data: { role: "owner" } });
+-  await command(page, "customer.save", {
+-    catererId: cid,
+-    name: "Synthetic unclaimed messaging " + Date.now(),
+-    phone: "+628" + String(Date.now()).slice(-10),
+-    address: {
+-      line: "Synthetic messaging road",
+-      area: "Jakarta Selatan",
+-      city: "Jakarta",
+-      instructions: "",
+-    },
+-  });
+   const customers = (
+     await (await page.request.get("/api/v1/message-customers/" + cid)).json()
+   ).data.items;
+-  const linked = customers.find((c: any) => c.user_id),
+-    unclaimed = customers.find((c: any) => !c.user_id);
++  const linked = customers.find((c: any) => c.user_id);
+   expect(linked).toBeTruthy();
+-  expect(unclaimed).toBeTruthy();
+   await page.goto("/seller/support");
+   await page
+     .getByRole("button", { name: "Start conversation", exact: true })
+     .click();
+   const dialog = page.getByRole("dialog");
+-  await dialog
+-    .getByLabel("Search customers", { exact: true })
+-    .fill(unclaimed.name);
+-  await expect(
+-    dialog.getByRole("link", { name: "Invite customer" }),
+-  ).toBeVisible();
+   await dialog
+     .getByLabel("Search customers", { exact: true })
+     .fill(linked.name);
+@@ -365,40 +345,39 @@ test("customer calendar persists address and date changes and retains a failed r
+     .context()
+     .addCookies([{ name: "catera_locale", value: "en", url: baseURL! }]);
+   await page.request.post("/api/v1/auth/demo", { data: { role: "owner" } });
+-  const options = (
+-    await (
+-      await page.request.get("/api/v1/seller-import-options?id=" + cid)
+-    ).json()
+-  ).data;
+-  const offer = options.packages.find((p: any) => p.meal === "both"),
+-    address = options.customers.flatMap((c: any) => c.addresses)[0],
+-    name = "Synthetic calendar " + Date.now();
+-  const rows = [
+-    {
+-      customer: {
+-        name,
+-        phone: "+628" + String(Date.now()).slice(-10),
+-        address,
+-      },
+-      packageId: offer.id,
+-      portions: 2,
+-      startDate: addDays(localDay(), 95),
+-      remainingDays: 3,
+-      externalReference: crypto.randomUUID(),
+-    },
+-  ];
+-  const preview = await command(page, "import.preview", {
++  const state = (await (await page.request.get("/api/v1/seller/" + cid)).json())
++    .data;
++  const base = state.offers.find((p: any) => p.meal === "both");
++  const name = "Synthetic calendar " + Date.now();
++  const offer = await command(page, "package.save", {
+     catererId: cid,
+-    rows,
++    slug: "calendar-customer-" + crypto.randomUUID(),
++    offer: { ...base, name, days: 1, flexible: true },
++  });
++  await page.request.post("/api/v1/auth/demo", { data: { role: "customer" } });
++  const buyer = (await (await page.request.get("/api/v1/customer")).json())
++    .data;
++  const checkout = await command(page, "checkout.create", {
++    packageId: offer.id,
++    portions: 2,
++    startDate: addDays(localDay(), 95),
++    addressId: buyer.addresses[0].id,
++    trial: false,
++    paymentMethod: "qris",
+   });
+-  await command(page, "import.commit", { catererId: cid, id: preview.id });
++  await command(page, "checkout.demo_pay", { id: checkout.id });
++  await page.request.post("/api/v1/auth/demo", { data: { role: "owner" } });
+   const list = (
+     await (await page.request.get("/api/v1/seller-customers/" + cid)).json()
+   ).data;
+-  const customer = list.customers.find((c: any) => c.name === name);
++  const customer = list.customers.find((c: any) =>
++    c.subscriptions.some((s: any) => s.package_id === offer.id),
++  );
+   expect(customer).toBeTruthy();
+   await page.goto("/seller/customers?customerRecordId=" + customer.id);
+   const calendar = page.locator(".customer-delivery-calendar");
++  await choose(page, "Schedule view", "List");
++  await choose(page, "Package", name);
+   await expect(calendar.locator(".pilot-delivery")).toHaveCount(1);
+   await calendar.getByRole("button", { name: "Change on request" }).click();
+   await choose(page, "Change type", "Address");
+@@ -428,6 +407,7 @@ test("customer calendar persists address and date changes and retains a failed r
+   await page.getByRole("button", { name: "Save change", exact: true }).click();
+   await expect(page.getByRole("dialog")).toHaveCount(0);
+   await expect(calendar).toContainText("Synthetic updated road 77");
++  await choose(page, "Schedule view", "Calendar");
+   const before = (
+     await (
+       await page.request.get(
+@@ -435,9 +415,9 @@ test("customer calendar persists address and date changes and retains a failed r
+       )
+     ).json()
+   ).data;
+-  const deliveries = before.customers[0].subscriptions.flatMap(
+-      (s: any) => s.deliveries,
+-    ),
++  const deliveries = before.customers[0].subscriptions
++      .filter((s: any) => s.package_id === offer.id)
++      .flatMap((s: any) => s.deliveries),
+     first = deliveries.find(
+       (d: any) => d.address.line === "Synthetic updated road 77",
+     );
+@@ -499,93 +479,3 @@ test("customer calendar persists address and date changes and retains a failed r
+     fullPage: true,
+   });
+ });
+-
+-test("Today groups and metric dialogs use the same orders and destination identity", async ({
+-  page,
+-  baseURL,
+-}) => {
+-  await page
+-    .context()
+-    .addCookies([{ name: "catera_locale", value: "en", url: baseURL! }]);
+-  await page.request.post("/api/v1/auth/demo", { data: { role: "owner" } });
+-  const options = (
+-    await (
+-      await page.request.get("/api/v1/seller-import-options?id=" + cid)
+-    ).json()
+-  ).data;
+-  const offer = options.packages.find((p: any) => p.meal === "both"),
+-    address = options.customers.flatMap((c: any) => c.addresses)[0],
+-    stamp = Date.now();
+-  let start = addDays(localDay(), 150);
+-  const catalog = (await (await page.request.get("/api/v1/catalog")).json()).data;
+-  const weekdays = catalog.items.find((p: any) => p.id === offer.id).weekdays;
+-  for (let attempt = 0; attempt < 40; attempt++, start = addDays(start, 1)) {
+-    if (!weekdays.includes(new Date(start + "T12:00:00Z").getUTCDay()))
+-      continue;
+-    const day = (
+-      await (
+-        await page.request.get(`/api/v1/seller/${cid}?date=${start}`)
+-      ).json()
+-    ).data;
+-    if (day.deliveries.length === 0) break;
+-  }
+-  const rows = [0, 1].map((i) => ({
+-    customer: {
+-      name: "Synthetic operations " + stamp + " " + i,
+-      phone: "+628" + String(stamp + i).slice(-10),
+-      address: { ...address, line: "Synthetic operations road " + i },
+-    },
+-    packageId: offer.id,
+-    portions: i + 2,
+-    startDate: start,
+-    remainingDays: 1,
+-    externalReference: crypto.randomUUID(),
+-  }));
+-  const preview = await command(page, "import.preview", {
+-    catererId: cid,
+-    rows,
+-  });
+-  await command(page, "import.commit", { catererId: cid, id: preview.id });
+-  const date = preview.rows[0].preview.dates[0];
+-  await page.goto("/seller?date=" + date + "&meal=lunch");
+-  const main = page.locator("#main");
+-  await expect(main.locator(".ops-group-heading")).toHaveCount(1);
+-  await expect(main.locator(".ops-group-heading")).toContainText("2 orders");
+-  await expect(main.locator(".ops-group-heading")).toContainText("5 portions");
+-  await page.goto("/seller/schedule?date=" + date + "&meal=lunch");
+-  await main.getByRole("button", { name: /Unique customers/ }).click();
+-  const dialog = page.getByRole("dialog");
+-  await expect(dialog.getByRole("link")).toHaveCount(2);
+-  await dialog.getByRole("button", { name: "Close", exact: true }).click();
+-  await main.getByRole("button", { name: /Unique destinations/ }).click();
+-  await expect(dialog.locator("section.panel")).toHaveCount(2);
+-  await expect(dialog).toContainText("Synthetic operations road 0");
+-  await dialog.getByRole("button", { name: "Close", exact: true }).click();
+-  await page.goto("/seller?date=" + date + "&meal=lunch");
+-  await choose(page, "Group orders", "Flat list");
+-  await expect(main.locator(".ops-group-heading")).toHaveCount(0);
+-  await expect(main.locator("tbody tr")).toHaveCount(2);
+-  await choose(page, "Group orders", "Package, menu & area");
+-  await expect(main.locator(".ops-group-heading")).toHaveCount(1);
+-  await layout(page);
+-  await page.screenshot({
+-    path: "output/slack-bugs/0017-0027/today-1440-en.png",
+-    fullPage: true,
+-  });
+-  await page.setViewportSize({ width: 390, height: 900 });
+-  await layout(page);
+-  const heading = main.locator(".ops-group-heading th");
+-  await expect(heading).toHaveCSS("white-space", "normal");
+-  expect((await heading.boundingBox())!.width).toBeGreaterThan(
+-    (await main.locator(".ops-group-heading").boundingBox())!.width * 0.8,
+-  );
+-  await page.screenshot({
+-    path: "output/slack-bugs/0017-0027/today-390-en.png",
+-    animations: "disabled",
+-    fullPage: true,
+-  });
+-  await page.goto("/seller/schedule?date=" + date + "&meal=lunch");
+-  await main.getByRole("button", { name: /Unique customers/ }).click();
+-  await dialog.getByRole("link").first().click();
+-  await expect(page.locator(".customer-delivery-calendar")).toBeVisible();
+-});
+diff --git a/tests/e2e/usability.spec.ts b/tests/e2e/usability.spec.ts
+index 4a2fd63..04a98ac 100644
+--- a/tests/e2e/usability.spec.ts
++++ b/tests/e2e/usability.spec.ts
+@@ -169,90 +169,6 @@ test("draft resumes, optional fields reveal errors, and 200% zoom keeps footer r
+   await page.setViewportSize({ width: 1440, height: 1000 });
+ });
+ 
+-test("phone importer preserves edits, previews readable dates, and commits once", async ({
+-  page,
+-}) => {
+-  await login(page);
+-  await page.setViewportSize({ width: 390, height: 844 });
+-  const options = (
+-    await (
+-      await page.request.get("/api/v1/seller-import-options/" + cid)
+-    ).json()
+-  ).data;
+-  const customer = options.customers.find((c: any) => c.addresses.length);
+-  expect(customer).toBeTruthy();
+-  // A unique package prevents overlap with other independently running journey fixtures.
+-  const seller = (
+-    await (await page.request.get("/api/v1/seller/" + cid)).json()
+-  ).data;
+-  const offer = seller.offers.find(
+-    (p: any) =>
+-      p.status === "published" && p.areas.includes(customer.addresses[0].area),
+-  );
+-  const name = "Impor mudah " + Date.now();
+-  const created = await page.request.post("/api/v1/commands", {
+-    data: {
+-      action: "package.save",
+-      requestId: crypto.randomUUID(),
+-      payload: {
+-        catererId: cid,
+-        slug: "import-" + crypto.randomUUID(),
+-        offer: { ...offer, name, status: "published" },
+-      },
+-    },
+-  });
+-  expect(created.ok(), await created.text()).toBe(true);
+-  await page.goto("/seller/customers");
+-  await page.getByRole("button", { name: "Impor langganan prabayar" }).click();
+-  await choose(page, "Pelanggan", customer.name);
+-  await choose(page, "Paket", name);
+-  const address = customer.addresses[0];
+-  await choose(
+-    page,
+-    "Alamat pengantaran",
+-    `${address.label} · ${address.line}, ${address.area}`,
+-  );
+-  await pickDate(page, "Mulai pengantaran", addDays(localDay(), 50));
+-  await page.getByLabel("Nomor bukti pembayaran").fill("Receipt-" + Date.now());
+-  await page.getByLabel("Sisa hari yang sudah dibayar").fill("2");
+-  // A rejected preview must leave every entered value available for correction.
+-  await page.route("**/api/v1/commands", async (route) => {
+-    if (route.request().postDataJSON()?.action === "import.preview")
+-      await route.fulfill({ status: 409, json: { error: { code: "CAPACITY" } } });
+-    else await route.continue();
+-  });
+-  await page.getByRole("button", { name: "Periksa langganan" }).click();
+-  await expect(page.getByRole("dialog").getByRole("alert")).toBeVisible();
+-  await expect(page.getByLabel("Sisa hari yang sudah dibayar")).toHaveValue("2");
+-  await expect(page.locator(".form-error")).toBeFocused();
+-  await page.unroute("**/api/v1/commands");
+-  await page.getByRole("button", { name: "Periksa langganan" }).click();
+-  await expect(page.locator(".import-preview")).toContainText(customer.name);
+-  await expect(page.locator(".import-preview")).toContainText("2 hari");
+-  await expect(page.getByRole("dialog").locator("pre")).toHaveCount(0);
+-  await page.getByRole("button", { name: "Perbaiki data" }).click();
+-  await expect(page.getByLabel("Sisa hari yang sudah dibayar")).toHaveValue(
+-    "2",
+-  );
+-  await page.getByRole("button", { name: "Periksa langganan" }).click();
+-  await expect(page.locator(".import-preview")).toBeVisible();
+-  await page.screenshot({ path: `${evidence}/import-390.png`, fullPage: true });
+-  expect(
+-    (await new AxeBuilder({ page }).include('[role="dialog"]').analyze())
+-      .violations,
+-  ).toEqual([]);
+-  await page.getByRole("checkbox").check();
+-  const commit = page.waitForResponse(
+-    (r) =>
+-      r.url().endsWith("/commands") &&
+-      r.request().postDataJSON()?.action === "import.commit",
+-  );
+-  await page.getByRole("button", { name: "Konfirmasi impor" }).click();
+-  const response = await commit;
+-  expect(response.ok(), await response.text()).toBe(true);
+-  await expect(page.getByRole("dialog")).toHaveCount(0);
+-});
+-
+ test("messages tabs, shopping-only comparison, and delivery details keep the next task clear", async ({
+   page,
+ }) => {

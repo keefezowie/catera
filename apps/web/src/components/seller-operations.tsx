@@ -36,15 +36,7 @@ import { api, useApp, useResource } from "./context";
 import { Button, Checkbox } from "./form-controls";
 import { Select, SelectOption } from "./select";
 import { DatePicker } from "./date-picker";
-import {
-  Heading,
-  Loading,
-  ErrorNotice,
-  Empty,
-  Status,
-  Facts,
-  Dialog,
-} from "./ui";
+import { Heading, Loading, ErrorNotice, Empty, Status, Facts } from "./ui";
 import { Production } from "./seller-production";
 import { SellerReadiness } from "./seller-readiness";
 import { NeedsAttention } from "./seller-attention";
@@ -175,24 +167,27 @@ function OperationsPage({
   );
   const includeCancelled = schedule && status !== "active";
   const summary = scheduleSummary(rows, meal, includeCancelled);
-  const [metric, setMetric] = useState<"customers" | "destinations" | null>(
-    null,
-  );
-  const metricRows = rows.filter(
-    (d) =>
-      (includeCancelled || d.status !== "cancelled") &&
-      d.meals.some(
-        (m) =>
-          (includeCancelled || m.status !== "cancelled") &&
-          (meal === "all" || m.meal === meal),
-      ),
-  );
-  const metricGroups = new Map<string, SellerDelivery[]>();
-  for (const row of metricRows) {
-    const key =
-      metric === "customers" ? row.customer.id : destinationKey(row.address);
-    metricGroups.set(key, [...(metricGroups.get(key) || []), row]);
-  }
+  const grouping =
+    schedule && ["customers", "destinations"].includes(query.get("group") || "")
+      ? query.get("group")!
+      : "flat";
+  const groupKey = (row: SellerDelivery) =>
+    grouping === "customers" ? row.customer.id : destinationKey(row.address);
+  const groupOptions = [
+    ...new Map(
+      rows.map((row) => [
+        groupKey(row),
+        grouping === "customers"
+          ? row.customer.name
+          : `${row.address.line}, ${row.address.area}`,
+      ]),
+    ).entries(),
+  ];
+  const selectedGroup = query.get("filter") || "";
+  const filteredRows =
+    grouping !== "flat" && selectedGroup
+      ? rows.filter((row) => groupKey(row) === selectedGroup)
+      : rows;
   const active = rows.filter((d) => fulfillmentStatus(d, meal) !== "cancelled");
   const issues = active.filter(
     (d) => fulfillmentStatus(d, meal) === "issue",
@@ -415,9 +410,22 @@ function OperationsPage({
           return clickable ? (
             <button
               className="ops-metric-button"
+              type="button"
+              aria-pressed={
+                grouping === (Icon === Users ? "customers" : "destinations")
+              }
+              aria-controls="ops-orders"
               key={String(label)}
               onClick={() =>
-                setMetric(Icon === Users ? "customers" : "destinations")
+                navigate({
+                  group:
+                    grouping === (Icon === Users ? "customers" : "destinations")
+                      ? ""
+                      : Icon === Users
+                        ? "customers"
+                        : "destinations",
+                  filter: "",
+                })
               }
             >
               {contents}
@@ -432,56 +440,6 @@ function OperationsPage({
           );
         })}
       </div>
-      <Dialog
-        open={!!metric}
-        onOpenChange={(open) => {
-          if (!open) setMetric(null);
-        }}
-        title={
-          metric === "customers"
-            ? t("Pelanggan unik", "Unique customers")
-            : t("Tujuan unik", "Unique destinations")
-        }
-      >
-        <p>
-          {date} · {t("Sesuai filter aktif", "Matching active filters")}
-        </p>
-        {[...metricGroups].map(([key, items]) => (
-          <section className="panel" key={key}>
-            <h3>
-              {metric === "customers"
-                ? items[0].customer.name
-                : `${items[0].address.line}, ${items[0].address.area}, ${items[0].address.city}`}
-            </h3>
-            <p>
-              {items.length} {t("pesanan", "orders")} ·{" "}
-              {scheduleSummary(items, meal, includeCancelled).portions}{" "}
-              {t("porsi makan", "meal portions")}
-            </p>
-            {[
-              ...new Map(
-                items.map((d) => [d.customer.id, d.customer]),
-              ).values(),
-            ].map((c) => (
-              <p key={c.id}>
-                <Link
-                  href={`/seller/customers?${c.recordId ? "customerRecordId=" + c.recordId : "customerId=" + c.id}`}
-                >
-                  {c.name}
-                </Link>
-              </p>
-            ))}
-          </section>
-        ))}
-        {!metricGroups.size && (
-          <p>
-            {t(
-              "Tidak ada pesanan sesuai filter.",
-              "No orders match these filters.",
-            )}
-          </p>
-        )}
-      </Dialog>
       {!schedule && cases > 0 && (
         <Link className="text-button ops-support-link" href="/seller/support">
           {t("Lihat bantuan terbuka", "View open support cases")}{" "}
@@ -502,7 +460,49 @@ function OperationsPage({
       >
         <OrderTable
           key={date + ":" + meal + ":" + packageId + ":" + status}
-          rows={rows}
+          rows={filteredRows}
+          scheduleGrouping={grouping}
+          scheduleFilter={
+            schedule && grouping !== "flat" ? (
+              <div className="ops-list-filter">
+                <Select
+                  aria-label={t(
+                    grouping === "customers"
+                      ? "Filter pelanggan"
+                      : "Filter tujuan",
+                    grouping === "customers"
+                      ? "Customer filter"
+                      : "Destination filter",
+                  )}
+                  value={selectedGroup}
+                  onValueChange={(value) => navigate({ filter: value })}
+                >
+                  <SelectOption value="">
+                    {t(
+                      grouping === "customers"
+                        ? "Semua pelanggan"
+                        : "Semua tujuan",
+                      grouping === "customers"
+                        ? "All customers"
+                        : "All destinations",
+                    )}
+                  </SelectOption>
+                  {groupOptions.map(([key, label]) => (
+                    <SelectOption key={key} value={key}>
+                      {label}
+                    </SelectOption>
+                  ))}
+                </Select>
+                <Button
+                  className="text-button"
+                  onClick={() => navigate({ group: "", filter: "" })}
+                >
+                  <X size={16} />
+                  {t("Hapus filter", "Clear filter")}
+                </Button>
+              </div>
+            ) : undefined
+          }
           meal={meal}
           date={date}
           today={s.today}
@@ -743,8 +743,12 @@ function OrderTable({
   schedule,
   loading,
   refresh,
+  scheduleGrouping,
+  scheduleFilter,
 }: {
   rows: SellerDelivery[];
+  scheduleGrouping: string;
+  scheduleFilter?: React.ReactNode;
   meal: string;
   date: string;
   today: string;
@@ -758,7 +762,27 @@ function OrderTable({
   const [selected, setSelected] = useState<string[]>([]);
   const [detail, setDetail] = useState("");
   const [grouping, setGrouping] = useState("package");
-  const groups = operationalGroups(rows, meal, schedule ? "flat" : grouping);
+  const groups =
+    schedule && scheduleGrouping !== "flat"
+      ? [
+          ...Map.groupBy(rows, (row) =>
+            scheduleGrouping === "customers"
+              ? row.customer.id
+              : destinationKey(row.address),
+          ),
+        ].map(([key, items]) => ({
+          key,
+          rows: items,
+          name:
+            scheduleGrouping === "customers"
+              ? items[0].customer.name
+              : items[0].address.line,
+          area:
+            scheduleGrouping === "destinations" ? items[0].address.area : "",
+          menu: "",
+          portions: scheduleSummary(items, meal, true).portions,
+        }))
+      : operationalGroups(rows, meal, schedule ? "flat" : grouping);
   const [target, setTarget] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -955,37 +979,42 @@ function OrderTable({
             </Button>
           </div>
         )}
-        {!schedule && rows.length > 0 && (
-          <label className="checkbox ops-select-all">
-            <Checkbox
-              ref={all}
-              aria-label={t("Pilih semua pesanan", "Select all orders")}
-              disabled={!eligible.length || busy || loading}
-              checked={eligible.length > 0 && chosen.length === eligible.length}
-              onChange={(e) =>
-                setSelected(e.target.checked ? eligible.map((d) => d.id) : [])
-              }
-            />
-            <span>{t("Pilih semua pesanan", "Select all orders")}</span>
-          </label>
-        )}
-        {!schedule && (
-          <Select
-            aria-label={t("Kelompokkan pesanan", "Group orders")}
-            value={grouping}
-            onValueChange={setGrouping}
-          >
-            <SelectOption value="package">
-              {t("Paket & menu", "Package & menu")}
-            </SelectOption>
-            <SelectOption value="area">
-              {t("Paket, menu & area", "Package, menu & area")}
-            </SelectOption>
-            <SelectOption value="flat">
-              {t("Daftar biasa", "Flat list")}
-            </SelectOption>
-          </Select>
-        )}
+        {scheduleFilter}
+        <div className="ops-list-toolbar">
+          {!schedule && rows.length > 0 && (
+            <label className="checkbox ops-select-all">
+              <Checkbox
+                ref={all}
+                aria-label={t("Pilih semua pesanan", "Select all orders")}
+                disabled={!eligible.length || busy || loading}
+                checked={
+                  eligible.length > 0 && chosen.length === eligible.length
+                }
+                onChange={(e) =>
+                  setSelected(e.target.checked ? eligible.map((d) => d.id) : [])
+                }
+              />
+              <span>{t("Pilih semua pesanan", "Select all orders")}</span>
+            </label>
+          )}
+          {!schedule && (
+            <Select
+              aria-label={t("Kelompokkan pesanan", "Group orders")}
+              value={grouping}
+              onValueChange={setGrouping}
+            >
+              <SelectOption value="package">
+                {t("Paket & menu", "Package & menu")}
+              </SelectOption>
+              <SelectOption value="area">
+                {t("Paket, menu & area", "Package, menu & area")}
+              </SelectOption>
+              <SelectOption value="flat">
+                {t("Daftar biasa", "Flat list")}
+              </SelectOption>
+            </Select>
+          )}
+        </div>
         {loading && !rows.length ? (
           <Loading />
         ) : rows.length ? (
@@ -1021,17 +1050,33 @@ function OrderTable({
               <tbody>
                 {groups.map((group) => (
                   <Fragment key={group.key}>
-                    {!schedule && grouping !== "flat" && (
+                    {(schedule
+                      ? scheduleGrouping !== "flat"
+                      : grouping !== "flat") && (
                       <tr className="ops-group-heading">
                         <th colSpan={6} scope="rowgroup">
-                          {group.name}
-                          {group.area ? ` · ${group.area}` : ""}
-                          <small>
-                            {group.menu ||
-                              t("Katerer memilih", "Caterer chooses")}{" "}
-                            · {group.rows.length} {t("pesanan", "orders")} ·{" "}
-                            {group.portions} {t("porsi", "portions")}
-                          </small>
+                          <div className="ops-group-summary">
+                            <div>
+                              <strong>
+                                {group.name}
+                                {group.area ? ` · ${group.area}` : ""}
+                              </strong>
+                              {!schedule && (
+                                <small>
+                                  {group.menu ||
+                                    t("Katerer memilih", "Caterer chooses")}
+                                </small>
+                              )}
+                            </div>
+                            <span>
+                              {group.rows.length} {t("pesanan", "orders")} ·{" "}
+                              {group.portions}{" "}
+                              {t(
+                                schedule ? "porsi makan" : "porsi",
+                                schedule ? "meal portions" : "portions",
+                              )}
+                            </span>
+                          </div>
                         </th>
                       </tr>
                     )}
@@ -1069,9 +1114,9 @@ function OrderTable({
                           data-label={t("Pelanggan", "Customer")}
                         >
                           <strong>{x.customer.name}</strong>
-                          {!schedule && (
+                          {!schedule && (grouping === "flat" || x.trial) && (
                             <small>
-                              {x.offer.name}
+                              {grouping === "flat" ? x.offer.name : ""}
                               {x.trial ? " · " + t("Trial", "Trial") : ""}
                             </small>
                           )}

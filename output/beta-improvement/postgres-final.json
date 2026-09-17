@@ -1,0 +1,26 @@
+{
+  "at": "2026-09-17T13:46:12.436Z",
+  "passed": [
+    "Synthetic slot conversion is repeatable on PostgreSQL; dated menus validate and package templates remain stable.",
+    "Five simultaneous purchases: exactly three committed at capacity three; complete schedules reserved.",
+    "Five simultaneous payment confirmations: one subscription and one allocation.",
+    "A full replacement date rejects rescheduling without changing the original booking.",
+    "Two eligible customers race for one replacement slot: exactly one succeeds; the other retains the original confirmed reservation.",
+    "Realtime signals enforce customer-specific SELECT access and reject direct authenticated writes.",
+    "Concurrent published content edits are rejected while checkout preserves the purchased revision and whole-portion reservations; simultaneous dated-menu saves accept exactly one version.",
+    "Concurrent library edits reject stale versions; archive leaves purchased contents untouched.",
+    "Slot menu batches: concurrent writers accept exactly one complete batch, a later-date conflict rolls back earlier dates, and idempotent retry does not increment versions twice.",
+    "Seller bulk status: reversed concurrent batches accept one version without deadlock, dinner stays independent, retries are idempotent, cross-tenant access fails, and stale batches roll back audit/notifications.",
+    "Package suspension serializes with checkout; concurrent archive accepts one version; archive/payment races preserve deliveries or create a payment exception; legacy RPC bypass is denied.",
+    "Customer menu PostgreSQL races: exactly one optimistic save; retirement serializes with selection; saved historical options survive; reschedule preserves delivery identity; production captures complete versions; cancellation rejects waiting saves.",
+    "Customer-menu and package-option data remain private to authorized transactional RPCs.",
+    "Multi-cycle: three buyers compete for capacity on the 60th date; exactly one complete purchase commits, repeated activation credits no duplicates, and only one early renewal succeeds.",
+    "Concurrent delivery completion produces exactly one earned seller credit.",
+    "Concurrent weekly workers reserve earnings once; concurrent transfer preparations reuse one captured recipient, success callbacks pay once, and reversal callbacks release once.",
+    "Concurrent seller first messages create one conversation and preserve all messages. Concurrent bank reviews accept one version; replacement approval racing transfer retry preserves its captured recipient. Private bank/account-request tables reject direct authenticated reads; audit records mask bank numbers.",
+    "Paid pilot: two concurrent 30-customer imports accept one batch atomically at capacity; two concurrent account claims accept one identity and preserve all deliveries.",
+    "Paid pilot: claim/checkout race either binds the obligation and rejects overlap or preserves the pending checkout and places the claim in review.",
+    "Delivery issues: concurrent retries create one report; simultaneous seller actions accept one version, preserve money/reservations, retain immutable history, and deny direct authenticated reads.",
+    "Concurrent maintenance workers complete without duplicate reminder notifications or dedupe conflicts."
+  ]
+}

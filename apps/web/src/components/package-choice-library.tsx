@@ -1,4 +1,5 @@
 "use client";
+import { Plus, RefreshCw, Archive, RotateCcw, Utensils } from "lucide-react";
 import { useState } from "react";
 import { type Offer, type LibraryDish } from "@catera/domain";
 import { api, useApp, useResource } from "./context";
@@ -113,10 +114,54 @@ export function PackageChoiceLibrary({
   );
   return (
     <section className="package-choice-library">
-      <h3>
-        {offer.name} · {t("Pilih menu sendiri", "Choose your menu")}
-      </h3>
-      <ChoiceRules />
+      {dishes ? (
+        <>
+          <div className="choice-library-heading">
+            <div>
+              <span className="choice-mode">
+                <Utensils size={16} />
+                {t("Pilih menu sendiri", "Choose your menu")}
+              </span>
+              <h2>
+                {t("Pilihan hidangan pelanggan", "Customer dish options")}
+              </h2>
+              <p>
+                {t(
+                  "Kelola hidangan yang bisa dipilih pelanggan untuk paket ini. Pilihan dibuat setelah berlangganan, sebelum batas waktu pengantaran.",
+                  "Manage the dishes customers can choose for this package. Customers select after subscribing, before the delivery cutoff.",
+                )}
+              </p>
+            </div>
+            <strong className="choice-active-count">
+              {options.filter((d) => !d.archived).length}{" "}
+              {t("hidangan aktif", "active dishes")}
+            </strong>
+          </div>
+          <div className="choice-composition">
+            {offer.menus.map((menu) => (
+              <div key={menu.meal}>
+                <strong>
+                  {menu.meal === "lunch"
+                    ? t("Siang", "Lunch")
+                    : t("Malam", "Dinner")}
+                </strong>
+                <span>
+                  {menu.composition
+                    ?.map((group) => `${group.slots} ${group.name}`)
+                    .join(" · ")}
+                </span>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : (
+        <>
+          <h3>
+            {offer.name} · {t("Pilih menu sendiri", "Choose your menu")}
+          </h3>
+          <ChoiceRules />
+        </>
+      )}
       {resource.error && (
         <ErrorNotice message={resource.error} retry={resource.reload} />
       )}
@@ -134,32 +179,71 @@ export function PackageChoiceLibrary({
               "Saved customer choices must still be fulfilled. Updates apply to new selections only.",
             )}
           </p>
-          {options.map((d) => (
-            <div className="action-row" key={d.id}>
-              <strong>{d.name}</strong>
-              <span>{d.serving}</span>
-              <Button
-                variant="secondary"
-                disabled={busy}
-                onClick={() =>
-                  save({ id: d.id, version: d.version, archived: !d.archived })
+          <div className="choice-option-grid">
+            {options.map((d) => (
+              <article
+                className={
+                  "choice-option-card" + (d.archived ? " is-retired" : "")
                 }
+                key={d.id}
               >
-                {d.archived
-                  ? t("Pulihkan", "Restore")
-                  : t("Nonaktifkan", "Retire")}
-              </Button>
-              <Button
-                variant="secondary"
-                disabled={busy || d.archived}
-                onClick={() =>
-                  save({ id: d.id, version: d.version, refresh: true })
-                }
-              >
-                {t("Gunakan versi terbaru", "Use latest version")}
-              </Button>
-            </div>
-          ))}
+                {d.image ? (
+                  <img src={d.image} alt="" />
+                ) : (
+                  <div className="choice-option-placeholder">
+                    <Utensils size={26} />
+                  </div>
+                )}
+                <div className="choice-option-info">
+                  <strong>{d.name}</strong>
+                  <small>
+                    {d.serving} ·{" "}
+                    {d.archived
+                      ? t("Nonaktif", "Inactive")
+                      : t("Aktif", "Active")}
+                  </small>
+                </div>
+                <div className="choice-option-actions">
+                  <Button
+                    variant="secondary"
+                    disabled={busy}
+                    onClick={() =>
+                      save({
+                        id: d.id,
+                        version: d.version,
+                        archived: !d.archived,
+                      })
+                    }
+                  >
+                    {d.archived ? (
+                      <RotateCcw size={15} />
+                    ) : (
+                      <Archive size={15} />
+                    )}
+                    {d.archived
+                      ? t("Pulihkan", "Restore")
+                      : t("Nonaktifkan", "Retire")}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    disabled={busy || d.archived}
+                    onClick={() =>
+                      save({ id: d.id, version: d.version, refresh: true })
+                    }
+                  >
+                    <RefreshCw size={15} />
+                    {t("Perbarui", "Refresh")}
+                  </Button>
+                </div>
+              </article>
+            ))}
+          </div>
+          <h3>
+            {t(
+              "Tambahkan pilihan dari pustaka",
+              "Add options from your library",
+            )}
+          </h3>
           {dishes
             .filter(
               (d) =>
@@ -172,9 +256,10 @@ export function PackageChoiceLibrary({
                 <span>{d.name}</span>
                 <Button
                   variant="secondary"
-                  disabled={busy}
+                  disabled={busy || !resource.data}
                   onClick={() => save({ sourceDishId: d.id })}
                 >
+                  <Plus size={16} />
                   {t("Tambahkan ke paket", "Add to package")}
                 </Button>
               </div>

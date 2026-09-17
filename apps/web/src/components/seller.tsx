@@ -7,12 +7,8 @@ import { SellerAccountSettings } from "./seller-account";
 import { SellerSettlement } from "./seller-settlement";
 import { SellerCustomers } from "./seller-customers";
 import { DeliveryIssues } from "./delivery-issues";
-import {
-  ChoiceDishChecklist,
-  PackageChoiceLibrary,
-} from "./package-choice-library";
+import { ChoiceDishChecklist } from "./package-choice-library";
 import { SellerOperations } from "./seller-operations";
-import { PrepaidImport } from "./prepaid-import";
 import { SellerReadiness } from "./seller-readiness";
 import { PackageContents } from "./package-contents";
 import { type MealMenu, type PackageType } from "@catera/domain";
@@ -141,21 +137,7 @@ function SellerWorkspace({ view }: { view: string }) {
       {view === "packages" ? (
         <Packages state={s} />
       ) : view === "dishes" || view === "menus" ? (
-        <>
-          <MenuCalendar state={s} date={date} />
-          {s.offers
-            .filter(
-              (o) =>
-                o.menuSelectionMode === "customer" && o.status !== "retired",
-            )
-            .map((o) => (
-              <PackageChoiceLibrary
-                key={o.id}
-                offer={o}
-                dishes={s.dishes || []}
-              />
-            ))}
-        </>
+        <MenuCalendar state={s} date={date} />
       ) : view === "customers" ? (
         <SellerCustomers catererId={s.caterer.id} />
       ) : view === "support" ? (
@@ -1407,77 +1389,6 @@ function OfferEditor({
         </div>
       </ActionForm>
     </div>
-  );
-}
-function Customers({ state: s }: { state: SellerState }) {
-  const [showImport, setShowImport] = useState(false);
-  const [importBusy, setImportBusy] = useState(false);
-  const { actor, t } = useApp();
-  return (
-    <>
-      <section className="panel">
-        <div className="section-heading">
-          <h2>{t("Hubungan pelanggan", "Customer relationships")}</h2>
-          {actor?.role === "owner" && (
-            <Button
-              className="button secondary small"
-              onClick={() => setShowImport(true)}
-            >
-              {t("Impor langganan prabayar", "Import prepaid subscriptions")}
-            </Button>
-          )}
-        </div>
-        {s.customers.length ? (
-          <div className="customer-records">
-            {s.customers.map((c) => (
-              <article className="queue-row" key={c.id}>
-                <Users size={22} aria-hidden="true" />
-                <div>
-                  <strong>{c.name}</strong>
-                  <small>
-                    {c.source === "legacy"
-                      ? t("Langganan prabayar", "Prepaid subscription")
-                      : c.source === "invited"
-                        ? t("Melalui undangan", "Invited customer")
-                        : t("Melalui Catera", "Via Catera")}
-                  </small>
-                </div>
-                <details className="record-details">
-                  <summary>{t("Detail akun", "Account details")}</summary>
-                  <code>{c.id}</code>
-                </details>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <p className="quiet-empty">
-            {t(
-              "Pelanggan akan muncul setelah terhubung melalui undangan atau pembelian.",
-              "Customers appear after connecting through an invitation or purchase.",
-            )}
-          </p>
-        )}
-      </section>
-      <Dialog
-        size="editor"
-        busy={importBusy}
-        open={showImport}
-        onOpenChange={(open) => {
-          if (!importBusy) setShowImport(open);
-        }}
-        title={t("Impor langganan prabayar", "Import prepaid subscriptions")}
-        description={t(
-          "Masukkan langganan yang sudah dibayar, lalu periksa sebelum mengimpor.",
-          "Enter prepaid subscriptions, then review before importing.",
-        )}
-      >
-        <PrepaidImport
-          catererId={s.caterer.id}
-          onBusyChange={setImportBusy}
-          done={() => setShowImport(false)}
-        />
-      </Dialog>
-    </>
   );
 }
 function SellerInbox({ cases }: { cases: SupportCase[] }) {

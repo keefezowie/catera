@@ -4,6 +4,7 @@ export default defineConfig({
   ...base,
   testMatch: [
     "seller-experience.spec.ts",
+    "seller-workspace-ui.spec.ts",
     "slot-menus.spec.ts",
     "conditional-ui.spec.ts",
     "settlement-dashboard.spec.ts",

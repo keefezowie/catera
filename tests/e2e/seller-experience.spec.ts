@@ -245,7 +245,8 @@ test("owner bank review and account help remain separate from settlement dispatc
   ).data;
   expect(JSON.stringify(setup)).not.toContain("112233445566");
   expect(setup.dispatchEnabled).toBe(false);
-  const helpDetails = "Synthetic account deletion assistance only " + Date.now();
+  const helpDetails =
+    "Synthetic account deletion assistance only " + Date.now();
   await choose(page, "Request type", "Request account deletion");
   await page
     .locator("#help")
@@ -253,9 +254,7 @@ test("owner bank review and account help remain separate from settlement dispatc
     .fill(helpDetails);
   await page.getByRole("button", { name: "Send request", exact: true }).click();
   await expect(
-    page
-      .locator("#help .request-row")
-      .filter({ hasText: helpDetails }),
+    page.locator("#help .request-row").filter({ hasText: helpDetails }),
   ).toBeVisible();
   await page.request.post("/api/v1/auth/demo", {
     data: { role: "platform_admin" },
@@ -304,7 +303,7 @@ test("owner bank review and account help remain separate from settlement dispatc
   await expect(page.locator("#main")).toContainText("Dapur Senja");
 });
 
-test("seller starts linked customer messages and offers invitations for unclaimed customers", async ({
+test("seller starts messages with subscribed customers", async ({
   page,
   baseURL,
 }) => {
@@ -312,35 +311,16 @@ test("seller starts linked customer messages and offers invitations for unclaime
     .context()
     .addCookies([{ name: "catera_locale", value: "en", url: baseURL! }]);
   await page.request.post("/api/v1/auth/demo", { data: { role: "owner" } });
-  await command(page, "customer.save", {
-    catererId: cid,
-    name: "Synthetic unclaimed messaging " + Date.now(),
-    phone: "+628" + String(Date.now()).slice(-10),
-    address: {
-      line: "Synthetic messaging road",
-      area: "Jakarta Selatan",
-      city: "Jakarta",
-      instructions: "",
-    },
-  });
   const customers = (
     await (await page.request.get("/api/v1/message-customers/" + cid)).json()
   ).data.items;
-  const linked = customers.find((c: any) => c.user_id),
-    unclaimed = customers.find((c: any) => !c.user_id);
+  const linked = customers.find((c: any) => c.user_id);
   expect(linked).toBeTruthy();
-  expect(unclaimed).toBeTruthy();
   await page.goto("/seller/support");
   await page
     .getByRole("button", { name: "Start conversation", exact: true })
     .click();
   const dialog = page.getByRole("dialog");
-  await dialog
-    .getByLabel("Search customers", { exact: true })
-    .fill(unclaimed.name);
-  await expect(
-    dialog.getByRole("link", { name: "Invite customer" }),
-  ).toBeVisible();
   await dialog
     .getByLabel("Search customers", { exact: true })
     .fill(linked.name);
@@ -365,40 +345,39 @@ test("customer calendar persists address and date changes and retains a failed r
     .context()
     .addCookies([{ name: "catera_locale", value: "en", url: baseURL! }]);
   await page.request.post("/api/v1/auth/demo", { data: { role: "owner" } });
-  const options = (
-    await (
-      await page.request.get("/api/v1/seller-import-options?id=" + cid)
-    ).json()
-  ).data;
-  const offer = options.packages.find((p: any) => p.meal === "both"),
-    address = options.customers.flatMap((c: any) => c.addresses)[0],
-    name = "Synthetic calendar " + Date.now();
-  const rows = [
-    {
-      customer: {
-        name,
-        phone: "+628" + String(Date.now()).slice(-10),
-        address,
-      },
-      packageId: offer.id,
-      portions: 2,
-      startDate: addDays(localDay(), 95),
-      remainingDays: 3,
-      externalReference: crypto.randomUUID(),
-    },
-  ];
-  const preview = await command(page, "import.preview", {
+  const state = (await (await page.request.get("/api/v1/seller/" + cid)).json())
+    .data;
+  const base = state.offers.find((p: any) => p.meal === "both");
+  const name = "Synthetic calendar " + Date.now();
+  const offer = await command(page, "package.save", {
     catererId: cid,
-    rows,
+    slug: "calendar-customer-" + crypto.randomUUID(),
+    offer: { ...base, name, days: 1, flexible: true },
   });
-  await command(page, "import.commit", { catererId: cid, id: preview.id });
+  await page.request.post("/api/v1/auth/demo", { data: { role: "customer" } });
+  const buyer = (await (await page.request.get("/api/v1/customer")).json())
+    .data;
+  const checkout = await command(page, "checkout.create", {
+    packageId: offer.id,
+    portions: 2,
+    startDate: addDays(localDay(), 95),
+    addressId: buyer.addresses[0].id,
+    trial: false,
+    paymentMethod: "qris",
+  });
+  await command(page, "checkout.demo_pay", { id: checkout.id });
+  await page.request.post("/api/v1/auth/demo", { data: { role: "owner" } });
   const list = (
     await (await page.request.get("/api/v1/seller-customers/" + cid)).json()
   ).data;
-  const customer = list.customers.find((c: any) => c.name === name);
+  const customer = list.customers.find((c: any) =>
+    c.subscriptions.some((s: any) => s.package_id === offer.id),
+  );
   expect(customer).toBeTruthy();
   await page.goto("/seller/customers?customerRecordId=" + customer.id);
   const calendar = page.locator(".customer-delivery-calendar");
+  await choose(page, "Schedule view", "List");
+  await choose(page, "Package", name);
   await expect(calendar.locator(".pilot-delivery")).toHaveCount(1);
   await calendar.getByRole("button", { name: "Change on request" }).click();
   await choose(page, "Change type", "Address");
@@ -428,6 +407,7 @@ test("customer calendar persists address and date changes and retains a failed r
   await page.getByRole("button", { name: "Save change", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(calendar).toContainText("Synthetic updated road 77");
+  await choose(page, "Schedule view", "Calendar");
   const before = (
     await (
       await page.request.get(
@@ -435,9 +415,9 @@ test("customer calendar persists address and date changes and retains a failed r
       )
     ).json()
   ).data;
-  const deliveries = before.customers[0].subscriptions.flatMap(
-      (s: any) => s.deliveries,
-    ),
+  const deliveries = before.customers[0].subscriptions
+      .filter((s: any) => s.package_id === offer.id)
+      .flatMap((s: any) => s.deliveries),
     first = deliveries.find(
       (d: any) => d.address.line === "Synthetic updated road 77",
     );
@@ -498,94 +478,4 @@ test("customer calendar persists address and date changes and retains a failed r
     animations: "disabled",
     fullPage: true,
   });
-});
-
-test("Today groups and metric dialogs use the same orders and destination identity", async ({
-  page,
-  baseURL,
-}) => {
-  await page
-    .context()
-    .addCookies([{ name: "catera_locale", value: "en", url: baseURL! }]);
-  await page.request.post("/api/v1/auth/demo", { data: { role: "owner" } });
-  const options = (
-    await (
-      await page.request.get("/api/v1/seller-import-options?id=" + cid)
-    ).json()
-  ).data;
-  const offer = options.packages.find((p: any) => p.meal === "both"),
-    address = options.customers.flatMap((c: any) => c.addresses)[0],
-    stamp = Date.now();
-  let start = addDays(localDay(), 150);
-  const catalog = (await (await page.request.get("/api/v1/catalog")).json()).data;
-  const weekdays = catalog.items.find((p: any) => p.id === offer.id).weekdays;
-  for (let attempt = 0; attempt < 40; attempt++, start = addDays(start, 1)) {
-    if (!weekdays.includes(new Date(start + "T12:00:00Z").getUTCDay()))
-      continue;
-    const day = (
-      await (
-        await page.request.get(`/api/v1/seller/${cid}?date=${start}`)
-      ).json()
-    ).data;
-    if (day.deliveries.length === 0) break;
-  }
-  const rows = [0, 1].map((i) => ({
-    customer: {
-      name: "Synthetic operations " + stamp + " " + i,
-      phone: "+628" + String(stamp + i).slice(-10),
-      address: { ...address, line: "Synthetic operations road " + i },
-    },
-    packageId: offer.id,
-    portions: i + 2,
-    startDate: start,
-    remainingDays: 1,
-    externalReference: crypto.randomUUID(),
-  }));
-  const preview = await command(page, "import.preview", {
-    catererId: cid,
-    rows,
-  });
-  await command(page, "import.commit", { catererId: cid, id: preview.id });
-  const date = preview.rows[0].preview.dates[0];
-  await page.goto("/seller?date=" + date + "&meal=lunch");
-  const main = page.locator("#main");
-  await expect(main.locator(".ops-group-heading")).toHaveCount(1);
-  await expect(main.locator(".ops-group-heading")).toContainText("2 orders");
-  await expect(main.locator(".ops-group-heading")).toContainText("5 portions");
-  await page.goto("/seller/schedule?date=" + date + "&meal=lunch");
-  await main.getByRole("button", { name: /Unique customers/ }).click();
-  const dialog = page.getByRole("dialog");
-  await expect(dialog.getByRole("link")).toHaveCount(2);
-  await dialog.getByRole("button", { name: "Close", exact: true }).click();
-  await main.getByRole("button", { name: /Unique destinations/ }).click();
-  await expect(dialog.locator("section.panel")).toHaveCount(2);
-  await expect(dialog).toContainText("Synthetic operations road 0");
-  await dialog.getByRole("button", { name: "Close", exact: true }).click();
-  await page.goto("/seller?date=" + date + "&meal=lunch");
-  await choose(page, "Group orders", "Flat list");
-  await expect(main.locator(".ops-group-heading")).toHaveCount(0);
-  await expect(main.locator("tbody tr")).toHaveCount(2);
-  await choose(page, "Group orders", "Package, menu & area");
-  await expect(main.locator(".ops-group-heading")).toHaveCount(1);
-  await layout(page);
-  await page.screenshot({
-    path: "output/slack-bugs/0017-0027/today-1440-en.png",
-    fullPage: true,
-  });
-  await page.setViewportSize({ width: 390, height: 900 });
-  await layout(page);
-  const heading = main.locator(".ops-group-heading th");
-  await expect(heading).toHaveCSS("white-space", "normal");
-  expect((await heading.boundingBox())!.width).toBeGreaterThan(
-    (await main.locator(".ops-group-heading").boundingBox())!.width * 0.8,
-  );
-  await page.screenshot({
-    path: "output/slack-bugs/0017-0027/today-390-en.png",
-    animations: "disabled",
-    fullPage: true,
-  });
-  await page.goto("/seller/schedule?date=" + date + "&meal=lunch");
-  await main.getByRole("button", { name: /Unique customers/ }).click();
-  await dialog.getByRole("link").first().click();
-  await expect(page.locator(".customer-delivery-calendar")).toBeVisible();
 });

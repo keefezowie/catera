@@ -2696,14 +2696,14 @@ td strong {
   background: var(--surface);
   margin-bottom: 28px;
 }
-.ops-metrics > div {
+.ops-metrics > :is(div, button) {
   padding: 20px 24px;
   border-right: 1px solid var(--line);
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 8px;
 }
-.ops-metrics > div:last-child {
+.ops-metrics > :is(div, button):last-child {
   border: 0;
 }
 .ops-metrics svg {
@@ -3147,7 +3147,7 @@ td strong {
     flex-direction: column;
     gap: 15px;
   }
-  .ops-metrics > div {
+  .ops-metrics > :is(div, button) {
     padding: 18px;
   }
   .ops-two-col {
@@ -4148,13 +4148,13 @@ td strong {
   .ops-metrics {
     grid-template-columns: 1fr 1fr;
   }
-  .ops-metrics > div {
+  .ops-metrics > :is(div, button) {
     padding: 17px 18px;
   }
-  .ops-metrics > div:nth-child(2) {
+  .ops-metrics > :is(div, button):nth-child(2) {
     border-right: 0;
   }
-  .ops-metrics > div:nth-child(-n + 2) {
+  .ops-metrics > :is(div, button):nth-child(-n + 2) {
     border-bottom: 1px solid var(--line);
   }
   .ops-metrics strong {
