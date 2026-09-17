@@ -137,6 +137,8 @@ export async function GET(request: Request, context: Context) {
         "catalog",
         "renewal-context",
         "seller-customers",
+        "seller-attention",
+        "delivery-issues",
         "seller-identity",
         "message-customers",
         "payout-setup",

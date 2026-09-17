@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import type { PGlite } from "@electric-sql/pglite";
 import { createDemoDatabase } from "../packages/backend/src/database";
 import { refreshDemoCatalogSQL } from "../packages/backend/src/seed";
+import { z } from "zod";
 let db: PGlite;
 const upgrade = await readFile(
   "packages/backend/src/demo-slot-upgrade.sql",
@@ -24,6 +25,8 @@ it("normalizes every seeded package, purchase revision, dated recipe and library
     and not exists(select 1 from v1.dishes d left join v1.dish_categories c on c.id=d.details->>'categoryId' where c.id is null or (c.caterer_id is not null and c.caterer_id<>d.caterer_id))
     and exists(select 1 from v1.dish_categories where name='Pelengkap' and caterer_id is not null) as ok`);
   expect(result.rows[0].ok).toBe(true);
+  const dishes = await db.query<{ id: string }>("select id from v1.dishes");
+  for (const dish of dishes.rows) expect(z.uuid().safeParse(dish.id).success).toBe(true);
 });
 async function state() {
   const r = await db.query(`select

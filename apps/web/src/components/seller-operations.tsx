@@ -47,6 +47,7 @@ import {
 } from "./ui";
 import { Production } from "./seller-production";
 import { SellerReadiness } from "./seller-readiness";
+import { NeedsAttention } from "./seller-attention";
 import {
   datesBetween,
   monthOf,
@@ -218,6 +219,7 @@ function OperationsPage({
         }
       ></Heading>
       <SellerReadiness caterer={s.caterer} offers={s.offers} />
+      {!schedule && <NeedsAttention catererId={s.caterer.id} />}
       {s.caterer.status !== "approved" && (
         <p className="notice">
           {t("Status verifikasi", "Verification status")}:{" "}

@@ -975,7 +975,12 @@ export function PaymentScreen() {
     <Gate>
       <Screen
         title={
-          c?.subscription_id
+          c?.state === "failed" ? t("Pembayaran gagal", "Payment failed")
+          : c?.state === "expired" ? t("Waktu pembayaran habis", "Payment time expired")
+          : c?.state === "payment_exception" ? t("Pembayaran sedang ditinjau", "Your payment is being reviewed")
+          : c?.state === "refunded" ? t("Pembayaran dikembalikan", "Payment refunded")
+          : c?.state === "partially_refunded" ? t("Sebagian pembayaran dikembalikan", "Payment partially refunded")
+          : c?.subscription_id && c.state === "paid"
             ? t(
                 "Makanan baik sudah dijadwalkan.",
                 "Good meals are on the calendar.",
@@ -990,7 +995,10 @@ export function PaymentScreen() {
         {state.error && <Txt style={styles.error}>{state.error}</Txt>}
         {c && (
           <>
-            {c.subscription_id ? (
+            {c.state === "refunded" || c.state === "partially_refunded" ? <>
+              <Txt>{t("Lihat keputusan bantuan untuk rincian refund dan jadwal pengantaran.", "See the support decision for refund and delivery details.")}</Txt>
+              <Btn label={t("Lihat bantuan", "View support")} onPress={() => router.push("/support")} />
+            </> : c.subscription_id && c.state === "paid" ? (
               <>
                 <Image
                   source={require("../../../packages/brand/assets/confirmation.png")}
@@ -1044,7 +1052,7 @@ export function PaymentScreen() {
                       "Payment arrived after the schedule became unavailable. Catera is reviewing the resolution.",
                     )}
                   </Txt>
-                ) : new Date(c.expires_at) > new Date() ? (
+                ) : c.state === "pending" && new Date(c.expires_at) > new Date() ? (
                   demo ? (
                     <Run
                       label={t(

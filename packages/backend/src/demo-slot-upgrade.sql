@@ -45,7 +45,8 @@ begin
   if coalesce(trim(i->>'name'),'')='' then continue;end if;
   dish_details:=jsonb_build_object('name',i->>'name','description',coalesce(i->>'description',''),'image',coalesce(i->>'image',''),'serving',coalesce(i->>'serving',''),'categoryId',cat);
   select d.id into source from v1.dishes d where d.caterer_id=cid and not d.archived and d.details->>'name'=dish_details->>'name' and d.details->>'serving'=dish_details->>'serving' and (d.details->>'categoryId' is null or d.details->>'categoryId'=cat) order by d.id limit 1;
-  if source is null then source:=md5(cid::text||':'||dish_details::text)::uuid;end if;
+  -- Keep deterministic fixture IDs valid for the same UUID validator as real dishes.
+  if source is null then source:=overlay(overlay(md5(cid::text||':'||dish_details::text) placing '3' from 13 for 1) placing '8' from 17 for 1)::uuid;end if;
   insert into v1.dishes(id,caterer_id,details) values(source,cid,dish_details) on conflict(id) do nothing;
   update v1.dishes d set details=d.details||jsonb_build_object('categoryId',cat) where d.id=source and d.details->>'categoryId' is null;
   select version into source_version from v1.dishes where id=source;

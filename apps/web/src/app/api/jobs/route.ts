@@ -104,6 +104,11 @@ export async function GET(request: Request) {
           });
         }
       } else if (job.kind === "push") {
+        if (!(await system<boolean>("notification.eligible", { id: job.id }))) {
+          await system("outbox.complete", { id: job.id });
+          done++;
+          continue;
+        }
         const tokens = await system<string[]>("devices", {
           userId: job.payload.userId,
         });

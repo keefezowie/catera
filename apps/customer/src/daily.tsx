@@ -1,4 +1,5 @@
 import { PackageContents } from "./package-contents";
+import { NativeDeliveryIssueReport, NativeDeliveryIssues } from "./delivery-issues";
 import { useEffect, useState } from "react";
 import { View, Pressable, Switch } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
@@ -866,10 +867,12 @@ export function SupportScreen() {
   const params = useLocalSearchParams<{
     subscription?: string;
     delivery?: string;
+    issue?: string;
+    case?: string;
   }>();
   const { command, t, locale } = useNative();
   const s = useData<CustomerState>("support", () => nativeApi.customer());
-  const [open, setOpen] = useState(!!params.subscription || !!params.delivery),
+  const [open, setOpen] = useState(!!params.subscription),
     [subscription, setSubscription] = useState(params.subscription || ""),
     [subject, setSubject] = useState("Makanan belum diterima"),
     [description, setDescription] = useState("");
@@ -889,6 +892,8 @@ export function SupportScreen() {
           )}
         </Txt>
         <Btn label={t("Ajukan bantuan", "Request support")} onPress={() => setOpen(!open)} />
+        {params.delivery && <NativeDeliveryIssueReport key={params.delivery} id={params.delivery} />}
+        <NativeDeliveryIssues issue={params.issue} />
         {open && (
           <Panel>
             <Select
@@ -928,7 +933,6 @@ export function SupportScreen() {
               action={async () => {
                 await command("support.create", {
                   subscriptionId: subscription,
-                  deliveryId: params.delivery,
                   subject,
                   description,
                 });
@@ -938,7 +942,7 @@ export function SupportScreen() {
             />
           </Panel>
         )}
-        {s.data?.cases.map((c) => (
+        {s.data?.cases.filter(c=>!params.case||c.id===params.case).map((c) => (
           <Panel key={c.id}>
             <Txt kind="heading">{c.subject}</Txt>
             <Status status={c.status} />
@@ -959,10 +963,10 @@ export function SupportScreen() {
         ))}
         {!s.data?.cases.length && !open && (
           <Empty
-            title={t("Semoga setiap makanan menyenangkan.", "Here’s to enjoyable meals.")}
+            title={t("Belum ada kasus bantuan langganan.", "No subscription support cases.")}
             body={t(
-              "Semua permintaan bantuan akan tampil di sini.",
-              "All support requests will appear here.",
+              "Kasus langganan atau keuangan ditampilkan di bagian ini.",
+              "Subscription or financial cases appear in this section.",
             )}
           />
         )}

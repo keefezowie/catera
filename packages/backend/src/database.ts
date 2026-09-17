@@ -362,6 +362,9 @@ export async function createDemoDatabase(inMemory = false) {
         "\ncommit;",
     );
   }
+  if (!(await db.query<{ installed: boolean }>("select to_regclass('v1.delivery_issues') is not null installed")).rows[0].installed) {
+    await db.exec("begin;\n" + await readFile(path.join(projectRoot(), "packages/backend/src/beta-operations.sql"), "utf8") + "\ncommit;");
+  }
   return db;
 }
 export async function getDemoDatabase() {

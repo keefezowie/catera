@@ -641,7 +641,14 @@ export function PaymentPage({ id }: { id: string }) {
       0,
       Math.floor((new Date(c.expires_at).getTime() - counter) / 1000),
     );
-  if (c.subscription_id)
+  if (c.state === "refunded" || c.state === "partially_refunded")
+    return <div className="narrow payment-pending">
+      <Heading title={c.state === "refunded" ? t("Pembayaran dikembalikan", "Payment refunded") : t("Sebagian pembayaran dikembalikan", "Payment partially refunded")} />
+      <p>{t("Lihat keputusan bantuan untuk rincian refund. Jadwal pengantaran mengikuti keputusan yang dikonfirmasi.", "See the support decision for refund details. Delivery schedules follow the confirmed decision.")}</p>
+      <Link className="button" href="/support">{t("Lihat bantuan", "View support")}</Link>
+      {c.subscription_id && <Link className="button secondary" href={"/subscriptions/" + c.subscription_id}>{t("Detail langganan", "Subscription details")}</Link>}
+    </div>;
+  if (c.subscription_id && c.state === "paid")
     return (
       <div className="payment-success">
         <img src="/assets/confirmation.png" alt="" />
@@ -676,7 +683,9 @@ export function PaymentPage({ id }: { id: string }) {
         title={
           c.state === "payment_exception"
             ? t("Pembayaran sedang ditinjau", "Your payment is being reviewed")
-            : seconds
+            : c.state === "failed"
+              ? t("Pembayaran gagal", "Payment failed")
+            : c.state === "pending" && seconds
               ? t(
                   "Satu langkah menuju makan enak.",
                   "One step away from good meals.",
@@ -701,7 +710,7 @@ export function PaymentPage({ id }: { id: string }) {
             "Payment arrived after the schedule became unavailable. Catera will review the resolution. You will not receive a subscription without capacity.",
           )}
         </p>
-      ) : seconds > 0 ? (
+      ) : c.state === "pending" && seconds > 0 ? (
         <>
           {demo ? (
             <ActionForm

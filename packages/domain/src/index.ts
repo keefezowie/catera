@@ -174,6 +174,17 @@ export type SupportCase = {
   resolution: string | null;
   amount: number | null;
 };
+export type DeliveryIssue = {
+  id: string; day_id: string; meal: "lunch" | "dinner"; subject: string; description: string;
+  status: "open" | "responded" | "resolved" | "escalated"; version: number; case_id: string | null;
+  service_date: string; package_name: string; created_at: string;
+  events: { id: string; action: string; body: string; created_at: string }[];
+};
+export type SellerAttention = {
+  timezone: string;
+  total: number;
+  items: { id: string; kind: "delivery_issue" | "support" | "delivery" | "choice_fallback" | "choice_deadline" | "payment" | "production_changed"; priority: number; at_time: string; context: string; href: string }[];
+};
 export type Message = {
   id: string;
   sender_id: string;

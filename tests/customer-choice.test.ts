@@ -37,6 +37,29 @@ beforeAll(async () => {
   )!;
 });
 afterAll(async () => db?.close());
+it("clears acknowledged fallback tasks without inventing menus or changing delivery obligations", async () => {
+  const f = await fixture();
+  const dayId = f.payload.days[0].id, date = addDays(localDay(), -2);
+  await db.query("update v1.delivery_days set service_date=$2 where id=$1", [dayId, date]);
+  const taskId = "choice-" + dayId + "-lunch";
+  const attention = () => read<any>("seller-attention", { id: K[0] }, U.owner);
+  expect((await attention()).items.some((i: any) => i.id === taskId && i.kind === "choice_fallback")).toBe(true);
+  await localRpc(db,null,"catera_v1_system",["maintenance",{}],true);
+  const push=(await db.query<any>("select id from v1.outbox where kind='push' and payload->>'choiceDayId'=$1 limit 1",[dayId])).rows[0].id;
+  expect(await localRpc(db,null,"catera_v1_system",["notification.eligible",{id:push}],true)).toBe(true);
+  const payload = { deliveryId: dayId, meal: "lunch", date, body: "Prepared dishes and informed customer" };
+  await expect(cmd("attention.choiceHandled", payload, U.customer)).rejects.toThrow("FORBIDDEN");
+  await expect(cmd("attention.choiceHandled", { ...payload, date: addDays(date, 1) }, U.owner)).rejects.toThrow("CONFLICT");
+  const key = crypto.randomUUID();
+  await cmd("attention.choiceHandled", payload, U.staff, key);
+  await cmd("attention.choiceHandled", payload, U.staff, key);
+  expect((await attention()).items.some((i: any) => i.id === taskId)).toBe(false);
+  expect((await db.query("select 1 from v1.customer_menus where day_id=$1",[dayId])).rows).toHaveLength(0);
+  expect((await db.query<any>("select status from v1.delivery_days where id=$1",[dayId])).rows[0].status).toBe("scheduled");
+  expect((await db.query("select 1 from v1.choice_fallback_actions where day_id=$1",[dayId])).rows).toHaveLength(1);
+  await db.query("update v1.fulfillments set status='delivered' where day_id=$1",[dayId]);
+  expect(await localRpc(db,null,"catera_v1_system",["notification.eligible",{id:push}],true)).toBe(false);
+});
 it("uses purchased timezones at the cutoff boundary", async () => {
   const f = await fixture();
   // Exercise the authoritative helper with composite inputs; purchased terms remain immutable.

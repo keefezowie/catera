@@ -6,6 +6,7 @@ import {
 import { SellerAccountSettings } from "./seller-account";
 import { SellerSettlement } from "./seller-settlement";
 import { SellerCustomers } from "./seller-customers";
+import { DeliveryIssues } from "./delivery-issues";
 import {
   ChoiceDishChecklist,
   PackageChoiceLibrary,
@@ -1480,9 +1481,12 @@ function Customers({ state: s }: { state: SellerState }) {
   );
 }
 function SellerInbox({ cases }: { cases: SupportCase[] }) {
-  const { t } = useApp();
-  const requestedCase = useSearchParams().get("case");
-  const [tab, setTab] = useState(requestedCase ? "help" : "messages");
+  const { t, actor } = useApp();
+  const inboxQuery = useSearchParams();
+  const requestedCase = inboxQuery.get("case");
+  const requestedIssue = inboxQuery.get("issue");
+  const [tab, setTab] = useState(requestedCase || requestedIssue || inboxQuery.get("tab") === "help" ? "help" : "messages");
+  useEffect(() => { if (requestedCase || requestedIssue || inboxQuery.get("tab") === "help") setTab("help"); }, [requestedCase, requestedIssue, inboxQuery]);
   const conversations = useResource<Conversation[]>("seller-inbox-count", () =>
     api.conversations(),
   );
@@ -1554,6 +1558,7 @@ function SellerInbox({ cases }: { cases: SupportCase[] }) {
           cases={cases}
           initialSelected={requestedCase || ""}
         />
+        <DeliveryIssues catererId={actor?.catererId} />
       </section>
     </>
   );

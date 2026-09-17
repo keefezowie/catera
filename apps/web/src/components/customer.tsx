@@ -4,6 +4,7 @@ import {
   PurchaseSchedule,
 } from "./purchase-price-breakdown";
 import { MealCalendar } from "./meal-calendar";
+import { DeliveryIssues, ReportDeliveryIssue } from "./delivery-issues";
 import { StartConversation } from "./start-conversation";
 import { Select, SelectOption } from "./select";
 import { DatePicker } from "./date-picker";
@@ -1193,7 +1194,7 @@ export function Support() {
   const params = useSearchParams();
   const state = useResource<CustomerState>("support", () => api.customer());
   const [open, setOpen] = useState(
-    !!params.get("subscription") || !!params.get("delivery"),
+    !!params.get("subscription"),
   );
   if (!state.data)
     return state.error ? (
@@ -1221,7 +1222,10 @@ export function Support() {
           "Cancellation and refund requests are individually reviewed. Your schedule remains active until a confirmed decision.",
         )}
       </p>
-      {state.data.cases.map((c) => (
+      {params.get("delivery") && <ReportDeliveryIssue key={params.get("delivery")} id={params.get("delivery")!} />}
+      <DeliveryIssues />
+      {params.get("case") && <Link href="/support">{t("Semua permintaan bantuan", "All support requests")}</Link>}
+      {state.data.cases.filter(c => !params.get("case") || c.id === params.get("case")).map((c) => (
         <div className="support-case" key={c.id}>
           <div className="section-heading">
             <h2>{c.subject}</h2>
@@ -1250,12 +1254,12 @@ export function Support() {
       {!state.data.cases.length && (
         <Empty
           title={t(
-            "Semoga setiap makanan menyenangkan.",
-            "Here’s to enjoyable meals.",
+            "Belum ada kasus bantuan langganan.",
+            "No subscription support cases.",
           )}
           description={t(
-            "Jika ada kendala, semua permintaan bantuan akan tampil di sini.",
-            "If anything goes wrong, all support requests will appear here.",
+            "Kasus langganan atau keuangan ditampilkan di bagian ini.",
+            "Subscription or financial cases appear in this section.",
           )}
         />
       )}

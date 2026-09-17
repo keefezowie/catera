@@ -103,7 +103,7 @@ for (const width of [360, 390, 768, 1440])
         .getByRole("button", { name: t("Buang perubahan", "Discard changes") })
         .click();
       await page.goto("/seller?meal=lunch");
-      const rows = page.locator(".ops-order-table tbody tr");
+      const rows = page.locator(".ops-order-table tbody tr:not(.ops-group-heading)");
       await expect(rows.first()).toBeVisible();
       const detail = rows
         .first()
