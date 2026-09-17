@@ -1,4 +1,5 @@
 import { verifySellerExperience } from "./postgres-seller-experience.mjs";
+import { verifyPaidPilot } from "./postgres-paid-pilot.mjs";
 import { verifySettlementReporting } from "./postgres-settlement-reporting.mjs";
 import { verifyEarnedSettlement } from "./postgres-earned-settlement.mjs";
 import pg from "pg";
@@ -279,6 +280,7 @@ try {
   await verifyEarnedSettlement(pool, cmd, evidence);
   await verifySettlementReporting(pool, evidence);
   await verifySellerExperience(pool, cmd, evidence);
+  await verifyPaidPilot(pool, cmd, evidence);
   await mkdir("output/verification", { recursive: true });
   const evidencePath = process.env.CATERA_POSTGRES_EVIDENCE || "output/verification/postgres.json";
   await mkdir(path.dirname(evidencePath), { recursive: true });

@@ -379,6 +379,12 @@ export async function POST(request: Request, context: Context) {
     }
     if (path[0] === "commands") {
       const command = commandSchema.parse(a);
+      // New accountless prepaid customers are created atomically by import.commit.
+      // Keep standalone manual acquisition retired.
+      if (
+        (command.action === "customer.save" && !command.payload.id)
+      )
+        throw new Error("NOT_AVAILABLE");
       if (command.action === "customer.claim") {
         if (demoEnabled()) throw new Error("PHONE_VERIFICATION_REQUIRED");
         const client = await supabase();

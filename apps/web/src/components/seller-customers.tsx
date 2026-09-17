@@ -3,11 +3,8 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { CustomerDeliveryCalendar } from "./customer-delivery-calendar";
 import {
-  UserPlus,
-  Upload,
   Send,
   CalendarDays,
-  Wallet,
   ArrowLeft,
   Pencil,
   Check,
@@ -19,11 +16,7 @@ import {
   localDay,
   currency,
   normalizeCustomerPhone,
-  pilotImportRows,
   type SellerCustomer,
-  type CustomerSubscription,
-  type PilotImportRow,
-  type PilotImportPreview,
   type Delivery,
   type DeliveryChangeResult,
   type Address,
@@ -32,9 +25,9 @@ import { api, useApp, useResource } from "./context";
 import { ActionForm, Dialog, Empty, ErrorNotice, Field, Loading } from "./ui";
 import { Button, TextInput, TextArea } from "./form-controls";
 import { Select, SelectOption } from "./select";
-import { NumericInput } from "./numeric-input";
 import { DatePicker } from "./date-picker";
 import { PilotPanel } from "./pilot-panel";
+import { PrepaidMigration } from "./prepaid-migration";
 
 export function SellerCustomers({ catererId }: { catererId: string }) {
   const { actor, t, locale, perform, notify } = useApp();
@@ -82,12 +75,7 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
                 : ""),
       ),
   );
-  const [editing, setEditing] = useState<SellerCustomer | null | undefined>();
-  const [importing, setImporting] = useState(false),
-    [renewing, setRenewing] = useState<CustomerSubscription | null>(null);
-  const [preview, setPreview] = useState<PilotImportPreview | null>(null),
-    [bulk, setBulk] = useState(""),
-    [bulkError, setBulkError] = useState("");
+  const [editing, setEditing] = useState<SellerCustomer | undefined>();
   const [share, setShare] = useState<{
     url: string;
     message: string;
@@ -95,9 +83,6 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
   } | null>(null);
   const [change, setChange] = useState<Delivery | null>(null),
     [changeKind, setChangeKind] = useState("date");
-  const [busy, setBusy] = useState(false),
-    [packageId, setPackageId] = useState(""),
-    [recordId, setRecordId] = useState("");
   if (!state.data)
     return state.error ? (
       <ErrorNotice message={state.error} retry={state.reload} />
@@ -137,20 +122,7 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
         }),
       })),
     },
-    owner = actor?.role === "owner",
-    current = data.customers.find((c) => c.id === selected);
-  const runImport = async (rows: PilotImportRow[]) =>
-    setPreview(
-      await perform<PilotImportPreview>("import.preview", { catererId, rows }),
-    );
-  const closeImport = () => {
-    if (!busy) {
-      setImporting(false);
-      setPreview(null);
-      setRenewing(null);
-      setBulkError("");
-    }
-  };
+    owner = actor?.role === "owner";
   return (
     <div className="pilot-workspace">
       {state.error && (
@@ -167,6 +139,7 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
         />
       )}
       {actionError && <ErrorNotice message={actionError} />}
+      {owner && <PrepaidMigration catererId={catererId} data={data} />}
       {!selected && (
         <div className="action-row">
           <Button
@@ -191,42 +164,20 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
           </Button>
         </div>
       )}
-      <div className="action-row">
-        {selected && (
+      {selected && (
+        <div className="action-row">
           <Button className="button secondary" onClick={() => setSelected("")}>
             <ArrowLeft size={18} />
             {t("Semua pelanggan", "All customers")}
           </Button>
-        )}
-        {owner && (
-          <>
-            <Button className="button" onClick={() => setEditing(null)}>
-              <UserPlus size={18} />
-              {t("Tambah pelanggan", "Add customer")}
-            </Button>
-            <Button
-              className="button secondary"
-              onClick={() => {
-                setImporting(true);
-                setRecordId(current?.id || "");
-                setPackageId(data.packages[0]?.id || "");
-              }}
-            >
-              <Upload size={18} />
-              {t("Impor prabayar", "Import prepaid")}
-            </Button>
-          </>
-        )}
-      </div>
+        </div>
+      )}
       {!data.customers.length && (
         <Empty
-          title={t(
-            "Mulai dari pelanggan yang sudah Anda layani",
-            "Start with your existing customers",
-          )}
+          title={t("Belum ada pelanggan berlangganan", "No subscribers yet")}
           description={t(
-            "Tambahkan pelanggan dan jadwal prabayar. Pelanggan dapat membuat akun nanti.",
-            "Add customers and prepaid schedules. Customers can create an account later.",
+            "Pelanggan muncul otomatis setelah membeli langganan paket Anda.",
+            "Customers appear automatically after purchasing one of your packages.",
           )}
         />
       )}
@@ -310,10 +261,7 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
             </div>
             {!c.subscriptions.length && (
               <p className="muted">
-                {t(
-                  "Belum ada jadwal. Impor langganan yang sudah dibayar.",
-                  "No schedule yet. Import an already-paid subscription.",
-                )}
+                {t("Belum ada langganan aktif.", "No active subscription yet.")}
               </p>
             )}
             {(selected || query.get("customerId")) && (
@@ -394,28 +342,6 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
                           {t("Siapkan pengingat", "Prepare reminder")}
                         </Button>
                       )}
-                      {owner && (
-                        <Button
-                          className="button secondary"
-                          onClick={() => {
-                            setRenewing(s);
-                            setImporting(true);
-                            setRecordId(c.id);
-                            setPackageId(
-                              data.packages.find((p) => p.id === s.package_id)
-                                ?.id ||
-                                data.packages[0]?.id ||
-                                "",
-                            );
-                          }}
-                        >
-                          <Wallet size={16} />
-                          {t(
-                            "Catat pembayaran eksternal",
-                            "Record external renewal",
-                          )}
-                        </Button>
-                      )}
                       <Button
                         className="text-button"
                         onClick={() =>
@@ -477,17 +403,13 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
       )}
 
       <Dialog
-        open={editing !== undefined}
+        open={!!editing}
         onOpenChange={(open) => {
           if (!open) setEditing(undefined);
         }}
-        title={
-          editing
-            ? t("Edit pelanggan", "Edit customer")
-            : t("Tambah pelanggan", "Add customer")
-        }
+        title={t("Edit pelanggan", "Edit customer")}
       >
-        {editing !== undefined && (
+        {editing && (
           <ActionForm
             key={editing?.id || "new"}
             submit={t("Simpan pelanggan", "Save customer")}
@@ -522,246 +444,6 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
             </Field>
             <CustomerAddress value={editing?.address} />
           </ActionForm>
-        )}
-      </Dialog>
-      <Dialog
-        open={importing}
-        onOpenChange={(open) => {
-          if (!open) closeImport();
-        }}
-        busy={busy}
-        size="editor"
-        title={
-          renewing
-            ? t(
-                "Pembelian berikutnya dibayar eksternal",
-                "Externally paid renewal",
-              )
-            : t("Impor langganan prabayar", "Import prepaid subscriptions")
-        }
-      >
-        {preview ? (
-          <>
-            <p>
-              {t(
-                "Periksa pelanggan, tanggal, dan porsi. Belum ada jadwal yang dipesan.",
-                "Review customers, dates, and portions. No schedule is reserved yet.",
-              )}
-            </p>
-            {preview.rows.map((r, i) => (
-              <div className="pilot-subscription" key={i}>
-                <strong>{r.customerName}</strong>
-                <p>
-                  {r.preview.offer.name} · {r.portions} {t("porsi", "portions")}
-                </p>
-                <p>{r.preview.dates.join(" · ")}</p>
-                <small>
-                  {r.newCustomer
-                    ? t(
-                        "Pelanggan baru, akun belum diperlukan",
-                        "New customer; no account required",
-                      )
-                    : t("Pelanggan yang sudah tercatat", "Existing customer")}
-                </small>
-              </div>
-            ))}
-            <ActionForm
-              submit={t("Konfirmasi impor", "Confirm import")}
-              onSubmit={async () => {
-                setBusy(true);
-                try {
-                  await perform("import.commit", { catererId, id: preview.id });
-                  setPreview(null);
-                  setImporting(false);
-                  setRenewing(null);
-                } finally {
-                  setBusy(false);
-                }
-              }}
-            >
-              <p className="notice">
-                {t(
-                  "Pembayaran telah diterima di luar Catera. Impor ini tidak membuat pembayaran atau pencairan baru.",
-                  "Payment was received outside Catera. This import creates no new payment or payout.",
-                )}
-              </p>
-            </ActionForm>
-            <Button className="text-button" onClick={() => setPreview(null)}>
-              <ArrowLeft size={16} />
-              {t("Kembali mengedit", "Back to edit")}
-            </Button>
-          </>
-        ) : (
-          <>
-            {!renewing && (
-              <details className="panel">
-                <summary>
-                  {t("CSV / tempel dari Excel", "CSV / paste from Excel")}
-                </summary>
-                <p>
-                  {t(
-                    "Gunakan judul kolom berikut. Isi paket dengan nama paket yang sama persis. Maksimal 100 baris.",
-                    "Use these column headers and the exact package name. Maximum 100 rows.",
-                  )}
-                </p>
-                <pre className="pilot-template">
-                  name,phone,line,area,city,package,portions,startDate,remainingDays,externalReference
-                </pre>
-                <Field label={t("File CSV", "CSV file")}>
-                  <input
-                    type="file"
-                    accept=".csv,text/csv"
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        if (file.size > 140000) {
-                          setBulkError(
-                            t(
-                              "File terlalu besar. Maksimal 140 KB.",
-                              "File too large. Maximum 140 KB.",
-                            ),
-                          );
-                          return;
-                        }
-                        setBulk(await file.text());
-                        setBulkError("");
-                      }
-                    }}
-                  />
-                </Field>
-                <Field label={t("Data tabel", "Table data")}>
-                  <TextArea
-                    value={bulk}
-                    onChange={(e) => {
-                      setBulk(e.target.value);
-                      setBulkError("");
-                    }}
-                    rows={6}
-                  />
-                </Field>
-                {bulkError && <p role="alert">{bulkError}</p>}
-                <ActionForm
-                  children={null}
-                  submit={t("Periksa tabel", "Review table")}
-                  onSubmit={async () => {
-                    try {
-                      await runImport(
-                        pilotImportRows(bulk, data.packages, data.customers),
-                      );
-                    } catch (e) {
-                      setBulkError(
-                        t(
-                          "Periksa kolom, nomor telepon, dan nama paket. Detail: ",
-                          "Check columns, phone numbers, and package names. Details: ",
-                        ) + (e instanceof Error ? e.message : ""),
-                      );
-                      throw e;
-                    }
-                  }}
-                />
-              </details>
-            )}
-            <ActionForm
-              key={renewing?.id || "import"}
-              submit={t("Periksa jadwal", "Review schedule")}
-              onSubmit={async (f) => {
-                if (!recordId || !packageId) throw new Error("INVALID_INPUT");
-                const c = data.customers.find((c) => c.id === recordId)!;
-                await runImport([
-                  {
-                    customerRecordId: recordId,
-                    address: c.address,
-                    packageId,
-                    portions: Number(f.get("portions")),
-                    remainingDays: Number(f.get("remainingDays")),
-                    startDate: String(f.get("startDate")),
-                    externalReference: String(f.get("externalReference")),
-                    ...(renewing ? { renewedFrom: renewing.id } : {}),
-                  },
-                ]);
-              }}
-            >
-              <Field label={t("Pelanggan", "Customer")}>
-                <Select
-                  value={recordId}
-                  onValueChange={setRecordId}
-                  disabled={!!renewing}
-                >
-                  <SelectOption value="">
-                    {t("Pilih pelanggan", "Choose customer")}
-                  </SelectOption>
-                  {data.customers.map((c) => (
-                    <SelectOption key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectOption>
-                  ))}
-                </Select>
-              </Field>
-              <Field label={t("Paket", "Package")}>
-                <Select value={packageId} onValueChange={setPackageId}>
-                  <SelectOption value="">
-                    {t("Pilih paket", "Choose package")}
-                  </SelectOption>
-                  {data.packages.map((p) => (
-                    <SelectOption key={p.id} value={p.id}>
-                      {p.name}
-                    </SelectOption>
-                  ))}
-                </Select>
-              </Field>
-              <Field label={t("Porsi tetap", "Fixed portions")}>
-                <NumericInput
-                  name="portions"
-                  min={1}
-                  max={100}
-                  defaultValue={renewing?.portions || 1}
-                  required
-                />
-              </Field>
-              <Field
-                label={t(
-                  "Sisa hari yang sudah dibayar",
-                  "Remaining prepaid delivery days",
-                )}
-              >
-                <NumericInput
-                  name="remainingDays"
-                  min={1}
-                  max={60}
-                  defaultValue={
-                    renewing
-                      ? data.packages.find((p) => p.id === packageId)?.days || 1
-                      : 1
-                  }
-                  required
-                />
-              </Field>
-              <Field label={t("Mulai pengantaran", "First delivery")}>
-                <DatePicker
-                  name="startDate"
-                  defaultValue={
-                    renewing
-                      ? addDays(renewing.ends_on, 1)
-                      : addDays(localDay(), 2)
-                  }
-                  required
-                />
-              </Field>
-              <Field
-                label={t(
-                  "Referensi bukti pembayaran",
-                  "Payment receipt reference",
-                )}
-              >
-                <TextInput
-                  name="externalReference"
-                  required
-                  minLength={3}
-                  maxLength={120}
-                />
-              </Field>
-            </ActionForm>
-          </>
         )}
       </Dialog>
       <Dialog

@@ -7,7 +7,7 @@ import {
 } from "../packages/backend/src/seed.ts";
 import { addDays, localDay } from "@catera/domain";
 export async function verifyPaidPilot(pool, cmd, evidence) {
-  await pool.query(
+  if (!(await pool.query("select to_regclass('v1.customer_records') is not null installed")).rows[0].installed) await pool.query(
     await readFile(
       "supabase/migrations/20260914160856_paid_seller_pilot.sql",
       "utf8",

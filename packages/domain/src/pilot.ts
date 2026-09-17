@@ -53,7 +53,7 @@ export type PilotImportRow = {
 export type PilotImportPreview = {
   id: string;
   rows: (PilotImportRow & {
-    preview: Quote;
+    preview: Quote & { address: Address };
     customerName: string;
     newCustomer: boolean;
   })[];
