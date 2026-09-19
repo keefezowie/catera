@@ -295,6 +295,14 @@ Package cards combine food, caterer identity, explicit terms, price, and action.
 
 Customer-home subscriptions are flat rows inside one outlined container, with separators and small food thumbnails. That rule belongs to the home hierarchy; other subscription/detail surfaces retain their existing bordered cards where present.
 
+### Discovery and purchase clarity
+
+The [September 19 UX research](docs/UIUX-RESEARCH-2026-09-19.md) records the comparative evidence and responsive acceptance checks. Discovery keeps selected filters in its URL, displays removable filter chips and a result count, and offers a complete reset for empty results. Reset retains delivery area and sort. Package cards place total price, the per-meal rate, and delivery coverage after the commitment summary, before detailed contents.
+
+Checkout shows the selected package and a labeled base subtotal before the form on phone and beside it on desktop. Package contents remain available in a disclosure. Review displays the selected delivery address and the server-confirmed total; the same total accompanies the payment action. Only one progress step is current, and changing steps focuses the new heading. Phone actions preserve bottom-navigation clearance.
+
+Approved local food artwork and the wordmark may use responsive delivery derivatives while preserving the original files and compositions. Uploaded or signed image URLs retain their established delivery path. Derivative dimensions are not claims about master resolution or transparency.
+
 ### Navigation
 
 Customer desktop navigation is compact, with a sunrise dot at the selected link. The phone bar has five labeled destinations; selected labels and icons become stronger forest. Operations use their own sidebar with a forest selected row, quiet hover, and a labeled workspace identity. Use consistent SVG interface icons; supporting brand illustrations do not replace operational icons.

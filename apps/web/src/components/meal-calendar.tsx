@@ -9,6 +9,7 @@ import {
   type KeyboardEvent,
 } from "react";
 import Link from "next/link";
+import { FoodImage } from "./food-image";
 import {
   ArrowUpRight,
   CalendarDays,
@@ -862,7 +863,7 @@ function CalendarMeal({
       href={`/deliveries/${d.id}`}
       className="delivery-row calendar-delivery-row"
     >
-      <img src={d.offer.image} alt="" />
+      <FoodImage src={d.offer.image} alt="" width={80} height={80} sizes="80px" />
       <div>
         <small>{d.offer.caterer}</small>
         <h4>{d.offer.name}</h4>

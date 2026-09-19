@@ -72,7 +72,8 @@ it('expires invitations and rejects cutoff violations without creating obligatio
  const invite=await cmd('customer.invite',{catererId:K[0],customerRecordId:record.customerRecordId});
  await db.query("update v1.customer_claims set expires_at=now()-interval '1 second' where customer_record_id=$1",[record.customerRecordId]);
  await expect(sys('pilot.claim',{userId:user,verifiedPhone:p.customer.phone,token:invite.path.split('/').at(-1),requestId:crypto.randomUUID()})).rejects.toThrow('CLAIM_UNAVAILABLE');
- await expect(batch([row({customer:{name:'Cutoff test',phone:'+6281234590002',address},startDate:localDay(),externalReference:'cutoff-test'})])).rejects.toThrow('CUTOFF');
+ // A weekend start rolls forward to Monday. Start in the previous week so the first eligible day always has a past cutoff.
+ await expect(batch([row({customer:{name:'Cutoff test',phone:'+6281234590002',address},startDate:addDays(localDay(),-7),externalReference:'cutoff-test'})])).rejects.toThrow('CUTOFF');
  expect((await db.query('select 1 from v1.customer_records where phone=$1',['+6281234590002'])).rows).toHaveLength(0);
 });
 it("imports without accounts, preserves obligations and includes names in production", async () => {

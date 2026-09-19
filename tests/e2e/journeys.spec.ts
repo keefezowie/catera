@@ -88,6 +88,16 @@ test("customer purchase, schedule change, support review and renewal", async ({
     .click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.getByRole("link", { name: "Laporkan masalah" }).click();
+  // Delivery reports and subscription cancellation now have distinct workflows.
+  const issue = page.getByRole("dialog", { name: "Kendala pengantaran" });
+  await expect(
+    issue.getByRole("combobox", { name: "Jenis kendala" }),
+  ).toBeVisible();
+  await issue.getByRole("button", { name: "Tutup", exact: true }).click();
+  await page.goto("/subscriptions/" + delivery.subscription_id);
+  await page
+    .getByRole("link", { name: "Ajukan pembatalan / bantuan", exact: true })
+    .click();
   await page.getByRole("combobox", { name: "Jenis permintaan" }).click();
   await page
     .getByRole("option", { name: "Ajukan pembatalan", exact: true })
@@ -177,9 +187,7 @@ test("customer and operational routes render, retain context and pass critical a
       url.searchParams.get("date") === serviceDate,
   );
   await page.locator(".ops-production > summary").click();
-  await page
-    .getByRole("button", { name: "Simpan daftar pengantaran" })
-    .click();
+  await page.getByRole("button", { name: "Simpan daftar pengantaran" }).click();
   await expect(page.getByRole("link", { name: /Unduh CSV/ })).toBeVisible();
   const href = await page
     .getByRole("link", { name: /Unduh CSV/ })

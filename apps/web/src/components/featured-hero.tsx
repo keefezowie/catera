@@ -9,6 +9,7 @@ import type { Offer } from "@catera/domain";
 import { useApp } from "./context";
 import { Button } from "./form-controls";
 import { HeroIntroduction } from "./hero-introduction";
+import { FoodImage } from "./food-image";
 import { featuredOffers } from "../lib/featured-offers";
 
 export function FeaturedHero() {
@@ -167,13 +168,14 @@ function CatererCarousel({ offers }: { offers: Offer[] }) {
                 </Link>
               </div>
               <div className="hero-food">
-                <img
+                <FoodImage
                   src={offer.image}
                   alt={offer.name}
                   width="724"
                   height="543"
                   fetchPriority={index === 0 ? "high" : "auto"}
                   loading={index === 0 ? "eager" : "lazy"}
+                  sizes="(max-width: 700px) 45vw, 620px"
                 />
               </div>
             </div>

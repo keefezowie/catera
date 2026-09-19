@@ -46,7 +46,7 @@ test("carousel autoplay, hover, manual controls, focus, visibility and links", a
   await expect(active(page)).toContainText("Hijau Kitchen");
   await page.getByRole("button", { name: "Katerer berikutnya" }).click();
   await expect(active(page)).toContainText("Dapur Senja");
-  await page.getByRole("textbox", { name: "Cari katering" }).fill("salmon");
+  await page.getByRole("searchbox", { name: "Cari katering" }).fill("salmon");
   await expect(page.locator(".featured-slide")).toHaveCount(3);
   await expect(active(page)).toContainText("Dapur Senja");
   await page.getByRole("button", { name: "Putar otomatis" }).click();

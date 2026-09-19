@@ -378,6 +378,7 @@ test("customer calendar persists address and date changes and retains a failed r
   const calendar = page.locator(".customer-delivery-calendar");
   await choose(page, "Schedule view", "List");
   await choose(page, "Package", name);
+  await choose(page, "Meal period", "Lunch");
   await expect(calendar.locator(".pilot-delivery")).toHaveCount(1);
   await calendar.getByRole("button", { name: "Change on request" }).click();
   await choose(page, "Change type", "Address");
@@ -407,6 +408,12 @@ test("customer calendar persists address and date changes and retains a failed r
   await page.getByRole("button", { name: "Save change", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(calendar).toContainText("Synthetic updated road 77");
+  await expect(
+    page.getByRole("combobox", { name: "Package", exact: true }),
+  ).toContainText(name);
+  await expect(
+    page.getByRole("combobox", { name: "Meal period", exact: true }),
+  ).toContainText("Lunch");
   await choose(page, "Schedule view", "Calendar");
   const before = (
     await (
@@ -453,6 +460,12 @@ test("customer calendar persists address and date changes and retains a failed r
   expect(result.id).toBe(first.id);
   expect(result.delivery.service_date).toBe(target);
   expect(result.subscription.ends_on).toBe(target);
+  await expect(
+    page.getByRole("combobox", { name: "Package", exact: true }),
+  ).toContainText(name);
+  await expect(
+    page.getByRole("combobox", { name: "Meal period", exact: true }),
+  ).toContainText("Lunch");
   await expect(calendar.locator(".pilot-delivery")).toContainText(target);
   await expect(calendar.locator(".pilot-delivery")).toContainText(
     "Synthetic updated road 77",

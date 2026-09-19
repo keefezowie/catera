@@ -1,0 +1,235 @@
+.catalog-discovery {
+  padding-top: 40px;
+}
+.catalog-heading {
+  margin-bottom: 24px;
+}
+.catalog-heading h1 {
+  font-size: clamp(26px, 3vw, 36px);
+}
+.catalog-heading p {
+  font-size: 14px;
+  max-width: 60ch;
+}
+.catalog-section > .market-toolbar {
+  padding-bottom: 20px;
+  align-items: stretch;
+}
+.catalog-section .delivery-selector {
+  align-items: center;
+}
+.catalog-section .delivery-selector > svg {
+  margin-bottom: 0;
+}
+.catalog-section .delivery-selector label > span {
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+.catalog-section .search-field {
+  min-width: 0;
+  align-self: flex-end;
+}
+.catalog-section .search-field input.catera-input[type="search"] {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  min-width: 0;
+  min-height: 48px;
+  padding: 10px 0;
+  box-shadow: none;
+  font-size: 16px;
+}
+.catalog-section .search-field input::-webkit-search-cancel-button {
+  appearance: none;
+}
+.catalog-section .search-field > .icon-button {
+  flex: 0 0 44px;
+  border: 0;
+  background: transparent;
+}
+.catalog-controls {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.catalog-controls > .button {
+  flex-shrink: 0;
+  min-height: 44px;
+}
+.catalog-controls .meal-filter-row {
+  min-width: 0;
+  padding: 2px 4px 14px;
+}
+.filter-count {
+  border-radius: 20px;
+  background: var(--forest);
+  color: var(--cream);
+  padding: 0 7px;
+  min-width: 23px;
+  font-variant-numeric: tabular-nums;
+}
+.catalog-section .filter-panel {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px 24px;
+  align-items: end;
+}
+.catalog-section .filter-panel > label:not(:first-child) {
+  display: grid;
+  gap: 8px;
+}
+.catalog-section .filter-panel > label {
+  min-width: 0;
+  min-height: 44px;
+  font-size: 14px;
+}
+.catalog-section .filter-panel > .text-button {
+  grid-row: 2;
+  justify-self: start;
+}
+.catalog-section .package-type-filter {
+  max-width: none;
+  margin: 0;
+}
+.applied-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid #cbd8cd;
+  border-radius: 8px;
+  background: var(--soft);
+  color: var(--forest);
+  font-size: 13px;
+  text-align: left;
+}
+.filter-chip span {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.filter-chip:hover {
+  background: #e1e9db;
+}
+.catalog-section .results-bar {
+  font-size: 13px;
+  gap: 16px;
+}
+.catalog-section .results-bar > p {
+  min-width: 0;
+}
+.catalog-section .results-bar > label {
+  flex-shrink: 0;
+}
+.catalog-empty {
+  text-align: center;
+  padding-bottom: 36px;
+}
+.catalog-empty .empty {
+  padding-bottom: 20px;
+}
+.package-pricing {
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.package-card-v2 .package-pricing .delivery-included {
+  margin-bottom: 0;
+}
+.package-card-v2 .package-body {
+  gap: 16px;
+}
+.package-booking-jump {
+  display: none;
+}
+.detail-hero {
+  height: auto;
+}
+.comparison th img {
+  height: auto;
+}
+.comparison h2 {
+  font-size: 17px;
+  line-height: 1.22;
+}
+.comparison-scroll-hint {
+  display: none;
+}
+#package-booking {
+  scroll-margin-top: 120px;
+}
+@media (max-width: 1000px) {
+  .package-booking-jump {
+    display: inline-flex;
+    margin-bottom: 12px;
+  }
+}
+@media (max-width: 700px) {
+  .comparison th,
+  .comparison td {
+    padding: 16px 12px;
+  }
+  .comparison th:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    width: 116px;
+    background: var(--canvas);
+    font-size: 13px;
+  }
+  .comparison tbody th:first-child {
+    background: var(--surface);
+  }
+  .comparison-scroll-hint {
+    display: block;
+    margin-top: 20px;
+    font-size: 13px;
+  }
+  .comparison-scroll-hint + .comparison-scroll {
+    margin-top: 8px;
+  }
+  .catalog-section .filter-panel {
+    grid-template-columns: 1fr;
+  }
+  .catalog-section .filter-panel > .text-button {
+    grid-row: auto;
+  }
+  .catalog-controls {
+    gap: 8px;
+  }
+  .catalog-controls .meal-filter-row {
+    margin: 0;
+  }
+  .catalog-controls .meal-filter-row button {
+    padding-inline: 12px;
+  }
+  .catalog-section .results-bar {
+    flex-wrap: wrap;
+    align-items: center;
+    margin-top: 4px;
+  }
+  .catalog-section .results-bar > p {
+    flex: 1 1 140px;
+  }
+  .catalog-section .results-bar > label {
+    margin-left: auto;
+  }
+  .catalog-discovery {
+    padding-top: 24px;
+  }
+  .catalog-heading {
+    margin-bottom: 20px;
+  }
+  .catalog-heading p {
+    line-height: 1.6;
+  }
+  .catalog-section .search-field {
+    align-self: stretch;
+  }
+}

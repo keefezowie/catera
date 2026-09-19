@@ -43,8 +43,14 @@ export function CustomerDeliveryCalendar({
     if (changed) {
       setSelected(changed.service_date);
       setMonth(monthOf(changed.service_date));
-      setPackageId("");
-      setMeal("all");
+      setPackageId((current) =>
+        current && current !== changed.offer.id ? changed.offer.id : current,
+      );
+      setMeal((current) =>
+        current === "all" || changed.meals.some((m) => m.meal === current)
+          ? current
+          : "all",
+      );
     }
   }, [changed]);
   const rows = deliveries.filter(

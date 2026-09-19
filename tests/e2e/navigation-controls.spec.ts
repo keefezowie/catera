@@ -125,7 +125,7 @@ test("Slack bugs: hero leads filters and current navigation persists across rout
       "4px",
     );
     expect((await language.boundingBox())!.height).toBeGreaterThanOrEqual(44);
-    await page.getByRole("textbox", { name: "Cari katering" }).fill("Ayam");
+    await page.getByRole("searchbox", { name: "Cari katering" }).fill("Ayam");
     await expect(hero).toBeVisible();
     expect(
       await page.evaluate(

@@ -9,9 +9,10 @@ import { Select, SelectOption } from "./select";
 import { DatePicker } from "./date-picker";
 import { OptionalSection } from "./optional-section";
 import { PackageContents } from "./package-contents";
+import { FoodImage } from "./food-image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
   ArrowLeft,
@@ -273,6 +274,12 @@ export function CheckoutPage({ id }: { id: string }) {
     [restored, setRestored] = useState(false);
   const trial = params.get("trial") === "1";
   const renewedFrom = params.get("renewedFrom") || undefined;
+  const stepHeading = useRef<HTMLHeadingElement>(null);
+  const previousStep = useRef(step);
+  useEffect(() => {
+    if (previousStep.current !== step) stepHeading.current?.focus();
+    previousStep.current = step;
+  }, [step]);
   const draftKey = `catera.checkout.${id}.${trial}.${renewedFrom || ""}`;
   useEffect(() => {
     try {
@@ -318,6 +325,7 @@ export function CheckoutPage({ id }: { id: string }) {
           cases: [],
         }),
   );
+  const selectedAddress = state.data?.addresses.find((a) => a.id === address);
   useEffect(() => {
     if (restored && !address && state.data?.addresses[0])
       setAddress(state.data.addresses[0].id);
@@ -383,18 +391,93 @@ export function CheckoutPage({ id }: { id: string }) {
           "Clear portions and schedules, from the start.",
         )}
       />
-      <div className="checkout-steps">
-        <span className="current">
+      <ol
+        className="checkout-steps"
+        aria-label={t("Tahap pemesanan", "Checkout progress")}
+      >
+        <li
+          className={step === 1 ? "current" : "complete"}
+          aria-current={step === 1 ? "step" : undefined}
+        >
           1. {t("Porsi & jadwal", "Portions & dates")}
-        </span>
-        <i />
-        <span className={step === 2 ? "current" : ""}>
+        </li>
+        <li
+          className={step === 2 ? "current" : ""}
+          aria-current={step === 2 ? "step" : undefined}
+        >
           2. {t("Tinjau paket", "Review package")}
-        </span>
-        <i />
-        <span>3. {t("Pembayaran", "Payment")}</span>
-      </div>
+        </li>
+        <li>3. {t("Pembayaran", "Payment")}</li>
+      </ol>
       <div className="checkout-layout">
+        <aside
+          className="checkout-summary"
+          aria-label={t("Ringkasan paket", "Package summary")}
+        >
+          <FoodImage
+            src={p.image}
+            alt=""
+            width="350"
+            height="180"
+            sizes="(max-width: 600px) 76px, 350px"
+          />
+          <div>
+            <small>{p.caterer}</small>
+            <h2>{p.name}</h2>
+            <p>
+              {trial
+                ? t("Trial 1 hari", "1-day trial")
+                : p.days * cycles +
+                  " " +
+                  t("hari pengantaran", "delivery days")}{" "}
+              · {mealLabel(p.meal, locale)} · {portions}{" "}
+              {t("porsi", "portions")}
+            </p>
+            <div className="total-row" aria-live="polite" aria-atomic="true">
+              <strong>
+                {quote
+                  ? t("Total pembayaran", "Total payment")
+                  : t("Subtotal dasar", "Base subtotal")}
+              </strong>
+              <strong>
+                {currency(
+                  quote
+                    ? quote.total
+                    : (trial ? (p.trialPrice ?? p.price) : p.price) *
+                        portions *
+                        (trial ? 1 : p.days * cycles),
+                  locale,
+                )}
+              </strong>
+            </div>
+            <p className="small muted">
+              {quote
+                ? t(
+                    "Termasuk pengantaran dan biaya layanan.",
+                    "Includes delivery and service fee.",
+                  )
+                : t(
+                    "Diskon dan biaya layanan dihitung saat meninjau jadwal.",
+                    "Discounts and service fee are calculated when you review the schedule.",
+                  )}
+            </p>
+            <details className="checkout-package-details">
+              <summary>
+                {t("Isi paket & menu", "Package contents & menu")}
+              </summary>
+              <PackageContents offer={quote?.offer || p} />
+              {(quote?.offer || p).menuSelectionMode === "customer" && (
+                <PackageChoiceLibrary offer={quote?.offer || p} />
+              )}
+            </details>
+            <p className="small muted">
+              {t(
+                "Dibayar penuh di awal. Tidak diperpanjang otomatis.",
+                "Paid in full upfront. No automatic renewal.",
+              )}
+            </p>
+          </div>
+        </aside>
         <section className="checkout-fields">
           {step === 1 ? (
             <ActionForm
@@ -415,7 +498,9 @@ export function CheckoutPage({ id }: { id: string }) {
                 setStep(2);
               }}
             >
-              <h2>{t("Paket untuk siapa saja?", "How many are eating?")}</h2>
+              <h2 ref={stepHeading} tabIndex={-1}>
+                {t("Paket untuk siapa saja?", "How many are eating?")}
+              </h2>
               <p>
                 {t(
                   "Jumlah porsi tetap untuk seluruh paket. Semua porsi mendapat menu yang sama.",
@@ -516,6 +601,15 @@ export function CheckoutPage({ id }: { id: string }) {
             quote && (
               <ActionForm
                 submit={t("Lanjutkan ke pembayaran", "Continue to payment")}
+                actions={(submitButton) => (
+                  <div className="checkout-actions">
+                    <div>
+                      <span>{t("Total pembayaran", "Total payment")}</span>
+                      <strong>{currency(quote.total, locale)}</strong>
+                    </div>
+                    {submitButton}
+                  </div>
+                )}
                 onSubmit={async () => {
                   const c = await perform<Checkout>("checkout.create", {
                     expectedQuote: quote,
@@ -536,7 +630,9 @@ export function CheckoutPage({ id }: { id: string }) {
                 }}
               >
                 <div className="section-heading">
-                  <h2>{t("Jadwal makananmu", "Your meal schedule")}</h2>
+                  <h2 ref={stepHeading} tabIndex={-1}>
+                    {t("Jadwal makananmu", "Your meal schedule")}
+                  </h2>
                   <Button
                     type="button"
                     className="text-button"
@@ -544,6 +640,18 @@ export function CheckoutPage({ id }: { id: string }) {
                   >
                     {t("Ubah", "Edit")}
                   </Button>
+                </div>
+                <div className="checkout-address">
+                  <MapPin size={20} aria-hidden="true" />
+                  <div>
+                    <strong>
+                      {t("Alamat pengantaran", "Delivery address")}
+                    </strong>
+                    <p>
+                      {selectedAddress?.label} — {selectedAddress?.line},{" "}
+                      {selectedAddress?.area}
+                    </p>
+                  </div>
                 </div>
                 <PurchasePriceBreakdown quote={quote} />
                 <PurchaseSchedule quote={quote} />
@@ -576,42 +684,6 @@ export function CheckoutPage({ id }: { id: string }) {
             )
           )}
         </section>
-        <aside className="checkout-summary">
-          <img src={p.image} alt={p.name} />
-          <div>
-            <small>{p.caterer}</small>
-            <h2>{p.name}</h2>
-            <PackageContents offer={quote?.offer || p} />
-            {(quote?.offer || p).menuSelectionMode === "customer" && (
-              <PackageChoiceLibrary offer={quote?.offer || p} />
-            )}
-            <p>
-              {trial
-                ? t("Trial 1 hari", "1-day trial")
-                : p.days * cycles + " " + t("hari", "days")}{" "}
-              · {mealLabel(p.meal, locale)} · {portions}{" "}
-              {t("porsi", "portions")}
-            </p>
-            {!quote && (
-              <p>
-                {t(
-                  "Tinjau jadwal untuk melihat harga lengkap.",
-                  "Review the schedule to see the full price.",
-                )}
-              </p>
-            )}
-            <div className="total-row">
-              <strong>{t("Total", "Total")}</strong>
-              <strong>{quote ? currency(quote.total, locale) : "—"}</strong>
-            </div>
-            <p className="small muted">
-              {t(
-                "Dibayar penuh di awal. Tidak diperpanjang otomatis.",
-                "Paid in full upfront. No automatic renewal.",
-              )}
-            </p>
-          </div>
-        </aside>
       </div>
     </div>
   );
@@ -642,12 +714,37 @@ export function PaymentPage({ id }: { id: string }) {
       Math.floor((new Date(c.expires_at).getTime() - counter) / 1000),
     );
   if (c.state === "refunded" || c.state === "partially_refunded")
-    return <div className="narrow payment-pending">
-      <Heading title={c.state === "refunded" ? t("Pembayaran dikembalikan", "Payment refunded") : t("Sebagian pembayaran dikembalikan", "Payment partially refunded")} />
-      <p>{t("Lihat keputusan bantuan untuk rincian refund. Jadwal pengantaran mengikuti keputusan yang dikonfirmasi.", "See the support decision for refund details. Delivery schedules follow the confirmed decision.")}</p>
-      <Link className="button" href="/support">{t("Lihat bantuan", "View support")}</Link>
-      {c.subscription_id && <Link className="button secondary" href={"/subscriptions/" + c.subscription_id}>{t("Detail langganan", "Subscription details")}</Link>}
-    </div>;
+    return (
+      <div className="narrow payment-pending">
+        <Heading
+          title={
+            c.state === "refunded"
+              ? t("Pembayaran dikembalikan", "Payment refunded")
+              : t(
+                  "Sebagian pembayaran dikembalikan",
+                  "Payment partially refunded",
+                )
+          }
+        />
+        <p>
+          {t(
+            "Lihat keputusan bantuan untuk rincian refund. Jadwal pengantaran mengikuti keputusan yang dikonfirmasi.",
+            "See the support decision for refund details. Delivery schedules follow the confirmed decision.",
+          )}
+        </p>
+        <Link className="button" href="/support">
+          {t("Lihat bantuan", "View support")}
+        </Link>
+        {c.subscription_id && (
+          <Link
+            className="button secondary"
+            href={"/subscriptions/" + c.subscription_id}
+          >
+            {t("Detail langganan", "Subscription details")}
+          </Link>
+        )}
+      </div>
+    );
   if (c.subscription_id && c.state === "paid")
     return (
       <div className="payment-success">
@@ -685,12 +782,12 @@ export function PaymentPage({ id }: { id: string }) {
             ? t("Pembayaran sedang ditinjau", "Your payment is being reviewed")
             : c.state === "failed"
               ? t("Pembayaran gagal", "Payment failed")
-            : c.state === "pending" && seconds
-              ? t(
-                  "Satu langkah menuju makan enak.",
-                  "One step away from good meals.",
-                )
-              : t("Waktu pembayaran habis", "Payment time expired")
+              : c.state === "pending" && seconds
+                ? t(
+                    "Satu langkah menuju makan enak.",
+                    "One step away from good meals.",
+                  )
+                : t("Waktu pembayaran habis", "Payment time expired")
         }
       />
       <Facts

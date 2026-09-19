@@ -4,7 +4,7 @@ import { useState } from "react";
 import { CircleAlert, ArrowRight } from "lucide-react";
 import type { SellerAttention } from "@catera/domain";
 import { api, useApp, useResource } from "./context";
-import { ActionForm, Dialog, Field, ErrorNotice, Loading } from "./ui";
+import { ActionForm, Dialog, Field, ErrorNotice } from "./ui";
 import { Button, TextArea } from "./form-controls";
 
 export function NeedsAttention({ catererId }: { catererId: string }) {
@@ -57,7 +57,9 @@ export function NeedsAttention({ catererId }: { catererId: string }) {
   };
   return (
     <section
-      className="panel spaced"
+      className="panel spaced seller-attention"
+      data-empty={state.data?.total === 0 || undefined}
+      aria-busy={state.loading || undefined}
       aria-label={t("Perlu perhatian", "Needs attention")}
     >
       <h2>
@@ -68,7 +70,12 @@ export function NeedsAttention({ catererId }: { catererId: string }) {
       {state.error ? (
         <ErrorNotice message={state.error} retry={state.reload} />
       ) : !state.data ? (
-        <Loading />
+        <p role="status">
+          {t(
+            "Memeriksa pekerjaan yang perlu ditangani…",
+            "Checking for tasks that need attention…",
+          )}
+        </p>
       ) : (
         <>
           {!state.data.total && (

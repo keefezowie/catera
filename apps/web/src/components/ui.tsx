@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import Image from "next/image";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X, ArrowRight, LoaderCircle, Check, AlertCircle } from "lucide-react";
 import {
@@ -31,7 +32,7 @@ export function Brand({ small = false }: { small?: boolean }) {
       className={"brand " + (small ? "small" : "")}
       aria-label="Catera — Good Food on Repeat"
     >
-      <img src="/assets/wordmark.png" alt="Catera" width="2172" height="724" />
+      <Image src="/assets/wordmark.png" alt="Catera" width={180} height={60} sizes="180px" />
     </Link>
   );
 }

@@ -2,9 +2,11 @@
 import { durationOptions } from "@catera/domain";
 import { ChoiceRules, PackageChoiceLibrary } from "./package-choice-library";
 import "./package-presentation.css";
+import "./catalog.css";
 import { FeaturedHero } from "./featured-hero";
 import { Select, SelectOption } from "./select";
 import { PackagePreview } from "./package-preview";
+import { FoodImage } from "./food-image";
 import { PackageContents } from "./package-contents";
 import {
   menuSummary,
@@ -13,7 +15,14 @@ import {
   packageNutrition,
 } from "@catera/domain";
 import Link from "next/link";
-import { useState } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { useRef, useState } from "react";
+import {
+  catalogDefaults,
+  readCatalogQuery,
+  updateCatalogQuery,
+  type CatalogQuery,
+} from "@/lib/catalog-query";
 import {
   Search,
   MapPin,
@@ -34,6 +43,7 @@ import {
   Minus,
   MessageCircle,
   ChevronDown,
+  X,
 } from "lucide-react";
 import {
   currency,
@@ -71,12 +81,13 @@ export function PackageCard({
     >
       <div className="package-image">
         <Link href={"/packages/" + offer.slug} {...navigation}>
-          <img
+          <FoodImage
             src={offer.image}
             alt={offer.name}
             width="724"
             height="543"
             loading="lazy"
+            sizes="(max-width: 700px) 100vw, (max-width: 1100px) 50vw, 400px"
           />
         </Link>
         {!!offer.trialPrice && (
@@ -125,13 +136,7 @@ export function PackageCard({
             </span>
           </div>
         </div>
-        <PackagePreview
-          offer={offer}
-          meal={meal}
-          onMealChange={setMeal}
-          preview={preview}
-        />
-        <div className="package-footer">
+        <div className="package-pricing">
           <div className="card-price">
             <small className="package-total-label">
               {t("Total paket", "Package total")} · 1 {t("porsi", "portion")} ×{" "}
@@ -152,6 +157,14 @@ export function PackageCard({
               ? t("Pengantaran termasuk", "Delivery included")
               : t("Di luar area pengantaran", "Outside delivery area")}
           </p>
+        </div>
+        <PackagePreview
+          offer={offer}
+          meal={meal}
+          onMealChange={setMeal}
+          preview={preview}
+        />
+        <div className="package-footer">
           <div className="package-actions">
             <Button
               type="button"
@@ -181,15 +194,75 @@ export function PackageCard({
 }
 export function Catalog({ caterer }: { caterer?: string }) {
   const { offers, area, setArea, t, locale } = useApp();
-  const [search, setSearch] = useState(""),
-    [meal, setMeal] = useState("all"),
-    [packageType, setPackageType] = useState("all"),
-    [flex, setFlex] = useState(false),
-    [trial, setTrial] = useState(false),
-    [diet, setDiet] = useState(false),
-    [max, setMax] = useState(""),
-    [sort, setSort] = useState("recommended"),
-    [filters, setFilters] = useState(false);
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const { search, meal, packageType, flex, trial, diet, max, sort } =
+    readCatalogQuery(params);
+  const [filters, setFilters] = useState(false);
+  const searchInput = useRef<HTMLInputElement>(null);
+  const filterButton = useRef<HTMLButtonElement>(null);
+  function update(patch: Partial<CatalogQuery>) {
+    const query = updateCatalogQuery(
+      new URLSearchParams(window.location.search),
+      patch,
+    ).toString();
+    window.history.replaceState(
+      null,
+      "",
+      pathname + (query ? "?" + query : "") + window.location.hash,
+    );
+  }
+  function reset() {
+    update({ ...catalogDefaults, sort });
+    searchInput.current?.focus({ preventScroll: true });
+  }
+  const activeFilters = [
+    ...(search
+      ? [{ key: "search" as const, label: t("Cari: ", "Search: ") + search }]
+      : []),
+    ...(meal !== "all"
+      ? [
+          {
+            key: "meal" as const,
+            label: mealLabel(meal as Offer["meal"], locale),
+          },
+        ]
+      : []),
+    ...(packageType !== "all"
+      ? [
+          {
+            key: "packageType" as const,
+            label: packageTypeLabel(
+              packageType as Offer["packageType"],
+              locale,
+            ),
+          },
+        ]
+      : []),
+    ...(flex
+      ? [
+          {
+            key: "flex" as const,
+            label: t("Jadwal fleksibel", "Flexible schedule"),
+          },
+        ]
+      : []),
+    ...(trial
+      ? [{ key: "trial" as const, label: t("Coba dulu", "Try first") }]
+      : []),
+    ...(diet ? [{ key: "diet" as const, label: "Plant-based" }] : []),
+    ...(max
+      ? [
+          {
+            key: "max" as const,
+            label:
+              t("Maks. ", "Max. ") +
+              currency(Number(max), locale) +
+              t(" / sekali makan", " / meal"),
+          },
+        ]
+      : []),
+  ];
   const filtered = offers
     .filter(
       (p) =>
@@ -199,7 +272,7 @@ export function Catalog({ caterer }: { caterer?: string }) {
         (!trial || p.trialPrice) &&
         (!diet || p.tags.includes("Plant-based")) &&
         (!max || perMealPrice(p) <= Number(max)) &&
-        (!search ||
+        (!search.trim() ||
           [
             p.name,
             p.caterer,
@@ -208,7 +281,7 @@ export function Catalog({ caterer }: { caterer?: string }) {
           ]
             .join(" ")
             .toLowerCase()
-            .includes(search.toLowerCase())),
+            .includes(search.trim().toLowerCase())),
     )
     .sort((a, b) => {
       const coverage =
@@ -223,8 +296,39 @@ export function Catalog({ caterer }: { caterer?: string }) {
     });
   return (
     <>
-      <FeaturedHero />
-      <section className="catalog-section" id="packages">
+      {pathname === "/" && <FeaturedHero />}
+      <section
+        className={
+          "catalog-section" + (pathname !== "/" ? " catalog-discovery" : "")
+        }
+        id="packages"
+        aria-labelledby="catalog-heading"
+      >
+        <div className="section-heading catalog-heading">
+          <div>
+            {pathname === "/" ? (
+              <h2 id="catalog-heading">
+                {t(
+                  "Temukan katering yang cocok",
+                  "Find your everyday catering",
+                )}
+              </h2>
+            ) : (
+              <h1 id="catalog-heading">
+                {t(
+                  "Temukan katering yang cocok",
+                  "Find your everyday catering",
+                )}
+              </h1>
+            )}
+            <p>
+              {t(
+                "Bandingkan isi, jadwal, dan harga paket untuk keseharianmu.",
+                "Compare meals, schedules, and package prices for your routine.",
+              )}
+            </p>
+          </div>
+        </div>
         <div className="market-toolbar">
           <div className="delivery-selector">
             <MapPin size={20} />
@@ -244,72 +348,91 @@ export function Catalog({ caterer }: { caterer?: string }) {
               </Select>
             </label>
           </div>
-          <label className="search-field">
-            <Search size={19} />
+          <div className="search-field" role="search">
+            <Search size={19} aria-hidden="true" />
             <TextInput
+              ref={searchInput}
+              type="search"
+              maxLength={200}
               placeholder={t(
                 "Cari paket, menu, atau katerer favorit…",
                 "Find a package, meal, or favorite caterer…",
               )}
               aria-label={t("Cari katering", "Search caterers")}
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => update({ search: e.target.value })}
             />
-          </label>
+            {search && (
+              <Button
+                type="button"
+                variant="icon"
+                aria-label={t("Hapus pencarian", "Clear search")}
+                onClick={() => {
+                  update({ search: "" });
+                  searchInput.current?.focus();
+                }}
+              >
+                <X size={18} aria-hidden="true" />
+              </Button>
+            )}
+          </div>
         </div>
 
-        <div className="section-heading">
-          <div>
-            <h2>{t("Mau makan apa hari ini?", "What sounds good today?")}</h2>
-            <p>
-              {t(
-                "Temukan rutinitas makan yang paling cocok untukmu.",
-                "Find the meal routine that feels right for you.",
-              )}
-            </p>
-          </div>
+        <div className="catalog-controls">
           <Button
+            ref={filterButton}
             className={"button secondary small " + (filters ? "active" : "")}
             aria-expanded={filters}
             aria-controls="marketplace-filters"
             onClick={() => setFilters(!filters)}
           >
-            <SlidersHorizontal size={17} /> {t("Filter", "Filter")}
+            <SlidersHorizontal size={17} aria-hidden="true" />{" "}
+            {t("Filter", "Filter")}
+            {!!activeFilters.length && (
+              <span className="filter-count">{activeFilters.length}</span>
+            )}
           </Button>
-        </div>
-        <div className="meal-filter-row">
-          {[
-            ["all", "Semua paket", "All packages", PackageIcon],
-            ["lunch", "Makan siang", "Lunch", Sun],
-            ["dinner", "Makan malam", "Dinner", Moon],
-            ["both", "Siang + malam", "Lunch + dinner", SunMoon],
-          ].map(([key, id, en, Icon]) => {
-            const C = Icon as typeof Sun;
-            return (
-              <Button
-                key={key as string}
-                className={meal === key ? "selected" : ""}
-                onClick={() => setMeal(key as string)}
-              >
-                <C size={19} />
-                {t(id as string, en as string)}
-              </Button>
-            );
-          })}
-          <span className="filter-divider" />
-          <Button
-            className={diet ? "selected" : ""}
-            onClick={() => setDiet(!diet)}
+          <div
+            className="meal-filter-row"
+            role="group"
+            aria-label={t("Pilihan paket", "Package preferences")}
           >
-            <Leaf size={18} /> {t("Plant-based", "Plant-based")}
-          </Button>
-          <Button
-            className={trial ? "selected" : ""}
-            onClick={() => setTrial(!trial)}
-          >
-            <Heart size={18} />
-            {t("Coba dulu", "Try first")}
-          </Button>
+            {[
+              ["all", "Semua paket", "All packages", PackageIcon],
+              ["lunch", "Makan siang", "Lunch", Sun],
+              ["dinner", "Makan malam", "Dinner", Moon],
+              ["both", "Siang + malam", "Lunch + dinner", SunMoon],
+            ].map(([key, id, en, Icon]) => {
+              const C = Icon as typeof Sun;
+              return (
+                <Button
+                  key={key as string}
+                  className={meal === key ? "selected" : ""}
+                  aria-pressed={meal === key}
+                  onClick={() => update({ meal: key as string })}
+                >
+                  <C size={19} />
+                  {t(id as string, en as string)}
+                </Button>
+              );
+            })}
+            <span className="filter-divider" />
+            <Button
+              className={diet ? "selected" : ""}
+              aria-pressed={diet}
+              onClick={() => update({ diet: !diet })}
+            >
+              <Leaf size={18} /> {t("Plant-based", "Plant-based")}
+            </Button>
+            <Button
+              className={trial ? "selected" : ""}
+              aria-pressed={trial}
+              onClick={() => update({ trial: !trial })}
+            >
+              <Heart size={18} />
+              {t("Coba dulu", "Try first")}
+            </Button>
+          </div>
         </div>
         {filters && (
           <div
@@ -321,7 +444,7 @@ export function Catalog({ caterer }: { caterer?: string }) {
             <label>
               <Checkbox
                 checked={flex}
-                onChange={(e) => setFlex(e.target.checked)}
+                onChange={(e) => update({ flex: e.target.checked })}
               />
               {t("Jadwal fleksibel saja", "Flexible packages only")}
             </label>
@@ -329,44 +452,79 @@ export function Catalog({ caterer }: { caterer?: string }) {
               {t("Harga maksimum / sekali makan", "Maximum price / meal")}
               <NumericInput
                 value={max}
-                onDraftChange={setMax}
+                onDraftChange={(value) => update({ max: value })}
                 placeholder={t("Rp 100.000", "IDR 100,000")}
                 min="500"
                 normalizeOnBlur={false}
               />
             </label>
-            <Button
-              className="text-button"
-              onClick={() => {
-                setFlex(false);
-                setTrial(false);
-                setDiet(false);
-                setMax("");
-                setSearch("");
-                setMeal("all");
-              }}
-            >
+            <label className="field package-type-filter">
+              <span>{t("Jenis paket", "Package type")}</span>
+              <Select
+                value={packageType}
+                onValueChange={(value) => update({ packageType: value })}
+              >
+                <SelectOption value="all">
+                  {t("Semua jenis", "All types")}
+                </SelectOption>
+                <SelectOption value="ala_carte">À la carte</SelectOption>
+                <SelectOption value="nasi_box">
+                  {t("Nasi box", "Rice box")}
+                </SelectOption>
+              </Select>
+            </label>
+            <Button className="text-button" onClick={reset}>
               {t("Hapus filter", "Reset filters")}
             </Button>
           </div>
         )}
+        {!!activeFilters.length && (
+          <div
+            className="applied-filters"
+            role="group"
+            aria-label={t("Filter aktif", "Applied filters")}
+          >
+            {activeFilters.map(({ key, label }) => (
+              <Button
+                key={key}
+                type="button"
+                className="filter-chip"
+                aria-label={t("Hapus filter: ", "Remove filter: ") + label}
+                onClick={() => {
+                  update({ [key]: catalogDefaults[key] });
+                  filterButton.current?.focus({ preventScroll: true });
+                }}
+              >
+                <span>{label}</span>
+                <X size={15} aria-hidden="true" />
+              </Button>
+            ))}
+            <Button type="button" className="text-button" onClick={reset}>
+              {t("Hapus semua", "Clear all")}
+            </Button>
+          </div>
+        )}
         <div className="results-bar">
-          <p>
+          <p role="status" aria-atomic="true">
             <strong>{filtered.length}</strong>{" "}
-            {t(
-              "paket untuk hari-hari yang lebih baik",
-              "packages for better everyday meals",
-            )}
+            {t("paket ditemukan", "packages found")}
             {area && (
               <>
                 {" "}
-                · <span>{area}</span>
+                ·{" "}
+                <span>
+                  {filtered.filter((p) => p.areas.includes(area)).length}{" "}
+                  {t("mengantar ke", "deliver to")} {area}
+                </span>
               </>
             )}
           </p>
           <label>
             {t("Urutkan:", "Sort:")}{" "}
-            <Select value={sort} onValueChange={(value) => setSort(value)}>
+            <Select
+              value={sort}
+              onValueChange={(value) => update({ sort: value })}
+            >
               <SelectOption value="recommended">
                 {t("Rekomendasi", "Recommended")}
               </SelectOption>
@@ -379,33 +537,27 @@ export function Catalog({ caterer }: { caterer?: string }) {
             </Select>
           </label>
         </div>
-        <label className="field package-type-filter">
-          <span>{t("Jenis paket", "Package type")}</span>
-          <Select value={packageType} onValueChange={setPackageType}>
-            <SelectOption value="all">
-              {t("Semua jenis", "All types")}
-            </SelectOption>
-            <SelectOption value="ala_carte">
-              {t("À la carte", "À la carte")}
-            </SelectOption>
-            <SelectOption value="nasi_box">
-              {t("Nasi box", "Rice box")}
-            </SelectOption>
-          </Select>
-        </label>
         <div className="package-grid">
           {filtered.map((p) => (
             <PackageCard key={p.id} offer={p} />
           ))}
         </div>
         {!filtered.length && (
-          <Empty
-            title={t("Belum ada yang cocok", "No matching packages")}
-            description={t(
-              "Coba kata pencarian atau filter yang berbeda.",
-              "Try another search or adjust your filters.",
-            )}
-          />
+          <div className="catalog-empty">
+            <Empty
+              title={t("Belum ada yang cocok", "No matching packages")}
+              description={t(
+                "Coba kata pencarian atau filter yang berbeda.",
+                "Try another search or adjust your filters.",
+              )}
+            />
+            <Button type="button" variant="primary" onClick={reset}>
+              {t(
+                "Hapus filter & lihat paket",
+                "Clear filters & browse packages",
+              )}
+            </Button>
+          </div>
         )}
       </section>
       <section className="how-it-works" id="how-it-works">
@@ -508,7 +660,16 @@ export function PackagePage({
       </div>
       <div className="detail-layout">
         <div>
-          <img className="detail-hero" src={p.image} alt={p.name} />
+          <FoodImage
+            className="detail-hero"
+            src={p.image}
+            alt={p.name}
+            width={900}
+            height={675}
+            sizes="(max-width: 1000px) 100vw, 800px"
+            fetchPriority="high"
+            loading="eager"
+          />
           <div className="detail-heading">
             <Link className="seller-link" href={"/caterers/" + p.catererSlug}>
               <span className="mini-avatar">{p.caterer[0]}</span>
@@ -534,6 +695,13 @@ export function PackagePage({
               {mealLabel(p.meal, locale)}
             </span>
           </div>
+          <a
+            className="button secondary package-booking-jump"
+            href="#package-booking"
+          >
+            {t("Lihat harga & pilih porsi", "See pricing & choose portions")}
+            <ArrowRight size={17} aria-hidden="true" />
+          </a>
           <section className="detail-section">
             <h2>{t("Isi paket", "Included dishes")}</h2>
             {p.menuSelectionMode === "customer" ? (
@@ -644,7 +812,15 @@ export function PackagePage({
             )}
           </section>
         </div>
-        <aside className="purchase-card">
+        <aside
+          className="purchase-card"
+          id="package-booking"
+          tabIndex={-1}
+          aria-label={t(
+            "Harga dan porsi paket",
+            "Package pricing and portions",
+          )}
+        >
           <span>
             {p.days} {t("hari makanan baik", "days of good meals")}
           </span>
@@ -775,15 +951,18 @@ export function Compare() {
               onValueChange={setPortionValue}
             />
           </label>
-          <div className="comparison-scroll">
+          <p className="comparison-scroll-hint muted">
+            {t("Geser tabel untuk membandingkan paket.", "Scroll across to compare packages.")}
+          </p>
+          <div className="comparison-scroll" role="region" aria-label={t("Perbandingan paket", "Package comparison")} tabIndex={0}>
             <table className="comparison">
               <thead>
                 <tr>
-                  <th>{t("Yang penting untukmu", "What matters to you")}</th>
+                  <th scope="col">{t("Yang penting untukmu", "What matters to you")}</th>
                   {selected.map((p) => (
-                    <th key={p.id}>
-                      <img src={p.image} alt={p.name} />
-                      <h3>{p.name}</h3>
+                    <th key={p.id} scope="col">
+                      <FoodImage src={p.image} alt={p.name} width={300} height={160} sizes="300px" />
+                      <h2>{p.name}</h2>
                       <p>{p.caterer}</p>
                       <Button
                         className="text-button"
@@ -900,12 +1079,12 @@ export function Compare() {
                 ].map((r, i) => (
                   <tr key={i}>
                     {r.map((v, j) =>
-                      j === 0 ? <th key={j}>{v}</th> : <td key={j}>{v}</td>,
+                      j === 0 ? <th key={j} scope="row">{v}</th> : <td key={j}>{v}</td>,
                     )}
                   </tr>
                 ))}
                 <tr>
-                  <th />
+                  <th scope="row">{t("Pilih paket", "Choose a package")}</th>
                   {selected.map((p) => (
                     <td key={p.id}>
                       <Link
@@ -929,8 +1108,8 @@ export function Compare() {
             "No packages to compare yet",
           )}
           description={t(
-            "Pilih tanda + pada kartu paket yang menarik untukmu.",
-            "Choose + on package cards that catch your eye.",
+            "Pilih Bandingkan pada paket yang menarik untukmu.",
+            "Select Compare on the packages you want to explore.",
           )}
           href="/#packages"
           label={t("Jelajah paket", "Browse packages")}

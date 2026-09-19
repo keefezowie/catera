@@ -9,6 +9,7 @@ import { StartConversation } from "./start-conversation";
 import { Select, SelectOption } from "./select";
 import { DatePicker } from "./date-picker";
 import { PackageContents } from "./package-contents";
+import { FoodImage } from "./food-image";
 import { OptionalSection } from "./optional-section";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -239,8 +240,9 @@ function CustomerOverview({ view, id }: { view: string; id?: string }) {
           <section className="active-packages home-subscriptions">
             <div className="section-heading">
               <h2>{t("Paket aktif", "Active packages")}</h2>
-              <Link href="/subscriptions">
-                <ArrowUpRight size={19} />
+              <Link href="/subscriptions" className="text-button">
+                {t("Lihat semua", "View all")}
+                <ArrowUpRight size={19} aria-hidden="true" />
               </Link>
             </div>
             {c.subscriptions
@@ -298,7 +300,7 @@ function NextMeal({
   return (
     <section className={"next-meal-card" + (detail ? " delivery-summary" : "")}>
       <div className="next-meal-photo">
-        <img src={d.offer.image} alt={d.offer.name} />
+        <FoodImage src={d.offer.image} alt={d.offer.name} width={800} height={600} sizes="(max-width: 700px) 100vw, 700px" />
         <span className="image-label">
           <Clock size={14} />
           {detail
@@ -348,15 +350,16 @@ function SubscriptionCard({
   compact?: boolean;
 }) {
   const { t, locale } = useApp();
+  const Title = compact ? "h3" : "h2";
   return (
     <Link
       href={"/subscriptions/" + s.id}
       className={"subscription-card " + (compact ? "compact" : "")}
     >
-      <img src={s.snapshot.offer.image} alt="" />
+      <FoodImage src={s.snapshot.offer.image} alt="" width={100} height={100} sizes="100px" />
       <div>
         <small>{s.snapshot.offer.caterer}</small>
-        <h3>{s.snapshot.offer.name}</h3>
+        <Title className="subscription-title">{s.snapshot.offer.name}</Title>
         <p>
           {s.portions} {t("porsi", "portions")} ·{" "}
           {mealLabel(s.snapshot.offer.meal, locale)}
@@ -373,7 +376,7 @@ function DeliveryRow({ delivery: d }: { delivery: Delivery }) {
   const { locale, t } = useApp();
   return (
     <Link href={"/deliveries/" + d.id} className="delivery-row">
-      <img src={d.offer.image} alt="" />
+      <FoodImage src={d.offer.image} alt="" width={80} height={80} sizes="80px" />
       <div>
         <small>
           {d.offer.caterer} · {dateLabel(d.service_date, locale)}
@@ -830,7 +833,7 @@ export function Messages({ embedded = false }: { embedded?: boolean }) {
         />
       )}
       <div className="messages-layout">
-        <aside>
+        <aside aria-label={t("Daftar percakapan", "Conversations")}>
           <h2>{t("Percakapan", "Conversations")}</h2>
           {embedded && actor?.catererId && (
             <StartConversation onStarted={setSelected} />

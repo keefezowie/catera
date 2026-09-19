@@ -319,7 +319,7 @@ export function SellerAccountSettings({ state: s }: { state: SellerState }) {
           {t("Keluar dari sesi ini", "Sign out of this session")}
         </Button>
         <p>
-          <a href="#help">
+          <a href="#help" className="text-button">
             {t(
               "Bantuan masuk & keamanan akun",
               "Sign-in & account security help",

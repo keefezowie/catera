@@ -290,7 +290,7 @@ function Shell({
         {t("Lewati ke konten", "Skip to content")}
       </a>
       {demo && (
-        <div className="demo-ribbon">
+        <div className="demo-ribbon" role="region" aria-label={t("Mode demo", "Demo mode")}>
           {t(
             "Demo eksplorasi · Katerer, menu, dan transaksi menggunakan data sintetis.",
             "Exploration demo · Caterers, meals, and transactions are synthetic.",
@@ -299,7 +299,7 @@ function Shell({
       )}
       {operational ? (
         <>
-          <aside className={"ops-sidebar " + (menu && isAdmin ? "open" : "")}>
+          <aside className={"ops-sidebar " + (menu && isAdmin ? "open" : "")} aria-label={isAdmin ? t("Navigasi admin", "Admin navigation") : t("Navigasi katerer", "Caterer navigation")}>
             <Brand />
             <WorkspaceIdentity isAdmin={isAdmin} />
             <nav>

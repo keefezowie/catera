@@ -178,6 +178,11 @@ export function DatePicker({
       className={`date-picker${compact ? " date-picker-compact" : ""}${className ? ` ${className}` : ""}`}
     >
       {name && <HiddenInput name={name} value={selected} />}
+      {required && (
+        <span id={`${triggerId}-required`} className="sr-only">
+          {t("Wajib diisi", "Required")}
+        </span>
+      )}
       <AnchoredPopover
         open={open}
         onOpenChange={setOpen}
@@ -191,9 +196,12 @@ export function DatePicker({
             aria-expanded={open}
             aria-label={ariaLabel}
             aria-labelledby={ariaLabelledBy}
-            aria-describedby={ariaDescribedBy}
+            aria-describedby={
+              [ariaDescribedBy, required ? `${triggerId}-required` : ""]
+                .filter(Boolean)
+                .join(" ") || undefined
+            }
             aria-invalid={ariaInvalid}
-            aria-required={required}
             data-value={selected}
             disabled={disabled}
             onClick={() => {

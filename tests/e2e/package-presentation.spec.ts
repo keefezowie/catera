@@ -192,7 +192,7 @@ test("responsive cards and galleries, duplicate single photo, English and text e
   for (const width of [1440, 390, 320]) {
     await page.setViewportSize({ width, height: 1000 });
     await page.goto("/#packages");
-    await page.getByRole("textbox", { name: "Cari katering" }).fill(box.name);
+    await page.getByRole("searchbox", { name: "Cari katering" }).fill(box.name);
     const card = page.locator(".package-card");
     await expect(card).toHaveCount(1);
     await page.evaluate(() => document.fonts.ready);
@@ -274,7 +274,7 @@ test("seller pricing and card preview stay aligned without persisting a total", 
       .click();
   }
   await page.getByRole("button", { name: /3\. Durasi & harga/ }).click();
-  const duration = page.getByLabel("Durasi pengantaran (hari)", {
+  const duration = page.getByLabel("Hari pengantaran per periode", {
     exact: true,
   });
   const priceSummary = page.locator(".package-price-summary");
@@ -361,7 +361,7 @@ test("long names, serving descriptions and many components remain readable at en
   await page.setViewportSize({ width: 320, height: 1000 });
   await page.request.post("/api/v1/auth/demo", { data: { role: "customer" } });
   await page.goto("/#packages");
-  await page.getByRole("textbox", { name: "Cari katering" }).fill(longName);
+  await page.getByRole("searchbox", { name: "Cari katering" }).fill(longName);
   const card = page.locator(".package-card");
   await expect(card).toHaveCount(1);
   await page.evaluate(() => {

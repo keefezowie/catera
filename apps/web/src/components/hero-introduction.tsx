@@ -1,5 +1,6 @@
 import { Asterisk, ArrowUpRight, Check, Sun } from "lucide-react";
 import { useApp } from "./context";
+import { FoodImage } from "./food-image";
 
 export function HeroIntroduction() {
   const { t } = useApp();
@@ -34,13 +35,15 @@ export function HeroIntroduction() {
         </div>
       </div>
       <div className="hero-food">
-        <img
+        <FoodImage
           src="/assets/food/ayam-panggang.png"
           alt={t(
             "Ayam panggang, nasi hangat, dan sayuran segar",
             "Roast chicken, warm rice and fresh vegetables",
           )}
           fetchPriority="high"
+          loading="eager"
+          sizes="(max-width: 700px) 100vw, 620px"
           width="724"
           height="543"
         />

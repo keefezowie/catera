@@ -157,7 +157,7 @@ for (const width of [390, 1440]) {
   }) => {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/");
-    const filter = page.getByRole("button", { name: "Filter", exact: true });
+    const filter = page.getByRole("button", { name: /^Filter(?: \d+)?$/ });
     await filter.click();
     await expect(filter).toHaveAttribute("aria-expanded", "true");
     const region = page.getByRole("region", { name: "Filter paket" });
@@ -171,16 +171,42 @@ for (const width of [390, 1440]) {
         () => document.documentElement.scrollWidth <= innerWidth,
       ),
     ).toBe(true);
+    await login(page, "customer");
+    const customer = (await (await page.request.get("/api/v1/customer")).json())
+      .data;
+    const support = await page.request.post("/api/v1/commands", {
+      data: {
+        action: "support.create",
+        requestId: crypto.randomUUID(),
+        payload: {
+          subscriptionId: customer.subscriptions[0].id,
+          subject: "Pertanyaan lain",
+          description: "Synthetic record disclosure verification.",
+        },
+      },
+    });
+    expect(support.ok(), await support.text()).toBe(true);
     await login(page);
     for (const path of ["customers", "transactions", "support"]) {
       await page.goto("/seller/" + path);
       const details = page.locator("details.record-details");
+      if (path === "transactions") {
+        await page.getByRole("tab", { name: "Pembelian", exact: true }).click();
+      }
       if (path === "support") {
         await page.getByRole("tab", { name: /^Bantuan/ }).click();
         await page.locator(".master-detail button.queue-row").first().click();
       }
-      await details.first().locator("summary").click();
-      await expect(details.first().locator("code")).toBeVisible();
+      if (path === "customers") {
+        await page
+          .getByRole("button", { name: "Lihat jadwal", exact: true })
+          .first()
+          .click();
+        await expect(page.locator(".customer-delivery-calendar")).toBeVisible();
+      } else {
+        await details.first().locator("summary").click();
+        await expect(details.first().locator("code")).toBeVisible();
+      }
       expect(
         await page.evaluate(
           () => document.documentElement.scrollWidth <= innerWidth,
@@ -207,18 +233,43 @@ for (const width of [390, 1440]) {
   }) => {
     await login(page, "platform_admin");
     await page.setViewportSize({ width, height: 900 });
-    await page.goto("/admin/promotions");
-    await page.getByRole("button", { name: "Buat promosi" }).click();
-    const dialog = page.getByRole("dialog", { name: "Promosi baru" });
-    await dialog.getByLabel("Kode", { exact: true }).fill("SYNTHETIC_UI");
-    await dialog.getByLabel("Diskon (%)").fill("10");
+    // Promotion creation was retired. Exercise the same pending/error contract
+    // against the current bank-review dialog, using explicitly synthetic reads.
+    const destination = {
+      id: "synthetic-ui-bank-review",
+      version: 1,
+      caterer: "Synthetic caterer",
+      bank: "Synthetic bank",
+      holder: "Synthetic owner",
+      maskedAccount: "••••0000",
+      accountNumber: "0000000000",
+      recipientType: "INDIVIDUAL",
+      status: "submitted",
+    };
+    await page.route("**/api/v1/payout-destination-queue", (route) =>
+      route.fulfill({ json: { data: [destination] } }),
+    );
+    await page.route("**/api/v1/payout-destination-detail/*", (route) =>
+      route.fulfill({ json: { data: destination } }),
+    );
+    await page.goto("/admin/payouts");
+    const trigger = page.getByRole("button", { name: "Tinjau rekening" });
+    await trigger.click();
+    const dialog = page.getByRole("dialog", { name: "Verifikasi rekening" });
+    await dialog
+      .getByRole("combobox", { name: "Keputusan", exact: true })
+      .click();
+    await page.getByRole("option", { name: "Tolak", exact: true }).click();
+    await dialog
+      .getByLabel("Alasan keputusan", { exact: true })
+      .fill("SYNTHETIC_UI retained reason");
     let release!: () => void;
     const gate = new Promise<void>((resolve) => {
       release = resolve;
     });
     let calls = 0;
     await page.route("**/api/v1/commands", async (route) => {
-      if (route.request().postDataJSON().action !== "promotion.save")
+      if (route.request().postDataJSON().action !== "payoutDestination.review")
         return route.continue();
       calls++;
       await gate;
@@ -228,7 +279,9 @@ for (const width of [390, 1440]) {
         body: JSON.stringify({ error: { code: "CONFLICT" } }),
       });
     });
-    await dialog.getByRole("button", { name: "Simpan", exact: true }).click();
+    await dialog
+      .getByRole("button", { name: "Simpan keputusan", exact: true })
+      .click();
     await expect(dialog).toHaveAttribute("aria-busy", "true");
     await expect(
       dialog.getByRole("button", { name: "Tutup", exact: true }),
@@ -238,17 +291,15 @@ for (const width of [390, 1440]) {
     await expect(dialog).toBeVisible();
     release();
     await expect(dialog.getByRole("alert")).toBeVisible();
-    await expect(dialog.getByLabel("Kode", { exact: true })).toHaveValue(
-      "SYNTHETIC_UI",
-    );
+    await expect(
+      dialog.getByLabel("Alasan keputusan", { exact: true }),
+    ).toHaveValue("SYNTHETIC_UI retained reason");
     expect(calls).toBe(1);
     expect(
       await dialog.evaluate((el) => el.scrollWidth <= el.clientWidth),
     ).toBe(true);
     await dialog.getByRole("button", { name: "Tutup", exact: true }).click();
-    await expect(
-      page.getByRole("button", { name: "Buat promosi" }),
-    ).toBeFocused();
+    await expect(trigger).toBeFocused();
   });
 
   test(`nested photo preview retains editor position and handles unavailable media ${width}`, async ({
