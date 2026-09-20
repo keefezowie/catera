@@ -1196,9 +1196,7 @@ export function Support() {
   const { t, perform, locale } = useApp();
   const params = useSearchParams();
   const state = useResource<CustomerState>("support", () => api.customer());
-  const [open, setOpen] = useState(
-    !!params.get("subscription"),
-  );
+  const [open, setOpen] = useState(!!params.get("subscription"));
   if (!state.data)
     return state.error ? (
       <ErrorNotice message={state.error} retry={state.reload} />
@@ -1225,35 +1223,65 @@ export function Support() {
           "Cancellation and refund requests are individually reviewed. Your schedule remains active until a confirmed decision.",
         )}
       </p>
-      {params.get("delivery") && <ReportDeliveryIssue key={params.get("delivery")} id={params.get("delivery")!} />}
+      {params.get("delivery") && (
+        <ReportDeliveryIssue
+          key={params.get("delivery")}
+          id={params.get("delivery")!}
+        />
+      )}
       <DeliveryIssues />
-      {params.get("case") && <Link href="/support">{t("Semua permintaan bantuan", "All support requests")}</Link>}
-      {state.data.cases.filter(c => !params.get("case") || c.id === params.get("case")).map((c) => (
-        <div className="support-case" key={c.id}>
-          <div className="section-heading">
-            <h2>{c.subject}</h2>
-            <Status status={c.status} />
-          </div>
-          <p>{c.description}</p>
-          {c.resolution && (
-            <div className="support-response">
-              <strong>{t("Tanggapan", "Response")}</strong>
-              <p>{c.resolution}</p>
-              {!!c.amount && <p>{currency(c.amount, locale)}</p>}
+      {params.get("case") && (
+        <Link href="/support">
+          {t("Semua permintaan bantuan", "All support requests")}
+        </Link>
+      )}
+      {state.data.cases
+        .filter((c) => !params.get("case") || c.id === params.get("case"))
+        .map((c) => (
+          <div className="support-case" key={c.id}>
+            <div className="section-heading">
+              <h2>{c.subject}</h2>
+              <Status status={c.status} />
             </div>
-          )}
-          {c.status === "responded" && (
-            <ActionForm
-              submit={t("Minta Catera meninjau", "Ask Catera to review")}
-              onSubmit={async () => {
-                await perform("support.escalate", { id: c.id });
-              }}
-            >
-              <span />
-            </ActionForm>
-          )}
-        </div>
-      ))}
+            <p>{c.description}</p>
+            {state.data?.refunds
+              ?.filter((r) => r.case_id === c.id)
+              .map((r) => (
+                <div className="notice" key={r.id}>
+                  <strong>
+                    {t("Pengembalian dana", "Refund")}:{" "}
+                    {currency(r.amount, locale)}
+                  </strong>{" "}
+                  <Status status={r.state} />
+                  {r.state === "needs_attention" && (
+                    <p>
+                      {t(
+                        "Pengembalian dana sedang ditangani Catera. Dana belum dikembalikan.",
+                        "Catera is reviewing your refund. Funds have not been returned yet.",
+                      )}
+                    </p>
+                  )}
+                </div>
+              ))}
+            {c.resolution && (
+              <div className="support-response">
+                <strong>{t("Tanggapan", "Response")}</strong>
+                <p>{c.resolution}</p>
+                {!!c.amount && <p>{currency(c.amount, locale)}</p>}
+              </div>
+            )}
+            {c.status === "responded" && (
+              <ActionForm
+                submit={t("Minta Catera meninjau", "Ask Catera to review")}
+                onSubmit={async () => {
+                  await perform("support.escalate", { id: c.id });
+                }}
+              >
+                <span />
+              </ActionForm>
+            )}
+          </div>
+        ))}
       {!state.data.cases.length && (
         <Empty
           title={t(

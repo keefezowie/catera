@@ -1,4 +1,7 @@
 .duration-editor {
+  grid-column: 1 / -1;
+  min-width: 0;
+  container-type: inline-size;
   margin-top: 1rem;
   border-top: 1px solid var(--line, #ddd);
   padding-top: 1rem;
@@ -12,29 +15,67 @@
   font-weight: 700;
   min-height: 44px;
 }
+.duration-editor > summary svg {
+  flex-shrink: 0;
+}
+.duration-editor .duration-chevron {
+  margin-left: auto;
+  transition: transform 160ms ease;
+}
+.duration-editor[open] .duration-chevron {
+  transform: rotate(180deg);
+}
+.duration-editor > form {
+  margin-top: 16px;
+}
+.duration-example {
+  max-width: 180px;
+}
 .duration-option {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 110px minmax(110px, auto);
+  grid-template-columns: minmax(0, 1fr) minmax(100px, 120px);
   align-items: center;
   gap: 0.75rem;
   border-bottom: 1px solid var(--line, #ddd);
   padding: 0.75rem 0;
 }
+.duration-option > .checkbox {
+  min-width: 0;
+  gap: 10px;
+}
+.duration-option .field {
+  min-width: 0;
+  margin: 0;
+}
+.duration-option > .checkbox > span:last-child {
+  display: grid;
+  gap: 4px;
+}
+.duration-option small {
+  color: var(--muted);
+  font-weight: 400;
+}
 .duration-option output {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
   font-weight: 700;
   text-align: right;
+}
+@container (max-width: 300px) {
+  .duration-option {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .duration-option > .field {
+    max-width: 160px;
+  }
+  .duration-option output {
+    flex-wrap: wrap;
+  }
 }
 .checkout-page .schedule-preview {
   max-height: 24rem;
   overflow-y: auto;
   overscroll-behavior: contain;
-}
-@media (max-width: 600px) {
-  .duration-option {
-    grid-template-columns: 1fr 100px;
-  }
-  .duration-option output {
-    grid-column: 1 / -1;
-    text-align: left;
-  }
 }

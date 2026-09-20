@@ -151,6 +151,9 @@ export type Delivery = {
   canChange: boolean;
 };
 export type Checkout = {
+  provider?: string | null;
+  provider_environment?: string | null;
+  provider_merchant?: string | null;
   customer_record_id?: string | null;
   id: string;
   state: string;
@@ -208,6 +211,14 @@ export type Notice = {
   created_at: string;
 };
 export type CustomerState = {
+  refunds?: {
+    id: string;
+    case_id: string;
+    amount: number;
+    state: string;
+    customer_action_url: string | null;
+    customer_action_expires_at: string | null;
+  }[];
   calendarMeta?: {
     nextDeliveryDate: string | null;
     lastUpcomingDeliveryDate: string | null;
@@ -273,6 +284,13 @@ export type SellerState = {
   }[];
 };
 export type AdminState = {
+  providerOperations?: {
+    kind: string;
+    entity_id: string;
+    state: string;
+    error_code: string | null;
+    created_at: string;
+  }[];
   caterers: Caterer[];
   cases: SupportCase[];
   transactions: {
@@ -301,6 +319,8 @@ export type AdminState = {
   }[];
   reviews: { id: string; body: string; rating: number; hidden: boolean }[];
   refunds: {
+    attention_reason?: string | null;
+    customer_action_url?: string | null;
     id: string;
     amount: number;
     state: string;
@@ -526,6 +546,8 @@ export const statusLabel = (status: string, locale: Locale = "id") =>
         submitting: "Submitting transfer",
         processing: "Transfer processing",
         pending_compliance: "Provider review",
+        needs_attention: "Needs attention",
+        awaiting_customer: "Awaiting refund details",
         reversed: "Transfer reversed",
         suspended: "Suspended",
         published: "Published",
@@ -558,6 +580,8 @@ export const statusLabel = (status: string, locale: Locale = "id") =>
         submitting: "Mengirim pencairan",
         processing: "Pencairan diproses",
         pending_compliance: "Peninjauan provider",
+        needs_attention: "Perlu penanganan",
+        awaiting_customer: "Menunggu detail pengembalian",
         reversed: "Pencairan dikembalikan",
         suspended: "Ditangguhkan",
         published: "Tayang",

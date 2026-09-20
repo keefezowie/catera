@@ -4,6 +4,8 @@ Updated September 9, 2026. **Local verification is not production approval.** Th
 
 ## 1. Environment boundary
 
+For the optional DOKU sandbox evaluation, follow [DOKU sandbox integration](DOKU-SANDBOX-INTEGRATION.md). Its local adapter and migration are available, but account activation, live sandbox acceptance, and hosted refund-link implementation remain open. Xendit remains the database default until explicitly changed in dedicated staging.
+
 Create separate V1 staging and production Supabase projects, storage, SMS credentials, Xendit credentials and application hosts. Staging uses invented customers and test payment methods only. Never point V1 at the old pilot project, run a demo seed against hosted storage, copy customer fixtures into tests, or replace an existing database to repair a local test. The backend rejects the known pilot reference.
 
 Use Node 24 and the committed npm lockfile. The web application is `apps/web`; build from the repository root with `npm ci` then `npm run build`, or configure monorepo hosting to run the equivalent workspace command with shared package access. The Expo application is `apps/customer`. Do not deploy `archive/pilot` as V1.

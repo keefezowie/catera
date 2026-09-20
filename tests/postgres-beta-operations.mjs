@@ -3,6 +3,11 @@ import { readFile } from "node:fs/promises";
 import { DEMO_ACTORS as U, CATERER_IDS as K } from "../packages/backend/src/seed.ts";
 export async function verifyBetaOperations(pool, cmd, evidence) {
  await pool.query(await readFile("supabase/migrations/20260917131119_beta_operations.sql","utf8"));
+ // Supabase default privileges can grant anon access to recreated wrappers.
+ await pool.query("grant execute on function public.catera_v1_command(text,jsonb,uuid) to anon");
+ await pool.query(await readFile("supabase/migrations/20260919030408_seller_rpc_permissions.sql","utf8"));
+ const privileges=(await pool.query("select has_function_privilege('anon','public.catera_v1_command(text,jsonb,uuid)','EXECUTE') anon_command,has_function_privilege('authenticated','public.catera_v1_command(text,jsonb,uuid)','EXECUTE') authenticated_command,has_function_privilege('anon','public.catera_v1_read(text,jsonb)','EXECUTE') public_catalog")).rows[0];
+ assert.deepEqual(privileges,{anon_command:false,authenticated_command:true,public_catalog:true});
  const d=(await pool.query("select d.id from v1.delivery_days d join v1.subscriptions s on s.id=d.subscription_id join v1.packages p on p.id=s.package_id where p.caterer_id=$1 and s.user_id=$2 order by d.id limit 1",[K[0],U.customer])).rows[0];
  const input={deliveryId:d.id,meal:"lunch",subject:"Synthetic concurrency issue",body:"A synthetic delivery problem"};
  const key=crypto.randomUUID();

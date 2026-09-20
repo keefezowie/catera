@@ -239,8 +239,8 @@ function Packages({ state: s }: { state: SellerState }) {
                 {o.flexible ? t("Fleksibel", "Flexible") : t("Tetap", "Fixed")}
               </p>
               <strong>
-                {currency(o.price, locale)}{" "}
-                <small>{t("/ porsi / hari", "/ portion / day")}</small>
+                {currency(perMealPrice(o), locale)}{" "}
+                <small>{t("/ makan", "/ meal")}</small>
               </strong>
             </div>
             {actor?.role === "owner" && o.status === "draft" && (

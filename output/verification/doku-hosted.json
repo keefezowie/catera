@@ -1,0 +1,70 @@
+{
+  "checkedAt": "2026-09-19T15:12:04.444Z",
+  "host": "https://catera-doku-sandbox.vercel.app",
+  "projectId": "prj_QqpXLmPAR91ha5W4wiE6SlfRhbWj",
+  "deploymentId": "dpl_87eXMtXkkE5o6WPZ4bNDX13EP3pY",
+  "databaseProject": "bibdpeiwgdqbubbnjfiz",
+  "dokuCollectionProfile": "SAC-8933-1789828563532",
+  "enabledChannels": [
+    "VIRTUAL_ACCOUNT_BRI"
+  ],
+  "checks": {
+    "sandboxRsaAuthentication": true,
+    "subAccountRegistration": true,
+    "signedBalanceInquiry": true,
+    "unauthenticatedWebhookRejected": 401,
+    "unauthenticatedJobsRejected": 401,
+    "authenticatedJobs": 200,
+    "appCheckoutHttpStatus": 200,
+    "realProviderSignedCallback": true,
+    "automaticPostResponseActivation": true,
+    "providerSystemRpcDeniedToAnonAndAuthenticated": true,
+    "unitTests": 215,
+    "typecheck": true,
+    "hostedProductionBuild": true,
+    "postgresConcurrency": true
+  },
+  "transactions": [
+    {
+      "invoice": "CT5779e1db57247f30c8b8576b1e",
+      "checkout": "3989c623-fd46-437a-86e6-4505d7fd1d3b",
+      "routingField": "additionalInfo.account.id",
+      "routingVerified": false,
+      "state": "paid",
+      "subscriptions": 1,
+      "allocations": 1
+    },
+    {
+      "invoice": "CT4fa2410a2d3713580c8e5097a2",
+      "checkout": "5cd4e37a-7289-4f25-8721-d3d0a9c958df",
+      "routingField": "additional_info.account.id",
+      "routingVerified": true,
+      "state": "paid",
+      "subscriptions": 1,
+      "allocations": 1
+    },
+    {
+      "invoice": "CTb40216b485ef62499fe39ab395",
+      "checkout": "42f21d11-4970-449a-884b-d6db49b0cc2d",
+      "source": "hosted /api/v1/commands",
+      "routingField": "additional_info.account.id",
+      "routingVerified": true,
+      "state": "paid",
+      "subscriptions": 1,
+      "allocations": 1,
+      "automaticallyProcessedAt": "2026-09-19T15:10:59.131960Z"
+    }
+  ],
+  "balance": {
+    "pendingIdr": "20000.00",
+    "withdrawableIdr": "0.00"
+  },
+  "remaining": [
+    "QRIS and wallet acceptance",
+    "settlement into withdrawable balance, fees, payout contract and callback verification",
+    "activated hosted Refund Service API contract",
+    "abandoned, expired, delayed and missing-callback live cases",
+    "production business approval and credentials"
+  ],
+  "productionCateraChanged": false
+}

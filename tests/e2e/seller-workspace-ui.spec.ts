@@ -1,6 +1,107 @@
 import { test, expect, type Page } from "@playwright/test";
 import { addDays, localDay } from "@catera/domain";
 const cid = "10000000-0000-4000-8000-000000000001";
+for (const locale of ["id", "en"])
+  for (const width of [390, 768, 1440, 1920])
+    test(`screenshot regressions: seller data and duration layout ${locale} ${width}`, async ({
+      page,
+      baseURL,
+    }) => {
+      const errors: string[] = [];
+      page.on("pageerror", (error) => errors.push(error.message));
+      await page
+        .context()
+        .addCookies([{ name: "catera_locale", value: locale, url: baseURL! }]);
+      await page.setViewportSize({ width, height: 1000 });
+      await page.request.post("/api/v1/auth/demo", { data: { role: "owner" } });
+      for (const resource of ["seller-attention", "payout-setup"]) {
+        const response = await page.request.get(`/api/v1/${resource}/${cid}`);
+        expect(response.ok(), await response.text()).toBe(true);
+      }
+      await page.goto("/seller");
+      await expect(page.locator(".seller-attention")).toContainText(
+        /Perlu perhatian|Needs attention/,
+      );
+      await expect(page.locator(".seller-attention")).not.toHaveAttribute(
+        "aria-busy",
+        "true",
+      );
+      await expect(
+        page.getByText(/Data tidak ditemukan|Data not found/),
+      ).toHaveCount(0);
+      for (const path of ["transactions", "settings"]) {
+        await page.goto(`/seller/${path}`);
+        await expect(page.locator("#payout")).toBeVisible();
+        await expect(
+          page.getByText(/Data tidak ditemukan|Data not found/),
+        ).toHaveCount(0);
+      }
+      await page.goto("/seller/packages");
+      const editor = page.locator(".duration-editor").first();
+      await editor.locator("summary").click();
+      await expect(editor).toHaveAttribute("open", "");
+      const twoCycles = editor.locator(".duration-option").nth(1);
+      await twoCycles.getByRole("checkbox").check();
+      await twoCycles.getByRole("spinbutton").fill("3");
+      await expect(twoCycles.locator("output")).not.toBeEmpty();
+      const cards = page.locator(".seller-packages > article");
+      const secondBefore = await cards.nth(1).boundingBox();
+      const card = await cards.first().boundingBox();
+      const box = await editor.boundingBox();
+      expect(box!.width).toBeGreaterThan(card!.width * 0.7);
+      const collisions = await editor
+        .locator(".duration-option")
+        .evaluateAll((rows) =>
+          rows.some((row) => {
+            const children = Array.from(row.children).map((child) =>
+              child.getBoundingClientRect(),
+            );
+            return children.some((a, i) =>
+              children
+                .slice(i + 1)
+                .some(
+                  (b) =>
+                    a.left < b.right &&
+                    a.right > b.left &&
+                    a.top < b.bottom &&
+                    a.bottom > b.top,
+                ),
+            );
+          }),
+        );
+      expect(collisions).toBe(false);
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true);
+      await page.screenshot({
+        path: `output/screenshot-fixes/packages-${locale}-${width}.png`,
+        fullPage: true,
+      });
+      const saved = page.waitForResponse(
+        (response) =>
+          response.url().endsWith("/api/v1/commands") &&
+          response.request().postDataJSON()?.action ===
+            "package.durationPricing.save",
+      );
+      await editor
+        .getByRole("button", {
+          name: /Simpan pilihan durasi|Save duration options/,
+        })
+        .click();
+      expect((await saved).ok()).toBe(true);
+      await editor.locator("summary").click();
+      const secondAfter = await cards.nth(1).boundingBox();
+      expect(Math.abs(secondBefore!.height - secondAfter!.height)).toBeLessThan(
+        2,
+      );
+      await page.reload();
+      await editor.locator("summary").click();
+      await expect(twoCycles.getByRole("checkbox")).toBeChecked();
+      await expect(twoCycles.getByRole("spinbutton")).toHaveValue("3");
+      expect(errors).toEqual([]);
+    });
 async function command(page: Page, action: string, payload: unknown) {
   const response = await page.request.post("/api/v1/commands", {
     data: { action, payload, requestId: crypto.randomUUID() },
@@ -237,7 +338,9 @@ test("seller package modes, inline schedule filters, and subscription-only custo
     }),
   ).toHaveCount(0);
   await expect(page.locator(".pilot-customer-grid")).toContainText("Nadia");
-  await expect(page.getByRole("button", { name: "Impor prabayar" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Impor prabayar" }),
+  ).toBeVisible();
   for (const action of ["customer.save"]) {
     const response = await page.request.post("/api/v1/commands", {
       data: {

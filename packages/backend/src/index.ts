@@ -7,9 +7,6 @@ export {
 } from "./database";
 export { DEMO_ACTORS } from "./seed";
 export {
-  createPaymentSession,
-  createRefund,
-  createPayout,
   createSplitRule,
   verifyCallback,
   assertEarnedCollection,
@@ -17,3 +14,20 @@ export {
   lookupPayout,
   payoutEvent,
 } from "./payments";
+export {
+  createPaymentSession,
+  attachPayment,
+  createRefund,
+  createPayout,
+  recordDokuPayment,
+  processDokuInbox,
+  reconcileDoku,
+  submitDokuPayout,
+  reconcileDokuPayout,
+} from "./payment-provider";
+export {
+  verifyDokuNotification,
+  verifyDokuSnapNotification,
+  dokuConfig,
+} from "./doku";
+export type { ProviderIdentity } from "./doku";

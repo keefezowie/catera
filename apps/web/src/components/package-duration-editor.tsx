@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Repeat2 } from "lucide-react";
+import { Repeat2, ChevronDown } from "lucide-react";
 import {
   durationOptions,
   purchasePricing,
@@ -24,8 +24,13 @@ export function PackageDurationEditor({ offer }: { offer: Offer }) {
   return (
     <details className="duration-editor">
       <summary>
-        <Repeat2 size={18} />{" "}
+        <Repeat2 size={18} aria-hidden="true" />{" "}
         {t("Durasi & diskon paket", "Duration options & savings")}
+        <ChevronDown
+          size={18}
+          className="duration-chevron"
+          aria-hidden="true"
+        />
       </summary>
       <ActionForm
         submit={t("Simpan pilihan durasi", "Save duration options")}
@@ -49,14 +54,16 @@ export function PackageDurationEditor({ offer }: { offer: Offer }) {
             "delivery days. Both discounts are seller-funded; multi-cycle savings apply after the portion discount.",
           )}
         </p>
-        <Field label={t("Contoh jumlah porsi", "Example portions")}>
-          <NumericInput
-            min={1}
-            max={100}
-            value={portions}
-            onValueChange={setPortions}
-          />
-        </Field>
+        <div className="duration-example">
+          <Field label={t("Contoh jumlah porsi", "Example portions")}>
+            <NumericInput
+              min={1}
+              max={100}
+              value={portions}
+              onValueChange={setPortions}
+            />
+          </Field>
+        </div>
         {[1, 2, 3, 4, 5, 6].map((cycles) => {
           const current = options.find((o) => o.cycles === cycles);
           let preview: ReturnType<typeof purchasePricing> | null = null;
@@ -87,14 +94,19 @@ export function PackageDurationEditor({ offer }: { offer: Offer }) {
                     )
                   }
                 />
-                {cycles} {t("periode", "cycles")} · {cycles * offer.days}{" "}
-                {t("hari", "days")}
+                <span>
+                  <span>
+                    {cycles} {t("periode", "cycles")}
+                  </span>
+                  <small>
+                    {cycles * offer.days}{" "}
+                    {t("hari pengantaran", "delivery days")}
+                  </small>
+                </span>
               </label>
               {current && (
                 <>
-                  <Field
-                    label={t("Diskon durasi (%)", "Multi-cycle discount (%)")}
-                  >
+                  <Field label={t("Diskon (%)", "Discount (%)")}>
                     <NumericInput
                       min={0}
                       max={90}
@@ -111,7 +123,10 @@ export function PackageDurationEditor({ offer }: { offer: Offer }) {
                     />
                   </Field>
                   <output>
-                    {preview ? currency(preview.packageNet, locale) : ""}
+                    <small>{t("Total paket", "Package total")}</small>
+                    <span>
+                      {preview ? currency(preview.packageNet, locale) : "—"}
+                    </span>
                   </output>
                 </>
               )}

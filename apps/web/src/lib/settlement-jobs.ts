@@ -5,6 +5,8 @@ import {
   lookupPayout,
   rpc,
   demoEnabled,
+  submitDokuPayout,
+  type ProviderIdentity,
 } from "@catera/backend";
 type Payout = {
   id: string;
@@ -19,6 +21,12 @@ const system = <T = unknown>(action: string, payload: unknown = {}) =>
   rpc<T>(null, null, "catera_v1_system", { action, payload }, true);
 export async function submitEarnedPayout(p: Payout) {
   if (!["approved", "submitting"].includes(p.status)) return;
+  if (!demoEnabled()) {
+    const source = await system<ProviderIdentity>("provider.payout.identity", {
+      id: p.id,
+    });
+    if (source.provider === "doku") return submitDokuPayout(p, source);
+  }
   const request =
     p.recipient_request ??
     (demoEnabled()
@@ -68,6 +76,11 @@ export async function reconcileEarnedPayouts() {
   for (const p of pending) {
     if (!p.provider_id) continue;
     try {
+      const source = await system<ProviderIdentity>(
+        "provider.payout.identity",
+        { id: p.id },
+      );
+      if (source.provider === "doku") continue;
       const data = await lookupPayout(p.provider_id);
       if (
         data.reference_id !== p.id ||

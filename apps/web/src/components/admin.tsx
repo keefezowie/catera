@@ -222,6 +222,32 @@ export function Admin({ view }: { view: string }) {
       ) : view === "transactions" ? (
         <section className="panel">
           <TransactionRows rows={a.transactions} />
+          {!!a.providerOperations?.length && (
+            <details className="spaced">
+              <summary>
+                {t("Rekonsiliasi DOKU Sandbox", "DOKU Sandbox reconciliation")}
+              </summary>
+              <p>
+                {t(
+                  "Catatan integrasi uji coba. Status ini bukan bukti kesiapan produksi.",
+                  "Test integration records. These statuses do not establish production readiness.",
+                )}
+              </p>
+              <ul>
+                {a.providerOperations.map((o) => (
+                  <li key={o.kind + o.entity_id}>
+                    {o.kind} · <code>{o.entity_id}</code> · {o.state}
+                    {o.error_code && (
+                      <>
+                        {" "}
+                        · <code>{o.error_code}</code>
+                      </>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
         </section>
       ) : view === "support" ? (
         <>
@@ -261,6 +287,20 @@ export function Admin({ view }: { view: string }) {
                       </td>
                       <td data-label={t("Status refund", "Refund status")}>
                         <Status status={r.state} />
+                        {r.attention_reason && (
+                          <p className="notice">
+                            {r.attention_reason ===
+                            "DOKU_REFUND_AMOUNT_UNSUPPORTED"
+                              ? t(
+                                  "Jumlah di luar batas refund DOKU. Kewajiban pengembalian tetap tercatat; perlu penanganan admin.",
+                                  "Outside DOKU refund limits. The refund obligation remains recorded and needs admin attention.",
+                                )
+                              : t(
+                                  "Layanan refund DOKU belum diaktifkan dan diverifikasi. Dana belum dikembalikan.",
+                                  "DOKU Refund Service activation and verification are pending. Funds have not been returned.",
+                                )}
+                          </p>
+                        )}
                         {r.state === "succeeded" && !r.reconciliation && (
                           <details>
                             <summary>

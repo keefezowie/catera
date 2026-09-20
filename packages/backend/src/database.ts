@@ -362,8 +362,50 @@ export async function createDemoDatabase(inMemory = false) {
         "\ncommit;",
     );
   }
-  if (!(await db.query<{ installed: boolean }>("select to_regclass('v1.delivery_issues') is not null installed")).rows[0].installed) {
-    await db.exec("begin;\n" + await readFile(path.join(projectRoot(), "packages/backend/src/beta-operations.sql"), "utf8") + "\ncommit;");
+  if (
+    !(
+      await db.query<{ installed: boolean }>(
+        "select to_regclass('v1.delivery_issues') is not null installed",
+      )
+    ).rows[0].installed
+  ) {
+    await db.exec(
+      "begin;\n" +
+        (await readFile(
+          path.join(projectRoot(), "packages/backend/src/beta-operations.sql"),
+          "utf8",
+        )) +
+        "\ncommit;",
+    );
+  }
+  if (
+    !(
+      await db.query<{ installed: boolean }>(
+        "select to_regclass('v1.provider_operations') is not null installed",
+      )
+    ).rows[0].installed
+  ) {
+    await db.exec(
+      "begin;\n" +
+        (await readFile(
+          path.join(projectRoot(), "packages/backend/src/doku-sandbox.sql"),
+          "utf8",
+        )) +
+        "\ncommit;",
+    );
+  }
+  // Idempotent repairs for the same hosted worker paths used by local verification.
+  for (const file of [
+    "20260919145757_settlement_pending_status_qualification.sql",
+    "20260919145914_settlement_pending_claim_alias.sql",
+    "20260919150043_outbox_claim_top_level_cte.sql",
+  ]) {
+    await db.exec(
+      await readFile(
+        path.join(projectRoot(), "supabase/migrations", file),
+        "utf8",
+      ),
+    );
   }
   return db;
 }

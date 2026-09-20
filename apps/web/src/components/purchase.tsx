@@ -800,6 +800,14 @@ export function PaymentPage({ id }: { id: string }) {
           ],
         ]}
       />
+      {c.provider === "doku" && c.provider_environment === "sandbox" && (
+        <p className="notice" role="status">
+          {t(
+            "DOKU Sandbox — pembayaran uji coba, tanpa uang sungguhan.",
+            "DOKU Sandbox — test payments, no real money.",
+          )}
+        </p>
+      )}
       {c.state === "payment_exception" ? (
         <p className="notice">
           {t(

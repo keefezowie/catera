@@ -10,6 +10,7 @@ import { verifySlotMenuConcurrency } from "./postgres-slot-menus.mjs";
 import { verifyPackageLifecycle } from "./postgres-package-lifecycle.mjs";
 import { verifySellerOperations } from "./postgres-seller-operations.mjs";
 import assert from "node:assert/strict";
+import { verifyDoku } from "./postgres-doku.mjs";
 import { readFile, readdir, mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createServer } from "node:net";
@@ -283,6 +284,7 @@ try {
   await verifySellerExperience(pool, cmd, evidence);
   await verifyPaidPilot(pool, cmd, evidence);
   await verifyBetaOperations(pool, cmd, evidence);
+  await verifyDoku(pool, cmd, evidence);
   await mkdir("output/verification", { recursive: true });
   const evidencePath = process.env.CATERA_POSTGRES_EVIDENCE || "output/verification/postgres.json";
   await mkdir(path.dirname(evidencePath), { recursive: true });

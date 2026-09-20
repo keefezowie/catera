@@ -11,6 +11,7 @@ import {
   demoEnabled,
   rpc,
   createPaymentSession,
+  attachPayment,
   assertEarnedCollection,
   DEMO_ACTORS,
 } from "@catera/backend";
@@ -471,16 +472,7 @@ export async function POST(request: Request, context: Context) {
         const checkout = result as Checkout;
         try {
           const payment = await createPaymentSession(checkout);
-          await rpc(
-            null,
-            null,
-            "catera_v1_system",
-            {
-              action: "payment.attach",
-              payload: { id: checkout.id, ...payment },
-            },
-            true,
-          );
+          await attachPayment(checkout, payment);
           result = { ...checkout, payment_url: payment.url };
         } catch {
           /* Durable outbox retries the same idempotent session. The reservation stays visible. */

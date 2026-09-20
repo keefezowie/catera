@@ -7,6 +7,8 @@ import {
   rpc,
   demoEnabled,
   createPaymentSession,
+  attachPayment,
+  reconcileDoku,
   createRefund,
   createPayout,
 } from "@catera/backend";
@@ -42,6 +44,7 @@ export async function GET(request: Request) {
   }
   await system("settlement.run");
   const reconciliation = await reconcileEarnedPayouts();
+  const dokuReconciliation = demoEnabled() ? null : await reconcileDoku();
   const jobs =
     await system<
       { id: string; kind: string; payload: Record<string, string> }[]
@@ -56,7 +59,7 @@ export async function GET(request: Request) {
           });
           if (c.state === "pending" && !c.payment_url) {
             const data = await createPaymentSession(c);
-            await system("payment.attach", { id: c.id, ...data });
+            await attachPayment(c, data);
           }
         }
       } else if (job.kind === "refund.create") {
@@ -65,21 +68,23 @@ export async function GET(request: Request) {
           amount: number;
           state: string;
           payment: { provider_id: string };
+          provider?: string | null;
         }>("refund.lookup", { id: job.payload.refundId });
         if (r.state === "requested") {
           const data = demoEnabled()
             ? { id: "demo-" + r.id, status: "SUCCEEDED" }
             : await createRefund(r);
-          await system("refund.update", {
-            id: r.id,
-            providerId: data.id,
-            state:
-              data.status === "SUCCEEDED"
-                ? "succeeded"
-                : data.status === "FAILED"
-                  ? "failed"
-                  : "pending",
-          });
+          if (data.status !== "NEEDS_ATTENTION")
+            await system("refund.update", {
+              id: r.id,
+              providerId: data.id,
+              state:
+                data.status === "SUCCEEDED"
+                  ? "succeeded"
+                  : data.status === "FAILED"
+                    ? "failed"
+                    : "pending",
+            });
         }
       } else if (job.kind === "payout.create") {
         const p = await system<{
@@ -178,6 +183,7 @@ export async function GET(request: Request) {
   return Response.json({
     processed: done,
     reconciliation,
+    dokuReconciliation,
     health: await system("health"),
   });
 }

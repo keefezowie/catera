@@ -36,6 +36,9 @@ beforeAll(async () => {
   ).rows;
 });
 afterAll(async () => db?.close());
+it("polls pending payouts without colliding with the status variable", async () => {
+  expect(await sys("settlement.pending")).toEqual([]);
+});
 it("recognizes exactly one daily credit only after both meals", async () => {
   await db.query(
     "update v1.fulfillments set status='delivered' where day_id=$1 and meal='lunch'",
