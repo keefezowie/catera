@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Repeat2, ChevronDown } from "lucide-react";
+import { Repeat2, ArrowUpRight } from "lucide-react";
 import {
   durationOptions,
   purchasePricing,
@@ -9,8 +9,8 @@ import {
   type DurationOption,
 } from "@catera/domain";
 import { useApp } from "./context";
-import { ActionForm, Field } from "./ui";
-import { Checkbox } from "./form-controls";
+import { ActionForm, Dialog, Field } from "./ui";
+import { Button, Checkbox } from "./form-controls";
 import { NumericInput } from "./numeric-input";
 export function PackageDurationEditor({ offer }: { offer: Offer }) {
   const { t, locale, perform } = useApp();
@@ -21,126 +21,141 @@ export function PackageDurationEditor({ offer }: { offer: Offer }) {
     offer.durationPricing?.revision ?? 0,
   );
   const [portions, setPortions] = useState(1);
+  const [open, setOpen] = useState(false);
   return (
-    <details className="duration-editor">
-      <summary>
+    <>
+      <Button
+        className="duration-editor-trigger"
+        variant="secondary"
+        aria-haspopup="dialog"
+        onClick={() => setOpen(true)}
+      >
         <Repeat2 size={18} aria-hidden="true" />{" "}
         {t("Durasi & diskon paket", "Duration options & savings")}
-        <ChevronDown
-          size={18}
-          className="duration-chevron"
-          aria-hidden="true"
-        />
-      </summary>
-      <ActionForm
-        submit={t("Simpan pilihan durasi", "Save duration options")}
-        onSubmit={async () => {
-          const saved = await perform<{ revision: number }>(
-            "package.durationPricing.save",
-            {
-              packageId: offer.id,
-              catererId: offer.catererId,
-              revision,
-              options,
-            },
-          );
-          setRevision(saved.revision);
-        }}
+        <ArrowUpRight size={18} aria-hidden="true" />
+      </Button>
+      <Dialog
+        open={open}
+        onOpenChange={setOpen}
+        title={t("Durasi & diskon paket", "Duration options & savings")}
+        description={offer.name}
+        className="duration-dialog"
       >
-        <p>
-          1 {t("periode", "cycle")} = {offer.days}{" "}
-          {t(
-            "hari pengantaran. Kedua diskon ditanggung katerer; diskon durasi dihitung setelah diskon porsi.",
-            "delivery days. Both discounts are seller-funded; multi-cycle savings apply after the portion discount.",
-          )}
-        </p>
-        <div className="duration-example">
-          <Field label={t("Contoh jumlah porsi", "Example portions")}>
-            <NumericInput
-              min={1}
-              max={100}
-              value={portions}
-              onValueChange={setPortions}
-            />
-          </Field>
-        </div>
-        {[1, 2, 3, 4, 5, 6].map((cycles) => {
-          const current = options.find((o) => o.cycles === cycles);
-          let preview: ReturnType<typeof purchasePricing> | null = null;
-          try {
-            preview = current
-              ? purchasePricing(
-                  { ...offer, durationPricing: { revision, options } },
-                  portions,
-                  cycles,
-                )
-              : null;
-          } catch {
-            /* An oversized example must not prevent saving valid options. */
-          }
-          return (
-            <div className="duration-option" key={cycles}>
-              <label className="checkbox">
-                <Checkbox
-                  checked={!!current}
-                  disabled={cycles === 1}
-                  onChange={(e) =>
-                    setOptions(
-                      e.target.checked
-                        ? [...options, { cycles, discountPercent: 0 }].sort(
-                            (a, b) => a.cycles - b.cycles,
-                          )
-                        : options.filter((o) => o.cycles !== cycles),
-                    )
-                  }
+        <div className="duration-editor">
+          <ActionForm
+            submit={t("Simpan pilihan durasi", "Save duration options")}
+            onSubmit={async () => {
+              const saved = await perform<{ revision: number }>(
+                "package.durationPricing.save",
+                {
+                  packageId: offer.id,
+                  catererId: offer.catererId,
+                  revision,
+                  options,
+                },
+              );
+              setRevision(saved.revision);
+              setOpen(false);
+            }}
+          >
+            <p>
+              1 {t("periode", "cycle")} = {offer.days}{" "}
+              {t(
+                "hari pengantaran. Kedua diskon ditanggung katerer; diskon durasi dihitung setelah diskon porsi.",
+                "delivery days. Both discounts are seller-funded; multi-cycle savings apply after the portion discount.",
+              )}
+            </p>
+            <div className="duration-example">
+              <Field label={t("Contoh jumlah porsi", "Example portions")}>
+                <NumericInput
+                  min={1}
+                  max={100}
+                  value={portions}
+                  onValueChange={setPortions}
                 />
-                <span>
-                  <span>
-                    {cycles} {t("periode", "cycles")}
-                  </span>
-                  <small>
-                    {cycles * offer.days}{" "}
-                    {t("hari pengantaran", "delivery days")}
-                  </small>
-                </span>
-              </label>
-              {current && (
-                <>
-                  <Field label={t("Diskon (%)", "Discount (%)")}>
-                    <NumericInput
-                      min={0}
-                      max={90}
-                      step={0.01}
-                      value={current.discountPercent}
+              </Field>
+            </div>
+            {[1, 2, 3, 4, 5, 6].map((cycles) => {
+              const current = options.find((o) => o.cycles === cycles);
+              let preview: ReturnType<typeof purchasePricing> | null = null;
+              try {
+                preview = current
+                  ? purchasePricing(
+                      { ...offer, durationPricing: { revision, options } },
+                      portions,
+                      cycles,
+                    )
+                  : null;
+              } catch {
+                /* An oversized example must not prevent saving valid options. */
+              }
+              return (
+                <div className="duration-option" key={cycles}>
+                  <label className="checkbox">
+                    <Checkbox
+                      checked={!!current}
                       disabled={cycles === 1}
-                      onValueChange={(discountPercent) =>
+                      onChange={(e) =>
                         setOptions(
-                          options.map((o) =>
-                            o.cycles === cycles ? { ...o, discountPercent } : o,
-                          ),
+                          e.target.checked
+                            ? [...options, { cycles, discountPercent: 0 }].sort(
+                                (a, b) => a.cycles - b.cycles,
+                              )
+                            : options.filter((o) => o.cycles !== cycles),
                         )
                       }
                     />
-                  </Field>
-                  <output>
-                    <small>{t("Total paket", "Package total")}</small>
                     <span>
-                      {preview ? currency(preview.packageNet, locale) : "—"}
+                      <span>
+                        {cycles} {t("periode", "cycles")}
+                      </span>
+                      <small>
+                        {cycles * offer.days}{" "}
+                        {t("hari pengantaran", "delivery days")}
+                      </small>
                     </span>
-                  </output>
-                </>
+                  </label>
+                  {current && (
+                    <>
+                      <Field label={t("Diskon (%)", "Discount (%)")}>
+                        <NumericInput
+                          min={0}
+                          max={90}
+                          step={0.01}
+                          value={current.discountPercent}
+                          disabled={cycles === 1}
+                          onValueChange={(discountPercent) =>
+                            setOptions(
+                              options.map((o) =>
+                                o.cycles === cycles
+                                  ? { ...o, discountPercent }
+                                  : o,
+                              ),
+                            )
+                          }
+                        />
+                      </Field>
+                      <output>
+                        <small>{t("Total paket", "Package total")}</small>
+                        <span>
+                          {preview ? currency(preview.packageNet, locale) : "—"}
+                        </span>
+                      </output>
+                    </>
+                  )}
+                </div>
+              );
+            })}
+            <p className="small muted">
+              {t(
+                "Jadwal lengkap harus tersedia dalam 366 hari ke depan. Perubahan hanya berlaku untuk pembelian baru.",
+                "The complete schedule must fit within the next 366 days. Changes apply only to new purchases.",
               )}
-            </div>
-          );
-        })}
-        <p className="small muted">
-          {t(
-            "Jadwal lengkap harus tersedia dalam 366 hari ke depan. Perubahan hanya berlaku untuk pembelian baru.",
-            "The complete schedule must fit within the next 366 days. Changes apply only to new purchases.",
-          )}
-        </p>
-      </ActionForm>
-    </details>
+            </p>
+          </ActionForm>
+        </div>
+      </Dialog>
+    </>
   );
 }
 export function DurationOptionsFields({

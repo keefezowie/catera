@@ -37,18 +37,26 @@ for (const locale of ["id", "en"])
         ).toHaveCount(0);
       }
       await page.goto("/seller/packages");
-      const editor = page.locator(".duration-editor").first();
-      await editor.locator("summary").click();
-      await expect(editor).toHaveAttribute("open", "");
+      const cards = page.locator(".seller-packages > article");
+      const trigger = page.locator(".duration-editor-trigger").first();
+      await expect(trigger).toBeVisible();
+      const cardBefore = await cards.first().boundingBox();
+      const secondBefore = await cards.nth(1).boundingBox();
+      await trigger.click();
+      const dialog = page.getByRole("dialog", {
+        name: /Durasi & diskon paket|Duration options & savings/,
+      });
+      await expect(dialog).toBeVisible();
+      const editor = dialog.locator(".duration-editor");
       const twoCycles = editor.locator(".duration-option").nth(1);
       await twoCycles.getByRole("checkbox").check();
       await twoCycles.getByRole("spinbutton").fill("3");
       await expect(twoCycles.locator("output")).not.toBeEmpty();
-      const cards = page.locator(".seller-packages > article");
-      const secondBefore = await cards.nth(1).boundingBox();
       const card = await cards.first().boundingBox();
-      const box = await editor.boundingBox();
-      expect(box!.width).toBeGreaterThan(card!.width * 0.7);
+      expect(card!.height).toBeCloseTo(cardBefore!.height, 0);
+      const box = await dialog.boundingBox();
+      expect(box!.height).toBeLessThanOrEqual(1000);
+      expect(box!.width).toBeLessThanOrEqual(width);
       const collisions = await editor
         .locator(".duration-option")
         .evaluateAll((rows) =>
@@ -91,15 +99,19 @@ for (const locale of ["id", "en"])
         })
         .click();
       expect((await saved).ok()).toBe(true);
-      await editor.locator("summary").click();
+      await expect(dialog).toBeHidden();
+      await expect(trigger).toBeFocused();
       const secondAfter = await cards.nth(1).boundingBox();
       expect(Math.abs(secondBefore!.height - secondAfter!.height)).toBeLessThan(
         2,
       );
       await page.reload();
-      await editor.locator("summary").click();
+      await trigger.click();
       await expect(twoCycles.getByRole("checkbox")).toBeChecked();
       await expect(twoCycles.getByRole("spinbutton")).toHaveValue("3");
+      await page.keyboard.press("Escape");
+      await expect(dialog).toBeHidden();
+      await expect(trigger).toBeFocused();
       expect(errors).toEqual([]);
     });
 async function command(page: Page, action: string, payload: unknown) {

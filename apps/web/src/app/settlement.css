@@ -1,32 +1,17 @@
-.duration-editor {
+.duration-editor-trigger {
   grid-column: 1 / -1;
+  width: 100%;
+  justify-content: flex-start;
+}
+.duration-editor-trigger svg:last-child {
+  margin-left: auto;
+}
+.duration-editor {
   min-width: 0;
   container-type: inline-size;
-  margin-top: 1rem;
-  border-top: 1px solid var(--line, #ddd);
-  padding-top: 1rem;
-  width: 100%;
 }
-.duration-editor > summary {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-  font-weight: 700;
-  min-height: 44px;
-}
-.duration-editor > summary svg {
-  flex-shrink: 0;
-}
-.duration-editor .duration-chevron {
-  margin-left: auto;
-  transition: transform 160ms ease;
-}
-.duration-editor[open] .duration-chevron {
-  transform: rotate(180deg);
-}
-.duration-editor > form {
-  margin-top: 16px;
+.duration-dialog .duration-editor > form {
+  gap: 12px;
 }
 .duration-example {
   max-width: 180px;
