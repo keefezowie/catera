@@ -4,7 +4,7 @@ Updated September 9, 2026. **Local verification is not production approval.** Th
 
 ## 1. Environment boundary
 
-For the optional DOKU sandbox evaluation, follow [DOKU sandbox integration](DOKU-SANDBOX-INTEGRATION.md). Its local adapter and migration are available, but account activation, live sandbox acceptance, and hosted refund-link implementation remain open. Xendit remains the database default until explicitly changed in dedicated staging.
+For current UAT, use the single active `catera` Vercel project at https://catera-eight.vercel.app with the existing Catera database and DOKU sandbox selected for new checkouts. The former DOKU project is paused. Follow [DOKU sandbox integration](DOKU-SANDBOX-INTEGRATION.md) for verified checkout, signed callback and collection-balance evidence. BRI collection is the evaluated channel; payouts remain disabled and hosted refund-link implementation remains open. Vercel's Production target does not mean live DOKU payments are enabled.
 
 Create separate V1 staging and production Supabase projects, storage, SMS credentials, Xendit credentials and application hosts. Staging uses invented customers and test payment methods only. Never point V1 at the old pilot project, run a demo seed against hosted storage, copy customer fixtures into tests, or replace an existing database to repair a local test. The backend rejects the known pilot reference.
 

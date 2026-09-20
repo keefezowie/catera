@@ -6,11 +6,11 @@ const system = <T = unknown,>(action: string, payload: unknown = {}) =>
 const command = process.argv[2] || "check";
 if (process.env.CATERA_V1_DEMO === "true")
   throw new Error(
-    "Use a separate hosted staging database, not synthetic payment confirmation",
+    "Use the hosted UAT database, not synthetic payment confirmation",
   );
 if (process.env.CATERA_DOKU_STAGING !== "true")
   throw new Error(
-    "Set CATERA_DOKU_STAGING=true only for the dedicated sandbox database",
+    "Set CATERA_DOKU_STAGING=true only for an environment using DOKU sandbox",
   );
 const config = dokuConfig();
 if (command === "check") {

@@ -1,0 +1,68 @@
+{
+  "host": "https://catera-eight.vercel.app",
+  "database": "ygzfdqrljunngfrdygzt",
+  "deploymentId": "dpl_HNA2m4CRKqQfVRh228dCCv6dbmgv",
+  "deploymentStatus": "READY",
+  "target": "production",
+  "businessEnvironment": "UAT",
+  "paymentEnvironment": "sandbox",
+  "cutoverComplete": true,
+  "oldProjectPaused": true,
+  "dashboardCallbackUpdated": true,
+  "authenticatedJobsStatus": 200,
+  "providerErrors": 0,
+  "checkout": {
+    "id": "085aa2b4-7355-4867-bf61-4a0499515c01",
+    "invoice": "CTff934a5992d64ccc9c5f8acf47",
+    "amountIdr": 162500,
+    "state": "paid",
+    "subscriptions": 1,
+    "allocations": 1,
+    "realProviderSignedCallback": true,
+    "automaticProcessing": true,
+    "processedAt": "2026-09-20T05:31:10.735228Z"
+  },
+  "collectionBalance": {
+    "pendingBeforeIdr": 20000,
+    "pendingAfterIdr": 182500,
+    "withdrawableIdr": 0
+  },
+  "limitations": ["BRI sandbox only", "Payouts disabled", "Refunds not accepted", "No live payments"],
+  "checkedAt": "2026-09-20T05:32:19.840Z",
+  "accounts": [
+    {
+      "role": "customer",
+      "http": 200,
+      "actualRole": "customer"
+    },
+    {
+      "role": "owner",
+      "http": 200,
+      "actualRole": "owner"
+    },
+    {
+      "role": "staff",
+      "http": 200,
+      "actualRole": "staff"
+    },
+    {
+      "role": "platform_admin",
+      "http": 200,
+      "actualRole": "platform_admin"
+    }
+  ],
+  "http": [
+    {
+      "path": "/api/v1/catalog",
+      "status": 200
+    },
+    {
+      "path": "/api/jobs",
+      "status": 401
+    },
+    {
+      "path": "/api/webhooks/doku/payment",
+      "status": 401
+    }
+  ]
+}

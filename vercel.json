@@ -3,5 +3,6 @@
   "framework": "nextjs",
   "buildCommand": "npm run build",
   "outputDirectory": "apps/web/.next",
-  "regions": ["sin1"]
+  "regions": ["sin1"],
+  "crons": [{ "path": "/api/jobs", "schedule": "0 2 * * *" }]
 }

@@ -1,18 +1,25 @@
 # DOKU sandbox integration
 
-Implemented and connected to an isolated hosted sandbox on September 19, 2026. BRI virtual-account collection has been tested against DOKU's simulator, signed hosted callbacks, transactional subscription activation, and collection sub-account balance. This is not acceptance of refunds, payouts, other channels, or production suitability.
+Implemented and connected to an isolated hosted sandbox on September 19, 2026; consolidated into the existing Catera UAT deployment on September 20 at the user's request. BRI virtual-account collection was tested against DOKU's simulator, signed hosted callbacks, transactional subscription activation, and collection sub-account balance on the original host. This is not acceptance of refunds, payouts, other channels, or production suitability.
 
 ## Hosted sandbox
 
-- App: https://catera-doku-sandbox.vercel.app
-- Vercel project: `catera-doku-sandbox` (`prj_QqpXLmPAR91ha5W4wiE6SlfRhbWj`). Its production alias is the sandbox host, separate from the existing Catera project.
-- Supabase: `Catera DOKU Sandbox`, `bibdpeiwgdqbubbnjfiz`, Singapore, in `keefezowie's Org`. Provisioning quoted $0 monthly. All 26 baseline migrations plus three worker repairs were applied only here.
+- App: https://catera-eight.vercel.app
+- Vercel project: `catera` (`prj_VogIJfLigT2auxniG2LEs5TerhSt`). The canonical Vercel Production target is currently Catera UAT; DOKU stays in sandbox mode.
+- Supabase: existing Catera V1 database `ygzfdqrljunngfrdygzt`. Its existing 54 profiles, 3 caterers and 56 checkouts were retained during the additive DOKU migration and three worker repairs. Do not replace this database with the old sandbox seed.
+- Historical isolated database: `bibdpeiwgdqbubbnjfiz`. September 19 payment evidence and its dedicated test accounts remain there. Use the existing UAT credentials in the private `.data/doku-sandbox/E2E-PAYMENT-TEST.md` guide for the unified app.
 - DOKU collection profile: `SAC-8933-1789828563532`; withdrawable IDR account `2010182851`; pending IDR account `2030068262`.
 - Only `VIRTUAL_ACCOUNT_BRI` is enabled. Refund and payout feature gates remain off.
-- Secrets are in ignored `.env.doku-staging.local` and server-only Vercel variables. Synthetic test-account credentials are in ignored `.data/doku-sandbox/test-accounts.json`. Never commit either file. Existing `apps/web/.env.local` is unchanged.
-- The dedicated deploy copy is `.data/doku-sandbox/deploy`. It is linked explicitly to the sandbox project; the workspace root was not relinked. Use `vercel.doku-sandbox.json` as that copy's `vercel.json`; never substitute it for the existing production configuration.
+- DOKU credentials are installed on Vercel project `catera`. The historical `.env.doku-staging.local` still points to the old database; do not use it for unified-app recovery. Existing UAT account credentials are in ignored `.data/demo-accounts.json` and the private testing guide. Never commit credential files.
+- Both the workspace root and the disposable upload copy `.data/doku-sandbox/deploy` are linked to `catera`. Use the single root `vercel.json`; no separate DOKU deployment configuration is required.
 
-The BRI non-SNAP Payment Notification URL is set to `https://catera-doku-sandbox.vercel.app/api/webhooks/doku/payment`. Checkout sends the same path as an explicit notification override. Verified callbacks are committed to the private inbox before HTTP acknowledgement; Next.js `after` then processes them. The sandbox-only daily recovery cron calls authenticated `/api/jobs` at 02:00 UTC (09:00 WIB). Daily recovery is a sandbox fallback, not a production payment-recovery SLA; production evaluation needs a more frequent scheduler and missed-callback acceptance testing.
+Consolidation validation: all four existing UAT roles authenticate on the unified host; catalog returns HTTP 200; unsigned callbacks and unauthenticated jobs return HTTP 401. Typecheck, 215 unit tests, hosted `npm run build`, and PostgreSQL concurrency checks passed. Pricing fees were retained while enabling hosted UAT pricing; new immutable settlement policies keep payouts disabled for all approved caterers.
+
+Cutover completed on September 20: the supplied Supabase server key was verified against the existing database, installed as a sensitive Vercel variable, and deployed in `dpl_HNA2m4CRKqQfVRh228dCCv6dbmgv`. Authenticated `/api/jobs` returns HTTP 200 with zero provider errors. Hosted checkout `085aa2b4-7355-4867-bf61-4a0499515c01`, invoice `CTff934a5992d64ccc9c5f8acf47`, collected Rp162,500 through the BRI simulator. The genuine signed callback was automatically processed at `2026-09-20T05:31:10.735228Z`, creating one subscription and one allocation. Pending collection balance increased from Rp20,000 to Rp182,500; withdrawable balance remains zero. Evidence: `output/verification/doku-unified.json`.
+
+The former `catera-doku-sandbox` Vercel project is paused. It remains listed as inactive for recovery, but only `catera` is serving UAT. Historical sandbox database records have not been deleted.
+
+New Checkout requests explicitly send `https://catera-eight.vercel.app/api/webhooks/doku/payment` as the notification override. The dashboard's BRI non-SNAP default was also changed to this URL and verified by reopening the saved configuration. Verified callbacks are committed to the private inbox before HTTP acknowledgement; Next.js `after` then processes them. The unified `vercel.json` schedules authenticated `/api/jobs` at 02:00 UTC (09:00 WIB). Daily recovery is a UAT fallback, not a production payment-recovery SLA; production evaluation needs a more frequent scheduler and missed-callback acceptance testing.
 
 The registered RSA public-key SHA-256 fingerprint is `982aff835d8342a59cc2ac523d0392ff67919953566c6a851080d123bb18dbce`. B2B authentication and signed balance inquiry succeeded. SNAP timestamps must omit fractional seconds: the gateway rejected milliseconds with `4007301`. The sandbox Checkout API returns `https://staging.doku.com/checkout-link-v2/...`; both this exact host and `sandbox.doku.com` are allowlisted, with HTTPS and no credentials or nonstandard ports.
 
@@ -54,7 +61,7 @@ Supabase advisors report intentional RPC-only tables with RLS and no direct poli
 ## Dedicated staging setup
 
 1. Register a [DOKU sandbox account](https://sandbox.doku.com/bo/sandbox-registration). Request Checkout, the needed VA/QRIS/wallet channels, Sub-Account **V2**, and Refund Service sandbox access. Sandbox access does not establish production marketplace eligibility.
-2. Use a separate Catera staging database and HTTPS host with synthetic customers. Inspect the Supabase target and pending migrations before applying the new migration in normal timestamp order. Do not apply a seed or reset to an existing hosted project. This implementation has only applied the SQL to disposable local databases.
+2. For current UAT, use the existing Catera database and unified HTTPS host above. Inspect the target and pending migrations before applying additive changes. Do not apply a seed or reset to the existing hosted project. A separate Vercel project is not required for DOKU sandbox.
 3. Store credentials in ignored `apps/web/.env.local` or protected server environment settings using `apps/web/.env.example`. Keep `CATERA_V1_DEMO=false`; demo confirmation is not a DOKU test. Set `CATERA_DOKU_STAGING=true`, `DOKU_ENVIRONMENT=sandbox`, `DOKU_CLIENT_ID`, `DOKU_SECRET_KEY` and canonical HTTPS `CATERA_PUBLIC_URL`.
 4. Obtain the platform collection profile and its withdrawable IDR account. Set `DOKU_COLLECTION_PROFILE_ID` and `DOKU_COLLECTION_ACCOUNT_NO`. Use the verified Checkout `additional_info.account.id` wire format. Confirm the commercial delivery-earned holding model with DOKU before any production launch.
 5. Configure the dashboard payment notification URL as `https://<staging-host>/api/webhooks/doku/payment`, including expiry notifications. Return URLs are generated as `/return/<checkout-id>`. Enable only provisioned `DOKU_PAYMENT_METHODS`; supported wallet configuration names are `EMONEY_OVO`, `EMONEY_DANA`, `EMONEY_SHOPEEPAY`, and `EMONEY_LINKAJA`.
@@ -62,7 +69,7 @@ Supabase advisors report intentional RPC-only tables with RLS and no direct poli
 7. For payouts, register the RSA public key with DOKU and store its private key as `DOKU_PRIVATE_KEY` (PEM; escaped newlines are accepted). Set an explicit whole-IDR `DOKU_PAYOUT_FEE_RESERVE_IDR`, including `0` only if confirmed appropriate. Review seller bank destinations through the existing admin workflow; the approved SWIFT code and beneficiary name are reused. Enable `DOKU_PAYOUT_CONTRACT_VERIFIED` and `DOKU_PAYOUTS_ENABLED` only after sandbox verification. Existing seller settlement policy and automatic-payout controls also remain required.
 8. Run the protected `/api/jobs` endpoint regularly with `Authorization: Bearer <CRON_SECRET>` using the existing scheduler. This change does not provision a scheduler. At least once per minute is the intended staging cadence for callback processing and polling. Do not expose the secret in URLs or logs. Confirm successful job responses and monitor `providerErrors`, `providerInboxPending`, and `refundsNeedingAttention` in health output.
 
-From the repository root, after loading the dedicated staging environment:
+From the repository root, after securely loading the unified UAT environment (including its correct Supabase server key and URL; the unchanged `apps/web/.env.local` alone is insufficient):
 
 ```powershell
 node --env-file=apps/web/.env.local --import tsx scripts/doku-sandbox.mts check
