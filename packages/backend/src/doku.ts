@@ -289,6 +289,7 @@ export async function dokuSnap(
   path: string,
   body: unknown,
   externalId: string,
+  channelId?: "H2H",
 ): Promise<Record<string, any>> {
   const { client, secret } = dokuConfig();
   const token = await dokuToken(),
@@ -304,6 +305,7 @@ export async function dokuSnap(
       "X-PARTNER-ID": client,
       "X-TIMESTAMP": timestamp,
       "X-EXTERNAL-ID": externalId,
+      ...(channelId ? { "CHANNEL-ID": channelId } : {}),
       "X-SIGNATURE": snapSignature(secret, path, token, timestamp, raw),
     },
     body: raw,

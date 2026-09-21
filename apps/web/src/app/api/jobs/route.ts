@@ -57,7 +57,7 @@ export async function GET(request: Request) {
           const c = await system<Checkout>("payment.lookup", {
             id: job.payload.checkoutId,
           });
-          if (c.state === "pending" && !c.payment_url) {
+          if (c.state === "pending" && c.payment_mode !== "direct" && !c.payment_url) {
             const data = await createPaymentSession(c);
             await attachPayment(c, data);
           }

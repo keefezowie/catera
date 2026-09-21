@@ -307,6 +307,7 @@ try {
   assert.equal(consentRace[0].terms_accepted_at,consentRace[1].terms_accepted_at);
   assert.equal((await pool.query("select count(*)::int n from v1.outbox where kind='payment.create' and payload->>'checkoutId'=$1",[consentRace[0].id])).rows[0].n,1);
   evidence.push("Checkout consent rejects missing acceptance before side effects; simultaneous retries produce one checkout, one acceptance timestamp and one payment job.");
+  await (await import("./postgres-direct-payments.mjs")).verifyDirectPayments(pool, cmd, evidence);
   await mkdir("output/verification", { recursive: true });
   const evidencePath = process.env.CATERA_POSTGRES_EVIDENCE || "output/verification/postgres.json";
   await mkdir(path.dirname(evidencePath), { recursive: true });

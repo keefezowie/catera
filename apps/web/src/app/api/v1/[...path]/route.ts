@@ -8,6 +8,12 @@ import { assertSameOrigin } from "@/lib/request-origin";
 import { cookies } from "next/headers";
 import { z } from "zod";
 import {
+  enrichDirectCheckout,
+  filterPaymentAvailability,
+  directMethodReady,
+  submitDirectPayment,
+  reconcileDirectPayment,
+  processDokuInbox,
   demoEnabled,
   rpc,
   createPaymentSession,
@@ -32,6 +38,7 @@ import {
   dishSaveSchema,
   dishArchiveSchema,
   type Checkout,
+  type PaymentAvailability,
   type Quote,
 } from "@catera/domain";
 import { session, supabase, demoToken } from "@/lib/auth";
@@ -58,6 +65,8 @@ async function setWorkspaceCookie(value: ReturnType<typeof defaultWorkspace>) {
 const ok = (data: unknown) =>
   Response.json({ data }, { headers: { "Cache-Control": "no-store" } });
 const codes = [
+  "PAYMENT_UNAVAILABLE",
+  "PAYMENT_METHOD_LOCKED",
   "EMAIL_NOT_CONFIRMED",
   "PASSWORD_REJECTED",
   "AUTH_UNAVAILABLE",
@@ -171,6 +180,7 @@ export async function GET(request: Request, context: Context) {
         "admin",
         "conversations",
         "checkout",
+        "payment-methods",
       ].includes(resource)
     )
       throw new Error("NOT_FOUND");
@@ -226,6 +236,8 @@ export async function GET(request: Request, context: Context) {
         ),
       );
     }
+    if (resource === "checkout") return ok(enrichDirectCheckout(await read() as Checkout));
+    if (resource === "payment-methods") return ok(filterPaymentAvailability(await read() as PaymentAvailability));
     return ok(
       resource === "seller-settlement" || resource === "settlement-controls"
         ? await readSettlementResource(s.actor, resource, params.id, read)
@@ -451,6 +463,8 @@ export async function POST(request: Request, context: Context) {
       if (command.action === "checkout.create")
         command.payload = checkoutSchema.parse(command.payload);
       if (command.action === "checkout.create" && !demoEnabled()) {
+        const availability = filterPaymentAvailability(await rpc<PaymentAvailability>(s.id, s.token, "catera_v1_read", { resource: "payment-methods", params: {} }));
+        if (availability.mode === "direct" && !availability.availableMethods.length) throw new Error("PAYMENT_UNAVAILABLE");
         const q = await rpc<Quote>(s.id, s.token, "catera_v1_read", {
           resource: "quote",
           params: command.payload,
@@ -483,12 +497,29 @@ export async function POST(request: Request, context: Context) {
             request_id: command.requestId,
           }),
         );
+      if (command.action === "checkout.payment.start" || command.action === "checkout.payment.refresh") {
+        const payload = z.object({ id: z.string().uuid(), method: z.enum(["VIRTUAL_ACCOUNT_BRI", "QRIS"]).optional() }).strict().parse(command.payload);
+        const readCheckout = () => rpc<Checkout>(s.id, s.token, "catera_v1_read", { resource: "checkout", params: { id: payload.id } });
+        const checkout = await readCheckout();
+        if (command.action === "checkout.payment.start" && (!payload.method || (!checkout.payment?.selectedMethod && !directMethodReady(payload.method)))) throw new Error("PAYMENT_UNAVAILABLE");
+        await rpc(s.id, s.token, "catera_v1_command", { action: command.action, payload, request_id: command.requestId });
+        const system = <T = unknown,>(action: string, payload: unknown = {}) => rpc<T>(null, null, "catera_v1_system", { action, payload }, true);
+        if (command.action === "checkout.payment.start") await submitDirectPayment(checkout, system);
+        else {
+          const operation = await system<import("@catera/backend").ProviderOperation | null>("provider.direct.refresh", { id: checkout.id });
+          if (operation) {
+            try { await reconcileDirectPayment(operation, system); await processDokuInbox(system); }
+            catch { await system("provider.error", { kind: "payment", id: checkout.id, code: "DOKU_DIRECT_RECONCILIATION_REQUIRED" }); }
+          }
+        }
+        return ok(enrichDirectCheckout(await readCheckout()));
+      }
       let result = await rpc<unknown>(s.id, s.token, "catera_v1_command", {
         action: command.action,
         payload: command.payload,
         request_id: command.requestId,
       });
-      if (command.action === "checkout.create" && !demoEnabled()) {
+      if (command.action === "checkout.create" && !demoEnabled() && (result as Checkout).payment_mode !== "direct") {
         const checkout = result as Checkout;
         try {
           const payment = await createPaymentSession(checkout);

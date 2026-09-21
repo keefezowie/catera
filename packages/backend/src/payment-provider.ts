@@ -1,4 +1,5 @@
-import type { Checkout } from "@catera/domain";
+import type { Checkout, DirectPaymentMethod } from "@catera/domain";
+import { reconcileDirectPayment, storeDirectEvent } from "./doku-direct";
 import { rpc } from "./database";
 import * as xendit from "./payments";
 import {
@@ -20,6 +21,8 @@ export type System = <T = unknown>(
 const system: System = (action, payload = {}) =>
   rpc(null, null, "catera_v1_system", { action, payload }, true);
 export type ProviderOperation = ProviderIdentity & {
+  payment_mode?: "hosted" | "direct";
+  channel?: DirectPaymentMethod;
   id: string;
   kind: string;
   entity_id: string;
@@ -39,6 +42,7 @@ function errorCode(error: unknown) {
     : "PROVIDER_NETWORK_UNCERTAIN";
 }
 export async function createPaymentSession(c: Checkout, sys: System = system) {
+  if (c.payment_mode === "direct") throw new Error("DIRECT_PAYMENT_REQUIRED");
   if (!c.terms_accepted_at || !c.terms_version) throw new Error("TERMS_REQUIRED");
   if (c.provider !== "doku") return xendit.createPaymentSession(c);
   assertDokuIdentity({
@@ -104,6 +108,10 @@ export async function recordDokuPayment(
   });
   if (!op || op.kind !== "payment") throw new Error("DOKU_UNKNOWN_PAYMENT");
   assertDokuIdentity(op);
+  if (op.payment_mode === "direct") {
+    await storeDirectEvent(data, op, "qris_notification", sys);
+    return;
+  }
   const event = dokuPaymentEvent(data, op);
   if (event)
     await sys("provider.inbox.receive", {
@@ -142,7 +150,9 @@ export async function reconcileDoku(sys: System = system) {
       checked++;
       try {
         assertDokuIdentity(op);
-        if (kind === "payment")
+        if (kind === "payment" && op.payment_mode === "direct")
+          await reconcileDirectPayment(op, sys);
+        else if (kind === "payment")
           await recordDokuPayment(
             await dokuRequest(
               "/orders/v1/status/" + encodeURIComponent(op.reference),

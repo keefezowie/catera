@@ -155,6 +155,8 @@ export type Delivery = {
   canChange: boolean;
 };
 export type Checkout = {
+  payment_mode?: "hosted" | "direct";
+  payment?: import("./payment").PaymentView;
   terms_accepted_at?: string | null;
   terms_version?: string | null;
   provider?: string | null;
@@ -603,6 +605,8 @@ export const statusLabel = (status: string, locale: Locale = "id") =>
         payment_exception: "Pembayaran perlu ditinjau",
       }[status] || status;
 export const errors: Record<string, string> = {
+  PAYMENT_UNAVAILABLE: "Pembayaran sedang tidak tersedia. Silakan coba lagi nanti.",
+  PAYMENT_METHOD_LOCKED: "Metode pembayaran sudah dipilih dan tidak dapat diganti.",
   TERMS_REQUIRED: "Setujui Syarat & Ketentuan untuk melanjutkan.",
   DURATION_UNAVAILABLE: "Durasi ini belum tersedia. Pilih durasi lain.",
   BOOKING_HORIZON:
@@ -659,6 +663,8 @@ export const errors: Record<string, string> = {
     "Tanggal ini memiliki pesanan. Selesaikan pesanan sebelum menutupnya.",
 };
 const errorsEn: Record<string, string> = {
+  PAYMENT_UNAVAILABLE: "Payment is currently unavailable. Please try again later.",
+  PAYMENT_METHOD_LOCKED: "The payment method has already been selected and cannot be changed.",
   TERMS_REQUIRED: "Please accept the Terms & Conditions to continue.",
   DURATION_UNAVAILABLE:
     "This duration is unavailable. Choose another duration.",
@@ -723,3 +729,5 @@ export function localizedMessage(message: string, locale: Locale = "id") {
     ? message.slice(split + separator.length)
     : message.slice(0, split);
 }
+
+export * from "./payment";

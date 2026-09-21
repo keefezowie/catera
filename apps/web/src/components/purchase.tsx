@@ -1,4 +1,5 @@
 "use client";
+import { DirectPayment } from "./direct-payment";
 import { PackageChoiceLibrary } from "./package-choice-library";
 import {
   PurchasePriceBreakdown,
@@ -33,6 +34,7 @@ import {
   addDays,
   type Quote,
   type Checkout,
+  type PaymentAvailability,
   type CustomerState,
   areaOptions,
 } from "@catera/domain";
@@ -49,6 +51,8 @@ import {
 } from "./ui";
 export function CheckoutPage({ id }: { id: string }) {
   const { offers, actor, perform, t, locale } = useApp();
+  const availability = useResource<PaymentAvailability>("payment-methods", () => api.request("payment-methods"));
+  const paymentUnavailable = !!availability.error || !availability.data || (availability.data.mode === "direct" && !availability.data.availableMethods.length);
   const params = useSearchParams();
   const p = offers.find((p) => p.id === id || p.slug === id);
   const [portions, setPortions] = useState(
@@ -430,7 +434,7 @@ export function CheckoutPage({ id }: { id: string }) {
               <ActionForm
                 submit={t("Lanjutkan ke pembayaran", "Continue to payment")}
                 disabled={
-                  !acceptedTerms || !startAvailable || !durationAvailable
+                  !acceptedTerms || !startAvailable || !durationAvailable || paymentUnavailable
                 }
                 actions={(submitButton) => (
                   <div className="checkout-actions">
@@ -438,11 +442,13 @@ export function CheckoutPage({ id }: { id: string }) {
                       <span>{t("Total pembayaran", "Total payment")}</span>
                       <strong>{currency(quote.total, locale)}</strong>
                     </div>
+                    {paymentUnavailable && <p role="status">{t("Pembayaran sedang tidak tersedia. Silakan coba lagi nanti.", "Payment is currently unavailable. Please try again later.")}</p>}
                     {submitButton}
                   </div>
                 )}
                 onSubmit={async () => {
                   if (!acceptedTerms) throw new Error("TERMS_REQUIRED");
+                  if (paymentUnavailable) throw new Error("PAYMENT_UNAVAILABLE");
                   const c = await perform<Checkout>("checkout.create", {
                     acceptedTerms: true,
                     expectedQuote: quote,
@@ -552,14 +558,18 @@ export function PaymentPage({ id }: { id: string }) {
   const { demo, t, locale, perform } = useApp();
   const state = useResource<Checkout>("payment:" + id, () => api.checkout(id));
   const [counter, setCounter] = useState(Date.now());
+  const [checking, setChecking] = useState(false);
+  const [checkError, setCheckError] = useState(false);
   useEffect(() => {
     const timer = setInterval(() => setCounter(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
   useEffect(() => {
     if (state.data?.state !== "pending") return;
-    const timer = setInterval(state.reload, 5000);
-    return () => clearInterval(timer);
+    const refresh = () => { if (document.visibilityState === "visible") state.reload(); };
+    const timer = setInterval(refresh, 5000);
+    document.addEventListener("visibilitychange", refresh);
+    return () => { clearInterval(timer); document.removeEventListener("visibilitychange", refresh); };
   }, [state.data?.state]);
   if (state.error)
     return (
@@ -571,7 +581,7 @@ export function PaymentPage({ id }: { id: string }) {
   const c = state.data,
     seconds = Math.max(
       0,
-      Math.floor((new Date(c.expires_at).getTime() - counter) / 1000),
+      Math.floor((Math.min(Date.parse(c.expires_at), Date.parse(c.payment?.expiresAt || c.expires_at)) - counter) / 1000),
     );
   if (c.state === "refunded" || c.state === "partially_refunded")
     return (
@@ -677,7 +687,9 @@ export function PaymentPage({ id }: { id: string }) {
         </p>
       ) : c.state === "pending" && seconds > 0 ? (
         <>
-          {demo ? (
+          {c.payment?.mode === "direct" ? (
+            <DirectPayment checkout={c} reload={state.reload} />
+          ) : demo ? (
             <ActionForm
               submit={t(
                 "Simulasikan pembayaran berhasil",
@@ -708,14 +720,14 @@ export function PaymentPage({ id }: { id: string }) {
               )}
             </p>
           )}
-          <p className="small muted">
+          {c.payment?.mode !== "direct" && <p className="small muted">
             QRIS · Virtual Account · E-wallet
             <br />
             {t(
               "Status hanya berubah setelah pembayaran dikonfirmasi.",
               "Status changes only after payment confirmation.",
             )}
-          </p>
+          </p>}
         </>
       ) : (
         <Link
@@ -734,9 +746,15 @@ export function PaymentPage({ id }: { id: string }) {
           {t("Buat jadwal baru", "Choose a new schedule")}
         </Link>
       )}
-      <Button className="button secondary" onClick={state.reload}>
+      {c.payment?.mode === "direct" && c.state === "pending" && seconds === 0 && <p className="notice" role="status">{t("Batas pembayaran telah lewat. Jangan bayar menggunakan instruksi lama. Jika sudah membayar, kami masih memeriksa konfirmasinya.", "The payment deadline has passed. Do not pay using the old instructions. If you already paid, we are still checking confirmation.")}</p>}
+      {checkError && <p role="alert">{t("Status belum berhasil diperiksa. Coba lagi.", "Status could not be checked. Please try again.")}</p>}
+      <Button className="button secondary" disabled={checking} onClick={async () => {
+        setChecking(true); setCheckError(false);
+        try { if (c.payment?.mode === "direct") await api.command("checkout.payment.refresh", { id }); state.reload(); }
+        catch { setCheckError(true); } finally { setChecking(false); }
+      }}>
         <RefreshCw size={17} />
-        {t("Periksa status", "Check status")}
+        {checking ? t("Memeriksa…", "Checking…") : t("Periksa status", "Check status")}
       </Button>
     </div>
   );

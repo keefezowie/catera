@@ -4737,3 +4737,16 @@ textarea::placeholder {
 .package-lifecycle {
   grid-column: 1 / -1;
 }
+.direct-payment { margin-block: 1.5rem; text-align: left; }
+.payment-methods { border: 0; padding: 0; margin: 0 0 1rem; min-width: 0; }
+.payment-methods legend { font-weight: 700; margin-bottom: .75rem; }
+.payment-method { display: flex; align-items: center; gap: .8rem; padding: 1rem; border: 1px solid var(--line, #ddd); border-radius: 16px; margin-block: .6rem; cursor: pointer; }
+.payment-method:has(input:checked) { border-color: var(--ink, #234638); background: var(--cream, #faf8f2); }
+.payment-method input { width: 20px; height: 20px; flex-shrink: 0; }
+.payment-method small { display: block; margin-top: .35rem; }
+.payment-account { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; }
+.payment-account strong { font-size: clamp(1.1rem, 5vw, 1.6rem); overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.payment-steps { padding-left: 1.3rem; line-height: 1.65; }
+.payment-steps li { margin-block: .7rem; }
+.payment-qr { display: grid; justify-items: center; gap: .75rem; }
+.payment-qr img { max-width: 100%; height: auto; background: white; }

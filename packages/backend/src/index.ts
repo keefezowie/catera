@@ -31,3 +31,6 @@ export {
   dokuConfig,
 } from "./doku";
 export type { ProviderIdentity } from "./doku";
+
+export { enrichDirectCheckout, filterPaymentAvailability, directMethodReady, submitDirectPayment, reconcileDirectPayment, storeDirectEvent } from "./doku-direct";
+export type { ProviderOperation } from "./payment-provider";
