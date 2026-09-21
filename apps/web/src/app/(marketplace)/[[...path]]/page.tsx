@@ -16,6 +16,9 @@ const routes = [
   "caterers",
   "compare",
   "login",
+  "register",
+  "forgot-password",
+  "reset-password",
   "home",
   "calendar",
   "subscriptions",
@@ -51,6 +54,9 @@ export async function generateMetadata({
               seller: "Caterer workspace",
               admin: "Catera Admin",
               login: "Sign in",
+              register: "Create an account",
+              "forgot-password": "Recover your account",
+              "reset-password": "Set a new password",
             }
           : {
               discover: "Jelajah katering",
@@ -59,6 +65,9 @@ export async function generateMetadata({
               seller: "Ruang katerer",
               admin: "Catera Admin",
               login: "Masuk",
+              register: "Buat akun",
+              "forgot-password": "Pulihkan akun",
+              "reset-password": "Buat kata sandi baru",
             }) as Record<string, string>
       )[path[0]] ||
       (english

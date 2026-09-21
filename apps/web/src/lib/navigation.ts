@@ -11,7 +11,16 @@ export function safeReturnPath(
     return null;
   try {
     const url = new URL(value, "https://catera.invalid");
-    if (url.origin !== "https://catera.invalid" || url.pathname === "/login")
+    if (
+      url.origin !== "https://catera.invalid" ||
+      [
+        "login",
+        "register",
+        "forgot-password",
+        "reset-password",
+        "auth",
+      ].includes(decodeURIComponent(url.pathname).split("/")[1])
+    )
       return null;
     return url.pathname + url.search + url.hash;
   } catch {

@@ -15,6 +15,8 @@ export async function passwordSignIn(
   const credentials = credentialsSchema.parse(input);
   const { data, error } = await client.auth.signInWithPassword(credentials);
   if (error || !data.user || !data.session) {
+    if (error?.code === "email_not_confirmed")
+      throw new Error("EMAIL_NOT_CONFIRMED");
     if (error?.status === 429) throw new Error("AUTH_RATE_LIMITED");
     throw new Error("INVALID_CREDENTIALS");
   }

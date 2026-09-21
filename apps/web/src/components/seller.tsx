@@ -1877,8 +1877,8 @@ export function Onboarding() {
               "Catera meal box illustration",
             )}
           />
-          <Link className="button" href="/login?next=/seller/onboarding">
-            {t("Masuk untuk menjadi mitra", "Sign in to become a partner")}{" "}
+          <Link className="button" href="/register?next=/seller/onboarding">
+            {t("Daftar untuk menjadi mitra", "Register to become a partner")}{" "}
             <ArrowRight size={18} />
           </Link>
         </>

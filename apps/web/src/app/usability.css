@@ -876,3 +876,11 @@ html:has(.seller-operations) {
   html:has(.checkout-actions) { scroll-padding-bottom: calc(249px + env(safe-area-inset-bottom, 0px)); }
   .checkout-fields .checkbox-row { scroll-margin-block: 24px 220px; }
 }
+/* Keep authentication secondary actions separate at narrow widths. */
+.auth-followups {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 24px;
+  margin-top: 12px;
+}

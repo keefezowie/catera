@@ -15,6 +15,8 @@ September 17 seller workspace update: Schedule customer/destination metrics grou
 
 ## Product rules
 
+Web account registration uses name, email and password followed by email verification. Phone OTP remains an alternative. Registration preserves checkout and invitation destinations. Address details are collected when needed for ordering, not as a registration prerequisite. Password recovery uses a verified email link. New identities receive customer access; seller creation and staff invitations retain their existing transactional authorization. Separate email and phone identities are not automatically merged.
+
 1. One slot means one portion for one package/date. A combined lunch/dinner offer reserves its quantity once per day. Its meal fulfillments have separate delivery statuses and share the day's address and date. Recurring package capacity is one value shared by every selected operating weekday; date-specific capacity rows are legacy data and are not seller-editable.
 2. Reserve the complete generated schedule atomically. Portions and purchased terms are fixed. Menu updates can be communicated without rewriting the purchase snapshot.
 3. Cutoff uses the caterer's timezone. A date change must reserve the replacement before releasing the original. Reject duplicate dates, overlapping active/pending subscriptions, unavailable destinations and capacity reductions below commitments.

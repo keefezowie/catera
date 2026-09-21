@@ -108,6 +108,14 @@ try {
   assert.equal((await pool.query("select count(*)::int n from v1.menus where not v1.valid_slot_menu(details,true,false)")).rows[0].n, 0);
   evidence.push("Synthetic slot conversion is repeatable on PostgreSQL; dated menus validate and package templates remain stable.");
   await pool.query(await readFile("supabase/migrations/20260911150142_seller_operations.sql", "utf8"));
+  const registrationUser = crypto.randomUUID();
+  await Promise.all(Array.from({ length: 8 }, () => cmd("profile.ensure", { name: "Synthetic new customer", role: "platform_admin" }, registrationUser)));
+  const registrationRows = await pool.query("select name,role from v1.profiles where id=$1", [registrationUser]);
+  assert.equal(registrationRows.rowCount, 1);
+  assert.equal(registrationRows.rows[0].role, "customer");
+  await cmd("profile.ensure", { name: "Replacement", role: "owner" }, registrationUser);
+  assert.equal((await pool.query("select name from v1.profiles where id=$1", [registrationUser])).rows[0].name, "Synthetic new customer");
+  evidence.push("Concurrent registration creates one customer profile and preserves its name and authority on retry");
   const users = Array.from({ length: 5 }, () => crypto.randomUUID());
   const addresses = [];
   for (const user of users) {

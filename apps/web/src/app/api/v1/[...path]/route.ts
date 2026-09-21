@@ -35,6 +35,8 @@ import {
   type Quote,
 } from "@catera/domain";
 import { session, supabase, demoToken } from "@/lib/auth";
+import { authLifecycle } from "@/lib/auth-lifecycle";
+import { recoveryCookie } from "@/lib/recovery-grant";
 import { passwordSignIn } from "@/lib/password-auth";
 import type { Actor } from "@catera/domain";
 import {
@@ -56,6 +58,10 @@ async function setWorkspaceCookie(value: ReturnType<typeof defaultWorkspace>) {
 const ok = (data: unknown) =>
   Response.json({ data }, { headers: { "Cache-Control": "no-store" } });
 const codes = [
+  "EMAIL_NOT_CONFIRMED",
+  "PASSWORD_REJECTED",
+  "AUTH_UNAVAILABLE",
+  "RECOVERY_EXPIRED",
   "TERMS_REQUIRED",
   "DURATION_UNAVAILABLE",
   "BOOKING_HORIZON",
@@ -294,6 +300,7 @@ export async function POST(request: Request, context: Context) {
         return ok({ workspace });
       }
       if (path[1] === "logout") {
+        (await cookies()).delete(recoveryCookie);
         (await cookies()).delete("catera_v1_demo");
         (await cookies()).delete(workspaceCookieName);
         if (!demoEnabled())
@@ -302,7 +309,13 @@ export async function POST(request: Request, context: Context) {
       }
       if (demoEnabled()) throw new Error("FORBIDDEN");
       const client = await supabase();
+      if (
+        ["register", "resend", "recover", "reset-password"].includes(path[1])
+      ) {
+        return ok(await authLifecycle(path[1], a, client, request));
+      }
       if (path[1] === "password") {
+        (await cookies()).delete(recoveryCookie);
         const result = await passwordSignIn(
           client,
           a,
@@ -328,7 +341,10 @@ export async function POST(request: Request, context: Context) {
       if (path[1] === "send") {
         const { error } = await client.auth.signInWithOtp({
           phone,
-          options: { captchaToken: a.captchaToken },
+          options: {
+            captchaToken: a.captchaToken,
+            shouldCreateUser: a.intent !== "login",
+          },
         });
         if (error) throw new Error("NOT_CONFIGURED");
         return ok({});
@@ -385,9 +401,7 @@ export async function POST(request: Request, context: Context) {
       const command = commandSchema.parse(a);
       // New accountless prepaid customers are created atomically by import.commit.
       // Keep standalone manual acquisition retired.
-      if (
-        (command.action === "customer.save" && !command.payload.id)
-      )
+      if (command.action === "customer.save" && !command.payload.id)
         throw new Error("NOT_AVAILABLE");
       if (command.action === "customer.claim") {
         if (demoEnabled()) throw new Error("PHONE_VERIFICATION_REQUIRED");
@@ -429,7 +443,10 @@ export async function POST(request: Request, context: Context) {
         command.payload = customerMenuResetSchema.parse(command.payload);
       if (command.action === "delivery.statusBatch")
         command.payload = deliveryBatchSchema.parse(command.payload);
-      if (command.action === "checkout.create" && command.payload.acceptedTerms !== true)
+      if (
+        command.action === "checkout.create" &&
+        command.payload.acceptedTerms !== true
+      )
         throw new Error("TERMS_REQUIRED");
       if (command.action === "checkout.create")
         command.payload = checkoutSchema.parse(command.payload);

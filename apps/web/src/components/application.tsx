@@ -44,7 +44,8 @@ import { catalogHref, howItWorksHref } from "@/lib/navigation";
 import { validDay } from "@/lib/meal-calendar";
 import { Catalog, PackagePage, Compare, CatererPage } from "./marketplace";
 import { Customer, DeliveryPage, Messages, Account, Support } from "./customer";
-import { CheckoutPage, PaymentPage, Login } from "./purchase";
+import { CheckoutPage, PaymentPage } from "./purchase";
+import { Login } from "./authentication";
 import { ProfileMenu } from "./profile-menu";
 import dynamic from "next/dynamic";
 const Seller = dynamic(() => import("./seller").then((m) => m.Seller));
@@ -105,7 +106,13 @@ function App({ path, issue }: { path: string[]; issue: string | null }) {
   let body: ReactNode;
   const root = path[0] || "";
   const id = path[1];
-  if (root === "login") body = <Login />;
+  if (
+    root === "login" ||
+    root === "register" ||
+    root === "forgot-password" ||
+    root === "reset-password"
+  )
+    body = <Login key={root} mode={root} />;
   else if (root === "renew") body = <RenewCustomer id={id} />;
   else if (root === "claim") body = <ClaimCustomer token={id} />;
   else if (root === "admin" && id === "settlement") body = <AdminSettlement />;
@@ -290,7 +297,11 @@ function Shell({
         {t("Lewati ke konten", "Skip to content")}
       </a>
       {demo && (
-        <div className="demo-ribbon" role="region" aria-label={t("Mode demo", "Demo mode")}>
+        <div
+          className="demo-ribbon"
+          role="region"
+          aria-label={t("Mode demo", "Demo mode")}
+        >
           {t(
             "Demo eksplorasi · Katerer, menu, dan transaksi menggunakan data sintetis.",
             "Exploration demo · Caterers, meals, and transactions are synthetic.",
@@ -299,7 +310,14 @@ function Shell({
       )}
       {operational ? (
         <>
-          <aside className={"ops-sidebar " + (menu && isAdmin ? "open" : "")} aria-label={isAdmin ? t("Navigasi admin", "Admin navigation") : t("Navigasi katerer", "Caterer navigation")}>
+          <aside
+            className={"ops-sidebar " + (menu && isAdmin ? "open" : "")}
+            aria-label={
+              isAdmin
+                ? t("Navigasi admin", "Admin navigation")
+                : t("Navigasi katerer", "Caterer navigation")
+            }
+          >
             <Brand />
             <WorkspaceIdentity isAdmin={isAdmin} />
             <nav>
@@ -497,9 +515,12 @@ function Shell({
                   <ProfileMenu />
                 </>
               ) : (
-                <Link className="button small" href="/login">
-                  {t("Masuk / Daftar", "Sign in")}
-                </Link>
+                <>
+                  <Link href="/login">{t("Masuk", "Sign in")}</Link>
+                  <Link className="button small" href="/register">
+                    {t("Daftar", "Register")}
+                  </Link>
+                </>
               )}
             </div>
           </div>

@@ -70,6 +70,16 @@ Realtime migration publishes a minimal `catera_v1_events` table when the `supaba
 
 ## 4. Identity and first administrators
 
+Web email registration is `/register`, returning login is `/login`, and recovery starts at `/forgot-password`. Enable general and email signup in the intended V1 Supabase project, keep email confirmations enabled, and configure an eight-character minimum password. The checked-in local configuration enables these settings; it does not modify hosted Auth.
+
+Set `CATERA_PUBLIC_URL` to the canonical app origin and `CATERA_SESSION_SECRET` to a stable, random secret of at least 32 characters shared by the deployment's instances. Recovery fails closed without this secret. A verified recovery link grants ten minutes to update the password in the same session; session replacement or refresh requires a new recovery link. Successful recovery clears the grant and signs out before returning to login.
+
+Configure verified SMTP and copy `supabase/templates/confirmation.html` and `supabase/templates/recovery.html` into the corresponding hosted Auth templates. They append `token_hash` and an explicit `signup` or `recovery` type to the app-generated `RedirectTo`. Add the exact `/auth/confirm` URL for each approved environment to Auth redirect allowlists; avoid broad production wildcards. Links must use the Catera confirmation handler, not an unmodified default Supabase template. For local Supabase, the checked-in templates use the local mail inbox. Match `CATERA_PUBLIC_URL`, the local port, and redirect allowlists when using a non-default port.
+
+Before release, verify fresh signup, email delivery, resend/rate limits, existing-email handling, invalid/expired/reused links, returning login, password recovery, refresh/logout, checkout and seller/invitation continuation using synthetic identities in the correct V1 environment. Confirm new accounts have only customer authority. Preserve the historical pilot. Provider abuse controls and email/SMS delivery are separate hosted gates; local mocks cannot satisfy them. No account linking or native registration changes are included.
+
+Local UI contract checks: `npx playwright test -c playwright.registration.config.ts` uses port 3147 with an unused loopback Auth endpoint and mocked email/OTP API responses. Callback and recovery security tests run in `npm test`; PostgreSQL profile concurrency runs in `npm run test:postgres`. These checks do not claim live SMTP/SMS delivery.
+
 Enable customer phone OTP and configure a supported SMS provider. Configure site URL, allowed redirects, OTP expiry/rate limits and abuse controls for each environment. Verify new signup, returning login, wrong/expired/reused codes, refresh, logout, native secure storage, login-preserved checkout and account access after session expiry. Web sessions use Supabase SSR cookies; native uses SecureStore. No payment is considered successful because login or a return link completed.
 
 Configure verified SMTP for Auth email and operational account communication where email is enabled. The implemented customer notification channels are the persistent inbox and Expo push; an SMTP configuration is not evidence that application email messages are being sent. Record actual test delivery without including codes or secrets in the evidence.

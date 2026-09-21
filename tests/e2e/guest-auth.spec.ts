@@ -19,7 +19,7 @@ test("guests browse and compare without mobile navigation; login and logout upda
   await page.goto("/");
   await expect(page.locator(".mobile-bottom")).toHaveCount(0);
   await expect(
-    page.getByRole("link", { name: "Masuk / Daftar" }),
+    page.getByRole("link", { name: "Daftar", exact: true }),
   ).toBeVisible();
   await expect(page.locator(".site-footer")).toHaveCSS(
     "padding-bottom",
@@ -70,7 +70,7 @@ test("guests browse and compare without mobile navigation; login and logout upda
   await page.setViewportSize({ width: 1440, height: 1000 });
   await expect(page.locator(".desktop-nav")).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "Masuk / Daftar" }),
+    page.getByRole("link", { name: "Daftar", exact: true }),
   ).toBeVisible();
   await page.screenshot({
     path: "output/guest-auth/desktop-guest.png",
@@ -192,7 +192,7 @@ test("guest login keeps sign-in accessible without navigation clearance", async 
     await page.goto("/login");
     await expect(page.locator(".mobile-bottom")).toHaveCount(0);
     await expect(
-      page.getByRole("link", { name: "Masuk / Daftar" }),
+      page.getByRole("link", { name: "Daftar", exact: true }),
     ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Jelajah sebagai pelanggan" }),

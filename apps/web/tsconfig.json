@@ -43,7 +43,9 @@
     ".next-meal-calendar/types/**/*.ts",
     ".next-meal-calendar/dev/types/**/*.ts",
     ".next-package-presentation/types/**/*.ts",
-    ".next-package-presentation/dev/types/**/*.ts"
+    ".next-package-presentation/dev/types/**/*.ts",
+    ".next-registration/types/**/*.ts",
+    ".next-registration/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"
