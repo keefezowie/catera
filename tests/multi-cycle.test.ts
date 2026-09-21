@@ -56,7 +56,7 @@ it("prices and reserves every cycle as one immutable purchase", async () => {
   expect(q.dates).toHaveLength(q.offer.days * 3);
   expect(q.durationDiscount).toBe(preview.durationDiscount);
   expect(q.total).toBe(preview.packageNet + q.serviceFee);
-  const c = await cmd<Checkout>("checkout.create", input({ expectedQuote: q }));
+  const c = await cmd<Checkout>("checkout.create", { acceptedTerms: true, ...(input({ expectedQuote: q })) });
   expect(
     (
       await db.query<any>(
@@ -87,7 +87,7 @@ it("prices and reserves every cycle as one immutable purchase", async () => {
       [c.id],
     ),
   ).rejects.toThrow("IMMUTABLE_TERMS");
-  await expect(cmd("checkout.create", input())).rejects.toThrow("OVERLAP");
+  await expect(cmd("checkout.create", { acceptedTerms: true, ...(input()) })).rejects.toThrow("OVERLAP");
 });
 it("rejects unsupported durations, trial multiplication, promotions and distant schedules", async () => {
   await expect(read("quote", input({ cycles: 2 }))).rejects.toThrow(
@@ -113,7 +113,7 @@ it("a failure on the final date creates no partial holds", async () => {
   const before = (
     await db.query<any>("select count(*)::int n from v1.checkouts")
   ).rows[0].n;
-  await expect(cmd("checkout.create", a)).rejects.toThrow("CAPACITY");
+  await expect(cmd("checkout.create", { acceptedTerms: true, ...(a) })).rejects.toThrow("CAPACITY");
   expect(
     (await db.query<any>("select count(*)::int n from v1.checkouts")).rows[0].n,
   ).toBe(before);
@@ -135,7 +135,7 @@ it("revisions change future quotes without changing held prices", async () => {
     U.owner,
   );
   await expect(
-    cmd("checkout.create", { ...a, expectedQuote: q }),
+    cmd("checkout.create", { acceptedTerms: true, ...({ ...a, expectedQuote: q }) }),
   ).rejects.toThrow("PRICE_CHANGED");
   await expect(
     cmd(

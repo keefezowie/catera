@@ -15,7 +15,7 @@ import { NumericInput } from "./numeric-input";
 export function PackageDurationEditor({ offer }: { offer: Offer }) {
   const { t, locale, perform } = useApp();
   const [options, setOptions] = useState<DurationOption[]>(
-    durationOptions(offer),
+    durationOptions({ ...offer, multiCycleAvailable: true }),
   );
   const [revision, setRevision] = useState(
     offer.durationPricing?.revision ?? 0,
@@ -81,7 +81,11 @@ export function PackageDurationEditor({ offer }: { offer: Offer }) {
               try {
                 preview = current
                   ? purchasePricing(
-                      { ...offer, durationPricing: { revision, options } },
+                      {
+                        ...offer,
+                        multiCycleAvailable: true,
+                        durationPricing: { revision, options },
+                      },
                       portions,
                       cycles,
                     )

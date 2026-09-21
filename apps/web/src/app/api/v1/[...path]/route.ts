@@ -56,6 +56,7 @@ async function setWorkspaceCookie(value: ReturnType<typeof defaultWorkspace>) {
 const ok = (data: unknown) =>
   Response.json({ data }, { headers: { "Cache-Control": "no-store" } });
 const codes = [
+  "TERMS_REQUIRED",
   "DURATION_UNAVAILABLE",
   "BOOKING_HORIZON",
   "PROMOTIONS_DISABLED",
@@ -428,6 +429,8 @@ export async function POST(request: Request, context: Context) {
         command.payload = customerMenuResetSchema.parse(command.payload);
       if (command.action === "delivery.statusBatch")
         command.payload = deliveryBatchSchema.parse(command.payload);
+      if (command.action === "checkout.create" && command.payload.acceptedTerms !== true)
+        throw new Error("TERMS_REQUIRED");
       if (command.action === "checkout.create")
         command.payload = checkoutSchema.parse(command.payload);
       if (command.action === "checkout.create" && !demoEnabled()) {

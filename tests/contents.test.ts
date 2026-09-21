@@ -191,7 +191,7 @@ it("adapts legacy menus without inferring contents or type", () => {
 });
 it("creates structured offers and reserves whole portions, including combined meals", async () => {
   const { id } = await create(true);
-  const c = await command<Checkout>("checkout.create", input(id), U.customer);
+  const c = await command<Checkout>("checkout.create", { acceptedTerms: true, ...(input(id)) }, U.customer);
   expect(c.quote.offer.contentRevision).toBe(1);
   expect(c.quote.offer.nutrition).toEqual(contents(true).nutrition);
   expect(c.quote.offer.menus[0].items).toHaveLength(2);
@@ -216,7 +216,7 @@ it("creates structured offers and reserves whole portions, including combined me
   });
   const c2 = await command<Checkout>(
     "checkout.create",
-    input(both.id),
+    { acceptedTerms: true, ...(input(both.id)) },
     U.customer,
   );
   await command("checkout.demo_pay", { id: c2.id }, U.customer);
@@ -228,7 +228,7 @@ it("creates structured offers and reserves whole portions, including combined me
 });
 it("isolates dated menus by purchased revision, clears nutrition and preserves snapshots", async () => {
   const { id } = await create(true);
-  const c = await command<Checkout>("checkout.create", input(id), U.customer);
+  const c = await command<Checkout>("checkout.create", { acceptedTerms: true, ...(input(id)) }, U.customer);
   await command("checkout.demo_pay", { id: c.id }, U.customer);
   const snapshot = JSON.stringify(
     (await read<CustomerState>("customer")).subscriptions.find(
@@ -389,7 +389,7 @@ it("retains purchased contents when a structured trial changes delivery date", a
   const { id } = await create(true);
   const checkout = await command<Checkout>(
     "checkout.create",
-    { ...input(id), trial: true, startDate: addDays(localDay(), 90) },
+    { acceptedTerms: true, ...({ ...input(id), trial: true, startDate: addDays(localDay(), 90) }) },
     U.customer,
   );
   expect(checkout.quote.dates).toHaveLength(1);
@@ -507,7 +507,7 @@ it("upgrades populated legacy data without changing pending quotes or purchase/p
       old,
       U.customer,
       "catera_v1_command",
-      ["checkout.create", input(P[4]), crypto.randomUUID()],
+      ["checkout.create", { acceptedTerms: true, ...(input(P[4])) }, crypto.randomUUID()],
     );
     const before = (
       await old.query("select snapshot from v1.subscriptions order by id")

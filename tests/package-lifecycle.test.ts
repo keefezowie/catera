@@ -40,12 +40,12 @@ it("enforces owner authorization, stale versions, idempotency and audit atomical
 
 it("hides suspended offers and rejects checkout/import while preserving existing deliveries", async () => {
   const o = await create();
-  const c = await cmd<Checkout>("checkout.create", input(o.id), U.customer);
+  const c = await cmd<Checkout>("checkout.create", { acceptedTerms: true, ...(input(o.id)) }, U.customer);
   await cmd("checkout.demo_pay", { id: c.id }, U.customer);
   const before = await read<CustomerState>("customer", {}, U.customer);
   await cmd("package.suspend", args(o));
   expect((await read<{ items: Offer[] }>("catalog", {}, null)).items.some(p => p.id === o.id)).toBe(false);
-  await expect(cmd("checkout.create", input(o.id), U.customer)).rejects.toThrow("NOT_AVAILABLE");
+  await expect(cmd("checkout.create", { acceptedTerms: true, ...(input(o.id)) }, U.customer)).rejects.toThrow("NOT_AVAILABLE");
   await expect(read("quote", input(o.id), U.customer)).rejects.toThrow("NOT_AVAILABLE");
   await expect(cmd("import.preview", { catererId: K[0], rows: [{ ...input(o.id), customerId: U.customer, remainingDays: 1, externalReference: crypto.randomUUID() }] })).rejects.toThrow("NOT_AVAILABLE");
   const after = await read<CustomerState>("customer", {}, U.customer);
@@ -68,7 +68,7 @@ it("hides suspended offers and rejects checkout/import while preserving existing
 
 it("keeps valid checkout holds payable during suspension and prevents early archive", async () => {
   const o = await create();
-  const c = await cmd<Checkout>("checkout.create", input(o.id), U.customer);
+  const c = await cmd<Checkout>("checkout.create", { acceptedTerms: true, ...(input(o.id)) }, U.customer);
   await cmd("package.suspend", args(o));
   const suspended = (await state()).offers.find(p => p.id === o.id)!;
   await expect(cmd("package.archive", args(suspended))).rejects.toThrow("PACKAGE_HAS_DELIVERIES");
@@ -78,7 +78,7 @@ it("keeps valid checkout holds payable during suspension and prevents early arch
 
 it("archives after holds expire and sends late payments to support without reactivation", async () => {
   const o = await create();
-  const c = await cmd<Checkout>("checkout.create", input(o.id), U.customer);
+  const c = await cmd<Checkout>("checkout.create", { acceptedTerms: true, ...(input(o.id)) }, U.customer);
   await cmd("package.suspend", args(o));
   await db.query("update v1.checkouts set expires_at=now()-interval '1 minute' where id=$1", [c.id]);
   const suspended = (await state()).offers.find(p => p.id === o.id)!;

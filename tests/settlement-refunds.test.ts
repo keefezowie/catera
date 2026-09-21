@@ -18,13 +18,13 @@ async function fixture() {
   ) => localRpc<any>(db, user, "catera_v1_command", [action, payload, key]);
   const sys = (action: string, payload: any = {}) =>
     localRpc<any>(db, null, "catera_v1_system", [action, payload], true);
-  const c = await cmd("checkout.create", {
+  const c = await cmd("checkout.create", { acceptedTerms: true, ...({
     packageId: P[2],
     addressId: A,
     portions: 1,
     startDate: addDays(localDay(), 30),
     trial: false,
-  });
+  }) });
   const s = await cmd("checkout.demo_pay", { id: c.id });
   const allocation = (
     await db.query<any>("select * from v1.allocations where checkout_id=$1", [
@@ -243,13 +243,13 @@ it("refund debt transfers between allocations with balanced immutable offsets", 
       "insert into v1.settlement_entries(caterer_id,allocation_id,kind,amount,source,created_at) values($1,$2,'refund_debit',-5000,'test-debt',v1.settlement_cutoff(now())-interval '1 second')",
       [K[0], f.allocation.id],
     );
-    const c2 = await f.cmd("checkout.create", {
+    const c2 = await f.cmd("checkout.create", { acceptedTerms: true, ...({
       packageId: P[2],
       addressId: A,
       portions: 1,
       startDate: addDays(localDay(), 100),
       trial: false,
-    });
+    }) });
     await f.cmd("checkout.demo_pay", { id: c2.id });
     const a2 = (
       await f.db.query<any>(

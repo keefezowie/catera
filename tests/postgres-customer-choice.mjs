@@ -80,13 +80,13 @@ export async function verifyCustomerChoice(pool, cmd, evidence) {
   const date = addDays(localDay(), 35);
   const checkout = await cmd(
     "checkout.create",
-    {
+    { acceptedTerms: true, ...({
       packageId: p.id,
       portions: 2,
       trial: false,
       startDate: date,
       addressId: ADDRESS_ID,
-    },
+    }) },
     U.customer,
   );
   await cmd("checkout.demo_pay", { id: checkout.id }, U.customer);

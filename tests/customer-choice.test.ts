@@ -155,14 +155,14 @@ async function fixture(
   );
   const checkout = await cmd<Checkout>(
     "checkout.create",
-    {
+    { acceptedTerms: true, ...({
       packageId: p.id,
       portions: 3,
       trial: false,
       startDate: day,
       addressId: ADDRESS_ID,
       paymentMethod: "qris",
-    },
+    }) },
     U.customer,
   );
   await cmd("checkout.demo_pay", { id: checkout.id }, U.customer);

@@ -87,7 +87,7 @@ it("flags stale production snapshots and clears the item after a new revision", 
  expect((await attention()).items.some((i:any)=>i.kind==="production_changed")).toBe(false);
 });
 it("notifies payment recovery states once with checkout-specific links and skips legacy imports",async()=>{
- const c=await cmd("checkout.create",{packageId:P[2],addressId:A,portions:1,startDate:addDays(localDay(),90),trial:false});
+ const c=await cmd("checkout.create",{ acceptedTerms: true, ...({packageId:P[2],addressId:A,portions:1,startDate:addDays(localDay(),90),trial:false}) });
  const notices=async()=>(await db.query<any>("select body,href from v1.notifications where kind='payment' and href=$1",["/payment/"+c.id])).rows;
  expect(await notices()).toHaveLength(1);
  const pendingPush=(await db.query<any>("select id from v1.outbox where kind='push' and payload->>'checkoutId'=$1 and payload->>'expectedState'='pending'",[c.id])).rows[0].id;

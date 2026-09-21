@@ -2435,6 +2435,18 @@ td strong {
   gap: 8px;
   margin-top: 14px;
 }
+.purchase-period {
+  padding: 18px;
+  border-radius: 12px;
+  background: var(--soft);
+  color: var(--forest);
+  font-size: 15px;
+}
+.purchase-period strong { display: block; font-size: clamp(18px, 2vw, 24px); margin-bottom: 6px; }
+.purchase-schedule > details { margin-top: 12px; }
+.sale-attempts { list-style: none; padding: 0; display: grid; gap: 12px; }
+.sale-attempts li { display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; align-items: center; }
+.sale-attempts code { grid-column: 1 / -1; overflow-wrap: anywhere; font-size: 11px; }
 .schedule-preview > span,
 .schedule-preview > div {
   padding: 10px 12px;

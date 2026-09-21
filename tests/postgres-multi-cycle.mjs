@@ -97,7 +97,7 @@ export async function verifyMultiCycle(pool, cmd, evidence) {
     q.dates.at(-1),
   ]);
   const results = await Promise.allSettled(
-    inputs.map((a, i) => cmd("checkout.create", a, users[i])),
+    inputs.map((a, i) => cmd("checkout.create", { acceptedTerms: true, ...(a) }, users[i])),
   );
   assert.equal(results.filter((r) => r.status === "fulfilled").length, 1);
   for (const r of results.filter((r) => r.status === "rejected"))
@@ -136,8 +136,8 @@ export async function verifyMultiCycle(pool, cmd, evidence) {
     startDate: addDays(q.dates.at(-1), 1),
   };
   const renewals = await Promise.allSettled([
-    cmd("checkout.create", renew, users[winner]),
-    cmd("checkout.create", renew, users[winner]),
+    cmd("checkout.create", { acceptedTerms: true, ...(renew) }, users[winner]),
+    cmd("checkout.create", { acceptedTerms: true, ...(renew) }, users[winner]),
   ]);
   assert.equal(renewals.filter((r) => r.status === "fulfilled").length, 1);
   const day = (

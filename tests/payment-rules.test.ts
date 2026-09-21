@@ -55,7 +55,7 @@ async function paid(c: Checkout, eventId = crypto.randomUUID()) {
   });
 }
 it("combined packages reserve portions once and create both linked meals", async () => {
-  const c = await command<Checkout>("checkout.create", input());
+  const c = await command<Checkout>("checkout.create", { acceptedTerms: true, ...(input()) });
   await paid(c);
   const d = (
     await read<CustomerState>("customer", {
@@ -72,7 +72,7 @@ it("combined packages reserve portions once and create both linked meals", async
   expect(r.rows[0].n).toBe(30);
 });
 it("verified callbacks deduplicate and out-of-order expiration cannot undo paid subscriptions", async () => {
-  const c = await command<Checkout>("checkout.create", input(P[3]));
+  const c = await command<Checkout>("checkout.create", { acceptedTerms: true, ...(input(P[3])) });
   const id = crypto.randomUUID();
   await paid(c, id);
   expect(await paid(c, id)).toEqual({ duplicate: true });
@@ -93,7 +93,7 @@ it("verified callbacks deduplicate and out-of-order expiration cannot undo paid 
   expect(r.rows[0].n).toBe(1);
 });
 it("missing amount or mismatched callback is rejected before activation", async () => {
-  const c = await command<Checkout>("checkout.create", input(P[4]));
+  const c = await command<Checkout>("checkout.create", { acceptedTerms: true, ...(input(P[4])) });
   await sys("payment.attach", { id: c.id, providerId: "session-" + c.id });
   await expect(
     sys("payment.event", {
@@ -111,7 +111,7 @@ it("missing amount or mismatched callback is rejected before activation", async 
 it("late payment reacquires all released dates or opens exactly one exception", async () => {
   const c = await command<Checkout>(
     "checkout.create",
-    input(P[0], { startDate: addDays(localDay(), 100) }),
+    { acceptedTerms: true, ...(input(P[0], { startDate: addDays(localDay(), 100) })) },
   );
   await sys("payment.attach", { id: c.id, providerId: "session-" + c.id });
   await sys("payment.attach", { id: c.id, providerId: "session-" + c.id });
@@ -146,7 +146,7 @@ it("late payment reacquires all released dates or opens exactly one exception", 
 it("late payment with free capacity recreates the complete reservation", async () => {
   const c = await command<Checkout>(
     "checkout.create",
-    input(P[1], { startDate: addDays(localDay(), 120) }),
+    { acceptedTerms: true, ...(input(P[1], { startDate: addDays(localDay(), 120) })) },
   );
   await sys("payment.attach", { id: c.id, providerId: "session-" + c.id });
   await db.query(
@@ -168,28 +168,28 @@ it("late payment with free capacity recreates the complete reservation", async (
 it("a successful trial blocks another package trial from the same caterer", async () => {
   const c = await command<Checkout>(
     "checkout.create",
-    input(P[0], {
+    { acceptedTerms: true, ...(input(P[0], {
       trial: true,
       startDate: addDays(localDay(), 150),
       portions: 1,
-    }),
+    })) },
   );
   await paid(c);
   await expect(
     command(
       "checkout.create",
-      input(P[2], {
+      { acceptedTerms: true, ...(input(P[2], {
         trial: true,
         startDate: addDays(localDay(), 160),
         portions: 1,
-      }),
+      })) },
     ),
   ).rejects.toThrow("TRIAL_USED");
 });
 it("address edits cannot mutate a pending purchase address", async () => {
   const c = await command<Checkout>(
     "checkout.create",
-    input(P[3], { startDate: addDays(localDay(), 180) }),
+    { acceptedTerms: true, ...(input(P[3], { startDate: addDays(localDay(), 180) })) },
   );
   await command("address.save", {
     id: A,

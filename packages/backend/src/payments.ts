@@ -30,6 +30,7 @@ async function xendit(
   return r.json();
 }
 export async function createPaymentSession(c: Checkout) {
+  if (!c.terms_accepted_at || !c.terms_version) throw new Error("TERMS_REQUIRED");
   if (c.quote.settlementModel === "delivery_earned_v1")
     assertEarnedCollection(c.quote.offer.catererId);
   const origin = process.env.CATERA_PUBLIC_URL;

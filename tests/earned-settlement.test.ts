@@ -20,13 +20,13 @@ const sys = (action: string, payload: any = {}) =>
   localRpc<any>(db, null, "catera_v1_system", [action, payload], true);
 beforeAll(async () => {
   db = await createDemoDatabase(true);
-  checkout = await cmd("checkout.create", {
+  checkout = await cmd("checkout.create", { acceptedTerms: true, ...({
     packageId: P[2],
     addressId: A,
     portions: 1,
     startDate: addDays(localDay(), 5),
     trial: false,
-  });
+  }) });
   await cmd("checkout.demo_pay", { id: checkout.id });
   days = (
     await db.query<any>(

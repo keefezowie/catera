@@ -29,14 +29,19 @@ export const durationPricingSchema = z.object({
   options: durationOptionsSchema,
 });
 export function durationOptions(
-  offer: Pick<Offer, "durationPricing">,
+  offer: Pick<Offer, "durationPricing" | "multiCycleAvailable">,
 ): DurationOption[] {
-  return offer.durationPricing?.options ?? [{ cycles: 1, discountPercent: 0 }];
+  const options = offer.durationPricing?.options ?? [
+    { cycles: 1, discountPercent: 0 },
+  ];
+  return offer.multiCycleAvailable === false
+    ? options.filter((o) => o.cycles === 1)
+    : options;
 }
 export function purchasePricing(
   offer: Pick<
     Offer,
-    "price" | "days" | "tiers" | "trialPrice" | "durationPricing"
+    "price" | "days" | "tiers" | "trialPrice" | "durationPricing" | "multiCycleAvailable"
   >,
   portions: number,
   cycles = 1,

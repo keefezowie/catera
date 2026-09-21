@@ -4,7 +4,7 @@ import {
   PurchasePriceBreakdown,
   PurchaseSchedule,
 } from "./purchase-price-breakdown";
-import { durationOptions } from "@catera/domain";
+import { durationOptions, purchaseStartAvailable } from "@catera/domain";
 import { Select, SelectOption } from "./select";
 import { DatePicker } from "./date-picker";
 import { OptionalSection } from "./optional-section";
@@ -273,6 +273,15 @@ export function CheckoutPage({ id }: { id: string }) {
     [step, setStep] = useState(1),
     [restored, setRestored] = useState(false);
   const trial = params.get("trial") === "1";
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  const startAvailable = !!p && purchaseStartAvailable(p, date, now);
+  const durationAvailable =
+    !!p && durationOptions(p).some((o) => o.cycles === (trial ? 1 : cycles));
   const renewedFrom = params.get("renewedFrom") || undefined;
   const stepHeading = useRef<HTMLHeadingElement>(null);
   const previousStep = useRef(step);
@@ -332,6 +341,7 @@ export function CheckoutPage({ id }: { id: string }) {
   }, [state.data, address, restored]);
   useEffect(() => {
     setQuote(null);
+    setAcceptedTerms(false);
     setStep(1);
   }, [portions, date, address, cycles]);
   if (actor && state.error)
@@ -482,7 +492,13 @@ export function CheckoutPage({ id }: { id: string }) {
           {step === 1 ? (
             <ActionForm
               submit={t("Tinjau jadwal & harga", "Review schedule & price")}
-              disabled={!restored || state.loading || !address}
+              disabled={
+                !restored ||
+                state.loading ||
+                !address ||
+                !startAvailable ||
+                !durationAvailable
+              }
               onSubmit={async () => {
                 const q = await api.quote({
                   packageId: p.id,
@@ -494,6 +510,7 @@ export function CheckoutPage({ id }: { id: string }) {
                   renewedFrom,
                   invite: params.get("invite") || "",
                 });
+                setAcceptedTerms(false);
                 setQuote(q);
                 setStep(2);
               }}
@@ -534,11 +551,22 @@ export function CheckoutPage({ id }: { id: string }) {
               <Field label={t("Mulai tanggal", "Start date")}>
                 <DatePicker
                   required
-                  min={localDay()}
+                  min={localDay(now, p.timezone)}
+                  isDateUnavailable={(day) =>
+                    !purchaseStartAvailable(p, day, now)
+                  }
                   value={date}
                   onValueChange={setDate}
                 />
               </Field>
+              {!startAvailable && (
+                <p role="status">
+                  {t(
+                    "Pilih tanggal pengantaran yang belum melewati batas pemesanan katerer.",
+                    "Choose a delivery date before the caterer's purchase cutoff.",
+                  )}
+                </p>
+              )}
               <Field label={t("Alamat pengantaran", "Delivery address")}>
                 <Select
                   required
@@ -596,11 +624,22 @@ export function CheckoutPage({ id }: { id: string }) {
                   </p>
                 </Field>
               )}
+              {!durationAvailable && (
+                <p role="status">
+                  {t(
+                    "Durasi ini belum tersedia. Pilih durasi lain.",
+                    "This duration is unavailable. Choose another duration.",
+                  )}
+                </p>
+              )}
             </ActionForm>
           ) : (
             quote && (
               <ActionForm
                 submit={t("Lanjutkan ke pembayaran", "Continue to payment")}
+                disabled={
+                  !acceptedTerms || !startAvailable || !durationAvailable
+                }
                 actions={(submitButton) => (
                   <div className="checkout-actions">
                     <div>
@@ -611,7 +650,9 @@ export function CheckoutPage({ id }: { id: string }) {
                   </div>
                 )}
                 onSubmit={async () => {
+                  if (!acceptedTerms) throw new Error("TERMS_REQUIRED");
                   const c = await perform<Checkout>("checkout.create", {
+                    acceptedTerms: true,
                     expectedQuote: quote,
                     packageId: p.id,
                     addressId: address,
@@ -636,7 +677,10 @@ export function CheckoutPage({ id }: { id: string }) {
                   <Button
                     type="button"
                     className="text-button"
-                    onClick={() => setStep(1)}
+                    onClick={() => {
+                      setAcceptedTerms(false);
+                      setStep(1);
+                    }}
                   >
                     {t("Ubah", "Edit")}
                   </Button>
@@ -655,6 +699,14 @@ export function CheckoutPage({ id }: { id: string }) {
                 </div>
                 <PurchasePriceBreakdown quote={quote} />
                 <PurchaseSchedule quote={quote} />
+                {!startAvailable && (
+                  <p role="status">
+                    {t(
+                      "Batas pemesanan sudah lewat. Ubah tanggal mulai sebelum melanjutkan.",
+                      "The purchase cutoff has passed. Edit your start date before continuing.",
+                    )}
+                  </p>
+                )}
                 <div className="notice">
                   <ShieldCheck size={20} />
                   <p>
@@ -674,12 +726,28 @@ export function CheckoutPage({ id }: { id: string }) {
                   </p>
                 </div>
                 <label className="checkbox-row">
-                  <Checkbox required />
+                  <Checkbox
+                    required
+                    checked={acceptedTerms}
+                    onChange={(e) => setAcceptedTerms(e.target.checked)}
+                    aria-describedby="checkout-terms-reminder"
+                  />
                   {t(
-                    "Saya sudah memeriksa jadwal, alamat, dan aturan paket.",
-                    "I have reviewed the schedule, address, and package rules.",
+                    "Saya menyetujui Syarat & Ketentuan pembelian, termasuk jadwal, alamat, harga, dan aturan paket yang ditampilkan.",
+                    "I accept the purchase Terms & Conditions, including the displayed schedule, address, price, and package rules.",
                   )}
                 </label>
+                <p
+                  id="checkout-terms-reminder"
+                  className="small muted"
+                  role="status"
+                >
+                  {!acceptedTerms &&
+                    t(
+                      "Setujui Syarat & Ketentuan untuk melanjutkan.",
+                      "Please accept the Terms & Conditions to continue.",
+                    )}
+                </p>
               </ActionForm>
             )
           )}

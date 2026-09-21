@@ -39,6 +39,7 @@ function errorCode(error: unknown) {
     : "PROVIDER_NETWORK_UNCERTAIN";
 }
 export async function createPaymentSession(c: Checkout, sys: System = system) {
+  if (!c.terms_accepted_at || !c.terms_version) throw new Error("TERMS_REQUIRED");
   if (c.provider !== "doku") return xendit.createPaymentSession(c);
   assertDokuIdentity({
     provider: c.provider,

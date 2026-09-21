@@ -49,13 +49,13 @@ beforeAll(async () => {
       payload,
       crypto.randomUUID(),
     ]);
-  const co = await cmd("checkout.create", {
+  const co = await cmd("checkout.create", { acceptedTerms: true, ...({
     packageId: P[2],
     addressId: A,
     portions: 1,
     startDate: addDays(localDay(), 5),
     trial: false,
-  });
+  }) });
   checkoutId = co.id;
   await cmd("checkout.demo_pay", { id: co.id });
   await db.query(

@@ -50,7 +50,10 @@ export type Caterer = {
   review_note?: string;
   offers?: Offer[];
 };
+export { purchaseStartAvailable } from "./checkout-eligibility";
+export { salesHistory } from "./sales-history";
 export type Offer = {
+  multiCycleAvailable?: boolean;
   durationPricing?: import("./purchase-pricing").DurationPricing;
   id: string;
   slug: string;
@@ -87,6 +90,7 @@ export type Offer = {
   version: number;
 };
 export type Quote = {
+  address?: Address;
   pricingVersion?: number;
   cycles?: number;
   daysPerCycle?: number;
@@ -151,6 +155,8 @@ export type Delivery = {
   canChange: boolean;
 };
 export type Checkout = {
+  terms_accepted_at?: string | null;
+  terms_version?: string | null;
   provider?: string | null;
   provider_environment?: string | null;
   provider_merchant?: string | null;
@@ -268,6 +274,9 @@ export type SellerState = {
   cases: SupportCase[];
   customers: { id: string; name: string; source: string }[];
   transactions: {
+    user_id?: string | null;
+    package_id?: string;
+    address_id?: string | null;
     customerName?: string | null;
     id: string;
     state: string;
@@ -339,6 +348,7 @@ export const addressSchema = z.object({
   version: z.number().int().optional(),
 });
 export const checkoutSchema = z.object({
+  acceptedTerms: z.boolean().optional(),
   cycles: z.number().int().min(1).max(6).default(1),
   renewedFrom: z.uuid().optional(),
   packageId: z.uuid(),
@@ -531,6 +541,7 @@ export const statusLabel = (status: string, locale: Locale = "id") =>
         pending: "Payment pending",
         paid: "Paid",
         expired: "Expired",
+        failed: "Failed",
         active: "Active",
         completed: "Completed",
         cancelled: "Cancelled",
@@ -565,6 +576,7 @@ export const statusLabel = (status: string, locale: Locale = "id") =>
         pending: "Menunggu pembayaran",
         paid: "Dibayar",
         expired: "Kedaluwarsa",
+        failed: "Gagal",
         active: "Aktif",
         completed: "Selesai",
         cancelled: "Dibatalkan",
@@ -591,6 +603,7 @@ export const statusLabel = (status: string, locale: Locale = "id") =>
         payment_exception: "Pembayaran perlu ditinjau",
       }[status] || status;
 export const errors: Record<string, string> = {
+  TERMS_REQUIRED: "Setujui Syarat & Ketentuan untuk melanjutkan.",
   DURATION_UNAVAILABLE: "Durasi ini belum tersedia. Pilih durasi lain.",
   BOOKING_HORIZON:
     "Seluruh pengantaran harus selesai dalam 366 hari ke depan. Pilih durasi lebih pendek atau tanggal lebih awal.",
@@ -642,6 +655,7 @@ export const errors: Record<string, string> = {
     "Tanggal ini memiliki pesanan. Selesaikan pesanan sebelum menutupnya.",
 };
 const errorsEn: Record<string, string> = {
+  TERMS_REQUIRED: "Please accept the Terms & Conditions to continue.",
   DURATION_UNAVAILABLE:
     "This duration is unavailable. Choose another duration.",
   BOOKING_HORIZON:

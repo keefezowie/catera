@@ -1,5 +1,5 @@
 {
-  "at": "2026-09-20T06:04:32.169Z",
+  "at": "2026-09-21T02:58:23.122Z",
   "passed": [
     "Synthetic slot conversion is repeatable on PostgreSQL; dated menus validate and package templates remain stable.",
     "Five simultaneous purchases: exactly three committed at capacity three; complete schedules reserved.",
@@ -23,6 +23,7 @@
     "Delivery issues: concurrent retries create one report; simultaneous seller actions accept one version, preserve money/reservations, retain immutable history, and deny direct authenticated reads.",
     "Concurrent maintenance workers complete without duplicate reminder notifications or dedupe conflicts.",
     "Hosted worker queries: settlement polling executes; five concurrent outbox workers claim each job once with PostgreSQL data-modifying CTEs.",
-    "DOKU: five concurrent submissions obtain one network claim; concurrent callback insertion/processing activates one subscription/allocation; provider identity survives rollback; legacy event route and client privileges cannot mutate DOKU operations."
+    "DOKU: five concurrent submissions obtain one network claim; concurrent callback insertion/processing activates one subscription/allocation; provider identity survives rollback; legacy event route and client privileges cannot mutate DOKU operations.",
+    "Checkout consent rejects missing acceptance before side effects; simultaneous retries produce one checkout, one acceptance timestamp and one payment job."
   ]
 }

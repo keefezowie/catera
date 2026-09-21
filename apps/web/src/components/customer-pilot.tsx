@@ -1,7 +1,7 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { normalizeCustomerPhone, durationOptions } from "@catera/domain";
 import { api, useApp, useResource } from "./context";
 import { ActionForm, ErrorNotice, Field, Heading, Loading } from "./ui";
@@ -126,8 +126,8 @@ export function RenewCustomer({ id }: { id: string }) {
     "renewal:" + id + ":" + replacement + ":" + cycles,
     () => api.renewalContext(id, replacement || undefined, cycles),
   );
-  const [ready, setReady] = useState("");
-  useEffect(() => setReady(""), [cycles, replacement]);
+  const router = useRouter();
+  const [navigating, startNavigation] = useTransition();
   if (!state.data)
     return state.error ? (
       <ErrorNotice message={state.error} retry={state.reload} />
@@ -158,7 +158,6 @@ export function RenewCustomer({ id }: { id: string }) {
           onValueChange={(v) => {
             setReplacement(v);
             setCycles(1);
-            setReady("");
           }}
         >
           <SelectOption value="">
@@ -209,7 +208,7 @@ export function RenewCustomer({ id }: { id: string }) {
         </p>
       )}
       <ActionForm
-        disabled={r.replacementRequired || !r.available}
+        disabled={navigating || r.replacementRequired || !r.available}
         submit={t(
           "Gunakan alamat & tinjau pembelian",
           "Use address & review purchase",
@@ -226,17 +225,19 @@ export function RenewCustomer({ id }: { id: string }) {
                 instructions: r.address.instructions || "",
               })
             ).id;
-          setReady(
-            "/checkout/" +
-              r.packageId +
-              "?" +
-              new URLSearchParams({
-                renewedFrom: r.subscriptionId,
-                cycles: String(cycles),
-                portions: String(r.portions),
-                startDate: r.startDate,
-                addressId,
-              }),
+          startNavigation(() =>
+            router.push(
+              "/checkout/" +
+                r.packageId +
+                "?" +
+                new URLSearchParams({
+                  renewedFrom: r.subscriptionId,
+                  cycles: String(cycles),
+                  portions: String(r.portions),
+                  startDate: r.startDate,
+                  addressId,
+                }),
+            ),
           );
         }}
       >
@@ -247,11 +248,6 @@ export function RenewCustomer({ id }: { id: string }) {
           )}
         </p>
       </ActionForm>
-      {ready && (
-        <Link className="button" href={ready}>
-          {t("Lanjutkan ke pembayaran", "Continue to checkout")}
-        </Link>
-      )}
     </section>
   );
 }

@@ -14,7 +14,7 @@ export async function verifyPackageLifecycle(pool, cmd, evidence) {
     await lock.query("begin");
     await lock.query("select set_config('request.jwt.claim.sub',$1,true)", [U.owner]);
     await lock.query("select public.catera_v1_command('package.suspend',$1,$2)", [payload(p.id), crypto.randomUUID()]);
-    const buying = cmd("checkout.create", input(p.id), U.customer);
+    const buying = cmd("checkout.create", { acceptedTerms: true, ...(input(p.id)) }, U.customer);
     const rejected = assert.rejects(buying, /NOT_AVAILABLE/);
     await lock.query("commit");
     await rejected;
@@ -27,7 +27,7 @@ export async function verifyPackageLifecycle(pool, cmd, evidence) {
   // A pending payment may either activate first and block archive, or arrive
   // after archive and enter support. Neither ordering loses an obligation.
   const q = await create();
-  const checkout = await cmd("checkout.create", input(q.id), U.customer);
+  const checkout = await cmd("checkout.create", { acceptedTerms: true, ...(input(q.id)) }, U.customer);
   await cmd("package.suspend", payload(q.id), U.owner);
   await pool.query("update v1.checkouts set expires_at=now()-interval '1 minute' where id=$1", [checkout.id]);
   const race = await Promise.allSettled([

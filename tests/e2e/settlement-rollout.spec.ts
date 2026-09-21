@@ -17,14 +17,14 @@ for (const locale of ["id", "en"])
     await expect(
       page.getByText(
         locale === "en"
-          ? "Delivery earnings reporting is not available yet. Your purchase history and previous payouts remain available below."
-          : "Laporan pendapatan per pengantaran belum tersedia. Riwayat pembelian dan pencairan sebelumnya tetap tersedia di bawah.",
+          ? "Delivery earnings reporting is not available yet. Your sales and previous payouts remain available below."
+          : "Laporan pendapatan per pengantaran belum tersedia. Penjualan dan pencairan sebelumnya tetap tersedia di bawah.",
         { exact: true },
       ),
     ).toBeVisible();
     await expect(
       page.getByRole("heading", {
-        name: locale === "en" ? "Purchase history" : "Riwayat pembelian",
+        name: locale === "en" ? "Sales" : "Penjualan",
       }),
     ).toBeVisible();
     await expect(

@@ -80,7 +80,7 @@ it("reviewed quotes cannot silently change before a purchase", async () => {
     [P[3]],
   );
   await expect(
-    command("checkout.create", { ...payload, expectedQuote: quote }),
+    command("checkout.create", { acceptedTerms: true, ...({ ...payload, expectedQuote: quote }) }),
   ).rejects.toThrow("PRICE_CHANGED");
 });
 it("support authorization keeps cancellation, refunds and reconciliation separate", async () => {
@@ -175,14 +175,14 @@ it("records immutable production snapshots including meal and trial totals", asy
   expect(r.revision).toBe(1);
 });
 it("combined meals fulfill independently while sharing one daily reservation", async () => {
-  const c = await command<Checkout>("checkout.create", {
+  const c = await command<Checkout>("checkout.create", { acceptedTerms: true, ...({
     packageId: P[2],
     addressId: A,
     portions: 2,
     startDate: addDays(localDay(), 180),
     trial: false,
     promo: "",
-  });
+  }) });
   await command("checkout.demo_pay", { id: c.id });
   const paid = await read<Checkout>("checkout", { id: c.id });
   let day = (
@@ -246,14 +246,14 @@ it("rescheduling cannot extend an active subscription across a pending renewal",
   const active = (await read<CustomerState>("customer")).subscriptions.find(
     (s) => s.package_id === P[1],
   )!;
-  const c = await command<Checkout>("checkout.create", {
+  const c = await command<Checkout>("checkout.create", { acceptedTerms: true, ...({
     packageId: P[1],
     addressId: A,
     portions: 1,
     startDate: addDays(active.ends_on, 7),
     trial: false,
     promo: "",
-  });
+  }) });
   const d = (await read<CustomerState>("customer")).deliveries.find(
     (d) => d.subscription_id === active.id,
   )!;

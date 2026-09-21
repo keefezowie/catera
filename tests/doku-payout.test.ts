@@ -25,13 +25,13 @@ beforeAll(async () => {
       merchant: provider === "doku" ? "MCH-test" : "",
       reason: "Synthetic source separation",
     });
-    const c = await cmd("checkout.create", {
+    const c = await cmd("checkout.create", { acceptedTerms: true, ...({
       packageId: P[0],
       addressId: A,
       portions: 1,
       startDate: addDays(localDay(), 100 + i * 30),
       trial: false,
-    });
+    }) });
     await cmd("checkout.demo_pay", { id: c.id });
     await db.query(
       "insert into v1.settlement_entries(caterer_id,allocation_id,day_id,kind,amount,source,created_at) select a.caterer_id,a.id,d.day_id,'earned',d.amount,'doku-test:'||d.day_id,v1.settlement_cutoff(now())-interval '1 second' from v1.settlement_day_allocations d join v1.allocations a on a.id=d.allocation_id where a.checkout_id=$1 order by d.ordinal limit 1",

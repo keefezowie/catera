@@ -284,13 +284,13 @@ it("links only a paid renewal and counts actual Catera payments independently of
   expect(context.available).toBe(true);
   const c = await cmd(
     "checkout.create",
-    {
+    { acceptedTerms: true, ...({
       packageId: context.packageId,
       portions: context.portions,
       addressId: context.addressId,
       startDate: context.startDate,
       renewedFrom: subscription,
-    },
+    }) },
     user,
   );
   const metrics = () =>
@@ -351,7 +351,7 @@ it("snapshots approved per-seller prices and preserves accepted checkout prices 
     addressId: ctx.addressId,
     startDate: addDays(localDay(), 100),
   };
-  const c = await cmd("checkout.create", input, user);
+  const c = await cmd("checkout.create", { acceptedTerms: true, ...(input) }, user);
   expect(c.quote.serviceFee).toBe(1234);
   expect(c.quote.pricingPolicy.id).toBe(policy.id);
   const monthly = await cmd(
@@ -477,13 +477,13 @@ it("blocks moving a previous delivery into a pending renewal of a different pack
   const ctx = await read("renewal-context", { id: s.id, packageId: P[2] }, who);
   const c = await cmd(
     "checkout.create",
-    {
+    { acceptedTerms: true, ...({
       packageId: P[2],
       portions: 1,
       startDate: ctx.startDate,
       addressId: ctx.addressId,
       renewedFrom: s.id,
-    },
+    }) },
     who,
   );
   const d = (

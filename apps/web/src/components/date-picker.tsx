@@ -33,6 +33,7 @@ type DatePickerProps = {
   id?: string;
   min?: string;
   max?: string;
+  isDateUnavailable?: (day: string) => boolean;
   required?: boolean;
   disabled?: boolean;
   allowClear?: boolean;
@@ -57,6 +58,7 @@ export function DatePicker({
   id,
   min = earliestDay,
   max = latestDay,
+  isDateUnavailable,
   required = false,
   disabled = false,
   allowClear = false,
@@ -75,9 +77,18 @@ export function DatePicker({
   const selected = controlled ? value : internalValue;
   const { locale, t } = useApp();
   const today = localDay();
-  const initialFocus = validDay(selected)
-    ? selected
-    : clampDay(today, min, max);
+  const unavailable = (day: string) =>
+    day < min || day > max || !!isDateUnavailable?.(day);
+  const availableFocus = (day: string, direction = 1) => {
+    let next = clampDay(day, min, max);
+    for (let i = 0; unavailable(next) && i < 366; i++) {
+      const candidate = addDays(next, direction);
+      if (candidate < min || candidate > max) return next;
+      next = candidate;
+    }
+    return next;
+  };
+  const initialFocus = availableFocus(validDay(selected) ? selected : today);
   const [visibleMonth, setVisibleMonth] = useState(monthOf(initialFocus));
   const [open, setOpen] = useState(false);
   const [focusDay, setFocusDay] = useState(initialFocus);
@@ -101,7 +112,7 @@ export function DatePicker({
   const days = datesBetween(firstVisibleDay, addDays(firstVisibleDay, 41));
   const canGoBack = shiftMonth(visibleMonth, -1) >= monthOf(min);
   const canGoForward = shiftMonth(visibleMonth, 1) <= monthOf(max);
-  const todayAvailable = today >= min && today <= max;
+  const todayAvailable = !unavailable(today);
 
   useLayoutEffect(() => {
     if (open)
@@ -120,12 +131,19 @@ export function DatePicker({
   }
 
   function choose(day: string) {
+    if (day && unavailable(day)) return;
     update(day);
     close();
   }
 
   function moveFocus(day: string, amount: number) {
-    const next = clampDay(addDays(day, amount), min, max);
+    let next = clampDay(addDays(day, amount), min, max);
+    for (let i = 0; unavailable(next) && i < 366; i++) {
+      const candidate = addDays(next, amount < 0 ? -1 : 1);
+      if (candidate < min || candidate > max) return;
+      next = candidate;
+    }
+    if (unavailable(next)) return;
     setFocusDay(next);
     if (monthOf(next) !== visibleMonth) setVisibleMonth(monthOf(next));
   }
@@ -168,8 +186,11 @@ export function DatePicker({
         min,
         max,
       );
-      setFocusDay(target);
-      setVisibleMonth(monthOf(target));
+      const next = availableFocus(target, event.key === "PageUp" ? -1 : 1);
+      if (!unavailable(next)) {
+        setFocusDay(next);
+        setVisibleMonth(monthOf(next));
+      }
     }
   }
 
@@ -205,9 +226,9 @@ export function DatePicker({
             data-value={selected}
             disabled={disabled}
             onClick={() => {
-              const next = validDay(selected)
-                ? selected
-                : clampDay(today, min, max);
+              const next = availableFocus(
+                validDay(selected) ? selected : today,
+              );
               setVisibleMonth(monthOf(next));
               setFocusDay(next);
             }}
@@ -262,7 +283,7 @@ export function DatePicker({
             </span>
           ))}
           {days.map((day) => {
-            const unavailable = day < min || day > max;
+            const dayUnavailable = unavailable(day);
             return (
               <Button
                 key={day}
@@ -270,7 +291,7 @@ export function DatePicker({
                 role="gridcell"
                 data-calendar-day={day}
                 className={monthOf(day) !== visibleMonth ? "outside-month" : ""}
-                disabled={unavailable}
+                disabled={dayUnavailable}
                 tabIndex={day === focusDay ? 0 : -1}
                 aria-label={format(day, {
                   weekday: "long",

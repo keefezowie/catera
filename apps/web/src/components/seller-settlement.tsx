@@ -75,9 +75,7 @@ function SettlementScreen({
   const tabs = [
     { id: "payouts", name: t("Pencairan", "Payouts") },
     { id: "entries", name: t("Aktivitas pendapatan", "Earnings activity") },
-    ...(purchases
-      ? [{ id: "purchases", name: t("Pembelian", "Purchases") }]
-      : []),
+    ...(purchases ? [{ id: "purchases", name: t("Penjualan", "Sales") }] : []),
   ];
   const keyboard = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
     let next = index;
@@ -371,8 +369,8 @@ export function SettlementUnavailableNotice() {
       <h2>{t("Pendapatan & pencairan", "Earnings & payouts")}</h2>
       <p>
         {t(
-          "Laporan pendapatan per pengantaran belum tersedia. Riwayat pembelian dan pencairan sebelumnya tetap tersedia di bawah.",
-          "Delivery earnings reporting is not available yet. Your purchase history and previous payouts remain available below.",
+          "Laporan pendapatan per pengantaran belum tersedia. Penjualan dan pencairan sebelumnya tetap tersedia di bawah.",
+          "Delivery earnings reporting is not available yet. Your sales and previous payouts remain available below.",
         )}
       </p>
     </section>

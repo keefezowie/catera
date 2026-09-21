@@ -50,6 +50,11 @@ export function PurchasePriceBreakdown({ quote: q }: { quote: Quote }) {
 }
 export function PurchaseSchedule({ quote: q }: { quote: Quote }) {
   const { t, locale } = useApp();
+  const format = (date: string) =>
+    new Date(date + "T12:00:00Z").toLocaleDateString(
+      locale === "id" ? "id-ID" : "en-GB",
+      { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" },
+    );
   const size = q.trial ? 1 : (q.daysPerCycle ?? q.dates.length);
   const groups = Array.from(
     { length: Math.ceil(q.dates.length / size) },
@@ -57,14 +62,23 @@ export function PurchaseSchedule({ quote: q }: { quote: Quote }) {
   );
   return (
     <div className="purchase-schedule">
-      <p>
-        {q.dates[0]} — {q.dates.at(-1)} · {q.dates.length}{" "}
-        {t("hari pengantaran", "delivery days")}
+      <p className="purchase-period">
+        <strong>
+          {format(q.dates[0])} → {format(q.dates.at(-1)!)}
+        </strong>{" "}
+        · {q.dates.length} {t("hari pengantaran", "delivery days")}
       </p>
+      <Facts
+        rows={[
+          [t("Pengantaran pertama", "First delivery"), format(q.dates[0])],
+          [t("Pengantaran terakhir", "Last delivery"), format(q.dates.at(-1)!)],
+        ]}
+      />
       {groups.map((dates, index) => (
         <details key={index} open={index === 0}>
           <summary>
-            {t("Periode", "Cycle")} {index + 1} · {dates[0]} — {dates.at(-1)}
+            {t("Periode", "Cycle")} {index + 1} · {format(dates[0])} →{" "}
+            {format(dates.at(-1)!)}
           </summary>
           <div
             className="schedule-preview"

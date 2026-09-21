@@ -74,12 +74,12 @@ it("staff have no financial transactions in seller responses", async () => {
 });
 it("blocks checkout outside coverage even through direct RPC", async () =>
   await expect(
-    command("checkout.create", purchase({ packageId: PACKAGE_IDS[5] })),
+    command("checkout.create", { acceptedTerms: true, ...(purchase({ packageId: PACKAGE_IDS[5] })) }),
   ).rejects.toThrow("COVERAGE"));
 it("snapshots pricing and reserves every date in a single transaction", async () => {
   const c = (await command(
     "checkout.create",
-    purchase(),
+    { acceptedTerms: true, ...(purchase()) },
   )) as unknown as Checkout;
   expect(c.quote.dates).toHaveLength(5);
   const reserved = await db.query<{ n: number }>(
@@ -87,7 +87,7 @@ it("snapshots pricing and reserves every date in a single transaction", async ()
     [c.id],
   );
   expect(reserved.rows[0].n).toBe(5);
-  await expect(command("checkout.create", purchase())).rejects.toThrow(
+  await expect(command("checkout.create", { acceptedTerms: true, ...(purchase()) })).rejects.toThrow(
     "OVERLAP",
   );
 });

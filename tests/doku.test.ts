@@ -43,13 +43,13 @@ const config = {
 };
 let sequence = 2;
 const checkout = () =>
-  cmd("checkout.create", {
+  cmd("checkout.create", { acceptedTerms: true, ...({
     packageId: P[0],
     addressId: A,
     portions: 1,
     startDate: addDays(localDay(), sequence++ * 30),
     trial: false,
-  });
+  }) });
 function env() {
   vi.stubEnv("DOKU_ENVIRONMENT", "sandbox");
   vi.stubEnv("DOKU_CLIENT_ID", "MCH-test");

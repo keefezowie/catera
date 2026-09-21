@@ -189,7 +189,7 @@ for (const locale of ["id", "en"])
       await page.keyboard.press("End");
       await expect(
         page.getByRole("heading", {
-          name: locale === "id" ? "Riwayat pembelian" : "Purchase history",
+          name: locale === "id" ? "Penjualan" : "Sales",
           exact: true,
         }),
       ).toBeVisible();
@@ -231,9 +231,9 @@ test("report failure and retry do not hide balances or purchases", async ({
   failed = false;
   await page.getByRole("button", { name: "Try again", exact: true }).click();
   await expect(page.locator(".settlement-bars")).toBeVisible();
-  await page.getByRole("tab", { name: "Purchases", exact: true }).click();
+  await page.getByRole("tab", { name: "Sales", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "Purchase history" }),
+    page.getByRole("heading", { name: "Sales" }),
   ).toBeVisible();
 });
 test("200 percent text and zero balances remain usable", async ({
@@ -340,7 +340,7 @@ test("admin switches caterers without retaining the prior balance", async ({
   await expect(page.locator(".settlement-amount")).toContainText("99");
   await expect(page.locator(".settlement-amount")).not.toContainText("411");
   await expect(
-    page.getByRole("tab", { name: "Purchases", exact: true }),
+    page.getByRole("tab", { name: "Sales", exact: true }),
   ).toHaveCount(0);
 });
 test("payout dialog is accessible and unknown history is not invented", async ({

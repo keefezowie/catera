@@ -223,13 +223,13 @@ it("leaves package, pending checkout, purchased and frozen production contents u
   };
   const checkout = await command<Checkout>(
     "checkout.create",
-    input,
+    { acceptedTerms: true, ...(input) },
     U.customer,
   );
   await command("checkout.demo_pay", { id: checkout.id }, U.customer);
   const pending = await command<Checkout>(
     "checkout.create",
-    { ...input, startDate: addDays(localDay(), 30) },
+    { acceptedTerms: true, ...({ ...input, startDate: addDays(localDay(), 30) }) },
     U.customer,
   );
   await command("production.freeze", {
@@ -335,14 +335,14 @@ it("upgrades populated synthetic storage without rewriting snapshots or pending 
     await old.exec(seedSQL());
     const c = await localRpc<Checkout>(old, U.customer, "catera_v1_command", [
       "checkout.create",
-      {
+      { acceptedTerms: true, ...({
         packageId: P[0],
         addressId: ADDRESS_ID,
         startDate: addDays(localDay(), 60),
         portions: 1,
         trial: false,
         promotion: "",
-      },
+      }) },
       crypto.randomUUID(),
     ]);
     await localRpc(old, U.customer, "catera_v1_command", [
@@ -352,14 +352,14 @@ it("upgrades populated synthetic storage without rewriting snapshots or pending 
     ]);
     await localRpc(old, U.customer, "catera_v1_command", [
       "checkout.create",
-      {
+      { acceptedTerms: true, ...({
         packageId: P[0],
         addressId: ADDRESS_ID,
         startDate: addDays(localDay(), 100),
         portions: 1,
         trial: false,
         promotion: "",
-      },
+      }) },
       crypto.randomUUID(),
     ]);
     const sql =

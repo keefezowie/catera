@@ -394,6 +394,25 @@ export async function createDemoDatabase(inMemory = false) {
         "\ncommit;",
     );
   }
+  if (
+    !(
+      await db.query<{ installed: boolean }>(
+        "select exists(select 1 from information_schema.columns where table_schema='v1' and table_name='checkouts' and column_name='terms_accepted_at') installed",
+      )
+    ).rows[0].installed
+  ) {
+    await db.exec(
+      "begin;\n" +
+        (await readFile(
+          path.join(
+            projectRoot(),
+            "supabase/migrations/20260920152746_checkout_sales_safeguards.sql",
+          ),
+          "utf8",
+        )) +
+        "\ncommit;",
+    );
+  }
   // Idempotent repairs for the same hosted worker paths used by local verification.
   for (const file of [
     "20260919145757_settlement_pending_status_qualification.sql",

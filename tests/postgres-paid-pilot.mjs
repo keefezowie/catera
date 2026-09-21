@@ -216,7 +216,7 @@ export async function verifyPaidPilot(pool, cmd, evidence) {
       claimPromise,
       cmd(
         "checkout.create",
-        { packageId: racePackage.id, addressId: ad, portions: 1, startDate },
+        { acceptedTerms: true, ...({ packageId: racePackage.id, addressId: ad, portions: 1, startDate }) },
         who,
       ),
     ]);

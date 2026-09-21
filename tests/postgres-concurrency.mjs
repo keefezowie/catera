@@ -137,14 +137,14 @@ try {
   const attempt = (i) =>
     cmd(
       "checkout.create",
-      {
+      { acceptedTerms: true, ...({
         packageId,
         addressId: addresses[i],
         portions: 1,
         startDate: date,
         trial: false,
         promo: "",
-      },
+      }) },
       users[i],
     );
   const purchases = await Promise.allSettled(users.map((_, i) => attempt(i)));
@@ -250,7 +250,7 @@ try {
   const racing = await Promise.allSettled([
     cmd('package.save',{catererId:CATERER_IDS[0],id:created.id,version:1,offer:editOffer},DEMO_ACTORS.owner),
     cmd('package.save',{catererId:CATERER_IDS[0],id:created.id,version:1,offer:editOffer},DEMO_ACTORS.owner),
-    cmd('checkout.create',{packageId:created.id,addressId:addresses[0],portions:2,startDate:addDays(localDay(),70),trial:false},users[0]),
+    cmd('checkout.create',{ acceptedTerms: true, ...({packageId:created.id,addressId:addresses[0],portions:2,startDate:addDays(localDay(),70),trial:false}) },users[0]),
   ]);
   assert.equal(racing.slice(0,2).filter(r=>r.status==='fulfilled').length,0);
   for (const r of racing.slice(0,2)) assert.match(r.reason.message,/PACKAGE_IMMUTABLE/);
@@ -285,6 +285,20 @@ try {
   await verifyPaidPilot(pool, cmd, evidence);
   await verifyBetaOperations(pool, cmd, evidence);
   await verifyDoku(pool, cmd, evidence);
+  await pool.query(await readFile("supabase/migrations/20260920152746_checkout_sales_safeguards.sql", "utf8"));
+  const consentBefore = (await pool.query("select count(*)::int n from v1.checkouts")).rows[0].n;
+  await assert.rejects(cmd("checkout.create", { acceptedTerms: false }, DEMO_ACTORS.customer), /TERMS_REQUIRED/);
+  assert.equal((await pool.query("select count(*)::int n from v1.checkouts")).rows[0].n, consentBefore);
+  const consentOffer = (await pool.query("select offer from v1.packages where id=$1", [PACKAGE_IDS[0]])).rows[0].offer;
+  const consentPackage = await cmd("package.save", { catererId:CATERER_IDS[0], slug:"consent-concurrency", offer:{...consentOffer,status:"published",name:"Synthetic consent concurrency"} }, DEMO_ACTORS.owner);
+  const consentPayload = {acceptedTerms:true,packageId:consentPackage.id,addressId:addresses[0],portions:1,startDate:addDays(localDay(),90),trial:false};
+  const consentKey = crypto.randomUUID();
+  const consentRace = await Promise.all([cmd("checkout.create",consentPayload,users[0],consentKey),cmd("checkout.create",consentPayload,users[0],consentKey)]);
+  assert.equal(consentRace[0].id,consentRace[1].id);
+  assert(consentRace[0].terms_accepted_at);
+  assert.equal(consentRace[0].terms_accepted_at,consentRace[1].terms_accepted_at);
+  assert.equal((await pool.query("select count(*)::int n from v1.outbox where kind='payment.create' and payload->>'checkoutId'=$1",[consentRace[0].id])).rows[0].n,1);
+  evidence.push("Checkout consent rejects missing acceptance before side effects; simultaneous retries produce one checkout, one acceptance timestamp and one payment job.");
   await mkdir("output/verification", { recursive: true });
   const evidencePath = process.env.CATERA_POSTGRES_EVIDENCE || "output/verification/postgres.json";
   await mkdir(path.dirname(evidencePath), { recursive: true });

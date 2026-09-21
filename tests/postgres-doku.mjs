@@ -58,13 +58,13 @@ export async function verifyDoku(pool, cmd, evidence) {
   });
   const checkout = await cmd(
     "checkout.create",
-    {
+    { acceptedTerms: true, ...({
       packageId: P[1],
       addressId: A,
       portions: 1,
       startDate: addDays(localDay(), 280),
       trial: false,
-    },
+    }) },
     U.customer,
   );
   const reference = "CT" + checkout.id.replaceAll("-", "").slice(0, 26);

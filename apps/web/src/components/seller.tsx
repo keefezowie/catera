@@ -12,6 +12,7 @@ import { SellerOperations } from "./seller-operations";
 import { SellerReadiness } from "./seller-readiness";
 import { PackageContents } from "./package-contents";
 import { type MealMenu, type PackageType } from "@catera/domain";
+import { salesHistory } from "@catera/domain";
 import { Select, SelectOption } from "./select";
 import { PhotoUpload } from "./photo-upload";
 import { CompositionEditor, compositionDraft } from "./composition-editor";
@@ -157,8 +158,8 @@ function SellerTransactions({ state: s }: { state: SellerState }) {
   const { t, locale, actor } = useApp();
   const purchases = (
     <section className="settlement-purchases">
-      <h2>{t("Riwayat pembelian", "Purchase history")}</h2>
-      <TransactionRows rows={s.transactions} />
+      <h2>{t("Penjualan", "Sales")}</h2>
+      <TransactionRows rows={s.transactions} sales />
     </section>
   );
   const legacy = (
@@ -1396,8 +1397,15 @@ function SellerInbox({ cases }: { cases: SupportCase[] }) {
   const inboxQuery = useSearchParams();
   const requestedCase = inboxQuery.get("case");
   const requestedIssue = inboxQuery.get("issue");
-  const [tab, setTab] = useState(requestedCase || requestedIssue || inboxQuery.get("tab") === "help" ? "help" : "messages");
-  useEffect(() => { if (requestedCase || requestedIssue || inboxQuery.get("tab") === "help") setTab("help"); }, [requestedCase, requestedIssue, inboxQuery]);
+  const [tab, setTab] = useState(
+    requestedCase || requestedIssue || inboxQuery.get("tab") === "help"
+      ? "help"
+      : "messages",
+  );
+  useEffect(() => {
+    if (requestedCase || requestedIssue || inboxQuery.get("tab") === "help")
+      setTab("help");
+  }, [requestedCase, requestedIssue, inboxQuery]);
   const conversations = useResource<Conversation[]>("seller-inbox-count", () =>
     api.conversations(),
   );
@@ -1612,16 +1620,23 @@ export function SupportQueue({
 }
 export function TransactionRows({
   rows,
+  sales = false,
 }: {
   rows: SellerState["transactions"];
+  sales?: boolean;
 }) {
   const { t, locale } = useApp();
+  const entries = sales
+    ? salesHistory(rows)
+    : rows.map((transaction) => ({ transaction, attempts: [transaction] }));
   return rows.length ? (
     <div className="table-wrap">
       <table className="record-table">
         <thead>
           <tr>
-            <th>{t("Pembelian", "Purchase")}</th>
+            <th>
+              {sales ? t("Penjualan", "Sale") : t("Pembelian", "Purchase")}
+            </th>
             <th>{t("Porsi × hari", "Portions × days")}</th>
             <th>{t("Total pelanggan", "Customer total")}</th>
             <th>{t("Status", "Status")}</th>
@@ -1629,18 +1644,47 @@ export function TransactionRows({
           </tr>
         </thead>
         <tbody>
-          {rows.map((c) => (
+          {entries.map(({ transaction: c, attempts }) => (
             <tr key={c.id}>
-              <td data-label={t("Pembelian", "Purchase")}>
+              <td
+                data-label={
+                  sales ? t("Penjualan", "Sale") : t("Pembelian", "Purchase")
+                }
+              >
                 <strong>{c.quote.offer.name}</strong>
                 <small>
                   {c.customerName}
                   {c.quote.trial ? t(" · Coba paket", " · Trial") : ""}
                 </small>
                 <details className="record-details">
-                  <summary>{t("Nomor pembelian", "Purchase ID")}</summary>
+                  <summary>
+                    {sales
+                      ? t("Nomor penjualan", "Sale ID")
+                      : t("Nomor pembelian", "Purchase ID")}
+                  </summary>
                   <code>{c.id}</code>
                 </details>
+                {attempts.length > 1 && (
+                  <details className="record-details">
+                    <summary>
+                      {attempts.length}{" "}
+                      {t("percobaan pembayaran", "payment attempts")}
+                    </summary>
+                    <ul className="sale-attempts">
+                      {attempts.map((a) => (
+                        <li key={a.id}>
+                          <Status status={a.state} />{" "}
+                          <time dateTime={a.created_at}>
+                            {new Date(a.created_at).toLocaleString(
+                              locale === "id" ? "id-ID" : "en-GB",
+                            )}
+                          </time>
+                          <code>{a.id}</code>
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
               </td>
               <td data-label={t("Porsi × hari", "Portions × days")}>
                 {c.quote.portions} × {c.quote.dates.length}
@@ -1667,7 +1711,9 @@ export function TransactionRows({
     </div>
   ) : (
     <p className="quiet-empty">
-      {t("Belum ada pembelian.", "No purchases yet.")}
+      {sales
+        ? t("Belum ada penjualan.", "No sales yet.")
+        : t("Belum ada pembelian.", "No purchases yet.")}
     </p>
   );
 }

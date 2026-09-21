@@ -49,6 +49,8 @@ it("payment adapter preserves amount, deadline, idempotency and safe return IDs"
   );
   vi.stubGlobal("fetch", fetch);
   const c = {
+    terms_accepted_at: new Date().toISOString(),
+    terms_version: "purchase-2026-09-20",
     id: crypto.randomUUID(),
     expires_at: new Date(Date.now() + 900000).toISOString(),
     quote: {
