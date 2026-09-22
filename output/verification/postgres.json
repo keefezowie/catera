@@ -1,5 +1,5 @@
 {
-  "at": "2026-09-22T07:12:27.894Z",
+  "at": "2026-09-22T08:35:37.376Z",
   "passed": [
     "Synthetic slot conversion is repeatable on PostgreSQL; dated menus validate and package templates remain stable.",
     "Concurrent registration creates one customer profile and preserves its name and authority on retry",
