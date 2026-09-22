@@ -1,6 +1,31 @@
 # Catera direct payments
 
-## Implementation and current gate
+## Live status: September 22, 2026
+
+**BRI direct sandbox checkout is enabled on `https://catera-eight.vercel.app`.** After deployment and database cutover, the live `/api/v1/payment-methods` returned `{"data":{"mode":"direct","availableMethods":["VIRTUAL_ACCOUNT_BRI"]}}`. New checkouts select BRI and display VA instructions on Catera. Outstanding hosted instruments retain their original flow.
+
+Runtime commit `3f7671928f63de01caa9868d45deeb857ca2f0be`, production-target deployment `dpl_6eSZut85xKSFUvr2joG8odHoD58K`, uses DOKU **sandbox**, not real-money production. BRI verification flags are enabled and database configuration approves only `VIRTUAL_ACCOUNT_BRI`.
+
+QRIS remains disabled: its dashboard reports Active, but merchant ID, terminal ID and postal code have not been established, and genuine QRIS creation, callback and collection-routing acceptance are outstanding. Brand ID must not be substituted for merchant ID without provider confirmation.
+
+### Genuine BRI acceptance
+
+Two labeled synthetic hosted checkouts each paid IDR 162,500 through DOKU's BRI SNAP sandbox simulator:
+
+| Checkout | Confirmation | Database result | Collection pending balance |
+| --- | --- | --- | --- |
+| `8accf460-125b-4e1c-b0c6-16e8fe505c14` | Genuine paid inquiry recovered a missing callback through the durable inbox | Paid; one subscription, one allocation, five confirmed reservations | 345,000 to 507,500 |
+| `b2e8ecb8-8755-42cf-8d9b-6cba6505ce70` | Genuine signed callback automatically processed | Paid; one processed inbox event in one attempt, one subscription, one allocation, five confirmed reservations | 507,500 to 670,000 |
+
+Vercel recorded HTTP 200 for `/api/webhooks/doku/token` at 07:20:41 UTC and `/api/webhooks/doku/direct/bri` at 07:20:42 UTC. The previously missing SNAP Token URL is now configured to Catera's token endpoint, which verifies DOKU's RSA signature, client identity and timestamp before issuing a short-lived token. Unsigned requests return 401.
+
+Actual BRI creation requires expiry without milliseconds and omits `additionalInfo.channel` in its successful response. Adapters accommodate these observed contracts while validating identity, amount, currency, expiry and any supplied channel. Both direct adapters send collection routing in `additionalInfo.account.id`.
+
+Latest checks passed: typecheck, build, all 259 tests, PostgreSQL concurrency and all 10 direct-payment browser scenarios. Browser scenarios use synthetic API fixtures; the separate provider tests above prove genuine BRI confirmation/recovery and routing. Physical banking-app testing, QRIS provider acceptance and real-money production activation are not claimed.
+
+The sections below preserve earlier investigation history; statements that channels are disabled or the app is hosted describe those earlier checkpoints.
+
+## Implementation and historical gates
 
 New direct-mode checkouts stay on Catera for method selection, BRI virtual-account instructions, QRIS rendering/download, waiting and confirmation. Required bank/payment-app actions happen outside Catera. No direct checkout falls back to hosted DOKU Checkout. Existing hosted checkouts keep their original URLs and reconciliation.
 
@@ -21,7 +46,7 @@ Both requests use server-side B2B authentication, unique external IDs, and `CHAN
 
 Sources: [BRI SNAP v1.1](https://developers.doku.com/accept-payments/direct-api/snap/integration-guide/virtual-account/bri-virtual-account), [QRIS SNAP](https://developers.doku.com/accept-payments/direct-api/snap/integration-guide/qris), [VA status](https://developers.doku.com/get-started-with-doku-api/check-status-api/snap), [QRIS notification](https://developers.doku.com/get-started-with-doku-api/notification/http-notification-sample-non-snap).
 
-The generic direct-channel schemas do not establish this merchant's Collect & Route contract. The implementation does not guess a routing parameter or copy Checkout's `additional_info.account.id` into SNAP. Verify that the activated direct channel routes to the required collection account; if account-side routing is insufficient, obtain and implement DOKU's exact per-request routing contract before enabling it. Validate the BRI paid inquiry shape and the callback authentication/acknowledgement behavior with the account; unknown inquiry shapes remain unconfirmed.
+The [Sub Account V2 guide](https://developers.doku.com/wallet-as-a-service/sub-account/sub-account-v2) explicitly documents Direct API collection routing through `additionalInfo.account.id`, including BRI SNAP's create endpoint. Both direct adapters now send this field and reject malformed collection profile IDs. DOKU warns that invalid IDs can be silently accepted, so request success is not routing acceptance: verify the collection balance movement before enabling either method. Validate the BRI paid inquiry shape and callback authentication/acknowledgement with the account; unknown inquiry shapes remain unconfirmed.
 
 ## Interfaces and invariants
 
@@ -58,3 +83,17 @@ Typecheck and production build passed. All 233 unit/integration tests passed. Th
 The implementation was integrated into the main `catera` workspace on September 21, preserving the newer registration and checkout safeguards. Fresh verification passed typecheck, build, all 257 unit/integration tests, the full PostgreSQL concurrency suite, and all 10 direct-payment browser scenarios. No commit, push, deployment or hosted migration was performed.
 
 Read-only hosted checks on September 21 confirmed `catera-eight.vercel.app` still serves commit `4af16a3` and the V1 database does not yet contain `checkouts.payment_mode`. Thus the hosted app still uses the old payment-link flow. The repeated sandbox preflight authenticated successfully but still found the five merchant settings above missing. The local implementation is ready for merchant verification; these results do not establish that either direct method can be enabled.
+
+## Hosted checkout availability repair
+
+### September 22 follow-up
+
+The live payment-methods API still returns `mode: hosted` and an empty method list. This is why the deployed payment page shows a hosted link instead of Catera's selector. Dashboard callback configuration alone does not change application mode.
+
+Browser access recovered. BRI SNAP is active on v1.1, aggregator DGPC FIX_BILL, partner service ID `13925`, customer prefix `6`. Its previously blank callback was saved and re-opened to confirm `https://catera-eight.vercel.app/api/webhooks/doku/direct/bri`. QRIS's existing callback was confirmed as `https://catera-eight.vercel.app/api/webhooks/doku/payment`.
+
+A standalone sandbox BRI contract probe returned HTTP 200 / `2002700` with virtual-account instructions on September 22. Sanitized evidence: `output/direct-payments/bri-contract-probe.json`. This probe was not a Catera checkout and did not include collection routing; it does not prove notification processing, subscription activation, or balance movement. No channel verification flags were enabled. The missing explicit collection routing was subsequently corrected in both adapters; genuine routed acceptance remains outstanding.
+
+A subsequent investigation found the prerequisite `20260920152746_checkout_sales_safeguards.sql` was also missing: new hosted checkouts had neither stored consent nor a provider operation, so the payment adapter rejected them with `TERMS_REQUIRED` before submitting to DOKU. Applied that committed migration after a transactional rollback dry run against the current schema. The outer command now captures consent and retains the direct-selection wrapper underneath it. Historical missing consent was not backfilled. This repairs a deployment dependency; it does not activate direct channels or establish provider acceptance.
+
+After deployment of `f37e99f`, checkout displayed “Payment is currently unavailable” because the direct-payment migration had not been applied. The application required the new `payment-methods` read resource, while the database still had the previous RPC implementation. Applied the committed additive direct-payment migration to the current V1 sandbox database (`ygzfdqrljunngfrdygzt`) and verified the availability read succeeds, including under the authenticated role. Configuration remains `hosted`; no direct channels were enabled and no outstanding payment instruments were replaced. An already-open checkout must reload to retry its failed availability request.
