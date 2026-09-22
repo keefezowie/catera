@@ -315,7 +315,9 @@ it("allows purchases before menus exist, resolves dated dishes and preserves the
     U.customer,
   );
   await cmd("checkout.demo_pay", { id: checkout.id }, U.customer);
-  const before = await read<CustomerState>("customer", {}, U.customer),
+  // The fixture can fall beyond the customer's default 60-day read window.
+  const range = { from: checkout.quote.dates[0], to: checkout.quote.dates.at(-1) };
+  const before = await read<CustomerState>("customer", range, U.customer),
     purchase = before.subscriptions.find((s) => s.package_id === id)!;
   expect(
     before.deliveries.find((d) => d.offer.id === id)?.offer.menus[0].items,
@@ -328,7 +330,7 @@ it("allows purchases before menus exist, resolves dated dishes and preserves the
       checkout.quote.dates.map((date) => ({ date, version: 0 })),
     ),
   );
-  const after = await read<CustomerState>("customer", {}, U.customer);
+  const after = await read<CustomerState>("customer", range, U.customer);
   expect(
     after.subscriptions.find((s) => s.package_id === id)!.snapshot,
   ).toEqual(purchase.snapshot);
