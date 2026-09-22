@@ -450,6 +450,36 @@ it("normalizes successful QRIS notifications and inquiry to the same durable eve
   expect(directPaymentEvent(notification, op, "qris_notification")).toEqual(
     directPaymentEvent(inquiry, op, "qris_status"),
   );
+  expect(
+    directPaymentEvent(
+      { ...inquiry, amount: { value: 10000, currency: "IDR" } },
+      op,
+      "qris_status",
+    ),
+  ).toEqual(directPaymentEvent(notification, op, "qris_notification"));
+  for (const value of [9999, 10000.5, null, true, "1e4"]) {
+    expect(() =>
+      directPaymentEvent(
+        { ...inquiry, amount: { value, currency: "IDR" } },
+        op,
+        "qris_status",
+      ),
+    ).toThrow("DOKU_PAYMENT_MISMATCH");
+  }
+  expect(
+    directPaymentEvent(
+      { ...notification, acquirer: { id: "93600899" } },
+      op,
+      "qris_notification",
+    ),
+  ).toEqual(directPaymentEvent(inquiry, op, "qris_status"));
+  expect(() =>
+    directPaymentEvent(
+      { ...notification, acquirer: { id: "93600014" } },
+      op,
+      "qris_notification",
+    ),
+  ).toThrow("DOKU_PAYMENT_MISMATCH");
   expect(() =>
     directPaymentEvent(
       { ...notification, order: { invoice_number: "ref", amount: 9999 } },

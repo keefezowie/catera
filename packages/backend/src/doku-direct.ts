@@ -63,7 +63,11 @@ function checkAmount(value: any, expected: number) {
   if (
     !value ||
     value.currency !== "IDR" ||
-    !/^\d+\.00$/.test(value.value) ||
+    // QRIS inquiry returns an integer JSON number in the verified sandbox
+    // contract; SNAP VA responses use a decimal string.
+    !(typeof value.value === "number"
+      ? Number.isSafeInteger(value.value)
+      : typeof value.value === "string" && /^\d+\.00$/.test(value.value)) ||
     Number(value.value) !== expected
   )
     throw new Error("DOKU_PAYMENT_MISMATCH");
@@ -318,7 +322,9 @@ export function directPaymentEvent(
         data.order?.invoice_number !== op.reference ||
         data.channel?.id !== "QRIS_DOKU" ||
         data.service?.id !== "QRIS" ||
-        data.acquirer?.id !== "DOKU"
+        // DOKU's QRIS sandbox sends its numeric acquirer ID; older samples
+        // use the name. Accept only these two verified DOKU identifiers.
+        !["DOKU", "93600899"].includes(data.acquirer?.id)
       )
         throw new Error("DOKU_PAYMENT_MISMATCH");
       if (data.transaction?.status !== "SUCCESS") return null;
