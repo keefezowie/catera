@@ -4,6 +4,7 @@ import {
   randomUUID,
   sign,
   timingSafeEqual,
+  verify,
 } from "node:crypto";
 import type { Checkout } from "@catera/domain";
 
@@ -257,6 +258,58 @@ export function verifyDokuSnapNotification(
   } catch {
     return false;
   }
+}
+// DOKU obtains a merchant-issued token before delivering SNAP notifications.
+// Only requests signed by the dashboard's DOKU public key may obtain one.
+export function issueDokuNotificationToken(
+  headers: Headers,
+  body: unknown,
+  now = Date.now(),
+) {
+  const { client, secret } = dokuConfig();
+  const publicKey = process.env.DOKU_PUBLIC_KEY?.replace(/\\n/g, "\n");
+  if (!publicKey) throw new Error("DOKU_NOTIFICATION_KEY_MISSING");
+  const timestamp = headers.get("x-timestamp");
+  const signature = headers.get("x-signature");
+  if (
+    headers.get("x-client-key") !== client ||
+    !timestamp ||
+    !signature ||
+    !Number.isFinite(Date.parse(timestamp)) ||
+    Math.abs(now - Date.parse(timestamp)) > 300000 ||
+    (body as { grantType?: string })?.grantType !== "client_credentials"
+  )
+    return null;
+  try {
+    if (
+      !verify(
+        "RSA-SHA256",
+        Buffer.from(client + "|" + timestamp),
+        publicKey,
+        Buffer.from(signature, "base64"),
+      )
+    )
+      return null;
+  } catch {
+    return null;
+  }
+  const payload = Buffer.from(
+    JSON.stringify({
+      sub: client,
+      exp: Math.floor(now / 1000) + 900,
+      nonce: randomUUID(),
+    }),
+  ).toString("base64url");
+  const mac = createHmac("sha256", secret)
+    .update("doku-notification-token:" + payload)
+    .digest("base64url");
+  return {
+    responseCode: "2007300",
+    responseMessage: "Successful",
+    accessToken: payload + "." + mac,
+    tokenType: "Bearer",
+    expiresIn: 900,
+  };
 }
 export async function dokuToken() {
   const { client } = dokuConfig();

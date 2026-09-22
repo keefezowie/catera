@@ -69,7 +69,7 @@ function env() {
     DOKU_PRIVATE_KEY: "synthetic",
     CATERA_CONTROLLED_COLLECTION: "true",
     DOKU_COLLECTION_ENABLED: "true",
-    DOKU_COLLECTION_PROFILE_ID: "SAC-test",
+    DOKU_COLLECTION_PROFILE_ID: "SAC-1234-1234567890123",
     DOKU_BRI_PARTNER_SERVICE_ID: "12345",
     DOKU_BRI_CUSTOMER_PREFIX: "6",
     DOKU_QRIS_MERCHANT_ID: "123456",
@@ -153,6 +153,26 @@ it("requires every channel gate and never enables production", () => {
   vi.stubEnv("DOKU_ENVIRONMENT", "production");
   expect(directMethodReady("VIRTUAL_ACCOUNT_BRI")).toBe(false);
 });
+it("routes both direct methods to the collection profile and rejects malformed routing", () => {
+  env();
+  const c = {
+    expires_at: new Date(Date.now() + 900000).toISOString(),
+    quote: { total: 10000 },
+  } as Checkout;
+  for (const channel of ["VIRTUAL_ACCOUNT_BRI", "QRIS"] as const) {
+    const request = directRequest(c, { ...operationFixture, channel });
+    expect(request.additionalInfo.account).toEqual({
+      id: "SAC-1234-1234567890123",
+    });
+    expect(
+      "expiredDate" in request ? request.expiredDate : request.validityPeriod,
+    ).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
+  }
+  vi.stubEnv("DOKU_COLLECTION_PROFILE_ID", "invalid");
+  expect(() =>
+    directRequest(c, { ...operationFixture, channel: "VIRTUAL_ACCOUNT_BRI" }),
+  ).toThrow("DOKU_COLLECTION_PROFILE_REQUIRED");
+});
 it("blocks reservations when no methods are available", async () => {
   const before = (await db.query("select count(*) n from v1.reservations"))
     .rows;
@@ -215,6 +235,19 @@ it("validates fixed amount, channel, reference, VA identity and deadline", async
   let op = await prepare(c);
   op = { ...op, request: directRequest(c, op) };
   const response = briResponse(c, op);
+  expect(
+    directResult(
+      {
+        ...response,
+        virtualAccountData: {
+          ...response.virtualAccountData,
+          additionalInfo: {},
+        },
+      },
+      c,
+      op,
+    ).instructions.kind,
+  ).toBe("virtual_account");
   expect(directResult(response, c, op).instructions.kind).toBe(
     "virtual_account",
   );

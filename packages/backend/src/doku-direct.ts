@@ -83,9 +83,16 @@ export function directRequest(c: Checkout, op: ProviderOperation) {
     throw new Error("PAYMENT_HOLD_TOO_SHORT");
   const expiresAt = new Date(
     Math.floor((Date.parse(c.expires_at) - 30000) / 1000) * 1000,
-  ).toISOString();
-  // Routing is account-specific. Never copy Checkout's unverified account parameter
-  // into SNAP requests. Activation requires independent collection balance evidence.
+  )
+    .toISOString()
+    .replace(/\.\d{3}Z$/, "Z");
+  // Direct API uses camelCase additionalInfo (Checkout uses additional_info).
+  // DOKU silently accepts invalid routing IDs, so reject malformed IDs locally;
+  // activation still requires independent collection balance evidence.
+  const profileId = required("DOKU_COLLECTION_PROFILE_ID");
+  if (!/^SAC-\d+-\d+$/.test(profileId))
+    throw new Error("DOKU_COLLECTION_PROFILE_REQUIRED");
+  const account = { id: profileId };
   if (op.channel === "VIRTUAL_ACCOUNT_BRI") {
     const partnerServiceId = required("DOKU_BRI_PARTNER_SERVICE_ID").padStart(
       8,
@@ -107,6 +114,7 @@ export function directRequest(c: Checkout, op: ProviderOperation) {
       totalAmount: amount(c.quote.total),
       expiredDate: expiresAt,
       additionalInfo: {
+        account,
         channel: op.channel,
         virtualAccountConfig: { reusableStatus: false },
       },
@@ -120,6 +128,7 @@ export function directRequest(c: Checkout, op: ProviderOperation) {
     terminalId: required("DOKU_QRIS_TERMINAL_ID"),
     validityPeriod: expiresAt,
     additionalInfo: {
+      account,
       postalCode: required("DOKU_QRIS_POSTAL_CODE"),
       feeType: "1",
     },
@@ -178,7 +187,8 @@ export function directResult(
       data.responseCode !== "2002700" ||
       va?.trxId !== op.reference ||
       va?.virtualAccountTrxType !== "C" ||
-      va?.additionalInfo?.channel !== op.channel ||
+      (va?.additionalInfo?.channel !== undefined &&
+        va.additionalInfo.channel !== op.channel) ||
       typeof va?.virtualAccountNo !== "string" ||
       !/^\d{5,28}$/.test(va.virtualAccountNo.trim()) ||
       va.partnerServiceId !== op.request.partnerServiceId ||
