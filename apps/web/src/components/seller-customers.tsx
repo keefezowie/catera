@@ -83,11 +83,40 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
   } | null>(null);
   const [change, setChange] = useState<Delivery | null>(null),
     [changeKind, setChangeKind] = useState("date");
+  const customerNavigation = (
+    <div className="action-row" key="customer-navigation">
+      <Button
+        className="button secondary"
+        aria-pressed={selected ? undefined : !followup}
+        onClick={() => {
+          setSelected("");
+          setFollowup(false);
+          setOffset(0);
+        }}
+      >
+        {selected && <ArrowLeft size={18} />}
+        {t("Semua pelanggan", "All customers")}
+      </Button>
+      {!selected && (
+        <Button
+          className="button secondary"
+          aria-pressed={followup}
+          onClick={() => {
+            setFollowup(true);
+            setOffset(0);
+          }}
+        >
+          {t("Perlu perpanjangan", "Renewal follow-ups")}
+        </Button>
+      )}
+    </div>
+  );
   if (!state.data)
-    return state.error ? (
-      <ErrorNotice message={state.error} retry={state.reload} />
-    ) : (
-      <Loading />
+    return (
+      <div className="pilot-workspace">
+        {customerNavigation}
+        {state.error ? <ErrorNotice message={state.error} retry={state.reload} /> : <Loading />}
+      </div>
     );
   const data = {
       ...state.data,
@@ -140,38 +169,7 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
       )}
       {actionError && <ErrorNotice message={actionError} />}
       {owner && <PrepaidMigration catererId={catererId} data={data} />}
-      {!selected && (
-        <div className="action-row">
-          <Button
-            className="button secondary"
-            aria-pressed={!followup}
-            onClick={() => {
-              setFollowup(false);
-              setOffset(0);
-            }}
-          >
-            {t("Semua pelanggan", "All customers")}
-          </Button>
-          <Button
-            className="button secondary"
-            aria-pressed={followup}
-            onClick={() => {
-              setFollowup(true);
-              setOffset(0);
-            }}
-          >
-            {t("Perlu perpanjangan", "Renewal follow-ups")}
-          </Button>
-        </div>
-      )}
-      {selected && (
-        <div className="action-row">
-          <Button className="button secondary" onClick={() => setSelected("")}>
-            <ArrowLeft size={18} />
-            {t("Semua pelanggan", "All customers")}
-          </Button>
-        </div>
-      )}
+      {customerNavigation}
       {!data.customers.length && (
         <Empty
           title={t("Belum ada pelanggan berlangganan", "No subscribers yet")}

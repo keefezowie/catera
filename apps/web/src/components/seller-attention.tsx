@@ -9,6 +9,7 @@ import { Button, TextArea } from "./form-controls";
 
 export function NeedsAttention({ catererId }: { catererId: string }) {
   const { t, locale, perform } = useApp();
+  const [expanded, setExpanded] = useState(false);
   const [handled, setHandled] = useState<
     SellerAttention["items"][number] | null
   >(null);
@@ -58,18 +59,26 @@ export function NeedsAttention({ catererId }: { catererId: string }) {
   return (
     <section
       className="panel spaced seller-attention"
-      data-empty={state.data?.total === 0 || undefined}
+      data-empty={
+        (!state.loading && !state.error && state.data?.total === 0) || undefined
+      }
       aria-busy={state.loading || undefined}
       aria-label={t("Perlu perhatian", "Needs attention")}
     >
       <h2>
         <CircleAlert size={20} aria-hidden="true" />{" "}
         {t("Perlu perhatian", "Needs attention")}
-        {state.data && ` (${state.data.total})`}
+        {!state.loading &&
+          !state.error &&
+          state.data &&
+          ` (${state.data.total})`}
       </h2>
+      <p>
+        {t("Seluruh tanggal · siang dan malam", "All dates · lunch and dinner")}
+      </p>
       {state.error ? (
         <ErrorNotice message={state.error} retry={state.reload} />
-      ) : !state.data ? (
+      ) : state.loading || !state.data ? (
         <p role="status">
           {t(
             "Memeriksa pekerjaan yang perlu ditangani…",
@@ -86,53 +95,71 @@ export function NeedsAttention({ catererId }: { catererId: string }) {
               )}
             </p>
           )}
-          {state.data.items.map((item) => (
-            <div key={item.id}>
-              <Link className="queue-row" href={item.href}>
-                <span>
-                  <strong>{labels[item.kind][0]}</strong>
-                  <small>{item.context}</small>
-                  {(item.kind === "choice_deadline" ||
-                    item.kind === "choice_fallback") && (
-                    <small>
-                      {t("Batas pilihan", "Selection cutoff")}:{" "}
-                      {new Date(item.at_time).toLocaleString(
-                        locale === "id" ? "id-ID" : "en-GB",
-                        { timeZone: state.data!.timezone },
-                      )}{" "}
-                      · {state.data!.timezone}
-                    </small>
-                  )}
-                  <small>
-                    {item.priority < 2
-                      ? t("Perlu ditangani", "Action needed")
-                      : t(
-                          "Sebelum produksi / pengantaran",
-                          "Before production / delivery",
+          <div id="attention-tasks">
+            {state.data.items.slice(0, expanded ? undefined : 3).map((item) => (
+              <div key={item.id}>
+                <Link className="queue-row" href={item.href}>
+                  <span>
+                    <strong>{labels[item.kind][0]}</strong>
+                    <small>{item.context}</small>
+                    {(item.kind === "choice_deadline" ||
+                      item.kind === "choice_fallback") && (
+                      <small>
+                        {t("Batas pilihan", "Selection cutoff")}:{" "}
+                        {new Date(item.at_time).toLocaleString(
+                          locale === "id" ? "id-ID" : "en-GB",
+                          { timeZone: state.data!.timezone },
                         )}{" "}
-                    · {labels[item.kind][1]}
-                  </small>
-                </span>
-                <ArrowRight size={18} aria-hidden="true" />
-              </Link>
-              {item.kind === "choice_fallback" && (
-                <Button
-                  className="text-button"
-                  onClick={() => setHandled(item)}
-                >
-                  {t(
-                    "Hidangan sudah disiapkan & dikomunikasikan",
-                    "Dishes planned & customer informed",
-                  )}
-                </Button>
-              )}
-            </div>
-          ))}
+                        · {state.data!.timezone}
+                      </small>
+                    )}
+                    <small>
+                      {item.priority < 2
+                        ? t("Perlu ditangani", "Action needed")
+                        : t(
+                            "Sebelum produksi / pengantaran",
+                            "Before production / delivery",
+                          )}{" "}
+                      · {labels[item.kind][1]}
+                    </small>
+                  </span>
+                  <ArrowRight size={18} aria-hidden="true" />
+                </Link>
+                {item.kind === "choice_fallback" && (
+                  <Button
+                    className="text-button"
+                    onClick={() => setHandled(item)}
+                  >
+                    {t(
+                      "Hidangan sudah disiapkan & dikomunikasikan",
+                      "Dishes planned & customer informed",
+                    )}
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+          {state.data.items.length > 3 && (
+            <Button
+              className="text-button"
+              aria-expanded={expanded}
+              aria-controls="attention-tasks"
+              onClick={() => setExpanded(!expanded)}
+            >
+              {expanded
+                ? t("Tampilkan 3 prioritas", "Show 3 priorities")
+                : t(
+                    "Lihat semua yang perlu ditangani",
+                    "View all tasks needing attention",
+                  )}{" "}
+              · {state.data.items.length} {t("tersedia", "available")}
+            </Button>
+          )}
           {state.data.total > state.data.items.length && (
             <p>
               {t(
-                "Menampilkan 100 prioritas pertama. Selesaikan kendala untuk melihat berikutnya.",
-                "Showing the first 100 priorities. Resolve items to see the next ones.",
+                `Layanan menyediakan ${state.data.items.length} dari ${state.data.total} tugas menurut prioritas. Selesaikan kendala untuk melihat berikutnya.`,
+                `The service provides ${state.data.items.length} of ${state.data.total} tasks by priority. Resolve items to see the next ones.`,
               )}
             </p>
           )}

@@ -243,6 +243,7 @@ test("seller package modes, inline schedule filters, and subscription-only custo
   const secondAddress = await command(page, "address.save", destination);
   for (const offer of offers) {
     const checkout = await command(page, "checkout.create", {
+      acceptedTerms: true,
       packageId: offer.id,
       portions: 2,
       trial: false,
@@ -256,7 +257,7 @@ test("seller package modes, inline schedule filters, and subscription-only custo
   await page.request.post("/api/v1/auth/demo", { data: { role: "owner" } });
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto(`/seller/schedule?date=${date}&meal=lunch`);
-  await page.getByRole("button", { name: /Pelanggan unik/ }).click();
+  await choose(page, "Kelompokkan pesanan", "Pelanggan");
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(
     page.getByRole("combobox", { name: "Filter pelanggan" }),
@@ -275,7 +276,7 @@ test("seller package modes, inline schedule filters, and subscription-only custo
   await expect(
     page.getByRole("combobox", { name: "Filter pelanggan" }),
   ).toContainText("Nadia");
-  await page.getByRole("button", { name: /Tujuan unik/ }).click();
+  await choose(page, "Kelompokkan pesanan", "Tujuan");
   await expect(
     page.getByRole("combobox", { name: "Filter tujuan" }),
   ).toBeVisible();
@@ -301,14 +302,9 @@ test("seller package modes, inline schedule filters, and subscription-only custo
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
-  const metrics = await page.locator(".ops-metrics > *").evaluateAll((cards) =>
-    cards.map((card) => ({
-      top: card.getBoundingClientRect().top,
-      height: card.getBoundingClientRect().height,
-    })),
+  await expect(page.locator(".ops-scope-summary")).toContainText(
+    "1 pesanan · 2 porsi makan",
   );
-  expect(metrics[2].top).toBe(metrics[3].top);
-  expect(metrics[2].height).toBe(metrics[3].height);
   await page.screenshot({
     path: "output/seller-ui/schedule-mobile.png",
     fullPage: true,
@@ -316,7 +312,7 @@ test("seller package modes, inline schedule filters, and subscription-only custo
   });
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.getByRole("button", { name: "Hapus filter" }).click();
-  await expect(page.locator(".ops-group-heading")).toHaveCount(0);
+  await expect(page.locator(".ops-group-heading")).toHaveCount(2);
   await page.goto(`/seller?date=${date}&meal=lunch`);
   await expect(page.locator(".ops-group-heading")).toHaveCount(2);
   const toolbar = page.locator(".ops-list-toolbar");

@@ -1,4 +1,135 @@
-# Catera beta improvement log
+# Catera improvement log
+
+> September 22 integration: see [V1 worktree integration](V1-WORKTREE-INTEGRATION-2026-09-22.md) for the combined implementation, superseded overlaps and fresh verification. Earlier no-push statements below describe their original work sessions.
+
+## September 19, 2026 — V1 end-to-end polish
+
+This objective supersedes feature expansion. Preserve the approved functionality,
+brand, navigation, authorization and commercial rules. Missing capabilities are
+deferred, not implemented as part of polish. All writes and transactions below
+use disposable local synthetic data. No deployment, remote Git write, shared
+database mutation, real payment or customer communication is authorized.
+
+Checkout verified: `keefezowie/catera`, local `v1` and remote `v1` both
+`eae0b504f775ae29411522090ea116882f18e690`, original working tree clean.
+Work is isolated in `D:/Project/Catera/catera-polish-v1` on
+`codex/v1-end-to-end-polish`. Impeccable is not installed; review follows
+AGENTS.md, PRODUCT.md, DESIGN.md, the surface brief and installed Next.js docs.
+
+### Baseline and evidence
+
+- Fresh locked dependency install; root typecheck and production build pass.
+- PostgreSQL: all 21 concurrency/security scenarios pass against a disposable database.
+- Unit suite: 193 pass, 1 fails (`paid-pilot`, cutoff rejection). The test used
+  a non-operating Saturday; T01 below corrects its fixture without changing rules.
+- Browser smoke: explicit synthetic instance on port 3130, fresh `.data/polish-main`;
+  discovery renders with no reported browser errors. Screenshot:
+  `output/polish-v1/before-discovery-desktop.png`.
+- Broader baseline: diagnostic run, with failures retained. Reproducible local-only runner:
+  `playwright.polish.config.ts`; set `PLAYWRIGHT_CHROMIUM_EXECUTABLE` to the
+  installed Chrome binary. Reports and matching screenshots use `output/polish-v1/`.
+
+### Journey checklist
+
+| Journey | Existing capabilities to operate | Review / verification status |
+| --- | --- | --- |
+| Customer discovery | Area, search, filters, comparison, seller profile, package contents/prices | Reviewed and passed: discovery, guest-auth, navigation, package-presentation and new filter/back tests |
+| Customer purchase | Guest return, portions/duration/address, quote/review, payment pending/failure/retry | Reviewed and passed: journeys, multi-cycle, payment-state, contents and PostgreSQL capacity/snapshot tests |
+| Customer ongoing meals | Home, calendar, menu choice, date/address changes, cutoff/eligibility | Reviewed and passed: calendar, customer-choice, delivery changes, conflict recovery and production/CSV contents |
+| Customer relationships | Messages, delivery report, support/escalation, renewal, account/notifications | Reviewed and passed: beta-issues, conversations/retry, renewal, route/accessibility and inbox eligibility integration tests |
+| Seller onboarding | Profile/readiness, verification request/correction, staff restrictions | Reviewed and passed: readiness correction/submission/admin decision, profile/settings, workspace-role and authorization checks |
+| Seller catalog | Draft/resume/publish/suspend/archive, duration choices, menus/dish library | Reviewed and passed: dishes, slot-menus, contents, package pricing, lifecycle integration/concurrency and responsive wizard tests |
+| Seller daily operations | Today/bulk statuses, schedule/group/filter, production revisions/CSV | Reviewed and passed: bulk conflict selections/retry, independent lunch/dinner statuses, date/filter focus, production revisions/whole-day CSV, desktop and phone accessibility |
+| Seller relationships | Customers/prepaid obligations, invitations, conversations, reports/support | Reviewed and passed: prepaid preview/failure/retry, customer changes, invitations, delivery reports, first-message and recipient-isolation checks |
+| Seller finances/account | Transactions/earnings, bank review, settings/account | Reviewed and passed: ID/EN at 360/768/1440, reporting errors, bank/account-help separation, private-access and settlement concurrency checks |
+| Admin | Verification, listings/reviews, transactions/support/refunds, settlement/payouts, audit | Reviewed and passed: route coverage, record-isolated decisions, bank-review recovery, earnings/caterer switching and financial authorization integration checks |
+| Shared surfaces/states | Form recovery, dialogs/pickers, focus, loading/error/empty, responsive ID/EN | Reviewed and passed: widths 320–1440 where applicable, 200% text, keyboard/focus, reduced motion, long content, failed reads/writes and axe assertions |
+
+### Prioritized findings
+
+Only reproduced issues become implementation work. Each completed item records
+before evidence, user impact, acceptance checks, after evidence and status here.
+
+| ID / priority | Reproduced evidence and user impact | Acceptance / implementation | Status |
+| --- | --- | --- | --- |
+| P01 / high | `before-admin-record-768-id.png`, `before-support-record-768-id.png`: another caterer's verification reason or another support case's refund amount/cancellation checkbox followed the selection. | Remount decision forms by record identity; lock record switching during submission; preserve failures on the same record. ID/EN tests assert reason/amount/checkbox isolation. No financial rules or database mutations changed. | Implemented; targeted browser pass |
+| P02 / high | `before-pending-form-390-id.png`: text/numeric/checkbox controls could change after request values were captured, while Save showed processing. | Shared field primitives follow existing form pending context; retry re-enables fields with entered values intact. Existing selectors/date controls already use this context. | Implemented; targeted browser pass |
+| P03 / high | `before-conversation-recipient-id-customer.png`: a draft for A appeared under B; sent text also remained available for accidental resubmission. `before-new-conversation-pending-390-id.png`: seller recipient selection remained enabled during the first send. | Keep per-recipient drafts, clear only after confirmed success, preserve failed drafts, guard recipient/search changes during send; localize the label and keep composer/recovery readable on phone. | Verified; customer/owner ID/EN, pending first-send failure recovery and axe pass |
+| P04 / medium | `before-filter-reset-390-id.png`: Reset retained Nasi box. Filters also reset on returning from details. | Reset every filter, retain area/sort, store filters in native URL history, expose active count/reset even when collapsed, announce selected meal filters. | Implemented; ID/EN at 390/768/1440 pass |
+| P05 / high | `before-customer-filter-error-768-id.png`: Needs renewal selected, failed read, but five old customer cards remained actionable as if matching. | Shared resource reads expose data only for the current key, reject late results, preserve same-resource refresh state. Customer filter/back controls survive errors. The tenant-keyed operations shell alone retains old data, masks dated rows/metrics and preserves calendar focus while loading. | Verified; changed-filter failure/retry and operational date focus/loading/failure/retry pass |
+| P06 / medium | `before-admin-refresh-id.png`: failed post-save refresh was silent. Review read failures incorrectly showed “No reviews yet.” | Inline refresh errors with retry keep the current draft; reviews explicitly distinguish loading, failure and confirmed empty history. | Verified; ID/EN refresh/input and gated loading/error/empty retry checks pass |
+| T01 / baseline check | 193/194 unit tests passed: cutoff test used today on a non-operating Saturday and correctly advanced to Monday. | Use a date one week in the past so the first eligible service day is deterministically past cutoff; retain the no-obligations assertion. | Verified; all 194 tests pass |
+
+The initial broad browser baseline was interrupted after concrete defects were
+reproduced; it is not a full passing baseline. It also exposed stale tests for
+retired promotion creation/customer ID disclosures and selectors matching hidden
+Next.js retained route trees. Updated tests exercise the active bank-review dialog
+with the same pending/dismissal/retry assertions, current customer schedule access,
+and visible content. Original failures remain in local reports. No assertion is
+removed to accept a product failure.
+
+The first diagnostic whole-suite run had 148 passes, 13 failures and three
+fixture-dependent skips. Repeated delivery-report fixtures, outdated labels,
+hidden retained route trees and a brief development compile error account for
+those failures; each affected current journey was rerun. The resource change
+also exposed loss of date-control focus; the fix retains the tenant's navigation
+shell while masking stale operational rows, and has a dedicated regression test.
+The fresh final run passes all 163 general scenarios. Its three explicit fixture
+skips are run separately below. No retries or assertions were relaxed.
+
+### Before/after evidence
+
+These local screenshots were inspected. Use the same locale/viewport and
+synthetic interaction when comparing; message recipients and support cases use
+deterministic intercepted fixtures. Larger seeded screens can include additional
+synthetic records created by the full journey tests.
+
+| Change | Before | After |
+| --- | --- | --- |
+| Recipient drafts and phone composer | [Before](../output/polish-v1/before-conversation-recipient-id-customer.png) | [After](../output/polish-v1/after-conversation-recipient-id-customer.png) |
+| First-message recipient locking | [Before](../output/polish-v1/before-new-conversation-pending-390-id.png) | [After](../output/polish-v1/after-new-conversation-pending-390-id.png) |
+| Support decision isolation | [Before](../output/polish-v1/before-support-record-768-id.png) | [After](../output/polish-v1/after-support-record-768-id.png) |
+| Pending form values | [Before](../output/polish-v1/before-pending-form-390-id.png) | [After](../output/polish-v1/after-pending-form-390-id.png) |
+| Complete filter reset | [Before](../output/polish-v1/before-filter-reset-390-id.png) | [After](../output/polish-v1/after-catalog-reset-390-id.png) |
+| Failed customer filter | [Before](../output/polish-v1/before-customer-filter-error-768-id.png) | [After](../output/polish-v1/after-customer-filter-error-768-id.png) |
+| Failed reviews read | [Before](../output/polish-v1/before-reviews-error-390-id.png) | [After](../output/polish-v1/after-reviews-error-390-id.png) |
+| Failed admin refresh | [Before](../output/polish-v1/before-admin-refresh-id.png) | [After](../output/polish-v1/after-admin-refresh-id.png) |
+
+### Final local checks
+
+- `npm run typecheck`: PASS for web, native and root TypeScript.
+- `npm test`: PASS, 194 tests / 27 files.
+- `CATERA_NEXT_DIST_DIR=.next-polish-build npm run build`: PASS, optimized web build.
+- `npm run test:postgres`: PASS, 21 scenario groups in disposable embedded PostgreSQL; evidence `output/polish-v1/postgres-final.json`. No business SQL changed.
+- `npx playwright test -c playwright.polish.config.ts`: PASS, 163 general scenarios in 9.1 minutes using installed Chrome, port 3130 and fresh `.data/polish-final`. Report: `output/polish-v1/final-journeys-report/index.html`.
+- Strengthened gated review loading/error/empty tests: PASS, 2/2 ID/EN; `output/polish-v1/review-states-final.log`.
+- Dedicated `seller-operations.spec.ts` fixture: PASS, 3/3 in 20.4 seconds with `CATERA_OPS_TEST_URL=http://127.0.0.1:3130`; `output/polish-v1/operations-verified-report/index.html`. The first run reproduced an outdated selector counting group headings as orders; it now counts selectable order rows and preserves all bulk/conflict assertions. Explicit synthetic directory `.data/seller-operations-test`, seeded by `tests/fixtures/seller-operations.mts`; the server was switched only after the general run stopped.
+- Agent-browser discovery smoke: rendered controls and no reported browser errors. Before/after image review and scoped diff review completed; final `git diff --check` recorded with the commit.
+
+Local evidence stays under `output/polish-v1/`; logs/traces and generated Next.js
+paths are excluded from the commit. Source, regression tests, the local-only
+runner and this improvement log form the validated change. No remote write.
+
+All mapped web journeys have been reviewed. The reproduced high-impact findings
+P01/P02/P03/P05 are fixed and verified locally; no unresolved in-scope defect
+remains from this pass. There are 166 distinct passing browser scenarios across
+the general and dedicated operations runs. Production/provider/device evidence
+is explicitly outside those results.
+
+### External blockers and deferred ideas
+
+Native work remains paused; web screenshots do not verify native UI. Hosted
+Supabase/auth/realtime, SMS/SMTP, Xendit, device behavior and representative
+caterer learnability remain external verification gates. No missing business
+module or new policy will be added to bypass them.
+
+Physical-device/native UI and additional browser engines are unverified; no
+native UI was changed. Provider-backed payment/refund/payout dispatch, actual
+SMS/email delivery and hosted invitation/auth flows remain blocked by the
+explicit no-shared-data/no-real-transaction scope, rather than labeled passed
+from mocked or local evidence. Feature expansion, cross-session persistent
+message drafts and launch/infrastructure work are deferred. This pass preserves
+the approved modules and policies.
 
 ## September 17, 2026 baseline and authorization
 

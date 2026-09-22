@@ -55,7 +55,7 @@ import {
 } from "@catera/domain";
 import { useApp, api, useResource } from "./context";
 import { Button, Checkbox, TextInput } from "./form-controls";
-import { Heading, Empty, Facts } from "./ui";
+import { Heading, Empty, ErrorNotice, Facts } from "./ui";
 import { NumericInput } from "./numeric-input";
 export function PackageCard({
   offer,
@@ -786,7 +786,11 @@ export function PackagePage({
           </section>
           <section className="detail-section">
             <h2>{t("Cerita dari pelanggan", "Customer experiences")}</h2>
-            {reviews.data?.length ? (
+            {reviews.error ? (
+              <ErrorNotice message={reviews.error} retry={reviews.reload} />
+            ) : reviews.loading ? (
+              <p role="status">{t("Memuat ulasan…", "Loading reviews…")}</p>
+            ) : reviews.data?.length ? (
               reviews.data.map((r) => (
                 <div className="review" key={r.id}>
                   <strong>{r.customer}</strong>

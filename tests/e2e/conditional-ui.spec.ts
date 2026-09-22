@@ -187,26 +187,22 @@ for (const width of [390, 1440]) {
     });
     expect(support.ok(), await support.text()).toBe(true);
     await login(page);
-    for (const path of ["customers", "transactions", "support"]) {
+    await page.goto("/seller/customers");
+    await page.locator(".pilot-customer-grid > article").filter({ hasText: "Akun terhubung" }).first().getByRole("button", { name: "Lihat jadwal", exact: true }).click();
+    await expect(page.locator(".pilot-customer-grid > article")).toHaveCount(1);
+    await expect(page.locator(".pilot-customer-grid > article")).toContainText("Akun terhubung");
+    for (const path of ["transactions", "support"]) {
       await page.goto("/seller/" + path);
       const details = page.locator("details.record-details");
       if (path === "transactions") {
-        await page.getByRole("tab", { name: "Pembelian", exact: true }).click();
+        await page.getByRole("tab", { name: "Penjualan", exact: true }).click();
       }
       if (path === "support") {
         await page.getByRole("tab", { name: /^Bantuan/ }).click();
         await page.locator(".master-detail button.queue-row").first().click();
       }
-      if (path === "customers") {
-        await page
-          .getByRole("button", { name: "Lihat jadwal", exact: true })
-          .first()
-          .click();
-        await expect(page.locator(".customer-delivery-calendar")).toBeVisible();
-      } else {
-        await details.first().locator("summary").click();
-        await expect(details.first().locator("code")).toBeVisible();
-      }
+      await details.first().locator("summary").click();
+      await expect(details.first().locator("code")).toBeVisible();
       expect(
         await page.evaluate(
           () => document.documentElement.scrollWidth <= innerWidth,

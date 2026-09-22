@@ -18,6 +18,7 @@ import {
   Heading,
   Loading,
   ErrorNotice,
+  RefreshNotice,
   Status,
   ActionForm,
   Field,
@@ -33,6 +34,7 @@ export function Admin({ view }: { view: string }) {
   const [selected, setSelected] = useState("");
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState("submitted");
+  const [decisionPending, setDecisionPending] = useState(false);
   if (!state.data)
     return state.error ? (
       <ErrorNotice message={state.error} retry={state.reload} />
@@ -43,6 +45,7 @@ export function Admin({ view }: { view: string }) {
   const seller = a.caterers.find((c) => c.id === selected);
   return (
     <>
+      <RefreshNotice error={state.error} reload={state.reload} />
       <Heading
         title={
           {
@@ -105,6 +108,7 @@ export function Admin({ view }: { view: string }) {
               <div className="queue-filters">
                 <Button
                   className={filter === "submitted" ? "selected" : ""}
+                  disabled={decisionPending}
                   onClick={() => {
                     setFilter("submitted");
                     setSelected("");
@@ -114,6 +118,7 @@ export function Admin({ view }: { view: string }) {
                 </Button>
                 <Button
                   className={filter === "all" ? "selected" : ""}
+                  disabled={decisionPending}
                   onClick={() => setFilter("all")}
                 >
                   {t("Semua katerer", "All caterers")}
@@ -136,6 +141,8 @@ export function Admin({ view }: { view: string }) {
                       "queue-row " + (selected === c.id ? "selected" : "")
                     }
                     key={c.id}
+                    aria-pressed={selected === c.id}
+                    disabled={decisionPending}
                     onClick={() => setSelected(c.id)}
                   >
                     <span>
@@ -148,7 +155,7 @@ export function Admin({ view }: { view: string }) {
                 ))}
             </section>
             {seller && (
-              <section className="panel detail-panel">
+              <section className="panel detail-panel" key={seller.id}>
                 <h2>{seller.name}</h2>
                 <p>{seller.description}</p>
                 {seller.offers?.map((o) => (
@@ -174,6 +181,7 @@ export function Admin({ view }: { view: string }) {
                   ]}
                 />
                 <ActionForm
+                  onPendingChange={setDecisionPending}
                   submit={t(
                     "Simpan keputusan verifikasi",
                     "Save verification decision",

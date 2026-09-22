@@ -13,7 +13,7 @@ import { FoodImage } from "./food-image";
 import { OptionalSection } from "./optional-section";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -56,6 +56,7 @@ import {
   Heading,
   Loading,
   ErrorNotice,
+  RefreshNotice,
   Empty,
   Status,
   Dialog,
@@ -807,18 +808,25 @@ export function Messages({ embedded = false }: { embedded?: boolean }) {
   const state = useResource<Conversation[]>("conversations", () =>
     api.conversations(),
   );
-  const [selected, setSelected] = useState("");
-  if (state.error)
+  const [selected, setSelected] = useState(selectedCaterer ? "caterer:" + selectedCaterer : "");
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [sending, setSending] = useState(false);
+  useEffect(() => {
+    setSelected(selectedCaterer ? "caterer:" + selectedCaterer : "");
+  }, [selectedCaterer]);
+  if (state.error && !state.data)
     return <ErrorNotice message={state.error} retry={state.reload} />;
   if (!state.data) return <Loading />;
+  const requestedCaterer = selected.startsWith("caterer:") ? selected.slice(8) : null;
   const c =
     state.data.find((c) => c.id === selected) ||
-    state.data.find((c) => c.caterer_id === selectedCaterer) ||
-    state.data[0];
+    state.data.find((c) => c.caterer_id === requestedCaterer) ||
+    (!selected ? state.data[0] : undefined);
   const newCaterer =
-    selectedCaterer && !state.data.some((c) => c.caterer_id === selectedCaterer)
-      ? offers.find((o) => o.catererId === selectedCaterer)
+    requestedCaterer && !state.data.some((c) => c.caterer_id === requestedCaterer)
+      ? offers.find((o) => o.catererId === requestedCaterer)
       : null;
+  const conversationKey = newCaterer ? "caterer:" + newCaterer.catererId : c?.id || "";
   return (
     <div
       className={embedded ? "messages-page embedded" : "content messages-page"}
@@ -832,11 +840,12 @@ export function Messages({ embedded = false }: { embedded?: boolean }) {
           )}
         />
       )}
+      {state.error && <ErrorNotice message={state.error} retry={state.reload} />}
       <div className="messages-layout">
         <aside aria-label={t("Daftar percakapan", "Conversations")}>
           <h2>{t("Percakapan", "Conversations")}</h2>
           {embedded && actor?.catererId && (
-            <StartConversation onStarted={setSelected} />
+            <StartConversation onStarted={setSelected} disabled={sending} />
           )}
           {newCaterer && (
             <div className="conversation-preview active">
@@ -847,6 +856,8 @@ export function Messages({ embedded = false }: { embedded?: boolean }) {
           {state.data.map((x) => (
             <Button
               key={x.id}
+              aria-pressed={!newCaterer && c?.id === x.id}
+              disabled={sending}
               className={
                 "conversation-preview " +
                 (c?.id === x.id && !newCaterer ? "active" : "")
@@ -927,29 +938,40 @@ export function Messages({ embedded = false }: { embedded?: boolean }) {
                   ))}
               </div>
               <ActionForm
+                key={conversationKey}
                 className="composer"
+                onPendingChange={setSending}
+                disabled={!(drafts[conversationKey] || "").trim()}
                 submit={t("Kirim", "Send")}
                 onSubmit={async (f) => {
+                  const body = String(f.get("body") || "");
                   const result = await perform<{ id: string }>("message.send", {
                     conversationId: newCaterer ? undefined : c?.id,
                     catererId: newCaterer?.catererId || c?.caterer_id,
-                    body: f.get("body"),
+                    body,
                   });
-                  setSelected(result.id);
+                  setDrafts((current) => ({ ...current, [conversationKey]: "" }));
+                  // A new conversation keeps its known recipient visible until
+                  // the confirmed conversation arrives in the refreshed read.
+                  if (!newCaterer) setSelected(result.id);
                 }}
               >
                 <label className="sr-only" htmlFor="message-body">
-                  Pesan
+                  {t("Pesan", "Message")}
                 </label>
                 <TextArea
                   id="message-body"
                   name="body"
+                  value={drafts[conversationKey] || ""}
+                  onChange={(event) => setDrafts((current) => ({ ...current, [conversationKey]: event.target.value }))}
                   placeholder={t("Tulis pesan…", "Write a message…")}
                   required
                   maxLength={2000}
                 />
               </ActionForm>
             </>
+          ) : state.loading ? (
+            <Loading />
           ) : (
             <Empty
               title={t("Belum ada percakapan", "No conversations yet")}
@@ -985,6 +1007,7 @@ export function Account({ view }: { view: string }) {
     return (
       <div className="content narrow-wide">
         <Heading title={t("Kabar untukmu", "Updates for you")} />
+        <RefreshNotice error={state.error} reload={state.reload} />
         {c.notifications.map((n) => (
           <div
             className={"notification " + (!n.read_at ? "unread" : "")}
@@ -1020,6 +1043,7 @@ export function Account({ view }: { view: string }) {
             : t("Akunmu, keseharianmu.", "Your account, your everyday.")
         }
       />
+      <RefreshNotice error={state.error} reload={state.reload} />
       {view === "account" && (
         <>
           <div className="account-person">
@@ -1217,6 +1241,7 @@ export function Support() {
           {t("Ajukan bantuan", "Request help")}
         </Button>
       </Heading>
+      <RefreshNotice error={state.error} reload={state.reload} />
       <p className="notice">
         {t(
           "Permintaan pembatalan dan refund ditinjau satu per satu. Jadwal tetap berjalan sampai ada keputusan yang dikonfirmasi.",

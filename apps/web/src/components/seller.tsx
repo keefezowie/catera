@@ -69,6 +69,7 @@ import {
   Status,
   Loading,
   ErrorNotice,
+  RefreshNotice,
   Empty,
   ActionForm,
   Field,
@@ -116,6 +117,7 @@ function SellerWorkspace({ view }: { view: string }) {
   const s = state.data;
   return (
     <>
+      <RefreshNotice error={state.error} reload={state.reload} />
       <Heading
         title={
           {
@@ -1493,6 +1495,7 @@ export function SupportQueue({
 }) {
   const { perform, t, locale } = useApp();
   const [selected, setSelected] = useState(initialSelected);
+  const [decisionPending, setDecisionPending] = useState(false);
   const c = cases.find((c) => c.id === selected);
   return (
     <section className="panel">
@@ -1506,6 +1509,8 @@ export function SupportQueue({
           {cases.map((x) => (
             <Button
               key={x.id}
+              aria-pressed={selected === x.id}
+              disabled={decisionPending}
               className={"queue-row " + (selected === x.id ? "selected" : "")}
               onClick={() => setSelected(x.id)}
             >
@@ -1527,7 +1532,7 @@ export function SupportQueue({
           )}
         </div>
         {c && (
-          <div className="support-decision">
+          <div className="support-decision" key={c.id}>
             <h3>{c.subject}</h3>
             <p>{c.description}</p>
             <details className="record-details">
@@ -1543,6 +1548,8 @@ export function SupportQueue({
             {c.status !== "resolved" &&
               (admin ? (
                 <ActionForm
+                  onPendingChange={setDecisionPending}
+                  disabled={decisionPending}
                   submit={t(
                     "Simpan keputusan keuangan",
                     "Save financial decision",
@@ -1585,6 +1592,8 @@ export function SupportQueue({
               ) : (
                 <>
                   <ActionForm
+                    onPendingChange={setDecisionPending}
+                    disabled={decisionPending}
                     submit={t("Kirim tanggapan", "Send response")}
                     onSubmit={async (f) => {
                       await perform("support.respond", {
@@ -1598,6 +1607,8 @@ export function SupportQueue({
                     </Field>
                   </ActionForm>
                   <ActionForm
+                    onPendingChange={setDecisionPending}
+                    disabled={decisionPending}
                     submit={t("Eskalasi ke Catera", "Escalate to Catera")}
                     onSubmit={async () => {
                       await perform("support.escalate", { id: c.id });

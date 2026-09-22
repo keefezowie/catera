@@ -171,6 +171,7 @@ function Shell({
   const searchParams = useSearchParams();
   const operationsPaths = ["/seller", "/seller/schedule"];
   function workspaceHref(href: string) {
+    if (href === "/seller") return href;
     if (!operationsPaths.includes(pathname) || !operationsPaths.includes(href))
       return href;
     const query = new URLSearchParams();

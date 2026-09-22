@@ -51,6 +51,7 @@ test("slot purchase resolves dated dishes through customer delivery and frozen p
   const customer = (await (await page.request.get("/api/v1/customer")).json())
     .data;
   const checkout = await cmd(page, "checkout.create", {
+    acceptedTerms: true,
     packageId: created.id,
     addressId: customer.addresses[0].id,
     portions: 1,
@@ -67,7 +68,8 @@ test("slot purchase resolves dated dishes through customer delivery and frozen p
       (d: { subscription_id: string }) => d.subscription_id === sub.id,
     );
   await page.goto("/deliveries/" + delivery.id);
-  await expect(page.locator(".package-contents")).toContainText(
+  await page.getByText("Isi paket", { exact: true }).click();
+  await expect(page.locator("#main .package-contents:visible")).toContainText(
     "Menu belum ditentukan",
   );
   await page.request.post("/api/v1/auth/demo", { data: { role: "owner" } });
@@ -112,14 +114,15 @@ test("slot purchase resolves dated dishes through customer delivery and frozen p
   expect(await csv.text()).toContain("Tempe bacem verifikasi (2 potong)");
   await page.request.post("/api/v1/auth/demo", { data: { role: "customer" } });
   await page.goto("/deliveries/" + delivery.id);
-  await expect(page.locator(".package-contents")).toContainText(
+  await page.getByText("Isi paket", { exact: true }).click();
+  await expect(page.locator("#main .package-contents:visible")).toContainText(
     "Ayam kecap pengganti",
   );
-  await expect(page.locator(".package-contents")).toContainText(
+  await expect(page.locator("#main .package-contents:visible")).toContainText(
     "35–45 g protein",
   );
   await page.goto("/subscriptions/" + sub.id);
-  await expect(page.locator(".package-contents")).toContainText(
+  await expect(page.locator("#main .package-contents:visible")).toContainText(
     "Menu belum ditentukan",
   );
   const after = (await (await page.request.get("/api/v1/customer")).json())
@@ -164,18 +167,19 @@ test("legacy nasi box retains concrete dishes, macros, discovery filtering and E
   });
   await page.request.post("/api/v1/auth/demo", { data: { role: "customer" } });
   await page.goto("/packages/" + p.id);
-  await expect(page.locator(".package-contents")).toContainText("1 Sup");
-  await expect(page.locator(".package-contents")).toContainText(
+  await expect(page.locator("#main .package-contents:visible")).toContainText("1 Sup");
+  await expect(page.locator("#main .package-contents:visible")).toContainText(
     "Sup jagung sintetis",
   );
   await choose(page, "Bahasa", "English");
-  await expect(page.locator(".package-contents")).toContainText("Example menu");
-  await expect(page.locator(".package-contents")).toContainText(
+  await expect(page.locator("#main .package-contents:visible")).toContainText("Example menu");
+  await expect(page.locator("#main .package-contents:visible")).toContainText(
     "Caterer estimate",
   );
   await page.goto("/#packages");
+  await page.getByRole("button", { name: /^Filter/ }).click();
   await choose(page, "Package type", "Rice box");
-  await page.getByRole("textbox", { name: "Search caterers" }).fill(name);
+  await page.getByRole("searchbox", { name: "Search caterers" }).fill(name);
   await expect(page.locator(".package-card")).toHaveCount(1);
 });
 test("wizard reviews custom categories and counts before publishing the new composition", async ({

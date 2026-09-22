@@ -358,6 +358,7 @@ test("customer calendar persists address and date changes and retains a failed r
   const buyer = (await (await page.request.get("/api/v1/customer")).json())
     .data;
   const checkout = await command(page, "checkout.create", {
+    acceptedTerms: true,
     packageId: offer.id,
     portions: 2,
     startDate: addDays(localDay(), 95),
@@ -415,6 +416,8 @@ test("customer calendar persists address and date changes and retains a failed r
     page.getByRole("combobox", { name: "Meal period", exact: true }),
   ).toContainText("Lunch");
   await choose(page, "Schedule view", "Calendar");
+  // Calendar view shows every delivery on the selected date. Select the
+  // delivery whose address was changed instead of relying on a unique CTA.
   const before = (
     await (
       await page.request.get(
@@ -435,7 +438,7 @@ test("customer calendar persists address and date changes and retains a failed r
       .at(-1),
     14,
   );
-  await calendar.getByRole("button", { name: "Change on request" }).click();
+  await calendar.locator(`[data-delivery-id="${first.id}"]`).getByRole("button", { name: "Change on request" }).click();
   await choose(page, "Change type", "Date");
   await pickDate(page, "New date", target);
   await page

@@ -105,6 +105,9 @@ export function Production({
     id: string;
     revision: number;
   } | null>(null);
+  const portions = deliveries
+    .filter((d) => d.status !== "cancelled")
+    .reduce((sum, d) => sum + d.portions * d.meals.length, 0);
   return (
     <section className="panel">
       <div className="section-heading">
@@ -113,6 +116,13 @@ export function Production({
             {t("Daftar dapur & pengantaran", "Kitchen & delivery list")} ·{" "}
             {date}
           </h2>
+          <strong>
+            {t(
+              "Ringkasan langsung · sehari penuh",
+              "Live overview · whole day",
+            )}{" "}
+            · {loading ? "…" : portions} {t("porsi makan", "meal portions")}
+          </strong>
           <p>
             {t(
               "Sehari penuh: semua paket, termasuk coba paket, makan siang dan malam. Filter di atas tidak mengubah daftar ini.",
@@ -122,6 +132,7 @@ export function Production({
         </div>
         <Button
           className="button secondary small"
+          disabled={loading}
           onClick={() => window.print()}
         >
           <Printer size={16} />
@@ -154,11 +165,20 @@ export function Production({
         </p>
       </ActionForm>
       {revision && (
-        <a className="button spaced" href={"/api/manifests/" + revision.id}>
-          <Download size={18} />
-          {t("Unduh CSV · revisi", "Download CSV · revision")}{" "}
-          {revision.revision}
-        </a>
+        <div className="ops-saved-copy">
+          <p>
+            {t(
+              "Salinan revisi tersimpan; simpan revisi baru setelah perubahan. Ringkasan langsung di atas dapat berbeda.",
+              "Saved revision copy; save a new revision after changes. The live overview above may differ.",
+            )}{" "}
+            · {date} · {t("sehari penuh", "whole day")}
+          </p>
+          <a className="button spaced" href={"/api/manifests/" + revision.id}>
+            <Download size={18} />
+            {t("Unduh CSV · revisi", "Download CSV · revision")}{" "}
+            {revision.revision}
+          </a>
+        </div>
       )}
     </section>
   );

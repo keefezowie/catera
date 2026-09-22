@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-import { localDay, addDays } from "@catera/domain";
+import { localDay, addDays, purchaseStartAvailable, type Offer } from "@catera/domain";
 import { pickDate } from "./date-picker";
 async function login(page: Page, role = "customer") {
   const r = await page.request.post("/api/v1/auth/demo", { data: { role } });
@@ -18,10 +18,13 @@ test("customer purchase, schedule change, support review and renewal", async ({
       .map((s: { ends_on: string }) => s.ends_on)
       .sort()
       .at(-1) || localDay();
-  const start = addDays(
+  let start = addDays(
     last > addDays(localDay(), 250) ? last : addDays(localDay(), 250),
     7,
   );
+  const catalog = (await (await page.request.get("/api/v1/catalog?limit=100")).json()).data.items as Offer[];
+  const offer = catalog.find((o) => o.id === "20000000-0000-4000-8000-000000000003")!;
+  while (!purchaseStartAvailable(offer, start)) start = addDays(start, 1);
   const requestText = "Permintaan sintetis dari pengujian perjalanan " + start;
   await page.goto("/discover");
   await page
@@ -171,7 +174,7 @@ test("customer and operational routes render, retain context and pass critical a
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/seller?date=" + serviceDate);
   await expect(
-    page.getByRole("heading", { name: "Hari ini", exact: true, level: 1 }),
+    page.getByRole("heading", { name: serviceDate === localDay() ? "Hari ini" : "Operasional", exact: true, level: 1 }),
   ).toBeVisible();
   await page.screenshot({
     path: "output/playwright/seller-desktop.png",
@@ -202,7 +205,7 @@ test("customer and operational routes render, retain context and pass critical a
   await expect(page).toHaveURL(
     (url) =>
       url.pathname === "/seller" &&
-      url.searchParams.get("date") === serviceDate,
+      !url.searchParams.has("date"),
   );
   for (const route of [
     "packages",

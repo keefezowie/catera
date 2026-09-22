@@ -8,14 +8,20 @@ import { ActionForm, Dialog, Field, ErrorNotice, Loading } from "./ui";
 type Recipient = { id: string; name: string; user_id: string | null };
 export function StartConversation({
   onStarted,
+  disabled = false,
 }: {
   onStarted: (id: string) => void;
+  disabled?: boolean;
 }) {
   const { t } = useApp();
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Button className="button secondary" onClick={() => setOpen(true)}>
+      <Button
+        className="button secondary"
+        disabled={disabled}
+        onClick={() => setOpen(true)}
+      >
         <MessageCircle size={17} />
         {t("Mulai percakapan", "Start conversation")}
       </Button>
@@ -41,6 +47,7 @@ function RecipientPicker({ onStarted }: { onStarted: (id: string) => void }) {
   const [search, setSearch] = useState(""),
     [offset, setOffset] = useState(0),
     [recipient, setRecipient] = useState<Recipient | null>(null);
+  const [sending, setSending] = useState(false);
   const resource = useResource<{ items: Recipient[]; total: number }>(
     `recipients:${actor!.catererId}:${search}:${offset}`,
     () =>
@@ -53,6 +60,7 @@ function RecipientPicker({ onStarted }: { onStarted: (id: string) => void }) {
       <Field label={t("Cari pelanggan", "Search customers")}>
         <TextInput
           type="search"
+          disabled={sending}
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);
@@ -71,6 +79,7 @@ function RecipientPicker({ onStarted }: { onStarted: (id: string) => void }) {
             {c.user_id ? (
               <Button
                 aria-pressed={recipient?.id === c.id}
+                disabled={sending}
                 className="button secondary"
                 onClick={() => setRecipient(c)}
               >
@@ -103,14 +112,16 @@ function RecipientPicker({ onStarted }: { onStarted: (id: string) => void }) {
       )}
       <div className="action-row">
         <Button
-          disabled={offset === 0 || resource.loading}
+          disabled={sending || offset === 0 || resource.loading}
           onClick={() => setOffset((v) => Math.max(0, v - 25))}
         >
           {t("Sebelumnya", "Previous")}
         </Button>
         <Button
           disabled={
-            resource.loading || offset + 25 >= (resource.data?.total || 0)
+            sending ||
+            resource.loading ||
+            offset + 25 >= (resource.data?.total || 0)
           }
           onClick={() => setOffset((v) => v + 25)}
         >
@@ -120,6 +131,7 @@ function RecipientPicker({ onStarted }: { onStarted: (id: string) => void }) {
       {recipient && (
         <ActionForm
           key={recipient.id}
+          onPendingChange={setSending}
           submit={t("Kirim pesan pertama", "Send first message")}
           onSubmit={async (f) => {
             const result = await perform<{ id: string }>("message.send", {

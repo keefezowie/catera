@@ -10,10 +10,7 @@ import {
   Moon,
   Package,
   Truck,
-  Clock,
   CircleAlert,
-  Users,
-  MapPin,
   Utensils,
   ArrowUpRight,
   ChefHat,
@@ -27,13 +24,15 @@ import {
   fulfillmentStatus,
   nextDeliveryStatuses,
   scheduleSummary,
+  mealWorkload,
+  deliveryDeadlines,
   destinationKey,
   operationalGroups,
   type SellerOperationsState,
   type SellerDelivery,
 } from "@catera/domain";
 import { api, useApp, useResource } from "./context";
-import { Button, Checkbox } from "./form-controls";
+import { Button, Checkbox, TextInput } from "./form-controls";
 import { Select, SelectOption } from "./select";
 import { DatePicker } from "./date-picker";
 import { Heading, Loading, ErrorNotice, Empty, Status, Facts } from "./ui";
@@ -54,6 +53,7 @@ export function SellerOperations({ view }: { view: string }) {
   const { actor } = useApp();
   const query = useSearchParams();
   const router = useRouter();
+  const calendarFocus = useRef<string | null>(null);
   const requestedDate = query.get("date") || "";
   const date = validDay(requestedDate) ? requestedDate : "";
   useEffect(() => {
@@ -70,6 +70,7 @@ export function SellerOperations({ view }: { view: string }) {
     <OperationsLoader
       key={actor!.catererId}
       date={date}
+      calendarFocus={calendarFocus}
       schedule={view === "schedule" || view === "production"}
     />
   );
@@ -78,14 +79,30 @@ export function SellerOperations({ view }: { view: string }) {
 function OperationsLoader({
   date,
   schedule,
+  calendarFocus,
 }: {
   date: string;
   schedule: boolean;
+  calendarFocus: { current: string | null };
 }) {
   const { actor, t } = useApp();
   const state = useResource("operations:" + actor!.catererId + ":" + date, () =>
     api.sellerOperations(actor!.catererId!, date),
+    { keepPreviousData: true },
   );
+  const reload = useRef(state.reload);
+  reload.current = state.reload;
+  useEffect(() => {
+    const refresh = () => {
+      if (!document.hidden) reload.current();
+    };
+    const timer = window.setInterval(refresh, 60000);
+    window.addEventListener("focus", refresh);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+    };
+  }, []);
   if (!state.data)
     return state.error ? (
       <ErrorNotice message={state.error} retry={state.reload} />
@@ -108,9 +125,12 @@ function OperationsLoader({
         state={state.data}
         selectedDate={date || state.data.operationalDate}
         schedule={schedule}
+        calendarFocus={calendarFocus}
         refresh={state.reload}
         loading={
-          state.loading || Boolean(date && state.data.operationalDate !== date)
+          state.loading ||
+          Boolean(state.error) ||
+          Boolean(date && state.data.operationalDate !== date)
         }
       />
     </>
@@ -123,23 +143,50 @@ function OperationsPage({
   schedule,
   refresh,
   loading,
+  calendarFocus,
 }: {
   state: SellerOperationsState;
   selectedDate: string;
   schedule: boolean;
   refresh: () => void;
   loading: boolean;
+  calendarFocus: { current: string | null };
 }) {
-  const { t } = useApp();
+  const { t, locale } = useApp();
   const query = useSearchParams();
   const router = useRouter();
   const date = selectedDate;
+  const currentRows = s.operationalDate === date ? s.deliveries : [];
+  const lunch = mealWorkload(currentRows, "lunch");
+  const dinner = mealWorkload(currentRows, "dinner");
+  const suggestedMeal = !lunch.portions && dinner.portions ? "dinner" : "lunch";
+  const [defaultMeal, setDefaultMeal] = useState({ date, meal: suggestedMeal });
+  if (!loading && defaultMeal.date !== date) {
+    setDefaultMeal({ date, meal: suggestedMeal });
+  }
+  const initialMeal = defaultMeal.date === date ? defaultMeal.meal : suggestedMeal;
   const meal =
     query.get("meal") === "dinner"
       ? "dinner"
-      : query.get("meal") === "lunch" || !schedule
+      : query.get("meal") === "lunch"
         ? "lunch"
-        : "all";
+        : schedule
+          ? "all"
+          : initialMeal;
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const next = Math.min(
+      ...s.deliveries
+        .map((d) => Date.parse(d.cutoff_at))
+        .filter((at) => at > now),
+    );
+    const timer = setTimeout(
+      () => setNow(Date.now()),
+      Math.min(60000, Math.max(1, next - now + 1)),
+    );
+    return () => clearTimeout(timer);
+  }, [now, s.deliveries]);
+  const [filterSearch, setFilterSearch] = useState("");
   const packageId = schedule ? query.get("package") || "" : "";
   const status =
     schedule && ["all", "cancelled"].includes(query.get("status") || "")
@@ -147,7 +194,14 @@ function OperationsPage({
       : "active";
   function navigate(values: Record<string, string>) {
     const next = new URLSearchParams(query);
-    next.set("date", date);
+    if (
+      ["date", "meal", "package", "status", "group"].some(
+        (key) => key in values,
+      )
+    ) {
+      next.delete("filter");
+      setFilterSearch("");
+    }
     for (const [key, value] of Object.entries(values))
       value ? next.set(key, value) : next.delete(key);
     router.push((schedule ? "/seller/schedule" : "/seller") + "?" + next, {
@@ -159,14 +213,13 @@ function OperationsPage({
     (d) =>
       (meal === "all" || d.meals.some((m) => m.meal === meal)) &&
       (!packageId || d.offer.id === packageId) &&
-      (!schedule ||
+      ((!schedule && d.status !== "cancelled") ||
         status === "all" ||
         (status === "cancelled"
           ? d.status === "cancelled"
           : d.status !== "cancelled")),
   );
   const includeCancelled = schedule && status !== "active";
-  const summary = scheduleSummary(rows, meal, includeCancelled);
   const grouping =
     schedule && ["customers", "destinations"].includes(query.get("group") || "")
       ? query.get("group")!
@@ -188,18 +241,23 @@ function OperationsPage({
     grouping !== "flat" && selectedGroup
       ? rows.filter((row) => groupKey(row) === selectedGroup)
       : rows;
-  const active = rows.filter((d) => fulfillmentStatus(d, meal) !== "cancelled");
-  const issues = active.filter(
-    (d) => fulfillmentStatus(d, meal) === "issue",
-  ).length;
-  const cases = s.cases.filter((c) => c.status !== "resolved").length;
+  const summary = scheduleSummary(filteredRows, meal, includeCancelled);
+  const deadlines = deliveryDeadlines(filteredRows, now);
+  const workload = meal === "dinner" ? dinner : lunch;
+  const formatDate = (value: string) =>
+    new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-GB", {
+      dateStyle: "full",
+      timeZone: "UTC",
+    }).format(new Date(value + "T12:00:00Z"));
   return (
     <div className="seller-operations">
       <Heading
         title={
           schedule
             ? t("Jadwal pesanan", "Order schedule")
-            : t("Hari ini", "Today")
+            : date === s.today
+              ? t("Hari ini", "Today")
+              : t("Operasional", "Operations")
         }
         description={
           schedule
@@ -214,12 +272,56 @@ function OperationsPage({
         }
       ></Heading>
       <SellerReadiness caterer={s.caterer} offers={s.offers} />
-      {!schedule && <NeedsAttention catererId={s.caterer.id} />}
+      <div className="ops-context">
+        <strong>
+          {formatDate(date)} · {s.caterer.timezone}
+        </strong>
+        <Link
+          className="button secondary"
+          href={`/seller/schedule?date=${date}&production=1#production`}
+        >
+          <ChefHat size={18} />
+          {t(
+            "Daftar dapur & pengantaran · sehari penuh",
+            "Kitchen & delivery list · whole day",
+          )}
+        </Link>
+      </div>
+      {loading && (
+        <p role="status">
+          {t(
+            "Memuat ulang data; tindakan sementara dinonaktifkan.",
+            "Refreshing data; actions are temporarily disabled.",
+          )}
+        </p>
+      )}
       {s.caterer.status !== "approved" && (
         <p className="notice">
           {t("Status verifikasi", "Verification status")}:{" "}
           <Status status={s.caterer.status} />
         </p>
+      )}
+      {schedule && (
+        <details
+          className="ops-production spaced"
+          id="production"
+          open={query.get("production") === "1" || undefined}
+        >
+          <summary>
+            {t("Daftar dapur & pengantaran", "Kitchen & delivery lists")}
+          </summary>
+          {s.operationalDate !== date ? (
+            <Loading />
+          ) : (
+            <Production
+              key={date}
+              deliveries={dayRows}
+              meal="all"
+              date={date}
+              loading={loading}
+            />
+          )}
+        </details>
       )}
       {schedule && (
         <ScheduleCalendar
@@ -230,7 +332,12 @@ function OperationsPage({
           meal={meal}
           packageId={packageId}
           status={status}
-          onDate={(value) => navigate({ date: value })}
+          focusDate={calendarFocus}
+          loading={loading}
+          onDate={(value) => {
+            calendarFocus.current = value;
+            navigate({ date: value });
+          }}
         />
       )}
       {schedule && (
@@ -257,8 +364,16 @@ function OperationsPage({
           ))}
         </div>
       )}
+      {schedule && (
+        <p className="muted">
+          {t(
+            "Porsi pada tab: seluruh tanggal ini, semua paket dan pelanggan.",
+            "Tab portions: this whole day, all packages and customers.",
+          )}
+        </p>
+      )}
       <div className="ops-filter-row">
-        {
+        {!schedule && (
           <div className="ops-date">
             <DatePicker
               compact
@@ -267,7 +382,7 @@ function OperationsPage({
               onValueChange={(value) => navigate({ date: value })}
             />
           </div>
-        }
+        )}
 
         <div
           className="ops-meal-tabs"
@@ -318,6 +433,17 @@ function OperationsPage({
                   : m === "lunch"
                     ? t("Siang", "Lunch")
                     : t("Malam", "Dinner")}
+                {m !== "all" && (
+                  <small>
+                    ·{" "}
+                    {loading
+                      ? "…"
+                      : m === "lunch"
+                        ? lunch.portions
+                        : dinner.portions}{" "}
+                    {t("porsi", "portions")}
+                  </small>
+                )}
               </Button>
             ),
           )}
@@ -340,112 +466,160 @@ function OperationsPage({
           </Select>
         )}
       </div>
-      <div className="ops-metrics" aria-label={t("Ringkasan", "Summary")}>
-        {(schedule
-          ? [
-              [
-                Package,
-                t("Pesanan harian", "Daily orders"),
-                summary.orders,
+      {schedule ? (
+        <div
+          className="ops-scope-summary"
+          aria-label={t("Ringkasan tabel", "Table summary")}
+        >
+          <strong>
+            {loading
+              ? "…"
+              : summary.orders +
+                " " +
+                t("pesanan", "orders") +
+                " · " +
+                summary.portions +
+                " " +
+                t("porsi makan", "meal portions")}
+          </strong>
+          <span>
+            {t("Sesuai filter tabel", "Matching table filters")}
+            {includeCancelled &&
+              " · " +
                 t(
-                  "Paket gabungan dihitung sekali",
-                  "Combined packages count once",
-                ),
-              ],
-              [
-                Utensils,
-                t("Total porsi makan", "Meal portions"),
-                summary.portions,
-                meal === "all"
-                  ? t("Siang dan malam", "Lunch and dinner")
-                  : t("Waktu makan terpilih", "Selected meal period"),
-              ],
-              [
-                Users,
-                t("Pelanggan unik", "Unique customers"),
-                summary.customers,
-                t("Sesuai filter", "Matching filters"),
-              ],
-              [
-                MapPin,
-                t("Tujuan unik", "Unique destinations"),
-                summary.destinations,
-                t("Alamat pengantaran", "Delivery addresses"),
-              ],
-            ]
-          : [
-              [Package, t("Jumlah pesanan", "Orders"), active.length, date],
-              [
-                Truck,
-                t("Dalam pengantaran", "Out for delivery"),
-                active.filter(
-                  (d) => fulfillmentStatus(d, meal) === "out_for_delivery",
-                ).length,
-                t("Waktu makan terpilih", "Selected meal period"),
-              ],
-              [
-                Clock,
-                t("Batas perubahan", "Change cutoff"),
-                s.caterer.cutoff.slice(0, 5),
-                s.caterer.timezone,
-              ],
-              [
-                CircleAlert,
-                t("Perlu perhatian", "Needs attention"),
-                issues,
-                `${t("pengantaran berkendala", "delivery issues")} · ${cases} ${t("bantuan terbuka", "open support cases")}`,
-              ],
-            ]
-        ).map(([Icon, label, value, caption]) => {
-          const I = Icon as typeof Package;
-          const clickable = schedule && (Icon === Users || Icon === MapPin);
-          const contents = (
-            <>
-              <I size={21} />
-              <span>{String(label)}</span>
-              <strong>{String(value)}</strong>
-              <small>{String(caption)}</small>
-            </>
-          );
-          return clickable ? (
-            <button
-              className="ops-metric-button"
-              type="button"
-              aria-pressed={
-                grouping === (Icon === Users ? "customers" : "destinations")
+                  "termasuk jumlah historis yang dibatalkan; bukan kebutuhan dapur",
+                  "includes cancelled historical quantities; not kitchen requirements",
+                )}
+          </span>
+        </div>
+      ) : (
+        <section
+          className="panel ops-workload"
+          aria-label={t("Beban layanan", "Service workload")}
+        >
+          <h2>
+            {t("Total porsi", "Total portions")}{" "}
+            {meal === "lunch"
+              ? t("siang", "for lunch")
+              : t("malam", "for dinner")}
+            : {loading ? "…" : workload.portions}
+          </h2>
+          <p>
+            {loading ? "…" : workload.orders}{" "}
+            {t(
+              "pesanan · termasuk yang sudah diterima, tidak termasuk pembatalan",
+              "orders · includes delivered meals, excludes cancellations",
+            )}
+          </p>
+          <div className="ops-stages">
+            {Object.entries(workload.stages).map(([status, portions]) => (
+              <span key={status}>
+                {statusLabel(status, locale)}:{" "}
+                <strong>
+                  {loading ? "…" : portions} {t("porsi", "portions")}
+                </strong>
+              </span>
+            ))}
+          </div>
+          {!loading &&
+            !workload.orders &&
+            (meal === "lunch" ? dinner.orders : lunch.orders) > 0 && (
+              <Button
+                className="text-button"
+                onClick={() =>
+                  navigate({ meal: meal === "lunch" ? "dinner" : "lunch" })
+                }
+              >
+                {t("Lihat pesanan", "View orders for")}{" "}
+                {meal === "lunch" ? t("malam", "dinner") : t("siang", "lunch")}
+              </Button>
+            )}
+        </section>
+      )}
+      {!loading && deadlines.length > 0 && (
+        <details className="ops-deadlines">
+          <summary>
+            {t("Batas perubahan pelanggan", "Customer change deadlines")} ·{" "}
+            {date} ·{" "}
+            {deadlines.length === 1
+              ? new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-GB", {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                  timeZone: s.caterer.timezone,
+                }).format(new Date(deadlines[0].at)) +
+                " · " +
+                (deadlines[0].passed
+                  ? t("Sudah lewat", "Passed")
+                  : t("Belum lewat", "Not yet passed"))
+              : deadlines.length +
+                " " +
+                t("batas berbeda", "different deadlines")}
+          </summary>
+          <p>
+            {t(
+              "Batas dari ketentuan pembelian. Kelayakan perubahan tetap diperiksa per pesanan; batas ini tidak mengunci pembaruan status dapur/pengantaran.",
+              "Deadlines from purchased terms. Change eligibility is still checked per order; these deadlines do not lock kitchen/delivery status updates.",
+            )}
+          </p>
+          {deadlines.map((d) => (
+            <p key={d.at}>
+              {new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-GB", {
+                dateStyle: "medium",
+                timeStyle: "short",
+                timeZone: s.caterer.timezone,
+              }).format(new Date(d.at))}{" "}
+              · {s.caterer.timezone} ·{" "}
+              {d.passed
+                ? t("Sudah lewat", "Passed")
+                : t("Belum lewat", "Not yet passed")}{" "}
+              · {d.orders} {t("pesanan", "orders")}
+            </p>
+          ))}
+        </details>
+      )}
+      {!schedule && <NeedsAttention catererId={s.caterer.id} />}
+      {schedule && (
+        <div className="ops-group-controls">
+          <label>
+            {t("Kelompokkan pesanan", "Group orders")}
+            <Select
+              aria-label={t("Kelompokkan pesanan", "Group orders")}
+              value={grouping}
+              onValueChange={(group) =>
+                navigate({ group: group === "flat" ? "" : group })
               }
-              aria-controls="ops-orders"
-              key={String(label)}
+            >
+              <SelectOption value="flat">
+                {t("Tanpa kelompok", "No grouping")}
+              </SelectOption>
+              <SelectOption value="customers">
+                {t("Pelanggan", "Customer")}
+              </SelectOption>
+              <SelectOption value="destinations">
+                {t("Tujuan", "Destination")}
+              </SelectOption>
+            </Select>
+          </label>
+          {(packageId ||
+            selectedGroup ||
+            status !== "active" ||
+            meal !== "all") && (
+            <Button
+              className="text-button"
               onClick={() =>
                 navigate({
-                  group:
-                    grouping === (Icon === Users ? "customers" : "destinations")
-                      ? ""
-                      : Icon === Users
-                        ? "customers"
-                        : "destinations",
+                  package: "",
                   filter: "",
+                  status: "",
+                  meal: "",
+                  group: "",
                 })
               }
             >
-              {contents}
-            </button>
-          ) : (
-            <div key={String(label)}>
-              <I size={21} />
-              <span>{String(label)}</span>
-              <strong>{String(value)}</strong>
-              <small>{String(caption)}</small>
-            </div>
-          );
-        })}
-      </div>
-      {!schedule && cases > 0 && (
-        <Link className="text-button ops-support-link" href="/seller/support">
-          {t("Lihat bantuan terbuka", "View open support cases")}{" "}
-          <span className="ops-count-badge">{cases}</span>
-          <ArrowUpRight size={15} />
-        </Link>
+              {t("Reset filter tabel", "Reset table filters")}
+            </Button>
+          )}
+        </div>
       )}
       <div
         id="ops-orders"
@@ -459,12 +633,27 @@ function OperationsPage({
         }
       >
         <OrderTable
-          key={date + ":" + meal + ":" + packageId + ":" + status}
+          key={[date, meal, packageId, status, grouping, selectedGroup].join(
+            ":",
+          )}
           rows={filteredRows}
           scheduleGrouping={grouping}
           scheduleFilter={
             schedule && grouping !== "flat" ? (
               <div className="ops-list-filter">
+                <TextInput
+                  type="search"
+                  aria-label={t(
+                    "Cari pelanggan atau tujuan",
+                    "Search customers or destinations",
+                  )}
+                  placeholder={t(
+                    "Cari pelanggan atau tujuan",
+                    "Search customers or destinations",
+                  )}
+                  value={filterSearch}
+                  onChange={(e) => setFilterSearch(e.target.value)}
+                />
                 <Select
                   aria-label={t(
                     grouping === "customers"
@@ -487,15 +676,32 @@ function OperationsPage({
                         : "All destinations",
                     )}
                   </SelectOption>
-                  {groupOptions.map(([key, label]) => (
-                    <SelectOption key={key} value={key}>
-                      {label}
-                    </SelectOption>
-                  ))}
+                  {groupOptions
+                    .filter(
+                      ([key, label]) =>
+                        key === selectedGroup ||
+                        label
+                          .toLocaleLowerCase()
+                          .includes(filterSearch.toLocaleLowerCase()),
+                    )
+                    .map(([key, label]) => (
+                      <SelectOption key={key} value={key}>
+                        {label}
+                      </SelectOption>
+                    ))}
+                  {selectedGroup &&
+                    !groupOptions.some(([key]) => key === selectedGroup) && (
+                      <SelectOption value={selectedGroup}>
+                        {t(
+                          "Filter tersimpan · tidak ada hasil",
+                          "Saved filter · no matches",
+                        )}
+                      </SelectOption>
+                    )}
                 </Select>
                 <Button
                   className="text-button"
-                  onClick={() => navigate({ group: "", filter: "" })}
+                  onClick={() => navigate({ filter: "" })}
                 >
                   <X size={16} />
                   {t("Hapus filter", "Clear filter")}
@@ -513,28 +719,6 @@ function OperationsPage({
           refresh={refresh}
         />
       </div>
-      {schedule && (
-        <details
-          className="ops-production spaced"
-          id="production"
-          open={query.get("production") === "1" || undefined}
-        >
-          <summary>
-            {t("Daftar dapur & pengantaran", "Kitchen & delivery lists")}
-          </summary>
-          {s.operationalDate !== date ? (
-            <Loading />
-          ) : (
-            <Production
-              key={date}
-              deliveries={dayRows}
-              meal="all"
-              date={date}
-              loading={loading}
-            />
-          )}
-        </details>
-      )}
     </div>
   );
 }
@@ -547,6 +731,8 @@ function ScheduleCalendar({
   packageId,
   status,
   onDate,
+  focusDate,
+  loading,
 }: {
   date: string;
   today: string;
@@ -555,6 +741,8 @@ function ScheduleCalendar({
   packageId: string;
   status: string;
   onDate: (date: string) => void;
+  focusDate: { current: string | null };
+  loading: boolean;
 }) {
   const { t, locale } = useApp();
   const month = monthOf(date);
@@ -570,7 +758,6 @@ function ScheduleCalendar({
       }),
   );
   const strip = useRef<HTMLDivElement>(null);
-  const focusDate = useRef(false);
   useEffect(() => {
     const button = strip.current?.querySelector<HTMLElement>(
       `[data-day="${date}"]`,
@@ -583,14 +770,15 @@ function ScheduleCalendar({
           button.clientWidth / 2;
     };
     center();
-    if (focusDate.current) {
+    if (focusDate.current === date) {
       button?.focus({ preventScroll: true });
-      focusDate.current = false;
+      // Keep keyboard intent until the requested date finishes loading.
+      if (!loading) focusDate.current = null;
     }
     const observer = new ResizeObserver(center);
     if (strip.current) observer.observe(strip.current);
     return () => observer.disconnect();
-  }, [date]);
+  }, [date, loading]);
   const format = (d: string, options: Intl.DateTimeFormatOptions) =>
     new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-GB", {
       ...options,
@@ -685,7 +873,6 @@ function ScheduleCalendar({
                     ["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)
                   ) {
                     e.preventDefault();
-                    focusDate.current = true;
                     onDate(
                       e.key === "Home"
                         ? month
@@ -892,7 +1079,7 @@ function OrderTable({
           <h2>
             {schedule
               ? t("Daftar pesanan", "Order list")
-              : t("Hari ini", "Today")}
+              : t("Pesanan", "Orders") + " · " + date}
           </h2>
           <span className="muted">
             {rows.length} {t("pesanan", "orders")}
@@ -1294,7 +1481,10 @@ function OrderTable({
               className="button secondary spaced"
               href={`/seller?date=${date}&meal=${meal === "all" ? d.meals[0].meal : meal}`}
             >
-              {t("Perbarui di Hari ini", "Update in Today")}
+              {t(
+                "Buka operasional tanggal ini",
+                "Open operations for this date",
+              )}
             </Link>
           )}
         </aside>

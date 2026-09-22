@@ -17,10 +17,11 @@ test("Today splits meals and addresses, bulk updates, and retains conflict selec
 }) => {
   await page.goto(`/seller?date=${date}&meal=lunch`);
   const main = page.locator("#main");
-  await expect(
-    main.getByRole("tab", { name: "Siang", exact: true }),
-  ).toHaveAttribute("aria-selected", "true");
-  await expect(main.locator("tbody tr")).toHaveCount(3);
+  await expect(main.getByRole("tab", { name: /^Siang/ })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  await expect(main.locator("tbody tr:not(.ops-group-heading)")).toHaveCount(3);
   await expect(
     main.getByText("Jalan Sintetis Kantor 2, Kelapa Gading"),
   ).toBeVisible();
@@ -46,9 +47,7 @@ test("Today splits meals and addresses, bulk updates, and retains conflict selec
       },
     },
   });
-  await main
-    .getByRole("button", { name: /^Mulai siapkan ·/ })
-    .click();
+  await main.getByRole("button", { name: /^Mulai siapkan ·/ }).click();
   await expect(main.getByRole("alert")).toContainText("Pesanan telah berubah");
   await expect(main.getByText("3 dipilih", { exact: true })).toBeVisible();
   await expect(
@@ -56,23 +55,22 @@ test("Today splits meals and addresses, bulk updates, and retains conflict selec
   ).toBeVisible();
   await main.getByRole("button", { name: "Batal pilih", exact: true }).click();
   const scheduled = main
-    .locator("tbody tr")
+    .locator("tbody tr:not(.ops-group-heading)")
     .filter({ has: page.locator(".status-scheduled") });
   for (const row of await scheduled.all())
     await row.getByRole("checkbox").check();
-  await main
-    .getByRole("button", { name: /^Mulai siapkan ·/ })
-    .click();
+  await main.getByRole("button", { name: /^Mulai siapkan ·/ }).click();
   await expect(main.locator("tbody .status-preparing")).toHaveCount(3);
-  await main.getByRole("tab", { name: "Malam", exact: true }).click();
+  await main.getByRole("tab", { name: /^Malam/ }).click();
   await expect(main.locator("tbody .status-scheduled")).toHaveCount(3);
   await expect(
     main.getByRole("checkbox", { name: "Pilih semua pesanan", exact: true }),
   ).not.toBeChecked();
   await page.reload();
-  await expect(
-    main.getByRole("tab", { name: "Malam", exact: true }),
-  ).toHaveAttribute("aria-selected", "true");
+  await expect(main.getByRole("tab", { name: /^Malam/ })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
   await main
     .getByRole("button", { name: /^Detail Nadia/ })
     .first()
@@ -93,13 +91,15 @@ test("Schedule filters, redirects, exports a whole-day CSV, and renders desktop/
   await expect(
     main.getByRole("heading", { name: "Jadwal pesanan" }),
   ).toBeVisible();
-  await expect(main.locator(".ops-order-table tbody tr")).toHaveCount(3);
+  await expect(
+    main.locator(".ops-order-table tbody tr:not(.ops-group-heading)"),
+  ).toHaveCount(3);
   const packages = main.getByRole("group", { name: "Filter paket" });
   await packages.getByRole("button").nth(1).click();
-  await expect(main.locator(".ops-order-table tbody tr")).toHaveCount(1);
-  await main
-    .getByRole("button", { name: "Simpan daftar pengantaran" })
-    .click();
+  await expect(
+    main.locator(".ops-order-table tbody tr:not(.ops-group-heading)"),
+  ).toHaveCount(1);
+  await main.getByRole("button", { name: "Simpan daftar pengantaran" }).click();
   const csv = main.getByRole("link", { name: /Unduh CSV/ });
   await expect(csv).toBeVisible();
   const exported = await page.request.get((await csv.getAttribute("href"))!);
@@ -119,7 +119,9 @@ test("Schedule filters, redirects, exports a whole-day CSV, and renders desktop/
     "aria-busy",
     "true",
   );
-  await expect(main.locator(".ops-order-table tbody tr")).toHaveCount(3);
+  await expect(
+    main.locator(".ops-order-table tbody tr:not(.ops-group-heading)"),
+  ).toHaveCount(3);
   await expect(main.locator(`[data-day="${date}"]`)).toContainText("3 pesanan");
   await expect(page.locator(".toast")).not.toHaveClass(/visible/);
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
@@ -151,9 +153,10 @@ test("Schedule filters, redirects, exports a whole-day CSV, and renders desktop/
   ).toBeVisible();
   await page.goto(`/seller/delivery?date=${date}&meal=dinner`);
   await expect(page).toHaveURL(/\/seller\?date=.*meal=dinner/);
-  await expect(
-    main.getByRole("tab", { name: "Malam", exact: true }),
-  ).toHaveAttribute("aria-selected", "true");
+  await expect(main.getByRole("tab", { name: /^Malam/ })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
   await page.screenshot({
     path: "output/slack-bugs/0006/today-390.png",
@@ -189,23 +192,19 @@ test("Schedule keeps keyboard focus across dates and supports English and narrow
   ).toBeFocused();
   await page.keyboard.press("ArrowLeft");
   await expect(active).toBeFocused();
-  await main.getByRole("tab", { name: "Lunch", exact: true }).click();
+  await main.getByRole("tab", { name: /^Lunch/ }).click();
   await page.keyboard.press("ArrowRight");
-  await expect(
-    main.getByRole("tab", { name: "Dinner", exact: true }),
-  ).toBeFocused();
-  await expect(
-    main.getByRole("tab", { name: "Dinner", exact: true }),
-  ).toHaveAttribute("aria-selected", "true");
+  await expect(main.getByRole("tab", { name: /^Dinner/ })).toBeFocused();
+  await expect(main.getByRole("tab", { name: /^Dinner/ })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
   await page
     .locator(".ops-sidebar")
     .getByRole("link", { name: "Today", exact: true })
     .click();
   await expect(page).toHaveURL(
-    (url) =>
-      url.pathname === "/seller" &&
-      url.searchParams.get("date") === date &&
-      url.searchParams.get("meal") === "dinner",
+    (url) => url.pathname === "/seller" && !url.searchParams.has("date"),
   );
   await page
     .locator(".ops-sidebar")
@@ -213,12 +212,13 @@ test("Schedule keeps keyboard focus across dates and supports English and narrow
     .click();
   await expect(page).toHaveURL(
     (url) =>
-      url.pathname === "/seller/schedule" &&
-      url.searchParams.get("date") === date &&
-      url.searchParams.get("meal") === "dinner",
+      url.pathname === "/seller/schedule" && !url.searchParams.has("date"),
   );
+  await page.goto(`/seller/schedule?date=${date}&meal=dinner`);
   await page.setViewportSize({ width: 320, height: 740 });
-  await expect(main.locator(".ops-order-table tbody tr")).toHaveCount(3);
+  await expect(
+    main.locator(".ops-order-table tbody tr:not(.ops-group-heading)"),
+  ).toHaveCount(3);
   const wrap = main.locator(".ops-orders-panel .table-wrap");
   await wrap.evaluate((el) => {
     el.scrollLeft = el.scrollWidth;
@@ -231,7 +231,7 @@ test("Schedule keeps keyboard focus across dates and supports English and narrow
     main.getByRole("complementary", { name: "Order details" }),
   ).toBeVisible();
   await expect(
-    main.getByRole("link", { name: "Update in Today" }),
+    main.getByRole("link", { name: "Open operations for this date" }),
   ).toBeVisible();
   expect(
     await page.evaluate(

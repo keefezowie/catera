@@ -123,6 +123,24 @@ export function ErrorNotice({
     </div>
   );
 }
+export function RefreshNotice({
+  error,
+  reload,
+}: {
+  error: string;
+  reload: () => void;
+}) {
+  const { t } = useApp();
+  return error ? (
+    <ErrorNotice
+      message={
+        t("Tampilan belum diperbarui. ", "This view could not be refreshed. ") +
+        error
+      }
+      retry={reload}
+    />
+  ) : null;
+}
 export function Dialog({
   open,
   onOpenChange,
@@ -271,6 +289,7 @@ export function ActionForm({
   submitIcon,
   actions,
   successMessage,
+  onPendingChange,
 }: {
   onSubmit: (f: FormData) => Promise<void>;
   children: ReactNode;
@@ -281,6 +300,7 @@ export function ActionForm({
   submitIcon?: ReactNode;
   actions?: (submitButton: ReactNode, busy: boolean) => ReactNode;
   successMessage?: string;
+  onPendingChange?: (pending: boolean) => void;
 }) {
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
@@ -290,6 +310,12 @@ export function ActionForm({
   const errorRef = useRef<HTMLDivElement>(null);
   const submitting = useRef(false);
   const changeDialogBusy = useContext(DialogBusy);
+  useEffect(() => {
+    onPendingChange?.(busy);
+    return () => {
+      if (busy) onPendingChange?.(false);
+    };
+  }, [busy, onPendingChange]);
   useEffect(() => {
     if (!busy || !changeDialogBusy) return;
     changeDialogBusy(1);

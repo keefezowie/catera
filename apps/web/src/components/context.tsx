@@ -19,9 +19,18 @@ import {
 } from "@catera/domain";
 export const api = createApi();
 const actionMessages: Record<string, [string, string]> = {
-  'packageOption.save': ['Pilihan paket diperbarui.', 'Package options updated.'],
-  'customerMenu.saveBatch': ['Menu pilihan Anda tersimpan.', 'Your menu choices are saved.'],
-  'customerMenu.resetBatch': ['Menu diserahkan ke katerer.', 'The caterer will choose the menu.'],
+  "packageOption.save": [
+    "Pilihan paket diperbarui.",
+    "Package options updated.",
+  ],
+  "customerMenu.saveBatch": [
+    "Menu pilihan Anda tersimpan.",
+    "Your menu choices are saved.",
+  ],
+  "customerMenu.resetBatch": [
+    "Menu diserahkan ke katerer.",
+    "The caterer will choose the menu.",
+  ],
   "package.save": ["Paket tersimpan.", "Package saved."],
   "package.suspend": [
     "Penjualan paket ditangguhkan.",
@@ -260,38 +269,62 @@ export const useApp = () => {
   const offers = useContext(CatalogContext);
   return offers ? { ...app, offers } : app;
 };
-export function useResource<T>(key: string, load: () => Promise<T>) {
+export function useResource<T>(
+  key: string,
+  load: () => Promise<T>,
+  { keepPreviousData = false }: { keepPreviousData?: boolean } = {},
+) {
   const { revision, locale } = useApp();
-  const [data, setData] = useState<T | null>(null),
-    [error, setError] = useState(""),
-    [loading, setLoading] = useState(true),
-    [tick, setTick] = useState(0);
+  const [result, setResult] = useState<{
+    key: string;
+    data: T | null;
+    error: string;
+    loading: boolean;
+  }>({ key, data: null, error: "", loading: true });
+  const [tick, setTick] = useState(0);
   const loader = useRef(load);
   loader.current = load;
   useEffect(() => {
     let live = true;
-    setLoading(true);
-    setError("");
-    loader
-      .current()
+    setResult((previous) => ({
+      key,
+      data: previous.key === key || keepPreviousData ? previous.data : null,
+      error: "",
+      loading: true,
+    }));
+    const request = loader.current;
+    Promise.resolve()
+      .then(request)
       .then((value) => {
-        if (live) setData(value);
+        if (live) setResult({ key, data: value, error: "", loading: false });
       })
       .catch((e) => {
         if (live)
-          setError(
-            errorLabel(e.code || "", locale) ||
-              (locale === "en"
-                ? "Data could not be loaded. Try again."
-                : "Data belum berhasil dimuat. Coba lagi."),
-          );
-      })
-      .finally(() => {
-        if (live) setLoading(false);
+          setResult((previous) => ({
+            ...previous,
+            error: e?.code || "REQUEST_FAILED",
+            loading: false,
+          }));
       });
     return () => {
       live = false;
     };
-  }, [key, revision, tick]);
-  return { data, error, loading, reload: () => setTick((v) => v + 1) };
+  }, [key, revision, tick, keepPreviousData]);
+  // Never expose the previous record/filter's data, including the render before
+  // its effect starts. Refreshes of the same resource retain editable UI state.
+  // A persistent navigation shell can opt in only if it masks prior records.
+  const current = result.key === key;
+  const error =
+    current && result.error
+      ? errorLabel(result.error, locale) ||
+        (locale === "en"
+          ? "Data could not be loaded. Try again."
+          : "Data belum berhasil dimuat. Coba lagi.")
+      : "";
+  return {
+    data: current || keepPreviousData ? result.data : null,
+    error,
+    loading: !current || result.loading,
+    reload: () => setTick((v) => v + 1),
+  };
 }

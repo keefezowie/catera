@@ -36,12 +36,10 @@ test("operational date and meal period are separate responsive controls", async 
         name: locale === "id" ? "Tanggal operasional" : "Operational date",
       });
       const meal = page.getByRole("tab", {
-        name: locale === "id" ? "Siang" : "Lunch",
-        exact: true,
+        name: locale === "id" ? /^Siang/ : /^Lunch/,
       });
       const dinner = page.getByRole("tab", {
-        name: locale === "id" ? "Malam" : "Dinner",
-        exact: true,
+        name: locale === "id" ? /^Malam/ : /^Dinner/,
       });
       const [dateBox, mealBox] = await Promise.all([
         date.boundingBox(),
@@ -49,7 +47,10 @@ test("operational date and meal period are separate responsive controls", async 
       ]);
       expect(dateBox).not.toBeNull();
       expect(mealBox).not.toBeNull();
-      expect(mealBox!.y >= dateBox!.y + dateBox!.height + 11 || mealBox!.x >= dateBox!.x + dateBox!.width + 11).toBe(true);
+      expect(
+        mealBox!.y >= dateBox!.y + dateBox!.height + 11 ||
+          mealBox!.x >= dateBox!.x + dateBox!.width + 11,
+      ).toBe(true);
       expect(mealBox!.height).toBeGreaterThanOrEqual(44);
       expect(dateBox!.height).toBeGreaterThanOrEqual(44);
       expect(
@@ -144,17 +145,31 @@ test("UI sweep: focus rings, support count, composition controls and centered pr
   });
   expect(draft.ok(), await draft.text()).toBe(true);
   await page.goto("/seller");
-  const badge = page.locator(".ops-support-link .ops-count-badge");
-  await expect(badge).toHaveText(/^[1-9]\d*$/);
-  await expect(badge).toHaveCSS("background-color", "rgb(163, 48, 36)");
+  const queue = page.getByRole("region", {
+    name: "Perlu perhatian",
+    exact: true,
+  });
+  const attention = (
+    await (
+      await page.request.get("/api/v1/seller-attention/" + actor.catererId)
+    ).json()
+  ).data;
+  await expect(queue.getByRole("heading")).toContainText(
+    "(" + attention.total + ")",
+  );
+  await expect(queue).toContainText("Seluruh tanggal");
   await page.screenshot({
     path: "output/ui-sweep/support-badge.png",
     fullPage: true,
   });
   await page.goto("/seller/menus");
-  await page.getByRole("button", { name: "Pustaka hidangan", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Pustaka hidangan", exact: true })
+    .click();
   const library = page.getByRole("dialog", { name: "Pustaka hidangan" });
-  await library.getByRole("button", { name: "Tambah hidangan", exact: true }).click();
+  await library
+    .getByRole("button", { name: "Tambah hidangan", exact: true })
+    .click();
   const input = library.getByRole("textbox", {
     name: "Nama hidangan",
     exact: true,

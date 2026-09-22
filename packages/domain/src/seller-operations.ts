@@ -83,6 +83,39 @@ export function scheduleSummary(
   };
 }
 
+/** Read-only workload: purchased portions per non-cancelled meal occurrence. */
+export function mealWorkload(rows: SellerDelivery[], meal: "lunch" | "dinner") {
+  const stages: Record<string, number> = {
+    scheduled: 0,
+    preparing: 0,
+    out_for_delivery: 0,
+    delivered: 0,
+    issue: 0,
+  };
+  for (const row of rows) {
+    const status = fulfillmentStatus(row, meal);
+    if (status in stages) stages[status] += row.portions;
+  }
+  return { ...scheduleSummary(rows, meal), stages };
+}
+
+/** Never substitute today's configured cutoff for a purchased delivery deadline. */
+export function deliveryDeadlines(rows: SellerDelivery[], now: number) {
+  const deadlines = new Map<string, number>();
+  for (const row of rows) {
+    if (
+      row.status === "cancelled" ||
+      !Number.isFinite(Date.parse(row.cutoff_at))
+    )
+      continue;
+    const at = new Date(row.cutoff_at).toISOString();
+    deadlines.set(at, (deadlines.get(at) || 0) + 1);
+  }
+  return [...deadlines]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([at, orders]) => ({ at, orders, passed: now >= Date.parse(at) }));
+}
+
 export function operationalGroups(
   rows: SellerDelivery[],
   meal: string,

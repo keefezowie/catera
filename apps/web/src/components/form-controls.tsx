@@ -70,9 +70,11 @@ export const TextInput = forwardRef<
   HTMLInputElement,
   InputHTMLAttributes<HTMLInputElement>
 >(function TextInput({ className, ...props }, ref) {
+  const pending = useFormPending();
   return (
     <input
       {...props}
+      disabled={props.disabled || pending}
       ref={ref}
       className={withClassName("catera-input", className)}
     />
@@ -86,9 +88,11 @@ export const TextArea = forwardRef<
   HTMLTextAreaElement,
   TextareaHTMLAttributes<HTMLTextAreaElement>
 >(function TextArea({ className, ...props }, ref) {
+  const pending = useFormPending();
   return (
     <textarea
       {...props}
+      disabled={props.disabled || pending}
       ref={ref}
       className={withClassName("catera-textarea", className)}
     />
@@ -102,10 +106,12 @@ export type CheckboxProps = Omit<InputHTMLAttributes<HTMLInputElement>, "type">;
 /** Shared checkbox control with a custom mark while retaining native form semantics. */
 export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
   function Checkbox({ className, ...props }, ref) {
+    const pending = useFormPending();
     return (
       <span className="checkbox-control">
         <input
           {...props}
+          disabled={props.disabled || pending}
           ref={ref}
           type="checkbox"
           className={withClassName("catera-checkbox", className)}
@@ -136,9 +142,11 @@ type FileInputProps = Omit<InputHTMLAttributes<HTMLInputElement>, "type">;
 /** Shared native file bridge used only inside the designed FileUpload surface. */
 export const FileInput = forwardRef<HTMLInputElement, FileInputProps>(
   function FileInput({ className, ...props }, ref) {
+    const pending = useFormPending();
     return (
       <input
         {...props}
+        disabled={props.disabled || pending}
         ref={ref}
         type="file"
         className={withClassName("catera-file-input", className)}

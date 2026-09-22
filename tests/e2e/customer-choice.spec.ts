@@ -104,6 +104,7 @@ async function fixture(page: Page, editor = false) {
   const customer = (await (await page.request.get("/api/v1/customer")).json())
     .data;
   const checkout = await cmd(page, "checkout.create", {
+    acceptedTerms: true,
     packageId: p.id,
     portions: 2,
     trial: false,
@@ -149,7 +150,7 @@ test("seller configures customer choice; customer selects; kitchen and CSV prese
   await expect(
     page.getByText("Hidangan yang boleh dipilih pelanggan"),
   ).toHaveCount(0);
-  await expect(page.locator(".package-choice-library")).toContainText(
+  await expect(page.locator("#main .package-choice-library:visible")).toContainText(
     f.names[0],
   );
   await page.goto("/subscriptions/" + f.subscription.id);
@@ -178,7 +179,7 @@ test("seller configures customer choice; customer selects; kitchen and CSV prese
   await page.request.post("/api/v1/auth/demo", { data: { role: "owner" } });
   await page.goto("/seller/menus");
   await choose(page, "Paket", f.subscription.snapshot.offer.name);
-  await expect(page.locator(".package-choice-library")).toContainText(f.names[0]);
+  await expect(page.locator("#main .package-choice-library:visible")).toContainText(f.names[0]);
   const frozen = await cmd(page, "production.freeze", {
     catererId: f.base.catererId,
     date,
