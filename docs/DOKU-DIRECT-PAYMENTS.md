@@ -2,11 +2,11 @@
 
 ## Live status: September 22, 2026
 
-**BRI direct sandbox checkout is enabled on `https://catera-eight.vercel.app`.** After deployment and database cutover, the live `/api/v1/payment-methods` returned `{"data":{"mode":"direct","availableMethods":["VIRTUAL_ACCOUNT_BRI"]}}`. New checkouts select BRI and display VA instructions on Catera. Outstanding hosted instruments retain their original flow.
+**BRI and QRIS direct sandbox checkout are enabled on `https://catera-eight.vercel.app`.** After deployment and database cutover, the live `/api/v1/payment-methods` returned `{"data":{"mode":"direct","availableMethods":["VIRTUAL_ACCOUNT_BRI","QRIS"]}}`. New checkouts select a method and display VA instructions or a downloadable QR on Catera. Outstanding hosted instruments retain their original flow.
 
-Runtime commit `3f7671928f63de01caa9868d45deeb857ca2f0be`, production-target deployment `dpl_6eSZut85xKSFUvr2joG8odHoD58K`, uses DOKU **sandbox**, not real-money production. BRI verification flags are enabled and database configuration approves only `VIRTUAL_ACCOUNT_BRI`.
+Runtime commit `60420b4b2fb057c99e628e7c989932c15525df60`, production-target deployment `dpl_U53nfMdcJ9MdKGvrErjekkYs5aWD`, uses DOKU **sandbox**, not real-money production. Both channels' verification flags and database methods are enabled.
 
-QRIS remains disabled: its dashboard reports Active, but merchant ID, terminal ID and postal code have not been established, and genuine QRIS creation, callback and collection-routing acceptance are outstanding. Brand ID must not be substituted for merchant ID without provider confirmation.
+QRIS passed genuine generation, paid inquiry, signed callback, duplicate callback and exact collection balance checks. Its mall ID was retrieved from Checkout Appearance > QRIS Credential Settings, separately from the BRN authentication ID. See [QRIS acceptance evidence](QRIS-SANDBOX-ACCEPTANCE-2026-09-22.md), including sandbox-only terminal/postal settings and observed provider contract corrections.
 
 ### Genuine BRI acceptance
 
