@@ -5,6 +5,7 @@ import type { LibraryDish, MealMenu } from "@catera/domain";
 import { defaultDishCategories } from "@catera/domain";
 import { useApp } from "./context";
 import { Button } from "./form-controls";
+import { animateSurface, contentFrames } from "@/lib/motion";
 
 /** Keep the library still while the calendar becomes the assembly card. */
 export function MenuPanel({
@@ -23,36 +24,28 @@ export function MenuPanel({
       inner = content.current!;
     const next = outer.getBoundingClientRect().height;
     const previous = height.current;
-    let expansion: Animation | undefined, entrance: Animation | undefined;
-    if (previous && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      expansion = outer.animate(
-        [{ height: previous + "px" }, { height: next + "px" }],
-        {
-          duration: 280,
-          easing: "cubic-bezier(.16,1,.3,1)",
-        },
-      );
-      entrance = inner.animate(
-        [
-          { opacity: 0.25, transform: "translateY(8px)" },
-          { opacity: 1, transform: "translateY(0)" },
-        ],
-        {
-          duration: 220,
-          easing: "cubic-bezier(.16,1,.3,1)",
-        },
-      );
+    let expansion: (() => void) | undefined, entrance: (() => void) | undefined;
+    if (previous) {
+      expansion = animateSurface(outer, [
+        { height: previous + "px" },
+        { height: next + "px" },
+      ]);
+      entrance = animateSurface(inner, contentFrames());
     }
     height.current = next;
     const observer = new ResizeObserver(() => {
-      if (expansion?.playState !== "running")
+      if (
+        !outer
+          .getAnimations()
+          .some((animation) => animation.playState === "running")
+      )
         height.current = outer.getBoundingClientRect().height;
     });
     observer.observe(inner);
     return () => {
       observer.disconnect();
-      expansion?.cancel();
-      entrance?.cancel();
+      expansion?.();
+      entrance?.();
     };
   }, [mode]);
   return (

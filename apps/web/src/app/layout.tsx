@@ -3,11 +3,13 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
+import { webMotionVariables } from "@/lib/motion";
 import "./globals.css";
 import "./usability.css";
 import "./overlays.css";
 import "./pilot.css";
 import "./settlement.css";
+import "./motion.css";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale =
@@ -32,7 +34,7 @@ export default async function RootLayout({
     (await cookies()).get("catera_locale")?.value === "en" ? "en" : "id";
   return (
     <html
-      style={webVariables as React.CSSProperties}
+      style={{ ...webVariables, ...webMotionVariables } as React.CSSProperties}
       lang={locale}
       data-scroll-behavior="smooth"
     >

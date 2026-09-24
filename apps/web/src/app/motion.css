@@ -1,0 +1,261 @@
+/* Catera web motion: quick controls, clear selections, composed surfaces, food-led moments.
+   Timing is supplied by lib/motion.ts. Layout and final states never depend on animation. */
+.route-motion {
+  display: contents;
+}
+.checkout-step-content {
+  display: flex;
+  flex-direction: column;
+  gap: inherit;
+  min-width: 0;
+}
+body .checkout-step-content > label {
+  font-size: 14px;
+}
+
+body
+  :is(
+    .button,
+    .icon-button,
+    .select-trigger,
+    .catera-input,
+    .catera-textarea,
+    .catera-checkbox,
+    .profile-menu-item,
+    .filter-chip
+  ) {
+  transition:
+    background-color var(--motion-control),
+    border-color var(--motion-control),
+    color var(--motion-control),
+    box-shadow var(--motion-control);
+}
+body
+  :is(
+    .menu-slot,
+    .payment-method,
+    .editor-progress button,
+    .meal-filter-row button,
+    .package-actions button,
+    .coverage-day
+  ) {
+  transition:
+    background-color var(--motion-selection),
+    border-color var(--motion-selection);
+}
+body .checkbox-mark {
+  transition:
+    opacity var(--motion-selection),
+    transform var(--motion-selection) var(--motion-ease);
+}
+body .package-card {
+  transition: box-shadow var(--motion-content) var(--motion-ease);
+}
+body .package-image img {
+  transition: transform var(--motion-content) var(--motion-ease);
+}
+body .package-card:hover .package-image img {
+  transform: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  body .package-card:hover .package-image img {
+    transform: scale(1.025);
+  }
+}
+
+.detail-image-frame {
+  overflow: hidden;
+  border-radius: 16px;
+}
+.detail-image-frame .detail-hero {
+  display: block;
+}
+body .detail-image-frame .detail-hero,
+.market-hero:not(.featured-slide) .hero-food > img {
+  animation: food-settle var(--motion-feature) var(--motion-ease);
+}
+@keyframes food-settle {
+  from {
+    transform: scale(1.025);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+body .compare-floating {
+  animation: tray-arrive var(--motion-content) var(--motion-ease);
+}
+@keyframes tray-arrive {
+  from {
+    translate: 0 8px;
+    opacity: 0.7;
+  }
+  to {
+    translate: 0 0;
+    opacity: 1;
+  }
+}
+body .filter-panel {
+  animation: surface-arrive var(--motion-content) var(--motion-ease);
+}
+
+/* Individual translate composes with centered dialogs and Radix's positioning transform. */
+body .dialog[data-motion-state="open"] {
+  animation: surface-arrive var(--motion-content) var(--motion-ease);
+}
+body .dialog[data-motion-state="closed"] {
+  animation: surface-leave var(--motion-control) var(--motion-exit) forwards;
+  pointer-events: none;
+}
+body .dialog-overlay[data-motion-state="open"] {
+  animation: scrim-arrive var(--motion-selection) linear;
+}
+body .dialog-overlay[data-motion-state="closed"] {
+  animation: scrim-arrive var(--motion-control) linear reverse forwards;
+}
+@keyframes surface-arrive {
+  from {
+    translate: 0 8px;
+    opacity: 0.75;
+  }
+  to {
+    translate: 0 0;
+    opacity: 1;
+  }
+}
+@keyframes surface-leave {
+  from {
+    translate: 0 0;
+    opacity: 1;
+  }
+  to {
+    translate: 0 4px;
+    opacity: 0;
+  }
+}
+@keyframes scrim-arrive {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+body
+  :is(
+    .profile-menu-panel,
+    .select-menu,
+    .date-picker-popover,
+    .time-input-popover
+  ) {
+  --menu-offset: -4px;
+  animation: menu-arrive var(--motion-selection) var(--motion-ease);
+}
+body
+  :is(
+    .select-menu,
+    .date-picker-popover,
+    .time-input-popover
+  )[data-side="top"] {
+  --menu-offset: 4px;
+}
+body
+  :is(
+    .select-menu,
+    .date-picker-popover,
+    .time-input-popover
+  )[data-state="closed"],
+body .profile-menu-panel[data-motion-state="closed"] {
+  animation: menu-arrive var(--motion-control) var(--motion-exit) reverse
+    forwards;
+  pointer-events: none;
+}
+@keyframes menu-arrive {
+  from {
+    translate: 0 var(--menu-offset);
+    opacity: 0.65;
+  }
+  to {
+    translate: 0 0;
+    opacity: 1;
+  }
+}
+
+/* Both labels occupy one grid cell, reserving the larger size before submission. */
+body .form-submit {
+  display: inline-grid;
+}
+.form-submit-label,
+.form-submit-pending {
+  grid-area: 1 / 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+body .form-submit > span {
+  color: inherit;
+  font-size: inherit;
+}
+.form-submit-pending,
+.form-submit[data-pending="true"] .form-submit-label {
+  visibility: hidden;
+}
+.form-submit[data-pending="true"] .form-submit-pending {
+  visibility: visible;
+}
+.form-submit:not([data-pending="true"]) .spin {
+  animation: none;
+}
+body .toast {
+  transform: translate(-50%, 8px);
+  transition:
+    transform var(--motion-selection) var(--motion-ease),
+    opacity var(--motion-control);
+}
+body .toast.visible {
+  transform: translate(-50%, 0);
+}
+body :is(.save-status > svg, .menu-slot-check) {
+  animation: mark-settle var(--motion-selection) var(--motion-ease);
+}
+.payment-success > img {
+  animation: confirmation-settle var(--motion-feature) var(--motion-ease);
+}
+.payment-success .success-mark {
+  animation: mark-settle var(--motion-content) var(--motion-ease);
+}
+@keyframes confirmation-settle {
+  from {
+    translate: 0 8px;
+    transform: scale(0.985);
+  }
+  to {
+    translate: 0 0;
+    transform: scale(1);
+  }
+}
+@keyframes mark-settle {
+  from {
+    transform: scale(0.85);
+    opacity: 0.5;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+  body .package-card:hover .package-image img {
+    transform: none;
+  }
+}

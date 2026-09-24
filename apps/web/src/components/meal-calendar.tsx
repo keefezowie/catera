@@ -1,4 +1,5 @@
 "use client";
+import { scrollSurface } from "@/lib/motion";
 import "./meal-calendar.css";
 import {
   useEffect,
@@ -199,14 +200,7 @@ export function MealCalendar() {
       ? element.offsetLeft -
         (strip.current.clientWidth - element.offsetWidth) / 2
       : element.offsetLeft + target.offset;
-    strip.current.scrollTo({
-      left,
-      behavior:
-        target.animate &&
-        !matchMedia("(prefers-reduced-motion: reduce)").matches
-          ? "smooth"
-          : "auto",
-    });
+    scrollSurface(strip.current, left, { relative: false, animate: !!target.animate });
     if (target.focus) element.focus({ preventScroll: true });
     position.current = target;
     pending.current = null;
@@ -236,13 +230,7 @@ export function MealCalendar() {
         ? element.offsetLeft -
           (strip.current.clientWidth - element.offsetWidth) / 2
         : element.offsetLeft;
-      strip.current.scrollTo({
-        left,
-        behavior:
-          animate && !matchMedia("(prefers-reduced-motion: reduce)").matches
-            ? "smooth"
-            : "auto",
-      });
+      scrollSurface(strip.current, left, { relative: false, animate });
       if (focus) element.focus({ preventScroll: true });
       position.current = {
         day,
@@ -280,12 +268,7 @@ export function MealCalendar() {
   function scrollPage(direction: number) {
     const el = strip.current;
     if (!el) return;
-    el.scrollBy({
-      left: direction * (el.clientWidth - 32),
-      behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
-        ? "instant"
-        : "smooth",
-    });
+    scrollSurface(el, direction * (el.clientWidth - 32));
   }
   function stripKey(event: KeyboardEvent<HTMLButtonElement>, day: string) {
     const movement: Record<string, number> = {
@@ -863,7 +846,13 @@ function CalendarMeal({
       href={`/deliveries/${d.id}`}
       className="delivery-row calendar-delivery-row"
     >
-      <FoodImage src={d.offer.image} alt="" width={80} height={80} sizes="80px" />
+      <FoodImage
+        src={d.offer.image}
+        alt=""
+        width={80}
+        height={80}
+        sizes="80px"
+      />
       <div>
         <small>{d.offer.caterer}</small>
         <h4>{d.offer.name}</h4>

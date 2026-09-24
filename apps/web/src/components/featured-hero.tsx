@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import useEmblaCarousel from "embla-carousel-react";
 import Autoplay from "embla-carousel-autoplay";
-import { ArrowLeft, ArrowRight, ArrowUpRight, Pause, Play } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUpRight } from "lucide-react";
+import { prefersReducedMotion, reducedMotionQuery } from "@/lib/motion";
 import type { Offer } from "@catera/domain";
 import { useApp } from "./context";
 import { Button } from "./form-controls";
@@ -50,8 +51,6 @@ function CatererCarousel({ offers }: { offers: Offer[] }) {
   const [paused, setPaused] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   const requestedPause = useRef(false);
-  const pointerPauseIntent = useRef(false);
-  const syncPlayback = useRef(() => {});
   const stop = useCallback(() => {
     requestedPause.current = true;
     setPaused(true);
@@ -61,7 +60,7 @@ function CatererCarousel({ offers }: { offers: Offer[] }) {
   useEffect(() => {
     if (!embla || !root.current) return;
     const element = root.current;
-    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const media = window.matchMedia(reducedMotionQuery);
     let visible = false;
     let hovered = element.matches(":hover");
     const sync = () => {
@@ -76,9 +75,9 @@ function CatererCarousel({ offers }: { offers: Offer[] }) {
         autoplay.play();
       else autoplay.stop();
     };
-    syncPlayback.current = sync;
     const motion = () => {
       setReducedMotion(media.matches);
+      if (media.matches) embla.scrollTo(embla.selectedScrollSnap(), true);
       sync();
     };
     const enter = () => {
@@ -111,7 +110,6 @@ function CatererCarousel({ offers }: { offers: Offer[] }) {
     element.addEventListener("focusin", stop);
     embla.on("select", select).on("reInit", reinit).on("pointerDown", stop);
     return () => {
-      syncPlayback.current = () => {};
       observer.disconnect();
       media.removeEventListener("change", motion);
       document.removeEventListener("visibilitychange", sync);
@@ -128,7 +126,7 @@ function CatererCarousel({ offers }: { offers: Offer[] }) {
 
   const navigate = (index: number) => {
     stop();
-    embla?.scrollTo(index, reducedMotion);
+    embla?.scrollTo(index, prefersReducedMotion());
   };
   return (
     <section
@@ -213,29 +211,6 @@ function CatererCarousel({ offers }: { offers: Offer[] }) {
           >
             <ArrowRight size={18} />
           </Button>
-          {!reducedMotion && (
-            <Button
-              type="button"
-              className="featured-playback"
-              aria-label={
-                paused
-                  ? t("Putar otomatis", "Play slideshow")
-                  : t("Jeda tayangan", "Pause slideshow")
-              }
-              onPointerDown={() => {
-                pointerPauseIntent.current = !requestedPause.current;
-              }}
-              onClick={(event) => {
-                requestedPause.current = event.detail
-                  ? pointerPauseIntent.current
-                  : !requestedPause.current;
-                setPaused(requestedPause.current);
-                syncPlayback.current();
-              }}
-            >
-              {paused ? <Play size={16} /> : <Pause size={16} />}
-            </Button>
-          )}
         </div>
       )}
     </section>

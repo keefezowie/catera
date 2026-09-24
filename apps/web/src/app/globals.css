@@ -3073,17 +3073,6 @@ td strong {
     opacity: 1;
   }
 }
-@keyframes hero-enter {
-  from {
-    clip-path: inset(0 0 5% 0 round 16px);
-  }
-  to {
-    clip-path: inset(0 0 0 0 round 16px);
-  }
-}
-.market-hero {
-  animation: hero-enter 0.8s var(--ease);
-}
 @media (min-width: 1500px) {
   .hero-copy {
     padding: 46px;
@@ -4717,7 +4706,6 @@ textarea::placeholder {
 .featured-dots button { min-width: 32px; }
 .featured-dots span { width: 6px; height: 6px; border-radius: 50%; background: var(--cream); opacity: .45; }
 .featured-dots [aria-current="true"] span { width: 18px; border-radius: 4px; opacity: 1; }
-.featured-controls .featured-playback { margin-left: 12px; border-color: var(--cream); }
 @media (max-width: 1150px) { .featured-hero { margin-inline: 28px; } .featured-controls { left: 30px; } }
 @media (max-width: 800px) { .featured-hero { margin-inline: 24px; margin-bottom: 32px; } .featured-controls { left: 28px; } }
 @media (max-width: 560px) {
@@ -4730,7 +4718,6 @@ textarea::placeholder {
   .featured-slide .hero-copy > p { font-size: 12px; line-height: 1.6; margin: 14px 0 20px; }
   .featured-slide .hero-copy .button { font-size: 12px; }
   .featured-controls { left: 12px; bottom: 14px; background: var(--forest); border-radius: 10px; padding: 2px; }
-  .featured-controls .featured-playback { margin-left: 4px; }
 }
 @media (prefers-reduced-motion: reduce) { .featured-hero-wrapper .market-hero { animation: none; } }
 

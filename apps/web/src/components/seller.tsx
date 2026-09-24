@@ -1,4 +1,5 @@
 "use client";
+import { useContentMotion } from "./motion";
 import {
   PackageDurationEditor,
   DurationOptionsFields,
@@ -524,10 +525,15 @@ function OfferEditor({
 }) {
   const { perform, demo, t, locale } = useApp();
   const [step, setStep] = useState<OfferStep>("offer");
+  const stepFields = useRef<HTMLDivElement>(null);
   const [pending, setPending] = useState(0),
     [savingDraft, setSavingDraft] = useState(false);
   const [issues, setIssues] = useState<EditorIssue[]>([]),
     [saveError, setSaveError] = useState("");
+  useContentMotion(stepFields, offerSteps.indexOf(step), {
+    directional: true,
+    ready: issues.length === 0,
+  });
   const [saving, setSaving] = useState(false);
   const [preview, setPreview] = useState("card");
   const [choiceDishIds, setChoiceDishIds] = useState<string[]>([]);
@@ -670,8 +676,12 @@ function OfferEditor({
       container?.querySelector<HTMLElement>("[data-editor-errors]");
     const disclosure = target?.closest("details");
     if (disclosure) disclosure.open = true;
-    target?.focus();
-    target?.scrollIntoView({ block: "nearest" });
+    // ActionForm releases its pending controls after validation returns.
+    const frame = requestAnimationFrame(() => {
+      target?.focus({ preventScroll: true });
+      target?.scrollIntoView({ block: "nearest", behavior: "instant" });
+    });
+    return () => cancelAnimationFrame(frame);
   }, [issues, step]);
   const navigate = (next: OfferStep) => {
     if (pending || savingDraft) return false;
@@ -820,7 +830,8 @@ function OfferEditor({
             </div>
             <Button
               type="button"
-              className="text-button"
+              className="text-button form-submit"
+              data-pending={savingDraft}
               disabled={pending > 0 || savingDraft || formBusy || saving}
               onClick={async () => {
                 setSavingDraft(true);
@@ -839,10 +850,14 @@ function OfferEditor({
                 }
               }}
             >
-              <Save size={17} aria-hidden="true" />
-              {savingDraft
-                ? t("Menyimpan…", "Saving…")
-                : t("Simpan draf", "Save draft")}
+              <span className="form-submit-label" aria-hidden={savingDraft}>
+                <Save size={17} aria-hidden="true" />
+                {t("Simpan draf", "Save draft")}
+              </span>
+              <span className="form-submit-pending" aria-hidden={!savingDraft}>
+                <Save size={17} aria-hidden="true" />
+                {t("Menyimpan…", "Saving…")}
+              </span>
             </Button>
           </div>
         )}
@@ -870,7 +885,7 @@ function OfferEditor({
           await save(value.status === "draft");
         }}
       >
-        <div className="editor-fields">
+        <div ref={stepFields} className="editor-fields">
           <h3 className="editor-step-title" tabIndex={-1}>
             {labels[step]}
           </h3>

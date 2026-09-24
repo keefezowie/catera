@@ -4,6 +4,7 @@ import { ChoiceRules, PackageChoiceLibrary } from "./package-choice-library";
 import "./package-presentation.css";
 import "./catalog.css";
 import { FeaturedHero } from "./featured-hero";
+import { useContentMotion } from "./motion";
 import { Select, SelectOption } from "./select";
 import { PackagePreview } from "./package-preview";
 import { FoodImage } from "./food-image";
@@ -201,6 +202,13 @@ export function Catalog({ caterer }: { caterer?: string }) {
   const [filters, setFilters] = useState(false);
   const searchInput = useRef<HTMLInputElement>(null);
   const filterButton = useRef<HTMLButtonElement>(null);
+  const results = useRef<HTMLDivElement>(null);
+  // Typing and locale updates remain immediate; committed selections orient the results.
+  useContentMotion(
+    results,
+    JSON.stringify([meal, packageType, flex, trial, diet, sort, area]),
+    { visibleChildren: true },
+  );
   function update(patch: Partial<CatalogQuery>) {
     const query = updateCatalogQuery(
       new URLSearchParams(window.location.search),
@@ -537,7 +545,7 @@ export function Catalog({ caterer }: { caterer?: string }) {
             </Select>
           </label>
         </div>
-        <div className="package-grid">
+        <div ref={results} className="package-grid">
           {filtered.map((p) => (
             <PackageCard key={p.id} offer={p} />
           ))}
@@ -660,16 +668,18 @@ export function PackagePage({
       </div>
       <div className="detail-layout">
         <div>
-          <FoodImage
-            className="detail-hero"
-            src={p.image}
-            alt={p.name}
-            width={900}
-            height={675}
-            sizes="(max-width: 1000px) 100vw, 800px"
-            fetchPriority="high"
-            loading="eager"
-          />
+          <div className="detail-image-frame">
+            <FoodImage
+              className="detail-hero"
+              src={p.image}
+              alt={p.name}
+              width={900}
+              height={675}
+              sizes="(max-width: 1000px) 100vw, 800px"
+              fetchPriority="high"
+              loading="eager"
+            />
+          </div>
           <div className="detail-heading">
             <Link className="seller-link" href={"/caterers/" + p.catererSlug}>
               <span className="mini-avatar">{p.caterer[0]}</span>

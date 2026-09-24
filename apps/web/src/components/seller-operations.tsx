@@ -1,4 +1,5 @@
 "use client";
+import { scrollSurface } from "@/lib/motion";
 import { Fragment, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -842,7 +843,7 @@ function ScheduleCalendar({
           className="icon-button calendar-scroll-arrow"
           aria-label={t("Tanggal sebelumnya", "Earlier dates")}
           onClick={() =>
-            strip.current?.scrollBy({ left: -400, behavior: "smooth" })
+            scrollSurface(strip.current, -400)
           }
         >
           <ChevronLeft />
@@ -915,7 +916,7 @@ function ScheduleCalendar({
           className="icon-button calendar-scroll-arrow"
           aria-label={t("Tanggal berikutnya", "Later dates")}
           onClick={() =>
-            strip.current?.scrollBy({ left: 400, behavior: "smooth" })
+            scrollSurface(strip.current, 400)
           }
         >
           <ChevronRight />

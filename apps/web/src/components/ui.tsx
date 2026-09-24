@@ -23,6 +23,7 @@ import { useApp } from "./context";
 import { MascotLoading } from "./mascot-loading";
 import { Button } from "./form-controls";
 import { FormPending, OverlayLevel, useDialogLayer } from "./overlay";
+import { useExitPresence } from "./motion";
 const DialogBusy = createContext<((change: number) => void) | null>(null);
 const focusReturns = new WeakMap<HTMLElement, HTMLElement[]>();
 export function Brand({ small = false }: { small?: boolean }) {
@@ -175,7 +176,8 @@ export function Dialog({
   id?: string;
 }) {
   const { t } = useApp();
-  const { level, inactive } = useDialogLayer(open);
+  const present = useExitPresence(open);
+  const { level, inactive } = useDialogLayer(present);
   const returnTargets = useRef<HTMLElement[]>([]);
   const panel = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
@@ -197,14 +199,15 @@ export function Dialog({
   const pending = busy || pendingForms > 0;
   return (
     <DialogPrimitive.Root
-      open={open}
+      open={present}
       onOpenChange={(next) => {
-        if (!pending && !inactive) onOpenChange(next);
+        if (!pending && !inactive && (open || next)) onOpenChange(next);
       }}
     >
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay
           className="dialog-overlay"
+          data-motion-state={open ? "open" : "closed"}
           style={{ zIndex: level }}
         />
         <DialogPrimitive.Content
@@ -213,15 +216,22 @@ export function Dialog({
           className={"dialog dialog-" + size + " " + className}
           style={{ zIndex: level + 1 }}
           data-dialog-size={size}
+          data-motion-state={open ? "open" : "closed"}
+          onClickCapture={(event) => {
+            if (!open) {
+              event.preventDefault();
+              event.stopPropagation();
+            }
+          }}
           inert={inactive || undefined}
           aria-busy={pending || undefined}
           {...(!description ? { "aria-describedby": undefined } : {})}
           onInteractOutside={(event) => {
-            if (size === "confirmation" || pending || inactive)
+            if (!open || size === "confirmation" || pending || inactive)
               event.preventDefault();
           }}
           onEscapeKeyDown={(event) => {
-            if (pending || inactive) event.preventDefault();
+            if (!open || pending || inactive) event.preventDefault();
           }}
           onOpenAutoFocus={(event) => {
             if (panel.current)
@@ -265,7 +275,7 @@ export function Dialog({
           )}
           <DialogPrimitive.Close
             className="icon-button close"
-            disabled={pending}
+            disabled={pending || !open}
             aria-label={closeLabel || t("Tutup", "Close")}
           >
             <X size={20} />
@@ -389,13 +399,21 @@ export function ActionForm({
     }
   }
   const submitButton = (
-    <Button type="submit" variant="primary" disabled={busy || disabled}>
-      {busy ? (
+    <Button
+      type="submit"
+      variant="primary"
+      className="form-submit"
+      data-pending={busy}
+      disabled={busy || disabled}
+    >
+      <span className="form-submit-label" aria-hidden={busy}>
+        {submitIcon || <Check size={17} aria-hidden="true" />}
+        {submit || t("Simpan", "Save")}
+      </span>
+      <span className="form-submit-pending" aria-hidden={!busy}>
         <LoaderCircle className="spin" size={18} aria-hidden="true" />
-      ) : (
-        submitIcon || <Check size={17} aria-hidden="true" />
-      )}
-      {busy ? t("Memproses…", "Processing…") : submit || t("Simpan", "Save")}
+        {t("Memproses…", "Processing…")}
+      </span>
     </Button>
   );
   return (

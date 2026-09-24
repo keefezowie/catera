@@ -1,5 +1,6 @@
 "use client";
 import { DirectPayment } from "./direct-payment";
+import { useContentMotion } from "./motion";
 import { PackageChoiceLibrary } from "./package-choice-library";
 import {
   PurchasePriceBreakdown,
@@ -51,8 +52,14 @@ import {
 } from "./ui";
 export function CheckoutPage({ id }: { id: string }) {
   const { offers, actor, perform, t, locale } = useApp();
-  const availability = useResource<PaymentAvailability>("payment-methods", () => api.request("payment-methods"));
-  const paymentUnavailable = !!availability.error || !availability.data || (availability.data.mode === "direct" && !availability.data.availableMethods.length);
+  const availability = useResource<PaymentAvailability>("payment-methods", () =>
+    api.request("payment-methods"),
+  );
+  const paymentUnavailable =
+    !!availability.error ||
+    !availability.data ||
+    (availability.data.mode === "direct" &&
+      !availability.data.availableMethods.length);
   const params = useSearchParams();
   const p = offers.find((p) => p.id === id || p.slug === id);
   const [portions, setPortions] = useState(
@@ -131,6 +138,11 @@ export function CheckoutPage({ id }: { id: string }) {
         }),
   );
   const selectedAddress = state.data?.addresses.find((a) => a.id === address);
+  const fields = useRef<HTMLDivElement>(null);
+  useContentMotion(fields, step, {
+    directional: true,
+    ready: restored && !!state.data,
+  });
   useEffect(() => {
     if (restored && !address && state.data?.addresses[0])
       setAddress(state.data.addresses[0].id);
@@ -311,130 +323,135 @@ export function CheckoutPage({ id }: { id: string }) {
                 setStep(2);
               }}
             >
-              <h2 ref={stepHeading} tabIndex={-1}>
-                {t("Paket untuk siapa saja?", "How many are eating?")}
-              </h2>
-              <p>
-                {t(
-                  "Jumlah porsi tetap untuk seluruh paket. Semua porsi mendapat menu yang sama.",
-                  "Portions stay fixed throughout the package. Every portion gets the same menu.",
-                )}
-              </p>
-              <div className="portion-control">
-                <strong>{t("Porsi setiap hari", "Portions per day")}</strong>
-                <div>
-                  <Button
-                    type="button"
-                    className="icon-button"
-                    disabled={portions <= 1}
-                    aria-label={t("Kurangi porsi", "Decrease portions")}
-                    onClick={() => setPortions((p) => p - 1)}
-                  >
-                    <Minus size={16} />
-                  </Button>
-                  <strong>{portions}</strong>
-                  <Button
-                    type="button"
-                    className="icon-button"
-                    disabled={portions >= 100}
-                    aria-label={t("Tambah porsi", "Increase portions")}
-                    onClick={() => setPortions((p) => p + 1)}
-                  >
-                    <Plus size={16} />
-                  </Button>
-                </div>
-              </div>
-              <Field label={t("Mulai tanggal", "Start date")}>
-                <DatePicker
-                  required
-                  min={localDay(now, p.timezone)}
-                  isDateUnavailable={(day) =>
-                    !purchaseStartAvailable(p, day, now)
-                  }
-                  value={date}
-                  onValueChange={setDate}
-                />
-              </Field>
-              {!startAvailable && (
-                <p role="status">
+              <div ref={fields} className="checkout-step-content">
+                <h2 ref={stepHeading} tabIndex={-1}>
+                  {t("Paket untuk siapa saja?", "How many are eating?")}
+                </h2>
+                <p>
                   {t(
-                    "Pilih tanggal pengantaran yang belum melewati batas pemesanan katerer.",
-                    "Choose a delivery date before the caterer's purchase cutoff.",
+                    "Jumlah porsi tetap untuk seluruh paket. Semua porsi mendapat menu yang sama.",
+                    "Portions stay fixed throughout the package. Every portion gets the same menu.",
                   )}
                 </p>
-              )}
-              <Field label={t("Alamat pengantaran", "Delivery address")}>
-                <Select
-                  required
-                  value={address}
-                  onValueChange={(value) => setAddress(value)}
-                >
-                  <SelectOption value="">
-                    {t("Pilih alamat", "Choose an address")}
-                  </SelectOption>
-                  {state.data?.addresses.map((a) => (
-                    <SelectOption key={a.id} value={a.id}>
-                      {a.label} — {a.line}, {a.area}
-                    </SelectOption>
-                  ))}
-                </Select>
-              </Field>
-              <Link
-                className="text-button"
-                href={
-                  "/addresses?next=" +
-                  encodeURIComponent(
-                    "/checkout/" + id + "?" + params.toString(),
-                  )
-                }
-              >
-                <Plus size={16} />
-                {t("Tambah alamat", "Add an address")}
-              </Link>
-              {!trial && (
-                <Field label={t("Durasi paket", "Package duration")}>
+                <div className="portion-control">
+                  <strong>{t("Porsi setiap hari", "Portions per day")}</strong>
+                  <div>
+                    <Button
+                      type="button"
+                      className="icon-button"
+                      disabled={portions <= 1}
+                      aria-label={t("Kurangi porsi", "Decrease portions")}
+                      onClick={() => setPortions((p) => p - 1)}
+                    >
+                      <Minus size={16} />
+                    </Button>
+                    <strong>{portions}</strong>
+                    <Button
+                      type="button"
+                      className="icon-button"
+                      disabled={portions >= 100}
+                      aria-label={t("Tambah porsi", "Increase portions")}
+                      onClick={() => setPortions((p) => p + 1)}
+                    >
+                      <Plus size={16} />
+                    </Button>
+                  </div>
+                </div>
+                <Field label={t("Mulai tanggal", "Start date")}>
+                  <DatePicker
+                    required
+                    min={localDay(now, p.timezone)}
+                    isDateUnavailable={(day) =>
+                      !purchaseStartAvailable(p, day, now)
+                    }
+                    value={date}
+                    onValueChange={setDate}
+                  />
+                </Field>
+                {!startAvailable && (
+                  <p role="status">
+                    {t(
+                      "Pilih tanggal pengantaran yang belum melewati batas pemesanan katerer.",
+                      "Choose a delivery date before the caterer's purchase cutoff.",
+                    )}
+                  </p>
+                )}
+                <Field label={t("Alamat pengantaran", "Delivery address")}>
                   <Select
-                    value={String(cycles)}
-                    onValueChange={(value) => setCycles(Number(value))}
+                    required
+                    value={address}
+                    onValueChange={(value) => setAddress(value)}
                   >
-                    {durationOptions(p).map((option) => (
-                      <SelectOption
-                        key={option.cycles}
-                        value={String(option.cycles)}
-                      >
-                        {option.cycles} {t("periode", "cycles")} ·{" "}
-                        {option.cycles * p.days}{" "}
-                        {t("hari pengantaran", "delivery days")}
-                        {option.discountPercent
-                          ? ` · −${option.discountPercent}%`
-                          : ""}
+                    <SelectOption value="">
+                      {t("Pilih alamat", "Choose an address")}
+                    </SelectOption>
+                    {state.data?.addresses.map((a) => (
+                      <SelectOption key={a.id} value={a.id}>
+                        {a.label} — {a.line}, {a.area}
                       </SelectOption>
                     ))}
                   </Select>
-                  <p className="small muted">
-                    1 {t("periode", "cycle")} = {p.days}{" "}
+                </Field>
+                <Link
+                  className="text-button"
+                  href={
+                    "/addresses?next=" +
+                    encodeURIComponent(
+                      "/checkout/" + id + "?" + params.toString(),
+                    )
+                  }
+                >
+                  <Plus size={16} />
+                  {t("Tambah alamat", "Add an address")}
+                </Link>
+                {!trial && (
+                  <Field label={t("Durasi paket", "Package duration")}>
+                    <Select
+                      value={String(cycles)}
+                      onValueChange={(value) => setCycles(Number(value))}
+                    >
+                      {durationOptions(p).map((option) => (
+                        <SelectOption
+                          key={option.cycles}
+                          value={String(option.cycles)}
+                        >
+                          {option.cycles} {t("periode", "cycles")} ·{" "}
+                          {option.cycles * p.days}{" "}
+                          {t("hari pengantaran", "delivery days")}
+                          {option.discountPercent
+                            ? ` · −${option.discountPercent}%`
+                            : ""}
+                        </SelectOption>
+                      ))}
+                    </Select>
+                    <p className="small muted">
+                      1 {t("periode", "cycle")} = {p.days}{" "}
+                      {t(
+                        "hari pengantaran. Diskon durasi dihitung setelah diskon porsi.",
+                        "delivery days. Multi-cycle savings apply after the portion discount.",
+                      )}
+                    </p>
+                  </Field>
+                )}
+                {!durationAvailable && (
+                  <p role="status">
                     {t(
-                      "hari pengantaran. Diskon durasi dihitung setelah diskon porsi.",
-                      "delivery days. Multi-cycle savings apply after the portion discount.",
+                      "Durasi ini belum tersedia. Pilih durasi lain.",
+                      "This duration is unavailable. Choose another duration.",
                     )}
                   </p>
-                </Field>
-              )}
-              {!durationAvailable && (
-                <p role="status">
-                  {t(
-                    "Durasi ini belum tersedia. Pilih durasi lain.",
-                    "This duration is unavailable. Choose another duration.",
-                  )}
-                </p>
-              )}
+                )}
+              </div>
             </ActionForm>
           ) : (
             quote && (
               <ActionForm
                 submit={t("Lanjutkan ke pembayaran", "Continue to payment")}
                 disabled={
-                  !acceptedTerms || !startAvailable || !durationAvailable || paymentUnavailable
+                  !acceptedTerms ||
+                  !startAvailable ||
+                  !durationAvailable ||
+                  paymentUnavailable
                 }
                 actions={(submitButton) => (
                   <div className="checkout-actions">
@@ -442,13 +459,21 @@ export function CheckoutPage({ id }: { id: string }) {
                       <span>{t("Total pembayaran", "Total payment")}</span>
                       <strong>{currency(quote.total, locale)}</strong>
                     </div>
-                    {paymentUnavailable && <p role="status">{t("Pembayaran sedang tidak tersedia. Silakan coba lagi nanti.", "Payment is currently unavailable. Please try again later.")}</p>}
+                    {paymentUnavailable && (
+                      <p role="status">
+                        {t(
+                          "Pembayaran sedang tidak tersedia. Silakan coba lagi nanti.",
+                          "Payment is currently unavailable. Please try again later.",
+                        )}
+                      </p>
+                    )}
                     {submitButton}
                   </div>
                 )}
                 onSubmit={async () => {
                   if (!acceptedTerms) throw new Error("TERMS_REQUIRED");
-                  if (paymentUnavailable) throw new Error("PAYMENT_UNAVAILABLE");
+                  if (paymentUnavailable)
+                    throw new Error("PAYMENT_UNAVAILABLE");
                   const c = await perform<Checkout>("checkout.create", {
                     acceptedTerms: true,
                     expectedQuote: quote,
@@ -468,84 +493,86 @@ export function CheckoutPage({ id }: { id: string }) {
                   location.assign("/payment/" + c.id);
                 }}
               >
-                <div className="section-heading">
-                  <h2 ref={stepHeading} tabIndex={-1}>
-                    {t("Jadwal makananmu", "Your meal schedule")}
-                  </h2>
-                  <Button
-                    type="button"
-                    className="text-button"
-                    onClick={() => {
-                      setAcceptedTerms(false);
-                      setStep(1);
-                    }}
-                  >
-                    {t("Ubah", "Edit")}
-                  </Button>
-                </div>
-                <div className="checkout-address">
-                  <MapPin size={20} aria-hidden="true" />
-                  <div>
-                    <strong>
-                      {t("Alamat pengantaran", "Delivery address")}
-                    </strong>
+                <div ref={fields} className="checkout-step-content">
+                  <div className="section-heading">
+                    <h2 ref={stepHeading} tabIndex={-1}>
+                      {t("Jadwal makananmu", "Your meal schedule")}
+                    </h2>
+                    <Button
+                      type="button"
+                      className="text-button"
+                      onClick={() => {
+                        setAcceptedTerms(false);
+                        setStep(1);
+                      }}
+                    >
+                      {t("Ubah", "Edit")}
+                    </Button>
+                  </div>
+                  <div className="checkout-address">
+                    <MapPin size={20} aria-hidden="true" />
+                    <div>
+                      <strong>
+                        {t("Alamat pengantaran", "Delivery address")}
+                      </strong>
+                      <p>
+                        {selectedAddress?.label} — {selectedAddress?.line},{" "}
+                        {selectedAddress?.area}
+                      </p>
+                    </div>
+                  </div>
+                  <PurchasePriceBreakdown quote={quote} />
+                  <PurchaseSchedule quote={quote} />
+                  {!startAvailable && (
+                    <p role="status">
+                      {t(
+                        "Batas pemesanan sudah lewat. Ubah tanggal mulai sebelum melanjutkan.",
+                        "The purchase cutoff has passed. Edit your start date before continuing.",
+                      )}
+                    </p>
+                  )}
+                  <div className="notice">
+                    <ShieldCheck size={20} />
                     <p>
-                      {selectedAddress?.label} — {selectedAddress?.line},{" "}
-                      {selectedAddress?.area}
+                      {p.flexible
+                        ? t(
+                            "Tanggal dapat diganti sebelum batas waktu, selama kapasitas tersedia.",
+                            "Dates can be changed before cutoff, subject to capacity.",
+                          )
+                        : t(
+                            "Paket ini menggunakan jadwal tetap.",
+                            "This package uses fixed dates.",
+                          )}{" "}
+                      {t(
+                        "Permintaan pembatalan dan refund selalu ditinjau tim bantuan.",
+                        "Cancellation and refund requests are always reviewed by support.",
+                      )}
                     </p>
                   </div>
-                </div>
-                <PurchasePriceBreakdown quote={quote} />
-                <PurchaseSchedule quote={quote} />
-                {!startAvailable && (
-                  <p role="status">
+                  <label className="checkbox-row">
+                    <Checkbox
+                      required
+                      checked={acceptedTerms}
+                      onChange={(e) => setAcceptedTerms(e.target.checked)}
+                      aria-describedby="checkout-terms-reminder"
+                    />
                     {t(
-                      "Batas pemesanan sudah lewat. Ubah tanggal mulai sebelum melanjutkan.",
-                      "The purchase cutoff has passed. Edit your start date before continuing.",
+                      "Saya menyetujui Syarat & Ketentuan pembelian, termasuk jadwal, alamat, harga, dan aturan paket yang ditampilkan.",
+                      "I accept the purchase Terms & Conditions, including the displayed schedule, address, price, and package rules.",
                     )}
-                  </p>
-                )}
-                <div className="notice">
-                  <ShieldCheck size={20} />
-                  <p>
-                    {p.flexible
-                      ? t(
-                          "Tanggal dapat diganti sebelum batas waktu, selama kapasitas tersedia.",
-                          "Dates can be changed before cutoff, subject to capacity.",
-                        )
-                      : t(
-                          "Paket ini menggunakan jadwal tetap.",
-                          "This package uses fixed dates.",
-                        )}{" "}
-                    {t(
-                      "Permintaan pembatalan dan refund selalu ditinjau tim bantuan.",
-                      "Cancellation and refund requests are always reviewed by support.",
-                    )}
+                  </label>
+                  <p
+                    id="checkout-terms-reminder"
+                    className="small muted"
+                    role="status"
+                  >
+                    {!acceptedTerms &&
+                      t(
+                        "Setujui Syarat & Ketentuan untuk melanjutkan.",
+                        "Please accept the Terms & Conditions to continue.",
+                      )}
                   </p>
                 </div>
-                <label className="checkbox-row">
-                  <Checkbox
-                    required
-                    checked={acceptedTerms}
-                    onChange={(e) => setAcceptedTerms(e.target.checked)}
-                    aria-describedby="checkout-terms-reminder"
-                  />
-                  {t(
-                    "Saya menyetujui Syarat & Ketentuan pembelian, termasuk jadwal, alamat, harga, dan aturan paket yang ditampilkan.",
-                    "I accept the purchase Terms & Conditions, including the displayed schedule, address, price, and package rules.",
-                  )}
-                </label>
-                <p
-                  id="checkout-terms-reminder"
-                  className="small muted"
-                  role="status"
-                >
-                  {!acceptedTerms &&
-                    t(
-                      "Setujui Syarat & Ketentuan untuk melanjutkan.",
-                      "Please accept the Terms & Conditions to continue.",
-                    )}
-                </p>
               </ActionForm>
             )
           )}

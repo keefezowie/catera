@@ -48,6 +48,7 @@ import { CheckoutPage, PaymentPage } from "./purchase";
 import { Login } from "./authentication";
 import { ProfileMenu } from "./profile-menu";
 import { Notifications } from "./notifications";
+import { RouteMotion } from "./motion";
 import dynamic from "next/dynamic";
 const Seller = dynamic(() => import("./seller").then((m) => m.Seller));
 const Onboarding = dynamic(() => import("./seller").then((m) => m.Onboarding));
@@ -145,7 +146,7 @@ function App({ path, issue }: { path: string[]; issue: string | null }) {
   else if (root === "brand") body = <AssetGallery />;
   else body = <Catalog caterer={root === "locations" ? id : undefined} />;
   return (
-    <>
+    <RouteMotion path={path.join("/")}>
       {issue &&
       ["", "discover", "search", "locations", "categories"].includes(root) ? (
         <ErrorNotice
@@ -157,7 +158,7 @@ function App({ path, issue }: { path: string[]; issue: string | null }) {
       ) : (
         body
       )}
-    </>
+    </RouteMotion>
   );
 }
 const customerNav = [

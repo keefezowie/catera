@@ -333,6 +333,12 @@ The six [synthetic food images](packages/brand/manifest.food.json) are 1448 × 1
 
 The [finish verdict](output/V1-FINISH-VERDICT.md) resolves four bounded web findings using the existing desktop, tablet, phone, and viewport captures in `output/visual-review/`, including `admin-pending-empty.png`. Overall disposition remains **fix** for unfinished transparent artwork; high-resolution master acceptance also remains open in the asset manifest. Native source now gives quantity/compare controls 48 × 48 and chips a 48 minimum height. No native device visual approval, gesture/large-text/dark-appearance approval, push verification, or return-link certification is supplied by this documentation.
 
+### Web motion
+
+Web motion uses 120ms control feedback, 180ms selection, 220ms surfaces/content and 320ms food/confirmation moments, with the existing Catera entrance easing. Keep navigation, operational rows and financial totals steady. Animate only visible discovery results together after committed filters; never stagger a catalog or replay entrances for search typing, locale changes or background refreshes. Forward/back steps communicate direction while their actions remain stationary.
+
+Menus and dialogs use 4–8px entrances and faster dismissal without releasing focus or layer ownership early. Preserve pending button dimensions, stationary errors and the mascot loader's existing delay/completion behavior. The featured carousel retains six-second autoplay, swipe, arrows and dots without a playback button; focus/manual input stops autoplay, and hover temporarily pauses it. Reduced motion disables movement and cancels active web animations and smooth calendar scrolling. Implementation choices and before/after evidence are in [the web motion record](docs/WEB-MOTION.md).
+
 ## Do's and Don'ts
 
 ### Do:

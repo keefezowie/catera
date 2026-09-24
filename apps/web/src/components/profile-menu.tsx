@@ -7,6 +7,7 @@ import type { WorkspaceMode } from "@catera/domain";
 import { canSwitchWorkspace } from "@/lib/workspace";
 import { api, useApp } from "./context";
 import { Button } from "./form-controls";
+import { useExitPresence } from "./motion";
 
 const workspaceOptions: {
   value: WorkspaceMode;
@@ -20,6 +21,7 @@ const workspaceOptions: {
 export function ProfileMenu() {
   const { actor, workspace, t } = useApp();
   const [open, setOpen] = useState(false);
+  const present = useExitPresence(open);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const [ready, setReady] = useState(false);
@@ -161,11 +163,13 @@ export function ProfileMenu() {
           {actor.name.trim().charAt(0).toUpperCase() || "?"}
         </span>
       </Button>
-      {open && (
+      {present && (
         <div
           ref={menuRef}
           id="profile-menu"
           className="profile-menu-panel"
+          data-motion-state={open ? "open" : "closed"}
+          inert={!open || undefined}
           role="menu"
           aria-label={t("Menu akun", "Account menu")}
           aria-busy={pending || undefined}

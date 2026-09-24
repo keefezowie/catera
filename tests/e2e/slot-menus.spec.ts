@@ -364,7 +364,7 @@ test("calendar batch, search, drag/drop and conflict recovery retain the draft",
   await page
     .getByRole("button", { name: "Ganti dan simpan", exact: true })
     .click();
-  await expect(page.getByText(/Menu berubah sejak dibuka/)).toBeVisible();
+  await expect(page.locator(".menu-main").getByText(/Menu berubah sejak dibuka/)).toBeVisible();
   await expect(page.locator(".menu-slot").first()).toContainText(
     f.chicken.name,
   );

@@ -4,18 +4,24 @@ import AxeBuilder from "@axe-core/playwright";
 const active = (page: Page) => page.locator(".featured-slide:not([inert])");
 const waitCycle = (page: Page) => page.waitForTimeout(6400);
 
-test("pause button, keyboard access and carousel accessibility", async ({ page }) => {
+test("keyboard focus stops autoplay and carousel remains accessible without a playback button", async ({
+  page,
+}) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Jeda tayangan" }).click();
+  await active(page).getByRole("link").focus();
   await page.mouse.move(0, 0);
-  await expect(page.getByRole("button", { name: "Putar otomatis" })).toBeVisible();
+  await expect(page.locator(".featured-playback")).toHaveCount(0);
   const content = await active(page).textContent();
   await waitCycle(page);
   expect(await active(page).textContent()).toBe(content);
   await active(page).getByRole("link").focus();
   await page.keyboard.press("Tab");
-  await expect(page.getByRole("button", { name: "Katerer sebelumnya" })).toBeFocused();
-  const results = await new AxeBuilder({ page }).include(".featured-hero").analyze();
+  await expect(
+    page.getByRole("button", { name: "Katerer sebelumnya" }),
+  ).toBeFocused();
+  const results = await new AxeBuilder({ page })
+    .include(".featured-hero")
+    .analyze();
   expect(results.violations).toEqual([]);
 });
 
@@ -39,9 +45,7 @@ test("carousel autoplay, hover, manual controls, focus, visibility and links", a
   await page.mouse.move(0, 0);
   await waitCycle(page);
   await expect(active(page)).toContainText("Dapur Senja");
-  await expect(
-    page.getByRole("button", { name: "Putar otomatis" }),
-  ).toBeVisible();
+  await expect(page.locator(".featured-playback")).toHaveCount(0);
   await page.getByRole("button", { name: "Katerer sebelumnya" }).click();
   await expect(active(page)).toContainText("Hijau Kitchen");
   await page.getByRole("button", { name: "Katerer berikutnya" }).click();
@@ -49,17 +53,10 @@ test("carousel autoplay, hover, manual controls, focus, visibility and links", a
   await page.getByRole("searchbox", { name: "Cari katering" }).fill("salmon");
   await expect(page.locator(".featured-slide")).toHaveCount(3);
   await expect(active(page)).toContainText("Dapur Senja");
-  await page.getByRole("button", { name: "Putar otomatis" }).click();
+  // Only a new carousel instance resumes autoplay after manual interaction.
+  await page.goto("/");
   await page.mouse.move(0, 0);
   await expect(active(page)).toContainText("Rumah Rasa", { timeout: 9000 });
-  await active(page).getByRole("link").focus();
-  await expect(
-    page.getByRole("button", { name: "Putar otomatis" }),
-  ).toBeVisible();
-  await waitCycle(page);
-  await expect(active(page)).toContainText("Rumah Rasa");
-  await page.getByRole("button", { name: "Putar otomatis" }).click();
-  await page.mouse.move(0, 0);
   await page.evaluate(() => {
     Object.defineProperty(document, "hidden", {
       configurable: true,
@@ -81,6 +78,10 @@ test("carousel autoplay, hover, manual controls, focus, visibility and links", a
   await expect(active(page)).toContainText("Rumah Rasa");
   await page.evaluate(() => window.scrollTo(0, 0));
   await expect(active(page)).toContainText("Hijau Kitchen", { timeout: 9000 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const stopped = await active(page).textContent();
+  await waitCycle(page);
+  expect(await active(page).textContent()).toBe(stopped);
   const href = await active(page).getByRole("link").getAttribute("href");
   await active(page).getByRole("link").click();
   await expect(page).toHaveURL(new RegExp(href! + "$"));
