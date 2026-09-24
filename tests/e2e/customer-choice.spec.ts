@@ -192,7 +192,7 @@ test("responsive calendar and picker, keyboard, atomic multi-date selection and 
   page,
 }) => {
   const f = await fixture(page);
-  await page.goto("/subscriptions/" + f.subscription.id + "/menu?date=" + date);
+  await page.goto("/subscriptions/" + f.subscription.id + "/menu?month=" + date.slice(0, 7) + "-01");
   await mkdir("output/customer-choice", { recursive: true });
   for (const width of [1440, 768, 390]) {
     await page.setViewportSize({ width, height: 900 });

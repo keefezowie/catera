@@ -32,7 +32,13 @@ export function Brand({ small = false }: { small?: boolean }) {
       className={"brand " + (small ? "small" : "")}
       aria-label="Catera — Good Food on Repeat"
     >
-      <Image src="/assets/wordmark.png" alt="Catera" width={180} height={60} sizes="180px" />
+      <Image
+        src="/assets/wordmark.png"
+        alt="Catera"
+        width={180}
+        height={60}
+        sizes="180px"
+      />
     </Link>
   );
 }
@@ -290,6 +296,8 @@ export function ActionForm({
   actions,
   successMessage,
   onPendingChange,
+  onDirtyChange,
+  validate,
 }: {
   onSubmit: (f: FormData) => Promise<void>;
   children: ReactNode;
@@ -301,6 +309,8 @@ export function ActionForm({
   actions?: (submitButton: ReactNode, busy: boolean) => ReactNode;
   successMessage?: string;
   onPendingChange?: (pending: boolean) => void;
+  onDirtyChange?: (dirty: boolean) => void;
+  validate?: (form: FormData) => string | undefined;
 }) {
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
@@ -340,11 +350,18 @@ export function ActionForm({
     if (submitting.current || disabled) return;
     submitting.current = true;
     const f = new FormData(e.currentTarget);
+    const validation = validate?.(f);
+    if (validation) {
+      setError(validation);
+      submitting.current = false;
+      return;
+    }
     setBusy(true);
     setError("");
     setSaved(false);
     try {
       await onSubmit(f);
+      onDirtyChange?.(false);
       setSaved(true);
     } catch (e) {
       const code =
@@ -388,7 +405,10 @@ export function ActionForm({
       noValidate={noValidate}
       aria-busy={busy || undefined}
       className={"form " + className}
-      onChange={() => setSaved(false)}
+      onChange={() => {
+        setSaved(false);
+        onDirtyChange?.(true);
+      }}
     >
       <FormPending.Provider value={busy}>{children}</FormPending.Provider>
       {error && (

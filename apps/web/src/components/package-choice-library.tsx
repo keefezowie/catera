@@ -112,6 +112,20 @@ export function PackageChoiceLibrary({
   const allowed = new Set(
     offer.menus.flatMap((m) => m.composition?.map((g) => g.categoryId) || []),
   );
+  const categories = [...allowed].map((id) => ({
+    id,
+    name:
+      offer.menus
+        .flatMap((menu) => menu.composition || [])
+        .find((group) => group.categoryId === id)?.name || id,
+    required: Math.max(
+      ...offer.menus.map((menu) =>
+        (menu.composition || [])
+          .filter((group) => group.categoryId === id)
+          .reduce((count, group) => count + group.slots, 0),
+      ),
+    ),
+  }));
   return (
     <section className="package-choice-library">
       {dishes ? (
@@ -133,8 +147,11 @@ export function PackageChoiceLibrary({
               </p>
             </div>
             <strong className="choice-active-count">
-              {options.filter((d) => !d.archived).length}{" "}
-              {t("hidangan aktif", "active dishes")}
+              {resource.loading
+                ? t("Memuat pilihan…", "Loading options…")
+                : resource.error
+                  ? t("Jumlah belum tersedia", "Count unavailable")
+                  : `${options.filter((d) => !d.archived).length} ${t("hidangan aktif", "active dishes")}`}
             </strong>
           </div>
           <div className="choice-composition">
@@ -171,113 +188,148 @@ export function PackageChoiceLibrary({
           {t("Memuat pilihan hidangan…", "Loading dish options…")}
         </p>
       )}
-      {dishes && actor?.role === "owner" ? (
-        <>
-          <p>
-            {t(
-              "Pilihan pelanggan yang sudah disimpan tetap harus dipenuhi. Pembaruan hanya berlaku untuk pilihan baru.",
-              "Saved customer choices must still be fulfilled. Updates apply to new selections only.",
-            )}
-          </p>
-          <div className="choice-option-grid">
-            {options.map((d) => (
-              <article
-                className={
-                  "choice-option-card" + (d.archived ? " is-retired" : "")
-                }
-                key={d.id}
-              >
-                {d.image ? (
-                  <img src={d.image} alt="" />
-                ) : (
-                  <div className="choice-option-placeholder">
-                    <Utensils size={26} />
-                  </div>
-                )}
-                <div className="choice-option-info">
-                  <strong>{d.name}</strong>
-                  <small>
-                    {d.serving} ·{" "}
-                    {d.archived
-                      ? t("Nonaktif", "Inactive")
-                      : t("Aktif", "Active")}
-                  </small>
+      {resource.data &&
+        (dishes && actor?.role === "owner" ? (
+          <>
+            <p>
+              {t(
+                "Pilihan pelanggan yang sudah disimpan tetap harus dipenuhi. Pembaruan hanya berlaku untuk pilihan baru.",
+                "Saved customer choices must still be fulfilled. Updates apply to new selections only.",
+              )}
+            </p>
+            {categories.map((category) => (
+              <section key={category.id} className="choice-category">
+                <h3>{category.name}</h3>
+                <p>
+                  {category.required}{" "}
+                  {t("slot wajib per waktu makan", "required slots per meal")} ·{" "}
+                  {resource.loading || resource.error
+                    ? "…"
+                    : options.filter(
+                        (d) => d.categoryId === category.id && !d.archived,
+                      ).length}{" "}
+                  {t("pilihan aktif tersedia", "active options available")}
+                </p>
+                <div className="choice-option-grid">
+                  {options
+                    .filter((d) => d.categoryId === category.id)
+                    .map((d) => (
+                      <article
+                        className={
+                          "choice-option-card" +
+                          (d.archived ? " is-retired" : "")
+                        }
+                        key={d.id}
+                      >
+                        {d.image ? (
+                          <img src={d.image} alt="" />
+                        ) : (
+                          <div className="choice-option-placeholder">
+                            <Utensils size={26} />
+                          </div>
+                        )}
+                        <div className="choice-option-info">
+                          <strong>{d.name}</strong>
+                          <small>
+                            {d.serving} ·{" "}
+                            {d.archived
+                              ? t("Nonaktif", "Inactive")
+                              : t("Aktif", "Active")}
+                          </small>
+                        </div>
+                        <div className="choice-option-actions">
+                          <Button
+                            variant="secondary"
+                            disabled={
+                              busy || resource.loading || !!resource.error
+                            }
+                            onClick={() =>
+                              save({
+                                id: d.id,
+                                version: d.version,
+                                archived: !d.archived,
+                              })
+                            }
+                          >
+                            {d.archived ? (
+                              <RotateCcw size={15} />
+                            ) : (
+                              <Archive size={15} />
+                            )}
+                            {d.archived
+                              ? t("Pulihkan", "Restore")
+                              : t("Nonaktifkan", "Retire")}
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            disabled={
+                              busy ||
+                              d.archived ||
+                              resource.loading ||
+                              !!resource.error
+                            }
+                            onClick={() =>
+                              save({
+                                id: d.id,
+                                version: d.version,
+                                refresh: true,
+                              })
+                            }
+                          >
+                            <RefreshCw size={15} />
+                            {t("Perbarui", "Refresh")}
+                          </Button>
+                        </div>
+                      </article>
+                    ))}
                 </div>
-                <div className="choice-option-actions">
+              </section>
+            ))}
+            <h3>
+              {t(
+                "Tambahkan pilihan dari pustaka",
+                "Add options from your library",
+              )}
+            </h3>
+            {dishes
+              .filter(
+                (d) =>
+                  !d.archived &&
+                  allowed.has(d.categoryId) &&
+                  !options.some((o) => o.sourceDishId === d.id),
+              )
+              .map((d) => (
+                <div className="action-row" key={d.id}>
+                  <span>{d.name}</span>
                   <Button
                     variant="secondary"
-                    disabled={busy}
-                    onClick={() =>
-                      save({
-                        id: d.id,
-                        version: d.version,
-                        archived: !d.archived,
-                      })
+                    disabled={
+                      busy ||
+                      !resource.data ||
+                      resource.loading ||
+                      !!resource.error
                     }
+                    onClick={() => save({ sourceDishId: d.id })}
                   >
-                    {d.archived ? (
-                      <RotateCcw size={15} />
-                    ) : (
-                      <Archive size={15} />
-                    )}
-                    {d.archived
-                      ? t("Pulihkan", "Restore")
-                      : t("Nonaktifkan", "Retire")}
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    disabled={busy || d.archived}
-                    onClick={() =>
-                      save({ id: d.id, version: d.version, refresh: true })
-                    }
-                  >
-                    <RefreshCw size={15} />
-                    {t("Perbarui", "Refresh")}
+                    <Plus size={16} />
+                    {t("Tambahkan ke paket", "Add to package")}
                   </Button>
                 </div>
-              </article>
-            ))}
-          </div>
-          <h3>
-            {t(
-              "Tambahkan pilihan dari pustaka",
-              "Add options from your library",
-            )}
-          </h3>
-          {dishes
-            .filter(
-              (d) =>
-                !d.archived &&
-                allowed.has(d.categoryId) &&
-                !options.some((o) => o.sourceDishId === d.id),
-            )
-            .map((d) => (
-              <div className="action-row" key={d.id}>
-                <span>{d.name}</span>
-                <Button
-                  variant="secondary"
-                  disabled={busy || !resource.data}
-                  onClick={() => save({ sourceDishId: d.id })}
-                >
-                  <Plus size={16} />
-                  {t("Tambahkan ke paket", "Add to package")}
-                </Button>
-              </div>
-            ))}
-        </>
-      ) : (
-        <MenuLibrary
-          manage={false}
-          dishes={options.filter((d) => !d.archived)}
-          categories={offer.menus
-            .flatMap((m) => m.composition || [])
-            .filter(
-              (g, i, all) =>
-                all.findIndex((x) => x.categoryId === g.categoryId) === i,
-            )
-            .map((g) => ({ id: g.categoryId!, name: g.name }))}
-        />
-      )}
+              ))}
+          </>
+        ) : (
+          <MenuLibrary
+            manage={false}
+            dishes={options.filter((d) => !d.archived)}
+            categories={offer.menus
+              .flatMap((m) => m.composition || [])
+              .filter(
+                (g, i, all) =>
+                  all.findIndex((x) => x.categoryId === g.categoryId) === i,
+              )
+              .map((g) => ({ id: g.categoryId!, name: g.name }))}
+          />
+        ))}
     </section>
   );
 }

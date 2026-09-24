@@ -6,7 +6,9 @@ for (const locale of ["id","en"]) test(`delivery issue -> seller attention -> re
  await page.request.post("/api/v1/auth/demo",{data:{role:"customer"}});
  const customer=(await (await page.request.get("/api/v1/customer")).json()).data;
  const deliveries=customer.deliveries.filter((d:any)=>d.offer.catererId==="10000000-0000-4000-8000-000000000001");
- const d=deliveries[locale==="id"?0:1];
+ const existingIssues=(await (await page.request.get("/api/v1/delivery-issues")).json()).data;
+ const d=deliveries.find((delivery:any)=>!existingIssues.some((issue:any)=>issue.day_id===delivery.id));
+ expect(d, "An unused synthetic delivery is required").toBeTruthy();
  await page.goto("/deliveries/"+d.id);
  await page.getByRole("link",{name:/Laporkan masalah|Report an issue/}).click();
  const dialog=page.getByRole("dialog");
@@ -20,6 +22,9 @@ for (const locale of ["id","en"]) test(`delivery issue -> seller attention -> re
  await page.request.post("/api/v1/auth/demo",{data:{role:"owner"}});
  await page.goto("/seller");
  const attention=page.getByRole("region",{name:/Perlu perhatian|Needs attention/});
+ await expect(attention).not.toHaveAttribute("aria-busy","true");
+ const more=attention.getByRole("button",{name:/Lihat semua yang perlu ditangani|View all tasks needing attention/});
+ if(await more.isVisible()) await more.click();
  await expect(attention.locator(`a[href="/seller/support?issue=${issue.id}"]`)).toBeVisible();
  await attention.locator(`a[href="/seller/support?issue=${issue.id}"]`).click();
  const region=page.getByRole("region",{name:/Kendala pengantaran|Delivery issues/});

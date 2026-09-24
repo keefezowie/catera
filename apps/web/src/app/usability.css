@@ -856,7 +856,67 @@ html:has(.seller-operations) {
 .checkout-steps .complete { color: var(--forest); background: var(--soft); }
 .seller-attention h2 { display: flex; align-items: center; gap: 8px; font-size: 18px; }
 .seller-attention > p { margin-top: 12px; }
-.seller-attention[data-empty] { padding-block: 16px; }
+.seller-attention[data-empty] {
+  padding-block: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 16px;
+}
+.seller-attention[data-empty] h2,
+.seller-attention[data-empty] > p {
+  margin: 0;
+}
+.seller-attention[data-empty] .quiet-empty {
+  flex-basis: 100%;
+  font-size: 14px;
+}
+.package-terms .facts {
+  display: grid;
+  gap: 12px;
+}
+.package-terms .facts > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
+  gap: 12px;
+}
+.package-terms dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.package-terms dt {
+  color: var(--muted);
+}
+.choice-category {
+  margin-block: 20px;
+}
+.notifications-page .notification > div {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+.notifications-page .notification a {
+  overflow-wrap: anywhere;
+}
+.form fieldset[hidden] {
+  display: none;
+}
+@media (max-width: 560px) {
+  .package-terms .facts > div {
+    grid-template-columns: 1fr;
+    gap: 3px;
+  }
+  .settlement-hero {
+    padding: 16px;
+    gap: 12px;
+  }
+  .settlement-cards {
+    gap: 8px;
+  }
+  .settlement-cards article {
+    padding: 12px;
+  }
+}
 .seller-attention[data-empty] .quiet-empty { padding: 0; }
 @media (max-width: 1000px) {
   .checkout-summary, .checkout-fields { grid-column: auto; grid-row: auto; }

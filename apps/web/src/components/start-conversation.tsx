@@ -2,7 +2,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { MessageCircle } from "lucide-react";
-import { api, useApp, useResource } from "./context";
+import { api, useApp, useResource, useWorkspaceDraft } from "./context";
+import { useDiscardChanges } from "./journey-state";
 import { Button, TextArea, TextInput } from "./form-controls";
 import { ActionForm, Dialog, Field, ErrorNotice, Loading } from "./ui";
 type Recipient = { id: string; name: string; user_id: string | null };
@@ -15,6 +16,17 @@ export function StartConversation({
 }) {
   const { t } = useApp();
   const [open, setOpen] = useState(false);
+  const [drafts, setDrafts] = useWorkspaceDraft<Record<string, string>>(
+    "first-message-drafts",
+    {},
+  );
+  const guard = useDiscardChanges(
+    open && Object.values(drafts).some((value) => !!value.trim()),
+    () => {
+      setDrafts({});
+      setOpen(false);
+    },
+  );
   return (
     <>
       <Button
@@ -27,7 +39,7 @@ export function StartConversation({
       </Button>
       <Dialog
         open={open}
-        onOpenChange={setOpen}
+        onOpenChange={(value) => (value ? setOpen(true) : guard.close())}
         title={t("Mulai percakapan", "Start conversation")}
       >
         {open && (
@@ -39,11 +51,16 @@ export function StartConversation({
           />
         )}
       </Dialog>
+      {guard.confirmation}
     </>
   );
 }
 function RecipientPicker({ onStarted }: { onStarted: (id: string) => void }) {
   const { t, actor, perform } = useApp();
+  const [drafts, setDrafts] = useWorkspaceDraft<Record<string, string>>(
+    "first-message-drafts",
+    {},
+  );
   const [search, setSearch] = useState(""),
     [offset, setOffset] = useState(0),
     [recipient, setRecipient] = useState<Recipient | null>(null);
@@ -139,12 +156,22 @@ function RecipientPicker({ onStarted }: { onStarted: (id: string) => void }) {
               customerRecordId: recipient.id,
               body: f.get("body"),
             });
+            setDrafts((previous) => ({ ...previous, [recipient.id]: "" }));
             onStarted(result.id);
           }}
         >
           <h3>{recipient.name}</h3>
           <Field label={t("Pesan", "Message")}>
-            <TextArea name="body" required minLength={1} maxLength={2000} />
+            <TextArea
+              name="body"
+              value={drafts[recipient.id] || ""}
+              onChange={(event) =>
+                setDrafts({ ...drafts, [recipient.id]: event.target.value })
+              }
+              required
+              minLength={1}
+              maxLength={2000}
+            />
           </Field>
         </ActionForm>
       )}

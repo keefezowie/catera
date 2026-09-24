@@ -3,10 +3,13 @@ import { useEffect, useId, useRef, useState } from "react";
 import { settlementCurrency, type SettlementReport } from "@catera/domain";
 import { api, useApp, useResource } from "./context";
 import { ErrorNotice, Loading } from "./ui";
+import { useJourneyQuery } from "./journey-state";
 
 export function SettlementChart({ catererId }: { catererId: string }) {
   const { t } = useApp();
-  const [days, setDays] = useState<7 | 30>(30);
+  const { query, update } = useJourneyQuery();
+  const days = query.get("days") === "7" ? 7 : 30;
+  const setDays = (value: number) => update({ days: value });
   return (
     <section
       className="panel settlement-chart"

@@ -50,7 +50,8 @@ import {
   type Address,
   type Locale,
 } from "@catera/domain";
-import { useApp, useResource, api } from "./context";
+import { useApp, useResource, api, useWorkspaceDraft } from "./context";
+import { useJourneyQuery, useUnsavedDeparture } from "./journey-state";
 import { Button, TextArea, TextInput } from "./form-controls";
 import {
   Heading,
@@ -301,7 +302,13 @@ function NextMeal({
   return (
     <section className={"next-meal-card" + (detail ? " delivery-summary" : "")}>
       <div className="next-meal-photo">
-        <FoodImage src={d.offer.image} alt={d.offer.name} width={800} height={600} sizes="(max-width: 700px) 100vw, 700px" />
+        <FoodImage
+          src={d.offer.image}
+          alt={d.offer.name}
+          width={800}
+          height={600}
+          sizes="(max-width: 700px) 100vw, 700px"
+        />
         <span className="image-label">
           <Clock size={14} />
           {detail
@@ -357,7 +364,13 @@ function SubscriptionCard({
       href={"/subscriptions/" + s.id}
       className={"subscription-card " + (compact ? "compact" : "")}
     >
-      <FoodImage src={s.snapshot.offer.image} alt="" width={100} height={100} sizes="100px" />
+      <FoodImage
+        src={s.snapshot.offer.image}
+        alt=""
+        width={100}
+        height={100}
+        sizes="100px"
+      />
       <div>
         <small>{s.snapshot.offer.caterer}</small>
         <Title className="subscription-title">{s.snapshot.offer.name}</Title>
@@ -377,7 +390,13 @@ function DeliveryRow({ delivery: d }: { delivery: Delivery }) {
   const { locale, t } = useApp();
   return (
     <Link href={"/deliveries/" + d.id} className="delivery-row">
-      <FoodImage src={d.offer.image} alt="" width={80} height={80} sizes="80px" />
+      <FoodImage
+        src={d.offer.image}
+        alt=""
+        width={80}
+        height={80}
+        sizes="80px"
+      />
       <div>
         <small>
           {d.offer.caterer} · {dateLabel(d.service_date, locale)}
@@ -803,30 +822,39 @@ export function DeliveryPage({ id }: { id: string }) {
 }
 export function Messages({ embedded = false }: { embedded?: boolean }) {
   const { actor, workspace, t, perform, offers, locale } = useApp();
-  const query = useSearchParams();
+  const { query, update } = useJourneyQuery();
   const selectedCaterer = query.get("caterer");
   const state = useResource<Conversation[]>("conversations", () =>
     api.conversations(),
   );
-  const [selected, setSelected] = useState(selectedCaterer ? "caterer:" + selectedCaterer : "");
-  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const selected =
+    query.get("conversation") ||
+    (selectedCaterer ? "caterer:" + selectedCaterer : "");
+  const setSelected = (value: string) => update({ conversation: value });
+  const [drafts, setDrafts] = useWorkspaceDraft<Record<string, string>>(
+    "message-drafts",
+    {},
+  );
+  useUnsavedDeparture(Object.values(drafts).some((value) => !!value.trim()));
   const [sending, setSending] = useState(false);
-  useEffect(() => {
-    setSelected(selectedCaterer ? "caterer:" + selectedCaterer : "");
-  }, [selectedCaterer]);
   if (state.error && !state.data)
     return <ErrorNotice message={state.error} retry={state.reload} />;
   if (!state.data) return <Loading />;
-  const requestedCaterer = selected.startsWith("caterer:") ? selected.slice(8) : null;
+  const requestedCaterer = selected.startsWith("caterer:")
+    ? selected.slice(8)
+    : null;
   const c =
     state.data.find((c) => c.id === selected) ||
     state.data.find((c) => c.caterer_id === requestedCaterer) ||
     (!selected ? state.data[0] : undefined);
   const newCaterer =
-    requestedCaterer && !state.data.some((c) => c.caterer_id === requestedCaterer)
+    requestedCaterer &&
+    !state.data.some((c) => c.caterer_id === requestedCaterer)
       ? offers.find((o) => o.catererId === requestedCaterer)
       : null;
-  const conversationKey = newCaterer ? "caterer:" + newCaterer.catererId : c?.id || "";
+  const conversationKey = newCaterer
+    ? "caterer:" + newCaterer.catererId
+    : c?.id || "";
   return (
     <div
       className={embedded ? "messages-page embedded" : "content messages-page"}
@@ -840,7 +868,9 @@ export function Messages({ embedded = false }: { embedded?: boolean }) {
           )}
         />
       )}
-      {state.error && <ErrorNotice message={state.error} retry={state.reload} />}
+      {state.error && (
+        <ErrorNotice message={state.error} retry={state.reload} />
+      )}
       <div className="messages-layout">
         <aside aria-label={t("Daftar percakapan", "Conversations")}>
           <h2>{t("Percakapan", "Conversations")}</h2>
@@ -915,7 +945,12 @@ export function Messages({ embedded = false }: { embedded?: boolean }) {
                   "Keep payments on Catera so your purchase and support stay connected.",
                 )}
               </div>
-              <div className="message-stream">
+              <div
+                className="message-stream"
+                tabIndex={0}
+                role="region"
+                aria-label={t("Riwayat percakapan", "Conversation history")}
+              >
                 {!newCaterer &&
                   c?.messages.map((m) => (
                     <div
@@ -950,7 +985,10 @@ export function Messages({ embedded = false }: { embedded?: boolean }) {
                     catererId: newCaterer?.catererId || c?.caterer_id,
                     body,
                   });
-                  setDrafts((current) => ({ ...current, [conversationKey]: "" }));
+                  setDrafts((previous) => ({
+                    ...previous,
+                    [conversationKey]: "",
+                  }));
                   // A new conversation keeps its known recipient visible until
                   // the confirmed conversation arrives in the refreshed read.
                   if (!newCaterer) setSelected(result.id);
@@ -963,7 +1001,12 @@ export function Messages({ embedded = false }: { embedded?: boolean }) {
                   id="message-body"
                   name="body"
                   value={drafts[conversationKey] || ""}
-                  onChange={(event) => setDrafts((current) => ({ ...current, [conversationKey]: event.target.value }))}
+                  onChange={(event) =>
+                    setDrafts({
+                      ...drafts,
+                      [conversationKey]: event.target.value,
+                    })
+                  }
                   placeholder={t("Tulis pesan…", "Write a message…")}
                   required
                   maxLength={2000}
@@ -975,12 +1018,23 @@ export function Messages({ embedded = false }: { embedded?: boolean }) {
           ) : (
             <Empty
               title={t("Belum ada percakapan", "No conversations yet")}
-              description={t(
-                "Buka profil katerer untuk mulai bertanya.",
-                "Open a caterer profile to start a conversation.",
-              )}
-              href="/#packages"
-              label={t("Jelajah katerer", "Explore caterers")}
+              description={
+                embedded
+                  ? t(
+                      "Pilih ‘Mulai percakapan’ untuk menghubungi pelanggan yang sudah terhubung. Pelanggan belum terhubung dapat diundang dari halaman Pelanggan.",
+                      "Choose ‘Start conversation’ to contact a linked customer. Customers who are not linked can be invited from Customers.",
+                    )
+                  : t(
+                      "Buka profil katerer untuk mulai bertanya.",
+                      "Open a caterer profile to start a conversation.",
+                    )
+              }
+              href={embedded ? "/seller/customers" : "/#packages"}
+              label={
+                embedded
+                  ? t("Lihat pelanggan", "View customers")
+                  : t("Jelajah katerer", "Explore caterers")
+              }
             />
           )}
         </section>
@@ -1003,37 +1057,6 @@ export function Account({ view }: { view: string }) {
       <Loading />
     );
   const c = state.data;
-  if (view === "notifications")
-    return (
-      <div className="content narrow-wide">
-        <Heading title={t("Kabar untukmu", "Updates for you")} />
-        <RefreshNotice error={state.error} reload={state.reload} />
-        {c.notifications.map((n) => (
-          <div
-            className={"notification " + (!n.read_at ? "unread" : "")}
-            key={n.id}
-          >
-            <Bell size={19} />
-            <Link
-              href={n.href}
-              onClick={() =>
-                perform("notification.read", { id: n.id }).catch(() => {})
-              }
-            >
-              <strong>{n.body}</strong>
-              <small>
-                {new Date(n.created_at).toLocaleString(
-                  locale === "id" ? "id-ID" : "en-GB",
-                )}
-              </small>
-            </Link>
-          </div>
-        ))}
-        {!c.notifications.length && (
-          <Empty title={t("Belum ada kabar baru", "No new updates yet")} />
-        )}
-      </div>
-    );
   return (
     <div className="content narrow-wide">
       <Heading

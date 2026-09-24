@@ -21,6 +21,7 @@ import {
 import {
   addDays,
   statusLabel,
+  mealLabel,
   fulfillmentStatus,
   nextDeliveryStatuses,
   scheduleSummary,
@@ -32,6 +33,7 @@ import {
   type SellerDelivery,
 } from "@catera/domain";
 import { api, useApp, useResource } from "./context";
+import { useJourneyQuery } from "./journey-state";
 import { Button, Checkbox, TextInput } from "./form-controls";
 import { Select, SelectOption } from "./select";
 import { DatePicker } from "./date-picker";
@@ -86,8 +88,9 @@ function OperationsLoader({
   calendarFocus: { current: string | null };
 }) {
   const { actor, t } = useApp();
-  const state = useResource("operations:" + actor!.catererId + ":" + date, () =>
-    api.sellerOperations(actor!.catererId!, date),
+  const state = useResource(
+    "operations:" + actor!.catererId + ":" + date,
+    () => api.sellerOperations(actor!.catererId!, date),
     { keepPreviousData: true },
   );
   const reload = useRef(state.reload);
@@ -164,7 +167,8 @@ function OperationsPage({
   if (!loading && defaultMeal.date !== date) {
     setDefaultMeal({ date, meal: suggestedMeal });
   }
-  const initialMeal = defaultMeal.date === date ? defaultMeal.meal : suggestedMeal;
+  const initialMeal =
+    defaultMeal.date === date ? defaultMeal.meal : suggestedMeal;
   const meal =
     query.get("meal") === "dinner"
       ? "dinner"
@@ -319,6 +323,7 @@ function OperationsPage({
               meal="all"
               date={date}
               loading={loading}
+              latest={s.latestProduction}
             />
           )}
         </details>
@@ -947,7 +952,9 @@ function OrderTable({
 }) {
   const { t, locale, perform } = useApp();
   const [selected, setSelected] = useState<string[]>([]);
-  const [detail, setDetail] = useState("");
+  const { query: detailQuery, update: updateQuery } = useJourneyQuery();
+  const detail = detailQuery.get("delivery") || "";
+  const setDetail = (value: string) => updateQuery({ delivery: value });
   const [grouping, setGrouping] = useState("package");
   const groups =
     schedule && scheduleGrouping !== "flat"
@@ -976,12 +983,16 @@ function OrderTable({
   const [success, setSuccess] = useState("");
   const detailRef = useRef<HTMLElement>(null);
   const opener = useRef<HTMLElement | null>(null);
+  const previousDetail = useRef("");
   const all = useRef<HTMLInputElement>(null);
   const eligible = rows.filter(
     (d) =>
       date <= today && nextDeliveryStatuses(fulfillmentStatus(d, meal)).length,
   );
   const chosen = eligible.filter((d) => selected.includes(d.id));
+  const invalidated = selected.filter(
+    (id) => !eligible.some((row) => row.id === id),
+  );
   const options = chosen.length
     ? nextDeliveryStatuses(fulfillmentStatus(chosen[0], meal)).filter((s) =>
         chosen.every((d) =>
@@ -1023,8 +1034,19 @@ function OrderTable({
         block: "start",
         behavior: "instant",
       });
+    } else if (previousDetail.current) {
+      const previous = previousDetail.current;
+      requestAnimationFrame(() =>
+        (opener.current?.isConnected
+          ? opener.current
+          : document.querySelector<HTMLElement>(
+              `[data-delivery-detail="${CSS.escape(previous)}"]`,
+            )
+        )?.focus(),
+      );
     }
-  }, [detail]);
+    previousDetail.current = detail;
+  }, [detail, d?.id]);
   useEffect(() => {
     if (all.current)
       all.current.indeterminate =
@@ -1045,7 +1067,7 @@ function OrderTable({
       });
       setSelected([]);
       setSuccess(
-        `${items.length} ${t("pesanan diperbarui", "orders updated")} · ${statusLabel(status, locale)}`,
+        `${items.length} ${t("pesanan diperbarui", "orders updated")} · ${mealLabel(meal, locale)} · ${statusLabel(status, locale)}`,
       );
     } catch (e) {
       const code = (e as { code?: string }).code;
@@ -1368,6 +1390,7 @@ function OrderTable({
                         <td data-cell="actions">
                           <Button
                             className="text-button"
+                            data-delivery-detail={x.id}
                             aria-label={`${t("Detail", "Details")} ${x.customer.name}, ${x.address.label}, ${x.offer.name}`}
                             onClick={(event) =>
                               openDetail(x.id, event.currentTarget)
@@ -1409,15 +1432,53 @@ function OrderTable({
             </table>
           </div>
         ) : (
-          <Empty
-            title={t("Tidak ada pesanan", "No orders")}
-            description={t(
-              "Tidak ada pesanan yang cocok dengan tanggal dan filter ini.",
-              "No orders match this date and these filters.",
+          <>
+            <Empty
+              title={t("Tidak ada pesanan", "No orders")}
+              description={t(
+                "Tidak ada pesanan yang cocok dengan tanggal dan filter ini.",
+                "No orders match this date and these filters.",
+              )}
+            />
+            {(detailQuery.get("package") ||
+              detailQuery.get("status") ||
+              detailQuery.get("filter") ||
+              detailQuery.get("search")) && (
+              <Button
+                variant="secondary"
+                onClick={() =>
+                  updateQuery({
+                    package: null,
+                    status: null,
+                    filter: null,
+                    search: null,
+                    delivery: null,
+                  })
+                }
+              >
+                {t("Hapus filter", "Clear filters")}
+              </Button>
             )}
-          />
+          </>
         )}
       </section>
+      {!!invalidated.length && (
+        <p role="status" className="notice">
+          {invalidated.length}{" "}
+          {t(
+            "pilihan tidak lagi tersedia untuk tindakan ini setelah pembaruan. Tinjau status atau filter; pilihan yang masih memenuhi syarat tetap dipilih.",
+            "selections are no longer available for this action after refresh. Review status or filters; eligible selections remain selected.",
+          )}{" "}
+          <Button
+            variant="secondary"
+            onClick={() =>
+              setSelected(selected.filter((id) => !invalidated.includes(id)))
+            }
+          >
+            {t("Hapus pilihan tidak berlaku", "Clear unavailable selections")}
+          </Button>
+        </p>
+      )}
       {d && (
         <aside
           ref={detailRef}

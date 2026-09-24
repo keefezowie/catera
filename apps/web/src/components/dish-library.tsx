@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   type Dish,
   type LibraryDish,
@@ -15,6 +15,7 @@ import { ActionForm, Field, ErrorNotice } from "./ui";
 import { Select, SelectOption } from "./select";
 import { PhotoUpload } from "./photo-upload";
 import { CategoryCreate } from "./composition-editor";
+import { useDiscardChanges } from "./journey-state";
 
 export function useDishLibrary() {
   const { actor } = useApp();
@@ -346,20 +347,38 @@ export function LibraryForm({
   initial,
   done,
   categories = [],
+  defaultCategoryId,
+  onDirtyChange,
 }: {
   initial: LibraryDish | null;
   done: () => void;
   categories?: DishCategory[];
+  defaultCategoryId?: string;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const { actor, perform, t, locale } = useApp();
   const [dish, setDish] = useState<Dish>(
-    initial || { id: "new", name: "", description: "", image: "", serving: "" },
+    initial || {
+      id: "new",
+      name: "",
+      description: "",
+      image: "",
+      serving: "",
+      categoryId: defaultCategoryId,
+    },
   );
   const [busy, setBusy] = useState(false);
   const [createdCategories, setCreatedCategories] = useState<DishCategory[]>(
     [],
   );
   const [categoryBusy, setCategoryBusy] = useState(false);
+  const [original] = useState(JSON.stringify(dish));
+  const guard = useDiscardChanges(JSON.stringify(dish) !== original, done);
+  const dirty = JSON.stringify(dish) !== original;
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+    return () => onDirtyChange?.(false);
+  }, [dirty, onDirtyChange]);
   const availableCategories = [
     ...new Map(
       [...categories, ...createdCategories].map((c) => [c.id, c]),
@@ -368,73 +387,82 @@ export function LibraryForm({
   const categoryName = (category?: DishCategory) =>
     locale === "en" ? category?.nameEn || category?.name : category?.name;
   return (
-    <ActionForm
-      disabled={busy || categoryBusy}
-      submit={t("Simpan hidangan", "Save dish")}
-      onSubmit={async () => {
-        if (categories.length && !dish.categoryId)
-          throw new Error(
-            t("Pilih kategori hidangan.", "Choose a dish category."),
-          );
-        await perform("dish.save", {
-          catererId: actor!.catererId,
-          id: initial?.id,
-          version: initial?.version,
-          details: libraryDishDetailsSchema.parse(dish),
-        });
-        done();
-      }}
-    >
-      <h3>
-        {initial
-          ? t("Edit hidangan", "Edit dish")
-          : t("Hidangan baru", "New dish")}
-      </h3>
-      {!!availableCategories.length && (
-        <Field label={t("Kategori hidangan", "Dish category")}>
-          <Select
-            value={dish.categoryId || ""}
-            displayValue={categoryName(
-              availableCategories.find((c) => c.id === dish.categoryId),
-            )}
-            onValueChange={(categoryId) => {
-              if (categoryId) setDish((d) => ({ ...d, categoryId }));
-            }}
-          >
-            <SelectOption value="" disabled>
-              {t("Pilih kategori", "Choose category")}
-            </SelectOption>
-            {availableCategories.map((c) => (
-              <SelectOption key={c.id} value={c.id}>
-                {categoryName(c)}
-              </SelectOption>
-            ))}
-          </Select>
-        </Field>
-      )}
-      <CategoryCreate
-        label={t("Tambah kategori", "Add category")}
-        onBusyChange={setCategoryBusy}
-        onCreated={(category) => {
-          setCreatedCategories((cs) => [...cs, category]);
-          setDish((d) => ({ ...d, categoryId: category.id }));
+    <>
+      <ActionForm
+        disabled={busy || categoryBusy}
+        submit={t("Simpan hidangan", "Save dish")}
+        onSubmit={async () => {
+          if (categories.length && !dish.categoryId)
+            throw new Error(
+              t("Pilih kategori hidangan.", "Choose a dish category."),
+            );
+          await perform("dish.save", {
+            catererId: actor!.catererId,
+            id: initial?.id,
+            version: initial?.version,
+            details: libraryDishDetailsSchema.parse(dish),
+          });
+          done();
         }}
-      />
-      <DishFields
-        dish={dish}
-        library={[]}
-        reusable={false}
-        onChange={(p) => setDish((d) => ({ ...d, ...p }))}
-        onBusyChange={setBusy}
-      />
-      <Button
-        className="text-button"
-        type="button"
-        disabled={busy}
-        onClick={done}
       >
-        {t("Batal", "Cancel")}
-      </Button>
-    </ActionForm>
+        <h3>
+          {initial
+            ? t("Edit hidangan", "Edit dish")
+            : t("Hidangan baru", "New dish")}
+        </h3>
+        <p className="small muted">
+          {t(
+            "Perubahan pustaka tidak mengganti salinan menu paket atau pilihan pelanggan yang sudah disimpan. Gunakan Perbarui pada salinan paket bila diperlukan.",
+            "Library edits do not replace package menu copies or saved customer choices. Use Refresh on a package copy when needed.",
+          )}
+        </p>
+        {!!availableCategories.length && (
+          <Field label={t("Kategori hidangan", "Dish category")}>
+            <Select
+              value={dish.categoryId || ""}
+              displayValue={categoryName(
+                availableCategories.find((c) => c.id === dish.categoryId),
+              )}
+              onValueChange={(categoryId) => {
+                if (categoryId) setDish((d) => ({ ...d, categoryId }));
+              }}
+            >
+              <SelectOption value="" disabled>
+                {t("Pilih kategori", "Choose category")}
+              </SelectOption>
+              {availableCategories.map((c) => (
+                <SelectOption key={c.id} value={c.id}>
+                  {categoryName(c)}
+                </SelectOption>
+              ))}
+            </Select>
+          </Field>
+        )}
+        <CategoryCreate
+          label={t("Tambah kategori", "Add category")}
+          onBusyChange={setCategoryBusy}
+          onCreated={(category) => {
+            setCreatedCategories((cs) => [...cs, category]);
+            setDish((d) => ({ ...d, categoryId: category.id }));
+          }}
+        />
+        <DishFields
+          dish={dish}
+          library={[]}
+          reusable={false}
+          onChange={(p) => setDish((d) => ({ ...d, ...p }))}
+          onBusyChange={setBusy}
+        />
+        <Button
+          className="text-button"
+          type="button"
+          disabled={busy}
+          onClick={guard.close}
+        >
+          {t("Batal", "Cancel")}
+        </Button>
+      </ActionForm>
+      {guard.confirmation}
+    </>
   );
 }

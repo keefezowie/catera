@@ -352,3 +352,15 @@ The [finish verdict](output/V1-FINISH-VERDICT.md) resolves four bounded web find
 - **Don't** replace food photographs with mascot decoration or recreate the wordmark as interface text.
 - **Don't** turn customer-home subscription rows back into nested cards or imply a pending verification workload when the selected queue is empty.
 - **Don't** treat the web verdict, native source checks, or this documentation as device visual approval or production-release approval.
+
+## Caterer journey continuity — September 24, 2026
+
+Package inspection and menu management lead published-package cards. Suspension and archive are secondary, named confirmations that preserve existing obligations. Read-only commercial terms expose recurring capacity, applicable meal windows, and the package timezone.
+
+Operational selections use validated URL context. Sensitive replies and edits remain in actor-scoped workspace memory, with explicit unsaved/discard and conflict states; they are not automatically stored in browser storage. Seller notifications retain the caterer shell.
+
+Transactions start with a compact balance/readiness summary and Sales. Earnings charts belong inside earnings activity; legacy payouts are disclosed within payouts. Approved bank details alone do not imply payout activation or a confirmed processing date. A failed refresh identifies retained information as stale.
+
+Production remains a whole-day handoff independent of schedule-table filters. Live output and the latest saved revision are separately labeled, including whether the saved copy matches current orders. Empty attention queues are compact; populated queues retain priority and next actions.
+
+Implementation, local verification, and release limitations are recorded in [the caterer journey report](docs/CATERER-JOURNEY-IMPLEMENTATION-2026-09-24.md).

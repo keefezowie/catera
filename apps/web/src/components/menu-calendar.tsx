@@ -23,7 +23,8 @@ import {
   type Subscription,
   type CustomerMenuMonth,
 } from "@catera/domain";
-import { api, useApp, useResource } from "./context";
+import { api, useApp, useResource, useWorkspaceDraft } from "./context";
+import { useJourneyQuery, useDiscardChanges } from "./journey-state";
 import { Button } from "./form-controls";
 import { Select, SelectOption } from "./select";
 import { Dialog, ErrorNotice, Field } from "./ui";
@@ -37,6 +38,7 @@ import {
   weekStart,
   datesBetween,
   monthEnd,
+  validDay,
 } from "../lib/meal-calendar";
 import "./menu-calendar.css";
 
@@ -74,10 +76,24 @@ export function MenuCalendar({
     };
   }, []);
   const router = useRouter();
-  const query = useSearchParams();
-  const [selection, setSelection] = useState(""),
-    [meal, setMeal] = useState("lunch"),
-    [month, setMonth] = useState(monthOf(date));
+  const { query, update } = useJourneyQuery();
+  const selection =
+    (query.get("package") || "") + ":" + (query.get("revision") || "");
+  const meal = query.get("meal") === "dinner" ? "dinner" : "lunch";
+  const month = /^\d{4}-(0[1-9]|1[0-2])-01$/.test(query.get("month") || "")
+    ? query.get("month")!
+    : monthOf(validDay(query.get("date") || "") ? query.get("date")! : date);
+  const setSelection = (value: string) => {
+    const [packageId, revision] = value.split(":");
+    update({ package: packageId, revision, month, meal, date: null });
+  };
+  const setMeal = (value: string) => update({ meal: value, month, date: null });
+  const setMonth = (value: string) => update({ month: value, date: null });
+  const [drafts, setDrafts] = useWorkspaceDraft<Record<string, Edit>>(
+    "menu-drafts",
+    {},
+  );
+  const restored = useRef("");
   const [multi, setMulti] = useState(false),
     [dates, setDates] = useState<string[]>([]),
     [edit, setEdit] = useState<Edit | null>(null);
@@ -89,6 +105,11 @@ export function MenuCalendar({
   const [resetConfirm, setResetConfirm] = useState(false);
   const [slot, setSlot] = useState(""),
     [libraryOpen, setLibraryOpen] = useState(query.get("library") === "1");
+  const [libraryDirty, setLibraryDirty] = useState(false);
+  const libraryGuard = useDiscardChanges(libraryDirty, () => {
+    setLibraryOpen(false);
+    setLibraryDirty(false);
+  });
   const [replacement, setReplacement] = useState<{
     id: string;
     dish: LibraryDish;
@@ -117,7 +138,9 @@ export function MenuCalendar({
       : s?.contentRevisions || [],
     selected =
       revisions.find((r) => r.packageId + ":" + r.revision === selection) ||
-      revisions[0];
+      (!query.get("revision") &&
+        revisions.find((r) => r.packageId === query.get("package"))) ||
+      (!query.get("package") ? revisions[0] : undefined);
   const choiceOffer = !subscription
     ? s?.offers.find(
         (offer) =>
@@ -169,6 +192,7 @@ export function MenuCalendar({
   function back() {
     guard(() => {
       setEdit(null);
+      update({ date: null });
       setError("");
     });
   }
@@ -267,6 +291,14 @@ export function MenuCalendar({
       readOnly: entries.some((d) => !d.editable),
       existing: entries.filter((d) => d.version > 0).map((d) => d.date),
     });
+    restored.current = context + ":" + chosen[0];
+    update({
+      package: selected?.packageId || null,
+      revision: selected?.revision ?? null,
+      month,
+      meal: activeMeal,
+      date: chosen[0],
+    });
     setSlot(menu.items?.find((i) => !i.name)?.id || menu.items?.[0]?.id || "");
     setDirty(false);
     setError("");
@@ -275,9 +307,41 @@ export function MenuCalendar({
   function change(menu: MealMenu) {
     if (busy) return;
     setEdit((e) => (e ? { ...e, menu } : e));
+    if (edit)
+      setDrafts({
+        ...drafts,
+        [context + ":" + edit.dates[0]]: { ...edit, menu },
+      });
     setDirty(true);
     setError("");
   }
+  useEffect(() => {
+    const requested = query.get("date");
+    const key = context + ":" + requested;
+    if (!requested) {
+      restored.current = "";
+      setEdit(null);
+      setDirty(false);
+      return;
+    }
+    if (
+      !data ||
+      !data.dates.some((day) => day.date === requested) ||
+      restored.current === key
+    )
+      return;
+    const draft = drafts[key];
+    if (
+      draft &&
+      data.dates
+        .filter((day) => draft.dates.includes(day.date))
+        .every((day) => day.editable)
+    ) {
+      setEdit(draft);
+      setDirty(true);
+      restored.current = key;
+    } else openDates([requested]);
+  }, [context, query, data]);
   function assign(id: string, dish: LibraryDish, confirmed = false) {
     if (busy || edit?.readOnly) return;
     const item = edit?.menu.items?.find((i) => i.id === id),
@@ -385,6 +449,14 @@ export function MenuCalendar({
       setConfirmSave(false);
       setLeaving(false);
       setEdit(null);
+      update({ date: null });
+      setDrafts(
+        Object.fromEntries(
+          Object.entries(drafts).filter(
+            ([key]) => key !== context + ":" + edit.dates[0],
+          ),
+        ),
+      );
       resource.reload();
       const action = deferred.current;
       deferred.current = null;
@@ -465,10 +537,24 @@ export function MenuCalendar({
       <div className="menu-workspace">
         <p>
           {t(
-            "Buat paket untuk mulai menyusun menu.",
-            "Create a package to start planning menus.",
+            query.get("package")
+              ? "Paket atau revisi ini tidak tersedia untuk ruang katerer Anda."
+              : "Buat paket untuk mulai menyusun menu.",
+            query.get("package")
+              ? "This package or revision is not available in your workspace."
+              : "Create a package to start planning menus.",
           )}
         </p>
+        {query.get("package") && (
+          <Button
+            variant="secondary"
+            onClick={() =>
+              update({ package: null, revision: null, date: null })
+            }
+          >
+            {t("Pilih paket lain", "Choose another package")}
+          </Button>
+        )}
         {!subscription && (
           <MenuLibrary dishes={dishes} categories={categories} />
         )}
@@ -478,6 +564,7 @@ export function MenuCalendar({
     <MenuLibrary
       dishes={dishes}
       manage={!subscription}
+      onDirtyChange={setLibraryDirty}
       categories={categories}
       categoryId={categoryId}
       onPick={edit && !edit.readOnly ? (d) => assign(slot, d) : undefined}
@@ -662,8 +749,8 @@ export function MenuCalendar({
                 <p className="menu-calendar-legend">
                   <LockKeyhole size={14} aria-hidden="true" />
                   {t(
-                    "Hanya baca · Ketuk tanggal untuk melihat menu",
-                    "Read only · Tap a date to view its menu",
+                    "Tanggal terkunci hanya dapat dibaca · Pilih tanggal mendatang untuk mengedit",
+                    "Locked dates are read only · Choose a future date to edit",
                   )}
                 </p>
                 {resource.error ? (
@@ -1042,7 +1129,10 @@ export function MenuCalendar({
           });
         }}
         open={libraryOpen}
-        onOpenChange={setLibraryOpen}
+        onOpenChange={(open) => {
+          if (open) setLibraryOpen(true);
+          else libraryGuard.close();
+        }}
         title={t("Pustaka hidangan", "Dish library")}
         description={t(
           subscription
@@ -1057,6 +1147,7 @@ export function MenuCalendar({
       >
         {library}
       </Dialog>
+      {libraryGuard.confirmation}
       <Dialog
         onCloseAutoFocus={(event) => {
           event.preventDefault();
@@ -1098,6 +1189,14 @@ export function MenuCalendar({
             onClick={() => {
               setDirty(false);
               setLeaving(false);
+              if (edit)
+                setDrafts(
+                  Object.fromEntries(
+                    Object.entries(drafts).filter(
+                      ([key]) => key !== context + ":" + edit.dates[0],
+                    ),
+                  ),
+                );
               const action = deferred.current;
               deferred.current = null;
               action?.();

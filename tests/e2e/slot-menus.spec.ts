@@ -659,6 +659,7 @@ test("package wizard publishes composition only and customers buy before dated m
   const customer = (await (await page.request.get("/api/v1/customer")).json())
     .data;
   const checkout = await command(page, "checkout.create", {
+    acceptedTerms: true,
     packageId: id,
     addressId: customer.addresses[0].id,
     portions: 1,

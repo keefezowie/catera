@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { localDay, type Delivery } from "@catera/domain";
 import {
@@ -8,11 +8,13 @@ import {
   monthEnd,
   shiftMonth,
   weekStart,
+  validDay,
 } from "../lib/meal-calendar";
 import { Button } from "./form-controls";
 import { Select, SelectOption } from "./select";
 import { Status } from "./ui";
 import { useApp } from "./context";
+import { useJourneyQuery } from "./journey-state";
 import "./meal-calendar.css";
 import "./seller-experience.css";
 
@@ -28,28 +30,50 @@ export function CustomerDeliveryCalendar({
   const { t, locale } = useApp();
   const timezone = deliveries[0]?.offer.timezone || "Asia/Jakarta";
   const today = localDay(new Date(), timezone);
-  const [selected, setSelected] = useState(
-    () =>
-      deliveries
-        .filter((d) => d.service_date >= today && d.status !== "cancelled")
-        .sort((a, b) => a.service_date.localeCompare(b.service_date))[0]
-        ?.service_date || today,
-  );
-  const [month, setMonth] = useState(monthOf(selected));
-  const [view, setView] = useState("calendar"),
-    [packageId, setPackageId] = useState(""),
-    [meal, setMeal] = useState("all");
+  const { query, update } = useJourneyQuery();
+  const firstDate =
+    deliveries
+      .filter((d) => d.service_date >= today && d.status !== "cancelled")
+      .sort((a, b) => a.service_date.localeCompare(b.service_date))[0]
+      ?.service_date || today;
+  const selected = validDay(query.get("deliveryDate") || "")
+    ? query.get("deliveryDate")!
+    : firstDate;
+  const month = /^\d{4}-(0[1-9]|1[0-2])-01$/.test(
+    query.get("deliveryMonth") || "",
+  )
+    ? query.get("deliveryMonth")!
+    : monthOf(selected);
+  const view = query.get("deliveryView") === "list" ? "list" : "calendar";
+  const packageId = deliveries.some(
+    (d) => d.offer.id === query.get("deliveryPackage"),
+  )
+    ? query.get("deliveryPackage")!
+    : "";
+  const meal = ["lunch", "dinner"].includes(query.get("deliveryMeal") || "")
+    ? query.get("deliveryMeal")!
+    : "all";
+  const setSelected = (value: string) => update({ deliveryDate: value });
+  const setMonth = (value: string) => update({ deliveryMonth: value });
+  const setView = (value: string) => update({ deliveryView: value });
+  const setPackageId = (value: string) => update({ deliveryPackage: value });
+  const setMeal = (value: string) => update({ deliveryMeal: value });
   useEffect(() => {
     if (changed) {
-      setSelected(changed.service_date);
-      setMonth(monthOf(changed.service_date));
-      setPackageId((current) =>
-        current && current !== changed.offer.id ? changed.offer.id : current,
-      );
-      setMeal((current) =>
-        current === "all" || changed.meals.some((m) => m.meal === current)
-          ? current
-          : "all",
+      update(
+        {
+          deliveryDate: changed.service_date,
+          deliveryMonth: monthOf(changed.service_date),
+          deliveryPackage:
+            packageId && packageId !== changed.offer.id
+              ? changed.offer.id
+              : packageId,
+          deliveryMeal:
+            meal === "all" || changed.meals.some((m) => m.meal === meal)
+              ? meal
+              : "all",
+        },
+        true,
       );
     }
   }, [changed]);

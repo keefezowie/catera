@@ -12,6 +12,7 @@ import { useApp } from "./context";
 import { ActionForm, Dialog, Field } from "./ui";
 import { Button, Checkbox } from "./form-controls";
 import { NumericInput } from "./numeric-input";
+import { useDiscardChanges } from "./journey-state";
 export function PackageDurationEditor({ offer }: { offer: Offer }) {
   const { t, locale, perform } = useApp();
   const [options, setOptions] = useState<DurationOption[]>(
@@ -22,13 +23,38 @@ export function PackageDurationEditor({ offer }: { offer: Offer }) {
   );
   const [portions, setPortions] = useState(1);
   const [open, setOpen] = useState(false);
+  const [committed, setCommitted] = useState(JSON.stringify(options));
+  const [savedSession, setSavedSession] = useState<{
+    revision: number;
+    options: DurationOption[];
+  } | null>(null);
+  const dirty = open && JSON.stringify(options) !== committed;
+  const guard = useDiscardChanges(dirty, () => setOpen(false));
   return (
     <>
       <Button
         className="duration-editor-trigger"
         variant="secondary"
         aria-haspopup="dialog"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          const latest =
+            savedSession &&
+            savedSession.revision > (offer.durationPricing?.revision ?? 0)
+              ? savedSession
+              : {
+                  revision: offer.durationPricing?.revision ?? 0,
+                  options: durationOptions({
+                    ...offer,
+                    multiCycleAvailable: true,
+                  }),
+                };
+          const saved = latest.options;
+          setOptions(saved);
+          setCommitted(JSON.stringify(saved));
+          setRevision(latest.revision);
+          setPortions(1);
+          setOpen(true);
+        }}
       >
         <Repeat2 size={18} aria-hidden="true" />{" "}
         {t("Durasi & diskon paket", "Duration options & savings")}
@@ -36,12 +62,27 @@ export function PackageDurationEditor({ offer }: { offer: Offer }) {
       </Button>
       <Dialog
         open={open}
-        onOpenChange={setOpen}
+        onOpenChange={(next) => {
+          if (!next) guard.close();
+        }}
         title={t("Durasi & diskon paket", "Duration options & savings")}
         description={offer.name}
         className="duration-dialog"
       >
         <div className="duration-editor">
+          {dirty && (
+            <p role="status" className="notice">
+              {t("Perubahan belum disimpan", "Unsaved changes")}
+            </p>
+          )}
+          {open && revision < (offer.durationPricing?.revision ?? 0) && (
+            <p role="alert" className="notice">
+              {t(
+                "Harga telah diperbarui. Draf Anda tetap tersimpan di editor; salin perubahan sebelum membuang draf dan membuka versi terbaru.",
+                "Pricing has changed. Your draft is retained in this editor; copy your changes before discarding and opening the latest version.",
+              )}
+            </p>
+          )}
           <ActionForm
             submit={t("Simpan pilihan durasi", "Save duration options")}
             onSubmit={async () => {
@@ -55,6 +96,7 @@ export function PackageDurationEditor({ offer }: { offer: Offer }) {
                 },
               );
               setRevision(saved.revision);
+              setSavedSession({ revision: saved.revision, options });
               setOpen(false);
             }}
           >
@@ -121,7 +163,9 @@ export function PackageDurationEditor({ offer }: { offer: Offer }) {
                   </label>
                   {current && (
                     <>
-                      <Field label={t("Diskon (%)", "Discount (%)")}>
+                      <Field
+                        label={`${t("Diskon", "Discount")} · ${cycles} ${t("periode (%)", "cycles (%)")}`}
+                      >
                         <NumericInput
                           min={0}
                           max={90}
@@ -159,6 +203,7 @@ export function PackageDurationEditor({ offer }: { offer: Offer }) {
           </ActionForm>
         </div>
       </Dialog>
+      {guard.confirmation}
     </>
   );
 }

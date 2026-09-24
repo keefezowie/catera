@@ -31,6 +31,7 @@ for (const locale of ["id", "en"])
       ).toHaveCount(0);
       for (const path of ["transactions", "settings"]) {
         await page.goto(`/seller/${path}`);
+        if (path === "transactions") await page.getByRole("tab", { name: /^(Pencairan|Payouts)$/ }).click();
         await expect(page.locator("#payout")).toBeVisible();
         await expect(
           page.getByText(/Data tidak ditemukan|Data not found/),

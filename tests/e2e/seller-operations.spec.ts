@@ -148,6 +148,8 @@ test("Schedule filters, redirects, exports a whole-day CSV, and renders desktop/
   await main
     .getByRole("button", { name: "Bulan berikutnya", exact: true })
     .click();
+  await expect(page).toHaveURL(/date=\d{4}-\d{2}-01/);
+  await page.goto("/seller/schedule?date=2035-01-01");
   await expect(
     main.getByRole("heading", { name: "Tidak ada pesanan", exact: true }),
   ).toBeVisible();

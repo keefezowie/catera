@@ -8,6 +8,12 @@ export type SellerOperationsState = Omit<SellerState, "deliveries"> & {
   deliveries: SellerDelivery[];
   operationalDate: string;
   today: string;
+  latestProduction?: {
+    id: string;
+    revision: number;
+    createdAt: string;
+    changed: boolean;
+  } | null;
 };
 export type SellerCalendar = {
   days: { date: string; orders: number; lunch: boolean; dinner: boolean }[];

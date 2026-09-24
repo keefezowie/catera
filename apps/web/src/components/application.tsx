@@ -47,6 +47,7 @@ import { Customer, DeliveryPage, Messages, Account, Support } from "./customer";
 import { CheckoutPage, PaymentPage } from "./purchase";
 import { Login } from "./authentication";
 import { ProfileMenu } from "./profile-menu";
+import { Notifications } from "./notifications";
 import dynamic from "next/dynamic";
 const Seller = dynamic(() => import("./seller").then((m) => m.Seller));
 const Onboarding = dynamic(() => import("./seller").then((m) => m.Onboarding));
@@ -123,12 +124,19 @@ function App({ path, issue }: { path: string[]; issue: string | null }) {
   else if (root === "payment") body = <PaymentPage id={id} />;
   else if (root === "deliveries") body = <DeliveryPage id={id} />;
   else if (root === "messages") body = <Messages />;
-  else if (["account", "addresses", "notifications"].includes(root))
+  else if (root === "notifications") body = <Notifications />;
+  else if (["account", "addresses"].includes(root))
     body = <Account view={root} />;
   else if (root === "support") body = <Support />;
   else if (root === "seller")
     body =
-      id === "onboarding" ? <Onboarding /> : <Seller view={id || "today"} />;
+      id === "onboarding" ? (
+        <Onboarding />
+      ) : id === "notifications" ? (
+        <Notifications seller />
+      ) : (
+        <Seller view={id || "today"} />
+      );
   else if (root === "admin") body = <Admin view={id || "sellers"} />;
   else if (root === "subscriptions" && path[2] === "menu" && id)
     body = <CustomerMenu id={id} />;
@@ -382,7 +390,14 @@ function Shell({
             </span>
             <LocaleSwitch />
             <Link
-              href="/notifications"
+              href={
+                isAdmin
+                  ? "/notifications"
+                  : "/seller/notifications?from=" +
+                    encodeURIComponent(
+                      pathname + (searchParams.size ? "?" + searchParams : ""),
+                    )
+              }
               className="icon-button"
               aria-label={t("Notifikasi", "Notifications")}
             >

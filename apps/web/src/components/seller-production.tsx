@@ -1,6 +1,11 @@
 "use client";
 import { useState } from "react";
-import { menuSummary, type Delivery, type Offer } from "@catera/domain";
+import {
+  menuSummary,
+  type Delivery,
+  type Offer,
+  type SellerOperationsState,
+} from "@catera/domain";
 import { Printer, Download, Save } from "lucide-react";
 import { useApp } from "./context";
 import { Button } from "./form-controls";
@@ -94,17 +99,21 @@ export function Production({
   meal,
   date,
   loading = false,
+  latest,
 }: {
   deliveries: Delivery[];
   meal: string;
   date: string;
   loading?: boolean;
+  latest?: SellerOperationsState["latestProduction"];
 }) {
-  const { actor, perform, t } = useApp();
-  const [revision, setRevision] = useState<{
+  const { actor, perform, t, locale } = useApp();
+  const [saved, setRevision] = useState<{
     id: string;
     revision: number;
   } | null>(null);
+  const revision =
+    latest && (!saved || latest.revision >= saved.revision) ? latest : saved;
   const portions = deliveries
     .filter((d) => d.status !== "cancelled")
     .reduce((sum, d) => sum + d.portions * d.meals.length, 0);
@@ -166,6 +175,29 @@ export function Production({
       </ActionForm>
       {revision && (
         <div className="ops-saved-copy">
+          <strong>
+            {t("Salinan tersimpan", "Saved copy")} · {revision.revision}
+          </strong>
+          {latest?.id === revision.id && (
+            <p>
+              {new Date(latest.createdAt).toLocaleString(
+                locale === "id" ? "id-ID" : "en-GB",
+                { timeZone: deliveries[0]?.offer.timezone || "Asia/Jakarta" },
+              )}{" "}
+              ·{" "}
+              {loading
+                ? t("Memeriksa perubahan…", "Checking for changes…")
+                : latest.changed
+                  ? t(
+                      "Pesanan langsung telah berubah. Simpan revisi baru untuk daftar terbaru.",
+                      "Live orders have changed. Save a new revision for an updated list.",
+                    )
+                  : t(
+                      "Sesuai dengan pesanan saat terakhir diperiksa.",
+                      "Matches orders at the last successful check.",
+                    )}
+            </p>
+          )}
           <p>
             {t(
               "Salinan revisi tersimpan; simpan revisi baru setelah perubahan. Ringkasan langsung di atas dapat berbeda.",

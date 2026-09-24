@@ -15,6 +15,7 @@ export function MenuLibrary({
   disabled = false,
   onDragChange,
   manage = true,
+  onDirtyChange,
 }: {
   dishes: LibraryDish[];
   categories: DishCategory[];
@@ -23,6 +24,7 @@ export function MenuLibrary({
   disabled?: boolean;
   onDragChange?: (dish: LibraryDish | null) => void;
   manage?: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const { actor, perform, t, locale } = useApp();
   const [search, setSearch] = useState(""),
@@ -49,7 +51,7 @@ export function MenuLibrary({
     >
       <div className="section-heading">
         <h2>{t("Pustaka hidangan", "Dish library")}</h2>
-        {manage && (
+        {manage && form === null && (
           <Button
             type="button"
             className="text-button"
@@ -64,6 +66,8 @@ export function MenuLibrary({
         <LibraryForm
           key={typeof form === "string" ? "new" : form.id}
           initial={form === "new" ? null : form}
+          defaultCategoryId={categoryId}
+          onDirtyChange={onDirtyChange}
           categories={categories}
           done={() => setForm(null)}
         />

@@ -62,7 +62,9 @@ import {
   type SupportCase,
   type Conversation,
 } from "@catera/domain";
-import { api, useApp, useResource } from "./context";
+import { api, useApp, useResource, useWorkspaceDraft } from "./context";
+import { useJourneyQuery, useUnsavedDeparture } from "./journey-state";
+import { SellerPackageDetails } from "./seller-package-details";
 import { Button, Checkbox, TextArea, TextInput } from "./form-controls";
 import {
   Heading,
@@ -92,7 +94,9 @@ function SellerWorkspace({ view }: { view: string }) {
   const { actor, t, locale } = useApp();
   const query = useSearchParams();
   const router = useRouter();
-  const date = query.get("date") || localDay();
+  // Workspace data does not depend on the date being edited in Menu. Keeping
+  // this key stable prevents query navigation from unmounting active drafts.
+  const date = localDay();
   useEffect(() => {
     if (view === "dishes") router.replace("/seller/menus?library=1");
     const redirectVerification = () => {
@@ -158,6 +162,21 @@ function SellerWorkspace({ view }: { view: string }) {
 
 function SellerTransactions({ state: s }: { state: SellerState }) {
   const { t, locale, actor } = useApp();
+  if (actor?.role !== "owner")
+    return (
+      <section className="panel">
+        <h2>{t("Akses khusus pemilik", "Owner access required")}</h2>
+        <p>
+          {t(
+            "Penjualan, rekening bank, dan pencairan hanya tersedia bagi pemilik katerer. Hubungi pemilik untuk informasi keuangan.",
+            "Sales, bank accounts, and payouts are available only to the caterer owner. Contact your owner for financial information.",
+          )}
+        </p>
+        <Link className="button secondary" href="/seller">
+          {t("Kembali ke operasional", "Return to operations")}
+        </Link>
+      </section>
+    );
   const purchases = (
     <section className="settlement-purchases">
       <h2>{t("Penjualan", "Sales")}</h2>
@@ -205,6 +224,8 @@ function SellerTransactions({ state: s }: { state: SellerState }) {
 function Packages({ state: s }: { state: SellerState }) {
   const { actor, t, locale } = useApp();
   const [editing, setEditing] = useState<Offer | null | undefined>();
+  const { query, update } = useJourneyQuery();
+  const inspected = s.offers.find((o) => o.id === query.get("package"));
   const [dirty, setDirty] = useState(false),
     [editorBusy, setEditorBusy] = useState(false),
     [discard, setDiscard] = useState(false);
@@ -246,6 +267,20 @@ function Packages({ state: s }: { state: SellerState }) {
                 <small>{t("/ makan", "/ meal")}</small>
               </strong>
             </div>
+            <Button
+              variant="secondary"
+              onClick={() => update({ package: o.id })}
+            >
+              {t("Lihat rincian paket", "View package details")}
+            </Button>
+            {o.status !== "draft" && (
+              <Link
+                className="button secondary"
+                href={"/seller/menus?package=" + encodeURIComponent(o.id)}
+              >
+                {t("Kelola menu", "Manage menus")}
+              </Link>
+            )}
             {actor?.role === "owner" && o.status === "draft" && (
               <Button
                 className="button secondary small"
@@ -264,6 +299,15 @@ function Packages({ state: s }: { state: SellerState }) {
           </article>
         ))}
       </div>
+      <Dialog
+        open={!!inspected}
+        onOpenChange={(open) => {
+          if (!open) update({ package: null });
+        }}
+        title={inspected?.name || t("Rincian paket", "Package details")}
+      >
+        {inspected && <SellerPackageDetails offer={inspected} />}
+      </Dialog>
       <Dialog
         className="package-dialog"
         size="editor"
@@ -333,6 +377,7 @@ function Packages({ state: s }: { state: SellerState }) {
 }
 function PackageLifecycle({ offer }: { offer: Offer }) {
   const { perform, t } = useApp();
+  const [confirm, setConfirm] = useState(false);
   if (offer.status === "retired")
     return (
       <p className="package-lifecycle">
@@ -364,22 +409,71 @@ function PackageLifecycle({ offer }: { offer: Offer }) {
           )}
         </p>
       )}
-      <ActionForm
-        submit={
-          suspended
-            ? t("Arsipkan paket", "Archive package")
-            : t("Tangguhkan paket", "Suspend package")
-        }
+      <Button
+        variant="secondary"
         disabled={suspended && !offer.canArchive}
-        children={null}
-        onSubmit={() =>
-          perform(suspended ? "package.archive" : "package.suspend", {
-            catererId: offer.catererId,
-            id: offer.id,
-            version: offer.version,
-          })
+        onClick={() => setConfirm(true)}
+      >
+        {suspended
+          ? t("Arsipkan paket", "Archive package")
+          : t("Tangguhkan paket", "Suspend package")}
+      </Button>
+      <Dialog
+        open={confirm}
+        onOpenChange={setConfirm}
+        size="confirmation"
+        title={
+          suspended
+            ? t("Arsipkan paket?", "Archive package?")
+            : t("Tangguhkan penjualan?", "Suspend sales?")
         }
-      />
+        description={offer.name}
+      >
+        <ActionForm
+          submit={
+            suspended
+              ? t("Arsipkan paket", "Archive package")
+              : t("Tangguhkan paket", "Suspend package")
+          }
+          disabled={suspended && !offer.canArchive}
+          actions={(submit, busy) => (
+            <div className="dialog-actions">
+              <Button
+                data-dialog-safe
+                variant="secondary"
+                disabled={busy}
+                onClick={() => setConfirm(false)}
+              >
+                {t("Batal", "Cancel")}
+              </Button>
+              {submit}
+            </div>
+          )}
+          onSubmit={async () => {
+            await perform(suspended ? "package.archive" : "package.suspend", {
+              catererId: offer.catererId,
+              id: offer.id,
+              version: offer.version,
+            });
+            setConfirm(false);
+          }}
+        >
+          <p>
+            {t(
+              "Pembelian baru akan ditutup. Pengantaran dan ketentuan pembelian pelanggan yang sudah ada tetap berlaku. Paket tidak dapat dibuka kembali.",
+              "New purchases will be closed. Existing deliveries and purchased terms remain in effect. This package cannot be reopened.",
+            )}
+          </p>
+          {suspended && (
+            <p>
+              {t(
+                "Kelayakan arsip diperiksa kembali saat konfirmasi. Riwayat tetap tersimpan.",
+                "Archive eligibility is checked again on confirmation. History is preserved.",
+              )}
+            </p>
+          )}
+        </ActionForm>
+      </Dialog>
     </div>
   );
 }
@@ -1173,7 +1267,10 @@ function OfferEditor({
                 </div>
               </fieldset>
               <div className="form-row">
-                {["lunch", "dinner"].map((m) => (
+                {(value.meal === "both"
+                  ? ["lunch", "dinner"]
+                  : [value.meal]
+                ).map((m) => (
                   <Field
                     fieldKey={"windows." + m}
                     error={fieldError("windows." + m)}
@@ -1333,6 +1430,7 @@ function OfferEditor({
           ) : (
             <>
               <h3>{t("Pratinjau pelanggan", "Customer preview")}</h3>
+              <SellerPackageDetails offer={previewOffer} />
               <p>
                 {t(
                   "Tampilan menggunakan isian Anda saat ini. Tindakan pembelian dinonaktifkan dalam pratinjau.",
@@ -1399,15 +1497,14 @@ function SellerInbox({ cases }: { cases: SupportCase[] }) {
   const inboxQuery = useSearchParams();
   const requestedCase = inboxQuery.get("case");
   const requestedIssue = inboxQuery.get("issue");
-  const [tab, setTab] = useState(
-    requestedCase || requestedIssue || inboxQuery.get("tab") === "help"
-      ? "help"
-      : "messages",
-  );
-  useEffect(() => {
-    if (requestedCase || requestedIssue || inboxQuery.get("tab") === "help")
-      setTab("help");
-  }, [requestedCase, requestedIssue, inboxQuery]);
+  const { update } = useJourneyQuery();
+  const tab =
+    inboxQuery.get("tab") === "messages"
+      ? "messages"
+      : requestedCase || requestedIssue || inboxQuery.get("tab") === "help"
+        ? "help"
+        : "messages";
+  const setTab = (value: string) => update({ tab: value });
   const conversations = useResource<Conversation[]>("seller-inbox-count", () =>
     api.conversations(),
   );
@@ -1474,11 +1571,7 @@ function SellerInbox({ cases }: { cases: SupportCase[] }) {
         aria-labelledby="inbox-tab-help"
         hidden={tab !== "help"}
       >
-        <SupportQueue
-          key={requestedCase || "all"}
-          cases={cases}
-          initialSelected={requestedCase || ""}
-        />
+        <SupportQueue cases={cases} initialSelected={requestedCase || ""} />
         <DeliveryIssues catererId={actor?.catererId} />
       </section>
     </>
@@ -1494,7 +1587,14 @@ export function SupportQueue({
   initialSelected?: string;
 }) {
   const { perform, t, locale } = useApp();
-  const [selected, setSelected] = useState(initialSelected);
+  const { query, update } = useJourneyQuery();
+  const selected = query.get("case") || initialSelected;
+  const setSelected = (value: string) => update({ case: value, tab: "help" });
+  const [replies, setReplies] = useWorkspaceDraft<Record<string, string>>(
+    "support-replies",
+    {},
+  );
+  useUnsavedDeparture(Object.values(replies).some((value) => !!value.trim()));
   const [decisionPending, setDecisionPending] = useState(false);
   const c = cases.find((c) => c.id === selected);
   return (
@@ -1600,10 +1700,19 @@ export function SupportQueue({
                         id: c.id,
                         response: f.get("response"),
                       });
+                      setReplies((previous) => ({ ...previous, [c.id]: "" }));
                     }}
                   >
                     <Field label={t("Tanggapan katerer", "Caterer response")}>
-                      <TextArea name="response" required minLength={5} />
+                      <TextArea
+                        name="response"
+                        required
+                        minLength={5}
+                        value={replies[c.id] || ""}
+                        onChange={(event) =>
+                          setReplies({ ...replies, [c.id]: event.target.value })
+                        }
+                      />
                     </Field>
                   </ActionForm>
                   <ActionForm
@@ -1729,7 +1838,37 @@ export function TransactionRows({
   );
 }
 function SellerProfile({ state: s }: { state: SellerState }) {
-  const { actor, perform, t } = useApp();
+  const { actor, perform, t, drafts, setDraft } = useApp();
+  const draftKey = "seller-profile:" + s.caterer.id;
+  const [profile, setProfile] = useWorkspaceDraft(draftKey, {
+    name: s.caterer.name,
+    description: s.caterer.description,
+    areas: s.caterer.area,
+    cutoff: s.caterer.cutoff.slice(0, 5),
+    version: s.caterer.version,
+  });
+  const dirty = !!drafts[draftKey];
+  useUnsavedDeparture(dirty);
+  const prerequisites = [
+    ...(s.caterer.name.trim().length < 3 ||
+    s.caterer.description.trim().length < 10 ||
+    !s.caterer.area.length
+      ? [
+          t(
+            "Lengkapi dan simpan profil serta area pengantaran.",
+            "Complete and save your profile and delivery coverage.",
+          ),
+        ]
+      : []),
+    ...(!s.offers.length
+      ? [
+          t(
+            "Buat setidaknya satu draf paket.",
+            "Create at least one package draft.",
+          ),
+        ]
+      : []),
+  ];
   if (actor?.role !== "owner")
     return (
       <section className="panel">
@@ -1754,6 +1893,14 @@ function SellerProfile({ state: s }: { state: SellerState }) {
         <h2>{t("Profil & pengantaran", "Profile & delivery")}</h2>
         <ActionForm
           submit={t("Simpan profil", "Save profile")}
+          validate={(f) =>
+            !f.getAll("areas").length
+              ? t(
+                  "Pilih setidaknya satu area pengantaran.",
+                  "Choose at least one delivery area.",
+                )
+              : undefined
+          }
           submitIcon={<Save size={18} />}
           successMessage={t(
             "Profil dan area pengantaran tersimpan.",
@@ -1762,22 +1909,35 @@ function SellerProfile({ state: s }: { state: SellerState }) {
           onSubmit={async (f) => {
             await perform("seller.save", {
               catererId: s.caterer.id,
-              version: s.caterer.version,
+              version: profile.version,
               name: f.get("name"),
               description: f.get("description"),
               areas: f.getAll("areas"),
               cutoff: f.get("cutoff"),
             });
+            setDraft(draftKey, undefined);
           }}
         >
           <Field label={t("Nama katerer", "Caterer name")}>
-            <TextInput name="name" required defaultValue={s.caterer.name} />
+            <TextInput
+              name="name"
+              required
+              minLength={3}
+              value={profile.name}
+              onChange={(event) =>
+                setProfile({ ...profile, name: event.target.value })
+              }
+            />
           </Field>
           <Field label={t("Tentang katerer", "About the caterer")}>
             <TextArea
               name="description"
               required
-              defaultValue={s.caterer.description}
+              minLength={10}
+              value={profile.description}
+              onChange={(event) =>
+                setProfile({ ...profile, description: event.target.value })
+              }
             />
           </Field>
           <fieldset>
@@ -1787,7 +1947,15 @@ function SellerProfile({ state: s }: { state: SellerState }) {
                 <Checkbox
                   name="areas"
                   value={a}
-                  defaultChecked={s.caterer.area.includes(a)}
+                  checked={profile.areas.includes(a)}
+                  onChange={(event) =>
+                    setProfile({
+                      ...profile,
+                      areas: event.target.checked
+                        ? [...profile.areas, a]
+                        : profile.areas.filter((area) => area !== a),
+                    })
+                  }
                 />
                 {a}
               </label>
@@ -1802,10 +1970,26 @@ function SellerProfile({ state: s }: { state: SellerState }) {
             <TimeInput
               name="cutoff"
               required
-              defaultValue={s.caterer.cutoff.slice(0, 5)}
+              value={profile.cutoff}
+              onValueChange={(cutoff) => setProfile({ ...profile, cutoff })}
             />
           </Field>
           <p>{s.caterer.timezone}</p>
+          {dirty && (
+            <Button
+              variant="secondary"
+              onClick={() => {
+                if (
+                  window.confirm(
+                    t("Buang perubahan profil?", "Discard profile changes?"),
+                  )
+                )
+                  setDraft(draftKey, undefined);
+              }}
+            >
+              {t("Buang perubahan", "Discard changes")}
+            </Button>
+          )}
         </ActionForm>
       </section>
       <section className="panel verification-panel">
@@ -1823,14 +2007,46 @@ function SellerProfile({ state: s }: { state: SellerState }) {
           </div>
         )}
         <p className="verification-help">
-          {t(
-            "Lengkapi profil dan setidaknya satu draf paket sebelum mengajukan peninjauan.",
-            "Complete your profile and at least one package draft before requesting review.",
-          )}
+          {s.caterer.status === "approved"
+            ? t(
+                "Profil disetujui. Kelola paket dan menu dari ruang katerer. Aktivasi pencairan diperiksa terpisah di Pengaturan.",
+                "Your profile is approved. Manage packages and menus in your workspace. Payout activation is checked separately in Settings.",
+              )
+            : s.caterer.status === "submitted"
+              ? t(
+                  "Profil sedang ditinjau Catera. Siapkan menu sambil menunggu hasil tinjauan.",
+                  "Catera is reviewing your profile. Prepare menus while you wait for the review.",
+                )
+              : s.caterer.status === "corrections"
+                ? t(
+                    "Perbaiki catatan di atas, simpan profil, lalu ajukan kembali.",
+                    "Address the notes above, save your profile, then request review again.",
+                  )
+                : t(
+                    "Lengkapi profil dan setidaknya satu draf paket sebelum mengajukan peninjauan.",
+                    "Complete your profile and at least one package draft before requesting review.",
+                  )}
         </p>
+        {dirty && (
+          <p role="status" className="notice">
+            {t(
+              "Perubahan profil belum disimpan.",
+              "Profile changes are not saved.",
+            )}
+          </p>
+        )}
+        {["draft", "corrections"].includes(s.caterer.status) &&
+          prerequisites.length > 0 && (
+            <ul>
+              {prerequisites.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          )}
         {["draft", "corrections"].includes(s.caterer.status) && (
           <ActionForm
             className="verification-form"
+            disabled={dirty || prerequisites.length > 0}
             submit={t("Ajukan verifikasi", "Request verification")}
             onSubmit={async () => {
               await perform("seller.submit", { catererId: s.caterer.id });
@@ -1866,6 +2082,9 @@ function SellerProfile({ state: s }: { state: SellerState }) {
 }
 export function Onboarding() {
   const { actor, perform, t } = useApp();
+  const [slug, setSlug] = useState("");
+  const [origin, setOrigin] = useState("");
+  useEffect(() => setOrigin(window.location.origin), []);
   return (
     <div className="content narrow-wide">
       <Heading
@@ -1897,12 +2116,12 @@ export function Onboarding() {
         <div className="panel">
           <h2>
             {t(
-              "Ruang katerermu siap dilengkapi.",
-              "Your caterer workspace is ready to set up.",
+              "Ruang katerermu sudah tersedia.",
+              "Your caterer workspace is ready.",
             )}
           </h2>
-          <Link className="button" href="/seller/packages">
-            {t("Siapkan paket pertama", "Set up your first package")}{" "}
+          <Link className="button" href="/seller">
+            {t("Kembali ke ruang katerer", "Return to your workspace")}{" "}
             <ArrowRight size={18} />
           </Link>
         </div>
@@ -1910,6 +2129,14 @@ export function Onboarding() {
         <section className="panel">
           <ActionForm
             submit={t("Buat profil katerer", "Create caterer profile")}
+            validate={(f) =>
+              !f.getAll("areas").length
+                ? t(
+                    "Pilih setidaknya satu area pengantaran.",
+                    "Choose at least one delivery area.",
+                  )
+                : undefined
+            }
             onSubmit={async (f) => {
               await perform("seller.create", {
                 name: f.get("name"),
@@ -1926,11 +2153,16 @@ export function Onboarding() {
             <Field label={t("Alamat halaman katerer", "Caterer page address")}>
               <TextInput
                 name="slug"
+                value={slug}
+                onChange={(event) => setSlug(event.target.value.toLowerCase())}
                 required
                 pattern="[a-z0-9-]+"
                 placeholder={t("dapur-kamu", "your-kitchen")}
               />
             </Field>
+            <p className="small" style={{ overflowWrap: "anywhere" }}>
+              {origin}/caterers/{slug || t("dapur-kamu", "your-kitchen")}
+            </p>
             <Field label={t("Tentang makananmu", "About your food")}>
               <TextArea name="description" required minLength={10} />
             </Field>

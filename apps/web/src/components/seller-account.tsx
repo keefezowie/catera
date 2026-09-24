@@ -74,9 +74,25 @@ export function PayoutSetupCard({
           )}
         </p>
       )}
+      {s.latest?.status === "submitted" && (
+        <p className="small">
+          {t(
+            "Tunggu hasil tinjauan Catera. Jika ada kesalahan data, hubungi bantuan sebelum mengirim rekening baru.",
+            "Wait for Catera's review. If the details are incorrect, contact support before submitting another account.",
+          )}
+        </p>
+      )}
       {s.latest?.status === "rejected" && (
         <p role="status">
           {t("Rekening ditolak", "Bank details rejected")}: {s.latest.reason}
+        </p>
+      )}
+      {s.latest?.status === "rejected" && (
+        <p>
+          {t(
+            "Perbaiki data sesuai catatan di atas, lalu ajukan rekening kembali melalui tombol di bawah.",
+            "Correct the details using the notes above, then resubmit the account using the button below.",
+          )}
         </p>
       )}
       <div className="payout-state">
@@ -110,18 +126,26 @@ export function PayoutSetupCard({
           "Automatic payouts process Mondays at 09:00 WIB once enabled. Bank arrival time may vary.",
         )}
       </p>
-      <p>
-        {t("Jendela pemrosesan berikutnya", "Next processing window")}:{" "}
-        {new Date(
-          s.settlement.nextProcessingAt || s.settlement.nextPayoutAt,
-        ).toLocaleString(locale === "id" ? "id-ID" : "en-GB", {
-          timeZone: "Asia/Jakarta",
-          hour12: false,
-        })}{" "}
-        WIB
-        {!ready &&
-          ` · ${t("setelah konfigurasi lengkap", "after setup is complete")}`}
-      </p>
+      {ready && s.settlement.nextProcessingAt ? (
+        <p>
+          {t("Jendela pemrosesan berikutnya", "Next processing window")}:{" "}
+          {new Date(s.settlement.nextProcessingAt).toLocaleString(
+            locale === "id" ? "id-ID" : "en-GB",
+            {
+              timeZone: "Asia/Jakarta",
+              hour12: false,
+            },
+          )}{" "}
+          WIB
+        </p>
+      ) : (
+        <p>
+          {t(
+            "Belum ada tanggal transfer yang dikonfirmasi.",
+            "No transfer date is confirmed.",
+          )}
+        </p>
+      )}
       {editable ? (
         <Button
           className="button"
@@ -298,8 +322,28 @@ export function AccountHelp({ admin = false }: { admin?: boolean }) {
 }
 
 export function SellerAccountSettings({ state: s }: { state: SellerState }) {
-  const { actor, perform, t } = useApp();
+  const { actor, perform, t, notify } = useApp();
   const [invite, setInvite] = useState("");
+  const [logoutError, setLogoutError] = useState("");
+  const [loggingOut, setLoggingOut] = useState(false);
+  const logout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    setLogoutError("");
+    try {
+      await api.request("auth/logout", {});
+      location.assign("/");
+    } catch {
+      setLogoutError(
+        t(
+          "Gagal keluar. Sesi masih aktif; coba lagi.",
+          "Sign out failed. Your session remains open; try again.",
+        ),
+      );
+    } finally {
+      setLoggingOut(false);
+    }
+  };
   return (
     <div className="seller-settings-sections">
       <section className="panel">
@@ -310,14 +354,13 @@ export function SellerAccountSettings({ state: s }: { state: SellerState }) {
         <LocaleSwitch />
         <Button
           className="button secondary"
-          onClick={async () => {
-            await api.request("auth/logout", {});
-            location.assign("/");
-          }}
+          onClick={logout}
+          disabled={loggingOut}
         >
           <LogOut size={17} />{" "}
           {t("Keluar dari sesi ini", "Sign out of this session")}
         </Button>
+        {logoutError && <ErrorNotice message={logoutError} retry={logout} />}
         <p>
           <a href="#help" className="text-button">
             {t(
@@ -357,9 +400,36 @@ export function SellerAccountSettings({ state: s }: { state: SellerState }) {
               </p>
             </ActionForm>
             {invite && (
-              <p className="notice">
+              <div className="notice">
                 <code>{invite}</code>
-              </p>
+                <p>
+                  {t(
+                    "Bagikan kode ini kepada staf. Staf masuk atau mendaftar, membuka halaman mitra, lalu memilih ‘Saya diundang sebagai staf’.",
+                    "Share this code with your staff member. They sign in or register, open partner onboarding, and choose ‘I was invited as staff’.",
+                  )}
+                </p>
+                <Button
+                  variant="secondary"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(invite);
+                      notify(t("Kode disalin", "Code copied"));
+                    } catch {
+                      notify(
+                        t(
+                          "Gagal menyalin. Pilih dan salin kode di atas.",
+                          "Could not copy. Select and copy the code above.",
+                        ),
+                      );
+                    }
+                  }}
+                >
+                  {t("Salin kode undangan", "Copy invitation code")}
+                </Button>
+                <Link href="/seller/onboarding">
+                  {t("Halaman mitra", "Partner onboarding")}
+                </Link>
+              </div>
             )}
           </section>
         </>

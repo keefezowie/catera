@@ -16,6 +16,7 @@ import { Button, Checkbox, TextInput } from "./form-controls";
 import { Select, SelectOption } from "./select";
 import { NumericInput } from "./numeric-input";
 import { DatePicker } from "./date-picker";
+import { useJourneyQuery } from "./journey-state";
 
 /** One obligation at a time; creating a customer and their bookings is atomic. */
 export function PrepaidMigration({
@@ -60,6 +61,7 @@ function ImportForm({
   done: () => void;
 }) {
   const { t, locale, perform } = useApp();
+  const { update } = useJourneyQuery();
   const [customerId, setCustomerId] = useState("");
   const [packageId, setPackageId] = useState(data.packages[0]?.id || "");
   const [draft, setDraft] = useState<PilotImportRow>();
@@ -90,7 +92,22 @@ function ImportForm({
           key="confirm"
           submit={t("Konfirmasi impor", "Confirm import")}
           onSubmit={async () => {
-            await perform("import.commit", { catererId, id: preview.id });
+            const result = await perform<{
+              subscriptions: { customerRecordId: string }[];
+            }>("import.commit", { catererId, id: preview.id });
+            update({
+              customerRecordId:
+                result.subscriptions[0]?.customerRecordId || null,
+              customerId: null,
+              search: null,
+              followup: null,
+              offset: null,
+              deliveryDate: null,
+              deliveryMonth: null,
+              deliveryPackage: null,
+              deliveryMeal: null,
+              deliveryView: null,
+            });
             done();
           }}
           actions={(submit, busy) => (
@@ -185,6 +202,7 @@ function ImportForm({
             );
           }}
         >
+          <h3>{t("1 · Pelanggan", "1 · Customer")}</h3>
           <Field label={t("Pelanggan", "Customer")}>
             <Select
               value={customerId}
@@ -236,6 +254,12 @@ function ImportForm({
               ))}
             </Select>
           </Field>
+          <h3>
+            {t(
+              "2 · Sisa kewajiban pengantaran",
+              "2 · Remaining delivery obligation",
+            )}
+          </h3>
           <Field label={t("Alamat pengantaran", "Delivery address")}>
             <TextInput
               name="line"
@@ -318,6 +342,7 @@ function ImportForm({
               }
             />
           </Field>
+          <h3>{t("3 · Referensi pembayaran", "3 · Payment reference")}</h3>
           <Field
             label={t("Referensi bukti pembayaran", "Payment receipt reference")}
           >

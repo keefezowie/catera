@@ -7,7 +7,8 @@ for (const locale of ["id", "en"]) for (const width of [390, 1440]) {
     await page.request.post("/api/v1/auth/demo", { data: { role: "owner" } });
     const stamp = Date.now().toString();
     const name = `Synthetic Beta ${locale} ${width} ${stamp}`;
-    await page.goto("/seller/customers");
+    await page.goto("/seller/customers?deliveryDate=2035-01-01&deliveryMonth=2035-01-01&deliveryMeal=dinner");
+    await page.getByText(/Tindakan pemilik · impor prabayar|Owner actions · prepaid import/, { exact: true }).click();
     await page.getByRole("button", { name: /Impor prabayar|Import prepaid/, exact: true }).click();
     const dialog = page.getByRole("dialog");
     await dialog.getByRole("textbox", { name: /^(Nama|Name)$/ }).fill(name);
@@ -36,6 +37,9 @@ for (const locale of ["id", "en"]) for (const width of [390, 1440]) {
     await expect(dialog).toContainText(name);
     await dialog.getByRole("button", { name: /Konfirmasi impor|Confirm import/ }).click();
     await expect(dialog).toHaveCount(0);
+    await expect(page).toHaveURL(/customerRecordId=/);
+    expect(new URL(page.url()).searchParams.has("deliveryDate")).toBe(false);
+    expect(new URL(page.url()).searchParams.has("deliveryMonth")).toBe(false);
     const card = page.locator(".pilot-customer-grid > article").filter({ hasText: name });
     await expect(card).toBeVisible();
     await expect(card).toContainText(/eksternal|external/i);

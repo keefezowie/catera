@@ -429,6 +429,9 @@ export async function createDemoDatabase(inMemory = false) {
   if (!(await db.query<{ installed: boolean }>("select exists(select 1 from information_schema.columns where table_schema='v1' and table_name='checkouts' and column_name='payment_mode') installed")).rows[0].installed) {
     await db.exec("begin;\n" + await readFile(path.join(projectRoot(), "supabase/migrations/20260920154045_direct_payments.sql"), "utf8") + "\ncommit;");
   }
+  if (!(await db.query<{ installed: boolean }>("select to_regprocedure('public.catera_v1_read_journeys_base(text,jsonb)') is not null installed")).rows[0].installed) {
+    await db.exec("begin;\n" + await readFile(path.join(projectRoot(), "supabase/migrations/20260924150757_caterer_journey_reads.sql"), "utf8") + "\ncommit;");
+  }
   return db;
 }
 export async function getDemoDatabase() {

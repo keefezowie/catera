@@ -104,6 +104,8 @@ type Context = {
   ) => Promise<T>;
   notify: (text: string) => void;
   setLocale: (l: Locale) => void;
+  drafts: Record<string, unknown>;
+  setDraft: (key: string, value: unknown) => void;
 };
 const AppContext = createContext<Context>(null!);
 const CatalogContext = createContext<Offer[] | null>(null);
@@ -139,6 +141,24 @@ export function Provider({
     [revision, setRevision] = useState(0),
     [toast, setToast] = useState("");
   const keys = useRef(new Map<string, string>());
+  const [draftState, setDraftState] = useState<{
+    actor: string | undefined;
+    values: Record<string, unknown>;
+  }>({ actor: actor?.id, values: {} });
+  const drafts = draftState.actor === actor?.id ? draftState.values : {};
+  const setDraft = (key: string, value: unknown) =>
+    setDraftState((previous) => ({
+      actor: actor?.id,
+      values: {
+        ...(previous.actor === actor?.id ? previous.values : {}),
+        [key]:
+          typeof value === "function"
+            ? value(
+                previous.actor === actor?.id ? previous.values[key] : undefined,
+              )
+            : value,
+      },
+    }));
   useEffect(() => {
     if (
       demo ||
@@ -251,6 +271,8 @@ export function Provider({
         perform,
         notify: setToast,
         setLocale,
+        drafts,
+        setDraft,
       }}
     >
       {children}
@@ -269,6 +291,22 @@ export const useApp = () => {
   const offers = useContext(CatalogContext);
   return offers ? { ...app, offers } : app;
 };
+// Sensitive drafts live only in the mounted, actor-scoped workspace, never storage.
+export function useWorkspaceDraft<T>(key: string, initial: T) {
+  const { drafts, setDraft } = useApp();
+  const value = (drafts[key] as T | undefined) ?? initial;
+  return [
+    value,
+    (next: T | ((previous: T) => T)) =>
+      setDraft(
+        key,
+        typeof next === "function"
+          ? (previous: T | undefined) =>
+              (next as (previous: T) => T)(previous ?? initial)
+          : next,
+      ),
+  ] as const;
+}
 export function useResource<T>(
   key: string,
   load: () => Promise<T>,

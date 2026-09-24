@@ -1,6 +1,6 @@
 "use client";
 import { PayoutSetupCard } from "./seller-account";
-import { useId, useState, type ReactNode, type KeyboardEvent } from "react";
+import { useId, type ReactNode, type KeyboardEvent } from "react";
 import {
   CalendarDays,
   Landmark,
@@ -12,7 +12,9 @@ import {
 } from "lucide-react";
 import { settlementCurrency, type SettlementState } from "@catera/domain";
 import { api, useApp, useResource } from "./context";
-import { Loading, ErrorNotice, Facts } from "./ui";
+import { Loading, ErrorNotice, Facts, RefreshNotice } from "./ui";
+import { useJourneyQuery } from "./journey-state";
+import { Button } from "./form-controls";
 import { SettlementChart } from "./settlement-chart";
 import { SettlementHistory, SettlementDetail } from "./settlement-history";
 import "./seller-settlement.css";
@@ -48,8 +50,18 @@ function SettlementScreen({
   const state = useResource("settlement:" + catererId, () =>
     api.settlement(catererId),
   );
-  const [tab, setTab] = useState("payouts");
-  const [detail, setDetail] = useState<string | null>(null);
+  const { query, update } = useJourneyQuery();
+  const tab = (purchases
+    ? ["payouts", "entries", "purchases"]
+    : ["payouts", "entries"]
+  ).includes(query.get("tab") || "")
+    ? query.get("tab")!
+    : purchases
+      ? "purchases"
+      : "payouts";
+  const setTab = (value: string) => update({ tab: value });
+  const detail = query.get("payout");
+  const setDetail = (value: string | null) => update({ payout: value });
   const id = useId();
   if (!state.data)
     return (
@@ -91,13 +103,18 @@ function SettlementScreen({
   };
   return (
     <div className="settlement-screen">
-      <PayoutSetupCard catererId={catererId} />
-      <BalanceOverview s={s} onHolds={() => setDetail("holds")} />
-      {s.reportingVersion ? (
-        <SettlementChart key={catererId} catererId={catererId} />
-      ) : (
-        <ReportingUnavailable />
+      <RefreshNotice error={state.error} reload={state.reload} />
+      <Button
+        variant="secondary"
+        disabled={state.loading}
+        onClick={state.reload}
+      >
+        {t("Perbarui saldo", "Refresh balances")}
+      </Button>
+      {state.loading && (
+        <p role="status">{t("Memperbarui saldo…", "Refreshing balances…")}</p>
       )}
+      <BalanceOverview s={s} onHolds={() => setDetail("holds")} />
       <section className="panel settlement-history">
         <div
           className="settlement-tabs"
@@ -129,22 +146,40 @@ function SettlementScreen({
             hidden={tab !== item.id}
             tabIndex={0}
           >
-            {tab === item.id &&
-              (item.id === "purchases" ? (
-                purchases
-              ) : (
-                <>
-                  <SettlementHistory
-                    key={`${catererId}-${item.id}`}
-                    catererId={catererId}
-                    kind={item.id === "payouts" ? "payouts" : "entries"}
-                    reporting={!!s.reportingVersion}
-                    fallback={s}
-                    onPayout={setDetail}
-                  />
-                  {item.id === "payouts" && legacy}
-                </>
-              ))}
+            {item.id === "purchases" ? (
+              purchases
+            ) : (
+              <>
+                {item.id === "entries" &&
+                  (s.reportingVersion ? (
+                    <SettlementChart catererId={catererId} />
+                  ) : (
+                    <ReportingUnavailable />
+                  ))}
+                <SettlementHistory
+                  key={`${catererId}-${item.id}`}
+                  catererId={catererId}
+                  kind={item.id === "payouts" ? "payouts" : "entries"}
+                  reporting={!!s.reportingVersion}
+                  fallback={s}
+                  onPayout={setDetail}
+                />
+                {item.id === "payouts" && (
+                  <>
+                    <PayoutSetupCard catererId={catererId} />
+                    <details className="panel">
+                      <summary>
+                        {t(
+                          "Pencairan pembelian lama",
+                          "Legacy purchase payouts",
+                        )}
+                      </summary>
+                      {legacy}
+                    </details>
+                  </>
+                )}
+              </>
+            )}
           </div>
         ))}
       </section>
@@ -223,92 +258,79 @@ function BalanceOverview({
           </span>
         )}
       </div>
-      <div className="settlement-hero">
-        <div>
-          <span className="settlement-eyebrow">
-            <Wallet size={20} />
-            {t("Saldo tersedia", "Available balance")}
-          </span>
-          <strong className="settlement-amount">{money(s.available)}</strong>
-          <span>
-            {t(
-              "Dari pengantaran yang sudah selesai",
-              "From completed deliveries",
-            )}
-          </span>
+      <dl className="settlement-summary">
+        <div className="available">
+          <dt>{t("Saldo tersedia", "Available balance")}</dt>
+          <dd>
+            {money(s.available)}
+            <small>{t("Pengantaran selesai", "Completed deliveries")}</small>
+          </dd>
         </div>
-        <div className="settlement-readiness">
-          <Clock3 size={22} />
+        <div>
+          <dt>{t("Pengantaran mendatang", "Upcoming deliveries")}</dt>
+          <dd>
+            {money(s.expected)}
+            <small>
+              {t(
+                "Belum tersedia untuk pencairan",
+                "Not yet available for payout",
+              )}
+            </small>
+          </dd>
+        </div>
+        <div>
+          <dt>{t("Dana ditahan", "Held funds")}</dt>
+          <dd>
+            {money(s.held)}
+            {BigInt(s.held) > 0n && !!s.reportingVersion ? (
+              <button className="settlement-link" onClick={onHolds}>
+                {t("Lihat dana ditahan", "View held funds")}
+              </button>
+            ) : (
+              <small>{t("Dalam peninjauan", "Under review")}</small>
+            )}
+          </dd>
+        </div>
+        <div>
+          <dt>{t("Sudah dicairkan", "Paid out")}</dt>
+          <dd>
+            {money(s.paid)}
+            <small>{t("Sepanjang waktu", "All time")}</small>
+          </dd>
+        </div>
+      </dl>
+      <p className="settlement-readiness-note">
+        <Clock3 size={18} aria-hidden="true" />
+        <span>
           <strong>
             {ready
               ? t("Jadwal pemrosesan berikutnya", "Next processing window")
               : label}
           </strong>
+          {" · "}
+          {ready
+            ? new Date(s.nextProcessingAt!).toLocaleString(
+                locale === "id" ? "id-ID" : "en-GB",
+                {
+                  timeZone: "Asia/Jakarta",
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                },
+              ) + " WIB"
+            : t(
+                "Belum ada tanggal transfer yang dikonfirmasi.",
+                "No transfer date is confirmed.",
+              )}
           {ready && (
-            <>
-              <span>
-                {new Date(s.nextProcessingAt!).toLocaleString(
-                  locale === "id" ? "id-ID" : "en-GB",
-                  {
-                    timeZone: "Asia/Jakarta",
-                    dateStyle: "medium",
-                    timeStyle: "short",
-                  },
-                )}{" "}
-                WIB
-              </span>
-              <small>
-                {t(
-                  "Waktu dana masuk rekening dapat berbeda.",
-                  "Bank arrival time may differ.",
-                )}
-              </small>
-            </>
-          )}
-          {!ready && (
             <small>
               {t(
-                "Saldo tetap tercatat. Belum ada janji tanggal transfer.",
-                "Your balance is recorded. No transfer date is confirmed.",
+                "Waktu dana masuk rekening dapat berbeda.",
+                "Bank arrival time may differ.",
               )}
             </small>
           )}
-        </div>
-      </div>
-      <div className="settlement-cards">
-        <article>
-          <CalendarDays size={22} />
-          <span>{t("Pengantaran mendatang", "Upcoming deliveries")}</span>
-          <strong>{money(s.expected)}</strong>
-          <small>
-            {t("Belum menjadi saldo tersedia", "Not yet available for payout")}
-          </small>
-        </article>
-        <article className={BigInt(s.held) > 0n ? "settlement-held" : ""}>
-          <ShieldAlert size={22} />
-          <span>{t("Dana ditahan", "Held funds")}</span>
-          <strong>{money(s.held)}</strong>
-          {BigInt(s.held) > 0n && !!s.reportingVersion ? (
-            <button className="settlement-link" type="button" onClick={onHolds}>
-              {t("Lihat dana ditahan", "View held funds")}
-              <ArrowUpRight size={16} />
-            </button>
-          ) : (
-            <small>{t("Dalam peninjauan", "Under review")}</small>
-          )}
-        </article>
-        <article>
-          <Landmark size={22} />
-          <span>{t("Sudah dicairkan", "Paid out")}</span>
-          <strong>{money(s.paid)}</strong>
-          <small>
-            {t(
-              "Sepanjang waktu · sistem pendapatan baru",
-              "All time · delivery earnings system",
-            )}
-          </small>
-        </article>
-      </div>
+        </span>
+      </p>
       {BigInt(s.reserved) > 0n && (
         <p className="notice settlement-inline">
           <Clock3 size={20} />

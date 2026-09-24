@@ -7,7 +7,8 @@ import {
   type CustomerState,
   type DeliveryIssue,
 } from "@catera/domain";
-import { api, useApp, useResource } from "./context";
+import { api, useApp, useResource, useWorkspaceDraft } from "./context";
+import { useUnsavedDeparture } from "./journey-state";
 import { ActionForm, Dialog, ErrorNotice, Field, Loading, Status } from "./ui";
 import { Button, TextArea } from "./form-controls";
 import { Select, SelectOption } from "./select";
@@ -98,6 +99,11 @@ export function ReportDeliveryIssue({ id }: { id: string }) {
 
 export function DeliveryIssues({ catererId }: { catererId?: string }) {
   const { t, locale, perform } = useApp();
+  const [drafts, setDrafts] = useWorkspaceDraft<Record<string, string>>(
+    "delivery-issue-replies",
+    {},
+  );
+  useUnsavedDeparture(Object.values(drafts).some((value) => !!value.trim()));
   const issue = useSearchParams().get("issue");
   const state = useResource<DeliveryIssue[]>(
     "delivery-issues:" + catererId + ":" + issue,
@@ -185,6 +191,7 @@ export function DeliveryIssues({ catererId }: { catererId?: string }) {
                       version: i.version,
                       body: f.get("body"),
                     });
+                    setDrafts((previous) => ({ ...previous, [i.id]: "" }));
                   }}
                 >
                   <Field label={t("Tindakan", "Action")}>
@@ -208,6 +215,10 @@ export function DeliveryIssues({ catererId }: { catererId?: string }) {
                   >
                     <TextArea
                       name="body"
+                      value={drafts[i.id] || ""}
+                      onChange={(event) =>
+                        setDrafts({ ...drafts, [i.id]: event.target.value })
+                      }
                       required
                       minLength={5}
                       maxLength={2000}
@@ -233,11 +244,22 @@ export function DeliveryIssues({ catererId }: { catererId?: string }) {
                       version: i.version,
                       body: f.get("body"),
                     });
+                    setDrafts((previous) => ({
+                      ...previous,
+                      [i.id + ":escalate"]: "",
+                    }));
                   }}
                 >
                   <Field label={t("Alasan eskalasi", "Escalation reason")}>
                     <TextArea
                       name="body"
+                      value={drafts[i.id + ":escalate"] || ""}
+                      onChange={(event) =>
+                        setDrafts({
+                          ...drafts,
+                          [i.id + ":escalate"]: event.target.value,
+                        })
+                      }
                       required
                       minLength={5}
                       maxLength={2000}

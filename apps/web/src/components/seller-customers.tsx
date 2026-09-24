@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import { CustomerDeliveryCalendar } from "./customer-delivery-calendar";
 import {
   Send,
@@ -28,14 +27,18 @@ import { Select, SelectOption } from "./select";
 import { DatePicker } from "./date-picker";
 import { PilotPanel } from "./pilot-panel";
 import { PrepaidMigration } from "./prepaid-migration";
+import { useJourneyQuery, useDiscardChanges } from "./journey-state";
 
 export function SellerCustomers({ catererId }: { catererId: string }) {
   const { actor, t, locale, perform, notify } = useApp();
-  const query = useSearchParams();
+  const { query, update } = useJourneyQuery();
   const [lastChange, setLastChange] = useState<DeliveryChangeResult>();
   const changed = lastChange?.delivery;
   const [actionError, setActionError] = useState("");
-  const [followup, setFollowup] = useState(false);
+  const followup = query.get("followup") === "true";
+  const setFollowup = (value: boolean) =>
+    update({ followup: value ? "true" : null });
+  const search = query.get("search") || "";
   const fail = (e: unknown) =>
     setActionError(
       errorLabel(e instanceof Error ? e.message : "", locale) ||
@@ -44,11 +47,13 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
           "Could not complete this action. Try again.",
         ),
     );
-  const [offset, setOffset] = useState(0),
-    [selected, setSelected] = useState(query.get("customerRecordId") || "");
+  const offset = Math.max(0, Math.floor(Number(query.get("offset")) || 0));
+  const setOffset = (value: number) => update({ offset: value || null });
+  const selected = query.get("customerRecordId") || "";
+  const setSelected = (value: string) =>
+    update({ customerRecordId: value, customerId: null });
   const linkedCustomer = query.get("customerRecordId") || "";
   useEffect(() => {
-    setSelected(linkedCustomer);
     setLastChange(undefined);
   }, [linkedCustomer]);
   const state = useResource(
@@ -61,6 +66,8 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
       ":" +
       followup +
       ":" +
+      search +
+      ":" +
       (query.get("customerId") || ""),
     () =>
       api.sellerCustomers(
@@ -69,6 +76,8 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
           ? "?customerRecordId=" + selected
           : "?offset=" +
               offset +
+              "&search=" +
+              encodeURIComponent(search) +
               (followup ? "&followup=true" : "") +
               (query.get("customerId")
                 ? "&customerId=" + query.get("customerId")
@@ -83,6 +92,11 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
   } | null>(null);
   const [change, setChange] = useState<Delivery | null>(null),
     [changeKind, setChangeKind] = useState("date");
+  const [changeDirty, setChangeDirty] = useState(false);
+  const changeGuard = useDiscardChanges(changeDirty && !!change, () => {
+    setChange(null);
+    setChangeDirty(false);
+  });
   const customerNavigation = (
     <div className="action-row" key="customer-navigation">
       <Button
@@ -92,6 +106,7 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
           setSelected("");
           setFollowup(false);
           setOffset(0);
+          update({ search: null });
         }}
       >
         {selected && <ArrowLeft size={18} />}
@@ -115,7 +130,11 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
     return (
       <div className="pilot-workspace">
         {customerNavigation}
-        {state.error ? <ErrorNotice message={state.error} retry={state.reload} /> : <Loading />}
+        {state.error ? (
+          <ErrorNotice message={state.error} retry={state.reload} />
+        ) : (
+          <Loading />
+        )}
       </div>
     );
   const data = {
@@ -168,16 +187,82 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
         />
       )}
       {actionError && <ErrorNotice message={actionError} />}
-      {owner && <PrepaidMigration catererId={catererId} data={data} />}
       {customerNavigation}
+      {!selected && (
+        <form
+          className="action-row"
+          onSubmit={(event) => {
+            event.preventDefault();
+            update({
+              search: String(
+                new FormData(event.currentTarget).get("search") || "",
+              ).trim(),
+              offset: null,
+              customerId: null,
+            });
+          }}
+        >
+          <Field label={t("Cari pelanggan", "Search customers")}>
+            <TextInput
+              key={search}
+              name="search"
+              type="search"
+              defaultValue={search}
+              maxLength={100}
+              placeholder={t("Nama atau nomor telepon", "Name or phone number")}
+            />
+          </Field>
+          <Button type="submit" variant="secondary">
+            {t("Cari", "Search")}
+          </Button>
+        </form>
+      )}
       {!data.customers.length && (
         <Empty
-          title={t("Belum ada pelanggan berlangganan", "No subscribers yet")}
-          description={t(
-            "Pelanggan muncul otomatis setelah membeli langganan paket Anda.",
-            "Customers appear automatically after purchasing one of your packages.",
-          )}
+          title={
+            followup || search || selected
+              ? t("Tidak ada pelanggan yang cocok", "No matching customers")
+              : t("Belum ada pelanggan berlangganan", "No subscribers yet")
+          }
+          description={
+            followup || search || selected
+              ? t(
+                  "Coba pencarian lain atau hapus filter untuk melihat pelanggan lainnya.",
+                  "Try another search or clear the filters to see other customers.",
+                )
+              : t(
+                  "Pelanggan muncul otomatis setelah membeli langganan paket Anda.",
+                  "Customers appear automatically after purchasing one of your packages.",
+                )
+          }
         />
+      )}
+      {!data.customers.length && (followup || search || selected) && (
+        <Button
+          variant="secondary"
+          onClick={() =>
+            update({
+              customerRecordId: null,
+              customerId: null,
+              search: null,
+              followup: null,
+              offset: null,
+            })
+          }
+        >
+          {t("Hapus filter", "Clear filters")}
+        </Button>
+      )}
+      {owner && (
+        <details className="panel">
+          <summary>
+            {t(
+              "Tindakan pemilik · impor prabayar",
+              "Owner actions · prepaid import",
+            )}
+          </summary>
+          <PrepaidMigration catererId={catererId} data={data} />
+        </details>
       )}
       <div className="pilot-customer-grid">
         {data.customers.map((c) => (
@@ -488,7 +573,7 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
       <Dialog
         open={!!change}
         onOpenChange={(open) => {
-          if (!open) setChange(null);
+          if (!open) changeGuard.close();
         }}
         title={t(
           "Perubahan atas permintaan pelanggan",
@@ -497,7 +582,8 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
       >
         {change && (
           <ActionForm
-            key={change.id + changeKind}
+            key={change.id}
+            onDirtyChange={setChangeDirty}
             submit={t("Simpan perubahan", "Save change")}
             onSubmit={async (f) => {
               const result = await perform<DeliveryChangeResult>(
@@ -521,6 +607,31 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
               setChange(null);
             }}
           >
+            <div className="notice">
+              <strong>
+                {
+                  data.customers.find((customer) =>
+                    customer.subscriptions.some((subscription) =>
+                      subscription.deliveries.some(
+                        (delivery) => delivery.id === change.id,
+                      ),
+                    ),
+                  )?.name
+                }
+              </strong>
+              <p>
+                {change.offer.name} · {change.service_date}
+              </p>
+              <p>
+                {change.address.line}, {change.address.area}
+              </p>
+              <p>
+                {t(
+                  "Perubahan di bawah menggantikan tanggal atau alamat pengantaran ini setelah berhasil disimpan.",
+                  "The change below replaces this delivery's date or address only after it is saved successfully.",
+                )}
+              </p>
+            </div>
             <Field label={t("Jenis perubahan", "Change type")}>
               <Select value={changeKind} onValueChange={setChangeKind}>
                 {change.canChange && (
@@ -533,7 +644,10 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
                 </SelectOption>
               </Select>
             </Field>
-            {changeKind === "date" ? (
+            <fieldset
+              hidden={changeKind !== "date"}
+              disabled={changeKind !== "date"}
+            >
               <Field label={t("Tanggal baru", "New date")}>
                 <DatePicker
                   name="date"
@@ -541,15 +655,20 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
                   required
                 />
               </Field>
-            ) : (
+            </fieldset>
+            <fieldset
+              hidden={changeKind !== "address"}
+              disabled={changeKind !== "address"}
+            >
               <CustomerAddress value={change.address} />
-            )}
+            </fieldset>
             <Field label={t("Permintaan pelanggan", "Customer request")}>
               <TextArea name="reason" required minLength={5} />
             </Field>
           </ActionForm>
         )}
       </Dialog>
+      {changeGuard.confirmation}
     </div>
   );
 }
