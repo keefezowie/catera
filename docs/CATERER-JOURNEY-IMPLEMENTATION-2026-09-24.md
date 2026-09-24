@@ -1,5 +1,7 @@
 # Caterer journey implementation and local evidence
 
+This is the original implementation record. Subsequent combined verification and the authorized `v1` integration are recorded in [the journey and motion integration report](V1-JOURNEY-MOTION-INTEGRATION-2026-09-24.md).
+
 Implemented the approved 19-family plan on `codex/caterer-journeys`, based on `033fb5bfbdb61735f82c39f899a6f43415bd89f6`. The isolated checkout is `C:/Users/nidal/.codex/worktrees/caterer-journeys/catera`. The original `D:/Project/Catera/catera` checkout, its uncommitted files, and the supplied port-3107 preview were preserved.
 
 Changes are local and uncommitted for review. No push, deployment, hosted migration, real customer message, or real payment was performed. Forest/sunrise/cream tokens, Jakarta typography, existing artwork and food imagery, Indonesian-first copy, and English support are preserved.

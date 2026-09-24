@@ -304,6 +304,21 @@ test("verification states are truthful and rejected profile saves preserve data"
     page.getByRole("textbox", { name: "Caterer name", exact: true }),
   ).toHaveValue("Synthetic retained profile");
   await expect(page.locator(".error-notice")).toBeVisible();
+  let savesAfterFailure = 0;
+  page.on("request", (request) => {
+    if (request.url().endsWith("/api/v1/commands")) savesAfterFailure++;
+  });
+  const discard = page.getByRole("button", {
+    name: "Discard changes",
+    exact: true,
+  });
+  await expect(discard).toHaveAttribute("type", "button");
+  page.once("dialog", (dialog) => dialog.accept());
+  await discard.click();
+  await expect(
+    page.getByRole("textbox", { name: "Caterer name", exact: true }),
+  ).toHaveValue(original.caterer.name);
+  expect(savesAfterFailure).toBe(0);
 });
 
 test("200 percent reflow retains usable controls", async ({

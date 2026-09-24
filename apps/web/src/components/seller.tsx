@@ -440,6 +440,7 @@ function PackageLifecycle({ offer }: { offer: Offer }) {
           actions={(submit, busy) => (
             <div className="dialog-actions">
               <Button
+                type="button"
                 data-dialog-safe
                 variant="secondary"
                 disabled={busy}
@@ -1992,6 +1993,7 @@ function SellerProfile({ state: s }: { state: SellerState }) {
           <p>{s.caterer.timezone}</p>
           {dirty && (
             <Button
+              type="button"
               variant="secondary"
               onClick={() => {
                 if (

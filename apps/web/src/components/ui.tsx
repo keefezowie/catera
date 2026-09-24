@@ -223,6 +223,13 @@ export function Dialog({
               event.stopPropagation();
             }
           }}
+          onSubmitCapture={(event) => {
+            // Exit presence retains forms briefly after dismissal; they must not submit.
+            if (!open) {
+              event.preventDefault();
+              event.stopPropagation();
+            }
+          }}
           inert={inactive || undefined}
           aria-busy={pending || undefined}
           {...(!description ? { "aria-describedby": undefined } : {})}

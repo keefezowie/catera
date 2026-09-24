@@ -1,5 +1,7 @@
 # Catera web motion — implementation and verification
 
+This is the original implementation record. Subsequent combined verification and the authorized `v1` integration are recorded in [the journey and motion integration report](V1-JOURNEY-MOTION-INTEGRATION-2026-09-24.md).
+
 Implemented locally on `codex/web-motion`, based on `v1` at `033fb5b`, in `C:\Users\nidal\.codex\worktrees\web-motion\catera`. The original checkout and its existing local changes were preserved. No push or deployment was performed.
 
 ## Motion choices

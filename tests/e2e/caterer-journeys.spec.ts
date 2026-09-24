@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+import type { Offer } from "@catera/domain";
 const cid = "10000000-0000-4000-8000-000000000001";
 async function command(page: Page, action: string, payload: unknown) {
   const response = await page.request.post("/api/v1/commands", {
@@ -20,8 +21,31 @@ test.beforeEach(async ({ page, baseURL }) => {
 test("duration discard, conflict retention and saved values; consequential action cancellation", async ({
   page,
 }) => {
+  const initial = (
+    await (await page.request.get(`/api/v1/seller/${cid}`)).json()
+  ).data;
+  const template = initial.offers.find(
+    (offer: Offer) =>
+      offer.status === "published" &&
+      (offer.menuSelectionMode ?? "caterer") === "caterer",
+  );
+  const name = `Synthetic duration recovery ${crypto.randomUUID()}`;
+  const created = await command(page, "package.save", {
+    catererId: cid,
+    slug: `duration-recovery-${crypto.randomUUID()}`,
+    offer: {
+      ...template,
+      name,
+      durationPricing: {
+        revision: 0,
+        options: [{ cycles: 1, discountPercent: 0 }],
+      },
+    },
+  });
   await page.goto("/seller/packages");
-  const card = page.locator(".seller-packages > article").first();
+  const card = page.locator(".seller-packages > article").filter({
+    has: page.getByRole("heading", { name, exact: true }),
+  });
   let lifecycleCommands = 0;
   page.on("request", (request) => {
     if (
@@ -34,7 +58,10 @@ test("duration discard, conflict retention and saved values; consequential actio
     .getByRole("button", { name: "Suspend package", exact: true })
     .click();
   await expect(page.getByRole("dialog")).toContainText("cannot be reopened");
-  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  const cancel = page.getByRole("button", { name: "Cancel", exact: true });
+  await expect(cancel).toHaveAttribute("type", "button");
+  await cancel.click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   expect(lifecycleCommands).toBe(0);
   const trigger = card.locator(".duration-editor-trigger");
   await trigger.click();
@@ -79,16 +106,15 @@ test("duration discard, conflict retention and saved values; consequential actio
   await page.reload();
   await trigger.click();
   await expect(row.getByRole("spinbutton")).toHaveValue("4");
-  // Restore the original pricing through the same versioned command.
+  // Verify this package's durable revision independently of the rendered fields.
   const seller = (
     await (await page.request.get(`/api/v1/seller/${cid}`)).json()
   ).data;
-  const offer = seller.offers[0];
-  await command(page, "package.durationPricing.save", {
-    catererId: cid,
-    packageId: offer.id,
-    revision: offer.durationPricing.revision,
-    options: [{ cycles: 1, discountPercent: 0 }],
+  const offer = seller.offers.find((entry: Offer) => entry.id === created.id);
+  expect(offer.status).toBe("published");
+  expect(offer.durationPricing.options).toContainEqual({
+    cycles: 2,
+    discountPercent: 4,
   });
 });
 
