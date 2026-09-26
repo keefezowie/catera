@@ -19,8 +19,8 @@ provider transaction is part of these results.
 | M3 purchase commitment | Confirmed | Implemented locally: one derived contract now supplies discovery, comparison, detail, checkout, quoted breakdown, and renewal. Unknown fees remain unknown until quote; delivery, address eligibility, upfront payment, and manual renewal are explicit. The mobile summary appears only after the primary purchase panel has passed above the viewport. |
 | M4 customer Home | Confirmed | Implemented locally: the authorized customer-action feed returns only the signed-in customer's menu, payment, and unresolved-delivery actions in stable priority order. Home shows the top three with inline expansion, groups upcoming meals by date and caterer, uses active (not historical) subscriptions for its empty state, and exposes compact balances with renewal. Customer isolation, seller cross-tenant denial, structured filtering, and more-than-100 keyset pagination pass local database tests. |
 | M5 delivery recovery | Confirmed | Implemented locally: delivery detail is the canonical management surface, with meal statuses, exact timezone cutoff, one primary schedule action, bounded availability with disabled dates/reasons/earliest replacement, and a complete old/new review. Final server revalidation and the existing atomic reservation command are unchanged. |
-| M6 seller operational scope | Confirmed | Pending the unified scope, actionable stage, count, and bulk-confirmation slice. |
-| M7 complete exception reachability | Confirmed | Pending structured attention fields, scope filters, and keyset pagination. |
+| M6 seller operational scope | Confirmed | Implemented locally: date, meal, package, status, and search now share one compact inline scope while calendar/grouping and the whole-day production export remain separate. Stage quantities filter the URL-addressable table and report selected stage, visible rows, orders, and portions. Bulk changes require a date/meal/source/destination/order/portion confirmation, exclude and explain incompatible selections, and retain selection/context after an atomic conflict. |
+| M7 complete exception reachability | Confirmed | Implemented locally: seller attention defaults to the selected day and top three, offers selected/future/all plus meal scopes, and uses structured date, meal, package, destination, and delivery fields. “Lihat semua masalah” expands the queue and continues through opaque keyset pages. Local authorization/pagination tests reach more than 100 eligible records exactly once. |
 | M8 payment/resource recovery | Confirmed | Implemented locally: shared reads expose `phase`, `hasData`, and stale-data state; delivery/payment keep stale data visible while disabling unsafe mutations. Payment derives preparing, awaiting, checking, paid, expired, and booking-unresolved views with an order reference and one safe next action. Uncertain states never expose hosted fallback or another-payment guidance. |
 | P2 consistency and native parity | Validation-only until P1 passes | Web polish and a native parity backlog follow the P1 acceptance gates; native implementation remains deferred. |
 
@@ -33,6 +33,13 @@ Delivery/payment slice evidence: 29 focused domain/provider tests pass; the full
 purchase-to-reschedule/support/renewal browser journey passes against fresh
 synthetic storage; payment-state and direct-payment recovery pass 17/17 across
 ID/EN, 390/1440, BRI VA, QRIS, expiry, uncertainty, and visibility polling.
+
+Customer/seller action evidence: 11 focused domain/read-model tests pass,
+including customer isolation, cross-tenant denial, structured scopes and 105+
+exception pagination. Customer Home passes desktop/mobile rendering and critical
+accessibility checks. Seller scope passes 1440/768/390 ID/EN control checks; the
+isolated three-order fixture passes stage/search filtering, explicit batch review,
+atomic-conflict selection retention, and whole-day export/accessibility coverage.
 
 ## September 19, 2026 — V1 end-to-end polish
 

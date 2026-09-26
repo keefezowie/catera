@@ -13,7 +13,11 @@ test("matched visual evidence", async ({ page }) => {
     await page
       .context()
       .addCookies([
-        { name: "catera_locale", value: locale, url: (process.env.CATERA_CATERER_UX_URL || "http://127.0.0.1:3138") },
+        {
+          name: "catera_locale",
+          value: locale,
+          url: process.env.CATERA_CATERER_UX_URL || "http://127.0.0.1:3138",
+        },
       ]);
     for (const [width, height] of [
       [390, 844],
@@ -32,7 +36,11 @@ test("matched visual evidence", async ({ page }) => {
         await expect(
           page.locator(".seller-attention[aria-busy=true]"),
         ).toHaveCount(0);
-        if (route === 'schedule') await expect(page.locator('.coverage-strip')).toHaveAttribute('aria-busy','false');
+        if (route === "schedule")
+          await expect(page.locator(".coverage-strip")).toHaveAttribute(
+            "aria-busy",
+            "false",
+          );
         await page.screenshot({
           path: `${folder}/${phase}-${route}-${locale}-${width}.png`,
           fullPage: true,
@@ -56,7 +64,11 @@ async function english(page: import("@playwright/test").Page) {
   await page
     .context()
     .addCookies([
-      { name: "catera_locale", value: "en", url: (process.env.CATERA_CATERER_UX_URL || "http://127.0.0.1:3138") },
+      {
+        name: "catera_locale",
+        value: "en",
+        url: process.env.CATERA_CATERER_UX_URL || "http://127.0.0.1:3138",
+      },
     ]);
 }
 async function state(
@@ -507,10 +519,21 @@ test("AT-15 UI bulk conflict retains selection and reports atomic failure", asyn
   });
   expect(changed.ok()).toBe(true);
   await page.getByRole("button", { name: /Start preparing ·/ }).click();
-  await expect(
-    page.locator(".ops-orders-panel").getByRole("alert"),
-  ).toContainText("This batch made no changes");
-  await expect(page.locator(".ops-bulk-toolbar")).toContainText("1 selected");
+  const confirmation = page.getByRole("dialog", {
+    name: "Confirm order update",
+  });
+  await expect(confirmation).toContainText("Valid orders");
+  await expect(confirmation).toContainText("Portion count");
+  await confirmation.getByRole("button", { name: "Confirm change" }).click();
+  await expect(confirmation.getByRole("alert")).toContainText(
+    "This batch made no changes",
+  );
+  await confirmation
+    .getByRole("button", { name: "Review selection again" })
+    .click();
+  await expect(page.locator(".ops-bulk-toolbar")).toContainText(
+    "invalid selections",
+  );
   await expect(page.getByRole("tab", { name: /Lunch/ })).toHaveAttribute(
     "aria-selected",
     "true",
@@ -592,7 +615,7 @@ test("AT-03 purchased cutoff crosses exactly in a different browser timezone", a
 }) => {
   const context = await browser.newContext({
     timezoneId: "America/Los_Angeles",
-    baseURL: (process.env.CATERA_CATERER_UX_URL || "http://127.0.0.1:3138"),
+    baseURL: process.env.CATERA_CATERER_UX_URL || "http://127.0.0.1:3138",
   });
   const page = await context.newPage();
   await page.request.post("/api/v1/auth/demo", { data: { role: "owner" } });

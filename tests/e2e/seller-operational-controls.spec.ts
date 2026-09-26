@@ -102,6 +102,28 @@ test("cutoff editor stays in a 24-hour format", async ({ page }) => {
   await expect(page.locator('input[name="cutoff"]')).toHaveValue("22:30");
 });
 
+test("attention route rejects malformed scope, filters, limits, and cursors", async ({
+  page,
+}) => {
+  await login(page);
+  const actor = (await (await page.request.get("/api/v1/me")).json()).data
+    .actor;
+  for (const query of [
+    "scope=selected",
+    "scope=unknown",
+    "scope=all&date=2026-02-31",
+    "scope=all&meal=breakfast",
+    "scope=all&limit=101",
+    "scope=all&cursor=not-a-cursor",
+  ]) {
+    const response = await page.request.get(
+      `/api/v1/seller-attention/${actor.catererId}?${query}`,
+    );
+    expect(response.status(), query).toBe(400);
+    expect((await response.json()).error.code, query).toBe("INVALID_INPUT");
+  }
+});
+
 test("UI sweep: focus rings, support count, composition controls and centered previews", async ({
   page,
 }) => {
