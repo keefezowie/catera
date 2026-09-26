@@ -176,8 +176,10 @@ function SellerTransactions({ state: s }: { state: SellerState }) {
       </section>
     );
   const purchases = (
-    <section className="settlement-purchases">
-      <h2>{t("Penjualan", "Sales")}</h2>
+    <section
+      className="settlement-purchases"
+      aria-label={t("Daftar penjualan", "Sales list")}
+    >
       <TransactionRows rows={s.transactions} sales />
     </section>
   );

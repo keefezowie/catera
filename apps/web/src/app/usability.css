@@ -377,6 +377,10 @@ body .ops-main .ops-order-table [data-cell="actions"] .text-button {
   width: 100%;
   max-width: none;
 }
+.messages-layout > aside > .start-conversation-button {
+  width: calc(100% - 20px);
+  margin: 0 10px 12px;
+}
 .menu-save-bar {
   position: sticky;
   bottom: 12px;
@@ -569,6 +573,11 @@ body .ops-main .ops-order-table [data-cell="actions"] .text-button {
   }
 }
 @media (max-width: 560px) {
+  .messages-layout > aside > .start-conversation-button {
+    flex: 0 0 auto;
+    width: auto;
+    margin: 0;
+  }
   body .package-dialog {
     width: 100vw;
     height: 100dvh;

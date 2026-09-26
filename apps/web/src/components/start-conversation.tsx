@@ -30,7 +30,8 @@ export function StartConversation({
   return (
     <>
       <Button
-        className="button secondary"
+        className="start-conversation-button"
+        variant="secondary"
         disabled={disabled}
         onClick={() => setOpen(true)}
       >

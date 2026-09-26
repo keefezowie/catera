@@ -104,16 +104,18 @@ function SettlementScreen({
   return (
     <div className="settlement-screen">
       <RefreshNotice error={state.error} reload={state.reload} />
-      <Button
-        variant="secondary"
-        disabled={state.loading}
-        onClick={state.reload}
-      >
-        {t("Perbarui saldo", "Refresh balances")}
-      </Button>
-      {state.loading && (
-        <p role="status">{t("Memperbarui saldo…", "Refreshing balances…")}</p>
-      )}
+      <div className="settlement-refresh">
+        {state.loading && (
+          <p role="status">{t("Memperbarui saldo…", "Refreshing balances…")}</p>
+        )}
+        <Button
+          variant="secondary"
+          disabled={state.loading}
+          onClick={state.reload}
+        >
+          {t("Perbarui saldo", "Refresh balances")}
+        </Button>
+      </div>
       <BalanceOverview s={s} onHolds={() => setDetail("holds")} />
       <section className="panel settlement-history">
         <div
