@@ -23,6 +23,7 @@ import type {
   SettlementCursor,
   SettlementHistoryKind,
   SettlementReportingUnavailable,
+  DeliveryAvailability,
 } from "@catera/domain";
 export class ApiError extends Error {
   constructor(
@@ -58,6 +59,10 @@ export function createApi(base = "", token?: () => Promise<string | null>) {
       request<{ items: Offer[]; nextCursor: string | null }>("catalog" + query),
     me: () => request<{ actor: Actor | null; demo: boolean }>("me"),
     customer: (query = "") => request<CustomerState>("customer" + query),
+    deliveryAvailability: (id: string, from: string, to: string) =>
+      request<DeliveryAvailability[]>(
+        "availability/" + id + "?" + new URLSearchParams({ from, to }),
+      ),
     seller: (id: string, date: string) =>
       request<SellerState>("seller/" + id + "?date=" + date),
     sellerOperations: (id: string, date?: string) =>

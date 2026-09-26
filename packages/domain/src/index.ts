@@ -11,11 +11,13 @@ import {
   type DatedMenu,
 } from "./contents";
 export * from "./contents";
+export * from "./delivery-availability";
 export * from "./package-presentation";
 export * from "./offer-editor";
 export * from "./pilot";
 export * from "./purchase-pricing";
 export * from "./purchase-commitment";
+export * from "./resource-phase";
 export * from "./settlement";
 
 export const mealTypes = ["lunch", "dinner", "both"] as const;

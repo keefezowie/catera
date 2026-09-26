@@ -2006,6 +2006,54 @@ td strong {
   background: var(--forest);
   color: var(--cream);
 }
+.delivery-management-summary {
+  margin-top: 24px;
+  padding: 18px 0 4px;
+  border-block: 1px solid var(--line);
+}
+.delivery-management-summary h2 {
+  margin: 0;
+  font-size: 20px;
+}
+.delivery-management-summary .facts {
+  margin-block: 10px;
+}
+.replacement-intent {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.replacement-intent legend {
+  width: 100%;
+  margin-bottom: 4px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.replacement-intent [aria-pressed="true"] {
+  border-color: var(--forest);
+  background: var(--soft);
+}
+.availability-reasons {
+  padding-block: 8px;
+  font-size: 14px;
+}
+.availability-reasons summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  color: var(--forest);
+  font-weight: 700;
+  cursor: pointer;
+}
+.availability-reasons ul {
+  margin: 6px 0 0;
+  padding-left: 20px;
+  color: var(--muted);
+  line-height: 1.7;
+}
 .action-row {
   display: flex;
   gap: 12px;

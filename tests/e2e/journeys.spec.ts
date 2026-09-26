@@ -1,6 +1,11 @@
 import { test, expect, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-import { localDay, addDays, purchaseStartAvailable, type Offer } from "@catera/domain";
+import {
+  localDay,
+  addDays,
+  purchaseStartAvailable,
+  type Offer,
+} from "@catera/domain";
 import { pickDate } from "./date-picker";
 async function login(page: Page, role = "customer") {
   const r = await page.request.post("/api/v1/auth/demo", { data: { role } });
@@ -22,8 +27,12 @@ test("customer purchase, schedule change, support review and renewal", async ({
     last > addDays(localDay(), 250) ? last : addDays(localDay(), 250),
     7,
   );
-  const catalog = (await (await page.request.get("/api/v1/catalog?limit=100")).json()).data.items as Offer[];
-  const offer = catalog.find((o) => o.id === "20000000-0000-4000-8000-000000000003")!;
+  const catalog = (
+    await (await page.request.get("/api/v1/catalog?limit=100")).json()
+  ).data.items as Offer[];
+  const offer = catalog.find(
+    (o) => o.id === "20000000-0000-4000-8000-000000000003",
+  )!;
   while (!purchaseStartAvailable(offer, start)) start = addDays(start, 1);
   const requestText = "Permintaan sintetis dari pengujian perjalanan " + start;
   await page.goto("/discover");
@@ -67,9 +76,7 @@ test("customer purchase, schedule change, support review and renewal", async ({
       d.offer.id.endsWith("003") && d.canChange,
   );
   await page.goto("/deliveries/" + delivery.id);
-  await page
-    .getByRole("button", { name: "Ganti tanggal", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Ubah jadwal", exact: true }).click();
   const dates = (
     await (
       await page.request.get(
@@ -87,7 +94,7 @@ test("customer purchase, schedule change, support review and renewal", async ({
   await page.getByRole("button", { name: "Tinjau perubahan" }).click();
   await expect(page.getByText("Menjadi", { exact: true })).toBeVisible();
   await page
-    .getByRole("button", { name: "Konfirmasi tanggal pengganti" })
+    .getByRole("button", { name: "Konfirmasi perubahan jadwal" })
     .click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.getByRole("link", { name: "Laporkan masalah" }).click();
@@ -174,7 +181,11 @@ test("customer and operational routes render, retain context and pass critical a
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("/seller?date=" + serviceDate);
   await expect(
-    page.getByRole("heading", { name: serviceDate === localDay() ? "Hari ini" : "Operasional", exact: true, level: 1 }),
+    page.getByRole("heading", {
+      name: serviceDate === localDay() ? "Hari ini" : "Operasional",
+      exact: true,
+      level: 1,
+    }),
   ).toBeVisible();
   await page.screenshot({
     path: "output/playwright/seller-desktop.png",
@@ -203,9 +214,7 @@ test("customer and operational routes render, retain context and pass critical a
     .getByRole("link", { name: "Hari ini", exact: true })
     .click();
   await expect(page).toHaveURL(
-    (url) =>
-      url.pathname === "/seller" &&
-      !url.searchParams.has("date"),
+    (url) => url.pathname === "/seller" && !url.searchParams.has("date"),
   );
   for (const route of [
     "packages",

@@ -13,9 +13,11 @@ import { ErrorNotice } from "./ui";
 export function DirectPayment({
   checkout,
   reload,
+  disabled = false,
 }: {
   checkout: Checkout;
   reload: () => void;
+  disabled?: boolean;
 }) {
   const { t, locale } = useApp();
   const payment = checkout.payment!;
@@ -57,7 +59,7 @@ export function DirectPayment({
     };
   }, [content]);
   async function start() {
-    if (!method) return;
+    if (!method || disabled) return;
     setBusy(true);
     setError(null);
     try {
@@ -84,7 +86,7 @@ export function DirectPayment({
       {error ? <ErrorNotice message={error} /> : null}
       {!payment.selectedMethod ? (
         <>
-          <fieldset disabled={busy} className="payment-methods">
+          <fieldset disabled={busy || disabled} className="payment-methods">
             <legend>{t("Pilih cara bayar", "Choose how to pay")}</legend>
             {payment.availableMethods.map((value) => (
               <label className="payment-method" key={value}>
@@ -120,6 +122,7 @@ export function DirectPayment({
               disabled={
                 !method ||
                 busy ||
+                disabled ||
                 !payment.availableMethods.includes(
                   method as DirectPaymentMethod,
                 )
@@ -271,7 +274,11 @@ export function DirectPayment({
                       "We are checking your payment. Do not create another payment; this page updates automatically.",
                     )}
               {payment.status === "preparing" && (
-                <Button className="button" disabled={busy} onClick={start}>
+                <Button
+                  className="button"
+                  disabled={busy || disabled}
+                  onClick={start}
+                >
                   {t("Lanjutkan", "Continue")}
                 </Button>
               )}

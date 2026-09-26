@@ -5,6 +5,22 @@ import AxeBuilder from "@axe-core/playwright";
 import { mkdir, readFile } from "node:fs/promises";
 import type { Checkout, DirectPaymentMethod } from "@catera/domain";
 const id = "99999999-1111-4111-8111-111111111111";
+function paymentQuote(total: number, name = "Paket makan Catera") {
+  return {
+    packageId: "99999999-3333-4333-8333-333333333333",
+    total,
+    packageNet: total,
+    subtotal: total,
+    discount: 0,
+    durationDiscount: 0,
+    serviceFee: 0,
+    portions: 1,
+    cycles: 1,
+    trial: false,
+    dates: ["2026-10-01"],
+    offer: { name, price: total, days: 1, meal: "lunch", tiers: [] },
+  } as Checkout["quote"];
+}
 // UI contract fixtures only. Provider and transactional tests live in doku-direct.test.ts.
 function qr(total: number) {
   const a = String(total),
@@ -56,13 +72,7 @@ for (const locale of ["id", "en"])
           payment_url: null,
           subscription_id: null,
           expires_at: deadline,
-          quote: {
-            total: 162500,
-            offer: { name: "Paket makan Catera" },
-            portions: 1,
-            dates: ["2026-10-01"],
-            cycles: 1,
-          },
+          quote: paymentQuote(162500),
           payment: {
             mode: "direct",
             availableMethods: ["VIRTUAL_ACCOUNT_BRI", "QRIS"],
@@ -215,7 +225,7 @@ test("expired and uncertain payments never expose old instructions or hosted fal
           expires_at: expiry,
           payment_mode: "direct",
           payment_url: "https://staging.doku.com/checkout/never-open",
-          quote: { total: 10000, offer: { name: "Synthetic" }, portions: 1 },
+          quote: paymentQuote(10000, "Synthetic"),
           payment: {
             mode: "direct",
             selectedMethod: "QRIS",
@@ -254,7 +264,7 @@ test("visible-page polling pauses in background and refreshes immediately on ret
           expires_at: expiry,
           payment_mode: "direct",
           payment_url: null,
-          quote: { total: 10000, offer: { name: "Synthetic" }, portions: 1 },
+          quote: paymentQuote(10000, "Synthetic"),
           payment: {
             mode: "direct",
             selectedMethod: "QRIS",

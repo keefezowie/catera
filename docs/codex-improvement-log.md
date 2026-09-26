@@ -18,16 +18,21 @@ provider transaction is part of these results.
 | M2 customer menu states | Confirmed | Implemented locally: public examples no longer reuse the seller dish library, internal/empty taxonomy is hidden, and post-payment due, saved, missed-cutoff caterer choice, unannounced, example, all-portions, and no-menu-fee states are distinct. Domain and customer-choice browser tests pass. |
 | M3 purchase commitment | Confirmed | Implemented locally: one derived contract now supplies discovery, comparison, detail, checkout, quoted breakdown, and renewal. Unknown fees remain unknown until quote; delivery, address eligibility, upfront payment, and manual renewal are explicit. The mobile summary appears only after the primary purchase panel has passed above the viewport. |
 | M4 customer Home | Confirmed | Pending the authorized customer-action read model and Home consolidation slice. |
-| M5 delivery recovery | Confirmed | Pending the delivery-detail and availability/review slice; existing atomic reservation rules remain authoritative. |
+| M5 delivery recovery | Confirmed | Implemented locally: delivery detail is the canonical management surface, with meal statuses, exact timezone cutoff, one primary schedule action, bounded availability with disabled dates/reasons/earliest replacement, and a complete old/new review. Final server revalidation and the existing atomic reservation command are unchanged. |
 | M6 seller operational scope | Confirmed | Pending the unified scope, actionable stage, count, and bulk-confirmation slice. |
 | M7 complete exception reachability | Confirmed | Pending structured attention fields, scope filters, and keyset pagination. |
-| M8 payment/resource recovery | Confirmed | Pending resource-phase and payment-action consolidation. Existing direct-payment duplicate-payment safeguards are preserved. |
+| M8 payment/resource recovery | Confirmed | Implemented locally: shared reads expose `phase`, `hasData`, and stale-data state; delivery/payment keep stale data visible while disabling unsafe mutations. Payment derives preparing, awaiting, checking, paid, expired, and booking-unresolved views with an order reference and one safe next action. Uncertain states never expose hosted fallback or another-payment guidance. |
 | P2 consistency and native parity | Validation-only until P1 passes | Web polish and a native parity backlog follow the P1 acceptance gates; native implementation remains deferred. |
 
 Slice-one local evidence: 21 focused domain/integration tests pass; customer menu
 browser flow passes 2/2; package-presentation checks pass after a focused sticky
 summary rerun; seller lifecycle cancellation passes. Generated browser output is
 local evidence only and is excluded from commits.
+
+Delivery/payment slice evidence: 29 focused domain/provider tests pass; the full
+purchase-to-reschedule/support/renewal browser journey passes against fresh
+synthetic storage; payment-state and direct-payment recovery pass 17/17 across
+ID/EN, 390/1440, BRI VA, QRIS, expiry, uncertainty, and visibility polling.
 
 ## September 19, 2026 — V1 end-to-end polish
 
