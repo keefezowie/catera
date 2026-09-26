@@ -49,7 +49,7 @@ export async function generateMetadata({
         (english
           ? {
               discover: "Explore catering",
-              home: "Next meal",
+              home: "My meals",
               calendar: "Meal calendar",
               seller: "Caterer workspace",
               admin: "Catera Admin",
@@ -60,7 +60,7 @@ export async function generateMetadata({
             }
           : {
               discover: "Jelajah katering",
-              home: "Makanan berikutnya",
+              home: "Makanan saya",
               calendar: "Jadwal makan",
               seller: "Ruang katerer",
               admin: "Catera Admin",
@@ -71,8 +71,8 @@ export async function generateMetadata({
             }) as Record<string, string>
       )[path[0]] ||
       (english
-        ? "Catering for your everyday"
-        : "Katering untuk hari-hari Anda"),
+        ? "Catering subscriptions"
+        : "Paket katering berlangganan"),
   };
 }
 export default async function Page({

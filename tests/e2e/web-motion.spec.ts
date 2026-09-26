@@ -219,7 +219,7 @@ for (const locale of ["id", "en"])
         .getByLabel(t("Nama paket", "Package name"), { exact: true })
         .fill("Demo motion draft");
       await editor
-        .getByLabel(t("Cerita paket", "Package story"), { exact: true })
+        .getByLabel(t("Deskripsi paket", "Package description"), { exact: true })
         .fill("Paket sintetis khusus verifikasi motion Catera.");
       await editor
         .getByRole("combobox", {
@@ -286,7 +286,7 @@ test("live reduced motion cancels movement and leaves focus and drafts usable un
     .getByLabel("Nama paket", { exact: true })
     .fill("Reduced motion retained draft");
   await editor
-    .getByLabel("Cerita paket", { exact: true })
+    .getByLabel("Deskripsi paket", { exact: true })
     .fill("Synthetic motion cancellation check.");
   await editor
     .getByRole("combobox", { name: "Jenis paket", exact: true })

@@ -436,13 +436,7 @@ export function SellerAccountSettings({ state: s }: { state: SellerState }) {
       )}
       <AccountHelp />
       <section className="panel">
-        <h2>{t("Tentang Catera", "About Catera")}</h2>
-        <p>
-          {t(
-            "Catera menghubungkan pelanggan dengan katerer, jadwal pengantaran, dan bantuan dalam satu tempat.",
-            "Catera connects customers with caterers, delivery schedules, and support in one place.",
-          )}
-        </p>
+        <h2>{t("Profil katerer", "Caterer profile")}</h2>
         <Link href="/seller/profile">
           {t(
             "Profil usaha & area pengantaran",

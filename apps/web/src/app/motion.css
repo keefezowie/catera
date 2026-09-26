@@ -220,21 +220,8 @@ body .toast.visible {
 body :is(.save-status > svg, .menu-slot-check) {
   animation: mark-settle var(--motion-selection) var(--motion-ease);
 }
-.payment-success > img {
-  animation: confirmation-settle var(--motion-feature) var(--motion-ease);
-}
 .payment-success .success-mark {
   animation: mark-settle var(--motion-content) var(--motion-ease);
-}
-@keyframes confirmation-settle {
-  from {
-    translate: 0 8px;
-    transform: scale(0.985);
-  }
-  to {
-    translate: 0 0;
-    transform: scale(1);
-  }
 }
 @keyframes mark-settle {
   from {

@@ -47,7 +47,7 @@ test("every forward tab and keyboard submit validate prerequisites; incomplete d
     .getByLabel("Nama paket", { exact: true })
     .fill("Sintetis validasi");
   await page
-    .getByLabel("Cerita paket", { exact: true })
+    .getByLabel("Deskripsi paket", { exact: true })
     .fill("Data sintetis untuk validasi langkah.");
   await page.getByRole("button", { name: /2\. Isi/ }).click();
   await page.getByRole("button", { name: /5\. Periksa/ }).click();
@@ -70,7 +70,7 @@ test("uses one shared recurring capacity for every selected operating day", asyn
     .getByLabel("Nama paket", { exact: true })
     .fill("Kapasitas bersama");
   await page
-    .getByLabel("Cerita paket", { exact: true })
+    .getByLabel("Deskripsi paket", { exact: true })
     .fill("Paket sintetis untuk menguji kapasitas harian bersama.");
   await page.getByRole("button", { name: /2\. Isi/ }).click();
   await page
@@ -185,7 +185,7 @@ test("upload failure preserves the old photo and pending uploads block navigatio
   await choose(page, "Jenis paket", "À la carte");
   await page.getByLabel("Nama paket", { exact: true }).fill("Sintetis foto");
   await page
-    .getByLabel("Cerita paket", { exact: true })
+    .getByLabel("Deskripsi paket", { exact: true })
     .fill("Data sintetis unggah foto.");
   await page.getByRole("button", { name: /2\. Isi/ }).click();
   await page
@@ -225,7 +225,7 @@ test("owner can upload a validated package photo", async ({ page }) => {
   await choose(page, "Jenis paket", "À la carte");
   await page.getByLabel("Nama paket", { exact: true }).fill("Sintetis foto");
   await page
-    .getByLabel("Cerita paket", { exact: true })
+    .getByLabel("Deskripsi paket", { exact: true })
     .fill("Data sintetis unggah foto berhasil.");
   await page.getByRole("button", { name: /2\. Isi/ }).click();
 

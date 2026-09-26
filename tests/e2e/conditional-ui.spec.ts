@@ -129,7 +129,7 @@ test("optional nutrition reveals invalid ranges and retains values across collap
     .getByLabel("Nama paket", { exact: true })
     .fill("Synthetic optional fields");
   await page
-    .getByLabel("Cerita paket", { exact: true })
+    .getByLabel("Deskripsi paket", { exact: true })
     .fill("Synthetic optional-field validation.");
   await page.getByRole("button", { name: "Lanjutkan", exact: true }).click();
   await page
@@ -313,7 +313,7 @@ for (const width of [390, 1440]) {
       .getByLabel("Nama paket", { exact: true })
       .fill("Synthetic photo");
     await page
-      .getByLabel("Cerita paket", { exact: true })
+      .getByLabel("Deskripsi paket", { exact: true })
       .fill("Synthetic preview verification.");
     await page.getByRole("button", { name: "Lanjutkan", exact: true }).click();
     await page

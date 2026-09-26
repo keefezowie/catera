@@ -192,7 +192,7 @@ test("wizard reviews custom categories and counts before publishing the new comp
   const name = "Komposisi kustom " + Date.now();
   await page.getByLabel("Nama paket", { exact: true }).fill(name);
   await page
-    .getByLabel("Cerita paket", { exact: true })
+    .getByLabel("Deskripsi paket", { exact: true })
     .fill("Komposisi sintetis untuk kategori dan slot.");
   await page.getByRole("button", { name: /2\. Isi/ }).click();
   await page

@@ -200,7 +200,10 @@ export function MealCalendar() {
       ? element.offsetLeft -
         (strip.current.clientWidth - element.offsetWidth) / 2
       : element.offsetLeft + target.offset;
-    scrollSurface(strip.current, left, { relative: false, animate: !!target.animate });
+    scrollSurface(strip.current, left, {
+      relative: false,
+      animate: !!target.animate,
+    });
     if (target.focus) element.focus({ preventScroll: true });
     position.current = target;
     pending.current = null;
@@ -405,10 +408,7 @@ export function MealCalendar() {
   return (
     <div className="content calendar-page">
       <Heading
-        title={t(
-          "Hari-hari yang sudah terencana.",
-          "Your meals, all in one place.",
-        )}
+        title={t("Jadwal makan", "Meal calendar")}
         description={t(
           "Semua paket dan katerer, dalam satu jadwal.",
           "Every package and caterer, in one calendar.",

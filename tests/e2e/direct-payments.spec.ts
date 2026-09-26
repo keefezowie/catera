@@ -192,8 +192,8 @@ for (const locale of ["id", "en"])
         await expect(
           page.getByRole("heading", {
             name: t(
-              "Makanan baik sudah dijadwalkan.",
-              "Good meals are on the calendar.",
+              "Pembayaran berhasil",
+              "Payment successful",
             ),
           }),
         ).toBeVisible();

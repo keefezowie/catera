@@ -84,7 +84,6 @@ export function Empty({
 }) {
   return (
     <div className="empty">
-      <img src="/assets/empty-calendar.png" alt="" width="160" height="160" />
       <h2>{title}</h2>
       {description && <p>{description}</p>}
       {href && (
@@ -98,15 +97,7 @@ export function Empty({
 }
 export function Loading() {
   const { locale } = useApp();
-  return (
-    <MascotLoading
-      label={
-        locale === "en"
-          ? "Getting Catera ready for you…"
-          : "Menyiapkan Catera untuk Anda…"
-      }
-    />
-  );
+  return <MascotLoading label={locale === "en" ? "Loading…" : "Memuat…"} />;
 }
 export function ErrorNotice({
   message,

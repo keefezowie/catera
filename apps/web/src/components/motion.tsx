@@ -88,12 +88,12 @@ export function RouteMotion({
   const root = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     const container = root.current;
-    // Confirmed payment owns its artwork/checkmark moment, without a second route entrance.
+    // Confirmed payment owns its checkmark moment, without a second route entrance.
     if (!container || path.startsWith("payment/")) return;
     let stop: (() => void) | undefined;
     const reveal = () => {
       const heading = container.querySelector(
-        ".page-heading, .detail-heading, .login-story h1, .catalog-heading, .empty h2",
+        ".page-heading, .detail-heading, .login-form h1, .catalog-heading, .empty h2",
       );
       if (!heading) return false;
       stop = animateSurface(heading, contentFrames());

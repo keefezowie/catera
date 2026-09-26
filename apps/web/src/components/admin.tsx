@@ -49,22 +49,18 @@ export function Admin({ view }: { view: string }) {
       <Heading
         title={
           {
-            sellers: t("Katerer & kepercayaan", "Caterers & trust"),
+            sellers: t("Verifikasi katerer", "Caterer verification"),
             transactions: t(
               "Transaksi marketplace",
               "Marketplace transactions",
             ),
             support: t("Bantuan & pengembalian dana", "Support & refunds"),
             payouts: t("Pencairan dana katerer", "Caterer payouts"),
-            promotions: t("Promosi yang terukur", "Measured promotions"),
+            promotions: t("Promosi historis", "Historical promotions"),
             reviews: t("Ulasan pelanggan", "Customer reviews"),
-            audit: t("Jejak keputusan", "Decision trail"),
+            audit: t("Riwayat audit", "Audit history"),
           }[view] || t("Catera Admin", "Catera Admin")
         }
-        description={t(
-          "Keputusan yang jelas. Bukti yang dapat ditelusuri.",
-          "Clear decisions. Traceable evidence.",
-        )}
       />
       {view === "sellers" ? (
         <>

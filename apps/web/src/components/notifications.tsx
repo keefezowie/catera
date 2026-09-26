@@ -44,7 +44,7 @@ export function Notifications({ seller = false }: { seller?: boolean }) {
     );
   return (
     <div className={seller ? "notifications-page" : "content narrow-wide"}>
-      <Heading title={t("Kabar untukmu", "Updates for you")} />
+      <Heading title={t("Notifikasi", "Notifications")} />
       {seller && (
         <Link className="button secondary" href={returnTo}>
           {t("Kembali ke operasional", "Return to operations")}
@@ -101,7 +101,7 @@ export function Notifications({ seller = false }: { seller?: boolean }) {
         </div>
       ))}
       {!state.data.notifications.length && (
-        <Empty title={t("Belum ada kabar baru", "No new updates yet")} />
+        <Empty title={t("Belum ada notifikasi", "No notifications yet")} />
       )}
     </div>
   );

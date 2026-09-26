@@ -316,23 +316,17 @@ export function Catalog({ caterer }: { caterer?: string }) {
           <div>
             {pathname === "/" ? (
               <h2 id="catalog-heading">
-                {t(
-                  "Temukan katering yang cocok",
-                  "Find your everyday catering",
-                )}
+                {t("Paket katering", "Catering packages")}
               </h2>
             ) : (
               <h1 id="catalog-heading">
-                {t(
-                  "Temukan katering yang cocok",
-                  "Find your everyday catering",
-                )}
+                {t("Paket katering", "Catering packages")}
               </h1>
             )}
             <p>
               {t(
-                "Bandingkan isi, jadwal, dan harga paket untuk keseharianmu.",
-                "Compare meals, schedules, and package prices for your routine.",
+                "Bandingkan isi, jadwal, dan harga paket.",
+                "Compare meals, schedules, and package prices.",
               )}
             </p>
           </div>
@@ -363,8 +357,8 @@ export function Catalog({ caterer }: { caterer?: string }) {
               type="search"
               maxLength={200}
               placeholder={t(
-                "Cari paket, menu, atau katerer favorit…",
-                "Find a package, meal, or favorite caterer…",
+                "Cari paket, menu, atau katerer…",
+                "Search packages, meals, or caterers…",
               )}
               aria-label={t("Cari katering", "Search caterers")}
               value={search}
@@ -570,21 +564,11 @@ export function Catalog({ caterer }: { caterer?: string }) {
       </section>
       <section className="how-it-works" id="how-it-works">
         <div>
-          <h2>
-            {t("Makanan sudah dipikirkan.", "Meals, already taken care of.")}
-            <br />
-            {t("Harimu tinggal dinikmati.", "Your day is yours to enjoy.")}
-          </h2>
-          <p>
-            {t(
-              "Mulai dari satu kali coba, sampai jadi bagian favorit dari keseharian.",
-              "From a first taste to your favorite everyday ritual.",
-            )}
-          </p>
+          <h2>{t("Cara berlangganan", "How to subscribe")}</h2>
         </div>
         <ol>
           <li>
-            <strong>{t("Pilih yang kamu suka", "Find your favorite")}</strong>
+            <strong>{t("Pilih paket", "Choose a package")}</strong>
             <p>
               {t(
                 "Bandingkan menu, porsi, dan jadwal dari katerer pilihanmu.",
@@ -593,7 +577,9 @@ export function Catalog({ caterer }: { caterer?: string }) {
             </p>
           </li>
           <li>
-            <strong>{t("Buat jadwalmu", "Make it your routine")}</strong>
+            <strong>
+              {t("Tentukan porsi & jadwal", "Choose portions & dates")}
+            </strong>
             <p>
               {t(
                 "Tentukan jumlah porsi dan tanggal mulai. Kami susun jadwalnya.",
@@ -602,7 +588,9 @@ export function Catalog({ caterer }: { caterer?: string }) {
             </p>
           </li>
           <li>
-            <strong>{t("Nikmati, lalu ulangi", "Enjoy, then repeat")}</strong>
+            <strong>
+              {t("Terima pengantaran", "Receive your deliveries")}
+            </strong>
             <p>
               {t(
                 "Makanan diantar oleh katerer. Perpanjang hanya ketika kamu mau.",
@@ -736,7 +724,7 @@ export function PackagePage({
             />
           </section>
           <section className="detail-section">
-            <h2>{t("Jelas dari awal", "Know before you subscribe")}</h2>
+            <h2>{t("Ketentuan paket", "Package terms")}</h2>
             <Facts
               rows={[
                 [
@@ -795,7 +783,7 @@ export function PackagePage({
             )}
           </section>
           <section className="detail-section">
-            <h2>{t("Cerita dari pelanggan", "Customer experiences")}</h2>
+            <h2>{t("Ulasan pelanggan", "Customer reviews")}</h2>
             {reviews.error ? (
               <ErrorNotice message={reviews.error} retry={reviews.reload} />
             ) : reviews.loading ? (
@@ -836,7 +824,7 @@ export function PackagePage({
           )}
         >
           <span>
-            {p.days} {t("hari makanan baik", "days of good meals")}
+            {p.days} {t("hari pengantaran", "delivery days")}
           </span>
           <h2>
             {currency(perMealPrice(p), locale)}
@@ -946,7 +934,7 @@ export function Compare() {
   return (
     <div className="content">
       <Heading
-        title={t("Pilih yang paling pas.", "Find your best fit.")}
+        title={t("Bandingkan paket", "Compare packages")}
         description={t(
           "Bandingkan hingga 3 paket dengan jumlah porsi yang sama.",
           "Compare up to 3 packages using the same portion quantity.",
@@ -966,16 +954,32 @@ export function Compare() {
             />
           </label>
           <p className="comparison-scroll-hint muted">
-            {t("Geser tabel untuk membandingkan paket.", "Scroll across to compare packages.")}
+            {t(
+              "Geser tabel untuk membandingkan paket.",
+              "Scroll across to compare packages.",
+            )}
           </p>
-          <div className="comparison-scroll" role="region" aria-label={t("Perbandingan paket", "Package comparison")} tabIndex={0}>
+          <div
+            className="comparison-scroll"
+            role="region"
+            aria-label={t("Perbandingan paket", "Package comparison")}
+            tabIndex={0}
+          >
             <table className="comparison">
               <thead>
                 <tr>
-                  <th scope="col">{t("Yang penting untukmu", "What matters to you")}</th>
+                  <th scope="col">
+                    {t("Yang penting untukmu", "What matters to you")}
+                  </th>
                   {selected.map((p) => (
                     <th key={p.id} scope="col">
-                      <FoodImage src={p.image} alt={p.name} width={300} height={160} sizes="300px" />
+                      <FoodImage
+                        src={p.image}
+                        alt={p.name}
+                        width={300}
+                        height={160}
+                        sizes="300px"
+                      />
                       <h2>{p.name}</h2>
                       <p>{p.caterer}</p>
                       <Button
@@ -1093,7 +1097,13 @@ export function Compare() {
                 ].map((r, i) => (
                   <tr key={i}>
                     {r.map((v, j) =>
-                      j === 0 ? <th key={j} scope="row">{v}</th> : <td key={j}>{v}</td>,
+                      j === 0 ? (
+                        <th key={j} scope="row">
+                          {v}
+                        </th>
+                      ) : (
+                        <td key={j}>{v}</td>
+                      ),
                     )}
                   </tr>
                 ))}
@@ -1169,13 +1179,7 @@ export function CatererPage({ slug }: { slug: string }) {
           {t("Tanya katerer", "Ask the caterer")}
         </Link>
       </section>
-      <Heading
-        title={t("Dari dapur, untuk harimu.", "From our kitchen to your day.")}
-        description={t(
-          "Pilih paket dan rutinitas makan yang cocok untukmu.",
-          "Choose a package that suits your routine.",
-        )}
-      />
+      <Heading title={t("Paket katering", "Catering packages")} />
       <div className="package-grid">
         {list.map((p) => (
           <PackageCard key={p.id} offer={p} />
