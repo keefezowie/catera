@@ -50,6 +50,16 @@ pass ID/EN at 360/430/1280, while menu work passes phone touch/keyboard and
 reduced-motion checks. A transient heading-opacity contrast failure was fixed by
 retaining positional motion without fading text.
 
+Final local gates: root `npm run typecheck` passes for web, native, and root
+TypeScript; `npm test` passes 45 files / 280 tests; the optimized production web
+build passes; and all 27 embedded PostgreSQL scenario groups pass. Final focused
+browser reruns pass settlement 12/12, the added 360/430/1280 ID/EN discovery
+and checkout matrix 12/12, direct payments 10/10, slot-menu reduced-motion and
+phone interaction 2/2, and motion cancellation/targeting 2/2. Earlier slice
+checks cover Home actions, delivery recovery/conflicts, seller scope/bulk work,
+and 105+ exception reachability. Generated screenshots, traces, build output,
+and synthetic databases remain local evidence and are excluded from commits.
+
 ## September 19, 2026 — V1 end-to-end polish
 
 This objective supersedes feature expansion. Preserve the approved functionality,
