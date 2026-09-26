@@ -200,6 +200,8 @@ function OperationsPage({
     return () => clearTimeout(timer);
   }, [now, s.deliveries]);
   const [filterSearch, setFilterSearch] = useState("");
+  const mealTabs = useRef<HTMLDivElement>(null);
+  const pendingMealFocus = useRef<string | null>(null);
   const packageId = query.get("package") || "";
   const status =
     schedule && ["all", "cancelled"].includes(query.get("status") || "")
@@ -278,6 +280,13 @@ function OperationsPage({
   const summary = scheduleSummary(filteredRows, meal, includeCancelled);
   const deadlines = deliveryDeadlines(filteredRows, now);
   const workload = meal === "dinner" ? dinner : lunch;
+  useEffect(() => {
+    if (pendingMealFocus.current !== meal) return;
+    mealTabs.current
+      ?.querySelector<HTMLElement>(`[data-meal="${meal}"]`)
+      ?.focus({ preventScroll: true });
+    pendingMealFocus.current = null;
+  }, [meal]);
   const formatDate = (value: string) =>
     new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-GB", {
       dateStyle: "full",
@@ -389,6 +398,7 @@ function OperationsPage({
           />
         </div>
         <div
+          ref={mealTabs}
           className="ops-meal-tabs"
           role="tablist"
           aria-label={t("Waktu makan", "Meal period")}
@@ -397,6 +407,7 @@ function OperationsPage({
             (m, i, options) => (
               <Button
                 key={m}
+                data-meal={m}
                 role="tab"
                 aria-selected={meal === m}
                 aria-controls="ops-orders"
@@ -416,6 +427,7 @@ function OperationsPage({
                             : -1;
                   if (index >= 0) {
                     e.preventDefault();
+                    pendingMealFocus.current = options[index];
                     (
                       e.currentTarget.parentElement?.children[
                         index
