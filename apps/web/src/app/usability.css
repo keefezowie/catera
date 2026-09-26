@@ -273,6 +273,9 @@ body .file-upload.file-upload-compact {
   color: var(--muted);
   margin: 16px 12px 4px;
 }
+.ops-sidebar nav > .nav-group-label:first-child {
+  margin-top: 0;
+}
 .seller-bottom {
   display: none;
 }

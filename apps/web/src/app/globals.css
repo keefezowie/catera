@@ -2550,7 +2550,7 @@ td strong {
 .ops-sidebar {
   position: fixed;
   left: 0;
-  top: 27px;
+  top: 0;
   bottom: 0;
   width: 244px;
   border-right: 1px solid #dfe4d7;
@@ -2561,17 +2561,35 @@ td strong {
   flex-direction: column;
   overflow: auto;
 }
-.ops-sidebar > .brand {
+.ops-layout > .demo-ribbon ~ .ops-sidebar {
+  top: 27px;
+}
+.ops-sidebar-head {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 0 6px 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+.ops-sidebar-head > .brand {
   width: 160px;
-  margin: 0 12px 19px;
+  margin: 0 6px;
 }
 .workspace-label {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 17px 9px;
-  border-block: 1px solid var(--line);
-  margin-bottom: 18px;
+  min-width: 0;
+  padding: 12px 10px;
+  border-radius: 10px;
+  background: var(--soft);
+}
+.workspace-label > div {
+  min-width: 0;
+}
+.ops-sidebar a.workspace-label:hover {
+  background: var(--scheduled-bg);
 }
 .workspace-label strong {
   font-size: 12px;
@@ -2579,10 +2597,15 @@ td strong {
   color: var(--forest);
 }
 .workspace-label small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 10px;
   color: var(--muted);
 }
 .workspace-icon {
+  flex-shrink: 0;
   width: 35px;
   height: 35px;
   background: #e8eddf;
@@ -3349,6 +3372,9 @@ td strong {
     width: 250px;
     top: 0;
     z-index: 60;
+  }
+  .ops-layout > .demo-ribbon ~ .ops-sidebar {
+    top: 0;
   }
   .ops-sidebar.open {
     transform: translateX(0);

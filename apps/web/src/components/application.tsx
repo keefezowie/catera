@@ -328,8 +328,10 @@ function Shell({
                 : t("Navigasi katerer", "Caterer navigation")
             }
           >
-            <Brand />
-            <WorkspaceIdentity isAdmin={isAdmin} />
+            <div className="ops-sidebar-head">
+              <Brand />
+              <WorkspaceIdentity isAdmin={isAdmin} />
+            </div>
             <nav>
               {links.map(([href, label, Icon], index) => (
                 <Fragment key={href}>
