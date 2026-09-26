@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import {
   defaultDishCategories,
+  customerMenuPresentation,
   localDay,
   mealLabel,
   selectLibraryDish,
@@ -176,6 +177,43 @@ export function MenuCalendar({
   const data = resource.data?.context === context ? resource.data.value : null;
   const customerData = subscription ? (data as CustomerMenuMonth | null) : null;
   const dishes = customerData?.options || s?.dishes || [];
+  const activeChoiceCount =
+    customerData?.options.filter((option) => !option.archived).length ?? 0;
+  const customerDayState = (day: CustomerMenuMonth["dates"][number]) =>
+    customerMenuPresentation({
+      surface: "delivery",
+      hasSavedMenu: Boolean(day.details),
+      editable: day.editable,
+      selectionStatus: day.selectionStatus,
+      activeOptionCount: activeChoiceCount,
+    }).state;
+  const cutoffLabel = (day: CustomerMenuMonth["dates"][number]) =>
+    new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-GB", {
+      dateStyle: "medium",
+      timeStyle: "short",
+      timeZone: timezone,
+    }).format(new Date(day.cutoffAt));
+  const customerDayLabel = (day: CustomerMenuMonth["dates"][number]) => {
+    switch (customerDayState(day)) {
+      case "saved":
+        return t("Menu tersimpan", "Saved menu");
+      case "selection_due":
+        return t(
+          `Pilih sebelum ${cutoffLabel(day)}`,
+          `Choose by ${cutoffLabel(day)}`,
+        );
+      case "caterer_choice":
+        return t(
+          "Batas lewat · katerer memilih",
+          "Cutoff passed · caterer chooses",
+        );
+      default:
+        return t("Menu belum diumumkan", "Menu not announced yet");
+    }
+  };
+  const nextMenuDue = customerData?.dates
+    .filter((day) => customerDayState(day) === "selection_due")
+    .sort((a, b) => a.cutoffAt.localeCompare(b.cutoffAt))[0];
   const categories = s?.categories || data?.categories || defaultDishCategories;
   const template = selected?.contents.menus.find((m) => m.meal === activeMeal);
   const activeSlot = edit?.menu.items?.find((i) => i.id === slot);
@@ -564,6 +602,11 @@ export function MenuCalendar({
     <MenuLibrary
       dishes={dishes}
       manage={!subscription}
+      title={
+        subscription
+          ? t("Pilihan hidangan", "Dish choices")
+          : t("Pustaka hidangan", "Dish library")
+      }
       onDirtyChange={setLibraryDirty}
       categories={categories}
       categoryId={categoryId}
@@ -681,7 +724,9 @@ export function MenuCalendar({
           }}
         >
           <Library size={18} />
-          {t("Pustaka hidangan", "Dish library")}
+          {subscription
+            ? t("Pilihan hidangan", "Dish choices")
+            : t("Pustaka hidangan", "Dish library")}
         </Button>
       </div>
       {choiceOffer ? (
@@ -753,6 +798,19 @@ export function MenuCalendar({
                     "Locked dates are read only · Choose a future date to edit",
                   )}
                 </p>
+                {subscription && nextMenuDue && (
+                  <div className="menu-due-callout" role="status">
+                    <strong>{customerDayLabel(nextMenuDue)}</strong>
+                    <span>
+                      {fmt(nextMenuDue.date)} · {mealLabel(activeMeal, locale)}{" "}
+                      ·{" "}
+                      {t(
+                        "satu pilihan berlaku untuk semua porsi, tanpa biaya menu tambahan",
+                        "one choice applies to every portion, with no additional menu fee",
+                      )}
+                    </span>
+                  </div>
+                )}
                 {resource.error ? (
                   <ErrorNotice
                     message={resource.error}
@@ -807,9 +865,9 @@ export function MenuCalendar({
                                   ? menuNames.join(", ") ||
                                     t("Menu terisi", "Menu configured")
                                   : subscription
-                                    ? !d.editable
-                                      ? t("Katerer memilih", "Caterer chooses")
-                                      : t("Pilih menu", "Choose menu")
+                                    ? customerDayLabel(
+                                        d as CustomerMenuMonth["dates"][number],
+                                      )
                                     : t("Belum diisi", "Not set")) +
                                 (!d.editable
                                   ? t(" · Hanya baca", " · Read only")
@@ -882,9 +940,9 @@ export function MenuCalendar({
                               ) : (
                                 <span className="menu-day-empty">
                                   {subscription
-                                    ? !d.editable
-                                      ? t("Katerer memilih", "Caterer chooses")
-                                      : t("Pilih menu", "Choose menu")
+                                    ? customerDayLabel(
+                                        d as CustomerMenuMonth["dates"][number],
+                                      )
                                     : t("Belum diisi", "Not set")}
                                 </span>
                               )}
@@ -1133,7 +1191,11 @@ export function MenuCalendar({
           if (open) setLibraryOpen(true);
           else libraryGuard.close();
         }}
-        title={t("Pustaka hidangan", "Dish library")}
+        title={
+          subscription
+            ? t("Pilihan hidangan", "Dish choices")
+            : t("Pustaka hidangan", "Dish library")
+        }
         description={t(
           subscription
             ? "Pilih hidangan dari pustaka paket sesuai kategori slot."

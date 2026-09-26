@@ -290,13 +290,19 @@ function Packages({ state: s }: { state: SellerState }) {
                 {t("Kelola paket", "Manage package")} <ArrowRight size={16} />
               </Button>
             )}
-            {actor?.role === "owner" && o.status !== "draft" && (
-              <PackageLifecycle offer={o} />
+            {actor?.role === "owner" && (
+              <details className="package-secondary-settings">
+                <summary>
+                  {t("Pengaturan paket lanjutan", "Advanced package settings")}
+                </summary>
+                <div>
+                  {o.status !== "draft" && <PackageLifecycle offer={o} />}
+                  {["draft", "published"].includes(o.status) && (
+                    <PackageDurationEditor offer={o} />
+                  )}
+                </div>
+              </details>
             )}
-            {actor?.role === "owner" &&
-              ["draft", "published"].includes(o.status) && (
-                <PackageDurationEditor offer={o} />
-              )}
           </article>
         ))}
       </div>
@@ -398,8 +404,8 @@ function PackageLifecycle({ offer }: { offer: Offer }) {
               "Hidden from discovery and closed to new purchases. Existing deliveries continue.",
             )
           : t(
-              "Tangguhkan penjualan sebelum mengarsipkan paket. Pelanggan yang sudah membeli tetap dilayani.",
-              "Suspend sales before archiving. Existing customers will still receive their deliveries.",
+              "Tutup penjualan hanya jika paket ini tidak akan dijual lagi. Kewajiban pelanggan yang sudah membeli tetap berjalan.",
+              "Close sales only when this package will no longer be sold. Existing customer obligations continue.",
             )}
       </p>
       {suspended && !offer.canArchive && (
@@ -417,7 +423,7 @@ function PackageLifecycle({ offer }: { offer: Offer }) {
       >
         {suspended
           ? t("Arsipkan paket", "Archive package")
-          : t("Tangguhkan paket", "Suspend package")}
+          : t("Tutup penjualan permanen", "Permanently close sales")}
       </Button>
       <Dialog
         open={confirm}
@@ -426,15 +432,25 @@ function PackageLifecycle({ offer }: { offer: Offer }) {
         title={
           suspended
             ? t("Arsipkan paket?", "Archive package?")
-            : t("Tangguhkan penjualan?", "Suspend sales?")
+            : t(
+                `Tutup penjualan ${offer.name} secara permanen?`,
+                `Permanently close sales for ${offer.name}?`,
+              )
         }
-        description={offer.name}
+        description={
+          suspended
+            ? offer.name
+            : t(
+                "Penjualan baru berhenti, kewajiban yang ada tetap berjalan, dan paket ini tidak dapat dibuka kembali.",
+                "New sales stop, existing obligations continue, and this package cannot be reopened.",
+              )
+        }
       >
         <ActionForm
           submit={
             suspended
               ? t("Arsipkan paket", "Archive package")
-              : t("Tangguhkan paket", "Suspend package")
+              : t("Tutup penjualan permanen", "Permanently close sales")
           }
           disabled={suspended && !offer.canArchive}
           actions={(submit, busy) => (

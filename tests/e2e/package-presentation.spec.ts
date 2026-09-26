@@ -116,7 +116,7 @@ test("card meal switch, comparison, contents navigation, photo failure and viewe
     "2 Lauk · 1 Sayur · 1 Pelengkap spesial",
   );
   await expect(card.locator(".package-total-label")).toHaveText(
-    `Total paket · 1 porsi × ${box.days} hari`,
+    `Harga paket · 1 porsi × ${box.days} hari pengantaran × 2 waktu makan`,
   );
   await expect(card.locator(".card-price strong")).toHaveText(
     currency(packageSubtotal(box)),
@@ -205,6 +205,16 @@ test("responsive cards and galleries, duplicate single photo, English and text e
       ),
     ).toBe(true);
     await card.getByRole("link", { name: "Lihat paket", exact: true }).click();
+    if (width <= 430) {
+      await expect(page.locator(".mobile-purchase-summary")).toHaveCount(0);
+      await page.locator("#package-booking").scrollIntoViewIfNeeded();
+      await expect(page.locator(".mobile-purchase-summary")).toHaveCount(0);
+      await page.setViewportSize({ width, height: 520 });
+      await page.locator(".site-footer").scrollIntoViewIfNeeded();
+      await expect(page.locator(".mobile-purchase-summary")).toBeVisible();
+      await page.setViewportSize({ width, height: 1000 });
+      await page.locator("#isi-paket-lunch").scrollIntoViewIfNeeded();
+    }
     await page.locator("#isi-paket-lunch").scrollIntoViewIfNeeded();
     await page.locator("#isi-paket-lunch .dish-photo img").first().waitFor();
     await expect(
@@ -250,12 +260,17 @@ test("seller pricing and card preview stay aligned without persisting a total", 
 }) => {
   await page.request.post("/api/v1/auth/demo", { data: { role: "owner" } });
   const name = "Sintetis pratinjau draf " + Date.now();
-  const draft = await page.request.post("/api/v1/commands", { data: {
-    action: "package.save", requestId: crypto.randomUUID(), payload: {
-      catererId: box.catererId, slug: "preview-draft-" + crypto.randomUUID(),
-      offer: { ...box, name, status: "draft" },
+  const draft = await page.request.post("/api/v1/commands", {
+    data: {
+      action: "package.save",
+      requestId: crypto.randomUUID(),
+      payload: {
+        catererId: box.catererId,
+        slug: "preview-draft-" + crypto.randomUUID(),
+        offer: { ...box, name, status: "draft" },
+      },
     },
-  }});
+  });
   expect(draft.ok(), await draft.text()).toBe(true);
   await page.goto("/seller/packages");
   const row = page.locator(".panel").filter({
@@ -269,9 +284,7 @@ test("seller pricing and card preview stay aligned without persisting a total", 
   await expect(customCategories).toHaveCount(2);
   for (let i = 0; i < 2; i++) {
     await customCategories.first().click();
-    await page
-      .getByRole("option", { name: "Buah", exact: true })
-      .click();
+    await page.getByRole("option", { name: "Buah", exact: true }).click();
   }
   await page.getByRole("button", { name: /3\. Durasi & harga/ }).click();
   const duration = page.getByLabel("Hari pengantaran per periode", {

@@ -2,6 +2,33 @@
 
 > September 22 integration: see [V1 worktree integration](V1-WORKTREE-INTEGRATION-2026-09-22.md) for the combined implementation, superseded overlaps and fresh verification. Earlier no-push statements below describe their original work sessions.
 
+## September 26, 2026 — V1 UI/UX audit remediation
+
+The audit is treated as evidence, not an instruction source. `PRODUCT.md`, the
+current V1 contracts, and the approved web-first scope remain authoritative.
+Work is isolated from the dirty root in the managed
+`codex/uiux-audit-remediation` worktree at audit commit
+`9b9f9713a45e1ffe5df97e179d352e99945fca05`. All browser work uses explicit
+loopback synthetic storage; no hosted data, migration, deployment, push, or
+provider transaction is part of these results.
+
+| Audit item | Classification | Remediation / validation status |
+| --- | --- | --- |
+| M1 package lifecycle truth | Confirmed | Implemented locally: seller wording now states permanent closure, existing obligations, and no reopening while retaining the compatible `package.suspend` command. The named confirmation and cancel-without-command path pass browser coverage. |
+| M2 customer menu states | Confirmed | Implemented locally: public examples no longer reuse the seller dish library, internal/empty taxonomy is hidden, and post-payment due, saved, missed-cutoff caterer choice, unannounced, example, all-portions, and no-menu-fee states are distinct. Domain and customer-choice browser tests pass. |
+| M3 purchase commitment | Confirmed | Implemented locally: one derived contract now supplies discovery, comparison, detail, checkout, quoted breakdown, and renewal. Unknown fees remain unknown until quote; delivery, address eligibility, upfront payment, and manual renewal are explicit. The mobile summary appears only after the primary purchase panel has passed above the viewport. |
+| M4 customer Home | Confirmed | Pending the authorized customer-action read model and Home consolidation slice. |
+| M5 delivery recovery | Confirmed | Pending the delivery-detail and availability/review slice; existing atomic reservation rules remain authoritative. |
+| M6 seller operational scope | Confirmed | Pending the unified scope, actionable stage, count, and bulk-confirmation slice. |
+| M7 complete exception reachability | Confirmed | Pending structured attention fields, scope filters, and keyset pagination. |
+| M8 payment/resource recovery | Confirmed | Pending resource-phase and payment-action consolidation. Existing direct-payment duplicate-payment safeguards are preserved. |
+| P2 consistency and native parity | Validation-only until P1 passes | Web polish and a native parity backlog follow the P1 acceptance gates; native implementation remains deferred. |
+
+Slice-one local evidence: 21 focused domain/integration tests pass; customer menu
+browser flow passes 2/2; package-presentation checks pass after a focused sticky
+summary rerun; seller lifecycle cancellation passes. Generated browser output is
+local evidence only and is excluded from commits.
+
 ## September 19, 2026 — V1 end-to-end polish
 
 This objective supersedes feature expansion. Preserve the approved functionality,

@@ -1,9 +1,15 @@
 "use client";
-import { currency, purchasedCycles, type Quote } from "@catera/domain";
+import {
+  currency,
+  purchaseCommitment,
+  purchasedCycles,
+  type Quote,
+} from "@catera/domain";
 import { useApp } from "./context";
 import { Facts } from "./ui";
 export function PurchasePriceBreakdown({ quote: q }: { quote: Quote }) {
   const { t, locale } = useApp();
+  const commitment = purchaseCommitment({ offer: q.offer, quote: q });
   const rows: [string, string][] = [
     [
       t("Harga dasar / porsi / hari", "Base price / portion / day"),
@@ -16,9 +22,10 @@ export function PurchasePriceBreakdown({ quote: q }: { quote: Quote }) {
       t("Durasi paket", "Package duration"),
       `${purchasedCycles(q)} ${t("periode", "cycles")} · ${q.dates.length} ${t("hari pengantaran", "delivery days")}`,
     ],
+    [t("Porsi per waktu makan", "Portions per meal"), String(q.portions)],
     [
-      t("Porsi tetap setiap hari", "Fixed portions per day"),
-      String(q.portions),
+      t("Total porsi makan", "Total meal portions"),
+      String(commitment.totalMealPortions),
     ],
     [t("Subtotal paket", "Package subtotal"), currency(q.subtotal, locale)],
   ];
@@ -40,10 +47,13 @@ export function PurchasePriceBreakdown({ quote: q }: { quote: Quote }) {
     ]);
   rows.push(
     [t("Pengantaran", "Delivery"), t("Termasuk", "Included")],
-    [t("Biaya layanan", "Service fee"), currency(q.serviceFee, locale)],
+    [
+      t("Biaya layanan", "Service fee"),
+      currency(commitment.serviceFee ?? 0, locale),
+    ],
     [
       t("Dibayar penuh di awal", "Paid in full upfront"),
-      currency(q.total, locale),
+      currency(commitment.finalPayable ?? q.total, locale),
     ],
   );
   return <Facts rows={rows} />;

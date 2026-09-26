@@ -1540,9 +1540,18 @@ td strong {
 }
 .purchase-footnote {
   text-align: center;
-  font-size: 10px !important;
+  font-size: 13px !important;
   margin-top: 10px;
   line-height: 1.7;
+}
+.package-fee-note {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+.mobile-purchase-summary {
+  display: none;
 }
 .facts {
   margin: 22px 0;
@@ -3304,6 +3313,38 @@ td strong {
   .purchase-card {
     max-width: none;
   }
+  .mobile-purchase-summary {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: calc(var(--mobile-bottom-clearance, 0px) + 10px);
+    z-index: 35;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 10px 10px 16px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--surface);
+    box-shadow: 0 12px 32px rgb(29 55 45 / 18%);
+  }
+  .mobile-purchase-summary > span {
+    display: grid;
+    min-width: 0;
+  }
+  .mobile-purchase-summary small {
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .mobile-purchase-summary strong {
+    color: var(--forest);
+    font-size: 16px;
+  }
+  .mobile-purchase-summary .button {
+    min-height: 44px;
+    flex: 0 0 auto;
+  }
   .checkout-summary {
     display: grid;
     grid-template-columns: 200px 1fr;
@@ -4723,6 +4764,25 @@ textarea::placeholder {
 
 .package-lifecycle {
   grid-column: 1 / -1;
+}
+.package-secondary-settings {
+  grid-column: 1 / -1;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+.package-secondary-settings > summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  color: var(--forest);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.package-secondary-settings > div {
+  display: grid;
+  gap: 16px;
+  padding-top: 12px;
 }
 .direct-payment { margin-block: 1.5rem; text-align: left; }
 .payment-methods { border: 0; padding: 0; margin: 0 0 1rem; min-width: 0; }

@@ -15,6 +15,7 @@ export * from "./package-presentation";
 export * from "./offer-editor";
 export * from "./pilot";
 export * from "./purchase-pricing";
+export * from "./purchase-commitment";
 export * from "./settlement";
 
 export const mealTypes = ["lunch", "dinner", "both"] as const;

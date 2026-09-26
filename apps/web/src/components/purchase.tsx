@@ -38,6 +38,7 @@ import {
   type PaymentAvailability,
   type CustomerState,
   areaOptions,
+  purchaseCommitment,
 } from "@catera/domain";
 import { api, useApp, useResource } from "./context";
 import { Button, Checkbox, TextInput } from "./form-controls";
@@ -189,6 +190,16 @@ export function CheckoutPage({ id }: { id: string }) {
         </Link>
       </div>
     );
+  const commitment = purchaseCommitment({
+    offer: p,
+    portions,
+    cycles: trial ? 1 : cycles,
+    trial,
+    quote,
+    addressCovered: selectedAddress
+      ? p.areas.includes(selectedAddress.area)
+      : null,
+  });
   return (
     <div className="content checkout-page">
       <Link className="back-link" href={"/packages/" + p.slug}>
@@ -245,25 +256,21 @@ export function CheckoutPage({ id }: { id: string }) {
             <p>
               {trial
                 ? t("Trial 1 hari", "1-day trial")
-                : p.days * cycles +
+                : commitment.deliveryDays +
                   " " +
                   t("hari pengantaran", "delivery days")}{" "}
               · {mealLabel(p.meal, locale)} · {portions}{" "}
-              {t("porsi", "portions")}
+              {t("porsi per waktu makan", "portions per meal")}
             </p>
             <div className="total-row" aria-live="polite" aria-atomic="true">
               <strong>
                 {quote
                   ? t("Total pembayaran", "Total payment")
-                  : t("Subtotal dasar", "Base subtotal")}
+                  : t("Harga paket", "Package price")}
               </strong>
               <strong>
                 {currency(
-                  quote
-                    ? quote.total
-                    : (trial ? (p.trialPrice ?? p.price) : p.price) *
-                        portions *
-                        (trial ? 1 : p.days * cycles),
+                  commitment.finalPayable ?? commitment.packagePrice,
                   locale,
                 )}
               </strong>
@@ -275,9 +282,25 @@ export function CheckoutPage({ id }: { id: string }) {
                     "Includes delivery and service fee.",
                   )
                 : t(
-                    "Diskon dan biaya layanan dihitung saat meninjau jadwal.",
-                    "Discounts and service fee are calculated when you review the schedule.",
+                    "Pengantaran termasuk. Biaya layanan dan total akhir ditampilkan setelah alamat dan jadwal ditinjau.",
+                    "Delivery is included. The service fee and final total appear after address and schedule review.",
                   )}
+            </p>
+            <p className="small muted">
+              {commitment.addressEligibility === "eligible"
+                ? t(
+                    "Alamat yang dipilih termasuk area pengantaran paket ini.",
+                    "The selected address is within this package's delivery area.",
+                  )
+                : commitment.addressEligibility === "outside"
+                  ? t(
+                      "Alamat yang dipilih berada di luar area pengantaran paket ini.",
+                      "The selected address is outside this package's delivery area.",
+                    )
+                  : t(
+                      "Pilih alamat untuk memeriksa kelayakan pengantaran.",
+                      "Choose an address to check delivery eligibility.",
+                    )}
             </p>
             <details className="checkout-package-details">
               <summary>
@@ -593,10 +616,15 @@ export function PaymentPage({ id }: { id: string }) {
   }, []);
   useEffect(() => {
     if (state.data?.state !== "pending") return;
-    const refresh = () => { if (document.visibilityState === "visible") state.reload(); };
+    const refresh = () => {
+      if (document.visibilityState === "visible") state.reload();
+    };
     const timer = setInterval(refresh, 5000);
     document.addEventListener("visibilitychange", refresh);
-    return () => { clearInterval(timer); document.removeEventListener("visibilitychange", refresh); };
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", refresh);
+    };
   }, [state.data?.state]);
   if (state.error)
     return (
@@ -608,7 +636,14 @@ export function PaymentPage({ id }: { id: string }) {
   const c = state.data,
     seconds = Math.max(
       0,
-      Math.floor((Math.min(Date.parse(c.expires_at), Date.parse(c.payment?.expiresAt || c.expires_at)) - counter) / 1000),
+      Math.floor(
+        (Math.min(
+          Date.parse(c.expires_at),
+          Date.parse(c.payment?.expiresAt || c.expires_at),
+        ) -
+          counter) /
+          1000,
+      ),
     );
   if (c.state === "refunded" || c.state === "partially_refunded")
     return (
@@ -747,14 +782,16 @@ export function PaymentPage({ id }: { id: string }) {
               )}
             </p>
           )}
-          {c.payment?.mode !== "direct" && <p className="small muted">
-            QRIS · Virtual Account · E-wallet
-            <br />
-            {t(
-              "Status hanya berubah setelah pembayaran dikonfirmasi.",
-              "Status changes only after payment confirmation.",
-            )}
-          </p>}
+          {c.payment?.mode !== "direct" && (
+            <p className="small muted">
+              QRIS · Virtual Account · E-wallet
+              <br />
+              {t(
+                "Status hanya berubah setelah pembayaran dikonfirmasi.",
+                "Status changes only after payment confirmation.",
+              )}
+            </p>
+          )}
         </>
       ) : (
         <Link
@@ -773,15 +810,45 @@ export function PaymentPage({ id }: { id: string }) {
           {t("Buat jadwal baru", "Choose a new schedule")}
         </Link>
       )}
-      {c.payment?.mode === "direct" && c.state === "pending" && seconds === 0 && <p className="notice" role="status">{t("Batas pembayaran telah lewat. Jangan bayar menggunakan instruksi lama. Jika sudah membayar, kami masih memeriksa konfirmasinya.", "The payment deadline has passed. Do not pay using the old instructions. If you already paid, we are still checking confirmation.")}</p>}
-      {checkError && <p role="alert">{t("Status belum berhasil diperiksa. Coba lagi.", "Status could not be checked. Please try again.")}</p>}
-      <Button className="button secondary" disabled={checking} onClick={async () => {
-        setChecking(true); setCheckError(false);
-        try { if (c.payment?.mode === "direct") await api.command("checkout.payment.refresh", { id }); state.reload(); }
-        catch { setCheckError(true); } finally { setChecking(false); }
-      }}>
+      {c.payment?.mode === "direct" &&
+        c.state === "pending" &&
+        seconds === 0 && (
+          <p className="notice" role="status">
+            {t(
+              "Batas pembayaran telah lewat. Jangan bayar menggunakan instruksi lama. Jika sudah membayar, kami masih memeriksa konfirmasinya.",
+              "The payment deadline has passed. Do not pay using the old instructions. If you already paid, we are still checking confirmation.",
+            )}
+          </p>
+        )}
+      {checkError && (
+        <p role="alert">
+          {t(
+            "Status belum berhasil diperiksa. Coba lagi.",
+            "Status could not be checked. Please try again.",
+          )}
+        </p>
+      )}
+      <Button
+        className="button secondary"
+        disabled={checking}
+        onClick={async () => {
+          setChecking(true);
+          setCheckError(false);
+          try {
+            if (c.payment?.mode === "direct")
+              await api.command("checkout.payment.refresh", { id });
+            state.reload();
+          } catch {
+            setCheckError(true);
+          } finally {
+            setChecking(false);
+          }
+        }}
+      >
         <RefreshCw size={17} />
-        {checking ? t("Memeriksa…", "Checking…") : t("Periksa status", "Check status")}
+        {checking
+          ? t("Memeriksa…", "Checking…")
+          : t("Periksa status", "Check status")}
       </Button>
     </div>
   );

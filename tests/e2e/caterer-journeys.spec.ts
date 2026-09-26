@@ -54,8 +54,12 @@ test("duration discard, conflict retention and saved values; consequential actio
     )
       lifecycleCommands++;
   });
+  await card.getByText("Advanced package settings", { exact: true }).click();
   await card
-    .getByRole("button", { name: "Suspend package", exact: true })
+    .getByRole("button", {
+      name: "Permanently close sales",
+      exact: true,
+    })
     .click();
   await expect(page.getByRole("dialog")).toContainText("cannot be reopened");
   const cancel = page.getByRole("button", { name: "Cancel", exact: true });
@@ -104,6 +108,7 @@ test("duration discard, conflict retention and saved values; consequential actio
     .click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.reload();
+  await card.getByText("Advanced package settings", { exact: true }).click();
   await trigger.click();
   await expect(row.getByRole("spinbutton")).toHaveValue("4");
   // Verify this package's durable revision independently of the rendered fields.

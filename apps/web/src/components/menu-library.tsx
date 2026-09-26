@@ -16,6 +16,7 @@ export function MenuLibrary({
   onDragChange,
   manage = true,
   onDirtyChange,
+  title,
 }: {
   dishes: LibraryDish[];
   categories: DishCategory[];
@@ -25,6 +26,7 @@ export function MenuLibrary({
   onDragChange?: (dish: LibraryDish | null) => void;
   manage?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
+  title?: string;
 }) {
   const { actor, perform, t, locale } = useApp();
   const [search, setSearch] = useState(""),
@@ -37,6 +39,7 @@ export function MenuLibrary({
     setForm(null);
   }, [categoryId]);
   const picking = !!onPick;
+  const heading = title || t("Pustaka hidangan", "Dish library");
   const visible = dishes.filter(
     (d) =>
       (picking
@@ -45,12 +48,9 @@ export function MenuLibrary({
       d.name.toLocaleLowerCase().includes(search.toLocaleLowerCase()),
   );
   return (
-    <section
-      className="menu-library"
-      aria-label={t("Pustaka hidangan", "Dish library")}
-    >
+    <section className="menu-library" aria-label={heading}>
       <div className="section-heading">
-        <h2>{t("Pustaka hidangan", "Dish library")}</h2>
+        <h2>{heading}</h2>
         {manage && form === null && (
           <Button
             type="button"
