@@ -123,7 +123,7 @@ for (const locale of ["id", "en"])
       await page.goto("/seller/transactions?tab=entries");
       await expect(
         page.getByText(
-          locale === "id" ? "Saldo tersedia" : "Available balance",
+          locale === "id" ? "Tersedia untuk pencairan" : "Available for payout",
           { exact: true },
         ),
       ).toBeVisible();
@@ -163,7 +163,9 @@ for (const locale of ["id", "en"])
           exact: true,
         })
         .click();
-      await expect(page.getByRole("table").filter({ visible: true }).first()).toBeVisible();
+      await expect(
+        page.getByRole("table").filter({ visible: true }).first(),
+      ).toBeVisible();
       await page
         .getByRole("button", {
           name: locale === "id" ? "Lihat dana ditahan" : "View held funds",
@@ -182,6 +184,7 @@ for (const locale of ["id", "en"])
         page.getByRole("dialog").locator(".settlement-timeline li"),
       ).toHaveCount(2);
       await page.keyboard.press("Escape");
+      await expect(page.getByRole("dialog")).toHaveCount(0);
       const tab = page.getByRole("tab", {
         name: locale === "id" ? "Pencairan" : "Payouts",
         exact: true,
@@ -223,7 +226,7 @@ test("report failure and retry do not hide balances or purchases", async ({
   });
   await page.goto("/seller/transactions?tab=entries");
   await expect(
-    page.getByText("Available balance", { exact: true }),
+    page.getByText("Available for payout", { exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Try again", exact: true }),
@@ -233,9 +236,7 @@ test("report failure and retry do not hide balances or purchases", async ({
   await page.getByRole("button", { name: "Try again", exact: true }).click();
   await expect(page.locator(".settlement-bars")).toBeVisible();
   await page.getByRole("tab", { name: "Sales", exact: true }).click();
-  await expect(
-    page.getByRole("heading", { name: "Sales" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Sales" })).toBeVisible();
 });
 test("200 percent text and zero balances remain usable", async ({
   page,
@@ -259,7 +260,7 @@ test("200 percent text and zero balances remain usable", async ({
   await page.goto("/seller/transactions?tab=entries");
   await page.addStyleTag({ content: "html {font-size:200% !important}" });
   await expect(
-    page.getByText("Available balance", { exact: true }),
+    page.getByText("Available for payout", { exact: true }),
   ).toBeVisible();
   expect(
     await page.evaluate(
@@ -330,7 +331,9 @@ test("admin switches caterers without retaining the prior balance", async ({
   const picker = page.getByRole("combobox", { name: "Caterer", exact: true });
   await picker.click();
   await page.getByRole("option", { name: "Dapur Senja", exact: true }).click();
-  await expect(page.locator(".settlement-summary dd").first()).toContainText("411");
+  await expect(page.locator(".settlement-summary dd").first()).toContainText(
+    "411",
+  );
   await page.route("**/api/v1/seller-settlement/**", (r) =>
     r.fulfill({ json: { data: { ...overview, available: "99000" } } }),
   );
@@ -338,8 +341,12 @@ test("admin switches caterers without retaining the prior balance", async ({
   await page
     .getByRole("option", { name: "Hijau Kitchen", exact: true })
     .click();
-  await expect(page.locator(".settlement-summary dd").first()).toContainText("99");
-  await expect(page.locator(".settlement-summary dd").first()).not.toContainText("411");
+  await expect(page.locator(".settlement-summary dd").first()).toContainText(
+    "99",
+  );
+  await expect(
+    page.locator(".settlement-summary dd").first(),
+  ).not.toContainText("411");
   await expect(
     page.getByRole("tab", { name: "Sales", exact: true }),
   ).toHaveCount(0);
@@ -369,7 +376,7 @@ test("payout dialog is accessible and unknown history is not invented", async ({
   );
   await page.goto("/seller/transactions?tab=entries");
   await page.getByRole("tab", { name: /^(Payouts|Pencairan)$/ }).click();
-      await page.locator(".settlement-row-button").first().click();
+  await page.locator(".settlement-row-button").first().click();
   await expect(page.getByRole("dialog")).toContainText(
     "Status changes were not recorded",
   );

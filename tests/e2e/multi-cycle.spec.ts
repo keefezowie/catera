@@ -402,7 +402,7 @@ test("settlement owner read and admin rollout controls", async ({
   await expect(
     page
       .getByRole("region", { name: "Earnings overview" })
-      .getByText("Paid out", { exact: true }),
+      .getByText("Paid out · to bank", { exact: true }),
   ).toBeVisible();
   await page.request.post("/api/v1/auth/demo", {
     data: { role: "platform_admin" },

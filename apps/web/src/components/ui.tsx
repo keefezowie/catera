@@ -26,6 +26,16 @@ import { FormPending, OverlayLevel, useDialogLayer } from "./overlay";
 import { useExitPresence } from "./motion";
 const DialogBusy = createContext<((change: number) => void) | null>(null);
 const focusReturns = new WeakMap<HTMLElement, HTMLElement[]>();
+const prominentStatuses = new Set([
+  "pending",
+  "open",
+  "preparing",
+  "payment_exception",
+  "escalated",
+  "issue",
+  "failed",
+  "expired",
+]);
 export function Brand({ small = false }: { small?: boolean }) {
   return (
     <Link
@@ -45,8 +55,13 @@ export function Brand({ small = false }: { small?: boolean }) {
 }
 export function Status({ status }: { status: string }) {
   const { locale } = useApp();
+  const critical = prominentStatuses.has(status);
   return (
-    <span className={"status status-" + status}>
+    <span
+      className={
+        "status status-" + status + (critical ? " status-critical" : "")
+      }
+    >
       <span />
       {statusLabel(status, locale)}
     </span>

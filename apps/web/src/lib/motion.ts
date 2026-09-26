@@ -58,7 +58,7 @@ export function animateSurface(
 export function contentFrames(direction = 0): Keyframe[] {
   return [
     {
-      opacity: 0.65,
+      opacity: 1,
       transform: direction
         ? `translateX(${direction * 8}px)`
         : "translateY(6px)",

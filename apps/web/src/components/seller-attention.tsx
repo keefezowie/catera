@@ -60,10 +60,7 @@ export function NeedsAttention({
   const labels: Record<SellerAttentionItem["kind"], [string, string]> = {
     production_changed: [
       t("Daftar produksi sudah berubah", "Production list has changed"),
-      t(
-        "Periksa dan simpan revisi terbaru",
-        "Review and save the latest revision",
-      ),
+      t("Periksa dan simpan daftar terbaru", "Review and save the latest list"),
     ],
     delivery_issue: [
       t("Laporan pengantaran belum selesai", "Unresolved delivery report"),

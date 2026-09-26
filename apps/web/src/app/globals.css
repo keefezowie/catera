@@ -1848,6 +1848,11 @@ td strong {
   background: currentColor;
   border-radius: 50%;
 }
+.status-critical {
+  font-size: 12px;
+  font-weight: 650;
+  padding-block: 5px;
+}
 .status-pending,
 .status-open,
 .status-submitted,
@@ -4574,8 +4579,13 @@ textarea::placeholder {
 .customer-action p, .customer-action small {
   display: block; margin-top: 4px; color: var(--muted); font-size: 13px;
 }
-.customer-action.urgent { border-left: 4px solid var(--terracotta); }
-.customer-action.informative { border-left: 4px solid var(--forest); }
+.customer-action.urgent {
+  border-color: color-mix(in srgb, var(--terracotta) 52%, var(--line));
+  background: color-mix(in srgb, var(--terracotta) 4%, var(--cream));
+}
+.customer-action.informative {
+  border-color: color-mix(in srgb, var(--forest) 28%, var(--line));
+}
 .date-agenda {
   padding: 28px; border: 1px solid var(--line); border-radius: 18px;
   background: var(--soft);

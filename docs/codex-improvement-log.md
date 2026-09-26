@@ -22,7 +22,7 @@ provider transaction is part of these results.
 | M6 seller operational scope | Confirmed | Implemented locally: date, meal, package, status, and search now share one compact inline scope while calendar/grouping and the whole-day production export remain separate. Stage quantities filter the URL-addressable table and report selected stage, visible rows, orders, and portions. Bulk changes require a date/meal/source/destination/order/portion confirmation, exclude and explain incompatible selections, and retain selection/context after an atomic conflict. |
 | M7 complete exception reachability | Confirmed | Implemented locally: seller attention defaults to the selected day and top three, offers selected/future/all plus meal scopes, and uses structured date, meal, package, destination, and delivery fields. “Lihat semua masalah” expands the queue and continues through opaque keyset pages. Local authorization/pagination tests reach more than 100 eligible records exactly once. |
 | M8 payment/resource recovery | Confirmed | Implemented locally: shared reads expose `phase`, `hasData`, and stale-data state; delivery/payment keep stale data visible while disabling unsafe mutations. Payment derives preparing, awaiting, checking, paid, expired, and booking-unresolved views with an order reference and one safe next action. Uncertain states never expose hosted fallback or another-payment guidance. |
-| P2 consistency and native parity | Validation-only until P1 passes | Web polish and a native parity backlog follow the P1 acceptance gates; native implementation remains deferred. |
+| P2 consistency and native parity | Confirmed after P1 | Implemented locally: seller package controls remain quiet/secondary; menu and production work now use task-oriented “current/earlier contents” and saved-copy language; settlement keeps available, upcoming, held, and paid-out accounting intact while clarifying hierarchy; urgent shared statuses are no longer rendered at the tiniest label size. Native outcomes are mapped in `docs/CATERA-V1-NATIVE-PARITY-BACKLOG.md`; native implementation and device acceptance remain deferred. |
 
 Slice-one local evidence: 21 focused domain/integration tests pass; customer menu
 browser flow passes 2/2; package-presentation checks pass after a focused sticky
@@ -40,6 +40,15 @@ exception pagination. Customer Home passes desktop/mobile rendering and critical
 accessibility checks. Seller scope passes 1440/768/390 ID/EN control checks; the
 isolated three-order fixture passes stage/search filtering, explicit batch review,
 atomic-conflict selection retention, and whole-day export/accessibility coverage.
+
+P2 evidence: the one required Impeccable detector pass completed after the web
+batch. Applicable new findings were resolved with approved tokens and subtler
+whole-card emphasis; legacy whole-file advisories were not treated as authority
+to redesign the product. Settlement passes ID/EN at 360/768/1440, 200% text,
+keyboard tabs, refresh failure, and critical axe checks. Discovery and checkout
+pass ID/EN at 360/430/1280, while menu work passes phone touch/keyboard and
+reduced-motion checks. A transient heading-opacity contrast failure was fixed by
+retaining positional motion without fading text.
 
 ## September 19, 2026 — V1 end-to-end polish
 

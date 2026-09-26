@@ -576,10 +576,10 @@ export function MenuCalendar({
         <p>
           {t(
             query.get("package")
-              ? "Paket atau revisi ini tidak tersedia untuk ruang katerer Anda."
+              ? "Paket atau isi tersimpan ini tidak tersedia untuk ruang katerer Anda."
               : "Buat paket untuk mulai menyusun menu.",
             query.get("package")
-              ? "This package or revision is not available in your workspace."
+              ? "This package or saved content is not available in your workspace."
               : "Create a package to start planning menus.",
           )}
         </p>
@@ -621,6 +621,25 @@ export function MenuCalendar({
       month: "short",
       timeZone: "UTC",
     }).format(new Date(day + "T12:00:00Z"));
+  const contentPositions = new Map<string, number>();
+  const contentCounts = new Map<string, number>();
+  for (const contents of revisions) {
+    contentCounts.set(
+      contents.packageId,
+      (contentCounts.get(contents.packageId) || 0) + 1,
+    );
+  }
+  for (const packageId of contentCounts.keys()) {
+    revisions
+      .filter((contents) => contents.packageId === packageId)
+      .sort((left, right) => right.revision - left.revision)
+      .forEach((contents, position) => {
+        contentPositions.set(
+          contents.packageId + ":" + contents.revision,
+          position,
+        );
+      });
+  }
   return (
     <div
       className={
@@ -678,18 +697,28 @@ export function MenuCalendar({
               })
             }
           >
-            {revisions.map((r) => (
-              <SelectOption
-                key={r.packageId + ":" + r.revision}
-                value={r.packageId + ":" + r.revision}
-              >
-                {r.name}
-                {revisions.filter((other) => other.packageId === r.packageId)
-                  .length > 1
-                  ? ` · ${t("Isi", "Contents")} ${r.revision}`
-                  : ""}
-              </SelectOption>
-            ))}
+            {revisions.map((r) => {
+              const position =
+                contentPositions.get(r.packageId + ":" + r.revision) || 0;
+              const contentLabel =
+                (contentCounts.get(r.packageId) || 0) <= 1
+                  ? ""
+                  : position === 0
+                    ? t(" · Isi terbaru", " · Current contents")
+                    : t(
+                        ` · Isi pembelian sebelumnya ${position}`,
+                        ` · Earlier purchased contents ${position}`,
+                      );
+              return (
+                <SelectOption
+                  key={r.packageId + ":" + r.revision}
+                  value={r.packageId + ":" + r.revision}
+                >
+                  {r.name}
+                  {contentLabel}
+                </SelectOption>
+              );
+            })}
           </Select>
         </Field>
         {!choiceOffer && selected.contents.meal === "both" && (

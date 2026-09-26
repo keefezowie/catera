@@ -5,7 +5,7 @@
 }
 .settlement-summary {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1.35fr) repeat(3, minmax(0, 1fr));
   margin: 0;
   border: 1px solid var(--line);
   border-radius: 14px;
@@ -37,6 +37,12 @@
 .settlement-summary .available {
   background: var(--forest);
   color: var(--cream);
+}
+.settlement-summary .held {
+  background: color-mix(in srgb, var(--sunrise) 9%, var(--cream));
+}
+.settlement-summary .paid-out {
+  background: var(--soft);
 }
 .settlement-readiness-note {
   display: flex;

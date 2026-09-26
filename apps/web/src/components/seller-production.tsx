@@ -168,15 +168,15 @@ export function Production({
       >
         <p className="notice">
           {t(
-            "Setiap revisi menyimpan seluruh pesanan pada tanggal ini. Buat revisi baru jika jadwal berubah.",
-            "Each revision snapshots every order on this date. Create a new revision when the schedule changes.",
+            "Simpan seluruh pesanan tanggal ini sebagai salinan kerja. Simpan lagi bila jadwal berubah.",
+            "Save every order for this date as a working copy. Save again when the schedule changes.",
           )}
         </p>
       </ActionForm>
       {revision && (
         <div className="ops-saved-copy">
           <strong>
-            {t("Salinan tersimpan", "Saved copy")} · {revision.revision}
+            {t("Salinan tersimpan", "Saved copy")} #{revision.revision}
           </strong>
           {latest?.id === revision.id && (
             <p>
@@ -189,8 +189,8 @@ export function Production({
                 ? t("Memeriksa perubahan…", "Checking for changes…")
                 : latest.changed
                   ? t(
-                      "Pesanan langsung telah berubah. Simpan revisi baru untuk daftar terbaru.",
-                      "Live orders have changed. Save a new revision for an updated list.",
+                      "Pesanan telah berubah. Simpan salinan terbaru sebelum digunakan.",
+                      "Orders changed. Save the latest copy before using the list.",
                     )
                   : t(
                       "Sesuai dengan pesanan saat terakhir diperiksa.",
@@ -200,14 +200,14 @@ export function Production({
           )}
           <p>
             {t(
-              "Salinan revisi tersimpan; simpan revisi baru setelah perubahan. Ringkasan langsung di atas dapat berbeda.",
-              "Saved revision copy; save a new revision after changes. The live overview above may differ.",
+              "Salinan ini tidak berubah otomatis. Simpan lagi setelah pesanan berubah; ringkasan di atas selalu menampilkan data terbaru.",
+              "This copy does not update automatically. Save again after orders change; the overview above always shows current data.",
             )}{" "}
             · {date} · {t("sehari penuh", "whole day")}
           </p>
           <a className="button spaced" href={"/api/manifests/" + revision.id}>
             <Download size={18} />
-            {t("Unduh CSV · revisi", "Download CSV · revision")}{" "}
+            {t("Unduh CSV · salinan", "Download CSV · copy")} #
             {revision.revision}
           </a>
         </div>
