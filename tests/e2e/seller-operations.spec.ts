@@ -25,10 +25,26 @@ test("Today splits meals and addresses, bulk updates, and retains conflict selec
   await expect(
     main.getByText("Jalan Sintetis Kantor 2, Kelapa Gading"),
   ).toBeVisible();
+  const scheduledStage = main
+    .locator(".ops-stages")
+    .getByRole("button", { name: /^Terjadwal:/ });
+  await scheduledStage.click();
+  await expect(page).toHaveURL(/stage=scheduled/);
+  await expect(scheduledStage).toHaveAttribute("aria-pressed", "true");
+  await expect(main.locator(".ops-visible-summary")).toContainText(
+    "3 baris terlihat · 3 pesanan · 6 porsi",
+  );
+  await main.getByRole("searchbox", { name: "Cari pesanan" }).fill("Kantor");
+  await expect(page).toHaveURL(/search=Kantor/);
+  await expect(main.locator("tbody tr:not(.ops-group-heading)")).toHaveCount(1);
+  await main.getByRole("button", { name: "Hapus filter" }).click();
+  await expect(main.locator("tbody tr:not(.ops-group-heading)")).toHaveCount(3);
   await main
     .getByRole("checkbox", { name: "Pilih semua pesanan", exact: true })
     .check();
-  await expect(main.getByText("3 dipilih", { exact: true })).toBeVisible();
+  await expect(main.locator(".ops-bulk-toolbar")).toContainText(
+    "3 pesanan valid",
+  );
   // Simulate another operator changing the first selected delivery after selection.
   const response = await page.request.get(
     `/api/v1/seller/10000000-0000-4000-8000-000000000001?date=${date}`,
@@ -48,11 +64,23 @@ test("Today splits meals and addresses, bulk updates, and retains conflict selec
     },
   });
   await main.getByRole("button", { name: /^Mulai siapkan ·/ }).click();
-  await expect(main.getByRole("alert")).toContainText("Pesanan telah berubah");
-  await expect(main.getByText("3 dipilih", { exact: true })).toBeVisible();
-  await expect(
-    main.getByText("Pilih pesanan dengan langkah status berikutnya yang sama."),
-  ).toBeVisible();
+  const confirmation = page.getByRole("dialog", {
+    name: "Konfirmasi pembaruan pesanan",
+  });
+  await expect(confirmation).toContainText("3");
+  await expect(confirmation).toContainText("6");
+  await confirmation
+    .getByRole("button", { name: "Konfirmasi perubahan" })
+    .click();
+  await expect(confirmation.getByRole("alert")).toContainText(
+    "Pesanan telah berubah",
+  );
+  await confirmation
+    .getByRole("button", { name: "Kembali tinjau pilihan" })
+    .click();
+  await expect(main.locator(".ops-bulk-toolbar")).toContainText(
+    "pilihan tidak valid",
+  );
   await main.getByRole("button", { name: "Batal pilih", exact: true }).click();
   const scheduled = main
     .locator("tbody tr:not(.ops-group-heading)")
@@ -60,6 +88,9 @@ test("Today splits meals and addresses, bulk updates, and retains conflict selec
   for (const row of await scheduled.all())
     await row.getByRole("checkbox").check();
   await main.getByRole("button", { name: /^Mulai siapkan ·/ }).click();
+  await confirmation
+    .getByRole("button", { name: "Konfirmasi perubahan" })
+    .click();
   await expect(main.locator("tbody .status-preparing")).toHaveCount(3);
   await main.getByRole("tab", { name: /^Malam/ }).click();
   await expect(main.locator("tbody .status-scheduled")).toHaveCount(3);
@@ -94,8 +125,9 @@ test("Schedule filters, redirects, exports a whole-day CSV, and renders desktop/
   await expect(
     main.locator(".ops-order-table tbody tr:not(.ops-group-heading)"),
   ).toHaveCount(3);
-  const packages = main.getByRole("group", { name: "Filter paket" });
-  await packages.getByRole("button").nth(1).click();
+  const packages = main.getByRole("combobox", { name: "Filter paket" });
+  await packages.click();
+  await page.getByRole("option").nth(1).click();
   await expect(
     main.locator(".ops-order-table tbody tr:not(.ops-group-heading)"),
   ).toHaveCount(1);
@@ -111,9 +143,8 @@ test("Schedule filters, redirects, exports a whole-day CSV, and renders desktop/
     main.getByRole("button", { name: "Simpan daftar pengantaran" }),
   ).toBeEnabled();
   await expect(csv).toBeVisible();
-  await packages
-    .getByRole("button", { name: "Semua paket", exact: true })
-    .click();
+  await packages.click();
+  await page.getByRole("option", { name: "Semua paket", exact: true }).click();
   await main.locator(".ops-production summary").click();
   await expect(main.locator(".coverage-strip")).not.toHaveAttribute(
     "aria-busy",

@@ -95,6 +95,54 @@
   padding: 8px 10px;
   font-size: 12px;
 }
+.public-choice-gallery {
+  display: grid;
+  gap: 16px;
+  margin-top: 18px;
+}
+.public-choice-gallery > div:first-child p,
+.public-choice-empty p {
+  max-width: 68ch;
+  margin: 6px 0 0;
+  color: var(--muted);
+  line-height: 1.65;
+}
+.public-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 190px), 1fr));
+  gap: 12px;
+}
+.public-choice-card {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.public-choice-card > img {
+  width: 100%;
+  height: 124px;
+  object-fit: cover;
+}
+.public-choice-card > div {
+  display: grid;
+  gap: 5px;
+  padding: 12px;
+}
+.public-choice-card small,
+.public-choice-card p {
+  color: var(--muted);
+  line-height: 1.5;
+}
+.public-choice-card p {
+  margin: 0;
+  font-size: 13px;
+}
+.public-choice-empty {
+  margin-top: 18px;
+  padding: 16px;
+  border-left: 3px solid var(--ochre);
+  background: var(--soft);
+}
 @media (max-width: 600px) {
   .choice-library-heading {
     flex-direction: column;

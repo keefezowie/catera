@@ -5,6 +5,56 @@ import AxeBuilder from "@axe-core/playwright";
 import { mkdir, readFile } from "node:fs/promises";
 import type { Checkout, DirectPaymentMethod } from "@catera/domain";
 const id = "99999999-1111-4111-8111-111111111111";
+function paymentQuote(total: number, name = "Paket makan Catera") {
+  return {
+    packageId: "99999999-3333-4333-8333-333333333333",
+    total,
+    packageNet: total,
+    subtotal: total,
+    discount: 0,
+    discountPercent: 0,
+    durationDiscount: 0,
+    promotion: 0,
+    serviceFee: 0,
+    portions: 1,
+    cycles: 1,
+    trial: false,
+    dates: ["2026-10-01"],
+    perDay: total,
+    sellerFee: 0,
+    source: "direct-payment-ui-fixture",
+    offer: {
+      id: "99999999-3333-4333-8333-333333333333",
+      slug: "direct-payment-ui-fixture",
+      catererId: "99999999-4444-4444-8444-444444444444",
+      caterer: "Catera Fixture",
+      catererSlug: "catera-fixture",
+      name,
+      description: "Synthetic direct-payment browser fixture.",
+      price: total,
+      days: 1,
+      meal: "lunch",
+      weekdays: [4],
+      flexible: true,
+      image: "",
+      tags: [],
+      trialPrice: null,
+      trialMax: null,
+      tiers: [],
+      capacity: {},
+      windows: { lunch: "11:00–13:00", dinner: "17:00–19:00" },
+      areas: [],
+      cutoff: "09:00",
+      timezone: "Asia/Jakarta",
+      menus: [],
+      rating: null,
+      reviewCount: 0,
+      status: "published",
+      sellerStatus: "approved",
+      version: 1,
+    },
+  } satisfies Checkout["quote"];
+}
 // UI contract fixtures only. Provider and transactional tests live in doku-direct.test.ts.
 function qr(total: number) {
   const a = String(total),
@@ -56,13 +106,7 @@ for (const locale of ["id", "en"])
           payment_url: null,
           subscription_id: null,
           expires_at: deadline,
-          quote: {
-            total: 162500,
-            offer: { name: "Paket makan Catera" },
-            portions: 1,
-            dates: ["2026-10-01"],
-            cycles: 1,
-          },
+          quote: paymentQuote(162500),
           payment: {
             mode: "direct",
             availableMethods: ["VIRTUAL_ACCOUNT_BRI", "QRIS"],
@@ -215,7 +259,7 @@ test("expired and uncertain payments never expose old instructions or hosted fal
           expires_at: expiry,
           payment_mode: "direct",
           payment_url: "https://staging.doku.com/checkout/never-open",
-          quote: { total: 10000, offer: { name: "Synthetic" }, portions: 1 },
+          quote: paymentQuote(10000, "Synthetic"),
           payment: {
             mode: "direct",
             selectedMethod: "QRIS",
@@ -254,7 +298,7 @@ test("visible-page polling pauses in background and refreshes immediately on ret
           expires_at: expiry,
           payment_mode: "direct",
           payment_url: null,
-          quote: { total: 10000, offer: { name: "Synthetic" }, portions: 1 },
+          quote: paymentQuote(10000, "Synthetic"),
           payment: {
             mode: "direct",
             selectedMethod: "QRIS",

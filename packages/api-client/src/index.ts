@@ -23,6 +23,9 @@ import type {
   SettlementCursor,
   SettlementHistoryKind,
   SettlementReportingUnavailable,
+  DeliveryAvailability,
+  CustomerActionFeed,
+  SellerAttentionPage,
 } from "@catera/domain";
 export class ApiError extends Error {
   constructor(
@@ -58,11 +61,41 @@ export function createApi(base = "", token?: () => Promise<string | null>) {
       request<{ items: Offer[]; nextCursor: string | null }>("catalog" + query),
     me: () => request<{ actor: Actor | null; demo: boolean }>("me"),
     customer: (query = "") => request<CustomerState>("customer" + query),
+    customerActions: (limit = 20) =>
+      request<CustomerActionFeed>(
+        "customer-actions?" + new URLSearchParams({ limit: String(limit) }),
+      ),
+    deliveryAvailability: (id: string, from: string, to: string) =>
+      request<DeliveryAvailability[]>(
+        "availability/" + id + "?" + new URLSearchParams({ from, to }),
+      ),
     seller: (id: string, date: string) =>
       request<SellerState>("seller/" + id + "?date=" + date),
     sellerOperations: (id: string, date?: string) =>
       request<SellerOperationsState>(
         "seller/" + id + (date ? "?date=" + date : ""),
+      ),
+    sellerAttention: (
+      id: string,
+      params: {
+        scope?: "selected" | "future" | "all";
+        date?: string;
+        meal?: "lunch" | "dinner";
+        cursor?: string;
+        limit?: number;
+      } = {},
+    ) =>
+      request<SellerAttentionPage>(
+        "seller-attention/" +
+          id +
+          "?" +
+          new URLSearchParams({
+            scope: params.scope ?? "all",
+            limit: String(params.limit ?? 20),
+            ...(params.date ? { date: params.date } : {}),
+            ...(params.meal ? { meal: params.meal } : {}),
+            ...(params.cursor ? { cursor: params.cursor } : {}),
+          }),
       ),
     sellerCalendar: (id: string, params: Record<string, string>) =>
       request<SellerCalendar>(

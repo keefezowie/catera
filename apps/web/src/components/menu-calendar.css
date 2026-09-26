@@ -507,6 +507,20 @@
 .menu-calendar-legend svg {
   flex-shrink: 0;
 }
+.menu-due-callout {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-left: 3px solid var(--sunrise-ink, #9b4309);
+  background: var(--soft);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.menu-due-callout span {
+  color: var(--muted);
+  font-size: 13px;
+}
 .menu-day.selected .menu-day-heading strong {
   text-decoration: underline;
   text-underline-offset: 4px;

@@ -12,6 +12,7 @@ import { createApi } from "@catera/api-client";
 import { createBrowserClient } from "@supabase/ssr";
 import {
   errorLabel,
+  resourcePhase,
   type Actor,
   type Offer,
   type Locale,
@@ -33,8 +34,8 @@ const actionMessages: Record<string, [string, string]> = {
   ],
   "package.save": ["Paket tersimpan.", "Package saved."],
   "package.suspend": [
-    "Penjualan paket ditangguhkan.",
-    "Package sales suspended.",
+    "Penjualan paket ditutup permanen.",
+    "Package sales permanently closed.",
   ],
   "package.archive": ["Paket diarsipkan.", "Package archived."],
   "seller.save": ["Profil katerer tersimpan.", "Caterer profile saved."],
@@ -359,10 +360,20 @@ export function useResource<T>(
           ? "Data could not be loaded. Try again."
           : "Data belum berhasil dimuat. Coba lagi.")
       : "";
+  const data = current || keepPreviousData ? result.data : null;
+  const hasData = data !== null;
+  const phase = resourcePhase({
+    hasData,
+    loading: !current || result.loading,
+    error: Boolean(error),
+  });
   return {
-    data: current || keepPreviousData ? result.data : null,
+    data,
     error,
     loading: !current || result.loading,
+    phase,
+    hasData,
+    stale: phase === "stale_error",
     reload: () => setTick((v) => v + 1),
   };
 }

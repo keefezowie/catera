@@ -260,14 +260,16 @@ function BalanceOverview({
       </div>
       <dl className="settlement-summary">
         <div className="available">
-          <dt>{t("Saldo tersedia", "Available balance")}</dt>
+          <dt>{t("Tersedia untuk pencairan", "Available for payout")}</dt>
           <dd>
             {money(s.available)}
             <small>{t("Pengantaran selesai", "Completed deliveries")}</small>
           </dd>
         </div>
-        <div>
-          <dt>{t("Pengantaran mendatang", "Upcoming deliveries")}</dt>
+        <div className="upcoming">
+          <dt>
+            {t("Mendatang · nilai pengantaran", "Upcoming · delivery value")}
+          </dt>
           <dd>
             {money(s.expected)}
             <small>
@@ -278,8 +280,8 @@ function BalanceOverview({
             </small>
           </dd>
         </div>
-        <div>
-          <dt>{t("Dana ditahan", "Held funds")}</dt>
+        <div className="held">
+          <dt>{t("Ditahan · dalam peninjauan", "Held · under review")}</dt>
           <dd>
             {money(s.held)}
             {BigInt(s.held) > 0n && !!s.reportingVersion ? (
@@ -291,8 +293,8 @@ function BalanceOverview({
             )}
           </dd>
         </div>
-        <div>
-          <dt>{t("Sudah dicairkan", "Paid out")}</dt>
+        <div className="paid-out">
+          <dt>{t("Sudah dicairkan · ke bank", "Paid out · to bank")}</dt>
           <dd>
             {money(s.paid)}
             <small>{t("Sepanjang waktu", "All time")}</small>

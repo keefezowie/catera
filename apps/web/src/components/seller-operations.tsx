@@ -38,7 +38,15 @@ import { useJourneyQuery } from "./journey-state";
 import { Button, Checkbox, TextInput } from "./form-controls";
 import { Select, SelectOption } from "./select";
 import { DatePicker } from "./date-picker";
-import { Heading, Loading, ErrorNotice, Empty, Status, Facts } from "./ui";
+import {
+  Heading,
+  Loading,
+  ErrorNotice,
+  Empty,
+  Status,
+  Facts,
+  Dialog,
+} from "./ui";
 import { Production } from "./seller-production";
 import { SellerReadiness } from "./seller-readiness";
 import { NeedsAttention } from "./seller-attention";
@@ -192,15 +200,27 @@ function OperationsPage({
     return () => clearTimeout(timer);
   }, [now, s.deliveries]);
   const [filterSearch, setFilterSearch] = useState("");
-  const packageId = schedule ? query.get("package") || "" : "";
+  const packageId = query.get("package") || "";
   const status =
     schedule && ["all", "cancelled"].includes(query.get("status") || "")
       ? query.get("status")!
       : "active";
+  const stageOptions = [
+    "scheduled",
+    "preparing",
+    "out_for_delivery",
+    "delivered",
+    "issue",
+  ];
+  const selectedStage =
+    !schedule && stageOptions.includes(query.get("stage") || "")
+      ? query.get("stage")!
+      : "";
+  const search = (query.get("search") || "").trim().toLocaleLowerCase();
   function navigate(values: Record<string, string>) {
     const next = new URLSearchParams(query);
     if (
-      ["date", "meal", "package", "status", "group"].some(
+      ["date", "meal", "package", "status", "stage", "group"].some(
         (key) => key in values,
       )
     ) {
@@ -222,7 +242,16 @@ function OperationsPage({
         status === "all" ||
         (status === "cancelled"
           ? d.status === "cancelled"
-          : d.status !== "cancelled")),
+          : d.status !== "cancelled")) &&
+      (!selectedStage || fulfillmentStatus(d, meal) === selectedStage) &&
+      (!search ||
+        [
+          d.customer.name,
+          d.offer.name,
+          d.address.label,
+          d.address.line,
+          d.address.area,
+        ].some((value) => value.toLocaleLowerCase().includes(search))),
   );
   const includeCancelled = schedule && status !== "active";
   const grouping =
@@ -346,50 +375,19 @@ function OperationsPage({
           }}
         />
       )}
-      {schedule && (
-        <div
-          className="ops-package-filter"
-          role="group"
-          aria-label={t("Filter paket", "Package filter")}
-        >
-          {[
-            { id: "", name: t("Semua paket", "All packages") },
-            ...s.offers,
-          ].map((p) => (
-            <Button
-              key={p.id}
-              className={
-                "button secondary small" +
-                (packageId === p.id ? " is-selected" : "")
-              }
-              aria-pressed={packageId === p.id}
-              onClick={() => navigate({ package: p.id })}
-            >
-              {p.name}
-            </Button>
-          ))}
+      <section
+        className="ops-scope-area"
+        aria-label={t("Cakupan pesanan", "Order scope")}
+      >
+        <div className="ops-scope-field ops-date">
+          <span>{t("Tanggal", "Date")}</span>
+          <DatePicker
+            compact
+            aria-label={t("Tanggal operasional", "Operational date")}
+            value={date}
+            onValueChange={(value) => navigate({ date: value })}
+          />
         </div>
-      )}
-      {schedule && (
-        <p className="muted">
-          {t(
-            "Porsi pada tab: seluruh tanggal ini, semua paket dan pelanggan.",
-            "Tab portions: this whole day, all packages and customers.",
-          )}
-        </p>
-      )}
-      <div className="ops-filter-row">
-        {!schedule && (
-          <div className="ops-date">
-            <DatePicker
-              compact
-              aria-label={t("Tanggal operasional", "Operational date")}
-              value={date}
-              onValueChange={(value) => navigate({ date: value })}
-            />
-          </div>
-        )}
-
         <div
           className="ops-meal-tabs"
           role="tablist"
@@ -454,24 +452,92 @@ function OperationsPage({
             ),
           )}
         </div>
-        {schedule && (
+        <label className="ops-scope-field">
+          <span>{t("Paket", "Package")}</span>
+          <Select
+            aria-label={t("Filter paket", "Package filter")}
+            value={packageId}
+            onValueChange={(value) => navigate({ package: value })}
+          >
+            <SelectOption value="">
+              {t("Semua paket", "All packages")}
+            </SelectOption>
+            {s.offers.map((offer) => (
+              <SelectOption key={offer.id} value={offer.id}>
+                {offer.name}
+              </SelectOption>
+            ))}
+          </Select>
+        </label>
+        <label className="ops-scope-field">
+          <span>{t("Status", "Status")}</span>
           <Select
             aria-label={t("Status pesanan", "Order status")}
-            value={status}
-            onValueChange={(value) => navigate({ status: value })}
+            value={schedule ? status : selectedStage}
+            onValueChange={(value) =>
+              navigate(schedule ? { status: value } : { stage: value })
+            }
           >
-            <SelectOption value="active">
-              {t("Tidak dibatalkan", "Not cancelled")}
-            </SelectOption>
-            <SelectOption value="all">
-              {t("Semua status", "All statuses")}
-            </SelectOption>
-            <SelectOption value="cancelled">
-              {t("Dibatalkan", "Cancelled")}
-            </SelectOption>
+            {schedule ? (
+              <>
+                <SelectOption value="active">
+                  {t("Tidak dibatalkan", "Not cancelled")}
+                </SelectOption>
+                <SelectOption value="all">
+                  {t("Semua status", "All statuses")}
+                </SelectOption>
+                <SelectOption value="cancelled">
+                  {t("Dibatalkan", "Cancelled")}
+                </SelectOption>
+              </>
+            ) : (
+              <>
+                <SelectOption value="">
+                  {t("Semua tahap", "All stages")}
+                </SelectOption>
+                {stageOptions.map((stage) => (
+                  <SelectOption key={stage} value={stage}>
+                    {statusLabel(stage, locale)}
+                  </SelectOption>
+                ))}
+              </>
+            )}
           </Select>
+        </label>
+        <label className="ops-scope-field ops-scope-search">
+          <span>{t("Cari", "Search")}</span>
+          <TextInput
+            type="search"
+            aria-label={t("Cari pesanan", "Search orders")}
+            placeholder={t(
+              "Pelanggan, paket, atau alamat",
+              "Customer, package, or address",
+            )}
+            value={query.get("search") || ""}
+            onChange={(event) => navigate({ search: event.target.value })}
+          />
+        </label>
+        {(packageId ||
+          selectedStage ||
+          search ||
+          (schedule && (status !== "active" || meal !== "all"))) && (
+          <Button
+            className="text-button ops-scope-reset"
+            onClick={() =>
+              navigate({
+                package: "",
+                stage: "",
+                search: "",
+                status: "",
+                meal: "",
+              })
+            }
+          >
+            <X size={16} aria-hidden="true" />
+            {t("Hapus filter", "Clear filters")}
+          </Button>
         )}
-      </div>
+      </section>
       {schedule ? (
         <div
           className="ops-scope-summary"
@@ -519,14 +585,34 @@ function OperationsPage({
           </p>
           <div className="ops-stages">
             {Object.entries(workload.stages).map(([status, portions]) => (
-              <span key={status}>
+              <Button
+                type="button"
+                variant="secondary"
+                key={status}
+                aria-pressed={selectedStage === status}
+                className={selectedStage === status ? "is-selected" : ""}
+                onClick={() =>
+                  navigate({ stage: selectedStage === status ? "" : status })
+                }
+              >
                 {statusLabel(status, locale)}:{" "}
                 <strong>
                   {loading ? "…" : portions} {t("porsi", "portions")}
                 </strong>
-              </span>
+              </Button>
             ))}
           </div>
+          <p className="ops-visible-summary" role="status">
+            {selectedStage && (
+              <>
+                {t("Tahap terpilih", "Selected stage")}:{" "}
+                {statusLabel(selectedStage, locale)} ·{" "}
+              </>
+            )}
+            {filteredRows.length} {t("baris terlihat", "visible rows")} ·{" "}
+            {summary.orders} {t("pesanan", "orders")} · {summary.portions}{" "}
+            {t("porsi", "portions")}
+          </p>
           {!loading &&
             !workload.orders &&
             (meal === "lunch" ? dinner.orders : lunch.orders) > 0 && (
@@ -583,7 +669,9 @@ function OperationsPage({
           ))}
         </details>
       )}
-      {!schedule && <NeedsAttention catererId={s.caterer.id} />}
+      {!schedule && (
+        <NeedsAttention catererId={s.caterer.id} date={date} meal={meal} />
+      )}
       {schedule && (
         <div className="ops-group-controls">
           <label>
@@ -639,9 +727,16 @@ function OperationsPage({
         }
       >
         <OrderTable
-          key={[date, meal, packageId, status, grouping, selectedGroup].join(
-            ":",
-          )}
+          key={[
+            date,
+            meal,
+            packageId,
+            status,
+            selectedStage,
+            search,
+            grouping,
+            selectedGroup,
+          ].join(":")}
           rows={filteredRows}
           scheduleGrouping={grouping}
           scheduleFilter={
@@ -842,9 +937,7 @@ function ScheduleCalendar({
         <Button
           className="icon-button calendar-scroll-arrow"
           aria-label={t("Tanggal sebelumnya", "Earlier dates")}
-          onClick={() =>
-            scrollSurface(strip.current, -400)
-          }
+          onClick={() => scrollSurface(strip.current, -400)}
         >
           <ChevronLeft />
         </Button>
@@ -915,9 +1008,7 @@ function ScheduleCalendar({
         <Button
           className="icon-button calendar-scroll-arrow"
           aria-label={t("Tanggal berikutnya", "Later dates")}
-          onClick={() =>
-            scrollSurface(strip.current, 400)
-          }
+          onClick={() => scrollSurface(strip.current, 400)}
         >
           <ChevronRight />
         </Button>
@@ -982,6 +1073,11 @@ function OrderTable({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [confirmation, setConfirmation] = useState<{
+    items: SellerDelivery[];
+    status: string;
+    invalidCount: number;
+  } | null>(null);
   const detailRef = useRef<HTMLElement>(null);
   const opener = useRef<HTMLElement | null>(null);
   const previousDetail = useRef("");
@@ -991,17 +1087,24 @@ function OrderTable({
       date <= today && nextDeliveryStatuses(fulfillmentStatus(d, meal)).length,
   );
   const chosen = eligible.filter((d) => selected.includes(d.id));
-  const invalidated = selected.filter(
-    (id) => !eligible.some((row) => row.id === id),
-  );
-  const options = chosen.length
-    ? nextDeliveryStatuses(fulfillmentStatus(chosen[0], meal)).filter((s) =>
-        chosen.every((d) =>
-          nextDeliveryStatuses(fulfillmentStatus(d, meal)).includes(s),
+  const options = [
+    ...new Set(
+      chosen.flatMap((order) =>
+        nextDeliveryStatuses(fulfillmentStatus(order, meal)),
+      ),
+    ),
+  ];
+  const effectiveTarget = options.includes(target) ? target : options[0] || "";
+  const validChosen = effectiveTarget
+    ? chosen.filter((order) =>
+        nextDeliveryStatuses(fulfillmentStatus(order, meal)).includes(
+          effectiveTarget,
         ),
       )
     : [];
-  const effectiveTarget = options.includes(target) ? target : options[0] || "";
+  const invalidSelectionIds = selected.filter(
+    (id) => !validChosen.some((order) => order.id === id),
+  );
   const d = rows.find((d) => d.id === detail);
   const actionLabel = (status: string) =>
     ({
@@ -1067,6 +1170,7 @@ function OrderTable({
         items: items.map((d) => ({ id: d.id, version: d.version })),
       });
       setSelected([]);
+      setConfirmation(null);
       setSuccess(
         `${items.length} ${t("pesanan diperbarui", "orders updated")} · ${mealLabel(meal, locale)} · ${statusLabel(status, locale)}`,
       );
@@ -1137,7 +1241,9 @@ function OrderTable({
             aria-label={t("Perbarui pilihan", "Update selected orders")}
           >
             <strong>
-              {chosen.length} {t("dipilih", "selected")}
+              {validChosen.length} {t("pesanan valid", "valid orders")} ·{" "}
+              {validChosen.reduce((total, order) => total + order.portions, 0)}{" "}
+              {t("porsi", "portions")}
             </strong>
             {options.length ? (
               <>
@@ -1156,12 +1262,19 @@ function OrderTable({
                 <Button
                   className="button small"
                   disabled={busy || loading || chosen.length > 500}
-                  onClick={() => update(chosen, effectiveTarget)}
+                  onClick={() => {
+                    setTarget(effectiveTarget);
+                    setConfirmation({
+                      items: validChosen,
+                      status: effectiveTarget,
+                      invalidCount: invalidSelectionIds.length,
+                    });
+                  }}
                 >
                   {actionIcon(effectiveTarget)}
                   {busy
                     ? t("Menyimpan…", "Saving…")
-                    : `${actionLabel(effectiveTarget)} · ${chosen.length}`}
+                    : `${actionLabel(effectiveTarget)} · ${validChosen.length}`}
                 </Button>
               </>
             ) : (
@@ -1177,6 +1290,15 @@ function OrderTable({
                 {t(
                   "Maksimal 500 pesanan per pembaruan.",
                   "Select up to 500 orders per update.",
+                )}
+              </span>
+            )}
+            {!!invalidSelectionIds.length && (
+              <span>
+                {invalidSelectionIds.length}{" "}
+                {t(
+                  "pilihan tidak valid tidak akan diubah.",
+                  "invalid selections will not be changed.",
                 )}
               </span>
             )}
@@ -1463,9 +1585,9 @@ function OrderTable({
           </>
         )}
       </section>
-      {!!invalidated.length && (
+      {!!invalidSelectionIds.length && (
         <p role="status" className="notice">
-          {invalidated.length}{" "}
+          {invalidSelectionIds.length}{" "}
           {t(
             "pilihan tidak lagi tersedia untuk tindakan ini setelah pembaruan. Tinjau status atau filter; pilihan yang masih memenuhi syarat tetap dipilih.",
             "selections are no longer available for this action after refresh. Review status or filters; eligible selections remain selected.",
@@ -1473,13 +1595,92 @@ function OrderTable({
           <Button
             variant="secondary"
             onClick={() =>
-              setSelected(selected.filter((id) => !invalidated.includes(id)))
+              setSelected(
+                selected.filter((id) => !invalidSelectionIds.includes(id)),
+              )
             }
           >
             {t("Hapus pilihan tidak berlaku", "Clear unavailable selections")}
           </Button>
         </p>
       )}
+      <Dialog
+        open={!!confirmation}
+        onOpenChange={(open) => {
+          if (!open && !busy) setConfirmation(null);
+        }}
+        title={t("Konfirmasi pembaruan pesanan", "Confirm order update")}
+        description={t(
+          "Periksa cakupan ini sebelum status pesanan diubah.",
+          "Review this scope before order statuses change.",
+        )}
+      >
+        {confirmation && (
+          <div className="bulk-confirmation">
+            <Facts
+              rows={[
+                [t("Tanggal", "Date"), date],
+                [t("Waktu makan", "Meal"), mealLabel(meal, locale)],
+                [
+                  t("Status asal", "Source status"),
+                  [
+                    ...new Set(
+                      confirmation.items.map((item) =>
+                        statusLabel(fulfillmentStatus(item, meal), locale),
+                      ),
+                    ),
+                  ].join(", "),
+                ],
+                [
+                  t("Status tujuan", "Target status"),
+                  statusLabel(confirmation.status, locale),
+                ],
+                [t("Pesanan valid", "Valid orders"), confirmation.items.length],
+                [
+                  t("Jumlah porsi", "Portion count"),
+                  confirmation.items.reduce(
+                    (total, item) => total + item.portions,
+                    0,
+                  ),
+                ],
+              ]}
+            />
+            {!!confirmation.invalidCount && (
+              <p className="notice">
+                {confirmation.invalidCount}{" "}
+                {t(
+                  "pilihan sudah berubah atau tidak cocok dengan tahap ini. Pilihan tersebut tetap terlihat untuk ditinjau, tetapi tidak akan dikirim.",
+                  "selections changed or no longer match this stage. They remain visible for review but will not be submitted.",
+                )}
+              </p>
+            )}
+            {error && (
+              <p className="notice error" role="alert">
+                {error}
+              </p>
+            )}
+            <div className="action-row">
+              <Button
+                className="button"
+                disabled={busy || loading}
+                onClick={() => update(confirmation.items, confirmation.status)}
+              >
+                {actionIcon(confirmation.status)}
+                {busy
+                  ? t("Menyimpan…", "Saving…")
+                  : t("Konfirmasi perubahan", "Confirm change")}
+              </Button>
+              <Button
+                variant="secondary"
+                disabled={busy}
+                onClick={() => setConfirmation(null)}
+              >
+                {t("Kembali tinjau pilihan", "Review selection again")}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Dialog>
       {d && (
         <aside
           ref={detailRef}

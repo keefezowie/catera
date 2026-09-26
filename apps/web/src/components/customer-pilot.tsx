@@ -2,9 +2,14 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
-import { normalizeCustomerPhone, durationOptions } from "@catera/domain";
+import {
+  currency,
+  durationOptions,
+  normalizeCustomerPhone,
+  purchaseCommitment,
+} from "@catera/domain";
 import { api, useApp, useResource } from "./context";
-import { ActionForm, ErrorNotice, Field, Heading, Loading } from "./ui";
+import { ActionForm, ErrorNotice, Facts, Field, Heading, Loading } from "./ui";
 import { TextInput } from "./form-controls";
 import { Select, SelectOption } from "./select";
 export function ClaimCustomer({ token }: { token: string }) {
@@ -118,7 +123,7 @@ export function ClaimCustomer({ token }: { token: string }) {
   );
 }
 export function RenewCustomer({ id }: { id: string }) {
-  const { t, perform } = useApp(),
+  const { t, perform, locale } = useApp(),
     params = useSearchParams();
   const [replacement, setReplacement] = useState(params.get("packageId") || "");
   const [cycles, setCycles] = useState(1);
@@ -135,6 +140,15 @@ export function RenewCustomer({ id }: { id: string }) {
       <Loading />
     );
   const r = state.data;
+  const selectedOffer = r.offers.find((offer) => offer.id === r.packageId);
+  const commitment = selectedOffer
+    ? purchaseCommitment({
+        offer: selectedOffer,
+        portions: r.portions,
+        cycles,
+        addressCovered: selectedOffer.areas.includes(r.address.area),
+      })
+    : null;
   return (
     <section className="panel narrow">
       <Heading
@@ -199,6 +213,29 @@ export function RenewCustomer({ id }: { id: string }) {
       <p>
         {r.address?.line} · {r.address?.area}
       </p>
+      {commitment && (
+        <Facts
+          rows={[
+            [
+              t("Hari pengantaran", "Delivery days"),
+              String(commitment.deliveryDays),
+            ],
+            [
+              t("Porsi per waktu makan", "Portions per meal"),
+              String(commitment.portionsPerMeal),
+            ],
+            [
+              t("Harga paket", "Package price"),
+              currency(commitment.packagePrice, locale),
+            ],
+            [t("Pengantaran", "Delivery"), t("Termasuk", "Included")],
+            [
+              t("Perpanjangan", "Renewal"),
+              t("Manual · dibayar di awal", "Manual · paid upfront"),
+            ],
+          ]}
+        />
+      )}
       {!r.available && (
         <p role="status">
           {t(

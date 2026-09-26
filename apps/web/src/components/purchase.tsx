@@ -38,6 +38,8 @@ import {
   type PaymentAvailability,
   type CustomerState,
   areaOptions,
+  paymentPresentation,
+  purchaseCommitment,
 } from "@catera/domain";
 import { api, useApp, useResource } from "./context";
 import { Button, Checkbox, TextInput } from "./form-controls";
@@ -189,6 +191,16 @@ export function CheckoutPage({ id }: { id: string }) {
         </Link>
       </div>
     );
+  const commitment = purchaseCommitment({
+    offer: p,
+    portions,
+    cycles: trial ? 1 : cycles,
+    trial,
+    quote,
+    addressCovered: selectedAddress
+      ? p.areas.includes(selectedAddress.area)
+      : null,
+  });
   return (
     <div className="content checkout-page">
       <Link className="back-link" href={"/packages/" + p.slug}>
@@ -245,25 +257,21 @@ export function CheckoutPage({ id }: { id: string }) {
             <p>
               {trial
                 ? t("Trial 1 hari", "1-day trial")
-                : p.days * cycles +
+                : commitment.deliveryDays +
                   " " +
                   t("hari pengantaran", "delivery days")}{" "}
               · {mealLabel(p.meal, locale)} · {portions}{" "}
-              {t("porsi", "portions")}
+              {t("porsi per waktu makan", "portions per meal")}
             </p>
             <div className="total-row" aria-live="polite" aria-atomic="true">
               <strong>
                 {quote
                   ? t("Total pembayaran", "Total payment")
-                  : t("Subtotal dasar", "Base subtotal")}
+                  : t("Harga paket", "Package price")}
               </strong>
               <strong>
                 {currency(
-                  quote
-                    ? quote.total
-                    : (trial ? (p.trialPrice ?? p.price) : p.price) *
-                        portions *
-                        (trial ? 1 : p.days * cycles),
+                  commitment.finalPayable ?? commitment.packagePrice,
                   locale,
                 )}
               </strong>
@@ -275,9 +283,25 @@ export function CheckoutPage({ id }: { id: string }) {
                     "Includes delivery and service fee.",
                   )
                 : t(
-                    "Diskon dan biaya layanan dihitung saat meninjau jadwal.",
-                    "Discounts and service fee are calculated when you review the schedule.",
+                    "Pengantaran termasuk. Biaya layanan dan total akhir ditampilkan setelah alamat dan jadwal ditinjau.",
+                    "Delivery is included. The service fee and final total appear after address and schedule review.",
                   )}
+            </p>
+            <p className="small muted">
+              {commitment.addressEligibility === "eligible"
+                ? t(
+                    "Alamat yang dipilih termasuk area pengantaran paket ini.",
+                    "The selected address is within this package's delivery area.",
+                  )
+                : commitment.addressEligibility === "outside"
+                  ? t(
+                      "Alamat yang dipilih berada di luar area pengantaran paket ini.",
+                      "The selected address is outside this package's delivery area.",
+                    )
+                  : t(
+                      "Pilih alamat untuk memeriksa kelayakan pengantaran.",
+                      "Choose an address to check delivery eligibility.",
+                    )}
             </p>
             <details className="checkout-package-details">
               <summary>
@@ -593,12 +617,17 @@ export function PaymentPage({ id }: { id: string }) {
   }, []);
   useEffect(() => {
     if (state.data?.state !== "pending") return;
-    const refresh = () => { if (document.visibilityState === "visible") state.reload(); };
+    const refresh = () => {
+      if (document.visibilityState === "visible") state.reload();
+    };
     const timer = setInterval(refresh, 5000);
     document.addEventListener("visibilitychange", refresh);
-    return () => { clearInterval(timer); document.removeEventListener("visibilitychange", refresh); };
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", refresh);
+    };
   }, [state.data?.state]);
-  if (state.error)
+  if (state.error && !state.hasData)
     return (
       <div className="narrow">
         <ErrorNotice message={state.error} retry={state.reload} />
@@ -608,8 +637,56 @@ export function PaymentPage({ id }: { id: string }) {
   const c = state.data,
     seconds = Math.max(
       0,
-      Math.floor((Math.min(Date.parse(c.expires_at), Date.parse(c.payment?.expiresAt || c.expires_at)) - counter) / 1000),
+      Math.floor(
+        (Math.min(
+          Date.parse(c.expires_at),
+          Date.parse(c.payment?.expiresAt || c.expires_at),
+        ) -
+          counter) /
+          1000,
+      ),
     );
+  const payment = paymentPresentation(
+    {
+      checkoutState: c.state,
+      expiresAt: c.payment?.expiresAt || c.expires_at,
+      payment: c.payment,
+      hasPaymentUrl: Boolean(c.payment_url),
+      hasSubscription: Boolean(c.subscription_id),
+    },
+    counter,
+  );
+  const commitment = purchaseCommitment({
+    offer: c.quote.offer,
+    quote: c.quote,
+  });
+  const unsafeMutation = state.stale || state.loading;
+  const demoSimulation =
+    demo &&
+    c.state === "pending" &&
+    seconds > 0 &&
+    c.payment?.mode !== "direct";
+  const newScheduleHref = c.quote.renewedFrom
+    ? "/renew/" + c.quote.renewedFrom
+    : "/checkout/" +
+      c.quote.packageId +
+      "?cycles=" +
+      (c.quote.cycles ?? 1) +
+      "&portions=" +
+      c.quote.portions;
+  async function checkPaymentStatus() {
+    setChecking(true);
+    setCheckError(false);
+    try {
+      if (c.payment?.mode === "direct")
+        await api.command("checkout.payment.refresh", { id });
+      state.reload();
+    } catch {
+      setCheckError(true);
+    } finally {
+      setChecking(false);
+    }
+  }
   if (c.state === "refunded" || c.state === "partially_refunded")
     return (
       <div className="narrow payment-pending">
@@ -629,17 +706,12 @@ export function PaymentPage({ id }: { id: string }) {
             "See the support decision for refund details. Delivery schedules follow the confirmed decision.",
           )}
         </p>
+        <p className="small muted">
+          {t("Referensi pesanan", "Order reference")}: {c.id}
+        </p>
         <Link className="button" href="/support">
           {t("Lihat bantuan", "View support")}
         </Link>
-        {c.subscription_id && (
-          <Link
-            className="button secondary"
-            href={"/subscriptions/" + c.subscription_id}
-          >
-            {t("Detail langganan", "Subscription details")}
-          </Link>
-        )}
       </div>
     );
   if (c.subscription_id && c.state === "paid")
@@ -659,15 +731,12 @@ export function PaymentPage({ id }: { id: string }) {
           {c.quote.offer.name} · {c.quote.portions} {t("porsi", "portions")} ·{" "}
           {c.quote.dates.length} {t("hari", "days")}
         </p>
+        <p className="small muted">
+          {t("Referensi pesanan", "Order reference")}: {c.id}
+        </p>
         <Link className="button" href="/calendar">
           {t("Lihat jadwal makan", "View meal calendar")}
           <ArrowRight size={18} />
-        </Link>
-        <Link
-          className="text-button"
-          href={"/subscriptions/" + c.subscription_id}
-        >
-          {t("Detail langganan", "Subscription details")}
         </Link>
       </div>
     );
@@ -675,25 +744,41 @@ export function PaymentPage({ id }: { id: string }) {
     <div className="narrow payment-pending">
       <Heading
         title={
-          c.state === "payment_exception"
-            ? t("Pembayaran sedang ditinjau", "Your payment is being reviewed")
-            : c.state === "failed"
-              ? t("Pembayaran gagal", "Payment failed")
-              : c.state === "pending" && seconds
-                ? t(
-                    "Satu langkah menuju makan enak.",
-                    "One step away from good meals.",
-                  )
-                : t("Waktu pembayaran habis", "Payment time expired")
+          payment.phase === "booking_unresolved"
+            ? t(
+                "Pembayaran diterima, jadwal sedang ditinjau",
+                "Payment received, booking under review",
+              )
+            : payment.phase === "checking"
+              ? t("Memeriksa pembayaran", "Checking payment")
+              : payment.phase === "awaiting_payment"
+                ? t("Menunggu pembayaran", "Awaiting payment")
+                : payment.phase === "preparing"
+                  ? t("Menyiapkan pembayaran", "Preparing payment")
+                  : t("Waktu pembayaran habis", "Payment time expired")
         }
       />
+      {state.stale && (
+        <ErrorNotice message={state.error} retry={state.reload} />
+      )}
       <Facts
         rows={[
+          [t("Referensi pesanan", "Order reference"), c.id],
           [t("Paket", "Package"), c.quote.offer.name],
-          [t("Total", "Total"), currency(c.quote.total, locale)],
+          [t("Hari pengantaran", "Delivery days"), commitment.deliveryDays],
+          [
+            t("Porsi per waktu makan", "Portions per meal"),
+            commitment.portionsPerMeal,
+          ],
+          [
+            t("Total dibayar di awal", "Total paid upfront"),
+            currency(commitment.finalPayable ?? c.quote.total, locale),
+          ],
           [
             t("Batas pembayaran", "Time remaining"),
-            `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`,
+            seconds > 0
+              ? `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`
+              : t("Berakhir", "Expired"),
           ],
         ]}
       />
@@ -705,84 +790,104 @@ export function PaymentPage({ id }: { id: string }) {
           )}
         </p>
       )}
-      {c.state === "payment_exception" ? (
-        <p className="notice">
+      {payment.phase === "booking_unresolved" && (
+        <p className="notice" role="status">
           {t(
-            "Pembayaran diterima setelah jadwal tidak tersedia. Tim Catera akan meninjau penyelesaiannya. Anda tidak akan menerima langganan tanpa kapasitas.",
-            "Payment arrived after the schedule became unavailable. Catera will review the resolution. You will not receive a subscription without capacity.",
+            "Uang telah diterima, tetapi jadwal belum berhasil dibuat. Tim Catera sedang meninjau penyelesaiannya. Jangan melakukan pembayaran kedua.",
+            "Money was received, but the booking is not resolved yet. Catera is reviewing it. Do not make another payment.",
           )}
         </p>
-      ) : c.state === "pending" && seconds > 0 ? (
-        <>
-          {c.payment?.mode === "direct" ? (
-            <DirectPayment checkout={c} reload={state.reload} />
-          ) : demo ? (
-            <ActionForm
-              submit={t(
-                "Simulasikan pembayaran berhasil",
-                "Simulate successful payment",
+      )}
+      {payment.phase === "checking" && (
+        <p className="notice" role="status">
+          {seconds === 0
+            ? t(
+                "Batas pembayaran telah lewat. Jangan bayar menggunakan instruksi lama. Jika sudah membayar, kami masih memeriksa konfirmasinya.",
+                "The payment deadline has passed. Do not pay using old instructions. If you already paid, we are still checking confirmation.",
+              )
+            : t(
+                "Kami sedang memeriksa pembayaran. Jangan membuat pembayaran lain atau memakai instruksi lama.",
+                "We are checking the payment. Do not make another payment or reuse old instructions.",
               )}
-              onSubmit={async () => {
-                await perform("checkout.demo_pay", { id });
-                state.reload();
-              }}
-            >
-              <p className="notice">
-                {t(
-                  "Simulasi demo: tidak ada uang yang ditagih.",
-                  "Demo simulation: no money is charged.",
-                )}
-              </p>
-            </ActionForm>
-          ) : c.payment_url ? (
-            <a className="button full" href={c.payment_url}>
-              {t("Buka pembayaran aman", "Open secure payment")}
-              <ExternalLink size={16} />
-            </a>
-          ) : (
+        </p>
+      )}
+      {c.state === "pending" &&
+        ["preparing", "awaiting_payment"].includes(payment.phase) &&
+        (c.payment?.mode === "direct" ? (
+          <DirectPayment
+            checkout={c}
+            reload={state.reload}
+            disabled={unsafeMutation}
+          />
+        ) : demoSimulation ? (
+          <ActionForm
+            disabled={unsafeMutation}
+            submit={t(
+              "Simulasikan pembayaran berhasil",
+              "Simulate successful payment",
+            )}
+            onSubmit={async () => {
+              await perform("checkout.demo_pay", { id });
+              state.reload();
+            }}
+          >
             <p className="notice">
               {t(
-                "Tautan pembayaran sedang disiapkan. Halaman ini diperbarui otomatis.",
-                "Your payment link is being prepared. This page updates automatically.",
+                "Simulasi demo: tidak ada uang yang ditagih.",
+                "Demo simulation: no money is charged.",
               )}
             </p>
-          )}
-          {c.payment?.mode !== "direct" && <p className="small muted">
-            QRIS · Virtual Account · E-wallet
-            <br />
+          </ActionForm>
+        ) : payment.action === "open_payment" && c.payment_url ? (
+          <a
+            className={"button full" + (unsafeMutation ? " disabled" : "")}
+            aria-disabled={unsafeMutation}
+            onClick={(event) => {
+              if (unsafeMutation) event.preventDefault();
+            }}
+            href={c.payment_url}
+          >
+            {t("Buka pembayaran aman", "Open secure payment")}
+            <ExternalLink size={16} />
+          </a>
+        ) : (
+          <p className="notice">
             {t(
-              "Status hanya berubah setelah pembayaran dikonfirmasi.",
-              "Status changes only after payment confirmation.",
+              "Instruksi pembayaran sedang disiapkan. Periksa status tanpa membuat pesanan baru.",
+              "Payment instructions are being prepared. Check the status without creating a new order.",
             )}
-          </p>}
-        </>
-      ) : (
-        <Link
-          className="button"
-          href={
-            c.quote.renewedFrom
-              ? "/renew/" + c.quote.renewedFrom
-              : "/checkout/" +
-                c.quote.packageId +
-                "?cycles=" +
-                (c.quote.cycles ?? 1) +
-                "&portions=" +
-                c.quote.portions
-          }
-        >
+          </p>
+        ))}
+      {payment.action === "contact_support" && (
+        <Link className="button" href="/support">
+          {t("Hubungi bantuan", "Contact support")}
+        </Link>
+      )}
+      {payment.action === "choose_new_schedule" && (
+        <Link className="button" href={newScheduleHref}>
           {t("Buat jadwal baru", "Choose a new schedule")}
         </Link>
       )}
-      {c.payment?.mode === "direct" && c.state === "pending" && seconds === 0 && <p className="notice" role="status">{t("Batas pembayaran telah lewat. Jangan bayar menggunakan instruksi lama. Jika sudah membayar, kami masih memeriksa konfirmasinya.", "The payment deadline has passed. Do not pay using the old instructions. If you already paid, we are still checking confirmation.")}</p>}
-      {checkError && <p role="alert">{t("Status belum berhasil diperiksa. Coba lagi.", "Status could not be checked. Please try again.")}</p>}
-      <Button className="button secondary" disabled={checking} onClick={async () => {
-        setChecking(true); setCheckError(false);
-        try { if (c.payment?.mode === "direct") await api.command("checkout.payment.refresh", { id }); state.reload(); }
-        catch { setCheckError(true); } finally { setChecking(false); }
-      }}>
-        <RefreshCw size={17} />
-        {checking ? t("Memeriksa…", "Checking…") : t("Periksa status", "Check status")}
-      </Button>
+      {checkError && (
+        <p role="alert">
+          {t(
+            "Status belum berhasil diperiksa. Coba lagi.",
+            "Status could not be checked. Please try again.",
+          )}
+        </p>
+      )}
+      {payment.action === "check_status" && !demoSimulation && (
+        <Button
+          className="button"
+          disabled={checking || unsafeMutation}
+          onClick={checkPaymentStatus}
+        >
+          <RefreshCw size={17} />
+          {checking
+            ? t("Memeriksa…", "Checking…")
+            : t("Periksa status", "Check status")}
+        </Button>
+      )}
     </div>
   );
 }

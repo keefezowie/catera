@@ -188,9 +188,16 @@ for (const width of [390, 1440]) {
     expect(support.ok(), await support.text()).toBe(true);
     await login(page);
     await page.goto("/seller/customers");
-    await page.locator(".pilot-customer-grid > article").filter({ hasText: "Akun terhubung" }).first().getByRole("button", { name: "Lihat jadwal", exact: true }).click();
+    await page
+      .locator(".pilot-customer-grid > article")
+      .filter({ hasText: "Akun terhubung" })
+      .first()
+      .getByRole("button", { name: "Lihat jadwal", exact: true })
+      .click();
     await expect(page.locator(".pilot-customer-grid > article")).toHaveCount(1);
-    await expect(page.locator(".pilot-customer-grid > article")).toContainText("Akun terhubung");
+    await expect(page.locator(".pilot-customer-grid > article")).toContainText(
+      "Akun terhubung",
+    );
     for (const path of ["transactions", "support"]) {
       await page.goto("/seller/" + path);
       const details = page.locator("details.record-details");
@@ -418,16 +425,18 @@ for (const width of [390, 1440]) {
     );
     expect(delivery).toBeTruthy();
     await page.goto("/deliveries/" + delivery.id);
-    for (const label of [
-      "Ubah alamat",
-      "Ganti tanggal",
-      "Lewati & pilih pengganti",
-    ]) {
+    for (const label of ["Ubah alamat", "Ubah jadwal"]) {
       const trigger = page.getByRole("button", { name: label, exact: true });
       await trigger.click();
       dialog = page.locator(".dialog");
       await expect(dialog).toBeVisible();
       if (label !== "Ubah alamat") {
+        await expect(
+          dialog.getByRole("button", {
+            name: "Lewati tanggal ini dan pilih pengganti",
+            exact: true,
+          }),
+        ).toBeVisible();
         const date = dialog.getByRole("button", {
           name: "Tanggal pengganti",
           exact: true,

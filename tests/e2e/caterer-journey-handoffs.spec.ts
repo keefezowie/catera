@@ -97,8 +97,12 @@ test("all package modes expose commercial terms; confirmed lifecycle persists on
   const card = page.locator(".seller-packages article").filter({
     has: page.getByRole("heading", { name: target.name, exact: true }),
   });
+  await card.getByText("Advanced package settings", { exact: true }).click();
   await card
-    .getByRole("button", { name: "Suspend package", exact: true })
+    .getByRole("button", {
+      name: "Permanently close sales",
+      exact: true,
+    })
     .click();
   await expect(page.getByRole("dialog")).toContainText(target.name);
   const response = page.waitForResponse(
@@ -108,7 +112,10 @@ test("all package modes expose commercial terms; confirmed lifecycle persists on
   );
   await page
     .getByRole("dialog")
-    .getByRole("button", { name: "Suspend package", exact: true })
+    .getByRole("button", {
+      name: "Permanently close sales",
+      exact: true,
+    })
     .dblclick();
   expect((await response).ok()).toBe(true);
   await expect(

@@ -22,7 +22,7 @@ async function accessible(page: Page) {
   expect(results.violations).toEqual([]);
 }
 
-for (const width of [320, 390, 768, 1440])
+for (const width of [320, 360, 390, 430, 768, 1280, 1440])
   for (const locale of ["id", "en"] as const) {
     test(`discovery recovery and navigation preserve intent ${locale} ${width}`, async ({
       page,
@@ -151,7 +151,7 @@ for (const width of [320, 390, 768, 1440])
       const summary = page.getByRole("complementary", {
         name: t("Ringkasan paket", "Package summary"),
       });
-      await expect(summary).toContainText(t("Subtotal dasar", "Base subtotal"));
+      await expect(summary).toContainText(t("Harga paket", "Package price"));
       if (width < 700)
         expect((await summary.boundingBox())!.y).toBeLessThan(
           (await page.locator(".checkout-fields").boundingBox())!.y,
@@ -191,8 +191,8 @@ for (const width of [320, 390, 768, 1440])
       await page
         .getByRole("checkbox", {
           name: t(
-            "Saya sudah memeriksa jadwal, alamat, dan aturan paket.",
-            "I have reviewed the schedule, address, and package rules.",
+            "Saya menyetujui Syarat & Ketentuan pembelian, termasuk jadwal, alamat, harga, dan aturan paket yang ditampilkan.",
+            "I accept the purchase Terms & Conditions, including the displayed schedule, address, price, and package rules.",
           ),
         })
         .check();
@@ -268,7 +268,7 @@ test("populated comparison supports keyboard scrolling and logical headings", as
     name: "Perbandingan paket",
     exact: true,
   });
-  for (const width of [320, 390, 768, 1440]) {
+  for (const width of [320, 360, 390, 430, 768, 1280, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     await expect(comparison.getByRole("heading", { level: 2 })).toHaveCount(2);
     await comparison.focus();
@@ -278,10 +278,15 @@ test("populated comparison supports keyboard scrolling and logical headings", as
       await expect
         .poll(() => comparison.evaluate((el) => el.scrollLeft))
         .toBeGreaterThan(0);
-      const label = (await comparison.locator("tbody th").first().boundingBox())!;
+      const label = (await comparison
+        .locator("tbody th")
+        .first()
+        .boundingBox())!;
       const region = (await comparison.boundingBox())!;
       expect(label.x).toBeGreaterThanOrEqual(region.x - 1);
-      expect(label.x + label.width).toBeLessThanOrEqual(region.x + region.width);
+      expect(label.x + label.width).toBeLessThanOrEqual(
+        region.x + region.width,
+      );
     }
     expect(
       (
@@ -301,7 +306,9 @@ test("populated comparison supports keyboard scrolling and logical headings", as
         () => document.documentElement.scrollWidth <= innerWidth,
       ),
     ).toBe(true);
-    await comparison.evaluate((el) => { el.scrollLeft = 0; });
+    await comparison.evaluate((el) => {
+      el.scrollLeft = 0;
+    });
     await comparison.blur();
     await page.screenshot({ path: `${evidence}/comparison-id-${width}.png` });
   }

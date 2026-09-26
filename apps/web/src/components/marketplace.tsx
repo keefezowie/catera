@@ -17,7 +17,7 @@ import {
 } from "@catera/domain";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   catalogDefaults,
   readCatalogQuery,
@@ -50,8 +50,8 @@ import {
   currency,
   mealLabel,
   areaOptions,
-  packageSubtotal,
   perMealPrice,
+  purchaseCommitment,
   type Offer,
 } from "@catera/domain";
 import { useApp, api, useResource } from "./context";
@@ -68,6 +68,7 @@ export function PackageCard({
   const { area, compare, toggleCompare, locale, t } = useApp();
   const [meal, setMeal] = useState("lunch");
   const covered = !area || offer.areas.includes(area);
+  const commitment = purchaseCommitment({ offer, addressCovered: covered });
   const compared = compare.includes(offer.id);
   const navigation = {
     "aria-disabled": preview,
@@ -140,16 +141,25 @@ export function PackageCard({
         <div className="package-pricing">
           <div className="card-price">
             <small className="package-total-label">
-              {t("Total paket", "Package total")} · 1 {t("porsi", "portion")} ×{" "}
-              {offer.days} {t("hari", "days")}
+              {t("Harga paket", "Package price")} · 1 {t("porsi", "portion")} ×{" "}
+              {commitment.deliveryDays} {t("hari pengantaran", "delivery days")}
+              {commitment.mealCountPerDay === 2
+                ? ` × 2 ${t("waktu makan", "meals")}`
+                : ""}
             </small>
-            <strong>{currency(packageSubtotal(offer), locale)}</strong>
+            <strong>{currency(commitment.packagePrice, locale)}</strong>
             <small className="package-unit-price">
               {currency(perMealPrice(offer), locale)}{" "}
               {t("/ sekali makan", "/ meal")}
               {offer.meal === "both"
                 ? t(" · 2 kali makan / hari", " · 2 meals / day")
                 : ""}
+            </small>
+            <small className="package-fee-note">
+              {t(
+                "Biaya layanan dihitung saat checkout.",
+                "Service fee is calculated at checkout.",
+              )}
             </small>
           </div>
           <p className={"delivery-included " + (!covered ? "unavailable" : "")}>
@@ -630,6 +640,8 @@ export function PackagePage({
   const { offers, t, locale, area, compare, toggleCompare } = useApp();
   const p = offer || offers.find((x) => x.slug === slug || x.id === slug);
   const [portions, setPortions] = useState(1);
+  const [bookingPassed, setBookingPassed] = useState(false);
+  const bookingRef = useRef<HTMLElement>(null);
   const reviews = useResource<
     {
       id: string;
@@ -643,6 +655,26 @@ export function PackagePage({
       ? api.request("reviews/" + p.id)
       : Promise.resolve([]),
   );
+  useEffect(() => {
+    setBookingPassed(false);
+    const node = bookingRef.current;
+    if (!node) return;
+    let frame = 0;
+    const sync = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() =>
+        setBookingPassed(node.getBoundingClientRect().top < 0),
+      );
+    };
+    sync();
+    window.addEventListener("scroll", sync, { passive: true });
+    window.addEventListener("resize", sync);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", sync);
+      window.removeEventListener("resize", sync);
+    };
+  }, [p?.id]);
   if (!p)
     return (
       <Empty
@@ -652,11 +684,15 @@ export function PackagePage({
       />
     );
   const eligible = !area || p.areas.includes(area);
+  const commitment = purchaseCommitment({
+    offer: p,
+    portions,
+    addressCovered: eligible,
+  });
   const tier = Math.max(
     0,
     ...p.tiers.filter((x) => portions >= x.min).map((x) => x.percent),
   );
-  const total = Math.round(p.price * p.days * portions * (1 - tier / 100));
   return (
     <div inert={preview} className="content package-detail">
       <div className="breadcrumbs">
@@ -827,6 +863,7 @@ export function PackagePage({
           </section>
         </div>
         <aside
+          ref={bookingRef}
           className="purchase-card"
           id="package-booking"
           tabIndex={-1}
@@ -836,7 +873,7 @@ export function PackagePage({
           )}
         >
           <span>
-            {p.days} {t("hari makanan baik", "days of good meals")}
+            {commitment.deliveryDays} {t("hari pengantaran", "delivery days")}
           </span>
           <h2>
             {currency(perMealPrice(p), locale)}
@@ -894,7 +931,14 @@ export function PackagePage({
           )}
           <Facts
             rows={[
-              [t("Harga paket", "Package price"), currency(total, locale)],
+              [
+                t("Harga paket", "Package price"),
+                currency(commitment.packagePrice, locale),
+              ],
+              [
+                t("Total porsi makan", "Total meal portions"),
+                String(commitment.totalMealPortions),
+              ],
               [t("Pengantaran", "Delivery"), t("Termasuk", "Included")],
             ]}
           />
@@ -935,6 +979,27 @@ export function PackagePage({
           </p>
         </aside>
       </div>
+      {!preview && bookingPassed && (
+        <div
+          className="mobile-purchase-summary"
+          aria-label={t("Ringkasan pembelian", "Purchase summary")}
+        >
+          <span>
+            <small>{t("Harga paket", "Package price")}</small>
+            <strong>{currency(commitment.packagePrice, locale)}</strong>
+          </span>
+          <a
+            className="button"
+            href="#package-booking"
+            aria-label={t(
+              "Lihat harga dan pilih porsi",
+              "See pricing and choose portions",
+            )}
+          >
+            {t("Pilih porsi", "Choose portions")}
+          </a>
+        </div>
+      )}
     </div>
   );
 }
@@ -966,16 +1031,32 @@ export function Compare() {
             />
           </label>
           <p className="comparison-scroll-hint muted">
-            {t("Geser tabel untuk membandingkan paket.", "Scroll across to compare packages.")}
+            {t(
+              "Geser tabel untuk membandingkan paket.",
+              "Scroll across to compare packages.",
+            )}
           </p>
-          <div className="comparison-scroll" role="region" aria-label={t("Perbandingan paket", "Package comparison")} tabIndex={0}>
+          <div
+            className="comparison-scroll"
+            role="region"
+            aria-label={t("Perbandingan paket", "Package comparison")}
+            tabIndex={0}
+          >
             <table className="comparison">
               <thead>
                 <tr>
-                  <th scope="col">{t("Yang penting untukmu", "What matters to you")}</th>
+                  <th scope="col">
+                    {t("Yang penting untukmu", "What matters to you")}
+                  </th>
                   {selected.map((p) => (
                     <th key={p.id} scope="col">
-                      <FoodImage src={p.image} alt={p.name} width={300} height={160} sizes="300px" />
+                      <FoodImage
+                        src={p.image}
+                        alt={p.name}
+                        width={300}
+                        height={160}
+                        sizes="300px"
+                      />
                       <h2>{p.name}</h2>
                       <p>{p.caterer}</p>
                       <Button
@@ -994,47 +1075,33 @@ export function Compare() {
                     t("Harga paket", "Package price"),
                     ...selected.map((p) =>
                       currency(
-                        Math.round(
-                          p.price *
-                            p.days *
-                            portions *
-                            (1 -
-                              Math.max(
-                                0,
-                                ...p.tiers
-                                  .filter((x) => portions >= x.min)
-                                  .map((x) => x.percent),
-                              ) /
-                                100),
-                        ),
+                        purchaseCommitment({ offer: p, portions }).packagePrice,
                         locale,
                       ),
                     ),
                   ],
                   [
                     t("Per sekali makan", "Per meal"),
-                    ...selected.map((p) =>
-                      currency(
-                        perMealPrice({
-                          price:
-                            p.price *
-                            (1 -
-                              Math.max(
-                                0,
-                                ...p.tiers
-                                  .filter((x) => portions >= x.min)
-                                  .map((x) => x.percent),
-                              ) /
-                                100),
-                          meal: p.meal,
-                        }),
+                    ...selected.map((p) => {
+                      const contract = purchaseCommitment({
+                        offer: p,
+                        portions,
+                      });
+                      return currency(
+                        contract.packagePrice / contract.totalMealPortions,
                         locale,
-                      ),
-                    ),
+                      );
+                    }),
                   ],
                   [
                     t("Durasi", "Duration"),
-                    ...selected.map((p) => p.days + " " + t("hari", "days")),
+                    ...selected.map(
+                      (p) =>
+                        purchaseCommitment({ offer: p, portions })
+                          .deliveryDays +
+                        " " +
+                        t("hari pengantaran", "delivery days"),
+                    ),
                   ],
                   [
                     t("Waktu makan", "Meal time"),
@@ -1093,7 +1160,13 @@ export function Compare() {
                 ].map((r, i) => (
                   <tr key={i}>
                     {r.map((v, j) =>
-                      j === 0 ? <th key={j} scope="row">{v}</th> : <td key={j}>{v}</td>,
+                      j === 0 ? (
+                        <th key={j} scope="row">
+                          {v}
+                        </th>
+                      ) : (
+                        <td key={j}>{v}</td>
+                      ),
                     )}
                   </tr>
                 ))}

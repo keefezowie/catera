@@ -122,10 +122,10 @@ async function fixture(page: Page, editor = false) {
 }
 async function selectDish(page: Page, index: number, name: string) {
   await page.locator(".menu-slot-select").nth(index).click();
-  let lib = page.getByRole("dialog", { name: "Pustaka hidangan", exact: true });
+  let lib = page.getByRole("dialog", { name: "Pilihan hidangan", exact: true });
   if (!(await lib.isVisible())) {
     await page.locator(".menu-library-trigger").click();
-    lib = page.getByRole("dialog", { name: "Pustaka hidangan", exact: true });
+    lib = page.getByRole("dialog", { name: "Pilihan hidangan", exact: true });
   }
   await expect(
     lib.getByRole("button", { name: "Tambah hidangan", exact: true }),
@@ -150,9 +150,9 @@ test("seller configures customer choice; customer selects; kitchen and CSV prese
   await expect(
     page.getByText("Hidangan yang boleh dipilih pelanggan"),
   ).toHaveCount(0);
-  await expect(page.locator("#main .package-choice-library:visible")).toContainText(
-    f.names[0],
-  );
+  await expect(
+    page.locator("#main .package-choice-library:visible"),
+  ).toContainText(f.names[0]);
   await page.goto("/subscriptions/" + f.subscription.id);
   await page
     .getByRole("link", { name: "Pilih menu sendiri", exact: true })
@@ -179,7 +179,9 @@ test("seller configures customer choice; customer selects; kitchen and CSV prese
   await page.request.post("/api/v1/auth/demo", { data: { role: "owner" } });
   await page.goto("/seller/menus");
   await choose(page, "Paket", f.subscription.snapshot.offer.name);
-  await expect(page.locator("#main .package-choice-library:visible")).toContainText(f.names[0]);
+  await expect(
+    page.locator("#main .package-choice-library:visible"),
+  ).toContainText(f.names[0]);
   const frozen = await cmd(page, "production.freeze", {
     catererId: f.base.catererId,
     date,
@@ -192,7 +194,13 @@ test("responsive calendar and picker, keyboard, atomic multi-date selection and 
   page,
 }) => {
   const f = await fixture(page);
-  await page.goto("/subscriptions/" + f.subscription.id + "/menu?month=" + date.slice(0, 7) + "-01");
+  await page.goto(
+    "/subscriptions/" +
+      f.subscription.id +
+      "/menu?month=" +
+      date.slice(0, 7) +
+      "-01",
+  );
   await mkdir("output/customer-choice", { recursive: true });
   for (const width of [1440, 768, 390]) {
     await page.setViewportSize({ width, height: 900 });

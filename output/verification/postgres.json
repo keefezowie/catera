@@ -1,5 +1,5 @@
 {
-  "at": "2026-09-22T08:35:37.376Z",
+  "at": "2026-09-26T15:12:14.121Z",
   "passed": [
     "Synthetic slot conversion is repeatable on PostgreSQL; dated menus validate and package templates remain stable.",
     "Concurrent registration creates one customer profile and preserves its name and authority on retry",
@@ -26,6 +26,7 @@
     "Hosted worker queries: settlement polling executes; five concurrent outbox workers claim each job once with PostgreSQL data-modifying CTEs.",
     "DOKU: five concurrent submissions obtain one network claim; concurrent callback insertion/processing activates one subscription/allocation; provider identity survives rollback; legacy event route and client privileges cannot mutate DOKU operations.",
     "Checkout consent rejects missing acceptance before side effects; simultaneous retries produce one checkout, one acceptance timestamp and one payment job.",
-    "Direct payments: six competing method selections lock one channel; five submitters obtain one claim; five refreshes obtain one minute-limited inquiry; duplicate callbacks before attachment activate exactly once; ownership, immutable mode/channel and private RPC privileges enforced."
+    "Direct payments: six competing method selections lock one channel; five submitters obtain one claim; five refreshes obtain one minute-limited inquiry; duplicate callbacks before attachment activate exactly once; ownership, immutable mode/channel and private RPC privileges enforced.",
+    "Journey reads: customer search paginates matching totals across 103 tenant-scoped records; customer and cross-tenant reads fail; staff recover the latest whole-day production revision; the private base RPC cannot bypass authorization."
   ]
 }

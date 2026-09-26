@@ -1,12 +1,61 @@
 "use client";
 import { Plus, RefreshCw, Archive, RotateCcw, Utensils } from "lucide-react";
 import { useState } from "react";
-import { type Offer, type LibraryDish } from "@catera/domain";
+import {
+  customerMenuPresentation,
+  type Offer,
+  type LibraryDish,
+} from "@catera/domain";
 import { api, useApp, useResource } from "./context";
 import { Button, Checkbox } from "./form-controls";
 import { ErrorNotice } from "./ui";
-import { MenuLibrary } from "./menu-library";
 import "./package-choice-library.css";
+
+function PublicChoiceGallery({ options }: { options: LibraryDish[] }) {
+  const { t } = useApp();
+  const visible = options.filter((dish) => !dish.archived);
+  const presentation = customerMenuPresentation({
+    surface: "package",
+    activeOptionCount: visible.length,
+  });
+  if (presentation.state === "not_announced")
+    return (
+      <div className="public-choice-empty" role="status">
+        <strong>{t("Menu belum diumumkan", "Menu not announced yet")}</strong>
+        <p>
+          {t(
+            "Katerer akan menampilkan pilihan hidangan sebelum batas pemilihan. Anda tidak dikenai biaya tambahan untuk memilih menu.",
+            "The caterer will publish dish choices before the selection deadline. There is no extra fee for choosing your menu.",
+          )}
+        </p>
+      </div>
+    );
+  return (
+    <div className="public-choice-gallery">
+      <div>
+        <h4>{t("Contoh pilihan hidangan", "Example dish choices")}</h4>
+        <p>
+          {t(
+            "Pilihan tersedia setelah pembayaran. Hidangan yang ditampilkan dapat berubah sebelum jadwal Anda dibuka.",
+            "Choices become available after payment. The displayed dishes may change before your schedule opens.",
+          )}
+        </p>
+      </div>
+      <div className="public-choice-grid">
+        {visible.map((dish) => (
+          <article key={dish.id} className="public-choice-card">
+            {dish.image ? <img src={dish.image} alt="" /> : null}
+            <div>
+              <strong>{dish.name}</strong>
+              {dish.serving && <small>{dish.serving}</small>}
+              {dish.description && <p>{dish.description}</p>}
+            </div>
+          </article>
+        ))}
+      </div>
+    </div>
+  );
+}
 export function ChoiceRules() {
   const { t } = useApp();
   return (
@@ -318,17 +367,7 @@ export function PackageChoiceLibrary({
               ))}
           </>
         ) : (
-          <MenuLibrary
-            manage={false}
-            dishes={options.filter((d) => !d.archived)}
-            categories={offer.menus
-              .flatMap((m) => m.composition || [])
-              .filter(
-                (g, i, all) =>
-                  all.findIndex((x) => x.categoryId === g.categoryId) === i,
-              )
-              .map((g) => ({ id: g.categoryId!, name: g.name }))}
-          />
+          <PublicChoiceGallery options={options} />
         ))}
     </section>
   );
