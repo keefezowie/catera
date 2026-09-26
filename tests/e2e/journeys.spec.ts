@@ -136,7 +136,8 @@ test("customer and operational routes render, retain context and pass critical a
   page.on("pageerror", (e) => errors.push(e.message));
   await login(page);
   await page.goto("/home");
-  await expect(page.locator(".next-meal-card")).toBeVisible();
+  await expect(page.locator(".date-agenda")).toBeVisible();
+  await expect(page.locator(".date-agenda-group").first()).toBeVisible();
   await page.screenshot({
     path: "output/playwright/customer-desktop.png",
     fullPage: true,

@@ -5,6 +5,11 @@ import {
   readSettlementReporting,
 } from "@/lib/settlement-read";
 import { assertSameOrigin } from "@/lib/request-origin";
+import {
+  decodeAttentionCursor,
+  encodeAttentionCursor,
+  type AttentionCursor,
+} from "@/lib/attention-cursor";
 import { cookies } from "next/headers";
 import { z } from "zod";
 import {
@@ -171,6 +176,7 @@ export async function GET(request: Request, context: Context) {
         "reviews",
         "availability",
         "customer",
+        "customer-actions",
         "seller",
         "seller-calendar",
         "seller-import-options",
@@ -185,6 +191,44 @@ export async function GET(request: Request, context: Context) {
     )
       throw new Error("NOT_FOUND");
     if (path[1]) params.id = path[1];
+    if (resource === "customer-actions") {
+      params.limit = z.coerce
+        .number()
+        .int()
+        .min(1)
+        .max(20)
+        .parse(params.limit ?? 20)
+        .toString();
+    }
+    if (resource === "seller-attention") {
+      z.string().uuid().parse(params.id);
+      params.scope = z
+        .enum(["selected", "future", "all"])
+        .parse(params.scope ?? "all");
+      params.limit = z.coerce
+        .number()
+        .int()
+        .min(1)
+        .max(100)
+        .parse(params.limit ?? 20)
+        .toString();
+      if (params.date) {
+        z.string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .refine((value) => !Number.isNaN(Date.parse(value + "T00:00:00Z")))
+          .parse(params.date);
+      }
+      if (params.scope === "selected" && !params.date)
+        throw new Error("INVALID_INPUT");
+      if (params.meal) z.enum(["lunch", "dinner"]).parse(params.meal);
+      if (params.cursor) {
+        const cursor = decodeAttentionCursor(params.cursor);
+        params.cursorPriority = String(cursor.priority);
+        params.cursorAt = cursor.at;
+        params.cursorId = cursor.id;
+        delete params.cursor;
+      }
+    }
     if (resource === "payout-setup") {
       const state = await rpc<PayoutSetup>(s.id, s.token, "catera_v1_read", {
         resource,
@@ -236,8 +280,26 @@ export async function GET(request: Request, context: Context) {
         ),
       );
     }
-    if (resource === "checkout") return ok(enrichDirectCheckout(await read() as Checkout));
-    if (resource === "payment-methods") return ok(filterPaymentAvailability(await read() as PaymentAvailability));
+    if (resource === "checkout")
+      return ok(enrichDirectCheckout((await read()) as Checkout));
+    if (resource === "payment-methods")
+      return ok(
+        filterPaymentAvailability((await read()) as PaymentAvailability),
+      );
+    if (resource === "seller-attention") {
+      const page = (await read()) as {
+        timezone: string;
+        total: number;
+        items: unknown[];
+        nextCursor: AttentionCursor | null;
+      };
+      return ok({
+        ...page,
+        nextCursor: page.nextCursor
+          ? encodeAttentionCursor(page.nextCursor)
+          : null,
+      });
+    }
     return ok(
       resource === "seller-settlement" || resource === "settlement-controls"
         ? await readSettlementResource(s.actor, resource, params.id, read)
@@ -463,8 +525,17 @@ export async function POST(request: Request, context: Context) {
       if (command.action === "checkout.create")
         command.payload = checkoutSchema.parse(command.payload);
       if (command.action === "checkout.create" && !demoEnabled()) {
-        const availability = filterPaymentAvailability(await rpc<PaymentAvailability>(s.id, s.token, "catera_v1_read", { resource: "payment-methods", params: {} }));
-        if (availability.mode === "direct" && !availability.availableMethods.length) throw new Error("PAYMENT_UNAVAILABLE");
+        const availability = filterPaymentAvailability(
+          await rpc<PaymentAvailability>(s.id, s.token, "catera_v1_read", {
+            resource: "payment-methods",
+            params: {},
+          }),
+        );
+        if (
+          availability.mode === "direct" &&
+          !availability.availableMethods.length
+        )
+          throw new Error("PAYMENT_UNAVAILABLE");
         const q = await rpc<Quote>(s.id, s.token, "catera_v1_read", {
           resource: "quote",
           params: command.payload,
@@ -497,19 +568,54 @@ export async function POST(request: Request, context: Context) {
             request_id: command.requestId,
           }),
         );
-      if (command.action === "checkout.payment.start" || command.action === "checkout.payment.refresh") {
-        const payload = z.object({ id: z.string().uuid(), method: z.enum(["VIRTUAL_ACCOUNT_BRI", "QRIS"]).optional() }).strict().parse(command.payload);
-        const readCheckout = () => rpc<Checkout>(s.id, s.token, "catera_v1_read", { resource: "checkout", params: { id: payload.id } });
+      if (
+        command.action === "checkout.payment.start" ||
+        command.action === "checkout.payment.refresh"
+      ) {
+        const payload = z
+          .object({
+            id: z.string().uuid(),
+            method: z.enum(["VIRTUAL_ACCOUNT_BRI", "QRIS"]).optional(),
+          })
+          .strict()
+          .parse(command.payload);
+        const readCheckout = () =>
+          rpc<Checkout>(s.id, s.token, "catera_v1_read", {
+            resource: "checkout",
+            params: { id: payload.id },
+          });
         const checkout = await readCheckout();
-        if (command.action === "checkout.payment.start" && (!payload.method || (!checkout.payment?.selectedMethod && !directMethodReady(payload.method)))) throw new Error("PAYMENT_UNAVAILABLE");
-        await rpc(s.id, s.token, "catera_v1_command", { action: command.action, payload, request_id: command.requestId });
-        const system = <T = unknown,>(action: string, payload: unknown = {}) => rpc<T>(null, null, "catera_v1_system", { action, payload }, true);
-        if (command.action === "checkout.payment.start") await submitDirectPayment(checkout, system);
+        if (
+          command.action === "checkout.payment.start" &&
+          (!payload.method ||
+            (!checkout.payment?.selectedMethod &&
+              !directMethodReady(payload.method)))
+        )
+          throw new Error("PAYMENT_UNAVAILABLE");
+        await rpc(s.id, s.token, "catera_v1_command", {
+          action: command.action,
+          payload,
+          request_id: command.requestId,
+        });
+        const system = <T = unknown>(action: string, payload: unknown = {}) =>
+          rpc<T>(null, null, "catera_v1_system", { action, payload }, true);
+        if (command.action === "checkout.payment.start")
+          await submitDirectPayment(checkout, system);
         else {
-          const operation = await system<import("@catera/backend").ProviderOperation | null>("provider.direct.refresh", { id: checkout.id });
+          const operation = await system<
+            import("@catera/backend").ProviderOperation | null
+          >("provider.direct.refresh", { id: checkout.id });
           if (operation) {
-            try { await reconcileDirectPayment(operation, system); await processDokuInbox(system); }
-            catch { await system("provider.error", { kind: "payment", id: checkout.id, code: "DOKU_DIRECT_RECONCILIATION_REQUIRED" }); }
+            try {
+              await reconcileDirectPayment(operation, system);
+              await processDokuInbox(system);
+            } catch {
+              await system("provider.error", {
+                kind: "payment",
+                id: checkout.id,
+                code: "DOKU_DIRECT_RECONCILIATION_REQUIRED",
+              });
+            }
           }
         }
         return ok(enrichDirectCheckout(await readCheckout()));
@@ -519,7 +625,11 @@ export async function POST(request: Request, context: Context) {
         payload: command.payload,
         request_id: command.requestId,
       });
-      if (command.action === "checkout.create" && !demoEnabled() && (result as Checkout).payment_mode !== "direct") {
+      if (
+        command.action === "checkout.create" &&
+        !demoEnabled() &&
+        (result as Checkout).payment_mode !== "direct"
+      ) {
         const checkout = result as Checkout;
         try {
           const payment = await createPaymentSession(checkout);

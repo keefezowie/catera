@@ -46,7 +46,10 @@ import {
   availabilityReasonCounts,
   availabilityReasonLabel,
   earliestAvailable,
+  customerActionPresentation,
   type CustomerState,
+  type CustomerActionFeed,
+  type CustomerActionItem,
   type DeliveryAvailability,
   type Delivery,
   type Conversation,
@@ -87,7 +90,10 @@ function CustomerOverview({ view, id }: { view: string; id?: string }) {
   const state = useResource<CustomerState>("customer:" + date, () =>
     api.customer("?from=" + addDays(date, -7) + "&to=" + addDays(date, 60)),
   );
-  if (state.error)
+  const actions = useResource<CustomerActionFeed>("customer-actions", () =>
+    api.customerActions(20),
+  );
+  if (state.error && !state.data)
     return (
       <div className="content">
         <ErrorNotice message={state.error} retry={state.reload} />
@@ -95,10 +101,8 @@ function CustomerOverview({ view, id }: { view: string; id?: string }) {
     );
   if (!state.data) return <Loading />;
   const c = state.data;
-  const next = c.deliveries.find(
-    (d) =>
-      !["delivered", "cancelled"].includes(d.status) &&
-      d.service_date >= localDay(),
+  const activeSubscriptions = c.subscriptions.filter(
+    (subscription) => subscription.status === "active",
   );
   if (view === "subscriptions")
     return (
@@ -161,88 +165,11 @@ function CustomerOverview({ view, id }: { view: string; id?: string }) {
           </Link>
         )}
       </Heading>
+      <RefreshNotice error={state.error} reload={state.reload} />
       {view === "home" ? (
         <>
-          <div className="home-main">
-            {next ? (
-              <NextMeal delivery={next} />
-            ) : (
-              <Empty
-                title={t(
-                  "Belum ada makanan berikutnya",
-                  "No upcoming meals yet",
-                )}
-                description={t(
-                  "Yuk, temukan paket untuk keseharianmu.",
-                  "Find a package for your everyday routine.",
-                )}
-                href="/#packages"
-                label={t("Jelajah katering", "Explore caterers")}
-              />
-            )}
-            <section className="daily-agenda">
-              <div className="section-heading">
-                <div>
-                  <h2>{t("Agenda makan", "Meal agenda")}</h2>
-                  <p>
-                    {next?.service_date === localDay()
-                      ? t("Hari ini", "Today")
-                      : next
-                        ? dateLabel(next.service_date, locale)
-                        : t("Belum ada jadwal", "No scheduled meals")}
-                  </p>
-                </div>
-                <Link
-                  href="/calendar"
-                  className="text-button"
-                  aria-label={t("Lihat kalender", "View calendar")}
-                >
-                  <ArrowUpRight size={19} />
-                </Link>
-              </div>
-              {c.deliveries
-                .filter(
-                  (d) =>
-                    d.service_date === (next?.service_date || localDay()) &&
-                    d.status !== "cancelled",
-                )
-                .flatMap((d) =>
-                  d.meals.map((m) => (
-                    <Link
-                      key={d.id + m.meal}
-                      href={"/deliveries/" + d.id}
-                      className="home-agenda-row"
-                    >
-                      {m.meal === "lunch" ? (
-                        <Sun size={20} />
-                      ) : (
-                        <Moon size={20} />
-                      )}
-                      <div>
-                        <small>
-                          {mealLabel(m.meal, locale)} ·{" "}
-                          {d.offer.windows[m.meal as "lunch" | "dinner"]}
-                        </small>
-                        <strong>{d.offer.name}</strong>
-                        <p>
-                          {d.offer.caterer} · {d.portions}{" "}
-                          {t("porsi", "portions")}
-                        </p>
-                      </div>
-                      <Status status={m.status} />
-                    </Link>
-                  )),
-                )}
-              {!next && (
-                <p className="quiet-empty">
-                  {t(
-                    "Temukan paket untuk mulai mengisi jadwal.",
-                    "Find a package to start your meal calendar.",
-                  )}
-                </p>
-              )}
-            </section>
-          </div>
+          <CustomerActions state={actions} />
+          <DateGroupedAgenda deliveries={c.deliveries} />
           <section className="active-packages home-subscriptions">
             <div className="section-heading">
               <h2>{t("Paket aktif", "Active packages")}</h2>
@@ -251,12 +178,16 @@ function CustomerOverview({ view, id }: { view: string; id?: string }) {
                 <ArrowUpRight size={19} aria-hidden="true" />
               </Link>
             </div>
-            {c.subscriptions
-              .filter((s) => s.status === "active")
-              .map((s) => (
-                <SubscriptionCard key={s.id} subscription={s} compact />
-              ))}
-            {!c.subscriptions.length && (
+            {activeSubscriptions.map((s) => (
+              <div className="home-subscription-row" key={s.id}>
+                <SubscriptionCard subscription={s} compact />
+                <Link className="text-button" href={"/renew/" + s.id}>
+                  {t("Perpanjang", "Renew")}
+                  <ArrowRight size={16} aria-hidden="true" />
+                </Link>
+              </div>
+            ))}
+            {!activeSubscriptions.length && (
               <p>{t("Belum ada paket aktif.", "No active packages yet.")}</p>
             )}
             <Link className="add-package" href="/#packages">
@@ -264,32 +195,221 @@ function CustomerOverview({ view, id }: { view: string; id?: string }) {
               {t("Tambah paket yang kamu suka", "Add another favorite")}
             </Link>
           </section>
-          <div className="section-heading spaced">
-            <div>
-              <h2>{t("Setelah ini, ada apa?", "What comes next?")}</h2>
-              <p>
-                {t(
-                  "Makanan berikutnya dari semua katerermu.",
-                  "Upcoming meals from all your caterers.",
-                )}
-              </p>
-            </div>
-            <Link className="text-button" href="/calendar">
-              {t("Lihat semua jadwal", "View full calendar")}
-              <ArrowRight size={17} />
-            </Link>
-          </div>
-          <div className="upcoming-grid">
-            {c.deliveries
-              .filter((d) => d.id !== next?.id && d.status === "scheduled")
-              .slice(0, 3)
-              .map((d) => (
-                <DeliveryRow key={d.id} delivery={d} />
-              ))}
-          </div>
         </>
       ) : null}
     </div>
+  );
+}
+
+function CustomerActions({
+  state,
+}: {
+  state: ReturnType<typeof useResource<CustomerActionFeed>>;
+}) {
+  const { t, locale } = useApp();
+  const [expanded, setExpanded] = useState(false);
+  const items = state.data?.items ?? [];
+  if (state.error && !state.data)
+    return (
+      <section className="customer-actions compact-error">
+        <RefreshNotice error={state.error} reload={state.reload} />
+      </section>
+    );
+  if (!items.length) return null;
+  const visible = expanded ? items : items.slice(0, 3);
+  return (
+    <section
+      className="customer-actions"
+      aria-labelledby="customer-actions-title"
+    >
+      <div className="section-heading">
+        <div>
+          <h2 id="customer-actions-title">
+            {t("Perlu tindakan Anda", "Needs your attention")}
+          </h2>
+          <p>
+            {t(
+              "Selesaikan yang mendesak tanpa kehilangan konteks.",
+              "Handle urgent items without losing context.",
+            )}
+          </p>
+        </div>
+        <span
+          className="action-count"
+          aria-label={t("Jumlah tindakan", "Action count")}
+        >
+          {state.data?.total ?? items.length}
+        </span>
+      </div>
+      <RefreshNotice error={state.error} reload={state.reload} />
+      <div className="customer-action-list">
+        {visible.map((item) => (
+          <CustomerAction key={item.id} item={item} locale={locale} />
+        ))}
+      </div>
+      {items.length > 3 && (
+        <Button
+          type="button"
+          variant="text"
+          onClick={() => setExpanded((value) => !value)}
+          aria-expanded={expanded}
+        >
+          {expanded
+            ? t("Tampilkan tiga teratas", "Show top three")
+            : t(
+                `Lihat semua ${items.length} tindakan`,
+                `View all ${items.length} actions`,
+              )}
+        </Button>
+      )}
+    </section>
+  );
+}
+
+function CustomerAction({
+  item,
+  locale,
+}: {
+  item: CustomerActionItem;
+  locale: Locale;
+}) {
+  const { t } = useApp();
+  const presentation = customerActionPresentation(item, locale);
+  const timing = item.dueAt
+    ? new Date(item.dueAt).toLocaleString(locale === "id" ? "id-ID" : "en-GB", {
+        day: "numeric",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : item.serviceDate
+      ? dateLabel(item.serviceDate, locale)
+      : null;
+  return (
+    <article className={`customer-action ${presentation.tone}`}>
+      <Bell size={20} aria-hidden="true" />
+      <div>
+        <h3>{presentation.title}</h3>
+        <p>
+          {[
+            item.packageName,
+            item.catererName,
+            item.meal ? mealLabel(item.meal, locale) : null,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+        </p>
+        {timing && (
+          <small>
+            {item.dueAt
+              ? t("Batas waktu", "Due")
+              : t("Tanggal layanan", "Service date")}
+            : {timing}
+          </small>
+        )}
+      </div>
+      <Link className="button secondary" href={item.href}>
+        {presentation.action}
+        <ArrowRight size={16} aria-hidden="true" />
+      </Link>
+    </article>
+  );
+}
+
+function DateGroupedAgenda({ deliveries }: { deliveries: Delivery[] }) {
+  const { t, locale } = useApp();
+  const today = localDay();
+  const upcoming = deliveries
+    .filter(
+      (delivery) =>
+        delivery.service_date >= today && delivery.status !== "cancelled",
+    )
+    .sort(
+      (left, right) =>
+        left.service_date.localeCompare(right.service_date) ||
+        left.id.localeCompare(right.id),
+    );
+  const dates = [
+    ...new Set(upcoming.map((delivery) => delivery.service_date)),
+  ].slice(0, 3);
+  return (
+    <section className="date-agenda" aria-labelledby="date-agenda-title">
+      <div className="section-heading">
+        <div>
+          <h2 id="date-agenda-title">
+            {t("Jadwal makan berikutnya", "Your next meals")}
+          </h2>
+          <p>
+            {t(
+              "Dikelompokkan per tanggal dan katerer.",
+              "Grouped by date and caterer.",
+            )}
+          </p>
+        </div>
+        <Link className="text-button" href="/calendar">
+          {t("Lihat kalender", "View calendar")}
+          <ArrowUpRight size={18} aria-hidden="true" />
+        </Link>
+      </div>
+      {!dates.length ? (
+        <Empty
+          title={t("Belum ada makanan berikutnya", "No upcoming meals yet")}
+          description={t(
+            "Temukan paket untuk mulai mengisi jadwal.",
+            "Find a package to start your meal calendar.",
+          )}
+          href="/#packages"
+          label={t("Jelajah katering", "Explore caterers")}
+        />
+      ) : (
+        <div className="date-agenda-groups">
+          {dates.map((serviceDate) => (
+            <section className="date-agenda-group" key={serviceDate}>
+              <h3>
+                {serviceDate === today
+                  ? t("Hari ini", "Today")
+                  : dateLabel(serviceDate, locale)}
+              </h3>
+              {upcoming
+                .filter((delivery) => delivery.service_date === serviceDate)
+                .flatMap((delivery) =>
+                  delivery.meals
+                    .filter((meal) => meal.status !== "cancelled")
+                    .map((meal) => (
+                      <Link
+                        key={`${delivery.id}-${meal.meal}`}
+                        href={"/deliveries/" + delivery.id}
+                        className="home-agenda-row"
+                      >
+                        {meal.meal === "lunch" ? (
+                          <Sun size={20} />
+                        ) : (
+                          <Moon size={20} />
+                        )}
+                        <div>
+                          <small>
+                            {mealLabel(meal.meal, locale)} ·{" "}
+                            {
+                              delivery.offer.windows[
+                                meal.meal as "lunch" | "dinner"
+                              ]
+                            }
+                          </small>
+                          <strong>{delivery.offer.name}</strong>
+                          <p>
+                            {delivery.offer.caterer} · {delivery.portions}{" "}
+                            {t("porsi", "portions")}
+                          </p>
+                        </div>
+                        <Status status={meal.status} />
+                      </Link>
+                    )),
+                )}
+            </section>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 function NextMeal({

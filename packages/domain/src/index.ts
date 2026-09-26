@@ -18,6 +18,7 @@ export * from "./pilot";
 export * from "./purchase-pricing";
 export * from "./purchase-commitment";
 export * from "./resource-phase";
+export * from "./customer-actions";
 export * from "./settlement";
 
 export const mealTypes = ["lunch", "dinner", "both"] as const;
@@ -189,16 +190,70 @@ export type SupportCase = {
   amount: number | null;
 };
 export type DeliveryIssue = {
-  id: string; day_id: string; meal: "lunch" | "dinner"; subject: string; description: string;
-  status: "open" | "responded" | "resolved" | "escalated"; version: number; case_id: string | null;
-  service_date: string; package_name: string; created_at: string;
+  id: string;
+  day_id: string;
+  meal: "lunch" | "dinner";
+  subject: string;
+  description: string;
+  status: "open" | "responded" | "resolved" | "escalated";
+  version: number;
+  case_id: string | null;
+  service_date: string;
+  package_name: string;
+  created_at: string;
   events: { id: string; action: string; body: string; created_at: string }[];
 };
-export type SellerAttention = {
+export type CustomerActionItem = {
+  id: string;
+  kind: "menu_choice_due" | "payment_action" | "delivery_issue";
+  status:
+    | "selection_due"
+    | "choose_method"
+    | "awaiting_payment"
+    | "checking_payment"
+    | "payment_exception"
+    | "open"
+    | "responded"
+    | "escalated";
+  priority: number;
+  dueAt?: string;
+  serviceDate?: string;
+  meal?: "lunch" | "dinner";
+  packageName?: string;
+  catererName?: string;
+  href: string;
+};
+export type CustomerActionFeed = {
+  total: number;
+  items: CustomerActionItem[];
+};
+export type SellerAttentionItem = {
+  id: string;
+  kind:
+    | "delivery_issue"
+    | "support"
+    | "delivery"
+    | "choice_fallback"
+    | "choice_deadline"
+    | "payment"
+    | "production_changed";
+  priority: number;
+  at_time: string;
+  context: string;
+  href: string;
+  serviceDate?: string;
+  meal?: "lunch" | "dinner";
+  packageName?: string;
+  destination?: string;
+  deliveryId?: string;
+};
+export type SellerAttentionPage = {
   timezone: string;
   total: number;
-  items: { id: string; kind: "delivery_issue" | "support" | "delivery" | "choice_fallback" | "choice_deadline" | "payment" | "production_changed"; priority: number; at_time: string; context: string; href: string }[];
+  items: SellerAttentionItem[];
+  nextCursor: string | null;
 };
+export type SellerAttention = SellerAttentionPage;
 export type Message = {
   id: string;
   sender_id: string;
@@ -608,8 +663,10 @@ export const statusLabel = (status: string, locale: Locale = "id") =>
         payment_exception: "Pembayaran perlu ditinjau",
       }[status] || status;
 export const errors: Record<string, string> = {
-  PAYMENT_UNAVAILABLE: "Pembayaran sedang tidak tersedia. Silakan coba lagi nanti.",
-  PAYMENT_METHOD_LOCKED: "Metode pembayaran sudah dipilih dan tidak dapat diganti.",
+  PAYMENT_UNAVAILABLE:
+    "Pembayaran sedang tidak tersedia. Silakan coba lagi nanti.",
+  PAYMENT_METHOD_LOCKED:
+    "Metode pembayaran sudah dipilih dan tidak dapat diganti.",
   TERMS_REQUIRED: "Setujui Syarat & Ketentuan untuk melanjutkan.",
   DURATION_UNAVAILABLE: "Durasi ini belum tersedia. Pilih durasi lain.",
   BOOKING_HORIZON:
@@ -630,10 +687,13 @@ export const errors: Record<string, string> = {
     "Isi menu harus sesuai komposisi yang dibeli. Gunakan versi isi paket yang benar.",
   PRICE_CHANGED: "Harga atau ketentuan berubah. Tinjau ulang sebelum membayar.",
   UNAUTHORIZED: "Silakan masuk kembali.",
-  EMAIL_NOT_CONFIRMED: "Verifikasi email Anda terlebih dahulu. Buka halaman Daftar untuk mengirim ulang tautan.",
-  PASSWORD_REJECTED: "Gunakan kata sandi lain yang lebih kuat, minimal 8 karakter.",
+  EMAIL_NOT_CONFIRMED:
+    "Verifikasi email Anda terlebih dahulu. Buka halaman Daftar untuk mengirim ulang tautan.",
+  PASSWORD_REJECTED:
+    "Gunakan kata sandi lain yang lebih kuat, minimal 8 karakter.",
   AUTH_UNAVAILABLE: "Layanan akun belum tersedia. Silakan coba lagi nanti.",
-  RECOVERY_EXPIRED: "Sesi pemulihan tidak valid atau kedaluwarsa. Minta tautan pemulihan baru.",
+  RECOVERY_EXPIRED:
+    "Sesi pemulihan tidak valid atau kedaluwarsa. Minta tautan pemulihan baru.",
   INVALID_CREDENTIALS: "Email atau kata sandi tidak cocok. Silakan coba lagi.",
   AUTH_RATE_LIMITED:
     "Terlalu banyak percobaan masuk. Tunggu sebentar lalu coba lagi.",
@@ -666,8 +726,10 @@ export const errors: Record<string, string> = {
     "Tanggal ini memiliki pesanan. Selesaikan pesanan sebelum menutupnya.",
 };
 const errorsEn: Record<string, string> = {
-  PAYMENT_UNAVAILABLE: "Payment is currently unavailable. Please try again later.",
-  PAYMENT_METHOD_LOCKED: "The payment method has already been selected and cannot be changed.",
+  PAYMENT_UNAVAILABLE:
+    "Payment is currently unavailable. Please try again later.",
+  PAYMENT_METHOD_LOCKED:
+    "The payment method has already been selected and cannot be changed.",
   TERMS_REQUIRED: "Please accept the Terms & Conditions to continue.",
   DURATION_UNAVAILABLE:
     "This duration is unavailable. Choose another duration.",
@@ -690,10 +752,13 @@ const errorsEn: Record<string, string> = {
     "The menu must match the purchased composition. Use the correct package revision.",
   PRICE_CHANGED: "The price or terms changed. Review them before paying.",
   UNAUTHORIZED: "Please sign in again.",
-  EMAIL_NOT_CONFIRMED: "Verify your email first. Open Register to resend the link.",
-  PASSWORD_REJECTED: "Use a different, stronger password with at least 8 characters.",
+  EMAIL_NOT_CONFIRMED:
+    "Verify your email first. Open Register to resend the link.",
+  PASSWORD_REJECTED:
+    "Use a different, stronger password with at least 8 characters.",
   AUTH_UNAVAILABLE: "Account services are unavailable. Please try again later.",
-  RECOVERY_EXPIRED: "The recovery session is invalid or expired. Request a new recovery link.",
+  RECOVERY_EXPIRED:
+    "The recovery session is invalid or expired. Request a new recovery link.",
   INVALID_CREDENTIALS: "Email or password is incorrect. Please try again.",
   AUTH_RATE_LIMITED: "Too many sign-in attempts. Please wait and try again.",
   FORBIDDEN: "This account does not have access.",
