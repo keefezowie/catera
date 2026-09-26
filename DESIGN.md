@@ -301,6 +301,8 @@ The [September 19 UX research](docs/UIUX-RESEARCH-2026-09-19.md) records the com
 
 Checkout shows the selected package and a labeled base subtotal before the form on phone and beside it on desktop. Package contents remain available in a disclosure. Review displays the selected delivery address and the server-confirmed total; the same total accompanies the payment action. Only one progress step is current, and changing steps focuses the new heading. Phone actions preserve bottom-navigation clearance.
 
+On phone, the thumbnail stays beside the package identity while totals, explanations, and the contents disclosure use the full summary width. Checkout keeps the complete selected address visible beneath its selector and explains empty, stale, or out-of-coverage destinations. Payment availability distinguishes checking, failed lookup, and no available methods; an explicit retry preserves the reviewed order and consent and focuses its result. New explicit purchase choices take precedence over stored drafts. See [the September 24 journey quality record](docs/MARKETPLACE-CHECKOUT-QUALITY-2026-09-24.md) for local evidence and limits.
+
 Approved local food artwork and the wordmark may use responsive delivery derivatives while preserving the original files and compositions. Uploaded or signed image URLs retain their established delivery path. Derivative dimensions are not claims about master resolution or transparency.
 
 ### Navigation

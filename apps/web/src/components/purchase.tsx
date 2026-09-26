@@ -58,11 +58,13 @@ export function CheckoutPage({ id }: { id: string }) {
     api.request("payment-methods"),
   );
   const paymentUnavailable =
+    availability.loading ||
     !!availability.error ||
     !availability.data ||
     (availability.data.mode === "direct" &&
       !availability.data.availableMethods.length);
   const params = useSearchParams();
+  const entryParams = useRef(new URLSearchParams(params.toString()));
   const p = offers.find((p) => p.id === id || p.slug === id);
   const [portions, setPortions] = useState(
       Math.max(1, Math.min(100, Number(params.get("portions")) || 1)),
@@ -79,6 +81,15 @@ export function CheckoutPage({ id }: { id: string }) {
     [restored, setRestored] = useState(false);
   const trial = params.get("trial") === "1";
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [paymentRechecked, setPaymentRechecked] = useState(false);
+  const paymentStatus = useRef<HTMLDivElement>(null);
+  const paymentRetryRequested = useRef(false);
+  useEffect(() => {
+    if (!availability.loading && paymentRetryRequested.current) {
+      paymentStatus.current?.focus();
+      paymentRetryRequested.current = false;
+    }
+  }, [availability.loading]);
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
@@ -94,17 +105,29 @@ export function CheckoutPage({ id }: { id: string }) {
     if (previousStep.current !== step) stepHeading.current?.focus();
     previousStep.current = step;
   }, [step]);
-  const draftKey = `catera.checkout.${id}.${trial}.${renewedFrom || ""}`;
+  const draftKey = `catera.checkout.${actor?.id || "guest"}.${id}.${trial}.${renewedFrom || ""}`;
   useEffect(() => {
     try {
       const saved = sessionStorage.getItem(draftKey);
       if (saved) {
         const draft = JSON.parse(saved);
-        if (Number.isInteger(draft.portions))
-          setPortions(Math.max(1, Math.min(100, draft.portions)));
-        if (/^\d{4}-\d{2}-\d{2}$/.test(draft.date)) setDate(draft.date);
-        if (typeof draft.address === "string") setAddress(draft.address);
         if (
+          !entryParams.current.has("portions") &&
+          Number.isInteger(draft.portions)
+        )
+          setPortions(Math.max(1, Math.min(100, draft.portions)));
+        if (
+          !entryParams.current.has("startDate") &&
+          /^\d{4}-\d{2}-\d{2}$/.test(draft.date)
+        )
+          setDate(draft.date);
+        if (
+          !entryParams.current.has("addressId") &&
+          typeof draft.address === "string"
+        )
+          setAddress(draft.address);
+        if (
+          !entryParams.current.has("cycles") &&
           Number.isInteger(draft.cycles) &&
           draft.cycles >= 1 &&
           draft.cycles <= 6
@@ -118,6 +141,20 @@ export function CheckoutPage({ id }: { id: string }) {
   }, [draftKey]);
   useEffect(() => {
     if (restored) {
+      // Keep reloads and address-edit returns aligned with the current choices.
+      // Explicit selections on a new package link take precedence over a draft.
+      const url = new URL(window.location.href);
+      url.searchParams.set("portions", String(portions));
+      url.searchParams.set("startDate", date);
+      url.searchParams.set("cycles", String(trial ? 1 : cycles));
+      if (address) url.searchParams.set("addressId", address);
+      else url.searchParams.delete("addressId");
+      if (url.href !== window.location.href)
+        window.history.replaceState(
+          null,
+          "",
+          url.pathname + url.search + url.hash,
+        );
       try {
         sessionStorage.setItem(
           draftKey,
@@ -127,7 +164,7 @@ export function CheckoutPage({ id }: { id: string }) {
         /* Keep checkout usable without storage. */
       }
     }
-  }, [restored, draftKey, portions, date, address, cycles]);
+  }, [restored, draftKey, portions, date, address, cycles, trial]);
   const state = useResource<CustomerState>("checkout-customer", () =>
     actor
       ? api.customer()
@@ -145,6 +182,24 @@ export function CheckoutPage({ id }: { id: string }) {
     directional: true,
     ready: restored && !!state.data,
   });
+  const addressAvailable =
+    !!selectedAddress && !!p?.areas.includes(selectedAddress.area);
+  const addressMessage = !state.data?.addresses.length
+    ? t(
+        "Tambahkan alamat agar kami dapat memeriksa area pengantaran.",
+        "Add an address so we can check delivery coverage.",
+      )
+    : !selectedAddress
+      ? t(
+          "Pilih alamat pengantaran yang tersimpan untuk melanjutkan.",
+          "Choose a saved delivery address to continue.",
+        )
+      : !addressAvailable
+        ? t(
+            "Alamat ini di luar area pengantaran katerer. Pilih atau tambahkan alamat lain.",
+            "This address is outside the caterer's delivery area. Choose or add another address.",
+          )
+        : "";
   useEffect(() => {
     if (restored && !address && state.data?.addresses[0])
       setAddress(state.data.addresses[0].id);
@@ -252,17 +307,19 @@ export function CheckoutPage({ id }: { id: string }) {
             sizes="(max-width: 600px) 76px, 350px"
           />
           <div>
-            <small>{p.caterer}</small>
-            <h2>{p.name}</h2>
-            <p>
-              {trial
-                ? t("Trial 1 hari", "1-day trial")
-                : commitment.deliveryDays +
-                  " " +
-                  t("hari pengantaran", "delivery days")}{" "}
-              · {mealLabel(p.meal, locale)} · {portions}{" "}
-              {t("porsi per waktu makan", "portions per meal")}
-            </p>
+            <div className="checkout-summary-description">
+              <small>{p.caterer}</small>
+              <h2>{p.name}</h2>
+              <p>
+                {trial
+                  ? t("Trial 1 hari", "1-day trial")
+                  : commitment.deliveryDays +
+                    " " +
+                    t("hari pengantaran", "delivery days")}{" "}
+                · {mealLabel(p.meal, locale)} · {portions}{" "}
+                {t("porsi per waktu makan", "portions per meal")}
+              </p>
+            </div>
             <div className="total-row" aria-live="polite" aria-atomic="true">
               <strong>
                 {quote
@@ -327,7 +384,7 @@ export function CheckoutPage({ id }: { id: string }) {
               disabled={
                 !restored ||
                 state.loading ||
-                !address ||
+                !addressAvailable ||
                 !startAvailable ||
                 !durationAvailable
               }
@@ -403,7 +460,9 @@ export function CheckoutPage({ id }: { id: string }) {
                 <Field label={t("Alamat pengantaran", "Delivery address")}>
                   <Select
                     required
-                    value={address}
+                    value={selectedAddress ? address : ""}
+                    aria-invalid={!!address && !addressAvailable}
+                    aria-describedby="checkout-address-guidance"
                     onValueChange={(value) => setAddress(value)}
                   >
                     <SelectOption value="">
@@ -416,6 +475,36 @@ export function CheckoutPage({ id }: { id: string }) {
                     ))}
                   </Select>
                 </Field>
+                <div
+                  id="checkout-address-guidance"
+                  className="checkout-address-guidance"
+                  role="status"
+                >
+                  <MapPin size={18} aria-hidden="true" />
+                  <div>
+                    {selectedAddress && (
+                      <p>
+                        {selectedAddress.line}, {selectedAddress.area}
+                      </p>
+                    )}
+                    {addressMessage ? (
+                      <p>{addressMessage}</p>
+                    ) : (
+                      <p className="small muted">
+                        {t(
+                          "Pengantaran termasuk ke alamat ini.",
+                          "Delivery to this address is included.",
+                        )}
+                      </p>
+                    )}
+                    {!addressAvailable && (
+                      <p className="small muted">
+                        {t("Area pengantaran", "Delivery areas")}:{" "}
+                        {p.areas.join(", ")}
+                      </p>
+                    )}
+                  </div>
+                </div>
                 <Link
                   className="text-button"
                   href={
@@ -475,6 +564,7 @@ export function CheckoutPage({ id }: { id: string }) {
                   !acceptedTerms ||
                   !startAvailable ||
                   !durationAvailable ||
+                  !addressAvailable ||
                   paymentUnavailable
                 }
                 actions={(submitButton) => (
@@ -483,14 +573,6 @@ export function CheckoutPage({ id }: { id: string }) {
                       <span>{t("Total pembayaran", "Total payment")}</span>
                       <strong>{currency(quote.total, locale)}</strong>
                     </div>
-                    {paymentUnavailable && (
-                      <p role="status">
-                        {t(
-                          "Pembayaran sedang tidak tersedia. Silakan coba lagi nanti.",
-                          "Payment is currently unavailable. Please try again later.",
-                        )}
-                      </p>
-                    )}
                     {submitButton}
                   </div>
                 )}
@@ -596,6 +678,68 @@ export function CheckoutPage({ id }: { id: string }) {
                         "Please accept the Terms & Conditions to continue.",
                       )}
                   </p>
+                <div
+                  ref={paymentStatus}
+                  tabIndex={-1}
+                  className="checkout-payment-status"
+                  aria-live="polite"
+                  aria-atomic="true"
+                >
+                  {availability.loading ? (
+                    <p role="status">
+                      {t(
+                        "Memeriksa ketersediaan pembayaran…",
+                        "Checking payment availability…",
+                      )}
+                    </p>
+                  ) : paymentUnavailable ? (
+                    <div className="checkout-recovery">
+                      <div>
+                        <strong>
+                          {availability.error
+                            ? t(
+                                "Pembayaran belum dapat diperiksa",
+                                "Payment availability could not be checked",
+                              )
+                            : t(
+                                "Pembayaran belum tersedia",
+                                "Payment is currently unavailable",
+                              )}
+                        </strong>
+                        <p>
+                          {availability.error
+                            ? t(
+                                "Pilihanmu tetap tersimpan. Coba periksa lagi untuk melanjutkan.",
+                                "Your selections are kept. Check again to continue.",
+                              )
+                            : t(
+                                "Belum ada metode pembayaran yang tersedia. Kamu dapat memeriksa lagi tanpa mengubah pilihan paket.",
+                                "No payment methods are available right now. You can check again without changing your package selections.",
+                              )}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => {
+                          paymentRetryRequested.current = true;
+                          setPaymentRechecked(true);
+                          availability.reload();
+                        }}
+                      >
+                        <RefreshCw size={17} aria-hidden="true" />
+                        {t("Periksa lagi", "Check again")}
+                      </Button>
+                    </div>
+                  ) : paymentRechecked ? (
+                    <p>
+                      {t(
+                        "Pembayaran tersedia. Lanjutkan setelah memeriksa pesananmu.",
+                        "Payment is available. Continue when you have reviewed your order.",
+                      )}
+                    </p>
+                  ) : null}
+                </div>
                 </div>
               </ActionForm>
             )
