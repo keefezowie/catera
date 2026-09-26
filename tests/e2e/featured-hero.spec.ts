@@ -173,6 +173,6 @@ test("area selection yields a static single caterer and an uncovered area retain
   await page.goto("/");
   await expect(page.locator(".featured-controls")).toHaveCount(0);
   await expect(page.locator(".featured-hero-wrapper h1")).toContainText(
-    "Eat well.",
+    "Catering subscriptions",
   );
 });

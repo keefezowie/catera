@@ -56,7 +56,7 @@ for (const width of [360, 390, 768, 1440])
         .getByLabel(t("Nama paket", "Package name"), { exact: true })
         .fill("Usability package");
       await page
-        .getByLabel(t("Cerita paket", "Package story"), { exact: true })
+        .getByLabel(t("Deskripsi paket", "Package description"), { exact: true })
         .fill("Synthetic package for layout verification.");
       await next.click();
       const optional = dialog

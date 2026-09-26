@@ -44,7 +44,7 @@ for (const state of [
       failed: "Payment time expired",
       expired: "Payment time expired",
       payment_exception: "Payment received, booking under review",
-      paid: "Good meals are on the calendar.",
+      paid: "Payment successful",
       refunded: "Payment refunded",
       partially_refunded: "Payment partially refunded",
     };
@@ -56,6 +56,6 @@ for (const state of [
     ).toHaveCount(state === "pending" ? 1 : 0);
     if (state !== "paid")
       await expect(
-        page.getByRole("heading", { name: "Good meals are on the calendar." }),
+        page.getByRole("heading", { name: "Payment successful" }),
       ).toHaveCount(0);
   });

@@ -126,11 +126,8 @@ function SellerWorkspace({ view }: { view: string }) {
       <Heading
         title={
           {
-            packages: t("Paket dari dapurmu.", "Packages from your kitchen."),
-            menus: t(
-              "Menu yang dinanti.",
-              "Menus your customers are waiting for.",
-            ),
+            packages: t("Paket", "Packages"),
+            menus: t("Menu", "Menus"),
             dishes: t("Daftar hidangan", "Dish library"),
             customers: t("Pelanggan", "Customers"),
             support: t("Pesan & bantuan", "Messages & support"),
@@ -966,7 +963,7 @@ function OfferEditor({
               <Field
                 fieldKey="description"
                 error={fieldError("description")}
-                label={t("Cerita paket", "Package story")}
+                label={t("Deskripsi paket", "Package description")}
               >
                 <TextArea
                   required
@@ -2121,25 +2118,14 @@ export function Onboarding() {
   return (
     <div className="content narrow-wide">
       <Heading
-        title={t(
-          "Makanan dari dapurmu. Hari baik untuk banyak orang.",
-          "Meals from your kitchen. Better days for many people.",
-        )}
+        title={t("Daftar sebagai katerer", "Register as a caterer")}
         description={t(
-          "Bangun langganan yang berulang dengan ritme dapur yang kamu tentukan.",
-          "Build recurring subscriptions around the rhythm of your kitchen.",
+          "Lengkapi profil usaha dan area pengantaran untuk mengajukan verifikasi.",
+          "Complete your business profile and delivery coverage to request verification.",
         )}
       />
       {!actor ? (
         <>
-          <img
-            className="onboarding-art"
-            src="/assets/welcome.png"
-            alt={t(
-              "Ilustrasi kotak makanan Catera",
-              "Catera meal box illustration",
-            )}
-          />
           <Link className="button" href="/register?next=/seller/onboarding">
             {t("Daftar untuk menjadi mitra", "Register to become a partner")}{" "}
             <ArrowRight size={18} />

@@ -356,12 +356,6 @@ function Shell({
               ))}
             </nav>
             <div className="sidebar-foot">
-              <img src="/assets/mascot.png" alt="" />
-              <strong>
-                Good food.
-                <br />
-                Good days.
-              </strong>
               <Link href="/">
                 {t("Lihat marketplace", "View marketplace")}{" "}
                 <ArrowUpRight size={16} />
@@ -383,14 +377,6 @@ function Shell({
             >
               <Menu />
             </Button>
-            <span>
-              {isAdmin
-                ? t("Marketplace & kepercayaan", "Marketplace & trust")
-                : t(
-                    "Makanan baik dimulai dari dapur yang tertata.",
-                    "Good food starts with an organized kitchen.",
-                  )}
-            </span>
             <LocaleSwitch />
             <Link
               href={
@@ -553,12 +539,6 @@ function Shell({
           <footer className="site-footer">
             <div>
               <Brand small />
-              <p>
-                {t(
-                  "Makanan baik, untuk hari-hari yang lebih baik.",
-                  "Good meals, for better everyday living.",
-                )}
-              </p>
             </div>
             <div>
               <Link href={catalogHref}>

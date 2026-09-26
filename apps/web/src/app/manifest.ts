@@ -7,8 +7,8 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
     name: "Catera — Good Food on Repeat",
     short_name: "Catera",
     description: english
-      ? "Good meals for better everyday living."
-      : "Makanan baik untuk hari-hari Anda.",
+      ? "Compare catering packages and manage your delivery schedule."
+      : "Bandingkan paket katering dan kelola jadwal pengantaran.",
     start_url: "/home",
     display: "standalone",
     background_color: "#FFF7E9",

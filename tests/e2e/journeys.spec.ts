@@ -36,15 +36,29 @@ test("customer purchase, schedule change, support review and renewal", async ({
   while (!purchaseStartAvailable(offer, start)) start = addDays(start, 1);
   const requestText = "Permintaan sintetis dari pengujian perjalanan " + start;
   await page.goto("/discover");
+  await expect(page).toHaveURL(/\/#packages$/);
+  await page.waitForLoadState("networkidle");
   await page
     .getByRole("button", { name: "Bandingkan: Rantang Nusantara", exact: true })
     .click();
+  await expect(
+    page.getByRole("button", {
+      name: "Hapus dari perbandingan: Rantang Nusantara",
+      exact: true,
+    }),
+  ).toHaveAttribute("aria-pressed", "true");
   await page
     .getByRole("button", {
       name: "Bandingkan: Plant-based Everyday",
       exact: true,
     })
     .click();
+  await expect(
+    page.getByRole("button", {
+      name: "Hapus dari perbandingan: Plant-based Everyday",
+      exact: true,
+    }),
+  ).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("link", { name: "Bandingkan", exact: true }).click();
   await expect(page.locator("table.comparison")).toBeVisible();
   await page.getByLabel("Porsi perbandingan").fill("2");
@@ -59,7 +73,7 @@ test("customer purchase, schedule change, support review and renewal", async ({
     .getByRole("button", { name: "Simulasikan pembayaran berhasil" })
     .click();
   await expect(
-    page.getByRole("heading", { name: "Makanan baik sudah dijadwalkan." }),
+    page.getByRole("heading", { name: "Pembayaran berhasil" }),
   ).toBeVisible();
   const subs = (
     await (
@@ -160,7 +174,7 @@ test("customer and operational routes render, retain context and pass critical a
   ).toBe(true);
   await page.goto("/account");
   await expect(
-    page.getByRole("heading", { name: "Akunmu, keseharianmu." }),
+    page.getByRole("heading", { name: "Akun" }),
   ).toBeVisible();
   const audit = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa"])

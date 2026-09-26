@@ -372,3 +372,13 @@ Transactions start with a compact balance/readiness summary and Sales. Earnings 
 Production remains a whole-day handoff independent of schedule-table filters. Live output and the latest saved revision are separately labeled, including whether the saved copy matches current orders. Empty attention queues are compact; populated queues retain priority and next actions.
 
 Implementation, local verification, and release limitations are recorded in [the caterer journey report](docs/CATERER-JOURNEY-IMPLEMENTATION-2026-09-24.md).
+
+## Practical copy and purposeful UI — September 26, 2026
+
+Every web surface uses task names, factual product explanations, and explicit states. Remove generic slogans, repeated promotional subtitles, decorative panels, and illustrations that contribute no task information. Preserve instructions, eligibility and permission explanations, consent, consequences, deadlines, recovery actions, and user-authored content. Indonesian and English convey the same meaning; payment headings follow the existing server state.
+
+The approved identity remains: forest/sunrise/cream, Jakarta type, the wordmark, food-led discovery, and the “Good Food on Repeat” brand tagline. Show that tagline once as footer text; do not repeat invented variations throughout the workspace. Artwork masters and the brand reference gallery remain intact. Functional loading animation and semantic status icons remain useful feedback.
+
+Operational chrome contains navigation, workspace identity, language, notifications, and account controls. The marketplace link remains in the compact sidebar footer. Page headings use the existing optional-description pattern; no empty paragraph or spacer replaces removed copy. Authentication uses a centered form, at most 528px including 24px side padding, with one mode-specific primary heading. Empty states retain their explanation and action without a generic calendar illustration. Tokens and behavioral contracts are unchanged.
+
+Inventory, route coverage, and local verification: [ID 0035](docs/SLACK-0035.md).

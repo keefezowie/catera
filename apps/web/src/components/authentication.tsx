@@ -29,28 +29,16 @@ export function Login({
   const next = safeReturnPath(q.get("next")) || "/home";
   return (
     <div className="login-layout">
-      <section className="login-story">
-        <img src="/assets/welcome.png" alt="Maskot Catera menyambut Anda" />
-        <h1>
-          {t("Hari yang baik,", "A good day,")}
-          <br />
-          {t("dimulai dari makan.", "starts with a good meal.")}
-        </h1>
-        <p>
-          {t(
-            "Satu tempat untuk makanan favorit dan jadwal yang lebih teratur.",
-            "One place for your favorite meals and a more effortless routine.",
-          )}
-        </p>
-      </section>
       <section className="login-form">
-        <h2>
+        <h1>
           {registering
             ? t("Buat akun Catera", "Create your Catera account")
             : recovery
-              ? t("Pulihkan akun", "Recover your account")
-              : t("Selamat datang di Catera", "Welcome to Catera")}
-        </h2>
+              ? mode === "reset-password"
+                ? t("Buat kata sandi baru", "Set a new password")
+                : t("Pulihkan akun", "Recover your account")
+              : t("Masuk", "Sign in")}
+        </h1>
         {q.get("error") && (
           <p role="alert" className="notice">
             {t(
@@ -67,12 +55,6 @@ export function Login({
             )}
           </p>
         )}
-        <p>
-          {t(
-            "Makanan enak untuk hari-harimu yang sibuk.",
-            "Good meals for your busy everyday.",
-          )}
-        </p>
         {recovery ? (
           <RecoveryForm reset={mode === "reset-password"} next={next} />
         ) : demo ? (
@@ -270,12 +252,6 @@ export function Login({
             </Link>
           </p>
         )}
-        <p className="small muted">
-          {t(
-            "Dengan masuk, Anda dapat mengelola paket, jadwal, dan percakapan di satu tempat.",
-            "Sign in to manage packages, schedules, and conversations in one place.",
-          )}
-        </p>
       </section>
     </div>
   );

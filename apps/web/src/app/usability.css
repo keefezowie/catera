@@ -623,12 +623,6 @@ body .ops-main .ops-order-table [data-cell="actions"] .text-button {
   .seller-operations .ops-metrics > :is(div, button) {
     padding: 16px;
   }
-  .ops-topbar > span {
-    display: none;
-  }
-  .ops-topbar {
-    justify-content: space-between;
-  }
   .menu-revision-info {
     width: 100%;
   }

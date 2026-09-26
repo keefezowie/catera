@@ -18,8 +18,8 @@ export async function generateMetadata(): Promise<Metadata> {
     title: { default: "Catera — Good Food on Repeat", template: "%s · Catera" },
     description:
       locale === "en"
-        ? "Find everyday catering, plan your meals, and enjoy food you love. Delivery included."
-        : "Temukan katering harian, atur jadwal makan, dan nikmati makanan yang Anda sukai. Pengantaran termasuk.",
+        ? "Compare catering packages, choose portions, and manage your delivery schedule."
+        : "Bandingkan paket katering, pilih porsi, dan kelola jadwal pengantaran.",
     manifest: "/manifest.webmanifest",
     icons: { icon: "/assets/app-icon.png", apple: "/assets/app-icon.png" },
   };

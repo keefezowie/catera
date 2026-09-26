@@ -622,7 +622,7 @@ test("package wizard publishes composition only and customers buy before dated m
   const name = "Paket komposisi " + Date.now();
   await page.getByLabel("Nama paket", { exact: true }).fill(name);
   await page
-    .getByLabel("Cerita paket", { exact: true })
+    .getByLabel("Deskripsi paket", { exact: true })
     .fill("Paket sintetis dengan menu yang diatur melalui kalender.");
   await page.getByRole("button", { name: /2\. Isi/ }).click();
   await page

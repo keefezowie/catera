@@ -228,7 +228,7 @@ export function CheckoutPage({ id }: { id: string }) {
     return (
       <div className="narrow">
         <Heading
-          title={t("Simpan pilihanmu.", "Keep your selection.")}
+          title={t("Masuk untuk memesan", "Sign in to order")}
           description={t(
             "Masuk untuk memilih alamat dan mengamankan jadwal makanan.",
             "Sign in to choose an address and reserve your meals.",
@@ -265,16 +265,9 @@ export function CheckoutPage({ id }: { id: string }) {
       <Heading
         title={
           trial
-            ? t("Kenalan lewat satu kali makan.", "Start with a first taste.")
-            : t(
-                "Siapkan hari-hari yang lebih enak.",
-                "Make room for good meals.",
-              )
+            ? t("Pesan uji coba", "Order a trial")
+            : t("Pesan paket", "Order package")
         }
-        description={t(
-          "Porsi dan jadwal yang jelas, sejak awal.",
-          "Clear portions and schedules, from the start.",
-        )}
       />
       <ol
         className="checkout-steps"
@@ -861,16 +854,10 @@ export function PaymentPage({ id }: { id: string }) {
   if (c.subscription_id && c.state === "paid")
     return (
       <div className="payment-success">
-        <img src="/assets/confirmation.png" alt="" />
         <span className="success-mark">
           <Check size={24} />
         </span>
-        <h1>
-          {t(
-            "Makanan baik sudah dijadwalkan.",
-            "Good meals are on the calendar.",
-          )}
-        </h1>
+        <h1>{t("Pembayaran berhasil", "Payment successful")}</h1>
         <p>
           {c.quote.offer.name} · {c.quote.portions} {t("porsi", "portions")} ·{" "}
           {c.quote.dates.length} {t("hari", "days")}
@@ -898,8 +885,8 @@ export function PaymentPage({ id }: { id: string }) {
               : payment.phase === "awaiting_payment"
                 ? t("Menunggu pembayaran", "Awaiting payment")
                 : payment.phase === "preparing"
-                  ? t("Menyiapkan pembayaran", "Preparing payment")
-                  : t("Waktu pembayaran habis", "Payment time expired")
+                ? t("Menyiapkan pembayaran", "Preparing payment")
+                : t("Waktu pembayaran habis", "Payment time expired")
         }
       />
       {state.stale && (

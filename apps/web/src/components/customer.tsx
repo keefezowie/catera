@@ -108,7 +108,7 @@ function CustomerOverview({ view, id }: { view: string; id?: string }) {
     return (
       <div className="content narrow-wide">
         <Heading
-          title={t("Paket yang menemani harimu", "Your everyday meal packages")}
+          title={t("Langganan saya", "My subscriptions")}
           description={t(
             "Setiap paket punya porsi, jadwal, dan ketentuannya sendiri.",
             "Each package keeps its own portions, schedule, and terms.",
@@ -135,23 +135,12 @@ function CustomerOverview({ view, id }: { view: string; id?: string }) {
       <Heading
         title={
           view === "home"
-            ? t(
-                "Halo, " + actor?.name.split(" ")[0] + ". Mau makan enak?",
-                "Hello, " +
-                  actor?.name.split(" ")[0] +
-                  ". Ready for a good meal?",
-              )
-            : t(
-                "Hari-hari yang sudah terencana.",
-                "Your meals, all in one place.",
-              )
+            ? t("Makanan saya", "My meals")
+            : t("Jadwal makan", "Meal calendar")
         }
         description={
           view === "home"
-            ? t(
-                "Lebih sedikit memikirkan makan. Lebih banyak menikmati hari.",
-                "Less meal planning. More enjoying your day.",
-              )
+            ? undefined
             : t(
                 "Semua paket dan katerer, dalam satu jadwal.",
                 "Every package and caterer, in one calendar.",
@@ -160,7 +149,7 @@ function CustomerOverview({ view, id }: { view: string; id?: string }) {
       >
         {view === "home" && (
           <Link className="button secondary" href="/#packages">
-            {t("Temukan favorit baru", "Find a new favorite")}
+            {t("Jelajah katering", "Explore catering")}
             <ArrowUpRight size={17} />
           </Link>
         )}
@@ -192,7 +181,7 @@ function CustomerOverview({ view, id }: { view: string; id?: string }) {
             )}
             <Link className="add-package" href="/#packages">
               <Plus size={20} />
-              {t("Tambah paket yang kamu suka", "Add another favorite")}
+              {t("Tambah paket", "Add a package")}
             </Link>
           </section>
         </>
@@ -1118,7 +1107,7 @@ export function Messages({ embedded = false }: { embedded?: boolean }) {
     >
       {!embedded && (
         <Heading
-          title={t("Obrolan yang bikin jelas.", "A little conversation helps.")}
+          title={t("Pesan", "Messages")}
           description={t(
             "Tanya menu, atur pengantaran, atau sampaikan sesuatu ke katerermu.",
             "Ask about meals, coordinate a delivery, or talk to your caterer.",
@@ -1319,8 +1308,8 @@ export function Account({ view }: { view: string }) {
       <Heading
         title={
           view === "addresses"
-            ? t("Makanan diantar ke mana?", "Where should we deliver?")
-            : t("Akunmu, keseharianmu.", "Your account, your everyday.")
+            ? t("Alamat pengantaran", "Delivery addresses")
+            : t("Akun", "Account")
         }
       />
       <RefreshNotice error={state.error} reload={state.reload} />
@@ -1330,17 +1319,15 @@ export function Account({ view }: { view: string }) {
             <span className="large-avatar">{actor?.name[0]}</span>
             <div>
               <h2>{actor?.name}</h2>
-              <p>
-                {t(
-                  "Selamat menikmati hari-hari yang lebih teratur.",
-                  "Enjoy a more effortless everyday.",
-                )}
-              </p>
             </div>
           </div>
           <div className="account-links">
             {[
-              ["/subscriptions", t("Paket saya", "My packages"), Package],
+              [
+                "/subscriptions",
+                t("Langganan saya", "My subscriptions"),
+                Package,
+              ],
               ["/notifications", t("Notifikasi", "Notifications"), Bell],
               [
                 "/support",
@@ -1510,7 +1497,7 @@ export function Support() {
   return (
     <div className="content narrow-wide">
       <Heading
-        title={t("Kami bantu sampai selesai.", "Let’s work it out.")}
+        title={t("Bantuan & pembatalan", "Support & cancellation")}
         description={t(
           "Ceritakan kendalamu. Katerer merespons lebih dulu, dan Catera siap membantu jika perlu.",
           "Tell us what happened. Your caterer responds first, with Catera available to help.",
