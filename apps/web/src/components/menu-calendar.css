@@ -593,6 +593,20 @@
     gap: 8px;
   }
 }
+@container menu-panel (width < 360px) {
+  .menu-month-grid .menu-day {
+    height: auto;
+    min-height: 80px;
+  }
+  .menu-day .menu-day-heading {
+    flex-direction: column;
+    gap: 2px;
+  }
+  .menu-day .menu-day-count {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
 .menu-workspace-customer .menu-save-bar {
   position: static;
   margin-top: 20px;

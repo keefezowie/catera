@@ -21,9 +21,9 @@
   font-size: 17px;
 }
 .ops-scope-area {
-  display: grid;
-  grid-template-columns: minmax(190px, 1fr) minmax(280px, 1.5fr) minmax(150px, 1fr) minmax(150px, 1fr) minmax(180px, 1.3fr) auto;
-  gap: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
   align-items: end;
   margin-bottom: 20px;
   padding: 16px;
@@ -32,10 +32,12 @@
   background: var(--soft);
 }
 .ops-scope-field { display: grid; gap: 6px; min-width: 0; }
+.ops-scope-area .ops-date { display: grid; flex: 0 1 190px; max-width: 100%; }
 .ops-scope-field > span { font-size: 12px; font-weight: 700; color: var(--muted); }
 .ops-scope-field .select-trigger, .ops-scope-search input { width: 100%; min-width: 0; }
-.ops-scope-reset { align-self: center; white-space: nowrap; }
-.ops-extra-filters { display: contents; }
+.ops-scope-reset { align-self: end; white-space: normal; }
+.ops-extra-filters { display: flex; flex: 1 1 100%; flex-wrap: wrap; align-items: end; gap: 12px; min-width: 0; }
+.ops-extra-filters > .ops-scope-field { flex: 1 1 190px; }
 .ops-filter-toggle, .attention-scope-toggle { display: none; }
 .ops-workload,
 .ops-scope-summary,
@@ -55,12 +57,15 @@
   gap: 8px 20px;
 }
 .ops-stages button {
+  flex-wrap: wrap;
+  overflow-wrap: anywhere;
   min-height: 44px;
   padding: 9px 12px;
   border-color: var(--line);
   background: transparent;
   color: var(--forest);
 }
+.ops-stages button strong { max-width: 100%; }
 .ops-stages .button.is-selected,
 .ops-stages .button.is-selected:hover {
   background: var(--forest);
@@ -108,15 +113,10 @@
 .attention-item:last-child { border-bottom: 0; }
 .attention-more { justify-content: space-between; margin-top: 14px; }
 .bulk-confirmation .facts { margin-block: 0 18px; }
-@media (max-width: 1180px) {
-  .ops-scope-area { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .ops-scope-area .ops-meal-tabs { grid-column: span 2; }
-}
 @media (max-width: 560px) {
-  .ops-scope-area { grid-template-columns: minmax(0, 1fr); padding: 14px; }
-  .ops-scope-area .ops-meal-tabs { grid-column: auto; }
+  .ops-scope-area { padding: 14px; }
+  .ops-scope-area .ops-date { flex-basis: 100%; }
   .ops-scope-field, .ops-scope-field .select-trigger, .ops-scope-search input { width: 100%; }
-  .ops-scope-reset { justify-self: start; }
   .seller-operations[data-schedule="false"] .ops-filter-toggle { display: inline-flex; }
   .seller-operations[data-schedule="false"] .ops-extra-filters { display: grid; gap: 12px; }
   .seller-operations[data-schedule="false"] .ops-extra-filters[data-open="false"] { display: none; }
@@ -131,13 +131,6 @@
   .seller-attention[data-empty="true"] .attention-scope-toggle { display: inline-flex; }
   .seller-attention[data-empty="true"] .attention-scope-details[data-open="false"] { display: none; }
   .seller-attention[data-empty="true"] .quiet-empty { margin-top: 4px; }
-  .ops-meal-tabs button {
-    flex-wrap: wrap;
-    column-gap: 4px;
-  }
-  .ops-meal-tabs small {
-    width: 100%;
-  }
   .ops-context .button {
     width: 100%;
   }
@@ -184,6 +177,10 @@
   min-width: 175px;
 }
 .ops-meal-tabs {
+  flex: 1 1 420px;
+  flex-wrap: wrap;
+  min-width: 0;
+  align-items: stretch;
   gap: 4px;
   background: var(--soft);
   border-radius: 10px;
@@ -191,15 +188,25 @@
 }
 .ops-meal-tabs button {
   display: inline-flex;
-  gap: 8px;
+  flex: 1 1 0;
+  flex-wrap: wrap;
+  min-width: min-content;
+  max-width: 100%;
+  gap: 4px;
   align-items: center;
   justify-content: center;
   min-height: 44px;
-  padding: 8px 18px;
+  padding: 8px 12px;
   border: 0;
   background: transparent;
   border-radius: 8px;
   color: var(--forest);
+}
+.ops-meal-tabs small {
+  flex-basis: 100%;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .ops-meal-tabs .selected {
   background: var(--forest);
@@ -429,7 +436,9 @@
   gap: 7px;
 }
 .seller-operations .coverage-day .coverage-info small {
-  white-space: nowrap;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .seller-operations .coverage-day.is-selected small {
   color: inherit;
@@ -457,10 +466,6 @@
 @media (max-width: 560px) {
   .ops-meal-tabs {
     width: 100%;
-  }
-  .ops-meal-tabs button {
-    flex: 1;
-    padding-inline: 12px;
   }
   .ops-bulk-toolbar > strong {
     width: 100%;

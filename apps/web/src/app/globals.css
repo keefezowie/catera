@@ -3211,7 +3211,7 @@ td strong {
     font-size: 26px;
   }
   .site-footer {
-    padding: 26px 24px;
+    padding: 26px 24px calc(26px + var(--mobile-bottom-clearance, 0px) + var(--mobile-purchase-clearance, 0px));
     flex-wrap: wrap;
   }
   .site-footer > p {
@@ -3263,6 +3263,7 @@ td strong {
     bottom: calc(var(--mobile-bottom-clearance, 0px) + 10px);
     z-index: 35;
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
@@ -3275,6 +3276,7 @@ td strong {
   .mobile-purchase-summary > span {
     display: grid;
     min-width: 0;
+    flex: 1 1 auto;
   }
   .mobile-purchase-summary small {
     color: var(--muted);
@@ -3287,6 +3289,9 @@ td strong {
   .mobile-purchase-summary .button {
     min-height: 44px;
     flex: 0 0 auto;
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
   .checkout-summary {
     display: grid;
@@ -3572,7 +3577,7 @@ td strong {
     );
   }
   .site-footer {
-    padding: 28px 22px calc(28px + var(--mobile-bottom-clearance));
+    padding: 28px 22px calc(28px + var(--mobile-bottom-clearance) + var(--mobile-purchase-clearance, 0px));
     flex-direction: column;
     align-items: flex-start;
     gap: 22px;
@@ -3589,8 +3594,8 @@ td strong {
     left: 0;
     right: 0;
     padding: 9px 7px max(10px, env(safe-area-inset-bottom));
-    display: flex;
-    justify-content: space-around;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     background: var(--canvas);
     border-top: 1px solid var(--line);
     z-index: 40;
@@ -3604,8 +3609,17 @@ td strong {
     justify-content: center;
     color: #626c58;
     min-height: 44px;
-    width: 20%;
+    min-width: 0;
+    padding-inline: 2px;
+    text-align: center;
     font-size: 12px;
+  }
+  .mobile-bottom a > span {
+    max-width: 100%;
+    min-width: 0;
+    line-height: 1.25;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
   .mobile-bottom .selected {
     color: var(--forest);
@@ -4347,6 +4361,7 @@ textarea::placeholder {
 .customer-actions.later .customer-action { border-color: var(--line); background: var(--surface); }
 .home-page > .next-meal-card { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); margin-bottom: 28px; }
 .home-page > .next-meal-card .next-meal-photo { height: 100%; min-height: 260px; }
+.home-page > .next-meal-card .next-meal-photo img { position: absolute; inset: 0; }
 .home-page > .next-meal-card .next-meal-info { font-size: 13px; }
 @media (max-width: 700px) {
   .home-page > .next-meal-card { grid-template-columns: minmax(0, 1fr); }
@@ -4382,6 +4397,8 @@ textarea::placeholder {
   padding: 28px; border: 1px solid var(--line); border-radius: 18px;
   background: var(--soft);
 }
+.date-agenda > .section-heading { flex-wrap: wrap; }
+.date-agenda > .section-heading > div { min-width: 0; }
 .date-agenda-groups {
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px;
 }

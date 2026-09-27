@@ -144,6 +144,7 @@
 }
 .coverage-info {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
   gap: 4px;
@@ -156,7 +157,9 @@
   font-size: 11px;
   font-weight: 650;
   line-height: 1.5;
-  white-space: nowrap;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .coverage-meal-icons {
   display: flex;
@@ -176,7 +179,9 @@
   color: var(--muted);
   font-size: 10px;
   line-height: 1.5;
-  white-space: nowrap;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .coverage-summary {
   display: flex;

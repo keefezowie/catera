@@ -48,6 +48,10 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
   const setFollowup = (value: boolean) =>
     update({ followup: value ? "true" : null });
   const search = query.get("search") || "";
+  const [searchDraft, setSearchDraft] = useState(search);
+  useEffect(() => {
+    setSearchDraft(search);
+  }, [search]);
   const fail = (e: unknown) =>
     setActionError(
       errorLabel(e instanceof Error ? e.message : "", locale) ||
@@ -140,10 +144,65 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
       )}
     </div>
   );
+  // Keep the controls at the same keyed position while a new filter loads.
+  // Current records still disappear immediately; keyboard focus does not.
+  const customerControls = selected ? (
+    customerNavigation
+  ) : (
+    <section
+      key="customer-controls"
+      className="customer-controls"
+      aria-label={t("Cari dan filter pelanggan", "Search and filter customers")}
+    >
+      <div className="customer-filter-bar">
+        {customerNavigation}
+        {state.data && (
+          <p className="customer-result-count" aria-live="polite">
+            <strong>{state.data.total}</strong>{" "}
+            {t("pelanggan", state.data.total === 1 ? "customer" : "customers")}
+          </p>
+        )}
+      </div>
+      <form
+        className="customer-search"
+        onSubmit={(event) => {
+          event.preventDefault();
+          update({
+            search: searchDraft.trim(),
+            offset: null,
+            customerId: null,
+          });
+        }}
+      >
+        <Field label={t("Cari pelanggan", "Search customers")}>
+          <TextInput
+            name="search"
+            type="search"
+            value={searchDraft}
+            onChange={(event) => setSearchDraft(event.target.value)}
+            maxLength={100}
+            placeholder={t("Nama atau nomor telepon", "Name or phone number")}
+          />
+        </Field>
+        <Button type="submit" variant="secondary">
+          {t("Cari", "Search")}
+        </Button>
+        {search && (
+          <Button
+            type="button"
+            variant="text"
+            onClick={() => update({ search: null, offset: null })}
+          >
+            {t("Hapus pencarian", "Clear search")}
+          </Button>
+        )}
+      </form>
+    </section>
+  );
   if (!state.data)
     return (
       <div className="pilot-workspace seller-customers">
-        {customerNavigation}
+        {customerControls}
         {state.error ? (
           <ErrorNotice message={state.error} retry={state.reload} />
         ) : (
@@ -201,64 +260,7 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
         />
       )}
       {actionError && <ErrorNotice message={actionError} />}
-      {selected ? (
-        customerNavigation
-      ) : (
-        <section
-          className="customer-controls"
-          aria-label={t(
-            "Cari dan filter pelanggan",
-            "Search and filter customers",
-          )}
-        >
-          <div className="customer-filter-bar">
-            {customerNavigation}
-            <p className="customer-result-count" aria-live="polite">
-              <strong>{data.total}</strong>{" "}
-              {t("pelanggan", data.total === 1 ? "customer" : "customers")}
-            </p>
-          </div>
-          <form
-            className="customer-search"
-            onSubmit={(event) => {
-              event.preventDefault();
-              update({
-                search: String(
-                  new FormData(event.currentTarget).get("search") || "",
-                ).trim(),
-                offset: null,
-                customerId: null,
-              });
-            }}
-          >
-            <Field label={t("Cari pelanggan", "Search customers")}>
-              <TextInput
-                key={search}
-                name="search"
-                type="search"
-                defaultValue={search}
-                maxLength={100}
-                placeholder={t(
-                  "Nama atau nomor telepon",
-                  "Name or phone number",
-                )}
-              />
-            </Field>
-            <Button type="submit" variant="secondary">
-              {t("Cari", "Search")}
-            </Button>
-            {search && (
-              <Button
-                type="button"
-                variant="text"
-                onClick={() => update({ search: null, offset: null })}
-              >
-                {t("Hapus pencarian", "Clear search")}
-              </Button>
-            )}
-          </form>
-        </section>
-      )}
+      {customerControls}
       {!data.customers.length && (
         <Empty
           title={

@@ -28,7 +28,7 @@ import {
   LayoutDashboard,
   Image as ImageIcon,
 } from "lucide-react";
-import { Fragment, useEffect, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   areaOptions,
   type Actor,
@@ -194,6 +194,25 @@ function Shell({
   }
   const [menu, setMenu] = useState(false);
   const [section, setSection] = useState("packages");
+  const bottomNav = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const node = bottomNav.current;
+    if (!node) return;
+    // Text resizing can make the fixed navigation taller than its CSS fallback.
+    const update = () => {
+      document.body.style.setProperty(
+        "--mobile-bottom-clearance",
+        `${Math.ceil(node.getBoundingClientRect().height)}px`,
+      );
+    };
+    const observer = new ResizeObserver(update);
+    observer.observe(node);
+    update();
+    return () => {
+      observer.disconnect();
+      document.body.style.removeProperty("--mobile-bottom-clearance");
+    };
+  }, [operational, pathname, actor]);
   useEffect(() => {
     if (pathname !== "/") return;
     let frame = 0;
@@ -428,6 +447,7 @@ function Shell({
           {!isAdmin && (
             <>
               <nav
+                ref={bottomNav}
                 className="seller-bottom"
                 aria-label={t("Navigasi katerer", "Caterer navigation")}
               >
@@ -585,7 +605,7 @@ function Shell({
             <p>Good Food on Repeat.</p>
           </footer>
           {actor && (
-            <nav className="mobile-bottom">
+            <nav ref={bottomNav} className="mobile-bottom">
               {customerNav.map(([href, id, en, Icon]) => (
                 <Link
                   key={href}

@@ -630,6 +630,7 @@ export function PackagePage({
   const [portions, setPortions] = useState(1);
   const [bookingPassed, setBookingPassed] = useState(false);
   const bookingRef = useRef<HTMLElement>(null);
+  const purchaseSummary = useRef<HTMLDivElement>(null);
   const reviews = useResource<
     {
       id: string;
@@ -663,6 +664,24 @@ export function PackagePage({
       window.removeEventListener("resize", sync);
     };
   }, [p?.id]);
+  useEffect(() => {
+    const node = purchaseSummary.current;
+    if (!node) return;
+    const update = () => {
+      const height = node.getBoundingClientRect().height;
+      document.body.style.setProperty(
+        "--mobile-purchase-clearance",
+        `${height > 0 ? Math.ceil(height) + 20 : 0}px`,
+      );
+    };
+    const observer = new ResizeObserver(update);
+    observer.observe(node);
+    update();
+    return () => {
+      observer.disconnect();
+      document.body.style.removeProperty("--mobile-purchase-clearance");
+    };
+  }, [bookingPassed, preview, p?.id]);
   if (!p)
     return (
       <Empty
@@ -859,10 +878,10 @@ export function PackagePage({
             "Harga dan porsi paket",
             "Package pricing and portions",
           )}
-          >
-            <span>
-              {commitment.deliveryDays} {t("hari pengantaran", "delivery days")}
-            </span>
+        >
+          <span>
+            {commitment.deliveryDays} {t("hari pengantaran", "delivery days")}
+          </span>
           <h2>
             {currency(perMealPrice(p), locale)}
             <small> / {t("sekali makan", "meal")}</small>
@@ -969,6 +988,7 @@ export function PackagePage({
       </div>
       {!preview && bookingPassed && (
         <div
+          ref={purchaseSummary}
           className="mobile-purchase-summary"
           aria-label={t("Ringkasan pembelian", "Purchase summary")}
         >
