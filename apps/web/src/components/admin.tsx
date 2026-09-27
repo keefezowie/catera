@@ -165,9 +165,10 @@ export function Admin({ view }: { view: string }) {
                     <span>
                       <strong>{o.name}</strong>
                       <small>
-                        {currency(o.price, locale)}{" "}
-                        {t("/ porsi / hari", "/ portion / day")} · {o.days}{" "}
-                        {t("hari", "days")} ·{" "}
+                        {o.price === null
+                          ? t("Harga belum diisi", "Price not entered")
+                          : `${currency(o.price, locale)} ${t("/ porsi / hari", "/ portion / day")}`}{" "}
+                        · {o.days} {t("hari", "days")} ·{" "}
                         {o.menus.map((m) => menuSummary(m, locale)).join(", ")}
                       </small>
                     </span>

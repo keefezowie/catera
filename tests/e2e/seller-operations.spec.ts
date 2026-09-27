@@ -34,6 +34,7 @@ test("Today splits meals and addresses, bulk updates, and retains conflict selec
   await expect(main.locator(".ops-visible-summary")).toContainText(
     "3 baris terlihat · 3 pesanan · 6 porsi",
   );
+  await main.getByRole("button", { name: /^Filter pesanan/ }).click();
   await main.getByRole("searchbox", { name: "Cari pesanan" }).fill("Kantor");
   await expect(page).toHaveURL(/search=Kantor/);
   await expect(main.locator("tbody tr:not(.ops-group-heading)")).toHaveCount(1);
@@ -126,6 +127,9 @@ test("Schedule filters, redirects, exports a whole-day CSV, and renders desktop/
     main.locator(".ops-order-table tbody tr:not(.ops-group-heading)"),
   ).toHaveCount(3);
   const packages = main.getByRole("combobox", { name: "Filter paket" });
+  await main
+    .getByRole("button", { name: /^Filter & kelompokkan pesanan/ })
+    .click();
   await packages.click();
   await page.getByRole("option").nth(1).click();
   await expect(

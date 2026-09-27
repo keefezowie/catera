@@ -1,0 +1,58 @@
+.optional-summary {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.optional-section > summary > svg {
+  flex-shrink: 0;
+}
+.package-save-state {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.package-review-summary {
+  border-block: 1px solid var(--line);
+}
+.package-review-summary > div {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 0;
+}
+.package-review-summary > div + div {
+  border-top: 1px solid var(--line);
+}
+.package-review-summary > div > div {
+  min-width: 0;
+}
+.package-review-summary p {
+  margin: 6px 0 0;
+  overflow-wrap: anywhere;
+}
+.package-review-summary button {
+  flex-shrink: 0;
+}
+.choice-requirements {
+  margin: 0;
+  padding-left: 20px;
+}
+.seller-readiness > details > summary {
+  cursor: pointer;
+  padding: 14px 0;
+  min-height: 44px;
+}
+.seller-readiness .button {
+  white-space: normal;
+  text-align: left;
+}
+@media (max-width: 420px) {
+  .package-review-summary > div {
+    gap: 8px;
+  }
+}

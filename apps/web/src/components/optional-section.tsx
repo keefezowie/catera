@@ -8,11 +8,13 @@ export function OptionalSection({
   children,
   initiallyOpen = false,
   invalid = false,
+  summary,
 }: {
   title: string;
   children: ReactNode;
   initiallyOpen?: boolean;
   invalid?: boolean;
+  summary?: ReactNode;
 }) {
   const [open, setOpen] = useState(initiallyOpen || invalid);
   const id = useId();
@@ -32,7 +34,10 @@ export function OptionalSection({
       }}
     >
       <summary aria-controls={id}>
-        {title}
+        <span>
+          {title}
+          {summary && <small className="optional-summary">{summary}</small>}
+        </span>
         <ChevronDown size={18} aria-hidden="true" />
       </summary>
       <div id={id} className="optional-fields">

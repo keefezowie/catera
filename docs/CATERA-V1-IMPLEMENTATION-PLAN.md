@@ -1,5 +1,7 @@
 # Catera V1 implementation and release plan
 
+September 27 caterer setup refinement: [implementation and verification](CATERER-SETUP-SIMPLIFICATION.md) records incomplete draft support and the first-package/daily-work improvements. Hosted release requires compatible seller/admin readers before the additive validator migration, then enabling the new editor. The representative-caterer study and controlled pilot remain unperformed release gates.
+
 September 14 customer-choice extension: [implementation and verification](CUSTOMER-CHOICE.md) describes the additive package subtype, editable option libraries and delivery-specific selections. Separate V1 migration, job-schedule verification and hosted release gates remain required.
 
 September 10 package-editor follow-up: [reusable dishes and reliable editing](REUSABLE-DISHES.md) records local delivery, migration order, snapshot preservation and verification. Hosted migration and physical-device checks remain separate gates.

@@ -5,7 +5,7 @@ import {
   durationOptions,
   purchasePricing,
   currency,
-  type Offer,
+  type SellerOffer,
   type DurationOption,
 } from "@catera/domain";
 import { useApp } from "./context";
@@ -13,7 +13,7 @@ import { ActionForm, Dialog, Field } from "./ui";
 import { Button, Checkbox } from "./form-controls";
 import { NumericInput } from "./numeric-input";
 import { useDiscardChanges } from "./journey-state";
-export function PackageDurationEditor({ offer }: { offer: Offer }) {
+export function PackageDurationEditor({ offer }: { offer: SellerOffer }) {
   const { t, locale, perform } = useApp();
   const [options, setOptions] = useState<DurationOption[]>(
     durationOptions({ ...offer, multiCycleAvailable: true }),
@@ -117,21 +117,31 @@ export function PackageDurationEditor({ offer }: { offer: Offer }) {
                 />
               </Field>
             </div>
+            {offer.price === null && (
+              <p className="field-hint">
+                {t(
+                  "Isi harga dasar paket untuk melihat contoh total. Pilihan durasi tetap dapat disimpan.",
+                  "Enter the package base price to see example totals. Duration options can still be saved.",
+                )}
+              </p>
+            )}
             {[1, 2, 3, 4, 5, 6].map((cycles) => {
               const current = options.find((o) => o.cycles === cycles);
               let preview: ReturnType<typeof purchasePricing> | null = null;
               try {
-                preview = current
-                  ? purchasePricing(
-                      {
-                        ...offer,
-                        multiCycleAvailable: true,
-                        durationPricing: { revision, options },
-                      },
-                      portions,
-                      cycles,
-                    )
-                  : null;
+                preview =
+                  current && offer.price !== null
+                    ? purchasePricing(
+                        {
+                          ...offer,
+                          price: offer.price,
+                          multiCycleAvailable: true,
+                          durationPricing: { revision, options },
+                        },
+                        portions,
+                        cycles,
+                      )
+                    : null;
               } catch {
                 /* An oversized example must not prevent saving valid options. */
               }
@@ -218,7 +228,7 @@ export function DurationOptionsFields({
 }) {
   const { t } = useApp();
   return (
-    <fieldset>
+    <fieldset data-editor-field="durationPricing">
       <legend>
         {t("Durasi & diskon paket", "Duration options & savings")}
       </legend>
@@ -252,6 +262,7 @@ export function DurationOptionsFields({
             </label>
             {option && (
               <Field
+                fieldKey={`durationPricing.options.${options.findIndex((item) => item.cycles === cycles)}.discountPercent`}
                 label={`${t("Diskon", "Discount")} ${cycles} ${t("periode (%)", "cycles (%)")}`}
               >
                 <NumericInput

@@ -3,6 +3,12 @@ import AxeBuilder from "@axe-core/playwright";
 import { mkdir } from "node:fs/promises";
 import { addDays, localDay, type Offer } from "@catera/domain";
 const date = addDays(localDay(), 15);
+test.beforeEach(async ({ page, baseURL }) => {
+  expect(["127.0.0.1", "localhost"]).toContain(new URL(baseURL!).hostname);
+  expect((await (await page.request.get("/api/v1/me")).json()).data.demo).toBe(
+    true,
+  );
+});
 async function cmd(page: Page, action: string, payload: unknown) {
   const r = await page.request.post("/api/v1/commands", {
     data: { action, payload, requestId: crypto.randomUUID() },
@@ -16,10 +22,12 @@ async function choose(page: Page, label: string, option: string) {
 }
 async function fixture(page: Page, editor = false) {
   await page.request.post("/api/v1/auth/demo", { data: { role: "owner" } });
+  const actor = (await (await page.request.get("/api/v1/me")).json()).data
+    .actor;
   const base = (
-    (await (await page.request.get("/api/v1/catalog")).json()).data
+    (await (await page.request.get("/api/v1/catalog?limit=100")).json()).data
       .items as Offer[]
-  )[0];
+  ).find((offer) => offer.catererId === actor.catererId)!;
   const names = [
     "Ayam pilihan " + Date.now(),
     "Ikan pilihan " + Date.now(),
@@ -79,7 +87,19 @@ async function fixture(page: Page, editor = false) {
       .filter({ hasText: name })
       .getByRole("button", { name: "Kelola paket" })
       .click();
-    await page.getByRole("button", { name: "2. Isi", exact: true }).click();
+    await page
+      .getByRole("button", { name: "2. Isi per porsi", exact: true })
+      .click();
+    const choices = page
+      .locator(".package-dialog details.optional-section")
+      .filter({
+        has: page.locator("summary", {
+          hasText: "Pilihan menu pelanggan (opsional)",
+        }),
+      });
+    await expect(choices).not.toHaveAttribute("open");
+    await choices.locator("summary").click();
+    await expect(choices).toHaveAttribute("open", "");
     await choose(
       page,
       "Siapa yang memilih menu?",
@@ -88,14 +108,18 @@ async function fixture(page: Page, editor = false) {
     for (const dish of names)
       await page.getByLabel(dish + " · 120 g", { exact: true }).check();
     await page.getByRole("button", { name: "5. Periksa", exact: true }).click();
-    await choose(
-      page,
-      "Status penawaran",
-      "Tayangkan setelah verifikasi katerer",
+    await expect(
+      page.getByRole("combobox", { name: "Status penawaran", exact: true }),
+    ).toHaveCount(0);
+    const published = page.waitForResponse(
+      (response) =>
+        response.url().endsWith("/commands") &&
+        response.request().postDataJSON()?.action === "package.save",
     );
     await page
       .getByRole("button", { name: "Tayangkan paket", exact: true })
       .click();
+    expect((await published).ok()).toBe(true);
     await expect(
       page.getByRole("dialog", { name: "Kelola paket" }),
     ).toBeHidden();
@@ -201,12 +225,12 @@ test("responsive calendar and picker, keyboard, atomic multi-date selection and 
       date.slice(0, 7) +
       "-01",
   );
-  await mkdir("output/customer-choice", { recursive: true });
+  await mkdir("output/playwright/customer-choice", { recursive: true });
   for (const width of [1440, 768, 390]) {
     await page.setViewportSize({ width, height: 900 });
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({
-      path: `output/customer-choice/calendar-${width}.png`,
+      path: `output/playwright/customer-choice/calendar-${width}.png`,
       fullPage: true,
       animations: "disabled",
     });
@@ -216,7 +240,7 @@ test("responsive calendar and picker, keyboard, atomic multi-date selection and 
     await selectDish(page, 1, f.names[1]);
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({
-      path: `output/customer-choice/editor-${width}.png`,
+      path: `output/playwright/customer-choice/editor-${width}.png`,
       fullPage: true,
       animations: "disabled",
     });

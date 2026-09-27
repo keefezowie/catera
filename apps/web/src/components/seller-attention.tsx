@@ -11,23 +11,21 @@ import { api, useApp, useResource } from "./context";
 import { ActionForm, Dialog, Field, ErrorNotice } from "./ui";
 import { Button, TextArea } from "./form-controls";
 import { Select, SelectOption } from "./select";
+import { DatePicker } from "./date-picker";
 
 type AttentionScope = "selected" | "future" | "all";
 
 export function NeedsAttention({
   catererId,
   date,
-  meal,
 }: {
   catererId: string;
   date: string;
-  meal: string;
 }) {
   const { t, locale, perform } = useApp();
-  const [scope, setScope] = useState<AttentionScope>("selected");
-  const [mealScope, setMealScope] = useState<"" | "lunch" | "dinner">(
-    meal === "dinner" ? "dinner" : "lunch",
-  );
+  const [scope, setScope] = useState<AttentionScope>("all");
+  const [scopeDate, setScopeDate] = useState(date);
+  const [mealScope, setMealScope] = useState<"" | "lunch" | "dinner">("");
   const [expanded, setExpanded] = useState(false);
   const [scopeExpanded, setScopeExpanded] = useState(false);
   const [handled, setHandled] = useState<SellerAttentionItem | null>(null);
@@ -37,12 +35,12 @@ export function NeedsAttention({
   const [pageError, setPageError] = useState("");
   const params = {
     scope,
-    ...(scope !== "all" ? { date } : {}),
+    ...(scope !== "all" ? { date: scopeDate } : {}),
     ...(mealScope ? { meal: mealScope } : {}),
     limit: 20,
   } as const;
   const state = useResource<SellerAttentionPage>(
-    `seller-attention:${catererId}:${scope}:${date}:${mealScope}`,
+    `seller-attention:${catererId}:${scope}:${scope === "all" ? "" : scopeDate}:${mealScope}`,
     () => api.sellerAttention(catererId, params),
   );
 
@@ -51,7 +49,7 @@ export function NeedsAttention({
     setNextCursor(null);
     setPageError("");
     setExpanded(false);
-  }, [catererId, scope, date, mealScope]);
+  }, [catererId, scope, scopeDate, mealScope]);
   useEffect(() => {
     if (!state.data) return;
     setItems(state.data.items);
@@ -149,18 +147,25 @@ export function NeedsAttention({
           )}
         </div>
       </div>
-      {!state.loading && !state.error && total === 0 && (
-        <Button
-          type="button"
-          variant="text"
-          className="attention-scope-toggle"
-          aria-expanded={scopeExpanded}
-          aria-controls="attention-scope-details"
-          onClick={() => setScopeExpanded((value) => !value)}
-        >
-          {t("Ubah cakupan", "Change scope")}
-        </Button>
-      )}
+      <p className="muted attention-scope-summary">
+        {scope === "selected"
+          ? scopeDate
+          : scope === "future"
+            ? t(`Mulai ${scopeDate}`, `From ${scopeDate}`)
+            : t("Seluruh tanggal", "All dates")}
+        {` · ${mealScope ? mealLabel(mealScope, locale) : t("siang + malam", "lunch + dinner")}`}
+        {state.data?.timezone ? ` · ${state.data.timezone}` : ""}
+      </p>
+      <Button
+        type="button"
+        variant="text"
+        className="attention-scope-toggle"
+        aria-expanded={scopeExpanded}
+        aria-controls="attention-scope-details"
+        onClick={() => setScopeExpanded((value) => !value)}
+      >
+        {t("Filter masalah", "Filter issues")}
+      </Button>
       <div
         id="attention-scope-details"
         className="attention-scope-details"
@@ -179,12 +184,20 @@ export function NeedsAttention({
               onClick={() => setScope(value)}
             >
               {value === "selected"
-                ? t("Tanggal terpilih", "Selected day")
+                ? t("Tanggal tertentu", "Specific date")
                 : value === "future"
-                  ? t("Mendatang", "Future")
+                  ? t("Mulai tanggal", "From date")
                   : t("Semua tanggal", "All dates")}
             </Button>
           ))}
+          {scope !== "all" && (
+            <DatePicker
+              compact
+              aria-label={t("Tanggal masalah", "Issue date")}
+              value={scopeDate}
+              onValueChange={setScopeDate}
+            />
+          )}
           <Select
             aria-label={t("Waktu makan masalah", "Issue meal")}
             value={mealScope}
@@ -199,14 +212,6 @@ export function NeedsAttention({
             <SelectOption value="dinner">{t("Malam", "Dinner")}</SelectOption>
           </Select>
         </div>
-        <p className="muted attention-scope-summary">
-          {scope === "selected"
-            ? `${date} · ${mealScope ? mealLabel(mealScope, locale) : t("siang + malam", "lunch + dinner")}`
-            : scope === "future"
-              ? t(`Mulai ${date}`, `From ${date}`)
-              : t("Seluruh tanggal", "All dates")}
-          {state.data?.timezone ? ` · ${state.data.timezone}` : ""}
-        </p>
       </div>
       {state.error ? (
         <ErrorNotice message={state.error} retry={state.reload} />

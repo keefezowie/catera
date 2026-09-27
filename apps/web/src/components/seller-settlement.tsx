@@ -168,7 +168,10 @@ function SettlementScreen({
                 />
                 {item.id === "payouts" && (
                   <>
-                    <PayoutSetupCard catererId={catererId} />
+                    <PayoutSetupCard
+                      catererId={catererId}
+                      variant="destination"
+                    />
                     <details className="panel">
                       <summary>
                         {t(

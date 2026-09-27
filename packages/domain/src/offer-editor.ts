@@ -46,6 +46,22 @@ export function withSharedCapacity(
   for (const weekday of weekdays) next[String(weekday)] = value;
   return next;
 }
+/** An empty draft map is unentered; an explicit zero remains a real value. */
+export function draftCapacityValue(
+  capacity: Record<string, number>,
+  weekdays: number[],
+): number | null {
+  return Object.keys(capacity).length === 0
+    ? null
+    : sharedCapacityValue(capacity, weekdays);
+}
+export function withDraftCapacity(
+  capacity: Record<string, number>,
+  weekdays: number[],
+  value: number | null,
+): Record<string, number> {
+  return value === null ? {} : withSharedCapacity(capacity, weekdays, value);
+}
 export function offerEditorIssues(
   value: Record<string, unknown>,
   draft = false,

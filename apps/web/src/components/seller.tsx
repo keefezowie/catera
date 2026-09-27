@@ -9,6 +9,8 @@ import { SellerSettlement } from "./seller-settlement";
 import { SellerCustomers } from "./seller-customers";
 import { DeliveryIssues } from "./delivery-issues";
 import { ChoiceDishChecklist } from "./package-choice-library";
+import { LibraryForm, useDishLibrary } from "./dish-library";
+import "./seller-setup.css";
 import { SellerOperations } from "./seller-operations";
 import { SellerReadiness } from "./seller-readiness";
 import { PackageContents } from "./package-contents";
@@ -22,8 +24,8 @@ import { PackageCard, PackagePage } from "./marketplace";
 import {
   offerEditorIssues,
   offerSteps,
-  sharedCapacityValue,
-  withSharedCapacity,
+  draftCapacityValue,
+  withDraftCapacity,
   type OfferStep,
   type EditorIssue,
   type Caterer,
@@ -60,12 +62,18 @@ import {
   perMealPrice,
   type SellerState,
   type Offer,
+  type SellerOffer,
+  type LibraryDish,
   type SupportCase,
   type AdminState,
   type Conversation,
 } from "@catera/domain";
 import { api, useApp, useResource, useWorkspaceDraft } from "./context";
-import { useJourneyQuery, useUnsavedDeparture } from "./journey-state";
+import {
+  useJourneyQuery,
+  useUnsavedDeparture,
+  useDiscardChanges,
+} from "./journey-state";
 import { SellerPackageDetails } from "./seller-package-details";
 import { Button, Checkbox, TextArea, TextInput } from "./form-controls";
 import {
@@ -224,12 +232,24 @@ function SellerTransactions({ state: s }: { state: SellerState }) {
 
 function Packages({ state: s }: { state: SellerState }) {
   const { actor, t, locale } = useApp();
-  const [editing, setEditing] = useState<Offer | null | undefined>();
+  const [editing, setEditing] = useState<SellerOffer | null | undefined>();
+  const [completedPackage, setCompletedPackage] = useState<string | null>(null);
   const { query, update } = useJourneyQuery();
   const inspected = s.offers.find((o) => o.id === query.get("package"));
   const [dirty, setDirty] = useState(false),
     [editorBusy, setEditorBusy] = useState(false),
     [discard, setDiscard] = useState(false);
+  const requestedDraft = query.get("edit");
+  const requestedNew = query.get("new") === "1";
+  useEffect(() => {
+    if (actor?.role !== "owner" || editing !== undefined) return;
+    const draft = s.offers.find(
+      (offer) => offer.id === requestedDraft && offer.status === "draft",
+    );
+    if (!requestedNew && !draft) return;
+    setEditing(requestedNew ? null : draft);
+    update({ new: null, edit: null }, true);
+  }, [requestedDraft, requestedNew, s.offers, actor?.role, editing]);
   return (
     <>
       <div className="section-heading">
@@ -246,6 +266,29 @@ function Packages({ state: s }: { state: SellerState }) {
           </Button>
         )}
       </div>
+      {completedPackage && (
+        <section className="notice package-completed" role="status">
+          <p>
+            {s.caterer.status === "approved"
+              ? t(
+                  "Paket tersedia untuk pelanggan. Siapkan menu pengantaran saat Anda siap.",
+                  "Package available to customers. Prepare delivery menus when you are ready.",
+                )
+              : t(
+                  "Paket telah tayang dan menunggu persetujuan katerer. Menu pengantaran dapat disiapkan sekarang.",
+                  "Package published and awaiting caterer approval. You can prepare delivery menus now.",
+                )}
+          </p>
+          <Link
+            className="button secondary"
+            href={
+              "/seller/menus?package=" + encodeURIComponent(completedPackage)
+            }
+          >
+            {t("Buka menu paket", "Open package menus")}
+          </Link>
+        </section>
+      )}
       <div className="seller-packages">
         {s.offers.map((o) => (
           <article className="panel" key={o.id}>
@@ -264,8 +307,17 @@ function Packages({ state: s }: { state: SellerState }) {
                 {o.flexible ? t("Fleksibel", "Flexible") : t("Tetap", "Fixed")}
               </p>
               <strong>
-                {currency(perMealPrice(o), locale)}{" "}
-                <small>{t("/ makan", "/ meal")}</small>
+                {o.price === null ? (
+                  t("Harga belum diisi", "Price not entered")
+                ) : (
+                  <>
+                    {currency(
+                      perMealPrice({ price: o.price, meal: o.meal }),
+                      locale,
+                    )}{" "}
+                    <small>{t("/ makan", "/ meal")}</small>
+                  </>
+                )}
               </strong>
             </div>
             <Button
@@ -290,14 +342,14 @@ function Packages({ state: s }: { state: SellerState }) {
                 {t("Kelola paket", "Manage package")} <ArrowRight size={16} />
               </Button>
             )}
-            {actor?.role === "owner" && (
+            {actor?.role === "owner" && o.status !== "draft" && (
               <details className="package-secondary-settings">
                 <summary>
                   {t("Pengaturan paket lanjutan", "Advanced package settings")}
                 </summary>
                 <div>
-                  {o.status !== "draft" && <PackageLifecycle offer={o} />}
-                  {["draft", "published"].includes(o.status) && (
+                  <PackageLifecycle offer={o} />
+                  {o.status === "published" && (
                     <PackageDurationEditor offer={o} />
                   )}
                 </div>
@@ -343,7 +395,8 @@ function Packages({ state: s }: { state: SellerState }) {
           dishes={s.dishes || []}
           onDirtyChange={setDirty}
           onEditorBusyChange={setEditorBusy}
-          done={() => {
+          done={(saved) => {
+            if (saved.published) setCompletedPackage(saved.id);
             setDirty(false);
             setEditing(undefined);
           }}
@@ -499,17 +552,15 @@ function PackageLifecycle({ offer }: { offer: Offer }) {
 const blankOffer = {
   name: "",
   description: "",
-  price: 35000,
+  price: null as number | null,
   days: 5,
   meal: "lunch" as const,
+  menuSelectionMode: "caterer" as "caterer" | "customer",
   weekdays: [1, 2, 3, 4, 5],
   flexible: true,
-  trialPrice: 35000,
-  trialMax: 2,
-  capacity: { "1": 100, "2": 100, "3": 100, "4": 100, "5": 100 } as Record<
-    string,
-    number
-  >,
+  trialPrice: null as number | null,
+  trialMax: null as number | null,
+  capacity: {} as Record<string, number>,
   tiers: [],
   durationPricing: {
     revision: 0,
@@ -521,7 +572,7 @@ const blankOffer = {
   nutrition: null,
   packageType: null as PackageType | null,
   menus: [] as MealMenu[],
-  status: "draft",
+  status: "draft" as const,
 };
 function OfferEditor({
   offer,
@@ -532,15 +583,31 @@ function OfferEditor({
   onDirtyChange,
   onEditorBusyChange,
 }: {
-  offer: Offer | null | undefined;
+  offer: SellerOffer | null | undefined;
   catererId: string;
   caterer: Caterer;
   dishes: import("@catera/domain").LibraryDish[];
-  done: () => void;
+  done: (saved: { id: string; published: boolean }) => void;
   onDirtyChange: (dirty: boolean) => void;
   onEditorBusyChange: (busy: boolean) => void;
 }) {
-  const { perform, demo, t, locale } = useApp();
+  const { perform, demo, t, locale, notify } = useApp();
+  const partialDrafts =
+    demo ||
+    process.env.NEXT_PUBLIC_CATERA_PARTIAL_PACKAGE_DRAFTS === "true" ||
+    offer?.price === null ||
+    (!!offer && Object.keys(offer.capacity).length === 0);
+  const library = useDishLibrary();
+  const [createdDishes, setCreatedDishes] = useState<LibraryDish[]>([]);
+  const [createdDishNote, setCreatedDishNote] = useState("");
+  const availableDishes = [
+    ...new Map(
+      [...dishes, ...createdDishes].map((dish) => [dish.id, dish]),
+    ).values(),
+  ];
+  const [creatingDish, setCreatingDish] = useState(false);
+  const [dishDirty, setDishDirty] = useState(false);
+  const dishGuard = useDiscardChanges(dishDirty, () => setCreatingDish(false));
   const [step, setStep] = useState<OfferStep>("offer");
   const stepFields = useRef<HTMLDivElement>(null);
   const [pending, setPending] = useState(0),
@@ -591,12 +658,28 @@ function OfferEditor({
     setPending((n) => Math.max(0, n + (busy ? 1 : -1)));
   const [value, setValue] = useState(() => ({
     ...blankOffer,
+    ...(!partialDrafts
+      ? {
+          price: 35000,
+          capacity: { "1": 100, "2": 100, "3": 100, "4": 100, "5": 100 },
+        }
+      : {}),
     ...offer,
     nutrition: offer ? packageNutrition(offer) : null,
     menus: (offer?.menus || []).map(compositionDraft),
   }));
-  const [priceDraft, setPriceDraft] = useState(String(value.price));
+  const [priceDraft, setPriceDraft] = useState(
+    value.price === null ? "" : String(value.price),
+  );
   const [daysDraft, setDaysDraft] = useState(String(value.days));
+  const trialSummary =
+    value.trialPrice === null
+      ? t("Tidak tersedia", "Unavailable")
+      : `${currency(value.trialPrice, locale)} · ${
+          value.trialMax === null
+            ? t("Tanpa batas jumlah porsi", "No quantity limit")
+            : `${t("maks.", "max.")} ${value.trialMax} ${t("porsi", "portions")}`
+        }`;
 
   const initialValue = useRef(JSON.stringify(value));
   const dirty =
@@ -627,9 +710,9 @@ function OfferEditor({
     setValue((x) => ({ ...x, [key]: v }));
   const labels: Record<OfferStep, string> = {
     offer: t("Paket", "Package"),
-    contents: t("Isi", "Contents"),
-    pricing: t("Durasi & harga", "Duration & price"),
-    schedule: t("Jadwal", "Schedule"),
+    contents: t("Isi per porsi", "Contents per portion"),
+    pricing: t("Harga & lama paket", "Price & package length"),
+    schedule: t("Pengantaran", "Delivery"),
     review: t("Periksa", "Review"),
   };
   const stepIcons = {
@@ -641,10 +724,10 @@ function OfferEditor({
   };
   const activeValue = {
     ...value,
-    capacity: withSharedCapacity(
+    capacity: withDraftCapacity(
       value.capacity,
       value.weekdays,
-      sharedCapacityValue(value.capacity, value.weekdays),
+      draftCapacityValue(value.capacity, value.weekdays),
     ),
     menus: value.menus.filter(
       (m) => value.meal === "both" || m.meal === value.meal,
@@ -682,7 +765,7 @@ function OfferEditor({
           '[data-editor-field="' + CSS.escape(key) + '"]',
         );
         target = field?.querySelector<HTMLElement>(
-          'input, textarea, [role="combobox"]',
+          'input:not(:disabled), textarea:not(:disabled), [role="combobox"]:not([aria-disabled="true"]), button:not(:disabled)',
         );
         if (target) break;
       }
@@ -724,7 +807,7 @@ function OfferEditor({
       activeValue.menus.some((m) =>
         m.composition?.some(
           (g) =>
-            dishes.filter(
+            availableDishes.filter(
               (d) =>
                 choiceDishIds.includes(d.id) &&
                 !d.archived &&
@@ -733,23 +816,32 @@ function OfferEditor({
         ),
       )
     ) {
-      setSaveError(
-        t(
-          "Pilih cukup hidangan berbeda untuk setiap kategori.",
-          "Choose enough distinct dishes for every category.",
-        ),
+      const message = t(
+        "Pilih cukup hidangan berbeda untuk setiap kategori.",
+        "Choose enough distinct dishes for every category.",
       );
-      setStep("contents");
+      setSaveError(message);
+      showIssues([{ step: "contents", path: "choiceDishIds", message }]);
       return;
     }
     const found = offerEditorIssues(activeValue, draft);
+    if (
+      !partialDrafts &&
+      (activeValue.price === null || !Object.keys(activeValue.capacity).length)
+    ) {
+      found.push(
+        ...offerEditorIssues(activeValue).filter((issue) =>
+          ["price", "capacity"].includes(issue.path),
+        ),
+      );
+    }
     if (found.length) {
       showIssues(found);
       return;
     }
     setSaving(true);
     try {
-      await perform("package.save", {
+      const saved = await perform<{ id: string }>("package.save", {
         catererId,
         id: offer?.id,
         version: offer?.version,
@@ -760,29 +852,49 @@ function OfferEditor({
           (value.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "draf") +
             "-" +
             crypto.randomUUID().slice(0, 6),
-        offer: { ...activeValue, status: draft ? "draft" : value.status },
+        offer: { ...activeValue, status: draft ? "draft" : "published" },
       });
-      done();
+      notify(
+        draft
+          ? t(
+              "Draf tersimpan. Lanjutkan kapan saja.",
+              "Draft saved. Continue whenever you are ready.",
+            )
+          : caterer.status === "approved"
+            ? t(
+                "Paket tersedia untuk pelanggan.",
+                "Package available to customers.",
+              )
+            : t(
+                "Paket siap tayang setelah profil disetujui.",
+                "Package prepared for publication after profile approval.",
+              ),
+      );
+      done({ id: saved.id, published: !draft });
     } finally {
       setSaving(false);
     }
   };
-  const previewOffer: Offer = {
-    id: "preview",
-    slug: "preview",
-    catererId,
-    caterer: caterer.name,
-    catererSlug: caterer.slug,
-    areas: caterer.area,
-    cutoff: caterer.cutoff,
-    timezone: caterer.timezone,
-    rating: null,
-    reviewCount: 0,
-    sellerStatus: caterer.status,
-    version: 0,
-    ...offer,
-    ...activeValue,
-  };
+  const previewOffer: Offer | null =
+    activeValue.price !== null && offerEditorIssues(activeValue).length === 0
+      ? {
+          id: "preview",
+          slug: "preview",
+          catererId,
+          caterer: caterer.name,
+          catererSlug: caterer.slug,
+          areas: caterer.area,
+          cutoff: caterer.cutoff,
+          timezone: caterer.timezone,
+          rating: null,
+          reviewCount: 0,
+          sellerStatus: caterer.status,
+          version: 0,
+          ...offer,
+          ...activeValue,
+          price: activeValue.price,
+        }
+      : null;
   return (
     <div ref={editor} className="offer-editor">
       <div
@@ -890,22 +1002,32 @@ function OfferEditor({
         submit={
           step !== "review"
             ? t("Lanjutkan", "Continue")
-            : value.status === "published"
-              ? t("Tayangkan paket", "Publish package")
-              : t("Simpan paket", "Save package")
+            : t("Tayangkan paket", "Publish package")
         }
         onSubmit={async () => {
           if (step !== "review") {
             navigate(offerSteps[offerSteps.indexOf(step) + 1]);
             return;
           }
-          await save(value.status === "draft");
+          await save(false);
         }}
       >
         <div ref={stepFields} className="editor-fields">
           <h3 className="editor-step-title" tabIndex={-1}>
             {labels[step]}
           </h3>
+          <p className="package-save-state" role="status">
+            {saving || savingDraft
+              ? t("Menyimpan…", "Saving…")
+              : dirty
+                ? t("Perubahan belum disimpan", "Unsaved changes")
+                : offer
+                  ? t("Draf tersimpan", "Draft saved")
+                  : t(
+                      "Paket ini belum disimpan",
+                      "This package has not been saved",
+                    )}
+          </p>
           {!!issues.length && (
             <div
               className="error-notice"
@@ -1027,9 +1149,12 @@ function OfferEditor({
                 <NumericInput
                   min={1000}
                   required
-                  value={value.price}
-                  onDraftChange={setPriceDraft}
-                  onValueChange={(next) => set("price", next)}
+                  value={value.price ?? ""}
+                  normalizeOnBlur={false}
+                  onDraftChange={(raw) => {
+                    setPriceDraft(raw);
+                    set("price", raw.trim() === "" ? null : Number(raw));
+                  }}
                 />
               </Field>
               <output className="package-price-summary" aria-live="polite">
@@ -1072,13 +1197,36 @@ function OfferEditor({
                   </small>
                 )}
               </output>
-              <DurationOptionsFields
-                days={value.days}
-                options={value.durationPricing.options}
-                onChange={(options) =>
-                  set("durationPricing", { ...value.durationPricing, options })
+              <OptionalSection
+                title={t(
+                  "Pilihan durasi tambahan (opsional)",
+                  "Additional durations (optional)",
+                )}
+                summary={value.durationPricing.options
+                  .map(
+                    (option) =>
+                      `${option.cycles * value.days} ${t("hari", "days")}${option.discountPercent ? ` · ${option.discountPercent}%` : ""}`,
+                  )
+                  .join("; ")}
+                initiallyOpen={
+                  value.durationPricing.options.length > 1 ||
+                  value.durationPricing.options.some(
+                    (option) => option.discountPercent > 0,
+                  )
                 }
-              />
+                invalid={!!fieldError("durationPricing")}
+              >
+                <DurationOptionsFields
+                  days={value.days}
+                  options={value.durationPricing.options}
+                  onChange={(options) =>
+                    set("durationPricing", {
+                      ...value.durationPricing,
+                      options,
+                    })
+                  }
+                />
+              </OptionalSection>
               {value.meal === "both" && (
                 <p className="field-hint">
                   {t(
@@ -1093,6 +1241,16 @@ function OfferEditor({
                   "Quantity discounts (optional)",
                 )}
                 initiallyOpen={value.tiers.length > 0}
+                summary={
+                  value.tiers.length
+                    ? value.tiers
+                        .map(
+                          (tier) =>
+                            `${tier.min}+ ${t("porsi", "portions")} · ${tier.percent}%`,
+                        )
+                        .join("; ")
+                    : t("Tanpa diskon", "No discount")
+                }
                 invalid={!!fieldError("tiers")}
               >
                 <Field
@@ -1176,20 +1334,25 @@ function OfferEditor({
                   "One-day trial (optional)",
                 )}
                 initiallyOpen={value.trialPrice !== null}
+                summary={trialSummary}
                 invalid={!!fieldError("trialPrice") || !!fieldError("trialMax")}
               >
-                <Field
-                  fieldKey="trialPrice"
-                  error={fieldError("trialPrice")}
-                  label={t("Trial satu hari", "One-day trial")}
-                >
+                <Field label={t("Trial satu hari", "One-day trial")}>
                   <Select
                     value={value.trialPrice === null ? "no" : "yes"}
                     onValueChange={(selected) =>
-                      set("trialPrice", selected === "yes" ? value.price : null)
+                      setValue((current) => ({
+                        ...current,
+                        trialPrice: selected === "yes" ? current.price : null,
+                        trialMax:
+                          selected === "yes" ? (current.trialMax ?? 1) : null,
+                      }))
                     }
                   >
-                    <SelectOption value="yes">
+                    <SelectOption
+                      value="yes"
+                      disabled={value.price === null || value.price < 1000}
+                    >
                       {t("Tersedia", "Available")}
                     </SelectOption>
                     <SelectOption value="no">
@@ -1197,6 +1360,14 @@ function OfferEditor({
                     </SelectOption>
                   </Select>
                 </Field>
+                {value.price === null && (
+                  <p className="field-hint">
+                    {t(
+                      "Isi harga paket sebelum mengaktifkan trial.",
+                      "Enter the package price before enabling a trial.",
+                    )}
+                  </p>
+                )}
                 {value.trialPrice !== null && (
                   <div className="form-row">
                     <Field
@@ -1224,9 +1395,21 @@ function OfferEditor({
                     >
                       <NumericInput
                         min={1}
-                        value={value.trialMax || 1}
-                        onValueChange={(next) => set("trialMax", next)}
+                        value={value.trialMax ?? ""}
+                        normalizeOnBlur={false}
+                        onDraftChange={(raw) =>
+                          set(
+                            "trialMax",
+                            raw.trim() === "" ? null : Number(raw),
+                          )
+                        }
                       />
+                      <small>
+                        {t(
+                          "Kosongkan untuk tanpa batas jumlah porsi.",
+                          "Leave blank for no quantity limit.",
+                        )}
+                      </small>
                     </Field>
                   </div>
                 )}
@@ -1240,62 +1423,39 @@ function OfferEditor({
             </>
           ) : step === "schedule" ? (
             <>
-              <Field
-                fieldKey="flexible"
-                error={fieldError("flexible")}
-                label={t("Perubahan jadwal", "Schedule changes")}
-              >
-                <Select
-                  value={String(value.flexible)}
-                  onValueChange={(value) => set("flexible", value === "true")}
-                >
-                  <SelectOption value="true">
-                    {t(
-                      "Paket fleksibel · boleh ganti tanggal sebelum cutoff",
-                      "Flexible package · dates can change before cutoff",
-                    )}
-                  </SelectOption>
-                  <SelectOption value="false">
-                    {t(
-                      "Paket tetap · tanggal tidak dapat dipindah",
-                      "Fixed package · dates cannot be changed",
-                    )}
-                  </SelectOption>
-                </Select>
-              </Field>
-
               <fieldset data-editor-field="weekdays">
                 <legend>{t("Hari operasional", "Operating days")}</legend>
                 <div className="weekday-checks">
-                  {["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"].map(
-                    (d, i) => (
-                      <label key={d}>
-                        <Checkbox
-                          checked={value.weekdays.includes(i)}
-                          onChange={(e) =>
-                            setValue((current) => {
-                              const weekdays = e.target.checked
-                                ? [...current.weekdays, i].sort((a, b) => a - b)
-                                : current.weekdays.filter((x) => x !== i);
-                              return {
-                                ...current,
+                  {(locale === "en"
+                    ? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+                    : ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"]
+                  ).map((d, i) => (
+                    <label key={d}>
+                      <Checkbox
+                        checked={value.weekdays.includes(i)}
+                        onChange={(e) =>
+                          setValue((current) => {
+                            const weekdays = e.target.checked
+                              ? [...current.weekdays, i].sort((a, b) => a - b)
+                              : current.weekdays.filter((x) => x !== i);
+                            return {
+                              ...current,
+                              weekdays,
+                              capacity: withDraftCapacity(
+                                current.capacity,
                                 weekdays,
-                                capacity: withSharedCapacity(
+                                draftCapacityValue(
                                   current.capacity,
-                                  weekdays,
-                                  sharedCapacityValue(
-                                    current.capacity,
-                                    current.weekdays,
-                                  ),
+                                  current.weekdays,
                                 ),
-                              };
-                            })
-                          }
-                        />
-                        {d}
-                      </label>
-                    ),
-                  )}
+                              ),
+                            };
+                          })
+                        }
+                      />
+                      {d}
+                    </label>
+                  ))}
                 </div>
               </fieldset>
               <div className="form-row">
@@ -1333,11 +1493,19 @@ function OfferEditor({
                 <NumericInput
                   min={0}
                   required
-                  value={sharedCapacityValue(value.capacity, value.weekdays)}
-                  onValueChange={(next) =>
+                  value={
+                    draftCapacityValue(value.capacity, value.weekdays) ?? ""
+                  }
+                  disabled={!value.weekdays.length}
+                  normalizeOnBlur={false}
+                  onDraftChange={(raw) =>
                     set(
                       "capacity",
-                      withSharedCapacity(value.capacity, value.weekdays, next),
+                      withDraftCapacity(
+                        value.capacity,
+                        value.weekdays,
+                        raw.trim() === "" ? null : Number(raw),
+                      ),
                     )
                   }
                 />
@@ -1348,9 +1516,188 @@ function OfferEditor({
                   "This capacity applies equally to every selected operating day.",
                 )}
               </p>
+              <Field
+                fieldKey="flexible"
+                error={fieldError("flexible")}
+                label={t("Perubahan jadwal", "Schedule changes")}
+              >
+                <Select
+                  value={String(value.flexible)}
+                  onValueChange={(value) => set("flexible", value === "true")}
+                >
+                  <SelectOption value="true">
+                    {t(
+                      "Paket fleksibel · boleh ganti tanggal sebelum cutoff",
+                      "Flexible package · dates can change before cutoff",
+                    )}
+                  </SelectOption>
+                  <SelectOption value="false">
+                    {t(
+                      "Paket tetap · tanggal tidak dapat dipindah",
+                      "Fixed package · dates cannot be changed",
+                    )}
+                  </SelectOption>
+                </Select>
+              </Field>
+
+              <p className="field-hint">
+                {t(
+                  "Batas perubahan tanggal adalah",
+                  "The date-change cutoff is",
+                )}{" "}
+                {caterer.cutoff.slice(0, 5)} {caterer.timezone}{" "}
+                {t(
+                  "sehari sebelum pengantaran. Jam pengantaran mengikuti zona waktu katerer.",
+                  "on the day before delivery. Delivery windows use the caterer's timezone.",
+                )}
+              </p>
             </>
           ) : step === "contents" ? (
             <>
+              <p className="field-hint">
+                {t(
+                  "Contoh isi satu porsi: 1 nasi + 1 lauk + 1 sayur. Sesuaikan dengan makanan yang Anda jual.",
+                  "Example portion: 1 rice + 1 main + 1 vegetable. Set the contents to match what you sell.",
+                )}
+              </p>
+              <div data-editor-field="menus">
+                {!value.packageType ? (
+                  <p>
+                    {t(
+                      "Pilih jenis paket pada langkah Paket.",
+                      "Choose a package type in Package.",
+                    )}
+                  </p>
+                ) : (
+                  (value.meal === "both"
+                    ? ["lunch", "dinner"]
+                    : [value.meal]
+                  ).map((meal) => (
+                    <CompositionEditor
+                      key={meal}
+                      menu={
+                        value.menus.find((m) => m.meal === meal) || {
+                          meal,
+                          name: "",
+                          description: "",
+                          image: "",
+                          items: [],
+                          composition: [],
+                        }
+                      }
+                      onChange={(menu) =>
+                        set("menus", [
+                          ...value.menus.filter((m) => m.meal !== meal),
+                          menu,
+                        ])
+                      }
+                    />
+                  ))
+                )}
+
+                {fieldError("menus") && (
+                  <p className="field-error">{fieldError("menus")}</p>
+                )}
+              </div>
+              <OptionalSection
+                title={t(
+                  "Pilihan menu pelanggan (opsional)",
+                  "Customer menu choices (optional)",
+                )}
+                summary={
+                  value.menuSelectionMode === "customer"
+                    ? t(
+                        "Pelanggan memilih hidangan",
+                        "Customers choose their dishes",
+                      )
+                    : t(
+                        "Katerer menentukan hidangan",
+                        "The caterer chooses the dishes",
+                      )
+                }
+                initiallyOpen={value.menuSelectionMode === "customer"}
+                invalid={!!fieldError("choiceDishIds")}
+              >
+                <Field
+                  fieldKey="choiceDishIds"
+                  error={fieldError("choiceDishIds")}
+                  label={t("Siapa yang memilih menu?", "Who chooses the menu?")}
+                >
+                  <Select
+                    value={value.menuSelectionMode || "caterer"}
+                    onValueChange={(mode) => set("menuSelectionMode", mode)}
+                  >
+                    <SelectOption value="caterer">
+                      {t("Katerer", "Caterer")}
+                    </SelectOption>
+                    <SelectOption value="customer">
+                      {t(
+                        "Pelanggan · Pilih menu sendiri",
+                        "Customer · Choose your menu",
+                      )}
+                    </SelectOption>
+                  </Select>
+                </Field>
+                {value.menuSelectionMode === "customer" && (
+                  <>
+                    <p>
+                      {t(
+                        "Sediakan pilihan yang cukup untuk setiap kategori. Pelanggan memilih setelah membayar, sebelum batas waktu.",
+                        "Provide enough choices for each category. Customers choose after payment, before the cutoff.",
+                      )}
+                    </p>
+                    <ul className="choice-requirements">
+                      {activeValue.menus.flatMap((menu) =>
+                        (menu.composition || []).map((group) => (
+                          <li key={menu.meal + group.id}>
+                            {mealLabel(menu.meal, locale)} · {group.name}:{" "}
+                            {
+                              availableDishes.filter(
+                                (d) =>
+                                  !d.archived &&
+                                  choiceDishIds.includes(d.id) &&
+                                  d.categoryId === group.categoryId,
+                              ).length
+                            }{" "}
+                            / {group.slots}{" "}
+                            {t("hidangan dipilih", "dishes selected")}
+                          </li>
+                        )),
+                      )}
+                    </ul>
+                    <ChoiceDishChecklist
+                      dishes={availableDishes.filter((d) =>
+                        activeValue.menus.some((menu) =>
+                          menu.composition?.some(
+                            (group) => group.categoryId === d.categoryId,
+                          ),
+                        ),
+                      )}
+                      selected={choiceDishIds}
+                      onChange={setChoiceDishIds}
+                    />
+                    {library.error && (
+                      <ErrorNotice
+                        message={library.error}
+                        retry={library.reload}
+                      />
+                    )}
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      disabled={!library.data}
+                      onClick={() => setCreatingDish(true)}
+                    >
+                      {t("Buat hidangan", "Create dish")}
+                    </Button>
+                    {createdDishNote && (
+                      <p className="notice" role="status">
+                        {createdDishNote}
+                      </p>
+                    )}
+                  </>
+                )}
+              </OptionalSection>
               <div data-editor-field="image">
                 <PhotoUpload
                   label={t("Foto paket", "Package photo")}
@@ -1371,12 +1718,27 @@ function OfferEditor({
                   {t("Gunakan foto sintetis demo", "Use synthetic demo photo")}
                 </Button>
               )}
-              <TagInput
-                value={value.tags}
-                onChange={(tags) => set("tags", tags)}
-              />
+
+              <OptionalSection
+                title={t("Label makanan (opsional)", "Food labels (optional)")}
+                summary={
+                  value.tags.join(", ") || t("Belum ditambahkan", "None added")
+                }
+                initiallyOpen={value.tags.length > 0}
+                invalid={!!fieldError("tags")}
+              >
+                <TagInput
+                  value={value.tags}
+                  onChange={(tags) => set("tags", tags)}
+                />
+              </OptionalSection>
               <OptionalSection
                 title={t("Informasi gizi (opsional)", "Nutrition (optional)")}
+                summary={
+                  value.nutrition
+                    ? t("Informasi gizi ditambahkan", "Nutrition added")
+                    : t("Belum ditambahkan", "None added")
+                }
                 initiallyOpen={!!value.nutrition}
                 invalid={!!fieldError("nutrition")}
               >
@@ -1386,147 +1748,272 @@ function OfferEditor({
                   onChange={(nutrition) => set("nutrition", nutrition)}
                 />
               </OptionalSection>
-
-              {!value.packageType ? (
-                <p>
-                  {t(
-                    "Pilih jenis paket pada langkah Penawaran.",
-                    "Choose a package type in Offer.",
-                  )}
-                </p>
-              ) : (
-                (value.meal === "both"
-                  ? ["lunch", "dinner"]
-                  : [value.meal]
-                ).map((meal) => (
-                  <CompositionEditor
-                    key={meal}
-                    menu={
-                      value.menus.find((m) => m.meal === meal) || {
-                        meal,
-                        name: "",
-                        description: "",
-                        image: "",
-                        items: [],
-                        composition: [],
-                      }
-                    }
-                    onChange={(menu) =>
-                      set("menus", [
-                        ...value.menus.filter((m) => m.meal !== meal),
-                        menu,
-                      ])
-                    }
-                  />
-                ))
-              )}
-              <Field
-                label={t("Siapa yang memilih menu?", "Who chooses the menu?")}
-              >
-                <Select
-                  value={value.menuSelectionMode || "caterer"}
-                  onValueChange={(v) => set("menuSelectionMode", v)}
-                >
-                  <SelectOption value="caterer">
-                    {t("Katerer", "Caterer")}
-                  </SelectOption>
-                  <SelectOption value="customer">
-                    {t(
-                      "Pelanggan · Pilih menu sendiri",
-                      "Customer · Choose your menu",
-                    )}
-                  </SelectOption>
-                </Select>
-              </Field>
-              {value.menuSelectionMode === "customer" && (
-                <ChoiceDishChecklist
-                  dishes={dishes.filter((d) =>
-                    activeValue.menus.some((m) =>
-                      m.composition?.some((g) => g.categoryId === d.categoryId),
-                    ),
-                  )}
-                  selected={choiceDishIds}
-                  onChange={setChoiceDishIds}
-                />
-              )}
-              <h3>{t("Akan dilihat pelanggan", "Customer preview")}</h3>
-              <PackageContents
-                offer={{
-                  ...value,
-                  menus: value.menus.filter(
-                    (m) => value.meal === "both" || m.meal === value.meal,
-                  ),
-                }}
-              />
+              <h3>
+                {t("Isi yang dilihat pelanggan", "Contents shown to customers")}
+              </h3>
+              <PackageContents offer={activeValue} />
             </>
           ) : (
             <>
-              <h3>{t("Pratinjau pelanggan", "Customer preview")}</h3>
-              <SellerPackageDetails offer={previewOffer} />
+              <h3>{t("Periksa sebelum tayang", "Review before publishing")}</h3>
+              <div className="package-review-summary">
+                {(
+                  [
+                    [
+                      "offer",
+                      t("Paket", "Package"),
+                      value.name + " · " + mealLabel(value.meal, locale),
+                    ],
+                    [
+                      "contents",
+                      t("Isi per porsi", "Contents per portion"),
+                      activeValue.menus
+                        .map(
+                          (menu) =>
+                            mealLabel(menu.meal, locale) +
+                            ": " +
+                            (menu.composition || [])
+                              .map((group) => group.slots + " " + group.name)
+                              .join(" + "),
+                        )
+                        .join("; "),
+                    ],
+                    [
+                      "pricing",
+                      t("Harga & lama paket", "Price & package length"),
+                      value.price === null
+                        ? t("Harga belum diisi", "Price not entered")
+                        : currency(value.price, locale) +
+                          " / " +
+                          t("porsi / hari", "portion / day") +
+                          " × " +
+                          value.days +
+                          " " +
+                          t("hari pengantaran", "delivery days") +
+                          " = " +
+                          currency(value.price * value.days, locale),
+                    ],
+                    [
+                      "schedule",
+                      t("Pengantaran", "Delivery"),
+                      value.weekdays
+                        .map(
+                          (day) =>
+                            (locale === "en"
+                              ? [
+                                  "Sun",
+                                  "Mon",
+                                  "Tue",
+                                  "Wed",
+                                  "Thu",
+                                  "Fri",
+                                  "Sat",
+                                ]
+                              : [
+                                  "Min",
+                                  "Sen",
+                                  "Sel",
+                                  "Rab",
+                                  "Kam",
+                                  "Jum",
+                                  "Sab",
+                                ])[day],
+                        )
+                        .join(", ") +
+                        " · " +
+                        (draftCapacityValue(value.capacity, value.weekdays) ??
+                          t("Belum diisi", "Not entered")) +
+                        " " +
+                        t("porsi per hari", "portions per day"),
+                    ],
+                  ] as const
+                ).map(([target, label, description]) => (
+                  <div key={target}>
+                    <div>
+                      <strong>{label}</strong>
+                      <p>{description}</p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => navigate(target)}
+                      aria-label={t("Ubah ", "Edit ") + label}
+                    >
+                      {t("Ubah", "Edit")}
+                    </Button>
+                  </div>
+                ))}
+              </div>
               <p>
-                {t(
-                  "Tampilan menggunakan isian Anda saat ini. Tindakan pembelian dinonaktifkan dalam pratinjau.",
-                  "This preview uses your current entries. Purchase actions are disabled here.",
-                )}
+                {(value.meal === "both" ? ["lunch", "dinner"] : [value.meal])
+                  .map(
+                    (meal) =>
+                      mealLabel(meal, locale) +
+                      " " +
+                      value.windows[meal as "lunch" | "dinner"],
+                  )
+                  .join(" · ")}{" "}
+                · {caterer.timezone}
               </p>
-              <div
-                className="preview-tabs"
-                role="group"
-                aria-label={t("Tampilan pratinjau", "Preview view")}
-              >
-                <Button
-                  type="button"
-                  aria-pressed={preview === "card"}
-                  className={
-                    "button " + (preview === "card" ? "" : "secondary")
-                  }
-                  onClick={() => setPreview("card")}
-                >
-                  {t("Kartu penelusuran", "Discovery card")}
-                </Button>
-                <Button
-                  type="button"
-                  aria-pressed={preview === "detail"}
-                  className={
-                    "button " + (preview === "detail" ? "" : "secondary")
-                  }
-                  onClick={() => setPreview("detail")}
-                >
-                  {t("Detail paket", "Package details")}
-                </Button>
-              </div>
-              <div className={"listing-preview " + preview}>
-                {preview === "card" ? (
-                  <PackageCard offer={previewOffer} preview />
-                ) : (
-                  <PackagePage
-                    slug={previewOffer.slug}
-                    offer={previewOffer}
-                    preview
-                  />
-                )}
-              </div>
-              <Field label={t("Status penawaran", "Offer status")}>
-                <Select
-                  value={value.status}
-                  onValueChange={(value) => set("status", value)}
-                >
-                  <SelectOption value="draft">
-                    {t("Simpan draf", "Save draft")}
-                  </SelectOption>
-                  <SelectOption value="published">
-                    {t(
-                      "Tayangkan setelah verifikasi katerer",
-                      "Publish after caterer approval",
+              <p>
+                {value.flexible
+                  ? t(
+                      "Pelanggan boleh mengganti tanggal sebelum batas waktu",
+                      "Customers may change dates before the cutoff",
+                    )
+                  : t(
+                      "Tanggal pengantaran tidak dapat diganti",
+                      "Delivery dates cannot be changed",
+                    )}{" "}
+                · {caterer.cutoff}
+              </p>
+              <p>
+                {value.menuSelectionMode === "customer"
+                  ? t(
+                      "Pelanggan memilih hidangan setelah membayar.",
+                      "Customers choose dishes after payment.",
+                    )
+                  : t(
+                      "Katerer menentukan hidangan. Menu bertanggal dapat disiapkan setelah paket tersimpan.",
+                      "The caterer chooses dishes. Dated menus can be prepared after saving the package.",
                     )}
-                  </SelectOption>
-                </Select>
-              </Field>
+              </p>
+              <p>
+                {t("Pilihan durasi", "Duration options")}:{" "}
+                {value.durationPricing.options
+                  .map(
+                    (option) =>
+                      option.cycles * value.days +
+                      " " +
+                      t("hari", "days") +
+                      (option.discountPercent
+                        ? " · " + option.discountPercent + "%"
+                        : ""),
+                  )
+                  .join("; ")}
+              </p>
+              <p>
+                {t("Diskon porsi", "Quantity discounts")}:{" "}
+                {value.tiers.length
+                  ? value.tiers
+                      .map((tier) => tier.min + "+ · " + tier.percent + "%")
+                      .join("; ")
+                  : t("Tidak ada", "None")}
+              </p>
+              <p>
+                {t("Trial", "Trial")}: {trialSummary}
+              </p>
+              <p className="notice">
+                {t(
+                  "Harga dasar dan isi paket tetap setelah tayang. Periksa sebelum melanjutkan.",
+                  "Base price and contents stay fixed after publication. Check them before continuing.",
+                )}{" "}
+                {caterer.status !== "approved" &&
+                  t(
+                    "Pelanggan baru dapat membeli setelah profil katerer disetujui.",
+                    "Customers can buy only after the caterer profile is approved.",
+                  )}
+              </p>
+              {previewOffer ? (
+                <OptionalSection
+                  title={t("Pratinjau pelanggan", "Customer preview")}
+                >
+                  <div
+                    className="preview-tabs"
+                    role="group"
+                    aria-label={t("Tampilan pratinjau", "Preview view")}
+                  >
+                    <Button
+                      type="button"
+                      aria-pressed={preview === "card"}
+                      onClick={() => setPreview("card")}
+                    >
+                      {t("Kartu penelusuran", "Discovery card")}
+                    </Button>
+                    <Button
+                      type="button"
+                      aria-pressed={preview === "detail"}
+                      onClick={() => setPreview("detail")}
+                    >
+                      {t("Detail paket", "Package details")}
+                    </Button>
+                  </div>
+                  <div className={"listing-preview " + preview}>
+                    {preview === "card" ? (
+                      <PackageCard offer={previewOffer} preview />
+                    ) : (
+                      <PackagePage
+                        slug={previewOffer.slug}
+                        offer={previewOffer}
+                        preview
+                      />
+                    )}
+                  </div>
+                </OptionalSection>
+              ) : (
+                <p>
+                  {t(
+                    "Lengkapi isian untuk melihat pratinjau pelanggan.",
+                    "Complete the required fields to see the customer preview.",
+                  )}
+                </p>
+              )}
             </>
           )}
           {saveError && <ErrorNotice message={saveError} />}
         </div>
       </ActionForm>
+      <Dialog
+        open={creatingDish}
+        onOpenChange={(open) => {
+          if (!open) dishGuard.close();
+        }}
+        title={t("Buat hidangan", "Create dish")}
+        description={t(
+          "Hidangan disimpan ke pustaka secara terpisah. Paket tetap perlu disimpan.",
+          "The dish is saved to your library separately. You still need to save the package.",
+        )}
+      >
+        <LibraryForm
+          initial={null}
+          categories={library.data?.categories || []}
+          onDirtyChange={setDishDirty}
+          done={() => {
+            setDishDirty(false);
+            setCreatingDish(false);
+          }}
+          onSaved={(dish) => {
+            setCreatedDishes((current) => [
+              ...current.filter((d) => d.id !== dish.id),
+              dish,
+            ]);
+            const matchesPackage = activeValue.menus.some((menu) =>
+              menu.composition?.some(
+                (group) => group.categoryId === dish.categoryId,
+              ),
+            );
+            if (matchesPackage) {
+              setChoiceDishIds((current) => [
+                ...new Set([...current, dish.id]),
+              ]);
+              setCreatedDishNote(
+                t(
+                  "Hidangan tersimpan di pustaka dan dipilih untuk paket ini. Simpan paket untuk menyimpan pilihan.",
+                  "Dish saved to the library and selected for this package. Save the package to keep the selection.",
+                ),
+              );
+            } else {
+              setCreatedDishNote(
+                t(
+                  "Hidangan tersimpan di pustaka. Kategorinya belum termasuk dalam isi paket, jadi belum dipilih untuk paket ini.",
+                  "Dish saved to the library. Its category is not in the package contents, so it has not been selected for this package.",
+                ),
+              );
+            }
+          }}
+        />
+      </Dialog>
+      {dishGuard.confirmation}
     </div>
   );
 }
@@ -1625,7 +2112,7 @@ export function SupportQueue({
   cases: SupportCase[];
   admin?: boolean;
   initialSelected?: string;
-  caterers?: Caterer[];
+  caterers?: Array<Pick<Caterer, "id" | "name">>;
   transactions?: AdminState["transactions"];
 }) {
   const { perform, t, locale } = useApp();
@@ -2201,6 +2688,7 @@ function SellerProfile({ state: s }: { state: SellerState }) {
 export function Onboarding() {
   const { actor, perform, t } = useApp();
   const [slug, setSlug] = useState("");
+  const slugEdited = useRef(false);
   const [origin, setOrigin] = useState("");
   useEffect(() => setOrigin(window.location.origin), []);
   return (
@@ -2255,13 +2743,31 @@ export function Onboarding() {
             }}
           >
             <Field label={t("Nama katerer", "Caterer name")}>
-              <TextInput name="name" required minLength={3} />
+              <TextInput
+                name="name"
+                required
+                minLength={3}
+                onChange={(event) => {
+                  if (!slugEdited.current)
+                    setSlug(
+                      event.target.value
+                        .normalize("NFKD")
+                        .replace(/[\u0300-\u036f]/g, "")
+                        .toLowerCase()
+                        .replace(/[^a-z0-9]+/g, "-")
+                        .replace(/^-+|-+$/g, ""),
+                    );
+                }}
+              />
             </Field>
             <Field label={t("Alamat halaman katerer", "Caterer page address")}>
               <TextInput
                 name="slug"
                 value={slug}
-                onChange={(event) => setSlug(event.target.value.toLowerCase())}
+                onChange={(event) => {
+                  slugEdited.current = true;
+                  setSlug(event.target.value.toLowerCase());
+                }}
                 required
                 pattern="[a-z0-9-]+"
                 placeholder={t("dapur-kamu", "your-kitchen")}

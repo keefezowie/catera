@@ -93,6 +93,18 @@ export type Offer = {
   sellerStatus: string;
   version: number;
 };
+/** Only seller/admin draft reads can contain an unentered price. */
+export type DraftOffer = Omit<Offer, "status" | "price"> & {
+  status: "draft";
+  price: number | null;
+};
+export type CompleteSellerOffer = Omit<Offer, "status"> & {
+  status: "published" | "suspended" | "retired";
+};
+export type SellerOffer = DraftOffer | CompleteSellerOffer;
+export type AdminCaterer = Omit<Caterer, "offers"> & {
+  offers?: SellerOffer[];
+};
 export type Quote = {
   address?: Address;
   pricingVersion?: number;
@@ -330,7 +342,7 @@ export type SellerState = {
   contentRevisions?: ContentRevision[];
   datedMenus?: DatedMenu[];
   caterer: Caterer;
-  offers: Offer[];
+  offers: SellerOffer[];
   deliveries: Delivery[];
   cases: SupportCase[];
   customers: { id: string; name: string; source: string }[];
@@ -361,7 +373,7 @@ export type AdminState = {
     error_code: string | null;
     created_at: string;
   }[];
-  caterers: Caterer[];
+  caterers: AdminCaterer[];
   cases: SupportCase[];
   transactions: {
     customerName?: string | null;
@@ -436,7 +448,7 @@ export const offerSchema = z
       .optional(),
     name: z.string().trim().max(100),
     description: z.string().trim().max(1500),
-    price: z.number().int().min(1000).max(10000000),
+    price: z.number().int().min(1000).max(10000000).nullable(),
     days: z.number().int().min(1).max(60),
     meal: z.enum(mealTypes),
     weekdays: z.array(z.number().int().min(0).max(6)).max(7),
@@ -461,6 +473,12 @@ export const offerSchema = z
   })
   .superRefine((o, ctx) => {
     const complete = o.status !== "draft";
+    if (complete && o.price === null)
+      ctx.addIssue({
+        code: "custom",
+        path: ["price"],
+        message: "Isi harga per porsi / Enter the price per portion",
+      });
     for (const [key, min] of [
       ["name", 3],
       ["description", 10],
@@ -483,7 +501,8 @@ export const offerSchema = z
         path: ["image"],
         message: "Unggah foto paket / Upload a package photo",
       });
-    for (const d of o.weekdays)
+    const capacityUnset = !complete && Object.keys(o.capacity).length === 0;
+    for (const d of capacityUnset ? [] : o.weekdays)
       if (o.capacity[String(d)] === undefined)
         ctx.addIssue({
           code: "custom",

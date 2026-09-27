@@ -172,6 +172,9 @@ test("UI sweep: focus rings, support count, composition controls and centered pr
     exact: true,
   });
   await queue
+    .getByRole("button", { name: "Filter masalah", exact: true })
+    .click();
+  await queue
     .getByRole("button", { name: "Semua tanggal", exact: true })
     .click();
   await queue.getByRole("combobox", { name: "Waktu makan masalah" }).click();
@@ -246,6 +249,10 @@ test("UI sweep: focus rings, support count, composition controls and centered pr
   await category.click();
   await expect(category).toHaveAttribute("aria-expanded", "false");
   await page.getByRole("button", { name: /5\. Periksa/ }).click();
+  await page
+    .locator(".optional-section > summary")
+    .filter({ hasText: "Pratinjau pelanggan" })
+    .click();
   const preview = page.locator(".listing-preview.card");
   await expect(preview).toBeVisible();
   for (const width of [1440, 768, 390]) {

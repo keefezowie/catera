@@ -87,8 +87,8 @@ export function ChoiceDishChecklist({
       </legend>
       <p>
         {t(
-          "Sediakan hidangan berbeda yang cukup untuk setiap kategori. Kelola hidangan melalui Menu.",
-          "Provide enough distinct dishes for each category. Manage dishes in Menu.",
+          "Sediakan hidangan berbeda yang cukup untuk setiap kategori.",
+          "Provide enough distinct dishes for each category.",
         )}
       </p>
       {dishes
@@ -114,8 +114,8 @@ export function ChoiceDishChecklist({
       {!dishes.length && (
         <p>
           {t(
-            "Tambahkan hidangan di Menu terlebih dahulu.",
-            "Add dishes in Menu first.",
+            "Belum ada hidangan untuk kategori ini. Buat hidangan untuk menambah pilihan.",
+            "No dishes for these categories yet. Create a dish to add a choice.",
           )}
         </p>
       )}
@@ -126,7 +126,7 @@ export function PackageChoiceLibrary({
   offer,
   dishes,
 }: {
-  offer: Offer;
+  offer: Pick<Offer, "id" | "name" | "menus">;
   dishes?: LibraryDish[];
 }) {
   const { t, perform, actor } = useApp();

@@ -190,10 +190,11 @@ for (const locale of ["id", "en"])
         exact: true,
       });
       await tab.focus();
-      await page.keyboard.press("End");
+      await expect(tab).toBeFocused();
+      await tab.press("End");
       await expect(
-        page.getByRole("heading", {
-          name: locale === "id" ? "Penjualan" : "Sales",
+        page.getByRole("region", {
+          name: locale === "id" ? "Daftar penjualan" : "Sales list",
           exact: true,
         }),
       ).toBeVisible();
@@ -236,7 +237,7 @@ test("report failure and retry do not hide balances or purchases", async ({
   await page.getByRole("button", { name: "Try again", exact: true }).click();
   await expect(page.locator(".settlement-bars")).toBeVisible();
   await page.getByRole("tab", { name: "Sales", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Sales" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Sales list" })).toBeVisible();
 });
 test("200 percent text and zero balances remain usable", async ({
   page,

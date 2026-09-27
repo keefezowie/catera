@@ -1,24 +1,4 @@
-create or replace function v1.valid_nutrition(nutrition jsonb) returns boolean language plpgsql immutable set search_path='' as $$
-declare metric record;bounds jsonb;
-begin
- if nutrition is null or nutrition='null'::jsonb then return true;end if;
- if jsonb_typeof(nutrition)<>'object' then return false;end if;
- for metric in select * from jsonb_each(nutrition) loop
-  if metric.key not in('caloriesKcal','proteinG','carbsG','fatG') then return false;end if;
-  if jsonb_typeof(metric.value)='number' then
-   if metric.value::text::numeric<0 then return false;end if;
-  elsif jsonb_typeof(metric.value)='object' then
-   bounds:=metric.value;
-   if not(bounds ?& array['min','max']) or (select count(*) from jsonb_object_keys(bounds))<>2
-    or jsonb_typeof(bounds->'min')<>'number' or jsonb_typeof(bounds->'max')<>'number'
-    or (bounds->>'min')::numeric<0 or (bounds->>'max')::numeric<(bounds->>'min')::numeric then return false;end if;
-  else return false;
-  end if;
- end loop;
- return true;
-exception when others then return false;
-end $$;
-
+-- Persist unentered commercial fields only in editable drafts. No rows are rewritten.
 create or replace function v1.valid_offer(o jsonb) returns boolean language plpgsql immutable set search_path='' as $$
 declare w jsonb;t jsonb;k text;lo int;complete boolean;capacity_unset boolean;shared_capacity numeric;
 begin
@@ -65,3 +45,6 @@ begin
  return coalesce(v1.valid_contents(o,complete),false);
  exception when others then return false;
 end $$;
+
+create or replace function v1.partial_package_drafts_version() returns integer language sql immutable set search_path='' as 'select 1';
+revoke all on function v1.partial_package_drafts_version() from public,anon,authenticated;

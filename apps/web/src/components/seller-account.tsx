@@ -19,9 +19,11 @@ import "./seller-experience.css";
 export function PayoutSetupCard({
   catererId,
   editable = false,
+  variant = "full",
 }: {
   catererId: string;
   editable?: boolean;
+  variant?: "full" | "destination";
 }) {
   const { t, locale, perform } = useApp();
   const resource = useResource<PayoutSetup>("payout-setup:" + catererId, () =>
@@ -95,19 +97,21 @@ export function PayoutSetupCard({
           )}
         </p>
       )}
-      <div className="payout-state">
-        {[
-          [t("Diproses", "Processing"), s.settlement.reserved],
-          [t("Dibayar", "Paid"), s.settlement.paid],
-          [t("Ditahan", "Held"), s.settlement.held],
-        ].map(([label, amount]) => (
-          <p key={label}>
-            <strong>{label}</strong>
-            <br />
-            {settlementCurrency(amount, locale)}
-          </p>
-        ))}
-      </div>
+      {variant === "full" && (
+        <div className="payout-state">
+          {[
+            [t("Diproses", "Processing"), s.settlement.reserved],
+            [t("Dibayar", "Paid"), s.settlement.paid],
+            [t("Ditahan", "Held"), s.settlement.held],
+          ].map(([label, amount]) => (
+            <p key={label}>
+              <strong>{label}</strong>
+              <br />
+              {settlementCurrency(amount, locale)}
+            </p>
+          ))}
+        </div>
+      )}
       {s.settlement.payouts
         .filter((p) =>
           ["failed", "rejected", "reversed", "cancelled"].includes(p.status),

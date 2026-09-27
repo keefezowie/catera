@@ -309,6 +309,7 @@ try {
   evidence.push("Checkout consent rejects missing acceptance before side effects; simultaneous retries produce one checkout, one acceptance timestamp and one payment job.");
   await (await import("./postgres-direct-payments.mjs")).verifyDirectPayments(pool, cmd, evidence);
   await (await import("./postgres-journey-reads.mjs")).verifyJourneyReads(pool, cmd, evidence);
+  await (await import("./postgres-package-drafts.mjs")).verifyPackageDrafts(pool, cmd, evidence);
   await mkdir("output/verification", { recursive: true });
   const evidencePath = process.env.CATERA_POSTGRES_EVIDENCE || "output/verification/postgres.json";
   await mkdir(path.dirname(evidencePath), { recursive: true });

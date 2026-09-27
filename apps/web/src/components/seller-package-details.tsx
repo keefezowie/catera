@@ -3,13 +3,13 @@ import {
   currency,
   mealLabel,
   packageSubtotal,
-  type Offer,
+  type SellerOffer,
 } from "@catera/domain";
 import { useApp } from "./context";
 import { PackageContents } from "./package-contents";
 import { Status } from "./ui";
 
-export function SellerPackageDetails({ offer: o }: { offer: Offer }) {
+export function SellerPackageDetails({ offer: o }: { offer: SellerOffer }) {
   const { t, locale } = useApp();
   const weekdays =
     locale === "id"
@@ -32,13 +32,22 @@ export function SellerPackageDetails({ offer: o }: { offer: Offer }) {
           <dt>
             {t("Harga dasar / hari / porsi", "Base price / day / portion")}
           </dt>
-          <dd>{currency(o.price, locale)}</dd>
+          <dd>
+            {o.price === null
+              ? t("Harga belum diisi", "Price not entered")
+              : currency(o.price, locale)}
+          </dd>
         </div>
         <div>
           <dt>{t("Satu periode", "One cycle")}</dt>
           <dd>
             {o.days} {t("hari pengantaran", "delivery days")} ·{" "}
-            {currency(packageSubtotal(o), locale)}
+            {o.price === null
+              ? t("Total belum tersedia", "Total not available yet")
+              : currency(
+                  packageSubtotal({ price: o.price, days: o.days }),
+                  locale,
+                )}
           </dd>
         </div>
         <div>
@@ -58,12 +67,21 @@ export function SellerPackageDetails({ offer: o }: { offer: Offer }) {
             {t("Hari operasional & kapasitas", "Operating days & capacity")}
           </dt>
           <dd>
-            {o.weekdays
-              .map(
-                (day) =>
-                  `${weekdays[day]}: ${o.capacity[String(day)] ?? "—"} ${t("porsi", "portions")}`,
-              )
-              .join(" · ")}
+            {o.weekdays.length
+              ? o.weekdays
+                  .map(
+                    (day) =>
+                      `${weekdays[day]}: ${
+                        o.capacity[String(day)] === undefined
+                          ? t("Kapasitas belum diisi", "Capacity not entered")
+                          : `${o.capacity[String(day)]} ${t("porsi", "portions")}`
+                      }`,
+                  )
+                  .join(" · ")
+              : t(
+                  "Hari pengantaran belum dipilih",
+                  "Delivery days not selected",
+                )}
           </dd>
         </div>
         {(o.meal === "both" ? (["lunch", "dinner"] as const) : [o.meal]).map(

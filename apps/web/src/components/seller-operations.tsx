@@ -220,11 +220,19 @@ function OperationsPage({
       ? query.get("stage")!
       : "";
   const search = (query.get("search") || "").trim().toLocaleLowerCase();
+  const grouping =
+    schedule && ["customers", "destinations"].includes(query.get("group") || "")
+      ? query.get("group")!
+      : "flat";
+  const selectedGroup = query.get("filter") || "";
   const activeFilters = [
     packageId,
     selectedStage,
     search,
     schedule && status !== "active",
+    schedule && meal !== "all",
+    grouping !== "flat",
+    grouping !== "flat" && selectedGroup,
   ].filter(Boolean).length;
   const [filtersOpen, setFiltersOpen] = useState(activeFilters > 0);
   function navigate(values: Record<string, string>) {
@@ -264,10 +272,6 @@ function OperationsPage({
         ].some((value) => value.toLocaleLowerCase().includes(search))),
   );
   const includeCancelled = schedule && status !== "active";
-  const grouping =
-    schedule && ["customers", "destinations"].includes(query.get("group") || "")
-      ? query.get("group")!
-      : "flat";
   const groupKey = (row: SellerDelivery) =>
     grouping === "customers" ? row.customer.id : destinationKey(row.address);
   const groupOptions = [
@@ -280,7 +284,27 @@ function OperationsPage({
       ]),
     ).entries(),
   ];
-  const selectedGroup = query.get("filter") || "";
+  const filterLabels = [
+    packageId &&
+      (s.offers.find((offer) => offer.id === packageId)?.name ||
+        t("Paket tersimpan", "Saved package")),
+    selectedStage && statusLabel(selectedStage, locale),
+    search && `${t("Cari", "Search")}: ${query.get("search")}`,
+    schedule &&
+      status !== "active" &&
+      (status === "cancelled"
+        ? t("Dibatalkan", "Cancelled")
+        : t("Semua status", "All statuses")),
+    schedule && meal !== "all" && mealLabel(meal, locale),
+    grouping !== "flat" &&
+      (grouping === "customers"
+        ? t("Dikelompokkan menurut pelanggan", "Grouped by customer")
+        : t("Dikelompokkan menurut tujuan", "Grouped by destination")),
+    grouping !== "flat" &&
+      selectedGroup &&
+      (groupOptions.find(([key]) => key === selectedGroup)?.[1] ||
+        t("Filter tersimpan · tidak ada hasil", "Saved filter · no matches")),
+  ].filter(Boolean);
   const filteredRows =
     grouping !== "flat" && selectedGroup
       ? rows.filter((row) => groupKey(row) === selectedGroup)
@@ -472,7 +496,7 @@ function OperationsPage({
             ),
           )}
         </div>
-        {!schedule && (
+        <div className="ops-filter-actions">
           <Button
             type="button"
             variant="secondary"
@@ -481,11 +505,40 @@ function OperationsPage({
             aria-controls="ops-extra-filters"
             onClick={() => setFiltersOpen((value) => !value)}
           >
-            {t("Filter pesanan", "Order filters")}
+            {schedule
+              ? t("Filter & kelompokkan pesanan", "Filter & group orders")
+              : t("Filter pesanan", "Order filters")}
             {activeFilters > 0
               ? ` · ${activeFilters} ${t("aktif", "active")}`
               : ""}
           </Button>
+          {activeFilters > 0 && (
+            <Button
+              className="text-button ops-scope-reset"
+              onClick={() =>
+                navigate({
+                  package: "",
+                  stage: "",
+                  search: "",
+                  status: "",
+                  group: "",
+                  filter: "",
+                  ...(schedule ? { meal: "" } : {}),
+                })
+              }
+            >
+              <X size={16} aria-hidden="true" />
+              {schedule
+                ? t("Hapus filter tabel", "Clear table filters")
+                : t("Hapus filter", "Clear filters")}
+            </Button>
+          )}
+        </div>
+        {activeFilters > 0 && (
+          <p className="ops-active-filters" role="status">
+            <strong>{t("Tampilan aktif", "Current view")}: </strong>
+            {filterLabels.join(" · ")}
+          </p>
         )}
         <div
           className="ops-extra-filters"
@@ -509,41 +562,26 @@ function OperationsPage({
               ))}
             </Select>
           </label>
-          <label className="ops-scope-field">
-            <span>{t("Status", "Status")}</span>
-            <Select
-              aria-label={t("Status pesanan", "Order status")}
-              value={schedule ? status : selectedStage}
-              onValueChange={(value) =>
-                navigate(schedule ? { status: value } : { stage: value })
-              }
-            >
-              {schedule ? (
-                <>
-                  <SelectOption value="active">
-                    {t("Tidak dibatalkan", "Not cancelled")}
-                  </SelectOption>
-                  <SelectOption value="all">
-                    {t("Semua status", "All statuses")}
-                  </SelectOption>
-                  <SelectOption value="cancelled">
-                    {t("Dibatalkan", "Cancelled")}
-                  </SelectOption>
-                </>
-              ) : (
-                <>
-                  <SelectOption value="">
-                    {t("Semua tahap", "All stages")}
-                  </SelectOption>
-                  {stageOptions.map((stage) => (
-                    <SelectOption key={stage} value={stage}>
-                      {statusLabel(stage, locale)}
-                    </SelectOption>
-                  ))}
-                </>
-              )}
-            </Select>
-          </label>
+          {schedule && (
+            <label className="ops-scope-field">
+              <span>{t("Status", "Status")}</span>
+              <Select
+                aria-label={t("Status pesanan", "Order status")}
+                value={status}
+                onValueChange={(value) => navigate({ status: value })}
+              >
+                <SelectOption value="active">
+                  {t("Tidak dibatalkan", "Not cancelled")}
+                </SelectOption>
+                <SelectOption value="all">
+                  {t("Semua status", "All statuses")}
+                </SelectOption>
+                <SelectOption value="cancelled">
+                  {t("Dibatalkan", "Cancelled")}
+                </SelectOption>
+              </Select>
+            </label>
+          )}
           <label className="ops-scope-field ops-scope-search">
             <span>{t("Cari", "Search")}</span>
             <TextInput
@@ -557,25 +595,89 @@ function OperationsPage({
               onChange={(event) => navigate({ search: event.target.value })}
             />
           </label>
-          {(packageId ||
-            selectedStage ||
-            search ||
-            (schedule && (status !== "active" || meal !== "all"))) && (
-            <Button
-              className="text-button ops-scope-reset"
-              onClick={() =>
-                navigate({
-                  package: "",
-                  stage: "",
-                  search: "",
-                  status: "",
-                  meal: "",
-                })
-              }
-            >
-              <X size={16} aria-hidden="true" />
-              {t("Hapus filter", "Clear filters")}
-            </Button>
+          {schedule && (
+            <label className="ops-scope-field">
+              <span>{t("Kelompokkan pesanan", "Group orders")}</span>
+              <Select
+                aria-label={t("Kelompokkan pesanan", "Group orders")}
+                value={grouping}
+                onValueChange={(group) =>
+                  navigate({ group: group === "flat" ? "" : group })
+                }
+              >
+                <SelectOption value="flat">
+                  {t("Tanpa kelompok", "No grouping")}
+                </SelectOption>
+                <SelectOption value="customers">
+                  {t("Pelanggan", "Customer")}
+                </SelectOption>
+                <SelectOption value="destinations">
+                  {t("Tujuan", "Destination")}
+                </SelectOption>
+              </Select>
+            </label>
+          )}
+          {schedule && grouping !== "flat" && (
+            <div className="ops-list-filter">
+              <TextInput
+                type="search"
+                aria-label={t(
+                  "Cari pelanggan atau tujuan",
+                  "Search customers or destinations",
+                )}
+                placeholder={t(
+                  "Cari pelanggan atau tujuan",
+                  "Search customers or destinations",
+                )}
+                value={filterSearch}
+                onChange={(e) => setFilterSearch(e.target.value)}
+              />
+              <Select
+                aria-label={t(
+                  grouping === "customers"
+                    ? "Filter pelanggan"
+                    : "Filter tujuan",
+                  grouping === "customers"
+                    ? "Customer filter"
+                    : "Destination filter",
+                )}
+                value={selectedGroup}
+                onValueChange={(value) => navigate({ filter: value })}
+              >
+                <SelectOption value="">
+                  {t(
+                    grouping === "customers"
+                      ? "Semua pelanggan"
+                      : "Semua tujuan",
+                    grouping === "customers"
+                      ? "All customers"
+                      : "All destinations",
+                  )}
+                </SelectOption>
+                {groupOptions
+                  .filter(
+                    ([key, label]) =>
+                      key === selectedGroup ||
+                      label
+                        .toLocaleLowerCase()
+                        .includes(filterSearch.toLocaleLowerCase()),
+                  )
+                  .map(([key, label]) => (
+                    <SelectOption key={key} value={key}>
+                      {label}
+                    </SelectOption>
+                  ))}
+                {selectedGroup &&
+                  !groupOptions.some(([key]) => key === selectedGroup) && (
+                    <SelectOption value={selectedGroup}>
+                      {t(
+                        "Filter tersimpan · tidak ada hasil",
+                        "Saved filter · no matches",
+                      )}
+                    </SelectOption>
+                  )}
+              </Select>
+            </div>
           )}
         </div>
       </section>
@@ -718,52 +820,7 @@ function OperationsPage({
           ))}
         </details>
       )}
-      {!schedule && (
-        <NeedsAttention catererId={s.caterer.id} date={date} meal={meal} />
-      )}
-      {schedule && (
-        <div className="ops-group-controls">
-          <label>
-            {t("Kelompokkan pesanan", "Group orders")}
-            <Select
-              aria-label={t("Kelompokkan pesanan", "Group orders")}
-              value={grouping}
-              onValueChange={(group) =>
-                navigate({ group: group === "flat" ? "" : group })
-              }
-            >
-              <SelectOption value="flat">
-                {t("Tanpa kelompok", "No grouping")}
-              </SelectOption>
-              <SelectOption value="customers">
-                {t("Pelanggan", "Customer")}
-              </SelectOption>
-              <SelectOption value="destinations">
-                {t("Tujuan", "Destination")}
-              </SelectOption>
-            </Select>
-          </label>
-          {(packageId ||
-            selectedGroup ||
-            status !== "active" ||
-            meal !== "all") && (
-            <Button
-              className="text-button"
-              onClick={() =>
-                navigate({
-                  package: "",
-                  filter: "",
-                  status: "",
-                  meal: "",
-                  group: "",
-                })
-              }
-            >
-              {t("Reset filter tabel", "Reset table filters")}
-            </Button>
-          )}
-        </div>
-      )}
+      {!schedule && <NeedsAttention catererId={s.caterer.id} date={date} />}
       <div
         id="ops-orders"
         tabIndex={-1}
@@ -789,77 +846,6 @@ function OperationsPage({
           ].join(":")}
           rows={filteredRows}
           scheduleGrouping={grouping}
-          scheduleFilter={
-            schedule && grouping !== "flat" ? (
-              <div className="ops-list-filter">
-                <TextInput
-                  type="search"
-                  aria-label={t(
-                    "Cari pelanggan atau tujuan",
-                    "Search customers or destinations",
-                  )}
-                  placeholder={t(
-                    "Cari pelanggan atau tujuan",
-                    "Search customers or destinations",
-                  )}
-                  value={filterSearch}
-                  onChange={(e) => setFilterSearch(e.target.value)}
-                />
-                <Select
-                  aria-label={t(
-                    grouping === "customers"
-                      ? "Filter pelanggan"
-                      : "Filter tujuan",
-                    grouping === "customers"
-                      ? "Customer filter"
-                      : "Destination filter",
-                  )}
-                  value={selectedGroup}
-                  onValueChange={(value) => navigate({ filter: value })}
-                >
-                  <SelectOption value="">
-                    {t(
-                      grouping === "customers"
-                        ? "Semua pelanggan"
-                        : "Semua tujuan",
-                      grouping === "customers"
-                        ? "All customers"
-                        : "All destinations",
-                    )}
-                  </SelectOption>
-                  {groupOptions
-                    .filter(
-                      ([key, label]) =>
-                        key === selectedGroup ||
-                        label
-                          .toLocaleLowerCase()
-                          .includes(filterSearch.toLocaleLowerCase()),
-                    )
-                    .map(([key, label]) => (
-                      <SelectOption key={key} value={key}>
-                        {label}
-                      </SelectOption>
-                    ))}
-                  {selectedGroup &&
-                    !groupOptions.some(([key]) => key === selectedGroup) && (
-                      <SelectOption value={selectedGroup}>
-                        {t(
-                          "Filter tersimpan · tidak ada hasil",
-                          "Saved filter · no matches",
-                        )}
-                      </SelectOption>
-                    )}
-                </Select>
-                <Button
-                  className="text-button"
-                  onClick={() => navigate({ filter: "" })}
-                >
-                  <X size={16} />
-                  {t("Hapus filter", "Clear filter")}
-                </Button>
-              </div>
-            ) : undefined
-          }
           meal={meal}
           date={date}
           today={s.today}
@@ -1078,11 +1064,9 @@ function OrderTable({
   loading,
   refresh,
   scheduleGrouping,
-  scheduleFilter,
 }: {
   rows: SellerDelivery[];
   scheduleGrouping: string;
-  scheduleFilter?: React.ReactNode;
   meal: string;
   date: string;
   today: string;
@@ -1361,7 +1345,6 @@ function OrderTable({
             </Button>
           </div>
         )}
-        {scheduleFilter}
         <div className="ops-list-toolbar">
           {!schedule && rows.length > 0 && (
             <label className="checkbox ops-select-all">

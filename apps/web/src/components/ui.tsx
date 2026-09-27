@@ -273,7 +273,11 @@ export function Dialog({
                 targets
                   .find(
                     (target) =>
-                      target.isConnected && !target.closest("[inert]"),
+                      target.isConnected &&
+                      !target.matches(":disabled") &&
+                      !target.closest(
+                        '[inert], .dialog[data-motion-state="closed"]',
+                      ),
                   )
                   ?.focus({ preventScroll: true });
               });

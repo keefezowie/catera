@@ -349,12 +349,14 @@ export function LibraryForm({
   categories = [],
   defaultCategoryId,
   onDirtyChange,
+  onSaved,
 }: {
   initial: LibraryDish | null;
   done: () => void;
   categories?: DishCategory[];
   defaultCategoryId?: string;
   onDirtyChange?: (dirty: boolean) => void;
+  onSaved?: (dish: LibraryDish) => void;
 }) {
   const { actor, perform, t, locale } = useApp();
   const [dish, setDish] = useState<Dish>(
@@ -396,12 +398,13 @@ export function LibraryForm({
             throw new Error(
               t("Pilih kategori hidangan.", "Choose a dish category."),
             );
-          await perform("dish.save", {
+          const saved = await perform<LibraryDish>("dish.save", {
             catererId: actor!.catererId,
             id: initial?.id,
             version: initial?.version,
             details: libraryDishDetailsSchema.parse(dish),
           });
+          onSaved?.(saved);
           done();
         }}
       >

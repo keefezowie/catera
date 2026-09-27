@@ -8,9 +8,8 @@ import {
   ArrowRight,
   Circle,
 } from "lucide-react";
-import type { Caterer, Offer } from "@catera/domain";
+import type { Caterer, SellerOffer } from "@catera/domain";
 import { useApp } from "./context";
-import { Status } from "./ui";
 
 export function SellerReadiness({
   caterer,
@@ -18,7 +17,7 @@ export function SellerReadiness({
   always = false,
 }: {
   caterer: Caterer;
-  offers: Offer[];
+  offers: SellerOffer[];
   always?: boolean;
 }) {
   const { actor, t } = useApp();
@@ -29,7 +28,122 @@ export function SellerReadiness({
     caterer.area.length > 0;
   const approved = caterer.status === "approved";
   const published = offers.some((offer) => offer.status === "published");
-  if (approved && published && !always) return null;
+  const available = approved && published;
+  if (available && !always) return null;
+
+  const draft = offers.find((offer) => offer.status === "draft");
+  const draftHref = draft
+    ? "/seller/packages?edit=" + encodeURIComponent(draft.id)
+    : "/seller/packages?new=1";
+  const verificationHref = "/seller/profile#verification";
+  const submitted = caterer.status === "submitted";
+  const corrections = caterer.status === "corrections";
+  const suspended = caterer.status === "suspended";
+  // Review requires one saved package, even if its commercial fields are incomplete.
+  const canRequestReview =
+    profile &&
+    offers.length > 0 &&
+    ["draft", "corrections"].includes(caterer.status);
+
+  let next: { label: string; href: string };
+  let message: string;
+  if (suspended) {
+    next = {
+      label: t("Lihat status katerer", "View caterer status"),
+      href: verificationHref,
+    };
+    message = t(
+      "Penjualan sedang ditangguhkan. Periksa catatan Catera pada profil Anda.",
+      "Sales are paused. Check Catera's notes on your profile.",
+    );
+  } else if (corrections) {
+    next = {
+      label: t("Periksa catatan perbaikan", "Review requested changes"),
+      href: verificationHref,
+    };
+    message = t(
+      "Periksa catatan Catera, simpan perbaikan, lalu ajukan verifikasi kembali.",
+      "Review Catera's notes, save your corrections, then request verification again.",
+    );
+  } else if (!profile) {
+    next = {
+      label: t("Lengkapi profil", "Complete your profile"),
+      href: "/seller/profile",
+    };
+    message = t(
+      "Simpan nama, deskripsi, dan area pengantaran sebelum mengajukan verifikasi.",
+      "Save your name, description and delivery areas before requesting verification.",
+    );
+  } else if (!offers.length) {
+    next = {
+      label: t("Buat paket pertama", "Create your first package"),
+      href: draftHref,
+    };
+    message = t(
+      "Simpan paket pertama sebagai draf. Isian yang belum lengkap dapat dilanjutkan nanti.",
+      "Save your first package as a draft. You can finish incomplete fields later.",
+    );
+  } else if (canRequestReview) {
+    next = {
+      label: t("Ajukan verifikasi", "Request verification"),
+      href: verificationHref,
+    };
+    message = t(
+      "Profil dan paket sudah tersimpan. Anda dapat mengajukan verifikasi sekarang.",
+      "Your profile and package are saved. You can request verification now.",
+    );
+  } else if (!published) {
+    next = {
+      label: draft
+        ? t("Lanjutkan draf paket", "Continue your package draft")
+        : t("Buat paket baru", "Create a new package"),
+      href: draftHref,
+    };
+    message = submitted
+      ? t(
+          "Catera sedang meninjau profil. Lengkapi paket sambil menunggu hasil verifikasi.",
+          "Catera is reviewing your profile. Finish your package while you wait for verification.",
+        )
+      : t(
+          "Lengkapi dan periksa ketentuan paket sebelum menayangkannya.",
+          "Complete and review your package terms before publishing.",
+        );
+  } else if (!approved) {
+    next = {
+      label: t("Lihat status verifikasi", "View verification status"),
+      href: verificationHref,
+    };
+    message = t(
+      "Paket telah disiapkan untuk tayang. Pelanggan dapat membeli setelah Catera menyetujui profil Anda.",
+      "Your package is prepared for publication. Customers can buy after Catera approves your profile.",
+    );
+  } else {
+    next = {
+      label: t("Lihat paket", "View your packages"),
+      href: "/seller/packages",
+    };
+    message = t(
+      "Paket sudah tersedia bagi pelanggan.",
+      "Your package is available to customers.",
+    );
+  }
+
+  const state = suspended
+    ? t("Penjualan ditangguhkan", "Sales paused")
+    : corrections
+      ? t("Perlu perbaikan", "Changes requested")
+      : available
+        ? t("Tersedia bagi pelanggan", "Available to customers")
+        : published
+          ? t(
+              "Paket tayang, menunggu persetujuan katerer",
+              "Published, awaiting caterer approval",
+            )
+          : submitted
+            ? t("Menunggu verifikasi katerer", "Awaiting caterer verification")
+            : draft
+              ? t("Draf paket tersimpan", "Package draft saved")
+              : t("Belum ada paket tayang", "No published package");
   const steps = [
     {
       title: t("Profil & area pengantaran", "Profile & delivery area"),
@@ -38,25 +152,35 @@ export function SellerReadiness({
       Icon: Store,
     },
     {
-      title: t("Siapkan paket pertama", "Prepare your first package"),
+      title: t("Simpan draf paket", "Save a package draft"),
       done: offers.length > 0,
-      href: "/seller/packages",
+      href: offers.length ? "/seller/packages" : draftHref,
       Icon: Package,
     },
     {
-      title: t("Verifikasi katerer", "Caterer verification"),
+      title: submitted
+        ? t("Verifikasi sedang ditinjau", "Verification under review")
+        : t("Verifikasi katerer", "Caterer verification"),
       done: approved,
-      href: "/seller/profile#verification",
+      href: verificationHref,
       Icon: ShieldCheck,
     },
     {
-      title: t("Tayangkan paket", "Publish a package"),
+      title:
+        published && suspended
+          ? t("Paket tayang, penjualan ditangguhkan", "Published; sales paused")
+          : published && !approved
+            ? t(
+                "Paket tayang, penjualan belum dibuka",
+                "Published; sales not open yet",
+              )
+            : t("Tayangkan paket", "Publish a package"),
       done: published,
-      href: "/seller/packages",
+      href: published ? "/seller/packages" : draftHref,
       Icon: Package,
     },
   ];
-  const next = steps.find((step) => !step.done);
+
   return (
     <section
       className="seller-readiness"
@@ -65,53 +189,50 @@ export function SellerReadiness({
       <div className="section-heading">
         <div>
           <h2>{t("Siap berjualan", "Ready to sell")}</h2>
-          <p>
-            {steps.filter((step) => step.done).length} / 4{" "}
-            {t("langkah selesai", "steps complete")}
+          <p className="seller-readiness-state" role="status">
+            {state}
           </p>
         </div>
-        <Status status={caterer.status} />
       </div>
-      <ol>
-        {steps.map(({ title, done, href, Icon }) => (
-          <li key={title} data-complete={done}>
-            <Link href={href}>
-              <Icon size={20} aria-hidden="true" />
-              <span>{title}</span>
-              {done ? (
-                <Check size={19} aria-label={t("Selesai", "Complete")} />
-              ) : (
-                <Circle size={17} aria-hidden="true" />
-              )}
-            </Link>
-          </li>
-        ))}
-      </ol>
-      {caterer.review_note && <p className="notice">{caterer.review_note}</p>}
-      {caterer.status === "submitted" ? (
-        <p role="status">
-          {t(
-            "Profil sedang ditinjau Catera. Kamu dapat menyiapkan menu sambil menunggu.",
-            "Catera is reviewing your profile. You can prepare menus while you wait.",
-          )}
-        </p>
-      ) : (
-        next && (
-          <Link className="text-button" href={next.href}>
-            {t("Langkah berikutnya: ", "Next: ")}
-            {next.title}
-            <ArrowRight size={18} aria-hidden="true" />
-          </Link>
-        )
+      <p>{message}</p>
+      {caterer.review_note && (corrections || suspended) && (
+        <p className="notice">{caterer.review_note}</p>
       )}
-      {!approved && (
+      <Link className="button seller-readiness-next" href={next.href}>
+        {next.label}
+        <ArrowRight size={18} aria-hidden="true" />
+      </Link>
+      <details className="seller-readiness-checklist">
+        <summary>
+          {t("Lihat langkah persiapan", "View setup checklist")} ·{" "}
+          {steps.filter((step) => step.done).length}/4{" "}
+          {t("selesai", "complete")}
+        </summary>
+        <ol>
+          {steps.map(({ title, done, href, Icon }) => (
+            <li key={href + title} data-complete={done}>
+              <Link href={href}>
+                <Icon size={20} aria-hidden="true" />
+                <span>{title}</span>
+                {done ? (
+                  <Check size={19} aria-label={t("Selesai", "Complete")} />
+                ) : (
+                  <Circle size={17} aria-hidden="true" />
+                )}
+              </Link>
+            </li>
+          ))}
+        </ol>
+        {caterer.review_note && !corrections && !suspended && (
+          <p className="notice">{caterer.review_note}</p>
+        )}
         <p className="field-hint">
           {t(
-            "Penjualan dibuka setelah Catera menyetujui profil. Paket dapat disiapkan sebagai draf.",
-            "Sales open after Catera approves your profile. You can prepare package drafts now.",
+            "Aktivasi pencairan diperiksa terpisah di Pengaturan.",
+            "Payout activation is checked separately in Settings.",
           )}
         </p>
-      )}
+      </details>
     </section>
   );
 }

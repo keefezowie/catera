@@ -483,6 +483,25 @@ export async function createDemoDatabase(inMemory = false) {
         "\ncommit;",
     );
   }
+  if (
+    !(
+      await db.query<{ installed: boolean }>(
+        "select to_regprocedure('v1.partial_package_drafts_version()') is not null as installed",
+      )
+    ).rows[0].installed
+  ) {
+    await db.exec(
+      "begin;\n" +
+        (await readFile(
+          path.join(
+            projectRoot(),
+            "supabase/migrations/20260927105917_partial_package_drafts.sql",
+          ),
+          "utf8",
+        )) +
+        "\ncommit;",
+    );
+  }
   return db;
 }
 export async function getDemoDatabase() {

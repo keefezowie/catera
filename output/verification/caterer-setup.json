@@ -1,0 +1,31 @@
+{
+  "date": "2026-09-27",
+  "branch": "codex/caterer-setup",
+  "baseline": "0b08d09",
+  "scope": ["first caterer setup", "bounded daily operations"],
+  "environment": "isolated local synthetic demo; Chromium; Indonesian and English",
+  "checks": {
+    "typecheck": "passed: npm run typecheck, including web, native and root projects",
+    "unit": { "passed": 288, "files": 46, "finalRunSeconds": 60.36 },
+    "build": "passed: npm run build with CATERA_NEXT_DIST_DIR=.next-setup-build and NEXT_PUBLIC_CATERA_PARTIAL_PACKAGE_DRAFTS=true",
+    "postgres": { "passed": 28, "evidence": "output/verification/caterer-setup-postgres.json" },
+    "browser": {
+      "distinctScenariosPassedAcrossFinalRuns": 68,
+      "setup": 21,
+      "packageAndContents": 5,
+      "dialogs": 13,
+      "dailySimplification": 10,
+      "operationalAndSettlement": 16,
+      "realSellerOperations": 3,
+      "additionalFocusRegressionRepetitions": 5,
+      "note": "Counts combine final complete and focused repair runs; they do not describe one single clean run."
+    },
+    "diffCheck": "passed"
+  },
+  "release": {
+    "hostedMigration": "not applied",
+    "deployment": "not performed",
+    "catererStudy": "not performed; protocol and qualitative acceptance gates documented",
+    "requiredOrder": ["compatible readers", "additive validator migration", "enable new editor after pilot clients are compatible"]
+  }
+}

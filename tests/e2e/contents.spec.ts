@@ -1,5 +1,11 @@
 import { test, expect, type Page } from "@playwright/test";
 import { addDays, localDay, type Offer } from "@catera/domain";
+test.beforeEach(async ({ page, baseURL }) => {
+  expect(["127.0.0.1", "localhost"]).toContain(new URL(baseURL!).hostname);
+  expect((await (await page.request.get("/api/v1/me")).json()).data.demo).toBe(
+    true,
+  );
+});
 async function choose(page: Page, label: string, option: string) {
   await page.getByRole("combobox", { name: label, exact: true }).click();
   await page.getByRole("option", { name: option, exact: true }).click();
@@ -167,12 +173,16 @@ test("legacy nasi box retains concrete dishes, macros, discovery filtering and E
   });
   await page.request.post("/api/v1/auth/demo", { data: { role: "customer" } });
   await page.goto("/packages/" + p.id);
-  await expect(page.locator("#main .package-contents:visible")).toContainText("1 Sup");
+  await expect(page.locator("#main .package-contents:visible")).toContainText(
+    "1 Sup",
+  );
   await expect(page.locator("#main .package-contents:visible")).toContainText(
     "Sup jagung sintetis",
   );
   await choose(page, "Bahasa", "English");
-  await expect(page.locator("#main .package-contents:visible")).toContainText("Example menu");
+  await expect(page.locator("#main .package-contents:visible")).toContainText(
+    "Example menu",
+  );
   await expect(page.locator("#main .package-contents:visible")).toContainText(
     "Caterer estimate",
   );
@@ -194,7 +204,9 @@ test("wizard reviews custom categories and counts before publishing the new comp
   await page
     .getByLabel("Deskripsi paket", { exact: true })
     .fill("Komposisi sintetis untuk kategori dan slot.");
-  await page.getByRole("button", { name: /2\. Isi/ }).click();
+  await page
+    .getByRole("button", { name: "2. Isi per porsi", exact: true })
+    .click();
   await page
     .getByRole("button", { name: "Gunakan foto sintetis demo" })
     .click();
@@ -214,23 +226,49 @@ test("wizard reviews custom categories and counts before publishing the new comp
   await expect(page.getByLabel("Nama hidangan", { exact: true })).toHaveCount(
     0,
   );
-  await page.getByRole("button", { name: /5\. Periksa/ }).click();
-  await choose(
-    page,
-    "Status penawaran",
-    "Tayangkan setelah verifikasi katerer",
+  await page.getByRole("button", { name: "Lanjutkan", exact: true }).click();
+  const price = page.locator(
+    '.package-dialog [data-editor-field="price"] input',
   );
+  await expect(price).toHaveValue("");
+  await price.fill("42000");
+  await page.getByRole("button", { name: "Lanjutkan", exact: true }).click();
+  const capacity = page.getByLabel("Kapasitas porsi per hari", { exact: true });
+  await expect(capacity).toHaveValue("");
+  await capacity.fill("24");
+  await page.getByRole("button", { name: "Lanjutkan", exact: true }).click();
+  await expect(page.locator(".package-review-summary")).toContainText(
+    `2 Lauk + 1 ${category}`,
+  );
+  const preview = page
+    .locator(".package-dialog details.optional-section")
+    .filter({
+      has: page.locator("summary", { hasText: "Pratinjau pelanggan" }),
+    });
+  await expect(preview).not.toHaveAttribute("open");
+  await preview.locator("summary").click();
+  await expect(preview.locator(".listing-preview")).toBeVisible();
+  await expect(
+    page.getByRole("combobox", { name: "Status penawaran", exact: true }),
+  ).toHaveCount(0);
   const save = page.waitForResponse(
     (r) =>
       r.url().endsWith("/commands") &&
       r.request().postDataJSON()?.action === "package.save",
   );
-  await page.getByRole("button", { name: "Tayangkan paket", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Tayangkan paket", exact: true })
+    .click();
   expect((await save).ok()).toBe(true);
   const offer = (
     (await (await page.request.get("/api/v1/catalog?limit=100")).json()).data
       .items as Offer[]
   ).find((o) => o.name === name)!;
+  expect(offer.status).toBe("published");
+  expect(offer.price).toBe(42000);
+  expect(
+    offer.weekdays.every((day) => offer.capacity[String(day)] === 24),
+  ).toBe(true);
   expect(offer.menus[0].composition!.map((g) => g.slots)).toEqual([2, 1]);
   expect(offer.menus[0].items).toEqual([]);
   expect(offer.menus[0].nutrition).toBeNull();

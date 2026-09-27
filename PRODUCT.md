@@ -61,6 +61,12 @@ Caterers manage their dish library inside Menu. Built-in categories are Nasi, La
 
 Package editing defines category counts and optional fixed/range nutrition estimates, alongside the offer's cover photo and commercial terms. The Menu calendar expands in place into a visual package card for one or several selected dates. Large clickable placeholders follow the package composition; selecting one filters the library to its category. Desktop users drag dishes into slots, then advance automatically to the next empty slot. Keyboard selection and the phone tap picker provide equivalent access. Saving requires complete dish slots and applies the same menu atomically to all selected dates. Photos retain upload feedback, every wizard step validates prerequisites, and incomplete packages have a separate draft-save action.
 
+### First caterer setup — September 27 refinement
+
+New packages start with no trial, one cycle and no discounts. After the compatible-reader and validator rollout, price and daily capacity start unentered. Seller/admin drafts may persist `price: null` and `capacity: {}`; an explicitly entered zero capacity remains zero. Publication requires complete commercial fields, and customer-facing offers keep numeric prices. Existing packages and purchases retain their saved terms. Caterers may request verification with a saved draft and publish before approval; customer availability still requires approval. Dated menus remain optional for publication, and payout readiness remains separate.
+
+The five-step editor groups optional settings, summarizes actual configured values, and provides separate draft and publication actions. Inline dish creation saves to the reusable library independently of the package. Today uses the workload buttons for status filtering; the attention queue starts across all dates and both meals and can be narrowed explicitly without following operational-date changes. Whole-day kitchen output remains separate from filtered order totals. See [implementation, compatibility sequence and validation](docs/CATERER-SETUP-SIMPLIFICATION.md).
+
 All packages use this one assembly workflow. The explicitly synthetic demo graph is converted together to category-slot templates and dated recipes; this demo-only conversion never runs against live storage. Production purchase snapshots and dated revision boundaries remain immutable.
 
 ## V1 boundary

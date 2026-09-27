@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import {
   ArrowLeft,
   ChevronLeft,
@@ -60,7 +61,7 @@ export function MenuCalendar({
   date: string;
   subscription?: Subscription;
 }) {
-  const { t, locale, perform } = useApp();
+  const { actor, t, locale, perform } = useApp();
   const timezone =
     s?.caterer.timezone ||
     subscription?.snapshot.offer.timezone ||
@@ -577,10 +578,14 @@ export function MenuCalendar({
           {t(
             query.get("package")
               ? "Paket atau isi tersimpan ini tidak tersedia untuk ruang katerer Anda."
-              : "Buat paket untuk mulai menyusun menu.",
+              : actor?.role === "owner"
+                ? "Siapkan paket untuk mulai menyusun menu."
+                : "Pemilik katerer perlu menyiapkan paket sebelum menu dapat disusun.",
             query.get("package")
               ? "This package or saved content is not available in your workspace."
-              : "Create a package to start planning menus.",
+              : actor?.role === "owner"
+                ? "Set up a package to start planning menus."
+                : "The caterer owner needs to set up a package before menus can be planned.",
           )}
         </p>
         {query.get("package") && (
@@ -593,8 +598,28 @@ export function MenuCalendar({
             {t("Pilih paket lain", "Choose another package")}
           </Button>
         )}
+        {!subscription && !query.get("package") && actor?.role === "owner" && (
+          <Link
+            className="button"
+            href={
+              s?.offers.length ? "/seller/packages" : "/seller/packages?new=1"
+            }
+          >
+            {s?.offers.length
+              ? t("Lanjutkan pengaturan paket", "Continue package setup")
+              : t("Buat paket pertama", "Create your first package")}
+          </Link>
+        )}
         {!subscription && (
-          <MenuLibrary dishes={dishes} categories={categories} />
+          <details
+            className="spaced"
+            open={query.get("library") === "1" || undefined}
+          >
+            <summary>
+              {t("Kelola pustaka hidangan", "Manage dish library")}
+            </summary>
+            <MenuLibrary dishes={dishes} categories={categories} />
+          </details>
         )}
       </div>
     );

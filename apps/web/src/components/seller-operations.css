@@ -38,7 +38,12 @@
 .ops-scope-reset { align-self: end; white-space: normal; }
 .ops-extra-filters { display: flex; flex: 1 1 100%; flex-wrap: wrap; align-items: end; gap: 12px; min-width: 0; }
 .ops-extra-filters > .ops-scope-field { flex: 1 1 190px; }
-.ops-filter-toggle, .attention-scope-toggle { display: none; }
+.ops-filter-toggle, .attention-scope-toggle { display: inline-flex; }
+.ops-filter-actions { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
+.ops-active-filters { flex-basis: 100%; min-width: 0; margin: 0; overflow-wrap: anywhere; }
+.ops-extra-filters[data-open="false"], .attention-scope-details[data-open="false"] { display: none; }
+.ops-extra-filters .ops-list-filter { flex-basis: 100%; min-width: 0; margin: 0; }
+.attention-scope-details { margin-block: 12px; }
 .ops-workload,
 .ops-scope-summary,
 .ops-deadlines,
@@ -117,9 +122,8 @@
   .ops-scope-area { padding: 14px; }
   .ops-scope-area .ops-date { flex-basis: 100%; }
   .ops-scope-field, .ops-scope-field .select-trigger, .ops-scope-search input { width: 100%; }
-  .seller-operations[data-schedule="false"] .ops-filter-toggle { display: inline-flex; }
-  .seller-operations[data-schedule="false"] .ops-extra-filters { display: grid; gap: 12px; }
-  .seller-operations[data-schedule="false"] .ops-extra-filters[data-open="false"] { display: none; }
+  .ops-extra-filters { gap: 12px; }
+  .ops-extra-filters > .ops-scope-field { flex-basis: 100%; }
   .ops-workload { padding: 14px; }
   .ops-workload h2 { font-size: 18px; }
   .ops-workload > p { font-size: 12px; margin-block: 6px 12px; }
@@ -128,8 +132,6 @@
   .seller-attention[data-empty="true"] { padding: 14px; }
   .seller-attention[data-empty="true"] .section-heading { margin-bottom: 0; }
   .seller-attention[data-empty="true"] h2 { font-size: 18px; }
-  .seller-attention[data-empty="true"] .attention-scope-toggle { display: inline-flex; }
-  .seller-attention[data-empty="true"] .attention-scope-details[data-open="false"] { display: none; }
   .seller-attention[data-empty="true"] .quiet-empty { margin-top: 4px; }
   .ops-context .button {
     width: 100%;

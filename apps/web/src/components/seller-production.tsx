@@ -48,7 +48,12 @@ function ProductionRows({
       groups.set(key, g);
     }
   return groups.size ? (
-    <div className="table-wrap">
+    <div
+      className="table-wrap"
+      tabIndex={0}
+      role="region"
+      aria-label={t("Jumlah porsi dapur", "Kitchen portion totals")}
+    >
       <table>
         <thead>
           <tr>
