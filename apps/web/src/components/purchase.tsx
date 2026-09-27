@@ -1,5 +1,6 @@
 "use client";
 import { DirectPayment } from "./direct-payment";
+import { ApiError } from "@catera/api-client";
 import { useContentMotion } from "./motion";
 import { PackageChoiceLibrary } from "./package-choice-library";
 import {
@@ -54,6 +55,11 @@ import {
 } from "./ui";
 export function CheckoutPage({ id }: { id: string }) {
   const { offers, actor, perform, t, locale } = useApp();
+  const formatPeriodDate = (value: string) =>
+    new Date(value + "T12:00:00Z").toLocaleDateString(
+      locale === "id" ? "id-ID" : "en-GB",
+      { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" },
+    );
   const availability = useResource<PaymentAvailability>("payment-methods", () =>
     api.request("payment-methods"),
   );
@@ -81,6 +87,7 @@ export function CheckoutPage({ id }: { id: string }) {
     [restored, setRestored] = useState(false);
   const trial = params.get("trial") === "1";
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [overlap, setOverlap] = useState(false);
   const [paymentRechecked, setPaymentRechecked] = useState(false);
   const paymentStatus = useRef<HTMLDivElement>(null);
   const paymentRetryRequested = useRef(false);
@@ -207,6 +214,7 @@ export function CheckoutPage({ id }: { id: string }) {
   useEffect(() => {
     setQuote(null);
     setAcceptedTerms(false);
+    setOverlap(false);
     setStep(1);
   }, [portions, date, address, cycles]);
   if (actor && state.error)
@@ -382,21 +390,78 @@ export function CheckoutPage({ id }: { id: string }) {
                 !durationAvailable
               }
               onSubmit={async () => {
-                const q = await api.quote({
-                  packageId: p.id,
-                  addressId: address,
-                  portions,
-                  startDate: date,
-                  trial,
-                  cycles: trial ? 1 : cycles,
-                  renewedFrom,
-                  invite: params.get("invite") || "",
-                });
+                setOverlap(false);
+                let q: Quote;
+                try {
+                  q = await api.quote({
+                    packageId: p.id,
+                    addressId: address,
+                    portions,
+                    startDate: date,
+                    trial,
+                    cycles: trial ? 1 : cycles,
+                    renewedFrom,
+                    invite: params.get("invite") || "",
+                  });
+                } catch (error) {
+                  setOverlap(
+                    error instanceof ApiError && error.code === "OVERLAP",
+                  );
+                  throw error;
+                }
                 setAcceptedTerms(false);
                 setQuote(q);
                 setStep(2);
               }}
             >
+              {overlap && (
+                <aside
+                  className="notice checkout-overlap"
+                  aria-label={t(
+                    "Lanjutkan setelah bentrok jadwal",
+                    "Recover from overlapping dates",
+                  )}
+                >
+                  <strong>
+                    {t(
+                      "Periksa paket yang sudah aktif",
+                      "Check your existing package",
+                    )}
+                  </strong>
+                  <p>
+                    {t(
+                      "Gunakan perpanjangan untuk meninjau jadwal setelah paket sebelumnya. Ketersediaan dan harga diperiksa kembali.",
+                      "Use renewal to review a schedule after your previous package. Availability and prices are checked again.",
+                    )}
+                  </p>
+                  {state.data?.subscriptions
+                    .filter(
+                      (subscription) =>
+                        subscription.package_id === p.id &&
+                        subscription.status === "active" &&
+                        subscription.ends_on >= date,
+                    )
+                    .map((subscription) => (
+                      <p key={subscription.id}>
+                        <strong>{subscription.snapshot.offer.name}</strong>
+                        <br />
+                        {formatPeriodDate(subscription.starts_on)} –{" "}
+                        {formatPeriodDate(subscription.ends_on)}
+                        <br />
+                        <Link
+                          className="text-button"
+                          href={"/renew/" + subscription.id}
+                        >
+                          {t("Tinjau perpanjangan", "Review renewal")}{" "}
+                          <ArrowRight size={16} aria-hidden="true" />
+                        </Link>
+                      </p>
+                    ))}
+                  <Link className="text-button" href="/subscriptions">
+                    {t("Lihat langganan saya", "View my subscriptions")}
+                  </Link>
+                </aside>
+              )}
               <div ref={fields} className="checkout-step-content">
                 <h2 ref={stepHeading} tabIndex={-1}>
                   {t("Paket untuk siapa saja?", "How many are eating?")}
@@ -671,68 +736,68 @@ export function CheckoutPage({ id }: { id: string }) {
                         "Please accept the Terms & Conditions to continue.",
                       )}
                   </p>
-                <div
-                  ref={paymentStatus}
-                  tabIndex={-1}
-                  className="checkout-payment-status"
-                  aria-live="polite"
-                  aria-atomic="true"
-                >
-                  {availability.loading ? (
-                    <p role="status">
-                      {t(
-                        "Memeriksa ketersediaan pembayaran…",
-                        "Checking payment availability…",
-                      )}
-                    </p>
-                  ) : paymentUnavailable ? (
-                    <div className="checkout-recovery">
-                      <div>
-                        <strong>
-                          {availability.error
-                            ? t(
-                                "Pembayaran belum dapat diperiksa",
-                                "Payment availability could not be checked",
-                              )
-                            : t(
-                                "Pembayaran belum tersedia",
-                                "Payment is currently unavailable",
-                              )}
-                        </strong>
-                        <p>
-                          {availability.error
-                            ? t(
-                                "Pilihanmu tetap tersimpan. Coba periksa lagi untuk melanjutkan.",
-                                "Your selections are kept. Check again to continue.",
-                              )
-                            : t(
-                                "Belum ada metode pembayaran yang tersedia. Kamu dapat memeriksa lagi tanpa mengubah pilihan paket.",
-                                "No payment methods are available right now. You can check again without changing your package selections.",
-                              )}
-                        </p>
+                  <div
+                    ref={paymentStatus}
+                    tabIndex={-1}
+                    className="checkout-payment-status"
+                    aria-live="polite"
+                    aria-atomic="true"
+                  >
+                    {availability.loading ? (
+                      <p role="status">
+                        {t(
+                          "Memeriksa ketersediaan pembayaran…",
+                          "Checking payment availability…",
+                        )}
+                      </p>
+                    ) : paymentUnavailable ? (
+                      <div className="checkout-recovery">
+                        <div>
+                          <strong>
+                            {availability.error
+                              ? t(
+                                  "Pembayaran belum dapat diperiksa",
+                                  "Payment availability could not be checked",
+                                )
+                              : t(
+                                  "Pembayaran belum tersedia",
+                                  "Payment is currently unavailable",
+                                )}
+                          </strong>
+                          <p>
+                            {availability.error
+                              ? t(
+                                  "Pilihanmu tetap tersimpan. Coba periksa lagi untuk melanjutkan.",
+                                  "Your selections are kept. Check again to continue.",
+                                )
+                              : t(
+                                  "Belum ada metode pembayaran yang tersedia. Kamu dapat memeriksa lagi tanpa mengubah pilihan paket.",
+                                  "No payment methods are available right now. You can check again without changing your package selections.",
+                                )}
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          onClick={() => {
+                            paymentRetryRequested.current = true;
+                            setPaymentRechecked(true);
+                            availability.reload();
+                          }}
+                        >
+                          <RefreshCw size={17} aria-hidden="true" />
+                          {t("Periksa lagi", "Check again")}
+                        </Button>
                       </div>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={() => {
-                          paymentRetryRequested.current = true;
-                          setPaymentRechecked(true);
-                          availability.reload();
-                        }}
-                      >
-                        <RefreshCw size={17} aria-hidden="true" />
-                        {t("Periksa lagi", "Check again")}
-                      </Button>
-                    </div>
-                  ) : paymentRechecked ? (
-                    <p>
-                      {t(
-                        "Pembayaran tersedia. Lanjutkan setelah memeriksa pesananmu.",
-                        "Payment is available. Continue when you have reviewed your order.",
-                      )}
-                    </p>
-                  ) : null}
-                </div>
+                    ) : paymentRechecked ? (
+                      <p>
+                        {t(
+                          "Pembayaran tersedia. Lanjutkan setelah memeriksa pesananmu.",
+                          "Payment is available. Continue when you have reviewed your order.",
+                        )}
+                      </p>
+                    ) : null}
+                  </div>
                 </div>
               </ActionForm>
             )
@@ -885,8 +950,8 @@ export function PaymentPage({ id }: { id: string }) {
               : payment.phase === "awaiting_payment"
                 ? t("Menunggu pembayaran", "Awaiting payment")
                 : payment.phase === "preparing"
-                ? t("Menyiapkan pembayaran", "Preparing payment")
-                : t("Waktu pembayaran habis", "Payment time expired")
+                  ? t("Menyiapkan pembayaran", "Preparing payment")
+                  : t("Waktu pembayaran habis", "Payment time expired")
         }
       />
       {state.stale && (

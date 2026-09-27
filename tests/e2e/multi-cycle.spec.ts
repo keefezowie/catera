@@ -80,15 +80,31 @@ for (const locale of ["id", "en"])
           exact: true,
         })
         .click();
-      await expect(
-        page.locator(`[data-calendar-day="${localDay()}"]`),
-      ).toBeDisabled();
-      await expect(
-        page.locator(`[data-calendar-day="${addDays(localDay(), 1)}"]`),
-      ).toBeDisabled();
-      await expect(
-        page.locator(`[data-calendar-day="${addDays(localDay(), 2)}"]`),
-      ).toBeEnabled();
+      const calendar = page.locator('.date-picker-popover[data-open="true"]');
+      // The selected start date can open a later month near a month boundary.
+      for (const offset of [0, 1, 2]) {
+        const day = addDays(localDay(), offset);
+        const targetMonth = day.slice(0, 7);
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+          const visibleMonth =
+            await calendar.getAttribute("data-visible-month");
+          if (visibleMonth === targetMonth) break;
+          await calendar
+            .locator(
+              visibleMonth! > targetMonth
+                ? "[data-date-picker-previous]"
+                : "[data-date-picker-next]",
+            )
+            .click();
+        }
+        await expect(calendar).toHaveAttribute(
+          "data-visible-month",
+          targetMonth,
+        );
+        const dateButton = calendar.locator(`[data-calendar-day="${day}"]`);
+        if (offset < 2) await expect(dateButton).toBeDisabled();
+        else await expect(dateButton).toBeEnabled();
+      }
       await page.keyboard.press("Escape");
       await page
         .getByRole("button", {
@@ -237,6 +253,12 @@ for (const locale of ["id", "en"])
         .locator("article")
         .filter({ has: page.getByRole("heading", { name, exact: true }) });
       await card
+        .locator("summary")
+        .filter({
+          hasText: t("Pengaturan paket lanjutan", "Advanced package settings"),
+        })
+        .click();
+      await card
         .getByRole("button", {
           name: t("Durasi & diskon paket", "Duration options & savings"),
         })
@@ -247,9 +269,9 @@ for (const locale of ["id", "en"])
         .check();
       await editor
         .getByRole("spinbutton", {
-          name: t("Diskon (%)", "Discount (%)"),
+          name: t("Diskon · 3 periode (%)", "Discount · 3 cycles (%)"),
+          exact: true,
         })
-        .last()
         .fill("5");
       await editor
         .getByRole("button", {

@@ -140,7 +140,8 @@
 .public-choice-empty {
   margin-top: 18px;
   padding: 16px;
-  border-left: 3px solid var(--ochre);
+  border: 1px solid var(--line);
+  border-radius: 10px;
   background: var(--soft);
 }
 @media (max-width: 600px) {

@@ -512,7 +512,8 @@
   gap: 4px;
   margin: 0 0 14px;
   padding: 12px 14px;
-  border-left: 3px solid var(--sunrise-ink, #9b4309);
+  border: 1px solid var(--line);
+  border-radius: 10px;
   background: var(--soft);
   font-size: 14px;
   line-height: 1.5;

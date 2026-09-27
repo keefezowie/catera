@@ -183,7 +183,7 @@ test("the shared sidebar stays aligned across every caterer destination", async 
   });
 });
 
-test("seller phone and tablet navigation remain unchanged", async ({
+test("seller phone and tablet navigation excludes the desktop sidebar", async ({
   page,
 }) => {
   await login(page, "owner");
@@ -194,10 +194,8 @@ test("seller phone and tablet navigation remain unchanged", async ({
     await page.setViewportSize(viewport);
     await page.goto("/seller/menus");
     await expect(page.locator("#main h1")).toBeVisible();
-    const sidebarBox = await page.locator(".ops-sidebar").boundingBox();
-    expect(sidebarBox).not.toBeNull();
-    expect(sidebarBox!.y).toBe(0);
-    expect(sidebarBox!.x + sidebarBox!.width).toBeLessThanOrEqual(0);
+    await expect(page.locator(".ops-sidebar")).not.toBeVisible();
+    await expect(page.locator(".ops-sidebar")).toHaveCSS("display", "none");
     await expect(page.locator(".seller-bottom")).toBeVisible();
     await expectNoHorizontalOverflow(page);
 

@@ -13,6 +13,7 @@
   --ink: #2e2e2e;
   --muted: #60675f;
   --line: #e2e3d8;
+  --field-border: #cfd3c6;
   --canvas: #fdfaf3;
   --surface: #fffefa;
   --soft: #f0f3e9;
@@ -2663,7 +2664,7 @@ td strong {
 .ops-date .date-picker-compact .date-picker-trigger {
   min-height: 44px;
   padding: 10px 12px;
-  border: 1px solid var(--field-border);
+  border-width: 1px;
   background: var(--surface);
 }
 .ops-date .select-trigger {
@@ -3313,24 +3314,7 @@ td strong {
     margin-left: 0;
   }
   .ops-sidebar {
-    transform: translateX(-100%);
-    transition: transform 0.25s var(--ease);
-    width: 250px;
-    top: 0;
-    z-index: 60;
-  }
-  .ops-layout > .demo-ribbon ~ .ops-sidebar {
-    top: 0;
-  }
-  .ops-sidebar.open {
-    transform: translateX(0);
-  }
-  .sidebar-backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 55;
-    background: #14291fb0;
-    border: 0;
+    display: none;
   }
   .mobile-only {
     display: inline-flex;
@@ -3621,7 +3605,7 @@ td strong {
     color: #626c58;
     min-height: 44px;
     width: 20%;
-    font-size: 10px;
+    font-size: 12px;
   }
   .mobile-bottom .selected {
     color: var(--forest);
@@ -3790,7 +3774,7 @@ td strong {
     font-size: 15px;
   }
   .delivery-row small {
-    font-size: 9px;
+    font-size: 12px;
   }
   .delivery-row > div {
     flex-basis: calc(100% - 105px);
@@ -4354,11 +4338,21 @@ textarea::placeholder {
 .customer-actions {
   margin-bottom: 28px;
   padding: 24px 26px;
-  border: 1px solid color-mix(in srgb, var(--terracotta) 38%, var(--line));
+  border: 1px solid color-mix(in srgb, var(--sunrise) 38%, var(--line));
   border-radius: 18px;
-  background: color-mix(in srgb, var(--terracotta) 7%, var(--cream));
+  background: color-mix(in srgb, var(--sunrise) 7%, var(--cream));
 }
 .customer-actions.compact-error { padding: 0; border: 0; background: transparent; }
+.customer-actions.later { margin-top: 28px; border-color: var(--line); background: transparent; }
+.customer-actions.later .customer-action { border-color: var(--line); background: var(--surface); }
+.home-page > .next-meal-card { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); margin-bottom: 28px; }
+.home-page > .next-meal-card .next-meal-photo { height: 100%; min-height: 260px; }
+.home-page > .next-meal-card .next-meal-info { font-size: 13px; }
+@media (max-width: 700px) {
+  .home-page > .next-meal-card { grid-template-columns: minmax(0, 1fr); }
+  .home-page > .next-meal-card .next-meal-photo { height: 190px; min-height: 0; }
+  .home-page > .next-meal-card .next-meal-content { padding: 20px; }
+}
 .customer-actions .section-heading { margin-bottom: 14px; }
 .action-count {
   display: grid; place-items: center; min-width: 34px; min-height: 34px;
@@ -4371,15 +4365,15 @@ textarea::placeholder {
   align-items: center; padding: 16px; border: 1px solid var(--line);
   border-radius: 13px; background: var(--cream);
 }
-.customer-action > svg { color: var(--terracotta); }
+.customer-action > svg { color: var(--forest); }
 .customer-action h3, .customer-action p { margin: 0; }
 .customer-action h3 { font-size: 16px; }
 .customer-action p, .customer-action small {
   display: block; margin-top: 4px; color: var(--muted); font-size: 13px;
 }
 .customer-action.urgent {
-  border-color: color-mix(in srgb, var(--terracotta) 52%, var(--line));
-  background: color-mix(in srgb, var(--terracotta) 4%, var(--cream));
+  border-color: color-mix(in srgb, var(--sunrise) 52%, var(--line));
+  background: color-mix(in srgb, var(--sunrise) 4%, var(--cream));
 }
 .customer-action.informative {
   border-color: color-mix(in srgb, var(--forest) 28%, var(--line));
@@ -4576,7 +4570,7 @@ textarea::placeholder {
 .photo-preview { display: block; width: min(100%, 320px); max-height: 240px; object-fit: contain; border-radius: 12px; margin-bottom: 12px; }
 .photo-actions { font-size: .875rem; }
 .field-error { color: var(--danger); font-size: .875rem; }
-.field [aria-invalid="true"] { border-color: var(--danger); }
+body .field :is(.catera-input, .catera-textarea, button)[aria-invalid="true"] { border-color: var(--danger); }
 .dish-source { padding: 12px 0; font-size: .875rem; }
 .dish-source p { margin: 0 0 8px; }
 .library-row { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; padding-block: 16px; border-bottom: 1px solid var(--line); }

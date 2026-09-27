@@ -101,9 +101,14 @@ export function Admin({ view }: { view: string }) {
           <div className="master-detail">
             <section className="panel">
               <h2>{t("Antrean verifikasi", "Verification queue")}</h2>
-              <div className="queue-filters">
+              <div
+                className="queue-filters"
+                role="group"
+                aria-label={t("Status verifikasi", "Verification status")}
+              >
                 <Button
                   className={filter === "submitted" ? "selected" : ""}
+                  aria-pressed={filter === "submitted"}
                   disabled={decisionPending}
                   onClick={() => {
                     setFilter("submitted");
@@ -114,6 +119,7 @@ export function Admin({ view }: { view: string }) {
                 </Button>
                 <Button
                   className={filter === "all" ? "selected" : ""}
+                  aria-pressed={filter === "all"}
                   disabled={decisionPending}
                   onClick={() => setFilter("all")}
                 >
@@ -259,6 +265,8 @@ export function Admin({ view }: { view: string }) {
           <SupportQueue
             key={requestedCase}
             cases={a.cases}
+            caterers={a.caterers}
+            transactions={a.transactions}
             admin
             initialSelected={requestedCase}
           />

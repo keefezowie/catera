@@ -18,6 +18,7 @@ import {
   Check,
   X,
   ArrowLeft,
+  ArrowRight,
 } from "lucide-react";
 import {
   addDays,
@@ -219,6 +220,13 @@ function OperationsPage({
       ? query.get("stage")!
       : "";
   const search = (query.get("search") || "").trim().toLocaleLowerCase();
+  const activeFilters = [
+    packageId,
+    selectedStage,
+    search,
+    schedule && status !== "active",
+  ].filter(Boolean).length;
+  const [filtersOpen, setFiltersOpen] = useState(activeFilters > 0);
   function navigate(values: Record<string, string>) {
     const next = new URLSearchParams(query);
     if (
@@ -293,7 +301,7 @@ function OperationsPage({
       timeZone: "UTC",
     }).format(new Date(value + "T12:00:00Z"));
   return (
-    <div className="seller-operations">
+    <div className="seller-operations" data-schedule={schedule}>
       <Heading
         title={
           schedule
@@ -464,91 +472,112 @@ function OperationsPage({
             ),
           )}
         </div>
-        <label className="ops-scope-field">
-          <span>{t("Paket", "Package")}</span>
-          <Select
-            aria-label={t("Filter paket", "Package filter")}
-            value={packageId}
-            onValueChange={(value) => navigate({ package: value })}
-          >
-            <SelectOption value="">
-              {t("Semua paket", "All packages")}
-            </SelectOption>
-            {s.offers.map((offer) => (
-              <SelectOption key={offer.id} value={offer.id}>
-                {offer.name}
-              </SelectOption>
-            ))}
-          </Select>
-        </label>
-        <label className="ops-scope-field">
-          <span>{t("Status", "Status")}</span>
-          <Select
-            aria-label={t("Status pesanan", "Order status")}
-            value={schedule ? status : selectedStage}
-            onValueChange={(value) =>
-              navigate(schedule ? { status: value } : { stage: value })
-            }
-          >
-            {schedule ? (
-              <>
-                <SelectOption value="active">
-                  {t("Tidak dibatalkan", "Not cancelled")}
-                </SelectOption>
-                <SelectOption value="all">
-                  {t("Semua status", "All statuses")}
-                </SelectOption>
-                <SelectOption value="cancelled">
-                  {t("Dibatalkan", "Cancelled")}
-                </SelectOption>
-              </>
-            ) : (
-              <>
-                <SelectOption value="">
-                  {t("Semua tahap", "All stages")}
-                </SelectOption>
-                {stageOptions.map((stage) => (
-                  <SelectOption key={stage} value={stage}>
-                    {statusLabel(stage, locale)}
-                  </SelectOption>
-                ))}
-              </>
-            )}
-          </Select>
-        </label>
-        <label className="ops-scope-field ops-scope-search">
-          <span>{t("Cari", "Search")}</span>
-          <TextInput
-            type="search"
-            aria-label={t("Cari pesanan", "Search orders")}
-            placeholder={t(
-              "Pelanggan, paket, atau alamat",
-              "Customer, package, or address",
-            )}
-            value={query.get("search") || ""}
-            onChange={(event) => navigate({ search: event.target.value })}
-          />
-        </label>
-        {(packageId ||
-          selectedStage ||
-          search ||
-          (schedule && (status !== "active" || meal !== "all"))) && (
+        {!schedule && (
           <Button
-            className="text-button ops-scope-reset"
-            onClick={() =>
-              navigate({
-                package: "",
-                stage: "",
-                search: "",
-                status: "",
-                meal: "",
-              })
-            }
+            type="button"
+            variant="secondary"
+            className="ops-filter-toggle"
+            aria-expanded={filtersOpen}
+            aria-controls="ops-extra-filters"
+            onClick={() => setFiltersOpen((value) => !value)}
           >
-            <X size={16} aria-hidden="true" />
-            {t("Hapus filter", "Clear filters")}
+            {t("Filter pesanan", "Order filters")}
+            {activeFilters > 0
+              ? ` · ${activeFilters} ${t("aktif", "active")}`
+              : ""}
           </Button>
         )}
+        <div
+          className="ops-extra-filters"
+          id="ops-extra-filters"
+          data-open={filtersOpen}
+        >
+          <label className="ops-scope-field">
+            <span>{t("Paket", "Package")}</span>
+            <Select
+              aria-label={t("Filter paket", "Package filter")}
+              value={packageId}
+              onValueChange={(value) => navigate({ package: value })}
+            >
+              <SelectOption value="">
+                {t("Semua paket", "All packages")}
+              </SelectOption>
+              {s.offers.map((offer) => (
+                <SelectOption key={offer.id} value={offer.id}>
+                  {offer.name}
+                </SelectOption>
+              ))}
+            </Select>
+          </label>
+          <label className="ops-scope-field">
+            <span>{t("Status", "Status")}</span>
+            <Select
+              aria-label={t("Status pesanan", "Order status")}
+              value={schedule ? status : selectedStage}
+              onValueChange={(value) =>
+                navigate(schedule ? { status: value } : { stage: value })
+              }
+            >
+              {schedule ? (
+                <>
+                  <SelectOption value="active">
+                    {t("Tidak dibatalkan", "Not cancelled")}
+                  </SelectOption>
+                  <SelectOption value="all">
+                    {t("Semua status", "All statuses")}
+                  </SelectOption>
+                  <SelectOption value="cancelled">
+                    {t("Dibatalkan", "Cancelled")}
+                  </SelectOption>
+                </>
+              ) : (
+                <>
+                  <SelectOption value="">
+                    {t("Semua tahap", "All stages")}
+                  </SelectOption>
+                  {stageOptions.map((stage) => (
+                    <SelectOption key={stage} value={stage}>
+                      {statusLabel(stage, locale)}
+                    </SelectOption>
+                  ))}
+                </>
+              )}
+            </Select>
+          </label>
+          <label className="ops-scope-field ops-scope-search">
+            <span>{t("Cari", "Search")}</span>
+            <TextInput
+              type="search"
+              aria-label={t("Cari pesanan", "Search orders")}
+              placeholder={t(
+                "Pelanggan, paket, atau alamat",
+                "Customer, package, or address",
+              )}
+              value={query.get("search") || ""}
+              onChange={(event) => navigate({ search: event.target.value })}
+            />
+          </label>
+          {(packageId ||
+            selectedStage ||
+            search ||
+            (schedule && (status !== "active" || meal !== "all"))) && (
+            <Button
+              className="text-button ops-scope-reset"
+              onClick={() =>
+                navigate({
+                  package: "",
+                  stage: "",
+                  search: "",
+                  status: "",
+                  meal: "",
+                })
+              }
+            >
+              <X size={16} aria-hidden="true" />
+              {t("Hapus filter", "Clear filters")}
+            </Button>
+          )}
+        </div>
       </section>
       {schedule ? (
         <div
@@ -581,13 +610,21 @@ function OperationsPage({
           className="panel ops-workload"
           aria-label={t("Beban layanan", "Service workload")}
         >
-          <h2>
-            {t("Total porsi", "Total portions")}{" "}
-            {meal === "lunch"
-              ? t("siang", "for lunch")
-              : t("malam", "for dinner")}
-            : {loading ? "…" : workload.portions}
-          </h2>
+          <div className="ops-workload-heading">
+            <h2>
+              {t("Total porsi", "Total portions")}{" "}
+              {meal === "lunch"
+                ? t("siang", "for lunch")
+                : t("malam", "for dinner")}
+              : {loading ? "…" : workload.portions}
+            </h2>
+            {!loading && filteredRows.length > 0 && (
+              <a className="text-button" href="#ops-orders">
+                {t("Lihat pesanan", "View orders")}{" "}
+                <ArrowRight size={16} aria-hidden="true" />
+              </a>
+            )}
+          </div>
           <p>
             {loading ? "…" : workload.orders}{" "}
             {t(
@@ -729,6 +766,7 @@ function OperationsPage({
       )}
       <div
         id="ops-orders"
+        tabIndex={-1}
         role="tabpanel"
         aria-label={
           schedule

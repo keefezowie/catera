@@ -178,6 +178,8 @@ function Shell({
   const { actor, demo, t, area, setArea, compare, clearCompare } = useApp();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const currentWorkspacePath =
+    pathname === "/admin" ? "/admin/sellers" : pathname;
   const operationsPaths = ["/seller", "/seller/schedule"];
   function workspaceHref(href: string) {
     if (href === "/seller") return href;
@@ -321,7 +323,7 @@ function Shell({
       {operational ? (
         <>
           <aside
-            className={"ops-sidebar " + (menu && isAdmin ? "open" : "")}
+            className="ops-sidebar"
             aria-label={
               isAdmin
                 ? t("Navigasi admin", "Admin navigation")
@@ -344,9 +346,11 @@ function Shell({
                   )}
                   <Link
                     key={href}
-                    className={pathname === href ? "selected" : ""}
+                    className={currentWorkspacePath === href ? "selected" : ""}
                     href={workspaceHref(href)}
-                    aria-current={pathname === href ? "page" : undefined}
+                    aria-current={
+                      currentWorkspacePath === href ? "page" : undefined
+                    }
                     onClick={() => setMenu(false)}
                   >
                     <Icon size={19} />
@@ -362,18 +366,14 @@ function Shell({
               </Link>
             </div>
           </aside>
-          {menu && isAdmin && (
-            <Button
-              className="sidebar-backdrop"
-              aria-label={t("Tutup menu", "Close menu")}
-              onClick={() => setMenu(false)}
-            />
-          )}
           <header className="ops-topbar">
             <Button
+              type="button"
               className="icon-button mobile-only"
               onClick={() => setMenu(!menu)}
               aria-label={t("Menu", "Menu")}
+              aria-haspopup="dialog"
+              aria-expanded={menu}
             >
               <Menu />
             </Button>
@@ -394,6 +394,37 @@ function Shell({
             </Link>
             <ProfileMenu />
           </header>
+          {isAdmin && (
+            <Dialog
+              open={menu}
+              onOpenChange={setMenu}
+              title={t("Navigasi admin", "Admin navigation")}
+            >
+              <nav
+                className="business-links"
+                aria-label={t("Navigasi admin", "Admin navigation")}
+              >
+                {links.map(([href, label, Icon]) => (
+                  <Link
+                    key={href}
+                    href={href}
+                    onClick={() => setMenu(false)}
+                    aria-current={
+                      currentWorkspacePath === href ? "page" : undefined
+                    }
+                  >
+                    <Icon size={22} aria-hidden="true" />
+                    <span>{label}</span>
+                    <ArrowUpRight size={18} aria-hidden="true" />
+                  </Link>
+                ))}
+                <Link href="/" onClick={() => setMenu(false)}>
+                  <Compass size={22} aria-hidden="true" />
+                  {t("Lihat marketplace", "View marketplace")}
+                </Link>
+              </nav>
+            </Dialog>
+          )}
           {!isAdmin && (
             <>
               <nav

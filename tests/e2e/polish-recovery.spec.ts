@@ -508,8 +508,7 @@ for (const locale of ["id", "en"]) {
     await page.goto("/packages/20000000-0000-4000-8000-000000000003");
     const section = page.locator(".detail-section").filter({
       has: page.getByRole("heading", {
-        name:
-          locale === "id" ? "Cerita dari pelanggan" : "Customer experiences",
+        name: locale === "id" ? "Ulasan pelanggan" : "Customer reviews",
         exact: true,
       }),
     });

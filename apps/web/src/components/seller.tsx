@@ -61,6 +61,7 @@ import {
   type SellerState,
   type Offer,
   type SupportCase,
+  type AdminState,
   type Conversation,
 } from "@catera/domain";
 import { api, useApp, useResource, useWorkspaceDraft } from "./context";
@@ -1468,9 +1469,14 @@ function OfferEditor({
                   "This preview uses your current entries. Purchase actions are disabled here.",
                 )}
               </p>
-              <div className="preview-tabs">
+              <div
+                className="preview-tabs"
+                role="group"
+                aria-label={t("Tampilan pratinjau", "Preview view")}
+              >
                 <Button
                   type="button"
+                  aria-pressed={preview === "card"}
                   className={
                     "button " + (preview === "card" ? "" : "secondary")
                   }
@@ -1480,6 +1486,7 @@ function OfferEditor({
                 </Button>
                 <Button
                   type="button"
+                  aria-pressed={preview === "detail"}
                   className={
                     "button " + (preview === "detail" ? "" : "secondary")
                   }
@@ -1612,10 +1619,14 @@ export function SupportQueue({
   cases,
   admin = false,
   initialSelected = "",
+  caterers = [],
+  transactions = [],
 }: {
   cases: SupportCase[];
   admin?: boolean;
   initialSelected?: string;
+  caterers?: Caterer[];
+  transactions?: AdminState["transactions"];
 }) {
   const { perform, t, locale } = useApp();
   const { query, update } = useJourneyQuery();
@@ -1628,6 +1639,8 @@ export function SupportQueue({
   useUnsavedDeparture(Object.values(replies).some((value) => !!value.trim()));
   const [decisionPending, setDecisionPending] = useState(false);
   const c = cases.find((c) => c.id === selected);
+  const purchase = transactions.find((row) => row.id === c?.checkout_id);
+  const caterer = caterers.find((row) => row.id === c?.caterer_id);
   return (
     <section className="panel">
       <h2>
@@ -1648,6 +1661,21 @@ export function SupportQueue({
               <span>
                 <strong>{x.subject}</strong>
                 <small>
+                  {x.customerName ||
+                    t(
+                      "Nama pelanggan belum tersedia",
+                      "Customer name unavailable",
+                    )}
+                </small>
+                <small>
+                  {[
+                    caterers.find((row) => row.id === x.caterer_id)?.name,
+                    "#" + x.id.slice(-8),
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </small>
+                <small>
                   {new Date(x.created_at).toLocaleDateString(
                     locale === "id" ? "id-ID" : "en-GB",
                   )}
@@ -1665,10 +1693,68 @@ export function SupportQueue({
         {c && (
           <div className="support-decision" key={c.id}>
             <h3>{c.subject}</h3>
+            <dl className="support-case-context">
+              <div>
+                <dt>{t("Pelanggan", "Customer")}</dt>
+                <dd>
+                  {c.customerName ||
+                    t("Nama belum tersedia", "Name unavailable")}
+                </dd>
+              </div>
+              {admin && (
+                <div>
+                  <dt>{t("Katerer", "Caterer")}</dt>
+                  <dd>
+                    {caterer?.name ||
+                      t("Nama belum tersedia", "Name unavailable")}
+                  </dd>
+                </div>
+              )}
+              {purchase && (
+                <div>
+                  <dt>{t("Paket", "Package")}</dt>
+                  <dd>
+                    {purchase.quote.offer.name} · {purchase.quote.portions}{" "}
+                    {t("porsi", "portions")}
+                  </dd>
+                </div>
+              )}
+              <div>
+                <dt>{t("Catatan terkait", "Linked record")}</dt>
+                <dd>
+                  {c.delivery_id
+                    ? `${t("Pengantaran", "Delivery")} #${c.delivery_id.slice(-8)}`
+                    : c.subscription_id
+                      ? `${t("Langganan", "Subscription")} #${c.subscription_id.slice(-8)}`
+                      : c.checkout_id
+                        ? `${t("Pembelian", "Purchase")} #${c.checkout_id.slice(-8)}`
+                        : t(
+                            "Tidak terhubung ke pembelian atau pengantaran",
+                            "No linked purchase or delivery",
+                          )}
+                </dd>
+              </div>
+            </dl>
             <p>{c.description}</p>
             <details className="record-details">
               <summary>{t("Nomor kasus", "Case ID")}</summary>
               <code>{c.id}</code>
+              {c.checkout_id && (
+                <p>
+                  {t("Pembelian", "Purchase")}: <code>{c.checkout_id}</code>
+                </p>
+              )}
+              {c.subscription_id && (
+                <p>
+                  {t("Langganan", "Subscription")}:{" "}
+                  <code>{c.subscription_id}</code>
+                </p>
+              )}
+              {c.delivery_id && (
+                <p>
+                  {t("Pengantaran", "Delivery")}: <code>{c.delivery_id}</code>
+                </p>
+              )}
             </details>
             {c.resolution && (
               <div className="support-response">

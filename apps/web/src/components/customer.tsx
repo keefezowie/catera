@@ -77,6 +77,29 @@ const dateLabel = (d: string, locale: Locale = "id") =>
     locale === "id" ? "id-ID" : "en-GB",
     { weekday: "long", day: "numeric", month: "long" },
   );
+function agendaEntries(deliveries: Delivery[], today: string) {
+  return deliveries
+    .filter(
+      (delivery) =>
+        delivery.service_date >= today && delivery.status !== "cancelled",
+    )
+    .flatMap((delivery) =>
+      delivery.meals
+        .filter((meal) => meal.status !== "cancelled")
+        .map((meal) => ({ delivery, meal })),
+    )
+    .sort(
+      (left, right) =>
+        left.delivery.service_date.localeCompare(right.delivery.service_date) ||
+        (left.meal.meal === "lunch" ? 0 : 1) -
+          (right.meal.meal === "lunch" ? 0 : 1) ||
+        left.delivery.offer.caterer.localeCompare(
+          right.delivery.offer.caterer,
+        ) ||
+        left.delivery.offer.name.localeCompare(right.delivery.offer.name) ||
+        left.delivery.id.localeCompare(right.delivery.id),
+    );
+}
 export function Customer(props: { view: string; id?: string }) {
   return props.view === "calendar" ? (
     <MealCalendar />
@@ -101,6 +124,9 @@ function CustomerOverview({ view, id }: { view: string; id?: string }) {
     );
   if (!state.data) return <Loading />;
   const c = state.data;
+  const nextMeal = agendaEntries(c.deliveries, date).find(
+    ({ meal }) => meal.status !== "delivered",
+  );
   const activeSubscriptions = c.subscriptions.filter(
     (subscription) => subscription.status === "active",
   );
@@ -157,8 +183,14 @@ function CustomerOverview({ view, id }: { view: string; id?: string }) {
       <RefreshNotice error={state.error} reload={state.reload} />
       {view === "home" ? (
         <>
-          <CustomerActions state={actions} />
+          <CustomerActions state={actions} timing="urgent" />
+          {nextMeal && (
+            <NextMeal
+              delivery={{ ...nextMeal.delivery, meals: [nextMeal.meal] }}
+            />
+          )}
           <DateGroupedAgenda deliveries={c.deliveries} />
+          <CustomerActions state={actions} timing="later" />
           <section className="active-packages home-subscriptions">
             <div className="section-heading">
               <h2>{t("Paket aktif", "Active packages")}</h2>
@@ -192,13 +224,22 @@ function CustomerOverview({ view, id }: { view: string; id?: string }) {
 
 function CustomerActions({
   state,
+  timing,
 }: {
   state: ReturnType<typeof useResource<CustomerActionFeed>>;
+  timing: "urgent" | "later";
 }) {
   const { t, locale } = useApp();
   const [expanded, setExpanded] = useState(false);
-  const items = state.data?.items ?? [];
-  if (state.error && !state.data)
+  const tomorrow = addDays(localDay(), 1);
+  const items = (state.data?.items ?? []).filter((item) => {
+    const urgent =
+      item.kind !== "menu_choice_due" ||
+      !item.dueAt ||
+      localDay(new Date(item.dueAt)) <= tomorrow;
+    return timing === "urgent" ? urgent : !urgent;
+  });
+  if (state.error && !state.data && timing === "urgent")
     return (
       <section className="customer-actions compact-error">
         <RefreshNotice error={state.error} reload={state.reload} />
@@ -208,26 +249,33 @@ function CustomerActions({
   const visible = expanded ? items : items.slice(0, 3);
   return (
     <section
-      className="customer-actions"
-      aria-labelledby="customer-actions-title"
+      className={"customer-actions " + timing}
+      aria-labelledby={`customer-actions-${timing}-title`}
     >
       <div className="section-heading">
         <div>
-          <h2 id="customer-actions-title">
-            {t("Perlu tindakan Anda", "Needs your attention")}
+          <h2 id={`customer-actions-${timing}-title`}>
+            {timing === "urgent"
+              ? t("Perlu tindakan Anda", "Needs your attention")
+              : t("Pilihan menu berikutnya", "Upcoming menu choices")}
           </h2>
           <p>
-            {t(
-              "Selesaikan yang mendesak tanpa kehilangan konteks.",
-              "Handle urgent items without losing context.",
-            )}
+            {timing === "urgent"
+              ? t(
+                  "Periksa pembayaran, pengantaran, atau batas pilihan terdekat.",
+                  "Review payments, deliveries, or approaching menu deadlines.",
+                )
+              : t(
+                  "Pilih sebelum batas waktu yang tercantum.",
+                  "Choose before the listed deadlines.",
+                )}
           </p>
         </div>
         <span
           className="action-count"
           aria-label={t("Jumlah tindakan", "Action count")}
         >
-          {state.data?.total ?? items.length}
+          {items.length}
         </span>
       </div>
       <RefreshNotice error={state.error} reload={state.reload} />
@@ -308,18 +356,9 @@ function CustomerAction({
 function DateGroupedAgenda({ deliveries }: { deliveries: Delivery[] }) {
   const { t, locale } = useApp();
   const today = localDay();
-  const upcoming = deliveries
-    .filter(
-      (delivery) =>
-        delivery.service_date >= today && delivery.status !== "cancelled",
-    )
-    .sort(
-      (left, right) =>
-        left.service_date.localeCompare(right.service_date) ||
-        left.id.localeCompare(right.id),
-    );
+  const upcoming = agendaEntries(deliveries, today);
   const dates = [
-    ...new Set(upcoming.map((delivery) => delivery.service_date)),
+    ...new Set(upcoming.map(({ delivery }) => delivery.service_date)),
   ].slice(0, 3);
   return (
     <section className="date-agenda" aria-labelledby="date-agenda-title">
@@ -330,8 +369,8 @@ function DateGroupedAgenda({ deliveries }: { deliveries: Delivery[] }) {
           </h2>
           <p>
             {t(
-              "Dikelompokkan per tanggal dan katerer.",
-              "Grouped by date and caterer.",
+              "Diurutkan per tanggal dan waktu makan.",
+              "Ordered by date and meal time.",
             )}
           </p>
         </div>
@@ -360,40 +399,36 @@ function DateGroupedAgenda({ deliveries }: { deliveries: Delivery[] }) {
                   : dateLabel(serviceDate, locale)}
               </h3>
               {upcoming
-                .filter((delivery) => delivery.service_date === serviceDate)
-                .flatMap((delivery) =>
-                  delivery.meals
-                    .filter((meal) => meal.status !== "cancelled")
-                    .map((meal) => (
-                      <Link
-                        key={`${delivery.id}-${meal.meal}`}
-                        href={"/deliveries/" + delivery.id}
-                        className="home-agenda-row"
-                      >
-                        {meal.meal === "lunch" ? (
-                          <Sun size={20} />
-                        ) : (
-                          <Moon size={20} />
-                        )}
-                        <div>
-                          <small>
-                            {mealLabel(meal.meal, locale)} ·{" "}
-                            {
-                              delivery.offer.windows[
-                                meal.meal as "lunch" | "dinner"
-                              ]
-                            }
-                          </small>
-                          <strong>{delivery.offer.name}</strong>
-                          <p>
-                            {delivery.offer.caterer} · {delivery.portions}{" "}
-                            {t("porsi", "portions")}
-                          </p>
-                        </div>
-                        <Status status={meal.status} />
-                      </Link>
-                    )),
-                )}
+                .filter(({ delivery }) => delivery.service_date === serviceDate)
+                .map(({ delivery, meal }) => (
+                  <Link
+                    key={`${delivery.id}-${meal.meal}`}
+                    href={"/deliveries/" + delivery.id}
+                    className="home-agenda-row"
+                  >
+                    {meal.meal === "lunch" ? (
+                      <Sun size={20} />
+                    ) : (
+                      <Moon size={20} />
+                    )}
+                    <div>
+                      <small>
+                        {mealLabel(meal.meal, locale)} ·{" "}
+                        {
+                          delivery.offer.windows[
+                            meal.meal as "lunch" | "dinner"
+                          ]
+                        }
+                      </small>
+                      <strong>{delivery.offer.name}</strong>
+                      <p>
+                        {delivery.offer.caterer} · {delivery.portions}{" "}
+                        {t("porsi", "portions")}
+                      </p>
+                    </div>
+                    <Status status={meal.status} />
+                  </Link>
+                ))}
             </section>
           ))}
         </div>

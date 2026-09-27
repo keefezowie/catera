@@ -171,9 +171,18 @@ test("UI sweep: focus rings, support count, composition controls and centered pr
     name: "Perlu perhatian",
     exact: true,
   });
+  await queue
+    .getByRole("button", { name: "Semua tanggal", exact: true })
+    .click();
+  await queue.getByRole("combobox", { name: "Waktu makan masalah" }).click();
+  await page
+    .getByRole("option", { name: "Siang + malam", exact: true })
+    .click();
   const attention = (
     await (
-      await page.request.get("/api/v1/seller-attention/" + actor.catererId)
+      await page.request.get(
+        "/api/v1/seller-attention/" + actor.catererId + "?scope=all&limit=20",
+      )
     ).json()
   ).data;
   await expect(queue.getByRole("heading")).toContainText(

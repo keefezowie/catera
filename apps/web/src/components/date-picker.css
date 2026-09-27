@@ -163,7 +163,7 @@
   width: auto;
   min-height: 38px;
   padding: 7px 5px;
-  border: 0;
+  border-width: 0;
   background: transparent;
   font-size: 12px;
   font-weight: 650;

@@ -34,7 +34,8 @@
   min-height: 44px;
 }
 
-.customer-view-switch [aria-pressed="true"] {
+.customer-view-switch .button[aria-pressed="true"],
+.customer-view-switch .button[aria-pressed="true"]:hover {
   border-color: var(--forest);
   background: var(--forest);
   color: var(--cream);

@@ -175,6 +175,7 @@ export type Checkout = {
   payment_url: string | null;
 };
 export type SupportCase = {
+  checkout_id?: string | null;
   customer_record_id?: string | null;
   customerName?: string | null;
   id: string;

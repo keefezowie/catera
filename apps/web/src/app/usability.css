@@ -296,6 +296,11 @@ body .file-upload.file-upload-compact {
 .business-links a span {
   flex: 1;
 }
+.business-links a[aria-current="page"] {
+  background: var(--forest);
+  color: var(--cream);
+  font-weight: 700;
+}
 .seller-readiness {
   border: 1px solid var(--line);
   border-radius: 16px;
@@ -801,6 +806,7 @@ html:has(.seller-operations) {
     display: block;
     border: 0;
     padding: 8px 0;
+    font-size: 14px;
   }
   .record-table td::before {
     content: attr(data-label);
@@ -814,6 +820,11 @@ html:has(.seller-operations) {
     overflow-wrap: anywhere;
   }
 }
+
+.support-case-context { margin: 14px 0 20px; display: grid; gap: 10px; }
+.support-case-context > div { display: grid; grid-template-columns: minmax(90px, 1fr) 2fr; gap: 12px; }
+.support-case-context dt { color: var(--muted); font-size: 13px; }
+.support-case-context dd { margin: 0; overflow-wrap: anywhere; font-weight: 650; }
 @media (max-width: 560px) {
   .form-grid {
     grid-template-columns: 1fr;
