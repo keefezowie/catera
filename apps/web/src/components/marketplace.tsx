@@ -58,6 +58,39 @@ import { useApp, api, useResource } from "./context";
 import { Button, Checkbox, TextInput } from "./form-controls";
 import { Heading, Empty, ErrorNotice, Facts } from "./ui";
 import { NumericInput } from "./numeric-input";
+
+function DeliveryCoverage({
+  eligibility,
+  area,
+  detail = false,
+}: {
+  eligibility: ReturnType<typeof purchaseCommitment>["addressEligibility"];
+  area: string;
+  detail?: boolean;
+}) {
+  const { t } = useApp();
+  return (
+    <p className={"delivery-coverage " + eligibility}>
+      <MapPin size={15} aria-hidden="true" />
+      <span>
+        {eligibility === "eligible"
+          ? t(`Mengantar ke ${area}.`, `Delivers to ${area}.`)
+          : eligibility === "outside"
+            ? t("Di luar area pengantaran.", "Outside delivery area.")
+            : detail
+              ? t(
+                  "Jangkauan pengantaran akan diperiksa setelah Anda memilih alamat saat checkout.",
+                  "Delivery coverage will be checked after you choose an address at checkout.",
+                )
+              : t(
+                  "Pilih area untuk memeriksa jangkauan.",
+                  "Choose an area to check delivery coverage.",
+                )}
+      </span>
+    </p>
+  );
+}
+
 export function PackageCard({
   offer,
   preview = false,
@@ -67,8 +100,10 @@ export function PackageCard({
 }) {
   const { area, compare, toggleCompare, locale, t } = useApp();
   const [meal, setMeal] = useState("lunch");
-  const covered = !area || offer.areas.includes(area);
-  const commitment = purchaseCommitment({ offer, addressCovered: covered });
+  const commitment = purchaseCommitment({
+    offer,
+    addressCovered: area === "" ? null : offer.areas.includes(area),
+  });
   const compared = compare.includes(offer.id);
   const navigation = {
     "aria-disabled": preview,
@@ -79,7 +114,10 @@ export function PackageCard({
   };
   return (
     <article
-      className={"package-card package-card-v2 " + (!covered ? "outside" : "")}
+      className={
+        "package-card package-card-v2 " +
+        (commitment.addressEligibility === "outside" ? "outside" : "")
+      }
     >
       <div className="package-image">
         <Link href={"/packages/" + offer.slug} {...navigation}>
@@ -162,12 +200,14 @@ export function PackageCard({
               )}
             </small>
           </div>
-          <p className={"delivery-included " + (!covered ? "unavailable" : "")}>
+          <p className="delivery-included">
             <Truck size={15} aria-hidden="true" />
-            {covered
-              ? t("Pengantaran termasuk", "Delivery included")
-              : t("Di luar area pengantaran", "Outside delivery area")}
+            {t("Pengantaran termasuk", "Delivery included")}
           </p>
+          <DeliveryCoverage
+            eligibility={commitment.addressEligibility}
+            area={area}
+          />
         </div>
         <PackagePreview
           offer={offer}
@@ -690,12 +730,12 @@ export function PackagePage({
         label={t("Jelajah paket", "Browse packages")}
       />
     );
-  const eligible = !area || p.areas.includes(area);
   const commitment = purchaseCommitment({
     offer: p,
     portions,
-    addressCovered: eligible,
+    addressCovered: area === "" ? null : p.areas.includes(area),
   });
+  const canCheckout = commitment.addressEligibility !== "outside";
   const tier = Math.max(
     0,
     ...p.tiers.filter((x) => portions >= x.min).map((x) => x.percent),
@@ -949,19 +989,27 @@ export function PackagePage({
               [t("Pengantaran", "Delivery"), t("Termasuk", "Included")],
             ]}
           />
+          <DeliveryCoverage
+            eligibility={commitment.addressEligibility}
+            area={area}
+            detail
+          />
           <Link
             href={
-              eligible ? "/checkout/" + p.id + "?portions=" + portions : "#"
+              canCheckout ? "/checkout/" + p.id + "?portions=" + portions : "#"
             }
-            aria-disabled={!eligible}
-            className={"button full " + (!eligible ? "disabled" : "")}
+            aria-disabled={!canCheckout}
+            onClick={(event) => {
+              if (!canCheckout) event.preventDefault();
+            }}
+            className={"button full " + (!canCheckout ? "disabled" : "")}
           >
-            {eligible
+            {canCheckout
               ? t("Pilih paket ini", "Choose this package")
               : t("Di luar area pengantaran", "Outside delivery area")}
             <ArrowRight size={17} />
           </Link>
-          {p.trialPrice && eligible && (
+          {p.trialPrice && canCheckout && (
             <Link
               className="button secondary full"
               href={"/checkout/" + p.id + "?trial=1&portions=" + portions}

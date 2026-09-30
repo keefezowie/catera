@@ -33,6 +33,23 @@ const offer = {
 } satisfies Offer;
 
 describe("purchaseCommitment", () => {
+  it.each([
+    [undefined, "unknown"],
+    [null, "unknown"],
+    [true, "eligible"],
+    [false, "outside"],
+  ] as const)(
+    "keeps %s coverage separate from the delivery price",
+    (addressCovered, expected) => {
+      for (const trial of [false, true]) {
+        const commitment = purchaseCommitment({ offer, addressCovered, trial });
+        expect(commitment.addressEligibility).toBe(expected);
+        expect(commitment.deliveryIncluded).toBe(true);
+        expect(commitment.serviceFee).toBeNull();
+      }
+    },
+  );
+
   it("keeps fees unknown before the server quote", () => {
     expect(
       purchaseCommitment({ offer, portions: 2, addressCovered: true }),

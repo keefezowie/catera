@@ -714,11 +714,12 @@ function OperationsPage({
         >
           <div className="ops-workload-heading">
             <h2>
-              {t("Total porsi", "Total portions")}{" "}
               {meal === "lunch"
-                ? t("siang", "for lunch")
-                : t("malam", "for dinner")}
-              : {loading ? "…" : workload.portions}
+                ? t("Total siang", "Lunch total")
+                : t("Total malam", "Dinner total")}
+              {" · "}
+              {t("semua paket", "all packages")}:{" "}
+              {loading ? "…" : workload.portions} {t("porsi", "portions")}
             </h2>
             {!loading && filteredRows.length > 0 && (
               <a className="text-button" href="#ops-orders">
@@ -754,6 +755,7 @@ function OperationsPage({
             ))}
           </div>
           <p className="ops-visible-summary" role="status">
+            {t("Sesuai filter", "Matching filters")}:{" "}
             {selectedStage && (
               <>
                 {t("Tahap terpilih", "Selected stage")}:{" "}

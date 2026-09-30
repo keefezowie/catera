@@ -177,7 +177,7 @@ for (const locale of ["id", "en"] as const) {
         exact: true,
       });
       const scope = attention.getByRole("button", {
-        name: t("Ubah cakupan", "Change scope"),
+        name: t("Filter masalah", "Filter issues"),
       });
       await expect(scope).toBeVisible();
       await expect(
@@ -199,12 +199,10 @@ for (const locale of ["id", "en"] as const) {
       ).toContainText(t("Semua tanggal", "All dates"));
       await page.goto("/seller");
       await expect(page.locator(".ops-workload")).toBeVisible();
-      const orders = page
-        .locator(".ops-workload-heading")
-        .getByRole("link", {
-          name: t("Lihat pesanan", "View orders"),
-          exact: true,
-        });
+      const orders = page.locator(".ops-workload-heading").getByRole("link", {
+        name: t("Lihat pesanan", "View orders"),
+        exact: true,
+      });
       await expect(orders).toBeInViewport();
       await orders.click();
       await expect(page.locator("#ops-orders")).toBeFocused();

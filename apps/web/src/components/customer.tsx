@@ -47,9 +47,11 @@ import {
   availabilityReasonLabel,
   earliestAvailable,
   customerActionPresentation,
+  groupCustomerActions,
   type CustomerState,
   type CustomerActionFeed,
   type CustomerActionItem,
+  type CustomerActionGroup,
   type DeliveryAvailability,
   type Delivery,
   type Conversation,
@@ -116,6 +118,7 @@ function CustomerOverview({ view, id }: { view: string; id?: string }) {
   const actions = useResource<CustomerActionFeed>("customer-actions", () =>
     api.customerActions(20),
   );
+  const actionGroups = groupCustomerActions(actions.data?.items ?? []);
   if (state.error && !state.data)
     return (
       <div className="content">
@@ -183,14 +186,17 @@ function CustomerOverview({ view, id }: { view: string; id?: string }) {
       <RefreshNotice error={state.error} reload={state.reload} />
       {view === "home" ? (
         <>
-          <CustomerActions state={actions} timing="urgent" />
+          <CustomerActionFeedNotice state={actions} />
+          <CustomerActions items={actionGroups.review} group="review" />
+          <CustomerActions items={actionGroups.urgent} group="urgent" />
           {nextMeal && (
             <NextMeal
               delivery={{ ...nextMeal.delivery, meals: [nextMeal.meal] }}
             />
           )}
+          <CustomerActions items={actionGroups.updates} group="updates" />
           <DateGroupedAgenda deliveries={c.deliveries} />
-          <CustomerActions state={actions} timing="later" />
+          <CustomerActions items={actionGroups.later} group="later" />
           <section className="active-packages home-subscriptions">
             <div className="section-heading">
               <h2>{t("Paket aktif", "Active packages")}</h2>
@@ -222,63 +228,102 @@ function CustomerOverview({ view, id }: { view: string; id?: string }) {
   );
 }
 
-function CustomerActions({
+function CustomerActionFeedNotice({
   state,
-  timing,
 }: {
   state: ReturnType<typeof useResource<CustomerActionFeed>>;
-  timing: "urgent" | "later";
+}) {
+  const { t } = useApp();
+  const count = state.data?.items.length ?? 0;
+  const total = state.data?.total ?? 0;
+  if (!state.loading && !state.error && count >= total) return null;
+  return (
+    <div className="customer-action-feed-notice">
+      {state.loading && (
+        <p role="status">
+          {state.data
+            ? t("Memperbarui kabar terbaru…", "Refreshing updates…")
+            : t("Memuat kabar terbaru…", "Loading updates…")}
+        </p>
+      )}
+      {state.data ? (
+        <RefreshNotice error={state.error} reload={state.reload} />
+      ) : (
+        state.error && (
+          <ErrorNotice message={state.error} retry={state.reload} />
+        )
+      )}
+      {count < total && (
+        <p role="status">
+          {t(
+            `Menampilkan ${count} dari ${total} pembaruan.`,
+            `Showing ${count} of ${total} updates.`,
+          )}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function CustomerActions({
+  items,
+  group,
+}: {
+  items: CustomerActionItem[];
+  group: CustomerActionGroup;
 }) {
   const { t, locale } = useApp();
   const [expanded, setExpanded] = useState(false);
-  const tomorrow = addDays(localDay(), 1);
-  const items = (state.data?.items ?? []).filter((item) => {
-    const urgent =
-      item.kind !== "menu_choice_due" ||
-      !item.dueAt ||
-      localDay(new Date(item.dueAt)) <= tomorrow;
-    return timing === "urgent" ? urgent : !urgent;
-  });
-  if (state.error && !state.data && timing === "urgent")
-    return (
-      <section className="customer-actions compact-error">
-        <RefreshNotice error={state.error} reload={state.reload} />
-      </section>
-    );
   if (!items.length) return null;
+  const customerOwned = group === "urgent" || group === "later";
+  const title = {
+    review: t("Pemesanan perlu ditinjau", "Booking needs review"),
+    urgent: t("Perlu tindakan Anda", "Action needed"),
+    updates: t("Status pembayaran & kendala", "Payment and issue updates"),
+    later: t("Pilihan menu berikutnya", "Upcoming menu choices"),
+  }[group];
+  const description = {
+    review: t(
+      "Catera perlu meninjau pemesanan Anda. Lihat pesanan untuk perkembangannya.",
+      "Catera needs to review your booking. View the order for updates.",
+    ),
+    urgent: t(
+      "Selesaikan pembayaran, tinjau tanggapan, atau pilih menu sebelum batas waktu.",
+      "Complete payment, review a response, or choose your menu before cutoff.",
+    ),
+    updates: t(
+      "Menunggu pemeriksaan atau tanggapan. Pembaruan ini belum memerlukan tindakan Anda.",
+      "Awaiting a check or response. These updates need no action from you for now.",
+    ),
+    later: t(
+      "Pilih sebelum batas waktu yang tercantum.",
+      "Choose before the listed deadlines.",
+    ),
+  }[group];
   const visible = expanded ? items : items.slice(0, 3);
   return (
     <section
-      className={"customer-actions " + timing}
-      aria-labelledby={`customer-actions-${timing}-title`}
+      className={"customer-actions " + group}
+      aria-labelledby={`customer-actions-${group}-title`}
     >
       <div className="section-heading">
         <div>
-          <h2 id={`customer-actions-${timing}-title`}>
-            {timing === "urgent"
-              ? t("Perlu tindakan Anda", "Needs your attention")
-              : t("Pilihan menu berikutnya", "Upcoming menu choices")}
-          </h2>
-          <p>
-            {timing === "urgent"
-              ? t(
-                  "Periksa pembayaran, pengantaran, atau batas pilihan terdekat.",
-                  "Review payments, deliveries, or approaching menu deadlines.",
-                )
-              : t(
-                  "Pilih sebelum batas waktu yang tercantum.",
-                  "Choose before the listed deadlines.",
-                )}
-          </p>
+          <h2 id={`customer-actions-${group}-title`}>{title}</h2>
+          <p>{description}</p>
         </div>
         <span
-          className="action-count"
-          aria-label={t("Jumlah tindakan", "Action count")}
+          className={customerOwned ? "action-count" : "update-count"}
+          aria-label={
+            customerOwned
+              ? t("Jumlah tindakan", "Action count")
+              : group === "review"
+                ? t("Jumlah pemesanan ditinjau", "Booking review count")
+                : t("Jumlah pembaruan", "Update count")
+          }
         >
           {items.length}
         </span>
       </div>
-      <RefreshNotice error={state.error} reload={state.reload} />
       <div className="customer-action-list">
         {visible.map((item) => (
           <CustomerAction key={item.id} item={item} locale={locale} />
@@ -293,10 +338,15 @@ function CustomerActions({
         >
           {expanded
             ? t("Tampilkan tiga teratas", "Show top three")
-            : t(
-                `Lihat semua ${items.length} tindakan`,
-                `View all ${items.length} actions`,
-              )}
+            : customerOwned
+              ? t(
+                  `Lihat semua ${items.length} tindakan`,
+                  `View all ${items.length} actions`,
+                )
+              : t(
+                  `Lihat semua ${items.length} pembaruan`,
+                  `View all ${items.length} updates`,
+                )}
         </Button>
       )}
     </section>

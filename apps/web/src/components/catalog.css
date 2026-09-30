@@ -148,6 +148,9 @@
 .package-booking-jump {
   display: none;
 }
+.package-detail { overflow-wrap: anywhere; }
+.package-detail .detail-layout > * { min-width: 0; }
+.package-detail .portion-control { flex-wrap: wrap; gap: 12px; }
 .detail-hero {
   height: auto;
 }

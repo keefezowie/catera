@@ -1193,9 +1193,18 @@ td strong {
   padding-top: 12px;
   margin-top: 14px;
 }
-.delivery-included.unavailable {
-  color: #955020;
+.delivery-coverage {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 12px;
 }
+.delivery-coverage > svg { flex-shrink: 0; margin-top: 2px; }
+.delivery-coverage.eligible { color: var(--forest); }
+.delivery-coverage.outside { color: var(--sunrise-ink); }
+.purchase-card > .delivery-coverage { margin-block: 16px; }
 .outside .image-label {
   background: #f2eadb;
 }
@@ -4356,9 +4365,10 @@ textarea::placeholder {
   border-radius: 18px;
   background: color-mix(in srgb, var(--sunrise) 7%, var(--cream));
 }
-.customer-actions.compact-error { padding: 0; border: 0; background: transparent; }
-.customer-actions.later { margin-top: 28px; border-color: var(--line); background: transparent; }
-.customer-actions.later .customer-action { border-color: var(--line); background: var(--surface); }
+.customer-action-feed-notice { margin-bottom: 20px; color: var(--muted); }
+.customer-actions.later { margin-top: 28px; }
+.customer-actions.later, .customer-actions.updates { border-color: var(--line); background: transparent; }
+.customer-actions.later .customer-action, .customer-actions.updates .customer-action { border-color: var(--line); background: var(--surface); }
 .home-page > .next-meal-card { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); margin-bottom: 28px; }
 .home-page > .next-meal-card .next-meal-photo { height: 100%; min-height: 260px; }
 .home-page > .next-meal-card .next-meal-photo img { position: absolute; inset: 0; }
@@ -4369,11 +4379,13 @@ textarea::placeholder {
   .home-page > .next-meal-card .next-meal-content { padding: 20px; }
 }
 .customer-actions .section-heading { margin-bottom: 14px; }
-.action-count {
+.customer-actions .section-heading > div { min-width: 0; overflow-wrap: anywhere; }
+.action-count, .update-count {
   display: grid; place-items: center; min-width: 34px; min-height: 34px;
   padding-inline: 9px; border-radius: 999px; background: var(--forest);
-  color: var(--cream); font-weight: 750;
+  color: var(--cream); font-weight: 750; flex-shrink: 0;
 }
+.update-count { background: var(--soft); color: var(--forest); }
 .customer-action-list { display: grid; gap: 10px; }
 .customer-action {
   display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 14px;
@@ -4381,6 +4393,8 @@ textarea::placeholder {
   border-radius: 13px; background: var(--cream);
 }
 .customer-action > svg { color: var(--forest); }
+.customer-action > div { min-width: 0; overflow-wrap: anywhere; }
+.customer-action .button { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
 .customer-action h3, .customer-action p { margin: 0; }
 .customer-action h3 { font-size: 16px; }
 .customer-action p, .customer-action small {
@@ -4460,6 +4474,7 @@ textarea::placeholder {
 }
 .home-subscriptions .section-heading {
   margin-bottom: 8px;
+  flex-wrap: wrap;
 }
 .home-subscriptions .subscription-card {
   display: grid;
@@ -4516,7 +4531,7 @@ textarea::placeholder {
   }
   .customer-actions, .date-agenda { padding: 20px; }
   .customer-action { grid-template-columns: 22px minmax(0, 1fr); }
-  .customer-action .button { grid-column: 2; justify-self: start; }
+  .customer-action .button { grid-column: 1 / -1; justify-self: start; }
   .home-subscription-row { grid-template-columns: 1fr; gap: 0; padding-bottom: 12px; }
   .home-subscription-row > .text-button { justify-self: start; margin-left: 74px; }
   .home-agenda-row strong {
