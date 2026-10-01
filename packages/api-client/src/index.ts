@@ -26,6 +26,7 @@ import type {
   DeliveryAvailability,
   CustomerActionFeed,
   SellerAttentionPage,
+  SavedPackages,
 } from "@catera/domain";
 export class ApiError extends Error {
   constructor(
@@ -60,6 +61,11 @@ export function createApi(base = "", token?: () => Promise<string | null>) {
     catalog: (query = "") =>
       request<{ items: Offer[]; nextCursor: string | null }>("catalog" + query),
     me: () => request<{ actor: Actor | null; demo: boolean }>("me"),
+    offer: (id: string) => request<{ offer: Offer | null }>("offer/" + encodeURIComponent(id)),
+    savedPackages: (cursor?: string, limit = 50) =>
+      request<SavedPackages>("saved-packages?" + new URLSearchParams({
+        limit: String(limit), ...(cursor ? { cursor } : {}),
+      })),
     customer: (query = "") => request<CustomerState>("customer" + query),
     customerActions: (limit = 20) =>
       request<CustomerActionFeed>(

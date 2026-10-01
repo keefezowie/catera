@@ -151,9 +151,6 @@ function CatererCarousel({ offers }: { offers: Offer[] }) {
               aria-hidden={index !== selected}
             >
               <div className="hero-copy">
-                <span className="featured-label">
-                  {t("Katerer pilihan", "Featured caterer")}
-                </span>
                 {index === 0 ? (
                   <h1>{offer.caterer}</h1>
                 ) : (

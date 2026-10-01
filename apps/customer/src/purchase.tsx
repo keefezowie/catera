@@ -1,12 +1,12 @@
 import { PackageContents } from "./package-contents";
-import { menuSummary } from "@catera/domain";
+import type { Offer } from "@catera/domain";
+import { NativeSaveButton, NativeSavedIntent } from "./saved";
 import { useEffect, useRef, useState } from "react";
 import {
   View,
   Image,
   Switch,
   ScrollView,
-  AccessibilityInfo,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import * as SecureStore from "expo-secure-store";
@@ -32,7 +32,6 @@ import {
   Field,
   Panel,
   Photo,
-  OfferCard,
   Select,
   LanguageSelect,
   Qty,
@@ -43,217 +42,13 @@ import {
   C,
   styles,
 } from "./ui";
-export function Discover() {
-  const { section } = useLocalSearchParams<{ section?: string }>();
-  const { offers, area, setArea, compare, error, refresh, t, locale } =
-    useNative();
-  const [search, setSearch] = useState(""),
-    [meal, setMeal] = useState("all"),
-    [packageType, setPackageType] = useState("all"),
-    [trial, setTrial] = useState(false);
-  const scroll = useRef<ScrollView>(null);
-  const sections = useRef({ packages: 0, how: 0 });
-  async function scrollTo(section: "packages" | "how") {
-    const reduceMotion = await AccessibilityInfo.isReduceMotionEnabled();
-    scroll.current?.scrollTo({
-      y: sections.current[section],
-      animated: !reduceMotion,
-    });
-  }
-  const filtered = offers
-    .filter(
-      (o) =>
-        (!search ||
-          [
-            o.name,
-            o.caterer,
-            ...o.tags,
-            ...o.menus.map((m) => menuSummary(m, locale)),
-          ]
-            .join(" ")
-            .toLowerCase()
-            .includes(search.toLowerCase())) &&
-        (meal === "all" || o.meal === meal) &&
-        (packageType === "all" || o.packageType === packageType) &&
-        (!trial || o.trialPrice),
-    )
-    .sort(
-      (a, b) => Number(b.areas.includes(area)) - Number(a.areas.includes(area)),
-    );
-  return (
-    <Screen refresh={refresh} scrollRef={scroll}>
-      <Image
-        source={require("../../../packages/brand/assets/wordmark.png")}
-        style={{ width: 148, height: 50, alignSelf: "center" }}
-        resizeMode="contain"
-      />
-      <LanguageSelect />
-      <View style={styles.row}>
-        <Btn
-          secondary
-          label={t("Jelajah katering", "Explore caterers")}
-          onPress={() => void scrollTo("packages")}
-        />
-        <Btn
-          secondary
-          label={t("Cara berlangganan", "How it works")}
-          onPress={() => void scrollTo("how")}
-        />
-      </View>
-      <Select
-        label={t("Area pengantaran", "Delivery area")}
-        value={area}
-        onChange={setArea}
-        options={[
-          { value: "", label: t("Pilih area", "Choose your area") },
-          ...areaOptions.map((v) => ({ value: v, label: v })),
-        ]}
-      />
-      <Field
-        label={t("Cari makanan favorit", "Find your favorite meals")}
-        value={search}
-        onChangeText={setSearch}
-        placeholder={t(
-          "Paket, menu, atau katerer",
-          "Package, meal, or caterer",
-        )}
-      />
-      <View
-        style={{
-          backgroundColor: C.forest,
-          padding: 25,
-          borderRadius: 14,
-          gap: 16,
-        }}
-      >
-        <Txt
-          kind="title"
-          style={{ color: C.cream, fontSize: 35, lineHeight: 43 }}
-        >
-          {t("Makan enak.\nSetiap hari.", "Eat well.\nEvery day.")}
-        </Txt>
-        <Txt style={{ color: "#DDE7D5", fontSize: 12 }}>
-          {t(
-            "Pilih makanannya, atur jadwalnya, nikmati harinya.",
-            "Choose your meals, plan your schedule, enjoy your day.",
-          )}
-        </Txt>
-        <Photo src="/assets/food/ayam-panggang.png" height={190} />
-      </View>
-      <View
-        nativeID="packages"
-        onLayout={(event) => {
-          sections.current.packages = event.nativeEvent.layout.y;
-        }}
-      >
-        <Txt kind="heading">
-          {t("Mau makan apa hari ini?", "What sounds good today?")}
-        </Txt>
-      </View>
-      <Select
-        label={t("Waktu makan", "Meal time")}
-        value={meal}
-        onChange={setMeal}
-        options={[
-          { label: t("Semua paket", "All packages"), value: "all" },
-          { label: t("Makan siang", "Lunch"), value: "lunch" },
-          { label: t("Makan malam", "Dinner"), value: "dinner" },
-          { label: t("Siang + malam", "Lunch + dinner"), value: "both" },
-        ]}
-      />
-      <View style={[styles.row, { justifyContent: "space-between" }]}>
-        <Txt>{t("Paket yang bisa dicoba dulu", "Packages with a trial")}</Txt>
-        <Switch
-          accessibilityLabel={t("Trial tersedia", "Trial available")}
-          value={trial}
-          onValueChange={setTrial}
-          trackColor={{ true: C.forest }}
-        />
-      </View>
-      {error && <Txt style={styles.error}>{error}</Txt>}
-      {compare.length > 0 && (
-        <Btn
-          label={
-            t("Bandingkan ", "Compare ") +
-            compare.length +
-            t(" paket", " packages")
-          }
-          onPress={() => router.push("/compare")}
-        />
-      )}
-      <Txt kind="small">
-        {filtered.length}{" "}
-        {t(
-          "paket untuk hari-hari yang lebih baik",
-          "packages for better everyday meals",
-        )}
-      </Txt>
-      <Select
-        label={t("Jenis paket", "Package type")}
-        value={packageType}
-        onChange={setPackageType}
-        options={[
-          { value: "all", label: t("Semua jenis", "All types") },
-          { value: "ala_carte", label: t("À la carte", "À la carte") },
-          { value: "nasi_box", label: t("Nasi box", "Rice box") },
-        ]}
-      />
-      {filtered.map((o) => (
-        <OfferCard key={o.id} offer={o} />
-      ))}
-      {!filtered.length && (
-        <Empty
-          title={t("Belum ada paket yang cocok.", "No matching packages yet.")}
-          body={t(
-            "Coba pencarian atau filter lain.",
-            "Try another search or filter.",
-          )}
-        />
-      )}
-      <View
-        nativeID="how-it-works"
-        style={styles.stack}
-        onLayout={(event) => {
-          sections.current.how = event.nativeEvent.layout.y;
-          if (section === "how-it-works")
-            scroll.current?.scrollTo({
-              y: sections.current.how,
-              animated: false,
-            });
-        }}
-      >
-        <Txt kind="heading">{t("Cara berlangganan", "How it works")}</Txt>
-        <Txt>
-          {t(
-            "Pilih katerer dan paket yang menjangkau alamatmu.",
-            "Choose a caterer and package that deliver to your address.",
-          )}
-        </Txt>
-        <Txt>
-          {t(
-            "Tentukan porsi dan tanggal mulai, lalu tinjau jadwal serta harga sebelum membayar.",
-            "Set portions and a start date, then review the schedule and price before paying.",
-          )}
-        </Txt>
-        <Txt>
-          {t(
-            "Pantau pengantaran di Jadwal. Beli paket berikutnya saat kamu siap; tidak ada perpanjangan otomatis.",
-            "Track deliveries in Calendar. Buy your next package when ready; there is no automatic renewal.",
-          )}
-        </Txt>
-        <Btn
-          label={t("Temukan paketmu", "Find your package")}
-          onPress={() => void scrollTo("packages")}
-        />
-      </View>
-    </Screen>
-  );
-}
+export { NativeDiscover as Discover } from "./discovery";
 export function PackageScreen() {
-  const { id, section, meal } = useLocalSearchParams<{
+  const { id, section, meal, next } = useLocalSearchParams<{
     id: string;
     section?: string;
     meal?: string;
+    next?: string;
   }>();
   const { offers, area, setArea, compare, toggleCompare, t, locale } =
     useNative();
@@ -262,7 +57,8 @@ export function PackageScreen() {
   const [mealOffsets, setMealOffsets] = useState<Record<string, number>>({});
   const jumped = useRef("");
   const [qty, setQty] = useState(1);
-  const o = offers.find((o) => o.id === id);
+  const currentOffer = useData<{ offer: Offer | null }>("public-offer:" + id, () => nativeApi.offer(id));
+  const o = currentOffer.data ? currentOffer.data.offer : offers.find((o) => o.id === id);
   const reviews = useData<
     {
       id: string;
@@ -295,13 +91,17 @@ export function PackageScreen() {
   if (!o)
     return (
       <Screen>
-        <Empty title={t("Paket tidak ditemukan.", "Package not found.")} />
+        {currentOffer.error ? <><Txt style={styles.error}>{currentOffer.error}</Txt>
+          <Btn secondary label={t("Coba lagi", "Retry")} onPress={currentOffer.reload} /></>
+          : <Empty title={currentOffer.data ? t("Paket tidak ditemukan.", "Package not found.") : t("Memuat paket…", "Loading package…")} />}
       </Screen>
     );
   const total = price(o, qty);
   const inArea = !area || o.areas.includes(area);
   return (
     <Screen scrollRef={scrollRef}>
+      {next && <Btn secondary label={t("Kembali ke paket", "Back to packages")} onPress={() => router.replace(nativeReturnPath(next) as never)} />}
+      <NativeSavedIntent />
       <Photo src={o.image} height={275} />
       <Txt kind="small">{o.caterer}</Txt>
       <Txt kind="title">{o.name}</Txt>
@@ -394,6 +194,7 @@ export function PackageScreen() {
             }
           />
         )}
+        <NativeSaveButton packageId={o.id} name={o.name} returnPath={next || "/package/" + id} />
         <Btn
           secondary
           label={
@@ -481,9 +282,15 @@ export function PackageScreen() {
 }
 export function Comparison() {
   const { offers, compare, t, locale } = useNative();
+  const { next } = useLocalSearchParams<{ next?: string }>();
+  const resolved = useData<{ offers: Offer[] }>("comparison:" + compare.join(","),
+    async () => ({ offers: (await Promise.all(compare.map(id => nativeApi.offer(id)))).flatMap(item => item.offer ? [item.offer] : []) }));
+  const selected = resolved.data?.offers || offers.filter(offer => compare.includes(offer.id));
   const [qty, setQty] = useState(1);
   return (
     <Screen title={t("Pilih yang paling pas.", "Find your best fit.")}>
+      {next && <Btn secondary label={t("Kembali ke paket", "Back to packages")} onPress={() => router.replace(nativeReturnPath(next) as never)} />}
+      {resolved.error && <><Txt style={styles.error}>{resolved.error}</Txt><Btn secondary label={t("Coba lagi", "Retry")} onPress={resolved.reload} /></>}
       <Txt>
         {t(
           "Jumlah porsi sama untuk setiap paket.",
@@ -491,8 +298,7 @@ export function Comparison() {
         )}
       </Txt>
       <Qty value={qty} onChange={setQty} />
-      {offers
-        .filter((o) => compare.includes(o.id))
+      {selected
         .map((o) => (
           <Panel key={o.id}>
             <Photo src={o.image} height={150} />

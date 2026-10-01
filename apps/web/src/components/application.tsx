@@ -27,6 +27,7 @@ import {
   Leaf,
   LayoutDashboard,
   Image as ImageIcon,
+  Bookmark,
 } from "lucide-react";
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import {
@@ -40,6 +41,8 @@ import { Provider, CatalogProvider, useApp, api, useResource } from "./context";
 import { Button } from "./form-controls";
 import { Brand, ErrorNotice, Dialog } from "./ui";
 import { LocaleSwitch } from "./locale-switch";
+import { SavedPackagesPage } from "./saved-packages";
+import { SavedProvider } from "./saved-context";
 import { catalogHref, howItWorksHref } from "@/lib/navigation";
 import { canSwitchWorkspace } from "@/lib/workspace";
 import { validDay } from "@/lib/meal-calendar";
@@ -93,7 +96,7 @@ export function ApplicationLayout({
       demo={demo}
       initialLocale={locale}
     >
-      <Shell
+      <SavedProvider><Shell
         operational={
           (root === "seller" &&
             workspace === "caterer" &&
@@ -103,7 +106,7 @@ export function ApplicationLayout({
         }
       >
         {children}
-      </Shell>
+      </Shell></SavedProvider>
     </Provider>
   );
 }
@@ -125,6 +128,7 @@ function App({ path, issue }: { path: string[]; issue: string | null }) {
   else if (root === "packages") body = <PackagePage slug={id} />;
   else if (root === "caterers") body = <CatererPage slug={id} />;
   else if (root === "compare") body = <Compare />;
+  else if (root === "saved") body = <SavedPackagesPage />;
   else if (root === "checkout") body = <CheckoutPage id={id} />;
   else if (root === "payment") body = <PaymentPage id={id} />;
   else if (root === "deliveries") body = <DeliveryPage id={id} />;
@@ -562,6 +566,9 @@ function Shell({
               </CatererEntry>
             </nav>
             <div className="header-actions">
+              <Link href="/saved" className="saved-entry">
+                <Bookmark size={18} aria-hidden="true" /><span>{t("Tersimpan", "Saved")}</span>
+              </Link>
               <LocaleSwitch />
               {actor ? (
                 <>
@@ -634,6 +641,7 @@ function Shell({
               "categories",
               "packages",
               "caterers",
+              "saved",
             ].includes(root) && (
               <aside
                 className="compare-floating"
@@ -642,7 +650,7 @@ function Shell({
                 <span>
                   {compare.length} {t("paket dipilih", "packages selected")}
                 </span>
-                <Link className="button small" href="/compare">
+                <Link className="button small" href={"/compare?next=" + encodeURIComponent(pathname + (searchParams.size ? "?" + searchParams.toString() : "") + (pathname === "/" ? "#packages" : ""))}>
                   {t("Bandingkan", "Compare")}
                   <ArrowUpRight size={16} />
                 </Link>

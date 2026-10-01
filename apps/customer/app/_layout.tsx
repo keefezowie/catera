@@ -5,6 +5,7 @@ import { View, Text } from "react-native";
 import { MascotLoading } from "../src/mascot-loading";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { NativeProvider, useNative } from "../src/context";
+import { NativeSavedProvider } from "../src/saved";
 
 function Navigation() {
   const { t } = useNative();
@@ -57,6 +58,7 @@ function Navigation() {
           name="compare"
           options={{ title: t("Bandingkan paket", "Compare packages") }}
         />
+        <Stack.Screen name="saved" options={{ title: t("Paket tersimpan", "Saved packages") }} />
         <Stack.Screen
           name="notifications"
           options={{ title: t("Notifikasi", "Notifications") }}
@@ -79,7 +81,7 @@ export default function Layout() {
   return (
     <SafeAreaProvider>
       <NativeProvider>
-        <Navigation />
+        <NativeSavedProvider><Navigation /></NativeSavedProvider>
       </NativeProvider>
     </SafeAreaProvider>
   );

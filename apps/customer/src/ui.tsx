@@ -1,4 +1,5 @@
 import { PackagePreview } from "./package-preview";
+import { NativeSaveButton } from "./saved";
 import {
   menuSummary,
   packageTypeLabel,
@@ -517,7 +518,7 @@ export function Empty({
     </View>
   );
 }
-export function Gate({ children }: { children: ReactNode }) {
+export function Gate({ children, next }: { children: ReactNode; next?: string }) {
   const { actor, ready, error, refresh, t } = useNative();
   const [focused, setFocused] = useState(false);
   useFocusEffect(
@@ -555,7 +556,7 @@ export function Gate({ children }: { children: ReactNode }) {
         />
         <Btn
           label={t("Masuk / Daftar", "Sign in / Sign up")}
-          onPress={() => router.push("/login")}
+          onPress={() => router.push(next ? { pathname: "/login", params: { next } } : "/login")}
         />
         <Btn
           secondary
@@ -566,12 +567,12 @@ export function Gate({ children }: { children: ReactNode }) {
     );
   return children;
 }
-export function OfferCard({ offer: o }: { offer: Offer }) {
+export function OfferCard({ offer: o, returnPath }: { offer: Offer; returnPath?: string }) {
   const { compare, toggleCompare, area, locale, t } = useNative();
   const [meal, setMeal] = useState("lunch");
   const compared = compare.includes(o.id);
   const outside = !!area && !o.areas.includes(area);
-  const open = () => router.push(("/package/" + o.id) as never);
+  const open = () => router.push(("/package/" + o.id + (returnPath ? "?next=" + encodeURIComponent(returnPath) : "")) as never);
   return (
     <View style={styles.offer}>
       <View>
@@ -601,6 +602,7 @@ export function OfferCard({ offer: o }: { offer: Offer }) {
         )}
       </View>
       <View style={[styles.offerBody, { gap: 20 }]}>
+        <NativeSaveButton packageId={o.id} name={o.name} returnPath={returnPath} />
         <View style={{ gap: 5 }}>
           <View
             style={{

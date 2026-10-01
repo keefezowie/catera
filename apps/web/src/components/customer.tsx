@@ -1445,6 +1445,7 @@ export function Account({ view }: { view: string }) {
                   t("Langganan saya", "My subscriptions"),
                   Package,
                 ],
+                ["/saved", t("Paket tersimpan", "Saved packages"), Package],
                 ["/messages", t("Pesan", "Messages"), MessageCircle],
                 ["/notifications", t("Notifikasi", "Notifications"), Bell],
               ].map(([href, label, Icon]) => {

@@ -1,7 +1,7 @@
 import type { Actor } from "@catera/domain";
 
 export const catalogHref = "/#packages";
-export const howItWorksHref = "/#how-it-works";
+export const howItWorksHref = "/?view=list#how-it-works";
 
 /** Keep post-auth navigation inside this app, including encoded/backslash cases. */
 export function safeReturnPath(

@@ -312,6 +312,7 @@ export const nativeLink = (href: string) => {
   if (choice) return "/subscriptions/" + choice[1];
   if (href === "/#packages") return "/discover";
   if (href === "/#how-it-works") return "/discover?section=how-it-works";
+  if (href === "/?view=list#how-it-works") return "/discover?view=list&section=how-it-works";
   return href
     .replace(/^\/deliveries\//, "/delivery/")
     .replace(/^\/packages\//, "/package/")

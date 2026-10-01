@@ -15,6 +15,7 @@ const routes = [
   "packages",
   "caterers",
   "compare",
+  "saved",
   "login",
   "register",
   "forgot-password",
@@ -50,6 +51,7 @@ export async function generateMetadata({
           ? {
               discover: "Explore catering",
               home: "My meals",
+              saved: "Saved packages",
               calendar: "Meal calendar",
               seller: "Caterer workspace",
               admin: "Catera Admin",
@@ -61,6 +63,7 @@ export async function generateMetadata({
           : {
               discover: "Jelajah katering",
               home: "Makanan saya",
+              saved: "Paket tersimpan",
               calendar: "Jadwal makan",
               seller: "Ruang katerer",
               admin: "Catera Admin",
@@ -107,6 +110,7 @@ export default async function Page({
   if (
     [
       "checkout",
+      "saved",
       "renew",
       "claim",
       "payment",

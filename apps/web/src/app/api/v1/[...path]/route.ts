@@ -28,6 +28,7 @@ import {
 } from "@catera/backend";
 import {
   addressSchema,
+  savedPackageSchema,
   packageOptionSchema,
   customerMenuSaveSchema,
   customerMenuResetSchema,
@@ -157,6 +158,8 @@ export async function GET(request: Request, context: Context) {
     if (
       ![
         "catalog",
+        "saved-packages",
+        "offer",
         "renewal-context",
         "seller-customers",
         "seller-attention",
@@ -191,6 +194,19 @@ export async function GET(request: Request, context: Context) {
     )
       throw new Error("NOT_FOUND");
     if (path[1]) params.id = path[1];
+    if (resource === "offer") z.string().min(1).max(100).parse(params.id);
+    if (resource === "saved-packages") {
+      if (!s.id) throw new Error("UNAUTHORIZED");
+      params.limit = z.coerce.number().int().min(1).max(100)
+        .parse(params.limit ?? 50).toString();
+      if (params.cursor) {
+        if (params.cursor.length > 300) throw new Error("INVALID_INPUT");
+        let cursor: unknown;
+        try { cursor = JSON.parse(params.cursor); } catch { throw new Error("INVALID_INPUT"); }
+        z.object({ at: z.string().datetime({ offset: true }), id: z.string().uuid() })
+          .strict().parse(cursor);
+      }
+    }
     if (resource === "customer-actions") {
       params.limit = z.coerce
         .number()
@@ -479,6 +495,8 @@ export async function POST(request: Request, context: Context) {
     }
     if (path[0] === "commands") {
       const command = commandSchema.parse(a);
+      if (command.action === "savedPackage.set")
+        command.payload = savedPackageSchema.parse(command.payload);
       // New accountless prepaid customers are created atomically by import.commit.
       // Keep standalone manual acquisition retired.
       if (command.action === "customer.save" && !command.payload.id)

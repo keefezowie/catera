@@ -731,6 +731,7 @@ export function AccountScreen() {
           icon="location-outline"
           onPress={() => router.push("/addresses")}
         />
+        <Btn secondary label={t("Paket tersimpan", "Saved packages")} icon="bookmark-outline" onPress={() => router.push("/saved")} />
         <Btn
           secondary
           label={t("Notifikasi", "Notifications")}

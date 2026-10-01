@@ -49,7 +49,7 @@ export function nativeReturnPath(value?: string): string {
     if (!value.startsWith("/") || url.origin !== "https://catera.invalid")
       return "/";
     if (
-      !/^\/(?:discover|calendar|messages|account|addresses|notifications|support|compare|(?:checkout|payment|package|delivery|subscriptions)\/[^/]+)?$/.test(
+      !/^\/(?:discover|calendar|messages|account|addresses|notifications|support|compare|saved|(?:checkout|payment|package|delivery|subscriptions)\/[^/]+)?$/.test(
         url.pathname,
       )
     )

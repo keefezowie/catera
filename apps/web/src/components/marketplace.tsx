@@ -4,6 +4,10 @@ import { ChoiceRules, PackageChoiceLibrary } from "./package-choice-library";
 import "./package-presentation.css";
 import "./catalog.css";
 import { FeaturedHero } from "./featured-hero";
+import { SaveButton } from "./saved-context";
+import { useSaved } from "./saved-context";
+import { DiscoveryFeed, DiscoveryMode, useDiscoveryView, useFeedHeight } from "./discovery-feed";
+import { safeReturnPath } from "@/lib/navigation";
 import { useContentMotion } from "./motion";
 import { Select, SelectOption } from "./select";
 import { PackagePreview } from "./package-preview";
@@ -56,7 +60,7 @@ import {
 } from "@catera/domain";
 import { useApp, api, useResource } from "./context";
 import { Button, Checkbox, TextInput } from "./form-controls";
-import { Heading, Empty, ErrorNotice, Facts } from "./ui";
+import { Heading, Empty, ErrorNotice, Facts, Loading, Dialog } from "./ui";
 import { NumericInput } from "./numeric-input";
 
 function DeliveryCoverage({
@@ -120,6 +124,7 @@ export function PackageCard({
       }
     >
       <div className="package-image">
+        <SaveButton packageId={offer.id} name={offer.name} disabled={preview} className="card-save" />
         <Link href={"/packages/" + offer.slug} {...navigation}>
           <FoodImage
             src={offer.image}
@@ -243,10 +248,19 @@ export function PackageCard({
     </article>
   );
 }
+function CatalogFilters({ feed, close, children }: { feed: boolean; close: () => void; children: React.ReactNode }) {
+  const { t } = useApp();
+  return feed ? <Dialog open onOpenChange={open => { if (!open) close(); }} title={t("Filter paket", "Package filters")} className="discovery-filter-dialog">
+    {children}<Button variant="primary" onClick={close}>{t("Lihat paket", "Show packages")}</Button>
+  </Dialog> : children;
+}
 export function Catalog({ caterer }: { caterer?: string }) {
   const { offers, area, setArea, t, locale } = useApp();
   const pathname = usePathname();
   const params = useSearchParams();
+  const discovery = useDiscoveryView(pathname === "/" && process.env.NEXT_PUBLIC_CATERA_SWIPE_DISCOVERY !== "false");
+  const section = useRef<HTMLElement>(null);
+  useFeedHeight(discovery.feed, section);
   const { search, meal, packageType, flex, trial, diet, max, sort } =
     readCatalogQuery(params);
   const [filters, setFilters] = useState(false);
@@ -263,11 +277,12 @@ export function Catalog({ caterer }: { caterer?: string }) {
     const query = updateCatalogQuery(
       new URLSearchParams(window.location.search),
       patch,
-    ).toString();
+    );
+    query.delete("card");
     window.history.replaceState(
       null,
       "",
-      pathname + (query ? "?" + query : "") + window.location.hash,
+      pathname + (query.size ? "?" + query.toString() : "") + window.location.hash,
     );
   }
   function reset() {
@@ -354,17 +369,21 @@ export function Catalog({ caterer }: { caterer?: string }) {
     });
   return (
     <>
-      {pathname === "/" && <FeaturedHero />}
+      {pathname === "/" && !discovery.feed && <FeaturedHero />}
+      {discovery.fallback && <p className="discovery-fallback" role="status">
+        {t("Tampilan daftar digunakan agar semua informasi tetap terbaca.", "List view keeps all package information readable on this screen.")}
+      </p>}
       <section
+        ref={section}
         className={
-          "catalog-section" + (pathname !== "/" ? " catalog-discovery" : "")
+          "catalog-section" + (discovery.feed ? " catalog-feed" : "") + (pathname !== "/" ? " catalog-discovery" : "")
         }
         id="packages"
         aria-labelledby="catalog-heading"
       >
         <div className="section-heading catalog-heading">
           <div>
-            {pathname === "/" ? (
+            {pathname === "/" && !discovery.feed ? (
               <h2 id="catalog-heading">
                 {t("Paket katering", "Catering packages")}
               </h2>
@@ -380,6 +399,7 @@ export function Catalog({ caterer }: { caterer?: string }) {
               )}
             </p>
           </div>
+          {discovery.mobile && <DiscoveryMode feed={discovery.feed} choose={discovery.choose} />}
         </div>
         <div className="market-toolbar">
           <div className="delivery-selector">
@@ -388,7 +408,7 @@ export function Catalog({ caterer }: { caterer?: string }) {
               <span>{t("Area pengantaran", "Delivery area")}</span>
               <Select
                 value={area}
-                onValueChange={(value) => setArea(value)}
+                onValueChange={(value) => { setArea(value); update({}); }}
                 aria-label={t("Area pengantaran", "Delivery area")}
               >
                 <SelectOption value="">
@@ -487,6 +507,7 @@ export function Catalog({ caterer }: { caterer?: string }) {
           </div>
         </div>
         {filters && (
+          <CatalogFilters feed={discovery.feed} close={() => { setFilters(false); filterButton.current?.focus(); }}>
           <div
             id="marketplace-filters"
             className="filter-panel"
@@ -529,6 +550,7 @@ export function Catalog({ caterer }: { caterer?: string }) {
               {t("Hapus filter", "Reset filters")}
             </Button>
           </div>
+          </CatalogFilters>
         )}
         {!!activeFilters.length && (
           <div
@@ -589,11 +611,12 @@ export function Catalog({ caterer }: { caterer?: string }) {
             </Select>
           </label>
         </div>
-        <div ref={results} className="package-grid">
+        {!discovery.feed && <div ref={results} className="package-grid">
           {filtered.map((p) => (
             <PackageCard key={p.id} offer={p} />
           ))}
-        </div>
+        </div>}
+        {discovery.feed && filtered.length > 0 && <DiscoveryFeed offers={filtered} cannotFit={discovery.cannotFit} filtersOpen={filters} />}
         {!filtered.length && (
           <div className="catalog-empty">
             <Empty
@@ -612,7 +635,7 @@ export function Catalog({ caterer }: { caterer?: string }) {
           </div>
         )}
       </section>
-      <section className="how-it-works" id="how-it-works">
+      {!discovery.feed && <section className="how-it-works" id="how-it-works">
         <div>
           <h2>{t("Cara berlangganan", "How to subscribe")}</h2>
         </div>
@@ -649,7 +672,7 @@ export function Catalog({ caterer }: { caterer?: string }) {
             </p>
           </li>
         </ol>
-      </section>
+      </section>}
     </>
   );
 }
@@ -666,7 +689,13 @@ export function PackagePage({
   preview?: boolean;
 }) {
   const { offers, t, locale, area, compare, toggleCompare } = useApp();
-  const p = offer || offers.find((x) => x.slug === slug || x.id === slug);
+  const saved = useSaved();
+  const params = useSearchParams();
+  const publicOffer = useResource<{ offer: Offer | null }>("offer:" + slug,
+    () => preview || offer ? Promise.resolve({ offer: offer || null }) : api.offer(slug));
+  const p = offer || (publicOffer.data ? publicOffer.data.offer :
+    offers.find((x) => x.slug === slug || x.id === slug)
+    || saved.items.find(x => x.offer?.slug === slug || x.packageId === slug)?.offer);
   const [portions, setPortions] = useState(1);
   const [bookingPassed, setBookingPassed] = useState(false);
   const bookingRef = useRef<HTMLElement>(null);
@@ -722,6 +751,8 @@ export function PackagePage({
       document.body.style.removeProperty("--mobile-purchase-clearance");
     };
   }, [bookingPassed, preview, p?.id]);
+  if (!p && publicOffer.loading) return <Loading />;
+  if (!p && publicOffer.error) return <ErrorNotice message={publicOffer.error} retry={publicOffer.reload} />;
   if (!p)
     return (
       <Empty
@@ -743,7 +774,7 @@ export function PackagePage({
   return (
     <div inert={preview} className="content package-detail">
       <div className="breadcrumbs">
-        <Link href="/#packages">{t("Jelajah", "Discover")}</Link>
+        <Link href={safeReturnPath(params.get("next")) || "/#packages"}>{t("Jelajah", "Discover")}</Link>
         <span>/</span>
         <Link href={"/caterers/" + p.catererSlug}>{p.caterer}</Link>
         <span>/</span>
@@ -1018,6 +1049,7 @@ export function PackagePage({
               {currency(p.trialPrice * portions, locale)}
             </Link>
           )}
+          <SaveButton packageId={p.id} name={p.name} disabled={preview} />
           <Button
             className="text-button centered"
             onClick={() => toggleCompare(p.id)}
@@ -1061,9 +1093,12 @@ export function PackagePage({
 }
 export function Compare() {
   const { offers, compare, toggleCompare, t, locale } = useApp();
+  const params = useSearchParams();
+  const resolved = useResource<{ offer: Offer | null }[]>("compare-offers:" + compare.join(","),
+    () => Promise.all(compare.map(id => api.offer(id))));
   const [portionValue, setPortionValue] = useState(1);
   const portions = Math.max(1, Math.min(100, portionValue || 1));
-  const selected = offers.filter((p) => compare.includes(p.id));
+  const selected = resolved.data ? resolved.data.flatMap(x => x.offer ? [x.offer] : []) : offers.filter((p) => compare.includes(p.id));
   return (
     <div className="content">
       <Heading
@@ -1073,6 +1108,8 @@ export function Compare() {
           "Compare up to 3 packages using the same portion quantity.",
         )}
       />
+      <Link className="text-button" href={safeReturnPath(params.get("next")) || "/#packages"}>{t("Kembali ke paket", "Back to packages")}</Link>
+      {resolved.error && <ErrorNotice message={resolved.error} retry={resolved.reload} />}
       {selected.length ? (
         <>
           <label className="inline-field">
