@@ -63,12 +63,18 @@ export function paymentPresentation(
       action: "contact_support",
       preventDuplicatePayment: true,
     };
-  if (input.checkoutState === "paid" && input.hasSubscription)
-    return {
-      phase: "paid",
-      action: "view_calendar",
-      preventDuplicatePayment: true,
-    };
+  if (input.checkoutState === "paid")
+    return input.hasSubscription
+      ? {
+          phase: "paid",
+          action: "view_calendar",
+          preventDuplicatePayment: true,
+        }
+      : {
+          phase: "checking",
+          action: "check_status",
+          preventDuplicatePayment: true,
+        };
   if (["failed", "expired"].includes(input.checkoutState))
     return {
       phase: "expired",

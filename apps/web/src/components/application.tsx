@@ -41,12 +41,13 @@ import { Button } from "./form-controls";
 import { Brand, ErrorNotice, Dialog } from "./ui";
 import { LocaleSwitch } from "./locale-switch";
 import { catalogHref, howItWorksHref } from "@/lib/navigation";
+import { canSwitchWorkspace } from "@/lib/workspace";
 import { validDay } from "@/lib/meal-calendar";
 import { Catalog, PackagePage, Compare, CatererPage } from "./marketplace";
 import { Customer, DeliveryPage, Messages, Account, Support } from "./customer";
 import { CheckoutPage, PaymentPage } from "./purchase";
 import { Login } from "./authentication";
-import { ProfileMenu } from "./profile-menu";
+import { CatererEntry, ProfileMenu } from "./profile-menu";
 import { Notifications } from "./notifications";
 import { RouteMotion } from "./motion";
 import dynamic from "next/dynamic";
@@ -94,8 +95,11 @@ export function ApplicationLayout({
     >
       <Shell
         operational={
-          ["seller", "admin"].includes(root) &&
-          pathname !== "/seller/onboarding"
+          (root === "seller" &&
+            workspace === "caterer" &&
+            canSwitchWorkspace(actor) &&
+            pathname !== "/seller/onboarding") ||
+          (root === "admin" && actor?.role === "platform_admin")
         }
       >
         {children}
@@ -553,9 +557,9 @@ function Shell({
                   {t("Cara berlangganan", "How it works")}
                 </Link>
               )}
-              <Link href={actor?.catererId ? "/seller" : "/seller/onboarding"}>
+              <CatererEntry className="caterer-entry">
                 {t("Untuk katerer", "For caterers")} <ArrowUpRight size={13} />
-              </Link>
+              </CatererEntry>
             </nav>
             <div className="header-actions">
               <LocaleSwitch />

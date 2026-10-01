@@ -1,3 +1,303 @@
+.settingsLayout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  align-items: start;
+  gap: 32px;
+  max-width: 1120px;
+}
+
+.sectionNav {
+  display: grid;
+  gap: 4px;
+  position: sticky;
+  top: 116px;
+}
+
+.sectionNav a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.45;
+  text-decoration: none;
+}
+
+.sectionNav a > svg {
+  flex: 0 0 auto;
+}
+
+.sectionNav a > svg:last-child {
+  margin-left: auto;
+}
+
+.sectionNav a[aria-current] {
+  background: var(--soft);
+  color: var(--forest);
+}
+
+.sectionNav a:hover {
+  background: var(--soft);
+  color: var(--forest-hover);
+}
+
+.sectionNav a:active,
+.rowLink:active,
+.profileLink:active {
+  background: var(--line);
+}
+
+.sectionNav a:focus-visible,
+.rowLink:focus-visible,
+.profileLink:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+
+.settingsMain {
+  min-width: 0;
+}
+
+.settingsContent {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.settingsContent > :global(.panel) {
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  padding: 24px;
+  background: transparent;
+  scroll-margin-top: 116px;
+}
+
+.settingsContent > :global(.panel):last-child {
+  border-bottom: 0;
+}
+
+.settingsContent > :global(.panel) > h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 16px;
+  font-size: 1.125rem;
+  line-height: 1.45;
+}
+
+.settingsContent > :global(.panel) > h2 svg {
+  display: none;
+}
+
+.settingsContent :global(.form) {
+  align-items: start;
+  max-width: 66ch;
+}
+
+.settingsContent :global(.form) > :global(.button) {
+  justify-self: start;
+  width: auto;
+  max-width: 100%;
+}
+
+.settingsContent :global(.form) > p,
+.settingsContent > :global(.panel) > p {
+  max-width: 70ch;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.accountRows {
+  margin: 0;
+}
+
+.accountRow {
+  display: grid;
+  grid-template-columns: minmax(130px, 0.65fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 12px 24px;
+  min-height: 56px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.accountRow:first-child {
+  border-top: 0;
+}
+
+.accountRow dt {
+  color: var(--muted);
+}
+
+.accountRow dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.languageControl {
+  min-width: 0;
+  width: min(100%, 220px);
+}
+
+.rowLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  border-radius: 8px;
+  color: var(--forest);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.rowLink:hover {
+  color: var(--forest-hover);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.profileLink {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 60px;
+  margin: -4px -8px;
+  padding: 8px;
+  border-radius: 8px;
+  color: var(--forest);
+  text-decoration: none;
+}
+
+.profileLink:hover {
+  background: var(--soft);
+}
+
+.profileLink > span {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.profileLink strong {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.profileLink > span > span {
+  color: var(--muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.profileLink > svg {
+  flex: 0 0 auto;
+}
+
+.teamList {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.teamList li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.teamList li > span:last-child {
+  color: var(--muted);
+  flex: 0 0 auto;
+}
+
+.helpDisclosure {
+  border-top: 0;
+}
+
+.helpDisclosure > :global(.disclosure-body) {
+  padding-left: 0;
+}
+
+.sessionActions {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.sessionActions > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+}
+
+@media (max-width: 1100px) {
+  .settingsLayout {
+    grid-template-columns: 190px minmax(0, 1fr);
+    gap: 24px;
+  }
+}
+
+@media (max-width: 820px) {
+  .settingsLayout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+
+  .sectionNav {
+    position: static;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px 8px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .sectionNav a {
+    padding-inline: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .sectionNav {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .settingsContent > :global(.panel) {
+    padding: 20px 16px;
+  }
+
+  .teamList li {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 560px) {
+  .accountRow {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+    padding-block: 12px;
+  }
+}
+
 .staffInvite {
   display: grid;
   gap: 12px;

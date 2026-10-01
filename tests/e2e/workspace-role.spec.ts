@@ -101,8 +101,21 @@ test("seller accounts default to seller and can switch workspaces", async ({
     ).toEqual([]);
     await page.keyboard.press("Escape");
 
-    await page.goto("/seller");
-    await expect(page.locator(".ops-layout")).toBeVisible();
+    for (const route of [
+      "/seller",
+      "/seller/packages",
+      "/seller/settings",
+      "/seller/capacity",
+    ]) {
+      await page.goto(route);
+      await expect(page).toHaveURL("/");
+      await expect(page.locator(".ops-layout")).toHaveCount(0);
+      expect(
+        (await page.context().cookies()).find(
+          (cookie) => cookie.name === "catera_workspace",
+        )?.value,
+      ).toBe("customer");
+    }
     await page.goto("/");
     await page.getByRole("button", { name: "Buka menu akun" }).click();
     await page.getByRole("menuitemradio", { name: /Katerer/ }).click();
@@ -121,6 +134,7 @@ test("seller accounts default to seller and can switch workspaces", async ({
 
 test("customer accounts cannot select the caterer workspace", async ({
   page,
+  baseURL,
 }) => {
   await login(page, "customer");
   await page.goto("/");
@@ -137,4 +151,122 @@ test("customer accounts cannot select the caterer workspace", async ({
     data: { workspace: "caterer" },
   });
   expect(response.status()).toBe(403);
+  await page.context().addCookies([
+    {
+      name: "catera_workspace",
+      value: "caterer",
+      url: baseURL!,
+      httpOnly: true,
+    },
+  ]);
+  await page.goto("/seller");
+  // A streamed Next not-found response may have HTTP 200; assert denied UI.
+  await expect(
+    page.getByRole("heading", { name: "Halaman tidak ditemukan." }),
+  ).toBeVisible();
+  await expect(page.locator(".ops-layout")).toHaveCount(0);
+});
+
+for (const locale of ["id", "en"] as const) {
+  test(`seller entry switches customer mode before opening operations ${locale}`, async ({
+    page,
+    context,
+    baseURL,
+  }) => {
+    await login(page, "owner");
+    await context.addCookies([
+      { name: "catera_locale", value: locale, url: baseURL! },
+    ]);
+    await page.request.post("/api/v1/auth/workspace", {
+      data: { workspace: "customer" },
+    });
+    await page.goto("/");
+    const entry = page.getByRole("button", {
+      name: locale === "id" ? "Untuk katerer" : "For caterers",
+      exact: true,
+    });
+    let releaseFailure!: () => void;
+    const failedResponse = new Promise<void>((resolve) => {
+      releaseFailure = resolve;
+    });
+    const switchEndpoint = "**/api/v1/auth/workspace";
+    await page.route(switchEndpoint, async (route) => {
+      await failedResponse;
+      await route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "UNAVAILABLE" }),
+      });
+    });
+    await entry.click();
+    await expect(entry).toBeDisabled();
+    await expect(entry).toHaveAttribute("aria-busy", "true");
+    releaseFailure();
+    await expect(entry).toBeEnabled();
+    await expect(
+      page.getByText(
+        locale === "id"
+          ? "Ruang kerja belum berhasil diganti. Coba lagi."
+          : "The workspace could not be changed. Try again.",
+        { exact: true },
+      ),
+    ).toBeVisible();
+    await expect(page).toHaveURL("/");
+    await expect(page.locator(".ops-layout")).toHaveCount(0);
+    expect(
+      (await context.cookies()).find(
+        (cookie) => cookie.name === "catera_workspace",
+      )?.value,
+    ).toBe("customer");
+    await page.unroute(switchEndpoint);
+    await entry.click();
+    await expect(page).toHaveURL(/\/seller$/);
+    await page
+      .getByRole("button", {
+        name: locale === "id" ? "Buka menu akun" : "Open account menu",
+      })
+      .click();
+    await expect(
+      page.getByRole("menuitemradio", {
+        name: locale === "id" ? /Katerer/ : /Caterer/,
+      }),
+    ).toHaveAttribute("aria-checked", "true");
+    await page.screenshot({
+      path: `output/playwright/workspace-route-20261001/caterer-entry-${locale}.png`,
+    });
+    await page.request.post("/api/v1/auth/workspace", {
+      data: { workspace: "customer" },
+    });
+    await page.goto("/seller/onboarding");
+    await page
+      .getByRole("button", {
+        name:
+          locale === "id"
+            ? /Kembali ke ruang katerer/
+            : /Return to your workspace/,
+      })
+      .click();
+    await expect(page).toHaveURL(/\/seller$/);
+    expect(
+      (await context.cookies()).find(
+        (cookie) => cookie.name === "catera_workspace",
+      )?.value,
+    ).toBe("caterer");
+  });
+}
+
+test("staff customer mode blocks seller routes until explicitly switched", async ({
+  page,
+}) => {
+  await login(page, "staff");
+  await page.request.post("/api/v1/auth/workspace", {
+    data: { workspace: "customer" },
+  });
+  await page.goto("/seller/schedule");
+  await expect(page).toHaveURL("/");
+  await expect(page.locator(".ops-layout")).toHaveCount(0);
+  await page.getByRole("button", { name: "Buka menu akun" }).click();
+  await page.getByRole("menuitemradio", { name: /Katerer/ }).click();
+  await expect(page).toHaveURL(/\/seller$/);
+  await expect(page.locator(".ops-layout")).toBeVisible();
 });

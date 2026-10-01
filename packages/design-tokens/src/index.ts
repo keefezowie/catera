@@ -52,4 +52,11 @@ export const webVariables = {
   "--radius": radii.surface + "px",
   "--focus": focus.color,
   "--ease": motion.ease,
+  "--space-xs": spacing.xs + "px",
+  "--space-sm": spacing.sm + "px",
+  "--space-md": spacing.md + "px",
+  "--space-lg": spacing.lg + "px",
+  "--space-xl": spacing.xl + "px",
+  "--space-xxl": spacing.xxl + "px",
+  "--space-section": spacing.section + "px",
 };

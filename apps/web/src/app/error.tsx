@@ -13,7 +13,9 @@ export default function ErrorPage({ reset }: { reset: () => void }) {
           ? "Your data is still saved. Please try once more."
           : "Data Anda tetap tersimpan. Silakan coba sekali lagi."}
       </p>
-      <Button onClick={reset}>{english ? "Try again" : "Coba lagi"}</Button>
+      <Button variant="primary" onClick={reset}>
+        {english ? "Try again" : "Coba lagi"}
+      </Button>
     </main>
   );
 }

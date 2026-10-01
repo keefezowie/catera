@@ -538,14 +538,22 @@ td strong {
   font-size: 12px;
   font-weight: 650;
 }
-.desktop-nav a {
+.desktop-nav a,
+.desktop-nav .caterer-entry {
   display: flex;
   gap: 5px;
   align-items: center;
   min-height: 44px;
 }
+.desktop-nav button.caterer-entry {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-weight: inherit;
+}
 .desktop-nav a.selected,
-.desktop-nav a:hover {
+.desktop-nav a:hover,
+.desktop-nav .caterer-entry:hover {
   color: var(--forest);
 }
 .desktop-nav a.selected:after {
@@ -1331,6 +1339,22 @@ td strong {
   padding: 50px 24px;
   margin: auto;
 }
+.error-page {
+  display: grid;
+  gap: 20px;
+  width: min(100%, 640px);
+  margin: clamp(48px, 12vh, 120px) auto;
+  padding-inline: 24px;
+  overflow-wrap: anywhere;
+}
+.error-page h1 {
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  line-height: 1.3;
+}
+.error-page .button {
+  justify-self: start;
+  max-width: 100%;
+}
 .page-heading {
   display: flex;
   align-items: center;
@@ -2024,38 +2048,6 @@ td strong {
   gap: 12px;
   flex-wrap: wrap;
   margin: 26px 0;
-}
-.account-person {
-  display: flex;
-  gap: 24px;
-  align-items: center;
-  margin-bottom: 28px;
-}
-.account-person p {
-  font-size: 12px;
-  margin-top: 9px;
-}
-.account-links {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-.account-links > a,
-.account-links > button {
-  display: flex;
-  gap: 14px;
-  align-items: center;
-  padding: 20px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--surface);
-  color: var(--forest);
-  font-size: 12px;
-}
-.account-links > a > span,
-.account-links > button > span {
-  flex: 1;
-  text-align: left;
 }
 .address-card {
   padding: 22px;
@@ -3866,28 +3858,10 @@ td strong {
     min-width: 140px;
     font-size: 11px;
   }
-  .account-person {
-    gap: 16px;
-  }
   .large-avatar {
     width: 60px;
     height: 60px;
     font-size: 25px;
-  }
-  .account-person h2 {
-    font-size: 22px;
-  }
-  .account-person p {
-    font-size: 11px;
-  }
-  .account-links {
-    gap: 9px;
-    grid-template-columns: 1fr;
-  }
-  .account-links > a,
-  .account-links > button {
-    padding: 17px;
-    font-size: 12px;
   }
   .address-card {
     padding: 18px;

@@ -37,7 +37,7 @@ export function Disclosure({
           aria-hidden="true"
         />
       </summary>
-      <div className="disclosure-body">{children}</div>
+      <div className="disclosure-body flow">{children}</div>
     </details>
   );
 }

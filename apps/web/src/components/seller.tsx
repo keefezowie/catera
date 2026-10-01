@@ -5,6 +5,7 @@ import {
   DurationOptionsFields,
 } from "./package-duration-editor";
 import { SellerAccountSettings } from "./seller-account";
+import { CatererEntry } from "./profile-menu";
 import { SellerSettlement } from "./seller-settlement";
 import { SellerCustomers } from "./seller-customers";
 import { DeliveryIssues } from "./delivery-issues";
@@ -2748,10 +2749,10 @@ export function Onboarding() {
               "Your caterer workspace is ready.",
             )}
           </h2>
-          <Link className="button" href="/seller">
+          <CatererEntry className="button">
             {t("Kembali ke ruang katerer", "Return to your workspace")}{" "}
             <ArrowRight size={18} />
-          </Link>
+          </CatererEntry>
         </div>
       ) : (
         <section className="panel">

@@ -63,6 +63,8 @@ import {
 import { useApp, useResource, api, useWorkspaceDraft } from "./context";
 import { useJourneyQuery, useUnsavedDeparture } from "./journey-state";
 import { Button, TextArea, TextInput } from "./form-controls";
+import "./customer-account.css";
+import { CatererEntry } from "./profile-menu";
 import {
   Heading,
   Loading,
@@ -1382,6 +1384,26 @@ export function Account({ view }: { view: string }) {
   const params = useSearchParams();
   const state = useResource<CustomerState>("account", () => api.customer());
   const [editing, setEditing] = useState<Address | null | undefined>(undefined);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState("");
+  const logout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    setLogoutError("");
+    try {
+      await api.request("auth/logout", {});
+      location.assign("/");
+    } catch {
+      setLogoutError(
+        t(
+          "Gagal keluar. Sesi masih aktif; coba lagi.",
+          "Sign out failed. Your session remains open; try again.",
+        ),
+      );
+    } finally {
+      setLoggingOut(false);
+    }
+  };
   if (!state.data)
     return state.error ? (
       <ErrorNotice message={state.error} retry={state.reload} />
@@ -1390,7 +1412,11 @@ export function Account({ view }: { view: string }) {
     );
   const c = state.data;
   return (
-    <div className="content narrow-wide">
+    <div
+      className={
+        "content account-page " + (view === "addresses" ? "addresses-page" : "")
+      }
+    >
       <Heading
         title={
           view === "addresses"
@@ -1399,92 +1425,161 @@ export function Account({ view }: { view: string }) {
         }
       />
       <RefreshNotice error={state.error} reload={state.reload} />
-      {view === "account" && (
-        <>
-          <div className="account-person">
-            <span className="large-avatar">{actor?.name[0]}</span>
-            <div>
+      <div className="account-layout">
+        {view === "account" && (
+          <aside className="account-sidebar">
+            <div className="account-identity">
+              <span className="account-avatar" aria-hidden="true">
+                {actor?.name[0]}
+              </span>
               <h2>{actor?.name}</h2>
             </div>
-          </div>
-          <div className="account-links">
-            {[
-              [
-                "/subscriptions",
-                t("Langganan saya", "My subscriptions"),
-                Package,
-              ],
-              ["/notifications", t("Notifikasi", "Notifications"), Bell],
-              [
-                "/support",
-                t("Bantuan & pembatalan", "Support & cancellation"),
-                LifeBuoy,
-              ],
-              ["/messages", t("Pesan", "Messages"), MessageCircle],
-              ...(actor?.catererId
-                ? [
-                    [
-                      "/seller",
-                      t("Ruang katerer", "Caterer workspace"),
-                      Settings,
-                    ],
-                  ]
-                : []),
-            ].map(([href, label, Icon]) => {
-              const I = Icon as typeof Bell;
-              return (
-                <Link key={href as string} href={href as string}>
-                  <I size={20} />
-                  <span>{label as string}</span>
-                  <ArrowUpRight size={17} />
-                </Link>
-              );
-            })}
-            <Button onClick={() => setLocale(locale === "id" ? "en" : "id")}>
-              <span>{t("Bahasa", "Language")}</span>
-              <strong>{locale === "id" ? "Indonesia" : "English"}</strong>
-            </Button>
-          </div>
-        </>
-      )}
-      <div className="section-heading spaced">
-        <h2>{t("Alamat tersimpan", "Saved addresses")}</h2>
-        <Button
-          className="button secondary small"
-          onClick={() => setEditing(null)}
-        >
-          <Plus size={17} />
-          {t("Tambah alamat", "Add address")}
-        </Button>
-      </div>
-      {c.addresses.map((a) => (
-        <div className="address-card" key={a.id}>
-          <MapPin size={22} />
-          <div>
-            <h3>{a.label}</h3>
-            <p>{a.line}</p>
-            <p>
-              {a.area}, {a.city}
-            </p>
-            <small>{a.instructions}</small>
-          </div>
-          <Button className="text-button" onClick={() => setEditing(a)}>
-            {t("Ubah", "Edit")}
-          </Button>
+            <nav
+              className="account-navigation"
+              aria-label={t("Navigasi akun", "Account navigation")}
+            >
+              <h3>{t("Makanan saya", "My meals")}</h3>
+              {[
+                [
+                  "/subscriptions",
+                  t("Langganan saya", "My subscriptions"),
+                  Package,
+                ],
+                ["/messages", t("Pesan", "Messages"), MessageCircle],
+                ["/notifications", t("Notifikasi", "Notifications"), Bell],
+              ].map(([href, label, Icon]) => {
+                const I = Icon as typeof Bell;
+                return (
+                  <Link key={href as string} href={href as string}>
+                    <I size={18} aria-hidden="true" />
+                    <span>{label as string}</span>
+                    <ChevronRight size={16} aria-hidden="true" />
+                  </Link>
+                );
+              })}
+              <h3>{t("Bantuan", "Support")}</h3>
+              <Link href="/support">
+                <LifeBuoy size={18} aria-hidden="true" />
+                <span>
+                  {t("Bantuan & pembatalan", "Support & cancellation")}
+                </span>
+                <ChevronRight size={16} aria-hidden="true" />
+              </Link>
+              {actor?.catererId && (
+                <>
+                  <h3>{t("Usaha katering", "Catering business")}</h3>
+                  <CatererEntry>
+                    <Settings size={18} aria-hidden="true" />
+                    <span>{t("Ruang katerer", "Caterer workspace")}</span>
+                    <ChevronRight size={16} aria-hidden="true" />
+                  </CatererEntry>
+                </>
+              )}
+            </nav>
+          </aside>
+        )}
+        <div className="account-settings">
+          {view === "addresses" && (
+            <Link className="account-back text-button" href="/account">
+              <ArrowLeft size={17} aria-hidden="true" />{" "}
+              {t("Kembali ke akun", "Back to account")}
+            </Link>
+          )}
+          <section
+            className="account-section"
+            aria-labelledby="saved-addresses-title"
+          >
+            <div className="account-section-heading">
+              <h2 id="saved-addresses-title">
+                {t("Alamat tersimpan", "Saved addresses")}
+              </h2>
+              <Button
+                className="button secondary small"
+                onClick={() => setEditing(null)}
+              >
+                <Plus size={17} />
+                {t("Tambah alamat", "Add address")}
+              </Button>
+            </div>
+            {c.addresses.length === 0 && (
+              <div className="account-address-empty">
+                <MapPin size={22} aria-hidden="true" />
+                <div>
+                  <strong>
+                    {t("Belum ada alamat tersimpan", "No saved addresses yet")}
+                  </strong>
+                  <p>
+                    {t(
+                      "Tambahkan alamat untuk digunakan saat memesan.",
+                      "Add an address to use when ordering.",
+                    )}
+                  </p>
+                </div>
+              </div>
+            )}
+            {c.addresses.map((a) => (
+              <div className="address-card" key={a.id}>
+                <MapPin size={20} aria-hidden="true" />
+                <div>
+                  <h3>{a.label}</h3>
+                  <p>{a.line}</p>
+                  <p>
+                    {a.area}, {a.city}
+                  </p>
+                  <small>{a.instructions}</small>
+                </div>
+                <Button className="text-button" onClick={() => setEditing(a)}>
+                  {t("Ubah", "Edit")}
+                </Button>
+              </div>
+            ))}
+          </section>
+          {view === "account" && (
+            <>
+              <section
+                className="account-section"
+                aria-labelledby="account-preferences-title"
+              >
+                <div className="account-section-heading">
+                  <h2 id="account-preferences-title">
+                    {t("Preferensi", "Preferences")}
+                  </h2>
+                </div>
+                <div className="account-setting-row">
+                  <label id="account-language-label" htmlFor="account-language">
+                    {t("Bahasa", "Language")}
+                  </label>
+                  <Select
+                    id="account-language"
+                    aria-labelledby="account-language-label"
+                    value={locale}
+                    onValueChange={(value) => setLocale(value as Locale)}
+                  >
+                    <SelectOption value="id">Bahasa Indonesia</SelectOption>
+                    <SelectOption value="en">English</SelectOption>
+                  </Select>
+                </div>
+              </section>
+              <div className="account-session">
+                <Button
+                  variant="text"
+                  onClick={logout}
+                  disabled={loggingOut}
+                  aria-busy={loggingOut}
+                >
+                  <LogOut size={17} aria-hidden="true" />
+                  {loggingOut
+                    ? t("Sedang keluar…", "Signing out…")
+                    : t("Keluar", "Sign out")}
+                </Button>
+                {logoutError && (
+                  <ErrorNotice message={logoutError} retry={logout} />
+                )}
+              </div>
+            </>
+          )}
         </div>
-      ))}
-      {view === "account" && (
-        <Button
-          className="text-button spaced danger"
-          onClick={async () => {
-            await api.request("auth/logout", {});
-            location.assign("/");
-          }}
-        >
-          <LogOut size={17} />
-          {t("Keluar", "Sign out")}
-        </Button>
-      )}
+      </div>
       <Dialog
         open={editing !== undefined}
         onOpenChange={(open) => {

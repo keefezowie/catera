@@ -24,6 +24,23 @@ beforeAll(async () => {
 });
 afterAll(async () => db?.close());
 
+it("returns a normal empty home and action feed for a newly registered customer", async () => {
+  const fresh = crypto.randomUUID();
+  await cmd(fresh, "profile.ensure", { name: "Synthetic fresh customer" });
+  const customer = await read(fresh, "customer");
+  expect(customer).toMatchObject({
+    addresses: [],
+    subscriptions: [],
+    deliveries: [],
+    notifications: [],
+    cases: [],
+  });
+  expect(await read(fresh, "customer-actions", { limit: 20 })).toEqual({
+    total: 0,
+    items: [],
+  });
+});
+
 it("isolates customer actions and returns a stable priority order", async () => {
   const checkout = await cmd(U.customer, "checkout.create", {
     acceptedTerms: true,

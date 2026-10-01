@@ -1,7 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
 import { Check, ChefHat, LogOut, UserRound } from "lucide-react";
 import type { WorkspaceMode } from "@catera/domain";
 import { canSwitchWorkspace } from "@/lib/workspace";
@@ -17,6 +23,49 @@ const workspaceOptions: {
   { value: "caterer", id: "Katerer", en: "Caterer" },
   { value: "customer", id: "Pelanggan", en: "Customer" },
 ];
+
+/** Entering seller operations is an explicit workspace switch, not a plain link. */
+export function CatererEntry({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  const { actor, t, notify } = useApp();
+  const [pending, setPending] = useState(false);
+  if (!canSwitchWorkspace(actor))
+    return (
+      <Link href="/seller/onboarding" className={className}>
+        {children}
+      </Link>
+    );
+  return (
+    <Button
+      type="button"
+      className={className}
+      disabled={pending}
+      aria-busy={pending || undefined}
+      onClick={async () => {
+        setPending(true);
+        try {
+          await api.request("auth/workspace", { workspace: "caterer" });
+          location.assign("/seller");
+        } catch {
+          setPending(false);
+          notify(
+            t(
+              "Ruang kerja belum berhasil diganti. Coba lagi.",
+              "The workspace could not be changed. Try again.",
+            ),
+          );
+        }
+      }}
+    >
+      {children}
+    </Button>
+  );
+}
 
 export function ProfileMenu() {
   const { actor, workspace, t } = useApp();

@@ -1,0 +1,225 @@
+.content.account-page {
+  max-width: 1120px;
+}
+
+.account-page .page-heading h1 {
+  font-size: 1.75rem;
+}
+
+.account-layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 48px;
+  align-items: start;
+}
+
+.account-sidebar,
+.account-settings {
+  min-width: 0;
+}
+
+.account-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--line);
+}
+
+.account-avatar {
+  display: grid;
+  place-items: center;
+  flex: 0 0 48px;
+  height: 48px;
+  background: var(--soft);
+  color: var(--forest);
+  border-radius: 50%;
+  font-size: 1.25rem;
+  font-weight: 750;
+}
+
+.account-identity h2 {
+  font-size: 1rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.account-navigation h3 {
+  margin: 24px 12px 8px;
+  font-size: 0.75rem;
+  font-weight: 650;
+  color: var(--muted);
+}
+
+.account-navigation :is(a, button) {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--forest);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  text-align: left;
+}
+
+.account-navigation :is(a, button) span {
+  flex: 1;
+}
+
+.account-navigation :is(a, button) svg,
+.account-address-empty > svg,
+.account-page .address-card > svg {
+  flex-shrink: 0;
+}
+
+.account-navigation :is(a, button:not(:disabled)):is(:hover, :active) {
+  background: var(--soft);
+}
+.account-navigation button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.account-section {
+  margin-bottom: 24px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  overflow-wrap: anywhere;
+}
+
+.account-section-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.account-section-heading h2 {
+  font-size: 1rem;
+}
+
+.account-section-heading .button {
+  margin: 0;
+}
+
+.account-page .address-card {
+  margin: 0;
+  padding: 20px;
+  border: 0;
+  border-radius: 0;
+  gap: 12px;
+}
+
+.account-page .address-card + .address-card {
+  border-top: 1px solid var(--line);
+}
+
+.account-page .address-card > div {
+  min-width: 0;
+}
+
+.account-page .address-card h3 {
+  font-size: 0.875rem;
+}
+
+.account-page .address-card p,
+.account-page .address-card small {
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+
+.account-page .address-card .text-button {
+  min-height: 44px;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.account-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px;
+  font-size: 0.875rem;
+}
+
+.account-setting-row .select-trigger {
+  width: 200px;
+  max-width: 100%;
+}
+
+.account-address-empty {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 24px 20px;
+  color: var(--forest);
+  font-size: 0.875rem;
+}
+
+.account-address-empty p {
+  margin-top: 6px;
+  color: var(--muted);
+}
+
+.account-session .text-button,
+.account-back {
+  min-height: 44px;
+}
+
+.account-session .text-button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.addresses-page .account-layout {
+  display: block;
+  max-width: 760px;
+}
+
+.account-back {
+  margin-bottom: 16px;
+}
+
+@media (max-width: 760px) {
+  .account-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+  }
+
+  .account-identity {
+    padding-bottom: 16px;
+  }
+
+  .account-navigation h3 {
+    margin-top: 20px;
+  }
+
+  .account-section-heading,
+  .account-page .address-card,
+  .account-setting-row,
+  .account-address-empty {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 380px) {
+  .account-setting-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .account-setting-row .select-trigger {
+    width: 100%;
+  }
+}

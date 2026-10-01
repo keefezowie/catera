@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { paymentPresentation } from "@catera/domain";
+import { paymentPresentation, type PaymentView } from "@catera/domain";
 
 const future = "2099-01-01T00:00:00.000Z";
 
@@ -52,4 +52,41 @@ describe("payment presentation", () => {
       preventDuplicatePayment: true,
     });
   });
+
+  it.each([
+    {
+      detail: "a hosted payment link remains",
+      expiresAt: future,
+      hasPaymentUrl: true,
+    },
+    {
+      detail: "the old payment deadline has passed",
+      expiresAt: "2000-01-01T00:00:00.000Z",
+      hasPaymentUrl: true,
+    },
+    {
+      detail: "direct instructions still report awaiting payment",
+      expiresAt: future,
+      payment: {
+        mode: "direct",
+        status: "awaiting_payment",
+        selectedMethod: "QRIS",
+      } satisfies Pick<PaymentView, "mode" | "status" | "selectedMethod">,
+    },
+  ])(
+    "checks the booking after payment when $detail",
+    ({ detail, ...input }) => {
+      expect(
+        paymentPresentation({
+          ...input,
+          checkoutState: "paid",
+          hasSubscription: false,
+        }),
+      ).toEqual({
+        phase: "checking",
+        action: "check_status",
+        preventDuplicatePayment: true,
+      });
+    },
+  );
 });

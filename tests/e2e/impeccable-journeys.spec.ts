@@ -1,5 +1,10 @@
 import { test, expect, type Page } from "@playwright/test";
-import { addDays, localDay } from "@catera/domain";
+import {
+  addDays,
+  localDay,
+  purchaseStartAvailable,
+  type Offer,
+} from "@catera/domain";
 import { mkdir } from "node:fs/promises";
 import AxeBuilder from "@axe-core/playwright";
 
@@ -309,30 +314,43 @@ for (const locale of ["id", "en"] as const) {
       const customer = (
         await (await page.request.get("/api/v1/customer")).json()
       ).data;
+      const catalog = (
+        await (await page.request.get("/api/v1/catalog?limit=100")).json()
+      ).data.items as Offer[];
+      const offer = catalog.find(
+        (p) => p.id === "20000000-0000-4000-8000-000000000001",
+      )!;
+      expect(offer).toBeTruthy();
+      const startDate = Array.from({ length: 14 }, (_, offset) =>
+        addDays(localDay(), offset + 2),
+      ).find((date) => purchaseStartAvailable(offer, date));
+      expect(startDate).toBeTruthy();
       const subscription = customer.subscriptions.find(
         (s: any) =>
-          s.package_id === "20000000-0000-4000-8000-000000000001" &&
+          s.package_id === offer.id &&
           s.status === "active" &&
-          s.ends_on >= addDays(localDay(), 2),
+          s.starts_on <= startDate! &&
+          s.ends_on >= startDate!,
       );
       expect(subscription).toBeTruthy();
       await page.route("**/api/v1/quote", (route) =>
         route.fulfill({ status: 409, json: { error: { code: "OVERLAP" } } }),
       );
       await page.goto(
-        `/checkout/${subscription.package_id}?portions=1&startDate=${addDays(localDay(), 2)}`,
+        `/checkout/${subscription.package_id}?portions=1&startDate=${startDate}`,
       );
       const date = page.getByRole("button", {
         name: t("Mulai tanggal", "Start date"),
         exact: true,
       });
       const value = await date.getAttribute("data-value");
-      await page
-        .getByRole("button", {
-          name: t("Tinjau jadwal & harga", "Review schedule & price"),
-          exact: true,
-        })
-        .click();
+      expect(value).toBe(startDate);
+      const review = page.getByRole("button", {
+        name: t("Tinjau jadwal & harga", "Review schedule & price"),
+        exact: true,
+      });
+      await expect(review).toBeEnabled();
+      await review.click();
       const recovery = page.locator(".checkout-overlap");
       await expect(recovery).toBeVisible();
       await expect(date).toHaveAttribute("data-value", value!);

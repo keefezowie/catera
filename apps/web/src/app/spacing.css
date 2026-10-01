@@ -1,0 +1,16 @@
+/* Content groups own their spacing; leaf elements keep their intended size. */
+.flow {
+  --flow-space: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--flow-space);
+  min-width: 0;
+}
+.flow > * {
+  margin-block: 0;
+  min-width: 0;
+}
+.flow > :where(.button, .text-button, .icon-button) {
+  align-self: flex-start;
+  max-width: 100%;
+}

@@ -1,6 +1,9 @@
 .seller-operations {
   min-width: 0;
 }
+.seller-operations.flow > * {
+  margin-block: 0;
+}
 .ops-context,
 .ops-group-controls,
 .ops-stages {

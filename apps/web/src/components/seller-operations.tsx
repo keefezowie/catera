@@ -332,7 +332,7 @@ function OperationsPage({
       timeZone: s.caterer.timezone,
     }).format(new Date(value));
   return (
-    <div className="seller-operations" data-schedule={schedule}>
+    <div className="seller-operations flow" data-schedule={schedule}>
       <Heading
         title={
           schedule

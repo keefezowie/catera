@@ -631,6 +631,13 @@ export async function POST(request: Request, context: Context) {
         payload: command.payload,
         request_id: command.requestId,
       });
+      if (["seller.create", "invite.accept"].includes(command.action)) {
+        const actor = await rpc<Actor>(s.id, s.token, "catera_v1_read", {
+          resource: "actor",
+          params: {},
+        });
+        if (canSwitchWorkspace(actor)) await setWorkspaceCookie("caterer");
+      }
       if (
         command.action === "checkout.create" &&
         !demoEnabled() &&

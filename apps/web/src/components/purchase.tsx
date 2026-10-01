@@ -875,6 +875,9 @@ export function PaymentPage({ id }: { id: string }) {
     quote: c.quote,
   });
   const unsafeMutation = state.stale || state.loading;
+  const paymentDeadlineVisible =
+    c.state === "pending" &&
+    ["preparing", "awaiting_payment"].includes(payment.phase);
   const demoSimulation =
     demo &&
     c.state === "pending" &&
@@ -958,7 +961,12 @@ export function PaymentPage({ id }: { id: string }) {
                 "Payment received, booking under review",
               )
             : payment.phase === "checking"
-              ? t("Memeriksa pembayaran", "Checking payment")
+              ? c.state === "paid"
+                ? t(
+                    "Pembayaran diterima, mengonfirmasi jadwal",
+                    "Payment received, confirming schedule",
+                  )
+                : t("Memeriksa pembayaran", "Checking payment")
               : payment.phase === "awaiting_payment"
                 ? t("Menunggu pembayaran", "Awaiting payment")
                 : payment.phase === "preparing"
@@ -982,12 +990,16 @@ export function PaymentPage({ id }: { id: string }) {
             t("Total dibayar di awal", "Total paid upfront"),
             currency(commitment.finalPayable ?? c.quote.total, locale),
           ],
-          [
-            t("Batas pembayaran", "Time remaining"),
-            seconds > 0
-              ? `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`
-              : t("Berakhir", "Expired"),
-          ],
+          ...(paymentDeadlineVisible
+            ? [
+                [
+                  t("Batas pembayaran", "Time remaining"),
+                  seconds > 0
+                    ? `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`
+                    : t("Berakhir", "Expired"),
+                ] as [string, string],
+              ]
+            : []),
         ]}
       />
       {c.provider === "doku" && c.provider_environment === "sandbox" && (
@@ -1008,15 +1020,20 @@ export function PaymentPage({ id }: { id: string }) {
       )}
       {payment.phase === "checking" && (
         <p className="notice" role="status">
-          {seconds === 0
+          {c.state === "paid"
             ? t(
-                "Batas pembayaran telah lewat. Jangan bayar menggunakan instruksi lama. Jika sudah membayar, kami masih memeriksa konfirmasinya.",
-                "The payment deadline has passed. Do not pay using old instructions. If you already paid, we are still checking confirmation.",
+                "Pembayaran telah diterima. Kami sedang mengonfirmasi jadwal pengantaran. Jangan melakukan pembayaran kedua.",
+                "Payment was received. We are confirming the delivery schedule. Do not make another payment.",
               )
-            : t(
-                "Kami sedang memeriksa pembayaran. Jangan membuat pembayaran lain atau memakai instruksi lama.",
-                "We are checking the payment. Do not make another payment or reuse old instructions.",
-              )}
+            : seconds === 0
+              ? t(
+                  "Batas pembayaran telah lewat. Jangan bayar menggunakan instruksi lama. Jika sudah membayar, kami masih memeriksa konfirmasinya.",
+                  "The payment deadline has passed. Do not pay using old instructions. If you already paid, we are still checking confirmation.",
+                )
+              : t(
+                  "Kami sedang memeriksa pembayaran. Jangan membuat pembayaran lain atau memakai instruksi lama.",
+                  "We are checking the payment. Do not make another payment or reuse old instructions.",
+                )}
         </p>
       )}
       {c.state === "pending" &&

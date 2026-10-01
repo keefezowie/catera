@@ -184,7 +184,7 @@ export function SellerReadiness({
 
   return (
     <section
-      className="seller-readiness"
+      className="seller-readiness flow"
       aria-label={t("Siap berjualan", "Ready to sell")}
     >
       <div className="section-heading">

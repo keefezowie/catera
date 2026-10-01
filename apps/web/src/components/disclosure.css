@@ -12,9 +12,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-md);
   min-height: 48px;
-  padding: 12px 0;
+  padding: var(--space-md);
   color: var(--forest);
   font-size: 14px;
   font-weight: 650;
@@ -41,18 +41,18 @@
   outline-offset: 3px;
 }
 .disclosure-panel > summary {
-  padding-inline: 16px;
+  padding-inline: var(--space-lg);
   border-radius: 11px;
 }
 .disclosure-heading {
   display: grid;
-  gap: 4px;
+  gap: var(--space-xs);
   min-width: 0;
   overflow-wrap: anywhere;
 }
 .disclosure-title > svg {
   vertical-align: middle;
-  margin-right: 8px;
+  margin-right: var(--space-sm);
 }
 .disclosure-description {
   color: var(--muted);
@@ -65,13 +65,16 @@
 .disclosure[open] > summary > .disclosure-chevron {
   transform: rotate(180deg);
 }
+.disclosure-body.flow {
+  --flow-space: var(--space-md);
+}
 .disclosure-body {
   min-width: 0;
-  padding: 0 0 16px 12px;
+  padding: var(--space-md) var(--space-md) var(--space-lg);
   overflow-wrap: anywhere;
 }
 .disclosure-panel > .disclosure-body {
-  padding-inline: 16px;
+  padding-inline: var(--space-lg);
 }
 .disclosure-body > :first-child {
   margin-top: 0;
@@ -97,12 +100,4 @@
 }
 .queue-row > .disclosure {
   flex: 1 1 100%;
-}
-@media (max-width: 560px) {
-  .disclosure-body {
-    padding-left: 0;
-  }
-  .disclosure-panel > .disclosure-body {
-    padding-inline: 16px;
-  }
 }

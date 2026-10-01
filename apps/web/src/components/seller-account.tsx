@@ -1,19 +1,28 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Landmark, LifeBuoy, LogOut, ShieldCheck } from "lucide-react";
+import {
+  ChevronRight,
+  Landmark,
+  LifeBuoy,
+  LogOut,
+  ShieldCheck,
+  Store,
+  Users,
+} from "lucide-react";
 import {
   settlementCurrency,
   type PayoutSetup,
   type PayoutDestination,
   type AccountRequest,
+  type Locale,
   type SellerState,
 } from "@catera/domain";
 import { api, useApp, useResource } from "./context";
 import { ActionForm, Dialog, ErrorNotice, Field, Loading, Status } from "./ui";
 import { Button, TextInput, TextArea, Checkbox } from "./form-controls";
 import { Select, SelectOption } from "./select";
-import { LocaleSwitch } from "./locale-switch";
+import { Disclosure } from "./disclosure";
 import "./seller-experience.css";
 import styles from "./seller-account.module.css";
 
@@ -229,10 +238,54 @@ export function PayoutSetupCard({
   );
 }
 
-export function AccountHelp({ admin = false }: { admin?: boolean }) {
+export function AccountHelp({
+  admin = false,
+  compact = false,
+}: {
+  admin?: boolean;
+  compact?: boolean;
+}) {
   const { actor, t, perform, notify } = useApp();
   const state = useResource<AccountRequest[]>("account-requests", () =>
     api.request("account-requests"),
+  );
+  const requestForm = !admin && (
+    <ActionForm
+      submit={t("Kirim permintaan", "Send request")}
+      onSubmit={async (f) => {
+        await perform("accountRequest.create", {
+          catererId: actor?.catererId,
+          kind: f.get("kind"),
+          body: f.get("body"),
+        });
+        notify(
+          t(
+            "Permintaan tercatat. Akun dan pengantaran tetap aktif selama peninjauan.",
+            "Request recorded. Your account and deliveries stay active during review.",
+          ),
+        );
+      }}
+    >
+      <Field label={t("Jenis permintaan", "Request type")}>
+        <Select name="kind" defaultValue="help">
+          <SelectOption value="help">
+            {t("Bantuan akun & keamanan", "Account & security help")}
+          </SelectOption>
+          <SelectOption value="deletion">
+            {t("Ajukan penghapusan akun", "Request account deletion")}
+          </SelectOption>
+        </Select>
+      </Field>
+      <Field label={t("Keterangan", "Details")}>
+        <TextArea name="body" minLength={5} maxLength={2000} required />
+      </Field>
+      <p>
+        {t(
+          "Penghapusan ditangani tim Catera setelah meninjau pengantaran, pembayaran, dan kepemilikan akun. Mengirim permintaan tidak menghapus akun.",
+          "Catera handles deletion after reviewing deliveries, payments, and account ownership. Sending a request does not delete your account.",
+        )}
+      </p>
+    </ActionForm>
   );
   return (
     <section className="panel" id="help">
@@ -242,43 +295,19 @@ export function AccountHelp({ admin = false }: { admin?: boolean }) {
       {state.error && (
         <ErrorNotice message={state.error} retry={state.reload} />
       )}
-      {!admin && (
-        <ActionForm
-          submit={t("Kirim permintaan", "Send request")}
-          onSubmit={async (f) => {
-            await perform("accountRequest.create", {
-              catererId: actor?.catererId,
-              kind: f.get("kind"),
-              body: f.get("body"),
-            });
-            notify(
-              t(
-                "Permintaan tercatat. Akun dan pengantaran tetap aktif selama peninjauan.",
-                "Request recorded. Your account and deliveries stay active during review.",
-              ),
-            );
-          }}
+      {compact ? (
+        <Disclosure
+          title={t("Kirim permintaan", "Send request")}
+          description={t(
+            "Bantuan masuk, keamanan, atau penghapusan akun.",
+            "Sign-in, security, or account deletion help.",
+          )}
+          className={styles.helpDisclosure}
         >
-          <Field label={t("Jenis permintaan", "Request type")}>
-            <Select name="kind" defaultValue="help">
-              <SelectOption value="help">
-                {t("Bantuan akun & keamanan", "Account & security help")}
-              </SelectOption>
-              <SelectOption value="deletion">
-                {t("Ajukan penghapusan akun", "Request account deletion")}
-              </SelectOption>
-            </Select>
-          </Field>
-          <Field label={t("Keterangan", "Details")}>
-            <TextArea name="body" minLength={5} maxLength={2000} required />
-          </Field>
-          <p>
-            {t(
-              "Penghapusan ditangani tim Catera setelah meninjau pengantaran, pembayaran, dan kepemilikan akun. Mengirim permintaan tidak menghapus akun.",
-              "Catera handles deletion after reviewing deliveries, payments, and account ownership. Sending a request does not delete your account.",
-            )}
-          </p>
-        </ActionForm>
+          {requestForm}
+        </Disclosure>
+      ) : (
+        requestForm
       )}
       {state.data?.map((r) => (
         <article className="request-row" key={r.id}>
@@ -329,10 +358,43 @@ export function AccountHelp({ admin = false }: { admin?: boolean }) {
 }
 
 export function SellerAccountSettings({ state: s }: { state: SellerState }) {
-  const { actor, perform, t, notify } = useApp();
+  const { actor, perform, t, notify, locale, setLocale } = useApp();
   const [invite, setInvite] = useState("");
   const [logoutError, setLogoutError] = useState("");
   const [loggingOut, setLoggingOut] = useState(false);
+  const [activeSection, setActiveSection] = useState("account");
+  useEffect(() => {
+    const syncSection = () => {
+      const section = window.location.hash.slice(1);
+      setActiveSection(section || "account");
+    };
+    syncSection();
+    window.addEventListener("hashchange", syncSection);
+    return () => window.removeEventListener("hashchange", syncSection);
+  }, []);
+  const sections = [
+    {
+      id: "account",
+      label: t("Akun pribadi", "Personal account"),
+      icon: ShieldCheck,
+    },
+    {
+      id: "business",
+      label: t("Profil katerer", "Caterer profile"),
+      icon: Store,
+    },
+    ...(actor?.role === "owner"
+      ? [
+          {
+            id: "payout",
+            label: t("Rekening & pencairan", "Bank account & payouts"),
+            icon: Landmark,
+          },
+          { id: "team", label: t("Tim katerer", "Caterer team"), icon: Users },
+        ]
+      : []),
+    { id: "help", label: t("Bantuan akun", "Account help"), icon: LifeBuoy },
+  ];
   const logout = async () => {
     if (loggingOut) return;
     setLoggingOut(true);
@@ -352,110 +414,170 @@ export function SellerAccountSettings({ state: s }: { state: SellerState }) {
     }
   };
   return (
-    <div className="seller-settings-sections">
-      <section className="panel">
-        <h2>
-          <ShieldCheck size={21} /> {t("Akun & keamanan", "Account & security")}
-        </h2>
-        <p>{actor?.name}</p>
-        <LocaleSwitch />
-        <Button
-          className="button secondary"
-          onClick={logout}
-          disabled={loggingOut}
-        >
-          <LogOut size={17} />{" "}
-          {t("Keluar dari sesi ini", "Sign out of this session")}
-        </Button>
-        {logoutError && <ErrorNotice message={logoutError} retry={logout} />}
-        <p>
-          <a href="#help" className="text-button">
-            {t(
-              "Bantuan masuk & keamanan akun",
-              "Sign-in & account security help",
-            )}
+    <div className={styles.settingsLayout}>
+      <nav
+        className={styles.sectionNav}
+        aria-label={t("Bagian pengaturan", "Settings sections")}
+      >
+        {sections.map(({ id, label, icon: Icon }) => (
+          <a
+            key={id}
+            href={"#" + id}
+            aria-current={activeSection === id ? "location" : undefined}
+          >
+            <Icon size={18} aria-hidden="true" />
+            <span>{label}</span>
+            <ChevronRight size={16} aria-hidden="true" />
           </a>
-        </p>
-      </section>
-      {actor?.role === "owner" && (
-        <>
-          <PayoutSetupCard catererId={s.caterer.id} editable />
-          <section className="panel">
-            <h2>{t("Tim katerer", "Caterer team")}</h2>
-            {s.staff.map((st) => (
-              <p key={st.user_id}>
-                {st.name} ·{" "}
-                {st.role === "owner"
-                  ? t("Pemilik", "Owner")
-                  : t("Staf", "Staff")}
-              </p>
-            ))}
-            <ActionForm
-              submit={t("Buat undangan staf", "Create staff invite")}
-              onSubmit={async () => {
-                const r = await perform<{ code: string }>("staff.invite", {
-                  catererId: s.caterer.id,
-                });
-                setInvite(r.code);
-              }}
-            >
-              <p>
-                {t(
-                  "Staf menangani operasi; akses keuangan dibatasi untuk pemilik.",
-                  "Staff handle operations; financial access is limited to owners.",
-                )}
-              </p>
-            </ActionForm>
-            {invite && (
-              <div className={"notice " + styles.staffInvite}>
-                <p className={styles.inviteCode}>
-                  <strong>{t("Kode undangan", "Invitation code")}</strong>
-                  <code>{invite}</code>
-                </p>
-                <p>
-                  {t(
-                    "Bagikan kode ini kepada staf. Staf masuk atau mendaftar, membuka halaman mitra, lalu memilih ‘Saya diundang sebagai staf’.",
-                    "Share this code with your staff member. They sign in or register, open partner onboarding, and choose ‘I was invited as staff’.",
-                  )}
-                </p>
-                <div className={styles.inviteActions}>
-                  <Button
-                    variant="secondary"
-                    onClick={async () => {
-                      try {
-                        await navigator.clipboard.writeText(invite);
-                        notify(t("Kode disalin", "Code copied"));
-                      } catch {
-                        notify(
-                          t(
-                            "Gagal menyalin. Pilih dan salin kode di atas.",
-                            "Could not copy. Select and copy the code above.",
-                          ),
-                        );
-                      }
-                    }}
-                  >
-                    {t("Salin kode undangan", "Copy invitation code")}
-                  </Button>
-                  <Link className="text-button" href="/seller/onboarding">
-                    {t("Halaman mitra", "Partner onboarding")}
-                  </Link>
-                </div>
+        ))}
+      </nav>
+      <div className={styles.settingsMain}>
+        <div className={styles.settingsContent}>
+          <section className="panel" id="account">
+            <h2>{t("Akun pribadi", "Personal account")}</h2>
+            <dl className={styles.accountRows}>
+              <div className={styles.accountRow}>
+                <dt>{t("Nama akun", "Account name")}</dt>
+                <dd>{actor?.name}</dd>
               </div>
-            )}
+              <div className={styles.accountRow}>
+                <dt>{t("Akses", "Access")}</dt>
+                <dd>
+                  {actor?.role === "owner"
+                    ? t("Pemilik katerer", "Caterer owner")
+                    : t("Staf katerer", "Caterer staff")}
+                </dd>
+              </div>
+              <div className={styles.accountRow}>
+                <dt>{t("Bahasa", "Language")}</dt>
+                <dd>
+                  <Select
+                    className={styles.languageControl}
+                    aria-label={t("Bahasa", "Language")}
+                    value={locale}
+                    onValueChange={(value) => setLocale(value as Locale)}
+                  >
+                    <SelectOption value="id">Bahasa Indonesia</SelectOption>
+                    <SelectOption value="en">English</SelectOption>
+                  </Select>
+                </dd>
+              </div>
+              <div className={styles.accountRow}>
+                <dt>{t("Masuk & keamanan", "Sign-in & security")}</dt>
+                <dd>
+                  <a href="#help" className={styles.rowLink}>
+                    {t("Bantuan akun", "Account help")}
+                    <ChevronRight size={16} aria-hidden="true" />
+                  </a>
+                </dd>
+              </div>
+            </dl>
           </section>
-        </>
-      )}
-      <AccountHelp />
-      <section className="panel">
-        <h2>{t("Profil katerer", "Caterer profile")}</h2>
-        <Link href="/seller/profile">
-          {t(
-            "Profil usaha & area pengantaran",
-            "Business profile & delivery coverage",
+          <section className="panel" id="business">
+            <h2>{t("Profil katerer", "Caterer profile")}</h2>
+            <Link href="/seller/profile" className={styles.profileLink}>
+              <span>
+                <strong>{s.caterer.name}</strong>
+                <span>
+                  {t(
+                    "Profil usaha & area pengantaran",
+                    "Business profile & delivery coverage",
+                  )}
+                </span>
+              </span>
+              <ChevronRight size={18} aria-hidden="true" />
+            </Link>
+          </section>
+          {actor?.role === "owner" && (
+            <>
+              <PayoutSetupCard catererId={s.caterer.id} editable />
+              <section className="panel" id="team">
+                <h2>{t("Tim katerer", "Caterer team")}</h2>
+                <ul className={styles.teamList}>
+                  {s.staff.map((st) => (
+                    <li key={st.user_id}>
+                      <span>{st.name}</span>
+                      <span>
+                        {st.role === "owner"
+                          ? t("Pemilik", "Owner")
+                          : t("Staf", "Staff")}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                <ActionForm
+                  submit={t("Buat undangan staf", "Create staff invite")}
+                  onSubmit={async () => {
+                    const r = await perform<{ code: string }>("staff.invite", {
+                      catererId: s.caterer.id,
+                    });
+                    setInvite(r.code);
+                  }}
+                >
+                  <p>
+                    {t(
+                      "Staf menangani operasi; akses keuangan dibatasi untuk pemilik.",
+                      "Staff handle operations; financial access is limited to owners.",
+                    )}
+                  </p>
+                </ActionForm>
+                {invite && (
+                  <div className={"notice " + styles.staffInvite}>
+                    <p className={styles.inviteCode}>
+                      <strong>{t("Kode undangan", "Invitation code")}</strong>
+                      <code>{invite}</code>
+                    </p>
+                    <p>
+                      {t(
+                        "Bagikan kode ini kepada staf. Staf masuk atau mendaftar, membuka halaman mitra, lalu memilih ‘Saya diundang sebagai staf’.",
+                        "Share this code with your staff member. They sign in or register, open partner onboarding, and choose ‘I was invited as staff’.",
+                      )}
+                    </p>
+                    <div className={styles.inviteActions}>
+                      <Button
+                        variant="secondary"
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(invite);
+                            notify(t("Kode disalin", "Code copied"));
+                          } catch {
+                            notify(
+                              t(
+                                "Gagal menyalin. Pilih dan salin kode di atas.",
+                                "Could not copy. Select and copy the code above.",
+                              ),
+                            );
+                          }
+                        }}
+                      >
+                        {t("Salin kode undangan", "Copy invitation code")}
+                      </Button>
+                      <Link className="text-button" href="/seller/onboarding">
+                        {t("Halaman mitra", "Partner onboarding")}
+                      </Link>
+                    </div>
+                  </div>
+                )}
+              </section>
+            </>
           )}
-        </Link>
-      </section>
+          <AccountHelp compact />
+        </div>
+        <div className={styles.sessionActions}>
+          <Button
+            variant="text"
+            onClick={logout}
+            disabled={loggingOut}
+            aria-busy={loggingOut}
+          >
+            <LogOut size={17} aria-hidden="true" />
+            {loggingOut
+              ? t("Sedang keluar…", "Signing out…")
+              : t("Keluar dari sesi ini", "Sign out of this session")}
+          </Button>
+          {logoutError && <ErrorNotice message={logoutError} retry={logout} />}
+        </div>
+      </div>
     </div>
   );
 }

@@ -99,11 +99,11 @@ export default async function Page({
     );
   const s = await session();
   const jar = await cookies();
-  if (
-    path.length === 0 &&
-    resolveWorkspace(s.actor, jar.get(workspaceCookieName)?.value) === "caterer"
-  )
-    redirect("/seller");
+  const workspace = resolveWorkspace(
+    s.actor,
+    jar.get(workspaceCookieName)?.value,
+  );
+  if (path.length === 0 && workspace === "caterer") redirect("/seller");
   if (
     [
       "checkout",
@@ -137,6 +137,12 @@ export default async function Page({
     path[1] !== "onboarding"
   )
     notFound();
+  if (
+    path[0] === "seller" &&
+    path[1] !== "onboarding" &&
+    workspace !== "caterer"
+  )
+    redirect("/");
   if (path[0] === "seller" && path[1] === "capacity")
     redirect("/seller/packages");
   let offers: Offer[] = [];
