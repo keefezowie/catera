@@ -51,6 +51,7 @@ import {
   LifeBuoy,
 } from "lucide-react";
 import { OptionalSection } from "./optional-section";
+import { Disclosure } from "./disclosure";
 import { TagInput } from "./tag-input";
 import {
   currency,
@@ -193,8 +194,7 @@ function SellerTransactions({ state: s }: { state: SellerState }) {
     </section>
   );
   const legacy = (
-    <section className="panel spaced">
-      <h2>{t("Pencairan pembelian lama", "Legacy purchase payouts")}</h2>
+    <div className="legacy-payout-content">
       <p>
         {t(
           "Pencairan ditinjau dan disetujui Catera. Dana dalam sengketa ditahan.",
@@ -214,7 +214,7 @@ function SellerTransactions({ state: s }: { state: SellerState }) {
           {t("Belum ada pencairan.", "No payouts yet.")}
         </p>
       )}
-    </section>
+    </div>
   );
   return actor?.role === "owner" ? (
     <SellerSettlement
@@ -343,17 +343,18 @@ function Packages({ state: s }: { state: SellerState }) {
               </Button>
             )}
             {actor?.role === "owner" && o.status !== "draft" && (
-              <details className="package-secondary-settings">
-                <summary>
-                  {t("Pengaturan paket lanjutan", "Advanced package settings")}
-                </summary>
-                <div>
-                  <PackageLifecycle offer={o} />
-                  {o.status === "published" && (
-                    <PackageDurationEditor offer={o} />
-                  )}
-                </div>
-              </details>
+              <Disclosure
+                className="package-secondary-settings"
+                title={t(
+                  "Pengaturan paket lanjutan",
+                  "Advanced package settings",
+                )}
+              >
+                <PackageLifecycle offer={o} />
+                {o.status === "published" && (
+                  <PackageDurationEditor offer={o} />
+                )}
+              </Disclosure>
             )}
           </article>
         ))}
@@ -610,6 +611,7 @@ function OfferEditor({
   const dishGuard = useDiscardChanges(dishDirty, () => setCreatingDish(false));
   const [step, setStep] = useState<OfferStep>("offer");
   const stepFields = useRef<HTMLDivElement>(null);
+  const rejectedStepSelection = useRef(false);
   const [pending, setPending] = useState(0),
     [savingDraft, setSavingDraft] = useState(false);
   const [issues, setIssues] = useState<EditorIssue[]>([]),
@@ -745,11 +747,29 @@ function OfferEditor({
   const previewPackageTotal = validPricePreview
     ? packageSubtotal({ price: previewPrice, days: previewDays })
     : null;
+  const issueMessage = (issue: EditorIssue) => {
+    const numericBound = issue.message.match(
+      /^Too (small|big): expected number to be (>=|<=)(-?\d+(?:\.\d+)?)$/,
+    );
+    if (numericBound) {
+      const price = issue.path === "price" || issue.path === "trialPrice";
+      const bound = price
+        ? currency(Number(numericBound[3]), locale)
+        : new Intl.NumberFormat(locale === "id" ? "id-ID" : "en-ID").format(
+            Number(numericBound[3]),
+          );
+      return t(
+        `Masukkan ${price ? "harga" : "nilai"} ${numericBound[1] === "small" ? "minimal" : "maksimal"} ${bound}.`,
+        `Enter ${price ? "a price" : "a value"} of ${numericBound[1] === "small" ? "at least" : "at most"} ${bound}.`,
+      );
+    }
+    return localizedMessage(issue.message, locale);
+  };
   const fieldError = (key: string) => {
     const issue = issues.find(
       (i) => i.path === key || i.path.startsWith(key + "."),
     );
-    return issue ? localizedMessage(issue.message, locale) : undefined;
+    return issue ? issueMessage(issue) : undefined;
   };
   const showIssues = (found: EditorIssue[]) => {
     setIssues(found);
@@ -757,27 +777,27 @@ function OfferEditor({
   };
   useEffect(() => {
     if (!issues.length) return;
-    const container = editor.current;
-    let target: HTMLElement | null | undefined;
-    for (const issue of issues) {
-      for (const key of [issue.path, issue.path.split(".")[0]]) {
-        const field = container?.querySelector<HTMLElement>(
-          '[data-editor-field="' + CSS.escape(key) + '"]',
-        );
-        target = field?.querySelector<HTMLElement>(
-          'input:not(:disabled), textarea:not(:disabled), [role="combobox"]:not([aria-disabled="true"]), button:not(:disabled)',
-        );
-        if (target) break;
-      }
-      if (target) break;
-    }
-    target ||=
-      container?.querySelector<HTMLElement>('[data-dish-name][value=""]') ||
-      container?.querySelector<HTMLElement>("[data-editor-errors]");
-    const disclosure = target?.closest("details");
-    if (disclosure) disclosure.open = true;
     // ActionForm releases its pending controls after validation returns.
     const frame = requestAnimationFrame(() => {
+      const container = editor.current;
+      let target: HTMLElement | null | undefined;
+      for (const issue of issues) {
+        for (const key of [issue.path, issue.path.split(".")[0]]) {
+          const field = container?.querySelector<HTMLElement>(
+            '[data-editor-field="' + CSS.escape(key) + '"]',
+          );
+          target = field?.querySelector<HTMLElement>(
+            'input:not(:disabled), textarea:not(:disabled), [role="combobox"]:not([aria-disabled="true"]), button:not(:disabled)',
+          );
+          if (target) break;
+        }
+        if (target) break;
+      }
+      target ||=
+        container?.querySelector<HTMLElement>('[data-dish-name][value=""]') ||
+        container?.querySelector<HTMLElement>("[data-editor-errors]");
+      const disclosure = target?.closest("details");
+      if (disclosure) disclosure.open = true;
       target?.focus({ preventScroll: true });
       target?.scrollIntoView({ block: "nearest", behavior: "instant" });
     });
@@ -929,7 +949,16 @@ function OfferEditor({
           aria-label={t("Langkah paket", "Package steps")}
           value={step}
           disabled={pending > 0 || savingDraft || saving}
-          onValueChange={(next) => navigate(next as OfferStep)}
+          onValueChange={(next) => {
+            rejectedStepSelection.current = !navigate(next as OfferStep);
+          }}
+          onCloseAutoFocus={(event) => {
+            // Validation already focuses the invalid field; the closing step
+            // picker must not move focus back to its trigger in that case.
+            const rejected = rejectedStepSelection.current;
+            rejectedStepSelection.current = false;
+            if (rejected) event.preventDefault();
+          }}
         >
           {offerSteps.map((i, order) => (
             <SelectOption key={i} value={i}>
@@ -1045,7 +1074,7 @@ function OfferEditor({
                 {issues
                   .filter((i) => i.step === step)
                   .map((i, n) => (
-                    <li key={n}>{localizedMessage(i.message, locale)}</li>
+                    <li key={n}>{issueMessage(i)}</li>
                   ))}
               </ul>
             </div>
@@ -1145,6 +1174,14 @@ function OfferEditor({
                   "Harga per porsi / hari (pengantaran termasuk)",
                   "Price per portion / day (delivery included)",
                 )}
+                description={
+                  value.meal === "both"
+                    ? t(
+                        "Untuk siang + malam, harga ini sudah mencakup kedua makanan per porsi per hari.",
+                        "For lunch + dinner, this price covers both meals per portion per day.",
+                      )
+                    : undefined
+                }
               >
                 <NumericInput
                   min={1000}
@@ -1227,14 +1264,6 @@ function OfferEditor({
                   }
                 />
               </OptionalSection>
-              {value.meal === "both" && (
-                <p className="field-hint">
-                  {t(
-                    "Untuk siang + malam, harga ini sudah mencakup kedua makanan per porsi per hari.",
-                    "For lunch + dinner, this price covers both meals per portion per day.",
-                  )}
-                </p>
-              )}
               <OptionalSection
                 title={t(
                   "Diskon jumlah porsi (opsional)",
@@ -1337,7 +1366,25 @@ function OfferEditor({
                 summary={trialSummary}
                 invalid={!!fieldError("trialPrice") || !!fieldError("trialMax")}
               >
-                <Field label={t("Trial satu hari", "One-day trial")}>
+                <Field
+                  label={t("Trial satu hari", "One-day trial")}
+                  description={
+                    <>
+                      {value.price === null && (
+                        <>
+                          {t(
+                            "Isi harga paket sebelum mengaktifkan trial.",
+                            "Enter the package price before enabling a trial.",
+                          )}{" "}
+                        </>
+                      )}
+                      {t(
+                        "Satu kali coba per pelanggan per katerer.",
+                        "One trial per customer per caterer.",
+                      )}
+                    </>
+                  }
+                >
                   <Select
                     value={value.trialPrice === null ? "no" : "yes"}
                     onValueChange={(selected) =>
@@ -1360,14 +1407,6 @@ function OfferEditor({
                     </SelectOption>
                   </Select>
                 </Field>
-                {value.price === null && (
-                  <p className="field-hint">
-                    {t(
-                      "Isi harga paket sebelum mengaktifkan trial.",
-                      "Enter the package price before enabling a trial.",
-                    )}
-                  </p>
-                )}
                 {value.trialPrice !== null && (
                   <div className="form-row">
                     <Field
@@ -1392,6 +1431,10 @@ function OfferEditor({
                         "Maksimum porsi trial",
                         "Maximum trial portions",
                       )}
+                      description={t(
+                        "Kosongkan untuk tanpa batas jumlah porsi.",
+                        "Leave blank for no quantity limit.",
+                      )}
                     >
                       <NumericInput
                         min={1}
@@ -1404,21 +1447,9 @@ function OfferEditor({
                           )
                         }
                       />
-                      <small>
-                        {t(
-                          "Kosongkan untuk tanpa batas jumlah porsi.",
-                          "Leave blank for no quantity limit.",
-                        )}
-                      </small>
                     </Field>
                   </div>
                 )}
-                <p className="field-hint">
-                  {t(
-                    "Satu kali coba per pelanggan per katerer.",
-                    "One trial per customer per caterer.",
-                  )}
-                </p>
               </OptionalSection>
             </>
           ) : step === "schedule" ? (
@@ -1489,6 +1520,10 @@ function OfferEditor({
                   "Kapasitas porsi per hari",
                   "Portions per operating day",
                 )}
+                description={t(
+                  "Kapasitas ini berlaku sama untuk setiap hari operasional yang dipilih.",
+                  "This capacity applies equally to every selected operating day.",
+                )}
               >
                 <NumericInput
                   min={0}
@@ -1510,16 +1545,23 @@ function OfferEditor({
                   }
                 />
               </Field>
-              <p className="notice">
-                {t(
-                  "Kapasitas ini berlaku sama untuk setiap hari operasional yang dipilih.",
-                  "This capacity applies equally to every selected operating day.",
-                )}
-              </p>
               <Field
                 fieldKey="flexible"
                 error={fieldError("flexible")}
                 label={t("Perubahan jadwal", "Schedule changes")}
+                description={
+                  <>
+                    {t(
+                      "Batas perubahan tanggal adalah",
+                      "The date-change cutoff is",
+                    )}{" "}
+                    {caterer.cutoff.slice(0, 5)} {caterer.timezone}{" "}
+                    {t(
+                      "sehari sebelum pengantaran. Jam pengantaran mengikuti zona waktu katerer.",
+                      "on the day before delivery. Delivery windows use the caterer's timezone.",
+                    )}
+                  </>
+                }
               >
                 <Select
                   value={String(value.flexible)}
@@ -1539,18 +1581,6 @@ function OfferEditor({
                   </SelectOption>
                 </Select>
               </Field>
-
-              <p className="field-hint">
-                {t(
-                  "Batas perubahan tanggal adalah",
-                  "The date-change cutoff is",
-                )}{" "}
-                {caterer.cutoff.slice(0, 5)} {caterer.timezone}{" "}
-                {t(
-                  "sehari sebelum pengantaran. Jam pengantaran mengikuti zona waktu katerer.",
-                  "on the day before delivery. Delivery windows use the caterer's timezone.",
-                )}
-              </p>
             </>
           ) : step === "contents" ? (
             <>
@@ -2223,8 +2253,10 @@ export function SupportQueue({
               </div>
             </dl>
             <p>{c.description}</p>
-            <details className="record-details">
-              <summary>{t("Nomor kasus", "Case ID")}</summary>
+            <Disclosure
+              className="record-details"
+              title={t("Nomor kasus", "Case ID")}
+            >
               <code>{c.id}</code>
               {c.checkout_id && (
                 <p>
@@ -2242,7 +2274,7 @@ export function SupportQueue({
                   {t("Pengantaran", "Delivery")}: <code>{c.delivery_id}</code>
                 </p>
               )}
-            </details>
+            </Disclosure>
             {c.resolution && (
               <div className="support-response">
                 {c.resolution}
@@ -2380,20 +2412,21 @@ export function TransactionRows({
                   {c.customerName}
                   {c.quote.trial ? t(" · Coba paket", " · Trial") : ""}
                 </small>
-                <details className="record-details">
-                  <summary>
-                    {sales
+                <Disclosure
+                  className="record-details"
+                  title={
+                    sales
                       ? t("Nomor penjualan", "Sale ID")
-                      : t("Nomor pembelian", "Purchase ID")}
-                  </summary>
+                      : t("Nomor pembelian", "Purchase ID")
+                  }
+                >
                   <code>{c.id}</code>
-                </details>
+                </Disclosure>
                 {attempts.length > 1 && (
-                  <details className="record-details">
-                    <summary>
-                      {attempts.length}{" "}
-                      {t("percobaan pembayaran", "payment attempts")}
-                    </summary>
+                  <Disclosure
+                    className="record-details"
+                    title={`${attempts.length} ${t("percobaan pembayaran", "payment attempts")}`}
+                  >
                     <ul className="sale-attempts">
                       {attempts.map((a) => (
                         <li key={a.id}>
@@ -2407,7 +2440,7 @@ export function TransactionRows({
                         </li>
                       ))}
                     </ul>
-                  </details>
+                  </Disclosure>
                 )}
               </td>
               <td data-label={t("Porsi × hari", "Portions × days")}>
@@ -2760,7 +2793,10 @@ export function Onboarding() {
                 }}
               />
             </Field>
-            <Field label={t("Alamat halaman katerer", "Caterer page address")}>
+            <Field
+              label={t("Alamat halaman katerer", "Caterer page address")}
+              description={`${origin}/caterers/${slug || t("dapur-kamu", "your-kitchen")}`}
+            >
               <TextInput
                 name="slug"
                 value={slug}
@@ -2773,9 +2809,6 @@ export function Onboarding() {
                 placeholder={t("dapur-kamu", "your-kitchen")}
               />
             </Field>
-            <p className="small" style={{ overflowWrap: "anywhere" }}>
-              {origin}/caterers/{slug || t("dapur-kamu", "your-kitchen")}
-            </p>
             <Field label={t("Tentang makananmu", "About your food")}>
               <TextArea name="description" required minLength={10} />
             </Field>
@@ -2795,10 +2828,10 @@ export function Onboarding() {
               )}
             </p>
           </ActionForm>
-          <details className="spaced">
-            <summary>
-              {t("Saya diundang sebagai staf", "I was invited as staff")}
-            </summary>
+          <Disclosure
+            title={t("Saya diundang sebagai staf", "I was invited as staff")}
+            className="spaced"
+          >
             <ActionForm
               submit={t("Terima undangan", "Accept invite")}
               onSubmit={async (f) => {
@@ -2810,7 +2843,7 @@ export function Onboarding() {
                 <TextInput required name="code" />
               </Field>
             </ActionForm>
-          </details>
+          </Disclosure>
         </section>
       )}
     </div>

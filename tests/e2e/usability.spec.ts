@@ -102,7 +102,19 @@ for (const width of [360, 390, 768, 1440])
       await page
         .getByRole("button", { name: t("Buang perubahan", "Discard changes") })
         .click();
-      await page.goto("/seller?meal=lunch");
+      // A long synthetic sweep can cross local midnight. Exercise the
+      // populated persisted fixture rather than assuming it is still today.
+      const today = localDay();
+      const calendarResponse = await page.request.get(
+        `/api/v1/seller-calendar/${cid}?from=${addDays(today, -10)}&to=${addDays(today, 10)}`,
+      );
+      expect(calendarResponse.ok()).toBe(true);
+      const calendar = (await calendarResponse.json()).data;
+      const populatedDay = calendar.days.find(
+        (entry: { date: string; orders: number }) => entry.orders > 0,
+      )?.date;
+      expect(populatedDay).toBeTruthy();
+      await page.goto(`/seller?meal=lunch&date=${populatedDay}`);
       const rows = page.locator(".ops-order-table tbody tr:not(.ops-group-heading)");
       await expect(rows.first()).toBeVisible();
       const detail = rows
@@ -229,7 +241,11 @@ test("readiness follows correction, submission and an admin decision", async ({ 
     await page.goto("/seller/profile");
     await expect(page.locator(".seller-readiness")).toContainText("Synthetic usability verification review.");
     await page.getByRole("button", { name: "Ajukan verifikasi" }).click();
-    await expect(page.locator(".seller-readiness")).toContainText("Profil sedang ditinjau Catera");
+    const checklist = page.locator(".seller-readiness .disclosure");
+    await checklist.locator(":scope > summary").click();
+    await expect(checklist.getByText("Verifikasi sedang ditinjau", { exact: true })).toBeVisible();
+    const submittedState = (await (await page.request.get(`/api/v1/seller/${cid}`)).json()).data;
+    expect(submittedState.caterer.status).toBe("submitted");
     await page.screenshot({ path: `${evidence}/readiness-390.png`, fullPage: true });
     await page.setViewportSize({ width: 1440, height: 1000 });
     await decision("Setujui katerer");

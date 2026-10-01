@@ -39,6 +39,7 @@ import { useJourneyQuery } from "./journey-state";
 import { Button, Checkbox, TextInput } from "./form-controls";
 import { Select, SelectOption } from "./select";
 import { DatePicker } from "./date-picker";
+import { Disclosure } from "./disclosure";
 import {
   Heading,
   Loading,
@@ -324,6 +325,12 @@ function OperationsPage({
       dateStyle: "full",
       timeZone: "UTC",
     }).format(new Date(value + "T12:00:00Z"));
+  const formatDeadline = (value: string) =>
+    new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-GB", {
+      dateStyle: "medium",
+      timeStyle: "short",
+      timeZone: s.caterer.timezone,
+    }).format(new Date(value));
   return (
     <div className="seller-operations" data-schedule={schedule}>
       <Heading
@@ -377,14 +384,12 @@ function OperationsPage({
         </p>
       )}
       {schedule && (
-        <details
+        <Disclosure
           className="ops-production spaced"
           id="production"
           open={query.get("production") === "1" || undefined}
+          title={t("Daftar dapur & pengantaran", "Kitchen & delivery lists")}
         >
-          <summary>
-            {t("Daftar dapur & pengantaran", "Kitchen & delivery lists")}
-          </summary>
           {s.operationalDate !== date ? (
             <Loading />
           ) : (
@@ -397,7 +402,7 @@ function OperationsPage({
               latest={s.latestProduction}
             />
           )}
-        </details>
+        </Disclosure>
       )}
       {schedule && (
         <ScheduleCalendar
@@ -432,6 +437,9 @@ function OperationsPage({
         <div
           ref={mealTabs}
           className="ops-meal-tabs"
+          onFocusCapture={() => {
+            calendarFocus.current = null;
+          }}
           role="tablist"
           aria-label={t("Waktu makan", "Meal period")}
         >
@@ -489,7 +497,12 @@ function OperationsPage({
                       : m === "lunch"
                         ? lunch.portions
                         : dinner.portions}{" "}
-                    {t("porsi", "portions")}
+                    {t(
+                      "porsi",
+                      (m === "lunch" ? lunch.portions : dinner.portions) === 1
+                        ? "portion"
+                        : "portions",
+                    )}
                   </small>
                 )}
               </Button>
@@ -691,11 +704,14 @@ function OperationsPage({
               ? "…"
               : summary.orders +
                 " " +
-                t("pesanan", "orders") +
+                t("pesanan", summary.orders === 1 ? "order" : "orders") +
                 " · " +
                 summary.portions +
                 " " +
-                t("porsi makan", "meal portions")}
+                t(
+                  "porsi makan",
+                  summary.portions === 1 ? "meal portion" : "meal portions",
+                )}
           </strong>
           <span>
             {t("Sesuai filter tabel", "Matching table filters")}
@@ -719,7 +735,8 @@ function OperationsPage({
                 : t("Total malam", "Dinner total")}
               {" · "}
               {t("semua paket", "all packages")}:{" "}
-              {loading ? "…" : workload.portions} {t("porsi", "portions")}
+              {loading ? "…" : workload.portions}{" "}
+              {t("porsi", workload.portions === 1 ? "portion" : "portions")}
             </h2>
             {!loading && filteredRows.length > 0 && (
               <a className="text-button" href="#ops-orders">
@@ -732,7 +749,7 @@ function OperationsPage({
             {loading ? "…" : workload.orders}{" "}
             {t(
               "pesanan · termasuk yang sudah diterima, tidak termasuk pembatalan",
-              "orders · includes delivered meals, excludes cancellations",
+              `${workload.orders === 1 ? "order" : "orders"} · includes delivered meals, excludes cancellations`,
             )}
           </p>
           <div className="ops-stages">
@@ -749,7 +766,8 @@ function OperationsPage({
               >
                 {statusLabel(status, locale)}:{" "}
                 <strong>
-                  {loading ? "…" : portions} {t("porsi", "portions")}
+                  {loading ? "…" : portions}{" "}
+                  {t("porsi", portions === 1 ? "portion" : "portions")}
                 </strong>
               </Button>
             ))}
@@ -762,9 +780,15 @@ function OperationsPage({
                 {statusLabel(selectedStage, locale)} ·{" "}
               </>
             )}
-            {filteredRows.length} {t("baris terlihat", "visible rows")} ·{" "}
-            {summary.orders} {t("pesanan", "orders")} · {summary.portions}{" "}
-            {t("porsi", "portions")}
+            {filteredRows.length}{" "}
+            {t(
+              "baris terlihat",
+              filteredRows.length === 1 ? "visible row" : "visible rows",
+            )}{" "}
+            · {summary.orders}{" "}
+            {t("pesanan", summary.orders === 1 ? "order" : "orders")} ·{" "}
+            {summary.portions}{" "}
+            {t("porsi", summary.portions === 1 ? "portion" : "portions")}
           </p>
           {!loading &&
             !workload.orders &&
@@ -782,45 +806,61 @@ function OperationsPage({
         </section>
       )}
       {!loading && deadlines.length > 0 && (
-        <details className="ops-deadlines">
-          <summary>
-            {t("Batas perubahan pelanggan", "Customer change deadlines")} ·{" "}
-            {date} ·{" "}
-            {deadlines.length === 1
-              ? new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-GB", {
+        <Disclosure
+          className="ops-deadlines"
+          variant="panel"
+          title={t("Batas perubahan pelanggan", "Customer change deadlines")}
+          description={
+            <span className="ops-deadline-context">
+              <span>
+                {new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-GB", {
                   dateStyle: "medium",
-                  timeStyle: "short",
-                  timeZone: s.caterer.timezone,
-                }).format(new Date(deadlines[0].at)) +
-                " · " +
-                (deadlines[0].passed
-                  ? t("Sudah lewat", "Passed")
-                  : t("Belum lewat", "Not yet passed"))
-              : deadlines.length +
-                " " +
-                t("batas berbeda", "different deadlines")}
-          </summary>
+                  timeZone: "UTC",
+                }).format(new Date(date + "T12:00:00Z"))}
+                {deadlines.length === 1 && (
+                  <>
+                    {" "}
+                    · {formatDeadline(deadlines[0].at)} · {s.caterer.timezone}
+                  </>
+                )}
+              </span>
+              <span className="ops-deadline-state">
+                {deadlines.length === 1
+                  ? deadlines[0].passed
+                    ? t("Sudah lewat", "Passed")
+                    : t("Belum lewat", "Not yet passed")
+                  : deadlines.length +
+                    " " +
+                    t("batas berbeda", "different deadlines")}
+              </span>
+            </span>
+          }
+        >
           <p>
             {t(
               "Batas dari ketentuan pembelian. Kelayakan perubahan tetap diperiksa per pesanan; batas ini tidak mengunci pembaruan status dapur/pengantaran.",
               "Deadlines from purchased terms. Change eligibility is still checked per order; these deadlines do not lock kitchen/delivery status updates.",
             )}
           </p>
-          {deadlines.map((d) => (
-            <p key={d.at}>
-              {new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-GB", {
-                dateStyle: "medium",
-                timeStyle: "short",
-                timeZone: s.caterer.timezone,
-              }).format(new Date(d.at))}{" "}
-              · {s.caterer.timezone} ·{" "}
-              {d.passed
-                ? t("Sudah lewat", "Passed")
-                : t("Belum lewat", "Not yet passed")}{" "}
-              · {d.orders} {t("pesanan", "orders")}
-            </p>
-          ))}
-        </details>
+          <ul className="ops-deadline-list">
+            {deadlines.map((d) => (
+              <li key={d.at}>
+                <span>
+                  <strong>{formatDeadline(d.at)}</strong>
+                  <small>
+                    {s.caterer.timezone} · {d.orders}{" "}
+                    {t("pesanan", d.orders === 1 ? "order" : "orders")}
+                  </small>
+                </span>
+                <span className="ops-deadline-state">
+                  {d.passed
+                    ? t("Sudah lewat", "Passed")
+                    : t("Belum lewat", "Not yet passed")}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Disclosure>
       )}
       {!schedule && <NeedsAttention catererId={s.caterer.id} date={date} />}
       <div
@@ -1003,7 +1043,7 @@ function ScheduleCalendar({
                 aria-pressed={day === date}
                 aria-current={day === today ? "date" : undefined}
                 tabIndex={day === date ? 0 : -1}
-                aria-label={`${format(day, { weekday: "long", day: "numeric", month: "long" })}, ${state.loading ? t("memuat", "loading") : state.error ? t("gagal dimuat", "failed to load") : `${d?.orders || 0} ${t("pesanan", "orders")}${d?.lunch ? t(", siang", ", lunch") : ""}${d?.dinner ? t(", malam", ", dinner") : ""}`}`}
+                aria-label={`${format(day, { weekday: "long", day: "numeric", month: "long" })}, ${state.loading ? t("memuat", "loading") : state.error ? t("gagal dimuat", "failed to load") : `${d?.orders || 0} ${t("pesanan", d?.orders === 1 ? "order" : "orders")}${d?.lunch ? t(", siang", ", lunch") : ""}${d?.dinner ? t(", malam", ", dinner") : ""}`}`}
                 onClick={() => onDate(day)}
                 onKeyDown={(e) => {
                   if (
@@ -1036,7 +1076,7 @@ function ScheduleCalendar({
                       ? "…"
                       : state.error
                         ? "—"
-                        : `${d?.orders || 0} ${t("pesanan", "orders")}`}
+                        : `${d?.orders || 0} ${t("pesanan", d?.orders === 1 ? "order" : "orders")}`}
                   </small>
                 </span>
               </Button>
@@ -1138,6 +1178,10 @@ function OrderTable({
         ),
       )
     : [];
+  const validPortions = validChosen.reduce(
+    (total, order) => total + order.portions,
+    0,
+  );
   const invalidSelectionIds = selected.filter(
     (id) => !validChosen.some((order) => order.id === id),
   );
@@ -1208,7 +1252,7 @@ function OrderTable({
       setSelected([]);
       setConfirmation(null);
       setSuccess(
-        `${items.length} ${t("pesanan diperbarui", "orders updated")} · ${mealLabel(meal, locale)} · ${statusLabel(status, locale)}`,
+        `${items.length} ${t("pesanan diperbarui", items.length === 1 ? "order updated" : "orders updated")} · ${mealLabel(meal, locale)} · ${statusLabel(status, locale)}`,
       );
     } catch (e) {
       const code = (e as { code?: string }).code;
@@ -1242,10 +1286,15 @@ function OrderTable({
           <h2>
             {schedule
               ? t("Daftar pesanan", "Order list")
-              : t("Pesanan", "Orders") + " · " + date}
+              : t("Pesanan", "Orders") +
+                " · " +
+                new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-GB", {
+                  dateStyle: "medium",
+                  timeZone: "UTC",
+                }).format(new Date(date + "T12:00:00Z"))}
           </h2>
           <span className="muted">
-            {rows.length} {t("pesanan", "orders")}
+            {rows.length} {t("pesanan", rows.length === 1 ? "order" : "orders")}
           </span>
         </div>
         {!schedule && date > today && (
@@ -1277,9 +1326,13 @@ function OrderTable({
             aria-label={t("Perbarui pilihan", "Update selected orders")}
           >
             <strong>
-              {validChosen.length} {t("pesanan valid", "valid orders")} ·{" "}
-              {validChosen.reduce((total, order) => total + order.portions, 0)}{" "}
-              {t("porsi", "portions")}
+              {validChosen.length}{" "}
+              {t(
+                "pesanan valid",
+                validChosen.length === 1 ? "valid order" : "valid orders",
+              )}{" "}
+              · {validPortions}{" "}
+              {t("porsi", validPortions === 1 ? "portion" : "portions")}
             </strong>
             {options.length ? (
               <>
@@ -1436,11 +1489,21 @@ function OrderTable({
                               )}
                             </div>
                             <span>
-                              {group.rows.length} {t("pesanan", "orders")} ·{" "}
-                              {group.portions}{" "}
+                              {group.rows.length}{" "}
+                              {t(
+                                "pesanan",
+                                group.rows.length === 1 ? "order" : "orders",
+                              )}{" "}
+                              · {group.portions}{" "}
                               {t(
                                 schedule ? "porsi makan" : "porsi",
-                                schedule ? "meal portions" : "portions",
+                                schedule
+                                  ? group.portions === 1
+                                    ? "meal portion"
+                                    : "meal portions"
+                                  : group.portions === 1
+                                    ? "portion"
+                                    : "portions",
                               )}
                             </span>
                           </div>
@@ -1731,7 +1794,13 @@ function OrderTable({
           <p>{d.offer.name}</p>
           <Facts
             rows={[
-              [t("Tanggal", "Date"), d.service_date],
+              [
+                t("Tanggal", "Date"),
+                new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-GB", {
+                  dateStyle: "medium",
+                  timeZone: "UTC",
+                }).format(new Date(d.service_date + "T12:00:00Z")),
+              ],
               [t("Alamat", "Address"), d.address.line + ", " + d.address.area],
               [t("Catatan", "Instructions"), d.address.instructions || "—"],
               [t("Porsi per waktu makan", "Portions per meal"), d.portions],

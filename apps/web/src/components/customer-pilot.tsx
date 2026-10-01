@@ -2,6 +2,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
+import { CheckCircle2, CircleAlert } from "lucide-react";
 import {
   currency,
   durationOptions,
@@ -12,6 +13,7 @@ import { api, useApp, useResource } from "./context";
 import { ActionForm, ErrorNotice, Facts, Field, Heading, Loading } from "./ui";
 import { TextInput } from "./form-controls";
 import { Select, SelectOption } from "./select";
+import { Disclosure } from "./disclosure";
 export function ClaimCustomer({ token }: { token: string }) {
   const { t, perform } = useApp();
   const [sent, setSent] = useState(false),
@@ -32,13 +34,12 @@ export function ClaimCustomer({ token }: { token: string }) {
       />
       {!result && (
         <>
-          <details>
-            <summary>
-              {t(
-                "Tambahkan / verifikasi nomor pada akun ini",
-                "Add / verify a phone on this account",
-              )}
-            </summary>
+          <Disclosure
+            title={t(
+              "Tambahkan / verifikasi nomor pada akun ini",
+              "Add / verify a phone on this account",
+            )}
+          >
             <ActionForm
               submit={
                 sent
@@ -81,8 +82,13 @@ export function ClaimCustomer({ token }: { token: string }) {
                 </Field>
               )}
             </ActionForm>
-            {verified && <p>{t("Nomor terverifikasi.", "Phone verified.")}</p>}
-          </details>
+            {verified && (
+              <p className="save-status" role="status">
+                <CheckCircle2 size={18} aria-hidden="true" />
+                {t("Nomor terverifikasi.", "Phone verified.")}
+              </p>
+            )}
+          </Disclosure>
           <ActionForm
             submit={t("Hubungkan langganan", "Connect subscription")}
             onSubmit={async () => {
@@ -103,21 +109,30 @@ export function ClaimCustomer({ token }: { token: string }) {
       )}
       {result === "claimed" && (
         <>
-          <p>
-            {t("Langganan sudah terhubung.", "Your subscription is connected.")}
-          </p>
+          <div className="notice" role="status">
+            <CheckCircle2 size={20} aria-hidden="true" />
+            <p>
+              {t(
+                "Langganan sudah terhubung.",
+                "Your subscription is connected.",
+              )}
+            </p>
+          </div>
           <Link className="button" href="/home">
             {t("Lihat jadwal saya", "View my schedule")}
           </Link>
         </>
       )}
       {result === "review" && (
-        <p role="status">
-          {t(
-            "Ada data kepemilikan atau jadwal yang perlu ditinjau. Hubungi katerer; pengantaran Anda tetap tersimpan.",
-            "Ownership or schedule information needs review. Contact your caterer; your deliveries remain saved.",
-          )}
-        </p>
+        <div className="notice" role="status">
+          <CircleAlert size={20} aria-hidden="true" />
+          <p>
+            {t(
+              "Ada data kepemilikan atau jadwal yang perlu ditinjau. Hubungi katerer; pengantaran Anda tetap tersimpan.",
+              "Ownership or schedule information needs review. Contact your caterer; your deliveries remain saved.",
+            )}
+          </p>
+        </div>
       )}
     </section>
   );
@@ -193,7 +208,7 @@ export function RenewCustomer({ id }: { id: string }) {
             {durationOptions(r.offers.find((o) => o.id === r.packageId)!).map(
               (o) => (
                 <SelectOption key={o.cycles} value={String(o.cycles)}>
-                  {o.cycles} {t("periode", "cycles")}
+                  {o.cycles} {t("periode", o.cycles === 1 ? "cycle" : "cycles")}
                   {o.discountPercent ? ` · −${o.discountPercent}%` : ""}
                 </SelectOption>
               ),
@@ -206,23 +221,28 @@ export function RenewCustomer({ id }: { id: string }) {
           {t("Lanjutkan pembayaran yang tertunda", "Continue pending payment")}
         </Link>
       )}
-      <p>
-        {r.portions} {t("porsi", "portions")} · {t("Mulai", "Starts")}{" "}
-        {r.startDate}
-      </p>
-      <p>
-        {r.address?.line} · {r.address?.area}
-      </p>
+      <Facts
+        rows={[
+          [t("Porsi per waktu makan", "Portions per meal"), String(r.portions)],
+          [
+            t("Mulai", "Starts"),
+            new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-GB", {
+              dateStyle: "medium",
+              timeZone: "UTC",
+            }).format(new Date(r.startDate + "T12:00:00Z")),
+          ],
+          [
+            t("Alamat pengantaran", "Delivery address"),
+            `${r.address?.line} · ${r.address?.area}`,
+          ],
+        ]}
+      />
       {commitment && (
         <Facts
           rows={[
             [
               t("Hari pengantaran", "Delivery days"),
               String(commitment.deliveryDays),
-            ],
-            [
-              t("Porsi per waktu makan", "Portions per meal"),
-              String(commitment.portionsPerMeal),
             ],
             [
               t("Harga paket", "Package price"),
@@ -237,7 +257,7 @@ export function RenewCustomer({ id }: { id: string }) {
         />
       )}
       {!r.available && (
-        <p role="status">
+        <p className="notice" role="status">
           {t(
             "Belum ada jadwal lengkap yang tersedia. Pilih paket lain atau hubungi katerer.",
             "No complete schedule is available. Choose another package or contact the caterer.",
@@ -278,7 +298,7 @@ export function RenewCustomer({ id }: { id: string }) {
           );
         }}
       >
-        <p>
+        <p className="small muted">
           {t(
             "Tidak ada pembayaran otomatis.",
             "There is no automatic payment.",

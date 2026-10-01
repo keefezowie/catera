@@ -1,0 +1,108 @@
+.disclosure {
+  min-width: 0;
+  border-top: 1px solid var(--line);
+}
+.disclosure.disclosure-panel {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0;
+  background: var(--surface);
+}
+.disclosure > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+  padding: 12px 0;
+  color: var(--forest);
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.5;
+  list-style: none;
+  cursor: pointer;
+  border-radius: 8px;
+}
+.disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+.disclosure > summary::marker {
+  content: "";
+}
+.disclosure > summary:hover {
+  color: var(--forest-hover);
+  background: var(--soft);
+}
+.disclosure > summary:active {
+  background: var(--line);
+}
+.disclosure > summary:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+.disclosure-panel > summary {
+  padding-inline: 16px;
+  border-radius: 11px;
+}
+.disclosure-heading {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.disclosure-title > svg {
+  vertical-align: middle;
+  margin-right: 8px;
+}
+.disclosure-description {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 400;
+}
+.disclosure-chevron {
+  flex: 0 0 auto;
+}
+.disclosure[open] > summary > .disclosure-chevron {
+  transform: rotate(180deg);
+}
+.disclosure-body {
+  min-width: 0;
+  padding: 0 0 16px 12px;
+  overflow-wrap: anywhere;
+}
+.disclosure-panel > .disclosure-body {
+  padding-inline: 16px;
+}
+.disclosure-body > :first-child {
+  margin-top: 0;
+}
+.disclosure-body > :last-child {
+  margin-bottom: 0;
+}
+.disclosure.record-details {
+  border: 0;
+}
+.disclosure.record-details > summary {
+  font-size: 13px;
+}
+.record-table .disclosure-body > .form {
+  margin-top: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.queue-row:has(> .disclosure) {
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+.queue-row > .disclosure {
+  flex: 1 1 100%;
+}
+@media (max-width: 560px) {
+  .disclosure-body {
+    padding-left: 0;
+  }
+  .disclosure-panel > .disclosure-body {
+    padding-inline: 16px;
+  }
+}

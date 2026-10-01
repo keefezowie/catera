@@ -6,6 +6,8 @@ import {
   areaOptions,
   type CustomerActionItem,
   type Offer,
+  type SellerCalendar,
+  type SellerOperationsState,
 } from "@catera/domain";
 
 const catererId = "10000000-0000-4000-8000-000000000001";
@@ -367,10 +369,36 @@ for (const locale of ["id", "en"] as const) {
     }, info) => {
       await login(page, baseURL!, locale, "owner");
       await page.setViewportSize({ width, height: 1000 });
-      const state = (
+      let state: SellerOperationsState = (
         await (await page.request.get(`/api/v1/seller/${catererId}`)).json()
       ).data;
-      const day = state.today;
+      // A long-running demo may cross midnight after its fixture was seeded.
+      // Select a populated day before copying a complete delivery into the mock.
+      if (state.deliveries.length === 0) {
+        const range = new URLSearchParams({
+          from: addDays(state.today, -31),
+          to: addDays(state.today, 31),
+          meal: "all",
+        });
+        const calendar: SellerCalendar = (
+          await (
+            await page.request.get(`/api/v1/seller-calendar/${catererId}?${range}`)
+          ).json()
+        ).data;
+        const populatedDay = calendar.days.find((entry) => entry.orders > 0)?.date;
+        expect(
+          populatedDay,
+          "Synthetic seller fixture needs a populated day",
+        ).toBeTruthy();
+        state = (
+          await (
+            await page.request.get(`/api/v1/seller/${catererId}?date=${populatedDay}`)
+          ).json()
+        ).data;
+      }
+      expect(state.deliveries[0]?.customer).toBeTruthy();
+      expect(state.deliveries[0]?.address).toBeTruthy();
+      const day = state.operationalDate;
       const deliveries = [2, 5, 3].map((portions, i) => ({
         ...state.deliveries[0],
         id: `e2000000-0000-4000-8000-00000000000${i}`,
@@ -441,7 +469,7 @@ for (const locale of ["id", "en"] as const) {
         `/seller/schedule?date=${day}&production=1&package=${state.offers[0].id}`,
       );
       await expect(page.locator(".ops-scope-summary")).toContainText(
-        t("1 pesanan · 4 porsi makan", "1 orders · 4 meal portions"),
+        t("1 pesanan · 4 porsi makan", "1 order · 4 meal portions"),
       );
       await expect(page.locator(".ops-scope-summary")).toContainText(
         t("Sesuai filter tabel", "Matching table filters"),

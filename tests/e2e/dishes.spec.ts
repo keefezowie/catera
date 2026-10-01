@@ -17,8 +17,8 @@ test("every forward tab and keyboard submit validate prerequisites; incomplete d
   await openEditor(page);
   for (const label of [
     /2\. Isi/,
-    /3\. Durasi & harga/,
-    /4\. Jadwal/,
+    /3\. Harga & lama paket/,
+    /4\. Pengantaran/,
     /5\. Periksa/,
   ]) {
     await page.getByRole("button", { name: label }).click();
@@ -77,8 +77,11 @@ test("uses one shared recurring capacity for every selected operating day", asyn
     .getByRole("button", { name: "Gunakan foto sintetis demo", exact: true })
     .click();
   await choose(page, "Tambah kategori ke paket", "Nasi");
-  await page.getByRole("button", { name: /3\. Durasi & harga/ }).click();
-  await page.getByRole("button", { name: /4\. Jadwal/ }).click();
+  await page.getByRole("button", { name: /3\. Harga & lama paket/ }).click();
+  await page
+    .getByLabel("Harga per porsi / hari (pengantaran termasuk)", { exact: true })
+    .fill("42000");
+  await page.getByRole("button", { name: /4\. Pengantaran/ }).click();
 
   const capacity = page.getByLabel("Kapasitas porsi per hari", { exact: true });
   await expect(capacity).toHaveCount(1);

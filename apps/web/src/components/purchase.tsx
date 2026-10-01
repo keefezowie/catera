@@ -10,6 +10,7 @@ import {
 import { durationOptions, purchaseStartAvailable } from "@catera/domain";
 import { Select, SelectOption } from "./select";
 import { DatePicker } from "./date-picker";
+import { Disclosure } from "./disclosure";
 import { OptionalSection } from "./optional-section";
 import { PackageContents } from "./package-contents";
 import { FoodImage } from "./food-image";
@@ -318,7 +319,10 @@ export function CheckoutPage({ id }: { id: string }) {
                     " " +
                     t("hari pengantaran", "delivery days")}{" "}
                 · {mealLabel(p.meal, locale)} · {portions}{" "}
-                {t("porsi per waktu makan", "portions per meal")}
+                {t(
+                  "porsi per waktu makan",
+                  portions === 1 ? "portion per meal" : "portions per meal",
+                )}
               </p>
             </div>
             <div className="total-row" aria-live="polite" aria-atomic="true">
@@ -361,15 +365,15 @@ export function CheckoutPage({ id }: { id: string }) {
                       "Choose an address to check delivery eligibility.",
                     )}
             </p>
-            <details className="checkout-package-details">
-              <summary>
-                {t("Isi paket & menu", "Package contents & menu")}
-              </summary>
+            <Disclosure
+              className="checkout-package-details"
+              title={t("Isi paket & menu", "Package contents & menu")}
+            >
               <PackageContents offer={quote?.offer || p} />
               {(quote?.offer || p).menuSelectionMode === "customer" && (
                 <PackageChoiceLibrary offer={quote?.offer || p} />
               )}
-            </details>
+            </Disclosure>
             <p className="small muted">
               {t(
                 "Dibayar penuh di awal. Tidak diperpanjang otomatis.",
@@ -496,7 +500,19 @@ export function CheckoutPage({ id }: { id: string }) {
                     </Button>
                   </div>
                 </div>
-                <Field label={t("Mulai tanggal", "Start date")}>
+                <Field
+                  label={t("Mulai tanggal", "Start date")}
+                  description={
+                    !startAvailable && (
+                      <span role="status">
+                        {t(
+                          "Pilih tanggal pengantaran yang belum melewati batas pemesanan katerer.",
+                          "Choose a delivery date before the caterer's purchase cutoff.",
+                        )}
+                      </span>
+                    )
+                  }
+                >
                   <DatePicker
                     required
                     min={localDay(now, p.timezone)}
@@ -507,14 +523,6 @@ export function CheckoutPage({ id }: { id: string }) {
                     onValueChange={setDate}
                   />
                 </Field>
-                {!startAvailable && (
-                  <p role="status">
-                    {t(
-                      "Pilih tanggal pengantaran yang belum melewati batas pemesanan katerer.",
-                      "Choose a delivery date before the caterer's purchase cutoff.",
-                    )}
-                  </p>
-                )}
                 <Field label={t("Alamat pengantaran", "Delivery address")}>
                   <Select
                     required
@@ -586,8 +594,12 @@ export function CheckoutPage({ id }: { id: string }) {
                           key={option.cycles}
                           value={String(option.cycles)}
                         >
-                          {option.cycles} {t("periode", "cycles")} ·{" "}
-                          {option.cycles * p.days}{" "}
+                          {option.cycles}{" "}
+                          {t(
+                            "periode",
+                            option.cycles === 1 ? "cycle" : "cycles",
+                          )}{" "}
+                          · {option.cycles * p.days}{" "}
                           {t("hari pengantaran", "delivery days")}
                           {option.discountPercent
                             ? ` · −${option.discountPercent}%`
@@ -688,7 +700,7 @@ export function CheckoutPage({ id }: { id: string }) {
                   <PurchasePriceBreakdown quote={quote} />
                   <PurchaseSchedule quote={quote} />
                   {!startAvailable && (
-                    <p role="status">
+                    <p className="notice" role="status">
                       {t(
                         "Batas pemesanan sudah lewat. Ubah tanggal mulai sebelum melanjutkan.",
                         "The purchase cutoff has passed. Edit your start date before continuing.",

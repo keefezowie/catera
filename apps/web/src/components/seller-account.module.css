@@ -1,0 +1,47 @@
+.staffInvite {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+  overflow-wrap: anywhere;
+}
+
+.staffInvite > p {
+  margin: 0;
+}
+
+.inviteCode {
+  display: grid;
+  gap: 4px;
+  color: var(--forest);
+}
+
+.inviteCode code {
+  font-size: 0.875rem;
+  font-weight: 650;
+}
+
+.inviteActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+
+.inviteActions > * {
+  max-width: 100%;
+  white-space: normal;
+}
+
+.inviteActions > a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+.accountRequestsEmpty {
+  margin: 20px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.875rem;
+}

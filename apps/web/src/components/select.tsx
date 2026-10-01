@@ -16,6 +16,7 @@ type SelectProps = {
   value?: string;
   defaultValue?: string;
   onValueChange?: (value: string) => void;
+  onCloseAutoFocus?: (event: Event) => void;
   name?: string;
   id?: string;
   disabled?: boolean;
@@ -34,6 +35,7 @@ export function Select({
   value,
   defaultValue,
   onValueChange,
+  onCloseAutoFocus,
   displayValue,
   className = "",
   id,
@@ -83,6 +85,7 @@ export function Select({
       </SelectPrimitive.Trigger>
       <SelectPrimitive.Portal>
         <SelectPrimitive.Content
+          onCloseAutoFocus={onCloseAutoFocus}
           className="select-menu"
           style={{ zIndex: level + 1 }}
           position="popper"

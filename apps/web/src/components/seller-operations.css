@@ -91,9 +91,35 @@
   gap: 6px;
   min-width: 220px;
 }
-.ops-deadlines summary {
-  cursor: pointer;
-  padding-block: 10px;
+.ops-deadline-context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  align-items: baseline;
+}
+.ops-deadline-state {
+  color: var(--forest);
+  font-weight: 650;
+}
+.ops-deadline-list {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0 0;
+}
+.ops-deadline-list li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding-block: 12px;
+  border-top: 1px solid var(--line);
+}
+.ops-deadline-list li > span:first-child {
+  display: grid;
+  gap: 4px;
+}
+.ops-deadline-list small {
+  color: var(--muted);
 }
 .ops-list-filter input {
   min-width: 160px;
@@ -427,8 +453,54 @@
   font-weight: 700;
   color: var(--forest);
 }
-.ops-production > .panel {
+.ops-production > .disclosure-body > .panel {
   margin-top: 4px;
+}
+.ops-production > .disclosure-body {
+  padding-inline: 0;
+}
+.ops-production .table-wrap :is(th, td) {
+  overflow-wrap: normal;
+  word-break: normal;
+}
+.ops-production .table-product :is(strong, small) {
+  overflow-wrap: anywhere;
+}
+@media screen {
+  .ops-production .table-wrap {
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-color: var(--forest) var(--soft);
+  }
+  .ops-production .table-wrap:focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 3px;
+    border-radius: 8px;
+  }
+  .ops-production .table-wrap table {
+    min-width: 640px;
+    font-size: 13px;
+  }
+  .ops-production .table-wrap th {
+    font-size: 12px;
+  }
+  .ops-production .table-wrap :is(th, td):first-child {
+    min-width: 260px;
+  }
+  .ops-production .table-wrap :is(th, td):nth-child(2) {
+    min-width: 100px;
+  }
+  .ops-production .table-wrap :is(th, td):nth-child(3) {
+    min-width: 90px;
+  }
+  .ops-production .table-wrap :is(th, td):nth-child(4) {
+    min-width: 140px;
+  }
+  .ops-production .table-wrap :is(th, td):nth-child(n + 2) {
+    white-space: nowrap;
+  }
 }
 .seller-operations .coverage-day {
   min-height: 135px;
@@ -512,8 +584,10 @@
     display: none !important;
   }
   .ops-production,
-  .ops-production > .panel {
+  .ops-production > .disclosure-body,
+  .ops-production > .disclosure-body > .panel {
     display: block !important;
     border: 0;
+    padding: 0;
   }
 }

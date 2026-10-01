@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Plus, GripVertical, ImageIcon } from "lucide-react";
+import { Plus, GripVertical, ImageIcon, ChevronDown } from "lucide-react";
 import type { DishCategory, LibraryDish } from "@catera/domain";
 import { useApp } from "./context";
 import { Button, TextInput, Checkbox } from "./form-controls";
@@ -108,10 +108,17 @@ export function MenuLibrary({
                 }
               >
                 <summary>
-                  {locale === "en" && "nameEn" in c
-                    ? c.nameEn || c.name
-                    : c.name}
-                  <span>{rows.length}</span>
+                  <span className="library-category-name">
+                    {locale === "en" && "nameEn" in c
+                      ? c.nameEn || c.name
+                      : c.name}
+                  </span>
+                  <span className="library-category-count">{rows.length}</span>
+                  <ChevronDown
+                    className="library-category-chevron"
+                    size={18}
+                    aria-hidden="true"
+                  />
                 </summary>
                 {!rows.length && (
                   <p>{t("Belum ada hidangan.", "No dishes yet.")}</p>

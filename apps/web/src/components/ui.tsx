@@ -185,9 +185,11 @@ export function Dialog({
   const present = useExitPresence(open);
   const { level, inactive } = useDialogLayer(present);
   const returnTargets = useRef<HTMLElement[]>([]);
+  const cancelFocusReturn = useRef<(() => void) | null>(null);
   const panel = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     if (!open) return;
+    cancelFocusReturn.current?.();
     const target = document.activeElement;
     if (target instanceof HTMLElement) {
       const parent = target.closest<HTMLElement>(".dialog");
@@ -266,21 +268,71 @@ export function Dialog({
             onCloseAutoFocus?.(event);
             if (!event.defaultPrevented) {
               event.preventDefault();
-              // Both child and parent can unmount together (discard/save).
-              // Wait for Radix to release focus traps and parent inert state.
+              // Nested exits can finish on different frames. An earlier return
+              // would be pulled back into the remaining Radix focus trap.
+              cancelFocusReturn.current?.();
               const targets = returnTargets.current;
-              requestAnimationFrame(() => {
-                targets
-                  .find(
-                    (target) =>
-                      target.isConnected &&
-                      !target.matches(":disabled") &&
-                      !target.closest(
-                        '[inert], .dialog[data-motion-state="closed"]',
-                      ),
-                  )
-                  ?.focus({ preventScroll: true });
-              });
+              const deadline = performance.now() + 1000;
+              let frame = 0;
+              let cancelled = false;
+              let restoring = false;
+              const unavailable =
+                '[inert], .dialog[data-motion-state="closed"]';
+              const hasNewFocus = () => {
+                const active = document.activeElement;
+                return (
+                  active instanceof HTMLElement &&
+                  active !== document.body &&
+                  active !== document.documentElement &&
+                  !active.closest(unavailable)
+                );
+              };
+              const cancel = () => {
+                cancelled = true;
+                cancelAnimationFrame(frame);
+                document.removeEventListener("focusin", focused, true);
+              };
+              const focused = () => {
+                if (!restoring && hasNewFocus()) cancel();
+              };
+              const restore = () => {
+                if (cancelled) return;
+                if (performance.now() >= deadline || hasNewFocus()) {
+                  cancel();
+                  return;
+                }
+                const target = targets.find(
+                  (candidate) =>
+                    candidate.isConnected &&
+                    !candidate.matches(":disabled, [aria-disabled='true']") &&
+                    !candidate.closest(unavailable),
+                );
+                const openDialog = document.querySelector(
+                  '.dialog[data-motion-state="open"]:not([inert])',
+                );
+                if (openDialog && (!target || !openDialog.contains(target))) {
+                  cancel();
+                  return;
+                }
+                if (
+                  !document.querySelector(
+                    '.dialog[data-motion-state="closed"]',
+                  ) &&
+                  target
+                ) {
+                  restoring = true;
+                  target.focus({ preventScroll: true });
+                  restoring = false;
+                  if (document.activeElement === target) {
+                    cancel();
+                    return;
+                  }
+                }
+                frame = requestAnimationFrame(restore);
+              };
+              cancelFocusReturn.current = cancel;
+              document.addEventListener("focusin", focused, true);
+              frame = requestAnimationFrame(restore);
             }
           }}
         >
@@ -463,16 +515,29 @@ export function ActionForm({
 }
 export function Field({
   label,
+  description,
   children,
   error,
   fieldKey,
 }: {
   label: string;
+  description?: ReactNode;
   children: ReactNode;
   error?: string;
   fieldKey?: string;
 }) {
   const errorId = useId();
+  const descriptionId = errorId + "-description";
+  const existingDescription = isValidElement(children)
+    ? (children.props as { "aria-describedby"?: string })["aria-describedby"]
+    : undefined;
+  const describedBy = [
+    existingDescription,
+    description ? descriptionId : undefined,
+    error ? errorId : undefined,
+  ]
+    .filter(Boolean)
+    .join(" ");
   const control = isValidElement(children)
     ? cloneElement(
         children as ReactElement<{
@@ -482,9 +547,8 @@ export function Field({
         }>,
         {
           "aria-labelledby": errorId + "-label",
-          ...(error
-            ? { "aria-invalid": true, "aria-describedby": errorId }
-            : {}),
+          ...(describedBy ? { "aria-describedby": describedBy } : {}),
+          ...(error ? { "aria-invalid": true } : {}),
         },
       )
     : children;
@@ -492,6 +556,11 @@ export function Field({
     <label className="field" data-editor-field={fieldKey}>
       <span id={errorId + "-label"}>{label}</span>
       {control}
+      {description && (
+        <small id={descriptionId} className="field-description">
+          {description}
+        </small>
+      )}
       {error && (
         <small id={errorId} className="field-error">
           {error}

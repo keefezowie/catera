@@ -108,7 +108,17 @@ export function PackageDurationEditor({ offer }: { offer: SellerOffer }) {
               )}
             </p>
             <div className="duration-example">
-              <Field label={t("Contoh jumlah porsi", "Example portions")}>
+              <Field
+                label={t("Contoh jumlah porsi", "Example portions")}
+                description={
+                  offer.price === null
+                    ? t(
+                        "Isi harga dasar paket untuk melihat contoh total. Pilihan durasi tetap dapat disimpan.",
+                        "Enter the package base price to see example totals. Duration options can still be saved.",
+                      )
+                    : undefined
+                }
+              >
                 <NumericInput
                   min={1}
                   max={100}
@@ -117,14 +127,6 @@ export function PackageDurationEditor({ offer }: { offer: SellerOffer }) {
                 />
               </Field>
             </div>
-            {offer.price === null && (
-              <p className="field-hint">
-                {t(
-                  "Isi harga dasar paket untuk melihat contoh total. Pilihan durasi tetap dapat disimpan.",
-                  "Enter the package base price to see example totals. Duration options can still be saved.",
-                )}
-              </p>
-            )}
             {[1, 2, 3, 4, 5, 6].map((cycles) => {
               const current = options.find((o) => o.cycles === cycles);
               let preview: ReturnType<typeof purchasePricing> | null = null;
@@ -163,7 +165,8 @@ export function PackageDurationEditor({ offer }: { offer: SellerOffer }) {
                     />
                     <span>
                       <span>
-                        {cycles} {t("periode", "cycles")}
+                        {cycles}{" "}
+                        {t("periode", cycles === 1 ? "cycle" : "cycles")}
                       </span>
                       <small>
                         {cycles * offer.days}{" "}
@@ -174,7 +177,7 @@ export function PackageDurationEditor({ offer }: { offer: SellerOffer }) {
                   {current && (
                     <>
                       <Field
-                        label={`${t("Diskon", "Discount")} · ${cycles} ${t("periode (%)", "cycles (%)")}`}
+                        label={`${t("Diskon", "Discount")} · ${cycles} ${t("periode (%)", cycles === 1 ? "cycle (%)" : "cycles (%)")}`}
                       >
                         <NumericInput
                           min={0}
@@ -257,13 +260,13 @@ export function DurationOptionsFields({
                   )
                 }
               />
-              {cycles} {t("periode", "cycles")} · {cycles * days}{" "}
-              {t("hari", "days")}
+              {cycles} {t("periode", cycles === 1 ? "cycle" : "cycles")} ·{" "}
+              {cycles * days} {t("hari", "days")}
             </label>
             {option && (
               <Field
                 fieldKey={`durationPricing.options.${options.findIndex((item) => item.cycles === cycles)}.discountPercent`}
-                label={`${t("Diskon", "Discount")} ${cycles} ${t("periode (%)", "cycles (%)")}`}
+                label={`${t("Diskon", "Discount")} ${cycles} ${t("periode (%)", cycles === 1 ? "cycle (%)" : "cycles (%)")}`}
               >
                 <NumericInput
                   min={0}

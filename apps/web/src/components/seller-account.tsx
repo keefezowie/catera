@@ -15,6 +15,7 @@ import { Button, TextInput, TextArea, Checkbox } from "./form-controls";
 import { Select, SelectOption } from "./select";
 import { LocaleSwitch } from "./locale-switch";
 import "./seller-experience.css";
+import styles from "./seller-account.module.css";
 
 export function PayoutSetupCard({
   catererId,
@@ -319,7 +320,9 @@ export function AccountHelp({ admin = false }: { admin?: boolean }) {
         </article>
       ))}
       {state.data?.length === 0 && (
-        <p>{t("Belum ada permintaan.", "No requests yet.")}</p>
+        <p className={styles.accountRequestsEmpty}>
+          {t("Belum ada permintaan.", "No requests yet.")}
+        </p>
       )}
     </section>
   );
@@ -404,35 +407,40 @@ export function SellerAccountSettings({ state: s }: { state: SellerState }) {
               </p>
             </ActionForm>
             {invite && (
-              <div className="notice">
-                <code>{invite}</code>
+              <div className={"notice " + styles.staffInvite}>
+                <p className={styles.inviteCode}>
+                  <strong>{t("Kode undangan", "Invitation code")}</strong>
+                  <code>{invite}</code>
+                </p>
                 <p>
                   {t(
                     "Bagikan kode ini kepada staf. Staf masuk atau mendaftar, membuka halaman mitra, lalu memilih ‘Saya diundang sebagai staf’.",
                     "Share this code with your staff member. They sign in or register, open partner onboarding, and choose ‘I was invited as staff’.",
                   )}
                 </p>
-                <Button
-                  variant="secondary"
-                  onClick={async () => {
-                    try {
-                      await navigator.clipboard.writeText(invite);
-                      notify(t("Kode disalin", "Code copied"));
-                    } catch {
-                      notify(
-                        t(
-                          "Gagal menyalin. Pilih dan salin kode di atas.",
-                          "Could not copy. Select and copy the code above.",
-                        ),
-                      );
-                    }
-                  }}
-                >
-                  {t("Salin kode undangan", "Copy invitation code")}
-                </Button>
-                <Link href="/seller/onboarding">
-                  {t("Halaman mitra", "Partner onboarding")}
-                </Link>
+                <div className={styles.inviteActions}>
+                  <Button
+                    variant="secondary"
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(invite);
+                        notify(t("Kode disalin", "Code copied"));
+                      } catch {
+                        notify(
+                          t(
+                            "Gagal menyalin. Pilih dan salin kode di atas.",
+                            "Could not copy. Select and copy the code above.",
+                          ),
+                        );
+                      }
+                    }}
+                  >
+                    {t("Salin kode undangan", "Copy invitation code")}
+                  </Button>
+                  <Link className="text-button" href="/seller/onboarding">
+                    {t("Halaman mitra", "Partner onboarding")}
+                  </Link>
+                </div>
               </div>
             )}
           </section>

@@ -113,6 +113,10 @@ export function Production({
   latest?: SellerOperationsState["latestProduction"];
 }) {
   const { actor, perform, t, locale } = useApp();
+  const displayDate = new Intl.DateTimeFormat(
+    locale === "id" ? "id-ID" : "en-GB",
+    { dateStyle: "medium", timeZone: "UTC" },
+  ).format(new Date(date + "T12:00:00Z"));
   const [saved, setRevision] = useState<{
     id: string;
     revision: number;
@@ -128,7 +132,7 @@ export function Production({
         <div>
           <h2>
             {t("Daftar dapur & pengantaran", "Kitchen & delivery list")} ·{" "}
-            {date}
+            {displayDate}
           </h2>
           <strong>
             {t(
@@ -208,7 +212,7 @@ export function Production({
               "Salinan ini tidak berubah otomatis. Simpan lagi setelah pesanan berubah; ringkasan di atas selalu menampilkan data terbaru.",
               "This copy does not update automatically. Save again after orders change; the overview above always shows current data.",
             )}{" "}
-            · {date} · {t("sehari penuh", "whole day")}
+            · {displayDate} · {t("sehari penuh", "whole day")}
           </p>
           <a className="button spaced" href={"/api/manifests/" + revision.id}>
             <Download size={18} />

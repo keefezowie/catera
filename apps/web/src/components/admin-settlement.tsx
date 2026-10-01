@@ -1,4 +1,5 @@
 "use client";
+import { Disclosure } from "./disclosure";
 import type { SettlementControls } from "@catera/domain";
 import { NumericInput } from "./numeric-input";
 import { useState } from "react";
@@ -84,13 +85,13 @@ function PolicyEditor({ seller }: { seller: string }) {
           <TextInput name="reason" minLength={5} required />
         </Field>
       </ActionForm>
-      <details className="spaced">
-        <summary>
-          {t(
-            "Catat pengembalian dana dari katerer",
-            "Record funds recovered from caterer",
-          )}
-        </summary>
+      <Disclosure
+        className="spaced"
+        title={t(
+          "Catat pengembalian dana dari katerer",
+          "Record funds recovered from caterer",
+        )}
+      >
         <ActionForm
           submit={t("Catat dana yang diterima", "Record received funds")}
           onSubmit={async (f) => {
@@ -123,7 +124,7 @@ function PolicyEditor({ seller }: { seller: string }) {
             <TextInput name="reason" minLength={5} required />
           </Field>
         </ActionForm>
-      </details>
+      </Disclosure>
     </>
   );
 }

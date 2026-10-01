@@ -159,7 +159,7 @@ for (const locale of ["id", "en"] as const) {
         `/seller/schedule?date=${day}&production=1&package=${offers[0].id}`,
       );
       await expect(page.locator(".ops-scope-summary")).toContainText(
-        copy(locale, "1 pesanan · 4 porsi makan", "1 orders · 4 meal portions"),
+        copy(locale, "1 pesanan · 4 porsi makan", "1 order · 4 meal portions"),
       );
       await expect(page.locator(".ops-production")).toContainText(
         copy(locale, "17 porsi makan", "17 meal portions"),

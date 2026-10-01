@@ -1,4 +1,5 @@
 "use client";
+import { Disclosure } from "./disclosure";
 import { useEffect, useMemo, useState } from "react";
 import { CustomerDeliveryCalendar } from "./customer-delivery-calendar";
 import {
@@ -593,23 +594,25 @@ export function SellerCustomers({ catererId }: { catererId: string }) {
         </div>
       )}
       {owner && (
-        <details className="panel customer-owner-tools">
-          <summary>
-            {t(
-              "Tindakan pemilik · impor prabayar",
-              "Owner actions · prepaid import",
-            )}
-          </summary>
+        <Disclosure
+          className="panel customer-owner-tools"
+          variant="panel"
+          title={t(
+            "Tindakan pemilik · impor prabayar",
+            "Owner actions · prepaid import",
+          )}
+        >
           <PrepaidMigration catererId={catererId} data={data} />
-        </details>
+        </Disclosure>
       )}
       {owner && (
-        <details className="panel customer-owner-tools">
-          <summary>
-            {t("Biaya & tagihan pilot", "Pilot fees & invoices")}
-          </summary>
+        <Disclosure
+          className="panel customer-owner-tools"
+          variant="panel"
+          title={t("Biaya & tagihan pilot", "Pilot fees & invoices")}
+        >
           <PilotPanel catererId={catererId} />
-        </details>
+        </Disclosure>
       )}
 
       <Dialog

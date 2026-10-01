@@ -1,4 +1,5 @@
 "use client";
+import { Disclosure } from "./disclosure";
 import {
   PurchasePriceBreakdown,
   PurchaseSchedule,
@@ -664,16 +665,16 @@ function SubscriptionDetail({
           ],
         ]}
       />
-      <details className="spaced">
-        <summary>
-          {t(
-            "Harga & jadwal saat pembelian",
-            "Original purchase price & schedule",
-          )}
-        </summary>
+      <Disclosure
+        className="spaced"
+        title={t(
+          "Harga & jadwal saat pembelian",
+          "Original purchase price & schedule",
+        )}
+      >
         <PurchasePriceBreakdown quote={s.snapshot} />
         <PurchaseSchedule quote={s.snapshot} />
-      </details>
+      </Disclosure>
       <div className="action-row">
         <Link className="button" href={"/renew/" + s.id}>
           {t("Beli paket berikutnya", "Buy the next package")}
@@ -1096,13 +1097,13 @@ export function DeliveryPage({ id }: { id: string }) {
               </p>
             )}
             {Object.keys(unavailableReasons).length > 0 && (
-              <details className="availability-reasons">
-                <summary>
-                  {t(
-                    "Mengapa sebagian tanggal tidak tersedia?",
-                    "Why are some dates unavailable?",
-                  )}
-                </summary>
+              <Disclosure
+                className="availability-reasons"
+                title={t(
+                  "Mengapa sebagian tanggal tidak tersedia?",
+                  "Why are some dates unavailable?",
+                )}
+              >
                 <ul>
                   {Object.entries(unavailableReasons).map(([reason, count]) => (
                     <li key={reason}>
@@ -1111,7 +1112,7 @@ export function DeliveryPage({ id }: { id: string }) {
                     </li>
                   ))}
                 </ul>
-              </details>
+              </Disclosure>
             )}
             {review && (
               <Facts

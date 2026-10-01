@@ -1,4 +1,5 @@
 "use client";
+import { Disclosure } from "./disclosure";
 import {
   currency,
   purchaseCommitment,
@@ -20,7 +21,7 @@ export function PurchasePriceBreakdown({ quote: q }: { quote: Quote }) {
     ],
     [
       t("Durasi paket", "Package duration"),
-      `${purchasedCycles(q)} ${t("periode", "cycles")} · ${q.dates.length} ${t("hari pengantaran", "delivery days")}`,
+      `${purchasedCycles(q)} ${t("periode", purchasedCycles(q) === 1 ? "cycle" : "cycles")} · ${q.dates.length} ${t("hari pengantaran", q.dates.length === 1 ? "delivery day" : "delivery days")}`,
     ],
     [t("Porsi per waktu makan", "Portions per meal"), String(q.portions)],
     [
@@ -76,7 +77,11 @@ export function PurchaseSchedule({ quote: q }: { quote: Quote }) {
         <strong>
           {format(q.dates[0])} → {format(q.dates.at(-1)!)}
         </strong>{" "}
-        · {q.dates.length} {t("hari pengantaran", "delivery days")}
+        · {q.dates.length}{" "}
+        {t(
+          "hari pengantaran",
+          q.dates.length === 1 ? "delivery day" : "delivery days",
+        )}
       </p>
       <Facts
         rows={[
@@ -85,11 +90,12 @@ export function PurchaseSchedule({ quote: q }: { quote: Quote }) {
         ]}
       />
       {groups.map((dates, index) => (
-        <details key={index} open={index === 0}>
-          <summary>
-            {t("Periode", "Cycle")} {index + 1} · {format(dates[0])} →{" "}
-            {format(dates.at(-1)!)}
-          </summary>
+        <Disclosure
+          key={index}
+          open={index === 0}
+          title={`${t("Periode", "Cycle")} ${index + 1}`}
+          description={`${format(dates[0])} → ${format(dates.at(-1)!)}`}
+        >
           <div
             className="schedule-preview"
             tabIndex={0}
@@ -112,12 +118,13 @@ export function PurchaseSchedule({ quote: q }: { quote: Quote }) {
                   )}
                 </strong>
                 <span>
-                  {q.portions} {t("porsi", "portions")}
+                  {q.portions}{" "}
+                  {t("porsi", q.portions === 1 ? "portion" : "portions")}
                 </span>
               </div>
             ))}
           </div>
-        </details>
+        </Disclosure>
       ))}
     </div>
   );

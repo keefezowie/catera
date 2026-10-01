@@ -39,6 +39,16 @@ test("picker has one date Tab stop, full keyboard navigation and usable mobile t
   );
   await page.setViewportSize({ width: 320, height: 740 });
   await page.locator(".calendar-month-button").click();
+  // Measure the settled hit areas; translating a fractional pixel can make a
+  // 44px box report 43.99997px while the dialog is entering.
+  await page.locator(".calendar-picker-grid").evaluate(async (element) => {
+    const dialog = element.closest('[role="dialog"]');
+    await Promise.all(
+      (dialog?.getAnimations({ subtree: true }) ?? []).map((animation) =>
+        animation.finished.catch(() => undefined),
+      ),
+    );
+  });
   const sizes = await page
     .locator(".calendar-picker-grid button")
     .evaluateAll((elements) =>

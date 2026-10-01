@@ -170,7 +170,7 @@ test("tablet calendar previews use workspace width and the library restores focu
     } else {
       await expect(card.locator(".menu-day-dishes")).toBeHidden();
       await expect(card.locator(".menu-day-count")).toHaveText("6");
-      await expect(card).toHaveCSS("height", "64px");
+      await expect(card).toHaveCSS("height", panelWidth < 360 ? "80px" : "64px");
       await expect(day(page, 11).locator(".menu-day-empty")).toBeHidden();
     }
     expect(
@@ -633,12 +633,16 @@ test("package wizard publishes composition only and customers buy before dated m
   await expect(page.getByLabel("Nama hidangan", { exact: true })).toHaveCount(
     0,
   );
+  await page.getByRole("button", { name: /3\. Harga & lama paket/ }).click();
+  await page
+    .getByLabel("Harga per porsi / hari (pengantaran termasuk)", { exact: true })
+    .fill("35000");
+  await page.getByRole("button", { name: /4\. Pengantaran/ }).click();
+  await page
+    .getByLabel("Kapasitas porsi per hari", { exact: true })
+    .fill("100");
   await page.getByRole("button", { name: /5\. Periksa/ }).click();
-  await choose(
-    page,
-    "Status penawaran",
-    "Tayangkan setelah verifikasi katerer",
-  );
+  await expect(page.locator(".editor-step-title")).toHaveText("Periksa");
   const save = page.waitForResponse(
     (r) =>
       r.url().endsWith("/commands") &&
@@ -650,6 +654,18 @@ test("package wizard publishes composition only and customers buy before dated m
   const response = await save;
   expect(response.ok(), await response.text()).toBe(true);
   const id = (await response.json()).data.id;
+  const published = (
+    await (await page.request.get(`/api/v1/seller/${catererId}`)).json()
+  ).data.offers.find((offer: Offer) => offer.id === id) as Offer;
+  expect(published.status).toBe("published");
+  for (const menu of published.menus) expect(menu.items).toHaveLength(0);
+  expect(
+    published.menus.some((menu) =>
+      menu.composition?.some(
+        (group) => group.categoryId === "main" && group.slots === 2,
+      ),
+    ),
+  ).toBe(true);
   await page.request.post("/api/v1/auth/demo", { data: { role: "customer" } });
   await page.goto("/packages/" + id);
   await expect(

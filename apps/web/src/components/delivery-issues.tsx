@@ -1,4 +1,5 @@
 "use client";
+import { Disclosure } from "./disclosure";
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -232,10 +233,9 @@ export function DeliveryIssues({ catererId }: { catererId?: string }) {
                   </p>
                 </ActionForm>
               )}
-              <details>
-                <summary>
-                  {t("Minta Catera meninjau", "Ask Catera to review")}
-                </summary>
+              <Disclosure
+                title={t("Minta Catera meninjau", "Ask Catera to review")}
+              >
                 <ActionForm
                   submit={t("Eskalasi ke Catera", "Escalate to Catera")}
                   onSubmit={async (f) => {
@@ -272,7 +272,7 @@ export function DeliveryIssues({ catererId }: { catererId?: string }) {
                     )}
                   </p>
                 </ActionForm>
-              </details>
+              </Disclosure>
             </>
           )}
         </article>

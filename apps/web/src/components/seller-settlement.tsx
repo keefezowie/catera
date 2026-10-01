@@ -1,4 +1,5 @@
 "use client";
+import { Disclosure } from "./disclosure";
 import { PayoutSetupCard } from "./seller-account";
 import { useId, type ReactNode, type KeyboardEvent } from "react";
 import {
@@ -63,6 +64,16 @@ function SettlementScreen({
   const detail = query.get("payout");
   const setDetail = (value: string | null) => update({ payout: value });
   const id = useId();
+  const legacyFallback = legacy && (
+    <Disclosure
+      className="spaced"
+      variant="panel"
+      open
+      title={t("Pencairan pembelian lama", "Legacy purchase payouts")}
+    >
+      {legacy}
+    </Disclosure>
+  );
   if (!state.data)
     return (
       <>
@@ -72,7 +83,7 @@ function SettlementScreen({
           <Loading />
         )}
         {purchases}
-        {legacy}
+        {legacyFallback}
       </>
     );
   const s = state.data;
@@ -81,7 +92,7 @@ function SettlementScreen({
       <>
         <SettlementUnavailableNotice />
         {purchases}
-        {legacy}
+        {legacyFallback}
       </>
     );
   const tabs = [
@@ -172,15 +183,15 @@ function SettlementScreen({
                       catererId={catererId}
                       variant="destination"
                     />
-                    <details className="panel">
-                      <summary>
-                        {t(
-                          "Pencairan pembelian lama",
-                          "Legacy purchase payouts",
-                        )}
-                      </summary>
+                    <Disclosure
+                      className="spaced"
+                      title={t(
+                        "Pencairan pembelian lama",
+                        "Legacy purchase payouts",
+                      )}
+                    >
                       {legacy}
-                    </details>
+                    </Disclosure>
                   </>
                 )}
               </>
@@ -188,11 +199,17 @@ function SettlementScreen({
           </div>
         ))}
       </section>
-      <details className="panel settlement-help">
-        <summary>
-          <CircleHelp size={18} />
-          {t("Cara pendapatan dihitung", "How earnings work")}
-        </summary>
+      <Disclosure
+        className="panel settlement-help"
+        variant="panel"
+        title={
+          <>
+            {" "}
+            <CircleHelp size={18} />
+            {t("Cara pendapatan dihitung", "How earnings work")}{" "}
+          </>
+        }
+      >
         <ol className="settlement-flow">
           <li>{t("Pengantaran hari itu selesai", "Delivery day completed")}</li>
           <li>{t("Pendapatan dicatat", "Earnings credited")}</li>
@@ -215,7 +232,7 @@ function SettlementScreen({
             "Payouts are processed on Mondays at 09:00 WIB once enabled. This balance cannot be spent on purchases.",
           )}
         </p>
-      </details>
+      </Disclosure>
       {detail && (
         <SettlementDetail
           key={`${catererId}-${detail}`}
@@ -358,8 +375,10 @@ function BalanceOverview({
           </span>
         </p>
       )}
-      <details className="settlement-balance-details">
-        <summary>{t("Rincian saldo", "Balance details")}</summary>
+      <Disclosure
+        className="settlement-balance-details"
+        title={t("Rincian saldo", "Balance details")}
+      >
         <Facts
           rows={[
             [
@@ -376,7 +395,7 @@ function BalanceOverview({
             ],
           ]}
         />
-      </details>
+      </Disclosure>
     </section>
   );
 }

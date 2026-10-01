@@ -1,4 +1,5 @@
 "use client";
+import { Disclosure } from "./disclosure";
 import { useEffect, useId, useRef, useState } from "react";
 import { settlementCurrency, type SettlementReport } from "@catera/domain";
 import { api, useApp, useResource } from "./context";
@@ -12,7 +13,7 @@ export function SettlementChart({ catererId }: { catererId: string }) {
   const setDays = (value: number) => update({ days: value });
   return (
     <section
-      className="panel settlement-chart"
+      className="settlement-chart"
       aria-label={t("Grafik pendapatan", "Earnings chart")}
     >
       <div className="settlement-heading">
@@ -254,8 +255,7 @@ export function EarningsBars({ report }: { report: SettlementReport }) {
           </span>
         </div>
       )}
-      <details>
-        <summary>{t("Lihat data", "View data")}</summary>
+      <Disclosure title={t("Lihat data", "View data")}>
         <div className="table-wrap">
           <table className="record-table">
             <caption className="sr-only">
@@ -279,7 +279,7 @@ export function EarningsBars({ report }: { report: SettlementReport }) {
             </tbody>
           </table>
         </div>
-      </details>
+      </Disclosure>
     </>
   );
 }

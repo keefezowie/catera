@@ -98,9 +98,13 @@ async function separateScopeControls(scope: Locator) {
 async function reachable(control: Locator) {
   await expect(control).toBeVisible();
   // Center each control in the visible scroll surface before hit testing. This
-  // avoids treating below-the-fold fields as hidden by a sticky header.
+  // also settles geometry before sampling while the app keeps smooth scrolling.
   await control.evaluate((element) =>
-    element.scrollIntoView({ block: "center", inline: "nearest" }),
+    element.scrollIntoView({
+      block: "center",
+      inline: "nearest",
+      behavior: "instant",
+    }),
   );
   const blocked = await control.evaluate((element) => {
     const box = element.getBoundingClientRect();

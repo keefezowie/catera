@@ -1,5 +1,6 @@
 .seller-customers {
   gap: 24px;
+  container: seller-customers / inline-size;
 }
 
 .customer-controls {
@@ -170,7 +171,7 @@
 
 .customer-row-actions .button {
   padding-inline: 14px;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .customer-row > .notice {
@@ -298,7 +299,7 @@
   cursor: pointer;
 }
 
-@media (max-width: 1100px) {
+@container seller-customers (max-width: 1000px) {
   .customer-row-header {
     grid-template-columns: minmax(0, 1fr) auto;
   }
@@ -309,7 +310,7 @@
   }
 }
 
-@media (max-width: 700px) {
+@container seller-customers (max-width: 650px) {
   .customer-controls {
     padding: 18px;
   }
@@ -367,7 +368,7 @@
   }
 }
 
-@media (max-width: 480px) {
+@container seller-customers (max-width: 420px) {
   .customer-view-switch {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));

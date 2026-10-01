@@ -1,4 +1,5 @@
 "use client";
+import { Disclosure } from "./disclosure";
 import { AccountHelp, PayoutDestinationQueue } from "./seller-account";
 import { menuSummary } from "@catera/domain";
 import { Select, SelectOption } from "./select";
@@ -234,10 +235,13 @@ export function Admin({ view }: { view: string }) {
         <section className="panel">
           <TransactionRows rows={a.transactions} />
           {!!a.providerOperations?.length && (
-            <details className="spaced">
-              <summary>
-                {t("Rekonsiliasi DOKU Sandbox", "DOKU Sandbox reconciliation")}
-              </summary>
+            <Disclosure
+              className="spaced"
+              title={t(
+                "Rekonsiliasi DOKU Sandbox",
+                "DOKU Sandbox reconciliation",
+              )}
+            >
               <p>
                 {t(
                   "Catatan integrasi uji coba. Status ini bukan bukti kesiapan produksi.",
@@ -257,7 +261,7 @@ export function Admin({ view }: { view: string }) {
                   </li>
                 ))}
               </ul>
-            </details>
+            </Disclosure>
           )}
         </section>
       ) : view === "support" ? (
@@ -290,10 +294,12 @@ export function Admin({ view }: { view: string }) {
                           {a.cases.find((c) => c.id === r.case_id)?.subject ||
                             t("Kasus bantuan", "Support case")}
                         </strong>
-                        <details className="record-details">
-                          <summary>{t("Nomor kasus", "Case ID")}</summary>
+                        <Disclosure
+                          className="record-details"
+                          title={t("Nomor kasus", "Case ID")}
+                        >
                           <code>{r.case_id}</code>
-                        </details>
+                        </Disclosure>
                       </td>
                       <td data-label={t("Jumlah", "Amount")}>
                         {currency(r.amount, locale)}
@@ -315,13 +321,12 @@ export function Admin({ view }: { view: string }) {
                           </p>
                         )}
                         {r.state === "succeeded" && !r.reconciliation && (
-                          <details>
-                            <summary>
-                              {t(
-                                "Rekonsiliasi refund",
-                                "Refund reconciliation",
-                              )}
-                            </summary>
+                          <Disclosure
+                            title={t(
+                              "Rekonsiliasi refund",
+                              "Refund reconciliation",
+                            )}
+                          >
                             <ActionForm
                               submit={t(
                                 "Konfirmasi rekonsiliasi",
@@ -376,7 +381,7 @@ export function Admin({ view }: { view: string }) {
                                 />
                               </Field>
                             </ActionForm>
-                          </details>
+                          </Disclosure>
                         )}
                       </td>
                     </tr>
@@ -452,10 +457,12 @@ export function Admin({ view }: { view: string }) {
                 <Status status={p.status} />
                 {!p.settlement_run_id &&
                   !["succeeded", "failed"].includes(p.status) && (
-                    <details>
-                      <summary>
-                        {t("Rekonsiliasi pencairan", "Payout reconciliation")}
-                      </summary>
+                    <Disclosure
+                      title={t(
+                        "Rekonsiliasi pencairan",
+                        "Payout reconciliation",
+                      )}
+                    >
                       <ActionForm
                         submit={t("Catat penyelesaian", "Record settlement")}
                         onSubmit={async (f) => {
@@ -489,7 +496,7 @@ export function Admin({ view }: { view: string }) {
                           <TextArea name="reason" required minLength={5} />
                         </Field>
                       </ActionForm>
-                    </details>
+                    </Disclosure>
                   )}
               </div>
             ))}
@@ -590,13 +597,12 @@ export function Admin({ view }: { view: string }) {
                       </span>
                     </td>
                     <td data-label={t("Detail", "Details")}>
-                      <details>
-                        <summary>{t("Lihat catatan", "View notes")}</summary>
+                      <Disclosure title={t("Lihat catatan", "View notes")}>
                         <code>
                           {e.action} · {e.actor_id}
                         </code>
                         <pre>{JSON.stringify(e.details, null, 2)}</pre>
-                      </details>
+                      </Disclosure>
                     </td>
                   </tr>
                 ))}

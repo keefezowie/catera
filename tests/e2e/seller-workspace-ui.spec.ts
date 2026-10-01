@@ -39,6 +39,9 @@ for (const locale of ["id", "en"])
       }
       await page.goto("/seller/packages");
       const cards = page.locator(".seller-packages > article");
+      const advanced = cards.first().locator(".package-secondary-settings");
+      await advanced.locator("summary").click();
+      await expect(advanced).toHaveAttribute("open", "");
       const trigger = page.locator(".duration-editor-trigger").first();
       await expect(trigger).toBeVisible();
       const cardBefore = await cards.first().boundingBox();
@@ -107,6 +110,8 @@ for (const locale of ["id", "en"])
         2,
       );
       await page.reload();
+      await advanced.locator("summary").click();
+      await expect(advanced).toHaveAttribute("open", "");
       await trigger.click();
       await expect(twoCycles.getByRole("checkbox")).toBeChecked();
       await expect(twoCycles.getByRole("spinbutton")).toHaveValue("3");
@@ -312,7 +317,15 @@ test("seller package modes, inline schedule filters, and subscription-only custo
     animations: "disabled",
   });
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.getByRole("button", { name: "Hapus filter" }).click();
+  await page.getByRole("button", { name: "Hapus filter tabel", exact: true }).click();
+  await expect(
+    page.getByRole("combobox", { name: "Kelompokkan pesanan", exact: true }),
+  ).toContainText("Tanpa kelompok");
+  await expect(page.locator(".ops-group-heading")).toHaveCount(0);
+  await expect(
+    page.locator(".ops-order-table tbody tr:not(.ops-group-heading)"),
+  ).toHaveCount(2);
+  await choose(page, "Kelompokkan pesanan", "Tujuan");
   await expect(page.locator(".ops-group-heading")).toHaveCount(2);
   await page.goto(`/seller?date=${date}&meal=lunch`);
   await expect(page.locator(".ops-group-heading")).toHaveCount(2);
@@ -344,9 +357,15 @@ test("seller package modes, inline schedule filters, and subscription-only custo
   await expect(
     page.getByRole("button", {
       name: /Tambah pelanggan|Catat pembayaran eksternal/,
+      includeHidden: true,
     }),
   ).toHaveCount(0);
   await expect(page.locator(".pilot-customer-grid")).toContainText("Nadia");
+  const ownerTools = page.locator(".customer-owner-tools").filter({
+    hasText: "Tindakan pemilik · impor prabayar",
+  });
+  await ownerTools.locator("summary").click();
+  await expect(ownerTools).toHaveAttribute("open", "");
   await expect(
     page.getByRole("button", { name: "Impor prabayar" }),
   ).toBeVisible();

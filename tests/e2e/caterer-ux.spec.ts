@@ -162,7 +162,7 @@ test("AT-04/05/06/07 dinner-only, explicit empty meal, empty day and exact mixed
   );
   await expect(page.locator(".ops-stages")).toContainText("3 portions");
   await expect(page.locator(".ops-stages")).toContainText("2 portions");
-  await expect(page.locator(".ops-stages")).toContainText("1 portions");
+  await expect(page.locator(".ops-stages")).toContainText("1 portion");
   await expect(page.locator(".ops-deadlines summary")).toContainText("Passed");
   await expect(page.locator(".ops-deadlines summary")).toContainText(
     fixture.date,
@@ -206,7 +206,7 @@ test("AT-08/09/16 explicit searchable grouping filters match summary, reset and 
   await page.getByRole("option", { name: "Cancelled", exact: true }).click();
   await expect(orderRows(page)).toHaveCount(1);
   await expect(page.locator(".ops-scope-summary")).toContainText(
-    "1 orders · 2 meal portions",
+    "1 order · 2 meal portions",
   );
   await expect(page.locator(".ops-scope-summary")).toContainText(
     "cancelled historical quantities",

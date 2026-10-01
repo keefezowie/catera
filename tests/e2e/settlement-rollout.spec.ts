@@ -22,10 +22,31 @@ for (const locale of ["id", "en"])
         { exact: true },
       ),
     ).toBeVisible();
+    const legacy = page.locator("details.disclosure-panel").filter({
+      has: page.locator(".legacy-payout-content"),
+    });
+    await expect(legacy).toHaveAttribute("open", "");
+    await expect(legacy.locator("summary")).toHaveText(
+      locale === "en" ? "Legacy purchase payouts" : "Pencairan pembelian lama",
+    );
+    const sales = page.getByRole("region", {
+      name: locale === "en" ? "Sales list" : "Daftar penjualan",
+      exact: true,
+    });
+    await expect(sales).toBeVisible();
     await expect(
-      page.getByRole("heading", {
-        name: locale === "en" ? "Sales" : "Penjualan",
+      sales.getByRole("columnheader", {
+        name: locale === "en" ? "Sale" : "Penjualan",
+        exact: true,
       }),
+    ).toBeVisible();
+    await expect(
+      page.getByText(
+        locale === "en"
+          ? "Payouts are reviewed and approved by Catera. Disputed funds are held."
+          : "Pencairan ditinjau dan disetujui Catera. Dana dalam sengketa ditahan.",
+        { exact: true },
+      ),
     ).toBeVisible();
     await expect(
       page.getByText("The requested data was not found.", { exact: true }),
@@ -59,6 +80,17 @@ test("genuine settlement failures still show a retryable error", async ({
   await expect(
     page.getByText(/Delivery earnings reporting is not available yet/),
   ).toHaveCount(0);
+  const legacy = page.locator("details.disclosure-panel").filter({
+    has: page.locator(".legacy-payout-content"),
+  });
+  await expect(legacy).toHaveAttribute("open", "");
+  await expect(legacy.locator("summary")).toHaveText("Legacy purchase payouts");
+  await expect(
+    legacy.getByText(
+      "Payouts are reviewed and approved by Catera. Disputed funds are held.",
+      { exact: true },
+    ),
+  ).toBeVisible();
 });
 test("old database does not expose unusable settlement controls", async ({
   page,

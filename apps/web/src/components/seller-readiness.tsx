@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import type { Caterer, SellerOffer } from "@catera/domain";
 import { useApp } from "./context";
+import { Disclosure } from "./disclosure";
 
 export function SellerReadiness({
   caterer,
@@ -202,12 +203,11 @@ export function SellerReadiness({
         {next.label}
         <ArrowRight size={18} aria-hidden="true" />
       </Link>
-      <details className="seller-readiness-checklist">
-        <summary>
-          {t("Lihat langkah persiapan", "View setup checklist")} ·{" "}
-          {steps.filter((step) => step.done).length}/4{" "}
-          {t("selesai", "complete")}
-        </summary>
+      <Disclosure
+        className="seller-readiness-checklist"
+        title={t("Lihat langkah persiapan", "View setup checklist")}
+        description={`${steps.filter((step) => step.done).length}/4 ${t("selesai", "complete")}`}
+      >
         <ol>
           {steps.map(({ title, done, href, Icon }) => (
             <li key={href + title} data-complete={done}>
@@ -232,7 +232,7 @@ export function SellerReadiness({
             "Payout activation is checked separately in Settings.",
           )}
         </p>
-      </details>
+      </Disclosure>
     </section>
   );
 }

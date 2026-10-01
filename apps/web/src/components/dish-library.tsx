@@ -127,6 +127,14 @@ export function DishFields({
             (!dish.name.trim() ? errors.menus : undefined)
           }
           label={t("Nama hidangan", "Dish name")}
+          description={
+            !dish.name.trim()
+              ? t(
+                  "Isi nama sebelum melanjutkan.",
+                  "Enter a name before continuing.",
+                )
+              : undefined
+          }
         >
           <TextInput
             data-dish-name
@@ -148,14 +156,6 @@ export function DishFields({
           />
         </Field>
       </div>
-      {!dish.name.trim() && (
-        <p className="field-hint">
-          {t(
-            "Isi nama sebelum melanjutkan.",
-            "Enter a name before continuing.",
-          )}
-        </p>
-      )}
       <Field
         fieldKey={fieldPrefix + ".description"}
         error={errors[fieldPrefix + ".description"]}

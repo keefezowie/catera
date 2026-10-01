@@ -209,7 +209,9 @@ for (const width of [390, 1440]) {
         await page.locator(".master-detail button.queue-row").first().click();
       }
       await details.first().locator("summary").click();
-      await expect(details.first().locator("code")).toBeVisible();
+      const codes = details.first().locator("code");
+      await expect(codes).not.toHaveCount(0);
+      for (const code of await codes.all()) await expect(code).toBeVisible();
       expect(
         await page.evaluate(
           () => document.documentElement.scrollWidth <= innerWidth,

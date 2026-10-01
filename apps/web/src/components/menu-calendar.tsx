@@ -34,6 +34,7 @@ import { MenuPanel, MenuSlots } from "./menu-assembly";
 import { PackageContents } from "./package-contents";
 import { PackageChoiceLibrary } from "./package-choice-library";
 import { MenuLibrary } from "./menu-library";
+import { Disclosure } from "./disclosure";
 import {
   monthOf,
   shiftMonth,
@@ -611,15 +612,14 @@ export function MenuCalendar({
           </Link>
         )}
         {!subscription && (
-          <details
-            className="spaced"
+          <Disclosure
+            title={t("Kelola pustaka hidangan", "Manage dish library")}
+            variant="panel"
+            className="spaced menu-empty-library"
             open={query.get("library") === "1" || undefined}
           >
-            <summary>
-              {t("Kelola pustaka hidangan", "Manage dish library")}
-            </summary>
             <MenuLibrary dishes={dishes} categories={categories} />
-          </details>
+          </Disclosure>
         )}
       </div>
     );

@@ -286,7 +286,7 @@ test("seller pricing and card preview stay aligned without persisting a total", 
     await customCategories.first().click();
     await page.getByRole("option", { name: "Buah", exact: true }).click();
   }
-  await page.getByRole("button", { name: /3\. Durasi & harga/ }).click();
+  await page.getByRole("button", { name: /3\. Harga & lama paket/ }).click();
   const duration = page.getByLabel("Hari pengantaran per periode", {
     exact: true,
   });
@@ -305,6 +305,11 @@ test("seller pricing and card preview stay aligned without persisting a total", 
     "Setara Rp 20.500 / sekali makan · 2 kali makan / hari",
   );
   await page.getByRole("button", { name: /5\. Periksa/ }).click();
+  const customerPreview = page.locator(".optional-section").filter({
+    has: page.locator("summary", { hasText: "Pratinjau pelanggan" }),
+  });
+  await customerPreview.locator("summary").click();
+  await expect(customerPreview).toHaveAttribute("open", "");
   const card = page.locator(".listing-preview .package-card");
   await expect(card.locator(".card-price strong")).toHaveText(currency(287000));
   await expect(card.locator(".package-unit-price")).toContainText(
