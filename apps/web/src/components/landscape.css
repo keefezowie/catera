@@ -1,0 +1,659 @@
+/* Active V1 desktop composition; the compact layouts keep their existing flow. */
+.home-overview,
+.home-delivery-column,
+.home-package-column,
+.ops-service-overview {
+  min-width: 0;
+}
+.home-delivery-column > .next-meal-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  margin-bottom: 28px;
+}
+.home-delivery-column > .next-meal-card .next-meal-photo {
+  height: 100%;
+  min-height: 260px;
+}
+.home-delivery-column > .next-meal-card .next-meal-photo img {
+  position: absolute;
+  inset: 0;
+}
+.home-delivery-column > .next-meal-card .next-meal-info {
+  font-size: 13px;
+}
+@media (max-width: 700px) {
+  .home-delivery-column > .next-meal-card {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .home-delivery-column > .next-meal-card .next-meal-photo {
+    height: 190px;
+    min-height: 0;
+  }
+  .home-delivery-column > .next-meal-card .next-meal-content {
+    padding: 20px;
+  }
+}
+@media (min-width: 1100px) {
+  .ops-layout .ops-main {
+    padding-top: 24px;
+  }
+  .seller-operations .ops-scope-area {
+    padding-block: 8px;
+  }
+  .seller-operations .ops-order-table .ops-group-heading :is(th, td) {
+    padding-block: 8px;
+  }
+  .seller-operations .ops-workload {
+    padding-block: 12px;
+  }
+  .seller-operations .ops-row-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .seller-operations
+    .ops-orders-panel
+    .ops-order-table
+    td[data-cell="actions"] {
+    min-width: 200px;
+  }
+  .seller-operations .ops-row-actions .order-next {
+    margin-top: 0;
+    padding: 8px 10px;
+    font-size: 11px;
+  }
+  .seller-operations .ops-row-actions .order-next svg {
+    display: none;
+  }
+  .seller-operations .ops-order-table .ops-row-actions .text-button {
+    min-height: 44px;
+  }
+  .featured-slide .hero-copy > .featured-commitment {
+    margin: 0 0 8px;
+    font-size: 13px;
+  }
+  .featured-commitment > span {
+    display: block;
+    font-size: 11px;
+    margin-top: 5px;
+  }
+  .catalog-section .package-card-v2 .package-body {
+    gap: 14px;
+  }
+  .catalog-section .package-card-v2 .package-footer {
+    margin-top: 0;
+    padding-top: 12px;
+  }
+  .catalog-section .package-card-v2 .package-preview {
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+  }
+  .catalog-section .package-card-v2 .package-pricing .delivery-included {
+    margin-bottom: 6px;
+  }
+  .delivery-detail-page > .delivery-summary {
+    display: grid;
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  }
+  .delivery-detail-page .delivery-summary .next-meal-photo {
+    height: 100%;
+    min-height: 240px;
+  }
+  .delivery-detail-page .delivery-summary .next-meal-photo img {
+    position: absolute;
+    inset: 0;
+  }
+  .delivery-detail-page .delivery-change-reason {
+    margin-block: 12px 20px;
+  }
+  .featured-hero-wrapper {
+    padding-top: 24px;
+  }
+  .featured-hero {
+    margin-bottom: 24px;
+  }
+  .featured-slide.market-hero {
+    min-height: 220px;
+  }
+  .featured-slide .hero-copy {
+    padding: 20px 32px 52px;
+  }
+  .featured-slide .hero-copy h1,
+  .featured-slide .hero-copy h2 {
+    font-size: 30px;
+  }
+  .featured-slide .hero-copy > p {
+    margin: 4px 0 8px;
+  }
+  .featured-controls {
+    bottom: 12px;
+    left: 32px;
+  }
+
+  .home-overview {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 340px);
+    align-items: start;
+    gap: 28px;
+  }
+  .home-delivery-column > .next-meal-card {
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+    margin-bottom: 24px;
+  }
+  .home-delivery-column .next-meal-content {
+    padding: 24px;
+  }
+  .home-delivery-column .next-meal-content h2 {
+    font-size: 24px;
+  }
+  .home-delivery-column .next-meal-info {
+    display: grid;
+    gap: 8px;
+    margin: 16px 0 20px;
+  }
+  .home-package-column .home-subscriptions {
+    margin-top: 0;
+    padding: 24px;
+    background: var(--surface);
+  }
+  .home-package-column .section-heading {
+    align-items: baseline;
+    gap: 8px;
+  }
+  .home-package-column .section-heading h2 {
+    font-size: 18px;
+  }
+  .home-package-column .section-heading > .text-button {
+    font-size: 12px;
+  }
+  .home-package-column .home-subscription-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    padding-bottom: 12px;
+  }
+  .home-package-column .subscription-card {
+    grid-template-columns: 48px minmax(0, 1fr) 16px;
+    gap: 12px;
+  }
+  .home-package-column .subscription-card img {
+    width: 48px;
+    height: 56px;
+  }
+  .home-package-column .subscription-card h3 {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .home-package-column .home-subscription-row > .text-button {
+    justify-self: start;
+    margin-left: 60px;
+    font-size: 12px;
+  }
+  .home-delivery-column .date-agenda {
+    padding: 24px;
+    border-radius: 16px;
+  }
+  .home-delivery-column .date-agenda h2 {
+    font-size: 22px;
+  }
+  .home-delivery-column .date-agenda-groups {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+  .home-delivery-column .date-agenda-group {
+    display: grid;
+    grid-template-columns: 126px minmax(0, 1fr);
+    gap: 0 16px;
+    padding-block: 16px;
+    border-top: 1px solid var(--line);
+  }
+  .home-delivery-column .date-agenda-group > h3 {
+    border: 0;
+    margin: 0;
+    padding: 4px 0;
+    font-size: 13px;
+  }
+  .home-delivery-column .date-agenda-meals {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 16px;
+  }
+  .home-delivery-column .home-agenda-row {
+    padding: 4px 0 12px;
+    gap: 8px;
+    border: 0;
+  }
+  .home-delivery-column .home-agenda-row strong {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .home-delivery-column .home-agenda-row small {
+    font-size: 11px;
+    margin-bottom: 4px;
+  }
+  .home-delivery-column .home-agenda-row p {
+    margin-top: 4px;
+  }
+  .home-delivery-column .home-agenda-row .status {
+    font-size: 10px;
+  }
+
+  .calendar-page .meal-calendar {
+    max-width: none;
+  }
+  .calendar-page .calendar-details,
+  .calendar-page .calendar-agenda-day {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 16px 24px;
+  }
+  .calendar-page .calendar-details > h2,
+  .calendar-page .calendar-details > .calendar-agenda-day,
+  .calendar-page .calendar-details > p,
+  .calendar-page .calendar-details > .button,
+  .calendar-page .calendar-agenda-date {
+    grid-column: 1 / -1;
+  }
+  .calendar-page .calendar-meal-group {
+    min-width: 0;
+    margin: 0;
+  }
+  .calendar-page .coverage-day {
+    min-height: 110px;
+  }
+
+  .seller-operations.flow {
+    gap: 16px;
+  }
+  .seller-operations .page-heading {
+    margin-bottom: 0;
+    align-items: center;
+  }
+  .seller-operations .page-heading > .button {
+    min-height: 44px;
+    max-width: 360px;
+    font-size: 12px;
+  }
+  .seller-operations .page-heading p {
+    margin-top: 4px;
+  }
+  .seller-operations .ops-context {
+    margin-bottom: 0;
+  }
+  .seller-operations .ops-context > strong {
+    font-size: 14px;
+  }
+  .seller-operations .ops-context > .button {
+    min-height: 44px;
+    font-size: 12px;
+  }
+  .seller-operations .ops-scope-area {
+    margin-bottom: 0;
+    padding: 8px 16px;
+    border-radius: 12px;
+  }
+  .ops-service-overview {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    align-items: start;
+    gap: 16px;
+  }
+  .seller-operations .ops-workload,
+  .seller-operations .seller-attention {
+    margin: 0;
+    padding: 20px;
+  }
+  .seller-operations .ops-workload h2 {
+    font-size: 18px;
+  }
+  .seller-operations .ops-workload > p {
+    font-size: 12px;
+    margin: 6px 0 14px;
+  }
+  .seller-operations .ops-workload-heading > .text-button {
+    font-size: 11px;
+  }
+  .seller-operations .ops-stages {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .seller-operations .ops-stages .button {
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: flex-start;
+    font-size: 11px;
+    padding: 8px;
+  }
+  .seller-operations .ops-stages .button strong {
+    font-size: 12px;
+  }
+  .seller-operations .ops-orders-panel .ops-order-table :is(th, td) {
+    padding: 10px 12px;
+  }
+  .seller-operations .ops-list-toolbar {
+    margin-bottom: 12px;
+  }
+  .seller-operations .ops-order-table .ops-group-heading td {
+    padding-block: 8px;
+  }
+  .seller-operations .ops-workload {
+    padding: 12px 16px;
+  }
+  .seller-operations .ops-workload > p {
+    margin: 4px 0 10px;
+  }
+  .seller-operations .ops-task-help li {
+    max-width: 75ch;
+    margin-block: 8px;
+  }
+  .seller-operations .ops-visible-summary {
+    font-size: 12px;
+    margin-top: 12px;
+  }
+  .seller-operations .seller-attention .section-heading {
+    margin-bottom: 8px;
+  }
+  .seller-operations .seller-attention h2 {
+    font-size: 16px;
+  }
+  .seller-operations .attention-scope-summary {
+    margin: 0 0 8px;
+    font-size: 11px;
+  }
+  .seller-operations .seller-attention .quiet-empty {
+    margin: 8px 0 0;
+    font-size: 12px;
+    text-align: left;
+  }
+  .seller-operations .attention-scope-toggle {
+    min-height: 44px;
+  }
+  .seller-operations .ops-deadlines {
+    margin-bottom: 0;
+  }
+  .seller-operations .ops-calendar {
+    margin-bottom: 0;
+  }
+  .seller-operations .ops-calendar .coverage-day {
+    min-height: 100px;
+  }
+  .seller-operations .ops-scope-summary {
+    margin-bottom: 0;
+  }
+  .seller-operations .ops-orders-panel {
+    padding: 20px;
+  }
+  .seller-operations .ops-orders-panel > .section-heading {
+    margin-bottom: 12px;
+  }
+}
+
+.seller-operations .attention-desktop-toggle {
+  display: none;
+}
+@media (min-width: 1100px) {
+  .catalog-section .catalog-heading {
+    margin-bottom: 12px;
+  }
+  .catalog-section > .market-toolbar {
+    padding-bottom: 12px;
+  }
+  .catalog-section .catalog-controls .meal-filter-row {
+    padding-bottom: 6px;
+  }
+  .catalog-section .results-bar {
+    margin-block: 8px 12px;
+  }
+  .catalog-section .package-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .catalog-section .package-card-v2 {
+    display: grid;
+    grid-template-columns: 150px minmax(0, 1fr);
+    align-items: start;
+  }
+  .catalog-section .package-card-v2 .package-image {
+    aspect-ratio: 1;
+    border-radius: 12px;
+    margin: 16px 0 0 16px;
+  }
+  .catalog-section .package-card-v2 .image-label {
+    top: auto;
+    bottom: 8px;
+    left: 8px;
+    font-size: 10px;
+  }
+  .catalog-section .package-card-v2 .package-body {
+    padding: 16px 20px;
+    gap: 10px;
+  }
+  .catalog-section .package-card-v2 .package-commitment {
+    padding-block: 8px;
+  }
+  .catalog-section .package-card-v2 .card-price strong {
+    font-size: 24px;
+  }
+  .seller-operations .attention-desktop-toggle {
+    display: inline-flex;
+    min-height: 44px;
+    font-size: 11px;
+    flex-shrink: 0;
+  }
+  .seller-operations .seller-attention {
+    padding: 12px 16px;
+  }
+  .seller-operations .seller-attention .section-heading {
+    align-items: center;
+    gap: 8px;
+  }
+  .seller-operations .seller-attention .section-heading h2 {
+    font-size: 14px;
+  }
+  .seller-operations
+    .seller-attention:not([data-expanded])
+    .attention-introduction,
+  .seller-operations
+    .seller-attention:not([data-expanded])
+    .attention-scope-toggle,
+  .seller-operations
+    .seller-attention:not([data-expanded])
+    #attention-tasks
+    > :nth-child(n + 2),
+  .seller-operations
+    .seller-attention:not([data-expanded])
+    #attention-tasks
+    ~ .text-button,
+  .seller-operations .seller-attention:not([data-expanded]) .attention-more {
+    display: none;
+  }
+  .seller-operations .seller-attention:not([data-expanded]) .queue-row {
+    padding: 8px 0;
+    border: 0;
+  }
+  .seller-operations .seller-attention:not([data-expanded]) .queue-row strong {
+    font-size: 12px;
+  }
+  .seller-operations .seller-attention:not([data-expanded]) .queue-row small {
+    font-size: 11px;
+    margin-top: 4px;
+  }
+  .seller-operations .ops-order-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 12px;
+  }
+  .seller-operations .ops-order-header > .section-heading {
+    display: block;
+    margin: 0;
+  }
+  .seller-operations .ops-order-header > .section-heading h2 {
+    font-size: 18px;
+  }
+  .seller-operations .ops-order-header .ops-list-toolbar {
+    margin: 0;
+    gap: 12px;
+  }
+  .seller-operations .ops-order-header .ops-select-all {
+    font-size: 12px;
+  }
+  .seller-operations .ops-order-table .ops-group-heading :is(th, td) {
+    padding-block: 6px;
+  }
+  .seller-operations .ops-row-actions .order-next {
+    white-space: nowrap;
+    min-height: 44px;
+  }
+  .seller-operations .ops-order-layout.has-detail {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .seller-operations .ops-order-layout.has-detail > .detail-panel {
+    max-width: none;
+    width: 100%;
+  }
+}
+
+@media (min-width: 1100px) {
+  .catalog-section {
+    display: grid;
+    grid-template-columns: 260px minmax(0, 1fr);
+    column-gap: 24px;
+  }
+  .catalog-section > * {
+    grid-column: 1 / -1;
+  }
+  .catalog-section > .catalog-heading {
+    grid-column: 1;
+    grid-row: 1;
+    margin-bottom: 12px;
+  }
+  .catalog-section > .market-toolbar {
+    grid-column: 2;
+    grid-row: 1;
+    width: 100%;
+    align-items: end;
+    margin: 0;
+    padding-bottom: 12px;
+    gap: 20px;
+  }
+  .catalog-section .package-card-v2 .package-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 130px;
+    gap: 12px 16px;
+  }
+  .catalog-section .package-card-v2 .package-body > * {
+    grid-column: 1 / -1;
+  }
+  .catalog-section .package-card-v2 .package-commitment {
+    grid-column: 2;
+    grid-row: 2;
+    flex-direction: column;
+    align-items: start;
+    border: 0;
+    padding: 0;
+    gap: 8px;
+  }
+  .catalog-section .package-card-v2 .package-pricing {
+    grid-column: 1;
+    grid-row: 2;
+    border: 0;
+    padding: 0;
+  }
+  .catalog-section .package-card-v2 .package-duration {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    border: 0;
+    padding: 0;
+  }
+  .calendar-page .page-heading {
+    margin-bottom: 20px;
+  }
+  .calendar-page .coverage-toolbar {
+    margin-bottom: 8px;
+  }
+  .calendar-page .coverage-day {
+    min-height: 100px;
+    padding: 6px 12px;
+  }
+  .calendar-page .coverage-day > strong {
+    font-size: 26px;
+  }
+  .calendar-page .calendar-utilities {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px 24px;
+    margin: 8px 52px 16px;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 12px;
+  }
+  .calendar-page .calendar-utilities > .coverage-summary {
+    margin: 0;
+    padding: 4px 0;
+    border: 0;
+    gap: 4px 16px;
+  }
+  .calendar-page .calendar-utilities > .calendar-view-control {
+    margin: 0;
+  }
+  .calendar-page .calendar-utilities > .calendar-load-error {
+    grid-column: 1 / -1;
+  }
+  .seller-operations
+    .ops-orders-panel
+    .ops-order-table
+    .ops-group-heading
+    :is(th, td) {
+    padding-block: 4px;
+  }
+  .seller-operations
+    .ops-orders-panel
+    .ops-order-table
+    td[data-cell="address"] {
+    max-width: 250px;
+  }
+  .seller-operations .ops-order-table .ops-row-actions .order-next {
+    font-size: 12px;
+  }
+  .seller-operations
+    .seller-attention:not([data-expanded])
+    .attention-scope-details {
+    display: none;
+  }
+  .seller-operations .seller-attention .attention-item {
+    padding-bottom: 0;
+  }
+}
+
+@media (min-width: 1100px) {
+  .ops-layout .ops-main {
+    padding-top: 20px;
+  }
+  .seller-operations.flow {
+    gap: 8px;
+  }
+  .seller-operations .ops-orders-panel {
+    padding: 16px;
+  }
+  .seller-operations .ops-order-layout > .detail-panel:focus {
+    outline: 3px solid var(--forest);
+    outline-offset: 4px;
+  }
+  .seller-operations .ops-workload,
+  .seller-operations .seller-attention {
+    padding-block: 12px;
+  }
+  .seller-operations .ops-stages .button {
+    font-size: 12px;
+  }
+  .seller-operations .ops-workload-heading > .text-button {
+    font-size: 12px;
+  }
+  .catalog-section .package-card-v2 .package-commitment > div {
+    border: 0;
+    padding: 0;
+  }
+}

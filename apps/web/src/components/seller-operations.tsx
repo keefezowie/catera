@@ -141,6 +141,7 @@ function OperationsLoader({
         schedule={schedule}
         calendarFocus={calendarFocus}
         refresh={state.reload}
+        refreshing={state.loading}
         loading={
           state.loading ||
           Boolean(state.error) ||
@@ -157,6 +158,7 @@ function OperationsPage({
   schedule,
   refresh,
   loading,
+  refreshing,
   calendarFocus,
 }: {
   state: SellerOperationsState;
@@ -164,6 +166,7 @@ function OperationsPage({
   schedule: boolean;
   refresh: () => void;
   loading: boolean;
+  refreshing: boolean;
   calendarFocus: { current: string | null };
 }) {
   const { t, locale } = useApp();
@@ -341,23 +344,8 @@ function OperationsPage({
               ? t("Hari ini", "Today")
               : t("Operasional", "Operations")
         }
-        description={
-          schedule
-            ? t(
-                "Semua pesanan dapurmu, tanggal demi tanggal.",
-                "Every order for your kitchen, day by day.",
-              )
-            : t(
-                "Siapkan, antar, dan perbarui setiap pesanan.",
-                "Prepare, deliver, and update every order.",
-              )
-        }
-      ></Heading>
-      <SellerReadiness caterer={s.caterer} offers={s.offers} />
-      <div className="ops-context">
-        <strong>
-          {formatDate(date)} · {s.caterer.timezone}
-        </strong>
+        description={formatDate(date) + " · " + s.caterer.timezone}
+      >
         <Link
           className="button secondary"
           href={`/seller/schedule?date=${date}&production=1#production`}
@@ -368,8 +356,9 @@ function OperationsPage({
             "Kitchen & delivery list · whole day",
           )}
         </Link>
-      </div>
-      {loading && (
+      </Heading>
+      <SellerReadiness caterer={s.caterer} offers={s.offers} />
+      {refreshing && (
         <p role="status">
           {t(
             "Memuat ulang data; tindakan sementara dinonaktifkan.",
@@ -382,27 +371,6 @@ function OperationsPage({
           {t("Status verifikasi", "Verification status")}:{" "}
           <Status status={s.caterer.status} />
         </p>
-      )}
-      {schedule && (
-        <Disclosure
-          className="ops-production spaced"
-          id="production"
-          open={query.get("production") === "1" || undefined}
-          title={t("Daftar dapur & pengantaran", "Kitchen & delivery lists")}
-        >
-          {s.operationalDate !== date ? (
-            <Loading />
-          ) : (
-            <Production
-              key={date}
-              deliveries={dayRows}
-              meal="all"
-              date={date}
-              loading={loading}
-              latest={s.latestProduction}
-            />
-          )}
-        </Disclosure>
       )}
       {schedule && (
         <ScheduleCalendar
@@ -694,116 +662,207 @@ function OperationsPage({
           )}
         </div>
       </section>
-      {schedule ? (
-        <div
-          className="ops-scope-summary"
-          aria-label={t("Ringkasan tabel", "Table summary")}
-        >
-          <strong>
-            {loading
-              ? "…"
-              : summary.orders +
-                " " +
-                t("pesanan", summary.orders === 1 ? "order" : "orders") +
+      <div
+        className={schedule ? "ops-planning-summary" : "ops-service-overview"}
+      >
+        {schedule ? (
+          <div
+            className="ops-scope-summary"
+            role="region"
+            aria-label={t("Ringkasan tabel", "Table summary")}
+          >
+            <strong>
+              {loading
+                ? "…"
+                : summary.orders +
+                  " " +
+                  t("pesanan", summary.orders === 1 ? "order" : "orders") +
+                  " · " +
+                  summary.portions +
+                  " " +
+                  t(
+                    "porsi makan",
+                    summary.portions === 1 ? "meal portion" : "meal portions",
+                  )}
+            </strong>
+            <span>
+              {t("Sesuai filter tabel", "Matching table filters")}
+              {includeCancelled &&
                 " · " +
-                summary.portions +
-                " " +
-                t(
-                  "porsi makan",
-                  summary.portions === 1 ? "meal portion" : "meal portions",
-                )}
-          </strong>
-          <span>
-            {t("Sesuai filter tabel", "Matching table filters")}
-            {includeCancelled &&
-              " · " +
-                t(
-                  "termasuk jumlah historis yang dibatalkan; bukan kebutuhan dapur",
-                  "includes cancelled historical quantities; not kitchen requirements",
-                )}
-          </span>
-        </div>
-      ) : (
-        <section
-          className="panel ops-workload"
-          aria-label={t("Beban layanan", "Service workload")}
+                  t(
+                    "termasuk jumlah historis yang dibatalkan; bukan kebutuhan dapur",
+                    "includes cancelled historical quantities; not kitchen requirements",
+                  )}
+            </span>
+          </div>
+        ) : (
+          <section
+            className="panel ops-workload"
+            aria-label={t("Beban layanan", "Service workload")}
+          >
+            <div className="ops-workload-heading">
+              <h2>
+                {meal === "lunch"
+                  ? t("Total siang", "Lunch total")
+                  : t("Total malam", "Dinner total")}
+                {" · "}
+                {t("semua paket", "all packages")}:{" "}
+                {loading ? "…" : workload.portions}{" "}
+                {t("porsi", workload.portions === 1 ? "portion" : "portions")}
+              </h2>
+              {!loading && filteredRows.length > 0 && (
+                <a className="text-button" href="#ops-orders">
+                  {t("Lihat pesanan", "View orders")}{" "}
+                  <ArrowRight size={16} aria-hidden="true" />
+                </a>
+              )}
+            </div>
+            <p>
+              {loading ? "…" : workload.orders}{" "}
+              {t(
+                "pesanan · termasuk yang sudah diterima, tidak termasuk pembatalan",
+                `${workload.orders === 1 ? "order" : "orders"} · includes delivered meals, excludes cancellations`,
+              )}
+            </p>
+            <div className="ops-stages">
+              {Object.entries(workload.stages).map(([status, portions]) => (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  key={status}
+                  aria-pressed={selectedStage === status}
+                  className={selectedStage === status ? "is-selected" : ""}
+                  onClick={() =>
+                    navigate({ stage: selectedStage === status ? "" : status })
+                  }
+                >
+                  {statusLabel(status, locale)}:{" "}
+                  <strong>
+                    {loading ? "…" : portions}{" "}
+                    {t("porsi", portions === 1 ? "portion" : "portions")}
+                  </strong>
+                </Button>
+              ))}
+            </div>
+            <p className="ops-visible-summary" role="status">
+              {t("Sesuai filter", "Matching filters")}:{" "}
+              {selectedStage && (
+                <>
+                  {t("Tahap terpilih", "Selected stage")}:{" "}
+                  {statusLabel(selectedStage, locale)} ·{" "}
+                </>
+              )}
+              {filteredRows.length}{" "}
+              {t(
+                "baris terlihat",
+                filteredRows.length === 1 ? "visible row" : "visible rows",
+              )}{" "}
+              · {summary.orders}{" "}
+              {t("pesanan", summary.orders === 1 ? "order" : "orders")} ·{" "}
+              {summary.portions}{" "}
+              {t("porsi", summary.portions === 1 ? "portion" : "portions")}
+            </p>
+            {!loading &&
+              !workload.orders &&
+              (meal === "lunch" ? dinner.orders : lunch.orders) > 0 && (
+                <Button
+                  className="text-button"
+                  onClick={() =>
+                    navigate({ meal: meal === "lunch" ? "dinner" : "lunch" })
+                  }
+                >
+                  {t("Lihat pesanan", "View orders for")}{" "}
+                  {meal === "lunch"
+                    ? t("malam", "dinner")
+                    : t("siang", "lunch")}
+                </Button>
+              )}
+          </section>
+        )}
+        {!schedule && <NeedsAttention catererId={s.caterer.id} date={date} />}
+      </div>
+      <div
+        id="ops-orders"
+        tabIndex={-1}
+        role="tabpanel"
+        aria-label={
+          schedule
+            ? t("Pesanan", "Orders")
+            : meal === "lunch"
+              ? t("Pesanan siang", "Lunch orders")
+              : t("Pesanan malam", "Dinner orders")
+        }
+      >
+        <OrderTable
+          key={[
+            date,
+            meal,
+            packageId,
+            status,
+            selectedStage,
+            search,
+            grouping,
+            selectedGroup,
+          ].join(":")}
+          rows={filteredRows}
+          scheduleGrouping={grouping}
+          meal={meal}
+          date={date}
+          today={s.today}
+          timezone={s.caterer.timezone}
+          catererId={s.caterer.id}
+          schedule={schedule}
+          loading={loading}
+          refresh={refresh}
+        />
+      </div>
+      {schedule && (
+        <Disclosure
+          className="ops-production spaced"
+          id="production"
+          open={query.get("production") === "1" || undefined}
+          title={t("Daftar dapur & pengantaran", "Kitchen & delivery lists")}
         >
-          <div className="ops-workload-heading">
-            <h2>
-              {meal === "lunch"
-                ? t("Total siang", "Lunch total")
-                : t("Total malam", "Dinner total")}
-              {" · "}
-              {t("semua paket", "all packages")}:{" "}
-              {loading ? "…" : workload.portions}{" "}
-              {t("porsi", workload.portions === 1 ? "portion" : "portions")}
-            </h2>
-            {!loading && filteredRows.length > 0 && (
-              <a className="text-button" href="#ops-orders">
-                {t("Lihat pesanan", "View orders")}{" "}
-                <ArrowRight size={16} aria-hidden="true" />
-              </a>
-            )}
-          </div>
-          <p>
-            {loading ? "…" : workload.orders}{" "}
-            {t(
-              "pesanan · termasuk yang sudah diterima, tidak termasuk pembatalan",
-              `${workload.orders === 1 ? "order" : "orders"} · includes delivered meals, excludes cancellations`,
-            )}
-          </p>
-          <div className="ops-stages">
-            {Object.entries(workload.stages).map(([status, portions]) => (
-              <Button
-                type="button"
-                variant="secondary"
-                key={status}
-                aria-pressed={selectedStage === status}
-                className={selectedStage === status ? "is-selected" : ""}
-                onClick={() =>
-                  navigate({ stage: selectedStage === status ? "" : status })
-                }
-              >
-                {statusLabel(status, locale)}:{" "}
-                <strong>
-                  {loading ? "…" : portions}{" "}
-                  {t("porsi", portions === 1 ? "portion" : "portions")}
-                </strong>
-              </Button>
-            ))}
-          </div>
-          <p className="ops-visible-summary" role="status">
-            {t("Sesuai filter", "Matching filters")}:{" "}
-            {selectedStage && (
-              <>
-                {t("Tahap terpilih", "Selected stage")}:{" "}
-                {statusLabel(selectedStage, locale)} ·{" "}
-              </>
-            )}
-            {filteredRows.length}{" "}
-            {t(
-              "baris terlihat",
-              filteredRows.length === 1 ? "visible row" : "visible rows",
-            )}{" "}
-            · {summary.orders}{" "}
-            {t("pesanan", summary.orders === 1 ? "order" : "orders")} ·{" "}
-            {summary.portions}{" "}
-            {t("porsi", summary.portions === 1 ? "portion" : "portions")}
-          </p>
-          {!loading &&
-            !workload.orders &&
-            (meal === "lunch" ? dinner.orders : lunch.orders) > 0 && (
-              <Button
-                className="text-button"
-                onClick={() =>
-                  navigate({ meal: meal === "lunch" ? "dinner" : "lunch" })
-                }
-              >
-                {t("Lihat pesanan", "View orders for")}{" "}
-                {meal === "lunch" ? t("malam", "dinner") : t("siang", "lunch")}
-              </Button>
-            )}
-        </section>
+          {s.operationalDate !== date ? (
+            <Loading />
+          ) : (
+            <Production
+              key={date}
+              deliveries={dayRows}
+              meal="all"
+              date={date}
+              loading={loading}
+              latest={s.latestProduction}
+            />
+          )}
+        </Disclosure>
+      )}
+      {!schedule && (
+        <Disclosure
+          className="ops-task-help"
+          title={t("Cara memperbarui pesanan", "How to update orders")}
+        >
+          <ol>
+            <li>
+              {t(
+                "Pilih tanggal dan waktu makan. Jumlah layanan mencakup semua paket; tabel mengikuti filter Anda.",
+                "Choose the date and meal. Service totals cover all packages; the table follows your filters.",
+              )}
+            </li>
+            <li>
+              {t(
+                "Gunakan tindakan di baris pesanan, atau pilih beberapa pesanan untuk memperbarui status bersama. Penandaan diterima memerlukan konfirmasi.",
+                "Use a row action, or select orders to update them together. Marking a delivery received requires confirmation.",
+              )}
+            </li>
+            <li>
+              {t(
+                "Jika pesanan telah berubah, muat ulang dan tinjau status terbaru. Daftar dapur dan pengantaran selalu mencakup sehari penuh.",
+                "If orders changed, refresh and review their latest statuses. Kitchen and delivery lists always cover the whole day.",
+              )}
+            </li>
+          </ol>
+        </Disclosure>
       )}
       {!loading && deadlines.length > 0 && (
         <Disclosure
@@ -862,42 +921,6 @@ function OperationsPage({
           </ul>
         </Disclosure>
       )}
-      {!schedule && <NeedsAttention catererId={s.caterer.id} date={date} />}
-      <div
-        id="ops-orders"
-        tabIndex={-1}
-        role="tabpanel"
-        aria-label={
-          schedule
-            ? t("Pesanan", "Orders")
-            : meal === "lunch"
-              ? t("Pesanan siang", "Lunch orders")
-              : t("Pesanan malam", "Dinner orders")
-        }
-      >
-        <OrderTable
-          key={[
-            date,
-            meal,
-            packageId,
-            status,
-            selectedStage,
-            search,
-            grouping,
-            selectedGroup,
-          ].join(":")}
-          rows={filteredRows}
-          scheduleGrouping={grouping}
-          meal={meal}
-          date={date}
-          today={s.today}
-          timezone={s.caterer.timezone}
-          catererId={s.caterer.id}
-          schedule={schedule}
-          loading={loading}
-          refresh={refresh}
-        />
-      </div>
     </div>
   );
 }
@@ -1256,6 +1279,8 @@ function OrderTable({
       );
     } catch (e) {
       const code = (e as { code?: string }).code;
+      // A refreshed list requires a new review with current versions.
+      setConfirmation(null);
       setError(
         code === "CONFLICT"
           ? t(
@@ -1282,20 +1307,60 @@ function OrderTable({
       className={"master-detail ops-order-layout " + (d ? "has-detail" : "")}
     >
       <section className="panel ops-orders-panel" aria-busy={busy || loading}>
-        <div className="section-heading">
-          <h2>
-            {schedule
-              ? t("Daftar pesanan", "Order list")
-              : t("Pesanan", "Orders") +
-                " · " +
-                new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-GB", {
-                  dateStyle: "medium",
-                  timeZone: "UTC",
-                }).format(new Date(date + "T12:00:00Z"))}
-          </h2>
-          <span className="muted">
-            {rows.length} {t("pesanan", rows.length === 1 ? "order" : "orders")}
-          </span>
+        <div className="ops-order-header">
+          <div className="section-heading">
+            <h2>
+              {schedule
+                ? t("Daftar pesanan", "Order list")
+                : t("Pesanan", "Orders") +
+                  " · " +
+                  new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-GB", {
+                    dateStyle: "medium",
+                    timeZone: "UTC",
+                  }).format(new Date(date + "T12:00:00Z"))}
+            </h2>
+            <span className="muted">
+              {rows.length}{" "}
+              {t("pesanan", rows.length === 1 ? "order" : "orders")}
+            </span>
+          </div>
+          <div className="ops-list-toolbar">
+            {!schedule && rows.length > 0 && (
+              <label className="checkbox ops-select-all">
+                <Checkbox
+                  ref={all}
+                  aria-label={t("Pilih semua pesanan", "Select all orders")}
+                  disabled={!eligible.length || busy || loading}
+                  checked={
+                    eligible.length > 0 && chosen.length === eligible.length
+                  }
+                  onChange={(e) =>
+                    setSelected(
+                      e.target.checked ? eligible.map((d) => d.id) : [],
+                    )
+                  }
+                />
+                <span>{t("Pilih semua pesanan", "Select all orders")}</span>
+              </label>
+            )}
+            {!schedule && (
+              <Select
+                aria-label={t("Kelompokkan pesanan", "Group orders")}
+                value={grouping}
+                onValueChange={setGrouping}
+              >
+                <SelectOption value="package">
+                  {t("Paket & menu", "Package & menu")}
+                </SelectOption>
+                <SelectOption value="area">
+                  {t("Paket, menu & area", "Package, menu & area")}
+                </SelectOption>
+                <SelectOption value="flat">
+                  {t("Daftar biasa", "Flat list")}
+                </SelectOption>
+              </Select>
+            )}
+          </div>
         </div>
         {!schedule && date > today && (
           <p className="notice">
@@ -1400,41 +1465,6 @@ function OrderTable({
             </Button>
           </div>
         )}
-        <div className="ops-list-toolbar">
-          {!schedule && rows.length > 0 && (
-            <label className="checkbox ops-select-all">
-              <Checkbox
-                ref={all}
-                aria-label={t("Pilih semua pesanan", "Select all orders")}
-                disabled={!eligible.length || busy || loading}
-                checked={
-                  eligible.length > 0 && chosen.length === eligible.length
-                }
-                onChange={(e) =>
-                  setSelected(e.target.checked ? eligible.map((d) => d.id) : [])
-                }
-              />
-              <span>{t("Pilih semua pesanan", "Select all orders")}</span>
-            </label>
-          )}
-          {!schedule && (
-            <Select
-              aria-label={t("Kelompokkan pesanan", "Group orders")}
-              value={grouping}
-              onValueChange={setGrouping}
-            >
-              <SelectOption value="package">
-                {t("Paket & menu", "Package & menu")}
-              </SelectOption>
-              <SelectOption value="area">
-                {t("Paket, menu & area", "Package, menu & area")}
-              </SelectOption>
-              <SelectOption value="flat">
-                {t("Daftar biasa", "Flat list")}
-              </SelectOption>
-            </Select>
-          )}
-        </div>
         {loading && !rows.length ? (
           <Loading />
         ) : rows.length ? (
@@ -1609,41 +1639,52 @@ function OrderTable({
                           </td>
                         )}
                         <td data-cell="actions">
-                          <Button
-                            className="text-button"
-                            data-delivery-detail={x.id}
-                            aria-label={`${t("Detail", "Details")} ${x.customer.name}, ${x.address.label}, ${x.offer.name}`}
-                            onClick={(event) =>
-                              openDetail(x.id, event.currentTarget)
-                            }
-                          >
-                            {t("Detail", "Details")} <ArrowUpRight size={15} />
-                          </Button>
-                          {!schedule &&
-                            date <= today &&
-                            nextDeliveryStatuses(fulfillmentStatus(x, meal))
-                              .slice(0, 1)
-                              .map((next) => (
-                                <Button
-                                  key={next}
-                                  type="button"
-                                  className="button secondary small order-next"
-                                  disabled={busy || loading}
-                                  aria-label={`${actionLabel(next)}: ${x.customer.name}, ${x.offer.name}`}
-                                  onClick={() => update([x], next)}
-                                >
-                                  {actionIcon(next)}
-                                  {actionLabel(next)}
-                                </Button>
-                              ))}
-                          {!schedule && date > today && (
-                            <small>
-                              {t(
-                                "Tersedia pada hari pengantaran",
-                                "Available on delivery day",
-                              )}
-                            </small>
-                          )}
+                          <div className="ops-row-actions">
+                            <Button
+                              className="text-button"
+                              data-delivery-detail={x.id}
+                              aria-label={`${t("Detail", "Details")} ${x.customer.name}, ${x.address.label}, ${x.offer.name}`}
+                              onClick={(event) =>
+                                openDetail(x.id, event.currentTarget)
+                              }
+                            >
+                              {t("Detail", "Details")}{" "}
+                              <ArrowUpRight size={15} />
+                            </Button>
+                            {!schedule &&
+                              date <= today &&
+                              nextDeliveryStatuses(fulfillmentStatus(x, meal))
+                                .slice(0, 1)
+                                .map((next) => (
+                                  <Button
+                                    key={next}
+                                    type="button"
+                                    className="button secondary small order-next"
+                                    disabled={busy || loading}
+                                    aria-label={`${actionLabel(next)}: ${x.customer.name}, ${x.offer.name}`}
+                                    onClick={() =>
+                                      next === "delivered"
+                                        ? setConfirmation({
+                                            items: [x],
+                                            status: next,
+                                            invalidCount: 0,
+                                          })
+                                        : update([x], next)
+                                    }
+                                  >
+                                    {actionIcon(next)}
+                                    {actionLabel(next)}
+                                  </Button>
+                                ))}
+                            {!schedule && date > today && (
+                              <small>
+                                {t(
+                                  "Tersedia pada hari pengantaran",
+                                  "Available on delivery day",
+                                )}
+                              </small>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -1743,6 +1784,17 @@ function OrderTable({
                 ],
               ]}
             />
+            <ul className="confirmation-orders">
+              {confirmation.items.map((item) => (
+                <li key={item.id}>
+                  <strong>{item.customer.name}</strong> · {item.offer.name}
+                  <p className="small muted">
+                    {item.address.line}, {item.address.area} · {item.portions}{" "}
+                    {t("porsi", item.portions === 1 ? "portion" : "portions")}
+                  </p>
+                </li>
+              ))}
+            </ul>
             {!!confirmation.invalidCount && (
               <p className="notice">
                 {confirmation.invalidCount}{" "}
@@ -1835,7 +1887,15 @@ function OrderTable({
                   className="button secondary small"
                   key={s}
                   disabled={busy || loading}
-                  onClick={() => update([d], s)}
+                  onClick={() =>
+                    s === "delivered"
+                      ? setConfirmation({
+                          items: [d],
+                          status: s,
+                          invalidCount: 0,
+                        })
+                      : update([d], s)
+                  }
                 >
                   {actionIcon(s)}
                   {actionLabel(s)}

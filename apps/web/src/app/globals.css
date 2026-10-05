@@ -4343,15 +4343,6 @@ textarea::placeholder {
 .customer-actions.later { margin-top: 28px; }
 .customer-actions.later, .customer-actions.updates { border-color: var(--line); background: transparent; }
 .customer-actions.later .customer-action, .customer-actions.updates .customer-action { border-color: var(--line); background: var(--surface); }
-.home-page > .next-meal-card { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); margin-bottom: 28px; }
-.home-page > .next-meal-card .next-meal-photo { height: 100%; min-height: 260px; }
-.home-page > .next-meal-card .next-meal-photo img { position: absolute; inset: 0; }
-.home-page > .next-meal-card .next-meal-info { font-size: 13px; }
-@media (max-width: 700px) {
-  .home-page > .next-meal-card { grid-template-columns: minmax(0, 1fr); }
-  .home-page > .next-meal-card .next-meal-photo { height: 190px; min-height: 0; }
-  .home-page > .next-meal-card .next-meal-content { padding: 20px; }
-}
 .customer-actions .section-heading { margin-bottom: 14px; }
 .customer-actions .section-heading > div { min-width: 0; overflow-wrap: anywhere; }
 .action-count, .update-count {

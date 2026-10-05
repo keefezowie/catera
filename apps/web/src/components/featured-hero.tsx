@@ -6,7 +6,12 @@ import useEmblaCarousel from "embla-carousel-react";
 import Autoplay from "embla-carousel-autoplay";
 import { ArrowLeft, ArrowRight, ArrowUpRight } from "lucide-react";
 import { prefersReducedMotion, reducedMotionQuery } from "@/lib/motion";
-import type { Offer } from "@catera/domain";
+import {
+  currency,
+  mealLabel,
+  packageSubtotal,
+  type Offer,
+} from "@catera/domain";
 import { useApp } from "./context";
 import { Button } from "./form-controls";
 import { HeroIntroduction } from "./hero-introduction";
@@ -32,7 +37,7 @@ export function FeaturedHero() {
 }
 
 function CatererCarousel({ offers }: { offers: Offer[] }) {
-  const { t } = useApp();
+  const { t, locale } = useApp();
   const multiple = offers.length > 1;
   const [autoplay] = useState(() =>
     Autoplay({
@@ -157,6 +162,17 @@ function CatererCarousel({ offers }: { offers: Offer[] }) {
                   <h2>{offer.caterer}</h2>
                 )}
                 <p>{offer.name}</p>
+                <p className="featured-commitment">
+                  {offer.days} {t("hari pengantaran", "delivery days")} ·{" "}
+                  {mealLabel(offer.meal, locale)} ·{" "}
+                  {currency(packageSubtotal(offer), locale)}
+                  <span>
+                    {t(
+                      "Untuk 1 porsi · pengantaran termasuk · biaya layanan saat checkout",
+                      "For 1 portion · delivery included · service fee at checkout",
+                    )}
+                  </span>
+                </p>
                 <Link className="button cream" href={"/packages/" + offer.slug}>
                   {t("Lihat paket", "View package")}
                   <ArrowUpRight size={19} />

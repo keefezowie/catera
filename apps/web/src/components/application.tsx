@@ -54,6 +54,7 @@ import { CatererEntry, ProfileMenu } from "./profile-menu";
 import { Notifications } from "./notifications";
 import { RouteMotion } from "./motion";
 import dynamic from "next/dynamic";
+import "./landscape.css";
 const Seller = dynamic(() => import("./seller").then((m) => m.Seller));
 const Onboarding = dynamic(() => import("./seller").then((m) => m.Onboarding));
 const Admin = dynamic(() => import("./admin").then((m) => m.Admin));

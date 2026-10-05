@@ -28,6 +28,7 @@ export function NeedsAttention({
   const [mealScope, setMealScope] = useState<"" | "lunch" | "dinner">("");
   const [expanded, setExpanded] = useState(false);
   const [scopeExpanded, setScopeExpanded] = useState(false);
+  const [desktopExpanded, setDesktopExpanded] = useState(false);
   const [handled, setHandled] = useState<SellerAttentionItem | null>(null);
   const [items, setItems] = useState<SellerAttentionItem[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -126,6 +127,7 @@ export function NeedsAttention({
   return (
     <section
       className="panel spaced seller-attention"
+      data-expanded={desktopExpanded || undefined}
       data-empty={(!state.loading && !state.error && total === 0) || undefined}
       aria-busy={state.loading || loadingMore || undefined}
       aria-label={t("Perlu perhatian", "Needs attention")}
@@ -137,8 +139,8 @@ export function NeedsAttention({
             {t("Perlu perhatian", "Needs attention")}{" "}
             {!state.loading && `(${total})`}
           </h2>
-          {total > 0 && (
-            <p>
+          {total > 3 && (
+            <p className="attention-introduction">
               {t(
                 "Tiga masalah teratas ditampilkan lebih dulu.",
                 "The top three issues appear first.",
@@ -146,6 +148,17 @@ export function NeedsAttention({
             </p>
           )}
         </div>
+        <Button
+          variant="text"
+          className="attention-desktop-toggle"
+          aria-expanded={desktopExpanded}
+          aria-controls="attention-tasks"
+          onClick={() => setDesktopExpanded((value) => !value)}
+        >
+          {desktopExpanded
+            ? t("Ringkas", "Collapse")
+            : t("Lihat masalah", "View issues")}
+        </Button>
       </div>
       <p className="muted attention-scope-summary">
         {scope === "selected"

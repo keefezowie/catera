@@ -31,14 +31,15 @@ export function NutritionStrip({
                 <Icon size={16} aria-hidden="true" />
                 {metric.label}
               </dt>
-              <dd
-                aria-label={
-                  !metric.available
-                    ? t("Belum tersedia", "Unavailable")
-                    : undefined
-                }
-              >
-                {metric.value}
+              <dd>
+                <span aria-hidden={!metric.available || undefined}>
+                  {metric.value}
+                </span>
+                {!metric.available && (
+                  <span className="sr-only">
+                    {t("Belum tersedia", "Unavailable")}
+                  </span>
+                )}
               </dd>
             </div>
           );
@@ -90,7 +91,11 @@ export function PackagePreview({
             ))}
           </div>
         )}
-        <span className="preview-source">{offer.menuSelectionMode === 'customer' ? t('Pilih menu sendiri', 'Choose your menu') : menuSourceLabel(menu, locale)}</span>
+        <span className="preview-source">
+          {offer.menuSelectionMode === "customer"
+            ? t("Pilih menu sendiri", "Choose your menu")
+            : menuSourceLabel(menu, locale)}
+        </span>
       </div>
       <p className="composition-preview">
         {compositionPreview(menu, offer.packageType, locale)}

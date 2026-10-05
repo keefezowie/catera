@@ -171,6 +171,11 @@ test("UI sweep: focus rings, support count, composition controls and centered pr
     name: "Perlu perhatian",
     exact: true,
   });
+  const expandIssues = queue.getByRole("button", {
+    name: "Lihat masalah",
+    exact: true,
+  });
+  if ((page.viewportSize()?.width || 0) >= 1100) await expandIssues.click();
   await queue
     .getByRole("button", { name: "Filter masalah", exact: true })
     .click();

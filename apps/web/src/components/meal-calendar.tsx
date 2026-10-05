@@ -580,60 +580,66 @@ export function MealCalendar() {
             <ChevronRight />
           </Button>
         </div>
-        <div className="coverage-summary" aria-live="polite">
-          <span>
-            {format(week, { day: "numeric", month: "short" })} –{" "}
-            {format(addDays(week, 6), {
-              day: "numeric",
-              month: "short",
-              year: "numeric",
-            })}
-          </span>
-          <p>
-            {weekReady
-              ? t(
-                  `${summary[0]} hari dengan makan siang · ${summary[1]} hari dengan makan malam`,
-                  `${summary[0]} days with lunch · ${summary[1]} days with dinner`,
-                )
-              : weekError
-                ? t("Ringkasan belum tersedia.", "Summary unavailable.")
-                : t("Memuat ringkasan minggu…", "Loading week summary…")}
-          </p>
-        </div>
-        {failed.length > 0 && (
-          <div className="calendar-load-error" role="alert">
+        <div className="calendar-utilities">
+          <div className="coverage-summary" aria-live="polite">
             <span>
-              {t(
-                "Sebagian jadwal belum berhasil dimuat.",
-                "Part of the schedule could not be loaded.",
-              )}
+              {t("Minggu terpilih", "Selected week")} ·{" "}
+              {format(week, { day: "numeric", month: "short" })} –{" "}
+              {format(addDays(week, 6), {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              })}
             </span>
+            <p>
+              {weekReady
+                ? t(
+                    `${summary[0]} hari dengan makan siang · ${summary[1]} hari dengan makan malam`,
+                    `${summary[0]} days with lunch · ${summary[1]} days with dinner`,
+                  )
+                : weekError
+                  ? t("Ringkasan belum tersedia.", "Summary unavailable.")
+                  : t("Memuat ringkasan minggu…", "Loading week summary…")}
+            </p>
+          </div>
+          {failed.length > 0 && (
+            <div className="calendar-load-error" role="alert">
+              <span>
+                {t(
+                  "Sebagian jadwal belum berhasil dimuat.",
+                  "Part of the schedule could not be loaded.",
+                )}
+              </span>
+              <Button
+                className="text-button"
+                onClick={() =>
+                  failed.forEach((m) => {
+                    void store.ensure(m, true);
+                  })
+                }
+              >
+                {t("Coba lagi", "Try again")}
+              </Button>
+            </div>
+          )}
+          <div
+            className="calendar-view-control"
+            role="group"
+            aria-label={t("Tampilan jadwal", "Schedule view")}
+          >
             <Button
-              className="text-button"
-              onClick={() =>
-                failed.forEach((m) => {
-                  void store.ensure(m, true);
-                })
-              }
+              aria-pressed={mode === "day"}
+              onClick={() => setMode("day")}
             >
-              {t("Coba lagi", "Try again")}
+              {t("Per hari", "By day")}
+            </Button>
+            <Button
+              aria-pressed={mode === "upcoming"}
+              onClick={() => setMode("upcoming")}
+            >
+              {t("Mendatang", "Upcoming")}
             </Button>
           </div>
-        )}
-        <div
-          className="calendar-view-control"
-          role="group"
-          aria-label={t("Tampilan jadwal", "Schedule view")}
-        >
-          <Button aria-pressed={mode === "day"} onClick={() => setMode("day")}>
-            {t("Per hari", "By day")}
-          </Button>
-          <Button
-            aria-pressed={mode === "upcoming"}
-            onClick={() => setMode("upcoming")}
-          >
-            {t("Mendatang", "Upcoming")}
-          </Button>
         </div>
         <div
           className="calendar-details"

@@ -43,6 +43,7 @@ import {
   addDays,
   currency,
   mealLabel,
+  statusLabel,
   areaOptions,
   availabilityReasonCounts,
   availabilityReasonLabel,
@@ -192,39 +193,50 @@ function CustomerOverview({ view, id }: { view: string; id?: string }) {
           <CustomerActionFeedNotice state={actions} />
           <CustomerActions items={actionGroups.review} group="review" />
           <CustomerActions items={actionGroups.urgent} group="urgent" />
-          {nextMeal && (
-            <NextMeal
-              delivery={{ ...nextMeal.delivery, meals: [nextMeal.meal] }}
-            />
-          )}
-          <CustomerActions items={actionGroups.updates} group="updates" />
-          <DateGroupedAgenda deliveries={c.deliveries} />
-          <CustomerActions items={actionGroups.later} group="later" />
-          <section className="active-packages home-subscriptions">
-            <div className="section-heading">
-              <h2>{t("Paket aktif", "Active packages")}</h2>
-              <Link href="/subscriptions" className="text-button">
-                {t("Lihat semua", "View all")}
-                <ArrowUpRight size={19} aria-hidden="true" />
-              </Link>
+          <div className="home-overview">
+            <div className="home-delivery-column">
+              {nextMeal && (
+                <NextMeal
+                  delivery={{ ...nextMeal.delivery, meals: [nextMeal.meal] }}
+                />
+              )}
+              <CustomerActions items={actionGroups.updates} group="updates" />
+              <DateGroupedAgenda deliveries={c.deliveries} />
+              <CustomerActions items={actionGroups.later} group="later" />
             </div>
-            {activeSubscriptions.map((s) => (
-              <div className="home-subscription-row" key={s.id}>
-                <SubscriptionCard subscription={s} compact />
-                <Link className="text-button" href={"/renew/" + s.id}>
-                  {t("Perpanjang", "Renew")}
-                  <ArrowRight size={16} aria-hidden="true" />
+            <aside
+              className="home-package-column"
+              aria-label={t("Paket Anda", "Your packages")}
+            >
+              <section className="active-packages home-subscriptions">
+                <div className="section-heading">
+                  <h2>{t("Paket aktif", "Active packages")}</h2>
+                  <Link href="/subscriptions" className="text-button">
+                    {t("Lihat semua", "View all")}
+                    <ArrowUpRight size={19} aria-hidden="true" />
+                  </Link>
+                </div>
+                {activeSubscriptions.map((s) => (
+                  <div className="home-subscription-row" key={s.id}>
+                    <SubscriptionCard subscription={s} compact />
+                    <Link className="text-button" href={"/renew/" + s.id}>
+                      {t("Perpanjang", "Renew")}
+                      <ArrowRight size={16} aria-hidden="true" />
+                    </Link>
+                  </div>
+                ))}
+                {!activeSubscriptions.length && (
+                  <p>
+                    {t("Belum ada paket aktif.", "No active packages yet.")}
+                  </p>
+                )}
+                <Link className="add-package" href="/#packages">
+                  <Plus size={20} />
+                  {t("Tambah paket", "Add a package")}
                 </Link>
-              </div>
-            ))}
-            {!activeSubscriptions.length && (
-              <p>{t("Belum ada paket aktif.", "No active packages yet.")}</p>
-            )}
-            <Link className="add-package" href="/#packages">
-              <Plus size={20} />
-              {t("Tambah paket", "Add a package")}
-            </Link>
-          </section>
+              </section>
+            </aside>
+          </div>
         </>
       ) : null}
     </div>
@@ -451,37 +463,44 @@ function DateGroupedAgenda({ deliveries }: { deliveries: Delivery[] }) {
                   ? t("Hari ini", "Today")
                   : dateLabel(serviceDate, locale)}
               </h3>
-              {upcoming
-                .filter(({ delivery }) => delivery.service_date === serviceDate)
-                .map(({ delivery, meal }) => (
-                  <Link
-                    key={`${delivery.id}-${meal.meal}`}
-                    href={"/deliveries/" + delivery.id}
-                    className="home-agenda-row"
-                  >
-                    {meal.meal === "lunch" ? (
-                      <Sun size={20} />
-                    ) : (
-                      <Moon size={20} />
-                    )}
-                    <div>
-                      <small>
-                        {mealLabel(meal.meal, locale)} ·{" "}
-                        {
-                          delivery.offer.windows[
-                            meal.meal as "lunch" | "dinner"
-                          ]
-                        }
-                      </small>
-                      <strong>{delivery.offer.name}</strong>
-                      <p>
-                        {delivery.offer.caterer} · {delivery.portions}{" "}
-                        {t("porsi", "portions")}
-                      </p>
-                    </div>
-                    <Status status={meal.status} />
-                  </Link>
-                ))}
+              <div className="date-agenda-meals">
+                {upcoming
+                  .filter(
+                    ({ delivery }) => delivery.service_date === serviceDate,
+                  )
+                  .map(({ delivery, meal }) => (
+                    <Link
+                      key={`${delivery.id}-${meal.meal}`}
+                      href={"/deliveries/" + delivery.id}
+                      className="home-agenda-row"
+                    >
+                      {meal.meal === "lunch" ? (
+                        <Sun size={20} />
+                      ) : (
+                        <Moon size={20} />
+                      )}
+                      <div>
+                        <small>
+                          {mealLabel(meal.meal, locale)} ·{" "}
+                          {
+                            delivery.offer.windows[
+                              meal.meal as "lunch" | "dinner"
+                            ]
+                          }
+                        </small>
+                        <strong>{delivery.offer.name}</strong>
+                        <p>
+                          {delivery.offer.caterer} · {delivery.portions}{" "}
+                          {t(
+                            "porsi",
+                            delivery.portions === 1 ? "portion" : "portions",
+                          )}
+                        </p>
+                      </div>
+                      <Status status={meal.status} />
+                    </Link>
+                  ))}
+              </div>
             </section>
           ))}
         </div>
@@ -525,7 +544,7 @@ function NextMeal({
         {detail ? <h1>{d.offer.name}</h1> : <h2>{d.offer.name}</h2>}
         <p>
           {dateLabel(d.service_date, locale)} · {d.portions}{" "}
-          {t("porsi", "portions")}
+          {t("porsi", d.portions === 1 ? "portion" : "portions")}
         </p>
         <div className="next-meal-info">
           <span>
@@ -576,11 +595,15 @@ function SubscriptionCard({
         <small>{s.snapshot.offer.caterer}</small>
         <Title className="subscription-title">{s.snapshot.offer.name}</Title>
         <p>
-          {s.portions} {t("porsi", "portions")} ·{" "}
+          {s.portions} {t("porsi", s.portions === 1 ? "portion" : "portions")} ·{" "}
           {mealLabel(s.snapshot.offer.meal, locale)}
         </p>
         <span className="remaining">
-          {s.remaining} {t("hari tersisa", "days remaining")}
+          {s.remaining}{" "}
+          {t(
+            "hari tersisa",
+            s.remaining === 1 ? "day remaining" : "days remaining",
+          )}
         </span>
       </div>
       <ArrowUpRight size={18} />
@@ -605,7 +628,8 @@ function DeliveryRow({ delivery: d }: { delivery: Delivery }) {
         <h3>{d.offer.name}</h3>
         <p>
           {mealLabel(d.offer.meal, locale)} · {d.portions}{" "}
-          {t("porsi", "portions")} · {d.address.label}
+          {t("porsi", d.portions === 1 ? "portion" : "portions")} ·{" "}
+          {d.address.label}
         </p>
       </div>
       <Status status={d.status} />
@@ -763,7 +787,19 @@ export function DeliveryPage({ id }: { id: string }) {
     "reschedule",
   );
   const [review, setReview] = useState(false);
+  const [changeRejected, setChangeRejected] = useState(false);
   const d = state.data?.deliveries.find((delivery) => delivery.id === id);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!d?.cutoff_at) return;
+    const cutoffAt = Date.parse(d.cutoff_at);
+    if (cutoffAt <= now) return;
+    const timer = window.setTimeout(
+      () => setNow(Date.now()),
+      Math.min(60000, cutoffAt - now + 1),
+    );
+    return () => window.clearTimeout(timer);
+  }, [d?.cutoff_at, now]);
   const scheduleOpen = dialog === "schedule";
   const todayInDeliveryZone = d
     ? localDay(new Date(), d.offer.timezone)
@@ -796,8 +832,8 @@ export function DeliveryPage({ id }: { id: string }) {
     return (
       <Empty title={t("Pengantaran tidak ditemukan", "Delivery not found")} />
     );
-  const canAddress =
-    d.status === "scheduled" && new Date(d.cutoff_at) > new Date();
+  const canAddress = d.status === "scheduled" && Date.parse(d.cutoff_at) > now;
+  const canChange = d.canChange && Date.parse(d.cutoff_at) > now;
   const mutationsDisabled = state.stale || state.loading;
   const cutoff = new Date(d.cutoff_at).toLocaleString(
     locale === "id" ? "id-ID" : "en-GB",
@@ -808,7 +844,7 @@ export function DeliveryPage({ id }: { id: string }) {
     },
   );
   return (
-    <div className="content narrow-wide">
+    <div className="content narrow-wide delivery-detail-page">
       <Link className="back-link" href="/calendar">
         <ArrowLeft size={17} />
         {t("Jadwal makan", "Meal calendar")}
@@ -819,6 +855,29 @@ export function DeliveryPage({ id }: { id: string }) {
       )}
       <section className="delivery-management-summary">
         <h2>{t("Kelola pengantaran", "Manage delivery")}</h2>
+        {!canChange && (
+          <p className="notice delivery-change-reason">
+            {!d.offer.flexible
+              ? t(
+                  "Paket ini memiliki jadwal tetap. Hubungi katerer jika membutuhkan bantuan.",
+                  "This package has fixed dates. Contact your caterer if you need help.",
+                )
+              : Date.parse(d.cutoff_at) <= now
+                ? t(
+                    `Batas perubahan telah lewat: ${cutoff} (${d.offer.timezone}). Hubungi katerer untuk bantuan.`,
+                    `Changes closed at ${cutoff} (${d.offer.timezone}). Contact your caterer for help.`,
+                  )
+                : d.status !== "scheduled"
+                  ? t(
+                      `Perubahan tidak tersedia pada status ${statusLabel(d.status, locale)}. Hubungi katerer untuk bantuan.`,
+                      `Changes are unavailable while this delivery is ${statusLabel(d.status, locale).toLowerCase()}. Contact your caterer for help.`,
+                    )
+                  : t(
+                      "Perubahan jadwal tidak tersedia untuk pengantaran ini. Hubungi katerer untuk bantuan.",
+                      "Schedule changes are unavailable for this delivery. Contact your caterer for help.",
+                    )}
+          </p>
+        )}
         <Facts
           rows={[
             ...d.meals.map(
@@ -853,17 +912,21 @@ export function DeliveryPage({ id }: { id: string }) {
           <Button
             className="button secondary"
             disabled={mutationsDisabled}
-            onClick={() => setDialog("address")}
+            onClick={() => {
+              setChangeRejected(false);
+              setDialog("address");
+            }}
           >
             <MapPin size={17} />
             {t("Ubah alamat", "Change address")}
           </Button>
         )}
-        {d.canChange && (
+        {canChange && (
           <Button
             className="button"
             disabled={mutationsDisabled}
             onClick={() => {
+              setChangeRejected(false);
               setDialog("schedule");
               setReplacement("");
               setReplacementKind("reschedule");
@@ -910,19 +973,6 @@ export function DeliveryPage({ id }: { id: string }) {
           ),
         )}
       </div>
-      {!d.canChange && (
-        <p className="notice">
-          {d.offer.flexible
-            ? t(
-                "Pengantaran sudah melewati batas perubahan atau sedang diproses.",
-                "This delivery is past cutoff or is already being prepared.",
-              )
-            : t(
-                "Paket ini memiliki jadwal tetap. Hubungi katerer jika membutuhkan bantuan.",
-                "This package has fixed dates. Contact your caterer if you need help.",
-              )}
-        </p>
-      )}
       <OptionalSection title={t("Alamat & ketentuan", "Address & rules")}>
         <Facts
           rows={[
@@ -969,20 +1019,84 @@ export function DeliveryPage({ id }: { id: string }) {
               )
         }
       >
-        {dialog === "address" ? (
+        {dialog && !(dialog === "address" ? canAddress : canChange) && (
+          <p className="notice" role="alert">
+            {Date.parse(d.cutoff_at) <= now
+              ? t(
+                  "Batas perubahan telah lewat. Tutup jendela ini untuk melihat jadwal terbaru.",
+                  "The change cutoff has passed. Close this window to review the current schedule.",
+                )
+              : t(
+                  `Perubahan tidak tersedia pada status ${statusLabel(d.status, locale)}. Tutup jendela ini untuk melihat jadwal terbaru.`,
+                  `Changes are unavailable while this delivery is ${statusLabel(d.status, locale).toLowerCase()}. Close this window to review the current schedule.`,
+                )}
+          </p>
+        )}
+        {(state.stale ||
+          (changeRejected &&
+            (dialog === "address" ? canAddress : canChange))) && (
+          <div className="notice" role="status">
+            {state.loading
+              ? t(
+                  "Memuat status pengantaran terbaru…",
+                  "Loading the current delivery status…",
+                )
+              : state.stale
+                ? state.error
+                : t(
+                    "Status pengantaran sudah dimuat ulang. Periksa cakupan terbaru sebelum mencoba lagi.",
+                    "Delivery status refreshed. Review the current details before trying again.",
+                  )}
+            <Button
+              variant="text"
+              disabled={state.loading || availability.loading}
+              onClick={() => {
+                state.reload();
+                availability.reload();
+                setReview(false);
+              }}
+            >
+              {t("Muat ulang status & tanggal", "Reload status & dates")}
+            </Button>
+          </div>
+        )}
+        {!state.stale && !(dialog === "address" ? canAddress : canChange) ? (
+          <div className="action-row">
+            <Button onClick={() => setDialog("")}>{t("Tutup", "Close")}</Button>
+            <Link
+              className="button secondary"
+              href={"/messages?caterer=" + d.offer.catererId}
+            >
+              {t("Hubungi katering", "Contact caterer")}
+            </Link>
+          </div>
+        ) : dialog === "address" ? (
           <ActionForm
+            key={"address:" + d.version}
+            disabled={!canAddress || mutationsDisabled}
             submit={t("Simpan alamat pengantaran", "Save delivery address")}
             onSubmit={async (f) => {
-              await perform("delivery.address", {
-                id: d.id,
-                version: d.version,
-                addressId: f.get("addressId"),
-              });
-              setDialog("");
+              if (!canAddress) throw new Error("CUTOFF_PASSED");
+              try {
+                await perform("delivery.address", {
+                  id: d.id,
+                  version: d.version,
+                  addressId: f.get("addressId"),
+                });
+                setDialog("");
+              } catch (error) {
+                setChangeRejected(true);
+                state.reload();
+                throw error;
+              }
             }}
           >
             <Field label={t("Alamat baru", "New address")}>
-              <Select name="addressId" defaultValue={d.address.id}>
+              <Select
+                name="addressId"
+                defaultValue={d.address.id}
+                disabled={!canAddress || mutationsDisabled}
+              >
                 {state.data.addresses.map((a) => (
                   <SelectOption key={a.id} value={a.id}>
                     {a.label} — {a.line}
@@ -993,12 +1107,14 @@ export function DeliveryPage({ id }: { id: string }) {
           </ActionForm>
         ) : (
           <ActionForm
+            key={"schedule:" + d.version + ":" + replacement}
             disabled={
+              !canChange ||
               !replacement ||
               availability.loading ||
               !!availability.error ||
               availability.stale ||
-              state.stale
+              mutationsDisabled
             }
             submit={
               review
@@ -1006,6 +1122,7 @@ export function DeliveryPage({ id }: { id: string }) {
                 : t("Tinjau perubahan", "Review change")
             }
             onSubmit={async () => {
+              if (!canChange) throw new Error("CUTOFF_PASSED");
               if (!review) {
                 const choice = availableOn.get(replacement);
                 if (!choice?.available)
@@ -1024,7 +1141,9 @@ export function DeliveryPage({ id }: { id: string }) {
               } catch (error) {
                 const code = (error as { code?: string }).code;
                 if (["CAPACITY", "CONFLICT", "CUTOFF"].includes(code || "")) {
+                  setChangeRejected(true);
                   setReview(false);
+                  state.reload();
                   availability.reload();
                 }
                 throw error;
@@ -1036,6 +1155,7 @@ export function DeliveryPage({ id }: { id: string }) {
               <Button
                 type="button"
                 variant="secondary"
+                disabled={!canChange || mutationsDisabled}
                 aria-pressed={replacementKind === "reschedule"}
                 onClick={() => {
                   setReplacementKind("reschedule");
@@ -1047,6 +1167,7 @@ export function DeliveryPage({ id }: { id: string }) {
               <Button
                 type="button"
                 className="text-button"
+                disabled={!canChange || mutationsDisabled}
                 aria-pressed={replacementKind === "skip"}
                 onClick={() => {
                   setReplacementKind("skip");
@@ -1081,7 +1202,12 @@ export function DeliveryPage({ id }: { id: string }) {
                 required
                 min={availabilityFrom}
                 max={availabilityTo}
-                disabled={availability.loading || !!availability.error}
+                disabled={
+                  !canChange ||
+                  mutationsDisabled ||
+                  availability.loading ||
+                  !!availability.error
+                }
                 isDateUnavailable={(day) => !availableOn.get(day)?.available}
                 value={replacement}
                 onValueChange={(value) => {

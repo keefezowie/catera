@@ -203,7 +203,7 @@ for (const locale of ["id", "en"] as const) {
   }) => {
     await page.setViewportSize({ width: 1440, height: 1000 });
     await openAs(page, baseURL, "customer", locale, "/home");
-    const card = page.locator(".home-page > .next-meal-card");
+    const card = page.locator(".home-delivery-column > .next-meal-card");
     await expect(card).toBeVisible();
     await expect(card.getByRole("link")).toBeVisible();
     await expect

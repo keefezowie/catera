@@ -75,7 +75,7 @@ for (const locale of ["id", "en"] as const) {
         }),
       );
       await page.goto("/home");
-      const next = page.locator(".home-page > .next-meal-card");
+      const next = page.locator(".home-delivery-column > .next-meal-card");
       await expect(next).toContainText("Synthetic lunch");
       await expect(
         page

@@ -23,6 +23,7 @@ import {
 } from "../packages/backend/src/seed.ts";
 import { addDays, localDay } from "@catera/domain";
 let embedded, pool;
+const openClients = new Set();
 let evidence = [];
 async function cmd(action, payload, user, id = crypto.randomUUID()) {
   const c = await pool.connect();
@@ -75,6 +76,8 @@ try {
   if (new URL(url).pathname !== "/catera_test")
     throw Error("Use an empty disposable database named catera_test");
   pool = new pg.Pool({ connectionString: url, max: 8 });
+  pool.on("connect", (client) => openClients.add(client));
+  pool.on("remove", (client) => openClients.delete(client));
   if (
     (
       await pool.query(
@@ -320,6 +323,15 @@ try {
   );
   console.log(evidence.join("\n"));
 } finally {
+  // pg-pool can resolve end() before its socket-close callbacks finish.
+  // Keep the disposable server alive until every client has disconnected.
+  const disconnected = new Promise((resolve) => {
+    if (!openClients.size) return resolve();
+    pool.on("remove", () => {
+      if (!openClients.size) resolve();
+    });
+  });
   await pool?.end();
+  await disconnected;
   await embedded?.stop();
 }
