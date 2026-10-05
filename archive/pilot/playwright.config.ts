@@ -16,8 +16,13 @@ export default defineConfig({
       name: "desktop",
       use: {
         ...devices["Desktop Chrome"],
+        launchOptions: process.env.PLAYWRIGHT_EXECUTABLE_PATH
+          ? { executablePath: process.env.PLAYWRIGHT_EXECUTABLE_PATH }
+          : undefined,
         channel:
-          process.env.CI || process.env.PLAYWRIGHT_CHANNEL === "chromium"
+          process.env.PLAYWRIGHT_EXECUTABLE_PATH ||
+          process.env.CI ||
+          process.env.PLAYWRIGHT_CHANNEL === "chromium"
             ? undefined
             : process.env.PLAYWRIGHT_CHANNEL || "msedge",
         viewport: { width: 1440, height: 1000 },

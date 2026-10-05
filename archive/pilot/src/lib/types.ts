@@ -160,4 +160,4 @@ export type Snapshot = {
 export type Workspace = Business & { role: Role };
 export type CommandResult =
   | { ok: true; result: { id?: string; applied?: number; unchanged?: boolean } }
-  | { ok: false; code: string };
+  | { ok: false; code: string; fields?: string[] };

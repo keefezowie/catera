@@ -1,6 +1,6 @@
 import pg from "pg";
 import assert from "node:assert/strict";
-import { readFile, writeFile, mkdir, mkdtemp } from "node:fs/promises";
+import { readFile, readdir, writeFile, mkdir, mkdtemp } from "node:fs/promises";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { localBootstrap, demoSeed, DEMO_USERS } from "../src/lib/demo-seed.ts";
@@ -36,9 +36,13 @@ async function setup() {
   if (rows[0].existing)
     throw Error("Test database must be empty; existing data is never deleted.");
   await pool.query(localBootstrap);
-  await pool.query(
-    await readFile("supabase/migrations/202609080001_core.sql", "utf8"),
-  );
+  const migrations = (await readdir("supabase/migrations"))
+    .filter((name) => /^\d+_.+\.sql$/.test(name))
+    .sort();
+  for (const name of migrations)
+    await pool.query(
+      await readFile(path.join("supabase/migrations", name), "utf8"),
+    );
   await pool.query(demoSeed);
 }
 async function rpc(action, payload, uid = DEMO_USERS.owner) {

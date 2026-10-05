@@ -9,6 +9,7 @@ import { Customers, Packages, Menus } from "@/components/records";
 import { Settings } from "@/components/settings";
 import { Portal } from "@/components/portal";
 import { DeliveryDetail } from "@/components/delivery-detail";
+import { Help } from "@/components/help";
 export const dynamic = "force-dynamic";
 export default async function WorkspacePage({
   params,
@@ -26,22 +27,31 @@ export default async function WorkspacePage({
   let content: React.ReactNode;
   if (s.role === "subscriber") {
     if (
-      !["home", "schedule", "package", "profile", "deliveries"].includes(
-        path[0],
-      )
+      ![
+        "home",
+        "schedule",
+        "package",
+        "profile",
+        "deliveries",
+        "help",
+      ].includes(path[0])
     )
       notFound();
-    content = (
-      <Portal
-        s={s}
-        view={path[0]}
-        id={path[0] === "deliveries" ? path[1] : undefined}
-      />
-    );
+    content =
+      path[0] === "help" ? (
+        <Help s={s} />
+      ) : (
+        <Portal
+          s={s}
+          view={path[0]}
+          id={path[0] === "deliveries" ? path[1] : undefined}
+        />
+      );
   } else {
     if (path[0] !== "admin") redirect("/w/" + businessSlug + "/admin/today");
     const view = path[1] || "today";
-    if (["today", "schedule", "production", "delivery"].includes(view))
+    if (view === "help") content = <Help s={s} />;
+    else if (["today", "schedule", "production", "delivery"].includes(view))
       content = <Operations s={s} view={view} />;
     else if (view === "customers") content = <Customers s={s} id={path[2]} />;
     else if (view === "packages") content = <Packages s={s} />;

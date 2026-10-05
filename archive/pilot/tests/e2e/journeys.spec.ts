@@ -94,7 +94,7 @@ test("owner creates a customer, records quota and schedules deliveries", async (
   const end = new Date(start);
   end.setUTCDate(end.getUTCDate() + 7);
   await dialog
-    .getByLabel("Mulai berlaku")
+    .getByLabel("Tanggal mulai kirim")
     .fill(start.toISOString().slice(0, 10));
   await dialog
     .getByLabel("Sampai tanggal")
@@ -137,8 +137,8 @@ test("subscriber phone layout, meal review and address isolation", async ({
   await page.getByRole("button", { name: "Pilih menu", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await dialog
-    .locator('select[name="menu_id"]')
-    .selectOption({ label: "Tempe teriyaki" });
+    .getByRole("radio", { name: "Tempe teriyaki", exact: true })
+    .check();
   await dialog.getByRole("button", { name: "Tinjau perubahan" }).click();
   await expect(dialog).toContainText("Tempe teriyaki");
   await dialog.getByRole("button", { name: "Konfirmasi", exact: true }).click();
@@ -212,8 +212,8 @@ test("admin and subscriber share changes and delivery confirmation", async ({
       .click();
     const review = phone.getByRole("dialog");
     await review
-      .locator('select[name="menu_id"]')
-      .selectOption({ label: "Tempe teriyaki" });
+      .getByRole("radio", { name: "Tempe teriyaki", exact: true })
+      .check();
     await review.getByRole("button", { name: "Tinjau perubahan" }).click();
     await review
       .getByRole("button", { name: "Konfirmasi", exact: true })
@@ -241,7 +241,10 @@ test("admin and subscriber share changes and delivery confirmation", async ({
     ]) {
       await admin.getByRole("button", { name: action, exact: true }).click();
       const dialog = admin.getByRole("dialog");
-      await dialog.getByRole("button", { name: "Tinjau perubahan" }).click();
+      // No-input fulfillment opens directly in the contextual review.
+      await expect(
+        dialog.getByRole("heading", { name: "Tinjau perubahan" }),
+      ).toBeVisible();
       await dialog
         .getByRole("button", { name: "Konfirmasi", exact: true })
         .click();

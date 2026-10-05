@@ -1,13 +1,12 @@
 import { PGlite } from "@electric-sql/pglite";
-import { readFile, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
+import { applyDemoMigrations } from "../src/lib/demo-migrations.ts";
 import { format } from "prettier";
 const db = new PGlite();
 await db.exec(
   "create role anon;create role authenticated;create role service_role;create schema auth;create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz);create function auth.uid() returns uuid language sql as $$select null::uuid$$;",
 );
-await db.exec(
-  await readFile("supabase/migrations/202609080001_core.sql", "utf8"),
-);
+await applyDemoMigrations(db);
 const { rows } = await db.query(
   "select table_name,column_name,data_type,udt_name,is_nullable,column_default from information_schema.columns where table_schema='public' order by table_name,ordinal_position",
 );

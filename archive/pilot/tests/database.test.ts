@@ -1,6 +1,6 @@
 import { beforeAll, afterAll, describe, it, expect } from "vitest";
 import { PGlite } from "@electric-sql/pglite";
-import { readFile } from "node:fs/promises";
+import { applyDemoMigrations } from "../src/lib/demo-migrations";
 import { localBootstrap, demoSeed, DEMO_USERS } from "../src/lib/demo-seed";
 import type { Snapshot } from "../src/lib/types";
 let db: PGlite;
@@ -41,9 +41,7 @@ const command = (
 beforeAll(async () => {
   db = new PGlite();
   await db.exec(localBootstrap);
-  await db.exec(
-    await readFile("supabase/migrations/202609080001_core.sql", "utf8"),
-  );
+  await applyDemoMigrations(db);
   await db.exec(demoSeed);
 });
 afterAll(async () => {

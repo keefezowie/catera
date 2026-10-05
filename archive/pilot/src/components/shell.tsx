@@ -21,8 +21,9 @@ import {
   Menu as MenuIcon,
   X,
   ArrowUpRight,
+  CircleHelp,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { logout, setLocale } from "@/app/actions";
 import type { Snapshot } from "@/lib/types";
@@ -56,20 +57,79 @@ export function Shell({
     subscriber = s.role === "subscriber",
     base = "/w/" + s.business.slug;
   const router = useRouter(),
-    [saved, setSaved] = useState(false);
+    [saved, setSaved] = useState<{ key: string; sequence: number } | null>(
+      null,
+    ),
+    savedSequence = useRef(0),
+    sidebar = useRef<HTMLElement>(null),
+    menuButton = useRef<HTMLButtonElement>(null);
   useEffect(() => {
-    let timer: ReturnType<typeof setTimeout>;
-    const notify = () => {
-      setSaved(true);
-      clearTimeout(timer);
-      timer = setTimeout(() => setSaved(false), 5000);
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const focusable = () =>
+      Array.from(
+        sidebar.current?.querySelectorAll<HTMLElement>(
+          "a[href], button:not(:disabled)",
+        ) || [],
+      ).filter(
+        (el) =>
+          el.getClientRects().length &&
+          getComputedStyle(el).visibility !== "hidden",
+      );
+    sidebar.current
+      ?.querySelector<HTMLButtonElement>(".sidebar-close")
+      ?.focus();
+    const keyboard = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setOpen(false);
+      }
+      if (event.key === "Tab") {
+        const elements = focusable(),
+          first = elements[0],
+          last = elements.at(-1);
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last?.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first?.focus();
+        }
+      }
+    };
+    const resize = () => {
+      if (window.innerWidth > 800) setOpen(false);
+    };
+    document.addEventListener("keydown", keyboard);
+    window.addEventListener("resize", resize);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", keyboard);
+      window.removeEventListener("resize", resize);
+      menuButton.current?.focus();
+    };
+  }, [open]);
+  useEffect(() => {
+    const notify = (event: Event) => {
+      const detail = (
+          event as CustomEvent<{ action?: string; status?: string }>
+        ).detail,
+        key = detail?.status
+          ? detail.status + "Success"
+          : detail?.action + "Success";
+      setSaved({ key, sequence: ++savedSequence.current });
     };
     window.addEventListener("catera:saved", notify);
     return () => {
       window.removeEventListener("catera:saved", notify);
-      clearTimeout(timer);
     };
   }, []);
+  useEffect(() => {
+    if (!saved) return;
+    const timer = setTimeout(() => setSaved(null), 7000);
+    return () => clearTimeout(timer);
+  }, [saved]);
   useEffect(() => {
     const refresh = () => {
       if (document.visibilityState === "visible") router.refresh();
@@ -84,15 +144,101 @@ export function Shell({
   const groups = subscriber
     ? [["home", "schedule", "package", "profile"]]
     : [
-        ["today", "schedule", "production", "delivery"],
-        ["customers", "packages", "menus", "settings"],
+        ["today"],
+        [
+          "customers",
+          "packages",
+          "menus",
+          ...(s.role === "owner" ? ["settings"] : []),
+        ],
       ];
+  const helpTopic = pathname.endsWith("/profile")
+      ? "address"
+      : pathname.endsWith("/package")
+        ? "quota"
+        : pathname.includes("production")
+          ? "production"
+          : pathname.includes("customers")
+            ? "schedule"
+            : pathname.includes("packages")
+              ? "packages"
+              : pathname.includes("menus")
+                ? "offerings"
+                : pathname.includes("deliver")
+                  ? "fulfillment"
+                  : subscriber
+                    ? "menu"
+                    : "schedule",
+    helpParams = new URLSearchParams({
+      topic: subscriber && helpTopic === "fulfillment" ? "cutoff" : helpTopic,
+    }),
+    contentClass = subscriber
+      ? pathname.endsWith("/home")
+        ? "customer-home"
+        : pathname.endsWith("/schedule")
+          ? "customer-schedule"
+          : pathname.endsWith("/help")
+            ? "customer-help"
+            : ""
+      : "";
+  const focusedDelivery = s.deliveries.find(
+    (d) =>
+      d.id ===
+      (query.get("delivery") || pathname.match(/\/deliveries\/([^/]+)$/)?.[1]),
+  );
+  const focusedCustomer = s.customers.find(
+    (c) =>
+      c.id ===
+      (focusedDelivery?.customer_id ||
+        pathname.match(/\/customers\/([^/]+)$/)?.[1]),
+  );
+  if (focusedDelivery) helpParams.set("delivery", focusedDelivery.id);
+  if (focusedCustomer) helpParams.set("customer", focusedCustomer.id);
+  const helpDate = focusedDelivery?.service_date || query.get("date");
+  if (helpDate && /^\d{4}-\d{2}-\d{2}$/.test(helpDate))
+    helpParams.set("date", helpDate);
+  const helpSlot = focusedDelivery?.slot_id || query.get("slot");
+  if (helpSlot && s.slots.some((slot) => slot.id === helpSlot))
+    helpParams.set("slot", helpSlot);
+  const helpHref = base + (subscriber ? "" : "/admin") + "/help?" + helpParams;
+  useEffect(() => {
+    const shortcut = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement;
+      if (
+        event.metaKey ||
+        event.ctrlKey ||
+        event.altKey ||
+        target.closest("input,textarea,select,[contenteditable=true]") ||
+        document.querySelector('[role="dialog"]')
+      )
+        return;
+      if (event.key === "/") {
+        const search = document.querySelector<HTMLInputElement>(
+          'main input[type="search"], main .search-control input',
+        );
+        if (search) {
+          event.preventDefault();
+          search.focus();
+        }
+      } else if (event.key === "?") {
+        event.preventDefault();
+        router.push(helpHref);
+      }
+    };
+    document.addEventListener("keydown", shortcut);
+    return () => document.removeEventListener("keydown", shortcut);
+  }, [helpHref, router]);
   const nav = (key: string) => {
     const Icon = icons[key as keyof typeof icons];
     const href = base + (subscriber ? "" : "/admin") + "/" + key;
     const selected =
       pathname === href ||
       pathname.startsWith(href + "/") ||
+      (!subscriber &&
+        key === "today" &&
+        ["schedule", "production", "delivery", "deliveries"].some((stage) =>
+          pathname.startsWith(base + "/admin/" + stage),
+        )) ||
       (key === "schedule" && pathname.includes("/deliveries/"));
     const date =
       !subscriber &&
@@ -116,7 +262,17 @@ export function Shell({
   return (
     <PolicyVersionContext value={s.business.version}>
       <div className={"app-shell " + (subscriber ? "subscriber-shell" : "")}>
-        <aside className={"sidebar " + (open ? "mobile-open" : "")}>
+        <a className="skip-link" href="#main-content">
+          {t("skipToContent")}
+        </a>
+        <aside
+          ref={sidebar}
+          id="workspace-navigation"
+          className={"sidebar " + (open ? "mobile-open" : "")}
+          role={open ? "dialog" : undefined}
+          aria-modal={open || undefined}
+          aria-label={t("navigation")}
+        >
           <Link
             href={base + (subscriber ? "/home" : "/admin/today")}
             className="brand-logo"
@@ -148,6 +304,18 @@ export function Shell({
             ))}
           </nav>
           <div className="sidebar-bottom">
+            <Link
+              href={helpHref}
+              className={
+                "nav-link help-nav " +
+                (pathname.endsWith("/help") ? "selected" : "")
+              }
+              onClick={() => setOpen(false)}
+              aria-current={pathname.endsWith("/help") ? "page" : undefined}
+            >
+              <CircleHelp size={18} />
+              {t("help")}
+            </Link>
             <div className="brand-note">
               <span className="brand-mascot" />
               <p>
@@ -167,16 +335,20 @@ export function Shell({
         {open && (
           <button
             className="sidebar-scrim"
+            tabIndex={-1}
             aria-label={t("close")}
             onClick={() => setOpen(false)}
           />
         )}
-        <div className="main-column">
+        <div className="main-column" inert={open}>
           <header className="topbar">
             <div className="topbar-left">
               <button
                 className="icon-button mobile-menu"
-                aria-label={t("workspace")}
+                ref={menuButton}
+                aria-label={t("navigation")}
+                aria-controls="workspace-navigation"
+                aria-expanded={open}
                 onClick={() => setOpen(true)}
               >
                 <MenuIcon />
@@ -184,6 +356,14 @@ export function Shell({
               <span>{t(subscriber ? "subscriberView" : "adminView")}</span>
             </div>
             <div className="topbar-right">
+              <Link
+                href={helpHref}
+                className="icon-button contextual-help"
+                aria-label={t("help")}
+                title={t("help")}
+              >
+                <CircleHelp size={19} />
+              </Link>
               {demo && <span className="demo-label">{t("synthetic")}</span>}
               <form action={setLocale} className="language-control">
                 <button
@@ -209,12 +389,22 @@ export function Shell({
             </div>
           </header>
           <div className="save-notice" role="status" aria-live="polite">
-            {saved ? t("saved") : ""}
+            {saved && (t.has(saved.key) ? t(saved.key) : t("saved"))}
           </div>
-          <main className="main-content">{children}</main>
+          <main
+            id="main-content"
+            tabIndex={-1}
+            className={"main-content " + contentClass}
+          >
+            {children}
+          </main>
           {demo && <footer className="demo-footer">{t("demo")}</footer>}
         </div>
-        {subscriber && <nav className="bottom-nav">{groups[0].map(nav)}</nav>}
+        {subscriber && (
+          <nav className="bottom-nav" inert={open} aria-label={t("navigation")}>
+            {groups[0].map(nav)}
+          </nav>
+        )}
       </div>
     </PolicyVersionContext>
   );

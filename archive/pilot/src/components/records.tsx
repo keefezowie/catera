@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import {
   Plus,
@@ -21,6 +21,8 @@ import type {
 import {
   PageHeading,
   FormDialog,
+  DateInput,
+  type FormReviewActions,
   AddressFields,
   addressFrom,
   Quota,
@@ -30,13 +32,487 @@ import {
 } from "./ui";
 import { previewSchedule, type ScheduleInput } from "@/lib/scheduling";
 const value = (f: FormData, key: string) => String(f.get(key) || "");
+function businessDate(s: Snapshot) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: s.business.timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date(s.now));
+  return ["year", "month", "day"]
+    .map((key) => parts.find((p) => p.type === key)?.value)
+    .join("-");
+}
+function addDays(date: string, days: number) {
+  const d = new Date(date + "T12:00:00Z");
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+function cutoffElapsed(s: Snapshot, date: string) {
+  const exception = s.exceptions.find((e) => e.service_date === date);
+  if (exception?.cutoff_at)
+    return new Date(s.now) >= new Date(exception.cutoff_at);
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: s.business.timezone,
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date(s.now));
+  const time = ["hour", "minute", "second"]
+    .map((key) => parts.find((p) => p.type === key)?.value)
+    .join(":");
+  return (
+    businessDate(s) + "T" + time >=
+    addDays(date, -1) + "T" + s.business.cutoff.padEnd(8, ":00")
+  );
+}
+function scheduleDefaults(s: Snapshot, c: Customer) {
+  const tomorrow = addDays(businessDate(s), 1);
+  const earliest = cutoffElapsed(s, tomorrow) ? addDays(tomorrow, 1) : tomorrow;
+  const grants = s.grants.filter(
+    (g) =>
+      g.customer_id === c.id &&
+      g.remaining > g.reserved &&
+      (!g.expires_on || g.expires_on >= earliest),
+  );
+  const starts =
+    grants
+      .map((g) => (g.starts_on > earliest ? g.starts_on : earliest))
+      .sort()[0] || earliest;
+  const weekEnd = addDays(starts, 6);
+  const eligible = grants.filter(
+    (g) => g.starts_on <= weekEnd && (!g.expires_on || g.expires_on >= starts),
+  );
+  // A later grant can fund later dates; the earliest expiry is not a universal deadline.
+  const lastExpiry = eligible.some((g) => !g.expires_on)
+    ? null
+    : eligible
+        .map((g) => g.expires_on!)
+        .sort()
+        .at(-1);
+  return {
+    starts,
+    ends: lastExpiry && lastExpiry < weekEnd ? lastExpiry : weekEnd,
+    capacity: grants.length > 0,
+  };
+}
+function CustomerContext({ c }: { c: Customer }) {
+  const t = useTranslations();
+  return (
+    <section
+      className="record-customer-context"
+      aria-label={t("scheduleCustomerContext")}
+    >
+      <h3>{c.name}</h3>
+      <p>{[c.email, c.phone].filter(Boolean).join(" · ")}</p>
+      <div className="record-saved-address">
+        <h4>{t("savedStartingAddress")}</h4>
+        <p>
+          {c.address.line}
+          <br />
+          {c.address.city}
+        </p>
+        {c.address.instructions && <p>{c.address.instructions}</p>}
+      </div>
+    </section>
+  );
+}
+function ScheduleContext({ s, c }: { s: Snapshot; c: Customer }) {
+  const t = useTranslations(),
+    fmt = useFormat();
+  const grants = s.grants.filter((g) => g.customer_id === c.id);
+  return (
+    <section
+      className="schedule-context"
+      aria-label={t("scheduleCustomerContext")}
+    >
+      <h3>{c.name}</h3>
+      <p className="schedule-customer-contact">
+        {[c.email, c.phone].filter(Boolean).join(" · ")}
+      </p>
+      <div className="quota-summary">
+        {(["remaining", "reserved", "available"] as const).map((key) => (
+          <div key={key}>
+            <strong>{grants.reduce((total, g) => total + g[key], 0)}</strong>
+            <span>{t(key)}</span>
+          </div>
+        ))}
+      </div>
+      {grants.length > 0 && (
+        <div className="schedule-validity">
+          <strong>{t("packageValidity")}</strong>
+          <ul>
+            {grants.map((g) => (
+              <li key={g.id}>
+                <strong>
+                  {s.purchases.find((p) => p.id === g.purchase_id)?.terms
+                    .name || t("purchasedPackage")}
+                </strong>
+                <span>
+                  {fmt.date(g.starts_on)} →{" "}
+                  {g.expires_on ? fmt.date(g.expires_on) : t("noExpiry")}
+                </span>
+                <small>
+                  {Math.max(0, g.remaining - g.reserved)}{" "}
+                  {t("unreservedDeliveries")}
+                </small>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <details className="schedule-allocation-help">
+        <summary>{t("scheduleAllocationHow")}</summary>
+        <p>{t("quotaExplanation")}</p>
+        <p>{t("scheduleValidityHelp")}</p>
+      </details>
+    </section>
+  );
+}
+function scheduleBounds(s: Snapshot, c: Customer, pattern?: Pattern) {
+  const grants = s.grants.filter((g) => g.customer_id === c.id);
+  const latest = grants.some((g) => !g.expires_on)
+    ? undefined
+    : grants
+        .map((g) => g.expires_on!)
+        .sort()
+        .at(-1);
+  return {
+    // Retained recurrence dates may be historical; only added/removed occurrences need an open cutoff.
+    min: pattern ? undefined : grants.map((g) => g.starts_on).sort()[0],
+    max:
+      latest && pattern && pattern.ends_on > latest ? pattern.ends_on : latest,
+  };
+}
+function scheduleFormError(s: Snapshot, input: ScheduleInput, p?: Pattern) {
+  if (!input.starts_on || !input.ends_on) return "scheduleDatesRequired";
+  if (input.ends_on < input.starts_on) return "scheduleRangeError";
+  if (!input.weekdays.length) return "scheduleWeekdaysRequired";
+  if (!input.slot_ids.length) return "scheduleSlotsRequired";
+  const { rows, removed } = p
+    ? revisionPreview(s, input, p)
+    : { rows: previewSchedule(s, input), removed: [] };
+  if (
+    rows.some((row) => cutoffElapsed(s, row.date)) ||
+    removed.some((d) => new Date(s.now) >= new Date(d.cutoff_at))
+  )
+    return "scheduleCutoffHelp";
+  // Quantity shortages remain reviewable; dates outside every grant's validity cannot be funded.
+  if (
+    rows.some(
+      (row) =>
+        !s.grants.some(
+          (g) =>
+            g.customer_id === input.customer_id &&
+            g.starts_on <= row.date &&
+            (!g.expires_on || g.expires_on >= row.date),
+        ),
+    )
+  )
+    return "scheduleValidityError";
+  return undefined;
+}
+function ScheduleFields({
+  s,
+  c,
+  pattern,
+}: {
+  s: Snapshot;
+  c: Customer;
+  pattern?: Pattern;
+}) {
+  const t = useTranslations(),
+    locale = useLocale(),
+    id = useId(),
+    defaults = scheduleDefaults(s, c),
+    bounds = scheduleBounds(s, c, pattern);
+  const [starts, setStarts] = useState(pattern?.starts_on || defaults.starts),
+    [ends, setEnds] = useState(pattern?.ends_on || defaults.ends),
+    [weekdays, setWeekdays] = useState(pattern?.weekdays || [1, 2, 3, 4, 5]),
+    [slots, setSlots] = useState(
+      pattern?.slots ||
+        s.slots
+          .filter((slot) => slot.active)
+          .slice(0, 1)
+          .map((slot) => slot.id),
+    );
+  const input = {
+    customer_id: c.id,
+    starts_on: starts,
+    ends_on: ends,
+    weekdays,
+    slot_ids: slots,
+  };
+  const error = scheduleFormError(s, input, pattern);
+  const dateError =
+    error &&
+    !["scheduleWeekdaysRequired", "scheduleSlotsRequired"].includes(error);
+  return (
+    <>
+      <div className="form-grid schedule-date-fields">
+        <label>
+          {t("scheduleStartsOn")}
+          <DateInput
+            aria-label={t("scheduleStartsOn")}
+            name="starts_on"
+            required
+            min={bounds.min}
+            max={bounds.max}
+            value={starts}
+            onChange={(e) => setStarts(e.target.value)}
+            aria-invalid={dateError ? true : undefined}
+            aria-describedby={id + "-dates"}
+          />
+        </label>
+        <label>
+          {t("endsOn")}
+          <DateInput
+            aria-label={t("endsOn")}
+            name="ends_on"
+            required
+            min={starts || bounds.min}
+            max={bounds.max}
+            value={ends}
+            onChange={(e) => setEnds(e.target.value)}
+            aria-invalid={dateError ? true : undefined}
+            aria-describedby={id + "-dates"}
+          />
+        </label>
+      </div>
+      <p
+        id={id + "-dates"}
+        className={
+          dateError ? "error schedule-field-help" : "muted schedule-field-help"
+        }
+        aria-live="polite"
+      >
+        {t(
+          dateError
+            ? error
+            : pattern
+              ? "scheduleRevisionDateHelp"
+              : "scheduleDateHelp",
+        )}
+      </p>
+      <fieldset
+        aria-describedby={!weekdays.length ? id + "-weekdays" : undefined}
+      >
+        <legend>{t("weekdays")}</legend>
+        <div className="weekday-options">
+          {[1, 2, 3, 4, 5, 6, 0].map((day) => (
+            <label key={day}>
+              <input
+                type="checkbox"
+                name="weekdays"
+                value={day}
+                checked={weekdays.includes(day)}
+                onChange={(e) =>
+                  setWeekdays(
+                    e.target.checked
+                      ? [...weekdays, day]
+                      : weekdays.filter((value) => value !== day),
+                  )
+                }
+              />
+              {new Intl.DateTimeFormat(locale, {
+                weekday: "short",
+                timeZone: "UTC",
+              }).format(new Date(Date.UTC(2026, 8, 6 + day)))}
+            </label>
+          ))}
+        </div>
+        {!weekdays.length && (
+          <p
+            id={id + "-weekdays"}
+            className="error schedule-field-help"
+            role="alert"
+          >
+            {t("scheduleWeekdaysRequired")}
+          </p>
+        )}
+      </fieldset>
+      <fieldset aria-describedby={!slots.length ? id + "-slots" : undefined}>
+        <legend>{t("slots")}</legend>
+        <div className="schedule-slot-options">
+          {s.slots
+            .filter((slot) => slot.active)
+            .map((slot) => (
+              <label className="checkbox-row" key={slot.id}>
+                <input
+                  type="checkbox"
+                  name="slot_ids"
+                  value={slot.id}
+                  checked={slots.includes(slot.id)}
+                  onChange={(e) =>
+                    setSlots(
+                      e.target.checked
+                        ? [...slots, slot.id]
+                        : slots.filter((value) => value !== slot.id),
+                    )
+                  }
+                />
+                {slot.name}
+              </label>
+            ))}
+        </div>
+        {!slots.length && (
+          <p
+            id={id + "-slots"}
+            className="error schedule-field-help"
+            role="alert"
+          >
+            {t("scheduleSlotsRequired")}
+          </p>
+        )}
+      </fieldset>
+    </>
+  );
+}
+function revisionPreview(s: Snapshot, input: ScheduleInput, p: Pattern) {
+  const copy = structuredClone(s);
+  const removed = copy.deliveries.filter(
+    (d) =>
+      d.pattern_id === p.id &&
+      d.service_date >= input.starts_on &&
+      !["cancelled", "delivered"].includes(d.status) &&
+      (d.service_date > input.ends_on ||
+        !input.weekdays.includes(
+          new Date(d.service_date + "T12:00:00Z").getUTCDay(),
+        ) ||
+        !input.slot_ids.includes(d.slot_id)),
+  );
+  for (const d of removed) {
+    d.status = "cancelled";
+    const grant = copy.grants.find((g) => g.id === d.grant_id);
+    if (grant) grant.reserved -= 1;
+  }
+  return { removed, rows: previewSchedule(copy, input) };
+}
+function AllocationReview({
+  s,
+  rows,
+  editFields,
+  allowShorten = false,
+}: {
+  s: Snapshot;
+  rows: ReturnType<typeof previewSchedule>;
+  editFields?: FormReviewActions["editFields"];
+  allowShorten?: boolean;
+}) {
+  const t = useTranslations(),
+    fmt = useFormat();
+  const allocated = rows.filter((r) => r.grant_id).length;
+  const elapsed = rows.some((r) => cutoffElapsed(s, r.date));
+  const firstShortfall = rows.find((row) => !row.grant_id);
+  // A date with only some funded slots cannot be proposed as a fully funded endpoint.
+  const lastFundedDate = firstShortfall
+    ? rows
+        .filter((row) => row.date < firstShortfall.date && row.grant_id)
+        .at(-1)?.date
+    : undefined;
+  return (
+    <>
+      <dl className="allocation-summary" aria-live="polite" aria-atomic="true">
+        <div>
+          <dt>{t("requiredDeliveries")}</dt>
+          <dd>{rows.length}</dd>
+        </div>
+        <div>
+          <dt>{t("allocatableDeliveries")}</dt>
+          <dd>{allocated}</dd>
+        </div>
+        <div>
+          <dt>{t("unallocatedDeliveries")}</dt>
+          <dd>{rows.length - allocated}</dd>
+        </div>
+      </dl>
+      {firstShortfall && (
+        <div className="schedule-repair">
+          <p className="error" role="alert">
+            {t("insufficientPreview")}
+          </p>
+          <p>
+            {t("scheduleFirstShortfall", {
+              date: fmt.date(firstShortfall.date, true),
+              slot:
+                s.slots.find((slot) => slot.id === firstShortfall.slot_id)
+                  ?.name || "",
+            })}
+          </p>
+          {editFields && (
+            <>
+              <div className="schedule-repair-actions">
+                {allowShorten && lastFundedDate && (
+                  <button
+                    type="button"
+                    className="button secondary"
+                    onClick={() =>
+                      editFields({ ends_on: lastFundedDate }, "ends_on")
+                    }
+                  >
+                    {t("scheduleUseFundedEnd", {
+                      date: fmt.date(lastFundedDate),
+                    })}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="button ghost"
+                  onClick={() => editFields({}, "ends_on")}
+                >
+                  {t("scheduleRepairChoices")}
+                </button>
+              </div>
+              <p className="muted">
+                {t(
+                  allowShorten
+                    ? "scheduleRepairReviewHelp"
+                    : "scheduleRevisionRepairHelp",
+                )}
+              </p>
+            </>
+          )}
+        </div>
+      )}
+      {elapsed && (
+        <p className="error" role="alert">
+          {t("scheduleCutoffHelp")}
+        </p>
+      )}
+      <ul
+        className="schedule-preview"
+        tabIndex={0}
+        aria-label={t("scheduleAllocationDatesLabel")}
+      >
+        {rows.map((r) => (
+          <li key={r.date + r.slot_id}>
+            <span>
+              <time dateTime={r.date}>{fmt.date(r.date, true)}</time> ·{" "}
+              {s.slots.find((x) => x.id === r.slot_id)?.name}
+            </span>
+            <span>
+              {r.grant_id ? t("allocationReady") : t("allocationMissing")}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
 function CustomerForm({ s, c }: { s: Snapshot; c?: Customer }) {
   const t = useTranslations();
   return (
     <FormDialog
       slug={s.business.slug}
       action="save_customer"
+      layout="wide"
+      context={c ? <CustomerContext c={c} /> : undefined}
+      description={t(
+        c ? "customerEditDescription" : "customerCreateDescription",
+      )}
       title={t(c ? "edit" : "newCustomer")}
+      triggerVariant={c ? "ghost" : "primary"}
       trigger={
         c ? (
           t("edit")
@@ -73,14 +549,25 @@ function CustomerForm({ s, c }: { s: Snapshot; c?: Customer }) {
     </FormDialog>
   );
 }
-export function PurchaseForm({ s, c }: { s: Snapshot; c: Customer }) {
+export function PurchaseForm({
+  s,
+  c,
+  primary = false,
+}: {
+  s: Snapshot;
+  c: Customer;
+  primary?: boolean;
+}) {
   const t = useTranslations(),
     fmt = useFormat();
   return (
     <FormDialog
       slug={s.business.slug}
       action="purchase"
+      layout="wide"
+      context={<CustomerContext c={c} />}
       title={t("recordPurchase")}
+      triggerVariant={primary ? "primary" : "secondary"}
       description={t("purchaseDescription")}
       build={(f) => ({
         customer_id: c.id,
@@ -89,29 +576,53 @@ export function PurchaseForm({ s, c }: { s: Snapshot; c: Customer }) {
         external_reference: value(f, "external_reference"),
       })}
       review={(v) => {
-        const d = v as { package_id: string; starts_on: string };
+        const d = v as {
+          package_id: string;
+          starts_on: string;
+          external_reference: string;
+        };
         const p = s.packages.find((x) => x.id === d.package_id);
+        const expires = p?.validity_days
+          ? addDays(d.starts_on, p.validity_days - 1)
+          : null;
         return (
-          <>
-            <h3>{c.name}</h3>
-            <p>
-              {p?.name} · +{p?.deliveries} {t("deliveriesUnit")}
-            </p>
-            <p>
-              {t("startsOn")}: {fmt.date(d.starts_on)}
-            </p>
-            <p>
-              {p?.validity_days
-                ? p.validity_days + " " + t("validityDays").toLowerCase()
-                : t("noExpiry")}
-            </p>
-            <p className="muted">{t("purchaseDescription")}</p>
-          </>
+          <dl className="purchase-review">
+            <div>
+              <dt>{t("purchasedPackage")}</dt>
+              <dd>{p?.name}</dd>
+            </div>
+            <div>
+              <dt>{t("purchaseQuotaAdded")}</dt>
+              <dd>
+                +{p?.deliveries} {t("deliveriesUnit")}
+              </dd>
+            </div>
+            <div>
+              <dt>{t("packageValidity")}</dt>
+              <dd>
+                <span className="purchase-validity-range">
+                  {fmt.date(d.starts_on)} →{" "}
+                  {expires ? fmt.date(expires) : t("noExpiry")}
+                </span>
+                {p?.validity_days && (
+                  <small>
+                    {t("purchaseValidForDays", { days: p.validity_days })}
+                  </small>
+                )}
+              </dd>
+            </div>
+            <div>
+              <dt>{t("externalReference")}</dt>
+              <dd className="purchase-reference">
+                {d.external_reference || t("purchaseReferenceEmpty")}
+              </dd>
+            </div>
+          </dl>
         );
       }}
     >
       <label>
-        {t("package")}
+        {t("purchasedPackage")}
         <select name="package_id" required>
           <option value="">{t("choose")}</option>
           {s.packages
@@ -125,11 +636,11 @@ export function PurchaseForm({ s, c }: { s: Snapshot; c: Customer }) {
       </label>
       <label>
         {t("startsOn")}
-        <input
+        <DateInput
+          aria-label={t("startsOn")}
           name="starts_on"
-          type="date"
           required
-          defaultValue={s.now.slice(0, 10)}
+          defaultValue={businessDate(s)}
         />
       </label>
       <label>
@@ -139,16 +650,37 @@ export function PurchaseForm({ s, c }: { s: Snapshot; c: Customer }) {
     </FormDialog>
   );
 }
-export function ScheduleForm({ s, c }: { s: Snapshot; c: Customer }) {
-  const t = useTranslations(),
-    locale = useLocale(),
-    fmt = useFormat();
+export function ScheduleForm({
+  s,
+  c,
+  primary = true,
+}: {
+  s: Snapshot;
+  c: Customer;
+  primary?: boolean;
+}) {
+  const t = useTranslations();
   return (
     <FormDialog
       slug={s.business.slug}
       action="generate_schedule"
+      layout="wide"
+      validate={(v) => {
+        const error = scheduleFormError(s, v as ScheduleInput);
+        return error ? t(error) : undefined;
+      }}
       title={t("createSchedule")}
-      description={t("skipExisting")}
+      description={t("scheduleDraftHelp")}
+      validationSummary={t("scheduleCheckFields")}
+      triggerVariant={primary ? "primary" : "secondary"}
+      context={<ScheduleContext s={s} c={c} />}
+      confirmDisabled={(v) => {
+        const rows = previewSchedule(s, v as ScheduleInput);
+        return (
+          !rows.length ||
+          rows.some((r) => !r.grant_id || cutoffElapsed(s, r.date))
+        );
+      }}
       build={(f) => ({
         customer_id: c.id,
         starts_on: value(f, "starts_on"),
@@ -156,74 +688,27 @@ export function ScheduleForm({ s, c }: { s: Snapshot; c: Customer }) {
         weekdays: f.getAll("weekdays").map(Number),
         slot_ids: f.getAll("slot_ids").map(String),
       })}
-      review={(v) => {
+      review={(v, { editFields }) => {
         const rows = previewSchedule(s, v as ScheduleInput);
         return (
           <>
-            <h3>
-              {rows.length} {t("occurrences")}
-            </h3>
-            {rows.some((r) => !r.grant_id) && (
-              <p className="error">{t("insufficientPreview")}</p>
+            {!rows.length && (
+              <p className="error" role="alert">
+                {t("scheduleEmptyPreview")}
+              </p>
             )}
-            <ul className="schedule-preview">
-              {rows.map((r) => (
-                <li key={r.date + r.slot_id}>
-                  {fmt.date(r.date, true)}
-                  <span>{s.slots.find((x) => x.id === r.slot_id)?.name}</span>
-                </li>
-              ))}
-            </ul>
+            <AllocationReview
+              s={s}
+              rows={rows}
+              editFields={editFields}
+              allowShorten
+            />
             <p className="muted">{t("skipExisting")}</p>
           </>
         );
       }}
     >
-      <div className="form-grid">
-        <label>
-          {t("startsOn")}
-          <input type="date" name="starts_on" required />
-        </label>
-        <label>
-          {t("endsOn")}
-          <input type="date" name="ends_on" required />
-        </label>
-      </div>
-      <fieldset>
-        <legend>{t("weekdays")}</legend>
-        <div className="weekday-options">
-          {[1, 2, 3, 4, 5, 6, 0].map((n) => (
-            <label key={n}>
-              <input
-                type="checkbox"
-                name="weekdays"
-                value={n}
-                defaultChecked={n >= 1 && n <= 5}
-              />
-              {new Intl.DateTimeFormat(locale, {
-                weekday: "short",
-                timeZone: "UTC",
-              }).format(new Date(Date.UTC(2026, 8, 6 + n)))}
-            </label>
-          ))}
-        </div>
-      </fieldset>
-      <fieldset>
-        <legend>{t("slots")}</legend>
-        {s.slots
-          .filter((x) => x.active)
-          .map((x, i) => (
-            <label className="checkbox-row" key={x.id}>
-              <input
-                type="checkbox"
-                name="slot_ids"
-                value={x.id}
-                defaultChecked={i === 0}
-              />
-              {x.name}
-            </label>
-          ))}
-      </fieldset>
+      <ScheduleFields s={s} c={c} />
     </FormDialog>
   );
 }
@@ -237,7 +722,8 @@ export function Customers({ s, id }: { s: Snapshot; id?: string }) {
   if (id && !c) return <Empty title={t("notFound")} />;
   if (c) {
     const grants = s.grants.filter((g) => g.customer_id === c.id),
-      deliveries = s.deliveries.filter((d) => d.customer_id === c.id);
+      deliveries = s.deliveries.filter((d) => d.customer_id === c.id),
+      capacity = scheduleDefaults(s, c).capacity;
     return (
       <>
         <Link className="back-link" href={base + "customers"}>
@@ -249,9 +735,29 @@ export function Customers({ s, id }: { s: Snapshot; id?: string }) {
           description={[c.email, c.phone].filter(Boolean).join(" · ")}
         >
           <CustomerForm s={s} c={c} />
-          <PurchaseForm s={s} c={c} />
-          <ScheduleForm s={s} c={c} />
+          <PurchaseForm s={s} c={c} primary={!capacity} />
+          <ScheduleForm s={s} c={c} primary={capacity} />
         </PageHeading>
+        <div className="customer-next-step">
+          <h2>
+            {t(
+              !grants.length
+                ? "customerBeginTitle"
+                : capacity
+                  ? "customerScheduleTitle"
+                  : "customerTopUpTitle",
+            )}
+          </h2>
+          <p>
+            {t(
+              !grants.length
+                ? "customerBeginHelp"
+                : capacity
+                  ? "customerScheduleHelp"
+                  : "customerTopUpHelp",
+            )}
+          </p>
+        </div>
         <section className="account-overview">
           <div>
             <h2>{t("quota")}</h2>
@@ -276,7 +782,9 @@ export function Customers({ s, id }: { s: Snapshot; id?: string }) {
                 <th>{t("slots")}</th>
                 <th>{t("meal")}</th>
                 <th>{t("status")}</th>
-                <th />
+                <th>
+                  <span className="sr-only">{t("viewDetails")}</span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -309,47 +817,51 @@ export function Customers({ s, id }: { s: Snapshot; id?: string }) {
           ))}
         <PackageHistory s={s} customerId={c.id} />
         {s.role === "owner" && grants.length > 0 && (
-          <FormDialog
-            slug={s.business.slug}
-            action="adjust_quota"
-            title={t("adjustQuota")}
-            build={(f) => ({
-              grant_id: value(f, "grant_id"),
-              amount: Number(f.get("amount")),
-              reason: value(f, "reason"),
-            })}
-            review={(v) => (
-              <p>
-                {(v as { amount: number }).amount > 0 ? "+" : ""}
-                {(v as { amount: number }).amount} {t("deliveriesUnit")}
-                <br />
-                {(v as { reason: string }).reason}
-              </p>
-            )}
-          >
-            <label>
-              {t("package")}
-              <select name="grant_id">
-                {grants.map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {
-                      s.purchases.find((p) => p.id === g.purchase_id)?.terms
-                        .name
-                    }{" "}
-                    · {fmt.date(g.starts_on, true)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              {t("amount")}
-              <input name="amount" type="number" required step="1" />
-            </label>
-            <label>
-              {t("reason")}
-              <textarea name="reason" required />
-            </label>
-          </FormDialog>
+          <details className="owner-adjustments">
+            <summary>{t("ownerAdjustments")}</summary>
+            <p className="muted">{t("ownerAdjustmentsHelp")}</p>
+            <FormDialog
+              slug={s.business.slug}
+              action="adjust_quota"
+              title={t("adjustQuota")}
+              build={(f) => ({
+                grant_id: value(f, "grant_id"),
+                amount: Number(f.get("amount")),
+                reason: value(f, "reason"),
+              })}
+              review={(v) => (
+                <p>
+                  {(v as { amount: number }).amount > 0 ? "+" : ""}
+                  {(v as { amount: number }).amount} {t("deliveriesUnit")}
+                  <br />
+                  {(v as { reason: string }).reason}
+                </p>
+              )}
+            >
+              <label>
+                {t("purchasedPackage")}
+                <select name="grant_id">
+                  {grants.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {
+                        s.purchases.find((p) => p.id === g.purchase_id)?.terms
+                          .name
+                      }{" "}
+                      · {fmt.date(g.starts_on, true)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                {t("amount")}
+                <input name="amount" type="number" required step="1" />
+              </label>
+              <label>
+                {t("reason")}
+                <textarea name="reason" required />
+              </label>
+            </FormDialog>
+          </details>
         )}
       </>
     );
@@ -375,8 +887,8 @@ export function Customers({ s, id }: { s: Snapshot; id?: string }) {
           <label className="search-control">
             <Search size={17} />
             <input
-              aria-label={t("search")}
-              placeholder={t("search")}
+              aria-label={t("customerSearch")}
+              placeholder={t("customerSearch")}
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
@@ -472,8 +984,7 @@ function RecurringForm({
   pattern: Pattern;
 }) {
   const t = useTranslations(),
-    fmt = useFormat(),
-    locale = useLocale();
+    fmt = useFormat();
   return (
     <div className="recurrence-controls">
       <span>
@@ -482,8 +993,14 @@ function RecurringForm({
       <FormDialog
         slug={s.business.slug}
         action="revise_schedule"
+        layout="wide"
+        validate={(v) => {
+          const error = scheduleFormError(s, v as ScheduleInput, p);
+          return error ? t(error) : undefined;
+        }}
         title={t("editSchedule")}
         description={t("skipExisting")}
+        validationSummary={t("scheduleCheckFields")}
         build={(f) => ({
           id: p.id,
           version: p.version,
@@ -493,32 +1010,28 @@ function RecurringForm({
           weekdays: f.getAll("weekdays").map(Number),
           slot_ids: f.getAll("slot_ids").map(String),
         })}
-        review={(v) => {
-          const input = v as ScheduleInput,
-            copy = structuredClone(s);
-          const removed = copy.deliveries.filter(
-            (d) =>
-              d.pattern_id === p.id &&
-              d.service_date >= input.starts_on &&
-              !["cancelled", "delivered"].includes(d.status) &&
-              (d.service_date > input.ends_on ||
-                !input.weekdays.includes(
-                  new Date(d.service_date).getUTCDay(),
-                ) ||
-                !input.slot_ids.includes(d.slot_id)),
+        triggerVariant="secondary"
+        context={<ScheduleContext s={s} c={c} />}
+        confirmDisabled={(v) => {
+          const { removed, rows } = revisionPreview(s, v as ScheduleInput, p);
+          return (
+            !(rows.length + removed.length) ||
+            rows.some((r) => !r.grant_id || cutoffElapsed(s, r.date)) ||
+            removed.some((d) => new Date(s.now) >= new Date(d.cutoff_at))
           );
-          for (const d of removed) {
-            d.status = "cancelled";
-            const grant = copy.grants.find((g) => g.id === d.grant_id);
-            if (grant) grant.reserved -= 1;
-          }
-          const rows = previewSchedule(copy, input);
+        }}
+        review={(v, { editFields }) => {
+          const { removed, rows } = revisionPreview(s, v as ScheduleInput, p);
           return (
             <>
               <h3>
                 {t("skip")}: {removed.length}
               </h3>
-              <ul className="schedule-preview">
+              <ul
+                className="schedule-preview"
+                tabIndex={0}
+                aria-label={t("scheduleRemovedDeliveriesLabel")}
+              >
                 {removed.map((d) => (
                   <li key={d.id}>
                     {fmt.date(d.service_date, true)} ·{" "}
@@ -526,80 +1039,25 @@ function RecurringForm({
                   </li>
                 ))}
               </ul>
-              <h3>
-                {rows.length} {t("occurrences")}
-              </h3>
-              <ul className="schedule-preview">
-                {rows.map((r) => (
-                  <li key={r.date + r.slot_id}>
-                    {fmt.date(r.date, true)} ·{" "}
-                    {s.slots.find((x) => x.id === r.slot_id)?.name}
-                  </li>
-                ))}
-              </ul>
-              {rows.some((r) => !r.grant_id) && (
-                <p className="error">{t("insufficientPreview")}</p>
+              {removed.some(
+                (d) => new Date(s.now) >= new Date(d.cutoff_at),
+              ) && (
+                <p className="error" role="alert">
+                  {t("scheduleCutoffHelp")}
+                </p>
               )}
-              <p>{t("skipExisting")}</p>
+              {!rows.length && !removed.length && (
+                <p className="error" role="alert">
+                  {t("scheduleEmptyPreview")}
+                </p>
+              )}
+              <AllocationReview s={s} rows={rows} editFields={editFields} />
+              <p className="muted">{t("skipExisting")}</p>
             </>
           );
         }}
       >
-        <div className="form-grid">
-          <label>
-            {t("startsOn")}
-            <input
-              name="starts_on"
-              type="date"
-              required
-              defaultValue={p.starts_on}
-            />
-          </label>
-          <label>
-            {t("endsOn")}
-            <input
-              name="ends_on"
-              type="date"
-              required
-              defaultValue={p.ends_on}
-            />
-          </label>
-        </div>
-        <fieldset>
-          <legend>{t("weekdays")}</legend>
-          <div className="weekday-options">
-            {[1, 2, 3, 4, 5, 6, 0].map((n) => (
-              <label key={n}>
-                <input
-                  name="weekdays"
-                  type="checkbox"
-                  value={n}
-                  defaultChecked={p.weekdays.includes(n)}
-                />
-                {new Intl.DateTimeFormat(locale, {
-                  weekday: "short",
-                  timeZone: "UTC",
-                }).format(new Date(Date.UTC(2026, 8, 6 + n)))}
-              </label>
-            ))}
-          </div>
-        </fieldset>
-        <fieldset>
-          <legend>{t("slots")}</legend>
-          {s.slots
-            .filter((x) => x.active)
-            .map((slot) => (
-              <label key={slot.id} className="checkbox-row">
-                <input
-                  name="slot_ids"
-                  type="checkbox"
-                  value={slot.id}
-                  defaultChecked={p.slots.includes(slot.id)}
-                />
-                {slot.name}
-              </label>
-            ))}
-        </fieldset>
+        <ScheduleFields s={s} c={c} pattern={p} />
       </FormDialog>
     </div>
   );
@@ -832,7 +1290,7 @@ export function Menus({ s }: { s: Snapshot }) {
           <div className="form-grid">
             <label>
               {t("date")}
-              <input name="service_date" type="date" required />
+              <DateInput aria-label={t("date")} name="service_date" required />
             </label>
             <label>
               {t("slots")}

@@ -1,7 +1,8 @@
 import { PGlite } from "@electric-sql/pglite";
-import { readFile, mkdir } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { localBootstrap, demoSeed } from "./demo-seed";
+import { applyDemoMigrations } from "./demo-migrations";
 const globalDb = globalThis as unknown as { cateraDb?: Promise<PGlite> };
 export function demoEnabled() {
   return process.env.CATERA_DEMO_MODE === "true" && !process.env.VERCEL;
@@ -16,19 +17,9 @@ export async function getDemoDb() {
       const exists = await db.query<{ name: string | null }>(
         "select to_regclass('public.businesses')::text as name",
       );
-      if (!exists.rows[0].name) {
-        await db.exec(localBootstrap);
-        await db.exec(
-          await readFile(
-            path.join(
-              process.cwd(),
-              "supabase/migrations/202609080001_core.sql",
-            ),
-            "utf8",
-          ),
-        );
-        await db.exec(demoSeed);
-      }
+      if (!exists.rows[0].name) await db.exec(localBootstrap);
+      await applyDemoMigrations(db);
+      if (!exists.rows[0].name) await db.exec(demoSeed);
       // Local counterpart of hosted cron; no quota or fulfillment transitions occur here.
       const tick = () =>
         db.query("select public.run_due_freezes()").catch(() => {

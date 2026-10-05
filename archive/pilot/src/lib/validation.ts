@@ -85,6 +85,7 @@ export const commandSchemas: Record<string, z.ZodType> = {
     id,
     version: z.number().int().positive(),
     status: z.enum(["ready", "out_for_delivery", "delivered", "failed"]),
+    production_id: id.optional(),
     reason: z.string().max(1000).optional(),
   }),
   reverse_delivery: z.object({

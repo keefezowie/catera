@@ -1,0 +1,14 @@
+node_modules/
+.next/
+.data/
+.env*
+!.env.example
+test-results/
+playwright-report/
+*.tsbuildinfo
+.impeccable/review/
+.impeccable/config.local.json
+.vercel/
+supabase/.temp/
+coverage/
+work/

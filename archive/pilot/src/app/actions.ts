@@ -18,7 +18,19 @@ export async function command(
   requestId: string,
 ): Promise<CommandResult> {
   const parsed = commandSchemas[action]?.safeParse(payload);
-  if (!parsed?.success || !z.uuid().safeParse(requestId).success)
+  if (!parsed?.success)
+    return {
+      ok: false,
+      code: "INVALID_INPUT",
+      fields: parsed
+        ? [
+            ...new Set(
+              parsed.error.issues.map((issue) => issue.path.join(".")),
+            ),
+          ].filter(Boolean)
+        : undefined,
+    };
+  if (!z.uuid().safeParse(requestId).success)
     return { ok: false, code: "INVALID_INPUT" };
   try {
     const result = await rpc<{ id?: string; applied?: number }>(
@@ -54,7 +66,9 @@ export async function demoLogin(form: FormData) {
       await startHostedDemoSession(role);
     } catch {
       failed = true;
-      console.warn(JSON.stringify({ event: "catera.hosted_demo_login_failed" }));
+      console.warn(
+        JSON.stringify({ event: "catera.hosted_demo_login_failed" }),
+      );
     }
     // redirect throws; keep it outside the login error handler.
     if (failed) redirect("/login?demoError=1");
@@ -124,10 +138,13 @@ export async function verifyCode(_state: { error: string }, form: FormData) {
 }
 export async function logout() {
   if (demoEnabled()) (await cookies()).delete("catera_demo");
-  else await (await supabase()).auth.signOut({
-    // Logging out one visitor must not end every shared demo session.
-    scope: hostedDemoEnabled() ? "local" : "global",
-  });
+  else
+    await (
+      await supabase()
+    ).auth.signOut({
+      // Logging out one visitor must not end every shared demo session.
+      scope: hostedDemoEnabled() ? "local" : "global",
+    });
   redirect("/login");
 }
 export async function setLocale(form: FormData) {

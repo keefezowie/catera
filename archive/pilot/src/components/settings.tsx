@@ -2,7 +2,7 @@
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import type { Snapshot } from "@/lib/types";
-import { PageHeading, FormDialog, Status, useFormat } from "./ui";
+import { PageHeading, FormDialog, Status, useFormat, DateInput } from "./ui";
 const val = (f: FormData, k: string) => String(f.get(k) || "");
 export function Settings({ s }: { s: Snapshot }) {
   const t = useTranslations(),
@@ -178,7 +178,7 @@ export function Settings({ s }: { s: Snapshot }) {
           >
             <label>
               {t("date")}
-              <input name="service_date" type="date" required />
+              <DateInput name="service_date" required />
             </label>
             <label>
               {t("exceptionCutoff")}
