@@ -39,6 +39,18 @@ Use the `v1` branch. The `preview` profile in `eas.json` produces a standalone A
 
 Session handoff, October 6, 2026: 59 native tests, 319 shared tests, typechecking, PostgreSQL checks, web build and both platform bundle exports passed. No APK has been produced yet: this session's enforced network proxy still returned HTTP 403 for `repo.reactnative.dev` after the environment settings were changed. Retry in the updated environment. Local Android SDKs, caches and test fixtures under `work/` are disposable and are not part of the GitHub handoff. Full verification status is in `docs/CATERA-V1-NATIVE-PARITY-BACKLOG.md`.
 
+## Automatic APK builds from GitHub
+
+The `Native Android APK` workflow builds the `preview` APK on pushes to `v1` that change `apps/customer`, shared packages, dependency manifests, or the workflow. It can also be started manually on `v1`. Native typechecking and tests must pass before a build starts. The completed run's summary contains the APK download link. Each run creates a new installable APK; installed apps must download the new APK to update.
+
+One-time setup:
+
+1. Add an Expo access token as the GitHub repository Actions secret `EXPO_TOKEN`. Its account must have build access to the EAS project in `apps/customer/app.config.ts`.
+2. In that project's EAS **preview** environment, set `EXPO_PUBLIC_API_URL` to the documented reachable UAT backend, and set `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` for the matching UAT Supabase project. Use plaintext or sensitive visibility so CI can validate these public client values. Never use a service-role key.
+3. Complete one interactive `eas build --platform android --profile preview` from `apps/customer` to set up Android signing if the project has no signing credentials. Subsequent GitHub builds run non-interactively.
+
+Builds consume EAS build quota. This workflow creates APKs for phone installation; store submission and over-the-air updates are separate workflows.
+
 ## Customer flows
 
 - Browse, filter, compare, save, and open packages independently of the initial catalog page.
