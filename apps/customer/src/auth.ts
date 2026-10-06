@@ -15,7 +15,11 @@ export async function signInNative(
   });
   if (error || !data.user || !data.session)
     throw new Error(
-      error?.status === 429 ? "AUTH_RATE_LIMITED" : "INVALID_CREDENTIALS",
+      error?.status === 429
+        ? "AUTH_RATE_LIMITED"
+        : error?.code === "email_not_confirmed"
+          ? "EMAIL_NOT_CONFIRMED"
+          : "INVALID_CREDENTIALS",
     );
   try {
     const name =
@@ -49,7 +53,7 @@ export function nativeReturnPath(value?: string): string {
     if (!value.startsWith("/") || url.origin !== "https://catera.invalid")
       return "/";
     if (
-      !/^\/(?:discover|calendar|messages|account|addresses|notifications|support|compare|saved|(?:checkout|payment|package|delivery|subscriptions)\/[^/]+)?$/.test(
+      !/^\/(?:discover|calendar|messages|account|addresses|notifications|support|compare|saved|(?:checkout|payment|package|delivery)\/[^/]+|subscriptions\/[^/]+(?:\/menu)?)?$/.test(
         url.pathname,
       )
     )

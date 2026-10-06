@@ -16,8 +16,13 @@ import Constants from "expo-constants";
 import { router } from "expo-router";
 import { createClient } from "@supabase/supabase-js";
 import { createApi } from "@catera/api-client";
-import { type Actor, type Offer, type Locale, errorLabel } from "@catera/domain";
-import { signInNative } from "./auth";
+import {
+  type Actor,
+  type Offer,
+  type Locale,
+  errorLabel,
+} from "@catera/domain";
+import { signInNative, nativeReturnPath } from "./auth";
 export const apiBase = (process.env.EXPO_PUBLIC_API_URL || "").replace(
   /\/$/,
   "",
@@ -27,7 +32,7 @@ const storage = {
   setItem: (key: string, v: string) => SecureStore.setItemAsync(key, v),
   removeItem: (key: string) => SecureStore.deleteItemAsync(key),
 };
-const supabase =
+export const supabase =
   process.env.EXPO_PUBLIC_SUPABASE_URL &&
   process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY
     ? createClient(
@@ -39,6 +44,7 @@ const supabase =
             autoRefreshToken: true,
             persistSession: true,
             detectSessionInUrl: false,
+            flowType: "pkce",
           },
         },
       )
@@ -96,24 +102,47 @@ export function NativeProvider({ children }: { children: ReactNode }) {
     [compare, setCompare] = useState<string[]>([]),
     [revision, setRevision] = useState(0);
   const requests = useRef(new Map<string, string>());
+  const sessionGeneration = useRef(0);
+  const refreshGeneration = useRef(0);
+  const lastNotification = useRef("");
   const refresh = useCallback(async () => {
+    const session = sessionGeneration.current;
+    const request = ++refreshGeneration.current;
     try {
       if (!apiBase) throw new Error("NOT_CONFIGURED");
       const [catalogResult, meResult] = await Promise.allSettled([
         nativeApi.catalog("?limit=100"),
         nativeApi.me(),
       ]);
+      if (
+        session !== sessionGeneration.current ||
+        request !== refreshGeneration.current
+      )
+        return;
       if (meResult.status === "fulfilled") {
         setActor(meResult.value.actor);
         setDemo(meResult.value.demo);
       }
       if (catalogResult.status === "fulfilled")
         setOffers(catalogResult.value.items);
-      if (meResult.status === "rejected") throw meResult.reason;
+      if (meResult.status === "rejected") {
+        if (
+          ["UNAUTHORIZED", "FORBIDDEN"].includes(
+            meResult.reason?.code || meResult.reason?.message,
+          )
+        )
+          setActor(null);
+        throw meResult.reason;
+      }
       if (catalogResult.status === "rejected") throw catalogResult.reason;
       setError("");
       setRevision((r) => r + 1);
     } catch (e) {
+      if (
+        session !== sessionGeneration.current ||
+        request !== refreshGeneration.current
+      )
+        return;
       setError(
         errorLabel((e as Error).message, locale) ||
           (locale === "en"
@@ -121,21 +150,43 @@ export function NativeProvider({ children }: { children: ReactNode }) {
             : "Tidak dapat terhubung. Periksa koneksi dan coba lagi."),
       );
     } finally {
-      setReady(true);
+      if (
+        session === sessionGeneration.current &&
+        request === refreshGeneration.current
+      )
+        setReady(true);
     }
   }, [locale]);
   const command = useCallback(
     async <T,>(action: string, payload: unknown): Promise<T> => {
-      const key = action + JSON.stringify(payload),
+      const generation = sessionGeneration.current;
+      const key = generation + action + JSON.stringify(payload),
         id = requests.current.get(key) || Crypto.randomUUID();
       requests.current.set(key, id);
       const result = await nativeApi.command<T>(action, payload, id);
       requests.current.delete(key);
+      if (generation !== sessionGeneration.current)
+        throw new Error("UNAUTHORIZED");
       setRevision((r) => r + 1);
       return result;
     },
     [],
   );
+  useEffect(() => {
+    const auth = supabase?.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT") {
+        sessionGeneration.current += 1;
+        requests.current.clear();
+        setActor(null);
+        setRevision((r) => r + 1);
+      }
+      // Leave the Supabase callback before reading the session again.
+      if (event === "TOKEN_REFRESHED") setTimeout(() => void refresh(), 0);
+    });
+    return () => {
+      auth?.data.subscription.unsubscribe();
+    };
+  }, [refresh]);
   useEffect(() => {
     Promise.all([
       SecureStore.getItemAsync("catera.locale"),
@@ -158,12 +209,20 @@ export function NativeProvider({ children }: { children: ReactNode }) {
     const push = Notifications.addNotificationReceivedListener(() =>
       setRevision((r) => r + 1),
     );
-    const response = Notifications.addNotificationResponseReceivedListener(
-      (r) => {
-        const href = r.notification.request.content.data?.href;
-        if (typeof href === "string") router.push(nativeLink(href) as never);
-      },
-    );
+    const handleResponse = (r: Notifications.NotificationResponse | null) => {
+      if (!r) return;
+      const key = r.notification.request.identifier + ":" + r.actionIdentifier;
+      if (lastNotification.current === key) return;
+      const href = r?.notification.request.content.data?.href;
+      if (typeof href === "string") {
+        lastNotification.current = key;
+        router.push(nativeLink(href) as never);
+        void Notifications.clearLastNotificationResponseAsync();
+      }
+    };
+    const response =
+      Notifications.addNotificationResponseReceivedListener(handleResponse);
+    void Notifications.getLastNotificationResponseAsync().then(handleResponse);
     return () => {
       sub.remove();
       push.remove();
@@ -226,8 +285,11 @@ export function NativeProvider({ children }: { children: ReactNode }) {
     await refresh();
   }
   async function logout() {
+    sessionGeneration.current += 1;
+    requests.current.clear();
     await SecureStore.deleteItemAsync("catera.demo.token");
-    await supabase?.auth.signOut({ scope: "local" });
+    const result = await supabase?.auth.signOut({ scope: "local" });
+    if (result?.error) throw result.error;
     setActor(null);
     setRevision((r) => r + 1);
     router.replace("/discover");
@@ -308,43 +370,77 @@ export function NativeProvider({ children }: { children: ReactNode }) {
 }
 export const useNative = () => useContext(Context);
 export const nativeLink = (href: string) => {
-  const choice = href.match(/^\/subscriptions\/([0-9a-f-]+)\/menu(?:\?.*)?$/i);
-  if (choice) return "/subscriptions/" + choice[1];
+  if (
+    !href.startsWith("/") ||
+    href.startsWith("//") ||
+    /[\\\u0000-\u0020]/.test(href)
+  )
+    return "/";
   if (href === "/#packages") return "/discover";
   if (href === "/#how-it-works") return "/discover?section=how-it-works";
-  if (href === "/?view=list#how-it-works") return "/discover?view=list&section=how-it-works";
-  return href
-    .replace(/^\/deliveries\//, "/delivery/")
-    .replace(/^\/packages\//, "/package/")
-    .replace(/^\/home$/, "/");
+  if (href === "/?view=list#how-it-works")
+    return "/discover?view=list&section=how-it-works";
+  return nativeReturnPath(
+    href
+      .replace(/^\/deliveries\//, "/delivery/")
+      .replace(/^\/packages\//, "/package/")
+      .replace(/^\/home$/, "/"),
+  );
 };
 export function useData<T>(key: string, loader: () => Promise<T>) {
-  const { revision, locale } = useNative();
-  const [data, setData] = useState<T | null>(null),
-    [error, setError] = useState("");
+  const { revision, locale, actor } = useNative();
+  const identity = (actor?.id || "guest") + ":" + key;
+  const [state, setState] = useState<{
+    key: string;
+    data: T | null;
+    error: string;
+    loading: boolean;
+  }>({ key: identity, data: null, error: "", loading: true });
   const load = useRef(loader);
   load.current = loader;
-  const [refresh, setRefresh] = useState(0);
+  const generation = useRef(0);
+  const currentKey = useRef(identity);
+  currentKey.current = identity;
+  const reload = useCallback(async () => {
+    const request = ++generation.current;
+    setState((s) => ({
+      key: identity,
+      data: s.key === identity ? s.data : null,
+      error: "",
+      loading: true,
+    }));
+    try {
+      const data = await load.current();
+      if (request === generation.current && currentKey.current === identity)
+        setState({ key: identity, data, error: "", loading: false });
+    } catch (e) {
+      if (request === generation.current && currentKey.current === identity)
+        setState((s) => ({
+          ...s,
+          loading: false,
+          error:
+            errorLabel(
+              (e as { code?: string }).code || (e as Error).message,
+              locale,
+            ) ||
+            (locale === "en"
+              ? "Unable to load. Check your connection and try again."
+              : "Tidak dapat memuat. Periksa koneksi dan coba lagi."),
+        }));
+    }
+  }, [identity, locale]);
   useEffect(() => {
-    let live = true;
-    load
-      .current()
-      .then((d) => {
-        if (live) {
-          setData(d);
-          setError("");
-        }
-      })
-      .catch((e) => {
-        if (live)
-          setError(
-            errorLabel(e.code || e.message || "", locale) ||
-              (locale === "en" ? "Something went wrong." : e.message),
-          );
-      });
+    void reload();
     return () => {
-      live = false;
+      generation.current += 1;
     };
-  }, [key, revision, refresh]);
-  return { data, error, reload: () => setRefresh((r) => r + 1) };
+  }, [reload, revision]);
+  const active =
+    state.key === identity ? state : { data: null, error: "", loading: true };
+  return {
+    ...active,
+    reload,
+    stale: !!active.error && active.data !== null,
+    canWrite: active.data !== null && !active.error && !active.loading,
+  };
 }

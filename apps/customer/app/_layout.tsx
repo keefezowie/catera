@@ -23,6 +23,25 @@ function Navigation() {
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen
+          name="register"
+          options={{ title: t("Buat akun", "Create account") }}
+        />
+        <Stack.Screen
+          name="recover"
+          options={{ title: t("Pemulihan akun", "Account recovery") }}
+        />
+        <Stack.Screen
+          name="auth/callback"
+          options={{
+            title: t("Verifikasi akun", "Verify account"),
+            headerBackVisible: false,
+          }}
+        />
+        <Stack.Screen
+          name="subscriptions/[id]/menu"
+          options={{ title: t("Pilih menu", "Choose menus") }}
+        />
+        <Stack.Screen
           name="login"
           options={{ title: t("Masuk", "Sign in"), presentation: "modal" }}
         />
@@ -58,7 +77,10 @@ function Navigation() {
           name="compare"
           options={{ title: t("Bandingkan paket", "Compare packages") }}
         />
-        <Stack.Screen name="saved" options={{ title: t("Paket tersimpan", "Saved packages") }} />
+        <Stack.Screen
+          name="saved"
+          options={{ title: t("Paket tersimpan", "Saved packages") }}
+        />
         <Stack.Screen
           name="notifications"
           options={{ title: t("Notifikasi", "Notifications") }}
@@ -81,7 +103,9 @@ export default function Layout() {
   return (
     <SafeAreaProvider>
       <NativeProvider>
-        <NativeSavedProvider><Navigation /></NativeSavedProvider>
+        <NativeSavedProvider>
+          <Navigation />
+        </NativeSavedProvider>
       </NativeProvider>
     </SafeAreaProvider>
   );

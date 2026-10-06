@@ -1,37 +1,108 @@
-# Catera V1 native parity backlog
+# Catera V1 native parity and verification backlog
 
-Status: deferred after the September 26, 2026 web remediation. This document
-maps approved outcomes to the existing customer-native entry points; it does
-not authorize native implementation, provider testing, or a mobile release.
+Updated October 6, 2026. Customer implementation is authorized and implemented
+in React Native + Expo directly on `v1`, following `AGENTS.md`. This supersedes
+the September 26 native deferral and isolated-branch instruction. Android is
+the current verification target; seller and platform-admin workspaces remain
+web-only. iOS device testing, EAS authentication, store release and real-money
+transactions are deferred by the user.
 
-The web product is the current acceptance target. Shared domain and API
-contracts may be reused, but native layouts must retain the implemented native
-type scale, safe-area behavior, and platform navigation rather than copying web
-CSS or claiming visual parity.
+The source and automated checks below are complete. Android runtime and visual
+acceptance remain blocked: no installed-app journey or native screen captures
+have been recorded. Bundle export is not device verification. Local testing uses
+an explicitly synthetic backend, separate from the hosted V1 sandbox.
 
-| Outcome                       | Existing native entry point                                                                                          | Shared contract to reuse                                                                           | Deferred acceptance                                                                                                                                                             |
-| ----------------------------- | -------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Truthful package commitment   | `apps/customer/app/package/[id].tsx`, `apps/customer/src/package-preview.tsx`, `apps/customer/app/checkout/[id].tsx` | `purchaseCommitment`, `purchaseStartAvailable`, existing quote/checkout reads                      | Show delivery days, meal coverage, portions, included delivery, known fees, upfront payment, and manual renewal consistently; never infer unknown fees.                         |
-| Customer menu states          | `apps/customer/app/subscriptions/[id].tsx`, `apps/customer/src/dish-gallery.tsx`                                     | `customerMenuPresentation`, `CustomerMenuMonth`                                                    | Distinguish post-payment availability, due cutoff, saved choice, caterer fallback, unannounced menu, and example content; preserve one choice for all portions and no menu fee. |
-| Action-oriented Home          | `apps/customer/app/(tabs)/index.tsx`, `apps/customer/src/daily.tsx`                                                  | `CustomerActionFeed`, `customerActionPresentation`                                                 | Top three actionable menu/payment/delivery items with inline expansion; date-grouped meals; active-subscription empty state; renewal link.                                      |
-| Canonical delivery recovery   | `apps/customer/app/delivery/[id].tsx`, `apps/customer/src/daily.tsx`                                                 | `DeliveryAvailability`, availability reason helpers, existing atomic `delivery.reschedule` command | One primary schedule action, skip as an intent, bounded disabled dates, full old/new review, retained original booking on conflict.                                             |
-| Payment recovery              | `apps/customer/app/payment/[id].tsx`, `apps/customer/src/purchase.tsx`                                               | `paymentPresentation`, existing checkout/payment states                                            | Preparing, awaiting, checking, paid, expired, and booking-unresolved states with order reference and exactly one safe next action; uncertainty never prompts duplicate payment. |
-| Loading and stale-data safety | `apps/customer/src/context.tsx` and each screen above                                                                | `resourcePhase` semantics                                                                          | Initial loading, retained refresh, true/filtered empty, stale-data error, action pending, conflict, and terminal states; stale data visible with unsafe writes disabled.        |
-| Terminology and accessibility | Shared native UI in `apps/customer/src/ui.tsx`                                                                       | Approved ID/EN copy and status meanings                                                            | Indonesian-first copy, English expansion, screen-reader names, dynamic type, focus order, touch targets, reduced motion, safe areas, and keyboard avoidance.                    |
+## Implemented customer scope
 
-Seller operational scope, bulk transitions, exception pagination, package
-lifecycle controls, and settlement hierarchy remain web-only because the V1
-native app has no approved seller workspace.
+Paths below are relative to `apps/customer/`. Shared domain/API contracts remain
+authoritative for eligibility, reservations, payment confirmation and refunds.
 
-## Required evidence before native completion
+| Outcome | Implemented source | Remaining runtime evidence |
+| --- | --- | --- |
+| Discovery and Saved | `src/discovery.tsx`, `src/saved.tsx`, `src/purchase.tsx`: food-led feed/list, filters, comparison, private Saved and independently fetched package details. | Deliberate paging, list recovery, filter/selected-card return and Saved login continuation on Android. |
+| Account access | `src/identity.tsx`, `src/auth.ts`, `src/context.tsx`: email registration/verification, password recovery, password or phone-OTP sign-in, SecureStore session/PKCE and allowed return destinations. | Hosted sandbox email/OTP delivery; valid, expired, reused and cross-device callbacks; session expiry and logout on device. |
+| Purchase and explicit renewal | `src/checkout.tsx`, `src/renewal.tsx`: independent offer reads, fixed portions, supported cycles, address coverage, complete server-quoted dates/prices/fees, explicit accepted terms and current renewal eligibility. Owner/purchase-scoped drafts restore missing selections; explicit route selections take precedence. | Full Android quote → consent → checkout journey, cold restart/draft recovery, expired quote, unavailable capacity and renewal conflict. |
+| Payment recovery | `src/payment.tsx`: shared `paymentPresentation`, hosted/direct methods, BRI VA copying, QRIS sharing, method locking, status refresh and safe unresolved-booking recovery. Return navigation never confirms payment. | Clipboard/share sheet, background/return behavior, pending/expired/paid-without-booking states and separately recorded sandbox-provider outcomes. |
+| Home and calendar | `src/agenda.tsx`: authoritative top-three action feed with inline expansion, date-grouped lunch/dinner agenda, active subscriptions, meaningful empty states and renewal entry points. | First-viewport hierarchy, action continuation, long lists and data refresh on representative Android sizes. |
+| Customer menus | `src/customer-menu.tsx`, `app/subscriptions/[id]/menu.tsx`: date/meal selection, category slots, distinct current dish versions, multiple eligible dates, cutoff checks, saved/fallback states and one selection for all fixed portions. Unsaved/conflicting drafts remain recoverable. | Paid purchase → menu selection → saved menu, stale dish/delivery versions, cutoff crossing, multi-date save and Android Back/discard behavior. |
+| Delivery recovery | `src/delivery.tsx`: one schedule-change flow with skip intent, bounded availability/reasons, original/new date and address review, versioned atomic changes and retained choices after conflict. | Both-meal changes, unavailable dates, changed versions and failed replacement retaining the original booking. |
+| Messages, addresses and support | `src/daily.tsx`, `src/delivery-issues.tsx`: caterer messages, versioned addresses, delivery-linked cases, delivery issues, actual refund states and notifications. | Keyboard/form behavior, failed-write draft recovery, correct delivery association, refund action links and cold/warm notification continuation. |
+| Loading and write safety | `src/context.tsx`, `src/ui.tsx`: owner/resource-scoped reads, obsolete-response protection, initial loading, retained refresh/error states, retry, stale-write guards and duplicate-tap protection. | Offline/slow network, account switching, interrupted writes and recovery after app backgrounding. |
+| Native controls and accessibility | `src/ui.tsx` and customer screens: ID/EN copy, safe areas, keyboard handling, native date/select controls, screen-reader labels and 48 dp shared action controls; package-card Compare also has a 48 dp minimum. | TalkBack traversal, enlarged text, actual touch bounds, keyboard/safe-area clearance, reduced motion and long English copy on device. |
 
-1. Implement on an isolated branch without changing web business rules or
-   provider behavior.
-2. Run native unit tests plus authenticated customer journeys in Indonesian and
-   English on representative iOS and Android phone sizes and a tablet size.
-3. Verify dynamic type/larger text, screen reader use, touch targets, safe areas,
-   keyboard avoidance, reduced motion, offline/slow refresh, conflicts, and long
-   copy.
-4. Keep simulator evidence separate from physical-device, provider, hosted-auth,
-   performance, and store-release acceptance. All of those remain outstanding
-   until separately authorized and executed.
+## Design comparison
+
+This extends the incumbent Catera visual system. `DESIGN.md` and
+`.impeccable/design.json` are preserved; this pass does not refresh global tokens
+or repair unrelated design drift. Source comparison checked both documents,
+`packages/design-tokens/src/index.ts`, the web global stylesheet, native
+`src/ui.tsx`, `app/_layout.tsx`, the tab layout, discovery/dish-gallery/loading
+components, `app.config.ts` and the brand README.
+
+- Native imports the shared forest, sunrise, cream, charcoal, sage, muted and
+  line colors. Existing native surface/border values remain documented platform
+  differences.
+- Web and native load the self-hosted Plus Jakarta Sans family. Native keeps
+  its documented 30/39 title, 21/28 heading, 14/23 body and 11/18 small type ramp;
+  it does not substitute the unused suggested shared typography scale.
+- Native retains 14-radius panels, 9-radius inputs, 10-radius buttons and
+  48 dp shared controls, plus its safe-area scroll page and five customer tabs.
+  These are source values, not measured device pixels.
+- Discovery remains food-led. The existing wordmark, empty-calendar, app icon
+  and mascot assets retain their roles and contain/cover behavior. No artwork
+  was regenerated or relabeled; existing master-resolution limitations remain
+  in `packages/brand/README.md`.
+
+This comparison supports continuity in source, not rendered visual parity.
+The Impeccable finish-review disposition is **recapture** because native runtime
+evidence is missing. Existing web screenshots cannot close that review; the
+HTML/CSS detector was not run against native source.
+
+## Verification recorded
+
+Logs are in `work/native-implementation/` for this session.
+
+- Android Jest: **59 tests across 15 suites passed**, including explicit route
+  selections taking precedence over a saved checkout draft and ISO month-start
+  dates for menu API reads (`native-tests.log`).
+- Shared suite: **319 tests across 49 files passed** (`domain-tests.log`).
+- Repository typecheck, PostgreSQL concurrency checks and production web build
+  passed (`all-typecheck.log`, `postgres-tests.log`, `web-build.log`).
+- Expo export produced Android and iOS bundles (`native-export.log`). This does
+  not prove either app installs or runs.
+- The local synthetic fixture exercised server quote → accepted checkout →
+  simulated payment → activated subscription for native menu routes
+  (`seed-native-demo.mjs`, `seed-native.log`). This is server-contract evidence,
+  not an executed native purchase/menu journey or a provider transaction.
+- Further local API checks passed exact menu versions and stale-write rejection,
+  lunch/dinner separation, atomic whole-day replacement, renewal ordering,
+  delivery-linked support and cross-identity denial (`native-contracts.log`,
+  `native-contract-evidence.json`). They caught and fixed a native menu request
+  sending `YYYY-MM` instead of the required `YYYY-MM-01`.
+- Android debug build executed 229 Gradle tasks, then failed downloading the
+  official `com.facebook.react:react-android:0.86.3` debug AAR. Maven Central
+  redirected to `https://repo.reactnative.dev/maven2/com/facebook/react/react-android/0.86.3/react-android-0.86.3-debug.aar`,
+  which returned **HTTP 403 through the environment proxy**
+  (`android-build.log`). No successful APK or app runtime captures resulted.
+
+## Next evidence and release boundaries
+
+1. Make the official `repo.reactnative.dev` artifact host reachable in the
+   development environment, then rerun the Android debug build using the local
+   setup in `apps/customer/README.md`. A request to allow the host or defer
+   Android verification is pending; no exception or approval is assumed.
+2. Install the build and run the Android customer journeys above against the
+   explicit local synthetic backend. Capture Home, discovery, checkout review,
+   payment recovery, menu selection and delivery review in ID/EN, including
+   loading/empty/error/conflict states. Check representative phone sizes and a
+   tablet layout, enlarged text, TalkBack, reduced motion, safe areas, keyboard,
+   offline/slow refresh and back navigation. Re-run the native finish review
+   with those captures.
+3. Keep emulator evidence separate from physical Android, hosted-auth,
+   notification delivery, sandbox-provider and performance verification. Those
+   outcomes remain unverified. iOS device checks and signed/store distribution
+   remain deferred; iOS export alone does not advance them.
+
+Production acceptance still requires the separate credentials and operational
+gates in `docs/RUNBOOK.md`. No native visual, device, payment-provider or
+production-release acceptance is claimed here.

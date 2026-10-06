@@ -1,11 +1,6 @@
 import { PackagePreview } from "./package-preview";
 import { NativeSaveButton } from "./saved";
 import {
-  menuSummary,
-  packageTypeLabel,
-  nutritionSummary,
-} from "@catera/domain";
-import {
   useCallback,
   useRef,
   useState,
@@ -29,7 +24,10 @@ import {
   findNodeHandle,
   type TextInputProps,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -70,10 +68,12 @@ export function Screen({
 }: {
   children: ReactNode;
   title?: string;
-  refresh?: () => void;
+  refresh?: () => void | Promise<unknown>;
   scrollRef?: RefObject<ScrollView | null>;
 }) {
   const { demo, t } = useNative();
+  const [refreshing, setRefreshing] = useState(false);
+  const insets = useSafeAreaInsets();
   return (
     <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
       <KeyboardAvoidingView
@@ -83,12 +83,22 @@ export function Screen({
         <ScrollView
           ref={scrollRef}
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.page}
+          contentContainerStyle={[
+            styles.page,
+            { paddingBottom: Math.max(32, insets.bottom + 24) },
+          ]}
           refreshControl={
             refresh ? (
               <RefreshControl
-                refreshing={false}
-                onRefresh={refresh}
+                refreshing={refreshing}
+                onRefresh={async () => {
+                  setRefreshing(true);
+                  try {
+                    await refresh();
+                  } finally {
+                    setRefreshing(false);
+                  }
+                }}
                 tintColor={C.forest}
               />
             ) : undefined
@@ -160,13 +170,16 @@ export function Run({
   action,
   secondary = false,
   successMessage,
+  disabled = false,
 }: {
   label: string;
   action: () => Promise<unknown>;
   secondary?: boolean;
   successMessage?: string;
+  disabled?: boolean;
 }) {
   const { t, locale } = useNative();
+  const lock = useRef(false);
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [success, setSuccess] = useState(false);
@@ -188,9 +201,11 @@ export function Run({
       ) : null}
       <Btn
         label={busy ? t("Memproses…", "Processing…") : label}
-        disabled={busy}
+        disabled={busy || disabled}
         secondary={secondary}
         onPress={async () => {
+          if (lock.current || disabled) return;
+          lock.current = true;
           setBusy(true);
           setError("");
           setSuccess(false);
@@ -210,15 +225,54 @@ export function Run({
                       "Terlalu banyak percobaan. Tunggu sebentar lalu coba lagi.",
                       "Too many attempts. Wait a moment and try again.",
                     )
-                  : errorLabel(code, locale) || code,
+                  : errorLabel(code, locale) ||
+                    (/^[A-Z_]+$/.test(code)
+                      ? t(
+                          "Tidak dapat menyelesaikan. Periksa koneksi dan coba lagi.",
+                          "Unable to complete. Check your connection and try again.",
+                        )
+                      : code),
             );
           } finally {
+            lock.current = false;
             setBusy(false);
           }
         }}
       />
     </View>
   );
+}
+export function ResourceNotice({
+  resource,
+}: {
+  resource: {
+    data: unknown;
+    loading?: boolean;
+    error: string;
+    reload: () => void | Promise<unknown>;
+  };
+}) {
+  const { t } = useNative();
+  if (resource.error)
+    return (
+      <View style={styles.stack} accessibilityLiveRegion="polite">
+        <Txt>
+          {resource.data
+            ? t(
+                "Data terakhir ditampilkan. Muat ulang sebelum membuat perubahan.",
+                "Showing the last loaded data. Refresh before making changes.",
+              )
+            : resource.error}
+        </Txt>
+        <Btn
+          secondary
+          label={t("Coba lagi", "Try again")}
+          onPress={() => void resource.reload()}
+        />
+      </View>
+    );
+  if (resource.loading && !resource.data) return <MascotLoading />;
+  return null;
 }
 export function Field({ label, ...props }: { label: string } & TextInputProps) {
   return (
@@ -379,12 +433,15 @@ export function DayPicker({
       <Btn
         secondary
         icon="calendar-outline"
-        label={new Date(value + "T12:00:00").toLocaleDateString(locale === "id" ? "id-ID" : "en-GB", {
-          weekday: "long",
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-        })}
+        label={new Date(value + "T12:00:00").toLocaleDateString(
+          locale === "id" ? "id-ID" : "en-GB",
+          {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+          },
+        )}
         onPress={() => setOpen(true)}
       />
       {open && (
@@ -494,13 +551,7 @@ export function Status({ status }: { status: string }) {
     </Txt>
   );
 }
-export function Empty({
-  title,
-  body,
-}: {
-  title?: string;
-  body?: string;
-}) {
+export function Empty({ title, body }: { title?: string; body?: string }) {
   const { t } = useNative();
   return (
     <View style={styles.empty}>
@@ -513,12 +564,22 @@ export function Empty({
         {title || t("Belum ada makanan di sini.", "No meals here yet.")}
       </Txt>
       <Txt style={{ textAlign: "center" }}>
-        {body || t("Temukan paket untuk keseharianmu.", "Find a package for your everyday routine.")}
+        {body ||
+          t(
+            "Temukan paket untuk keseharianmu.",
+            "Find a package for your everyday routine.",
+          )}
       </Txt>
     </View>
   );
 }
-export function Gate({ children, next }: { children: ReactNode; next?: string }) {
+export function Gate({
+  children,
+  next,
+}: {
+  children: ReactNode;
+  next?: string;
+}) {
   const { actor, ready, error, refresh, t } = useNative();
   const [focused, setFocused] = useState(false);
   useFocusEffect(
@@ -537,7 +598,7 @@ export function Gate({ children, next }: { children: ReactNode; next?: string })
         )}
       />
     );
-  if (error)
+  if (error && !actor)
     return (
       <Screen title={t("Belum dapat terhubung", "Could not connect")}>
         <Txt>{error}</Txt>
@@ -546,9 +607,17 @@ export function Gate({ children, next }: { children: ReactNode; next?: string })
     );
   if (!actor)
     return (
-      <Screen title={t("Makanan favorit, dalam satu tempat.", "Favorite meals, all in one place.")}>
+      <Screen
+        title={t(
+          "Makanan favorit, dalam satu tempat.",
+          "Favorite meals, all in one place.",
+        )}
+      >
         <Empty
-          title={t("Masuk untuk melihat makananmu.", "Sign in to see your meals.")}
+          title={t(
+            "Masuk untuk melihat makananmu.",
+            "Sign in to see your meals.",
+          )}
           body={t(
             "Jadwal, pesan, dan semua katerermu terhubung dalam satu akun.",
             "Your schedule, messages, and caterers in one account.",
@@ -556,7 +625,11 @@ export function Gate({ children, next }: { children: ReactNode; next?: string })
         />
         <Btn
           label={t("Masuk / Daftar", "Sign in / Sign up")}
-          onPress={() => router.push(next ? { pathname: "/login", params: { next } } : "/login")}
+          onPress={() =>
+            router.push(
+              next ? { pathname: "/login", params: { next } } : "/login",
+            )
+          }
         />
         <Btn
           secondary
@@ -567,12 +640,23 @@ export function Gate({ children, next }: { children: ReactNode; next?: string })
     );
   return children;
 }
-export function OfferCard({ offer: o, returnPath }: { offer: Offer; returnPath?: string }) {
+export function OfferCard({
+  offer: o,
+  returnPath,
+}: {
+  offer: Offer;
+  returnPath?: string;
+}) {
   const { compare, toggleCompare, area, locale, t } = useNative();
   const [meal, setMeal] = useState("lunch");
   const compared = compare.includes(o.id);
   const outside = !!area && !o.areas.includes(area);
-  const open = () => router.push(("/package/" + o.id + (returnPath ? "?next=" + encodeURIComponent(returnPath) : "")) as never);
+  const open = () =>
+    router.push(
+      ("/package/" +
+        o.id +
+        (returnPath ? "?next=" + encodeURIComponent(returnPath) : "")) as never,
+    );
   return (
     <View style={styles.offer}>
       <View>
@@ -602,7 +686,11 @@ export function OfferCard({ offer: o, returnPath }: { offer: Offer; returnPath?:
         )}
       </View>
       <View style={[styles.offerBody, { gap: 20 }]}>
-        <NativeSaveButton packageId={o.id} name={o.name} returnPath={returnPath} />
+        <NativeSaveButton
+          packageId={o.id}
+          name={o.name}
+          returnPath={returnPath}
+        />
         <View style={{ gap: 5 }}>
           <View
             style={{
@@ -745,7 +833,7 @@ export function OfferCard({ offer: o, returnPath }: { offer: Offer; returnPath?:
               accessibilityState={{ selected: compared }}
               onPress={() => toggleCompare(o.id)}
               style={{
-                minHeight: 44,
+                minHeight: 48,
                 paddingHorizontal: 12,
                 justifyContent: "center",
                 backgroundColor: compared ? C.soft : "transparent",

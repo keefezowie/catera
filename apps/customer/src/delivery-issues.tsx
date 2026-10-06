@@ -25,7 +25,14 @@ export function NativeDeliveryIssueReport({ id }: { id: string }) {
         <Btn label={t("Coba lagi", "Retry")} onPress={data.reload} />
       </Panel>
     );
-  if (!d) return <Txt>{data.data ? t("Pengantaran tidak ditemukan.", "Delivery not found.") : t("Memuat pengantaran…", "Loading delivery…")}</Txt>;
+  if (!d)
+    return (
+      <Txt>
+        {data.data
+          ? t("Pengantaran tidak ditemukan.", "Delivery not found.")
+          : t("Memuat pengantaran…", "Loading delivery…")}
+      </Txt>
+    );
   if (sent)
     return (
       <Txt>
@@ -79,6 +86,7 @@ export function NativeDeliveryIssueReport({ id }: { id: string }) {
       />
       <Run
         label={t("Kirim laporan", "Send report")}
+        disabled={data.canWrite === false || !body.trim()}
         action={async () => {
           await command("deliveryIssue.create", {
             deliveryId: id,
@@ -158,6 +166,7 @@ export function NativeDeliveryIssues({ issue }: { issue?: string }) {
                   </Txt>
                   <Run
                     label={t("Eskalasi ke Catera", "Escalate to Catera")}
+                    disabled={state.canWrite === false || !body.trim()}
                     action={async () => {
                       await command("deliveryIssue.escalate", {
                         id: i.id,
