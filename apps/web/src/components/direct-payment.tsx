@@ -45,7 +45,7 @@ export function DirectPayment({
         .then((url) => {
           if (active) setQr(url);
         })
-        .catch((e) => {
+        .catch(() => {
           if (active)
             setError(
               t(

@@ -11,7 +11,6 @@ import { durationOptions, purchaseStartAvailable } from "@catera/domain";
 import { Select, SelectOption } from "./select";
 import { DatePicker } from "./date-picker";
 import { Disclosure } from "./disclosure";
-import { OptionalSection } from "./optional-section";
 import { PackageContents } from "./package-contents";
 import { FoodImage } from "./food-image";
 import Link from "next/link";
@@ -22,11 +21,9 @@ import {
   ArrowLeft,
   Check,
   ShieldCheck,
-  CalendarDays,
   MapPin,
   Plus,
   Minus,
-  Clock,
   RefreshCw,
   ExternalLink,
 } from "lucide-react";
@@ -39,12 +36,11 @@ import {
   type Checkout,
   type PaymentAvailability,
   type CustomerState,
-  areaOptions,
   paymentPresentation,
   purchaseCommitment,
 } from "@catera/domain";
 import { api, useApp, useResource } from "./context";
-import { Button, Checkbox, TextInput } from "./form-controls";
+import { Button, Checkbox } from "./form-controls";
 import {
   Heading,
   ActionForm,

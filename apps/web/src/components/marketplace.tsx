@@ -46,13 +46,11 @@ import {
   Check,
   Star,
   Plus,
-  Clock,
   Truck,
   CalendarDays,
   Heart,
   Minus,
   MessageCircle,
-  ChevronDown,
   X,
 } from "lucide-react";
 import {
@@ -1404,7 +1402,7 @@ export function Compare() {
   );
 }
 export function CatererPage({ slug }: { slug: string }) {
-  const { offers, t, perform, actor } = useApp();
+  const { offers, t, actor } = useApp();
   const list = offers.filter((p) => p.catererSlug === slug);
   const p = list[0];
   if (!p)

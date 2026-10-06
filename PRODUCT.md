@@ -2,7 +2,7 @@
 
 Catera is an Indonesian catering marketplace: discover a caterer, understand an offer, purchase fixed portions for a generated delivery schedule, receive meals, resolve service issues, and explicitly buy again.
 
-This September 9, 2026 baseline replaces the tenant-specific pilot. The user approved the V1 overhaul and implementation on responsive web and Expo Android/iOS together. Historical pilot requirements are archived under archive/pilot; they are evidence, not current instructions. The hosted pilot is preserved and is not the V1 database.
+This September 9, 2026 baseline replaces the tenant-specific pilot. The user approved the V1 overhaul and implementation on responsive web and Expo Android/iOS together. Historical pilot requirements are preserved in [Git history](docs/README.md#historical-records); they are evidence, not current instructions. The hosted pilot is preserved and is not the V1 database.
 
 ## Audiences and surfaces
 

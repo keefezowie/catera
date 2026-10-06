@@ -7,14 +7,12 @@ import {
   CalendarDays,
   ArrowLeft,
   Pencil,
-  Check,
   ChevronDown,
 } from "lucide-react";
 import {
   errorLabel,
   addDays,
   localDay,
-  currency,
   normalizeCustomerPhone,
   type SellerCustomer,
   type Delivery,

@@ -3,12 +3,8 @@ import { Disclosure } from "./disclosure";
 import { PayoutSetupCard } from "./seller-account";
 import { useId, type ReactNode, type KeyboardEvent } from "react";
 import {
-  CalendarDays,
-  Landmark,
   ShieldAlert,
-  ArrowUpRight,
   CircleHelp,
-  Wallet,
   Clock3,
 } from "lucide-react";
 import { settlementCurrency, type SettlementState } from "@catera/domain";

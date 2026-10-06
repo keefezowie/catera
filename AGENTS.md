@@ -1,8 +1,8 @@
 # Catera
 
-The user authorized the September 9, 2026 Catera V1 marketplace overhaul. PRODUCT.md is the current product baseline; docs/IMPLEMENTATION.md records implementation and docs/CATERA-V1-IMPLEMENTATION-PLAN.md tracks release evidence. Pilot instructions in archive/pilot are superseded and must not steer V1 work.
+The user authorized the September 9, 2026 Catera V1 marketplace overhaul. PRODUCT.md is the current product baseline; DESIGN.md owns the visual contract. Use [docs/README.md](docs/README.md) to load only the relevant current contracts, implementation record and release gates. Superseded pilot instructions and completed reports are retrievable through its Git history index and must not steer V1 work.
 
-Work directly on the `v1` branch for this app. Apply UI improvements to the active `apps/web` implementation; do not apply requested V1 changes to `archive/pilot`. When publishing, verify the production deployment's commit and the visible active interface.
+Work directly on the `v1` branch for this app. The active implementations are `apps/web` and `apps/customer`, with shared code in `packages`, migrations in `supabase`, and executable checks in `tests`. Search those paths before historical records; load generated `output` artifacts, lockfiles and asset manifests only when relevant. When publishing, verify the production deployment's commit and the visible active interface.
 
 Use Astra's UI/UX capabilities for design work. Preserve the latest approved palette, individually regenerated artwork, food-led discovery, delivery-cycle direction, Indonesian-first interface, and code-first preference. Never crop the reference board or mislabel opaque/upscaled assets as transparent/high-resolution masters. Do not reopen naming or concept selection.
 

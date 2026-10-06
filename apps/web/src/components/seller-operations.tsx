@@ -9,7 +9,6 @@ import {
   ChevronRight,
   Sun,
   Moon,
-  Package,
   Truck,
   CircleAlert,
   Utensils,

@@ -22,13 +22,11 @@ import {
   MapPin,
   Clock,
   CalendarDays,
-  ChevronLeft,
   ChevronRight,
   Plus,
   Sun,
   Moon,
   MessageCircle,
-  Send,
   Check,
   Bell,
   LogOut,
@@ -36,7 +34,6 @@ import {
   Star,
   LifeBuoy,
   Package,
-  Truck,
 } from "lucide-react";
 import {
   localDay,
@@ -114,7 +111,7 @@ export function Customer(props: { view: string; id?: string }) {
   );
 }
 function CustomerOverview({ view, id }: { view: string; id?: string }) {
-  const { actor, t, locale } = useApp();
+  const { t } = useApp();
   const [date] = useState(localDay());
   const state = useResource<CustomerState>("customer:" + date, () =>
     api.customer("?from=" + addDays(date, -7) + "&to=" + addDays(date, 60)),

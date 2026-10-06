@@ -6,7 +6,6 @@ import { AdminSettlement } from "./admin-settlement";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   Bell,
-  MapPin,
   Home,
   Compass,
   CalendarDays,
@@ -14,7 +13,6 @@ import {
   UserRound,
   ArrowUpRight,
   ChefHat,
-  Truck,
   Package,
   Users,
   Settings,
@@ -31,7 +29,6 @@ import {
 } from "lucide-react";
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import {
-  areaOptions,
   type Actor,
   type Offer,
   type Locale,
@@ -184,7 +181,7 @@ function Shell({
   children: ReactNode;
   operational: boolean;
 }) {
-  const { actor, demo, t, area, setArea, compare, clearCompare } = useApp();
+  const { actor, demo, t, compare, clearCompare } = useApp();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const currentWorkspacePath =

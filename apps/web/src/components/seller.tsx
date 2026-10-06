@@ -38,16 +38,13 @@ import {
   Plus,
   ArrowRight,
   ArrowLeft,
-  ArrowUpRight,
   Package,
-  Users,
   ImageIcon,
   Wallet,
   CalendarDays,
   ClipboardCheck,
   ShieldCheck,
   Save,
-  X,
   MessageCircle,
   LifeBuoy,
 } from "lucide-react";
@@ -84,7 +81,6 @@ import {
   Loading,
   ErrorNotice,
   RefreshNotice,
-  Empty,
   ActionForm,
   Field,
   Dialog,
@@ -103,7 +99,7 @@ export function Seller({ view }: { view: string }) {
   return <SellerWorkspace view={view} />;
 }
 function SellerWorkspace({ view }: { view: string }) {
-  const { actor, t, locale } = useApp();
+  const { actor, t } = useApp();
   const query = useSearchParams();
   const router = useRouter();
   // Workspace data does not depend on the date being edited in Menu. Keeping

@@ -1,45 +1,12 @@
 "use client";
 import { useState } from "react";
-import { currency, localDay, type AdminState } from "@catera/domain";
+import { currency, localDay } from "@catera/domain";
 import { api, useApp, useResource } from "./context";
-import { ActionForm, ErrorNotice, Field, Heading, Loading } from "./ui";
+import { ActionForm, ErrorNotice, Field, Loading } from "./ui";
 import { Checkbox, TextInput } from "./form-controls";
 import { NumericInput } from "./numeric-input";
 import { Select, SelectOption } from "./select";
 import { DatePicker } from "./date-picker";
-export function PilotAdmin() {
-  const { t } = useApp(),
-    state = useResource<AdminState>("pilot-admin-sellers", () => api.admin());
-  const [cid, setCid] = useState("");
-  if (!state.data)
-    return state.error ? (
-      <ErrorNotice message={state.error} retry={state.reload} />
-    ) : (
-      <Loading />
-    );
-  const chosen = cid || state.data.caterers[0]?.id;
-  return (
-    <>
-      <Heading
-        title={t("Pilot berbayar", "Paid seller pilot")}
-        description={t(
-          "Pisahkan penggunaan, pembayaran, dan biaya layanan.",
-          "Separate adoption, payments, and service costs.",
-        )}
-      />
-      <Field label={t("Katerer", "Caterer")}>
-        <Select value={chosen} onValueChange={setCid}>
-          {state.data.caterers.map((c) => (
-            <SelectOption value={c.id} key={c.id}>
-              {c.name}
-            </SelectOption>
-          ))}
-        </Select>
-      </Field>
-      {chosen && <PilotPanel catererId={chosen} />}
-    </>
-  );
-}
 export function PilotPanel({ catererId }: { catererId: string }) {
   const { actor, t, locale, perform } = useApp(),
     admin = actor?.role === "platform_admin";

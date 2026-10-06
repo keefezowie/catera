@@ -307,11 +307,11 @@ Customer-home subscriptions are flat rows inside one outlined container, with se
 
 ### Discovery and purchase clarity
 
-The [September 19 UX research](docs/UIUX-RESEARCH-2026-09-19.md) records the comparative evidence and responsive acceptance checks. Discovery keeps selected filters in its URL, displays removable filter chips and a result count, and offers a complete reset for empty results. Reset retains delivery area and sort. Package cards place total price, the per-meal rate, and delivery coverage after the commitment summary, before detailed contents.
+The [September 19 UX research](https://github.com/keefezowie/catera/blob/525a1392797097f0959bebce1a275cfc117643fb/docs/UIUX-RESEARCH-2026-09-19.md) records the comparative evidence and responsive acceptance checks. Discovery keeps selected filters in its URL, displays removable filter chips and a result count, and offers a complete reset for empty results. Reset retains delivery area and sort. Package cards place total price, the per-meal rate, and delivery coverage after the commitment summary, before detailed contents.
 
 Checkout shows the selected package and a labeled base subtotal before the form on phone and beside it on desktop. Package contents remain available in a disclosure. Review displays the selected delivery address and the server-confirmed total; the same total accompanies the payment action. Only one progress step is current, and changing steps focuses the new heading. Phone actions preserve bottom-navigation clearance.
 
-On phone, the thumbnail stays beside the package identity while totals, explanations, and the contents disclosure use the full summary width. Checkout keeps the complete selected address visible beneath its selector and explains empty, stale, or out-of-coverage destinations. Payment availability distinguishes checking, failed lookup, and no available methods; an explicit retry preserves the reviewed order and consent and focuses its result. New explicit purchase choices take precedence over stored drafts. See [the September 24 journey quality record](docs/MARKETPLACE-CHECKOUT-QUALITY-2026-09-24.md) for local evidence and limits.
+On phone, the thumbnail stays beside the package identity while totals, explanations, and the contents disclosure use the full summary width. Checkout keeps the complete selected address visible beneath its selector and explains empty, stale, or out-of-coverage destinations. Payment availability distinguishes checking, failed lookup, and no available methods; an explicit retry preserves the reviewed order and consent and focuses its result. New explicit purchase choices take precedence over stored drafts. See [the September 24 journey quality record](https://github.com/keefezowie/catera/blob/525a1392797097f0959bebce1a275cfc117643fb/docs/MARKETPLACE-CHECKOUT-QUALITY-2026-09-24.md) for local evidence and limits.
 
 Approved local food artwork and the wordmark may use responsive delivery derivatives while preserving the original files and compositions. Uploaded or signed image URLs retain their established delivery path. Derivative dimensions are not claims about master resolution or transparency.
 
@@ -343,7 +343,7 @@ The delivered square masters are 1254 × 1254; wordmark and horizontal lockup ar
 
 The six [synthetic food images](packages/brand/manifest.food.json) are 1448 × 1086 at 4:3. They serve explicitly labeled demo listings. Production sellers supply their own food images. Do not claim that generated food establishes a real seller’s meal or endorsement.
 
-The [finish verdict](output/V1-FINISH-VERDICT.md) resolves four bounded web findings using the existing desktop, tablet, phone, and viewport captures in `output/visual-review/`, including `admin-pending-empty.png`. Overall disposition remains **fix** for unfinished transparent artwork; high-resolution master acceptance also remains open in the asset manifest. Native source now gives quantity/compare controls 48 × 48 and chips a 48 minimum height. No native device visual approval, gesture/large-text/dark-appearance approval, push verification, or return-link certification is supplied by this documentation.
+The [finish verdict](https://github.com/keefezowie/catera/blob/525a1392797097f0959bebce1a275cfc117643fb/output/V1-FINISH-VERDICT.md) resolves four bounded web findings using the existing desktop, tablet, phone, and viewport captures in `output/visual-review/`, including `admin-pending-empty.png`. Overall disposition remains **fix** for unfinished transparent artwork; high-resolution master acceptance also remains open in the asset manifest. Native source now gives quantity/compare controls 48 × 48 and chips a 48 minimum height. No native device visual approval, gesture/large-text/dark-appearance approval, push verification, or return-link certification is supplied by this documentation.
 
 ### Web motion
 
@@ -381,7 +381,7 @@ Transactions start with a compact balance/readiness summary and Sales. Earnings 
 
 Production remains a whole-day handoff independent of schedule-table filters. Live output and the latest saved revision are separately labeled, including whether the saved copy matches current orders. Empty attention queues are compact; populated queues retain priority and next actions.
 
-Implementation, local verification, and release limitations are recorded in [the caterer journey report](docs/CATERER-JOURNEY-IMPLEMENTATION-2026-09-24.md).
+Implementation, local verification, and release limitations are recorded in [the caterer journey report](https://github.com/keefezowie/catera/blob/525a1392797097f0959bebce1a275cfc117643fb/docs/CATERER-JOURNEY-IMPLEMENTATION-2026-09-24.md).
 
 ## Practical copy and purposeful UI — September 26, 2026
 
@@ -391,4 +391,4 @@ The approved identity remains: forest/sunrise/cream, Jakarta type, the wordmark,
 
 Operational chrome contains navigation, workspace identity, language, notifications, and account controls. The marketplace link remains in the compact sidebar footer. Page headings use the existing optional-description pattern; no empty paragraph or spacer replaces removed copy. Authentication uses a centered form, at most 528px including 24px side padding, with one mode-specific primary heading. Empty states retain their explanation and action without a generic calendar illustration. Tokens and behavioral contracts are unchanged.
 
-Inventory, route coverage, and local verification: [ID 0035](docs/SLACK-0035.md).
+Inventory, route coverage, and local verification: [ID 0035](https://github.com/keefezowie/catera/blob/525a1392797097f0959bebce1a275cfc117643fb/docs/SLACK-0035.md).

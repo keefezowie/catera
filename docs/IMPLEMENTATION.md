@@ -18,7 +18,7 @@ September 11 — ID 0003: both package types now define category slots; dated di
 
 September 10 follow-up: reusable caterer dishes, component-first nasi box editing, photo previews, guarded wizard navigation, incomplete draft saving and customer listing previews are implemented. See [implementation and verification](REUSABLE-DISHES.md), including the forward migration and separate hosted/device gates.
 
-Updated September 9, 2026. This record supersedes pilot policies in archive/pilot. It describes the implementation; it does not certify production launch.
+Updated September 9, 2026. This record supersedes the pilot policies retained in [Git history](README.md#historical-records). It describes the implementation; it does not certify production launch. Historical output paths below follow the [artifact retrieval convention](README.md#local-verification-artifacts).
 
 ## Implemented foundation
 
@@ -27,7 +27,7 @@ September 10: the approved animated bento now serves major web/native loading st
 The follow-up moves web chrome into a persistent marketplace layout so route loaders replace only main content. Eye poses blend smoothly, decoded artwork switches without a blank frame, and reduced-motion loading labels remain visible. Server page guards and per-navigation catalog reads remain in place.
 
 - npm workspaces: apps/web (Next 16.3.4), apps/customer (Expo 57 / React Native 0.86), shared domain, API client, backend, design tokens and brand packages.
-- The old source, tests, scripts and documents are preserved in archive/pilot. No hosted pilot code, project data or deployment was changed. The pilot Supabase reference is explicitly refused by the V1 backend.
+- The old source, tests, scripts and documents are preserved in [Git history](README.md#historical-records) under their original `archive/pilot` paths. No hosted pilot code, project data or deployment was changed. The pilot Supabase reference is explicitly refused by the V1 backend.
 - The lockfile was repaired. A fresh directory containing only workspace manifests and package-lock.json successfully ran npm ci, installing 1295 packages on Node 24.14.1. Evidence: output/install-verification.json.
 - npm run dev explicitly opts into persistent synthetic PGlite storage. Hosted mode requires Supabase; missing configuration never selects demo storage.
 
@@ -69,11 +69,11 @@ The generator returned 1254-pixel square masters and 2172-pixel-wide wordmark/ho
 
 ## Verification and unverified gates
 
-September 10 document fixes: catalog navigation now uses English homepage anchors (`/#packages` and `/#how-it-works`); `/discover` permanently redirects to the catalog anchor. Web selectors share a styled, portaled Radix component with keyboard navigation and responsive positioning. Hosted login supports email/password alongside phone OTP and chooses the destination from the database role. Four synthetic accounts were provisioned transactionally in the separate Catera V1 Supabase project; private credentials are stored only in ignored `.data/demo-accounts.json`. See [document-fix evidence](FIXES-2026-09-10.md) for verification and remaining limits.
+September 10 document fixes: catalog navigation now uses English homepage anchors (`/#packages` and `/#how-it-works`); `/discover` permanently redirects to the catalog anchor. Web selectors share a styled, portaled Radix component with keyboard navigation and responsive positioning. Hosted login supports email/password alongside phone OTP and chooses the destination from the database role. Four synthetic accounts were provisioned transactionally in the separate Catera V1 Supabase project; private credentials are stored only in ignored `.data/demo-accounts.json`. See [document-fix evidence](https://github.com/keefezowie/catera/blob/525a1392797097f0959bebce1a275cfc117643fb/docs/FIXES-2026-09-10.md) for verification and remaining limits.
 
 September 11 live-like demo: the separate Catera V1 project received the package-contents, reusable-dishes, and calendar-metadata forward migrations, then baseline `2026.09.11.1`. The generated data models full customer, operations, support, review, refund, payout, and admin journeys while preserving the four authenticated demo accounts. Operational date and meal-period controls now render as independent 44px fields with a 12px token-based gap. Reset and private recovery steps are documented in [V1-DEMO-BASELINE.md](V1-DEMO-BASELINE.md); the historical Catera Demo pilot remains excluded.
 
-The same fixes now extend to native: scrollable accessible selection sheets, language selection before login, localized navigation/discovery/login/account controls, same-screen discovery/explanation scrolling, and single-session Supabase password authentication. Customer returns retain checkout context; operational roles land on the account screen with an explicit web-workspace handoff. See [native-fix evidence](NATIVE-FIXES-2026-09-10.md).
+The same fixes now extend to native: scrollable accessible selection sheets, language selection before login, localized navigation/discovery/login/account controls, same-screen discovery/explanation scrolling, and single-session Supabase password authentication. Customer returns retain checkout context; operational roles land on the account screen with an explicit web-workspace handoff. See [native-fix evidence](https://github.com/keefezowie/catera/blob/525a1392797097f0959bebce1a275cfc117643fb/docs/NATIVE-FIXES-2026-09-10.md).
 
 Local evidence includes typechecking, 40 domain/database/provider tests, real PostgreSQL concurrency tests, customer/seller/admin Playwright journeys, WCAG serious/critical checks on account, responsive captures at 390/768/1440, native component tests under both iOS and Android presets, a Next production build and both native bundle exports. See output/verification, output/install-verification.json, output/V1-FINISH-REVIEW.md and output/V1-FINISH-VERDICT.md.
 
@@ -93,7 +93,7 @@ Responsive web and Expo package cards now share concise composition/nutrition fo
 
 Implemented the approved five-step package wizard, persistent draft/navigation controls, compact photo tools, discovery-label chips, responsive order cards, owner readiness checklist, guided prepaid importer, grouped seller navigation, menu saving context, messages/support tabs, shopping-only comparison controls, and simpler delivery/admin details. The additive owner-scoped import-options read and authorized display-name joins are validated in disposable databases. Existing financial commands, purchased snapshots, tenant boundaries, and the hosted pilot remain intact.
 
-Local verification includes root typecheck, 106 unit tests, production build, PostgreSQL concurrency checks, and 48 focused browser tests across the affected journeys. Phone/tablet/desktop and both languages are covered, with zoom-equivalent reflow and accessibility checks. See [CATERA-USABILITY-SWEEP.md](CATERA-USABILITY-SWEEP.md) for findings, screenshots, test evidence, migration ordering, and the five-caterer study protocol. The representative-user study and hosted deployment remain outstanding. Native development is paused.
+Local verification includes root typecheck, 106 unit tests, production build, PostgreSQL concurrency checks, and 48 focused browser tests across the affected journeys. Phone/tablet/desktop and both languages are covered, with zoom-equivalent reflow and accessibility checks. See [CATERA-USABILITY-SWEEP.md](https://github.com/keefezowie/catera/blob/525a1392797097f0959bebce1a275cfc117643fb/docs/CATERA-USABILITY-SWEEP.md) for findings, screenshots, test evidence, migration ordering, and the five-caterer study protocol. The representative-user study and hosted deployment remain outstanding. Native development is paused.
 
 # Seller menu calendar compactness and cutoff — September 13, 2026
 
@@ -158,4 +158,4 @@ Local verification: root web/native/shared typecheck, 48 unit suites (310 tests)
 
 ## Combined web integration — October 2, 2026
 
-The account/settings refinement, app-wide spacing work and account/workspace repairs are now integrated together on `v1`. The [combined verification record](COMBINED-WEB-VERIFICATION-2026-10-02.md) covers the primary checkout with all three changes present. The earlier sections describe the evidence and release status at the end of each original pass.
+The account/settings refinement, app-wide spacing work and account/workspace repairs are now integrated together on `v1`. The [combined verification record](https://github.com/keefezowie/catera/blob/525a1392797097f0959bebce1a275cfc117643fb/docs/COMBINED-WEB-VERIFICATION-2026-10-02.md) covers the primary checkout with all three changes present. The earlier sections describe the evidence and release status at the end of each original pass.

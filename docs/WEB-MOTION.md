@@ -1,6 +1,6 @@
 # Catera web motion — implementation and verification
 
-This is the original implementation record. Subsequent combined verification and the authorized `v1` integration are recorded in [the journey and motion integration report](V1-JOURNEY-MOTION-INTEGRATION-2026-09-24.md).
+This is the original implementation record. Subsequent combined verification and the authorized `v1` integration are recorded in [the journey and motion integration report](https://github.com/keefezowie/catera/blob/525a1392797097f0959bebce1a275cfc117643fb/docs/V1-JOURNEY-MOTION-INTEGRATION-2026-09-24.md).
 
 Implemented locally on `codex/web-motion`, based on `v1` at `033fb5b`, in `C:\Users\nidal\.codex\worktrees\web-motion\catera`. The original checkout and its existing local changes were preserved. No push or deployment was performed.
 
@@ -28,18 +28,18 @@ Two issues found during verification were fixed: editor validation now focuses t
 
 ## Before and after evidence
 
-The 21 original exploration captures are copied into [`output/playwright/motion/original`](../output/playwright/motion/original). Before editing, the isolated instance also captured successful checkout/payment, editor validation, editor progress and draft saving: six `before-*` captures in [`output/playwright/motion`](../output/playwright/motion).
+The 21 original exploration captures are copied into [`output/playwright/motion/original`](README.md#local-verification-artifacts "output/playwright/motion/original"). Before editing, the isolated instance also captured successful checkout/payment, editor validation, editor progress and draft saving: six `before-*` captures in [`output/playwright/motion`](README.md#local-verification-artifacts "output/playwright/motion").
 
 Representative comparisons:
 
 | Journey | Before | After |
 | --- | --- | --- |
-| Confirmed payment, Indonesian phone, same checkout | [Before](../output/playwright/motion/before-id-390-payment-success.png) | [After](../output/playwright/motion/matched-after-id-390-payment-success.png) |
-| Confirmed payment, Indonesian desktop, same checkout | [Before](../output/playwright/motion/before-id-1440-payment-success.png) | [After](../output/playwright/motion/matched-after-id-1440-payment-success.png) |
-| Editor progress, Indonesian phone | [Before](../output/playwright/motion/before-id-390-editor-step.png) | [After](../output/playwright/motion/after-id-390-editor-step.png) |
-| Duration dialog, English desktop | [Before](../output/playwright/motion/original/motion-before-en-desktop-duration-dialog.png) | [After](../output/playwright/motion/after-en-1440-duration-dialog.png) |
-| Duration dialog, English phone | [Before](../output/playwright/motion/original/motion-before-en-mobile-duration-dialog.png) | [After](../output/playwright/motion/after-en-390-duration-dialog.png) |
-| Menu assembly, Indonesian desktop | [Before](../output/playwright/motion/original/motion-before-id-desktop-menu-assembly.png) | [After](../output/playwright/motion/after-id-1440-menu-assembly.png) |
+| Confirmed payment, Indonesian phone, same checkout | [Before](README.md#local-verification-artifacts "output/playwright/motion/before-id-390-payment-success.png") | [After](README.md#local-verification-artifacts "output/playwright/motion/matched-after-id-390-payment-success.png") |
+| Confirmed payment, Indonesian desktop, same checkout | [Before](README.md#local-verification-artifacts "output/playwright/motion/before-id-1440-payment-success.png") | [After](README.md#local-verification-artifacts "output/playwright/motion/matched-after-id-1440-payment-success.png") |
+| Editor progress, Indonesian phone | [Before](README.md#local-verification-artifacts "output/playwright/motion/before-id-390-editor-step.png") | [After](README.md#local-verification-artifacts "output/playwright/motion/after-id-390-editor-step.png") |
+| Duration dialog, English desktop | [Before](README.md#local-verification-artifacts "output/playwright/motion/original/motion-before-en-desktop-duration-dialog.png") | [After](README.md#local-verification-artifacts "output/playwright/motion/after-en-1440-duration-dialog.png") |
+| Duration dialog, English phone | [Before](README.md#local-verification-artifacts "output/playwright/motion/original/motion-before-en-mobile-duration-dialog.png") | [After](README.md#local-verification-artifacts "output/playwright/motion/after-en-390-duration-dialog.png") |
+| Menu assembly, Indonesian desktop | [Before](README.md#local-verification-artifacts "output/playwright/motion/original/motion-before-id-desktop-menu-assembly.png") | [After](README.md#local-verification-artifacts "output/playwright/motion/after-id-1440-menu-assembly.png") |
 
 Screenshots show the final layout; the Playwright traces contain intermediate movement. The final captures use 1440×1000 and 390×844. Reflow captures cover 768px and 320px. Synthetic fixtures created by the verification suites add catalog entries, so catalog/draft-list counts are not pixel-identical to the original exploration. The matched payment views use the exact baseline checkout.
 
@@ -63,7 +63,7 @@ Mutation-capable testing used explicit demo mode, `.data/web-motion`, `.next-mot
 | Relevant Playwright suites | 85 distinct scenarios passed across the ten suites below, including focused reruns after fixes |
 | `git diff --check` | Passed |
 
-The [browser scenario index](../output/playwright/motion/browser-summary.json) records each scenario's latest result and report. The [PostgreSQL record](../output/playwright/motion/postgres.json), [typecheck log](../output/playwright/motion/typecheck.log) and [build log](../output/playwright/motion/build.log) preserve local check evidence. Initial failures remain in earlier reports; the latest mobile acceptance report includes the corrected 320px header and the 320px/768px discovery/checkout checks in both languages.
+The [browser scenario index](README.md#local-verification-artifacts "output/playwright/motion/browser-summary.json") records each scenario's latest result and report. The [PostgreSQL record](README.md#local-verification-artifacts "output/playwright/motion/postgres.json"), [typecheck log](README.md#local-verification-artifacts "output/playwright/motion/typecheck.log") and [build log](README.md#local-verification-artifacts "output/playwright/motion/build.log") preserve local check evidence. Initial failures remain in earlier reports; the latest mobile acceptance report includes the corrected 320px header and the 320px/768px discovery/checkout checks in both languages.
 
 ## Performance and layout observations
 

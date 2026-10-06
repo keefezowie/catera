@@ -51,6 +51,6 @@ Install Chromium with npx playwright install chromium, or set PLAYWRIGHT_CHROMIU
 | packages/design-tokens | Shared palette, typography, spacing, focus and motion |
 | packages/brand | Individual assets, fonts, prompts and manifests |
 | supabase/migrations/20260909* | V1 schema, services, hardening, storage and realtime |
-| archive/pilot | Preserved pre-V1 implementation and baseline records |
+| docs | Current contracts, operating instructions and [Git history index](docs/README.md) |
 
-See [implementation record](docs/IMPLEMENTATION.md), [milestone plan](docs/CATERA-V1-IMPLEMENTATION-PLAN.md), [release runbook](docs/RUNBOOK.md), and [asset limitations](packages/brand/README.md). No production deployment or hosted database migration has been performed by this overhaul.
+Start with the [documentation map](docs/README.md), [implementation record](docs/IMPLEMENTATION.md), [milestone plan](docs/CATERA-V1-IMPLEMENTATION-PLAN.md), [release runbook](docs/RUNBOOK.md), and [asset limitations](packages/brand/README.md). The original overhaul's verification does not certify a current production release; later environment-specific evidence is dated in these records.

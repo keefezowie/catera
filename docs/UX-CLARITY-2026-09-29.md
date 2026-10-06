@@ -62,22 +62,22 @@ The refresh test mounts the actual web resource hook with controlled responses. 
 
 ### Evidence files
 
-These generated reports and captures remain local in the managed verification worktree. The links below resolve there; the implementation, repeatable tests and verification record are versioned.
+These generated reports and captures were recorded locally in the managed verification worktree. The links below open the retrieval index and retain each original artifact path in the link title; they do not confirm that local files are still available. The implementation, repeatable tests and verification record are versioned.
 
-- [PostgreSQL evidence](../output/verification/ux-clarity-postgres.json)
-- [Verification summary](../output/verification/ux-clarity.json)
-- [Browser results](../output/playwright/ux-clarity/results.json)
-- [Browser report](../output/playwright/ux-clarity/report/index.html)
-- [Repeatable screenshot capture](../output/playwright/ux-clarity/capture.mjs)
+- [PostgreSQL evidence](README.md#local-verification-artifacts "output/verification/ux-clarity-postgres.json")
+- [Verification summary](README.md#local-verification-artifacts "output/verification/ux-clarity.json")
+- [Browser results](README.md#local-verification-artifacts "output/playwright/ux-clarity/results.json")
+- [Browser report](README.md#local-verification-artifacts "output/playwright/ux-clarity/report/index.html")
+- [Repeatable screenshot capture](README.md#local-verification-artifacts "output/playwright/ux-clarity/capture.mjs")
 
 Comparable captures exist for all six language/width combinations in `output/playwright/ux-clarity/before` and `after`. Selected examples:
 
 | Surface | Before | After |
 | --- | --- | --- |
-| Waiting-only Home, Indonesian, 390 px | [Before](../output/playwright/ux-clarity/before/home-id-390.png) | [After](../output/playwright/ux-clarity/after/home-id-390.png) |
-| Card with no area, English, 320 px | [Before](../output/playwright/ux-clarity/before/card-en-320.png) | [After](../output/playwright/ux-clarity/after/card-en-320.png) |
-| Package booking panel, English, 390 px | [Before](../output/playwright/ux-clarity/before/details-en-390.png) | [After](../output/playwright/ux-clarity/after/details-en-390.png) |
-| Seller workload, English, 1440 px | [Before](../output/playwright/ux-clarity/before/seller-en-1440.png) | [After](../output/playwright/ux-clarity/after/seller-en-1440.png) |
+| Waiting-only Home, Indonesian, 390 px | [Before](README.md#local-verification-artifacts "output/playwright/ux-clarity/before/home-id-390.png") | [After](README.md#local-verification-artifacts "output/playwright/ux-clarity/after/home-id-390.png") |
+| Card with no area, English, 320 px | [Before](README.md#local-verification-artifacts "output/playwright/ux-clarity/before/card-en-320.png") | [After](README.md#local-verification-artifacts "output/playwright/ux-clarity/after/card-en-320.png") |
+| Package booking panel, English, 390 px | [Before](README.md#local-verification-artifacts "output/playwright/ux-clarity/before/details-en-390.png") | [After](README.md#local-verification-artifacts "output/playwright/ux-clarity/after/details-en-390.png") |
+| Seller workload, English, 1440 px | [Before](README.md#local-verification-artifacts "output/playwright/ux-clarity/before/seller-en-1440.png") | [After](README.md#local-verification-artifacts "output/playwright/ux-clarity/after/seller-en-1440.png") |
 
 ## Evidence limits
 

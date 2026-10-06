@@ -6,7 +6,6 @@ import { Select, SelectOption } from "./select";
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
-  Plus,
   ShieldCheck,
   Wallet,
   LifeBuoy,
@@ -23,7 +22,6 @@ import {
   Status,
   ActionForm,
   Field,
-  Dialog,
   Facts,
 } from "./ui";
 import { SupportQueue, TransactionRows } from "./seller";

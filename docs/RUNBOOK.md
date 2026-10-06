@@ -1,6 +1,6 @@
 # Catera V1 operating runbook
 
-Updated September 9, 2026. **Local verification is not production approval.** The hosted pilot remains unchanged. This runbook supersedes `archive/pilot/docs/RUNBOOK.md`.
+Updated September 9, 2026; reproduction and historical-gate notes consolidated October 6. **Local verification is not production approval.** The hosted pilot remains unchanged. This runbook supersedes the pilot runbook retained in [Git history](README.md#historical-records).
 
 ## 1. Environment boundary
 
@@ -8,7 +8,7 @@ For current UAT, use the single active `catera` Vercel project at https://catera
 
 Create separate V1 staging and production Supabase projects, storage, SMS credentials, Xendit credentials and application hosts. Staging uses invented customers and test payment methods only. Never point V1 at the old pilot project, run a demo seed against hosted storage, copy customer fixtures into tests, or replace an existing database to repair a local test. The backend rejects the known pilot reference.
 
-Use Node 24 and the committed npm lockfile. The web application is `apps/web`; build from the repository root with `npm ci` then `npm run build`, or configure monorepo hosting to run the equivalent workspace command with shared package access. The Expo application is `apps/customer`. Do not deploy `archive/pilot` as V1.
+Use Node 24 and the committed npm lockfile. The web application is `apps/web`; build from the repository root with `npm ci` then `npm run build`, or configure monorepo hosting to run the equivalent workspace command with shared package access. The Expo application is `apps/customer`. Do not deploy the historical pilot source as V1.
 
 `npm run dev` uses the configured Supabase environment by default. Set `CATERA_V1_DEMO=true` explicitly to start persistent, synthetic local storage. Missing Supabase configuration produces an error. Demo identities and payment confirmation endpoints are unavailable in hosted mode. Production deployment is a separate operation and has not been performed.
 
@@ -52,7 +52,7 @@ Before applying SQL, record the project reference, intended environment, operato
 11. `supabase/migrations/20260911150142_seller_operations.sql`
 12. `supabase/migrations/20260912085515_owner_food_upload_policy.sql`
 
-September 11, 2026: these migrations are installed on Catera V1 (`ygzfdqrljunngfrdygzt`). See [hosted migration verification](SUPABASE-MIGRATION-VERIFICATION-2026-09-11.md) for hosted ledger mappings and test scope. This does not constitute production launch approval. Existing hosted listings and purchase snapshots were preserved; category assignment and conversion of current listings to new slot revisions are separate content operations.
+September 11, 2026: these migrations are installed on Catera V1 (`ygzfdqrljunngfrdygzt`). See [hosted migration verification](https://github.com/keefezowie/catera/blob/525a1392797097f0959bebce1a275cfc117643fb/docs/SUPABASE-MIGRATION-VERIFICATION-2026-09-11.md) for hosted ledger mappings and test scope. This does not constitute production launch approval. Existing hosted listings and purchase snapshots were preserved; category assignment and conversion of current listings to new slot revisions are separate content operations.
 
 Apply the reusable-dishes migration before deploying the new seller editor. See [compatibility and verification](REUSABLE-DISHES.md). Library changes do not rewrite existing purchases or production snapshots; incomplete drafts cannot be published without full validation and explicit package classification.
 
@@ -144,6 +144,8 @@ Before launch, restore a recent staging backup into a separate project and compa
 
 ## 10. Release ledger
 
+These dated baseline entries are not a fresh hosted-state audit. Read the later provider/native records and section 13 before interpreting an old “not verified” status. Historical `output/` evidence is located through the [documentation index](README.md#historical-records).
+
 | Gate | Current evidence / status |
 |---|---|
 | Reproducible local installation | Passed, isolated clean npm ci; `output/install-verification.json` |
@@ -168,4 +170,20 @@ Follow [MULTI-CYCLE-PURCHASES.md](MULTI-CYCLE-PURCHASES.md) in dependency order.
 
 ## 12. Seller experience and validated uploads
 
-Follow [SLACK-0017-0027.md](SLACK-0017-0027.md). Install settlement reporting before the seller-experience migration. Coordinate the web release with removal of the old direct food-upload policy: new preparation/completion endpoints and the legacy compatibility endpoint validate images before publishing with server credentials. Keep staging private, verify actual 8 MiB uploads on Vercel, and check expired-object cleanup through the protected scheduler. Bank approval activates a destination version but does not enable automatic payout dispatch. Verify recipient identity/routing and approved replacements in Xendit sandbox; preserve the captured recipient of every in-flight transfer. Account deletion requests are administrative intent only, never purchase disputes or automatic account deletion.
+The [historical seller-experience report](https://github.com/keefezowie/catera/blob/525a1392797097f0959bebce1a275cfc117643fb/docs/SLACK-0017-0027.md) records the original implementation. Install settlement reporting before the seller-experience migration. Coordinate the web release with removal of the old direct food-upload policy: new preparation/completion endpoints and the legacy compatibility endpoint validate images before publishing with server credentials. Keep staging private, verify actual 8 MiB uploads on Vercel, and check expired-object cleanup through the protected scheduler. Bank approval activates a destination version but does not enable automatic payout dispatch. Verify recipient identity/routing and approved replacements in Xendit sandbox; preserve the captured recipient of every in-flight transfer. Account deletion requests are administrative intent only, never purchase disputes or automatic account deletion.
+
+## 13. Isolated browser fixtures and carried-forward gates
+
+Consolidated October 6, 2026 from the [historical reports](README.md#historical-records). This preserves reproduction and unclosed evidence requirements; it does not claim a new test run, hosted-state check or authorization to change an environment.
+
+- **Caterer UX:** create a fresh data directory ending in `caterer-ux-test`, set `CATERA_V1_DEMO=true` and `CATERA_DEMO_DATA_DIR` to it, then run `node --import tsx tests/fixtures/caterer-ux.mts`. The seed refuses an existing fixture and writes `output/playwright/caterer-ux/fixture.json`, which the test reads. Start the local app with the same environment, `PORT=3138`, `CATERA_PUBLIC_URL=http://127.0.0.1:3138` and a dedicated `CATERA_NEXT_DIST_DIR`, then run `npx playwright test -c playwright.caterer-ux.config.ts`. An alternate loopback port requires matching `CATERA_CATERER_UX_URL` and app settings. SQL seeding is not purchase-onboarding evidence.
+- **Seller operations:** use a separate disposable directory ending in `seller-operations-test`, explicit demo mode, and `node --import tsx tests/fixtures/seller-operations.mts`. Start its own app instance with the same data directory, a dedicated build directory and matching public URL; set `CATERA_OPS_TEST_URL` to that instance before `npx playwright test -c tests/operations.playwright.config.ts`. Status-transition tests mutate this fixture; do not share it with general customer journeys or hosted environments.
+- **Usability regressions:** `tests/usability.playwright.config.ts` uses `CATERA_USABILITY_URL` for the general instance, `CATERA_OPS_TEST_URL` for the separate operations instance and `CATERA_EVIDENCE_RUN` for a distinct output directory. Preserve assertion prerequisites and settled geometry checks. Long runs must select populated persisted synthetic dates rather than assume seeded dates remain today after midnight.
+
+The September 12 five-caterer learnability study was not performed. Its setup/menu/delivery tasks and four-of-five independent-completion target remain covered by the expanded [September 27 study protocol](CATERER-SETUP-SIMPLIFICATION.md#human-study-protocol--not-performed). Synthetic browser passes do not establish user comprehension, physical printing, cross-browser/device accessibility or production performance.
+
+The September 16 seller-experience report left hosted **ID0021** upload acceptance and the tester's original **ID0023** date/address-change failure unclosed. Verify actual PNG/JPEG/WebP uploads through 8 MiB, private staging/public delivery, tenant isolation, expiry/corruption/retries, preview/save/reload and cleanup on the intended host. Reproduce ID0023 using designated synthetic records and compare the command response, persisted delivery and refreshed schedule. Local success does not close the original hosted report. Later migration installation records do not by themselves prove either acceptance test.
+
+The September 20 checkout-sales report requires the matching application and `20260920152746_checkout_sales_safeguards.sql` rollout: historical consent remains unknown, and old pending holds without acceptance must expire before a fresh reviewed checkout. Verify the target ledger before applying anything; the September 21 flag enablement alone did not prove this migration was installed. Multi-cycle sales and automatic payouts remain separately gated.
+
+Hosted auth/RLS/Realtime, signup/recovery and invitation delivery, SMS/SMTP, actual storage, provider callbacks/refunds/payout arrival, push/payment returns, backup restore, scheduler/alerts and production performance need their own evidence. Use the dated [DOKU](DOKU-SANDBOX-INTEGRATION.md), [direct-payment](DOKU-DIRECT-PAYMENTS.md), and [QRIS](QRIS-SANDBOX-ACCEPTANCE-2026-09-22.md) records for sandbox evidence rather than treating older local-only reports as current provider status. The [October 6 native backlog](CATERA-V1-NATIVE-PARITY-BACKLOG.md#next-evidence-and-release-boundaries) supersedes older native deferrals and host-tooling claims; Android verification is pending, while iOS device/store work remains deferred as recorded there. The September 30 optimized-runtime/CSS-ordering check was also unverified despite a passing build.
