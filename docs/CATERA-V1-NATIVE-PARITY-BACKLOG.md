@@ -62,13 +62,15 @@ HTML/CSS detector was not run against native source.
 
 Logs are in `work/native-implementation/` for this session.
 
-- Android Jest: **59 tests across 15 suites passed**, including explicit route
+- Android Jest: **63 tests across 16 suites passed**, including explicit route
   selections taking precedence over a saved checkout draft and ISO month-start
-  dates for menu API reads (`native-tests.log`).
-- Shared suite: **319 tests across 49 files passed** (`domain-tests.log`).
+  dates for menu API reads. Startup regressions cover stalled API/session reads,
+  HTML tunnel responses, visible retry and sign-out during initialization
+  (`startup-all-native.log`).
+- Shared suite: **326 tests across 50 files passed** (`startup-shared-tests.log`).
 - Repository typecheck, PostgreSQL concurrency checks and production web build
-  passed (`all-typecheck.log`, `postgres-tests.log`, `web-build.log`).
-- Expo export produced Android and iOS bundles (`native-export.log`). This does
+  passed (`startup-typecheck.log`, `startup-postgres.log`, `startup-web-build.log`).
+- Expo export produced Android and iOS bundles (`startup-final-export.log`). This does
   not prove either app installs or runs.
 - The local synthetic fixture exercised server quote → accepted checkout →
   simulated payment → activated subscription for native menu routes
@@ -84,6 +86,14 @@ Logs are in `work/native-implementation/` for this session.
   redirected to `https://repo.reactnative.dev/maven2/com/facebook/react/react-android/0.86.3/react-android-0.86.3-debug.aar`,
   which returned **HTTP 403 through the environment proxy**
   (`android-build.log`). No successful APK or app runtime captures resulted.
+
+Startup follow-up: native API calls now include session restoration and response
+parsing in a 15-second deadline. A failed connection reaches the existing Retry
+screen; late token restoration cannot send a timed-out write. Sign-out during
+initialization schedules a fresh guest read. The GitHub APK workflow probes the
+public catalog and session endpoints before starting EAS, and the customer README
+explains build-time variables and the required live backend. The user's ngrok
+endpoint remains unverified from this session because its proxy denies access.
 
 ## Next evidence and release boundaries
 

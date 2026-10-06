@@ -741,6 +741,8 @@ export const errors: Record<string, string> = {
   INVALID_INPUT: "Periksa kembali data yang Anda masukkan.",
   NOT_FOUND: "Data tidak ditemukan.",
   NOT_CONFIGURED: "Layanan ini belum dikonfigurasi. Silakan hubungi Catera.",
+  REQUEST_TIMEOUT: "Koneksi terlalu lama. Periksa koneksi dan coba lagi.",
+  INVALID_API_RESPONSE: "Catera sementara tidak tersedia. Silakan coba lagi.",
   PAYMENT_PENDING: "Pembayaran belum terkonfirmasi.",
   AMOUNT_INVALID: "Jumlah melebihi nilai yang dapat dikembalikan.",
   BOOKED_DATE:
@@ -803,6 +805,8 @@ const errorsEn: Record<string, string> = {
   INVALID_INPUT: "Check the information you entered.",
   NOT_FOUND: "The requested data was not found.",
   NOT_CONFIGURED: "This service is not configured. Please contact Catera.",
+  REQUEST_TIMEOUT: "Connection timed out. Check your connection and try again.",
+  INVALID_API_RESPONSE: "Catera is temporarily unavailable. Please try again.",
   PAYMENT_PENDING: "Payment has not been confirmed.",
   AMOUNT_INVALID: "The amount exceeds the refundable balance.",
   BOOKED_DATE: "This date has orders. Complete them before closing the date.",

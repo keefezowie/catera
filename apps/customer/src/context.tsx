@@ -23,10 +23,9 @@ import {
   errorLabel,
 } from "@catera/domain";
 import { signInNative, nativeReturnPath } from "./auth";
-export const apiBase = (process.env.EXPO_PUBLIC_API_URL || "").replace(
-  /\/$/,
-  "",
-);
+export const apiBase = (process.env.EXPO_PUBLIC_API_URL || "")
+  .trim()
+  .replace(/\/+$/, "");
 const storage = {
   getItem: (key: string) => SecureStore.getItemAsync(key),
   setItem: (key: string, v: string) => SecureStore.setItemAsync(key, v),
@@ -49,14 +48,18 @@ export const supabase =
         },
       )
     : null;
-export const nativeApi = createApi(apiBase, async () => {
-  const token = await SecureStore.getItemAsync("catera.demo.token");
-  return (
-    token ||
-    (await supabase?.auth.getSession())?.data.session?.access_token ||
-    null
-  );
-});
+export const nativeApi = createApi(
+  apiBase,
+  async () => {
+    const token = await SecureStore.getItemAsync("catera.demo.token");
+    return (
+      token ||
+      (await supabase?.auth.getSession())?.data.session?.access_token ||
+      null
+    );
+  },
+  { timeoutMs: 15_000 },
+);
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowBanner: true,
@@ -181,7 +184,8 @@ export function NativeProvider({ children }: { children: ReactNode }) {
         setRevision((r) => r + 1);
       }
       // Leave the Supabase callback before reading the session again.
-      if (event === "TOKEN_REFRESHED") setTimeout(() => void refresh(), 0);
+      if (event === "TOKEN_REFRESHED" || event === "SIGNED_OUT")
+        setTimeout(() => void refresh(), 0);
     });
     return () => {
       auth?.data.subscription.unsubscribe();

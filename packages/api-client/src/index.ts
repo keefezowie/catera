@@ -36,25 +36,57 @@ export class ApiError extends Error {
     super(code);
   }
 }
-export function createApi(base = "", token?: () => Promise<string | null>) {
+export function createApi(
+  base = "",
+  token?: () => Promise<string | null>,
+  { timeoutMs = 30_000 }: { timeoutMs?: number } = {},
+) {
   async function request<T>(path: string, body?: unknown): Promise<T> {
-    const access = await token?.();
-    const response = await fetch(base + "/api/v1/" + path, {
-      method: body ? "POST" : "GET",
-      credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-        ...(access ? { Authorization: "Bearer " + access } : {}),
-      },
-      ...(body ? { body: JSON.stringify(body) } : {}),
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout>;
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        reject(new ApiError("REQUEST_TIMEOUT"));
+        controller.abort();
+      }, timeoutMs);
     });
-    const result = await response.json();
-    if (!response.ok)
-      throw new ApiError(
-        result.error?.code || "REQUEST_FAILED",
-        result.error?.requestId,
-      );
-    return result.data as T;
+    try {
+      return await Promise.race([
+        timeout,
+        (async () => {
+          // Session restoration can itself need the network. Bound it too,
+          // and never send a late write after the caller has already timed out.
+          const access = await token?.();
+          if (controller.signal.aborted) throw new ApiError("REQUEST_TIMEOUT");
+          const response = await fetch(base + "/api/v1/" + path, {
+            method: body ? "POST" : "GET",
+            credentials: "include",
+            signal: controller.signal,
+            headers: {
+              "Content-Type": "application/json",
+              ...(access ? { Authorization: "Bearer " + access } : {}),
+            },
+            ...(body ? { body: JSON.stringify(body) } : {}),
+          });
+          let result;
+          try {
+            result = await response.json();
+          } catch {
+            throw new ApiError("INVALID_API_RESPONSE");
+          }
+          if (!response.ok)
+            throw new ApiError(
+              result?.error?.code || "REQUEST_FAILED",
+              result?.error?.requestId,
+            );
+          if (!result || typeof result !== "object" || !("data" in result))
+            throw new ApiError("INVALID_API_RESPONSE");
+          return result.data as T;
+        })(),
+      ]);
+    } finally {
+      clearTimeout(timer!);
+    }
   }
   return {
     request,

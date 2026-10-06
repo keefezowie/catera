@@ -28,6 +28,14 @@ Copy `.env.example` to `.env.local` inside this directory and supply the sandbox
 
 Email registration and recovery use a native SecureStore session and PKCE. Allow `catera://auth/callback` in the sandbox Supabase Auth redirect URLs. Email templates must preserve the requested redirect URL. Open verification/recovery links on the device that requested them; expired or cross-device links have a request-new-link path. No Expo/EAS authentication is needed for local debug builds. EAS signing, push credentials and store release are separate setup steps.
 
+### Startup connection troubleshooting
+
+`EXPO_PUBLIC_API_URL` is the backend origin, without `/api/v1`. A tunnel must forward the Catera web backend (normally port 3000) and remain online while the phone is using it. Opening `<API_URL>/api/v1/catalog?limit=1` and `<API_URL>/api/v1/me` should return Catera JSON. A tunnel error, sign-in page or HTML warning is not an API response. Prefer the documented hosted sandbox for testing away from the development machine.
+
+The standalone APK contains the `EXPO_PUBLIC_*` values from build time. After changing EAS preview variables, run a new preview build and install that APK; changing the dashboard values does not modify an installed app. Plain-text visibility is appropriate for the API URL and Supabase publishable client configuration.
+
+Startup API requests, including saved-session restoration, time out after 15 seconds and show a connection error with Retry. Retrying does not erase the stored session. An expired session that signs out during startup triggers a fresh guest read. The GitHub APK workflow checks both public API endpoints before submitting a build to EAS, so an offline tunnel or incompatible endpoint fails before producing another APK.
+
 ## Resume the phone APK build
 
 Use the `v1` branch. The `preview` profile in `eas.json` produces a standalone Android APK with bundled JavaScript, rather than an Expo development client.
