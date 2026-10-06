@@ -277,6 +277,16 @@ Quiet near-white fields have a light stroke, rounded corners, and a 44px web min
 
 Native inputs have a 48 minimum height, 13 padding, a `#C9D2BE` border, and `#FFFEF9` fill. Forms keep error messages near the action; button loading states use a spinner and explicit saving text.
 
+### Dialog focus and continuity
+
+Shared dialogs retain a visible location throughout review, pending work, and dismissal. The optional `initialFocus="title"` starts a consequential review on its programmatically focusable heading; otherwise confirmation dialogs retain their safe-action focus default. When a pending operation disables the active control or leaves focus on the document body, focus moves to the dialog title. Pending dialogs retain their layer and block dismissal.
+
+The optional `fallbackFocus` identifies a logical heading or outcome when the original opener is unavailable. Dismissal first tries the recorded opener chain, then this fallback, accepting only connected, visible, enabled targets outside inactive or closing layers. Restoration waits for closing layers and yields to a newer user focus choice. It preserves the current scroll position unless the restored target is vertically outside the viewport, then reveals it with nearest-edge instant scrolling. Focused titles, recovery notices, and fallback headings keep the established visible Focus outline.
+
+**The Focus Continuity Rule.** Keep focus in the current task during pending work, and return it to an available opener or a visible logical continuation when the dialog closes.
+
+The [October 6 landscape record](docs/V1-LANDSCAPE-OPTIMIZATION.md#desktop-task-continuity-refinement--october-6-2026) owns the package, attention drawer, rescheduling, and receipt surface details; these do not introduce new global tokens.
+
 ### Date picker
 
 Web date fields use the shared `DatePicker` component instead of the browser-native date control. Its anchored popover uses a Monday-first month grid, Indonesian-first month and weekday labels, explicit previous/next-month controls, a “Hari ini” shortcut, min/max date constraints, and complete arrow-key, Home/End, and Page Up/Page Down navigation. The compact variant belongs in operational toolbars; the standard variant fills a form field and submits an ISO `YYYY-MM-DD` value through its `name` prop. Keep date selection in this component so browsers do not introduce a second visual language.

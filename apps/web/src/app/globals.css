@@ -1086,7 +1086,7 @@ td strong {
   left: 14px;
   background: var(--cream);
   color: var(--forest);
-  font-size: 10px;
+  font-size: 12px;
   padding: 5px 9px;
   border-radius: 6px;
   font-weight: 650;
@@ -1269,7 +1269,7 @@ td strong {
   font-size: 13px;
 }
 .how-it-works li p {
-  font-size: 11px;
+  font-size: 13px;
   margin-top: 4px;
 }
 .site-footer {
@@ -2580,7 +2580,7 @@ td strong {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--muted);
 }
 .workspace-icon {

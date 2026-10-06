@@ -17,6 +17,7 @@ import {
   type ReactElement,
   type ReactNode,
   type FormEvent,
+  type RefObject,
 } from "react";
 import { errorLabel, statusLabel } from "@catera/domain";
 import { useApp } from "./context";
@@ -125,7 +126,7 @@ export function ErrorNotice({
   return (
     <div className="error-notice" role="alert">
       <AlertCircle size={20} />
-      <div>
+      <div className="error-notice-content">
         {message}
         {retry && (
           <Button variant="text" onClick={retry}>
@@ -164,6 +165,8 @@ export function Dialog({
   closeLabel,
   onCloseAutoFocus,
   onOpenAutoFocus,
+  fallbackFocus,
+  initialFocus,
   size = "form",
   busy = false,
   id,
@@ -177,6 +180,8 @@ export function Dialog({
   closeLabel?: string;
   onCloseAutoFocus?: (event: Event) => void;
   onOpenAutoFocus?: (event: Event) => void;
+  fallbackFocus?: RefObject<HTMLElement | null>;
+  initialFocus?: "title";
   size?: "confirmation" | "form" | "editor" | "media";
   busy?: boolean;
   id?: string;
@@ -205,6 +210,20 @@ export function Dialog({
     [],
   );
   const pending = busy || pendingForms > 0;
+  useLayoutEffect(() => {
+    if (!open || !pending) return;
+    const active = document.activeElement;
+    if (
+      active === document.body ||
+      (active instanceof HTMLElement &&
+        active.matches(":disabled") &&
+        panel.current?.contains(active))
+    ) {
+      panel.current
+        ?.querySelector<HTMLElement>("[data-dialog-title]")
+        ?.focus({ preventScroll: true });
+    }
+  }, [open, pending]);
   return (
     <DialogPrimitive.Root
       open={present}
@@ -253,7 +272,12 @@ export function Dialog({
               focusReturns.set(panel.current, returnTargets.current);
             onOpenAutoFocus?.(event);
             if (event.defaultPrevented) return;
-            if (size === "confirmation") {
+            if (initialFocus === "title") {
+              event.preventDefault();
+              panel.current
+                ?.querySelector<HTMLElement>("h2")
+                ?.focus({ preventScroll: true });
+            } else if (size === "confirmation") {
               event.preventDefault();
               (
                 panel.current?.querySelector<HTMLElement>(
@@ -271,7 +295,10 @@ export function Dialog({
               // Nested exits can finish on different frames. An earlier return
               // would be pulled back into the remaining Radix focus trap.
               cancelFocusReturn.current?.();
-              const targets = returnTargets.current;
+              const targets = [
+                ...returnTargets.current,
+                ...(fallbackFocus?.current ? [fallbackFocus.current] : []),
+              ];
               const deadline = performance.now() + 1000;
               let frame = 0;
               let cancelled = false;
@@ -304,6 +331,7 @@ export function Dialog({
                 const target = targets.find(
                   (candidate) =>
                     candidate.isConnected &&
+                    candidate.checkVisibility() &&
                     !candidate.matches(":disabled, [aria-disabled='true']") &&
                     !candidate.closest(unavailable),
                 );
@@ -324,6 +352,14 @@ export function Dialog({
                   target.focus({ preventScroll: true });
                   restoring = false;
                   if (document.activeElement === target) {
+                    const bounds = target.getBoundingClientRect();
+                    if (bounds.top < 0 || bounds.bottom > window.innerHeight) {
+                      target.scrollIntoView({
+                        block: "nearest",
+                        inline: "nearest",
+                        behavior: "instant",
+                      });
+                    }
                     cancel();
                     return;
                   }
@@ -336,7 +372,9 @@ export function Dialog({
             }
           }}
         >
-          <DialogPrimitive.Title>{title}</DialogPrimitive.Title>
+          <DialogPrimitive.Title data-dialog-title tabIndex={-1}>
+            {title}
+          </DialogPrimitive.Title>
           {description && (
             <DialogPrimitive.Description>
               {description}
@@ -377,6 +415,8 @@ export function ActionForm({
   onPendingChange,
   onDirtyChange,
   validate,
+  errorResetKey,
+  errorHandled = false,
 }: {
   onSubmit: (f: FormData) => Promise<void>;
   children: ReactNode;
@@ -390,6 +430,8 @@ export function ActionForm({
   onPendingChange?: (pending: boolean) => void;
   onDirtyChange?: (dirty: boolean) => void;
   validate?: (form: FormData) => string | undefined;
+  errorResetKey?: unknown;
+  errorHandled?: boolean;
 }) {
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
@@ -399,6 +441,9 @@ export function ActionForm({
   const errorRef = useRef<HTMLDivElement>(null);
   const submitting = useRef(false);
   const changeDialogBusy = useContext(DialogBusy);
+  useEffect(() => {
+    setError("");
+  }, [errorResetKey]);
   useEffect(() => {
     onPendingChange?.(busy);
     return () => {
@@ -411,7 +456,7 @@ export function ActionForm({
     return () => changeDialogBusy(-1);
   }, [busy, changeDialogBusy]);
   useEffect(() => {
-    if (!error) return;
+    if (!error || errorHandled) return;
     const field = formRef.current?.querySelector<HTMLElement>(
       '[aria-invalid="true"]',
     );
@@ -423,7 +468,7 @@ export function ActionForm({
       }
     }
     (field || errorRef.current)?.focus();
-  }, [error]);
+  }, [error, errorHandled]);
   async function handle(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (submitting.current || disabled) return;
@@ -498,7 +543,7 @@ export function ActionForm({
       }}
     >
       <FormPending.Provider value={busy}>{children}</FormPending.Provider>
-      {error && (
+      {error && !errorHandled && (
         <div ref={errorRef} tabIndex={-1} className="form-error">
           <ErrorNotice message={error} />
         </div>

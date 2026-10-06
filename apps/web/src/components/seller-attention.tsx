@@ -1,11 +1,12 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CircleAlert, ArrowRight } from "lucide-react";
 import {
   mealLabel,
   type SellerAttentionItem,
   type SellerAttentionPage,
+  type SupportCase,
 } from "@catera/domain";
 import { api, useApp, useResource } from "./context";
 import { ActionForm, Dialog, Field, ErrorNotice } from "./ui";
@@ -18,11 +19,17 @@ type AttentionScope = "selected" | "future" | "all";
 export function NeedsAttention({
   catererId,
   date,
+  cases = [],
 }: {
   catererId: string;
   date: string;
+  cases?: SupportCase[];
 }) {
   const { t, locale, perform } = useApp();
+  const attentionHeading = useRef<HTMLHeadingElement>(null);
+  const customers = new Map(
+    cases.map((item) => ["case-" + item.id, item.customerName]),
+  );
   const [scope, setScope] = useState<AttentionScope>("all");
   const [scopeDate, setScopeDate] = useState(date);
   const [mealScope, setMealScope] = useState<"" | "lunch" | "dinner">("");
@@ -124,42 +131,8 @@ export function NeedsAttention({
 
   const total = state.data?.total ?? items.length;
   const visible = expanded ? items : items.slice(0, 3);
-  return (
-    <section
-      className="panel spaced seller-attention"
-      data-expanded={desktopExpanded || undefined}
-      data-empty={(!state.loading && !state.error && total === 0) || undefined}
-      aria-busy={state.loading || loadingMore || undefined}
-      aria-label={t("Perlu perhatian", "Needs attention")}
-    >
-      <div className="section-heading">
-        <div>
-          <h2>
-            <CircleAlert size={20} aria-hidden="true" />{" "}
-            {t("Perlu perhatian", "Needs attention")}{" "}
-            {!state.loading && `(${total})`}
-          </h2>
-          {total > 3 && (
-            <p className="attention-introduction">
-              {t(
-                "Tiga masalah teratas ditampilkan lebih dulu.",
-                "The top three issues appear first.",
-              )}
-            </p>
-          )}
-        </div>
-        <Button
-          variant="text"
-          className="attention-desktop-toggle"
-          aria-expanded={desktopExpanded}
-          aria-controls="attention-tasks"
-          onClick={() => setDesktopExpanded((value) => !value)}
-        >
-          {desktopExpanded
-            ? t("Ringkas", "Collapse")
-            : t("Lihat masalah", "View issues")}
-        </Button>
-      </div>
+  const renderQueue = (suffix: string) => (
+    <>
       <p className="muted attention-scope-summary">
         {scope === "selected"
           ? scopeDate
@@ -174,13 +147,13 @@ export function NeedsAttention({
         variant="text"
         className="attention-scope-toggle"
         aria-expanded={scopeExpanded}
-        aria-controls="attention-scope-details"
+        aria-controls={"attention-scope-details" + suffix}
         onClick={() => setScopeExpanded((value) => !value)}
       >
         {t("Filter masalah", "Filter issues")}
       </Button>
       <div
-        id="attention-scope-details"
+        id={"attention-scope-details" + suffix}
         className="attention-scope-details"
         data-open={scopeExpanded}
       >
@@ -245,23 +218,50 @@ export function NeedsAttention({
               )}
             </p>
           )}
-          <div id="attention-tasks">
+          <div id={"attention-tasks" + suffix}>
             {visible.map((item) => (
               <article className="attention-item" key={item.id}>
                 <Link
                   className="queue-row"
                   href={item.destination || item.href}
+                  onClick={() => setDesktopExpanded(false)}
                 >
                   <span>
-                    <strong>{labels[item.kind][0]}</strong>
+                    <strong>{item.context || labels[item.kind][0]}</strong>
+                    <small className="attention-kind">
+                      {labels[item.kind][0]}
+                    </small>
                     <small>
                       {[
+                        customers.get(item.id),
                         item.serviceDate,
                         item.meal ? mealLabel(item.meal, locale) : null,
                         item.packageName,
                       ]
                         .filter(Boolean)
-                        .join(" · ") || item.context}
+                        .join(" · ")}
+                    </small>
+                    <small className="attention-reference">
+                      {t("Ref.", "Ref.")}{" "}
+                      {item.id
+                        .replace(/^[a-z]+-/, "")
+                        .slice(0, 8)
+                        .toUpperCase()}
+                      <span className="attention-time">
+                        {" "}
+                        ·{" "}
+                        <time dateTime={item.at_time}>
+                          {new Date(item.at_time).toLocaleString(
+                            locale === "id" ? "id-ID" : "en-GB",
+                            {
+                              dateStyle: "medium",
+                              timeStyle: "short",
+                              timeZone: state.data?.timezone || "Asia/Jakarta",
+                            },
+                          )}
+                        </time>{" "}
+                        · {state.data?.timezone || "Asia/Jakarta"}
+                      </span>
                     </small>
                     {(item.kind === "choice_deadline" ||
                       item.kind === "choice_fallback") && (
@@ -307,7 +307,7 @@ export function NeedsAttention({
             <Button
               className="text-button"
               aria-expanded="false"
-              aria-controls="attention-tasks"
+              aria-controls={"attention-tasks" + suffix}
               onClick={() => setExpanded(true)}
             >
               {t("Lihat semua masalah", "View all issues")} · {total}
@@ -348,6 +348,56 @@ export function NeedsAttention({
           )}
         </>
       )}
+    </>
+  );
+  return (
+    <section
+      className="panel spaced seller-attention"
+      data-empty={(!state.loading && !state.error && total === 0) || undefined}
+      aria-busy={state.loading || loadingMore || undefined}
+      aria-label={t("Perlu perhatian", "Needs attention")}
+    >
+      <div className="section-heading">
+        <div>
+          <h2 ref={attentionHeading} tabIndex={-1}>
+            <CircleAlert size={20} aria-hidden="true" />{" "}
+            {t("Perlu perhatian", "Needs attention")}{" "}
+            {!state.loading && `(${total})`}
+          </h2>
+          {total > 3 && (
+            <p className="attention-introduction">
+              {t(
+                "Tiga masalah teratas ditampilkan lebih dulu.",
+                "The top three issues appear first.",
+              )}
+            </p>
+          )}
+        </div>
+        <Button
+          variant="text"
+          className="attention-desktop-toggle"
+          aria-expanded={desktopExpanded}
+          aria-haspopup="dialog"
+          onClick={() => setDesktopExpanded((value) => !value)}
+        >
+          {t("Lihat masalah", "View issues")}
+        </Button>
+      </div>
+      {renderQueue("")}
+      <Dialog
+        open={desktopExpanded}
+        onOpenChange={setDesktopExpanded}
+        title={t("Perlu perhatian", "Needs attention") + ` (${total})`}
+        description={t(
+          "Tinjau masalah tanpa mengubah filter atau posisi daftar pesanan.",
+          "Review issues while keeping your order filters and list position.",
+        )}
+        className="attention-drawer"
+        size="editor"
+        fallbackFocus={attentionHeading}
+      >
+        {renderQueue("-drawer")}
+      </Dialog>
       <Dialog
         open={!!handled}
         onOpenChange={(open) => {

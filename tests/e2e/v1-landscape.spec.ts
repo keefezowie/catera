@@ -1,11 +1,28 @@
 import { expect, test, type Page } from "@playwright/test";
-import type { CustomerState, SellerOperationsState } from "@catera/domain";
+import {
+  addDays,
+  localDay,
+  type CustomerState,
+  type SellerOperationsState,
+} from "@catera/domain";
 
 const catererId = "10000000-0000-4000-8000-000000000001";
 async function login(page: Page, role: string) {
   expect(
     (await page.request.post("/api/v1/auth/demo", { data: { role } })).ok(),
   ).toBe(true);
+}
+async function sellerDay(page: Page) {
+  for (const delta of [-1, 1, 0, 2, 3]) {
+    const date = addDays(localDay(), delta);
+    const state: SellerOperationsState = (
+      await (
+        await page.request.get(`/api/v1/seller/${catererId}?date=${date}`)
+      ).json()
+    ).data;
+    if (state.deliveries.length) return state;
+  }
+  throw new Error("No nearby populated synthetic seller day");
 }
 test.beforeEach(async ({ context, baseURL }) => {
   await context.addCookies([
@@ -23,7 +40,12 @@ for (const [width, height] of [
   }) => {
     await page.setViewportSize({ width, height });
     await login(page, "owner");
-    await page.goto("/seller");
+    const state = await sellerDay(page);
+    const date = state.deliveries[0].service_date;
+    await page.route(`**/api/v1/seller/${catererId}*`, (r) =>
+      r.fulfill({ json: { data: { ...state, today: date } } }),
+    );
+    await page.goto(`/seller?date=${date}&meal=lunch`);
     const action = page.locator(".order-next").first();
     await expect(action).toBeVisible();
     const box = (await action.boundingBox())!;
@@ -100,9 +122,8 @@ test("marking an order delivered requires review and a conflict preserves recove
   page,
 }) => {
   await login(page, "owner");
-  const state: SellerOperationsState = (
-    await (await page.request.get(`/api/v1/seller/${catererId}`)).json()
-  ).data;
+  const state = await sellerDay(page);
+  const date = state.deliveries[0].service_date;
   const deliveries = state.deliveries.map((delivery) => ({
     ...delivery,
     status: "out_for_delivery",
@@ -112,7 +133,7 @@ test("marking an order delivered requires review and a conflict preserves recove
     })),
   }));
   await page.route(`**/api/v1/seller/${catererId}*`, (route) =>
-    route.fulfill({ json: { data: { ...state, deliveries } } }),
+    route.fulfill({ json: { data: { ...state, today: date, deliveries } } }),
   );
   let mutations = 0;
   await page.route("**/api/v1/commands", async (route) => {
@@ -125,10 +146,10 @@ test("marking an order delivered requires review and a conflict preserves recove
     });
   });
 
-  await page.goto("/seller?meal=lunch");
+  await page.goto(`/seller?date=${date}&meal=lunch`);
   await page.locator(".order-next").first().click();
   await expect(
-    page.getByRole("dialog", { name: "Confirm order update" }),
+    page.getByRole("dialog", { name: "Confirm meals received" }),
   ).toBeVisible();
   expect(mutations).toBe(0);
   await expect(page.locator(".bulk-confirmation")).toContainText("Delivered");
@@ -138,16 +159,17 @@ test("marking an order delivered requires review and a conflict preserves recove
   await expect(page.locator(".confirmation-orders")).toContainText(
     deliveries[0].offer.name,
   );
+  await page.getByRole("dialog").getByRole("checkbox").check();
   await page
     .getByRole("dialog")
-    .getByRole("button", { name: "Confirm change", exact: true })
+    .getByRole("button", { name: "Mark received", exact: true })
     .click();
   await expect(page.locator(".ops-orders-panel [role=alert]")).toContainText(
     "This batch made no changes",
   );
   expect(mutations).toBe(1);
   await expect(
-    page.getByRole("dialog", { name: "Confirm order update" }),
+    page.getByRole("dialog", { name: "Confirm meals received" }),
   ).toHaveCount(0);
   await expect(
     page
@@ -166,14 +188,14 @@ test("the complete Indonesian order row fits at 1280 with the long delivery stat
     { name: "catera_locale", value: "id", url: baseURL! },
   ]);
   await login(page, "owner");
-  const state: SellerOperationsState = (
-    await (await page.request.get(`/api/v1/seller/${catererId}`)).json()
-  ).data;
+  const state = await sellerDay(page);
+  const date = state.deliveries[0].service_date;
   await page.route(`**/api/v1/seller/${catererId}*`, (route) =>
     route.fulfill({
       json: {
         data: {
           ...state,
+          today: date,
           deliveries: state.deliveries.map((delivery) => ({
             ...delivery,
             meals: delivery.meals.map((meal) => ({
@@ -185,7 +207,7 @@ test("the complete Indonesian order row fits at 1280 with the long delivery stat
       },
     }),
   );
-  await page.goto("/seller?meal=lunch");
+  await page.goto(`/seller?date=${date}&meal=lunch`);
   const row = page
     .locator(".ops-order-table tbody tr:not(.ops-group-heading)")
     .first();
@@ -334,7 +356,7 @@ for (const locale of ["en", "id"]) {
     await expect.poll(() => reads).toBeGreaterThanOrEqual(2);
     await expect(
       page.getByRole("dialog").getByRole("alert").first(),
-    ).toContainText(locale === "en" ? "delivered" : "Terkirim");
+    ).toContainText(locale === "en" ? "delivered" : "Diterima");
     await expect(
       page.getByRole("button", {
         name: locale === "en" ? "Review change" : "Tinjau perubahan",

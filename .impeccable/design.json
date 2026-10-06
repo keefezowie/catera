@@ -1,0 +1,430 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-06T02:50:59.267568+00:00",
+  "title": "Design System: Catera V1",
+  "extensions": {
+    "colorMeta": {
+      "forest": {
+        "role": "primary",
+        "displayName": "Forest",
+        "canonical": "#163D2E",
+        "tonalRamp": [
+          "oklch(15.00% 0.05208 165.29)",
+          "oklch(26.43% 0.05208 165.29)",
+          "oklch(37.86% 0.05208 165.29)",
+          "oklch(49.29% 0.05208 165.29)",
+          "oklch(60.71% 0.05208 165.29)",
+          "oklch(72.14% 0.05208 165.29)",
+          "oklch(83.57% 0.05208 165.29)",
+          "oklch(95.00% 0.05208 165.29)"
+        ]
+      },
+      "forest-hover": {
+        "role": "primary",
+        "displayName": "Forest Hover",
+        "canonical": "#25553F",
+        "tonalRamp": [
+          "oklch(15.00% 0.06479 161.69)",
+          "oklch(26.43% 0.06479 161.69)",
+          "oklch(37.86% 0.06479 161.69)",
+          "oklch(49.29% 0.06479 161.69)",
+          "oklch(60.71% 0.06479 161.69)",
+          "oklch(72.14% 0.06479 161.69)",
+          "oklch(83.57% 0.06479 161.69)",
+          "oklch(95.00% 0.06479 161.69)"
+        ]
+      },
+      "sunrise": {
+        "role": "secondary",
+        "displayName": "Sunrise",
+        "canonical": "#F47B2A",
+        "tonalRamp": [
+          "oklch(15.00% 0.17220 49.40)",
+          "oklch(26.43% 0.17220 49.40)",
+          "oklch(37.86% 0.17220 49.40)",
+          "oklch(49.29% 0.17220 49.40)",
+          "oklch(60.71% 0.17220 49.40)",
+          "oklch(72.14% 0.17220 49.40)",
+          "oklch(83.57% 0.17220 49.40)",
+          "oklch(95.00% 0.17220 49.40)"
+        ]
+      },
+      "sunrise-ink": {
+        "role": "secondary",
+        "displayName": "Sunrise Ink",
+        "canonical": "#9B4309",
+        "tonalRamp": [
+          "oklch(15.00% 0.13262 46.49)",
+          "oklch(26.43% 0.13262 46.49)",
+          "oklch(37.86% 0.13262 46.49)",
+          "oklch(49.29% 0.13262 46.49)",
+          "oklch(60.71% 0.13262 46.49)",
+          "oklch(72.14% 0.13262 46.49)",
+          "oklch(83.57% 0.13262 46.49)",
+          "oklch(95.00% 0.13262 46.49)"
+        ]
+      },
+      "cream": {
+        "role": "secondary",
+        "displayName": "Cream",
+        "canonical": "#FFF7E9",
+        "tonalRamp": [
+          "oklch(15.00% 0.02034 81.78)",
+          "oklch(26.43% 0.02034 81.78)",
+          "oklch(37.86% 0.02034 81.78)",
+          "oklch(49.29% 0.02034 81.78)",
+          "oklch(60.71% 0.02034 81.78)",
+          "oklch(72.14% 0.02034 81.78)",
+          "oklch(83.57% 0.02034 81.78)",
+          "oklch(95.00% 0.02034 81.78)"
+        ]
+      },
+      "charcoal": {
+        "role": "neutral",
+        "displayName": "Charcoal",
+        "canonical": "#2E2E2E",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 89.88)",
+          "oklch(26.43% 0.00000 89.88)",
+          "oklch(37.86% 0.00000 89.88)",
+          "oklch(49.29% 0.00000 89.88)",
+          "oklch(60.71% 0.00000 89.88)",
+          "oklch(72.14% 0.00000 89.88)",
+          "oklch(83.57% 0.00000 89.88)",
+          "oklch(95.00% 0.00000 89.88)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Surface",
+        "canonical": "#FFFEFA",
+        "tonalRamp": [
+          "oklch(15.00% 0.00537 95.10)",
+          "oklch(26.43% 0.00537 95.10)",
+          "oklch(37.86% 0.00537 95.10)",
+          "oklch(49.29% 0.00537 95.10)",
+          "oklch(60.71% 0.00537 95.10)",
+          "oklch(72.14% 0.00537 95.10)",
+          "oklch(83.57% 0.00537 95.10)",
+          "oklch(95.00% 0.00537 95.10)"
+        ]
+      },
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Canvas",
+        "canonical": "#FDFAF3",
+        "tonalRamp": [
+          "oklch(15.00% 0.00978 87.47)",
+          "oklch(26.43% 0.00978 87.47)",
+          "oklch(37.86% 0.00978 87.47)",
+          "oklch(49.29% 0.00978 87.47)",
+          "oklch(60.71% 0.00978 87.47)",
+          "oklch(72.14% 0.00978 87.47)",
+          "oklch(83.57% 0.00978 87.47)",
+          "oklch(95.00% 0.00978 87.47)"
+        ]
+      },
+      "sage": {
+        "role": "primary",
+        "displayName": "Sage",
+        "canonical": "#F0F3E9",
+        "tonalRamp": [
+          "oklch(15.00% 0.01359 120.28)",
+          "oklch(26.43% 0.01359 120.28)",
+          "oklch(37.86% 0.01359 120.28)",
+          "oklch(49.29% 0.01359 120.28)",
+          "oklch(60.71% 0.01359 120.28)",
+          "oklch(72.14% 0.01359 120.28)",
+          "oklch(83.57% 0.01359 120.28)",
+          "oklch(95.00% 0.01359 120.28)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted",
+        "canonical": "#60675F",
+        "tonalRamp": [
+          "oklch(15.00% 0.01514 141.76)",
+          "oklch(26.43% 0.01514 141.76)",
+          "oklch(37.86% 0.01514 141.76)",
+          "oklch(49.29% 0.01514 141.76)",
+          "oklch(60.71% 0.01514 141.76)",
+          "oklch(72.14% 0.01514 141.76)",
+          "oklch(83.57% 0.01514 141.76)",
+          "oklch(95.00% 0.01514 141.76)"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Line",
+        "canonical": "#E2E3D8",
+        "tonalRamp": [
+          "oklch(15.00% 0.01476 110.90)",
+          "oklch(26.43% 0.01476 110.90)",
+          "oklch(37.86% 0.01476 110.90)",
+          "oklch(49.29% 0.01476 110.90)",
+          "oklch(60.71% 0.01476 110.90)",
+          "oklch(72.14% 0.01476 110.90)",
+          "oklch(83.57% 0.01476 110.90)",
+          "oklch(95.00% 0.01476 110.90)"
+        ]
+      },
+      "danger": {
+        "role": "neutral",
+        "displayName": "Danger",
+        "canonical": "#A33024",
+        "tonalRamp": [
+          "oklch(15.00% 0.15303 29.67)",
+          "oklch(26.43% 0.15303 29.67)",
+          "oklch(37.86% 0.15303 29.67)",
+          "oklch(49.29% 0.15303 29.67)",
+          "oklch(60.71% 0.15303 29.67)",
+          "oklch(72.14% 0.15303 29.67)",
+          "oklch(83.57% 0.15303 29.67)",
+          "oklch(95.00% 0.15303 29.67)"
+        ]
+      },
+      "focus": {
+        "role": "neutral",
+        "displayName": "Focus",
+        "canonical": "#B65B13",
+        "tonalRamp": [
+          "oklch(15.00% 0.14002 51.75)",
+          "oklch(26.43% 0.14002 51.75)",
+          "oklch(37.86% 0.14002 51.75)",
+          "oklch(49.29% 0.14002 51.75)",
+          "oklch(60.71% 0.14002 51.75)",
+          "oklch(72.14% 0.14002 51.75)",
+          "oklch(83.57% 0.14002 51.75)",
+          "oklch(95.00% 0.14002 51.75)"
+        ]
+      },
+      "field-border": {
+        "role": "neutral",
+        "displayName": "Field Border",
+        "canonical": "#CFD3C6",
+        "tonalRamp": [
+          "oklch(15.00% 0.01816 120.73)",
+          "oklch(26.43% 0.01816 120.73)",
+          "oklch(37.86% 0.01816 120.73)",
+          "oklch(49.29% 0.01816 120.73)",
+          "oklch(60.71% 0.01816 120.73)",
+          "oklch(72.14% 0.01816 120.73)",
+          "oklch(83.57% 0.01816 120.73)",
+          "oklch(95.00% 0.01816 120.73)"
+        ]
+      },
+      "secondary-border": {
+        "role": "neutral",
+        "displayName": "Secondary Border",
+        "canonical": "#CDD4C4",
+        "tonalRamp": [
+          "oklch(15.00% 0.02299 126.27)",
+          "oklch(26.43% 0.02299 126.27)",
+          "oklch(37.86% 0.02299 126.27)",
+          "oklch(49.29% 0.02299 126.27)",
+          "oklch(60.71% 0.02299 126.27)",
+          "oklch(72.14% 0.02299 126.27)",
+          "oklch(83.57% 0.02299 126.27)",
+          "oklch(95.00% 0.02299 126.27)"
+        ]
+      },
+      "scheduled-bg": {
+        "role": "neutral",
+        "displayName": "Scheduled Bg",
+        "canonical": "#EDF1E6",
+        "tonalRamp": [
+          "oklch(15.00% 0.01517 123.04)",
+          "oklch(26.43% 0.01517 123.04)",
+          "oklch(37.86% 0.01517 123.04)",
+          "oklch(49.29% 0.01517 123.04)",
+          "oklch(60.71% 0.01517 123.04)",
+          "oklch(72.14% 0.01517 123.04)",
+          "oklch(83.57% 0.01517 123.04)",
+          "oklch(95.00% 0.01517 123.04)"
+        ]
+      },
+      "scheduled-ink": {
+        "role": "neutral",
+        "displayName": "Scheduled Ink",
+        "canonical": "#4F6445",
+        "tonalRamp": [
+          "oklch(15.00% 0.05453 135.80)",
+          "oklch(26.43% 0.05453 135.80)",
+          "oklch(37.86% 0.05453 135.80)",
+          "oklch(49.29% 0.05453 135.80)",
+          "oklch(60.71% 0.05453 135.80)",
+          "oklch(72.14% 0.05453 135.80)",
+          "oklch(83.57% 0.05453 135.80)",
+          "oklch(95.00% 0.05453 135.80)"
+        ]
+      }
+    },
+    "shadows": [
+      {
+        "name": "dialog",
+        "value": "0 20px 70px #0b201f30",
+        "purpose": "Modal-layer separation; ordinary operations panels remain flat."
+      }
+    ],
+    "motion": [
+      {
+        "name": "control-feedback",
+        "value": "120ms",
+        "purpose": "Existing web control feedback; reduced motion disables movement."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "intermediate",
+        "value": "1150px"
+      },
+      {
+        "name": "tablet",
+        "value": "800px"
+      },
+      {
+        "name": "phone",
+        "value": "560px"
+      },
+      {
+        "name": "wide",
+        "value": "1500px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary button",
+      "kind": "button",
+      "description": "Existing shared web action variant.",
+      "html": "<button class=\"ds-button-primary\">Lanjutkan</button>",
+      "css": ".ds-button-primary{font-family:Jakarta,sans-serif;min-height:48px;display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:12px 20px;border:1px solid transparent;border-radius:10px;background:var(--forest);color:var(--cream);font-size:13px;font-weight:650;transition:background .18s;}.ds-button-primary:hover{background:var(--forest-hover);}.ds-button-primary:focus-visible{outline:3px solid var(--focus);outline-offset:4px;}.ds-button-primary:disabled{opacity:.5;pointer-events:none;}@media(prefers-reduced-motion:reduce){.ds-button-primary{transition:none;}}",
+      "refersTo": "button-primary"
+    },
+    {
+      "name": "Secondary button",
+      "kind": "button",
+      "description": "Existing shared web action variant.",
+      "html": "<button class=\"ds-button-secondary\">Lanjutkan</button>",
+      "css": ".ds-button-secondary{font-family:Jakarta,sans-serif;min-height:48px;display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:12px 20px;border:1px solid var(--secondary-border,#cdd4c4);border-radius:10px;background:transparent;color:var(--forest);font-size:13px;font-weight:650;transition:background .18s;}.ds-button-secondary:hover{background:var(--soft);}.ds-button-secondary:focus-visible{outline:3px solid var(--focus);outline-offset:4px;}.ds-button-secondary:disabled{opacity:.5;pointer-events:none;}@media(prefers-reduced-motion:reduce){.ds-button-secondary{transition:none;}}",
+      "refersTo": "button-secondary"
+    },
+    {
+      "name": "Cream button",
+      "kind": "button",
+      "description": "Existing shared web action variant.",
+      "html": "<button class=\"ds-button-cream\">Lanjutkan</button>",
+      "css": ".ds-button-cream{font-family:Jakarta,sans-serif;min-height:48px;display:inline-flex;align-items:center;justify-content:center;gap:10px;padding:12px 20px;border:1px solid transparent;border-radius:10px;background:var(--cream);color:var(--forest);font-size:13px;font-weight:650;transition:background .18s;}.ds-button-cream:hover{background:#fbe6c8;}.ds-button-cream:focus-visible{outline:3px solid var(--focus);outline-offset:4px;}.ds-button-cream:disabled{opacity:.5;pointer-events:none;}@media(prefers-reduced-motion:reduce){.ds-button-cream{transition:none;}}",
+      "refersTo": "button-cream"
+    },
+    {
+      "name": "Text button",
+      "kind": "button",
+      "description": "Quiet secondary task action.",
+      "html": "<button class=\"ds-button-text\">Ubah tanggal pilihan</button>",
+      "css": ".ds-button-text{font-family:Jakarta,sans-serif;min-height:44px;border:0;background:none;color:var(--forest);padding:10px 0;font-size:12px;font-weight:650;}.ds-button-text:hover{text-decoration:underline;}.ds-button-text:focus-visible{outline:3px solid var(--focus);outline-offset:4px;}",
+      "refersTo": "button-text"
+    },
+    {
+      "name": "Input",
+      "kind": "input",
+      "description": "Shared near-white form field.",
+      "html": "<input class=\"ds-input\" aria-label=\"Nama\" placeholder=\"Nama\" />",
+      "css": ".ds-input{font-family:Jakarta,sans-serif;min-height:44px;padding:11px 13px;border:1px solid var(--field-border);border-radius:9px;background:var(--surface);color:var(--ink);font-size:14px;}.ds-input::placeholder{color:var(--muted);}.ds-input:focus-visible{outline:3px solid var(--focus);outline-offset:4px;}",
+      "refersTo": "input"
+    },
+    {
+      "name": "Operations navigation",
+      "kind": "nav",
+      "description": "Separate seller navigation with an explicit selected destination.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Ruang katerer\"><a href=\"#today\" aria-current=\"page\">Hari ini</a><a href=\"#schedule\">Jadwal</a></nav>",
+      "css": ".ds-nav{display:flex;flex-direction:column;gap:3px;}.ds-nav a{font-family:Jakarta,sans-serif;display:flex;align-items:center;min-height:44px;padding:11px 13px;border-radius:8px;font-size:12px;font-weight:550;color:#52604d;text-decoration:none;}.ds-nav a[aria-current]{background:var(--forest);color:var(--cream);}.ds-nav a:hover:not([aria-current]){background:#edf1e5;}.ds-nav a:focus-visible{outline:3px solid var(--focus);outline-offset:4px;}",
+      "refersTo": "nav-selected"
+    },
+    {
+      "name": "Selected meal chip",
+      "kind": "chip",
+      "description": "Selected meal filter uses forest and an explicit pressed state.",
+      "html": "<button class=\"ds-chip\" aria-pressed=\"true\">Makan siang</button>",
+      "css": ".ds-chip{font-family:Jakarta,sans-serif;min-height:44px;border:1px solid var(--forest);padding:10px 18px;border-radius:9px;background:var(--forest);color:var(--cream);font-size:12px;font-weight:600;}.ds-chip:focus-visible{outline:3px solid var(--focus);outline-offset:4px;}",
+      "refersTo": "chip-selected"
+    },
+    {
+      "name": "Operations panel",
+      "kind": "card",
+      "description": "Flat bordered container for operational work.",
+      "html": "<section class=\"ds-panel\"><h2>Pesanan</h2><p>Periksa tanggal dan waktu makan.</p></section>",
+      "css": ".ds-panel{font-family:Jakarta,sans-serif;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:24px;}.ds-panel h2{font-size:20px;font-weight:750;color:var(--forest);margin:0 0 18px;}.ds-panel p{font-size:14px;color:var(--muted);}"
+    },
+    {
+      "name": "Dialog title focus",
+      "kind": "custom",
+      "description": "Visual preview only: runtime Dialog supplies trapping, pending safeguards and restoration described in DESIGN.md.",
+      "html": "<section class=\"ds-dialog\"><h2 tabindex=\"-1\">Konfirmasi pembaruan pesanan</h2><p>Periksa cakupan ini sebelum status pesanan diubah.</p></section>",
+      "css": ".ds-dialog{font-family:Jakarta,sans-serif;background:var(--canvas);color:var(--ink);border-radius:16px;padding:28px;max-width:440px;box-shadow:0 20px 70px #0b201f30;}.ds-dialog h2{font-size:25px;color:var(--forest);font-weight:750;}.ds-dialog h2:focus{outline:3px solid var(--focus);outline-offset:4px;border-radius:4px;}.ds-dialog p{font-size:14px;color:var(--muted);}"
+    },
+    {
+      "name": "Meal agenda",
+      "kind": "card",
+      "refersTo": "meal-agenda",
+      "description": "Existing sage agenda vocabulary; illustrative content, not a new page composition.",
+      "html": "<section class=\"ds-agenda\"><h2>Agenda makan</h2><div class=\"ds-agenda-row\"><svg width=\"22\" height=\"22\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"4\"/><path d=\"M12 2v2m0 16v2M2 12h2m16 0h2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41m0-14.14-1.41 1.41M6.34 17.66l-1.41 1.41\"/></svg><div><small>Makan siang</small><strong>Ayam Panggang Harian</strong><p>1 porsi</p></div></div></section>",
+      "css": ".ds-agenda{font-family:Jakarta,sans-serif;padding:28px;background:var(--soft);color:var(--ink);border-radius:16px;}.ds-agenda h2{font-size:24px;font-weight:750;color:var(--forest);}.ds-agenda-row{display:grid;grid-template-columns:22px minmax(0,1fr);gap:12px;padding:22px 0;align-items:start;}.ds-agenda-row svg{color:var(--forest);margin-top:3px;}.ds-agenda-row small{display:block;font-size:12px;color:var(--muted);margin-bottom:8px;}.ds-agenda-row strong{display:block;font-size:18px;}.ds-agenda-row p{font-size:12px;color:var(--muted);margin:8px 0 0;}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Delivery cycle",
+    "overview": "Catera makes recurring meals feel tangible, warm, and organized. Food photography carries discovery; the rounded illustrated wordmark and occasional bento mascot add personality. Forest actions, cream fields, and a clear Jakarta hierarchy connect the customer experience to quieter, denser seller and platform-admin workspaces. Indonesian is the primary interface language; preserve the name Catera and the tagline “Good Food on Repeat.”\n\nThis records the built September 9, 2026 V1 marketplace world. The code-first direction is already approved; there is no page comp or new concept-selection step. PRODUCT.md provides the current product baseline, while docs/V1-UI-BRIEF.md owns surface composition. The archived pilot design is historical evidence and does not steer new V1 screens.\n\nGround truth is the [shared tokens](packages/design-tokens/src/index.ts), the complete cascade in [web global styles](apps/web/src/app/globals.css), [web components](apps/web/src/components), [native UI source](apps/customer/src/ui.tsx), and the [brand package](packages/brand/README.md). The frontmatter records reused implemented web primitives; the sidecar adds previews and extensions. This is documentation of the local build, not a release certificate.",
+    "keyCharacteristics": [
+      "Food photographs lead discovery; brand illustrations appear at supporting moments.",
+      "Warm surfaces, forest emphasis, and a compact, expressive sans-serif hierarchy.",
+      "Daily meal context stays legible alongside quieter subscription and operational lists.",
+      "Text names states and actions; color supports their meaning.",
+      "Web and native share identity assets while retaining their implemented platform-specific dimensions."
+    ],
+    "rules": [
+      {
+        "name": "The Food First Rule",
+        "body": "Use meal photography for food discovery and the next-meal focal point; keep the mascot as supporting brand warmth.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Interface Family Rule",
+        "body": "Use the self-hosted Jakarta face for interface text. Keep the illustrated wordmark separate from live UI typography.",
+        "section": "typography"
+      },
+      {
+        "name": "The Quiet Work Rule",
+        "body": "Use borders and tonal surfaces for ordinary content; reserve stronger depth for floating feedback and modal layers.",
+        "section": "elevation & depth"
+      },
+      {
+        "name": "The Focus Continuity Rule",
+        "body": "Keep focus in the current task during pending work, and return it to an available opener or a visible logical continuation when the dialog closes.",
+        "section": "components"
+      },
+      {
+        "name": "The Truthful State Rule",
+        "body": "Pair state color with explicit text, and make the selected filter and its empty result visible.",
+        "section": "components"
+      }
+    ],
+    "dos": [
+      "**Do** use the approved forest, sunrise, cream, and charcoal identity with the current supporting tokens.",
+      "**Do** preserve complete brand compositions, intrinsic aspect ratios, provenance, and the actual dimensions of every generated asset.",
+      "**Do** lead food discovery with meal photography; use synthetic food only in explicitly labeled demo listings.",
+      "**Do** maintain distinct customer, seller, and platform-admin navigation with Indonesian-first labels.",
+      "**Do** keep the next meal and lunch/dinner agenda adjacent on wide customer home and ordered before flat subscriptions on phone.",
+      "**Do** preserve text labels, keyboard focus, reduced-motion handling, and the native source’s 48 dp control sizing."
+    ],
+    "donts": [
+      "**Don't** crop the reference board or extract a sprite to create a runtime brand asset.",
+      "**Don't** describe an opaque PNG, matte, checkerboard, blend mode, or upscaled derivative as a true transparent or high-resolution master.",
+      "**Don't** reuse the superseded pilot palette, system-font hierarchy, or tenant-only surface model for V1.",
+      "**Don't** replace food photographs with mascot decoration or recreate the wordmark as interface text.",
+      "**Don't** turn customer-home subscription rows back into nested cards or imply a pending verification workload when the selected queue is empty.",
+      "**Don't** treat the web verdict, native source checks, or this documentation as device visual approval or production-release approval."
+    ]
+  }
+}

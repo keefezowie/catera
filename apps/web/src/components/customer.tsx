@@ -14,7 +14,7 @@ import { FoodImage } from "./food-image";
 import { OptionalSection } from "./optional-section";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -663,7 +663,7 @@ function SubscriptionDetail({
         rows={[
           [
             t("Sisa pengantaran", "Remaining days"),
-            s.remaining + " " + t("hari", "days"),
+            s.remaining + " " + t("hari", s.remaining === 1 ? "day" : "days"),
           ],
           [t("Porsi tetap", "Fixed portions"), s.portions],
           [
@@ -783,13 +783,34 @@ export function DeliveryPage({ id }: { id: string }) {
   );
   const [dialog, setDialog] = useState("");
   const [replacement, setReplacement] = useState("");
-  const [replacementKind, setReplacementKind] = useState<"reschedule" | "skip">(
-    "reschedule",
-  );
   const [review, setReview] = useState(false);
   const [changeRejected, setChangeRejected] = useState(false);
+  const managementHeading = useRef<HTMLHeadingElement>(null);
+  const reviewHeading = useRef<HTMLHeadingElement>(null);
+  const recoveryNotice = useRef<HTMLParagraphElement>(null);
+  const refreshNotice = useRef<HTMLDivElement>(null);
+  const replacementPicker = useRef<HTMLDivElement>(null);
   const d = state.data?.deliveries.find((delivery) => delivery.id === id);
   const [now, setNow] = useState(() => Date.now());
+  const changeClosed =
+    !!dialog &&
+    !!d &&
+    (!(dialog === "address" ? d.status === "scheduled" : d.canChange) ||
+      Date.parse(d.cutoff_at) <= now);
+  useEffect(() => {
+    if (changeClosed && !state.stale) recoveryNotice.current?.focus();
+    else if (changeRejected && dialog && !review)
+      refreshNotice.current?.focus({ preventScroll: true });
+    else if (review && dialog === "schedule" && !state.loading)
+      reviewHeading.current?.focus();
+  }, [
+    changeClosed,
+    review,
+    dialog,
+    changeRejected,
+    state.stale,
+    state.loading,
+  ]);
   useEffect(() => {
     if (!d?.cutoff_at) return;
     const cutoffAt = Date.parse(d.cutoff_at);
@@ -854,7 +875,9 @@ export function DeliveryPage({ id }: { id: string }) {
         <ErrorNotice message={state.error} retry={state.reload} />
       )}
       <section className="delivery-management-summary">
-        <h2>{t("Kelola pengantaran", "Manage delivery")}</h2>
+        <h2 ref={managementHeading} tabIndex={-1}>
+          {t("Kelola pengantaran", "Manage delivery")}
+        </h2>
         {!canChange && (
           <p className="notice delivery-change-reason">
             {!d.offer.flexible
@@ -929,7 +952,6 @@ export function DeliveryPage({ id }: { id: string }) {
               setChangeRejected(false);
               setDialog("schedule");
               setReplacement("");
-              setReplacementKind("reschedule");
               setReview(false);
             }}
           >
@@ -999,6 +1021,7 @@ export function DeliveryPage({ id }: { id: string }) {
       </OptionalSection>
       <Dialog
         open={!!dialog}
+        fallbackFocus={managementHeading}
         onOpenChange={(o) => {
           if (!o) setDialog("");
         }}
@@ -1020,7 +1043,7 @@ export function DeliveryPage({ id }: { id: string }) {
         }
       >
         {dialog && !(dialog === "address" ? canAddress : canChange) && (
-          <p className="notice" role="alert">
+          <p className="notice" role="alert" tabIndex={-1} ref={recoveryNotice}>
             {Date.parse(d.cutoff_at) <= now
               ? t(
                   "Batas perubahan telah lewat. Tutup jendela ini untuk melihat jadwal terbaru.",
@@ -1035,18 +1058,31 @@ export function DeliveryPage({ id }: { id: string }) {
         {(state.stale ||
           (changeRejected &&
             (dialog === "address" ? canAddress : canChange))) && (
-          <div className="notice" role="status">
+          <div
+            className="notice"
+            role={state.stale ? "alert" : "status"}
+            ref={refreshNotice}
+            tabIndex={-1}
+          >
             {state.loading
               ? t(
                   "Memuat status pengantaran terbaru…",
-                  "Loading the current delivery status…",
+                  "Refreshing delivery status and replacement dates…",
                 )
               : state.stale
-                ? state.error
-                : t(
-                    "Status pengantaran sudah dimuat ulang. Periksa cakupan terbaru sebelum mencoba lagi.",
-                    "Delivery status refreshed. Review the current details before trying again.",
-                  )}
+                ? t(
+                    "Perubahan belum dapat dikonfirmasi, dan status terbaru gagal dimuat. Muat ulang status dan tanggal sebelum meninjau lagi. Pilihan tanggal Anda tetap tersimpan.",
+                    "The change could not be confirmed, and current details could not be loaded. Reload status and dates before reviewing again. Your selected date is retained.",
+                  )
+                : availability.error && dialog === "schedule"
+                  ? t(
+                      "Status pengantaran sudah dimuat ulang, tetapi tanggal pengganti gagal dimuat. Muat ulang tanggal sebelum meninjau lagi.",
+                      "Delivery status refreshed, but replacement dates could not load. Reload dates before reviewing again.",
+                    )
+                  : t(
+                      "Status pengantaran sudah dimuat ulang. Periksa cakupan terbaru sebelum mencoba lagi.",
+                      "Delivery status refreshed. Review the current details before trying again.",
+                    )}
             <Button
               variant="text"
               disabled={state.loading || availability.loading}
@@ -1062,7 +1098,9 @@ export function DeliveryPage({ id }: { id: string }) {
         )}
         {!state.stale && !(dialog === "address" ? canAddress : canChange) ? (
           <div className="action-row">
-            <Button onClick={() => setDialog("")}>{t("Tutup", "Close")}</Button>
+            <Button variant="secondary" onClick={() => setDialog("")}>
+              {t("Tutup", "Close")}
+            </Button>
             <Link
               className="button secondary"
               href={"/messages?caterer=" + d.offer.catererId}
@@ -1073,6 +1111,8 @@ export function DeliveryPage({ id }: { id: string }) {
         ) : dialog === "address" ? (
           <ActionForm
             key={"address:" + d.version}
+            errorResetKey={state.data}
+            errorHandled={changeRejected}
             disabled={!canAddress || mutationsDisabled}
             submit={t("Simpan alamat pengantaran", "Save delivery address")}
             onSubmit={async (f) => {
@@ -1108,6 +1148,8 @@ export function DeliveryPage({ id }: { id: string }) {
         ) : (
           <ActionForm
             key={"schedule:" + d.version + ":" + replacement}
+            errorResetKey={state.data}
+            errorHandled={changeRejected}
             disabled={
               !canChange ||
               !replacement ||
@@ -1127,6 +1169,7 @@ export function DeliveryPage({ id }: { id: string }) {
                 const choice = availableOn.get(replacement);
                 if (!choice?.available)
                   throw new Error(choice?.reason || "INVALID_DATE");
+                setChangeRejected(false);
                 setReview(true);
                 return;
               }
@@ -1135,7 +1178,7 @@ export function DeliveryPage({ id }: { id: string }) {
                   id: d.id,
                   version: d.version,
                   date: replacement,
-                  kind: replacementKind,
+                  kind: "reschedule",
                 });
                 setDialog("");
               } catch (error) {
@@ -1150,123 +1193,139 @@ export function DeliveryPage({ id }: { id: string }) {
               }
             }}
           >
-            <fieldset className="replacement-intent">
-              <legend>{t("Tujuan perubahan", "Change intent")}</legend>
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={!canChange || mutationsDisabled}
-                aria-pressed={replacementKind === "reschedule"}
-                onClick={() => {
-                  setReplacementKind("reschedule");
-                  setReview(false);
-                }}
-              >
-                {t("Pindahkan pengantaran", "Move this delivery")}
-              </Button>
-              <Button
-                type="button"
-                className="text-button"
-                disabled={!canChange || mutationsDisabled}
-                aria-pressed={replacementKind === "skip"}
-                onClick={() => {
-                  setReplacementKind("skip");
-                  setReview(false);
-                }}
-              >
-                {t(
-                  "Lewati tanggal ini dan pilih pengganti",
-                  "Skip this date and choose a replacement",
+            {!review && (
+              <>
+                <p className="schedule-replacement-explanation">
+                  {t(
+                    "Untuk melewati tanggal ini, pilih tanggal pengganti yang tersedia. Jumlah pengantaran dan porsi tetap sama.",
+                    "To skip this date, choose an available replacement. Your number of deliveries and portions stay the same.",
+                  )}
+                </p>
+                {availability.loading && !availability.hasData && (
+                  <p role="status">
+                    {t(
+                      "Memuat tanggal yang tersedia…",
+                      "Loading available dates…",
+                    )}
+                  </p>
                 )}
-              </Button>
-            </fieldset>
-            {availability.loading && !availability.hasData && (
-              <p role="status">
-                {t("Memuat tanggal yang tersedia…", "Loading available dates…")}
-              </p>
-            )}
-            {availability.error && (
-              <ErrorNotice
-                message={availability.error}
-                retry={availability.reload}
-              />
-            )}
-            {earliestReplacement && (
-              <p className="notice" role="status">
-                {t("Pengganti paling awal", "Earliest replacement")}:{" "}
-                <strong>{dateLabel(earliestReplacement, locale)}</strong>
-              </p>
-            )}
-            <Field label={t("Tanggal pengganti", "Replacement date")}>
-              <DatePicker
-                required
-                min={availabilityFrom}
-                max={availabilityTo}
-                disabled={
-                  !canChange ||
-                  mutationsDisabled ||
-                  availability.loading ||
-                  !!availability.error
-                }
-                isDateUnavailable={(day) => !availableOn.get(day)?.available}
-                value={replacement}
-                onValueChange={(value) => {
-                  setReplacement(value);
-                  setReview(false);
-                }}
-              />
-            </Field>
-            {replacement && availableOn.get(replacement) && (
-              <p className="small muted" role="status">
-                {availabilityReasonLabel(
-                  availableOn.get(replacement)?.reason,
-                  locale,
+                {availability.error && !state.stale && !changeRejected && (
+                  <ErrorNotice
+                    message={availability.error}
+                    retry={availability.reload}
+                  />
                 )}
-              </p>
-            )}
-            {Object.keys(unavailableReasons).length > 0 && (
-              <Disclosure
-                className="availability-reasons"
-                title={t(
-                  "Mengapa sebagian tanggal tidak tersedia?",
-                  "Why are some dates unavailable?",
+                {earliestReplacement && !state.stale && (
+                  <p className="notice" role="status">
+                    {t("Pengganti paling awal", "Earliest replacement")}:{" "}
+                    <strong>{dateLabel(earliestReplacement, locale)}</strong>
+                  </p>
                 )}
-              >
-                <ul>
-                  {Object.entries(unavailableReasons).map(([reason, count]) => (
-                    <li key={reason}>
-                      {availabilityReasonLabel(reason, locale)} · {count}{" "}
-                      {t("tanggal", "dates")}
-                    </li>
-                  ))}
-                </ul>
-              </Disclosure>
+                <div ref={replacementPicker}>
+                  <Field label={t("Tanggal pengganti", "Replacement date")}>
+                    <DatePicker
+                      required
+                      min={availabilityFrom}
+                      max={availabilityTo}
+                      disabled={
+                        !canChange ||
+                        mutationsDisabled ||
+                        availability.loading ||
+                        !!availability.error
+                      }
+                      isDateUnavailable={(day) =>
+                        !availableOn.get(day)?.available
+                      }
+                      value={replacement}
+                      onValueChange={(value) => {
+                        setReplacement(value);
+                        setReview(false);
+                      }}
+                    />
+                  </Field>
+                </div>
+                {replacement && availableOn.get(replacement) && (
+                  <p className="small muted" role="status">
+                    {availabilityReasonLabel(
+                      availableOn.get(replacement)?.reason,
+                      locale,
+                    )}
+                  </p>
+                )}
+                {Object.keys(unavailableReasons).length > 0 && (
+                  <Disclosure
+                    className="availability-reasons"
+                    title={t(
+                      "Mengapa sebagian tanggal tidak tersedia?",
+                      "Why are some dates unavailable?",
+                    )}
+                  >
+                    <ul>
+                      {Object.entries(unavailableReasons).map(
+                        ([reason, count]) => (
+                          <li key={reason}>
+                            {availabilityReasonLabel(reason, locale)} · {count}{" "}
+                            {t("tanggal", "dates")}
+                          </li>
+                        ),
+                      )}
+                    </ul>
+                  </Disclosure>
+                )}
+              </>
             )}
             {review && (
-              <Facts
-                rows={[
-                  [t("Dari", "From"), dateLabel(d.service_date, locale)],
-                  [t("Menjadi", "To"), dateLabel(replacement, locale)],
-                  [t("Waktu makan", "Meal"), mealLabel(d.offer.meal, locale)],
-                  [t("Porsi", "Portions"), d.portions],
-                  [
-                    t("Alamat", "Address"),
-                    `${d.address.label} — ${d.address.line}, ${d.address.area}`,
-                  ],
-                  [
-                    t("Pilihan menu", "Menu choice"),
-                    d.offer.menuSelectionMode === "customer"
-                      ? t(
-                          "Pilih ulang untuk tanggal baru",
-                          "Choose again for the new date",
-                        )
-                      : t(
-                          "Tidak perlu tindakan pelanggan",
-                          "No customer action needed",
-                        ),
-                  ],
-                ]}
-              />
+              <section
+                className="delivery-change-review"
+                aria-labelledby="delivery-review-heading"
+              >
+                <h3
+                  id="delivery-review-heading"
+                  ref={reviewHeading}
+                  tabIndex={-1}
+                >
+                  {t("Tinjau jadwal baru", "Review the new schedule")}
+                </h3>
+                <Button
+                  type="button"
+                  variant="text"
+                  disabled={mutationsDisabled}
+                  onClick={() => {
+                    setReview(false);
+                    requestAnimationFrame(() =>
+                      replacementPicker.current
+                        ?.querySelector<HTMLElement>("button")
+                        ?.focus({ preventScroll: true }),
+                    );
+                  }}
+                >
+                  {t("Ubah tanggal pilihan", "Edit selected date")}
+                </Button>
+                <Facts
+                  rows={[
+                    [t("Dari", "From"), dateLabel(d.service_date, locale)],
+                    [t("Menjadi", "To"), dateLabel(replacement, locale)],
+                    [t("Waktu makan", "Meal"), mealLabel(d.offer.meal, locale)],
+                    [t("Porsi", "Portions"), d.portions],
+                    [
+                      t("Alamat", "Address"),
+                      `${d.address.label} — ${d.address.line}, ${d.address.area}`,
+                    ],
+                    [
+                      t("Pilihan menu", "Menu choice"),
+                      d.offer.menuSelectionMode === "customer"
+                        ? t(
+                            "Pilih ulang untuk tanggal baru",
+                            "Choose again for the new date",
+                          )
+                        : t(
+                            "Tidak perlu tindakan pelanggan",
+                            "No customer action needed",
+                          ),
+                    ],
+                  ]}
+                />
+              </section>
             )}
             <p className="notice">
               {t(

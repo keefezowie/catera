@@ -60,7 +60,7 @@
   .seller-operations .ops-row-actions .order-next {
     margin-top: 0;
     padding: 8px 10px;
-    font-size: 11px;
+    font-size: 12px;
   }
   .seller-operations .ops-row-actions .order-next svg {
     display: none;
@@ -74,7 +74,7 @@
   }
   .featured-commitment > span {
     display: block;
-    font-size: 11px;
+    font-size: 12px;
     margin-top: 5px;
   }
   .catalog-section .package-card-v2 .package-body {
@@ -227,14 +227,14 @@
     line-height: 1.5;
   }
   .home-delivery-column .home-agenda-row small {
-    font-size: 11px;
+    font-size: 12px;
     margin-bottom: 4px;
   }
   .home-delivery-column .home-agenda-row p {
     margin-top: 4px;
   }
   .home-delivery-column .home-agenda-row .status {
-    font-size: 10px;
+    font-size: 12px;
   }
 
   .calendar-page .meal-calendar {
@@ -311,7 +311,7 @@
     margin: 6px 0 14px;
   }
   .seller-operations .ops-workload-heading > .text-button {
-    font-size: 11px;
+    font-size: 12px;
   }
   .seller-operations .ops-stages {
     display: grid;
@@ -322,7 +322,7 @@
     flex-direction: column;
     justify-content: space-between;
     align-items: flex-start;
-    font-size: 11px;
+    font-size: 12px;
     padding: 8px;
   }
   .seller-operations .ops-stages .button strong {
@@ -359,7 +359,7 @@
   }
   .seller-operations .attention-scope-summary {
     margin: 0 0 8px;
-    font-size: 11px;
+    font-size: 12px;
   }
   .seller-operations .seller-attention .quiet-empty {
     margin: 8px 0 0;
@@ -422,7 +422,7 @@
     top: auto;
     bottom: 8px;
     left: 8px;
-    font-size: 10px;
+    font-size: 12px;
   }
   .catalog-section .package-card-v2 .package-body {
     padding: 16px 20px;
@@ -436,8 +436,9 @@
   }
   .seller-operations .attention-desktop-toggle {
     display: inline-flex;
+    min-width: 44px;
     min-height: 44px;
-    font-size: 11px;
+    font-size: 12px;
     flex-shrink: 0;
   }
   .seller-operations .seller-attention {
@@ -450,32 +451,22 @@
   .seller-operations .seller-attention .section-heading h2 {
     font-size: 14px;
   }
-  .seller-operations
-    .seller-attention:not([data-expanded])
-    .attention-introduction,
-  .seller-operations
-    .seller-attention:not([data-expanded])
-    .attention-scope-toggle,
-  .seller-operations
-    .seller-attention:not([data-expanded])
-    #attention-tasks
-    > :nth-child(n + 2),
-  .seller-operations
-    .seller-attention:not([data-expanded])
-    #attention-tasks
-    ~ .text-button,
-  .seller-operations .seller-attention:not([data-expanded]) .attention-more {
+  .seller-operations .seller-attention .attention-introduction,
+  .seller-operations .seller-attention .attention-scope-toggle,
+  .seller-operations .seller-attention #attention-tasks > :nth-child(n + 2),
+  .seller-operations .seller-attention #attention-tasks ~ .text-button,
+  .seller-operations .seller-attention .attention-more {
     display: none;
   }
-  .seller-operations .seller-attention:not([data-expanded]) .queue-row {
+  .seller-operations .seller-attention .queue-row {
     padding: 8px 0;
     border: 0;
   }
-  .seller-operations .seller-attention:not([data-expanded]) .queue-row strong {
+  .seller-operations .seller-attention .queue-row strong {
     font-size: 12px;
   }
-  .seller-operations .seller-attention:not([data-expanded]) .queue-row small {
-    font-size: 11px;
+  .seller-operations .seller-attention .queue-row small {
+    font-size: 12px;
     margin-top: 4px;
   }
   .seller-operations .ops-order-header {
@@ -512,6 +503,92 @@
   .seller-operations .ops-order-layout.has-detail > .detail-panel {
     max-width: none;
     width: 100%;
+  }
+}
+
+/* Expanded exceptions use their own scroll surface; the order list stays put. */
+body .attention-drawer {
+  --dialog-width: 560px;
+  inset: 16px 16px 16px auto;
+  transform: none;
+  height: calc(100dvh - 32px);
+  max-height: calc(100dvh - 32px);
+  padding: 24px;
+}
+.attention-drawer .queue-row {
+  align-items: start;
+  padding-block: 16px;
+}
+.attention-drawer .queue-row > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.attention-drawer .queue-row > svg {
+  flex-shrink: 0;
+}
+.attention-drawer .attention-kind {
+  color: var(--forest);
+}
+.attention-drawer .attention-reference {
+  font-variant-numeric: tabular-nums;
+}
+.attention-drawer .attention-more {
+  flex-wrap: wrap;
+}
+.booking-commitment {
+  font-weight: 650;
+}
+.delivery-change-review h3 {
+  margin-block: 8px 16px;
+}
+.delivery-detail-page :is(h2, h3, .notice)[tabindex="-1"]:focus {
+  outline: 3px solid var(--focus);
+  outline-offset: 4px;
+}
+.receipt-acknowledgement {
+  display: flex;
+  align-items: start;
+  gap: 12px;
+  min-height: 44px;
+  padding-block: 12px;
+  margin-block: 16px;
+  cursor: pointer;
+}
+.receipt-acknowledgement input {
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  flex-shrink: 0;
+  accent-color: var(--forest);
+}
+.error-notice-content > .button {
+  margin-inline-start: 8px;
+}
+.notice > .button {
+  margin-inline-start: 8px;
+}
+body .featured-dots button {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+@media (min-width: 1100px) {
+  .seller-operations .seller-attention .attention-kind,
+  .seller-operations .seller-attention .attention-time {
+    display: none;
+  }
+  .seller-operations .seller-attention .queue-row strong {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+@media (max-width: 700px) {
+  body .attention-drawer {
+    inset: 12px 12px 12px auto;
+    height: calc(100dvh - 24px);
+    max-height: calc(100dvh - 24px);
   }
 }
 
@@ -618,9 +695,7 @@
   .seller-operations .ops-order-table .ops-row-actions .order-next {
     font-size: 12px;
   }
-  .seller-operations
-    .seller-attention:not([data-expanded])
-    .attention-scope-details {
+  .seller-operations .seller-attention .attention-scope-details {
     display: none;
   }
   .seller-operations .seller-attention .attention-item {
@@ -656,4 +731,33 @@
     border: 0;
     padding: 0;
   }
+}
+
+/* Keep individual order facts readable on wide screens. */
+.seller-operations .ops-order-layout > .detail-panel .facts {
+  max-inline-size: 800px;
+}
+.seller-operations :is(h2, .notice, .save-status)[tabindex="-1"]:focus,
+.dialog h2[tabindex="-1"]:focus {
+  outline: 3px solid var(--focus);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+.attention-drawer .queue-row small {
+  font-size: 12px;
+}
+.attention-drawer .queue-row strong {
+  font-size: 14px;
+}
+.schedule-replacement-explanation {
+  font-size: 13px;
+  margin-block: 0;
+}
+.delivery-change-review > .button {
+  margin-block-end: 12px;
+}
+.delivery-detail-page .notice[tabindex="-1"]:focus {
+  outline: 3px solid var(--focus);
+  outline-offset: 4px;
 }

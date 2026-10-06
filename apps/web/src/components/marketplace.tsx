@@ -1036,13 +1036,23 @@ export function PackagePage({
             "Package pricing and portions",
           )}
         >
-          <span>
+          <h2>{currency(commitment.packagePrice, locale)}</h2>
+          <p className="booking-commitment">
+            {p.name} · {portions}{" "}
+            {t("porsi", portions === 1 ? "portion" : "portions")} ·{" "}
             {commitment.deliveryDays} {t("hari pengantaran", "delivery days")}
-          </span>
-          <h2>
-            {currency(perMealPrice(p), locale)}
-            <small> / {t("sekali makan", "meal")}</small>
-          </h2>
+          </p>
+          <p className="small muted">
+            {currency(
+              commitment.packagePrice / commitment.totalMealPortions,
+              locale,
+            )}{" "}
+            / {t("sekali makan", "meal")}.{" "}
+            {t(
+              "Pengantaran termasuk; biaya layanan dihitung saat checkout.",
+              "Delivery included; service fee calculated at checkout.",
+            )}
+          </p>
           <p>
             {mealLabel(p.meal, locale)}
             {p.meal === "both" ? " · 2 " + t("kali makan", "meals") : ""}
@@ -1084,7 +1094,9 @@ export function PackagePage({
               .join(", ")}{" "}
             {t(
               "periode. Dibayar penuh di awal; pilih durasi saat checkout.",
-              "cycles. Paid upfront; choose duration at checkout.",
+              durationOptions(p).every((option) => option.cycles === 1)
+                ? "cycle. Paid upfront; choose duration at checkout."
+                : "cycles. Paid upfront; choose duration at checkout.",
             )}
           </p>
           {tier > 0 && (
@@ -1095,10 +1107,6 @@ export function PackagePage({
           )}
           <Facts
             rows={[
-              [
-                t("Harga paket", "Package price"),
-                currency(commitment.packagePrice, locale),
-              ],
               [
                 t("Total porsi makan", "Total meal portions"),
                 String(commitment.totalMealPortions),

@@ -73,3 +73,48 @@ The recheck again confirmed the recorded `DESIGN.md` hash, no changes to protect
 The final desktop workload/attention vertical padding is 12px. The refreshed 1280×800 Today capture places the first action at y=708.45 with height 44, superseding the preceding measurement. `work/publish-review-a/probe-results.json` verifies the complete Indonesian long-status order row ends at y=794.91 with either one or three attention issues; the English row ends at y=775.72. The lead reopened the six changed Today/schedule captures; unchanged surfaces retain their preceding capture evidence.
 
 `v1-active-browser-publish-verified.log` reports **16 passed**: 12 landscape guards, including the new standalone Indonesian whole-row fit test, and four seller-control checks. Combined with the preceding 24 regression checks, this yields **36 distinct relevant browser checks**, not a heuristic score. The earlier 35-check run comprised 11 guards and those 24 regressions. Final optimized build (`v1-active-build-publish.log`) and typecheck (`v1-active-typecheck-publish-final.log`) completed with exit 0 as confirmed by the handoff. The bounded review scope, unrescored 36/40 target, preserved system files and provenance limitations above remain unchanged.
+
+
+## Desktop task continuity refinement — October 6, 2026
+
+This ordinary refinement extends the approved V1 world. The October 5 statement that DESIGN.md was byte-identical describes that earlier pass. This pass narrowly merges reusable Dialog focus behavior into DESIGN.md and creates its missing schema-v2 sidecar; the normative YAML remains byte-identical. Forest, sunrise, cream, Jakarta type, shared tokens, PRODUCT.md, package dependencies and existing artwork retain their incumbent authority. No assets were generated or changed, so this pass adds no asset provenance claim.
+
+### Recorded surface behavior
+
+- **Package commitment:** the booking panel leads with the selected package total, followed by package name, fixed portions and delivery-day count. The secondary per-meal figure divides that commitment by its total meal portions. Delivery inclusion and the service fee calculated at checkout remain explicit; duration selection remains at checkout. The phone package view keeps its existing jump to pricing and portions.
+- **Attention scope and identity:** desktop Today keeps one compact issue alongside workload; “Lihat masalah” opens an independently scrolling right drawer without expanding the order-table area. The drawer repeats all-date/selected-date/future scope, meal scope and timezone. Entries carry available request context, issue type, customer/package/date/meal identity, a short reference, timestamp and next action. Missing identity fields are omitted rather than invented. Scope filters, additional issues, loading, errors and empty states remain inside this task. The drawer uses the shared modal layer and a logical attention-heading fallback.
+- **Bounded order facts:** the inline order detail caps its facts at 800px to keep labels and values associated on wide displays. Escape closes that detail through its existing return path when a nested control has not already handled the key. Whole-day kitchen output remains separate from filtered orders.
+- **Rescheduling and recovery:** choosing a replacement explains that skipping a date means moving its delivery, with delivery count and portions preserved. Review replaces editing controls with the old/new dates, meal, portions, address and menu-choice consequences. “Ubah tanggal pilihan” returns to the retained picker value. Rejected changes leave review and refresh current delivery truth and date availability; failed refresh has one local recovery narrative with a retry, retains the selected date, and prevents confirmation against stale data. Cutoff or status closure focuses the explanation and offers close/contact actions. Returning focus uses the management heading if the original action is no longer available.
+- **Receipt confirmation:** “Tandai diterima” opens a title-focused confirmation with date, meal, source/destination status, valid orders, portions and customer destinations. The explanation distinguishes receipt of the selected meal from completion of every meal in the delivery day and from settlement payment. A fresh unchecked acknowledgement must be selected before submission. Pending work blocks duplicate action and dismissal; an outcome or the order heading supplies fallback focus if the original action disappears.
+- **Task metadata:** affected workload, compact attention and order-action metadata uses 12px text; the drawer uses 14px issue titles and 12px supporting facts. Discovery badges and workspace identity also receive local readability corrections. These are scoped implementation values, not a revised typography scale or permission to shrink new task text. No token was changed to clear a readability finding.
+
+### References actually consulted
+
+The session inspected the [Linear inbox](https://mobbin.com/screens/8337813e-f0dd-4415-8a29-87c114b0442b) and [unread inbox](https://mobbin.com/screens/18c6955a-c42f-4cc1-9aa2-0276456720fb) previews for identifiable issues alongside the operational workspace; [Airbnb confirm-and-pay](https://mobbin.com/screens/4b00d9f1-234d-413c-901a-0c26bd1def9a) and [review reservation](https://mobbin.com/screens/bcd5d2bf-5f5f-4b4b-9967-4fccc6e7450d) previews informed commitment identity near the decision. No reference pixels or foreign product rules were copied. A Firecrawl search excerpt for the [W3C modal dialog pattern](https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/) supported logical focus restoration when the invoking element no longer exists; this is not a claim of full-page retrieval. The session notes are in `work/desktop-optimization/reference-notes.md`.
+
+### Local evidence and limits
+
+The documentation pass inspected current components/CSS and these nine actual captures from the local candidate on port 3147, under `work/desktop-optimization/`:
+
+- `1920x1080-id-package.png`, `1920x1080-id-drawer.png`, `1920x1080-id-receipt.png`.
+- `1920x1200-en-package.png`, `1920x1200-en-drawer.png`, `1920x1200-id-review.png`.
+- `1280x800-id-seller.png`, `390x844-id-package.png`, `390x844-id-receipt.png`.
+
+Captures establish these visible states; dynamic focus, pending, refresh and recovery behavior is recorded from the implementation and requires behavioral verification. The desktop pass does not redesign the phone layout or certify the full application. Remaining checkout requote action, checkout/order-detail density and carousel pause work is outside this refinement's completed scope. The separate finish record is `work/wide-finish-review/verdict-final.md`; this documentation supplies no new grade, production-release approval, native-device certification or artwork acceptance.
+
+### Final independent assessment and verification — October 6
+
+Fresh isolated A and B assessments covered the optimized local synthetic candidate. A completed before B's sealed detector findings entered synthesis. The final desktop assessment is **36/40**, with all ten Nielsen heuristics applicable, primary viewports 1920×1080 and 1920×1200, and 1280×800/390×844 compatibility guards. A's bounded final focus-helper recheck retained 36/40 without increasing scores. This supersedes the earlier unrescored desktop target above; it does not extend the score to phone, native, admin or settlement flows. The archived report is `.impeccable/critique/2026-10-06T02-55-50Z__apps-web-src-components.md`.
+
+Three P2 issues remain: checkout CONFLICT needs a local refresh/requote action; checkout review and seller detail could use wide space more efficiently; the discovery carousel needs a persistent pause/resume control. No P0/P1 was observed in the inspected desktop flows. Earlier 31/40, 31/40 and final 36/40 snapshots have different responsive emphasis; this is not a uniform whole-app trend.
+
+Final verification: typecheck (including native source), optimized build, 319 unit tests across 49 files, 44 native Jest checks across 10 suites, and PostgreSQL concurrency checks passed. There are **46 distinct relevant browser checks**: 34 desktop/landscape checks and 12 selected shared-dialog checks. In the final 34-check run, 28 passed and six geometry assertions exposed subpixel scroll rounding; a one-CSS-pixel tolerance was added and all six passed on rerun. This tolerance still rejects the previously offscreen focus target. The selected shared-dialog checks then all passed against the final source. The full conditional-UI suite is not claimed.
+
+Reproduction against an explicitly synthetic optimized local server on 127.0.0.1:3147:
+
+```sh
+npx playwright test --config=playwright.desktop-ux.config.ts v1-desktop-ux.spec.ts v1-landscape.spec.ts
+npx playwright test --config=playwright.desktop-ux.config.ts conditional-ui.spec.ts --grep 'confirmation hierarchy|short viewport|customer address'
+```
+
+B recorded 24 selected-route axe/overflow observations with zero axe violations or document overflow, and tested controlled conflict, failed-read/retry, pending, cutoff expiry, receipt acknowledgement and paginated attention states. The real detector reported 82 advisory token/catalogue mismatches; these are not 82 established UX defects. Injected browser detector execution succeeded in four headless pages; no user-visible overlay is claimed. Local browser business commands were intercepted; no actual purchase, payment, reschedule, status or message mutation was performed. This evidence does not certify real provider behavior or physical devices.

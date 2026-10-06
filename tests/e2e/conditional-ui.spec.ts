@@ -434,10 +434,10 @@ for (const width of [390, 1440]) {
       await expect(dialog).toBeVisible();
       if (label !== "Ubah alamat") {
         await expect(
-          dialog.getByRole("button", {
-            name: "Lewati tanggal ini dan pilih pengganti",
-            exact: true,
-          }),
+          dialog.getByText(
+            "Untuk melewati tanggal ini, pilih tanggal pengganti yang tersedia. Jumlah pengantaran dan porsi tetap sama.",
+            { exact: true },
+          ),
         ).toBeVisible();
         const date = dialog.getByRole("button", {
           name: "Tanggal pengganti",
@@ -497,8 +497,9 @@ for (const width of [390, 1440]) {
     await page.unroute("**/api/v1/customer?*");
     await page.goto("/seller/onboarding");
     const disclosure = page
-      .locator("details")
-      .filter({ hasText: "Saya diundang sebagai staf" });
+      .locator("summary")
+      .filter({ hasText: /^Saya diundang sebagai staf$/ })
+      .locator("..");
     await disclosure.locator("summary").click();
     await disclosure.getByLabel("Kode undangan").fill("SYNTHETIC_ONLY");
     await disclosure.locator("summary").click();

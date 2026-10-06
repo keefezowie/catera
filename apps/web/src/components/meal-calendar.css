@@ -137,7 +137,7 @@
   margin-top: 5px;
 }
 .coverage-month-marker {
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.3;
   min-height: 17px;
   font-weight: 650;
@@ -154,7 +154,7 @@
   text-align: center;
 }
 .coverage-state-text {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 650;
   line-height: 1.5;
   max-width: 100%;
@@ -177,7 +177,7 @@
 }
 .coverage-package-count {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.5;
   max-width: 100%;
   white-space: normal;
@@ -324,7 +324,7 @@
   text-align: center;
 }
 .calendar-picker-grid > span {
-  font-size: 11px;
+  font-size: 12px;
   padding: 8px 0;
   color: var(--muted);
 }
@@ -416,7 +416,7 @@
   }
   .coverage-summary {
     margin: 10px 0 20px;
-    font-size: 11px;
+    font-size: 12px;
     gap: 6px;
   }
   .calendar-view-control {

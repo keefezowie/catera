@@ -863,7 +863,8 @@ function CalendarMeal({
         <small>{d.offer.caterer}</small>
         <h4>{d.offer.name}</h4>
         <p>
-          {d.portions} {t("porsi", "portions")} · {d.address.label}
+          {d.portions} {t("porsi", d.portions === 1 ? "portion" : "portions")} ·{" "}
+          {d.address.label}
         </p>
       </div>
       <Status status={status} />

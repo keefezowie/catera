@@ -652,7 +652,7 @@ export const statusLabel = (status: string, locale: Locale = "id") =>
         scheduled: "Terjadwal",
         preparing: "Disiapkan",
         out_for_delivery: "Dalam pengantaran",
-        delivered: "Terkirim",
+        delivered: "Diterima",
         issue: "Ada kendala",
         pending: "Menunggu pembayaran",
         paid: "Dibayar",

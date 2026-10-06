@@ -779,7 +779,13 @@ function OperationsPage({
               )}
           </section>
         )}
-        {!schedule && <NeedsAttention catererId={s.caterer.id} date={date} />}
+        {!schedule && (
+          <NeedsAttention
+            catererId={s.caterer.id}
+            date={date}
+            cases={s.cases}
+          />
+        )}
       </div>
       <div
         id="ops-orders"
@@ -1177,7 +1183,11 @@ function OrderTable({
     status: string;
     invalidCount: number;
   } | null>(null);
+  const [receiptConfirmed, setReceiptConfirmed] = useState(false);
+  useEffect(() => setReceiptConfirmed(false), [confirmation]);
   const detailRef = useRef<HTMLElement>(null);
+  const ordersHeading = useRef<HTMLHeadingElement>(null);
+  const outcomeFocus = useRef<HTMLElement>(null);
   const opener = useRef<HTMLElement | null>(null);
   const previousDetail = useRef("");
   const all = useRef<HTMLInputElement>(null);
@@ -1213,7 +1223,7 @@ function OrderTable({
     ({
       preparing: t("Mulai siapkan", "Start preparing"),
       out_for_delivery: t("Mulai antar", "Start delivery"),
-      delivered: t("Tandai diterima", "Mark delivered"),
+      delivered: t("Tandai diterima", "Mark received"),
       issue: t("Tandai kendala", "Report issue"),
     })[status] || statusLabel(status, locale);
   const actionIcon = (status: string) =>
@@ -1309,7 +1319,7 @@ function OrderTable({
       <section className="panel ops-orders-panel" aria-busy={busy || loading}>
         <div className="ops-order-header">
           <div className="section-heading">
-            <h2>
+            <h2 ref={ordersHeading} tabIndex={-1}>
               {schedule
                 ? t("Daftar pesanan", "Order list")
                 : t("Pesanan", "Orders") +
@@ -1371,13 +1381,27 @@ function OrderTable({
           </p>
         )}
         {success && (
-          <p role="status" className="save-status">
+          <p
+            ref={(element) => {
+              outcomeFocus.current = element;
+            }}
+            tabIndex={-1}
+            role="status"
+            className="save-status"
+          >
             <Check size={18} aria-hidden="true" />
             {success}
           </p>
         )}
         {error && (
-          <div role="alert" className="notice error">
+          <div
+            ref={(element) => {
+              outcomeFocus.current = element;
+            }}
+            tabIndex={-1}
+            role="alert"
+            className="notice error"
+          >
             {error}
             <Button className="text-button" onClick={refresh}>
               {t("Muat ulang", "Refresh")}
@@ -1748,7 +1772,15 @@ function OrderTable({
         onOpenChange={(open) => {
           if (!open && !busy) setConfirmation(null);
         }}
-        title={t("Konfirmasi pembaruan pesanan", "Confirm order update")}
+        size="confirmation"
+        initialFocus="title"
+        fallbackFocus={error || success ? outcomeFocus : ordersHeading}
+        busy={busy}
+        title={
+          confirmation?.status === "delivered"
+            ? t("Konfirmasi makanan diterima", "Confirm meals received")
+            : t("Konfirmasi pembaruan pesanan", "Confirm order update")
+        }
         description={t(
           "Periksa cakupan ini sebelum status pesanan diubah.",
           "Review this scope before order statuses change.",
@@ -1756,9 +1788,23 @@ function OrderTable({
       >
         {confirmation && (
           <div className="bulk-confirmation">
+            {confirmation.status === "delivered" && (
+              <p className="notice receipt-consequence">
+                {t(
+                  "Tandai hanya setelah pelanggan menerima makanan. Status ini menyelesaikan waktu makan yang dipilih. Satu hari pengantaran dihitung untuk penghasilan setelah seluruh waktu makannya selesai; pembayaran mengikuti ketentuan pencairan.",
+                  "Mark delivered only after customers receive their meals. This completes the selected meal. A delivery day counts toward earnings when all its meals are complete; payment follows the settlement terms.",
+                )}
+              </p>
+            )}
             <Facts
               rows={[
-                [t("Tanggal", "Date"), date],
+                [
+                  t("Tanggal", "Date"),
+                  new Date(date + "T12:00:00Z").toLocaleDateString(
+                    locale === "id" ? "id-ID" : "en-GB",
+                    { dateStyle: "long", timeZone: "UTC" },
+                  ),
+                ],
                 [t("Waktu makan", "Meal"), mealLabel(meal, locale)],
                 [
                   t("Status asal", "Source status"),
@@ -1809,19 +1855,42 @@ function OrderTable({
                 {error}
               </p>
             )}
+            {confirmation.status === "delivered" && (
+              <label className="check-row receipt-acknowledgement">
+                <input
+                  type="checkbox"
+                  checked={receiptConfirmed}
+                  disabled={busy}
+                  onChange={(event) =>
+                    setReceiptConfirmed(event.target.checked)
+                  }
+                />
+                {t(
+                  "Saya memastikan semua makanan di atas sudah diterima pelanggan.",
+                  "I confirm customers have received all meals listed above.",
+                )}
+              </label>
+            )}
             <div className="action-row">
               <Button
                 className="button"
-                disabled={busy || loading}
+                disabled={
+                  busy ||
+                  loading ||
+                  (confirmation.status === "delivered" && !receiptConfirmed)
+                }
                 onClick={() => update(confirmation.items, confirmation.status)}
               >
                 {actionIcon(confirmation.status)}
                 {busy
                   ? t("Menyimpan…", "Saving…")
-                  : t("Konfirmasi perubahan", "Confirm change")}
+                  : confirmation.status === "delivered"
+                    ? t("Tandai diterima", "Mark received")
+                    : t("Konfirmasi perubahan", "Confirm change")}
               </Button>
               <Button
                 variant="secondary"
+                data-dialog-safe
                 disabled={busy}
                 onClick={() => setConfirmation(null)}
               >
@@ -1837,6 +1906,12 @@ function OrderTable({
           tabIndex={-1}
           className="panel detail-panel"
           aria-label={t("Detail pesanan", "Order details")}
+          onKeyDown={(event) => {
+            if (event.key === "Escape" && !event.defaultPrevented) {
+              event.preventDefault();
+              closeDetail();
+            }
+          }}
         >
           <Button className="text-button" onClick={closeDetail}>
             <ArrowLeft size={18} aria-hidden="true" />

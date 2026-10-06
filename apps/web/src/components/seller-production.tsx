@@ -139,7 +139,11 @@ export function Production({
               "Ringkasan langsung · sehari penuh",
               "Live overview · whole day",
             )}{" "}
-            · {loading ? "…" : portions} {t("porsi makan", "meal portions")}
+            · {loading ? "…" : portions}{" "}
+            {t(
+              "porsi makan",
+              portions === 1 ? "meal portion" : "meal portions",
+            )}
           </strong>
           <p>
             {t(
