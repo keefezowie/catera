@@ -1,42 +1,51 @@
 import { Tabs } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
-import { useNative } from "../../src/context";
-const icons: { [key: string]: keyof typeof Ionicons.glyphMap } = {
-  index: "home-outline",
-  discover: "compass-outline",
-  calendar: "calendar-outline",
-  messages: "chatbubble-outline",
-  account: "person-outline",
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { useMobile } from "@catera/mobile-core";
+import { colors, FONT } from "@catera/mobile-ui";
+
+type CustomerTab = "index" | "jadwal" | "jelajah" | "akun";
+
+const icons: Record<CustomerTab, keyof typeof Ionicons.glyphMap> = {
+  index: "home",
+  jadwal: "calendar",
+  jelajah: "search",
+  akun: "person",
 };
-export default function TabLayout() {
-  const { t } = useNative();
+
+// Old tab routes stay reachable for links inside the old screens until Tasks 8–13 retire them.
+const legacy = ["calendar", "discover", "account"] as const;
+
+export default function TabsLayout() {
+  const { t } = useMobile();
+  const titles: Record<CustomerTab, string> = {
+    index: t("Beranda", "Home"),
+    jadwal: t("Jadwal", "Schedule"),
+    jelajah: t("Jelajah", "Explore"),
+    akun: t("Akun", "Account"),
+  };
   return (
     <Tabs
-      screenOptions={({ route }) => ({
+      screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: "#163D2E",
-        tabBarInactiveTintColor: "#737D68",
-        tabBarStyle: { backgroundColor: "#FDFAF3", borderTopColor: "#DFE3D5" },
-        tabBarLabelStyle: { fontFamily: "Jakarta", fontSize: 10 },
-        tabBarIcon: ({ color, size }) => (
-          <Ionicons name={icons[route.name]} size={size} color={color} />
-        ),
-      })}
+        tabBarActiveTintColor: colors.forest,
+        tabBarInactiveTintColor: colors.muted,
+        tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.line, height: 64 },
+        tabBarLabelStyle: { fontFamily: FONT, fontSize: 12, fontWeight: "700" },
+      }}
     >
-      <Tabs.Screen name="index" options={{ title: t("Beranda", "Home") }} />
-      <Tabs.Screen
-        name="discover"
-        options={{ title: t("Jelajah", "Explore") }}
-      />
-      <Tabs.Screen
-        name="calendar"
-        options={{ title: t("Jadwal", "Calendar") }}
-      />
-      <Tabs.Screen
-        name="messages"
-        options={{ title: t("Pesan", "Messages") }}
-      />
-      <Tabs.Screen name="account" options={{ title: t("Akun", "Account") }} />
+      {(Object.keys(icons) as CustomerTab[]).map((name) => (
+        <Tabs.Screen
+          key={name}
+          name={name}
+          options={{
+            title: titles[name],
+            tabBarIcon: ({ color, size }) => <Ionicons name={icons[name]} color={color} size={size} />,
+          }}
+        />
+      ))}
+      {legacy.map((name) => (
+        <Tabs.Screen key={name} name={name} options={{ href: null }} />
+      ))}
     </Tabs>
   );
 }

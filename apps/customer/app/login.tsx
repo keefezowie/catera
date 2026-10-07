@@ -1,1 +1,1 @@
-export {LoginScreen as default} from '../src/purchase';
+export { Masuk as default } from "../src/account/Masuk";

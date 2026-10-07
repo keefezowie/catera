@@ -15,6 +15,8 @@
     "@catera/api-client": "1.0.0",
     "@catera/design-tokens": "1.0.0",
     "@catera/domain": "1.0.0",
+    "@catera/mobile-core": "1.0.0",
+    "@catera/mobile-ui": "1.0.0",
     "@expo/vector-icons": "^15.0.2",
     "@react-native-community/datetimepicker": "9.1.0",
     "@supabase/supabase-js": "2.116.0",

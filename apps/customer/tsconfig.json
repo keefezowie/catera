@@ -8,6 +8,10 @@
   "include": [
     "app/**/*.tsx",
     "src/**/*.ts",
-    "src/**/*.tsx"
+    "src/**/*.tsx",
+    "../../packages/mobile-core/src/**/*.ts",
+    "../../packages/mobile-core/src/**/*.tsx",
+    "../../packages/mobile-ui/src/**/*.tsx",
+    "../../packages/mobile-ui/src/**/*.ts"
   ]
 }

@@ -94,7 +94,14 @@ type Value = {
   enablePush: () => Promise<void>;
 };
 const Context = createContext<Value>(null!);
-export function NativeProvider({ children }: { children: ReactNode }) {
+export function NativeProvider({
+  children,
+  routeNotifications = true,
+}: {
+  children: ReactNode;
+  /** False while the shared MobileProvider owns push routing (customer app shell). */
+  routeNotifications?: boolean;
+}) {
   const [actor, setActor] = useState<Actor | null>(null),
     [offers, setOffers] = useState<Offer[]>([]),
     [demo, setDemo] = useState(false),
@@ -224,15 +231,17 @@ export function NativeProvider({ children }: { children: ReactNode }) {
         void Notifications.clearLastNotificationResponseAsync();
       }
     };
-    const response =
-      Notifications.addNotificationResponseReceivedListener(handleResponse);
-    void Notifications.getLastNotificationResponseAsync().then(handleResponse);
+    const response = routeNotifications
+      ? Notifications.addNotificationResponseReceivedListener(handleResponse)
+      : null;
+    if (routeNotifications)
+      void Notifications.getLastNotificationResponseAsync().then(handleResponse);
     return () => {
       sub.remove();
       push.remove();
-      response.remove();
+      response?.remove();
     };
-  }, [refresh]);
+  }, [refresh, routeNotifications]);
   useEffect(() => {
     if (!supabase || demo || !actor) return;
     const client = supabase;

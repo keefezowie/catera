@@ -1,1 +1,1 @@
-export {Home as default} from '../../src/daily';
+export { Beranda as default } from "../../src/today/Beranda";
