@@ -3,6 +3,7 @@ import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera
 import type { SettlementState } from "@catera/domain";
 import { quickOffer, packageIssues, type PackageForm } from "../src/business/package";
 import { PackageEditor } from "../src/business/PackageEditor";
+import { PackageDetail } from "../src/business/PackageDetail";
 import { UangScreen } from "../src/business/UangScreen";
 import { TimScreen } from "../src/business/TimScreen";
 import { RoleGate } from "../src/RoleGate";
@@ -137,4 +138,56 @@ it("lets a helper join a kitchen with the invite code", async () => {
   fireEvent.press(screen.getByRole("button", { name: "Gabung ke dapur" }));
   expect(await screen.findByText("dapur")).toBeTruthy();
   expect(command.mock.calls[0]).toEqual(["invite.accept", { code: "abc123" }, expect.any(String)]);
+});
+
+const liveOffer = {
+  id: "p-live",
+  slug: "rumahan",
+  version: 3,
+  catererId: "k-1",
+  name: "Makan Siang Rumahan",
+  description: "Masakan rumahan harian dengan nasi, dua lauk dan sayur.",
+  price: 28000,
+  days: 20,
+  meal: "lunch",
+  weekdays: [1, 2, 3, 4, 5],
+  flexible: false,
+  trialPrice: 25000,
+  trialMax: 2,
+  capacity: { "1": 40, "2": 40, "3": 40, "4": 40, "5": 40 },
+  tiers: [{ min: 10, percent: 5 }],
+  windows: { lunch: "11.00–13.00", dinner: "17.00–19.00" },
+  tags: [],
+  image: "https://cdn.example.test/k-1/a.jpg",
+  status: "published",
+  menus: [{ meal: "lunch", name: "x", description: "", image: "", contentModel: "slots", composition: [{ id: "g-main", categoryId: "main", name: "Lauk", slots: 2 }] }],
+} as unknown as import("@catera/domain").SellerOffer;
+
+it("shows a live package read-only and copies it into a new package", async () => {
+  const { router } = jest.requireMock("expo-router") as { router: { push: jest.Mock } };
+  render(
+    <MobileProvider runtime={runtimeWith({})} linkMapper={() => "/"}>
+      <PackageDetail offer={liveOffer} />
+    </MobileProvider>,
+  );
+  expect(await screen.findByText("Makan Siang Rumahan")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Simpan paket" })).toBeNull();
+  fireEvent.press(screen.getByRole("button", { name: "Salin jadi paket baru" }));
+  expect(router.push).toHaveBeenCalledWith("/paket/baru?from=p-live");
+});
+
+it("saves a copied package as a new one, never over the original", async () => {
+  const command = jest.fn(async () => ({ id: "p-new" }));
+  render(
+    <MobileProvider runtime={runtimeWith({ command })} linkMapper={() => "/"}>
+      <PackageEditor from={liveOffer} />
+    </MobileProvider>,
+  );
+  fireEvent.press(await screen.findByRole("button", { name: "Simpan paket" }));
+  await waitFor(() => expect(command).toHaveBeenCalled());
+  const [action, payload] = command.mock.calls[0] as unknown as [string, Record<string, unknown>];
+  expect(action).toBe("package.save");
+  expect(payload.id).toBeUndefined();
+  expect(payload.version).toBeUndefined();
+  expect(payload.slug).not.toBe("rumahan");
 });

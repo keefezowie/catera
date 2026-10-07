@@ -1,7 +1,7 @@
 import { useLocalSearchParams } from "expo-router";
 import { useData, useMobile } from "@catera/mobile-core";
 import { Screen, Text } from "@catera/mobile-ui";
-import { PackageEditor } from "../../src/business/PackageEditor";
+import { PackageDetail } from "../../src/business/PackageDetail";
 
 export default function EditPackageRoute() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -10,5 +10,5 @@ export default function EditPackageRoute() {
   const ops = useData(`menu-ops:${catererId}`, () => runtime.api.sellerOperations(catererId));
   const offer = ops.data?.offers.find((o) => o.id === id);
   if (!offer) return <Screen><Text variant="caption">{ops.error || t("Memuat…", "Loading…")}</Text></Screen>;
-  return <PackageEditor key={offer.id} offer={offer} />;
+  return <PackageDetail offer={offer} />;
 }

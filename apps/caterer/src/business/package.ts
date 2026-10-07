@@ -42,7 +42,7 @@ export function packageIssues(f: PackageForm): Partial<Record<keyof PackageForm,
 }
 
 /** The existing offer shape with the simple defaults: one duration, no tiers, no trial, flexible. */
-export function quickOffer(f: PackageForm, existing?: Pick<SellerOffer, "windows" | "tags" | "nutrition">) {
+export function quickOffer(f: PackageForm) {
   const capacity = digits(f.capacity) ?? 0;
   const meals = f.meal === "both" ? (["lunch", "dinner"] as const) : ([f.meal] as const);
   const composition = defaultDishCategories
@@ -61,10 +61,10 @@ export function quickOffer(f: PackageForm, existing?: Pick<SellerOffer, "windows
     capacity: Object.fromEntries(f.weekdays.map((d) => [String(d), capacity])),
     tiers: [] as never[],
     durationPricing: { revision: 0, options: [{ cycles: 1, discountPercent: 0 }] },
-    windows: existing?.windows ?? { lunch: "11.00–13.00", dinner: "17.00–19.00" },
-    tags: existing?.tags ?? [],
+    windows: { lunch: "11.00–13.00", dinner: "17.00–19.00" },
+    tags: [] as string[],
     image: f.image.trim(),
-    nutrition: existing?.nutrition ?? null,
+    nutrition: null,
     packageType: "nasi_box" as const,
     menuSelectionMode: "caterer" as const,
     menus: meals.map((meal) => ({
@@ -74,6 +74,8 @@ export function quickOffer(f: PackageForm, existing?: Pick<SellerOffer, "windows
       image: "",
       meal,
       composition,
+      items: [],
+      nutrition: null,
     })),
     status: "published" as const,
   };

@@ -10,11 +10,11 @@ import { uploadPhoto } from "./upload";
 
 const days: [number, string][] = [[1, "Sen"], [2, "Sel"], [3, "Rab"], [4, "Kam"], [5, "Jum"], [6, "Sab"], [0, "Min"]];
 
-/** One screen for a package: what it is, what's in a portion, price, days and how many per day. */
-export function PackageEditor({ offer }: { offer?: SellerOffer }) {
+/** One screen for a new package: what it is, what's in a portion, price, days and how many per day. `from` prefills a copy. */
+export function PackageEditor({ from }: { from?: SellerOffer }) {
   const { runtime, actor, demo, t, locale, command } = useMobile();
   const catererId = actor?.catererId ?? "";
-  const [form, setForm] = useState<PackageForm>(() => (offer ? formFromOffer(offer) : emptyPackage));
+  const [form, setForm] = useState<PackageForm>(() => (from ? formFromOffer(from) : emptyPackage));
   const [shown, setShown] = useState<ReturnType<typeof packageIssues>>({});
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -46,10 +46,8 @@ export function PackageEditor({ offer }: { offer?: SellerOffer }) {
     try {
       await command("package.save", {
         catererId,
-        id: offer?.id,
-        version: offer?.version,
-        slug: offer?.slug || `${form.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "paket"}-${Date.now().toString(36).slice(-6)}`,
-        offer: quickOffer(form, offer),
+        slug: `${form.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "paket"}-${Date.now().toString(36).slice(-6)}`,
+        offer: quickOffer(form),
       });
       router.back();
     } catch (e) {
@@ -61,7 +59,7 @@ export function PackageEditor({ offer }: { offer?: SellerOffer }) {
 
   return (
     <Screen footer={<Button label={t("Simpan paket", "Save package")} disabled={busy || uploading} onPress={() => void save()} />}>
-      <Text variant="title">{offer ? t("Ubah paket", "Edit package") : t("Paket baru", "New package")}</Text>
+      <Text variant="title">{t("Paket baru", "New package")}</Text>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={t("Pilih foto paket", "Choose package photo")}

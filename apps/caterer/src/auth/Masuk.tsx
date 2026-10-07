@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { View } from "react-native";
 import * as Crypto from "expo-crypto";
 import { Link, router } from "expo-router";
@@ -9,7 +9,11 @@ import { e164Indonesia } from "../onboarding";
 
 /** Sign in with the WhatsApp number (SMS code) or email; demo roles only in development. */
 export function Masuk() {
-  const { runtime, t, locale, signedIn, refresh } = useMobile();
+  const { runtime, actor, t, locale, signedIn, refresh } = useMobile();
+  // A session that comes back (signal returns, token refreshes) goes straight to the kitchen.
+  useEffect(() => {
+    if (actor) router.replace("/");
+  }, [actor]);
   const [method, setMethod] = useState<"phone" | "email">("phone");
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");

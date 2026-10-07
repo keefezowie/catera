@@ -82,12 +82,26 @@ export function MobileProvider({
       if (!current()) return;
       setActor(me.actor);
       setDemo(me.demo);
+      // Remembered so a kitchen without signal still opens on its last loaded day.
+      if (me.actor) void SecureStore.setItemAsync(runtime.storageKey("actor"), JSON.stringify(me.actor));
+      else void SecureStore.deleteItemAsync(runtime.storageKey("actor"));
       setError("");
       setRevision((r) => r + 1);
     } catch (e) {
       if (!current()) return;
       const code = (e as { code?: string }).code || (e as Error).message;
-      if (["UNAUTHORIZED", "FORBIDDEN"].includes(code)) setActor(null);
+      if (["UNAUTHORIZED", "FORBIDDEN"].includes(code)) {
+        setActor(null);
+        void SecureStore.deleteItemAsync(runtime.storageKey("actor"));
+      } else {
+        // Offline: reopen the last kitchen, but only while this device still holds a session.
+        const [saved, token] = await Promise.all([
+          SecureStore.getItemAsync(runtime.storageKey("actor")),
+          runtime.token().catch(() => null),
+        ]);
+        if (!current()) return;
+        if (saved && token) setActor((a) => a ?? (JSON.parse(saved) as Actor));
+      }
       setError(
         errorLabel(code, locale) ||
           translator(locale)(
@@ -119,6 +133,7 @@ export function MobileProvider({
   useEffect(() => {
     const auth = runtime.supabase?.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_OUT") {
+        void SecureStore.deleteItemAsync(runtime.storageKey("actor"));
         sessionGeneration.current += 1;
         requests.current.clear();
         setActor(null);
@@ -193,6 +208,7 @@ export function MobileProvider({
   async function logout() {
     sessionGeneration.current += 1;
     requests.current.clear();
+    await SecureStore.deleteItemAsync(runtime.storageKey("actor"));
     await runtime.signOut();
     setActor(null);
     setRevision((r) => r + 1);
