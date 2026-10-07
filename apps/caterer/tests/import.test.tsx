@@ -83,3 +83,29 @@ it("flags a start date before the earliest one the kitchen can cook for", () => 
   expect(checked.needsReview).toBe(true);
   expect(checked.reason).toMatch(/2026-10-08/);
 });
+
+it("does not retry row by row when the connection drops", async () => {
+  const command = jest.fn(async () => {
+    throw new TypeError("Network request failed");
+  });
+  const runtime = createMobileRuntime({ apiUrl: "https://catera.example.test", storagePrefix: "t" });
+  runtime.api = {
+    ...runtime.api,
+    me: jest.fn(async () => ({ actor: { id: "u-1", role: "owner", catererId: "k-1" }, demo: false })),
+    sellerImportOptions: jest.fn(async () => ({ customers: [], packages: [{ id: "p-rumahan", name: "Makan Siang Rumahan", days: 20, areas: [], meal: "lunch" }] })),
+    command,
+  } as unknown as MobileRuntime["api"];
+  global.fetch = jest.fn(async () => ({ ok: true, json: async () => ({ data: { rows: rows.slice(0, 3), needsReview: 0 } }) })) as unknown as typeof fetch;
+  render(
+    <MobileProvider runtime={runtime} linkMapper={() => "/"}>
+      <ImportAssistant />
+    </MobileProvider>,
+  );
+  fireEvent.changeText(await screen.findByLabelText("Tempel atau ketik daftar pelanggan"), "daftar");
+  fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
+  fireEvent.press(await screen.findByRole("button", { name: "Simpan 3 pelanggan" }));
+  await waitFor(() => expect(command).toHaveBeenCalled());
+  await new Promise((r) => setTimeout(r, 50));
+  expect(command).toHaveBeenCalledTimes(1);
+  expect(screen.getByRole("button", { name: "Simpan 3 pelanggan" })).toBeTruthy();
+});

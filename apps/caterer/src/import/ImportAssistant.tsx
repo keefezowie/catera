@@ -15,6 +15,9 @@ type Attachment =
   | { kind: "pdf"; name: string; data: string }
   | { kind: "csv" | "xlsx"; name: string; data: string };
 
+/** Refusals that belong to one row (pilot_import_row); anything else is about the request itself. */
+const ROW_CODES = new Set(["CAPACITY", "CONFLICT", "CUTOFF", "DUPLICATE_CUSTOMER", "DUPLICATE_IMPORT", "FORBIDDEN", "INVALID_DATE", "INVALID_INPUT", "NOT_AVAILABLE", "OVERLAP", "PRICE_CHANGED"]);
+
 const fail = (e: unknown) => (e as { code?: string }).code || (e as Error).message;
 
 /** Impor pelanggan: paste or attach anything, check what the assistant read, save the clean rows. */
@@ -107,6 +110,10 @@ export function ImportAssistant() {
       setSaved((s) => s + clean.length);
       setRows(rows.filter((r) => r.needsReview));
     } catch (e) {
+      if (!ROW_CODES.has(fail(e))) {
+        setError(message(fail(e)));
+        return;
+      }
       // One bad row stops the whole batch: find which rows the server refuses and flag them.
       const flagged = new Map<number, string>();
       for (const r of clean) {
