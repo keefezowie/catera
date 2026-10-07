@@ -42,3 +42,9 @@ export {
   storeDirectEvent,
 } from "./doku-direct";
 export type { ProviderOperation } from "./payment-provider";
+export {
+  extractImportRows,
+  type AssistantInput,
+  type AssistantPackage,
+  type AssistantRow,
+} from "./import-assistant";
