@@ -551,6 +551,12 @@ export async function createDemoDatabase(inMemory = false) {
       "supabase/migrations/20261008102000_delivery_depart.sql"), "utf8") + "\ncommit;");
   }
   if (!(await db.query<{ installed: boolean }>(
+    "select position('INVALID_DATE' in prosrc)>0 installed from pg_proc where oid='public.catera_v1_command(text,jsonb,uuid)'::regprocedure",
+  )).rows[0].installed) {
+    await db.exec("begin;\n" + await readFile(path.join(projectRoot(),
+      "supabase/migrations/20261008102500_depart_today_one_push.sql"), "utf8") + "\ncommit;");
+  }
+  if (!(await db.query<{ installed: boolean }>(
     "select to_regclass('v1.import_assistant_usage') is not null installed",
   )).rows[0].installed) {
     await db.exec("begin;\n" + await readFile(path.join(projectRoot(),

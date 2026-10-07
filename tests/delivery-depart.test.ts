@@ -11,8 +11,9 @@ import { addDays, localDay, type Checkout } from "@catera/domain";
 type Day = { id: string; service_date: string };
 let db: Awaited<ReturnType<typeof createDemoDatabase>>;
 const start = addDays(localDay(), 5);
-// One shared service date where three subscriptions (two of Dapur Senja, one of Hijau Kitchen) are due.
-const dueDate = addDays(localDay(), 40);
+// Departure is only for the Jakarta day itself: three subscriptions (two of Dapur Senja, one of Hijau Kitchen) are due today.
+const today = localDay();
+const tomorrow = addDays(today, 1);
 const cmd = (action: string, payload: object, user: string = U.customer) =>
   localRpc<any>(db, user, "catera_v1_command", [action, payload, crypto.randomUUID()]);
 const autoDeliver = (today: string) =>
@@ -60,11 +61,11 @@ beforeAll(async () => {
   lunchHijau = await buy(P[3]);
   // Every test owns days with a fixed far-off date, so a nightly run in one test never reaches another's days.
   const dates: [Day, number][] = [
-    [both[0], 40],
-    [lunchSenja[0], 40],
-    [lunchHijau[0], 40],
+    [both[0], 0],
+    [lunchSenja[0], 0],
+    [lunchHijau[0], 0],
     [both[1], 42],
-    [lunchSenja[1], 41],
+    [lunchSenja[1], 1],
     [both[2], 60],
     [lunchSenja[2], 70],
     [lunchSenja[3], 80],
@@ -78,7 +79,7 @@ beforeAll(async () => {
 afterAll(async () => db?.close());
 
 const depart = (meal: string, user: string = U.owner, catererId = K[0]) =>
-  cmd("delivery.depart", { catererId, date: dueDate, meal }, user);
+  cmd("delivery.depart", { catererId, date: today, meal }, user);
 
 it("moves scheduled meals on the way once and notifies once", async () => {
   expect(await depart("lunch")).toEqual({ moved: 2 });
@@ -91,18 +92,14 @@ it("moves scheduled meals on the way once and notifies once", async () => {
   // The dinner of the same day, and another caterer's lunch, are untouched.
   expect((await mealRows(both[0].id)).find((m) => m.meal === "dinner")!.status).toBe("scheduled");
   expect((await mealRows(lunchHijau[0].id))[0].status).toBe("scheduled");
-  expect(await pushes("delivery")).toEqual([
-    { body: "Makan siangmu sedang diantar dari Dapur Senja", href: "/today" },
-    { body: "Makan siangmu sedang diantar dari Dapur Senja", href: "/today" },
-  ]);
+  // One push for the customer, although two of their packages from this caterer moved.
+  expect(await pushes("delivery")).toEqual([{ body: "Makan siangmu sedang diantar dari Dapur Senja", href: "/today" }]);
   const outbox = await q<{ dedupe: string }>("select dedupe from v1.outbox where kind='push' and dedupe like 'depart:%' order by dedupe");
-  expect(outbox.map((o) => o.dedupe)).toEqual(
-    [`depart:${both[0].id}:lunch`, `depart:${lunchSenja[0].id}:lunch`].sort(),
-  );
+  expect(outbox.map((o) => o.dedupe)).toEqual([`depart:${U.customer}:${K[0]}:${today}:lunch`]);
   // A second call finds nothing left to move and sends nothing.
   expect(await depart("lunch")).toEqual({ moved: 0 });
-  expect(await pushes("delivery")).toHaveLength(2);
-  expect(await q("select 1 from v1.outbox where kind='push' and dedupe like 'depart:%'")).toHaveLength(2);
+  expect(await pushes("delivery")).toHaveLength(1);
+  expect(await q("select 1 from v1.outbox where kind='push' and dedupe like 'depart:%'")).toHaveLength(1);
 });
 
 it("words the dinner departure for dinner", async () => {
@@ -116,7 +113,7 @@ it("does not notify again when the same departure is retried on a reached meal",
   // Someone else already took the meal back to scheduled and out again: dedupe still holds.
   await q("update v1.fulfillments set status='scheduled' where day_id=$1 and meal='lunch'", [lunchSenja[0].id]);
   expect(await depart("lunch")).toEqual({ moved: 1 });
-  expect(await pushes("delivery")).toHaveLength(3);
+  expect(await pushes("delivery")).toHaveLength(2);
 });
 
 it("staff may depart, another caterer may not", async () => {
@@ -127,25 +124,42 @@ it("staff may depart, another caterer may not", async () => {
   expect((await mealRows(lunchHijau[0].id))[0].status).toBe("scheduled");
 });
 
-it("staff depart a fresh meal", async () => {
-  expect(await cmd("delivery.depart", { catererId: K[0], date: both[1].service_date, meal: "dinner" }, U.staff)).toEqual({ moved: 1 });
+it("staff depart a fresh meal, and the customer is not told twice for the same caterer, day and meal", async () => {
+  // The seeded Dapur Senja lunch subscription, due today as well.
+  const [seeded] = await q<{ id: string }>(
+    "select d.id from v1.delivery_days d join v1.subscriptions s on s.id=d.subscription_id where s.package_id=$1 order by d.service_date limit 1",
+    [P[0]],
+  );
+  await q("update v1.delivery_days set service_date=$2::date where id=$1", [seeded.id, today]);
+  expect(await cmd("delivery.depart", { catererId: K[0], date: today, meal: "lunch" }, U.staff)).toEqual({ moved: 1 });
+  expect(await pushes("delivery")).toHaveLength(2);
+});
+
+it("refuses any date but the Jakarta day itself and moves nothing", async () => {
+  const before = (await pushes("delivery")).length;
+  for (const date of [tomorrow, addDays(today, -1), addDays(today, 41)])
+    await expect(cmd("delivery.depart", { catererId: K[0], date, meal: "lunch" }, U.owner)).rejects.toThrow("INVALID_DATE");
+  // Tomorrow's meal is still waiting, can still be changed by the customer, and nobody was notified.
+  expect((await mealRows(lunchSenja[1].id))[0].status).toBe("scheduled");
+  expect(await dayStatus(lunchSenja[1].id)).toBe("scheduled");
+  expect((await pushes("delivery")).length).toBe(before);
 });
 
 it("rejects malformed departures", async () => {
   for (const payload of [
-    { catererId: K[0], date: dueDate, meal: "breakfast" },
+    { catererId: K[0], date: today, meal: "breakfast" },
     { catererId: K[0], date: "tomorrow", meal: "lunch" },
-    { catererId: "nope", date: dueDate, meal: "lunch" },
-    { catererId: K[0], date: dueDate },
-    { catererId: K[0], date: dueDate, meal: "lunch", extra: 1 },
+    { catererId: "nope", date: today, meal: "lunch" },
+    { catererId: K[0], date: today },
+    { catererId: K[0], date: today, meal: "lunch", extra: 1 },
   ])
     await expect(cmd("delivery.depart", payload, U.owner)).rejects.toThrow("INVALID_INPUT");
 });
 
 it("replays a departure request without moving anything again", async () => {
-  const day = lunchSenja[1];
+  await q("update v1.fulfillments set status='scheduled' where day_id=$1 and meal='lunch'", [both[0].id]);
   const id = crypto.randomUUID();
-  const payload = { catererId: K[0], date: day.service_date, meal: "lunch" };
+  const payload = { catererId: K[0], date: today, meal: "lunch" };
   const first = await localRpc<any>(db, U.owner, "catera_v1_command", ["delivery.depart", payload, id]);
   expect(first).toEqual({ moved: 1 });
   expect(await localRpc<any>(db, U.owner, "catera_v1_command", ["delivery.depart", payload, id])).toEqual({ moved: 1 });

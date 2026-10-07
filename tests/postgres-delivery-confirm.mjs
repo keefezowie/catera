@@ -48,6 +48,7 @@ export async function verifyDeliveryConfirm(pool, cmd, evidence) {
     "20261008100500_production_signature_arrival.sql",
     "20261008101000_delivery_confirm.sql",
     "20261008102000_delivery_depart.sql",
+    "20261008102500_depart_today_one_push.sql",
   ])
     await pool.query(await readFile("supabase/migrations/" + file, "utf8"));
 
@@ -214,17 +215,23 @@ export async function verifyDeliveryDepart(pool, cmd, evidence) {
 
   // 3. Departures are idempotent under concurrency: simultaneous calls move a meal once and queue one push.
   const dep = (await purchased(pool, cmd, P[0], addDays(today, 270)))[0];
-  const depDate = addDays(today, 355);
-  await pool.query("update v1.delivery_days set service_date=$2::date where id=$1", [dep.id, depDate]);
+  // Departure is for the Jakarta day itself only.
+  await pool.query("update v1.delivery_days set service_date=$2::date where id=$1", [dep.id, today]);
+  await assert.rejects(cmd("delivery.depart", { catererId: CATERER_IDS[0], date: addDays(today, 1), meal: "lunch" }, U.owner), /INVALID_DATE/);
+  const waiting = (await pool.query(
+    "select count(*)::int n from v1.fulfillments f join v1.delivery_days d on d.id=f.day_id join v1.subscriptions s on s.id=d.subscription_id join v1.packages p on p.id=s.package_id where p.caterer_id=$1 and d.service_date=$2::date and f.meal='lunch' and f.status in ('scheduled','preparing') and d.status<>'cancelled'",
+    [CATERER_IDS[0], today],
+  )).rows[0].n;
+  assert(waiting >= 1, "the purchased day is waiting");
   const departs = await Promise.all(
-    [U.owner, U.staff, U.owner].map((u) => cmd("delivery.depart", { catererId: CATERER_IDS[0], date: depDate, meal: "lunch" }, u)),
+    [U.owner, U.staff, U.owner].map((u) => cmd("delivery.depart", { catererId: CATERER_IDS[0], date: today, meal: "lunch" }, u)),
   );
-  assert.equal(departs.reduce((sum, r) => sum + r.moved, 0), 1);
+  assert.equal(departs.reduce((sum, r) => sum + r.moved, 0), waiting);
   assert.equal(
-    (await pool.query("select count(*)::int n from v1.outbox where dedupe=$1", ["depart:" + dep.id + ":lunch"])).rows[0].n,
+    (await pool.query("select count(*)::int n from v1.outbox where dedupe=$1", ["depart:" + U.customer + ":" + CATERER_IDS[0] + ":" + today + ":lunch"])).rows[0].n,
     1,
   );
-  evidence.push("Three simultaneous departures of one meal move it once and queue one push.");
+  evidence.push("Three simultaneous departures of a day's meals move each once and queue one push per customer; any date but today is refused.");
 
   // 4. The last two open days of a subscription close at once, one by the customer and one by the job:
   // the subscription always ends completed.
@@ -278,5 +285,80 @@ export async function verifyDeliveryDepart(pool, cmd, evidence) {
   });
   evidence.push(
     "Confirming one last open day while the job delivers the other completes the subscription every time (12 rounds, one forced order).",
+  );
+
+  // 5. The kitchen sets off while the customer confirms the same meal (its window has started, so a
+  // confirmation is allowed before or after the departure): delivered exactly once, one earning,
+  // confirmed by the customer, and a push only when the departure actually moved the meal.
+  const racePool = [];
+  for (const start of [290, 305, 320]) {
+    const days = await purchased(pool, cmd, P[0], addDays(today, start));
+    await pool.query("alter table v1.subscriptions disable trigger subscription_terms");
+    await pool.query(
+      "update v1.subscriptions set snapshot=jsonb_set(snapshot,'{offer,windows}',$2::jsonb) where id=$1",
+      [days[0].subscription_id, JSON.stringify({ lunch: "00.00–00.01", dinner: "00.00–00.01" })],
+    );
+    await pool.query("alter table v1.subscriptions enable trigger subscription_terms");
+    racePool.push(...days);
+  }
+  assert(racePool.length >= 12, "need 12 synthetic days, have " + racePool.length);
+  let racePark = 0;
+  const pushCount = async () =>
+    (await pool.query("select count(*)::int n from v1.notifications where user_id=$1 and kind='delivery' and body like 'Makan siangmu sedang diantar%'", [U.customer])).rows[0].n;
+  const raced = { departedFirst: 0, confirmedFirst: 0 };
+  for (const [round, day] of racePool.slice(0, 12).entries()) {
+    await pool.query(
+      "update v1.delivery_days set service_date='2020-01-01'::date+$3::int where subscription_id=$1 and id<>$2 and service_date=$4::date",
+      [day.subscription_id, day.id, racePark++, today],
+    );
+    await pool.query("update v1.delivery_days set service_date=$2::date,status='scheduled' where id=$1", [day.id, today]);
+    await pool.query("update v1.fulfillments set status='scheduled',departed_at=null,confirmed_at=null,confirmed_by=null where day_id=$1", [day.id]);
+    await pool.query("delete from v1.outbox where dedupe like 'depart:%'");
+    const before = await pushCount();
+    const meal = (await pool.query("select meal from v1.fulfillments where day_id=$1", [day.id])).rows[0].meal;
+    const departArgs = { catererId: CATERER_IDS[0], date: today, meal };
+    const confirmArgs = { deliveryId: day.id, meal };
+    let dep, conf;
+    if (round < 2) {
+      // Forced orders: the first transaction stays open while the other starts and waits on the day lock.
+      const [firstUser, firstSql, first, secondRun] =
+        round === 0
+          ? [U.owner, "delivery.depart", departArgs, () => cmd("delivery.confirm", confirmArgs, U.customer)]
+          : [U.customer, "delivery.confirm", confirmArgs, () => cmd("delivery.depart", departArgs, U.owner)];
+      let second;
+      const firstResult = await claimed(pool, firstUser, async (c) => {
+        const r = (await c.query("select public.catera_v1_command($1,$2,gen_random_uuid()) value", [firstSql, first])).rows[0].value;
+        second = secondRun();
+        let waited = 0;
+        while ((await waitingOnALock(pool)) === 0 && waited++ < 100) await new Promise((r2) => setTimeout(r2, 50));
+        assert((await waitingOnALock(pool)) > 0, round + ": the second command waits for the first");
+        await c.query("commit");
+        return r;
+      });
+      [dep, conf] = round === 0 ? [firstResult, await second] : [await second, firstResult];
+    } else {
+      // Free-running with a growing head start for the departure.
+      const lag = [0, 2, 5, 9][round % 4];
+      [dep, conf] = await Promise.all([
+        cmd("delivery.depart", departArgs, U.owner),
+        new Promise((r) => setTimeout(r, lag)).then(() => cmd("delivery.confirm", confirmArgs, U.customer)),
+      ]);
+    }
+    assert.equal(conf.status, "delivered", round + ": confirm succeeds before or after the departure");
+    assert.equal(await dayStatusOf(pool, day.id), "delivered", round + ": day");
+    assert.equal(await earnedOf(pool, day.id), 1, round + ": one earning");
+    const f = (await pool.query("select status,confirmed_by,departed_at from v1.fulfillments where day_id=$1", [day.id])).rows[0];
+    assert.equal(f.status, "delivered");
+    assert.equal(f.confirmed_by, "customer");
+    const pushed = (await pushCount()) - before;
+    assert(pushed <= 1, round + ": at most one departure push, got " + pushed);
+    assert.equal(pushed, dep.moved, round + ": a push only when the meal was moved");
+    assert.equal(f.departed_at !== null, dep.moved === 1);
+    if (dep.moved === 1) raced.departedFirst++;
+    else raced.confirmedFirst++;
+  }
+  evidence.push(
+    "Departure racing the customer's confirmation of the same meal 12 times delivers it once with one earning, confirmed by the customer, and at most one push (" +
+      raced.departedFirst + " departed first, " + raced.confirmedFirst + " confirmed first).",
   );
 }
