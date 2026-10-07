@@ -5,23 +5,29 @@ import { useMobile } from "@catera/mobile-core";
 import { Button, colors, Field, Sheet, Text } from "@catera/mobile-ui";
 import { issueSteps } from "./exceptions";
 
+/** Moving a day is for the caterer's own customers, before that day's cutoff. */
+export const canMoveDelivery = (d: SellerOperationsState["deliveries"][number] | undefined) =>
+  !!d?.customer.recordId && new Date(d.cutoff_at).getTime() > Date.now();
+
 /** The only per-stop actions: the food did not arrive, or the day moves (own customers). */
 export function ExceptionSheet({
   stop,
   meal,
   ops,
+  allowFailed = true,
   onClose,
 }: {
   stop: Stop;
   meal: KitchenMeal;
   ops: SellerOperationsState;
+  /** False for tomorrow's stops: food that hasn't been sent can't have failed. */
+  allowFailed?: boolean;
   onClose: () => void;
 }) {
   const { t, locale, command, actor } = useMobile();
   const delivery = ops.deliveries.find((d) => d.id === stop.deliveryId)!;
-  const canMove =
-    !!delivery.customer.recordId && new Date(delivery.cutoff_at).getTime() > Date.now();
-  const [kind, setKind] = useState<"failed" | "move">("failed");
+  const canMove = canMoveDelivery(delivery);
+  const [kind, setKind] = useState<"failed" | "move">(allowFailed ? "failed" : "move");
   const [date, setDate] = useState("");
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
@@ -80,12 +86,12 @@ export function ExceptionSheet({
     <Sheet visible onClose={onClose} title={stop.name}>
       <Text variant="caption">{`${stop.portions} porsi · ${stop.packageName}`}</Text>
       <View style={{ gap: 8 }}>
-        {option(
+        {allowFailed && option(
           "failed",
           t("Gagal diantar", "Not delivered"),
           t(
-            "Makanan tidak sampai. Pelanggan dan tim Catera diberi tahu; pengembalian dana diurus Catera.",
-            "The food didn't arrive. The customer and Catera are told; Catera handles refunds.",
+            "Makanan tidak sampai. Hari ini tidak dihitung terkirim dan tidak dibayarkan ke Anda. Hubungi pelanggan untuk menggantinya.",
+            "The food didn't arrive. This day isn't counted as delivered or paid to you. Contact the customer to make up for it.",
           ),
         )}
         {canMove

@@ -18,7 +18,7 @@ import { useData, useMobile, type MobileRuntime } from "@catera/mobile-core";
 import { Button, Card, colors, Screen, Segmented, Text } from "@catera/mobile-ui";
 import { jakartaClock } from "./exceptions";
 import { loadCachedDay, saveCachedDay } from "./offline";
-import { ExceptionSheet } from "./ExceptionSheet";
+import { canMoveDelivery, ExceptionSheet } from "./ExceptionSheet";
 
 type LoadedDay = { data: SellerOperationsState; savedAt: string | null };
 
@@ -54,7 +54,8 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
   );
   const ops = day.data?.data;
 
-  if (ops && !ops.deliveries.length && !ops.customers.length) return <MulaiCard />;
+  // A kitchen without packages has nothing to cook yet; only the owner can set it up.
+  const newKitchen = !!ops && !ops.offers.length && actor?.role === "owner";
 
   return (
     <Screen>
@@ -88,10 +89,11 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
       ) : null}
       {!ops && day.error ? <Text style={{ color: colors.danger }}>{day.error}</Text> : null}
       {!ops && !day.error ? <Text variant="caption">{t("Memuat…", "Loading…")}</Text> : null}
+      {newKitchen ? <MulaiCard /> : null}
       {offset === "0" ? <ActionCards items={attention.data?.items ?? []} /> : null}
       {ops && section === "masak" ? <Masak ops={ops} /> : null}
       {ops && section === "antar" ? (
-        <Antar ops={ops} date={date} canReport={offset === "0" && !day.data?.savedAt} />
+        <Antar ops={ops} date={date} report={day.data?.savedAt ? null : offset === "0" ? "today" : "tomorrow"} />
       ) : null}
     </Screen>
   );
@@ -181,7 +183,10 @@ function Row({ label, value }: { label: string; value: number }) {
   );
 }
 
-function Antar({ ops, date, canReport }: { ops: SellerOperationsState; date: string; canReport: boolean }) {
+/** Today: report a failed stop or move it. Tomorrow: only move, while the cutoff is ahead. */
+const movable = (ops: SellerOperationsState, stop: Stop) => canMoveDelivery(ops.deliveries.find((d) => d.id === stop.deliveryId));
+
+function Antar({ ops, date, report }: { ops: SellerOperationsState; date: string; report: "today" | "tomorrow" | null }) {
   const { t, locale } = useMobile();
   const [meal, setMeal] = useState<KitchenMeal>("lunch");
   const [part, setPart] = useState(0);
@@ -242,10 +247,10 @@ function Antar({ ops, date, canReport }: { ops: SellerOperationsState; date: str
           >
             <Ionicons name="location-outline" size={22} color={colors.forest} />
           </Pressable>
-          {canReport ? (
+          {report === "today" || (report === "tomorrow" && movable(ops, s)) ? (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`${t("Ada masalah", "Problem")}: ${s.name}`}
+              accessibilityLabel={`${report === "today" ? t("Ada masalah", "Problem") : t("Pindah tanggal", "Move date")}: ${s.name}`}
               onPress={() => setReporting(s)}
               style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}
             >
@@ -274,6 +279,7 @@ function Antar({ ops, date, canReport }: { ops: SellerOperationsState; date: str
           stop={reporting}
           meal={meal}
           ops={ops}
+          allowFailed={report === "today"}
           onClose={() => setReporting(null)}
         />
       ) : null}
@@ -316,7 +322,7 @@ function MulaiCard() {
     [t("Aktifkan pembayaran", "Turn on payments"), t("Perlu sebelum perpanjangan pertama", "Needed before the first renewal"), "/aktifkan"],
   ];
   return (
-    <Screen>
+    <>
       <Card tone="brand">
         <Text variant="heading" style={{ color: colors.cream }}>
           {t("Siapkan dapur Anda", "Set up your kitchen")}
@@ -350,6 +356,6 @@ function MulaiCard() {
           )}
         </Text>
       </Card>
-    </Screen>
+    </>
   );
 }

@@ -3,7 +3,12 @@ import type { LibraryDish, MealMenu } from "@catera/domain";
 import { copyWeekBatches, dayComplete, suggestDishes, weekDates } from "../src/menu/logic";
 import { SlotEditor } from "../src/menu/SlotEditor";
 
+jest.mock("expo-router", () => ({ router: { push: jest.fn(), replace: jest.fn(), back: jest.fn() }, Link: () => null }));
 jest.mock("expo-notifications", () => ({
+  addNotificationReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
+  addNotificationResponseReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
+  getLastNotificationResponseAsync: jest.fn(async () => null),
+  clearLastNotificationResponseAsync: jest.fn(async () => undefined),
   setNotificationHandler: jest.fn(),
 }));
 
@@ -95,4 +100,22 @@ it("keeps Simpan disabled until every category is filled exactly", () => {
   );
   expect(screen.getByText("Lauk · 1 dari 2")).toBeTruthy();
   expect(screen.getByRole("button", { name: "Simpan menu" }).props.accessibilityState.disabled).toBe(true);
+});
+
+it("does not offer helpers package creation on an empty menu", async () => {
+  const { createMobileRuntime, MobileProvider } = jest.requireActual("@catera/mobile-core") as typeof import("@catera/mobile-core");
+  const { MenuWeek } = jest.requireActual("../src/menu/MenuWeek") as typeof import("../src/menu/MenuWeek");
+  const runtime = createMobileRuntime({ apiUrl: "https://api.example.test", storagePrefix: "m" });
+  runtime.api = {
+    ...runtime.api,
+    me: jest.fn(async () => ({ actor: { id: "u-2", role: "staff", catererId: "k-1" }, demo: false })),
+    sellerOperations: jest.fn(async () => ({ offers: [], dishes: [], datedMenus: [], caterer: { name: "Dapur" } })),
+  } as unknown as typeof runtime.api;
+  render(
+    <MobileProvider runtime={runtime} linkMapper={(h: string) => h}>
+      <MenuWeek />
+    </MobileProvider>,
+  );
+  expect(await screen.findByText("Belum ada paket.")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Buat paket" })).toBeNull();
 });

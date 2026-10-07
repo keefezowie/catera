@@ -103,8 +103,14 @@ export function MenuWeek() {
     return (
       <Screen>
         <Text variant="title">{t("Menu", "Menu")}</Text>
-        <Text>{t("Buat paket dulu, lalu isi menunya di sini.", "Create a package first, then fill its menu here.")}</Text>
-        <Button label={t("Buat paket", "Create a package")} onPress={() => router.push("/paket/baru" as never)} />
+        {canEdit ? (
+          <>
+            <Text>{t("Buat paket dulu, lalu isi menunya di sini.", "Create a package first, then fill its menu here.")}</Text>
+            <Button label={t("Buat paket", "Create a package")} onPress={() => router.push("/paket/baru" as never)} />
+          </>
+        ) : (
+          <Text>{t("Belum ada paket.", "No packages yet.")}</Text>
+        )}
       </Screen>
     );
 

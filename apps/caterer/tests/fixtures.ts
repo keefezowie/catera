@@ -51,7 +51,7 @@ export function delivery(
 export function canvasDay(): SellerOperationsState {
   return {
     caterer: { id: "k-1", name: "Dapur Bu Rina" },
-    offers: [],
+    offers: [rumahan, hemat],
     customers: [{ id: "c-x", name: "x", source: "seller" }],
     cases: [],
     transactions: [],
@@ -69,6 +69,11 @@ export function canvasDay(): SellerOperationsState {
   } as unknown as SellerOperationsState;
 }
 
+/** A brand-new kitchen: no packages, no customers, nothing to deliver. */
 export function emptyDay(): SellerOperationsState {
+  return { ...canvasDay(), deliveries: [], customers: [], offers: [] } as unknown as SellerOperationsState;
+}
+/** Packages and customers imported without Catera accounts, but nothing to deliver on this day. */
+export function quietDay(): SellerOperationsState {
   return { ...canvasDay(), deliveries: [], customers: [] } as unknown as SellerOperationsState;
 }

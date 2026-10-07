@@ -4,7 +4,7 @@ import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera
 import { TodayScreen } from "../src/today/TodayScreen";
 import { issueSteps } from "../src/today/exceptions";
 import * as offline from "../src/today/offline";
-import { canvasDay, emptyDay } from "./fixtures";
+import { canvasDay, emptyDay, quietDay } from "./fixtures";
 
 jest.mock("expo-router", () => ({ router: { push: jest.fn(), replace: jest.fn() }, Link: () => null }));
 jest.mock("expo-print", () => ({ printAsync: jest.fn(async () => undefined) }));
@@ -22,11 +22,11 @@ jest.mock("../src/today/offline", () => ({
 
 const owner = { id: "u-1", role: "owner", name: "Bu Rina", catererId: "k-1" };
 
-function runtimeWith(day: () => Promise<unknown>): MobileRuntime {
+function runtimeWith(day: () => Promise<unknown>, actor: Record<string, unknown> = owner): MobileRuntime {
   const runtime = createMobileRuntime({ apiUrl: "https://api.example.test", storagePrefix: "t" });
   runtime.api = {
     ...runtime.api,
-    me: jest.fn(async () => ({ actor: owner, demo: false })),
+    me: jest.fn(async () => ({ actor, demo: false })),
     sellerOperations: jest.fn(day),
     sellerAttention: jest.fn(async () => ({ items: [], total: 0, nextCursor: null, timezone: "Asia/Jakarta" })),
     command: jest.fn(async () => ({})),
@@ -113,4 +113,52 @@ it("opens on the day a notification points to", async () => {
     </MobileProvider>,
   );
   await waitFor(() => expect(runtime.api.sellerOperations).toHaveBeenCalledWith("k-1", tomorrow));
+});
+
+it("keeps the day toggle for a kitchen with packages on a day without deliveries", async () => {
+  renderToday(runtimeWith(async () => quietDay()));
+  expect(await screen.findByText("Tidak ada yang dimasak hari ini.")).toBeTruthy();
+  expect(screen.getByText("Besok")).toBeTruthy();
+  expect(screen.queryByText("Siapkan dapur Anda")).toBeNull();
+});
+
+it("never shows helpers the owner setup steps", async () => {
+  renderToday(runtimeWith(async () => emptyDay(), { ...owner, role: "staff" }));
+  expect(await screen.findByText("Tidak ada yang dimasak hari ini.")).toBeTruthy();
+  expect(screen.getByText("Besok")).toBeTruthy();
+  expect(screen.queryByText("Siapkan dapur Anda")).toBeNull();
+});
+
+it("moves a customer's day from Besok while the cutoff is still ahead", async () => {
+  const day = canvasDay();
+  const d = day.deliveries.find((x) => x.customer.name === "Keluarga Hartono")!;
+  Object.assign(d, { cutoff_at: "2099-01-01T10:00:00Z", customer: { ...d.customer, recordId: "cr-1" } });
+  const runtime = runtimeWith(async () => day);
+  const tomorrow = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(new Date(Date.now() + 86400000));
+  render(
+    <MobileProvider runtime={runtime} linkMapper={(h) => h}>
+      <TodayScreen date={tomorrow} />
+    </MobileProvider>,
+  );
+  fireEvent.press(await screen.findByText("Antar"));
+  fireEvent.press(await screen.findByLabelText("Pindah tanggal: Keluarga Hartono"));
+  expect(screen.queryByText("Gagal diantar")).toBeNull();
+  fireEvent.changeText(screen.getByLabelText("Tanggal baru (TTTT-BB-HH)"), "2099-01-05");
+  fireEvent.changeText(screen.getByLabelText("Alasan"), "Dapur tutup sehari");
+  fireEvent.press(screen.getByText("Simpan laporan"));
+  await waitFor(() =>
+    expect(runtime.api.command).toHaveBeenCalledWith(
+      "customer.deliveryChange",
+      expect.objectContaining({ id: d.id, date: "2099-01-05" }),
+      expect.any(String),
+    ),
+  );
+});
+
+it("tells the caterer plainly what a failed delivery means", async () => {
+  renderToday(runtimeWith(async () => canvasDay()));
+  fireEvent.press(await screen.findByText("Antar"));
+  fireEvent.press(await screen.findByLabelText("Ada masalah: Keluarga Hartono"));
+  expect(await screen.findByText(/tidak dihitung terkirim/)).toBeTruthy();
+  expect(screen.queryByText(/pengembalian dana diurus Catera/)).toBeNull();
 });
