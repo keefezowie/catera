@@ -545,6 +545,12 @@ export async function createDemoDatabase(inMemory = false) {
       "supabase/migrations/20261008101000_delivery_confirm.sql"), "utf8") + "\ncommit;");
   }
   if (!(await db.query<{ installed: boolean }>(
+    "select to_regprocedure('public.catera_v1_command_depart_base(text,jsonb,uuid)') is not null installed",
+  )).rows[0].installed) {
+    await db.exec("begin;\n" + await readFile(path.join(projectRoot(),
+      "supabase/migrations/20261008102000_delivery_depart.sql"), "utf8") + "\ncommit;");
+  }
+  if (!(await db.query<{ installed: boolean }>(
     "select to_regclass('v1.import_assistant_usage') is not null installed",
   )).rows[0].installed) {
     await db.exec("begin;\n" + await readFile(path.join(projectRoot(),

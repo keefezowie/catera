@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import {
   ADDRESS_ID as A,
+  CATERER_IDS,
   DEMO_ACTORS as U,
   PACKAGE_IDS as P,
 } from "../packages/backend/src/seed.ts";
@@ -46,6 +47,7 @@ export async function verifyDeliveryConfirm(pool, cmd, evidence) {
     "20261008100000_customer_arrival.sql",
     "20261008100500_production_signature_arrival.sql",
     "20261008101000_delivery_confirm.sql",
+    "20261008102000_delivery_depart.sql",
   ])
     await pool.query(await readFile("supabase/migrations/" + file, "utf8"));
 
@@ -89,9 +91,9 @@ export async function verifyDeliveryConfirm(pool, cmd, evidence) {
     const rows = (await pool.query("select status,confirmed_at,confirmed_by from v1.fulfillments where day_id=$1", [day.id])).rows;
     for (const f of rows) {
       assert.equal(f.status, "delivered");
-      // Auto-delivery does not stamp a confirmer yet, so a meal the job won is unconfirmed.
-      assert(["customer", null].includes(f.confirmed_by), "confirmed_by " + f.confirmed_by);
-      assert.equal(f.confirmed_by === null, f.confirmed_at === null);
+      // Whoever wins the race stamps the confirmation: the customer, or the job as 'auto'.
+      assert(["customer", "auto"].includes(f.confirmed_by), "confirmed_by " + f.confirmed_by);
+      assert(f.confirmed_at !== null, "confirmed_at");
     }
     assert.equal(
       (await pool.query("select count(*)::int n from v1.delivery_reactions where day_id=$1", [day.id])).rows[0].n,
@@ -117,4 +119,164 @@ export async function verifyDeliveryConfirm(pool, cmd, evidence) {
     1,
   );
   evidence.push("Two simultaneous confirmations of one meal record one delivery and one earning.");
+}
+
+async function claimed(pool, user, fn) {
+  // A transaction held open on its own connection, acting as the given customer.
+  const c = await pool.connect();
+  try {
+    await c.query("begin");
+    await c.query("select set_config('request.jwt.claim.sub',$1,true),set_config('catera.demo','true',true)", [user]);
+    return await fn(c);
+  } finally {
+    c.release();
+  }
+}
+
+const waitingOnALock = async (pool) =>
+  (await pool.query("select count(*)::int n from pg_stat_activity where wait_event_type='Lock' and datname=current_database()")).rows[0].n;
+
+// The nightly rule only reaches days from the date it was switched on; the races use yesterday and today.
+async function withPolicyFrom(pool, date, fn) {
+  const before = (await pool.query("select since::text s from v1.auto_deliver_policy")).rows[0].s;
+  await pool.query("update v1.auto_deliver_policy set since=$1::date", [date]);
+  try {
+    return await fn();
+  } finally {
+    await pool.query("update v1.auto_deliver_policy set since=$1::date", [before]);
+  }
+}
+
+const dayStatusOf = async (pool, id) => (await pool.query("select status from v1.delivery_days where id=$1", [id])).rows[0].status;
+const earnedOf = async (pool, id) =>
+  (await pool.query("select count(*)::int n from v1.settlement_entries where day_id=$1 and kind='earned'", [id])).rows[0].n;
+
+export async function verifyDeliveryDepart(pool, cmd, evidence) {
+  const today = localDay();
+  const yesterday = addDays(today, -1);
+  const issue = (day, meal) => ({ deliveryId: day, meal, subject: "Makanan tidak datang", body: "Ditunggu sampai jam dua siang" });
+
+  // 1. A report filed while the nightly job runs: the meal is held, or the report lands after delivery.
+  const reportPool = [
+    ...(await purchased(pool, cmd, P[2], addDays(today, 230))),
+    ...(await purchased(pool, cmd, P[3], addDays(today, 330))),
+  ];
+  assert(reportPool.length >= 10, "need 10 synthetic days, have " + reportPool.length);
+  const outcomes = { held: 0, reportedAfterDelivery: 0 };
+  for (const [round, day] of reportPool.slice(0, 10).entries()) {
+    const date = addDays(today, 340 + round);
+    await pool.query("update v1.delivery_days set service_date=$2::date where id=$1", [day.id, date]);
+    const meal = (await pool.query("select meal from v1.fulfillments where day_id=$1 order by meal limit 1", [day.id])).rows[0].meal;
+    const [report] = await Promise.all([
+      cmd("deliveryIssue.create", issue(day.id, meal), U.customer),
+      system(pool, "delivery.autoDeliver", { today: addDays(date, 1) }),
+    ]);
+    assert(report.id, round + ": the report was filed");
+    const status = await dayStatusOf(pool, day.id);
+    const earned = await earnedOf(pool, day.id);
+    const reported = (await pool.query("select status from v1.fulfillments where day_id=$1 and meal=$2", [day.id, meal])).rows[0].status;
+    if (status === "delivered") {
+      // The report reached the database after the job had delivered the day.
+      assert.equal(earned, 1, round + ": a delivered day earns once");
+      assert.equal(reported, "delivered");
+      outcomes.reportedAfterDelivery++;
+    } else {
+      assert.equal(earned, 0, round + ": a held day earns nothing");
+      assert.equal(reported, "scheduled");
+      assert.equal(status, "scheduled");
+      outcomes.held++;
+    }
+  }
+
+  // 2. A report in flight (uncommitted) holds its meal: the job leaves the day for its next run,
+  // and the committed report keeps holding it until it is resolved.
+  const spare = (await purchased(pool, cmd, P[0], addDays(today, 250)))[0];
+  const spareDate = addDays(today, 350);
+  await pool.query("update v1.delivery_days set service_date=$2::date where id=$1", [spare.id, spareDate]);
+  const spareMeal = (await pool.query("select meal from v1.fulfillments where day_id=$1 limit 1", [spare.id])).rows[0].meal;
+  await claimed(pool, U.customer, async (c) => {
+    await c.query("select public.catera_v1_command('deliveryIssue.create',$1,gen_random_uuid())", [issue(spare.id, spareMeal)]);
+    await system(pool, "delivery.autoDeliver", { today: addDays(spareDate, 1) });
+    assert.equal(await dayStatusOf(pool, spare.id), "scheduled", "an in-flight report holds the day");
+    await c.query("commit");
+  });
+  await system(pool, "delivery.autoDeliver", { today: addDays(spareDate, 1) });
+  assert.equal(await dayStatusOf(pool, spare.id), "scheduled");
+  assert.equal(await earnedOf(pool, spare.id), 0);
+  await pool.query("update v1.delivery_issues set status='resolved' where day_id=$1", [spare.id]);
+  await system(pool, "delivery.autoDeliver", { today: addDays(spareDate, 1) });
+  assert.equal(await dayStatusOf(pool, spare.id), "delivered");
+  assert.equal(await earnedOf(pool, spare.id), 1);
+  evidence.push(
+    "Reports filed while the nightly job runs 10 times never leave a reported meal delivered ahead of its report (" +
+      outcomes.held + " held, " + outcomes.reportedAfterDelivery + " reported after delivery); an in-flight report holds its meal until resolved.",
+  );
+
+  // 3. Departures are idempotent under concurrency: simultaneous calls move a meal once and queue one push.
+  const dep = (await purchased(pool, cmd, P[0], addDays(today, 270)))[0];
+  const depDate = addDays(today, 355);
+  await pool.query("update v1.delivery_days set service_date=$2::date where id=$1", [dep.id, depDate]);
+  const departs = await Promise.all(
+    [U.owner, U.staff, U.owner].map((u) => cmd("delivery.depart", { catererId: CATERER_IDS[0], date: depDate, meal: "lunch" }, u)),
+  );
+  assert.equal(departs.reduce((sum, r) => sum + r.moved, 0), 1);
+  assert.equal(
+    (await pool.query("select count(*)::int n from v1.outbox where dedupe=$1", ["depart:" + dep.id + ":lunch"])).rows[0].n,
+    1,
+  );
+  evidence.push("Three simultaneous departures of one meal move it once and queue one push.");
+
+  // 4. The last two open days of a subscription close at once, one by the customer and one by the job:
+  // the subscription always ends completed.
+  const pairs = [];
+  for (let start = 280; pairs.length < 12 && start < 350; start += 8) {
+    const days = await purchased(pool, cmd, P[4], addDays(today, start));
+    for (let k = 0; 2 * k + 1 < days.length; k++) pairs.push([days, k]);
+  }
+  assert(pairs.length >= 12, "need 12 day pairs, have " + pairs.length);
+  let parkedDays = 0;
+  const closeLastTwo = async ([days, k], race) => {
+    const [a, b] = [days[2 * k], days[2 * k + 1]];
+    const sub = a.subscription_id;
+    // Everything else of the subscription is out of the way; earlier rounds' days are parked in the past.
+    await pool.query("update v1.delivery_days set status='cancelled' where subscription_id=$1 and id not in ($2,$3) and status<>'delivered'", [sub, a.id, b.id]);
+    await pool.query("update v1.fulfillments set status='cancelled' where status<>'delivered' and day_id in (select id from v1.delivery_days where subscription_id=$1 and id not in ($2,$3))", [sub, a.id, b.id]);
+    for (const old of (await pool.query("select id from v1.delivery_days where subscription_id=$1 and id not in ($2,$3) and service_date in ($4::date,$5::date)", [sub, a.id, b.id, today, yesterday])).rows)
+      await pool.query("update v1.delivery_days set service_date='2020-01-01'::date+$2::int where id=$1", [old.id, parkedDays++]);
+    await pool.query("update v1.delivery_days set service_date=$2::date,status='out_for_delivery' where id=$1", [a.id, today]);
+    await pool.query("update v1.fulfillments set status='out_for_delivery' where day_id=$1", [a.id]);
+    await pool.query("update v1.delivery_days set service_date=$2::date,status='scheduled' where id=$1", [b.id, yesterday]);
+    await pool.query("update v1.fulfillments set status='scheduled' where day_id=$1", [b.id]);
+    await pool.query("update v1.subscriptions set status='active' where id=$1", [sub]);
+    const meal = (await pool.query("select meal from v1.fulfillments where day_id=$1", [a.id])).rows[0].meal;
+    await race(a, meal);
+    assert.equal((await pool.query("select status from v1.subscriptions where id=$1", [sub])).rows[0].status, "completed", "subscription " + sub);
+    assert.equal(await earnedOf(pool, a.id), 1);
+    assert.equal(await earnedOf(pool, b.id), 1);
+  };
+  await withPolicyFrom(pool, yesterday, async () => {
+    // Forced order: the confirmation holds the subscription while the job finishes the other day.
+    await closeLastTwo(pairs[0], async (a, meal) => {
+      await claimed(pool, U.customer, async (c) => {
+        await c.query("select public.catera_v1_command('delivery.confirm',$1,gen_random_uuid())", [{ deliveryId: a.id, meal }]);
+        const job = system(pool, "delivery.autoDeliver", { today });
+        let waited = 0;
+        while ((await waitingOnALock(pool)) === 0 && waited++ < 100) await new Promise((r) => setTimeout(r, 50));
+        assert((await waitingOnALock(pool)) > 0, "the job waits for the subscription lock");
+        await c.query("commit");
+        await job;
+      });
+    });
+    // Free-running races.
+    for (const pair of pairs.slice(1, 12))
+      await closeLastTwo(pair, (a, meal) =>
+        Promise.all([
+          cmd("delivery.confirm", { deliveryId: a.id, meal }, U.customer),
+          system(pool, "delivery.autoDeliver", { today }),
+        ]),
+      );
+  });
+  evidence.push(
+    "Confirming one last open day while the job delivers the other completes the subscription every time (12 rounds, one forced order).",
+  );
 }
