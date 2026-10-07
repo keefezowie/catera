@@ -1,0 +1,335 @@
+/*
+ * October 2026 UI/UX optimisation pass (Mobbin-informed).
+ * Loaded after the other global sheets; `body` prefixes outrank component sheets.
+ */
+
+/* Header: active item uses weight + underline instead of an orange dot. */
+body .desktop-nav {
+  font-size: 13px;
+}
+body .desktop-nav a.selected:after {
+  content: none;
+}
+body .desktop-nav a.selected {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 8px;
+}
+body .header-actions .button.small {
+  min-height: 40px;
+}
+body .select-trigger.locale-switch {
+  font-size: 14px;
+}
+body .select-trigger.locale-switch > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Featured hero: readable supporting copy. */
+@media (min-width: 801px) {
+  body .featured-slide .hero-copy > p {
+    font-size: 16px;
+    line-height: 1.55;
+  }
+}
+
+/* Discovery: one meta line, readable sizes, fee note once per list. */
+body .package-card-v2 .package-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin: 0;
+  font-size: 13px;
+  color: var(--forest);
+}
+body .package-card-v2 .package-meta > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+body .package-card-v2 .package-meta svg {
+  flex-shrink: 0;
+}
+body .package-card-v2 .caterer-line > span,
+body .package-card-v2 .card-price small,
+body .package-card-v2 .delivery-coverage,
+body .package-card-v2 .preview-source,
+body .package-card-v2 .contents-link {
+  font-size: 13px;
+}
+body .package-card-v2 .package-body h3 {
+  font-size: 19px;
+}
+body .package-card-v2 .delivery-coverage {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 10px 0 0;
+  color: var(--muted);
+}
+body .package-card-v2 .delivery-coverage.eligible {
+  color: var(--forest);
+}
+body .package-card-v2 .delivery-coverage svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+body .package-card-v2 .image-label {
+  font-size: 12px;
+}
+body .results-bar .results-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--muted);
+}
+body .delivery-selector label > span {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--forest);
+  white-space: nowrap;
+}
+@media (max-width: 560px) {
+  body .results-bar {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+  body .results-bar > p {
+    flex: 1 1 100%;
+  }
+}
+
+/* Package detail: readable panel, one dominant action. */
+body .package-detail .purchase-card > p,
+body .package-detail .purchase-card .small {
+  font-size: 14px;
+}
+body .package-detail .purchase-card .portion-control label {
+  font-size: 14px;
+}
+body .package-detail .facts {
+  font-size: 14px;
+}
+body .package-detail .facts dt {
+  color: var(--muted);
+}
+body .package-detail .booking-commitment {
+  font-weight: 650;
+  color: var(--forest);
+}
+.duration-control {
+  margin: 18px 0 4px;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.duration-control legend {
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--forest);
+}
+.duration-control .segmented {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  grid-auto-flow: column;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 10px;
+  background: var(--soft);
+}
+.duration-control .segmented label {
+  position: relative;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  min-height: 48px;
+  padding: 6px 4px;
+  border-radius: 8px;
+  color: var(--forest);
+  font-size: 14px;
+  font-weight: 650;
+  text-align: center;
+  cursor: pointer;
+}
+.duration-control .segmented label small {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--sunrise-ink, #9b4309);
+}
+.duration-control .segmented label.selected {
+  background: var(--forest);
+  color: var(--cream);
+}
+.duration-control .segmented label.selected small {
+  color: var(--cream);
+}
+.duration-control .segmented input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.duration-control .segmented label:has(input:focus-visible) {
+  outline: 3px solid var(--focus, #b65b13);
+  outline-offset: 2px;
+}
+.duration-control > p {
+  margin: 8px 0 0;
+}
+body .package-detail .purchase-card .purchase-trial {
+  display: flex;
+  width: 100%;
+  margin-top: 6px;
+  font-size: 14px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.purchase-secondary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+}
+body .purchase-card .purchase-secondary .button {
+  min-height: 48px;
+  margin: 0;
+  padding: 10px 12px;
+  gap: 8px;
+}
+body .purchase-secondary .button[aria-pressed="true"] {
+  background: var(--soft);
+  border-color: var(--forest);
+}
+/* The booking panel drops below the content at 1150px; keep the action reachable. */
+@media (max-width: 1150px) {
+  body .mobile-purchase-summary {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: calc(var(--mobile-bottom-clearance, 0px) + 10px);
+    z-index: 35;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    max-width: 640px;
+    margin-inline: auto;
+    padding: 10px 10px 10px 16px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--surface);
+    box-shadow: 0 12px 32px rgb(29 55 45 / 18%);
+  }
+  body .mobile-purchase-summary small {
+    color: var(--muted);
+    font-size: 12px;
+  }
+  body .mobile-purchase-summary strong {
+    color: var(--forest);
+    font-size: 16px;
+  }
+  body .mobile-purchase-summary .button {
+    min-height: 44px;
+    flex: 0 0 auto;
+  }
+  body .mobile-purchase-summary .purchase-summary-price {
+    display: grid;
+    min-width: 0;
+    flex: 1 1 auto;
+    color: inherit;
+    text-decoration: none;
+  }
+  body .mobile-purchase-summary .purchase-summary-price small {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  body .mobile-purchase-summary .button {
+    padding-inline: 18px;
+  }
+}
+
+/* Auth: password visibility inside the field, clear follow-ups. */
+.password-field {
+  display: grid;
+  gap: 8px;
+}
+.password-field > label {
+  font-weight: 650;
+  color: var(--forest);
+}
+.password-input {
+  position: relative;
+}
+body .password-input input {
+  width: 100%;
+  padding-right: 52px;
+}
+body .password-input .password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 2px;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  color: var(--forest);
+}
+.password-rule {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.password-rule.met {
+  color: var(--forest);
+}
+.password-forgot {
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--forest);
+}
+body .auth-switch {
+  margin-top: 18px;
+  font-size: 14px;
+  color: var(--muted);
+  text-align: center;
+}
+body .auth-switch a {
+  font-weight: 700;
+  color: var(--forest);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+body .auth-secondary-link {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* Brand: light artwork needs a dark ground to be visible. */
+body .asset-grid .asset-on-dark img {
+  background: var(--forest);
+  border-radius: 10px;
+}
+body .asset-grid a > strong {
+  display: block;
+}
+body .asset-grid a > span {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}

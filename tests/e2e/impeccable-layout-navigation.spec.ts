@@ -201,13 +201,8 @@ for (const locale of ["id", "en"] as const) {
           path: testInfo.outputPath("package-footer-enlarged.png"),
         });
         await page
-          .getByRole("link", {
-            name:
-              locale === "id"
-                ? "Lihat harga dan pilih porsi"
-                : "See pricing and choose portions",
-            exact: true,
-          })
+          .locator(".mobile-purchase-summary")
+          .getByRole("link", { name: locale === "id" ? /Ubah/ : /Edit/ })
           .click();
         await expect(page.locator("#package-booking")).toBeInViewport();
         await expect(summary).toHaveCount(0);

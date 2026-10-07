@@ -48,6 +48,7 @@ import {
   Plus,
   Truck,
   CalendarDays,
+  GitCompareArrows,
   Heart,
   Minus,
   MessageCircle,
@@ -66,16 +67,33 @@ import { Button, Checkbox, TextInput } from "./form-controls";
 import { Heading, Empty, ErrorNotice, Facts, Loading, Dialog } from "./ui";
 import { NumericInput } from "./numeric-input";
 
+function servedAreas(areas: string[]) {
+  return areas.length > 2
+    ? areas.slice(0, 2).join(", ") + " +" + (areas.length - 2)
+    : areas.join(", ");
+}
 function DeliveryCoverage({
   eligibility,
   area,
+  areas = [],
   detail = false,
 }: {
   eligibility: ReturnType<typeof purchaseCommitment>["addressEligibility"];
   area: string;
+  areas?: string[];
   detail?: boolean;
 }) {
   const { t } = useApp();
+  if (eligibility === "unknown" && !detail && areas.length)
+    return (
+      <p className="delivery-coverage unknown">
+        <MapPin size={15} aria-hidden="true" />
+        <span title={areas.join(", ")}>
+          {t("Antar ke ", "Delivers to ")}
+          {servedAreas(areas)}
+        </span>
+      </p>
+    );
   return (
     <p className={"delivery-coverage " + eligibility}>
       <MapPin size={15} aria-hidden="true" />
@@ -165,30 +183,27 @@ export function PackageCard({
             <h3>{offer.name}</h3>
           </Link>
         </div>
-        <div className="package-commitment">
-          <strong className="package-duration">
-            {offer.days}
-            <span>{t("hari", "days")}</span>
-          </strong>
-          <div>
-            <span>
-              {offer.meal === "both" ? (
-                <SunMoon size={16} aria-hidden="true" />
-              ) : offer.meal === "dinner" ? (
-                <Moon size={16} aria-hidden="true" />
-              ) : (
-                <Sun size={16} aria-hidden="true" />
-              )}
-              {mealLabel(offer.meal, locale)}
-            </span>
-            <span>
-              <CalendarDays size={16} aria-hidden="true" />
-              {offer.flexible
-                ? t("Jadwal fleksibel", "Flexible schedule")
-                : t("Jadwal tetap", "Fixed schedule")}
-            </span>
-          </div>
-        </div>
+        <p className="package-meta">
+          <span>
+            <CalendarDays size={15} aria-hidden="true" />
+            {offer.days} {t("hari", "days")}
+          </span>
+          <span>
+            {offer.meal === "both" ? (
+              <SunMoon size={15} aria-hidden="true" />
+            ) : offer.meal === "dinner" ? (
+              <Moon size={15} aria-hidden="true" />
+            ) : (
+              <Sun size={15} aria-hidden="true" />
+            )}
+            {mealLabel(offer.meal, locale)}
+          </span>
+          <span>
+            {offer.flexible
+              ? t("Jadwal fleksibel", "Flexible schedule")
+              : t("Jadwal tetap", "Fixed schedule")}
+          </span>
+        </p>
         <div className="package-pricing">
           <div className="card-price">
             <small className="package-total-label">
@@ -206,20 +221,11 @@ export function PackageCard({
                 ? t(" · 2 kali makan / hari", " · 2 meals / day")
                 : ""}
             </small>
-            <small className="package-fee-note">
-              {t(
-                "Biaya layanan dihitung saat checkout.",
-                "Service fee is calculated at checkout.",
-              )}
-            </small>
           </div>
-          <p className="delivery-included">
-            <Truck size={15} aria-hidden="true" />
-            {t("Pengantaran termasuk", "Delivery included")}
-          </p>
           <DeliveryCoverage
             eligibility={commitment.addressEligibility}
             area={area}
+            areas={offer.areas}
           />
         </div>
         <div className="package-footer">
@@ -453,7 +459,7 @@ export function Catalog({ caterer }: { caterer?: string }) {
           <div className="delivery-selector">
             <MapPin size={20} />
             <label>
-              <span>{t("Area pengantaran", "Delivery area")}</span>
+              <span>{t("Antar ke", "Deliver to")}</span>
               <Select
                 value={area}
                 onValueChange={(value) => {
@@ -652,6 +658,15 @@ export function Catalog({ caterer }: { caterer?: string }) {
                 </span>
               </>
             )}
+            {!discovery.feed && (
+              <small className="results-note">
+                <Truck size={14} aria-hidden="true" />
+                {t(
+                  "Harga termasuk pengantaran. Biaya layanan dihitung saat checkout.",
+                  "Prices include delivery. Service fee is calculated at checkout.",
+                )}
+              </small>
+            )}
           </p>
           <label>
             {t("Urutkan:", "Sort:")}{" "}
@@ -776,7 +791,8 @@ export function PackagePage({
         saved.items.find((x) => x.offer?.slug === slug || x.packageId === slug)
           ?.offer);
   const [portions, setPortions] = useState(1);
-  const [bookingPassed, setBookingPassed] = useState(false);
+  const [cycles, setCycles] = useState(1);
+  const [bookingVisible, setBookingVisible] = useState(true);
   const bookingRef = useRef<HTMLElement>(null);
   const purchaseSummary = useRef<HTMLDivElement>(null);
   const reviews = useResource<
@@ -793,15 +809,19 @@ export function PackagePage({
       : Promise.resolve([]),
   );
   useEffect(() => {
-    setBookingPassed(false);
+    setBookingVisible(true);
+    setCycles(1);
     const node = bookingRef.current;
     if (!node) return;
+    // The buy bar shows before the booking panel is reached and after its top
+    // has scrolled away; it hides only while the panel's top edge is on screen.
     let frame = 0;
     const sync = () => {
       cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() =>
-        setBookingPassed(node.getBoundingClientRect().top < 0),
-      );
+      frame = requestAnimationFrame(() => {
+        const top = node.getBoundingClientRect().top;
+        setBookingVisible(top >= 0 && top <= innerHeight);
+      });
     };
     sync();
     window.addEventListener("scroll", sync, { passive: true });
@@ -829,7 +849,7 @@ export function PackagePage({
       observer.disconnect();
       document.body.style.removeProperty("--mobile-purchase-clearance");
     };
-  }, [bookingPassed, preview, p?.id]);
+  }, [bookingVisible, preview, p?.id]);
   if (!p && publicOffer.loading) return <Loading />;
   if (!p && publicOffer.error)
     return (
@@ -843,12 +863,24 @@ export function PackagePage({
         label={t("Jelajah paket", "Browse packages")}
       />
     );
+  const durations = durationOptions(p);
+  const selectedCycles = durations.some((o) => o.cycles === cycles)
+    ? cycles
+    : 1;
   const commitment = purchaseCommitment({
     offer: p,
     portions,
+    cycles: selectedCycles,
     addressCovered: area === "" ? null : p.areas.includes(area),
   });
   const canCheckout = commitment.addressEligibility !== "outside";
+  const checkoutHref = canCheckout
+    ? "/checkout/" +
+      p.id +
+      "?portions=" +
+      portions +
+      (selectedCycles > 1 ? "&cycles=" + selectedCycles : "")
+    : "#";
   const tier = Math.max(
     0,
     ...p.tiers.filter((x) => portions >= x.min).map((x) => x.percent),
@@ -903,13 +935,6 @@ export function PackagePage({
               {mealLabel(p.meal, locale)}
             </span>
           </div>
-          <a
-            className="button secondary package-booking-jump"
-            href="#package-booking"
-          >
-            {t("Lihat harga & pilih porsi", "See pricing & choose portions")}
-            <ArrowRight size={17} aria-hidden="true" />
-          </a>
           <section className="detail-section">
             <h2>{t("Isi paket", "Included dishes")}</h2>
             {p.menuSelectionMode === "customer" ? (
@@ -1083,20 +1108,50 @@ export function PackagePage({
               "1 portion = 1 person per meal.",
             )}
           </p>
-          <p className="small muted">
-            1 {t("periode", "cycle")} = {p.days}{" "}
-            {t("hari pengantaran", "delivery days")}.{" "}
-            {t("Pilihan durasi", "Available durations")}:{" "}
-            {durationOptions(p)
-              .map((o) => o.cycles)
-              .join(", ")}{" "}
-            {t(
-              "periode. Dibayar penuh di awal; pilih durasi saat checkout.",
-              durationOptions(p).every((option) => option.cycles === 1)
-                ? "cycle. Paid upfront; choose duration at checkout."
-                : "cycles. Paid upfront; choose duration at checkout.",
-            )}
-          </p>
+          {durations.length > 1 ? (
+            <fieldset className="duration-control">
+              <legend>{t("Durasi", "Duration")}</legend>
+              <div role="radiogroup" className="segmented">
+                {durations.map((o) => (
+                  <label
+                    key={o.cycles}
+                    className={o.cycles === selectedCycles ? "selected" : ""}
+                  >
+                    <input
+                      type="radio"
+                      name="package-duration"
+                      value={o.cycles}
+                      checked={o.cycles === selectedCycles}
+                      onChange={() => setCycles(o.cycles)}
+                    />
+                    <span>
+                      {o.cycles * p.days} {t("hari", "days")}
+                    </span>
+                    {o.discountPercent > 0 && (
+                      <small>
+                        {t("Hemat", "Save")} {o.discountPercent}%
+                      </small>
+                    )}
+                  </label>
+                ))}
+              </div>
+              <p className="small muted">
+                1 {t("periode", "cycle")} = {p.days}{" "}
+                {t(
+                  "hari pengantaran. Dibayar penuh di awal.",
+                  "delivery days. Paid upfront.",
+                )}
+              </p>
+            </fieldset>
+          ) : (
+            <p className="small muted">
+              1 {t("periode", "cycle")} = {p.days}{" "}
+              {t(
+                "hari pengantaran. Dibayar penuh di awal.",
+                "delivery days. Paid upfront.",
+              )}
+            </p>
+          )}
           {tier > 0 && (
             <p className="notice">
               {t("Hemat", "Save")} {tier}% ·{" "}
@@ -1118,9 +1173,7 @@ export function PackagePage({
             detail
           />
           <Link
-            href={
-              canCheckout ? "/checkout/" + p.id + "?portions=" + portions : "#"
-            }
+            href={checkoutHref}
             aria-disabled={!canCheckout}
             onClick={(event) => {
               if (!canCheckout) event.preventDefault();
@@ -1134,22 +1187,28 @@ export function PackagePage({
           </Link>
           {p.trialPrice && canCheckout && (
             <Link
-              className="button secondary full"
+              className="text-button purchase-trial"
               href={"/checkout/" + p.id + "?trial=1&portions=" + portions}
             >
-              {t("Coba 1 hari", "Try 1 day")} ·{" "}
+              {t("Belum yakin? Coba 1 hari", "Not sure? Try 1 day")} ·{" "}
               {currency(p.trialPrice * portions, locale)}
             </Link>
           )}
-          <SaveButton packageId={p.id} name={p.name} disabled={preview} />
-          <Button
-            className="text-button centered"
-            onClick={() => toggleCompare(p.id)}
-          >
-            {compare.includes(p.id)
-              ? t("Hapus perbandingan", "Remove comparison")
-              : t("Bandingkan paket", "Compare package")}
-          </Button>
+          <div className="purchase-secondary">
+            <SaveButton packageId={p.id} name={p.name} disabled={preview} />
+            <Button
+              variant="secondary"
+              aria-pressed={compare.includes(p.id)}
+              onClick={() => toggleCompare(p.id)}
+            >
+              <GitCompareArrows size={17} aria-hidden="true" />
+              <span>
+                {compare.includes(p.id)
+                  ? t("Dibandingkan", "Comparing")
+                  : t("Bandingkan", "Compare")}
+              </span>
+            </Button>
+          </div>
           <p className="purchase-footnote">
             {t(
               "Biaya layanan ditampilkan saat checkout. Tidak ada perpanjangan otomatis.",
@@ -1158,26 +1217,32 @@ export function PackagePage({
           </p>
         </aside>
       </div>
-      {!preview && bookingPassed && (
+      {!preview && !bookingVisible && (
         <div
           ref={purchaseSummary}
           className="mobile-purchase-summary"
           aria-label={t("Ringkasan pembelian", "Purchase summary")}
         >
-          <span>
-            <small>{t("Harga paket", "Package price")}</small>
+          <a className="purchase-summary-price" href="#package-booking">
+            <small>
+              {portions} {t("porsi", portions === 1 ? "portion" : "portions")}{" "}
+              · {commitment.deliveryDays} {t("hari", "days")} ·{" "}
+              {t("Ubah", "Edit")}
+            </small>
             <strong>{currency(commitment.packagePrice, locale)}</strong>
-          </span>
-          <a
-            className="button"
-            href="#package-booking"
-            aria-label={t(
-              "Lihat harga dan pilih porsi",
-              "See pricing and choose portions",
-            )}
-          >
-            {t("Pilih porsi", "Choose portions")}
           </a>
+          <Link
+            href={checkoutHref}
+            aria-disabled={!canCheckout}
+            onClick={(event) => {
+              if (!canCheckout) event.preventDefault();
+            }}
+            className={"button " + (!canCheckout ? "disabled" : "")}
+          >
+            {canCheckout
+              ? t("Pilih paket ini", "Choose this package")
+              : t("Di luar area", "Outside area")}
+          </Link>
         </div>
       )}
     </div>

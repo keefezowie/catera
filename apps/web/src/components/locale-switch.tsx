@@ -1,6 +1,7 @@
 "use client";
 
 import type { Locale } from "@catera/domain";
+import { Globe } from "lucide-react";
 import { useApp } from "./context";
 import { Select, SelectOption } from "./select";
 
@@ -16,7 +17,12 @@ export function LocaleSwitch({
       className={className}
       aria-label={t("Bahasa", "Language")}
       value={locale}
-      displayValue={locale.toUpperCase()}
+      displayValue={
+        <>
+          <Globe size={16} aria-hidden="true" />
+          {locale.toUpperCase()}
+        </>
+      }
       onValueChange={(value) => setLocale(value as Locale)}
     >
       <SelectOption value="id">Bahasa Indonesia</SelectOption>

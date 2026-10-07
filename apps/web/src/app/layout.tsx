@@ -11,6 +11,7 @@ import "./overlays.css";
 import "./pilot.css";
 import "./settlement.css";
 import "./motion.css";
+import "./optimizations.css";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale =

@@ -73,10 +73,16 @@ test.beforeEach(async ({ page, context, baseURL }) => {
     { name: "catera_locale", value: "en", url: baseURL! },
   ]);
 });
-test("mobile defaults to swipe; slow and fast gestures move one card; short swipes cancel", async ({
+test("mobile defaults to a list; swipe gestures move one card; short swipes cancel", async ({
   page,
 }) => {
   await page.goto("/");
+  await expect(page.locator("section#packages .package-grid").last()).toBeVisible();
+  await expect(page.locator(".discovery-feed")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "List", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await page.goto("/?view=swipe");
   await expect(page.locator(".discovery-feed")).toBeVisible();
   const active = page.locator('.discovery-slide[data-active="true"]');
   const first = await active.getAttribute("data-package-id");

@@ -37,13 +37,24 @@ for (const locale of ["id", "en"] as const) {
         { exact: true },
       );
       await password.fill("synthetic-password");
-      await page
-        .getByRole("button", {
-          name: locale === "id" ? "Tampilkan kata sandi" : "Show password",
-          exact: true,
-        })
-        .click();
+      await expect(page.locator(".password-rule")).toHaveClass(/met/);
+      const toggle = page.getByRole("button", {
+        name: locale === "id" ? "Tampilkan kata sandi" : "Show password",
+        exact: true,
+      });
+      // The visibility toggle sits inside the password field.
+      const field = (await password.boundingBox())!;
+      const icon = (await toggle.boundingBox())!;
+      expect(icon.x + icon.width).toBeLessThanOrEqual(field.x + field.width + 1);
+      expect(icon.y).toBeGreaterThanOrEqual(field.y - 1);
+      await toggle.click();
       await expect(password).toHaveAttribute("type", "text");
+      await expect(
+        page.getByRole("button", {
+          name: locale === "id" ? "Sembunyikan kata sandi" : "Hide password",
+          exact: true,
+        }),
+      ).toHaveAttribute("aria-pressed", "true");
       await page
         .getByRole("button", {
           name: locale === "id" ? "Buat akun" : "Create account",
@@ -100,7 +111,10 @@ test("phone login does not ask returning customers for a name and preserves OTP 
     route.fulfill({ status: 401, json: { error: { code: "UNAUTHORIZED" } } }),
   );
   await page.goto("/login");
-  await page.getByRole("button", { name: "Kode ponsel", exact: true }).click();
+  await page.getByRole("tab", { name: "Kode ponsel", exact: true }).click();
+  await expect(
+    page.getByRole("tab", { name: "Kode ponsel", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
   await page.getByLabel("Nomor WhatsApp / ponsel").fill("+6281234567890");
   await page
     .getByRole("button", { name: "Kirim kode OTP", exact: true })

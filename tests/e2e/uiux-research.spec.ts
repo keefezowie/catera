@@ -67,7 +67,7 @@ for (const width of [320, 360, 390, 430, 768, 1280, 1440])
       const photo = (await page.locator(".detail-hero").boundingBox())!;
       expect(photo.height).toBeLessThanOrEqual(photo.width * 0.8 + 1);
       if (width <= 1000)
-        await expect(page.locator(".package-booking-jump")).toBeVisible();
+        await expect(page.locator(".mobile-purchase-summary")).toBeVisible();
       await page.goBack();
       await expect(search).toHaveValue("Ayam");
       await expect(cards.locator("h3")).toHaveText(names);

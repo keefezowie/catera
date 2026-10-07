@@ -298,12 +298,13 @@ for (const locale of ["id", "en"] as const) {
             ? t(`Mengantar ke ${supported}.`, `Delivers to ${supported}.`)
             : coverage === "outside"
               ? t("Di luar area pengantaran.", "Outside delivery area.")
-              : t(
-                  "Pilih area untuk memeriksa jangkauan.",
-                  "Choose an area to check delivery coverage.",
-                );
-        await expect(card.locator(".delivery-included")).toHaveText(
-          t("Pengantaran termasuk", "Delivery included"),
+              : new RegExp("^" + t("Antar ke ", "Delivers to ") + "\\S");
+        // Delivery and fees are stated once for the list, not on every card.
+        await expect(page.locator(".results-note")).toHaveText(
+          t(
+            "Harga termasuk pengantaran. Biaya layanan dihitung saat checkout.",
+            "Prices include delivery. Service fee is calculated at checkout.",
+          ),
         );
         await expect(card.locator(".delivery-coverage")).toHaveText(message);
         if (coverage === "outside") await expect(card).toHaveClass(/outside/);
@@ -578,8 +579,9 @@ for (const locale of ["id", "en"] as const) {
       .getByText(t("Pratinjau pelanggan", "Customer preview"), { exact: true })
       .click();
     const preview = dialog.locator(".listing-preview");
+    // Without a chosen area, the card names the areas the caterer serves.
     await expect(preview.locator(".delivery-coverage")).toContainText(
-      t("Pilih area", "Choose an area"),
+      t("Antar ke", "Delivers to"),
     );
     for (const link of await preview.locator("a").all()) {
       await expect(link).toHaveAttribute("aria-disabled", "true");

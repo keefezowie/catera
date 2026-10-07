@@ -206,7 +206,8 @@ test("responsive cards and galleries, duplicate single photo, English and text e
     ).toBe(true);
     await card.getByRole("link", { name: "Lihat paket", exact: true }).click();
     if (width <= 430) {
-      await expect(page.locator(".mobile-purchase-summary")).toHaveCount(0);
+      // The buy bar stays available until the booking panel itself is visible.
+      await expect(page.locator(".mobile-purchase-summary")).toBeVisible();
       await page.locator("#package-booking").scrollIntoViewIfNeeded();
       await expect(page.locator(".mobile-purchase-summary")).toHaveCount(0);
       await page.setViewportSize({ width, height: 520 });

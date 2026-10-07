@@ -405,31 +405,17 @@
   .catalog-section .results-bar {
     margin-block: 8px 12px;
   }
+  /* Food-led discovery: photo on top, three columns (DESIGN.md layout). */
   .catalog-section .package-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .catalog-section .package-card-v2 {
-    display: grid;
-    grid-template-columns: 150px minmax(0, 1fr);
-    align-items: start;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 24px;
   }
   .catalog-section .package-card-v2 .package-image {
-    aspect-ratio: 1;
-    border-radius: 12px;
-    margin: 16px 0 0 16px;
-  }
-  .catalog-section .package-card-v2 .image-label {
-    top: auto;
-    bottom: 8px;
-    left: 8px;
-    font-size: 12px;
+    aspect-ratio: 4 / 3;
   }
   .catalog-section .package-card-v2 .package-body {
-    padding: 16px 20px;
-    gap: 10px;
-  }
-  .catalog-section .package-card-v2 .package-commitment {
-    padding-block: 8px;
+    padding: 18px 20px 20px;
+    gap: 14px;
   }
   .catalog-section .package-card-v2 .card-price strong {
     font-size: 24px;
@@ -614,36 +600,6 @@ body .featured-dots button {
     margin: 0;
     padding-bottom: 12px;
     gap: 20px;
-  }
-  .catalog-section .package-card-v2 .package-body {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 130px;
-    gap: 12px 16px;
-  }
-  .catalog-section .package-card-v2 .package-body > * {
-    grid-column: 1 / -1;
-  }
-  .catalog-section .package-card-v2 .package-commitment {
-    grid-column: 2;
-    grid-row: 2;
-    flex-direction: column;
-    align-items: start;
-    border: 0;
-    padding: 0;
-    gap: 8px;
-  }
-  .catalog-section .package-card-v2 .package-pricing {
-    grid-column: 1;
-    grid-row: 2;
-    border: 0;
-    padding: 0;
-  }
-  .catalog-section .package-card-v2 .package-duration {
-    display: flex;
-    align-items: baseline;
-    gap: 4px;
-    border: 0;
-    padding: 0;
   }
   .calendar-page .page-heading {
     margin-bottom: 20px;

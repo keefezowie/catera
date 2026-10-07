@@ -1,47 +1,82 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { Check, Circle, Eye, EyeOff } from "lucide-react";
 import { api, useApp } from "./context";
 import { ActionForm, Field } from "./ui";
 import { Button, TextInput } from "./form-controls";
 
-export function PasswordField({ creating = false }: { creating?: boolean }) {
+export function PasswordField({
+  creating = false,
+  forgotHref,
+}: {
+  creating?: boolean;
+  forgotHref?: string;
+}) {
   const { t } = useApp();
+  const id = useId();
   const [visible, setVisible] = useState(false);
+  const [length, setLength] = useState(0);
+  const longEnough = length >= 8;
   return (
-    <>
-      <Field
-        label={
-          creating
-            ? t("Kata sandi baru", "New password")
-            : t("Kata sandi", "Password")
-        }
-      >
+    <div className="field password-field">
+      <label htmlFor={id}>
+        {creating
+          ? t("Kata sandi baru", "New password")
+          : t("Kata sandi", "Password")}
+      </label>
+      <div className="password-input">
         <TextInput
+          id={id}
           name="password"
           type={visible ? "text" : "password"}
           autoComplete={creating ? "new-password" : "current-password"}
           minLength={creating ? 8 : 1}
           maxLength={256}
           required
+          aria-describedby={creating ? id + "-rule" : undefined}
+          onChange={(event) => setLength(event.target.value.length)}
         />
-      </Field>
-      <Button
-        type="button"
-        className="text-button"
-        aria-pressed={visible}
-        onClick={() => setVisible(!visible)}
-      >
-        {visible
-          ? t("Sembunyikan kata sandi", "Hide password")
-          : t("Tampilkan kata sandi", "Show password")}
-      </Button>
+        <Button
+          type="button"
+          className="icon-button password-toggle"
+          aria-pressed={visible}
+          aria-controls={id}
+          aria-label={
+            visible
+              ? t("Sembunyikan kata sandi", "Hide password")
+              : t("Tampilkan kata sandi", "Show password")
+          }
+          onClick={() => setVisible(!visible)}
+        >
+          {visible ? (
+            <EyeOff size={18} aria-hidden="true" />
+          ) : (
+            <Eye size={18} aria-hidden="true" />
+          )}
+        </Button>
+      </div>
       {creating && (
-        <p className="small muted">
-          {t("Gunakan minimal 8 karakter.", "Use at least 8 characters.")}
-        </p>
+        <small
+          id={id + "-rule"}
+          className={"password-rule " + (longEnough ? "met" : "")}
+        >
+          {longEnough ? (
+            <Check size={14} aria-hidden="true" />
+          ) : (
+            <Circle size={14} aria-hidden="true" />
+          )}
+          {longEnough
+            ? t("Minimal 8 karakter terpenuhi", "At least 8 characters: met")
+            : t("Minimal 8 karakter", "At least 8 characters")}
+        </small>
       )}
-    </>
+      {forgotHref && (
+        <Link className="password-forgot" href={forgotHref}>
+          {t("Lupa kata sandi?", "Forgot password?")}
+        </Link>
+      )}
+    </div>
   );
 }
 
@@ -160,7 +195,7 @@ export function EmailRegistration({ next }: { next: string }) {
       </ActionForm>
       <Button
         type="button"
-        className="text-button"
+        className="text-button auth-secondary-link"
         onClick={() => setResendOnly(!resendOnly)}
       >
         {resendOnly

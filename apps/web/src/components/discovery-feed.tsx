@@ -68,12 +68,13 @@ export function useDiscoveryView(enabled: boolean) {
   const params = useSearchParams(),
     pathname = usePathname();
   const [mobile, setMobile] = useState(false);
-  const [preferred, setPreferred] = useState<"swipe" | "list">("swipe");
+  // A scannable list is the default; the swipe feed is an explicit choice.
+  const [preferred, setPreferred] = useState<"swipe" | "list">("list");
   const [fits, setFits] = useState(true);
   useEffect(() => {
     try {
-      if (localStorage.getItem("catera-discovery-view") === "list")
-        setPreferred("list");
+      if (localStorage.getItem("catera-discovery-view") === "swipe")
+        setPreferred("swipe");
     } catch {}
     const media = matchMedia("(max-width: 560px)");
     const sync = () => {
@@ -123,13 +124,13 @@ export function DiscoveryMode({
       role="group"
       aria-label={t("Tampilan paket", "Package view")}
     >
-      <Button type="button" aria-pressed={feed} onClick={() => choose("swipe")}>
-        <GalleryVerticalEnd size={17} aria-hidden="true" />
-        {t("Geser", "Swipe")}
-      </Button>
       <Button type="button" aria-pressed={!feed} onClick={() => choose("list")}>
         <Rows3 size={17} aria-hidden="true" />
         {t("Daftar", "List")}
+      </Button>
+      <Button type="button" aria-pressed={feed} onClick={() => choose("swipe")}>
+        <GalleryVerticalEnd size={17} aria-hidden="true" />
+        {t("Geser", "Swipe")}
       </Button>
     </div>
   );

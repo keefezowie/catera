@@ -103,10 +103,13 @@ export function Login({
           <>
             <div
               className="auth-methods"
+              role="tablist"
               aria-label={t("Metode masuk", "Sign-in method")}
             >
               <Button
                 type="button"
+                role="tab"
+                aria-selected={method === "email"}
                 aria-pressed={method === "email"}
                 onClick={() => setMethod("email")}
               >
@@ -114,6 +117,8 @@ export function Login({
               </Button>
               <Button
                 type="button"
+                role="tab"
+                aria-selected={method === "phone"}
                 aria-pressed={method === "phone"}
                 onClick={() => setMethod("phone")}
               >
@@ -147,12 +152,11 @@ export function Login({
                     maxLength={254}
                   />
                 </Field>
-                <PasswordField />
-                <Link
-                  href={"/forgot-password?next=" + encodeURIComponent(next)}
-                >
-                  {t("Lupa kata sandi?", "Forgot password?")}
-                </Link>
+                <PasswordField
+                  forgotHref={
+                    "/forgot-password?next=" + encodeURIComponent(next)
+                  }
+                />
               </ActionForm>
             ) : (
               <ActionForm
@@ -235,7 +239,10 @@ export function Login({
           </>
         )}
         {!recovery && (
-          <p>
+          <p className="auth-switch">
+            {registering
+              ? t("Sudah punya akun?", "Already have an account?")
+              : t("Belum punya akun?", "New here?")}{" "}
             <Link
               href={
                 (registering ? "/login" : "/register") +
@@ -244,11 +251,8 @@ export function Login({
               }
             >
               {registering
-                ? t(
-                    "Sudah punya akun? Masuk",
-                    "Already have an account? Sign in",
-                  )
-                : t("Belum punya akun? Daftar", "New here? Create an account")}
+                ? t("Masuk", "Sign in")
+                : t("Daftar", "Create an account")}
             </Link>
           </p>
         )}

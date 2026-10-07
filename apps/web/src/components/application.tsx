@@ -25,6 +25,7 @@ import {
   Leaf,
   LayoutDashboard,
   Image as ImageIcon,
+  Download,
   Bookmark,
 } from "lucide-react";
 import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
@@ -581,7 +582,9 @@ function Shell({
                 </>
               ) : (
                 <>
-                  <Link href="/login">{t("Masuk", "Sign in")}</Link>
+                  <Link className="button secondary small" href="/login">
+                    {t("Masuk", "Sign in")}
+                  </Link>
                   <Link className="button small" href="/register">
                     {t("Daftar", "Register")}
                   </Link>
@@ -694,6 +697,7 @@ function AssetGallery() {
     "empty-calendar",
     "confirmation",
   ];
+  const [sizes, setSizes] = useState<Record<string, string>>({});
   return (
     <div className="content">
       <h1>{t("Identitas Catera", "Catera identity")}</h1>
@@ -705,11 +709,29 @@ function AssetGallery() {
       </p>
       <div className="asset-grid">
         {names.map((n) => (
-          <a href={"/assets/" + n + ".png"} key={n} download>
-            <img src={"/assets/" + n + ".png"} alt={n} />
+          <a
+            href={"/assets/" + n + ".png"}
+            key={n}
+            download
+            className={n === "logo-light" ? "asset-on-dark" : undefined}
+          >
+            <img
+              src={"/assets/" + n + ".png"}
+              alt={n}
+              onLoad={(event) => {
+                const image = event.currentTarget;
+                setSizes((current) => ({
+                  ...current,
+                  [n]: image.naturalWidth + "×" + image.naturalHeight,
+                }));
+              }}
+            />
             <strong>{n}</strong>
             <span>
-              {t("PNG master", "PNG master")} <ImageIcon size={14} />
+              <ImageIcon size={14} aria-hidden="true" />
+              PNG{sizes[n] ? " · " + sizes[n] + " px" : ""}
+              <Download size={14} aria-hidden="true" />
+              {t("Unduh", "Download")}
             </span>
           </a>
         ))}
