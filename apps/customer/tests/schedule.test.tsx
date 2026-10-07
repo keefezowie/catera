@@ -323,6 +323,21 @@ describe("Hari", () => {
   });
 });
 
+describe("Hari Chat katering", () => {
+  it("opens WhatsApp from the day, and hides the chat without a number", async () => {
+    mockParams = { id: "d-next" };
+    const openUrl = jest.spyOn(Linking, "openURL").mockResolvedValue(true);
+    const d = open("d-next", "2026-10-08", { catererPhone: "+6281200000001" } as Partial<Delivery>);
+    const view = renderWith(runtimeWith(stateOf([d])), <DayScreen />);
+    fireEvent.press(await screen.findByRole("button", { name: "Chat katering" }));
+    expect(openUrl).toHaveBeenCalledWith("https://wa.me/6281200000001?text=");
+    view.unmount();
+    renderWith(runtimeWith(stateOf([open("d-next", "2026-10-08")])), <DayScreen />);
+    await screen.findByText(/Makan Siang Rumahan/);
+    expect(screen.queryByRole("button", { name: "Chat katering" })).toBeNull();
+  });
+});
+
 describe("signed out", () => {
   it("Jadwal asks to sign in and comes back to /jadwal", async () => {
     const runtime = runtimeWith(stateOf([]));

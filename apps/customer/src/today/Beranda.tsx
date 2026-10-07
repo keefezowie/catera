@@ -1,17 +1,17 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Linking, Pressable, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import {
   errorLabel,
   renewalDue,
   todayPlates,
   upcomingRows,
-  whatsappUrl,
   type CustomerState,
   type Subscription,
 } from "@catera/domain";
 import { useData, useMobile, type MobileRuntime } from "@catera/mobile-core";
 import { Button, colors, Field, FONT, Screen, Text } from "@catera/mobile-ui";
+import { ChatKatering } from "../help/ChatKatering";
 import { EmptyHome } from "./EmptyHome";
 import { jakartaClock, Plate } from "./Plate";
 import { RenewalCard } from "./RenewalCard";
@@ -119,18 +119,20 @@ function SignedInHome({ actorId, name }: { actorId: string; name: string }) {
         <RenewalCard key={s.id} subscription={s} />
       ))}
       {live.map((s) => (
-        <PackageLine key={s.id} subscription={s} />
+        <PackageLine
+          key={s.id}
+          subscription={s}
+          phone={state.deliveries.find((d) => d.subscription_id === s.id && d.catererPhone)?.catererPhone ?? ""}
+        />
       ))}
       {savedAt ? null : <ReviewPrompt state={state} />}
     </Screen>
   );
 }
 
-function PackageLine({ subscription: s }: { subscription: Subscription }) {
+function PackageLine({ subscription: s, phone }: { subscription: Subscription; phone: string }) {
   const { t } = useMobile();
   const offer = s.snapshot.offer;
-  // Offers carry no caterer phone yet; Chat katering appears once the read provides one.
-  const phone = (offer as typeof offer & { phone?: string }).phone;
   return (
     <View style={styles.packageLine}>
       <View style={{ flex: 1, gap: 2 }}>
@@ -139,9 +141,7 @@ function PackageLine({ subscription: s }: { subscription: Subscription }) {
           {offer.caterer} · {t(`${s.remaining} hari lagi`, `${s.remaining} days to go`)}
         </Text>
       </View>
-      {phone ? (
-        <Button variant="text" label={t("Chat katering", "Chat caterer")} onPress={() => void Linking.openURL(whatsappUrl("", phone))} />
-      ) : null}
+      <ChatKatering phone={phone} variant="text" />
     </View>
   );
 }

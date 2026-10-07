@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Linking, Pressable, ScrollView, StyleSheet, Text as RNText, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text as RNText, View } from "react-native";
 import {
   addDays,
   availabilityReasonLabel,
@@ -8,34 +8,15 @@ import {
   errorLabel,
   jakartaDay,
   shortDate,
-  whatsappUrl,
   type Address,
   type Delivery,
 } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
 import { Button, colors, FONT, Segmented, Sheet, Text } from "@catera/mobile-ui";
+import { ChatKatering, catererPhoneOf } from "../help/ChatKatering";
 import { longDay } from "./dates";
 
 type Mode = "date" | "address";
-
-/** The caterer's WhatsApp number once the customer read carries it. */
-export function catererPhone(d: Delivery): string {
-  const read = d as Delivery & { catererPhone?: string | null };
-  return read.catererPhone ?? (d.offer as typeof d.offer & { phone?: string }).phone ?? "";
-}
-
-function ChatKatering({ delivery }: { delivery: Delivery }) {
-  const { t } = useMobile();
-  const phone = catererPhone(delivery);
-  if (!phone) return null;
-  return (
-    <Button
-      variant="secondary"
-      label={t("Chat katering", "Chat caterer")}
-      onPress={() => void Linking.openURL(whatsappUrl("", phone))}
-    />
-  );
-}
 
 /** Plain Indonesian for a failed change: the shared label first, then the cases it does not cover. */
 function changeError(e: unknown, locale: "id" | "en", t: (id: string, en: string) => string): string {
@@ -155,7 +136,7 @@ export function ChangeDaySheet({
             <Text style={{ color: colors.muted }}>
               {t(`Perlu bantuan? Hubungi ${delivery.offer.caterer}.`, `Need help? Contact ${delivery.offer.caterer}.`)}
             </Text>
-            <ChatKatering delivery={delivery} />
+            <ChatKatering phone={catererPhoneOf(delivery)} />
             <Button variant="text" label={t("Tutup", "Close")} onPress={onClose} />
           </>
         ) : (

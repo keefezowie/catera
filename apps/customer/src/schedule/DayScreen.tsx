@@ -5,6 +5,7 @@ import { dayLabel, jakartaDay, mealLabel, statusLabel, type Delivery } from "@ca
 import { useData, useMobile } from "@catera/mobile-core";
 import { Button, Card, colors, Screen, Text } from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
+import { ChatKatering, catererPhoneOf } from "../help/ChatKatering";
 import { photoUri } from "../today/Plate";
 import { ChangeDaySheet } from "./ChangeDaySheet";
 
@@ -103,6 +104,7 @@ function Day({ id }: { id: string }) {
           }
         />
       ) : null}
+      <ChatKatering phone={catererPhoneOf(d)} />
       <Button
         variant="text"
         label={t("Ada masalah", "Report a problem")}

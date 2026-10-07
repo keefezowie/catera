@@ -97,8 +97,10 @@ export function delivery(
 
 export function customerState(
   today: Partial<DeliveryMeal> | null,
-  extra: { subscription?: Partial<Subscription>; past?: Delivery[] } = {},
+  extra: { subscription?: Partial<Subscription>; past?: Delivery[]; catererPhone?: string } = {},
 ): CustomerState {
+  const { catererPhone } = extra;
+  const withPhone = (d: Delivery): Delivery => (catererPhone ? { ...d, catererPhone } : d);
   return {
     subscriptions: [subscription(extra.subscription)],
     deliveries: [
@@ -108,7 +110,7 @@ export function customerState(
       delivery("d-next-2", addDays(TODAY, 2)),
       delivery("d-next-3", addDays(TODAY, 3)),
       delivery("d-next-4", addDays(TODAY, 4)),
-    ],
+    ].map(withPhone),
     addresses: [],
     notifications: [],
     cases: [],

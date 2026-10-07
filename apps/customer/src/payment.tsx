@@ -130,7 +130,7 @@ export function PaymentScreen() {
                   label={t("Lihat bantuan", "View support")}
                   onPress={() =>
                     router.push({
-                      pathname: "/support",
+                      pathname: "/bantuan",
                       params: { checkoutId: id },
                     })
                   }
@@ -267,7 +267,7 @@ export function PaymentScreen() {
                   label={t("Bantuan pembayaran", "Payment support")}
                   onPress={() =>
                     router.push({
-                      pathname: "/support",
+                      pathname: "/bantuan",
                       params: {
                         checkoutId: id,
                         catererId: c.quote.offer.catererId,

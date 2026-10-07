@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react-nativ
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
-import { StyleSheet } from "react-native";
+import { Linking, StyleSheet } from "react-native";
 import { addDays } from "@catera/domain";
 import { colors } from "@catera/mobile-ui";
 import { Beranda } from "../src/today/Beranda";
@@ -107,6 +107,19 @@ it("offers a private reaction after arrival", async () => {
       expect.any(String),
     ),
   );
+});
+
+it("offers Chat katering on the package line only when the read carries the number", async () => {
+  const openUrl = jest.spyOn(Linking, "openURL").mockResolvedValue(true);
+  const view = renderHome(
+    runtimeWith(async () => customerState({ status: "scheduled" }, { catererPhone: "+6281200000001" })),
+  );
+  fireEvent.press(await screen.findByRole("button", { name: "Chat katering" }));
+  expect(openUrl).toHaveBeenCalledWith("https://wa.me/6281200000001?text=");
+  view.unmount();
+  renderHome(runtimeWith(async () => customerState({ status: "scheduled" })));
+  await screen.findByText(/hari lagi/);
+  expect(screen.queryByRole("button", { name: "Chat katering" })).toBeNull();
 });
 
 it("lists the next days as rows", async () => {

@@ -1,10 +1,6 @@
 import { Renewal } from "./renewal";
 import { DeliveryCard as Meal } from "./agenda";
 import { PackageContents } from "./package-contents";
-import {
-  NativeDeliveryIssueReport,
-  NativeDeliveryIssues,
-} from "./delivery-issues";
 import { useState } from "react";
 import { View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
@@ -102,8 +98,7 @@ export function SubscriptionScreen() {
               )}
               onPress={() =>
                 router.push({
-                  pathname: "/support",
-                  params: { subscription: id },
+                  pathname: "/bantuan",
                 })
               }
             />
@@ -364,7 +359,7 @@ export function AccountScreen() {
           secondary
           label={t("Bantuan & pembatalan", "Support & cancellation")}
           icon="help-circle-outline"
-          onPress={() => router.push("/support")}
+          onPress={() => router.push("/bantuan")}
         />
         <LanguageSelect />
         <Run
@@ -509,240 +504,6 @@ function AddressBook() {
             />
           </Panel>
         )}
-      </Screen>
-    </Gate>
-  );
-}
-export function SupportScreen() {
-  const { actor } = useNative();
-  const params = useLocalSearchParams<{
-    subscription?: string;
-    delivery?: string;
-    issue?: string;
-    case?: string;
-    checkoutId?: string;
-  }>();
-  return <Support key={`${actor?.id}:${JSON.stringify(params)}`} />;
-}
-function Support() {
-  const params = useLocalSearchParams<{
-    subscription?: string;
-    delivery?: string;
-    issue?: string;
-    case?: string;
-    checkoutId?: string;
-  }>();
-  const { command, t, locale } = useNative();
-  const s = useData<CustomerState>("support", () => nativeApi.customer());
-  const checkout = useData("support-checkout:" + params.checkoutId, () =>
-    params.checkoutId
-      ? nativeApi.checkout(params.checkoutId)
-      : Promise.resolve(null),
-  );
-  const [open, setOpen] = useState(!!params.subscription),
-    [subscription, setSubscription] = useState(params.subscription || ""),
-    [subject, setSubject] = useState("Makanan belum diterima"),
-    [description, setDescription] = useState("");
-  return (
-    <Gate
-      next={
-        "/support?" +
-        new URLSearchParams(
-          Object.fromEntries(
-            Object.entries(params).filter(([, v]) => typeof v === "string"),
-          ) as Record<string, string>,
-        )
-      }
-    >
-      <Screen title={t("Bantuan", "Support")} refresh={s.reload}>
-        <ResourceNotice resource={s} />
-        {params.checkoutId && <ResourceNotice resource={checkout} />}
-        {checkout.data && (
-          <Panel>
-            <Txt kind="heading">
-              {t("Bantuan pembayaran", "Payment support")}
-            </Txt>
-            <Txt>{checkout.data.quote.offer.name}</Txt>
-            <Txt kind="small">
-              {t("Nomor pesanan", "Order reference")}: {checkout.data.id}
-            </Txt>
-            <Btn
-              secondary
-              label={t(
-                "Hubungi katerer tentang pesanan",
-                "Contact caterer about this order",
-              )}
-              onPress={() =>
-                router.push({
-                  pathname: "/messages",
-                  params: {
-                    caterer: checkout.data!.quote.offer.catererId,
-                    checkoutId: checkout.data!.id,
-                  },
-                })
-              }
-            />
-          </Panel>
-        )}
-        <Txt>
-          {t(
-            "Ceritakan kendalamu. Katerer merespons lebih dulu, dan Catera siap membantu jika perlu.",
-            "Tell us what happened. The caterer responds first, and Catera can step in if needed.",
-          )}
-        </Txt>
-        <Txt kind="small">
-          {t(
-            "Jadwal tetap berjalan sampai keputusan pembatalan dikonfirmasi. Refund selalu ditinjau.",
-            "Your schedule continues until a cancellation decision is confirmed. Refunds are always reviewed.",
-          )}
-        </Txt>
-        <Btn
-          label={t("Ajukan bantuan", "Request support")}
-          disabled={!s.canWrite || !s.data?.subscriptions.length}
-          onPress={() => setOpen(!open)}
-        />
-        {params.delivery && (
-          <NativeDeliveryIssueReport
-            key={params.delivery}
-            id={params.delivery}
-          />
-        )}
-        <NativeDeliveryIssues issue={params.issue} />
-        {open && (
-          <Panel>
-            <Select
-              label={t("Paket terkait", "Related package")}
-              value={subscription}
-              onChange={setSubscription}
-              options={
-                s.data?.subscriptions.map((s) => ({
-                  value: s.id,
-                  label: s.snapshot.offer.name,
-                })) || []
-              }
-            />
-            <Select
-              label={t("Jenis permintaan", "Request type")}
-              value={subject}
-              onChange={setSubject}
-              options={[
-                ["Makanan belum diterima", "Meal not received"],
-                ["Pengantaran terlambat", "Delivery is late"],
-                ["Menu tidak sesuai", "Menu is incorrect"],
-                ["Kemasan rusak", "Packaging is damaged"],
-                ["Kualitas makanan", "Food quality"],
-                ["Ajukan pembatalan", "Request cancellation"],
-                ["Lainnya", "Other"],
-              ].map(([id, en]) => ({ value: id, label: t(id, en) }))}
-            />
-            <Field
-              label={t("Ceritakan kendalanya", "Tell us what happened")}
-              multiline
-              value={description}
-              onChangeText={setDescription}
-              maxLength={2000}
-            />
-            <Run
-              label={t("Kirim permintaan bantuan", "Send support request")}
-              disabled={!s.canWrite || !subscription || !description.trim()}
-              action={async () => {
-                await command("support.create", {
-                  subscriptionId: subscription,
-                  deliveryId: params.delivery || undefined,
-                  subject,
-                  description,
-                });
-                setOpen(false);
-                setDescription("");
-              }}
-            />
-          </Panel>
-        )}
-        {(params.case || params.checkoutId) && (
-          <Btn
-            secondary
-            label={t("Semua permintaan bantuan", "All support requests")}
-            onPress={() => router.replace("/support")}
-          />
-        )}
-        {params.case &&
-          s.data &&
-          !s.data.cases.some((c) => c.id === params.case) && (
-            <Empty
-              title={t("Permintaan tidak ditemukan", "Request not found")}
-              body={t(
-                "Buka semua permintaan bantuan untuk melihat status terbaru.",
-                "Open all support requests to see the latest status.",
-              )}
-            />
-          )}
-        {s.data?.cases
-          .filter(
-            (c) =>
-              (!params.case || c.id === params.case) &&
-              (!params.checkoutId || c.checkout_id === params.checkoutId),
-          )
-          .map((c) => (
-            <Panel key={c.id}>
-              <Txt kind="heading">{c.subject}</Txt>
-              <Status status={c.status} />
-              <Txt>{c.description}</Txt>
-              {c.resolution && <Txt>{c.resolution}</Txt>}
-              {!!c.amount && (
-                <Txt>
-                  {t("Refund disetujui", "Refund approved")}:{" "}
-                  {currency(c.amount, locale)}
-                </Txt>
-              )}
-              {s.data?.refunds
-                ?.filter((r) => r.case_id === c.id)
-                .map((r) => (
-                  <View key={r.id} style={styles.stack}>
-                    <Txt kind="label">
-                      {t("Pengembalian dana", "Refund")}:{" "}
-                      {currency(r.amount, locale)}
-                    </Txt>
-                    <Status status={r.state} />
-                    {r.state !== "succeeded" && (
-                      <Txt kind="small">
-                        {t(
-                          "Persetujuan kasus belum berarti dana sudah kembali. Status ini mengikuti pemrosesan pembayaran.",
-                          "Case approval does not mean funds have arrived. This status follows payment processing.",
-                        )}
-                      </Txt>
-                    )}
-                    {r.state === "needs_attention" && (
-                      <Txt>
-                        {t(
-                          "Catera sedang menangani refund ini. Dana belum dikembalikan.",
-                          "Catera is reviewing this refund. Funds have not been returned yet.",
-                        )}
-                      </Txt>
-                    )}
-                  </View>
-                ))}
-              {c.status === "responded" && (
-                <Run
-                  label={t("Minta Catera meninjau", "Ask Catera to review")}
-                  disabled={!s.canWrite}
-                  action={() => command("support.escalate", { id: c.id })}
-                />
-              )}
-            </Panel>
-          ))}
-        {s.data && !s.data.cases.length && !open && (
-          <Empty
-            title={t(
-              "Belum ada kasus bantuan langganan.",
-              "No subscription support cases.",
-            )}
-            body={t(
-              "Kasus langganan atau keuangan ditampilkan di bagian ini.",
-              "Subscription or financial cases appear in this section.",
-            )}
-          />
-        )}
-        <ResourceNotice resource={s} />
       </Screen>
     </Gate>
   );

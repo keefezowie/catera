@@ -42,7 +42,8 @@ function Navigation() {
         <Stack.Screen name="payment/[id]" options={{ title: t("Pembayaran", "Payment") }} />
         <Stack.Screen name="hari/[id]" options={{ title: t("Hari", "Day") }} />
         <Stack.Screen name="subscriptions/[id]" options={{ title: t("Langganan", "Subscription") }} />
-        <Stack.Screen name="support" options={{ title: t("Bantuan", "Support") }} />
+        <Stack.Screen name="bantuan" options={{ title: t("Bantuan dan laporan", "Help and reports") }} />
+        <Stack.Screen name="masalah/[id]" options={{ title: t("Ada masalah", "Report a problem") }} />
         <Stack.Screen name="addresses" options={{ title: t("Alamat", "Addresses") }} />
         <Stack.Screen name="saved" options={{ title: t("Paket tersimpan", "Saved packages") }} />
         <Stack.Screen name="notifications" options={{ title: t("Notifikasi", "Notifications") }} />
