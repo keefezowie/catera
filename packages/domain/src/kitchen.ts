@@ -57,7 +57,7 @@ export function earliestImportStart(now: Date): string {
   return jakartaDay(now, hour >= 17 ? 2 : 1);
 }
 
-function shortDate(date: string, locale: Locale) {
+export function shortDate(date: string, locale: Locale) {
   const d = new Date(`${date}T00:00:00Z`);
   const day = dayNames[locale][d.getUTCDay()];
   const month = monthNames[locale][d.getUTCMonth()];
