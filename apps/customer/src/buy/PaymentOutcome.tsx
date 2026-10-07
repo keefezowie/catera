@@ -1,0 +1,102 @@
+import type { ReactNode } from "react";
+import { router } from "expo-router";
+import { currency, paymentPresentation, type Checkout, type Locale } from "@catera/domain";
+import { Button, colors, Screen, Text } from "@catera/mobile-ui";
+
+export type Stage = "pay" | "checking" | "paid" | "expired" | "failed" | "review" | "refunded";
+/** Nothing left to poll for: the provider has answered one way or the other. */
+export const FINAL: Stage[] = ["paid", "expired", "failed", "review", "refunded"];
+
+/** Where this checkout stands, from the server state and the provider deadline. */
+export function stageOf(c: Checkout, now: number): Stage {
+  if (c.state === "refunded" || c.state === "partially_refunded") return "refunded";
+  const p = paymentPresentation(
+    {
+      checkoutState: c.state,
+      expiresAt: c.payment?.expiresAt || c.expires_at,
+      payment: c.payment,
+      hasPaymentUrl: !!c.payment_url,
+      hasSubscription: !!c.subscription_id,
+    },
+    now,
+  );
+  if (p.phase === "paid") return "paid";
+  if (p.phase === "booking_unresolved") return "review";
+  if (p.phase === "expired") return c.state === "failed" ? "failed" : "expired";
+  return p.phase === "checking" ? "checking" : "pay";
+}
+
+/** Every Bayar state other than paying now: one sentence and the one next step. */
+export function PaymentOutcome({
+  checkout: c,
+  stage,
+  header,
+  help,
+  busy,
+  error,
+  onCheck,
+  locale,
+  t,
+}: {
+  checkout: Checkout;
+  stage: Exclude<Stage, "pay">;
+  header: ReactNode;
+  help: ReactNode;
+  busy: boolean;
+  error: string;
+  onCheck: () => void;
+  locale: Locale;
+  t: (id: string, en: string) => string;
+}) {
+  const message: Record<Exclude<Stage, "pay">, [string, string]> = {
+    checking: [
+      t("Memeriksa pembayaran", "Checking payment"),
+      t("Jangan bayar lagi. Status diperiksa langsung dari bank.", "Don't pay again. The status is checked with the bank."),
+    ],
+    paid: [t("Pembayaran diterima", "Payment received"), t("Jadwal antar Anda sudah tersimpan.", "Your deliveries are booked.")],
+    expired: [t("Waktu habis. Jadwal dicek ulang saat membayar lagi.", "Time's up. The schedule is checked again when you pay."), ""],
+    failed: [t("Pembayaran gagal. Jadwal dicek ulang saat membayar lagi.", "Payment failed. The schedule is checked again when you pay."), ""],
+    review: [
+      t("Pembayaran sedang ditinjau", "Payment under review"),
+      t(
+        "Pembayaran diterima, tetapi jadwal belum terkonfirmasi. Tim Catera membantu menyelesaikannya. Jangan bayar lagi.",
+        "Payment arrived but the schedule isn't confirmed yet. Catera will sort it out. Don't pay again.",
+      ),
+    ],
+    refunded: [
+      c.state === "refunded"
+        ? t("Pembayaran dikembalikan", "Payment refunded")
+        : t("Sebagian pembayaran dikembalikan", "Payment partly refunded"),
+      t("Lihat rinciannya di Bantuan dan laporan.", "See the details in Help and reports."),
+    ],
+  };
+  const [title, body] = message[stage];
+  // A new checkout for the same choice: Perpanjang for a renewal, else Beli (a trial stays a trial).
+  const again = c.quote.renewedFrom
+    ? `/renew/${encodeURIComponent(c.quote.renewedFrom)}`
+    : `/beli/${encodeURIComponent(c.quote.packageId)}${c.quote.trial ? "?trial=1" : ""}`;
+  return (
+    <Screen>
+      {header}
+      <Text variant="title">{title}</Text>
+      {body ? <Text>{body}</Text> : null}
+      <Text variant="caption" style={{ fontVariant: ["tabular-nums"] }}>
+        {c.quote.offer.name} · {currency(c.quote.total, locale)}
+      </Text>
+      {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
+      {stage === "checking" ? <Button label={t("Cek status", "Check status")} disabled={busy} onPress={onCheck} /> : null}
+      {stage === "paid" && c.quote.offer.menuSelectionMode === "customer" && c.subscription_id ? (
+        <Button
+          variant="secondary"
+          label={t("Pilih menu", "Choose menus")}
+          onPress={() => router.replace(`/subscriptions/${encodeURIComponent(c.subscription_id!)}/menu` as never)}
+        />
+      ) : null}
+      {stage === "paid" ? <Button label={t("Ke Beranda", "Go to Home")} onPress={() => router.replace("/" as never)} /> : null}
+      {stage === "expired" || stage === "failed" ? (
+        <Button label={t("Bayar lagi", "Pay again")} onPress={() => router.replace(again as never)} />
+      ) : null}
+      {stage !== "paid" ? help : null}
+    </Screen>
+  );
+}

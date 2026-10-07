@@ -288,5 +288,3 @@ export function LoginScreen() {
     </Screen>
   );
 }
-export { CheckoutScreen } from "./checkout";
-export { PaymentScreen } from "./payment";
