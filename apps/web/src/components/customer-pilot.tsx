@@ -10,6 +10,7 @@ import {
   jakartaDay,
   localCustomerPhone,
   normalizeCustomerPhone,
+  phoneMatchesMask,
   purchaseCommitment,
   shortDate,
   upcomingRows,
@@ -205,14 +206,22 @@ export function ClaimCustomer({ token }: { token: string }) {
             key="nomor"
             submit={t("Kirim kode", "Send code")}
             validate={() => {
+              let normalized: string;
               try {
-                normalizeCustomerPhone(phone);
+                normalized = normalizeCustomerPhone(phone);
               } catch {
                 return t(
                   "Tulis nomor HP yang benar, misalnya 0812 3456 7890.",
                   "Enter a valid phone number, for example 0812 3456 7890.",
                 );
               }
+              // Another number could never claim this link: say so before any SMS
+              // (or, signed out, any new account) instead of failing at the end.
+              if (!phoneMatchesMask(normalized, preview.maskedPhone))
+                return t(
+                  `Nomor ini berbeda dengan yang dicatat ${katering}. Pakai nomor yang Anda berikan ke ${katering}, atau minta ${katering} memperbarui nomor Anda.`,
+                  `This number differs from the one ${katering} has. Use the number you gave ${katering}, or ask ${katering} to update it.`,
+                );
             }}
             onSubmit={async () => {
               const normalized = normalizeCustomerPhone(phone);

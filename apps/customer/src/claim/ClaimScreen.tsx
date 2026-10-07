@@ -3,7 +3,7 @@ import { ActivityIndicator, Image, Pressable, StyleSheet, View } from "react-nat
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Crypto from "expo-crypto";
 import { router, useLocalSearchParams } from "expo-router";
-import { errorLabel, localCustomerPhone, shortDate, type ClaimPreview } from "@catera/domain";
+import { errorLabel, localCustomerPhone, phoneMatchesMask, shortDate, type ClaimPreview } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
 import { Button, Card, colors, Field, Screen, Text } from "@catera/mobile-ui";
 import { e164Indonesia } from "../account/Masuk";
@@ -89,6 +89,11 @@ export function ClaimScreen() {
     else router.replace("/" as never);
   }
 
+  // A link can open the app cold with no screen behind this one (and no header): always
+  // leave a way into the app.
+  const home = (
+    <Button variant="secondary" label={t("Ke Beranda", "Go to Home")} onPress={() => router.replace("/" as never)} />
+  );
   if (dead)
     return (
       <Screen>
@@ -99,6 +104,7 @@ export function ClaimScreen() {
             "This link can't be used. Ask your caterer for a new one.",
           )}
         </Text>
+        {home}
       </Screen>
     );
   if (offline)
@@ -107,6 +113,7 @@ export function ClaimScreen() {
         <Header />
         <Text>{t("Belum bisa memuat. Periksa koneksi lalu coba lagi.", "Couldn't load. Check your connection and try again.")}</Text>
         <Button label={t("Coba lagi", "Try again")} onPress={() => setAttempt((n) => n + 1)} />
+        {home}
       </Screen>
     );
   if (!preview)
@@ -216,7 +223,18 @@ export function ClaimScreen() {
             disabled={busy || phone.replace(/\D/g, "").length < 9}
             onPress={() =>
               run(async () => {
-                await runtime.sendPhoneOtp(e164Indonesia(phone));
+                const number = e164Indonesia(phone);
+                // Another number could never claim this link: say so before any SMS.
+                if (!phoneMatchesMask(number, preview.maskedPhone)) {
+                  setError(
+                    t(
+                      `Nomor ini berbeda dengan yang dicatat ${katering}. Pakai nomor yang Anda berikan ke ${katering}, atau minta ${katering} memperbarui nomor Anda.`,
+                      `This number differs from the one ${katering} has. Use the number you gave ${katering}, or ask ${katering} to update it.`,
+                    ),
+                  );
+                  return;
+                }
+                await runtime.sendPhoneOtp(number);
                 setStep("kode");
               })
             }

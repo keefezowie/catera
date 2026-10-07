@@ -181,6 +181,17 @@ export function localCustomerPhone(e164: string) {
     .filter(Boolean)
     .join("-");
 }
+/**
+ * Whether a number (E.164 "+62…") can be the one behind a claim preview's mask. The
+ * server masks the local form as its first 4 and last 4 digits ("0812-•••-0001"); a
+ * mask too short to compare ("•••") rules nothing out, and the claim still checks.
+ */
+export function phoneMatchesMask(e164: string, masked: string) {
+  const shown = /^(\d{4})-•••-(\d{4})$/.exec(masked);
+  if (!shown) return true;
+  const local = (e164.startsWith("+62") ? "0" + e164.slice(3) : e164).replace(/\D/g, "");
+  return local.startsWith(shown[1]) && local.endsWith(shown[2]);
+}
 /** Quoted CSV and Excel TSV; never evaluates formula cells. */
 export function parsePilotTable(text: string): Record<string, string>[] {
   if (text.length > 140000) throw new Error("IMPORT_LIMIT");

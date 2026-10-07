@@ -212,3 +212,36 @@ it("a signed-in customer without a verified phone verifies it on this account", 
   });
   expect(container.querySelector("h1")?.textContent).toBe("Tersambung, Andre");
 });
+
+it("a number that differs from the recorded one gets no SMS and a plain explanation", async () => {
+  routes["auth/send"] = () => ({ data: {} });
+  await show();
+  await press(/^Lanjut dengan/);
+  await type("Nomor HP", "0812 9999 0000");
+  await press("Kirim kode");
+  expect(text()).toContain(
+    "Nomor ini berbeda dengan yang dicatat Dapur Contoh. Pakai nomor yang Anda berikan ke Dapur Contoh, atau minta Dapur Contoh memperbarui nomor Anda.",
+  );
+  expect(calls.some((c) => c.path.startsWith("auth/"))).toBe(false);
+  expect(field("Nomor HP").disabled).toBe(false);
+  await type("Nomor HP", "081234500001");
+  await press("Kirim kode");
+  expect(calls.find((c) => c.path === "auth/send")?.body).toEqual({ phone: "+6281234500001", intent: "claim" });
+});
+
+it("a claim sent for review never says it connected", async () => {
+  const toast = () => container.querySelector(".toast")?.textContent ?? "";
+  routes["commands:customer.claim"] = () => ({ data: { status: "review" } });
+  await show({ id: "u-1", role: "customer", name: "Andre Contoh" } as Actor);
+  await press(/^Lanjut dengan/);
+  expect(text()).toContain("Dapur Contoh perlu memeriksa langganan ini dulu.");
+  expect(toast()).not.toContain("tersambung");
+
+  routes["commands:customer.claim"] = () => ({ data: { status: "claimed" } });
+  routes["customer"] = () => ({ data: { subscriptions: [], deliveries: [], addresses: [], notifications: [], cases: [] } });
+  await act(async () => root.unmount());
+  root = createRoot(container);
+  await show({ id: "u-1", role: "customer", name: "Andre Contoh" } as Actor);
+  await press(/^Lanjut dengan/);
+  expect(toast()).toBe("Langganan tersambung.");
+});

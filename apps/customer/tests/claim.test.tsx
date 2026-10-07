@@ -126,7 +126,7 @@ it("a refused claim ends in the plain message and never on Beranda", async () =>
   const { runtime } = runtimeWith({ command });
   renderRoute(runtime);
   fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan 0812-•••-0001" }));
-  fireEvent.changeText(screen.getByLabelText("Nomor HP"), "081299990000");
+  fireEvent.changeText(screen.getByLabelText("Nomor HP"), "081234500001");
   fireEvent.press(screen.getByRole("button", { name: "Kirim kode" }));
   fireEvent.changeText(await screen.findByLabelText("Kode"), "123456");
   fireEvent.changeText(screen.getByLabelText("Nama Anda"), "Andre");
@@ -149,4 +149,57 @@ it("a wrong SMS code keeps the customer on the code step", async () => {
   expect(await screen.findByText("Kode belum cocok. Periksa SMS lalu coba lagi.")).toBeTruthy();
   expect(screen.getByLabelText("Kode")).toBeTruthy();
   expect(runtime.api.command).not.toHaveBeenCalled();
+});
+
+const MISMATCH =
+  "Nomor ini berbeda dengan yang dicatat Dapur Contoh. Pakai nomor yang Anda berikan ke Dapur Contoh, atau minta Dapur Contoh memperbarui nomor Anda.";
+
+it("a number that differs from the recorded one gets no SMS and a plain explanation", async () => {
+  const { runtime, sendPhoneOtp } = runtimeWith();
+  renderRoute(runtime);
+  fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan 0812-•••-0001" }));
+  fireEvent.changeText(screen.getByLabelText("Nomor HP"), "0812 9999 0000");
+  fireEvent.press(screen.getByRole("button", { name: "Kirim kode" }));
+  expect(await screen.findByText(MISMATCH)).toBeTruthy();
+  expect(sendPhoneOtp).not.toHaveBeenCalled();
+  // The number stays editable, and the recorded one is sent once typed.
+  expect(screen.getByLabelText("Nomor HP").props.editable).not.toBe(false);
+  fireEvent.changeText(screen.getByLabelText("Nomor HP"), "+62 812 3450 0001");
+  fireEvent.press(screen.getByRole("button", { name: "Kirim kode" }));
+  await waitFor(() => expect(sendPhoneOtp).toHaveBeenCalledWith("+6281234500001"));
+  expect(screen.queryByText(MISMATCH)).toBeNull();
+});
+
+it("an unusable link offers a way to Beranda without going there by itself", async () => {
+  const { runtime } = runtimeWith({
+    preview: async () => {
+      throw new ApiError("NOT_FOUND");
+    },
+  });
+  renderRoute(runtime);
+  const home = await screen.findByRole("button", { name: "Ke Beranda" });
+  expect(router.replace).not.toHaveBeenCalled();
+  fireEvent.press(home);
+  expect(router.replace).toHaveBeenCalledWith("/");
+});
+
+it("a preview that cannot load offers Coba lagi and Ke Beranda", async () => {
+  const preview = jest
+    .fn<Promise<ClaimPreview>, []>()
+    .mockRejectedValueOnce(new ApiError("REQUEST_TIMEOUT"))
+    .mockResolvedValue({
+      catererName: "Dapur Contoh",
+      packageName: "Makan Siang Rumahan",
+      remainingDays: 9,
+      nextDate: null,
+      nextWindow: null,
+      addressLabel: "Kantor Sudirman",
+      maskedPhone: "0812-•••-0001",
+    });
+  const { runtime } = runtimeWith({ preview });
+  renderRoute(runtime);
+  fireEvent.press(await screen.findByRole("button", { name: "Ke Beranda" }));
+  expect(router.replace).toHaveBeenCalledWith("/");
+  fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
+  expect(await screen.findByText("Dari Dapur Contoh")).toBeTruthy();
 });

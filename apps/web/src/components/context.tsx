@@ -243,6 +243,12 @@ export function Provider({
       const result = await api.command<T>(action, payload, key);
       keys.current.delete(hash);
       if (action !== "import.preview") setRevision((v) => v + 1);
+      // A claim sent to the caterer for review has not connected; its page says why.
+      if (
+        action === "customer.claim" &&
+        (result as { status?: string } | null)?.status === "review"
+      )
+        return result;
       const message = actionMessages[action];
       setToast(
         message
