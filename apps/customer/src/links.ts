@@ -2,6 +2,8 @@
 export function customerLink(href: string): string {
   if (!href.startsWith("/") || href.startsWith("//") || /[\\\u0000- ]/.test(href)) return "/";
   const path = new URL(href, "https://catera.invalid").pathname.replace(/\/+$/, "") || "/";
+  // Older notifications link to the web calendar, which is Jadwal in the app.
+  if (path === "/calendar") return "/jadwal";
   const [, section, id, ...rest] = path.split("/");
   if (!id || rest.length) return "/";
   const safe = encodeURIComponent(decodeSegment(id));

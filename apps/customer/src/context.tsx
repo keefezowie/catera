@@ -377,7 +377,8 @@ export const nativeLink = (href: string) => {
     href
       .replace(/^\/deliveries\//, "/hari/")
       .replace(/^\/packages\//, "/package/")
-      .replace(/^\/home$/, "/"),
+      .replace(/^\/home$/, "/")
+      .replace(/^\/calendar(?=$|[?#])/, "/jadwal"),
   );
 };
 export function useData<T>(key: string, loader: () => Promise<T>) {

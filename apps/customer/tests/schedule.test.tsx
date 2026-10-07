@@ -8,6 +8,7 @@ import { Jadwal } from "../src/schedule/Jadwal";
 import { ChangeDaySheet } from "../src/schedule/ChangeDaySheet";
 import { DayScreen } from "../src/schedule/DayScreen";
 import { customerLink } from "../src/links";
+import { nativeLink } from "../src/context";
 import { delivery, offer, subscription } from "./fixtures";
 
 let mockParams: Record<string, string> = {};
@@ -250,16 +251,51 @@ describe("Ubah hari sheet", () => {
     expect(openUrl).toHaveBeenCalledWith(expect.stringContaining("https://wa.me/6281200000001"));
   });
 
-  it("says why a change failed in plain Indonesian", async () => {
+  it.each(["CAPACITY", "FULL"])("says the day is full when the server answers %s", async (code) => {
     const command = jest.fn(async () => {
-      throw Object.assign(new Error("CAPACITY"), { code: "CAPACITY" });
+      throw Object.assign(new Error(code), { code });
     });
     renderSheet(flexible, runtimeWith(stateOf([flexible]), available, command));
     fireEvent.press(await screen.findByRole("button", { name: "Senin 19 Okt" }));
     fireEvent.press(screen.getByRole("button", { name: "Pindah ke Senin 19 Okt" }));
-    expect(
-      await screen.findByText("Porsi pada salah satu tanggal sudah habis. Pilih tanggal mulai atau jumlah porsi lain."),
-    ).toBeTruthy();
+    expect(await screen.findByText("Hari itu sudah penuh. Pilih tanggal lain.")).toBeTruthy();
+  });
+
+  it("explains other failures with the shared label", async () => {
+    const command = jest.fn(async () => {
+      throw Object.assign(new Error("CONFLICT"), { code: "CONFLICT" });
+    });
+    renderSheet(flexible, runtimeWith(stateOf([flexible]), available, command));
+    fireEvent.press(await screen.findByRole("button", { name: "Senin 19 Okt" }));
+    fireEvent.press(screen.getByRole("button", { name: "Pindah ke Senin 19 Okt" }));
+    expect(await screen.findByText("Data sudah berubah. Muat ulang sebelum mencoba lagi.")).toBeTruthy();
+  });
+
+  it("sends the version captured on open and stops when the day changed underneath", async () => {
+    const command = jest.fn(async () => ({}));
+    const runtime = runtimeWith(stateOf([flexible]), available, command);
+    const ui = (d: Delivery) => (
+      <MobileProvider runtime={runtime} linkMapper={customerLink}>
+        <ChangeDaySheet delivery={d} addresses={[home, rumah, jauh]} onClose={jest.fn()} />
+      </MobileProvider>
+    );
+    const view = render(ui(flexible));
+    fireEvent.press(await screen.findByRole("button", { name: "Senin 19 Okt" }));
+    // The live day moves to version 4 while the sheet is open.
+    view.rerender(ui({ ...flexible, version: 4 }));
+    fireEvent.press(screen.getByRole("button", { name: "Pindah ke Senin 19 Okt" }));
+    expect(await screen.findByText("Detail hari ini berubah. Periksa lagi.")).toBeTruthy();
+    expect(command).not.toHaveBeenCalled();
+    // Checked again: the next confirm sends the new version.
+    fireEvent.press(screen.getByRole("button", { name: "Pindah ke Senin 19 Okt" }));
+    await waitFor(() =>
+      expect(command).toHaveBeenCalledWith(
+        "delivery.reschedule",
+        { id: "d-1", version: 4, date: "2026-10-19", kind: "reschedule" },
+        expect.any(String),
+      ),
+    );
+    expect(screen.queryByText("Detail hari ini berubah. Periksa lagi.")).toBeNull();
   });
 
   it("does not send once the cutoff passes while the sheet is open", async () => {
@@ -295,5 +331,12 @@ describe("signed out", () => {
     fireEvent.press(await screen.findByRole("button", { name: "Masuk" }));
     expect(router.push).toHaveBeenCalledWith({ pathname: "/login", params: { next: "/jadwal" } });
     expect(runtime.api.customer).not.toHaveBeenCalled();
+  });
+});
+
+describe("legacy calendar links", () => {
+  it("opens Jadwal from the old /calendar href", () => {
+    expect(customerLink("/calendar")).toBe("/jadwal");
+    expect(nativeLink("/calendar")).toBe("/jadwal");
   });
 });

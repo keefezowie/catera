@@ -40,18 +40,19 @@ function ChatKatering({ delivery }: { delivery: Delivery }) {
 /** Plain Indonesian for a failed change: the shared label first, then the cases it does not cover. */
 function changeError(e: unknown, locale: "id" | "en", t: (id: string, en: string) => string): string {
   const code = (e as { code?: string }).code || (e as Error).message;
+  // The shared CAPACITY label talks about a start date, which is checkout wording.
+  if (code === "CAPACITY" || code === "FULL")
+    return t("Hari itu sudah penuh. Pilih tanggal lain.", "That day is full. Choose another date.");
   const shared = errorLabel(code, locale);
   if (shared) return shared;
   if (code === "NOT_AVAILABLE")
     return t("Hari ini sudah tidak bisa diubah.", "This day can no longer be changed.");
-  if (code === "FULL")
-    return t("Katering penuh di tanggal itu. Pilih tanggal lain.", "The caterer is full that day. Pick another date.");
   return t("Belum berhasil. Coba lagi.", "That did not work. Try again.");
 }
 
 /** Bottom sheet to move one delivery day to another date or send it to another address. */
 export function ChangeDaySheet({
-  delivery,
+  delivery: live,
   addresses,
   onClose,
   onDone,
@@ -67,6 +68,8 @@ export function ChangeDaySheet({
 }) {
   const { runtime, command, t, locale } = useMobile();
   const [opened] = useState(() => new Date());
+  // What the customer is looking at: captured on open and again whenever the live day moved on.
+  const [delivery, setDelivery] = useState(live);
   const today = jakartaDay(opened);
   const can = canChangeDay(delivery, opened);
   const open = can.date || can.address;
@@ -98,6 +101,13 @@ export function ChangeDaySheet({
     setBusy(true);
     setError("");
     try {
+      if (live.version !== delivery.version) {
+        setDelivery(live);
+        setError(t("Detail hari ini berubah. Periksa lagi.", "This day changed. Please check again."));
+        onStale?.();
+        void availability.reload();
+        return;
+      }
       // The minute may have passed while the sheet was open.
       const now = canChangeDay(delivery, new Date());
       if (mode === "date" ? !now.date : !now.address) throw Object.assign(new Error("CUTOFF"), { code: "CUTOFF" });
