@@ -26,7 +26,7 @@ export function EmptyHome() {
           key={o.id}
           accessibilityRole="button"
           accessibilityLabel={`${o.name}, ${o.caterer}`}
-          onPress={() => router.push(`/package/${encodeURIComponent(o.id)}` as never)}
+          onPress={() => router.push(`/paket/${encodeURIComponent(o.id)}` as never)}
           style={styles.card}
         >
           {o.image ? (

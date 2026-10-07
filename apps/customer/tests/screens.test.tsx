@@ -1,7 +1,6 @@
 import React from "react";
 import { render, fireEvent, waitFor } from "@testing-library/react-native";
 import { router } from "expo-router";
-import { ScrollView, AccessibilityInfo } from "react-native";
 
 const mockPasswordLogin = jest.fn();
 const mockSetLocale = jest.fn();
@@ -37,7 +36,7 @@ jest.mock("@react-native-community/datetimepicker", () => ({
   default: () => null,
 }));
 jest.mock("@expo/vector-icons", () => ({ Ionicons: () => null }));
-import { LoginScreen, Discover } from "../src/purchase";
+import { LoginScreen } from "../src/purchase";
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -81,32 +80,4 @@ test("language menu is available before authentication and updates login copy", 
   screen.rerender(<LoginScreen />);
   expect(screen.getByRole("button", { name: "Language" })).toBeTruthy();
   expect(screen.getByRole("button", { name: "Sign in" })).toBeTruthy();
-});
-
-test("discovery section actions scroll without replacing the screen or clearing search", async () => {
-  jest
-    .spyOn(AccessibilityInfo, "isReduceMotionEnabled")
-    .mockResolvedValue(true);
-  const screen = render(<Discover />);
-  const scroll = screen.UNSAFE_getAllByType(ScrollView)[0].instance;
-  const scrollTo = jest.spyOn(scroll, "scrollTo");
-  fireEvent(screen.UNSAFE_getByProps({ nativeID: "packages" }), "layout", {
-    nativeEvent: { layout: { y: 250 } },
-  });
-  fireEvent(screen.UNSAFE_getByProps({ nativeID: "how-it-works" }), "layout", {
-    nativeEvent: { layout: { y: 1450 } },
-  });
-  fireEvent.changeText(screen.getByLabelText("Cari makanan favorit"), "ayam");
-  fireEvent.press(screen.getByRole("button", { name: "Cara berlangganan" }));
-  await waitFor(() =>
-    expect(scrollTo).toHaveBeenCalledWith({ y: 1450, animated: false }),
-  );
-  fireEvent.press(screen.getByRole("button", { name: "Jelajah katering" }));
-  await waitFor(() =>
-    expect(scrollTo).toHaveBeenLastCalledWith({ y: 250, animated: false }),
-  );
-  expect(screen.getByLabelText("Cari makanan favorit").props.value).toBe(
-    "ayam",
-  );
-  expect(router.push).not.toHaveBeenCalled();
 });

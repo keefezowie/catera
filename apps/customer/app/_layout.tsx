@@ -37,7 +37,8 @@ function Navigation() {
           options={{ title: t("Verifikasi akun", "Verify account"), headerBackVisible: false }}
         />
         <Stack.Screen name="subscriptions/[id]/menu" options={{ title: t("Pilih menu", "Choose menus") }} />
-        <Stack.Screen name="package/[id]" options={{ title: t("Detail paket", "Package details") }} />
+        <Stack.Screen name="paket/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="package/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="checkout/[id]" options={{ title: t("Porsi & jadwal", "Portions & schedule") }} />
         <Stack.Screen name="payment/[id]" options={{ title: t("Pembayaran", "Payment") }} />
         <Stack.Screen name="hari/[id]" options={{ title: t("Hari", "Day") }} />
@@ -46,7 +47,8 @@ function Navigation() {
         <Stack.Screen name="masalah/[id]" options={{ title: t("Ada masalah", "Report a problem") }} />
         <Stack.Screen name="claim/[token]" options={{ headerShown: false }} />
         <Stack.Screen name="addresses" options={{ title: t("Alamat", "Addresses") }} />
-        <Stack.Screen name="saved" options={{ title: t("Paket tersimpan", "Saved packages") }} />
+        <Stack.Screen name="disimpan" options={{ title: t("Disimpan", "Saved") }} />
+        <Stack.Screen name="saved" options={{ headerShown: false }} />
         <Stack.Screen name="notifications" options={{ title: t("Notifikasi", "Notifications") }} />
       </Stack>
     </>

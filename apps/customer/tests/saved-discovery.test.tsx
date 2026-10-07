@@ -1,12 +1,8 @@
 import React from "react";
 import { render, fireEvent, waitFor, act } from "@testing-library/react-native";
 import {
-  View,
   Text,
-  PanResponder,
-  FlatList,
   AccessibilityInfo,
-  type PanResponderCallbacks,
 } from "react-native";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
@@ -16,9 +12,7 @@ import {
   NativeSavedIntent,
   useNativeSaved,
 } from "../src/saved";
-import { NativePackagePager } from "../src/discovery";
 import { nativeApi } from "../src/context";
-import type { Offer } from "@catera/domain";
 const mockNative: any = {
   actor: { id: "owner-a", role: "customer", name: "Synthetic" },
   revision: 0,
@@ -229,65 +223,4 @@ test("native login return resumes once and retries the same intent after a faile
   );
   await act(async () => {});
   expect(mockApi.command).toHaveBeenCalledTimes(2);
-});
-test("native pager prevents fast flick skipping, cancels short drags and offers buttons", async () => {
-  let handlers!: PanResponderCallbacks;
-  const create = PanResponder.create;
-  jest.spyOn(PanResponder, "create").mockImplementation((config) => {
-    handlers = config;
-    return create(config);
-  });
-  jest.spyOn(FlatList.prototype, "scrollToIndex").mockImplementation(() => {});
-  const offers = Array.from(
-    { length: 3 },
-    (_, index) =>
-      ({
-        id: "package-" + index,
-        name: "Lunch " + index,
-        image: "",
-        caterer: "Synthetic",
-        days: index === 2 ? 10 : 5,
-        price: index === 2 ? 65000 : 35000,
-        meal: index === 2 ? "both" : "lunch",
-        flexible: true,
-        areas: [],
-        menus: [],
-        tags: [],
-        tiers: [],
-      }) as unknown as Offer,
-  );
-  const selected = jest.fn(),
-    cannotFit = jest.fn();
-  const screen = render(
-    <NativePackagePager
-      offers={offers}
-      activeId=""
-      onSelect={selected}
-      onCannotFit={cannotFit}
-      returnPath={(id) => "/discover?card=" + id}
-    />,
-  );
-  fireEvent(screen.getByTestId("native-discovery-viewport"), "layout", {
-    nativeEvent: { layout: { height: 500 } },
-  });
-  await act(async () => {});
-  await act(async () => {
-    handlers.onPanResponderGrant?.({} as never, {} as never);
-    handlers.onPanResponderRelease?.(
-      {} as never,
-      { dy: -1000, vy: -3 } as never,
-    );
-  });
-  expect(selected).toHaveBeenLastCalledWith("package-1");
-  await act(async () => {
-    handlers.onPanResponderGrant?.({} as never, {} as never);
-    handlers.onPanResponderRelease?.({} as never, { dy: 8, vy: 1 } as never);
-  });
-  expect(selected).toHaveBeenCalledTimes(1);
-  fireEvent.press(screen.getByRole("button", { name: "Next" }));
-  expect(selected).toHaveBeenLastCalledWith("package-2");
-  expect(
-    screen.getByRole("button", { name: "Next" }).props.accessibilityState
-      .disabled,
-  ).toBe(true);
 });

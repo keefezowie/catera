@@ -1,2 +1,1 @@
-// The old discovery screen until Task 11 replaces this tab.
-export { Discover as default } from "../../src/purchase";
+export { Jelajah as default } from "../../src/discover/Jelajah";
