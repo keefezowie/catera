@@ -15,6 +15,19 @@ export function Retry({ message, label, onRetry, t }: { message: string; label?:
   );
 }
 
+/** A renewal checkout that is still payable: continue it rather than buying twice. */
+export function PendingPayment({ checkoutId, t }: { checkoutId: string; t: T }) {
+  return (
+    <Card tone="attention">
+      <Text>{t("Perpanjangan ini masih menunggu pembayaran.", "This renewal is still waiting for payment.")}</Text>
+      <Button
+        label={t("Lanjutkan pembayaran", "Continue payment")}
+        onPress={() => router.replace(`/bayar/${encodeURIComponent(checkoutId)}` as never)}
+      />
+    </Card>
+  );
+}
+
 /** Renewing a package the caterer no longer sells: their other packages, then Jelajah. */
 export function NoLongerSold({ caterer, offers, t }: { caterer: string; offers: Offer[]; t: T }) {
   return (

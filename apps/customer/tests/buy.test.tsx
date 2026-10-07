@@ -360,6 +360,16 @@ describe("Beli / Perpanjang", () => {
     expect(router.push).toHaveBeenCalledWith("/jelajah");
   });
 
+  it("an unpublished renewal with an open checkout still leads to that payment first", async () => {
+    const lain = offer({ id: "p-lain", name: "Makan Siang Hemat" });
+    const runtime = server({
+      context: { replacementRequired: true, available: false, pendingCheckoutId: "ck-9", offers: [lain] },
+    });
+    wrap(runtime, <BuyScreen renewFrom="s-1" />);
+    fireEvent.press(await screen.findByRole("button", { name: "Lanjutkan pembayaran" }));
+    expect(router.replace).toHaveBeenCalledWith("/bayar/ck-9");
+  });
+
   it("an address outside the area hides the old price", async () => {
     wrap(server(), <BuyScreen packageId="p-rumahan" />);
     await bayarReady();

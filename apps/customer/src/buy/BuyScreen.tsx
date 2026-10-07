@@ -18,11 +18,11 @@ import {
   type RenewalContext,
 } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, colors, Screen, Stepper, Text } from "@catera/mobile-ui";
+import { Button, colors, Screen, Stepper, Text } from "@catera/mobile-ui";
 import { RoundButton } from "../discover/PackageCard";
 import { SunriseButton } from "../today/Plate";
 import { Breakdown, LengthOptions, percent, StartLine } from "./Breakdown";
-import { ChoiceSheet, NoLongerSold, PayWith, Retry, Terms } from "./BuyParts";
+import { ChoiceSheet, NoLongerSold, PayWith, PendingPayment, Retry, Terms } from "./BuyParts";
 import { useQuote, type BuyPayload } from "./useQuote";
 
 /** Choices a link may carry (old /checkout links, Paket); anything invalid falls back to defaults. */
@@ -176,6 +176,8 @@ export function BuyScreen({
     return (
       <Screen>
         <RoundButton icon="chevron-back" label={t("Kembali", "Back")} onPress={leave} />
+        {/* An open checkout comes first: paying it beats starting a second purchase. */}
+        {pendingCheckout ? <PendingPayment checkoutId={pendingCheckout} t={t} /> : null}
         <NoLongerSold
           caterer={ctx.offers[0]?.caterer || current?.snapshot.offer?.caterer || t("katering Anda", "your caterer")}
           offers={ctx.offers.filter((o) => o.id !== ctx.packageId)}
@@ -227,15 +229,7 @@ export function BuyScreen({
         </Text>
       </View>
       {loadError ? <Retry message={loadError} onRetry={reloadAll} t={t} /> : null}
-      {pendingCheckout ? (
-        <Card tone="attention">
-          <Text>{t("Perpanjangan ini masih menunggu pembayaran.", "This renewal is still waiting for payment.")}</Text>
-          <Button
-            label={t("Lanjutkan pembayaran", "Continue payment")}
-            onPress={() => router.replace(`/bayar/${encodeURIComponent(pendingCheckout)}` as never)}
-          />
-        </Card>
-      ) : null}
+      {pendingCheckout ? <PendingPayment checkoutId={pendingCheckout} t={t} /> : null}
 
       <StartLine
         startDate={startDate}
