@@ -155,6 +155,7 @@ export type Subscription = {
   legacy: boolean;
 };
 export * from "./seller-operations";
+export * from "./kitchen";
 export * from "./seller-experience";
 export * from "./customer-choice";
 export type Delivery = {
