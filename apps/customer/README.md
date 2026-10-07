@@ -58,7 +58,7 @@ EXPO_PUBLIC_API_URL=http://10.0.2.2:3000 npx expo start
 
 In a development build, Masuk shows **Masuk sebagai pelanggan demo** (only under `__DEV__`). Bayar shows **Bayar (demo)** only when the server reports explicit demo mode. Demo data is synthetic: no money, SMS, email or messages reach real people. For a physical phone use `adb reverse tcp:3000 tcp:3000` and `EXPO_PUBLIC_API_URL=http://127.0.0.1:3000`.
 
-Startup requests (including saved-session restoration) time out after 15 seconds; the app then opens as a guest with the reason, and the stored session is kept.
+Startup requests (including saved-session restoration) time out after 15 seconds. If the first check of the account cannot reach Catera, the app shows **Belum bisa terhubung.** with the reason and **Coba lagi** instead of opening as a guest; the stored session is kept. A signed-out or expired session starts normally, and a phone with a cached account opens offline on it.
 
 ## Checks
 

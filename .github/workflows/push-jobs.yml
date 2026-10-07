@@ -1,3 +1,11 @@
+# Calls GET /api/jobs/push every 15 minutes (arrival reminders, the 3-days-left renewal push,
+# then sending due pushes).
+#
+# IMPORTANT: GitHub runs `schedule` triggers only from the repository's DEFAULT branch
+# (currently `main`). While this file exists only on `v2` it never runs on schedule; only a
+# manual workflow_dispatch from the v2 branch works. To use it, put this file on the default
+# branch and add the repository secrets CRON_SECRET and CATERA_PUBLIC_URL, or use a platform
+# scheduler instead. Both options are in docs/RUNBOOK.md, section 14.
 name: Catera push jobs
 
 on:

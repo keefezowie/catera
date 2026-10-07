@@ -187,3 +187,24 @@ The September 16 seller-experience report left hosted **ID0021** upload acceptan
 The September 20 checkout-sales report requires the matching application and `20260920152746_checkout_sales_safeguards.sql` rollout: historical consent remains unknown, and old pending holds without acceptance must expire before a fresh reviewed checkout. Verify the target ledger before applying anything; the September 21 flag enablement alone did not prove this migration was installed. Multi-cycle sales and automatic payouts remain separately gated.
 
 Hosted auth/RLS/Realtime, signup/recovery and invitation delivery, SMS/SMTP, actual storage, provider callbacks/refunds/payout arrival, push/payment returns, backup restore, scheduler/alerts and production performance need their own evidence. Use the dated [DOKU](DOKU-SANDBOX-INTEGRATION.md), [direct-payment](DOKU-DIRECT-PAYMENTS.md), and [QRIS](QRIS-SANDBOX-ACCEPTANCE-2026-09-22.md) records for sandbox evidence rather than treating older local-only reports as current provider status. The [October 6 native backlog](CATERA-V1-NATIVE-PARITY-BACKLOG.md#next-evidence-and-release-boundaries) supersedes older native deferrals and host-tooling claims; Android verification is pending, while iOS device/store work remains deferred as recorded there. The September 30 optimized-runtime/CSS-ordering check was also unverified despite a passing build.
+
+## 14. Customer app v2 (Plan 3a)
+
+The rebuilt customer app (`apps/customer`) adds timed pushes, app links and new customer reads. Release in this order and record the evidence in section 10.
+
+**Migrations.** The customer migrations `20261008100000`–`20261008103000` sort between the caterer migrations `20261008090000` and `20261008110000`, followed by `20261008111000`–`20261008114500`. Run `supabase migration list` against the hosted project first. If it already has a later file than one of these (for example `20261008110000` applied before the customer files), a plain push refuses the out-of-order files: use `supabase db push --include-all`, and only after confirming that every listed local file is meant for this release.
+
+**auth.users check.** `v1.caterer_whatsapp` reads the caterer owner's verified phone from `auth.users` through security definer reads that run as the migration owner. After deploying, confirm that the migration owner can read `auth.users` (for example, as that owner, `select count(*) from auth.users`) and that a synthetic customer's own delivery shows **Chat katering** when its caterer owner has a confirmed phone. Since `20261008114000`, a denied read no longer fails the customer read; it silently shows no number, so this check is the only way to notice it.
+
+**Push scheduler.** `GET /api/jobs/push` must be called every 15 minutes with the header `Authorization: Bearer $CRON_SECRET`. It queues the "has it arrived?" reminder an hour after each window and the 3-days-left renewal push, then sends due pushes for at most 45 seconds. Choose one:
+
+1. **GitHub Actions:** `.github/workflows/push-jobs.yml` runs on schedule only from the default branch (`main`); from `v2` it never fires. Put the file on the default branch and add the repository secrets `CRON_SECRET` and `CATERA_PUBLIC_URL` (the deployed web origin, no trailing slash). GitHub may delay or skip scheduled runs under load.
+2. **A platform scheduler:** for example Supabase `pg_cron` with `pg_net` (`net.http_get` to `<CATERA_PUBLIC_URL>/api/jobs/push` with the Authorization header, the secret kept in Vault), or the hosting provider's cron if its plan allows a 15-minute schedule.
+
+Until one of these is set up, arrival reminders and the 3-days-left renewal push are **not sent**. Departure pushes and report replies are still sent right after the caterer's command, and the daily `/api/jobs` maintenance still sends its own renewal reminder.
+
+**Web environment.** `CRON_SECRET` (shared with the scheduler), `CATERA_PUBLIC_URL`, `CATERA_ANDROID_SHA256` (comma-separated SHA-256 signing-certificate fingerprints of every Android build that should open `/claim` and `/renew` links), `CATERA_APPLE_TEAM_ID` and `NEXT_PUBLIC_CATERA_ANDROID_URL` (the Android download link shown on the web). Without the fingerprints or team id the app-link files claim nothing and links open on the web.
+
+**App build environment.** `EXPO_PUBLIC_API_URL` (the deployed web origin the app calls) and `EXPO_PUBLIC_CATERA_WEB_HOST` (the host that serves `/claim` and `/renew`, without scheme; without it the build has no app links).
+
+**Verify** on an Android device with the release build: a `/claim` and a `/renew` link open the app, a departure push and an arrival reminder arrive and open Beranda, and a 3-days-left plan gets one renewal push.
