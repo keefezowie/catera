@@ -159,7 +159,7 @@ Catera makes recurring meals feel tangible, warm, and organized. Food photograph
 
 This records the built September 9, 2026 V1 marketplace world. The code-first direction is already approved; there is no page comp or new concept-selection step. PRODUCT.md provides the current product baseline, while docs/V1-UI-BRIEF.md owns surface composition. The archived pilot design is historical evidence and does not steer new V1 screens.
 
-Ground truth is the [shared tokens](packages/design-tokens/src/index.ts), the complete cascade in [web global styles](apps/web/src/app/globals.css), [web components](apps/web/src/components), [native UI source](apps/customer/src/ui.tsx), and the [brand package](packages/brand/README.md). The frontmatter records reused implemented web primitives; the sidecar adds previews and extensions. This is documentation of the local build, not a release certificate.
+Ground truth is the [shared tokens](packages/design-tokens/src/index.ts), the complete cascade in [web global styles](apps/web/src/app/globals.css), [web components](apps/web/src/components), [native UI source](packages/mobile-ui/src/components.tsx), and the [brand package](packages/brand/README.md). The frontmatter records reused implemented web primitives; the sidecar adds previews and extensions. This is documentation of the local build, not a release certificate.
 
 **Key Characteristics:**
 

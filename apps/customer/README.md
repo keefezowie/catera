@@ -1,8 +1,46 @@
 # Catera customer app
 
-React Native + Expo. Android is the current verification target; the same source builds for iOS. Seller and admin workspaces remain on the web.
+React Native + Expo (SDK 57, expo-router), Indonesian first with English in Akun → Bahasa. Android is the current verification target; the same source builds for iOS. Caterers use Catera Dapur (`apps/caterer`) and the web; this app has no caterer or admin screens.
 
-## Local sandbox
+## Structure
+
+Four tabs (`app/(tabs)`):
+
+| Tab | Route | Screen |
+|---|---|---|
+| Beranda | `/` | `src/today/Beranda.tsx` — today's plate, the next days, "Pilih menu {hari}" when a menu choice is due, the renewal card, the package line and a one-time review |
+| Jadwal | `/jadwal` | `src/schedule/Jadwal.tsx` — month grid across packages and the chosen day's meals |
+| Jelajah | `/jelajah` | `src/discover/Jelajah.tsx` — area, search, four chips, photo cards with a heart |
+| Akun | `/akun` | `src/account/Akun.tsx` — name and phone, active packages, Alamat, Disimpan, Riwayat pembayaran, Bantuan dan laporan, Notifikasi (Aktif/Nonaktif), Bahasa, Keluar |
+
+Pushed screens: `paket/[id]` (package), `beli/[id]` and `renew/[id]` (one-screen buy/renew), `bayar/[id]` (QRIS/VA), `hari/[id]` (a day, Ubah hari sheet), `masalah/[id]` (Ada masalah), `bantuan`, `pilih-menu/[id]` (customer-choice menus), `claim/[token]`, `alamat`, `pembayaran`, `notifications`, `disimpan`, `login` (Masuk: phone code first, email second), `register`, `recover` and `auth/callback`.
+
+Redirect stubs exist only for hrefs the server or older links still emit: `/subscriptions/<id>` (→ Jadwal), `/subscriptions/<id>/menu` (→ Pilih menu), `/checkout/<id>` (→ Beli or Perpanjang), `/payment/<id>` (→ Bayar), `/package/<id>` (→ Paket), `/saved`, `/addresses` and `/discover`. Push taps and notification rows go through `customerLink` in `src/links.ts`, the one mapper from server hrefs to app routes (it also maps `/deliveries/<id>`, `/packages/<id>`, `/calendar`, `/support`, `/account` and the old web anchors).
+
+Folders in `src/`:
+
+- `runtime.ts` — the one `createMobileRuntime` (API, Supabase session in SecureStore, `catera.*` keys) and `shell.tsx` — `MobileProvider`, which owns the session, commands, realtime, push registration and push-tap routing.
+- `today`, `schedule`, `discover`, `buy`, `help`, `claim`, `account` — one folder per area, built on `@catera/mobile-core` (`useMobile`, `useData`) and `@catera/mobile-ui` (`Text`, `Button`, `Field`, `Card`, `Sheet`, `Screen`, `colors`).
+- `auth.ts` — `nativeReturnPath`, the allow-list for where sign-in returns (`next`).
+
+## Environment
+
+Copy `.env.example` to `.env.local` in this directory.
+
+| Variable | Use |
+|---|---|
+| `EXPO_PUBLIC_API_URL` | The Catera web backend origin, without `/api/v1` (`http://10.0.2.2:3000` for the emulator against `npm run dev`). |
+| `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Hosted sandbox only; the **publishable** key, never a service-role key. Unset for the local synthetic demo. |
+| `EXPO_PUBLIC_CATERA_WEB_HOST` | Host only (for example `catera.example`). `app.config.ts` then adds Android App Links (`/claim/`, `/renew/`, `autoVerify`) and iOS associated domains. Unset, those URLs open in the browser. |
+| `EXPO_PUBLIC_EAS_PROJECT_ID` | Optional override of the EAS project used for push tokens. |
+
+App links on the web deployment: `/.well-known/assetlinks.json` and `/.well-known/apple-app-site-association` are generated from `CATERA_ANDROID_SHA256` (comma-separated signing-certificate SHA-256 fingerprints) and `CATERA_APPLE_TEAM_ID`; unset, nothing is claimed. `NEXT_PUBLIC_CATERA_ANDROID_URL` shows "Pasang aplikasi" after a web claim. Never commit real fingerprints, team ids or keys.
+
+The standalone APK contains the `EXPO_PUBLIC_*` values from build time; a changed value needs a new build.
+
+Email registration and recovery use PKCE with the session in SecureStore. Allow `catera://auth/callback` in the Supabase Auth redirect URLs, and keep the requested redirect in the email templates. Links must be opened on the phone that asked for them; expired or cross-device links offer a new one.
+
+## Demo mode (synthetic)
 
 From the repository root:
 
@@ -15,77 +53,29 @@ In a second terminal, with an Android emulator running:
 
 ```sh
 cd apps/customer
-EXPO_PUBLIC_API_URL=http://10.0.2.2:3000 npx expo run:android
+EXPO_PUBLIC_API_URL=http://10.0.2.2:3000 npx expo start
 ```
 
-Choose **Jelajah sebagai pelanggan demo** on the sign-in screen. This uses the explicit local synthetic database and simulated payment. It does not send money, SMS, email, or messages to real customers.
+In a development build, Masuk shows **Masuk sebagai pelanggan demo** (only under `__DEV__`). Bayar shows **Bayar (demo)** only when the server reports explicit demo mode. Demo data is synthetic: no money, SMS, email or messages reach real people. For a physical phone use `adb reverse tcp:3000 tcp:3000` and `EXPO_PUBLIC_API_URL=http://127.0.0.1:3000`.
 
-For a physical Android device, use a reachable development server address, or `adb reverse tcp:3000 tcp:3000` and `EXPO_PUBLIC_API_URL=http://127.0.0.1:3000`. Start the development server before opening the app. Native modules require a development build.
-
-## Hosted sandbox configuration
-
-Copy `.env.example` to `.env.local` inside this directory and supply the sandbox API URL, Supabase URL and **publishable** key. Never use a service-role key in the app. Hosted BRI Virtual Account and QRIS instructions are provided by the existing server; payment verification and booking activation remain server decisions.
-
-Email registration and recovery use a native SecureStore session and PKCE. Allow `catera://auth/callback` in the sandbox Supabase Auth redirect URLs. Email templates must preserve the requested redirect URL. Open verification/recovery links on the device that requested them; expired or cross-device links have a request-new-link path. No Expo/EAS authentication is needed for local debug builds. EAS signing, push credentials and store release are separate setup steps.
-
-### Startup connection troubleshooting
-
-`EXPO_PUBLIC_API_URL` is the backend origin, without `/api/v1`. A tunnel must forward the Catera web backend (normally port 3000) and remain online while the phone is using it. Opening `<API_URL>/api/v1/catalog?limit=1` and `<API_URL>/api/v1/me` should return Catera JSON. A tunnel error, sign-in page or HTML warning is not an API response. Prefer the documented hosted sandbox for testing away from the development machine.
-
-The standalone APK contains the `EXPO_PUBLIC_*` values from build time. After changing EAS preview variables, run a new preview build and install that APK; changing the dashboard values does not modify an installed app. Plain-text visibility is appropriate for the API URL and Supabase publishable client configuration.
-
-Startup API requests, including saved-session restoration, time out after 15 seconds and show a connection error with Retry. Retrying does not erase the stored session. An expired session that signs out during startup triggers a fresh guest read. The GitHub APK workflow checks both public API endpoints before submitting a build to EAS, so an offline tunnel or incompatible endpoint fails before producing another APK.
-
-
-## Claim and renew links
-
-Caterers send `https://<web host>/claim/<token>` (and later `/renew/<id>`). Without the app the web page handles it; with the app installed, Android App Links and iOS universal links open `app/claim/[token].tsx`.
-
-- App build: set `EXPO_PUBLIC_CATERA_WEB_HOST` (host only, for example `catera.example`). `app.config.ts` then adds the Android `intentFilters` (`autoVerify`, `/claim/` and `/renew/`) and the iOS `associatedDomains`. Unset, the build has no app links and the URLs open in the browser.
-- Web deployment: `/.well-known/assetlinks.json` and `/.well-known/apple-app-site-association` are generated per request from `CATERA_ANDROID_SHA256` (comma-separated signing-certificate SHA-256 fingerprints) and `CATERA_APPLE_TEAM_ID`. Unset, they serve an empty list and an association with no apps, so nothing is claimed. Never commit real fingerprints or team ids.
-- `NEXT_PUBLIC_CATERA_ANDROID_URL` (web) shows "Pasang aplikasi" after a web claim; unset, the card is hidden.
-
-## Resume the phone APK build
-
-Use the `v1` branch. The `preview` profile in `eas.json` produces a standalone Android APK with bundled JavaScript, rather than an Expo development client.
-
-1. Verify the documented UAT backend, `https://catera-eight.vercel.app`, and its matching Supabase public configuration. See `docs/DOKU-SANDBOX-INTEGRATION.md` at the repository root. The phone build needs that reachable HTTPS backend; `10.0.2.2` is emulator-only. Existing hosted data must be preserved.
-2. Configure the three `EXPO_PUBLIC_API_URL` / `EXPO_PUBLIC_SUPABASE_*` values for the build. They are public client configuration; server credentials must never be bundled. For EAS, configure these in the selected EAS build environment, since ignored local environment files are not a reliable cloud-build input.
-3. From `apps/customer`, use the existing authorized Expo project and run `npx eas-cli@latest build --platform android --profile preview`. Authenticate when needed. Alternatively, generate Android with Expo prebuild and build the Gradle release variant for ARM phones; the earlier x86_64 debug attempt was for the emulator only.
-4. Download the resulting APK, verify its signature and install it on Android. Check launch without Metro, catalog loading, sign-in and the main customer journeys before calling the APK verified. Store publication and real payments remain deferred.
-
-Session handoff, October 6, 2026: 59 native tests, 319 shared tests, typechecking, PostgreSQL checks, web build and both platform bundle exports passed. No APK has been produced yet: this session's enforced network proxy still returned HTTP 403 for `repo.reactnative.dev` after the environment settings were changed. Retry in the updated environment. Local Android SDKs, caches and test fixtures under `work/` are disposable and are not part of the GitHub handoff. Full verification status is in `docs/CATERA-V1-NATIVE-PARITY-BACKLOG.md`.
-
-## Automatic APK builds from GitHub
-
-The `Native Android APK` workflow builds the `preview` APK on pushes to `v1` that change `apps/customer`, shared packages, dependency manifests, or the workflow. It can also be started manually on `v1`. Native typechecking and tests must pass before a build starts. The completed run's summary contains the APK download link. Each run creates a new installable APK; installed apps must download the new APK to update.
-
-One-time setup:
-
-1. Add an Expo access token as the GitHub repository Actions secret `EXPO_TOKEN`. Its account must have build access to the EAS project in `apps/customer/app.config.ts`.
-2. In that project's EAS **preview** environment, set `EXPO_PUBLIC_API_URL` to the documented reachable UAT backend, and set `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` for the matching UAT Supabase project. Use plaintext or sensitive visibility so CI can validate these public client values. Never use a service-role key.
-3. Complete one interactive `eas build --platform android --profile preview` from `apps/customer` to set up Android signing if the project has no signing credentials. Subsequent GitHub builds run non-interactively.
-
-Builds consume EAS build quota. This workflow creates APKs for phone installation; store submission and over-the-air updates are separate workflows.
-
-## Customer flows
-
-- Browse, filter, compare, save, and open packages independently of the initial catalog page.
-- Register/verify email, sign in with email/password or phone OTP, recover passwords, retain purchase destinations.
-- Review fixed portions, supported duration cycles, address coverage, complete dates, discounts, fees and explicit consent before purchase.
-- Continue hosted or direct sandbox payments; copy BRI details or share QRIS; safely recover pending confirmation and booking exceptions.
-- View the action feed, date-grouped agenda and subscriptions; renew using current availability and terms.
-- Select menus by date and meal, including category slots and optional multiple dates; preserve drafts on conflicts and block edits after cutoff.
-- Review atomic date/address changes, message caterers, manage addresses, report delivery issues, follow support/refund states and open notifications.
+Startup requests (including saved-session restoration) time out after 15 seconds; the app then opens as a guest with the reason, and the stored session is kept.
 
 ## Checks
 
 ```sh
-npm run typecheck
-npm test
-npm run native:export
-npm test -w @catera/customer
-npm run test:postgres
+npm run typecheck                # web, customer, caterer and shared packages
+npm test                         # shared Vitest suite
+npm run build                    # web build
+npm test -w @catera/customer     # this app's Jest suite (Android preset)
+npm test -w @catera/caterer      # Catera Dapur, which shares mobile-core and mobile-ui
+npm run test:postgres            # PostgreSQL concurrency checks
+npm run native:export            # Android and iOS bundles
 ```
 
-Native Jest tests default to Android. Expo export checks both bundles; an iOS bundle is not iOS device verification. Device checks, sandbox-provider transactions and signed release evidence must be recorded separately.
+Tests use synthetic data only. Device checks, sandbox payments and signed release evidence are recorded separately.
+
+## APK builds
+
+`.github/workflows/native-apk.yml` (`Native Android APK`) runs the customer typecheck and tests, validates the EAS **preview** environment (`EXPO_PUBLIC_API_URL` and `EXPO_PUBLIC_SUPABASE_*` must be phone-reachable HTTPS and answer as the Catera API) and builds the `preview` APK from `apps/customer`. It needs the `EXPO_TOKEN` repository secret and Android signing set up once with an interactive `eas build --platform android --profile preview`. The build job currently runs only for `v1`.
+
+Production release follows the gates in `docs/RUNBOOK.md` (separate Supabase, SMS/SMTP, Xendit and mobile credentials).
