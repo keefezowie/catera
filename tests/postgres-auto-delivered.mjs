@@ -52,6 +52,9 @@ export async function verifyAutoDelivered(pool, cmd, evidence) {
   await pool.query(
     await readFile("supabase/migrations/20261007100000_auto_delivered.sql", "utf8"),
   );
+  await pool.query(
+    await readFile("supabase/migrations/20261008090000_auto_deliver_guards.sql", "utf8"),
+  );
   const days = await purchasedDays(pool, cmd, addDays(localDay(), 120));
   const after = addDays(days[0].service_date, 1);
 

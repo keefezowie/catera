@@ -89,3 +89,25 @@ it("is refused to non-system callers", async () => {
     localRpc(db, U.owner, "catera_v1_system", ["delivery.autoDeliver", { today: start }]),
   ).rejects.toThrow();
 });
+
+it("never counts a day the customer reported as delivered", async () => {
+  const day = days[days.length - 2];
+  await db.query(
+    `insert into v1.delivery_issues(day_id,meal,user_id,caterer_id,subject,description)
+     select f.day_id,f.meal,$2,p.caterer_id,'Makanan tidak datang','Ditunggu sampai jam dua'
+     from v1.fulfillments f join v1.delivery_days d on d.id=f.day_id join v1.subscriptions s on s.id=d.subscription_id join v1.packages p on p.id=s.package_id
+     where f.day_id=$1 limit 1`,
+    [day.id, U.customer],
+  );
+  await autoDeliver(addDays(day.service_date, 1));
+  expect(await dayStatus(day.id)).toBe("scheduled");
+  expect(await earned(day.id)).toBe(0);
+});
+
+it("leaves days from before the rule was switched on untouched", async () => {
+  const day = days[days.length - 1];
+  await db.query("update v1.auto_deliver_policy set since=$1::date + 1", [day.service_date]);
+  await autoDeliver(addDays(day.service_date, 1));
+  expect(await dayStatus(day.id)).toBe("scheduled");
+  expect(await earned(day.id)).toBe(0);
+});

@@ -520,6 +520,12 @@ export async function createDemoDatabase(inMemory = false) {
     await db.exec("begin;\n" + await readFile(path.join(projectRoot(),
       "supabase/migrations/20261007110000_import_before_approval.sql"), "utf8") + "\ncommit;");
   }
+  if (!(await db.query<{ installed: boolean }>(
+    "select to_regclass('v1.auto_deliver_policy') is not null installed",
+  )).rows[0].installed) {
+    await db.exec("begin;\n" + await readFile(path.join(projectRoot(),
+      "supabase/migrations/20261008090000_auto_deliver_guards.sql"), "utf8") + "\ncommit;");
+  }
   return db;
 }
 export async function getDemoDatabase() {
