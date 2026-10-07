@@ -137,12 +137,13 @@ export function upcomingRows(state: CustomerState, now: Date, n: number): Upcomi
       const meals = MEALS.filter((meal) =>
         served.length ? served.includes(meal) : d.offer.menus?.some((m) => m.meal === meal),
       );
+      const changeable = canChangeDay(d, now);
       return {
         deliveryId: d.id,
         date: d.service_date,
         label: dayLabel(d.service_date, today, "id"),
         dishes: meals.flatMap((meal) => dishesFor(d.offer, meal)).join(", "),
-        changeUntil: d.canChange ? jakartaClock(d.cutoff_at) : null,
+        changeUntil: changeable.date || changeable.address ? changeable.until : null,
       };
     });
 }

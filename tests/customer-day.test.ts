@@ -195,6 +195,14 @@ describe("upcomingRows", () => {
     });
     expect(rows[1]).toMatchObject({ date: "2026-10-09", label: "Jumat 9 Okt", changeUntil: null });
   });
+
+  it("hides the change deadline after the cutoff", () => {
+    const s = state([
+      delivery("2026-10-08", [lunch()], { canChange: true, cutoff_at: "2026-10-07T10:00:00Z" }),
+    ]);
+    expect(upcomingRows(s, at("16:59"), 1)[0].changeUntil).toBe("17.00");
+    expect(upcomingRows(s, at("17:00"), 1)[0].changeUntil).toBeNull();
+  });
 });
 
 describe("canChangeDay", () => {
