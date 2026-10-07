@@ -24,6 +24,7 @@ const codes: Record<string, number> = {
   IMPORT_UNREADABLE: 422,
   IMPORT_TOO_LONG: 422,
   IMPORT_UNAVAILABLE: 503,
+  QUOTA: 429,
 };
 const fail = (code: string) =>
   Response.json({ error: { code } }, { status: codes[code] ?? 503, headers: { "Cache-Control": "no-store" } });
@@ -70,6 +71,11 @@ export async function POST(request: Request) {
     if (!process.env.ANTHROPIC_API_KEY) return fail("IMPORT_UNAVAILABLE");
     const parsed = body.safeParse(await request.json().catch(() => null));
     if (!parsed.success) return fail("INVALID_INPUT");
+    // 20 paid model reads per kitchen per Jakarta day.
+    await rpc(null, null, "catera_v1_system", {
+      action: "importAssistant.consume",
+      payload: { catererId: s.actor.catererId, day: jakartaDay(new Date()) },
+    }, true);
     const options = await rpc<SellerImportOptions>(s.id, s.token, "catera_v1_read", {
       resource: "seller-import-options",
       params: { id: s.actor.catererId },

@@ -79,7 +79,17 @@ describe("extractImportRows", () => {
   });
 });
 
-const state = vi.hoisted(() => ({ role: "owner" }));
+const state = vi.hoisted(() => ({ role: "owner", quota: false }));
+vi.mock("@catera/backend", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  rpc: vi.fn(async (_a: unknown, _t: unknown, _n: string, args: { action?: string }) => {
+    if (args.action === "importAssistant.consume") {
+      if (state.quota) throw new Error("QUOTA");
+      return 1;
+    }
+    return { packages: [], customers: [] };
+  }),
+}));
 vi.mock("../apps/web/src/lib/auth", () => ({
   session: async () => ({
     id: "synthetic-user",
@@ -92,6 +102,20 @@ import { POST, maxDuration } from "../apps/web/src/app/api/import-assistant/rout
 describe("import assistant route", () => {
   beforeEach(() => {
     state.role = "owner";
+    state.quota = false;
+    process.env.ANTHROPIC_API_KEY = "test-key-not-used";
+  });
+  it("stops a kitchen that has used up today's reads", async () => {
+    state.quota = true;
+    const response = await POST(
+      new Request("https://catera.test/api/import-assistant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer synthetic" },
+        body: JSON.stringify({ text: "Andre 0812" }),
+      }),
+    );
+    expect(response.status).toBe(429);
+    expect((await response.json()).error.code).toBe("QUOTA");
   });
   it("allows long lists the time they need", () => {
     expect(maxDuration).toBe(300);
