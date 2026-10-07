@@ -36,20 +36,29 @@ type MenuDetails = Omit<MealMenu, "meal" | "source">;
  * Copies last week's menus one week forward. menu.saveBatch writes one menu to every date
  * in a batch (within one month), so days that share a menu are grouped into one batch.
  */
+export type CopyTarget = { version: number; editable: boolean; filled: boolean };
+
+/** Only days still open for changes and not yet filled receive last week's menu. */
 export function copyWeekBatches(
   lastWeek: { date: string; details: MealMenu }[],
-  versions: Map<string, number>,
-): { dates: { date: string; version: number }[]; details: MenuDetails }[] {
+  targets: Map<string, CopyTarget>,
+): { batches: { dates: { date: string; version: number }[]; details: MenuDetails }[]; skipped: number } {
   const batches = new Map<string, { dates: { date: string; version: number }[]; details: MenuDetails }>();
+  let skipped = 0;
   for (const day of lastWeek) {
     const target = addDays(day.date, 7);
+    const slot = targets.get(target);
+    if (!slot?.editable || slot.filled) {
+      skipped += 1;
+      continue;
+    }
     const { meal: _meal, source: _source, ...details } = day.details;
     const key = target.slice(0, 7) + JSON.stringify(details);
     const batch = batches.get(key) ?? { dates: [], details };
-    batch.dates.push({ date: target, version: versions.get(target) ?? 0 });
+    batch.dates.push({ date: target, version: slot.version });
     batches.set(key, batch);
   }
-  return [...batches.values()];
+  return { batches: [...batches.values()], skipped };
 }
 
 /** The delivery days (0 = Sunday) of the Monday-to-Sunday week containing `date`. */

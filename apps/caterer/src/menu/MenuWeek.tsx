@@ -14,7 +14,7 @@ import { useData, useMobile, type MobileRuntime } from "@catera/mobile-core";
 import { Button, Card, Chip, colors, Screen, Segmented, Text } from "@catera/mobile-ui";
 import { copyWeekBatches, weekDates } from "./logic";
 
-export type MenuDay = { date: string; version: number; details: MealMenu | null };
+export type MenuDay = { date: string; version: number; editable: boolean; details: MealMenu | null };
 
 /** Saved menus for the given dates, across however many months they span. */
 export async function loadMenus(
@@ -31,7 +31,7 @@ export async function loadMenus(
   for (const r of results) for (const d of r.dates) byDate.set(d.date, d);
   return dates.map((date) => {
     const found = byDate.get(date);
-    return { date, version: found?.version ?? 0, details: found?.details ?? null };
+    return { date, version: found?.version ?? 0, editable: found?.editable ?? false, details: found?.details ?? null };
   });
 }
 
@@ -57,17 +57,27 @@ export function MenuWeek() {
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [note, setNote] = useState("");
   const template = offer ? mealOf(offer, meal) : undefined;
+  const copyNote = (copied: number, skipped: number) =>
+    skipped
+      ? t(`${copied} hari disalin · ${skipped} dilewati karena sudah lewat atau sudah diisi`, `${copied} days copied · ${skipped} skipped (past or already filled)`)
+      : t(`${copied} hari disalin`, `${copied} days copied`);
 
   async function copyLastWeek() {
     if (!offer) return;
     setBusy(true);
     setError("");
+    setNote("");
     try {
       const previous = await loadMenus(runtime, offer, meal, dates.map((d) => addDays(d, -7)));
       const filled = previous.filter((d) => d.details?.items?.length) as { date: string; details: MealMenu }[];
-      const versions = new Map((days.data ?? []).map((d) => [d.date, d.version] as const));
-      for (const batch of copyWeekBatches(filled, versions))
+      const targets = new Map(
+        (days.data ?? []).map((d) => [d.date, { version: d.version, editable: d.editable, filled: !!d.details?.items?.length }] as const),
+      );
+      const { batches, skipped } = copyWeekBatches(filled, targets);
+      let copied = 0;
+      for (const batch of batches) {
         await command("menu.saveBatch", {
           catererId,
           packageId: offer.id,
@@ -76,6 +86,10 @@ export function MenuWeek() {
           dates: batch.dates,
           details: batch.details,
         });
+        copied += batch.dates.length;
+        setNote(copyNote(copied, skipped));
+      }
+      setNote(copyNote(copied, skipped));
     } catch (e) {
       setError(errorLabel((e as { code?: string }).code || (e as Error).message, locale) || t("Belum tersimpan.", "Not saved."));
     } finally {
@@ -145,6 +159,7 @@ export function MenuWeek() {
         ) : null}
         <Button style={{ flex: 1 }} variant="secondary" label={t("Bagikan menu", "Share menu")} onPress={shareMenu} />
       </View>
+      {note ? <Text variant="caption">{note}</Text> : null}
       {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
       {(days.data ?? []).map((d) => {
         const items = d.details?.items ?? [];

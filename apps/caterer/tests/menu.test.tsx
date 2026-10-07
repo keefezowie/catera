@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react-native";
+import { fireEvent, render, screen } from "@testing-library/react-native";
 import type { LibraryDish, MealMenu } from "@catera/domain";
 import { copyWeekBatches, dayComplete, suggestDishes, weekDates } from "../src/menu/logic";
 import { SlotEditor } from "../src/menu/SlotEditor";
@@ -49,6 +49,21 @@ describe("dayComplete", () => {
 });
 
 describe("copyWeekBatches", () => {
+  it("never copies onto past or already filled days", () => {
+    const menu = { name: "M", description: "", image: "", meal: "lunch", composition, items: [item("x", "g-lauk", "main", "Ayam")] } as MealMenu;
+    const lastWeek = ["2026-09-28", "2026-09-29", "2026-09-30"].map((date) => ({ date, details: menu }));
+    const { batches, skipped } = copyWeekBatches(
+      lastWeek,
+      new Map([
+        ["2026-10-05", { version: 1, editable: false, filled: false }],
+        ["2026-10-06", { version: 4, editable: true, filled: true }],
+        ["2026-10-07", { version: 0, editable: true, filled: false }],
+      ]),
+    );
+    expect(batches.map((b) => b.dates.map((d) => d.date))).toEqual([["2026-10-07"]]);
+    expect(skipped).toBe(2);
+  });
+
   const menuFor = (lauk: string): MealMenu =>
     ({ name: "Makan Siang", description: "", image: "", meal: "lunch", composition, items: [item("x", "g-lauk", "main", lauk)] }) as MealMenu;
   it("sends one save per distinct menu and never mixes months", () => {
@@ -59,8 +74,15 @@ describe("copyWeekBatches", () => {
       { date: "2026-10-01", details: menuFor("Ikan") },
       { date: "2026-10-02", details: menuFor("Telur") },
     ];
-    const versions = new Map([["2026-10-05", 2]]);
-    const batches = copyWeekBatches(lastWeek, versions);
+    const open = { version: 0, editable: true, filled: false };
+    const targets = new Map([
+      ["2026-10-05", { ...open, version: 2 }],
+      ["2026-10-06", open],
+      ["2026-10-07", open],
+      ["2026-10-08", open],
+      ["2026-10-09", open],
+    ]);
+    const { batches } = copyWeekBatches(lastWeek, targets);
     expect(batches.map((b) => b.dates.map((d) => d.date))).toEqual([
       ["2026-10-05", "2026-10-07"],
       ["2026-10-06"],
@@ -118,4 +140,25 @@ it("does not offer helpers package creation on an empty menu", async () => {
   );
   expect(await screen.findByText("Belum ada paket.")).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Buat paket" })).toBeNull();
+});
+
+it("gives a re-added dish a free slot id instead of reusing a taken one", () => {
+  const onChange = jest.fn();
+  render(
+    <SlotEditor
+      composition={composition}
+      items={[item("g-lauk-2", "g-lauk", "main", "Tempe bacem")]}
+      library={[dish("d-ikan", "Ikan bakar")]}
+      usage={new Map()}
+      onChange={onChange}
+      onCreate={async () => dish("n", "x")}
+      onSave={() => undefined}
+      saving={false}
+      canEdit
+    />,
+  );
+  fireEvent.changeText(screen.getByLabelText("Lauk berikutnya"), "ikan");
+  fireEvent.press(screen.getByText("Ikan bakar"));
+  const ids = (onChange.mock.calls[0][0] as { id: string }[]).map((i) => i.id);
+  expect(new Set(ids).size).toBe(ids.length);
 });

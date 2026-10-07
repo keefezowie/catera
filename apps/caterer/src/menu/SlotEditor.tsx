@@ -83,7 +83,10 @@ function GroupLine({
   const suggestions = query.trim() ? suggestDishes(library, group.categoryId, query, usage).slice(0, 4) : [];
 
   function add(dish: LibraryDish) {
-    const position = filled.length + 1;
+    // The first free position: removing a dish frees its id for the next one.
+    const taken = new Set(items.map((i) => i.id));
+    let position = 1;
+    while (taken.has(`${group.id}-${position}`)) position += 1;
     const slot: Dish = {
       id: `${group.id}-${position}`,
       name: "",
