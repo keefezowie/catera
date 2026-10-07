@@ -1,6 +1,6 @@
 import { Redirect, useLocalSearchParams } from "expo-router";
 
-/** Old checkout links and pushes: renewals open Perpanjang, everything else Beli (until Task 13). */
+/** Old checkout links and pushes: renewals open Perpanjang, everything else Beli. */
 export default function OldCheckout() {
   const { id, renewedFrom, ...rest } = useLocalSearchParams<Record<string, string>>();
   if (renewedFrom) return <Redirect href={`/renew/${encodeURIComponent(renewedFrom)}` as never} />;

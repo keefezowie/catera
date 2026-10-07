@@ -8,7 +8,6 @@ import { Jadwal } from "../src/schedule/Jadwal";
 import { ChangeDaySheet } from "../src/schedule/ChangeDaySheet";
 import { DayScreen } from "../src/schedule/DayScreen";
 import { customerLink } from "../src/links";
-import { nativeLink } from "../src/context";
 import { delivery, offer, subscription } from "./fixtures";
 
 let mockParams: Record<string, string> = {};
@@ -352,6 +351,5 @@ describe("signed out", () => {
 describe("legacy calendar links", () => {
   it("opens Jadwal from the old /calendar href", () => {
     expect(customerLink("/calendar")).toBe("/jadwal");
-    expect(nativeLink("/calendar")).toBe("/jadwal");
   });
 });

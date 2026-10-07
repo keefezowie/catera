@@ -1,1 +1,1 @@
-export { AuthCallbackScreen as default } from "../../src/identity";
+export { AuthCallback as default } from "../../src/account/AuthCallback";

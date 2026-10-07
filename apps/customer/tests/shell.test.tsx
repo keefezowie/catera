@@ -75,6 +75,14 @@ jest.mock("expo-notifications", () => ({
   }),
   getLastNotificationResponseAsync: jest.fn(async () => null),
   clearLastNotificationResponseAsync: jest.fn(async () => undefined),
+  requestPermissionsAsync: jest.fn(async () => ({ status: "granted" })),
+  getExpoPushTokenAsync: jest.fn(async () => ({ data: "ExponentPushToken[synthetic]" })),
+  setNotificationChannelAsync: jest.fn(async () => undefined),
+  AndroidImportance: { DEFAULT: 3 },
+}));
+jest.mock("expo-constants", () => ({
+  __esModule: true,
+  default: { expoConfig: { extra: { eas: { projectId: "synthetic-project" } } } },
 }));
 jest.mock("expo-router", () => ({
   router: { push: jest.fn(), replace: jest.fn() },
@@ -91,19 +99,15 @@ process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY = "public-test-key";
 const { router } = require("expo-router") as typeof import("expo-router");
 const { useMobile } = require("@catera/mobile-core") as typeof import("@catera/mobile-core");
 const { runtime } = require("../src/runtime") as typeof import("../src/runtime");
-const { useNative } = require("../src/context") as typeof import("../src/context");
 const { AppProviders } = require("../src/shell") as typeof import("../src/shell");
 
 const actor = { id: "u-1", role: "customer", name: "Rani Contoh" };
 let mockActor: typeof actor | null = null;
 let mobile: ReturnType<typeof useMobile>;
-let legacy: ReturnType<typeof useNative>;
 
 function Probe() {
   mobile = useMobile();
-  legacy = useNative();
-  const id = (v: { ready: boolean; actor: { id: string } | null }) => (v.ready ? (v.actor?.id ?? "-") : "?");
-  return <Text>{`m:${id(mobile)} l:${id(legacy)}`}</Text>;
+  return <Text>{`m:${mobile.ready ? (mobile.actor?.id ?? "-") : "?"}`}</Text>;
 }
 
 const renderShell = () =>
@@ -112,6 +116,12 @@ const renderShell = () =>
       <Probe />
     </AppProviders>,
   );
+
+const tap = (id: string, href: string) => ({
+  actionIdentifier: "default",
+  notification: { request: { identifier: id, content: { data: { href } } } },
+});
+const tapAll = (r: unknown) => act(() => [...mockResponseListeners].forEach((cb) => cb(r)));
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -129,53 +139,86 @@ beforeEach(() => {
 it("a signed-in start opens one realtime subscription per topic", async () => {
   mockActor = actor;
   renderShell();
-  expect(await screen.findByText("m:u-1 l:u-1")).toBeTruthy();
+  expect(await screen.findByText("m:u-1")).toBeTruthy();
   await waitFor(() => expect(mockClient.subscriptions).toEqual(["catera:u-1"]));
 });
 
-it("a sign-in on the shell side reaches the old screens", async () => {
+it("a sign-in reaches the shell and subscribes once", async () => {
   renderShell();
-  expect(await screen.findByText("m:- l:-")).toBeTruthy();
+  expect(await screen.findByText("m:-")).toBeTruthy();
   mockActor = actor;
   await act(async () => {
     await mobile.signedIn(actor as never);
   });
-  expect(await screen.findByText("m:u-1 l:u-1")).toBeTruthy();
+  expect(await screen.findByText("m:u-1")).toBeTruthy();
   expect(mockClient.subscriptions).toEqual(["catera:u-1"]);
 });
 
-it("an old-screen logout signs the shell out too", async () => {
+it("logout signs the shell out", async () => {
   mockActor = actor;
   renderShell();
-  expect(await screen.findByText("m:u-1 l:u-1")).toBeTruthy();
+  expect(await screen.findByText("m:u-1")).toBeTruthy();
   mockActor = null;
   await act(async () => {
-    await legacy.logout();
+    await mobile.logout();
   });
-  expect(await screen.findByText("m:- l:-")).toBeTruthy();
+  expect(await screen.findByText("m:-")).toBeTruthy();
+  expect(mockClient.auth.signOut).toHaveBeenCalledWith({ scope: "local" });
 });
 
-it("shell activity refreshes the old screens' data", async () => {
-  mockActor = actor;
+it("an expired session that signs out during startup ends in the guest state", async () => {
+  let release!: () => void;
+  (runtime.api.me as jest.Mock).mockImplementationOnce(
+    () => new Promise((resolve) => (release = () => resolve({ actor: null, demo: false }))),
+  );
   renderShell();
-  expect(await screen.findByText("m:u-1 l:u-1")).toBeTruthy();
-  const before = legacy.revision;
+  expect(screen.getByText("m:?")).toBeTruthy();
   await act(async () => {
-    await mobile.command("delivery.react", { deliveryId: "d-1", meal: "lunch", reaction: "enak" });
+    await mockClient.auth.signOut();
   });
-  await waitFor(() => expect(legacy.revision).toBeGreaterThan(before));
+  expect(await screen.findByText("m:-")).toBeTruthy();
+  await act(async () => release());
 });
 
-it("one push tap navigates once", async () => {
+// Ported from the old startup test: a start that cannot reach Catera still ends, with a plain reason.
+it.each([
+  ["REQUEST_TIMEOUT", "Koneksi terlalu lama. Periksa koneksi dan coba lagi."],
+  ["INVALID_API_RESPONSE", "Catera sementara tidak tersedia. Silakan coba lagi."],
+])("a start that fails with %s ends as a guest with a plain reason", async (code, message) => {
+  (runtime.api.me as jest.Mock).mockRejectedValueOnce(Object.assign(new Error(code), { code }));
   renderShell();
-  expect(await screen.findByText("m:- l:-")).toBeTruthy();
-  const tap = {
-    actionIdentifier: "default",
-    notification: { request: { identifier: "n-1", content: { data: { href: "/deliveries/d-1" } } } },
-  };
-  act(() => [...mockResponseListeners].forEach((cb) => cb(tap)));
+  expect(await screen.findByText("m:-")).toBeTruthy();
+  expect(mobile.error).toBe(message);
+});
+
+it("one push tap navigates once, through the customer link mapper", async () => {
+  renderShell();
+  expect(await screen.findByText("m:-")).toBeTruthy();
+  // Only MobileProvider listens now: a tap must not open the screen twice.
+  expect(mockResponseListeners).toHaveLength(1);
+  tapAll(tap("n-1", "/deliveries/d-1"));
+  tapAll(tap("n-1", "/deliveries/d-1"));
   expect(router.push).toHaveBeenCalledTimes(1);
   expect(router.push).toHaveBeenCalledWith("/hari/d-1");
+  tapAll(tap("n-2", "/payment/ck-1"));
+  expect(router.push).toHaveBeenLastCalledWith("/bayar/ck-1");
+  tapAll(tap("n-3", "/subscriptions/s-1/menu?date=2026-11-02&meal=lunch"));
+  expect(router.push).toHaveBeenLastCalledWith("/pilih-menu/s-1?date=2026-11-02&meal=lunch");
+  expect(router.push).toHaveBeenCalledTimes(3);
+});
+
+it("registers this phone for push through the shell (device.register)", async () => {
+  mockActor = actor;
+  renderShell();
+  expect(await screen.findByText("m:u-1")).toBeTruthy();
+  await act(async () => {
+    await mobile.enablePush("Pengantaran & bantuan");
+  });
+  expect(runtime.api.command).toHaveBeenCalledWith(
+    "device.register",
+    { token: "ExponentPushToken[synthetic]" },
+    expect.any(String),
+  );
 });
 
 describe("runtime.signInPassword", () => {
@@ -207,5 +250,24 @@ describe("runtime.signInPassword", () => {
       payload: { name: "Katerer" },
       request_id: "req-2",
     });
+  });
+
+  // Ported from the old auth.test (signInNative): the same rules now live in runtime.signInPassword.
+  it.each([
+    [401, "INVALID_CREDENTIALS"],
+    [429, "AUTH_RATE_LIMITED"],
+  ])("a failed sign-in (HTTP %s) provisions no profile", async (status, code) => {
+    mockClient.auth.signInWithPassword.mockResolvedValue({ data: { user: null, session: null }, error: { status } });
+    await expect(runtime.signInPassword("rani@example.test", "wrong", "req-3", "Pelanggan")).rejects.toThrow(code);
+    expect(mockClient.rpc).not.toHaveBeenCalled();
+  });
+
+  it("failed profile setup removes the partly created local session", async () => {
+    signIn();
+    mockClient.rpc.mockResolvedValue({ data: null, error: new Error("FORBIDDEN") });
+    await expect(runtime.signInPassword("rani@example.test", "synthetic-password", "req-4", "Pelanggan")).rejects.toThrow(
+      "FORBIDDEN",
+    );
+    expect(mockClient.auth.signOut).toHaveBeenCalledWith({ scope: "local" });
   });
 });

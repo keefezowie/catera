@@ -1,1 +1,1 @@
-export { RecoveryScreen as default } from "../src/identity";
+export { Recover as default } from "../src/account/Recover";

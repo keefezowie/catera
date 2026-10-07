@@ -16,6 +16,7 @@ import { EmptyHome } from "./EmptyHome";
 import { jakartaClock, Plate } from "./Plate";
 import { RenewalCard } from "./RenewalCard";
 import { UpcomingRows } from "./UpcomingRows";
+import { MenuDueRows } from "./MenuDueRows";
 import { loadCachedCustomer, saveCachedCustomer } from "./offline";
 
 type LoadedCustomer = { data: CustomerState; savedAt: string | null };
@@ -69,6 +70,8 @@ export function Beranda() {
 function SignedInHome({ actorId, name }: { actorId: string; name: string }) {
   const { runtime, t } = useMobile();
   const home = useData(`home:customer`, () => loadCustomer(runtime, actorId));
+  // Menu choices that are due; Beranda still shows without them (offline or a failed feed).
+  const actions = useData("home:actions", () => runtime.api.customerActions(20).catch(() => null));
   const state = home.data?.data;
   const now = new Date();
 
@@ -114,6 +117,7 @@ function SignedInHome({ actorId, name }: { actorId: string; name: string }) {
       {!plates.length ? (
         <Text style={{ color: colors.muted }}>{t("Tidak ada pengantaran hari ini.", "No delivery today.")}</Text>
       ) : null}
+      {savedAt ? null : <MenuDueRows items={actions.data?.items ?? []} />}
       <UpcomingRows rows={rows} />
       {live.filter(renewalDue).map((s) => (
         <RenewalCard key={s.id} subscription={s} />

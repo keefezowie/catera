@@ -1,1 +1,1 @@
-export {NotificationsScreen as default} from '../src/daily';
+export { NotificationsScreen as default } from "../src/account/Notifications";

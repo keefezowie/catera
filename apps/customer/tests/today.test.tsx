@@ -50,6 +50,7 @@ function runtimeWith(
     ...runtime.api,
     me: jest.fn(async () => ({ actor, demo: false })),
     customer: jest.fn(state),
+    customerActions: jest.fn(async () => ({ total: 0, items: [] })),
     catalog: jest.fn(async () => ({ items: [], nextCursor: null })),
     command: jest.fn(async () => ({})),
   } as unknown as MobileRuntime["api"];

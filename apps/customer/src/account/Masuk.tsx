@@ -140,7 +140,11 @@ export function Masuk() {
             disabled={busy || !email || !password}
             onPress={() => run(async () => finish(await runtime.signInPassword(email, password, Crypto.randomUUID(), "Pelanggan")))}
           />
-          <Button variant="text" label={t("Lupa kata sandi?", "Forgot password?")} onPress={() => router.push("/recover" as never)} />
+          <Button
+            variant="text"
+            label={t("Lupa kata sandi?", "Forgot password?")}
+            onPress={() => router.push({ pathname: "/recover", params: { next } } as never)}
+          />
           <Button variant="text" label={t("Masuk dengan nomor HP", "Sign in with phone")} onPress={() => setWithEmail(false)} />
         </View>
       )}
@@ -149,6 +153,11 @@ export function Masuk() {
           {error}
         </Text>
       ) : null}
+      <Button
+        variant="text"
+        label={t("Daftar dengan email", "Sign up with email")}
+        onPress={() => router.push({ pathname: "/register", params: { next } } as never)}
+      />
       {__DEV__ ? (
         <View style={{ gap: 8 }}>
           <Text variant="caption">{t("Demo (data sintetis)", "Demo (synthetic data)")}</Text>

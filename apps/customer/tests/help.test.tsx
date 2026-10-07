@@ -548,7 +548,7 @@ describe("status pill colours", () => {
 
 describe("legacy support links", () => {
   it("opens Bantuan from the old /support href", () => {
-    expect(customerLink("/support?issue=i-1")).toBe("/bantuan");
+    expect(customerLink("/support?issue=i-1")).toBe("/bantuan?issue=i-1");
     expect(customerLink("/support")).toBe("/bantuan");
   });
 });

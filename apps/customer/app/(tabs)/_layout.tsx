@@ -12,8 +12,8 @@ const icons: Record<CustomerTab, keyof typeof Ionicons.glyphMap> = {
   akun: "person",
 };
 
-// Old tab routes stay reachable for links inside the old screens until Tasks 9–13 retire them.
-const legacy = ["discover", "account"] as const;
+// /discover is still emitted by old links; its stub redirects to Jelajah.
+const legacy = ["discover"] as const;
 
 export default function TabsLayout() {
   const { t } = useMobile();

@@ -43,6 +43,11 @@ export function longDay(date: string, locale: Locale): string {
   return `${WEEKDAYS[locale][d.getUTCDay()]} ${d.getUTCDate()} ${MONTHS[locale][d.getUTCMonth()]}`;
 }
 
+/** "Senin": the day of the week. */
+export function weekdayName(date: string, locale: Locale): string {
+  return WEEKDAYS[locale][utc(date).getUTCDay()];
+}
+
 /** The month as weeks of 7 cells, Monday first; null pads the days outside the month. */
 export function monthWeeks(month: string): (string | null)[][] {
   const { from, to } = monthRange(month);

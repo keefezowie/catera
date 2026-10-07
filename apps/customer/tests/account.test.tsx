@@ -1,0 +1,438 @@
+import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { router } from "expo-router";
+import * as SecureStore from "expo-secure-store";
+import * as Notifications from "expo-notifications";
+import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
+import { addDays, type CustomerActionItem, type CustomerState } from "@catera/domain";
+import { Akun } from "../src/account/Akun";
+import { Addresses } from "../src/account/Addresses";
+import { Payments } from "../src/account/Payments";
+import { NotificationsScreen } from "../src/account/Notifications";
+import { Beranda } from "../src/today/Beranda";
+import { customerLink } from "../src/links";
+import { customerState, subscription, offer, TODAY } from "./fixtures";
+
+jest.mock("expo-router", () => ({
+  router: { push: jest.fn(), replace: jest.fn() },
+  Link: () => null,
+  useLocalSearchParams: () => ({}),
+}));
+jest.mock("expo-notifications", () => ({
+  setNotificationHandler: jest.fn(),
+  addNotificationReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
+  addNotificationResponseReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
+  getLastNotificationResponseAsync: jest.fn(async () => null),
+  clearLastNotificationResponseAsync: jest.fn(async () => undefined),
+  getPermissionsAsync: jest.fn(async () => ({ status: "undetermined" })),
+  requestPermissionsAsync: jest.fn(async () => ({ status: "granted" })),
+  getExpoPushTokenAsync: jest.fn(async () => ({ data: "ExponentPushToken[synthetic]" })),
+  setNotificationChannelAsync: jest.fn(async () => undefined),
+  AndroidImportance: { DEFAULT: 3 },
+}));
+jest.mock("expo-constants", () => ({
+  __esModule: true,
+  default: { expoConfig: { extra: { eas: { projectId: "synthetic-project" } } } },
+}));
+jest.mock("expo-secure-store", () => {
+  const store = new Map();
+  return {
+    __store: store,
+    getItemAsync: jest.fn(async (k: string) => (store.has(k) ? store.get(k) : null)),
+    setItemAsync: jest.fn(async (k: string, v: string) => void store.set(k, v)),
+    deleteItemAsync: jest.fn(async (k: string) => void store.delete(k)),
+  };
+});
+jest.mock("expo-crypto", () => ({ randomUUID: () => require("node:crypto").randomUUID() }));
+jest.mock("../src/today/offline", () => ({
+  saveCachedCustomer: jest.fn(async () => undefined),
+  loadCachedCustomer: jest.fn(async () => null),
+}));
+
+const customer = { id: "u-c1", role: "customer", name: "Rani Contoh" };
+
+function runtimeWith(
+  state: Partial<CustomerState> | (() => Promise<unknown>),
+  {
+    actor = customer as Record<string, unknown> | null,
+    actions = [] as CustomerActionItem[],
+    phone = "",
+  } = {},
+): MobileRuntime {
+  const runtime = createMobileRuntime({ apiUrl: "https://api.example.test", storagePrefix: "catera" });
+  runtime.api = {
+    ...runtime.api,
+    me: jest.fn(async () => ({ actor, demo: false })),
+    customer: jest.fn(typeof state === "function" ? state : async () => ({ ...customerState(null), ...state })),
+    customerActions: jest.fn(async () => ({ total: actions.length, items: actions })),
+    command: jest.fn(async () => ({})),
+  } as unknown as MobileRuntime["api"];
+  runtime.signOut = jest.fn(async () => undefined);
+  if (phone)
+    (runtime as { supabase: unknown }).supabase = {
+      auth: {
+        getSession: async () => ({ data: { session: { user: { phone } } } }),
+        onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => undefined } } }),
+        startAutoRefresh: () => undefined,
+        stopAutoRefresh: () => undefined,
+      },
+      channel: () => ({ on() { return this; }, subscribe() { return this; } }),
+      removeChannel: async () => undefined,
+    };
+  return runtime;
+}
+
+const renderWith = (runtime: MobileRuntime, ui: React.ReactElement) =>
+  render(
+    <MobileProvider runtime={runtime} linkMapper={customerLink}>
+      {ui}
+    </MobileProvider>,
+  );
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  (SecureStore as unknown as { __store: Map<string, string> }).__store.clear();
+  (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: "undetermined" });
+});
+
+describe("Akun", () => {
+  it("Akun lists packages and signs out", async () => {
+    const runtime = runtimeWith(
+      {
+        subscriptions: [
+          subscription(),
+          subscription({
+            id: "s-old",
+            status: "completed",
+            remaining: 0,
+            snapshot: { offer: offer({ name: "Paket Lama" }), total: 90000 } as never,
+          }),
+        ],
+      },
+      { phone: "6281234567890" },
+    );
+    renderWith(runtime, <Akun />);
+    expect(await screen.findByText("Rani Contoh")).toBeTruthy();
+    expect(await screen.findByText("0812-3456-7890")).toBeTruthy();
+    expect(await screen.findByText("Makan Siang Rumahan")).toBeTruthy();
+    expect(screen.getByText("Dapur Contoh · 6 hari lagi")).toBeTruthy();
+    expect(screen.queryByText("Paket Lama")).toBeNull();
+    fireEvent.press(screen.getByText("Makan Siang Rumahan"));
+    expect(router.push).toHaveBeenCalledWith("/jadwal");
+
+    for (const [label, href] of [
+      ["Alamat", "/alamat"],
+      ["Disimpan", "/disimpan"],
+      ["Riwayat pembayaran", "/pembayaran"],
+      ["Bantuan dan laporan", "/bantuan"],
+      ["Notifikasi", "/notifications"],
+    ]) {
+      fireEvent.press(screen.getByRole("button", { name: new RegExp(`^${label}`) }));
+      expect(router.push).toHaveBeenLastCalledWith(href);
+    }
+
+    fireEvent.press(screen.getByRole("button", { name: "Keluar" }));
+    await waitFor(() => expect(runtime.signOut).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/"));
+    expect(await screen.findByRole("button", { name: "Masuk" })).toBeTruthy();
+  });
+
+  it("language switch changes copy to English", async () => {
+    renderWith(runtimeWith({}), <Akun />);
+    expect(await screen.findByRole("button", { name: "Keluar" })).toBeTruthy();
+    fireEvent.press(screen.getByRole("tab", { name: "English" }));
+    expect(await screen.findByRole("button", { name: "Sign out" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^Payment history/ })).toBeTruthy();
+    expect(SecureStore.setItemAsync).toHaveBeenCalledWith("catera.locale", "en");
+  });
+
+  it("shows no caterer or admin workspace links", async () => {
+    renderWith(runtimeWith({}, { actor: { id: "u-o1", role: "owner", name: "Pemilik Contoh" } }), <Akun />);
+    expect(await screen.findByRole("button", { name: "Keluar" })).toBeTruthy();
+    expect(screen.queryByText(/ruang kerja|Catera Admin|workspace/i)).toBeNull();
+  });
+
+  it("signed out asks to sign in and comes back to Akun, and still offers the language", async () => {
+    renderWith(runtimeWith({}, { actor: null }), <Akun />);
+    fireEvent.press(await screen.findByRole("button", { name: "Masuk" }));
+    expect(router.push).toHaveBeenCalledWith({ pathname: "/login", params: { next: "/akun" } });
+    fireEvent.press(screen.getByRole("tab", { name: "English" }));
+    expect(await screen.findByRole("button", { name: "Sign in" })).toBeTruthy();
+  });
+
+  it("says Nonaktif until push is turned on, then Aktif", async () => {
+    const runtime = runtimeWith({});
+    renderWith(runtime, <Akun />);
+    expect(await screen.findByRole("button", { name: "Notifikasi, Nonaktif" })).toBeTruthy();
+  });
+});
+
+describe("Notifikasi", () => {
+  it("turns push on with device.register and then says Aktif", async () => {
+    const runtime = runtimeWith({});
+    renderWith(runtime, <NotificationsScreen />);
+    expect(await screen.findByText("Nonaktif")).toBeTruthy();
+    (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: "granted" });
+    fireEvent.press(screen.getByRole("button", { name: "Aktifkan" }));
+    await waitFor(() =>
+      expect(runtime.api.command).toHaveBeenCalledWith(
+        "device.register",
+        { token: "ExponentPushToken[synthetic]" },
+        expect.any(String),
+      ),
+    );
+    expect(await screen.findByText("Aktif")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Aktifkan" })).toBeNull();
+  });
+
+  it("the Akun row follows once push is turned on", async () => {
+    renderWith(
+      runtimeWith({}),
+      <>
+        <Akun />
+        <NotificationsScreen />
+      </>,
+    );
+    expect(await screen.findByRole("button", { name: "Notifikasi, Nonaktif" })).toBeTruthy();
+    fireEvent.press(await screen.findByRole("button", { name: "Aktifkan" }));
+    expect(await screen.findByRole("button", { name: "Notifikasi, Aktif" })).toBeTruthy();
+  });
+
+  it("says why when the phone refuses permission", async () => {
+    (Notifications.requestPermissionsAsync as jest.Mock).mockResolvedValueOnce({ status: "denied" });
+    renderWith(runtimeWith({}), <NotificationsScreen />);
+    fireEvent.press(await screen.findByRole("button", { name: "Aktifkan" }));
+    expect(await screen.findByText(/Izin notifikasi belum diberikan/)).toBeTruthy();
+    expect(screen.getByText("Nonaktif")).toBeTruthy();
+  });
+
+  it("marks an unread notification read and opens its app screen", async () => {
+    const runtime = runtimeWith({
+      notifications: [
+        {
+          id: "n-1",
+          kind: "delivery",
+          body: "Makan siang sedang diantar.",
+          href: "/deliveries/d-1",
+          read_at: null,
+          created_at: `${TODAY}T03:15:00Z`,
+        },
+        {
+          id: "n-2",
+          kind: "payment",
+          body: "Pembayaran diterima.",
+          href: "/payment/ck-1",
+          read_at: `${TODAY}T02:00:00Z`,
+          created_at: `${TODAY}T01:00:00Z`,
+        },
+      ],
+    });
+    renderWith(runtime, <NotificationsScreen />);
+    fireEvent.press(await screen.findByText("Makan siang sedang diantar."));
+    await waitFor(() =>
+      expect(runtime.api.command).toHaveBeenCalledWith("notification.read", { id: "n-1" }, expect.any(String)),
+    );
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith("/hari/d-1"));
+    expect(screen.getByText(/10.15/)).toBeTruthy();
+
+    fireEvent.press(screen.getByText("Pembayaran diterima."));
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith("/bayar/ck-1"));
+    expect(runtime.api.command).toHaveBeenCalledTimes(1);
+  });
+
+  it("says plainly when there is nothing yet", async () => {
+    renderWith(runtimeWith({}), <NotificationsScreen />);
+    expect(await screen.findByText("Belum ada kabar baru.")).toBeTruthy();
+  });
+});
+
+describe("Alamat", () => {
+  const kantor = {
+    id: "a-1",
+    label: "Kantor",
+    line: "Jl. Contoh No. 1",
+    area: "Jakarta Selatan",
+    city: "Jakarta",
+    instructions: "Titip resepsionis",
+    version: 3,
+  };
+
+  it("edits an address with the same address.save payload", async () => {
+    const runtime = runtimeWith({ addresses: [kantor] });
+    renderWith(runtime, <Addresses />);
+    fireEvent.press(await screen.findByRole("button", { name: "Ubah Kantor" }));
+    fireEvent.changeText(screen.getByLabelText("Jalan, nomor, detail"), "Jl. Baru No. 2");
+    fireEvent.press(screen.getByRole("button", { name: "Simpan alamat" }));
+    await waitFor(() =>
+      expect(runtime.api.command).toHaveBeenCalledWith(
+        "address.save",
+        {
+          id: "a-1",
+          version: 3,
+          label: "Kantor",
+          line: "Jl. Baru No. 2",
+          area: "Jakarta Selatan",
+          city: "Jakarta",
+          instructions: "Titip resepsionis",
+        },
+        expect.any(String),
+      ),
+    );
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Simpan alamat" })).toBeNull());
+  });
+
+  it("adds a new address in the chosen area", async () => {
+    const runtime = runtimeWith({ addresses: [] });
+    renderWith(runtime, <Addresses />);
+    fireEvent.press(await screen.findByRole("button", { name: "Tambah alamat" }));
+    expect(screen.getByRole("button", { name: "Simpan alamat" })).toBeDisabled();
+    fireEvent.changeText(screen.getByLabelText("Jalan, nomor, detail"), "Jl. Melati No. 9");
+    fireEvent.press(screen.getByRole("button", { name: "Tangerang Selatan" }));
+    fireEvent.press(screen.getByRole("button", { name: "Simpan alamat" }));
+    await waitFor(() =>
+      expect(runtime.api.command).toHaveBeenCalledWith(
+        "address.save",
+        {
+          label: "Rumah",
+          line: "Jl. Melati No. 9",
+          area: "Tangerang Selatan",
+          city: "Jakarta",
+          instructions: "",
+        },
+        expect.any(String),
+      ),
+    );
+  });
+
+  it("keeps the form and says so when saving fails", async () => {
+    const runtime = runtimeWith({ addresses: [kantor] });
+    (runtime.api.command as jest.Mock).mockRejectedValueOnce(Object.assign(new Error("CONFLICT"), { code: "CONFLICT" }));
+    renderWith(runtime, <Addresses />);
+    fireEvent.press(await screen.findByRole("button", { name: "Ubah Kantor" }));
+    fireEvent.press(screen.getByRole("button", { name: "Simpan alamat" }));
+    expect(await screen.findByTestId("address-error")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Simpan alamat" })).toBeTruthy();
+  });
+});
+
+describe("Riwayat pembayaran", () => {
+  it("lists paid purchases and opens Bayar for one waiting for payment", async () => {
+    const runtime = runtimeWith(
+      {
+        subscriptions: [
+          { ...subscription(), checkout_id: "ck-paid" } as never,
+          // Recorded by the caterer (not bought in Catera): not a Catera payment.
+          subscription({ id: "s-imported", snapshot: { offer: offer({ name: "Paket Catatan" }), total: 0 } as never }),
+        ],
+      },
+      {
+        actions: [
+          {
+            id: "payment-ck-2",
+            kind: "payment_action",
+            status: "awaiting_payment",
+            priority: 1,
+            dueAt: `${TODAY}T10:00:00Z`,
+            packageName: "Makan Malam Sehat",
+            catererName: "Dapur Contoh",
+            href: "/payment/ck-2",
+          },
+          {
+            id: "menu-x",
+            kind: "menu_choice_due",
+            status: "selection_due",
+            priority: 1,
+            href: "/subscriptions/s-1/menu",
+          },
+        ],
+      },
+    );
+    renderWith(runtime, <Payments />);
+    expect(await screen.findByText("Makan Malam Sehat")).toBeTruthy();
+    expect(screen.getByText(/Menunggu pembayaran/)).toBeTruthy();
+    expect(await screen.findByText("Makan Siang Rumahan")).toBeTruthy();
+    expect(screen.getByText(/150\.000/)).toBeTruthy();
+    expect(screen.queryByText("Paket Catatan")).toBeNull();
+    fireEvent.press(screen.getByText("Makan Malam Sehat"));
+    expect(router.push).toHaveBeenCalledWith("/bayar/ck-2");
+  });
+
+  it("explains an empty history", async () => {
+    renderWith(runtimeWith({ subscriptions: [] }), <Payments />);
+    expect(await screen.findByText("Belum ada pembayaran.")).toBeTruthy();
+  });
+});
+
+describe("Beranda: Pilih menu", () => {
+  // The next Monday after today, in Jakarta dates.
+  const monday = (() => {
+    let d = addDays(TODAY, 1);
+    while (new Date(`${d}T00:00:00Z`).getUTCDay() !== 1) d = addDays(d, 1);
+    return d;
+  })();
+  const due: CustomerActionItem = {
+    id: "menu-d-9-lunch",
+    kind: "menu_choice_due",
+    status: "selection_due",
+    priority: 1,
+    dueAt: `${addDays(monday, -1)}T10:00:00Z`,
+    serviceDate: monday,
+    meal: "lunch",
+    packageName: "Makan Siang Rumahan",
+    catererName: "Dapur Contoh",
+    href: `/subscriptions/s-1/menu?date=${monday}&meal=lunch`,
+  };
+
+  it("pilih menu appears only when a selection is due", async () => {
+    const runtime = runtimeWith({}, { actions: [due] });
+    renderWith(runtime, <Beranda />);
+    fireEvent.press(await screen.findByText("Pilih menu Senin"));
+    expect(router.push).toHaveBeenCalledWith(`/pilih-menu/s-1?date=${monday}&meal=lunch`);
+  });
+
+  it("shows no menu row without a selection due", async () => {
+    const runtime = runtimeWith(
+      {},
+      { actions: [{ ...due, id: "payment-ck-9", kind: "payment_action", status: "awaiting_payment", href: "/payment/ck-9" }] },
+    );
+    renderWith(runtime, <Beranda />);
+    expect(await screen.findByText("Hari ini")).toBeTruthy();
+    await waitFor(() => expect(runtime.api.customerActions).toHaveBeenCalled());
+    expect(screen.queryByText(/Pilih menu/)).toBeNull();
+  });
+
+  it("still shows Beranda when the action feed fails", async () => {
+    const runtime = runtimeWith({});
+    (runtime.api.customerActions as jest.Mock).mockRejectedValue(new Error("REQUEST_TIMEOUT"));
+    renderWith(runtime, <Beranda />);
+    expect(await screen.findByText("Hari ini")).toBeTruthy();
+    expect(screen.queryByText(/Pilih menu/)).toBeNull();
+  });
+});
+
+describe("customerLink is the one mapper for every old href", () => {
+  it.each([
+    ["/#packages", "/jelajah"],
+    ["/#how-it-works", "/jelajah"],
+    ["/?view=list#how-it-works", "/jelajah"],
+    ["/discover", "/jelajah"],
+    ["/packages/p-1", "/paket/p-1"],
+    ["/package/p-1", "/paket/p-1"],
+    ["/payment/ck-1", "/bayar/ck-1"],
+    ["/checkout/p-1?renewedFrom=s-1", "/checkout/p-1?renewedFrom=s-1"],
+    ["/subscriptions/s-1", "/jadwal"],
+    ["/subscriptions/s-1/menu?date=2026-11-02&meal=lunch", "/pilih-menu/s-1?date=2026-11-02&meal=lunch"],
+    ["/support?checkoutId=ck-1", "/bantuan?checkoutId=ck-1"],
+    ["/calendar", "/jadwal"],
+    ["/saved", "/disimpan"],
+    ["/addresses", "/alamat"],
+    ["/account", "/akun"],
+    ["/notifications", "/notifications"],
+    ["/masalah/d-1?meal=lunch", "/masalah/d-1?meal=lunch"],
+    ["/beli/p-1?portions=2", "/beli/p-1?portions=2"],
+    ["/messages", "/"],
+    ["/seller/today", "/"],
+    ["https://evil.example/x", "/"],
+  ])("%s → %s", (href, route) => {
+    expect(customerLink(href)).toBe(route);
+  });
+});
