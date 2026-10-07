@@ -13,6 +13,7 @@ const config: ExpoConfig = {
     "expo-router",
     "expo-secure-store",
     ["expo-notifications", { color: "#163D2E" }],
+    ["expo-image-picker", { photosPermission: "Catera Dapur memakai foto Anda untuk gambar paket." }],
     [
       "expo-splash-screen",
       {

@@ -4,6 +4,9 @@ import type { SettlementState } from "@catera/domain";
 import { quickOffer, packageIssues, type PackageForm } from "../src/business/package";
 import { PackageEditor } from "../src/business/PackageEditor";
 import { UangScreen } from "../src/business/UangScreen";
+import { TimScreen } from "../src/business/TimScreen";
+import { RoleGate } from "../src/RoleGate";
+import { Text } from "react-native";
 
 jest.mock("expo-router", () => ({ router: { push: jest.fn(), replace: jest.fn(), back: jest.fn() }, Link: () => null }));
 jest.mock("expo-image-picker", () => ({ launchImageLibraryAsync: jest.fn(), MediaTypeOptions: { Images: "Images" } }));
@@ -100,4 +103,38 @@ it("explains all seven money states", async () => {
     "Potongan",
   ])
     expect(screen.getByText(label)).toBeTruthy();
+});
+
+it("shares a helper invite code over WhatsApp", async () => {
+  const { Share } = jest.requireActual("react-native") as typeof import("react-native");
+  const share = jest.spyOn(Share, "share").mockResolvedValue({ action: "sharedAction" });
+  const command = jest.fn(async () => ({ id: "i-1", code: "abc123" }));
+  render(
+    <MobileProvider runtime={runtimeWith({ command })} linkMapper={() => "/"}>
+      <TimScreen />
+    </MobileProvider>,
+  );
+  fireEvent.press(await screen.findByRole("button", { name: "Undang pembantu" }));
+  await waitFor(() => expect(share).toHaveBeenCalled());
+  expect(command.mock.calls[0]).toEqual(["staff.invite", { catererId: "k-1" }, expect.any(String)]);
+  expect((share.mock.calls[0][0] as { message: string }).message).toContain("abc123");
+});
+
+it("lets a helper join a kitchen with the invite code", async () => {
+  const me = jest
+    .fn()
+    .mockResolvedValueOnce({ actor: { id: "u-2", role: "customer", catererId: null }, demo: false })
+    .mockResolvedValue({ actor: { id: "u-2", role: "staff", catererId: "k-1" }, demo: false });
+  const command = jest.fn(async () => ({}));
+  render(
+    <MobileProvider runtime={runtimeWith({ me, command })} linkMapper={() => "/"}>
+      <RoleGate>
+        <Text>dapur</Text>
+      </RoleGate>
+    </MobileProvider>,
+  );
+  fireEvent.changeText(await screen.findByLabelText("Kode undangan"), " abc123 ");
+  fireEvent.press(screen.getByRole("button", { name: "Gabung ke dapur" }));
+  expect(await screen.findByText("dapur")).toBeTruthy();
+  expect(command.mock.calls[0]).toEqual(["invite.accept", { code: "abc123" }, expect.any(String)]);
 });
