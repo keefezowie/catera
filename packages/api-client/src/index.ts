@@ -27,6 +27,7 @@ import type {
   CustomerActionFeed,
   SellerAttentionPage,
   SavedPackages,
+  ClaimPreview,
 } from "@catera/domain";
 export class ApiError extends Error {
   constructor(
@@ -94,6 +95,8 @@ export function createApi(
       request<{ items: Offer[]; nextCursor: string | null }>("catalog" + query),
     me: () => request<{ actor: Actor | null; demo: boolean }>("me"),
     offer: (id: string) => request<{ offer: Offer | null }>("offer/" + encodeURIComponent(id)),
+    claimPreview: (token: string) =>
+      request<ClaimPreview>("claim-preview/" + encodeURIComponent(token)),
     savedPackages: (cursor?: string, limit = 50) =>
       request<SavedPackages>("saved-packages?" + new URLSearchParams({
         limit: String(limit), ...(cursor ? { cursor } : {}),

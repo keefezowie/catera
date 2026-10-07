@@ -166,6 +166,7 @@ export async function GET(request: Request, context: Context) {
     if (
       ![
         "catalog",
+        "claim-preview",
         "saved-packages",
         "offer",
         "renewal-context",
@@ -202,6 +203,17 @@ export async function GET(request: Request, context: Context) {
     )
       throw new Error("NOT_FOUND");
     if (path[1]) params.id = path[1];
+    if (resource === "claim-preview") {
+      // Public: the link's token is the only input. Unknown, used and expired tokens
+      // all come back as the same NOT_FOUND from one database lookup, never from here.
+      const token = z.string().min(20).max(200).parse(path[1]);
+      return ok(
+        await rpc(s.id, s.token, "catera_v1_read", {
+          resource,
+          params: { token },
+        }),
+      );
+    }
     if (resource === "offer") z.string().min(1).max(100).parse(params.id);
     if (resource === "saved-packages") {
       if (!s.id) throw new Error("UNAUTHORIZED");

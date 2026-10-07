@@ -51,6 +51,7 @@ export async function verifyDeliveryConfirm(pool, cmd, evidence) {
     "20261008102500_depart_today_one_push.sql",
     "20261008103000_push_timing.sql",
     "20261008111000_push_report_renewal_dedupe.sql",
+    "20261008112000_claim_preview.sql",
   ])
     await pool.query(await readFile("supabase/migrations/" + file, "utf8"));
 
@@ -122,6 +123,55 @@ export async function verifyDeliveryConfirm(pool, cmd, evidence) {
     1,
   );
   evidence.push("Two simultaneous confirmations of one meal record one delivery and one earning.");
+
+  // The claim preview is a public read: anon may call it, the previous read stays closed to anon,
+  // and unknown, used and expired links are one and the same NOT_FOUND.
+  const claimLink = async (phone, usedAt, expiresIn) => {
+    const token = (await import("node:crypto")).randomBytes(32).toString("hex");
+    const record = (
+      await pool.query(
+        "insert into v1.customer_records(caterer_id,name,phone,address,origin) values($1,'Synthetic Preview',$2,'{\"line\":\"Jl. Sintetis Raya 12\",\"area\":\"Kebayoran\",\"city\":\"Jakarta\"}','seller') returning id",
+        [CATERER_IDS[0], phone],
+      )
+    ).rows[0].id;
+    await pool.query(
+      "insert into v1.customer_claims(customer_record_id,token_hash,expires_at,used_at,created_by) values($1,encode(sha256(convert_to($2,'UTF8')),'hex'),now()+$3::interval,$4,$5)",
+      [record, token, expiresIn, usedAt, U.owner],
+    );
+    return token;
+  };
+  const anonRead = async (token) => {
+    const c = await pool.connect();
+    try {
+      await c.query("begin");
+      await c.query("select set_config('request.jwt.claim.sub','',true)");
+      return (await c.query("select public.catera_v1_read('claim-preview',$1) value", [{ token }])).rows[0].value;
+    } finally {
+      await c.query("rollback");
+      c.release();
+    }
+  };
+  const live = await anonRead(await claimLink("+6281234560099", null, "1 day"));
+  assert.deepEqual(Object.keys(live).sort(), [
+    "addressLabel", "catererName", "maskedPhone", "nextDate", "nextWindow", "packageName", "remainingDays",
+  ]);
+  assert.equal(live.maskedPhone, "0812-•••-0099");
+  assert.equal(live.addressLabel, "Jl. Sintetis Raya 12");
+  for (const token of [
+    "f".repeat(64),
+    await claimLink("+6281234560098", new Date().toISOString(), "1 day"),
+    await claimLink("+6281234560097", null, "-1 second"),
+  ])
+    await assert.rejects(anonRead(token), /NOT_FOUND/);
+  const access = (
+    await pool.query(
+      "select has_function_privilege('anon','public.catera_v1_read(text,jsonb)','execute') open,has_function_privilege('anon','public.catera_v1_read_claim_preview_base(text,jsonb)','execute') base",
+    )
+  ).rows[0];
+  assert.deepEqual(access, { open: true, base: false });
+  evidence.push(
+    "Claim preview: the public read returns only the seven preview fields with the phone masked, unknown, used and expired links are one NOT_FOUND, and the previous read stays closed to anonymous callers.",
+  );
 }
 
 async function claimed(pool, user, fn) {

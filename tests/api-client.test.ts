@@ -98,3 +98,18 @@ it("preserves server error codes and request references", async () => {
   ).rejects.toMatchObject({ code: "CAPACITY", requestId: "request-123" });
   expect(vi.getTimerCount()).toBe(0);
 });
+
+it("reads a claim preview by its escaped token without a session", async () => {
+  const preview = {
+    catererName: "Dapur Senja",
+    packageName: "Rantang Nusantara",
+    remainingDays: 3,
+    nextDate: "2026-10-12",
+    nextWindow: "11.00–13.00",
+    addressLabel: "Rumah",
+    maskedPhone: "0812-•••-0001",
+  };
+  fetchMock.mockResolvedValueOnce(Response.json({ data: preview }));
+  await expect(createApi("https://catera.example").claimPreview("a/b c")).resolves.toEqual(preview);
+  expect(String(fetchMock.mock.calls[0][0])).toBe("https://catera.example/api/v1/claim-preview/a%2Fb%20c");
+});

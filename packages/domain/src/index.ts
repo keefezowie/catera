@@ -833,3 +833,18 @@ export function localizedMessage(message: string, locale: Locale = "id") {
 }
 
 export * from "./payment";
+
+/** What a caterer's WhatsApp claim link shows before the customer signs in. Nothing else is revealed. */
+export type ClaimPreview = {
+  catererName: string;
+  packageName: string;
+  /** Open delivery days left on the subscription. */
+  remainingDays: number;
+  /** Next non-cancelled delivery date on or after today in Jakarta, or null. */
+  nextDate: string | null;
+  /** That meal's delivery window, for example "11.00–13.00", or null. */
+  nextWindow: string | null;
+  addressLabel: string;
+  /** Local form with the middle hidden, for example "0812-•••-0001". */
+  maskedPhone: string;
+};
