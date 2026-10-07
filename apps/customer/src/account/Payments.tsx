@@ -12,13 +12,21 @@ import { SignInFirst } from "./SignInFirst";
  * outside Catera have none and are not Catera payments. */
 type Purchase = Subscription & { checkout_id?: string | null };
 
-function waitingWord(item: CustomerActionItem, t: (id: string, en: string) => string): string {
-  if (item.status === "checking_payment") return t("Sedang dicek", "Being checked");
-  if (item.status === "payment_exception") return t("Sedang ditinjau Catera", "Catera is reviewing it");
-  return t("Menunggu pembayaran", "Waiting for payment");
+/** Still to pay: only these may offer Bayar. */
+const UNPAID = new Set<CustomerActionItem["status"]>(["choose_method", "awaiting_payment"]);
+/** Already paid or being checked: never ask for payment again. */
+const IN_PROGRESS = new Set<CustomerActionItem["status"]>(["checking_payment", "payment_exception"]);
+
+const checkoutIdOf = (item: CustomerActionItem) => item.id.replace(/^payment-/, "");
+
+function progressWord(item: CustomerActionItem, t: (id: string, en: string) => string): string {
+  return item.status === "payment_exception"
+    ? t("Pembayaran diterima, pemesanan sedang ditinjau Catera", "Payment received, Catera is reviewing the order")
+    : t("Pembayaran sedang dicek", "Payment is being checked");
 }
 
-/** Riwayat pembayaran: purchases paid through Catera, and any checkout still waiting (→ Bayar). */
+/** Riwayat pembayaran: checkouts still to pay (Bayar), payments being processed (never paid twice),
+ * and purchases paid through Catera. */
 export function Payments() {
   const { actor, ready, t } = useMobile();
   if (!ready)
@@ -48,7 +56,9 @@ function History() {
       </View>
     );
 
-  const waiting = (feed.data?.items ?? []).filter((i) => i.kind === "payment_action");
+  const payments = (feed.data?.items ?? []).filter((i) => i.kind === "payment_action");
+  const unpaid = payments.filter((i) => UNPAID.has(i.status));
+  const inProgress = payments.filter((i) => IN_PROGRESS.has(i.status));
   const paid = (customer.data.subscriptions as Purchase[])
     .filter((s) => !!s.checkout_id)
     .sort((a, b) => b.starts_on.localeCompare(a.starts_on));
@@ -60,16 +70,48 @@ function History() {
           {t("Pembayaran yang menunggu belum bisa dimuat.", "Payments waiting could not be loaded.")}
         </Text>
       ) : null}
-      {waiting.length ? (
+      {unpaid.length ? (
         <View>
           <SectionLabel>{t("Belum dibayar", "Not paid yet")}</SectionLabel>
-          {waiting.map((item, i) => (
+          {unpaid.map((item, i) => {
+            const name = item.packageName ?? t("Pembayaran", "Payment");
+            return (
+              <Row
+                key={item.id}
+                first={i === 0}
+                label={name}
+                caption={[t("Menunggu pembayaran", "Waiting for payment"), item.catererName].filter(Boolean).join(" · ")}
+              >
+                <Button
+                  label={t("Bayar", "Pay")}
+                  accessibilityLabel={t(`Bayar ${name}`, `Pay ${name}`)}
+                  onPress={() => router.push(customerLink(item.href) as never)}
+                />
+              </Row>
+            );
+          })}
+        </View>
+      ) : null}
+      {inProgress.length ? (
+        <View>
+          <SectionLabel>{t("Sedang diproses", "In progress")}</SectionLabel>
+          <Text variant="caption">
+            {t(
+              "Jangan membayar lagi. Kami kabari setelah selesai.",
+              "Don’t pay again. We’ll let you know when it’s done.",
+            )}
+          </Text>
+          {inProgress.map((item, i) => (
             <Row
               key={item.id}
               first={i === 0}
               label={item.packageName ?? t("Pembayaran", "Payment")}
-              caption={[waitingWord(item, t), item.catererName].filter(Boolean).join(" · ")}
-              onPress={() => router.push(customerLink(item.href) as never)}
+              caption={[progressWord(item, t), item.catererName].filter(Boolean).join(" · ")}
+              onPress={
+                item.status === "payment_exception"
+                  ? () => router.push(`/bantuan?checkoutId=${encodeURIComponent(checkoutIdOf(item))}` as never)
+                  : undefined
+              }
             />
           ))}
         </View>
@@ -88,7 +130,7 @@ function History() {
           ))}
         </View>
       ) : null}
-      {!waiting.length && !paid.length && !feed.loading ? (
+      {!payments.length && !paid.length && !feed.loading ? (
         <View style={{ gap: 6 }}>
           <Text variant="heading">{t("Belum ada pembayaran.", "No payments yet.")}</Text>
           <Text style={{ color: colors.muted }}>

@@ -272,7 +272,7 @@ export function BuyScreen({
             variant="text"
             label={address ? t("Ganti", "Change") : t("Tambah alamat", "Add address")}
             accessibilityLabel={address ? t("Ganti alamat", "Change address") : undefined}
-            onPress={() => (address ? setSheet("address") : router.push("/addresses" as never))}
+            onPress={() => (address ? setSheet("address") : router.push("/alamat" as never))}
           />
         </View>
       </View>
@@ -300,7 +300,7 @@ export function BuyScreen({
           label={t("Kelola alamat", "Manage addresses")}
           onPress={() => {
             setSheet("");
-            router.push("/addresses" as never);
+            router.push("/alamat" as never);
           }}
         />
       </ChoiceSheet>

@@ -76,6 +76,6 @@ Tests use synthetic data only. Device checks, sandbox payments and signed releas
 
 ## APK builds
 
-`.github/workflows/native-apk.yml` (`Native Android APK`) runs the customer typecheck and tests, validates the EAS **preview** environment (`EXPO_PUBLIC_API_URL` and `EXPO_PUBLIC_SUPABASE_*` must be phone-reachable HTTPS and answer as the Catera API) and builds the `preview` APK from `apps/customer`. It needs the `EXPO_TOKEN` repository secret and Android signing set up once with an interactive `eas build --platform android --profile preview`. The build job currently runs only for `v1`.
+`.github/workflows/native-apk.yml` (`Native Android APK`) runs the customer typecheck and tests, validates the EAS **preview** environment (`EXPO_PUBLIC_API_URL` and `EXPO_PUBLIC_SUPABASE_*` must be phone-reachable HTTPS and answer as the Catera API) and builds the `preview` APK from `apps/customer`. It needs the `EXPO_TOKEN` repository secret and Android signing set up once with an interactive `eas build --platform android --profile preview`. The build job runs for pushes to `v1` and `v2` (and manual runs on either branch).
 
 Production release follows the gates in `docs/RUNBOOK.md` (separate Supabase, SMS/SMTP, Xendit and mobile credentials).

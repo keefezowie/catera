@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { Text } from "react-native";
 
 /** A fake Supabase client that behaves like supabase-js 2.116 where it matters here:
@@ -89,7 +89,6 @@ jest.mock("expo-router", () => ({
   useLocalSearchParams: () => ({}),
   useFocusEffect: (fn: () => void) => require("react").useEffect(fn, []),
 }));
-jest.mock("@react-native-community/datetimepicker", () => ({ __esModule: true, default: () => null }));
 jest.mock("@expo/vector-icons", () => ({ Ionicons: () => null }));
 
 process.env.EXPO_PUBLIC_API_URL = "https://api.example.test";
@@ -180,15 +179,39 @@ it("an expired session that signs out during startup ends in the guest state", a
   await act(async () => release());
 });
 
-// Ported from the old startup test: a start that cannot reach Catera still ends, with a plain reason.
-it.each([
-  ["REQUEST_TIMEOUT", "Koneksi terlalu lama. Periksa koneksi dan coba lagi."],
-  ["INVALID_API_RESPONSE", "Catera sementara tidak tersedia. Silakan coba lagi."],
-])("a start that fails with %s ends as a guest with a plain reason", async (code, message) => {
-  (runtime.api.me as jest.Mock).mockRejectedValueOnce(Object.assign(new Error(code), { code }));
+// Ported from the old startup test: a start that cannot reach Catera offers a retry instead of
+// silently opening as a guest; a plain signed-out start still opens the app.
+it.each(["REQUEST_TIMEOUT", "INVALID_API_RESPONSE"])(
+  "a start that fails with %s shows Belum bisa terhubung and Coba lagi recovers",
+  async (code) => {
+    (runtime.api.me as jest.Mock).mockRejectedValueOnce(Object.assign(new Error(code), { code }));
+    renderShell();
+    expect(await screen.findByText("Belum bisa terhubung.")).toBeTruthy();
+    expect(screen.queryByText(/^m:/)).toBeNull();
+    await act(async () => {
+      fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
+    });
+    expect(await screen.findByText("m:-")).toBeTruthy();
+    expect(screen.queryByText("Belum bisa terhubung.")).toBeNull();
+  },
+);
+
+it("an expired session (UNAUTHORIZED) opens as a guest without the retry screen", async () => {
+  (runtime.api.me as jest.Mock).mockRejectedValueOnce(Object.assign(new Error("UNAUTHORIZED"), { code: "UNAUTHORIZED" }));
   renderShell();
   expect(await screen.findByText("m:-")).toBeTruthy();
-  expect(mobile.error).toBe(message);
+  expect(screen.queryByText("Belum bisa terhubung.")).toBeNull();
+});
+
+it("a later failed refresh never replaces a started app with the retry screen", async () => {
+  renderShell();
+  expect(await screen.findByText("m:-")).toBeTruthy();
+  (runtime.api.me as jest.Mock).mockRejectedValueOnce(Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" }));
+  await act(async () => {
+    await mobile.refresh();
+  });
+  expect(screen.getByText("m:-")).toBeTruthy();
+  expect(screen.queryByText("Belum bisa terhubung.")).toBeNull();
 });
 
 it("one push tap navigates once, through the customer link mapper", async () => {

@@ -197,6 +197,19 @@ describe("Notifikasi", () => {
     expect(await screen.findByRole("button", { name: "Notifikasi, Aktif" })).toBeTruthy();
   });
 
+  it.each([
+    ["REQUEST_TIMEOUT", "Koneksi terlalu lama. Periksa koneksi dan coba lagi."],
+    ["DEVICE_SOMETHING", "Notifikasi belum bisa diaktifkan. Coba lagi."],
+  ])("a failed registration (%s) says it plainly, never the code", async (code, message) => {
+    const runtime = runtimeWith({});
+    (runtime.api.command as jest.Mock).mockRejectedValueOnce(Object.assign(new Error(code), { code }));
+    renderWith(runtime, <NotificationsScreen />);
+    fireEvent.press(await screen.findByRole("button", { name: "Aktifkan" }));
+    expect(await screen.findByText(message)).toBeTruthy();
+    expect(screen.queryByText(code)).toBeNull();
+    expect(screen.getByText("Nonaktif")).toBeTruthy();
+  });
+
   it("says why when the phone refuses permission", async () => {
     (Notifications.requestPermissionsAsync as jest.Mock).mockResolvedValueOnce({ status: "denied" });
     renderWith(runtimeWith({}), <NotificationsScreen />);
@@ -352,8 +365,46 @@ describe("Riwayat pembayaran", () => {
     expect(await screen.findByText("Makan Siang Rumahan")).toBeTruthy();
     expect(screen.getByText(/150\.000/)).toBeTruthy();
     expect(screen.queryByText("Paket Catatan")).toBeNull();
-    fireEvent.press(screen.getByText("Makan Malam Sehat"));
+    fireEvent.press(screen.getByRole("button", { name: "Bayar Makan Malam Sehat" }));
     expect(router.push).toHaveBeenCalledWith("/bayar/ck-2");
+  });
+
+  it("never asks to pay for a payment that is being checked or was received", async () => {
+    const item = (id: string, status: CustomerActionItem["status"], packageName: string): CustomerActionItem => ({
+      id: `payment-${id}`,
+      kind: "payment_action",
+      status,
+      priority: status === "payment_exception" ? 0 : 1,
+      packageName,
+      catererName: "Dapur Contoh",
+      href: `/payment/${id}`,
+    });
+    const runtime = runtimeWith(
+      { subscriptions: [] },
+      {
+        actions: [
+          item("ck-1", "choose_method", "Paket Pilih Metode"),
+          item("ck-2", "awaiting_payment", "Paket Menunggu"),
+          item("ck-3", "checking_payment", "Paket Dicek"),
+          item("ck-4", "payment_exception", "Paket Ditinjau"),
+        ],
+      },
+    );
+    renderWith(runtime, <Payments />);
+    expect(await screen.findByText("Belum dibayar")).toBeTruthy();
+    expect(screen.getByText("Sedang diproses")).toBeTruthy();
+    // Only the two unpaid checkouts offer Bayar.
+    const pay = screen.getAllByRole("button", { name: /^Bayar / });
+    expect(pay.map((b) => b.props.accessibilityLabel)).toEqual(["Bayar Paket Pilih Metode", "Bayar Paket Menunggu"]);
+    expect(screen.getByText(/Pembayaran sedang dicek/)).toBeTruthy();
+    expect(screen.getByText(/Pembayaran diterima, pemesanan sedang ditinjau Catera/)).toBeTruthy();
+    expect(screen.getByText(/Jangan membayar lagi/)).toBeTruthy();
+    fireEvent.press(screen.getByText("Paket Dicek"));
+    expect(router.push).not.toHaveBeenCalled();
+    fireEvent.press(screen.getByText("Paket Ditinjau"));
+    expect(router.push).toHaveBeenCalledWith("/bantuan?checkoutId=ck-4");
+    fireEvent.press(pay[0]);
+    expect(router.push).toHaveBeenLastCalledWith("/bayar/ck-1");
   });
 
   it("explains an empty history", async () => {

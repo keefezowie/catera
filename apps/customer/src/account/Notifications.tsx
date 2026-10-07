@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
-import { jakartaDay, type Notice } from "@catera/domain";
+import { errorLabel, jakartaDay, type Locale, type Notice } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
 import { Button, Card, colors, Screen, Text } from "@catera/mobile-ui";
 import { customerLink } from "../links";
@@ -23,8 +23,19 @@ export function NotificationsScreen() {
   return <Updates key={actor.id} />;
 }
 
+/** The shared label for a code (e.g. REQUEST_TIMEOUT); the phone's own sentence (permission, no EAS
+ * project); never a bare code. */
+function pushError(e: unknown, locale: Locale, t: (id: string, en: string) => string): string {
+  const message = (e as Error)?.message ?? "";
+  const code = (e as { code?: string })?.code || message;
+  return (
+    errorLabel(code, locale) ||
+    (/\s/.test(message) ? message : t("Notifikasi belum bisa diaktifkan. Coba lagi.", "Notifications could not be turned on. Try again."))
+  );
+}
+
 function PushCard() {
-  const { t } = useMobile();
+  const { t, locale } = useMobile();
   const push = usePush();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -54,7 +65,7 @@ function PushCard() {
             setError("");
             push
               .enable()
-              .catch((e: Error) => setError(e.message || t("Belum berhasil. Coba lagi.", "That didn't work. Try again.")))
+              .catch((e: unknown) => setError(pushError(e, locale, t)))
               .finally(() => setBusy(false));
           }}
         />
