@@ -116,7 +116,8 @@ export async function extractImportRows(
     ...(input.sheets ?? []).map((s, i) => ({ type: "text" as const, text: `<spreadsheet ${i + 1}>\n${s}\n</spreadsheet>` })),
     { type: "text", text: `${instructions(packages, options.today, options.earliest)}\n\n<catatan_katerer>\n${input.text ?? ""}\n</catatan_katerer>` },
   ];
-  const response = await client.beta.messages.create({
+  // Streamed: a long list can take minutes, and the SDK refuses long non-streaming calls.
+  const response = await client.beta.messages.stream({
     model: "claude-opus-5-5",
     max_tokens: 32000,
     betas: ["server-side-fallback-2026-07-01"],
@@ -124,7 +125,7 @@ export async function extractImportRows(
     thinking: { type: "adaptive" },
     output_config: { effort: "low", format: { type: "json_schema", schema: outputSchema } },
     messages: [{ role: "user", content }],
-  });
+  }).finalMessage();
   if (response.stop_reason === "refusal") throw new Error("IMPORT_UNREADABLE");
   if (response.stop_reason === "max_tokens") throw new Error("IMPORT_TOO_LONG");
   const text = response.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("");

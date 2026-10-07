@@ -5,7 +5,7 @@ import { earliestImportStart, jakartaDay, type SellerImportOptions } from "@cate
 import { session } from "@/lib/auth";
 import { assertSameOrigin } from "@/lib/request-origin";
 
-export const maxDuration = 120;
+export const maxDuration = 300;
 const limit = 4 * 1024 * 1024;
 const base64 = z.string().max(limit).regex(/^[A-Za-z0-9+/=]*$/);
 const body = z

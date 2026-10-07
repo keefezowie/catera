@@ -20,9 +20,10 @@ const modelRow = (extra: Record<string, unknown>) => ({
   reason: "",
   ...extra,
 });
+// Streamed, so a long list never hits the SDK's non-streaming time guard.
 const fake = (response: Record<string, unknown>) => {
-  const create = vi.fn(async () => response);
-  return { client: { beta: { messages: { create } } } as unknown as AssistantClient, create };
+  const create = vi.fn((_params: unknown) => ({ finalMessage: async () => response }));
+  return { client: { beta: { messages: { stream: create } } } as unknown as AssistantClient, create };
 };
 const answer = (rows: unknown[]) => ({
   stop_reason: "end_turn",
@@ -86,11 +87,14 @@ vi.mock("../apps/web/src/lib/auth", () => ({
     actor: { role: state.role, catererId: "10000000-0000-4000-8000-000000000001" },
   }),
 }));
-import { POST } from "../apps/web/src/app/api/import-assistant/route";
+import { POST, maxDuration } from "../apps/web/src/app/api/import-assistant/route";
 
 describe("import assistant route", () => {
   beforeEach(() => {
     state.role = "owner";
+  });
+  it("allows long lists the time they need", () => {
+    expect(maxDuration).toBe(300);
   });
   it("refuses helpers", async () => {
     state.role = "staff";
