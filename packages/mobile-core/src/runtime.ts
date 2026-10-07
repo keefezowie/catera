@@ -60,7 +60,8 @@ export function createMobileRuntime(config: MobileRuntimeConfig) {
     null;
   const api = createApi(apiBase, token, { timeoutMs: 15_000 });
 
-  async function signInPassword(email: string, password: string, requestId: string) {
+  /** `name` names a brand-new profile when the account carries none (default "Katerer"). */
+  async function signInPassword(email: string, password: string, requestId: string, name = "Katerer") {
     if (!supabase) throw new Error("NOT_CONFIGURED");
     if (!email.trim() || !password) throw new Error("INVALID_CREDENTIALS");
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -76,10 +77,10 @@ export function createMobileRuntime(config: MobileRuntimeConfig) {
             : "INVALID_CREDENTIALS",
       );
     await SecureStore.deleteItemAsync(key("demo.token"));
-    const name =
+    const given =
       typeof data.user.user_metadata?.name === "string" ? data.user.user_metadata.name : "";
     try {
-      return await ensureActor(supabase, name || "Katerer", requestId);
+      return await ensureActor(supabase, given || name, requestId);
     } catch (e) {
       await supabase.auth.signOut({ scope: "local" });
       throw e;

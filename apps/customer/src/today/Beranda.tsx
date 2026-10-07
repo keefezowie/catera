@@ -99,7 +99,7 @@ function SignedInHome({ actorId, name }: { actorId: string; name: string }) {
         <Text variant="title">{t("Hari ini", "Today")}</Text>
       </View>
       {savedAt ? (
-        <Text variant="caption" style={{ color: colors.sunriseInk }}>
+        <Text variant="caption" style={{ color: colors.sunriseInk, fontVariant: ["tabular-nums"] }}>
           {t("Terakhir diperbarui", "Last updated")} {jakartaClock(savedAt)} ·{" "}
           {t("tidak ada koneksi", "no connection")}
         </Text>
@@ -229,7 +229,7 @@ function ReviewPrompt({ state }: { state: CustomerState }) {
                 onPress={() => setRating(n)}
                 style={styles.star}
               >
-                <Text style={{ fontFamily: FONT, fontSize: 24, color: n <= rating ? colors.sunrise : "#CFD3C6" }}>★</Text>
+                <Text style={{ fontFamily: FONT, fontSize: 24, color: n <= rating ? colors.forest : "#CFD3C6" }}>★</Text>
               </Pressable>
             ))}
           </View>

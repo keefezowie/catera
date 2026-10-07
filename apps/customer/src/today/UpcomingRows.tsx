@@ -30,7 +30,7 @@ export function UpcomingRows({ rows }: { rows: UpcomingRow[] }) {
               </Text>
             ) : null}
             {row.changeUntil ? (
-              <Text variant="caption" style={{ color: colors.forest }}>
+              <Text variant="caption" style={{ color: colors.forest, fontVariant: ["tabular-nums"] }}>
                 {t(`Bisa diubah sampai ${row.changeUntil}`, `Can be changed until ${row.changeUntil}`)}
               </Text>
             ) : null}

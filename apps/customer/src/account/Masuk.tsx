@@ -138,7 +138,7 @@ export function Masuk() {
           <Button
             label={t("Masuk", "Sign in")}
             disabled={busy || !email || !password}
-            onPress={() => run(async () => finish(await runtime.signInPassword(email, password, Crypto.randomUUID())))}
+            onPress={() => run(async () => finish(await runtime.signInPassword(email, password, Crypto.randomUUID(), "Pelanggan")))}
           />
           <Button variant="text" label={t("Lupa kata sandi?", "Forgot password?")} onPress={() => router.push("/recover" as never)} />
           <Button variant="text" label={t("Masuk dengan nomor HP", "Sign in with phone")} onPress={() => setWithEmail(false)} />

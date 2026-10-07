@@ -1,42 +1,12 @@
-import { useEffect, useRef, type ReactNode } from "react";
 import { Stack } from "expo-router";
 import { useFonts } from "expo-font";
 import { StatusBar } from "expo-status-bar";
 import { ActivityIndicator, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { MobileProvider, useMobile } from "@catera/mobile-core";
+import { useMobile } from "@catera/mobile-core";
 import { colors, FONT, Text } from "@catera/mobile-ui";
 import { runtime } from "../src/runtime";
-import { customerLink } from "../src/links";
-// Old screens (Jadwal, Jelajah, Akun, purchase and payment) still read the old provider
-// until Tasks 8–13 replace them; it no longer routes pushes.
-import { NativeProvider, useNative } from "../src/context";
-import { NativeSavedProvider } from "../src/saved";
-
-/** Keeps the old provider's session in step with MobileProvider while both are mounted. */
-function LegacySessionBridge({ children }: { children: ReactNode }) {
-  const mobile = useMobile();
-  const legacy = useNative();
-  const mobileId = mobile.ready ? (mobile.actor?.id ?? "") : null;
-  const legacyId = legacy.ready ? (legacy.actor?.id ?? "") : null;
-  const seenMobile = useRef<string | null>(null);
-  const seenLegacy = useRef<string | null>(null);
-  // Each effect fires only when one side's signed-in identity changes (sign-in, logout),
-  // then asks the other side to re-read the shared SecureStore session.
-  useEffect(() => {
-    if (mobileId === null) return;
-    const previous = seenMobile.current;
-    seenMobile.current = mobileId;
-    if (previous !== null && previous !== mobileId && legacyId !== mobileId) void legacy.refresh();
-  }, [mobileId]);
-  useEffect(() => {
-    if (legacyId === null) return;
-    const previous = seenLegacy.current;
-    seenLegacy.current = legacyId;
-    if (previous !== null && previous !== legacyId && mobileId !== legacyId) void mobile.refresh();
-  }, [legacyId]);
-  return <>{children}</>;
-}
+import { AppProviders } from "../src/shell";
 
 function Navigation() {
   const { t, ready } = useMobile();
@@ -94,15 +64,9 @@ export default function RootLayout() {
   if (!loaded) return null;
   return (
     <SafeAreaProvider>
-      <MobileProvider runtime={runtime} linkMapper={customerLink}>
-        <NativeProvider routeNotifications={false}>
-          <NativeSavedProvider>
-            <LegacySessionBridge>
-              <Navigation />
-            </LegacySessionBridge>
-          </NativeSavedProvider>
-        </NativeProvider>
-      </MobileProvider>
+      <AppProviders runtime={runtime}>
+        <Navigation />
+      </AppProviders>
     </SafeAreaProvider>
   );
 }

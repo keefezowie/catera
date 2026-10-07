@@ -139,13 +139,13 @@ export function Plate({ plate, apiBase, offline }: { plate: PlateData; apiBase: 
           />
         ) : null}
         <View style={styles.scrimSoft} />
-        <View style={styles.scrim} />
         {departed ? (
           <View style={styles.chip}>
             <RNText style={styles.chipLabel}>{t(`Berangkat ${departed}`, `Left at ${departed}`)}</RNText>
           </View>
         ) : null}
-        <View style={styles.overlay}>
+        {/* The overlay carries its own dark ground, so every wrapped line sits on it. */}
+        <View style={styles.overlay} testID="plate-overlay">
           <RNText style={styles.meal}>
             {meal} · {plate.catererName}
           </RNText>
@@ -232,8 +232,7 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
   },
   photo: { height: 268, backgroundColor: colors.forest, justifyContent: "flex-end" },
-  scrimSoft: { position: "absolute", left: 0, right: 0, bottom: 0, height: "70%", backgroundColor: "rgba(12,30,22,0.25)" },
-  scrim: { position: "absolute", left: 0, right: 0, bottom: 0, height: "48%", backgroundColor: "rgba(12,30,22,0.5)" },
+  scrimSoft: { position: "absolute", left: 0, right: 0, bottom: 0, height: "75%", backgroundColor: "rgba(12,30,22,0.22)" },
   chip: {
     position: "absolute",
     top: 14,
@@ -243,11 +242,12 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: "rgba(255,247,233,0.94)",
   },
-  chipLabel: { fontFamily: FONT, fontSize: 13, fontWeight: "700", color: colors.forest },
-  overlay: { padding: 18, gap: 4 },
-  meal: { fontFamily: FONT, fontSize: 13, fontWeight: "700", color: colors.cream, opacity: 0.9 },
-  sentence: { fontFamily: FONT, fontSize: 29, lineHeight: 34, fontWeight: "800", letterSpacing: -0.5, color: colors.cream },
-  second: { fontFamily: FONT, fontSize: 17, fontWeight: "600", color: colors.cream },
+  chipLabel: { fontFamily: FONT, fontSize: 13, fontWeight: "700", color: colors.forest, fontVariant: ["tabular-nums"] },
+  // 66% forest-black over a pure white photo still gives cream text about 5.3:1.
+  overlay: { padding: 18, paddingTop: 14, gap: 4, backgroundColor: "rgba(12,30,22,0.66)" },
+  meal: { fontFamily: FONT, fontSize: 13, fontWeight: "700", color: colors.cream },
+  sentence: { fontFamily: FONT, fontSize: 28, lineHeight: 33, fontWeight: "800", letterSpacing: -0.5, color: colors.cream },
+  second: { fontFamily: FONT, fontSize: 17, fontWeight: "600", color: colors.cream, fontVariant: ["tabular-nums"] },
   body: { padding: 16, gap: 12 },
   row: { flexDirection: "row", gap: 8 },
   sunrise: {

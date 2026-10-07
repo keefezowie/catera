@@ -17,7 +17,7 @@ export function RenewalCard({ subscription: s }: { subscription: Subscription })
       <Text variant="title" style={{ color: colors.charcoal }}>
         {t(`Sisa ${s.remaining} hari`, `${s.remaining} days left`)}
       </Text>
-      <Text>
+      <Text style={{ fontVariant: ["tabular-nums"] }}>
         {t(
           `Paket ${offer.days} hari · harga terakhir ${currency(offer.price, locale)} per porsi per hari`,
           `${offer.days}-day package · last price ${currency(offer.price, locale)} per portion per day`,

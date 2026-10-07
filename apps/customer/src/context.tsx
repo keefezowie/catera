@@ -64,10 +64,17 @@ const Context = createContext<Value>(null!);
 export function NativeProvider({
   children,
   routeNotifications = true,
+  realtime = true,
+  externalRevision,
 }: {
   children: ReactNode;
   /** False while the shared MobileProvider owns push routing (customer app shell). */
   routeNotifications?: boolean;
+  /** False while the shared MobileProvider owns the realtime channel: supabase-js keeps
+   * one channel per topic, so a second subscriber on catera:<id> would throw. */
+  realtime?: boolean;
+  /** The shell's revision; each change reloads the old screens' data. */
+  externalRevision?: number;
 }) {
   const [actor, setActor] = useState<Actor | null>(null),
     [offers, setOffers] = useState<Offer[]>([]),
@@ -82,6 +89,12 @@ export function NativeProvider({
   const sessionGeneration = useRef(0);
   const refreshGeneration = useRef(0);
   const lastNotification = useRef("");
+  const seenExternal = useRef(externalRevision);
+  useEffect(() => {
+    if (seenExternal.current === externalRevision) return;
+    seenExternal.current = externalRevision;
+    setRevision((r) => r + 1);
+  }, [externalRevision]);
   const refresh = useCallback(async () => {
     const session = sessionGeneration.current;
     const request = ++refreshGeneration.current;
@@ -210,7 +223,7 @@ export function NativeProvider({
     };
   }, [refresh, routeNotifications]);
   useEffect(() => {
-    if (!supabase || demo || !actor) return;
+    if (!realtime || !supabase || demo || !actor) return;
     const client = supabase;
     const channel = client
       .channel(`catera:${actor.id}`)
@@ -228,7 +241,7 @@ export function NativeProvider({
     return () => {
       void client.removeChannel(channel);
     };
-  }, [actor?.id, demo]);
+  }, [actor?.id, demo, realtime]);
   async function login(phone: string, token: string, name: string) {
     if (!supabase) throw new Error("NOT_CONFIGURED");
     const r = await nativeApi.request<{

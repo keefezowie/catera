@@ -39,7 +39,7 @@ export function EmptyHome() {
           ) : null}
           <View style={{ padding: 14, gap: 2 }}>
             <Text variant="heading">{o.name}</Text>
-            <Text variant="caption">
+            <Text variant="caption" style={{ fontVariant: ["tabular-nums"] }}>
               {o.caterer} · {t(`${currency(o.price, locale)} per hari`, `${currency(o.price, locale)} per day`)}
             </Text>
           </View>

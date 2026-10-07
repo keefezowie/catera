@@ -2,7 +2,9 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react-nativ
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
+import { StyleSheet } from "react-native";
 import { addDays } from "@catera/domain";
+import { colors } from "@catera/mobile-ui";
 import { Beranda } from "../src/today/Beranda";
 import { customerLink } from "../src/links";
 import { Masuk } from "../src/account/Masuk";
@@ -208,5 +210,80 @@ describe("Masuk", () => {
     expect(runtime.verifyPhoneOtp).toHaveBeenCalledWith("+6281234567890", "123456", "Pelanggan", expect.any(String));
     fireEvent.press(screen.getByRole("button", { name: "Masuk dengan email" }));
     expect(screen.getByLabelText("Kata sandi").props.secureTextEntry).toBe(true);
+  });
+
+  it("signs a new email customer in as Pelanggan, not Katerer", async () => {
+    const runtime = runtimeWith(async () => customerState(null), null);
+    runtime.signInPassword = jest.fn(async () => customer as never);
+    render(
+      <MobileProvider runtime={runtime} linkMapper={customerLink}>
+        <Masuk />
+      </MobileProvider>,
+    );
+    fireEvent.press(screen.getByRole("button", { name: "Masuk dengan email" }));
+    fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
+    fireEvent.changeText(screen.getByLabelText("Kata sandi"), "synthetic-password");
+    fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/"));
+    expect(runtime.signInPassword).toHaveBeenCalledWith(
+      "rani@example.test",
+      "synthetic-password",
+      expect.any(String),
+      "Pelanggan",
+    );
+  });
+});
+
+/** WCAG relative luminance of an sRGB colour given as 0–255 channels. */
+const luminance = ([r, g, b]: number[]) => {
+  const lin = (c: number) => ((c /= 255) <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+};
+
+describe("design tokens", () => {
+  it("sets the plate sentence at 28px and times in tabular numerals", async () => {
+    renderHome(runtimeWith(async () => customerState({ status: "delivered", confirmed_at: `${TODAY}T04:48:00Z` })));
+    const sentence = StyleSheet.flatten((await screen.findByText("Sudah sampai")).props.style);
+    expect(sentence.fontSize).toBe(28);
+    expect(StyleSheet.flatten(screen.getByText("pukul 11.48").props.style).fontVariant).toContain("tabular-nums");
+  });
+
+  it("keeps cream plate text at 4.5:1 or more even over a white photo", async () => {
+    renderHome(runtimeWith(async () => customerState({ status: "out_for_delivery", departed_at: `${TODAY}T03:42:00Z` })));
+    await screen.findByText("Sedang diantar");
+    const overlay = StyleSheet.flatten(screen.getByTestId("plate-overlay").props.style);
+    const m = /rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)/.exec(String(overlay.backgroundColor));
+    expect(m).not.toBeNull();
+    const [r, g, b, a] = m!.slice(1).map(Number);
+    const over = [r, g, b].map((c) => c * a + 255 * (1 - a));
+    const contrast = (luminance([0xff, 0xf7, 0xe9]) + 0.05) / (luminance(over) + 0.05);
+    expect(contrast).toBeGreaterThanOrEqual(4.5);
+    const meal = StyleSheet.flatten(screen.getByText(/^Makan siang · /).props.style);
+    expect(meal.opacity ?? 1).toBe(1);
+    expect(StyleSheet.flatten(screen.getByText("Berangkat 10.42").props.style).fontVariant).toContain("tabular-nums");
+  });
+
+  it("uses forest, not Sunrise, for review stars", async () => {
+    const past = delivery("d-past", addDays(TODAY, -1), { status: "delivered" }, { status: "delivered" });
+    renderHome(runtimeWith(async () => customerState(null, { subscription: { remaining: 2 }, past: [past] })));
+    fireEvent.press(await screen.findByText("Bagaimana Dapur Contoh selama ini?"));
+    const star = StyleSheet.flatten(screen.getAllByText("★")[0].props.style);
+    expect(star.color).toBe(colors.forest);
+    expect(star.color).not.toBe(colors.sunrise);
+    expect(StyleSheet.flatten(screen.getByText(/harga terakhir/).props.style).fontVariant).toContain("tabular-nums");
+  });
+
+  it("shows when offline data was saved in tabular numerals", async () => {
+    (offline.loadCachedCustomer as jest.Mock).mockResolvedValue({
+      savedAt: "2026-10-07T23:12:00.000Z",
+      data: customerState({ status: "out_for_delivery" }),
+    });
+    renderHome(
+      runtimeWith(async () => {
+        throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
+      }),
+    );
+    const updated = await screen.findByText(/Terakhir diperbarui 06\.12/);
+    expect(StyleSheet.flatten(updated.props.style).fontVariant).toContain("tabular-nums");
   });
 });
