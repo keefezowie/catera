@@ -163,7 +163,7 @@ export function PaymentScreen() {
                 )}
                 <Btn
                   label={t("Lihat jadwal makan", "View meal calendar")}
-                  onPress={() => router.replace("/calendar")}
+                  onPress={() => router.replace("/jadwal")}
                 />
                 <Btn
                   secondary

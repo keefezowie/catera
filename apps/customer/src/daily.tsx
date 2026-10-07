@@ -35,8 +35,6 @@ import {
   styles,
   ResourceNotice,
 } from "./ui";
-export { Home, Calendar } from "./agenda";
-export { DeliveryScreen } from "./delivery";
 export function SubscriptionScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { command, t, locale } = useNative();

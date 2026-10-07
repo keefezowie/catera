@@ -375,7 +375,7 @@ export const nativeLink = (href: string) => {
     return "/discover?view=list&section=how-it-works";
   return nativeReturnPath(
     href
-      .replace(/^\/deliveries\//, "/delivery/")
+      .replace(/^\/deliveries\//, "/hari/")
       .replace(/^\/packages\//, "/package/")
       .replace(/^\/home$/, "/"),
   );

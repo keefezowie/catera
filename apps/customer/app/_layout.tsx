@@ -40,7 +40,7 @@ function Navigation() {
         <Stack.Screen name="package/[id]" options={{ title: t("Detail paket", "Package details") }} />
         <Stack.Screen name="checkout/[id]" options={{ title: t("Porsi & jadwal", "Portions & schedule") }} />
         <Stack.Screen name="payment/[id]" options={{ title: t("Pembayaran", "Payment") }} />
-        <Stack.Screen name="delivery/[id]" options={{ title: t("Pengantaran", "Delivery") }} />
+        <Stack.Screen name="hari/[id]" options={{ title: t("Hari", "Day") }} />
         <Stack.Screen name="subscriptions/[id]" options={{ title: t("Langganan", "Subscription") }} />
         <Stack.Screen name="support" options={{ title: t("Bantuan", "Support") }} />
         <Stack.Screen name="addresses" options={{ title: t("Alamat", "Addresses") }} />

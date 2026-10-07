@@ -12,8 +12,8 @@ const icons: Record<CustomerTab, keyof typeof Ionicons.glyphMap> = {
   akun: "person",
 };
 
-// Old tab routes stay reachable for links inside the old screens until Tasks 8–13 retire them.
-const legacy = ["calendar", "discover", "account"] as const;
+// Old tab routes stay reachable for links inside the old screens until Tasks 9–13 retire them.
+const legacy = ["discover", "account"] as const;
 
 export default function TabsLayout() {
   const { t } = useMobile();
