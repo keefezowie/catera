@@ -180,6 +180,8 @@ export type Delivery = {
   meals: DeliveryMeal[];
   cutoff_at: string;
   canChange: boolean;
+  /** The caterer's verified WhatsApp number (E.164); present only on the customer's own deliveries. */
+  catererPhone?: string | null;
 };
 export type Checkout = {
   payment_mode?: "hosted" | "direct";
