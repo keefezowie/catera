@@ -514,6 +514,12 @@ export async function createDemoDatabase(inMemory = false) {
     await db.exec("begin;\n" + await readFile(path.join(projectRoot(),
       "supabase/migrations/20261007100000_auto_delivered.sql"), "utf8") + "\ncommit;");
   }
+  if ((await db.query<{ pending: boolean }>(
+    "select position('COVERAGE' in prosrc)>0 pending from pg_proc where oid='v1.pilot_import_row(uuid,jsonb,boolean)'::regprocedure",
+  )).rows[0].pending) {
+    await db.exec("begin;\n" + await readFile(path.join(projectRoot(),
+      "supabase/migrations/20261007110000_import_before_approval.sql"), "utf8") + "\ncommit;");
+  }
   return db;
 }
 export async function getDemoDatabase() {
