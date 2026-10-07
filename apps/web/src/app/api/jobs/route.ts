@@ -12,7 +12,7 @@ import {
   createRefund,
   createPayout,
 } from "@catera/backend";
-import type { Checkout } from "@catera/domain";
+import { jakartaDay, type Checkout } from "@catera/domain";
 export const maxDuration = 300;
 const system = <T = unknown>(action: string, payload: unknown = {}) =>
   rpc<T>(null, null, "catera_v1_system", { action, payload }, true);
@@ -42,6 +42,8 @@ export async function GET(request: Request) {
       console.warn("Staged food upload cleanup unavailable");
     }
   }
+  // Deliveries count as done unless reported; earnings follow before settlement.
+  await system("delivery.autoDeliver", { today: jakartaDay(new Date()) });
   await system("settlement.run");
   const reconciliation = await reconcileEarnedPayouts();
   const dokuReconciliation = demoEnabled() ? null : await reconcileDoku();

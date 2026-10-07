@@ -314,6 +314,7 @@ try {
   await (await import("./postgres-journey-reads.mjs")).verifyJourneyReads(pool, cmd, evidence);
   await (await import("./postgres-package-drafts.mjs")).verifyPackageDrafts(pool, cmd, evidence);
   await (await import("./postgres-saved-packages.mjs")).verifySavedPackages(pool, cmd, evidence, consentPackage.id, users);
+  await (await import("./postgres-auto-delivered.mjs")).verifyAutoDelivered(pool, cmd, evidence);
   await mkdir("output/verification", { recursive: true });
   const evidencePath = process.env.CATERA_POSTGRES_EVIDENCE || "output/verification/postgres.json";
   await mkdir(path.dirname(evidencePath), { recursive: true });

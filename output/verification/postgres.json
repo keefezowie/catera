@@ -1,5 +1,5 @@
 {
-  "at": "2026-10-06T06:21:07.314Z",
+  "at": "2026-10-07T09:31:20.339Z",
   "passed": [
     "Synthetic slot conversion is repeatable on PostgreSQL; dated menus validate and package templates remain stable.",
     "Concurrent registration creates one customer profile and preserves its name and authority on retry",
@@ -29,6 +29,8 @@
     "Direct payments: six competing method selections lock one channel; five submitters obtain one claim; five refreshes obtain one minute-limited inquiry; duplicate callbacks before attachment activate exactly once; ownership, immutable mode/channel and private RPC privileges enforced.",
     "Journey reads: customer search paginates matching totals across 103 tenant-scoped records; customer and cross-tenant reads fail; staff recover the latest whole-day production revision; the private base RPC cannot bypass authorization.",
     "Partial drafts preserve null price and empty capacity; concurrent retries save once and competing edits reject stale versions. Incomplete publication, quote, checkout and import fail without side effects; completed publication retains immutable terms.",
-    "Saved packages: eight simultaneous receipt retries and duplicate saves yield one owner row; authenticated RPCs enforce ownership, private tables reject direct reads/writes, another user's removal cannot affect the owner, and no purchasing or capacity effects occur."
+    "Saved packages: eight simultaneous receipt retries and duplicate saves yield one owner row; authenticated RPCs enforce ownership, private tables reject direct reads/writes, another user's removal cannot affect the owner, and no purchasing or capacity effects occur.",
+    "Overlapping auto-delivery runs mark a past day delivered once and recognise one earning.",
+    "Auto-delivery skips a day locked by a concurrent cancellation and never earns on a cancelled day."
   ]
 }
