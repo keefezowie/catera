@@ -53,6 +53,8 @@ export async function verifyDeliveryConfirm(pool, cmd, evidence) {
     "20261008111000_push_report_renewal_dedupe.sql",
     "20261008112000_claim_preview.sql",
     "20261008113000_caterer_whatsapp.sql",
+    "20261008114000_caterer_whatsapp_denied.sql",
+    "20261008114500_maintenance_renewal_conflict.sql",
   ])
     await pool.query(await readFile("supabase/migrations/" + file, "utf8"));
 
@@ -414,4 +416,71 @@ export async function verifyDeliveryDepart(pool, cmd, evidence) {
     "Departure racing the customer's confirmation of the same meal 12 times delivers it once with one earning, confirmed by the customer, and at most one push (" +
       raced.departedFirst + " departed first, " + raced.confirmedFirst + " confirmed first).",
   );
+
+  // 6. The daily maintenance renewal reminder while subscription.remindRenewal holds the same
+  // 'renew-' key uncommitted: maintenance waits, then skips the key and finishes its run.
+  const renewDays = await purchased(pool, cmd, P[4], addDays(today, 360));
+  const renewSub = renewDays[0].subscription_id;
+  await pool.query(
+    "update v1.delivery_days set status='cancelled' where subscription_id=$1 and id not in (select id from v1.delivery_days where subscription_id=$1 order by service_date desc limit 2)",
+    [renewSub],
+  );
+  await pool.query("update v1.subscriptions set status='active' where id=$1", [renewSub]);
+  await pool.query("delete from v1.outbox where dedupe=$1", ["renew-" + renewSub]);
+  const holder = await pool.connect();
+  let maintenance;
+  try {
+    await holder.query("begin");
+    await holder.query(
+      "insert into v1.outbox(kind,payload,dedupe) values('push',jsonb_build_object('userId',$2::uuid,'body','Paket tinggal 3 hari.','href','/renew/'||$1),'renew-'||$1)",
+      [renewSub, U.customer],
+    );
+    maintenance = system(pool, "maintenance", {}).then(() => null, (e) => e);
+    let waited = 0;
+    while ((await waitingOnALock(pool)) === 0 && waited++ < 100) await new Promise((r) => setTimeout(r, 50));
+    assert((await waitingOnALock(pool)) > 0, "maintenance waits for the uncommitted renewal key");
+    await holder.query("commit");
+  } finally {
+    holder.release();
+  }
+  const failed = await maintenance;
+  assert.equal(failed, null, "maintenance finishes: " + (failed && failed.message));
+  assert.deepEqual(
+    (await pool.query("select kind from v1.outbox where dedupe=$1", ["renew-" + renewSub])).rows,
+    [{ kind: "push" }],
+  );
+  assert.equal(
+    (await pool.query("select count(*)::int n from v1.notifications where kind='renewal' and href='/renew/'||$1", [renewSub])).rows[0].n,
+    0,
+    "no second renewal message from maintenance",
+  );
+  evidence.push(
+    "Daily maintenance meeting a renewal key that subscription.remindRenewal holds uncommitted waits, skips that key without a second message and completes its run.",
+  );
+
+  // 7. A role that may not read auth.users still gets the delivery read, with no WhatsApp number.
+  await pool.query("create schema if not exists auth");
+  const madeUsers = !(await pool.query("select to_regclass('auth.users') is not null x")).rows[0].x;
+  if (madeUsers) await pool.query("create table auth.users(id uuid primary key, phone text, phone_confirmed_at timestamptz)");
+  await pool.query("do $$ begin if not exists(select 1 from pg_roles where rolname='catera_no_auth') then create role catera_no_auth; end if; end $$");
+  await pool.query("grant usage on schema v1, auth to catera_no_auth");
+  await pool.query("grant select on v1.staff to catera_no_auth");
+  await pool.query("revoke all on auth.users from catera_no_auth");
+  await pool.query("grant execute on function v1.caterer_whatsapp(uuid) to catera_no_auth");
+  const denied = await pool.connect();
+  try {
+    await denied.query("begin");
+    await denied.query("set local role catera_no_auth");
+    const phone = (await denied.query("select v1.caterer_whatsapp($1) p", [CATERER_IDS[0]])).rows[0].p;
+    assert.equal(phone, null, "denied auth.users gives no number");
+    await denied.query("rollback");
+  } finally {
+    denied.release();
+  }
+  await pool.query("revoke execute on function v1.caterer_whatsapp(uuid) from catera_no_auth");
+  await pool.query("revoke all on v1.staff from catera_no_auth");
+  await pool.query("revoke usage on schema v1, auth from catera_no_auth");
+  await pool.query("drop role catera_no_auth");
+  if (madeUsers) await pool.query("drop table auth.users");
+  evidence.push("v1.caterer_whatsapp returns no number instead of failing the customer read when auth.users is not readable.");
 }

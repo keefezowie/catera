@@ -267,3 +267,38 @@ it("GET /api/jobs/push rejects without the cron secret", async () => {
   delete process.env.CRON_SECRET;
   expect((await pushJobs(new Request(url, { headers: { authorization: "Bearer undefined" } }))).status).toBe(401);
 });
+
+it("daily maintenance survives a renewal push committed between its check and its insert", async () => {
+  const sub = hijau[0].subscription_id;
+  await onlyActive(sub);
+  await q("delete from v1.outbox where dedupe like 'renew-%'");
+  await q("delete from v1.notifications where kind='renewal'");
+  const open = await q<{ n: number }>(
+    "select count(*)::int n from v1.delivery_days where subscription_id=$1 and status not in ('delivered','cancelled')",
+    [sub],
+  );
+  expect(open[0].n).toBeLessThanOrEqual(3);
+  // Stand-in for subscription.remindRenewal committing the same key at that moment: it fires
+  // as maintenance writes its renewal record, and queues the customer's renewal push first.
+  await db.exec(`
+    create function public.race_renewal() returns trigger language plpgsql as $$
+    declare s record;
+    begin
+     if pg_trigger_depth()>1 or new.kind<>'reminder.record' or new.dedupe not like 'renew-%' then return new;end if;
+     select id,user_id into s from v1.subscriptions where 'renew-'||id=new.dedupe;
+     perform v1.notify(s.user_id,'renewal','Paket tinggal 3 hari. Perpanjang tanpa jeda.','/renew/'||s.id,new.dedupe);
+     return new;
+    end $$;
+    create trigger race_renewal before insert on v1.outbox for each row execute function public.race_renewal();
+  `);
+  try {
+    await system("maintenance");
+  } finally {
+    await db.exec("drop trigger race_renewal on v1.outbox; drop function public.race_renewal()");
+  }
+  // One renewal key, one renewal message: the one already queued.
+  expect(await q("select kind from v1.outbox where dedupe=$1", ["renew-" + sub])).toEqual([{ kind: "push" }]);
+  expect(
+    await q("select body from v1.notifications where kind='renewal' and href like '%'||$1", [sub]),
+  ).toEqual([{ body: "Paket tinggal 3 hari. Perpanjang tanpa jeda." }]);
+});

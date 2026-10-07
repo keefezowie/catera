@@ -120,8 +120,83 @@ it("GET /api/jobs/push queues both reminders then sends", async () => {
     today: jakarta.toISOString().slice(0, 10),
     hour: jakarta.getUTCHours(),
   });
-  expect(claim).toEqual(["outbox.claimPush", { limit: 200 }]);
+  // Claimed in small batches so the run can stop on its time budget.
+  expect(claim).toEqual(["outbox.claimPush", { limit: 20 }]);
   delete process.env.CRON_SECRET;
+});
+
+// Each send moves the frozen clock on; only Date is faked so promises keep resolving.
+function clockedQueue(perJobMs: number) {
+  let next = 0;
+  vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-10-07T03:00:00Z") });
+  system({
+    "outbox.claimPush": (p: { limit: number }) =>
+      Array.from({ length: p.limit }, () => ({ ...job, id: "job-" + ++next })),
+    "notification.eligible": true,
+    devices: ["ExponentPushToken[a]"],
+    "push.ticket": null,
+    "outbox.complete": () => void vi.setSystemTime(Date.now() + perJobMs),
+  });
+  vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
+    Response.json({ data: [{ status: "ok", id: "t" }] }),
+  );
+}
+
+it("stops claiming and sending once the time budget is spent, leaving the rest leased", async () => {
+  try {
+    clockedQueue(1000);
+    // 20 + 20 sends take 40 s; the third batch is claimed at 40 s and stopped at 45 s.
+    expect(await dispatchPushes({ limit: 200, deadlineMs: 45_000 })).toEqual({ sent: 45 });
+    const claims = systemCalls().filter(([action]) => action === "outbox.claimPush");
+    expect(claims).toEqual([
+      ["outbox.claimPush", { limit: 20 }],
+      ["outbox.claimPush", { limit: 20 }],
+      ["outbox.claimPush", { limit: 20 }],
+    ]);
+    // The 15 claimed but unsent jobs are not retried or completed: their lease hands them on.
+    expect(systemCalls().filter(([action]) => action === "outbox.complete")).toHaveLength(45);
+    expect(systemCalls().some(([action]) => action === "outbox.retry")).toBe(false);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("keeps one claim of the whole limit without a time budget", async () => {
+  try {
+    clockedQueue(10_000);
+    expect(await dispatchPushes({ limit: 7 })).toEqual({ sent: 7 });
+    expect(systemCalls().filter(([action]) => action === "outbox.claimPush")).toEqual([
+      ["outbox.claimPush", { limit: 7 }],
+    ]);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("GET /api/jobs/push counts the reminder queries against its 45 s budget", async () => {
+  process.env.CRON_SECRET = "synthetic-cron-secret";
+  vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-10-07T03:00:00Z") });
+  try {
+    system({
+      "delivery.remindDue": () => (vi.setSystemTime(Date.now() + 50_000), { queued: 0 }),
+      "subscription.remindRenewal": { queued: 0 },
+      "outbox.claimPush": [job],
+    });
+    const response = await pushJobs(
+      new Request("https://catera.test/api/jobs/push", {
+        headers: { authorization: "Bearer synthetic-cron-secret" },
+      }),
+    );
+    expect(await response.json()).toEqual({ queued: 0, sent: 0 });
+    // Nothing is claimed once the budget is gone; the next run picks the queue up.
+    expect(systemCalls().map(([action]) => action)).toEqual([
+      "delivery.remindDue",
+      "subscription.remindRenewal",
+    ]);
+  } finally {
+    vi.useRealTimers();
+    delete process.env.CRON_SECRET;
+  }
 });
 
 // The commands route, with an empty push queue so nothing reaches Expo.
@@ -187,4 +262,15 @@ it("never fails the command when the deferred push fails, and ignores other comm
   await POST(command("address.delete"), context);
   expect(state.after).not.toHaveBeenCalled();
   expect(state.rpc.mock.calls.map((c) => c[2])).toEqual(["catera_v1_command"]);
+});
+
+it("passes NOT_ALLOWED from a refused command to the app instead of REQUEST_FAILED", async () => {
+  const { POST } = await import("../apps/web/src/app/api/v1/[...path]/route");
+  vi.spyOn(console, "warn").mockImplementation(() => {});
+  state.rpc.mockRejectedValue(new Error("NOT_ALLOWED"));
+  const response = await POST(command("delivery.confirm"), context);
+  // A business refusal, answered like CUTOFF or INVALID_STATE.
+  expect(response.status).toBe(400);
+  expect((await response.json()).error.code).toBe("NOT_ALLOWED");
+  expect(state.after).not.toHaveBeenCalled();
 });

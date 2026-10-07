@@ -74,3 +74,17 @@ it("shows the customer their own caterer's verified WhatsApp number, and no one 
   await db.query("update auth.users set phone_confirmed_at=null where id=$1", [U.owner]);
   expect((await read())?.catererPhone).toBeNull();
 });
+
+it("shows no number, and still reads the deliveries, when auth.users cannot be read", async () => {
+  // A hosted role without the grant: reading auth.users raises insufficient_privilege (42501).
+  await db.exec(`
+    drop table if exists auth.users;
+    create or replace function auth.users_denied() returns table(id uuid, phone text, phone_confirmed_at timestamptz)
+     language plpgsql as $$ begin raise exception 'permission denied for table users' using errcode='insufficient_privilege'; end $$;
+    create view auth.users as select * from auth.users_denied();
+  `);
+  const d = await read();
+  expect(d?.id).toBe(day.id);
+  expect(d?.catererPhone).toBeNull();
+  await db.exec("drop view auth.users; drop function auth.users_denied()");
+});

@@ -586,6 +586,18 @@ export async function createDemoDatabase(inMemory = false) {
     await db.exec("begin;\n" + await readFile(path.join(projectRoot(),
       "supabase/migrations/20261008113000_caterer_whatsapp.sql"), "utf8") + "\ncommit;");
   }
+  if (!(await db.query<{ installed: boolean }>(
+    "select position('insufficient_privilege' in prosrc)>0 installed from pg_proc where oid='v1.caterer_whatsapp(uuid)'::regprocedure",
+  )).rows[0].installed) {
+    await db.exec("begin;\n" + await readFile(path.join(projectRoot(),
+      "supabase/migrations/20261008114000_caterer_whatsapp_denied.sql"), "utf8") + "\ncommit;");
+  }
+  if (!(await db.query<{ installed: boolean }>(
+    "select not exists(select 1 from pg_proc where position($$dedupe='renew-'||item.id) then perform$$ in prosrc)>0) installed",
+  )).rows[0].installed) {
+    await db.exec("begin;\n" + await readFile(path.join(projectRoot(),
+      "supabase/migrations/20261008114500_maintenance_renewal_conflict.sql"), "utf8") + "\ncommit;");
+  }
   return db;
 }
 export async function getDemoDatabase() {
