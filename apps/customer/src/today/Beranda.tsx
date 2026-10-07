@@ -68,7 +68,7 @@ export function Beranda() {
 }
 
 function SignedInHome({ actorId, name }: { actorId: string; name: string }) {
-  const { runtime, t } = useMobile();
+  const { runtime, t, locale } = useMobile();
   const home = useData(`home:customer`, () => loadCustomer(runtime, actorId));
   // Menu choices that are due; Beranda still shows without them (offline or a failed feed).
   const actions = useData("home:actions", () => runtime.api.customerActions(20).catch(() => null));
@@ -89,7 +89,7 @@ function SignedInHome({ actorId, name }: { actorId: string; name: string }) {
     );
 
   const plates = todayPlates(state, now);
-  const rows = upcomingRows(state, now, 3);
+  const rows = upcomingRows(state, now, 3, locale);
   const live = state.subscriptions.filter(isLive);
   if (!plates.length && !rows.length && !live.length) return <EmptyHome />;
   const savedAt = home.data?.savedAt;
@@ -119,7 +119,7 @@ function SignedInHome({ actorId, name }: { actorId: string; name: string }) {
       ) : null}
       {savedAt ? null : <MenuDueRows items={actions.data?.items ?? []} />}
       <UpcomingRows rows={rows} />
-      {live.filter(renewalDue).map((s) => (
+      {live.filter((s) => renewalDue(s, state.subscriptions)).map((s) => (
         <RenewalCard key={s.id} subscription={s} />
       ))}
       {live.map((s) => (

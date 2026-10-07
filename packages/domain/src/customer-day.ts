@@ -2,7 +2,7 @@ import { addDays, type CustomerState, type Delivery, type DeliveryMeal, type Loc
 import { jakartaDay, shortDate } from "./kitchen";
 
 /** Customer-facing views of a delivery day, shared by the customer app and the web. */
-export type PlateState = "cooking" | "on_the_way" | "due" | "arrived" | "reported" | "none";
+export type PlateState = "cooking" | "on_the_way" | "due" | "arrived" | "failed" | "reported" | "none";
 
 export type Plate = {
   state: PlateState;
@@ -18,6 +18,8 @@ export type Plate = {
   confirmedAt: string | null;
   reaction: DeliveryMeal["reaction"];
   issue: DeliveryMeal["issue"];
+  /** The caterer's verified WhatsApp number, when the read carries one. */
+  catererPhone: string | null;
 };
 
 export type UpcomingRow = {
@@ -25,6 +27,7 @@ export type UpcomingRow = {
   date: string;
   label: string;
   dishes: string;
+  /** When changes close, with the day: "hari ini 17.00", "besok 17.00", "Jumat 17.00". */
   changeUntil: string | null;
 };
 
@@ -76,8 +79,11 @@ function dishesFor(offer: Offer, meal: "lunch" | "dinner"): string[] {
     .map(({ item }) => item.name);
 }
 
+/** reported > failed > arrived > on_the_way > due > cooking. */
 function plateState(meal: DeliveryMeal, due: boolean): PlateState {
   if (meal.issue && meal.issue.status !== "resolved") return "reported";
+  // The caterer marked the meal "Gagal diantar": it is not coming today.
+  if (meal.status === "issue") return "failed";
   if (meal.status === "delivered") return "arrived";
   if (meal.status === "out_for_delivery") return "on_the_way";
   return due ? "due" : "cooking";
@@ -114,6 +120,7 @@ export function todayPlates(state: CustomerState, now: Date): Plate[] {
           confirmedAt: m.confirmed_at ?? null,
           reaction: m.reaction ?? null,
           issue: m.issue ?? null,
+          catererPhone: d.catererPhone ?? null,
         },
       });
     }
@@ -124,7 +131,7 @@ export function todayPlates(state: CustomerState, now: Date): Plate[] {
 }
 
 /** The next `n` deliveries after Jakarta today, soonest first. */
-export function upcomingRows(state: CustomerState, now: Date, n: number): UpcomingRow[] {
+export function upcomingRows(state: CustomerState, now: Date, n: number, locale: Locale = "id"): UpcomingRow[] {
   const today = jakartaDay(now);
   return state.deliveries
     .filter((d) => d.service_date > today && d.status !== "cancelled")
@@ -143,7 +150,7 @@ export function upcomingRows(state: CustomerState, now: Date, n: number): Upcomi
         date: d.service_date,
         label: dayLabel(d.service_date, today, "id"),
         dishes: meals.flatMap((meal) => dishesFor(d.offer, meal)).join(", "),
-        changeUntil: changeable.date || changeable.address ? changeable.until : null,
+        changeUntil: changeable.date || changeable.address ? changeDeadline(d.cutoff_at, now, locale) : null,
       };
     });
 }
@@ -160,6 +167,22 @@ export function canChangeDay(
     address: open && d.status === "scheduled",
     until: jakartaClock(d.cutoff_at),
   };
+}
+
+/**
+ * When a day's changes close, in Jakarta: "hari ini 17.00", "besok 17.00", the weekday within
+ * the coming week ("Jumat 17.00"), else the date ("Rabu 14 Okt 17.00"). Null when unreadable.
+ */
+export function changeDeadline(cutoffAt: string, now: Date, locale: Locale = "id"): string | null {
+  const time = jakartaClock(cutoffAt);
+  if (!time) return null;
+  const day = jakartaDay(new Date(Date.parse(cutoffAt)));
+  const today = jakartaDay(now);
+  if (day === today) return `${locale === "en" ? "today" : "hari ini"} ${time}`;
+  if (day === addDays(today, 1)) return `${locale === "en" ? "tomorrow" : "besok"} ${time}`;
+  const date = shortDate(day, locale);
+  const withinWeek = day > today && day < addDays(today, 7);
+  return `${withinWeek ? date.split(" ")[0] : date} ${time}`;
 }
 
 /** Next cycle of the same package, starting the first operating weekday after the current end. */
@@ -182,8 +205,15 @@ export function renewalDefaults(
   };
 }
 
-export function renewalDue(sub: Subscription): boolean {
-  return sub.status === "active" && sub.remaining <= 3;
+/**
+ * Whether to invite the customer to renew: an active, non-trial plan with 3 or fewer days left
+ * that has no renewal yet (any subscription renewed from it that is not cancelled). Matches the
+ * exclusions of the server's renewal reminders.
+ */
+export function renewalDue(sub: Subscription, subscriptions: readonly Subscription[]): boolean {
+  if (sub.status !== "active" || sub.remaining > 3) return false;
+  if (sub.snapshot?.trial) return false;
+  return !subscriptions.some((s) => s.renewed_from === sub.id && s.status !== "cancelled");
 }
 
 /** "Rabu 7 Okt", with a "Besok, " prefix for the day after `today`. */

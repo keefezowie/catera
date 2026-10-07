@@ -11,13 +11,18 @@ import { ARRIVED_DOT, MonthGrid, type DayMark } from "./MonthGrid";
 import { longDay, monthOf, monthRange, monthTitle, shiftMonth } from "./dates";
 
 const live = (d: Delivery) => d.status !== "cancelled";
-const served = (d: Delivery) => d.meals.filter((m) => m.status !== "cancelled");
+const served = (d: Delivery) => (d.meals ?? []).filter((m) => m.status !== "cancelled");
+/** The caterer marked the meal "Gagal diantar": it did not come and is not coming. */
+const failed = (status: string) => status === "issue";
 
-/** Forest dot for a day with meals still to come, grey-green once every meal has arrived. */
+/**
+ * Forest dot for a day with meals still to come, grey-green once every meal has arrived.
+ * Meals the caterer could not deliver count as neither, so a day of only those has no dot.
+ */
 function marksOf(deliveries: Delivery[]): Map<string, DayMark> {
   const marks = new Map<string, DayMark>();
   for (const d of deliveries.filter(live)) {
-    const meals = served(d);
+    const meals = served(d).filter((m) => !failed(m.status));
     if (!meals.length) continue;
     if (meals.some((m) => m.status !== "delivered")) marks.set(d.service_date, "planned");
     else if (!marks.has(d.service_date)) marks.set(d.service_date, "arrived");
@@ -52,7 +57,9 @@ function SignedInJadwal() {
   }, [month]);
 
   const deliveries = state?.deliveries.filter((d) => monthOf(d.service_date) === month) ?? [];
-  const day = deliveries.filter((d) => d.service_date === selected && live(d));
+  const day = deliveries
+    .filter((d) => d.service_date === selected && live(d))
+    .flatMap((d) => served(d).map((m) => ({ d, m })));
 
   return (
     <Screen>
@@ -96,8 +103,8 @@ function SignedInJadwal() {
         <ActivityIndicator color={colors.forest} />
       ) : day.length ? (
         <Card style={{ padding: 4, gap: 0 }}>
-          {day.flatMap((d) => served(d).map((m) => ({ d, m }))).map(({ d, m }, i) => (
-            <MealRow key={`${d.id}:${m.meal}`} delivery={d} meal={m.meal} arrived={m.status === "delivered"} first={i === 0} apiBase={runtime.apiBase} />
+          {day.map(({ d, m }, i) => (
+            <MealRow key={`${d.id}:${m.meal}`} delivery={d} meal={m.meal} status={m.status} first={i === 0} apiBase={runtime.apiBase} />
           ))}
         </Card>
       ) : state ? (
@@ -119,19 +126,25 @@ function Legend({ color, label }: { color: string; label: string }) {
 function MealRow({
   delivery: d,
   meal,
-  arrived,
+  status,
   first,
   apiBase,
 }: {
   delivery: Delivery;
   meal: "lunch" | "dinner";
-  arrived: boolean;
+  status: string;
   first: boolean;
   apiBase: string;
 }) {
   const { t, locale } = useMobile();
   const image = d.offer.menus?.find((m) => m.meal === meal)?.image || d.offer.image;
-  const sub = [mealLabel(meal, locale), d.offer.windows?.[meal], arrived ? t("Sudah sampai", "Arrived") : ""].filter(Boolean).join(" · ");
+  const state =
+    status === "delivered"
+      ? t("Sudah sampai", "Arrived")
+      : failed(status)
+        ? t("Tidak bisa diantar", "Couldn't be delivered")
+        : "";
+  const sub = [mealLabel(meal, locale), d.offer.windows?.[meal], state].filter(Boolean).join(" · ");
   return (
     <Pressable
       accessibilityRole="button"

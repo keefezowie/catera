@@ -50,7 +50,7 @@ function Day({ id }: { id: string }) {
       </Screen>
     );
 
-  const meals = d.meals.filter((m) => m.status !== "cancelled");
+  const meals = (d.meals ?? []).filter((m) => m.status !== "cancelled");
   const closed = d.status === "cancelled" || meals.every((m) => m.status === "delivered");
   const photo = d.offer.menus?.find((m) => m.meal === meals[0]?.meal)?.image || d.offer.image;
   const customerPicks = d.offer.menuSelectionMode === "customer";

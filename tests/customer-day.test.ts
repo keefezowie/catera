@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   canChangeDay,
+  changeDeadline,
   dayLabel,
   renewalDefaults,
   renewalDue,
@@ -139,6 +140,23 @@ describe("todayPlates", () => {
     expect(plate({ ...arrived, issue: { id: "i3", status: "resolved" } }).state).toBe("arrived");
   });
 
+  it("plate is failed when the caterer marked the meal undelivered, unless the customer reported it", () => {
+    const failed = lunch({ status: "issue", departed_at: "2026-10-07T04:30:00Z" });
+    const plate = (m: DeliveryMeal, now = at("12:00")) =>
+      todayPlates(state([delivery("2026-10-07", [m])]), now)[0];
+    // Neither due nor cooking: no "Sudah sampai" is offered for it.
+    expect(plate(failed).state).toBe("failed");
+    expect(plate(failed, at("10:00")).state).toBe("failed");
+    expect(plate({ ...failed, issue: { id: "i4", status: "open" } }).state).toBe("reported");
+    expect(plate({ ...failed, issue: { id: "i5", status: "resolved" } }).state).toBe("failed");
+  });
+
+  it("carries the caterer's WhatsApp number for the plate's actions", () => {
+    const d = delivery("2026-10-07", [lunch()], { catererPhone: "+6281200000001" });
+    expect(todayPlates(state([d]), at("09:00"))[0].catererPhone).toBe("+6281200000001");
+    expect(todayPlates(state([delivery("2026-10-07", [lunch()])]), at("09:00"))[0].catererPhone).toBeNull();
+  });
+
   it("uses Jakarta today for a phone at 23.30 UTC", () => {
     const s = state([delivery("2026-10-07", [lunch()]), delivery("2026-10-08", [lunch()])]);
     const plates = todayPlates(s, new Date("2026-10-07T17:30:00Z"));
@@ -191,7 +209,7 @@ describe("upcomingRows", () => {
       date: "2026-10-08",
       label: "Besok, Kamis 8 Okt",
       dishes: "Nasi putih, Ayam bakar, Tempe",
-      changeUntil: "17.00",
+      changeUntil: "hari ini 17.00",
     });
     expect(rows[1]).toMatchObject({ date: "2026-10-09", label: "Jumat 9 Okt", changeUntil: null });
   });
@@ -200,8 +218,39 @@ describe("upcomingRows", () => {
     const s = state([
       delivery("2026-10-08", [lunch()], { canChange: true, cutoff_at: "2026-10-07T10:00:00Z" }),
     ]);
-    expect(upcomingRows(s, at("16:59"), 1)[0].changeUntil).toBe("17.00");
+    expect(upcomingRows(s, at("16:59"), 1)[0].changeUntil).toBe("hari ini 17.00");
     expect(upcomingRows(s, at("17:00"), 1)[0].changeUntil).toBeNull();
+  });
+
+  it("names the day of a deadline that is not today, in the reader's language", () => {
+    const s = state([
+      delivery("2026-10-08", [lunch()], { canChange: true, cutoff_at: "2026-10-07T10:00:00Z" }),
+      delivery("2026-10-09", [lunch()], { canChange: true, cutoff_at: "2026-10-08T10:00:00Z" }),
+      delivery("2026-10-12", [lunch()], { canChange: true, cutoff_at: "2026-10-09T10:00:00Z" }),
+    ]);
+    expect(upcomingRows(s, at("09:00"), 3).map((r) => r.changeUntil)).toEqual([
+      "hari ini 17.00",
+      "besok 17.00",
+      "Jumat 17.00",
+    ]);
+    expect(upcomingRows(s, at("09:00"), 3, "en").map((r) => r.changeUntil)).toEqual([
+      "today 17.00",
+      "tomorrow 17.00",
+      "Fri 17.00",
+    ]);
+  });
+});
+
+describe("changeDeadline", () => {
+  it("says today, tomorrow, the weekday within a week, else the date", () => {
+    const now = at("09:00");
+    expect(changeDeadline("2026-10-07T10:00:00Z", now, "id")).toBe("hari ini 17.00");
+    expect(changeDeadline("2026-10-08T10:00:00Z", now, "id")).toBe("besok 17.00");
+    expect(changeDeadline("2026-10-13T10:00:00Z", now, "id")).toBe("Selasa 17.00");
+    expect(changeDeadline("2026-10-14T10:00:00Z", now, "id")).toBe("Rabu 14 Okt 17.00");
+    // Jakarta date of the cutoff, not UTC: 23.30 WIB on the 8th is 16.30 UTC on the 8th.
+    expect(changeDeadline("2026-10-08T16:30:00Z", now, "en")).toBe("tomorrow 23.30");
+    expect(changeDeadline("garbage", now, "id")).toBeNull();
   });
 });
 
@@ -247,9 +296,22 @@ describe("renewal", () => {
     expect(renewalDefaults(sub({ ends_on: "2026-10-14" }), offer()).startDate).toBe("2026-10-15");
   });
   it("renewalDue only for active plans with 3 or fewer days left", () => {
-    expect(renewalDue(sub({ remaining: 3 }))).toBe(true);
-    expect(renewalDue(sub({ remaining: 4 }))).toBe(false);
-    expect(renewalDue(sub({ status: "ended", remaining: 1 }))).toBe(false);
+    expect(renewalDue(sub({ remaining: 3 }), [])).toBe(true);
+    expect(renewalDue(sub({ remaining: 4 }), [])).toBe(false);
+    expect(renewalDue(sub({ status: "ended", remaining: 1 }), [])).toBe(false);
+  });
+  it("renewalDue is over once a renewal exists, and never for a trial", () => {
+    const old = sub({ remaining: 2 });
+    const next = sub({ id: "s2", renewed_from: "s1", status: "active", remaining: 5 });
+    // Paid renewal: no second "Perpanjang".
+    expect(renewalDue(old, [old, next])).toBe(false);
+    // A cancelled renewal invites renewing again.
+    expect(renewalDue(old, [old, { ...next, status: "cancelled" }])).toBe(true);
+    // A renewal of some other plan does not count.
+    expect(renewalDue(old, [old, { ...next, renewed_from: "s9" }])).toBe(true);
+    // Trials are not renewed (matches the maintenance reminder).
+    const trial = sub({ remaining: 1, snapshot: { trial: true } as unknown as Subscription["snapshot"] });
+    expect(renewalDue(trial, [trial])).toBe(false);
   });
 });
 

@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
-import { Linking, StyleSheet } from "react-native";
+import { Linking, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { colors } from "@catera/mobile-ui";
@@ -164,6 +164,28 @@ describe("Jadwal", () => {
     expect(screen.queryByText("Dipindah")).toBeNull();
   });
 
+  it("says a meal the caterer could not deliver was not delivered, and gives it no dot", async () => {
+    const failed = stateOf([delivery("d-failed", "2026-10-06", { status: "issue" })]);
+    renderWith(runtimeWith(failed), <Jadwal />);
+    fireEvent.press(await screen.findByRole("button", { name: /^Selasa 6 Oktober/ }));
+    const row = screen.getByRole("button", { name: /Makan Siang Rumahan/ });
+    expect(within(row).getByText(/Tidak bisa diantar/)).toBeTruthy();
+    // Neither "Diantar" nor "Sudah sampai": the day's dot looks like a day without deliveries.
+    const dotOf = (name: string) => {
+      const views = within(screen.getByRole("button", { name })).UNSAFE_getAllByType(View);
+      return StyleSheet.flatten(views[views.length - 1].props.style).backgroundColor;
+    };
+    expect(dotOf("Selasa 6 Oktober")).toBe(dotOf("Senin 5 Oktober"));
+  });
+
+  it("shows a day whose meals list is missing without failing", async () => {
+    const bare = stateOf([{ ...open("d-bare", "2026-10-08"), meals: null } as unknown as Delivery]);
+    renderWith(runtimeWith(bare), <Jadwal />);
+    expect(await screen.findByText("Oktober 2026")).toBeTruthy();
+    fireEvent.press(screen.getByRole("button", { name: "Kamis 8 Oktober" }));
+    expect(screen.getByText("Tidak ada pengantaran di hari ini.")).toBeTruthy();
+  });
+
   it("moves to the next month and loads it", async () => {
     const runtime = runtimeWith(month);
     renderWith(runtime, <Jadwal />);
@@ -188,14 +210,14 @@ describe("Ubah hari sheet", () => {
     renderSheet(fixed, runtimeWith(stateOf([fixed])));
     expect(await screen.findByText("Ganti alamat")).toBeTruthy();
     expect(screen.queryByText("Pindah tanggal")).toBeNull();
-    expect(screen.getByText("Bisa diubah sampai 17.00")).toBeTruthy();
+    expect(screen.getByText("Bisa diubah sampai hari ini 17.00")).toBeTruthy();
   });
 
   it("moves a day with the chosen date", async () => {
     const command = jest.fn(async () => ({}));
     const runtime = runtimeWith(stateOf([flexible]), available, command);
     renderSheet(flexible, runtime);
-    expect(await screen.findByText("Bisa diubah sampai 17.00")).toBeTruthy();
+    expect(await screen.findByText("Bisa diubah sampai hari ini 17.00")).toBeTruthy();
     expect(runtime.api.deliveryAvailability).toHaveBeenCalledWith("d-1", "2026-10-07", "2026-11-06");
     // Unavailable dates are listed and disabled, with the reason.
     expect(await screen.findByText("Katering penuh")).toBeTruthy();
@@ -318,7 +340,16 @@ describe("Hari", () => {
     expect(await screen.findByText(/Makan Siang Rumahan/)).toBeTruthy();
     expect(screen.getByText(/Kamis 8 Okt/)).toBeTruthy();
     fireEvent.press(screen.getByRole("button", { name: "Ubah hari" }));
-    expect(await screen.findByText("Bisa diubah sampai 17.00")).toBeTruthy();
+    expect(await screen.findByText("Bisa diubah sampai hari ini 17.00")).toBeTruthy();
+  });
+});
+
+describe("Hari without a meals list", () => {
+  it("still shows the day", async () => {
+    mockParams = { id: "d-bare" };
+    const bare = { ...open("d-bare", "2026-10-08"), meals: null } as unknown as Delivery;
+    renderWith(runtimeWith(stateOf([bare])), <DayScreen />);
+    expect(await screen.findByText(/Makan Siang Rumahan/)).toBeTruthy();
   });
 });
 

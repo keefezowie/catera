@@ -4,6 +4,7 @@ import {
   addDays,
   availabilityReasonLabel,
   canChangeDay,
+  changeDeadline,
   dayLabel,
   errorLabel,
   jakartaDay,
@@ -54,6 +55,7 @@ export function ChangeDaySheet({
   const today = jakartaDay(opened);
   const can = canChangeDay(delivery, opened);
   const open = can.date || can.address;
+  const deadline = changeDeadline(delivery.cutoff_at, opened, locale) ?? "";
   const [mode, setMode] = useState<Mode>(can.date ? "date" : "address");
   const [target, setTarget] = useState("");
   const [addressId, setAddressId] = useState("");
@@ -126,7 +128,7 @@ export function ChangeDaySheet({
             style={{ color: open ? colors.sunriseInk : colors.charcoal, fontVariant: ["tabular-nums"], marginTop: 4 }}
           >
             {open
-              ? t(`Bisa diubah sampai ${can.until ?? ""}`, `Can be changed until ${can.until ?? ""}`)
+              ? t(`Bisa diubah sampai ${deadline}`, `Can be changed until ${deadline}`)
               : t("Hari ini sudah tidak bisa diubah", "This day can no longer be changed")}
           </Text>
         </View>

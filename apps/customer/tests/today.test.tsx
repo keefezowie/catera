@@ -123,6 +123,30 @@ it("offers Chat katering on the package line only when the read carries the numb
   expect(screen.queryByRole("button", { name: "Chat katering" })).toBeNull();
 });
 
+it("says a meal the caterer could not deliver is not coming, with chat and a report link", async () => {
+  const openUrl = jest.spyOn(Linking, "openURL").mockResolvedValue(true);
+  renderHome(
+    runtimeWith(async () =>
+      customerState({ status: "issue", departed_at: `${TODAY}T03:42:00Z` }, { catererPhone: "+6281200000001" }),
+    ),
+  );
+  expect(await screen.findByText("Tidak bisa diantar hari ini")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Sudah sampai" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Belum" })).toBeNull();
+  // The plate's own chat (the package line has another).
+  fireEvent.press(screen.getAllByRole("button", { name: "Chat katering" })[0]);
+  expect(openUrl).toHaveBeenCalledWith("https://wa.me/6281200000001?text=");
+  fireEvent.press(screen.getByRole("button", { name: "Ada masalah" }));
+  expect(router.push).toHaveBeenCalledWith("/masalah/d-today?meal=lunch");
+});
+
+it("shows each change deadline with its day", async () => {
+  renderHome(runtimeWith(async () => customerState({ status: "scheduled" })));
+  // The day after tomorrow closes tomorrow at 17.00 Jakarta.
+  expect(await screen.findByText("Bisa diubah sampai besok 17.00")).toBeTruthy();
+  expect(screen.queryByText("Bisa diubah sampai 17.00")).toBeNull();
+});
+
 it("lists the next days as rows", async () => {
   renderHome(runtimeWith(async () => customerState({ status: "scheduled" })));
   expect(await screen.findByText(/^Besok, /)).toBeTruthy();
@@ -134,6 +158,15 @@ it("shows the renewal card at three days left", async () => {
   expect(await screen.findByText("Sisa 3 hari")).toBeTruthy();
   fireEvent.press(screen.getByRole("button", { name: "Perpanjang" }));
   expect(router.push).toHaveBeenCalledWith("/renew/s-1");
+});
+
+it("hides the renewal card once the plan has been renewed", async () => {
+  const state = customerState(null, { subscription: { remaining: 2 } });
+  state.subscriptions.push({ ...state.subscriptions[0], id: "s-2", renewed_from: "s-1", remaining: 5 });
+  renderHome(runtimeWith(async () => state));
+  await screen.findAllByText(/hari lagi/);
+  expect(screen.queryByText("Sisa 2 hari")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Perpanjang" })).toBeNull();
 });
 
 it("asks for a review once near the end", async () => {

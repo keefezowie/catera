@@ -171,6 +171,13 @@ describe("Ada masalah", () => {
     expect(screen.queryByText(/^Sekarang:/)).toBeNull();
   });
 
+  it("says the delivery is not found when the read has no meals list", async () => {
+    const state = customerState({ status: "out_for_delivery" });
+    state.deliveries = state.deliveries.map((d) => (d.id === "d-today" ? ({ ...d, meals: null } as unknown as typeof d) : d));
+    renderWith(runtimeWith({ state }), <ReportProblem />);
+    expect(await screen.findByText("Pengantaran tidak ditemukan.")).toBeTruthy();
+  });
+
   it("points to Bantuan when this meal already has a report", async () => {
     const state = customerState({ status: "out_for_delivery", issue: { id: "i-1", status: "open" } });
     renderWith(runtimeWith({ state }), <ReportProblem />);

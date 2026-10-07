@@ -5,6 +5,7 @@ import { router } from "expo-router";
 import { errorLabel, type Plate as PlateData } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
 import { Button, colors, FONT, Text } from "@catera/mobile-ui";
+import { ChatKatering } from "../help/ChatKatering";
 
 const JAKARTA_OFFSET_MS = 7 * 60 * 60 * 1000;
 
@@ -90,6 +91,8 @@ const sentences = (p: PlateData, t: (id: string, en: string) => string): [string
       const at = jakartaClock(p.confirmedAt);
       return [t("Sudah sampai", "Arrived"), at ? t(`pukul ${at}`, `at ${at}`) : ""];
     }
+    case "failed":
+      return [t("Tidak bisa diantar hari ini", "Couldn't be delivered today"), ""];
     case "reported": {
       const status = p.issue?.status;
       return [
@@ -208,6 +211,20 @@ export function Plate({ plate, apiBase, offline }: { plate: PlateData; apiBase: 
                 );
               })}
             </View>
+          </View>
+        ) : null}
+        {plate.state === "failed" ? (
+          <View style={{ gap: 4 }}>
+            <ChatKatering phone={plate.catererPhone} />
+            {!offline ? (
+              <Button
+                variant="text"
+                label={t("Ada masalah", "Report a problem")}
+                onPress={() =>
+                  router.push(`/masalah/${encodeURIComponent(plate.deliveryId)}?meal=${plate.meal}` as never)
+                }
+              />
+            ) : null}
           </View>
         ) : null}
         {plate.state === "reported" ? (

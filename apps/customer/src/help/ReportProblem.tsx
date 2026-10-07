@@ -56,7 +56,7 @@ function Report({ id, meal: wanted, jenis }: { id: string; meal?: string; jenis?
   const d: Delivery | undefined = state.data?.deliveries.find((x) => x.id === id);
 
   // A day with every meal cancelled has nothing to report: say so rather than offer a form that cannot send.
-  if (!d || !d.meals.some((m) => m.status !== "cancelled"))
+  if (!d || !(d.meals ?? []).some((m) => m.status !== "cancelled"))
     return (
       <Screen>
         {state.loading ? (
@@ -73,7 +73,7 @@ function Report({ id, meal: wanted, jenis }: { id: string; meal?: string; jenis?
       </Screen>
     );
 
-  const meals = d.meals.filter((m) => m.status !== "cancelled");
+  const meals = (d.meals ?? []).filter((m) => m.status !== "cancelled");
   const current = meals.find((m) => m.meal === meal) ?? meals[0];
   const caterer = d.offer.caterer;
   const toBantuan = () => router.replace("/bantuan" as never);
