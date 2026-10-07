@@ -6,12 +6,13 @@ import { whatsappUrl } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
 import { Button, Card, Chip, colors, Screen, Text } from "@catera/mobile-ui";
 import { currentSubscription, customerStatus, type CustomerStatus } from "./rules";
+import { loadAllCustomers } from "./load";
 
 /** Every subscriber, marketplace and own, filtered by where their package stands. */
 export function CustomerList() {
   const { runtime, actor, t } = useMobile();
   const id = actor?.catererId ?? "";
-  const list = useData(`customers:${id}`, () => runtime.api.sellerCustomers(id));
+  const list = useData(`customers:${id}`, () => loadAllCustomers(runtime, id));
   const [filter, setFilter] = useState<CustomerStatus>("active");
   const customers = list.data?.customers ?? [];
   const count = (s: CustomerStatus) => customers.filter((c) => customerStatus(c) === s).length;

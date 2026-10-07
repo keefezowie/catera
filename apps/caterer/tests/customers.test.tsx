@@ -128,3 +128,27 @@ it("asks to turn on payments before the first renewal", async () => {
   await waitFor(() => expect(router.push).toHaveBeenCalledWith("/aktifkan"));
   expect(runtime.api.command).not.toHaveBeenCalled();
 });
+
+it("counts every customer of a kitchen with more than one page of them", async () => {
+  const runtime = runtimeWith("approved", true);
+  const many = Array.from({ length: 150 }, (_, i) => customer(`c-${String(i).padStart(3, "0")}`, `Pelanggan ${i}`, [sub(10)]));
+  (runtime.api as { sellerCustomers: jest.Mock }).sellerCustomers = jest.fn(async (_id: string, query = "") => {
+    const offset = Number(new URLSearchParams(query.replace(/^\?/, "")).get("offset") ?? 0);
+    return { customers: many.slice(offset, offset + 100), total: 150, packages: [] };
+  });
+  wrap(runtime, <CustomerList />);
+  expect(await screen.findByText("Aktif · 150")).toBeTruthy();
+});
+
+it("opens a customer's own record with their delivery schedule", async () => {
+  const runtime = runtimeWith("approved", true);
+  const detailed = customer("c-01", "Andre Kusuma", [
+    { ...sub(2), deliveries: [{ id: "d-1", service_date: "2026-10-08", status: "scheduled" }] as never },
+  ]);
+  (runtime.api as { sellerCustomers: jest.Mock }).sellerCustomers = jest.fn(async (_id: string, query = "") =>
+    query.includes("customerRecordId=c-01") ? { customers: [detailed], total: 1, packages: [] } : { customers: [], total: 0, packages: [] },
+  );
+  wrap(runtime, <CustomerDetail id="c-01" />);
+  expect(await screen.findByText("2026-10-08")).toBeTruthy();
+  expect(screen.getByText("Jadwal")).toBeTruthy();
+});

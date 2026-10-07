@@ -6,17 +6,18 @@ import { useData, useMobile } from "@catera/mobile-core";
 import { Button, Card, colors, Screen, Text } from "@catera/mobile-ui";
 import { currentSubscription, renewalAction } from "./rules";
 import { usePaymentsActive } from "./usePayments";
+import { loadCustomer } from "./load";
 
 /** One customer: when their package ends, how to reach them, and the renewal link. */
 export function CustomerDetail({ id }: { id: string }) {
   const { runtime, actor, t, locale, command } = useMobile();
   const catererId = actor?.catererId ?? "";
-  const list = useData(`customers:${catererId}`, () => runtime.api.sellerCustomers(catererId));
+  const record = useData(`customer:${catererId}:${id}`, () => loadCustomer(runtime, catererId, id));
   const payments = usePaymentsActive();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const c = list.data?.customers.find((x) => x.id === id);
-  if (!c) return <Screen>{list.error ? <Text style={{ color: colors.danger }}>{list.error}</Text> : <Text variant="caption">{t("Memuat…", "Loading…")}</Text>}</Screen>;
+  const c = record.data;
+  if (!c) return <Screen>{record.error ? <Text style={{ color: colors.danger }}>{record.error}</Text> : <Text variant="caption">{t("Memuat…", "Loading…")}</Text>}</Screen>;
   const s = currentSubscription(c);
   const action = renewalAction(c);
 
