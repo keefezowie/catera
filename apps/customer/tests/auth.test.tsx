@@ -92,6 +92,11 @@ test("returns to Bantuan and to a report with its query", () => {
   expect(nativeReturnPath("/masalah/d-1?meal=lunch&jenis=belum")).toBe("/masalah/d-1?meal=lunch&jenis=belum");
 });
 
+test("an old /support return lands on Bantuan", () => {
+  expect(nativeReturnPath("/support")).toBe("/bantuan");
+  expect(nativeReturnPath("/support?checkoutId=ck-1")).toBe("/bantuan?checkoutId=ck-1");
+});
+
 test("customer returns to checkout; operational roles land on the account workspace handoff", () => {
   expect(
     nativeSignInPath(

@@ -55,7 +55,8 @@ function Report({ id, meal: wanted, jenis }: { id: string; meal?: string; jenis?
   const [sent, setSent] = useState(false);
   const d: Delivery | undefined = state.data?.deliveries.find((x) => x.id === id);
 
-  if (!d)
+  // A day with every meal cancelled has nothing to report: say so rather than offer a form that cannot send.
+  if (!d || !d.meals.some((m) => m.status !== "cancelled"))
     return (
       <Screen>
         {state.loading ? (

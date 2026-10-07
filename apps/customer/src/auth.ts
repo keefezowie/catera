@@ -58,6 +58,8 @@ export function nativeReturnPath(value?: string): string {
       )
     )
       return "/";
+    // The old support screen is Bantuan dan laporan now.
+    if (url.pathname === "/support") return "/bantuan" + url.search;
     return url.pathname + url.search;
   } catch {
     return "/";

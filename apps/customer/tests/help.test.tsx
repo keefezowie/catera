@@ -6,6 +6,7 @@ import type { CustomerActionItem, CustomerState, SupportCase } from "@catera/dom
 import { ReportProblem } from "../src/help/ReportProblem";
 import { ReportList } from "../src/help/ReportList";
 import { customerLink } from "../src/links";
+import { colors } from "@catera/mobile-ui";
 import { customerState, TODAY } from "./fixtures";
 
 let mockParams: Record<string, string> = {};
@@ -41,6 +42,7 @@ type Issue = {
   meal: "lunch" | "dinner";
   subject: string;
   service_date: string;
+  created_at: string;
   package_name: string;
   events: { id: string; action: string; body: string; created_at: string }[];
 };
@@ -52,6 +54,7 @@ const issue = (extra: Partial<Issue> = {}): Issue => ({
   meal: "lunch",
   subject: "Belum sampai",
   service_date: TODAY,
+  created_at: `${TODAY}T05:00:00Z`,
   package_name: "Makan Siang Rumahan",
   events: [{ id: "e-1", action: "deliveryIssue.create", body: "Belum datang", created_at: `${TODAY}T05:00:00Z` }],
   ...extra,
@@ -310,6 +313,236 @@ describe("Bantuan dan laporan", () => {
     renderWith(runtime, <ReportList />);
     fireEvent.press(await screen.findByRole("button", { name: "Masuk" }));
     expect(router.push).toHaveBeenCalledWith({ pathname: "/login", params: { next: "/bantuan" } });
+  });
+});
+
+describe("Bantuan: asking Catera to review an ignored report", () => {
+  // 10.00 in Jakarta on Wednesday 7 October 2026. Only Date is frozen so async code keeps working.
+  beforeAll(() => {
+    jest.useFakeTimers({
+      now: new Date("2026-10-07T03:00:00Z"),
+      doNotFake: [
+        "nextTick",
+        "setImmediate",
+        "clearImmediate",
+        "setInterval",
+        "clearInterval",
+        "setTimeout",
+        "clearTimeout",
+        "queueMicrotask",
+        "requestAnimationFrame",
+        "cancelAnimationFrame",
+        "requestIdleCallback",
+        "cancelIdleCallback",
+        "performance",
+        "hrtime",
+      ],
+    });
+  });
+  afterAll(() => jest.useRealTimers());
+  beforeEach(() => jest.setSystemTime(new Date("2026-10-07T03:00:00Z")));
+
+  it("holds an open report until 12.00 the day after it was sent, and says so", async () => {
+    // Sent 9.00 on the 7th: ready from 12.00 on the 8th.
+    renderWith(runtimeWith({ issues: [issue({ status: "open", created_at: "2026-10-07T02:00:00Z" })] }), <ReportList />);
+    expect(await screen.findByText("Bisa minta Catera meninjau mulai besok 12.00")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Minta Catera meninjau" })).toBeNull();
+  });
+
+  it("names today when the wait ends at noon today", async () => {
+    // Sent on the 6th: ready 12.00 on the 7th, and it is 10.00.
+    renderWith(runtimeWith({ issues: [issue({ status: "open", created_at: "2026-10-06T02:00:00Z" })] }), <ReportList />);
+    expect(await screen.findByText("Bisa minta Catera meninjau hari ini 12.00")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Minta Catera meninjau" })).toBeNull();
+  });
+
+  it("offers review of an open report after 12.00 Jakarta the next day, with its version", async () => {
+    const command = jest.fn(async () => ({}));
+    // Sent 23.30 Jakarta on the 6th (16.30Z); at 12.00 on the 7th it is ready. Now 12.01.
+    jest.setSystemTime(new Date("2026-10-07T05:01:00Z"));
+    renderWith(
+      runtimeWith({ command, issues: [issue({ status: "open", version: 3, created_at: "2026-10-06T16:30:00Z" })] }),
+      <ReportList />,
+    );
+    fireEvent.press(await screen.findByRole("button", { name: "Minta Catera meninjau" }));
+    fireEvent.changeText(screen.getByLabelText("Apa yang belum beres?"), "Belum ada balasan sama sekali");
+    fireEvent.press(screen.getByRole("button", { name: "Kirim ke Catera" }));
+    await waitFor(() =>
+      expect(command).toHaveBeenCalledWith(
+        "deliveryIssue.escalate",
+        { id: "i-1", version: 3, body: "Belum ada balasan sama sekali" },
+        expect.any(String),
+      ),
+    );
+  });
+
+  it("counts the day in Jakarta, not in UTC", async () => {
+    // Sent 23.30 Jakarta on the 6th. 12.00 Jakarta on the 7th is 05.00Z, so at 04.59Z it is not yet.
+    jest.setSystemTime(new Date("2026-10-07T04:59:00Z"));
+    renderWith(runtimeWith({ issues: [issue({ status: "open", created_at: "2026-10-06T16:30:00Z" })] }), <ReportList />);
+    expect(await screen.findByText("Bisa minta Catera meninjau hari ini 12.00")).toBeTruthy();
+  });
+
+  it("lets a replied report go to Catera at any time", async () => {
+    renderWith(
+      runtimeWith({
+        issues: [issue({ status: "responded", created_at: "2026-10-07T02:30:00Z", events: [...issue().events, reply] })],
+      }),
+      <ReportList />,
+    );
+    expect(await screen.findByRole("button", { name: "Minta Catera meninjau" })).toBeTruthy();
+    expect(screen.queryByText(/mulai besok 12\.00/)).toBeNull();
+  });
+});
+
+describe("Bantuan: Minta bantuan", () => {
+  it("sends a cancellation request for the subscription and lists the new case as Terkirim", async () => {
+    const state = customerState(null);
+    const command = jest.fn(async (action: string, payload: any) => {
+      if (action === "support.create")
+        state.cases = [
+          {
+            id: "c-new",
+            subject: payload.subject,
+            description: payload.description,
+            status: "open",
+            resolution: null,
+            amount: null,
+          } as unknown as SupportCase,
+        ];
+      return { id: "c-new" };
+    });
+    renderWith(runtimeWith({ state, command }), <ReportList />);
+    fireEvent.press(await screen.findByRole("button", { name: "Minta bantuan" }));
+    for (const topic of ["Pembatalan", "Pembayaran", "Lainnya"]) expect(screen.getByRole("tab", { name: topic })).toBeTruthy();
+    fireEvent.press(screen.getByRole("tab", { name: "Pembatalan" }));
+    expect(screen.getByRole("button", { name: "Kirim permintaan" }).props.accessibilityState.disabled).toBe(true);
+    fireEvent.changeText(screen.getByLabelText("Ceritakan kendalanya"), "Saya pindah kota, mohon dibatalkan");
+    fireEvent.press(screen.getByRole("button", { name: "Kirim permintaan" }));
+    await waitFor(() =>
+      expect(command).toHaveBeenCalledWith(
+        "support.create",
+        { subscriptionId: "s-1", subject: "Pembatalan", description: "Saya pindah kota, mohon dibatalkan" },
+        expect.any(String),
+      ),
+    );
+    expect(await screen.findByText("Terkirim")).toBeTruthy();
+    expect(screen.getByText("Pembatalan", { exact: true })).toBeTruthy();
+    // The form closes after sending.
+    expect(screen.queryByLabelText("Ceritakan kendalanya")).toBeNull();
+  });
+
+  it("keeps the form when sending fails", async () => {
+    const command = jest.fn(async () => {
+      throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
+    });
+    renderWith(runtimeWith({ state: customerState(null), command }), <ReportList />);
+    fireEvent.press(await screen.findByRole("button", { name: "Minta bantuan" }));
+    fireEvent.press(screen.getByRole("tab", { name: "Lainnya" }));
+    fireEvent.changeText(screen.getByLabelText("Ceritakan kendalanya"), "Pertanyaan soal paket");
+    fireEvent.press(screen.getByRole("button", { name: "Kirim permintaan" }));
+    await waitFor(() => expect(command).toHaveBeenCalledTimes(1));
+    expect(await screen.findByLabelText("Ceritakan kendalanya")).toBeTruthy();
+  });
+
+  it("asks which package when there are several", async () => {
+    const state = customerState(null);
+    const first = state.subscriptions[0];
+    state.subscriptions = [
+      first,
+      { ...first, id: "s-2", snapshot: { ...first.snapshot, offer: { ...first.snapshot.offer, name: "Makan Malam Sehat" } } },
+    ];
+    const command = jest.fn(async () => ({}));
+    renderWith(runtimeWith({ state, command }), <ReportList />);
+    fireEvent.press(await screen.findByRole("button", { name: "Minta bantuan" }));
+    fireEvent.press(screen.getByRole("button", { name: "Makan Malam Sehat" }));
+    fireEvent.press(screen.getByRole("tab", { name: "Pembayaran" }));
+    fireEvent.changeText(screen.getByLabelText("Ceritakan kendalanya"), "Sudah bayar tapi belum aktif");
+    fireEvent.press(screen.getByRole("button", { name: "Kirim permintaan" }));
+    await waitFor(() =>
+      expect(command).toHaveBeenCalledWith(
+        "support.create",
+        { subscriptionId: "s-2", subject: "Pembayaran", description: "Sudah bayar tapi belum aktif" },
+        expect.any(String),
+      ),
+    );
+  });
+
+  it("has no package to ask about without a subscription", async () => {
+    renderWith(runtimeWith({ state: { ...customerState(null), subscriptions: [] } }), <ReportList />);
+    await screen.findByText("Belum ada laporan.");
+    expect(screen.queryByRole("button", { name: "Minta bantuan" })).toBeNull();
+  });
+});
+
+describe("Bantuan: payment help from a checkout", () => {
+  const feedItem = (id: string, status: string) =>
+    ({
+      id: "payment-" + id,
+      kind: "payment_action",
+      status,
+      priority: 1,
+      packageName: "Paket " + id,
+      catererName: "Dapur Contoh",
+      href: "/payment/" + id,
+    }) as CustomerActionItem;
+
+  it.each(["awaiting_payment", "checking_payment", "choose_method", "payment_exception"])(
+    "shows the checkout from the link in %s",
+    async (status) => {
+      mockParams = { checkoutId: "ck-9", catererId: "k-1" };
+      renderWith(runtimeWith({ actions: [feedItem("ck-9", status), feedItem("ck-1", "awaiting_payment")] }), <ReportList />);
+      expect(await screen.findByText(/Paket ck-9/)).toBeTruthy();
+      expect(screen.queryByText(/Paket ck-1/)).toBeNull();
+      fireEvent.press(screen.getByRole("button", { name: "Buka pembayaran" }));
+      expect(router.push).toHaveBeenCalledWith("/payment/ck-9");
+    },
+  );
+
+  it("still offers the payment screen when the checkout has left the feed (failed or expired)", async () => {
+    mockParams = { checkoutId: "ck-7" };
+    renderWith(runtimeWith({ actions: [] }), <ReportList />);
+    expect(await screen.findByText("Pembayaran belum selesai")).toBeTruthy();
+    fireEvent.press(screen.getByRole("button", { name: "Buka pembayaran" }));
+    expect(router.push).toHaveBeenCalledWith("/payment/ck-7");
+  });
+
+  it("without a link shows every checkout waiting for payment", async () => {
+    renderWith(
+      runtimeWith({ actions: [feedItem("ck-1", "awaiting_payment"), feedItem("ck-2", "awaiting_payment")] }),
+      <ReportList />,
+    );
+    await screen.findByText(/Paket ck-1/);
+    expect(screen.getAllByRole("button", { name: "Buka pembayaran" })).toHaveLength(2);
+  });
+});
+
+describe("Ada masalah without a reportable meal", () => {
+  it("says the delivery was not found, with no form", async () => {
+    mockParams = { id: "d-today", meal: "lunch", jenis: "belum" };
+    renderWith(runtimeWith({ state: customerState({ status: "cancelled" }) }), <ReportProblem />);
+    expect(await screen.findByText("Pengantaran tidak ditemukan.")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Kirim laporan" })).toBeNull();
+    expect(screen.queryByRole("radio")).toBeNull();
+  });
+});
+
+describe("status pill colours", () => {
+  it("uses Sunrise ink only for the reply that needs the customer", async () => {
+    renderWith(
+      runtimeWith({
+        issues: [
+          issue({ id: "i-1", status: "open" }),
+          issue({ id: "i-2", status: "responded", events: [...issue().events, reply] }),
+          issue({ id: "i-3", status: "escalated", case_id: "c-3" }),
+          issue({ id: "i-4", status: "resolved" }),
+        ],
+      }),
+      <ReportList />,
+    );
+    const colour = async (word: string) => StyleSheet.flatten((await screen.findByText(word)).props.style).color;
+    expect(await colour("Dibalas")).toBe(colors.sunriseInk);
+    for (const word of ["Terkirim", "Ditinjau Catera", "Selesai"]) expect(await colour(word)).toBe(colors.charcoal);
   });
 });
 
