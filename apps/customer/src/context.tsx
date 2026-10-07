@@ -14,8 +14,6 @@ import * as Crypto from "expo-crypto";
 import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
 import { router } from "expo-router";
-import { createClient } from "@supabase/supabase-js";
-import { createApi } from "@catera/api-client";
 import {
   type Actor,
   type Offer,
@@ -23,43 +21,12 @@ import {
   errorLabel,
 } from "@catera/domain";
 import { signInNative, nativeReturnPath } from "./auth";
-export const apiBase = (process.env.EXPO_PUBLIC_API_URL || "")
-  .trim()
-  .replace(/\/+$/, "");
-const storage = {
-  getItem: (key: string) => SecureStore.getItemAsync(key),
-  setItem: (key: string, v: string) => SecureStore.setItemAsync(key, v),
-  removeItem: (key: string) => SecureStore.deleteItemAsync(key),
-};
-export const supabase =
-  process.env.EXPO_PUBLIC_SUPABASE_URL &&
-  process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-    ? createClient(
-        process.env.EXPO_PUBLIC_SUPABASE_URL,
-        process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
-        {
-          auth: {
-            storage,
-            autoRefreshToken: true,
-            persistSession: true,
-            detectSessionInUrl: false,
-            flowType: "pkce",
-          },
-        },
-      )
-    : null;
-export const nativeApi = createApi(
-  apiBase,
-  async () => {
-    const token = await SecureStore.getItemAsync("catera.demo.token");
-    return (
-      token ||
-      (await supabase?.auth.getSession())?.data.session?.access_token ||
-      null
-    );
-  },
-  { timeoutMs: 15_000 },
-);
+import { runtime } from "./runtime";
+// One Supabase client and API for the whole app: the old screens share the new
+// runtime, so a sign-in or token refresh on either side is seen by both.
+export const apiBase = runtime.apiBase;
+export const supabase = runtime.supabase;
+export const nativeApi = runtime.api;
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowBanner: true,
