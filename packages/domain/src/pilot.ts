@@ -174,6 +174,13 @@ export function normalizeCustomerPhone(value: string) {
   if (!/^\+62\d{8,13}$/.test(result)) throw new Error("PHONE");
   return result;
 }
+/** "+6281234500001" as people write it: "0812-3450-0001". */
+export function localCustomerPhone(e164: string) {
+  const local = e164.startsWith("+62") ? "0" + e164.slice(3) : e164;
+  return [local.slice(0, 4), local.slice(4, 8), local.slice(8)]
+    .filter(Boolean)
+    .join("-");
+}
 /** Quoted CSV and Excel TSV; never evaluates formula cells. */
 export function parsePilotTable(text: string): Record<string, string>[] {
   if (text.length > 140000) throw new Error("IMPORT_LIMIT");

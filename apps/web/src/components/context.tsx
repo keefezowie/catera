@@ -85,6 +85,7 @@ const actionMessages: Record<string, [string, string]> = {
     "Verification decision saved.",
   ],
   "address.save": ["Alamat tersimpan.", "Address saved."],
+  "customer.claim": ["Langganan tersambung.", "Subscription connected."],
 };
 type Context = {
   actor: Actor | null;

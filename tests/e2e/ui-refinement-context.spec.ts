@@ -123,55 +123,67 @@ for (const locale of ["id", "en"] as const) {
         ).toBe(true);
       });
 
-      test(`${locale} ${width}: claim phone verification and both result states remain grouped and usable`, async ({
+      test(`${locale} ${width}: claim shows the package first, verifies the phone and keeps both results readable`, async ({
         page,
       }) => {
         await login(page, "customer");
         let result = "review";
-        await page.route("**/api/v1/auth/phone-*", (route) =>
-          route.fulfill({ json: { data: { sent: true } } }),
+        let verified = false;
+        // Synthetic preview: the demo database holds no claim link for this token.
+        await page.route("**/api/v1/claim-preview/**", (route) =>
+          route.fulfill({
+            json: {
+              data: {
+                catererName: "Dapur Contoh",
+                packageName: "Makan Siang Rumahan",
+                remainingDays: 9,
+                nextDate: addDays(localDay(), 1),
+                nextWindow: "11.00–13.00",
+                addressLabel: "Kantor Sudirman",
+                maskedPhone: "0812-•••-0001",
+              },
+            },
+          }),
         );
+        await page.route("**/api/v1/auth/phone-*", (route) => {
+          if (route.request().url().endsWith("phone-verify")) verified = true;
+          return route.fulfill({ json: { data: { sent: true } } });
+        });
         await page.route("**/api/v1/commands", (route) => {
-          if (route.request().postDataJSON().action === "customer.claim")
-            return route.fulfill({ json: { data: { status: result } } });
-          return route.continue();
+          if (route.request().postDataJSON().action !== "customer.claim")
+            return route.continue();
+          return verified
+            ? route.fulfill({ json: { data: { status: result } } })
+            : route.fulfill({
+                status: 403,
+                json: { error: { code: "PHONE_VERIFICATION_REQUIRED" } },
+              });
         });
         await page.goto("/claim/synthetic-context-refinement");
-        const disclosure = page.locator(".panel > .disclosure");
-        await disclosure.locator("summary").focus();
-        await page.keyboard.press("Enter");
+        const claim = page.locator("section.claim");
+        await expect(claim).toContainText(t("Dari Dapur Contoh", "From Dapur Contoh"));
+        await expect(page.locator('section.claim input[type="tel"]')).toHaveCount(0);
+        await containedText(claim);
+        const next = t("Lanjut dengan 0812-•••-0001", "Continue with 0812-•••-0001");
+        await page.getByRole("button", { name: next, exact: true }).click();
         await page
-          .getByLabel(t("Nomor telepon", "Phone number"), { exact: true })
-          .fill("081234567890");
+          .getByLabel(t("Nomor HP", "Phone number"), { exact: true })
+          .fill("081234500001");
+        await page
+          .getByRole("button", { name: t("Kirim kode", "Send code"), exact: true })
+          .click();
+        await page.getByLabel(t("Kode", "Code"), { exact: true }).fill("123456");
+        await containedText(claim);
         await page
           .getByRole("button", {
-            name: t("Kirim kode verifikasi", "Send verification code"),
+            name: t("Sambungkan langganan", "Connect subscription"),
             exact: true,
           })
           .click();
-        await page
-          .getByLabel(t("Kode verifikasi", "Verification code"), {
-            exact: true,
-          })
-          .fill("123456");
-        await page
-          .getByRole("button", {
-            name: t("Verifikasi nomor", "Verify phone"),
-            exact: true,
-          })
-          .click();
-        await expect(disclosure.getByRole("status")).toContainText(
-          t("Nomor terverifikasi", "Phone verified"),
+        const notice = page.locator("section.claim > .notice[role=status]");
+        await expect(notice).toContainText(
+          t("perlu memeriksa", "needs to check"),
         );
-        await containedText(disclosure);
-        await page
-          .getByRole("button", {
-            name: t("Hubungkan langganan", "Connect subscription"),
-            exact: true,
-          })
-          .click();
-        const notice = page.locator(".panel > .notice[role=status]");
-        await expect(notice).toContainText(t("perlu ditinjau", "needs review"));
         await containedText(notice);
         await page.screenshot({
           path: `${evidence}/claim-review-${locale}-${width}.png`,
@@ -179,22 +191,20 @@ for (const locale of ["id", "en"] as const) {
         });
         result = "claimed";
         await page.reload();
-        await page
-          .getByRole("button", {
-            name: t("Hubungkan langganan", "Connect subscription"),
-            exact: true,
-          })
-          .click();
-        await expect(notice).toContainText(
-          t("Langganan sudah terhubung", "Your subscription is connected"),
+        await page.getByRole("button", { name: next, exact: true }).click();
+        await expect(page.locator("section.claim h1")).toContainText(
+          t("Tersambung", "Connected"),
         );
         await expect(
           page.getByRole("link", {
-            name: t("Lihat jadwal saya", "View my schedule"),
+            name: t(
+              "Lihat jadwal di browser saja",
+              "Just view the schedule in the browser",
+            ),
             exact: true,
           }),
         ).toHaveAttribute("href", "/home");
-        await containedText(notice);
+        await containedText(claim);
         expect(
           await page.evaluate(
             () => document.documentElement.scrollWidth <= innerWidth,

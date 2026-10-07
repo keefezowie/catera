@@ -9,3 +9,33 @@
 .pilot-template { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .8rem; }
 .pilot-workspace .action-row { flex-wrap: wrap; }
 @media (max-width: 600px) { .pilot-workspace .ops-metrics { grid-template-columns: 1fr 1fr; } }
+/* Claim link (/claim/<token>): the package first, then the SMS code, then the next days. */
+.claim { display: grid; gap: 20px; color: var(--forest); }
+.claim h1 { margin: 0; font-size: 28px; line-height: 1.15; font-weight: 800; letter-spacing: -.5px; color: var(--forest); }
+.claim-intro { display: grid; gap: 8px; }
+.claim-intro p { margin: 0; font-size: 15px; line-height: 1.55; color: var(--ink); }
+.claim-intro .claim-from { font-size: 14px; font-weight: 700; color: var(--sunrise-ink); }
+.claim-card { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); box-shadow: 0 8px 22px rgba(22, 61, 46, .08); }
+.claim-card > strong { font-size: 18px; font-weight: 800; }
+.claim-card dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; font-size: 14px; }
+.claim-card dt { color: var(--muted); }
+.claim-card dd { margin: 0; font-weight: 700; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.claim .form { margin: 0; }
+.claim-actions { display: grid; gap: 10px; }
+.claim-actions .form-submit { width: 100%; min-height: 54px; }
+.claim-hint { margin: 0; font-size: 13px; line-height: 1.5; color: var(--muted); text-align: center; }
+.claim-done { display: flex; gap: 14px; align-items: center; }
+.claim-done h1 { font-size: 24px; }
+.claim-done span:not(.claim-check) { font-size: 14px; color: var(--muted); }
+.claim-check { flex-shrink: 0; width: 48px; height: 48px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; background: var(--forest); color: var(--cream); }
+.claim-days { list-style: none; margin: 0; padding: 0; }
+.claim-days li { min-height: 56px; display: grid; align-content: center; gap: 2px; border-bottom: 1px solid var(--line); }
+.claim-days li:last-child { border-bottom: 0; }
+.claim-days strong { font-size: 16px; }
+.claim-days span { font-size: 13px; color: var(--muted); }
+.claim-app { display: grid; gap: 12px; padding: 18px; border-radius: 20px; background: var(--soft); }
+.claim-app > div { display: flex; gap: 12px; align-items: center; }
+.claim-app img { width: 52px; height: 52px; object-fit: contain; flex-shrink: 0; }
+.claim-app p { margin: 0; display: grid; gap: 3px; font-size: 13px; line-height: 1.45; color: var(--ink); }
+.claim-app p strong { font-size: 16px; color: var(--forest); }
+.claim-browser { justify-self: center; min-height: 48px; display: inline-flex; align-items: center; font-size: 15px; font-weight: 700; color: var(--forest); }

@@ -107,12 +107,13 @@ export default async function Page({
     jar.get(workspaceCookieName)?.value,
   );
   if (path.length === 0 && workspace === "caterer") redirect("/seller");
+  // /claim is open without a session: the link's holder sees the package first and
+  // signs in with the SMS code there (spec §5.1).
   if (
     [
       "checkout",
       "saved",
       "renew",
-      "claim",
       "payment",
       "home",
       "calendar",

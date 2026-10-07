@@ -36,6 +36,15 @@ The standalone APK contains the `EXPO_PUBLIC_*` values from build time. After ch
 
 Startup API requests, including saved-session restoration, time out after 15 seconds and show a connection error with Retry. Retrying does not erase the stored session. An expired session that signs out during startup triggers a fresh guest read. The GitHub APK workflow checks both public API endpoints before submitting a build to EAS, so an offline tunnel or incompatible endpoint fails before producing another APK.
 
+
+## Claim and renew links
+
+Caterers send `https://<web host>/claim/<token>` (and later `/renew/<id>`). Without the app the web page handles it; with the app installed, Android App Links and iOS universal links open `app/claim/[token].tsx`.
+
+- App build: set `EXPO_PUBLIC_CATERA_WEB_HOST` (host only, for example `catera.example`). `app.config.ts` then adds the Android `intentFilters` (`autoVerify`, `/claim/` and `/renew/`) and the iOS `associatedDomains`. Unset, the build has no app links and the URLs open in the browser.
+- Web deployment: `/.well-known/assetlinks.json` and `/.well-known/apple-app-site-association` are generated per request from `CATERA_ANDROID_SHA256` (comma-separated signing-certificate SHA-256 fingerprints) and `CATERA_APPLE_TEAM_ID`. Unset, they serve an empty list and an association with no apps, so nothing is claimed. Never commit real fingerprints or team ids.
+- `NEXT_PUBLIC_CATERA_ANDROID_URL` (web) shows "Pasang aplikasi" after a web claim; unset, the card is hidden.
+
 ## Resume the phone APK build
 
 Use the `v1` branch. The `preview` profile in `eas.json` produces a standalone Android APK with bundled JavaScript, rather than an Expo development client.

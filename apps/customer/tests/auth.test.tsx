@@ -109,3 +109,22 @@ test("customer returns to checkout; operational roles land on the account worksp
       "/account",
     );
 });
+
+test("nativeReturnPath accepts the new routes and rejects others", () => {
+  for (const path of [
+    "/claim/abc",
+    "/renew/sub-1",
+    "/hari/d-1",
+    "/masalah/d-1",
+    "/bayar/ck-1",
+    "/paket/makan-siang",
+    "/beli/p-1?portions=2",
+    "/jadwal",
+    "/jelajah",
+    "/akun",
+    "/bantuan",
+  ])
+    expect(nativeReturnPath(path)).toBe(path);
+  for (const path of ["/admin", "/claim", "/claim/a/b", "/renew/", "/akun/x", "/seller/today"])
+    expect(nativeReturnPath(path)).toBe("/");
+});
