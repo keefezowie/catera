@@ -150,7 +150,8 @@ it("renews once at three days left after 09.00", async () => {
   );
   for (const d of days.slice(0, days.length - 3))
     await q("update v1.delivery_days set status='cancelled' where id=$1", [d.id]);
-  const dedupe = "renew3:" + both[0].subscription_id;
+  // The key the daily maintenance reminder uses too: a customer gets one renewal push.
+  const dedupe = "renew-" + both[0].subscription_id;
   const input = { today: start, hour: 8 };
   expect(await system("subscription.remindRenewal", input)).toEqual({ queued: 0 });
   expect(await q("select 1 from v1.outbox where dedupe=$1", [dedupe])).toHaveLength(0);
@@ -162,7 +163,51 @@ it("renews once at three days left after 09.00", async () => {
   expect(rows[0].payload.userId).toBe(U.customer);
   expect(rows[0].payload.body).toMatch(/^Paket .+ tinggal 3 hari\. Perpanjang tanpa jeda\.$/);
   // Other subscriptions still have more than three days left.
-  expect(await q("select 1 from v1.outbox where dedupe like 'renew3:%'")).toHaveLength(1);
+  expect(await q("select 1 from v1.outbox where dedupe like 'renew%'")).toHaveLength(1);
+  // The daily maintenance run at two days left adds no second push for the same package.
+  await q("update v1.delivery_days set status='cancelled' where id=(select id from v1.delivery_days where subscription_id=$1 and status not in ('delivered','cancelled') order by service_date limit 1)", [
+    both[0].subscription_id,
+  ]);
+  await system("maintenance");
+  expect(
+    await q("select 1 from v1.notifications where kind='renewal' and href like '%'||$1", [both[0].subscription_id]),
+  ).toHaveLength(1);
+  expect(await q("select 1 from v1.outbox where dedupe=$1", [dedupe])).toHaveLength(1);
+});
+
+it("sends no renewal push to a package the daily maintenance already told", async () => {
+  const sub = lunch[0].subscription_id;
+  await onlyActive(sub);
+  await q("update v1.delivery_days set status='cancelled' where subscription_id=$1 and status<>'delivered'", [sub]);
+  const open = await q<{ id: string }>("select id from v1.delivery_days where subscription_id=$1 order by service_date", [sub]);
+  // Two open days: maintenance tells the customer.
+  for (const d of open.slice(-2)) await q("update v1.delivery_days set status='scheduled' where id=$1", [d.id]);
+  await system("maintenance");
+  expect(await q("select 1 from v1.notifications where kind='renewal' and href like '%'||$1", [sub])).toHaveLength(1);
+  // Back at three open days, the new reminder stays silent.
+  await q("update v1.delivery_days set status='scheduled' where id=$1", [open[open.length - 3].id]);
+  expect(await system("subscription.remindRenewal", { today: start, hour: 12 })).toEqual({ queued: 0 });
+  expect(await q("select kind from v1.outbox where dedupe=$1", ["renew-" + sub])).toEqual([{ kind: "reminder.record" }]);
+});
+
+it("removes a queued arrival reminder when the customer files a report", async () => {
+  const day = await prepare(lunch[4], today, "scheduled");
+  expect(await remindDue(at(today, "14:00"))).toEqual({ queued: 1 });
+  expect(await arrival(day.id)).toHaveLength(1);
+  await cmd("deliveryIssue.create", {
+    deliveryId: day.id,
+    meal: "lunch",
+    subject: "Belum sampai",
+    body: "Sudah lewat jam makan",
+  });
+  expect(await arrival(day.id)).toHaveLength(0);
+  expect(await remindDue(at(today, "14:30"))).toEqual({ queued: 0 });
+  // A reminder that was already sent stays a record: nothing to delete.
+  const other = await prepare(hijau[2], today, "scheduled");
+  expect(await remindDue(at(today, "14:40"))).toEqual({ queued: 1 });
+  await q("update v1.outbox set processed_at=now() where dedupe=$1", ["arrive:" + other.id + ":lunch"]);
+  await cmd("deliveryIssue.create", { deliveryId: other.id, meal: "lunch", subject: "Belum sampai", body: "Terlambat" });
+  expect(await arrival(other.id)).toHaveLength(1);
 });
 
 it("does not remind a renewal before the subscription starts", async () => {

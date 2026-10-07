@@ -11,6 +11,7 @@ import {
   type AttentionCursor,
 } from "@/lib/attention-cursor";
 import { cookies } from "next/headers";
+import { after } from "next/server";
 import { z } from "zod";
 import {
   enrichDirectCheckout,
@@ -677,16 +678,19 @@ export async function POST(request: Request, context: Context) {
           /* Durable outbox retries the same idempotent session. The reservation stays visible. */
         }
       }
-      // Commands that tell the customer something go out at once instead of waiting for the next
-      // timed run. The command has already committed: a failure here never changes its response.
+      // Commands that tell the customer something send their pushes right away, but only after the
+      // response: the command has committed, and a slow push service must never hold or fail it.
       if (immediatePush.has(command.action)) {
-        try {
-          await dispatchPushes({ limit: 50 });
-        } catch {
-          console.warn(
-            JSON.stringify({ event: "catera.push.immediate_failed", action: command.action }),
-          );
-        }
+        const action = command.action;
+        after(async () => {
+          try {
+            await dispatchPushes({ limit: 20 });
+          } catch {
+            console.warn(
+              JSON.stringify({ event: "catera.push.immediate_failed", action }),
+            );
+          }
+        });
       }
       return ok(result);
     }

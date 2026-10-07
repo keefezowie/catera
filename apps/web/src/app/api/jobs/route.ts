@@ -105,7 +105,8 @@ export async function GET(request: Request) {
             status: "pending",
           });
         }
-      } else if (job.kind === "split.reconcile") continue; // Remains visible until an explicit admin reconciliation.
+      } else if (job.kind === "push") continue; // Pushes are sent by dispatchPushes; never complete one unsent.
+      else if (job.kind === "split.reconcile") continue; // Remains visible until an explicit admin reconciliation.
       await system("outbox.complete", { id: job.id });
       done++;
     } catch (error) {
@@ -116,8 +117,11 @@ export async function GET(request: Request) {
     }
   }
   // Pushes have their own claim; the timed worker (/api/jobs/push) sends them as well.
-  const pushes = await dispatchPushes({ limit: 100 });
-  done += pushes.sent;
+  try {
+    done += (await dispatchPushes({ limit: 100 })).sent;
+  } catch {
+    console.warn("Push dispatch unavailable; the timed push worker retries");
+  }
   const tickets =
     await system<{ id: string; token: string }[]>("push.receipts");
   if (tickets.length) {

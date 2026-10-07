@@ -1,6 +1,10 @@
 import { beforeEach, expect, it, vi } from "vitest";
 
-const state = vi.hoisted(() => ({ rpc: vi.fn() }));
+const state = vi.hoisted(() => ({ rpc: vi.fn(), after: vi.fn() }));
+vi.mock("next/server", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  after: state.after,
+}));
 vi.mock("../apps/web/src/lib/auth", () => ({
   session: async () => ({
     id: "synthetic-user",
@@ -33,6 +37,7 @@ function system(handlers: Record<string, unknown>) {
 beforeEach(() => {
   vi.restoreAllMocks();
   state.rpc.mockReset();
+  state.after.mockReset();
 });
 
 it("claims push jobs only, sends them and completes them", async () => {
@@ -128,7 +133,12 @@ const command = (action: string) =>
   });
 const context = { params: Promise.resolve({ path: ["commands"] }) };
 
-it("sends pushes right after a command that notifies the customer", async () => {
+// Runs the callbacks the route handed to after(), the way the platform does once the response is sent.
+const runAfter = async () => {
+  for (const [callback] of state.after.mock.calls.splice(0)) await callback();
+};
+
+it("sends pushes after the response of a command that notifies the customer", async () => {
   const { POST } = await import("../apps/web/src/app/api/v1/[...path]/route");
   for (const action of ["delivery.depart", "customer.followup", "deliveryIssue.respond", "deliveryIssue.resolve"]) {
     state.rpc.mockReset();
@@ -136,11 +146,31 @@ it("sends pushes right after a command that notifies the customer", async () => 
     const response = await POST(command(action), context);
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ data: { moved: 1 } });
+    // Nothing but the command ran before the response; the push work is deferred.
+    expect(state.rpc.mock.calls.map((c) => c[3].action)).toEqual([action]);
+    expect(state.after).toHaveBeenCalledTimes(1);
+    await runAfter();
     expect(state.rpc.mock.calls.map((c) => c[3].action)).toEqual([action, "outbox.claimPush"]);
+    expect(state.rpc.mock.calls[1][3].payload).toEqual({ limit: 20 });
   }
 });
 
-it("never fails the command when the immediate push fails, and ignores other commands", async () => {
+it("returns the command response without waiting for a hanging push dispatch", async () => {
+  const { POST } = await import("../apps/web/src/app/api/v1/[...path]/route");
+  state.rpc.mockImplementation(async (_id, _token, _name, args) =>
+    args.action === "outbox.claimPush" ? new Promise(() => {}) : { moved: 2 },
+  );
+  const response = await POST(command("delivery.depart"), context);
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual({ data: { moved: 2 } });
+  expect(state.after).toHaveBeenCalledTimes(1);
+  // The scheduled work is the only thing that can hang, and the platform owns it.
+  const hanging = runAfter();
+  const settled = await Promise.race([hanging.then(() => "done"), new Promise((r) => setTimeout(() => r("pending"), 50))]);
+  expect(settled).toBe("pending");
+});
+
+it("never fails the command when the deferred push fails, and ignores other commands", async () => {
   const { POST } = await import("../apps/web/src/app/api/v1/[...path]/route");
   const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
   state.rpc.mockImplementation(async (_id, _token, name) => {
@@ -150,9 +180,11 @@ it("never fails the command when the immediate push fails, and ignores other com
   const response = await POST(command("delivery.depart"), context);
   expect(response.status).toBe(200);
   expect(await response.json()).toEqual({ data: { moved: 3 } });
+  await runAfter();
   expect(warn).toHaveBeenCalledOnce();
   state.rpc.mockClear();
   state.rpc.mockResolvedValue({ id: "x" });
   await POST(command("address.delete"), context);
+  expect(state.after).not.toHaveBeenCalled();
   expect(state.rpc.mock.calls.map((c) => c[2])).toEqual(["catera_v1_command"]);
 });
