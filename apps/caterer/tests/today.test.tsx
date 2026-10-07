@@ -103,3 +103,14 @@ describe("issueSteps", () => {
   });
 });
 
+
+it("opens on the day a notification points to", async () => {
+  const runtime = runtimeWith(async () => canvasDay());
+  const tomorrow = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(new Date(Date.now() + 86400000));
+  render(
+    <MobileProvider runtime={runtime} linkMapper={(h) => h}>
+      <TodayScreen date={tomorrow} />
+    </MobileProvider>,
+  );
+  await waitFor(() => expect(runtime.api.sellerOperations).toHaveBeenCalledWith("k-1", tomorrow));
+});

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Linking, Pressable, Share, View } from "react-native";
 import * as Print from "expo-print";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -38,9 +38,13 @@ async function loadDay(runtime: MobileRuntime, catererId: string, date: string):
 const MEALS: KitchenMeal[] = ["lunch", "dinner"];
 
 /** Hari ini: what to cook, where to take it, and only the exceptions to act on. */
-export function TodayScreen() {
+/** Hari ini; `date` (from a notification) opens Besok when it points to tomorrow. */
+export function TodayScreen({ date: target }: { date?: string } = {}) {
   const { actor, runtime, t } = useMobile();
-  const [offset, setOffset] = useState<"0" | "1">("0");
+  const [offset, setOffset] = useState<"0" | "1">(() => (target === jakartaDay(new Date(), 1) ? "1" : "0"));
+  useEffect(() => {
+    if (target) setOffset(target === jakartaDay(new Date(), 1) ? "1" : "0");
+  }, [target]);
   const [section, setSection] = useState<"masak" | "antar">("masak");
   const catererId = actor?.catererId ?? "";
   const date = jakartaDay(new Date(), Number(offset));

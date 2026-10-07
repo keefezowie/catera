@@ -5,6 +5,7 @@ import { currency } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
 import { Button, Card, colors, Screen, Segmented, Text } from "@catera/mobile-ui";
 import { usePaymentsActive } from "../customers/usePayments";
+import { NotifyButton } from "./NotifyButton";
 
 function Row({ icon, label, detail, href }: { icon: keyof typeof Ionicons.glyphMap; label: string; detail?: string; href: string }) {
   return (
@@ -60,6 +61,7 @@ export function UsahaScreen() {
         <Row icon="person-add-outline" label={t("Tim", "Team")} detail={t("Undang pembantu dapur", "Invite a kitchen helper")} href="/tim" />
         <Row icon="card-outline" label={t("Pembayaran", "Payments")} detail={payments ? t("Aktif", "On") : t("Belum aktif", "Not on yet")} href="/aktifkan" />
       </Card>
+      <NotifyButton />
       <Segmented
         value={locale}
         onChange={setLocale}
