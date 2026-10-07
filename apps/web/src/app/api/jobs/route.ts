@@ -13,15 +13,10 @@ import {
   createPayout,
 } from "@catera/backend";
 import { jakartaDay, type Checkout } from "@catera/domain";
+import { dispatchPushes, pushHeaders } from "@/lib/push-dispatch";
 export const maxDuration = 300;
 const system = <T = unknown>(action: string, payload: unknown = {}) =>
   rpc<T>(null, null, "catera_v1_system", { action, payload }, true);
-const pushHeaders = () => ({
-  "Content-Type": "application/json",
-  ...(process.env.EXPO_ACCESS_TOKEN
-    ? { Authorization: "Bearer " + process.env.EXPO_ACCESS_TOKEN }
-    : {}),
-});
 export async function GET(request: Request) {
   if (
     !process.env.CRON_SECRET ||
@@ -110,45 +105,6 @@ export async function GET(request: Request) {
             status: "pending",
           });
         }
-      } else if (job.kind === "push") {
-        if (!(await system<boolean>("notification.eligible", { id: job.id }))) {
-          await system("outbox.complete", { id: job.id });
-          done++;
-          continue;
-        }
-        const tokens = await system<string[]>("devices", {
-          userId: job.payload.userId,
-        });
-        for (let offset = 0; offset < tokens.length; offset += 100) {
-          const batch = tokens.slice(offset, offset + 100);
-          const response = await fetch("https://exp.host/--/api/v2/push/send", {
-            method: "POST",
-            headers: pushHeaders(),
-            body: JSON.stringify(
-              batch.map((to) => ({
-                to,
-                title: "Catera",
-                body: job.payload.body,
-                collapseId: job.id,
-                data: { href: job.payload.href, notificationId: job.id },
-              })),
-            ),
-            signal: AbortSignal.timeout(15000),
-          });
-          if (!response.ok) throw new Error("PUSH_SEND_FAILED");
-          const result = await response.json();
-          for (const [i, ticket] of (result.data || []).entries()) {
-            if (ticket.status === "ok")
-              await system("push.ticket", {
-                id: ticket.id,
-                jobId: job.id,
-                token: batch[i],
-              });
-            else if (ticket.details?.error === "DeviceNotRegistered")
-              await system("device.remove", { token: batch[i] });
-            else throw new Error("PUSH_TICKET_FAILED");
-          }
-        }
       } else if (job.kind === "split.reconcile") continue; // Remains visible until an explicit admin reconciliation.
       await system("outbox.complete", { id: job.id });
       done++;
@@ -159,6 +115,9 @@ export async function GET(request: Request) {
       });
     }
   }
+  // Pushes have their own claim; the timed worker (/api/jobs/push) sends them as well.
+  const pushes = await dispatchPushes({ limit: 100 });
+  done += pushes.sent;
   const tickets =
     await system<{ id: string; token: string }[]>("push.receipts");
   if (tickets.length) {

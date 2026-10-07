@@ -49,6 +49,7 @@ export async function verifyDeliveryConfirm(pool, cmd, evidence) {
     "20261008101000_delivery_confirm.sql",
     "20261008102000_delivery_depart.sql",
     "20261008102500_depart_today_one_push.sql",
+    "20261008103000_push_timing.sql",
   ])
     await pool.query(await readFile("supabase/migrations/" + file, "utf8"));
 

@@ -48,6 +48,7 @@ import {
   type Quote,
 } from "@catera/domain";
 import { session, supabase, demoToken } from "@/lib/auth";
+import { dispatchPushes } from "@/lib/push-dispatch";
 import { authLifecycle } from "@/lib/auth-lifecycle";
 import { recoveryCookie } from "@/lib/recovery-grant";
 import { passwordSignIn } from "@/lib/password-auth";
@@ -59,6 +60,12 @@ import {
   workspaceCookieName,
 } from "@/lib/workspace";
 export const runtime = "nodejs";
+const immediatePush = new Set([
+  "delivery.depart",
+  "customer.followup",
+  "deliveryIssue.respond",
+  "deliveryIssue.resolve",
+]);
 type Context = { params: Promise<{ path: string[] }> };
 async function setWorkspaceCookie(value: ReturnType<typeof defaultWorkspace>) {
   (await cookies()).set(workspaceCookieName, value, {
@@ -668,6 +675,17 @@ export async function POST(request: Request, context: Context) {
           result = { ...checkout, payment_url: payment.url };
         } catch {
           /* Durable outbox retries the same idempotent session. The reservation stays visible. */
+        }
+      }
+      // Commands that tell the customer something go out at once instead of waiting for the next
+      // timed run. The command has already committed: a failure here never changes its response.
+      if (immediatePush.has(command.action)) {
+        try {
+          await dispatchPushes({ limit: 50 });
+        } catch {
+          console.warn(
+            JSON.stringify({ event: "catera.push.immediate_failed", action: command.action }),
+          );
         }
       }
       return ok(result);

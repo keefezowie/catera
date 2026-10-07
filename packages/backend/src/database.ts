@@ -562,6 +562,12 @@ export async function createDemoDatabase(inMemory = false) {
     await db.exec("begin;\n" + await readFile(path.join(projectRoot(),
       "supabase/migrations/20261008110000_import_assistant_quota.sql"), "utf8") + "\ncommit;");
   }
+  if (!(await db.query<{ installed: boolean }>(
+    "select to_regprocedure('v1.remind_due(timestamptz)') is not null installed",
+  )).rows[0].installed) {
+    await db.exec("begin;\n" + await readFile(path.join(projectRoot(),
+      "supabase/migrations/20261008103000_push_timing.sql"), "utf8") + "\ncommit;");
+  }
   return db;
 }
 export async function getDemoDatabase() {

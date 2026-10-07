@@ -1,0 +1,28 @@
+name: Catera push jobs
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: push-jobs
+  cancel-in-progress: false
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CRON_SECRET: ${{ secrets.CRON_SECRET }}
+      CATERA_PUBLIC_URL: ${{ secrets.CATERA_PUBLIC_URL }}
+    steps:
+      - name: Queue and send due pushes
+        run: |
+          if [ -z "$CRON_SECRET" ] || [ -z "$CATERA_PUBLIC_URL" ]; then
+            echo '::error::Add the CRON_SECRET and CATERA_PUBLIC_URL repository secrets.'
+            exit 1
+          fi
+          curl -fsS -H "Authorization: Bearer $CRON_SECRET" "$CATERA_PUBLIC_URL/api/jobs/push"
