@@ -48,6 +48,15 @@ export function jakartaDay(now: Date, offsetDays = 0): string {
     .slice(0, 10);
 }
 
+/**
+ * The first day an imported customer can start: orders close at 17.00 Jakarta the day before
+ * (the default caterer cutoff), so tomorrow until then and the day after once it has passed.
+ */
+export function earliestImportStart(now: Date): string {
+  const hour = new Date(now.getTime() + JAKARTA_OFFSET_MS).getUTCHours();
+  return jakartaDay(now, hour >= 17 ? 2 : 1);
+}
+
 function shortDate(date: string, locale: Locale) {
   const d = new Date(`${date}T00:00:00Z`);
   const day = dayNames[locale][d.getUTCDay()];

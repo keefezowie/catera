@@ -75,3 +75,10 @@ it("saves only the rows that need no checking", async () => {
   expect(preview[1].rows.map((r) => r.externalReference)).not.toContain("impor-2026-10-07-26");
   expect(screen.getByText("Alamat belum lengkap")).toBeTruthy();
 });
+
+it("flags a start date before the earliest one the kitchen can cook for", () => {
+  const { recheck } = jest.requireActual("../src/import/rows") as typeof import("../src/import/rows");
+  const checked = recheck(row(1, { startDate: "2026-10-01" }), [{ id: "p-rumahan", days: 20 }], "2026-10-08");
+  expect(checked.needsReview).toBe(true);
+  expect(checked.reason).toMatch(/2026-10-08/);
+});

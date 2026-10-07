@@ -17,7 +17,7 @@ export type AssistantRow = {
 };
 
 /** Re-check a row after the caterer edits it, with the same rules the server applies. */
-export function recheck(r: AssistantRow, packages: { id: string; days: number }[]): AssistantRow {
+export function recheck(r: AssistantRow, packages: { id: string; days: number }[], earliest: string): AssistantRow {
   const reasons: string[] = [];
   if (!r.name.trim()) reasons.push("Nama belum ada");
   if (!/^\+62\d{8,13}$/.test(r.phone)) reasons.push("Nomor WhatsApp tidak lengkap");
@@ -25,6 +25,7 @@ export function recheck(r: AssistantRow, packages: { id: string; days: number }[
   if (!pkg) reasons.push("Paket belum dipilih");
   if (r.addressLine.trim().length < 5 || !r.area.trim() || !r.city.trim()) reasons.push("Alamat belum lengkap");
   if (!r.startDate || !/^\d{4}-\d{2}-\d{2}$/.test(r.startDate)) reasons.push("Tanggal mulai belum ada");
+  else if (r.startDate < earliest) reasons.push(`Tanggal antar berikutnya paling cepat ${earliest}`);
   if (!r.remainingDays || r.remainingDays < 1 || (pkg && r.remainingDays > pkg.days)) reasons.push("Sisa hari perlu dicek");
   return { ...r, needsReview: reasons.length > 0, reason: reasons.join(" · ") };
 }

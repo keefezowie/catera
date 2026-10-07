@@ -4,7 +4,7 @@ import { router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 import { File } from "expo-file-system";
-import { errorLabel, jakartaDay, normalizeCustomerPhone } from "@catera/domain";
+import { earliestImportStart, errorLabel, jakartaDay, normalizeCustomerPhone } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
 import { Button, Card, Chip, colors, Field, FONT, Screen, Sheet, Text } from "@catera/mobile-ui";
 import { recheck, toImportRow, type AssistantRow } from "./rows";
@@ -119,7 +119,7 @@ export function ImportAssistant() {
   const clean = rows?.filter((r) => !r.needsReview).length ?? 0;
   const edit = editing === null ? undefined : rows?.find((r) => r.n === editing);
   const update = (patch: Partial<AssistantRow>) =>
-    setRows((all) => all && all.map((r) => (r.n === editing ? { ...recheck({ ...r, ...patch }, packages), n: r.n } : r)));
+    setRows((all) => all && all.map((r) => (r.n === editing ? { ...recheck({ ...r, ...patch }, packages, earliestImportStart(new Date())), n: r.n } : r)));
 
   return (
     <Screen
@@ -228,7 +228,7 @@ export function ImportAssistant() {
             </View>
             <View style={{ flexDirection: "row", gap: 8 }}>
               <View style={{ flex: 1 }}>
-                <Field label={t("Mulai (TTTT-BB-HH)", "Start (YYYY-MM-DD)")} value={edit.startDate ?? ""} onChangeText={(v) => update({ startDate: v || null })} />
+                <Field label={t("Antar berikutnya (TTTT-BB-HH)", "Next delivery (YYYY-MM-DD)")} value={edit.startDate ?? ""} onChangeText={(v) => update({ startDate: v || null })} />
               </View>
               <View style={{ flex: 1 }}>
                 <Field

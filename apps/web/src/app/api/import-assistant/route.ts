@@ -1,7 +1,7 @@
 import ExcelJS from "exceljs";
 import { z } from "zod";
 import { extractImportRows, rpc, type AssistantInput } from "@catera/backend";
-import { jakartaDay, type SellerImportOptions } from "@catera/domain";
+import { earliestImportStart, jakartaDay, type SellerImportOptions } from "@catera/domain";
 import { session } from "@/lib/auth";
 import { assertSameOrigin } from "@/lib/request-origin";
 
@@ -83,7 +83,7 @@ export async function POST(request: Request) {
     const result = await extractImportRows(
       input,
       options.packages.map((p) => ({ id: p.id, name: p.name, meal: p.meal, days: p.days })),
-      { today: jakartaDay(new Date()) },
+      { today: jakartaDay(new Date()), earliest: earliestImportStart(new Date()) },
     );
     return Response.json({ data: result }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {

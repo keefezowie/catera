@@ -245,3 +245,11 @@ describe("menuShareText", () => {
     );
   });
 });
+
+describe("earliestImportStart", () => {
+  it("is tomorrow before the 17.00 Jakarta cutoff and the day after once it has passed", async () => {
+    const { earliestImportStart } = await import("@catera/domain");
+    expect(earliestImportStart(new Date("2026-10-07T09:59:00Z"))).toBe("2026-10-08");
+    expect(earliestImportStart(new Date("2026-10-07T10:00:00Z"))).toBe("2026-10-09");
+  });
+});

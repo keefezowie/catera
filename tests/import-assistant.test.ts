@@ -13,7 +13,7 @@ const modelRow = (extra: Record<string, unknown>) => ({
   city: "Jakarta Selatan",
   notes: "",
   packageId: "p-rumahan",
-  startDate: "2026-10-01",
+  startDate: "2026-10-08",
   remainingDays: 9,
   portions: 1,
   needsReview: false,
@@ -38,7 +38,7 @@ describe("extractImportRows", () => {
         modelRow({ name: "Bayu", phone: "081234567803", packageId: "p-tidak-ada" }),
       ]),
     );
-    const result = await extractImportRows({ text: "Andre 0812… Rumahan sisa 9 hari" }, packages, { client, today: "2026-10-07" });
+    const result = await extractImportRows({ text: "Andre 0812… Rumahan sisa 9 hari" }, packages, { client, today: "2026-10-07", earliest: "2026-10-08" });
     expect(result.rows[0]).toMatchObject({ phone: "+6281234567801", packageId: "p-rumahan", needsReview: false });
     expect(result.rows[1]).toMatchObject({ packageId: "p-hemat", needsReview: true });
     expect(result.rows[1].reason).toMatch(/alamat/i);
@@ -46,9 +46,17 @@ describe("extractImportRows", () => {
     expect(result.needsReview).toBe(2);
   });
 
+  it("flags a start date the kitchen can no longer cook for and tells the model the earliest date", async () => {
+    const { client, create } = fake(answer([modelRow({ startDate: "2026-10-01" })]));
+    const result = await extractImportRows({ text: "x" }, packages, { client, today: "2026-10-07", earliest: "2026-10-08" });
+    expect(result.rows[0].needsReview).toBe(true);
+    expect(result.rows[0].reason).toMatch(/2026-10-08/);
+    expect(JSON.stringify((create.mock.calls[0] as unknown[])[0])).toContain("2026-10-08");
+  });
+
   it("asks the model for structured rows with low effort and the server-side fallback", async () => {
     const { client, create } = fake(answer([]));
-    await extractImportRows({ text: "kosong", images: [{ mediaType: "image/jpeg", data: "AAAA" }] }, packages, { client, today: "2026-10-07" });
+    await extractImportRows({ text: "kosong", images: [{ mediaType: "image/jpeg", data: "AAAA" }] }, packages, { client, today: "2026-10-07", earliest: "2026-10-08" });
     const params = (create.mock.calls[0] as unknown[])[0] as Record<string, any>;
     expect(params.model).toBe("claude-opus-5-5");
     expect(params.output_config.effort).toBe("low");
@@ -62,10 +70,10 @@ describe("extractImportRows", () => {
 
   it("turns a refusal into IMPORT_UNREADABLE and a cut-off answer into IMPORT_TOO_LONG", async () => {
     await expect(
-      extractImportRows({ text: "x" }, packages, { client: fake({ stop_reason: "refusal", content: [] }).client, today: "2026-10-07" }),
+      extractImportRows({ text: "x" }, packages, { client: fake({ stop_reason: "refusal", content: [] }).client, today: "2026-10-07", earliest: "2026-10-08" }),
     ).rejects.toThrow("IMPORT_UNREADABLE");
     await expect(
-      extractImportRows({ text: "x" }, packages, { client: fake({ stop_reason: "max_tokens", content: [] }).client, today: "2026-10-07" }),
+      extractImportRows({ text: "x" }, packages, { client: fake({ stop_reason: "max_tokens", content: [] }).client, today: "2026-10-07", earliest: "2026-10-08" }),
     ).rejects.toThrow("IMPORT_TOO_LONG");
   });
 });
