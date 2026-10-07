@@ -249,7 +249,7 @@ it("groups resolved menus and areas without losing row identities and includes c
   const cancelled = {
     ...base,
     status: "cancelled",
-    meals: [{ meal: "lunch", status: "cancelled" }],
+    meals: [{ meal: "lunch" as const, status: "cancelled" }],
   };
   expect(scheduleSummary([cancelled], "lunch").orders).toBe(0);
   expect(scheduleSummary([cancelled], "lunch", true)).toEqual({

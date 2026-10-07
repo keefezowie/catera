@@ -158,6 +158,14 @@ export * from "./seller-operations";
 export * from "./kitchen";
 export * from "./seller-experience";
 export * from "./customer-choice";
+export type DeliveryMeal = {
+  meal: "lunch" | "dinner";
+  status: string;
+  departed_at?: string | null;
+  confirmed_at?: string | null;
+  reaction?: "enak" | "biasa" | "kurang" | null;
+  issue?: { id: string; status: string } | null;
+};
 export type Delivery = {
   id: string;
   subscription_id: string;
@@ -168,7 +176,7 @@ export type Delivery = {
   portions: number;
   trial: boolean;
   offer: Offer;
-  meals: { meal: string; status: string }[];
+  meals: DeliveryMeal[];
   cutoff_at: string;
   canChange: boolean;
 };
