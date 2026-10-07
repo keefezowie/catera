@@ -22,7 +22,7 @@ import { Button, Card, colors, Screen, Stepper, Text } from "@catera/mobile-ui";
 import { RoundButton } from "../discover/PackageCard";
 import { SunriseButton } from "../today/Plate";
 import { Breakdown, LengthOptions, percent, StartLine } from "./Breakdown";
-import { ChoiceSheet, PayWith, Retry, Terms } from "./BuyParts";
+import { ChoiceSheet, NoLongerSold, PayWith, Retry, Terms } from "./BuyParts";
 import { useQuote, type BuyPayload } from "./useQuote";
 
 /** Choices a link may carry (old /checkout links, Paket); anything invalid falls back to defaults. */
@@ -58,9 +58,7 @@ export function BuyScreen({
   const { runtime, actor, ready, t, locale, command } = useMobile();
   const renew = !!renewFrom;
   const query = new URLSearchParams({ ...(trial ? { trial: "1" } : {}), ...initial }).toString();
-  const here = renew
-    ? `/renew/${encodeURIComponent(renewFrom)}`
-    : `/beli/${encodeURIComponent(packageId)}${query ? `?${query}` : ""}`;
+  const here = `${renew ? `/renew/${encodeURIComponent(renewFrom)}` : `/beli/${encodeURIComponent(packageId)}`}${query ? `?${query}` : ""}`;
   useEffect(() => {
     if (ready && !actor) router.replace(`/login?next=${encodeURIComponent(here)}` as never);
   }, [ready, actor, here]);
@@ -121,7 +119,7 @@ export function BuyScreen({
       ? t("Tambahkan alamat pengantaran dulu.", "Add a delivery address first.")
       : !offer.areas.includes(address.area)
         ? t(`Alamat ini di luar jangkauan ${offer.caterer}. Pilih alamat lain.`, `This address is outside ${offer.caterer}'s area. Choose another.`)
-        : renew && ctx && !ctx.available
+        : renew && ctx && !ctx.available && !ctx.pendingCheckoutId
           ? t("Paket ini belum bisa diperpanjang untuk jadwal berikutnya. Coba lagi nanti.", "This package can't be renewed for the next schedule yet. Try again later.")
           : !startDate || !purchaseStartAvailable(offer, startDate, now)
             ? t("Tanggal mulai sudah lewat batas pesan. Pilih tanggal lain.", "The start date is past the order cutoff. Choose another.")
@@ -173,6 +171,18 @@ export function BuyScreen({
     }
   }
 
+  // The renewed package is no longer sold: offer the caterer's other packages, never a spinner.
+  if (ready && actor && renew && ctx && (ctx.replacementRequired || !offer))
+    return (
+      <Screen>
+        <RoundButton icon="chevron-back" label={t("Kembali", "Back")} onPress={leave} />
+        <NoLongerSold
+          caterer={ctx.offers[0]?.caterer || current?.snapshot.offer?.caterer || t("katering Anda", "your caterer")}
+          offers={ctx.offers.filter((o) => o.id !== ctx.packageId)}
+          t={t}
+        />
+      </Screen>
+    );
   if (!ready || !actor || !offer)
     return (
       <Screen>

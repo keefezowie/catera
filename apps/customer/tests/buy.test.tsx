@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { ActivityIndicator, AppState } from "react-native";
 import { router } from "expo-router";
 import * as Clipboard from "expo-clipboard";
 import * as WebBrowser from "expo-web-browser";
@@ -63,6 +64,7 @@ afterAll(() => jest.useRealTimers());
 
 const customer = { id: "u-c1", role: "customer", name: "Rani Contoh" };
 const kantor = { id: "a-1", label: "Kantor", line: "Jl. Contoh No. 1", area: "Tebet", city: "Jakarta Selatan", instructions: "", version: 1 };
+const rumah = { id: "a-2", label: "Rumah", line: "Jl. Jauh No. 9", area: "Bekasi", city: "Bekasi", instructions: "", version: 1 };
 const paket = offer({
   id: "p-rumahan",
   name: "Makan Siang Rumahan",
@@ -78,7 +80,7 @@ const QR = "00020101021226590013ID.CO.QRIS.WWW0118936009153000000000215SYNTHETIC
 type Payload = { packageId: string; addressId: string; portions: number; startDate: string; cycles: number; trial: boolean; renewedFrom?: string };
 
 /** Synthetic server pricing: weekdays from the start, 5% off two cycles, a flat service fee. */
-function quoteFor(p: Payload): Quote {
+function quoteFor({ addressId, ...p }: Payload): Quote {
   const days = p.trial ? 1 : 20 * p.cycles;
   const dates: string[] = [];
   for (let d = p.startDate; dates.length < days; d = addDays(d, 1)) {
@@ -89,6 +91,7 @@ function quoteFor(p: Payload): Quote {
   const durationDiscount = p.cycles === 2 ? Math.round(subtotal * 0.05) : 0;
   return {
     ...p,
+    address: addressId === rumah.id ? rumah : kantor,
     renewedFrom: p.renewedFrom ?? null,
     cycles: p.cycles,
     dates,
@@ -138,6 +141,7 @@ function server({
   mode = "direct" as "direct" | "hosted",
   checkout = null as Checkout | null,
   context = {} as Partial<RenewalContext>,
+  startFails = false,
 } = {}) {
   let stored = checkout;
   const paid = (c: Checkout): Checkout => ({
@@ -151,7 +155,7 @@ function server({
     ...runtime.api,
     me: jest.fn(async () => ({ actor, demo })),
     offer: jest.fn(async (id: string) => ({ offer: id === paket.id ? paket : null })),
-    customer: jest.fn(async () => ({ subscriptions: [current], deliveries: [], addresses: [kantor], notifications: [], cases: [] })),
+    customer: jest.fn(async () => ({ subscriptions: [current], deliveries: [], addresses: [kantor, rumah], notifications: [], cases: [] })),
     request: jest.fn(async (path: string) => {
       if (path === "payment-methods")
         return { mode, availableMethods: mode === "direct" ? ["QRIS", "VIRTUAL_ACCOUNT_BRI"] : [] };
@@ -178,10 +182,14 @@ function server({
     }),
     command: jest.fn(async (action: string, payload: Record<string, unknown>) => {
       if (action === "checkout.create") {
-        stored = { ...pendingCheckout({ quote: quoteFor(payload as unknown as Payload) }), payment: undefined };
+        const created = pendingCheckout({ quote: quoteFor(payload as unknown as Payload) }, { status: "choose_method", selectedMethod: null, instructions: null });
+        stored = mode === "direct" ? created : { ...created, payment: undefined };
         return stored;
       }
-      if (action === "checkout.payment.start") return stored;
+      if (action === "checkout.payment.start") {
+        if (startFails) throw Object.assign(new Error("PAYMENT_UNAVAILABLE"), { code: "PAYMENT_UNAVAILABLE" });
+        return stored;
+      }
       if (action === "checkout.payment.refresh" || action === "checkout.demo_pay") {
         stored = paid(stored!);
         return stored;
@@ -330,11 +338,85 @@ describe("Beli / Perpanjang", () => {
   });
 
   it("a renewal already waiting for payment continues it instead of buying twice", async () => {
-    const runtime = server({ context: { pendingCheckoutId: "ck-9" } });
+    // The server reports a renewal with an open checkout as not available.
+    const runtime = server({ context: { pendingCheckoutId: "ck-9", available: false } });
     wrap(runtime, <BuyScreen renewFrom="s-1" />);
     fireEvent.press(await screen.findByRole("button", { name: "Lanjutkan pembayaran" }));
     expect(router.replace).toHaveBeenCalledWith("/bayar/ck-9");
     expect(screen.getByRole("button", { name: "Bayar" })).toBeDisabled();
+    expect(screen.queryByText(/belum bisa diperpanjang/)).toBeNull();
+  });
+
+  it("a renewal of a package that is no longer sold points to other packages instead of spinning", async () => {
+    const lain = offer({ id: "p-lain", name: "Makan Siang Hemat" });
+    const runtime = server({ context: { replacementRequired: true, available: false, offers: [lain] } });
+    const view = wrap(runtime, <BuyScreen renewFrom="s-1" />);
+    expect(await screen.findByText("Paket sebelumnya sudah tidak tersedia. Pilih paket lain dari Dapur Contoh.")).toBeTruthy();
+    expect(view.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
+    expect(screen.queryByRole("button", { name: "Bayar" })).toBeNull();
+    fireEvent.press(screen.getByRole("button", { name: "Makan Siang Hemat" }));
+    expect(router.push).toHaveBeenCalledWith("/paket/p-lain");
+    fireEvent.press(screen.getByRole("button", { name: "Lihat paket lain" }));
+    expect(router.push).toHaveBeenCalledWith("/jelajah");
+  });
+
+  it("an address outside the area hides the old price", async () => {
+    wrap(server(), <BuyScreen packageId="p-rumahan" />);
+    await bayarReady();
+    expect(screen.getByText("Biaya layanan")).toBeTruthy();
+    fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" }));
+    fireEvent.press(screen.getByRole("radio", { name: /Rumah/ }));
+    expect(await screen.findByText("Alamat ini di luar jangkauan Dapur Contoh. Pilih alamat lain.")).toBeTruthy();
+    expect(screen.queryByText("Biaya layanan")).toBeNull();
+    expect(screen.queryByText(totalOf({ startDate: "2026-10-08" }))).toBeNull();
+    expect(screen.getByRole("button", { name: "Bayar" })).toBeDisabled();
+  });
+
+  it("a changed price is explained and requoted before paying", async () => {
+    const runtime = server();
+    const create = runtime.api.command as jest.Mock;
+    const real = create.getMockImplementation()!;
+    create.mockImplementationOnce(async () => {
+      throw Object.assign(new Error("PRICE_CHANGED"), { code: "PRICE_CHANGED" });
+    });
+    wrap(runtime, <BuyScreen packageId="p-rumahan" />);
+    await bayarReady();
+    const quotes = (runtime.api.quote as jest.Mock).mock.calls.length;
+    fireEvent.press(screen.getByRole("button", { name: "Bayar" }));
+    expect(await screen.findByText("Harga atau ketentuan berubah. Tinjau ulang sebelum membayar.")).toBeTruthy();
+    await waitFor(() => expect((runtime.api.quote as jest.Mock).mock.calls.length).toBeGreaterThan(quotes));
+    expect(router.replace).not.toHaveBeenCalled();
+    create.mockImplementation(real);
+    await bayarReady();
+  });
+
+  it("a two-cycle renewal pays with cycles 2 and renewedFrom", async () => {
+    const runtime = server();
+    wrap(runtime, <BuyScreen renewFrom="s-1" />);
+    await bayarReady();
+    fireEvent.press(screen.getByRole("radio", { name: "40 hari · Hemat 5%" }));
+    await waitFor(() => expect(runtime.api.quote).toHaveBeenLastCalledWith(expect.objectContaining({ cycles: 2 })));
+    await bayarReady();
+    fireEvent.press(screen.getByRole("button", { name: "Bayar" }));
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/bayar/ck-1"));
+    const payload = { packageId: "p-rumahan", addressId: "a-1", portions: 1, startDate: "2026-10-19", cycles: 2, trial: false, renewedFrom: "s-1" };
+    expect(commands(runtime)[0]).toEqual([
+      "checkout.create",
+      { ...payload, expectedQuote: quoteFor(payload), acceptedTerms: true },
+      expect.any(String),
+    ]);
+  });
+
+  it("a failed payment start still opens Bayar, which offers the method again", async () => {
+    const runtime = server({ startFails: true });
+    const view = wrap(runtime, <BuyScreen packageId="p-rumahan" />);
+    await bayarReady();
+    fireEvent.press(screen.getByRole("button", { name: "Bayar" }));
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/bayar/ck-1"));
+    expect(commands(runtime).map((c) => c[0])).toEqual(["checkout.create", "checkout.payment.start"]);
+    view.unmount();
+    wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
+    expect(await screen.findByRole("button", { name: "Tampilkan QRIS" })).toBeTruthy();
   });
 });
 
@@ -368,7 +450,7 @@ describe("Bayar", () => {
     expect(await screen.findByText("Waktu habis. Jadwal dicek ulang saat membayar lagi.")).toBeTruthy();
     expect(screen.queryByLabelText(QR_LABEL)).toBeNull();
     fireEvent.press(screen.getByRole("button", { name: "Bayar lagi" }));
-    expect(router.replace).toHaveBeenCalledWith("/beli/p-rumahan");
+    expect(router.replace).toHaveBeenCalledWith("/beli/p-rumahan?portions=1&cycles=1&addressId=a-1");
   });
 
   it("an expired renewal pays again from Perpanjang", async () => {
@@ -376,7 +458,7 @@ describe("Bayar", () => {
     const runtime = server({ checkout: { ...base, quote: { ...base.quote, renewedFrom: "s-1" } } });
     wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
     fireEvent.press(await screen.findByRole("button", { name: "Bayar lagi" }));
-    expect(router.replace).toHaveBeenCalledWith("/renew/s-1");
+    expect(router.replace).toHaveBeenCalledWith("/renew/s-1?portions=1&cycles=1&addressId=a-1");
   });
 
   it("an elapsed deadline hides the QR and never offers a second purchase", async () => {
@@ -490,5 +572,74 @@ describe("Bayar", () => {
     expect(await screen.findByText("8808123456789012")).toBeTruthy();
     fireEvent.press(screen.getByRole("button", { name: "Salin nomor" }));
     await waitFor(() => expect(Clipboard.setStringAsync).toHaveBeenCalledWith("8808123456789012"));
+  });
+
+  it("a provider-expired payment before the deadline keeps checking instead of selling again", async () => {
+    jest.useFakeTimers({ now: NOW, doNotFake: ["nextTick", "setImmediate", "clearImmediate", "queueMicrotask"] });
+    try {
+      const runtime = server({ checkout: pendingCheckout({}, { status: "expired" }) });
+      (runtime.api.command as jest.Mock).mockResolvedValue({});
+      const refreshes = () => commands(runtime).filter((c) => c[0] === "checkout.payment.refresh").length;
+      wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
+      expect(await screen.findByText("Memeriksa pembayaran")).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "Bayar lagi" })).toBeNull();
+      expect(screen.getByRole("button", { name: "Cek status" })).toBeTruthy();
+      await act(async () => {
+        jest.advanceTimersByTime(10_000);
+      });
+      await waitFor(() => expect(refreshes()).toBe(1));
+    } finally {
+      onlyDate();
+    }
+  });
+
+  it("Bayar lagi keeps the customer's choices", async () => {
+    const base = pendingCheckout({ state: "expired" }, { status: "expired" });
+    const quote = quoteFor({ packageId: "p-rumahan", addressId: "a-2", portions: 2, startDate: "2026-10-19", cycles: 2, trial: false });
+    wrap(server({ checkout: { ...base, quote } }), <PaymentScreen checkoutId="ck-1" />);
+    fireEvent.press(await screen.findByRole("button", { name: "Bayar lagi" }));
+    expect(router.replace).toHaveBeenCalledWith("/beli/p-rumahan?portions=2&cycles=2&addressId=a-2");
+  });
+
+  it("a trial pays again as a trial", async () => {
+    const base = pendingCheckout({ state: "failed" });
+    const quote = quoteFor({ packageId: "p-rumahan", addressId: "a-1", portions: 1, startDate: "2026-10-19", cycles: 1, trial: true });
+    wrap(server({ checkout: { ...base, quote } }), <PaymentScreen checkoutId="ck-1" />);
+    fireEvent.press(await screen.findByRole("button", { name: "Bayar lagi" }));
+    expect(router.replace).toHaveBeenCalledWith("/beli/p-rumahan?trial=1&portions=1&addressId=a-1");
+  });
+
+  it("checks the payment once when the app comes back to the front", async () => {
+    // React Native's jest setup mocks AppState: the listeners registered while mounted are in its calls.
+    const listen = AppState.addEventListener as unknown as jest.Mock;
+    expect(jest.isMockFunction(listen)).toBe(true);
+    const runtime = server({ checkout: pendingCheckout() });
+    wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
+    expect(await screen.findByLabelText(QR_LABEL)).toBeTruthy();
+    expect(commands(runtime).filter((c) => c[0] === "checkout.payment.refresh")).toHaveLength(0);
+    // Only listeners still subscribed (an effect re-run removes its old one).
+    const handlers = listen.mock.calls
+      .filter((c, i) => c[0] === "change" && !listen.mock.results[i]?.value?.remove?.mock?.calls.length)
+      .map((c) => c[1] as (s: string) => void);
+    await act(async () => handlers.forEach((h) => h("active")));
+    expect(await screen.findByText("Pembayaran diterima")).toBeTruthy();
+    expect(commands(runtime).filter((c) => c[0] === "checkout.payment.refresh")).toHaveLength(1);
+  });
+
+  it("the bank transfer can be chosen on Bayar", async () => {
+    const runtime = server({
+      checkout: pendingCheckout({}, { status: "choose_method", selectedMethod: null, instructions: null }),
+    });
+    wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
+    fireEvent.press(await screen.findByRole("button", { name: "Pakai transfer bank (VA)" }));
+    fireEvent.press(screen.getByRole("button", { name: "Tampilkan nomor VA" }));
+    await waitFor(() =>
+      expect(runtime.api.command).toHaveBeenCalledWith(
+        "checkout.payment.start",
+        { id: "ck-1", method: "VIRTUAL_ACCOUNT_BRI" },
+        expect.any(String),
+      ),
+    );
+    await waitFor(() => expect(runtime.api.checkout).toHaveBeenCalledTimes(2));
   });
 });

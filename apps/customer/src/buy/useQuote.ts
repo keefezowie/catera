@@ -53,8 +53,9 @@ export function useQuote(payload: BuyPayload | null) {
   const pending = !!payload && state.key !== key;
   const error = !pending && payload ? state.error : "";
   return {
-    /** The last quote, possibly for an older choice: shown dimmed while `pending`. */
-    shown: state.quote,
+    /** The last quote, possibly for an older choice: shown dimmed while `pending`.
+     * Nothing when the current choice cannot be priced (outside the area, past cutoff). */
+    shown: payload ? state.quote : null,
     ready: !pending && !error && payload ? state.quote : null,
     pending,
     error,

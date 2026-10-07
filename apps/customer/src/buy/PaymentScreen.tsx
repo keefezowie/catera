@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, StyleSheet, Text as RNText, View } from "react-native";
+import { ActivityIndicator, AppState, StyleSheet, Text as RNText, View } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import * as Clipboard from "expo-clipboard";
 import * as WebBrowser from "expo-web-browser";
@@ -50,12 +50,18 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
     if (direct) await command("checkout.payment.refresh", { id: checkoutId });
     else await reload();
   }, [direct, command, checkoutId, reload]);
-  // Ask the provider every 10 s, only while this screen is in front and the payment is open.
+  // Ask the provider every 10 s, and once on returning from the bank app, only while this
+  // screen is in front and the payment is open.
   useFocusEffect(
     useCallback(() => {
       if (!live) return;
-      const timer = setInterval(() => void check().catch(() => undefined), POLL_MS);
-      return () => clearInterval(timer);
+      const ask = () => void check().catch(() => undefined);
+      const timer = setInterval(ask, POLL_MS);
+      const foreground = AppState.addEventListener("change", (s) => s === "active" && ask());
+      return () => {
+        clearInterval(timer);
+        foreground.remove();
+      };
     }, [live, check]),
   );
 

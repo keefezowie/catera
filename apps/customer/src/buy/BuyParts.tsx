@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Linking, Pressable, Text as RNText, StyleSheet, View } from "react-native";
-import type { DirectPaymentMethod, PaymentAvailability } from "@catera/domain";
+import { router } from "expo-router";
+import type { DirectPaymentMethod, Offer, PaymentAvailability } from "@catera/domain";
 import { Button, Card, colors, FONT, Sheet, Text } from "@catera/mobile-ui";
 
 type T = (id: string, en: string) => string;
@@ -10,6 +11,29 @@ export function Retry({ message, label, onRetry, t }: { message: string; label?:
     <View style={{ gap: 6 }}>
       <Text style={{ color: colors.danger }}>{message}</Text>
       <Button variant="secondary" label={label ?? t("Coba lagi", "Try again")} onPress={onRetry} />
+    </View>
+  );
+}
+
+/** Renewing a package the caterer no longer sells: their other packages, then Jelajah. */
+export function NoLongerSold({ caterer, offers, t }: { caterer: string; offers: Offer[]; t: T }) {
+  return (
+    <View style={{ gap: 10 }}>
+      <Text variant="heading">
+        {t(
+          `Paket sebelumnya sudah tidak tersedia. Pilih paket lain dari ${caterer}.`,
+          `Your previous package is no longer available. Choose another package from ${caterer}.`,
+        )}
+      </Text>
+      {offers.map((o) => (
+        <Button
+          key={o.id}
+          variant="secondary"
+          label={o.name}
+          onPress={() => router.push(`/paket/${encodeURIComponent(o.id)}` as never)}
+        />
+      ))}
+      <Button label={t("Lihat paket lain", "See other packages")} onPress={() => router.push("/jelajah" as never)} />
     </View>
   );
 }

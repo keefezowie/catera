@@ -22,7 +22,8 @@ export function stageOf(c: Checkout, now: number): Stage {
   );
   if (p.phase === "paid") return "paid";
   if (p.phase === "booking_unresolved") return "review";
-  if (p.phase === "expired") return c.state === "failed" ? "failed" : "expired";
+  // The provider says expired but the checkout still holds the days: keep checking, never sell again.
+  if (p.phase === "expired") return p.preventDuplicatePayment ? "checking" : c.state === "failed" ? "failed" : "expired";
   return p.phase === "checking" ? "checking" : "pay";
 }
 
@@ -71,10 +72,15 @@ export function PaymentOutcome({
     ],
   };
   const [title, body] = message[stage];
-  // A new checkout for the same choice: Perpanjang for a renewal, else Beli (a trial stays a trial).
-  const again = c.quote.renewedFrom
-    ? `/renew/${encodeURIComponent(c.quote.renewedFrom)}`
-    : `/beli/${encodeURIComponent(c.quote.packageId)}${c.quote.trial ? "?trial=1" : ""}`;
+  // A new checkout with the same choices: Perpanjang for a renewal, else Beli (a trial stays a trial).
+  const q = c.quote;
+  const choices = new URLSearchParams({
+    ...(q.trial ? { trial: "1" } : {}),
+    portions: String(q.portions),
+    ...(q.trial ? {} : { cycles: String(q.cycles ?? 1) }),
+    ...(q.address?.id ? { addressId: q.address.id } : {}),
+  }).toString();
+  const again = `${q.renewedFrom ? `/renew/${encodeURIComponent(q.renewedFrom)}` : `/beli/${encodeURIComponent(q.packageId)}`}?${choices}`;
   return (
     <Screen>
       {header}
