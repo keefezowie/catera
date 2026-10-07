@@ -63,3 +63,36 @@ it("exposes departure, confirmation, reaction and open report per meal", async (
   expect(after.issue).toMatchObject({ status: "open" });
   expect(after.issue?.id).toEqual(expect.any(String));
 });
+
+it("keeps arrival facts out of the production change signature", async () => {
+  const second = (
+    await db.query<any>(
+      "select d.id,d.service_date::text service_date,p.caterer_id from v1.delivery_days d join v1.subscriptions s on s.id=d.subscription_id join v1.packages p on p.id=s.package_id where s.user_id=$1 and d.id<>$2 and d.status='scheduled' order by d.service_date limit 1",
+      [U.customer, day.id],
+    )
+  ).rows[0];
+  const attention = async () =>
+    (
+      await localRpc<any>(db, U.owner, "catera_v1_read", ["seller-attention", { id: second.caterer_id }])
+    ).items.some((i: any) => i.kind === "production_changed");
+  await cmd("production.freeze", { catererId: second.caterer_id, date: second.service_date }, U.owner);
+  expect(await attention()).toBe(false);
+
+  await db.query("update v1.fulfillments set departed_at=now() where day_id=$1", [second.id]);
+  await db.query(
+    "insert into v1.delivery_reactions(day_id,meal,user_id,reaction) select day_id,meal,$2,'enak' from v1.fulfillments where day_id=$1 limit 1",
+    [second.id, U.customer],
+  );
+  await db.query(
+    `insert into v1.delivery_issues(day_id,meal,user_id,caterer_id,subject,description)
+     select f.day_id,f.meal,$2,$3,'Makanan tidak datang','Ditunggu sampai jam dua' from v1.fulfillments f where f.day_id=$1 limit 1`,
+    [second.id, U.customer, second.caterer_id],
+  );
+  expect(await attention()).toBe(false);
+
+  await db.query(
+    "update v1.delivery_days set address=jsonb_set(address,'{instructions}','\"Synthetic new delivery instruction\"'),version=version+1 where id=$1",
+    [second.id],
+  );
+  expect(await attention()).toBe(true);
+});
