@@ -11,3 +11,5 @@ jest.mock("expo-secure-store", () => {
     deleteItemAsync: jest.fn(async (k) => void store.delete(k)),
   };
 });
+// expo-crypto's native module is absent under Jest; Node's UUID is equivalent here.
+jest.mock("expo-crypto", () => ({ randomUUID: () => require("node:crypto").randomUUID() }));
