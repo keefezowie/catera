@@ -1,0 +1,1 @@
+{"name":"@catera/mobile-ui","version":"1.0.0","private":true,"type":"module","exports":"./src/index.ts","dependencies":{"@catera/design-tokens":"1.0.0"}}

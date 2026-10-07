@@ -1,0 +1,1 @@
+{"name":"@catera/mobile-core","version":"1.0.0","private":true,"type":"module","exports":"./src/index.ts","dependencies":{"@catera/api-client":"1.0.0","@catera/domain":"1.0.0"}}

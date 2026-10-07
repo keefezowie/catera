@@ -15,7 +15,7 @@
     "dev:web": "npm run dev -w @catera/web",
     "dev:native": "npm run start -w @catera/customer",
     "build": "node scripts/sync-assets.mjs && npm run build -w @catera/web",
-    "typecheck": "npm run typecheck -w @catera/web && npm run typecheck -w @catera/customer && tsc -p tsconfig.json",
+    "typecheck": "npm run typecheck -w @catera/web && npm run typecheck -w @catera/customer && npm run typecheck -w @catera/caterer && tsc -p tsconfig.json",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:postgres": "node --import tsx tests/postgres-concurrency.mjs",

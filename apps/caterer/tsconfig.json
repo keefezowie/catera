@@ -1,0 +1,17 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "noEmit": true,
+    "resolveJsonModule": true
+  },
+  "include": [
+    "app/**/*.tsx",
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "../../packages/mobile-core/src/**/*.ts",
+    "../../packages/mobile-core/src/**/*.tsx",
+    "../../packages/mobile-ui/src/**/*.tsx",
+    "../../packages/mobile-ui/src/**/*.ts"
+  ]
+}
