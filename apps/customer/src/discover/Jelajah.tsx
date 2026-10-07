@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from "react-native";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { areaOptions, menuSummary, perMealPrice, type Offer } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Chip, colors, FONT, Screen, Sheet, Text } from "@catera/mobile-ui";
+import { Button, colors, FONT, Screen, Sheet, Text } from "@catera/mobile-ui";
+import { FilterChip } from "./FilterChip";
 import { PackageCard, RoundButton } from "./PackageCard";
 import { type CatalogOffer } from "./format";
 import { useSaved } from "./saved";
@@ -49,31 +50,32 @@ function Browse({ area, onArea }: { area: string; onArea: (value: string) => voi
   const [trial, setTrial] = useState(false);
   const [picking, setPicking] = useState(false);
 
-  // Siang and Malam together mean no meal filter.
-  const meal = lunch !== dinner ? (lunch ? "lunch" : "dinner") : "";
-  const query = new URLSearchParams({
-    limit: "100",
-    ...(area ? { area } : {}),
-    ...(meal ? { meal } : {}),
-    ...(budget ? { maxPrice: String(BUDGET) } : {}),
-    ...(trial ? { trial: "1" } : {}),
-  }).toString();
+  // The server narrows by area only; chips and search filter what it returned, so
+  // toggling one never refetches or blanks the list.
+  const query = new URLSearchParams({ limit: "100", ...(area ? { area } : {}) }).toString();
   const catalog = useData<{ items: Offer[] }>(`jelajah:${query}`, () => runtime.api.catalog("?" + query));
 
+  // Siang and Malam together mean no meal filter.
+  const meal = lunch !== dinner ? (lunch ? "lunch" : "dinner") : "";
   const needle = search.trim().toLowerCase();
-  const items = ((catalog.data?.items ?? []) as CatalogOffer[])
-    .filter(
-      (o) =>
-        (!meal || o.meal === meal || o.meal === "both") &&
-        (!budget || perMealPrice(o) <= BUDGET) &&
-        (!trial || !!o.trialPrice) &&
-        (!needle ||
-          [o.name, o.caterer, ...o.tags, ...o.menus.map((m) => menuSummary(m, locale))]
-            .join(" ")
-            .toLowerCase()
-            .includes(needle)),
-    )
-    .sort((a, b) => Number(!!area && b.areas.includes(area)) - Number(!!area && a.areas.includes(area)));
+  const all = catalog.data?.items;
+  const items = useMemo(
+    () =>
+      ((all ?? []) as CatalogOffer[])
+        .filter(
+          (o) =>
+            (!meal || o.meal === meal || o.meal === "both") &&
+            (!budget || perMealPrice(o) <= BUDGET) &&
+            (!trial || !!o.trialPrice) &&
+            (!needle ||
+              [o.name, o.caterer, ...o.tags, ...o.menus.map((m) => menuSummary(m, locale))]
+                .join(" ")
+                .toLowerCase()
+                .includes(needle)),
+        )
+        .sort((a, b) => Number(!!area && b.areas.includes(area)) - Number(!!area && a.areas.includes(area))),
+    [all, meal, budget, trial, needle, area, locale],
+  );
   const filtered = !!(needle || meal || budget || trial);
   const clear = () => {
     setSearch("");
@@ -116,10 +118,10 @@ function Browse({ area, onArea }: { area: string; onArea: (value: string) => voi
       </View>
 
       <View style={styles.chips}>
-        <Chip label={t("Siang", "Lunch")} selected={lunch} onPress={() => setLunch(!lunch)} />
-        <Chip label={t("Malam", "Dinner")} selected={dinner} onPress={() => setDinner(!dinner)} />
-        <Chip label={t("Di bawah Rp30.000", "Under Rp30,000")} selected={budget} onPress={() => setBudget(!budget)} />
-        <Chip label={t("Bisa coba 1 hari", "One-day trial")} selected={trial} onPress={() => setTrial(!trial)} />
+        <FilterChip label={t("Siang", "Lunch")} selected={lunch} onPress={() => setLunch(!lunch)} />
+        <FilterChip label={t("Malam", "Dinner")} selected={dinner} onPress={() => setDinner(!dinner)} />
+        <FilterChip label={t("Di bawah Rp30.000", "Under Rp30,000")} selected={budget} onPress={() => setBudget(!budget)} />
+        <FilterChip label={t("Bisa coba 1 hari", "One-day trial")} selected={trial} onPress={() => setTrial(!trial)} />
       </View>
 
       {saved.error ? <Text style={{ color: colors.danger }}>{saved.error}</Text> : null}

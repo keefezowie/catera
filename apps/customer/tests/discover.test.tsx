@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { ActivityIndicator, StyleSheet } from "react-native";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
@@ -52,6 +53,30 @@ function runtimeWith(actor: Record<string, unknown> | null = customer, over: Rec
   return runtime;
 }
 
+/** A saved-packages server that remembers what the command wrote, like the real one. */
+function savedServer(initial: string[] = [], fail = false) {
+  const ids = new Set(initial);
+  const all = [cheap, pricey, dinner];
+  return {
+    savedPackages: jest.fn(async () => ({
+      packageIds: [...ids],
+      items: [...ids].map((id) => ({
+        packageId: id,
+        savedAt: "2026-10-01T00:00:00Z",
+        summary: {},
+        offer: all.find((o) => o.id === id) ?? null,
+      })),
+      nextCursor: null,
+    })),
+    command: jest.fn(async (_action: string, payload: { packageId: string; saved: boolean }) => {
+      if (fail) throw new Error("REQUEST_FAILED");
+      if (payload.saved) ids.add(payload.packageId);
+      else ids.delete(payload.packageId);
+      return payload;
+    }),
+  };
+}
+
 const wrap = (runtime: MobileRuntime, ui: React.ReactElement) =>
   render(
     <MobileProvider runtime={runtime} linkMapper={customerLink}>
@@ -74,33 +99,52 @@ describe("Jelajah", () => {
     wrap(runtime, <Jelajah />);
     expect(await screen.findByText("Menu Sehat Premium")).toBeTruthy();
     fireEvent.press(screen.getByRole("button", { name: "Di bawah Rp30.000" }));
-    await waitFor(() => expect(lastCatalogQuery(runtime)).toContain("maxPrice=30000"));
-    await waitFor(() => expect(screen.queryByText("Menu Sehat Premium")).toBeNull());
+    expect(screen.queryByText("Menu Sehat Premium")).toBeNull();
     expect(screen.getByText("Nasi Ayam Bakar")).toBeTruthy();
+    expect(screen.getByText("Makan Malam Nabati")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Di bawah Rp30.000" }).props.accessibilityState.selected).toBe(true);
   });
 
   it("meal chips narrow to one meal and both together mean no meal filter", async () => {
-    const runtime = runtimeWith();
-    wrap(runtime, <Jelajah />);
+    wrap(runtimeWith(), <Jelajah />);
     await screen.findByText("Menu Sehat Premium");
     fireEvent.press(screen.getByRole("button", { name: "Malam" }));
-    await waitFor(() => expect(screen.queryByText("Menu Sehat Premium")).toBeNull());
+    expect(screen.queryByText("Menu Sehat Premium")).toBeNull();
     expect(screen.getByText("Makan Malam Nabati")).toBeTruthy();
-    expect(lastCatalogQuery(runtime)).toContain("meal=dinner");
     fireEvent.press(screen.getByRole("button", { name: "Siang" }));
-    expect(await screen.findByText("Menu Sehat Premium")).toBeTruthy();
-    expect(lastCatalogQuery(runtime)).not.toContain("meal=");
+    expect(screen.getByText("Menu Sehat Premium")).toBeTruthy();
+    expect(screen.getByText("Makan Malam Nabati")).toBeTruthy();
   });
 
-  it("trial chip asks for packages with a trial", async () => {
-    const runtime = runtimeWith();
-    wrap(runtime, <Jelajah />);
+  it("trial chip keeps only packages with a one-day trial", async () => {
+    wrap(runtimeWith(), <Jelajah />);
     await screen.findByText("Menu Sehat Premium");
     fireEvent.press(screen.getByRole("button", { name: "Bisa coba 1 hari" }));
-    await waitFor(() => expect(screen.queryByText("Menu Sehat Premium")).toBeNull());
-    expect(lastCatalogQuery(runtime)).toContain("trial=1");
+    expect(screen.queryByText("Menu Sehat Premium")).toBeNull();
     expect(screen.getByText("Bisa coba 1 hari dulu")).toBeTruthy();
+  });
+
+  it("toggling a chip never asks the server again or shows the spinner", async () => {
+    const runtime = runtimeWith();
+    const view = wrap(runtime, <Jelajah />);
+    await screen.findByText("Menu Sehat Premium");
+    const calls = (runtime.api.catalog as jest.Mock).mock.calls.length;
+    for (const name of ["Siang", "Di bawah Rp30.000", "Bisa coba 1 hari", "Malam"]) {
+      fireEvent.press(screen.getByRole("button", { name }));
+      expect(view.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
+      expect(screen.queryByText("Nasi Ayam Bakar") || screen.queryByText("Belum ada paket yang cocok.")).toBeTruthy();
+    }
+    expect((runtime.api.catalog as jest.Mock).mock.calls.length).toBe(calls);
+    expect(lastCatalogQuery(runtime)).toBe("?limit=100");
+  });
+
+  it("every chip is at least 44 points tall", async () => {
+    wrap(runtimeWith(), <Jelajah />);
+    await screen.findByText("Menu Sehat Premium");
+    for (const name of ["Siang", "Malam", "Di bawah Rp30.000", "Bisa coba 1 hari"]) {
+      const style = StyleSheet.flatten(screen.getByRole("button", { name }).props.style);
+      expect(style.minHeight).toBeGreaterThanOrEqual(44);
+    }
   });
 
   it("search narrows by name or caterer without another request", async () => {
@@ -153,18 +197,37 @@ describe("Jelajah", () => {
     expect(runtime.api.command).not.toHaveBeenCalled();
   });
 
-  it("heart while signed in saves the package and flips to saved", async () => {
-    const runtime = runtimeWith();
+  it("heart while signed in saves the package and stays saved after the list reloads", async () => {
+    const server = savedServer();
+    const runtime = runtimeWith(customer, server);
     wrap(runtime, <Jelajah />);
     fireEvent.press(await screen.findByRole("button", { name: "Simpan Nasi Ayam Bakar" }));
     await waitFor(() =>
-      expect(runtime.api.command).toHaveBeenCalledWith(
-        "savedPackage.set",
-        { packageId: "p-murah", saved: true },
-        expect.any(String),
-      ),
+      expect(server.command).toHaveBeenCalledWith("savedPackage.set", { packageId: "p-murah", saved: true }, expect.any(String)),
     );
-    expect(await screen.findByRole("button", { name: "Hapus Nasi Ayam Bakar dari simpanan" })).toBeTruthy();
+    // The command refreshes saved packages; the heart must still be filled once that read lands.
+    await waitFor(() => expect(server.savedPackages).toHaveBeenCalledTimes(2));
+    await act(async () => {});
+    expect(screen.getByRole("button", { name: "Hapus Nasi Ayam Bakar dari simpanan" }).props.accessibilityState.selected).toBe(true);
+    expect(screen.queryByRole("button", { name: "Simpan Nasi Ayam Bakar" })).toBeNull();
+  });
+
+  it("heart goes back and says so when saving fails", async () => {
+    const server = savedServer([], true);
+    wrap(runtimeWith(customer, server), <Jelajah />);
+    fireEvent.press(await screen.findByRole("button", { name: "Simpan Nasi Ayam Bakar" }));
+    expect(await screen.findByText("Belum tersimpan. Coba lagi.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Simpan Nasi Ayam Bakar" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Hapus Nasi Ayam Bakar dari simpanan" })).toBeNull();
+  });
+
+  it("an already saved package shows a filled heart and un-saving survives the reload", async () => {
+    const server = savedServer(["p-murah"]);
+    wrap(runtimeWith(customer, server), <Jelajah />);
+    fireEvent.press(await screen.findByRole("button", { name: "Hapus Nasi Ayam Bakar dari simpanan" }));
+    await waitFor(() => expect(server.savedPackages).toHaveBeenCalledTimes(2));
+    await act(async () => {});
+    expect(screen.getByRole("button", { name: "Simpan Nasi Ayam Bakar" })).toBeTruthy();
   });
 
   it("says so when nothing matches", async () => {
@@ -232,27 +295,27 @@ describe("Paket", () => {
 });
 
 describe("Disimpan", () => {
-  it("lists saved packages on the same card and removes one", async () => {
-    const runtime = runtimeWith(customer, {
-      savedPackages: jest.fn(async () => ({
-        packageIds: ["p-murah"],
-        items: [{ packageId: "p-murah", savedAt: "2026-10-01T00:00:00Z", summary: {}, offer: cheap }],
-        nextCursor: null,
-      })),
-    });
-    wrap(runtime, <SavedList />);
+  it("lists saved packages on the same card and a removed one is gone after the reload", async () => {
+    const server = savedServer(["p-murah", "p-mahal"]);
+    wrap(runtimeWith(customer, server), <SavedList />);
     expect(await screen.findByText("Nasi Ayam Bakar")).toBeTruthy();
+    expect(screen.getByText("Menu Sehat Premium")).toBeTruthy();
     fireEvent.press(screen.getByRole("button", { name: "Hapus Nasi Ayam Bakar dari simpanan" }));
     await waitFor(() =>
-      expect(runtime.api.command).toHaveBeenCalledWith(
-        "savedPackage.set",
-        { packageId: "p-murah", saved: false },
-        expect.any(String),
-      ),
+      expect(server.command).toHaveBeenCalledWith("savedPackage.set", { packageId: "p-murah", saved: false }, expect.any(String)),
     );
-    // The command refreshes the list; let that read finish inside the test.
-    await waitFor(() => expect(runtime.api.savedPackages).toHaveBeenCalledTimes(2));
-    expect(await screen.findByText("Nasi Ayam Bakar")).toBeTruthy();
+    await waitFor(() => expect(server.savedPackages).toHaveBeenCalledTimes(2));
+    await act(async () => {});
+    expect(screen.queryByText("Nasi Ayam Bakar")).toBeNull();
+    expect(screen.getByText("Menu Sehat Premium")).toBeTruthy();
+  });
+
+  it("keeps the package listed and says so when removing fails", async () => {
+    wrap(runtimeWith(customer, savedServer(["p-murah"], true)), <SavedList />);
+    await screen.findByText("Nasi Ayam Bakar");
+    fireEvent.press(screen.getByRole("button", { name: "Hapus Nasi Ayam Bakar dari simpanan" }));
+    expect(await screen.findByText("Belum tersimpan. Coba lagi.")).toBeTruthy();
+    expect(screen.getByText("Nasi Ayam Bakar")).toBeTruthy();
   });
 
   it("asks a signed-out visitor to sign in", async () => {
