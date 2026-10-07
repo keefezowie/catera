@@ -8,6 +8,7 @@ import { earliestImportStart, errorLabel, jakartaDay, normalizeCustomerPhone } f
 import { useData, useMobile } from "@catera/mobile-core";
 import { Button, Card, Chip, colors, Field, FONT, Screen, Sheet, Text } from "@catera/mobile-ui";
 import { recheck, toImportRow, type AssistantRow } from "./rows";
+import { fitsUpload, MAX_IMAGES, shrinkPhoto } from "./images";
 
 type Attachment =
   | { kind: "image"; name: string; mediaType: "image/jpeg" | "image/png" | "image/webp"; data: string }
@@ -38,15 +39,19 @@ export function ImportAssistant() {
     })[code] ?? (errorLabel(code, locale) || t("Belum berhasil. Coba lagi.", "That didn't work. Try again."));
 
   async function addPhoto() {
-    const picked = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.6, base64: true, allowsMultipleSelection: true, selectionLimit: 6 });
+    const room = MAX_IMAGES - files.filter((f) => f.kind === "image").length;
+    if (room <= 0) return setError(t(`Maksimal ${MAX_IMAGES} foto sekali kirim.`, `At most ${MAX_IMAGES} photos per send.`));
+    const picked = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsMultipleSelection: true, selectionLimit: room });
     if (picked.canceled) return;
-    const images = picked.assets.filter((a) => a.base64).map((a, i): Attachment => ({
-      kind: "image",
-      name: a.fileName || `Foto ${files.length + i + 1}`,
-      mediaType: a.mimeType === "image/png" || a.mimeType === "image/webp" ? a.mimeType : "image/jpeg",
-      data: a.base64!,
-    }));
-    setFiles((f) => [...f, ...images].slice(0, 8));
+    setBusy("photo");
+    try {
+      const images: Attachment[] = [];
+      for (const [i, a] of picked.assets.slice(0, room).entries())
+        images.push({ kind: "image", name: a.fileName || `Foto ${files.length + i + 1}`, ...(await shrinkPhoto(a)) });
+      setFiles((f) => [...f, ...images]);
+    } finally {
+      setBusy("");
+    }
   }
 
   async function addFile() {
@@ -64,6 +69,8 @@ export function ImportAssistant() {
   }
 
   async function read() {
+    if (!fitsUpload([text, ...files.map((f) => f.data)]))
+      return setError(t("Lampiran terlalu besar. Kirim sebagian dulu.", "Attachments are too large. Send some of them first."));
     setBusy("read");
     setError("");
     try {
