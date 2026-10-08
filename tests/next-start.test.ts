@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { nextStartAfter } from "@catera/domain";
+import { nextStartAfter, startDates } from "@catera/domain";
 
 const offer = { id: "p-1", timezone: "Asia/Jakarta", cutoff: "17:00", weekdays: [1, 2, 3, 4, 5] };
 const now = new Date("2026-10-08T03:00:00Z");
@@ -45,4 +45,19 @@ it("returns null without an active plan for this package", () => {
   expect(nextStartAfter(offer, [], now)).toBeNull();
   expect(nextStartAfter(offer, [plan("2026-10-15", { package_id: "p-2" })], now)).toBeNull();
   expect(nextStartAfter(offer, [plan("2026-10-15", { status: "ended" })], now)).toBeNull();
+});
+
+it("startDates lists bookable days soonest first, skipping closed ones", () => {
+  // Thursday 8 Okt 10:00 Jakarta: Friday's cutoff (Thursday 17.00) is still open.
+  expect(startDates(offer, now, 4)).toEqual(["2026-10-09", "2026-10-12", "2026-10-13", "2026-10-14"]);
+});
+
+it("startDates drops a day once its cutoff has passed", () => {
+  const late = new Date("2026-10-08T10:30:00Z");
+  expect(startDates(offer, late, 2)).toEqual(["2026-10-12", "2026-10-13"]);
+});
+
+it("startDates stays within three weeks and honours the count", () => {
+  expect(startDates(offer, now, 100)).toHaveLength(14);
+  expect(startDates({ ...offer, weekdays: [] }, now, 3)).toEqual([]);
 });

@@ -1,4 +1,4 @@
-import { addDays } from "./dates";
+import { addDays, localDay } from "./dates";
 import type { Offer, Subscription } from "./index";
 
 /** Matches v1.cutoff: the previous day's cutoff in the caterer's timezone. */
@@ -27,6 +27,18 @@ export function purchaseStartAvailable(
   const part = (key: string) => parts.find((p) => p.type === key)!.value;
   const local = `${part("year")}-${part("month")}-${part("day")}T${part("hour")}:${part("minute")}:${part("second")}`;
   return local < `${addDays(date, -1)}T${offer.cutoff.padEnd(8, ":00")}`;
+}
+
+/** Bookable start dates for a new purchase, soonest first, within the next three weeks. */
+export function startDates(
+  offer: Pick<Offer, "timezone" | "cutoff" | "weekdays">,
+  now: Date,
+  count: number,
+): string[] {
+  const out: string[] = [];
+  for (let i = 0, d = localDay(now); i < 21 && out.length < count; i += 1, d = addDays(d, 1))
+    if (purchaseStartAvailable(offer, d, now)) out.push(d);
+  return out;
 }
 
 /** The first bookable start after the customer's running plan of this package, for when a new

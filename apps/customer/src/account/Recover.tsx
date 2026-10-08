@@ -28,7 +28,6 @@ export function Recover() {
   return (
     <Screen>
       <View style={{ gap: 14, paddingTop: 8 }}>
-        <Text variant="title">{t("Pulihkan kata sandi", "Recover password")}</Text>
         <Text>
           {t(
             "Kami kirim tautan ke email Anda. Buka tautan itu di HP ini untuk membuat kata sandi baru.",

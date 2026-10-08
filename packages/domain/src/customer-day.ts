@@ -1,5 +1,6 @@
 import { addDays } from "./dates";
 import type { CustomerState, Delivery, DeliveryMeal, Locale, Offer, Subscription } from "./index";
+import type { MealType } from "./offer-schema";
 import { jakartaDay, shortDate } from "./kitchen";
 
 /** Customer-facing views of a delivery day, shared by the customer app and the web. */
@@ -27,6 +28,9 @@ export type UpcomingRow = {
   deliveryId: string;
   date: string;
   label: string;
+  /** The package this day belongs to, and which of its meals the day brings. */
+  packageName: string;
+  meal: MealType;
   dishes: string;
   /** When changes close, with the day: "hari ini 17.00", "besok 17.00", "Jumat 17.00". */
   changeUntil: string | null;
@@ -172,6 +176,8 @@ export function upcomingRows(state: CustomerState, now: Date, n: number, locale:
         deliveryId: d.id,
         date: d.service_date,
         label: dayLabel(d.service_date, today, "id"),
+        packageName: d.offer.name,
+        meal: meals.length > 1 ? "both" : (meals[0] ?? d.offer.meal),
         dishes: meals.flatMap((meal) => dishesFor(d.offer, meal)).join(", "),
         changeUntil: changeable.date || changeable.address ? changeDeadline(d.cutoff_at, now, locale) : null,
       };

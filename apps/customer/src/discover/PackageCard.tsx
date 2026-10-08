@@ -1,5 +1,5 @@
 import { Image, Pressable, StyleSheet, View } from "react-native";
-import { currency, perMealPrice } from "@catera/domain";
+import { currency, perMealPrice, priceUnitLabel } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
 import { colors, RoundButton, Text } from "@catera/mobile-ui";
 import { photoUri } from "../today/Plate";
@@ -18,6 +18,7 @@ export function PackageCard({
   onToggleSaved: () => void;
 }) {
   const { runtime, t, locale } = useMobile();
+  const { unit, note } = priceUnitLabel(offer, locale);
   return (
     <View style={styles.card}>
       <Pressable accessibilityRole="button" accessibilityLabel={`${offer.name}, ${offer.caterer}`} onPress={onOpen}>
@@ -32,14 +33,16 @@ export function PackageCard({
           <View style={styles.photo} />
         )}
         <View style={styles.body}>
-          <View style={styles.row}>
-            <Text variant="heading" style={{ flex: 1 }} numberOfLines={2}>
-              {offer.name}
-            </Text>
+          <Text variant="heading" numberOfLines={2}>
+            {offer.name}
+          </Text>
+          <View style={styles.price}>
             <Text variant="heading" style={{ fontVariant: ["tabular-nums"] }}>
               {currency(perMealPrice(offer), locale)}
             </Text>
+            <Text variant="caption">{unit}</Text>
           </View>
+          {note ? <Text variant="caption">{note}</Text> : null}
           <Text variant="caption" style={{ fontSize: 13 }}>
             {cardLine(offer, locale)}
           </Text>
@@ -71,5 +74,5 @@ const styles = StyleSheet.create({
   },
   photo: { height: 196, width: "100%", backgroundColor: colors.sage },
   body: { padding: 14, gap: 4 },
-  row: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
+  price: { flexDirection: "row", alignItems: "baseline", gap: 6 },
 });

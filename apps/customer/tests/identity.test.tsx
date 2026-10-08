@@ -111,6 +111,14 @@ describe("Daftar dengan email", () => {
     );
   });
 
+  it("shows a single heading: the header names the screen, the body says how", async () => {
+    renderWith(<Register />);
+    await screen.findByLabelText("Nama");
+    expect(screen.queryAllByRole("header")).toHaveLength(0);
+    expect(screen.queryByText("Daftar dengan email")).toBeNull();
+    expect(screen.getByText(/dengan email/)).toBeTruthy();
+  });
+
   it("explains a rejected password and stays on the form", async () => {
     supabase.auth.signUp.mockResolvedValueOnce({
       data: { session: null, user: null },
@@ -127,6 +135,14 @@ describe("Daftar dengan email", () => {
 });
 
 describe("Lupa kata sandi", () => {
+  it("shows a single heading: the header names the screen, the body explains", async () => {
+    renderWith(<Recover />);
+    await screen.findByLabelText("Email");
+    expect(screen.queryAllByRole("header")).toHaveLength(0);
+    expect(screen.queryByText("Pulihkan kata sandi")).toBeNull();
+    expect(screen.getByText(/Kami kirim tautan/)).toBeTruthy();
+  });
+
   it("sends a recovery link to the email and says so", async () => {
     mockParams = { next: "/akun" };
     renderWith(<Recover />);

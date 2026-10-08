@@ -7,6 +7,7 @@ import {
   type Nutrition,
   type PackageType,
 } from "./contents";
+import type { Locale, Offer } from "./index";
 
 /** Read-only discovery copy; never infer structure for legacy menus. */
 export function compositionPreview(
@@ -76,4 +77,19 @@ export function menuSourceLabel(menu: MealMenu, locale = "id") {
     : locale === "id"
       ? "Menu contoh"
       : "Example menu";
+}
+
+/**
+ * The unit that goes with a per-meal price (`perMealPrice`). A combined offer adds a note that one
+ * day brings two meals, so its per-meal price is never read as the price of the whole day.
+ */
+export function priceUnitLabel(
+  offer: Pick<Offer, "meal">,
+  locale: Locale = "id",
+): { unit: string; note: string | null } {
+  const id = locale === "id";
+  return {
+    unit: id ? "/ sekali makan" : "/ meal",
+    note: offer.meal === "both" ? (id ? "2 kali makan / hari" : "2 meals / day") : null,
+  };
 }

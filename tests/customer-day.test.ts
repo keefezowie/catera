@@ -224,6 +224,19 @@ describe("upcomingRows", () => {
     expect(upcomingRows(s, at("17:00"), 1)[0].changeUntil).toBeNull();
   });
 
+  it("names the package and the meal of each row", () => {
+    const s = state([
+      delivery("2026-10-08", [lunch()]),
+      delivery("2026-10-09", [lunch(), dinner()]),
+      delivery("2026-10-12", [dinner()]),
+    ]);
+    expect(upcomingRows(s, at("09:00"), 3).map((r) => [r.packageName, r.meal])).toEqual([
+      ["Makan Siang Rumahan", "lunch"],
+      ["Makan Siang Rumahan", "both"],
+      ["Makan Siang Rumahan", "dinner"],
+    ]);
+  });
+
   it("names the day of a deadline that is not today, in the reader's language", () => {
     const s = state([
       delivery("2026-10-08", [lunch()], { canChange: true, cutoff_at: "2026-10-07T10:00:00Z" }),

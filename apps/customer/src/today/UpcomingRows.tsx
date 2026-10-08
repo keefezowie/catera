@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
-import { dayLabel, jakartaDay, type UpcomingRow } from "@catera/domain";
+import { dayLabel, jakartaDay, mealLabel, type UpcomingRow } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
 import { colors, fontFor, Text } from "@catera/mobile-ui";
 
@@ -24,11 +24,12 @@ export function UpcomingRows({ rows }: { rows: UpcomingRow[] }) {
         >
           <View style={{ flex: 1, gap: 2 }}>
             <Text style={{ fontFamily: fontFor("700") }}>{locale === "id" ? row.label : dayLabel(row.date, today, "en")}</Text>
-            {row.dishes ? (
-              <Text variant="caption" numberOfLines={1}>
-                {row.dishes}
-              </Text>
-            ) : null}
+            <Text variant="caption" numberOfLines={1}>
+              {row.packageName} · {mealLabel(row.meal, locale)}
+            </Text>
+            <Text variant="caption" numberOfLines={1}>
+              {row.dishes || t("Menu belum ditentukan", "Menu not set yet")}
+            </Text>
             {row.changeUntil ? (
               <Text variant="caption" style={{ color: colors.forest, fontVariant: ["tabular-nums"] }}>
                 {t(`Bisa diubah sampai ${row.changeUntil}`, `Can be changed until ${row.changeUntil}`)}

@@ -2,7 +2,7 @@ import { ActivityIndicator, ScrollView, StyleSheet } from "react-native";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
-import type { Offer } from "@catera/domain";
+import { currency, shortDate, startDates, type Offer } from "@catera/domain";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { customerLink } from "../src/links";
 import { Jelajah } from "../src/discover/Jelajah";
@@ -168,6 +168,23 @@ describe("Jelajah", () => {
     expect((runtime.api.catalog as jest.Mock).mock.calls.length).toBe(calls);
   });
 
+  it("single-meal offer shows only / sekali makan", async () => {
+    wrap(runtimeWith(), <Jelajah />);
+    await screen.findByText("Menu Sehat Premium");
+    expect(screen.getAllByText("/ sekali makan")).toHaveLength(3);
+    expect(screen.queryByText("2 kali makan / hari")).toBeNull();
+  });
+
+  it("combined offer shows 2 kali makan / hari and its per-meal price", async () => {
+    const both = offer({ id: "p-dua", name: "Siang dan Malam", meal: "both", price: 60000 });
+    wrap(runtimeWith(customer, { catalog: jest.fn(async () => ({ items: [both], nextCursor: null })) }), <Jelajah />);
+    await screen.findByText("Siang dan Malam");
+    expect(screen.getByText("/ sekali makan")).toBeTruthy();
+    expect(screen.getByText("2 kali makan / hari")).toBeTruthy();
+    expect(screen.getByText(currency(30000, "id"))).toBeTruthy();
+    expect(screen.queryByText(/60\.000/)).toBeNull();
+  });
+
   it("shows the caterer line without inventing a distance", async () => {
     wrap(runtimeWith(), <Jelajah />);
     await screen.findByText("Nasi Ayam Bakar");
@@ -326,7 +343,7 @@ describe("Paket", () => {
     expect(screen.getByText("Diantar")).toBeTruthy();
     expect(screen.getByText("Ubah hari")).toBeTruthy();
     expect(screen.getByText("Pengantaran termasuk")).toBeTruthy();
-    expect(screen.getByText("Per porsi")).toBeTruthy();
+    expect(screen.getByText("Per sekali makan")).toBeTruthy();
     expect(screen.getByText(/45\.000/)).toBeTruthy();
   });
 
@@ -349,13 +366,33 @@ describe("Paket", () => {
     expect(screen.getAllByText(/Menu belum ditentukan/)).toHaveLength(1);
   });
 
-  it("explains how Catera works", async () => {
+  it("package detail labels the price per meal and notes a combined day", async () => {
+    mockParams = { id: "p-dua" };
+    const both = offer({ id: "p-dua", name: "Siang dan Malam", meal: "both", price: 60000 });
+    wrap(runtimeWith(customer, { offer: jest.fn(async () => ({ offer: both })) }), <PackageDetail />);
+    expect(await screen.findByText("Per sekali makan")).toBeTruthy();
+    expect(screen.queryByText("Per porsi")).toBeNull();
+    expect(screen.getByText(/30\.000/)).toBeTruthy();
+    expect(screen.getByText("2 kali makan / hari")).toBeTruthy();
+  });
+
+  it("package detail shows earliest start and no Cara kerja", async () => {
     mockParams = { id: "p-murah" };
     wrap(runtimeWith(), <PackageDetail />);
-    expect(await screen.findByText("Cara kerja Catera")).toBeTruthy();
-    expect(screen.getByText("Pilih jadwal antar")).toBeTruthy();
-    expect(screen.getByText("Bayar sekali di depan")).toBeTruthy();
-    expect(screen.getByText("Diantar sesuai jadwal")).toBeTruthy();
+    await screen.findByText("Isi paket");
+    const first = startDates(cheap, new Date(), 1)[0];
+    expect(screen.getByText("Mulai paling cepat")).toBeTruthy();
+    expect(screen.getByText(shortDate(first, "id"))).toBeTruthy();
+    expect(screen.queryByText("Cara kerja Catera")).toBeNull();
+    expect(screen.queryByText("Bayar sekali di depan")).toBeNull();
+  });
+
+  it("package detail hides the earliest start when nothing is bookable", async () => {
+    mockParams = { id: "p-tutup" };
+    const closed = offer({ id: "p-tutup", name: "Paket Tutup", weekdays: [] });
+    wrap(runtimeWith(customer, { offer: jest.fn(async () => ({ offer: closed })) }), <PackageDetail />);
+    await screen.findByText("Isi paket");
+    expect(screen.queryByText("Mulai paling cepat")).toBeNull();
   });
 
   it("heart on the detail goes to sign-in and back to the package", async () => {

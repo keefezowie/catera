@@ -69,8 +69,7 @@ export function PayWith({
       <Text variant="label">{t("Bayar dengan", "Pay with")}</Text>
       {!availability ? null : availability.mode !== "direct" ? (
         <Card style={styles.method}>
-          <Text style={styles.strong}>{t("Halaman pembayaran aman", "Secure payment page")}</Text>
-          <Text variant="caption">{t("Pilih cara bayar di halaman berikutnya.", "Choose how to pay on the next page.")}</Text>
+          <Text>{t("Pilih cara bayar di halaman berikutnya.", "Choose how to pay on the next page.")}</Text>
         </Card>
       ) : !chosen ? (
         <Text style={{ color: colors.danger }}>

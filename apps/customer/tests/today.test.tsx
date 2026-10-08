@@ -153,6 +153,59 @@ it("lists the next days as rows", async () => {
   expect(screen.getAllByText("Ayam bakar madu, Sayur asem").length).toBeGreaterThan(1);
 });
 
+it("EmptyHome shows loading then error with Coba lagi", async () => {
+  const runtime = runtimeWith(async () => customerState(null), null);
+  let fail = true;
+  let release: () => void = () => undefined;
+  const gate = new Promise<void>((resolve) => (release = resolve));
+  runtime.api.catalog = jest.fn(async () => {
+    await gate;
+    if (fail) throw new Error("REQUEST_FAILED");
+    return { items: [offer({ name: "Nasi Ayam Bakar" })], nextCursor: null };
+  }) as never;
+  renderHome(runtime);
+  expect(await screen.findByText("Memuat paket…")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Jelajah paket" })).toBeTruthy();
+  release();
+  const message = await screen.findByText(/Tidak dapat memuat|Belum berhasil|Periksa koneksi/);
+  expect(StyleSheet.flatten(message.props.style).color).toBe(colors.danger);
+  expect(screen.queryByText("Memuat paket…")).toBeNull();
+  expect(screen.getByRole("button", { name: "Jelajah paket" })).toBeTruthy();
+  fail = false;
+  fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
+  expect(await screen.findByText("Nasi Ayam Bakar")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Coba lagi" })).toBeNull();
+});
+
+it("EmptyHome prices a combined package per meal, not per day", async () => {
+  const runtime = runtimeWith(async () => customerState(null), null);
+  runtime.api.catalog = jest.fn(async () => ({
+    items: [offer({ name: "Siang dan Malam", meal: "both", price: 60000 })],
+    nextCursor: null,
+  })) as never;
+  renderHome(runtime);
+  expect(await screen.findByText("Siang dan Malam")).toBeTruthy();
+  expect(screen.getByText(/30\.000/)).toBeTruthy();
+  expect(screen.getByText(/\/ sekali makan/)).toBeTruthy();
+  expect(screen.getByText("2 kali makan / hari")).toBeTruthy();
+  expect(screen.queryByText(/60\.000/)).toBeNull();
+  expect(screen.queryByText(/per hari/)).toBeNull();
+});
+
+it("upcoming rows name the package and meal", async () => {
+  renderHome(runtimeWith(async () => customerState({ status: "scheduled" })));
+  await screen.findByText(/^Besok, /);
+  expect(screen.getAllByText("Makan Siang Rumahan · Makan siang").length).toBeGreaterThan(1);
+});
+
+it("empty upcoming row says Menu belum ditentukan", async () => {
+  const state = customerState(null);
+  state.deliveries[0] = delivery("d-empty", addDays(TODAY, 1), {}, { offer: offer({ menus: [] }) });
+  renderHome(runtimeWith(async () => state));
+  await screen.findByText(/^Besok, /);
+  expect(screen.getAllByText("Menu belum ditentukan")).toHaveLength(1);
+});
+
 it("shows the renewal card at three days left", async () => {
   renderHome(runtimeWith(async () => customerState(null, { subscription: { remaining: 3 } })));
   expect(await screen.findByText("Sisa 3 hari")).toBeTruthy();

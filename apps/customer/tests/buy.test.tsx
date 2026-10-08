@@ -305,6 +305,14 @@ describe("Beli / Perpanjang", () => {
     expect(commands(runtime).map((c) => c[0])).toEqual(["checkout.create"]);
   });
 
+  it("payment card makes no security claim", async () => {
+    wrap(server({ mode: "hosted" }), <BuyScreen packageId="p-rumahan" />);
+    await bayarReady();
+    expect(screen.getByText("Pilih cara bayar di halaman berikutnya.")).toBeTruthy();
+    expect(screen.queryByText(/bamanb/i)).toBeNull();
+    expect(screen.queryByText(/secure/i)).toBeNull();
+  });
+
   it("explicit link choices win over defaults and portions requote", async () => {
     const runtime = server();
     wrap(runtime, <BuyScreen packageId="p-rumahan" initial={{ portions: "2", cycles: "2" }} />);

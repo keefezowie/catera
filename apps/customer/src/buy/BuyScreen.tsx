@@ -2,15 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import {
-  addDays,
   currency,
   durationOptions,
   errorLabel,
-  localDay,
   nextStartAfter,
   purchaseStartAvailable,
   renewalDefaults,
   shortDate,
+  startDates,
   type Checkout,
   type CustomerState,
   type DirectPaymentMethod,
@@ -33,14 +32,6 @@ const whole = (v: string | undefined, max: number) => {
 };
 const leave = () => (router.canGoBack() ? router.back() : router.replace("/" as never));
 const tabular = { fontVariant: ["tabular-nums" as const] };
-
-/** Bookable start dates for a new purchase, soonest first, within three weeks. */
-function startDates(offer: Offer, now: Date, count: number) {
-  const out: string[] = [];
-  for (let i = 0, d = localDay(now); i < 21 && out.length < count; i += 1, d = addDays(d, 1))
-    if (purchaseStartAvailable(offer, d, now)) out.push(d);
-  return out;
-}
 
 /** Beli and Perpanjang on one screen: sensible defaults, the server's full price, then Bayar. */
 export function BuyScreen({
