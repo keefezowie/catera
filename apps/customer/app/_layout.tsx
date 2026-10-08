@@ -4,7 +4,7 @@ import { StatusBar } from "expo-status-bar";
 import { ActivityIndicator, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useMobile } from "@catera/mobile-core";
-import { colors, FONT, Text } from "@catera/mobile-ui";
+import { colors, fontAssets, fonts, Text } from "@catera/mobile-ui";
 import { runtime } from "../src/runtime";
 import { AppProviders } from "../src/shell";
 
@@ -23,7 +23,7 @@ function Navigation() {
         screenOptions={{
           headerTintColor: colors.forest,
           headerStyle: { backgroundColor: colors.canvas },
-          headerTitleStyle: { fontFamily: FONT },
+          headerTitleStyle: { fontFamily: fonts.bold },
           contentStyle: { backgroundColor: colors.canvas },
           headerBackTitle: t("Kembali", "Back"),
         }}
@@ -62,9 +62,7 @@ function Navigation() {
 }
 
 export default function RootLayout() {
-  const [loaded, error] = useFonts({
-    Jakarta: require("../../../packages/brand/assets/fonts/PlusJakartaSans[wght].ttf"),
-  });
+  const [loaded, error] = useFonts(fontAssets);
   if (error)
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 24 }}>

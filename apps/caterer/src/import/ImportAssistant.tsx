@@ -6,7 +6,7 @@ import * as DocumentPicker from "expo-document-picker";
 import { File } from "expo-file-system";
 import { earliestImportStart, errorLabel, jakartaDay, normalizeCustomerPhone } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, Chip, colors, Field, FONT, Screen, Sheet, Text } from "@catera/mobile-ui";
+import { Button, Card, Chip, colors, FONT, Field, fontFor, Screen, Sheet, Text } from "@catera/mobile-ui";
 import { recheck, toImportRow, type AssistantRow } from "./rows";
 import { fitsUpload, MAX_IMAGES, shrinkPhoto } from "./images";
 
@@ -232,7 +232,7 @@ export function ImportAssistant() {
                 <Text variant="caption">
                   {`${packages.find((p) => p.id === r.packageId)?.name ?? "—"} · ${r.remainingDays ?? "?"} ${t("hari lagi", "days left")} · ${r.portions} ${t("porsi", "portions")}`}
                 </Text>
-                {r.needsReview ? <Text style={{ color: colors.sunriseInk, fontWeight: "700" }}>{r.reason}</Text> : null}
+                {r.needsReview ? <Text style={{ color: colors.sunriseInk, fontFamily: fontFor("700") }}>{r.reason}</Text> : null}
               </Pressable>
             </Card>
           ))}

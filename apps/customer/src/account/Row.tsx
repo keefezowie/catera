@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { colors, Text } from "@catera/mobile-ui";
+import { colors, fontFor, Text } from "@catera/mobile-ui";
 
 /** One plain list row (52pt tall): a label, an optional value and a chevron when it opens something. */
 export function Row({
@@ -22,7 +22,7 @@ export function Row({
   const body = (
     <>
       <View style={{ flex: 1, gap: 2 }}>
-        <Text style={{ fontWeight: "700" }}>{label}</Text>
+        <Text style={{ fontFamily: fontFor("700") }}>{label}</Text>
         {caption ? (
           <Text variant="caption" style={{ fontVariant: ["tabular-nums"] }}>
             {caption}

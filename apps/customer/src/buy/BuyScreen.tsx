@@ -18,7 +18,7 @@ import {
   type RenewalContext,
 } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, colors, Screen, Stepper, Text } from "@catera/mobile-ui";
+import { Button, colors, fontFor, Screen, Stepper, Text } from "@catera/mobile-ui";
 import { RoundButton } from "../discover/PackageCard";
 import { SunriseButton } from "../today/Plate";
 import { Breakdown, LengthOptions, percent, StartLine } from "./Breakdown";
@@ -318,7 +318,7 @@ export function BuyScreen({
 
 const styles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", gap: 12 },
-  strong: { fontWeight: "800", color: colors.forest },
+  strong: { fontFamily: fontFor("800"), color: colors.forest },
   inline: { alignSelf: "flex-start" },
   box: { borderWidth: 1, borderColor: colors.line, borderRadius: 16, backgroundColor: colors.surface, paddingBottom: 8 },
   address: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14 },

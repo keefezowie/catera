@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { currency, shortDate, type Locale, type Quote } from "@catera/domain";
-import { Button, colors, FONT, Text } from "@catera/mobile-ui";
+import { Button, colors, fontFor, Text } from "@catera/mobile-ui";
 
 const FULL_DAYS = {
   id: ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"],
@@ -123,11 +123,11 @@ const styles = StyleSheet.create({
   option: { flex: 1, minHeight: 56, borderRadius: 12, paddingHorizontal: 12, justifyContent: "center" },
   optionOn: { backgroundColor: colors.forest },
   optionOff: { borderWidth: 1, borderColor: "#CDD4C4", backgroundColor: colors.surface },
-  optionLabel: { fontFamily: FONT, fontSize: 15, fontWeight: "700" },
+  optionLabel: { fontSize: 15, fontFamily: fontFor("700") },
   breakdown: { gap: 10, paddingVertical: 4 },
   row: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
   rowLabel: { flex: 1, color: colors.charcoal },
-  rowValue: { color: colors.charcoal, fontWeight: "600" },
+  rowValue: { color: colors.charcoal, fontFamily: fontFor("600") },
 });
 
 /** "Mulai": the start date, and once priced, how many delivery days and until when. */
@@ -155,7 +155,7 @@ export function StartLine({
   return (
     <View style={{ gap: 4 }}>
       <Text variant="caption">{t("Mulai", "Starts")}</Text>
-      <Text style={{ fontWeight: "800", color: colors.forest }}>
+      <Text style={{ fontFamily: fontFor("800"), color: colors.forest }}>
         {!startDate
           ? t("Belum ada tanggal yang bisa dipesan.", "No bookable date yet.")
           : renew

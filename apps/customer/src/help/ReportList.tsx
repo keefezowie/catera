@@ -14,7 +14,7 @@ import {
   type SupportCase,
 } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, colors, Field, FONT, Screen, Segmented, Text } from "@catera/mobile-ui";
+import { Button, Card, colors, Field, fontFor, Screen, Segmented, Text } from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
 
 /** Plain status words shared by reports and support cases. */
@@ -393,10 +393,10 @@ const styles = StyleSheet.create({
   pill: { minHeight: 28, paddingHorizontal: 10, borderRadius: 14, justifyContent: "center" },
   pillOpen: { backgroundColor: colors.cream },
   pillDone: { backgroundColor: colors.sage },
-  pillText: { fontFamily: FONT, fontSize: 12, fontWeight: "700" },
+  pillText: { fontSize: 12, fontFamily: fontFor("700") },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   pick: { minHeight: 44, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: "#CDD4C4", justifyContent: "center" },
   pickOn: { backgroundColor: colors.forest, borderColor: colors.forest },
-  pickText: { fontFamily: FONT, fontSize: 13, fontWeight: "700" },
+  pickText: { fontSize: 13, fontFamily: fontFor("700") },
   reply: { gap: 2, padding: 12, borderRadius: 12, backgroundColor: colors.sage },
 });

@@ -11,7 +11,7 @@ import {
   type SellerOffer,
 } from "@catera/domain";
 import { useData, useMobile, type MobileRuntime } from "@catera/mobile-core";
-import { Button, Card, Chip, colors, Screen, Segmented, Text } from "@catera/mobile-ui";
+import { Button, Card, Chip, colors, fontFor, Screen, Segmented, Text } from "@catera/mobile-ui";
 import { copyWeekBatches, weekDates } from "./logic";
 
 export type MenuDay = { date: string; version: number; editable: boolean; details: MealMenu | null };
@@ -192,7 +192,7 @@ export function MenuWeek() {
                   </Text>
                 ))
               ) : (
-                <Text style={{ color: colors.sunriseInk, fontWeight: "700" }}>
+                <Text style={{ color: colors.sunriseInk, fontFamily: fontFor("700") }}>
                   {canEdit ? t("Belum diisi · isi menu", "Not filled · add menu") : t("Belum diisi", "Not filled")}
                 </Text>
               )}

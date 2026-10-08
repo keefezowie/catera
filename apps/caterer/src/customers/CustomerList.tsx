@@ -4,7 +4,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { jakartaDay, whatsappUrl } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, Chip, colors, Screen, Text } from "@catera/mobile-ui";
+import { Button, Card, Chip, colors, fontFor, Screen, Text } from "@catera/mobile-ui";
 import { activeSubscriptions, currentSubscription, customerStatus, endLabel, type CustomerStatus } from "./rules";
 import { loadAllCustomers } from "./load";
 
@@ -48,11 +48,11 @@ export function CustomerList() {
               onPress={() => router.push(`/pelanggan/${c.id}` as never)}
               style={{ flex: 1, gap: 2 }}
             >
-              <Text style={{ fontWeight: "800" }}>{c.name}</Text>
+              <Text style={{ fontFamily: fontFor("800") }}>{c.name}</Text>
               {s ? <Text variant="caption">{`${s.package_name} · ${s.portions} porsi`}</Text> : null}
               <View style={{ flexDirection: "row", gap: 6, marginTop: 2 }}>
                 {s && s.status === "active" ? (
-                  <Text variant="caption" style={{ color: colors.sunriseInk, fontWeight: "700" }}>
+                  <Text variant="caption" style={{ color: colors.sunriseInk, fontFamily: fontFor("700") }}>
                     {endLabel(s.ends_on, today, t, locale)}
                   </Text>
                 ) : null}

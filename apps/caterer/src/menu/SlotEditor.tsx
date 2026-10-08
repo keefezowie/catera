@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Pressable, TextInput, View } from "react-native";
 import { selectLibraryDish, type ComponentGroup, type Dish, type LibraryDish } from "@catera/domain";
-import { Button, colors, FONT, Text } from "@catera/mobile-ui";
+import { Button, colors, FONT, fontFor, Text } from "@catera/mobile-ui";
 import { dayComplete, suggestDishes } from "./logic";
 
 /**
@@ -169,7 +169,7 @@ function GroupLine({
                 onPress={() => void onCreate(query.trim(), group.categoryId).then(add)}
                 style={{ minHeight: 44, paddingHorizontal: 12, justifyContent: "center", borderTopWidth: 1, borderTopColor: colors.line }}
               >
-                <Text style={{ fontWeight: "700" }}>{`+ Buat hidangan baru “${query.trim()}”`}</Text>
+                <Text style={{ fontFamily: fontFor("700") }}>{`+ Buat hidangan baru “${query.trim()}”`}</Text>
               </Pressable>
             </View>
           ) : null}

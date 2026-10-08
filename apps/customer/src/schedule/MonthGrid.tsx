@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text as RNText, View } from "react-native";
 import type { Locale } from "@catera/domain";
-import { colors, FONT } from "@catera/mobile-ui";
+import { colors, fontFor } from "@catera/mobile-ui";
 import { longDay, monthWeeks, WEEK_HEADER } from "./dates";
 
 /** Forest = planned, this grey-green = arrived. */
@@ -67,9 +67,8 @@ const styles = StyleSheet.create({
   header: {
     flex: 1,
     textAlign: "center",
-    fontFamily: FONT,
+    fontFamily: fontFor("700"),
     fontSize: 12,
-    fontWeight: "700",
     color: colors.muted,
     paddingVertical: 6,
   },
@@ -84,6 +83,6 @@ const styles = StyleSheet.create({
   },
   today: { borderColor: colors.sunrise, backgroundColor: colors.cream },
   selected: { backgroundColor: colors.forest, borderColor: colors.forest },
-  number: { fontFamily: FONT, fontSize: 15, fontWeight: "700", fontVariant: ["tabular-nums"] },
+  number: { fontSize: 15, fontFamily: fontFor("700"), fontVariant: ["tabular-nums"] },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "transparent" },
 });

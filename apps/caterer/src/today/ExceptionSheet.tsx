@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Pressable, View } from "react-native";
 import { errorLabel, type KitchenMeal, type SellerOperationsState, type Stop } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { Button, colors, Field, Sheet, Text } from "@catera/mobile-ui";
+import { Button, colors, Field, fontFor, Sheet, Text } from "@catera/mobile-ui";
 import { issueSteps } from "./exceptions";
 
 /**
@@ -83,7 +83,7 @@ export function ExceptionSheet({
         gap: 2,
       }}
     >
-      <Text style={{ fontWeight: "800" }}>{title}</Text>
+      <Text style={{ fontFamily: fontFor("800") }}>{title}</Text>
       <Text variant="caption">{body}</Text>
     </Pressable>
   );

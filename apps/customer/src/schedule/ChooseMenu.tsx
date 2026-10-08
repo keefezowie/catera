@@ -12,7 +12,7 @@ import {
   type MealMenu,
 } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, colors, Screen, Segmented, Text } from "@catera/mobile-ui";
+import { Button, Card, colors, fontFor, Screen, Segmented, Text } from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
 import { failureText } from "../account/failure";
 import { FilterChip } from "../discover/FilterChip";
@@ -279,7 +279,7 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
                 onPress={() => setDate(d.date)}
                 style={[styles.dateRow, i > 0 && styles.divider, d.dayId === selected?.dayId && styles.dateOn]}
               >
-                <Text style={{ flex: 1, fontWeight: "700" }}>{longDay(d.date, locale)}</Text>
+                <Text style={{ flex: 1, fontFamily: fontFor("700") }}>{longDay(d.date, locale)}</Text>
                 <Text variant="caption">{stateLabel(d)}</Text>
               </Pressable>
             ))}
@@ -329,7 +329,7 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
             return (
               <View key={slot.id} style={{ gap: 8 }}>
                 {reviewing ? (
-                  <Text style={{ fontWeight: "700" }}>{`${slot.label} · ${dish?.name ?? ""}`}</Text>
+                  <Text style={{ fontFamily: fontFor("700") }}>{`${slot.label} · ${dish?.name ?? ""}`}</Text>
                 ) : (
                   <>
                     <Text variant="label">{slot.label}</Text>

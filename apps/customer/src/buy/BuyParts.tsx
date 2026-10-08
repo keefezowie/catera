@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Linking, Pressable, Text as RNText, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import type { DirectPaymentMethod, Offer, PaymentAvailability } from "@catera/domain";
-import { Button, Card, colors, FONT, Sheet, Text } from "@catera/mobile-ui";
+import { Button, Card, colors, FONT, fontFor, Sheet, Text } from "@catera/mobile-ui";
 
 type T = (id: string, en: string) => string;
 
@@ -154,10 +154,10 @@ export function ChoiceSheet({
 }
 
 const styles = StyleSheet.create({
-  strong: { fontWeight: "800", color: colors.forest },
+  strong: { fontFamily: fontFor("800"), color: colors.forest },
   method: { borderColor: colors.forest, borderWidth: 1.5, gap: 4 },
   terms: { fontFamily: FONT, fontSize: 12, color: colors.muted, lineHeight: 17 },
-  link: { color: colors.forest, fontWeight: "700", textDecorationLine: "underline" },
+  link: { color: colors.forest, fontFamily: fontFor("700"), textDecorationLine: "underline" },
   row: {
     minHeight: 48,
     padding: 12,

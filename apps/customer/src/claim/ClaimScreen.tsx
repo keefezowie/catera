@@ -5,7 +5,7 @@ import * as Crypto from "expo-crypto";
 import { router, useLocalSearchParams } from "expo-router";
 import { errorLabel, localCustomerPhone, phoneMatchesMask, shortDate, type ClaimPreview } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { Button, Card, colors, Field, Screen, Text } from "@catera/mobile-ui";
+import { Button, Card, colors, Field, fontFor, Screen, Text } from "@catera/mobile-ui";
 import { e164Indonesia } from "../account/Masuk";
 
 /** Failures worth retrying; every other code means this link cannot be used. */
@@ -98,7 +98,7 @@ export function ClaimScreen() {
     return (
       <Screen>
         <Header />
-        <Text style={{ fontWeight: "700" }} testID="claim-dead">
+        <Text style={{ fontFamily: fontFor("700") }} testID="claim-dead">
           {t(
             "Tautan ini tidak bisa dipakai. Minta tautan baru ke katering Anda.",
             "This link can't be used. Ask your caterer for a new one.",
@@ -168,7 +168,7 @@ export function ClaimScreen() {
           </Text>
         </View>
         <Card>
-          <Text style={{ fontSize: 18, fontWeight: "800", color: colors.forest }}>{preview.packageName}</Text>
+          <Text style={{ fontSize: 18, fontFamily: fontFor("800"), color: colors.forest }}>{preview.packageName}</Text>
           <Fact label={t("Sisa", "Left")} value={t(`${preview.remainingDays} hari`, `${preview.remainingDays} days`)} />
           {preview.nextDate ? (
             <Fact
@@ -299,7 +299,7 @@ function Fact({ label, value }: { label: string; value: string }) {
   return (
     <View style={{ flexDirection: "row", gap: 16 }}>
       <Text style={{ color: colors.muted, width: 84, fontSize: 14 }}>{label}</Text>
-      <Text style={{ flex: 1, fontWeight: "700", fontSize: 14 }}>{value}</Text>
+      <Text style={{ flex: 1, fontFamily: fontFor("700"), fontSize: 14 }}>{value}</Text>
     </View>
   );
 }
@@ -308,6 +308,6 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.canvas },
   header: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 4 },
   back: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
-  from: { fontSize: 14, fontWeight: "700", color: colors.sunriseInk },
-  h1: { fontSize: 28, lineHeight: 32, fontWeight: "800", letterSpacing: -0.5, color: colors.forest },
+  from: { fontSize: 14, fontFamily: fontFor("700"), color: colors.sunriseInk },
+  h1: { fontSize: 28, lineHeight: 32, fontFamily: fontFor("800"), letterSpacing: -0.5, color: colors.forest },
 });

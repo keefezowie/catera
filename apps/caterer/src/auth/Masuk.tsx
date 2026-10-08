@@ -4,7 +4,7 @@ import * as Crypto from "expo-crypto";
 import { Link, router } from "expo-router";
 import { errorLabel } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { Button, Field, Screen, Segmented, Text } from "@catera/mobile-ui";
+import { Button, Field, fontFor, Screen, Segmented, Text } from "@catera/mobile-ui";
 import { e164Indonesia } from "../onboarding";
 
 /** Sign in with the WhatsApp number (SMS code) or email; demo roles only in development. */
@@ -113,7 +113,7 @@ export function Masuk() {
         </View>
       )}
       {error ? <Text style={{ color: "#A33024" }}>{error}</Text> : null}
-      <Link href="/daftar" style={{ fontFamily: "Jakarta", color: "#163D2E", fontWeight: "700", paddingVertical: 12 }}>
+      <Link href="/daftar" style={{ color: "#163D2E", fontFamily: fontFor("700"), paddingVertical: 12 }}>
         {t("Belum punya akun? Daftar dapur baru", "New here? Register your kitchen")}
       </Link>
       {__DEV__ ? (

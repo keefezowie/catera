@@ -3,7 +3,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { dayLabel, jakartaDay, type UpcomingRow } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { colors, Text } from "@catera/mobile-ui";
+import { colors, fontFor, Text } from "@catera/mobile-ui";
 
 /** The days after today as plain rows (not cards), each with its change deadline. */
 export function UpcomingRows({ rows }: { rows: UpcomingRow[] }) {
@@ -23,7 +23,7 @@ export function UpcomingRows({ rows }: { rows: UpcomingRow[] }) {
           style={[styles.row, i > 0 && styles.divider]}
         >
           <View style={{ flex: 1, gap: 2 }}>
-            <Text style={{ fontWeight: "700" }}>{locale === "id" ? row.label : dayLabel(row.date, today, "en")}</Text>
+            <Text style={{ fontFamily: fontFor("700") }}>{locale === "id" ? row.label : dayLabel(row.date, today, "en")}</Text>
             {row.dishes ? (
               <Text variant="caption" numberOfLines={1}>
                 {row.dishes}

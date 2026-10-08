@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import { errorLabel, jakartaDay, type Locale, type Notice } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, colors, Screen, Text } from "@catera/mobile-ui";
+import { Button, Card, colors, fontFor, Screen, Text } from "@catera/mobile-ui";
 import { customerLink } from "../links";
 import { longDay } from "../schedule/dates";
 import { jakartaClock } from "../today/Plate";
@@ -43,7 +43,7 @@ function PushCard() {
     <Card>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
         <View style={{ flex: 1, gap: 2 }}>
-          <Text style={{ fontWeight: "700" }}>{t("Notifikasi di HP ini", "Notifications on this phone")}</Text>
+          <Text style={{ fontFamily: fontFor("700") }}>{t("Notifikasi di HP ini", "Notifications on this phone")}</Text>
           <Text variant="caption">
             {t("Kabar pengantaran, pembayaran dan bantuan.", "Delivery, payment and help updates.")}
           </Text>

@@ -10,7 +10,7 @@ import {
   type Subscription,
 } from "@catera/domain";
 import { useData, useMobile, type MobileRuntime } from "@catera/mobile-core";
-import { Button, colors, Field, FONT, Screen, Text } from "@catera/mobile-ui";
+import { Button, colors, FONT, Field, fontFor, Screen, Text } from "@catera/mobile-ui";
 import { ChatKatering } from "../help/ChatKatering";
 import { EmptyHome } from "./EmptyHome";
 import { jakartaClock, Plate } from "./Plate";
@@ -140,7 +140,7 @@ function PackageLine({ subscription: s, phone }: { subscription: Subscription; p
   return (
     <View style={styles.packageLine}>
       <View style={{ flex: 1, gap: 2 }}>
-        <Text style={{ fontWeight: "700" }}>{offer.name}</Text>
+        <Text style={{ fontFamily: fontFor("700") }}>{offer.name}</Text>
         <Text variant="caption">
           {offer.caterer} · {t(`${s.remaining} hari lagi`, `${s.remaining} days to go`)}
         </Text>
@@ -215,7 +215,7 @@ function ReviewPrompt({ state }: { state: CustomerState }) {
           onPress={() => setOpen((o) => !o)}
           style={{ flex: 1, minHeight: 48, justifyContent: "center" }}
         >
-          <Text style={{ fontWeight: "700" }}>
+          <Text style={{ fontFamily: fontFor("700") }}>
             {t(`Bagaimana ${caterer} selama ini?`, `How has ${caterer} been so far?`)}
           </Text>
         </Pressable>

@@ -1,7 +1,7 @@
 import { Redirect, Tabs } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMobile } from "@catera/mobile-core";
-import { colors, FONT } from "@catera/mobile-ui";
+import { colors, fonts } from "@catera/mobile-ui";
 import { tabsForRole, type CatererTab } from "../../src/roles";
 import { RoleGate } from "../../src/RoleGate";
 
@@ -30,7 +30,7 @@ export default function TabsLayout() {
           tabBarActiveTintColor: colors.forest,
           tabBarInactiveTintColor: colors.muted,
           tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.line, height: 64 },
-          tabBarLabelStyle: { fontFamily: FONT, fontSize: 12, fontWeight: "700" },
+          tabBarLabelStyle: { fontSize: 12, fontFamily: fonts.bold },
         }}
       >
         {(Object.keys(icons) as CatererTab[]).map((name) => (

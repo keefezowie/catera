@@ -14,9 +14,10 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { colors } from "@catera/design-tokens";
+import { fontFor, fonts } from "./type";
 
-/** The one registered font family for Plus Jakarta Sans in both Catera apps. */
-export const FONT = "Jakarta";
+/** The regular-weight family for Plus Jakarta Sans; other weights come from `fonts` / `fontFor`. */
+export const FONT = fonts.regular;
 export { colors };
 
 const textVariants = {
@@ -40,8 +41,11 @@ export function Text({
   testID?: string;
   numberOfLines?: number;
 }) {
+  // Android cannot select weights from a variable font, so a weight becomes a static family.
+  // A caller that names a family (fonts.semibold) keeps it.
+  const { fontWeight, fontFamily, ...flat } = StyleSheet.flatten([textVariants[variant], style]) as TextStyle;
   return (
-    <RNText style={[{ fontFamily: FONT }, textVariants[variant], style]} {...rest}>
+    <RNText style={[flat, { fontFamily: fontFamily ?? fontFor(fontWeight) }]} {...rest}>
       {children}
     </RNText>
   );
@@ -196,7 +200,7 @@ export function Stepper({
 }) {
   return (
     <View style={styles.stepper}>
-      <RNText style={[styles.body, { flex: 1, fontWeight: "600" }]}>{label}</RNText>
+      <RNText style={[styles.body, { flex: 1, fontFamily: fontFor("600") }]}>{label}</RNText>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`Kurangi ${label}`}
@@ -206,7 +210,7 @@ export function Stepper({
       >
         <RNText style={styles.stepGlyph}>−</RNText>
       </Pressable>
-      <RNText style={[styles.body, { width: 24, textAlign: "center", fontWeight: "800" }]}>
+      <RNText style={[styles.body, { width: 24, textAlign: "center", fontFamily: fontFor("800") }]}>
         {value}
       </RNText>
       <Pressable
@@ -283,11 +287,11 @@ const styles = StyleSheet.create({
   secondary: { borderWidth: 1, borderColor: "#CDD4C4", backgroundColor: "transparent" },
   textButton: { minHeight: 44, paddingHorizontal: 4, backgroundColor: "transparent" },
   disabled: { backgroundColor: "#CFD3C6" },
-  buttonLabel: { fontFamily: FONT, fontSize: 15, fontWeight: "700" },
+  buttonLabel: { fontFamily: fontFor("700"), fontSize: 15 },
   chip: { minHeight: 40, paddingHorizontal: 14, borderRadius: 9, justifyContent: "center" },
   chipOn: { backgroundColor: colors.forest },
   chipOff: { borderWidth: 1, borderColor: "#CDD4C4" },
-  chipLabel: { fontFamily: FONT, fontSize: 13, fontWeight: "700" },
+  chipLabel: { fontFamily: fontFor("700"), fontSize: 13 },
   segmented: {
     flexDirection: "row",
     gap: 4,
@@ -298,7 +302,7 @@ const styles = StyleSheet.create({
   segment: { flex: 1, minHeight: 40, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   segmentOn: { backgroundColor: colors.forest },
   card: { borderWidth: 1, borderRadius: 16, padding: 16, gap: 10 },
-  fieldLabel: { fontFamily: FONT, fontSize: 13, fontWeight: "700", color: colors.forest },
+  fieldLabel: { fontFamily: fontFor("700"), fontSize: 13, color: colors.forest },
   input: {
     minHeight: 48,
     borderWidth: 1,

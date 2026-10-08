@@ -3,7 +3,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { jakartaDay, mealLabel, type CustomerActionItem } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { colors, Text } from "@catera/mobile-ui";
+import { colors, fontFor, Text } from "@catera/mobile-ui";
 import { customerLink } from "../links";
 import { longDay, weekdayName } from "../schedule/dates";
 import { jakartaClock } from "./Plate";
@@ -23,7 +23,7 @@ export function MenuDueRows({ items }: { items: CustomerActionItem[] }) {
           style={[styles.row, i > 0 && styles.divider]}
         >
           <View style={{ flex: 1, gap: 2 }}>
-            <Text style={{ fontWeight: "700" }}>
+            <Text style={{ fontFamily: fontFor("700") }}>
               {t(`Pilih menu ${weekdayName(item.serviceDate!, "id")}`, `Choose the menu for ${weekdayName(item.serviceDate!, "en")}`)}
             </Text>
             <Text variant="caption" style={{ fontVariant: ["tabular-nums"] }}>

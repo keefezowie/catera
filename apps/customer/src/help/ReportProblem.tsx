@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text as RNText, View } from "
 import { router, useLocalSearchParams } from "expo-router";
 import { dayLabel, errorLabel, jakartaDay, mealLabel, type Delivery } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, colors, Field, FONT, Screen, Text } from "@catera/mobile-ui";
+import { Button, Card, colors, Field, fontFor, Screen, Text } from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
 import { ChatKatering, catererPhoneOf } from "./ChatKatering";
 
@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   on: { backgroundColor: colors.forest, borderColor: colors.forest },
-  choiceLabel: { fontFamily: FONT, fontSize: 15, fontWeight: "700" },
+  choiceLabel: { fontSize: 15, fontFamily: fontFor("700") },
   step: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
   badge: {
     width: 28,
@@ -260,5 +260,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: colors.forest,
   },
-  badgeText: { fontFamily: FONT, fontSize: 13, fontWeight: "800", color: colors.cream },
+  badgeText: { fontSize: 13, fontFamily: fontFor("800"), color: colors.cream },
 });

@@ -10,7 +10,7 @@ import {
   type DeliveryIssue,
 } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, colors, Field, Screen, Text } from "@catera/mobile-ui";
+import { Button, Card, colors, Field, fontFor, Screen, Text } from "@catera/mobile-ui";
 import { jakartaClock } from "./exceptions";
 
 /** The server needs at least this much text for a reply or a resolution note. */
@@ -124,7 +124,7 @@ function Report({ issue: i, reload }: { issue: DeliveryIssue; reload: () => Prom
     <Screen>
       <View style={{ gap: 4 }}>
         <Text variant="title">{i.customerName || t("Pelanggan", "Customer")}</Text>
-        <Text style={{ fontWeight: "800" }}>{`${shortDate(i.service_date, locale)} · ${mealLabel(i.meal, locale)}`}</Text>
+        <Text style={{ fontFamily: fontFor("800") }}>{`${shortDate(i.service_date, locale)} · ${mealLabel(i.meal, locale)}`}</Text>
         <Text variant="caption">{i.package_name}</Text>
       </View>
       <Card tone={open ? "attention" : "surface"}>

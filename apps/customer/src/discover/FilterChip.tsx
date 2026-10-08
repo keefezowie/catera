@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text as RNText } from "react-native";
-import { colors, FONT } from "@catera/mobile-ui";
+import { colors, fontFor } from "@catera/mobile-ui";
 
 /** The shared Chip is 40pt tall; filters on Jelajah need the full 44pt touch target. */
 export function FilterChip({
@@ -27,5 +27,5 @@ const styles = StyleSheet.create({
   chip: { minHeight: 44, paddingHorizontal: 14, borderRadius: 9, justifyContent: "center" },
   on: { backgroundColor: colors.forest },
   off: { borderWidth: 1, borderColor: "#CDD4C4" },
-  label: { fontFamily: FONT, fontSize: 13, fontWeight: "700" },
+  label: { fontSize: 13, fontFamily: fontFor("700") },
 });

@@ -5,7 +5,7 @@ import * as SecureStore from "expo-secure-store";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { areaOptions, menuSummary, perMealPrice, type Offer } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, colors, FONT, Screen, Sheet, Text } from "@catera/mobile-ui";
+import { Button, colors, FONT, fonts, Screen, Sheet, Text } from "@catera/mobile-ui";
 import { FilterChip } from "./FilterChip";
 import { PackageCard, RoundButton } from "./PackageCard";
 import { type CatalogOffer } from "./format";
@@ -175,7 +175,7 @@ function Browse({ area, onArea }: { area: string; onArea: (value: string) => voi
             }}
             style={styles.option}
           >
-            <Text style={{ flex: 1, fontWeight: value === area ? "800" : "400" }}>
+            <Text style={{ flex: 1, fontFamily: value === area ? fonts.extrabold : fonts.regular }}>
               {value || t("Semua area", "All areas")}
             </Text>
             {value === area ? <Ionicons name="checkmark" size={20} color={colors.forest} /> : null}

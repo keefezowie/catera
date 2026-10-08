@@ -5,7 +5,7 @@ import * as Clipboard from "expo-clipboard";
 import * as WebBrowser from "expo-web-browser";
 import { currency, errorLabel, type Checkout, type DirectPaymentMethod } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, colors, FONT, Screen, Text } from "@catera/mobile-ui";
+import { Button, Card, colors, fontFor, Screen, Text } from "@catera/mobile-ui";
 import { RoundButton } from "../discover/PackageCard";
 import { PayWith, Retry } from "./BuyParts";
 import { FINAL, PaymentOutcome, stageOf } from "./PaymentOutcome";
@@ -186,7 +186,7 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
           {total}
         </Text>
         {deadline > 0 ? (
-          <Text style={[{ color: colors.sunriseInk, fontWeight: "700" }, tabular]}>
+          <Text style={[{ color: colors.sunriseInk, fontFamily: fontFor("700") }, tabular]}>
             {t(`Bayar dalam ${clock(deadline)}`, `Pay within ${clock(deadline)}`)}
           </Text>
         ) : null}
@@ -253,7 +253,7 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
       ) : null}
       {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
       {notice && !error ? (
-        <Text style={{ fontWeight: "700" }} testID="payment-notice">
+        <Text style={{ fontFamily: fontFor("700") }} testID="payment-notice">
           {notice}
         </Text>
       ) : null}
@@ -274,7 +274,7 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
 const styles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", gap: 12 },
   total: { alignItems: "center", gap: 4 },
-  va: { fontFamily: FONT, fontSize: 26, fontWeight: "800", color: colors.forest, fontVariant: ["tabular-nums"], letterSpacing: 1 },
+  va: { fontSize: 26, fontFamily: fontFor("800"), color: colors.forest, fontVariant: ["tabular-nums"], letterSpacing: 1 },
   step: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
   stepNo: {
     width: 26,
@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
     borderRadius: 13,
     textAlign: "center",
     lineHeight: 26,
-    fontWeight: "800",
+    fontFamily: fontFor("800"),
     color: colors.cream,
     backgroundColor: colors.forest,
     overflow: "hidden",

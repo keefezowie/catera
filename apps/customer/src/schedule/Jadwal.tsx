@@ -4,7 +4,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { jakartaDay, mealLabel, type CustomerState, type Delivery } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, colors, Screen, Text } from "@catera/mobile-ui";
+import { Button, Card, colors, fontFor, Screen, Text } from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
 import { photoUri } from "../today/Plate";
 import { ARRIVED_DOT, MonthGrid, type DayMark } from "./MonthGrid";
@@ -158,7 +158,7 @@ function MealRow({
         <View style={styles.photo} />
       )}
       <View style={{ flex: 1, gap: 2 }}>
-        <Text style={{ fontWeight: "700" }} numberOfLines={1}>
+        <Text style={{ fontFamily: fontFor("700") }} numberOfLines={1}>
           {d.offer.name}
         </Text>
         <Text variant="caption" style={{ fontVariant: ["tabular-nums"] }} numberOfLines={1}>

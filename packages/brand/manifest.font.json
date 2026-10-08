@@ -32,7 +32,7 @@
   },
   "integrationNotes": {
     "web": "Use the .woff2 files for upright and italic variable font faces, weight range 200 800.",
-    "native": "Use the .ttf files. Runtime support for variable fonts and weight-axis selection must be checked in the consuming native application.",
+    "native": "Native registers the five static TTFs as Jakarta, Jakarta-Medium, Jakarta-SemiBold, Jakarta-Bold, Jakarta-ExtraBold; variable fonts stay web-only.",
     "fullFamilyName": "Plus Jakarta Sans",
     "weightRange": {
       "minimum": 200,
@@ -341,6 +341,48 @@
         "glyphs": 1188,
         "embeddingFsType": 0
       }
+    }
+  ],
+  "static": [
+    {
+      "path": "assets/fonts/static/PlusJakartaSans-Regular.ttf",
+      "upstreamPath": "fonts/ttf/PlusJakartaSans-Regular.ttf",
+      "bytes": 128972,
+      "sha256": "bd6276d4060e3b1ebc45047469e0bb86b08f301ba681cdf1ceb6245ea10478d2",
+      "gitBlob": "cb874458c3911fcb7a12da70f66e4154863c9841",
+      "weight": 400
+    },
+    {
+      "path": "assets/fonts/static/PlusJakartaSans-Medium.ttf",
+      "upstreamPath": "fonts/ttf/PlusJakartaSans-Medium.ttf",
+      "bytes": 129180,
+      "sha256": "c77bab757d7402ec6d9341d5f7ddaafb2474e17026792697ba4624c7dc89caf7",
+      "gitBlob": "5d8dd8ab476e4bc9766af41d9ee0e183da2c15fe",
+      "weight": 500
+    },
+    {
+      "path": "assets/fonts/static/PlusJakartaSans-SemiBold.ttf",
+      "upstreamPath": "fonts/ttf/PlusJakartaSans-SemiBold.ttf",
+      "bytes": 129288,
+      "sha256": "65dbcedb6596a41c30869729eb31cb57d1f5edfe365684314bba8a1994eaa4cb",
+      "gitBlob": "c12d4b0e72bde4d78af22aa73184024d2495bef3",
+      "weight": 600
+    },
+    {
+      "path": "assets/fonts/static/PlusJakartaSans-Bold.ttf",
+      "upstreamPath": "fonts/ttf/PlusJakartaSans-Bold.ttf",
+      "bytes": 128988,
+      "sha256": "5f5342ef76862b5b5365d1dff1a667629dfa484e388dd602552f647219c3870f",
+      "gitBlob": "2d49642350842c27fc88ff90d6445eeda1766f7e",
+      "weight": 700
+    },
+    {
+      "path": "assets/fonts/static/PlusJakartaSans-ExtraBold.ttf",
+      "upstreamPath": "fonts/ttf/PlusJakartaSans-ExtraBold.ttf",
+      "bytes": 128888,
+      "sha256": "7d60d21b5dec501c77437e80aabd539f1d7a7b0ac7d4ada361d4d42abc7c55ea",
+      "gitBlob": "2ae35660dc8a2cc1169e7de96b61cb12c887207d",
+      "weight": 800
     }
   ]
 }

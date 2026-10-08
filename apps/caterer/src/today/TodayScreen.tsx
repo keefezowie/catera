@@ -18,7 +18,7 @@ import {
   type Stop,
 } from "@catera/domain";
 import { useData, useMobile, type MobileRuntime } from "@catera/mobile-core";
-import { Button, Card, colors, Screen, Segmented, Text } from "@catera/mobile-ui";
+import { Button, Card, colors, fontFor, Screen, Segmented, Text } from "@catera/mobile-ui";
 import { jakartaClock } from "./exceptions";
 import { loadCachedDay, saveCachedDay } from "./offline";
 import { canMoveDelivery, ExceptionSheet } from "./ExceptionSheet";
@@ -200,7 +200,7 @@ function Row({ label, value }: { label: string; value: number }) {
       }}
     >
       <Text>{label}</Text>
-      <Text style={{ fontWeight: "800" }}>{String(value)}</Text>
+      <Text style={{ fontFamily: fontFor("800") }}>{String(value)}</Text>
     </View>
   );
 }
@@ -249,10 +249,10 @@ function Antar({ ops, date, report }: { ops: SellerOperationsState; date: string
               justifyContent: "center",
             }}
           >
-            <Text style={{ color: colors.cream, fontWeight: "800", fontSize: 13 }}>{String(s.n)}</Text>
+            <Text style={{ color: colors.cream, fontFamily: fontFor("800"), fontSize: 13 }}>{String(s.n)}</Text>
           </View>
           <View style={{ flex: 1, gap: 2 }}>
-            <Text style={{ fontWeight: "800" }}>{s.name}</Text>
+            <Text style={{ fontFamily: fontFor("800") }}>{s.name}</Text>
             <Text variant="caption">{[s.addressLine, s.area].filter(Boolean).join(", ")}</Text>
             <Text variant="label">{`${s.portions} porsi · ${s.packageName}`}</Text>
             {s.note ? (
@@ -326,7 +326,7 @@ function ReportCards({ issues }: { issues: DeliveryIssue[] }) {
           >
             <Card tone="attention" style={{ flexDirection: "row", alignItems: "center" }}>
               <View style={{ flex: 1, gap: 2 }}>
-                <Text style={{ fontWeight: "800" }}>{`${who} ${t("melaporkan masalah", "reported a problem")}`}</Text>
+                <Text style={{ fontFamily: fontFor("800") }}>{`${who} ${t("melaporkan masalah", "reported a problem")}`}</Text>
                 <Text variant="label">{`${shortDate(i.service_date, locale)} · ${mealLabel(i.meal, locale)}`}</Text>
                 <Text variant="caption">{i.subject}</Text>
                 {i.status === "responded" ? (
@@ -362,7 +362,7 @@ function ActionCards({ items }: { items: SellerAttentionItem[] }) {
         const [id, en] = attentionLabels[item.kind]!;
         return (
           <Card key={item.id} tone="attention">
-            <Text style={{ fontWeight: "800" }}>{t(id, en)}</Text>
+            <Text style={{ fontFamily: fontFor("800") }}>{t(id, en)}</Text>
             {item.context ? <Text variant="caption">{item.context}</Text> : null}
           </Card>
         );
@@ -397,7 +397,7 @@ function MulaiCard() {
               gap: 2,
             }}
           >
-            <Text style={{ fontWeight: "800", color: i === 0 ? colors.forest : colors.cream }}>{title}</Text>
+            <Text style={{ fontFamily: fontFor("800"), color: i === 0 ? colors.forest : colors.cream }}>{title}</Text>
             <Text variant="caption" style={{ color: i === 0 ? colors.muted : colors.cream }}>
               {sub}
             </Text>

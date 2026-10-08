@@ -13,7 +13,7 @@ import {
   type Delivery,
 } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, colors, FONT, Segmented, Sheet, Text } from "@catera/mobile-ui";
+import { Button, colors, FONT, fontFor, Segmented, Sheet, Text } from "@catera/mobile-ui";
 import { ChatKatering, catererPhoneOf } from "../help/ChatKatering";
 import { longDay } from "./dates";
 
@@ -266,7 +266,7 @@ function OptionRow({
 }
 
 const styles = StyleSheet.create({
-  date: { fontFamily: FONT, fontSize: 22, fontWeight: "800", color: colors.forest },
+  date: { fontSize: 22, fontFamily: fontFor("800"), color: colors.forest },
   row: {
     minHeight: 56,
     flexDirection: "row",
@@ -280,6 +280,6 @@ const styles = StyleSheet.create({
   },
   rowOn: { backgroundColor: colors.forest, borderColor: colors.forest },
   rowOff: { borderStyle: "dashed", borderColor: "#B9BFB0", backgroundColor: "transparent" },
-  rowLabel: { fontFamily: FONT, fontSize: 15, fontWeight: "700", fontVariant: ["tabular-nums"] },
+  rowLabel: { fontSize: 15, fontFamily: fontFor("700"), fontVariant: ["tabular-nums"] },
   rowSub: { fontFamily: FONT, fontSize: 12 },
 });
