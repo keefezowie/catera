@@ -154,7 +154,7 @@ function ReportCards({ issues }: { issues: DeliveryIssue[] }) {
                   </Text>
                 ) : null}
               </View>
-              <Ionicons name="chevron-forward" size={22} color={colors.forest} />
+              <Ionicons name="chevron-forward" size={18} color={colors.muted} />
             </Card>
           </PressableRow>
         );
@@ -184,7 +184,7 @@ function ActionCards({ items }: { items: SellerAttentionItem[] }) {
         const link = route !== "/";
         const card = (
           <Card tone="attention" style={link ? { flexDirection: "row", alignItems: "center" } : undefined}>
-            <View style={{ flex: link ? 1 : undefined, gap: link ? 2 : undefined }}>
+            <View testID={`attention-body-${item.id}`} style={{ flex: link ? 1 : undefined, gap: 10 }}>
               <Text style={{ fontFamily: fontFor("800") }}>{t(id, en)}</Text>
               {item.context ? <Text variant="caption">{item.context}</Text> : null}
             </View>

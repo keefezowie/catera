@@ -121,6 +121,8 @@ it("report cards and setup rows dim on press and still navigate", async () => {
   expect(StyleSheet.flatten(card().props.style)?.opacity ?? 1).toBe(1);
   fireEvent(card(), "responderGrant", touch);
   expect(StyleSheet.flatten(card().props.style).opacity).toBe(0.7);
+  // Same chevron as the link attention cards.
+  expect(within(card()).UNSAFE_getByType(Ionicons).props).toMatchObject({ name: "chevron-forward", size: 18, color: colors.muted });
   fireEvent.press(card());
   expect(router.push).toHaveBeenCalledWith("/laporan/i-1");
   first.unmount();
@@ -490,6 +492,10 @@ describe("attention cards", () => {
     expect(chevrons).toHaveLength(1);
     expect(chevrons[0].props).toMatchObject({ name: "chevron-forward", size: 18, color: colors.muted });
     expect(within(screen.getByTestId("attention-a-2")).UNSAFE_queryAllByType(Ionicons)).toHaveLength(0);
+    // Both kinds keep the Card's 10 between title and context.
+    for (const id of ["a-1", "a-2"]) {
+      expect(StyleSheet.flatten(screen.getByTestId(`attention-body-${id}`).props.style).gap).toBe(10);
+    }
   });
 
   it("stays a plain card when the href has no Dapur screen", async () => {

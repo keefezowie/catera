@@ -423,7 +423,7 @@ describe("Ubah hari sheet", () => {
     );
   });
 
-  it("address rows are 48dp picks with a selection haptic, and a disabled one gives none", async () => {
+  it("address rows are 48dp picks with a selection haptic; a disabled row is set to no haptic", async () => {
     renderSheet(flexible, runtimeWith(stateOf([flexible]), available));
     fireEvent.press(await screen.findByRole("tab", { name: "Ganti alamat" }));
     (Haptics.selectionAsync as jest.Mock).mockClear();
@@ -431,9 +431,15 @@ describe("Ubah hari sheet", () => {
     expect(StyleSheet.flatten(rumahRow.props.style).minHeight).toBeGreaterThanOrEqual(48);
     fireEvent.press(rumahRow);
     expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
-    (Haptics.selectionAsync as jest.Mock).mockClear();
-    fireEvent.press(screen.getByRole("button", { name: /Villa/ }));
-    expect(Haptics.selectionAsync).not.toHaveBeenCalled();
+    // A disabled Pressable never fires onPress, so check the configured haptic on the row's PressableScale.
+    const villa = screen.getByRole("button", { name: /Villa/ });
+    const scale = (node: typeof villa) => {
+      let n: typeof villa | null = node;
+      while (n && n.props.haptic === undefined) n = n.parent;
+      return n!.props.haptic;
+    };
+    expect(scale(villa)).toBe("none");
+    expect(scale(rumahRow)).toBe("select");
   });
 
   it("after cutoff offers only chat", async () => {
