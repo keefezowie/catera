@@ -2,18 +2,19 @@ import { useState } from "react";
 import { Linking, Pressable, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
-import { whatsappUrl } from "@catera/domain";
+import { jakartaDay, whatsappUrl } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
 import { Button, Card, Chip, colors, Screen, Text } from "@catera/mobile-ui";
-import { currentSubscription, customerStatus, type CustomerStatus } from "./rules";
+import { activeSubscriptions, currentSubscription, customerStatus, endLabel, type CustomerStatus } from "./rules";
 import { loadAllCustomers } from "./load";
 
 /** Every subscriber, marketplace and own, filtered by where their package stands. */
 export function CustomerList() {
-  const { runtime, actor, t } = useMobile();
+  const { runtime, actor, t, locale } = useMobile();
   const id = actor?.catererId ?? "";
   const list = useData(`customers:${id}`, () => loadAllCustomers(runtime, id));
   const [filter, setFilter] = useState<CustomerStatus>("active");
+  const today = jakartaDay(new Date());
   const customers = list.data?.customers ?? [];
   const count = (s: CustomerStatus) => customers.filter((c) => customerStatus(c) === s).length;
   const shown = customers.filter((c) => customerStatus(c) === filter);
@@ -39,6 +40,7 @@ export function CustomerList() {
       ) : null}
       {shown.map((c) => {
         const s = currentSubscription(c);
+        const others = Math.max(activeSubscriptions(c).length - 1, 0);
         return (
           <Card key={c.id} style={{ flexDirection: "row", alignItems: "center" }}>
             <Pressable
@@ -51,9 +53,10 @@ export function CustomerList() {
               <View style={{ flexDirection: "row", gap: 6, marginTop: 2 }}>
                 {s && s.status === "active" ? (
                   <Text variant="caption" style={{ color: colors.sunriseInk, fontWeight: "700" }}>
-                    {s.remaining <= 1 ? t("Berakhir besok", "Ends tomorrow") : `${t("Sisa", "Left")} ${s.remaining} ${t("hari", "days")}`}
+                    {endLabel(s.ends_on, today, t, locale)}
                   </Text>
                 ) : null}
+                {others ? <Text variant="caption">{`+${others} ${t("paket lain", "more packages")}`}</Text> : null}
                 <Text variant="caption">
                   {c.origin === "marketplace" ? t("Dari marketplace", "From marketplace") : t("Pelanggan Anda", "Your customer")}
                 </Text>

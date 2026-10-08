@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { Linking, View } from "react-native";
 import { router } from "expo-router";
-import { errorLabel, whatsappUrl } from "@catera/domain";
+import { errorLabel, jakartaDay, whatsappUrl, type CustomerSubscription } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
 import { Button, Card, colors, Screen, Text } from "@catera/mobile-ui";
-import { currentSubscription, renewalAction } from "./rules";
+import { activeSubscriptions, endLabel, renewalAction } from "./rules";
 import { usePaymentsActive } from "./usePayments";
 import { loadCustomer } from "./load";
 
@@ -15,19 +15,23 @@ export function CustomerDetail({ id }: { id: string }) {
   const record = useData(`customer:${catererId}:${id}`, () => loadCustomer(runtime, catererId, id));
   const payments = usePaymentsActive();
   const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [errorFor, setErrorFor] = useState("");
+  const [busy, setBusy] = useState("");
   const c = record.data;
   if (!c) return <Screen>{record.error ? <Text style={{ color: colors.danger }}>{record.error}</Text> : <Text variant="caption">{t("Memuat…", "Loading…")}</Text>}</Screen>;
-  const s = currentSubscription(c);
+  const today = jakartaDay(new Date());
+  const active = activeSubscriptions(c);
+  // Every active package, soonest ending first; a customer with none shows their latest finished one.
+  const shown = active.length ? active : c.subscriptions.slice(0, 1);
   const action = renewalAction(c);
 
-  async function renew() {
-    if (!c || !s) return;
+  async function renew(s: CustomerSubscription) {
+    if (!c) return;
     if (payments !== true) {
       router.push("/aktifkan" as never);
       return;
     }
-    setBusy(true);
+    setBusy(s.id);
     setError("");
     try {
       const result =
@@ -43,20 +47,21 @@ export function CustomerDetail({ id }: { id: string }) {
             );
       await Linking.openURL(whatsappUrl(`${message} ${runtime.apiBase}${result.path}`, c.phone!));
     } catch (e) {
+      setErrorFor(s.id);
       setError(errorLabel((e as { code?: string }).code || (e as Error).message, locale) || t("Belum berhasil. Coba lagi.", "That didn't work. Try again."));
     } finally {
-      setBusy(false);
+      setBusy("");
     }
   }
 
   return (
     <Screen>
       <Text variant="title">{c.name}</Text>
-      {s ? (
-        <Card tone={s.status === "active" && s.remaining <= 3 ? "attention" : "surface"}>
+      {shown.map((s) => (
+        <Card key={s.id} tone={s.status === "active" && s.remaining <= 3 ? "attention" : "surface"}>
           <Text variant="label" style={{ color: colors.sunriseInk }}>
             {s.status === "active"
-              ? `${t("Berakhir", "Ends")} ${s.ends_on} · ${t("sisa", "left")} ${s.remaining} ${t("hari", "days")}`
+              ? `${endLabel(s.ends_on, today, t, locale)} · ${t("sisa", "left")} ${s.remaining} ${t("hari", "days")}`
               : t("Paket sudah selesai", "Package finished")}
           </Text>
           <Text variant="heading">{`${s.package_name} · ${s.portions} porsi`}</Text>
@@ -66,7 +71,7 @@ export function CustomerDetail({ id }: { id: string }) {
               : t("Pelanggan Anda · dibayar di luar Catera", "Your customer · paid outside Catera")}
           </Text>
           {action !== "none" ? (
-            <Button label={t("Kirim tautan perpanjang", "Send renewal link")} disabled={busy} onPress={() => void renew()} />
+            <Button label={t("Kirim tautan perpanjang", "Send renewal link")} disabled={!!busy} onPress={() => void renew(s)} />
           ) : null}
           {action === "invite" ? (
             <Text variant="caption">
@@ -76,9 +81,9 @@ export function CustomerDetail({ id }: { id: string }) {
               )}
             </Text>
           ) : null}
-          {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
+          {error && errorFor === s.id ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
         </Card>
-      ) : null}
+      ))}
       {c.phone ? (
         <Button variant="secondary" label={t("Chat WhatsApp", "WhatsApp chat")} onPress={() => void Linking.openURL(whatsappUrl("", c.phone!))} />
       ) : null}
@@ -87,17 +92,19 @@ export function CustomerDetail({ id }: { id: string }) {
         <Text>{[c.address.line, c.address.area].filter(Boolean).join(", ")}</Text>
         {c.address.instructions ? <Text variant="caption">{c.address.instructions}</Text> : null}
       </Card>
-      {s?.deliveries.length ? (
-        <Card>
-          <Text variant="label">{t("Jadwal", "Schedule")}</Text>
-          {s.deliveries.map((d) => (
-            <View key={d.id} style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 8 }}>
-              <Text>{d.service_date}</Text>
-              <Text variant="caption">{d.status === "delivered" ? t("Terkirim", "Delivered") : d.status === "issue" ? t("Gagal diantar", "Not delivered") : t("Terjadwal", "Scheduled")}</Text>
-            </View>
-          ))}
-        </Card>
-      ) : null}
+      {shown
+        .filter((s) => s.deliveries.length)
+        .map((s) => (
+          <Card key={`schedule-${s.id}`}>
+            <Text variant="label">{shown.length > 1 ? `${t("Jadwal", "Schedule")} · ${s.package_name}` : t("Jadwal", "Schedule")}</Text>
+            {s.deliveries.map((d) => (
+              <View key={d.id} style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 8 }}>
+                <Text>{d.service_date}</Text>
+                <Text variant="caption">{d.status === "delivered" ? t("Terkirim", "Delivered") : d.status === "issue" ? t("Gagal diantar", "Not delivered") : t("Terjadwal", "Scheduled")}</Text>
+              </View>
+            ))}
+          </Card>
+        ))}
     </Screen>
   );
 }

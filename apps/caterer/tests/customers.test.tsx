@@ -2,8 +2,8 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react-nativ
 import { Linking } from "react-native";
 import { router } from "expo-router";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
-import type { SellerCustomer } from "@catera/domain";
-import { customerStatus, paymentsActive, renewalAction } from "../src/customers/rules";
+import { addDays, jakartaDay, shortDate, type SellerCustomer } from "@catera/domain";
+import { customerStatus, endLabel, paymentsActive, renewalAction } from "../src/customers/rules";
 import { CustomerList } from "../src/customers/CustomerList";
 import { CustomerDetail } from "../src/customers/CustomerDetail";
 import { canvasDay } from "./fixtures";
@@ -151,4 +151,79 @@ it("opens a customer's own record with their delivery schedule", async () => {
   wrap(runtime, <CustomerDetail id="c-01" />);
   expect(await screen.findByText("2026-10-08")).toBeTruthy();
   expect(screen.getByText("Jadwal")).toBeTruthy();
+});
+
+describe("package end labels", () => {
+  const t = (id: string, en: string) => (locale === "en" ? en : id);
+  let locale: "id" | "en" = "id";
+  it("says today, tomorrow or the date from the last delivery day", () => {
+    expect(endLabel("2026-10-08", "2026-10-08", t, "id")).toBe("Berakhir hari ini");
+    expect(endLabel("2026-10-09", "2026-10-08", t, "id")).toBe("Berakhir besok");
+    expect(endLabel("2026-10-15", "2026-10-08", t, "id")).toBe("Berakhir Kamis 15 Okt");
+    expect(endLabel("2026-10-08", "2026-10-08", t, "id")).not.toBe("Berakhir besok");
+  });
+  it("rolls tomorrow over a month end", () => {
+    expect(endLabel("2026-11-01", "2026-10-31", t, "id")).toBe("Berakhir besok");
+  });
+  it("speaks English when asked", () => {
+    locale = "en";
+    expect(endLabel("2026-10-08", "2026-10-08", t, "en")).toBe("Ends today");
+    expect(endLabel("2026-10-09", "2026-10-08", t, "en")).toBe("Ends tomorrow");
+    locale = "id";
+  });
+});
+
+describe("customers with more than one package", () => {
+  const today = jakartaDay(new Date());
+  const inDays = (n: number) => addDays(today, n);
+  const soon = { ...sub(1), id: "s-soon", package_name: "Makan Siang Rumahan", ends_on: today };
+  const later = { ...sub(9), id: "s-later", package_name: "Paket Hemat Kantor", ends_on: inDays(9) };
+  const multi = customer("c-07", "Sari Wulandari", [later, soon], { user_id: "u-sari", origin: "marketplace" });
+  const withMulti = (runtime: MobileRuntime) => {
+    (runtime.api as { sellerCustomers: jest.Mock }).sellerCustomers = jest.fn(async () => ({ customers: [multi], total: 1, packages: [] }));
+    return runtime;
+  };
+
+  it("lists every active package, soonest ending first, each with its own end line", async () => {
+    wrap(withMulti(runtimeWith("approved", true)), <CustomerDetail id="c-07" />);
+    expect(await screen.findByText("Berakhir hari ini · sisa 1 hari")).toBeTruthy();
+    expect(screen.getByText(`Berakhir ${shortDate(inDays(9), "id")} · sisa 9 hari`)).toBeTruthy();
+    const names = screen.getAllByText(/porsi$/).map((n) => String(n.props.children));
+    expect(names[0]).toContain("Makan Siang Rumahan");
+    expect(names[1]).toContain("Paket Hemat Kantor");
+    expect(screen.getAllByText("Kirim tautan perpanjang")).toHaveLength(2);
+  });
+
+  it("renews the package whose button was pressed", async () => {
+    const runtime = withMulti(runtimeWith("approved", true));
+    jest.spyOn(Linking, "openURL").mockResolvedValue(true);
+    wrap(runtime, <CustomerDetail id="c-07" />);
+    const buttons = await screen.findAllByText("Kirim tautan perpanjang");
+    fireEvent.press(buttons[1]);
+    await waitFor(() => expect(runtime.api.command).toHaveBeenCalled());
+    expect((runtime.api.command as jest.Mock).mock.calls[0].slice(0, 2)).toEqual([
+      "customer.followup",
+      expect.objectContaining({ subscriptionId: "s-later" }),
+    ]);
+  });
+
+  it("labels a package whose last day is today as ending today in the list", async () => {
+    wrap(withMulti(runtimeWith("approved", true)), <CustomerList />);
+    fireEvent.press(await screen.findByText(/Segera berakhir/));
+    expect(await screen.findByText(/Berakhir hari ini/)).toBeTruthy();
+    expect(screen.queryByText(/Berakhir besok/)).toBeNull();
+    expect(screen.getByText("+1 paket lain")).toBeTruthy();
+  });
+
+  it("labels a package whose last day is tomorrow as ending tomorrow", async () => {
+    const runtime = runtimeWith("approved", true);
+    (runtime.api as { sellerCustomers: jest.Mock }).sellerCustomers = jest.fn(async () => ({
+      customers: [customer("c-08", "Tomo", [{ ...sub(1), ends_on: inDays(1) }])],
+      total: 1,
+      packages: [],
+    }));
+    wrap(runtime, <CustomerList />);
+    fireEvent.press(await screen.findByText(/Segera berakhir/));
+    expect(await screen.findByText(/Berakhir besok/)).toBeTruthy();
+  });
 });
