@@ -10,10 +10,9 @@ import {
   type Offer,
 } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, colors, Screen, Text } from "@catera/mobile-ui";
+import { Button, colors, RoundButton, Screen, Text } from "@catera/mobile-ui";
 import { photoUri } from "../today/Plate";
 import { dayRange, ratingText } from "./format";
-import { RoundButton } from "./PackageCard";
 import { useSaved } from "./saved";
 
 type Review = { id: string; customer: string; rating: number; body: string };

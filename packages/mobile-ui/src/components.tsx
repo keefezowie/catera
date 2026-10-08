@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import {
   Modal,
   Pressable,
@@ -271,6 +272,34 @@ export function Screen({
   );
 }
 
+/** The round surface button: back, close, heart. 48dp target. */
+export function RoundButton({
+  icon,
+  label,
+  onPress,
+  selected,
+  style,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+  selected?: boolean;
+  style?: StyleProp<ViewStyle>;
+}) {
+  return (
+    <PressableScale
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={selected === undefined ? undefined : { selected }}
+      haptic="tap"
+      onPress={onPress}
+      style={[styles.round, style]}
+    >
+      <Ionicons name={icon} size={22} color={colors.forest} />
+    </PressableScale>
+  );
+}
+
 const cardTones = StyleSheet.create({
   surface: { backgroundColor: colors.surface, borderColor: colors.line },
   attention: { backgroundColor: colors.cream, borderColor: "#F3DFC3" },
@@ -279,6 +308,16 @@ const cardTones = StyleSheet.create({
 });
 
 const styles = StyleSheet.create({
+  round: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.line,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   button: {
     minHeight: 48,
     borderRadius: 10,

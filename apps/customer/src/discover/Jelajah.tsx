@@ -5,9 +5,9 @@ import * as SecureStore from "expo-secure-store";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { areaOptions, menuSummary, perMealPrice, type Offer } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, colors, FONT, fonts, Screen, Sheet, Text } from "@catera/mobile-ui";
+import { Button, colors, FONT, fonts, RoundButton, Screen, Sheet, Text } from "@catera/mobile-ui";
 import { FilterChip } from "./FilterChip";
-import { PackageCard, RoundButton } from "./PackageCard";
+import { PackageCard } from "./PackageCard";
 import { type CatalogOffer } from "./format";
 import { useSaved } from "./saved";
 

@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react-native";
 import { StyleSheet } from "react-native";
 import * as Haptics from "expo-haptics";
 import * as Reanimated from "react-native-reanimated";
-import { Button, Chip, fontFor, fonts, PressableScale, Text } from "@catera/mobile-ui";
+import { AppHeader, Button, Chip, fontFor, fonts, PressableScale, RoundButton, Text } from "@catera/mobile-ui";
 
 test("fontFor maps weights to static families", () => {
   expect(fontFor(undefined)).toBe(fonts.regular);
@@ -93,4 +93,34 @@ describe("press feedback and haptics", () => {
     // The Reanimated jest mock does not replay shared-value changes; the 0.85 dim is checked on the emulator.
     expect(style.transform).toBeUndefined();
   });
+});
+
+describe("AppHeader", () => {
+  it("shows a one-line title and a back button", () => {
+    const onBack = jest.fn();
+    render(<AppHeader title="Bantuan dan laporan" onBack={onBack} backLabel="Kembali" />);
+    expect(screen.getByText("Bantuan dan laporan").props.numberOfLines).toBe(1);
+    fireEvent.press(screen.getByRole("button", { name: "Kembali" }));
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
+  it("modal shows a close button", () => {
+    const onBack = jest.fn();
+    render(<AppHeader title="Masuk" onBack={onBack} backLabel="Tutup" modal />);
+    fireEvent.press(screen.getByRole("button", { name: "Tutup" }));
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
+  it("has no button when there is nothing to go back to", () => {
+    render(<AppHeader title="Hari" backLabel="Kembali" />);
+    expect(screen.queryByRole("button")).toBeNull();
+  });
+});
+
+test("RoundButton presses with a haptic", () => {
+  const onPress = jest.fn();
+  render(<RoundButton icon="heart-outline" label="Simpan" onPress={onPress} />);
+  fireEvent.press(screen.getByRole("button", { name: "Simpan" }));
+  expect(onPress).toHaveBeenCalledTimes(1);
+  expect(Haptics.impactAsync).toHaveBeenCalled();
 });

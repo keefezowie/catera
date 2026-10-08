@@ -18,8 +18,7 @@ import {
   type RenewalContext,
 } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, colors, fontFor, Screen, Stepper, Text } from "@catera/mobile-ui";
-import { RoundButton } from "../discover/PackageCard";
+import { Button, colors, fontFor, RoundButton, Screen, Stepper, Text } from "@catera/mobile-ui";
 import { SunriseButton } from "../today/Plate";
 import { Breakdown, LengthOptions, percent, StartLine } from "./Breakdown";
 import { ChoiceSheet, NoLongerSold, PayWith, PendingPayment, Retry, Terms } from "./BuyParts";

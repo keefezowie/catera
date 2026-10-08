@@ -4,7 +4,7 @@ import { StatusBar } from "expo-status-bar";
 import { ActivityIndicator, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useMobile } from "@catera/mobile-core";
-import { colors, fontAssets, fonts, Text } from "@catera/mobile-ui";
+import { AppHeader, colors, fontAssets, Text } from "@catera/mobile-ui";
 import { runtime } from "../src/runtime";
 import { AppProviders } from "../src/shell";
 
@@ -21,11 +21,16 @@ function Navigation() {
       <StatusBar style="dark" />
       <Stack
         screenOptions={{
-          headerTintColor: colors.forest,
-          headerStyle: { backgroundColor: colors.canvas },
-          headerTitleStyle: { fontFamily: fonts.bold },
+          // One header for every pushed screen: round back (or close, for a modal) button and a heading.
+          header: ({ options, navigation, back }) => (
+            <AppHeader
+              title={String(options.title ?? "")}
+              onBack={back && options.headerBackVisible !== false ? navigation.goBack : undefined}
+              modal={options.presentation === "modal"}
+              backLabel={options.presentation === "modal" ? t("Tutup", "Close") : t("Kembali", "Back")}
+            />
+          ),
           contentStyle: { backgroundColor: colors.canvas },
-          headerBackTitle: t("Kembali", "Back"),
         }}
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

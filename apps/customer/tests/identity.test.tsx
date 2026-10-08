@@ -154,6 +154,15 @@ describe("Masuk links", () => {
   });
 });
 
+describe("Masuk heading", () => {
+  it("leaves the title to the header and keeps the explanation", async () => {
+    renderWith(<Masuk />);
+    expect(await screen.findByRole("button", { name: "Kirim kode" })).toBeTruthy();
+    expect(screen.queryAllByText("Masuk ke Catera")).toHaveLength(0);
+    expect(screen.getByText(/Pakai nomor HP yang Anda berikan/)).toBeTruthy();
+  });
+});
+
 describe("Masuk with email", () => {
   // Ported from the old login screen test.
   it("a failed sign-in explains the problem and does not navigate", async () => {

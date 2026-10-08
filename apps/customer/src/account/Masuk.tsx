@@ -55,8 +55,7 @@ export function Masuk() {
 
   return (
     <Screen>
-      <View style={{ gap: 6, paddingTop: 8 }}>
-        <Text variant="title">{t("Masuk ke Catera", "Sign in to Catera")}</Text>
+      <View style={{ paddingTop: 8 }}>
         <Text style={{ color: colors.muted }}>
           {t(
             "Pakai nomor HP yang Anda berikan ke katering. Kami kirim kode lewat SMS.",

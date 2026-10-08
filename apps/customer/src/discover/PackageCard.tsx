@@ -1,37 +1,9 @@
 import { Image, Pressable, StyleSheet, View } from "react-native";
-import Ionicons from "@expo/vector-icons/Ionicons";
 import { currency, perMealPrice } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { colors, Text } from "@catera/mobile-ui";
+import { colors, RoundButton, Text } from "@catera/mobile-ui";
 import { photoUri } from "../today/Plate";
 import { cardLine, type CatalogOffer } from "./format";
-
-/** The round surface button on photos: heart (save) and back. */
-export function RoundButton({
-  icon,
-  label,
-  onPress,
-  selected,
-  style,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  onPress: () => void;
-  selected?: boolean;
-  style?: object;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={selected === undefined ? undefined : { selected }}
-      onPress={onPress}
-      style={[styles.round, style]}
-    >
-      <Ionicons name={icon} size={22} color={colors.forest} />
-    </Pressable>
-  );
-}
 
 /** A package as food first: photo, name, price per portion, who cooks and when. */
 export function PackageCard({
@@ -100,14 +72,4 @@ const styles = StyleSheet.create({
   photo: { height: 196, width: "100%", backgroundColor: colors.sage },
   body: { padding: 14, gap: 4 },
   row: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
-  round: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.line,
-    alignItems: "center",
-    justifyContent: "center",
-  },
 });
