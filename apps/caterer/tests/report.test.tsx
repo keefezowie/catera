@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { Linking } from "react-native";
-import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
+import { useEffect } from "react";
+import { createMobileRuntime, MobileProvider, useMobile, type MobileRuntime } from "@catera/mobile-core";
 import { ReportScreen } from "../src/today/ReportScreen";
 import { report } from "./fixtures";
 
@@ -34,7 +35,11 @@ const show = (runtime: MobileRuntime) =>
     </MobileProvider>,
   );
 
-beforeEach(() => jest.clearAllMocks());
+// The English test stores its locale; every test starts from a fresh store (Indonesian).
+beforeEach(() => {
+  jest.clearAllMocks();
+  (require("expo-secure-store") as { __store: Map<string, string> }).__store.clear();
+});
 
 it("shows who reported what, for which day and meal, and when", async () => {
   const runtime = runtimeWith(report());
@@ -123,3 +128,103 @@ it("offers no WhatsApp without a number and no actions once Catera is reviewing 
   expect(screen.queryByText("Balas")).toBeNull();
   expect(screen.queryByText("Tandai selesai")).toBeNull();
 });
+
+describe("Tandai selesai says what the customer will read", () => {
+  const note = "Masalah ini sudah kami tangani.";
+
+  it("with an empty field shows and sends the Indonesian note, even in English", async () => {
+    const runtime = runtimeWith(report());
+    show(runtime);
+    expect(await screen.findByText(`Pelanggan akan menerima: “${note}”`)).toBeTruthy();
+    fireEvent.press(screen.getByText("Tandai selesai"));
+    await waitFor(() =>
+      expect(runtime.api.command).toHaveBeenCalledWith(
+        "deliveryIssue.resolve",
+        { id: "i-1", version: 1, body: note },
+        expect.any(String),
+      ),
+    );
+  });
+
+  it("sends the Indonesian note when the caterer uses English", async () => {
+    const runtime = runtimeWith(report());
+    render(
+      <MobileProvider runtime={runtime} linkMapper={(h) => h}>
+        <EnglishReport />
+      </MobileProvider>,
+    );
+    expect(await screen.findByText(`The customer will receive: “${note}”`)).toBeTruthy();
+    fireEvent.press(screen.getByText("Mark as done"));
+    await waitFor(() =>
+      expect(runtime.api.command).toHaveBeenCalledWith(
+        "deliveryIssue.resolve",
+        { id: "i-1", version: 1, body: note },
+        expect.any(String),
+      ),
+    );
+  });
+
+  it("with 1 to 4 characters disables both buttons and asks for at least 5", async () => {
+    const runtime = runtimeWith(report());
+    show(runtime);
+    fireEvent.changeText(await screen.findByLabelText("Balasan untuk pelanggan"), "Oke");
+    expect(screen.getByText("Tulis minimal 5 karakter.")).toBeTruthy();
+    expect(screen.queryByText(/Pelanggan akan menerima/)).toBeNull();
+    expect(screen.getByRole("button", { name: "Tandai selesai" }).props.accessibilityState.disabled).toBe(true);
+    expect(screen.getByRole("button", { name: "Balas" }).props.accessibilityState.disabled).toBe(true);
+    fireEvent.press(screen.getByText("Tandai selesai"));
+    expect(runtime.api.command).not.toHaveBeenCalled();
+  });
+
+  it("with 5 or more characters sends what was typed", async () => {
+    const runtime = runtimeWith(report());
+    show(runtime);
+    fireEvent.changeText(await screen.findByLabelText("Balasan untuk pelanggan"), "Sudah diganti, maaf ya.");
+    expect(screen.queryByText(/Pelanggan akan menerima/)).toBeNull();
+    fireEvent.press(screen.getByText("Tandai selesai"));
+    await waitFor(() =>
+      expect(runtime.api.command).toHaveBeenCalledWith(
+        "deliveryIssue.resolve",
+        { id: "i-1", version: 1, body: "Sudah diganti, maaf ya." },
+        expect.any(String),
+      ),
+    );
+  });
+});
+
+it("reloads the report after a refused action so the next tap uses the fresh version", async () => {
+  const runtime = runtimeWith(report());
+  // The server answers with the old version until the refused command, then with the new one.
+  let refused = false;
+  (runtime.api.request as jest.Mock).mockImplementation(async () =>
+    refused ? [report({ status: "responded", version: 2 })] : [report()],
+  );
+  (runtime.api.command as jest.Mock).mockImplementationOnce(async () => {
+    refused = true;
+    throw Object.assign(new Error("CONFLICT"), { code: "CONFLICT" });
+  });
+  show(runtime);
+  fireEvent.changeText(await screen.findByLabelText("Balasan untuk pelanggan"), "Kami antar ulang sekarang.");
+  fireEvent.press(screen.getByText("Balas"));
+  expect(await screen.findByText("Data sudah berubah. Muat ulang sebelum mencoba lagi.")).toBeTruthy();
+  // Nothing else reloads after a failed command: only the screen itself can fetch the new version.
+  expect(await screen.findByText("Dibalas")).toBeTruthy();
+  // The message and the typed reply survive the reload.
+  expect(screen.getByText("Data sudah berubah. Muat ulang sebelum mencoba lagi.")).toBeTruthy();
+  fireEvent.press(screen.getByText("Balas"));
+  await waitFor(() =>
+    expect(runtime.api.command).toHaveBeenLastCalledWith(
+      "deliveryIssue.respond",
+      { id: "i-1", version: 2, body: "Kami antar ulang sekarang." },
+      expect.any(String),
+    ),
+  );
+});
+
+function EnglishReport() {
+  const { setLocale, locale } = useMobile();
+  useEffect(() => {
+    if (locale !== "en") setLocale("en");
+  }, [locale, setLocale]);
+  return locale === "en" ? <ReportScreen id="i-1" /> : null;
+}

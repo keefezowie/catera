@@ -100,6 +100,15 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
       {newKitchen ? <MulaiCard /> : null}
       {offset === "0" ? (
         <>
+          {!issues.data && issues.error ? (
+            // A failed read must not look like "no reports".
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <Text variant="caption" style={{ flex: 1, color: colors.danger }}>
+                {t("Laporan pelanggan belum bisa dimuat.", "Customer reports could not be loaded.")}
+              </Text>
+              <Button variant="text" label={t("Coba lagi", "Try again")} onPress={() => void issues.reload()} />
+            </View>
+          ) : null}
           <ReportCards issues={issues.data ?? []} />
           <ActionCards items={attention.data?.items ?? []} />
         </>

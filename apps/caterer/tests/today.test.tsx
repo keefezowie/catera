@@ -171,7 +171,18 @@ it("names the customer, day and meal on a problem report and opens it", async ()
   (runtime.api.request as jest.Mock).mockImplementation(async (path: string) =>
     path.startsWith("delivery-issues") ? [report(), report({ id: "i-2", status: "resolved", customerName: "Sari" })] : [],
   );
+  // The attention read lists the same report too; it must not become a second, generic card.
+  const item = (id: string, kind: string, context: string) => ({
+    id, kind, priority: 1, at_time: "2026-10-08T05:40:00Z", context, href: "/seller/support", serviceDate: "2026-10-08", meal: "lunch",
+  });
+  (runtime.api.sellerAttention as jest.Mock).mockResolvedValue({
+    items: [item("issue-i-1", "delivery_issue", "Belum sampai"), item("case-1", "support", "Tanya tagihan")],
+    total: 2,
+    nextCursor: null,
+    timezone: "Asia/Jakarta",
+  });
   renderToday(runtime);
+  expect(await screen.findByText("Pertanyaan pelanggan menunggu")).toBeTruthy();
   fireEvent.press(await screen.findByText("Nadia Putri melaporkan masalah"));
   expect(router.push).toHaveBeenCalledWith("/laporan/i-1");
   expect(screen.getByText("Kamis 8 Okt · Makan siang")).toBeTruthy();
@@ -228,4 +239,19 @@ it("shows the move button on Besok only for days that can still move", async () 
   // Past the deadline (Keluarga Hartono) or a fixed-date package (Kantor PT Sinar Rasa): no button at all.
   expect(screen.queryByLabelText("Pindah tanggal: Keluarga Hartono")).toBeNull();
   expect(screen.queryByLabelText("Pindah tanggal: Kantor PT Sinar Rasa")).toBeNull();
+});
+
+it("says when customer reports could not be loaded and retries", async () => {
+  const runtime = runtimeWith(async () => canvasDay());
+  let failing = true;
+  (runtime.api.request as jest.Mock).mockImplementation(async () => {
+    if (failing) throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
+    return [report()];
+  });
+  renderToday(runtime);
+  expect(await screen.findByText("Laporan pelanggan belum bisa dimuat.")).toBeTruthy();
+  failing = false;
+  fireEvent.press(screen.getByText("Coba lagi"));
+  expect(await screen.findByText("Nadia Putri melaporkan masalah")).toBeTruthy();
+  expect(screen.queryByText("Laporan pelanggan belum bisa dimuat.")).toBeNull();
 });

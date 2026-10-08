@@ -15,6 +15,8 @@ import { jakartaClock } from "./exceptions";
 
 /** The server needs at least this much text for a reply or a resolution note. */
 const MIN_BODY = 5;
+/** What "Tandai selesai" sends when nothing is typed. Always Indonesian: the customer reads it, whatever the caterer's language. */
+const RESOLVE_NOTE = "Masalah ini sudah kami tangani.";
 
 /** Plain status words, the same ones the customer sees on their report. */
 export function reportStatus(status: string, t: (id: string, en: string) => string): string {
@@ -67,10 +69,11 @@ export function ReportScreen({ id }: { id: string }) {
         <Text>{t("Laporan ini tidak ditemukan.", "This report was not found.")}</Text>
       </Screen>
     );
-  return <Report issue={issue} key={`${issue.id}:${issue.version}`} />;
+  // No key on the version: a reload after a refused action keeps the typed reply and the message.
+  return <Report issue={issue} reload={issues.reload} />;
 }
 
-function Report({ issue: i }: { issue: DeliveryIssue }) {
+function Report({ issue: i, reload }: { issue: DeliveryIssue; reload: () => Promise<void> }) {
   const { t, locale, command } = useMobile();
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -92,11 +95,11 @@ function Report({ issue: i }: { issue: DeliveryIssue }) {
           ? t("Balas sebelum besok 12.00, sebelum pelanggan bisa meminta Catera meninjau.", "Reply before tomorrow 12.00, before the customer can ask Catera to review.")
           : t("Balas sebelum hari ini 12.00, sebelum pelanggan bisa meminta Catera meninjau.", "Reply before today 12.00, before the customer can ask Catera to review.");
 
+  // 1 to 4 characters: too short to send, and not empty enough to mean "use the standard note".
+  const tooShort = reply.length > 0 && reply.length < MIN_BODY;
+
   async function act(action: "deliveryIssue.respond" | "deliveryIssue.resolve") {
-    const body =
-      action === "deliveryIssue.respond" || reply.length >= MIN_BODY
-        ? reply
-        : t("Masalah ini sudah kami tangani.", "We have taken care of this.");
+    const body = action === "deliveryIssue.resolve" && !reply ? RESOLVE_NOTE : reply;
     if (busy || body.length < MIN_BODY) return;
     setBusy(true);
     setError("");
@@ -109,6 +112,9 @@ function Report({ issue: i }: { issue: DeliveryIssue }) {
         errorLabel((e as { code?: string }).code || (e as Error).message, locale) ||
           t("Belum terkirim. Coba lagi.", "Not sent. Try again."),
       );
+      // A refused action usually means the report changed (a reply elsewhere, or the customer asked
+      // Catera): fetch it again so the next tap sends the current version.
+      void reload();
     } finally {
       setBusy(false);
     }
@@ -157,6 +163,11 @@ function Report({ issue: i }: { issue: DeliveryIssue }) {
             maxLength={2000}
             style={{ minHeight: 88, textAlignVertical: "top", paddingTop: 12 }}
           />
+          {tooShort ? (
+            <Text variant="caption" style={{ color: colors.sunriseInk }}>
+              {t("Tulis minimal 5 karakter.", "Write at least 5 characters.")}
+            </Text>
+          ) : null}
           {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
           <Button
             label={t("Balas", "Reply")}
@@ -166,9 +177,12 @@ function Report({ issue: i }: { issue: DeliveryIssue }) {
           <Button
             variant="secondary"
             label={t("Tandai selesai", "Mark as done")}
-            disabled={busy}
+            disabled={busy || tooShort}
             onPress={() => void act("deliveryIssue.resolve")}
           />
+          {!reply ? (
+            <Text variant="caption">{`${t("Pelanggan akan menerima", "The customer will receive")}: “${RESOLVE_NOTE}”`}</Text>
+          ) : null}
         </>
       ) : (
         <Text variant="caption">
@@ -177,6 +191,8 @@ function Report({ issue: i }: { issue: DeliveryIssue }) {
             : t("Catera sedang meninjau laporan ini.", "Catera is reviewing this report.")}
         </Text>
       )}
+      {/* After a refused action the report may have closed meanwhile: the reason still shows. */}
+      {error && !open ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
       {i.customerPhone ? (
         <Button
           variant="secondary"
