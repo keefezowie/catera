@@ -169,7 +169,7 @@ export function PackageDetail() {
 function Fact({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.fact}>
-      <Text variant="label" style={{ width: 124 }}>
+      <Text variant="label" style={styles.factLabel}>
         {label}
       </Text>
       <Text style={{ flex: 1 }}>{value}</Text>
@@ -196,6 +196,7 @@ const styles = StyleSheet.create({
   },
   facts: { gap: 10, paddingVertical: 4 },
   fact: { flexDirection: "row", gap: 12 },
+  factLabel: { width: "32%", minWidth: 100, flexShrink: 0 },
   footer: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
   actions: { flex: 1, flexDirection: "row", justifyContent: "flex-end", gap: 8 },
   action: { paddingHorizontal: 14 },

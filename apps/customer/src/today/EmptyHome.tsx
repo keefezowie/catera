@@ -30,6 +30,9 @@ export function EmptyHome() {
           <Button variant="text" label={t("Coba lagi", "Try again")} onPress={() => void catalog.reload()} />
         </View>
       ) : null}
+      {catalog.data && !offers.length ? (
+        <Text style={{ color: colors.muted }}>{t("Belum ada paket di area ini.", "No packages in this area yet.")}</Text>
+      ) : null}
       {offers.map((o) => (
         <OfferCard key={o.id} offer={o} />
       ))}

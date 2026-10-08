@@ -177,6 +177,13 @@ it("EmptyHome shows loading then error with Coba lagi", async () => {
   expect(screen.queryByRole("button", { name: "Coba lagi" })).toBeNull();
 });
 
+it("EmptyHome says so when the catalog has no packages", async () => {
+  renderHome(runtimeWith(async () => customerState(null), null));
+  expect(await screen.findByText("Belum ada paket di area ini.")).toBeTruthy();
+  expect(screen.queryByText("Memuat paket…")).toBeNull();
+  expect(screen.getByRole("button", { name: "Jelajah paket" })).toBeTruthy();
+});
+
 it("EmptyHome prices a combined package per meal, not per day", async () => {
   const runtime = runtimeWith(async () => customerState(null), null);
   runtime.api.catalog = jest.fn(async () => ({

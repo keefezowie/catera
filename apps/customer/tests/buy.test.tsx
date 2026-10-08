@@ -309,7 +309,7 @@ describe("Beli / Perpanjang", () => {
     wrap(server({ mode: "hosted" }), <BuyScreen packageId="p-rumahan" />);
     await bayarReady();
     expect(screen.getByText("Pilih cara bayar di halaman berikutnya.")).toBeTruthy();
-    expect(screen.queryByText(/bamanb/i)).toBeNull();
+    expect(screen.queryByText(/\baman\b/i)).toBeNull();
     expect(screen.queryByText(/secure/i)).toBeNull();
   });
 

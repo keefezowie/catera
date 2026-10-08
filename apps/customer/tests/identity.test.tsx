@@ -116,7 +116,8 @@ describe("Daftar dengan email", () => {
     await screen.findByLabelText("Nama");
     expect(screen.queryAllByRole("header")).toHaveLength(0);
     expect(screen.queryByText("Daftar dengan email")).toBeNull();
-    expect(screen.getByText(/dengan email/)).toBeTruthy();
+    expect(screen.queryByText("Daftar dengan email dan kata sandi.")).toBeNull();
+    expect(screen.getByText("Kami kirim tautan verifikasi ke email Anda.")).toBeTruthy();
   });
 
   it("explains a rejected password and stays on the form", async () => {

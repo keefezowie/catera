@@ -76,7 +76,7 @@ export function Register() {
         </View>
       ) : (
         <View style={{ gap: 14, paddingTop: 8 }}>
-          <Text>{t("Daftar dengan email dan kata sandi.", "Sign up with your email and a password.")}</Text>
+          <Text>{t("Kami kirim tautan verifikasi ke email Anda.", "We will send a verification link to your email.")}</Text>
           <Field label={t("Nama", "Name")} value={name} onChangeText={setName} autoComplete="name" maxLength={100} />
           <Field
             label="Email"
