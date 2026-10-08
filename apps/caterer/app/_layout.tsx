@@ -40,7 +40,7 @@ function Navigation() {
           name="menu/[date]"
           options={({ route }) => {
             const date = String((route.params as { date?: string } | undefined)?.date ?? "");
-            const valid = /^d{4}-d{2}-d{2}$/.test(date);
+            const valid = /^\d{4}-\d{2}-\d{2}$/.test(date);
             return {
               title:
                 !valid || date === jakartaDay(new Date())

@@ -241,3 +241,27 @@ describe("menu reads", () => {
     expect(screen.getByRole("button", { name: "Coba lagi" })).toBeTruthy();
   });
 });
+
+describe("menu day with an unknown package", () => {
+  it("says the package wasn't found and offers Kembali instead of loading forever", async () => {
+    const { router } = require("expo-router") as { router: { back: jest.Mock } };
+    const { createMobileRuntime, MobileProvider } = jest.requireActual("@catera/mobile-core") as typeof import("@catera/mobile-core");
+    const { MenuDayScreen } = jest.requireActual("../src/menu/MenuDayScreen") as typeof import("../src/menu/MenuDayScreen");
+    const runtime = createMobileRuntime({ apiUrl: "https://api.example.test", storagePrefix: "mp" });
+    runtime.api = {
+      ...runtime.api,
+      me: jest.fn(async () => ({ actor: { id: "u-1", role: "owner", catererId: "k-1" }, demo: false })),
+      sellerOperations: jest.fn(async () => ({ caterer: { id: "k-1", name: "Dapur" }, dishes: [], datedMenus: [], offers: [] })),
+      menuMonth: jest.fn(async () => ({ dates: [], categories: [] })),
+    } as unknown as typeof runtime.api;
+    render(
+      <MobileProvider runtime={runtime} linkMapper={(h: string) => h}>
+        <MenuDayScreen date="2026-10-07" packageId="p-gone" meal="lunch" />
+      </MobileProvider>,
+    );
+    expect(await screen.findByText("Paket ini tidak ditemukan.")).toBeTruthy();
+    expect(screen.queryByText("Memuat…")).toBeNull();
+    fireEvent.press(screen.getByRole("button", { name: "Kembali" }));
+    expect(router.back).toHaveBeenCalled();
+  });
+});

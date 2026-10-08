@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { router } from "expo-router";
 import { errorLabel, type Dish, type LibraryDish } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { colors, Screen, Text } from "@catera/mobile-ui";
+import { Button, colors, Screen, Text } from "@catera/mobile-ui";
 import { dishUsage } from "./logic";
 import { loadMenus, MenuLoadError, mealOf } from "./MenuWeek";
 import { SlotEditor } from "./SlotEditor";
@@ -25,6 +25,13 @@ export function MenuDayScreen({ date, packageId, meal }: { date: string; package
   }, [current, items]);
   if ((ops.error && !ops.data) || (day.error && !day.data))
     return <MenuLoadError onRetry={() => void (ops.error && !ops.data ? ops.reload() : day.reload())} />;
+  if (ops.data && !offer)
+    return (
+      <Screen>
+        <Text>{t("Paket ini tidak ditemukan.", "This package wasn't found.")}</Text>
+        <Button label={t("Kembali", "Back")} onPress={() => router.back()} />
+      </Screen>
+    );
   if (!offer || !current || items === null)
     return <Screen><Text variant="caption">{t("Memuat…", "Loading…")}</Text></Screen>;
   const template = mealOf(offer, meal);

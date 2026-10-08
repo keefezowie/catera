@@ -2,12 +2,14 @@ import fs from "node:fs";
 import path from "node:path";
 import { render, screen } from "@testing-library/react-native";
 
+const mockParams = { date: "2030-01-03" };
+
 jest.mock("expo-router", () => {
   const React = require("react");
   const { Text, View } = require("react-native");
   /** Renders each registered screen's header title the way the native stack would show it. */
   const Screen = ({ name, options }: any) => {
-    const resolved = typeof options === "function" ? options({ route: { name, params: { date: "2026-10-08" } } }) : options;
+    const resolved = typeof options === "function" ? options({ route: { name, params: mockParams } }) : options;
     if (resolved?.headerShown === false) return null;
     return <Text testID={`header:${name}`}>{resolved?.title ?? name}</Text>;
   };
@@ -31,6 +33,7 @@ jest.mock("expo-notifications", () => ({
   clearLastNotificationResponseAsync: jest.fn(async () => undefined),
 }));
 
+import { jakartaDay } from "@catera/domain";
 import RootLayout from "../app/_layout";
 
 /** Every file route under app/ that the root stack must name (layouts and tab/auth groups excluded). */
@@ -63,5 +66,17 @@ describe("stack headers", () => {
     expect(titleOf("impor")).toBe("Impor pelanggan");
     expect(titleOf("uang")).toBe("Uang");
     expect(titleOf("menu/[date]")).toMatch(/^Menu /);
+  });
+
+  it("names the day on the menu screen header", async () => {
+    mockParams.date = "2030-01-03";
+    render(<RootLayout />);
+    expect((await screen.findByTestId("header:menu/[date]")).props.children).toBe("Menu Kamis 3 Jan");
+  });
+
+  it("says Menu hari ini only for today's menu", async () => {
+    mockParams.date = jakartaDay(new Date());
+    render(<RootLayout />);
+    expect((await screen.findByTestId("header:menu/[date]")).props.children).toBe("Menu hari ini");
   });
 });
