@@ -11,7 +11,7 @@ import {
   type MenuMonth,
   type SellerOffer,
 } from "@catera/domain";
-import { useData, useMobile, type MobileRuntime } from "@catera/mobile-core";
+import { plural, useData, useMobile, type MobileRuntime } from "@catera/mobile-core";
 import { Button, Card, Chip, colors, fontFor, PressableRow, RoundButton, Screen, Segmented, Text } from "@catera/mobile-ui";
 import { copyWeekBatches, weekDates } from "./logic";
 import { ReadError } from "../ReadError";
@@ -88,8 +88,8 @@ export function MenuWeek() {
   const lastWeekPending = !previous.data && !previous.error;
   const copyNote = (copied: number, skipped: number) =>
     skipped
-      ? t(`${copied} hari disalin · ${skipped} dilewati karena sudah lewat atau sudah diisi`, `${copied} days copied · ${skipped} skipped (past or already filled)`)
-      : t(`${copied} hari disalin`, `${copied} days copied`);
+      ? t(`${copied} hari disalin · ${skipped} dilewati karena sudah lewat atau sudah diisi`, `${plural(copied, "day")} copied · ${skipped} skipped (past or already filled)`)
+      : t(`${copied} hari disalin`, `${plural(copied, "day")} copied`);
 
   async function copyLastWeek() {
     if (!offer) return;
@@ -197,6 +197,9 @@ export function MenuWeek() {
         ) : null}
         <Button style={{ flex: 1 }} variant="secondary" disabled={!hasMenu} label={t("Bagikan menu", "Share menu")} onPress={shareMenu} />
       </View>
+      {canEdit && weekLoaded && lastWeekPending ? (
+        <Text variant="caption">{t("Memuat minggu lalu…", "Loading last week…")}</Text>
+      ) : null}
       {canEdit && weekLoaded && lastWeekEmpty ? (
         <Text variant="caption">{t("Minggu lalu belum ada menu untuk disalin", "Last week has no menu to copy")}</Text>
       ) : null}

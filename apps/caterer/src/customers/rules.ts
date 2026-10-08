@@ -53,6 +53,8 @@ export function activeEndLabel(
   locale: Locale,
   withRemaining = false,
 ) {
+  // Nothing left to deliver: the end date says it, "Sisa 0 hari" would not.
+  if (s.remaining <= 0) return endLabel(s.ends_on, today, t, locale);
   const left = t(`sisa ${s.remaining} hari`, s.remaining === 1 ? "1 day left" : `${s.remaining} days left`);
   if (s.ends_on < today) return left.charAt(0).toUpperCase() + left.slice(1);
   const end = endLabel(s.ends_on, today, t, locale);

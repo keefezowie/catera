@@ -422,18 +422,33 @@ describe("unfilled menus on the session card", () => {
     return day;
   };
 
-  it("names the slots nobody filled instead of listing them as dishes, and opens the day editor", async () => {
+  it("names the slots nobody filled, one line per package, and each Isi menu opens its own package", async () => {
     renderToday(runtimeWith(async () => canvasDay()));
-    expect(await screen.findByText("Menu belum diisi: 3 lauk, 2 nasi, 2 sayur")).toBeTruthy();
+    expect(await screen.findByText("Menu belum diisi · Makan Siang Rumahan: 2 lauk, 1 nasi, 1 sayur")).toBeTruthy();
+    expect(screen.getByText("Menu belum diisi · Paket Hemat Kantor: 1 nasi, 1 lauk, 1 sayur")).toBeTruthy();
     expect(screen.queryByText(/Lauk ×/)).toBeNull();
     expect(screen.queryByText(/Nasi ×/)).toBeNull();
+    const buttons = screen.getAllByText("Isi menu");
+    expect(buttons).toHaveLength(2);
+    fireEvent.press(buttons[0]);
+    expect(router.push).toHaveBeenLastCalledWith(`/menu/${today()}?pkg=p-rumahan&meal=lunch`);
+    fireEvent.press(buttons[1]);
+    expect(router.push).toHaveBeenLastCalledWith(`/menu/${today()}?pkg=p-hemat&meal=lunch`);
+  });
+
+  it("lists only the package that is still unfilled when the other is complete", async () => {
+    const day = filled();
+    day.datedMenus = day.datedMenus!.filter((m) => m.package_id === "p-rumahan");
+    renderToday(runtimeWith(async () => day));
+    expect(await screen.findByText("Menu belum diisi · Paket Hemat Kantor: 1 nasi, 1 lauk, 1 sayur")).toBeTruthy();
+    expect(screen.queryByText(/Makan Siang Rumahan:/)).toBeNull();
     fireEvent.press(screen.getByText("Isi menu"));
-    expect(router.push).toHaveBeenCalledWith(`/menu/${today()}?pkg=p-rumahan&meal=lunch`);
+    expect(router.push).toHaveBeenLastCalledWith(`/menu/${today()}?pkg=p-hemat&meal=lunch`);
   });
 
   it("shows helpers the line but not the button", async () => {
     renderToday(runtimeWith(async () => canvasDay(), { ...owner, role: "staff" }));
-    expect(await screen.findByText(/^Menu belum diisi: /)).toBeTruthy();
+    expect((await screen.findAllByText(/^Menu belum diisi · /)).length).toBe(2);
     expect(screen.queryByText("Isi menu")).toBeNull();
   });
 
@@ -449,7 +464,8 @@ describe("unfilled menus on the session card", () => {
     renderToday(runtimeWith(async () => canvasDay()));
     fireEvent.press(await screen.findByText("Bagikan"));
     const message = (share.mock.calls[0][0] as { message: string }).message;
-    expect(message).toContain("Menu belum diisi: 3 lauk, 2 nasi, 2 sayur");
+    expect(message).toContain("Menu belum diisi · Makan Siang Rumahan: 2 lauk, 1 nasi, 1 sayur");
+    expect(message).toContain("Menu belum diisi · Paket Hemat Kantor: 1 nasi, 1 lauk, 1 sayur");
     expect(message).not.toMatch(/×\s?Lauk|Lauk ×/);
   });
 });
@@ -459,7 +475,8 @@ describe("printed recap", () => {
     const Print = require("expo-print") as { printAsync: jest.Mock };
     renderToday(runtimeWith(async () => canvasDay()));
     fireEvent.press(await screen.findByText("Cetak"));
-    expect(Print.printAsync.mock.calls[0][0].html).toContain("Menu belum diisi: 3 lauk, 2 nasi, 2 sayur");
+    expect(Print.printAsync.mock.calls[0][0].html).toContain("Menu belum diisi · Makan Siang Rumahan: 2 lauk, 1 nasi, 1 sayur");
+    expect(Print.printAsync.mock.calls[0][0].html).toContain("Menu belum diisi · Paket Hemat Kantor: 1 nasi, 1 lauk, 1 sayur");
   });
 });
 

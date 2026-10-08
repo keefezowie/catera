@@ -17,7 +17,7 @@ import {
   type PaymentAvailability,
   type RenewalContext,
 } from "@catera/domain";
-import { useData, useMobile } from "@catera/mobile-core";
+import { plural, useData, useMobile } from "@catera/mobile-core";
 import { Button, colors, fontFor, RoundButton, Screen, Stepper, Text } from "@catera/mobile-ui";
 import { Breakdown, LengthOptions, percent, StartLine } from "./Breakdown";
 import { ChoiceSheet, NoLongerSold, PayWith, PendingPayment, Retry, Terms } from "./BuyParts";
@@ -199,7 +199,11 @@ export function BuyScreen({
       <View style={styles.footer}>
         <View style={{ flex: 1 }}>
           <Text variant="caption">Total</Text>
-          <Text variant="title" style={[{ fontSize: 22, lineHeight: 28 }, tabular, quote.pending && { opacity: 0.45 }]}>
+          <Text
+            variant="title"
+            accessibilityRole="text"
+            style={[{ fontSize: 22, lineHeight: 28 }, tabular, quote.pending && { opacity: 0.45 }]}
+          >
             {shown ? currency(shown.total, locale) : "–"}
           </Text>
         </View>
@@ -241,7 +245,7 @@ export function BuyScreen({
         {trial ? (
           <Text>{t("1 hari, coba dulu", "1 day, as a trial")}</Text>
         ) : lengths.length === 1 ? (
-          <Text>{t(`${offer.days * lengths[0].cycles} hari`, `${offer.days * lengths[0].cycles} days`)}</Text>
+          <Text>{t(`${offer.days * lengths[0].cycles} hari`, plural(offer.days * lengths[0].cycles, "day"))}</Text>
         ) : (
           <LengthOptions
             value={cycles}
@@ -249,7 +253,7 @@ export function BuyScreen({
             options={lengths.map((d) => ({
               cycles: d.cycles,
               label:
-                t(`${offer.days * d.cycles} hari`, `${offer.days * d.cycles} days`) +
+                t(`${offer.days * d.cycles} hari`, plural(offer.days * d.cycles, "day")) +
                 (d.discountPercent ? t(` · Hemat ${percent(d.discountPercent, locale)}`, ` · Save ${percent(d.discountPercent, locale)}`) : ""),
             }))}
           />

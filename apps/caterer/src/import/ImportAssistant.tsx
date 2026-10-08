@@ -5,7 +5,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 import { File } from "expo-file-system";
 import { earliestImportStart, errorLabel, jakartaDay, normalizeCustomerPhone } from "@catera/domain";
-import { useData, useMobile } from "@catera/mobile-core";
+import { plural, useData, useMobile } from "@catera/mobile-core";
 import { Button, Card, Chip, colors, FONT, Field, fontFor, PressableRow, Screen, Sheet, Text } from "@catera/mobile-ui";
 import { recheck, toImportRow, type AssistantRow } from "./rows";
 import { fitsUpload, MAX_IMAGES, shrinkPhoto } from "./images";
@@ -163,7 +163,7 @@ export function ImportAssistant() {
     <Screen
       footer={
         rows ? (
-          <Button label={t(`Simpan ${clean} pelanggan`, `Save ${clean} customers`)} disabled={!clean || !!busy} onPress={() => void save()} />
+          <Button label={t(`Simpan ${clean} pelanggan`, `Save ${plural(clean, "customer")}`)} disabled={!clean || !!busy} onPress={() => void save()} />
         ) : (
           <Button label={t("Susun daftar", "Build the list")} disabled={(!text.trim() && !files.length) || !!busy} onPress={() => void read()} />
         )
@@ -171,7 +171,7 @@ export function ImportAssistant() {
     >
       {saved ? (
         <Card tone="sage">
-          <Text variant="heading">{t(`${saved} pelanggan tersimpan`, `${saved} customers saved`)}</Text>
+          <Text variant="heading">{t(`${saved} pelanggan tersimpan`, `${plural(saved, "customer")} saved`)}</Text>
           <Button variant="text" label={t("Lihat Pelanggan", "View customers")} onPress={() => router.replace("/pelanggan" as never)} />
         </Card>
       ) : null}
@@ -229,7 +229,7 @@ export function ImportAssistant() {
                 <Text variant="heading">{r.name || t("Tanpa nama", "No name")}</Text>
                 <Text variant="caption">{[r.phone, [r.addressLine, r.area].filter(Boolean).join(", ")].filter(Boolean).join(" · ")}</Text>
                 <Text variant="caption">
-                  {`${packages.find((p) => p.id === r.packageId)?.name ?? t("Paket belum dipilih", "Package not chosen")} · ${r.remainingDays != null ? t(`${r.remainingDays} hari lagi`, r.remainingDays === 1 ? "1 day left" : `${r.remainingDays} days left`) : t("sisa hari belum diisi", "days left not set")} · ${r.portions} ${t("porsi", "portions")}`}
+                  {`${packages.find((p) => p.id === r.packageId)?.name ?? t("Paket belum dipilih", "Package not chosen")} · ${r.remainingDays != null ? t(`${r.remainingDays} hari lagi`, r.remainingDays === 1 ? "1 day left" : `${r.remainingDays} days left`) : t("sisa hari belum diisi", "days left not set")} · ${t(`${r.portions} porsi`, plural(r.portions, "portion"))}`}
                 </Text>
                 {r.needsReview ? <Text style={{ color: colors.sunriseInk, fontFamily: fontFor("700") }}>{r.reason}</Text> : null}
               </PressableRow>

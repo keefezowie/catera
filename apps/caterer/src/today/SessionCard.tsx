@@ -16,21 +16,33 @@ import { useMobile } from "@catera/mobile-core";
 import { Button, Card, colors, fontFor, PressableScale, Text } from "@catera/mobile-ui";
 import { canMoveDelivery, ExceptionSheet } from "./ExceptionSheet";
 
-/** "3 lauk, 2 nasi, 2 sayur": the slots nobody has filled yet, biggest first, summed over packages. */
-function unfilledSummary(unfilled: CookingRecap["unfilled"]) {
-  const byGroup = new Map<string, number>();
-  for (const u of unfilled) byGroup.set(u.group.toLowerCase(), (byGroup.get(u.group.toLowerCase()) ?? 0) + u.slots);
-  return [...byGroup]
-    .sort((a, b) => b[1] - a[1])
-    .map(([group, n]) => `${n} ${group}`)
-    .join(", ");
+/**
+ * The slots nobody has filled yet, one entry per package ("2 lauk, 1 nasi, 1 sayur", biggest first). Packages are
+ * never summed together: a menu is filled per package, so each needs its own line and its own way in.
+ */
+function unfilledByPackage(unfilled: CookingRecap["unfilled"]) {
+  const packages = new Map<string, { packageId: string; packageName: string; groups: Map<string, number> }>();
+  for (const u of unfilled) {
+    const entry = packages.get(u.packageId) ?? { packageId: u.packageId, packageName: u.packageName, groups: new Map() };
+    const group = u.group.toLowerCase();
+    entry.groups.set(group, (entry.groups.get(group) ?? 0) + u.slots);
+    packages.set(u.packageId, entry);
+  }
+  return [...packages.values()].map((p) => ({
+    packageId: p.packageId,
+    packageName: p.packageName,
+    summary: [...p.groups]
+      .sort((a, b) => b[1] - a[1])
+      .map(([group, n]) => `${n} ${group}`)
+      .join(", "),
+  }));
 }
 
-function recapLines(recap: CookingRecap, title: string, unfilledLine: string | null) {
+function recapLines(recap: CookingRecap, title: string, unfilledLines: string[]) {
   return [
     `*${title}* (${recap.total} porsi)`,
     ...recap.byDish.map((d) => `${d.count}× ${d.name}`),
-    ...(unfilledLine ? [unfilledLine] : []),
+    ...unfilledLines,
   ].join("\n");
 }
 
@@ -79,10 +91,9 @@ export function SessionCard({
   const parts = routeShareText(stops, { date, meal, caterer }, locale);
   // A same-day revision can shorten the route under a part index already advanced past its end.
   const at = Math.min(part, Math.max(parts.length - 1, 0));
-  const summary = unfilledSummary(recap.unfilled);
-  const missing = summary ? `${t("Menu belum diisi", "Menu not filled in")}: ${summary}` : null;
+  const missing = unfilledByPackage(recap.unfilled);
   // The shared and printed recap is written in Indonesian, like the rest of its text.
-  const missingForSharing = summary ? `Menu belum diisi: ${summary}` : null;
+  const missingForSharing = missing.map((m) => `Menu belum diisi · ${m.packageName}: ${m.summary}`);
   const title = meal === "lunch" ? t("Makan siang", "Lunch") : t("Makan malam", "Dinner");
   return (
     <Card>
@@ -100,24 +111,27 @@ export function SessionCard({
           <Row key={p.packageId} label={p.name} value={p.portions} />
         ))}
       </View>
-      {recap.byDish.length || missing ? (
+      {recap.byDish.length || missing.length ? (
         <View>
           <Text variant="label">{t("Yang dimasak", "To cook")}</Text>
           {recap.byDish.map((d) => (
             <Row key={d.category + d.name} label={d.name} value={d.count} />
           ))}
-          {missing ? (
-            <View style={{ paddingTop: 8, alignItems: "flex-start" }}>
-              <Text style={{ color: colors.sunriseInk }}>{missing}</Text>
+          {missing.map((m) => (
+            <View key={m.packageId} style={{ paddingTop: 8, alignItems: "flex-start" }}>
+              <Text style={{ color: colors.sunriseInk }}>
+                {`${t("Menu belum diisi", "Menu not filled in")} · ${m.packageName}: ${m.summary}`}
+              </Text>
               {actor?.role === "owner" ? (
                 <Button
                   variant="text"
                   label={t("Isi menu", "Fill in menu")}
-                  onPress={() => router.push(`/menu/${date}?pkg=${recap.unfilled[0].packageId}&meal=${meal}` as never)}
+                  accessibilityLabel={`${t("Isi menu", "Fill in menu")} ${m.packageName}`}
+                  onPress={() => router.push(`/menu/${date}?pkg=${m.packageId}&meal=${meal}` as never)}
                 />
               ) : null}
             </View>
-          ) : null}
+          ))}
         </View>
       ) : null}
       <View style={{ flexDirection: "row", gap: 8 }}>
@@ -134,7 +148,7 @@ export function SessionCard({
             void Print.printAsync({
               html: `<h2>${caterer} · ${title}: ${recap.total} porsi</h2><ul>${recap.byDish
                 .map((d) => `<li>${d.count} × ${d.name}</li>`)
-                .join("")}</ul>${missingForSharing ? `<p>${missingForSharing}</p>` : ""}`,
+                .join("")}</ul>${missingForSharing.map((l) => `<p>${l}</p>`).join("")}`,
             })
           }
         />

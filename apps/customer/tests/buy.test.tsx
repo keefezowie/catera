@@ -240,6 +240,8 @@ describe("Beli / Perpanjang", () => {
     expect(runtime.api.renewalContext).toHaveBeenCalledWith("s-1", undefined, 1);
     expect(await screen.findByText("20 hari antar, Senin–Jumat, sampai Jumat 13 Nov")).toBeTruthy();
     expect(screen.getAllByText(totalOf()).length).toBeGreaterThan(0);
+    // A price is read as text, never announced as a heading.
+    expect(screen.getAllByText(totalOf()).filter((n) => n.props.accessibilityRole === "header")).toHaveLength(0);
     expect(screen.getByText("Termasuk")).toBeTruthy();
   });
 

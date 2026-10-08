@@ -190,6 +190,13 @@ describe("package end labels", () => {
     expect(endLabel("2026-10-09", "2026-10-08", t, "en")).toBe("Ends tomorrow");
     locale = "id";
   });
+  it("never says zero days left: with nothing left it falls back to the end label", () => {
+    expect(activeEndLabel({ ends_on: "2026-10-07", remaining: 0 }, "2026-10-08", t, "id")).toBe(
+      endLabel("2026-10-07", "2026-10-08", t, "id"),
+    );
+    expect(activeEndLabel({ ends_on: "2026-10-08", remaining: 0 }, "2026-10-08", t, "id", true)).toBe("Berakhir hari ini");
+    expect(activeEndLabel({ ends_on: "2026-10-07", remaining: 0 }, "2026-10-08", t, "id")).not.toMatch(/0 hari/);
+  });
   it("an active package past its last booked day shows only the days left", () => {
     const moved = { ends_on: "2026-10-07", remaining: 1 };
     expect(activeEndLabel(moved, "2026-10-08", t, "id")).toBe("Sisa 1 hari");

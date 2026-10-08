@@ -3,7 +3,7 @@ import { ActivityIndicator, Image, StyleSheet, View } from "react-native";
 import * as Crypto from "expo-crypto";
 import { router, useLocalSearchParams } from "expo-router";
 import { errorLabel, localCustomerPhone, phoneMatchesMask, shortDate, type ClaimPreview } from "@catera/domain";
-import { useMobile } from "@catera/mobile-core";
+import { plural, useMobile } from "@catera/mobile-core";
 import { Button, Card, colors, Field, fontFor, RoundButton, Screen, Text } from "@catera/mobile-ui";
 import { e164Indonesia } from "../account/Masuk";
 
@@ -170,7 +170,7 @@ export function ClaimScreen() {
         </View>
         <Card>
           <Text style={{ fontSize: 18, fontFamily: fontFor("800"), color: colors.forest }}>{preview.packageName}</Text>
-          <Fact label={t("Sisa", "Left")} value={t(`${preview.remainingDays} hari`, `${preview.remainingDays} days`)} />
+          <Fact label={t("Sisa", "Left")} value={t(`${preview.remainingDays} hari`, plural(preview.remainingDays, "day"))} />
           {preview.nextDate ? (
             <Fact
               label={t("Berikutnya", "Next")}

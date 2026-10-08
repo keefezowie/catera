@@ -1,7 +1,7 @@
 import { Image, View } from "react-native";
 import { router } from "expo-router";
 import { currency, type SellerOffer } from "@catera/domain";
-import { useMobile } from "@catera/mobile-core";
+import { plural, useMobile } from "@catera/mobile-core";
 import { Button, Card, Screen, Text } from "@catera/mobile-ui";
 import { photoUri } from "../photo";
 
@@ -24,7 +24,7 @@ export function PackageDetail({ offer }: { offer: SellerOffer }) {
         <Text variant="label">{`${offer.price === null ? "–" : currency(offer.price, locale)} ${t("per porsi", "per portion")}`}</Text>
         <Text variant="caption">{groups.map((g) => `${g.slots} ${g.name.toLowerCase()}`).join(", ")}</Text>
         <Text variant="caption">{offer.weekdays.map((d) => dayNames[d]).join(", ")}</Text>
-        {capacity !== undefined ? <Text variant="caption">{`${t("Kapasitas", "Capacity")} ${capacity} ${t("porsi per hari", "portions a day")}`}</Text> : null}
+        {capacity !== undefined ? <Text variant="caption">{t(`Kapasitas ${capacity} porsi per hari`, `Capacity ${plural(capacity, "portion")} a day`)}</Text> : null}
       </Card>
       <View style={{ gap: 8 }}>
         <Text variant="caption">

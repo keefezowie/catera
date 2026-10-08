@@ -4,7 +4,7 @@ import { router, useFocusEffect } from "expo-router";
 import * as Clipboard from "expo-clipboard";
 import * as WebBrowser from "expo-web-browser";
 import { currency, errorLabel, type Checkout, type DirectPaymentMethod } from "@catera/domain";
-import { useData, useMobile } from "@catera/mobile-core";
+import { plural, useData, useMobile } from "@catera/mobile-core";
 import { Button, Card, colors, fontFor, RoundButton, Screen, Text } from "@catera/mobile-ui";
 import { PayWith, Retry } from "./BuyParts";
 import { FINAL, PaymentOutcome, stageOf } from "./PaymentOutcome";
@@ -261,7 +261,7 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
         <Text>
           {t(
             `${c.quote.dates.length} hari antar Anda dijaga selama 15 menit. Lewat dari itu, jadwal dicek ulang sebelum dibayar.`,
-            `Your ${c.quote.dates.length} delivery days are held for 15 minutes. After that, the schedule is checked again before payment.`,
+            `${c.quote.dates.length === 1 ? "Your delivery day is" : `Your ${c.quote.dates.length} delivery days are`} held for 15 minutes. After that, the schedule is checked again before payment.`,
           )}
         </Text>
       </Card>

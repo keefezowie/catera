@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react-native";
-import { StyleSheet } from "react-native";
+import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { Platform, StyleSheet } from "react-native";
 import * as Haptics from "expo-haptics";
 import * as Reanimated from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -22,6 +22,22 @@ import {
   Text,
   TopInsetOwner,
 } from "@catera/mobile-ui";
+
+// react-test-renderer gives host refs no measure methods, so the screen's SafeAreaView gets a stand-in that reports a
+// window position (the height of a header sitting above the screen).
+let mockWindowY = 0;
+jest.mock("react-native-safe-area-context", () => {
+  const React = require("react");
+  const { View } = require("react-native");
+  const actual = require("react-native-safe-area-context/jest/mock").default;
+  const SafeAreaView = React.forwardRef((props: object, ref: unknown) => {
+    React.useImperativeHandle(ref, () => ({
+      measureInWindow: (cb: (x: number, y: number, w: number, h: number) => void) => cb(0, mockWindowY, 390, 800),
+    }));
+    return React.createElement(View, props);
+  });
+  return { ...actual, SafeAreaView };
+});
 
 test("fontFor maps weights to static families", () => {
   expect(fontFor(undefined)).toBe(fonts.regular);
@@ -303,5 +319,74 @@ describe("shared foundation (audit 001)", () => {
     };
     expect(safeEdges(false)).toEqual(["top", "left", "right"]);
     expect(safeEdges(true)).toEqual(["left", "right"]);
+  });
+});
+
+describe("disabled look survives reduced motion", () => {
+  afterEach(() => jest.restoreAllMocks());
+  const opacityOf = (name: string) => StyleSheet.flatten(screen.getByRole("button", { name }).props.style).opacity;
+
+  test.each([false, true])("disabled secondary Button stays at 0.45 (reduced motion %s)", (reduced) => {
+    jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(reduced);
+    render(<Button label="Salin" variant="secondary" disabled onPress={() => {}} />);
+    expect(opacityOf("Salin")).toBe(0.45);
+  });
+
+  test.each([false, true])("an enabled Button rests at full opacity (reduced motion %s)", (reduced) => {
+    jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(reduced);
+    render(<Button label="Simpan" variant="secondary" onPress={() => {}} />);
+    expect(opacityOf("Simpan") ?? 1).toBe(1);
+  });
+});
+
+describe("Sheet and Screen details", () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+    mockWindowY = 0;
+  });
+
+  it("Sheet closes on the VoiceOver escape gesture", () => {
+    const onClose = jest.fn();
+    render(
+      <Sheet visible onClose={onClose} title="Bagikan" closeLabel="Tutup">
+        <Text>Isi</Text>
+      </Sheet>,
+    );
+    const sheet = screen.UNSAFE_getAllByProps({ accessibilityViewIsModal: true })[0];
+    expect(sheet.props.onAccessibilityEscape).toBe(onClose);
+  });
+
+  it("Sheet with an empty title renders no heading", () => {
+    render(
+      <Sheet visible onClose={() => {}} title="" closeLabel="Tutup">
+        <Text>Isi</Text>
+      </Sheet>,
+    );
+    expect(screen.queryByRole("header", { includeHiddenElements: true })).toBeNull();
+  });
+
+  it("Screen offsets the iOS keyboard by the window position of the screen", () => {
+    jest.replaceProperty(Platform, "OS", "ios");
+    const view = render(
+      <Screen footer={<Text>Kaki</Text>}>
+        <Text>Isi</Text>
+      </Screen>,
+    );
+    const safe = view.UNSAFE_getByType(SafeAreaView);
+    expect(view.UNSAFE_getByType(KeyboardAvoidingView).props.keyboardVerticalOffset).toBe(0);
+    // The header and demo strip sit above the screen, so the screen asks the OS where it really starts.
+    mockWindowY = 96;
+    act(() => safe.props.onLayout({ nativeEvent: { layout: { x: 0, y: 96, width: 390, height: 800 } } }));
+    expect(view.UNSAFE_getByType(KeyboardAvoidingView).props.keyboardVerticalOffset).toBe(96);
+  });
+
+  it("Screen adds no keyboard offset on Android", () => {
+    const view = render(
+      <Screen footer={<Text>Kaki</Text>}>
+        <Text>Isi</Text>
+      </Screen>,
+    );
+    expect(view.UNSAFE_getByType(KeyboardAvoidingView).props.behavior).toBeUndefined();
+    expect(view.UNSAFE_getByType(KeyboardAvoidingView).props.keyboardVerticalOffset).toBe(0);
   });
 });

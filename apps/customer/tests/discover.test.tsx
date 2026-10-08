@@ -353,6 +353,8 @@ describe("Paket", () => {
     expect(screen.getByText("Pengantaran termasuk")).toBeTruthy();
     expect(screen.getByText("Per sekali makan")).toBeTruthy();
     expect(screen.getByText(/45\.000/)).toBeTruthy();
+    // A price is read as text, never announced as a heading.
+    expect(screen.getByText(/45\.000/).props.accessibilityRole).toBe("text");
   });
 
   it("shows the package contents instead of inventing dated menus", async () => {

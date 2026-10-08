@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import {
   type AccessibilityRole,
@@ -96,7 +96,7 @@ export function Button({
         variant === "text" && styles.textButton,
         disabled && primary && styles.disabled,
         // A secondary or text button has no fill to grey out, so a disabled one fades instead.
-        disabled && !primary && { opacity: 0.45 },
+        disabled && !primary && styles.disabledQuiet,
         style,
       ]}
     >
@@ -272,9 +272,9 @@ export function Sheet({
   return (
     <Modal visible={visible} transparent animationType={reduced ? "fade" : "slide"} onRequestClose={onClose}>
       <Pressable style={styles.scrim} onPress={onClose} accessibilityRole="button" accessibilityLabel={closeLabel} />
-      <View style={styles.sheet} accessibilityViewIsModal>
+      <View style={styles.sheet} accessibilityViewIsModal onAccessibilityEscape={onClose}>
         <View style={styles.grabber} />
-        <Text variant="heading">{title}</Text>
+        {title ? <Text variant="heading">{title}</Text> : null}
         {children}
       </View>
     </Modal>
@@ -292,14 +292,36 @@ export function Screen({
 }) {
   // The demo strip owns the status-bar inset while it is shown, so the screen must not add a second one.
   const topOwned = useTopInsetOwned();
+  // KeyboardAvoidingView measures its frame relative to its parent, but the keyboard is positioned in the window.
+  // The header and the demo strip sit above this screen, so on iOS the padding is short by exactly their height.
+  // Rather than have each of them report a height (and go stale when a headerless screen is pushed on top), the
+  // screen asks the OS where its own top edge really is, and re-asks whenever it is laid out.
+  // iOS keyboard behaviour is not covered by jest or the Android emulator; it is unverified on a device.
+  const frame = useRef<View>(null);
+  const [keyboardOffset, setKeyboardOffset] = useState(0);
+  const measureFrame = () => {
+    if (Platform.OS !== "ios") return;
+    frame.current?.measureInWindow((_x, y) => {
+      if (Number.isFinite(y)) setKeyboardOffset(Math.max(0, Math.round(y)));
+    });
+  };
   const body = (
     <View testID="screen-body" style={styles.screenBody}>
       {children}
     </View>
   );
   return (
-    <SafeAreaView style={styles.screen} edges={topOwned ? ["left", "right"] : ["top", "left", "right"]}>
-      <KeyboardAvoidingView style={styles.keyboard} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+    <SafeAreaView
+      ref={frame}
+      onLayout={measureFrame}
+      style={styles.screen}
+      edges={topOwned ? ["left", "right"] : ["top", "left", "right"]}
+    >
+      <KeyboardAvoidingView
+        style={styles.keyboard}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={keyboardOffset}
+      >
         {scroll ? (
           <ScrollView contentContainerStyle={{ paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
             {body}
@@ -374,6 +396,7 @@ const styles = StyleSheet.create({
   secondary: { borderWidth: 1, borderColor: colors.secondaryBorder, backgroundColor: "transparent" },
   textButton: { minHeight: 48, paddingHorizontal: 4, backgroundColor: "transparent" },
   disabled: { backgroundColor: colors.fieldBorder },
+  disabledQuiet: { opacity: 0.45 },
   buttonLabel: { fontFamily: fontFor("700"), fontSize: 15 },
   chip: { minHeight: 48, paddingHorizontal: 14, borderRadius: 9, justifyContent: "center" },
   chipOn: { backgroundColor: colors.forest },

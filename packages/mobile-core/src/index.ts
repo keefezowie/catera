@@ -2,3 +2,4 @@ export { createMobileRuntime, ensureActor, type MobileRuntime, type MobileRuntim
 export { MobileProvider, useMobile, translator, type MobileContextValue } from "./provider";
 export { useData } from "./data";
 export { Notifications, pushAvailable } from "./notifications";
+export { plural } from "./plural";

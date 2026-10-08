@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { StyleSheet } from "react-native";
 import type { LibraryDish, MealMenu } from "@catera/domain";
 import { copyWeekBatches, dayComplete, suggestDishes, weekDates } from "../src/menu/logic";
@@ -385,6 +385,28 @@ describe("menu loading and sharing states", () => {
     expect(await screen.findByText("Minggu lalu belum ada menu untuk disalin")).toBeTruthy();
     expect(disabled("Salin minggu lalu")).toBe(true);
     expect(screen.queryByText(/hari disalin/)).toBeNull();
+  });
+
+  it("says it is loading last week while Salin minggu lalu waits for it", async () => {
+    // Fake only the clock: this week is in November and last week in October, so the two reads can be told apart.
+    jest.useFakeTimers({
+      now: new Date("2026-11-04T05:00:00Z"),
+      doNotFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval", "setImmediate", "clearImmediate", "nextTick", "queueMicrotask", "performance"],
+    });
+    try {
+      let release: (value: { dates: never[]; categories: never[] }) => void = () => undefined;
+      const lastWeek = new Promise<{ dates: never[]; categories: never[] }>((resolve) => (release = resolve));
+      const menuMonth = jest.fn((_offer: string, _rev: number, month: string) =>
+        month === "2026-11-01" ? Promise.resolve({ dates: [], categories: [] }) : lastWeek,
+      );
+      runtimeFor(menuMonth as unknown as jest.Mock);
+      expect(await screen.findByText("Memuat minggu lalu…")).toBeTruthy();
+      expect(disabled("Salin minggu lalu")).toBe(true);
+      await act(async () => release({ dates: [], categories: [] }));
+      await waitFor(() => expect(screen.queryByText("Memuat minggu lalu…")).toBeNull());
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it("offers Salin minggu lalu once last week has a filled day", async () => {

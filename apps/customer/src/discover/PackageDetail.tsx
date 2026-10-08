@@ -64,7 +64,11 @@ export function PackageDetail() {
         <View style={styles.footer}>
           <View style={{ flexShrink: 1 }}>
             <Text variant="caption">{t("Per sekali makan", "Per meal")}</Text>
-            <Text variant="title" style={{ fontSize: 20, lineHeight: 26, fontVariant: ["tabular-nums"] }}>
+            <Text
+              variant="title"
+              accessibilityRole="text"
+              style={{ fontSize: 20, lineHeight: 26, fontVariant: ["tabular-nums"] }}
+            >
               {currency(perMealPrice(o), locale)}
             </Text>
             {note ? <Text variant="caption">{note}</Text> : null}

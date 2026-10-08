@@ -11,7 +11,7 @@ import {
   type CustomerMenuMonth,
   type MealMenu,
 } from "@catera/domain";
-import { useData, useMobile } from "@catera/mobile-core";
+import { plural, useData, useMobile } from "@catera/mobile-core";
 import { Button, Card, colors, fontFor, PressableScale, Screen, Segmented, Text } from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
 import { failureText } from "../account/failure";
@@ -225,7 +225,7 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
         <Text variant="caption" style={{ fontVariant: ["tabular-nums"] }}>
           {t(
             `Satu pilihan untuk semua ${subscription.portions} porsi. Tanpa biaya tambahan.`,
-            `One choice for all ${subscription.portions} portions. No extra charge.`,
+            subscription.portions === 1 ? "Your portion gets this choice. No extra charge." : `One choice for all ${subscription.portions} portions. No extra charge.`,
           )}
         </Text>
       </View>

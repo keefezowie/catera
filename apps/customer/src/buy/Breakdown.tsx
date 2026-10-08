@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 import { currency, shortDate, type Locale, type Quote } from "@catera/domain";
+import { plural } from "@catera/mobile-core";
 import { Button, colors, fontFor, PressableScale, Text } from "@catera/mobile-ui";
 
 const FULL_DAYS = {
@@ -88,7 +89,7 @@ export function Breakdown({
       <Row
         label={t(
           `${days} hari × ${quote.portions} porsi × ${currency(unit, locale)}`,
-          `${days} days × ${quote.portions} portions × ${currency(unit, locale)}`,
+          `${plural(days, "day")} × ${plural(quote.portions, "portion")} × ${currency(unit, locale)}`,
         )}
         value={currency(quote.subtotal, locale)}
       />
@@ -96,7 +97,7 @@ export function Breakdown({
         <Row
           label={t(
             `Hemat ${percent(quote.discountPercent, locale)} untuk ${quote.portions} porsi`,
-            `Save ${percent(quote.discountPercent, locale)} for ${quote.portions} portions`,
+            `Save ${percent(quote.discountPercent, locale)} for ${plural(quote.portions, "portion")}`,
           )}
           value={minus(quote.discount)}
           tone={colors.sunriseInk}
@@ -106,7 +107,7 @@ export function Breakdown({
         <Row
           label={t(
             `Hemat ${percent(quote.durationDiscountPercent ?? 0, locale)} untuk ${days} hari`,
-            `Save ${percent(quote.durationDiscountPercent ?? 0, locale)} for ${days} days`,
+            `Save ${percent(quote.durationDiscountPercent ?? 0, locale)} for ${plural(days, "day")}`,
           )}
           value={minus(quote.durationDiscount)}
           tone={colors.sunriseInk}
@@ -167,7 +168,7 @@ export function StartLine({
         <Text variant="caption" style={[tabular, dimmed && { opacity: 0.45 }]}>
           {t(
             `${quote.dates.length} hari antar, ${fullDayRange(weekdays, locale)}, sampai ${shortDate(last, locale)}`,
-            `${quote.dates.length} delivery days, ${fullDayRange(weekdays, locale)}, until ${shortDate(last, locale)}`,
+            `${plural(quote.dates.length, "delivery day")}, ${fullDayRange(weekdays, locale)}, until ${shortDate(last, locale)}`,
           )}
         </Text>
       ) : null}

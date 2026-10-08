@@ -43,7 +43,7 @@ function Row({
   );
 }
 
-/** Usaha: packages, money, importing customers, team and payments — the things set up once. */
+/** Usaha: packages, money, importing customers, team and payments: the things set up once. */
 export function UsahaScreen() {
   const { runtime, actor, t, locale, setLocale, logout } = useMobile();
   const catererId = actor?.catererId ?? "";

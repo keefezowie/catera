@@ -31,7 +31,7 @@ export function EmptyHome() {
         </View>
       ) : null}
       {catalog.data && !offers.length ? (
-        <Text style={{ color: colors.muted }}>{t("Belum ada paket di area ini.", "No packages in this area yet.")}</Text>
+        <Text style={{ color: colors.muted }}>{t("Belum ada paket.", "No packages yet.")}</Text>
       ) : null}
       {offers.map((o) => (
         <OfferCard key={o.id} offer={o} />

@@ -1,4 +1,4 @@
-import { Pressable, type GestureResponderEvent, type PressableProps, type StyleProp, type ViewStyle } from "react-native";
+import { Pressable, StyleSheet, type GestureResponderEvent, type PressableProps, type StyleProp, type ViewStyle } from "react-native";
 import Animated, { ReduceMotion, useAnimatedStyle, useSharedValue, withSpring, withTiming } from "react-native-reanimated";
 import { nativeMotion } from "@catera/design-tokens";
 import { useHaptic } from "./useHaptic";
@@ -31,9 +31,13 @@ export function PressableScale({
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
 
+  // The press dim multiplies the caller's own opacity (a disabled button rests at 0.45), it never replaces it.
+  const resting = StyleSheet.flatten(style)?.opacity;
+  const base = typeof resting === "number" ? resting : 1;
+
   const animated = useAnimatedStyle(
-    () => (reduced ? { opacity: opacity.value } : { transform: [{ scale: scale.value }] }),
-    [reduced],
+    () => (reduced ? { opacity: base * opacity.value } : { transform: [{ scale: scale.value }] }),
+    [reduced, base],
   );
 
   const pressIn = (e: GestureResponderEvent) => {

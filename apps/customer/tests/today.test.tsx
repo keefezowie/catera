@@ -1,13 +1,15 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
-import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
+import { createMobileRuntime, MobileProvider, plural, type MobileRuntime } from "@catera/mobile-core";
 import { Linking, StyleSheet } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Haptics from "expo-haptics";
 import { addDays, type Subscription } from "@catera/domain";
 import { colors } from "@catera/mobile-ui";
+import * as Reanimated from "react-native-reanimated";
 import { Beranda } from "../src/today/Beranda";
+import { SunriseButton } from "../src/today/Plate";
 import { customerLink } from "../src/links";
 import { Masuk } from "../src/account/Masuk";
 import * as offline from "../src/today/offline";
@@ -199,7 +201,7 @@ it("signed-in Beranda error shows the message in danger with a Coba lagi text bu
 
 it("EmptyHome says so when the catalog has no packages", async () => {
   renderHome(runtimeWith(async () => customerState(null), null));
-  expect(await screen.findByText("Belum ada paket di area ini.")).toBeTruthy();
+  expect(await screen.findByText("Belum ada paket.")).toBeTruthy();
   expect(screen.queryByText("Memuat paket…")).toBeNull();
   expect(screen.getByRole("button", { name: "Jelajah paket" })).toBeTruthy();
 });
@@ -470,4 +472,24 @@ it("Beranda package line says 1 day to go in English", async () => {
   renderHome(runtimeWith(async () => customerState({ status: "scheduled" }, { subscription: { remaining: 1 } })));
   expect(await screen.findByText(/· 1 day to go$/)).toBeTruthy();
   expect(screen.queryByText(/1 days/)).toBeNull();
+});
+
+describe("SunriseButton disabled look", () => {
+  afterEach(() => jest.restoreAllMocks());
+  test.each([false, true])("stays at 0.6 when disabled (reduced motion %s)", (reduced) => {
+    jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(reduced);
+    render(<SunriseButton label="Perpanjang" disabled onPress={() => {}} />);
+    expect(StyleSheet.flatten(screen.getByRole("button", { name: "Perpanjang" }).props.style).opacity).toBe(0.6);
+  });
+});
+
+describe("plural", () => {
+  test("English counts take the singular only for one", () => {
+    expect(plural(1, "day")).toBe("1 day");
+    expect(plural(0, "day")).toBe("0 days");
+    expect(plural(3, "portion")).toBe("3 portions");
+    expect(plural(2, "delivery day")).toBe("2 delivery days");
+    expect(plural(1, "box", "boxes")).toBe("1 box");
+    expect(plural(2, "box", "boxes")).toBe("2 boxes");
+  });
 });
