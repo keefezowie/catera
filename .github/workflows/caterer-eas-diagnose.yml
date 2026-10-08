@@ -27,10 +27,10 @@ jobs:
           eas-version: 16.28.0
           token: ${{ secrets.EXPO_TOKEN }}
       - run: npm ci
-      - name: Try the build without waiting
+      - name: First build in a terminal so EAS can create the Android keystore
         working-directory: apps/caterer
         run: |
-          eas build --platform android --profile preview --non-interactive --no-wait > "$RUNNER_TEMP/out.log" 2>&1 || true
+          yes "" | script -q -e -c "eas build --platform android --profile preview --no-wait --message first-keystore" /dev/null > "$RUNNER_TEMP/out.log" 2>&1 || true
           tail -40 "$RUNNER_TEMP/out.log" | sed -e 's/\x1b\[[0-9;]*m//g' > "$RUNNER_TEMP/tail.log"
           msg=$(awk '{printf "%s%%0A", $0}' "$RUNNER_TEMP/tail.log")
           echo "::notice title=EAS build output::$msg"
