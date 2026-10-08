@@ -55,6 +55,7 @@ export async function verifyDeliveryConfirm(pool, cmd, evidence) {
     "20261008113000_caterer_whatsapp.sql",
     "20261008114000_caterer_whatsapp_denied.sql",
     "20261008114500_maintenance_renewal_conflict.sql",
+    "20261008120000_delivery_issue_customer.sql",
   ])
     await pool.query(await readFile("supabase/migrations/" + file, "utf8"));
 
@@ -175,6 +176,35 @@ export async function verifyDeliveryConfirm(pool, cmd, evidence) {
   evidence.push(
     "Claim preview: the public read returns only the seven preview fields with the phone masked, unknown, used and expired links are one NOT_FOUND, and the previous read stays closed to anonymous callers.",
   );
+
+  // Catera Dapur's report screen: the caterer's delivery-issues read names the customer.
+  const reported = (
+    await pool.query(
+      "select f.day_id,f.meal from v1.fulfillments f join v1.delivery_days d on d.id=f.day_id join v1.subscriptions s on s.id=d.subscription_id where s.user_id=$1 and (s.snapshot->'offer'->>'catererId')::uuid=$2 and not exists(select 1 from v1.delivery_issues i where i.day_id=f.day_id and i.meal=f.meal and i.status in('open','responded','escalated')) order by d.service_date desc limit 1",
+      [U.customer, CATERER_IDS[0]],
+    )
+  ).rows[0];
+  const issue = await cmd(
+    "deliveryIssue.create",
+    { deliveryId: reported.day_id, meal: reported.meal, subject: "Belum sampai", body: "Makanan belum datang." },
+    U.customer,
+  );
+  const issueRead = async (user, params) => {
+    const c = await pool.connect();
+    try {
+      await c.query("begin");
+      await c.query("select set_config('request.jwt.claim.sub',$1,true)", [user]);
+      return (await c.query("select public.catera_v1_read('delivery-issues',$1) value", [params])).rows[0].value;
+    } finally {
+      await c.query("rollback");
+      c.release();
+    }
+  };
+  const [seen] = await issueRead(U.staff, { id: CATERER_IDS[0], issue: issue.id });
+  assert.equal(seen.customerName, "Nadia Putri");
+  assert.ok(seen.customerRecordId);
+  assert.ok(!("customerName" in (await issueRead(U.customer, {})).find((i) => i.id === issue.id)));
+  evidence.push("Delivery reports: the caterer's read names the customer (record, number) and the customer's own list is unchanged.");
 }
 
 async function claimed(pool, user, fn) {

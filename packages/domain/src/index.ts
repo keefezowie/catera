@@ -228,6 +228,10 @@ export type DeliveryIssue = {
   package_name: string;
   created_at: string;
   events: { id: string; action: string; body: string; created_at: string }[];
+  /** Caterer reads only: who sent the report, and the number on the caterer's customer record. */
+  customerName?: string | null;
+  customerPhone?: string | null;
+  customerRecordId?: string | null;
 };
 export type CustomerActionItem = {
   id: string;
