@@ -39,12 +39,16 @@ export type SettlementState = {
     maximumAmount: number;
   } | null;
 };
-export function settlementCurrency(value: string, locale: Locale = "id") {
-  return new Intl.NumberFormat(locale === "id" ? "id-ID" : "en-ID", {
-    style: "currency",
-    currency: "IDR",
-    maximumFractionDigits: 0,
-  }).format(BigInt(value));
+/**
+ * Whole-rupiah amount from an integer string, formatted like the id-ID / en-ID
+ * currency style (`Rp 1.234.567`, `-Rp 1.234.567`). Pure string grouping: Hermes
+ * (React Native) throws when a BigInt reaches Intl, and amounts may exceed 2^53.
+ */
+export function settlementCurrency(value: string, _locale: Locale = "id") {
+  const match = /^([+-]?)0*(\d+)$/.exec(String(value ?? "").trim());
+  const digits = match ? match[2] : "0";
+  const negative = match?.[1] === "-" && /[1-9]/.test(digits);
+  return `${negative ? "-" : ""}Rp ${digits.replace(/\B(?=(\d{3})+$)/g, ".")}`;
 }
 
 export type SettlementUnavailable = {

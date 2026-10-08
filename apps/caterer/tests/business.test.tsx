@@ -191,3 +191,19 @@ it("saves a copied package as a new one, never over the original", async () => {
   expect(payload.version).toBeUndefined();
   expect(payload.slug).not.toBe("rumahan");
 });
+
+describe("Uang error guard", () => {
+  it("shows a retry state instead of a blank app when the money screen cannot render", async () => {
+    const errorLog = jest.spyOn(console, "error").mockImplementation(() => undefined);
+    const runtime = runtimeWith({ settlement: jest.fn(async () => ({ ...settlement, nextPayoutAt: "bukan-tanggal" })) });
+    render(
+      <MobileProvider runtime={runtime} linkMapper={() => "/"}>
+        <UangScreen />
+      </MobileProvider>,
+    );
+    expect(await screen.findByText("Catatan uang belum bisa ditampilkan.")).toBeTruthy();
+    fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
+    expect(await screen.findByText("Catatan uang belum bisa ditampilkan.")).toBeTruthy();
+    errorLog.mockRestore();
+  });
+});

@@ -3,9 +3,10 @@ import { settlementCurrency } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
 import { Card, colors, Screen, Text } from "@catera/mobile-ui";
 import { moneyStates } from "./money";
+import { ScreenGuard } from "../ErrorBoundary";
 
 /** Uang: where every rupiah is, in the order it moves to the caterer's bank account. */
-export function UangScreen() {
+function UangContent() {
   const { runtime, actor, t, locale } = useMobile();
   const catererId = actor?.catererId ?? "";
   const money = useData(`uang:${catererId}`, () => runtime.api.settlement(catererId));
@@ -43,5 +44,14 @@ export function UangScreen() {
         ))}
       </Card>
     </Screen>
+  );
+}
+
+export function UangScreen() {
+  const { t } = useMobile();
+  return (
+    <ScreenGuard message={t("Catatan uang belum bisa ditampilkan.", "Money records can't be shown right now.")}>
+      <UangContent />
+    </ScreenGuard>
   );
 }
