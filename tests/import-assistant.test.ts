@@ -79,12 +79,13 @@ describe("extractImportRows", () => {
   });
 });
 
-const state = vi.hoisted(() => ({ role: "owner", quota: false }));
+const state = vi.hoisted(() => ({ role: "owner", quota: false, outage: false }));
 vi.mock("@catera/backend", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   rpc: vi.fn(async (_a: unknown, _t: unknown, _n: string, args: { action?: string }) => {
     if (args.action === "importAssistant.consume") {
       if (state.quota) throw new Error("QUOTA");
+      if (state.outage) throw new Error("upstream exploded");
       return 1;
     }
     return { packages: [], customers: [] };
@@ -103,6 +104,7 @@ describe("import assistant route", () => {
   beforeEach(() => {
     state.role = "owner";
     state.quota = false;
+    state.outage = false;
     process.env.ANTHROPIC_API_KEY = "test-key-not-used";
   });
   it("stops a kitchen that has used up today's reads", async () => {
@@ -116,6 +118,26 @@ describe("import assistant route", () => {
     );
     expect(response.status).toBe(429);
     expect((await response.json()).error.code).toBe("QUOTA");
+  });
+  const send = () =>
+    POST(
+      new Request("https://catera.test/api/import-assistant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer synthetic" },
+        body: JSON.stringify({ text: "Andre 0812" }),
+      }),
+    );
+  it("says the assistant is switched off, not broken, when no AI key is configured", async () => {
+    delete process.env.ANTHROPIC_API_KEY;
+    const response = await send();
+    expect(response.status).toBe(503);
+    expect((await response.json()).error.code).toBe("IMPORT_ASSISTANT_DISABLED");
+  });
+  it("keeps the generic unavailable code for a real outage", async () => {
+    state.outage = true;
+    const response = await send();
+    expect(response.status).toBe(503);
+    expect((await response.json()).error.code).toBe("IMPORT_UNAVAILABLE");
   });
   it("allows long lists the time they need", () => {
     expect(maxDuration).toBe(300);

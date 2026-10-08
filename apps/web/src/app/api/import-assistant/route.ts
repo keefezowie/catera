@@ -24,6 +24,8 @@ const codes: Record<string, number> = {
   IMPORT_UNREADABLE: 422,
   IMPORT_TOO_LONG: 422,
   IMPORT_UNAVAILABLE: 503,
+  // No AI key on this deployment: the assistant is off, not broken, so the app offers manual entry.
+  IMPORT_ASSISTANT_DISABLED: 503,
   QUOTA: 429,
 };
 const fail = (code: string) =>
@@ -68,7 +70,7 @@ export async function POST(request: Request) {
     const s = await session(request);
     if (!s.actor) return fail("UNAUTHORIZED");
     if (s.actor.role !== "owner" || !s.actor.catererId) return fail("FORBIDDEN");
-    if (!process.env.ANTHROPIC_API_KEY) return fail("IMPORT_UNAVAILABLE");
+    if (!process.env.ANTHROPIC_API_KEY) return fail("IMPORT_ASSISTANT_DISABLED");
     const parsed = body.safeParse(await request.json().catch(() => null));
     if (!parsed.success) return fail("INVALID_INPUT");
     // 20 paid model reads per kitchen per Jakarta day.
