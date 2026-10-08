@@ -10,13 +10,14 @@ import {
 import { AppState, Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import * as Crypto from "expo-crypto";
-import * as Notifications from "expo-notifications";
+import type * as NotificationTypes from "expo-notifications";
 import Constants from "expo-constants";
+import { Notifications } from "./notifications";
 import { router } from "expo-router";
 import { errorLabel, type Actor, type Locale } from "@catera/domain";
 import type { MobileRuntime } from "./runtime";
 
-Notifications.setNotificationHandler({
+Notifications?.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowBanner: true,
     shouldShowList: true,
@@ -156,10 +157,10 @@ export function MobileProvider({
         void refresh();
       } else runtime.supabase?.auth.stopAutoRefresh();
     });
-    const received = Notifications.addNotificationReceivedListener(() =>
+    const received = Notifications?.addNotificationReceivedListener(() =>
       setRevision((r) => r + 1),
     );
-    const handleResponse = (r: Notifications.NotificationResponse | null) => {
+    const handleResponse = (r: NotificationTypes.NotificationResponse | null) => {
       if (!r) return;
       const key = r.notification.request.identifier + ":" + r.actionIdentifier;
       if (lastNotification.current === key) return;
@@ -167,15 +168,15 @@ export function MobileProvider({
       if (typeof href === "string") {
         lastNotification.current = key;
         router.push(mapLink.current(href) as never);
-        void Notifications.clearLastNotificationResponseAsync();
+        void Notifications?.clearLastNotificationResponseAsync();
       }
     };
-    const response = Notifications.addNotificationResponseReceivedListener(handleResponse);
-    void Notifications.getLastNotificationResponseAsync().then(handleResponse);
+    const response = Notifications?.addNotificationResponseReceivedListener(handleResponse);
+    void Notifications?.getLastNotificationResponseAsync().then(handleResponse);
     return () => {
       appState.remove();
-      received.remove();
-      response.remove();
+      received?.remove();
+      response?.remove();
     };
   }, [runtime, refresh]);
 
@@ -221,6 +222,13 @@ export function MobileProvider({
 
   async function enablePush(channelName: string) {
     const t = translator(locale);
+    if (!Notifications)
+      throw new Error(
+        t(
+          "Notifikasi hanya tersedia di aplikasi yang dipasang.",
+          "Notifications are only available in the installed app.",
+        ),
+      );
     const projectId = Constants.expoConfig?.extra?.eas?.projectId;
     if (!projectId)
       throw new Error(

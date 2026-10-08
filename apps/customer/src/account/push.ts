@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import * as Notifications from "expo-notifications";
 import * as SecureStore from "expo-secure-store";
-import { useMobile } from "@catera/mobile-core";
+import { Notifications, useMobile } from "@catera/mobile-core";
 
 /** Every mounted status (Akun's row, the Notifikasi card) hears when push is turned on. */
 const listeners = new Set<(key: string) => void>();
@@ -15,7 +14,7 @@ export function usePush() {
   useEffect(() => {
     let live = true;
     void Promise.all([
-      Notifications.getPermissionsAsync().catch(() => null),
+      Notifications ? Notifications.getPermissionsAsync().catch(() => null) : Promise.resolve(null),
       SecureStore.getItemAsync(key).catch(() => null),
     ]).then(([permission, flag]) => {
       if (live) setOn(permission?.status === "granted" && flag === "on");
