@@ -118,9 +118,10 @@ describe("AppHeader", () => {
 });
 
 test("RoundButton presses with a haptic", () => {
+  jest.clearAllMocks();
   const onPress = jest.fn();
   render(<RoundButton icon="heart-outline" label="Simpan" onPress={onPress} />);
   fireEvent.press(screen.getByRole("button", { name: "Simpan" }));
   expect(onPress).toHaveBeenCalledTimes(1);
-  expect(Haptics.impactAsync).toHaveBeenCalled();
+  expect(Haptics.impactAsync).toHaveBeenCalledTimes(1);
 });
