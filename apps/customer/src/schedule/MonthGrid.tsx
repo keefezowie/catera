@@ -1,11 +1,11 @@
 import { Pressable, StyleSheet, Text as RNText, View } from "react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import type { Locale } from "@catera/domain";
 import { colors, fontFor } from "@catera/mobile-ui";
 import { longDay, monthWeeks, WEEK_HEADER } from "./dates";
 
-/** Forest = planned, this grey-green = arrived. */
-export const ARRIVED_DOT = "#8AA399";
-export type DayMark = "planned" | "arrived";
+/** Which meals a day covers; `done` once every meal it serves has arrived. */
+export type DayMark = { lunch: boolean; dinner: boolean; done: boolean };
 
 type Props = {
   month: string;
@@ -16,7 +16,24 @@ type Props = {
   onSelect: (date: string) => void;
 };
 
-/** One month, Monday first. Each day is a 44pt+ button with a dot under its number. */
+/** "Jumat 9 Oktober, makan siang dan malam, sudah sampai": the day, what it covers, whether it came. */
+function dayLabel(date: string, locale: Locale, mark: DayMark | undefined): string {
+  const day = longDay(date, locale);
+  if (!mark || (!mark.lunch && !mark.dinner)) return day;
+  const en = locale === "en";
+  const meals =
+    mark.lunch && mark.dinner
+      ? en ? "lunch and dinner" : "makan siang dan malam"
+      : mark.lunch
+        ? en ? "lunch" : "makan siang"
+        : en ? "dinner" : "makan malam";
+  return [day, meals, mark.done ? (en ? "arrived" : "sudah sampai") : null].filter(Boolean).join(", ");
+}
+
+/**
+ * One month, Monday first. Each day is a 48dp button. A covered day gets the scheduled background and a
+ * sun (lunch) and/or moon (dinner) under its number; the icons go muted once the meals have arrived.
+ */
 export function MonthGrid({ month, today, selected, marks, locale, onSelect }: Props) {
   return (
     <View style={{ gap: 2 }}>
@@ -33,26 +50,30 @@ export function MonthGrid({ month, today, selected, marks, locale, onSelect }: P
             if (!date) return <View key={col} style={styles.cell} />;
             const on = date === selected;
             const mark = marks.get(date);
+            const covered = !!mark && (mark.lunch || mark.dinner);
+            const ink = on ? colors.cream : mark?.done ? colors.muted : null;
             return (
               <Pressable
                 key={date}
                 accessibilityRole="button"
-                accessibilityLabel={longDay(date, locale)}
+                accessibilityLabel={dayLabel(date, locale, mark)}
                 accessibilityState={{ selected: on }}
                 onPress={() => onSelect(date)}
-                style={[styles.cell, styles.day, date === today && styles.today, on && styles.selected]}
+                style={[
+                  styles.cell,
+                  styles.day,
+                  covered && styles.covered,
+                  date === today && (covered ? styles.todayRing : styles.today),
+                  on && styles.selected,
+                ]}
               >
                 <RNText style={[styles.number, { color: on ? colors.cream : colors.charcoal }]}>
                   {Number(date.slice(8))}
                 </RNText>
-                <View
-                  style={[
-                    styles.dot,
-                    mark && {
-                      backgroundColor: mark === "arrived" ? ARRIVED_DOT : on ? colors.cream : colors.forest,
-                    },
-                  ]}
-                />
+                <View style={styles.marks}>
+                  {mark?.lunch ? <Ionicons name="sunny" size={12} color={ink ?? colors.sunrise} /> : null}
+                  {mark?.dinner ? <Ionicons name="moon" size={11} color={ink ?? colors.forest} /> : null}
+                </View>
               </Pressable>
             );
           })}
@@ -81,8 +102,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 3,
   },
+  covered: { backgroundColor: colors.scheduled },
   today: { borderColor: colors.sunrise, backgroundColor: colors.cream },
+  todayRing: { borderColor: colors.sunrise },
   selected: { backgroundColor: colors.forest, borderColor: colors.forest },
   number: { fontSize: 15, fontFamily: fontFor("700"), fontVariant: ["tabular-nums"] },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "transparent" },
+  marks: { height: 12, flexDirection: "row", alignItems: "center", gap: 3 },
 });

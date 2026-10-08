@@ -33,13 +33,14 @@ export type UpcomingRow = {
 };
 
 const JAKARTA_OFFSET_MS = 7 * 60 * 60 * 1000;
-const MEALS = ["lunch", "dinner"] as const;
+/** Meal order within a day: lunch first. */
+export const MEALS = ["lunch", "dinner"] as const;
 const ADDRESS_LABEL_LENGTH = 24;
 
 const mealsOf = (d: Delivery): DeliveryMeal[] => d.meals ?? [];
 
 /** Window start in minutes after midnight, the same rule as SQL v1.window_bounds. */
-function windowStartMinutes(offer: Offer, meal: "lunch" | "dinner"): number {
+export function windowStartMinutes(offer: Offer, meal: "lunch" | "dinner"): number {
   const m = /^\s*(\d{1,2})[.:](\d{2})\s*[–-]\s*(\d{1,2})[.:](\d{2})\s*$/.exec(offer.windows?.[meal] ?? "");
   if (m) {
     const [sh, sm, eh, em] = [m[1], m[2], m[3], m[4]].map(Number);

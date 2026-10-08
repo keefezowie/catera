@@ -2,12 +2,12 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, Image, Pressable, StyleSheet, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
-import { jakartaDay, mealLabel, type CustomerState, type Delivery } from "@catera/domain";
+import { jakartaDay, mealLabel, MEALS, windowStartMinutes, type CustomerState, type Delivery } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
 import { Button, Card, colors, fontFor, Screen, Text } from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
 import { photoUri } from "../today/Plate";
-import { ARRIVED_DOT, MonthGrid, type DayMark } from "./MonthGrid";
+import { MonthGrid, type DayMark } from "./MonthGrid";
 import { longDay, monthOf, monthRange, monthTitle, shiftMonth } from "./dates";
 
 const live = (d: Delivery) => d.status !== "cancelled";
@@ -16,16 +16,20 @@ const served = (d: Delivery) => (d.meals ?? []).filter((m) => m.status !== "canc
 const failed = (status: string) => status === "issue";
 
 /**
- * Forest dot for a day with meals still to come, grey-green once every meal has arrived.
- * Meals the caterer could not deliver count as neither, so a day of only those has no dot.
+ * What each day covers: lunch and/or dinner, and `done` once every meal it serves has arrived.
+ * Meals the caterer could not deliver count as neither, so a day of only those has no mark.
  */
 function marksOf(deliveries: Delivery[]): Map<string, DayMark> {
   const marks = new Map<string, DayMark>();
   for (const d of deliveries.filter(live)) {
     const meals = served(d).filter((m) => !failed(m.status));
     if (!meals.length) continue;
-    if (meals.some((m) => m.status !== "delivered")) marks.set(d.service_date, "planned");
-    else if (!marks.has(d.service_date)) marks.set(d.service_date, "arrived");
+    const mark = marks.get(d.service_date) ?? { lunch: false, dinner: false, done: true };
+    for (const m of meals) {
+      mark[m.meal] = true;
+      if (m.status !== "delivered") mark.done = false;
+    }
+    marks.set(d.service_date, mark);
   }
   return marks;
 }
@@ -59,7 +63,13 @@ function SignedInJadwal() {
   const deliveries = state?.deliveries.filter((d) => monthOf(d.service_date) === month) ?? [];
   const day = deliveries
     .filter((d) => d.service_date === selected && live(d))
-    .flatMap((d) => served(d).map((m) => ({ d, m })));
+    .flatMap((d) => served(d).map((m) => ({ d, m })))
+    // Lunch before dinner, then by service window when several caterers serve the same meal.
+    .sort(
+      (a, b) =>
+        MEALS.indexOf(a.m.meal) - MEALS.indexOf(b.m.meal) ||
+        windowStartMinutes(a.d.offer, a.m.meal) - windowStartMinutes(b.d.offer, b.m.meal),
+    );
 
   return (
     <Screen>
@@ -73,7 +83,7 @@ function SignedInJadwal() {
         >
           <Ionicons name="chevron-back" size={22} color={colors.forest} />
         </Pressable>
-        <Text variant="heading" style={{ flex: 1, textAlign: "center", fontSize: 18 }}>
+        <Text variant="heading" style={{ flex: 1, textAlign: "center" }}>
           {monthTitle(month, locale)}
         </Text>
         <Pressable
@@ -95,8 +105,9 @@ function SignedInJadwal() {
       ) : null}
       <MonthGrid month={month} today={today} selected={selected} marks={marksOf(deliveries)} locale={locale} onSelect={setSelected} />
       <View style={styles.legend}>
-        <Legend color={colors.forest} label={t("Diantar", "Delivery")} />
-        <Legend color={ARRIVED_DOT} label={t("Sudah sampai", "Arrived")} />
+        <Legend icon="sunny" size={12} color={colors.sunrise} label={t("Makan siang", "Lunch")} />
+        <Legend icon="moon" size={11} color={colors.forest} label={t("Makan malam", "Dinner")} />
+        <Legend icon="sunny" size={12} color={colors.muted} label={t("Sudah sampai", "Arrived")} />
       </View>
       <Text variant="label">{longDay(selected, locale)}</Text>
       {data.loading && !state ? (
@@ -114,10 +125,10 @@ function SignedInJadwal() {
   );
 }
 
-function Legend({ color, label }: { color: string; label: string }) {
+function Legend({ icon, size, color, label }: { icon: "sunny" | "moon"; size: number; color: string; label: string }) {
   return (
     <View style={styles.legendItem}>
-      <View style={[styles.legendDot, { backgroundColor: color }]} />
+      <Ionicons name={icon} size={size} color={color} />
       <Text variant="caption">{label}</Text>
     </View>
   );
@@ -174,9 +185,8 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.canvas },
   monthBar: { flexDirection: "row", alignItems: "center" },
   arrow: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
-  legend: { flexDirection: "row", gap: 18 },
+  legend: { flexDirection: "row", flexWrap: "wrap", columnGap: 18, rowGap: 6 },
   legendItem: { flexDirection: "row", alignItems: "center", gap: 6 },
-  legendDot: { width: 8, height: 8, borderRadius: 4 },
   meal: { minHeight: 72, flexDirection: "row", alignItems: "center", gap: 12, padding: 8 },
   divider: { borderTopWidth: 1, borderTopColor: colors.line },
   photo: { width: 56, height: 56, borderRadius: 10, backgroundColor: colors.sage },

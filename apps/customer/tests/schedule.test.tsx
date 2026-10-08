@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
-import { Linking, StyleSheet, View } from "react-native";
+import { Linking, StyleSheet } from "react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { colors } from "@catera/mobile-ui";
@@ -111,7 +112,28 @@ const stateOf = (deliveries: Delivery[], addresses: Address[] = [home, rumah, ja
 // Cutoff 17.00 on the day before service: 2026-10-07T10:00Z. It is 10.00 WIB on the 7th, so still open.
 const open = (id: string, date: string, extra: Partial<Delivery> = {}) => delivery(id, date, {}, extra);
 
+/** A day button by its date, whatever coverage its label then names. */
+const dayButton = (date: string) => screen.getByRole("button", { name: new RegExp(`^${date}(,|$)`) });
+
 describe("Jadwal", () => {
+  // Dinner is stored before lunch on the 9th, to prove the list orders by meal and not by storage.
+  const coverage = stateOf([
+    delivery("d-both", "2026-10-09", {}, {
+      offer: offer({ name: "Salmon Teriyaki dan Ayam Panggang" }),
+      meals: [
+        { meal: "dinner", status: "scheduled" },
+        { meal: "lunch", status: "scheduled" },
+      ],
+    }),
+    delivery("d-dinner", "2026-10-10", {}, { meals: [{ meal: "dinner", status: "scheduled" }] }),
+    delivery("d-lunch-done", "2026-10-12", { status: "delivered" }),
+    delivery("d-both-done", "2026-10-13", {}, {
+      meals: [
+        { meal: "lunch", status: "delivered" },
+        { meal: "dinner", status: "delivered" },
+      ],
+    }),
+  ]);
   const month = stateOf([
     delivery("d-arrived", "2026-10-07", { status: "delivered" }),
     open("d-next", "2026-10-08"),
@@ -125,19 +147,20 @@ describe("Jadwal", () => {
     expect(screen.getAllByText(/^(Sen|Sel|Rab|Kam|Jum|Sab|Min)$/).map((n) => n.props.children)).toEqual([
       "Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min",
     ]);
-    const today = screen.getByRole("button", { name: "Rabu 7 Oktober" });
-    const other = screen.getByRole("button", { name: "Kamis 8 Oktober" });
+    const today = dayButton("Rabu 7 Oktober");
+    const other = dayButton("Kamis 8 Oktober");
     // Today starts selected; every day is at least a 44pt target.
     expect(today.props.accessibilityState.selected).toBe(true);
     expect(other.props.accessibilityState.selected).toBe(false);
     expect(StyleSheet.flatten(other.props.style).minHeight).toBeGreaterThanOrEqual(44);
     fireEvent.press(other);
-    expect(screen.getByRole("button", { name: "Kamis 8 Oktober" }).props.accessibilityState.selected).toBe(true);
-    const old = StyleSheet.flatten(screen.getByRole("button", { name: "Rabu 7 Oktober" }).props.style);
+    expect(dayButton("Kamis 8 Oktober").props.accessibilityState.selected).toBe(true);
+    // Today keeps its Sunrise ring; its day is covered, so it also carries the scheduled background.
+    const old = StyleSheet.flatten(dayButton("Rabu 7 Oktober").props.style);
     expect(old.borderColor).toBe(colors.sunrise);
     expect(old.borderWidth).toBe(1.5);
-    expect(old.backgroundColor).toBe(colors.cream);
-    const selected = StyleSheet.flatten(screen.getByRole("button", { name: "Kamis 8 Oktober" }).props.style);
+    expect(old.backgroundColor).toBe(colors.scheduled);
+    const selected = StyleSheet.flatten(dayButton("Kamis 8 Oktober").props.style);
     expect(selected.backgroundColor).toBe(colors.forest);
   });
 
@@ -150,39 +173,89 @@ describe("Jadwal", () => {
 
   it("lists the selected day's meals and opens one", async () => {
     renderWith(runtimeWith(month), <Jadwal />);
-    fireEvent.press(await screen.findByRole("button", { name: "Kamis 8 Oktober" }));
+    await screen.findByText("Oktober 2026");
+    fireEvent.press(dayButton("Kamis 8 Oktober"));
     const row = screen.getByRole("button", { name: /Makan Siang Rumahan/ });
     expect(within(row).getByText(/Makan siang · 11\.00–13\.00/)).toBeTruthy();
     fireEvent.press(row);
     expect(router.push).toHaveBeenCalledWith("/hari/d-next");
   });
 
-  it("legend shows planned and arrived only", async () => {
+  it("legend names lunch, dinner and arrived", async () => {
     renderWith(runtimeWith(month), <Jadwal />);
-    expect(await screen.findByText("Diantar")).toBeTruthy();
+    expect(await screen.findByText("Makan siang")).toBeTruthy();
+    expect(screen.getByText("Makan malam")).toBeTruthy();
     expect(screen.getByText("Sudah sampai")).toBeTruthy();
+    expect(screen.queryByText("Diantar")).toBeNull();
     expect(screen.queryByText("Dipindah")).toBeNull();
   });
 
-  it("says a meal the caterer could not deliver was not delivered, and gives it no dot", async () => {
+  it("says a meal the caterer could not deliver was not delivered, and marks no coverage", async () => {
     const failed = stateOf([delivery("d-failed", "2026-10-06", { status: "issue" })]);
     renderWith(runtimeWith(failed), <Jadwal />);
-    fireEvent.press(await screen.findByRole("button", { name: /^Selasa 6 Oktober/ }));
+    await screen.findByText("Oktober 2026");
+    fireEvent.press(dayButton("Selasa 6 Oktober"));
     const row = screen.getByRole("button", { name: /Makan Siang Rumahan/ });
     expect(within(row).getByText(/Tidak bisa diantar/)).toBeTruthy();
-    // Neither "Diantar" nor "Sudah sampai": the day's dot looks like a day without deliveries.
-    const dotOf = (name: string) => {
-      const views = within(screen.getByRole("button", { name })).UNSAFE_getAllByType(View);
-      return StyleSheet.flatten(views[views.length - 1].props.style).backgroundColor;
-    };
-    expect(dotOf("Selasa 6 Oktober")).toBe(dotOf("Senin 5 Oktober"));
+    // The day looks like a day without deliveries: no coverage in its label, background or icons.
+    const cell = dayButton("Selasa 6 Oktober");
+    expect(cell.props.accessibilityLabel).toBe("Selasa 6 Oktober");
+    expect(within(cell).UNSAFE_queryAllByType(Ionicons)).toHaveLength(0);
+    expect(StyleSheet.flatten(cell.props.style).backgroundColor).not.toBe(colors.scheduled);
+    expect(StyleSheet.flatten(dayButton("Senin 5 Oktober").props.style).backgroundColor).toBeUndefined();
+  });
+
+  it("labels a covered day with its meals", async () => {
+    renderWith(runtimeWith(coverage), <Jadwal />);
+    expect(await screen.findByLabelText(/Jumat 9 Oktober, makan siang dan malam/)).toBeTruthy();
+    expect(screen.getByLabelText("Sabtu 10 Oktober, makan malam")).toBeTruthy();
+    expect(screen.getByLabelText("Senin 12 Oktober, makan siang, sudah sampai")).toBeTruthy();
+    expect(screen.getByLabelText("Selasa 13 Oktober, makan siang dan malam, sudah sampai")).toBeTruthy();
+    expect(screen.getByLabelText("Minggu 11 Oktober")).toBeTruthy();
+  });
+
+  it("marks coverage with a sun for lunch and a moon for dinner, muted once arrived", async () => {
+    renderWith(runtimeWith(coverage), <Jadwal />);
+    await screen.findByText("Oktober 2026");
+    const icons = (name: string) =>
+      within(dayButton(name))
+        .UNSAFE_queryAllByType(Ionicons)
+        .map((i) => ({ name: i.props.name, size: i.props.size, color: i.props.color }));
+    expect(icons("Jumat 9 Oktober")).toEqual([
+      { name: "sunny", size: 12, color: colors.sunrise },
+      { name: "moon", size: 11, color: colors.forest },
+    ]);
+    expect(icons("Sabtu 10 Oktober")).toEqual([{ name: "moon", size: 11, color: colors.forest }]);
+    expect(icons("Minggu 11 Oktober")).toEqual([]);
+    // Arrived days drop the colour cue.
+    expect(icons("Selasa 13 Oktober")).toEqual([
+      { name: "sunny", size: 12, color: colors.muted },
+      { name: "moon", size: 11, color: colors.muted },
+    ]);
+    expect(StyleSheet.flatten(dayButton("Jumat 9 Oktober").props.style).backgroundColor).toBe(colors.scheduled);
+    // Selected keeps the forest fill with cream icons.
+    fireEvent.press(dayButton("Jumat 9 Oktober"));
+    expect(StyleSheet.flatten(dayButton("Jumat 9 Oktober").props.style).backgroundColor).toBe(colors.forest);
+    expect(icons("Jumat 9 Oktober").map((i) => i.color)).toEqual([colors.cream, colors.cream]);
+  });
+
+  it("lists lunch before dinner on a day with both", async () => {
+    renderWith(runtimeWith(coverage), <Jadwal />);
+    await screen.findByText("Oktober 2026");
+    fireEvent.press(dayButton("Jumat 9 Oktober"));
+    const rows = screen
+      .getAllByRole("button")
+      .filter((b) => /, Makan (siang|malam) · /.test(b.props.accessibilityLabel ?? ""));
+    expect(rows).toHaveLength(2);
+    expect(within(rows[0]).getByText(/Makan siang/)).toBeTruthy();
+    expect(within(rows[1]).getByText(/Makan malam/)).toBeTruthy();
   });
 
   it("shows a day whose meals list is missing without failing", async () => {
     const bare = stateOf([{ ...open("d-bare", "2026-10-08"), meals: null } as unknown as Delivery]);
     renderWith(runtimeWith(bare), <Jadwal />);
     expect(await screen.findByText("Oktober 2026")).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: "Kamis 8 Oktober" }));
+    fireEvent.press(dayButton("Kamis 8 Oktober"));
     expect(screen.getByText("Tidak ada pengantaran di hari ini.")).toBeTruthy();
   });
 
