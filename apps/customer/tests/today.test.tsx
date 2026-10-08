@@ -190,6 +190,16 @@ it("does not call the last trial day tomorrow when it is further away", async ()
   expect(await screen.findByText(/^Hari terakhir: (?!Besok)\w+ \d+ \w+\./)).toBeTruthy();
 });
 
+it("does not announce a last day that has already passed", async () => {
+  const trial = { trial: true, offer: offer() } as unknown as Subscription["snapshot"];
+  renderHome(
+    runtimeWith(async () => customerState(null, { subscription: { remaining: 1, snapshot: trial, ends_on: addDays(TODAY, -1) } })),
+  );
+  expect(await screen.findByText("Suka dengan Makan Siang Rumahan?")).toBeTruthy();
+  expect(screen.queryByText(/Hari terakhir/)).toBeNull();
+  expect(screen.getByText("Lanjutkan dengan paket penuh kapan saja.")).toBeTruthy();
+});
+
 it("asks for a review once near the end", async () => {
   const past = delivery("d-past", addDays(TODAY, -1), { status: "delivered" }, { status: "delivered" });
   const runtime = runtimeWith(async () =>

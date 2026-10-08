@@ -288,7 +288,7 @@ export function BuyScreen({
       {quote.error ? (
         running ? (
           <View style={{ gap: 8 }}>
-            <Text style={{ color: colors.danger }}>
+            <Text>
               {t(`Paket ini masih berjalan sampai ${shortDate(running.endsOn, locale)}.`, `This package is still running until ${shortDate(running.endsOn, locale)}.`)}
             </Text>
             <Button

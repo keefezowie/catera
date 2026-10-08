@@ -3,6 +3,7 @@ import { Share } from "react-native";
 import { router } from "expo-router";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { TodayScreen } from "../src/today/TodayScreen";
+import { SessionCard } from "../src/today/SessionCard";
 import { issueSteps } from "../src/today/exceptions";
 import * as offline from "../src/today/offline";
 import { canvasDay, emptyDay, quietDay, report } from "./fixtures";
@@ -308,5 +309,32 @@ describe("session cards", () => {
     await screen.findByText("Tidak ada masakan untuk hari ini.");
     fireEvent.press(screen.getByText("Besok"));
     expect(await screen.findByText("Tidak ada masakan untuk besok.")).toBeTruthy();
+  });
+});
+
+describe("route sharing after a same-day revision", () => {
+  it("shares a defined message when the route shrinks below the part already reached", async () => {
+    const share = jest.spyOn(Share, "share").mockResolvedValue({ action: "sharedAction" });
+    const runtime = createMobileRuntime({ apiUrl: "https://api.example.test", storagePrefix: "t" });
+    const short = canvasDay();
+    const long = {
+      ...short,
+      deliveries: short.deliveries.map((d) => ({ ...d, address: { ...d.address, instructions: "pagar hijau ".repeat(60) } })),
+    } as typeof short;
+    const card = (ops: typeof short) => (
+      <MobileProvider runtime={runtime} linkMapper={(h) => h}>
+        <SessionCard ops={ops} meal="lunch" date="2026-10-08" report="today" caterer="Dapur Bu Rina" />
+      </MobileProvider>
+    );
+    const view = render(card(long));
+    fireEvent.press(screen.getByText("Bagikan rute ke WhatsApp"));
+    await waitFor(() => expect(share).toHaveBeenCalledTimes(1));
+    fireEvent.press(await screen.findByText("Bagikan bagian 2"));
+    await waitFor(() => expect(share).toHaveBeenCalledTimes(2));
+    // Now on part 3 of a longer route; the revision leaves a single part.
+    view.rerender(card(short));
+    fireEvent.press(await screen.findByText("Bagikan rute ke WhatsApp"));
+    await waitFor(() => expect(share).toHaveBeenCalledTimes(3));
+    expect(share.mock.calls[2][0]).toEqual(expect.objectContaining({ message: expect.stringMatching(/^\*Antar siang/) }));
   });
 });

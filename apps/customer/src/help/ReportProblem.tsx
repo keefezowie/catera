@@ -63,7 +63,6 @@ function Report({ id, meal: wanted, jenis }: { id: string; meal?: string; jenis?
           <ActivityIndicator color={colors.forest} />
         ) : (
           <>
-            <Text variant="title">{t("Ada masalah", "Report a problem")}</Text>
             <Text style={{ color: state.error ? colors.danger : colors.muted }}>
               {state.error || t("Pengantaran tidak ditemukan.", "Delivery not found.")}
             </Text>
@@ -148,7 +147,6 @@ function Report({ id, meal: wanted, jenis }: { id: string; meal?: string; jenis?
   return (
     <Screen>
       <View style={{ gap: 2 }}>
-        <Text variant="title">{t("Ada masalah", "Report a problem")}</Text>
         <Text variant="caption" style={{ fontVariant: ["tabular-nums"] }}>
           {when} · {caterer}
         </Text>

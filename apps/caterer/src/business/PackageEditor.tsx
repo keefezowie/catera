@@ -60,7 +60,6 @@ export function PackageEditor({ from }: { from?: SellerOffer }) {
 
   return (
     <Screen footer={<Button label={t("Simpan paket", "Save package")} disabled={busy || uploading} onPress={() => void save()} />}>
-      <Text variant="title">{t("Paket baru", "New package")}</Text>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={t("Pilih foto paket", "Choose package photo")}

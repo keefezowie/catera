@@ -36,14 +36,18 @@ export function TrialCard({ subscription: s }: { subscription: Subscription }) {
   const { t } = useMobile();
   const name = s.snapshot.offer.name;
   const today = jakartaDay(new Date());
+  // A trial whose last day has passed has no "last day" to announce; the invitation stands alone.
+  const ended = s.ends_on < today;
   return (
     <Card tone="attention" style={{ gap: 10 }}>
       <Text variant="heading">{t(`Suka dengan ${name}?`, `Enjoying ${name}?`)}</Text>
       <Text>
-        {t(
-          `Hari terakhir: ${dayLabel(s.ends_on, today, "id")}. Lanjutkan dengan paket penuh kapan saja.`,
-          `Last day: ${dayLabel(s.ends_on, today, "en")}. Continue with the full package any time.`,
-        )}
+        {ended
+          ? t("Lanjutkan dengan paket penuh kapan saja.", "Continue with the full package any time.")
+          : t(
+              `Hari terakhir: ${dayLabel(s.ends_on, today, "id")}. Lanjutkan dengan paket penuh kapan saja.`,
+              `Last day: ${dayLabel(s.ends_on, today, "en")}. Continue with the full package any time.`,
+            )}
       </Text>
       <Button
         label={t("Lihat paket penuh", "See the full package")}

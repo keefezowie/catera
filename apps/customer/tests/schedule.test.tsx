@@ -357,6 +357,16 @@ describe("Ubah hari sheet", () => {
     expect(await screen.findByText("Belum ada tanggal yang tersedia dalam 30 hari ke depan.")).toBeTruthy();
   });
 
+  it("shows the empty message when every date is unavailable", async () => {
+    const full = [
+      { date: "2026-10-12", available: false, reason: "DUPLICATE_DATE", remaining: 3 },
+      { date: "2026-10-13", available: false, reason: "CAPACITY", remaining: 0 },
+    ];
+    renderSheet(flexible, runtimeWith(stateOf([flexible]), full));
+    expect(await screen.findByText("Belum ada tanggal yang tersedia dalam 30 hari ke depan.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Selasa 13 Okt, Katering penuh/ })).toBeTruthy();
+  });
+
   it("changes the address for one day", async () => {
     const command = jest.fn(async () => ({}));
     renderSheet(flexible, runtimeWith(stateOf([flexible]), available, command));

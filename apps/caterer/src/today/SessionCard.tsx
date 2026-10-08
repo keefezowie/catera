@@ -65,6 +65,8 @@ export function SessionCard({
   const recap = cookingRecap(ops, meal);
   const stops = deliveryRoute(ops, meal);
   const parts = routeShareText(stops, { date, meal, caterer }, locale);
+  // A same-day revision can shorten the route under a part index already advanced past its end.
+  const at = Math.min(part, Math.max(parts.length - 1, 0));
   const title = meal === "lunch" ? t("Makan siang", "Lunch") : t("Makan malam", "Dinner");
   return (
     <Card>
@@ -147,7 +149,7 @@ export function SessionCard({
             accessibilityRole="link"
             accessibilityLabel={`${t("Buka peta", "Open map")} ${s.name}`}
             onPress={() => void Linking.openURL(s.mapsUrl)}
-            style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}
+            style={{ width: 48, height: 48, alignItems: "center", justifyContent: "center" }}
           >
             <Ionicons name="location-outline" size={22} color={colors.forest} />
           </Pressable>
@@ -156,7 +158,7 @@ export function SessionCard({
               accessibilityRole="button"
               accessibilityLabel={`${report === "today" ? t("Ada masalah", "Problem") : t("Pindah tanggal", "Move date")}: ${s.name}`}
               onPress={() => setReporting(s)}
-              style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}
+              style={{ width: 48, height: 48, alignItems: "center", justifyContent: "center" }}
             >
               <Ionicons name="ellipsis-horizontal" size={22} color={colors.muted} />
             </Pressable>
@@ -166,13 +168,13 @@ export function SessionCard({
       {stops.length ? (
         <Button
           label={
-            part === 0
+            at === 0
               ? t("Bagikan rute ke WhatsApp", "Share route to WhatsApp")
-              : `${t("Bagikan bagian", "Share part")} ${part + 1}`
+              : `${t("Bagikan bagian", "Share part")} ${at + 1}`
           }
           onPress={async () => {
-            await Share.share({ message: parts[part] });
-            setPart((p) => (p + 1 < parts.length ? p + 1 : 0));
+            await Share.share({ message: parts[at] });
+            setPart(at + 1 < parts.length ? at + 1 : 0);
           }}
         />
       ) : (

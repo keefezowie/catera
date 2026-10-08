@@ -160,12 +160,17 @@ export function ChangeDaySheet({
                 <Text style={{ color: colors.muted }}>{t("Memuat tanggal…", "Loading dates…")}</Text>
               ) : availability.error && !availability.data ? (
                 <Text style={{ color: colors.danger }}>{availability.error}</Text>
-              ) : dates.length ? (
-                <DateChips dates={dates} selected={target} onSelect={setTarget} reasons={reasons} today={today} locale={locale} />
               ) : (
-                <Text style={{ color: colors.muted }}>
-                  {t("Belum ada tanggal yang tersedia dalam 30 hari ke depan.", "No dates are available in the next 30 days.")}
-                </Text>
+                <>
+                  {dates.some((r) => r.available) ? null : (
+                    <Text style={{ color: colors.muted }}>
+                      {t("Belum ada tanggal yang tersedia dalam 30 hari ke depan.", "No dates are available in the next 30 days.")}
+                    </Text>
+                  )}
+                  {dates.length ? (
+                    <DateChips dates={dates} selected={target} onSelect={setTarget} reasons={reasons} today={today} locale={locale} />
+                  ) : null}
+                </>
               )
             ) : (
               <ScrollView style={{ maxHeight: 280 }} contentContainerStyle={{ gap: 8 }}>

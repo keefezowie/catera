@@ -24,7 +24,6 @@ function Saved() {
   const saved = useSaved("/disimpan");
   return (
     <Screen>
-      <Text variant="title">{t("Disimpan", "Saved")}</Text>
       {saved.error ? <Text style={{ color: colors.danger }}>{saved.error}</Text> : null}
       {saved.loading ? (
         <ActivityIndicator color={colors.forest} />

@@ -15,14 +15,12 @@ function UangContent() {
   if ("unavailable" in s)
     return (
       <Screen>
-        <Text variant="title">{t("Uang", "Money")}</Text>
         <Text>{t("Catatan uang belum tersedia.", "Money records aren't available yet.")}</Text>
       </Screen>
     );
   const pick = (pair: [string, string]) => t(pair[0], pair[1]);
   return (
     <Screen>
-      <Text variant="title">{t("Uang", "Money")}</Text>
       <Card tone="brand">
         <Text variant="label" style={{ color: colors.cream }}>{t("Masuk ke rekening berikutnya", "Next payout to your account")}</Text>
         <Text variant="number" style={{ color: colors.cream }}>{settlementCurrency(s.available, locale)}</Text>

@@ -169,7 +169,6 @@ export function ImportAssistant() {
         )
       }
     >
-      <Text variant="title">{t("Impor pelanggan", "Import customers")}</Text>
       {saved ? (
         <Card tone="sage">
           <Text variant="heading">{t(`${saved} pelanggan tersimpan`, `${saved} customers saved`)}</Text>

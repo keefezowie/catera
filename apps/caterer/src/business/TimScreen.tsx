@@ -32,7 +32,6 @@ export function TimScreen() {
 
   return (
     <Screen>
-      <Text variant="title">{t("Tim", "Team")}</Text>
       <Card tone="sage">
         <Text variant="heading">{t("Pembantu dapur", "Kitchen helper")}</Text>
         <Text>

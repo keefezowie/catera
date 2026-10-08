@@ -59,7 +59,6 @@ export function AktifkanScreen() {
 
   return (
     <Screen>
-      <Text variant="title">{t("Aktifkan pembayaran", "Turn on payments")}</Text>
       <Text>
         {t(
           "Setelah aktif, pelanggan bisa memperpanjang dan memesan langsung lewat Catera. Daftar masak dan antar tetap berjalan seperti biasa.",
