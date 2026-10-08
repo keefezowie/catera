@@ -5,11 +5,14 @@ import { colors, fonts } from "@catera/mobile-ui";
 import { tabsForRole, type CatererTab } from "../../src/roles";
 import { RoleGate } from "../../src/RoleGate";
 
-const icons: Record<CatererTab, keyof typeof Ionicons.glyphMap> = {
-  index: "home-outline",
-  pelanggan: "people-outline",
-  menu: "book-outline",
-  usaha: "storefront-outline",
+type Glyph = keyof typeof Ionicons.glyphMap;
+
+/** Outline while inactive, filled when focused (same rule as the customer app); content icons stay outline. */
+const icons: Record<CatererTab, { filled: Glyph; outline: Glyph }> = {
+  index: { filled: "home", outline: "home-outline" },
+  pelanggan: { filled: "people", outline: "people-outline" },
+  menu: { filled: "book", outline: "book-outline" },
+  usaha: { filled: "storefront", outline: "storefront-outline" },
 };
 
 export default function TabsLayout() {
@@ -40,7 +43,9 @@ export default function TabsLayout() {
             options={{
               title: titles[name],
               href: allowed.includes(name) ? undefined : null,
-              tabBarIcon: ({ color, size }) => <Ionicons name={icons[name]} color={color} size={size} />,
+              tabBarIcon: ({ color, size, focused }) => (
+                <Ionicons name={focused ? icons[name].filled : icons[name].outline} color={color} size={size} />
+              ),
             }}
           />
         ))}

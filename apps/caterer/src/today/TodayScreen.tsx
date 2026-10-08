@@ -14,10 +14,11 @@ import {
   type SellerOperationsState,
 } from "@catera/domain";
 import { useData, useMobile, type MobileRuntime } from "@catera/mobile-core";
-import { Button, Card, colors, FadeSwap, fontFor, Screen, Segmented, Text } from "@catera/mobile-ui";
+import { Button, Card, colors, FadeSwap, fontFor, PressableRow, Screen, Segmented, Text } from "@catera/mobile-ui";
 import { jakartaClock } from "./exceptions";
 import { loadCachedDay, saveCachedDay } from "./offline";
 import { SessionCard } from "./SessionCard";
+import { dapurLink } from "../links";
 import { ReadError } from "../ReadError";
 
 type LoadedDay = { data: SellerOperationsState; savedAt: string | null };
@@ -178,11 +179,20 @@ function ActionCards({ items }: { items: SellerAttentionItem[] }) {
     <>
       {shown.map((item) => {
         const [id, en] = attentionLabels[item.kind]!;
-        return (
-          <Card key={item.id} tone="attention">
+        // "/" is dapurLink's answer for "no Dapur screen for this": Hari ini is already where we are.
+        const route = dapurLink(item.href);
+        const card = (
+          <Card tone="attention">
             <Text style={{ fontFamily: fontFor("800") }}>{t(id, en)}</Text>
             {item.context ? <Text variant="caption">{item.context}</Text> : null}
           </Card>
+        );
+        return route === "/" ? (
+          <View key={item.id}>{card}</View>
+        ) : (
+          <PressableRow key={item.id} accessibilityRole="link" onPress={() => router.push(route as never)}>
+            {card}
+          </PressableRow>
         );
       })}
     </>

@@ -140,11 +140,35 @@ describe("cookingRecap", () => {
     });
   });
 
-  it("falls back to category lines when a package has no dated menu", () => {
+  it("unfilled slots are reported separately and never listed as dishes", () => {
     const state = canvasState();
     state.datedMenus = [];
-    const lauk = cookingRecap(state, "lunch").byDish.find((d) => d.category === "Lauk");
-    expect(lauk).toEqual({ name: "Lauk ×2", category: "Lauk", count: 56 });
+    const recap = cookingRecap(state, "lunch");
+    expect(recap.byDish).toEqual([]);
+    expect(recap.unfilled).toEqual([
+      { packageId: "p-rumahan", packageName: "Makan Siang Rumahan", group: "Nasi", slots: 1, portions: 28 },
+      { packageId: "p-rumahan", packageName: "Makan Siang Rumahan", group: "Lauk", slots: 2, portions: 56 },
+      { packageId: "p-rumahan", packageName: "Makan Siang Rumahan", group: "Sayur", slots: 1, portions: 28 },
+      { packageId: "p-hemat", packageName: "Paket Hemat Kantor", group: "Nasi", slots: 1, portions: 6 },
+      { packageId: "p-hemat", packageName: "Paket Hemat Kantor", group: "Lauk", slots: 1, portions: 6 },
+      { packageId: "p-hemat", packageName: "Paket Hemat Kantor", group: "Sayur", slots: 1, portions: 6 },
+    ]);
+  });
+
+  it("keeps real dishes and reports only the slots still missing", () => {
+    const state = canvasState();
+    const dated = state.datedMenus!.find((m) => m.package_id === "p-rumahan")!;
+    dated.details.items = dated.details.items!.filter((i) => i.name !== "Tempe orek");
+    const recap = cookingRecap(state, "lunch");
+    expect(recap.byDish.map((d) => d.name)).not.toContain("Tempe orek");
+    expect(recap.byDish.map((d) => d.name)).toContain("Ayam bakar madu");
+    expect(recap.unfilled).toEqual([
+      { packageId: "p-rumahan", packageName: "Makan Siang Rumahan", group: "Lauk", slots: 1, portions: 28 },
+    ]);
+  });
+
+  it("no unfilled line when the menu is complete", () => {
+    expect(cookingRecap(canvasState(), "lunch").unfilled).toEqual([]);
   });
 });
 

@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { Linking, Pressable, View } from "react-native";
+import { Linking, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { jakartaDay, whatsappUrl, type SellerCustomer } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, Chip, colors, fontFor, Screen, Text } from "@catera/mobile-ui";
+import { Button, Card, Chip, colors, fontFor, PressableRow, PressableScale, Screen, Text } from "@catera/mobile-ui";
 import { activeSubscriptions, currentSubscription, customerStatus, endLabel, type CustomerStatus } from "./rules";
 import { loadAllCustomers } from "./load";
 import { ReadError } from "../ReadError";
@@ -50,10 +50,10 @@ export function CustomerList() {
         const others = Math.max(activeSubscriptions(c).length - 1, 0);
         return (
           <Card key={c.id} style={{ flexDirection: "row", alignItems: "center" }}>
-            <Pressable
+            <PressableRow
               accessibilityRole="button"
               onPress={() => router.push(`/pelanggan/${c.id}` as never)}
-              style={{ flex: 1, gap: 2 }}
+              style={{ flex: 1, gap: 2, minHeight: 48, justifyContent: "center" }}
             >
               <Text style={{ fontFamily: fontFor("800") }}>{c.name}</Text>
               {s ? <Text variant="caption">{`${s.package_name} · ${s.portions} porsi`}</Text> : null}
@@ -68,16 +68,16 @@ export function CustomerList() {
                   {c.origin === "marketplace" ? t("Dari marketplace", "From marketplace") : t("Pelanggan Anda", "Your customer")}
                 </Text>
               </View>
-            </Pressable>
+            </PressableRow>
             {c.phone ? (
-              <Pressable
+              <PressableScale
                 accessibilityRole="link"
                 accessibilityLabel={`${t("Chat", "Chat")} ${c.name}`}
                 onPress={() => void Linking.openURL(whatsappUrl("", c.phone!))}
-                style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}
+                style={{ width: 48, height: 48, alignItems: "center", justifyContent: "center" }}
               >
                 <Ionicons name="chatbubble-ellipses-outline" size={22} color={colors.forest} />
-              </Pressable>
+              </PressableScale>
             ) : null}
           </Card>
         );

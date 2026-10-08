@@ -359,3 +359,92 @@ it("new kitchen card makes no time claim", async () => {
   expect(await screen.findByText("Satu layar")).toBeTruthy();
   expect(screen.queryByText(/menit/)).toBeNull();
 });
+
+describe("unfilled menus on the session card", () => {
+  const today = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(new Date());
+  /** The day's dated menus filled for both packages, on the date the screen opens on. */
+  const filled = () => {
+    const day = canvasDay();
+    day.operationalDate = today();
+    const dish = (id: string, groupId: string, name: string) => ({ id, groupId, name, description: "", image: "", serving: "" });
+    const composition = (lauk: number) => [
+      { id: "g-nasi", name: "Nasi", slots: 1 },
+      { id: "g-lauk", name: "Lauk", slots: lauk },
+      { id: "g-sayur", name: "Sayur", slots: 1 },
+    ];
+    const menu = (packageId: string, lauk: number, items: ReturnType<typeof dish>[]) => ({
+      package_id: packageId, content_revision: 0, service_date: today(), meal: "lunch", version: 1,
+      details: { name: "", description: "", image: "", meal: "lunch", composition: composition(lauk), items },
+    });
+    day.datedMenus = [
+      menu("p-rumahan", 2, [dish("a", "g-nasi", "Nasi putih"), dish("b", "g-lauk", "Ayam bakar"), dish("c", "g-lauk", "Tempe orek"), dish("d", "g-sayur", "Sayur asem")]),
+      menu("p-hemat", 1, [dish("e", "g-nasi", "Nasi putih"), dish("f", "g-lauk", "Telur balado"), dish("g", "g-sayur", "Sayur asem")]),
+    ] as never;
+    return day;
+  };
+
+  it("names the slots nobody filled instead of listing them as dishes, and opens the day editor", async () => {
+    renderToday(runtimeWith(async () => canvasDay()));
+    expect(await screen.findByText("Menu belum diisi: 3 lauk, 2 nasi, 2 sayur")).toBeTruthy();
+    expect(screen.queryByText(/Lauk ×/)).toBeNull();
+    expect(screen.queryByText(/Nasi ×/)).toBeNull();
+    fireEvent.press(screen.getByText("Isi menu"));
+    expect(router.push).toHaveBeenCalledWith(`/menu/${today()}?pkg=p-rumahan&meal=lunch`);
+  });
+
+  it("shows helpers the line but not the button", async () => {
+    renderToday(runtimeWith(async () => canvasDay(), { ...owner, role: "staff" }));
+    expect(await screen.findByText(/^Menu belum diisi: /)).toBeTruthy();
+    expect(screen.queryByText("Isi menu")).toBeNull();
+  });
+
+  it("shows no unfilled line when the menu is complete", async () => {
+    renderToday(runtimeWith(async () => filled()));
+    expect(await screen.findByText("Ayam bakar")).toBeTruthy();
+    expect(screen.queryByText(/Menu belum diisi/)).toBeNull();
+    expect(screen.queryByText("Isi menu")).toBeNull();
+  });
+
+  it("puts the unfilled line, not placeholder dishes, in the shared recap", async () => {
+    const share = jest.spyOn(Share, "share").mockResolvedValue({ action: "sharedAction" });
+    renderToday(runtimeWith(async () => canvasDay()));
+    fireEvent.press(await screen.findByText("Bagikan"));
+    const message = (share.mock.calls[0][0] as { message: string }).message;
+    expect(message).toContain("Menu belum diisi: 3 lauk, 2 nasi, 2 sayur");
+    expect(message).not.toMatch(/×\s?Lauk|Lauk ×/);
+  });
+});
+
+describe("printed recap", () => {
+  it("prints the unfilled line too", async () => {
+    const Print = require("expo-print") as { printAsync: jest.Mock };
+    renderToday(runtimeWith(async () => canvasDay()));
+    fireEvent.press(await screen.findByText("Cetak"));
+    expect(Print.printAsync.mock.calls[0][0].html).toContain("Menu belum diisi: 3 lauk, 2 nasi, 2 sayur");
+  });
+});
+
+describe("attention cards", () => {
+  const attention = (href: string, kind = "payment") => ({
+    items: [{ id: "a-1", kind, priority: 1, at_time: "2026-10-08T05:40:00Z", context: "Bu Sari", href }],
+    total: 1, nextCursor: null, timezone: "Asia/Jakarta",
+  });
+
+  it("opens its link when the href maps to a Dapur screen", async () => {
+    const runtime = runtimeWith(async () => canvasDay());
+    (runtime.api.sellerAttention as jest.Mock).mockResolvedValue(attention("/seller/customers"));
+    renderToday(runtime);
+    fireEvent.press(await screen.findByRole("link", { name: /Ada urusan pembayaran/ }));
+    expect(router.push).toHaveBeenCalledWith("/pelanggan");
+  });
+
+  it("stays a plain card when the href has no Dapur screen", async () => {
+    const runtime = runtimeWith(async () => canvasDay());
+    (runtime.api.sellerAttention as jest.Mock).mockResolvedValue(attention("/seller/support?case=c-1", "support"));
+    renderToday(runtime);
+    expect(await screen.findByText("Pertanyaan pelanggan menunggu")).toBeTruthy();
+    expect(screen.queryByRole("link", { name: /Pertanyaan pelanggan menunggu/ })).toBeNull();
+    fireEvent.press(screen.getByText("Pertanyaan pelanggan menunggu"));
+    expect(router.push).not.toHaveBeenCalled();
+  });
+});

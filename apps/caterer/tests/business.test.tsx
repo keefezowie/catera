@@ -9,7 +9,7 @@ import { UangScreen } from "../src/business/UangScreen";
 import { AktifkanScreen } from "../src/business/AktifkanScreen";
 import { TimScreen } from "../src/business/TimScreen";
 import { RoleGate } from "../src/RoleGate";
-import { Image, Text } from "react-native";
+import { Image, StyleSheet, Text } from "react-native";
 
 jest.mock("expo-router", () => ({ router: { push: jest.fn(), replace: jest.fn(), back: jest.fn() }, Link: () => null }));
 jest.mock("expo-image-picker", () => ({ launchImageLibraryAsync: jest.fn(), MediaTypeOptions: { Images: "Images" } }));
@@ -265,6 +265,25 @@ describe("Usaha states", () => {
     fireEvent.press(retry);
     expect(await screen.findByText("Makan Siang Rumahan")).toBeTruthy();
     expect(screen.getByRole("button", { name: "+ Paket baru" })).toBeTruthy();
+  });
+
+  it("Usaha rows dim on press and still navigate", async () => {
+    renderUsaha(
+      runtimeWith({
+        sellerOperations: jest.fn(async () => ({ caterer: { id: "k-1", name: "Dapur Bu Rina", status: "approved" }, offers: [photoOffer], datedMenus: [] })),
+        request: jest.fn(async () => ({ active: { id: "pd-1" } })),
+      }),
+    );
+    await screen.findByRole("button", { name: "Makan Siang Rumahan" });
+    const touch = { nativeEvent: { touches: [], changedTouches: [] }, persist() {} };
+    for (const name of ["Uang", "Makan Siang Rumahan"]) {
+      const row = () => screen.getByRole("button", { name });
+      expect(StyleSheet.flatten(row().props.style)?.opacity ?? 1).toBe(1);
+      fireEvent(row(), "responderGrant", touch);
+      expect(StyleSheet.flatten(row().props.style).opacity).toBe(0.7);
+    }
+    fireEvent.press(screen.getByRole("button", { name: "Uang" }));
+    expect(require("expo-router").router.push).toHaveBeenCalledWith("/uang");
   });
 
   it("payments card names the action", async () => {

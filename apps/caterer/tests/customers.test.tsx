@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
-import { Linking } from "react-native";
+import { Linking, StyleSheet } from "react-native";
 import { router } from "expo-router";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { addDays, jakartaDay, shortDate, type SellerCustomer } from "@catera/domain";
@@ -285,5 +285,27 @@ describe("Pelanggan loading and error states", () => {
     failing = false;
     fireEvent.press(retry);
     expect(await screen.findByText("Andre Kusuma")).toBeTruthy();
+  });
+});
+
+describe("Pelanggan row feedback", () => {
+  const touch = { nativeEvent: { touches: [], changedTouches: [] }, persist() {} };
+
+  it("customer rows dim on press and still open the record", async () => {
+    wrap(runtimeWith("approved", true), <CustomerList />);
+    await screen.findByText("Andre Kusuma");
+    const row = () => screen.getByRole("button", { name: /Andre Kusuma/ });
+    expect(StyleSheet.flatten(row().props.style)?.opacity ?? 1).toBe(1);
+    fireEvent(row(), "responderGrant", touch);
+    expect(StyleSheet.flatten(row().props.style).opacity).toBe(0.7);
+    fireEvent.press(row());
+    expect(router.push).toHaveBeenCalledWith("/pelanggan/c-01");
+  });
+
+  it("chat button is 48dp", async () => {
+    wrap(runtimeWith("approved", true), <CustomerList />);
+    const chat = await screen.findByRole("link", { name: "Chat Andre Kusuma" });
+    const flat = StyleSheet.flatten(chat.props.style);
+    expect([flat.width, flat.height]).toEqual([48, 48]);
   });
 });

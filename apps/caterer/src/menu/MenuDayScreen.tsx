@@ -66,7 +66,6 @@ export function MenuDayScreen({ date, packageId, meal }: { date: string; package
 
   return (
     <Screen>
-      <Text variant="title">{date}</Text>
       <Text variant="caption">{offer.name}</Text>
       <SlotEditor
         composition={template.composition ?? []}

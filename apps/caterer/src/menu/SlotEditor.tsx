@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Pressable, TextInput, View } from "react-native";
+import { TextInput, View } from "react-native";
 import { selectLibraryDish, type ComponentGroup, type Dish, type LibraryDish } from "@catera/domain";
-import { Button, colors, FONT, fontFor, Text } from "@catera/mobile-ui";
+import { Button, colors, FONT, fontFor, PressableRow, PressableScale, Text } from "@catera/mobile-ui";
 import { dayComplete, suggestDishes } from "./logic";
 
 /**
@@ -121,14 +121,14 @@ function GroupLine({
         >
           <Text style={{ flex: 1 }}>{i.name}</Text>
           {canEdit ? (
-            <Pressable
+            <PressableScale
               accessibilityRole="button"
               accessibilityLabel={`Hapus ${i.name}`}
               onPress={() => onChange(items.filter((x) => x.id !== i.id))}
-              style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}
+              style={{ width: 48, height: 48, alignItems: "center", justifyContent: "center" }}
             >
               <Text style={{ color: colors.muted, fontSize: 18 }}>×</Text>
-            </Pressable>
+            </PressableScale>
           ) : null}
         </View>
       ))}
@@ -143,7 +143,7 @@ function GroupLine({
             style={{
               minHeight: 48,
               borderWidth: 1,
-              borderColor: "#CFD3C6",
+              borderColor: colors.fieldBorder,
               borderRadius: 10,
               paddingHorizontal: 14,
               fontFamily: FONT,
@@ -154,23 +154,23 @@ function GroupLine({
           {query.trim() ? (
             <View style={{ borderWidth: 1, borderColor: colors.line, borderRadius: 12, backgroundColor: colors.surface }}>
               {suggestions.map((d) => (
-                <Pressable
+                <PressableRow
                   key={d.id}
                   accessibilityRole="button"
                   onPress={() => add(d)}
-                  style={{ minHeight: 44, paddingHorizontal: 12, flexDirection: "row", alignItems: "center" }}
+                  style={{ minHeight: 48, paddingHorizontal: 12, flexDirection: "row", alignItems: "center" }}
                 >
                   <Text style={{ flex: 1 }}>{d.name}</Text>
                   <Text variant="caption">{`dipakai ${usage.get(d.id) ?? 0}×`}</Text>
-                </Pressable>
+                </PressableRow>
               ))}
-              <Pressable
+              <PressableRow
                 accessibilityRole="button"
                 onPress={() => void onCreate(query.trim(), group.categoryId).then(add)}
-                style={{ minHeight: 44, paddingHorizontal: 12, justifyContent: "center", borderTopWidth: 1, borderTopColor: colors.line }}
+                style={{ minHeight: 48, paddingHorizontal: 12, justifyContent: "center", borderTopWidth: 1, borderTopColor: colors.line }}
               >
                 <Text style={{ fontFamily: fontFor("700") }}>{`+ Buat hidangan baru “${query.trim()}”`}</Text>
-              </Pressable>
+              </PressableRow>
             </View>
           ) : null}
         </View>

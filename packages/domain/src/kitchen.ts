@@ -8,6 +8,8 @@ export type CookingRecap = {
   total: number;
   byPackage: { packageId: string; name: string; portions: number }[];
   byDish: { name: string; category: string; count: number }[];
+  /** Menu slots nobody has filled yet, per package and category. They are not dishes: do not list them as such. */
+  unfilled: { packageId: string; packageName: string; group: string; slots: number; portions: number }[];
 };
 
 export type Stop = {
@@ -85,6 +87,7 @@ export function cookingRecap(state: SellerOperationsState, meal: KitchenMeal): C
     entry.count += count;
     dishes.set(key, entry);
   };
+  const unfilled: CookingRecap["unfilled"] = [];
   for (const pkg of packages.values()) {
     const offer = active.find((d) => d.offer.id === pkg.packageId)!.offer;
     const dated = state.datedMenus?.find(
@@ -94,11 +97,18 @@ export function cookingRecap(state: SellerOperationsState, meal: KitchenMeal): C
       dated?.details.composition ?? offer.menus.find((m) => m.meal === meal)?.composition ?? [];
     const groupName = (groupId?: string) =>
       composition.find((g) => g.id === groupId)?.name ?? "";
-    if (dated?.details.items?.length) {
-      for (const item of dated.details.items) add(item.name, groupName(item.groupId), pkg.portions);
-    } else {
-      for (const group of composition)
-        add(`${group.name} ×${group.slots}`, group.name, pkg.portions * group.slots);
+    const items = dated?.details.items ?? [];
+    for (const item of items) add(item.name, groupName(item.groupId), pkg.portions);
+    for (const group of composition) {
+      const missing = group.slots - items.filter((i) => i.groupId === group.id).length;
+      if (missing > 0)
+        unfilled.push({
+          packageId: pkg.packageId,
+          packageName: pkg.name,
+          group: group.name,
+          slots: missing,
+          portions: pkg.portions * missing,
+        });
     }
   }
 
@@ -106,6 +116,7 @@ export function cookingRecap(state: SellerOperationsState, meal: KitchenMeal): C
     total: [...packages.values()].reduce((sum, p) => sum + p.portions, 0),
     byPackage: [...packages.values()],
     byDish: [...dishes.values()],
+    unfilled,
   };
 }
 

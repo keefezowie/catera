@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pressable, ScrollView, Share, View } from "react-native";
+import { ScrollView, Share, View } from "react-native";
 import { router } from "expo-router";
 import {
   addDays,
@@ -12,7 +12,7 @@ import {
   type SellerOffer,
 } from "@catera/domain";
 import { useData, useMobile, type MobileRuntime } from "@catera/mobile-core";
-import { Button, Card, Chip, colors, fontFor, RoundButton, Screen, Segmented, Text } from "@catera/mobile-ui";
+import { Button, Card, Chip, colors, fontFor, PressableRow, RoundButton, Screen, Segmented, Text } from "@catera/mobile-ui";
 import { copyWeekBatches, weekDates } from "./logic";
 
 export type MenuDay = { date: string; version: number; editable: boolean; details: MealMenu | null };
@@ -200,7 +200,7 @@ export function MenuWeek() {
         const open = () => canEdit && offer && router.push(`/menu/${d.date}?pkg=${offer.id}&meal=${meal}` as never);
         return (
           <Card key={d.date}>
-            <Pressable accessibilityRole="button" onPress={open} disabled={!canEdit} style={{ gap: 6 }}>
+            <PressableRow accessibilityRole="button" onPress={open} disabled={!canEdit} style={{ gap: 6 }}>
               <Text variant="heading">{shortDate(d.date, locale)}</Text>
               {items.length ? (
                 (template?.composition ?? []).map((g) => (
@@ -218,7 +218,7 @@ export function MenuWeek() {
                   {canEdit ? t("Belum diisi · isi menu", "Not filled · add menu") : t("Belum diisi", "Not filled")}
                 </Text>
               )}
-            </Pressable>
+            </PressableRow>
           </Card>
         );
       })}

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Linking, Pressable, Share, View } from "react-native";
 import * as Print from "expo-print";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { router } from "expo-router";
 import {
   cookingRecap,
   deliveryRoute,
@@ -15,10 +16,21 @@ import { useMobile } from "@catera/mobile-core";
 import { Button, Card, colors, fontFor, Text } from "@catera/mobile-ui";
 import { canMoveDelivery, ExceptionSheet } from "./ExceptionSheet";
 
-function recapLines(recap: CookingRecap, title: string) {
+/** "3 lauk, 2 nasi, 2 sayur": the slots nobody has filled yet, biggest first, summed over packages. */
+function unfilledSummary(unfilled: CookingRecap["unfilled"]) {
+  const byGroup = new Map<string, number>();
+  for (const u of unfilled) byGroup.set(u.group.toLowerCase(), (byGroup.get(u.group.toLowerCase()) ?? 0) + u.slots);
+  return [...byGroup]
+    .sort((a, b) => b[1] - a[1])
+    .map(([group, n]) => `${n} ${group}`)
+    .join(", ");
+}
+
+function recapLines(recap: CookingRecap, title: string, unfilledLine: string | null) {
   return [
     `*${title}* (${recap.total} porsi)`,
     ...recap.byDish.map((d) => `${d.count}× ${d.name}`),
+    ...(unfilledLine ? [unfilledLine] : []),
   ].join("\n");
 }
 
@@ -59,7 +71,7 @@ export function SessionCard({
   report: "today" | "tomorrow" | null;
   caterer: string;
 }) {
-  const { t, locale } = useMobile();
+  const { t, locale, actor } = useMobile();
   const [part, setPart] = useState(0);
   const [reporting, setReporting] = useState<Stop | null>(null);
   const recap = cookingRecap(ops, meal);
@@ -67,6 +79,10 @@ export function SessionCard({
   const parts = routeShareText(stops, { date, meal, caterer }, locale);
   // A same-day revision can shorten the route under a part index already advanced past its end.
   const at = Math.min(part, Math.max(parts.length - 1, 0));
+  const summary = unfilledSummary(recap.unfilled);
+  const missing = summary ? `${t("Menu belum diisi", "Menu not filled in")}: ${summary}` : null;
+  // The shared and printed recap is written in Indonesian, like the rest of its text.
+  const missingForSharing = summary ? `Menu belum diisi: ${summary}` : null;
   const title = meal === "lunch" ? t("Makan siang", "Lunch") : t("Makan malam", "Dinner");
   return (
     <Card>
@@ -84,17 +100,31 @@ export function SessionCard({
           <Row key={p.packageId} label={p.name} value={p.portions} />
         ))}
       </View>
-      <View>
-        <Text variant="label">{t("Yang dimasak", "To cook")}</Text>
-        {recap.byDish.map((d) => (
-          <Row key={d.category + d.name} label={d.name} value={d.count} />
-        ))}
-      </View>
+      {recap.byDish.length || missing ? (
+        <View>
+          <Text variant="label">{t("Yang dimasak", "To cook")}</Text>
+          {recap.byDish.map((d) => (
+            <Row key={d.category + d.name} label={d.name} value={d.count} />
+          ))}
+          {missing ? (
+            <View style={{ paddingTop: 8, alignItems: "flex-start" }}>
+              <Text style={{ color: colors.sunriseInk }}>{missing}</Text>
+              {actor?.role === "owner" ? (
+                <Button
+                  variant="text"
+                  label={t("Isi menu", "Fill in menu")}
+                  onPress={() => router.push(`/menu/${date}?pkg=${recap.unfilled[0].packageId}&meal=${meal}` as never)}
+                />
+              ) : null}
+            </View>
+          ) : null}
+        </View>
+      ) : null}
       <View style={{ flexDirection: "row", gap: 8 }}>
         <Button
           style={{ flex: 1 }}
           label={t("Bagikan", "Share")}
-          onPress={() => void Share.share({ message: `${caterer}\n${recapLines(recap, title)}` })}
+          onPress={() => void Share.share({ message: `${caterer}\n${recapLines(recap, title, missingForSharing)}` })}
         />
         <Button
           style={{ flex: 1 }}
@@ -104,7 +134,7 @@ export function SessionCard({
             void Print.printAsync({
               html: `<h2>${caterer} · ${title}: ${recap.total} porsi</h2><ul>${recap.byDish
                 .map((d) => `<li>${d.count} × ${d.name}</li>`)
-                .join("")}</ul>`,
+                .join("")}</ul>${missingForSharing ? `<p>${missingForSharing}</p>` : ""}`,
             })
           }
         />

@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { StyleSheet } from "react-native";
 import type { LibraryDish, MealMenu } from "@catera/domain";
 import { copyWeekBatches, dayComplete, suggestDishes, weekDates } from "../src/menu/logic";
 import { SlotEditor } from "../src/menu/SlotEditor";
@@ -229,6 +230,19 @@ describe("menu reads", () => {
       expect(screen.queryByText("2026-10-05")).toBeNull();
     });
 
+    it("day cards dim on press and keep opening the day editor", async () => {
+      const { wrap, MenuWeek } = setup(jest.fn(async () => ({ dates: [], categories: [] })));
+      render(wrap(<MenuWeek />));
+      await screen.findByText("Senin 5 Okt");
+      const card = () => screen.getByRole("button", { name: /Jumat 9 Okt/ });
+      const touch = { nativeEvent: { touches: [], changedTouches: [] }, persist() {} };
+      expect(StyleSheet.flatten(card().props.style)?.opacity ?? 1).toBe(1);
+      fireEvent(card(), "responderGrant", touch);
+      expect(StyleSheet.flatten(card().props.style).opacity).toBe(0.7);
+      fireEvent.press(card());
+      expect(require("expo-router").router.push).toHaveBeenCalledWith("/menu/2026-10-09?pkg=p-1&meal=lunch");
+    });
+
     it("does not ask to fill past days", async () => {
       const { wrap, MenuWeek } = setup(jest.fn(async () => ({ dates: [], categories: [] })));
       render(wrap(<MenuWeek />));
@@ -237,6 +251,14 @@ describe("menu reads", () => {
       expect(screen.getAllByText("Lewat")).toHaveLength(3);
       expect(screen.getAllByText("Belum diisi · isi menu")).toHaveLength(2);
     });
+  });
+
+  it("MenuDayScreen has one heading: the header, not a second raw date", async () => {
+    const { wrap, MenuDayScreen } = setup(jest.fn(async () => ({ dates: [], categories: [] })));
+    render(wrap(<MenuDayScreen date="2026-10-07" packageId="p-1" meal="lunch" />));
+    expect(await screen.findByText("Makan Siang Rumahan")).toBeTruthy();
+    expect(screen.queryByText("2026-10-07")).toBeNull();
+    expect(screen.queryAllByRole("header")).toHaveLength(0);
   });
 
   it("reads a single day with the same month format", async () => {
@@ -373,5 +395,29 @@ describe("menu loading and sharing states", () => {
     runtimeFor(jest.fn(async () => ({ dates, categories: [] })));
     await waitFor(() => expect(disabled("Bagikan menu")).toBe(false));
     expect(screen.queryByText("Belum ada menu untuk dibagikan")).toBeNull();
+  });
+});
+
+describe("SlotEditor touch targets", () => {
+  it("remove and suggestion controls are 48dp", () => {
+    render(
+      <SlotEditor
+        composition={composition}
+        items={[item("g-lauk-1", "g-lauk", "main", "Tempe bacem")]}
+        library={[dish("d-ikan", "Ikan bakar")]}
+        usage={new Map()}
+        onChange={() => undefined}
+        onCreate={async () => dish("n", "x")}
+        onSave={() => undefined}
+        saving={false}
+        canEdit
+      />,
+    );
+    const remove = StyleSheet.flatten(screen.getByRole("button", { name: "Hapus Tempe bacem" }).props.style);
+    expect([remove.width, remove.height]).toEqual([48, 48]);
+    fireEvent.changeText(screen.getByLabelText("Lauk berikutnya"), "ikan");
+    expect(StyleSheet.flatten(screen.getByRole("button", { name: /Ikan bakar/ }).props.style).minHeight).toBeGreaterThanOrEqual(48);
+    const create = screen.getByRole("button", { name: /Buat hidangan baru/ });
+    expect(StyleSheet.flatten(create.props.style).minHeight).toBeGreaterThanOrEqual(48);
   });
 });

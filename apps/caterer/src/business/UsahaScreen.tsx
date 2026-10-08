@@ -1,9 +1,9 @@
-import { Image, Pressable, View } from "react-native";
+import { Image, View } from "react-native";
 import { router } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { currency } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, colors, Screen, Segmented, Text } from "@catera/mobile-ui";
+import { Button, Card, colors, PressableRow, Screen, Segmented, Text } from "@catera/mobile-ui";
 import { usePaymentsActive } from "../customers/usePayments";
 import { photoUri } from "../photo";
 import { NotifyButton } from "./NotifyButton";
@@ -23,7 +23,7 @@ function Row({
   image?: string;
 }) {
   return (
-    <Pressable
+    <PressableRow
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={() => router.push(href as never)}
@@ -39,7 +39,7 @@ function Row({
         {detail ? <Text variant="caption">{detail}</Text> : null}
       </View>
       <Ionicons name="chevron-forward" size={18} color={colors.muted} />
-    </Pressable>
+    </PressableRow>
   );
 }
 
