@@ -16,6 +16,11 @@ export function dapurLink(href: string): string {
       return "/menu";
     case "/seller/settings":
       return url.hash === "#payout" ? "/aktifkan" : "/usaha";
+    case "/seller/support": {
+      // A customer's delivery report opens its own screen; support cases stay on the web.
+      const issue = url.searchParams.get("issue");
+      return issue && /^[0-9a-f-]{36}$/i.test(issue) ? `/laporan/${issue}` : "/";
+    }
     default:
       // Support cases live on the web for now; Hari ini is where the caterer acts.
       return "/";

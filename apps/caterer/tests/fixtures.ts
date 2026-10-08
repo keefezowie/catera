@@ -77,3 +77,27 @@ export function emptyDay(): SellerOperationsState {
 export function quietDay(): SellerOperationsState {
   return { ...canvasDay(), deliveries: [], customers: [] } as unknown as SellerOperationsState;
 }
+
+/** A customer's delivery report as the caterer's delivery-issues read returns it (Kamis 8 Okt, 12.40 Jakarta). */
+export function report(extra: Record<string, unknown> = {}) {
+  return {
+    id: "i-1",
+    day_id: "d-9",
+    meal: "lunch",
+    user_id: "u-9",
+    caterer_id: "k-1",
+    subject: "Belum sampai",
+    description: "Sudah jam satu, makanan belum datang.",
+    status: "open",
+    version: 1,
+    case_id: null,
+    service_date: "2026-10-08",
+    package_name: "Rantang Nusantara",
+    created_at: "2026-10-08T05:40:00Z",
+    events: [] as { id: string; action: string; body: string; created_at: string }[],
+    customerName: "Nadia Putri",
+    customerPhone: "+6281234567001",
+    customerRecordId: "cr-9",
+    ...extra,
+  };
+}

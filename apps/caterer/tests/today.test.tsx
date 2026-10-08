@@ -1,10 +1,11 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { Share } from "react-native";
+import { router } from "expo-router";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { TodayScreen } from "../src/today/TodayScreen";
 import { issueSteps } from "../src/today/exceptions";
 import * as offline from "../src/today/offline";
-import { canvasDay, emptyDay, quietDay } from "./fixtures";
+import { canvasDay, emptyDay, quietDay, report } from "./fixtures";
 
 jest.mock("expo-router", () => ({ router: { push: jest.fn(), replace: jest.fn() }, Link: () => null }));
 jest.mock("expo-print", () => ({ printAsync: jest.fn(async () => undefined) }));
@@ -29,6 +30,7 @@ function runtimeWith(day: () => Promise<unknown>, actor: Record<string, unknown>
     me: jest.fn(async () => ({ actor, demo: false })),
     sellerOperations: jest.fn(day),
     sellerAttention: jest.fn(async () => ({ items: [], total: 0, nextCursor: null, timezone: "Asia/Jakarta" })),
+    request: jest.fn(async () => []),
     command: jest.fn(async () => ({})),
   } as unknown as MobileRuntime["api"];
   return runtime;
@@ -161,4 +163,20 @@ it("tells the caterer plainly what a failed delivery means", async () => {
   fireEvent.press(await screen.findByLabelText("Ada masalah: Keluarga Hartono"));
   expect(await screen.findByText(/tidak dihitung terkirim/)).toBeTruthy();
   expect(screen.queryByText(/pengembalian dana diurus Catera/)).toBeNull();
+});
+
+it("names the customer, day and meal on a problem report and opens it", async () => {
+  const runtime = runtimeWith(async () => canvasDay());
+  (runtime.api.request as jest.Mock).mockImplementation(async (path: string) =>
+    path.startsWith("delivery-issues") ? [report(), report({ id: "i-2", status: "resolved", customerName: "Sari" })] : [],
+  );
+  renderToday(runtime);
+  fireEvent.press(await screen.findByText("Nadia Putri melaporkan masalah"));
+  expect(router.push).toHaveBeenCalledWith("/laporan/i-1");
+  expect(screen.getByText("Kamis 8 Okt · Makan siang")).toBeTruthy();
+  expect(screen.getByText("Belum sampai")).toBeTruthy();
+  // Only reports still waiting on the caterer are cards; the generic, untappable card is gone.
+  expect(screen.queryByText("Sari melaporkan masalah")).toBeNull();
+  expect(screen.queryByText("Pelanggan melaporkan masalah")).toBeNull();
+  expect(runtime.api.request).toHaveBeenCalledWith("delivery-issues?id=k-1");
 });

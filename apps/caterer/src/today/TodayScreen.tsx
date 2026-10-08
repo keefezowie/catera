@@ -7,8 +7,11 @@ import {
   cookingRecap,
   deliveryRoute,
   jakartaDay,
+  mealLabel,
   routeShareText,
+  shortDate,
   type CookingRecap,
+  type DeliveryIssue,
   type KitchenMeal,
   type SellerAttentionItem,
   type SellerOperationsState,
@@ -52,6 +55,11 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
   const attention = useData(`attention:${catererId}`, () =>
     runtime.api.sellerAttention(catererId, { scope: "future" }),
   );
+  // Customers' delivery reports come from their own read: it names the customer and also holds
+  // reports about past days, which the "future" attention scope leaves out.
+  const issues = useData(`issues:${catererId}`, () =>
+    runtime.api.request<DeliveryIssue[]>(`delivery-issues?${new URLSearchParams({ id: catererId })}`),
+  );
   const ops = day.data?.data;
 
   // A kitchen without packages has nothing to cook yet; only the owner can set it up.
@@ -90,7 +98,12 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
       {!ops && day.error ? <Text style={{ color: colors.danger }}>{day.error}</Text> : null}
       {!ops && !day.error ? <Text variant="caption">{t("Memuat…", "Loading…")}</Text> : null}
       {newKitchen ? <MulaiCard /> : null}
-      {offset === "0" ? <ActionCards items={attention.data?.items ?? []} /> : null}
+      {offset === "0" ? (
+        <>
+          <ReportCards issues={issues.data ?? []} />
+          <ActionCards items={attention.data?.items ?? []} />
+        </>
+      ) : null}
       {ops && section === "masak" ? <Masak ops={ops} /> : null}
       {ops && section === "antar" ? (
         <Antar ops={ops} date={date} report={day.data?.savedAt ? null : offset === "0" ? "today" : "tomorrow"} />
@@ -287,8 +300,43 @@ function Antar({ ops, date, report }: { ops: SellerOperationsState; date: string
   );
 }
 
+/** Reports still waiting on the caterer, each naming who, which day and meal; tap to answer. */
+function ReportCards({ issues }: { issues: DeliveryIssue[] }) {
+  const { t, locale } = useMobile();
+  const waiting = issues.filter((i) => !i.case_id && (i.status === "open" || i.status === "responded"));
+  return (
+    <>
+      {waiting.map((i) => {
+        const who = i.customerName || t("Pelanggan", "A customer");
+        return (
+          <Pressable
+            key={i.id}
+            accessibilityRole="button"
+            accessibilityLabel={`${t("Buka laporan", "Open report")}: ${who}`}
+            onPress={() => router.push(`/laporan/${i.id}` as never)}
+          >
+            <Card tone="attention" style={{ flexDirection: "row", alignItems: "center" }}>
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={{ fontWeight: "800" }}>{`${who} ${t("melaporkan masalah", "reported a problem")}`}</Text>
+                <Text variant="label">{`${shortDate(i.service_date, locale)} · ${mealLabel(i.meal, locale)}`}</Text>
+                <Text variant="caption">{i.subject}</Text>
+                {i.status === "responded" ? (
+                  <Text variant="caption" style={{ color: colors.sunriseInk }}>
+                    {t("Sudah dibalas · tandai selesai bila beres", "Replied · mark as done when sorted")}
+                  </Text>
+                ) : null}
+              </View>
+              <Ionicons name="chevron-forward" size={22} color={colors.forest} />
+            </Card>
+          </Pressable>
+        );
+      })}
+    </>
+  );
+}
+
+// Delivery reports have their own cards above (ReportCards).
 const attentionLabels: Partial<Record<SellerAttentionItem["kind"], [string, string]>> = {
-  delivery_issue: ["Pelanggan melaporkan masalah", "A customer reported a problem"],
   support: ["Pertanyaan pelanggan menunggu", "A customer question is waiting"],
   delivery: ["Ada pengantaran bermasalah", "A delivery needs attention"],
   choice_fallback: ["Menu pilihan pelanggan perlu dicek", "Customer menu choices need a check"],

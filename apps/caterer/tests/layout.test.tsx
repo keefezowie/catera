@@ -65,6 +65,7 @@ describe("stack headers", () => {
     expect(titleOf("tim")).toBe("Tim");
     expect(titleOf("impor")).toBe("Impor pelanggan");
     expect(titleOf("uang")).toBe("Uang");
+    expect(titleOf("laporan/[id]")).toBe("Laporan masalah");
     expect(titleOf("menu/[date]")).toMatch(/^Menu /);
   });
 

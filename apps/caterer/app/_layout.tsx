@@ -53,6 +53,7 @@ function Navigation() {
         <Stack.Screen name="tim" options={{ title: t("Tim", "Team") }} />
         <Stack.Screen name="impor" options={{ title: t("Impor pelanggan", "Import customers") }} />
         <Stack.Screen name="uang" options={{ title: t("Uang", "Money") }} />
+        <Stack.Screen name="laporan/[id]" options={{ title: t("Laporan masalah", "Problem report") }} />
       </Stack>
     </>
   );
