@@ -17,10 +17,11 @@ export type BuyPayload = {
 export function useQuote(payload: BuyPayload | null) {
   const { runtime, locale, t } = useMobile();
   const key = payload ? JSON.stringify(payload) : "";
-  const [state, setState] = useState<{ key: string; quote: Quote | null; error: string }>({
+  const [state, setState] = useState<{ key: string; quote: Quote | null; error: string; errorCode: string }>({
     key: "",
     quote: null,
     error: "",
+    errorCode: "",
   });
   const [attempt, setAttempt] = useState(0);
 
@@ -30,13 +31,14 @@ export function useQuote(payload: BuyPayload | null) {
     const timer = setTimeout(() => {
       runtime.api
         .quote(payload)
-        .then((quote) => live && setState({ key, quote, error: "" }))
+        .then((quote) => live && setState({ key, quote, error: "", errorCode: "" }))
         .catch((e) => {
           if (!live) return;
           const code = (e as { code?: string }).code || (e as Error).message;
           setState((s) => ({
             key,
             quote: s.quote,
+            errorCode: code,
             error:
               errorLabel(code, locale) ||
               t("Harga belum bisa dihitung. Coba lagi.", "Couldn't get the price. Try again."),
@@ -52,6 +54,7 @@ export function useQuote(payload: BuyPayload | null) {
 
   const pending = !!payload && state.key !== key;
   const error = !pending && payload ? state.error : "";
+  const errorCode = error ? state.errorCode : "";
   return {
     /** The last quote, possibly for an older choice: shown dimmed while `pending`.
      * Nothing when the current choice cannot be priced (outside the area, past cutoff). */
@@ -59,6 +62,8 @@ export function useQuote(payload: BuyPayload | null) {
     ready: !pending && !error && payload ? state.quote : null,
     pending,
     error,
+    /** The raw server code behind `error` ("" when none), for errors that have their own way out. */
+    errorCode,
     retry: () => {
       setState((s) => ({ ...s, key: "" }));
       setAttempt((n) => n + 1);

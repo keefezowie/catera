@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -120,12 +120,12 @@ function Browse({ area, onArea }: { area: string; onArea: (value: string) => voi
         />
       </View>
 
-      <View style={styles.chips}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
         <FilterChip label={t("Siang", "Lunch")} selected={lunch} onPress={() => setLunch(!lunch)} />
         <FilterChip label={t("Malam", "Dinner")} selected={dinner} onPress={() => setDinner(!dinner)} />
         <FilterChip label={t("Di bawah Rp30.000", "Under Rp30,000")} selected={budget} onPress={() => setBudget(!budget)} />
         <FilterChip label={t("Bisa coba 1 hari", "One-day trial")} selected={trial} onPress={() => setTrial(!trial)} />
-      </View>
+      </ScrollView>
 
       {saved.error ? <Text style={{ color: colors.danger }}>{saved.error}</Text> : null}
 
@@ -201,6 +201,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   input: { flex: 1, minHeight: 48, fontFamily: FONT, fontSize: 15, color: colors.charcoal },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  chips: { gap: 8 },
   option: { minHeight: 48, flexDirection: "row", alignItems: "center", gap: 10 },
 });

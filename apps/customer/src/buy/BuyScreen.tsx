@@ -7,6 +7,7 @@ import {
   durationOptions,
   errorLabel,
   localDay,
+  nextStartAfter,
   purchaseStartAvailable,
   renewalDefaults,
   shortDate,
@@ -19,7 +20,6 @@ import {
 } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
 import { Button, colors, fontFor, RoundButton, Screen, Stepper, Text } from "@catera/mobile-ui";
-import { SunriseButton } from "../today/Plate";
 import { Breakdown, LengthOptions, percent, StartLine } from "./Breakdown";
 import { ChoiceSheet, NoLongerSold, PayWith, PendingPayment, Retry, Terms } from "./BuyParts";
 import { useQuote, type BuyPayload } from "./useQuote";
@@ -138,6 +138,9 @@ export function BuyScreen({
         }
       : null;
   const quote = useQuote(payload);
+  // The same package is still running: offer the first day after it instead of a dead-end retry.
+  const running =
+    quote.errorCode === "OVERLAP" && offer && !renew ? nextStartAfter(offer, customer.data?.subscriptions ?? [], now) : null;
 
   const pay = methods.data;
   const available = pay?.mode === "direct" ? pay.availableMethods : [];
@@ -205,11 +208,12 @@ export function BuyScreen({
       <View style={styles.footer}>
         <View style={{ flex: 1 }}>
           <Text variant="caption">Total</Text>
-          <Text variant="title" style={[{ fontSize: 22 }, tabular, quote.pending && { opacity: 0.45 }]}>
+          <Text variant="title" style={[{ fontSize: 22, lineHeight: 28 }, tabular, quote.pending && { opacity: 0.45 }]}>
             {shown ? currency(shown.total, locale) : "–"}
           </Text>
         </View>
-        <SunriseButton
+        <Button
+          variant="primary"
           label={t("Bayar", "Pay")}
           disabled={!quote.ready || !payable || busy || !!pendingCheckout || (renew && !context.data)}
           onPress={() => void submit()}
@@ -245,6 +249,8 @@ export function BuyScreen({
         <Text variant="label">{t("Lama paket", "Length")}</Text>
         {trial ? (
           <Text>{t("1 hari, coba dulu", "1 day, as a trial")}</Text>
+        ) : lengths.length === 1 ? (
+          <Text>{t(`${offer.days * lengths[0].cycles} hari`, `${offer.days * lengths[0].cycles} days`)}</Text>
         ) : (
           <LengthOptions
             value={cycles}
@@ -280,7 +286,20 @@ export function BuyScreen({
       {shown ? <Breakdown quote={shown} dimmed={quote.pending} locale={locale} t={t} /> : null}
       {!shown && quote.pending ? <ActivityIndicator color={colors.forest} /> : null}
       {quote.error ? (
-        <Retry message={quote.error} label={t("Hitung ulang", "Recalculate")} onRetry={quote.retry} t={t} />
+        running ? (
+          <View style={{ gap: 8 }}>
+            <Text style={{ color: colors.danger }}>
+              {t(`Paket ini masih berjalan sampai ${shortDate(running.endsOn, locale)}.`, `This package is still running until ${shortDate(running.endsOn, locale)}.`)}
+            </Text>
+            <Button
+              variant="primary"
+              label={t(`Mulai ${shortDate(running.start, locale)}`, `Start ${shortDate(running.start, locale)}`)}
+              onPress={() => setStart(running.start)}
+            />
+          </View>
+        ) : (
+          <Retry message={quote.error} label={t("Hitung ulang", "Recalculate")} onRetry={quote.retry} t={t} />
+        )
       ) : null}
 
       <PayWith availability={pay} chosen={chosenMethod} onChoose={setMethod} t={t} />

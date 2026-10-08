@@ -1,11 +1,12 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
-import { ActivityIndicator, AppState } from "react-native";
+import { ActivityIndicator, AppState, StyleSheet } from "react-native";
 import { router } from "expo-router";
 import * as Clipboard from "expo-clipboard";
 import * as WebBrowser from "expo-web-browser";
 import * as SecureStore from "expo-secure-store";
 import { addDays, currency, type Checkout, type Quote, type RenewalContext } from "@catera/domain";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
+import { colors } from "@catera/mobile-ui";
 import { customerLink } from "../src/links";
 import { BuyScreen } from "../src/buy/BuyScreen";
 import { PaymentScreen } from "../src/buy/PaymentScreen";
@@ -142,6 +143,8 @@ function server({
   checkout = null as Checkout | null,
   context = {} as Partial<RenewalContext>,
   startFails = false,
+  pkg = paket,
+  subscriptions = [current],
 } = {}) {
   let stored = checkout;
   const paid = (c: Checkout): Checkout => ({
@@ -154,8 +157,8 @@ function server({
   runtime.api = {
     ...runtime.api,
     me: jest.fn(async () => ({ actor, demo })),
-    offer: jest.fn(async (id: string) => ({ offer: id === paket.id ? paket : null })),
-    customer: jest.fn(async () => ({ subscriptions: [current], deliveries: [], addresses: [kantor, rumah], notifications: [], cases: [] })),
+    offer: jest.fn(async (id: string) => ({ offer: id === pkg.id ? pkg : null })),
+    customer: jest.fn(async () => ({ subscriptions, deliveries: [], addresses: [kantor, rumah], notifications: [], cases: [] })),
     request: jest.fn(async (path: string) => {
       if (path === "payment-methods")
         return { mode, availableMethods: mode === "direct" ? ["QRIS", "VIRTUAL_ACCOUNT_BRI"] : [] };
@@ -172,7 +175,7 @@ function server({
       replacementRequired: false,
       available: true,
       pendingCheckoutId: null,
-      offers: [paket],
+      offers: [pkg],
       cycles,
       ...context,
     })),
@@ -328,6 +331,40 @@ describe("Beli / Perpanjang", () => {
     fireEvent.press(await screen.findByRole("button", { name: "Hitung ulang" }));
     expect(screen.getByRole("button", { name: "Bayar" })).toBeDisabled();
     await bayarReady();
+  });
+
+  it("offers the next start when the same package is still running", async () => {
+    const running = subscription({ id: "s-1", package_id: "p-rumahan", ends_on: "2026-10-15" });
+    const runtime = server({ subscriptions: [running] });
+    (runtime.api.quote as jest.Mock).mockRejectedValueOnce(Object.assign(new Error("OVERLAP"), { code: "OVERLAP" }));
+    wrap(runtime, <BuyScreen packageId="p-rumahan" />);
+    expect(await screen.findByText("Paket ini masih berjalan sampai Kamis 15 Okt.")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Hitung ulang" })).toBeNull();
+    fireEvent.press(screen.getByRole("button", { name: /Mulai Jumat 16 Okt/ }));
+    await waitFor(() => expect(runtime.api.quote).toHaveBeenLastCalledWith(expect.objectContaining({ startDate: "2026-10-16" })));
+    await bayarReady();
+    expect(screen.queryByText(/masih berjalan sampai/)).toBeNull();
+  });
+
+  it("keeps the generic retry for other quote errors", async () => {
+    const runtime = server({ subscriptions: [subscription({ package_id: "p-rumahan", ends_on: "2026-10-15" })] });
+    (runtime.api.quote as jest.Mock).mockRejectedValueOnce(Object.assign(new Error("CAPACITY"), { code: "CAPACITY" }));
+    wrap(runtime, <BuyScreen packageId="p-rumahan" />);
+    expect(await screen.findByRole("button", { name: "Hitung ulang" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Mulai/ })).toBeNull();
+  });
+
+  it("shows a single length as text", async () => {
+    wrap(server({ pkg: offer({ id: "p-rumahan", name: "Makan Siang Rumahan", days: 20, price: 28000 }) }), <BuyScreen packageId="p-rumahan" />);
+    expect(await screen.findByText("20 hari")).toBeTruthy();
+    expect(screen.queryAllByRole("radio")).toHaveLength(0);
+    await bayarReady();
+  });
+
+  it("Bayar is a forest primary button", async () => {
+    wrap(server(), <BuyScreen packageId="p-rumahan" />);
+    await bayarReady();
+    expect(StyleSheet.flatten(screen.getByRole("button", { name: "Bayar" }).props.style).backgroundColor).toBe(colors.forest);
   });
 
   it("signed out goes to sign in and comes back to the same screen", async () => {

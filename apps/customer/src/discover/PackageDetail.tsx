@@ -1,4 +1,6 @@
 import { ActivityIndicator, Image, StyleSheet, View } from "react-native";
+import Animated, { FadeIn } from "react-native-reanimated";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useLocalSearchParams } from "expo-router";
 import {
   compositionPreview,
@@ -9,13 +11,20 @@ import {
   perMealPrice,
   type Offer,
 } from "@catera/domain";
+import { nativeMotion } from "@catera/design-tokens";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, colors, RoundButton, Screen, Text } from "@catera/mobile-ui";
+import { Button, colors, RoundButton, Screen, Text, useReduced } from "@catera/mobile-ui";
 import { photoUri } from "../today/Plate";
 import { dayRange, ratingText } from "./format";
 import { useSaved } from "./saved";
 
 type Review = { id: string; customer: string; rating: number; body: string };
+
+const steps = [
+  { icon: "calendar-outline", id: "Pilih jadwal antar", en: "Choose your delivery days" },
+  { icon: "card-outline", id: "Bayar sekali di depan", en: "Pay once, upfront" },
+  { icon: "bicycle-outline", id: "Diantar sesuai jadwal", en: "Delivered on schedule" },
+] as const;
 
 const leave = () => (router.canGoBack() ? router.back() : router.replace("/jelajah" as never));
 
@@ -26,6 +35,7 @@ export function PackageDetail() {
   const saved = useSaved(`/paket/${id}`);
   const loaded = useData<{ offer: Offer | null }>(`paket:${id}`, () => runtime.api.offer(id));
   const reviews = useData<Review[]>(`reviews:${id}`, () => runtime.api.request<Review[]>(`reviews/${id}`));
+  const reduced = useReduced();
   const o = loaded.data?.offer;
 
   if (!o)
@@ -59,7 +69,7 @@ export function PackageDetail() {
         <View style={styles.footer}>
           <View>
             <Text variant="caption">{t("Per porsi", "Per portion")}</Text>
-            <Text variant="title" style={{ fontSize: 20, fontVariant: ["tabular-nums"] }}>
+            <Text variant="title" style={{ fontSize: 20, lineHeight: 26, fontVariant: ["tabular-nums"] }}>
               {currency(perMealPrice(o), locale)}
             </Text>
           </View>
@@ -101,10 +111,10 @@ export function PackageDetail() {
       </View>
 
       <View style={{ gap: 6 }}>
-        <Text variant="title" style={{ fontSize: 26 }}>
+        <Text variant="title" style={{ fontSize: 26, lineHeight: 32 }}>
           {o.name}
         </Text>
-        <Text variant="caption" style={{ fontSize: 13 }}>
+        <Text variant="caption" style={{ fontSize: 13, lineHeight: 18 }}>
           {`${[o.caterer, o.areas[0]].filter(Boolean).join(", ")}. ${ratingText(o, locale, t)}`}
         </Text>
         {saved.error ? <Text style={{ color: colors.danger }}>{saved.error}</Text> : null}
@@ -119,9 +129,11 @@ export function PackageDetail() {
               {mealLabel(m.meal, locale)} · {menuSourceLabel(m, locale)}
             </Text>
             {m.composition?.length ? <Text>{compositionPreview(m, o.packageType, locale)}</Text> : null}
-            <Text variant="caption" style={{ fontSize: 13 }}>
-              {menuSummary(m, locale)}
-            </Text>
+            {menuSummary(m, locale) !== menuSourceLabel(m, locale) ? (
+              <Text variant="caption" style={{ fontSize: 13, lineHeight: 18 }}>
+                {menuSummary(m, locale)}
+              </Text>
+            ) : null}
           </View>
         ))}
       </View>
@@ -136,6 +148,20 @@ export function PackageDetail() {
           )}
         />
         <Fact label={t("Ongkir", "Delivery fee")} value={t("Pengantaran termasuk", "Delivery included")} />
+      </View>
+
+      <View style={{ gap: 10 }}>
+        <Text variant="heading">{t("Cara kerja Catera", "How Catera works")}</Text>
+        {steps.map((step, i) => (
+          <Animated.View
+            key={step.icon}
+            entering={reduced ? undefined : FadeIn.duration(nativeMotion.content).delay(i * 80)}
+            style={styles.step}
+          >
+            <Ionicons name={step.icon} size={22} color={colors.forest} />
+            <Text style={{ flex: 1 }}>{t(step.id, step.en)}</Text>
+          </Animated.View>
+        ))}
       </View>
 
       {shown.length ? (
@@ -184,6 +210,7 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
   },
   facts: { gap: 10, paddingVertical: 4 },
+  step: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 48 },
   fact: { flexDirection: "row", gap: 12 },
   footer: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
   actions: { flex: 1, flexDirection: "row", justifyContent: "flex-end", gap: 8 },

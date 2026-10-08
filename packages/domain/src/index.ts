@@ -52,7 +52,7 @@ export type Caterer = {
   review_note?: string;
   offers?: Offer[];
 };
-export { purchaseStartAvailable } from "./checkout-eligibility";
+export { nextStartAfter, purchaseStartAvailable } from "./checkout-eligibility";
 export { salesHistory } from "./sales-history";
 export type Offer = {
   multiCycleAvailable?: boolean;

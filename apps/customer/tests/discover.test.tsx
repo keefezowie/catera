@@ -1,7 +1,8 @@
-import { ActivityIndicator, StyleSheet } from "react-native";
+import { ActivityIndicator, ScrollView, StyleSheet } from "react-native";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
+import type { Offer } from "@catera/domain";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { customerLink } from "../src/links";
 import { Jelajah } from "../src/discover/Jelajah";
@@ -94,6 +95,15 @@ beforeEach(() => {
 });
 
 describe("Jelajah", () => {
+  it("keeps the filter chips in one scrolling row", async () => {
+    const view = wrap(runtimeWith(), <Jelajah />);
+    await screen.findByText("Menu Sehat Premium");
+    const row = view.UNSAFE_getAllByType(ScrollView).find((r) => r.props.horizontal);
+    expect(row).toBeTruthy();
+    expect(row!.props.showsHorizontalScrollIndicator).toBe(false);
+    expect(screen.getByRole("button", { name: "Bisa coba 1 hari" })).toBeTruthy();
+  });
+
   it("chips filter by budget", async () => {
     const runtime = runtimeWith();
     wrap(runtime, <Jelajah />);
@@ -325,6 +335,27 @@ describe("Paket", () => {
     wrap(runtimeWith(), <PackageDetail />);
     expect(await screen.findByText("Isi paket")).toBeTruthy();
     expect(screen.getByText(/Ayam bakar madu, Sayur asem/)).toBeTruthy();
+  });
+
+  it("shows \"Menu belum ditentukan\" once", async () => {
+    mockParams = { id: "p-kosong" };
+    const slots = offer({
+      id: "p-kosong",
+      name: "Ayam Panggang Harian",
+      menus: [{ meal: "lunch", name: "", description: "", image: "", contentModel: "slots", items: [] } as unknown as Offer["menus"][number]],
+    });
+    wrap(runtimeWith(customer, { offer: jest.fn(async () => ({ offer: slots })) }), <PackageDetail />);
+    await screen.findByText("Isi paket");
+    expect(screen.getAllByText(/Menu belum ditentukan/)).toHaveLength(1);
+  });
+
+  it("explains how Catera works", async () => {
+    mockParams = { id: "p-murah" };
+    wrap(runtimeWith(), <PackageDetail />);
+    expect(await screen.findByText("Cara kerja Catera")).toBeTruthy();
+    expect(screen.getByText("Pilih jadwal antar")).toBeTruthy();
+    expect(screen.getByText("Bayar sekali di depan")).toBeTruthy();
+    expect(screen.getByText("Diantar sesuai jadwal")).toBeTruthy();
   });
 
   it("heart on the detail goes to sign-in and back to the package", async () => {

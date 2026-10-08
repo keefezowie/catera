@@ -1,5 +1,5 @@
 import { addDays } from "./dates";
-import type { Offer } from "./index";
+import type { Offer, Subscription } from "./index";
 
 /** Matches v1.cutoff: the previous day's cutoff in the caterer's timezone. */
 export function purchaseStartAvailable(
@@ -27,4 +27,22 @@ export function purchaseStartAvailable(
   const part = (key: string) => parts.find((p) => p.type === key)!.value;
   const local = `${part("year")}-${part("month")}-${part("day")}T${part("hour")}:${part("minute")}:${part("second")}`;
   return local < `${addDays(date, -1)}T${offer.cutoff.padEnd(8, ":00")}`;
+}
+
+/** The first bookable start after the customer's running plan of this package, for when a new
+ * purchase would overlap it. Looks up to 60 days ahead; null when there is no running plan. */
+export function nextStartAfter(
+  offer: Pick<Offer, "id" | "timezone" | "cutoff" | "weekdays">,
+  subscriptions: readonly Pick<Subscription, "package_id" | "status" | "ends_on">[],
+  now = new Date(),
+): { endsOn: string; start: string } | null {
+  const endsOn = subscriptions
+    .filter((s) => s.status === "active" && s.package_id === offer.id)
+    .reduce<string | null>((latest, s) => (!latest || s.ends_on > latest ? s.ends_on : latest), null);
+  if (!endsOn) return null;
+  for (let i = 1; i <= 60; i += 1) {
+    const day = addDays(endsOn, i);
+    if (purchaseStartAvailable(offer, day, now)) return { endsOn, start: day };
+  }
+  return null;
 }
