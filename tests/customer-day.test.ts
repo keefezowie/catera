@@ -7,6 +7,7 @@ import {
   renewalDue,
   reportableMeals,
   todayPlates,
+  trialFollowUp,
   upcomingRows,
   type CustomerState,
   type Delivery,
@@ -349,6 +350,26 @@ describe("renewal", () => {
     // Trials are not renewed (matches the maintenance reminder).
     const trial = sub({ remaining: 1, snapshot: { trial: true } as unknown as Subscription["snapshot"] });
     expect(renewalDue(trial, [trial])).toBe(false);
+  });
+  it("trialFollowUp true for a trial with one day left", () => {
+    const trial = sub({ remaining: 1, snapshot: { trial: true } as unknown as Subscription["snapshot"] });
+    expect(trialFollowUp(trial, [trial])).toBe(true);
+    expect(trialFollowUp({ ...trial, remaining: 2 }, [trial])).toBe(false);
+  });
+  it("trialFollowUp false once a full plan for the package exists", () => {
+    const trial = sub({ remaining: 1, snapshot: { trial: true } as unknown as Subscription["snapshot"] });
+    const full = sub({ id: "s2", starts_on: "2026-10-17", remaining: 5 });
+    expect(trialFollowUp(trial, [trial, full])).toBe(false);
+    // A cancelled plan, or one for another package, is not a follow-up.
+    expect(trialFollowUp(trial, [trial, { ...full, status: "cancelled" }])).toBe(true);
+    expect(trialFollowUp(trial, [trial, { ...full, package_id: "p9" }])).toBe(true);
+    // A plan that started earlier is not a continuation of the trial.
+    expect(trialFollowUp(trial, [trial, { ...full, starts_on: "2026-10-01" }])).toBe(true);
+  });
+  it("trialFollowUp false for non-trial", () => {
+    expect(trialFollowUp(sub({ remaining: 1 }), [])).toBe(false);
+    const trial = sub({ remaining: 1, status: "ended", snapshot: { trial: true } as unknown as Subscription["snapshot"] });
+    expect(trialFollowUp(trial, [trial])).toBe(false);
   });
 });
 

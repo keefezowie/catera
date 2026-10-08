@@ -2,7 +2,7 @@ import { StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import { currency, type Subscription } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { colors, fontFor, Text } from "@catera/mobile-ui";
+import { Button, Card, colors, fontFor, Text } from "@catera/mobile-ui";
 import { SunriseButton } from "./Plate";
 
 /** Shown at 3 or fewer days left; renewal stays an explicit purchase. */
@@ -28,6 +28,29 @@ export function RenewalCard({ subscription: s }: { subscription: Subscription })
         onPress={() => router.push(`/renew/${encodeURIComponent(s.id)}` as never)}
       />
     </View>
+  );
+}
+
+/** A trial ending: invites the full package; it promises no price or availability. */
+export function TrialCard({ subscription: s }: { subscription: Subscription }) {
+  const { t } = useMobile();
+  const name = s.snapshot.offer.name;
+  return (
+    <Card tone="attention" style={{ gap: 10 }}>
+      <Text variant="heading">{t(`Suka dengan ${name}?`, `Enjoying ${name}?`)}</Text>
+      {s.remaining === 1 ? (
+        <Text>
+          {t(
+            "Coba hari terakhir besok. Lanjutkan dengan paket penuh kapan saja.",
+            "Try the last day tomorrow. Continue with the full package any time.",
+          )}
+        </Text>
+      ) : null}
+      <Button
+        label={t("Lihat paket penuh", "See the full package")}
+        onPress={() => router.push(`/paket/${encodeURIComponent(s.package_id)}` as never)}
+      />
+    </Card>
   );
 }
 

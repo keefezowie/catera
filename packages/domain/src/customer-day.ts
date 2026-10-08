@@ -239,6 +239,17 @@ export function renewalDue(sub: Subscription, subscriptions: readonly Subscripti
   return !subscriptions.some((s) => s.renewed_from === sub.id && s.status !== "cancelled");
 }
 
+/**
+ * Whether to invite a trial customer to the full package: an active trial with one day or less
+ * left and no later non-cancelled plan for the same package (the full plan, once bought, ends it).
+ */
+export function trialFollowUp(sub: Subscription, subscriptions: readonly Subscription[]): boolean {
+  if (sub.status !== "active" || !sub.snapshot?.trial || sub.remaining > 1) return false;
+  return !subscriptions.some(
+    (s) => s.package_id === sub.package_id && s.status !== "cancelled" && s.starts_on > sub.starts_on,
+  );
+}
+
 /** "Rabu 7 Okt", with a "Besok, " prefix for the day after `today`. */
 export function dayLabel(date: string, today: string, locale: Locale): string {
   const label = shortDate(date, locale);

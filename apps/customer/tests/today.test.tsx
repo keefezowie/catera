@@ -3,13 +3,13 @@ import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { Linking, StyleSheet } from "react-native";
-import { addDays } from "@catera/domain";
+import { addDays, type Subscription } from "@catera/domain";
 import { colors } from "@catera/mobile-ui";
 import { Beranda } from "../src/today/Beranda";
 import { customerLink } from "../src/links";
 import { Masuk } from "../src/account/Masuk";
 import * as offline from "../src/today/offline";
-import { customerState, delivery, TODAY } from "./fixtures";
+import { customerState, delivery, offer, TODAY } from "./fixtures";
 
 jest.mock("expo-router", () => ({
   router: { push: jest.fn(), replace: jest.fn() },
@@ -167,6 +167,17 @@ it("hides the renewal card once the plan has been renewed", async () => {
   await screen.findAllByText(/hari lagi/);
   expect(screen.queryByText("Sisa 2 hari")).toBeNull();
   expect(screen.queryByRole("button", { name: "Perpanjang" })).toBeNull();
+});
+
+it("offers the full package when a trial is ending", async () => {
+  const trial = { trial: true, offer: offer() } as unknown as Subscription["snapshot"];
+  renderHome(runtimeWith(async () => customerState(null, { subscription: { remaining: 1, snapshot: trial } })));
+  expect(await screen.findByText("Suka dengan Makan Siang Rumahan?")).toBeTruthy();
+  expect(screen.getByText("Coba hari terakhir besok. Lanjutkan dengan paket penuh kapan saja.")).toBeTruthy();
+  // A trial is not renewed.
+  expect(screen.queryByRole("button", { name: "Perpanjang" })).toBeNull();
+  fireEvent.press(screen.getByRole("button", { name: "Lihat paket penuh" }));
+  expect(router.push).toHaveBeenCalledWith("/paket/p-rumahan");
 });
 
 it("asks for a review once near the end", async () => {

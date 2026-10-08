@@ -5,6 +5,7 @@ import {
   errorLabel,
   renewalDue,
   todayPlates,
+  trialFollowUp,
   upcomingRows,
   type CustomerState,
   type Subscription,
@@ -14,7 +15,7 @@ import { Button, colors, FONT, Field, fontFor, Screen, Text } from "@catera/mobi
 import { ChatKatering } from "../help/ChatKatering";
 import { EmptyHome } from "./EmptyHome";
 import { jakartaClock, Plate } from "./Plate";
-import { RenewalCard } from "./RenewalCard";
+import { RenewalCard, TrialCard } from "./RenewalCard";
 import { UpcomingRows } from "./UpcomingRows";
 import { MenuDueRows } from "./MenuDueRows";
 import { loadCachedCustomer, saveCachedCustomer } from "./offline";
@@ -121,6 +122,9 @@ function SignedInHome({ actorId, name }: { actorId: string; name: string }) {
       <UpcomingRows rows={rows} />
       {live.filter((s) => renewalDue(s, state.subscriptions)).map((s) => (
         <RenewalCard key={s.id} subscription={s} />
+      ))}
+      {live.filter((s) => trialFollowUp(s, state.subscriptions)).map((s) => (
+        <TrialCard key={s.id} subscription={s} />
       ))}
       {live.map((s) => (
         <PackageLine
