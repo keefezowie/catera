@@ -56,6 +56,7 @@ export async function verifyDeliveryConfirm(pool, cmd, evidence) {
     "20261008114000_caterer_whatsapp_denied.sql",
     "20261008114500_maintenance_renewal_conflict.sql",
     "20261008120000_delivery_issue_customer.sql",
+    "20261008121000_delivery_issue_not_future.sql",
   ])
     await pool.query(await readFile("supabase/migrations/" + file, "utf8"));
 
@@ -184,6 +185,8 @@ export async function verifyDeliveryConfirm(pool, cmd, evidence) {
       [U.customer, CATERER_IDS[0]],
     )
   ).rows[0];
+  // Reports are taken only for a day that has come in Jakarta: the latest day is moved to a past date of its own.
+  await pool.query("update v1.delivery_days set service_date='2019-06-01' where id=$1", [reported.day_id]);
   const issue = await cmd(
     "deliveryIssue.create",
     { deliveryId: reported.day_id, meal: reported.meal, subject: "Belum sampai", body: "Makanan belum datang." },
@@ -205,6 +208,19 @@ export async function verifyDeliveryConfirm(pool, cmd, evidence) {
   assert.ok(seen.customerRecordId);
   assert.ok(!("customerName" in (await issueRead(U.customer, {})).find((i) => i.id === issue.id)));
   evidence.push("Delivery reports: the caterer's read names the customer (record, number) and the customer's own list is unchanged.");
+
+  // C-01: no report for a day after Jakarta today; another account still gets FORBIDDEN.
+  const ahead = (
+    await pool.query(
+      "select f.day_id,f.meal from v1.fulfillments f join v1.delivery_days d on d.id=f.day_id join v1.subscriptions s on s.id=d.subscription_id where s.user_id=$1 and d.service_date>$2::date and f.status<>'cancelled' and not exists(select 1 from v1.delivery_issues i where i.day_id=f.day_id) order by d.service_date limit 1",
+      [U.customer, localDay()],
+    )
+  ).rows[0];
+  const futureReport = { deliveryId: ahead.day_id, meal: ahead.meal, subject: "Belum sampai", body: "Makanan belum datang." };
+  await assert.rejects(cmd("deliveryIssue.create", futureReport, U.customer), /NOT_ALLOWED/);
+  await assert.rejects(cmd("deliveryIssue.create", futureReport, U.owner), /FORBIDDEN/);
+  assert.equal((await pool.query("select count(*)::int n from v1.delivery_issues where day_id=$1", [ahead.day_id])).rows[0].n, 0);
+  evidence.push("Delivery reports: a day after Jakarta today is refused with NOT_ALLOWED and files nothing; today and earlier are accepted.");
 }
 
 async function claimed(pool, user, fn) {
@@ -250,13 +266,17 @@ export async function verifyDeliveryDepart(pool, cmd, evidence) {
   assert(reportPool.length >= 10, "need 10 synthetic days, have " + reportPool.length);
   const outcomes = { held: 0, reportedAfterDelivery: 0 };
   for (const [round, day] of reportPool.slice(0, 10).entries()) {
-    const date = addDays(today, 340 + round);
+    // A report is taken only for a day that has come, so each round uses a past date of its own,
+    // with the nightly rule switched on from that date so the run reaches only this day.
+    const date = addDays(today, -(340 + round));
     await pool.query("update v1.delivery_days set service_date=$2::date where id=$1", [day.id, date]);
     const meal = (await pool.query("select meal from v1.fulfillments where day_id=$1 order by meal limit 1", [day.id])).rows[0].meal;
-    const [report] = await Promise.all([
-      cmd("deliveryIssue.create", issue(day.id, meal), U.customer),
-      system(pool, "delivery.autoDeliver", { today: addDays(date, 1) }),
-    ]);
+    const [report] = await withPolicyFrom(pool, date, () =>
+      Promise.all([
+        cmd("deliveryIssue.create", issue(day.id, meal), U.customer),
+        system(pool, "delivery.autoDeliver", { today: addDays(date, 1) }),
+      ]),
+    );
     assert(report.id, round + ": the report was filed");
     const status = await dayStatusOf(pool, day.id);
     const earned = await earnedOf(pool, day.id);
@@ -277,9 +297,11 @@ export async function verifyDeliveryDepart(pool, cmd, evidence) {
   // 2. A report in flight (uncommitted) holds its meal: the job leaves the day for its next run,
   // and the committed report keeps holding it until it is resolved.
   const spare = (await purchased(pool, cmd, P[0], addDays(today, 250)))[0];
-  const spareDate = addDays(today, 350);
+  const spareDate = addDays(today, -350);
   await pool.query("update v1.delivery_days set service_date=$2::date where id=$1", [spare.id, spareDate]);
   const spareMeal = (await pool.query("select meal from v1.fulfillments where day_id=$1 limit 1", [spare.id])).rows[0].meal;
+  const spareSince = (await pool.query("select since::text s from v1.auto_deliver_policy")).rows[0].s;
+  await pool.query("update v1.auto_deliver_policy set since=$1::date", [spareDate]);
   await claimed(pool, U.customer, async (c) => {
     await c.query("select public.catera_v1_command('deliveryIssue.create',$1,gen_random_uuid())", [issue(spare.id, spareMeal)]);
     await system(pool, "delivery.autoDeliver", { today: addDays(spareDate, 1) });
@@ -293,6 +315,7 @@ export async function verifyDeliveryDepart(pool, cmd, evidence) {
   await system(pool, "delivery.autoDeliver", { today: addDays(spareDate, 1) });
   assert.equal(await dayStatusOf(pool, spare.id), "delivered");
   assert.equal(await earnedOf(pool, spare.id), 1);
+  await pool.query("update v1.auto_deliver_policy set since=$1::date", [spareSince]);
   evidence.push(
     "Reports filed while the nightly job runs 10 times never leave a reported meal delivered ahead of its report (" +
       outcomes.held + " held, " + outcomes.reportedAfterDelivery + " reported after delivery); an in-flight report holds its meal until resolved.",

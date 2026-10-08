@@ -170,12 +170,16 @@ it("replays a departure request without moving anything again", async () => {
 
 it("auto-deliver holds a reported meal", async () => {
   const day = both[2];
+  // A report is accepted only once the day has come: file it on yesterday, then return the day to
+  // its own far-off date so this nightly run stays apart from the other tests' days.
+  await q("update v1.delivery_days set service_date=$2::date where id=$1", [day.id, addDays(localDay(), -1)]);
   const issue = await cmd("deliveryIssue.create", {
     deliveryId: day.id,
     meal: "lunch",
     subject: "Makanan tidak datang",
     body: "Ditunggu sampai jam dua siang",
   });
+  await q("update v1.delivery_days set service_date=$2::date where id=$1", [day.id, day.service_date]);
   const after = addDays(day.service_date, 1);
   await autoDeliver(after);
   // The reported lunch waits with no earning; the unreported dinner is delivered. The day keeps its status.

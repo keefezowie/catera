@@ -604,6 +604,12 @@ export async function createDemoDatabase(inMemory = false) {
     await db.exec("begin;\n" + await readFile(path.join(projectRoot(),
       "supabase/migrations/20261008120000_delivery_issue_customer.sql"), "utf8") + "\ncommit;");
   }
+  if (!(await db.query<{ installed: boolean }>(
+    "select to_regprocedure('public.catera_v1_command_issue_date_base(text,jsonb,uuid)') is not null installed",
+  )).rows[0].installed) {
+    await db.exec("begin;\n" + await readFile(path.join(projectRoot(),
+      "supabase/migrations/20261008121000_delivery_issue_not_future.sql"), "utf8") + "\ncommit;");
+  }
   return db;
 }
 export async function getDemoDatabase() {

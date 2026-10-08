@@ -2,6 +2,7 @@ import { afterAll, beforeAll, expect, it } from "vitest";
 import type { PGlite } from "@electric-sql/pglite";
 import { createDemoDatabase, localRpc } from "../packages/backend/src/database";
 import { CATERER_IDS as K, DEMO_ACTORS as U } from "../packages/backend/src/seed";
+import { localDay } from "@catera/domain";
 
 // K-04: Catera Dapur shows who reported a delivery problem and lets owner and staff answer it.
 let db: PGlite, day: string, record: string;
@@ -17,6 +18,8 @@ beforeAll(async () => {
       [K[0], U.customer],
     )
   ).rows[0]);
+  // A report is accepted only once the day has come in Jakarta: bring the earliest day to today.
+  await db.query("update v1.delivery_days set service_date=$2::date where id=$1 and service_date>$2::date", [day, localDay()]);
 });
 afterAll(async () => db?.close());
 
