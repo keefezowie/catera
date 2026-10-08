@@ -240,7 +240,12 @@ export function ImportAssistant() {
         </>
       )}
       {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
-      <Sheet visible={!!edit} onClose={() => setEditing(null)} title={edit?.name || t("Pelanggan", "Customer")}>
+      <Sheet
+        visible={!!edit}
+        onClose={() => setEditing(null)}
+        title={edit?.name || t("Pelanggan", "Customer")}
+        closeLabel={t("Tutup", "Close")}
+      >
         {edit ? (
           <View style={{ gap: 10 }}>
             <Field label={t("Nama", "Name")} value={edit.name} onChangeText={(v) => update({ name: v })} />

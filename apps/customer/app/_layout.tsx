@@ -4,12 +4,12 @@ import { StatusBar } from "expo-status-bar";
 import { ActivityIndicator, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useMobile } from "@catera/mobile-core";
-import { AppHeader, colors, fontAssets, Text } from "@catera/mobile-ui";
+import { AppHeader, colors, DemoStrip, fontAssets, Text, TopInsetOwner } from "@catera/mobile-ui";
 import { runtime } from "../src/runtime";
 import { AppProviders } from "../src/shell";
 
 function Navigation() {
-  const { t, ready } = useMobile();
+  const { t, ready, demo } = useMobile();
   if (!ready)
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.canvas }}>
@@ -17,8 +17,9 @@ function Navigation() {
       </View>
     );
   return (
-    <>
+    <TopInsetOwner owned={demo}>
       <StatusBar style="dark" />
+      {demo ? <DemoStrip label={t("Demo · data sintetis", "Demo · synthetic data")} /> : null}
       <Stack
         screenOptions={{
           // One header for every pushed screen: round back (or close, for a modal) button and a heading.
@@ -62,7 +63,7 @@ function Navigation() {
         <Stack.Screen name="saved" options={{ headerShown: false }} />
         <Stack.Screen name="notifications" options={{ title: t("Notifikasi", "Notifications") }} />
       </Stack>
-    </>
+    </TopInsetOwner>
   );
 }
 

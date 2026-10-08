@@ -114,7 +114,7 @@ export function ChangeDaySheet({
   }
 
   return (
-    <Sheet visible onClose={onClose} title="">
+    <Sheet visible onClose={onClose} title="" closeLabel={t("Tutup", "Close")}>
       {/* Sheet always draws a title line; the date header takes its place. */}
       <View style={{ gap: 14, marginTop: -14 }}>
         <View style={{ gap: 2 }}>

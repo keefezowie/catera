@@ -2,7 +2,26 @@ import { fireEvent, render, screen } from "@testing-library/react-native";
 import { StyleSheet } from "react-native";
 import * as Haptics from "expo-haptics";
 import * as Reanimated from "react-native-reanimated";
-import { AppHeader, Button, Chip, fontFor, fonts, PressableScale, RoundButton, Text } from "@catera/mobile-ui";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { KeyboardAvoidingView, Modal, ScrollView } from "react-native";
+import {
+  AppHeader,
+  Button,
+  Chip,
+  colors,
+  DemoStrip,
+  fontFor,
+  fonts,
+  PressableRow,
+  PressableScale,
+  RoundButton,
+  Screen,
+  Segmented,
+  Sheet,
+  Stepper,
+  Text,
+  TopInsetOwner,
+} from "@catera/mobile-ui";
 
 test("fontFor maps weights to static families", () => {
   expect(fontFor(undefined)).toBe(fonts.regular);
@@ -124,4 +143,165 @@ test("RoundButton presses with a haptic", () => {
   fireEvent.press(screen.getByRole("button", { name: "Simpan" }));
   expect(onPress).toHaveBeenCalledTimes(1);
   expect(Haptics.impactAsync).toHaveBeenCalledTimes(1);
+});
+
+describe("shared foundation (audit 001)", () => {
+  // An earlier test leaves the shared reanimated mock returning true; start from motion on.
+  beforeEach(() => (Reanimated.useReducedMotion as jest.Mock).mockReturnValue(false));
+  afterEach(() => (Reanimated.useReducedMotion as jest.Mock).mockReturnValue(false));
+
+  it("renders the demo strip only in demo mode", () => {
+    const Harness = ({ demo }: { demo: boolean }) => (
+      <>{demo ? <DemoStrip label="Demo · data sintetis" /> : null}</>
+    );
+    const view = render(<Harness demo={false} />);
+    expect(screen.queryByText("Demo · data sintetis")).toBeNull();
+    view.rerender(<Harness demo />);
+    const label = screen.getByText("Demo · data sintetis");
+    expect(StyleSheet.flatten(label.props.style).color).toBe(colors.forest);
+    const strip = screen.getByLabelText("Demo · data sintetis");
+    expect(strip.props.accessibilityRole).toBe("text");
+    const style = StyleSheet.flatten(strip.props.style);
+    expect(style.backgroundColor).toBe(colors.sage);
+    expect(style.minHeight).toBeGreaterThanOrEqual(24);
+  });
+
+  it("chips and segments are 48dp", () => {
+    render(
+      <>
+        <Chip label="Halal" selected={false} onPress={() => {}} />
+        <Segmented options={[{ value: "a", label: "Satu" }, { value: "b", label: "Dua" }]} value="a" onChange={() => {}} />
+        <Button label="Lanjut" variant="text" onPress={() => {}} />
+      </>,
+    );
+    const height = (el: { props: { style?: unknown } }) => StyleSheet.flatten(el.props.style as never).minHeight;
+    expect(height(screen.getByRole("button", { name: "Halal" }))).toBe(48);
+    expect(height(screen.getByRole("tab", { name: "Satu" }))).toBe(48);
+    expect(height(screen.getByRole("button", { name: "Lanjut" }))).toBe(48);
+  });
+
+  it("title and heading are headers", () => {
+    render(
+      <>
+        <Text variant="title">Jadwal</Text>
+        <Text variant="heading">Berikutnya</Text>
+        <Text variant="body">Isi</Text>
+        <Text variant="heading" accessibilityRole="text">
+          Bukan judul
+        </Text>
+      </>,
+    );
+    expect(screen.getByRole("header", { name: "Jadwal" })).toBeTruthy();
+    expect(screen.getByRole("header", { name: "Berikutnya" })).toBeTruthy();
+    expect(screen.queryByRole("header", { name: "Isi" })).toBeNull();
+    expect(screen.queryByRole("header", { name: "Bukan judul" })).toBeNull();
+  });
+
+  it("Text forwards accessibilityLabel and accessible", () => {
+    render(
+      <Text accessible accessibilityLabel="Tiga porsi">
+        3
+      </Text>,
+    );
+    expect(screen.getByLabelText("Tiga porsi").props.accessible).toBe(true);
+  });
+
+  it("Sheet scrim is a labelled button and fades under reduced motion", () => {
+    const onClose = jest.fn();
+    const view = render(
+      <Sheet visible onClose={onClose} title="Bagikan" closeLabel="Close">
+        <Text>Isi</Text>
+      </Sheet>,
+    );
+    expect(view.UNSAFE_getByType(Modal).props.animationType).toBe("slide");
+    expect(screen.getByLabelText("Close", { includeHiddenElements: true }).props.accessibilityRole).toBe("button");
+    // The sibling sheet is accessibilityViewIsModal, which RNTL treats as hiding the scrim.
+    fireEvent.press(screen.getByLabelText("Close", { includeHiddenElements: true }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    view.unmount();
+
+    jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
+    const reduced = render(
+      <Sheet visible onClose={() => {}} title="Bagikan" closeLabel="Tutup">
+        <Text>Isi</Text>
+      </Sheet>,
+    );
+    expect(reduced.UNSAFE_getByType(Modal).props.animationType).toBe("fade");
+  });
+
+  it("Stepper labels come from props and its buttons are 48dp", () => {
+    jest.clearAllMocks();
+    const onChange = jest.fn();
+    render(
+      <Stepper label="Porsi" value={2} onChange={onChange} decreaseLabel="Decrease Porsi" increaseLabel="Increase Porsi" />,
+    );
+    const less = screen.getByRole("button", { name: "Decrease Porsi" });
+    const more = screen.getByRole("button", { name: "Increase Porsi" });
+    expect(StyleSheet.flatten(less.props.style)).toMatchObject({ width: 48, height: 48 });
+    fireEvent.press(more);
+    expect(onChange).toHaveBeenCalledWith(3);
+    expect(Haptics.selectionAsync).toHaveBeenCalled();
+    fireEvent.press(less);
+    expect(onChange).toHaveBeenCalledWith(1);
+  });
+
+  it("PressableRow dims when pressed and does not scale", () => {
+    jest.clearAllMocks();
+    const onPress = jest.fn();
+    render(
+      <PressableRow testID="row" accessibilityRole="button" accessibilityLabel="Baris" onPress={onPress}>
+        <Text>Baris</Text>
+      </PressableRow>,
+    );
+    expect(StyleSheet.flatten(screen.getByTestId("row").props.style)?.opacity ?? 1).toBe(1);
+    fireEvent(screen.getByTestId("row"), "responderGrant", {
+      nativeEvent: { touches: [], changedTouches: [] },
+      persist() {},
+    });
+    const pressed = StyleSheet.flatten(screen.getByTestId("row").props.style);
+    expect(pressed.opacity).toBe(0.7);
+    expect(pressed.transform).toBeUndefined();
+    expect(screen.getByTestId("row").props.accessibilityLabel).toBe("Baris");
+    fireEvent.press(screen.getByTestId("row"));
+    expect(onPress).toHaveBeenCalledTimes(1);
+    expect(Haptics.impactAsync).not.toHaveBeenCalled();
+    expect(Haptics.selectionAsync).not.toHaveBeenCalled();
+  });
+
+  it("caps the body at 760 and keeps taps alive over the keyboard", () => {
+    const view = render(
+      <Screen footer={<Text>Kaki</Text>}>
+        <Text>Isi</Text>
+      </Screen>,
+    );
+    expect(StyleSheet.flatten(screen.getByTestId("screen-body").props.style)).toMatchObject({
+      maxWidth: 760,
+      width: "100%",
+      alignSelf: "center",
+    });
+    expect(StyleSheet.flatten(screen.getByTestId("screen-footer").props.style)).toMatchObject({
+      maxWidth: 760,
+      width: "100%",
+      alignSelf: "center",
+    });
+    expect(view.UNSAFE_getByType(ScrollView).props.keyboardShouldPersistTaps).toBe("handled");
+    expect(view.UNSAFE_getByType(KeyboardAvoidingView)).toBeTruthy();
+  });
+
+  it("Screen leaves the top inset to the demo strip while it is shown", () => {
+    const safeEdges = (owned: boolean) => {
+      const view = render(
+        <TopInsetOwner owned={owned}>
+          <Screen>
+            <Text>Isi</Text>
+          </Screen>
+        </TopInsetOwner>,
+      );
+      const edges = view.UNSAFE_getByType(SafeAreaView).props.edges;
+      view.unmount();
+      return edges;
+    };
+    expect(safeEdges(false)).toEqual(["top", "left", "right"]);
+    expect(safeEdges(true)).toEqual(["left", "right"]);
+  });
 });

@@ -163,7 +163,12 @@ function Browse({ area, onArea }: { area: string; onArea: (value: string) => voi
         ))
       )}
 
-      <Sheet visible={picking} onClose={() => setPicking(false)} title={t("Area pengantaran", "Delivery area")}>
+      <Sheet
+        visible={picking}
+        onClose={() => setPicking(false)}
+        title={t("Area pengantaran", "Delivery area")}
+        closeLabel={t("Tutup", "Close")}
+      >
         {["", ...areaOptions].map((value) => (
           <Pressable
             key={value || "all"}

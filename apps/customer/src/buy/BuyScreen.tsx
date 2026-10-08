@@ -266,7 +266,7 @@ export function BuyScreen({
       </View>
 
       <View style={styles.box}>
-        <Stepper label={t("Porsi per hari", "Portions per day")} value={qty} onChange={setPortions} min={1} max={maxQty} />
+        <Stepper label={t("Porsi per hari", "Portions per day")} decreaseLabel={t("Kurangi Porsi per hari", "Decrease Portions per day")} increaseLabel={t("Tambah Porsi per hari", "Increase Portions per day")} value={qty} onChange={setPortions} min={1} max={maxQty} />
         <View style={styles.address}>
           <Text variant="caption" style={{ flex: 1 }} numberOfLines={2}>
             {address
@@ -312,6 +312,7 @@ export function BuyScreen({
         selected={address?.id}
         onPick={setAddressId}
         onClose={() => setSheet("")}
+        closeLabel={t("Tutup", "Close")}
       >
         <Button
           variant="secondary"
@@ -329,6 +330,7 @@ export function BuyScreen({
         selected={startDate}
         onPick={setStart}
         onClose={() => setSheet("")}
+        closeLabel={t("Tutup", "Close")}
       />
     </Screen>
   );

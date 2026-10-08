@@ -11,6 +11,10 @@ export const colors = {
   scheduled: "#EDF1E6",
   muted: "#60675F",
   line: "#E2E3D8",
+  /** Text field and grabber outline. */
+  fieldBorder: "#CFD3C6",
+  /** Secondary button and unselected chip outline. */
+  secondaryBorder: "#CDD4C4",
   danger: "#A33024",
 } as const;
 export const spacing = {

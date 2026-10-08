@@ -121,10 +121,13 @@ export function ChoiceSheet({
   selected,
   onPick,
   onClose,
+  closeLabel,
   children,
 }: {
   visible: boolean;
   title: string;
+  /** Translated accessibility label for the sheet's scrim ("Tutup" / "Close"). */
+  closeLabel: string;
   items: { id: string; label: string; detail?: string }[];
   selected: string | null | undefined;
   onPick: (id: string) => void;
@@ -132,7 +135,7 @@ export function ChoiceSheet({
   children?: ReactNode;
 }) {
   return (
-    <Sheet visible={visible} onClose={onClose} title={title}>
+    <Sheet visible={visible} onClose={onClose} title={title} closeLabel={closeLabel}>
       {items.map((item) => (
         <Pressable
           key={item.id}

@@ -1,6 +1,7 @@
 import { StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, RoundButton, Text } from "./components";
+import { useTopInsetOwned } from "./TopInset";
 
 /**
  * The one header for pushed screens: round back (or close, for a modal) button and a one-line heading.
@@ -18,8 +19,10 @@ export function AppHeader({
   backLabel: string;
 }) {
   const insets = useSafeAreaInsets();
+  // The demo strip owns the status-bar inset while it is shown.
+  const topOwned = useTopInsetOwned();
   return (
-    <View style={[styles.bar, { paddingTop: insets.top + 8 }]}>
+    <View style={[styles.bar, { paddingTop: (topOwned ? 0 : insets.top) + 8 }]}>
       {onBack ? <RoundButton icon={modal ? "close" : "chevron-back"} label={backLabel} onPress={onBack} /> : null}
       <View style={styles.title}>
         <Text variant="heading" numberOfLines={1}>

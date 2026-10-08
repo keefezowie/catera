@@ -89,7 +89,7 @@ export function ExceptionSheet({
   );
 
   return (
-    <Sheet visible onClose={onClose} title={stop.name}>
+    <Sheet visible onClose={onClose} title={stop.name} closeLabel={t("Tutup", "Close")}>
       <Text variant="caption">{`${stop.portions} porsi · ${stop.packageName}`}</Text>
       <View style={{ gap: 8 }}>
         {allowFailed && option(

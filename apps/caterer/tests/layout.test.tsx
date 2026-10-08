@@ -3,6 +3,7 @@ import path from "node:path";
 import { render, screen } from "@testing-library/react-native";
 
 const mockParams = { date: "2030-01-03" };
+const mockMe = { demo: false };
 
 jest.mock("expo-router", () => {
   const React = require("react");
@@ -22,7 +23,7 @@ jest.mock("expo-status-bar", () => ({ StatusBar: () => null }));
 jest.mock("../src/runtime", () => {
   const { createMobileRuntime } = jest.requireActual("@catera/mobile-core");
   const runtime = createMobileRuntime({ apiUrl: "https://api.example.test", storagePrefix: "layout" });
-  runtime.api = { ...runtime.api, me: jest.fn(async () => ({ actor: null, demo: false })) };
+  runtime.api = { ...runtime.api, me: jest.fn(async () => ({ actor: null, demo: mockMe.demo })) };
   return { runtime };
 });
 jest.mock("expo-notifications", () => ({
@@ -44,6 +45,24 @@ function pushedRoutes(dir = path.join(__dirname, "..", "app"), prefix = ""): str
     return [`${prefix}${entry.name.replace(/\.tsx?$/, "")}`];
   });
 }
+
+describe("demo strip", () => {
+  afterEach(() => {
+    mockMe.demo = false;
+  });
+
+  it("shows the synthetic-data strip when the server reports demo", async () => {
+    mockMe.demo = true;
+    render(<RootLayout />);
+    expect(await screen.findByText("Demo · data sintetis")).toBeTruthy();
+  });
+
+  it("shows no strip outside demo mode", async () => {
+    render(<RootLayout />);
+    await screen.findByTestId("header:pelanggan/[id]");
+    expect(screen.queryByText("Demo · data sintetis")).toBeNull();
+  });
+});
 
 describe("stack headers", () => {
   it("titles every pushed route in Indonesian instead of its route path", async () => {

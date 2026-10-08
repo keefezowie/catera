@@ -1,7 +1,10 @@
 import type { ReactNode } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import {
+  type AccessibilityRole,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,7 +18,8 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { colors } from "@catera/design-tokens";
-import { PressableScale } from "./motion";
+import { PressableScale, useReduced } from "./motion";
+import { useTopInsetOwned } from "./TopInset";
 import { fontFor, fonts } from "./type";
 
 /** The regular-weight family for Plus Jakarta Sans; other weights come from `fonts` / `fontFor`. */
@@ -35,6 +39,7 @@ export function Text({
   variant = "body",
   style,
   children,
+  accessibilityRole,
   ...rest
 }: {
   variant?: keyof typeof textVariants;
@@ -42,12 +47,19 @@ export function Text({
   children: ReactNode;
   testID?: string;
   numberOfLines?: number;
+  accessibilityRole?: AccessibilityRole;
+  accessibilityLabel?: string;
+  accessible?: boolean;
 }) {
   // Android cannot select weights from a variable font, so a weight becomes a static family.
   // An explicit fontFamily wins over any weight: app code passes `fonts.semibold` etc. in styles it hands to Text.
   const { fontWeight, fontFamily, ...flat } = StyleSheet.flatten([textVariants[variant], style]) as TextStyle;
   return (
-    <RNText style={[flat, { fontFamily: fontFamily ?? fontFor(fontWeight) }]} {...rest}>
+    <RNText
+      style={[flat, { fontFamily: fontFamily ?? fontFor(fontWeight) }]}
+      accessibilityRole={accessibilityRole ?? (variant === "title" || variant === "heading" ? "header" : undefined)}
+      {...rest}
+    >
       {children}
     </RNText>
   );
@@ -193,10 +205,15 @@ export function Stepper({
   label,
   value,
   onChange,
+  decreaseLabel,
+  increaseLabel,
   min = 0,
   max = 30,
 }: {
   label: string;
+  /** Translated accessibility labels, e.g. "Kurangi Porsi per hari" / "Tambah Porsi per hari". */
+  decreaseLabel: string;
+  increaseLabel: string;
   value: number;
   onChange: (n: number) => void;
   min?: number;
@@ -205,27 +222,31 @@ export function Stepper({
   return (
     <View style={styles.stepper}>
       <RNText style={[styles.body, { flex: 1, fontFamily: fontFor("600") }]}>{label}</RNText>
-      <Pressable
+      <PressableScale
         accessibilityRole="button"
-        accessibilityLabel={`Kurangi ${label}`}
+        accessibilityLabel={decreaseLabel}
+        accessibilityState={{ disabled: value <= min }}
         disabled={value <= min}
+        haptic="select"
         onPress={() => onChange(value - 1)}
         style={styles.stepButton}
       >
         <RNText style={styles.stepGlyph}>−</RNText>
-      </Pressable>
+      </PressableScale>
       <RNText style={[styles.body, { width: 24, textAlign: "center", fontFamily: fontFor("800") }]}>
         {value}
       </RNText>
-      <Pressable
+      <PressableScale
         accessibilityRole="button"
-        accessibilityLabel={`Tambah ${label}`}
+        accessibilityLabel={increaseLabel}
+        accessibilityState={{ disabled: value >= max }}
         disabled={value >= max}
+        haptic="select"
         onPress={() => onChange(value + 1)}
         style={styles.stepButton}
       >
         <RNText style={styles.stepGlyph}>+</RNText>
-      </Pressable>
+      </PressableScale>
     </View>
   );
 }
@@ -235,16 +256,20 @@ export function Sheet({
   visible,
   onClose,
   title,
+  closeLabel,
   children,
 }: {
   visible: boolean;
   onClose: () => void;
   title: string;
+  /** Translated accessibility label of the scrim ("Tutup" / "Close"). */
+  closeLabel: string;
   children: ReactNode;
 }) {
+  const reduced = useReduced();
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.scrim} onPress={onClose} accessibilityLabel="Tutup" />
+    <Modal visible={visible} transparent animationType={reduced ? "fade" : "slide"} onRequestClose={onClose}>
+      <Pressable style={styles.scrim} onPress={onClose} accessibilityRole="button" accessibilityLabel={closeLabel} />
       <View style={styles.sheet} accessibilityViewIsModal>
         <View style={styles.grabber} />
         <Text variant="heading">{title}</Text>
@@ -263,11 +288,29 @@ export function Screen({
   scroll?: boolean;
   footer?: ReactNode;
 }) {
-  const body = <View style={styles.screenBody}>{children}</View>;
+  // The demo strip owns the status-bar inset while it is shown, so the screen must not add a second one.
+  const topOwned = useTopInsetOwned();
+  const body = (
+    <View testID="screen-body" style={styles.screenBody}>
+      {children}
+    </View>
+  );
   return (
-    <SafeAreaView style={styles.screen} edges={["top", "left", "right"]}>
-      {scroll ? <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>{body}</ScrollView> : body}
-      {footer ? <View style={styles.footer}>{footer}</View> : null}
+    <SafeAreaView style={styles.screen} edges={topOwned ? ["left", "right"] : ["top", "left", "right"]}>
+      <KeyboardAvoidingView style={styles.keyboard} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        {scroll ? (
+          <ScrollView contentContainerStyle={{ paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
+            {body}
+          </ScrollView>
+        ) : (
+          body
+        )}
+        {footer ? (
+          <View testID="screen-footer" style={styles.footer}>
+            {footer}
+          </View>
+        ) : null}
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -326,13 +369,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   primary: { backgroundColor: colors.forest },
-  secondary: { borderWidth: 1, borderColor: "#CDD4C4", backgroundColor: "transparent" },
-  textButton: { minHeight: 44, paddingHorizontal: 4, backgroundColor: "transparent" },
-  disabled: { backgroundColor: "#CFD3C6" },
+  secondary: { borderWidth: 1, borderColor: colors.secondaryBorder, backgroundColor: "transparent" },
+  textButton: { minHeight: 48, paddingHorizontal: 4, backgroundColor: "transparent" },
+  disabled: { backgroundColor: colors.fieldBorder },
   buttonLabel: { fontFamily: fontFor("700"), fontSize: 15 },
-  chip: { minHeight: 40, paddingHorizontal: 14, borderRadius: 9, justifyContent: "center" },
+  chip: { minHeight: 48, paddingHorizontal: 14, borderRadius: 9, justifyContent: "center" },
   chipOn: { backgroundColor: colors.forest },
-  chipOff: { borderWidth: 1, borderColor: "#CDD4C4" },
+  chipOff: { borderWidth: 1, borderColor: colors.secondaryBorder },
   chipLabel: { fontFamily: fontFor("700"), fontSize: 13 },
   segmented: {
     flexDirection: "row",
@@ -341,14 +384,14 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: colors.sage,
   },
-  segment: { flex: 1, minHeight: 40, borderRadius: 8, alignItems: "center", justifyContent: "center" },
+  segment: { flex: 1, minHeight: 48, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   segmentOn: { backgroundColor: colors.forest },
   card: { borderWidth: 1, borderRadius: 16, padding: 16, gap: 10 },
   fieldLabel: { fontFamily: fontFor("700"), fontSize: 13, color: colors.forest },
   input: {
     minHeight: 48,
     borderWidth: 1,
-    borderColor: "#CFD3C6",
+    borderColor: colors.fieldBorder,
     borderRadius: 9,
     backgroundColor: colors.surface,
     paddingHorizontal: 14,
@@ -365,7 +408,7 @@ const styles = StyleSheet.create({
     paddingRight: 4,
     minHeight: 52,
   },
-  stepButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  stepButton: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
   stepGlyph: { fontSize: 22, color: colors.forest },
   scrim: { flex: 1, backgroundColor: "rgba(20,30,25,0.45)" },
   sheet: {
@@ -381,11 +424,15 @@ const styles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 4,
-    backgroundColor: "#CFD3C6",
+    backgroundColor: colors.fieldBorder,
   },
   screen: { flex: 1, backgroundColor: colors.canvas },
-  screenBody: { paddingHorizontal: 20, paddingTop: 16, gap: 16 },
+  keyboard: { flex: 1 },
+  screenBody: { paddingHorizontal: 20, paddingTop: 16, gap: 16, maxWidth: 760, width: "100%", alignSelf: "center" },
   footer: {
+    maxWidth: 760,
+    width: "100%",
+    alignSelf: "center",
     padding: 16,
     paddingBottom: 20,
     borderTopWidth: 1,

@@ -5,12 +5,12 @@ import { ActivityIndicator, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { jakartaDay, shortDate } from "@catera/domain";
 import { MobileProvider, useMobile } from "@catera/mobile-core";
-import { AppHeader, colors, fontAssets } from "@catera/mobile-ui";
+import { AppHeader, colors, DemoStrip, fontAssets, TopInsetOwner } from "@catera/mobile-ui";
 import { runtime } from "../src/runtime";
 import { dapurLink } from "../src/links";
 
 function Navigation() {
-  const { t, ready, locale } = useMobile();
+  const { t, ready, locale, demo } = useMobile();
   if (!ready)
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.canvas }}>
@@ -18,8 +18,9 @@ function Navigation() {
       </View>
     );
   return (
-    <>
+    <TopInsetOwner owned={demo}>
       <StatusBar style="dark" />
+      {demo ? <DemoStrip label={t("Demo · data sintetis", "Demo · synthetic data")} /> : null}
       <Stack
         screenOptions={{
           // One header for every pushed screen: round back (or close, for a modal) button and a heading.
@@ -60,7 +61,7 @@ function Navigation() {
         <Stack.Screen name="uang" options={{ title: t("Uang", "Money") }} />
         <Stack.Screen name="laporan/[id]" options={{ title: t("Laporan masalah", "Problem report") }} />
       </Stack>
-    </>
+    </TopInsetOwner>
   );
 }
 

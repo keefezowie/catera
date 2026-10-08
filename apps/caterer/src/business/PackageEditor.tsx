@@ -79,7 +79,7 @@ export function PackageEditor({ from }: { from?: SellerOffer }) {
       <Field label={t("Ceritakan paketnya", "Describe it")} value={form.description} onChangeText={(v) => set("description", v)} error={shown.description} multiline />
       <Text variant="label">{t("Isi satu porsi", "In one portion")}</Text>
       {defaultDishCategories.map((c) => (
-        <Stepper key={c.id} label={locale === "id" ? c.name : c.nameEn ?? c.name} value={form.counts[c.id] ?? 0} onChange={(n) => set("counts", { ...form.counts, [c.id]: n })} max={10} />
+        <Stepper key={c.id} label={locale === "id" ? c.name : c.nameEn ?? c.name} decreaseLabel={t(`Kurangi ${c.name}`, `Decrease ${c.nameEn ?? c.name}`)} increaseLabel={t(`Tambah ${c.name}`, `Increase ${c.nameEn ?? c.name}`)} value={form.counts[c.id] ?? 0} onChange={(n) => set("counts", { ...form.counts, [c.id]: n })} max={10} />
       ))}
       {shown.counts ? <Text variant="caption" style={{ color: colors.danger }}>{shown.counts}</Text> : null}
       <Field label={t("Harga per porsi (Rp)", "Price per portion (Rp)")} value={form.price} onChangeText={(v) => set("price", v.replace(/\D/g, ""))} error={shown.price} keyboardType="number-pad" placeholder="28000" />
