@@ -1,4 +1,5 @@
-import { addDays, type CustomerState, type Delivery, type DeliveryMeal, type Locale, type Offer, type Subscription } from "./index";
+import { addDays } from "./dates";
+import type { CustomerState, Delivery, DeliveryMeal, Locale, Offer, Subscription } from "./index";
 import { jakartaDay, shortDate } from "./kitchen";
 
 /** Customer-facing views of a delivery day, shared by the customer app and the web. */

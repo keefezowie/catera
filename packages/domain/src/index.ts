@@ -1,14 +1,10 @@
 import { z } from "zod";
-import { durationOptionsSchema } from "./purchase-pricing";
-import {
-  menuSchema,
-  nutritionSchema,
-  contentsIssues,
-  type MealMenu,
-  type Nutrition,
-  type PackageType,
-  type ContentRevision,
-  type DatedMenu,
+import type {
+  MealMenu,
+  Nutrition,
+  PackageType,
+  ContentRevision,
+  DatedMenu,
 } from "./contents";
 export * from "./contents";
 export * from "./delivery-availability";
@@ -21,9 +17,10 @@ export * from "./resource-phase";
 export * from "./customer-actions";
 export * from "./settlement";
 export * from "./saved-packages";
+export * from "./dates";
+export * from "./offer-schema";
+import type { MealType } from "./offer-schema";
 
-export const mealTypes = ["lunch", "dinner", "both"] as const;
-export type MealType = (typeof mealTypes)[number];
 export type Locale = "id" | "en";
 export type WorkspaceMode = "customer" | "caterer";
 export type Workspace = WorkspaceMode | "admin";
@@ -471,93 +468,6 @@ export const commandSchema = z.object({
   payload: z.record(z.string(), z.unknown()),
   requestId: z.uuid(),
 });
-export const offerSchema = z
-  .object({
-    durationPricing: z
-      .object({
-        revision: z.number().int().nonnegative(),
-        options: durationOptionsSchema,
-      })
-      .optional(),
-    name: z.string().trim().max(100),
-    description: z.string().trim().max(1500),
-    price: z.number().int().min(1000).max(10000000).nullable(),
-    days: z.number().int().min(1).max(60),
-    meal: z.enum(mealTypes),
-    weekdays: z.array(z.number().int().min(0).max(6)).max(7),
-    flexible: z.boolean(),
-    trialPrice: z.number().int().min(1000).nullable(),
-    trialMax: z.number().int().min(1).nullable(),
-    capacity: z.record(z.string(), z.number().int().min(0)),
-    tiers: z.array(
-      z.object({
-        min: z.number().int().min(1),
-        percent: z.number().min(0).max(90),
-      }),
-    ),
-    windows: z.object({ lunch: z.string().min(3), dinner: z.string().min(3) }),
-    tags: z.array(z.string().max(40)),
-    image: z.string().max(500),
-    packageType: z.enum(["ala_carte", "nasi_box"]).nullable().optional(),
-    menuSelectionMode: z.enum(["caterer", "customer"]).optional(),
-    menus: z.array(menuSchema).max(2),
-    nutrition: nutritionSchema.nullable().optional(),
-    status: z.enum(["draft", "published", "suspended", "retired"]),
-  })
-  .superRefine((o, ctx) => {
-    const complete = o.status !== "draft";
-    if (complete && o.price === null)
-      ctx.addIssue({
-        code: "custom",
-        path: ["price"],
-        message: "Isi harga per porsi / Enter the price per portion",
-      });
-    for (const [key, min] of [
-      ["name", 3],
-      ["description", 10],
-    ] as const)
-      if ((complete || o[key].length > 0) && o[key].length < min)
-        ctx.addIssue({
-          code: "custom",
-          path: [key],
-          message: `Minimal ${min} karakter / At least ${min} characters`,
-        });
-    if (complete && !o.weekdays.length)
-      ctx.addIssue({
-        code: "custom",
-        path: ["weekdays"],
-        message: "Pilih hari pengantaran / Choose operating days",
-      });
-    if (complete && !o.image.trim())
-      ctx.addIssue({
-        code: "custom",
-        path: ["image"],
-        message: "Unggah foto paket / Upload a package photo",
-      });
-    const capacityUnset = !complete && Object.keys(o.capacity).length === 0;
-    for (const d of capacityUnset ? [] : o.weekdays)
-      if (o.capacity[String(d)] === undefined)
-        ctx.addIssue({
-          code: "custom",
-          path: ["capacity"],
-          message: "Isi kapasitas / Enter capacity",
-        });
-    const activeCapacity = o.weekdays.map((d) => o.capacity[String(d)]);
-    if (
-      activeCapacity.every(
-        (capacity): capacity is number => capacity !== undefined,
-      ) &&
-      new Set(activeCapacity).size > 1
-    )
-      ctx.addIssue({
-        code: "custom",
-        path: ["capacity"],
-        message:
-          "Kapasitas harus sama untuk semua hari operasional / Capacity must be the same for every operating day",
-      });
-    for (const message of contentsIssues(o, o.status !== "draft"))
-      ctx.addIssue({ code: "custom", path: ["menus"], message });
-  });
 export const areaOptions = [
   "Jakarta Selatan",
   "Jakarta Pusat",
@@ -573,38 +483,6 @@ export function currency(n: number, locale: Locale = "id") {
     currency: "IDR",
     maximumFractionDigits: 0,
   }).format(n);
-}
-export function localDay(now = new Date(), timezone = "Asia/Jakarta") {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: timezone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(now);
-}
-export function addDays(day: string, n: number) {
-  const d = new Date(day + "T12:00:00Z");
-  d.setUTCDate(d.getUTCDate() + n);
-  return d.toISOString().slice(0, 10);
-}
-export function schedule(
-  start: string,
-  days: number,
-  weekdays: number[],
-  closed: string[] = [],
-) {
-  const result: string[] = [];
-  if (!weekdays.length) throw new Error("NO_OPERATING_DAYS");
-  for (let i = 0; i < 730 && result.length < days; i++) {
-    const d = addDays(start, i);
-    if (
-      weekdays.includes(new Date(d + "T12:00:00Z").getUTCDay()) &&
-      !closed.includes(d)
-    )
-      result.push(d);
-  }
-  if (result.length !== days) throw new Error("NO_AVAILABILITY");
-  return result;
 }
 export function packageSubtotal(
   offer: Pick<Offer, "price" | "days">,

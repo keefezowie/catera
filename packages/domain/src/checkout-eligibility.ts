@@ -1,4 +1,5 @@
-import { addDays, type Offer } from "./index";
+import { addDays } from "./dates";
+import type { Offer } from "./index";
 
 /** Matches v1.cutoff: the previous day's cutoff in the caterer's timezone. */
 export function purchaseStartAvailable(

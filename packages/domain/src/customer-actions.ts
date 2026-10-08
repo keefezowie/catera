@@ -1,9 +1,5 @@
-import {
-  addDays,
-  localDay,
-  type CustomerActionItem,
-  type Locale,
-} from "./index";
+import { addDays, localDay } from "./dates";
+import type { CustomerActionItem, Locale } from "./index";
 
 export type CustomerActionPresentation = {
   title: string;

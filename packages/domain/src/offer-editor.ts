@@ -1,4 +1,4 @@
-import { offerSchema } from "./index";
+import { offerSchema } from "./offer-schema";
 export const offerSteps = [
   "offer",
   "contents",
