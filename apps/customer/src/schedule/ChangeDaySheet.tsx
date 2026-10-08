@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text as RNText, View } from "react-native";
+import { ScrollView, StyleSheet, Text as RNText, View } from "react-native";
 import {
   addDays,
   availabilityReasonLabel,
@@ -304,7 +304,8 @@ function OptionRow({
 }) {
   const ink = selected ? colors.cream : disabled ? colors.muted : colors.charcoal;
   return (
-    <Pressable
+    <PressableScale
+      haptic={disabled ? "none" : "select"}
       accessibilityRole="button"
       accessibilityLabel={[label, sub, note].filter(Boolean).join(", ")}
       accessibilityState={{ selected, disabled }}
@@ -317,7 +318,7 @@ function OptionRow({
         {sub ? <RNText style={[styles.rowSub, { color: ink }]}>{sub}</RNText> : null}
       </View>
       {note ? <RNText style={[styles.rowSub, { color: ink }]}>{note}</RNText> : null}
-    </Pressable>
+    </PressableScale>
   );
 }
 

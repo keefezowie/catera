@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
-import { Linking, Pressable, Text as RNText, StyleSheet, View } from "react-native";
+import { Linking, Text as RNText, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import type { DirectPaymentMethod, Offer, PaymentAvailability } from "@catera/domain";
-import { Button, Card, colors, FONT, fontFor, Sheet, Text } from "@catera/mobile-ui";
+import { Button, Card, colors, FONT, fontFor, PressableScale, Sheet, Text } from "@catera/mobile-ui";
 
 type T = (id: string, en: string) => string;
 
@@ -136,8 +136,9 @@ export function ChoiceSheet({
   return (
     <Sheet visible={visible} onClose={onClose} title={title} closeLabel={closeLabel}>
       {items.map((item) => (
-        <Pressable
+        <PressableScale
           key={item.id}
+          haptic="select"
           accessibilityRole="radio"
           accessibilityState={{ checked: item.id === selected }}
           onPress={() => {
@@ -148,7 +149,7 @@ export function ChoiceSheet({
         >
           <Text variant="label">{item.label}</Text>
           {item.detail ? <Text variant="caption">{item.detail}</Text> : null}
-        </Pressable>
+        </PressableScale>
       ))}
       {children}
     </Sheet>

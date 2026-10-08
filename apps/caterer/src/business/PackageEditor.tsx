@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { Image, Pressable, View } from "react-native";
+import { Image, View } from "react-native";
 import { router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { defaultDishCategories, errorLabel, type SellerOffer } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { Button, Chip, colors, Field, Screen, Segmented, Stepper, Text } from "@catera/mobile-ui";
+import { Button, Chip, colors, Field, PressableScale, Screen, Segmented, Stepper, Text } from "@catera/mobile-ui";
 import { emptyPackage, formFromOffer, packageIssues, quickOffer, type PackageForm } from "./package";
 import { photoUri } from "../photo";
 import { uploadPhoto } from "./upload";
@@ -60,7 +60,7 @@ export function PackageEditor({ from }: { from?: SellerOffer }) {
 
   return (
     <Screen footer={<Button label={t("Simpan paket", "Save package")} disabled={busy || uploading} onPress={() => void save()} />}>
-      <Pressable
+      <PressableScale
         accessibilityRole="button"
         accessibilityLabel={t("Pilih foto paket", "Choose package photo")}
         onPress={() => void pickPhoto()}
@@ -73,7 +73,7 @@ export function PackageEditor({ from }: { from?: SellerOffer }) {
             {uploading ? t("Mengunggah…", "Uploading…") : t("+ Foto paket", "+ Package photo")}
           </Text>
         )}
-      </Pressable>
+      </PressableScale>
       {shown.image ? <Text variant="caption" style={{ color: colors.danger }}>{shown.image}</Text> : null}
       <Field label={t("Nama paket", "Package name")} value={form.name} onChangeText={(v) => set("name", v)} error={shown.name} placeholder="Makan Siang Rumahan" />
       <Field label={t("Ceritakan paketnya", "Describe it")} value={form.description} onChangeText={(v) => set("description", v)} error={shown.description} multiline />

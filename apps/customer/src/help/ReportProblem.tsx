@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text as RNText, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text as RNText, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { dayLabel, errorLabel, jakartaDay, mealLabel, type Delivery } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, colors, Field, fontFor, Screen, Text } from "@catera/mobile-ui";
+import { Button, Card, colors, Field, fontFor, PressableScale, Screen, Text } from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
 import { ChatKatering, catererPhoneOf } from "./ChatKatering";
 
@@ -156,8 +156,9 @@ function Report({ id, meal: wanted, jenis }: { id: string; meal?: string; jenis?
           {meals.map((m) => {
             const checked = m.meal === current?.meal;
             return (
-              <Pressable
+              <PressableScale
                 key={m.meal}
+                haptic="select"
                 accessibilityRole="radio"
                 accessibilityLabel={mealLabel(m.meal, locale)}
                 accessibilityState={{ checked }}
@@ -167,7 +168,7 @@ function Report({ id, meal: wanted, jenis }: { id: string; meal?: string; jenis?
                 <RNText style={[styles.choiceLabel, { color: checked ? colors.cream : colors.charcoal }]}>
                   {mealLabel(m.meal, locale)}
                 </RNText>
-              </Pressable>
+              </PressableScale>
             );
           })}
         </View>
@@ -186,8 +187,9 @@ function Report({ id, meal: wanted, jenis }: { id: string; meal?: string; jenis?
             {KINDS.map((k) => {
               const checked = kind === k.id;
               return (
-                <Pressable
+                <PressableScale
                   key={k.id}
+                  haptic="select"
                   accessibilityRole="radio"
                   accessibilityLabel={k.subject}
                   accessibilityState={{ checked }}
@@ -197,7 +199,7 @@ function Report({ id, meal: wanted, jenis }: { id: string; meal?: string; jenis?
                   <RNText style={[styles.choiceLabel, { color: checked ? colors.cream : colors.charcoal }]}>
                     {t(k.subject, k.en)}
                   </RNText>
-                </Pressable>
+                </PressableScale>
               );
             })}
           </View>

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { currency, shortDate, type Locale, type Quote } from "@catera/domain";
-import { Button, colors, fontFor, Text } from "@catera/mobile-ui";
+import { Button, colors, fontFor, PressableScale, Text } from "@catera/mobile-ui";
 
 const FULL_DAYS = {
   id: ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"],
@@ -42,8 +42,9 @@ export function LengthOptions({
       {options.map((o) => {
         const on = o.cycles === value;
         return (
-          <Pressable
+          <PressableScale
             key={o.cycles}
+            haptic="select"
             accessibilityRole="radio"
             accessibilityLabel={o.label}
             accessibilityState={{ checked: on }}
@@ -51,7 +52,7 @@ export function LengthOptions({
             style={[styles.option, on ? styles.optionOn : styles.optionOff]}
           >
             <Text style={[styles.optionLabel, { color: on ? colors.cream : colors.forest }]}>{o.label}</Text>
-          </Pressable>
+          </PressableScale>
         );
       })}
     </View>

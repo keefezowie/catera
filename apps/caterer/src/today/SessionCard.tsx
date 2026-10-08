@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Linking, Pressable, Share, View } from "react-native";
+import { Linking, Share, View } from "react-native";
 import * as Print from "expo-print";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
@@ -13,7 +13,7 @@ import {
   type Stop,
 } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { Button, Card, colors, fontFor, Text } from "@catera/mobile-ui";
+import { Button, Card, colors, fontFor, PressableScale, Text } from "@catera/mobile-ui";
 import { canMoveDelivery, ExceptionSheet } from "./ExceptionSheet";
 
 /** "3 lauk, 2 nasi, 2 sayur": the slots nobody has filled yet, biggest first, summed over packages. */
@@ -175,23 +175,23 @@ export function SessionCard({
               </Text>
             ) : null}
           </View>
-          <Pressable
+          <PressableScale
             accessibilityRole="link"
             accessibilityLabel={`${t("Buka peta", "Open map")} ${s.name}`}
             onPress={() => void Linking.openURL(s.mapsUrl)}
             style={{ width: 48, height: 48, alignItems: "center", justifyContent: "center" }}
           >
             <Ionicons name="location-outline" size={22} color={colors.forest} />
-          </Pressable>
+          </PressableScale>
           {report === "today" || (report === "tomorrow" && movable(ops, s)) ? (
-            <Pressable
+            <PressableScale
               accessibilityRole="button"
               accessibilityLabel={`${report === "today" ? t("Ada masalah", "Problem") : t("Pindah tanggal", "Move date")}: ${s.name}`}
               onPress={() => setReporting(s)}
               style={{ width: 48, height: 48, alignItems: "center", justifyContent: "center" }}
             >
               <Ionicons name="ellipsis-horizontal" size={22} color={colors.muted} />
-            </Pressable>
+            </PressableScale>
           ) : null}
         </View>
       ))}

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, AppState, Image, Pressable, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Alert, AppState, Image, StyleSheet, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useNavigation, usePreventRemove } from "expo-router/react-navigation";
 import {
@@ -12,7 +12,7 @@ import {
   type MealMenu,
 } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, colors, fontFor, Screen, Segmented, Text } from "@catera/mobile-ui";
+import { Button, Card, colors, fontFor, PressableScale, Screen, Segmented, Text } from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
 import { failureText } from "../account/failure";
 import { FilterChip } from "../discover/FilterChip";
@@ -272,8 +272,9 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
           ) : null}
           <View>
             {dates.map((d, i) => (
-              <Pressable
+              <PressableScale
                 key={d.dayId}
+                haptic="select"
                 accessibilityRole="button"
                 accessibilityState={{ selected: d.dayId === selected?.dayId }}
                 onPress={() => setDate(d.date)}
@@ -281,7 +282,7 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
               >
                 <Text style={{ flex: 1, fontFamily: fontFor("700") }}>{longDay(d.date, locale)}</Text>
                 <Text variant="caption">{stateLabel(d)}</Text>
-              </Pressable>
+              </PressableScale>
             ))}
           </View>
           {selected ? (

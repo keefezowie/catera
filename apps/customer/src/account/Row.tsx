@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { colors, fontFor, Text } from "@catera/mobile-ui";
+import { colors, fontFor, PressableRow, Text } from "@catera/mobile-ui";
 
 /** One plain list row (52pt tall): a label, an optional value and a chevron when it opens something. */
 export function Row({
@@ -40,14 +40,14 @@ export function Row({
   );
   if (!onPress) return <View style={[styles.row, !first && styles.divider]}>{body}</View>;
   return (
-    <Pressable
+    <PressableRow
       accessibilityRole="button"
       accessibilityLabel={value ? `${label}, ${value}` : label}
       onPress={onPress}
-      style={({ pressed }) => [styles.row, !first && styles.divider, pressed && { opacity: 0.7 }]}
+      style={[styles.row, !first && styles.divider]}
     >
       {body}
-    </Pressable>
+    </PressableRow>
   );
 }
 

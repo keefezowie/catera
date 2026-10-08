@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { Pressable, View } from "react-native";
+import { View } from "react-native";
 import { errorLabel, type KitchenMeal, type SellerOperationsState, type Stop } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { Button, colors, Field, fontFor, Sheet, Text } from "@catera/mobile-ui";
+import { Button, colors, Field, fontFor, PressableScale, Sheet, Text } from "@catera/mobile-ui";
 import { issueSteps } from "./exceptions";
 
 /**
@@ -70,7 +70,8 @@ export function ExceptionSheet({
   }
 
   const option = (value: "failed" | "move", title: string, body: string) => (
-    <Pressable
+    <PressableScale
+      haptic="select"
       accessibilityRole="radio"
       accessibilityState={{ checked: kind === value }}
       onPress={() => setKind(value)}
@@ -85,7 +86,7 @@ export function ExceptionSheet({
     >
       <Text style={{ fontFamily: fontFor("800") }}>{title}</Text>
       <Text variant="caption">{body}</Text>
-    </Pressable>
+    </PressableScale>
   );
 
   return (

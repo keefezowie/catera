@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
-import { Alert } from "react-native";
+import { Alert, StyleSheet } from "react-native";
+import * as Haptics from "expo-haptics";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { ChooseMenu } from "../src/schedule/ChooseMenu";
 import { customerLink } from "../src/links";
@@ -194,4 +195,13 @@ it("after the cutoff the caterer chooses and nothing can be edited", async () =>
   renderMenu();
   expect(await screen.findByText(/katering yang memilih menu Anda/)).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Pilih hidangan" })).toBeNull();
+});
+
+it("date rows are 48dp picks with a selection haptic", async () => {
+  renderMenu();
+  const row = await screen.findByRole("button", { name: /Selasa 3 November/ });
+  expect(StyleSheet.flatten(row.props.style).minHeight).toBeGreaterThanOrEqual(48);
+  expect(row.props.accessibilityState.selected).toBe(true);
+  fireEvent.press(row);
+  expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
 });

@@ -200,6 +200,15 @@ describe("Ada masalah", () => {
     expect(router.replace).toHaveBeenCalledWith("/bantuan");
   });
 
+  it("what-happened picks are 48dp and give a selection haptic", async () => {
+    renderWith(runtimeWith(), <ReportProblem />);
+    const pick = await screen.findByRole("radio", { name: "Makanan tidak layak" });
+    expect(StyleSheet.flatten(pick.props.style).minHeight).toBeGreaterThanOrEqual(48);
+    fireEvent.press(pick);
+    expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("radio", { name: "Makanan tidak layak" }).props.accessibilityState.checked).toBe(true);
+  });
+
   it("opens WhatsApp with the caterer first, and hides the chat without a number", async () => {
     const openUrl = jest.spyOn(Linking, "openURL").mockResolvedValue(true);
     const view = renderWith(

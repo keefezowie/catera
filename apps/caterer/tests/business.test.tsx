@@ -59,6 +59,23 @@ describe("quickOffer", () => {
   });
 });
 
+it("the package photo picker gives a tap haptic and stays a button", async () => {
+  const Haptics = require("expo-haptics") as { impactAsync: jest.Mock };
+  Haptics.impactAsync.mockClear();
+  const picker = require("expo-image-picker") as { launchImageLibraryAsync: jest.Mock };
+  picker.launchImageLibraryAsync.mockResolvedValue({ canceled: true, assets: [] });
+  render(
+    <MobileProvider runtime={runtimeWith({})} linkMapper={() => "/"}>
+      <PackageEditor />
+    </MobileProvider>,
+  );
+  const photo = await screen.findByRole("button", { name: "Pilih foto paket" });
+  expect(StyleSheet.flatten(photo.props.style).height).toBe(168);
+  fireEvent.press(photo);
+  expect(Haptics.impactAsync).toHaveBeenCalledTimes(1);
+  expect(picker.launchImageLibraryAsync).toHaveBeenCalled();
+});
+
 it("asks for daily capacity before saving", async () => {
   const command = jest.fn();
   const runtime = runtimeWith({ command });
@@ -295,6 +312,8 @@ describe("Usaha states", () => {
     );
     expect(await screen.findByRole("button", { name: "Aktifkan pembayaran" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Mulai" })).toBeNull();
+    expect(screen.getByRole("header", { name: "Terima pembayaran lewat Catera" })).toBeTruthy();
+    expect(screen.getByText("Supaya pelanggan bisa memperpanjang lewat Catera.")).toBeTruthy();
   });
 });
 

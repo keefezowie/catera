@@ -1,12 +1,12 @@
 import { useRef, useState } from "react";
-import { Pressable, TextInput, View } from "react-native";
+import { TextInput, View } from "react-native";
 import { router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 import { File } from "expo-file-system";
 import { earliestImportStart, errorLabel, jakartaDay, normalizeCustomerPhone } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, Chip, colors, FONT, Field, fontFor, Screen, Sheet, Text } from "@catera/mobile-ui";
+import { Button, Card, Chip, colors, FONT, Field, fontFor, PressableRow, Screen, Sheet, Text } from "@catera/mobile-ui";
 import { recheck, toImportRow, type AssistantRow } from "./rows";
 import { fitsUpload, MAX_IMAGES, shrinkPhoto } from "./images";
 
@@ -225,14 +225,14 @@ export function ImportAssistant() {
           </Text>
           {rows.map((r) => (
             <Card key={r.n} tone={r.needsReview ? "attention" : "surface"}>
-              <Pressable accessibilityRole="button" accessibilityLabel={`${t("Ubah", "Edit")} ${r.name}`} onPress={() => setEditing(r.n)} style={{ gap: 4 }}>
+              <PressableRow accessibilityRole="button" accessibilityLabel={`${t("Ubah", "Edit")} ${r.name}`} onPress={() => setEditing(r.n)} style={{ gap: 4 }}>
                 <Text variant="heading">{r.name || t("Tanpa nama", "No name")}</Text>
                 <Text variant="caption">{[r.phone, [r.addressLine, r.area].filter(Boolean).join(", ")].filter(Boolean).join(" · ")}</Text>
                 <Text variant="caption">
                   {`${packages.find((p) => p.id === r.packageId)?.name ?? t("Paket belum dipilih", "Package not chosen")} · ${r.remainingDays != null ? `${r.remainingDays} ${t("hari lagi", "days left")}` : t("sisa hari belum diisi", "days left not set")} · ${r.portions} ${t("porsi", "portions")}`}
                 </Text>
                 {r.needsReview ? <Text style={{ color: colors.sunriseInk, fontFamily: fontFor("700") }}>{r.reason}</Text> : null}
-              </Pressable>
+              </PressableRow>
             </Card>
           ))}
           <Button variant="secondary" label={t("Tambah baris", "Add a row")} onPress={addRow} />

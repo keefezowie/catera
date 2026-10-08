@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { StyleSheet } from "react-native";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { ImportAssistant } from "../src/import/ImportAssistant";
 import { toImportRow } from "../src/import/rows";
@@ -191,6 +192,18 @@ it("adds another empty row with Tambah baris", async () => {
   fireEvent.press(screen.getByRole("button", { name: "Tambah baris" }));
   fireEvent.press(screen.getByRole("button", { name: "Selesai" }));
   expect(screen.getAllByText("Tanpa nama")).toHaveLength(2);
+});
+
+it("a review row dims on press and still opens its editor", async () => {
+  const unset = row(1, { needsReview: true, reason: "Perlu dicek" });
+  setup(jest.fn(), { ok: true, json: async () => ({ data: { rows: [unset], needsReview: 1 } }) });
+  await read();
+  const touch = { nativeEvent: { touches: [], changedTouches: [] }, persist() {} };
+  const edit = async () => screen.findByRole("button", { name: "Ubah Pelanggan 1" });
+  fireEvent(await edit(), "responderGrant", touch);
+  expect(StyleSheet.flatten((await edit()).props.style).opacity).toBe(0.7);
+  fireEvent.press(await edit());
+  expect(await screen.findByRole("button", { name: "Selesai" })).toBeTruthy();
 });
 
 it("import row names a missing package", async () => {

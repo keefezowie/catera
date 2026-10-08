@@ -423,6 +423,19 @@ describe("Ubah hari sheet", () => {
     );
   });
 
+  it("address rows are 48dp picks with a selection haptic, and a disabled one gives none", async () => {
+    renderSheet(flexible, runtimeWith(stateOf([flexible]), available));
+    fireEvent.press(await screen.findByRole("tab", { name: "Ganti alamat" }));
+    (Haptics.selectionAsync as jest.Mock).mockClear();
+    const rumahRow = screen.getByRole("button", { name: /Rumah/ });
+    expect(StyleSheet.flatten(rumahRow.props.style).minHeight).toBeGreaterThanOrEqual(48);
+    fireEvent.press(rumahRow);
+    expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
+    (Haptics.selectionAsync as jest.Mock).mockClear();
+    fireEvent.press(screen.getByRole("button", { name: /Villa/ }));
+    expect(Haptics.selectionAsync).not.toHaveBeenCalled();
+  });
+
   it("after cutoff offers only chat", async () => {
     const late = open("d-1", "2026-10-07", { catererPhone: "+6281200000001" } as Partial<Delivery>);
     const runtime = runtimeWith(stateOf([late]), available);

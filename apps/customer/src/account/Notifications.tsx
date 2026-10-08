@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import { errorLabel, jakartaDay, type Locale, type Notice } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, colors, fontFor, Screen, Text } from "@catera/mobile-ui";
+import { Button, Card, colors, fontFor, PressableRow, Screen, Text } from "@catera/mobile-ui";
 import { customerLink } from "../links";
 import { longDay } from "../schedule/dates";
 import { jakartaClock } from "../today/Plate";
@@ -100,11 +100,11 @@ function Updates() {
       ) : notes.length ? (
         <View>
           {notes.map((n, i) => (
-            <Pressable
+            <PressableRow
               key={n.id}
               accessibilityRole="button"
               onPress={() => void open(n)}
-              style={({ pressed }) => [styles.row, i > 0 && styles.divider, pressed && { opacity: 0.7 }]}
+              style={[styles.row, i > 0 && styles.divider]}
             >
               <View style={[styles.dot, { backgroundColor: n.read_at ? "transparent" : colors.forest }]} />
               <View style={{ flex: 1, gap: 2 }}>
@@ -114,7 +114,7 @@ function Updates() {
                   {`${longDay(jakartaDay(new Date(n.created_at)), locale)} · ${jakartaClock(n.created_at)}`}
                 </Text>
               </View>
-            </Pressable>
+            </PressableRow>
           ))}
         </View>
       ) : (

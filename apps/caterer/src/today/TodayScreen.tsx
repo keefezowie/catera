@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Pressable, View } from "react-native";
+import { View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import {
@@ -137,7 +137,7 @@ function ReportCards({ issues }: { issues: DeliveryIssue[] }) {
       {waiting.map((i) => {
         const who = i.customerName || t("Pelanggan", "A customer");
         return (
-          <Pressable
+          <PressableRow
             key={i.id}
             accessibilityRole="button"
             accessibilityLabel={`${t("Buka laporan", "Open report")}: ${who}`}
@@ -156,7 +156,7 @@ function ReportCards({ issues }: { issues: DeliveryIssue[] }) {
               </View>
               <Ionicons name="chevron-forward" size={22} color={colors.forest} />
             </Card>
-          </Pressable>
+          </PressableRow>
         );
       })}
     </>
@@ -181,18 +181,24 @@ function ActionCards({ items }: { items: SellerAttentionItem[] }) {
         const [id, en] = attentionLabels[item.kind]!;
         // "/" is dapurLink's answer for "no Dapur screen for this": Hari ini is already where we are.
         const route = dapurLink(item.href);
+        const link = route !== "/";
         const card = (
-          <Card tone="attention">
-            <Text style={{ fontFamily: fontFor("800") }}>{t(id, en)}</Text>
-            {item.context ? <Text variant="caption">{item.context}</Text> : null}
+          <Card tone="attention" style={link ? { flexDirection: "row", alignItems: "center" } : undefined}>
+            <View style={{ flex: link ? 1 : undefined, gap: link ? 2 : undefined }}>
+              <Text style={{ fontFamily: fontFor("800") }}>{t(id, en)}</Text>
+              {item.context ? <Text variant="caption">{item.context}</Text> : null}
+            </View>
+            {link ? <Ionicons name="chevron-forward" size={18} color={colors.muted} /> : null}
           </Card>
         );
-        return route === "/" ? (
-          <View key={item.id}>{card}</View>
-        ) : (
-          <PressableRow key={item.id} accessibilityRole="link" onPress={() => router.push(route as never)}>
+        return link ? (
+          <PressableRow key={item.id} testID={`attention-${item.id}`} accessibilityRole="link" onPress={() => router.push(route as never)}>
             {card}
           </PressableRow>
+        ) : (
+          <View key={item.id} testID={`attention-${item.id}`}>
+            {card}
+          </View>
         );
       })}
     </>
@@ -213,7 +219,7 @@ function MulaiCard() {
           {t("Siapkan dapur Anda", "Set up your kitchen")}
         </Text>
         {steps.map(([title, sub, href], i) => (
-          <Pressable
+          <PressableRow
             key={href}
             accessibilityRole="button"
             onPress={() => router.push(href as never)}
@@ -229,7 +235,7 @@ function MulaiCard() {
             <Text variant="caption" style={{ color: i === 0 ? colors.muted : colors.cream }}>
               {sub}
             </Text>
-          </Pressable>
+          </PressableRow>
         ))}
       </Card>
       <Card>

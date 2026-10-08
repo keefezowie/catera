@@ -1,12 +1,17 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
-import { Share } from "react-native";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
+import { Share, StyleSheet } from "react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { TodayScreen } from "../src/today/TodayScreen";
 import { SessionCard } from "../src/today/SessionCard";
 import { issueSteps } from "../src/today/exceptions";
 import * as offline from "../src/today/offline";
+import * as Haptics from "expo-haptics";
 import { canvasDay, emptyDay, quietDay, report } from "./fixtures";
+import { colors } from "@catera/mobile-ui";
+
+const touch = { nativeEvent: { touches: [], changedTouches: [] }, persist() {} };
 
 const pinToday = () =>
   jest.useFakeTimers({
@@ -107,6 +112,29 @@ it("welcomes a new caterer with the setup card instead of empty lists", async ()
   expect(await screen.findByText("Siapkan dapur Anda")).toBeTruthy();
 });
 
+it("report cards and setup rows dim on press and still navigate", async () => {
+  const runtime = runtimeWith(async () => canvasDay());
+  (runtime.api.request as jest.Mock).mockImplementation(async (path: string) => (path.startsWith("delivery-issues") ? [report()] : []));
+  const first = renderToday(runtime);
+  const card = () => screen.getByRole("button", { name: "Buka laporan: Nadia Putri" });
+  await screen.findByText("Nadia Putri melaporkan masalah");
+  expect(StyleSheet.flatten(card().props.style)?.opacity ?? 1).toBe(1);
+  fireEvent(card(), "responderGrant", touch);
+  expect(StyleSheet.flatten(card().props.style).opacity).toBe(0.7);
+  fireEvent.press(card());
+  expect(router.push).toHaveBeenCalledWith("/laporan/i-1");
+  first.unmount();
+
+  renderToday(runtimeWith(async () => emptyDay()));
+  const step = () => screen.getByRole("button", { name: /Buat paket pertama/ });
+  await screen.findByText("Siapkan dapur Anda");
+  expect(StyleSheet.flatten(step().props.style)).toMatchObject({ minHeight: 56, backgroundColor: colors.cream });
+  fireEvent(step(), "responderGrant", touch);
+  expect(StyleSheet.flatten(step().props.style)).toMatchObject({ opacity: 0.7, backgroundColor: colors.cream });
+  fireEvent.press(step());
+  expect(router.push).toHaveBeenCalledWith("/paket/baru");
+});
+
 describe("issueSteps", () => {
   it("walks any open status forward to issue", () => {
     expect(issueSteps("scheduled")).toEqual(["preparing", "out_for_delivery", "issue"]);
@@ -165,6 +193,15 @@ it("moves a customer's day from Besok while the cutoff is still ahead", async ()
       expect.any(String),
     ),
   );
+});
+
+it("the stop menu button and the problem options give haptics", async () => {
+  renderToday(runtimeWith(async () => canvasDay()));
+  fireEvent.press(await screen.findByLabelText("Ada masalah: Keluarga Hartono"));
+  expect(Haptics.impactAsync).toHaveBeenCalledTimes(1);
+  const option = (await screen.findAllByRole("radio"))[0];
+  fireEvent.press(option);
+  expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
 });
 
 it("tells the caterer plainly what a failed delivery means", async () => {
@@ -436,6 +473,23 @@ describe("attention cards", () => {
     renderToday(runtime);
     fireEvent.press(await screen.findByRole("link", { name: /Ada urusan pembayaran/ }));
     expect(router.push).toHaveBeenCalledWith("/pelanggan");
+  });
+
+  it("a link card shows a chevron, a plain card does not", async () => {
+    const runtime = runtimeWith(async () => canvasDay());
+    (runtime.api.sellerAttention as jest.Mock).mockResolvedValue({
+      items: [
+        { id: "a-1", kind: "payment", priority: 1, at_time: "2026-10-08T05:40:00Z", context: "Bu Sari", href: "/seller/customers" },
+        { id: "a-2", kind: "support", priority: 1, at_time: "2026-10-08T05:41:00Z", context: "Tanya tagihan", href: "/seller/support?case=c-1" },
+      ],
+      total: 2, nextCursor: null, timezone: "Asia/Jakarta",
+    });
+    renderToday(runtime);
+    const link = await screen.findByRole("link", { name: /Ada urusan pembayaran/ });
+    const chevrons = within(link).UNSAFE_getAllByType(Ionicons);
+    expect(chevrons).toHaveLength(1);
+    expect(chevrons[0].props).toMatchObject({ name: "chevron-forward", size: 18, color: colors.muted });
+    expect(within(screen.getByTestId("attention-a-2")).UNSAFE_queryAllByType(Ionicons)).toHaveLength(0);
   });
 
   it("stays a plain card when the href has no Dapur screen", async () => {

@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import * as Clipboard from "expo-clipboard";
 import * as WebBrowser from "expo-web-browser";
 import * as SecureStore from "expo-secure-store";
+import * as Haptics from "expo-haptics";
 import { addDays, currency, type Checkout, type Quote, type RenewalContext } from "@catera/domain";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { colors } from "@catera/mobile-ui";
@@ -413,6 +414,25 @@ describe("Beli / Perpanjang", () => {
     wrap(runtime, <BuyScreen renewFrom="s-1" />);
     fireEvent.press(await screen.findByRole("button", { name: "Lanjutkan pembayaran" }));
     expect(router.replace).toHaveBeenCalledWith("/bayar/ck-9");
+  });
+
+  it("sheet options are 48dp picks with a selection haptic", async () => {
+    wrap(server(), <BuyScreen packageId="p-rumahan" />);
+    await bayarReady();
+    fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" }));
+    const home = screen.getByRole("radio", { name: /Rumah/ });
+    expect(StyleSheet.flatten(home.props.style).minHeight).toBeGreaterThanOrEqual(48);
+    fireEvent.press(home);
+    expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it("cycle options give a selection haptic", async () => {
+    wrap(server(), <BuyScreen packageId="p-rumahan" />);
+    await bayarReady();
+    const long = screen.getByRole("radio", { name: "40 hari · Hemat 5%" });
+    expect(StyleSheet.flatten(long.props.style).minHeight).toBeGreaterThanOrEqual(48);
+    fireEvent.press(long);
+    expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
   });
 
   it("an address outside the area hides the old price", async () => {

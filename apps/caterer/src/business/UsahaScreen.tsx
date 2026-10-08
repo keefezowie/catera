@@ -55,7 +55,7 @@ export function UsahaScreen() {
       <Text variant="title">{ops.data?.caterer.name || t("Usaha", "Business")}</Text>
       {payments === false ? (
         <Card tone="attention">
-          <Text variant="heading">{t("Aktifkan pembayaran", "Turn on payments")}</Text>
+          <Text variant="heading">{t("Terima pembayaran lewat Catera", "Take payments through Catera")}</Text>
           <Text>{t("Supaya pelanggan bisa memperpanjang lewat Catera.", "So customers can renew through Catera.")}</Text>
           <Button label={t("Aktifkan pembayaran", "Turn on payments")} onPress={() => router.push("/aktifkan" as never)} />
         </Card>
