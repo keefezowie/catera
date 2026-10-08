@@ -340,6 +340,18 @@ describe("Ubah hari sheet", () => {
     expect(screen.getByRole("button", { name: "Pilih tanggal" }).props.accessibilityState.disabled).toBe(true);
   });
 
+  it("shows why a date is unavailable", async () => {
+    const dates: Availability = [
+      { date: "2026-10-12", available: false, reason: "DUPLICATE_DATE", remaining: 3 },
+      { date: "2026-10-13", available: false, reason: "CAPACITY", remaining: 0 },
+    ];
+    renderSheet(flexible, runtimeWith(stateOf([flexible]), dates));
+    const full = await screen.findByRole("button", { name: /Selasa 13 Okt, Katering penuh/ });
+    expect(within(full).getByText("Penuh")).toBeTruthy();
+    const taken = screen.getByRole("button", { name: /Senin 12 Okt, Sudah ada pengantaran/ });
+    expect(within(taken).getByText("Terisi")).toBeTruthy();
+  });
+
   it("shows the empty message when no date is bookable", async () => {
     renderSheet(flexible, runtimeWith(stateOf([flexible]), []));
     expect(await screen.findByText("Belum ada tanggal yang tersedia dalam 30 hari ke depan.")).toBeTruthy();

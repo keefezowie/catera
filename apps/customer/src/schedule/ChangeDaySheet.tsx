@@ -239,6 +239,7 @@ function DateChips({
   today: string;
   locale: "id" | "en";
 }) {
+  const { t } = useMobile();
   return (
     <View style={{ gap: 10 }}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
@@ -262,6 +263,12 @@ function DateChips({
             >
               <RNText style={[styles.chipDay, { color: ink }]}>{weekday.slice(0, 3)}</RNText>
               <RNText style={[styles.chipDate, { color: ink }]}>{rest.join(" ")}</RNText>
+              {off ? (
+                // State is paired with text, not only a dimmed look.
+                <Text variant="caption" style={styles.chipWhy}>
+                  {r.reason === "CAPACITY" ? t("Penuh", "Full") : t("Terisi", "Taken")}
+                </Text>
+              ) : null}
             </PressableScale>
           );
         })}
@@ -328,6 +335,7 @@ const styles = StyleSheet.create({
     minWidth: 64,
     minHeight: 56,
     paddingHorizontal: 10,
+    paddingVertical: 6,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 10,
@@ -336,7 +344,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   chipOn: { backgroundColor: colors.forest, borderColor: colors.forest },
-  chipOff: { borderStyle: "dashed", borderColor: "#B9BFB0", backgroundColor: "transparent", opacity: 0.55 },
+  chipOff: { borderStyle: "dashed", borderColor: "#B9BFB0", backgroundColor: "transparent" },
+  chipWhy: { color: colors.muted, lineHeight: 16 },
   chipDay: { fontFamily: FONT, fontSize: 11, lineHeight: 16 },
   chipDate: { fontFamily: fontFor("700"), fontSize: 15, lineHeight: 20, fontVariant: ["tabular-nums"] },
   rowLabel: { fontSize: 15, fontFamily: fontFor("700"), fontVariant: ["tabular-nums"] },
