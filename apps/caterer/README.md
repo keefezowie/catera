@@ -28,7 +28,7 @@ cd apps/caterer && cp .env.example .env && npx expo start
 
 - **Phones:** set `EXPO_PUBLIC_API_URL` to the dev machine's LAN IP, e.g. `http://192.168.1.20:3000`. The Android emulator uses `http://10.0.2.2:3000`.
 - **Demo mode:** synthetic data only. The sign-in screen shows demo roles in development builds.
-- **Import assistant:** needs `ANTHROPIC_API_KEY` on the web server. Without it, the assistant reports itself as unavailable.
+- **Import assistant:** needs `ANTHROPIC_API_KEY` on the web server. Without it the API answers `IMPORT_ASSISTANT_DISABLED` and the app offers "Isi manual" (one customer per row, same review and save).
 
 ## Checks
 

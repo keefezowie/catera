@@ -109,3 +109,86 @@ it("does not retry row by row when the connection drops", async () => {
   expect(command).toHaveBeenCalledTimes(1);
   expect(screen.getByRole("button", { name: "Simpan 3 pelanggan" })).toBeTruthy();
 });
+
+const disabled = { ok: false, status: 503, json: async () => ({ error: { code: "IMPORT_ASSISTANT_DISABLED" } }) };
+function setup(command: jest.Mock, response: { ok: boolean; status?: number; json: () => Promise<unknown> }) {
+  const runtime = createMobileRuntime({ apiUrl: "https://catera.example.test", storagePrefix: "t" });
+  runtime.api = {
+    ...runtime.api,
+    me: jest.fn(async () => ({ actor: { id: "u-1", role: "owner", catererId: "k-1" }, demo: false })),
+    sellerImportOptions: jest.fn(async () => ({
+      customers: [],
+      packages: [
+        { id: "p-rumahan", name: "Makan Siang Rumahan", days: 20, areas: [], meal: "lunch" },
+        { id: "p-hemat", name: "Paket Hemat Kantor", days: 20, areas: [], meal: "lunch" },
+      ],
+    })),
+    command,
+  } as unknown as MobileRuntime["api"];
+  global.fetch = jest.fn(async () => response) as unknown as typeof fetch;
+  render(
+    <MobileProvider runtime={runtime} linkMapper={() => "/"}>
+      <ImportAssistant />
+    </MobileProvider>,
+  );
+}
+const read = async () => {
+  fireEvent.changeText(await screen.findByLabelText("Tempel atau ketik daftar pelanggan"), "daftar");
+  fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
+};
+
+it("offers manual entry, not 'try later', when the assistant is switched off", async () => {
+  setup(jest.fn(), disabled);
+  await read();
+  expect(await screen.findByText("Asisten impor belum aktif. Anda tetap bisa memasukkan pelanggan satu per satu.")).toBeTruthy();
+  expect(screen.queryByText(/Coba lagi nanti/)).toBeNull();
+  fireEvent.press(screen.getByRole("button", { name: "Isi manual" }));
+  expect(await screen.findByText("Tanpa nama")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Tambah baris" })).toBeTruthy();
+});
+
+it("keeps 'Coba lagi nanti' and no manual button for a real outage", async () => {
+  setup(jest.fn(), { ok: false, status: 503, json: async () => ({ error: { code: "IMPORT_UNAVAILABLE" } }) });
+  await read();
+  expect(await screen.findByText("Asisten impor sedang tidak tersedia. Coba lagi nanti.")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Isi manual" })).toBeNull();
+});
+
+it("saves manually typed rows through import.preview then import.commit", async () => {
+  const command = jest.fn(async (action: string) => (action === "import.preview" ? { id: "pv-9", rows: [] } : { created: 1 }));
+  setup(command, disabled);
+  await read();
+  fireEvent.press(await screen.findByRole("button", { name: "Isi manual" }));
+  // the empty row opens for editing; it cannot be saved yet
+  expect(screen.getByRole("button", { name: "Simpan 0 pelanggan" }).props.accessibilityState?.disabled).toBe(true);
+  fireEvent.changeText(await screen.findByLabelText("Nama"), "Bu Ani");
+  fireEvent(screen.getByLabelText("Nomor WhatsApp"), "endEditing", { nativeEvent: { text: "0812 3456 7890" } });
+  fireEvent.changeText(screen.getByLabelText("Alamat"), "Jl. Melati 5");
+  fireEvent.changeText(screen.getByLabelText("Area"), "Tebet");
+  fireEvent.changeText(screen.getByLabelText("Kota"), "Jakarta Selatan");
+  fireEvent.press(screen.getByRole("button", { name: "Paket Hemat Kantor" }));
+  fireEvent.changeText(screen.getByLabelText("Antar berikutnya (TTTT-BB-HH)"), "2999-01-05");
+  fireEvent.changeText(screen.getByLabelText("Sisa hari"), "8");
+  fireEvent.press(screen.getByRole("button", { name: "Selesai" }));
+  fireEvent.press(await screen.findByRole("button", { name: "Simpan 1 pelanggan" }));
+  await waitFor(() => expect(command).toHaveBeenCalledWith("import.commit", { catererId: "k-1", id: "pv-9" }, expect.any(String)));
+  const preview = command.mock.calls.find((c) => c[0] === "import.preview")! as unknown as [string, { rows: Record<string, any>[] }];
+  expect(preview[1].rows).toHaveLength(1);
+  expect(preview[1].rows[0]).toMatchObject({
+    customer: { name: "Bu Ani", phone: "+6281234567890", address: { line: "Jl. Melati 5", area: "Tebet", city: "Jakarta Selatan" } },
+    packageId: "p-hemat",
+    portions: 1,
+    startDate: "2999-01-05",
+    remainingDays: 8,
+  });
+});
+
+it("adds another empty row with Tambah baris", async () => {
+  setup(jest.fn(), disabled);
+  await read();
+  fireEvent.press(await screen.findByRole("button", { name: "Isi manual" }));
+  fireEvent.press(screen.getByRole("button", { name: "Selesai" }));
+  fireEvent.press(screen.getByRole("button", { name: "Tambah baris" }));
+  fireEvent.press(screen.getByRole("button", { name: "Selesai" }));
+  expect(screen.getAllByText("Tanpa nama")).toHaveLength(2);
+});

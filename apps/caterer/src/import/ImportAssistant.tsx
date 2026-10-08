@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Pressable, TextInput, View } from "react-native";
 import { router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
@@ -33,14 +33,32 @@ export function ImportAssistant() {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(0);
+  const [off, setOff] = useState(false);
+  // Row numbers feed the import reference, so they never repeat within this screen.
+  const counter = useRef(0);
+  const numbered = (all: AssistantRow[]) => all.map((r) => ({ ...r, n: ++counter.current }));
   const message = (code: string) =>
     ({
       IMPORT_UNREADABLE: t("Catatan ini belum bisa dibaca. Coba ketik ulang atau kirim foto yang lebih jelas.", "We couldn't read this. Try retyping it or a clearer photo."),
       IMPORT_TOO_LONG: t("Daftarnya terlalu panjang. Kirim sebagian dulu, maksimal 100 pelanggan.", "The list is too long. Send part of it first, up to 100 customers."),
       INVALID_SIZE: t("Lampiran terlalu besar. Maksimal 4 MB.", "Attachments are too large. 4 MB at most."),
       QUOTA: t("Batas baca hari ini sudah tercapai. Coba lagi besok.", "Today's reading limit is reached. Try again tomorrow."),
+      IMPORT_ASSISTANT_DISABLED: t("Asisten impor belum aktif. Anda tetap bisa memasukkan pelanggan satu per satu.", "The import assistant isn't switched on yet. You can still add customers one by one."),
       IMPORT_UNAVAILABLE: t("Asisten impor sedang tidak tersedia. Coba lagi nanti.", "The import assistant is unavailable. Try again later."),
     })[code] ?? (errorLabel(code, locale) || t("Belum berhasil. Coba lagi.", "That didn't work. Try again."));
+
+  /** One empty row for typing a customer in by hand; it goes through the same review and save as the assistant's rows. */
+  function addRow() {
+    const [row] = numbered([
+      recheck(
+        { name: "", phone: "", addressLine: "", area: "", city: "", notes: "", packageId: packages.length === 1 ? packages[0].id : null, startDate: null, remainingDays: null, portions: 1, needsReview: true, reason: "" },
+        packages,
+        earliestImportStart(new Date()),
+      ),
+    ]);
+    setRows((all) => [...(all ?? []), row]);
+    setEditing(row.n);
+  }
 
   async function addPhoto() {
     const room = MAX_IMAGES - files.filter((f) => f.kind === "image").length;
@@ -91,8 +109,13 @@ export function ImportAssistant() {
       });
       const body = (await response.json().catch(() => ({}))) as { data?: { rows: AssistantRow[] }; error?: { code?: string } };
       if (!response.ok || !body.data) throw Object.assign(new Error(body.error?.code || "IMPORT_UNAVAILABLE"), { code: body.error?.code });
-      setRows(body.data.rows.map((r, i) => ({ ...r, n: i + 1 })));
+      setOff(false);
+      setRows(numbered(body.data.rows));
     } catch (e) {
+      if (fail(e) === "IMPORT_ASSISTANT_DISABLED") {
+        setOff(true);
+        return;
+      }
       setError(message(fail(e)));
     } finally {
       setBusy("");
@@ -139,7 +162,7 @@ export function ImportAssistant() {
   return (
     <Screen
       footer={
-        rows?.length ? (
+        rows ? (
           <Button label={t(`Simpan ${clean} pelanggan`, `Save ${clean} customers`)} disabled={!clean || !!busy} onPress={() => void save()} />
         ) : (
           <Button label={t("Susun daftar", "Build the list")} disabled={(!text.trim() && !files.length) || !!busy} onPress={() => void read()} />
@@ -186,6 +209,12 @@ export function ImportAssistant() {
               <Button variant="text" label={t("Hapus", "Remove")} onPress={() => setFiles((all) => all.filter((_, j) => j !== i))} />
             </View>
           ))}
+          {off ? (
+            <Card tone="attention">
+              <Text>{message("IMPORT_ASSISTANT_DISABLED")}</Text>
+              <Button label={t("Isi manual", "Fill in by hand")} onPress={addRow} />
+            </Card>
+          ) : null}
           {busy === "read" ? <Text variant="caption">{t("Sedang membaca… biasanya kurang dari satu menit.", "Reading… usually under a minute.")}</Text> : null}
         </>
       ) : (
@@ -207,6 +236,7 @@ export function ImportAssistant() {
               </Pressable>
             </Card>
           ))}
+          <Button variant="secondary" label={t("Tambah baris", "Add a row")} onPress={addRow} />
           <Button variant="text" label={t("Mulai lagi", "Start over")} onPress={() => setRows(null)} />
         </>
       )}
