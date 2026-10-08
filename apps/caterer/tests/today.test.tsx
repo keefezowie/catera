@@ -7,6 +7,17 @@ import { issueSteps } from "../src/today/exceptions";
 import * as offline from "../src/today/offline";
 import { canvasDay, emptyDay, quietDay, report } from "./fixtures";
 
+const pinToday = () =>
+  jest.useFakeTimers({
+    now: new Date("2026-10-08T03:00:00Z"),
+    // Only the clock is pinned: timers, microtasks and animation frames keep running for real.
+    doNotFake: [
+      "hrtime", "nextTick", "performance", "queueMicrotask", "requestAnimationFrame",
+      "cancelAnimationFrame", "requestIdleCallback", "cancelIdleCallback", "setImmediate",
+      "clearImmediate", "setInterval", "clearInterval", "setTimeout", "clearTimeout",
+    ],
+  });
+
 jest.mock("expo-router", () => ({ router: { push: jest.fn(), replace: jest.fn() }, Link: () => null }));
 jest.mock("expo-print", () => ({ printAsync: jest.fn(async () => undefined) }));
 jest.mock("expo-notifications", () => ({
@@ -54,7 +65,6 @@ it("shows the lunch cooking total for the day", async () => {
 it("shares the route as WhatsApp-ready text", async () => {
   const share = jest.spyOn(Share, "share").mockResolvedValue({ action: "sharedAction" });
   renderToday(runtimeWith(async () => canvasDay()));
-  fireEvent.press(await screen.findByText("Antar"));
   fireEvent.press(await screen.findByText("Bagikan rute ke WhatsApp"));
   await waitFor(() => expect(share).toHaveBeenCalled());
   expect(share.mock.calls[0][0]).toEqual(
@@ -65,7 +75,6 @@ it("shares the route as WhatsApp-ready text", async () => {
 it("reports a failed delivery by stepping it to the issue status", async () => {
   const runtime = runtimeWith(async () => canvasDay());
   renderToday(runtime);
-  fireEvent.press(await screen.findByText("Antar"));
   fireEvent.press(await screen.findByLabelText("Ada masalah: Keluarga Hartono"));
   fireEvent.press(await screen.findByText("Gagal diantar"));
   fireEvent.press(screen.getByText("Simpan laporan"));
@@ -119,14 +128,14 @@ it("opens on the day a notification points to", async () => {
 
 it("keeps the day toggle for a kitchen with packages on a day without deliveries", async () => {
   renderToday(runtimeWith(async () => quietDay()));
-  expect(await screen.findByText("Tidak ada yang dimasak hari ini.")).toBeTruthy();
+  expect(await screen.findByText("Tidak ada masakan untuk hari ini.")).toBeTruthy();
   expect(screen.getByText("Besok")).toBeTruthy();
   expect(screen.queryByText("Siapkan dapur Anda")).toBeNull();
 });
 
 it("never shows helpers the owner setup steps", async () => {
   renderToday(runtimeWith(async () => emptyDay(), { ...owner, role: "staff" }));
-  expect(await screen.findByText("Tidak ada yang dimasak hari ini.")).toBeTruthy();
+  expect(await screen.findByText("Tidak ada masakan untuk hari ini.")).toBeTruthy();
   expect(screen.getByText("Besok")).toBeTruthy();
   expect(screen.queryByText("Siapkan dapur Anda")).toBeNull();
 });
@@ -143,7 +152,6 @@ it("moves a customer's day from Besok while the cutoff is still ahead", async ()
       <TodayScreen date={tomorrow} />
     </MobileProvider>,
   );
-  fireEvent.press(await screen.findByText("Antar"));
   fireEvent.press(await screen.findByLabelText("Pindah tanggal: Keluarga Hartono"));
   expect(screen.queryByText("Gagal diantar")).toBeNull();
   fireEvent.changeText(screen.getByLabelText("Tanggal baru (TTTT-BB-HH)"), "2099-01-05");
@@ -160,7 +168,6 @@ it("moves a customer's day from Besok while the cutoff is still ahead", async ()
 
 it("tells the caterer plainly what a failed delivery means", async () => {
   renderToday(runtimeWith(async () => canvasDay()));
-  fireEvent.press(await screen.findByText("Antar"));
   fireEvent.press(await screen.findByLabelText("Ada masalah: Keluarga Hartono"));
   expect(await screen.findByText(/tidak dihitung terkirim/)).toBeTruthy();
   expect(screen.queryByText(/pengembalian dana diurus Catera/)).toBeNull();
@@ -201,7 +208,6 @@ it("offers Pindah tanggal on today's stop of a customer before the change deadli
   const sari = day.deliveries.find((x) => x.customer.name === "Bu Sari Wulandari")!;
   const runtime = runtimeWith(async () => day);
   renderToday(runtime);
-  fireEvent.press(await screen.findByText("Antar"));
   fireEvent.press(await screen.findByLabelText("Ada masalah: Bu Sari Wulandari"));
   expect(await screen.findByText("Gagal diantar")).toBeTruthy();
   fireEvent.press(screen.getByText("Pindah tanggal"));
@@ -219,7 +225,6 @@ it("offers Pindah tanggal on today's stop of a customer before the change deadli
 
 it("keeps only Gagal diantar today once the deadline has passed or the package has fixed dates", async () => {
   renderToday(runtimeWith(async () => canvasDay()));
-  fireEvent.press(await screen.findByText("Antar"));
   fireEvent.press(await screen.findByLabelText("Ada masalah: Keluarga Hartono"));
   expect(await screen.findByText("Gagal diantar")).toBeTruthy();
   expect(screen.queryByText("Pindah tanggal")).toBeNull();
@@ -232,7 +237,6 @@ it("shows the move button on Besok only for days that can still move", async () 
       <TodayScreen date={tomorrowDay()} />
     </MobileProvider>,
   );
-  fireEvent.press(await screen.findByText("Antar"));
   fireEvent.press(await screen.findByLabelText("Pindah tanggal: Bu Sari Wulandari"));
   expect(screen.queryByText("Gagal diantar")).toBeNull();
   expect(screen.getByText("Pindah tanggal")).toBeTruthy();
@@ -254,4 +258,55 @@ it("says when customer reports could not be loaded and retries", async () => {
   fireEvent.press(screen.getByText("Coba lagi"));
   expect(await screen.findByText("Nadia Putri melaporkan masalah")).toBeTruthy();
   expect(screen.queryByText("Laporan pelanggan belum bisa dimuat.")).toBeNull();
+});
+
+describe("session cards", () => {
+  afterEach(() => jest.useRealTimers());
+
+  it("shows the date as the title", async () => {
+    pinToday();
+    renderToday(runtimeWith(async () => canvasDay()));
+    expect(await screen.findByText("Kamis 8 Okt")).toBeTruthy();
+    fireEvent.press(screen.getByText("Besok"));
+    expect(await screen.findByText("Jumat 9 Okt")).toBeTruthy();
+  });
+
+  it("has a single day switch", async () => {
+    renderToday(runtimeWith(async () => canvasDay()));
+    await screen.findByText("34 porsi");
+    const tablists = screen.UNSAFE_root.findAll(
+      (n) => typeof n.type === "string" && n.props.accessibilityRole === "tablist",
+    );
+    expect(tablists).toHaveLength(1);
+    expect(screen.getAllByRole("tab").map((t) => t.props.accessibilityState.selected)).toEqual([true, false]);
+    expect(screen.queryByText("Masak")).toBeNull();
+    expect(screen.queryByText(/^Siang/)).toBeNull();
+  });
+
+  it("shows one card per meal session with its delivery list", async () => {
+    const base = canvasDay();
+    const day = {
+      ...base,
+      deliveries: [{ ...base.deliveries[0], portions: 1, customer: { id: "c-9", name: "Nadia Putri" } }],
+    } as unknown as typeof base;
+    renderToday(runtimeWith(async () => day));
+    expect(await screen.findByText("Makan siang")).toBeTruthy();
+    expect(screen.getByText("1 porsi")).toBeTruthy();
+    expect(screen.getByText("Nadia Putri")).toBeTruthy();
+    expect(screen.getByText("Bagikan rute ke WhatsApp")).toBeTruthy();
+    expect(screen.queryByText("Makan malam")).toBeNull();
+  });
+
+  it("shows a calm empty state", async () => {
+    renderToday(runtimeWith(async () => quietDay()));
+    expect(await screen.findByText("Tidak ada masakan untuk hari ini.")).toBeTruthy();
+    expect(screen.getByText("Pesanan baru akan muncul di sini.")).toBeTruthy();
+  });
+
+  it("words the empty state for tomorrow", async () => {
+    renderToday(runtimeWith(async () => quietDay()));
+    await screen.findByText("Tidak ada masakan untuk hari ini.");
+    fireEvent.press(screen.getByText("Besok"));
+    expect(await screen.findByText("Tidak ada masakan untuk besok.")).toBeTruthy();
+  });
 });
