@@ -61,14 +61,14 @@ const customers = [
   customer("c-03", "Bayu Tri", [sub(0, "completed")]),
 ];
 
-function runtimeWith(caterStatus: string, payoutActive: boolean): MobileRuntime {
+function runtimeWith(caterStatus: string, payoutActive: boolean, list: SellerCustomer[] = customers): MobileRuntime {
   const runtime = createMobileRuntime({ apiUrl: "https://catera.example.test", storagePrefix: "t" });
   const day = canvasDay();
   (day.caterer as { status?: string }).status = caterStatus;
   runtime.api = {
     ...runtime.api,
     me: jest.fn(async () => ({ actor: { id: "u-1", role: "owner", catererId: "k-1" }, demo: false })),
-    sellerCustomers: jest.fn(async () => ({ customers, total: 3, packages: [] })),
+    sellerCustomers: jest.fn(async () => ({ customers: list, total: list.length, packages: [] })),
     sellerOperations: jest.fn(async () => day),
     request: jest.fn(async () => ({ active: payoutActive ? { id: "pd-1" } : null })),
     command: jest.fn(async (action: string) =>
@@ -108,6 +108,25 @@ it("filters to customers whose package ends within three days", async () => {
   fireEvent.press(await screen.findByText("Segera berakhir · 1"));
   expect(screen.getByText("Andre Kusuma")).toBeTruthy();
   expect(screen.queryByText("Dewi Saraswati")).toBeNull();
+  expect(screen.queryByText("Bayu Tri")).toBeNull();
+});
+
+it("counts ending customers as active", async () => {
+  // One customer with a single delivery left is both on a running package and about to end.
+  wrap(runtimeWith("approved", true, [customer("c-09", "Rina Maharani", [sub(1)])]), <CustomerList />);
+  expect(await screen.findByText("Aktif · 1")).toBeTruthy();
+  expect(screen.getByText("Segera berakhir · 1")).toBeTruthy();
+  expect(screen.getByText("Selesai · 0")).toBeTruthy();
+  // The Aktif list shows her, with the end label kept.
+  expect(screen.getByText("Rina Maharani")).toBeTruthy();
+  expect(screen.getByText(/^Berakhir/)).toBeTruthy();
+});
+
+it("lists ending and active customers together under Aktif, without the ended ones", async () => {
+  wrap(runtimeWith("approved", true), <CustomerList />);
+  expect(await screen.findByText("Aktif · 2")).toBeTruthy();
+  expect(screen.getByText("Andre Kusuma")).toBeTruthy();
+  expect(screen.getByText("Dewi Saraswati")).toBeTruthy();
   expect(screen.queryByText("Bayu Tri")).toBeNull();
 });
 

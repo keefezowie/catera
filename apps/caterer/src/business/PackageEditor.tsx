@@ -6,6 +6,7 @@ import { defaultDishCategories, errorLabel, type SellerOffer } from "@catera/dom
 import { useMobile } from "@catera/mobile-core";
 import { Button, Chip, colors, Field, Screen, Segmented, Stepper, Text } from "@catera/mobile-ui";
 import { emptyPackage, formFromOffer, packageIssues, quickOffer, type PackageForm } from "./package";
+import { photoUri } from "../photo";
 import { uploadPhoto } from "./upload";
 
 const days: [number, string][] = [[1, "Sen"], [2, "Sel"], [3, "Rab"], [4, "Kam"], [5, "Jum"], [6, "Sab"], [0, "Min"]];
@@ -67,7 +68,7 @@ export function PackageEditor({ from }: { from?: SellerOffer }) {
         style={{ height: 168, borderRadius: 14, overflow: "hidden", backgroundColor: colors.sage, alignItems: "center", justifyContent: "center", borderWidth: shown.image ? 1 : 0, borderColor: colors.danger }}
       >
         {form.image ? (
-          <Image source={{ uri: form.image }} style={{ width: "100%", height: "100%" }} />
+          <Image source={{ uri: photoUri(form.image, runtime.apiBase) }} style={{ width: "100%", height: "100%" }} />
         ) : (
           <Text variant="label" style={{ color: colors.forest }}>
             {uploading ? t("Mengunggah…", "Uploading…") : t("+ Foto paket", "+ Package photo")}

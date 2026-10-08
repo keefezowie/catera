@@ -1,17 +1,18 @@
 import { useState } from "react";
-import { Pressable, Share, View } from "react-native";
+import { Pressable, ScrollView, Share, View } from "react-native";
 import { router } from "expo-router";
 import {
   addDays,
   errorLabel,
   jakartaDay,
   menuShareText,
+  shortDate,
   type MealMenu,
   type MenuMonth,
   type SellerOffer,
 } from "@catera/domain";
 import { useData, useMobile, type MobileRuntime } from "@catera/mobile-core";
-import { Button, Card, Chip, colors, fontFor, Screen, Segmented, Text } from "@catera/mobile-ui";
+import { Button, Card, Chip, colors, fontFor, RoundButton, Screen, Segmented, Text } from "@catera/mobile-ui";
 import { copyWeekBatches, weekDates } from "./logic";
 
 export type MenuDay = { date: string; version: number; editable: boolean; details: MealMenu | null };
@@ -64,7 +65,8 @@ export function MenuWeek() {
   const meals = offer ? (offer.meal === "both" ? ["lunch", "dinner"] : [offer.meal]) : ["lunch"];
   const [mealChoice, setMeal] = useState("lunch");
   const meal = meals.includes(mealChoice) ? mealChoice : meals[0];
-  const dates = offer ? weekDates(addDays(jakartaDay(new Date()), week * 7), offer.weekdays) : [];
+  const today = jakartaDay(new Date());
+  const dates = offer ? weekDates(addDays(today, week * 7), offer.weekdays) : [];
   const days = useData(`menu-week:${offer?.id}:${meal}:${dates[0]}`, () =>
     offer ? loadMenus(runtime, offer, meal, dates) : Promise.resolve([]),
   );
@@ -148,17 +150,17 @@ export function MenuWeek() {
     <Screen>
       <Text variant="title">{t("Menu", "Menu")}</Text>
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-        <Button variant="secondary" label="‹" accessibilityLabel={t("Minggu sebelumnya", "Previous week")} onPress={() => setWeek((w) => w - 1)} />
+        <RoundButton icon="chevron-back" label={t("Minggu sebelumnya", "Previous week")} onPress={() => setWeek((w) => w - 1)} />
         <Text variant="label">
-          {week === 0 ? t("Minggu ini", "This week") : week === 1 ? t("Minggu depan", "Next week") : dates[0] ?? ""}
+          {week === 0 ? t("Minggu ini", "This week") : week === 1 ? t("Minggu depan", "Next week") : dates[0] ? shortDate(dates[0], locale) : ""}
         </Text>
-        <Button variant="secondary" label="›" accessibilityLabel={t("Minggu berikutnya", "Next week")} onPress={() => setWeek((w) => w + 1)} />
+        <RoundButton icon="chevron-forward" label={t("Minggu berikutnya", "Next week")} onPress={() => setWeek((w) => w + 1)} />
       </View>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
         {offers.map((o) => (
           <Chip key={o.id} label={o.name} selected={o.id === offer?.id} onPress={() => setPackageId(o.id)} />
         ))}
-      </View>
+      </ScrollView>
       {meals.length > 1 ? (
         <Segmented
           value={meal}
@@ -178,12 +180,13 @@ export function MenuWeek() {
       {note ? <Text variant="caption">{note}</Text> : null}
       {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
       {(days.data ?? []).map((d) => {
+        const past = d.date < today;
         const items = d.details?.items ?? [];
         const open = () => canEdit && offer && router.push(`/menu/${d.date}?pkg=${offer.id}&meal=${meal}` as never);
         return (
           <Card key={d.date}>
             <Pressable accessibilityRole="button" onPress={open} disabled={!canEdit} style={{ gap: 6 }}>
-              <Text variant="heading">{d.date}</Text>
+              <Text variant="heading">{shortDate(d.date, locale)}</Text>
               {items.length ? (
                 (template?.composition ?? []).map((g) => (
                   <Text key={g.id}>
@@ -191,6 +194,10 @@ export function MenuWeek() {
                     {items.filter((i) => i.groupId === g.id).map((i) => i.name).join(", ")}
                   </Text>
                 ))
+              ) : past ? (
+                <Text variant="caption" style={{ color: colors.muted }}>
+                  {t("Lewat", "Past")}
+                </Text>
               ) : (
                 <Text style={{ color: colors.sunriseInk, fontFamily: fontFor("700") }}>
                   {canEdit ? t("Belum diisi · isi menu", "Not filled · add menu") : t("Belum diisi", "Not filled")}

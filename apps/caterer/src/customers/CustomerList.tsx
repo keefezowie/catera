@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Linking, Pressable, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
-import { jakartaDay, whatsappUrl } from "@catera/domain";
+import { jakartaDay, whatsappUrl, type SellerCustomer } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
 import { Button, Card, Chip, colors, fontFor, Screen, Text } from "@catera/mobile-ui";
 import { activeSubscriptions, currentSubscription, customerStatus, endLabel, type CustomerStatus } from "./rules";
@@ -16,8 +16,11 @@ export function CustomerList() {
   const [filter, setFilter] = useState<CustomerStatus>("active");
   const today = jakartaDay(new Date());
   const customers = list.data?.customers ?? [];
-  const count = (s: CustomerStatus) => customers.filter((c) => customerStatus(c) === s).length;
-  const shown = customers.filter((c) => customerStatus(c) === filter);
+  // Aktif is everyone on a running package, so it includes those about to end.
+  const inFilter = (c: SellerCustomer, s: CustomerStatus) =>
+    s === "active" ? customerStatus(c) !== "ended" : customerStatus(c) === s;
+  const count = (s: CustomerStatus) => customers.filter((c) => inFilter(c, s)).length;
+  const shown = customers.filter((c) => inFilter(c, filter));
   const labels: Record<CustomerStatus, string> = {
     active: t("Aktif", "Active"),
     ending: t("Segera berakhir", "Ending soon"),

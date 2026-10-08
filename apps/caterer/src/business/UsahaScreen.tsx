@@ -1,13 +1,26 @@
-import { Pressable, View } from "react-native";
+import { Image, Pressable, View } from "react-native";
 import { router } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { currency } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
 import { Button, Card, colors, Screen, Segmented, Text } from "@catera/mobile-ui";
 import { usePaymentsActive } from "../customers/usePayments";
+import { photoUri } from "../photo";
 import { NotifyButton } from "./NotifyButton";
 
-function Row({ icon, label, detail, href }: { icon: keyof typeof Ionicons.glyphMap; label: string; detail?: string; href: string }) {
+function Row({
+  icon,
+  label,
+  detail,
+  href,
+  image,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  detail?: string;
+  href: string;
+  image?: string;
+}) {
   return (
     <Pressable
       accessibilityRole="button"
@@ -15,7 +28,11 @@ function Row({ icon, label, detail, href }: { icon: keyof typeof Ionicons.glyphM
       onPress={() => router.push(href as never)}
       style={{ flexDirection: "row", alignItems: "center", gap: 12, minHeight: 56 }}
     >
-      <Ionicons name={icon} size={22} color={colors.forest} />
+      {image ? (
+        <Image source={{ uri: image }} style={{ width: 40, height: 40, borderRadius: 8 }} />
+      ) : (
+        <Ionicons name={icon} size={22} color={colors.forest} />
+      )}
       <View style={{ flex: 1 }}>
         <Text variant="label">{label}</Text>
         {detail ? <Text variant="caption">{detail}</Text> : null}
@@ -51,6 +68,7 @@ export function UsahaScreen() {
             label={o.name}
             detail={`${o.price === null ? "–" : currency(o.price, locale)} · ${o.status === "published" ? t("tayang", "live") : t("draf", "draft")}`}
             href={`/paket/${o.id}`}
+            image={o.image ? photoUri(o.image, runtime.apiBase) : undefined}
           />
         ))}
         <Button variant="secondary" label={t("+ Paket baru", "+ New package")} onPress={() => router.push("/paket/baru" as never)} />

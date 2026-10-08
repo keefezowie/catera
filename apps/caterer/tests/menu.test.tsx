@@ -211,6 +211,34 @@ describe("menu reads", () => {
     }
   });
 
+  describe("week cards", () => {
+    // Only Date is faked, so waitFor and the data hooks keep real timers.
+    beforeEach(() =>
+      jest.useFakeTimers({
+        now: new Date("2026-10-08T05:00:00Z"),
+        doNotFake: ["nextTick", "setImmediate", "clearImmediate", "setInterval", "clearInterval", "setTimeout", "clearTimeout", "queueMicrotask", "performance", "requestAnimationFrame", "cancelAnimationFrame"],
+      }),
+    );
+    afterEach(() => jest.useRealTimers());
+
+    it("shows localized dates", async () => {
+      const { wrap, MenuWeek } = setup(jest.fn(async () => ({ dates: [], categories: [] })));
+      render(wrap(<MenuWeek />));
+      expect(await screen.findByText("Senin 5 Okt")).toBeTruthy();
+      expect(screen.getByText("Jumat 9 Okt")).toBeTruthy();
+      expect(screen.queryByText("2026-10-05")).toBeNull();
+    });
+
+    it("does not ask to fill past days", async () => {
+      const { wrap, MenuWeek } = setup(jest.fn(async () => ({ dates: [], categories: [] })));
+      render(wrap(<MenuWeek />));
+      await screen.findByText("Senin 5 Okt");
+      // Mon-Wed are behind us; Thu (today) and Fri are still open to fill.
+      expect(screen.getAllByText("Lewat")).toHaveLength(3);
+      expect(screen.getAllByText("Belum diisi · isi menu")).toHaveLength(2);
+    });
+  });
+
   it("reads a single day with the same month format", async () => {
     const menuMonth = jest.fn(async () => ({ dates: [], categories: [] }));
     const { wrap, MenuDayScreen } = setup(menuMonth);

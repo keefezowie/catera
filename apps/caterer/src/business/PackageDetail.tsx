@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import { currency, type SellerOffer } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
 import { Button, Card, Screen, Text } from "@catera/mobile-ui";
+import { photoUri } from "../photo";
 
 const dayNames = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
 
@@ -11,12 +12,12 @@ const dayNames = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
  * Changes go into a new package copied from this one.
  */
 export function PackageDetail({ offer }: { offer: SellerOffer }) {
-  const { t, locale } = useMobile();
+  const { runtime, t, locale } = useMobile();
   const groups = offer.menus[0]?.composition ?? [];
   const capacity = offer.weekdays.length ? offer.capacity[String(offer.weekdays[0])] : undefined;
   return (
     <Screen>
-      {offer.image ? <Image source={{ uri: offer.image }} style={{ height: 168, borderRadius: 14 }} /> : null}
+      {offer.image ? <Image source={{ uri: photoUri(offer.image, runtime.apiBase) }} style={{ height: 168, borderRadius: 14 }} /> : null}
       <Text variant="title">{offer.name}</Text>
       <Text>{offer.description}</Text>
       <Card>

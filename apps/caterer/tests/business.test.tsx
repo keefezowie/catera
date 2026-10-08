@@ -4,10 +4,11 @@ import type { SettlementState } from "@catera/domain";
 import { quickOffer, packageIssues, type PackageForm } from "../src/business/package";
 import { PackageEditor } from "../src/business/PackageEditor";
 import { PackageDetail } from "../src/business/PackageDetail";
+import { UsahaScreen } from "../src/business/UsahaScreen";
 import { UangScreen } from "../src/business/UangScreen";
 import { TimScreen } from "../src/business/TimScreen";
 import { RoleGate } from "../src/RoleGate";
-import { Text } from "react-native";
+import { Image, Text } from "react-native";
 
 jest.mock("expo-router", () => ({ router: { push: jest.fn(), replace: jest.fn(), back: jest.fn() }, Link: () => null }));
 jest.mock("expo-image-picker", () => ({ launchImageLibraryAsync: jest.fn(), MediaTypeOptions: { Images: "Images" } }));
@@ -174,6 +175,32 @@ it("shows a live package read-only and copies it into a new package", async () =
   expect(screen.queryByRole("button", { name: "Simpan paket" })).toBeNull();
   fireEvent.press(screen.getByRole("button", { name: "Salin jadi paket baru" }));
   expect(router.push).toHaveBeenCalledWith("/paket/baru?from=p-live");
+});
+
+const photoOffer = { ...liveOffer, image: "/uploads/k-1/a.jpg" } as typeof liveOffer;
+
+it("shows the package photo", async () => {
+  const runtime = runtimeWith({
+    sellerOperations: jest.fn(async () => ({ caterer: { id: "k-1", name: "Dapur Bu Rina", status: "approved" }, offers: [photoOffer], datedMenus: [] })),
+    request: jest.fn(async () => ({ active: null })),
+  });
+  render(
+    <MobileProvider runtime={runtime} linkMapper={() => "/"}>
+      <UsahaScreen />
+    </MobileProvider>,
+  );
+  expect(await screen.findByText("Makan Siang Rumahan")).toBeTruthy();
+  const photo = screen.UNSAFE_getByType(Image);
+  expect(photo.props.source).toEqual({ uri: "https://catera.example.test/uploads/k-1/a.jpg" });
+});
+
+it("shows a live package's site-relative photo from the API host", () => {
+  render(
+    <MobileProvider runtime={runtimeWith({})} linkMapper={() => "/"}>
+      <PackageDetail offer={photoOffer} />
+    </MobileProvider>,
+  );
+  expect(screen.UNSAFE_getByType(Image).props.source).toEqual({ uri: "https://catera.example.test/uploads/k-1/a.jpg" });
 });
 
 it("saves a copied package as a new one, never over the original", async () => {
