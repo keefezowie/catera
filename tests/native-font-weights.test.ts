@@ -3,7 +3,7 @@ import { join, relative, sep } from "node:path";
 import { expect, test } from "vitest";
 
 const root = join(__dirname, "..");
-const dirs = ["apps/customer/src", "apps/customer/app", "apps/caterer/src", "apps/caterer/app"];
+const appDirs = ["apps/customer/src", "apps/customer/app", "apps/caterer/src", "apps/caterer/app"];
 
 function walk(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -13,12 +13,33 @@ function walk(dir: string): string[] {
   });
 }
 
+const rel = (f: string) => relative(root, f).split(sep).join("/");
+
 // Android cannot pick weights from a variable TTF; native text must name a static family instead.
 test("native app sources never set fontWeight (use fonts.* or fontFor from @catera/mobile-ui)", () => {
-  const offenders = dirs
+  const offenders = appDirs
     .flatMap((d) => walk(join(root, d)))
     .filter((f) => readFileSync(f, "utf8").includes("fontWeight"))
-    .map((f) => relative(root, f).split(sep).join("/"))
+    .map(rel)
     .sort();
   expect(offenders).toEqual([]);
+});
+
+// Only the Text variants may declare a weight; Text maps it to a family. Any other style
+// property in mobile-ui (Stepper, labels, raw RNText) must use fontFor/fonts.
+test("mobile-ui sets fontWeight only inside the textVariants table", () => {
+  const offenders = walk(join(root, "packages/mobile-ui/src"))
+    .filter((f) => {
+      const source = readFileSync(f, "utf8").replace(/const textVariants = \{[\s\S]*?\n\} satisfies/, "");
+      return /fontWeight\s*:/.test(source);
+    })
+    .map(rel)
+    .sort();
+  expect(offenders).toEqual([]);
+});
+
+test("the mobile-ui guard strips the textVariants table (it does exist)", () => {
+  const source = readFileSync(join(root, "packages/mobile-ui/src/components.tsx"), "utf8");
+  expect(source).toMatch(/const textVariants = \{[\s\S]*?\n\} satisfies/);
+  expect(source).toMatch(/fontWeight\s*:/);
 });

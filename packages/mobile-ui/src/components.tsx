@@ -42,7 +42,7 @@ export function Text({
   numberOfLines?: number;
 }) {
   // Android cannot select weights from a variable font, so a weight becomes a static family.
-  // A caller that names a family (fonts.semibold) keeps it.
+  // An explicit fontFamily wins over any weight: app code passes `fonts.semibold` etc. in styles it hands to Text.
   const { fontWeight, fontFamily, ...flat } = StyleSheet.flatten([textVariants[variant], style]) as TextStyle;
   return (
     <RNText style={[flat, { fontFamily: fontFamily ?? fontFor(fontWeight) }]} {...rest}>

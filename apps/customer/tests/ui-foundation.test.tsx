@@ -17,3 +17,14 @@ test("Text turns a caller's fontWeight into a family", () => {
   expect(style.fontFamily).toBe("Jakarta-Bold");
   expect(style.fontWeight).toBeUndefined();
 });
+
+test("an explicit fontFamily wins over the variant weight", () => {
+  render(
+    <Text variant="heading" style={{ fontFamily: fonts.semibold }}>
+      x
+    </Text>,
+  );
+  const style = StyleSheet.flatten(screen.getByText("x").props.style);
+  expect(style.fontFamily).toBe("Jakarta-SemiBold");
+  expect(style.fontWeight).toBeUndefined();
+});
