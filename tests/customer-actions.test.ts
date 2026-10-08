@@ -21,6 +21,16 @@ const item = (
 });
 
 describe("customer action presentation", () => {
+  it("names an expired payment and its one next step", () => {
+    expect(customerActionPresentation(item({ id: "e", status: "expired" }), "id")).toMatchObject({
+      title: "Waktu pembayaran habis",
+      action: "Bayar lagi",
+    });
+    expect(customerActionPresentation(item({ id: "e", status: "expired" }), "en")).toMatchObject({
+      title: "Payment time ran out",
+      action: "Pay again",
+    });
+  });
   it.each([
     ["selection_due", "customer"],
     ["choose_method", "customer"],
@@ -30,6 +40,7 @@ describe("customer action presentation", () => {
     ["open", "caterer"],
     ["escalated", "catera"],
     ["payment_exception", "catera"],
+    ["expired", "customer"],
   ] as const)("assigns %s to %s independently of urgency", (status, actor) => {
     for (const locale of ["id", "en"] as const)
       expect(

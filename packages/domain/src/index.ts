@@ -244,7 +244,9 @@ export type CustomerActionItem = {
     | "payment_exception"
     | "open"
     | "responded"
-    | "escalated";
+    | "escalated"
+    /** A checkout whose hold ended unpaid; only in CustomerActionFeed.ended. */
+    | "expired";
   priority: number;
   dueAt?: string;
   serviceDate?: string;
@@ -252,10 +254,22 @@ export type CustomerActionItem = {
   packageName?: string;
   catererName?: string;
   href: string;
+  /** On an ended checkout: the choices a new checkout for the same package starts from. */
+  payAgain?: {
+    packageId: string;
+    renewedFrom?: string;
+    trial: boolean;
+    portions: number;
+    cycles: number;
+    addressId?: string;
+  };
 };
 export type CustomerActionFeed = {
   total: number;
   items: CustomerActionItem[];
+  /** Checkouts whose hold ended unpaid in the last 7 days, newest first ("expired", or
+   * "checking_payment" while the bank may still confirm). Absent from older servers. */
+  ended?: CustomerActionItem[];
 };
 export type SellerAttentionItem = {
   id: string;

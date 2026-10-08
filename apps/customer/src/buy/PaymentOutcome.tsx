@@ -27,6 +27,28 @@ export function stageOf(c: Checkout, now: number): Stage {
   return p.phase === "checking" ? "checking" : "pay";
 }
 
+/** The choices a new checkout starts from when an unpaid one ran out. */
+export type PayAgain = {
+  packageId: string;
+  renewedFrom?: string | null;
+  trial: boolean;
+  portions: number;
+  cycles?: number;
+  addressId?: string;
+};
+
+/** Bayar lagi: a new checkout with the same choices, from Perpanjang for a renewal, else Beli
+ * (a trial stays a trial). Bayar and Riwayat pembayaran both go here. */
+export function payAgainHref(p: PayAgain): string {
+  const choices = new URLSearchParams({
+    ...(p.trial ? { trial: "1" } : {}),
+    portions: String(p.portions),
+    ...(p.trial ? {} : { cycles: String(p.cycles ?? 1) }),
+    ...(p.addressId ? { addressId: p.addressId } : {}),
+  }).toString();
+  return `${p.renewedFrom ? `/renew/${encodeURIComponent(p.renewedFrom)}` : `/beli/${encodeURIComponent(p.packageId)}`}?${choices}`;
+}
+
 /** Every Bayar state other than paying now: one sentence and the one next step. */
 export function PaymentOutcome({
   checkout: c,
@@ -72,15 +94,15 @@ export function PaymentOutcome({
     ],
   };
   const [title, body] = message[stage];
-  // A new checkout with the same choices: Perpanjang for a renewal, else Beli (a trial stays a trial).
   const q = c.quote;
-  const choices = new URLSearchParams({
-    ...(q.trial ? { trial: "1" } : {}),
-    portions: String(q.portions),
-    ...(q.trial ? {} : { cycles: String(q.cycles ?? 1) }),
-    ...(q.address?.id ? { addressId: q.address.id } : {}),
-  }).toString();
-  const again = `${q.renewedFrom ? `/renew/${encodeURIComponent(q.renewedFrom)}` : `/beli/${encodeURIComponent(q.packageId)}`}?${choices}`;
+  const again = payAgainHref({
+    packageId: q.packageId,
+    renewedFrom: q.renewedFrom,
+    trial: q.trial,
+    portions: q.portions,
+    cycles: q.cycles,
+    addressId: q.address?.id,
+  });
   return (
     <Screen>
       {header}

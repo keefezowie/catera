@@ -33,6 +33,8 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
   const [now, setNow] = useState(() => Date.now());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  // What the customer's own "cek status" found while the payment is still open.
+  const [notice, setNotice] = useState("");
   const [method, setMethod] = useState<DirectPaymentMethod | null>(null);
   const qris = useQris();
   const stage = c ? stageOf(c, now) : null;
@@ -145,7 +147,19 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
         <Button
           label={t("Saya sudah bayar, cek status", "I've paid, check status")}
           disabled={busy}
-          onPress={() => void run(check)}
+          onPress={() => {
+            setNotice("");
+            void run(async () => {
+              await check();
+              // Still on this screen means still unpaid; a paid or checked payment shows its outcome instead.
+              setNotice(
+                t(
+                  "Belum ada pembayaran masuk. Selesaikan pembayaran, lalu cek lagi.",
+                  "No payment has come in yet. Finish paying, then check again.",
+                ),
+              );
+            });
+          }}
         />
       }
     >
@@ -225,6 +239,11 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
         />
       ) : null}
       {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
+      {notice && !error ? (
+        <Text style={{ fontWeight: "700" }} testID="payment-notice">
+          {notice}
+        </Text>
+      ) : null}
 
       <Card tone="sage">
         <Text>

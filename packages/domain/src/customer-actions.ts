@@ -24,6 +24,7 @@ const nextActor: Record<
   open: "caterer",
   escalated: "catera",
   payment_exception: "catera",
+  expired: "customer",
 };
 
 export type CustomerActionGroup = "review" | "urgent" | "updates" | "later";
@@ -109,6 +110,13 @@ export function customerActionPresentation(
           "urgent",
         ],
         ["Payment received, booking needs review", "View order", "urgent"],
+      );
+    case "expired":
+      return copy(
+        locale,
+        nextActor[item.status],
+        ["Waktu pembayaran habis", "Bayar lagi", "attention"],
+        ["Payment time ran out", "Pay again", "attention"],
       );
     case "responded":
       return copy(

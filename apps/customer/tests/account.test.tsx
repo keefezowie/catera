@@ -55,6 +55,7 @@ function runtimeWith(
   {
     actor = customer as Record<string, unknown> | null,
     actions = [] as CustomerActionItem[],
+    ended = undefined as CustomerActionItem[] | undefined,
     phone = "",
   } = {},
 ): MobileRuntime {
@@ -63,7 +64,7 @@ function runtimeWith(
     ...runtime.api,
     me: jest.fn(async () => ({ actor, demo: false })),
     customer: jest.fn(typeof state === "function" ? state : async () => ({ ...customerState(null), ...state })),
-    customerActions: jest.fn(async () => ({ total: actions.length, items: actions })),
+    customerActions: jest.fn(async () => ({ total: actions.length, items: actions, ...(ended ? { ended } : {}) })),
     command: jest.fn(async () => ({})),
   } as unknown as MobileRuntime["api"];
   runtime.signOut = jest.fn(async () => undefined);
@@ -405,6 +406,74 @@ describe("Riwayat pembayaran", () => {
     expect(router.push).toHaveBeenCalledWith("/bantuan?checkoutId=ck-4");
     fireEvent.press(pay[0]);
     expect(router.push).toHaveBeenLastCalledWith("/bayar/ck-1");
+  });
+
+  it("keeps an expired checkout as Kedaluwarsa with Bayar lagi, the way Bayar pays again", async () => {
+    const ended = (id: string, packageName: string, payAgain: CustomerActionItem["payAgain"]): CustomerActionItem => ({
+      id: `payment-${id}`,
+      kind: "payment_action",
+      status: "expired",
+      priority: 1,
+      dueAt: `${TODAY}T02:00:00Z`,
+      packageName,
+      catererName: "Dapur Contoh",
+      href: `/payment/${id}`,
+      payAgain,
+    });
+    const runtime = runtimeWith(
+      { subscriptions: [] },
+      {
+        ended: [
+          ended("ck-5", "Paket Habis", { packageId: "p-rumahan", trial: false, portions: 2, cycles: 1, addressId: "a-1" }),
+          ended("ck-6", "Paket Perpanjang", {
+            packageId: "p-rumahan",
+            renewedFrom: "s-1",
+            trial: false,
+            portions: 1,
+            cycles: 2,
+            addressId: "a-2",
+          }),
+          ended("ck-7", "Paket Coba", { packageId: "p-coba", trial: true, portions: 1, cycles: 1, addressId: "a-1" }),
+        ],
+      },
+    );
+    renderWith(runtime, <Payments />);
+    expect(await screen.findByText("Kedaluwarsa")).toBeTruthy();
+    expect(screen.queryByText("Belum dibayar")).toBeNull();
+    expect(screen.queryByText("Belum ada pembayaran.")).toBeNull();
+    expect(screen.getAllByText(/Waktu pembayaran habis/)).toHaveLength(3);
+    expect(screen.queryByRole("button", { name: /^Bayar Paket/ })).toBeNull();
+    fireEvent.press(screen.getByRole("button", { name: "Bayar lagi Paket Habis" }));
+    expect(router.push).toHaveBeenLastCalledWith("/beli/p-rumahan?portions=2&cycles=1&addressId=a-1");
+    fireEvent.press(screen.getByRole("button", { name: "Bayar lagi Paket Perpanjang" }));
+    expect(router.push).toHaveBeenLastCalledWith("/renew/s-1?portions=1&cycles=2&addressId=a-2");
+    fireEvent.press(screen.getByRole("button", { name: "Bayar lagi Paket Coba" }));
+    expect(router.push).toHaveBeenLastCalledWith("/beli/p-coba?trial=1&portions=1&addressId=a-1");
+  });
+
+  it("an ended checkout the bank may still confirm is in progress, never paid again", async () => {
+    const runtime = runtimeWith(
+      { subscriptions: [] },
+      {
+        ended: [
+          {
+            id: "payment-ck-8",
+            kind: "payment_action",
+            status: "checking_payment",
+            priority: 1,
+            packageName: "Paket Telat",
+            catererName: "Dapur Contoh",
+            href: "/payment/ck-8",
+            payAgain: { packageId: "p-rumahan", trial: false, portions: 1, cycles: 1 },
+          },
+        ],
+      },
+    );
+    renderWith(runtime, <Payments />);
+    expect(await screen.findByText("Sedang diproses")).toBeTruthy();
+    expect(screen.getByText(/Pembayaran sedang dicek/)).toBeTruthy();
+    expect(screen.queryByText("Kedaluwarsa")).toBeNull();
+    expect(screen.queryByRole("button", { name: /Bayar/ })).toBeNull();
   });
 
   it("explains an empty history", async () => {

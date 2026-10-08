@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import { currency, type CustomerActionItem, type Subscription } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
 import { Button, colors, Screen, Text } from "@catera/mobile-ui";
+import { payAgainHref } from "../buy/PaymentOutcome";
 import { customerLink } from "../links";
 import { longDay } from "../schedule/dates";
 import { Row, SectionLabel } from "./Row";
@@ -26,7 +27,9 @@ function progressWord(item: CustomerActionItem, t: (id: string, en: string) => s
 }
 
 /** Riwayat pembayaran: checkouts still to pay (Bayar), payments being processed (never paid twice),
- * and purchases paid through Catera. */
+ * checkouts that ran out in the last 7 days (Bayar lagi), and purchases paid through Catera.
+ * The server decides "still to pay" (within the hold, nothing received) from "being checked"
+ * (a payment was received, or the bank may still confirm one after the hold). */
 export function Payments() {
   const { actor, ready, t } = useMobile();
   if (!ready)
@@ -56,9 +59,11 @@ function History() {
       </View>
     );
 
-  const payments = (feed.data?.items ?? []).filter((i) => i.kind === "payment_action");
+  const ended = (feed.data?.ended ?? []).filter((i) => i.kind === "payment_action");
+  const payments = [...(feed.data?.items ?? []).filter((i) => i.kind === "payment_action"), ...ended];
   const unpaid = payments.filter((i) => UNPAID.has(i.status));
   const inProgress = payments.filter((i) => IN_PROGRESS.has(i.status));
+  const expired = ended.filter((i) => i.status === "expired" && i.payAgain);
   const paid = (customer.data.subscriptions as Purchase[])
     .filter((s) => !!s.checkout_id)
     .sort((a, b) => b.starts_on.localeCompare(a.starts_on));
@@ -114,6 +119,29 @@ function History() {
               }
             />
           ))}
+        </View>
+      ) : null}
+      {expired.length ? (
+        <View>
+          <SectionLabel>{t("Kedaluwarsa", "Expired")}</SectionLabel>
+          {expired.map((item, i) => {
+            const name = item.packageName ?? t("Pembayaran", "Payment");
+            return (
+              <Row
+                key={item.id}
+                first={i === 0}
+                label={name}
+                caption={[t("Waktu pembayaran habis", "Payment time ran out"), item.catererName].filter(Boolean).join(" · ")}
+              >
+                <Button
+                  variant="secondary"
+                  label={t("Bayar lagi", "Pay again")}
+                  accessibilityLabel={t(`Bayar lagi ${name}`, `Pay again ${name}`)}
+                  onPress={() => router.push(payAgainHref(item.payAgain!) as never)}
+                />
+              </Row>
+            );
+          })}
         </View>
       ) : null}
       {paid.length ? (

@@ -454,6 +454,29 @@ describe("Bayar", () => {
     expect(router.replace).toHaveBeenCalledWith("/");
   });
 
+  it("cek status while nothing has been paid says so and keeps the payment open", async () => {
+    const runtime = server({ checkout: pendingCheckout() });
+    const refresh = runtime.api.command as jest.Mock;
+    refresh.mockImplementation(async () => ({}));
+    wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
+    expect(await screen.findByLabelText(QR_LABEL)).toBeTruthy();
+    expect(screen.queryByText("Belum ada pembayaran masuk. Selesaikan pembayaran, lalu cek lagi.")).toBeNull();
+    fireEvent.press(screen.getByRole("button", { name: "Saya sudah bayar, cek status" }));
+    expect(await screen.findByText("Belum ada pembayaran masuk. Selesaikan pembayaran, lalu cek lagi.")).toBeTruthy();
+    expect(refresh).toHaveBeenCalledWith("checkout.payment.refresh", { id: "ck-1" }, expect.any(String));
+    expect(screen.getByLabelText(QR_LABEL)).toBeTruthy();
+  });
+
+  it("cek status on a hosted payment that is still unpaid says so too", async () => {
+    const hosted = { ...pendingCheckout(), payment: undefined };
+    const runtime = server({ demo: true, checkout: hosted });
+    wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
+    await screen.findByRole("button", { name: "Bayar (demo)" });
+    fireEvent.press(screen.getByRole("button", { name: "Saya sudah bayar, cek status" }));
+    expect(await screen.findByText("Belum ada pembayaran masuk. Selesaikan pembayaran, lalu cek lagi.")).toBeTruthy();
+    expect(runtime.api.checkout).toHaveBeenCalledTimes(2);
+  });
+
   it("expired payment offers Bayar lagi", async () => {
     const runtime = server({ checkout: pendingCheckout({ state: "expired" }, { status: "expired" }) });
     wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
