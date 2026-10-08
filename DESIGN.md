@@ -237,7 +237,7 @@ Customer home places the next meal beside the lunch/dinner agenda in a 1.5:1 gri
 
 Seller and admin workspaces use separate navigation on a 244px sidebar, narrowed to 215px at 1150px. At 800px it becomes a 250px off-canvas drawer. Operational content has a 1600px maximum width and 34px initial padding. Tables retain horizontal overflow where necessary. Compact phone metrics form two columns; master/detail work exposes the selected item’s detail in the available width.
 
-Desktop customer navigation hides at 800px; the fixed five-destination customer bottom navigation is enabled at 560px, including safe-area padding. Do not infer a bottom bar at all tablet widths. Native uses five customer destinations, safe-area containers, keyboard avoidance, a scroll page capped at 760 with 22 padding, and platform navigation controls.
+Desktop customer navigation hides at 800px; the fixed five-destination customer bottom navigation is enabled at 560px, including safe-area padding. Do not infer a bottom bar at all tablet widths. Native uses four customer tabs (Beranda, Jadwal, Jelajah, Akun) and four role-gated Dapur tabs (Hari ini, Pelanggan, Menu, Usaha), safe-area containers, keyboard avoidance in the shared `Screen` (padding behaviour on iOS), a scroll body and footer centered and capped at 760 wide with 20 side padding, and platform navigation controls.
 
 The sidecar records the actual media-query boundaries: 1150px, 800px, 560px, and a wide-screen adjustment from 1500px. These are implementation breakpoints, not device certification.
 
@@ -270,13 +270,13 @@ Food photographs use cover clipping inside their frames; wide package imagery ha
 
 Solid and clearly actionable. Primary buttons use forest with cream text, a 48px minimum height, and the frontmatter padding and radius. Secondary buttons are transparent with a light border; cream buttons invert the forest field. The compact variant uses a 44px minimum height and 10px 16px padding. Text buttons are transparent and underline on hover.
 
-Primary hover uses forest-hover; secondary hover uses sage; cream hover uses `#FBE6C8`. Global keyboard focus is a 3px Focus outline with 4px offset. The shared focus export contains an offset of 3, but the built web CSS uses 4px. Disabled controls have 0.5 opacity and no pointer interaction. Native buttons have a 48 minimum height and 13 vertical / 17 horizontal padding.
+Primary hover uses forest-hover; secondary hover uses sage; cream hover uses `#FBE6C8`. Global keyboard focus is a 3px Focus outline with 4px offset. The shared focus export contains an offset of 3, but the built web CSS uses 4px. Disabled controls have 0.5 opacity and no pointer interaction. Native buttons, including text buttons, have a 48 minimum height and 18 horizontal padding (text buttons 4). A disabled native primary button turns to the Field border fill with Muted text; a disabled secondary or text button has no fill to grey out, so it fades to 0.45 opacity. Disabled native buttons fire no haptic.
 
 ### Inputs / Fields
 
 Quiet near-white fields have a light stroke, rounded corners, and a 44px web minimum height. The generic input inherits body type; inputs inside the existing field wrapper inherit its 12px size. Labels use forest. Input and textarea placeholders use the current Muted token. Search has a 2px forest focus-within outline with a 2px offset and suppresses the inner input outline to avoid a double ring. Ordinary fields retain global keyboard focus.
 
-Native inputs have a 48 minimum height, 13 padding, a `#C9D2BE` border, and `#FFFEF9` fill. Forms keep error messages near the action; button loading states use a spinner and explicit saving text.
+Native inputs have a 48 minimum height, 14 horizontal padding, the Field border (`colors.fieldBorder`, `#CFD3C6`), and the Surface fill; an error turns the border Danger. Field border and Secondary border are tokens in `@catera/design-tokens` (`fieldBorder`, `secondaryBorder`), and native app sources use `colors.*` rather than literal hex values; the one exception is the QRIS code's pure-white quiet zone, which scanners need. Forms keep error messages near the action; button loading states use a spinner and explicit saving text.
 
 ### Dialog focus and continuity
 
@@ -294,7 +294,7 @@ Web date fields use the shared `DatePicker` component instead of the browser-nat
 
 ### Chips / Status
 
-Meal filters are outlined 44px-minimum controls, filled forest with cream text when selected. Native chips have a 48 minimum height. Queue filters visibly name “Semua katerer” and “Menunggu tinjauan”; the pending-empty view states the absence of work and directs the user to all caterers.
+Meal filters are outlined 44px-minimum controls, filled forest with cream text when selected. Native chips, segmented options, text buttons and stepper buttons have a 48 minimum height. Queue filters visibly name “Semua katerer” and “Menunggu tinjauan”; the pending-empty view states the absence of work and directs the user to all caterers.
 
 Statuses are compact, rounded text tags with a small dot and semantic tone. They are read-only indicators, not pills that replace action controls.
 
@@ -310,6 +310,8 @@ Customer-home subscriptions are flat rows inside one outlined container, with se
 
 The [September 19 UX research](https://github.com/keefezowie/catera/blob/525a1392797097f0959bebce1a275cfc117643fb/docs/UIUX-RESEARCH-2026-09-19.md) records the comparative evidence and responsive acceptance checks. Discovery keeps selected filters in its URL, displays removable filter chips and a result count, and offers a complete reset for empty results. Reset retains delivery area and sort. Package cards place total price, the per-meal rate, and delivery coverage after the commitment summary, before detailed contents.
 
+**The Price Unit Rule (web and native).** A per-meal price always carries its unit, “/ sekali makan” (“/ meal”), and a combined lunch-and-dinner offer adds “2 kali makan / hari” (“2 meals / day”), because one portion of a combined offer covers both meals. Never label that number “per porsi” or show it bare.
+
 Checkout shows the selected package and a labeled base subtotal before the form on phone and beside it on desktop. Package contents remain available in a disclosure. Review displays the selected delivery address and the server-confirmed total; the same total accompanies the payment action. Only one progress step is current, and changing steps focuses the new heading. Phone actions preserve bottom-navigation clearance.
 
 On phone, the thumbnail stays beside the package identity while totals, explanations, and the contents disclosure use the full summary width. Checkout keeps the complete selected address visible beneath its selector and explains empty, stale, or out-of-coverage destinations. Payment availability distinguishes checking, failed lookup, and no available methods; an explicit retry preserves the reviewed order and consent and focuses its result. New explicit purchase choices take precedence over stored drafts. See [the September 24 journey quality record](https://github.com/keefezowie/catera/blob/525a1392797097f0959bebce1a275cfc117643fb/docs/MARKETPLACE-CHECKOUT-QUALITY-2026-09-24.md) for local evidence and limits.
@@ -320,13 +322,15 @@ Approved local food artwork and the wordmark may use responsive delivery derivat
 
 Customer desktop navigation is compact, with a sunrise dot at the selected link. The phone bar has five labeled destinations; selected labels and icons become stronger forest. Operations use their own sidebar with a forest selected row, quiet hover, and a labeled workspace identity. Use consistent SVG interface icons; supporting brand illustrations do not replace operational icons.
 
+Icons (native): Ionicons via `@expo/vector-icons`; outline by default, filled only for the focused tab. Reason: the set ships with Expo, so both apps run in Expo Go without extra icon assets, and keeping every other icon in outline makes the one filled shape on screen mark where the user is.
+
 ### Meal agenda
 
 The next-meal panel pairs a generous photograph with caterer, portions, date, time, address, and action. The adjacent sage agenda splits lunch and dinner into open rows with a meal icon, explicit details, and status. On phone it follows the next meal and precedes subscriptions. The sidecar’s agenda preview represents this existing pattern without introducing a new page layout.
 
 ### Customer meal calendar
 
-The web customer schedule uses a continuous meal-coverage strip within a centered 1040px maximum-width column. A compact month control, “Hari ini”, and the next-delivery shortcut lead into the strip; the selected-week summary, “Per hari” / “Mendatang” control, and meal details align below it. Desktop date cells are fixed at 112px wide by 120px minimum height with 12px corners and 44px paging arrows outside the strip. At 650px and below, cells become 92px wide by 116px minimum height, the arrows disappear, shortcuts take a second row, and the summary and details lose their desktop 52px side inset. Horizontal overflow exposes the next partially visible date on phone. These are local calendar rules for the web strip. Native Jadwal adopts only its coverage model: a month grid whose covered days show Sunrise sun and forest moon icons for lunch and dinner, with the same truthful loading and error states; the strip layout, picker and “Mendatang” list are not adopted.
+The web customer schedule uses a continuous meal-coverage strip within a centered 1040px maximum-width column. A compact month control, “Hari ini”, and the next-delivery shortcut lead into the strip; the selected-week summary, “Per hari” / “Mendatang” control, and meal details align below it. Desktop date cells are fixed at 112px wide by 120px minimum height with 12px corners and 44px paging arrows outside the strip. At 650px and below, cells become 92px wide by 116px minimum height, the arrows disappear, shortcuts take a second row, and the summary and details lose their desktop 52px side inset. Horizontal overflow exposes the next partially visible date on phone. These are local calendar rules for the web strip. Native Jadwal adopts only its coverage model: a month grid whose covered days show a sun icon in Sunrise ink (`sunriseInk`) for lunch and a forest moon for dinner, both turning Muted once the meals have arrived, with the same truthful loading and error states; the strip layout, picker and “Mendatang” list are not adopted. The legend uses the same colours, and today is a Sunrise ink ring on cream. Native coverage marks use Sunrise ink rather than Sunrise because Sunrise measured 2.38:1 on the scheduled background and 2.56:1 as the today ring on cream, below the 3:1 minimum for state icons; Sunrise ink reaches 5.73:1 (owner decision, October 8, 2026, recorded under the native revisions below).
 
 Today uses Jakarta's calendar date with a Sunrise dot and accessible dark-orange “Hari ini” label; selection uses a two-pixel forest ring without replacing coverage. Empty days remain transparent, while any covered day uses the quiet scheduled background. Covered cards use Sunrise sun and forest moon icons as their sole visual coverage cue, with both icons shown when both meals are covered; the former footer rail is removed. The package count sits alongside the icons, while the complete button description still names lunch and dinner for assistive technology. “Belum ada makan”, loading, and error remain visible text states and never claim coverage or a package count. Coverage counts each meal once per day, regardless of portions or multiple caterers; delivered meals count and cancelled meals do not. The summary names the Monday–Sunday week containing the selected date and counts covered lunch and dinner days separately.
 
@@ -342,7 +346,7 @@ The [brand manifest](packages/brand/manifest.brand.json) records sixteen separat
 
 The delivered square masters are 1254 × 1254; wordmark and horizontal lockup are 2172 × 724. All sixteen are RGB with opaque cream or forest mattes and slight generated tonal variation. The current wordmark styling uses multiply blending; that does not create an alpha channel. Real transparency, the requested 2048/4096 master targets, and completed adaptive foreground derivatives remain unfinished. Preserve originals and record any future approved derivatives separately.
 
-The six [synthetic food images](packages/brand/manifest.food.json) are 1448 × 1086 at 4:3. They serve explicitly labeled demo listings. Production sellers supply their own food images. Do not claim that generated food establishes a real seller’s meal or endorsement.
+The six [synthetic food images](packages/brand/manifest.food.json) are 1448 × 1086 at 4:3. They serve explicitly labeled demo listings. **The Demo Label Rule (web and native).** Whenever the backend reports demo mode, every screen says so: the web shows its demo ribbon, and both native apps show a persistent “Demo · data sintetis” (“Demo · synthetic data”) strip directly under the status bar, signed in or out. Production sellers supply their own food images. Do not claim that generated food establishes a real seller’s meal or endorsement.
 
 The [finish verdict](https://github.com/keefezowie/catera/blob/525a1392797097f0959bebce1a275cfc117643fb/output/V1-FINISH-VERDICT.md) resolves four bounded web findings using the existing desktop, tablet, phone, and viewport captures in `output/visual-review/`, including `admin-pending-empty.png`. Overall disposition remains **fix** for unfinished transparent artwork; high-resolution master acceptance also remains open in the asset manifest. Native source now gives quantity/compare controls 48 × 48 and chips a 48 minimum height. No native device visual approval, gesture/large-text/dark-appearance approval, push verification, or return-link certification is supplied by this documentation.
 
@@ -350,11 +354,11 @@ The [finish verdict](https://github.com/keefezowie/catera/blob/525a1392797097f09
 
 Native motion is a smaller system than the web's and shares its timing vocabulary through `nativeMotion` in `@catera/design-tokens`: control 120ms, selection 180ms, content 220ms and feature 320ms, with the same `cubic-bezier(.16, 1, .3, 1)` ease. Press feedback is a spring (damping 18, stiffness 260) rather than a timed curve.
 
-Buttons, chips, segmented options and round buttons use `PressableScale`: they compress to 0.97 on press-in, return on release, and fire a haptic (`tap` for actions, `select` for choices; `success` and `warning` are reserved for outcomes). `FadeSwap` fades in new content when its key changes. Pushed screens share the `AppHeader` round back button and one-line heading.
+Controls (buttons, chips, segmented options, stepper buttons, round buttons, stars, reactions, radio picks) use `PressableScale`: they compress to 0.97 on press-in, return on release, and fire a haptic (`tap` for actions, `select` for choices; `success` and `warning` are reserved for outcomes; a disabled control fires none). Tappable rows and cards that open something use `PressableRow`: an instant 0.7 dim while pressed, no scale, no ripple and no haptic, identical with and without reduced motion. No raw `Pressable` remains in native app sources; every tappable gives press feedback. `FadeSwap` fades in new content when its key changes. Pushed screens share the `AppHeader` round back button and one-line heading.
 
-- Choreographed motion belongs to story beats, not to every screen. The only sequenced entrance in Phase 1 is the “Cara kerja Catera” rows on package detail: a one-time 80ms opacity stagger, skipped under reduced motion, that tells a three-step story. It is the sanctioned exception, not a pattern for lists; later phases add further beats deliberately.
-- Never stagger a catalog or any list. Navigation, operational rows and money totals stay still.
-- Reduced motion (the system setting, read through `useReduced`) replaces scale and movement with opacity-only feedback (pressed controls dim to 0.85) or no motion at all.
+- Choreographed motion belongs to story beats, not to every screen. Native has no sequenced entrance: the former “Cara kerja Catera” steps and their 80ms stagger were removed (owner decision, October 8, 2026), and package detail states package facts instead.
+- Never stagger a catalog, any list or any sequence. Navigation, operational rows and money totals stay still.
+- Reduced motion (the system setting, read through `useReduced`) replaces scale and movement with opacity-only feedback (pressed controls dim to 0.85) or no motion at all; bottom sheets fade instead of sliding up.
 - Animate only transform and opacity.
 
 ### Web motion
@@ -404,3 +408,21 @@ The approved identity remains: forest/sunrise/cream, Jakarta type, the wordmark,
 Operational chrome contains navigation, workspace identity, language, notifications, and account controls. The marketplace link remains in the compact sidebar footer. Page headings use the existing optional-description pattern; no empty paragraph or spacer replaces removed copy. Authentication uses a centered form, at most 528px including 24px side padding, with one mode-specific primary heading. Empty states retain their explanation and action without a generic calendar illustration. Tokens and behavioral contracts are unchanged.
 
 Inventory, route coverage, and local verification: [ID 0035](https://github.com/keefezowie/catera/blob/525a1392797097f0959bebce1a275cfc117643fb/docs/SLACK-0035.md).
+
+## Native antislop revisions, October 8, 2026
+
+Owner decision, October 8, 2026: “Fix everything, trust the antislop and revise the DESIGN.md where needed.” Where [antislop audit 001](anti-slop/audit-001-2026-10-08.md) conflicted with earlier native direction, this section and the edits above replace that direction: the Sunrise sun coverage cue became Sunrise ink, and the “Cara kerja Catera” stagger exception was removed. Finding-by-finding status and evidence are in [the follow-up record](anti-slop/audit-001-followup-2026-10-08.md).
+
+- `Dial (customer): ENERGY 2 / RHYTHM 2 / MOTION 2`. Customer screens are generous, warm and photo-led; motion is press and selection feedback plus content fades, never list choreography.
+- `Dial (Dapur): ENERGY 1 / RHYTHM 1 / MOTION 1 (+ press micro-feedback)`. Kitchen operations are restrained and denser; rows and money totals stay still, and only presses answer the hand.
+
+**The Three States Rule (native).** Every native data screen shows loading text (“Memuat…”), an error message in Danger with a “Coba lagi” action that reloads, and an empty state that says what is missing. Counts and actions that depend on the data stay hidden or disabled until it loads (Dapur Pelanggan filter counts, Menu “Salin minggu lalu” and “Bagikan menu”, Usaha “+ Paket baru”). Dapur uses one shared `ReadError` for failed reads. A font-load failure shows a plain restart message instead of a blank screen.
+
+- **Screen readers.** The `Text` title and heading variants are exposed as headers. A pushed screen has one heading, the `AppHeader` title, with no repeated in-content title. The bottom-sheet scrim is a button labelled “Tutup” / “Close”; that label and the stepper's decrease and increase labels are translated by the caller.
+- **Touch targets.** Every native control is at least 48dp: chips, segmented options, text buttons, stepper buttons, filter chips, review stars, month arrows and icon buttons included.
+- **Package detail facts.** Package detail states what a customer can act on: delivery days and windows, the change cutoff (“Ubah hari”, until the cutoff time the day before), the delivery fee, and the earliest bookable start (“Mulai paling cepat”), hidden when nothing is bookable. It has no generic how-it-works steps.
+- **Review stars.** Unselected stars are outline icons in Muted; selected stars are filled in Sunrise ink, so the choice never rests on a pale colour alone.
+- **Kitchen truth (Dapur).** “Yang dimasak” lists only real dishes. Menu slots nobody has filled read “Menu belum diisi: 2 lauk, 1 nasi, 1 sayur”, and owners get an “Isi menu” link to the menu editor. “Bagikan menu” is disabled, with “Belum ada menu untuk dibagikan”, when no day of the week has dishes. Attention cards on Hari ini that point to a Dapur screen are links with a chevron; a card with no Dapur destination stays plain.
+- **Claims.** No unmeasured durations and no unbacked security claims: the payment card says only “Pilih cara bayar di halaman berikutnya.” until the server names its payment provider. Calls to action name their task (“Aktifkan pembayaran”, not “Mulai”).
+
+These revisions were verified on the Android emulator in Expo Go with the demo backend; iOS behaviour (keyboard offset under the demo strip, VoiceOver reach of the sheet scrim) is not yet device-verified.
