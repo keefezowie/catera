@@ -82,7 +82,7 @@ Full table: `output/native-review/audit-001/README.md`. Run on Thursday 8 Oct 20
 
 | Item | Status | Evidence |
 |---|---|---|
-| R-02 em dash | PASS | No U+2014 in any user-visible string in `apps/*/src`, `apps/*/app`, `packages/mobile-ui/src` or the share text; the only hit is a code comment (`UsahaScreen.tsx:46`). Test "menu share header has no em dash"; shot `d13` |
+| R-02 em dash | PASS | No U+2014 in any user-visible string in `apps/*/src`, `apps/*/app`, `packages/mobile-ui/src` or the share text. The one code-comment hit (`UsahaScreen.tsx:46`) was removed in the final wave; a grep over `apps/customer/src`, `apps/customer/app`, `apps/caterer/src`, `apps/caterer/app` and `packages/mobile-ui/src` finds no U+2014. Test "menu share header has no em dash"; shot `d13` |
 | R-03 mobile layout / targets | PASS | Every native control is 48dp (#5, #23 tests); Screen capped at 760 (#14 test); no overflow or clipping in 67 phone screenshots |
 | R-17 unsourced numbers | PASS | "sekitar 3 menit" removed (test "new kitchen card makes no time claim"); on-screen numbers are live data |
 | R-18 testimonials | PASS | No testimonial section; reviews come from purchased deliveries and are hidden when there are none ("Belum ada ulasan", `c03`) |
@@ -95,7 +95,7 @@ Full table: `output/native-review/audit-001/README.md`. Run on Thursday 8 Oct 20
 | R-32 keyboard (native: screen reader) | PASS | Headers exposed, labelled and translated scrim and stepper labels (#11 tests). The sheet also closes on the VoiceOver escape gesture (`onAccessibilityEscape`, test "Sheet closes on the VoiceOver escape gesture"), so the scrim is not the only way out. Limit: VoiceOver on iOS is not device-verified (see Known limits) |
 | R-33 patch scripts | PASS | None |
 | R-34 themes | N/A | Single light theme |
-| R-35 run + click-through | PASS | typecheck, 521 + 332 + 157 tests, build; click-through record above |
+| R-35 run + click-through | PASS | typecheck, 521 + 343 + 160 tests, build; click-through record above |
 | R-36 fabricated claims | PASS | Security claim removed (#22 test) |
 | R-37 direction | PASS | DESIGN.md revised to match the owner decision; dials declared |
 | R-38 real content | PASS | Demo strip on every screen; per-meal price carries its unit; unfilled menu slots are labelled, never listed as dishes |
