@@ -340,22 +340,22 @@ export async function verifyDeliveryDepart(pool, cmd, evidence) {
   const spareDate = addDays(today, -350);
   await pool.query("update v1.delivery_days set service_date=$2::date where id=$1", [spare.id, spareDate]);
   const spareMeal = (await pool.query("select meal from v1.fulfillments where day_id=$1 limit 1", [spare.id])).rows[0].meal;
-  const spareSince = (await pool.query("select since::text s from v1.auto_deliver_policy")).rows[0].s;
-  await pool.query("update v1.auto_deliver_policy set since=$1::date", [spareDate]);
-  await claimed(pool, U.customer, async (c) => {
-    await c.query("select public.catera_v1_command('deliveryIssue.create',$1,gen_random_uuid())", [issue(spare.id, spareMeal)]);
+  // The nightly rule is switched on from the spare's own past date, and restored however this ends.
+  await withPolicyFrom(pool, spareDate, async () => {
+    await claimed(pool, U.customer, async (c) => {
+      await c.query("select public.catera_v1_command('deliveryIssue.create',$1,gen_random_uuid())", [issue(spare.id, spareMeal)]);
+      await system(pool, "delivery.autoDeliver", { today: addDays(spareDate, 1) });
+      assert.equal(await dayStatusOf(pool, spare.id), "scheduled", "an in-flight report holds the day");
+      await c.query("commit");
+    });
     await system(pool, "delivery.autoDeliver", { today: addDays(spareDate, 1) });
-    assert.equal(await dayStatusOf(pool, spare.id), "scheduled", "an in-flight report holds the day");
-    await c.query("commit");
+    assert.equal(await dayStatusOf(pool, spare.id), "scheduled");
+    assert.equal(await earnedOf(pool, spare.id), 0);
+    await pool.query("update v1.delivery_issues set status='resolved' where day_id=$1", [spare.id]);
+    await system(pool, "delivery.autoDeliver", { today: addDays(spareDate, 1) });
+    assert.equal(await dayStatusOf(pool, spare.id), "delivered");
+    assert.equal(await earnedOf(pool, spare.id), 1);
   });
-  await system(pool, "delivery.autoDeliver", { today: addDays(spareDate, 1) });
-  assert.equal(await dayStatusOf(pool, spare.id), "scheduled");
-  assert.equal(await earnedOf(pool, spare.id), 0);
-  await pool.query("update v1.delivery_issues set status='resolved' where day_id=$1", [spare.id]);
-  await system(pool, "delivery.autoDeliver", { today: addDays(spareDate, 1) });
-  assert.equal(await dayStatusOf(pool, spare.id), "delivered");
-  assert.equal(await earnedOf(pool, spare.id), 1);
-  await pool.query("update v1.auto_deliver_policy set since=$1::date", [spareSince]);
   evidence.push(
     "Reports filed while the nightly job runs 10 times never leave a reported meal delivered ahead of its report (" +
       outcomes.held + " held, " + outcomes.reportedAfterDelivery + " reported after delivery); an in-flight report holds its meal until resolved.",
