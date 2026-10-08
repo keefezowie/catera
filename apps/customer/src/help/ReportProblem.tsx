@@ -131,6 +131,14 @@ function Report({ id, meal: wanted, jenis }: { id: string; meal?: string; jenis?
       if (code === "CONFLICT") {
         setError(t("Laporan untuk makan ini sudah terkirim.", "A report for this meal was already sent."));
         void state.reload();
+      } else if (code === "NOT_ALLOWED") {
+        // The server takes reports only for today or earlier in Jakarta.
+        setError(
+          t(
+            "Laporan bisa dikirim mulai hari pengantaran, setelah jam antar dimulai.",
+            "You can report from the delivery day, once the delivery window starts.",
+          ),
+        );
       } else setError(errorLabel(code, locale) || t("Belum berhasil. Coba lagi.", "That did not work. Try again."));
     } finally {
       setBusy(false);

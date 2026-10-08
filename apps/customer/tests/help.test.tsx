@@ -171,6 +171,18 @@ describe("Ada masalah", () => {
     expect(screen.queryByText(/^Sekarang:/)).toBeNull();
   });
 
+  it("says plainly when the server refuses a report for a day not yet due", async () => {
+    const command = jest.fn(async () => {
+      throw Object.assign(new Error("NOT_ALLOWED"), { code: "NOT_ALLOWED" });
+    });
+    renderWith(runtimeWith({ command }), <ReportProblem />);
+    fireEvent.press(await screen.findByRole("button", { name: "Kirim laporan" }));
+    expect(
+      await screen.findByText("Laporan bisa dikirim mulai hari pengantaran, setelah jam antar dimulai."),
+    ).toBeTruthy();
+    expect(screen.queryByText(/^Sekarang:/)).toBeNull();
+  });
+
   it("says the delivery is not found when the read has no meals list", async () => {
     const state = customerState({ status: "out_for_delivery" });
     state.deliveries = state.deliveries.map((d) => (d.id === "d-today" ? ({ ...d, meals: null } as unknown as typeof d) : d));

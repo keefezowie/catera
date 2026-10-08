@@ -5,6 +5,7 @@ import {
   dayLabel,
   renewalDefaults,
   renewalDue,
+  reportableMeals,
   todayPlates,
   upcomingRows,
   type CustomerState,
@@ -251,6 +252,42 @@ describe("changeDeadline", () => {
     // Jakarta date of the cutoff, not UTC: 23.30 WIB on the 8th is 16.30 UTC on the 8th.
     expect(changeDeadline("2026-10-08T16:30:00Z", now, "en")).toBe("tomorrow 23.30");
     expect(changeDeadline("garbage", now, "id")).toBeNull();
+  });
+});
+
+describe("reportableMeals", () => {
+  // Ada masalah: today or yesterday in Jakarta, once the window started or the meal moved on.
+  it("never offers a future day, even one on its way in the data", () => {
+    expect(reportableMeals(delivery("2026-10-08", [lunch({ status: "out_for_delivery" })]), at("12:00"))).toEqual([]);
+    expect(reportableMeals(delivery("2026-10-18", [lunch()]), at("12:00"))).toEqual([]);
+  });
+  it("offers today once the window has started", () => {
+    const d = delivery("2026-10-07", [lunch(), dinner()]);
+    expect(reportableMeals(d, at("10:59"))).toEqual([]);
+    expect(reportableMeals(d, at("11:00"))).toEqual(["lunch"]);
+    expect(reportableMeals(d, at("17:30"))).toEqual(["lunch", "dinner"]);
+  });
+  it("offers today before the window when the meal is on its way, delivered or failed", () => {
+    for (const status of ["out_for_delivery", "delivered", "issue"] as const)
+      expect(reportableMeals(delivery("2026-10-07", [lunch({ status })]), at("09:00"))).toEqual(["lunch"]);
+    expect(reportableMeals(delivery("2026-10-07", [lunch({ status: "preparing" })]), at("09:00"))).toEqual([]);
+  });
+  it("offers yesterday, but not the day before", () => {
+    expect(reportableMeals(delivery("2026-10-06", [lunch({ status: "delivered" })]), at("08:00"))).toEqual(["lunch"]);
+    expect(reportableMeals(delivery("2026-10-05", [lunch({ status: "delivered" })]), at("08:00"))).toEqual([]);
+  });
+  it("uses the Jakarta day, not the device day", () => {
+    // 23.30 UTC on the 6th is already 06.30 on the 7th in Jakarta.
+    const late = new Date("2026-10-06T23:30:00Z");
+    expect(reportableMeals(delivery("2026-10-07", [lunch({ status: "out_for_delivery" })]), late)).toEqual(["lunch"]);
+    expect(reportableMeals(delivery("2026-10-05", [lunch({ status: "delivered" })]), late)).toEqual([]);
+  });
+  it("never offers a cancelled meal or day", () => {
+    expect(reportableMeals(delivery("2026-10-07", [lunch({ status: "cancelled" })]), at("12:00"))).toEqual([]);
+    expect(
+      reportableMeals(delivery("2026-10-07", [lunch({ status: "delivered" })], { status: "cancelled" }), at("12:00")),
+    ).toEqual([]);
+    expect(reportableMeals(delivery("2026-10-07", null), at("12:00"))).toEqual([]);
   });
 });
 

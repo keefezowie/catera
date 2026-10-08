@@ -344,6 +344,54 @@ describe("Hari", () => {
   });
 });
 
+describe("Hari: Ada masalah", () => {
+  // NOW is Wednesday 7 Oct, 10.00 in Jakarta; the lunch window opens at 11.00.
+  const report = () => screen.queryByRole("button", { name: "Ada masalah" });
+  const show = async (d: Delivery) => {
+    mockParams = { id: d.id };
+    renderWith(runtimeWith(stateOf([d])), <DayScreen />);
+    await screen.findByText(/Makan Siang Rumahan/);
+  };
+
+  it("is not offered for a future day", async () => {
+    await show(open("d-next", "2026-10-18"));
+    expect(report()).toBeNull();
+  });
+
+  it("is not offered today before the window opens", async () => {
+    await show(open("d-today", "2026-10-07"));
+    expect(report()).toBeNull();
+  });
+
+  it("is not offered for a cancelled meal", async () => {
+    const d = delivery("d-today", "2026-10-07", {}, {
+      meals: [
+        { meal: "lunch", status: "cancelled" },
+        { meal: "dinner", status: "scheduled" },
+      ],
+      offer: offer({ windows: { lunch: "08.00–09.00", dinner: "17.00–19.00" } }),
+    });
+    await show(d);
+    expect(report()).toBeNull();
+  });
+
+  it("is offered today once the meal is on its way, and opens the report for that meal", async () => {
+    await show(delivery("d-today", "2026-10-07", { status: "out_for_delivery" }));
+    fireEvent.press(report()!);
+    expect(router.push).toHaveBeenCalledWith("/masalah/d-today?meal=lunch");
+  });
+
+  it("is offered today once the window has started", async () => {
+    await show(open("d-today", "2026-10-07", { offer: offer({ windows: { lunch: "09.30–11.00", dinner: "17.00–19.00" } }) }));
+    expect(report()).toBeTruthy();
+  });
+
+  it("is offered for yesterday's delivered meal", async () => {
+    await show(delivery("d-past", "2026-10-06", { status: "delivered" }));
+    expect(report()).toBeTruthy();
+  });
+});
+
 describe("Hari without a meals list", () => {
   it("still shows the day", async () => {
     mockParams = { id: "d-bare" };

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ActivityIndicator, Image, StyleSheet, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { dayLabel, jakartaDay, mealLabel, statusLabel, type Delivery } from "@catera/domain";
+import { dayLabel, jakartaDay, mealLabel, reportableMeals, statusLabel, type Delivery } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
 import { Button, Card, colors, Screen, Text } from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
@@ -54,6 +54,8 @@ function Day({ id }: { id: string }) {
   const closed = d.status === "cancelled" || meals.every((m) => m.status === "delivered");
   const photo = d.offer.menus?.find((m) => m.meal === meals[0]?.meal)?.image || d.offer.image;
   const customerPicks = d.offer.menuSelectionMode === "customer";
+  // Ada masalah only for a meal that is due or past: today or yesterday in Jakarta, never ahead.
+  const reportable = reportableMeals(d, new Date());
   return (
     <Screen
       footer={
@@ -105,11 +107,13 @@ function Day({ id }: { id: string }) {
         />
       ) : null}
       <ChatKatering phone={catererPhoneOf(d)} />
-      <Button
-        variant="text"
-        label={t("Ada masalah", "Report a problem")}
-        onPress={() => router.push(`/masalah/${encodeURIComponent(d.id)}?meal=${meals[0]?.meal ?? "lunch"}` as never)}
-      />
+      {reportable.length ? (
+        <Button
+          variant="text"
+          label={t("Ada masalah", "Report a problem")}
+          onPress={() => router.push(`/masalah/${encodeURIComponent(d.id)}?meal=${reportable[0]}` as never)}
+        />
+      ) : null}
       {sheet ? (
         <ChangeDaySheet
           delivery={d}

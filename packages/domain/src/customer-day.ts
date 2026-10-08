@@ -130,6 +130,27 @@ export function todayPlates(state: CustomerState, now: Date): Plate[] {
     .map((p) => p.plate);
 }
 
+/**
+ * Meals of a delivery day the customer may report a problem with ("Ada masalah"): served today
+ * or yesterday in Jakarta, not cancelled, and either past the start of their window or already
+ * on the way, delivered or failed. Never a future day. In window order (lunch, dinner).
+ */
+export function reportableMeals(d: Delivery, now: Date): ("lunch" | "dinner")[] {
+  const today = jakartaDay(now);
+  if (d.status === "cancelled" || (d.service_date !== today && d.service_date !== addDays(today, -1))) return [];
+  return MEALS.filter((meal) =>
+    mealsOf(d).some(
+      (m) =>
+        m.meal === meal &&
+        m.status !== "cancelled" &&
+        (m.status === "out_for_delivery" ||
+          m.status === "delivered" ||
+          m.status === "issue" ||
+          windowStart(d.service_date, d.offer, meal) <= now.getTime()),
+    ),
+  );
+}
+
 /** The next `n` deliveries after Jakarta today, soonest first. */
 export function upcomingRows(state: CustomerState, now: Date, n: number, locale: Locale = "id"): UpcomingRow[] {
   const today = jakartaDay(now);
