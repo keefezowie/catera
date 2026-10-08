@@ -202,7 +202,7 @@ The sidecar’s eight-step OKLCH strips are synthesized panel aids, not addition
 
 **Display Font:** self-hosted Plus Jakarta Sans, registered as `Jakarta` on the web with a sans-serif fallback.
 
-**Body Font:** the same self-hosted Jakarta face. The variable WOFF2 supports weights 200–800. Native registers the matching bundled variable TTF as `Jakarta`. See the [font provenance](packages/brand/manifest.font.json).
+**Body Font:** the same self-hosted Jakarta face. The variable WOFF2 supports weights 200–800. Android cannot select weights from a variable TTF, so native registers five static TTFs through `fontAssets` in `@catera/mobile-ui`: `Jakarta` (400), `Jakarta-Medium`, `Jakarta-SemiBold`, `Jakarta-Bold` and `Jakarta-ExtraBold`. `fontFor(weight)` maps a CSS-style weight to its family and native `Text` applies it; an explicit `fontFamily` wins over a weight, and native app source never writes `fontWeight` directly. See the [font provenance](packages/brand/manifest.font.json).
 
 **Character:** rounded, clear interface lettering with firm 750-weight web headings and tighter headline tracking. The illustrated wordmark remains an image asset. Normal UI copy stays sentence case; operational numbers use tabular figures.
 
@@ -212,17 +212,18 @@ The frontmatter records the reused base web hierarchy: fluid headline, title, su
 
 The marketplace’s display headline is a surface-specific expression: `clamp(38px, 4.3vw, 62px)`, weight 750, line-height 1.07, tracking −0.04em. Its cascade resolves to 50px at 1150px, 43px at 800px, and 30px at 560px and below. Keep that ramp local to the hero. Section headings use 26px; package titles use 19px on wide screens, 17px in the intermediate layout, and 22px in single-column phone cards.
 
-Native’s actual reusable source ramp is different from the web and from the exported suggested typography values:
+Native uses its own reusable ramp, shipped as the `Text` variants in `@catera/mobile-ui`. It differs from the web and from the exported suggested typography values:
 
-| Native role | Size / line-height | Weight  | Tracking |
-| ----------- | ------------------ | ------- | -------- |
-| Title       | 30 / 39            | 700     | −0.8     |
-| Heading     | 21 / 28            | 700     | −0.4     |
-| Body        | 14 / 23            | default | normal   |
-| Small       | 11 / 18            | default | normal   |
-| Label       | 12 / 23            | 700     | normal   |
+| Native role | Size / line-height | Family (weight)           | Tracking |
+| ----------- | ------------------ | ------------------------- | -------- |
+| Title       | 30 / 39            | `Jakarta-Bold` (700)      | −0.8     |
+| Heading     | 21 / 28            | `Jakarta-Bold` (700)      | −0.4     |
+| Body        | 14 / 23            | `Jakarta` (400)           | normal   |
+| Label       | 12 / 23            | `Jakarta-Bold` (700)      | normal   |
+| Small       | 11 / 18            | `Jakarta` (400)           | normal   |
+| Number      | 40 / default       | `Jakarta-ExtraBold` (800) | −1       |
 
-These are React Native style values, not measured device pixels. Shared exports currently suggest body 16, small 14, title 24, and heading 32, but the native styles do not consume that scale. Do not claim rendered parity or silently replace the built ramp with those exports.
+Number uses tabular figures, as does every operational number in native source. These are React Native style values, not measured device pixels, so they do not establish rendered parity with the web. Shared exports still suggest body 16, small 14, title 24, and heading 32; the native styles do not consume that scale, and it must not silently replace the built ramp.
 
 **The One Interface Family Rule.** Use the self-hosted Jakarta face for interface text. Keep the illustrated wordmark separate from live UI typography.
 
@@ -297,7 +298,7 @@ Meal filters are outlined 44px-minimum controls, filled forest with cream text w
 
 Statuses are compact, rounded text tags with a small dot and semantic tone. They are read-only indicators, not pills that replace action controls.
 
-**The Truthful State Rule.** Pair state color with explicit text, and make the selected filter and its empty result visible.
+**The Truthful State Rule.** Pair state color with explicit text, and make the selected filter and its empty result visible. Unavailable choices carry a visible reason: native delivery-date chips caption a blocked day “Penuh” or “Terisi” instead of only dimming it.
 
 ### Cards / Containers
 
@@ -325,7 +326,7 @@ The next-meal panel pairs a generous photograph with caterer, portions, date, ti
 
 ### Customer meal calendar
 
-The web customer schedule uses a continuous meal-coverage strip within a centered 1040px maximum-width column. A compact month control, “Hari ini”, and the next-delivery shortcut lead into the strip; the selected-week summary, “Per hari” / “Mendatang” control, and meal details align below it. Desktop date cells are fixed at 112px wide by 120px minimum height with 12px corners and 44px paging arrows outside the strip. At 650px and below, cells become 92px wide by 116px minimum height, the arrows disappear, shortcuts take a second row, and the summary and details lose their desktop 52px side inset. Horizontal overflow exposes the next partially visible date on phone. These are local calendar rules; Expo adoption is deferred.
+The web customer schedule uses a continuous meal-coverage strip within a centered 1040px maximum-width column. A compact month control, “Hari ini”, and the next-delivery shortcut lead into the strip; the selected-week summary, “Per hari” / “Mendatang” control, and meal details align below it. Desktop date cells are fixed at 112px wide by 120px minimum height with 12px corners and 44px paging arrows outside the strip. At 650px and below, cells become 92px wide by 116px minimum height, the arrows disappear, shortcuts take a second row, and the summary and details lose their desktop 52px side inset. Horizontal overflow exposes the next partially visible date on phone. These are local calendar rules for the web strip. Native Jadwal adopts only its coverage model: a month grid whose covered days show Sunrise sun and forest moon icons for lunch and dinner, with the same truthful loading and error states; the strip layout, picker and “Mendatang” list are not adopted.
 
 Today uses Jakarta's calendar date with a Sunrise dot and accessible dark-orange “Hari ini” label; selection uses a two-pixel forest ring without replacing coverage. Empty days remain transparent, while any covered day uses the quiet scheduled background. Covered cards use Sunrise sun and forest moon icons as their sole visual coverage cue, with both icons shown when both meals are covered; the former footer rail is removed. The package count sits alongside the icons, while the complete button description still names lunch and dinner for assistive technology. “Belum ada makan”, loading, and error remain visible text states and never claim coverage or a package count. Coverage counts each meal once per day, regardless of portions or multiple caterers; delivered meals count and cancelled meals do not. The summary names the Monday–Sunday week containing the selected date and counts covered lunch and dinner days separately.
 
@@ -344,6 +345,17 @@ The delivered square masters are 1254 × 1254; wordmark and horizontal lockup ar
 The six [synthetic food images](packages/brand/manifest.food.json) are 1448 × 1086 at 4:3. They serve explicitly labeled demo listings. Production sellers supply their own food images. Do not claim that generated food establishes a real seller’s meal or endorsement.
 
 The [finish verdict](https://github.com/keefezowie/catera/blob/525a1392797097f0959bebce1a275cfc117643fb/output/V1-FINISH-VERDICT.md) resolves four bounded web findings using the existing desktop, tablet, phone, and viewport captures in `output/visual-review/`, including `admin-pending-empty.png`. Overall disposition remains **fix** for unfinished transparent artwork; high-resolution master acceptance also remains open in the asset manifest. Native source now gives quantity/compare controls 48 × 48 and chips a 48 minimum height. No native device visual approval, gesture/large-text/dark-appearance approval, push verification, or return-link certification is supplied by this documentation.
+
+### Native motion
+
+Native motion is a smaller system than the web's and shares its timing vocabulary through `nativeMotion` in `@catera/design-tokens`: control 120ms, selection 180ms, content 220ms and feature 320ms, with the same `cubic-bezier(.16, 1, .3, 1)` ease. Press feedback is a spring (damping 18, stiffness 260) rather than a timed curve.
+
+Buttons, chips, segmented options and round buttons use `PressableScale`: they compress to 0.97 on press-in, return on release, and fire a haptic (`tap` for actions, `select` for choices; `success` and `warning` are reserved for outcomes). `FadeSwap` fades in new content when its key changes. Pushed screens share the `AppHeader` round back button and one-line heading.
+
+- Choreographed motion belongs to story beats, not to every screen. The only sequenced entrance in Phase 1 is the “Cara kerja Catera” rows on package detail: a one-time 80ms opacity stagger, skipped under reduced motion, that tells a three-step story. It is the sanctioned exception, not a pattern for lists; later phases add further beats deliberately.
+- Never stagger a catalog or any list. Navigation, operational rows and money totals stay still.
+- Reduced motion (the system setting, read through `useReduced`) replaces scale and movement with opacity-only feedback (pressed controls dim to 0.85) or no motion at all.
+- Animate only transform and opacity.
 
 ### Web motion
 
