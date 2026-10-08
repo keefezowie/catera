@@ -20,6 +20,7 @@ import { RenewalCard, TrialCard } from "./RenewalCard";
 import { UpcomingRows } from "./UpcomingRows";
 import { MenuDueRows } from "./MenuDueRows";
 import { loadCachedCustomer, saveCachedCustomer } from "./offline";
+import { remainingLabel } from "../remaining";
 
 type LoadedCustomer = { data: CustomerState; savedAt: string | null };
 
@@ -85,8 +86,12 @@ function SignedInHome({ actorId, name }: { actorId: string; name: string }) {
     ) : (
       <Screen>
         <Text variant="title">Beranda</Text>
-        <Text>{home.error}</Text>
-        <Button label={t("Coba lagi", "Try again")} onPress={() => void home.reload()} />
+        <View style={{ gap: 4, alignItems: "flex-start" }}>
+          <Text testID="home-error" style={{ color: colors.danger }}>
+            {home.error}
+          </Text>
+          <Button variant="text" label={t("Coba lagi", "Try again")} onPress={() => void home.reload()} />
+        </View>
       </Screen>
     );
 
@@ -147,7 +152,7 @@ function PackageLine({ subscription: s, phone }: { subscription: Subscription; p
       <View style={{ flex: 1, gap: 2 }}>
         <Text style={{ fontFamily: fontFor("700") }}>{offer.name}</Text>
         <Text variant="caption">
-          {offer.caterer} · {t(`${s.remaining} hari lagi`, `${s.remaining} days to go`)}
+          {offer.caterer} · {remainingLabel(s.remaining, t)}
         </Text>
       </View>
       <ChatKatering phone={phone} variant="text" />

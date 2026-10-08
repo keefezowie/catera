@@ -5,7 +5,7 @@ import { router } from "expo-router";
 import { jakartaDay, whatsappUrl, type SellerCustomer } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
 import { Button, Card, Chip, colors, fontFor, PressableRow, PressableScale, Screen, Text } from "@catera/mobile-ui";
-import { activeSubscriptions, currentSubscription, customerStatus, endLabel, type CustomerStatus } from "./rules";
+import { activeSubscriptions, currentSubscription, customerStatus, activeEndLabel, type CustomerStatus } from "./rules";
 import { loadAllCustomers } from "./load";
 import { ReadError } from "../ReadError";
 
@@ -60,7 +60,7 @@ export function CustomerList() {
               <View style={{ flexDirection: "row", gap: 6, marginTop: 2 }}>
                 {s && s.status === "active" ? (
                   <Text variant="caption" style={{ color: colors.sunriseInk, fontFamily: fontFor("700") }}>
-                    {endLabel(s.ends_on, today, t, locale)}
+                    {activeEndLabel(s, today, t, locale)}
                   </Text>
                 ) : null}
                 {others ? <Text variant="caption">{`+${others} ${t("paket lain", "more packages")}`}</Text> : null}

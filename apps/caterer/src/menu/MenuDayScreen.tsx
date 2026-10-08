@@ -24,7 +24,7 @@ export function MenuDayScreen({ date, packageId, meal }: { date: string; package
     if (current && items === null) setItems(current.details?.items ?? []);
   }, [current, items]);
   if ((ops.error && !ops.data) || (day.error && !day.data))
-    return <MenuLoadError onRetry={() => void (ops.error && !ops.data ? ops.reload() : day.reload())} />;
+    return <MenuLoadError title={false} onRetry={() => void (ops.error && !ops.data ? ops.reload() : day.reload())} />;
   if (ops.data && !offer)
     return (
       <Screen>

@@ -15,7 +15,7 @@ export function RenewalCard({ subscription: s }: { subscription: Subscription })
         {offer.name} · {offer.caterer}
       </Text>
       <Text variant="title" style={{ color: colors.charcoal }}>
-        {t(`Sisa ${s.remaining} hari`, `${s.remaining} days left`)}
+        {t(`Sisa ${s.remaining} hari`, s.remaining === 1 ? "1 day left" : `${s.remaining} days left`)}
       </Text>
       <Text style={{ fontVariant: ["tabular-nums"] }}>
         {t(

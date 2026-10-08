@@ -4,7 +4,7 @@ import { router } from "expo-router";
 import { errorLabel, jakartaDay, whatsappUrl, type CustomerSubscription } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
 import { Button, Card, colors, Screen, Text } from "@catera/mobile-ui";
-import { activeSubscriptions, endLabel, renewalAction } from "./rules";
+import { activeEndLabel, activeSubscriptions, renewalAction } from "./rules";
 import { usePaymentsActive } from "./usePayments";
 import { loadCustomer } from "./load";
 import { ReadError } from "../ReadError";
@@ -71,7 +71,7 @@ export function CustomerDetail({ id }: { id: string }) {
         <Card key={s.id} tone={s.status === "active" && s.remaining <= 3 ? "attention" : "surface"}>
           <Text variant="label" style={{ color: colors.sunriseInk }}>
             {s.status === "active"
-              ? `${endLabel(s.ends_on, today, t, locale)} · ${t("sisa", "left")} ${s.remaining} ${t("hari", "days")}`
+              ? activeEndLabel(s, today, t, locale, true)
               : t("Paket sudah selesai", "Package finished")}
           </Text>
           <Text variant="heading">{`${s.package_name} · ${s.portions} porsi`}</Text>

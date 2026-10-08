@@ -41,3 +41,20 @@ export function endLabel(endsOn: string, today: string, t: (id: string, en: stri
   if (endsOn === addDays(today, 1)) return t("Berakhir besok", "Ends tomorrow");
   return `${t("Berakhir", "Ends")} ${shortDate(endsOn, locale)}`;
 }
+
+/**
+ * The end line of an active package. Moved deliveries can keep a package running past its booked last day; then a
+ * past date would read as if it had already ended, so only the days left are shown.
+ */
+export function activeEndLabel(
+  s: { ends_on: string; remaining: number },
+  today: string,
+  t: (id: string, en: string) => string,
+  locale: Locale,
+  withRemaining = false,
+) {
+  const left = t(`sisa ${s.remaining} hari`, s.remaining === 1 ? "1 day left" : `${s.remaining} days left`);
+  if (s.ends_on < today) return left.charAt(0).toUpperCase() + left.slice(1);
+  const end = endLabel(s.ends_on, today, t, locale);
+  return withRemaining ? `${end} · ${left}` : end;
+}

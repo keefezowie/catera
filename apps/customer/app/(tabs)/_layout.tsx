@@ -7,7 +7,7 @@ type CustomerTab = "index" | "jadwal" | "jelajah" | "akun";
 
 type Glyph = keyof typeof Ionicons.glyphMap;
 
-/** Outline while inactive, filled when focused; content icons elsewhere stay outline. */
+/** Outline until focused, filled when focused. Elsewhere, state glyphs (saved heart, selected star, coverage sun and moon) are filled because the fill carries the state; other icons are outline. */
 const icons: Record<CustomerTab, { filled: Glyph; outline: Glyph }> = {
   index: { filled: "home", outline: "home-outline" },
   jadwal: { filled: "calendar", outline: "calendar-outline" },

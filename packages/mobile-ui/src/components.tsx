@@ -347,7 +347,7 @@ export function RoundButton({
 
 const cardTones = StyleSheet.create({
   surface: { backgroundColor: colors.surface, borderColor: colors.line },
-  attention: { backgroundColor: colors.cream, borderColor: "#F3DFC3" },
+  attention: { backgroundColor: colors.cream, borderColor: colors.attentionBorder },
   brand: { backgroundColor: colors.forest, borderColor: colors.forest },
   sage: { backgroundColor: colors.sage, borderColor: colors.sage },
 });

@@ -108,7 +108,7 @@ function Browse({ area, onArea }: { area: string; onArea: (value: string) => voi
       </View>
 
       <View style={styles.search}>
-        <Ionicons name="search" size={20} color={colors.muted} />
+        <Ionicons name="search-outline" size={20} color={colors.muted} />
         <TextInput
           accessibilityLabel={t("Cari paket", "Search packages")}
           value={search}

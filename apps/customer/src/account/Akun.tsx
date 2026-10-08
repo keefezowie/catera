@@ -8,6 +8,7 @@ import { failureText } from "./failure";
 import { usePush } from "./push";
 import { Row, SectionLabel } from "./Row";
 import { SignInFirst } from "./SignInFirst";
+import { remainingLabel } from "../remaining";
 
 /** "6281234567890" (as Supabase keeps it) → "0812-3456-7890". */
 export function localPhone(phone: string): string {
@@ -115,7 +116,7 @@ function Account() {
               key={s.id}
               first={i === 0}
               label={s.snapshot.offer.name}
-              caption={`${s.snapshot.offer.caterer} · ${t(`${s.remaining} hari lagi`, `${s.remaining} days to go`)}`}
+              caption={`${s.snapshot.offer.caterer} · ${remainingLabel(s.remaining, t)}`}
               onPress={() => router.push("/jadwal" as never)}
             />
           ))

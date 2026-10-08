@@ -110,7 +110,9 @@ export function ClaimScreen() {
     return (
       <Screen>
         <Header />
-        <Text>{t("Belum bisa memuat. Periksa koneksi lalu coba lagi.", "Couldn't load. Check your connection and try again.")}</Text>
+        <Text style={{ color: colors.danger }}>
+          {t("Belum bisa memuat. Periksa koneksi lalu coba lagi.", "Couldn't load. Check your connection and try again.")}
+        </Text>
         <Button label={t("Coba lagi", "Try again")} onPress={() => setAttempt((n) => n + 1)} />
         {home}
       </Screen>

@@ -15,6 +15,8 @@ export const colors = {
   fieldBorder: "#CFD3C6",
   /** Secondary button and unselected chip outline. */
   secondaryBorder: "#CDD4C4",
+  /** Warm edge of the cream attention card. */
+  attentionBorder: "#F3DFC3",
   danger: "#A33024",
 } as const;
 export const spacing = {

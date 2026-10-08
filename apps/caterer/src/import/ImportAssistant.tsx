@@ -229,7 +229,7 @@ export function ImportAssistant() {
                 <Text variant="heading">{r.name || t("Tanpa nama", "No name")}</Text>
                 <Text variant="caption">{[r.phone, [r.addressLine, r.area].filter(Boolean).join(", ")].filter(Boolean).join(" · ")}</Text>
                 <Text variant="caption">
-                  {`${packages.find((p) => p.id === r.packageId)?.name ?? t("Paket belum dipilih", "Package not chosen")} · ${r.remainingDays != null ? `${r.remainingDays} ${t("hari lagi", "days left")}` : t("sisa hari belum diisi", "days left not set")} · ${r.portions} ${t("porsi", "portions")}`}
+                  {`${packages.find((p) => p.id === r.packageId)?.name ?? t("Paket belum dipilih", "Package not chosen")} · ${r.remainingDays != null ? t(`${r.remainingDays} hari lagi`, r.remainingDays === 1 ? "1 day left" : `${r.remainingDays} days left`) : t("sisa hari belum diisi", "days left not set")} · ${r.portions} ${t("porsi", "portions")}`}
                 </Text>
                 {r.needsReview ? <Text style={{ color: colors.sunriseInk, fontFamily: fontFor("700") }}>{r.reason}</Text> : null}
               </PressableRow>

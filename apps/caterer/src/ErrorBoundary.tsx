@@ -1,8 +1,9 @@
 import { Component, type ReactNode } from "react";
 import { useMobile } from "@catera/mobile-core";
-import { Button, Screen, Text } from "@catera/mobile-ui";
+import { Screen } from "@catera/mobile-ui";
+import { ReadError } from "./ReadError";
 
-type Props = { children: ReactNode; message: string; retryLabel: string };
+type Props = { children: ReactNode; message: string };
 type State = { failed: boolean };
 
 class Boundary extends Component<Props, State> {
@@ -14,8 +15,7 @@ class Boundary extends Component<Props, State> {
     if (!this.state.failed) return this.props.children;
     return (
       <Screen>
-        <Text>{this.props.message}</Text>
-        <Button label={this.props.retryLabel} onPress={() => this.setState({ failed: false })} />
+        <ReadError message={this.props.message} onRetry={() => this.setState({ failed: false })} />
       </Screen>
     );
   }
@@ -25,7 +25,7 @@ class Boundary extends Component<Props, State> {
 export function ScreenGuard({ children, message }: { children: ReactNode; message?: string }) {
   const { t } = useMobile();
   return (
-    <Boundary message={message ?? t("Halaman ini belum bisa ditampilkan.", "This page can't be shown right now.")} retryLabel={t("Coba lagi", "Try again")}>
+    <Boundary message={message ?? t("Halaman ini belum bisa ditampilkan.", "This page can't be shown right now.")}>
       {children}
     </Boundary>
   );

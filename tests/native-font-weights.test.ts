@@ -53,3 +53,11 @@ test("Dapur app sources use colors.* tokens instead of literal hex values", () =
     .sort();
   expect(offenders).toEqual([]);
 });
+
+test("mobile-ui components use colors.* tokens instead of literal hex values", () => {
+  const offenders = walk(join(root, "packages/mobile-ui/src"))
+    .filter((f) => /#[0-9A-Fa-f]{6}\b/.test(readFileSync(f, "utf8")))
+    .map(rel)
+    .sort();
+  expect(offenders).toEqual([]);
+});

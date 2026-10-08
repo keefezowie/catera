@@ -14,6 +14,7 @@ import {
 import { useData, useMobile, type MobileRuntime } from "@catera/mobile-core";
 import { Button, Card, Chip, colors, fontFor, PressableRow, RoundButton, Screen, Segmented, Text } from "@catera/mobile-ui";
 import { copyWeekBatches, weekDates } from "./logic";
+import { ReadError } from "../ReadError";
 
 export type MenuDay = { date: string; version: number; editable: boolean; details: MealMenu | null };
 
@@ -38,13 +39,12 @@ export async function loadMenus(
 }
 
 /** A failed menu read: say so plainly and offer a retry, never an empty week or endless loading. */
-export function MenuLoadError({ onRetry }: { onRetry: () => void }) {
+export function MenuLoadError({ onRetry, title = true }: { onRetry: () => void; title?: boolean }) {
   const { t } = useMobile();
   return (
     <Screen>
-      <Text variant="title">{t("Menu", "Menu")}</Text>
-      <Text>{t("Menu belum bisa dimuat.", "The menu couldn't be loaded.")}</Text>
-      <Button label={t("Coba lagi", "Try again")} onPress={onRetry} />
+      {title ? <Text variant="title">{t("Menu", "Menu")}</Text> : null}
+      <ReadError message={t("Menu belum bisa dimuat.", "The menu couldn't be loaded.")} onRetry={onRetry} />
     </Screen>
   );
 }
@@ -70,6 +70,12 @@ export function MenuWeek() {
   const days = useData(`menu-week:${offer?.id}:${meal}:${dates[0]}`, () =>
     offer ? loadMenus(runtime, offer, meal, dates) : Promise.resolve([]),
   );
+  // Last week is what "Salin minggu lalu" copies from: read it up front so the button can say when there is nothing.
+  // Same key and loader as the week view, so stepping back a week reuses this read.
+  const lastWeekDates = dates.map((d) => addDays(d, -7));
+  const previous = useData(`menu-week:${offer?.id}:${meal}:${lastWeekDates[0]}`, () =>
+    offer ? loadMenus(runtime, offer, meal, lastWeekDates) : Promise.resolve([]),
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
@@ -77,6 +83,9 @@ export function MenuWeek() {
   // Copying and sharing both act on the visible week, so they wait for it and for something in it.
   const weekLoaded = !!days.data;
   const hasMenu = (days.data ?? []).some((d) => d.details?.items?.length);
+  const lastWeekEmpty = !!previous.data && !previous.data.some((d) => d.details?.items?.length);
+  // A failed read of last week does not block copying: the copy reads it again and reports its own error.
+  const lastWeekPending = !previous.data && !previous.error;
   const copyNote = (copied: number, skipped: number) =>
     skipped
       ? t(`${copied} hari disalin · ${skipped} dilewati karena sudah lewat atau sudah diisi`, `${copied} days copied · ${skipped} skipped (past or already filled)`)
@@ -88,8 +97,8 @@ export function MenuWeek() {
     setError("");
     setNote("");
     try {
-      const previous = await loadMenus(runtime, offer, meal, dates.map((d) => addDays(d, -7)));
-      const filled = previous.filter((d) => d.details?.items?.length) as { date: string; details: MealMenu }[];
+      const source = previous.data ?? (await loadMenus(runtime, offer, meal, lastWeekDates));
+      const filled = source.filter((d) => d.details?.items?.length) as { date: string; details: MealMenu }[];
       const targets = new Map(
         (days.data ?? []).map((d) => [d.date, { version: d.version, editable: d.editable, filled: !!d.details?.items?.length }] as const),
       );
@@ -184,10 +193,13 @@ export function MenuWeek() {
       ) : null}
       <View style={{ flexDirection: "row", gap: 8 }}>
         {canEdit ? (
-          <Button style={{ flex: 1 }} variant="secondary" disabled={busy || !weekLoaded} label={t("Salin minggu lalu", "Copy last week")} onPress={() => void copyLastWeek()} />
+          <Button style={{ flex: 1 }} variant="secondary" disabled={busy || !weekLoaded || lastWeekPending || lastWeekEmpty} label={t("Salin minggu lalu", "Copy last week")} onPress={() => void copyLastWeek()} />
         ) : null}
         <Button style={{ flex: 1 }} variant="secondary" disabled={!hasMenu} label={t("Bagikan menu", "Share menu")} onPress={shareMenu} />
       </View>
+      {canEdit && weekLoaded && lastWeekEmpty ? (
+        <Text variant="caption">{t("Minggu lalu belum ada menu untuk disalin", "Last week has no menu to copy")}</Text>
+      ) : null}
       {weekLoaded && !hasMenu ? (
         <Text variant="caption">{t("Belum ada menu untuk dibagikan", "No menu to share yet")}</Text>
       ) : null}

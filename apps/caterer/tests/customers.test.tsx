@@ -3,7 +3,7 @@ import { Linking, StyleSheet } from "react-native";
 import { router } from "expo-router";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { addDays, jakartaDay, shortDate, type SellerCustomer } from "@catera/domain";
-import { customerStatus, endLabel, paymentsActive, renewalAction } from "../src/customers/rules";
+import { activeEndLabel, customerStatus, endLabel, paymentsActive, renewalAction } from "../src/customers/rules";
 import { CustomerList } from "../src/customers/CustomerList";
 import { CustomerDetail } from "../src/customers/CustomerDetail";
 import { canvasDay } from "./fixtures";
@@ -190,6 +190,20 @@ describe("package end labels", () => {
     expect(endLabel("2026-10-09", "2026-10-08", t, "en")).toBe("Ends tomorrow");
     locale = "id";
   });
+  it("an active package past its last booked day shows only the days left", () => {
+    const moved = { ends_on: "2026-10-07", remaining: 1 };
+    expect(activeEndLabel(moved, "2026-10-08", t, "id")).toBe("Sisa 1 hari");
+    expect(activeEndLabel(moved, "2026-10-08", t, "id", true)).toBe("Sisa 1 hari");
+    expect(activeEndLabel({ ends_on: "2026-10-15", remaining: 5 }, "2026-10-08", t, "id", true)).toBe(
+      "Berakhir Kamis 15 Okt · sisa 5 hari",
+    );
+    locale = "en";
+    expect(activeEndLabel(moved, "2026-10-08", t, "en")).toBe("1 day left");
+    expect(activeEndLabel({ ends_on: "2026-10-15", remaining: 5 }, "2026-10-08", t, "en", true)).toBe(
+      "Ends Thu 15 Oct · 5 days left",
+    );
+    locale = "id";
+  });
 });
 
 describe("customers with more than one package", () => {
@@ -232,6 +246,25 @@ describe("customers with more than one package", () => {
     expect(await screen.findByText(/Berakhir hari ini/)).toBeTruthy();
     expect(screen.queryByText(/Berakhir besok/)).toBeNull();
     expect(screen.getByText("+1 paket lain")).toBeTruthy();
+  });
+
+  it("never shows a past end date for a package that is still active, only the days left", async () => {
+    const runtime = runtimeWith("approved", true);
+    // Moved deliveries keep the package running past its booked last day.
+    const overdue = { ...sub(1), id: "s-moved", package_name: "Rantang Nusantara", ends_on: inDays(-1) };
+    (runtime.api as { sellerCustomers: jest.Mock }).sellerCustomers = jest.fn(async () => ({
+      customers: [customer("c-09", "Nadia", [overdue])],
+      total: 1,
+      packages: [],
+    }));
+    const list = wrap(runtime, <CustomerList />);
+    fireEvent.press(await screen.findByText(/Segera berakhir/));
+    expect(await screen.findByText("Sisa 1 hari")).toBeTruthy();
+    expect(screen.queryByText(/^Berakhir/)).toBeNull();
+    list.unmount();
+    wrap(runtime, <CustomerDetail id="c-09" />);
+    expect(await screen.findByText("Sisa 1 hari")).toBeTruthy();
+    expect(screen.queryByText(/Berakhir/)).toBeNull();
   });
 
   it("labels a package whose last day is tomorrow as ending tomorrow", async () => {

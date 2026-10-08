@@ -146,6 +146,23 @@ describe("Akun", () => {
     expect(SecureStore.setItemAsync).toHaveBeenCalledWith("catera.locale", "en");
   });
 
+  it("English remaining days are singular for one day and plural otherwise", async () => {
+    renderWith(
+      runtimeWith({
+        subscriptions: [
+          subscription({ remaining: 1 }),
+          subscription({ id: "s-2", remaining: 6, snapshot: { offer: offer({ name: "Paket Dua" }), total: 90000 } as never }),
+        ],
+      }),
+      <Akun />,
+    );
+    expect(await screen.findByText("Dapur Contoh · 1 hari lagi")).toBeTruthy();
+    fireEvent.press(screen.getByRole("tab", { name: "English" }));
+    expect(await screen.findByText("Dapur Contoh · 1 day to go")).toBeTruthy();
+    expect(screen.getByText("Dapur Contoh · 6 days to go")).toBeTruthy();
+    expect(screen.queryByText(/1 days/)).toBeNull();
+  });
+
   it("shows no caterer or admin workspace links", async () => {
     renderWith(runtimeWith({}, { actor: { id: "u-o1", role: "owner", name: "Pemilik Contoh" } }), <Akun />);
     expect(await screen.findByRole("button", { name: "Keluar" })).toBeTruthy();

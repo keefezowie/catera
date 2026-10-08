@@ -276,7 +276,10 @@ describe("menu reads", () => {
       .mockResolvedValue({ dates: [], categories: [] });
     const { wrap, MenuWeek } = setup(menuMonth);
     render(wrap(<MenuWeek />));
-    expect(await screen.findByText("Menu belum bisa dimuat.")).toBeTruthy();
+    const message = await screen.findByText("Menu belum bisa dimuat.");
+    // Same as every Dapur read error: the message in the error colour and a text "Coba lagi".
+    expect(StyleSheet.flatten(message.props.style).color).toBe(require("@catera/mobile-ui").colors.danger);
+    expect(StyleSheet.flatten(screen.getByRole("button", { name: "Coba lagi" }).props.style).backgroundColor).not.toBe(require("@catera/mobile-ui").colors.forest);
     fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
     await waitFor(() => expect(screen.queryByText("Menu belum bisa dimuat.")).toBeNull());
     expect(menuMonth.mock.calls.length).toBeGreaterThanOrEqual(2);
@@ -286,7 +289,10 @@ describe("menu reads", () => {
     const menuMonth = jest.fn().mockRejectedValue(new Error("400"));
     const { wrap, MenuDayScreen } = setup(menuMonth);
     render(wrap(<MenuDayScreen date="2026-10-07" packageId="p-1" meal="lunch" />));
-    expect(await screen.findByText("Menu belum bisa dimuat.")).toBeTruthy();
+    const message = await screen.findByText("Menu belum bisa dimuat.");
+    expect(StyleSheet.flatten(message.props.style).color).toBe(require("@catera/mobile-ui").colors.danger);
+    // The pushed screen keeps its header as the only heading.
+    expect(screen.queryAllByRole("header")).toHaveLength(0);
     expect(screen.queryByText("Memuat…")).toBeNull();
     expect(screen.getByRole("button", { name: "Coba lagi" })).toBeTruthy();
   });
@@ -372,6 +378,32 @@ describe("menu loading and sharing states", () => {
     runtimeFor(jest.fn(async () => ({ dates: [], categories: [] })));
     expect(await screen.findByText("Belum ada menu untuk dibagikan")).toBeTruthy();
     expect(disabled("Bagikan menu")).toBe(true);
+  });
+
+  it("Salin minggu lalu is disabled with a reason when last week has no menu", async () => {
+    runtimeFor(jest.fn(async () => ({ dates: [], categories: [] })));
+    expect(await screen.findByText("Minggu lalu belum ada menu untuk disalin")).toBeTruthy();
+    expect(disabled("Salin minggu lalu")).toBe(true);
+    expect(screen.queryByText(/hari disalin/)).toBeNull();
+  });
+
+  it("offers Salin minggu lalu once last week has a filled day", async () => {
+    const lastWeek = Array.from({ length: 7 }, (_, i) => ({
+      date: new Date(Date.now() - (i + 1) * 86400000).toISOString().slice(0, 10),
+      version: 1,
+      editable: false,
+      details: {
+        name: "Makan Siang",
+        description: "",
+        image: "",
+        meal: "lunch",
+        composition,
+        items: [{ id: "x", groupId: "g-lauk", categoryId: "main", name: "Ayam", description: "", image: "", serving: "" }],
+      },
+    }));
+    runtimeFor(jest.fn(async () => ({ dates: lastWeek, categories: [] })));
+    await waitFor(() => expect(disabled("Salin minggu lalu")).toBe(false));
+    expect(screen.queryByText("Minggu lalu belum ada menu untuk disalin")).toBeNull();
   });
 
   it("offers Bagikan menu once a day of the week has dishes", async () => {

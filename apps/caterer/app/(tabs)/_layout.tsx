@@ -7,7 +7,7 @@ import { RoleGate } from "../../src/RoleGate";
 
 type Glyph = keyof typeof Ionicons.glyphMap;
 
-/** Outline while inactive, filled when focused (same rule as the customer app); content icons stay outline. */
+/** Outline until focused, filled when focused. Elsewhere, state glyphs (saved heart, selected star, coverage sun and moon) are filled because the fill carries the state; other icons are outline. */
 const icons: Record<CatererTab, { filled: Glyph; outline: Glyph }> = {
   index: { filled: "home", outline: "home-outline" },
   pelanggan: { filled: "people", outline: "people-outline" },

@@ -29,7 +29,9 @@ function StartupGate({ children }: { children: ReactNode }) {
   return (
     <View style={{ flex: 1, justifyContent: "center", padding: 24, gap: 12, backgroundColor: colors.canvas }}>
       <Text variant="title">{t("Belum bisa terhubung.", "Can't connect yet.")}</Text>
-      <Text style={{ color: colors.muted }}>{error}</Text>
+      <Text testID="startup-error" style={{ color: colors.danger }}>
+        {error}
+      </Text>
       <Button
         label={t("Coba lagi", "Try again")}
         disabled={busy}

@@ -179,6 +179,24 @@ it("EmptyHome shows loading then error with Coba lagi", async () => {
   expect(screen.queryByRole("button", { name: "Coba lagi" })).toBeNull();
 });
 
+it("signed-in Beranda error shows the message in danger with a Coba lagi text button that reloads", async () => {
+  let fail = true;
+  const runtime = runtimeWith(async () => {
+    if (fail) throw Object.assign(new Error("REQUEST_FAILED"), { code: "REQUEST_FAILED" });
+    return customerState({ status: "scheduled" });
+  });
+  renderHome(runtime);
+  const retry = await screen.findByRole("button", { name: "Coba lagi" });
+  const message = screen.getByTestId("home-error");
+  expect(StyleSheet.flatten(message.props.style).color).toBe(colors.danger);
+  // A text button: no forest fill like the primary action.
+  expect(StyleSheet.flatten(retry.props.style).backgroundColor).not.toBe(colors.forest);
+  fail = false;
+  fireEvent.press(retry);
+  expect(await screen.findByText(/^Besok, /)).toBeTruthy();
+  expect(screen.queryByTestId("home-error")).toBeNull();
+});
+
 it("EmptyHome says so when the catalog has no packages", async () => {
   renderHome(runtimeWith(async () => customerState(null), null));
   expect(await screen.findByText("Belum ada paket di area ini.")).toBeTruthy();
@@ -445,4 +463,11 @@ describe("design tokens", () => {
     const updated = await screen.findByText(/Terakhir diperbarui 06\.12/);
     expect(StyleSheet.flatten(updated.props.style).fontVariant).toContain("tabular-nums");
   });
+});
+
+it("Beranda package line says 1 day to go in English", async () => {
+  (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.locale", "en");
+  renderHome(runtimeWith(async () => customerState({ status: "scheduled" }, { subscription: { remaining: 1 } })));
+  expect(await screen.findByText(/· 1 day to go$/)).toBeTruthy();
+  expect(screen.queryByText(/1 days/)).toBeNull();
 });
