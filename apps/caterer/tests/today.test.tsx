@@ -134,7 +134,8 @@ it("never shows helpers the owner setup steps", async () => {
 it("moves a customer's day from Besok while the cutoff is still ahead", async () => {
   const day = canvasDay();
   const d = day.deliveries.find((x) => x.customer.name === "Keluarga Hartono")!;
-  Object.assign(d, { cutoff_at: "2099-01-01T10:00:00Z", customer: { ...d.customer, recordId: "cr-1" } });
+  // The shape the seller read really returns: customerRecordId beside customer, not inside it.
+  Object.assign(d, { cutoff_at: "2099-01-01T10:00:00Z", customerRecordId: "cr-1" });
   const runtime = runtimeWith(async () => day);
   const tomorrow = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(new Date(Date.now() + 86400000));
   render(
@@ -179,4 +180,52 @@ it("names the customer, day and meal on a problem report and opens it", async ()
   expect(screen.queryByText("Sari melaporkan masalah")).toBeNull();
   expect(screen.queryByText("Pelanggan melaporkan masalah")).toBeNull();
   expect(runtime.api.request).toHaveBeenCalledWith("delivery-issues?id=k-1");
+});
+
+const tomorrowDay = () =>
+  new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(new Date(Date.now() + 86400000));
+
+it("offers Pindah tanggal on today's stop of a customer before the change deadline, beside Gagal diantar", async () => {
+  const day = canvasDay();
+  const sari = day.deliveries.find((x) => x.customer.name === "Bu Sari Wulandari")!;
+  const runtime = runtimeWith(async () => day);
+  renderToday(runtime);
+  fireEvent.press(await screen.findByText("Antar"));
+  fireEvent.press(await screen.findByLabelText("Ada masalah: Bu Sari Wulandari"));
+  expect(await screen.findByText("Gagal diantar")).toBeTruthy();
+  fireEvent.press(screen.getByText("Pindah tanggal"));
+  fireEvent.changeText(screen.getByLabelText("Tanggal baru (TTTT-BB-HH)"), "2099-01-06");
+  fireEvent.changeText(screen.getByLabelText("Alasan"), "Pelanggan minta pindah");
+  fireEvent.press(screen.getByText("Simpan laporan"));
+  await waitFor(() =>
+    expect(runtime.api.command).toHaveBeenCalledWith(
+      "customer.deliveryChange",
+      { catererId: "k-1", id: sari.id, version: 3, date: "2099-01-06", reason: "Pelanggan minta pindah" },
+      expect.any(String),
+    ),
+  );
+});
+
+it("keeps only Gagal diantar today once the deadline has passed or the package has fixed dates", async () => {
+  renderToday(runtimeWith(async () => canvasDay()));
+  fireEvent.press(await screen.findByText("Antar"));
+  fireEvent.press(await screen.findByLabelText("Ada masalah: Keluarga Hartono"));
+  expect(await screen.findByText("Gagal diantar")).toBeTruthy();
+  expect(screen.queryByText("Pindah tanggal")).toBeNull();
+});
+
+it("shows the move button on Besok only for days that can still move", async () => {
+  const runtime = runtimeWith(async () => canvasDay());
+  render(
+    <MobileProvider runtime={runtime} linkMapper={(h) => h}>
+      <TodayScreen date={tomorrowDay()} />
+    </MobileProvider>,
+  );
+  fireEvent.press(await screen.findByText("Antar"));
+  fireEvent.press(await screen.findByLabelText("Pindah tanggal: Bu Sari Wulandari"));
+  expect(screen.queryByText("Gagal diantar")).toBeNull();
+  expect(screen.getByText("Pindah tanggal")).toBeTruthy();
+  // Past the deadline (Keluarga Hartono) or a fixed-date package (Kantor PT Sinar Rasa): no button at all.
+  expect(screen.queryByLabelText("Pindah tanggal: Keluarga Hartono")).toBeNull();
+  expect(screen.queryByLabelText("Pindah tanggal: Kantor PT Sinar Rasa")).toBeNull();
 });

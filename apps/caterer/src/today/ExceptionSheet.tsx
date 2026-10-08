@@ -5,9 +5,15 @@ import { useMobile } from "@catera/mobile-core";
 import { Button, colors, Field, Sheet, Text } from "@catera/mobile-ui";
 import { issueSteps } from "./exceptions";
 
-/** Moving a day is for the caterer's own customers, before that day's cutoff. */
+/**
+ * What customer.deliveryChange accepts for a new date: a day of the caterer's customer record that is
+ * still scheduled, before its cutoff, in a package with flexible dates.
+ */
 export const canMoveDelivery = (d: SellerOperationsState["deliveries"][number] | undefined) =>
-  !!d?.customer.recordId && new Date(d.cutoff_at).getTime() > Date.now();
+  !!(d?.customerRecordId ?? d?.customer.recordId) &&
+  d!.status === "scheduled" &&
+  d!.offer?.flexible === true &&
+  new Date(d!.cutoff_at).getTime() > Date.now();
 
 /** The only per-stop actions: the food did not arrive, or the day moves (own customers). */
 export function ExceptionSheet({

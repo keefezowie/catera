@@ -7,13 +7,15 @@ const composition = (lauk: number) => [
   { id: "g-lauk", name: "Lauk", slots: lauk },
   { id: "g-sayur", name: "Sayur", slots: 1 },
 ];
-const offer = (id: string, name: string, lauk: number) => ({
+const offer = (id: string, name: string, lauk: number, flexible = true) => ({
   id,
   name,
+  flexible,
   menus: [{ meal: "lunch", name, description: "", image: "", composition: composition(lauk) }],
 });
 const rumahan = offer("p-rumahan", "Makan Siang Rumahan", 2);
-const hemat = offer("p-hemat", "Paket Hemat Kantor", 1);
+// Paket Hemat Kantor keeps fixed dates: its days cannot move.
+const hemat = offer("p-hemat", "Paket Hemat Kantor", 1, false);
 
 let seq = 0;
 export function delivery(
@@ -35,7 +37,9 @@ export function delivery(
     meals: [{ meal: "lunch", status: extra.status ?? "scheduled" }],
     cutoff_at: extra.cutoffAt ?? "2026-10-06T10:00:00Z",
     canChange: false,
-    customer: { id: `c-${seq}`, name, recordId: extra.recordId },
+    // The seller read carries the customer record id at the top level (v1.delivery, staff only).
+    customer: { id: `c-${seq}`, name },
+    customerRecordId: extra.recordId ?? null,
     address: {
       id: `a-${seq}`,
       label: "",
@@ -63,7 +67,7 @@ export function canvasDay(): SellerOperationsState {
       delivery(rumahan, "Bu Sari Wulandari", 2, { recordId: "r-1", cutoffAt: "2099-01-01T00:00:00Z" }),
       delivery(rumahan, "Keluarga Hartono", 3),
       delivery(rumahan, "Kost Damai", 23),
-      delivery(hemat, "Kantor PT Sinar Rasa", 6),
+      delivery(hemat, "Kantor PT Sinar Rasa", 6, { recordId: "r-4", cutoffAt: "2099-01-01T00:00:00Z" }),
     ],
     datedMenus: [],
   } as unknown as SellerOperationsState;
