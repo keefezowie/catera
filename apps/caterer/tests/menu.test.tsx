@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import type { LibraryDish, MealMenu } from "@catera/domain";
 import { copyWeekBatches, dayComplete, suggestDishes, weekDates } from "../src/menu/logic";
 import { SlotEditor } from "../src/menu/SlotEditor";
@@ -161,4 +161,83 @@ it("gives a re-added dish a free slot id instead of reusing a taken one", () => 
   fireEvent.press(screen.getByText("Ikan bakar"));
   const ids = (onChange.mock.calls[0][0] as { id: string }[]).map((i) => i.id);
   expect(new Set(ids).size).toBe(ids.length);
+});
+
+describe("menu reads", () => {
+  function setup(menuMonth: jest.Mock) {
+    const { createMobileRuntime, MobileProvider } = jest.requireActual("@catera/mobile-core") as typeof import("@catera/mobile-core");
+    const { MenuWeek } = jest.requireActual("../src/menu/MenuWeek") as typeof import("../src/menu/MenuWeek");
+    const { MenuDayScreen } = jest.requireActual("../src/menu/MenuDayScreen") as typeof import("../src/menu/MenuDayScreen");
+    const runtime = createMobileRuntime({ apiUrl: "https://api.example.test", storagePrefix: "mm" });
+    runtime.api = {
+      ...runtime.api,
+      me: jest.fn(async () => ({ actor: { id: "u-1", role: "owner", catererId: "k-1" }, demo: false })),
+      sellerOperations: jest.fn(async () => ({
+        caterer: { id: "k-1", name: "Dapur" },
+        dishes: [],
+        datedMenus: [],
+        offers: [
+          {
+            id: "p-1",
+            name: "Makan Siang Rumahan",
+            status: "published",
+            meal: "lunch",
+            weekdays: [1, 2, 3, 4, 5],
+            contentRevision: 2,
+            menus: [{ meal: "lunch", name: "Makan Siang", description: "", image: "", composition }],
+          },
+        ],
+      })),
+      menuMonth,
+    } as unknown as typeof runtime.api;
+    const wrap = (node: React.ReactNode) => (
+      <MobileProvider runtime={runtime} linkMapper={(h: string) => h}>
+        {node}
+      </MobileProvider>
+    );
+    return { wrap, MenuWeek, MenuDayScreen };
+  }
+
+  it("asks the API for the month as YYYY-MM-01", async () => {
+    const menuMonth = jest.fn(async () => ({ dates: [], categories: [] }));
+    const { wrap, MenuWeek } = setup(menuMonth);
+    render(wrap(<MenuWeek />));
+    await waitFor(() => expect(menuMonth).toHaveBeenCalled());
+    for (const call of menuMonth.mock.calls as unknown as unknown[][]) {
+      expect(call[0]).toBe("p-1");
+      expect(call[1]).toBe(2);
+      expect(call[2]).toMatch(/^\d{4}-(0[1-9]|1[0-2])-01$/);
+      expect(call[3]).toBe("lunch");
+    }
+  });
+
+  it("reads a single day with the same month format", async () => {
+    const menuMonth = jest.fn(async () => ({ dates: [], categories: [] }));
+    const { wrap, MenuDayScreen } = setup(menuMonth);
+    render(wrap(<MenuDayScreen date="2026-10-07" packageId="p-1" meal="lunch" />));
+    await waitFor(() => expect(menuMonth).toHaveBeenCalled());
+    expect((menuMonth.mock.calls[0] as unknown as unknown[])[2]).toBe("2026-10-01");
+  });
+
+  it("shows a plain error with Coba lagi when the menu read fails, and retries", async () => {
+    const menuMonth = jest
+      .fn()
+      .mockRejectedValueOnce(Object.assign(new Error("400"), { code: "VALIDATION_FAILED" }))
+      .mockResolvedValue({ dates: [], categories: [] });
+    const { wrap, MenuWeek } = setup(menuMonth);
+    render(wrap(<MenuWeek />));
+    expect(await screen.findByText("Menu belum bisa dimuat.")).toBeTruthy();
+    fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
+    await waitFor(() => expect(screen.queryByText("Menu belum bisa dimuat.")).toBeNull());
+    expect(menuMonth.mock.calls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("shows the same retry state on the day screen instead of loading forever", async () => {
+    const menuMonth = jest.fn().mockRejectedValue(new Error("400"));
+    const { wrap, MenuDayScreen } = setup(menuMonth);
+    render(wrap(<MenuDayScreen date="2026-10-07" packageId="p-1" meal="lunch" />));
+    expect(await screen.findByText("Menu belum bisa dimuat.")).toBeTruthy();
+    expect(screen.queryByText("Memuat…")).toBeNull();
+    expect(screen.getByRole("button", { name: "Coba lagi" })).toBeTruthy();
+  });
 });

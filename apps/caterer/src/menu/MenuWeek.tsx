@@ -23,7 +23,8 @@ export async function loadMenus(
   meal: string,
   dates: string[],
 ): Promise<MenuDay[]> {
-  const months = [...new Set(dates.map((d) => d.slice(0, 7)))];
+  // The API takes the first day of the month (YYYY-MM-01).
+  const months = [...new Set(dates.map((d) => `${d.slice(0, 7)}-01`))];
   const results = await Promise.all(
     months.map((m) => runtime.api.menuMonth(offer.id, offer.contentRevision ?? 0, m, meal)),
   );
@@ -33,6 +34,18 @@ export async function loadMenus(
     const found = byDate.get(date);
     return { date, version: found?.version ?? 0, editable: found?.editable ?? false, details: found?.details ?? null };
   });
+}
+
+/** A failed menu read: say so plainly and offer a retry, never an empty week or endless loading. */
+export function MenuLoadError({ onRetry }: { onRetry: () => void }) {
+  const { t } = useMobile();
+  return (
+    <Screen>
+      <Text variant="title">{t("Menu", "Menu")}</Text>
+      <Text>{t("Menu belum bisa dimuat.", "The menu couldn't be loaded.")}</Text>
+      <Button label={t("Coba lagi", "Try again")} onPress={onRetry} />
+    </Screen>
+  );
 }
 
 export const mealOf = (offer: SellerOffer, meal: string) =>
@@ -112,6 +125,9 @@ export function MenuWeek() {
       message: menuShareText(lines, { caterer: ops.data?.caterer.name ?? "", packageName: offer.name }, locale),
     });
   }
+
+  if ((ops.error && !ops.data) || (days.error && !days.data))
+    return <MenuLoadError onRetry={() => void (ops.error && !ops.data ? ops.reload() : days.reload())} />;
 
   if (ops.data && !offers.length)
     return (
