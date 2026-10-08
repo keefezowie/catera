@@ -50,8 +50,8 @@ function Browse({ area, onArea }: { area: string; onArea: (value: string) => voi
   const [trial, setTrial] = useState(false);
   const [picking, setPicking] = useState(false);
 
-  // The server narrows by area only; chips and search filter what it returned, so
-  // toggling one never refetches or blanks the list.
+  // The area goes to the server too, but the list is narrowed here by each package's own areas.
+  // Chips and search filter what it returned, so toggling one never refetches or blanks the list.
   const query = new URLSearchParams({ limit: "100", ...(area ? { area } : {}) }).toString();
   const catalog = useData<{ items: Offer[] }>(`jelajah:${query}`, () => runtime.api.catalog("?" + query));
 
@@ -59,22 +59,25 @@ function Browse({ area, onArea }: { area: string; onArea: (value: string) => voi
   const meal = lunch !== dinner ? (lunch ? "lunch" : "dinner") : "";
   const needle = search.trim().toLowerCase();
   const all = catalog.data?.items;
+  // Only packages that deliver to the chosen area; "Semua area" (no area) shows everything.
+  const inArea = useMemo(
+    () => ((all ?? []) as CatalogOffer[]).filter((o) => !area || (o.areas ?? []).includes(area)),
+    [all, area],
+  );
   const items = useMemo(
     () =>
-      ((all ?? []) as CatalogOffer[])
-        .filter(
-          (o) =>
-            (!meal || o.meal === meal || o.meal === "both") &&
-            (!budget || perMealPrice(o) <= BUDGET) &&
-            (!trial || !!o.trialPrice) &&
-            (!needle ||
-              [o.name, o.caterer, ...o.tags, ...o.menus.map((m) => menuSummary(m, locale))]
-                .join(" ")
-                .toLowerCase()
-                .includes(needle)),
-        )
-        .sort((a, b) => Number(!!area && b.areas.includes(area)) - Number(!!area && a.areas.includes(area))),
-    [all, meal, budget, trial, needle, area, locale],
+      inArea.filter(
+        (o) =>
+          (!meal || o.meal === meal || o.meal === "both") &&
+          (!budget || perMealPrice(o) <= BUDGET) &&
+          (!trial || !!o.trialPrice) &&
+          (!needle ||
+            [o.name, o.caterer, ...o.tags, ...o.menus.map((m) => menuSummary(m, locale))]
+              .join(" ")
+              .toLowerCase()
+              .includes(needle)),
+      ),
+    [inArea, meal, budget, trial, needle, locale],
   );
   const filtered = !!(needle || meal || budget || trial);
   const clear = () => {
@@ -132,6 +135,13 @@ function Browse({ area, onArea }: { area: string; onArea: (value: string) => voi
         <View style={{ gap: 10 }}>
           <Text style={{ color: colors.danger }}>{catalog.error}</Text>
           <Button variant="secondary" label={t("Coba lagi", "Try again")} onPress={() => void catalog.reload()} />
+        </View>
+      ) : area && inArea.length === 0 ? (
+        <View style={{ gap: 10 }}>
+          <Text variant="heading">
+            {t(`Belum ada katering yang antar ke ${area}.`, `No caterer delivers to ${area} yet.`)}
+          </Text>
+          <Button variant="secondary" label={t("Lihat semua area", "See all areas")} onPress={() => onArea("")} />
         </View>
       ) : items.length === 0 ? (
         <View style={{ gap: 10 }}>

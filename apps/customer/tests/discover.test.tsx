@@ -183,6 +183,53 @@ describe("Jelajah", () => {
     await waitFor(() => expect(lastCatalogQuery(runtime)).toContain("area=Jakarta+Selatan"));
   });
 
+  describe("area", () => {
+    const selatan = { ...cheap, areas: ["Jakarta Selatan", "Jakarta Pusat"] };
+    const bandung = { ...pricey, areas: ["Bandung"] };
+    const both = { ...dinner, areas: ["Jakarta Selatan", "Bandung"] };
+    const areaRuntime = () =>
+      runtimeWith(customer, { catalog: jest.fn(async () => ({ items: [selatan, bandung, both], nextCursor: null })) });
+    const choose = async (name: string) => {
+      fireEvent.press(screen.getByRole("button", { name: "Pilih area pengantaran" }));
+      fireEvent.press(await screen.findByRole("button", { name }));
+    };
+
+    it("shows only packages that deliver to the chosen area", async () => {
+      const runtime = areaRuntime();
+      wrap(runtime, <Jelajah />);
+      await screen.findByText("Menu Sehat Premium");
+      await choose("Bandung");
+      await waitFor(() => expect(lastCatalogQuery(runtime)).toContain("area=Bandung"));
+      expect(await screen.findByText("Menu Sehat Premium")).toBeTruthy();
+      expect(screen.queryByText("Nasi Ayam Bakar")).toBeNull();
+      expect(screen.getByText("Makan Malam Nabati")).toBeTruthy();
+    });
+
+    it("Semua area shows everything again", async () => {
+      (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.area", "Bandung");
+      wrap(areaRuntime(), <Jelajah />);
+      await screen.findByText("Menu Sehat Premium");
+      expect(screen.queryByText("Nasi Ayam Bakar")).toBeNull();
+      await choose("Semua area");
+      expect(await screen.findByText("Nasi Ayam Bakar")).toBeTruthy();
+      expect(screen.getByText("Menu Sehat Premium")).toBeTruthy();
+    });
+
+    it("says when no caterer delivers there, and Lihat semua area clears the area", async () => {
+      (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.area", "Jakarta Utara");
+      wrap(areaRuntime(), <Jelajah />);
+      expect(await screen.findByText("Belum ada katering yang antar ke Jakarta Utara.")).toBeTruthy();
+      expect(screen.queryByText("Nasi Ayam Bakar")).toBeNull();
+      fireEvent.press(screen.getByRole("button", { name: "Lihat semua area" }));
+      expect(await screen.findByText("Nasi Ayam Bakar")).toBeTruthy();
+      expect(screen.getByText("Menu Sehat Premium")).toBeTruthy();
+      await waitFor(() => expect(SecureStore.setItemAsync).toHaveBeenCalledWith("catera.area", ""));
+      expect(screen.getByRole("button", { name: "Pilih area pengantaran" }).props.accessibilityValue).toEqual({
+        text: "Belum dipilih",
+      });
+    });
+  });
+
   it("opens a package when its card is pressed", async () => {
     wrap(runtimeWith(), <Jelajah />);
     fireEvent.press(await screen.findByRole("button", { name: /^Nasi Ayam Bakar,/ }));
