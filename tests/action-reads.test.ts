@@ -38,6 +38,7 @@ it("returns a normal empty home and action feed for a newly registered customer"
   expect(await read(fresh, "customer-actions", { limit: 20 })).toEqual({
     total: 0,
     items: [],
+    ended: [],
   });
 });
 

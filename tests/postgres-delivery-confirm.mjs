@@ -57,6 +57,7 @@ export async function verifyDeliveryConfirm(pool, cmd, evidence) {
     "20261008114500_maintenance_renewal_conflict.sql",
     "20261008120000_delivery_issue_customer.sql",
     "20261008121000_delivery_issue_not_future.sql",
+    "20261008122000_customer_payment_history.sql",
   ])
     await pool.query(await readFile("supabase/migrations/" + file, "utf8"));
 
@@ -221,6 +222,34 @@ export async function verifyDeliveryConfirm(pool, cmd, evidence) {
   await assert.rejects(cmd("deliveryIssue.create", futureReport, U.owner), /FORBIDDEN/);
   assert.equal((await pool.query("select count(*)::int n from v1.delivery_issues where day_id=$1", [ahead.day_id])).rows[0].n, 0);
   evidence.push("Delivery reports: a day after Jakarta today is refused with NOT_ALLOWED and files nothing; today and earlier are accepted.");
+
+  // C-03: the customer's action read keeps checkouts that ran out in the last 7 days under 'ended'.
+  const lapsed = (
+    await pool.query(
+      "insert into v1.checkouts(user_id,package_id,address_id,quote,state,expires_at) select user_id,package_id,address_id,quote,'expired',now()-interval '1 hour' from v1.checkouts where user_id=$1 order by created_at limit 1 returning id,package_id",
+      [U.customer],
+    )
+  ).rows[0];
+  // This harness does not install the read dispatcher of 20260926112150, so the feed function is called directly.
+  const feed = await customerActionsAs(pool, U.customer);
+  const ended = feed.ended.find((i) => i.id === "payment-" + lapsed.id);
+  assert.equal(ended?.status, "expired");
+  assert.equal(ended.payAgain.packageId, lapsed.package_id);
+  assert.ok(!feed.items.some((i) => i.id === "payment-" + lapsed.id));
+  evidence.push("Payment history: a checkout that ran out stays in the customer's action read under 'ended' with what Bayar lagi needs, never among the actions.");
+}
+
+/** The customer action feed as the given customer, in a transaction rolled back afterwards. */
+async function customerActionsAs(pool, user) {
+  const c = await pool.connect();
+  try {
+    await c.query("begin");
+    await c.query("select set_config('request.jwt.claim.sub',$1,true)", [user]);
+    return (await c.query("select v1.customer_actions($1,20) value", [user])).rows[0].value;
+  } finally {
+    await c.query("rollback");
+    c.release();
+  }
 }
 
 async function claimed(pool, user, fn) {
