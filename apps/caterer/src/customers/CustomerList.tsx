@@ -7,6 +7,7 @@ import { useData, useMobile } from "@catera/mobile-core";
 import { Button, Card, Chip, colors, fontFor, Screen, Text } from "@catera/mobile-ui";
 import { activeSubscriptions, currentSubscription, customerStatus, endLabel, type CustomerStatus } from "./rules";
 import { loadAllCustomers } from "./load";
+import { ReadError } from "../ReadError";
 
 /** Every subscriber, marketplace and own, filtered by where their package stands. */
 export function CustomerList() {
@@ -32,12 +33,15 @@ export function CustomerList() {
         <Text variant="title">{t("Pelanggan", "Customers")}</Text>
         <Button variant="secondary" label={t("+ Pelanggan lama", "+ Existing")} onPress={() => router.push("/impor" as never)} />
       </View>
-      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-        {(["active", "ending", "ended"] as const).map((s) => (
-          <Chip key={s} label={`${labels[s]} · ${count(s)}`} selected={filter === s} onPress={() => setFilter(s)} />
-        ))}
-      </View>
-      {list.error && !list.data ? <Text style={{ color: colors.danger }}>{list.error}</Text> : null}
+      {list.data ? (
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+          {(["active", "ending", "ended"] as const).map((s) => (
+            <Chip key={s} label={`${labels[s]} · ${count(s)}`} selected={filter === s} onPress={() => setFilter(s)} />
+          ))}
+        </View>
+      ) : null}
+      {!list.data && list.error ? <ReadError message={list.error} onRetry={() => void list.reload()} /> : null}
+      {!list.data && !list.error ? <Text variant="caption">{t("Memuat pelanggan…", "Loading customers…")}</Text> : null}
       {list.data && !shown.length ? (
         <Text variant="caption">{t("Belum ada pelanggan di sini.", "No customers here yet.")}</Text>
       ) : null}

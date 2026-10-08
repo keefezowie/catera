@@ -4,6 +4,7 @@ import { useData, useMobile } from "@catera/mobile-core";
 import { Card, colors, Screen, Text } from "@catera/mobile-ui";
 import { moneyStates } from "./money";
 import { ScreenGuard } from "../ErrorBoundary";
+import { ReadError } from "../ReadError";
 
 /** Uang: where every rupiah is, in the order it moves to the caterer's bank account. */
 function UangContent() {
@@ -11,7 +12,16 @@ function UangContent() {
   const catererId = actor?.catererId ?? "";
   const money = useData(`uang:${catererId}`, () => runtime.api.settlement(catererId));
   const s = money.data;
-  if (!s) return <Screen><Text variant="caption">{money.error || t("Memuat…", "Loading…")}</Text></Screen>;
+  if (!s)
+    return (
+      <Screen>
+        {money.error ? (
+          <ReadError message={money.error} onRetry={() => void money.reload()} />
+        ) : (
+          <Text variant="caption">{t("Memuat…", "Loading…")}</Text>
+        )}
+      </Screen>
+    );
   if ("unavailable" in s)
     return (
       <Screen>

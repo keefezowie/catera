@@ -95,6 +95,8 @@ export function Button({
         variant === "secondary" && styles.secondary,
         variant === "text" && styles.textButton,
         disabled && primary && styles.disabled,
+        // A secondary or text button has no fill to grey out, so a disabled one fades instead.
+        disabled && !primary && { opacity: 0.45 },
         style,
       ]}
     >

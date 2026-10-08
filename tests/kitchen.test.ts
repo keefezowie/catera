@@ -226,7 +226,7 @@ describe("whatsappUrl", () => {
 });
 
 describe("menuShareText", () => {
-  it("lists each day with its category lines", () => {
+  it("menu share header has no em dash", () => {
     const text = menuShareText(
       [
         {
@@ -241,7 +241,7 @@ describe("menuShareText", () => {
       "id",
     );
     expect(text).toBe(
-      "*Menu Dapur Bu Rina — Makan Siang Rumahan*\n\n*Selasa 6 Okt*\nNasi: Nasi putih\nLauk: Ayam goreng lengkuas, Tahu bacem",
+      "*Menu Dapur Bu Rina · Makan Siang Rumahan*\n\n*Selasa 6 Okt*\nNasi: Nasi putih\nLauk: Ayam goreng lengkuas, Tahu bacem",
     );
   });
 });

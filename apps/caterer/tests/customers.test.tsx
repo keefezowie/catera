@@ -246,3 +246,44 @@ describe("customers with more than one package", () => {
     expect(await screen.findByText(/Berakhir besok/)).toBeTruthy();
   });
 });
+
+describe("Pelanggan loading and error states", () => {
+  it("Pelanggan shows loading, hides counts", async () => {
+    const runtime = runtimeWith("approved", true);
+    (runtime.api.sellerCustomers as jest.Mock).mockImplementation(() => new Promise(() => undefined));
+    wrap(runtime, <CustomerList />);
+    expect(await screen.findByText("Memuat pelanggan…")).toBeTruthy();
+    expect(screen.queryByText(/^Aktif/)).toBeNull();
+    expect(screen.queryByText(/^Selesai/)).toBeNull();
+    expect(screen.queryByText("Belum ada pelanggan di sini.")).toBeNull();
+  });
+
+  it("Pelanggan error offers Coba lagi", async () => {
+    const runtime = runtimeWith("approved", true);
+    let failing = true;
+    (runtime.api.sellerCustomers as jest.Mock).mockImplementation(async () => {
+      if (failing) throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
+      return { customers, total: customers.length, packages: [] };
+    });
+    wrap(runtime, <CustomerList />);
+    const retry = await screen.findByRole("button", { name: "Coba lagi" });
+    failing = false;
+    fireEvent.press(retry);
+    expect(await screen.findByText("Aktif · 2")).toBeTruthy();
+    expect(screen.queryByText("Memuat pelanggan…")).toBeNull();
+  });
+
+  it("Pelanggan detail error offers Coba lagi", async () => {
+    const runtime = runtimeWith("approved", true);
+    let failing = true;
+    (runtime.api.sellerCustomers as jest.Mock).mockImplementation(async () => {
+      if (failing) throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
+      return { customers, total: customers.length, packages: [] };
+    });
+    wrap(runtime, <CustomerDetail id="c-01" />);
+    const retry = await screen.findByRole("button", { name: "Coba lagi" });
+    failing = false;
+    fireEvent.press(retry);
+    expect(await screen.findByText("Andre Kusuma")).toBeTruthy();
+  });
+});

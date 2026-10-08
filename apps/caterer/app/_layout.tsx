@@ -5,7 +5,7 @@ import { ActivityIndicator, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { jakartaDay, shortDate } from "@catera/domain";
 import { MobileProvider, useMobile } from "@catera/mobile-core";
-import { AppHeader, colors, DemoStrip, fontAssets, TopInsetOwner } from "@catera/mobile-ui";
+import { AppHeader, colors, DemoStrip, fontAssets, Text, TopInsetOwner } from "@catera/mobile-ui";
 import { runtime } from "../src/runtime";
 import { dapurLink } from "../src/links";
 
@@ -66,7 +66,14 @@ function Navigation() {
 }
 
 export default function RootLayout() {
-  const [fontsLoaded] = useFonts(fontAssets);
+  const [fontsLoaded, fontError] = useFonts(fontAssets);
+  // Language is not ready before the fonts, so this one message is plain Indonesian, as in the customer app.
+  if (fontError)
+    return (
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 24 }}>
+        <Text>Font tidak dapat dimuat. Mulai ulang aplikasi.</Text>
+      </View>
+    );
   if (!fontsLoaded) return null;
   return (
     <SafeAreaProvider>

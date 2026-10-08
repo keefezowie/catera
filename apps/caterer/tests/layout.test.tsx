@@ -18,7 +18,8 @@ jest.mock("expo-router", () => {
   Stack.Screen = Screen;
   return { Stack, router: { push: jest.fn(), replace: jest.fn() }, Link: () => null };
 });
-jest.mock("expo-font", () => ({ useFonts: () => [true] }));
+const mockFonts: { result: [boolean, Error | null] } = { result: [true, null] };
+jest.mock("expo-font", () => ({ useFonts: () => mockFonts.result }));
 jest.mock("expo-status-bar", () => ({ StatusBar: () => null }));
 jest.mock("../src/runtime", () => {
   const { createMobileRuntime } = jest.requireActual("@catera/mobile-core");
@@ -98,5 +99,17 @@ describe("stack headers", () => {
     mockParams.date = jakartaDay(new Date());
     render(<RootLayout />);
     expect((await screen.findByTestId("header:menu/[date]")).props.children).toBe("Menu hari ini");
+  });
+});
+
+describe("font load failure", () => {
+  afterEach(() => {
+    mockFonts.result = [true, null];
+  });
+
+  it("Dapur shows a font error message", () => {
+    mockFonts.result = [false, new Error("font")];
+    render(<RootLayout />);
+    expect(screen.getByText("Font tidak dapat dimuat. Mulai ulang aplikasi.")).toBeTruthy();
   });
 });

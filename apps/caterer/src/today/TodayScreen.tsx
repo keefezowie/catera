@@ -18,6 +18,7 @@ import { Button, Card, colors, FadeSwap, fontFor, Screen, Segmented, Text } from
 import { jakartaClock } from "./exceptions";
 import { loadCachedDay, saveCachedDay } from "./offline";
 import { SessionCard } from "./SessionCard";
+import { ReadError } from "../ReadError";
 
 type LoadedDay = { data: SellerOperationsState; savedAt: string | null };
 
@@ -85,7 +86,7 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
               </Text>
             </Card>
           ) : null}
-          {!ops && day.error ? <Text style={{ color: colors.danger }}>{day.error}</Text> : null}
+          {!ops && day.error ? <ReadError message={day.error} onRetry={() => void day.reload()} /> : null}
           {!ops && !day.error ? <Text variant="caption">{t("Memuat…", "Loading…")}</Text> : null}
           {newKitchen ? <MulaiCard /> : null}
           {offset === "0" ? (
@@ -191,7 +192,7 @@ function ActionCards({ items }: { items: SellerAttentionItem[] }) {
 function MulaiCard() {
   const { t } = useMobile();
   const steps: [string, string, string][] = [
-    [t("Buat paket pertama", "Create your first package"), t("Satu layar, sekitar 3 menit", "One screen, about 3 minutes"), "/paket/baru"],
+    [t("Buat paket pertama", "Create your first package"), t("Satu layar", "One screen"), "/paket/baru"],
     [t("Pindahkan pelanggan lama", "Bring in existing customers"), t("Kirim foto buku catatan atau chat WhatsApp", "Send a notebook photo or WhatsApp chat"), "/impor"],
     [t("Aktifkan pembayaran", "Turn on payments"), t("Perlu sebelum perpanjangan pertama", "Needed before the first renewal"), "/aktifkan"],
   ];

@@ -7,6 +7,7 @@ import { Button, Card, colors, Screen, Text } from "@catera/mobile-ui";
 import { activeSubscriptions, endLabel, renewalAction } from "./rules";
 import { usePaymentsActive } from "./usePayments";
 import { loadCustomer } from "./load";
+import { ReadError } from "../ReadError";
 
 /** One customer: when their package ends, how to reach them, and the renewal link. */
 export function CustomerDetail({ id }: { id: string }) {
@@ -18,7 +19,16 @@ export function CustomerDetail({ id }: { id: string }) {
   const [errorFor, setErrorFor] = useState("");
   const [busy, setBusy] = useState("");
   const c = record.data;
-  if (!c) return <Screen>{record.error ? <Text style={{ color: colors.danger }}>{record.error}</Text> : <Text variant="caption">{t("Memuat…", "Loading…")}</Text>}</Screen>;
+  if (!c)
+    return (
+      <Screen>
+        {record.error ? (
+          <ReadError message={record.error} onRetry={() => void record.reload()} />
+        ) : (
+          <Text variant="caption">{t("Memuat…", "Loading…")}</Text>
+        )}
+      </Screen>
+    );
   const today = jakartaDay(new Date());
   const active = activeSubscriptions(c);
   // Every active package, soonest ending first; a customer with none shows their latest finished one.

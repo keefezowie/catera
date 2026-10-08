@@ -3,6 +3,7 @@ import { View } from "react-native";
 import { errorLabel, type PayoutSetup } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
 import { Button, Card, colors, Field, Screen, Segmented, Text } from "@catera/mobile-ui";
+import { ReadError } from "../ReadError";
 
 type StepState = "done" | "waiting" | "todo" | "later";
 
@@ -38,7 +39,16 @@ export function AktifkanScreen() {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const s = state.data;
-  if (!s) return <Screen><Text variant="caption">{state.error || t("Memuat…", "Loading…")}</Text></Screen>;
+  if (!s)
+    return (
+      <Screen>
+        {state.error ? (
+          <ReadError message={state.error} onRetry={() => void state.reload()} />
+        ) : (
+          <Text variant="caption">{t("Memuat…", "Loading…")}</Text>
+        )}
+      </Screen>
+    );
 
   async function run(key: string, action: string, payload: unknown) {
     setBusy(key);

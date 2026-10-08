@@ -74,6 +74,9 @@ export function MenuWeek() {
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
   const template = offer ? mealOf(offer, meal) : undefined;
+  // Copying and sharing both act on the visible week, so they wait for it and for something in it.
+  const weekLoaded = !!days.data;
+  const hasMenu = (days.data ?? []).some((d) => d.details?.items?.length);
   const copyNote = (copied: number, skipped: number) =>
     skipped
       ? t(`${copied} hari disalin · ${skipped} dilewati karena sudah lewat atau sudah diisi`, `${copied} days copied · ${skipped} skipped (past or already filled)`)
@@ -131,7 +134,15 @@ export function MenuWeek() {
   if ((ops.error && !ops.data) || (days.error && !days.data))
     return <MenuLoadError onRetry={() => void (ops.error && !ops.data ? ops.reload() : days.reload())} />;
 
-  if (ops.data && !offers.length)
+  if (!ops.data)
+    return (
+      <Screen>
+        <Text variant="title">{t("Menu", "Menu")}</Text>
+        <Text variant="caption">{t("Memuat…", "Loading…")}</Text>
+      </Screen>
+    );
+
+  if (!offers.length)
     return (
       <Screen>
         <Text variant="title">{t("Menu", "Menu")}</Text>
@@ -173,10 +184,14 @@ export function MenuWeek() {
       ) : null}
       <View style={{ flexDirection: "row", gap: 8 }}>
         {canEdit ? (
-          <Button style={{ flex: 1 }} variant="secondary" disabled={busy} label={t("Salin minggu lalu", "Copy last week")} onPress={() => void copyLastWeek()} />
+          <Button style={{ flex: 1 }} variant="secondary" disabled={busy || !weekLoaded} label={t("Salin minggu lalu", "Copy last week")} onPress={() => void copyLastWeek()} />
         ) : null}
-        <Button style={{ flex: 1 }} variant="secondary" label={t("Bagikan menu", "Share menu")} onPress={shareMenu} />
+        <Button style={{ flex: 1 }} variant="secondary" disabled={!hasMenu} label={t("Bagikan menu", "Share menu")} onPress={shareMenu} />
       </View>
+      {weekLoaded && !hasMenu ? (
+        <Text variant="caption">{t("Belum ada menu untuk dibagikan", "No menu to share yet")}</Text>
+      ) : null}
+      {!weekLoaded ? <Text variant="caption">{t("Memuat…", "Loading…")}</Text> : null}
       {note ? <Text variant="caption">{note}</Text> : null}
       {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
       {(days.data ?? []).map((d) => {

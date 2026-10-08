@@ -6,6 +6,7 @@ import { PackageEditor } from "../src/business/PackageEditor";
 import { PackageDetail } from "../src/business/PackageDetail";
 import { UsahaScreen } from "../src/business/UsahaScreen";
 import { UangScreen } from "../src/business/UangScreen";
+import { AktifkanScreen } from "../src/business/AktifkanScreen";
 import { TimScreen } from "../src/business/TimScreen";
 import { RoleGate } from "../src/RoleGate";
 import { Image, Text } from "react-native";
@@ -232,5 +233,86 @@ describe("Uang error guard", () => {
     fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
     expect(await screen.findByText("Catatan uang belum bisa ditampilkan.")).toBeTruthy();
     errorLog.mockRestore();
+  });
+});
+
+describe("Usaha states", () => {
+  const renderUsaha = (runtime: MobileRuntime) =>
+    render(
+      <MobileProvider runtime={runtime} linkMapper={() => "/"}>
+        <UsahaScreen />
+      </MobileProvider>,
+    );
+
+  it("Usaha shows loading and error", async () => {
+    const pending = runtimeWith({
+      sellerOperations: jest.fn(() => new Promise(() => undefined)),
+      request: jest.fn(async () => ({ active: null })),
+    });
+    const first = renderUsaha(pending);
+    expect(await screen.findByText("Memuat…")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "+ Paket baru" })).toBeNull();
+    first.unmount();
+
+    let down = true;
+    const failing = jest.fn(async () => {
+      if (down) throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
+      return { caterer: { id: "k-1", name: "Dapur Bu Rina", status: "approved" }, offers: [photoOffer], datedMenus: [] };
+    });
+    renderUsaha(runtimeWith({ sellerOperations: failing, request: jest.fn(async () => ({ active: null })) }));
+    const retry = await screen.findByRole("button", { name: "Coba lagi" });
+    down = false;
+    fireEvent.press(retry);
+    expect(await screen.findByText("Makan Siang Rumahan")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "+ Paket baru" })).toBeTruthy();
+  });
+
+  it("payments card names the action", async () => {
+    renderUsaha(
+      runtimeWith({
+        sellerOperations: jest.fn(async () => ({ caterer: { id: "k-1", name: "Dapur Bu Rina", status: "approved" }, offers: [], datedMenus: [] })),
+        request: jest.fn(async () => ({ active: null })),
+      }),
+    );
+    expect(await screen.findByRole("button", { name: "Aktifkan pembayaran" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Mulai" })).toBeNull();
+  });
+});
+
+describe("Uang and Aktifkan errors", () => {
+  const timeout = () => Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
+
+  it("Uang error offers Coba lagi", async () => {
+    let down = true;
+    const settle = jest.fn(async () => {
+      if (down) throw timeout();
+      return settlement;
+    });
+    render(
+      <MobileProvider runtime={runtimeWith({ settlement: settle })} linkMapper={() => "/"}>
+        <UangScreen />
+      </MobileProvider>,
+    );
+    const retry = await screen.findByRole("button", { name: "Coba lagi" });
+    down = false;
+    fireEvent.press(retry);
+    expect(await screen.findByText("Masuk ke rekening berikutnya")).toBeTruthy();
+  });
+
+  it("Aktifkan error offers Coba lagi", async () => {
+    let down = true;
+    const ops = jest.fn(async () => {
+      if (down) throw timeout();
+      return { caterer: { id: "k-1", name: "Dapur", status: "draft" }, offers: [], datedMenus: [] };
+    });
+    render(
+      <MobileProvider runtime={runtimeWith({ sellerOperations: ops, request: jest.fn(async () => ({ active: null })) })} linkMapper={() => "/"}>
+        <AktifkanScreen />
+      </MobileProvider>,
+    );
+    const retry = await screen.findByRole("button", { name: "Coba lagi" });
+    down = false;
+    fireEvent.press(retry);
+    expect(await screen.findByText(/Setelah aktif/)).toBeTruthy();
   });
 });

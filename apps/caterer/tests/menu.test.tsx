@@ -293,3 +293,85 @@ describe("menu day with an unknown package", () => {
     expect(router.back).toHaveBeenCalled();
   });
 });
+
+describe("menu loading and sharing states", () => {
+  function runtimeFor(menuMonth: jest.Mock, sellerOperations?: jest.Mock) {
+    const { createMobileRuntime, MobileProvider } = jest.requireActual("@catera/mobile-core") as typeof import("@catera/mobile-core");
+    const { MenuWeek } = jest.requireActual("../src/menu/MenuWeek") as typeof import("../src/menu/MenuWeek");
+    const runtime = createMobileRuntime({ apiUrl: "https://api.example.test", storagePrefix: "ms" });
+    runtime.api = {
+      ...runtime.api,
+      me: jest.fn(async () => ({ actor: { id: "u-1", role: "owner", catererId: "k-1" }, demo: false })),
+      sellerOperations:
+        sellerOperations ??
+        jest.fn(async () => ({
+          caterer: { id: "k-1", name: "Dapur" },
+          dishes: [],
+          datedMenus: [],
+          offers: [
+            {
+              id: "p-1",
+              name: "Makan Siang Rumahan",
+              status: "published",
+              meal: "lunch",
+              weekdays: [1, 2, 3, 4, 5],
+              contentRevision: 2,
+              menus: [{ meal: "lunch", name: "Makan Siang", description: "", image: "", composition }],
+            },
+          ],
+        })),
+      menuMonth,
+    } as unknown as typeof runtime.api;
+    return render(
+      <MobileProvider runtime={runtime} linkMapper={(h: string) => h}>
+        <MenuWeek />
+      </MobileProvider>,
+    );
+  }
+  const disabled = (name: string) => screen.getByRole("button", { name }).props.accessibilityState.disabled;
+
+  it("Menu actions wait for data", async () => {
+    runtimeFor(jest.fn(() => new Promise(() => undefined)));
+    await screen.findByRole("button", { name: "Bagikan menu" });
+    expect(screen.getByText("Memuat…")).toBeTruthy();
+    expect(disabled("Salin minggu lalu")).toBe(true);
+    expect(disabled("Bagikan menu")).toBe(true);
+    expect(screen.queryByText("Belum ada menu untuk dibagikan")).toBeNull();
+  });
+
+  it("shows Memuat while the packages load, with no actions", async () => {
+    runtimeFor(jest.fn(), jest.fn(() => new Promise(() => undefined)));
+    expect(await screen.findByText("Memuat…")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Bagikan menu" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Salin minggu lalu" })).toBeNull();
+  });
+
+  it("Bagikan menu disabled when nothing to share", async () => {
+    runtimeFor(jest.fn(async () => ({ dates: [], categories: [] })));
+    expect(await screen.findByText("Belum ada menu untuk dibagikan")).toBeTruthy();
+    expect(disabled("Bagikan menu")).toBe(true);
+  });
+
+  it("offers Bagikan menu once a day of the week has dishes", async () => {
+    const today = new Date();
+    const dates = Array.from({ length: 14 }, (_, i) => {
+      const d = new Date(today.getTime() + (i - 7) * 86400000);
+      return {
+        date: d.toISOString().slice(0, 10),
+        version: 1,
+        editable: true,
+        details: {
+          name: "Makan Siang",
+          description: "",
+          image: "",
+          meal: "lunch",
+          composition,
+          items: [{ id: "x", groupId: "g-lauk", categoryId: "main", name: "Ayam", description: "", image: "", serving: "" }],
+        },
+      };
+    });
+    runtimeFor(jest.fn(async () => ({ dates, categories: [] })));
+    await waitFor(() => expect(disabled("Bagikan menu")).toBe(false));
+    expect(screen.queryByText("Belum ada menu untuk dibagikan")).toBeNull();
+  });
+});

@@ -192,3 +192,12 @@ it("adds another empty row with Tambah baris", async () => {
   fireEvent.press(screen.getByRole("button", { name: "Selesai" }));
   expect(screen.getAllByText("Tanpa nama")).toHaveLength(2);
 });
+
+it("import row names a missing package", async () => {
+  const unset = row(1, { packageId: null, remainingDays: null, needsReview: true, reason: "Perlu dicek" });
+  setup(jest.fn(), { ok: true, json: async () => ({ data: { rows: [unset], needsReview: 1 } }) });
+  await read();
+  expect(await screen.findByText("Paket belum dipilih · sisa hari belum diisi · 1 porsi")).toBeTruthy();
+  expect(screen.queryByText(/—/)).toBeNull();
+  expect(screen.queryByText(/\?/)).toBeNull();
+});

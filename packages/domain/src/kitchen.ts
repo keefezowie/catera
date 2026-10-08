@@ -185,7 +185,7 @@ export function menuShareText(
   meta: { caterer: string; packageName: string },
   locale: Locale,
 ): string {
-  const header = `*Menu ${meta.caterer} — ${meta.packageName}*`;
+  const header = `*Menu ${meta.caterer} · ${meta.packageName}*`;
   const body = days.map((day) =>
     [
       `*${shortDate(day.date, locale)}*`,

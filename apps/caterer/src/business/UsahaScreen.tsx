@@ -7,6 +7,7 @@ import { Button, Card, colors, Screen, Segmented, Text } from "@catera/mobile-ui
 import { usePaymentsActive } from "../customers/usePayments";
 import { photoUri } from "../photo";
 import { NotifyButton } from "./NotifyButton";
+import { ReadError } from "../ReadError";
 
 function Row({
   icon,
@@ -56,11 +57,13 @@ export function UsahaScreen() {
         <Card tone="attention">
           <Text variant="heading">{t("Aktifkan pembayaran", "Turn on payments")}</Text>
           <Text>{t("Supaya pelanggan bisa memperpanjang lewat Catera.", "So customers can renew through Catera.")}</Text>
-          <Button label={t("Mulai", "Start")} onPress={() => router.push("/aktifkan" as never)} />
+          <Button label={t("Aktifkan pembayaran", "Turn on payments")} onPress={() => router.push("/aktifkan" as never)} />
         </Card>
       ) : null}
       <Card>
         <Text variant="label">{t("Paket", "Packages")}</Text>
+        {!ops.data && ops.error ? <ReadError message={ops.error} onRetry={() => void ops.reload()} /> : null}
+        {!ops.data && !ops.error ? <Text variant="caption">{t("Memuat…", "Loading…")}</Text> : null}
         {offers.map((o) => (
           <Row
             key={o.id}
@@ -71,7 +74,9 @@ export function UsahaScreen() {
             image={o.image ? photoUri(o.image, runtime.apiBase) : undefined}
           />
         ))}
-        <Button variant="secondary" label={t("+ Paket baru", "+ New package")} onPress={() => router.push("/paket/baru" as never)} />
+        {ops.data ? (
+          <Button variant="secondary" label={t("+ Paket baru", "+ New package")} onPress={() => router.push("/paket/baru" as never)} />
+        ) : null}
       </Card>
       <Card>
         <Row icon="wallet-outline" label={t("Uang", "Money")} detail={t("Saldo dan pencairan", "Balance and payouts")} href="/uang" />

@@ -338,3 +338,24 @@ describe("route sharing after a same-day revision", () => {
     expect(share.mock.calls[2][0]).toEqual(expect.objectContaining({ message: expect.stringMatching(/^\*Antar siang/) }));
   });
 });
+
+it("Today error offers Coba lagi", async () => {
+  (offline.loadCachedDay as jest.Mock).mockResolvedValue(null);
+  let failing = true;
+  renderToday(
+    runtimeWith(async () => {
+      if (failing) throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
+      return canvasDay();
+    }),
+  );
+  const retry = await screen.findByRole("button", { name: "Coba lagi" });
+  failing = false;
+  fireEvent.press(retry);
+  expect(await screen.findByText("34 porsi")).toBeTruthy();
+});
+
+it("new kitchen card makes no time claim", async () => {
+  renderToday(runtimeWith(async () => emptyDay()));
+  expect(await screen.findByText("Satu layar")).toBeTruthy();
+  expect(screen.queryByText(/menit/)).toBeNull();
+});
