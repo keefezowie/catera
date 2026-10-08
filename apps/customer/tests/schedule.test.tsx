@@ -293,9 +293,9 @@ describe("Ubah hari sheet", () => {
     expect(await screen.findByText("Bisa diubah sampai hari ini 17.00")).toBeTruthy();
     expect(runtime.api.deliveryAvailability).toHaveBeenCalledWith("d-1", "2026-10-07", "2026-11-06");
     // Unavailable dates are listed and disabled, with the reason.
-    expect(await screen.findByText("Katering penuh")).toBeTruthy();
-    expect(screen.getByText("Sudah ada pengantaran")).toBeTruthy();
-    expect(screen.getByRole("button", { name: /Selasa 20 Okt/ }).props.accessibilityState.disabled).toBe(true);
+    const full = await screen.findByRole("button", { name: "Selasa 20 Okt, Katering penuh" });
+    expect(full.props.accessibilityState.disabled).toBe(true);
+    expect(screen.getByRole("button", { name: "Rabu 21 Okt, Sudah ada pengantaran" }).props.accessibilityState.disabled).toBe(true);
     // Confirm waits for a choice.
     expect(screen.getByRole("button", { name: "Pilih tanggal" }).props.accessibilityState.disabled).toBe(true);
     fireEvent.press(screen.getByRole("button", { name: "Senin 19 Okt" }));
@@ -310,6 +310,39 @@ describe("Ubah hari sheet", () => {
         expect.any(String),
       ),
     );
+  });
+
+  it("shows bookable dates as chips and picks one", async () => {
+    const dates: Availability = [
+      { date: "2026-10-12", available: true, reason: null, remaining: 4 },
+      { date: "2026-10-13", available: false, reason: "CAPACITY", remaining: 0 },
+    ];
+    renderSheet(flexible, runtimeWith(stateOf([flexible]), dates));
+    const chip = await screen.findByRole("button", { name: /Senin 12 Okt/ });
+    expect(chip.props.accessibilityState.selected).toBe(false);
+    expect(screen.getByRole("button", { name: "Pilih tanggal" }).props.accessibilityState.disabled).toBe(true);
+    fireEvent.press(chip);
+    expect(screen.getByRole("button", { name: "Senin 12 Okt" }).props.accessibilityState.selected).toBe(true);
+    // The long label of the chosen day appears under the strip.
+    expect(within(screen.getByTestId("chosen-day")).getByText("Senin 12 Okt")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Pindah ke Senin 12 Okt" }).props.accessibilityState.disabled).toBe(false);
+  });
+
+  it("marks a full date as unavailable", async () => {
+    const dates: Availability = [
+      { date: "2026-10-12", available: true, reason: null, remaining: 4 },
+      { date: "2026-10-13", available: false, reason: "CAPACITY", remaining: 0 },
+    ];
+    renderSheet(flexible, runtimeWith(stateOf([flexible]), dates));
+    const chip = await screen.findByRole("button", { name: /Selasa 13 Okt, Katering penuh/ });
+    expect(chip.props.accessibilityState.disabled).toBe(true);
+    fireEvent.press(chip);
+    expect(screen.getByRole("button", { name: "Pilih tanggal" }).props.accessibilityState.disabled).toBe(true);
+  });
+
+  it("shows the empty message when no date is bookable", async () => {
+    renderSheet(flexible, runtimeWith(stateOf([flexible]), []));
+    expect(await screen.findByText("Belum ada tanggal yang tersedia dalam 30 hari ke depan.")).toBeTruthy();
   });
 
   it("changes the address for one day", async () => {

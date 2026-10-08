@@ -11,9 +11,10 @@ import {
   shortDate,
   type Address,
   type Delivery,
+  type DeliveryAvailability,
 } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, colors, FONT, fontFor, Segmented, Sheet, Text } from "@catera/mobile-ui";
+import { Button, colors, FONT, fontFor, PressableScale, Segmented, Sheet, Text } from "@catera/mobile-ui";
 import { ChatKatering, catererPhoneOf } from "../help/ChatKatering";
 import { longDay } from "./dates";
 
@@ -154,30 +155,21 @@ export function ChangeDaySheet({
                 ...(can.address ? [{ value: "address" as const, label: t("Ganti alamat", "Change address") }] : []),
               ]}
             />
-            <ScrollView style={{ maxHeight: 280 }} contentContainerStyle={{ gap: 8 }}>
-              {mode === "date" ? (
-                availability.loading && !availability.data ? (
-                  <Text style={{ color: colors.muted }}>{t("Memuat tanggal…", "Loading dates…")}</Text>
-                ) : availability.error && !availability.data ? (
-                  <Text style={{ color: colors.danger }}>{availability.error}</Text>
-                ) : dates.length ? (
-                  dates.map((r) => (
-                    <OptionRow
-                      key={r.date}
-                      label={dayLabel(r.date, today, locale)}
-                      note={r.available ? "" : reasons[r.reason ?? ""]}
-                      selected={target === r.date}
-                      disabled={!r.available}
-                      onPress={() => setTarget(r.date)}
-                    />
-                  ))
-                ) : (
-                  <Text style={{ color: colors.muted }}>
-                    {t("Belum ada tanggal yang tersedia dalam 30 hari ke depan.", "No dates are available in the next 30 days.")}
-                  </Text>
-                )
+            {mode === "date" ? (
+              availability.loading && !availability.data ? (
+                <Text style={{ color: colors.muted }}>{t("Memuat tanggal…", "Loading dates…")}</Text>
+              ) : availability.error && !availability.data ? (
+                <Text style={{ color: colors.danger }}>{availability.error}</Text>
+              ) : dates.length ? (
+                <DateChips dates={dates} selected={target} onSelect={setTarget} reasons={reasons} today={today} locale={locale} />
               ) : (
-                addresses.map((a) => {
+                <Text style={{ color: colors.muted }}>
+                  {t("Belum ada tanggal yang tersedia dalam 30 hari ke depan.", "No dates are available in the next 30 days.")}
+                </Text>
+              )
+            ) : (
+              <ScrollView style={{ maxHeight: 280 }} contentContainerStyle={{ gap: 8 }}>
+                {addresses.map((a) => {
                   const here = a.id === delivery.address.id;
                   const outside = !delivery.offer.areas.includes(a.area);
                   return (
@@ -191,9 +183,9 @@ export function ChangeDaySheet({
                       onPress={() => setAddressId(a.id)}
                     />
                   );
-                })
-              )}
-            </ScrollView>
+                })}
+              </ScrollView>
+            )}
 
             {error ? (
               <Text variant="caption" style={{ color: colors.danger }}>
@@ -228,6 +220,58 @@ export function ChangeDaySheet({
         )}
       </View>
     </Sheet>
+  );
+}
+
+/** One strip of dates: bookable ones are chips, full or double-booked ones stay visible but dimmed. */
+function DateChips({
+  dates,
+  selected,
+  onSelect,
+  reasons,
+  today,
+  locale,
+}: {
+  dates: DeliveryAvailability[];
+  selected: string;
+  onSelect: (date: string) => void;
+  reasons: Record<string, string>;
+  today: string;
+  locale: "id" | "en";
+}) {
+  return (
+    <View style={{ gap: 10 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+        {dates.map((r) => {
+          const full = shortDate(r.date, locale);
+          // "Senin 12 Okt" -> weekday on top, "12 Okt" below.
+          const [weekday, ...rest] = full.split(" ");
+          const on = selected === r.date;
+          const off = !r.available;
+          const ink = on ? colors.cream : off ? colors.muted : colors.forest;
+          return (
+            <PressableScale
+              key={r.date}
+              accessibilityRole="button"
+              accessibilityLabel={off ? `${full}, ${reasons[r.reason ?? ""]}` : full}
+              accessibilityState={{ selected: on, disabled: off }}
+              disabled={off}
+              haptic={off ? "none" : "select"}
+              onPress={() => onSelect(r.date)}
+              style={[styles.chip, on && styles.chipOn, off && styles.chipOff]}
+            >
+              <RNText style={[styles.chipDay, { color: ink }]}>{weekday.slice(0, 3)}</RNText>
+              <RNText style={[styles.chipDate, { color: ink }]}>{rest.join(" ")}</RNText>
+            </PressableScale>
+          );
+        })}
+      </ScrollView>
+      {selected ? (
+        <Text testID="chosen-day" variant="label" style={{ color: colors.forest }}>
+          {dayLabel(selected, today, locale)}
+        </Text>
+      ) : null}
+    </View>
   );
 }
 
@@ -280,6 +324,21 @@ const styles = StyleSheet.create({
   },
   rowOn: { backgroundColor: colors.forest, borderColor: colors.forest },
   rowOff: { borderStyle: "dashed", borderColor: "#B9BFB0", backgroundColor: "transparent" },
+  chip: {
+    minWidth: 64,
+    minHeight: 56,
+    paddingHorizontal: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+  },
+  chipOn: { backgroundColor: colors.forest, borderColor: colors.forest },
+  chipOff: { borderStyle: "dashed", borderColor: "#B9BFB0", backgroundColor: "transparent", opacity: 0.55 },
+  chipDay: { fontFamily: FONT, fontSize: 11, lineHeight: 16 },
+  chipDate: { fontFamily: fontFor("700"), fontSize: 15, lineHeight: 20, fontVariant: ["tabular-nums"] },
   rowLabel: { fontSize: 15, fontFamily: fontFor("700"), fontVariant: ["tabular-nums"] },
   rowSub: { fontFamily: FONT, fontSize: 12 },
 });
