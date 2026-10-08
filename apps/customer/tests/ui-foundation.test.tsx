@@ -28,3 +28,20 @@ test("an explicit fontFamily wins over the variant weight", () => {
   expect(style.fontFamily).toBe("Jakarta-SemiBold");
   expect(style.fontWeight).toBeUndefined();
 });
+
+test.each([
+  ["title", 30, 39],
+  ["heading", 21, 28],
+  ["body", 14, 23],
+  ["label", 12, 23],
+  ["caption", 11, 18],
+] as const)("%s uses the documented ramp", (variant, size, line) => {
+  render(<Text variant={variant}>x</Text>);
+  const s = StyleSheet.flatten(screen.getByText("x").props.style);
+  expect([s.fontSize, s.lineHeight]).toEqual([size, line]);
+});
+
+test("title and heading use the bold family", () => {
+  render(<Text variant="title">Jadwal</Text>);
+  expect(StyleSheet.flatten(screen.getByText("Jadwal").props.style).fontFamily).toBe("Jakarta-Bold");
+});

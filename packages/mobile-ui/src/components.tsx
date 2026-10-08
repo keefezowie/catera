@@ -21,12 +21,12 @@ export const FONT = fonts.regular;
 export { colors };
 
 const textVariants = {
-  title: { fontSize: 24, fontWeight: "800", letterSpacing: -0.5, color: colors.forest },
-  heading: { fontSize: 17, fontWeight: "800", color: colors.forest },
-  body: { fontSize: 15, fontWeight: "400", color: colors.charcoal, lineHeight: 22 },
-  label: { fontSize: 13, fontWeight: "700", color: colors.forest },
-  caption: { fontSize: 12, fontWeight: "400", color: colors.muted, lineHeight: 17 },
-  number: { fontSize: 40, fontWeight: "800", letterSpacing: -1, color: colors.forest },
+  title: { fontSize: 30, lineHeight: 39, fontWeight: "700", letterSpacing: -0.8, color: colors.forest },
+  heading: { fontSize: 21, lineHeight: 28, fontWeight: "700", letterSpacing: -0.4, color: colors.forest },
+  body: { fontSize: 14, lineHeight: 23, fontWeight: "400", color: colors.charcoal },
+  label: { fontSize: 12, lineHeight: 23, fontWeight: "700", color: colors.forest },
+  caption: { fontSize: 11, lineHeight: 18, fontWeight: "400", color: colors.muted },
+  number: { fontSize: 40, fontWeight: "800", letterSpacing: -1, color: colors.forest, fontVariant: ["tabular-nums"] },
 } satisfies Record<string, TextStyle>;
 
 export function Text({
