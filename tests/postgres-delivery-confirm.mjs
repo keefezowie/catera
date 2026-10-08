@@ -58,6 +58,7 @@ export async function verifyDeliveryConfirm(pool, cmd, evidence) {
     "20261008120000_delivery_issue_customer.sql",
     "20261008121000_delivery_issue_not_future.sql",
     "20261008122000_customer_payment_history.sql",
+    "20261008123000_customer_payment_failed.sql",
   ])
     await pool.query(await readFile("supabase/migrations/" + file, "utf8"));
 
@@ -236,6 +237,16 @@ export async function verifyDeliveryConfirm(pool, cmd, evidence) {
   assert.equal(ended?.status, "expired");
   assert.equal(ended.payAgain.packageId, lapsed.package_id);
   assert.ok(!feed.items.some((i) => i.id === "payment-" + lapsed.id));
+  assert.ok(!("paymentFailed" in ended));
+  const failedCheckout = (
+    await pool.query(
+      "insert into v1.checkouts(user_id,package_id,address_id,quote,state,expires_at) select user_id,package_id,address_id,quote,'failed',now()-interval '10 minutes' from v1.checkouts where user_id=$1 order by created_at limit 1 returning id",
+      [U.customer],
+    )
+  ).rows[0];
+  const failedItem = (await customerActionsAs(pool, U.customer)).ended.find((i) => i.id === "payment-" + failedCheckout.id);
+  assert.equal(failedItem?.status, "expired");
+  assert.equal(failedItem.paymentFailed, true);
   evidence.push("Payment history: a checkout that ran out stays in the customer's action read under 'ended' with what Bayar lagi needs, never among the actions.");
 }
 

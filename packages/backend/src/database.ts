@@ -616,6 +616,12 @@ export async function createDemoDatabase(inMemory = false) {
     await db.exec("begin;\n" + await readFile(path.join(projectRoot(),
       "supabase/migrations/20261008122000_customer_payment_history.sql"), "utf8") + "\ncommit;");
   }
+  if (!(await db.query<{ installed: boolean }>(
+    "select position('paymentFailed' in prosrc)>0 installed from pg_proc where oid='v1.customer_actions(uuid,int)'::regprocedure",
+  )).rows[0].installed) {
+    await db.exec("begin;\n" + await readFile(path.join(projectRoot(),
+      "supabase/migrations/20261008123000_customer_payment_failed.sql"), "utf8") + "\ncommit;");
+  }
   return db;
 }
 export async function getDemoDatabase() {

@@ -95,6 +95,8 @@ it("keeps expired and failed checkouts of the last 7 days, newest first, with wh
     payAgain: { packageId: P[2], portions: 2, trial: false, cycles: sourceQuote.cycles ?? 1, addressId: ADDRESS_ID },
   });
   expect(feed.ended[0].payAgain).not.toHaveProperty("renewedFrom");
+  // A failed payment says so; one that ran out does not.
+  expect(feed.ended.map((i: any) => i.paymentFailed ?? false)).toEqual([false, true, false]);
 });
 
 it("drops an expired checkout once the same package was bought or is waiting again", async () => {
