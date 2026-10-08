@@ -171,13 +171,23 @@ it("hides the renewal card once the plan has been renewed", async () => {
 
 it("offers the full package when a trial is ending", async () => {
   const trial = { trial: true, offer: offer() } as unknown as Subscription["snapshot"];
-  renderHome(runtimeWith(async () => customerState(null, { subscription: { remaining: 1, snapshot: trial } })));
+  renderHome(
+    runtimeWith(async () => customerState(null, { subscription: { remaining: 1, snapshot: trial, ends_on: addDays(TODAY, 1) } })),
+  );
   expect(await screen.findByText("Suka dengan Makan Siang Rumahan?")).toBeTruthy();
-  expect(screen.getByText("Coba hari terakhir besok. Lanjutkan dengan paket penuh kapan saja.")).toBeTruthy();
+  expect(screen.getByText(/^Hari terakhir: Besok, \w+ \d+ \w+\. Lanjutkan dengan paket penuh kapan saja\.$/)).toBeTruthy();
   // A trial is not renewed.
   expect(screen.queryByRole("button", { name: "Perpanjang" })).toBeNull();
   fireEvent.press(screen.getByRole("button", { name: "Lihat paket penuh" }));
   expect(router.push).toHaveBeenCalledWith("/paket/p-rumahan");
+});
+
+it("does not call the last trial day tomorrow when it is further away", async () => {
+  const trial = { trial: true, offer: offer() } as unknown as Subscription["snapshot"];
+  renderHome(
+    runtimeWith(async () => customerState(null, { subscription: { remaining: 1, snapshot: trial, ends_on: addDays(TODAY, 4) } })),
+  );
+  expect(await screen.findByText(/^Hari terakhir: (?!Besok)\w+ \d+ \w+\./)).toBeTruthy();
 });
 
 it("asks for a review once near the end", async () => {

@@ -1,6 +1,6 @@
 import { StyleSheet, View } from "react-native";
 import { router } from "expo-router";
-import { currency, type Subscription } from "@catera/domain";
+import { currency, dayLabel, jakartaDay, type Subscription } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
 import { Button, Card, colors, fontFor, Text } from "@catera/mobile-ui";
 import { SunriseButton } from "./Plate";
@@ -35,17 +35,16 @@ export function RenewalCard({ subscription: s }: { subscription: Subscription })
 export function TrialCard({ subscription: s }: { subscription: Subscription }) {
   const { t } = useMobile();
   const name = s.snapshot.offer.name;
+  const today = jakartaDay(new Date());
   return (
     <Card tone="attention" style={{ gap: 10 }}>
       <Text variant="heading">{t(`Suka dengan ${name}?`, `Enjoying ${name}?`)}</Text>
-      {s.remaining === 1 ? (
-        <Text>
-          {t(
-            "Coba hari terakhir besok. Lanjutkan dengan paket penuh kapan saja.",
-            "Try the last day tomorrow. Continue with the full package any time.",
-          )}
-        </Text>
-      ) : null}
+      <Text>
+        {t(
+          `Hari terakhir: ${dayLabel(s.ends_on, today, "id")}. Lanjutkan dengan paket penuh kapan saja.`,
+          `Last day: ${dayLabel(s.ends_on, today, "en")}. Continue with the full package any time.`,
+        )}
+      </Text>
       <Button
         label={t("Lihat paket penuh", "See the full package")}
         onPress={() => router.push(`/paket/${encodeURIComponent(s.package_id)}` as never)}
