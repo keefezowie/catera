@@ -1,8 +1,8 @@
-import { Image, Pressable, StyleSheet, View } from "react-native";
+import { Image, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import { currency, perMealPrice, priceUnitLabel, type Offer } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, colors, Screen, Text } from "@catera/mobile-ui";
+import { Button, colors, PressableRow, Screen, Text } from "@catera/mobile-ui";
 import { photoUri } from "./Plate";
 
 /** Beranda without an active package: food first, then how caterer links work. */
@@ -68,7 +68,7 @@ function OfferCard({ offer: o }: { offer: Offer }) {
   const { runtime, t, locale } = useMobile();
   const { unit, note } = priceUnitLabel(o, locale);
   return (
-    <Pressable
+    <PressableRow
       accessibilityRole="button"
       accessibilityLabel={`${o.name}, ${o.caterer}`}
       onPress={() => router.push(`/paket/${encodeURIComponent(o.id)}` as never)}
@@ -89,6 +89,6 @@ function OfferCard({ offer: o }: { offer: Offer }) {
         </Text>
         {note ? <Text variant="caption">{note}</Text> : null}
       </View>
-    </Pressable>
+    </PressableRow>
   );
 }

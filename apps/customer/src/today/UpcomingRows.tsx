@@ -1,9 +1,9 @@
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { dayLabel, jakartaDay, mealLabel, type UpcomingRow } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { colors, fontFor, Text } from "@catera/mobile-ui";
+import { colors, fontFor, PressableRow, Text } from "@catera/mobile-ui";
 
 /** The days after today as plain rows (not cards), each with its change deadline. */
 export function UpcomingRows({ rows }: { rows: UpcomingRow[] }) {
@@ -16,7 +16,7 @@ export function UpcomingRows({ rows }: { rows: UpcomingRow[] }) {
         {t("Berikutnya", "Coming up")}
       </Text>
       {rows.map((row, i) => (
-        <Pressable
+        <PressableRow
           key={row.deliveryId}
           accessibilityRole="button"
           onPress={() => router.push(`/hari/${encodeURIComponent(row.deliveryId)}` as never)}
@@ -37,7 +37,7 @@ export function UpcomingRows({ rows }: { rows: UpcomingRow[] }) {
             ) : null}
           </View>
           <Ionicons name="chevron-forward" size={18} color={colors.muted} />
-        </Pressable>
+        </PressableRow>
       ))}
     </View>
   );

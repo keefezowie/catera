@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { Image, Pressable, StyleSheet, Text as RNText, View, type StyleProp, type ViewStyle } from "react-native";
+import { Image, StyleSheet, Text as RNText, View, type StyleProp, type ViewStyle } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
 import { router } from "expo-router";
 import { errorLabel, type Plate as PlateData } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { Button, colors, fontFor, Text } from "@catera/mobile-ui";
+import { Button, colors, fontFor, PressableScale, Text } from "@catera/mobile-ui";
 import { ChatKatering } from "../help/ChatKatering";
 
 const JAKARTA_OFFSET_MS = 7 * 60 * 60 * 1000;
@@ -35,16 +35,17 @@ export function SunriseButton({
   style?: StyleProp<ViewStyle>;
 }) {
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ disabled: !!disabled }}
       disabled={disabled}
+      haptic={disabled ? "none" : "tap"}
       onPress={onPress}
-      style={({ pressed }) => [styles.sunrise, disabled && { opacity: 0.6 }, pressed && { opacity: 0.85 }, style]}
+      style={[styles.sunrise, disabled && { opacity: 0.6 }, style]}
     >
       <RNText style={styles.sunriseLabel}>{label}</RNText>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -194,12 +195,13 @@ export function Plate({ plate, apiBase, offline }: { plate: PlateData; apiBase: 
               ).map(([value, label]) => {
                 const selected = plate.reaction === value;
                 return (
-                  <Pressable
+                  <PressableScale
                     key={value}
                     accessibilityRole="button"
                     accessibilityLabel={label}
                     accessibilityState={{ selected, disabled: busy }}
                     disabled={busy}
+                    haptic={busy ? "none" : "select"}
                     onPress={() => void run("delivery.react", { reaction: value })}
                     style={[styles.reaction, selected && styles.reactionOn]}
                   >
@@ -207,7 +209,7 @@ export function Plate({ plate, apiBase, offline }: { plate: PlateData; apiBase: 
                     <RNText style={[styles.reactionLabel, { color: selected ? colors.cream : colors.forest }]}>
                       {label}
                     </RNText>
-                  </Pressable>
+                  </PressableScale>
                 );
               })}
             </View>
@@ -281,7 +283,7 @@ const styles = StyleSheet.create({
     minHeight: 56,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#CDD4C4",
+    borderColor: colors.secondaryBorder,
     alignItems: "center",
     justifyContent: "center",
     gap: 4,

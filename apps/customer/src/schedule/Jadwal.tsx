@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Image, Pressable, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Image, StyleSheet, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { jakartaDay, mealLabel, MEALS, windowStartMinutes, type CustomerState, type Delivery } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, colors, fontFor, Screen, Text } from "@catera/mobile-ui";
+import { Button, Card, colors, fontFor, PressableRow, PressableScale, Screen, Text } from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
 import { photoUri } from "../today/Plate";
 import { MonthGrid, type DayMark } from "./MonthGrid";
@@ -75,25 +75,25 @@ function SignedInJadwal() {
     <Screen>
       <Text variant="title">{t("Jadwal", "Schedule")}</Text>
       <View style={styles.monthBar}>
-        <Pressable
+        <PressableScale
           accessibilityRole="button"
           accessibilityLabel={t("Bulan sebelumnya", "Previous month")}
           onPress={() => setMonth(shiftMonth(month, -1))}
           style={styles.arrow}
         >
           <Ionicons name="chevron-back" size={22} color={colors.forest} />
-        </Pressable>
+        </PressableScale>
         <Text variant="heading" style={{ flex: 1, textAlign: "center" }}>
           {monthTitle(month, locale)}
         </Text>
-        <Pressable
+        <PressableScale
           accessibilityRole="button"
           accessibilityLabel={t("Bulan berikutnya", "Next month")}
           onPress={() => setMonth(shiftMonth(month, 1))}
           style={styles.arrow}
         >
           <Ionicons name="chevron-forward" size={22} color={colors.forest} />
-        </Pressable>
+        </PressableScale>
       </View>
       {data.error ? (
         <View style={{ gap: 6 }}>
@@ -105,9 +105,9 @@ function SignedInJadwal() {
       ) : null}
       <MonthGrid month={month} today={today} selected={selected} marks={marksOf(deliveries)} locale={locale} onSelect={setSelected} />
       <View style={styles.legend}>
-        <Legend icon="sunny" size={12} color={colors.sunrise} label={t("Makan siang", "Lunch")} />
-        <Legend icon="moon" size={11} color={colors.forest} label={t("Makan malam", "Dinner")} />
-        <Legend icon="sunny" size={12} color={colors.muted} label={t("Sudah sampai", "Arrived")} />
+        <Legend id="lunch" icon="sunny" size={12} color={colors.sunriseInk} label={t("Makan siang", "Lunch")} />
+        <Legend id="dinner" icon="moon" size={11} color={colors.forest} label={t("Makan malam", "Dinner")} />
+        <Legend id="arrived" icon="sunny" size={12} color={colors.muted} label={t("Sudah sampai", "Arrived")} />
       </View>
       <Text variant="label">{longDay(selected, locale)}</Text>
       {data.loading && !state ? (
@@ -125,9 +125,9 @@ function SignedInJadwal() {
   );
 }
 
-function Legend({ icon, size, color, label }: { icon: "sunny" | "moon"; size: number; color: string; label: string }) {
+function Legend({ id, icon, size, color, label }: { id: string; icon: "sunny" | "moon"; size: number; color: string; label: string }) {
   return (
-    <View style={styles.legendItem}>
+    <View style={styles.legendItem} testID={`legend-${id}`}>
       <Ionicons name={icon} size={size} color={color} />
       <Text variant="caption">{label}</Text>
     </View>
@@ -157,7 +157,7 @@ function MealRow({
         : "";
   const sub = [mealLabel(meal, locale), d.offer.windows?.[meal], state].filter(Boolean).join(" · ");
   return (
-    <Pressable
+    <PressableRow
       accessibilityRole="button"
       accessibilityLabel={`${d.offer.name}, ${sub}`}
       onPress={() => router.push(`/hari/${encodeURIComponent(d.id)}` as never)}
@@ -177,14 +177,14 @@ function MealRow({
         </Text>
       </View>
       <Ionicons name="chevron-forward" size={18} color={colors.muted} />
-    </Pressable>
+    </PressableRow>
   );
 }
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.canvas },
   monthBar: { flexDirection: "row", alignItems: "center" },
-  arrow: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  arrow: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
   legend: { flexDirection: "row", flexWrap: "wrap", columnGap: 18, rowGap: 6 },
   legendItem: { flexDirection: "row", alignItems: "center", gap: 6 },
   meal: { minHeight: 72, flexDirection: "row", alignItems: "center", gap: 12, padding: 8 },

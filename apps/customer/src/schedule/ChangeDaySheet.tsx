@@ -335,7 +335,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   rowOn: { backgroundColor: colors.forest, borderColor: colors.forest },
-  rowOff: { borderStyle: "dashed", borderColor: "#B9BFB0", backgroundColor: "transparent" },
+  rowOff: { borderStyle: "dashed", borderColor: colors.fieldBorder, backgroundColor: "transparent" },
   chip: {
     minWidth: 64,
     minHeight: 56,
@@ -349,7 +349,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   chipOn: { backgroundColor: colors.forest, borderColor: colors.forest },
-  chipOff: { borderStyle: "dashed", borderColor: "#B9BFB0", backgroundColor: "transparent" },
+  chipOff: { borderStyle: "dashed", borderColor: colors.fieldBorder, backgroundColor: "transparent" },
   chipWhy: { color: colors.muted, lineHeight: 16 },
   chipDay: { fontFamily: FONT, fontSize: 11, lineHeight: 16 },
   chipDate: { fontFamily: fontFor("700"), fontSize: 15, lineHeight: 20, fontVariant: ["tabular-nums"] },

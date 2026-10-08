@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { Linking, StyleSheet } from "react-native";
+import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import type { CustomerActionItem, CustomerState, SupportCase } from "@catera/domain";
@@ -485,6 +486,21 @@ describe("Bantuan: Minta bantuan", () => {
         expect.any(String),
       ),
     );
+  });
+
+  it("package picks are 48dp and give a selection haptic", async () => {
+    const state = customerState(null);
+    const first = state.subscriptions[0];
+    state.subscriptions = [
+      first,
+      { ...first, id: "s-2", snapshot: { ...first.snapshot, offer: { ...first.snapshot.offer, name: "Makan Malam Sehat" } } },
+    ];
+    renderWith(runtimeWith({ state }), <ReportList />);
+    fireEvent.press(await screen.findByRole("button", { name: "Minta bantuan" }));
+    const pick = screen.getByRole("button", { name: "Makan Malam Sehat" });
+    expect(StyleSheet.flatten(pick.props.style).minHeight).toBeGreaterThanOrEqual(48);
+    fireEvent.press(pick);
+    expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
   });
 
   it("has no package to ask about without a subscription", async () => {

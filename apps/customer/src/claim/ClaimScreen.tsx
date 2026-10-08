@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Image, Pressable, StyleSheet, View } from "react-native";
-import Ionicons from "@expo/vector-icons/Ionicons";
+import { ActivityIndicator, Image, StyleSheet, View } from "react-native";
 import * as Crypto from "expo-crypto";
 import { router, useLocalSearchParams } from "expo-router";
 import { errorLabel, localCustomerPhone, phoneMatchesMask, shortDate, type ClaimPreview } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { Button, Card, colors, Field, fontFor, Screen, Text } from "@catera/mobile-ui";
+import { Button, Card, colors, Field, fontFor, RoundButton, Screen, Text } from "@catera/mobile-ui";
 import { e164Indonesia } from "../account/Masuk";
 
 /** Failures worth retrying; every other code means this link cannot be used. */
@@ -281,9 +280,7 @@ function Header({ onBack }: { onBack?: () => void }) {
   return (
     <View style={styles.header}>
       {onBack ? (
-        <Pressable accessibilityRole="button" accessibilityLabel={t("Kembali", "Back")} onPress={onBack} style={styles.back}>
-          <Ionicons name="chevron-back" size={22} color={colors.forest} />
-        </Pressable>
+        <RoundButton icon="chevron-back" label={t("Kembali", "Back")} onPress={onBack} />
       ) : null}
       <Image
         source={require("../../../../packages/brand/assets/wordmark.png")}
@@ -306,8 +303,7 @@ function Fact({ label, value }: { label: string; value: string }) {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.canvas },
-  header: { minHeight: 44, flexDirection: "row", alignItems: "center", gap: 4 },
-  back: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  header: { minHeight: 48, flexDirection: "row", alignItems: "center", gap: 4 },
   from: { fontSize: 14, fontFamily: fontFor("700"), color: colors.sunriseInk },
   h1: { fontSize: 28, lineHeight: 32, fontFamily: fontFor("800"), letterSpacing: -0.5, color: colors.forest },
 });

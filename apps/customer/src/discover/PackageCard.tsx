@@ -1,7 +1,7 @@
-import { Image, Pressable, StyleSheet, View } from "react-native";
+import { Image, StyleSheet, View } from "react-native";
 import { currency, perMealPrice, priceUnitLabel } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { colors, RoundButton, Text } from "@catera/mobile-ui";
+import { colors, PressableRow, RoundButton, Text } from "@catera/mobile-ui";
 import { photoUri } from "../today/Plate";
 import { cardLine, type CatalogOffer } from "./format";
 
@@ -21,7 +21,7 @@ export function PackageCard({
   const { unit, note } = priceUnitLabel(offer, locale);
   return (
     <View style={styles.card}>
-      <Pressable accessibilityRole="button" accessibilityLabel={`${offer.name}, ${offer.caterer}`} onPress={onOpen}>
+      <PressableRow accessibilityRole="button" accessibilityLabel={`${offer.name}, ${offer.caterer}`} onPress={onOpen}>
         {offer.image ? (
           <Image
             accessibilityIgnoresInvertColors
@@ -52,7 +52,7 @@ export function PackageCard({
             </Text>
           ) : null}
         </View>
-      </Pressable>
+      </PressableRow>
       <RoundButton
         icon={saved ? "heart" : "heart-outline"}
         label={saved ? t(`Hapus ${offer.name} dari simpanan`, `Remove ${offer.name} from saved`) : t(`Simpan ${offer.name}`, `Save ${offer.name}`)}

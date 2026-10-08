@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { ActivityIndicator, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { areaOptions, menuSummary, perMealPrice, type Offer } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, colors, FONT, fonts, RoundButton, Screen, Sheet, Text } from "@catera/mobile-ui";
+import { Button, colors, FONT, fonts, PressableRow, RoundButton, Screen, Sheet, Text } from "@catera/mobile-ui";
 import { FilterChip } from "./FilterChip";
 import { PackageCard } from "./PackageCard";
 import { type CatalogOffer } from "./format";
@@ -91,7 +91,7 @@ function Browse({ area, onArea }: { area: string; onArea: (value: string) => voi
   return (
     <Screen>
       <View style={styles.header}>
-        <Pressable
+        <PressableRow
           accessibilityRole="button"
           accessibilityLabel={t("Pilih area pengantaran", "Choose delivery area")}
           accessibilityValue={{ text: area || t("Belum dipilih", "Not chosen") }}
@@ -103,7 +103,7 @@ function Browse({ area, onArea }: { area: string; onArea: (value: string) => voi
             {area || t("Pilih area", "Choose area")}
           </Text>
           <Ionicons name="chevron-down" size={18} color={colors.muted} />
-        </Pressable>
+        </PressableRow>
         <RoundButton icon="heart-outline" label={t("Paket disimpan", "Saved packages")} onPress={() => router.push("/disimpan" as never)} />
       </View>
 
@@ -170,7 +170,7 @@ function Browse({ area, onArea }: { area: string; onArea: (value: string) => voi
         closeLabel={t("Tutup", "Close")}
       >
         {["", ...areaOptions].map((value) => (
-          <Pressable
+          <PressableRow
             key={value || "all"}
             accessibilityRole="button"
             accessibilityState={{ selected: value === area }}
@@ -184,7 +184,7 @@ function Browse({ area, onArea }: { area: string; onArea: (value: string) => voi
               {value || t("Semua area", "All areas")}
             </Text>
             {value === area ? <Ionicons name="checkmark" size={20} color={colors.forest} /> : null}
-          </Pressable>
+          </PressableRow>
         ))}
       </Sheet>
     </Screen>
@@ -193,7 +193,7 @@ function Browse({ area, onArea }: { area: string; onArea: (value: string) => voi
 
 const styles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", gap: 10 },
-  area: { flex: 1, minHeight: 44, flexDirection: "row", alignItems: "center", gap: 8 },
+  area: { flex: 1, minHeight: 48, flexDirection: "row", alignItems: "center", gap: 8 },
   search: {
     minHeight: 48,
     flexDirection: "row",
@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#CFD3C6",
+    borderColor: colors.fieldBorder,
     backgroundColor: colors.surface,
   },
   input: { flex: 1, minHeight: 48, fontFamily: FONT, fontSize: 15, color: colors.charcoal },

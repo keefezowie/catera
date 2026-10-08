@@ -1,9 +1,9 @@
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { jakartaDay, mealLabel, type CustomerActionItem } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { colors, fontFor, Text } from "@catera/mobile-ui";
+import { colors, fontFor, PressableRow, Text } from "@catera/mobile-ui";
 import { customerLink } from "../links";
 import { longDay, weekdayName } from "../schedule/dates";
 import { jakartaClock } from "./Plate";
@@ -16,7 +16,7 @@ export function MenuDueRows({ items }: { items: CustomerActionItem[] }) {
   return (
     <View>
       {due.slice(0, 3).map((item, i) => (
-        <Pressable
+        <PressableRow
           key={item.id}
           accessibilityRole="button"
           onPress={() => router.push(customerLink(item.href) as never)}
@@ -39,7 +39,7 @@ export function MenuDueRows({ items }: { items: CustomerActionItem[] }) {
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={colors.muted} />
-        </Pressable>
+        </PressableRow>
       ))}
     </View>
   );

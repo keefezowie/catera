@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import * as SecureStore from "expo-secure-store";
 import {
   errorLabel,
@@ -11,7 +12,7 @@ import {
   type Subscription,
 } from "@catera/domain";
 import { useData, useMobile, type MobileRuntime } from "@catera/mobile-core";
-import { Button, colors, FONT, Field, fontFor, Screen, Text } from "@catera/mobile-ui";
+import { Button, colors, Field, fontFor, PressableRow, PressableScale, Screen, Text } from "@catera/mobile-ui";
 import { ChatKatering } from "../help/ChatKatering";
 import { EmptyHome } from "./EmptyHome";
 import { jakartaClock, Plate } from "./Plate";
@@ -214,7 +215,7 @@ function ReviewPrompt({ state }: { state: CustomerState }) {
   return (
     <View style={styles.review}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-        <Pressable
+        <PressableRow
           accessibilityRole="button"
           onPress={() => setOpen((o) => !o)}
           style={{ flex: 1, minHeight: 48, justifyContent: "center" }}
@@ -222,23 +223,29 @@ function ReviewPrompt({ state }: { state: CustomerState }) {
           <Text style={{ fontFamily: fontFor("700") }}>
             {t(`Bagaimana ${caterer} selama ini?`, `How has ${caterer} been so far?`)}
           </Text>
-        </Pressable>
+        </PressableRow>
         <Button variant="text" label={t("Nanti saja", "Not now")} onPress={() => hide("dismissed")} />
       </View>
       {open ? (
         <View style={{ gap: 12 }}>
           <View style={{ flexDirection: "row", gap: 6 }}>
             {[1, 2, 3, 4, 5].map((n) => (
-              <Pressable
+              <PressableScale
                 key={n}
                 accessibilityRole="button"
                 accessibilityLabel={t(`${n} bintang`, `${n} stars`)}
                 accessibilityState={{ selected: n <= rating }}
+                haptic="select"
                 onPress={() => setRating(n)}
                 style={styles.star}
               >
-                <Text style={{ fontFamily: FONT, fontSize: 24, color: n <= rating ? colors.forest : "#CFD3C6" }}>★</Text>
-              </Pressable>
+                {/* Outline + muted (5.8:1) for unselected, filled + ink for selected: shape and colour both carry the state. */}
+                <Ionicons
+                  name={n <= rating ? "star" : "star-outline"}
+                  size={28}
+                  color={n <= rating ? colors.sunriseInk : colors.muted}
+                />
+              </PressableScale>
             ))}
           </View>
           <Field
@@ -275,5 +282,5 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     gap: 8,
   },
-  star: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  star: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
 });

@@ -84,8 +84,15 @@ jest.mock("expo-constants", () => ({
   __esModule: true,
   default: { expoConfig: { extra: { eas: { projectId: "synthetic-project" } } } },
 }));
+const mockTabScreens: { name: string; options?: { tabBarIcon?: (p: { focused: boolean; color: string; size: number }) => { props: { name: string } } } }[] = [];
 jest.mock("expo-router", () => ({
   router: { push: jest.fn(), replace: jest.fn() },
+  Tabs: Object.assign(({ children }: { children: unknown }) => children, {
+    Screen: (props: (typeof mockTabScreens)[number]) => {
+      mockTabScreens.push(props);
+      return null;
+    },
+  }),
   useLocalSearchParams: () => ({}),
   useFocusEffect: (fn: () => void) => require("react").useEffect(fn, []),
 }));
@@ -293,4 +300,21 @@ describe("runtime.signInPassword", () => {
     );
     expect(mockClient.auth.signOut).toHaveBeenCalledWith({ scope: "local" });
   });
+});
+
+it("tab icons are outline until focused", () => {
+  const TabsLayout = (require("../app/(tabs)/_layout") as typeof import("../app/(tabs)/_layout")).default;
+  mockTabScreens.length = 0;
+  render(
+    <AppProviders runtime={runtime}>
+      <TabsLayout />
+    </AppProviders>,
+  );
+  const tabs = mockTabScreens.filter((s) => s.options?.tabBarIcon);
+  expect(tabs.map((s) => s.name)).toEqual(["index", "jadwal", "jelajah", "akun"]);
+  for (const { name, options } of tabs) {
+    const icon = (focused: boolean) => options!.tabBarIcon!({ focused, color: "#000", size: 24 }).props.name;
+    expect(icon(true)).not.toMatch(/-outline$/);
+    expect(icon(false)).toBe(`${icon(true)}-outline`);
+  }
 });

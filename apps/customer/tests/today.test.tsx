@@ -1,8 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { Linking, StyleSheet } from "react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import * as Haptics from "expo-haptics";
 import { addDays, type Subscription } from "@catera/domain";
 import { colors } from "@catera/mobile-ui";
 import { Beranda } from "../src/today/Beranda";
@@ -401,14 +403,33 @@ describe("design tokens", () => {
     expect(StyleSheet.flatten(screen.getByText("Berangkat 10.42").props.style).fontVariant).toContain("tabular-nums");
   });
 
-  it("uses forest, not Sunrise, for review stars", async () => {
+  it("unselected star is outlined and muted", async () => {
     const past = delivery("d-past", addDays(TODAY, -1), { status: "delivered" }, { status: "delivered" });
     renderHome(runtimeWith(async () => customerState(null, { subscription: { remaining: 2 }, past: [past] })));
     fireEvent.press(await screen.findByText("Bagaimana Dapur Contoh selama ini?"));
-    const star = StyleSheet.flatten(screen.getAllByText("★")[0].props.style);
-    expect(star.color).toBe(colors.forest);
-    expect(star.color).not.toBe(colors.sunrise);
+    fireEvent.press(screen.getByRole("button", { name: "3 bintang" }));
+    const glyph = (n: number) => {
+      const star = screen.getByRole("button", { name: `${n} bintang` });
+      const icon = within(star).UNSAFE_getByType(Ionicons);
+      return { name: icon.props.name, color: icon.props.color, selected: star.props.accessibilityState.selected, star };
+    };
+    for (const n of [1, 2, 3]) expect(glyph(n)).toMatchObject({ name: "star", color: colors.sunriseInk, selected: true });
+    for (const n of [4, 5]) expect(glyph(n)).toMatchObject({ name: "star-outline", color: colors.muted, selected: false });
+    // 48dp targets, and a selection haptic on tap.
+    const flat = StyleSheet.flatten(glyph(4).star.props.style);
+    expect([flat.width, flat.height]).toEqual([48, 48]);
+    expect(Haptics.selectionAsync).toHaveBeenCalled();
     expect(StyleSheet.flatten(screen.getByText(/harga terakhir/).props.style).fontVariant).toContain("tabular-nums");
+  });
+
+  const touch = { nativeEvent: { touches: [], changedTouches: [] }, persist() {} };
+  it("upcoming row dims on press", async () => {
+    renderHome(runtimeWith(async () => customerState({ status: "scheduled" })));
+    await screen.findByText(/^Besok, /);
+    const row = () => screen.getByRole("button", { name: /^Besok, / });
+    expect(StyleSheet.flatten(row().props.style).opacity).toBeUndefined();
+    fireEvent(row(), "responderGrant", touch);
+    expect(StyleSheet.flatten(row().props.style).opacity).toBe(0.7);
   });
 
   it("shows when offline data was saved in tabular numerals", async () => {

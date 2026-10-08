@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { Linking, StyleSheet } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
+import * as Haptics from "expo-haptics";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { colors } from "@catera/mobile-ui";
 import type { Address, CustomerState, Delivery } from "@catera/domain";
@@ -113,6 +114,7 @@ const stateOf = (deliveries: Delivery[], addresses: Address[] = [home, rumah, ja
 const open = (id: string, date: string, extra: Partial<Delivery> = {}) => delivery(id, date, {}, extra);
 
 /** A day button by its date, whatever coverage its label then names. */
+const touch = { nativeEvent: { touches: [], changedTouches: [] }, persist() {} };
 const dayButton = (date: string) => screen.getByRole("button", { name: new RegExp(`^${date}(,|$)`) });
 
 describe("Jadwal", () => {
@@ -155,9 +157,9 @@ describe("Jadwal", () => {
     expect(StyleSheet.flatten(other.props.style).minHeight).toBeGreaterThanOrEqual(44);
     fireEvent.press(other);
     expect(dayButton("Kamis 8 Oktober").props.accessibilityState.selected).toBe(true);
-    // Today keeps its Sunrise ring; its day is covered, so it also carries the scheduled background.
+    // Today keeps its ring, in the readable Sunrise ink; its day is covered, so it also carries the scheduled background.
     const old = StyleSheet.flatten(dayButton("Rabu 7 Oktober").props.style);
-    expect(old.borderColor).toBe(colors.sunrise);
+    expect(old.borderColor).toBe(colors.sunriseInk);
     expect(old.borderWidth).toBe(1.5);
     expect(old.backgroundColor).toBe(colors.scheduled);
     const selected = StyleSheet.flatten(dayButton("Kamis 8 Oktober").props.style);
@@ -188,6 +190,41 @@ describe("Jadwal", () => {
     expect(screen.getByText("Sudah sampai")).toBeTruthy();
     expect(screen.queryByText("Diantar")).toBeNull();
     expect(screen.queryByText("Dipindah")).toBeNull();
+  });
+
+  it("sun icon and legend use sunriseInk", async () => {
+    renderWith(runtimeWith(month), <Jadwal />);
+    await screen.findByText("Makan siang");
+    const legend = (id: string) => within(screen.getByTestId(id)).UNSAFE_getByType(Ionicons).props.color;
+    expect(legend("legend-lunch")).toBe(colors.sunriseInk);
+    expect(legend("legend-dinner")).toBe(colors.forest);
+    expect(legend("legend-arrived")).toBe(colors.muted);
+  });
+
+  it("month arrows give haptic feedback at 48dp", async () => {
+    renderWith(runtimeWith(month), <Jadwal />);
+    const next = await screen.findByRole("button", { name: "Bulan berikutnya" });
+    const flat = StyleSheet.flatten(next.props.style);
+    expect([flat.width, flat.height]).toEqual([48, 48]);
+    fireEvent.press(next);
+    expect(Haptics.impactAsync).toHaveBeenCalledTimes(1);
+    fireEvent.press(await screen.findByRole("button", { name: "Bulan sebelumnya" }));
+    expect(Haptics.impactAsync).toHaveBeenCalledTimes(2);
+  });
+
+  it("day cells and meal rows dim on press without losing their state", async () => {
+    renderWith(runtimeWith(month), <Jadwal />);
+    await screen.findByText("Oktober 2026");
+    const cell = () => dayButton("Kamis 8 Oktober");
+    fireEvent(cell(), "responderGrant", touch);
+    expect(StyleSheet.flatten(cell().props.style).opacity).toBe(0.7);
+    expect(cell().props.accessibilityState.selected).toBe(false);
+    fireEvent.press(cell());
+    // A selected cell keeps its fill while pressed.
+    expect(StyleSheet.flatten(cell().props.style)).toMatchObject({ opacity: 0.7, backgroundColor: colors.forest });
+    const row = screen.getByRole("button", { name: /Makan Siang Rumahan/ });
+    fireEvent(row, "responderGrant", touch);
+    expect(StyleSheet.flatten(screen.getByRole("button", { name: /Makan Siang Rumahan/ }).props.style).opacity).toBe(0.7);
   });
 
   it("says a meal the caterer could not deliver was not delivered, and marks no coverage", async () => {
@@ -222,7 +259,7 @@ describe("Jadwal", () => {
         .UNSAFE_queryAllByType(Ionicons)
         .map((i) => ({ name: i.props.name, size: i.props.size, color: i.props.color }));
     expect(icons("Jumat 9 Oktober")).toEqual([
-      { name: "sunny", size: 12, color: colors.sunrise },
+      { name: "sunny", size: 12, color: colors.sunriseInk },
       { name: "moon", size: 11, color: colors.forest },
     ]);
     expect(icons("Sabtu 10 Oktober")).toEqual([{ name: "moon", size: 11, color: colors.forest }]);

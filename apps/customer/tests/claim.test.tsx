@@ -1,4 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { StyleSheet } from "react-native";
+import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { ApiError } from "@catera/api-client";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
@@ -104,6 +106,19 @@ it("opens the claim route from a link and connects", async () => {
   expect(verifyPhoneOtp).toHaveBeenCalledWith("+6281234500001", "123456", "Andre", expect.any(String));
   expect(command).toHaveBeenCalledWith("customer.claim", { token: TOKEN }, expect.any(String));
   expect(verifyPhoneOtp.mock.invocationCallOrder[0]).toBeLessThan(command.mock.invocationCallOrder[0]);
+});
+
+it("the back button is a 48dp round button with a haptic", async () => {
+  const { runtime } = runtimeWith();
+  renderRoute(runtime);
+  fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan 0812-•••-0001" }));
+  jest.clearAllMocks();
+  const back = screen.getByRole("button", { name: "Kembali" });
+  const style = StyleSheet.flatten(back.props.style);
+  expect([style.width, style.height]).toEqual([48, 48]);
+  fireEvent.press(back);
+  expect(Haptics.impactAsync).toHaveBeenCalledTimes(1);
+  expect(await screen.findByRole("button", { name: "Lanjut dengan 0812-•••-0001" })).toBeTruthy();
 });
 
 it.each(["NOT_FOUND", "INVALID_INPUT"])("a %s preview shows only the plain message", async (code) => {

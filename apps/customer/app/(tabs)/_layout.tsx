@@ -5,11 +5,14 @@ import { colors, fonts } from "@catera/mobile-ui";
 
 type CustomerTab = "index" | "jadwal" | "jelajah" | "akun";
 
-const icons: Record<CustomerTab, keyof typeof Ionicons.glyphMap> = {
-  index: "home",
-  jadwal: "calendar",
-  jelajah: "search",
-  akun: "person",
+type Glyph = keyof typeof Ionicons.glyphMap;
+
+/** Outline while inactive, filled when focused; content icons elsewhere stay outline. */
+const icons: Record<CustomerTab, { filled: Glyph; outline: Glyph }> = {
+  index: { filled: "home", outline: "home-outline" },
+  jadwal: { filled: "calendar", outline: "calendar-outline" },
+  jelajah: { filled: "search", outline: "search-outline" },
+  akun: { filled: "person", outline: "person-outline" },
 };
 
 // /discover is still emitted by old links; its stub redirects to Jelajah.
@@ -39,7 +42,9 @@ export default function TabsLayout() {
           name={name}
           options={{
             title: titles[name],
-            tabBarIcon: ({ color, size }) => <Ionicons name={icons[name]} color={color} size={size} />,
+            tabBarIcon: ({ color, size, focused }) => (
+              <Ionicons name={focused ? icons[name].filled : icons[name].outline} color={color} size={size} />
+            ),
           }}
         />
       ))}

@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
   options: { flexDirection: "row", gap: 10 },
   option: { flex: 1, minHeight: 56, borderRadius: 12, paddingHorizontal: 12, justifyContent: "center" },
   optionOn: { backgroundColor: colors.forest },
-  optionOff: { borderWidth: 1, borderColor: "#CDD4C4", backgroundColor: colors.surface },
+  optionOff: { borderWidth: 1, borderColor: colors.secondaryBorder, backgroundColor: colors.surface },
   optionLabel: { fontSize: 15, fontFamily: fontFor("700") },
   breakdown: { gap: 10, paddingVertical: 4 },
   row: { flexDirection: "row", justifyContent: "space-between", gap: 12 },

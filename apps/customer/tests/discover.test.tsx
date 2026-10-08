@@ -2,6 +2,7 @@ import { ActivityIndicator, ScrollView, StyleSheet } from "react-native";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
+import * as Haptics from "expo-haptics";
 import { currency, shortDate, startDates, type Offer } from "@catera/domain";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { customerLink } from "../src/links";
@@ -148,13 +149,20 @@ describe("Jelajah", () => {
     expect(lastCatalogQuery(runtime)).toBe("?limit=100");
   });
 
-  it("every chip is at least 44 points tall", async () => {
+  it("every chip and the area control is at least 48 points tall", async () => {
     wrap(runtimeWith(), <Jelajah />);
     await screen.findByText("Menu Sehat Premium");
-    for (const name of ["Siang", "Malam", "Di bawah Rp30.000", "Bisa coba 1 hari"]) {
+    for (const name of ["Siang", "Malam", "Di bawah Rp30.000", "Bisa coba 1 hari", "Pilih area pengantaran"]) {
       const style = StyleSheet.flatten(screen.getByRole("button", { name }).props.style);
-      expect(style.minHeight).toBeGreaterThanOrEqual(44);
+      expect(style.minHeight).toBeGreaterThanOrEqual(48);
     }
+  });
+
+  it("filter chips give a selection haptic", async () => {
+    wrap(runtimeWith(), <Jelajah />);
+    await screen.findByText("Menu Sehat Premium");
+    fireEvent.press(screen.getByRole("button", { name: "Siang" }));
+    expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
   });
 
   it("search narrows by name or caterer without another request", async () => {

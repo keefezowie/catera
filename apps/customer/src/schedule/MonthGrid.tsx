@@ -1,7 +1,7 @@
-import { Pressable, StyleSheet, Text as RNText, View } from "react-native";
+import { StyleSheet, Text as RNText, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import type { Locale } from "@catera/domain";
-import { colors, fontFor } from "@catera/mobile-ui";
+import { colors, fontFor, PressableRow } from "@catera/mobile-ui";
 import { longDay, monthWeeks, WEEK_HEADER } from "./dates";
 
 /** Which meals a day covers; `done` once every meal it serves has arrived. */
@@ -53,7 +53,7 @@ export function MonthGrid({ month, today, selected, marks, locale, onSelect }: P
             const covered = !!mark && (mark.lunch || mark.dinner);
             const ink = on ? colors.cream : mark?.done ? colors.muted : null;
             return (
-              <Pressable
+              <PressableRow
                 key={date}
                 accessibilityRole="button"
                 accessibilityLabel={dayLabel(date, locale, mark)}
@@ -71,10 +71,10 @@ export function MonthGrid({ month, today, selected, marks, locale, onSelect }: P
                   {Number(date.slice(8))}
                 </RNText>
                 <View style={styles.marks}>
-                  {mark?.lunch ? <Ionicons name="sunny" size={12} color={ink ?? colors.sunrise} /> : null}
+                  {mark?.lunch ? <Ionicons name="sunny" size={12} color={ink ?? colors.sunriseInk} /> : null}
                   {mark?.dinner ? <Ionicons name="moon" size={11} color={ink ?? colors.forest} /> : null}
                 </View>
-              </Pressable>
+              </PressableRow>
             );
           })}
         </View>
@@ -103,8 +103,8 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   covered: { backgroundColor: colors.scheduled },
-  today: { borderColor: colors.sunrise, backgroundColor: colors.cream },
-  todayRing: { borderColor: colors.sunrise },
+  today: { borderColor: colors.sunriseInk, backgroundColor: colors.cream },
+  todayRing: { borderColor: colors.sunriseInk },
   selected: { backgroundColor: colors.forest, borderColor: colors.forest },
   number: { fontSize: 15, fontFamily: fontFor("700"), fontVariant: ["tabular-nums"] },
   marks: { height: 12, flexDirection: "row", alignItems: "center", gap: 3 },

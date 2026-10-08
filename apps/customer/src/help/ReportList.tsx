@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text as RNText, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text as RNText, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import {
   addDays,
@@ -14,7 +14,7 @@ import {
   type SupportCase,
 } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, colors, Field, fontFor, Screen, Segmented, Text } from "@catera/mobile-ui";
+import { Button, Card, colors, Field, fontFor, PressableScale, Screen, Segmented, Text } from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
 
 /** Plain status words shared by reports and support cases. */
@@ -203,17 +203,18 @@ function AskForHelp({ subscriptions }: { subscriptions: Subscription[] }) {
       {subscriptions.length > 1 ? (
         <View style={styles.chips}>
           {subscriptions.map((s) => (
-            <Pressable
+            <PressableScale
               key={s.id}
               accessibilityRole="button"
               accessibilityState={{ selected: s.id === chosen }}
+              haptic="select"
               onPress={() => setSubscriptionId(s.id)}
               style={[styles.pick, s.id === chosen && styles.pickOn]}
             >
               <RNText style={[styles.pickText, { color: s.id === chosen ? colors.cream : colors.forest }]}>
                 {s.snapshot.offer.name}
               </RNText>
-            </Pressable>
+            </PressableScale>
           ))}
         </View>
       ) : null}
@@ -395,7 +396,7 @@ const styles = StyleSheet.create({
   pillDone: { backgroundColor: colors.sage },
   pillText: { fontSize: 12, fontFamily: fontFor("700") },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  pick: { minHeight: 44, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: "#CDD4C4", justifyContent: "center" },
+  pick: { minHeight: 48, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: colors.secondaryBorder, justifyContent: "center" },
   pickOn: { backgroundColor: colors.forest, borderColor: colors.forest },
   pickText: { fontSize: 13, fontFamily: fontFor("700") },
   reply: { gap: 2, padding: 12, borderRadius: 12, backgroundColor: colors.sage },
