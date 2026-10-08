@@ -467,6 +467,24 @@ describe("Bayar", () => {
     expect(screen.getByLabelText(QR_LABEL)).toBeTruthy();
   });
 
+  for (const [name, found] of [
+    ["paid", (c: Checkout): Checkout => ({ ...c, state: "paid", subscription_id: "s-2", payment: { ...c.payment!, status: "paid" } })],
+    ["being checked", (c: Checkout): Checkout => ({ ...c, payment: { ...c.payment!, status: "checking", instructions: null } })],
+  ] as const)
+    it(`cek status that finds the payment ${name} never says nothing came in, even when the reload fails`, async () => {
+      const runtime = server({ checkout: pendingCheckout() });
+      const refresh = runtime.api.command as jest.Mock;
+      refresh.mockImplementation(async () => found(pendingCheckout()));
+      wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
+      expect(await screen.findByLabelText(QR_LABEL)).toBeTruthy();
+      (runtime.api.checkout as jest.Mock).mockRejectedValue(Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" }));
+      fireEvent.press(screen.getByRole("button", { name: "Saya sudah bayar, cek status" }));
+      await waitFor(() => expect(refresh).toHaveBeenCalledWith("checkout.payment.refresh", { id: "ck-1" }, expect.any(String)));
+      await waitFor(() => expect(screen.getByRole("button", { name: "Saya sudah bayar, cek status" })).toBeEnabled());
+      await act(async () => {});
+      expect(screen.queryByText("Belum ada pembayaran masuk. Selesaikan pembayaran, lalu cek lagi.")).toBeNull();
+    });
+
   it("cek status on a hosted payment that is still unpaid says so too", async () => {
     const hosted = { ...pendingCheckout(), payment: undefined };
     const runtime = server({ demo: true, checkout: hosted });
@@ -474,7 +492,8 @@ describe("Bayar", () => {
     await screen.findByRole("button", { name: "Bayar (demo)" });
     fireEvent.press(screen.getByRole("button", { name: "Saya sudah bayar, cek status" }));
     expect(await screen.findByText("Belum ada pembayaran masuk. Selesaikan pembayaran, lalu cek lagi.")).toBeTruthy();
-    expect(runtime.api.checkout).toHaveBeenCalledTimes(2);
+    // The first read, the one cek status judged by, and the screen's reload.
+    expect(runtime.api.checkout).toHaveBeenCalledTimes(3);
   });
 
   it("expired payment offers Bayar lagi", async () => {
@@ -502,6 +521,24 @@ describe("Bayar", () => {
     expect(screen.queryByLabelText(QR_LABEL)).toBeNull();
     expect(screen.queryByRole("button", { name: "Bayar lagi" })).toBeNull();
   });
+
+  for (const [status, extra] of [
+    ["choose_method", { selectedMethod: null }],
+    ["preparing", {}],
+    ["checking", {}],
+    ["failed", {}],
+  ] as const)
+    it(`a direct payment past its hold with no instructions ever shown (${status}) ran out, as Riwayat says`, async () => {
+      const past = new Date(Date.now() - 1000).toISOString();
+      const runtime = server({
+        checkout: pendingCheckout({ expires_at: past }, { status, expiresAt: past, instructions: null, ...extra }),
+      });
+      wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
+      expect(await screen.findByText("Waktu habis. Jadwal dicek ulang saat membayar lagi.")).toBeTruthy();
+      expect(screen.queryByText("Memeriksa pembayaran")).toBeNull();
+      fireEvent.press(screen.getByRole("button", { name: "Bayar lagi" }));
+      expect(router.replace).toHaveBeenCalledWith("/beli/p-rumahan?portions=1&cycles=1&addressId=a-1");
+    });
 
   it("paid without a booking stays in checking and refreshes from the provider", async () => {
     const runtime = server({ checkout: pendingCheckout({ state: "paid" }) });

@@ -54,8 +54,11 @@ function Day({ id }: { id: string }) {
   const closed = d.status === "cancelled" || meals.every((m) => m.status === "delivered");
   const photo = d.offer.menus?.find((m) => m.meal === meals[0]?.meal)?.image || d.offer.image;
   const customerPicks = d.offer.menuSelectionMode === "customer";
-  // Ada masalah only for a meal that is due or past: today or yesterday in Jakarta, never ahead.
-  const reportable = reportableMeals(d, new Date());
+  // Ada masalah only for a meal that is due or past (today or yesterday in Jakarta, never ahead) and
+  // has no open report yet; a meal already reported is followed up from Bantuan.
+  const openReport = (meal: string) =>
+    (d.meals ?? []).some((m) => m.meal === meal && !!m.issue && m.issue.status !== "resolved");
+  const reportTarget = reportableMeals(d, new Date()).find((meal) => !openReport(meal));
   return (
     <Screen
       footer={
@@ -107,11 +110,11 @@ function Day({ id }: { id: string }) {
         />
       ) : null}
       <ChatKatering phone={catererPhoneOf(d)} />
-      {reportable.length ? (
+      {reportTarget ? (
         <Button
           variant="text"
           label={t("Ada masalah", "Report a problem")}
-          onPress={() => router.push(`/masalah/${encodeURIComponent(d.id)}?meal=${reportable[0]}` as never)}
+          onPress={() => router.push(`/masalah/${encodeURIComponent(d.id)}?meal=${reportTarget}` as never)}
         />
       ) : null}
       {sheet ? (

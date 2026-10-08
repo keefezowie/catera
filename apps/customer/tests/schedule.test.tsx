@@ -349,8 +349,9 @@ describe("Hari: Ada masalah", () => {
   const report = () => screen.queryByRole("button", { name: "Ada masalah" });
   const show = async (d: Delivery) => {
     mockParams = { id: d.id };
-    renderWith(runtimeWith(stateOf([d])), <DayScreen />);
+    const view = renderWith(runtimeWith(stateOf([d])), <DayScreen />);
     await screen.findByText(/Makan Siang Rumahan/);
+    return view;
   };
 
   it("is not offered for a future day", async () => {
@@ -384,6 +385,27 @@ describe("Hari: Ada masalah", () => {
   it("is offered today once the window has started", async () => {
     await show(open("d-today", "2026-10-07", { offer: offer({ windows: { lunch: "09.30–11.00", dinner: "17.00–19.00" } }) }));
     expect(report()).toBeTruthy();
+  });
+
+  it("opens the meal that has no open report yet, and hides when every meal has one", async () => {
+    const both = (lunchIssue: string | null, dinnerIssue: string | null) =>
+      delivery("d-today", "2026-10-07", {}, {
+        meals: [
+          { meal: "lunch", status: "out_for_delivery", issue: lunchIssue ? { id: "i-1", status: lunchIssue } : null },
+          { meal: "dinner", status: "out_for_delivery", issue: dinnerIssue ? { id: "i-2", status: dinnerIssue } : null },
+        ],
+      });
+    let view = await show(both("open", null));
+    fireEvent.press(report()!);
+    expect(router.push).toHaveBeenLastCalledWith("/masalah/d-today?meal=dinner");
+    view.unmount();
+    // A resolved report can be followed by a new one.
+    view = await show(both("responded", "resolved"));
+    fireEvent.press(report()!);
+    expect(router.push).toHaveBeenLastCalledWith("/masalah/d-today?meal=dinner");
+    view.unmount();
+    await show(both("open", "escalated"));
+    expect(report()).toBeNull();
   });
 
   it("is offered for yesterday's delivered meal", async () => {

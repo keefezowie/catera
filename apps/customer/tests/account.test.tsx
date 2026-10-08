@@ -433,7 +433,10 @@ describe("Riwayat pembayaran", () => {
             cycles: 2,
             addressId: "a-2",
           }),
-          ended("ck-7", "Paket Coba", { packageId: "p-coba", trial: true, portions: 1, cycles: 1, addressId: "a-1" }),
+          {
+            ...ended("ck-7", "Paket Coba", { packageId: "p-coba", trial: true, portions: 1, cycles: 1, addressId: "a-1" }),
+            paymentFailed: true,
+          },
         ],
       },
     );
@@ -441,7 +444,9 @@ describe("Riwayat pembayaran", () => {
     expect(await screen.findByText("Kedaluwarsa")).toBeTruthy();
     expect(screen.queryByText("Belum dibayar")).toBeNull();
     expect(screen.queryByText("Belum ada pembayaran.")).toBeNull();
-    expect(screen.getAllByText(/Waktu pembayaran habis/)).toHaveLength(3);
+    expect(screen.getAllByText(/Waktu pembayaran habis/)).toHaveLength(2);
+    // A failed payment says so, with the same Bayar lagi.
+    expect(screen.getByText("Pembayaran gagal · Dapur Contoh")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /^Bayar Paket/ })).toBeNull();
     fireEvent.press(screen.getByRole("button", { name: "Bayar lagi Paket Habis" }));
     expect(router.push).toHaveBeenLastCalledWith("/beli/p-rumahan?portions=2&cycles=1&addressId=a-1");

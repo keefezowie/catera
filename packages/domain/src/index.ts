@@ -254,6 +254,8 @@ export type CustomerActionItem = {
   packageName?: string;
   catererName?: string;
   href: string;
+  /** On an ended checkout: true when the payment failed rather than ran out of time. */
+  paymentFailed?: boolean;
   /** On an ended checkout: the choices a new checkout for the same package starts from. */
   payAgain?: {
     packageId: string;

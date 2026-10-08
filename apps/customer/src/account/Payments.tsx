@@ -131,7 +131,14 @@ function History() {
                 key={item.id}
                 first={i === 0}
                 label={name}
-                caption={[t("Waktu pembayaran habis", "Payment time ran out"), item.catererName].filter(Boolean).join(" · ")}
+                caption={[
+                  item.paymentFailed
+                    ? t("Pembayaran gagal", "Payment failed")
+                    : t("Waktu pembayaran habis", "Payment time ran out"),
+                  item.catererName,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
               >
                 <Button
                   variant="secondary"

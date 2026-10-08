@@ -10,6 +10,16 @@ export const FINAL: Stage[] = ["paid", "expired", "failed", "review", "refunded"
 /** Where this checkout stands, from the server state and the provider deadline. */
 export function stageOf(c: Checkout, now: number): Stage {
   if (c.state === "refunded" || c.state === "partially_refunded") return "refunded";
+  // A direct payment whose hold ended before any payment instructions were shown (no method,
+  // still preparing, never answered, or failed) cannot have been paid: it ran out, as Riwayat
+  // pembayaran says. Once a QR or VA number was shown the outcome is unknown, so it keeps checking.
+  if (
+    c.state === "pending" &&
+    c.payment?.mode === "direct" &&
+    Date.parse(c.payment.expiresAt || c.expires_at) <= now &&
+    !["awaiting_payment", "paid"].includes(c.payment.status)
+  )
+    return "expired";
   const p = paymentPresentation(
     {
       checkoutState: c.state,

@@ -67,6 +67,28 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
     }, [live, check]),
   );
 
+  /** The customer's own "cek status": says nothing came in only when the checkout read just now
+   * (the one the provider refresh returns, else a fresh read) is still unpaid. A payment that was
+   * found, or is being checked, never gets that sentence, even before the screen reloads. */
+  async function checkNow() {
+    let fresh: Checkout | null = null;
+    if (direct) {
+      const result = await command<Partial<Checkout> | null>("checkout.payment.refresh", { id: checkoutId });
+      if (result && typeof result.state === "string" && result.quote) fresh = result as Checkout;
+    }
+    if (!fresh) fresh = await runtime.api.checkout(checkoutId);
+    if (!direct) await reload();
+    const unpaid =
+      !!fresh && stageOf(fresh, Date.now()) === "pay" && !["checking", "paid"].includes(fresh.payment?.status ?? "");
+    if (unpaid)
+      setNotice(
+        t(
+          "Belum ada pembayaran masuk. Selesaikan pembayaran, lalu cek lagi.",
+          "No payment has come in yet. Finish paying, then check again.",
+        ),
+      );
+  }
+
   async function run(work: () => Promise<unknown>) {
     setBusy(true);
     setError("");
@@ -149,16 +171,7 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
           disabled={busy}
           onPress={() => {
             setNotice("");
-            void run(async () => {
-              await check();
-              // Still on this screen means still unpaid; a paid or checked payment shows its outcome instead.
-              setNotice(
-                t(
-                  "Belum ada pembayaran masuk. Selesaikan pembayaran, lalu cek lagi.",
-                  "No payment has come in yet. Finish paying, then check again.",
-                ),
-              );
-            });
+            void run(checkNow);
           }}
         />
       }
