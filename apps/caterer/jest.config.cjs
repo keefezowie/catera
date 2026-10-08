@@ -1,3 +1,7 @@
+const path = require("node:path");
+// packages/mobile-ui imports Reanimated from the hoisted root copy; pin it to this app's pinned SDK copy.
+const pinned = (name) => path.dirname(require.resolve(`${name}/package.json`));
+
 module.exports = {
   preset: "jest-expo/android",
   testMatch: ["<rootDir>/tests/**/*.test.tsx"],
@@ -7,6 +11,10 @@ module.exports = {
   moduleNameMapper: {
     "^react/package.json$": require.resolve("react/package.json"),
     "^react$": require.resolve("react"),
+    "^react-native-reanimated$": pinned("react-native-reanimated"),
+    "^react-native-reanimated/(.*)$": `${pinned("react-native-reanimated")}/$1`,
+    "^react-native-worklets$": pinned("react-native-worklets"),
+    "^react-native-worklets/(.*)$": `${pinned("react-native-worklets")}/$1`,
     "^react-test-renderer$": require.resolve("react-test-renderer"),
     "^@catera/domain$": "<rootDir>/../../packages/domain/src/index.ts",
     "^@catera/api-client$": "<rootDir>/../../packages/api-client/src/index.ts",

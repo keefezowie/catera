@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { colors } from "@catera/design-tokens";
+import { PressableScale } from "./motion";
 import { fontFor, fonts } from "./type";
 
 /** The regular-weight family for Plus Jakarta Sans; other weights come from `fonts` / `fontFor`. */
@@ -68,19 +69,19 @@ export function Button({
 }) {
   const primary = variant === "primary";
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={{ disabled }}
       disabled={disabled}
+      haptic={disabled ? "none" : "tap"}
       onPress={onPress}
-      style={({ pressed }) => [
+      style={[
         styles.button,
         primary && styles.primary,
         variant === "secondary" && styles.secondary,
         variant === "text" && styles.textButton,
         disabled && primary && styles.disabled,
-        pressed && !disabled && { opacity: 0.85 },
         style,
       ]}
     >
@@ -92,7 +93,7 @@ export function Button({
       >
         {label}
       </RNText>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -106,16 +107,17 @@ export function Chip({
   onPress: () => void;
 }) {
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       accessibilityState={{ selected }}
+      haptic="select"
       onPress={onPress}
       style={[styles.chip, selected ? styles.chipOn : styles.chipOff]}
     >
       <RNText style={[styles.chipLabel, { color: selected ? colors.cream : colors.forest }]}>
         {label}
       </RNText>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -131,10 +133,11 @@ export function Segmented<T extends string>({
   return (
     <View style={styles.segmented} accessibilityRole="tablist">
       {options.map((o) => (
-        <Pressable
+        <PressableScale
           key={o.value}
           accessibilityRole="tab"
           accessibilityState={{ selected: o.value === value }}
+          haptic="select"
           onPress={() => onChange(o.value)}
           style={[styles.segment, o.value === value && styles.segmentOn]}
         >
@@ -143,7 +146,7 @@ export function Segmented<T extends string>({
           >
             {o.label}
           </RNText>
-        </Pressable>
+        </PressableScale>
       ))}
     </View>
   );

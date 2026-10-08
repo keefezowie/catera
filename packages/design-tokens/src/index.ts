@@ -35,6 +35,15 @@ export const motion = {
   duration: 180,
   ease: "cubic-bezier(.16,1,.3,1)",
 } as const;
+/** Native motion contract: durations match apps/web/src/lib/motion.ts (guarded by tests/native-motion-tokens.test.ts). */
+export const nativeMotion = {
+  control: 120,
+  selection: 180,
+  content: 220,
+  feature: 320,
+  ease: [0.16, 1, 0.3, 1] as const,
+  spring: { damping: 18, stiffness: 260 },
+} as const;
 export const focus = { color: "#B65B13", width: 3, offset: 3 } as const;
 export const webVariables = {
   "--forest": colors.forest,
