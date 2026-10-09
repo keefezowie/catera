@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, AppState, BackHandler, Text as RNText, View } from "react-native";
 import { router, useFocusEffect } from "expo-router";
+import { useNavigation } from "expo-router/react-navigation";
 import * as Clipboard from "expo-clipboard";
 import * as WebBrowser from "expo-web-browser";
 import { currency, errorLabel, paidSummary, type Checkout, type DirectPaymentMethod } from "@catera/domain";
@@ -59,6 +60,12 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
     lastStage.current = stage;
     if (paid && before !== null && before !== "paid") haptic.success();
   }, [stage, paid, haptic]);
+
+  // Paid is final on iOS too: the edge swipe would pop to whatever opened this screen, so it is off while paid.
+  const navigation = useNavigation();
+  useEffect(() => {
+    navigation.setOptions({ gestureEnabled: !paid });
+  }, [navigation, paid]);
 
   // While paid, the hardware back goes home too; before that it keeps its normal meaning.
   useFocusEffect(

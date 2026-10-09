@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Image, Text as RNText, StyleSheet, View } from "react-native";
+import { Image, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import { dayLabel, jakartaDay, pendingMenu, shortDate, type Offer, type PaidSummary } from "@catera/domain";
 import { useMobile, useTrack } from "@catera/mobile-core";
@@ -81,14 +81,15 @@ export function PaidOutcome({ checkoutId, summary, offer }: { checkoutId: string
       </View>
 
       <Text>{t("Jadwal antar Anda sudah tersimpan.", "Your deliveries are booked.")}</Text>
-      {/* Plain text in the chip look, not buttons; they wrap, so a long plan never scrolls sideways. */}
+      {/* Read-only tags, not chips: a quiet fill and regular body ink, never an outline or a 48dp control. They wrap,
+          so a long plan never scrolls sideways. */}
       {summary.dates.length ? (
         <View testID="paid-dates" style={styles.dates}>
           {summary.dates.map((date) => (
-            <View key={date} style={styles.chip}>
-              <RNText testID="paid-date" selectable style={styles.chipLabel}>
+            <View key={date} testID="paid-date-tag" style={styles.tag}>
+              <Text testID="paid-date" selectable style={tabular}>
                 {shortDate(date, locale)}
-              </RNText>
+              </Text>
             </View>
           ))}
           {more > 0 ? (
@@ -129,15 +130,6 @@ const useStyles = themedStyles((c) => ({
     backgroundColor: c.sage,
   },
   dates: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8 },
-  // The chip look (radius 9, Secondary border, bold forest label), as a read-only tag rather than a 48dp control.
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 9,
-    borderCurve: "continuous",
-    borderWidth: 1,
-    borderColor: c.secondaryBorder,
-    justifyContent: "center",
-  },
-  chipLabel: { fontFamily: fontFor("700"), fontSize: 13, color: c.forest, fontVariant: ["tabular-nums"] },
+  // A plain tag: the sage quiet fill, no border, so it never reads as the outlined chip control.
+  tag: { paddingHorizontal: 10, paddingVertical: 2, borderRadius: 8, borderCurve: "continuous", backgroundColor: c.sage },
 }));

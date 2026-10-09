@@ -9,7 +9,7 @@ import * as Haptics from "expo-haptics";
 import { addDays, currency, type Checkout, type Quote, type RenewalContext } from "@catera/domain";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { nativeMood, nativeThemes } from "@catera/design-tokens";
-import { MoodProvider, ThemeProvider } from "@catera/mobile-ui";
+import { fonts, MoodProvider, ThemeProvider } from "@catera/mobile-ui";
 import { customerLink } from "../src/links";
 import { BuyScreen } from "../src/buy/BuyScreen";
 import { QrisCode } from "../src/buy/QrisCode";
@@ -22,6 +22,9 @@ jest.mock("expo-router", () => ({
   // Focused for the whole test: the effect runs on mount and whenever its callback changes.
   useFocusEffect: (effect: () => void | (() => void)) => require("react").useEffect(effect, [effect]),
 }));
+/** The screen's own stack options (Bayar turns the iOS edge swipe off once paid). */
+const mockSetOptions = jest.fn();
+jest.mock("expo-router/react-navigation", () => ({ useNavigation: () => ({ setOptions: mockSetOptions }) }));
 jest.mock("expo-notifications", () => ({
   setNotificationHandler: jest.fn(),
   addNotificationReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
@@ -987,13 +990,58 @@ describe("Pembayaran diterima", () => {
     const chips = screen.getAllByTestId("paid-date");
     expect(chips.map((c) => c.props.children)).toEqual(["Senin 19 Okt", "Selasa 20 Okt", "Rabu 21 Okt"]);
     expect(flat(chips[0]).fontVariant).toEqual(["tabular-nums"]);
+    // Plain tags, not the chip control look: a quiet sage fill with no outline, regular body ink, continuous corners.
+    const tag = flat(screen.getAllByTestId("paid-date-tag")[0]);
+    expect(tag.backgroundColor).toBe(nativeThemes.light.sage);
+    expect(tag.borderWidth ?? 0).toBe(0);
+    expect(tag.borderColor).toBeUndefined();
+    expect(tag.borderCurve).toBe("continuous");
+    expect(flat(chips[0]).color).toBe(nativeThemes.light.charcoal);
+    expect(flat(chips[0]).fontFamily).toBe(fonts.regular);
     expect(hero.queryAllByTestId("paid-date")).toHaveLength(0);
     expect(flat(screen.getByTestId("paid-dates")).flexWrap).toBe("wrap");
     expect(screen.queryByRole("button", { name: /Okt/ })).toBeNull();
     expect(screen.queryByText(/hari lainnya/)).toBeNull();
-    // Nothing from paying is left: no QR, no payment help.
+    // Nothing from paying is left: no QR, no payment help, no total line.
     expect(screen.queryByLabelText(QR_LABEL)).toBeNull();
     expect(screen.queryByRole("button", { name: "Bantuan pembayaran" })).toBeNull();
+    expect(screen.queryByText(currency(paidCheckout().quote.total, "id"), { exact: false })).toBeNull();
+  });
+
+  it("the reserved-day tags read the dark theme's sage fill and ink", async () => {
+    const scheme = jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
+    try {
+      render(
+        <ThemeProvider storageKey="catera.theme">
+          <MobileProvider runtime={server({ checkout: paidCheckout({}, { dates: SHORT }) })} linkMapper={customerLink}>
+            <PaymentScreen checkoutId="ck-1" />
+          </MobileProvider>
+        </ThemeProvider>,
+      );
+      await screen.findByTestId("paid-hero");
+      await act(async () => {});
+      expect(flat(screen.getAllByTestId("paid-date-tag")[0]).backgroundColor).toBe(nativeThemes.dark.sage);
+      expect(flat(screen.getAllByTestId("paid-date")[0]).color).toBe(nativeThemes.dark.charcoal);
+    } finally {
+      scheme.mockRestore();
+    }
+  });
+
+  it("turns the iOS edge swipe off once paid, so a swipe cannot pop back to checkout", async () => {
+    const gesture = () => mockSetOptions.mock.calls.filter(([o]) => "gestureEnabled" in o).map(([o]) => o.gestureEnabled);
+    wrap(server({ checkout: pendingCheckout() }), <PaymentScreen checkoutId="ck-1" />);
+    expect(await screen.findByLabelText(QR_LABEL)).toBeTruthy();
+    // While paying, the swipe keeps its normal meaning.
+    expect(gesture().at(-1)).toBe(true);
+    fireEvent.press(screen.getByRole("button", { name: "Saya sudah bayar, cek status" }));
+    await screen.findByTestId("paid-hero");
+    expect(gesture().at(-1)).toBe(false);
+  });
+
+  it("opened already paid has the iOS edge swipe off", async () => {
+    wrap(server({ checkout: paidCheckout() }), <PaymentScreen checkoutId="ck-1" />);
+    await screen.findByTestId("paid-hero");
+    expect(mockSetOptions).toHaveBeenLastCalledWith({ gestureEnabled: false });
   });
 
   it("a long plan shows its first six days, then how many more", async () => {
