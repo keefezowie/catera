@@ -1,5 +1,5 @@
 import { createContext, use, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { StyleSheet, useColorScheme } from "react-native";
+import { Appearance, StyleSheet, useColorScheme } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import { nativeThemes, type NativePalette, type ThemeName } from "@catera/design-tokens";
 
@@ -58,6 +58,13 @@ export function ThemeProvider({ storageKey, children }: { storageKey: string; ch
     [storageKey],
   );
 
+  // The keyboard, Alert and the window background are drawn by the system from its own scheme, not from this tree.
+  // A chosen theme is handed to it here; "system" returns control with "unspecified". Once overridden,
+  // useColorScheme reports the override, which is harmless because a chosen preference never reads `system`.
+  useEffect(() => {
+    Appearance.setColorScheme(preference === "system" ? "unspecified" : preference);
+  }, [preference]);
+
   const scheme: ThemeName = preference === "system" ? (system === "dark" ? "dark" : "light") : preference;
   const value = useMemo<ThemeValue>(
     () => ({ palette: nativeThemes[scheme], scheme, preference, setPreference }),
@@ -81,6 +88,9 @@ export function useThemePreference(): { preference: ThemePreference; scheme: The
 /**
  * A stylesheet that depends on the palette. The factory runs at most once per theme, so every component instance in
  * the same theme shares one object, as with a module-level StyleSheet.
+ *
+ * The result is a hook: bind it to a `use*` name at module level (`const useStyles = themedStyles(...)`) and call it
+ * only while rendering, never in a callback, a loop or after an early return.
  */
 export function themedStyles<T extends StyleSheet.NamedStyles<T>>(factory: (c: NativePalette) => T): () => T {
   const cache: { light?: T; dark?: T } = {};
@@ -88,4 +98,13 @@ export function themedStyles<T extends StyleSheet.NamedStyles<T>>(factory: (c: N
     const { scheme } = use(ThemeContext);
     return (cache[scheme] ??= StyleSheet.create(factory(nativeThemes[scheme])));
   };
+}
+
+/**
+ * React Navigation's own theme with its colours replaced by the active palette, so scene containers, cards and
+ * borders never show the library's light default behind the app's surfaces. The roots pass the library's Default
+ * theme in light and its Dark theme in dark, which keeps the `dark` flag and the fonts it expects.
+ */
+export function navigationTheme<T extends { colors: object }>(base: T, p: NativePalette): T {
+  return { ...base, colors: { ...base.colors, primary: p.forest, background: p.canvas, card: p.surface, text: p.forest, border: p.line } };
 }

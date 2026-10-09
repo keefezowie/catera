@@ -17,8 +17,11 @@ describe("native themes", () => {
       charcoal: "#F5F1E8", surface: "#232321", canvas: "#151514", sage: "#2A2D27", scheduled: "#26302A",
       muted: "#B5B2AA", line: "#34332F", fieldBorder: "#7A7872", secondaryBorder: "#4A4944",
       attentionBorder: "#4C3322", danger: "#FF8F80", controlRing: "#8A8780", tabBar: "#1E1E1C",
+      disabledFill: "#34332F",
     });
-    expect(nativeThemes.light).toMatchObject({ controlRing: "#858D80", tabBar: "#FFFEFA" });
+    expect(nativeThemes.light).toMatchObject({ controlRing: "#858D80", tabBar: "#FFFEFA", disabledFill: "#CFD3C6" });
+    // Light keeps the grey it always drew behind a disabled primary button, so no light pixel changes.
+    expect(nativeThemes.light.disabledFill).toBe(colors.fieldBorder);
   });
   for (const theme of ["light", "dark"] as const) {
     const p = nativeThemes[theme];
@@ -29,6 +32,10 @@ describe("native themes", () => {
       for (const t of ["forest", "muted", "danger", "sunriseInk"] as const)
         expect(contrastRatio(p[t], p.cream), `${t} on cream`).toBeGreaterThanOrEqual(4.5);
       expect(contrastRatio(p.cream, p.forest)).toBeGreaterThanOrEqual(4.5);
+    });
+    // The disabled label is muted on disabledFill. Dark must reach 4.5:1; light was 3.83:1 before this key existed and is kept as it is.
+    it(`${theme}: the disabled label reads on the disabled fill`, () => {
+      expect(contrastRatio(p.muted, p.disabledFill)).toBeGreaterThanOrEqual(theme === "dark" ? 4.5 : 3.8);
     });
     it(`${theme}: controlRing reaches 3:1 on surface`, () => {
       expect(contrastRatio(p.controlRing, p.surface)).toBeGreaterThanOrEqual(3);

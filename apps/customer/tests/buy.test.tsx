@@ -792,7 +792,10 @@ describe("Bayar", () => {
         </ThemeProvider>,
       );
       await act(async () => {});
-      expect(StyleSheet.flatten(screen.getByLabelText(QR_LABEL).props.style).backgroundColor).toBe("#FFFFFF");
+      const box = StyleSheet.flatten(screen.getByLabelText(QR_LABEL).props.style);
+      expect(box.backgroundColor).toBe("#FFFFFF");
+      // Control: the frame line follows the theme, so this proves dark was in force while the field stayed white.
+      expect(box.borderColor).toBe(nativeThemes.dark.line);
     } finally {
       scheme.mockRestore();
     }

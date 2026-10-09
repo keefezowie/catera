@@ -10,6 +10,7 @@ import { addDays, type Subscription } from "@catera/domain";
 import { nativeThemes } from "@catera/design-tokens";
 import { ThemeProvider } from "@catera/mobile-ui";
 import * as Reanimated from "react-native-reanimated";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Beranda } from "../src/today/Beranda";
 import { SunriseButton } from "../src/today/Plate";
 import { customerLink } from "../src/links";
@@ -505,6 +506,8 @@ describe("fixed surfaces in the dark theme", () => {
     expect(ink(await screen.findByText("Sedang diantar"))).toBe("#FFF7E9");
     expect(ink(screen.getByText("Berangkat 10.42"))).toBe("#163D2E");
     expect(ink(screen.getByText("Sudah sampai"))).toBe("#2E2E2E");
+    // Control: the fixed inks above would read the same in light, so prove the dark theme was in force.
+    expect(StyleSheet.flatten(screen.UNSAFE_getByType(SafeAreaView).props.style).backgroundColor).toBe(nativeThemes.dark.canvas);
   });
 });
 

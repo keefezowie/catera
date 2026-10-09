@@ -1,4 +1,5 @@
-import { Stack } from "expo-router";
+import { useMemo, type ReactNode } from "react";
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider as NavigationTheme } from "expo-router";
 import { useFonts } from "expo-font";
 import { StatusBar } from "expo-status-bar";
 import { ActivityIndicator, View } from "react-native";
@@ -8,6 +9,7 @@ import {
   AppHeader,
   DemoStrip,
   fontAssets,
+  navigationTheme,
   Text,
   ThemeProvider,
   TopInsetOwner,
@@ -21,15 +23,20 @@ function Navigation() {
   const { t, ready, demo } = useMobile();
   const palette = useColors();
   const { scheme } = useThemePreference();
+  // Above the ready gate, so the loading spinner also gets glyphs that read on the chosen theme.
+  const statusBar = <StatusBar style={scheme === "dark" ? "light" : "dark"} />;
   if (!ready)
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: palette.canvas }}>
-        <ActivityIndicator color={palette.forest} />
-      </View>
+      <>
+        {statusBar}
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: palette.canvas }}>
+          <ActivityIndicator color={palette.forest} />
+        </View>
+      </>
     );
   return (
     <TopInsetOwner owned={demo}>
-      <StatusBar style={scheme === "dark" ? "light" : "dark"} />
+      {statusBar}
       {demo ? <DemoStrip label={t("Demo · data sintetis", "Demo · synthetic data")} /> : null}
       <Stack
         screenOptions={{
@@ -78,6 +85,17 @@ function Navigation() {
   );
 }
 
+/**
+ * Gives the navigator the active palette. Scene containers and cards read this instead of the library's light
+ * default, so no screen shows a light background behind its own surfaces in dark.
+ */
+function NavigationColors({ children }: { children: ReactNode }) {
+  const palette = useColors();
+  const { scheme } = useThemePreference();
+  const theme = useMemo(() => navigationTheme(scheme === "dark" ? DarkTheme : DefaultTheme, palette), [palette, scheme]);
+  return <NavigationTheme value={theme}>{children}</NavigationTheme>;
+}
+
 /** Language is not ready before the fonts, so this one message is plain Indonesian. It sits on the canvas of the active theme. */
 function FontError() {
   const palette = useColors();
@@ -101,7 +119,9 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ThemeProvider storageKey={runtime.storageKey("theme")}>
         <AppProviders runtime={runtime}>
-          <Navigation />
+          <NavigationColors>
+            <Navigation />
+          </NavigationColors>
         </AppProviders>
       </ThemeProvider>
     </SafeAreaProvider>

@@ -16,7 +16,7 @@ import {
   type TextStyle,
   type ViewStyle,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import type { PaletteKey } from "@catera/design-tokens";
 import { PressableScale, useReduced } from "./motion";
 import { themedStyles, useColors } from "./theme";
@@ -225,7 +225,9 @@ export function Field({
         style={[styles.input, !!error && { borderColor: c.danger }, style]}
       />
       {error ? (
-        <RNText style={[styles.caption, { color: c.danger }]}>{error}</RNText>
+        <RNText selectable style={[styles.caption, { color: c.danger }]}>
+          {error}
+        </RNText>
       ) : hint ? (
         <RNText style={styles.caption}>{hint}</RNText>
       ) : null}
@@ -284,6 +286,8 @@ export function Stepper({
   );
 }
 
+const SHEET_PADDING = 20;
+
 /** Bottom sheet for short decisions (share, exceptions). */
 export function Sheet({
   visible,
@@ -301,10 +305,25 @@ export function Sheet({
 }) {
   const reduced = useReduced();
   const styles = useStyles();
+  const insets = useSafeAreaInsets();
   return (
-    <Modal visible={visible} transparent animationType={reduced ? "fade" : "slide"} onRequestClose={onClose}>
+    // The modal window reaches under the status and gesture bars so the scrim covers them; without it the screen
+    // behind shows through the gesture band as a bright strip. The sheet then pads its own bottom to clear that band.
+    // Android refuses a translucent navigation bar without a translucent status bar, so both are set.
+    <Modal
+      visible={visible}
+      transparent
+      statusBarTranslucent
+      navigationBarTranslucent
+      animationType={reduced ? "fade" : "slide"}
+      onRequestClose={onClose}
+    >
       <Pressable style={styles.scrim} onPress={onClose} accessibilityRole="button" accessibilityLabel={closeLabel} />
-      <View style={styles.sheet} accessibilityViewIsModal onAccessibilityEscape={onClose}>
+      <View
+        style={[styles.sheet, { paddingBottom: SHEET_PADDING + insets.bottom }]}
+        accessibilityViewIsModal
+        onAccessibilityEscape={onClose}
+      >
         <View style={styles.grabber} />
         {title ? <Text variant="heading">{title}</Text> : null}
         {children}
@@ -430,7 +449,7 @@ const useStyles = themedStyles((c) => ({
   primary: { backgroundColor: c.forest },
   secondary: { borderWidth: 1, borderColor: c.secondaryBorder, backgroundColor: "transparent" },
   textButton: { minHeight: 48, paddingHorizontal: 4, backgroundColor: "transparent" },
-  disabled: { backgroundColor: c.fieldBorder },
+  disabled: { backgroundColor: c.disabledFill },
   disabledQuiet: { opacity: 0.45 },
   buttonLabel: { fontFamily: fontFor("700"), fontSize: 15 },
   chip: { minHeight: 48, paddingHorizontal: 14, borderRadius: 9, justifyContent: "center" },
@@ -475,7 +494,7 @@ const useStyles = themedStyles((c) => ({
     backgroundColor: c.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    padding: 20,
+    padding: SHEET_PADDING,
     paddingTop: 10,
     gap: 14,
   },

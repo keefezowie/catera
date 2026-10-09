@@ -9,6 +9,7 @@ const mockMe: { demo: boolean; actor: { id: string; role: string; name: string; 
   actor: null,
 };
 const mockStatusBar: { style?: string } = {};
+const mockNavTheme: { value?: { dark: boolean; colors: Record<string, string> } } = {};
 const mockTabBar: { style?: Record<string, unknown>; itemStyle?: Record<string, unknown>; tint?: Record<string, unknown> } = {};
 
 jest.mock("expo-router", () => {
@@ -34,7 +35,14 @@ jest.mock("expo-router", () => {
     return children;
   };
   Tabs.Screen = () => null;
-  return { Stack, Tabs, Redirect: () => null, router: { push: jest.fn(), replace: jest.fn() }, Link: () => null };
+  // The root hands the navigator a theme built from the palette; the library defaults are stood in by plain objects.
+  const DefaultTheme = { dark: false, colors: { background: "rgb(242, 242, 242)" } };
+  const DarkTheme = { dark: true, colors: { background: "rgb(1, 1, 1)" } };
+  const ThemeProvider = ({ value, children }: any) => {
+    mockNavTheme.value = value;
+    return children;
+  };
+  return { Stack, Tabs, DefaultTheme, DarkTheme, ThemeProvider, Redirect: () => null, router: { push: jest.fn(), replace: jest.fn() }, Link: () => null };
 });
 jest.mock("@expo/vector-icons/Ionicons", () => ({ __esModule: true, default: () => null }));
 const mockFonts: { result: [boolean, Error | null] } = { result: [true, null] };
@@ -133,6 +141,7 @@ describe("appearance", () => {
     mockTabBar.style = undefined;
     mockTabBar.itemStyle = undefined;
     mockStatusBar.style = undefined;
+    mockNavTheme.value = undefined;
   });
 
   let restoreInsets: (() => void) | undefined;
@@ -151,6 +160,18 @@ describe("appearance", () => {
     await act(async () => {});
     expect(mockTabBar.style).toMatchObject({ backgroundColor: "#1E1E1C", borderTopColor: "#34332F" });
     expect(mockStatusBar.style).toBe("light");
+    // Scene containers get the dark canvas, not the navigation library's light default.
+    expect(mockNavTheme.value).toMatchObject({ dark: true, colors: { background: "#151514", card: "#232321", border: "#34332F" } });
+  });
+
+  it("sets the status bar glyphs while the loading spinner is still showing", async () => {
+    jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
+    mockMe.actor = owner;
+    render(<RootLayout />);
+    // Nothing has been awaited yet, so the session read is pending and the app is behind the ready gate.
+    expect(screen.UNSAFE_queryByType(ReactNative.ActivityIndicator)).not.toBeNull();
+    expect(mockStatusBar.style).toBe("light");
+    await waitFor(() => expect(mockTabBar.style).toBeDefined());
   });
 
   it("clears the bottom gesture inset and keeps every tab item at least 48dp", async () => {
@@ -184,6 +205,7 @@ describe("appearance", () => {
     await act(async () => {});
     expect(mockTabBar.style).toMatchObject({ backgroundColor: "#FFFEFA", borderTopColor: "#E2E3D8" });
     expect(mockStatusBar.style).toBe("dark");
+    expect(mockNavTheme.value).toMatchObject({ dark: false, colors: { background: "#FDFAF3", card: "#FFFEFA" } });
   });
 });
 

@@ -76,13 +76,13 @@ export const webVariables = {
   "--space-section": spacing.section + "px",
 };
 
-export type PaletteKey = keyof typeof colors | "controlRing" | "tabBar";
+export type PaletteKey = keyof typeof colors | "controlRing" | "tabBar" | "disabledFill";
 export type NativePalette = Record<PaletteKey, string>;
 export type ThemeName = "light" | "dark";
 
 /** Native palettes. Light is the web palette plus the native control ring and tab bar; dark follows the native visual identity spec. */
 export const nativeThemes: Record<ThemeName, NativePalette> = {
-  light: { ...colors, controlRing: "#858D80", tabBar: "#FFFEFA" },
+  light: { ...colors, controlRing: "#858D80", tabBar: "#FFFEFA", disabledFill: "#CFD3C6" },
   dark: {
     forest: "#FFF7E9",
     forestDeep: "#E9E3D6",
@@ -102,6 +102,7 @@ export const nativeThemes: Record<ThemeName, NativePalette> = {
     danger: "#FF8F80",
     controlRing: "#8A8780",
     tabBar: "#1E1E1C",
+    disabledFill: "#34332F",
   },
 };
 

@@ -2,7 +2,8 @@ import { act, render, screen, waitFor } from "@testing-library/react-native";
 import * as ReactNative from "react-native";
 import { Text, View } from "react-native";
 import * as SecureStore from "expo-secure-store";
-import { ThemeProvider, themedStyles, useColors, useThemePreference } from "@catera/mobile-ui";
+import { nativeThemes } from "@catera/design-tokens";
+import { navigationTheme, ThemeProvider, themedStyles, useColors, useThemePreference } from "@catera/mobile-ui";
 
 // The customer setup has no SecureStore mock, so this file keeps its own in-memory one. getItemAsync is a jest.fn
 // that tests can make reject.
@@ -146,6 +147,25 @@ describe("theme", () => {
     expect(text("preference")).toBe("dark");
   });
 
+  // The keyboard, Alert and the window background are drawn by the system from its own scheme, so a chosen theme has
+  // to be handed to it; "system" gives control back with "unspecified".
+  it("hands the choice to the system-drawn UI and takes it back on Sistem", async () => {
+    const setScheme = jest.spyOn(ReactNative.Appearance, "setColorScheme").mockImplementation(() => {});
+    render(
+      <ThemeProvider storageKey="k">
+        <Probe />
+      </ThemeProvider>,
+    );
+    await waitFor(() => expect(SecureStore.getItemAsync).toHaveBeenCalledWith("k"));
+    expect(setScheme).toHaveBeenLastCalledWith("unspecified");
+    act(() => setPreferenceRef("dark"));
+    expect(setScheme).toHaveBeenLastCalledWith("dark");
+    act(() => setPreferenceRef("light"));
+    expect(setScheme).toHaveBeenLastCalledWith("light");
+    act(() => setPreferenceRef("system"));
+    expect(setScheme).toHaveBeenLastCalledWith("unspecified");
+  });
+
   it("keeps the choice in memory when the write fails", async () => {
     (SecureStore.setItemAsync as jest.Mock).mockRejectedValueOnce(new Error("disk full"));
     render(
@@ -183,5 +203,26 @@ describe("theme", () => {
     expect(ReactNative.StyleSheet.flatten(screen.getByTestId("box").props.style).backgroundColor).toBe(DARK_CANVAS);
     expect(seen[seen.length - 2]).toBe(last);
     expect(last).not.toBe(seen[0]);
+  });
+});
+
+describe("navigationTheme", () => {
+  const base = { dark: false, fonts: { regular: "x" }, colors: { primary: "p", background: "b", card: "c", text: "t", border: "o", notification: "n" } };
+
+  it("replaces the navigator colours with the active palette and keeps the rest", () => {
+    const light = navigationTheme(base, nativeThemes.light);
+    expect(light.colors).toEqual({
+      primary: nativeThemes.light.forest,
+      background: nativeThemes.light.canvas,
+      card: nativeThemes.light.surface,
+      text: nativeThemes.light.forest,
+      border: nativeThemes.light.line,
+      notification: "n",
+    });
+    expect(light.fonts).toBe(base.fonts);
+    expect(base.colors.background).toBe("b");
+    const dark = navigationTheme(base, nativeThemes.dark);
+    expect(dark.colors.background).toBe("#151514");
+    expect(dark.colors.card).toBe("#232321");
   });
 });

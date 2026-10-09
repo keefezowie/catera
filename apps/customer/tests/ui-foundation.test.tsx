@@ -4,7 +4,7 @@ import type { ReactElement } from "react";
 import * as Haptics from "expo-haptics";
 import * as SecureStore from "expo-secure-store";
 import * as Reanimated from "react-native-reanimated";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { KeyboardAvoidingView, Modal, ScrollView } from "react-native";
 import {
   AppHeader,
@@ -372,6 +372,33 @@ describe("Sheet and Screen details", () => {
     expect(sheet.props.onAccessibilityEscape).toBe(onClose);
   });
 
+  // On gesture navigation the Modal window must reach under the system bars, or the screen behind it shows through
+  // the gesture band without the scrim; the sheet then pads its own bottom so its content clears that band.
+  it("Sheet draws under the system bars and pads its bottom by the safe-area inset", () => {
+    const sheetPadding = () =>
+      StyleSheet.flatten(screen.UNSAFE_getAllByProps({ accessibilityViewIsModal: true })[0].props.style).paddingBottom;
+    const plain = render(
+      <Sheet visible onClose={() => {}} title="Bagikan" closeLabel="Tutup">
+        <Text>Isi</Text>
+      </Sheet>,
+    );
+    const modal = plain.UNSAFE_getByType(Modal);
+    expect(modal.props.navigationBarTranslucent).toBe(true);
+    expect(modal.props.statusBarTranslucent).toBe(true);
+    const base = sheetPadding();
+    expect(base).toBe(20);
+    plain.unmount();
+
+    render(
+      <SafeAreaProvider initialMetrics={{ frame: { x: 0, y: 0, width: 390, height: 800 }, insets: { top: 0, left: 0, right: 0, bottom: 24 } }}>
+        <Sheet visible onClose={() => {}} title="Bagikan" closeLabel="Tutup">
+          <Text>Isi</Text>
+        </Sheet>
+      </SafeAreaProvider>,
+    );
+    expect(sheetPadding()).toBe(base + 24);
+  });
+
   it("Sheet with an empty title renders no heading", () => {
     render(
       <Sheet visible onClose={() => {}} title="" closeLabel="Tutup">
@@ -434,6 +461,19 @@ describe("dark theme", () => {
     await renderDark(<Button label="Bayar" onPress={() => {}} />);
     expect(StyleSheet.flatten(screen.getByRole("button", { name: "Bayar" }).props.style).backgroundColor).toBe(DARK.forest);
     expect(StyleSheet.flatten(screen.getByText("Bayar").props.style).color).toBe(DARK.cream);
+  });
+
+  it("a disabled primary Button sits on the disabled fill, and its label reads on it", async () => {
+    await renderDark(<Button label="Bayar" disabled onPress={() => {}} />);
+    expect(StyleSheet.flatten(screen.getByRole("button", { name: "Bayar" }).props.style).backgroundColor).toBe(
+      nativeThemes.dark.disabledFill,
+    );
+    expect(StyleSheet.flatten(screen.getByText("Bayar").props.style).color).toBe(nativeThemes.dark.muted);
+  });
+
+  it("a disabled primary Button keeps the same light grey in light", () => {
+    render(<Button label="Bayar" disabled onPress={() => {}} />);
+    expect(StyleSheet.flatten(screen.getByRole("button", { name: "Bayar" }).props.style).backgroundColor).toBe("#CFD3C6");
   });
 
   it("Screen and AppHeader paint the dark canvas", async () => {
@@ -506,6 +546,11 @@ describe("dark theme", () => {
     const flat = StyleSheet.flatten(screen.getByLabelText("Nama").props.style);
     expect(flat.minHeight).toBe(120);
     expect(flat.borderColor).toBe(nativeThemes.dark.danger);
+  });
+
+  it("Field error text can be selected and copied", () => {
+    render(<Field label="Nama" error="Wajib diisi" />);
+    expect(screen.getByText("Wajib diisi").props.selectable).toBe(true);
   });
 
   it("Text forwards selectable", () => {
