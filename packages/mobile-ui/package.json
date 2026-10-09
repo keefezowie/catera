@@ -1,1 +1,1 @@
-{"name":"@catera/mobile-ui","version":"1.0.0","private":true,"type":"module","exports":"./src/index.ts","dependencies":{"@catera/design-tokens":"1.0.0"},"peerDependencies":{"@expo/vector-icons":"*","expo-haptics":"*","react-native-reanimated":"*"}}
+{"name":"@catera/mobile-ui","version":"1.0.0","private":true,"type":"module","exports":"./src/index.ts","dependencies":{"@catera/design-tokens":"1.0.0"},"peerDependencies":{"@expo/vector-icons":"*","expo-haptics":"*","expo-secure-store":"*","react-native-reanimated":"*"}}

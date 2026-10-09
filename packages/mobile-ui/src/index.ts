@@ -5,3 +5,4 @@ export * from "./AppHeader";
 export * from "./DemoStrip";
 export * from "./TopInset";
 export * from "./PressableRow";
+export * from "./theme";
