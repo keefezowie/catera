@@ -83,7 +83,7 @@
 
 - [ ] **Step 1: Write the failing tests.** Customer: `"the tab bar is the native one with Ionicons, filled when selected"` asserts four triggers in order `index, jadwal, jelajah, akun` with labels Beranda, Jadwal, Jelajah, Akun (English: Home, Schedule, Explore, Account), each `Icon` a `VectorIcon` of family Ionicons with `home`/`home-outline` and so on, and `discover` hidden. `"tab bar colours come from the theme, never the mood"` asserts `tabBarColors(lightPalette)` and `tabBarColors(darkPalette)` values under Siang and Malam are equal. Dapur: `"staff see only their tabs"` asserts `hidden` on the triggers `tabsForRole` excludes.
 - [ ] **Step 2:** Run both app suites. Expected: FAIL.
-- [ ] **Step 3: Implement.** `NativeTabs` with `labelVisibilityMode="labeled"`, `tabBarColors(useColors())` on the bar, `NativeTabs.Trigger.Icon src={<NativeTabs.Trigger.VectorIcon family={Ionicons} name=… />}` (outline default, filled selected). Colours: `backgroundColor` = `tabBar`, `indicatorColor` = a forest tint that keeps the selected icon at 3:1 or more (light `#CFE3CC`, dark from the dark palette; add the two tokens to `@catera/design-tokens` and to `tests/native-contrast.test.ts`), labels `muted` and `forest`. Drop `TabBarLabel`, the 1.15 cap and `spokenTabLabel` from the tab layouts. Check in Expo Go on the Android emulator that the bar renders; if `NativeTabs` does not run in Expo Go, stop and report.
+- [ ] **Step 3: Implement.** `NativeTabs` with `labelVisibilityMode="labeled"`, `tabBarColors(useColors())` on the bar, `NativeTabs.Trigger.Icon src={<NativeTabs.Trigger.VectorIcon family={Ionicons} name=… />}` (outline default, filled selected). Colours: `backgroundColor` = `tabBar`, `indicatorColor` = a forest tint that keeps the selected icon at 3:1 or more (light `#CFE3CC`, dark from the dark palette; add the two tokens to `@catera/design-tokens` and to `tests/native-contrast.test.ts`), labels `muted` and `forest`. Drop `TabBarLabel`, the 1.15 cap and `spokenTabLabel` from the tab layouts. iOS: `minimizeBehavior="onScrollDown"` (owner request, 2026-10-10: the bar gets out of the way while a long list scrolls down and returns on scroll up; on iOS 26 it shrinks to the selected tab's pill, the system's own form of this). Android gets no runtime hiding here: `NativeTabs`' `hidden` only toggles visibility, which snaps and moves the content, so Task 7 decides Android. Check in Expo Go on the Android emulator that the bar renders; if `NativeTabs` does not run in Expo Go, stop and report.
 - [ ] **Step 4:** Both app suites, `npm run typecheck`. Expected: PASS.
 - [ ] **Step 5: Commit** `feat(native): platform tab bar in both apps`.
 
@@ -145,7 +145,7 @@
 **Interfaces:**
 - Produces: `nativeHeaderOptions({ palette, demo }): NativeStackNavigationOptions`. iOS: `headerLargeTitle: true`, `headerTransparent: true`, `headerShadowVisible: false`, `headerLargeTitleShadowVisible: false`, `headerBackButtonDisplayMode: "minimal"`, `headerTintColor: palette.forest`, `headerLargeStyle` and `headerStyle` `{ backgroundColor: palette.canvas }`, `headerLargeTitleStyle: { fontFamily: fonts.bold, fontSize: 34, color: palette.forest }`, `headerTitleStyle: { fontFamily: fonts.bold, fontSize: 17, color: palette.ink }`. Android: `headerShadowVisible: false`, `headerStyle: { backgroundColor: palette.canvas }`, `headerTintColor: palette.ink`, `headerTitleStyle: { fontFamily: fonts.bold, fontSize: 22, color: palette.ink }`, `headerTopInsetEnabled: !demo`. The Android content title (`nativeTitle`) is Plus Jakarta Sans `fonts.bold` 24/32.
 - Produces: `HeaderIconButton({ icon: "close" | "chat" | "share"; label: string; onPress })`, 44pt on iOS and 48dp on Android, icon only, `accessibilityLabel` = label.
-- Produces: `Screen` prop `nativeTitle?: string`. When set, the root scroll view is first in the screen with `contentInsetAdjustmentBehavior="automatic"`; on Android it renders `nativeTitle` as the first content line in `headlineSmall` (24/32, wraps) and sets the bar title to it once that line has scrolled under the bar (cleared when it comes back); on iOS it renders nothing extra.
+- Produces: on every screen, `Screen`'s scroll view is the first scroll view in the screen with `contentInsetAdjustmentBehavior="automatic"`, so iOS can collapse large titles and minimize the tab bar on scroll (Task 1's `minimizeBehavior`); the keyboard handling moves to `automaticallyAdjustKeyboardInsets` on iOS. `Screen` prop `nativeTitle?: string`: on Android it renders `nativeTitle` as the first content line in `headlineSmall` (24/32, wraps) and sets the bar title to it once that line has scrolled under the bar (cleared when it comes back); on iOS it renders nothing extra.
 - Pushed screens pass their title through link params (`title` on `/subscriptions/[id]`, `/hari/[id]`, `/paket/[id]`) so the bar is final on the first frame; without the param the screen shows its loading title and swaps once ("Paket" never shows when the link carried the name).
 
 **Depends on:** Task 2
@@ -198,9 +198,9 @@
 - [ ] **Step 4:** Customer and caterer suites, typecheck. Expected: PASS.
 - [ ] **Step 5: Commit** `feat(native): photos fade in and Jadwal keeps its height while loading`.
 
-### Task 7: Predictive back spike (report first)
+### Task 7: Predictive back and Android bar-hiding spike (report first)
 
-**Files:** `docs/PREDICTIVE-BACK.md` (create); only if the go rule passes: `apps/customer/app.config.ts`, `apps/caterer/app.config.ts` (`android.predictiveBackGestureEnabled: true`) and `plugins/with-root-back-callback.js` (create, both app configs).
+**Files:** `docs/PREDICTIVE-BACK.md` (create); only if a go rule passes: `apps/customer/app.config.ts`, `apps/caterer/app.config.ts` (`android.predictiveBackGestureEnabled: true`), `plugins/with-root-back-callback.js` (create, both app configs), and for Step 5 a plugin or `patches/react-native-screens+<version>.patch` (with `patch-package` in the root `package.json`, owned by this task).
 
 **Interfaces:** none for other tasks.
 
@@ -212,7 +212,8 @@
 - [ ] **Step 2:** With the flag on, record for each API level: does hardware back and gesture back pop a pushed screen, close a sheet, keep Bayar's paid guard, and leave the app from a tab root? Does the system show the back-to-home preview on a tab root?
 - [ ] **Step 3:** Add the config plugin that turns React Native's `OnBackPressedCallback` off while the root navigator cannot go back (JS reports `canGoBack` through a tiny native module or `BackHandler` bridge), so the system preview plays on tab roots. Repeat Step 2.
 - [ ] **Step 4: Go rule.** Ship the flag and plugin only if every Step 2 check passes on all three levels. Otherwise commit only the report with the failing checks and the react-native-screens version that would add in-app back progress.
-- [ ] **Step 5: Commit** `docs(native): predictive back spike` (plus `feat(native): predictive back on Android` when it ships).
+- [ ] **Step 5: Android tab bar hides on scroll (owner request, 2026-10-10).** In the same development build, try sliding the native `BottomNavigationView` down while a tab's list scrolls down and back up on scroll up (Material's `HideViewOnScrollBehavior`, through a config plugin or a `patch-package` patch to react-native-screens' tabs container). Go rule: the bar slides (no snap), the content does not jump, it returns at once on any upward scroll, at the top of a list, on a tab switch and when TalkBack is on, and Expo Go still runs the app without it. Otherwise record the cost in the report and leave Android's bar fixed.
+- [ ] **Step 6: Commit** `docs(native): predictive back and bar-hiding spike` (plus `feat(native): predictive back on Android` and `feat(native): Android tab bar hides on scroll` for whatever ships).
 
 ### Task 8: Beranda sections in the domain
 
