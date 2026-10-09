@@ -57,7 +57,7 @@ export function customerLink(href: string): string {
     case "hari":
       return `/hari/${safe}`;
     case "subscriptions":
-      return "/jadwal";
+      return `/subscriptions/${safe}`;
     case "payment":
     case "bayar":
       return `/bayar/${safe}`;

@@ -356,7 +356,7 @@ describe("customerLink", () => {
     expect(customerLink("/today")).toBe("/");
     expect(customerLink("/home")).toBe("/");
     expect(customerLink("/deliveries/d-1")).toBe("/hari/d-1");
-    expect(customerLink("/subscriptions/s-1")).toBe("/jadwal");
+    expect(customerLink("/subscriptions/s-1")).toBe("/subscriptions/s-1");
     expect(customerLink("/claim/tok_abc")).toBe("/claim/tok_abc");
     expect(customerLink("/renew/s-1")).toBe("/renew/s-1");
     expect(customerLink("/seller")).toBe("/");

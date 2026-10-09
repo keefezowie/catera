@@ -122,7 +122,7 @@ describe("Akun", () => {
     expect(screen.getByText("Dapur Contoh · 6 hari lagi")).toBeTruthy();
     expect(screen.queryByText("Paket Lama")).toBeNull();
     fireEvent.press(screen.getByText("Makan Siang Rumahan"));
-    expect(router.push).toHaveBeenCalledWith("/jadwal");
+    expect(router.push).toHaveBeenCalledWith("/subscriptions/s-1");
 
     for (const [label, href] of [
       ["Alamat", "/alamat"],
@@ -679,7 +679,7 @@ describe("customerLink is the one mapper for every old href", () => {
     ["/package/p-1", "/paket/p-1"],
     ["/payment/ck-1", "/bayar/ck-1"],
     ["/checkout/p-1?renewedFrom=s-1", "/checkout/p-1?renewedFrom=s-1"],
-    ["/subscriptions/s-1", "/jadwal"],
+    ["/subscriptions/s-1", "/subscriptions/s-1"],
     ["/subscriptions/s-1/menu?date=2026-11-02&meal=lunch", "/pilih-menu/s-1?date=2026-11-02&meal=lunch"],
     ["/support?checkoutId=ck-1", "/bantuan?checkoutId=ck-1"],
     ["/calendar", "/jadwal"],

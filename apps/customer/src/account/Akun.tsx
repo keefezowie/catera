@@ -156,7 +156,7 @@ function Account() {
               first={i === 0}
               label={s.snapshot.offer.name}
               caption={`${s.snapshot.offer.caterer} · ${remainingLabel(s.remaining, t)}`}
-              onPress={() => router.push("/jadwal" as never)}
+              onPress={() => router.push(`/subscriptions/${encodeURIComponent(s.id)}` as never)}
             />
           ))
         ) : (
