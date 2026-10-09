@@ -24,6 +24,11 @@ const RADIUS = 12;
 const OUTLINE = 2.5;
 const BADGE = 18;
 const BAR = 4;
+// The selection bar lifts clear of the rings: above the selected ring, and above the today ring as well when both show.
+const barBottom = (today: boolean) => (today ? 2 * OUTLINE : OUTLINE) + 1;
+// The number pill sits on every cell at the height that leaves 2dp of photo above the highest the bar can go, so it does
+// not jump when a day is selected.
+const PILL_BOTTOM = barBottom(true) + BAR + 2;
 // From this font scale up a photo cell gives up the photo: the number no longer fits in its pill over a 52dp photo.
 const LARGE_FONT_SCALE = 1.3;
 
@@ -97,7 +102,7 @@ export function CalendarPhotoCell({
             style={{
               position: "absolute",
               left: 4,
-              bottom: 4,
+              bottom: PILL_BOTTOM,
               minHeight: BADGE,
               paddingHorizontal: 6,
               paddingVertical: 1,
@@ -200,7 +205,8 @@ export function CalendarPhotoCell({
             }}
           />
           {/* The two rings can sit close in tone on a header, so selection also has a shape: a bar along the bottom edge.
-              Today has none. It rests below the number pill (4dp up from the edge) and inside the corner radius. */}
+              Today has none. It floats just inside the ring(s), under the number pill with photo between, and inside the
+              corner radius. */}
           <View
             testID="cell-selected-bar"
             pointerEvents="none"
@@ -208,7 +214,7 @@ export function CalendarPhotoCell({
               position: "absolute",
               left: RADIUS + 2,
               right: RADIUS + 2,
-              bottom: 0,
+              bottom: barBottom(today),
               height: BAR,
               borderRadius: BAR / 2,
               backgroundColor: mood.headerText,

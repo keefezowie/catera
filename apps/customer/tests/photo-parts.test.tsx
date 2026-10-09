@@ -150,7 +150,8 @@ describe("CalendarPhotoCell", () => {
       backgroundColor: nativeThemes.light.cream,
       position: "absolute",
       left: 4,
-      bottom: 4,
+      // Lifted to leave photo between the pill and the selection bar, whatever the cell's state.
+      bottom: 12,
     });
     expect(StyleSheet.flatten(screen.getByText("12").props.style).color).toBe(nativeThemes.light.forest);
   });
@@ -360,15 +361,30 @@ describe("CalendarPhotoCell", () => {
       expect(StyleSheet.flatten(screen.getByText("12").props.style).color).toBe(siang.headerMeta);
     });
 
-    it("the bar sits on the bottom edge, clear of the corners and of the number pill", () => {
-      render(<CalendarPhotoCell {...base} selected />);
+    it.each([
+      ["selected", { selected: true }],
+      ["today and selected", { today: true, selected: true }],
+    ])("the bar of a %s cell is clear of the corners, the ring and the number pill", (_name, state) => {
+      render(<CalendarPhotoCell {...base} {...state} />);
       const bar = flat("cell-selected-bar");
       // Inset past the 12dp corner radius, so it never runs into a rounded corner.
       expect(bar.left).toBeGreaterThanOrEqual(12);
       expect(bar.right).toBeGreaterThanOrEqual(12);
-      expect(bar.bottom).toBe(0);
-      // The pill rests above the bar: its bottom offset is at least the bar's height.
-      expect(flat("cell-number-pill").bottom).toBeGreaterThanOrEqual(bar.height as number);
+      // Lifted off the edge: above the selected ring (2.5dp), and above the today ring as well when both show.
+      const rings = state.today ? 2 * 2.5 : 2.5;
+      expect(bar.bottom).toBeGreaterThan(rings);
+      // The photo shows between the pill and the bar: at least 2dp of it.
+      const pill = flat("cell-number-pill");
+      expect(pill.bottom).toBeGreaterThanOrEqual((bar.bottom as number) + (bar.height as number) + 2);
+    });
+
+    it("the number pill does not move when a day is selected or is today", () => {
+      const view = render(<CalendarPhotoCell {...base} />);
+      const rest = flat("cell-number-pill").bottom;
+      view.rerender(<CalendarPhotoCell {...base} selected />);
+      expect(flat("cell-number-pill").bottom).toBe(rest);
+      view.rerender(<CalendarPhotoCell {...base} today selected />);
+      expect(flat("cell-number-pill").bottom).toBe(rest);
     });
   });
 });
