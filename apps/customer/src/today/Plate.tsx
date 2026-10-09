@@ -192,7 +192,8 @@ const HERO_RADIUS = 28;
 /**
  * Today's plate: the photo with one status sentence, the dishes and one action. As the `hero` it is the Beranda's
  * raised card: two stacked fills (Siang, and Malam fading over it), riding up over the header. The frame stays
- * mounted when the mood switches, so the fills cross-fade; only its content is keyed to the plate.
+ * mounted when the mood switches, so the fills cross-fade; only its content is keyed to the plate. The shadow sits on
+ * the base fill and switches with the mood.
  */
 export function Plate({
   plate,
@@ -208,6 +209,7 @@ export function Plate({
   const styles = useStyles();
   const siang = useMoodColors("siang");
   const malam = useMoodColors("malam");
+  const current = useMoodColors();
   const { progress, target, reduced } = useHeroFade();
   const fade = useAnimatedStyle(() => ({ opacity: progress.value }));
   const content = (
@@ -238,12 +240,13 @@ export function Plate({
       <View
         testID="plate-hero-fill-siang"
         pointerEvents="none"
-        style={[layer, { backgroundColor: siang.hero, boxShadow: siang.heroShadow }]}
+        // The base layer carries the one shadow, from the current mood's token, so a rest state never stacks two.
+        style={[layer, { backgroundColor: siang.hero, boxShadow: current.heroShadow }]}
       />
       <Animated.View
         testID="plate-hero-fill-malam"
         pointerEvents="none"
-        style={[layer, { backgroundColor: malam.hero, boxShadow: malam.heroShadow }, reduced ? { opacity: target } : fade]}
+        style={[layer, { backgroundColor: malam.hero }, reduced ? { opacity: target } : fade]}
       />
       {content}
     </View>

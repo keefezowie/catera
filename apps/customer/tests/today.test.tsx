@@ -717,9 +717,22 @@ describe("Beranda mood", () => {
     mount(runtimeWith(async () => bothMeals()), { now: MALAM_NOW });
     await screen.findByTestId("plate-hero");
     expect(flat("plate-hero-fill-malam").backgroundColor).toBe("#1C3A2C");
-    expect(flat("plate-hero-fill-malam").boxShadow).toBe(nativeMood.light.malam.heroShadow);
     expect(flat("plate-hero-fill-malam").opacity).toBe(1);
     expect(flat("plate-dishes").color).toBe("#FFF7E9");
+  });
+
+  it.each(["light", "dark"] as const)("carries exactly one hero shadow, from the current mood's token (%s theme)", async (scheme) => {
+    jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
+    mount(runtimeWith(async () => bothMeals()), { scheme });
+    await screen.findByTestId("plate-hero");
+    // Only the base layer casts a shadow; the Malam layer fading over it must not add a second one.
+    expect(flat("plate-hero-fill-malam").boxShadow).toBeUndefined();
+    expect(flat("plate-hero-fill-siang").boxShadow).toBe(nativeMood[scheme].siang.heroShadow);
+    fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
+    expect(flat("plate-hero-fill-malam").boxShadow).toBeUndefined();
+    expect(flat("plate-hero-fill-siang").boxShadow).toBe(nativeMood[scheme].malam.heroShadow);
+    fireEvent.press(screen.getByRole("tab", { name: "Siang" }));
+    expect(flat("plate-hero-fill-siang").boxShadow).toBe(nativeMood[scheme].siang.heroShadow);
   });
 
   it("cross-fades the hero fill when the mood switches, in one frame that stays mounted", async () => {
