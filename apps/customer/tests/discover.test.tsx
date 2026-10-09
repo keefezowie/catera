@@ -339,11 +339,12 @@ describe("Jelajah", () => {
     expect(screen.getByRole("button", { name: "Simpan Nasi Ayam Bakar" })).toBeTruthy();
   });
 
-  it("says which meal has no packages when nothing is filtered, and offers the other meal", async () => {
+  it("says plainly that there are no packages when the catalogue is empty, with no meal to switch to", async () => {
     const runtime = runtimeWith(customer, { catalog: jest.fn(async () => ({ items: [], nextCursor: null })) });
     wrap(runtime, <Jelajah />);
-    expect(await screen.findByText("Belum ada paket makan siang.")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Lihat makan malam" })).toBeTruthy();
+    expect(await screen.findByText("Belum ada paket.")).toBeTruthy();
+    expect(screen.queryByText(/Belum ada paket makan/)).toBeNull();
+    expect(screen.queryByRole("button", { name: "Lihat makan malam" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Hapus pilihan" })).toBeNull();
   });
 
@@ -395,6 +396,7 @@ describe("Jelajah", () => {
       const runtime = runtimeWith(customer, { catalog: jest.fn(async () => ({ items: [dinner], nextCursor: null })) });
       wrap(runtime, <Jelajah />);
       expect(await screen.findByText("Belum ada paket makan siang.")).toBeTruthy();
+      expect(screen.queryByText("Belum ada paket.")).toBeNull();
       fireEvent.press(screen.getByRole("button", { name: "Lihat makan malam" }));
       expect(await screen.findByText("Makan Malam Nabati")).toBeTruthy();
     });
@@ -650,6 +652,25 @@ describe("Jelajah mood header", () => {
       expect(title()).toBe("Makan malam\nminggu depan?");
     });
 
+    it("suspends a tag the other meal lacks and brings it back selected on the way back", async () => {
+      const pedas = { ...pricey, id: "p-pedas", name: "Paket Pedas", tags: ["Pedas"], image: "https://images.example.test/d.jpg" };
+      const runtime = runtimeWith(customer, {
+        catalog: jest.fn(async () => ({ items: [rumahan, sehat, malam, pedas], nextCursor: null })),
+      });
+      mount(runtime);
+      await screen.findByText("Paket Pedas");
+      fireEvent.press(screen.getByRole("button", { name: "Kategori Sehat" }));
+      expect(screen.queryByText("Paket Pedas")).toBeNull();
+      fireEvent.press(header().getByRole("tab", { name: "Malam" }));
+      // Nothing on Malam carries Sehat: no circle, and the list is not filtered by it.
+      expect(screen.queryByRole("button", { name: "Kategori Sehat" })).toBeNull();
+      expect(screen.getByText("Makan Malam Nabati")).toBeTruthy();
+      fireEvent.press(header().getByRole("tab", { name: "Siang" }));
+      expect(screen.getByRole("button", { name: "Kategori Sehat" }).props.accessibilityState.selected).toBe(true);
+      expect(screen.queryByText("Paket Pedas")).toBeNull();
+      expect(screen.getByText("Menu Sehat Premium")).toBeTruthy();
+    });
+
     it("only offers tags that the current meal has, so no circle leads to an empty list", async () => {
       mount(taggedRuntime());
       await screen.findByText("Menu Sehat Premium");
@@ -704,8 +725,8 @@ describe("Jelajah mood header", () => {
     it("says so when nothing matches, in the page colours", async () => {
       const runtime = runtimeWith(customer, { catalog: jest.fn(async () => ({ items: [], nextCursor: null })) });
       mount(runtime, { now: MALAM_NOW });
-      expect(await screen.findByText("Belum ada paket makan malam.")).toBeTruthy();
-      expect(screen.getByRole("button", { name: "Lihat makan siang" })).toBeTruthy();
+      expect(await screen.findByText("Belum ada paket.")).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "Lihat makan siang" })).toBeNull();
       expect(title()).toBe("Makan malam\nminggu depan?");
     });
 

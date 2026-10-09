@@ -295,8 +295,12 @@ function Browse({ area, onArea }: { area: string; onArea: (value: string) => voi
           </Text>
           <Button variant="secondary" label={t("Lihat semua area", "See all areas")} onPress={() => onArea("")} />
         </View>
+      ) : inArea.length === 0 ? (
+        // Nothing is on offer at all (no area is chosen here), so there is no other meal to send the person to.
+        <Text variant="heading">{t("Belum ada paket.", "No packages yet.")}</Text>
       ) : items.length === 0 && !filtered ? (
-        // Only the meal is narrowing, so say which meal has nothing here and offer the other one.
+        // Only the meal is narrowing and the area has packages, so the other meal has some: say which meal is empty
+        // and offer the other one.
         <View style={{ gap: 10 }}>
           <Text variant="heading">
             {area
