@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 import { router } from "expo-router";
-import { currency, paymentPresentation, type Checkout, type Locale } from "@catera/domain";
-import { Button, Screen, Text, useColors } from "@catera/mobile-ui";
+import { currency, paymentPresentation, type Checkout, type Locale, type PaidSummary } from "@catera/domain";
+import { Button, Text, useColors } from "@catera/mobile-ui";
+import { PaidOutcome } from "./PaidOutcome";
 
 export type Stage = "pay" | "checking" | "paid" | "expired" | "failed" | "review" | "refunded";
 /** Nothing left to poll for: the provider has answered one way or the other. */
@@ -59,11 +60,14 @@ export function payAgainHref(p: PayAgain): string {
   return `${p.renewedFrom ? `/renew/${encodeURIComponent(p.renewedFrom)}` : `/beli/${encodeURIComponent(p.packageId)}`}?${choices}`;
 }
 
-/** Every Bayar state other than paying now: one sentence and the one next step. */
+/**
+ * Every Bayar state other than paying now, as the screen body: one sentence and the one next step. A paid checkout
+ * with its booking is the paid beat (`PaidOutcome`); the screen owns the header and the footer around it.
+ */
 export function PaymentOutcome({
   checkout: c,
   stage,
-  header,
+  summary,
   help,
   busy,
   error,
@@ -73,7 +77,8 @@ export function PaymentOutcome({
 }: {
   checkout: Checkout;
   stage: Exclude<Stage, "pay">;
-  header: ReactNode;
+  /** `paidSummary(checkout)`: set exactly when the stage is paid. */
+  summary: PaidSummary | null;
   help: ReactNode;
   busy: boolean;
   error: string;
@@ -83,12 +88,12 @@ export function PaymentOutcome({
 }) {
   // `c` is the checkout in this component, so the palette keeps a longer name.
   const palette = useColors();
-  const message: Record<Exclude<Stage, "pay">, [string, string]> = {
+  if (stage === "paid") return summary ? <PaidOutcome checkoutId={c.id} summary={summary} offer={c.quote.offer} /> : null;
+  const message: Record<Exclude<Stage, "pay" | "paid">, [string, string]> = {
     checking: [
       t("Memeriksa pembayaran", "Checking payment"),
       t("Jangan bayar lagi. Status diperiksa langsung dari bank.", "Don't pay again. The status is checked with the bank."),
     ],
-    paid: [t("Pembayaran diterima", "Payment received"), t("Jadwal antar Anda sudah tersimpan.", "Your deliveries are booked.")],
     expired: [t("Waktu habis. Jadwal dicek ulang saat membayar lagi.", "Time's up. The schedule is checked again when you pay."), ""],
     failed: [t("Pembayaran gagal. Jadwal dicek ulang saat membayar lagi.", "Payment failed. The schedule is checked again when you pay."), ""],
     review: [
@@ -116,7 +121,7 @@ export function PaymentOutcome({
     addressId: q.address?.id,
   });
   return (
-    <Screen header={header}>
+    <>
       <Text variant="title">{title}</Text>
       {body ? <Text>{body}</Text> : null}
       <Text variant="caption" style={{ fontVariant: ["tabular-nums"] }}>
@@ -128,18 +133,10 @@ export function PaymentOutcome({
         </Text>
       ) : null}
       {stage === "checking" ? <Button label={t("Cek status", "Check status")} disabled={busy} onPress={onCheck} /> : null}
-      {stage === "paid" && c.quote.offer.menuSelectionMode === "customer" && c.subscription_id ? (
-        <Button
-          variant="secondary"
-          label={t("Pilih menu", "Choose menus")}
-          onPress={() => router.replace(`/subscriptions/${encodeURIComponent(c.subscription_id!)}/menu` as never)}
-        />
-      ) : null}
-      {stage === "paid" ? <Button label={t("Ke Beranda", "Go to Home")} onPress={() => router.replace("/" as never)} /> : null}
       {stage === "expired" || stage === "failed" ? (
         <Button label={t("Bayar lagi", "Pay again")} onPress={() => router.replace(again as never)} />
       ) : null}
-      {stage !== "paid" ? help : null}
-    </Screen>
+      {help}
+    </>
   );
 }

@@ -1,17 +1,20 @@
-import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, AppState, Text as RNText, View } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ActivityIndicator, AppState, BackHandler, Text as RNText, View } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import * as Clipboard from "expo-clipboard";
 import * as WebBrowser from "expo-web-browser";
-import { currency, errorLabel, type Checkout, type DirectPaymentMethod } from "@catera/domain";
+import { currency, errorLabel, paidSummary, type Checkout, type DirectPaymentMethod } from "@catera/domain";
 import { plural, useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, fontFor, MoodHeader, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
+import { Button, Card, FadeSwap, fontFor, MoodHeader, Screen, Text, themedStyles, useColors, useHaptic } from "@catera/mobile-ui";
 import { PayWith, Retry } from "./BuyParts";
-import { FINAL, PaymentOutcome, stageOf } from "./PaymentOutcome";
+import { PaidActions } from "./PaidOutcome";
+import { FINAL, PaymentOutcome, stageOf, type Stage } from "./PaymentOutcome";
 import { QrisCode, useQris } from "./QrisCode";
 
 const POLL_MS = 10_000;
 const leave = () => (router.canGoBack() ? router.back() : router.replace("/" as never));
+/** Paid is final: whatever opened this screen (a purchase, a renewal, Payments, a notification), leaving goes home. */
+const home = () => router.replace("/" as never);
 const tabular = { fontVariant: ["tabular-nums" as const] };
 
 const clock = (ms: number) => {
@@ -39,9 +42,35 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
   const [notice, setNotice] = useState("");
   const [method, setMethod] = useState<DirectPaymentMethod | null>(null);
   const qris = useQris();
-  const stage = c ? stageOf(c, now) : null;
+  const summary = c ? paidSummary(c) : null;
+  const read = c ? stageOf(c, now) : null;
+  // The paid beat needs the booking: a paid read without its subscription keeps checking (stageOf already says so).
+  const stage: Stage | null = read === "paid" && !summary ? "checking" : read;
+  const paid = stage === "paid";
   const live = !!stage && !FINAL.includes(stage);
   const direct = c?.payment?.mode === "direct";
+
+  // One success haptic when the payment turns paid while this screen is open; reopening a paid checkout gives none.
+  const haptic = useHaptic();
+  const lastStage = useRef<Stage | null>(null);
+  useEffect(() => {
+    if (!stage) return;
+    const before = lastStage.current;
+    lastStage.current = stage;
+    if (paid && before !== null && before !== "paid") haptic.success();
+  }, [stage, paid, haptic]);
+
+  // While paid, the hardware back goes home too; before that it keeps its normal meaning.
+  useFocusEffect(
+    useCallback(() => {
+      if (!paid) return;
+      const back = BackHandler.addEventListener("hardwareBackPress", () => {
+        home();
+        return true;
+      });
+      return () => back.remove();
+    }, [paid]),
+  );
 
   useEffect(() => {
     if (!live) return;
@@ -104,13 +133,13 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
     }
   }
 
-  // The same header over every state, outcomes included; the back control rides in its meta slot.
+  // One header over every state, outcomes included; the back control rides in its meta slot. Paid names the beat.
   const header = (
     <MoodHeader
       testID="payment-header"
-      onBack={leave}
+      onBack={paid ? home : leave}
       backLabel={t("Kembali", "Back")}
-      title={t("Bayar", "Pay")}
+      title={paid ? t("Pembayaran diterima", "Payment received") : t("Bayar", "Pay")}
     />
   );
   const help = (
@@ -133,19 +162,24 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
       </Screen>
     );
 
+  // One screen for every stage, so a change of stage fades the new body in instead of remounting the page.
   if (stage !== "pay")
     return (
-      <PaymentOutcome
-        checkout={c}
-        stage={stage}
-        header={header}
-        help={help}
-        busy={busy}
-        error={error}
-        onCheck={() => void run(check)}
-        locale={locale}
-        t={t}
-      />
+      <Screen header={header} footer={paid && summary ? <PaidActions summary={summary} /> : undefined}>
+        <FadeSwap swapKey={stage} style={{ gap: 16 }}>
+          <PaymentOutcome
+            checkout={c}
+            stage={stage}
+            summary={summary}
+            help={help}
+            busy={busy}
+            error={error}
+            onCheck={() => void run(check)}
+            locale={locale}
+            t={t}
+          />
+        </FadeSwap>
+      </Screen>
     );
 
   const total = currency(c.quote.total, locale);
@@ -181,100 +215,102 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
         />
       }
     >
-      {demo || c.provider_environment === "sandbox" ? (
-        <Text variant="caption">{t("Sandbox · pembayaran uji", "Sandbox · test payment")}</Text>
-      ) : null}
-      <View style={styles.total}>
-        <Text variant="caption">Total</Text>
-        <Text variant="title" style={[{ fontSize: 32 }, tabular]}>
-          {total}
-        </Text>
-        {deadline > 0 ? (
-          <Text style={[{ color: palette.sunriseInk, fontFamily: fontFor("700") }, tabular]}>
-            {t(`Bayar dalam ${clock(deadline)}`, `Pay within ${clock(deadline)}`)}
+      <FadeSwap swapKey={stage} style={{ gap: 16 }}>
+        {demo || c.provider_environment === "sandbox" ? (
+          <Text variant="caption">{t("Sandbox · pembayaran uji", "Sandbox · test payment")}</Text>
+        ) : null}
+        <View style={styles.total}>
+          <Text variant="caption">Total</Text>
+          <Text variant="title" style={[{ fontSize: 32 }, tabular]}>
+            {total}
+          </Text>
+          {deadline > 0 ? (
+            <Text style={[{ color: palette.sunriseInk, fontFamily: fontFor("700") }, tabular]}>
+              {t(`Bayar dalam ${clock(deadline)}`, `Pay within ${clock(deadline)}`)}
+            </Text>
+          ) : null}
+        </View>
+
+        {instructions?.kind === "qris" ? (
+          <>
+            <QrisCode value={instructions.qrContent} label={t("Kode QRIS pembayaran ini", "QRIS code for this payment")} qrRef={qris.ref} />
+            <Button
+              variant="secondary"
+              label={t("Simpan gambar QR", "Save QR image")}
+              disabled={busy}
+              onPress={() => void run(() => qris.save(c.id))}
+            />
+          </>
+        ) : null}
+        {instructions?.kind === "virtual_account" ? (
+          <Card style={{ alignItems: "center" }}>
+            <Text variant="caption">{t("Nomor virtual account BRI", "BRI virtual account number")}</Text>
+            <RNText selectable style={styles.va}>
+              {instructions.accountNumber}
+            </RNText>
+            <Text variant="caption">{instructions.accountName}</Text>
+            <Button variant="secondary" label={t("Salin nomor", "Copy number")} onPress={() => void Clipboard.setStringAsync(instructions.accountNumber)} />
+          </Card>
+        ) : null}
+        {instructions ? (
+          <View style={{ gap: 8 }}>
+            {steps.map((s, i) => (
+              <View key={i} style={styles.step}>
+                <Text style={styles.stepNo}>{i + 1}</Text>
+                <Text style={{ flex: 1 }}>{s}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
+
+        {direct && !instructions ? (
+          <>
+            <PayWith availability={{ mode: "direct", availableMethods: methods }} chosen={chosen} onChoose={setMethod} t={t} />
+            {chosen ? (
+              <Button
+                label={chosen === "QRIS" ? t("Tampilkan QRIS", "Show QRIS") : t("Tampilkan nomor VA", "Show VA number")}
+                disabled={busy}
+                onPress={() => void run(() => command("checkout.payment.start", { id: c.id, method: chosen }))}
+              />
+            ) : null}
+          </>
+        ) : null}
+        {!direct && demo ? (
+          <Button label={t("Bayar (demo)", "Pay (demo)")} disabled={busy} onPress={() => void run(() => command("checkout.demo_pay", { id: c.id }))} />
+        ) : null}
+        {!direct && !demo && c.payment_url ? (
+          <Button
+            label={t("Buka halaman pembayaran", "Open payment page")}
+            disabled={busy}
+            onPress={() =>
+              void run(async () => {
+                await WebBrowser.openBrowserAsync(c.payment_url!);
+                await reload();
+              })
+            }
+          />
+        ) : null}
+        {error ? (
+          <Text selectable style={{ color: palette.danger }}>
+            {error}
           </Text>
         ) : null}
-      </View>
+        {notice && !error ? (
+          <Text style={{ fontFamily: fontFor("700") }} testID="payment-notice">
+            {notice}
+          </Text>
+        ) : null}
 
-      {instructions?.kind === "qris" ? (
-        <>
-          <QrisCode value={instructions.qrContent} label={t("Kode QRIS pembayaran ini", "QRIS code for this payment")} qrRef={qris.ref} />
-          <Button
-            variant="secondary"
-            label={t("Simpan gambar QR", "Save QR image")}
-            disabled={busy}
-            onPress={() => void run(() => qris.save(c.id))}
-          />
-        </>
-      ) : null}
-      {instructions?.kind === "virtual_account" ? (
-        <Card style={{ alignItems: "center" }}>
-          <Text variant="caption">{t("Nomor virtual account BRI", "BRI virtual account number")}</Text>
-          <RNText selectable style={styles.va}>
-            {instructions.accountNumber}
-          </RNText>
-          <Text variant="caption">{instructions.accountName}</Text>
-          <Button variant="secondary" label={t("Salin nomor", "Copy number")} onPress={() => void Clipboard.setStringAsync(instructions.accountNumber)} />
+        <Card tone="sage">
+          <Text>
+            {t(
+              `${c.quote.dates.length} hari antar Anda dijaga selama 15 menit. Lewat dari itu, jadwal dicek ulang sebelum dibayar.`,
+              `${c.quote.dates.length === 1 ? "Your delivery day is" : `Your ${c.quote.dates.length} delivery days are`} held for 15 minutes. After that, the schedule is checked again before payment.`,
+            )}
+          </Text>
         </Card>
-      ) : null}
-      {instructions ? (
-        <View style={{ gap: 8 }}>
-          {steps.map((s, i) => (
-            <View key={i} style={styles.step}>
-              <Text style={styles.stepNo}>{i + 1}</Text>
-              <Text style={{ flex: 1 }}>{s}</Text>
-            </View>
-          ))}
-        </View>
-      ) : null}
-
-      {direct && !instructions ? (
-        <>
-          <PayWith availability={{ mode: "direct", availableMethods: methods }} chosen={chosen} onChoose={setMethod} t={t} />
-          {chosen ? (
-            <Button
-              label={chosen === "QRIS" ? t("Tampilkan QRIS", "Show QRIS") : t("Tampilkan nomor VA", "Show VA number")}
-              disabled={busy}
-              onPress={() => void run(() => command("checkout.payment.start", { id: c.id, method: chosen }))}
-            />
-          ) : null}
-        </>
-      ) : null}
-      {!direct && demo ? (
-        <Button label={t("Bayar (demo)", "Pay (demo)")} disabled={busy} onPress={() => void run(() => command("checkout.demo_pay", { id: c.id }))} />
-      ) : null}
-      {!direct && !demo && c.payment_url ? (
-        <Button
-          label={t("Buka halaman pembayaran", "Open payment page")}
-          disabled={busy}
-          onPress={() =>
-            void run(async () => {
-              await WebBrowser.openBrowserAsync(c.payment_url!);
-              await reload();
-            })
-          }
-        />
-      ) : null}
-      {error ? (
-        <Text selectable style={{ color: palette.danger }}>
-          {error}
-        </Text>
-      ) : null}
-      {notice && !error ? (
-        <Text style={{ fontFamily: fontFor("700") }} testID="payment-notice">
-          {notice}
-        </Text>
-      ) : null}
-
-      <Card tone="sage">
-        <Text>
-          {t(
-            `${c.quote.dates.length} hari antar Anda dijaga selama 15 menit. Lewat dari itu, jadwal dicek ulang sebelum dibayar.`,
-            `${c.quote.dates.length === 1 ? "Your delivery day is" : `Your ${c.quote.dates.length} delivery days are`} held for 15 minutes. After that, the schedule is checked again before payment.`,
-          )}
-        </Text>
-      </Card>
-      {help}
+        {help}
+      </FadeSwap>
     </Screen>
   );
 }
