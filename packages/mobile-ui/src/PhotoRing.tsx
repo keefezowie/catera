@@ -1,5 +1,5 @@
 import { Image, View } from "react-native";
-import Svg, { Path, Rect } from "react-native-svg";
+import { Rantang } from "./brand/Rantang";
 import { PressableScale } from "./motion";
 import { Text } from "./components";
 import { useColors } from "./theme";
@@ -7,26 +7,6 @@ import { useColors } from "./theme";
 const RING = 3;
 // The photo sits inside the ring with a thin gap, so the ring reads as a ring and not as a border on the photo.
 const GAP = 2;
-
-/** A closed lunchbox: what a day shows while the caterer's menu is still a surprise. */
-function Lunchbox({ size, color }: { size: number; color: string }) {
-  return (
-    <View testID="photo-ring-lunchbox" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-        <Path
-          d="M9 8V6.5A1.5 1.5 0 0 1 10.5 5h3A1.5 1.5 0 0 1 15 6.5V8"
-          stroke={color}
-          strokeWidth={1.6}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <Rect x={4} y={8} width={16} height={11} rx={2.5} stroke={color} strokeWidth={1.6} />
-        <Path d="M4 12.5H20" stroke={color} strokeWidth={1.6} strokeLinecap="round" />
-        <Rect x={10.5} y={11} width={3} height={3} rx={0.8} fill={color} />
-      </Svg>
-    </View>
-  );
-}
 
 /**
  * A round photo with a 3dp ring, as in a story row: a Jelajah category, a day's meal, a caterer. The ring colour is the
@@ -80,7 +60,8 @@ export function PhotoRing({
             justifyContent: "center",
           }}
         >
-          <Lunchbox size={Math.round(inner * 0.52)} color={c.forest} />
+          {/* A closed lunchbox: what a day shows while the caterer's menu is still a surprise. */}
+          <Rantang size={Math.round(inner * 0.52)} color={c.forest} testID="photo-ring-lunchbox" />
         </View>
       ) : (
         // The line colour shows while the photo loads or if it never does. A uri of "" (real data for a dish without a
