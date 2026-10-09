@@ -198,6 +198,35 @@ Operations locally use a cooler warm-neutral canvas (`#F5F6F1`), near-white side
 
 The sidecar’s eight-step OKLCH strips are synthesized panel aids, not additional runtime colors. The app does not define a complete tonal ramp; retain the canonical CSS/TypeScript colors rather than copying preview swatches into production.
 
+### Native dark theme
+
+The native apps have a real dark theme, defined as `nativeThemes.dark` beside `nativeThemes.light` in `@catera/design-tokens`. Both palettes use the same keys as the web `colors` plus `controlRing` and `tabBar`, and light reuses today's values unchanged. The keys name roles by their light-mode hue, so dark mode inverts the forest and cream pair: forest (headings, selected fills, primary buttons) becomes cream-white, and cream (text on forest, the attention card) becomes forest. A primary button is therefore a cream fill with forest text in dark mode. The dark body is neutral charcoal, never dark green: brand green appears only where the inverted `cream` role puts it, such as the attention card.
+
+| Key | Light | Dark |
+| --- | --- | --- |
+| `forest` | `#163D2E` | `#FFF7E9` |
+| `forestDeep` | `#0C2C20` | `#E9E3D6` |
+| `sunrise` | `#F47B2A` | `#F47B2A` |
+| `sunriseInk` | `#9B4309` | `#F5C9A6` |
+| `cream` | `#FFF7E9` | `#163D2E` |
+| `charcoal` | `#2E2E2E` | `#F5F1E8` |
+| `surface` | `#FFFEFA` | `#232321` |
+| `canvas` | `#FDFAF3` | `#151514` |
+| `sage` | `#F0F3E9` | `#2A2D27` |
+| `scheduled` | `#EDF1E6` | `#26302A` |
+| `muted` | `#60675F` | `#B5B2AA` |
+| `line` | `#E2E3D8` | `#34332F` |
+| `fieldBorder` | `#CFD3C6` | `#7A7872` |
+| `secondaryBorder` | `#CDD4C4` | `#4A4944` |
+| `attentionBorder` | `#F3DFC3` | `#4C3322` |
+| `danger` | `#A33024` | `#FF8F80` |
+| `controlRing` | `#858D80` | `#8A8780` |
+| `tabBar` | `#FFFEFA` | `#1E1E1C` |
+
+`controlRing` is new: the unchecked-box ring and the dashed "not set" cell border, the only cue for those controls. Light measures 3.40:1 on `surface` and dark 4.39:1. `tabBar` is new and does not change with mood. Measured on October 9, 2026: dark `forest` on `surface` 14.79:1, dark `sunriseInk` on `surface` 10.34:1, dark `charcoal` on `surface` 13.97:1, dark `muted` on `surface` 7.43:1, dark `danger` on `surface` 7.12:1, dark `cream` against `forest` 11.33:1.
+
+Contrast rules, enforced by `tests/native-contrast.test.ts`: text at least 4.5:1 on its own fill, and `controlRing` at least 3:1 on `surface`. `fieldBorder` and `secondaryBorder` are not enforced, because their controls also carry a label and a fill; light `fieldBorder` measures 1.51:1, a gap that predates dark mode and is left for a later pass. Decorative strokes are exempt. Native sources read these values through `useColors()` or `themedStyles` from `@catera/mobile-ui`; no native source imports `colors`. The fixed surfaces that must not invert (the Plate photo scrim, the departure chip and the Sunrise button) read `nativeThemes.light` keys by name. A theme change is not animated.
+
 ## Typography
 
 **Display Font:** self-hosted Plus Jakarta Sans, registered as `Jakarta` on the web with a sans-serif fallback.
@@ -276,7 +305,7 @@ Primary hover uses forest-hover; secondary hover uses sage; cream hover uses `#F
 
 Quiet near-white fields have a light stroke, rounded corners, and a 44px web minimum height. The generic input inherits body type; inputs inside the existing field wrapper inherit its 12px size. Labels use forest. Input and textarea placeholders use the current Muted token. Search has a 2px forest focus-within outline with a 2px offset and suppresses the inner input outline to avoid a double ring. Ordinary fields retain global keyboard focus.
 
-Native inputs have a 48 minimum height, 14 horizontal padding, the Field border (`colors.fieldBorder`, `#CFD3C6`), and the Surface fill; an error turns the border Danger. Field border and Secondary border are tokens in `@catera/design-tokens` (`fieldBorder`, `secondaryBorder`), as is `attentionBorder` (`#F3DFC3`), the warm edge of the cream attention card. Native sources use `colors.*` rather than literal hex values, with named exceptions: the QRIS code's pure-white quiet zone, which scanners need, and translucent `rgba` fills for the sheet scrim, the Plate photo overlays and the step rows on the Dapur setup card. Forms keep error messages near the action; button loading states use a spinner and explicit saving text.
+Native inputs have a 48 minimum height, 14 horizontal padding, the Field border (`fieldBorder`, `#CFD3C6` in light and `#7A7872` in dark), and the Surface fill; an error turns the border Danger. Field border and Secondary border are tokens in `@catera/design-tokens` (`fieldBorder`, `secondaryBorder`), as is `attentionBorder` (`#F3DFC3`), the warm edge of the cream attention card. Native sources take every colour from the active theme (`useColors()` or `themedStyles`, see the native dark theme under Colors) rather than literal hex values, with named exceptions: the QRIS code's pure-white quiet zone, which scanners need, and translucent `rgba` fills for the sheet scrim, the Plate photo overlays and the step rows on the Dapur setup card. Forms keep error messages near the action; button loading states use a spinner and explicit saving text.
 
 ### Dialog focus and continuity
 
@@ -323,6 +352,10 @@ Approved local food artwork and the wordmark may use responsive delivery derivat
 Customer desktop navigation is compact, with a sunrise dot at the selected link. The phone bar has five labeled destinations; selected labels and icons become stronger forest. Operations use their own sidebar with a forest selected row, quiet hover, and a labeled workspace identity. Use consistent SVG interface icons; supporting brand illustrations do not replace operational icons.
 
 Icons (native): Ionicons via `@expo/vector-icons`, chosen because the set ships with Expo, so both apps run in Expo Go without extra icon assets. Tab icons are outline until focused, filled when focused. State glyphs (saved heart, selected star, coverage sun and moon) are filled because the fill itself carries the state; other interface icons are outline.
+
+### Tampilan row (native)
+
+Customer Akun and Dapur Usaha carry a "Tampilan" ("Appearance") row beside "Bahasa": a three-option segmented control with "Sistem", "Terang" and "Gelap" ("System", "Light", "Dark"). The customer row sits under a section label (also while signed out); the Dapur row sits under a label above "Keluar". The app follows the phone's system setting until the user chooses Terang or Gelap, and choosing Sistem returns to following it. The choice is stored on the device in SecureStore (`runtime.storageKey("theme")`, values `system`, `light` or `dark`, default `system`; an unknown stored value means `system`), applies at once without a restart, and survives relaunch. The segmented control keeps the 48 minimum height of every native option.
 
 ### Meal agenda
 
@@ -426,3 +459,17 @@ Owner decision, October 8, 2026: “Fix everything, trust the antislop and revis
 - **Claims.** No unmeasured durations and no unbacked security claims: the payment card says only “Pilih cara bayar di halaman berikutnya.” until the server names its payment provider. Calls to action name their task (“Aktifkan pembayaran”, not “Mulai”).
 
 These revisions were verified on the Android emulator in Expo Go with the demo backend; iOS behaviour (keyboard offset under the demo strip, VoiceOver reach of the sheet scrim) is not yet device-verified.
+
+## Native theme, October 9, 2026
+
+Owner decisions of October 9, 2026, recorded with Phase A of the native visual identity ([spec](docs/superpowers/specs/2026-10-09-native-visual-identity-design.md), sections 3.1 and 3.2):
+
+- **The app follows the phone by default.** Both native apps read the system appearance (`userInterfaceStyle: "automatic"`). Dark is offered because the owner asked for it, not as a default look.
+- **The user can override it.** A "Tampilan" row in customer Akun and Dapur Usaha, beside "Bahasa", offers Sistem, Terang and Gelap. The choice is stored on the device in SecureStore, applies at once and survives relaunch (see Components, Tampilan row).
+- **Dark body is neutral charcoal, never dark green.** The owner's reason: a green body "lacks contrasts with the header and footer". Brand green appears only where the inverted forest and cream roles place it, and the tab bar keeps its own fixed surface.
+- **Dark is a real theme.** It has its own palette table, a measured contrast rule enforced by test and no new decoration: no glow, gradient, glass or extra shadow appears in dark mode. A theme change is not animated.
+- **Light does not change.** Every light value is exactly the value of the shared `colors`; the only light-side difference is that two Dapur text inputs (the menu slot dish name and the import paste box) now use charcoal ink instead of the platform default black, because the default is unreadable on the dark surface.
+
+Evidence and limits. Phase A was checked on the Android emulator in Expo Go with the demo backend: light captures against the Phase 1 baseline, dark captures of every tab screen and the main pushed screens, the override and its persistence across relaunch, and font scale 1.3. The record is [antislop audit 002](anti-slop/audit-002-2026-10-09.md), with its click-through. That audit lists four open findings that this section does not close: the gesture-navigation pill crossing the tab labels, a truncated Jadwal status at font scale 1.3 and 40dp tab-bar nodes (all three predate dark mode), and black typed text in the four multiline report and reply fields in dark. No iOS, physical-device, TalkBack or standalone-build splash check was run, so this is not a device or release approval.
+
+Dials are unchanged by this phase: customer ENERGY 2 / RHYTHM 2 / MOTION 2, Dapur ENERGY 1 / RHYTHM 1 / MOTION 1 (plus press micro-feedback).
