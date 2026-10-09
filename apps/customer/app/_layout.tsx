@@ -89,6 +89,11 @@ function Navigation() {
           <Stack.Screen name="disimpan" options={{ title: t("Disimpan", "Saved") }} />
           <Stack.Screen name="saved" options={{ headerShown: false }} />
           <Stack.Screen name="notifications" options={{ title: t("Notifikasi", "Notifications") }} />
+          {/* A black story: its own close button replaces the header, and a fade keeps its ground from cutting in. */}
+          <Stack.Screen
+            name="tomorrow"
+            options={{ headerShown: false, presentation: "fullScreenModal", animation: "fade" }}
+          />
         </Stack>
       </TopInsetOwner>
     </MoodLabelsProvider>

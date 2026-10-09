@@ -1,0 +1,275 @@
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Image, StyleSheet, useWindowDimensions, View } from "react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { router, useLocalSearchParams } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { shortDate, tomorrowStory, type CustomerState, type StoryPart } from "@catera/domain";
+import { nativeThemes } from "@catera/design-tokens";
+import { useData, useMobile, useTrack, type MobileRuntime } from "@catera/mobile-core";
+import { Button, PressableScale, StoryViewer, Text } from "@catera/mobile-ui";
+import { photoUri } from "../today/Plate";
+import { loadCachedCustomer } from "../today/offline";
+import { useViewedParts } from "./viewed";
+
+// A story sits on a photo and on black whatever the theme, so its inks do not follow it (as in StoryCover and Plate).
+const ink = nativeThemes.light;
+// Where StoryViewer's own chrome ends: the top inset and 8, the bars (3), the header row (48), the bottom inset.
+const CHROME_ABOVE = 8 + 3 + 48;
+
+/** The same read Beranda makes, without writing the offline copy: a failed read falls back to the last good one. */
+async function loadTomorrow(runtime: MobileRuntime, key: string): Promise<CustomerState | null> {
+  if (!key) return null;
+  try {
+    return await runtime.api.customer();
+  } catch (e) {
+    const cached = await loadCachedCustomer(key);
+    if (cached) return cached.data;
+    throw e;
+  }
+}
+
+/** Closes the story; a story opened from a link with nothing behind it goes home instead of stranding the user. */
+function leave() {
+  if (router.canGoBack?.() === false) router.replace("/" as never);
+  else router.back();
+}
+
+const EMPTY: StoryPart[] = [];
+
+/**
+ * Menu besok: tomorrow's meals as a full-screen story, one part per delivery and meal, lunch first. Nothing advances by
+ * itself. Opening a part marks it seen on this phone, which is what uncovers its plate on Beranda after the cutoff.
+ */
+export function TomorrowStoryScreen() {
+  const { runtime, actor, t, locale } = useMobile();
+  const params = useLocalSearchParams<{ part?: string }>();
+  const track = useTrack();
+  const insets = useSafeAreaInsets();
+  const screenSize = useWindowDimensions();
+  const [box, setBox] = useState(0);
+  const home = useData("home:customer", () => loadTomorrow(runtime, actor?.id ?? ""));
+  const state = home.data;
+  const story = useMemo(() => (state ? tomorrowStory(state, new Date(), locale) : null), [state, locale]);
+  const parts = story?.parts ?? EMPTY;
+  const { markViewed } = useViewedParts(parts);
+
+  const [asked] = useState(() => Number.parseInt(String(params.part ?? "0"), 10));
+  const [at, setAt] = useState(Number.isFinite(asked) && asked > 0 ? asked : 0);
+  const index = Math.min(at, Math.max(parts.length - 1, 0));
+  const part = story ? story.parts[index] : undefined;
+
+  // Once per open, however many parts are shown or times the read comes round again.
+  const counted = useRef(false);
+  useEffect(() => {
+    if (!story || counted.current) return;
+    counted.current = true;
+    track("tomorrow_story_viewed");
+  }, [story, track]);
+  useEffect(() => {
+    if (part) markViewed(part);
+  }, [part, markViewed]);
+
+  const close = t("Tutup", "Close");
+  let body: ReactNode;
+  if (!state && home.loading) {
+    body = <StoryMessage text={t("Memuat menu besok…", "Loading tomorrow's menu…")} closeLabel={close} onClose={leave} />;
+  } else if (!state && home.error) {
+    body = (
+      <StoryMessage text={t("Belum bisa memuat", "Could not load yet")} closeLabel={close} onClose={leave} selectable>
+        <Button
+          variant="secondary"
+          label={t("Coba lagi", "Try again")}
+          ink={ink.cream}
+          edge={ink.cream}
+          onPress={() => void home.reload()}
+        />
+      </StoryMessage>
+    );
+  } else if (!story || !part) {
+    body = (
+      <StoryMessage text={t("Belum ada antaran besok.", "No delivery tomorrow.")} closeLabel={close} onClose={leave} />
+    );
+  } else {
+    const last = index === story.parts.length - 1;
+    const next = story.parts[index + 1];
+    const label = last
+      ? t("Selesai", "Done")
+      : next?.meal === "dinner"
+        ? t("Lihat menu malam", "See dinner menu")
+        : t("Lihat menu siang", "See lunch menu");
+    const height = Math.max(240, (box || screenSize.height) - insets.top - insets.bottom - CHROME_ABOVE);
+    body = (
+      <StoryViewer
+        count={story.parts.length}
+        index={index}
+        onIndexChange={setAt}
+        onClose={leave}
+        closeLabel={close}
+        header={t(
+          `Menu besok · ${shortDate(story.date, "id")} · ${index + 1} dari ${story.parts.length}`,
+          `Tomorrow's menu · ${shortDate(story.date, "en")} · ${index + 1} of ${story.parts.length}`,
+        )}
+      >
+        <StoryPage
+          part={part}
+          height={height}
+          apiBase={runtime.apiBase}
+          actionLabel={label}
+          onAction={last ? leave : () => setAt(index + 1)}
+        />
+      </StoryViewer>
+    );
+  }
+
+  return (
+    <View
+      testID="tomorrow-screen"
+      onLayout={(e) => setBox(e.nativeEvent.layout.height)}
+      style={{ flex: 1, backgroundColor: "black" }}
+    >
+      <StatusBar style="light" />
+      {body}
+    </View>
+  );
+}
+
+/**
+ * One part: the photo, a short blend under the header, and a scrim that is solid enough where the text sits (0.9 from
+ * 48dp up, so cream text clears 4.5:1 over any photo). StoryViewer's content region wraps its child at its own height,
+ * so the page is given the height that region has. It holds no ScrollView: long text wraps and the photo takes the rest.
+ */
+function StoryPage({
+  part,
+  height,
+  apiBase,
+  actionLabel,
+  onAction,
+}: {
+  part: StoryPart;
+  height: number;
+  apiBase: string;
+  actionLabel: string;
+  onAction: () => void;
+}) {
+  const { t } = useMobile();
+  const uri = photoUri(part.image, apiBase);
+  const meal = part.meal === "dinner" ? t("Makan malam", "Dinner") : t("Makan siang", "Lunch");
+  const title =
+    part.menuSet && part.title
+      ? part.title
+      : t(`Menu belum diisi oleh ${part.catererName}`, `${part.catererName} has not set this menu yet`);
+  const deadline = part.changeable
+    ? part.until
+      ? t(`Bisa diubah sampai ${part.until}`, `Can be changed until ${part.until}`)
+      : t("Masih bisa diubah", "Can still be changed")
+    : t("Sudah lewat batas ubah", "Change window closed");
+  return (
+    <View testID="tomorrow-part" style={{ height, backgroundColor: ink.forest, justifyContent: "flex-end" }}>
+      {/* A dish without a photo leaves the forest ground, which the text still reads on. */}
+      {uri ? <Image accessibilityIgnoresInvertColors source={{ uri }} resizeMode="cover" style={StyleSheet.absoluteFill} /> : null}
+      {/* Softens the join between the black header and the photo's top edge. */}
+      <View
+        pointerEvents="none"
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 48,
+          experimental_backgroundImage: "linear-gradient(rgba(11,31,22,0.7), rgba(11,31,22,0))",
+        }}
+      />
+      <View
+        testID="tomorrow-scrim"
+        style={{
+          paddingTop: 20,
+          paddingHorizontal: 20,
+          paddingBottom: 24,
+          gap: 12,
+          experimental_backgroundImage:
+            "linear-gradient(rgba(11,31,22,0), rgba(11,31,22,0.9) 48px, rgba(11,31,22,0.92) 100%)",
+        }}
+      >
+        {/* The one fact on the screen, and the only accent. */}
+        <View
+          testID="tomorrow-sticker"
+          style={{
+            alignSelf: "flex-start",
+            backgroundColor: ink.cream,
+            borderWidth: 1.5,
+            borderColor: ink.sunriseInk,
+            borderRadius: 8,
+            borderCurve: "continuous",
+            paddingHorizontal: 12,
+            paddingVertical: 4,
+            transform: [{ rotate: "-2deg" }],
+          }}
+        >
+          <Text variant="label" style={{ color: ink.forest, fontVariant: ["tabular-nums"] }}>
+            {part.window ? `${meal} · ${part.window}` : meal}
+          </Text>
+        </View>
+        <Text variant="display" accessibilityRole="header" style={{ color: ink.cream }}>
+          {title}
+        </Text>
+        {part.menuSet ? (
+          <Text style={{ color: ink.cream }}>
+            {part.sides.length ? `${part.catererName} · ${part.sides.join(", ")}` : part.catererName}
+          </Text>
+        ) : null}
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+          <Text style={{ flex: 1, color: ink.cream, fontVariant: ["tabular-nums"] }}>{deadline}</Text>
+          {part.changeable ? (
+            <Button
+              variant="secondary"
+              label={t("Ubah hari", "Change day")}
+              ink={ink.cream}
+              edge={ink.cream}
+              onPress={() => router.push(`/hari/${encodeURIComponent(part.deliveryId)}` as never)}
+            />
+          ) : null}
+        </View>
+        <Button label={actionLabel} ink={ink.forest} style={{ backgroundColor: ink.cream }} onPress={onAction} />
+      </View>
+    </View>
+  );
+}
+
+/** Loading, error and empty: a line on the black ground with the same close button, so there is always a way out. */
+function StoryMessage({
+  text,
+  closeLabel,
+  onClose,
+  selectable,
+  children,
+}: {
+  text: string;
+  closeLabel: string;
+  onClose: () => void;
+  selectable?: boolean;
+  children?: ReactNode;
+}) {
+  const insets = useSafeAreaInsets();
+  return (
+    <View style={{ flex: 1, paddingTop: insets.top + 8, paddingBottom: insets.bottom + 16, paddingHorizontal: 16 }}>
+      <View style={{ alignItems: "flex-end" }}>
+        <PressableScale
+          accessibilityRole="button"
+          accessibilityLabel={closeLabel}
+          haptic="tap"
+          onPress={onClose}
+          style={{ width: 48, height: 48, alignItems: "center", justifyContent: "center" }}
+        >
+          <Ionicons name="close" size={26} color={ink.cream} />
+        </PressableScale>
+      </View>
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 12 }}>
+        <Text variant="heading" selectable={selectable} style={{ color: ink.cream, textAlign: "center" }}>
+          {text}
+        </Text>
+        {children}
+      </View>
+    </View>
+  );
+}

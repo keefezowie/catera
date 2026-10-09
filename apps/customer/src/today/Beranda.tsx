@@ -36,6 +36,7 @@ import { jakartaClock, photoUri, Plate, sentences } from "./Plate";
 import { RenewalCard, TrialCard } from "./RenewalCard";
 import { UpcomingRows } from "./UpcomingRows";
 import { MenuDueRows } from "./MenuDueRows";
+import { TomorrowEntry } from "../tomorrow/TomorrowRow";
 import { loadCachedCustomer, saveCachedCustomer } from "./offline";
 import { remainingLabel } from "../remaining";
 
@@ -231,6 +232,7 @@ function SignedInHome({ actorId }: { actorId: string }) {
       {morePlates.map((p) => (
         <Plate key={`${p.deliveryId}:${p.meal}`} plate={p} apiBase={runtime.apiBase} offline={!!savedAt} />
       ))}
+      <TomorrowEntry state={state} now={now} />
       {savedAt ? null : <MenuDueRows items={actions.data?.items ?? []} />}
       <UpcomingRows rows={rows} />
       {live.filter((s) => renewalDue(s, state.subscriptions)).map((s) => (
