@@ -54,7 +54,7 @@ it("returns public packages without disclosing customer data", async () => {
 });
 it("shows a customer one calendar across two caterers", async () => {
   const c = await read<CustomerState>("customer");
-  // Two seeded plans, and eight more from the demo states (renewal, payment and kitchen-loop cases) at three caterers.
+  // Two seeded plans, the operating fixture's trial and seven from the demo states, at three caterers.
   expect(c.subscriptions).toHaveLength(10);
   expect(new Set(c.deliveries.map((d) => d.offer.catererId)).size).toBe(3);
 });

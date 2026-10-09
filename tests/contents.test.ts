@@ -2,6 +2,7 @@ import { beforeAll, afterAll, it, expect } from "vitest";
 import { PGlite } from "@electric-sql/pglite";
 import { readFile } from "node:fs/promises";
 import { createDemoDatabase, localRpc } from "../packages/backend/src/database";
+import { setAsideDemoDapurTrial } from "./fixtures/set-aside-demo-day";
 import {
   DEMO_ACTORS as U,
   CATERER_IDS as K,
@@ -34,6 +35,8 @@ const command = <T = { id: string; contentRevision: number }>(
 ) => localRpc<T>(db, actor, "catera_v1_command", [action, payload, id]);
 beforeAll(async () => {
   db = await createDemoDatabase(true);
+  // This file buys Dapur Senja trials as Nadia; the operating fixture's trial would otherwise count as hers.
+  await setAsideDemoDapurTrial(db);
   base = (await read<{ items: Offer[] }>("catalog")).items.find(
     (o) => o.id === P[0],
   )!;

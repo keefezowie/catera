@@ -1,6 +1,7 @@
 import { beforeAll, afterAll, it, expect } from "vitest";
 import type { PGlite } from "@electric-sql/pglite";
 import { createDemoDatabase, localRpc } from "../packages/backend/src/database";
+import { setAsideDemoDapurTrial } from "./fixtures/set-aside-demo-day";
 import {
   DEMO_ACTORS as U,
   PACKAGE_IDS as P,
@@ -36,6 +37,8 @@ const input = (id = P[2], extra = {}) => ({
 });
 beforeAll(async () => {
   db = await createDemoDatabase(true);
+  // This file buys Dapur Senja trials as Nadia; the operating fixture's trial would otherwise count as hers.
+  await setAsideDemoDapurTrial(db);
 });
 afterAll(async () => db?.close());
 async function paid(c: Checkout, eventId = crypto.randomUUID()) {

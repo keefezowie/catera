@@ -1,6 +1,7 @@
 import { beforeAll, afterAll, expect, it } from "vitest";
 import type { PGlite } from "@electric-sql/pglite";
 import { createDemoDatabase, localRpc } from "../packages/backend/src/database";
+import { setAsideDemoDapurTrial } from "./fixtures/set-aside-demo-day";
 import {
   DEMO_ACTORS as U,
   CATERER_IDS as C,
@@ -19,6 +20,8 @@ const cmd = (
 ) => localRpc<any>(db, actor, "catera_v1_command", [action, payload, key]);
 beforeAll(async () => {
   db = await createDemoDatabase(true);
+  // This file buys a Dapur Senja trial as Nadia; the operating fixture's trial would otherwise count as hers.
+  await setAsideDemoDapurTrial(db);
 });
 afterAll(async () => db?.close());
 it("attention links retain the exact delivery, day and meal for issues and fallback", async () => {

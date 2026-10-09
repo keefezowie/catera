@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import type { PGlite } from "@electric-sql/pglite";
 import { addDays, localDay } from "@catera/domain";
 import { ADDRESS_ID, CATERER_IDS, DEMO_ACTORS, PACKAGE_IDS } from "./seed";
@@ -5,17 +7,23 @@ import { ADDRESS_ID, CATERER_IDS, DEMO_ACTORS, PACKAGE_IDS } from "./seed";
 /**
  * Synthetic states for the demo customer (Nadia Putri) and Dapur Senja, built from the day the demo database is
  * made: a plan due for renewal, one already renewed, a trial, two completed plans, three kinds of paid checkout,
- * and the kitchen loop on a busy day. Applied by `createDemoDatabase` only, once, after the seed and the fixtures.
- * It is never a migration: hosted storage must never carry demo records.
+ * and the kitchen loop on a busy day. Applied by `createDemoDatabase` only, to a demo database it has just seeded
+ * (in memory, or a stored one in a new folder), after the seed and the fixtures. An older stored demo database is
+ * left as it is: its own purchases could collide with the ones the states make. It is never a migration: hosted
+ * storage must never carry demo records.
  *
- * Real commands build what they can reach (the renewal, the trial, the customer-menu purchase, and the payment that
- * has not yet reached its subscription). Direct inserts build what no command can, because nothing buys a delivery
- * in the past: plans with delivered days, completed plans, a meal the system closed by itself, and the other
- * customers' stops today. They follow `fixture.sql`: a paid checkout, its subscription, reservations, delivery days,
- * fulfilments, payment and allocation, all marked with the seed's synthetic wording.
+ * Nadia's stop on Dapur Senja's route today is the operating fixture's (`fixture.sql`: a Rantang Nusantara trial at
+ * her office, lunch and dinner). A stored demo already has it; an in-memory one gets the same file here, so both look
+ * the same. Nothing here adds a second Rantang plan or a second Dapur Senja stop for her today.
+ *
+ * Real commands build what they can reach (the long purchase and its renewal, the trial, the customer-menu purchase,
+ * and the payment that has not yet reached its subscription). Direct inserts build what no command can, because
+ * nothing buys a delivery in the past: a plan with delivered days, completed plans, a day the nightly job closed, and
+ * the other customers' stops today. They follow `fixture.sql`: a paid checkout, its subscription, reservations,
+ * delivery days, fulfilments, payment and allocation, all marked with the seed's synthetic wording.
  */
 
-/** Who closed a delivery: `null` while it is still ahead. */
+/** Who closed a delivery: `null` while it is still ahead. `auto` is the nightly job, for a day before today only. */
 type By = "customer" | "auto" | null;
 
 const MARKER = "demo.synthetic_states";
@@ -99,11 +107,9 @@ const text = (value: string) => `'${value.replaceAll("'", "''")}'`;
  * takes "the first row by id" keeps finding the seed's rows.
  */
 export const DEMO_STATE_IDS = {
-  /** Two weeks of Rantang Nusantara, two days left, no renewal; its delivery today is the kitchen's. */
+  /** Ikan Bumbu Kuning at Rumah Rasa (Bandung): three days delivered, today and one more to come, no renewal. */
   renewDue: stateId(2, 1),
-  /** Rumah Rasa, renewed by a second plan; its lunch today was closed by the system. */
-  renewed: stateId(2, 2),
-  /** Ended yesterday; its last day was closed by the system. */
+  /** Ended yesterday; its last day was closed by the nightly job. */
   completedRecent: stateId(2, 3),
   /** Ended 180 days ago. */
   completedOld: stateId(2, 4),
@@ -130,13 +136,11 @@ export function demoStatesSQL(today: string): string {
   const yesterday = addDays(today, -1);
   // Quotes are priced for a start far from every plan, then given the dates chosen here.
   const farStart = addDays(today, 120);
-  // Due plan: two weeks of Rantang Nusantara, eight days delivered, today's lunch and dinner scheduled (the kitchen's
-  // day), one to come. It stays inside the next few days so no purchase made from day 5 on overlaps it.
-  const dueDays = [...weekdaysBefore(today, 8), today, ...weekdaysAfter(today, 1)];
-  const dueBy: By[] = [...Array<By>(8).fill("customer"), null, null];
-  // Renewed plan at Rumah Rasa: three days delivered, today's lunch closed by the system, one to come.
-  const renewedDays = [...weekdaysBefore(today, 3), today, ...weekdaysAfter(today, 1)];
-  const renewedBy: By[] = ["customer", "customer", "customer", "auto", null];
+  // Due plan at Rumah Rasa (Bandung): three days delivered, today's lunch and one more to come. Ikan Bumbu Kuning is
+  // the only plan of its package, and Dapur Senja's route today keeps Nadia's one stop (the operating fixture's).
+  const dueDays = [...weekdaysBefore(today, 3), today, ...weekdaysAfter(today, 1)];
+  const dueBy: By[] = ["customer", "customer", "customer", null, null];
+  // The nightly job closes days before today only, so the system's own arrival is yesterday's, never today's.
   const recentDays = [...weekdaysBefore(yesterday, 4), yesterday];
   const recentBy: By[] = ["customer", "customer", "customer", "customer", "auto"];
   const oldEnd = addDays(today, -180);
@@ -187,7 +191,7 @@ begin
         case when p_by[i]='customer' then least(now(),(p_dates[i]+case m when 'lunch' then time '10:45' else time '17:30' end) at time zone 'Asia/Jakarta') end,
         case p_by[i]
           when 'customer' then least(now(),(p_dates[i]+case m when 'lunch' then time '11:20' else time '18:05' end) at time zone 'Asia/Jakarta')
-          when 'auto' then least(now(),(case when p_dates[i]<'${today}'::date then (p_dates[i]+1)+time '00:30' else p_dates[i]+case m when 'lunch' then time '13:05' else time '19:05' end end) at time zone 'Asia/Jakarta') end,
+          when 'auto' then least(now(),((p_dates[i]+1)+time '00:30') at time zone 'Asia/Jakarta') end,
         p_by[i];
     end loop;
   end loop;
@@ -202,6 +206,7 @@ do $states$
 declare
   nadia uuid:='${DEMO_ACTORS.customer}'; admin uuid:='${DEMO_ACTORS.platform_admin}'; addr uuid:='${ADDRESS_ID}';
   base jsonb; dish jsonb; dishes jsonb:='[]'; long jsonb; pick jsonb; c jsonb; i int; mine uuid[]:='{}';
+  renewed uuid; renewed_end date;
 begin
   if exists(select 1 from v1.audit where action='${MARKER}') then return;end if;
   perform set_config('catera.demo','true',true);
@@ -210,22 +215,17 @@ begin
 
   -- Direct plans for Nadia: history that no command can buy.
   insert into v1.addresses(id,user_id,label,line,area,city,instructions) values('${BANDUNG_ADDRESS}','${DEMO_ACTORS.customer}','Rumah Bandung','Jl. Contoh Dago No. 7, Coblong','Bandung','Bandung','Data sintetis. Alamat keluarga di Bandung.');
-  ${plan(1, DEMO_ACTORS.customer, ADDRESS_ID, RANTANG, false, dueDays, dueBy, "active")}
-  ${plan(2, DEMO_ACTORS.customer, BANDUNG_ADDRESS, IKAN, false, renewedDays, renewedBy, "active")}
+  ${plan(1, DEMO_ACTORS.customer, BANDUNG_ADDRESS, IKAN, false, dueDays, dueBy, "active")}
   ${plan(3, DEMO_ACTORS.customer, ADDRESS_ID, SAMBAL, false, recentDays, recentBy, "completed")}
   ${plan(4, DEMO_ACTORS.customer, ADDRESS_ID, AYAM, false, oldDays, oldBy, "completed")}
 
   -- The other customers on Dapur Senja's route today.
   ${customers}
 
-  -- Real commands as Nadia: the renewal of the Rumah Rasa plan and a trial, then two packages that only the demo has.
-  c:=public.catera_v1_command('checkout.create',jsonb_build_object('acceptedTerms',true,'packageId','${IKAN}','addressId','${BANDUNG_ADDRESS}','portions',1,'startDate','${addDays(renewedDays[renewedDays.length - 1], 1)}','trial',false,'promo','','invite','','renewedFrom','${DEMO_STATE_IDS.renewed}'),gen_random_uuid());
-  mine:=mine||(c->>'id')::uuid;
-  perform public.catera_v1_command('checkout.demo_pay',jsonb_build_object('id',c->>'id'),gen_random_uuid());
+  -- Real commands as Nadia: a trial, then two packages that only the demo has.
   c:=public.catera_v1_command('checkout.create',jsonb_build_object('acceptedTerms',true,'packageId','${PLANT}','addressId',addr,'portions',1,'startDate','${addDays(today, 2)}','trial',true,'promo','','invite',''),gen_random_uuid());
   mine:=mine||(c->>'id')::uuid;
   perform public.catera_v1_command('checkout.demo_pay',jsonb_build_object('id',c->>'id'),gen_random_uuid());
-
 
   -- Two packages that exist only in the demo catalog: two weeks of lunch, and one where the customer picks the menu.
   -- They sit with Rumah Rasa so Dapur Senja's days and attention list stay its own. The platform admin signs for that
@@ -247,7 +247,12 @@ begin
       'menus',jsonb_build_array(jsonb_build_object('contentModel','slots','meal','lunch','name','','description','','image','','items','[]'::jsonb,'composition',jsonb_build_array(jsonb_build_object('id','main','categoryId','main','name','Lauk','slots',2)))))),gen_random_uuid());
   delete from v1.staff where caterer_id='${CATERER_IDS[2]}' and user_id=admin;
   perform set_config('request.jwt.claim.sub',nadia::text,true);
+  -- Two weeks of lunch from the third day on, renewed at once for the two weeks after: the renewed plan and its renewal.
   c:=public.catera_v1_command('checkout.create',jsonb_build_object('acceptedTerms',true,'packageId',long->>'id','addressId','${BANDUNG_ADDRESS}','portions',1,'startDate','${addDays(today, 3)}','trial',false,'promo','','invite',''),gen_random_uuid());
+  mine:=mine||(c->>'id')::uuid;
+  perform public.catera_v1_command('checkout.demo_pay',jsonb_build_object('id',c->>'id'),gen_random_uuid());
+  select s.id,s.ends_on into renewed,renewed_end from v1.subscriptions s join v1.checkouts k on k.subscription_id=s.id where k.id=(c->>'id')::uuid;
+  c:=public.catera_v1_command('checkout.create',jsonb_build_object('acceptedTerms',true,'packageId',long->>'id','addressId','${BANDUNG_ADDRESS}','portions',1,'startDate',renewed_end+1,'trial',false,'promo','','invite','','renewedFrom',renewed),gen_random_uuid());
   mine:=mine||(c->>'id')::uuid;
   perform public.catera_v1_command('checkout.demo_pay',jsonb_build_object('id',c->>'id'),gen_random_uuid());
   c:=public.catera_v1_command('checkout.create',jsonb_build_object('acceptedTerms',true,'packageId',pick->>'id','addressId','${BANDUNG_ADDRESS}','portions',1,'startDate','${addDays(today, 3)}','trial',false,'promo','','invite',''),gen_random_uuid());
@@ -272,7 +277,26 @@ drop function pg_temp.demo_plan(int,uuid,uuid,uuid,int,boolean,date[],text[],tex
 `;
 }
 
-/** Add the demo states once. Safe to call again: a marker in the audit trail says they are already there. */
-export async function applyDemoStates(db: PGlite, today = localDay()) {
+/**
+ * Add the demo states to a demo database `createDemoDatabase` has just seeded (`seeded`), once: a marker in the audit
+ * trail says they are already there. An older stored demo database (`seeded` false, no marker) is never changed, since
+ * its own purchases can collide with the ones the states make; it says once per start how to get them instead.
+ */
+export async function applyDemoStates(
+  db: PGlite,
+  { seeded, root, folder = null, today = localDay() }: { seeded: boolean; root: string; folder?: string | null; today?: string },
+) {
+  if (!seeded) {
+    const marked = await db.query<{ marked: boolean }>(`select exists(select 1 from v1.audit where action='${MARKER}') marked`);
+    if (!marked.rows[0].marked)
+      console.warn(
+        `Catera demo: ${folder ?? "this demo database"} was made before the synthetic demo states and is left as it is. ` +
+          `To get the states, stop the app and delete ${folder ?? ".data/v1"}, or set CATERA_DEMO_DATA_DIR to a new folder.`,
+      );
+    return;
+  }
+  // Nadia's stop on Dapur Senja's route today: the operating fixture's, as a stored demo has it. It skips itself when
+  // it is already there.
+  await db.exec(await readFile(path.join(root, "packages/backend/src/fixture.sql"), "utf8"));
   await db.exec(demoStatesSQL(today));
 }
