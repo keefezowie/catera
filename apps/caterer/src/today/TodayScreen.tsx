@@ -1,20 +1,22 @@
-import { useEffect, useState } from "react";
-import { View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Alert, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import {
-  cookingRecap,
-  deliveryRoute,
+  errorLabel,
   jakartaDay,
+  journeyCaption,
+  kitchenSession,
   mealLabel,
   sessionStart,
   shortDate,
   type DeliveryIssue,
   type KitchenMeal,
+  type KitchenSession,
   type SellerAttentionItem,
   type SellerOperationsState,
 } from "@catera/domain";
-import { useData, useMobile, type MobileRuntime } from "@catera/mobile-core";
+import { useData, useMobile, useTrack, type MobileRuntime } from "@catera/mobile-core";
 import {
   Button,
   Card,
@@ -24,9 +26,12 @@ import {
   MoodHeader,
   PressableRow,
   PressableScale,
+  RantangTrack,
   Screen,
+  StickyAction,
   Text,
   useColors,
+  useHaptic,
   useMood,
   useMoodColors,
   useThemePreference,
@@ -52,49 +57,159 @@ async function loadDay(runtime: MobileRuntime, catererId: string, date: string):
   }
 }
 
-/** A meal has something to cook or to deliver. */
-const hasWork = (ops: SellerOperationsState, meal: KitchenMeal) =>
-  cookingRecap(ops, meal).total > 0 || deliveryRoute(ops, meal).length > 0;
-
 /**
  * The session's headline numbers on the mood's hero fill: portions to cook, addresses, and when the first window
- * opens. The fill is `MoodFill`, so it cross-fades with the header's own timing; the shadow sits on its base layer.
+ * opens, with the rantang track under them showing how far the meal has got. The fill is `MoodFill`, so it
+ * cross-fades with the header's own timing; the shadow sits on its base layer.
  */
-function CountCard({ ops, meal }: { ops: SellerOperationsState; meal: KitchenMeal }) {
-  const { t } = useMobile();
+function CountCard({ ops, session }: { ops: SellerOperationsState; session: KitchenSession }) {
+  const { t, locale } = useMobile();
   const palette = useMoodColors();
-  const total = cookingRecap(ops, meal).total;
-  const addresses = deliveryRoute(ops, meal).length;
+  const { meal, portions, addresses } = session;
   const start = sessionStart(ops, meal);
   return (
     <View
       testID="session-count"
-      style={{
-        flexDirection: "row",
-        alignItems: "flex-end",
-        justifyContent: "space-between",
-        gap: 12,
-        padding: 16,
-        borderRadius: 22,
-        borderCurve: "continuous",
-      }}
+      style={{ gap: 16, padding: 16, borderRadius: 22, borderCurve: "continuous" }}
     >
       <MoodFill surface="hero" testID="session-count-fill" radius={22} heroShadow />
-      <View style={{ flexShrink: 1 }}>
-        <Text variant="number" style={{ color: palette.heroText }}>
-          {String(total)}
-        </Text>
-        <Text variant="caption" style={{ color: palette.heroMeta }}>
-          {meal === "lunch"
-            ? t(`porsi siang · ${addresses} alamat`, `lunch portions · ${addresses} addresses`)
-            : t(`porsi malam · ${addresses} alamat`, `dinner portions · ${addresses} addresses`)}
-        </Text>
+      <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: 12 }}>
+        <View style={{ flexShrink: 1 }}>
+          <Text variant="number" style={{ color: palette.heroText }}>
+            {String(portions)}
+          </Text>
+          <Text variant="caption" style={{ color: palette.heroMeta }}>
+            {meal === "lunch"
+              ? t(`porsi siang · ${addresses} alamat`, `lunch portions · ${addresses} addresses`)
+              : t(`porsi malam · ${addresses} alamat`, `dinner portions · ${addresses} addresses`)}
+          </Text>
+        </View>
+        {start ? (
+          <Text variant="label" style={{ color: palette.heroText, flexShrink: 0 }}>
+            {t(`Antar ${start}`, `Deliver ${start}`)}
+          </Text>
+        ) : null}
       </View>
-      {start ? (
-        <Text variant="label" style={{ color: palette.heroText, flexShrink: 0 }}>
-          {t(`Antar ${start}`, `Deliver ${start}`)}
+      <RantangTrack
+        stage={session.journey.stage}
+        caption={journeyCaption(session.journey, locale) ?? ""}
+        labels={[t("Dimasak", "Cooking"), t("Diantar", "On the way"), t("Sampai", "Arrived")]}
+      />
+    </View>
+  );
+}
+
+/**
+ * The one action the session is waiting for, pinned above the tab bar: "Mulai masak" while any row is still
+ * scheduled, then "Berangkat antar" once all are cooking. Each asks first, because it tells customers. Ticks on the
+ * checklist play no part: the screen only goes by the session's own flags, and the database decides (today only).
+ * A second press while the command runs is dropped. A failure is a plain line in the caption and re-reads the day.
+ */
+function KitchenAction({
+  session,
+  catererId,
+  date,
+  onFailed,
+}: {
+  session: KitchenSession;
+  catererId: string;
+  date: string;
+  onFailed: () => void;
+}) {
+  const { t, locale, command } = useMobile();
+  const c = useColors();
+  const track = useTrack();
+  const haptic = useHaptic();
+  const running = useRef(false);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<{ text: string; failed: boolean } | null>(null);
+  const { meal } = session;
+  const cook = session.canCook;
+  const lunch = meal === "lunch";
+
+  async function run() {
+    if (running.current) return;
+    running.current = true;
+    setBusy(true);
+    setMessage(null);
+    try {
+      const result = await command<{ moved?: number }>(cook ? "delivery.cook" : "delivery.depart", { catererId, date, meal });
+      if (result?.moved === 0) {
+        // Someone else got there first, or the meal had already moved on: nothing changed, and the day reads again.
+        setMessage({
+          text: cook ? t("Sudah ditandai dimasak.", "Already marked as cooking.") : t("Sudah ditandai berangkat.", "Already marked as left."),
+          failed: false,
+        });
+      } else {
+        haptic.success();
+        track(cook ? "cook_started" : "depart_tapped");
+      }
+    } catch (e) {
+      const code = (e as { code?: string }).code || (e as Error).message;
+      setMessage({
+        text:
+          code === "INVALID_DATE"
+            ? t("Hanya bisa untuk hari ini.", "Only possible for today.")
+            : errorLabel(code, locale) || t("Belum berhasil. Coba lagi.", "That didn't work. Try again."),
+        failed: true,
+      });
+      onFailed();
+    } finally {
+      running.current = false;
+      setBusy(false);
+    }
+  }
+
+  function ask() {
+    if (running.current) return;
+    if (cook)
+      Alert.alert(
+        lunch ? t("Mulai masak makan siang?", "Start cooking lunch?") : t("Mulai masak makan malam?", "Start cooking dinner?"),
+        t("Pelanggan melihat status Dimasak.", "Customers see the status Cooking."),
+        [
+          { text: t("Batal", "Cancel"), style: "cancel" },
+          { text: t("Mulai", "Start"), onPress: () => void run() },
+        ],
+      );
+    else
+      Alert.alert(
+        t("Berangkat antar sekarang?", "Leave to deliver now?"),
+        t(
+          "Pelanggan yang memakai aplikasi Catera dapat notifikasi saat kamu berangkat.",
+          "Customers using the Catera app get a notification when you leave.",
+        ),
+        [
+          { text: t("Batal", "Cancel"), style: "cancel" },
+          { text: t("Berangkat", "Leave"), onPress: () => void run() },
+        ],
+      );
+  }
+
+  return (
+    <View style={{ gap: 8 }}>
+      {message ? (
+        <Text selectable variant="caption" style={message.failed ? { color: c.danger } : undefined}>
+          {message.text}
         </Text>
       ) : null}
+      <StickyAction
+        label={
+          cook
+            ? t("Mulai masak", "Start cooking")
+            : t(`Berangkat antar · ${session.portions} porsi`, `Leave to deliver · ${session.portions} portions`)
+        }
+        // The push reaches only customers with an account, and the kitchen cannot count them, so no number is promised.
+        caption={
+          cook
+            ? undefined
+            : t(
+                "Pelanggan yang memakai aplikasi Catera dapat notifikasi saat kamu berangkat.",
+                "Customers using the Catera app get a notification when you leave.",
+              )
+        }
+        busy={busy}
+        onPress={ask}
+      />
     </View>
   );
 }
@@ -130,8 +245,13 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
   // One session at a time: the mood picks the meal, and the other one is a tap away when this one is empty.
   const meal: KitchenMeal = mood === "siang" ? "lunch" : "dinner";
   const other: KitchenMeal = meal === "lunch" ? "dinner" : "lunch";
-  const mealWork = !!ops && hasWork(ops, meal);
-  const otherWork = !!ops && hasWork(ops, other);
+  // The session is worked out once here: the count card, the checklist, the order and the footer all read it, so they
+  // agree on which rows count (a stop marked "Gagal diantar" or a cancelled one is in none of them).
+  const now = new Date();
+  const session = ops ? kitchenSession(ops, meal, now) : null;
+  const otherSession = ops ? kitchenSession(ops, other, now) : null;
+  // A copy kept from before the connection dropped may be stale: it can be read, but not acted on.
+  const action = session && !day.data?.savedAt && (session.canCook || session.canDepart) ? session : null;
   // The meta keeps the kitchen's name while the other day loads, instead of dropping it for a moment.
   const [catererName, setCatererName] = useState("");
   if (ops && ops.caterer.name !== catererName) setCatererName(ops.caterer.name);
@@ -139,6 +259,17 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
 
   return (
     <Screen
+      footer={
+        action ? (
+          <KitchenAction
+            key={`${date}-${action.meal}`}
+            session={action}
+            catererId={catererId}
+            date={date}
+            onFailed={() => void day.reload()}
+          />
+        ) : undefined
+      }
       header={
         <MoodHeader
           meta={[catererName, dayWord].filter(Boolean).join(" · ")}
@@ -159,7 +290,7 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
             </PressableScale>
           }
         >
-          {ops && mealWork ? <CountCard ops={ops} meal={meal} /> : null}
+          {ops && session ? <CountCard ops={ops} session={session} /> : null}
         </MoodHeader>
       }
     >
@@ -191,15 +322,16 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
               <ActionCards items={attention.data?.items ?? []} />
             </>
           ) : null}
-          {ops && mealWork ? (
+          {ops && session ? (
             <SessionCard
               ops={ops}
+              session={session}
               meal={meal}
               date={date}
               report={day.data?.savedAt ? null : offset === "0" ? "today" : "tomorrow"}
               caterer={ops.caterer.name}
             />
-          ) : ops && otherWork ? (
+          ) : ops && otherSession ? (
             <Card tone="sage">
               <Text selectable>
                 {meal === "lunch"
@@ -211,12 +343,12 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
                 label={
                   other === "lunch"
                     ? t(
-                        `Lihat makan siang · ${cookingRecap(ops, other).total} porsi`,
-                        `See lunch · ${cookingRecap(ops, other).total} portions`,
+                        `Lihat makan siang · ${otherSession.portions} porsi`,
+                        `See lunch · ${otherSession.portions} portions`,
                       )
                     : t(
-                        `Lihat makan malam · ${cookingRecap(ops, other).total} porsi`,
-                        `See dinner · ${cookingRecap(ops, other).total} portions`,
+                        `Lihat makan malam · ${otherSession.portions} porsi`,
+                        `See dinner · ${otherSession.portions} portions`,
                       )
                 }
                 onPress={() => setMood(mood === "siang" ? "malam" : "siang")}

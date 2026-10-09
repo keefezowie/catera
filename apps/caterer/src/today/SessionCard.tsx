@@ -4,16 +4,16 @@ import * as Print from "expo-print";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import {
-  cookingRecap,
-  deliveryRoute,
   routeShareText,
   type CookingRecap,
   type KitchenMeal,
+  type KitchenSession,
   type SellerOperationsState,
   type Stop,
 } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
 import { Button, Card, fontFor, PressableScale, Text, useColors } from "@catera/mobile-ui";
+import { CookingList } from "./CookingList";
 import { canMoveDelivery, ExceptionSheet } from "./ExceptionSheet";
 
 /**
@@ -68,17 +68,19 @@ function Row({ label, value }: { label: string; value: number }) {
 const movable = (ops: SellerOperationsState, stop: Stop) => canMoveDelivery(ops.deliveries.find((d) => d.id === stop.deliveryId));
 
 /**
- * One meal session of the day: what to cook, then where to take it. The header's right side is
- * left free for the session's own actions (cook, depart).
+ * One meal session of the day: what to cook, then where to take it. The session (its recap and stops, without the
+ * rows marked "Gagal diantar" or cancelled) comes from the screen, which also owns the cook and depart actions.
  */
 export function SessionCard({
   ops,
+  session,
   meal,
   date,
   report,
   caterer,
 }: {
   ops: SellerOperationsState;
+  session: KitchenSession;
   meal: KitchenMeal;
   date: string;
   report: "today" | "tomorrow" | null;
@@ -88,8 +90,7 @@ export function SessionCard({
   const c = useColors();
   const [part, setPart] = useState(0);
   const [reporting, setReporting] = useState<Stop | null>(null);
-  const recap = cookingRecap(ops, meal);
-  const stops = deliveryRoute(ops, meal);
+  const { recap, stops } = session;
   const parts = routeShareText(stops, { date, meal, caterer }, locale);
   // A same-day revision can shorten the route under a part index already advanced past its end.
   const at = Math.min(part, Math.max(parts.length - 1, 0));
@@ -111,10 +112,7 @@ export function SessionCard({
       </View>
       {recap.byDish.length || missing.length ? (
         <View>
-          <Text variant="label">{t("Yang dimasak", "To cook")}</Text>
-          {recap.byDish.map((d) => (
-            <Row key={d.category + d.name} label={d.name} value={d.count} />
-          ))}
+          <CookingList session={session} catererId={actor?.catererId ?? ""} date={date} />
           {missing.map((m) => (
             <View key={m.packageId} style={{ paddingTop: 8, alignItems: "flex-start" }}>
               <Text style={{ color: c.sunriseInk }}>

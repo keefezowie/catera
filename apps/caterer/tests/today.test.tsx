@@ -4,7 +4,7 @@ import { Share, StyleSheet } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
-import { errorLabel, type SellerOperationsState } from "@catera/domain";
+import { errorLabel, kitchenSession, type SellerOperationsState } from "@catera/domain";
 import { MoodProvider, ThemeProvider } from "@catera/mobile-ui";
 import * as SecureStore from "expo-secure-store";
 import * as Reanimated from "react-native-reanimated";
@@ -633,7 +633,14 @@ describe("route sharing after a same-day revision", () => {
     } as typeof short;
     const card = (ops: typeof short) => (
       <MobileProvider runtime={runtime} linkMapper={(h) => h}>
-        <SessionCard ops={ops} meal="lunch" date="2026-10-08" report="today" caterer="Dapur Bu Rina" />
+        <SessionCard
+          ops={ops}
+          session={kitchenSession(ops, "lunch", new Date())!}
+          meal="lunch"
+          date="2026-10-08"
+          report="today"
+          caterer="Dapur Bu Rina"
+        />
       </MobileProvider>
     );
     const view = render(card(long));
