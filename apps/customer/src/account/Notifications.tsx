@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { ActivityIndicator, View } from "react-native";
 import { router } from "expo-router";
 import { errorLabel, jakartaDay, type Locale, type Notice } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, colors, fontFor, PressableRow, Screen, Text } from "@catera/mobile-ui";
+import { Button, Card, fontFor, PressableRow, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { customerLink } from "../links";
 import { longDay } from "../schedule/dates";
 import { jakartaClock } from "../today/Plate";
@@ -13,10 +13,12 @@ import { SignInFirst } from "./SignInFirst";
 /** Notifikasi: push on this phone (Aktif / Nonaktif) and the latest updates, each opening its screen. */
 export function NotificationsScreen() {
   const { actor, ready, t } = useMobile();
+  const c = useColors();
+  const styles = useStyles();
   if (!ready)
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={colors.forest} />
+        <ActivityIndicator color={c.forest} />
       </View>
     );
   if (!actor) return <SignInFirst title={t("Notifikasi", "Notifications")} next="/notifications" />;
@@ -36,6 +38,7 @@ function pushError(e: unknown, locale: Locale, t: (id: string, en: string) => st
 
 function PushCard() {
   const { t, locale } = useMobile();
+  const c = useColors();
   const push = usePush();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -49,12 +52,16 @@ function PushCard() {
           </Text>
         </View>
         {push.on === null ? null : (
-          <Text variant="label" style={{ color: push.on ? colors.forest : colors.muted }}>
+          <Text variant="label" style={{ color: push.on ? c.forest : c.muted }}>
             {push.on ? t("Aktif", "On") : t("Nonaktif", "Off")}
           </Text>
         )}
       </View>
-      {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
+      {error ? (
+        <Text selectable style={{ color: c.danger }}>
+          {error}
+        </Text>
+      ) : null}
       {push.on === false ? (
         <Button
           variant="secondary"
@@ -76,6 +83,8 @@ function PushCard() {
 
 function Updates() {
   const { runtime, command, t, locale } = useMobile();
+  const c = useColors();
+  const styles = useStyles();
   const customer = useData("notifications:customer", () => runtime.api.customer());
   const notes = customer.data?.notifications ?? [];
 
@@ -91,11 +100,13 @@ function Updates() {
       {!customer.data ? (
         customer.error ? (
           <View style={{ gap: 8 }}>
-            <Text style={{ color: colors.danger }}>{customer.error}</Text>
+            <Text selectable style={{ color: c.danger }}>
+              {customer.error}
+            </Text>
             <Button variant="secondary" label={t("Coba lagi", "Try again")} onPress={() => void customer.reload()} />
           </View>
         ) : (
-          <ActivityIndicator color={colors.forest} />
+          <ActivityIndicator color={c.forest} />
         )
       ) : notes.length ? (
         <View>
@@ -106,7 +117,7 @@ function Updates() {
               onPress={() => void open(n)}
               style={[styles.row, i > 0 && styles.divider]}
             >
-              <View style={[styles.dot, { backgroundColor: n.read_at ? "transparent" : colors.forest }]} />
+              <View style={[styles.dot, { backgroundColor: n.read_at ? "transparent" : c.forest }]} />
               <View style={{ flex: 1, gap: 2 }}>
                 {!n.read_at ? <Text variant="label">{t("Baru", "New")}</Text> : null}
                 <Text>{n.body}</Text>
@@ -120,7 +131,7 @@ function Updates() {
       ) : (
         <View style={{ gap: 6 }}>
           <Text variant="heading">{t("Belum ada kabar baru.", "No new updates yet.")}</Text>
-          <Text style={{ color: colors.muted }}>
+          <Text style={{ color: c.muted }}>
             {t("Kabar makanan dan bantuan akan hadir di sini.", "Meal and support updates will appear here.")}
           </Text>
         </View>
@@ -129,9 +140,9 @@ function Updates() {
   );
 }
 
-const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.canvas },
+const useStyles = themedStyles((c) => ({
+  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: c.canvas },
   row: { minHeight: 52, flexDirection: "row", gap: 10, paddingVertical: 12 },
-  divider: { borderTopWidth: 1, borderTopColor: colors.line },
+  divider: { borderTopWidth: 1, borderTopColor: c.line },
   dot: { width: 8, height: 8, borderRadius: 4, marginTop: 7 },
-});
+}));

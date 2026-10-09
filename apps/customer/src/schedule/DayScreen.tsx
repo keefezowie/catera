@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { ActivityIndicator, Image, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Image, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { dayLabel, jakartaDay, mealLabel, reportableMeals, statusLabel, type Delivery } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, colors, Screen, Text } from "@catera/mobile-ui";
+import { Button, Card, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
 import { ChatKatering, catererPhoneOf } from "../help/ChatKatering";
 import { photoUri } from "../today/Plate";
@@ -13,10 +13,12 @@ import { ChangeDaySheet } from "./ChangeDaySheet";
 export function DayScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { actor, ready, t } = useMobile();
+  const c = useColors();
+  const styles = useStyles();
   if (!ready)
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={colors.forest} />
+        <ActivityIndicator color={c.forest} />
       </View>
     );
   if (!actor) return <SignInFirst title={t("Hari", "Day")} next={`/hari/${id}`} />;
@@ -28,6 +30,8 @@ const dishesOf = (d: Delivery, meal: "lunch" | "dinner") =>
 
 function Day({ id }: { id: string }) {
   const { runtime, t, locale } = useMobile();
+  const c = useColors();
+  const styles = useStyles();
   const state = useData(`day:${id}`, () => runtime.api.customer(`?deliveryId=${encodeURIComponent(id)}`));
   const [sheet, setSheet] = useState(false);
   const [notice, setNotice] = useState("");
@@ -37,11 +41,11 @@ function Day({ id }: { id: string }) {
     return (
       <Screen>
         {state.loading ? (
-          <ActivityIndicator color={colors.forest} />
+          <ActivityIndicator color={c.forest} />
         ) : (
           <>
             <Text variant="title">{t("Hari", "Day")}</Text>
-            <Text style={{ color: state.error ? colors.danger : colors.muted }}>
+            <Text selectable={!!state.error} style={{ color: state.error ? c.danger : c.muted }}>
               {state.error || t("Pengantaran tidak ditemukan.", "Delivery not found.")}
             </Text>
             {state.error ? <Button label={t("Coba lagi", "Try again")} onPress={() => void state.reload()} /> : null}
@@ -130,7 +134,7 @@ function Day({ id }: { id: string }) {
   );
 }
 
-const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.canvas },
-  photo: { width: "100%", height: 180, borderRadius: 16, backgroundColor: colors.sage },
-});
+const useStyles = themedStyles((c) => ({
+  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: c.canvas },
+  photo: { width: "100%", height: 180, borderRadius: 16, backgroundColor: c.sage },
+}));

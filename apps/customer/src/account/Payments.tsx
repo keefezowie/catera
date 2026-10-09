@@ -1,8 +1,8 @@
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { ActivityIndicator, View } from "react-native";
 import { router } from "expo-router";
 import { currency, type CustomerActionItem, type Subscription } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, colors, Screen, Text } from "@catera/mobile-ui";
+import { Button, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { payAgainHref } from "../buy/PaymentOutcome";
 import { customerLink } from "../links";
 import { longDay } from "../schedule/dates";
@@ -32,10 +32,12 @@ function progressWord(item: CustomerActionItem, t: (id: string, en: string) => s
  * (a payment was received, or the bank may still confirm one after the hold). */
 export function Payments() {
   const { actor, ready, t } = useMobile();
+  const c = useColors();
+  const styles = useStyles();
   if (!ready)
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={colors.forest} />
+        <ActivityIndicator color={c.forest} />
       </View>
     );
   if (!actor) return <SignInFirst title={t("Riwayat pembayaran", "Payment history")} next="/pembayaran" />;
@@ -44,18 +46,22 @@ export function Payments() {
 
 function History() {
   const { runtime, t, locale } = useMobile();
+  const c = useColors();
+  const styles = useStyles();
   const customer = useData("payments:customer", () => runtime.api.customer());
   const feed = useData("payments:actions", () => runtime.api.customerActions(20));
 
   if (!customer.data)
     return customer.error ? (
       <Screen>
-        <Text style={{ color: colors.danger }}>{customer.error}</Text>
+        <Text selectable style={{ color: c.danger }}>
+          {customer.error}
+        </Text>
         <Button label={t("Coba lagi", "Try again")} onPress={() => void customer.reload()} />
       </Screen>
     ) : (
       <View style={styles.center}>
-        <ActivityIndicator color={colors.forest} />
+        <ActivityIndicator color={c.forest} />
       </View>
     );
 
@@ -71,7 +77,7 @@ function History() {
   return (
     <Screen>
       {feed.error ? (
-        <Text variant="caption" style={{ color: colors.danger }}>
+        <Text selectable variant="caption" style={{ color: c.danger }}>
           {t("Pembayaran yang menunggu belum bisa dimuat.", "Payments waiting could not be loaded.")}
         </Text>
       ) : null}
@@ -168,7 +174,7 @@ function History() {
       {!payments.length && !paid.length && !feed.loading ? (
         <View style={{ gap: 6 }}>
           <Text variant="heading">{t("Belum ada pembayaran.", "No payments yet.")}</Text>
-          <Text style={{ color: colors.muted }}>
+          <Text style={{ color: c.muted }}>
             {t("Paket yang Anda beli lewat Catera muncul di sini.", "Packages you buy through Catera appear here.")}
           </Text>
         </View>
@@ -177,6 +183,6 @@ function History() {
   );
 }
 
-const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.canvas },
-});
+const useStyles = themedStyles((c) => ({
+  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: c.canvas },
+}));

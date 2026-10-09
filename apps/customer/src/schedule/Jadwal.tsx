@@ -1,10 +1,20 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Image, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Image, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { jakartaDay, mealLabel, MEALS, windowStartMinutes, type CustomerState, type Delivery } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, colors, fontFor, PressableRow, PressableScale, Screen, Text } from "@catera/mobile-ui";
+import {
+  Button,
+  Card,
+  fontFor,
+  PressableRow,
+  PressableScale,
+  Screen,
+  Text,
+  themedStyles,
+  useColors,
+} from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
 import { photoUri } from "../today/Plate";
 import { MonthGrid, type DayMark } from "./MonthGrid";
@@ -37,10 +47,12 @@ function marksOf(deliveries: Delivery[]): Map<string, DayMark> {
 /** Jadwal: the month at a glance and the meals of the day you tap. */
 export function Jadwal() {
   const { actor, ready, t } = useMobile();
+  const c = useColors();
+  const styles = useStyles();
   if (!ready)
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={colors.forest} />
+        <ActivityIndicator color={c.forest} />
       </View>
     );
   if (!actor) return <SignInFirst title={t("Jadwal", "Schedule")} next="/jadwal" />;
@@ -49,6 +61,8 @@ export function Jadwal() {
 
 function SignedInJadwal() {
   const { runtime, t, locale } = useMobile();
+  const c = useColors();
+  const styles = useStyles();
   const today = jakartaDay(new Date());
   const [month, setMonth] = useState(monthOf(today));
   const [selected, setSelected] = useState(today);
@@ -81,7 +95,7 @@ function SignedInJadwal() {
           onPress={() => setMonth(shiftMonth(month, -1))}
           style={styles.arrow}
         >
-          <Ionicons name="chevron-back" size={22} color={colors.forest} />
+          <Ionicons name="chevron-back" size={22} color={c.forest} />
         </PressableScale>
         <Text variant="heading" style={{ flex: 1, textAlign: "center" }}>
           {monthTitle(month, locale)}
@@ -92,12 +106,12 @@ function SignedInJadwal() {
           onPress={() => setMonth(shiftMonth(month, 1))}
           style={styles.arrow}
         >
-          <Ionicons name="chevron-forward" size={22} color={colors.forest} />
+          <Ionicons name="chevron-forward" size={22} color={c.forest} />
         </PressableScale>
       </View>
       {data.error ? (
         <View style={{ gap: 6 }}>
-          <Text variant="caption" style={{ color: colors.danger }}>
+          <Text selectable variant="caption" style={{ color: c.danger }}>
             {data.error}
           </Text>
           <Button variant="text" label={t("Coba lagi", "Try again")} onPress={() => void data.reload()} />
@@ -105,13 +119,13 @@ function SignedInJadwal() {
       ) : null}
       <MonthGrid month={month} today={today} selected={selected} marks={marksOf(deliveries)} locale={locale} onSelect={setSelected} />
       <View style={styles.legend}>
-        <Legend id="lunch" icon="sunny" size={12} color={colors.sunriseInk} label={t("Makan siang", "Lunch")} />
-        <Legend id="dinner" icon="moon" size={11} color={colors.forest} label={t("Makan malam", "Dinner")} />
-        <Legend id="arrived" icon="sunny" size={12} color={colors.muted} label={t("Sudah sampai", "Arrived")} />
+        <Legend id="lunch" icon="sunny" size={12} color={c.sunriseInk} label={t("Makan siang", "Lunch")} />
+        <Legend id="dinner" icon="moon" size={11} color={c.forest} label={t("Makan malam", "Dinner")} />
+        <Legend id="arrived" icon="sunny" size={12} color={c.muted} label={t("Sudah sampai", "Arrived")} />
       </View>
       <Text variant="label">{longDay(selected, locale)}</Text>
       {data.loading && !state ? (
-        <ActivityIndicator color={colors.forest} />
+        <ActivityIndicator color={c.forest} />
       ) : day.length ? (
         <Card style={{ padding: 4, gap: 0 }}>
           {day.map(({ d, m }, i) => (
@@ -119,13 +133,14 @@ function SignedInJadwal() {
           ))}
         </Card>
       ) : state ? (
-        <Text style={{ color: colors.muted }}>{t("Tidak ada pengantaran di hari ini.", "No delivery on this day.")}</Text>
+        <Text style={{ color: c.muted }}>{t("Tidak ada pengantaran di hari ini.", "No delivery on this day.")}</Text>
       ) : null}
     </Screen>
   );
 }
 
 function Legend({ id, icon, size, color, label }: { id: string; icon: "sunny" | "moon"; size: number; color: string; label: string }) {
+  const styles = useStyles();
   return (
     <View style={styles.legendItem} testID={`legend-${id}`}>
       <Ionicons name={icon} size={size} color={color} />
@@ -148,6 +163,8 @@ function MealRow({
   apiBase: string;
 }) {
   const { t, locale } = useMobile();
+  const c = useColors();
+  const styles = useStyles();
   const image = d.offer.menus?.find((m) => m.meal === meal)?.image || d.offer.image;
   const state =
     status === "delivered"
@@ -176,18 +193,18 @@ function MealRow({
           {sub}
         </Text>
       </View>
-      <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+      <Ionicons name="chevron-forward" size={18} color={c.muted} />
     </PressableRow>
   );
 }
 
-const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.canvas },
+const useStyles = themedStyles((c) => ({
+  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: c.canvas },
   monthBar: { flexDirection: "row", alignItems: "center" },
   arrow: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
   legend: { flexDirection: "row", flexWrap: "wrap", columnGap: 18, rowGap: 6 },
   legendItem: { flexDirection: "row", alignItems: "center", gap: 6 },
   meal: { minHeight: 72, flexDirection: "row", alignItems: "center", gap: 12, padding: 8 },
-  divider: { borderTopWidth: 1, borderTopColor: colors.line },
-  photo: { width: 56, height: 56, borderRadius: 10, backgroundColor: colors.sage },
-});
+  divider: { borderTopWidth: 1, borderTopColor: c.line },
+  photo: { width: 56, height: 56, borderRadius: 10, backgroundColor: c.sage },
+}));

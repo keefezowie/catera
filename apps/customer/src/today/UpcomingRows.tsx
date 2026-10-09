@@ -1,13 +1,15 @@
-import { StyleSheet, View } from "react-native";
+import { View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { dayLabel, jakartaDay, mealLabel, type UpcomingRow } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { colors, fontFor, PressableRow, Text } from "@catera/mobile-ui";
+import { fontFor, PressableRow, Text, themedStyles, useColors } from "@catera/mobile-ui";
 
 /** The days after today as plain rows (not cards), each with its change deadline. */
 export function UpcomingRows({ rows }: { rows: UpcomingRow[] }) {
   const { t, locale } = useMobile();
+  const c = useColors();
+  const styles = useStyles();
   if (!rows.length) return null;
   const today = jakartaDay(new Date());
   return (
@@ -31,19 +33,19 @@ export function UpcomingRows({ rows }: { rows: UpcomingRow[] }) {
               {row.dishes || t("Menu belum ditentukan", "Menu not set yet")}
             </Text>
             {row.changeUntil ? (
-              <Text variant="caption" style={{ color: colors.forest, fontVariant: ["tabular-nums"] }}>
+              <Text variant="caption" style={{ color: c.forest, fontVariant: ["tabular-nums"] }}>
                 {t(`Bisa diubah sampai ${row.changeUntil}`, `Can be changed until ${row.changeUntil}`)}
               </Text>
             ) : null}
           </View>
-          <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+          <Ionicons name="chevron-forward" size={18} color={c.muted} />
         </PressableRow>
       ))}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = themedStyles((c) => ({
   row: { minHeight: 58, flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10 },
-  divider: { borderTopWidth: 1, borderTopColor: colors.line },
-});
+  divider: { borderTopWidth: 1, borderTopColor: c.line },
+}));

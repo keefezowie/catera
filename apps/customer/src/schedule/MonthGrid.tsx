@@ -1,7 +1,7 @@
-import { StyleSheet, Text as RNText, View } from "react-native";
+import { Text as RNText, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import type { Locale } from "@catera/domain";
-import { colors, fontFor, PressableRow } from "@catera/mobile-ui";
+import { fontFor, PressableRow, themedStyles, useColors } from "@catera/mobile-ui";
 import { longDay, monthWeeks, WEEK_HEADER } from "./dates";
 
 /** Which meals a day covers; `done` once every meal it serves has arrived. */
@@ -35,6 +35,8 @@ function dayLabel(date: string, locale: Locale, mark: DayMark | undefined): stri
  * sun (lunch) and/or moon (dinner) under its number; the icons go muted once the meals have arrived.
  */
 export function MonthGrid({ month, today, selected, marks, locale, onSelect }: Props) {
+  const c = useColors();
+  const styles = useStyles();
   return (
     <View style={{ gap: 2 }}>
       <View style={styles.week}>
@@ -51,7 +53,7 @@ export function MonthGrid({ month, today, selected, marks, locale, onSelect }: P
             const on = date === selected;
             const mark = marks.get(date);
             const covered = !!mark && (mark.lunch || mark.dinner);
-            const ink = on ? colors.cream : mark?.done ? colors.muted : null;
+            const ink = on ? c.cream : mark?.done ? c.muted : null;
             return (
               <PressableRow
                 key={date}
@@ -67,12 +69,12 @@ export function MonthGrid({ month, today, selected, marks, locale, onSelect }: P
                   on && styles.selected,
                 ]}
               >
-                <RNText style={[styles.number, { color: on ? colors.cream : colors.charcoal }]}>
+                <RNText style={[styles.number, { color: on ? c.cream : c.charcoal }]}>
                   {Number(date.slice(8))}
                 </RNText>
                 <View style={styles.marks}>
-                  {mark?.lunch ? <Ionicons name="sunny" size={12} color={ink ?? colors.sunriseInk} /> : null}
-                  {mark?.dinner ? <Ionicons name="moon" size={11} color={ink ?? colors.forest} /> : null}
+                  {mark?.lunch ? <Ionicons name="sunny" size={12} color={ink ?? c.sunriseInk} /> : null}
+                  {mark?.dinner ? <Ionicons name="moon" size={11} color={ink ?? c.forest} /> : null}
                 </View>
               </PressableRow>
             );
@@ -83,14 +85,14 @@ export function MonthGrid({ month, today, selected, marks, locale, onSelect }: P
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = themedStyles((c) => ({
   week: { flexDirection: "row" },
   header: {
     flex: 1,
     textAlign: "center",
     fontFamily: fontFor("700"),
     fontSize: 12,
-    color: colors.muted,
+    color: c.muted,
     paddingVertical: 6,
   },
   cell: { flex: 1, minHeight: 48 },
@@ -102,10 +104,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 3,
   },
-  covered: { backgroundColor: colors.scheduled },
-  today: { borderColor: colors.sunriseInk, backgroundColor: colors.cream },
-  todayRing: { borderColor: colors.sunriseInk },
-  selected: { backgroundColor: colors.forest, borderColor: colors.forest },
+  covered: { backgroundColor: c.scheduled },
+  today: { borderColor: c.sunriseInk, backgroundColor: c.cream },
+  todayRing: { borderColor: c.sunriseInk },
+  selected: { backgroundColor: c.forest, borderColor: c.forest },
   number: { fontSize: 15, fontFamily: fontFor("700"), fontVariant: ["tabular-nums"] },
   marks: { height: 12, flexDirection: "row", alignItems: "center", gap: 3 },
-});
+}));

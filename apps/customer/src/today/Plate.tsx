@@ -4,10 +4,19 @@ import Svg, { Circle, Path } from "react-native-svg";
 import { router } from "expo-router";
 import { errorLabel, type Plate as PlateData } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { Button, colors, fontFor, PressableScale, Text } from "@catera/mobile-ui";
+import { Button, fontFor, PressableScale, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { ChatKatering } from "../help/ChatKatering";
 
 const JAKARTA_OFFSET_MS = 7 * 60 * 60 * 1000;
+
+// Surfaces that stay the same in light and dark: the photo scrim and the departure chip are fixed
+// overlays, and the Sunrise button is a fixed orange fill. Their ink is fixed too (the values are the
+// light palette's cream, forest and charcoal), because the themed tokens swap roles in dark and would
+// leave dark text on the dark scrim, light text on the light chip and light text on orange.
+const ON_SCRIM = "#FFF7E9";
+const ON_CHIP = "#163D2E";
+const ON_SUNRISE = "#2E2E2E";
+const NO_PHOTO = "#163D2E";
 
 /** HH.MM in Asia/Jakarta, or "" for an unreadable timestamp. */
 export function jakartaClock(iso: string | null | undefined): string {
@@ -34,6 +43,7 @@ export function SunriseButton({
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
+  const styles = useStyles();
   return (
     <PressableScale
       accessibilityRole="button"
@@ -113,6 +123,8 @@ const sentences = (p: PlateData, t: (id: string, en: string) => string): [string
 /** Today's plate: the photo with one status sentence, the dishes and one action. */
 export function Plate({ plate, apiBase, offline }: { plate: PlateData; apiBase: string; offline?: boolean }) {
   const { command, t, locale } = useMobile();
+  const c = useColors();
+  const styles = useStyles();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [sentence, second] = sentences(plate, t);
@@ -205,8 +217,8 @@ export function Plate({ plate, apiBase, offline }: { plate: PlateData; apiBase: 
                     onPress={() => void run("delivery.react", { reaction: value })}
                     style={[styles.reaction, selected && styles.reactionOn]}
                   >
-                    <Face kind={value} color={selected ? colors.cream : colors.forest} />
-                    <RNText style={[styles.reactionLabel, { color: selected ? colors.cream : colors.forest }]}>
+                    <Face kind={value} color={selected ? c.cream : c.forest} />
+                    <RNText style={[styles.reactionLabel, { color: selected ? c.cream : c.forest }]}>
                       {label}
                     </RNText>
                   </PressableScale>
@@ -233,7 +245,7 @@ export function Plate({ plate, apiBase, offline }: { plate: PlateData; apiBase: 
           <Button variant="secondary" label={t("Lihat laporan", "View report")} onPress={() => router.push("/bantuan" as never)} />
         ) : null}
         {error ? (
-          <Text style={{ color: colors.danger }} testID="plate-error">
+          <Text selectable style={{ color: c.danger }} testID="plate-error">
             {error}
           </Text>
         ) : null}
@@ -242,15 +254,15 @@ export function Plate({ plate, apiBase, offline }: { plate: PlateData; apiBase: 
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = themedStyles((c) => ({
   card: {
     borderRadius: 22,
     overflow: "hidden",
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: c.line,
   },
-  photo: { height: 268, backgroundColor: colors.forest, justifyContent: "flex-end" },
+  photo: { height: 268, backgroundColor: NO_PHOTO, justifyContent: "flex-end" },
   scrimSoft: { position: "absolute", left: 0, right: 0, bottom: 0, height: "75%", backgroundColor: "rgba(12,30,22,0.22)" },
   chip: {
     position: "absolute",
@@ -261,12 +273,12 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: "rgba(255,247,233,0.94)",
   },
-  chipLabel: { fontSize: 13, fontFamily: fontFor("700"), color: colors.forest, fontVariant: ["tabular-nums"] },
+  chipLabel: { fontSize: 13, fontFamily: fontFor("700"), color: ON_CHIP, fontVariant: ["tabular-nums"] },
   // 66% forest-black over a pure white photo still gives cream text about 5.3:1.
   overlay: { padding: 18, paddingTop: 14, gap: 4, backgroundColor: "rgba(12,30,22,0.66)" },
-  meal: { fontSize: 13, fontFamily: fontFor("700"), color: colors.cream },
-  sentence: { fontSize: 28, lineHeight: 33, fontFamily: fontFor("800"), letterSpacing: -0.5, color: colors.cream },
-  second: { fontSize: 17, fontFamily: fontFor("600"), color: colors.cream, fontVariant: ["tabular-nums"] },
+  meal: { fontSize: 13, fontFamily: fontFor("700"), color: ON_SCRIM },
+  sentence: { fontSize: 28, lineHeight: 33, fontFamily: fontFor("800"), letterSpacing: -0.5, color: ON_SCRIM },
+  second: { fontSize: 17, fontFamily: fontFor("600"), color: ON_SCRIM, fontVariant: ["tabular-nums"] },
   body: { padding: 16, gap: 12 },
   row: { flexDirection: "row", gap: 8 },
   sunrise: {
@@ -275,20 +287,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.sunrise,
+    backgroundColor: c.sunrise,
   },
-  sunriseLabel: { fontSize: 15, fontFamily: fontFor("800"), color: colors.charcoal },
+  sunriseLabel: { fontSize: 15, fontFamily: fontFor("800"), color: ON_SUNRISE },
   reaction: {
     flex: 1,
     minHeight: 56,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: colors.secondaryBorder,
+    borderColor: c.secondaryBorder,
     alignItems: "center",
     justifyContent: "center",
     gap: 4,
     paddingVertical: 8,
   },
-  reactionOn: { backgroundColor: colors.forest, borderColor: colors.forest },
+  reactionOn: { backgroundColor: c.forest, borderColor: c.forest },
   reactionLabel: { fontSize: 13, fontFamily: fontFor("700") },
-});
+}));

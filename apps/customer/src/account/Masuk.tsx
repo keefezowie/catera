@@ -4,7 +4,7 @@ import * as Crypto from "expo-crypto";
 import { router, useLocalSearchParams } from "expo-router";
 import { errorLabel, type Actor } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { Button, colors, Field, Screen, Text } from "@catera/mobile-ui";
+import { Button, Field, Screen, Text, useColors } from "@catera/mobile-ui";
 import { nativeReturnPath } from "../auth";
 
 /** Numbers as typed in Indonesia (0812…, 62812…, +62 812…, 812…) to E.164. */
@@ -18,6 +18,7 @@ export function e164Indonesia(input: string): string {
 /** Sign in with the phone number (SMS code) first; email and password on request. */
 export function Masuk() {
   const { runtime, t, locale, signedIn, refresh } = useMobile();
+  const c = useColors();
   const params = useLocalSearchParams<{ next?: string }>();
   const next = nativeReturnPath(typeof params.next === "string" ? params.next : undefined);
   const [withEmail, setWithEmail] = useState(false);
@@ -56,7 +57,7 @@ export function Masuk() {
   return (
     <Screen>
       <View style={{ paddingTop: 8 }}>
-        <Text style={{ color: colors.muted }}>
+        <Text style={{ color: c.muted }}>
           {t(
             "Pakai nomor HP yang Anda berikan ke katering. Kami kirim kode lewat SMS.",
             "Use the phone number you gave your caterer. We'll text you a code.",
@@ -148,7 +149,7 @@ export function Masuk() {
         </View>
       )}
       {error ? (
-        <Text style={{ color: colors.danger }} testID="masuk-error">
+        <Text selectable style={{ color: c.danger }} testID="masuk-error">
           {error}
         </Text>
       ) : null}

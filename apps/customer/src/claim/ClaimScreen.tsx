@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Image, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Image, View } from "react-native";
 import * as Crypto from "expo-crypto";
 import { router, useLocalSearchParams } from "expo-router";
 import { errorLabel, localCustomerPhone, phoneMatchesMask, shortDate, type ClaimPreview } from "@catera/domain";
 import { plural, useMobile } from "@catera/mobile-core";
-import { Button, Card, colors, Field, fontFor, RoundButton, Screen, Text } from "@catera/mobile-ui";
+import { Button, Card, Field, fontFor, RoundButton, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { e164Indonesia } from "../account/Masuk";
 
 /** Failures worth retrying; every other code means this link cannot be used. */
@@ -21,6 +21,9 @@ type Step = "lihat" | "nomor" | "kode";
 export function ClaimScreen() {
   const { token } = useLocalSearchParams<{ token: string }>();
   const { runtime, command, signedIn, t, locale } = useMobile();
+  // `run` below names its error code `c`, so the palette keeps a longer name here.
+  const palette = useColors();
+  const styles = useStyles();
   const [preview, setPreview] = useState<ClaimPreview | null>(null);
   const [dead, setDead] = useState(false);
   const [offline, setOffline] = useState(false);
@@ -110,7 +113,7 @@ export function ClaimScreen() {
     return (
       <Screen>
         <Header />
-        <Text style={{ color: colors.danger }}>
+        <Text selectable style={{ color: palette.danger }}>
           {t("Belum bisa memuat. Periksa koneksi lalu coba lagi.", "Couldn't load. Check your connection and try again.")}
         </Text>
         <Button label={t("Coba lagi", "Try again")} onPress={() => setAttempt((n) => n + 1)} />
@@ -120,7 +123,7 @@ export function ClaimScreen() {
   if (!preview)
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={colors.forest} />
+        <ActivityIndicator color={palette.forest} />
       </View>
     );
   const katering = preview.catererName;
@@ -169,7 +172,7 @@ export function ClaimScreen() {
           </Text>
         </View>
         <Card>
-          <Text style={{ fontSize: 18, fontFamily: fontFor("800"), color: colors.forest }}>{preview.packageName}</Text>
+          <Text style={{ fontSize: 18, fontFamily: fontFor("800"), color: palette.forest }}>{preview.packageName}</Text>
           <Fact label={t("Sisa", "Left")} value={t(`${preview.remainingDays} hari`, plural(preview.remainingDays, "day"))} />
           {preview.nextDate ? (
             <Fact
@@ -272,13 +275,18 @@ export function ClaimScreen() {
           </Text>
         </>
       )}
-      {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
+      {error ? (
+        <Text selectable style={{ color: palette.danger }}>
+          {error}
+        </Text>
+      ) : null}
     </Screen>
   );
 }
 
 function Header({ onBack }: { onBack?: () => void }) {
   const { t } = useMobile();
+  const styles = useStyles();
   return (
     <View style={styles.header}>
       {onBack ? (
@@ -295,17 +303,18 @@ function Header({ onBack }: { onBack?: () => void }) {
 }
 
 function Fact({ label, value }: { label: string; value: string }) {
+  const c = useColors();
   return (
     <View style={{ flexDirection: "row", gap: 16 }}>
-      <Text style={{ color: colors.muted, width: 84, fontSize: 14 }}>{label}</Text>
+      <Text style={{ color: c.muted, width: 84, fontSize: 14 }}>{label}</Text>
       <Text style={{ flex: 1, fontFamily: fontFor("700"), fontSize: 14 }}>{value}</Text>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.canvas },
+const useStyles = themedStyles((c) => ({
+  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: c.canvas },
   header: { minHeight: 48, flexDirection: "row", alignItems: "center", gap: 4 },
-  from: { fontSize: 14, fontFamily: fontFor("700"), color: colors.sunriseInk },
-  h1: { fontSize: 28, lineHeight: 32, fontFamily: fontFor("800"), letterSpacing: -0.5, color: colors.forest },
-});
+  from: { fontSize: 14, fontFamily: fontFor("700"), color: c.sunriseInk },
+  h1: { fontSize: 28, lineHeight: 32, fontFamily: fontFor("800"), letterSpacing: -0.5, color: c.forest },
+}));

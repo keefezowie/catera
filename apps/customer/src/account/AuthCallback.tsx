@@ -4,7 +4,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import * as Crypto from "expo-crypto";
 import { useMobile } from "@catera/mobile-core";
-import { Button, colors, Field, Screen, Text } from "@catera/mobile-ui";
+import { Button, Field, Screen, Text, useColors } from "@catera/mobile-ui";
 import { nativeReturnPath } from "../auth";
 import { authClient, authError, pendingKey, type Pending } from "./emailAuth";
 import { useAction } from "./useAction";
@@ -15,6 +15,7 @@ const LINK_LIFETIME_MS = 60 * 60 * 1000;
 /** catera://auth/callback: finishes email verification, or sets a new password after recovery. */
 export function AuthCallback() {
   const { runtime, refresh, t } = useMobile();
+  const c = useColors();
   const params = useLocalSearchParams<{ code?: string; error?: string }>();
   const code = typeof params.code === "string" ? params.code : "";
   const linkError = typeof params.error === "string" ? params.error : "";
@@ -115,7 +116,7 @@ export function AuthCallback() {
               hint={t("Minimal 8 karakter. Kedua isian harus sama.", "At least 8 characters. Both fields must match.")}
             />
             {action.error ? (
-              <Text style={{ color: colors.danger }} testID="identity-error">
+              <Text selectable style={{ color: c.danger }} testID="identity-error">
                 {action.error}
               </Text>
             ) : null}

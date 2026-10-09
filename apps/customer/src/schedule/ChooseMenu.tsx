@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, AppState, Image, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Alert, AppState, Image, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useNavigation, usePreventRemove } from "expo-router/react-navigation";
 import {
@@ -12,7 +12,17 @@ import {
   type MealMenu,
 } from "@catera/domain";
 import { plural, useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, colors, fontFor, PressableScale, Screen, Segmented, Text } from "@catera/mobile-ui";
+import {
+  Button,
+  Card,
+  fontFor,
+  PressableScale,
+  Screen,
+  Segmented,
+  Text,
+  themedStyles,
+  useColors,
+} from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
 import { failureText } from "../account/failure";
 import { FilterChip } from "../discover/FilterChip";
@@ -30,13 +40,15 @@ const isDate = (v: unknown): v is string => typeof v === "string" && /^\d{4}-\d{
 export function ChooseMenu() {
   const params = useLocalSearchParams<{ id: string; date?: string; meal?: string }>();
   const { actor, ready, t } = useMobile();
+  const c = useColors();
+  const styles = useStyles();
   const id = String(params.id ?? "");
   const routeDate = isDate(params.date) ? params.date : "";
   const routeMeal: Meal = params.meal === "dinner" ? "dinner" : "lunch";
   if (!ready)
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={colors.forest} />
+        <ActivityIndicator color={c.forest} />
       </View>
     );
   if (!actor) {
@@ -48,6 +60,9 @@ export function ChooseMenu() {
 
 function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; routeMeal: Meal }) {
   const { runtime, command, t, locale } = useMobile();
+  // The choice callbacks below name their argument `c`, so the palette keeps a longer name here.
+  const palette = useColors();
+  const styles = useStyles();
   const customer = useData("pilih-menu:customer", () => runtime.api.customer());
   const subscription = customer.data?.subscriptions.find((s) => s.id === id);
   const offer = subscription?.snapshot.offer;
@@ -96,12 +111,14 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
   if (!customer.data || (offer && offer.menuSelectionMode === "customer" && !menus.data && !menus.error))
     return customer.error ? (
       <Screen>
-        <Text style={{ color: colors.danger }}>{customer.error}</Text>
+        <Text selectable style={{ color: palette.danger }}>
+          {customer.error}
+        </Text>
         <Button label={t("Coba lagi", "Try again")} onPress={() => void customer.reload()} />
       </Screen>
     ) : (
       <View style={styles.center}>
-        <ActivityIndicator color={colors.forest} />
+        <ActivityIndicator color={palette.forest} />
       </View>
     );
 
@@ -264,9 +281,13 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
               onChange={setMeal}
             />
           ) : null}
-          {menus.error ? <Text style={{ color: colors.danger }}>{menus.error}</Text> : null}
+          {menus.error ? (
+            <Text selectable style={{ color: palette.danger }}>
+              {menus.error}
+            </Text>
+          ) : null}
           {menus.data && !dates.length ? (
-            <Text style={{ color: colors.muted }}>
+            <Text style={{ color: palette.muted }}>
               {t("Tidak ada pengantaran bulan ini.", "No deliveries this month.")}
             </Text>
           ) : null}
@@ -317,7 +338,7 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
             {draft.days.map((d) => longDay(d.date, locale)).join(" · ")} · {mealLabel(meal, locale)}
           </Text>
           {!draft.days.every(editable) ? (
-            <Text style={{ color: colors.danger }}>
+            <Text selectable style={{ color: palette.danger }}>
               {t(
                 "Batas pilihan sudah lewat. Pilihan ini tidak bisa disimpan; katering yang memilih.",
                 "The cutoff has passed. This choice can't be saved; the caterer chooses.",
@@ -399,7 +420,7 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
                 )}
               </Text>
               {error ? (
-                <Text style={{ color: colors.danger }} testID="menu-error">
+                <Text selectable style={{ color: palette.danger }} testID="menu-error">
                   {error}
                 </Text>
               ) : null}
@@ -412,7 +433,7 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
             </>
           )}
           {!reviewing && error ? (
-            <Text style={{ color: colors.danger }} testID="menu-error">
+            <Text selectable style={{ color: palette.danger }} testID="menu-error">
               {error}
             </Text>
           ) : null}
@@ -459,12 +480,12 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
   );
 }
 
-const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.canvas },
+const useStyles = themedStyles((c) => ({
+  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: c.canvas },
   monthRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   dateRow: { minHeight: 52, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 8 },
-  dateOn: { backgroundColor: colors.sage, borderRadius: 10 },
-  divider: { borderTopWidth: 1, borderTopColor: colors.line },
+  dateOn: { backgroundColor: c.sage, borderRadius: 10 },
+  divider: { borderTopWidth: 1, borderTopColor: c.line },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  photo: { height: 120, borderRadius: 12, backgroundColor: colors.sage },
-});
+  photo: { height: 120, borderRadius: 12, backgroundColor: c.sage },
+}));

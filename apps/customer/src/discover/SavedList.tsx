@@ -1,7 +1,7 @@
 import { ActivityIndicator, View } from "react-native";
 import { router } from "expo-router";
 import { useMobile } from "@catera/mobile-core";
-import { Button, Card, colors, Screen, Text } from "@catera/mobile-ui";
+import { Button, Card, Screen, Text, useColors } from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
 import { PackageCard } from "./PackageCard";
 import { useSaved } from "./saved";
@@ -9,10 +9,11 @@ import { useSaved } from "./saved";
 /** Disimpan: the packages the customer hearted, on the same card as Jelajah. */
 export function SavedList() {
   const { actor, ready, t } = useMobile();
+  const c = useColors();
   if (!ready)
     return (
       <Screen scroll={false}>
-        <ActivityIndicator color={colors.forest} />
+        <ActivityIndicator color={c.forest} />
       </Screen>
     );
   if (!actor) return <SignInFirst title={t("Disimpan", "Saved")} next="/disimpan" />;
@@ -21,21 +22,28 @@ export function SavedList() {
 
 function Saved() {
   const { t } = useMobile();
+  const c = useColors();
   const saved = useSaved("/disimpan");
   return (
     <Screen>
-      {saved.error ? <Text style={{ color: colors.danger }}>{saved.error}</Text> : null}
+      {saved.error ? (
+        <Text selectable style={{ color: c.danger }}>
+          {saved.error}
+        </Text>
+      ) : null}
       {saved.loading ? (
-        <ActivityIndicator color={colors.forest} />
+        <ActivityIndicator color={c.forest} />
       ) : saved.loadError && !saved.items.length ? (
         <View style={{ gap: 10 }}>
-          <Text style={{ color: colors.danger }}>{saved.loadError}</Text>
+          <Text selectable style={{ color: c.danger }}>
+            {saved.loadError}
+          </Text>
           <Button variant="secondary" label={t("Coba lagi", "Try again")} onPress={() => void saved.reload()} />
         </View>
       ) : !saved.items.length ? (
         <View style={{ gap: 10 }}>
           <Text variant="heading">{t("Belum ada paket tersimpan.", "No saved packages yet.")}</Text>
-          <Text style={{ color: colors.muted }}>
+          <Text style={{ color: c.muted }}>
             {t("Ketuk hati pada paket yang Anda suka.", "Tap the heart on a package you like.")}
           </Text>
           <Button label={t("Jelajah paket", "Browse packages")} onPress={() => router.push("/jelajah" as never)} />

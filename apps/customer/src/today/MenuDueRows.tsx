@@ -1,9 +1,9 @@
-import { StyleSheet, View } from "react-native";
+import { View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { jakartaDay, mealLabel, type CustomerActionItem } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { colors, fontFor, PressableRow, Text } from "@catera/mobile-ui";
+import { fontFor, PressableRow, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { customerLink } from "../links";
 import { longDay, weekdayName } from "../schedule/dates";
 import { jakartaClock } from "./Plate";
@@ -11,6 +11,8 @@ import { jakartaClock } from "./Plate";
 /** "Pilih menu Senin": one row per delivery whose menu the customer still has to choose. */
 export function MenuDueRows({ items }: { items: CustomerActionItem[] }) {
   const { t, locale } = useMobile();
+  const c = useColors();
+  const styles = useStyles();
   const due = items.filter((i) => i.kind === "menu_choice_due" && i.status === "selection_due" && i.serviceDate);
   if (!due.length) return null;
   return (
@@ -38,14 +40,14 @@ export function MenuDueRows({ items }: { items: CustomerActionItem[] }) {
                 .join(" · ")}
             </Text>
           </View>
-          <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+          <Ionicons name="chevron-forward" size={18} color={c.muted} />
         </PressableRow>
       ))}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = themedStyles((c) => ({
   row: { minHeight: 58, flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10 },
-  divider: { borderTopWidth: 1, borderTopColor: colors.line },
-});
+  divider: { borderTopWidth: 1, borderTopColor: c.line },
+}));

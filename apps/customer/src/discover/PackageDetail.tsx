@@ -13,7 +13,7 @@ import {
   type Offer,
 } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, colors, RoundButton, Screen, Text } from "@catera/mobile-ui";
+import { Button, RoundButton, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { photoUri } from "../today/Plate";
 import { dayRange, ratingText } from "./format";
 import { useSaved } from "./saved";
@@ -26,6 +26,8 @@ const leave = () => (router.canGoBack() ? router.back() : router.replace("/jelaj
 export function PackageDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { runtime, t, locale } = useMobile();
+  const c = useColors();
+  const styles = useStyles();
   const saved = useSaved(`/paket/${id}`);
   const loaded = useData<{ offer: Offer | null }>(`paket:${id}`, () => runtime.api.offer(id));
   const reviews = useData<Review[]>(`reviews:${id}`, () => runtime.api.request<Review[]>(`reviews/${id}`));
@@ -36,10 +38,10 @@ export function PackageDetail() {
       <Screen>
         <RoundButton icon="chevron-back" label={t("Kembali", "Back")} onPress={leave} />
         {loaded.loading && !loaded.data ? (
-          <ActivityIndicator color={colors.forest} />
+          <ActivityIndicator color={c.forest} />
         ) : (
           <View style={{ gap: 10 }}>
-            <Text variant="heading" style={{ color: loaded.error ? colors.danger : colors.forest }}>
+            <Text variant="heading" selectable={!!loaded.error} style={{ color: loaded.error ? c.danger : c.forest }}>
               {loaded.error || t("Paket tidak ditemukan.", "Package not found.")}
             </Text>
             {loaded.error ? (
@@ -117,7 +119,11 @@ export function PackageDetail() {
         <Text variant="caption" style={{ fontSize: 13, lineHeight: 18 }}>
           {`${[o.caterer, o.areas[0]].filter(Boolean).join(", ")}. ${ratingText(o, locale, t)}`}
         </Text>
-        {saved.error ? <Text style={{ color: colors.danger }}>{saved.error}</Text> : null}
+        {saved.error ? (
+          <Text selectable style={{ color: c.danger }}>
+            {saved.error}
+          </Text>
+        ) : null}
       </View>
       {o.description ? <Text>{o.description}</Text> : null}
 
@@ -171,6 +177,7 @@ export function PackageDetail() {
 }
 
 function Fact({ label, value }: { label: string; value: string }) {
+  const styles = useStyles();
   return (
     <View style={styles.fact}>
       <Text variant="label" style={styles.factLabel}>
@@ -181,12 +188,12 @@ function Fact({ label, value }: { label: string; value: string }) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = themedStyles((c) => ({
   hero: {
     height: 250,
     marginHorizontal: -20,
     marginTop: -16,
-    backgroundColor: colors.sage,
+    backgroundColor: c.sage,
   },
   back: { position: "absolute", top: 12, left: 16 },
   heart: { position: "absolute", top: 12, right: 16 },
@@ -194,9 +201,9 @@ const styles = StyleSheet.create({
     gap: 4,
     padding: 14,
     borderRadius: 14,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: c.line,
   },
   facts: { gap: 10, paddingVertical: 4 },
   fact: { flexDirection: "row", gap: 12 },
@@ -204,4 +211,4 @@ const styles = StyleSheet.create({
   footer: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
   actions: { flex: 1, flexDirection: "row", justifyContent: "flex-end", gap: 8 },
   action: { paddingHorizontal: 14 },
-});
+}));

@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { ActivityIndicator, View } from "react-native";
 import { areaOptions, type Address } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, colors, Field, Screen, Text } from "@catera/mobile-ui";
+import { Button, Card, Field, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { FilterChip } from "../discover/FilterChip";
 import { failureText } from "./failure";
 import { SignInFirst } from "./SignInFirst";
@@ -10,10 +10,12 @@ import { SignInFirst } from "./SignInFirst";
 /** Alamat: the delivery addresses (address.save adds or edits one). */
 export function Addresses() {
   const { actor, ready, t } = useMobile();
+  const c = useColors();
+  const styles = useStyles();
   if (!ready)
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={colors.forest} />
+        <ActivityIndicator color={c.forest} />
       </View>
     );
   if (!actor) return <SignInFirst title={t("Alamat", "Addresses")} next="/alamat" />;
@@ -24,6 +26,8 @@ type Draft = { address: Address | null; label: string; line: string; area: strin
 
 function AddressBook() {
   const { runtime, command, t, locale } = useMobile();
+  const c = useColors();
+  const styles = useStyles();
   const customer = useData("alamat:customer", () => runtime.api.customer());
   const [draft, setDraft] = useState<Draft | null>(null);
   const [busy, setBusy] = useState(false);
@@ -64,12 +68,14 @@ function AddressBook() {
   if (!customer.data)
     return customer.error ? (
       <Screen>
-        <Text style={{ color: colors.danger }}>{customer.error}</Text>
+        <Text selectable style={{ color: c.danger }}>
+          {customer.error}
+        </Text>
         <Button label={t("Coba lagi", "Try again")} onPress={() => void customer.reload()} />
       </Screen>
     ) : (
       <View style={styles.center}>
-        <ActivityIndicator color={colors.forest} />
+        <ActivityIndicator color={c.forest} />
       </View>
     );
 
@@ -100,7 +106,7 @@ function AddressBook() {
         </Card>
       ))}
       {!customer.data.addresses.length && !draft ? (
-        <Text style={{ color: colors.muted }}>{t("Belum ada alamat.", "No addresses yet.")}</Text>
+        <Text style={{ color: c.muted }}>{t("Belum ada alamat.", "No addresses yet.")}</Text>
       ) : null}
       {draft ? (
         <Card>
@@ -134,7 +140,7 @@ function AddressBook() {
             )}
           </Text>
           {error ? (
-            <Text style={{ color: colors.danger }} testID="address-error">
+            <Text selectable style={{ color: c.danger }} testID="address-error">
               {error}
             </Text>
           ) : null}
@@ -152,6 +158,6 @@ function AddressBook() {
   );
 }
 
-const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.canvas },
-});
+const useStyles = themedStyles((c) => ({
+  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: c.canvas },
+}));

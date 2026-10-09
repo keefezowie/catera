@@ -1,7 +1,7 @@
-import { Image, StyleSheet, View } from "react-native";
+import { Image, View } from "react-native";
 import { currency, perMealPrice, priceUnitLabel } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { colors, PressableRow, RoundButton, Text } from "@catera/mobile-ui";
+import { PressableRow, RoundButton, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { photoUri } from "../today/Plate";
 import { cardLine, type CatalogOffer } from "./format";
 
@@ -18,6 +18,8 @@ export function PackageCard({
   onToggleSaved: () => void;
 }) {
   const { runtime, t, locale } = useMobile();
+  const c = useColors();
+  const styles = useStyles();
   const { unit, note } = priceUnitLabel(offer, locale);
   return (
     <View style={styles.card}>
@@ -47,7 +49,7 @@ export function PackageCard({
             {cardLine(offer, locale)}
           </Text>
           {offer.trialPrice ? (
-            <Text variant="label" style={{ color: colors.sunriseInk }}>
+            <Text variant="label" style={{ color: c.sunriseInk }}>
               {t("Bisa coba 1 hari dulu", "One-day trial available")}
             </Text>
           ) : null}
@@ -64,15 +66,15 @@ export function PackageCard({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = themedStyles((c) => ({
   card: {
     borderRadius: 16,
     overflow: "hidden",
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: c.line,
   },
-  photo: { height: 196, width: "100%", backgroundColor: colors.sage },
+  photo: { height: 196, width: "100%", backgroundColor: c.sage },
   body: { padding: 14, gap: 4 },
   price: { flexDirection: "row", alignItems: "baseline", gap: 6 },
-});
+}));

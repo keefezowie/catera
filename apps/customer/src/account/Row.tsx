@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
-import { StyleSheet, View } from "react-native";
+import { View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { colors, fontFor, PressableRow, Text } from "@catera/mobile-ui";
+import { fontFor, PressableRow, Text, themedStyles, useColors } from "@catera/mobile-ui";
 
 /** One plain list row (52pt tall): a label, an optional value and a chevron when it opens something. */
 export function Row({
@@ -19,6 +19,8 @@ export function Row({
   first?: boolean;
   children?: ReactNode;
 }) {
+  const c = useColors();
+  const styles = useStyles();
   const body = (
     <>
       <View style={{ flex: 1, gap: 2 }}>
@@ -30,12 +32,12 @@ export function Row({
         ) : null}
       </View>
       {value ? (
-        <Text variant="caption" style={{ color: colors.charcoal, fontVariant: ["tabular-nums"] }}>
+        <Text variant="caption" style={{ color: c.charcoal, fontVariant: ["tabular-nums"] }}>
           {value}
         </Text>
       ) : null}
       {children}
-      {onPress ? <Ionicons name="chevron-forward" size={18} color={colors.muted} /> : null}
+      {onPress ? <Ionicons name="chevron-forward" size={18} color={c.muted} /> : null}
     </>
   );
   if (!onPress) return <View style={[styles.row, !first && styles.divider]}>{body}</View>;
@@ -60,7 +62,7 @@ export function SectionLabel({ children }: { children: string }) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = themedStyles((c) => ({
   row: { minHeight: 52, flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10 },
-  divider: { borderTopWidth: 1, borderTopColor: colors.line },
-});
+  divider: { borderTopWidth: 1, borderTopColor: c.line },
+}));

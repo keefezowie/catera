@@ -1,9 +1,18 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { ActivityIndicator, View } from "react-native";
 import { router } from "expo-router";
 import type { Locale } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, colors, Screen, Segmented, Text, useThemePreference, type ThemePreference } from "@catera/mobile-ui";
+import {
+  Button,
+  Screen,
+  Segmented,
+  Text,
+  themedStyles,
+  useColors,
+  useThemePreference,
+  type ThemePreference,
+} from "@catera/mobile-ui";
 import { failureText } from "./failure";
 import { usePush } from "./push";
 import { Row, SectionLabel } from "./Row";
@@ -21,10 +30,12 @@ export function localPhone(phone: string): string {
 /** Akun: who is signed in, active packages and the account screens. No caterer or admin links. */
 export function Akun() {
   const { actor, ready, t } = useMobile();
+  const c = useColors();
+  const styles = useStyles();
   if (!ready)
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={colors.forest} />
+        <ActivityIndicator color={c.forest} />
       </View>
     );
   if (!actor)
@@ -96,6 +107,7 @@ function useContact() {
 
 function Account() {
   const { actor, runtime, logout, t, locale } = useMobile();
+  const c = useColors();
   const customer = useData("akun:customer", () => runtime.api.customer());
   const contact = useContact();
   const push = usePush();
@@ -119,16 +131,18 @@ function Account() {
     <Screen>
       <View style={{ gap: 4, paddingTop: 8 }}>
         <Text variant="title">{actor?.name ?? ""}</Text>
-        {contact ? <Text style={{ color: colors.muted, fontVariant: ["tabular-nums"] }}>{contact}</Text> : null}
+        {contact ? <Text style={{ color: c.muted, fontVariant: ["tabular-nums"] }}>{contact}</Text> : null}
       </View>
 
       <View>
         <SectionLabel>{t("Paket aktif", "Active packages")}</SectionLabel>
         {customer.loading && !customer.data ? (
-          <ActivityIndicator color={colors.forest} style={{ alignSelf: "flex-start", marginTop: 8 }} />
+          <ActivityIndicator color={c.forest} style={{ alignSelf: "flex-start", marginTop: 8 }} />
         ) : customer.error && !customer.data ? (
           <View style={{ gap: 8, marginTop: 6 }}>
-            <Text style={{ color: colors.danger }}>{customer.error}</Text>
+            <Text selectable style={{ color: c.danger }}>
+              {customer.error}
+            </Text>
             <Button variant="secondary" label={t("Coba lagi", "Try again")} onPress={() => void customer.reload()} />
           </View>
         ) : active.length ? (
@@ -142,7 +156,7 @@ function Account() {
             />
           ))
         ) : (
-          <Text style={{ color: colors.muted, marginTop: 6 }}>{t("Belum ada paket aktif.", "No active packages.")}</Text>
+          <Text style={{ color: c.muted, marginTop: 6 }}>{t("Belum ada paket aktif.", "No active packages.")}</Text>
         )}
       </View>
 
@@ -161,12 +175,16 @@ function Account() {
       <Language />
       <Appearance />
 
-      {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
+      {error ? (
+        <Text selectable style={{ color: c.danger }}>
+          {error}
+        </Text>
+      ) : null}
       <Button variant="secondary" label={t("Keluar", "Sign out")} disabled={busy} onPress={() => void signOut()} />
     </Screen>
   );
 }
 
-const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.canvas },
-});
+const useStyles = themedStyles((c) => ({
+  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: c.canvas },
+}));

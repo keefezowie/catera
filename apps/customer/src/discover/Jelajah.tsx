@@ -1,11 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { ActivityIndicator, ScrollView, TextInput, View } from "react-native";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { areaOptions, menuSummary, perMealPrice, type Offer } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, colors, FONT, fonts, PressableRow, RoundButton, Screen, Sheet, Text } from "@catera/mobile-ui";
+import {
+  Button,
+  FONT,
+  fonts,
+  PressableRow,
+  RoundButton,
+  Screen,
+  Sheet,
+  Text,
+  themedStyles,
+  useColors,
+} from "@catera/mobile-ui";
 import { FilterChip } from "./FilterChip";
 import { PackageCard } from "./PackageCard";
 import { type CatalogOffer } from "./format";
@@ -16,6 +27,7 @@ const BUDGET = 30000;
 
 /** Jelajah: choose an area, narrow with four chips, then browse packages as photos. */
 export function Jelajah() {
+  const c = useColors();
   const [area, setArea] = useState<string | null>(null);
   useEffect(() => {
     // The legacy provider reads the same key, so the choice carries over both ways.
@@ -26,7 +38,7 @@ export function Jelajah() {
   if (area === null)
     return (
       <Screen scroll={false}>
-        <ActivityIndicator color={colors.forest} />
+        <ActivityIndicator color={c.forest} />
       </Screen>
     );
   return (
@@ -42,6 +54,8 @@ export function Jelajah() {
 
 function Browse({ area, onArea }: { area: string; onArea: (value: string) => void }) {
   const { runtime, t, locale } = useMobile();
+  const c = useColors();
+  const styles = useStyles();
   const saved = useSaved("/jelajah");
   const [search, setSearch] = useState("");
   const [lunch, setLunch] = useState(false);
@@ -98,23 +112,23 @@ function Browse({ area, onArea }: { area: string; onArea: (value: string) => voi
           onPress={() => setPicking(true)}
           style={styles.area}
         >
-          <Ionicons name="location-outline" size={20} color={colors.forest} />
+          <Ionicons name="location-outline" size={20} color={c.forest} />
           <Text variant="label" style={{ flex: 1, fontSize: 15 }} numberOfLines={1}>
             {area || t("Pilih area", "Choose area")}
           </Text>
-          <Ionicons name="chevron-down" size={18} color={colors.muted} />
+          <Ionicons name="chevron-down" size={18} color={c.muted} />
         </PressableRow>
         <RoundButton icon="heart-outline" label={t("Paket disimpan", "Saved packages")} onPress={() => router.push("/disimpan" as never)} />
       </View>
 
       <View style={styles.search}>
-        <Ionicons name="search-outline" size={20} color={colors.muted} />
+        <Ionicons name="search-outline" size={20} color={c.muted} />
         <TextInput
           accessibilityLabel={t("Cari paket", "Search packages")}
           value={search}
           onChangeText={setSearch}
           placeholder={t("Cari ayam bakar, nabati, Bu Rini…", "Search grilled chicken, plant-based, Bu Rini…")}
-          placeholderTextColor={colors.muted}
+          placeholderTextColor={c.muted}
           returnKeyType="search"
           style={styles.input}
         />
@@ -127,13 +141,19 @@ function Browse({ area, onArea }: { area: string; onArea: (value: string) => voi
         <FilterChip label={t("Bisa coba 1 hari", "One-day trial")} selected={trial} onPress={() => setTrial(!trial)} />
       </ScrollView>
 
-      {saved.error ? <Text style={{ color: colors.danger }}>{saved.error}</Text> : null}
+      {saved.error ? (
+        <Text selectable style={{ color: c.danger }}>
+          {saved.error}
+        </Text>
+      ) : null}
 
       {catalog.loading && !catalog.data ? (
-        <ActivityIndicator color={colors.forest} />
+        <ActivityIndicator color={c.forest} />
       ) : catalog.error && !catalog.data ? (
         <View style={{ gap: 10 }}>
-          <Text style={{ color: colors.danger }}>{catalog.error}</Text>
+          <Text selectable style={{ color: c.danger }}>
+            {catalog.error}
+          </Text>
           <Button variant="secondary" label={t("Coba lagi", "Try again")} onPress={() => void catalog.reload()} />
         </View>
       ) : area && inArea.length === 0 ? (
@@ -146,7 +166,7 @@ function Browse({ area, onArea }: { area: string; onArea: (value: string) => voi
       ) : items.length === 0 ? (
         <View style={{ gap: 10 }}>
           <Text variant="heading">{t("Belum ada paket yang cocok.", "No matching packages yet.")}</Text>
-          <Text style={{ color: colors.muted }}>
+          <Text style={{ color: c.muted }}>
             {t("Coba kata kunci atau pilihan lain.", "Try another keyword or choice.")}
           </Text>
           {filtered ? <Button variant="secondary" label={t("Hapus pilihan", "Clear choices")} onPress={clear} /> : null}
@@ -183,7 +203,7 @@ function Browse({ area, onArea }: { area: string; onArea: (value: string) => voi
             <Text style={{ flex: 1, fontFamily: value === area ? fonts.extrabold : fonts.regular }}>
               {value || t("Semua area", "All areas")}
             </Text>
-            {value === area ? <Ionicons name="checkmark" size={20} color={colors.forest} /> : null}
+            {value === area ? <Ionicons name="checkmark" size={20} color={c.forest} /> : null}
           </PressableRow>
         ))}
       </Sheet>
@@ -191,7 +211,7 @@ function Browse({ area, onArea }: { area: string; onArea: (value: string) => voi
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = themedStyles((c) => ({
   header: { flexDirection: "row", alignItems: "center", gap: 10 },
   area: { flex: 1, minHeight: 48, flexDirection: "row", alignItems: "center", gap: 8 },
   search: {
@@ -202,10 +222,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: colors.fieldBorder,
-    backgroundColor: colors.surface,
+    borderColor: c.fieldBorder,
+    backgroundColor: c.surface,
   },
-  input: { flex: 1, minHeight: 48, fontFamily: FONT, fontSize: 15, color: colors.charcoal },
+  input: { flex: 1, minHeight: 48, fontFamily: FONT, fontSize: 15, color: c.charcoal },
   chips: { gap: 8 },
   option: { minHeight: 48, flexDirection: "row", alignItems: "center", gap: 10 },
-});
+}));

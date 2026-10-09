@@ -2,11 +2,12 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { createMobileRuntime, MobileProvider, plural, type MobileRuntime } from "@catera/mobile-core";
+import * as ReactNative from "react-native";
 import { Linking, StyleSheet } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Haptics from "expo-haptics";
 import { addDays, type Subscription } from "@catera/domain";
-import { colors } from "@catera/mobile-ui";
+import { colors, ThemeProvider } from "@catera/mobile-ui";
 import * as Reanimated from "react-native-reanimated";
 import { Beranda } from "../src/today/Beranda";
 import { SunriseButton } from "../src/today/Plate";
@@ -480,6 +481,29 @@ describe("SunriseButton disabled look", () => {
     jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(reduced);
     render(<SunriseButton label="Perpanjang" disabled onPress={() => {}} />);
     expect(StyleSheet.flatten(screen.getByRole("button", { name: "Perpanjang" }).props.style).opacity).toBe(0.6);
+  });
+});
+
+describe("fixed surfaces in the dark theme", () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  // The scrim, the departure chip and the Sunrise fill do not change with the theme, so their ink must not either.
+  it("keeps the plate text cream on the scrim, the chip text forest and the Sunrise label charcoal", async () => {
+    jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
+    const runtime = runtimeWith(async () =>
+      customerState({ status: "out_for_delivery", departed_at: `${TODAY}T03:42:00Z` }),
+    );
+    render(
+      <ThemeProvider storageKey="catera.theme">
+        <MobileProvider runtime={runtime} linkMapper={customerLink}>
+          <Beranda />
+        </MobileProvider>
+      </ThemeProvider>,
+    );
+    const ink = (node: { props: { style?: unknown } }) => StyleSheet.flatten(node.props.style as never).color;
+    expect(ink(await screen.findByText("Sedang diantar"))).toBe("#FFF7E9");
+    expect(ink(screen.getByText("Berangkat 10.42"))).toBe("#163D2E");
+    expect(ink(screen.getByText("Sudah sampai"))).toBe("#2E2E2E");
   });
 });
 

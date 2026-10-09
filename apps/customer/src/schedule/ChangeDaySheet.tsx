@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ScrollView, StyleSheet, Text as RNText, View } from "react-native";
+import { ScrollView, Text as RNText, View } from "react-native";
 import {
   addDays,
   availabilityReasonLabel,
@@ -14,7 +14,17 @@ import {
   type DeliveryAvailability,
 } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, colors, FONT, fontFor, PressableScale, Segmented, Sheet, Text } from "@catera/mobile-ui";
+import {
+  Button,
+  FONT,
+  fontFor,
+  PressableScale,
+  Segmented,
+  Sheet,
+  Text,
+  themedStyles,
+  useColors,
+} from "@catera/mobile-ui";
 import { ChatKatering, catererPhoneOf } from "../help/ChatKatering";
 import { longDay } from "./dates";
 
@@ -50,6 +60,8 @@ export function ChangeDaySheet({
   onStale?: () => void;
 }) {
   const { runtime, command, t, locale } = useMobile();
+  const c = useColors();
+  const styles = useStyles();
   const [opened] = useState(() => new Date());
   // What the customer is looking at: captured on open and again whenever the live day moved on.
   const [delivery, setDelivery] = useState(live);
@@ -126,7 +138,7 @@ export function ChangeDaySheet({
           </Text>
           <Text
             variant="label"
-            style={{ color: open ? colors.sunriseInk : colors.charcoal, fontVariant: ["tabular-nums"], marginTop: 4 }}
+            style={{ color: open ? c.sunriseInk : c.charcoal, fontVariant: ["tabular-nums"], marginTop: 4 }}
           >
             {open
               ? t(`Bisa diubah sampai ${deadline}`, `Can be changed until ${deadline}`)
@@ -136,7 +148,7 @@ export function ChangeDaySheet({
 
         {!open ? (
           <>
-            <Text style={{ color: colors.muted }}>
+            <Text style={{ color: c.muted }}>
               {t(`Perlu bantuan? Hubungi ${delivery.offer.caterer}.`, `Need help? Contact ${delivery.offer.caterer}.`)}
             </Text>
             <ChatKatering phone={catererPhoneOf(delivery)} />
@@ -157,13 +169,15 @@ export function ChangeDaySheet({
             />
             {mode === "date" ? (
               availability.loading && !availability.data ? (
-                <Text style={{ color: colors.muted }}>{t("Memuat tanggal…", "Loading dates…")}</Text>
+                <Text style={{ color: c.muted }}>{t("Memuat tanggal…", "Loading dates…")}</Text>
               ) : availability.error && !availability.data ? (
-                <Text style={{ color: colors.danger }}>{availability.error}</Text>
+                <Text selectable style={{ color: c.danger }}>
+                  {availability.error}
+                </Text>
               ) : (
                 <>
                   {dates.some((r) => r.available) ? null : (
-                    <Text style={{ color: colors.muted }}>
+                    <Text style={{ color: c.muted }}>
                       {t("Belum ada tanggal yang tersedia dalam 30 hari ke depan.", "No dates are available in the next 30 days.")}
                     </Text>
                   )}
@@ -193,7 +207,7 @@ export function ChangeDaySheet({
             )}
 
             {error ? (
-              <Text variant="caption" style={{ color: colors.danger }}>
+              <Text selectable variant="caption" style={{ color: c.danger }}>
                 {error}
               </Text>
             ) : null}
@@ -245,6 +259,8 @@ function DateChips({
   locale: "id" | "en";
 }) {
   const { t } = useMobile();
+  const c = useColors();
+  const styles = useStyles();
   return (
     <View style={{ gap: 10 }}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
@@ -254,7 +270,7 @@ function DateChips({
           const [weekday, ...rest] = full.split(" ");
           const on = selected === r.date;
           const off = !r.available;
-          const ink = on ? colors.cream : off ? colors.muted : colors.forest;
+          const ink = on ? c.cream : off ? c.muted : c.forest;
           return (
             <PressableScale
               key={r.date}
@@ -279,7 +295,7 @@ function DateChips({
         })}
       </ScrollView>
       {selected ? (
-        <Text testID="chosen-day" variant="label" style={{ color: colors.forest }}>
+        <Text testID="chosen-day" variant="label" style={{ color: c.forest }}>
           {dayLabel(selected, today, locale)}
         </Text>
       ) : null}
@@ -302,7 +318,9 @@ function OptionRow({
   disabled: boolean;
   onPress: () => void;
 }) {
-  const ink = selected ? colors.cream : disabled ? colors.muted : colors.charcoal;
+  const c = useColors();
+  const styles = useStyles();
+  const ink = selected ? c.cream : disabled ? c.muted : c.charcoal;
   return (
     <PressableScale
       haptic={disabled ? "none" : "select"}
@@ -322,8 +340,8 @@ function OptionRow({
   );
 }
 
-const styles = StyleSheet.create({
-  date: { fontSize: 22, fontFamily: fontFor("800"), color: colors.forest },
+const useStyles = themedStyles((c) => ({
+  date: { fontSize: 22, fontFamily: fontFor("800"), color: c.forest },
   row: {
     minHeight: 56,
     flexDirection: "row",
@@ -332,11 +350,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
+    borderColor: c.line,
+    backgroundColor: c.surface,
   },
-  rowOn: { backgroundColor: colors.forest, borderColor: colors.forest },
-  rowOff: { borderStyle: "dashed", borderColor: colors.fieldBorder, backgroundColor: "transparent" },
+  rowOn: { backgroundColor: c.forest, borderColor: c.forest },
+  rowOff: { borderStyle: "dashed", borderColor: c.fieldBorder, backgroundColor: "transparent" },
   chip: {
     minWidth: 64,
     minHeight: 56,
@@ -346,14 +364,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
+    borderColor: c.line,
+    backgroundColor: c.surface,
   },
-  chipOn: { backgroundColor: colors.forest, borderColor: colors.forest },
-  chipOff: { borderStyle: "dashed", borderColor: colors.fieldBorder, backgroundColor: "transparent" },
-  chipWhy: { color: colors.muted, lineHeight: 16 },
+  chipOn: { backgroundColor: c.forest, borderColor: c.forest },
+  chipOff: { borderStyle: "dashed", borderColor: c.fieldBorder, backgroundColor: "transparent" },
+  chipWhy: { color: c.muted, lineHeight: 16 },
   chipDay: { fontFamily: FONT, fontSize: 11, lineHeight: 16 },
   chipDate: { fontFamily: fontFor("700"), fontSize: 15, lineHeight: 20, fontVariant: ["tabular-nums"] },
   rowLabel: { fontSize: 15, fontFamily: fontFor("700"), fontVariant: ["tabular-nums"] },
   rowSub: { fontFamily: FONT, fontSize: 12 },
-});
+}));

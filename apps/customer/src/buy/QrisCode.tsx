@@ -1,9 +1,9 @@
 import { useRef } from "react";
-import { StyleSheet, View } from "react-native";
+import { View } from "react-native";
 import QRCode from "react-native-qrcode-svg";
 import * as Sharing from "expo-sharing";
 import { File, Paths } from "expo-file-system";
-import { colors } from "@catera/mobile-ui";
+import { themedStyles } from "@catera/mobile-ui";
 
 type QrRef = { toDataURL: (callback: (data: string) => void) => void };
 
@@ -26,6 +26,7 @@ export function useQris() {
 }
 
 export function QrisCode({ value, label, qrRef }: { value: string; label: string; qrRef: { current: QrRef | null } }) {
+  const styles = useStyles();
   return (
     <View accessible accessibilityRole="image" accessibilityLabel={label} style={styles.box}>
       <QRCode
@@ -41,7 +42,7 @@ export function QrisCode({ value, label, qrRef }: { value: string; label: string
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = themedStyles((c) => ({
   box: {
     alignSelf: "center",
     width: 232,
@@ -50,7 +51,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: c.line,
+    // The quiet zone stays pure white in every theme: scanners need dark modules on a light field.
     backgroundColor: "#FFFFFF",
   },
-});
+}));

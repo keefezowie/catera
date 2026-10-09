@@ -2,7 +2,7 @@ import { useState } from "react";
 import { View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useMobile } from "@catera/mobile-core";
-import { Button, colors, Field, Screen, Text } from "@catera/mobile-ui";
+import { Button, Field, Screen, Text, useColors } from "@catera/mobile-ui";
 import { nativeReturnPath } from "../auth";
 import { authClient, authError, REDIRECT_TO, savePending, validEmail } from "./emailAuth";
 import { useAction } from "./useAction";
@@ -10,6 +10,7 @@ import { useAction } from "./useAction";
 /** Daftar dengan email: name, email and password, then a verification link opened on this phone. */
 export function Register() {
   const { runtime, t } = useMobile();
+  const c = useColors();
   const params = useLocalSearchParams<{ next?: string }>();
   const next = nativeReturnPath(typeof params.next === "string" ? params.next : undefined);
   const [name, setName] = useState("");
@@ -110,7 +111,7 @@ export function Register() {
         </View>
       )}
       {action.error ? (
-        <Text style={{ color: colors.danger }} testID="identity-error">
+        <Text selectable style={{ color: c.danger }} testID="identity-error">
           {action.error}
         </Text>
       ) : null}

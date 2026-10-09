@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, AppState, StyleSheet, Text as RNText, View } from "react-native";
+import { ActivityIndicator, AppState, Text as RNText, View } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import * as Clipboard from "expo-clipboard";
 import * as WebBrowser from "expo-web-browser";
 import { currency, errorLabel, type Checkout, type DirectPaymentMethod } from "@catera/domain";
 import { plural, useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, colors, fontFor, RoundButton, Screen, Text } from "@catera/mobile-ui";
+import { Button, Card, fontFor, RoundButton, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { PayWith, Retry } from "./BuyParts";
 import { FINAL, PaymentOutcome, stageOf } from "./PaymentOutcome";
 import { QrisCode, useQris } from "./QrisCode";
@@ -22,6 +22,9 @@ const clock = (ms: number) => {
 /** Bayar: the QR or VA number with a countdown; reopening restores it from the server. */
 export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
   const { runtime, actor, ready, demo, command, t, locale } = useMobile();
+  // `c` is the checkout in this component, so the palette keeps a longer name.
+  const palette = useColors();
+  const styles = useStyles();
   useEffect(() => {
     if (ready && !actor) router.replace(`/login?next=${encodeURIComponent(`/bayar/${encodeURIComponent(checkoutId)}`)}` as never);
   }, [ready, actor, checkoutId]);
@@ -121,7 +124,7 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
         {state.error ? (
           <Retry message={state.error} onRetry={() => void reload()} t={t} />
         ) : state.loading || !ready ? (
-          <ActivityIndicator color={colors.forest} />
+          <ActivityIndicator color={palette.forest} />
         ) : (
           <Text>{t("Pembayaran tidak ditemukan.", "Payment not found.")}</Text>
         )}
@@ -185,7 +188,7 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
           {total}
         </Text>
         {deadline > 0 ? (
-          <Text style={[{ color: colors.sunriseInk, fontFamily: fontFor("700") }, tabular]}>
+          <Text style={[{ color: palette.sunriseInk, fontFamily: fontFor("700") }, tabular]}>
             {t(`Bayar dalam ${clock(deadline)}`, `Pay within ${clock(deadline)}`)}
           </Text>
         ) : null}
@@ -250,7 +253,11 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
           }
         />
       ) : null}
-      {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
+      {error ? (
+        <Text selectable style={{ color: palette.danger }}>
+          {error}
+        </Text>
+      ) : null}
       {notice && !error ? (
         <Text style={{ fontFamily: fontFor("700") }} testID="payment-notice">
           {notice}
@@ -270,10 +277,10 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = themedStyles((c) => ({
   header: { flexDirection: "row", alignItems: "center", gap: 12 },
   total: { alignItems: "center", gap: 4 },
-  va: { fontSize: 26, fontFamily: fontFor("800"), color: colors.forest, fontVariant: ["tabular-nums"], letterSpacing: 1 },
+  va: { fontSize: 26, fontFamily: fontFor("800"), color: c.forest, fontVariant: ["tabular-nums"], letterSpacing: 1 },
   step: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
   stepNo: {
     width: 26,
@@ -282,8 +289,8 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 26,
     fontFamily: fontFor("800"),
-    color: colors.cream,
-    backgroundColor: colors.forest,
+    color: c.cream,
+    backgroundColor: c.forest,
     overflow: "hidden",
   },
-});
+}));

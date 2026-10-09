@@ -2,7 +2,7 @@ import { useRef, useState, type ReactNode } from "react";
 import { View } from "react-native";
 import { errorLabel } from "@catera/domain";
 import { MobileProvider, useMobile, type MobileRuntime } from "@catera/mobile-core";
-import { Button, colors, Text } from "@catera/mobile-ui";
+import { Button, Text, useColors } from "@catera/mobile-ui";
 import { customerLink } from "./links";
 
 /** The customer app's one provider: MobileProvider owns the session, commands, realtime,
@@ -21,15 +21,16 @@ export function AppProviders({ runtime, children }: { runtime: MobileRuntime; ch
  * started, later failures never replace it. */
 function StartupGate({ children }: { children: ReactNode }) {
   const { ready, actor, error, locale, refresh, t } = useMobile();
+  const c = useColors();
   const started = useRef(false);
   const [busy, setBusy] = useState(false);
   const signedOut = [errorLabel("UNAUTHORIZED", locale), errorLabel("FORBIDDEN", locale)].includes(error);
   if (ready && (actor || !error || signedOut)) started.current = true;
   if (started.current || !ready) return <>{children}</>;
   return (
-    <View style={{ flex: 1, justifyContent: "center", padding: 24, gap: 12, backgroundColor: colors.canvas }}>
+    <View style={{ flex: 1, justifyContent: "center", padding: 24, gap: 12, backgroundColor: c.canvas }}>
       <Text variant="title">{t("Belum bisa terhubung.", "Can't connect yet.")}</Text>
-      <Text testID="startup-error" style={{ color: colors.danger }}>
+      <Text selectable testID="startup-error" style={{ color: c.danger }}>
         {error}
       </Text>
       <Button

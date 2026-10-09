@@ -1,20 +1,22 @@
-import { StyleSheet, View } from "react-native";
+import { View } from "react-native";
 import { router } from "expo-router";
 import { currency, dayLabel, jakartaDay, type Subscription } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { Button, Card, colors, fontFor, Text } from "@catera/mobile-ui";
+import { Button, Card, fontFor, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { SunriseButton } from "./Plate";
 
 /** Shown at 3 or fewer days left; renewal stays an explicit purchase. */
 export function RenewalCard({ subscription: s }: { subscription: Subscription }) {
   const { t, locale } = useMobile();
+  const c = useColors();
+  const styles = useStyles();
   const offer = s.snapshot.offer;
   return (
     <View style={styles.card}>
-      <Text variant="caption" style={{ color: colors.charcoal, fontFamily: fontFor("700") }}>
+      <Text variant="caption" style={{ color: c.charcoal, fontFamily: fontFor("700") }}>
         {offer.name} · {offer.caterer}
       </Text>
-      <Text variant="title" style={{ color: colors.charcoal }}>
+      <Text variant="title" style={{ color: c.charcoal }}>
         {t(`Sisa ${s.remaining} hari`, s.remaining === 1 ? "1 day left" : `${s.remaining} days left`)}
       </Text>
       <Text style={{ fontVariant: ["tabular-nums"] }}>
@@ -57,13 +59,13 @@ export function TrialCard({ subscription: s }: { subscription: Subscription }) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = themedStyles((c) => ({
   card: {
-    backgroundColor: colors.cream,
+    backgroundColor: c.cream,
     borderWidth: 1.5,
-    borderColor: colors.sunrise,
+    borderColor: c.sunrise,
     borderRadius: 16,
     padding: 16,
     gap: 10,
   },
-});
+}));

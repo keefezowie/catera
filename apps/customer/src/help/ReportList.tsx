@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ActivityIndicator, StyleSheet, Text as RNText, View } from "react-native";
+import { ActivityIndicator, Text as RNText, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import {
   addDays,
@@ -14,7 +14,18 @@ import {
   type SupportCase,
 } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, colors, Field, fontFor, PressableScale, Screen, Segmented, Text } from "@catera/mobile-ui";
+import {
+  Button,
+  Card,
+  Field,
+  fontFor,
+  PressableScale,
+  Screen,
+  Segmented,
+  Text,
+  themedStyles,
+  useColors,
+} from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
 
 /** Plain status words shared by reports and support cases. */
@@ -34,10 +45,12 @@ export function statusWord(status: string, t: (id: string, en: string) => string
 /** Bantuan dan laporan: payment help, the customer's reports and their support cases. */
 export function ReportList() {
   const { actor, ready, t } = useMobile();
+  const c = useColors();
+  const styles = useStyles();
   if (!ready)
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={colors.forest} />
+        <ActivityIndicator color={c.forest} />
       </View>
     );
   if (!actor) return <SignInFirst title={t("Bantuan dan laporan", "Help and reports")} next="/bantuan" />;
@@ -50,6 +63,9 @@ const lastReply = (i: DeliveryIssue) =>
 
 function List() {
   const { runtime, t } = useMobile();
+  // The case filter below names its argument `c`, so the palette keeps a longer name here.
+  const palette = useColors();
+  const styles = useStyles();
   const params = useLocalSearchParams<{ checkoutId?: string }>();
   const issues = useData("help:issues", () => runtime.api.request<DeliveryIssue[]>("delivery-issues"));
   const customer = useData("help:customer", () => runtime.api.customer());
@@ -59,7 +75,9 @@ function List() {
   if ((!issues.data || !customer.data) && (issues.error || customer.error))
     return (
       <Screen>
-        <Text style={{ color: colors.danger }}>{issues.error || customer.error}</Text>
+        <Text selectable style={{ color: palette.danger }}>
+          {issues.error || customer.error}
+        </Text>
         <Button
           label={t("Coba lagi", "Try again")}
           onPress={() => {
@@ -72,7 +90,7 @@ function List() {
   if (!issues.data || !customer.data)
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={colors.forest} />
+        <ActivityIndicator color={palette.forest} />
       </View>
     );
 
@@ -123,7 +141,7 @@ function List() {
       {!reports.length && !cases.length && !payments.length ? (
         <View style={{ gap: 4, paddingTop: 8 }}>
           <Text variant="heading">{t("Belum ada laporan.", "No reports yet.")}</Text>
-          <Text style={{ color: colors.muted }}>
+          <Text style={{ color: palette.muted }}>
             {t(
               "Kalau ada masalah dengan makanan, laporkan dari hari yang bersangkutan di Jadwal.",
               "If something is wrong with a meal, report it from that day in Jadwal.",
@@ -132,7 +150,7 @@ function List() {
         </View>
       ) : null}
       {issues.error || customer.error ? (
-        <Text variant="caption" style={{ color: colors.danger }}>
+        <Text selectable variant="caption" style={{ color: palette.danger }}>
           {issues.error || customer.error}
         </Text>
       ) : null}
@@ -142,11 +160,13 @@ function List() {
 
 function StatusPill({ status }: { status: string }) {
   const { t } = useMobile();
+  const c = useColors();
+  const styles = useStyles();
   // Only the caterer's reply needs the customer to act, so only it is Sunrise.
   const needsYou = status === "responded";
   return (
     <View style={[styles.pill, needsYou ? styles.pillOpen : styles.pillDone]}>
-      <RNText style={[styles.pillText, { color: needsYou ? colors.sunriseInk : colors.charcoal }]}>
+      <RNText style={[styles.pillText, { color: needsYou ? c.sunriseInk : c.charcoal }]}>
         {statusWord(status, t)}
       </RNText>
     </View>
@@ -162,6 +182,8 @@ const TOPICS = [
 /** Cancellations, refunds and other requests all enter support: a topic, a few words and the package. */
 function AskForHelp({ subscriptions }: { subscriptions: Subscription[] }) {
   const { command, t, locale } = useMobile();
+  const c = useColors();
+  const styles = useStyles();
   const [open, setOpen] = useState(false);
   const [topic, setTopic] = useState("");
   const [subscriptionId, setSubscriptionId] = useState(subscriptions[0]?.id ?? "");
@@ -211,7 +233,7 @@ function AskForHelp({ subscriptions }: { subscriptions: Subscription[] }) {
               onPress={() => setSubscriptionId(s.id)}
               style={[styles.pick, s.id === chosen && styles.pickOn]}
             >
-              <RNText style={[styles.pickText, { color: s.id === chosen ? colors.cream : colors.forest }]}>
+              <RNText style={[styles.pickText, { color: s.id === chosen ? c.cream : c.forest }]}>
                 {s.snapshot.offer.name}
               </RNText>
             </PressableScale>
@@ -233,7 +255,7 @@ function AskForHelp({ subscriptions }: { subscriptions: Subscription[] }) {
         )}
       </Text>
       {error ? (
-        <Text variant="caption" style={{ color: colors.danger }}>
+        <Text selectable variant="caption" style={{ color: c.danger }}>
           {error}
         </Text>
       ) : null}
@@ -249,6 +271,8 @@ function AskForHelp({ subscriptions }: { subscriptions: Subscription[] }) {
 
 function ReportCard({ issue: i }: { issue: DeliveryIssue }) {
   const { command, t, locale } = useMobile();
+  const c = useColors();
+  const styles = useStyles();
   const [asking, setAsking] = useState(false);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
@@ -300,7 +324,7 @@ function ReportCard({ issue: i }: { issue: DeliveryIssue }) {
         </View>
       ) : null}
       {waiting && !i.case_id ? (
-        <Text variant="caption" style={{ color: colors.muted, fontVariant: ["tabular-nums"] }}>
+        <Text variant="caption" style={{ color: c.muted, fontVariant: ["tabular-nums"] }}>
           {hint}
         </Text>
       ) : null}
@@ -318,7 +342,7 @@ function ReportCard({ issue: i }: { issue: DeliveryIssue }) {
             style={{ minHeight: 88, textAlignVertical: "top", paddingTop: 12 }}
           />
           {error ? (
-            <Text variant="caption" style={{ color: colors.danger }}>
+            <Text selectable variant="caption" style={{ color: c.danger }}>
               {error}
             </Text>
           ) : null}
@@ -342,6 +366,9 @@ function CaseCard({
   refunds: { id: string; amount: number; state: string }[];
 }) {
   const { command, t, locale } = useMobile();
+  // The case is `c` in this component, so the palette keeps a longer name.
+  const palette = useColors();
+  const styles = useStyles();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   return (
@@ -380,7 +407,7 @@ function CaseCard({
         />
       ) : null}
       {error ? (
-        <Text variant="caption" style={{ color: colors.danger }}>
+        <Text selectable variant="caption" style={{ color: palette.danger }}>
           {error}
         </Text>
       ) : null}
@@ -388,16 +415,16 @@ function CaseCard({
   );
 }
 
-const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.canvas },
+const useStyles = themedStyles((c) => ({
+  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: c.canvas },
   head: { flexDirection: "row", alignItems: "center", gap: 8 },
   pill: { minHeight: 28, paddingHorizontal: 10, borderRadius: 14, justifyContent: "center" },
-  pillOpen: { backgroundColor: colors.cream },
-  pillDone: { backgroundColor: colors.sage },
+  pillOpen: { backgroundColor: c.cream },
+  pillDone: { backgroundColor: c.sage },
   pillText: { fontSize: 12, fontFamily: fontFor("700") },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  pick: { minHeight: 48, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: colors.secondaryBorder, justifyContent: "center" },
-  pickOn: { backgroundColor: colors.forest, borderColor: colors.forest },
+  pick: { minHeight: 48, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: c.secondaryBorder, justifyContent: "center" },
+  pickOn: { backgroundColor: c.forest, borderColor: c.forest },
   pickText: { fontSize: 13, fontFamily: fontFor("700") },
-  reply: { gap: 2, padding: 12, borderRadius: 12, backgroundColor: colors.sage },
-});
+  reply: { gap: 2, padding: 12, borderRadius: 12, backgroundColor: c.sage },
+}));

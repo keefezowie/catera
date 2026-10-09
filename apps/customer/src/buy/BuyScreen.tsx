@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { ActivityIndicator, View } from "react-native";
 import { router } from "expo-router";
 import {
   currency,
@@ -18,7 +18,7 @@ import {
   type RenewalContext,
 } from "@catera/domain";
 import { plural, useData, useMobile } from "@catera/mobile-core";
-import { Button, colors, fontFor, RoundButton, Screen, Stepper, Text } from "@catera/mobile-ui";
+import { Button, fontFor, RoundButton, Screen, Stepper, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { Breakdown, LengthOptions, percent, StartLine } from "./Breakdown";
 import { ChoiceSheet, NoLongerSold, PayWith, PendingPayment, Retry, Terms } from "./BuyParts";
 import { useQuote, type BuyPayload } from "./useQuote";
@@ -46,6 +46,8 @@ export function BuyScreen({
   initial?: BuyInitial;
 }) {
   const { runtime, actor, ready, t, locale, command } = useMobile();
+  const c = useColors();
+  const styles = useStyles();
   const renew = !!renewFrom;
   const query = new URLSearchParams({ ...(trial ? { trial: "1" } : {}), ...initial }).toString();
   const here = `${renew ? `/renew/${encodeURIComponent(renewFrom)}` : `/beli/${encodeURIComponent(packageId)}`}${query ? `?${query}` : ""}`;
@@ -187,7 +189,7 @@ export function BuyScreen({
         ) : loaded.data && !loaded.data.offer ? (
           <Text variant="heading">{t("Paket tidak ditemukan.", "Package not found.")}</Text>
         ) : (
-          <ActivityIndicator color={colors.forest} />
+          <ActivityIndicator color={c.forest} />
         )}
       </Screen>
     );
@@ -195,7 +197,11 @@ export function BuyScreen({
   const shown = quote.shown;
   const footer = (
     <View style={{ gap: 8 }}>
-      {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
+      {error ? (
+        <Text selectable style={{ color: c.danger }}>
+          {error}
+        </Text>
+      ) : null}
       <View style={styles.footer}>
         <View style={{ flex: 1 }}>
           <Text variant="caption">Total</Text>
@@ -276,10 +282,14 @@ export function BuyScreen({
           />
         </View>
       </View>
-      {blocked ? <Text style={{ color: colors.danger }}>{blocked}</Text> : null}
+      {blocked ? (
+        <Text selectable style={{ color: c.danger }}>
+          {blocked}
+        </Text>
+      ) : null}
 
       {shown ? <Breakdown quote={shown} dimmed={quote.pending} locale={locale} t={t} /> : null}
-      {!shown && quote.pending ? <ActivityIndicator color={colors.forest} /> : null}
+      {!shown && quote.pending ? <ActivityIndicator color={c.forest} /> : null}
       {quote.error ? (
         running ? (
           <View style={{ gap: 8 }}>
@@ -331,11 +341,11 @@ export function BuyScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = themedStyles((c) => ({
   header: { flexDirection: "row", alignItems: "center", gap: 12 },
-  strong: { fontFamily: fontFor("800"), color: colors.forest },
+  strong: { fontFamily: fontFor("800"), color: c.forest },
   inline: { alignSelf: "flex-start" },
-  box: { borderWidth: 1, borderColor: colors.line, borderRadius: 16, backgroundColor: colors.surface, paddingBottom: 8 },
+  box: { borderWidth: 1, borderColor: c.line, borderRadius: 16, backgroundColor: c.surface, paddingBottom: 8 },
   address: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14 },
   footer: { flexDirection: "row", alignItems: "center", gap: 12 },
-});
+}));

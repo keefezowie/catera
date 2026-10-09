@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { router } from "expo-router";
 import { currency, paymentPresentation, type Checkout, type Locale } from "@catera/domain";
-import { Button, colors, Screen, Text } from "@catera/mobile-ui";
+import { Button, Screen, Text, useColors } from "@catera/mobile-ui";
 
 export type Stage = "pay" | "checking" | "paid" | "expired" | "failed" | "review" | "refunded";
 /** Nothing left to poll for: the provider has answered one way or the other. */
@@ -81,6 +81,8 @@ export function PaymentOutcome({
   locale: Locale;
   t: (id: string, en: string) => string;
 }) {
+  // `c` is the checkout in this component, so the palette keeps a longer name.
+  const palette = useColors();
   const message: Record<Exclude<Stage, "pay">, [string, string]> = {
     checking: [
       t("Memeriksa pembayaran", "Checking payment"),
@@ -121,7 +123,11 @@ export function PaymentOutcome({
       <Text variant="caption" style={{ fontVariant: ["tabular-nums"] }}>
         {c.quote.offer.name} · {currency(c.quote.total, locale)}
       </Text>
-      {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
+      {error ? (
+        <Text selectable style={{ color: palette.danger }}>
+          {error}
+        </Text>
+      ) : null}
       {stage === "checking" ? <Button label={t("Cek status", "Check status")} disabled={busy} onPress={onCheck} /> : null}
       {stage === "paid" && c.quote.offer.menuSelectionMode === "customer" && c.subscription_id ? (
         <Button

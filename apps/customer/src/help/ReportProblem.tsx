@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { ActivityIndicator, StyleSheet, Text as RNText, View } from "react-native";
+import { ActivityIndicator, Text as RNText, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { dayLabel, errorLabel, jakartaDay, mealLabel, type Delivery } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, colors, Field, fontFor, PressableScale, Screen, Text } from "@catera/mobile-ui";
+import { Button, Card, Field, fontFor, PressableScale, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
 import { ChatKatering, catererPhoneOf } from "./ChatKatering";
 
@@ -22,6 +22,8 @@ const WITHOUT_NOTE = "Tanpa catatan tambahan.";
 export function ReportProblem() {
   const params = useLocalSearchParams<{ id: string; meal?: string; jenis?: string }>();
   const { actor, ready, t } = useMobile();
+  const c = useColors();
+  const styles = useStyles();
   const { id } = params;
   const query = new URLSearchParams(
     Object.entries({ meal: params.meal, jenis: params.jenis }).filter(
@@ -31,7 +33,7 @@ export function ReportProblem() {
   if (!ready)
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={colors.forest} />
+        <ActivityIndicator color={c.forest} />
       </View>
     );
   if (!actor)
@@ -46,6 +48,8 @@ export function ReportProblem() {
 
 function Report({ id, meal: wanted, jenis }: { id: string; meal?: string; jenis?: string }) {
   const { runtime, command, t, locale } = useMobile();
+  const c = useColors();
+  const styles = useStyles();
   const state = useData(`report:${id}`, () => runtime.api.customer(`?deliveryId=${encodeURIComponent(id)}`));
   const [kind, setKind] = useState<Kind | "">(KINDS.some((k) => k.id === jenis) ? (jenis as Kind) : "");
   const [note, setNote] = useState("");
@@ -60,10 +64,10 @@ function Report({ id, meal: wanted, jenis }: { id: string; meal?: string; jenis?
     return (
       <Screen>
         {state.loading ? (
-          <ActivityIndicator color={colors.forest} />
+          <ActivityIndicator color={c.forest} />
         ) : (
           <>
-            <Text style={{ color: state.error ? colors.danger : colors.muted }}>
+            <Text selectable={!!state.error} style={{ color: state.error ? c.danger : c.muted }}>
               {state.error || t("Pengantaran tidak ditemukan.", "Delivery not found.")}
             </Text>
             {state.error ? <Button label={t("Coba lagi", "Try again")} onPress={() => void state.reload()} /> : null}
@@ -165,7 +169,7 @@ function Report({ id, meal: wanted, jenis }: { id: string; meal?: string; jenis?
                 onPress={() => setMeal(m.meal)}
                 style={[styles.mealChoice, checked && styles.on]}
               >
-                <RNText style={[styles.choiceLabel, { color: checked ? colors.cream : colors.charcoal }]}>
+                <RNText style={[styles.choiceLabel, { color: checked ? c.cream : c.charcoal }]}>
                   {mealLabel(m.meal, locale)}
                 </RNText>
               </PressableScale>
@@ -196,7 +200,7 @@ function Report({ id, meal: wanted, jenis }: { id: string; meal?: string; jenis?
                   onPress={() => setKind(k.id)}
                   style={[styles.choice, checked && styles.on]}
                 >
-                  <RNText style={[styles.choiceLabel, { color: checked ? colors.cream : colors.charcoal }]}>
+                  <RNText style={[styles.choiceLabel, { color: checked ? c.cream : c.charcoal }]}>
                     {t(k.subject, k.en)}
                   </RNText>
                 </PressableScale>
@@ -212,7 +216,7 @@ function Report({ id, meal: wanted, jenis }: { id: string; meal?: string; jenis?
             style={{ minHeight: 88, textAlignVertical: "top", paddingTop: 12 }}
           />
           {error ? (
-            <Text variant="caption" style={{ color: colors.danger }}>
+            <Text selectable variant="caption" style={{ color: c.danger }}>
               {error}
             </Text>
           ) : null}
@@ -228,16 +232,16 @@ function Report({ id, meal: wanted, jenis }: { id: string; meal?: string; jenis?
   );
 }
 
-const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.canvas },
+const useStyles = themedStyles((c) => ({
+  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: c.canvas },
   choice: {
     minHeight: 56,
     justifyContent: "center",
     paddingHorizontal: 14,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
+    borderColor: c.line,
+    backgroundColor: c.surface,
   },
   mealChoice: {
     flex: 1,
@@ -246,10 +250,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
+    borderColor: c.line,
+    backgroundColor: c.surface,
   },
-  on: { backgroundColor: colors.forest, borderColor: colors.forest },
+  on: { backgroundColor: c.forest, borderColor: c.forest },
   choiceLabel: { fontSize: 15, fontFamily: fontFor("700") },
   step: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
   badge: {
@@ -258,7 +262,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.forest,
+    backgroundColor: c.forest,
   },
-  badgeText: { fontSize: 13, fontFamily: fontFor("800"), color: colors.cream },
-});
+  badgeText: { fontSize: 13, fontFamily: fontFor("800"), color: c.cream },
+}));

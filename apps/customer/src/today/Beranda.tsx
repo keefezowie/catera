@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { ActivityIndicator, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as SecureStore from "expo-secure-store";
 import {
@@ -12,7 +12,17 @@ import {
   type Subscription,
 } from "@catera/domain";
 import { useData, useMobile, type MobileRuntime } from "@catera/mobile-core";
-import { Button, colors, Field, fontFor, PressableRow, PressableScale, Screen, Text } from "@catera/mobile-ui";
+import {
+  Button,
+  Field,
+  fontFor,
+  PressableRow,
+  PressableScale,
+  Screen,
+  Text,
+  themedStyles,
+  useColors,
+} from "@catera/mobile-ui";
 import { ChatKatering } from "../help/ChatKatering";
 import { EmptyHome } from "./EmptyHome";
 import { jakartaClock, Plate } from "./Plate";
@@ -60,10 +70,12 @@ function greeting(t: (id: string, en: string) => string, now: Date) {
 /** Beranda: today's plate, the next days, renewal and the package line. */
 export function Beranda() {
   const { actor, ready } = useMobile();
+  const c = useColors();
+  const styles = useStyles();
   if (!ready)
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={colors.forest} />
+        <ActivityIndicator color={c.forest} />
       </View>
     );
   if (!actor) return <EmptyHome />;
@@ -72,6 +84,8 @@ export function Beranda() {
 
 function SignedInHome({ actorId, name }: { actorId: string; name: string }) {
   const { runtime, t, locale } = useMobile();
+  const c = useColors();
+  const styles = useStyles();
   const home = useData(`home:customer`, () => loadCustomer(runtime, actorId));
   // Menu choices that are due; Beranda still shows without them (offline or a failed feed).
   const actions = useData("home:actions", () => runtime.api.customerActions(20).catch(() => null));
@@ -81,13 +95,13 @@ function SignedInHome({ actorId, name }: { actorId: string; name: string }) {
   if (!state)
     return home.loading ? (
       <View style={styles.center}>
-        <ActivityIndicator color={colors.forest} />
+        <ActivityIndicator color={c.forest} />
       </View>
     ) : (
       <Screen>
         <Text variant="title">Beranda</Text>
         <View style={{ gap: 4, alignItems: "flex-start" }}>
-          <Text testID="home-error" style={{ color: colors.danger }}>
+          <Text selectable testID="home-error" style={{ color: c.danger }}>
             {home.error}
           </Text>
           <Button variant="text" label={t("Coba lagi", "Try again")} onPress={() => void home.reload()} />
@@ -109,12 +123,12 @@ function SignedInHome({ actorId, name }: { actorId: string; name: string }) {
         <Text variant="title">{t("Hari ini", "Today")}</Text>
       </View>
       {savedAt ? (
-        <Text variant="caption" style={{ color: colors.sunriseInk, fontVariant: ["tabular-nums"] }}>
+        <Text variant="caption" style={{ color: c.sunriseInk, fontVariant: ["tabular-nums"] }}>
           {t("Terakhir diperbarui", "Last updated")} {jakartaClock(savedAt)} ·{" "}
           {t("tidak ada koneksi", "no connection")}
         </Text>
       ) : home.error ? (
-        <Text variant="caption" style={{ color: colors.danger }}>
+        <Text selectable variant="caption" style={{ color: c.danger }}>
           {home.error}
         </Text>
       ) : null}
@@ -122,7 +136,7 @@ function SignedInHome({ actorId, name }: { actorId: string; name: string }) {
         <Plate key={`${p.deliveryId}:${p.meal}`} plate={p} apiBase={runtime.apiBase} offline={!!savedAt} />
       ))}
       {!plates.length ? (
-        <Text style={{ color: colors.muted }}>{t("Tidak ada pengantaran hari ini.", "No delivery today.")}</Text>
+        <Text style={{ color: c.muted }}>{t("Tidak ada pengantaran hari ini.", "No delivery today.")}</Text>
       ) : null}
       {savedAt ? null : <MenuDueRows items={actions.data?.items ?? []} />}
       <UpcomingRows rows={rows} />
@@ -146,6 +160,7 @@ function SignedInHome({ actorId, name }: { actorId: string; name: string }) {
 
 function PackageLine({ subscription: s, phone }: { subscription: Subscription; phone: string }) {
   const { t } = useMobile();
+  const styles = useStyles();
   const offer = s.snapshot.offer;
   return (
     <View style={styles.packageLine}>
@@ -162,6 +177,9 @@ function PackageLine({ subscription: s, phone }: { subscription: Subscription; p
 
 function ReviewPrompt({ state }: { state: CustomerState }) {
   const { runtime, command, t, locale } = useMobile();
+  // The `checked` updater below names its argument `c`, so the palette keeps a longer name here.
+  const palette = useColors();
+  const styles = useStyles();
   const candidate = reviewCandidate(state);
   const id = candidate?.id;
   const key = id ? runtime.storageKey(`review.${id}`) : "";
@@ -248,7 +266,7 @@ function ReviewPrompt({ state }: { state: CustomerState }) {
                 <Ionicons
                   name={n <= rating ? "star" : "star-outline"}
                   size={28}
-                  color={n <= rating ? colors.sunriseInk : colors.muted}
+                  color={n <= rating ? palette.sunriseInk : palette.muted}
                 />
               </PressableScale>
             ))}
@@ -260,7 +278,11 @@ function ReviewPrompt({ state }: { state: CustomerState }) {
             multiline
             maxLength={1000}
           />
-          {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
+          {error ? (
+            <Text selectable style={{ color: palette.danger }}>
+              {error}
+            </Text>
+          ) : null}
           <Button label={t("Kirim ulasan", "Send review")} disabled={busy} onPress={() => void send()} />
         </View>
       ) : null}
@@ -268,24 +290,24 @@ function ReviewPrompt({ state }: { state: CustomerState }) {
   );
 }
 
-const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.canvas },
+const useStyles = themedStyles((c) => ({
+  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: c.canvas },
   packageLine: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
     paddingVertical: 10,
     borderTopWidth: 1,
-    borderTopColor: colors.line,
+    borderTopColor: c.line,
   },
   review: {
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
+    borderColor: c.line,
+    backgroundColor: c.surface,
     paddingHorizontal: 16,
     paddingVertical: 6,
     gap: 8,
   },
   star: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
-});
+}));

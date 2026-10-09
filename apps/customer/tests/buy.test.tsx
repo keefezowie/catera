@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import * as ReactNative from "react-native";
 import { ActivityIndicator, AppState, StyleSheet } from "react-native";
 import { router } from "expo-router";
 import * as Clipboard from "expo-clipboard";
@@ -7,9 +8,10 @@ import * as SecureStore from "expo-secure-store";
 import * as Haptics from "expo-haptics";
 import { addDays, currency, type Checkout, type Quote, type RenewalContext } from "@catera/domain";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
-import { colors } from "@catera/mobile-ui";
+import { colors, ThemeProvider } from "@catera/mobile-ui";
 import { customerLink } from "../src/links";
 import { BuyScreen } from "../src/buy/BuyScreen";
+import { QrisCode } from "../src/buy/QrisCode";
 import { PaymentScreen } from "../src/buy/PaymentScreen";
 import { offer, subscription } from "./fixtures";
 
@@ -778,5 +780,20 @@ describe("Bayar", () => {
       ),
     );
     await waitFor(() => expect(runtime.api.checkout).toHaveBeenCalledTimes(2));
+  });
+
+  it("keeps the QRIS quiet zone pure white under the dark theme", async () => {
+    const scheme = jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
+    try {
+      render(
+        <ThemeProvider storageKey="catera.theme">
+          <QrisCode value={QR} label={QR_LABEL} qrRef={{ current: null }} />
+        </ThemeProvider>,
+      );
+      await act(async () => {});
+      expect(StyleSheet.flatten(screen.getByLabelText(QR_LABEL).props.style).backgroundColor).toBe("#FFFFFF");
+    } finally {
+      scheme.mockRestore();
+    }
   });
 });

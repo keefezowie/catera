@@ -1,20 +1,21 @@
-import { Image, StyleSheet, View } from "react-native";
+import { Image, View } from "react-native";
 import { router } from "expo-router";
 import { currency, perMealPrice, priceUnitLabel, type Offer } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, colors, PressableRow, Screen, Text } from "@catera/mobile-ui";
+import { Button, PressableRow, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { photoUri } from "./Plate";
 
 /** Beranda without an active package: food first, then how caterer links work. */
 export function EmptyHome() {
   const { runtime, actor, t } = useMobile();
+  const c = useColors();
   const catalog = useData("home:catalog", () => runtime.api.catalog("?limit=3"));
   const offers: Offer[] = (catalog.data?.items ?? []).slice(0, 3);
   return (
     <Screen>
       <View style={{ gap: 6, paddingTop: 8 }}>
         <Text variant="title">{t("Mau makan apa minggu ini?", "What would you like to eat this week?")}</Text>
-        <Text style={{ color: colors.muted }}>
+        <Text style={{ color: c.muted }}>
           {t(
             "Pilih paket katering rumahan, diantar sesuai jadwal Anda.",
             "Pick a home-style catering package, delivered on your schedule.",
@@ -22,16 +23,18 @@ export function EmptyHome() {
         </Text>
       </View>
       {catalog.loading && !catalog.data ? (
-        <Text style={{ color: colors.muted }}>{t("Memuat paket…", "Loading packages…")}</Text>
+        <Text style={{ color: c.muted }}>{t("Memuat paket…", "Loading packages…")}</Text>
       ) : null}
       {catalog.error && !catalog.data ? (
         <View style={{ gap: 4 }}>
-          <Text style={{ color: colors.danger }}>{catalog.error}</Text>
+          <Text selectable style={{ color: c.danger }}>
+            {catalog.error}
+          </Text>
           <Button variant="text" label={t("Coba lagi", "Try again")} onPress={() => void catalog.reload()} />
         </View>
       ) : null}
       {catalog.data && !offers.length ? (
-        <Text style={{ color: colors.muted }}>{t("Belum ada paket.", "No packages yet.")}</Text>
+        <Text style={{ color: c.muted }}>{t("Belum ada paket.", "No packages yet.")}</Text>
       ) : null}
       {offers.map((o) => (
         <OfferCard key={o.id} offer={o} />
@@ -53,19 +56,20 @@ export function EmptyHome() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = themedStyles((c) => ({
   card: {
     borderRadius: 16,
     overflow: "hidden",
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: c.line,
   },
-  photo: { height: 150, width: "100%", backgroundColor: colors.sage },
-});
+  photo: { height: 150, width: "100%", backgroundColor: c.sage },
+}));
 
 function OfferCard({ offer: o }: { offer: Offer }) {
   const { runtime, t, locale } = useMobile();
+  const styles = useStyles();
   const { unit, note } = priceUnitLabel(o, locale);
   return (
     <PressableRow

@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
-import { StyleSheet, View } from "react-native";
+import { View } from "react-native";
 import { currency, shortDate, type Locale, type Quote } from "@catera/domain";
 import { plural } from "@catera/mobile-core";
-import { Button, colors, fontFor, PressableScale, Text } from "@catera/mobile-ui";
+import { Button, fontFor, PressableScale, Text, themedStyles, useColors } from "@catera/mobile-ui";
 
 const FULL_DAYS = {
   id: ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"],
@@ -38,6 +38,8 @@ export function LengthOptions({
   value: number;
   onChange: (cycles: number) => void;
 }) {
+  const c = useColors();
+  const styles = useStyles();
   return (
     <View accessibilityRole="radiogroup" style={styles.options}>
       {options.map((o) => {
@@ -52,7 +54,7 @@ export function LengthOptions({
             onPress={() => onChange(o.cycles)}
             style={[styles.option, on ? styles.optionOn : styles.optionOff]}
           >
-            <Text style={[styles.optionLabel, { color: on ? colors.cream : colors.forest }]}>{o.label}</Text>
+            <Text style={[styles.optionLabel, { color: on ? c.cream : c.forest }]}>{o.label}</Text>
           </PressableScale>
         );
       })}
@@ -61,6 +63,7 @@ export function LengthOptions({
 }
 
 function Row({ label, value, tone }: { label: string; value: ReactNode; tone?: string }) {
+  const styles = useStyles();
   return (
     <View style={styles.row}>
       <Text style={[styles.rowLabel, tone ? { color: tone } : null, tabular]}>{label}</Text>
@@ -81,6 +84,8 @@ export function Breakdown({
   locale: Locale;
   t: (id: string, en: string) => string;
 }) {
+  const c = useColors();
+  const styles = useStyles();
   const days = quote.dates.length;
   const unit = quote.trial ? (quote.offer.trialPrice ?? quote.offer.price) : quote.offer.price;
   const minus = (n: number) => `−${currency(n, locale)}`;
@@ -100,7 +105,7 @@ export function Breakdown({
             `Save ${percent(quote.discountPercent, locale)} for ${plural(quote.portions, "portion")}`,
           )}
           value={minus(quote.discount)}
-          tone={colors.sunriseInk}
+          tone={c.sunriseInk}
         />
       ) : null}
       {quote.durationDiscount ? (
@@ -110,27 +115,27 @@ export function Breakdown({
             `Save ${percent(quote.durationDiscountPercent ?? 0, locale)} for ${plural(days, "day")}`,
           )}
           value={minus(quote.durationDiscount)}
-          tone={colors.sunriseInk}
+          tone={c.sunriseInk}
         />
       ) : null}
-      {quote.promotion > 0 ? <Row label={t("Promo", "Promotion")} value={minus(quote.promotion)} tone={colors.sunriseInk} /> : null}
+      {quote.promotion > 0 ? <Row label={t("Promo", "Promotion")} value={minus(quote.promotion)} tone={c.sunriseInk} /> : null}
       <Row label={t("Biaya layanan", "Service fee")} value={currency(quote.serviceFee, locale)} />
       <Row label={t("Pengantaran", "Delivery")} value={t("Termasuk", "Included")} />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = themedStyles((c) => ({
   options: { flexDirection: "row", gap: 10 },
   option: { flex: 1, minHeight: 56, borderRadius: 12, paddingHorizontal: 12, justifyContent: "center" },
-  optionOn: { backgroundColor: colors.forest },
-  optionOff: { borderWidth: 1, borderColor: colors.secondaryBorder, backgroundColor: colors.surface },
+  optionOn: { backgroundColor: c.forest },
+  optionOff: { borderWidth: 1, borderColor: c.secondaryBorder, backgroundColor: c.surface },
   optionLabel: { fontSize: 15, fontFamily: fontFor("700") },
   breakdown: { gap: 10, paddingVertical: 4 },
   row: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
-  rowLabel: { flex: 1, color: colors.charcoal },
-  rowValue: { color: colors.charcoal, fontFamily: fontFor("600") },
-});
+  rowLabel: { flex: 1, color: c.charcoal },
+  rowValue: { color: c.charcoal, fontFamily: fontFor("600") },
+}));
 
 /** "Mulai": the start date, and once priced, how many delivery days and until when. */
 export function StartLine({
@@ -152,12 +157,13 @@ export function StartLine({
   locale: Locale;
   t: (id: string, en: string) => string;
 }) {
+  const c = useColors();
   const last = quote?.dates[quote.dates.length - 1];
   const label = startDate ? shortDate(startDate, locale) : "";
   return (
     <View style={{ gap: 4 }}>
       <Text variant="caption">{t("Mulai", "Starts")}</Text>
-      <Text style={{ fontFamily: fontFor("800"), color: colors.forest }}>
+      <Text style={{ fontFamily: fontFor("800"), color: c.forest }}>
         {!startDate
           ? t("Belum ada tanggal yang bisa dipesan.", "No bookable date yet.")
           : renew
