@@ -1,7 +1,8 @@
-import { useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import {
   type AccessibilityRole,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -27,6 +28,7 @@ import { fontFor, fonts } from "./type";
 export const FONT = fonts.regular;
 
 const textVariants = {
+  display: { fontSize: 34, lineHeight: 40, fontWeight: "800", letterSpacing: -1 },
   title: { fontSize: 30, lineHeight: 39, fontWeight: "700", letterSpacing: -0.8 },
   heading: { fontSize: 21, lineHeight: 28, fontWeight: "700", letterSpacing: -0.4 },
   body: { fontSize: 14, lineHeight: 23, fontWeight: "400" },
@@ -37,6 +39,7 @@ const textVariants = {
 
 /** Which palette entry each variant reads; the palette is the active theme's. */
 const variantColor: Record<keyof typeof textVariants, PaletteKey> = {
+  display: "forest",
   title: "forest",
   heading: "forest",
   body: "charcoal",
@@ -288,6 +291,31 @@ export function Stepper({
 
 const SHEET_PADDING = 20;
 
+/**
+ * The height of the on-screen keyboard while it is up, or 0. The Sheet's Modal reaches under the system bars
+ * (navigationBarTranslucent), and Android does not resize such a window for the keyboard, so the sheet reads the
+ * keyboard itself. iOS announces the frame before it animates, so the sheet moves with it.
+ */
+function useKeyboardHeight(active: boolean): number {
+  const [height, setHeight] = useState(0);
+  useEffect(() => {
+    if (!active) {
+      setHeight(0);
+      return;
+    }
+    const ios = process.env.EXPO_OS === "ios";
+    const show = Keyboard.addListener(ios ? "keyboardWillShow" : "keyboardDidShow", (e) =>
+      setHeight(e.endCoordinates.height),
+    );
+    const hide = Keyboard.addListener(ios ? "keyboardWillHide" : "keyboardDidHide", () => setHeight(0));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, [active]);
+  return height;
+}
+
 /** Bottom sheet for short decisions (share, exceptions). */
 export function Sheet({
   visible,
@@ -306,6 +334,12 @@ export function Sheet({
   const reduced = useReduced();
   const styles = useStyles();
   const insets = useSafeAreaInsets();
+  const keyboard = useKeyboardHeight(visible);
+  // A sheet taller than the room left above the keyboard scrolls inside itself, so its title and its last button stay
+  // reachable. It only becomes scrollable when it overflows: an inner list (a day picker) then keeps its own touches.
+  const [viewport, setViewport] = useState(0);
+  const [content, setContent] = useState(0);
+  const overflow = content > viewport + 1;
   return (
     // The modal window reaches under the status and gesture bars so the scrim covers them; without it the screen
     // behind shows through the gesture band as a bright strip. The sheet then pads its own bottom to clear that band.
@@ -318,15 +352,32 @@ export function Sheet({
       animationType={reduced ? "fade" : "slide"}
       onRequestClose={onClose}
     >
-      <Pressable style={styles.scrim} onPress={onClose} accessibilityRole="button" accessibilityLabel={closeLabel} />
-      <View
-        style={[styles.sheet, { paddingBottom: SHEET_PADDING + insets.bottom }]}
-        accessibilityViewIsModal
-        onAccessibilityEscape={onClose}
-      >
-        <View style={styles.grabber} />
-        {title ? <Text variant="heading">{title}</Text> : null}
-        {children}
+      <View style={styles.sheetRoot}>
+        <Pressable style={styles.scrim} onPress={onClose} accessibilityRole="button" accessibilityLabel={closeLabel} />
+        <View
+          style={[
+            styles.sheet,
+            // With the keyboard up it covers the gesture band, so the sheet clears the keyboard instead of the inset.
+            // The top margin keeps a full-height sheet below the status bar.
+            { paddingBottom: SHEET_PADDING + (keyboard > 0 ? keyboard : insets.bottom), marginTop: insets.top + 8 },
+          ]}
+          accessibilityViewIsModal
+          onAccessibilityEscape={onClose}
+        >
+          <View style={styles.grabber} />
+          {title ? <Text variant="heading">{title}</Text> : null}
+          <ScrollView
+            style={styles.sheetBody}
+            contentContainerStyle={styles.sheetContent}
+            keyboardShouldPersistTaps="handled"
+            scrollEnabled={overflow}
+            showsVerticalScrollIndicator={overflow}
+            onLayout={(e) => setViewport(e.nativeEvent.layout.height)}
+            onContentSizeChange={(_w, h) => setContent(h)}
+          >
+            {children}
+          </ScrollView>
+        </View>
       </View>
     </Modal>
   );
@@ -336,10 +387,16 @@ export function Screen({
   children,
   scroll = true,
   footer,
+  header,
 }: {
   children: ReactNode;
   scroll?: boolean;
   footer?: ReactNode;
+  /**
+   * A full-bleed header (MoodHeader). It paints under the status bar and pays the top inset itself, so the screen
+   * drops its own top edge; it scrolls with the page, above the capped body.
+   */
+  header?: ReactNode;
 }) {
   const styles = useStyles();
   // The demo strip owns the status-bar inset while it is shown, so the screen must not add a second one.
@@ -367,7 +424,7 @@ export function Screen({
       ref={frame}
       onLayout={measureFrame}
       style={styles.screen}
-      edges={topOwned ? ["left", "right"] : ["top", "left", "right"]}
+      edges={topOwned || header ? ["left", "right"] : ["top", "left", "right"]}
     >
       <KeyboardAvoidingView
         style={styles.keyboard}
@@ -376,10 +433,14 @@ export function Screen({
       >
         {scroll ? (
           <ScrollView contentContainerStyle={{ paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
+            {header}
             {body}
           </ScrollView>
         ) : (
-          body
+          <>
+            {header}
+            {body}
+          </>
         )}
         {footer ? (
           <View testID="screen-footer" style={styles.footer}>
@@ -489,7 +550,8 @@ const useStyles = themedStyles((c) => ({
   },
   stepButton: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
   stepGlyph: { fontSize: 22, color: c.forest },
-  scrim: { flex: 1, backgroundColor: "rgba(20,30,25,0.45)" },
+  sheetRoot: { flex: 1, justifyContent: "flex-end" },
+  scrim: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: "rgba(20,30,25,0.45)" },
   sheet: {
     backgroundColor: c.surface,
     borderTopLeftRadius: 20,
@@ -497,7 +559,11 @@ const useStyles = themedStyles((c) => ({
     padding: SHEET_PADDING,
     paddingTop: 10,
     gap: 14,
+    // The sheet gives up height before it leaves the window, and its body scrolls inside what is left.
+    flexShrink: 1,
   },
+  sheetBody: { flexShrink: 1 },
+  sheetContent: { gap: 14 },
   grabber: {
     alignSelf: "center",
     width: 40,

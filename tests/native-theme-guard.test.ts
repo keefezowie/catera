@@ -42,3 +42,34 @@ test("only the plate and the theme module import nativeThemes", () => {
     .sort();
   expect(importers).toEqual(["apps/customer/src/today/Plate.tsx", "packages/mobile-ui/src/theme.tsx"]);
 });
+
+// Mood colours belong to mood surfaces only. Tab bars and the shared Screen body read theme colours, so a mood can
+// never tint them; the mood tables are reachable through mood.tsx and nowhere else.
+test("mood colours never reach tab bars or shared bodies", () => {
+  const tabDirs = readdirSync(join(root, "apps"))
+    .map((app) => join(root, "apps", app, "app", "(tabs)"))
+    .filter((dir) => {
+      try {
+        return statSync(dir).isDirectory();
+      } catch {
+        return false;
+      }
+    });
+  expect(tabDirs.length).toBeGreaterThan(0);
+  const tabOffenders = tabDirs
+    .flatMap(walk)
+    .filter((f) => /\b(useMoodColors|nativeMood)\b/.test(readFileSync(f, "utf8")))
+    .map(rel)
+    .sort();
+  expect(tabOffenders).toEqual([]);
+
+  const components = readFileSync(join(root, "packages/mobile-ui/src/components.tsx"), "utf8");
+  expect(components).not.toMatch(/\b(useMoodColors|nativeMood)\b/);
+
+  const importers = appDirs
+    .flatMap((d) => walk(join(root, d)))
+    .filter((f) => /\bnativeMood\b/.test(readFileSync(f, "utf8")))
+    .map(rel)
+    .sort();
+  expect(importers).toEqual(["packages/mobile-ui/src/mood.tsx"]);
+});
