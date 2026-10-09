@@ -339,6 +339,33 @@ try {
   const usageRows = (await pool.query("select app,name,n from v1.usage_daily")).rows;
   assert.deepEqual(usageRows, [{ app: "customer", name: "app_open", n: 20 }]);
   evidence.push("Twenty parallel app_open usage counts from one user leave one row with n = 20 and no user column.");
+  // Paid pilot days: on a UTC session the pilot read defaults to the Jakarta month and today,
+  // metrics and the pilot date commands run in Asia/Jakarta, and the renamed bases stay closed.
+  await pool.query(await readFile("supabase/migrations/20261010090000_pilot_jakarta_day.sql", "utf8"));
+  const pilotDay = await pool.connect();
+  try {
+    await pilotDay.query("begin");
+    await pilotDay.query("set local timezone to 'UTC'");
+    await pilotDay.query("select set_config('request.jwt.claim.sub',$1,true),set_config('catera.demo','true',true)", [DEMO_ACTORS.platform_admin]);
+    const pilotRead = (await pilotDay.query("select public.catera_v1_read('pilot',$1) value", [{ id: CATERER_IDS[0] }])).rows[0].value;
+    const jakartaToday = (await pilotDay.query("select (statement_timestamp() at time zone 'Asia/Jakarta')::date::text d")).rows[0].d;
+    assert.deepEqual([pilotRead.metrics.from, pilotRead.metrics.to], [jakartaToday.slice(0, 7) + "-01", jakartaToday]);
+    const pilotZones = (await pilotDay.query(
+      "select bool_and(proconfig::text ilike '%timezone=Asia/Jakarta%') ok from pg_proc where oid in ('v1.pilot_metrics(uuid,date,date)'::regprocedure,'v1.pilot_command_in_jakarta(text,jsonb,uuid)'::regprocedure)",
+    )).rows[0].ok;
+    assert.equal(pilotZones, true);
+    const pilotBases = (await pilotDay.query(
+      "select has_function_privilege('anon','public.catera_v1_read_pilot_day_base(text,jsonb)','execute') r,has_function_privilege('authenticated','public.catera_v1_command_pilot_day_base(text,jsonb,uuid)','execute') c,has_function_privilege('authenticated','v1.pilot_command_in_jakarta(text,jsonb,uuid)','execute') j",
+    )).rows[0];
+    assert.deepEqual(pilotBases, { r: false, c: false, j: false });
+    await pilotDay.query("commit");
+  } catch (e) {
+    await pilotDay.query("rollback");
+    throw e;
+  } finally {
+    pilotDay.release();
+  }
+  evidence.push("Paid pilot days: on a UTC session the pilot read defaults to the Jakarta month and today, metrics and pilot date commands run in Asia/Jakarta, and the renamed bases are not executable by clients.");
   await pool.query(await readFile("supabase/migrations/20261007110000_import_before_approval.sql", "utf8"));
   await mkdir("output/verification", { recursive: true });
   const evidencePath = process.env.CATERA_POSTGRES_EVIDENCE || "output/verification/postgres.json";

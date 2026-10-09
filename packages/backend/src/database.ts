@@ -634,6 +634,12 @@ export async function createDemoDatabase(inMemory = false) {
     await db.exec("begin;\n" + await readFile(path.join(projectRoot(),
       "supabase/migrations/20261009091000_usage_counts.sql"), "utf8") + "\ncommit;");
   }
+  if ((await db.query<{ missing: boolean }>(
+    "select to_regprocedure('v1.pilot_command_in_jakarta(text,jsonb,uuid)') is null missing",
+  )).rows[0].missing) {
+    await db.exec("begin;\n" + await readFile(path.join(projectRoot(),
+      "supabase/migrations/20261010090000_pilot_jakarta_day.sql"), "utf8") + "\ncommit;");
+  }
   return db;
 }
 export async function getDemoDatabase() {
