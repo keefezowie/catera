@@ -99,14 +99,10 @@ export function SessionCard({
   const title = meal === "lunch" ? t("Makan siang", "Lunch") : t("Makan malam", "Dinner");
   return (
     <Card>
-      <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
-        <View>
-          <Text variant="label" style={{ color: c.muted }}>
-            {title}
-          </Text>
-          <Text variant="number">{`${recap.total} porsi`}</Text>
-        </View>
-      </View>
+      {/* The header's count card already carries the portion count; the card only names its session. */}
+      <Text variant="label" style={{ color: c.muted }}>
+        {title}
+      </Text>
       <View>
         <Text variant="label">{t("Per paket", "By package")}</Text>
         {recap.byPackage.map((p) => (

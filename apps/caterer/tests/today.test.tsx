@@ -7,6 +7,7 @@ import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera
 import { errorLabel, type SellerOperationsState } from "@catera/domain";
 import { MoodProvider, ThemeProvider } from "@catera/mobile-ui";
 import * as SecureStore from "expo-secure-store";
+import * as Reanimated from "react-native-reanimated";
 import { TodayScreen } from "../src/today/TodayScreen";
 import { SessionCard } from "../src/today/SessionCard";
 import { issueSteps } from "../src/today/exceptions";
@@ -68,8 +69,17 @@ beforeEach(() => jest.clearAllMocks());
 
 it("shows the lunch cooking total for the day", async () => {
   renderToday(runtimeWith(async () => canvasDay()));
-  expect(await screen.findByText("34 porsi")).toBeTruthy();
+  expect(within(await screen.findByTestId("session-count")).getByText("34")).toBeTruthy();
   expect(screen.getByText("Makan Siang Rumahan")).toBeTruthy();
+  // The session card names its meal but does not repeat the count in a second large number.
+  expect(screen.getByText("Makan siang")).toBeTruthy();
+  expect(screen.getByText("Per paket")).toBeTruthy();
+  expect(screen.getAllByText("34")).toHaveLength(1);
+  expect(screen.queryByText(/^\d+ porsi$/)).toBeNull();
+  const large = screen.UNSAFE_root.findAll(
+    (n) => typeof n.type === "string" && n.type === "Text" && StyleSheet.flatten(n.props.style)?.fontSize === 40,
+  );
+  expect(large).toHaveLength(1);
 });
 
 it("shares the route as WhatsApp-ready text", async () => {
@@ -107,7 +117,7 @@ it("keeps showing the last loaded day when offline", async () => {
       throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
     }),
   );
-  expect(await screen.findByText("34 porsi")).toBeTruthy();
+  expect(within(await screen.findByTestId("session-count")).getByText("34")).toBeTruthy();
   expect(screen.getByText(/Terakhir diperbarui 06\.12/)).toBeTruthy();
 });
 
@@ -338,7 +348,7 @@ describe("session cards", () => {
     } as unknown as typeof base;
     renderToday(runtimeWith(async () => day));
     expect(await screen.findByText("Makan siang")).toBeTruthy();
-    expect(screen.getByText("1 porsi")).toBeTruthy();
+    expect(within(screen.getByTestId("session-count")).getByText("1")).toBeTruthy();
     expect(screen.getByText("Nadia Putri")).toBeTruthy();
     expect(screen.getByText("Bagikan rute ke WhatsApp")).toBeTruthy();
     expect(screen.queryByText("Makan malam")).toBeNull();
@@ -361,6 +371,8 @@ describe("session cards", () => {
 describe("Hari ini by mood", () => {
   afterEach(() => {
     jest.useRealTimers();
+    // The setup's mock returns false; a test that asked for reduced motion must not leak it.
+    jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(false);
     (SecureStore as unknown as { __store: Map<string, string> }).__store.clear();
   });
 
@@ -409,6 +421,7 @@ describe("Hari ini by mood", () => {
     const button = await screen.findByRole("button", { name: "Ganti hari, sekarang Hari ini" });
     expect(within(button).getByText("Kamis 8 Okt")).toBeTruthy();
     expect(StyleSheet.flatten(button.props.style).minHeight).toBe(48);
+    expect(button.props.accessibilityHint).toBe("Kamis 8 Okt");
     expect(within(button).UNSAFE_getByType(Ionicons).props).toMatchObject({
       name: "chevron-down",
       color: nativeMood.light.siang.headerText,
@@ -451,7 +464,7 @@ describe("Hari ini by mood", () => {
 
   it("has exactly one tablist, the mood toggle", async () => {
     renderMood(runtimeWith(async () => canvasDay()));
-    await screen.findByText("34 porsi");
+    await screen.findByTestId("session-count");
     const tablists = screen.UNSAFE_root.findAll(
       (n) => typeof n.type === "string" && n.props.accessibilityRole === "tablist",
     );
@@ -477,6 +490,22 @@ describe("Hari ini by mood", () => {
       expect(flat("session-count-fill-siang").backgroundColor).toBe(nativeMood.light.siang.hero);
       expect(flat("session-count-fill-malam").backgroundColor).toBe(nativeMood.light.malam.hero);
       expect(flat("session-count")).toMatchObject({ borderRadius: 22, borderCurve: "continuous", boxShadow: nativeMood.light.siang.heroShadow });
+    });
+
+    it("cross-fades its Malam fill over the Siang one when the mood switches (instant under reduced motion)", async () => {
+      jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
+      renderMood(runtimeWith(async () => toDinner(timedDay())));
+      await screen.findByTestId("session-count");
+      // Both layers are always mounted; only the Malam one's opacity says which mood is showing.
+      expect(flat("session-count-fill-malam").opacity).toBe(0);
+      expect(flat("mood-fill-malam").opacity).toBe(0);
+      fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
+      expect(await within(screen.getByTestId("session-count")).findByText("23")).toBeTruthy();
+      expect(flat("session-count-fill-malam").opacity).toBe(1);
+      expect(flat("mood-fill-malam").opacity).toBe(1);
+      fireEvent.press(screen.getByRole("tab", { name: "Siang" }));
+      expect(await within(screen.getByTestId("session-count")).findByText("11")).toBeTruthy();
+      expect(flat("session-count-fill-malam").opacity).toBe(0);
     });
 
     it("follows the mood to the dinner session", async () => {
@@ -554,9 +583,12 @@ describe("Hari ini by mood", () => {
 
   describe("in Malam", () => {
     it("paints the header on the deep Malam fill and keeps the title readable on it", async () => {
+      jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
       renderMood(runtimeWith(async () => canvasDay()), MALAM_NOW);
       await screen.findByText("Tidak ada antaran makan malam.");
       expect(flat("mood-fill-malam").backgroundColor).toBe("#0B1F16");
+      // The fill is always mounted; in Malam it is the opaque layer.
+      expect(flat("mood-fill-malam").opacity).toBe(1);
       const title = within(screen.getByTestId("mood-header")).getByRole("button", { name: /^Ganti hari/ });
       expect(StyleSheet.flatten(within(title).getByText(/\d/).props.style).color).toBe("#FFF7E9");
     });
@@ -618,7 +650,7 @@ it("Today error offers Coba lagi", async () => {
   const retry = await screen.findByRole("button", { name: "Coba lagi" });
   failing = false;
   fireEvent.press(retry);
-  expect(await screen.findByText("34 porsi")).toBeTruthy();
+  expect(within(await screen.findByTestId("session-count")).getByText("34")).toBeTruthy();
 });
 
 it("new kitchen card makes no time claim", async () => {

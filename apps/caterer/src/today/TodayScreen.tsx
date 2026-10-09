@@ -171,6 +171,8 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
                   ? t("Ganti hari, sekarang Hari ini", "Change day, now Today")
                   : t("Ganti hari, sekarang Besok", "Change day, now Tomorrow")
               }
+              // The label is pinned, so the visible date reaches screen readers through the hint.
+              accessibilityHint={shortDate(date, locale)}
               haptic="select"
               onPress={() => setOffset(offset === "0" ? "1" : "0")}
               style={{ minHeight: 48, alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 8 }}
