@@ -5,6 +5,7 @@ import { nativeThemes } from "@catera/design-tokens";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { MoodProvider } from "@catera/mobile-ui";
 import { customerLink } from "../src/links";
+import { Beranda } from "../src/today/Beranda";
 import { EmptyHome } from "../src/today/EmptyHome";
 import { offer } from "./fixtures";
 
@@ -52,7 +53,15 @@ const renderEmpty = (actor: Record<string, unknown> | null) =>
     </MoodProvider>,
   );
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  (require("expo-secure-store") as { __store: Map<string, string> }).__store.clear();
+});
+// Beranda reads the cached home feed; there is none here.
+jest.mock("../src/today/offline", () => ({
+  saveCachedCustomer: jest.fn(async () => undefined),
+  loadCachedCustomer: jest.fn(async () => null),
+}));
 
 describe("EmptyHome mood header", () => {
   it("opens on a Malam header titled Beranda, with no toggle, and the food stays on the page", async () => {
@@ -72,6 +81,34 @@ describe("EmptyHome mood header", () => {
     expect(nativeThemes.light.surface).toBe("#FFFEFA");
     fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
     expect(router.push).toHaveBeenCalledWith("/login");
+  });
+
+  it("is titled Home in English, matching the tab label", async () => {
+    (require("expo-secure-store") as { __store: Map<string, string> }).__store.set("catera.locale", "en");
+    renderEmpty(null);
+    const header = await screen.findByTestId("beranda-header");
+    expect(await within(header).findByText("Home")).toBeTruthy();
+    expect(within(header).queryByText("Beranda")).toBeNull();
+  });
+
+  it("Beranda's own error and loading header is titled Home in English too", async () => {
+    (require("expo-secure-store") as { __store: Map<string, string> }).__store.set("catera.locale", "en");
+    const runtime = runtimeWith({ id: "u-c1", role: "customer", name: "Rani Contoh" });
+    runtime.api.customer = jest.fn(async () => {
+      throw Object.assign(new Error("REQUEST_FAILED"), { code: "REQUEST_FAILED" });
+    }) as never;
+    (runtime.api as unknown as { customerActions: jest.Mock }).customerActions = jest.fn(async () => ({ total: 0, items: [] }));
+    render(
+      <MoodProvider now={MALAM}>
+        <MobileProvider runtime={runtime} linkMapper={customerLink}>
+          <Beranda />
+        </MobileProvider>
+      </MoodProvider>,
+    );
+    await screen.findByTestId("home-error");
+    const header = screen.getByTestId("mood-header");
+    expect(within(header).getByText("Home")).toBeTruthy();
+    expect(within(header).queryByText("Beranda")).toBeNull();
   });
 
   it("keeps the header for a signed-in customer with no package", async () => {

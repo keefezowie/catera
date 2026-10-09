@@ -654,7 +654,8 @@ describe("Akun mood header", () => {
     renderMood(runtimeWith({}, { actor: null }), MALAM_NOW, <Addresses />);
     expect(await screen.findByRole("button", { name: "Masuk" })).toBeTruthy();
     expect(screen.queryByTestId("signin-header")).toBeNull();
-    expect(screen.queryByTestId("mood-header")).toBeNull();
+    expect(screen.queryByTestId("mood-fill-siang", { includeHiddenElements: true })).toBeNull();
+    expect(screen.queryByTestId("mood-fill-malam", { includeHiddenElements: true })).toBeNull();
     expect(screen.getByText("Alamat")).toBeTruthy();
     expect(screen.getByText("Masuk untuk melihat paket dan jadwal antar Anda.")).toBeTruthy();
   });

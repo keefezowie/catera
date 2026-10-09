@@ -129,7 +129,7 @@ function SignedInHome({ actorId }: { actorId: string }) {
 
   if (!state)
     return (
-      <Screen header={<MoodHeader title="Beranda" />}>
+      <Screen header={<MoodHeader title={t("Beranda", "Home")} />}>
         {home.loading ? (
           <ActivityIndicator color={c.forest} />
         ) : (

@@ -12,7 +12,7 @@ export function EmptyHome() {
   const catalog = useData("home:catalog", () => runtime.api.catalog("?limit=3"));
   const offers: Offer[] = (catalog.data?.items ?? []).slice(0, 3);
   return (
-    <Screen header={<MoodHeader testID="beranda-header" title="Beranda" />}>
+    <Screen header={<MoodHeader testID="beranda-header" title={t("Beranda", "Home")} />}>
       <View style={{ gap: 6, paddingTop: 8 }}>
         <Text variant="title">{t("Mau makan apa minggu ini?", "What would you like to eat this week?")}</Text>
         <Text style={{ color: c.muted }}>

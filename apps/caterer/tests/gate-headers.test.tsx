@@ -53,7 +53,8 @@ describe("RoleGate customer-account state", () => {
 });
 
 describe("ScreenGuard failure state", () => {
-  it("shows a Malam header over the plain retry state, with the message and retry on the page", () => {
+  // Its only caller is pushed under the Stack AppHeader, which already paints the mood fill: no second band here.
+  it("shows the plain retry state with no mood header of its own", () => {
     const errorLog = jest.spyOn(console, "error").mockImplementation(() => undefined);
     const Broken = () => {
       throw new Error("bad value");
@@ -65,10 +66,11 @@ describe("ScreenGuard failure state", () => {
         <Text>never</Text>
       </ScreenGuard>,
     );
-    const header = expectMalam("guard-header", "Belum bisa ditampilkan");
-    expect(within(header).queryByText("Catatan uang belum bisa ditampilkan.")).toBeNull();
     expect(screen.getByText("Catatan uang belum bisa ditampilkan.")).toBeTruthy();
-    expect(within(header).queryByRole("button", { name: "Coba lagi" })).toBeNull();
+    expect(screen.queryByTestId("guard-header")).toBeNull();
+    expect(screen.queryByTestId("mood-fill-siang", { includeHiddenElements: true })).toBeNull();
+    expect(screen.queryByTestId("mood-fill-malam", { includeHiddenElements: true })).toBeNull();
+    expect(screen.getByRole("button", { name: "Coba lagi" })).toBeTruthy();
     fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
     errorLog.mockRestore();
   });
