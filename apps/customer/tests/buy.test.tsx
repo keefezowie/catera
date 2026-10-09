@@ -17,7 +17,15 @@ import { PaymentScreen } from "../src/buy/PaymentScreen";
 import { offer, subscription } from "./fixtures";
 
 jest.mock("expo-router", () => ({
-  router: { push: jest.fn(), replace: jest.fn(), back: jest.fn(), canGoBack: jest.fn(() => true) },
+  router: {
+    push: jest.fn(),
+    replace: jest.fn(),
+    back: jest.fn(),
+    canGoBack: jest.fn(() => true),
+    // Off by default: a stack with nothing to dismiss to, so leaving replaces. The paid exit tests set it.
+    dismissTo: jest.fn(),
+    canDismiss: jest.fn(() => false),
+  },
   useLocalSearchParams: () => ({}),
   // Focused for the whole test: the effect runs on mount and whenever its callback changes.
   useFocusEffect: (effect: () => void | (() => void)) => require("react").useEffect(effect, [effect]),
@@ -1117,28 +1125,70 @@ describe("Pembayaran diterima", () => {
     expect(successes()).toHaveLength(1);
   });
 
+  // Leaving paid pops back to the tabs already in the stack when there is one, so no second tabs navigator lands
+  // above the package page or Riwayat pembayaran; with nothing to dismiss to (a cold open) it replaces.
+  const exits: [string, (back: ReturnType<typeof hardwareBack>) => void, string][] = [
+    [
+      "the header back",
+      () => fireEvent.press(within(screen.getByTestId("payment-header")).getByRole("button", { name: "Kembali" })),
+      "/",
+    ],
+    ["the hardware back", (back) => expect(back.press()).toEqual([true]), "/"],
+    ["Ke Beranda", () => fireEvent.press(screen.getByRole("button", { name: "Ke Beranda" })), "/"],
+    ["Lihat jadwal", () => fireEvent.press(screen.getByRole("button", { name: "Lihat jadwal" })), "/jadwal"],
+  ];
+  for (const [exit, leave, target] of exits)
+    for (const dismissable of [true, false])
+      it(`${exit} after paying ${dismissable ? "dismisses back to" : "replaces Bayar with"} ${target}`, async () => {
+        (router.canDismiss as jest.Mock).mockReturnValue(dismissable);
+        const back = hardwareBack();
+        try {
+          wrap(server({ checkout: paidCheckout() }), <PaymentScreen checkoutId="ck-1" />);
+          await screen.findByTestId("paid-hero");
+          leave(back);
+          if (dismissable) {
+            expect(router.dismissTo).toHaveBeenCalledTimes(1);
+            expect(router.dismissTo).toHaveBeenCalledWith(target);
+            expect(router.replace).not.toHaveBeenCalled();
+          } else {
+            expect(router.replace).toHaveBeenCalledTimes(1);
+            expect(router.replace).toHaveBeenCalledWith(target);
+            expect(router.dismissTo).not.toHaveBeenCalled();
+          }
+          expect(router.back).not.toHaveBeenCalled();
+          expect(router.push).not.toHaveBeenCalled();
+        } finally {
+          back.restore();
+          (router.canDismiss as jest.Mock).mockReturnValue(false);
+        }
+      });
+
   for (const [entry, quote, canGoBack] of [
     ["a fresh purchase", {}, true],
     ["a renewal", { renewedFrom: "s-1" }, true],
     ["a checkout opened directly (Payments or a notification)", {}, false],
   ] as const)
     it(`back after paying ${entry} goes home, never back to checkout`, async () => {
+      // Opened in a stack, there is something to dismiss to; opened cold, there is not.
       (router.canGoBack as jest.Mock).mockReturnValue(canGoBack);
+      (router.canDismiss as jest.Mock).mockReturnValue(canGoBack);
+      const exit = (canGoBack ? router.dismissTo : router.replace) as jest.Mock;
       const back = hardwareBack();
       try {
         wrap(server({ checkout: paidCheckout({}, quote) }), <PaymentScreen checkoutId="ck-1" />);
         const header = await screen.findByTestId("payment-header");
         await screen.findByTestId("paid-hero");
         fireEvent.press(within(header).getByRole("button", { name: "Kembali" }));
-        expect(router.replace).toHaveBeenLastCalledWith("/");
+        expect(exit).toHaveBeenLastCalledWith("/");
         // The hardware back is handled (true), so the navigator never pops to the checkout.
         expect(back.press()).toEqual([true]);
-        expect(router.replace).toHaveBeenCalledTimes(2);
-        expect(router.replace).toHaveBeenLastCalledWith("/");
+        expect(exit).toHaveBeenCalledTimes(2);
+        expect(exit).toHaveBeenLastCalledWith("/");
         expect(router.back).not.toHaveBeenCalled();
       } finally {
         back.restore();
         (router.canGoBack as jest.Mock).mockReturnValue(true);
+        (router.canDismiss as jest.Mock).mockReturnValue(false);
       }
     });
 
