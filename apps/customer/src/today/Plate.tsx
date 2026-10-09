@@ -119,7 +119,10 @@ export const sentences = (p: PlateData, t: (id: string, en: string) => string): 
       return [t("Seharusnya sudah tiba", "Should have arrived"), p.window];
     case "arrived": {
       const at = jakartaClock(p.confirmedAt);
-      return [t("Sudah sampai", "Arrived"), at ? t(`pukul ${at}`, `at ${at}`) : ""];
+      // Nobody tapped: the system recorded the arrival, and the track says so in the same words.
+      const first =
+        p.journey.arrivedBy === "auto" ? t("Tercatat sampai", "Recorded as arrived") : t("Sudah sampai", "Arrived");
+      return [first, at ? t(`pukul ${at}`, `at ${at}`) : ""];
     }
     case "failed":
       return [t("Tidak bisa diantar hari ini", "Couldn't be delivered today"), ""];
@@ -145,7 +148,9 @@ const capitalise = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
  * The hero's two status lines. The track under the dishes already says where the meal is, so the hero never says it
  * twice: a scheduled meal ("Terjadwal") and an on-the-way meal without a departure time ("Sedang diantar") are said
  * by the track alone, and the second line becomes the header. A meal past its window that the kitchen never tapped
- * says so instead of leaving the bare window. Cards, the other-meal row and Beranda keep `sentences`.
+ * says so instead of leaving the bare window. An arrival the system recorded is the same: the track caption reads
+ * "Tercatat sampai", so the header becomes the time ("Pukul 11.48"), or "Sudah sampai" when no time was kept. Cards, the
+ * other-meal row and Beranda keep `sentences`.
  */
 export function heroSentences(
   p: PlateData,
@@ -159,6 +164,8 @@ export function heroSentences(
     (p.state === "scheduled" && !!p.window && !!p.addressLabel) ||
     (p.state === "on_the_way" && !!p.window && !jakartaClock(p.journey.departedAt));
   if (trackShown && promotes) return [capitalise(second), ""];
+  if (trackShown && p.state === "arrived" && p.journey.arrivedBy === "auto")
+    return second ? [capitalise(second), ""] : [t("Sudah sampai", "Arrived"), ""];
   if (p.state === "due" && p.journey.stage === "scheduled")
     return [
       first,

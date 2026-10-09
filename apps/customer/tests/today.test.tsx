@@ -8,6 +8,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Haptics from "expo-haptics";
 import {
   addDays,
+  todayPlates,
   upcomingRows,
   type CustomerState,
   type Delivery,
@@ -20,7 +21,7 @@ import { MoodProvider, ThemeProvider } from "@catera/mobile-ui";
 import * as Reanimated from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Beranda } from "../src/today/Beranda";
-import { SunriseButton } from "../src/today/Plate";
+import { SunriseButton, sentences } from "../src/today/Plate";
 import { customerLink } from "../src/links";
 import { Masuk } from "../src/account/Masuk";
 import * as offline from "../src/today/offline";
@@ -1026,6 +1027,7 @@ describe("Beranda mood", () => {
       ["on the way without a time", { status: "out_for_delivery" }],
       ["arrived by the customer", { status: "delivered", confirmed_at: `${TODAY}T04:48:00Z`, confirmed_by: "customer" }],
       ["arrived by the system", { status: "delivered", confirmed_at: `${TODAY}T04:48:00Z`, confirmed_by: "auto" }],
+      ["arrived by the system without a time", { status: "delivered", confirmed_by: "auto" }],
       ["arrived without a recorder", { status: "delivered", confirmed_at: `${TODAY}T04:48:00Z` }],
     ] as [string, Partial<DeliveryMeal>, boolean?][])(
       "never says the header again in the track caption (%s)",
@@ -1077,7 +1079,49 @@ describe("Beranda mood", () => {
       );
       const h = await hero();
       expect(within(h.getByTestId("rantang-track")).getByText("Tercatat sampai")).toBeTruthy();
+      // The track says it, so the header carries the time instead of "Sudah sampai", and nothing says it twice.
+      expect(h.getByRole("header", { name: "Pukul 11.48" })).toBeTruthy();
+      expect(h.getAllByText("Tercatat sampai")).toHaveLength(1);
+      expect(h.queryByText("Sudah sampai")).toBeNull();
+    });
+
+    it("says it in English: Recorded as arrived on the track, At 11.48 in the header", async () => {
+      (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.locale", "en");
+      mount(
+        runtimeWith(async () =>
+          lunchToday({ status: "delivered", confirmed_at: `${TODAY}T04:48:00Z`, confirmed_by: "auto" }),
+        ),
+      );
+      const h = await hero();
+      expect(within(h.getByTestId("rantang-track")).getByText("Recorded as arrived")).toBeTruthy();
+      expect(h.getByRole("header", { name: "At 11.48" })).toBeTruthy();
+      expect(h.getAllByText("Recorded as arrived")).toHaveLength(1);
+    });
+
+    it("keeps both lines for a card and the other-meal row: Tercatat sampai, then the time", () => {
+      const now = new Date(`${TODAY}T05:00:00Z`);
+      const [plate] = todayPlates(
+        lunchToday({ status: "delivered", confirmed_at: `${TODAY}T04:48:00Z`, confirmed_by: "auto" }),
+        now,
+      );
+      expect(sentences(plate, (id) => id)).toEqual(["Tercatat sampai", "pukul 11.48"]);
+      expect(sentences(plate, (_id, en) => en)).toEqual(["Recorded as arrived", "at 11.48"]);
+      const [byCustomer] = todayPlates(
+        lunchToday({ status: "delivered", confirmed_at: `${TODAY}T04:48:00Z`, confirmed_by: "customer" }),
+        now,
+      );
+      expect(sentences(byCustomer, (id) => id)).toEqual(["Sudah sampai", "pukul 11.48"]);
+    });
+
+    it("keeps Sudah sampai in the header when the customer confirmed, with the time on the second line", async () => {
+      mount(
+        runtimeWith(async () =>
+          lunchToday({ status: "delivered", confirmed_at: `${TODAY}T04:48:00Z`, confirmed_by: "customer" }),
+        ),
+      );
+      const h = await hero();
       expect(h.getByRole("header", { name: "Sudah sampai" })).toBeTruthy();
+      expect(h.getByText("pukul 11.48")).toBeTruthy();
     });
 
     it("says Sampai when the customer confirmed", async () => {

@@ -62,15 +62,18 @@ export function DeliveryOrder({
   const hidden = stops.length - shown.length;
 
   // The "…" shows only when its sheet would send something, and its label says what: "Gagal diantar" (today, while the
-  // meal can still fail), "Pindah tanggal" (while the day can move), or both.
+  // meal can still fail), "Pindah tanggal" (while the day can move), or both. The label ends with the customer's name,
+  // like the map button, so a screen reader hears which stop each "…" belongs to.
   const canFail = (s: Stop) => report === "today" && failable(ops, s, meal);
   const hasMore = (s: Stop) => report !== null && (canFail(s) || movable(ops, s));
   const moreLabel = (s: Stop) =>
-    canFail(s)
-      ? movable(ops, s)
-        ? t("Laporkan masalah atau pindah hari", "Report a problem or move the day")
-        : t("Laporkan masalah", "Report a problem")
-      : t("Pindah hari", "Move the day");
+    `${
+      canFail(s)
+        ? movable(ops, s)
+          ? t("Laporkan masalah atau pindah hari", "Report a problem or move the day")
+          : t("Laporkan masalah", "Report a problem")
+        : t("Pindah hari", "Move the day")
+    }: ${s.name}`;
 
   return (
     <View testID="delivery-order" style={{ gap: 12 }}>

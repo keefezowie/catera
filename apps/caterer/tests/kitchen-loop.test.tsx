@@ -1,12 +1,12 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
-import { Alert, Linking, Share } from "react-native";
+import { Alert, Linking, Pressable, Share } from "react-native";
 import * as Reanimated from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import * as SecureStore from "expo-secure-store";
 import { router } from "expo-router";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { errorLabel, kitchenSession, routeMapsUrl, type SellerOperationsState } from "@catera/domain";
-import { MoodProvider } from "@catera/mobile-ui";
+import { MoodProvider, useMood } from "@catera/mobile-ui";
 import { ExceptionSheet } from "../src/today/ExceptionSheet";
 import { TodayScreen } from "../src/today/TodayScreen";
 import { dishKey } from "../src/today/ticks";
@@ -517,6 +517,30 @@ describe("Urutan antar", () => {
     expect(screen.getByTestId("stop-12")).toBeTruthy();
   });
 
+  it("starts each meal's order folded: switching the mood does not carry the expanded list to the other meal", async () => {
+    const day = manyStops(5);
+    for (const d of day.deliveries) d.meals.push({ meal: "dinner", status: "scheduled" } as never);
+    const Switch = () => {
+      const { setMood } = useMood();
+      return <Pressable accessibilityLabel="ke Malam" onPress={() => setMood("malam")} />;
+    };
+    render(
+      <MobileProvider runtime={runtimeWith(async () => day)} linkMapper={(h) => h}>
+        <MoodProvider now={() => new Date("2026-10-08T03:00:00Z")}>
+          <Switch />
+          <TodayScreen />
+        </MoodProvider>
+      </MobileProvider>,
+    );
+    fireEvent.press(await screen.findByText("Lihat 2 alamat lainnya"));
+    expect(screen.getByTestId("stop-5")).toBeTruthy();
+    fireEvent.press(screen.getByLabelText("ke Malam"));
+    // The dinner session has the same five stops, but its own order starts with the first three.
+    expect(await screen.findByText("Lihat 2 alamat lainnya")).toBeTruthy();
+    expect(screen.queryByTestId("stop-5")).toBeNull();
+    expect(screen.getByTestId("stop-3")).toBeTruthy();
+  });
+
   it("keeps the whole address in the row's spoken label while the visible address is one line", async () => {
     renderToday(runtimeWith(async () => kitchenDay([scheduled])));
     const info = await screen.findByTestId("stop-1-info");
@@ -546,7 +570,9 @@ describe("Urutan antar", () => {
 
   it("opens the exception sheet for that stop from the ellipsis button", async () => {
     renderToday(runtimeWith(async () => kitchenDay([scheduled])));
-    const more = within(await screen.findByTestId("stop-1")).getByLabelText("Laporkan masalah atau pindah hari");
+    const more = within(await screen.findByTestId("stop-1")).getByLabelText(
+      "Laporkan masalah atau pindah hari: Bu Sari Wulandari",
+    );
     fireEvent.press(more);
     expect(await screen.findByText("Gagal diantar")).toBeTruthy();
     expect(screen.getByText("Pindah tanggal")).toBeTruthy();
@@ -557,9 +583,34 @@ describe("Urutan antar", () => {
   it("names the ellipsis for what its sheet can do: only a report when the day cannot move", async () => {
     renderToday(runtimeWith(async () => kitchenDay([scheduled])));
     // Keluarga Hartono's change deadline has passed.
-    fireEvent.press(within(await screen.findByTestId("stop-3")).getByLabelText("Laporkan masalah"));
+    fireEvent.press(within(await screen.findByTestId("stop-3")).getByLabelText("Laporkan masalah: Keluarga Hartono"));
     expect(await screen.findByText("Gagal diantar")).toBeTruthy();
     expect(screen.queryByText("Pindah tanggal")).toBeNull();
+  });
+
+  it("names the customer on every ellipsis, so no two buttons read the same", async () => {
+    renderToday(runtimeWith(async () => kitchenDay([scheduled])));
+    await screen.findByTestId("stop-1");
+    const labels = screen
+      .getAllByLabelText(/^(Laporkan masalah|Pindah hari)/)
+      .map((b) => b.props.accessibilityLabel as string);
+    expect(labels.length).toBeGreaterThan(1);
+    expect(new Set(labels).size).toBe(labels.length);
+    for (const label of labels) expect(label).toMatch(/: \S/);
+  });
+
+  it("names the customer in English too", async () => {
+    const runtime = runtimeWith(async () => kitchenDay([scheduled]));
+    store().set(runtime.storageKey("locale"), "en");
+    renderToday(runtime);
+    expect(
+      within(await screen.findByTestId("stop-1")).getByLabelText(
+        "Report a problem or move the day: Bu Sari Wulandari",
+      ),
+    ).toBeTruthy();
+    expect(
+      within(screen.getByTestId("stop-3")).getByLabelText("Report a problem: Keluarga Hartono"),
+    ).toBeTruthy();
   });
 
   it("offers only a move on tomorrow, and only where the day can move", async () => {
@@ -567,7 +618,9 @@ describe("Urutan antar", () => {
     await screen.findByText("Mulai masak");
     fireEvent.press(screen.getByRole("button", { name: /, ganti hari$/ }));
     // Tomorrow's day is read before its first stop shows; the checklist beside it reads its note too, so let that settle.
-    expect(await within(await screen.findByTestId("stop-1")).findByLabelText("Pindah hari")).toBeTruthy();
+    expect(
+      await within(await screen.findByTestId("stop-1")).findByLabelText("Pindah hari: Bu Sari Wulandari"),
+    ).toBeTruthy();
     await act(async () => undefined);
     expect(screen.queryByText("Mulai masak")).toBeNull();
     expect(within(screen.getByTestId("stop-3")).queryByLabelText(/Laporkan|Pindah hari/)).toBeNull();
@@ -588,11 +641,13 @@ describe("Urutan antar", () => {
     const command = jest.fn(async () => ({}));
     const day = kitchenDay([departed]);
     renderToday(runtimeWith(async () => day, command));
-    fireEvent.press(await within(await screen.findByTestId("stop-1")).findByLabelText("Laporkan masalah"));
+    const first = stopsOf(day)[0];
+    fireEvent.press(
+      await within(await screen.findByTestId("stop-1")).findByLabelText(`Laporkan masalah: ${first.name}`),
+    );
     expect(await screen.findByText("Gagal diantar")).toBeTruthy();
     expect(screen.queryByText("Pindah tanggal")).toBeNull();
     fireEvent.press(screen.getByText("Simpan laporan"));
-    const first = stopsOf(day)[0];
     await waitFor(() =>
       expect(command).toHaveBeenCalledWith(
         "delivery.status",
@@ -702,14 +757,14 @@ describe("the order across the stages", () => {
     fireEvent.press(screen.getByRole("button", { name: /, ganti hari$/ }));
     // Wait for tomorrow's own day: the header names it before its stops are read.
     await screen.findByText("Dapur Bu Rina · Besok");
-    await screen.findByLabelText("Pindah hari");
+    await screen.findByLabelText(/^Pindah hari: /);
     await act(async () => undefined);
     expect(screen.queryByText(LINE)).toBeNull();
   });
 
   it("lets a stop of a meal that is out for delivery be reported", async () => {
     renderToday(runtimeWith(async () => kitchenDay([departed])));
-    fireEvent.press(await within(await screen.findByTestId("stop-1")).findByLabelText("Laporkan masalah"));
+    fireEvent.press(await within(await screen.findByTestId("stop-1")).findByLabelText(/^Laporkan masalah: \S/));
     expect(await screen.findByText("Gagal diantar")).toBeTruthy();
   });
 

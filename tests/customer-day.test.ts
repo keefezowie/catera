@@ -283,6 +283,33 @@ describe("upcomingRows", () => {
     ]);
   });
 
+  it("shows the package photo, not a template photo, while the menu is not set (as the story does)", () => {
+    const pending = offer({
+      menus: [menu("lunch", { items: [], selectionStatus: "pending", image: "https://img/template.jpg" })],
+    });
+    const slots = offer({
+      menus: [menu("lunch", { items: [], contentModel: "slots", image: "https://img/template.jpg" })],
+    });
+    const choice = offer({
+      menus: [menu("lunch", { items: [], selectionStatus: "caterer_choice", image: "https://img/template.jpg" })],
+    });
+    const s = state([
+      delivery("2026-10-08", [lunch()], {}, pending),
+      delivery("2026-10-09", [lunch()], {}, slots),
+      delivery("2026-10-12", [lunch()], {}, choice),
+    ]);
+    expect(upcomingRows(s, at("09:00"), 3).map((r) => r.image)).toEqual([
+      "https://img/offer.jpg",
+      "https://img/offer.jpg",
+      "https://img/offer.jpg",
+    ]);
+    // The row and the story agree on the photo for the same day.
+    const tomorrow = state([delivery("2026-10-08", [lunch()], {}, pending)]);
+    expect(upcomingRows(tomorrow, at("09:00"), 1)[0].image).toBe(
+      tomorrowStory(tomorrow, at("09:00"), "id")!.parts[0].image,
+    );
+  });
+
   it("names the day of a deadline that is not today, in the reader's language", () => {
     const s = state([
       delivery("2026-10-08", [lunch()], { canChange: true, cutoff_at: "2026-10-07T10:00:00Z" }),

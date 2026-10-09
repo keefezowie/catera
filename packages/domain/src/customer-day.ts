@@ -198,7 +198,9 @@ export function upcomingRows(state: CustomerState, now: Date, n: number, locale:
     .map((d) => {
       const meals = servedMeals(d);
       const changeable = canChangeDay(d, now);
-      const cover = meals.length ? d.offer.menus?.find((m) => m.meal === meals[0]) : undefined;
+      const menu = meals.length ? d.offer.menus?.find((m) => m.meal === meals[0]) : undefined;
+      // A menu that is not set can still carry a template photo; the package photo is the truth then (as in the story).
+      const cover = menu && menuIsSet(menu) ? menu : null;
       return {
         deliveryId: d.id,
         date: d.service_date,
@@ -206,7 +208,7 @@ export function upcomingRows(state: CustomerState, now: Date, n: number, locale:
         packageName: d.offer.name,
         meal: meals.length > 1 ? "both" : (meals[0] ?? d.offer.meal),
         dishes: meals.flatMap((meal) => dishesFor(d.offer, meal)).join(", "),
-        image: menuCoverImage(cover ?? null, d.offer.image ?? ""),
+        image: menuCoverImage(cover, d.offer.image ?? ""),
         changeUntil: changeable.date || changeable.address ? changeDeadline(d.cutoff_at, now, locale) : null,
       };
     });
