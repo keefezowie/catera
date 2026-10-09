@@ -187,7 +187,8 @@ export function ChangeDaySheet({
                 </>
               )
             ) : (
-              <ScrollView style={{ maxHeight: 280 }} contentContainerStyle={{ gap: 8 }}>
+              // Inside the sheet's own ScrollView: without this Android hands the touch to the outer one.
+              <ScrollView nestedScrollEnabled style={{ maxHeight: 280 }} contentContainerStyle={{ gap: 8 }}>
                 {addresses.map((a) => {
                   const here = a.id === delivery.address.id;
                   const outside = !delivery.offer.areas.includes(a.area);

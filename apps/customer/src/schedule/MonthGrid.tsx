@@ -1,7 +1,7 @@
 import { Text as RNText, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import type { CalendarDay, Locale } from "@catera/domain";
-import { CalendarPhotoCell, fontFor, Text, useColors, useMoodColors } from "@catera/mobile-ui";
+import { CalendarPhotoCell, fontFor, Text, useMoodColors } from "@catera/mobile-ui";
 import { photoUri } from "../today/Plate";
 import { longDay, monthWeeks, WEEK_HEADER } from "./dates";
 
@@ -32,10 +32,11 @@ const BLEED = -8;
 const covered = (day: CalendarDay | undefined) => [day?.lunch, day?.dinner].filter((m) => m != null);
 
 /**
- * "Jumat 9 Oktober, makan siang dan makan malam, menu belum diisi, sudah sampai, hari ini, dipilih": the day, what it
- * covers, then only the states that hold, so a screen reader hears what the photo, the dashes and the rings show.
+ * "Jumat 9 Oktober, makan siang dan makan malam, menu belum diisi, sudah sampai, hari ini": the day, what it covers,
+ * then only the states that hold, so a screen reader hears what the photo, the dashes and the rings show. Selection is
+ * not in the words: the cell's `selected` accessibility state says it, and saying it twice would be read twice.
  */
-function dayLabel(date: string, locale: Locale, day: CalendarDay | undefined, today: boolean, selected: boolean): string {
+function dayLabel(date: string, locale: Locale, day: CalendarDay | undefined, today: boolean): string {
   const en = locale === "en";
   const meals = covered(day);
   const parts = [longDay(date, locale)];
@@ -45,7 +46,6 @@ function dayLabel(date: string, locale: Locale, day: CalendarDay | undefined, to
   if (meals.some((m) => !m.menuSet)) parts.push(en ? "menu not set" : "menu belum diisi");
   if (meals.length && meals.every((m) => m.delivered)) parts.push(en ? "arrived" : "sudah sampai");
   if (today) parts.push(en ? "today" : "hari ini");
-  if (selected) parts.push(en ? "selected" : "dipilih");
   return parts.join(", ");
 }
 
@@ -97,7 +97,7 @@ export function MonthGrid({ month, today, selected, days, apiBase, locale, onSel
                 today={isToday}
                 selected={isSelected}
                 onPress={() => onSelect(date)}
-                accessibilityLabel={dayLabel(date, locale, day, isToday, isSelected)}
+                accessibilityLabel={dayLabel(date, locale, day, isToday)}
                 style={{ flex: 1, minWidth: CELL_MIN_WIDTH }}
               />
             );
@@ -114,7 +114,6 @@ export function MonthGrid({ month, today, selected, days, apiBase, locale, onSel
  */
 export function CalendarLegend({ labels }: { labels: { photo: string; unset: string; dinner: string } }) {
   const mood = useMoodColors();
-  const c = useColors();
   const item = { flexDirection: "row", alignItems: "center", gap: 6 } as const;
   const label = { color: mood.headerMeta } as const;
   return (
@@ -146,11 +145,13 @@ export function CalendarLegend({ labels }: { labels: { photo: string; unset: str
         </Text>
       </View>
       <View testID="legend-dinner" style={item}>
-        {/* The same forest disc and cream moon the cell draws over a photo. */}
+        {/* The cell's disc and moon, in the header's own tokens: the cell's forest disc sits on a photo, and on the
+            near-black Malam header a forest disc would vanish. */}
         <View
-          style={{ width: 18, height: 18, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: c.forest }}
+          testID="legend-dinner-disc"
+          style={{ width: 18, height: 18, borderRadius: 9, alignItems: "center", justifyContent: "center", backgroundColor: mood.headerText }}
         >
-          <Ionicons name="moon" size={11} color={c.cream} />
+          <Ionicons name="moon" size={11} color={mood.header} />
         </View>
         <Text variant="caption" style={label}>
           {labels.dinner}

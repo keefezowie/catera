@@ -32,7 +32,7 @@ import {
 } from "@catera/mobile-ui";
 import { ChatKatering } from "../help/ChatKatering";
 import { EmptyHome } from "./EmptyHome";
-import { jakartaClock, photoUri, Plate } from "./Plate";
+import { jakartaClock, photoUri, Plate, sentences } from "./Plate";
 import { RenewalCard, TrialCard } from "./RenewalCard";
 import { UpcomingRows } from "./UpcomingRows";
 import { MenuDueRows } from "./MenuDueRows";
@@ -81,13 +81,22 @@ export function Beranda() {
   return <SignedInHome actorId={actor.id} />;
 }
 
-/** The compact row for the meal the mood is not on: its ring, when it comes and its first dish. One tap switches to it. */
+/** Plates that need the customer now. The mood must not hide them behind the other meal's hero. */
+const NEEDS_YOU: PlateData["state"][] = ["due", "on_the_way", "failed"];
+
+/**
+ * The compact row for the meal the mood is not on: its ring, when it comes and its first dish. One tap switches to it.
+ * When that plate needs the customer (it should have arrived, is on the way, or failed), its status sentence shows here
+ * too, so "needs you now" stays visible; the actions are one tap away, on the hero.
+ */
 function OtherMealRow({ plate, apiBase, onPress }: { plate: PlateData; apiBase: string; onPress: () => void }) {
   const { t } = useMobile();
+  const c = useColors();
   const styles = useStyles();
   const dinner = plate.meal === "dinner";
   const label = dinner ? t("Malam ini", "Dinner tonight") : t("Siang ini", "Lunch today");
   const dish = plate.dishes[0] ?? plate.packageName;
+  const status = NEEDS_YOU.includes(plate.state) ? sentences(plate, t)[0] : "";
   return (
     <PressableScale
       testID="other-meal-row"
@@ -110,6 +119,11 @@ function OtherMealRow({ plate, apiBase, onPress }: { plate: PlateData; apiBase: 
           {plate.window ? `${label} · ${plate.window}` : label}
         </Text>
         <Text style={{ fontFamily: fontFor("700") }}>{dish}</Text>
+        {status ? (
+          <Text testID="other-meal-status" style={{ fontFamily: fontFor("700"), color: c.sunriseInk }}>
+            {status}
+          </Text>
+        ) : null}
       </View>
     </PressableScale>
   );

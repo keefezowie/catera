@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
-import { ActivityIndicator, Image, Linking, StyleSheet } from "react-native";
+import { ActivityIndicator, Image, Linking, ScrollView, StyleSheet } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
@@ -238,9 +238,10 @@ describe("Jadwal", () => {
     // Today, no longer selected, keeps its ring and has no bar.
     expect(outline("Rabu 7 Oktober", "today")).toBeTruthy();
     expect(bar("Rabu 7 Oktober")).toBeNull();
-    // The state is also spoken.
+    // The state is also spoken: today in the words, selection by the accessibility state alone (never "dipilih" twice).
     expect(dayButton("Rabu 7 Oktober").props.accessibilityLabel).toBe("Rabu 7 Oktober, hari ini");
-    expect(dayButton("Kamis 8 Oktober").props.accessibilityLabel).toBe("Kamis 8 Oktober, dipilih");
+    expect(dayButton("Kamis 8 Oktober").props.accessibilityLabel).toBe("Kamis 8 Oktober");
+    expect(dayButton("Kamis 8 Oktober").props.accessibilityState.selected).toBe(true);
   });
 
   it("a selected photo day gets the bar and keeps its cream pill, which is not the past pill", async () => {
@@ -399,6 +400,26 @@ describe("Jadwal", () => {
     expect(flat(within(screen.getByTestId("legend-photo")).getByTestId("legend-photo-swatch")).borderRadius).toBeGreaterThan(0);
   });
 
+  it("the legend's dinner disc is drawn in the header's own tokens, so it shows in every look", async () => {
+    renderWith(runtimeWith(month), <Jadwal />);
+    await screen.findByText("Foto menu");
+    const disc = () => screen.getByTestId("legend-dinner-disc");
+    expect(flat(disc()).backgroundColor).toBe(siang.headerText);
+    expect(within(disc()).UNSAFE_getByType(Ionicons).props.color).toBe(siang.header);
+    screen.unmount();
+    renderWith(
+      runtimeWith(month),
+      <MoodProvider now={() => new Date("2026-10-09T08:00:00Z")}>
+        <Jadwal />
+      </MoodProvider>,
+    );
+    await screen.findByText("Foto menu");
+    // Light Malam: a cream disc with a near-black moon on the near-black header, where a forest disc would vanish.
+    expect(flat(disc()).backgroundColor).toBe(malam.headerText);
+    expect(flat(disc()).backgroundColor).not.toBe(nativeThemes.light.forest);
+    expect(within(disc()).UNSAFE_getByType(Ionicons).props.color).toBe(malam.header);
+  });
+
   it("legend reads in English when the language is English", async () => {
     (require("expo-secure-store") as { __store: Map<string, string> }).__store.set("catera.locale", "en");
     renderWith(runtimeWith(month), <Jadwal />);
@@ -506,8 +527,9 @@ describe("Jadwal", () => {
     const row = screen.getByRole("button", { name: /Makan Siang Rumahan/ });
     expect(within(row).getByText(/Tidak bisa diantar/)).toBeTruthy();
     // The day looks like a day without deliveries: no coverage in its label, no photo, dashed outline or dot.
-    // It was just picked, so its label says that and nothing about a meal.
-    expect(dayButton("Selasa 6 Oktober").props.accessibilityLabel).toBe("Selasa 6 Oktober, dipilih");
+    // It was just picked: the state says so, and the label says nothing about a meal.
+    expect(dayButton("Selasa 6 Oktober").props.accessibilityLabel).toBe("Selasa 6 Oktober");
+    expect(dayButton("Selasa 6 Oktober").props.accessibilityState.selected).toBe(true);
     expect(cell("Selasa 6 Oktober").UNSAFE_queryByType(Image)).toBeNull();
     expect(cell("Selasa 6 Oktober").queryByTestId("cell-dashed", { includeHiddenElements: true })).toBeNull();
     expect(cell("Selasa 6 Oktober").queryByTestId("cell-photo-dot", { includeHiddenElements: true })).toBeNull();
@@ -521,10 +543,13 @@ describe("Jadwal", () => {
     expect(screen.getByLabelText("Senin 5 Oktober, makan siang, sudah sampai")).toBeTruthy();
     expect(screen.getByLabelText("Selasa 13 Oktober, makan siang dan makan malam, sudah sampai")).toBeTruthy();
     expect(screen.getByLabelText("Minggu 11 Oktober")).toBeTruthy();
-    // Today starts selected, and both are said.
-    expect(screen.getByLabelText("Rabu 7 Oktober, makan siang, sudah sampai, hari ini, dipilih")).toBeTruthy();
+    // Today starts selected. Selection is the accessibility state, not a word, so the label is the same selected or not.
+    expect(screen.getByLabelText("Rabu 7 Oktober, makan siang, sudah sampai, hari ini")).toBeTruthy();
+    expect(dayButton("Rabu 7 Oktober").props.accessibilityState.selected).toBe(true);
     fireEvent.press(dayButton("Kamis 8 Oktober"));
-    expect(screen.getByLabelText("Kamis 8 Oktober, makan siang, menu belum diisi, dipilih")).toBeTruthy();
+    expect(screen.getByLabelText("Kamis 8 Oktober, makan siang, menu belum diisi")).toBeTruthy();
+    expect(dayButton("Kamis 8 Oktober").props.accessibilityState.selected).toBe(true);
+    expect(dayButton("Rabu 7 Oktober").props.accessibilityState.selected).toBe(false);
     expect(screen.getByLabelText("Rabu 7 Oktober, makan siang, sudah sampai, hari ini")).toBeTruthy();
   });
 
@@ -533,7 +558,7 @@ describe("Jadwal", () => {
     renderWith(runtimeWith(coverage), <Jadwal />);
     expect(await screen.findByLabelText("Friday 9 October, lunch and dinner")).toBeTruthy();
     expect(screen.getByLabelText("Thursday 8 October, lunch, menu not set")).toBeTruthy();
-    expect(screen.getByLabelText("Wednesday 7 October, lunch, arrived, today, selected")).toBeTruthy();
+    expect(screen.getByLabelText("Wednesday 7 October, lunch, arrived, today")).toBeTruthy();
   });
 
   it("lists lunch before dinner on a day with both", async () => {
@@ -681,6 +706,14 @@ describe("Ubah hari sheet", () => {
         expect.any(String),
       ),
     );
+  });
+
+  it("lets the address list scroll inside the sheet's own scroller on Android", async () => {
+    renderSheet(flexible, runtimeWith(stateOf([flexible]), available));
+    fireEvent.press(await screen.findByRole("tab", { name: "Ganti alamat" }));
+    const list = screen.UNSAFE_getAllByType(ScrollView).find((s) => StyleSheet.flatten(s.props.style)?.maxHeight === 280);
+    expect(list).toBeTruthy();
+    expect(list!.props.nestedScrollEnabled).toBe(true);
   });
 
   it("address rows are 48dp picks with a selection haptic; a disabled row is set to no haptic", async () => {

@@ -440,6 +440,16 @@ describe("topTags", () => {
     ]);
   });
 
+  it("takes the image from the first offer that carries the tag and has a photo", () => {
+    const offers = [tagged("a", ["Sehat"], ""), tagged("b", ["Sehat", "Pedas"], "b.jpg"), tagged("c", ["Pedas"], "")];
+    expect(topTags(offers, 6)).toEqual([
+      { tag: "Pedas", image: "b.jpg" },
+      { tag: "Sehat", image: "b.jpg" },
+    ]);
+    // A tag no photographed package carries keeps an empty image, as before.
+    expect(topTags([tagged("a", ["Sehat"], "")], 6)).toEqual([{ tag: "Sehat", image: "" }]);
+  });
+
   it("counts a tag once per offer and returns nothing when no offer has tags", () => {
     expect(topTags([tagged("a", ["Sehat", "Sehat"]), tagged("b", ["Pedas"])], 6)[0].tag).toBe("Pedas");
     expect(topTags([tagged("a", [])], 6)).toEqual([]);

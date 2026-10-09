@@ -598,6 +598,59 @@ describe("Beranda mood", () => {
     expect(within(screen.getByTestId("plate-hero")).getByText(/^Makan malam · /)).toBeTruthy();
   });
 
+  describe("an actionable plate behind the mood", () => {
+    // The plate state reads the real clock, so the windows are pinned to the ends of the day: a window that opened at
+    // 00.01 is always past, one that opens at 23.59 is not yet open.
+    const windowsOf = (state: CustomerState, windows: { lunch: string; dinner: string }) => {
+      state.deliveries[0].offer = { ...state.deliveries[0].offer, windows };
+      return state;
+    };
+    /** Lunch is long past its window, so a lunch that is not out yet is due; dinner is still to come. */
+    const earlyLunch = (lunch: Record<string, unknown>) => {
+      const state = windowsOf(bothMeals(), { lunch: "00.01–00.30", dinner: "23.59–23.59" });
+      state.deliveries[0].meals = [{ meal: "lunch", ...lunch }, { meal: "dinner", status: "scheduled" }] as never;
+      return state;
+    };
+
+    it("shows a due lunch's status sentence in the other-meal row while the mood is Malam", async () => {
+      mount(runtimeWith(async () => earlyLunch({ status: "scheduled" })), { now: MALAM_NOW });
+      await screen.findByTestId("plate-hero");
+      const row = within(screen.getByTestId("other-meal-row"));
+      expect(row.getByText("Siang ini · 00.01–00.30")).toBeTruthy();
+      expect(row.getByText("Seharusnya sudah tiba")).toBeTruthy();
+      // The actions stay on the hero: pressing the row switches the mood and reveals them.
+      expect(screen.queryByRole("button", { name: "Sudah sampai" })).toBeNull();
+      fireEvent.press(screen.getByTestId("other-meal-row"));
+      expect(screen.getByRole("button", { name: "Sudah sampai" })).toBeTruthy();
+    });
+
+    it.each([
+      [{ status: "out_for_delivery" }, "Sedang diantar"],
+      [{ status: "issue" }, "Tidak bisa diantar hari ini"],
+    ])("says %j in the row too", async (lunch, sentence) => {
+      mount(runtimeWith(async () => earlyLunch(lunch)), { now: MALAM_NOW });
+      await screen.findByTestId("plate-hero");
+      expect(within(screen.getByTestId("other-meal-row")).getByText(sentence)).toBeTruthy();
+    });
+
+    it.each([
+      [{ status: "delivered", confirmed_at: `${TODAY}T04:48:00Z` }, "arrived"],
+      [{ status: "scheduled", issue: { status: "open" } }, "reported"],
+    ])("keeps the row quiet for a plate that needs nothing now (%j: %s)", async (lunch) => {
+      mount(runtimeWith(async () => earlyLunch(lunch)), { now: MALAM_NOW });
+      await screen.findByTestId("plate-hero");
+      expect(screen.queryByTestId("other-meal-status")).toBeNull();
+    });
+
+    it("keeps the row quiet for a plate still being cooked", async () => {
+      // Dinner, not yet due, behind the Siang mood: only its label, window and dish.
+      mount(runtimeWith(async () => windowsOf(bothMeals(), { lunch: "11.00–13.00", dinner: "23.59–23.59" })));
+      await screen.findByTestId("plate-hero");
+      expect(within(screen.getByTestId("other-meal-row")).getByText("Malam ini · 23.59–23.59")).toBeTruthy();
+      expect(screen.queryByTestId("other-meal-status")).toBeNull();
+    });
+  });
+
   it("opens in Malam in the evening", async () => {
     mount(runtimeWith(async () => bothMeals()), { now: MALAM_NOW });
     await screen.findByTestId("plate-hero");

@@ -6,7 +6,7 @@ const MEAL_TAG = /makan siang|makan malam|siang & malam/i;
 /**
  * The Jelajah category circles come from what caterers really tagged, not from a list written here. The most frequent
  * tags across the loaded packages (a tag counts once per package), ties in alphabetical order, each shown with the
- * photo of the first package that carries it.
+ * photo of the first package that carries it and has a photo (a package without one never blanks a circle).
  */
 export function topTags(offers: Offer[], max: number): { tag: string; image: string }[] {
   const found = new Map<string, { count: number; image: string }>();
@@ -14,8 +14,10 @@ export function topTags(offers: Offer[], max: number): { tag: string; image: str
     for (const tag of new Set(offer.tags)) {
       if (!tag || MEAL_TAG.test(tag)) continue;
       const seen = found.get(tag);
-      if (seen) seen.count += 1;
-      else found.set(tag, { count: 1, image: offer.image });
+      if (seen) {
+        seen.count += 1;
+        if (!seen.image) seen.image = offer.image;
+      } else found.set(tag, { count: 1, image: offer.image });
     }
   }
   return [...found]
