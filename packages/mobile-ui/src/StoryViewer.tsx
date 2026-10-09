@@ -17,15 +17,26 @@ const DISMISS_DISTANCE = 80;
 /** ...and so does a quicker, shorter flick (dp per millisecond), as long as it clearly went down. */
 const DISMISS_VELOCITY = 0.6;
 const FLICK_MIN_DISTANCE = 20;
+/** A press whose finger moved further than this, on either axis, between going down and lifting is not a tap. */
+const TAP_SLOP = 10;
+/** A sideways move longer than this, and mostly sideways, is a swipe that turns the page. */
+const SWIPE_DISTANCE = 40;
+/** "Mostly sideways": the horizontal move is this many times the vertical one (the swipe down uses the same ratio). */
+const SWIPE_RATIO = 1.5;
 
 /**
  * A full-screen story: one bar per part along the top (the first `index + 1` solid), a header line beside a 48dp close
  * button, and the current part below, which the caller owns (`children`, swapped through `FadeSwap` when `index` changes).
- * - Nothing moves on its own: no timer advances a part. The content region is one press target: a tap on its right half
- *   goes forward and on its left half goes back, wherever on the content it lands. A button inside the content is a
- *   deeper responder and keeps its own press. The region is not an accessibility element (its buttons stay), so
- *   screen readers get the header as an adjustable (swipe up or down) and the close button instead. The first part has
- *   no back and the last has no forward.
+ * - Nothing moves on its own: no timer advances a part, and nothing loops. The content region is one press target, and
+ *   only two gestures on it turn the page:
+ *   - A tap, where the finger moved no more than 10dp on either axis between going down and lifting: on the right half
+ *     (at the lift point, split at half the window width) it goes forward, on the left half back.
+ *   - A sideways swipe of more than 40dp that is mostly sideways (1.5 times the vertical move), in the story
+ *     convention: right to left goes forward, left to right goes back, wherever it starts or lifts.
+ *   Any other drag (up, a short slide, a diagonal) does nothing. A button inside the content is a deeper responder and
+ *   keeps its own press. The region is not an accessibility element (its buttons stay), so screen readers get the
+ *   header as an adjustable (swipe up or down) and the close button instead. The first part has no back and the last
+ *   has no forward.
  * - `children` must not contain a ScrollView: the content press target owns the touch, and on Android it becomes the
  *   responder over a scroll view, which would then never scroll. A part fits the screen: the photo flexes and long
  *   text wraps.
@@ -68,6 +79,27 @@ export function StoryViewer({
   };
   const back = () => {
     if (index > 0) onIndexChange(index - 1);
+  };
+
+  // Where the finger went down. The press fires where it lifts, wherever it travelled in between: the region covers the
+  // screen, so moving never leaves it and never cancels the press. Only a downward move is claimed by the pan below.
+  const pressStart = useRef<{ x: number; y: number } | null>(null);
+  const onPressIn = (e: GestureResponderEvent) => {
+    pressStart.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY };
+  };
+  const onPress = (e: GestureResponderEvent) => {
+    const { pageX, pageY } = e.nativeEvent;
+    const start = pressStart.current ?? { x: pageX, y: pageY };
+    pressStart.current = null;
+    const dx = pageX - start.x;
+    const dy = pageY - start.y;
+    if (Math.abs(dx) <= TAP_SLOP && Math.abs(dy) <= TAP_SLOP) {
+      if (pageX < width / 2) back();
+      else forward();
+    } else if (Math.abs(dx) > SWIPE_DISTANCE && Math.abs(dx) > Math.abs(dy) * SWIPE_RATIO) {
+      if (dx < 0) forward();
+      else back();
+    }
   };
 
   // The responder is built once and reads the latest close handler through this ref.
@@ -154,7 +186,8 @@ export function StoryViewer({
           testID="story-viewer-content"
           accessible={false}
           importantForAccessibility="no"
-          onPress={(e: GestureResponderEvent) => (e.nativeEvent.pageX < width / 2 ? back() : forward())}
+          onPressIn={onPressIn}
+          onPress={onPress}
           style={{ flex: 1 }}
         >
           <FadeSwap swapKey={String(index)} style={{ flex: 1 }}>

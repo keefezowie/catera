@@ -253,7 +253,13 @@ describe("StoryViewer", () => {
   });
 
   // The press lands on the child text, as a thumb on the story's own content does: it has to reach the content's handler.
-  const tap = (pageX: number) => fireEvent.press(screen.getByText("Isi cerita"), { nativeEvent: { pageX } });
+  // A press is the finger going down (pressIn) and coming up (press); the two points may differ when the finger moved.
+  const drag = (from: { x: number; y: number }, to: { x: number; y: number }) => {
+    const content = screen.getByText("Isi cerita");
+    fireEvent(content, "pressIn", { nativeEvent: { pageX: from.x, pageY: from.y } });
+    fireEvent.press(content, { nativeEvent: { pageX: to.x, pageY: to.y } });
+  };
+  const tap = (pageX: number) => drag({ x: pageX, y: 400 }, { x: pageX, y: 400 });
 
   it("goes forward from a tap on the right half of the content and does nothing on the last part", () => {
     const onIndexChange = jest.fn();
@@ -292,6 +298,57 @@ describe("StoryViewer", () => {
     expect(onIndexChange).toHaveBeenLastCalledWith(0);
     tap(200);
     expect(onIndexChange).toHaveBeenLastCalledWith(2);
+  });
+
+  it("does not turn the page when the finger moved more than 10dp between press-in and release", () => {
+    const onIndexChange = jest.fn();
+    mount(viewer(1, { onIndexChange }));
+    // The gate's swipe up on the right half, which used to go forward.
+    drag({ x: 300, y: 600 }, { x: 300, y: 200 });
+    // A small sideways slide and a small vertical one, each just past the 10dp slop.
+    drag({ x: 300, y: 400 }, { x: 311, y: 400 });
+    drag({ x: 100, y: 400 }, { x: 100, y: 389 });
+    // A diagonal that is neither a tap nor mostly sideways.
+    drag({ x: 300, y: 400 }, { x: 240, y: 350 });
+    expect(onIndexChange).not.toHaveBeenCalled();
+  });
+
+  it("still turns the page on a tap that jitters by no more than 10dp, decided at the release point", () => {
+    const onIndexChange = jest.fn();
+    mount(viewer(1, { onIndexChange }));
+    drag({ x: 205, y: 400 }, { x: 195, y: 410 });
+    expect(onIndexChange).toHaveBeenLastCalledWith(0);
+    drag({ x: 195, y: 400 }, { x: 205, y: 390 });
+    expect(onIndexChange).toHaveBeenLastCalledWith(2);
+  });
+
+  it("turns the page on a sideways swipe: right to left goes forward, left to right goes back, wherever it lifts", () => {
+    const onIndexChange = jest.fn();
+    const view = mount(viewer(1, { onIndexChange }));
+    // The gate's right-to-left swipe lifted on the left half and went back; it is the story's "next" gesture.
+    drag({ x: 380, y: 400 }, { x: 60, y: 400 });
+    expect(onIndexChange).toHaveBeenLastCalledWith(2);
+    drag({ x: 60, y: 400 }, { x: 380, y: 420 });
+    expect(onIndexChange).toHaveBeenLastCalledWith(0);
+    // Just past 40dp and mostly sideways.
+    drag({ x: 100, y: 400 }, { x: 141, y: 420 });
+    expect(onIndexChange).toHaveBeenLastCalledWith(0);
+    expect(onIndexChange).toHaveBeenCalledTimes(3);
+    // No loop: nothing before the first part and nothing after the last.
+    onIndexChange.mockClear();
+    view.rerender(
+      <ThemeProvider storageKey="daily-loop-test">
+        <MoodProvider now={SIANG_NOW}>{viewer(0, { onIndexChange })}</MoodProvider>
+      </ThemeProvider>,
+    );
+    drag({ x: 60, y: 400 }, { x: 380, y: 400 });
+    view.rerender(
+      <ThemeProvider storageKey="daily-loop-test">
+        <MoodProvider now={SIANG_NOW}>{viewer(3, { onIndexChange })}</MoodProvider>
+      </ThemeProvider>,
+    );
+    drag({ x: 380, y: 400 }, { x: 60, y: 400 });
+    expect(onIndexChange).not.toHaveBeenCalled();
   });
 
   it("leaves a button inside the content its own press", () => {

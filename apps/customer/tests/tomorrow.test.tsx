@@ -1,9 +1,12 @@
 import type { ReactNode } from "react";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
+import * as ReactNative from "react-native";
 import { Image, StyleSheet } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import * as SecureStore from "expo-secure-store";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
+import { statusBarStyle, ThemeProvider, TopInsetOwner } from "@catera/mobile-ui";
 import {
   addDays,
   shortDate,
@@ -461,6 +464,61 @@ describe("Menu besok story", () => {
     await waitFor(() => expect(coveredCount()).toBe(1));
     await settle();
     view.unmount();
+  });
+});
+
+describe("Menu besok story status bar", () => {
+  const glyphs = () => screen.UNSAFE_getByType(StatusBar).props.style as string;
+  // The root layout's shape in demo mode: the strip owns the top inset over everything below it.
+  const openUnder = async (owned: boolean, scheme: "light" | "dark" = "light") => {
+    pinClock(BEFORE_CUTOFF);
+    jest.spyOn(ReactNative, "useColorScheme").mockReturnValue(scheme);
+    wrap(
+      runtimeWith(async () => bothState()),
+      <ThemeProvider storageKey="tomorrow-status-test">
+        <TopInsetOwner owned={owned}>
+          <TomorrowStoryScreen />
+        </TopInsetOwner>
+      </ThemeProvider>,
+    );
+    await screen.findByTestId("story-viewer");
+    await settle();
+  };
+
+  it("keeps light glyphs on the story's black when no demo strip sits under the status bar", async () => {
+    await openUnder(false);
+    expect(glyphs()).toBe("light");
+  });
+
+  it("uses dark glyphs over the light theme's demo strip, and light ones over the dark theme's", async () => {
+    await openUnder(true, "light");
+    expect(glyphs()).toBe(statusBarStyle({ scheme: "light", mood: "siang", demo: true }));
+    expect(glyphs()).toBe("dark");
+    screen.unmount();
+    await openUnder(true, "dark");
+    expect(glyphs()).toBe("light");
+  });
+
+  it("keeps light glyphs on iOS, where the full-screen story covers the strip", async () => {
+    jest.replaceProperty(ReactNative.Platform, "OS", "ios");
+    await openUnder(true, "light");
+    expect(glyphs()).toBe("light");
+  });
+
+  it("follows the strip in the loading state too", async () => {
+    pinClock(BEFORE_CUTOFF);
+    jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("light");
+    wrap(
+      runtimeWith(() => new Promise(() => undefined)),
+      <ThemeProvider storageKey="tomorrow-status-test">
+        <TopInsetOwner owned>
+          <TomorrowStoryScreen />
+        </TopInsetOwner>
+      </ThemeProvider>,
+    );
+    await screen.findByText("Memuat menu besok…");
+    await settle();
+    expect(glyphs()).toBe("dark");
   });
 });
 

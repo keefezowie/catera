@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Image, StyleSheet, View } from "react-native";
+import { Image, Platform, StyleSheet, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -7,7 +7,16 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { shortDate, tomorrowStory, type CustomerState, type StoryPart } from "@catera/domain";
 import { nativeThemes } from "@catera/design-tokens";
 import { useData, useMobile, useTrack, type MobileRuntime } from "@catera/mobile-core";
-import { Button, PressableScale, StoryViewer, Text } from "@catera/mobile-ui";
+import {
+  Button,
+  PressableScale,
+  statusBarStyle,
+  StoryViewer,
+  Text,
+  useMood,
+  useThemePreference,
+  useTopInsetOwned,
+} from "@catera/mobile-ui";
 import { photoUri } from "../today/Plate";
 import { loadCachedCustomer } from "../today/offline";
 import { useViewedParts } from "./viewed";
@@ -34,6 +43,22 @@ function leave() {
 }
 
 const EMPTY: StoryPart[] = [];
+
+/**
+ * The story's status-bar glyphs. On its own the story is black up to the top edge, so the glyphs are light. In demo
+ * mode the root demo strip owns the top inset (`TopInsetOwner`) and stays under the status bar on Android, where this
+ * full-screen modal is drawn inside the stack below the strip; there the strip's theme fill decides, through the same
+ * `statusBarStyle` rule every other screen uses with the strip shown (dark glyphs on the light theme's sage, light on
+ * the dark theme's). On iOS a full-screen modal is presented over the whole window, strip included, so the story's
+ * black is under the status bar again (reasoned from the presentation, not checked on an iOS device).
+ */
+function useStoryStatusBar(): "light" | "dark" {
+  const stripOwnsTop = useTopInsetOwned();
+  const { scheme } = useThemePreference();
+  const { mood } = useMood();
+  const stripUnder = stripOwnsTop && Platform.OS !== "ios";
+  return stripUnder ? statusBarStyle({ scheme, mood, demo: true }) : "light";
+}
 
 /**
  * Menu besok: tomorrow's meals as a full-screen story, one part per delivery and meal, lunch first. Nothing advances by
@@ -66,6 +91,7 @@ export function TomorrowStoryScreen() {
     if (part) markViewed(part);
   }, [part, markViewed]);
 
+  const statusBar = useStoryStatusBar();
   const close = t("Tutup", "Close");
   let body: ReactNode;
   if (!state && home.loading) {
@@ -118,7 +144,7 @@ export function TomorrowStoryScreen() {
 
   return (
     <View testID="tomorrow-screen" style={{ flex: 1, backgroundColor: "black" }}>
-      <StatusBar style="light" />
+      <StatusBar style={statusBar} />
       {body}
     </View>
   );
