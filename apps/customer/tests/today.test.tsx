@@ -6,7 +6,15 @@ import * as ReactNative from "react-native";
 import { Linking, StyleSheet } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Haptics from "expo-haptics";
-import { addDays, upcomingRows, type CustomerState, type Delivery, type Offer, type Subscription } from "@catera/domain";
+import {
+  addDays,
+  upcomingRows,
+  type CustomerState,
+  type Delivery,
+  type DeliveryMeal,
+  type Offer,
+  type Subscription,
+} from "@catera/domain";
 import { nativeMood, nativeThemes } from "@catera/design-tokens";
 import { MoodProvider, ThemeProvider } from "@catera/mobile-ui";
 import * as Reanimated from "react-native-reanimated";
@@ -334,7 +342,9 @@ it("offline shows the cached day and when it was updated", async () => {
       throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
     }),
   );
-  expect(await screen.findByText("Sedang diantar")).toBeTruthy();
+  // No departure time was saved, so the track caption says "Sedang diantar" too; the sentence is the header.
+  expect(await screen.findByRole("header", { name: "Sedang diantar" })).toBeTruthy();
+  expect(screen.getByTestId("rantang-track").props.accessibilityLabel).toBe("Sedang diantar");
   expect(screen.getByText(/Terakhir diperbarui 06\.12/)).toBeTruthy();
   expect(offline.loadCachedCustomer).toHaveBeenCalledWith("u-c1");
 });
@@ -423,7 +433,6 @@ describe("design tokens", () => {
     expect(contrast).toBeGreaterThanOrEqual(4.5);
     const meal = StyleSheet.flatten(screen.getByText(/^Makan siang · /).props.style);
     expect(meal.opacity ?? 1).toBe(1);
-    expect(StyleSheet.flatten(screen.getByText("Berangkat 10.42").props.style).fontVariant).toContain("tabular-nums");
   });
 
   it("unselected star is outlined and muted", async () => {
@@ -489,8 +498,9 @@ describe("SunriseButton disabled look", () => {
 describe("fixed surfaces in the dark theme", () => {
   afterEach(() => jest.restoreAllMocks());
 
-  // The scrim, the departure chip and the Sunrise fill do not change with the theme, so their ink must not either.
-  it("keeps the plate text cream on the scrim, the chip text forest and the Sunrise label charcoal", async () => {
+  // The scrim and the Sunrise fill do not change with the theme, so their ink must not either. The track below the photo
+  // is a hero surface and reads the mood's hero ink instead.
+  it("keeps the plate text cream on the scrim and the Sunrise label charcoal, and the track caption in the hero ink", async () => {
     jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
     const runtime = runtimeWith(async () =>
       customerState({ status: "out_for_delivery", departed_at: `${TODAY}T03:42:00Z` }),
@@ -504,7 +514,7 @@ describe("fixed surfaces in the dark theme", () => {
     );
     const ink = (node: { props: { style?: unknown } }) => StyleSheet.flatten(node.props.style as never).color;
     expect(ink(await screen.findByText("Sedang diantar"))).toBe("#FFF7E9");
-    expect(ink(screen.getByText("Berangkat 10.42"))).toBe("#163D2E");
+    expect(ink(screen.getByText("Berangkat 10.42"))).toBe(nativeMood.dark.siang.heroText);
     expect(ink(screen.getByText("Sudah sampai"))).toBe("#2E2E2E");
     // Control: the fixed inks above would read the same in light, so prove the dark theme was in force.
     expect(StyleSheet.flatten(screen.UNSAFE_getByType(SafeAreaView).props.style).backgroundColor).toBe(nativeThemes.dark.canvas);
@@ -614,8 +624,8 @@ describe("Beranda mood", () => {
   });
 
   describe("an actionable plate behind the mood", () => {
-    // The plate state reads the real clock, so the windows are pinned to the ends of the day: a window that opened at
-    // 00.01 is always past, one that opens at 23.59 is not yet open.
+    // The clock is pinned to 12.00; the windows sit at the ends of the day so lunch is past and dinner not yet open:
+    // a window that opened at 00.01 is past, one that opens at 23.59 is not yet open.
     const windowsOf = (state: CustomerState, windows: { lunch: string; dinner: string }) => {
       state.deliveries[0].offer = { ...state.deliveries[0].offer, windows };
       return state;
@@ -831,7 +841,7 @@ describe("Beranda mood", () => {
     expect(screen.queryByTestId("plate-error")).toBeNull();
   });
 
-  it("puts the departure chip in flow with the overlay, so a taller overlay grows the photo", async () => {
+  it("keeps the overlay in flow, so a taller overlay grows the photo instead of overflowing it", async () => {
     const state = bothMeals();
     state.deliveries[0].meals = [
       { meal: "lunch", status: "out_for_delivery", departed_at: `${TODAY}T03:42:00Z` },
@@ -839,16 +849,192 @@ describe("Beranda mood", () => {
     ];
     mount(runtimeWith(async () => state));
     await screen.findByTestId("plate-hero");
-    const chip = screen.getByTestId("plate-chip");
-    expect(within(chip).getByText("Berangkat 10.42")).toBeTruthy();
-    expect(flat("plate-chip").position).not.toBe("absolute");
-    // Both sit in the photo's own column, neither pulled out of flow, and the photo has no fixed height to overflow.
     const photo = within(screen.getByTestId("plate-photo"));
-    expect(photo.getByTestId("plate-chip")).toBeTruthy();
     expect(photo.getByTestId("plate-overlay")).toBeTruthy();
     expect(flat("plate-overlay").position).not.toBe("absolute");
     expect(flat("plate-photo").height).toBeUndefined();
     expect(flat("plate-photo").flexDirection).toBeUndefined();
+  });
+
+  describe("the rantang track on the hero", () => {
+    // Delivery ids are unique per test: journey_viewed is counted once per delivery, meal and stage for the whole
+    // app process, so a repeated id would silence a later test.
+    let seq = 0;
+    const NOT_YET = "23.59–23.59";
+
+    /** One lunch today with its window at the end of the day, so a meal nobody tapped is still scheduled at 12.00. */
+    function lunchToday(meal: Partial<DeliveryMeal>, extra: Partial<Delivery> = {}, id = `d-track-${++seq}`) {
+      const state = customerState(null);
+      state.deliveries.unshift(
+        delivery(id, TODAY, meal, { offer: offer({ windows: { lunch: NOT_YET, dinner: NOT_YET } }), ...extra }),
+      );
+      return state;
+    }
+
+    /** The same runtime as `runtimeWith`, but with an app so that usage counts are sent, and the usage call exposed. */
+    function countingRuntime(state: CustomerState) {
+      const usage = jest.fn(async () => undefined);
+      const runtime = createMobileRuntime({ apiUrl: "https://api.example.test", storagePrefix: "catera", app: "customer" });
+      runtime.api = {
+        ...runtime.api,
+        me: jest.fn(async () => ({ actor: customer, demo: false })),
+        customer: jest.fn(async () => state),
+        customerActions: jest.fn(async () => ({ total: 0, items: [] })),
+        catalog: jest.fn(async () => ({ items: [], nextCursor: null })),
+        command: jest.fn(async () => ({})),
+        usage,
+      } as unknown as MobileRuntime["api"];
+      const viewed = () => usage.mock.calls.filter(([name]) => name === "journey_viewed");
+      return { runtime, viewed };
+    }
+
+    const hero = async () => within(await screen.findByTestId("plate-hero"));
+
+    it("shows a meal nobody tapped as Terjadwal in the sentence and in the track, never as Sedang dimasak", async () => {
+      mount(runtimeWith(async () => lunchToday({ status: "scheduled" })));
+      const h = await hero();
+      expect(h.getByRole("header", { name: "Terjadwal" })).toBeTruthy();
+      const track = h.getByTestId("rantang-track");
+      expect(track.props.accessibilityLabel).toBe("Terjadwal");
+      expect(within(track).getByText("Terjadwal")).toBeTruthy();
+      expect(h.queryByText("Sedang dimasak")).toBeNull();
+      expect(h.queryByText("Dimasak")).toBeNull();
+    });
+
+    it("says Dimasak with the time the kitchen started, while the sentence stays Sedang dimasak", async () => {
+      mount(runtimeWith(async () => lunchToday({ status: "preparing", cooking_started_at: `${TODAY}T01:10:00Z` })));
+      const h = await hero();
+      expect(within(h.getByTestId("rantang-track")).getByText("Dimasak 08.10")).toBeTruthy();
+      expect(h.getByRole("header", { name: "Sedang dimasak" })).toBeTruthy();
+      // Two different lines, and neither is said twice.
+      expect(h.getAllByText("Sedang dimasak")).toHaveLength(1);
+      expect(h.getAllByText("Dimasak 08.10")).toHaveLength(1);
+      expect(h.queryByText("Terjadwal")).toBeNull();
+    });
+
+    it("says Dimasak without a time when the kitchen's start was not recorded", async () => {
+      mount(runtimeWith(async () => lunchToday({ status: "preparing" })));
+      const h = await hero();
+      expect(within(h.getByTestId("rantang-track")).getByText("Dimasak")).toBeTruthy();
+    });
+
+    it("says Berangkat with the departure time in the track, and the old chip is gone", async () => {
+      mount(runtimeWith(async () => lunchToday({ status: "out_for_delivery", departed_at: `${TODAY}T03:42:00Z` })));
+      const h = await hero();
+      expect(within(h.getByTestId("rantang-track")).getByText("Berangkat 10.42")).toBeTruthy();
+      expect(h.getAllByText("Berangkat 10.42")).toHaveLength(1);
+      expect(h.queryByTestId("plate-chip")).toBeNull();
+      expect(h.getByRole("header", { name: "Sedang diantar" })).toBeTruthy();
+    });
+
+    it("says Tercatat sampai when nobody tapped and the system closed the meal", async () => {
+      mount(
+        runtimeWith(async () =>
+          lunchToday({ status: "delivered", confirmed_at: `${TODAY}T04:48:00Z`, confirmed_by: "auto" }),
+        ),
+      );
+      const h = await hero();
+      expect(within(h.getByTestId("rantang-track")).getByText("Tercatat sampai")).toBeTruthy();
+      expect(h.getByRole("header", { name: "Sudah sampai" })).toBeTruthy();
+    });
+
+    it("says Sampai when the customer confirmed", async () => {
+      mount(
+        runtimeWith(async () =>
+          lunchToday({ status: "delivered", confirmed_at: `${TODAY}T04:48:00Z`, confirmed_by: "customer" }),
+        ),
+      );
+      const h = await hero();
+      expect(within(h.getByTestId("rantang-track")).getByText("Sampai")).toBeTruthy();
+    });
+
+    // The stop labels are hidden from a screen reader (the caption speaks for the track), so they are looked up hidden.
+    const stopLabels = (h: Awaited<ReturnType<typeof hero>>) => {
+      const row = within(h.getByTestId("rantang-track-labels", { includeHiddenElements: true }));
+      return (names: string[]) => names.map((n) => row.getByText(n, { includeHiddenElements: true }).props.children);
+    };
+
+    it("labels the three stops in Indonesian", async () => {
+      mount(runtimeWith(async () => lunchToday({ status: "preparing" })));
+      expect(stopLabels(await hero())(["Dimasak", "Diantar", "Sampai"])).toEqual(["Dimasak", "Diantar", "Sampai"]);
+    });
+
+    it("labels the stops and the caption in English when the locale is English", async () => {
+      (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.locale", "en");
+      mount(runtimeWith(async () => lunchToday({ status: "preparing", cooking_started_at: `${TODAY}T01:10:00Z` })));
+      const h = await hero();
+      expect(within(h.getByTestId("rantang-track")).getByText("Cooking since 08.10")).toBeTruthy();
+      expect(stopLabels(h)(["Cooking", "On the way", "Arrived"])).toEqual(["Cooking", "On the way", "Arrived"]);
+    });
+
+    it.each([
+      ["failed", { status: "issue" }, "Tidak bisa diantar hari ini"],
+      ["failed after leaving", { status: "issue", departed_at: `${TODAY}T03:42:00Z` }, "Tidak bisa diantar hari ini"],
+      ["reported", { status: "scheduled", issue: { status: "open" } }, "Laporan terkirim"],
+    ] as const)("shows no track for a %s plate and keeps its message", async (_name, meal, message) => {
+      mount(runtimeWith(async () => lunchToday(meal as unknown as Partial<DeliveryMeal>)));
+      const h = await hero();
+      expect(h.getByText(message)).toBeTruthy();
+      expect(screen.queryByTestId("rantang-track")).toBeNull();
+    });
+
+    it("shows a track on the hero only, never on a card plate", async () => {
+      const state = lunchToday({ status: "preparing", cooking_started_at: `${TODAY}T01:10:00Z` });
+      state.deliveries.unshift(
+        delivery("d-second", TODAY, { status: "preparing", cooking_started_at: `${TODAY}T01:30:00Z` }, {
+          offer: offer({ name: "Paket Kedua", windows: { lunch: NOT_YET, dinner: NOT_YET } }),
+        }),
+      );
+      mount(runtimeWith(async () => state));
+      await hero();
+      expect(screen.getAllByText(/^Makan siang · /)).toHaveLength(2);
+      expect(screen.getAllByTestId("rantang-track")).toHaveLength(1);
+    });
+
+    it("counts journey_viewed once for a preparing hero across re-renders and a mood round trip", async () => {
+      const state = lunchToday({ status: "preparing", cooking_started_at: `${TODAY}T01:10:00Z` }, {}, "d-count-once");
+      // Dinner is a scheduled plate in the same delivery, so the toggle has a hero to swap to and back.
+      state.deliveries[0].meals = [
+        { meal: "lunch", status: "preparing", cooking_started_at: `${TODAY}T01:10:00Z` },
+        { meal: "dinner", status: "scheduled" },
+      ];
+      const { runtime, viewed } = countingRuntime(state);
+      mount(runtime);
+      await hero();
+      await waitFor(() => expect(viewed()).toHaveLength(1));
+      fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
+      fireEvent.press(screen.getByRole("tab", { name: "Siang" }));
+      fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
+      fireEvent.press(screen.getByRole("tab", { name: "Siang" }));
+      await hero();
+      expect(viewed()).toHaveLength(1);
+      expect(viewed()[0]).toEqual(["journey_viewed", "customer"]);
+    });
+
+    it("counts journey_viewed for a hero that has left the kitchen", async () => {
+      const departed = lunchToday({ status: "out_for_delivery", departed_at: `${TODAY}T03:42:00Z` }, {}, "d-count-stages");
+      const { runtime, viewed } = countingRuntime(departed);
+      mount(runtime);
+      await hero();
+      await waitFor(() => expect(viewed()).toHaveLength(1));
+    });
+
+    it("never counts journey_viewed for a scheduled hero", async () => {
+      const { runtime, viewed } = countingRuntime(lunchToday({ status: "scheduled" }, {}, "d-count-never"));
+      mount(runtime);
+      await hero();
+      // The app_open count has gone out by now; only the journey view must be missing.
+      await waitFor(() => expect(runtime.api.usage).toHaveBeenCalled());
+      expect(viewed()).toHaveLength(0);
+    });
+
+    it("never counts journey_viewed for a failed hero", async () => {
+      const { runtime, viewed } = countingRuntime(lunchToday({ status: "issue" }, {}, "d-count-failed"));
+      mount(runtime);
+      await hero();
+      await waitFor(() => expect(runtime.api.usage).toHaveBeenCalled());
+      expect(viewed()).toHaveLength(0);
+    });
   });
 
   it("keeps the hero actions legible on the Malam fill", async () => {

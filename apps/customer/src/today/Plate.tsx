@@ -1,15 +1,16 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Image, Linking, StyleSheet, Text as RNText, View, type StyleProp, type ViewStyle } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
 import { router } from "expo-router";
 import { nativeThemes } from "@catera/design-tokens";
-import { errorLabel, whatsappUrl, type Plate as PlateData } from "@catera/domain";
-import { useMobile } from "@catera/mobile-core";
+import { errorLabel, journeyCaption, whatsappUrl, type Plate as PlateData } from "@catera/domain";
+import { useMobile, useTrack } from "@catera/mobile-core";
 import {
   Button,
   fontFor,
   MoodFill,
   PressableScale,
+  RantangTrack,
   Text,
   themedStyles,
   useColors,
@@ -20,10 +21,15 @@ import {
 
 const JAKARTA_OFFSET_MS = 7 * 60 * 60 * 1000;
 
-// The photo scrim, the departure chip and the Sunrise fill look the same in light and dark, so their ink
-// is the light palette on purpose: the themed tokens swap roles in dark and would put dark text on the
-// dark scrim, light text on the light chip and light text on orange.
+// The photo scrim and the Sunrise fill look the same in light and dark, so their ink is the light palette on
+// purpose: the themed tokens swap roles in dark and would put dark text on the dark scrim and light text on orange.
 const fixedInk = nativeThemes.light;
+
+/**
+ * journey_viewed is counted once per delivery, meal and stage for the life of the app process (ruling C12). The hero is
+ * remounted when the mood swaps meals, so the memory has to live outside the component.
+ */
+const viewedJourneys = new Set<string>();
 
 /** HH.MM in Asia/Jakarta, or "" for an unreadable timestamp. */
 export function jakartaClock(iso: string | null | undefined): string {
@@ -203,7 +209,21 @@ function PlateContent({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [sentence, second] = sentences(plate, t);
-  const departed = plate.state === "on_the_way" ? jakartaClock(plate.departedAt) : "";
+  const track = useTrack();
+  // The track tells where a meal is on its way. A meal marked as a problem has no honest place on it, so a failed or
+  // reported plate keeps its message alone.
+  const caption =
+    hero && plate.state !== "failed" && plate.state !== "reported" ? journeyCaption(plate.journey, locale) : null;
+  const { deliveryId, meal: mealKey, journey } = plate;
+  // A meal nobody tapped has no journey to look at yet, and stale offline data is not a view of today.
+  const watched = !!caption && !offline && journey.stage !== "scheduled";
+  useEffect(() => {
+    if (!watched) return;
+    const key = `${deliveryId}:${mealKey}:${journey.stage}`;
+    if (viewedJourneys.has(key)) return;
+    viewedJourneys.add(key);
+    track("journey_viewed");
+  }, [watched, deliveryId, mealKey, journey.stage, track]);
   const meal = plate.meal === "dinner" ? t("Makan malam", "Dinner") : t("Makan siang", "Lunch");
 
   async function run(action: string, payload: Record<string, unknown>) {
@@ -238,15 +258,6 @@ function PlateContent({
           />
         ) : null}
         <View style={styles.scrimSoft} />
-        {departed ? (
-          <>
-            {/* In flow, above the overlay, so a taller overlay (large text) grows the photo instead of meeting the chip. */}
-            <View testID="plate-chip" style={styles.chip}>
-              <RNText style={styles.chipLabel}>{t(`Berangkat ${departed}`, `Left at ${departed}`)}</RNText>
-            </View>
-            <View style={{ flex: 1 }} />
-          </>
-        ) : null}
         {/* The overlay carries its own dark ground, so every wrapped line sits on it. */}
         <View style={styles.overlay} testID="plate-overlay">
           <RNText style={styles.meal}>
@@ -272,6 +283,13 @@ function PlateContent({
             {plate.packageName}
           </Text>
         )}
+        {caption ? (
+          <RantangTrack
+            stage={journey.stage}
+            caption={caption}
+            labels={[t("Dimasak", "Cooking"), t("Diantar", "On the way"), t("Sampai", "Arrived")]}
+          />
+        ) : null}
         {!offline && (plate.state === "on_the_way" || plate.state === "due") ? (
           <View style={styles.row}>
             <SunriseButton
@@ -383,16 +401,6 @@ const useStyles = themedStyles((c) => ({
   },
   photo: { backgroundColor: fixedInk.forest, justifyContent: "flex-end" },
   scrimSoft: { position: "absolute", left: 0, right: 0, bottom: 0, height: "75%", backgroundColor: "rgba(12,30,22,0.22)" },
-  chip: {
-    alignSelf: "flex-start",
-    marginTop: 14,
-    marginLeft: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: "rgba(255,247,233,0.94)",
-  },
-  chipLabel: { fontSize: 13, fontFamily: fontFor("700"), color: fixedInk.forest, fontVariant: ["tabular-nums"] },
   // 66% forest-black over a pure white photo still gives cream text about 5.3:1.
   overlay: { padding: 18, paddingTop: 14, gap: 4, backgroundColor: "rgba(12,30,22,0.66)" },
   meal: { fontSize: 13, fontFamily: fontFor("700"), color: fixedInk.cream },
