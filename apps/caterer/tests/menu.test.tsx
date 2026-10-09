@@ -573,7 +573,6 @@ describe("Menu week header, strip, day card and photo prompt", () => {
     role = "owner",
     launch = NOW,
     unread = false,
-    hold,
   }: {
     offers?: unknown[];
     // The week as the API returns it; a function is asked again on every read, so a test can change the data in between.
@@ -581,8 +580,6 @@ describe("Menu week header, strip, day card and photo prompt", () => {
     role?: string;
     launch?: string;
     unread?: boolean;
-    // When it returns a promise, the read waits for it.
-    hold?: () => Promise<void> | undefined;
   } = {}) {
     const { createMobileRuntime, MobileProvider, useMobile } = jest.requireActual("@catera/mobile-core") as typeof import("@catera/mobile-core");
     const { MenuWeek } = jest.requireActual("../src/menu/MenuWeek") as typeof import("../src/menu/MenuWeek");
@@ -590,7 +587,6 @@ describe("Menu week header, strip, day card and photo prompt", () => {
     // `unread` keeps the week's read pending forever, to look at the screen while it loads.
     const menuMonth = jest.fn(async () => {
       if (unread) return new Promise(() => undefined);
-      await hold?.();
       return { dates: typeof dates === "function" ? dates() : dates, categories: [] };
     });
     const command = jest.fn(async () => ({}));
@@ -944,32 +940,61 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       expect(pick).toHaveBeenCalledTimes(1);
     });
 
-    it("keeps every pill off after a successful save until the refreshed week carries the photo", async () => {
+    it("keeps the saved dish uploading and every pill off until a read carries the photo", async () => {
       pick.mockResolvedValue({ canceled: false, assets: [asset] });
       upload.mockResolvedValue("https://cdn.test/ayam.jpg");
-      let saved = false;
-      let release: () => void = () => undefined;
-      const held = new Promise<void>((resolve) => (release = resolve));
+      // The first read after the save still has the old week (no photo, same version); a later one has the photo.
+      let phase: "before" | "stale" | "fresh" = "before";
       const withPhoto = dishes.map((d) => (d.id === "i-ayam" ? { ...d, image: "https://cdn.test/ayam.jpg" } : d));
-      const { command } = mount({
-        dates: () => [{ ...filled("2026-10-08", saved ? withPhoto : dishes), version: saved ? 4 : 3 }],
-        // The reads after the save wait for the test to let them through.
-        hold: () => (saved ? held : undefined),
+      const { command, menuMonth, refresh } = mount({
+        dates: () => [{ ...filled("2026-10-08", phase === "fresh" ? withPhoto : dishes), version: phase === "fresh" ? 4 : 3 }],
       });
       command.mockImplementation(async (action: string) => {
-        if (action === "menu.saveBatch") saved = true;
+        if (action === "menu.saveBatch") phase = "stale";
+        return {};
+      });
+      await screen.findByText("Nasi putih");
+      const reads = menuMonth.mock.calls.length;
+      fireEvent.press(ayamPill());
+      await waitFor(() => expect(command).toHaveBeenCalled());
+      // The read that follows the save lands without the photo.
+      await waitFor(() => expect(menuMonth.mock.calls.length).toBeGreaterThan(reads));
+      await act(async () => undefined);
+      await act(async () => undefined);
+      // The dish is still being saved: no empty tile, a pill that says so, and nothing else can be tapped.
+      expect(screen.getByText("Mengunggah…")).toBeTruthy();
+      expect(screen.queryByTestId("menu-photo-tile-i-ayam", { includeHiddenElements: true })).toBeNull();
+      expect(screen.getByTestId("menu-photo-pending-i-ayam", { includeHiddenElements: true })).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Tambah foto, Ayam goreng" }).props.accessibilityState.disabled).toBe(true);
+      expect(screen.getByRole("button", { name: "Tambah foto, Sayur asem" }).props.accessibilityState.disabled).toBe(true);
+      // A later read brings the photo: the dish shows it and the other pill is free again.
+      phase = "fresh";
+      await refresh();
+      await waitFor(() => expect(screen.queryByRole("button", { name: "Tambah foto, Ayam goreng" })).toBeNull());
+      expect(within(screen.getByTestId("menu-dish-photo-i-ayam")).UNSAFE_getByType(Image).props.source).toEqual({ uri: "https://cdn.test/ayam.jpg" });
+      expect(screen.queryByText("Mengunggah…")).toBeNull();
+      expect(screen.getByRole("button", { name: "Tambah foto, Sayur asem" }).props.accessibilityState.disabled).toBeFalsy();
+    });
+
+    it("gives the pills back when the read after the save fails, so the caterer is never stuck", async () => {
+      pick.mockResolvedValue({ canceled: false, assets: [asset] });
+      upload.mockResolvedValue("https://cdn.test/ayam.jpg");
+      let failing = false;
+      const { command } = mount({
+        dates: () => {
+          if (failing) throw Object.assign(new Error("offline"), { code: "REQUEST_TIMEOUT" });
+          return [filled("2026-10-08")];
+        },
+      });
+      command.mockImplementation(async () => {
+        failing = true;
         return {};
       });
       await screen.findByText("Nasi putih");
       fireEvent.press(ayamPill());
       await waitFor(() => expect(command).toHaveBeenCalled());
-      // The save is done and the new read is still on its way: the old week is on screen and nothing can be tapped.
-      await act(async () => undefined);
-      expect(screen.getByRole("button", { name: "Tambah foto, Ayam goreng" }).props.accessibilityState.disabled).toBe(true);
-      expect(screen.getByRole("button", { name: "Tambah foto, Sayur asem" }).props.accessibilityState.disabled).toBe(true);
-      await act(async () => release());
-      await waitFor(() => expect(screen.queryByRole("button", { name: "Tambah foto, Ayam goreng" })).toBeNull());
-      expect(screen.getByRole("button", { name: "Tambah foto, Sayur asem" }).props.accessibilityState.disabled).toBeFalsy();
+      await waitFor(() => expect(screen.queryByText("Mengunggah…")).toBeNull());
+      expect(ayamPill().props.accessibilityState.disabled).toBeFalsy();
     });
 
     it("saves against the version the week was reloaded to while the picker was open", async () => {

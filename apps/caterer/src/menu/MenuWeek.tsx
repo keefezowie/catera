@@ -112,6 +112,16 @@ function DishRow({
             style={{ width: SLOT, height: SLOT }}
           />
         </View>
+      ) : uploading ? (
+        // A photo is on its way (uploading, or saved and waiting for the fresh week): not the empty "no photo" tile.
+        <View
+          testID={`menu-photo-pending-${dish.id}`}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={{ width: SLOT, height: SLOT, borderRadius: 12, borderCurve: "continuous", backgroundColor: c.sage, alignItems: "center", justifyContent: "center" }}
+        >
+          <Ionicons name="cloud-upload-outline" size={20} color={c.muted} />
+        </View>
       ) : (
         <View
           testID={`menu-photo-tile-${dish.id}`}
@@ -199,7 +209,15 @@ export function MenuWeek() {
   const [photoBusy, setPhotoBusy] = useState(false);
   const photoBusyRef = useRef(false);
   // A saved photo is not done until the week that was read afterwards carries it; until then no pill is offered.
-  const [awaiting, setAwaiting] = useState<{ key: string; date: string; dishId: string; url: string; version: number } | null>(null);
+  // `started` turns true once a read has begun after the save, so a failure from before it cannot end the wait.
+  const [awaiting, setAwaiting] = useState<{
+    key: string;
+    date: string;
+    dishId: string;
+    url: string;
+    version: number;
+    started: boolean;
+  } | null>(null);
   // The newest read of the week, so a save made after a slow picker uses the day's current version, not the tapped one.
   const latestDays = useRef(new Map<string, MenuDay>());
   // The strip lays itself out from the width it is given; until it is measured, the window stands in.
@@ -228,10 +246,12 @@ export function MenuWeek() {
     !!awaiting &&
     !!saved &&
     (saved.version > awaiting.version || saved.details?.items?.find((i) => i.id === awaiting.dishId)?.image === awaiting.url);
-  const waitingForWeek = !!awaiting && !reflected && !!saved && !days.error;
+  const readFailed = !!awaiting?.started && !!days.error && !days.loading;
+  const waitingForWeek = !!awaiting && !reflected && !!saved && !readFailed;
   useEffect(() => {
     if (awaiting && !waitingForWeek) setAwaiting(null);
-  }, [awaiting, waitingForWeek]);
+    else if (awaiting && !awaiting.started && days.loading) setAwaiting({ ...awaiting, started: true });
+  }, [awaiting, waitingForWeek, days.loading]);
 
   async function copyLastWeek() {
     if (!offer) return;
@@ -314,7 +334,7 @@ export function MenuWeek() {
           { catererId, offer, meal, day: current, items: items.map((i) => (i.id === dish.id ? { ...i, image: url } : i)) },
         );
         // The save refreshes the week by itself; the pills stay off until that read carries the photo.
-        setAwaiting({ key: `${offer.id}:${meal}`, date: day.date, dishId: dish.id, url, version: current.version });
+        setAwaiting({ key: `${offer.id}:${meal}`, date: day.date, dishId: dish.id, url, version: current.version, started: false });
       } catch (e) {
         setPhotoError(errorLabel((e as { code?: string }).code || (e as Error).message, locale) || t("Belum tersimpan.", "Not saved."));
         // A failed save may mean the day moved on (a conflict): read it again so the next try has the right version.
@@ -501,7 +521,7 @@ export function MenuWeek() {
                       key={dish.id}
                       dish={dish}
                       canAddPhoto={canEdit && selected.editable}
-                      uploading={uploadingId === dish.id}
+                      uploading={uploadingId === dish.id || (waitingForWeek && awaiting?.dishId === dish.id)}
                       busy={photoBusy || waitingForWeek}
                       onAdd={() => void addPhoto(selected, dish)}
                     />
