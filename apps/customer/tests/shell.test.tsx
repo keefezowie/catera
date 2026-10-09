@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { StyleSheet, Text } from "react-native";
+import { spokenTabLabel } from "@catera/mobile-ui";
 
 /** A fake Supabase client that behaves like supabase-js 2.116 where it matters here:
  * one channel per topic, and no postgres_changes callbacks after subscribe(). */
@@ -385,13 +386,23 @@ it("tab icons are outline until focused", () => {
   );
   const tabs = mockTabScreens.filter((s) => s.options?.tabBarIcon);
   expect(tabs.map((s) => s.name)).toEqual(["index", "jadwal", "jelajah", "akun"]);
-  // The custom tab label replaces the label the bar speaks, so each tab sets its own: title, "tab", position.
+  // The spoken tab label is iOS only (Android already announces the tab role, so TalkBack would say "tab" twice).
+  // Jest runs as Android, so the layout sets none here; the label itself is built by `spokenTabLabel`.
   expect(tabs.map((s) => (s.options as { tabBarAccessibilityLabel?: string }).tabBarAccessibilityLabel)).toEqual([
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+  ]);
+  const t = (id: string) => id;
+  expect(["Beranda", "Jadwal", "Jelajah", "Akun"].map((title, i) => spokenTabLabel(title, i + 1, 4, t, "ios"))).toEqual([
     "Beranda, tab, 1 dari 4",
     "Jadwal, tab, 2 dari 4",
     "Jelajah, tab, 3 dari 4",
     "Akun, tab, 4 dari 4",
   ]);
+  expect(spokenTabLabel("Akun", 4, 4, (_id, en) => en, "ios")).toBe("Akun, tab, 4 of 4");
+  expect(spokenTabLabel("Akun", 4, 4, t, "android")).toBeUndefined();
   for (const { name, options } of tabs) {
     const icon = (focused: boolean) => options!.tabBarIcon!({ focused, color: "#000", size: 24 }).props.name;
     expect(icon(true)).not.toMatch(/-outline$/);

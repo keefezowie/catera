@@ -1,5 +1,7 @@
 import { render, waitFor } from "@testing-library/react-native";
 import { createMobileRuntime, MobileProvider } from "@catera/mobile-core";
+import { spokenTabLabel } from "@catera/mobile-ui";
+import { tabsForRole } from "../src/roles";
 
 type TabIcon = (p: { focused: boolean; color: string; size: number }) => { props: { name: string } };
 const mockTabScreens: { name: string; options?: { tabBarIcon?: TabIcon; tabBarAccessibilityLabel?: string } }[] = [];
@@ -70,7 +72,22 @@ it("Dapur tab labels stop growing at 1.15 times the system font size, so Pelangg
   expect(getByText("Pelanggan").props.numberOfLines).toBe(1);
 });
 
-it("each Dapur tab speaks its title and position, because the custom label replaces the bar's own", async () => {
+it("the spoken tab label is iOS only and counts the tabs a role really has", async () => {
+  // iOS: the custom label replaces the bar's own "title, tab, n of m", so each tab builds it. Android already announces
+  // the tab role (TalkBack would say "tab" twice), so the layout sets none there; jest runs as Android.
+  const t = (id: string) => id;
+  const label = (roleTabs: string[], titles: Record<string, string>) =>
+    Object.fromEntries(roleTabs.map((name, i) => [name, spokenTabLabel(titles[name], i + 1, roleTabs.length, t, "ios")]));
+  const titles = { index: "Hari ini", pelanggan: "Pelanggan", menu: "Menu", usaha: "Usaha" };
+  expect(label(tabsForRole("owner"), titles)).toEqual({
+    index: "Hari ini, tab, 1 dari 4",
+    pelanggan: "Pelanggan, tab, 2 dari 4",
+    menu: "Menu, tab, 3 dari 4",
+    usaha: "Usaha, tab, 4 dari 4",
+  });
+  expect(label(tabsForRole("staff"), titles)).toEqual({ index: "Hari ini, tab, 1 dari 2", menu: "Menu, tab, 2 dari 2" });
+  expect(spokenTabLabel("Menu", 3, 4, t, "android")).toBeUndefined();
+
   const runtime = createMobileRuntime({ apiUrl: "https://api.example.test", storagePrefix: "tabs-spoken" });
   runtime.api = {
     ...runtime.api,
@@ -83,11 +100,6 @@ it("each Dapur tab speaks its title and position, because the custom label repla
     </MobileProvider>,
   );
   await waitFor(() => expect(mockTabScreens.length).toBeGreaterThan(0));
-  const spoken = Object.fromEntries(mockTabScreens.map((s) => [s.name, s.options?.tabBarAccessibilityLabel]));
-  expect(spoken).toEqual({
-    index: "Hari ini, tab, 1 dari 4",
-    pelanggan: "Pelanggan, tab, 2 dari 4",
-    menu: "Menu, tab, 3 dari 4",
-    usaha: "Usaha, tab, 4 dari 4",
-  });
+  expect(mockTabScreens.map((s) => s.options?.tabBarAccessibilityLabel)).toEqual([undefined, undefined, undefined, undefined]);
 });
+

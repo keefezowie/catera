@@ -2,7 +2,7 @@ import { Redirect, Tabs } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMobile } from "@catera/mobile-core";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { TabBarLabel, useColors } from "@catera/mobile-ui";
+import { spokenTabLabel, TabBarLabel, useColors } from "@catera/mobile-ui";
 import { tabsForRole, type CatererTab } from "../../src/roles";
 import { RoleGate } from "../../src/RoleGate";
 
@@ -29,12 +29,9 @@ export default function TabsLayout() {
     usaha: t("Usaha", "Business"),
   };
   const order = (Object.keys(icons) as CatererTab[]).filter((name) => allowed.includes(name));
-  // A function tabBarLabel replaces the label the bar would speak ("title, tab, 1 of 4" on iOS), so each tab sets it.
-  const spoken = (name: CatererTab) =>
-    t(
-      `${titles[name]}, tab, ${order.indexOf(name) + 1} dari ${order.length}`,
-      `${titles[name]}, tab, ${order.indexOf(name) + 1} of ${order.length}`,
-    );
+  // A function tabBarLabel replaces the label the bar would speak ("title, tab, 1 of 4" on iOS), so each tab sets it
+  // there; Android already announces the tab role.
+  const spoken = (name: CatererTab) => spokenTabLabel(titles[name], order.indexOf(name) + 1, order.length, t);
   return (
     <RoleGate>
       <Tabs

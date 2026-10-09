@@ -2,7 +2,7 @@ import { Tabs } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMobile } from "@catera/mobile-core";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { TabBarLabel, useColors } from "@catera/mobile-ui";
+import { spokenTabLabel, TabBarLabel, useColors } from "@catera/mobile-ui";
 
 type CustomerTab = "index" | "jadwal" | "jelajah" | "akun";
 
@@ -30,12 +30,9 @@ export default function TabsLayout() {
     akun: t("Akun", "Account"),
   };
   const order = Object.keys(icons) as CustomerTab[];
-  // A function tabBarLabel replaces the label the bar would speak ("title, tab, 1 of 4" on iOS), so each tab sets it.
-  const spoken = (name: CustomerTab) =>
-    t(
-      `${titles[name]}, tab, ${order.indexOf(name) + 1} dari ${order.length}`,
-      `${titles[name]}, tab, ${order.indexOf(name) + 1} of ${order.length}`,
-    );
+  // A function tabBarLabel replaces the label the bar would speak ("title, tab, 1 of 4" on iOS), so each tab sets it
+  // there; Android already announces the tab role.
+  const spoken = (name: CustomerTab) => spokenTabLabel(titles[name], order.indexOf(name) + 1, order.length, t);
   return (
     <Tabs
       screenOptions={{
