@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, within } from "@testing-library/react-native";
 import * as ReactNative from "react-native";
 import { Keyboard, Modal, ScrollView, StyleSheet, Text as RNText, View } from "react-native";
 import type { ReactElement } from "react";
@@ -177,6 +177,30 @@ describe("MoodToggle", () => {
     }
   });
 
+  it("gives both tabs the width of the wider label, so the sliding pill never overhangs", () => {
+    mount(<MoodToggle />);
+    const content = (id: string, width: number) =>
+      act(() => {
+        fireEvent(screen.getByTestId(id, { includeHiddenElements: true }), "layout", {
+          nativeEvent: { layout: { x: 0, y: 0, width, height: 20 } },
+        });
+      });
+    const widthOf = (name: string) => StyleSheet.flatten(screen.getByRole("tab", { name }).props.style).width;
+    expect(widthOf("Siang")).toBe(widthOf("Malam"));
+    content("mood-tab-content-siang", 56);
+    content("mood-tab-content-malam", 92);
+    // The wider content plus the 12dp of padding on each side.
+    expect(widthOf("Siang")).toBe(116);
+    expect(widthOf("Malam")).toBe(116);
+    const pill = StyleSheet.flatten(screen.getByTestId("mood-toggle-pill", { includeHiddenElements: true }).props.style);
+    expect(pill.width).toBe(116);
+    // A short pair of labels never shrinks the tabs under the 84dp floor.
+    content("mood-tab-content-siang", 30);
+    content("mood-tab-content-malam", 40);
+    expect(widthOf("Siang")).toBe(84);
+    expect(widthOf("Malam")).toBe(84);
+  });
+
   it("uses the labels the provider is given", () => {
     mockSystemScheme("light");
     render(
@@ -247,18 +271,14 @@ describe("MoodHeader", () => {
     expect(screen.queryByTestId("day-arc", { includeHiddenElements: true })).toBeNull();
   });
 
-  it("draws the Malam pattern only in Malam", () => {
-    mount(
-      <>
-        <MoodHeader title="Halo" toggle />
-        <Probe />
-      </>,
-    );
-    expect(screen.queryByTestId("malam-pattern", { includeHiddenElements: true })).toBeNull();
-    fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
-    const pattern = screen.getByTestId("malam-pattern", { includeHiddenElements: true });
+  it("draws the Malam pattern inside the Malam fill, so it fades in and out with it", () => {
+    // Siang is the current mood and the pattern is still there: it rides the fill's opacity instead of snapping.
+    mount(<MoodHeader title="Halo" toggle />);
+    const fill = screen.getByTestId("mood-fill-malam", { includeHiddenElements: true });
+    const pattern = within(fill).getByTestId("malam-pattern", { includeHiddenElements: true });
     expect(pattern.props.accessibilityElementsHidden).toBe(true);
     expect(pattern.props.pointerEvents).toBe("none");
+    expect(screen.getAllByTestId("malam-pattern", { includeHiddenElements: true })).toHaveLength(1);
   });
 
   it("MalamPattern alone renders nothing in Siang", () => {
@@ -404,6 +424,58 @@ describe("Screen with a header", () => {
       </Screen>,
     );
     expect(view.UNSAFE_getByType(SafeAreaView).props.edges).toEqual(["top", "left", "right"]);
+  });
+});
+
+describe("StatusBand", () => {
+  const metrics = { frame: { x: 0, y: 0, width: 390, height: 800 }, insets: { top: 30, left: 0, right: 0, bottom: 0 } };
+  const mountScreen = (owned: boolean, withHeader = true) => {
+    mockSystemScheme("light");
+    return render(
+      <SafeAreaProvider initialMetrics={metrics}>
+        <ThemeProvider storageKey="mood-test">
+          <MoodProvider now={MALAM_NOW}>
+            <TopInsetOwner owned={owned}>
+              <Screen header={withHeader ? <Text>Kepala</Text> : undefined}>
+                <Text>Isi</Text>
+              </Screen>
+            </TopInsetOwner>
+          </MoodProvider>
+        </ThemeProvider>
+      </SafeAreaProvider>,
+    );
+  };
+
+  it("fills the status-bar inset with the mood header colour above a header screen", () => {
+    mountScreen(false);
+    const band = flat("status-band");
+    expect(band.height).toBe(30);
+    expect(band.backgroundColor).toBe("#0B1F16");
+    expect(band).toMatchObject({ position: "absolute", top: 0, left: 0, right: 0 });
+  });
+
+  it("is decorative: hidden from screen readers and never takes a touch", () => {
+    mountScreen(false);
+    const band = screen.getByTestId("status-band", { includeHiddenElements: true });
+    expect(band.props.accessibilityElementsHidden).toBe(true);
+    expect(band.props.importantForAccessibility).toBe("no-hide-descendants");
+    expect(band.props.pointerEvents).toBe("none");
+  });
+
+  it("is painted after the scroll content, so scrolled content runs under it", () => {
+    const view = mountScreen(false);
+    const tree = JSON.stringify(view.toJSON());
+    expect(tree.indexOf('"status-band"')).toBeGreaterThan(tree.indexOf('"screen-body"'));
+  });
+
+  it("is absent while the demo strip owns the inset", () => {
+    mountScreen(true);
+    expect(screen.queryByTestId("status-band", { includeHiddenElements: true })).toBeNull();
+  });
+
+  it("is absent on a screen without a header, which keeps its own top edge", () => {
+    mountScreen(false, false);
+    expect(screen.queryByTestId("status-band", { includeHiddenElements: true })).toBeNull();
   });
 });
 

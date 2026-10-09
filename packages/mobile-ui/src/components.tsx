@@ -20,6 +20,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import type { PaletteKey } from "@catera/design-tokens";
 import { PressableScale, useReduced } from "./motion";
+import { StatusBand } from "./StatusBand";
 import { themedStyles, useColors } from "./theme";
 import { useTopInsetOwned } from "./TopInset";
 import { fontFor, fonts } from "./type";
@@ -448,6 +449,8 @@ export function Screen({
           </View>
         ) : null}
       </KeyboardAvoidingView>
+      {/* Last, so it paints above the scrolled page; the demo strip already covers the inset when it is shown. */}
+      {header && !topOwned ? <StatusBand /> : null}
     </SafeAreaView>
   );
 }

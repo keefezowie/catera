@@ -1,5 +1,6 @@
 import { StyleSheet, View } from "react-native";
 import Svg, { G, Path, Rect } from "react-native-svg";
+import type { Mood } from "@catera/design-tokens";
 import { useMoodColors } from "../mood";
 
 const WIDTH = 132;
@@ -17,11 +18,12 @@ function Lunchbox({ x, y, angle, stroke }: { x: number; y: number; angle: number
 
 /**
  * Three outline lunchboxes behind the top-right of a Malam header; `top` is where the group starts, so a header can
- * set it below its toggle row. Decorative: no touches, hidden from screen readers,
- * and absent in Siang, where the mood palette has no pattern ink.
+ * set it below its toggle row. Decorative: no touches, hidden from screen readers. By default it follows the current
+ * mood and is absent in Siang, where the palette has no pattern ink; `mood` pins it to one mood's ink, so a header can
+ * keep it inside its fading Malam layer.
  */
-export function MalamPattern({ top = 12 }: { top?: number }) {
-  const { pattern } = useMoodColors();
+export function MalamPattern({ top = 12, mood }: { top?: number; mood?: Mood }) {
+  const { pattern } = useMoodColors(mood);
   if (pattern === null) return null;
   return (
     <View

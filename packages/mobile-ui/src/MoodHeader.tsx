@@ -13,32 +13,35 @@ import { PressableScale } from "./motion";
 import { useTopInsetOwned } from "./TopInset";
 import { fontFor } from "./type";
 
-const TRACK_PADDING = 3;
+export { StatusBand } from "./StatusBand";
 
-type Tab = { x: number; width: number };
+const TRACK_PADDING = 3;
+const TAB_MIN_WIDTH = 84;
+const TAB_PADDING = 12;
 
 /**
  * The Siang / Malam switch: a two-tab tablist on a pill track, with the active pill sliding to the chosen tab.
- * Reads and writes the app's mood; the labels come from the provider.
+ * Reads and writes the app's mood; the labels come from the provider. Both tabs are as wide as the wider label, so the
+ * pill is the same size on either one and never overhangs the narrower tab.
  */
 export function MoodToggle() {
   const { mood, setMood } = useMood();
   const labels = useMoodLabels();
   const palette = useMoodColors();
   const { progress, target, reduced } = useMoodProgress(nativeMotion.selection);
-  const [tabs, setTabs] = useState<[Tab, Tab]>([
-    { x: 0, width: 0 },
-    { x: 0, width: 0 },
-  ]);
+  // The natural width of each tab's icon and label, measured inside the tab (the tab itself is sized from these).
+  const [content, setContent] = useState<[number, number]>([0, 0]);
   const measure = (index: 0 | 1) => (e: LayoutChangeEvent) => {
-    const { x, width } = e.nativeEvent.layout;
-    setTabs((prev) => (prev[index].x === x && prev[index].width === width ? prev : index === 0 ? [{ x, width }, prev[1]] : [prev[0], { x, width }]));
+    const { width } = e.nativeEvent.layout;
+    setContent((prev) => {
+      if (prev[index] === width) return prev;
+      return index === 0 ? [width, prev[1]] : [prev[0], width];
+    });
   };
+  const tabWidth = Math.max(TAB_MIN_WIDTH, Math.max(content[0], content[1]) + TAB_PADDING * 2);
 
-  const slide = useAnimatedStyle(() => ({
-    transform: [{ translateX: tabs[0].x + progress.value * (tabs[1].x - tabs[0].x) }],
-  }));
-  const rest = { transform: [{ translateX: tabs[0].x + target * (tabs[1].x - tabs[0].x) }] };
+  const slide = useAnimatedStyle(() => ({ transform: [{ translateX: progress.value * tabWidth }] }));
+  const rest = { transform: [{ translateX: target * tabWidth }] };
 
   const options = [
     { value: "siang", icon: "sunny" },
@@ -51,14 +54,15 @@ export function MoodToggle() {
       style={{ flexDirection: "row", padding: TRACK_PADDING, borderRadius: 999, backgroundColor: palette.toggleTrack }}
     >
       <Animated.View
+        testID="mood-toggle-pill"
         pointerEvents="none"
         style={[
           {
             position: "absolute",
             top: TRACK_PADDING,
             bottom: TRACK_PADDING,
-            left: 0,
-            width: Math.max(tabs[0].width, tabs[1].width),
+            left: TRACK_PADDING,
+            width: tabWidth,
             borderRadius: 999,
             backgroundColor: palette.toggleActive,
           },
@@ -76,21 +80,23 @@ export function MoodToggle() {
             accessibilityState={{ selected: active }}
             // The tab that is already chosen has nothing to confirm.
             haptic={active ? "none" : "select"}
-            onLayout={measure(index as 0 | 1)}
             onPress={() => setMood(option.value)}
             style={{
               minHeight: 48,
-              minWidth: 84,
-              paddingHorizontal: 12,
-              flexDirection: "row",
+              width: tabWidth,
               alignItems: "center",
               justifyContent: "center",
-              gap: 6,
               borderRadius: 999,
             }}
           >
-            <Ionicons name={option.icon} size={14} color={ink} />
-            <RNText style={{ fontFamily: fontFor("700"), fontSize: 13, color: ink }}>{labels[option.value]}</RNText>
+            <View
+              testID={`mood-tab-content-${option.value}`}
+              onLayout={measure(index as 0 | 1)}
+              style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
+            >
+              <Ionicons name={option.icon} size={14} color={ink} />
+              <RNText style={{ fontFamily: fontFor("700"), fontSize: 13, color: ink }}>{labels[option.value]}</RNText>
+            </View>
           </PressableScale>
         );
       })}
@@ -156,9 +162,11 @@ export function MoodHeader({
         testID="mood-fill-malam"
         pointerEvents="none"
         style={[StyleSheet.absoluteFill, { backgroundColor: malam.header }, reduced ? { opacity: target } : fade]}
-      />
-      {/* Below the toggle row, so the lunchboxes show beside the headline instead of hiding behind the toggle. */}
-      <MalamPattern top={(topOwned ? 0 : insets.top) + 12 + 54 + 4} />
+      >
+        {/* In the Malam layer, so the lunchboxes fade in and out with the fill instead of snapping. Below the toggle
+            row, so they show beside the headline instead of hiding behind the toggle. */}
+        <MalamPattern mood="malam" top={(topOwned ? 0 : insets.top) + 12 + 54 + 4} />
+      </Animated.View>
       <View
         testID="mood-header-content"
         style={{ maxWidth: 760, width: "100%", alignSelf: "center", paddingHorizontal: 20, gap: 12 }}
