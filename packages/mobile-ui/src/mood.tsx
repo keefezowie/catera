@@ -2,7 +2,7 @@ import { createContext, use, useMemo, useState, type ReactNode } from "react";
 import { nativeMood, type Mood, type MoodPalette, type ThemeName } from "@catera/design-tokens";
 import { useThemePreference } from "./theme";
 
-/** The two toggle labels. This package has no i18n, so the app hands over translated ones once, at the provider. */
+/** The two toggle labels. This package has no i18n, so the app hands over translated ones through `MoodLabelsProvider`. */
 export type MoodLabels = Record<Mood, string>;
 
 const DEFAULT_LABELS: MoodLabels = { siang: "Siang", malam: "Malam" };
@@ -29,26 +29,35 @@ export function defaultMood(now: Date): Mood {
   return hour < MALAM_FROM_HOUR ? "siang" : "malam";
 }
 
-type MoodValue = { mood: Mood; setMood: (mood: Mood) => void; labels: MoodLabels };
+type MoodValue = { mood: Mood; setMood: (mood: Mood) => void };
 
 // Without a provider (isolated component tests, early boot) the app reads Siang and cannot change it.
-const MoodContext = createContext<MoodValue>({ mood: "siang", setMood: () => {}, labels: DEFAULT_LABELS });
+const MoodContext = createContext<MoodValue>({ mood: "siang", setMood: () => {} });
 
 /** One per app. The mood lives in memory only; every launch starts from the clock. */
 export function MoodProvider({
   children,
   now,
-  labels = DEFAULT_LABELS,
 }: {
   children: ReactNode;
   /** The clock, for tests. */
   now?: () => Date;
-  labels?: MoodLabels;
 }) {
   const [mood, setMood] = useState<Mood>(() => defaultMood((now ?? (() => new Date()))()));
-  const { siang, malam } = labels;
-  const value = useMemo<MoodValue>(() => ({ mood, setMood, labels: { siang, malam } }), [mood, siang, malam]);
+  const value = useMemo<MoodValue>(() => ({ mood, setMood }), [mood]);
   return <MoodContext.Provider value={value}>{children}</MoodContext.Provider>;
+}
+
+const MoodLabelsContext = createContext<MoodLabels>(DEFAULT_LABELS);
+
+/**
+ * Hands the toggle its translated labels. It sits apart from `MoodProvider` because the translator only exists below
+ * the app's own providers, while the mood itself lives above them.
+ */
+export function MoodLabelsProvider({ labels, children }: { labels: MoodLabels; children: ReactNode }) {
+  const { siang, malam } = labels;
+  const value = useMemo<MoodLabels>(() => ({ siang, malam }), [siang, malam]);
+  return <MoodLabelsContext.Provider value={value}>{children}</MoodLabelsContext.Provider>;
 }
 
 export function useMood(): { mood: Mood; setMood: (mood: Mood) => void } {
@@ -56,9 +65,9 @@ export function useMood(): { mood: Mood; setMood: (mood: Mood) => void } {
   return { mood, setMood };
 }
 
-/** The toggle labels the provider was given. */
+/** The toggle labels `MoodLabelsProvider` was given; "Siang" and "Malam" without one. */
 export function useMoodLabels(): MoodLabels {
-  return use(MoodContext).labels;
+  return use(MoodLabelsContext);
 }
 
 /**

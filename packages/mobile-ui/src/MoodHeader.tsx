@@ -21,7 +21,7 @@ const TAB_PADDING = 12;
 
 /**
  * The Siang / Malam switch: a two-tab tablist on a pill track, with the active pill sliding to the chosen tab.
- * Reads and writes the app's mood; the labels come from the provider. Both tabs are as wide as the wider label, so the
+ * Reads and writes the app's mood; the labels come from `MoodLabelsProvider`. Both tabs are as wide as the wider label, so the
  * pill is the same size on either one and never overhangs the narrower tab.
  */
 export function MoodToggle() {

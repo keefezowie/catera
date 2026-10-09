@@ -12,6 +12,7 @@ import {
   Field,
   MalamPattern,
   MoodHeader,
+  MoodLabelsProvider,
   MoodProvider,
   MoodToggle,
   Screen,
@@ -201,12 +202,20 @@ describe("MoodToggle", () => {
     expect(widthOf("Malam")).toBe(84);
   });
 
-  it("uses the labels the provider is given", () => {
+  it("reads Siang and Malam without a labels provider", () => {
+    mount(<MoodToggle />);
+    expect(screen.getByRole("tab", { name: "Siang" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Malam" })).toBeTruthy();
+  });
+
+  it("uses the labels the labels provider is given", () => {
     mockSystemScheme("light");
     render(
       <ThemeProvider storageKey="mood-test">
-        <MoodProvider now={SIANG_NOW} labels={{ siang: "Lunch", malam: "Dinner" }}>
-          <MoodToggle />
+        <MoodProvider now={SIANG_NOW}>
+          <MoodLabelsProvider labels={{ siang: "Lunch", malam: "Dinner" }}>
+            <MoodToggle />
+          </MoodLabelsProvider>
         </MoodProvider>
       </ThemeProvider>,
     );

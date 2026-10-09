@@ -9,6 +9,7 @@ import {
   AppHeader,
   DemoStrip,
   fontAssets,
+  MoodLabelsProvider,
   MoodProvider,
   navigationTheme,
   statusBarStyle,
@@ -92,6 +93,14 @@ function Navigation() {
   );
 }
 
+/** The Siang / Malam toggle's labels in the app's language. They need the translator, which only exists inside MobileProvider. */
+function TranslatedMoodLabels({ children }: { children: ReactNode }) {
+  const { t } = useMobile();
+  return (
+    <MoodLabelsProvider labels={{ siang: t("Siang", "Lunch"), malam: t("Malam", "Dinner") }}>{children}</MoodLabelsProvider>
+  );
+}
+
 /**
  * Gives the navigator the active palette. Scene containers and cards read this instead of the library's light
  * default, so no screen shows a light background behind its own surfaces in dark.
@@ -127,9 +136,11 @@ export default function RootLayout() {
       <ThemeProvider storageKey={runtime.storageKey("theme")}>
         <MoodProvider>
           <AppProviders runtime={runtime}>
-            <NavigationColors>
-              <Navigation />
-            </NavigationColors>
+            <TranslatedMoodLabels>
+              <NavigationColors>
+                <Navigation />
+              </NavigationColors>
+            </TranslatedMoodLabels>
           </AppProviders>
         </MoodProvider>
       </ThemeProvider>

@@ -9,6 +9,8 @@ const mockMe: { demo: boolean; actor: { id: string; role: string; name: string; 
   actor: null,
 };
 const mockStatusBar: { style?: string } = {};
+// When set, the stack also draws the Siang / Malam toggle, the way a screen with a mood header does.
+let mockShowToggle = false;
 const mockNavTheme: { value?: { dark: boolean; colors: Record<string, string> } } = {};
 const mockTabBar: { style?: Record<string, unknown>; itemStyle?: Record<string, unknown>; tint?: Record<string, unknown> } = {};
 
@@ -32,6 +34,7 @@ jest.mock("expo-router", () => {
       {screenOptions?.header
         ? screenOptions.header({ options: { title: "Judul uji" }, navigation: { goBack: () => {} }, back: { title: "x" } })
         : null}
+      {mockShowToggle ? React.createElement(require("@catera/mobile-ui").MoodToggle) : null}
       {children}
     </View>
   );
@@ -77,6 +80,7 @@ jest.mock("expo-notifications", () => ({
 
 import { jakartaDay } from "@catera/domain";
 import RootLayout from "../app/_layout";
+import { runtime } from "../src/runtime";
 
 /** Every file route under app/ that the root stack must name (layouts and tab/auth groups excluded). */
 function pushedRoutes(dir = path.join(__dirname, "..", "app"), prefix = ""): string[] {
@@ -158,6 +162,8 @@ describe("appearance", () => {
   afterEach(() => {
     mockMe.actor = null;
     mockMe.demo = false;
+    mockShowToggle = false;
+    (require("expo-secure-store") as { __store: Map<string, string> }).__store.delete(runtime.storageKey("locale"));
     restoreInsets?.();
     restoreInsets = undefined;
     jest.useRealTimers();
@@ -201,6 +207,27 @@ describe("appearance", () => {
     expect(ReactNative.StyleSheet.flatten(screen.getByTestId("app-header").props.style).backgroundColor).toBe("#FFEFD9");
   });
 
+  it("the Siang / Malam toggle reads Lunch and Dinner in English", async () => {
+    (require("expo-secure-store") as { __store: Map<string, string> }).__store.set(runtime.storageKey("locale"), "en");
+    mockShowToggle = true;
+    mockMe.actor = owner;
+    render(<RootLayout />);
+    await waitFor(() => expect(mockTabBar.style).toBeDefined());
+    expect(await screen.findByRole("tab", { name: "Lunch" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Dinner" })).toBeTruthy();
+    expect(screen.queryByRole("tab", { name: "Siang" })).toBeNull();
+  });
+
+  it("the Siang / Malam toggle reads Siang and Malam by default", async () => {
+    mockShowToggle = true;
+    mockMe.actor = owner;
+    render(<RootLayout />);
+    await waitFor(() => expect(mockTabBar.style).toBeDefined());
+    await act(async () => {});
+    expect(screen.getByRole("tab", { name: "Siang" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Malam" })).toBeTruthy();
+  });
+
   it("demo on and Malam: the demo strip sits above the header, so the status bar glyphs are dark", async () => {
     jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("light");
     atJakarta(MALAM);
@@ -209,6 +236,8 @@ describe("appearance", () => {
     render(<RootLayout />);
     expect(await screen.findByText("Demo · data sintetis")).toBeTruthy();
     await act(async () => {});
+    // Control: the mood really is Malam here, so "dark" is the demo strip's doing and not a Siang launch.
+    expect(ReactNative.StyleSheet.flatten(screen.getByTestId("app-header").props.style).backgroundColor).toBe("#0B1F16");
     expect(mockStatusBar.style).toBe("dark");
   });
 
