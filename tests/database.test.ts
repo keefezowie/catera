@@ -48,13 +48,15 @@ const purchase = (extra = {}) => ({
 });
 it("returns public packages without disclosing customer data", async () => {
   const c = await read<{ items: unknown[] }>("catalog", {}, null);
-  expect(c.items).toHaveLength(6);
+  // The six seeded offers and the two synthetic offers (two weeks, customer-picked menu) the demo states add.
+  expect(c.items).toHaveLength(8);
   await expect(read("customer", {}, null)).rejects.toThrow("UNAUTHORIZED");
 });
 it("shows a customer one calendar across two caterers", async () => {
   const c = await read<CustomerState>("customer");
-  expect(c.subscriptions).toHaveLength(2);
-  expect(new Set(c.deliveries.map((d) => d.offer.catererId)).size).toBe(2);
+  // Two seeded plans, and eight more from the demo states (renewal, payment and kitchen-loop cases) at three caterers.
+  expect(c.subscriptions).toHaveLength(10);
+  expect(new Set(c.deliveries.map((d) => d.offer.catererId)).size).toBe(3);
 });
 it("staff cannot read platform administration or another caterer", async () => {
   await expect(read("admin", {}, DEMO_ACTORS.staff)).rejects.toThrow(

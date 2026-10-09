@@ -16,7 +16,8 @@ import {
   type SellerCalendar,
 } from "@catera/domain";
 let db: PGlite;
-const day = addDays(localDay(), -1);
+// A day no demo state touches: the demo's own history runs from two weeks ago to yesterday.
+const day = addDays(localDay(), -30);
 const read = <T>(resource: string, params: object, user: string = U.owner) =>
   localRpc<T>(db, user, "catera_v1_read", [resource, params]);
 const cmd = (payload: object, user: string = U.owner, request = crypto.randomUUID()) =>

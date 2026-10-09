@@ -42,13 +42,14 @@ it("previewing a legacy import reserves nothing and confirmation imports only re
       },
     ],
   };
+  const subscriptionsBefore = (await read<CustomerState>("customer")).subscriptions.length;
   const preview = await command<{ id: string; rows: { preview: Quote }[] }>(
     "import.preview",
     payload,
     U.owner,
   );
   expect(preview.rows[0].preview.dates).toHaveLength(3);
-  expect((await read<CustomerState>("customer")).subscriptions).toHaveLength(2);
+  expect((await read<CustomerState>("customer")).subscriptions).toHaveLength(subscriptionsBefore);
   await command("import.commit", { catererId: K[0], id: preview.id }, U.owner);
   const state = await read<CustomerState>("customer");
   const imported = state.subscriptions.find((s) => s.legacy)!;
@@ -239,7 +240,7 @@ it("admin queue reads do not confuse record aliases with seller IDs", async () =
     audit: unknown[];
   }>(db, U.platform_admin, "catera_v1_read", ["admin", {}]);
   expect(admin.caterers).toHaveLength(3);
-  expect(admin.caterers.reduce((n, c) => n + c.offers.length, 0)).toBe(6);
+  expect(admin.caterers.reduce((n, c) => n + c.offers.length, 0)).toBe(8);
   expect(admin.audit.length).toBeGreaterThan(0);
 });
 it("rescheduling cannot extend an active subscription across a pending renewal", async () => {

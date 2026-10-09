@@ -93,7 +93,8 @@ const input = (packageId: string) => ({
 });
 it("seeds customer demo offers with real package, menu and dish structure", async () => {
   const catalog = await read<{ items: Offer[] }>("catalog");
-  expect(catalog.items).toHaveLength(6);
+  // The six seeded offers and the two synthetic offers (two weeks, customer-picked menu) the demo states add.
+  expect(catalog.items).toHaveLength(8);
   expect(catalog.items.every((offer) => offer.packageType)).toBe(true);
 
   const box = catalog.items.find((offer) => offer.id === P[0])!;

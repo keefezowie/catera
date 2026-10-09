@@ -7,6 +7,7 @@ import {
   PACKAGE_IDS as P,
 } from "../packages/backend/src/seed";
 import { addDays, localDay, type Checkout } from "@catera/domain";
+import { setAsideDemoKitchenDay } from "./fixtures/set-aside-demo-day";
 
 type Day = { id: string; service_date: string };
 let db: Awaited<ReturnType<typeof createDemoDatabase>>;
@@ -56,6 +57,7 @@ let lunchSenja: Day[]; // Ayam Sambal Rumahan, Dapur Senja
 let lunchHijau: Day[]; // Plant-based Everyday, Hijau Kitchen
 beforeAll(async () => {
   db = await createDemoDatabase(true);
+  await setAsideDemoKitchenDay(db);
   both = await buy(P[2]);
   lunchSenja = await buy(P[4]);
   lunchHijau = await buy(P[3]);
@@ -127,7 +129,7 @@ it("staff may depart, another caterer may not", async () => {
 it("staff depart a fresh meal, and the customer is not told twice for the same caterer, day and meal", async () => {
   // The seeded Dapur Senja lunch subscription, due today as well.
   const [seeded] = await q<{ id: string }>(
-    "select d.id from v1.delivery_days d join v1.subscriptions s on s.id=d.subscription_id where s.package_id=$1 order by d.service_date limit 1",
+    "select d.id from v1.delivery_days d join v1.subscriptions s on s.id=d.subscription_id where s.package_id=$1 and d.status='scheduled' order by d.service_date limit 1",
     [P[0]],
   );
   await q("update v1.delivery_days set service_date=$2::date where id=$1", [seeded.id, today]);

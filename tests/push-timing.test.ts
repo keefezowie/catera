@@ -6,6 +6,7 @@ import {
   PACKAGE_IDS as P,
 } from "../packages/backend/src/seed";
 import { addDays, localDay, type Checkout } from "@catera/domain";
+import { setAsideDemoKitchenDay } from "./fixtures/set-aside-demo-day";
 import { GET as pushJobs } from "../apps/web/src/app/api/jobs/push/route";
 
 type Day = { id: string; service_date: string; subscription_id: string };
@@ -68,6 +69,7 @@ let both: Day[]; // Rantang Nusantara: lunch and dinner
 let hijau: Day[]; // Plant-based Everyday
 beforeAll(async () => {
   db = await createDemoDatabase(true);
+  await setAsideDemoKitchenDay(db);
   lunch = await buy(P[4], start);
   both = await buy(P[2], start);
   hijau = await buy(P[3], start);

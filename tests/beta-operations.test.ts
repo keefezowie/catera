@@ -9,7 +9,7 @@ const read = (resource: string, params: any = {}, actor: string = U.customer) =>
 const payload = () => ({ deliveryId: day, meal: "lunch", subject: "Meal packaging", body: "Synthetic packaging issue" });
 beforeAll(async () => {
  db = await createDemoDatabase(true);
- day = (await db.query<any>("select d.id from v1.delivery_days d join v1.subscriptions s on s.id=d.subscription_id join v1.packages p on p.id=s.package_id where p.caterer_id=$1 and s.user_id=$2 order by d.service_date limit 1", [K[0],U.customer])).rows[0].id;
+ day = (await db.query<any>("select d.id from v1.delivery_days d join v1.subscriptions s on s.id=d.subscription_id join v1.packages p on p.id=s.package_id where p.caterer_id=$1 and s.user_id=$2 and d.status='scheduled' order by d.service_date limit 1", [K[0],U.customer])).rows[0].id;
  // A report is accepted only once the day has come in Jakarta: bring the earliest day to today.
  await db.query("update v1.delivery_days set service_date=$2::date where id=$1 and service_date>$2::date", [day, localDay()]);
 });

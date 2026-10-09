@@ -7,6 +7,7 @@ import {
   PACKAGE_IDS as P,
 } from "../packages/backend/src/seed";
 import { addDays, localDay, type Checkout, type CustomerState } from "@catera/domain";
+import { setAsideDemoKitchenDay } from "./fixtures/set-aside-demo-day";
 
 type Day = { id: string; service_date: string };
 let db: Awaited<ReturnType<typeof createDemoDatabase>>;
@@ -56,6 +57,7 @@ let lunchSenja: Day[]; // Ayam Sambal Rumahan, Dapur Senja
 let lunchHijau: Day[]; // Plant-based Everyday, Hijau Kitchen
 beforeAll(async () => {
   db = await createDemoDatabase(true);
+  await setAsideDemoKitchenDay(db);
   both = await buy(P[2]);
   lunchSenja = await buy(P[4]);
   lunchHijau = await buy(P[3]);

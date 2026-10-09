@@ -9,6 +9,7 @@ import {
   seedSQL,
 } from "./seed";
 import { contentsFixturesSQL } from "./contents-fixtures";
+import { applyDemoStates } from "./demo-states";
 const globalDb = globalThis as unknown as { cateraV1?: Promise<PGlite> };
 export const demoEnabled = () =>
   process.env.CATERA_V1_DEMO === "true" && !process.env.VERCEL;
@@ -640,6 +641,9 @@ export async function createDemoDatabase(inMemory = false) {
     await db.exec("begin;\n" + await readFile(path.join(projectRoot(),
       "supabase/migrations/20261010090000_pilot_jakarta_day.sql"), "utf8") + "\ncommit;");
   }
+  // Synthetic renewal, payment and kitchen-loop states for the demo customer, once, after everything else.
+  // Demo storage only: this constructor never runs against hosted data.
+  await applyDemoStates(db);
   return db;
 }
 export async function getDemoDatabase() {
