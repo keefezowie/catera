@@ -317,6 +317,7 @@ try {
   await (await import("./postgres-auto-delivered.mjs")).verifyAutoDelivered(pool, cmd, evidence);
   await (await import("./postgres-delivery-confirm.mjs")).verifyDeliveryConfirm(pool, cmd, evidence);
   await (await import("./postgres-delivery-confirm.mjs")).verifyDeliveryDepart(pool, cmd, evidence);
+  await (await import("./postgres-delivery-confirm.mjs")).verifyDeliveryCook(pool, cmd, evidence);
   await pool.query(await readFile("supabase/migrations/20261007110000_import_before_approval.sql", "utf8"));
   await mkdir("output/verification", { recursive: true });
   const evidencePath = process.env.CATERA_POSTGRES_EVIDENCE || "output/verification/postgres.json";

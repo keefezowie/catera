@@ -59,6 +59,7 @@ export async function verifyDeliveryConfirm(pool, cmd, evidence) {
     "20261008121000_delivery_issue_not_future.sql",
     "20261008122000_customer_payment_history.sql",
     "20261008123000_customer_payment_failed.sql",
+    "20261009090000_kitchen_cooking.sql",
   ])
     await pool.query(await readFile("supabase/migrations/" + file, "utf8"));
 
@@ -576,4 +577,125 @@ export async function verifyDeliveryDepart(pool, cmd, evidence) {
   await pool.query("drop role catera_no_auth");
   if (madeUsers) await pool.query("drop table auth.users");
   evidence.push("v1.caterer_whatsapp returns no number instead of failing the customer read when auth.users is not readable.");
+}
+
+export async function verifyDeliveryCook(pool, cmd, evidence) {
+  const today = localDay();
+  const tomorrow = addDays(today, 1);
+  const cid = CATERER_IDS[0];
+  // A fresh purchased day of Dapur Senja with a lunch, put on today. Its subscription is new, so no other day of it
+  // is today. The earlier sections hold many windows of the booking horizon for the same customer, so the first
+  // window that is free (not overlapping, within the horizon) is taken.
+  const windows = [[P[4], 345], [P[4], 320], [P[4], 300], [P[2], 345], [P[2], 320], [P[2], 300], [P[2], 270], [P[0], 345], [P[0], 335], [P[0], 240]];
+  const fresh = async () => {
+    for (let i = 0; i < windows.length; i++) {
+      const [packageId, start] = windows[i];
+      let days;
+      try {
+        days = await purchased(pool, cmd, packageId, addDays(today, start));
+      } catch (e) {
+        if (/OVERLAP|BOOKING_HORIZON/.test(String(e && e.message))) continue;
+        throw e;
+      }
+      windows.splice(i, 1);
+      const [day] = days;
+      await pool.query("update v1.delivery_days set service_date=$2::date where id=$1", [day.id, today]);
+      return day;
+    }
+    throw new Error("no free booking window for a synthetic lunch day");
+  };
+  // Puts the day back to waiting. The cohort is every lunch of the caterer waiting today.
+  const reset = async (day) => {
+    await pool.query("update v1.delivery_days set status='scheduled' where id=$1", [day.id]);
+    await pool.query("update v1.fulfillments set status='scheduled',cooking_started_at=null,departed_at=null,confirmed_at=null,confirmed_by=null where day_id=$1", [day.id]);
+    await pool.query("delete from v1.outbox where dedupe like 'depart:%'");
+    const cohort = (await pool.query(
+      `select f.day_id from v1.fulfillments f join v1.delivery_days d on d.id=f.day_id join v1.subscriptions s on s.id=d.subscription_id
+       join v1.packages p on p.id=s.package_id where p.caterer_id=$1 and d.service_date=$2::date and d.status<>'cancelled'
+       and f.meal='lunch' and f.status='scheduled' order by f.day_id`, [cid, today])).rows.map((r) => r.day_id);
+    assert(cohort.includes(day.id), "the purchased day waits today");
+    return cohort;
+  };
+  const rows = async (cohort) =>
+    (await pool.query(
+      "select day_id,status,cooking_started_at,departed_at from v1.fulfillments where meal='lunch' and day_id=any($1::uuid[]) order by day_id",
+      [cohort])).rows;
+  const departPushes = async () =>
+    (await pool.query("select count(*)::int n from v1.notifications where user_id=$1 and kind='delivery' and body like 'Makan siangmu sedang diantar%'", [U.customer])).rows[0].n;
+  const cookArgs = { catererId: cid, date: today, meal: "lunch" };
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  // 1. Forced orders of cook and depart: the second command waits on the caterer lock of the first.
+  const day = await fresh();
+  for (const [firstAction, secondAction] of [["delivery.cook", "delivery.depart"], ["delivery.depart", "delivery.cook"]]) {
+    const cohort = await reset(day);
+    const before = await departPushes();
+    let second;
+    const first = await claimed(pool, U.owner, async (c) => {
+      const r = (await c.query("select public.catera_v1_command($1,$2,gen_random_uuid()) value", [firstAction, cookArgs])).rows[0].value;
+      second = cmd(secondAction, cookArgs, U.staff);
+      let waited = 0;
+      while ((await waitingOnALock(pool)) === 0 && waited++ < 100) await wait(50);
+      assert((await waitingOnALock(pool)) > 0, firstAction + " first: the second command waits");
+      await c.query("commit");
+      return r;
+    });
+    const cookFirst = firstAction === "delivery.cook";
+    const [cooked, departed] = cookFirst ? [first, await second] : [await second, first];
+    assert.equal(cooked.moved, cookFirst ? cohort.length : 0, firstAction + " first: cook moved");
+    assert.equal(departed.moved, cohort.length, firstAction + " first: depart moved");
+    for (const f of await rows(cohort)) {
+      assert.equal(f.status, "out_for_delivery", firstAction + " first: every row is on the road");
+      assert.equal(f.cooking_started_at !== null, cookFirst, firstAction + " first: cooking is stamped only when cook committed first");
+      assert(f.departed_at !== null);
+    }
+    assert.equal(await dayStatusOf(pool, day.id), "out_for_delivery");
+    assert.equal((await departPushes()) - before, 1, firstAction + " first: one departure push for the customer");
+    assert.equal(
+      (await pool.query("select count(*)::int n from v1.outbox where dedupe=$1", ["depart:" + U.customer + ":" + cid + ":" + today + ":lunch"])).rows[0].n,
+      1,
+    );
+  }
+  evidence.push("Cook and depart in both forced orders leave every waiting lunch on the road with one departure push per customer; cooking is stamped only when the cook committed first.");
+
+  // 2. Owner and staff cook at once with growing lags: each waiting meal is moved by exactly one of them.
+  for (const lag of [0, 2, 5, 9]) {
+    const cohort = await reset(day);
+    const [a, b] = await Promise.all([
+      cmd("delivery.cook", cookArgs, U.owner),
+      wait(lag).then(() => cmd("delivery.cook", cookArgs, U.staff)),
+    ]);
+    assert.equal(a.moved + b.moved, cohort.length, "lag " + lag + ": the two cooks move each meal once");
+    const stamped = await rows(cohort);
+    for (const f of stamped) {
+      assert.equal(f.status, "preparing");
+      assert(f.cooking_started_at !== null, "lag " + lag + ": cooking is stamped");
+    }
+    assert.equal(await dayStatusOf(pool, day.id), "preparing");
+    // Cooking again moves nothing and keeps the stamps.
+    assert.equal((await cmd("delivery.cook", cookArgs, U.owner)).moved, 0);
+    assert.deepEqual((await rows(cohort)).map((f) => String(f.cooking_started_at)), stamped.map((f) => String(f.cooking_started_at)));
+  }
+  evidence.push("Owner and staff cooking the same meals at once (lags 0, 2, 5 and 9 ms) move each meal exactly once and stamp it once.");
+
+  // 3. Cook against the nightly job, on a fresh day each round: a meal the job delivered is never left preparing.
+  await withPolicyFrom(pool, today, async () => {
+    for (const lag of [0, 2, 5, 9]) {
+      const racing = await fresh();
+      const cohort = await reset(racing);
+      await Promise.all([
+        cmd("delivery.cook", cookArgs, U.owner),
+        wait(lag).then(() => system(pool, "delivery.autoDeliver", { today: tomorrow })),
+      ]);
+      // A meal the job did not reach (it was locked at that moment) is delivered by the next run.
+      await system(pool, "delivery.autoDeliver", { today: tomorrow });
+      for (const f of await rows(cohort)) assert.equal(f.status, "delivered", "lag " + lag + ": the meal ends delivered, not " + f.status);
+      assert.equal(await dayStatusOf(pool, racing.id), "delivered", "lag " + lag);
+      assert.equal(await earnedOf(pool, racing.id), 1, "lag " + lag + ": one earning");
+      // A cook after delivery moves nothing.
+      assert.equal((await cmd("delivery.cook", cookArgs, U.owner)).moved, 0);
+      assert.equal((await rows([racing.id]))[0].status, "delivered");
+    }
+  });
+  evidence.push("Cook racing the nightly job four times never leaves a delivered meal preparing, and each day earns once.");
 }
