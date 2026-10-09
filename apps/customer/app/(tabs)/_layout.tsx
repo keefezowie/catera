@@ -29,6 +29,13 @@ export default function TabsLayout() {
     jelajah: t("Jelajah", "Explore"),
     akun: t("Akun", "Account"),
   };
+  const order = Object.keys(icons) as CustomerTab[];
+  // A function tabBarLabel replaces the label the bar would speak ("title, tab, 1 of 4" on iOS), so each tab sets it.
+  const spoken = (name: CustomerTab) =>
+    t(
+      `${titles[name]}, tab, ${order.indexOf(name) + 1} dari ${order.length}`,
+      `${titles[name]}, tab, ${order.indexOf(name) + 1} of ${order.length}`,
+    );
   return (
     <Tabs
       screenOptions={{
@@ -53,6 +60,7 @@ export default function TabsLayout() {
           name={name}
           options={{
             title: titles[name],
+            tabBarAccessibilityLabel: spoken(name),
             tabBarIcon: ({ color, size, focused }) => (
               <Ionicons name={focused ? icons[name].filled : icons[name].outline} color={color} size={size} />
             ),

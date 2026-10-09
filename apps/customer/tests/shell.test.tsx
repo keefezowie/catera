@@ -385,6 +385,13 @@ it("tab icons are outline until focused", () => {
   );
   const tabs = mockTabScreens.filter((s) => s.options?.tabBarIcon);
   expect(tabs.map((s) => s.name)).toEqual(["index", "jadwal", "jelajah", "akun"]);
+  // The custom tab label replaces the label the bar speaks, so each tab sets its own: title, "tab", position.
+  expect(tabs.map((s) => (s.options as { tabBarAccessibilityLabel?: string }).tabBarAccessibilityLabel)).toEqual([
+    "Beranda, tab, 1 dari 4",
+    "Jadwal, tab, 2 dari 4",
+    "Jelajah, tab, 3 dari 4",
+    "Akun, tab, 4 dari 4",
+  ]);
   for (const { name, options } of tabs) {
     const icon = (focused: boolean) => options!.tabBarIcon!({ focused, color: "#000", size: 24 }).props.name;
     expect(icon(true)).not.toMatch(/-outline$/);

@@ -28,6 +28,13 @@ export default function TabsLayout() {
     menu: t("Menu", "Menu"),
     usaha: t("Usaha", "Business"),
   };
+  const order = (Object.keys(icons) as CatererTab[]).filter((name) => allowed.includes(name));
+  // A function tabBarLabel replaces the label the bar would speak ("title, tab, 1 of 4" on iOS), so each tab sets it.
+  const spoken = (name: CatererTab) =>
+    t(
+      `${titles[name]}, tab, ${order.indexOf(name) + 1} dari ${order.length}`,
+      `${titles[name]}, tab, ${order.indexOf(name) + 1} of ${order.length}`,
+    );
   return (
     <RoleGate>
       <Tabs
@@ -53,6 +60,7 @@ export default function TabsLayout() {
             name={name}
             options={{
               title: titles[name],
+              tabBarAccessibilityLabel: spoken(name),
               href: allowed.includes(name) ? undefined : null,
               tabBarIcon: ({ color, size, focused }) => (
                 <Ionicons name={focused ? icons[name].filled : icons[name].outline} color={color} size={size} />

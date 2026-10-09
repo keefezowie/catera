@@ -103,7 +103,7 @@ function DishRow({
       {dish.image ? (
         <View
           testID={`menu-dish-photo-${dish.id}`}
-          style={{ width: SLOT, height: SLOT, borderRadius: 12, borderCurve: "continuous", backgroundColor: c.sage }}
+          style={{ width: SLOT, height: SLOT, borderRadius: 12, backgroundColor: c.sage }}
         >
           <Image
             accessibilityIgnoresInvertColors
