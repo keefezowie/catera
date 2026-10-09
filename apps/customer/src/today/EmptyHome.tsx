@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Image, View } from "react-native";
 import { router } from "expo-router";
 import { currency, perMealPrice, priceUnitLabel, type Offer } from "@catera/domain";
@@ -5,14 +6,18 @@ import { useData, useMobile } from "@catera/mobile-core";
 import { Button, MoodHeader, PressableRow, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { photoUri } from "./Plate";
 
-/** Beranda without an active package: food first, then how caterer links work. */
-export function EmptyHome() {
+/**
+ * Beranda without an active package: food first, then how caterer links work.
+ * `lead` sits above the invitation: the "Paket selesai" recap of a plan that just ended.
+ */
+export function EmptyHome({ lead }: { lead?: ReactNode } = {}) {
   const { runtime, actor, t } = useMobile();
   const c = useColors();
   const catalog = useData("home:catalog", () => runtime.api.catalog("?limit=3"));
   const offers: Offer[] = (catalog.data?.items ?? []).slice(0, 3);
   return (
     <Screen header={<MoodHeader testID="beranda-header" title={t("Beranda", "Home")} />}>
+      {lead}
       <View style={{ gap: 6, paddingTop: 8 }}>
         <Text variant="title">{t("Mau makan apa minggu ini?", "What would you like to eat this week?")}</Text>
         <Text style={{ color: c.muted }}>

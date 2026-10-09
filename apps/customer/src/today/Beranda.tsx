@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import {
   dayLabel,
   errorLabel,
   jakartaDay,
+  recapCandidates,
   renewalDue,
   todayPlates,
   trialFollowUp,
@@ -33,6 +35,7 @@ import {
 import { ChatKatering } from "../help/ChatKatering";
 import { EmptyHome } from "./EmptyHome";
 import { jakartaClock, photoUri, Plate, sentences } from "./Plate";
+import { RecapCard } from "./RecapCard";
 import { RenewalCard, TrialCard } from "./RenewalCard";
 import { UpcomingRows } from "./UpcomingRows";
 import { MenuDueRows } from "./MenuDueRows";
@@ -161,7 +164,10 @@ function SignedInHome({ actorId }: { actorId: string }) {
   const plates = todayPlates(state, now);
   const rows = upcomingRows(state, now, 3, locale);
   const live = state.subscriptions.filter(isLive);
-  if (!plates.length && !rows.length && !live.length) return <EmptyHome />;
+  // Plans that ended lately and were not renewed; the card itself checks whether its recap was already seen.
+  const recaps = recapCandidates(state, now);
+  const recap = recaps.length ? <RecapCard candidates={recaps} /> : null;
+  if (!plates.length && !rows.length && !live.length) return <EmptyHome lead={recap} />;
   const savedAt = home.data?.savedAt;
 
   const today = jakartaDay(now);
@@ -235,6 +241,7 @@ function SignedInHome({ actorId }: { actorId: string }) {
       <TomorrowEntry state={state} now={now} />
       {savedAt ? null : <MenuDueRows items={actions.data?.items ?? []} />}
       <UpcomingRows rows={rows} />
+      {recap}
       {live.filter((s) => renewalDue(s, state.subscriptions)).map((s) => (
         <RenewalCard key={s.id} subscription={s} />
       ))}
@@ -253,18 +260,28 @@ function SignedInHome({ actorId }: { actorId: string }) {
   );
 }
 
+/** One running plan: the line opens its plan detail; the chat button beside it stays its own control. */
 function PackageLine({ subscription: s, phone }: { subscription: Subscription; phone: string }) {
   const { t } = useMobile();
+  const c = useColors();
   const styles = useStyles();
   const offer = s.snapshot.offer;
   return (
     <View style={styles.packageLine}>
-      <View style={{ flex: 1, gap: 2 }}>
-        <Text style={{ fontFamily: fontFor("700") }}>{offer.name}</Text>
-        <Text variant="caption">
-          {offer.caterer} · {remainingLabel(s.remaining, t)}
-        </Text>
-      </View>
+      <PressableScale
+        accessibilityRole="button"
+        accessibilityLabel={t(`${offer.name}, lihat detail paket`, `${offer.name}, see plan details`)}
+        onPress={() => router.push(`/subscriptions/${encodeURIComponent(s.id)}` as never)}
+        style={styles.packageOpen}
+      >
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text style={{ fontFamily: fontFor("700") }}>{offer.name}</Text>
+          <Text variant="caption">
+            {offer.caterer} · {remainingLabel(s.remaining, t)}
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={c.muted} />
+      </PressableScale>
       <ChatKatering phone={phone} variant="text" />
     </View>
   );
@@ -392,10 +409,11 @@ const useStyles = themedStyles((c) => ({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    paddingVertical: 10,
+    paddingVertical: 4,
     borderTopWidth: 1,
     borderTopColor: c.line,
   },
+  packageOpen: { flex: 1, minHeight: 48, flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 6 },
   review: {
     borderRadius: 16,
     borderWidth: 1,
