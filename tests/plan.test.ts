@@ -6,6 +6,7 @@ import {
   type Checkout,
   type CustomerState,
   type Delivery,
+  type DeliveryMeal,
   type Offer,
   type Quote,
   type Subscription,
@@ -147,6 +148,23 @@ describe("planDetail", () => {
         ]),
       ).toEqual([]);
       expect(done([{ meal: "lunch", status: "scheduled" }], { status: "cancelled" })).toEqual([]);
+    });
+
+    it("is left out when today's meal failed or has an open report, as Beranda counts them done", () => {
+      const upcoming = (meals: DeliveryMeal[]) =>
+        planDetail(state([sub()], [delivery("s1", TODAY, { meals })]), "s1", NOW, "id")?.upcoming;
+      // The caterer marked it "Gagal diantar".
+      expect(upcoming([{ meal: "lunch", status: "issue" }])).toEqual([]);
+      // The customer reported it and the report is still open.
+      expect(upcoming([{ meal: "lunch", status: "delivered", issue: { id: "c1", status: "open" } }])).toEqual([]);
+      expect(upcoming([{ meal: "lunch", status: "scheduled", issue: { id: "c2", status: "open" } }])).toEqual([]);
+      // A meal still on its way beside them keeps the day listed.
+      expect(
+        upcoming([
+          { meal: "lunch", status: "issue" },
+          { meal: "dinner", status: "out_for_delivery" },
+        ])?.map((r) => r.date),
+      ).toEqual([TODAY]);
     });
 
     it("counts toward the limit of 5", () => {

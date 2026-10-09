@@ -30,12 +30,18 @@ const UPCOMING_LIMIT = 5;
 /** A completed plan's recap shows for this many Jakarta days after its last day. */
 const RECAP_DAYS = 14;
 
-/** A meal of the day is neither delivered nor cancelled (a day that lists no meals goes by its own status). */
+/** Statuses that end a meal for the day: Beranda counts these as done, not on their way. */
+const DONE = ["delivered", "issue", "failed", "cancelled"];
+
+/**
+ * A meal of the day is still on its way: not delivered, not failed ("Gagal diantar"), not cancelled, and with no open
+ * report, as Beranda reads arrived, failed and reported plates as done. A day that lists no meals goes by its status.
+ */
 function stillToCome(d: Delivery): boolean {
   if (d.status === "cancelled") return false;
   const meals = d.meals ?? [];
-  if (!meals.length) return d.status !== "delivered";
-  return meals.some((m) => m.status !== "delivered" && m.status !== "cancelled");
+  if (!meals.length) return !DONE.includes(d.status);
+  return meals.some((m) => !DONE.includes(m.status) && !(m.issue && m.issue.status !== "resolved"));
 }
 
 /**
