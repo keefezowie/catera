@@ -7,6 +7,7 @@ import * as Reanimated from "react-native-reanimated";
 import { nativeMood, nativeMotion, nativeThemes } from "@catera/design-tokens";
 import {
   CheckRow,
+  FadeSwap,
   MoodProvider,
   Rantang,
   RantangTrack,
@@ -180,6 +181,44 @@ describe("RantangTrack", () => {
     measure();
     expect(timing).not.toHaveBeenCalled();
     expect(markerX()).toBe(RAIL);
+  });
+});
+
+describe("FadeSwap", () => {
+  // The wrapper is the nearest ancestor of the child that carries an opacity (the fade), so its style is read there.
+  const wrapperStyle = (id: string) => {
+    let node = byId(id).parent;
+    while (node && StyleSheet.flatten(node.props.style)?.opacity === undefined) node = node.parent;
+    return StyleSheet.flatten(node?.props.style);
+  };
+
+  it("forwards a style to its wrapper, under the fade", () => {
+    mount(
+      <FadeSwap swapKey="a" style={{ flex: 1 }}>
+        <RNText testID="swap-child">Isi</RNText>
+      </FadeSwap>,
+    );
+    expect(wrapperStyle("swap-child")).toMatchObject({ flex: 1, opacity: 1 });
+  });
+
+  it("does not make the wrapper fill by default", () => {
+    mount(
+      <FadeSwap swapKey="a">
+        <RNText testID="swap-child">Isi</RNText>
+      </FadeSwap>,
+    );
+    const style = wrapperStyle("swap-child");
+    expect(style).toMatchObject({ opacity: 1 });
+    expect(style.flex).toBeUndefined();
+  });
+
+  it("lets the story viewer's part fill the content region", () => {
+    mount(
+      <StoryViewer count={2} index={0} onIndexChange={() => {}} onClose={() => {}} header="Menu" closeLabel="Tutup">
+        <RNText testID="swap-child">Isi</RNText>
+      </StoryViewer>,
+    );
+    expect(wrapperStyle("swap-child")).toMatchObject({ flex: 1 });
   });
 });
 

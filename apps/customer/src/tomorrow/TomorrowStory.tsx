@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Image, StyleSheet, useWindowDimensions, View } from "react-native";
+import { Image, StyleSheet, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -14,8 +14,6 @@ import { useViewedParts } from "./viewed";
 
 // A story sits on a photo and on black whatever the theme, so its inks do not follow it (as in StoryCover and Plate).
 const ink = nativeThemes.light;
-// Where StoryViewer's own chrome ends: the top inset and 8, the bars (3), the header row (48), the bottom inset.
-const CHROME_ABOVE = 8 + 3 + 48;
 
 /** The same read Beranda makes, without writing the offline copy: a failed read falls back to the last good one. */
 async function loadTomorrow(runtime: MobileRuntime, key: string): Promise<CustomerState | null> {
@@ -45,10 +43,8 @@ export function TomorrowStoryScreen() {
   const { runtime, actor, t, locale } = useMobile();
   const params = useLocalSearchParams<{ part?: string }>();
   const track = useTrack();
-  const insets = useSafeAreaInsets();
-  const screenSize = useWindowDimensions();
-  const [box, setBox] = useState(0);
-  const home = useData("home:customer", () => loadTomorrow(runtime, actor?.id ?? ""));
+  // Its own key: this screen reloads on the same revision as Beranda but does not share its state.
+  const home = useData("tomorrow:customer", () => loadTomorrow(runtime, actor?.id ?? ""));
   const state = home.data;
   const story = useMemo(() => (state ? tomorrowStory(state, new Date(), locale) : null), [state, locale]);
   const parts = story?.parts ?? EMPTY;
@@ -98,7 +94,6 @@ export function TomorrowStoryScreen() {
       : next?.meal === "dinner"
         ? t("Lihat menu malam", "See dinner menu")
         : t("Lihat menu siang", "See lunch menu");
-    const height = Math.max(240, (box || screenSize.height) - insets.top - insets.bottom - CHROME_ABOVE);
     body = (
       <StoryViewer
         count={story.parts.length}
@@ -113,7 +108,6 @@ export function TomorrowStoryScreen() {
       >
         <StoryPage
           part={part}
-          height={height}
           apiBase={runtime.apiBase}
           actionLabel={label}
           onAction={last ? leave : () => setAt(index + 1)}
@@ -123,11 +117,7 @@ export function TomorrowStoryScreen() {
   }
 
   return (
-    <View
-      testID="tomorrow-screen"
-      onLayout={(e) => setBox(e.nativeEvent.layout.height)}
-      style={{ flex: 1, backgroundColor: "black" }}
-    >
+    <View testID="tomorrow-screen" style={{ flex: 1, backgroundColor: "black" }}>
       <StatusBar style="light" />
       {body}
     </View>
@@ -136,18 +126,16 @@ export function TomorrowStoryScreen() {
 
 /**
  * One part: the photo, a short blend under the header, and a scrim that is solid enough where the text sits (0.9 from
- * 48dp up, so cream text clears 4.5:1 over any photo). StoryViewer's content region wraps its child at its own height,
- * so the page is given the height that region has. It holds no ScrollView: long text wraps and the photo takes the rest.
+ * 48dp up, so cream text clears 4.5:1 over any photo). It fills StoryViewer's content region (`flex: 1`) and holds no
+ * ScrollView: long text wraps and the photo takes the rest.
  */
 function StoryPage({
   part,
-  height,
   apiBase,
   actionLabel,
   onAction,
 }: {
   part: StoryPart;
-  height: number;
   apiBase: string;
   actionLabel: string;
   onAction: () => void;
@@ -159,13 +147,16 @@ function StoryPage({
     part.menuSet && part.title
       ? part.title
       : t(`Menu belum diisi oleh ${part.catererName}`, `${part.catererName} has not set this menu yet`);
+  // A plan whose days cannot move, still before its cutoff, has nothing to say about a deadline.
   const deadline = part.changeable
     ? part.until
       ? t(`Bisa diubah sampai ${part.until}`, `Can be changed until ${part.until}`)
       : t("Masih bisa diubah", "Can still be changed")
-    : t("Sudah lewat batas ubah", "Change window closed");
+    : part.closed
+      ? t("Sudah lewat batas ubah", "Change window closed")
+      : null;
   return (
-    <View testID="tomorrow-part" style={{ height, backgroundColor: ink.forest, justifyContent: "flex-end" }}>
+    <View testID="tomorrow-part" style={{ flex: 1, backgroundColor: ink.forest, justifyContent: "flex-end" }}>
       {/* A dish without a photo leaves the forest ground, which the text still reads on. */}
       {uri ? <Image accessibilityIgnoresInvertColors source={{ uri }} resizeMode="cover" style={StyleSheet.absoluteFill} /> : null}
       {/* Softens the join between the black header and the photo's top edge. */}
@@ -218,18 +209,20 @@ function StoryPage({
             {part.sides.length ? `${part.catererName} · ${part.sides.join(", ")}` : part.catererName}
           </Text>
         ) : null}
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-          <Text style={{ flex: 1, color: ink.cream, fontVariant: ["tabular-nums"] }}>{deadline}</Text>
-          {part.changeable ? (
-            <Button
-              variant="secondary"
-              label={t("Ubah hari", "Change day")}
-              ink={ink.cream}
-              edge={ink.cream}
-              onPress={() => router.push(`/hari/${encodeURIComponent(part.deliveryId)}` as never)}
-            />
-          ) : null}
-        </View>
+        {deadline ? (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+            <Text style={{ flex: 1, color: ink.cream, fontVariant: ["tabular-nums"] }}>{deadline}</Text>
+            {part.changeable ? (
+              <Button
+                variant="secondary"
+                label={t("Ubah hari", "Change day")}
+                ink={ink.cream}
+                edge={ink.cream}
+                onPress={() => router.push(`/hari/${encodeURIComponent(part.deliveryId)}` as never)}
+              />
+            ) : null}
+          </View>
+        ) : null}
         <Button label={actionLabel} ink={ink.forest} style={{ backgroundColor: ink.cream }} onPress={onAction} />
       </View>
     </View>

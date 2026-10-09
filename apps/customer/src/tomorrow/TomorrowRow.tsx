@@ -9,18 +9,22 @@ import { partId, useViewedParts } from "./viewed";
 /**
  * Tomorrow's menu as a story row: one ring per delivery and meal, lunch in sunrise ink and dinner in forest, then
  * whether the day can still be changed. Before the change cutoff the rings show the dishes. After it each ring is a
- * closed lunchbox until its part has been opened once, so opening the story is the unveil. A ring is covered while the
- * seen marks are still being read, never the other way round.
+ * closed lunchbox until its part has been opened once, so opening the story is the unveil. "After it" means the
+ * cutoff has passed (`closed`), not that the plan lets days move. A ring is covered while the seen marks are still being
+ * read, never the other way round.
  */
 export function TomorrowRow({ story }: { story: TomorrowStory }) {
   const { runtime, t, locale } = useMobile();
   const { viewed } = useViewedParts(story.parts);
+  // A plan whose days cannot move says nothing about a deadline until the day closes.
   const open = story.parts.find((p) => p.changeable);
   const meta = open
     ? open.until
       ? t(`Bisa diubah sampai ${open.until}`, `Can be changed until ${open.until}`)
       : t("Masih bisa diubah", "Can still be changed")
-    : t("Sudah lewat batas ubah", "Change window closed");
+    : story.parts.every((p) => p.closed)
+      ? t("Sudah lewat batas ubah", "Change window closed")
+      : null;
   return (
     <View testID="tomorrow-row" style={{ gap: 8 }}>
       <View>
@@ -32,23 +36,31 @@ export function TomorrowRow({ story }: { story: TomorrowStory }) {
         {story.parts.map((part, i) => {
           const dinner = part.meal === "dinner";
           const meal = dinner ? t("makan malam", "dinner") : t("makan siang", "lunch");
-          const dish = part.menuSet && part.title ? part.title : t("Menu belum diisi", "Menu not set");
+          const covered = part.closed && !viewed.has(partId(part));
+          // A covered ring keeps the dish a surprise for a screen reader too.
+          const what = covered
+            ? t("tertutup, buka untuk melihat", "covered, open to see")
+            : part.menuSet && part.title
+              ? part.title
+              : t("Menu belum diisi", "Menu not set");
           return (
             <PhotoRing
               key={partId(part)}
               uri={photoUri(part.image, runtime.apiBase)}
               size={60}
               ring={dinner ? "forest" : "sunrise"}
-              covered={!part.changeable && !viewed.has(partId(part))}
-              accessibilityLabel={`${t("Menu besok", "Tomorrow's menu")}, ${meal}, ${dish}`}
+              covered={covered}
+              accessibilityLabel={`${t("Menu besok", "Tomorrow's menu")}, ${meal}, ${what}`}
               onPress={() => router.push(`/tomorrow?part=${i}` as never)}
             />
           );
         })}
       </View>
-      <Text variant="caption" style={{ fontVariant: ["tabular-nums"] }}>
-        {meta}
-      </Text>
+      {meta ? (
+        <Text variant="caption" style={{ fontVariant: ["tabular-nums"] }}>
+          {meta}
+        </Text>
+      ) : null}
     </View>
   );
 }

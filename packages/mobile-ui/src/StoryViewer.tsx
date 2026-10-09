@@ -157,7 +157,9 @@ export function StoryViewer({
           onPress={(e: GestureResponderEvent) => (e.nativeEvent.pageX < width / 2 ? back() : forward())}
           style={{ flex: 1 }}
         >
-          <FadeSwap swapKey={String(index)}>{children}</FadeSwap>
+          <FadeSwap swapKey={String(index)} style={{ flex: 1 }}>
+            {children}
+          </FadeSwap>
         </Pressable>
       </Animated.View>
     </View>

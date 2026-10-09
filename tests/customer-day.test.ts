@@ -426,6 +426,24 @@ describe("tomorrowStory", () => {
     expect(tomorrowStory(s, at("17:00"), "id")!.parts[0]).toMatchObject({ changeable: false, until: null });
   });
 
+  it("is closed once the cutoff has passed, the cutoff minute included, whatever the plan lets move", () => {
+    const flexible = state([delivery("2026-10-08", [lunch()], open)]);
+    const fixed = state([delivery("2026-10-08", [lunch()], { canChange: false, cutoff_at: "2026-10-07T10:00:00Z" })]);
+    for (const s of [flexible, fixed]) {
+      expect(tomorrowStory(s, at("16:59"), "id")!.parts[0].closed).toBe(false);
+      expect(tomorrowStory(s, at("17:00"), "id")!.parts[0].closed).toBe(true);
+      expect(tomorrowStory(s, at("17:01"), "id")!.parts[0].closed).toBe(true);
+    }
+    // A fixed plan is open but not changeable before the cutoff, and closed after it.
+    expect(tomorrowStory(fixed, at("12:00"), "id")!.parts[0]).toMatchObject({ changeable: false, closed: false });
+    expect(tomorrowStory(fixed, at("18:00"), "id")!.parts[0]).toMatchObject({ changeable: false, closed: true });
+  });
+
+  it("does not call a cutoff it cannot read closed", () => {
+    const s = state([delivery("2026-10-08", [lunch()], { cutoff_at: "garbage" })]);
+    expect(tomorrowStory(s, at("12:00"), "id")!.parts[0]).toMatchObject({ changeable: false, closed: false });
+  });
+
   it("is not changeable when only the address can still be edited", () => {
     // A fixed plan keeps its days (canChange false); the address stays editable until the cutoff.
     const s = state([delivery("2026-10-08", [lunch()], { canChange: false, cutoff_at: "2026-10-07T10:00:00Z" })]);

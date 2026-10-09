@@ -67,6 +67,8 @@ export type StoryPart = {
   menuSet: boolean;
   /** The day itself can still be changed ("Ubah hari"). */
   changeable: boolean;
+  /** The change cutoff has passed (the cutoff minute itself is closed), whether or not the plan lets days move. */
+  closed: boolean;
   /** When changes close, or null once they have. */
   until: string | null;
 };
@@ -257,6 +259,9 @@ export function tomorrowStory(state: CustomerState, now: Date, locale: Locale): 
     if (d.service_date !== date || d.status === "cancelled") continue;
     // The story offers "Ubah hari", so it follows the day itself, not only the address.
     const changeable = canChangeDay(d, now).date;
+    // A cutoff that cannot be read is not called closed: nothing is covered on a guess.
+    const cutoff = Date.parse(d.cutoff_at);
+    const closed = !Number.isNaN(cutoff) && now.getTime() >= cutoff;
     for (const meal of servedMeals(d)) {
       const menu = d.offer.menus?.find((m) => m.meal === meal) ?? null;
       const set = !!menu && menuIsSet(menu);
@@ -274,6 +279,7 @@ export function tomorrowStory(state: CustomerState, now: Date, locale: Locale): 
           image: set ? menuCoverImage(menu, d.offer.image ?? "") : (d.offer.image ?? ""),
           menuSet: set,
           changeable,
+          closed,
           until: changeable ? changeDeadline(d.cutoff_at, now, locale) : null,
         },
       });
