@@ -696,7 +696,7 @@ Execution runs in this order (spelled out in each task's Interfaces):
 ### Task 10 (wave 2): Mood header on the remaining screens
 
 **Files:**
-- Modify: `apps/customer/src/account/Akun.tsx`, `apps/customer/src/buy/BuyScreen.tsx`, `apps/customer/src/buy/PaymentScreen.tsx`, `apps/caterer/src/customers/CustomerList.tsx`, `apps/caterer/src/business/UsahaScreen.tsx`
+- Modify: `apps/customer/src/account/Akun.tsx`, `apps/customer/src/buy/BuyScreen.tsx`, `apps/customer/src/buy/PaymentScreen.tsx`, `apps/caterer/src/customers/CustomerList.tsx`, `apps/caterer/src/business/UsahaScreen.tsx`, `apps/caterer/src/auth/Masuk.tsx`, `apps/customer/src/discover/PackageDetail.tsx` (only the loading, error and not-found branches), `apps/customer/src/claim/ClaimScreen.tsx` (only the `dead`, `offline`, `review` and `kode` steps). The last three were added by controller ruling: every non-photo screen needs a mood header, or its light status glyphs fall on a cream canvas in light Malam (R-25).
 - Test: `apps/customer/tests/account.test.tsx`, `apps/customer/tests/buy.test.tsx`, `apps/caterer/tests/customers.test.tsx`, `apps/caterer/tests/business.test.tsx`
 
 **Interfaces:**
