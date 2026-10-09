@@ -135,7 +135,7 @@ const settle = () => act(async () => void (await new Promise((r) => setTimeout(r
 /** Beranda with the live plan's line on screen, and every storage read settled. */
 async function home(runtime: MobileRuntime) {
   const view = mount(runtime);
-  await screen.findByRole("button", { name: "Makan Siang Rumahan, lihat detail paket" });
+  await screen.findByRole("button", { name: "Makan Siang Rumahan, Dapur Contoh, 6 hari lagi, lihat detail paket" });
   await settle();
   return view;
 }
@@ -236,7 +236,7 @@ describe("the Paket selesai recap", () => {
     await home(runtimeWith(async () => stateWith([livePlan(), endedPlan()])));
     fireEvent.press(screen.getByRole("button", { name: "Tutup" }));
     expect(screen.queryByTestId("recap-card")).toBeNull();
-    expect(screen.getByRole("button", { name: "Makan Siang Rumahan, lihat detail paket" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Makan Siang Rumahan, Dapur Contoh, 6 hari lagi, lihat detail paket" })).toBeTruthy();
   });
 
   it("Lanjutkan paket opens the renewal and counts renew_started on each tap", async () => {
@@ -330,7 +330,7 @@ describe("the Paket selesai recap", () => {
     expect(card.getByText("Mon 21 Sep – Wed 7 Oct")).toBeTruthy();
     expect(card.getByRole("button", { name: "Continue this plan" })).toBeTruthy();
     expect(card.getByRole("button", { name: "Close" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Makan Siang Rumahan, see plan details" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Makan Siang Rumahan, Dapur Contoh, 6 days to go, see plan details" })).toBeTruthy();
     await settle();
   });
 });
@@ -338,7 +338,7 @@ describe("the Paket selesai recap", () => {
 describe("the plan lines", () => {
   it("are 48dp buttons that open the plan's detail", async () => {
     await home(runtimeWith(async () => stateWith([livePlan()])));
-    const line = screen.getByRole("button", { name: "Makan Siang Rumahan, lihat detail paket" });
+    const line = screen.getByRole("button", { name: "Makan Siang Rumahan, Dapur Contoh, 6 hari lagi, lihat detail paket" });
     expect(StyleSheet.flatten(line.props.style).minHeight).toBeGreaterThanOrEqual(48);
     expect(within(line).getByText(/6 hari lagi/)).toBeTruthy();
     fireEvent.press(line);
@@ -354,7 +354,7 @@ describe("the plan lines", () => {
       remaining: 9,
     });
     await home(runtimeWith(async () => stateWith([livePlan(), second])));
-    fireEvent.press(screen.getByRole("button", { name: "Makan Malam Hemat, lihat detail paket" }));
+    fireEvent.press(screen.getByRole("button", { name: "Makan Malam Hemat, Dapur Contoh, 9 hari lagi, lihat detail paket" }));
     expect(router.push).toHaveBeenCalledWith("/subscriptions/s-2");
     await waitFor(() => expect(screen.queryByTestId("recap-card")).toBeNull());
   });

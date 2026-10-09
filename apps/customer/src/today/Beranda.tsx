@@ -266,18 +266,23 @@ function PackageLine({ subscription: s, phone }: { subscription: Subscription; p
   const c = useColors();
   const styles = useStyles();
   const offer = s.snapshot.offer;
+  // The label replaces what the line shows, so it says all of it: the plan, its caterer and the days left.
+  const remaining = remainingLabel(s.remaining, t);
   return (
     <View style={styles.packageLine}>
       <PressableScale
         accessibilityRole="button"
-        accessibilityLabel={t(`${offer.name}, lihat detail paket`, `${offer.name}, see plan details`)}
+        accessibilityLabel={t(
+          `${offer.name}, ${offer.caterer}, ${remaining}, lihat detail paket`,
+          `${offer.name}, ${offer.caterer}, ${remaining}, see plan details`,
+        )}
         onPress={() => router.push(`/subscriptions/${encodeURIComponent(s.id)}` as never)}
         style={styles.packageOpen}
       >
         <View style={{ flex: 1, gap: 2 }}>
           <Text style={{ fontFamily: fontFor("700") }}>{offer.name}</Text>
           <Text variant="caption">
-            {offer.caterer} · {remainingLabel(s.remaining, t)}
+            {offer.caterer} · {remaining}
           </Text>
         </View>
         <Ionicons name="chevron-forward" size={18} color={c.muted} />
