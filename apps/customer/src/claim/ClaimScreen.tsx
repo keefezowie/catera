@@ -4,7 +4,19 @@ import * as Crypto from "expo-crypto";
 import { router, useLocalSearchParams } from "expo-router";
 import { errorLabel, localCustomerPhone, phoneMatchesMask, shortDate, type ClaimPreview } from "@catera/domain";
 import { plural, useMobile } from "@catera/mobile-core";
-import { Button, Card, Field, fontFor, MoodHeader, RoundButton, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
+import {
+  Button,
+  Card,
+  Field,
+  fontFor,
+  MoodHeader,
+  RoundButton,
+  Screen,
+  Text,
+  themedStyles,
+  useColors,
+  useMoodColors,
+} from "@catera/mobile-ui";
 import { e164Indonesia } from "../account/Masuk";
 
 /** Failures worth retrying; every other code means this link cannot be used. */
@@ -23,7 +35,6 @@ export function ClaimScreen() {
   const { runtime, command, signedIn, t, locale } = useMobile();
   // `run` below names its error code `c`, so the palette keeps a longer name here.
   const palette = useColors();
-  const styles = useStyles();
   const [preview, setPreview] = useState<ClaimPreview | null>(null);
   const [dead, setDead] = useState(false);
   const [offline, setOffline] = useState(false);
@@ -98,7 +109,8 @@ export function ClaimScreen() {
   );
   if (dead)
     return (
-      <Screen header={<ClaimHeader title="Catera" />}>
+      <Screen header={<ClaimHeader title={t("Tautan tidak bisa dipakai", "This link can't be used")} />}>
+        <Header />
         <Text style={{ fontFamily: fontFor("700") }} testID="claim-dead">
           {t(
             "Tautan ini tidak bisa dipakai. Minta tautan baru ke katering Anda.",
@@ -110,7 +122,8 @@ export function ClaimScreen() {
     );
   if (offline)
     return (
-      <Screen header={<ClaimHeader title="Catera" />}>
+      <Screen header={<ClaimHeader title={t("Belum bisa memuat", "Couldn't load yet")} />}>
+        <Header />
         <Text selectable style={{ color: palette.danger }}>
           {t("Belum bisa memuat. Periksa koneksi lalu coba lagi.", "Couldn't load. Check your connection and try again.")}
         </Text>
@@ -120,9 +133,9 @@ export function ClaimScreen() {
     );
   if (!preview)
     return (
-      <View style={styles.center}>
-        <ActivityIndicator color={palette.forest} />
-      </View>
+      <Screen header={<ClaimHeader title={t("Langganan Anda", "Your subscription")} loading />}>
+        <Header />
+      </Screen>
     );
   const katering = preview.catererName;
   if (review)
@@ -141,6 +154,12 @@ export function ClaimScreen() {
   if (step === "lihat")
     return (
       <Screen
+        header={
+          <ClaimHeader
+            meta={t(`Dari ${katering}`, `From ${katering}`)}
+            title={t("Langganan Anda sekarang ada di Catera", "Your subscription is now on Catera")}
+          />
+        }
         footer={
           <View style={{ gap: 10 }}>
             <Button
@@ -157,16 +176,12 @@ export function ClaimScreen() {
         }
       >
         <Header />
-        <View style={{ gap: 8 }}>
-          <Text style={styles.from}>{t(`Dari ${katering}`, `From ${katering}`)}</Text>
-          <Text style={styles.h1}>{t("Langganan Anda sekarang ada di Catera", "Your subscription is now on Catera")}</Text>
-          <Text>
-            {t(
-              `Sudah dibayar ke ${katering}, tidak ada tagihan baru. Di sini Anda bisa melihat menu, tahu kapan makanan berangkat, dan memindah hari.`,
-              `Already paid to ${katering}, no new bill. Here you can see the menu, know when your food leaves, and move days.`,
-            )}
-          </Text>
-        </View>
+        <Text>
+          {t(
+            `Sudah dibayar ke ${katering}, tidak ada tagihan baru. Di sini Anda bisa melihat menu, tahu kapan makanan berangkat, dan memindah hari.`,
+            `Already paid to ${katering}, no new bill. Here you can see the menu, know when your food leaves, and move days.`,
+          )}
+        </Text>
         <Card>
           <Text style={{ fontSize: 18, fontFamily: fontFor("800"), color: palette.forest }}>{preview.packageName}</Text>
           <Fact label={t("Sisa", "Left")} value={t(`${preview.remainingDays} hari`, plural(preview.remainingDays, "day"))} />
@@ -279,19 +294,40 @@ export function ClaimScreen() {
   );
 }
 
-/** The mood header every step but the package one opens with; the back control, when there is one, rides in its meta slot. */
-function ClaimHeader({ title, onBack }: { title: string; onBack?: () => void }) {
+/**
+ * The mood header every claim state opens with. The back control, when there is one, rides in its meta slot; the
+ * wordmark stays in the body (below), never on the header fill. `loading` puts the spinner and "Memuat…" in the header.
+ */
+function ClaimHeader({
+  title,
+  onBack,
+  meta,
+  loading = false,
+}: {
+  title: string;
+  onBack?: () => void;
+  meta?: string;
+  loading?: boolean;
+}) {
   const { t } = useMobile();
+  const mood = useMoodColors();
   return (
     <MoodHeader
       testID="claim-header"
-      meta={onBack ? <RoundButton icon="chevron-back" label={t("Kembali", "Back")} onPress={onBack} /> : undefined}
+      meta={onBack ? <RoundButton icon="chevron-back" label={t("Kembali", "Back")} onPress={onBack} /> : meta}
       title={title}
-    />
+    >
+      {loading ? (
+        <View accessibilityLiveRegion="polite" style={{ flexDirection: "row", alignItems: "center", gap: 10, minHeight: 48 }}>
+          <ActivityIndicator color={mood.headerText} />
+          <Text style={{ color: mood.headerMeta }}>{t("Memuat…", "Loading…")}</Text>
+        </View>
+      ) : null}
+    </MoodHeader>
   );
 }
 
-/** The package step leads with the wordmark; there is nothing else to title it. */
+/** The illustrated wordmark, kept in the page body on every claim state. */
 function Header() {
   const styles = useStyles();
   return (
@@ -316,9 +352,6 @@ function Fact({ label, value }: { label: string; value: string }) {
   );
 }
 
-const useStyles = themedStyles((c) => ({
-  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: c.canvas },
+const useStyles = themedStyles(() => ({
   header: { minHeight: 48, flexDirection: "row", alignItems: "center", gap: 4 },
-  from: { fontSize: 14, fontFamily: fontFor("700"), color: c.sunriseInk },
-  h1: { fontSize: 28, lineHeight: 32, fontFamily: fontFor("800"), letterSpacing: -0.5, color: c.forest },
 }));

@@ -504,7 +504,13 @@ describe("Beli and Bayar mood headers", () => {
   // 15.00 in Jakarta and later is Malam; the default theme here is light.
   const MALAM = () => new Date("2026-10-07T08:00:00Z");
   const malam = nativeMood.light.malam;
-  const flat = (node: { props: { style?: unknown } }) => StyleSheet.flatten(node.props.style as never) as Record<string, unknown>;
+  const flat = (node: { props: { style?: unknown } }) => (StyleSheet.flatten(node.props.style as never) ?? {}) as Record<string, unknown>;
+  /** The fill of the nearest ancestor that paints one: the card or box the text sits in. */
+  const surfaceAround = (node: { parent: unknown; props: { style?: unknown } }) => {
+    let at = node.parent as typeof node | null;
+    while (at && !flat(at).backgroundColor) at = at.parent as typeof node | null;
+    return at ? flat(at).backgroundColor : undefined;
+  };
   const wrapMood = (runtime: MobileRuntime, ui: React.ReactElement) =>
     render(
       <MoodProvider now={MALAM}>
@@ -522,9 +528,10 @@ describe("Beli and Bayar mood headers", () => {
     expect(title.props.accessibilityRole).toBe("header");
     expect(flat(title).color).toBe("#FFF7E9");
     expect(screen.queryByRole("tab", { name: "Malam" })).toBeNull();
-    // The cards and rows below keep the theme surface, not the header fill.
-    const back = within(header).getByRole("button", { name: "Kembali" });
-    expect(flat(back).backgroundColor).toBe(nativeThemes.light.surface);
+    // The portions card in the body keeps the theme surface, not the header fill.
+    const portions = await screen.findByText("Porsi per hari");
+    expect(within(header).queryByText("Porsi per hari")).toBeNull();
+    expect(surfaceAround(portions)).toBe("#FFFEFA");
     expect(nativeThemes.light.surface).toBe("#FFFEFA");
     expect(malam.headerText).toBe("#FFF7E9");
     // The form below stays on the page, outside the header.
@@ -581,12 +588,25 @@ describe("Beli and Bayar mood headers", () => {
     expect(flat(title).color).toBe("#FFF7E9");
     const back = within(header).getByRole("button", { name: "Kembali" });
     expect([flat(back).width, flat(back).height]).toEqual([48, 48]);
-    expect(flat(back).backgroundColor).toBe(nativeThemes.light.surface);
     fireEvent.press(back);
     expect(router.back).toHaveBeenCalledTimes(1);
     // The total and the steps stay on the page.
     expect(within(header).queryByText("Total")).toBeNull();
     expect(await screen.findByLabelText("Kode QRIS pembayaran ini")).toBeTruthy();
+  });
+
+  it("Bayar's bank-transfer card stays on the theme surface below the header", async () => {
+    const va = pendingCheckout(
+      {},
+      {
+        selectedMethod: "VIRTUAL_ACCOUNT_BRI",
+        instructions: { kind: "virtual_account", accountNumber: "8808123456789012", accountName: "CATERA SINTETIS", bank: "BRI" },
+      },
+    );
+    wrapMood(server({ checkout: va }), <PaymentScreen checkoutId="ck-1" />);
+    const label = await screen.findByText("Nomor virtual account BRI");
+    expect(within(screen.getByTestId("payment-header")).queryByText("Nomor virtual account BRI")).toBeNull();
+    expect(surfaceAround(label)).toBe("#FFFEFA");
   });
 
   it("Bayar keeps the header in the outcome and not-found states", async () => {

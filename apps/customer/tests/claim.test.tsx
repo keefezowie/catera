@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
-import { StyleSheet } from "react-native";
+import { ActivityIndicator, StyleSheet } from "react-native";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { ApiError } from "@catera/api-client";
@@ -259,9 +259,13 @@ describe("claim mood header", () => {
     });
     renderMood(runtime);
     expect(await screen.findByTestId("claim-dead")).toBeTruthy();
-    const header = expectMalamHeader("Catera");
+    const header = expectMalamHeader("Tautan tidak bisa dipakai");
     expect(within(header).queryByTestId("claim-dead")).toBeNull();
     expect(within(header).queryByRole("button", { name: "Kembali" })).toBeNull();
+    // The wordmark image stays in the page body, never on the header fill.
+    expect(screen.getByLabelText("Catera")).toBeTruthy();
+    expect(within(header).queryByLabelText("Catera")).toBeNull();
+    expect(within(header).queryByText("Catera")).toBeNull();
   });
 
   it("a preview that cannot load keeps a header, with the message and retry on the page", async () => {
@@ -269,16 +273,33 @@ describe("claim mood header", () => {
     const { runtime } = runtimeWith({ preview });
     renderMood(runtime);
     const message = await screen.findByText("Belum bisa memuat. Periksa koneksi lalu coba lagi.");
-    const header = expectMalamHeader("Catera");
+    const header = expectMalamHeader("Belum bisa memuat");
     expect(within(header).queryByText("Belum bisa memuat. Periksa koneksi lalu coba lagi.")).toBeNull();
     expect(flat(message).color).toBe(require("@catera/design-tokens").nativeThemes.light.danger);
+    expect(screen.getByLabelText("Catera")).toBeTruthy();
+    expect(within(header).queryByLabelText("Catera")).toBeNull();
   });
 
-  it("the package step keeps its wordmark and has no mood header (ruling B3)", async () => {
+  it("while the link is read, the header shows the spinner and Memuat beside it", async () => {
+    const { runtime } = runtimeWith({ preview: () => new Promise<ClaimPreview>(() => undefined) });
+    const view = renderMood(runtime);
+    const header = expectMalamHeader("Langganan Anda");
+    expect(within(header).getByText("Memuat…")).toBeTruthy();
+    expect(flat(within(header).getByText("Memuat…")).color).toBe(require("@catera/design-tokens").nativeMood.light.malam.headerMeta);
+    expect(view.UNSAFE_queryAllByType(ActivityIndicator).length).toBeGreaterThan(0);
+  });
+
+  it("the package step opens on the header too, titled with its heading, with the wordmark and the package in the body", async () => {
     renderMood(runtimeWith().runtime);
     expect(await screen.findByText("Dari Dapur Contoh")).toBeTruthy();
-    expect(screen.queryByTestId("claim-header")).toBeNull();
+    const header = expectMalamHeader("Langganan Anda sekarang ada di Catera");
+    expect(within(header).getByText("Dari Dapur Contoh")).toBeTruthy();
     expect(screen.getByLabelText("Catera")).toBeTruthy();
+    expect(within(header).queryByLabelText("Catera")).toBeNull();
+    expect(within(header).queryByText("Makan Siang Rumahan")).toBeNull();
+    expect(screen.getByText("Makan Siang Rumahan")).toBeTruthy();
+    expect(within(header).queryByRole("button", { name: "Kembali" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Lanjut dengan 0812-•••-0001" })).toBeTruthy();
   });
 
   it("the phone and code steps title the step in the header, with the 48dp back button inside it", async () => {

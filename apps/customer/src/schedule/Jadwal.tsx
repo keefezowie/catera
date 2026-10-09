@@ -46,7 +46,7 @@ export function Jadwal() {
         <ActivityIndicator color={c.forest} />
       </View>
     );
-  if (!actor) return <SignInFirst title={t("Jadwal", "Schedule")} next="/jadwal" />;
+  if (!actor) return <SignInFirst title={t("Jadwal", "Schedule")} next="/jadwal" headerTestID="jadwal-header" />;
   return <SignedInJadwal />;
 }
 

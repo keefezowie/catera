@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react";
 import { Linking, View } from "react-native";
 import { errorLabel } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { Button, Card, Field, Screen, Text } from "@catera/mobile-ui";
+import { Button, Card, Field, MoodHeader, Screen, Text } from "@catera/mobile-ui";
 import { tabsForRole } from "./roles";
 
 /** Customer accounts belong in the Catera app, unless they hold a helper invite code. */
@@ -32,9 +32,8 @@ export function RoleGate({ children }: { children: ReactNode }) {
 
   if (actor && !tabsForRole(actor.role).length)
     return (
-      <Screen>
-        <View style={{ gap: 12, paddingTop: 48 }}>
-          <Text variant="title">{t("Buka aplikasi Catera", "Open the Catera app")}</Text>
+      <Screen header={<MoodHeader testID="rolegate-header" title={t("Buka aplikasi Catera", "Open the Catera app")} />}>
+        <View style={{ gap: 12 }}>
           <Text>
             {t(
               "Akun ini adalah akun pelanggan. Catera Dapur hanya untuk katerer dan pembantunya.",

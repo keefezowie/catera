@@ -617,11 +617,11 @@ describe("Akun mood header", () => {
   const MALAM_NOW = () => new Date("2026-10-09T08:00:00Z");
   const SIANG_NOW = () => new Date("2026-10-09T03:00:00Z");
   const flat = (node: { props: { style?: unknown } }) => StyleSheet.flatten(node.props.style as never) as Record<string, unknown>;
-  const renderMood = (runtime: MobileRuntime, now = MALAM_NOW) =>
+  const renderMood = (runtime: MobileRuntime, now = MALAM_NOW, screenUnderTest: React.ReactElement = <Akun />) =>
     render(
       <MoodProvider now={now}>
         <MobileProvider runtime={runtime} linkMapper={customerLink}>
-          <Akun />
+          {screenUnderTest}
         </MobileProvider>
       </MoodProvider>,
     );
@@ -648,6 +648,15 @@ describe("Akun mood header", () => {
     const header = await screen.findByTestId("akun-header");
     expect(flat(within(header).getByTestId("mood-fill-siang")).backgroundColor).toBe(nativeMood.light.siang.header);
     expect(flat(within(header).getByText("Rani Contoh")).color).toBe(nativeMood.light.siang.headerText);
+  });
+
+  it("a pushed screen signed out keeps its plain title: the Stack header above it is the only header", async () => {
+    renderMood(runtimeWith({}, { actor: null }), MALAM_NOW, <Addresses />);
+    expect(await screen.findByRole("button", { name: "Masuk" })).toBeTruthy();
+    expect(screen.queryByTestId("signin-header")).toBeNull();
+    expect(screen.queryByTestId("mood-header")).toBeNull();
+    expect(screen.getByText("Alamat")).toBeTruthy();
+    expect(screen.getByText("Masuk untuk melihat paket dan jadwal antar Anda.")).toBeTruthy();
   });
 
   it("signed out keeps a header too, so the status icons never fall on the cream page", async () => {

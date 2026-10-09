@@ -1,9 +1,9 @@
 import { Component, type ReactNode } from "react";
 import { useMobile } from "@catera/mobile-core";
-import { Screen } from "@catera/mobile-ui";
+import { MoodHeader, Screen } from "@catera/mobile-ui";
 import { ReadError } from "./ReadError";
 
-type Props = { children: ReactNode; message: string };
+type Props = { children: ReactNode; message: string; title: string };
 type State = { failed: boolean };
 
 class Boundary extends Component<Props, State> {
@@ -14,7 +14,7 @@ class Boundary extends Component<Props, State> {
   render() {
     if (!this.state.failed) return this.props.children;
     return (
-      <Screen>
+      <Screen header={<MoodHeader testID="guard-header" title={this.props.title} />}>
         <ReadError message={this.props.message} onRetry={() => this.setState({ failed: false })} />
       </Screen>
     );
@@ -25,7 +25,10 @@ class Boundary extends Component<Props, State> {
 export function ScreenGuard({ children, message }: { children: ReactNode; message?: string }) {
   const { t } = useMobile();
   return (
-    <Boundary message={message ?? t("Halaman ini belum bisa ditampilkan.", "This page can't be shown right now.")}>
+    <Boundary
+      title={t("Belum bisa ditampilkan", "Can't be shown yet")}
+      message={message ?? t("Halaman ini belum bisa ditampilkan.", "This page can't be shown right now.")}
+    >
       {children}
     </Boundary>
   );
