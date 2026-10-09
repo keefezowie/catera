@@ -149,7 +149,7 @@ const capitalise = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
  * twice: a scheduled meal ("Terjadwal") and an on-the-way meal without a departure time ("Sedang diantar") are said
  * by the track alone, and the second line becomes the header. A meal past its window that the kitchen never tapped
  * says so instead of leaving the bare window. An arrival the system recorded is the same: the track caption reads
- * "Tercatat sampai", so the header becomes the time ("Pukul 11.48"), or "Sudah sampai" when no time was kept. Cards, the
+ * "Tercatat sampai", so the header becomes the time ("Pukul 11.48"); with no time kept it still reads "Tercatat sampai". Cards, the
  * other-meal row and Beranda keep `sentences`.
  */
 export function heroSentences(
@@ -164,8 +164,10 @@ export function heroSentences(
     (p.state === "scheduled" && !!p.window && !!p.addressLabel) ||
     (p.state === "on_the_way" && !!p.window && !jakartaClock(p.journey.departedAt));
   if (trackShown && promotes) return [capitalise(second), ""];
+  // With no time to promote the header keeps the truthful state, even though the caption says it too: data written
+  // by the app always carries `confirmed_at`, so this only shows on malformed data.
   if (trackShown && p.state === "arrived" && p.journey.arrivedBy === "auto")
-    return second ? [capitalise(second), ""] : [t("Sudah sampai", "Arrived"), ""];
+    return second ? [capitalise(second), ""] : [first, ""];
   if (p.state === "due" && p.journey.stage === "scheduled")
     return [
       first,

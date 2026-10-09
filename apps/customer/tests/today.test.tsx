@@ -1027,7 +1027,7 @@ describe("Beranda mood", () => {
       ["on the way without a time", { status: "out_for_delivery" }],
       ["arrived by the customer", { status: "delivered", confirmed_at: `${TODAY}T04:48:00Z`, confirmed_by: "customer" }],
       ["arrived by the system", { status: "delivered", confirmed_at: `${TODAY}T04:48:00Z`, confirmed_by: "auto" }],
-      ["arrived by the system without a time", { status: "delivered", confirmed_by: "auto" }],
+      // "Arrived by the system without a time" is the one deliberate exception: see the test after this table.
       ["arrived without a recorder", { status: "delivered", confirmed_at: `${TODAY}T04:48:00Z` }],
     ] as [string, Partial<DeliveryMeal>, boolean?][])(
       "never says the header again in the track caption (%s)",
@@ -1044,6 +1044,26 @@ describe("Beranda mood", () => {
         expect(h.getAllByText(caption)).toHaveLength(1);
       },
     );
+
+    // Carve-out from the table above: with no time to promote, the truthful state wins over the no-repeat rule. The
+    // data writers always set `confirmed_at`, so this only shows on malformed data.
+    it("keeps Tercatat sampai in the header, with no second line, when the system arrival has no time", async () => {
+      mount(runtimeWith(async () => lunchToday({ status: "delivered", confirmed_by: "auto" })));
+      const h = await hero();
+      expect(h.getByTestId("plate-sentence").props.children).toBe("Tercatat sampai");
+      expect(h.getByRole("header", { name: "Tercatat sampai" })).toBeTruthy();
+      expect(h.queryByText("Sudah sampai")).toBeNull();
+      expect(h.queryByText(/^pukul /i)).toBeNull();
+      expect(h.getByTestId("rantang-track").props.accessibilityLabel).toBe("Tercatat sampai");
+    });
+
+    it("says it in English too when the system arrival has no time", async () => {
+      (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.locale", "en");
+      mount(runtimeWith(async () => lunchToday({ status: "delivered", confirmed_by: "auto" })));
+      const h = await hero();
+      expect(h.getByTestId("plate-sentence").props.children).toBe("Recorded as arrived");
+      expect(h.queryByText("Arrived")).toBeNull();
+    });
 
     it("says Dimasak with the time the kitchen started, while the sentence stays Sedang dimasak", async () => {
       mount(runtimeWith(async () => lunchToday({ status: "preparing", cooking_started_at: `${TODAY}T01:10:00Z` })));

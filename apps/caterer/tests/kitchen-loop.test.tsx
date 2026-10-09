@@ -208,6 +208,52 @@ describe("Daftar masak", () => {
     await waitFor(() => expect(row.props.accessibilityState).toEqual(expect.objectContaining({ checked: true })));
   });
 
+  it("keeps a ticked row ticked across a mood switch, reading the stored ticks only once", async () => {
+    const day = kitchenDay([scheduled]);
+    for (const d of day.deliveries) d.meals.push({ meal: "dinner", status: "scheduled" } as never);
+    day.datedMenus = [
+      ...day.datedMenus!,
+      ...day.datedMenus!.map((m) => ({ ...m, meal: "dinner", details: { ...m.details, meal: "dinner" } })),
+    ] as never;
+    const Switch = () => {
+      const { setMood } = useMood();
+      return (
+        <>
+          <Pressable accessibilityLabel="ke Malam" onPress={() => setMood("malam")} />
+          <Pressable accessibilityLabel="ke Siang" onPress={() => setMood("siang")} />
+        </>
+      );
+    };
+    const runtime = runtimeWith(async () => day);
+    const ticksKey = runtime.storageKey("ticks.k-1");
+    const reads = jest.spyOn(SecureStore, "getItemAsync");
+    reads.mockClear();
+    const ticksReads = () => reads.mock.calls.filter(([k]) => k === ticksKey).length;
+    render(
+      <MobileProvider runtime={runtime} linkMapper={(h) => h}>
+        <MoodProvider now={() => new Date("2026-10-08T03:00:00Z")}>
+          <Switch />
+          <TodayScreen />
+        </MoodProvider>
+      </MobileProvider>,
+    );
+    const checked = () => screen.getByLabelText("28× Ayam bakar").props.accessibilityState.checked;
+    fireEvent.press(await screen.findByLabelText("28× Ayam bakar"));
+    await waitFor(() => expect(checked()).toBe(true));
+    expect(ticksReads()).toBe(1);
+
+    // Dinner has its own list, so the lunch tick is not shown there.
+    fireEvent.press(screen.getByLabelText("ke Malam"));
+    await screen.findByText("Makan malam");
+    await waitFor(() => expect(checked()).toBe(false));
+    fireEvent.press(screen.getByLabelText("ke Siang"));
+    await screen.findByText("Makan siang");
+    await waitFor(() => expect(checked()).toBe(true));
+    // No reload on the way: the checklist stayed mounted, so the stored ticks were read once.
+    expect(ticksReads()).toBe(1);
+    expect(JSON.parse(store().get(ticksKey)!)).toEqual({ [TODAY]: { lunch: [dishKey({ category: "Lauk", name: "Ayam bakar" })] } });
+  });
+
   it("never shows yesterday's ticks today and drops them on the next write", async () => {
     const runtime = runtimeWith(async () => kitchenDay([scheduled]));
     const key = runtime.storageKey("ticks.k-1");

@@ -397,8 +397,6 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
             <DoneCard ops={ops} onTomorrow={() => setOffset("1")} />
           ) : ops && session ? (
             <SessionCard
-              // One card per meal: the order's expanded list and WhatsApp part belong to the meal they were opened on.
-              key={meal}
               ops={ops}
               session={session}
               catererId={catererId}

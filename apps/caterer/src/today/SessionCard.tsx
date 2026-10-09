@@ -147,7 +147,9 @@ export function SessionCard({
           </View>
         </>
       )}
-      <DeliveryOrder ops={ops} stops={stops} meal={meal} date={date} report={report} caterer={caterer} />
+      {/* One order per meal: its expanded list and WhatsApp part belong to the meal they were opened on. The checklist is
+          not keyed, so its ticks stay loaded and do not re-animate when the mood switches. */}
+      <DeliveryOrder key={meal} ops={ops} stops={stops} meal={meal} date={date} report={report} caterer={caterer} />
     </Card>
   );
 }
