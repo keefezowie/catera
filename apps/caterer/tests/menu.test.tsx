@@ -1,10 +1,17 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
-import { StyleSheet } from "react-native";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
+import { Image, StyleSheet } from "react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import * as ImagePicker from "expo-image-picker";
 import type { LibraryDish, MealMenu } from "@catera/domain";
-import { copyWeekBatches, dayComplete, suggestDishes, weekDates } from "../src/menu/logic";
+import { nativeMood, nativeThemes } from "@catera/design-tokens";
+import { MoodProvider } from "@catera/mobile-ui";
+import { uploadPhoto } from "../src/business/upload";
+import { copyWeekBatches, dayComplete, saveMenuDay, suggestDishes, weekDates, weekRange } from "../src/menu/logic";
 import { SlotEditor } from "../src/menu/SlotEditor";
 
 jest.mock("expo-router", () => ({ router: { push: jest.fn(), replace: jest.fn(), back: jest.fn() }, Link: () => null }));
+jest.mock("expo-image-picker", () => ({ launchImageLibraryAsync: jest.fn() }));
+jest.mock("../src/business/upload", () => ({ uploadPhoto: jest.fn() }));
 jest.mock("expo-notifications", () => ({
   addNotificationReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
   addNotificationResponseReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
@@ -222,34 +229,28 @@ describe("menu reads", () => {
     );
     afterEach(() => jest.useRealTimers());
 
-    it("shows localized dates", async () => {
+    it("shows localized dates, never raw ones", async () => {
       const { wrap, MenuWeek } = setup(jest.fn(async () => ({ dates: [], categories: [] })));
       render(wrap(<MenuWeek />));
-      expect(await screen.findByText("Senin 5 Okt")).toBeTruthy();
-      expect(screen.getByText("Jumat 9 Okt")).toBeTruthy();
+      expect(await screen.findByText("5–9 Okt")).toBeTruthy();
+      // Today is selected, so its card carries the full date; every strip button names its day.
+      expect(await screen.findByText("Kamis 8 Okt")).toBeTruthy();
+      expect(screen.getByRole("button", { name: /Senin 5 Okt/ })).toBeTruthy();
+      expect(screen.getByRole("button", { name: /Jumat 9 Okt/ })).toBeTruthy();
       expect(screen.queryByText("2026-10-05")).toBeNull();
-    });
-
-    it("day cards dim on press and keep opening the day editor", async () => {
-      const { wrap, MenuWeek } = setup(jest.fn(async () => ({ dates: [], categories: [] })));
-      render(wrap(<MenuWeek />));
-      await screen.findByText("Senin 5 Okt");
-      const card = () => screen.getByRole("button", { name: /Jumat 9 Okt/ });
-      const touch = { nativeEvent: { touches: [], changedTouches: [] }, persist() {} };
-      expect(StyleSheet.flatten(card().props.style)?.opacity ?? 1).toBe(1);
-      fireEvent(card(), "responderGrant", touch);
-      expect(StyleSheet.flatten(card().props.style).opacity).toBe(0.7);
-      fireEvent.press(card());
-      expect(require("expo-router").router.push).toHaveBeenCalledWith("/menu/2026-10-09?pkg=p-1&meal=lunch");
     });
 
     it("does not ask to fill past days", async () => {
       const { wrap, MenuWeek } = setup(jest.fn(async () => ({ dates: [], categories: [] })));
       render(wrap(<MenuWeek />));
-      await screen.findByText("Senin 5 Okt");
-      // Mon-Wed are behind us; Thu (today) and Fri are still open to fill.
-      expect(screen.getAllByText("Lewat")).toHaveLength(3);
-      expect(screen.getAllByText("Belum diisi · isi menu")).toHaveLength(2);
+      // Thursday (today) is still open to fill.
+      expect(await screen.findByText("Belum diisi · isi menu")).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Ubah menu" })).toBeTruthy();
+      // Monday is behind us: it says so and offers no editor.
+      fireEvent.press(screen.getByTestId("menu-day-2026-10-05"));
+      expect(screen.getByText("Lewat")).toBeTruthy();
+      expect(screen.queryByText("Belum diisi · isi menu")).toBeNull();
+      expect(screen.queryByRole("button", { name: "Ubah menu" })).toBeNull();
     });
   });
 
@@ -473,5 +474,406 @@ describe("SlotEditor touch targets", () => {
     expect(StyleSheet.flatten(screen.getByRole("button", { name: /Ikan bakar/ }).props.style).minHeight).toBeGreaterThanOrEqual(48);
     const create = screen.getByRole("button", { name: /Buat hidangan baru/ });
     expect(StyleSheet.flatten(create.props.style).minHeight).toBeGreaterThanOrEqual(48);
+  });
+});
+
+describe("weekRange", () => {
+  it("collapses the month when the week stays in one", () => {
+    expect(weekRange(["2026-10-05", "2026-10-06", "2026-10-09"], "id")).toBe("5–9 Okt");
+    expect(weekRange(["2026-10-05", "2026-10-09"], "en")).toBe("5–9 Oct");
+  });
+  it("names both months across a month end, and a single day alone", () => {
+    expect(weekRange(["2026-09-28", "2026-10-02"], "id")).toBe("28 Sep–2 Okt");
+    expect(weekRange(["2026-10-08"], "id")).toBe("8 Okt");
+    expect(weekRange([], "id")).toBe("");
+  });
+});
+
+describe("saveMenuDay", () => {
+  it("writes one day through menu.saveBatch with the package's own template", async () => {
+    const command = jest.fn(async () => ({}));
+    const items = [item("a", "g-lauk", "main", "Ayam")];
+    await saveMenuDay(
+      { command },
+      {
+        catererId: "k-1",
+        offer: {
+          id: "p-1",
+          contentRevision: 2,
+          menus: [{ meal: "lunch", name: "Makan Siang", description: "", image: "", composition, source: "initial" }],
+        },
+        meal: "lunch",
+        day: { date: "2026-10-07", version: 4, editable: true, details: null },
+        items,
+      },
+    );
+    expect(command).toHaveBeenCalledWith("menu.saveBatch", {
+      catererId: "k-1",
+      packageId: "p-1",
+      contentRevision: 2,
+      meal: "lunch",
+      dates: [{ date: "2026-10-07", version: 4 }],
+      details: { name: "Makan Siang", description: "", image: "", composition, contentModel: "slots", items },
+    });
+  });
+});
+
+describe("Menu week header, strip, day card and photo prompt", () => {
+  const NOW = "2026-10-08T05:00:00Z"; // Thursday 12.00 in Jakarta
+  const MALAM = "2026-10-08T09:00:00Z"; // 16.00 in Jakarta, so the launch mood is Malam
+  const kept = [
+    "nextTick", "setImmediate", "clearImmediate", "setInterval", "clearInterval", "setTimeout", "clearTimeout",
+    "queueMicrotask", "performance", "requestAnimationFrame", "cancelAnimationFrame",
+  ] as const;
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.useFakeTimers({ now: new Date(NOW), doNotFake: [...kept] });
+  });
+  afterEach(() => jest.useRealTimers());
+
+  const food = (id: string, groupId: string, categoryId: string, name: string, image = "") => ({
+    ...item(id, groupId, categoryId, name),
+    image,
+  });
+  const dishes = [
+    food("i-nasi", "g-nasi", "rice", "Nasi putih", "https://cdn.test/nasi.jpg"),
+    food("i-ayam", "g-lauk", "main", "Ayam goreng"),
+    food("i-tempe", "g-lauk", "main", "Tempe bacem", "https://cdn.test/tempe.jpg"),
+    food("i-sayur", "g-sayur", "vegetable", "Sayur asem"),
+  ];
+  const menuOf = (items: typeof dishes, meal = "lunch") =>
+    ({ name: "Makan Siang", description: "", image: "", meal, composition, items }) as unknown as MealMenu;
+  const filled = (date: string, items = dishes, editable = true) => ({ date, version: 3, editable, details: menuOf(items) });
+  const template = (meal: string) => ({ meal, name: "Makan Siang", description: "", image: "", composition });
+  const offerOf = (over: Record<string, unknown> = {}) => ({
+    id: "p-1",
+    name: "Makan Siang Rumahan",
+    status: "published",
+    meal: "lunch",
+    weekdays: [1, 2, 3, 4, 5],
+    contentRevision: 2,
+    image: "https://cdn.test/paket.jpg",
+    menus: [template("lunch")],
+    ...over,
+  });
+  const bothOffer = () => offerOf({ meal: "both", menus: [template("lunch"), template("dinner")] });
+
+  function mount({
+    offers = [offerOf()],
+    dates = [] as unknown[],
+    role = "owner",
+    launch = NOW,
+  }: { offers?: unknown[]; dates?: unknown[]; role?: string; launch?: string } = {}) {
+    const { createMobileRuntime, MobileProvider } = jest.requireActual("@catera/mobile-core") as typeof import("@catera/mobile-core");
+    const { MenuWeek } = jest.requireActual("../src/menu/MenuWeek") as typeof import("../src/menu/MenuWeek");
+    const runtime = createMobileRuntime({ apiUrl: "https://api.example.test", storagePrefix: "mw" });
+    const menuMonth = jest.fn(async () => ({ dates, categories: [] }));
+    const command = jest.fn(async () => ({}));
+    runtime.api = {
+      ...runtime.api,
+      me: jest.fn(async () => ({ actor: { id: "u-1", role, catererId: "k-1" }, demo: false })),
+      sellerOperations: jest.fn(async () => ({ caterer: { id: "k-1", name: "Dapur" }, dishes: [], datedMenus: [], offers })),
+      menuMonth,
+      command,
+    } as unknown as typeof runtime.api;
+    render(
+      <MoodProvider now={() => new Date(launch)}>
+        <MobileProvider runtime={runtime} linkMapper={(h: string) => h}>
+          <MenuWeek />
+        </MobileProvider>
+      </MoodProvider>,
+    );
+    return { runtime, menuMonth, command };
+  }
+  const flatOf = (id: string) => StyleSheet.flatten(screen.getByTestId(id, { includeHiddenElements: true }).props.style);
+  const mealsAsked = (menuMonth: jest.Mock) => [...new Set((menuMonth.mock.calls as unknown as unknown[][]).map((c) => c[3]))];
+
+  describe("header", () => {
+    it("titles the header with the week range", async () => {
+      mount();
+      const title = await screen.findByText("5–9 Okt");
+      expect(title.props.accessibilityRole).toBe("header");
+      expect(StyleSheet.flatten(title.props.style).color).toBe(nativeMood.light.siang.headerText);
+    });
+
+    it("steps to the other week and renames the range", async () => {
+      mount();
+      await screen.findByText("5–9 Okt");
+      fireEvent.press(screen.getByRole("button", { name: "Minggu berikutnya" }));
+      expect(await screen.findByText("12–16 Okt")).toBeTruthy();
+      fireEvent.press(screen.getByRole("button", { name: "Minggu sebelumnya" }));
+      expect(await screen.findByText("5–9 Okt")).toBeTruthy();
+    });
+
+    it("the toggle picks the meal for a package that serves both", async () => {
+      const { menuMonth } = mount({ offers: [bothOffer()] });
+      await screen.findByText("5–9 Okt");
+      expect(mealsAsked(menuMonth)).toEqual(["lunch"]);
+      expect(screen.getByRole("tab", { name: "Siang" }).props.accessibilityState.selected).toBe(true);
+      fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
+      await waitFor(() => expect(mealsAsked(menuMonth)).toContain("dinner"));
+      expect(screen.queryByText(/hanya untuk/)).toBeNull();
+    });
+
+    it("opens in Malam when the launch mood is Malam", async () => {
+      const { menuMonth } = mount({ offers: [bothOffer()], launch: MALAM });
+      await screen.findByText("5–9 Okt");
+      expect(mealsAsked(menuMonth)).toEqual(["dinner"]);
+      expect(screen.getByRole("tab", { name: "Malam" }).props.accessibilityState.selected).toBe(true);
+    });
+
+    it("a lunch-only package keeps its own meal in Malam, with a caption and no toggle", async () => {
+      const { menuMonth } = mount({ launch: MALAM });
+      expect(await screen.findByText("Paket ini hanya untuk makan siang")).toBeTruthy();
+      expect(mealsAsked(menuMonth)).toEqual(["lunch"]);
+      expect(screen.queryAllByRole("tab")).toHaveLength(0);
+    });
+
+    it("a dinner-only package keeps its own meal in Siang", async () => {
+      const { menuMonth } = mount({ offers: [offerOf({ meal: "dinner", menus: [template("dinner")] })] });
+      expect(await screen.findByText("Paket ini hanya untuk makan malam")).toBeTruthy();
+      expect(mealsAsked(menuMonth)).toEqual(["dinner"]);
+    });
+
+    it("keeps the header while the packages load", async () => {
+      const { createMobileRuntime, MobileProvider } = jest.requireActual("@catera/mobile-core") as typeof import("@catera/mobile-core");
+      const { MenuWeek } = jest.requireActual("../src/menu/MenuWeek") as typeof import("../src/menu/MenuWeek");
+      const runtime = createMobileRuntime({ apiUrl: "https://api.example.test", storagePrefix: "mh" });
+      runtime.api = {
+        ...runtime.api,
+        me: jest.fn(async () => ({ actor: { id: "u-1", role: "owner", catererId: "k-1" }, demo: false })),
+        sellerOperations: jest.fn(() => new Promise(() => undefined)),
+      } as unknown as typeof runtime.api;
+      render(
+        <MobileProvider runtime={runtime} linkMapper={(h: string) => h}>
+          <MenuWeek />
+        </MobileProvider>,
+      );
+      expect(await screen.findByText("Memuat…")).toBeTruthy();
+      expect(screen.getByTestId("mood-header")).toBeTruthy();
+      expect(screen.getByText("Menu").props.accessibilityRole).toBe("header");
+    });
+  });
+
+  describe("day strip", () => {
+    it("renders one 64dp button per delivery date, with weekday, date and a check for a filled day", async () => {
+      mount({ dates: [filled("2026-10-08")] });
+      await screen.findByText("5–9 Okt");
+      const buttons = screen.getAllByTestId(/^menu-day-/);
+      expect(buttons.map((b) => b.props.testID)).toEqual([
+        "menu-day-2026-10-05",
+        "menu-day-2026-10-06",
+        "menu-day-2026-10-07",
+        "menu-day-2026-10-08",
+        "menu-day-2026-10-09",
+      ]);
+      for (const b of buttons) expect(StyleSheet.flatten(b.props.style).minHeight).toBe(64);
+      const thursday = screen.getByTestId("menu-day-2026-10-08");
+      expect(within(thursday).getByText("Kam")).toBeTruthy();
+      expect(within(thursday).getByText("8")).toBeTruthy();
+      await waitFor(() => expect(within(thursday).UNSAFE_queryByType(Ionicons)).not.toBeNull());
+      expect(within(thursday).UNSAFE_getByType(Ionicons).props.name).toBe("checkmark-circle");
+      expect(within(screen.getByTestId("menu-day-2026-10-09")).UNSAFE_queryByType(Ionicons)).toBeNull();
+      expect(thursday.props.accessibilityLabel).toBe("Kamis 8 Okt, menu terisi");
+      expect(screen.getByTestId("menu-day-2026-10-09").props.accessibilityLabel).toBe("Jumat 9 Okt, menu belum diisi");
+    });
+
+    it("draws today with a sunrise ink ring and the selected day with a forest fill", async () => {
+      mount();
+      await screen.findByText("5–9 Okt");
+      const light = nativeThemes.light;
+      // Today starts selected.
+      expect(flatOf("menu-day-2026-10-08")).toMatchObject({ backgroundColor: light.forest, borderColor: light.sunriseInk });
+      expect(light.sunriseInk).toBe(nativeMood.light.siang.todayRing);
+      // Any other day has neither.
+      const friday = flatOf("menu-day-2026-10-09");
+      expect(friday.backgroundColor).not.toBe(light.forest);
+      expect(friday.borderColor).not.toBe(light.sunriseInk);
+    });
+
+    it("reads the mood's ring colour on a Malam header", async () => {
+      mount({ launch: MALAM });
+      await screen.findByText("5–9 Okt");
+      expect(flatOf("menu-day-2026-10-08").borderColor).toBe(nativeMood.light.malam.todayRing);
+    });
+
+    it("tapping a day selects it without leaving the screen", async () => {
+      mount();
+      await screen.findByText("5–9 Okt");
+      fireEvent.press(screen.getByTestId("menu-day-2026-10-09"));
+      expect(flatOf("menu-day-2026-10-09").backgroundColor).toBe(nativeThemes.light.forest);
+      expect(screen.getByTestId("menu-day-2026-10-09").props.accessibilityState.selected).toBe(true);
+      // Today loses the fill but keeps its ring.
+      expect(flatOf("menu-day-2026-10-08").backgroundColor).not.toBe(nativeThemes.light.forest);
+      expect(flatOf("menu-day-2026-10-08").borderColor).toBe(nativeThemes.light.sunriseInk);
+      expect(await screen.findByText("Jumat 9 Okt")).toBeTruthy();
+      expect(require("expo-router").router.push).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("day card", () => {
+    it("lists the dishes under their composition group, with a dashed camera tile where a photo is missing", async () => {
+      mount({ dates: [filled("2026-10-08")] });
+      await screen.findByText("Nasi putih");
+      for (const label of ["Nasi", "Lauk", "Sayur"]) expect(screen.getByText(label)).toBeTruthy();
+      expect(screen.getByText("Ayam goreng")).toBeTruthy();
+      expect(screen.getByText("Tempe bacem")).toBeTruthy();
+      expect(flatOf("menu-photo-tile-i-ayam")).toMatchObject({ borderStyle: "dashed", borderColor: nativeThemes.light.controlRing });
+      expect(screen.getByTestId("menu-photo-tile-i-sayur", { includeHiddenElements: true })).toBeTruthy();
+      // The dishes that have a photo show it and offer nothing.
+      expect(screen.queryByTestId("menu-photo-tile-i-nasi", { includeHiddenElements: true })).toBeNull();
+      expect(within(screen.getByTestId("menu-dish-photo-i-nasi")).UNSAFE_getByType(Image).props.source).toEqual({ uri: "https://cdn.test/nasi.jpg" });
+      expect(screen.getAllByText("Tambah foto")).toHaveLength(2);
+    });
+
+    it("Ubah menu opens the day editor", async () => {
+      mount({ dates: [filled("2026-10-08")] });
+      await screen.findByText("Nasi putih");
+      fireEvent.press(screen.getByRole("button", { name: "Ubah menu" }));
+      expect(require("expo-router").router.push).toHaveBeenCalledWith("/menu/2026-10-08?pkg=p-1&meal=lunch");
+    });
+
+    it("offers a helper no editing and no photo prompt", async () => {
+      mount({ dates: [filled("2026-10-08")], role: "staff" });
+      await screen.findByText("Nasi putih");
+      expect(screen.queryByRole("button", { name: "Ubah menu" })).toBeNull();
+      expect(screen.queryByText("Tambah foto")).toBeNull();
+      // The dish still shows, without a pill; the tile is not a control.
+      expect(screen.getByTestId("menu-photo-tile-i-ayam", { includeHiddenElements: true })).toBeTruthy();
+    });
+  });
+
+  describe("photo prompt", () => {
+    const asset = { uri: "file:///ayam.jpg", mimeType: "image/jpeg", fileSize: 1234 };
+    const pick = ImagePicker.launchImageLibraryAsync as unknown as jest.Mock;
+    const upload = uploadPhoto as unknown as jest.Mock;
+    const ayamPill = () => screen.getByRole("button", { name: "Tambah foto, Ayam goreng" });
+
+    it("uploads the picked photo, then saves that day's item only", async () => {
+      pick.mockResolvedValue({ canceled: false, assets: [asset] });
+      upload.mockResolvedValue("https://cdn.test/ayam.jpg");
+      const { runtime, command } = mount({ dates: [filled("2026-10-08")] });
+      await screen.findByText("Nasi putih");
+      fireEvent.press(ayamPill());
+      await waitFor(() => expect(command).toHaveBeenCalled());
+      expect(pick).toHaveBeenCalledWith({ mediaTypes: ["images"], quality: 0.8 });
+      expect(upload).toHaveBeenCalledWith(runtime, asset, false);
+      expect(command).toHaveBeenCalledWith(
+        "menu.saveBatch",
+        {
+          catererId: "k-1",
+          packageId: "p-1",
+          contentRevision: 2,
+          meal: "lunch",
+          dates: [{ date: "2026-10-08", version: 3 }],
+          details: {
+            name: "Makan Siang",
+            description: "",
+            image: "",
+            composition,
+            contentModel: "slots",
+            items: dishes.map((d) => (d.id === "i-ayam" ? { ...d, image: "https://cdn.test/ayam.jpg" } : d)),
+          },
+        },
+        expect.any(String),
+      );
+      // Only the day's menu item changes: the library dish is never saved here.
+      expect(command.mock.calls.every((call) => (call as unknown[])[0] === "menu.saveBatch")).toBe(true);
+    });
+
+    it("says Mengunggah… on the pill while the photo is on its way", async () => {
+      pick.mockResolvedValue({ canceled: false, assets: [asset] });
+      upload.mockReturnValue(new Promise(() => undefined));
+      const { command } = mount({ dates: [filled("2026-10-08")] });
+      await screen.findByText("Nasi putih");
+      fireEvent.press(ayamPill());
+      expect(await screen.findByText("Mengunggah…")).toBeTruthy();
+      expect(command).not.toHaveBeenCalled();
+      // One photo at a time: the other pill waits.
+      expect(screen.getByRole("button", { name: "Tambah foto, Sayur asem" }).props.accessibilityState.disabled).toBe(true);
+    });
+
+    it("shows a selectable danger message when the upload fails, and saves nothing", async () => {
+      pick.mockResolvedValue({ canceled: false, assets: [asset] });
+      upload.mockRejectedValue(Object.assign(new Error("UPLOAD_FAILED"), { code: "UPLOAD_FAILED" }));
+      const { command } = mount({ dates: [filled("2026-10-08")] });
+      await screen.findByText("Nasi putih");
+      fireEvent.press(ayamPill());
+      const message = await screen.findByText("Foto gagal diunggah. Coba lagi.");
+      expect(message.props.selectable).toBe(true);
+      expect(StyleSheet.flatten(message.props.style).color).toBe(nativeThemes.light.danger);
+      expect(command).not.toHaveBeenCalled();
+      // The pill is back for another try.
+      expect(screen.getByRole("button", { name: "Tambah foto, Ayam goreng" }).props.accessibilityState.disabled).toBeFalsy();
+    });
+
+    it("does nothing when the picker is cancelled", async () => {
+      pick.mockResolvedValue({ canceled: true, assets: null });
+      const { command } = mount({ dates: [filled("2026-10-08")] });
+      await screen.findByText("Nasi putih");
+      fireEvent.press(ayamPill());
+      await waitFor(() => expect(pick).toHaveBeenCalled());
+      expect(upload).not.toHaveBeenCalled();
+      expect(command).not.toHaveBeenCalled();
+      expect(screen.queryByText("Mengunggah…")).toBeNull();
+      expect(screen.queryByText("Foto gagal diunggah. Coba lagi.")).toBeNull();
+    });
+  });
+
+  describe("story preview", () => {
+    it("shows the cover customers will see, from the main dish photo, with the caption", async () => {
+      mount({ dates: [filled("2026-10-08", [{ ...dishes[1], image: "https://cdn.test/ayam.jpg" }, dishes[0], dishes[2], dishes[3]])] });
+      expect(await screen.findByText("Tampilan di aplikasi pelanggan")).toBeTruthy();
+      const cover = screen.getByTestId("story-cover");
+      expect(within(cover).UNSAFE_getByType(Image).props.source).toEqual({ uri: "https://cdn.test/ayam.jpg" });
+      expect(
+        screen.getByText("Foto lauk utama jadi sampul menu besok. Menu tanpa foto memakai foto paket."),
+      ).toBeTruthy();
+    });
+
+    it("falls back to the package photo for a menu without photos", async () => {
+      const bare = dishes.map((d) => ({ ...d, image: "" }));
+      mount({ dates: [filled("2026-10-08", bare)] });
+      await screen.findByText("Tampilan di aplikasi pelanggan");
+      expect(within(screen.getByTestId("story-cover")).UNSAFE_getByType(Image).props.source).toEqual({
+        uri: "https://cdn.test/paket.jpg",
+      });
+    });
+
+    it("has no preview for a day without a menu", async () => {
+      mount();
+      await screen.findByText("Belum diisi · isi menu");
+      expect(screen.queryByTestId("story-cover")).toBeNull();
+      expect(screen.queryByText("Tampilan di aplikasi pelanggan")).toBeNull();
+    });
+  });
+
+  it("MenuDayScreen saves through saveMenuDay", async () => {
+    const { createMobileRuntime, MobileProvider } = jest.requireActual("@catera/mobile-core") as typeof import("@catera/mobile-core");
+    const { MenuDayScreen } = jest.requireActual("../src/menu/MenuDayScreen") as typeof import("../src/menu/MenuDayScreen");
+    const runtime = createMobileRuntime({ apiUrl: "https://api.example.test", storagePrefix: "md" });
+    const command = jest.fn(async () => ({}));
+    runtime.api = {
+      ...runtime.api,
+      me: jest.fn(async () => ({ actor: { id: "u-1", role: "owner", catererId: "k-1" }, demo: false })),
+      sellerOperations: jest.fn(async () => ({ caterer: { id: "k-1", name: "Dapur" }, dishes: [], datedMenus: [], offers: [offerOf()] })),
+      menuMonth: jest.fn(async () => ({ dates: [{ ...filled("2026-10-07", [dishes[0], dishes[1], food("i-oseng", "g-lauk", "main", "Oseng"), dishes[3]]) }], categories: [] })),
+      command,
+    } as unknown as typeof runtime.api;
+    render(
+      <MobileProvider runtime={runtime} linkMapper={(h: string) => h}>
+        <MenuDayScreen date="2026-10-07" packageId="p-1" meal="lunch" />
+      </MobileProvider>,
+    );
+    const save = await screen.findByRole("button", { name: "Simpan menu" });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Simpan menu" }).props.accessibilityState.disabled).toBeFalsy());
+    fireEvent.press(save);
+    await waitFor(() => expect(command).toHaveBeenCalled());
+    const [action, payload] = command.mock.calls[0] as unknown as [string, { dates: unknown; details: { items: unknown[]; contentModel: string } }];
+    expect(action).toBe("menu.saveBatch");
+    expect(payload.dates).toEqual([{ date: "2026-10-07", version: 3 }]);
+    expect(payload.details.contentModel).toBe("slots");
+    expect(payload.details.items).toHaveLength(4);
+    expect(require("expo-router").router.back).toHaveBeenCalled();
   });
 });

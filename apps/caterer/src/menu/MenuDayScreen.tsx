@@ -3,8 +3,8 @@ import { router } from "expo-router";
 import { errorLabel, type Dish, type LibraryDish } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
 import { Button, Screen, Text, useColors } from "@catera/mobile-ui";
-import { dishUsage } from "./logic";
-import { loadMenus, MenuLoadError, mealOf } from "./MenuWeek";
+import { dishUsage, mealOf, saveMenuDay } from "./logic";
+import { loadMenus, MenuLoadError } from "./MenuWeek";
 import { SlotEditor } from "./SlotEditor";
 
 /** Fill one day's menu for one package and meal. */
@@ -48,15 +48,7 @@ export function MenuDayScreen({ date, packageId, meal }: { date: string; package
     setSaving(true);
     setError("");
     try {
-      const { meal: _meal, source: _source, ...base } = template;
-      await command("menu.saveBatch", {
-        catererId,
-        packageId,
-        contentRevision: offer!.contentRevision ?? 0,
-        meal,
-        dates: [{ date, version: current!.version }],
-        details: { ...base, contentModel: "slots", items },
-      });
+      await saveMenuDay({ command }, { catererId, offer: offer!, meal, day: current!, items: items! });
       router.back();
     } catch (e) {
       setError(errorLabel((e as { code?: string }).code || (e as Error).message, locale) || t("Belum tersimpan.", "Not saved."));

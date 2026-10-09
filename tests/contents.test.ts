@@ -15,6 +15,8 @@ import {
   offerSchema,
   menuSummary,
   menuItems,
+  menuCoverImage,
+  type MealMenu,
   nutritionSummary,
   type Offer,
   type SellerState,
@@ -563,4 +565,30 @@ it("upgrades populated legacy data without changing pending quotes or purchase/p
   } finally {
     await old.close();
   }
+});
+
+it("picks a menu cover from the main dish photo, then any dish photo, then the menu photo, then the fallback", () => {
+  const dish = (id: string, categoryId: string, image: string) => ({
+    id,
+    name: id,
+    description: "",
+    image,
+    serving: "",
+    categoryId,
+  });
+  const menu = (items: ReturnType<typeof dish>[], image = "") =>
+    ({ name: "Makan Siang", description: "", image, meal: "lunch", items }) as MealMenu;
+  const items = [
+    dish("nasi", "rice", "/uploads/nasi.jpg"),
+    dish("tempe", "main", ""),
+    dish("ayam", "main", "/uploads/ayam.jpg"),
+    dish("rendang", "main", "/uploads/rendang.jpg"),
+  ];
+  expect(menuCoverImage(menu(items, "/uploads/menu.jpg"), "/uploads/paket.jpg")).toBe("/uploads/ayam.jpg");
+  expect(menuCoverImage(menu([items[0], items[1]], "/uploads/menu.jpg"), "/uploads/paket.jpg")).toBe(
+    "/uploads/nasi.jpg",
+  );
+  expect(menuCoverImage(menu([items[1]], "/uploads/menu.jpg"), "/uploads/paket.jpg")).toBe("/uploads/menu.jpg");
+  expect(menuCoverImage(menu([], ""), "/uploads/paket.jpg")).toBe("/uploads/paket.jpg");
+  expect(menuCoverImage(null, "/uploads/paket.jpg")).toBe("/uploads/paket.jpg");
 });

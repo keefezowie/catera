@@ -1,4 +1,57 @@
-import { addDays, type ComponentGroup, type Dish, type LibraryDish, type MealMenu } from "@catera/domain";
+import {
+  addDays,
+  shortDate,
+  type ComponentGroup,
+  type Dish,
+  type LibraryDish,
+  type MealMenu,
+  type SellerOffer,
+} from "@catera/domain";
+import type { MenuDay } from "./MenuWeek";
+
+/** The package's template for one meal; a package with a single meal has only that one. */
+export const mealOf = (offer: Pick<SellerOffer, "menus">, meal: string) =>
+  offer.menus.find((m) => m.meal === meal) ?? offer.menus[0];
+
+/**
+ * Saves one delivery day's dishes. The menu keeps the package's own composition and name; only the dishes change.
+ * `command` is the app's command sender (it retries safely and refreshes every screen that reads menus).
+ */
+export async function saveMenuDay(
+  runtime: { command: (action: string, payload: unknown) => Promise<unknown> },
+  args: {
+    catererId: string;
+    offer: Pick<SellerOffer, "id" | "contentRevision" | "menus">;
+    meal: "lunch" | "dinner" | string;
+    day: MenuDay;
+    items: Dish[];
+  },
+): Promise<void> {
+  const { catererId, offer, meal, day, items } = args;
+  const { meal: _meal, source: _source, ...base } = mealOf(offer, meal);
+  await runtime.command("menu.saveBatch", {
+    catererId,
+    packageId: offer.id,
+    contentRevision: offer.contentRevision ?? 0,
+    meal,
+    dates: [{ date: day.date, version: day.version }],
+    details: { ...base, contentModel: "slots", items },
+  });
+}
+
+/** "5–9 Okt", or "28 Sep–2 Okt" across a month end; empty when the week has no delivery days. */
+export function weekRange(dates: string[], locale: "id" | "en"): string {
+  if (!dates.length) return "";
+  // shortDate is "Senin 5 Okt": the weekday is dropped, the day number and month are kept.
+  const part = (date: string) => shortDate(date, locale).split(" ").slice(1);
+  const [firstDay, firstMonth] = part(dates[0]);
+  const [lastDay, lastMonth] = part(dates[dates.length - 1]);
+  if (dates.length === 1) return `${firstDay} ${firstMonth}`;
+  return firstMonth === lastMonth ? `${firstDay}–${lastDay} ${lastMonth}` : `${firstDay} ${firstMonth}–${lastDay} ${lastMonth}`;
+}
+
+/** Three letters of the weekday: "Sen", "Mon". */
+export const weekdayShort = (date: string, locale: "id" | "en") => shortDate(date, locale).split(" ")[0].slice(0, 3);
 
 /** Dishes for one category that match what the caterer is typing, most used first. */
 export function suggestDishes(

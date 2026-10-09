@@ -1,20 +1,43 @@
 import { useState } from "react";
-import { ScrollView, Share, View } from "react-native";
+import { Image, ScrollView, Share, useWindowDimensions, View } from "react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
+import * as ImagePicker from "expo-image-picker";
 import {
   addDays,
+  componentLabel,
   errorLabel,
   jakartaDay,
+  mealLabel,
+  menuCoverImage,
   menuShareText,
   shortDate,
+  type Dish,
   type MealMenu,
   type MenuMonth,
   type SellerOffer,
 } from "@catera/domain";
 import { plural, useData, useMobile, type MobileRuntime } from "@catera/mobile-core";
-import { Button, Card, Chip, fontFor, PressableRow, RoundButton, Screen, Segmented, Text, useColors } from "@catera/mobile-ui";
-import { copyWeekBatches, weekDates } from "./logic";
+import {
+  Button,
+  Card,
+  Chip,
+  fontFor,
+  MoodHeader,
+  PressableScale,
+  Screen,
+  StoryCover,
+  Text,
+  useColors,
+  useMood,
+  useMoodColors,
+} from "@catera/mobile-ui";
+import { copyWeekBatches, mealOf, saveMenuDay, weekdayShort, weekDates, weekRange } from "./logic";
+import { uploadPhoto } from "../business/upload";
+import { photoUri } from "../photo";
 import { ReadError } from "../ReadError";
+
+export { mealOf } from "./logic";
 
 export type MenuDay = { date: string; version: number; editable: boolean; details: MealMenu | null };
 
@@ -38,34 +61,121 @@ export async function loadMenus(
   });
 }
 
+/** The Menu header while there is no week to show yet (loading, empty, failed): the screen keeps its mood block. */
+function MenuTitle() {
+  const { t } = useMobile();
+  return <MoodHeader title={t("Menu", "Menu")} />;
+}
+
 /** A failed menu read: say so plainly and offer a retry, never an empty week or endless loading. */
 export function MenuLoadError({ onRetry, title = true }: { onRetry: () => void; title?: boolean }) {
   const { t } = useMobile();
   return (
-    <Screen>
-      {title ? <Text variant="title">{t("Menu", "Menu")}</Text> : null}
+    <Screen header={title ? <MenuTitle /> : undefined}>
       <ReadError message={t("Menu belum bisa dimuat.", "The menu couldn't be loaded.")} onRetry={onRetry} />
     </Screen>
   );
 }
 
-export const mealOf = (offer: SellerOffer, meal: string) =>
-  offer.menus.find((m) => m.meal === meal) ?? offer.menus[0];
+const SLOT = 48;
+
+/** One dish in the day card: its photo, or a dashed camera tile with a pill to add one. */
+function DishRow({
+  dish,
+  canAddPhoto,
+  uploading,
+  busy,
+  onAdd,
+}: {
+  dish: Dish;
+  canAddPhoto: boolean;
+  uploading: boolean;
+  busy: boolean;
+  onAdd: () => void;
+}) {
+  const { runtime, t } = useMobile();
+  const c = useColors();
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 12, minHeight: SLOT }}>
+      {dish.image ? (
+        <View
+          testID={`menu-dish-photo-${dish.id}`}
+          style={{ width: SLOT, height: SLOT, borderRadius: 12, borderCurve: "continuous", overflow: "hidden", backgroundColor: c.sage }}
+        >
+          <Image
+            accessibilityIgnoresInvertColors
+            source={{ uri: photoUri(dish.image, runtime.apiBase) }}
+            resizeMode="cover"
+            style={{ width: SLOT, height: SLOT }}
+          />
+        </View>
+      ) : (
+        <View
+          testID={`menu-photo-tile-${dish.id}`}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={{
+            width: SLOT,
+            height: SLOT,
+            borderRadius: 12,
+            borderCurve: "continuous",
+            borderWidth: 1.5,
+            borderStyle: "dashed",
+            borderColor: c.controlRing,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Ionicons name="camera-outline" size={20} color={c.muted} />
+        </View>
+      )}
+      <View style={{ flex: 1, gap: 4, alignItems: "flex-start" }}>
+        <Text>{dish.name}</Text>
+        {!dish.image && canAddPhoto ? (
+          <PressableScale
+            accessibilityRole="button"
+            accessibilityLabel={`${t("Tambah foto", "Add photo")}, ${dish.name}`}
+            accessibilityState={{ disabled: busy, busy: uploading }}
+            disabled={busy}
+            haptic="tap"
+            onPress={onAdd}
+            style={{
+              minHeight: 48,
+              paddingHorizontal: 16,
+              borderRadius: 999,
+              backgroundColor: c.sage,
+              alignItems: "center",
+              justifyContent: "center",
+              opacity: busy && !uploading ? 0.45 : 1,
+            }}
+          >
+            <Text variant="label" style={{ color: c.forest }}>
+              {uploading ? t("Mengunggah…", "Uploading…") : t("Tambah foto", "Add photo")}
+            </Text>
+          </PressableScale>
+        ) : null}
+      </View>
+    </View>
+  );
+}
 
 /** Menu: this week's dishes per delivery day for one package. */
 export function MenuWeek() {
-  const { runtime, actor, t, locale, command } = useMobile();
+  const { runtime, actor, demo, t, locale, command } = useMobile();
   const c = useColors();
+  const m = useMoodColors();
+  const { mood } = useMood();
+  const { width: windowWidth } = useWindowDimensions();
   const catererId = actor?.catererId ?? "";
   const canEdit = actor?.role === "owner";
   const ops = useData(`menu-ops:${catererId}`, () => runtime.api.sellerOperations(catererId));
   const offers = (ops.data?.offers ?? []).filter((o) => o.status === "published");
   const [packageId, setPackageId] = useState("");
   const [week, setWeek] = useState(0);
+  const [picked, setPicked] = useState("");
   const offer = offers.find((o) => o.id === packageId) ?? offers[0];
-  const meals = offer ? (offer.meal === "both" ? ["lunch", "dinner"] : [offer.meal]) : ["lunch"];
-  const [mealChoice, setMeal] = useState("lunch");
-  const meal = meals.includes(mealChoice) ? mealChoice : meals[0];
+  // The mood picks the meal for a package that serves both; a single-meal package keeps its own, whatever the mood.
+  const meal = offer && offer.meal !== "both" ? offer.meal : mood === "siang" ? "lunch" : "dinner";
   const today = jakartaDay(new Date());
   const dates = offer ? weekDates(addDays(today, week * 7), offer.weekdays) : [];
   const days = useData(`menu-week:${offer?.id}:${meal}:${dates[0]}`, () =>
@@ -80,6 +190,8 @@ export function MenuWeek() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
+  const [uploadingId, setUploadingId] = useState("");
+  const [photoError, setPhotoError] = useState("");
   const template = offer ? mealOf(offer, meal) : undefined;
   // Copying and sharing both act on the visible week, so they wait for it and for something in it.
   const weekLoaded = !!days.data;
@@ -91,6 +203,11 @@ export function MenuWeek() {
     skipped
       ? t(`${copied} hari disalin · ${skipped} dilewati karena sudah lewat atau sudah diisi`, `${plural(copied, "day")} copied · ${skipped} skipped (past or already filled)`)
       : t(`${copied} hari disalin`, `${plural(copied, "day")} copied`);
+
+  // The day on the card: the one tapped, else today, else the next delivery day of the week.
+  const selectedDate = dates.includes(picked) ? picked : (dates.find((d) => d >= today) ?? dates[0] ?? "");
+  const byDate = new Map((days.data ?? []).map((d) => [d.date, d] as const));
+  const selected = byDate.get(selectedDate);
 
   async function copyLastWeek() {
     if (!offer) return;
@@ -141,21 +258,52 @@ export function MenuWeek() {
     });
   }
 
+  /** Pick a photo for one dish of the day, upload it, and save it on that day's menu item only. */
+  async function addPhoto(day: MenuDay, dish: Dish) {
+    if (!offer) return;
+    setPhotoError("");
+    let url: string;
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.8 });
+      if (result.canceled || !result.assets?.[0]) return;
+      setUploadingId(dish.id);
+      url = await uploadPhoto(runtime, result.assets[0], demo);
+    } catch {
+      setPhotoError(t("Foto gagal diunggah. Coba lagi.", "Photo upload failed. Try again."));
+      setUploadingId("");
+      return;
+    }
+    try {
+      await saveMenuDay(
+        { command },
+        {
+          catererId,
+          offer,
+          meal,
+          day,
+          items: (day.details?.items ?? []).map((i) => (i.id === dish.id ? { ...i, image: url } : i)),
+        },
+      );
+    } catch (e) {
+      setPhotoError(errorLabel((e as { code?: string }).code || (e as Error).message, locale) || t("Belum tersimpan.", "Not saved."));
+    } finally {
+      setUploadingId("");
+    }
+  }
+
   if ((ops.error && !ops.data) || (days.error && !days.data))
     return <MenuLoadError onRetry={() => void (ops.error && !ops.data ? ops.reload() : days.reload())} />;
 
   if (!ops.data)
     return (
-      <Screen>
-        <Text variant="title">{t("Menu", "Menu")}</Text>
+      <Screen header={<MenuTitle />}>
         <Text variant="caption">{t("Memuat…", "Loading…")}</Text>
       </Screen>
     );
 
   if (!offers.length)
     return (
-      <Screen>
-        <Text variant="title">{t("Menu", "Menu")}</Text>
+      <Screen header={<MenuTitle />}>
         {canEdit ? (
           <>
             <Text>{t("Buat paket dulu, lalu isi menunya di sini.", "Create a package first, then fill its menu here.")}</Text>
@@ -167,31 +315,108 @@ export function MenuWeek() {
       </Screen>
     );
 
+  const weekLabel =
+    week === 0 ? t("Minggu ini", "This week") : week === 1 ? t("Minggu depan", "Next week") : dates[0] ? shortDate(dates[0], locale) : "";
+  const step = (delta: number, icon: "chevron-back" | "chevron-forward", label: string) => (
+    <PressableScale
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      haptic="select"
+      onPress={() => {
+        setWeek((w) => w + delta);
+        setPhotoError("");
+      }}
+      style={{ width: 48, height: 48, alignItems: "center", justifyContent: "center" }}
+    >
+      <Ionicons name={icon} size={24} color={m.headerText} />
+    </PressableScale>
+  );
+  const items = selected?.details?.items ?? [];
+  const past = selectedDate < today;
+  const onlyMeal = offer?.meal !== "both" ? offer?.meal : undefined;
+  const coverWidth = Math.min(220, Math.min(windowWidth, 760) - 40 - 34);
+
   return (
-    <Screen>
-      <Text variant="title">{t("Menu", "Menu")}</Text>
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-        <RoundButton icon="chevron-back" label={t("Minggu sebelumnya", "Previous week")} onPress={() => setWeek((w) => w - 1)} />
-        <Text variant="label">
-          {week === 0 ? t("Minggu ini", "This week") : week === 1 ? t("Minggu depan", "Next week") : dates[0] ? shortDate(dates[0], locale) : ""}
-        </Text>
-        <RoundButton icon="chevron-forward" label={t("Minggu berikutnya", "Next week")} onPress={() => setWeek((w) => w + 1)} />
-      </View>
+    <Screen
+      header={
+        <MoodHeader
+          meta={weekLabel}
+          toggle={offer?.meal === "both"}
+          title={
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+              {step(-1, "chevron-back", t("Minggu sebelumnya", "Previous week"))}
+              <Text variant="display" accessibilityRole="header" style={{ color: m.headerText, flexShrink: 1 }}>
+                {weekRange(dates, locale) || t("Menu", "Menu")}
+              </Text>
+              {step(1, "chevron-forward", t("Minggu berikutnya", "Next week"))}
+            </View>
+          }
+        >
+          <View testID="menu-strip" style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+            {dates.map((date) => {
+              const filled = !!byDate.get(date)?.details?.items?.length;
+              const isToday = date === today;
+              const isSelected = date === selectedDate;
+              const ink = isSelected ? c.cream : m.headerText;
+              return (
+                <PressableScale
+                  key={date}
+                  testID={`menu-day-${date}`}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${shortDate(date, locale)}, ${filled ? t("menu terisi", "menu filled") : t("menu belum diisi", "menu not filled")}`}
+                  accessibilityState={{ selected: isSelected }}
+                  haptic="select"
+                  onPress={() => {
+                    setPicked(date);
+                    setPhotoError("");
+                  }}
+                  style={{
+                    flexGrow: 1,
+                    flexBasis: 48,
+                    minHeight: 64,
+                    paddingVertical: 6,
+                    borderRadius: 16,
+                    borderCurve: "continuous",
+                    borderWidth: 2,
+                    // The ring is today; the fill is the chosen day. A day that is neither keeps a quiet outline.
+                    borderColor: isToday ? m.todayRing : isSelected ? c.forest : m.markerIdle,
+                    backgroundColor: isSelected ? c.forest : "transparent",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Text variant="caption" style={{ color: ink, lineHeight: 16 }}>
+                    {weekdayShort(date, locale)}
+                  </Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
+                    <Text
+                      variant="heading"
+                      accessibilityRole="text"
+                      style={{ color: ink, fontVariant: ["tabular-nums"] }}
+                    >
+                      {String(Number(date.slice(8)))}
+                    </Text>
+                    {filled ? <Ionicons name="checkmark-circle" size={14} color={ink} /> : null}
+                  </View>
+                </PressableScale>
+              );
+            })}
+          </View>
+          {onlyMeal ? (
+            <Text variant="caption" style={{ color: m.headerMeta }}>
+              {onlyMeal === "lunch"
+                ? t("Paket ini hanya untuk makan siang", "This package is lunch only")
+                : t("Paket ini hanya untuk makan malam", "This package is dinner only")}
+            </Text>
+          ) : null}
+        </MoodHeader>
+      }
+    >
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
         {offers.map((o) => (
           <Chip key={o.id} label={o.name} selected={o.id === offer?.id} onPress={() => setPackageId(o.id)} />
         ))}
       </ScrollView>
-      {meals.length > 1 ? (
-        <Segmented
-          value={meal}
-          onChange={setMeal}
-          options={[
-            { value: "lunch", label: t("Siang", "Lunch") },
-            { value: "dinner", label: t("Malam", "Dinner") },
-          ]}
-        />
-      ) : null}
       <View style={{ flexDirection: "row", gap: 8 }}>
         {canEdit ? (
           <Button style={{ flex: 1 }} variant="secondary" disabled={busy || !weekLoaded || lastWeekPending || lastWeekEmpty} label={t("Salin minggu lalu", "Copy last week")} onPress={() => void copyLastWeek()} />
@@ -210,34 +435,68 @@ export function MenuWeek() {
       {!weekLoaded ? <Text variant="caption">{t("Memuat…", "Loading…")}</Text> : null}
       {note ? <Text variant="caption">{note}</Text> : null}
       {error ? <Text selectable style={{ color: c.danger }}>{error}</Text> : null}
-      {(days.data ?? []).map((d) => {
-        const past = d.date < today;
-        const items = d.details?.items ?? [];
-        const open = () => canEdit && offer && router.push(`/menu/${d.date}?pkg=${offer.id}&meal=${meal}` as never);
-        return (
-          <Card key={d.date}>
-            <PressableRow accessibilityRole="button" onPress={open} disabled={!canEdit} style={{ gap: 6 }}>
-              <Text variant="heading">{shortDate(d.date, locale)}</Text>
-              {items.length ? (
-                (template?.composition ?? []).map((g) => (
-                  <Text key={g.id}>
-                    <Text variant="caption">{`${g.name}  `}</Text>
-                    {items.filter((i) => i.groupId === g.id).map((i) => i.name).join(", ")}
-                  </Text>
-                ))
-              ) : past ? (
-                <Text variant="caption" style={{ color: c.muted }}>
-                  {t("Lewat", "Past")}
-                </Text>
-              ) : (
-                <Text style={{ color: c.sunriseInk, fontFamily: fontFor("700") }}>
-                  {canEdit ? t("Belum diisi · isi menu", "Not filled · add menu") : t("Belum diisi", "Not filled")}
-                </Text>
-              )}
-            </PressableRow>
-          </Card>
-        );
-      })}
+      {selected ? (
+        <Card>
+          <Text variant="heading">{shortDate(selected.date, locale)}</Text>
+          {items.length ? (
+            (template?.composition ?? []).map((g) => {
+              const rows = items.filter((i) => i.groupId === g.id);
+              return rows.length ? (
+                <View key={g.id} style={{ gap: 8 }}>
+                  <Text variant="caption">{componentLabel(g, locale)}</Text>
+                  {rows.map((dish) => (
+                    <DishRow
+                      key={dish.id}
+                      dish={dish}
+                      canAddPhoto={canEdit && selected.editable}
+                      uploading={uploadingId === dish.id}
+                      busy={!!uploadingId}
+                      onAdd={() => void addPhoto(selected, dish)}
+                    />
+                  ))}
+                </View>
+              ) : null;
+            })
+          ) : past ? (
+            <Text variant="caption" style={{ color: c.muted }}>
+              {t("Lewat", "Past")}
+            </Text>
+          ) : (
+            <Text style={{ color: c.sunriseInk, fontFamily: fontFor("700") }}>
+              {canEdit ? t("Belum diisi · isi menu", "Not filled · add menu") : t("Belum diisi", "Not filled")}
+            </Text>
+          )}
+          {photoError ? <Text selectable style={{ color: c.danger }}>{photoError}</Text> : null}
+          {canEdit && !past ? (
+            <Button
+              variant="secondary"
+              label={t("Ubah menu", "Edit menu")}
+              onPress={() => router.push(`/menu/${selected.date}?pkg=${offer.id}&meal=${meal}` as never)}
+            />
+          ) : null}
+        </Card>
+      ) : null}
+      {selected && items.length ? (
+        <Card>
+          <Text variant="heading">{t("Tampilan di aplikasi pelanggan", "How customers see it")}</Text>
+          <View style={{ alignSelf: "center" }}>
+            <StoryCover
+              uri={photoUri(menuCoverImage(selected.details, offer.image || ""), runtime.apiBase)}
+              title={`${mealLabel(meal, locale)} · ${shortDate(selected.date, locale)}`}
+              segments={Math.min(items.length, 8)}
+              active={1}
+              width={coverWidth}
+              height={Math.round(coverWidth * 1.25)}
+            />
+          </View>
+          <Text variant="caption">
+            {t(
+              "Foto lauk utama jadi sampul menu besok. Menu tanpa foto memakai foto paket.",
+              "The main dish photo becomes the cover of tomorrow's menu. A menu without photos uses the package photo.",
+            )}
+          </Text>
+        </Card>
+      ) : null}
     </Screen>
   );
 }

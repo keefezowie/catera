@@ -318,6 +318,18 @@ export function menuItems(m: MealMenu): Dish[] {
     ]
   );
 }
+/**
+ * The photo a customer sees first for a dated menu: the main dish, else any dish with a photo, else the menu's own,
+ * else the fallback (the package photo).
+ */
+export function menuCoverImage(menu: MealMenu | null, fallback: string): string {
+  const photographed = (menu?.items ?? []).filter((i) => i.image);
+  return (
+    photographed.find((i) => i.categoryId === "main")?.image ??
+    photographed[0]?.image ??
+    (menu?.image || fallback)
+  );
+}
 export function menuSummary(m: MealMenu, locale: "id" | "en" = "id"): string {
   if (m.selectionStatus === "pending")
     return locale === "en" ? "Choose your menu" : "Pilih menu sendiri";
