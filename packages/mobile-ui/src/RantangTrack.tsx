@@ -64,6 +64,9 @@ export function RantangTrack({
   const progress = useAnimatedStyle(() => ({ transform: [{ scaleX: Math.max(position.value, 0.0001) }] }));
   const onLayout = (e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width);
   const reached = POSITION[stage] * (STOPS - 1);
+  // Until the rail has been measured the marker has no position to stand at, so it stays invisible instead of
+  // flashing at the first stop and then jumping to a departed or delivered one.
+  const measured = width > 0;
 
   return (
     <View testID={testID} accessible accessibilityLabel={caption} style={{ gap: 8 }}>
@@ -74,7 +77,7 @@ export function RantangTrack({
         <View testID={`${testID}-rail`} onLayout={onLayout} style={{ height: MARKER + 4 + DOT }}>
           <Animated.View
             testID={`${testID}-marker`}
-            style={[{ position: "absolute", top: 0, left: 0, width: MARKER, height: MARKER }, marker]}
+            style={[{ position: "absolute", top: 0, left: 0, width: MARKER, height: MARKER, opacity: measured ? 1 : 0 }, marker]}
           >
             <Rantang size={MARKER} color={ink.heroText} filled={stage !== "scheduled"} testID={`${testID}-marker-glyph`} />
           </Animated.View>
@@ -91,6 +94,7 @@ export function RantangTrack({
                   borderRadius: LINE / 2,
                   backgroundColor: ink.heroText,
                   transformOrigin: "left center",
+                  opacity: measured ? 1 : 0,
                 },
                 progress,
               ]}

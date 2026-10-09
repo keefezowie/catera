@@ -8,7 +8,8 @@ import { useColors } from "./theme";
  * - `busy` swaps the label for a spinner and blocks presses until the call settles (the button keeps its label as its
  *   accessible name, and reads as disabled).
  * - `disabled` blocks presses and greys the button.
- * Padded 12 with a line on top, capped at 760 like the screen body. `testID` names it; the spinner is `<testID>-spinner`.
+ * It adds no chrome: the footer slot already gives the padding, the top border, the 760 cap and the surface fill.
+ * `testID` names it; the spinner is `<testID>-spinner`.
  */
 export function StickyAction({
   label,
@@ -27,18 +28,7 @@ export function StickyAction({
 }) {
   const c = useColors();
   return (
-    <View
-      testID={testID}
-      style={{
-        width: "100%",
-        maxWidth: 760,
-        alignSelf: "center",
-        padding: 12,
-        gap: 8,
-        borderTopWidth: 1,
-        borderTopColor: c.line,
-      }}
-    >
+    <View testID={testID} style={{ gap: 8 }}>
       {caption ? <Text variant="caption">{caption}</Text> : null}
       <View>
         <Button

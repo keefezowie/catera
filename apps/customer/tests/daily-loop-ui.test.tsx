@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import * as ReactNative from "react-native";
-import { StyleSheet, Text as RNText } from "react-native";
+import { Pressable, StyleSheet, Text as RNText } from "react-native";
 import type { ComponentProps, ReactElement } from "react";
 import * as Haptics from "expo-haptics";
 import * as Reanimated from "react-native-reanimated";
@@ -10,6 +10,7 @@ import {
   MoodProvider,
   Rantang,
   RantangTrack,
+  Screen,
   StickyAction,
   StopRow,
   StoryViewer,
@@ -26,7 +27,18 @@ jest.mock("expo-secure-store", () => {
   };
 });
 
-const SIANG_NOW = () => new Date("2026-10-09T03:00:00Z"); // 10:00 WIB
+// Ionicons loads its font a tick after it mounts and then sets state outside act. The font is reported as already
+// loaded, so the glyph renders at once and the output stays free of act warnings.
+jest.mock("expo-font", () => ({ ...jest.requireActual("expo-font"), isLoaded: () => true }));
+
+// A 400dp window, so the middle of the story is x 200. The hook module is replaced because the components read it
+// through react-native's lazy export, which a spy does not reach.
+jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
+  __esModule: true,
+  default: () => ({ width: 400, height: 800, scale: 2, fontScale: 1 }),
+}));
+
+const SIANG_NOW =() => new Date("2026-10-09T03:00:00Z"); // 10:00 WIB
 
 function mount(ui: ReactElement, scheme: "light" | "dark" = "light") {
   jest.spyOn(ReactNative, "useColorScheme").mockReturnValue(scheme);
@@ -96,6 +108,15 @@ describe("RantangTrack", () => {
     measure();
     expect(markerX()).toBe(x);
     expect(bodyFilled("journey-marker-glyph-body")).toBe(filled);
+  });
+
+  it("keeps the marker and the progress line invisible until the rail has been measured", () => {
+    mount(track("delivered"));
+    expect(flat("journey-marker").opacity).toBe(0);
+    expect(flat("journey-progress").opacity).toBe(0);
+    measure();
+    expect(flat("journey-marker").opacity).toBe(1);
+    expect(flat("journey-progress").opacity).toBe(1);
   });
 
   it("is one element for a screen reader, labelled with the caption, and hides the three stop labels", () => {
@@ -192,10 +213,13 @@ describe("StoryViewer", () => {
     expect(byId("story-viewer-bars").props.accessibilityElementsHidden).toBe(true);
   });
 
-  it("goes forward from the right half and does nothing on the last part", () => {
+  // The press lands on the child text, as a thumb on the story's own content does: it has to reach the content's handler.
+  const tap = (pageX: number) => fireEvent.press(screen.getByText("Isi cerita"), { nativeEvent: { pageX } });
+
+  it("goes forward from a tap on the right half of the content and does nothing on the last part", () => {
     const onIndexChange = jest.fn();
     const view = mount(viewer(1, { onIndexChange }));
-    fireEvent.press(byId("story-viewer-next"));
+    tap(300);
     expect(onIndexChange).toHaveBeenCalledWith(2);
     onIndexChange.mockClear();
     view.rerender(
@@ -203,14 +227,14 @@ describe("StoryViewer", () => {
         <MoodProvider now={SIANG_NOW}>{viewer(3, { onIndexChange })}</MoodProvider>
       </ThemeProvider>,
     );
-    fireEvent.press(byId("story-viewer-next"));
+    tap(300);
     expect(onIndexChange).not.toHaveBeenCalled();
   });
 
-  it("goes back from the left half and does nothing on the first part", () => {
+  it("goes back from a tap on the left half of the content and does nothing on the first part", () => {
     const onIndexChange = jest.fn();
     const view = mount(viewer(2, { onIndexChange }));
-    fireEvent.press(byId("story-viewer-prev"));
+    tap(100);
     expect(onIndexChange).toHaveBeenCalledWith(1);
     onIndexChange.mockClear();
     view.rerender(
@@ -218,17 +242,42 @@ describe("StoryViewer", () => {
         <MoodProvider now={SIANG_NOW}>{viewer(0, { onIndexChange })}</MoodProvider>
       </ThemeProvider>,
     );
-    fireEvent.press(byId("story-viewer-prev"));
+    tap(100);
     expect(onIndexChange).not.toHaveBeenCalled();
   });
 
-  it("hides the two tap halves from screen readers, which get the close button instead", () => {
+  it("splits at half the window width: a tap at the middle goes forward", () => {
+    const onIndexChange = jest.fn();
+    mount(viewer(1, { onIndexChange }));
+    tap(199);
+    expect(onIndexChange).toHaveBeenLastCalledWith(0);
+    tap(200);
+    expect(onIndexChange).toHaveBeenLastCalledWith(2);
+  });
+
+  it("leaves a button inside the content its own press", () => {
+    const onIndexChange = jest.fn();
+    const onInner = jest.fn();
+    mount(
+      <StoryViewer count={4} index={1} onIndexChange={onIndexChange} onClose={() => {}} header="Menu" closeLabel="Tutup">
+        <Pressable accessibilityRole="button" accessibilityLabel="Ubah hari" onPress={onInner}>
+          <RNText>Ubah hari</RNText>
+        </Pressable>
+      </StoryViewer>,
+    );
+    fireEvent.press(screen.getByRole("button", { name: "Ubah hari" }), { nativeEvent: { pageX: 300 } });
+    expect(onInner).toHaveBeenCalledTimes(1);
+    expect(onIndexChange).not.toHaveBeenCalled();
+  });
+
+  it("keeps the content region out of the accessibility tree as a target but not its buttons", () => {
     mount(viewer(0));
-    for (const id of ["story-viewer-prev", "story-viewer-next"]) {
-      expect(byId(id).props.accessible).toBe(false);
-      expect(byId(id).props.importantForAccessibility).toBe("no");
-      expect(byId(id).props.accessibilityElementsHidden).toBe(true);
-    }
+    const region = byId("story-viewer-content");
+    expect(region.props.accessible).toBe(false);
+    expect(region.props.importantForAccessibility).toBe("no");
+    expect(region.props.accessibilityElementsHidden).toBeUndefined();
+    expect(gone("story-viewer-prev")).toBe(true);
+    expect(gone("story-viewer-next")).toBe(true);
   });
 
   it("closes from a 48dp button named by closeLabel", () => {
@@ -278,7 +327,8 @@ describe("StoryViewer", () => {
     mount(viewer(1, { onIndexChange }));
     const header = byId("story-viewer-header");
     expect(header.props.accessibilityRole).toBe("adjustable");
-    expect(header.props.accessibilityValue).toEqual({ min: 1, max: 4, now: 2 });
+    expect(header.props.accessibilityValue).toEqual({ min: 1, max: 4, now: 2, text: "2/4" });
+    expect(header.props.pointerEvents).toBeUndefined();
     fireEvent(header, "accessibilityAction", { nativeEvent: { actionName: "increment" } });
     fireEvent(header, "accessibilityAction", { nativeEvent: { actionName: "decrement" } });
     expect(onIndexChange).toHaveBeenNthCalledWith(1, 2);
@@ -348,13 +398,25 @@ describe("StoryViewer", () => {
     it("claims the gesture once the finger has moved down past a small slop, and not before", () => {
       mount(viewer(1));
       const { start, end } = gesture(30, 100);
+      // React Native asks the capture handler first (which refreshes the gesture state), then the bubble handler.
+      const claims = (event: unknown) => {
+        handler("onMoveShouldSetResponderCapture")(event);
+        return handler("onMoveShouldSetResponder")(event);
+      };
       handler("onResponderGrant")(start);
-      expect(handler("onMoveShouldSetResponderCapture")(end)).toBe(true);
+      expect(claims(end)).toBe(true);
       screen.unmount();
       mount(viewer(1));
       const small = gesture(6, 100);
       handler("onResponderGrant")(small.start);
-      expect(handler("onMoveShouldSetResponderCapture")(small.end)).toBe(false);
+      expect(claims(small.end)).toBe(false);
+    });
+
+    it("never claims at capture, so a child that scrolls gets the move first", () => {
+      mount(viewer(1));
+      const { start, end } = gesture(120, 100);
+      handler("onResponderGrant")(start);
+      expect(handler("onMoveShouldSetResponderCapture")(end)).toBe(false);
     });
   });
 });
@@ -521,15 +583,22 @@ describe("StickyAction", () => {
     expect(StyleSheet.flatten(screen.getByText("12 porsi hari ini").props.style).color).toBe(nativeThemes.light.muted);
   });
 
-  it("is padded 12 with a line on top, and capped at 760", () => {
-    mount(<StickyAction label="Mulai masak" onPress={() => {}} testID="act" />);
-    expect(flat("act")).toMatchObject({
-      padding: 12,
-      borderTopWidth: 1,
-      borderTopColor: nativeThemes.light.line,
-      maxWidth: 760,
-      width: "100%",
-    });
+  it("adds no chrome of its own: the Screen footer slot gives the one border, the one padding and the 760 cap", () => {
+    mount(<Screen footer={<StickyAction label="Mulai masak" caption="12 porsi hari ini" onPress={() => {}} testID="act" />}>{null}</Screen>);
+    expect(flat("act")).toEqual({ gap: 8 });
+    expect(flat("screen-footer")).toMatchObject({ padding: 16, borderTopWidth: 1, maxWidth: 760, gap: 8 });
+    const styled = (pick: (style: ReturnType<typeof StyleSheet.flatten>) => unknown) =>
+      byId("screen-footer").findAll(
+        (node) => typeof node.type === "string" && pick(StyleSheet.flatten(node.props.style) ?? {}) !== undefined,
+      );
+    expect(styled((s) => s.borderTopWidth)).toHaveLength(1);
+    expect(styled((s) => s.padding)).toHaveLength(1);
+    expect(styled((s) => s.maxWidth)).toHaveLength(1);
+    expect(screen.queryByText("12 porsi hari ini")).toBeTruthy();
+  });
+
+  it("shows no caption when there is none", () => {
+    mount(<StickyAction label="Mulai masak" onPress={() => {}} />);
     expect(screen.queryByText("12 porsi hari ini")).toBeNull();
   });
 

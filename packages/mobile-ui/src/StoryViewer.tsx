@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, type ReactNode } from "react";
-import { PanResponder, Pressable, View } from "react-native";
+import { PanResponder, Pressable, useWindowDimensions, View, type GestureResponderEvent } from "react-native";
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -21,13 +21,13 @@ const FLICK_MIN_DISTANCE = 20;
 /**
  * A full-screen story: one bar per part along the top (the first `index + 1` solid), a header line beside a 48dp close
  * button, and the current part below, which the caller owns (`children`, swapped through `FadeSwap` when `index` changes).
- * - Nothing moves on its own: no timer advances a part. A tap on the right half goes forward and on the left half goes
- *   back; both halves are invisible and hidden from screen readers, who get the header as an adjustable (swipe up or
- *   down) and the close button instead. The first part has no back and the last has no forward.
+ * - Nothing moves on its own: no timer advances a part. The content region is one press target: a tap on its right half
+ *   goes forward and on its left half goes back, wherever on the content it lands. A button inside the content is a
+ *   deeper responder and keeps its own press. The region is not an accessibility element (its buttons stay), so
+ *   screen readers get the header as an adjustable (swipe up or down) and the close button instead. The first part has
+ *   no back and the last has no forward.
  * - A downward drag of more than 80dp, or a fast flick down, closes it through `PanResponder` (no gesture library).
  * - It opens with a fade and a scale from 0.92 to 1 over `nativeMotion.feature`; instantly under reduced motion.
- * The tap halves sit behind the content. Content that is only to be looked at (a photo, a title) should set
- * `pointerEvents="none"` so a tap on it still turns the page; content with its own button keeps its touches.
  */
 export function StoryViewer({
   count,
@@ -47,6 +47,7 @@ export function StoryViewer({
   children: ReactNode;
 }) {
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   const reduced = useReduced();
   const enter = useSharedValue(reduced ? 1 : 0);
 
@@ -72,8 +73,9 @@ export function StoryViewer({
   const pan = useMemo(
     () =>
       PanResponder.create({
-        // The capture variant, because PanResponder only refreshes the gesture state before the capture check.
-        onMoveShouldSetPanResponderCapture: (_e, g) => g.dy > 10 && g.dy > Math.abs(g.dx) * 1.5,
+        // The bubble variant, so a child that scrolls gets the move first. React Native refreshes the gesture state in
+        // the capture phase (PanResponder's own capture handler) before this one runs, so dy and dx are current here.
+        onMoveShouldSetPanResponder: (_e, g) => g.dy > 10 && g.dy > Math.abs(g.dx) * 1.5,
         onPanResponderRelease: (_e, g) => {
           const flung = g.vy > DISMISS_VELOCITY && g.dy > FLICK_MIN_DISTANCE;
           if (g.dy > DISMISS_DISTANCE || flung) closeRef.current();
@@ -90,25 +92,8 @@ export function StoryViewer({
       onAccessibilityEscape={onClose}
       style={{ flex: 1, backgroundColor: "black" }}
     >
-      <Pressable
-        testID="story-viewer-prev"
-        accessible={false}
-        accessibilityElementsHidden
-        importantForAccessibility="no"
-        onPress={back}
-        style={{ position: "absolute", top: 0, bottom: 0, left: 0, width: "50%" }}
-      />
-      <Pressable
-        testID="story-viewer-next"
-        accessible={false}
-        accessibilityElementsHidden
-        importantForAccessibility="no"
-        onPress={forward}
-        style={{ position: "absolute", top: 0, bottom: 0, right: 0, width: "50%" }}
-      />
       <Animated.View
         testID="story-viewer-stage"
-        pointerEvents="box-none"
         style={[{ flex: 1, paddingTop: insets.top + 8, paddingBottom: insets.bottom }, stage]}
       >
         <View
@@ -132,14 +117,13 @@ export function StoryViewer({
             />
           ))}
         </View>
-        <View pointerEvents="box-none" style={{ flexDirection: "row", alignItems: "center", gap: 8, paddingLeft: 16, paddingRight: 4 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, paddingLeft: 16, paddingRight: 4 }}>
           <View
             testID="story-viewer-header"
-            pointerEvents="none"
             accessible
             accessibilityRole="adjustable"
             accessibilityLabel={header}
-            accessibilityValue={{ min: 1, max: count, now: index + 1 }}
+            accessibilityValue={{ min: 1, max: count, now: index + 1, text: `${index + 1}/${count}` }}
             accessibilityActions={[{ name: "increment" }, { name: "decrement" }]}
             onAccessibilityAction={(e) => {
               if (e.nativeEvent.actionName === "increment") forward();
@@ -161,9 +145,15 @@ export function StoryViewer({
             <Ionicons name="close" size={26} color={ink.cream} />
           </PressableScale>
         </View>
-        <View pointerEvents="box-none" style={{ flex: 1 }}>
+        <Pressable
+          testID="story-viewer-content"
+          accessible={false}
+          importantForAccessibility="no"
+          onPress={(e: GestureResponderEvent) => (e.nativeEvent.pageX < width / 2 ? back() : forward())}
+          style={{ flex: 1 }}
+        >
           <FadeSwap swapKey={String(index)}>{children}</FadeSwap>
-        </View>
+        </Pressable>
       </Animated.View>
     </View>
   );
