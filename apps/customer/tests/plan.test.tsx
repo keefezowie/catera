@@ -226,6 +226,17 @@ describe("Plan detail states", () => {
     expect(within(screen.getByTestId("sticky-action")).getByRole("button", { name: "Lanjutkan paket" })).toBeTruthy();
   });
 
+  it.each([
+    ["an active one-day plan", { starts_on: at(2), ends_on: at(2), remaining: 1 }, at(2)],
+    ["a completed one-day plan", { status: "completed", starts_on: at(-1), ends_on: at(-1), remaining: 0 }, at(-1)],
+    ["a cancelled one-day plan", { status: "cancelled", starts_on: at(3), ends_on: at(3), remaining: 1 }, at(3)],
+  ] as const)("%s shows its single date, not the same day twice", async (_why, sub, day) => {
+    renderPlan(runtimeWith(async () => planState(sub as Partial<Subscription>, { deliveries: [] })));
+    const hero = await screen.findByTestId("plan-hero");
+    expect(within(hero).getByText(shortDate(day, "id"))).toBeTruthy();
+    expect(within(hero).queryByText(/–/)).toBeNull();
+  });
+
   it("a cancelled plan reads Paket dibatalkan with its dates, and offers nothing and lists nothing", async () => {
     // The plan's later days are still in the read; a cancelled plan does not list them as coming up.
     renderPlan(runtimeWith(async () => planState({ status: "cancelled", remaining: 4 })));

@@ -78,7 +78,10 @@ export function RecapCard({ candidates }: { candidates: Subscription[] }) {
             {offer.name} · {offer.caterer}
           </Text>
           <Text selectable style={{ color: c.muted, fontVariant: ["tabular-nums"] }}>
-            {shortDate(sub.starts_on, locale)} – {shortDate(sub.ends_on, locale)}
+            {/* A one-day plan names its day once. */}
+            {sub.starts_on === sub.ends_on
+              ? shortDate(sub.starts_on, locale)
+              : `${shortDate(sub.starts_on, locale)} – ${shortDate(sub.ends_on, locale)}`}
           </Text>
         </View>
       </View>

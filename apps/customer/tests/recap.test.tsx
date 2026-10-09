@@ -273,6 +273,13 @@ describe("the Paket selesai recap", () => {
     expect(SecureStore.setItemAsync).not.toHaveBeenCalledWith(RECAP_KEY, "seen");
   });
 
+  it("names a one-day plan's single date, not the same day twice", async () => {
+    await home(runtimeWith(async () => stateWith([livePlan(), endedPlan({ starts_on: addDays(TODAY, -1) })])));
+    const card = within(screen.getByTestId("recap-card"));
+    expect(card.getByText("Rabu 7 Okt")).toBeTruthy();
+    expect(card.queryByText(/–/)).toBeNull();
+  });
+
   it("still shows for a plan that ended 14 days ago", async () => {
     await home(runtimeWith(async () => stateWith([livePlan(), endedPlan({ ends_on: addDays(TODAY, -14) })])));
     expect(screen.getByTestId("recap-card")).toBeTruthy();

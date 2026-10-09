@@ -197,7 +197,10 @@ function Hero({ plan, apiBase }: { plan: PlanData; apiBase: string }) {
           {headline}
         </Text>
         <Text selectable style={[{ color: palette.heroMeta }, tabular]}>
-          {shortDate(plan.startsOn, locale)} – {shortDate(plan.endsOn, locale)}
+          {/* A one-day plan names its day once. */}
+          {plan.startsOn === plan.endsOn
+            ? shortDate(plan.startsOn, locale)
+            : `${shortDate(plan.startsOn, locale)} – ${shortDate(plan.endsOn, locale)}`}
         </Text>
         {plan.action.kind === "renewed" ? (
           <View style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingTop: 6 }}>
