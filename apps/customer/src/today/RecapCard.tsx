@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Image, StyleSheet, View } from "react-native";
-import { router } from "expo-router";
+import { router, useIsFocused } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { shortDate, type Subscription } from "@catera/domain";
 import { useMobile, useTrack } from "@catera/mobile-core";
@@ -11,7 +11,8 @@ import { photoUri } from "./Plate";
  * "Paket selesai": a one-time look back at a full plan that ended in the last 14 days, leading to its renewal.
  * `candidates` come from `recapCandidates`, newest first. One card per visit: the newest plan whose seen mark
  * (`recap.{id}`) is not stored yet. Nothing renders until those marks are read, so a seen recap never flashes.
- * The mark is written when the card first shows; the card then stays for the rest of this Beranda visit.
+ * The mark is written when the card first shows with Beranda in front; the card then stays for the rest of this
+ * Beranda visit.
  */
 export function RecapCard({ candidates }: { candidates: Subscription[] }) {
   const { runtime, t, locale } = useMobile();
@@ -40,12 +41,19 @@ export function RecapCard({ candidates }: { candidates: Subscription[] }) {
     };
   }, [ids, shownId, runtime]);
 
-  useEffect(() => {
-    if (shownId) void SecureStore.setItemAsync(runtime.storageKey(`recap.${shownId}`), "seen").catch(() => undefined);
-  }, [shownId, runtime]);
-
-  // A plan renewed while Beranda is open drops out of the candidates, and its card goes with it.
+  // A renewed plan drops out of the candidates while Beranda is open, and its card goes with it.
   const sub = candidates.find((s) => s.id === shownId);
+  // Beranda stays mounted under a pushed screen or the sign-in modal, where the card renders unseen. The mark waits
+  // until Beranda is in front with the card on it, and is written once.
+  const focused = useIsFocused();
+  const visible = !!sub && !closed && focused;
+  const marked = useRef(false);
+  useEffect(() => {
+    if (!visible || !shownId || marked.current) return;
+    marked.current = true;
+    void SecureStore.setItemAsync(runtime.storageKey(`recap.${shownId}`), "seen").catch(() => undefined);
+  }, [visible, shownId, runtime]);
+
   if (!sub || closed) return null;
   const offer = sub.snapshot.offer;
   const image = offer.image ? photoUri(offer.image, runtime.apiBase) : "";

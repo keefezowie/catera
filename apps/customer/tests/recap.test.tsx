@@ -9,11 +9,27 @@ import { customerLink } from "../src/links";
 import * as offline from "../src/today/offline";
 import { delivery, offer, subscription } from "./fixtures";
 
+// Whether Beranda is the screen in front. A pushed screen or the sign-in modal on top leaves Beranda mounted but
+// unfocused; flipping this re-renders the subscribers, as the navigator does on a focus change.
+const mockFocus = { value: true, listeners: new Set<() => void>() };
 jest.mock("expo-router", () => ({
   router: { push: jest.fn(), replace: jest.fn() },
   Link: () => null,
   useLocalSearchParams: () => ({}),
+  useIsFocused: () =>
+    require("react").useSyncExternalStore(
+      (l: () => void) => {
+        mockFocus.listeners.add(l);
+        return () => mockFocus.listeners.delete(l);
+      },
+      () => mockFocus.value,
+    ),
 }));
+const setFocused = (value: boolean) =>
+  act(async () => {
+    mockFocus.value = value;
+    mockFocus.listeners.forEach((l) => l());
+  });
 jest.mock("expo-notifications", () => ({
   setNotificationHandler: jest.fn(),
   addNotificationReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
@@ -127,6 +143,7 @@ async function home(runtime: MobileRuntime) {
 beforeEach(() => {
   jest.clearAllMocks();
   store.clear();
+  mockFocus.value = true;
   (SecureStore.getItemAsync as jest.Mock).mockImplementation(readStore);
   pinToday();
 });
@@ -178,6 +195,33 @@ describe("the Paket selesai recap", () => {
 
     await act(async () => answer(null));
     expect(await screen.findByTestId("recap-card")).toBeTruthy();
+  });
+
+  it("does not write the seen mark while Beranda is mounted behind another screen", async () => {
+    // A pushed plan detail or the sign-in modal on top: Beranda reads the customer and renders, unseen.
+    mockFocus.value = false;
+    await home(runtimeWith(async () => stateWith([livePlan(), endedPlan()])));
+    await settle();
+    expect(SecureStore.getItemAsync).toHaveBeenCalledWith(RECAP_KEY);
+    expect(SecureStore.setItemAsync).not.toHaveBeenCalledWith(RECAP_KEY, "seen");
+    expect(store.has(RECAP_KEY)).toBe(false);
+  });
+
+  it("writes the seen mark on the first render with Beranda in front, once, and keeps the card for the visit", async () => {
+    mockFocus.value = false;
+    await home(runtimeWith(async () => stateWith([livePlan(), endedPlan()])));
+    await setFocused(true);
+    await settle();
+    expect(screen.getByTestId("recap-card")).toBeTruthy();
+    expect(store.get(RECAP_KEY)).toBe("seen");
+
+    // Away to a pushed screen and back: same visit, same card, no second write.
+    await setFocused(false);
+    await setFocused(true);
+    await settle();
+    expect(screen.getByTestId("recap-card")).toBeTruthy();
+    const writes = (SecureStore.setItemAsync as jest.Mock).mock.calls.filter(([k]) => k === RECAP_KEY);
+    expect(writes).toEqual([[RECAP_KEY, "seen"]]);
   });
 
   it("shows nothing when the plan's seen mark is already stored", async () => {
