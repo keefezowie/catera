@@ -1,14 +1,26 @@
+import { menuCoverImage } from "./contents";
 import { addDays } from "./dates";
 import type { CustomerState, Delivery, DeliveryMeal, Locale, Offer, Subscription } from "./index";
+import { mealJourney, type Journey } from "./journey";
 import type { MealType } from "./offer-schema";
 import { jakartaDay, shortDate } from "./kitchen";
 import { windowStartMinutes } from "./windows";
 
 /** Customer-facing views of a delivery day, shared by the customer app and the web. */
-export type PlateState = "cooking" | "on_the_way" | "due" | "arrived" | "failed" | "reported" | "none";
+export type PlateState =
+  | "scheduled"
+  | "cooking"
+  | "on_the_way"
+  | "due"
+  | "arrived"
+  | "failed"
+  | "reported"
+  | "none";
 
 export type Plate = {
   state: PlateState;
+  /** Where the meal is on its way, from fulfilment status and timestamps. */
+  journey: Journey;
   deliveryId: string;
   meal: "lunch" | "dinner";
   packageName: string;
@@ -33,9 +45,31 @@ export type UpcomingRow = {
   packageName: string;
   meal: MealType;
   dishes: string;
+  /** The menu's cover photo, else the package photo; "" when there is neither. */
+  image: string;
   /** When changes close, with the day: "hari ini 17.00", "besok 17.00", "Jumat 17.00". */
   changeUntil: string | null;
 };
+
+/** One meal of tomorrow's delivery, as a page of the story. */
+export type StoryPart = {
+  deliveryId: string;
+  meal: "lunch" | "dinner";
+  /** The menu's name once the menu is set, else null. */
+  title: string | null;
+  /** The dishes of the menu in composition order; empty while the menu is not set. */
+  sides: string[];
+  catererName: string;
+  window: string;
+  image: string;
+  /** False while nothing is chosen: no menu, a menu still to pick, or one with no dishes. */
+  menuSet: boolean;
+  changeable: boolean;
+  /** When changes close, or null once they have. */
+  until: string | null;
+};
+
+export type TomorrowStory = { date: string; parts: StoryPart[] };
 
 const JAKARTA_OFFSET_MS = 7 * 60 * 60 * 1000;
 /** Meal order within a day: lunch first. */
@@ -76,14 +110,18 @@ function dishesFor(offer: Offer, meal: "lunch" | "dinner"): string[] {
     .map(({ item }) => item.name);
 }
 
-/** reported > failed > arrived > on_the_way > due > cooking. */
+/**
+ * reported > failed > arrived > on_the_way > due > cooking > scheduled. "cooking" is only a meal the
+ * kitchen started; one it never tapped stays "scheduled" until its window starts, then "due".
+ */
 function plateState(meal: DeliveryMeal, due: boolean): PlateState {
   if (meal.issue && meal.issue.status !== "resolved") return "reported";
   // The caterer marked the meal "Gagal diantar": it is not coming today.
   if (meal.status === "issue") return "failed";
   if (meal.status === "delivered") return "arrived";
   if (meal.status === "out_for_delivery") return "on_the_way";
-  return due ? "due" : "cooking";
+  if (due) return "due";
+  return meal.status === "preparing" ? "cooking" : "scheduled";
 }
 
 function addressLabel(d: Delivery): string {
@@ -105,6 +143,7 @@ export function todayPlates(state: CustomerState, now: Date): Plate[] {
         start,
         plate: {
           state: plateState(m, start <= now.getTime()),
+          journey: mealJourney(m),
           deliveryId: d.id,
           meal: m.meal,
           packageName: d.offer.name,
@@ -156,13 +195,9 @@ export function upcomingRows(state: CustomerState, now: Date, n: number, locale:
     .sort((a, b) => a.service_date.localeCompare(b.service_date))
     .slice(0, Math.max(0, n))
     .map((d) => {
-      const served = mealsOf(d)
-        .filter((m) => m.status !== "cancelled")
-        .map((m) => m.meal);
-      const meals = MEALS.filter((meal) =>
-        served.length ? served.includes(meal) : d.offer.menus?.some((m) => m.meal === meal),
-      );
+      const meals = servedMeals(d);
       const changeable = canChangeDay(d, now);
+      const cover = meals.length ? d.offer.menus?.find((m) => m.meal === meals[0]) : undefined;
       return {
         deliveryId: d.id,
         date: d.service_date,
@@ -170,9 +205,55 @@ export function upcomingRows(state: CustomerState, now: Date, n: number, locale:
         packageName: d.offer.name,
         meal: meals.length > 1 ? "both" : (meals[0] ?? d.offer.meal),
         dishes: meals.flatMap((meal) => dishesFor(d.offer, meal)).join(", "),
+        image: menuCoverImage(cover ?? null, d.offer.image ?? ""),
         changeUntil: changeable.date || changeable.address ? changeDeadline(d.cutoff_at, now, locale) : null,
       };
     });
+}
+
+/** Meals a delivery day brings that are not cancelled; an offer's own meals when the day lists none. */
+function servedMeals(d: Delivery): ("lunch" | "dinner")[] {
+  const served = mealsOf(d)
+    .filter((m) => m.status !== "cancelled")
+    .map((m) => m.meal);
+  return MEALS.filter((meal) => (served.length ? served.includes(meal) : d.offer.menus?.some((m) => m.meal === meal)));
+}
+
+/**
+ * Tomorrow in Jakarta as the story's pages: one part per delivery and meal, every lunch before any
+ * dinner, a part's window deciding the order among the same meal. Null when nothing is delivered.
+ */
+export function tomorrowStory(state: CustomerState, now: Date, locale: Locale): TomorrowStory | null {
+  const date = jakartaDay(now, 1);
+  const parts: { part: StoryPart; start: number }[] = [];
+  for (const d of state.deliveries) {
+    if (d.service_date !== date || d.status === "cancelled") continue;
+    const change = canChangeDay(d, now);
+    const changeable = change.date || change.address;
+    for (const meal of servedMeals(d)) {
+      const menu = d.offer.menus?.find((m) => m.meal === meal) ?? null;
+      const dishes = dishesFor(d.offer, meal);
+      const menuSet = !!menu && menu.selectionStatus !== "pending" && (menu.items ?? []).some((i) => i.name.trim());
+      parts.push({
+        start: windowStart(date, d.offer, meal),
+        part: {
+          deliveryId: d.id,
+          meal,
+          title: menuSet ? menu.name.trim() || null : null,
+          sides: menuSet ? dishes : [],
+          catererName: d.offer.caterer,
+          window: d.offer.windows?.[meal] ?? "",
+          image: menuCoverImage(menu, d.offer.image ?? ""),
+          menuSet,
+          changeable,
+          until: changeable ? changeDeadline(d.cutoff_at, now, locale) : null,
+        },
+      });
+    }
+  }
+  if (!parts.length) return null;
+  parts.sort((a, b) => MEALS.indexOf(a.part.meal) - MEALS.indexOf(b.part.meal) || a.start - b.start);
+  return { date, parts: parts.map((p) => p.part) };
 }
 
 /** What the customer can still change on a delivery day; the cutoff minute itself is closed. */

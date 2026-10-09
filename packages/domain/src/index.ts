@@ -155,6 +155,7 @@ export type Subscription = {
 export * from "./seller-operations";
 export * from "./kitchen";
 export * from "./customer-day";
+export * from "./journey";
 export { windowStartMinutes } from "./windows";
 export * from "./seller-experience";
 export * from "./customer-choice";
@@ -163,6 +164,10 @@ export type DeliveryMeal = {
   status: string;
   departed_at?: string | null;
   confirmed_at?: string | null;
+  /** When the kitchen started cooking this meal; absent on meals set to "preparing" by the older status path. */
+  cooking_started_at?: string | null;
+  /** Who recorded the arrival: the customer, the system after the window ("auto"), or the caterer. */
+  confirmed_by?: "customer" | "auto" | "caterer" | null;
   reaction?: "enak" | "biasa" | "kurang" | null;
   issue?: { id: string; status: string } | null;
 };

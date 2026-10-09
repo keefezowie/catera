@@ -7,6 +7,7 @@ import {
   renewalDue,
   reportableMeals,
   todayPlates,
+  tomorrowStory,
   trialFollowUp,
   upcomingRows,
   type CustomerState,
@@ -99,12 +100,12 @@ const dinner = (over: Partial<DeliveryMeal> = {}): DeliveryMeal => ({
 const at = (hhmm: string) => new Date(`2026-10-07T${hhmm}:00+07:00`);
 
 describe("todayPlates", () => {
-  it("plate is cooking before the window and due after it without departure", () => {
+  it("plate is scheduled until the kitchen starts, cooking once it has, and due after the window without departure", () => {
     const s = state([delivery("2026-10-07", [lunch()])]);
     const early = todayPlates(s, at("10:00"));
     expect(early).toHaveLength(1);
     expect(early[0]).toMatchObject({
-      state: "cooking",
+      state: "scheduled",
       meal: "lunch",
       packageName: "Makan Siang Rumahan",
       catererName: "Dapur Bu Sari",
@@ -114,6 +115,26 @@ describe("todayPlates", () => {
       dishes: ["Nasi putih", "Ayam bakar", "Tempe"],
     });
     expect(todayPlates(s, at("11:05"))[0].state).toBe("due");
+    const cooking = state([delivery("2026-10-07", [lunch({ status: "preparing" })])]);
+    expect(todayPlates(cooking, at("10:00"))[0].state).toBe("cooking");
+    expect(todayPlates(cooking, at("11:05"))[0].state).toBe("due");
+  });
+
+  it("plate journey follows the fulfilment status", () => {
+    const stage = (m: DeliveryMeal) => todayPlates(state([delivery("2026-10-07", [m])]), at("10:00"))[0].journey;
+    expect(stage(lunch()).stage).toBe("scheduled");
+    expect(stage(lunch({ status: "preparing", cooking_started_at: "2026-10-07T01:10:00Z" }))).toMatchObject({
+      stage: "preparing",
+      cookingAt: "2026-10-07T01:10:00Z",
+    });
+    expect(stage(lunch({ status: "out_for_delivery", departed_at: "2026-10-07T03:42:00Z" }))).toMatchObject({
+      stage: "out_for_delivery",
+      departedAt: "2026-10-07T03:42:00Z",
+    });
+    expect(stage(lunch({ status: "delivered", confirmed_by: "auto" }))).toMatchObject({
+      stage: "delivered",
+      arrivedBy: "auto",
+    });
   });
 
   it("plate is on the way after departure, arrived after confirm, reported with an open issue", () => {
@@ -192,7 +213,7 @@ describe("todayPlates", () => {
 
   it("uses the default window when the offer window is unreadable", () => {
     const d = delivery("2026-10-07", [lunch()], {}, offer({ windows: { lunch: "", dinner: "" } }));
-    expect(todayPlates(state([d]), at("10:59"))[0].state).toBe("cooking");
+    expect(todayPlates(state([d]), at("10:59"))[0].state).toBe("scheduled");
     expect(todayPlates(state([d]), at("11:00"))[0].state).toBe("due");
   });
 });
@@ -237,6 +258,31 @@ describe("upcomingRows", () => {
     ]);
   });
 
+  it("shows the menu cover, then the package photo", () => {
+    const photographed = offer({
+      menus: [
+        menu("lunch", {
+          image: "https://img/menu.jpg",
+          items: [
+            { id: "i1", name: "Nasi putih", description: "", image: "", serving: "", groupId: "g-nasi" },
+            { id: "i2", name: "Ayam bakar", description: "", image: "https://img/ayam.jpg", serving: "", groupId: "g-lauk", categoryId: "main" },
+          ],
+        }),
+      ],
+    });
+    const plain = offer({ menus: [menu("lunch", { image: "" })] });
+    const s = state([
+      delivery("2026-10-08", [lunch()], {}, photographed),
+      delivery("2026-10-09", [lunch()], {}, plain),
+      delivery("2026-10-12", [lunch()], {}, offer({ image: "", menus: [menu("lunch", { image: "" })] })),
+    ]);
+    expect(upcomingRows(s, at("09:00"), 3).map((r) => r.image)).toEqual([
+      "https://img/ayam.jpg",
+      "https://img/offer.jpg",
+      "",
+    ]);
+  });
+
   it("names the day of a deadline that is not today, in the reader's language", () => {
     const s = state([
       delivery("2026-10-08", [lunch()], { canChange: true, cutoff_at: "2026-10-07T10:00:00Z" }),
@@ -253,6 +299,72 @@ describe("upcomingRows", () => {
       "tomorrow 17.00",
       "Fri 17.00",
     ]);
+  });
+});
+
+describe("tomorrowStory", () => {
+  const open = { canChange: true, cutoff_at: "2026-10-07T10:00:00Z" } as const;
+
+  it("is null with no delivery tomorrow", () => {
+    expect(tomorrowStory(state([]), at("09:00"), "id")).toBeNull();
+    expect(tomorrowStory(state([delivery("2026-10-07", [lunch()]), delivery("2026-10-09", [lunch()])]), at("09:00"), "id")).toBeNull();
+    expect(tomorrowStory(state([delivery("2026-10-08", [lunch()], { status: "cancelled" })]), at("09:00"), "id")).toBeNull();
+  });
+
+  it("gives lunch then dinner for a day that has both", () => {
+    const story = tomorrowStory(state([delivery("2026-10-08", [dinner(), lunch()], open)]), at("09:00"), "id");
+    expect(story?.date).toBe("2026-10-08");
+    expect(story?.parts.map((p) => p.meal)).toEqual(["lunch", "dinner"]);
+    expect(story?.parts[0]).toMatchObject({
+      title: "Menu lunch",
+      sides: ["Nasi putih", "Ayam bakar", "Tempe"],
+      catererName: "Dapur Bu Sari",
+      window: "11.00–13.00",
+      menuSet: true,
+    });
+  });
+
+  it("gives one part per delivery and meal, with every lunch before any dinner", () => {
+    const other = offer({ id: "p2", name: "Paket Hemat", caterer: "Dapur Pak Budi", windows: { lunch: "12.00–13.00", dinner: "17.30–19.30" } });
+    const s = state([
+      delivery("2026-10-08", [lunch(), dinner()], open),
+      delivery("2026-10-08", [lunch()], open, other),
+    ]);
+    const parts = tomorrowStory(s, at("09:00"), "id")!.parts;
+    expect(parts.map((p) => p.meal)).toEqual(["lunch", "lunch", "dinner"]);
+    expect(parts.map((p) => p.catererName)).toEqual(["Dapur Bu Sari", "Dapur Pak Budi", "Dapur Bu Sari"]);
+    expect(new Set(parts.map((p) => p.deliveryId)).size).toBe(2);
+    expect(parts[0].deliveryId).not.toBe(parts[1].deliveryId);
+  });
+
+  it("has no title and the package photo for a meal with no menu", () => {
+    const bare = offer({ menus: [], image: "https://img/pkg.jpg" });
+    const part = tomorrowStory(state([delivery("2026-10-08", [lunch()], open, bare)]), at("09:00"), "id")!.parts[0];
+    expect(part).toMatchObject({ title: null, sides: [], menuSet: false, image: "https://img/pkg.jpg" });
+  });
+
+  it("has no title for a menu the customer still has to choose", () => {
+    const pending = offer({ menus: [menu("lunch", { items: [], selectionStatus: "pending", image: "" })] });
+    const part = tomorrowStory(state([delivery("2026-10-08", [lunch()], open, pending)]), at("09:00"), "id")!.parts[0];
+    expect(part).toMatchObject({ title: null, sides: [], menuSet: false, image: "https://img/offer.jpg" });
+  });
+
+  it("follows the change cutoff", () => {
+    const s = state([delivery("2026-10-08", [lunch()], open)]);
+    expect(tomorrowStory(s, at("16:59"), "id")!.parts[0]).toMatchObject({ changeable: true, until: "hari ini 17.00" });
+    expect(tomorrowStory(s, at("16:59"), "en")!.parts[0].until).toBe("today 17.00");
+    expect(tomorrowStory(s, at("17:00"), "id")!.parts[0]).toMatchObject({ changeable: false, until: null });
+  });
+
+  it("skips cancelled meals", () => {
+    const s = state([delivery("2026-10-08", [lunch({ status: "cancelled" }), dinner()], open)]);
+    expect(tomorrowStory(s, at("09:00"), "id")!.parts.map((p) => p.meal)).toEqual(["dinner"]);
+  });
+
+  it("uses the Jakarta day for a phone at 23.30 UTC", () => {
+    const s = state([delivery("2026-10-08", [lunch()], open)]);
+    expect(tomorrowStory(s, new Date("2026-10-07T17:30:00Z"), "id")).toBeNull();
+    expect(tomorrowStory(s, new Date("2026-10-06T17:30:00Z"), "id")?.date).toBe("2026-10-08");
   });
 });
 

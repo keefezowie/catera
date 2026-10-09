@@ -97,6 +97,11 @@ function Face({ kind, color }: { kind: Reaction; color: string }) {
 /** The plate's status as two lines: what is happening, and when or where. The hero, a card and the other-meal row all say it this way. */
 export const sentences = (p: PlateData, t: (id: string, en: string) => string): [string, string] => {
   switch (p.state) {
+    case "scheduled":
+      return [
+        t("Terjadwal", "Scheduled"),
+        t(`diantar ${p.window} ke ${p.addressLabel}`, `delivered ${p.window} to ${p.addressLabel}`),
+      ];
     case "cooking":
       return [
         t("Sedang dimasak", "Being cooked"),

@@ -3,11 +3,17 @@ import {
   cookingRecap,
   deliveryRoute,
   jakartaDay,
+  journeyCaption,
+  kitchenDayDone,
+  kitchenSession,
   menuShareText,
+  routeMapsUrl,
   routeShareText,
   sessionStart,
   whatsappUrl,
+  type DeliveryIssue,
   type SellerOperationsState,
+  type Stop,
 } from "@catera/domain";
 
 const DATE = "2026-10-07";
@@ -335,5 +341,220 @@ describe("earliestImportStart", () => {
     const { earliestImportStart } = await import("@catera/domain");
     expect(earliestImportStart(new Date("2026-10-07T09:59:00Z"))).toBe("2026-10-08");
     expect(earliestImportStart(new Date("2026-10-07T10:00:00Z"))).toBe("2026-10-09");
+  });
+});
+
+// A session is one meal across the day's active rows. Fixture builders for it live here.
+const TODAY_NOON = new Date("2026-10-07T05:00:00Z"); // 12.00 WIB on DATE
+type MealPatch = {
+  status?: string;
+  cooking_started_at?: string | null;
+  departed_at?: string | null;
+  confirmed_at?: string | null;
+  confirmed_by?: "customer" | "auto" | "caterer" | null;
+};
+type Row = ReturnType<typeof delivery>;
+function sessionRow(name: string, over: MealPatch = {}, meal = "lunch", portions = 2): Row {
+  const d = delivery(rumahan, name, portions, { meal });
+  d.meals = [{ meal, status: "scheduled", ...over }];
+  d.status = over.status ?? "scheduled";
+  return d;
+}
+function sessionState(rows: Row[], over: Record<string, unknown> = {}): SellerOperationsState {
+  return { ...canvasState(), deliveries: rows, operationalDate: DATE, today: DATE, ...over } as unknown as SellerOperationsState;
+}
+
+describe("kitchenSession", () => {
+  it("is null with no active rows", () => {
+    expect(kitchenSession(sessionState([]), "lunch", TODAY_NOON)).toBeNull();
+    const onlyOthers = sessionState([
+      sessionRow("Gagal", { status: "issue" }),
+      sessionRow("Batal", { status: "cancelled" }),
+      sessionRow("Malam", {}, "dinner"),
+    ]);
+    expect(kitchenSession(onlyOthers, "lunch", TODAY_NOON)).toBeNull();
+  });
+
+  it("takes the least advanced active row as its stage", () => {
+    const mixed = sessionState([
+      sessionRow("Sudah jalan", { status: "out_for_delivery", departed_at: "2026-10-07T03:00:00Z" }),
+      sessionRow("Belum mulai"),
+    ]);
+    const s = kitchenSession(mixed, "lunch", TODAY_NOON)!;
+    expect(s.journey.stage).toBe("scheduled");
+    expect(s.canCook).toBe(true);
+    expect(s.canDepart).toBe(false);
+    // The caption stays true to the mixed session: it did not start, and it did not leave as one.
+    expect(journeyCaption(s.journey, "id")).toBe("Terjadwal");
+    const preparing = sessionState([
+      sessionRow("Dimasak", { status: "preparing", cooking_started_at: "2026-10-07T01:00:00Z" }),
+      sessionRow("Sudah jalan", { status: "out_for_delivery" }),
+    ]);
+    expect(kitchenSession(preparing, "lunch", TODAY_NOON)!.journey.stage).toBe("preparing");
+    const allOut = sessionState([sessionRow("A", { status: "out_for_delivery" }), sessionRow("B", { status: "delivered" })]);
+    expect(kitchenSession(allOut, "lunch", TODAY_NOON)!.journey.stage).toBe("out_for_delivery");
+  });
+
+  it("offers cooking while any row is scheduled, and departure once none is and some row is preparing", () => {
+    const scheduled = sessionState([sessionRow("A"), sessionRow("B", { status: "preparing" })]);
+    expect(kitchenSession(scheduled, "lunch", TODAY_NOON)).toMatchObject({ canCook: true, canDepart: false });
+    const cooked = sessionState([sessionRow("A", { status: "preparing" }), sessionRow("B", { status: "out_for_delivery" })]);
+    expect(kitchenSession(cooked, "lunch", TODAY_NOON)).toMatchObject({ canCook: false, canDepart: true });
+    const gone = sessionState([sessionRow("A", { status: "out_for_delivery" })]);
+    expect(kitchenSession(gone, "lunch", TODAY_NOON)).toMatchObject({ canCook: false, canDepart: false });
+  });
+
+  it("offers neither on a day that is not today", () => {
+    const tomorrow = sessionState([sessionRow("A")], { operationalDate: "2026-10-08" });
+    expect(kitchenSession(tomorrow, "lunch", TODAY_NOON)).toMatchObject({ canCook: false, canDepart: false });
+    const preparingTomorrow = sessionState([sessionRow("A", { status: "preparing" })], { operationalDate: "2026-10-08" });
+    expect(kitchenSession(preparingTomorrow, "lunch", TODAY_NOON)!.canDepart).toBe(false);
+    const yesterday = sessionState([sessionRow("A")], { operationalDate: "2026-10-06" });
+    expect(kitchenSession(yesterday, "lunch", TODAY_NOON)!.canCook).toBe(false);
+  });
+
+  it("skips issue and cancelled rows", () => {
+    const s = kitchenSession(
+      sessionState([
+        sessionRow("Aktif", { status: "preparing" }, "lunch", 3),
+        sessionRow("Gagal", { status: "issue" }, "lunch", 5),
+        sessionRow("Batal", { status: "cancelled" }, "lunch", 7),
+      ]),
+      "lunch",
+      TODAY_NOON,
+    )!;
+    expect(s.journey.stage).toBe("preparing");
+    expect(s.portions).toBe(3);
+    expect(s.canCook).toBe(false);
+  });
+
+  it("counts portions and distinct addresses of active rows", () => {
+    const a = sessionRow("A", {}, "lunch", 2);
+    const b = sessionRow("B", {}, "lunch", 3);
+    const c = sessionRow("C", {}, "lunch", 4);
+    b.address = { ...b.address, line: a.address.line, area: a.address.area };
+    const s = kitchenSession(sessionState([a, b, c]), "lunch", TODAY_NOON)!;
+    expect(s.portions).toBe(9);
+    expect(s.addresses).toBe(2);
+    expect(s.stops).toHaveLength(3);
+    expect(s.recap.total).toBe(9);
+    expect(s.meal).toBe("lunch");
+  });
+
+  it("carries the earliest cooking and departure times", () => {
+    const s = kitchenSession(
+      sessionState([
+        sessionRow("A", { status: "out_for_delivery", cooking_started_at: "2026-10-07T02:00:00Z", departed_at: "2026-10-07T04:10:00Z" }),
+        sessionRow("B", { status: "out_for_delivery", cooking_started_at: "2026-10-07T01:30:00Z", departed_at: "2026-10-07T03:50:00Z" }),
+        sessionRow("C", { status: "out_for_delivery" }),
+      ]),
+      "lunch",
+      TODAY_NOON,
+    )!;
+    expect(s.journey).toMatchObject({
+      stage: "out_for_delivery",
+      cookingAt: "2026-10-07T01:30:00Z",
+      departedAt: "2026-10-07T03:50:00Z",
+    });
+  });
+
+  it("is arrived by the system only when every delivered row was closed by the system", () => {
+    const auto = (name: string) =>
+      sessionRow(name, { status: "delivered", confirmed_by: "auto", confirmed_at: "2026-10-07T06:00:00Z" });
+    const allAuto = kitchenSession(sessionState([auto("A"), auto("B")]), "lunch", TODAY_NOON)!;
+    expect(allAuto.journey).toMatchObject({ stage: "delivered", arrivedBy: "auto", arrivedAt: "2026-10-07T06:00:00Z" });
+    const mixed = kitchenSession(
+      sessionState([auto("A"), sessionRow("B", { status: "delivered", confirmed_by: "customer", confirmed_at: "2026-10-07T05:30:00Z" })]),
+      "lunch",
+      TODAY_NOON,
+    )!;
+    expect(mixed.journey.arrivedBy).toBe("customer");
+    expect(mixed.journey.arrivedAt).toBe("2026-10-07T06:00:00Z");
+  });
+});
+
+describe("kitchenDayDone", () => {
+  const delivered = (name: string, meal = "lunch") =>
+    sessionRow(name, { status: "delivered", confirmed_by: "auto" }, meal);
+  const issue = (status: string, date = DATE) =>
+    ({ id: "i1", day_id: "d-1", meal: "lunch", status, service_date: date }) as unknown as DeliveryIssue;
+
+  it("is true when every active row of the day is delivered", () => {
+    expect(kitchenDayDone(sessionState([delivered("A"), delivered("B", "dinner")]), [], TODAY_NOON)).toBe(true);
+  });
+  it("is false on a day that is not today", () => {
+    expect(kitchenDayDone(sessionState([delivered("A")], { operationalDate: "2026-10-06" }), [], TODAY_NOON)).toBe(false);
+  });
+  it("is false with no active rows", () => {
+    expect(kitchenDayDone(sessionState([]), [], TODAY_NOON)).toBe(false);
+    expect(kitchenDayDone(sessionState([sessionRow("Batal", { status: "cancelled" })]), [], TODAY_NOON)).toBe(false);
+  });
+  it("is false while any row is not delivered", () => {
+    expect(kitchenDayDone(sessionState([delivered("A"), sessionRow("B", { status: "out_for_delivery" })]), [], TODAY_NOON)).toBe(false);
+    expect(kitchenDayDone(sessionState([delivered("A"), sessionRow("B", {}, "dinner")]), [], TODAY_NOON)).toBe(false);
+    expect(kitchenDayDone(sessionState([delivered("A"), sessionRow("B", { status: "issue" })]), [], TODAY_NOON)).toBe(false);
+  });
+  it("is false with an unresolved issue for that date, true once it is resolved or belongs to another day", () => {
+    const rows = sessionState([delivered("A")]);
+    expect(kitchenDayDone(rows, [issue("open")], TODAY_NOON)).toBe(false);
+    expect(kitchenDayDone(rows, [issue("responded")], TODAY_NOON)).toBe(false);
+    expect(kitchenDayDone(rows, [issue("escalated")], TODAY_NOON)).toBe(false);
+    expect(kitchenDayDone(rows, [issue("resolved")], TODAY_NOON)).toBe(true);
+    expect(kitchenDayDone(rows, [issue("open", "2026-10-06")], TODAY_NOON)).toBe(true);
+  });
+});
+
+describe("routeMapsUrl", () => {
+  const stop = (n: number): Stop => ({
+    n,
+    deliveryId: `d-${n}`,
+    version: 1,
+    name: `Pelanggan ${n}`,
+    addressLine: `Jl. Contoh ${n}`,
+    area: "Tebet",
+    note: "",
+    portions: 1,
+    packageName: "Paket",
+    mapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`Jl. Contoh ${n}, Tebet, Jakarta Selatan`)}`,
+  });
+  const params = (url: string) => new URL(url).searchParams;
+
+  it("is null for no stops", () => {
+    expect(routeMapsUrl([])).toBeNull();
+  });
+  it("sends the last stop as the destination and the others as waypoints", () => {
+    const r = routeMapsUrl([stop(1), stop(2), stop(3)])!;
+    expect(r.count).toBe(3);
+    expect(r.url.startsWith("https://www.google.com/maps/dir/?api=1")).toBe(true);
+    expect(params(r.url).get("destination")).toBe("Jl. Contoh 3, Tebet, Jakarta Selatan");
+    expect(params(r.url).get("waypoints")).toBe("Jl. Contoh 1, Tebet, Jakarta Selatan|Jl. Contoh 2, Tebet, Jakarta Selatan");
+  });
+  it("has no waypoints for a single stop", () => {
+    const r = routeMapsUrl([stop(1)])!;
+    expect(r.count).toBe(1);
+    expect(params(r.url).get("destination")).toBe("Jl. Contoh 1, Tebet, Jakarta Selatan");
+    expect(params(r.url).get("waypoints")).toBeNull();
+  });
+  it("opens at most the first 10 stops", () => {
+    const r = routeMapsUrl(Array.from({ length: 12 }, (_, i) => stop(i + 1)))!;
+    expect(r.count).toBe(10);
+    expect(params(r.url).get("destination")).toBe("Jl. Contoh 10, Tebet, Jakarta Selatan");
+    expect(params(r.url).get("waypoints")!.split("|")).toHaveLength(9);
+  });
+  it("builds the address from the stop when its link carries none", () => {
+    const r = routeMapsUrl([{ ...stop(1), mapsUrl: "" }, { ...stop(2), mapsUrl: "" }])!;
+    expect(params(r.url).get("destination")).toBe("Jl. Contoh 2, Tebet");
+  });
+});
+
+describe("cookingRecap dish photos", () => {
+  it("carries the dish photo, or an empty string", () => {
+    const state = canvasState();
+    const dated = (state as unknown as { datedMenus: { details: { items: { image?: string }[] } }[] }).datedMenus;
+    dated[0].details.items[1].image = "https://img/ayam.jpg";
+    const byName = Object.fromEntries(cookingRecap(state, "lunch").byDish.map((d) => [d.name, d.image]));
+    expect(byName["Ayam bakar madu"]).toBe("https://img/ayam.jpg");
+    expect(byName["Nasi putih"]).toBe("");
+    expect(byName["Telur balado"]).toBe("");
   });
 });

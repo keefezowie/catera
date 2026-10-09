@@ -1,6 +1,7 @@
 import { parsedWindowStart } from "./windows";
-import type { Locale } from "./index";
-import type { SellerDelivery, SellerOperationsState } from "./seller-operations";
+import type { DeliveryIssue, DeliveryMeal, Locale } from "./index";
+import { mealJourney, type Journey, type JourneyStage } from "./journey";
+import { destinationKey, type SellerDelivery, type SellerOperationsState } from "./seller-operations";
 
 /** Kitchen views shared by the caterer app and the web caterer workspace. */
 export type KitchenMeal = "lunch" | "dinner";
@@ -8,7 +9,8 @@ export type KitchenMeal = "lunch" | "dinner";
 export type CookingRecap = {
   total: number;
   byPackage: { packageId: string; name: string; portions: number }[];
-  byDish: { name: string; category: string; count: number }[];
+  /** `image` is the dish photo the caterer attached, or "" when there is none. */
+  byDish: { name: string; category: string; count: number; image: string }[];
   /** Menu slots nobody has filled yet, per package and category. They are not dishes: do not list them as such. */
   unfilled: { packageId: string; packageName: string; group: string; slots: number; portions: number }[];
 };
@@ -81,11 +83,12 @@ export function cookingRecap(state: SellerOperationsState, meal: KitchenMeal): C
     packages.set(d.offer.id, entry);
   }
 
-  const dishes = new Map<string, { name: string; category: string; count: number }>();
-  const add = (name: string, category: string, count: number) => {
+  const dishes = new Map<string, CookingRecap["byDish"][number]>();
+  const add = (name: string, category: string, count: number, image: string) => {
     const key = `${category}\u0000${name}`;
-    const entry = dishes.get(key) ?? { name, category, count: 0 };
+    const entry = dishes.get(key) ?? { name, category, count: 0, image: "" };
     entry.count += count;
+    entry.image ||= image;
     dishes.set(key, entry);
   };
   const unfilled: CookingRecap["unfilled"] = [];
@@ -99,7 +102,7 @@ export function cookingRecap(state: SellerOperationsState, meal: KitchenMeal): C
     const groupName = (groupId?: string) =>
       composition.find((g) => g.id === groupId)?.name ?? "";
     const items = dated?.details.items ?? [];
-    for (const item of items) add(item.name, groupName(item.groupId), pkg.portions);
+    for (const item of items) add(item.name, groupName(item.groupId), pkg.portions, item.image ?? "");
     for (const group of composition) {
       const missing = group.slots - items.filter((i) => i.groupId === group.id).length;
       if (missing > 0)
@@ -161,6 +164,114 @@ export function deliveryRoute(state: SellerOperationsState, meal: KitchenMeal): 
       packageName: d.offer.name,
       mapsUrl: mapsUrl(d.address.line, d.address.area, d.address.city),
     }));
+}
+
+/** The most stops one Google Maps directions link takes: ten, the last being the destination. */
+const MAPS_STOP_LIMIT = 10;
+const KITCHEN_MEALS: KitchenMeal[] = ["lunch", "dinner"];
+const STAGES: JourneyStage[] = ["scheduled", "preparing", "out_for_delivery", "delivered"];
+
+/** The directions link for the first ten stops, in route order; null for none. `count` is how many it opens. */
+export function routeMapsUrl(stops: Stop[]): { url: string; count: number } | null {
+  const used = stops.slice(0, MAPS_STOP_LIMIT);
+  if (!used.length) return null;
+  // Each address is the one the stop's own search link carries (line, area, city); without it, line and area.
+  const queries = used.map(
+    (stop) =>
+      /[?&]query=([^&]*)/.exec(stop.mapsUrl)?.[1] ||
+      encodeURIComponent([stop.addressLine, stop.area].filter(Boolean).join(", ")),
+  );
+  const waypoints = queries.slice(0, -1);
+  const url =
+    `https://www.google.com/maps/dir/?api=1&destination=${queries[queries.length - 1]}` +
+    (waypoints.length ? `&waypoints=${waypoints.join("%7C")}` : "");
+  return { url, count: used.length };
+}
+
+export type KitchenSession = {
+  meal: KitchenMeal;
+  /** The session's stage is its least advanced active row; times are the earliest of those rows. */
+  journey: Journey;
+  portions: number;
+  addresses: number;
+  /** "Mulai masak": today only, while any active row is still scheduled. */
+  canCook: boolean;
+  /** "Berangkat antar": today only, once no active row is scheduled and some row is preparing. */
+  canDepart: boolean;
+  recap: CookingRecap;
+  stops: Stop[];
+};
+
+const mealOf = (d: SellerDelivery, meal: KitchenMeal): DeliveryMeal | undefined =>
+  d.meals.find((m) => m.meal === meal);
+
+/** The earliest (or latest) readable timestamp, or null when none is. */
+function pickTime(values: (string | null)[], order: "earliest" | "latest"): string | null {
+  let best: string | null = null;
+  let bestAt = 0;
+  for (const value of values) {
+    const at = value ? Date.parse(value) : Number.NaN;
+    if (Number.isNaN(at)) continue;
+    if (best === null || (order === "earliest" ? at < bestAt : at > bestAt)) {
+      best = value;
+      bestAt = at;
+    }
+  }
+  return best;
+}
+
+/**
+ * One meal of the day as the kitchen runs it. Rows marked "Gagal diantar" or cancelled are left
+ * out; null when no active row remains.
+ */
+export function kitchenSession(state: SellerOperationsState, meal: KitchenMeal, now: Date): KitchenSession | null {
+  const rows = state.deliveries
+    .filter((d) => servesMeal(d, meal) && mealOf(d, meal)?.status !== "issue")
+    .map((d) => ({ d, journey: mealJourney(mealOf(d, meal)!) }));
+  if (!rows.length) return null;
+  const journeys = rows.map((r) => r.journey);
+  const stage = journeys.reduce<JourneyStage>(
+    (least, j) => (STAGES.indexOf(j.stage) < STAGES.indexOf(least) ? j.stage : least),
+    "delivered",
+  );
+  const arrivedBy = journeys.map((j) => j.arrivedBy);
+  const today = state.operationalDate === jakartaDay(now);
+  const scheduled = journeys.some((j) => j.stage === "scheduled");
+  return {
+    meal,
+    journey: {
+      stage,
+      cookingAt: pickTime(journeys.map((j) => j.cookingAt), "earliest"),
+      departedAt: pickTime(journeys.map((j) => j.departedAt), "earliest"),
+      arrivedAt: stage === "delivered" ? pickTime(journeys.map((j) => j.arrivedAt), "latest") : null,
+      arrivedBy:
+        stage !== "delivered"
+          ? null
+          : arrivedBy.every((by) => by === "auto")
+            ? "auto"
+            : (arrivedBy.find((by) => by && by !== "auto") ?? null),
+      issue: false,
+    },
+    portions: rows.reduce((sum, r) => sum + r.d.portions, 0),
+    addresses: new Set(rows.map((r) => destinationKey(r.d.address))).size,
+    canCook: today && scheduled,
+    canDepart: today && !scheduled && journeys.some((j) => j.stage === "preparing"),
+    recap: cookingRecap(state, meal),
+    stops: deliveryRoute(state, meal),
+  };
+}
+
+/**
+ * Whether the day is finished: it is today, it has active rows, every one is delivered, and no
+ * report for that date is still open. A day shown for another date is never done.
+ */
+export function kitchenDayDone(state: SellerOperationsState, issues: DeliveryIssue[], now: Date): boolean {
+  if (state.operationalDate !== jakartaDay(now)) return false;
+  const statuses = KITCHEN_MEALS.flatMap((meal) =>
+    state.deliveries.filter((d) => servesMeal(d, meal)).map((d) => mealOf(d, meal)!.status),
+  );
+  if (!statuses.length || statuses.some((status) => status !== "delivered")) return false;
+  return !issues.some((i) => i.service_date === state.operationalDate && i.status !== "resolved");
 }
 
 function routeHeader(
