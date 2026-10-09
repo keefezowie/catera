@@ -103,13 +103,13 @@ function DishRow({
       {dish.image ? (
         <View
           testID={`menu-dish-photo-${dish.id}`}
-          style={{ width: SLOT, height: SLOT, borderRadius: 12, borderCurve: "continuous", overflow: "hidden", backgroundColor: c.sage }}
+          style={{ width: SLOT, height: SLOT, borderRadius: 12, borderCurve: "continuous", backgroundColor: c.sage }}
         >
           <Image
             accessibilityIgnoresInvertColors
             source={{ uri: photoUri(dish.image, runtime.apiBase) }}
             resizeMode="cover"
-            style={{ width: SLOT, height: SLOT }}
+            style={{ width: SLOT, height: SLOT, borderRadius: 12 }}
           />
         </View>
       ) : uploading ? (

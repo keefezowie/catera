@@ -2,7 +2,7 @@ import { Redirect, Tabs } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMobile } from "@catera/mobile-core";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { fonts, useColors } from "@catera/mobile-ui";
+import { TabBarLabel, useColors } from "@catera/mobile-ui";
 import { tabsForRole, type CatererTab } from "../../src/roles";
 import { RoleGate } from "../../src/RoleGate";
 
@@ -44,7 +44,7 @@ export default function TabsLayout() {
             paddingBottom: insets.bottom,
           },
           tabBarItemStyle: { minHeight: 48 },
-          tabBarLabelStyle: { fontSize: 12, fontFamily: fonts.bold },
+          tabBarLabel: ({ color, children }) => <TabBarLabel color={color}>{children}</TabBarLabel>,
         }}
       >
         {(Object.keys(icons) as CatererTab[]).map((name) => (

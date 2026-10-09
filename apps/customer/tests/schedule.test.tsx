@@ -367,6 +367,15 @@ describe("Jadwal", () => {
     expect(within(row).getByText(/Makan siang · 11.00–13.00/).props.numberOfLines).toBeUndefined();
   });
 
+  it("a meal row's dish name wraps instead of truncating at 360dp and font scale 1.3", async () => {
+    renderWith(runtimeWith(month), <Jadwal />);
+    await gridReady();
+    fireEvent.press(dayButton("Kamis 8 Oktober"));
+    const row = screen.getByRole("button", { name: /Makan Siang Rumahan/ });
+    // The name was cut to "Ayam Sambal Ruma..." by a one-line cap; headlines wrap and never truncate.
+    expect(within(row).getByText("Makan Siang Rumahan").props.numberOfLines).toBeUndefined();
+  });
+
   it("legend names the photo, the unset menu and the dinner badge", async () => {
     renderWith(runtimeWith(month), <Jadwal />);
     await gridReady();

@@ -1,3 +1,4 @@
+import { File } from "expo-file-system";
 import type { MobileRuntime } from "@catera/mobile-core";
 
 type Picked = { uri: string; mimeType?: string | null; fileSize?: number | null };
@@ -14,8 +15,10 @@ export async function uploadPhoto(runtime: MobileRuntime, photo: Picked, demo: b
   };
   let url: string | undefined;
   if (demo) {
+    // Expo's fetch only encodes Blob-like parts that can read their bytes; React Native's `{ uri, name, type }` part throws
+    // "Unsupported FormDataPart implementation", so the picked file is sent as an expo-file-system File.
     const form = new FormData();
-    form.append("file", { uri: photo.uri, name: `foto.${type.split("/")[1]}`, type } as unknown as Blob);
+    form.append("file", new File(photo.uri) as unknown as Blob);
     url = (await read(await fetch(`${runtime.apiBase}/api/uploads`, { method: "POST", headers: auth, body: form }))).url;
   } else {
     const bytes = await (await fetch(photo.uri)).blob();

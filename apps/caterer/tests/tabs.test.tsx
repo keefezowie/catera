@@ -3,15 +3,22 @@ import { createMobileRuntime, MobileProvider } from "@catera/mobile-core";
 
 type TabIcon = (p: { focused: boolean; color: string; size: number }) => { props: { name: string } };
 const mockTabScreens: { name: string; options?: { tabBarIcon?: TabIcon } }[] = [];
+const mockTabBar: { label?: (p: { color: string; children: string }) => import("react").ReactElement } = {};
 jest.mock("expo-router", () => ({
   router: { push: jest.fn(), replace: jest.fn() },
   Redirect: () => null,
-  Tabs: Object.assign(({ children }: { children: unknown }) => children, {
-    Screen: (props: (typeof mockTabScreens)[number]) => {
-      mockTabScreens.push(props);
-      return null;
+  Tabs: Object.assign(
+    ({ children, screenOptions }: { children: unknown; screenOptions?: Record<string, any> }) => {
+      mockTabBar.label = screenOptions?.tabBarLabel;
+      return children;
     },
-  }),
+    {
+      Screen: (props: (typeof mockTabScreens)[number]) => {
+        mockTabScreens.push(props);
+        return null;
+      },
+    },
+  ),
 }));
 jest.mock("@expo/vector-icons/Ionicons", () => ({ __esModule: true, default: () => null }));
 jest.mock("expo-notifications", () => ({
@@ -43,4 +50,22 @@ it("Dapur tab icons are outline until focused", async () => {
     expect(icon(true)).not.toMatch(/-outline$/);
     expect(icon(false)).toBe(`${icon(true)}-outline`);
   }
+});
+
+it("Dapur tab labels stop growing at 1.15 times the system font size, so Pelanggan stays whole at font scale 1.3", async () => {
+  const runtime = createMobileRuntime({ apiUrl: "https://api.example.test", storagePrefix: "tabs-label" });
+  runtime.api = {
+    ...runtime.api,
+    me: jest.fn(async () => ({ actor: { id: "u-1", role: "owner", name: "Bu Rina", catererId: "k-1" }, demo: false })),
+  } as unknown as typeof runtime.api;
+  mockTabBar.label = undefined;
+  render(
+    <MobileProvider runtime={runtime} linkMapper={(h) => h}>
+      <TabsLayout />
+    </MobileProvider>,
+  );
+  await waitFor(() => expect(mockTabBar.label).toBeDefined());
+  const { getByText } = render(mockTabBar.label!({ color: "#123456", children: "Pelanggan" }));
+  expect(getByText("Pelanggan").props.maxFontSizeMultiplier).toBe(1.15);
+  expect(getByText("Pelanggan").props.numberOfLines).toBe(1);
 });

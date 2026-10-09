@@ -85,7 +85,12 @@ jest.mock("expo-constants", () => ({
   default: { expoConfig: { extra: { eas: { projectId: "synthetic-project" } } } },
 }));
 const mockTabScreens: { name: string; options?: { tabBarIcon?: (p: { focused: boolean; color: string; size: number }) => { props: { name: string } } } }[] = [];
-const mockTabBar: { style?: Record<string, unknown>; itemStyle?: Record<string, unknown>; tint?: { active: unknown; inactive: unknown } } = {};
+const mockTabBar: {
+  style?: Record<string, unknown>;
+  itemStyle?: Record<string, unknown>;
+  tint?: { active: unknown; inactive: unknown };
+  label?: (p: { color: string; children: string }) => import("react").ReactElement;
+} = {};
 const mockStatusBar: { style?: string } = {};
 // When set, the stack also draws the Siang / Malam toggle, the way a screen with a mood header does.
 let mockShowToggle = false;
@@ -123,6 +128,7 @@ jest.mock("expo-router", () => ({
     ({ children, screenOptions }: { children: unknown; screenOptions?: Record<string, any> }) => {
       mockTabBar.style = screenOptions?.tabBarStyle;
       mockTabBar.itemStyle = screenOptions?.tabBarItemStyle;
+      mockTabBar.label = screenOptions?.tabBarLabel;
       mockTabBar.tint = { active: screenOptions?.tabBarActiveTintColor, inactive: screenOptions?.tabBarInactiveTintColor };
       return children;
     },
@@ -354,6 +360,19 @@ describe("runtime.signInPassword", () => {
     );
     expect(mockClient.auth.signOut).toHaveBeenCalledWith({ scope: "local" });
   });
+});
+
+it("tab labels stop growing at 1.15 times the system font size, so they stay on one line at font scale 1.3", () => {
+  const TabsLayout = (require("../app/(tabs)/_layout") as typeof import("../app/(tabs)/_layout")).default;
+  mockTabBar.label = undefined;
+  render(
+    <AppProviders runtime={runtime}>
+      <TabsLayout />
+    </AppProviders>,
+  );
+  const { getByText } = render(mockTabBar.label!({ color: "#123456", children: "Jelajah" }));
+  expect(getByText("Jelajah").props.maxFontSizeMultiplier).toBe(1.15);
+  expect(getByText("Jelajah").props.numberOfLines).toBe(1);
 });
 
 it("tab icons are outline until focused", () => {

@@ -803,6 +803,10 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       // The dishes that have a photo show it and offer nothing.
       expect(screen.queryByTestId("menu-photo-tile-i-nasi", { includeHiddenElements: true })).toBeNull();
       expect(within(screen.getByTestId("menu-dish-photo-i-nasi")).UNSAFE_getByType(Image).props.source).toEqual({ uri: "https://cdn.test/nasi.jpg" });
+      // The corners are rounded by the Image itself, not clipped by its parent: on Android a photo that finishes loading
+      // inside an `overflow: hidden` rounded view stayed blank until the screen was reopened.
+      expect(flatOf("menu-dish-photo-i-nasi").overflow).toBeUndefined();
+      expect(StyleSheet.flatten(within(screen.getByTestId("menu-dish-photo-i-nasi")).UNSAFE_getByType(Image).props.style)).toMatchObject({ borderRadius: 12 });
       expect(screen.getAllByText("Tambah foto")).toHaveLength(2);
     });
 

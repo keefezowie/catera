@@ -213,9 +213,7 @@ function MealRow({
         <View style={styles.photo} />
       )}
       <View style={{ flex: 1, gap: 2 }}>
-        <Text style={{ fontFamily: fontFor("700") }} numberOfLines={1}>
-          {d.offer.name}
-        </Text>
+        <Text style={{ fontFamily: fontFor("700") }}>{d.offer.name}</Text>
         <Text variant="caption" style={{ fontVariant: ["tabular-nums"] }}>
           {sub}
         </Text>
