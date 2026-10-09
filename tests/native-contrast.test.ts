@@ -17,9 +17,13 @@ describe("native themes", () => {
       charcoal: "#F5F1E8", surface: "#232321", canvas: "#151514", sage: "#2A2D27", scheduled: "#26302A",
       muted: "#B5B2AA", line: "#34332F", fieldBorder: "#7A7872", secondaryBorder: "#4A4944",
       attentionBorder: "#4C3322", danger: "#FF8F80", controlRing: "#8A8780", tabBar: "#1E1E1C",
-      disabledFill: "#34332F",
+      disabledFill: "#34332F", tabIndicator: "#163D2E",
     });
-    expect(nativeThemes.light).toMatchObject({ controlRing: "#858D80", tabBar: "#FFFEFA", disabledFill: "#CFD3C6" });
+    expect(nativeThemes.light).toMatchObject({
+      controlRing: "#858D80", tabBar: "#FFFEFA", disabledFill: "#CFD3C6", tabIndicator: "#CFE3CC",
+    });
+    // The dark pill is the brand green the dark theme already uses for the inverted cream role.
+    expect(nativeThemes.dark.tabIndicator).toBe(nativeThemes.dark.cream);
     // Light keeps the grey it always drew behind a disabled primary button, so no light pixel changes.
     expect(nativeThemes.light.disabledFill).toBe(colors.fieldBorder);
   });
@@ -39,6 +43,11 @@ describe("native themes", () => {
     });
     it(`${theme}: controlRing reaches 3:1 on surface`, () => {
       expect(contrastRatio(p.controlRing, p.surface)).toBeGreaterThanOrEqual(3);
+    });
+    // Android draws the selected tab icon (forest) on the indicator pill; the other icons are muted on the bar.
+    it(`${theme}: the selected tab icon reaches 3:1 on the tab indicator, the others 3:1 on the bar`, () => {
+      expect(contrastRatio(p.forest, p.tabIndicator)).toBeGreaterThanOrEqual(3);
+      expect(contrastRatio(p.muted, p.tabBar)).toBeGreaterThanOrEqual(3);
     });
   }
   it("contrastRatio matches known WCAG values", () => {

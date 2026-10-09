@@ -1,27 +1,41 @@
-import { render, waitFor } from "@testing-library/react-native";
+import { act, render, waitFor } from "@testing-library/react-native";
 import { createMobileRuntime, MobileProvider } from "@catera/mobile-core";
-import { spokenTabLabel } from "@catera/mobile-ui";
+import { nativeThemes } from "@catera/design-tokens";
+import { tabBarColors } from "@catera/mobile-ui";
 import { tabsForRole } from "../src/roles";
 
-type TabIcon = (p: { focused: boolean; color: string; size: number }) => { props: { name: string } };
-const mockTabScreens: { name: string; options?: { tabBarIcon?: TabIcon; tabBarAccessibilityLabel?: string } }[] = [];
-const mockTabBar: { label?: (p: { color: string; children: string }) => import("react").ReactElement } = {};
+/** What the layout hands the native tab bar: the bar's own props and each trigger's props (name, hidden, children). */
+type MockTrigger = { name: string; hidden?: boolean; children?: import("react").ReactNode };
+const mockNativeTabs: { props?: Record<string, any>; triggers: MockTrigger[] } = { triggers: [] };
+const mockRedirects: string[] = [];
 jest.mock("expo-router", () => ({
   router: { push: jest.fn(), replace: jest.fn() },
-  Redirect: () => null,
-  Tabs: Object.assign(
-    ({ children, screenOptions }: { children: unknown; screenOptions?: Record<string, any> }) => {
-      mockTabBar.label = screenOptions?.tabBarLabel;
-      return children;
-    },
-    {
-      Screen: (props: (typeof mockTabScreens)[number]) => {
-        mockTabScreens.push(props);
-        return null;
-      },
-    },
-  ),
+  Redirect: ({ href }: { href: string }) => {
+    mockRedirects.push(href);
+    return null;
+  },
 }));
+// The native bar cannot render under Jest, so a stand-in records its props and its triggers instead.
+jest.mock("expo-router/unstable-native-tabs", () => {
+  const React = require("react");
+  const Trigger = Object.assign(() => null, {
+    Icon: () => null,
+    Label: () => null,
+    Badge: () => null,
+    VectorIcon: () => null,
+  });
+  const NativeTabs = Object.assign(
+    ({ children, ...props }: { children?: unknown }) => {
+      mockNativeTabs.props = props;
+      mockNativeTabs.triggers = React.Children.toArray(children)
+        .filter((c: { type?: unknown }) => c.type === Trigger)
+        .map((c: { props: MockTrigger }) => c.props);
+      return null;
+    },
+    { Trigger },
+  );
+  return { NativeTabs };
+});
 jest.mock("@expo/vector-icons/Ionicons", () => ({ __esModule: true, default: () => null }));
 jest.mock("expo-notifications", () => ({
   setNotificationHandler: jest.fn(),
@@ -33,73 +47,96 @@ jest.mock("expo-notifications", () => ({
 
 import TabsLayout from "../app/(tabs)/_layout";
 
-it("Dapur tab icons are outline until focused", async () => {
-  const runtime = createMobileRuntime({ apiUrl: "https://api.example.test", storagePrefix: "tabs" });
-  runtime.api = {
-    ...runtime.api,
-    me: jest.fn(async () => ({ actor: { id: "u-1", role: "owner", name: "Bu Rina", catererId: "k-1" }, demo: false })),
-  } as unknown as typeof runtime.api;
-  render(
-    <MobileProvider runtime={runtime} linkMapper={(h) => h}>
-      <TabsLayout />
-    </MobileProvider>,
-  );
-  await waitFor(() => expect(mockTabScreens.length).toBeGreaterThan(0));
-  const tabs = mockTabScreens.filter((s) => s.options?.tabBarIcon);
-  expect(tabs.map((s) => s.name)).toEqual(["index", "pelanggan", "menu", "usaha"]);
-  for (const { options } of tabs) {
-    const icon = (focused: boolean) => options!.tabBarIcon!({ focused, color: "#000", size: 24 }).props.name;
-    expect(icon(true)).not.toMatch(/-outline$/);
-    expect(icon(false)).toBe(`${icon(true)}-outline`);
-  }
-});
-
-it("Dapur tab labels stop growing at 1.15 times the system font size, so Pelanggan stays whole at font scale 1.3", async () => {
-  const runtime = createMobileRuntime({ apiUrl: "https://api.example.test", storagePrefix: "tabs-label" });
-  runtime.api = {
-    ...runtime.api,
-    me: jest.fn(async () => ({ actor: { id: "u-1", role: "owner", name: "Bu Rina", catererId: "k-1" }, demo: false })),
-  } as unknown as typeof runtime.api;
-  mockTabBar.label = undefined;
-  render(
-    <MobileProvider runtime={runtime} linkMapper={(h) => h}>
-      <TabsLayout />
-    </MobileProvider>,
-  );
-  await waitFor(() => expect(mockTabBar.label).toBeDefined());
-  const { getByText } = render(mockTabBar.label!({ color: "#123456", children: "Pelanggan" }));
-  expect(getByText("Pelanggan").props.maxFontSizeMultiplier).toBe(1.15);
-  expect(getByText("Pelanggan").props.numberOfLines).toBe(1);
-});
-
-it("the spoken tab label is iOS only and counts the tabs a role really has", async () => {
-  // iOS: the custom label replaces the bar's own "title, tab, n of m", so each tab builds it. Android already announces
-  // the tab role (TalkBack would say "tab" twice), so the layout sets none there; jest runs as Android.
-  const t = (id: string) => id;
-  const label = (roleTabs: string[], titles: Record<string, string>) =>
-    Object.fromEntries(roleTabs.map((name, i) => [name, spokenTabLabel(titles[name], i + 1, roleTabs.length, t, "ios")]));
-  const titles = { index: "Hari ini", pelanggan: "Pelanggan", menu: "Menu", usaha: "Usaha" };
-  expect(label(tabsForRole("owner"), titles)).toEqual({
-    index: "Hari ini, tab, 1 dari 4",
-    pelanggan: "Pelanggan, tab, 2 dari 4",
-    menu: "Menu, tab, 3 dari 4",
-    usaha: "Usaha, tab, 4 dari 4",
+/** A trigger as the native bar reads it: its label text, and the vector glyph it draws unselected and selected. */
+function readTrigger({ name, hidden, children }: MockTrigger) {
+  const { NativeTabs } = require("expo-router/unstable-native-tabs");
+  const parts = require("react").Children.toArray(children) as import("react").ReactElement<any>[];
+  const icon = parts.find((p) => p.type === NativeTabs.Trigger.Icon);
+  const label = parts.find((p) => p.type === NativeTabs.Trigger.Label);
+  const glyph = (el: import("react").ReactElement<any>) => ({
+    vector: el.type === NativeTabs.Trigger.VectorIcon,
+    family: el.props.family,
+    name: el.props.name,
   });
-  expect(label(tabsForRole("staff"), titles)).toEqual({ index: "Hari ini, tab, 1 dari 2", menu: "Menu, tab, 2 dari 2" });
-  expect(spokenTabLabel("Menu", 3, 4, t, "android")).toBeUndefined();
+  return {
+    name,
+    hidden: !!hidden,
+    label: label?.props.children as string | undefined,
+    icon: icon ? { default: glyph(icon.props.src.default), selected: glyph(icon.props.src.selected) } : undefined,
+  };
+}
 
-  const runtime = createMobileRuntime({ apiUrl: "https://api.example.test", storagePrefix: "tabs-spoken" });
+function renderAs(role: string | null, prefix: string) {
+  const runtime = createMobileRuntime({ apiUrl: "https://api.example.test", storagePrefix: prefix });
   runtime.api = {
     ...runtime.api,
-    me: jest.fn(async () => ({ actor: { id: "u-1", role: "owner", name: "Bu Rina", catererId: "k-1" }, demo: false })),
+    me: jest.fn(async () => ({
+      actor: role ? { id: "u-1", role, name: "Bu Rina", catererId: "k-1" } : null,
+      demo: false,
+    })),
   } as unknown as typeof runtime.api;
-  mockTabScreens.length = 0;
-  render(
+  mockNativeTabs.props = undefined;
+  mockNativeTabs.triggers = [];
+  mockRedirects.length = 0;
+  return render(
     <MobileProvider runtime={runtime} linkMapper={(h) => h}>
       <TabsLayout />
     </MobileProvider>,
   );
-  await waitFor(() => expect(mockTabScreens.length).toBeGreaterThan(0));
-  expect(mockTabScreens.map((s) => s.options?.tabBarAccessibilityLabel)).toEqual([undefined, undefined, undefined, undefined]);
+}
+
+it("the Dapur owner's tab bar is the native one with Ionicons, filled when selected", async () => {
+  renderAs("owner", "tabs-owner");
+  await waitFor(() => expect(mockNativeTabs.triggers.length).toBeGreaterThan(0));
+  const Ionicons = require("@expo/vector-icons/Ionicons").default;
+  const tabs = mockNativeTabs.triggers.map(readTrigger);
+  expect(tabs.map((tab) => [tab.name, tab.hidden])).toEqual([
+    ["index", false],
+    ["pelanggan", false],
+    ["menu", false],
+    ["usaha", false],
+  ]);
+  expect(tabs.map((tab) => tab.label)).toEqual(["Hari ini", "Pelanggan", "Menu", "Usaha"]);
+  const glyphs: Record<string, string> = { index: "home", pelanggan: "people", menu: "book", usaha: "storefront" };
+  for (const tab of tabs) {
+    expect(tab.icon).toEqual({
+      default: { vector: true, family: Ionicons, name: `${glyphs[tab.name]}-outline` },
+      selected: { vector: true, family: Ionicons, name: glyphs[tab.name] },
+    });
+  }
+  expect(mockNativeTabs.props).toMatchObject({ labelVisibilityMode: "labeled", minimizeBehavior: "onScrollDown" });
+  // Colours come from the theme (light here, with no theme provider), never the mood.
+  const bar = tabBarColors(nativeThemes.light);
+  expect(mockNativeTabs.props).toMatchObject({
+    backgroundColor: bar.backgroundColor,
+    indicatorColor: bar.indicatorColor,
+    rippleColor: bar.rippleColor,
+    tintColor: bar.tintColor,
+    iconColor: bar.iconColor,
+  });
+  expect(mockNativeTabs.props!.labelStyle).toEqual({
+    default: { fontFamily: "Jakarta-SemiBold", fontSize: 12, color: bar.labelColor.default },
+    selected: { fontFamily: "Jakarta-SemiBold", fontSize: 12, color: bar.labelColor.selected },
+  });
 });
 
+it("staff see only their tabs", async () => {
+  renderAs("staff", "tabs-staff");
+  await waitFor(() => expect(mockNativeTabs.triggers.length).toBeGreaterThan(0));
+  const tabs = mockNativeTabs.triggers.map(readTrigger);
+  // Every route stays declared, so the navigator keeps one shape; the ones staff may not open are hidden triggers.
+  expect(tabs.map((tab) => tab.name)).toEqual(["index", "pelanggan", "menu", "usaha"]);
+  const allowed = tabsForRole("staff");
+  expect(allowed).toEqual(["index", "menu"]);
+  expect(tabs.filter((tab) => !tab.hidden).map((tab) => tab.name)).toEqual(allowed);
+  expect(tabs.filter((tab) => tab.hidden).map((tab) => tab.name)).toEqual(["pelanggan", "usaha"]);
+  expect(tabs.filter((tab) => !tab.hidden).map((tab) => tab.label)).toEqual(["Hari ini", "Menu"]);
+});
+
+it("signed out, Dapur goes to /masuk and draws no tab bar", async () => {
+  renderAs(null, "tabs-signed-out");
+  await waitFor(() => expect(mockRedirects).toContain("/masuk"));
+  // Let the session read settle: it still finds no one, so the bar never mounts.
+  await act(async () => {});
+  expect(mockNativeTabs.props).toBeUndefined();
+});

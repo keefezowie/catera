@@ -5,7 +5,7 @@ export * from "./AppHeader";
 export * from "./DemoStrip";
 export * from "./TopInset";
 export * from "./PressableRow";
-export * from "./TabBarLabel";
+export * from "./tabBar";
 export * from "./theme";
 export * from "./mood";
 export * from "./MoodHeader";

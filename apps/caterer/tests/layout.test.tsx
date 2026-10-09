@@ -12,7 +12,20 @@ const mockStatusBar: { style?: string } = {};
 // When set, the stack also draws the Siang / Malam toggle, the way a screen with a mood header does.
 let mockShowToggle = false;
 const mockNavTheme: { value?: { dark: boolean; colors: Record<string, string> } } = {};
-const mockTabBar: { style?: Record<string, unknown>; itemStyle?: Record<string, unknown>; tint?: Record<string, unknown> } = {};
+/** The props the layout hands the native tab bar. */
+const mockNativeTabs: { props?: Record<string, any> } = {};
+// The native bar cannot render under Jest, so a stand-in records its props instead.
+jest.mock("expo-router/unstable-native-tabs", () => {
+  const Trigger = Object.assign(() => null, { Icon: () => null, Label: () => null, Badge: () => null, VectorIcon: () => null });
+  const NativeTabs = Object.assign(
+    ({ children: _children, ...props }: { children?: unknown }) => {
+      mockNativeTabs.props = props;
+      return null;
+    },
+    { Trigger },
+  );
+  return { NativeTabs };
+});
 
 jest.mock("expo-router", () => {
   const React = require("react");
@@ -39,13 +52,6 @@ jest.mock("expo-router", () => {
     </View>
   );
   Stack.Screen = Screen;
-  const Tabs: any = ({ screenOptions, children }: any) => {
-    mockTabBar.style = screenOptions.tabBarStyle;
-    mockTabBar.itemStyle = screenOptions.tabBarItemStyle;
-    mockTabBar.tint = { active: screenOptions.tabBarActiveTintColor, inactive: screenOptions.tabBarInactiveTintColor };
-    return children;
-  };
-  Tabs.Screen = () => null;
   // The root hands the navigator a theme built from the palette; the library defaults are stood in by plain objects.
   const DefaultTheme = { dark: false, colors: { background: "rgb(242, 242, 242)" } };
   const DarkTheme = { dark: true, colors: { background: "rgb(1, 1, 1)" } };
@@ -53,7 +59,7 @@ jest.mock("expo-router", () => {
     mockNavTheme.value = value;
     return children;
   };
-  return { Stack, Tabs, DefaultTheme, DarkTheme, ThemeProvider, Redirect: () => null, router: { push: jest.fn(), replace: jest.fn() }, Link: () => null };
+  return { Stack, DefaultTheme, DarkTheme, ThemeProvider, Redirect: () => null, router: { push: jest.fn(), replace: jest.fn() }, Link: () => null };
 });
 jest.mock("@expo/vector-icons/Ionicons", () => ({ __esModule: true, default: () => null }));
 const mockFonts: { result: [boolean, Error | null] } = { result: [true, null] };
@@ -79,6 +85,8 @@ jest.mock("expo-notifications", () => ({
 }));
 
 import { jakartaDay } from "@catera/domain";
+import { nativeThemes } from "@catera/design-tokens";
+import { tabBarColors } from "@catera/mobile-ui";
 import RootLayout from "../app/_layout";
 import { runtime } from "../src/runtime";
 
@@ -150,22 +158,18 @@ describe("appearance", () => {
   const owner = { id: "u-1", role: "owner", name: "Bu Rina", catererId: "k-1" };
 
   beforeEach(() => {
-    mockTabBar.style = undefined;
-    mockTabBar.itemStyle = undefined;
+    mockNativeTabs.props = undefined;
     mockStatusBar.style = undefined;
     mockNavTheme.value = undefined;
     // The launch mood comes from the Jakarta clock, so each test pins it: 10:00 WIB (Siang) unless it says otherwise.
     atJakarta("2026-10-09T03:00:00Z");
   });
 
-  let restoreInsets: (() => void) | undefined;
   afterEach(() => {
     mockMe.actor = null;
     mockMe.demo = false;
     mockShowToggle = false;
     (require("expo-secure-store") as { __store: Map<string, string> }).__store.delete(runtime.storageKey("locale"));
-    restoreInsets?.();
-    restoreInsets = undefined;
     jest.useRealTimers();
     jest.restoreAllMocks();
   });
@@ -187,21 +191,53 @@ describe("appearance", () => {
     atJakarta(MALAM);
     mockMe.actor = owner;
     render(<RootLayout />);
-    await waitFor(() => expect(mockTabBar.style).toBeDefined());
+    await waitFor(() => expect(mockNativeTabs.props).toBeDefined());
     await act(async () => {});
     expect(mockStatusBar.style).toBe("light");
     const header = ReactNative.StyleSheet.flatten(screen.getByTestId("app-header").props.style);
     expect(header.backgroundColor).toBe("#0B1F16");
     expect(ReactNative.StyleSheet.flatten(screen.getByText("Judul uji").props.style).color).toBe("#FFF7E9");
     // The mood never reaches the tab bar.
-    expect(mockTabBar.style).toMatchObject({ backgroundColor: "#FFFEFA", borderTopColor: "#E2E3D8" });
+    expect(mockNativeTabs.props).toMatchObject({ backgroundColor: "#FFFEFA" });
+  });
+
+  it("Dapur tab bar colours come from the theme, never the mood", async () => {
+    mockMe.actor = owner;
+    // Control: the mood header really is Siang, then Malam, in each theme.
+    const header = { light: ["#FFEFD9", "#0B1F16"], dark: ["#3A2617", "#163D2E"] };
+    for (const theme of ["light", "dark"] as const) {
+      jest.spyOn(ReactNative, "useColorScheme").mockReturnValue(theme);
+      for (const [i, at] of ["2026-10-09T03:00:00Z", MALAM].entries()) {
+        atJakarta(at);
+        mockNativeTabs.props = undefined;
+        render(<RootLayout />);
+        await waitFor(() => expect(mockNativeTabs.props).toBeDefined());
+        await act(async () => {});
+        const headerFill = ReactNative.StyleSheet.flatten(screen.getByTestId("app-header").props.style).backgroundColor;
+        expect(headerFill).toBe(header[theme][i]);
+        const bar = tabBarColors(nativeThemes[theme]);
+        const { labelStyle, ...props } = mockNativeTabs.props!;
+        // theme and time ride along so a failure names the case.
+        expect({ theme, at, ...props }).toMatchObject({
+          theme,
+          at,
+          backgroundColor: bar.backgroundColor,
+          indicatorColor: bar.indicatorColor,
+          rippleColor: bar.rippleColor,
+          tintColor: bar.tintColor,
+          iconColor: bar.iconColor,
+        });
+        expect({ default: labelStyle.default.color, selected: labelStyle.selected.color }).toEqual(bar.labelColor);
+        screen.unmount();
+      }
+    }
   });
 
   it("Siang on a light system theme keeps the dark status bar and the sunrise header", async () => {
     jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("light");
     mockMe.actor = owner;
     render(<RootLayout />);
-    await waitFor(() => expect(mockTabBar.style).toBeDefined());
+    await waitFor(() => expect(mockNativeTabs.props).toBeDefined());
     await act(async () => {});
     expect(mockStatusBar.style).toBe("dark");
     expect(ReactNative.StyleSheet.flatten(screen.getByTestId("app-header").props.style).backgroundColor).toBe("#FFEFD9");
@@ -212,7 +248,7 @@ describe("appearance", () => {
     mockShowToggle = true;
     mockMe.actor = owner;
     render(<RootLayout />);
-    await waitFor(() => expect(mockTabBar.style).toBeDefined());
+    await waitFor(() => expect(mockNativeTabs.props).toBeDefined());
     expect(await screen.findByRole("tab", { name: "Lunch" })).toBeTruthy();
     expect(screen.getByRole("tab", { name: "Dinner" })).toBeTruthy();
     expect(screen.queryByRole("tab", { name: "Siang" })).toBeNull();
@@ -222,7 +258,7 @@ describe("appearance", () => {
     mockShowToggle = true;
     mockMe.actor = owner;
     render(<RootLayout />);
-    await waitFor(() => expect(mockTabBar.style).toBeDefined());
+    await waitFor(() => expect(mockNativeTabs.props).toBeDefined());
     await act(async () => {});
     expect(screen.getByRole("tab", { name: "Siang" })).toBeTruthy();
     expect(screen.getByRole("tab", { name: "Malam" })).toBeTruthy();
@@ -248,7 +284,7 @@ describe("appearance", () => {
     render(<RootLayout />);
     expect(screen.UNSAFE_queryByType(ReactNative.ActivityIndicator)).not.toBeNull();
     expect(mockStatusBar.style).toBe("dark");
-    await waitFor(() => expect(mockTabBar.style).toBeDefined());
+    await waitFor(() => expect(mockNativeTabs.props).toBeDefined());
     expect(mockStatusBar.style).toBe("light");
   });
 
@@ -256,9 +292,9 @@ describe("appearance", () => {
     jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
     mockMe.actor = owner;
     render(<RootLayout />);
-    await waitFor(() => expect(mockTabBar.style).toBeDefined());
+    await waitFor(() => expect(mockNativeTabs.props).toBeDefined());
     await act(async () => {});
-    expect(mockTabBar.style).toMatchObject({ backgroundColor: "#1E1E1C", borderTopColor: "#34332F" });
+    expect(mockNativeTabs.props).toMatchObject({ backgroundColor: "#1E1E1C" });
     expect(mockStatusBar.style).toBe("light");
     // Scene containers get the dark canvas, not the navigation library's light default.
     expect(mockNavTheme.value).toMatchObject({ dark: true, colors: { background: "#151514", card: "#232321", border: "#34332F" } });
@@ -271,39 +307,16 @@ describe("appearance", () => {
     // Nothing has been awaited yet, so the session read is pending and the app is behind the ready gate.
     expect(screen.UNSAFE_queryByType(ReactNative.ActivityIndicator)).not.toBeNull();
     expect(mockStatusBar.style).toBe("light");
-    await waitFor(() => expect(mockTabBar.style).toBeDefined());
-  });
-
-  it("clears the bottom gesture inset and keeps every tab item at least 48dp", async () => {
-    // The safe-area mock is a plain jest.fn that restoreAllMocks does not reset, so the default is put back by hand.
-    const insets = require("react-native-safe-area-context").useSafeAreaInsets as jest.Mock;
-    const original = insets.getMockImplementation();
-    insets.mockImplementation(() => ({ top: 0, bottom: 24, left: 0, right: 0 }));
-    restoreInsets = () => insets.mockImplementation(original);
-    mockMe.actor = owner;
-    render(<RootLayout />);
-    await waitFor(() => expect(mockTabBar.style).toBeDefined());
-    await act(async () => {});
-    // 64dp of bar plus the inset, with the inset as bottom padding so the labels sit above the gesture pill.
-    expect(mockTabBar.style).toMatchObject({ height: 88, paddingBottom: 24 });
-    expect(mockTabBar.itemStyle).toMatchObject({ minHeight: 48 });
-  });
-
-  it("is the plain 64dp tab bar when the phone has no bottom inset", async () => {
-    mockMe.actor = owner;
-    render(<RootLayout />);
-    await waitFor(() => expect(mockTabBar.style).toBeDefined());
-    await act(async () => {});
-    expect(mockTabBar.style).toMatchObject({ height: 64, paddingBottom: 0 });
+    await waitFor(() => expect(mockNativeTabs.props).toBeDefined());
   });
 
   it("keeps the light tab bar and a dark status bar on a light system scheme", async () => {
     jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("light");
     mockMe.actor = owner;
     render(<RootLayout />);
-    await waitFor(() => expect(mockTabBar.style).toBeDefined());
+    await waitFor(() => expect(mockNativeTabs.props).toBeDefined());
     await act(async () => {});
-    expect(mockTabBar.style).toMatchObject({ backgroundColor: "#FFFEFA", borderTopColor: "#E2E3D8" });
+    expect(mockNativeTabs.props).toMatchObject({ backgroundColor: "#FFFEFA" });
     expect(mockStatusBar.style).toBe("dark");
     expect(mockNavTheme.value).toMatchObject({ dark: false, colors: { background: "#FDFAF3", card: "#FFFEFA" } });
   });

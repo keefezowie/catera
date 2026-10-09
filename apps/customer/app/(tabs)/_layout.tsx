@@ -1,14 +1,13 @@
-import { Tabs } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { NativeTabs } from "expo-router/unstable-native-tabs";
 import { useMobile } from "@catera/mobile-core";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { spokenTabLabel, TabBarLabel, useColors } from "@catera/mobile-ui";
+import { tabBarColors, tabLabelStyle, useColors } from "@catera/mobile-ui";
 
 type CustomerTab = "index" | "jadwal" | "jelajah" | "akun";
 
 type Glyph = keyof typeof Ionicons.glyphMap;
 
-/** Outline until focused, filled when focused. Elsewhere, state glyphs (saved heart, selected star, coverage sun and moon) are filled because the fill carries the state; other icons are outline. */
+/** Outline until selected, filled when selected. Elsewhere, state glyphs (saved heart, selected star, coverage sun and moon) are filled because the fill carries the state; other icons are outline. */
 const icons: Record<CustomerTab, { filled: Glyph; outline: Glyph }> = {
   index: { filled: "home", outline: "home-outline" },
   jadwal: { filled: "calendar", outline: "calendar-outline" },
@@ -16,57 +15,50 @@ const icons: Record<CustomerTab, { filled: Glyph; outline: Glyph }> = {
   akun: { filled: "person", outline: "person-outline" },
 };
 
-// /discover is still emitted by old links; its stub redirects to Jelajah.
-const legacy = ["discover"] as const;
+const order = Object.keys(icons) as CustomerTab[];
 
+/**
+ * The platform's own tab bar: Material 3 navigation bar on Android (label always shown, filled icon on the indicator
+ * pill), the system tab bar on iOS, which on iOS 26 shrinks to the selected tab while a long list scrolls down and
+ * returns on scroll up. Colours follow the theme and never the mood.
+ */
 export default function TabsLayout() {
   const { t } = useMobile();
-  const palette = useColors();
-  const insets = useSafeAreaInsets();
+  const bar = tabBarColors(useColors());
+  const label = tabLabelStyle();
   const titles: Record<CustomerTab, string> = {
     index: t("Beranda", "Home"),
     jadwal: t("Jadwal", "Schedule"),
     jelajah: t("Jelajah", "Explore"),
     akun: t("Akun", "Account"),
   };
-  const order = Object.keys(icons) as CustomerTab[];
-  // A function tabBarLabel replaces the label the bar would speak ("title, tab, 1 of 4" on iOS), so each tab sets it
-  // there; Android already announces the tab role.
-  const spoken = (name: CustomerTab) => spokenTabLabel(titles[name], order.indexOf(name) + 1, order.length, t);
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: palette.forest,
-        tabBarInactiveTintColor: palette.muted,
-        // The bar is 64dp plus the bottom inset, which it also pads, so the labels sit above the gesture pill and
-        // every item keeps a full 64dp touch area (never under 48dp).
-        tabBarStyle: {
-          backgroundColor: palette.tabBar,
-          borderTopColor: palette.line,
-          height: 64 + insets.bottom,
-          paddingBottom: insets.bottom,
-        },
-        tabBarItemStyle: { minHeight: 48 },
-        tabBarLabel: ({ color, children }) => <TabBarLabel color={color}>{children}</TabBarLabel>,
+    <NativeTabs
+      labelVisibilityMode="labeled"
+      minimizeBehavior="onScrollDown"
+      backgroundColor={bar.backgroundColor}
+      indicatorColor={bar.indicatorColor}
+      rippleColor={bar.rippleColor}
+      tintColor={bar.tintColor}
+      iconColor={bar.iconColor}
+      labelStyle={{
+        default: { ...label, color: bar.labelColor.default },
+        selected: { ...label, color: bar.labelColor.selected },
       }}
     >
-      {(Object.keys(icons) as CustomerTab[]).map((name) => (
-        <Tabs.Screen
-          key={name}
-          name={name}
-          options={{
-            title: titles[name],
-            tabBarAccessibilityLabel: spoken(name),
-            tabBarIcon: ({ color, size, focused }) => (
-              <Ionicons name={focused ? icons[name].filled : icons[name].outline} color={color} size={size} />
-            ),
-          }}
-        />
+      {order.map((name) => (
+        <NativeTabs.Trigger key={name} name={name}>
+          <NativeTabs.Trigger.Icon
+            src={{
+              default: <NativeTabs.Trigger.VectorIcon family={Ionicons} name={icons[name].outline} />,
+              selected: <NativeTabs.Trigger.VectorIcon family={Ionicons} name={icons[name].filled} />,
+            }}
+          />
+          <NativeTabs.Trigger.Label>{titles[name]}</NativeTabs.Trigger.Label>
+        </NativeTabs.Trigger>
       ))}
-      {legacy.map((name) => (
-        <Tabs.Screen key={name} name={name} options={{ href: null }} />
-      ))}
-    </Tabs>
+      {/* The legacy /discover route stays declared but never shows in the bar; old /discover links reach Jelajah through customerLink. */}
+      <NativeTabs.Trigger name="discover" hidden />
+    </NativeTabs>
   );
 }

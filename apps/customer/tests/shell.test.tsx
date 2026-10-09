@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { StyleSheet, Text } from "react-native";
-import { spokenTabLabel } from "@catera/mobile-ui";
+import { nativeThemes } from "@catera/design-tokens";
+import { tabBarColors, tabLabelStyle } from "@catera/mobile-ui";
 
 /** A fake Supabase client that behaves like supabase-js 2.116 where it matters here:
  * one channel per topic, and no postgres_changes callbacks after subscribe(). */
@@ -85,13 +86,30 @@ jest.mock("expo-constants", () => ({
   __esModule: true,
   default: { expoConfig: { extra: { eas: { projectId: "synthetic-project" } } } },
 }));
-const mockTabScreens: { name: string; options?: { tabBarIcon?: (p: { focused: boolean; color: string; size: number }) => { props: { name: string } } } }[] = [];
-const mockTabBar: {
-  style?: Record<string, unknown>;
-  itemStyle?: Record<string, unknown>;
-  tint?: { active: unknown; inactive: unknown };
-  label?: (p: { color: string; children: string }) => import("react").ReactElement;
-} = {};
+/** What the layout hands the native tab bar: the bar's own props and each trigger's props (name, hidden, children). */
+type MockTrigger = { name: string; hidden?: boolean; children?: import("react").ReactNode };
+const mockNativeTabs: { props?: Record<string, any>; triggers: MockTrigger[] } = { triggers: [] };
+// The native bar cannot render under Jest, so a stand-in records its props and its triggers instead.
+jest.mock("expo-router/unstable-native-tabs", () => {
+  const React = require("react");
+  const Trigger = Object.assign(() => null, {
+    Icon: () => null,
+    Label: () => null,
+    Badge: () => null,
+    VectorIcon: () => null,
+  });
+  const NativeTabs = Object.assign(
+    ({ children, ...props }: { children?: unknown }) => {
+      mockNativeTabs.props = props;
+      mockNativeTabs.triggers = React.Children.toArray(children)
+        .filter((c: { type?: unknown }) => c.type === Trigger)
+        .map((c: { props: MockTrigger }) => c.props);
+      return null;
+    },
+    { Trigger },
+  );
+  return { NativeTabs };
+});
 const mockStatusBar: { style?: string } = {};
 // When set, the stack also draws the Siang / Malam toggle, the way a screen with a mood header does.
 let mockShowToggle = false;
@@ -122,21 +140,6 @@ jest.mock("expo-router", () => ({
         if (name !== "(tabs)") return null;
         const TabsLayout = require("../app/(tabs)/_layout").default;
         return <TabsLayout />;
-      },
-    },
-  ),
-  Tabs: Object.assign(
-    ({ children, screenOptions }: { children: unknown; screenOptions?: Record<string, any> }) => {
-      mockTabBar.style = screenOptions?.tabBarStyle;
-      mockTabBar.itemStyle = screenOptions?.tabBarItemStyle;
-      mockTabBar.label = screenOptions?.tabBarLabel;
-      mockTabBar.tint = { active: screenOptions?.tabBarActiveTintColor, inactive: screenOptions?.tabBarInactiveTintColor };
-      return children;
-    },
-    {
-      Screen: (props: (typeof mockTabScreens)[number]) => {
-        mockTabScreens.push(props);
-        return null;
       },
     },
   ),
@@ -363,66 +366,98 @@ describe("runtime.signInPassword", () => {
   });
 });
 
-it("tab labels stop growing at 1.15 times the system font size, so they stay on one line at font scale 1.3", () => {
-  const TabsLayout = (require("../app/(tabs)/_layout") as typeof import("../app/(tabs)/_layout")).default;
-  mockTabBar.label = undefined;
-  render(
-    <AppProviders runtime={runtime}>
-      <TabsLayout />
-    </AppProviders>,
-  );
-  const { getByText } = render(mockTabBar.label!({ color: "#123456", children: "Jelajah" }));
-  expect(getByText("Jelajah").props.maxFontSizeMultiplier).toBe(1.15);
-  expect(getByText("Jelajah").props.numberOfLines).toBe(1);
-});
+/** A trigger as the native bar reads it: its label text, and the vector glyph it draws unselected and selected. */
+function readTrigger({ name, hidden, children }: MockTrigger) {
+  const { NativeTabs } = require("expo-router/unstable-native-tabs");
+  const parts = require("react").Children.toArray(children) as import("react").ReactElement<any>[];
+  const icon = parts.find((p) => p.type === NativeTabs.Trigger.Icon);
+  const label = parts.find((p) => p.type === NativeTabs.Trigger.Label);
+  const glyph = (el: import("react").ReactElement<any>) => ({
+    vector: el.type === NativeTabs.Trigger.VectorIcon,
+    family: el.props.family,
+    name: el.props.name,
+  });
+  return {
+    name,
+    hidden: !!hidden,
+    label: label?.props.children as string | undefined,
+    icon: icon ? { default: glyph(icon.props.src.default), selected: glyph(icon.props.src.selected) } : undefined,
+  };
+}
 
-it("tab icons are outline until focused", () => {
+const renderTabs = () => {
   const TabsLayout = (require("../app/(tabs)/_layout") as typeof import("../app/(tabs)/_layout")).default;
-  mockTabScreens.length = 0;
+  mockNativeTabs.props = undefined;
+  mockNativeTabs.triggers = [];
   render(
     <AppProviders runtime={runtime}>
       <TabsLayout />
     </AppProviders>,
   );
-  const tabs = mockTabScreens.filter((s) => s.options?.tabBarIcon);
-  expect(tabs.map((s) => s.name)).toEqual(["index", "jadwal", "jelajah", "akun"]);
-  // The spoken tab label is iOS only (Android already announces the tab role, so TalkBack would say "tab" twice).
-  // Jest runs as Android, so the layout sets none here; the label itself is built by `spokenTabLabel`.
-  expect(tabs.map((s) => (s.options as { tabBarAccessibilityLabel?: string }).tabBarAccessibilityLabel)).toEqual([
-    undefined,
-    undefined,
-    undefined,
-    undefined,
-  ]);
-  const t = (id: string) => id;
-  expect(["Beranda", "Jadwal", "Jelajah", "Akun"].map((title, i) => spokenTabLabel(title, i + 1, 4, t, "ios"))).toEqual([
-    "Beranda, tab, 1 dari 4",
-    "Jadwal, tab, 2 dari 4",
-    "Jelajah, tab, 3 dari 4",
-    "Akun, tab, 4 dari 4",
-  ]);
-  expect(spokenTabLabel("Akun", 4, 4, (_id, en) => en, "ios")).toBe("Akun, tab, 4 of 4");
-  expect(spokenTabLabel("Akun", 4, 4, t, "android")).toBeUndefined();
-  for (const { name, options } of tabs) {
-    const icon = (focused: boolean) => options!.tabBarIcon!({ focused, color: "#000", size: 24 }).props.name;
-    expect(icon(true)).not.toMatch(/-outline$/);
-    expect(icon(false)).toBe(`${icon(true)}-outline`);
-  }
+};
+
+describe("native tab bar", () => {
+  afterEach(() => {
+    (require("expo-secure-store") as { __store: Map<string, string> }).__store.delete(runtime.storageKey("locale"));
+  });
+
+  it("the tab bar is the native one with Ionicons, filled when selected", async () => {
+    // Signed out (no actor, the beforeEach default): the customer tabs still show.
+    expect(mockActor).toBeNull();
+    renderTabs();
+    const Ionicons = require("@expo/vector-icons/Ionicons").default;
+    const tabs = mockNativeTabs.triggers.map(readTrigger);
+    const shown = tabs.filter((tab) => !tab.hidden);
+    expect(shown.map((tab) => tab.name)).toEqual(["index", "jadwal", "jelajah", "akun"]);
+    expect(shown.map((tab) => tab.label)).toEqual(["Beranda", "Jadwal", "Jelajah", "Akun"]);
+    const glyphs: Record<string, string> = { index: "home", jadwal: "calendar", jelajah: "search", akun: "person" };
+    for (const tab of shown) {
+      expect(tab.icon).toEqual({
+        default: { vector: true, family: Ionicons, name: `${glyphs[tab.name]}-outline` },
+        selected: { vector: true, family: Ionicons, name: glyphs[tab.name] },
+      });
+    }
+    // Old /discover links still resolve to the route, which redirects to Jelajah; it never shows in the bar.
+    expect(tabs.filter((tab) => tab.hidden).map((tab) => tab.name)).toEqual(["discover"]);
+    // Android: the label always shows under its icon. iOS 26: the bar shrinks while a long list scrolls down.
+    expect(mockNativeTabs.props).toMatchObject({ labelVisibilityMode: "labeled", minimizeBehavior: "onScrollDown" });
+    // Plus Jakarta Sans at the platform's own label size (Jest runs as Android: 12).
+    expect(mockNativeTabs.props!.labelStyle).toEqual({
+      default: { fontFamily: "Jakarta-SemiBold", fontSize: 12, color: nativeThemes.light.muted },
+      selected: { fontFamily: "Jakarta-SemiBold", fontSize: 12, color: nativeThemes.light.forest },
+    });
+  });
+
+  it("the tab labels read Home, Schedule, Explore and Account in English", async () => {
+    (require("expo-secure-store") as { __store: Map<string, string> }).__store.set(runtime.storageKey("locale"), "en");
+    renderTabs();
+    await waitFor(() =>
+      expect(mockNativeTabs.triggers.map(readTrigger).filter((tab) => !tab.hidden).map((tab) => tab.label)).toEqual([
+        "Home",
+        "Schedule",
+        "Explore",
+        "Account",
+      ]),
+    );
+  });
+
+  it("tab labels are Plus Jakarta Sans SemiBold at 10 on iOS and 12 on Android", () => {
+    expect(tabLabelStyle("ios")).toEqual({ fontFamily: "Jakarta-SemiBold", fontSize: 10 });
+    expect(tabLabelStyle("android")).toEqual({ fontFamily: "Jakarta-SemiBold", fontSize: 12 });
+    // No cap on text scaling and no custom spoken label: the native bar does its own.
+    expect(Object.keys(tabLabelStyle("ios")).sort()).toEqual(["fontFamily", "fontSize"]);
+  });
 });
 
 describe("appearance", () => {
   beforeEach(() => {
-    mockTabBar.style = undefined;
-    mockTabBar.itemStyle = undefined;
+    mockNativeTabs.props = undefined;
     mockStatusBar.style = undefined;
     mockNavTheme.value = undefined;
     // The launch mood comes from the Jakarta clock, so each test pins it: 10:00 WIB (Siang) unless it says otherwise.
     atJakarta("2026-10-09T03:00:00Z");
   });
-  let restoreInsets: (() => void) | undefined;
   afterEach(() => {
-    restoreInsets?.();
-    restoreInsets = undefined;
     jest.useRealTimers();
     jest.restoreAllMocks();
     mockShowToggle = false;
@@ -444,14 +479,61 @@ describe("appearance", () => {
   const renderRoot = async () => {
     const RootLayout = (require("../app/_layout") as typeof import("../app/_layout")).default;
     render(<RootLayout />);
-    await waitFor(() => expect(mockTabBar.style).toBeDefined());
+    await waitFor(() => expect(mockNativeTabs.props).toBeDefined());
     await act(async () => {});
   };
+
+  /** The colour props the native bar received, label colours included. */
+  const barColours = () => {
+    const { backgroundColor, indicatorColor, rippleColor, tintColor, iconColor, labelStyle } = mockNativeTabs.props!;
+    return {
+      backgroundColor,
+      indicatorColor,
+      rippleColor,
+      tintColor,
+      iconColor,
+      labelColor: { default: labelStyle.default.color, selected: labelStyle.selected.color },
+    };
+  };
+
+  it("tab bar colours come from the theme, never the mood", async () => {
+    // Pinned values: the bar surface, the forest indicator pill, forest for selected and muted for the rest.
+    expect(tabBarColors(nativeThemes.light)).toEqual({
+      backgroundColor: "#FFFEFA",
+      indicatorColor: "#CFE3CC",
+      rippleColor: "#CFE3CC",
+      tintColor: "#163D2E",
+      iconColor: { default: "#60675F", selected: "#163D2E" },
+      labelColor: { default: "#60675F", selected: "#163D2E" },
+    });
+    expect(tabBarColors(nativeThemes.dark)).toEqual({
+      backgroundColor: "#1E1E1C",
+      indicatorColor: "#163D2E",
+      rippleColor: "#163D2E",
+      tintColor: "#FFF7E9",
+      iconColor: { default: "#B5B2AA", selected: "#FFF7E9" },
+      labelColor: { default: "#B5B2AA", selected: "#FFF7E9" },
+    });
+    // Control: the mood header really is Siang, then Malam, in each theme.
+    const header = { light: ["#FFEFD9", "#0B1F16"], dark: ["#3A2617", "#163D2E"] };
+    for (const theme of ["light", "dark"] as const) {
+      jest.spyOn(require("react-native"), "useColorScheme").mockReturnValue(theme);
+      for (const [i, at] of ["2026-10-09T03:00:00Z", MALAM].entries()) {
+        atJakarta(at);
+        await renderRoot();
+        expect(StyleSheet.flatten(screen.getByTestId("app-header").props.style).backgroundColor).toBe(header[theme][i]);
+        // theme and time ride along so a failure names the case.
+        expect({ theme, at, ...barColours() }).toEqual({ theme, at, ...tabBarColors(nativeThemes[theme]) });
+        screen.unmount();
+        mockNativeTabs.props = undefined;
+      }
+    }
+  });
 
   it("light system scheme: light tab bar and a dark status bar", async () => {
     jest.spyOn(require("react-native"), "useColorScheme").mockReturnValue("light");
     await renderRoot();
-    expect(mockTabBar.style).toMatchObject({ backgroundColor: "#FFFEFA", borderTopColor: "#E2E3D8" });
+    expect(mockNativeTabs.props).toMatchObject({ backgroundColor: "#FFFEFA" });
     expect(mockStatusBar.style).toBe("dark");
     expect(mockNavTheme.value).toMatchObject({ dark: false, colors: { background: "#FDFAF3", card: "#FFFEFA" } });
   });
@@ -465,7 +547,7 @@ describe("appearance", () => {
     expect(header.backgroundColor).toBe("#0B1F16");
     expect(StyleSheet.flatten(screen.getByText("Judul uji").props.style).color).toBe("#FFF7E9");
     // The mood never reaches the tab bar.
-    expect(mockTabBar.style).toMatchObject({ backgroundColor: "#FFFEFA", borderTopColor: "#E2E3D8" });
+    expect(mockNativeTabs.props).toMatchObject({ backgroundColor: "#FFFEFA" });
   });
 
   it("Siang on a light system theme keeps the dark status bar and the sunrise header", async () => {
@@ -509,7 +591,7 @@ describe("appearance", () => {
     render(<RootLayout />);
     expect(screen.UNSAFE_queryByType(require("react-native").ActivityIndicator)).not.toBeNull();
     expect(mockStatusBar.style).toBe("dark");
-    await waitFor(() => expect(mockTabBar.style).toBeDefined());
+    await waitFor(() => expect(mockNativeTabs.props).toBeDefined());
     expect(mockStatusBar.style).toBe("light");
   });
 
@@ -520,30 +602,13 @@ describe("appearance", () => {
     // Nothing has been awaited yet, so the session read is pending and the app is behind the ready gate.
     expect(screen.UNSAFE_queryByType(require("react-native").ActivityIndicator)).not.toBeNull();
     expect(mockStatusBar.style).toBe("light");
-    await waitFor(() => expect(mockTabBar.style).toBeDefined());
-  });
-
-  it("tab bar clears the bottom gesture inset and keeps every item at least 48dp", async () => {
-    // The safe-area mock is a plain jest.fn that restoreAllMocks does not reset, so the default is put back by hand.
-    const insets = require("react-native-safe-area-context").useSafeAreaInsets as jest.Mock;
-    const original = insets.getMockImplementation();
-    insets.mockImplementation(() => ({ top: 0, bottom: 24, left: 0, right: 0 }));
-    restoreInsets = () => insets.mockImplementation(original);
-    await renderRoot();
-    // 64dp of bar plus the inset, with the inset as bottom padding so the labels sit above the gesture pill.
-    expect(mockTabBar.style).toMatchObject({ height: 88, paddingBottom: 24 });
-    expect(mockTabBar.itemStyle).toMatchObject({ minHeight: 48 });
-  });
-
-  it("tab bar is the plain 64dp when the phone has no bottom inset", async () => {
-    await renderRoot();
-    expect(mockTabBar.style).toMatchObject({ height: 64, paddingBottom: 0 });
+    await waitFor(() => expect(mockNativeTabs.props).toBeDefined());
   });
 
   it("dark system scheme: dark tab bar and a light status bar", async () => {
     jest.spyOn(require("react-native"), "useColorScheme").mockReturnValue("dark");
     await renderRoot();
-    expect(mockTabBar.style).toMatchObject({ backgroundColor: "#1E1E1C", borderTopColor: "#34332F" });
+    expect(mockNativeTabs.props).toMatchObject({ backgroundColor: "#1E1E1C" });
     expect(mockStatusBar.style).toBe("light");
     // Scene containers get the dark canvas, not the navigation library's light default.
     expect(mockNavTheme.value).toMatchObject({ dark: true, colors: { background: "#151514", card: "#232321", border: "#34332F" } });
