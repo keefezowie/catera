@@ -1,6 +1,7 @@
-import { StyleSheet, View } from "react-native";
+import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, Text } from "./components";
+import { Text } from "./components";
+import { themedStyles, useColors } from "./theme";
 
 /** Height of the strip below the status bar. */
 const STRIP_HEIGHT = 24;
@@ -12,6 +13,8 @@ const STRIP_HEIGHT = 24;
  */
 export function DemoStrip({ label }: { label: string }) {
   const insets = useSafeAreaInsets();
+  const c = useColors();
+  const styles = useStyles();
   return (
     <View
       accessible
@@ -19,18 +22,18 @@ export function DemoStrip({ label }: { label: string }) {
       accessibilityLabel={label}
       style={[styles.strip, { paddingTop: insets.top, minHeight: insets.top + STRIP_HEIGHT }]}
     >
-      <Text variant="caption" style={{ color: colors.forest }}>
+      <Text variant="caption" style={{ color: c.forest }}>
         {label}
       </Text>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = themedStyles((c) => ({
   strip: {
     width: "100%",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.sage,
+    backgroundColor: c.sage,
   },
-});
+}));

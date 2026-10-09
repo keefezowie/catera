@@ -1,6 +1,8 @@
-import { act, fireEvent, render, screen } from "@testing-library/react-native";
-import { Platform, StyleSheet } from "react-native";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { Platform, Pressable, StyleSheet, Text as RNText, View } from "react-native";
+import type { ReactElement } from "react";
 import * as Haptics from "expo-haptics";
+import * as SecureStore from "expo-secure-store";
 import * as Reanimated from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { KeyboardAvoidingView, Modal, ScrollView } from "react-native";
@@ -20,8 +22,21 @@ import {
   Sheet,
   Stepper,
   Text,
+  ThemeProvider,
   TopInsetOwner,
+  useThemePreference,
 } from "@catera/mobile-ui";
+
+// The customer setup has no SecureStore mock, so this file keeps its own in-memory one for the dark theme cases.
+jest.mock("expo-secure-store", () => {
+  const store = new Map<string, string>();
+  return {
+    __store: store,
+    getItemAsync: jest.fn(async (k: string) => (store.has(k) ? store.get(k) : null)),
+    setItemAsync: jest.fn(async (k: string, v: string) => void store.set(k, v)),
+    deleteItemAsync: jest.fn(async (k: string) => void store.delete(k)),
+  };
+});
 
 // react-test-renderer gives host refs no measure methods, so the screen's SafeAreaView gets a stand-in that reports a
 // window position (the height of a header sitting above the screen).
@@ -388,5 +403,90 @@ describe("Sheet and Screen details", () => {
     );
     expect(view.UNSAFE_getByType(KeyboardAvoidingView).props.behavior).toBeUndefined();
     expect(view.UNSAFE_getByType(KeyboardAvoidingView).props.keyboardVerticalOffset).toBe(0);
+  });
+});
+
+describe("dark theme", () => {
+  const store = (SecureStore as unknown as { __store: Map<string, string> }).__store;
+  const DARK = { forest: "#FFF7E9", cream: "#163D2E", canvas: "#151514", surface: "#232321" };
+
+  beforeEach(() => {
+    store.clear();
+    (Reanimated.useReducedMotion as jest.Mock).mockReturnValue(false);
+  });
+
+  // Mounts the tree under a provider whose stored preference is dark, and waits for that read to settle.
+  async function renderDark(ui: ReactElement) {
+    store.set("k", "dark");
+    const view = render(<ThemeProvider storageKey="k">{ui}</ThemeProvider>);
+    await waitFor(() => expect(SecureStore.getItemAsync).toHaveBeenCalledWith("k"));
+    await act(async () => {});
+    return view;
+  }
+
+  it("Text title uses dark forest", async () => {
+    await renderDark(<Text variant="title">Jadwal</Text>);
+    expect(StyleSheet.flatten(screen.getByText("Jadwal").props.style).color).toBe(DARK.forest);
+  });
+
+  it("primary Button is a cream fill with forest text", async () => {
+    await renderDark(<Button label="Bayar" onPress={() => {}} />);
+    expect(StyleSheet.flatten(screen.getByRole("button", { name: "Bayar" }).props.style).backgroundColor).toBe(DARK.forest);
+    expect(StyleSheet.flatten(screen.getByText("Bayar").props.style).color).toBe(DARK.cream);
+  });
+
+  it("Screen and AppHeader paint the dark canvas", async () => {
+    const view = await renderDark(
+      <>
+        <AppHeader title="Hari" backLabel="Kembali" />
+        <Screen>
+          <Text>Isi</Text>
+        </Screen>
+      </>,
+    );
+    expect(StyleSheet.flatten(view.UNSAFE_getByType(SafeAreaView).props.style).backgroundColor).toBe(DARK.canvas);
+    const bars = view.UNSAFE_getAllByType(View).filter((v) => StyleSheet.flatten(v.props.style)?.paddingBottom === 8);
+    expect(bars.length).toBeGreaterThan(0);
+    expect(StyleSheet.flatten(bars[0].props.style).backgroundColor).toBe(DARK.canvas);
+  });
+
+  it("an open Sheet repaints when the theme changes", async () => {
+    function Probe() {
+      const { setPreference } = useThemePreference();
+      return (
+        <Pressable accessibilityRole="button" accessibilityLabel="Gelap" onPress={() => setPreference("dark")}>
+          <RNText>Gelap</RNText>
+        </Pressable>
+      );
+    }
+    const sheetColor = () =>
+      StyleSheet.flatten(screen.UNSAFE_getAllByProps({ accessibilityViewIsModal: true })[0].props.style).backgroundColor;
+    render(
+      <ThemeProvider storageKey="k">
+        <Probe />
+        <Sheet visible onClose={() => {}} title="Bagikan" closeLabel="Tutup">
+          <Text>Isi</Text>
+        </Sheet>
+      </ThemeProvider>,
+    );
+    await waitFor(() => expect(SecureStore.getItemAsync).toHaveBeenCalledWith("k"));
+    await act(async () => {});
+    expect(sheetColor()).toBe(colors.surface);
+    fireEvent.press(screen.getByRole("button", { name: "Gelap" }));
+    expect(sheetColor()).toBe(DARK.surface);
+  });
+
+  it("explicit style colour still wins over the variant", async () => {
+    await renderDark(
+      <Text variant="title" style={{ color: "#123456" }}>
+        Pilih
+      </Text>,
+    );
+    expect(StyleSheet.flatten(screen.getByText("Pilih").props.style).color).toBe("#123456");
+  });
+
+  it("Text forwards selectable", () => {
+    render(<Text selectable>Salin</Text>);
+    expect(screen.getByText("Salin").props.selectable).toBe(true);
   });
 });

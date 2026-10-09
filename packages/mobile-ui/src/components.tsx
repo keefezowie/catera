@@ -17,8 +17,9 @@ import {
   type ViewStyle,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { colors } from "@catera/design-tokens";
+import { colors, type PaletteKey } from "@catera/design-tokens";
 import { PressableScale, useReduced } from "./motion";
+import { themedStyles, useColors } from "./theme";
 import { useTopInsetOwned } from "./TopInset";
 import { fontFor, fonts } from "./type";
 
@@ -27,13 +28,23 @@ export const FONT = fonts.regular;
 export { colors };
 
 const textVariants = {
-  title: { fontSize: 30, lineHeight: 39, fontWeight: "700", letterSpacing: -0.8, color: colors.forest },
-  heading: { fontSize: 21, lineHeight: 28, fontWeight: "700", letterSpacing: -0.4, color: colors.forest },
-  body: { fontSize: 14, lineHeight: 23, fontWeight: "400", color: colors.charcoal },
-  label: { fontSize: 12, lineHeight: 23, fontWeight: "700", color: colors.forest },
-  caption: { fontSize: 11, lineHeight: 18, fontWeight: "400", color: colors.muted },
-  number: { fontSize: 40, fontWeight: "800", letterSpacing: -1, color: colors.forest, fontVariant: ["tabular-nums"] },
+  title: { fontSize: 30, lineHeight: 39, fontWeight: "700", letterSpacing: -0.8 },
+  heading: { fontSize: 21, lineHeight: 28, fontWeight: "700", letterSpacing: -0.4 },
+  body: { fontSize: 14, lineHeight: 23, fontWeight: "400" },
+  label: { fontSize: 12, lineHeight: 23, fontWeight: "700" },
+  caption: { fontSize: 11, lineHeight: 18, fontWeight: "400" },
+  number: { fontSize: 40, fontWeight: "800", letterSpacing: -1, fontVariant: ["tabular-nums"] },
 } satisfies Record<string, TextStyle>;
+
+/** Which palette entry each variant reads; the palette is the active theme's. */
+const variantColor: Record<keyof typeof textVariants, PaletteKey> = {
+  title: "forest",
+  heading: "forest",
+  body: "charcoal",
+  label: "forest",
+  caption: "muted",
+  number: "forest",
+};
 
 export function Text({
   variant = "body",
@@ -50,10 +61,18 @@ export function Text({
   accessibilityRole?: AccessibilityRole;
   accessibilityLabel?: string;
   accessible?: boolean;
+  /** Lets the user copy the text; set it on data and error messages. */
+  selectable?: boolean;
 }) {
+  const palette = useColors();
   // Android cannot select weights from a variable font, so a weight becomes a static family.
   // An explicit fontFamily wins over any weight: app code passes `fonts.semibold` etc. in styles it hands to Text.
-  const { fontWeight, fontFamily, ...flat } = StyleSheet.flatten([textVariants[variant], style]) as TextStyle;
+  // The variant colour comes first so a caller's own colour still wins.
+  const { fontWeight, fontFamily, ...flat } = StyleSheet.flatten([
+    textVariants[variant],
+    { color: palette[variantColor[variant]] },
+    style,
+  ]) as TextStyle;
   return (
     <RNText
       style={[flat, { fontFamily: fontFamily ?? fontFor(fontWeight) }]}
@@ -81,6 +100,8 @@ export function Button({
   style?: StyleProp<ViewStyle>;
 }) {
   const primary = variant === "primary";
+  const c = useColors();
+  const styles = useStyles();
   return (
     <PressableScale
       accessibilityRole="button"
@@ -103,7 +124,7 @@ export function Button({
       <RNText
         style={[
           styles.buttonLabel,
-          { color: primary ? (disabled ? colors.muted : colors.cream) : colors.forest },
+          { color: primary ? (disabled ? c.muted : c.cream) : c.forest },
         ]}
       >
         {label}
@@ -121,6 +142,8 @@ export function Chip({
   selected: boolean;
   onPress: () => void;
 }) {
+  const c = useColors();
+  const styles = useStyles();
   return (
     <PressableScale
       accessibilityRole="button"
@@ -129,7 +152,7 @@ export function Chip({
       onPress={onPress}
       style={[styles.chip, selected ? styles.chipOn : styles.chipOff]}
     >
-      <RNText style={[styles.chipLabel, { color: selected ? colors.cream : colors.forest }]}>
+      <RNText style={[styles.chipLabel, { color: selected ? c.cream : c.forest }]}>
         {label}
       </RNText>
     </PressableScale>
@@ -145,6 +168,8 @@ export function Segmented<T extends string>({
   value: T;
   onChange: (v: T) => void;
 }) {
+  const c = useColors();
+  const styles = useStyles();
   return (
     <View style={styles.segmented} accessibilityRole="tablist">
       {options.map((o) => (
@@ -157,7 +182,7 @@ export function Segmented<T extends string>({
           style={[styles.segment, o.value === value && styles.segmentOn]}
         >
           <RNText
-            style={[styles.chipLabel, { color: o.value === value ? colors.cream : colors.forest }]}
+            style={[styles.chipLabel, { color: o.value === value ? c.cream : c.forest }]}
           >
             {o.label}
           </RNText>
@@ -176,6 +201,8 @@ export function Card({
   tone?: "surface" | "attention" | "brand" | "sage";
   style?: StyleProp<ViewStyle>;
 }) {
+  const styles = useStyles();
+  const cardTones = useCardTones();
   return <View style={[styles.card, cardTones[tone], style]}>{children}</View>;
 }
 
@@ -185,17 +212,19 @@ export function Field({
   error,
   ...input
 }: { label: string; hint?: string; error?: string } & TextInputProps) {
+  const c = useColors();
+  const styles = useStyles();
   return (
     <View style={{ gap: 6 }}>
       <RNText style={[styles.fieldLabel]}>{label}</RNText>
       <TextInput
         accessibilityLabel={label}
-        placeholderTextColor={colors.muted}
-        style={[styles.input, !!error && { borderColor: colors.danger }]}
+        placeholderTextColor={c.muted}
+        style={[styles.input, !!error && { borderColor: c.danger }]}
         {...input}
       />
       {error ? (
-        <RNText style={[styles.caption, { color: colors.danger }]}>{error}</RNText>
+        <RNText style={[styles.caption, { color: c.danger }]}>{error}</RNText>
       ) : hint ? (
         <RNText style={styles.caption}>{hint}</RNText>
       ) : null}
@@ -221,6 +250,7 @@ export function Stepper({
   min?: number;
   max?: number;
 }) {
+  const styles = useStyles();
   return (
     <View style={styles.stepper}>
       <RNText style={[styles.body, { flex: 1, fontFamily: fontFor("600") }]}>{label}</RNText>
@@ -269,6 +299,7 @@ export function Sheet({
   children: ReactNode;
 }) {
   const reduced = useReduced();
+  const styles = useStyles();
   return (
     <Modal visible={visible} transparent animationType={reduced ? "fade" : "slide"} onRequestClose={onClose}>
       <Pressable style={styles.scrim} onPress={onClose} accessibilityRole="button" accessibilityLabel={closeLabel} />
@@ -290,6 +321,7 @@ export function Screen({
   scroll?: boolean;
   footer?: ReactNode;
 }) {
+  const styles = useStyles();
   // The demo strip owns the status-bar inset while it is shown, so the screen must not add a second one.
   const topOwned = useTopInsetOwned();
   // KeyboardAvoidingView measures its frame relative to its parent, but the keyboard is positioned in the window.
@@ -353,6 +385,8 @@ export function RoundButton({
   selected?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
+  const c = useColors();
+  const styles = useStyles();
   return (
     <PressableScale
       accessibilityRole="button"
@@ -362,26 +396,26 @@ export function RoundButton({
       onPress={onPress}
       style={[styles.round, style]}
     >
-      <Ionicons name={icon} size={22} color={colors.forest} />
+      <Ionicons name={icon} size={22} color={c.forest} />
     </PressableScale>
   );
 }
 
-const cardTones = StyleSheet.create({
-  surface: { backgroundColor: colors.surface, borderColor: colors.line },
-  attention: { backgroundColor: colors.cream, borderColor: colors.attentionBorder },
-  brand: { backgroundColor: colors.forest, borderColor: colors.forest },
-  sage: { backgroundColor: colors.sage, borderColor: colors.sage },
-});
+const useCardTones = themedStyles((c) => ({
+  surface: { backgroundColor: c.surface, borderColor: c.line },
+  attention: { backgroundColor: c.cream, borderColor: c.attentionBorder },
+  brand: { backgroundColor: c.forest, borderColor: c.forest },
+  sage: { backgroundColor: c.sage, borderColor: c.sage },
+}));
 
-const styles = StyleSheet.create({
+const useStyles = themedStyles((c) => ({
   round: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderWidth: 1,
-    borderColor: colors.line,
+    borderColor: c.line,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -392,40 +426,40 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  primary: { backgroundColor: colors.forest },
-  secondary: { borderWidth: 1, borderColor: colors.secondaryBorder, backgroundColor: "transparent" },
+  primary: { backgroundColor: c.forest },
+  secondary: { borderWidth: 1, borderColor: c.secondaryBorder, backgroundColor: "transparent" },
   textButton: { minHeight: 48, paddingHorizontal: 4, backgroundColor: "transparent" },
-  disabled: { backgroundColor: colors.fieldBorder },
+  disabled: { backgroundColor: c.fieldBorder },
   disabledQuiet: { opacity: 0.45 },
   buttonLabel: { fontFamily: fontFor("700"), fontSize: 15 },
   chip: { minHeight: 48, paddingHorizontal: 14, borderRadius: 9, justifyContent: "center" },
-  chipOn: { backgroundColor: colors.forest },
-  chipOff: { borderWidth: 1, borderColor: colors.secondaryBorder },
+  chipOn: { backgroundColor: c.forest },
+  chipOff: { borderWidth: 1, borderColor: c.secondaryBorder },
   chipLabel: { fontFamily: fontFor("700"), fontSize: 13 },
   segmented: {
     flexDirection: "row",
     gap: 4,
     padding: 4,
     borderRadius: 10,
-    backgroundColor: colors.sage,
+    backgroundColor: c.sage,
   },
   segment: { flex: 1, minHeight: 48, borderRadius: 8, alignItems: "center", justifyContent: "center" },
-  segmentOn: { backgroundColor: colors.forest },
+  segmentOn: { backgroundColor: c.forest },
   card: { borderWidth: 1, borderRadius: 16, padding: 16, gap: 10 },
-  fieldLabel: { fontFamily: fontFor("700"), fontSize: 13, color: colors.forest },
+  fieldLabel: { fontFamily: fontFor("700"), fontSize: 13, color: c.forest },
   input: {
     minHeight: 48,
     borderWidth: 1,
-    borderColor: colors.fieldBorder,
+    borderColor: c.fieldBorder,
     borderRadius: 9,
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     paddingHorizontal: 14,
     fontFamily: FONT,
     fontSize: 15,
-    color: colors.charcoal,
+    color: c.charcoal,
   },
-  caption: { fontFamily: FONT, fontSize: 12, color: colors.muted },
-  body: { fontFamily: FONT, fontSize: 15, color: colors.charcoal },
+  caption: { fontFamily: FONT, fontSize: 12, color: c.muted },
+  body: { fontFamily: FONT, fontSize: 15, color: c.charcoal },
   stepper: {
     flexDirection: "row",
     alignItems: "center",
@@ -434,10 +468,10 @@ const styles = StyleSheet.create({
     minHeight: 52,
   },
   stepButton: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
-  stepGlyph: { fontSize: 22, color: colors.forest },
+  stepGlyph: { fontSize: 22, color: c.forest },
   scrim: { flex: 1, backgroundColor: "rgba(20,30,25,0.45)" },
   sheet: {
-    backgroundColor: colors.surface,
+    backgroundColor: c.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
@@ -449,9 +483,9 @@ const styles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 4,
-    backgroundColor: colors.fieldBorder,
+    backgroundColor: c.fieldBorder,
   },
-  screen: { flex: 1, backgroundColor: colors.canvas },
+  screen: { flex: 1, backgroundColor: c.canvas },
   keyboard: { flex: 1 },
   screenBody: { paddingHorizontal: 20, paddingTop: 16, gap: 16, maxWidth: 760, width: "100%", alignSelf: "center" },
   footer: {
@@ -461,8 +495,8 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 20,
     borderTopWidth: 1,
-    borderTopColor: colors.line,
-    backgroundColor: colors.surface,
+    borderTopColor: c.line,
+    backgroundColor: c.surface,
     gap: 8,
   },
-});
+}));

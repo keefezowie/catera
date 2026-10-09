@@ -1,6 +1,7 @@
-import { StyleSheet, View } from "react-native";
+import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, RoundButton, Text } from "./components";
+import { RoundButton, Text } from "./components";
+import { themedStyles } from "./theme";
 import { useTopInsetOwned } from "./TopInset";
 
 /**
@@ -19,6 +20,7 @@ export function AppHeader({
   backLabel: string;
 }) {
   const insets = useSafeAreaInsets();
+  const styles = useStyles();
   // The demo strip owns the status-bar inset while it is shown.
   const topOwned = useTopInsetOwned();
   return (
@@ -33,14 +35,14 @@ export function AppHeader({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = themedStyles((c) => ({
   bar: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
     paddingHorizontal: 16,
     paddingBottom: 8,
-    backgroundColor: colors.canvas,
+    backgroundColor: c.canvas,
   },
   title: { flex: 1 },
-});
+}));
