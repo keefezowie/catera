@@ -7,6 +7,7 @@ import type {
   DatedMenu,
 } from "./contents";
 export * from "./contents";
+export * from "./calendar";
 export * from "./delivery-availability";
 export * from "./package-presentation";
 export * from "./offer-editor";

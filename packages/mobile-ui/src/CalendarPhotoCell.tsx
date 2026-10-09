@@ -63,10 +63,21 @@ export function CalendarPhotoCell({
   const showPhoto = photo !== null && fontScale < LARGE_FONT_SCALE;
   const unset = meal && !menuSet;
 
+  // The selected day's number sits in a pill filled with the header's text colour, in the header colour. The two rings
+  // (today, selected) can be close in tone on a dark header, so the pill tells them apart by more than their hue.
+  const pillFill = selected ? mood.headerText : past ? c.forest : c.cream;
+  const pillInk = selected ? mood.header : past ? c.cream : c.forest;
+
   const number = (
     <Text
       variant="label"
-      style={{ color: mood.headerMeta, fontSize: 14, lineHeight: 18, textAlign: "center", fontVariant: ["tabular-nums"] }}
+      style={{
+        color: selected ? mood.header : mood.headerMeta,
+        fontSize: 14,
+        lineHeight: 18,
+        textAlign: "center",
+        fontVariant: ["tabular-nums"],
+      }}
     >
       {String(day)}
     </Text>
@@ -102,12 +113,12 @@ export function CalendarPhotoCell({
               paddingVertical: 1,
               borderRadius: BADGE / 2,
               justifyContent: "center",
-              backgroundColor: past ? c.forest : c.cream,
+              backgroundColor: pillFill,
             }}
           >
             <Text
               variant="label"
-              style={{ color: past ? c.cream : c.forest, fontSize: 12, lineHeight: 16, fontVariant: ["tabular-nums"] }}
+              style={{ color: pillInk, fontSize: 12, lineHeight: 16, fontVariant: ["tabular-nums"] }}
             >
               {String(day)}
             </Text>
@@ -115,7 +126,22 @@ export function CalendarPhotoCell({
         </>
       ) : (
         <View style={{ ...fill, alignItems: "center", justifyContent: "center", gap: 3 }}>
-          {number}
+          {selected ? (
+            <View
+              testID="cell-number-pill"
+              style={{
+                minHeight: BADGE,
+                paddingHorizontal: 8,
+                borderRadius: BADGE / 2,
+                justifyContent: "center",
+                backgroundColor: pillFill,
+              }}
+            >
+              {number}
+            </View>
+          ) : (
+            number
+          )}
           {revealed ? (
             // Without the photo the dot says there is a meal, and a small moon beside it says dinner too. The corner
             // badge would sit on top of a two-digit number at this size, so it is not drawn here.

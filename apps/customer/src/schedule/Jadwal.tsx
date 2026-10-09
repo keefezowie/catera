@@ -2,47 +2,38 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, Image, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
-import { jakartaDay, mealLabel, MEALS, windowStartMinutes, type CustomerState, type Delivery } from "@catera/domain";
+import {
+  calendarDays,
+  jakartaDay,
+  mealLabel,
+  MEALS,
+  windowStartMinutes,
+  type CustomerState,
+  type Delivery,
+} from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
 import {
   Button,
   Card,
   fontFor,
+  MoodHeader,
   PressableRow,
   PressableScale,
   Screen,
   Text,
   themedStyles,
   useColors,
+  useMoodColors,
 } from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
 import { photoUri } from "../today/Plate";
-import { MonthGrid, type DayMark } from "./MonthGrid";
+import { CalendarLegend, MonthGrid } from "./MonthGrid";
 import { longDay, monthOf, monthRange, monthTitle, shiftMonth } from "./dates";
 
 const live = (d: Delivery) => d.status !== "cancelled";
 const served = (d: Delivery) => (d.meals ?? []).filter((m) => m.status !== "cancelled");
 /** The caterer marked the meal "Gagal diantar": it did not come and is not coming. */
 const failed = (status: string) => status === "issue";
-
-/**
- * What each day covers: lunch and/or dinner, and `done` once every meal it serves has arrived.
- * Meals the caterer could not deliver count as neither, so a day of only those has no mark.
- */
-function marksOf(deliveries: Delivery[]): Map<string, DayMark> {
-  const marks = new Map<string, DayMark>();
-  for (const d of deliveries.filter(live)) {
-    const meals = served(d).filter((m) => !failed(m.status));
-    if (!meals.length) continue;
-    const mark = marks.get(d.service_date) ?? { lunch: false, dinner: false, done: true };
-    for (const m of meals) {
-      mark[m.meal] = true;
-      if (m.status !== "delivered") mark.done = false;
-    }
-    marks.set(d.service_date, mark);
-  }
-  return marks;
-}
 
 /** Jadwal: the month at a glance and the meals of the day you tap. */
 export function Jadwal() {
@@ -62,6 +53,7 @@ export function Jadwal() {
 function SignedInJadwal() {
   const { runtime, t, locale } = useMobile();
   const c = useColors();
+  const mood = useMoodColors();
   const styles = useStyles();
   const today = jakartaDay(new Date());
   const [month, setMonth] = useState(monthOf(today));
@@ -85,30 +77,51 @@ function SignedInJadwal() {
         windowStartMinutes(a.d.offer, a.m.meal) - windowStartMinutes(b.d.offer, b.m.meal),
     );
 
+  // The month moves from the header's trailing slot. The chevrons sit on the header, so they read its mood text colour.
+  const chevrons = (
+    <View style={styles.monthBar}>
+      <PressableScale
+        accessibilityRole="button"
+        accessibilityLabel={t("Bulan sebelumnya", "Previous month")}
+        onPress={() => setMonth(shiftMonth(month, -1))}
+        style={styles.arrow}
+      >
+        <Ionicons name="chevron-back" size={22} color={mood.headerText} />
+      </PressableScale>
+      <PressableScale
+        accessibilityRole="button"
+        accessibilityLabel={t("Bulan berikutnya", "Next month")}
+        onPress={() => setMonth(shiftMonth(month, 1))}
+        style={styles.arrow}
+      >
+        <Ionicons name="chevron-forward" size={22} color={mood.headerText} />
+      </PressableScale>
+    </View>
+  );
+
   return (
-    <Screen>
-      <Text variant="title">{t("Jadwal", "Schedule")}</Text>
-      <View style={styles.monthBar}>
-        <PressableScale
-          accessibilityRole="button"
-          accessibilityLabel={t("Bulan sebelumnya", "Previous month")}
-          onPress={() => setMonth(shiftMonth(month, -1))}
-          style={styles.arrow}
-        >
-          <Ionicons name="chevron-back" size={22} color={c.forest} />
-        </PressableScale>
-        <Text variant="heading" style={{ flex: 1, textAlign: "center" }}>
-          {monthTitle(month, locale)}
-        </Text>
-        <PressableScale
-          accessibilityRole="button"
-          accessibilityLabel={t("Bulan berikutnya", "Next month")}
-          onPress={() => setMonth(shiftMonth(month, 1))}
-          style={styles.arrow}
-        >
-          <Ionicons name="chevron-forward" size={22} color={c.forest} />
-        </PressableScale>
-      </View>
+    <Screen
+      header={
+        <MoodHeader testID="jadwal-header" meta={t("Jadwal", "Schedule")} title={monthTitle(month, locale)} trailing={chevrons}>
+          <MonthGrid
+            month={month}
+            today={today}
+            selected={selected}
+            days={calendarDays(deliveries)}
+            apiBase={runtime.apiBase}
+            locale={locale}
+            onSelect={setSelected}
+          />
+          <CalendarLegend
+            labels={{
+              photo: t("Foto menu", "Menu photo"),
+              unset: t("Menu belum diisi", "Menu not set"),
+              dinner: t("Ada makan malam", "Dinner too"),
+            }}
+          />
+        </MoodHeader>
+      }
+    >
       {data.error ? (
         <View style={{ gap: 6 }}>
           <Text selectable variant="caption" style={{ color: c.danger }}>
@@ -117,12 +130,6 @@ function SignedInJadwal() {
           <Button variant="text" label={t("Coba lagi", "Try again")} onPress={() => void data.reload()} />
         </View>
       ) : null}
-      <MonthGrid month={month} today={today} selected={selected} marks={marksOf(deliveries)} locale={locale} onSelect={setSelected} />
-      <View style={styles.legend}>
-        <Legend id="lunch" icon="sunny" size={12} color={c.sunriseInk} label={t("Makan siang", "Lunch")} />
-        <Legend id="dinner" icon="moon" size={11} color={c.forest} label={t("Makan malam", "Dinner")} />
-        <Legend id="arrived" icon="sunny" size={12} color={c.muted} label={t("Sudah sampai", "Arrived")} />
-      </View>
       <Text variant="label">{longDay(selected, locale)}</Text>
       {data.loading && !state ? (
         <ActivityIndicator color={c.forest} />
@@ -136,16 +143,6 @@ function SignedInJadwal() {
         <Text style={{ color: c.muted }}>{t("Tidak ada pengantaran di hari ini.", "No delivery on this day.")}</Text>
       ) : null}
     </Screen>
-  );
-}
-
-function Legend({ id, icon, size, color, label }: { id: string; icon: "sunny" | "moon"; size: number; color: string; label: string }) {
-  const styles = useStyles();
-  return (
-    <View style={styles.legendItem} testID={`legend-${id}`}>
-      <Ionicons name={icon} size={size} color={color} />
-      <Text variant="caption">{label}</Text>
-    </View>
   );
 }
 
@@ -202,8 +199,6 @@ const useStyles = themedStyles((c) => ({
   center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: c.canvas },
   monthBar: { flexDirection: "row", alignItems: "center" },
   arrow: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
-  legend: { flexDirection: "row", flexWrap: "wrap", columnGap: 18, rowGap: 6 },
-  legendItem: { flexDirection: "row", alignItems: "center", gap: 6 },
   meal: { minHeight: 72, flexDirection: "row", alignItems: "center", gap: 12, padding: 8 },
   divider: { borderTopWidth: 1, borderTopColor: c.line },
   photo: { width: 56, height: 56, borderRadius: 10, backgroundColor: c.sage },
