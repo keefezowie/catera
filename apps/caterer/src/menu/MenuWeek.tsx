@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Image, ScrollView, Share, useWindowDimensions, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
@@ -198,6 +198,8 @@ export function MenuWeek() {
   // One photo at a time, from the tap until the reloaded menu has landed. The ref stops a double tap before a re-render.
   const [photoBusy, setPhotoBusy] = useState(false);
   const photoBusyRef = useRef(false);
+  // A saved photo is not done until the week that was read afterwards carries it; until then no pill is offered.
+  const [awaiting, setAwaiting] = useState<{ key: string; date: string; dishId: string; url: string; version: number } | null>(null);
   // The newest read of the week, so a save made after a slow picker uses the day's current version, not the tapped one.
   const latestDays = useRef(new Map<string, MenuDay>());
   // The strip lays itself out from the width it is given; until it is measured, the window stands in.
@@ -219,6 +221,17 @@ export function MenuWeek() {
   const byDate = new Map((days.data ?? []).map((d) => [d.date, d] as const));
   latestDays.current = byDate;
   const selected = byDate.get(selectedDate);
+  // The fresh week has landed once the saved dish carries the photo, or the day's version has moved on. A failed
+  // read, or leaving that day, stops the wait so the pills can never stay off.
+  const saved = awaiting && awaiting.key === `${offer?.id}:${meal}` && dates.includes(awaiting.date) ? byDate.get(awaiting.date) : undefined;
+  const reflected =
+    !!awaiting &&
+    !!saved &&
+    (saved.version > awaiting.version || saved.details?.items?.find((i) => i.id === awaiting.dishId)?.image === awaiting.url);
+  const waitingForWeek = !!awaiting && !reflected && !!saved && !days.error;
+  useEffect(() => {
+    if (awaiting && !waitingForWeek) setAwaiting(null);
+  }, [awaiting, waitingForWeek]);
 
   async function copyLastWeek() {
     if (!offer) return;
@@ -289,17 +302,24 @@ export function MenuWeek() {
       // The week may have been reloaded while the picker and the upload ran: save against its newest version.
       const current = latestDays.current.get(day.date) ?? day;
       const items = current.details?.items ?? [];
-      if (!items.some((i) => i.id === dish.id)) return;
+      if (!items.some((i) => i.id === dish.id)) {
+        // The caterer changed this day while the photo was on its way: say so rather than drop it silently.
+        setPhotoError(t("Menu sudah berubah. Coba lagi.", "The menu changed. Try again."));
+        await days.reload();
+        return;
+      }
       try {
         await saveMenuDay(
           { command },
           { catererId, offer, meal, day: current, items: items.map((i) => (i.id === dish.id ? { ...i, image: url } : i)) },
         );
+        // The save refreshes the week by itself; the pills stay off until that read carries the photo.
+        setAwaiting({ key: `${offer.id}:${meal}`, date: day.date, dishId: dish.id, url, version: current.version });
       } catch (e) {
         setPhotoError(errorLabel((e as { code?: string }).code || (e as Error).message, locale) || t("Belum tersimpan.", "Not saved."));
+        // A failed save may mean the day moved on (a conflict): read it again so the next try has the right version.
+        await days.reload();
       }
-      // A failed save may mean the day moved on (a conflict): read it again so the next try has the right version.
-      await days.reload();
     } finally {
       photoBusyRef.current = false;
       setPhotoBusy(false);
@@ -482,16 +502,17 @@ export function MenuWeek() {
                       dish={dish}
                       canAddPhoto={canEdit && selected.editable}
                       uploading={uploadingId === dish.id}
-                      busy={photoBusy}
+                      busy={photoBusy || waitingForWeek}
                       onAdd={() => void addPhoto(selected, dish)}
                     />
                   ))}
                 </View>
               ) : null;
             })
-          ) : past ? (
+          ) : past || !selected.editable ? (
+            // An empty day nobody can fill any more: past, or past its change cutoff. It is not a to-do, so it is muted.
             <Text variant="caption" style={{ color: c.muted }}>
-              {t("Lewat", "Past")}
+              {past ? t("Lewat", "Past") : t("Sudah lewat batas ubah", "Past the change cutoff")}
             </Text>
           ) : (
             <Text style={{ color: c.sunriseInk, fontFamily: fontFor("700") }}>

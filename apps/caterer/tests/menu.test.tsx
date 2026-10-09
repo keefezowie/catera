@@ -242,11 +242,17 @@ describe("menu reads", () => {
 
     it("does not ask to fill past days", async () => {
       const open = (date: string, editable: boolean) => ({ date, version: 0, editable, details: null });
+      // Production: today's cutoff has passed (closed), a later day is still open to fill, and past days are closed.
       const { wrap, MenuWeek } = setup(
-        jest.fn(async () => ({ dates: [open("2026-10-05", false), open("2026-10-08", true)], categories: [] })),
+        jest.fn(async () => ({
+          dates: [open("2026-10-05", false), open("2026-10-08", false), open("2026-10-09", true)],
+          categories: [],
+        })),
       );
       render(wrap(<MenuWeek />));
-      // Thursday (today) is still open to fill.
+      // Friday is open to fill: a to-do with its action.
+      await screen.findByText("5–9 Okt");
+      fireEvent.press(screen.getByTestId("menu-day-2026-10-09"));
       expect(await screen.findByText("Belum diisi")).toBeTruthy();
       expect(screen.getByRole("button", { name: "Ubah menu" })).toBeTruthy();
       // Monday is behind us: it says so and offers no editor.
@@ -567,13 +573,34 @@ describe("Menu week header, strip, day card and photo prompt", () => {
     role = "owner",
     launch = NOW,
     unread = false,
-  }: { offers?: unknown[]; dates?: unknown[]; role?: string; launch?: string; unread?: boolean } = {}) {
-    const { createMobileRuntime, MobileProvider } = jest.requireActual("@catera/mobile-core") as typeof import("@catera/mobile-core");
+    hold,
+  }: {
+    offers?: unknown[];
+    // The week as the API returns it; a function is asked again on every read, so a test can change the data in between.
+    dates?: unknown[] | (() => unknown[]);
+    role?: string;
+    launch?: string;
+    unread?: boolean;
+    // When it returns a promise, the read waits for it.
+    hold?: () => Promise<void> | undefined;
+  } = {}) {
+    const { createMobileRuntime, MobileProvider, useMobile } = jest.requireActual("@catera/mobile-core") as typeof import("@catera/mobile-core");
     const { MenuWeek } = jest.requireActual("../src/menu/MenuWeek") as typeof import("../src/menu/MenuWeek");
     const runtime = createMobileRuntime({ apiUrl: "https://api.example.test", storagePrefix: "mw" });
     // `unread` keeps the week's read pending forever, to look at the screen while it loads.
-    const menuMonth = jest.fn(() => (unread ? new Promise(() => undefined) : Promise.resolve({ dates, categories: [] })));
+    const menuMonth = jest.fn(async () => {
+      if (unread) return new Promise(() => undefined);
+      await hold?.();
+      return { dates: typeof dates === "function" ? dates() : dates, categories: [] };
+    });
     const command = jest.fn(async () => ({}));
+    // A sibling that sends a command of its own, which refreshes every read like a save or a push would.
+    let refresh: () => Promise<unknown> = async () => undefined;
+    const Refresher = () => {
+      const mobile = useMobile();
+      refresh = () => mobile.command("refresh", {});
+      return null;
+    };
     runtime.api = {
       ...runtime.api,
       me: jest.fn(async () => ({ actor: { id: "u-1", role, catererId: "k-1" }, demo: false })),
@@ -584,11 +611,12 @@ describe("Menu week header, strip, day card and photo prompt", () => {
     render(
       <MoodProvider now={() => new Date(launch)}>
         <MobileProvider runtime={runtime} linkMapper={(h: string) => h}>
+          <Refresher />
           <MenuWeek />
         </MobileProvider>
       </MoodProvider>,
     );
-    return { runtime, menuMonth, command };
+    return { runtime, menuMonth, command, refresh: () => act(async () => void (await refresh())) };
   }
   const flatOf = (id: string) => StyleSheet.flatten(screen.getByTestId(id, { includeHiddenElements: true }).props.style);
   const mealsAsked = (menuMonth: jest.Mock) => [...new Set((menuMonth.mock.calls as unknown as unknown[][]).map((c) => c[3]))];
@@ -782,6 +810,16 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       expect(screen.getAllByText("Tambah foto")).toHaveLength(2);
     });
 
+    it("calls an empty day past its change cutoff closed, in muted ink with no action", async () => {
+      // Today in production: the cutoff was yesterday, so nothing can be filled and nothing is asked of the caterer.
+      mount({ dates: [{ date: "2026-10-08", version: 0, editable: false, details: null }] });
+      const label = await screen.findByText("Sudah lewat batas ubah");
+      expect(StyleSheet.flatten(label.props.style).color).toBe(nativeThemes.light.muted);
+      expect(screen.queryByText("Belum diisi")).toBeNull();
+      expect(screen.queryByText("Lewat")).toBeNull();
+      expect(screen.queryByRole("button", { name: "Ubah menu" })).toBeNull();
+    });
+
     it("Ubah menu opens the day editor", async () => {
       mount({ dates: [filled("2026-10-08")] });
       await screen.findByText("Nasi putih");
@@ -893,14 +931,89 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       expect(screen.queryByText("Mengunggah…")).toBeNull();
     });
 
-    it("opens the picker once when the pill is tapped twice", async () => {
+    it("opens the picker once when the pill is tapped twice before anything re-renders", async () => {
       pick.mockReturnValue(new Promise(() => undefined));
       mount({ dates: [filled("2026-10-08")] });
       await screen.findByText("Nasi putih");
-      fireEvent.press(ayamPill());
-      fireEvent.press(ayamPill());
-      fireEvent.press(screen.getByRole("button", { name: "Tambah foto, Sayur asem" }));
+      const pill = ayamPill();
+      // Both taps land inside one act, so the pill has not had the chance to disable itself: only the guard stops the second.
+      act(() => {
+        fireEvent.press(pill);
+        fireEvent.press(pill);
+      });
       expect(pick).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps every pill off after a successful save until the refreshed week carries the photo", async () => {
+      pick.mockResolvedValue({ canceled: false, assets: [asset] });
+      upload.mockResolvedValue("https://cdn.test/ayam.jpg");
+      let saved = false;
+      let release: () => void = () => undefined;
+      const held = new Promise<void>((resolve) => (release = resolve));
+      const withPhoto = dishes.map((d) => (d.id === "i-ayam" ? { ...d, image: "https://cdn.test/ayam.jpg" } : d));
+      const { command } = mount({
+        dates: () => [{ ...filled("2026-10-08", saved ? withPhoto : dishes), version: saved ? 4 : 3 }],
+        // The reads after the save wait for the test to let them through.
+        hold: () => (saved ? held : undefined),
+      });
+      command.mockImplementation(async (action: string) => {
+        if (action === "menu.saveBatch") saved = true;
+        return {};
+      });
+      await screen.findByText("Nasi putih");
+      fireEvent.press(ayamPill());
+      await waitFor(() => expect(command).toHaveBeenCalled());
+      // The save is done and the new read is still on its way: the old week is on screen and nothing can be tapped.
+      await act(async () => undefined);
+      expect(screen.getByRole("button", { name: "Tambah foto, Ayam goreng" }).props.accessibilityState.disabled).toBe(true);
+      expect(screen.getByRole("button", { name: "Tambah foto, Sayur asem" }).props.accessibilityState.disabled).toBe(true);
+      await act(async () => release());
+      await waitFor(() => expect(screen.queryByRole("button", { name: "Tambah foto, Ayam goreng" })).toBeNull());
+      expect(screen.getByRole("button", { name: "Tambah foto, Sayur asem" }).props.accessibilityState.disabled).toBeFalsy();
+    });
+
+    it("saves against the version the week was reloaded to while the picker was open", async () => {
+      let version = 3;
+      let choose: (value: unknown) => void = () => undefined;
+      pick.mockReturnValue(new Promise((resolve) => (choose = resolve)));
+      upload.mockResolvedValue("https://cdn.test/ayam.jpg");
+      const { command, menuMonth, refresh } = mount({ dates: () => [{ ...filled("2026-10-08"), version }] });
+      await screen.findByText("Nasi putih");
+      fireEvent.press(ayamPill());
+      // While the picker is open, someone else changes the day: it moves to version 4 and the week is read again.
+      version = 4;
+      const reads = menuMonth.mock.calls.length;
+      await refresh();
+      await waitFor(() => expect(menuMonth.mock.calls.length).toBeGreaterThan(reads));
+      await act(async () => undefined);
+      await act(async () => choose({ canceled: false, assets: [asset] }));
+      await waitFor(() => expect(command.mock.calls.some((c) => (c as unknown[])[0] === "menu.saveBatch")).toBe(true));
+      const save = command.mock.calls.find((c) => (c as unknown[])[0] === "menu.saveBatch") as unknown as [string, { dates: unknown }];
+      expect(save[1].dates).toEqual([{ date: "2026-10-08", version: 4 }]);
+    });
+
+    it("says the menu changed when the dish is gone by the time the photo is ready, and reads the day again", async () => {
+      let gone = false;
+      let choose: (value: unknown) => void = () => undefined;
+      pick.mockReturnValue(new Promise((resolve) => (choose = resolve)));
+      upload.mockResolvedValue("https://cdn.test/ayam.jpg");
+      const { command, menuMonth, refresh } = mount({
+        dates: () => [filled("2026-10-08", gone ? dishes.filter((d) => d.id !== "i-ayam") : dishes)],
+      });
+      await screen.findByText("Nasi putih");
+      fireEvent.press(ayamPill());
+      gone = true;
+      const reads = menuMonth.mock.calls.length;
+      await refresh();
+      await waitFor(() => expect(screen.queryByText("Ayam goreng")).toBeNull());
+      const readsBefore = menuMonth.mock.calls.length;
+      expect(readsBefore).toBeGreaterThan(reads);
+      await act(async () => choose({ canceled: false, assets: [asset] }));
+      const message = await screen.findByText("Menu sudah berubah. Coba lagi.");
+      expect(message.props.selectable).toBe(true);
+      expect(StyleSheet.flatten(message.props.style).color).toBe(nativeThemes.light.danger);
+      expect(command.mock.calls.some((c) => (c as unknown[])[0] === "menu.saveBatch")).toBe(false);
+      await waitFor(() => expect(menuMonth.mock.calls.length).toBeGreaterThan(readsBefore));
     });
   });
 
@@ -951,7 +1064,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
     });
 
     it("has no preview for a day without a menu", async () => {
-      mount();
+      mount({ dates: [{ date: "2026-10-08", version: 0, editable: true, details: null }] });
       await screen.findByText("Belum diisi");
       expect(screen.queryByTestId("story-cover")).toBeNull();
       expect(screen.queryByText("Tampilan di aplikasi pelanggan")).toBeNull();
