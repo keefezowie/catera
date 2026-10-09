@@ -10,3 +10,6 @@ export * from "./mood";
 export * from "./MoodHeader";
 export * from "./brand/DayArc";
 export * from "./brand/MalamPattern";
+export * from "./PhotoRing";
+export * from "./CalendarPhotoCell";
+export * from "./StoryCover";
