@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { journeyCaption, mealJourney, type DeliveryMeal } from "@catera/domain";
+import { jakartaClock, journeyCaption, mealJourney, type DeliveryMeal } from "@catera/domain";
 
 const meal = (over: Partial<DeliveryMeal> = {}): DeliveryMeal => ({ meal: "lunch", status: "scheduled", ...over });
 
@@ -43,6 +43,16 @@ describe("mealJourney", () => {
     const cooking = mealJourney(meal({ status: "issue", cooking_started_at: "2026-10-09T01:10:00Z" }));
     expect(cooking).toMatchObject({ stage: "preparing", issue: true });
     expect(mealJourney(meal({ status: "issue" }))).toMatchObject({ stage: "scheduled", issue: true });
+  });
+});
+
+describe("jakartaClock", () => {
+  it("reads HH.MM in Jakarta and nothing from a missing or unreadable time", () => {
+    expect(jakartaClock("2026-10-09T01:10:00Z")).toBe("08.10");
+    expect(jakartaClock("2026-10-09T17:05:00Z")).toBe("00.05");
+    expect(jakartaClock(null)).toBeNull();
+    expect(jakartaClock(undefined)).toBeNull();
+    expect(jakartaClock("nonsense")).toBeNull();
   });
 });
 

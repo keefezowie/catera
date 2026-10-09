@@ -1,7 +1,7 @@
-import { menuCoverImage } from "./contents";
+import { menuCoverImage, pendingMenu, type Dish, type MealMenu } from "./contents";
 import { addDays } from "./dates";
 import type { CustomerState, Delivery, DeliveryMeal, Locale, Offer, Subscription } from "./index";
-import { mealJourney, type Journey } from "./journey";
+import { jakartaClock, mealJourney, type Journey } from "./journey";
 import type { MealType } from "./offer-schema";
 import { jakartaDay, shortDate } from "./kitchen";
 import { windowStartMinutes } from "./windows";
@@ -55,15 +55,17 @@ export type UpcomingRow = {
 export type StoryPart = {
   deliveryId: string;
   meal: "lunch" | "dinner";
-  /** The menu's name once the menu is set, else null. */
+  /** The headline dish (the main dish) once the menu is set; a legacy menu's name; else null. */
   title: string | null;
-  /** The dishes of the menu in composition order; empty while the menu is not set. */
+  /** The other dishes in composition order; empty while the menu is not set. */
   sides: string[];
   catererName: string;
   window: string;
+  /** The menu's cover photo once the menu is set, else the package photo. */
   image: string;
-  /** False while nothing is chosen: no menu, a menu still to pick, or one with no dishes. */
+  /** False while nothing is chosen: no menu, a menu still to pick, left to the caterer, or one with no dishes. */
   menuSet: boolean;
+  /** The day itself can still be changed ("Ubah hari"). */
   changeable: boolean;
   /** When changes close, or null once they have. */
   until: string | null;
@@ -71,7 +73,6 @@ export type StoryPart = {
 
 export type TomorrowStory = { date: string; parts: StoryPart[] };
 
-const JAKARTA_OFFSET_MS = 7 * 60 * 60 * 1000;
 /** Meal order within a day: lunch first. */
 export const MEALS = ["lunch", "dinner"] as const;
 const ADDRESS_LABEL_LENGTH = 24;
@@ -85,20 +86,9 @@ function windowStart(date: string, offer: Offer, meal: "lunch" | "dinner"): numb
   return Date.parse(`${date}T${hh}:${mm}:00+07:00`);
 }
 
-/** HH.MM in Asia/Jakarta, or null for an unreadable timestamp. */
-function jakartaClock(iso: string): string | null {
-  const t = Date.parse(iso);
-  if (Number.isNaN(t)) return null;
-  const d = new Date(t + JAKARTA_OFFSET_MS);
-  return `${String(d.getUTCHours()).padStart(2, "0")}.${String(d.getUTCMinutes()).padStart(2, "0")}`;
-}
-
-/** Dish names in composition order, else the menu name; empty when the offer has no such menu. */
-function dishesFor(offer: Offer, meal: "lunch" | "dinner"): string[] {
-  const menu = offer.menus?.find((m) => m.meal === meal);
-  if (!menu) return [];
+/** The menu's named dishes in composition order. */
+function orderedDishes(menu: MealMenu): Dish[] {
   const items = (menu.items ?? []).filter((i) => i.name.trim());
-  if (!items.length) return menu.name ? [menu.name] : [];
   const order = (menu.composition ?? []).map((g) => g.id);
   const rank = (groupId?: string) => {
     const at = groupId ? order.indexOf(groupId) : -1;
@@ -107,7 +97,16 @@ function dishesFor(offer: Offer, meal: "lunch" | "dinner"): string[] {
   return items
     .map((item, index) => ({ item, index }))
     .sort((a, b) => rank(a.item.groupId) - rank(b.item.groupId) || a.index - b.index)
-    .map(({ item }) => item.name);
+    .map(({ item }) => item);
+}
+
+/** Dish names in composition order, else the menu name; empty when the offer has no such menu. */
+function dishesFor(offer: Offer, meal: "lunch" | "dinner"): string[] {
+  const menu = offer.menus?.find((m) => m.meal === meal);
+  if (!menu) return [];
+  const items = orderedDishes(menu);
+  if (!items.length) return menu.name ? [menu.name] : [];
+  return items.map((item) => item.name);
 }
 
 /**
@@ -220,6 +219,34 @@ function servedMeals(d: Delivery): ("lunch" | "dinner")[] {
 }
 
 /**
+ * Whether a menu tells the customer what they get: not one still to pick or left to the caterer
+ * with no dishes, not an empty slot menu, and either at least one named dish or a legacy menu
+ * (no dish rows, no slot model) whose name is the dish.
+ */
+function menuIsSet(menu: MealMenu): boolean {
+  if (menu.selectionStatus === "pending" || pendingMenu(menu)) return false;
+  if (orderedDishes(menu).length) return true;
+  if (menu.selectionStatus === "caterer_choice") return false;
+  return !menu.items?.length && !menu.contentModel && !!menu.name.trim();
+}
+
+/**
+ * The story's headline dish and the rest. On slot menus the menu name is every dish joined, so the
+ * headline is the main dish, else the dish whose photo is the cover, else the first in composition
+ * order. A legacy menu has only its name.
+ */
+function storyDishes(menu: MealMenu): { title: string | null; sides: string[] } {
+  const dishes = orderedDishes(menu);
+  if (!dishes.length) return { title: menu.name.trim() || null, sides: [] };
+  const cover = menuCoverImage(menu, "");
+  const lead =
+    dishes.find((i) => i.categoryId === "main") ??
+    (cover ? dishes.find((i) => i.image === cover) : undefined) ??
+    dishes[0];
+  return { title: lead.name, sides: dishes.filter((i) => i !== lead).map((i) => i.name) };
+}
+
+/**
  * Tomorrow in Jakarta as the story's pages: one part per delivery and meal, every lunch before any
  * dinner, a part's window deciding the order among the same meal. Null when nothing is delivered.
  */
@@ -228,23 +255,24 @@ export function tomorrowStory(state: CustomerState, now: Date, locale: Locale): 
   const parts: { part: StoryPart; start: number }[] = [];
   for (const d of state.deliveries) {
     if (d.service_date !== date || d.status === "cancelled") continue;
-    const change = canChangeDay(d, now);
-    const changeable = change.date || change.address;
+    // The story offers "Ubah hari", so it follows the day itself, not only the address.
+    const changeable = canChangeDay(d, now).date;
     for (const meal of servedMeals(d)) {
       const menu = d.offer.menus?.find((m) => m.meal === meal) ?? null;
-      const dishes = dishesFor(d.offer, meal);
-      const menuSet = !!menu && menu.selectionStatus !== "pending" && (menu.items ?? []).some((i) => i.name.trim());
+      const set = !!menu && menuIsSet(menu);
+      const dishes = set ? storyDishes(menu) : { title: null, sides: [] };
       parts.push({
         start: windowStart(date, d.offer, meal),
         part: {
           deliveryId: d.id,
           meal,
-          title: menuSet ? menu.name.trim() || null : null,
-          sides: menuSet ? dishes : [],
+          title: dishes.title,
+          sides: dishes.sides,
           catererName: d.offer.caterer,
           window: d.offer.windows?.[meal] ?? "",
-          image: menuCoverImage(menu, d.offer.image ?? ""),
-          menuSet,
+          // A menu that is not set can still carry a template photo; the package photo is the truth then.
+          image: set ? menuCoverImage(menu, d.offer.image ?? "") : (d.offer.image ?? ""),
+          menuSet: set,
           changeable,
           until: changeable ? changeDeadline(d.cutoff_at, now, locale) : null,
         },

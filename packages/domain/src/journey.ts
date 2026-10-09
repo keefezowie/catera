@@ -24,7 +24,7 @@ export type Journey = {
 const JAKARTA_OFFSET_MS = 7 * 60 * 60 * 1000;
 
 /** HH.MM in Asia/Jakarta, or null for a missing or unreadable timestamp. */
-function clock(iso: string | null): string | null {
+export function jakartaClock(iso: string | null | undefined): string | null {
   if (!iso) return null;
   const t = Date.parse(iso);
   if (Number.isNaN(t)) return null;
@@ -61,12 +61,12 @@ export function journeyCaption(j: Journey, locale: "id" | "en"): string | null {
     case "scheduled":
       return en ? "Scheduled" : "Terjadwal";
     case "preparing": {
-      const at = clock(j.cookingAt);
+      const at = jakartaClock(j.cookingAt);
       if (!at) return en ? "Cooking" : "Dimasak";
       return en ? `Cooking since ${at}` : `Dimasak ${at}`;
     }
     case "out_for_delivery": {
-      const at = clock(j.departedAt);
+      const at = jakartaClock(j.departedAt);
       if (!at) return en ? "On the way" : "Sedang diantar";
       return en ? `Left at ${at}` : `Berangkat ${at}`;
     }

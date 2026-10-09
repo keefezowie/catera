@@ -441,6 +441,22 @@ describe("kitchenSession", () => {
     expect(s.meal).toBe("lunch");
   });
 
+  it("keeps the recap and the stops on the same rows as the portions", () => {
+    const s = kitchenSession(
+      sessionState([
+        sessionRow("Aktif", { status: "preparing" }, "lunch", 3),
+        sessionRow("Gagal", { status: "issue" }, "lunch", 5),
+        sessionRow("Batal", { status: "cancelled" }, "lunch", 7),
+      ]),
+      "lunch",
+      TODAY_NOON,
+    )!;
+    expect(s.stops.map((stop) => stop.name)).toEqual(["Aktif"]);
+    expect(s.recap.total).toBe(3);
+    expect(s.recap.total).toBe(s.portions);
+    expect(s.recap.byPackage.reduce((sum, p) => sum + p.portions, 0)).toBe(s.portions);
+  });
+
   it("carries the earliest cooking and departure times", () => {
     const s = kitchenSession(
       sessionState([
@@ -492,7 +508,14 @@ describe("kitchenDayDone", () => {
   it("is false while any row is not delivered", () => {
     expect(kitchenDayDone(sessionState([delivered("A"), sessionRow("B", { status: "out_for_delivery" })]), [], TODAY_NOON)).toBe(false);
     expect(kitchenDayDone(sessionState([delivered("A"), sessionRow("B", {}, "dinner")]), [], TODAY_NOON)).toBe(false);
-    expect(kitchenDayDone(sessionState([delivered("A"), sessionRow("B", { status: "issue" })]), [], TODAY_NOON)).toBe(false);
+    expect(kitchenDayDone(sessionState([delivered("A"), sessionRow("B", { status: "preparing" })]), [], TODAY_NOON)).toBe(false);
+  });
+  it("counts a row marked as failed as finished, and ignores cancelled rows", () => {
+    const failed = sessionRow("Gagal", { status: "issue" });
+    expect(kitchenDayDone(sessionState([delivered("A"), failed]), [], TODAY_NOON)).toBe(true);
+    expect(kitchenDayDone(sessionState([failed]), [], TODAY_NOON)).toBe(true);
+    expect(kitchenDayDone(sessionState([delivered("A"), sessionRow("Batal", { status: "cancelled" })]), [], TODAY_NOON)).toBe(true);
+    expect(kitchenDayDone(sessionState([failed, sessionRow("B", {}, "dinner")]), [], TODAY_NOON)).toBe(false);
   });
   it("is false with an unresolved issue for that date, true once it is resolved or belongs to another day", () => {
     const rows = sessionState([delivered("A")]);
@@ -540,6 +563,28 @@ describe("routeMapsUrl", () => {
     expect(r.count).toBe(10);
     expect(params(r.url).get("destination")).toBe("Jl. Contoh 10, Tebet, Jakarta Selatan");
     expect(params(r.url).get("waypoints")!.split("|")).toHaveLength(9);
+  });
+  it("skips a stop with no address and counts only the stops it opens", () => {
+    const blank: Stop = { ...stop(2), addressLine: "", area: "", mapsUrl: "" };
+    const r = routeMapsUrl([stop(1), blank, stop(3)])!;
+    expect(r.count).toBe(2);
+    expect(params(r.url).get("destination")).toBe("Jl. Contoh 3, Tebet, Jakarta Selatan");
+    expect(params(r.url).get("waypoints")).toBe("Jl. Contoh 1, Tebet, Jakarta Selatan");
+    expect(routeMapsUrl([blank])).toBeNull();
+    // The ten are the first ten that can be routed to.
+    const many = [blank, ...Array.from({ length: 11 }, (_, i) => stop(i + 1))];
+    expect(routeMapsUrl(many)!.count).toBe(10);
+  });
+  it("opens the route the kitchen session lists, in its order", () => {
+    const state = sessionState([sessionRow("Ani"), sessionRow("Bayu"), sessionRow("Citra")]);
+    const stops = deliveryRoute(state, "lunch");
+    const r = routeMapsUrl(stops)!;
+    expect(r.count).toBe(3);
+    expect(params(r.url).get("destination")).toBe(`${stops[2].addressLine}, ${stops[2].area}, Jakarta Selatan`);
+    expect(params(r.url).get("waypoints")!.split("|")).toEqual([
+      `${stops[0].addressLine}, ${stops[0].area}, Jakarta Selatan`,
+      `${stops[1].addressLine}, ${stops[1].area}, Jakarta Selatan`,
+    ]);
   });
   it("builds the address from the stop when its link carries none", () => {
     const r = routeMapsUrl([{ ...stop(1), mapsUrl: "" }, { ...stop(2), mapsUrl: "" }])!;

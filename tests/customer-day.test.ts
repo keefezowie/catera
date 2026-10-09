@@ -311,17 +311,73 @@ describe("tomorrowStory", () => {
     expect(tomorrowStory(state([delivery("2026-10-08", [lunch()], { status: "cancelled" })]), at("09:00"), "id")).toBeNull();
   });
 
+  // A slot menu as the database stores it: its name is every dish joined, not a title.
+  const dish = (id: string, name: string, groupId: string, over: Record<string, unknown> = {}) => ({
+    id,
+    name,
+    description: "",
+    image: "",
+    serving: "",
+    groupId,
+    ...over,
+  });
+  const slotMenu = (meal: "lunch" | "dinner", items: ReturnType<typeof dish>[], over: Record<string, unknown> = {}) =>
+    menu(meal, { name: items.map((i) => i.name).join(", "), contentModel: "slots", items, ...over });
+  const rice = dish("i1", "Nasi putih", "g-nasi");
+  const chicken = dish("i3", "Ayam bakar", "g-lauk", { categoryId: "main" });
+  const tempe = dish("i2", "Tempe", "g-lauk");
+
   it("gives lunch then dinner for a day that has both", () => {
-    const story = tomorrowStory(state([delivery("2026-10-08", [dinner(), lunch()], open)]), at("09:00"), "id");
+    const o = offer({ menus: [slotMenu("lunch", [tempe, chicken, rice]), slotMenu("dinner", [rice, tempe])] });
+    const story = tomorrowStory(state([delivery("2026-10-08", [dinner(), lunch()], open, o)]), at("09:00"), "id");
     expect(story?.date).toBe("2026-10-08");
     expect(story?.parts.map((p) => p.meal)).toEqual(["lunch", "dinner"]);
     expect(story?.parts[0]).toMatchObject({
-      title: "Menu lunch",
-      sides: ["Nasi putih", "Ayam bakar", "Tempe"],
       catererName: "Dapur Bu Sari",
       window: "11.00–13.00",
       menuSet: true,
     });
+  });
+
+  it("makes the main dish the title and leaves it out of the sides, though the menu name lists every dish", () => {
+    const o = offer({ menus: [slotMenu("lunch", [tempe, chicken, rice])] });
+    expect(o.menus[0].name).toBe("Tempe, Ayam bakar, Nasi putih");
+    const part = tomorrowStory(state([delivery("2026-10-08", [lunch()], open, o)]), at("09:00"), "id")!.parts[0];
+    expect(part.title).toBe("Ayam bakar");
+    // Composition order (Nasi, then Lauk) among what is left.
+    expect(part.sides).toEqual(["Nasi putih", "Tempe"]);
+  });
+
+  it("takes the dish whose photo is the cover as the title when no dish is the main one", () => {
+    const photographed = dish("i2", "Tempe", "g-lauk", { image: "https://img/tempe.jpg" });
+    const o = offer({ menus: [slotMenu("lunch", [rice, photographed])] });
+    const part = tomorrowStory(state([delivery("2026-10-08", [lunch()], open, o)]), at("09:00"), "id")!.parts[0];
+    expect(part).toMatchObject({ title: "Tempe", sides: ["Nasi putih"], image: "https://img/tempe.jpg" });
+  });
+
+  it("takes the first dish in composition order when nothing marks a lead", () => {
+    const o = offer({ menus: [slotMenu("lunch", [tempe, rice])] });
+    const part = tomorrowStory(state([delivery("2026-10-08", [lunch()], open, o)]), at("09:00"), "id")!.parts[0];
+    expect(part).toMatchObject({ title: "Nasi putih", sides: ["Tempe"], menuSet: true });
+  });
+
+  it("shows a legacy menu with no dish rows by its name", () => {
+    const legacy = offer({ menus: [{ meal: "lunch", name: "Nasi ayam bakar", description: "", image: "https://img/legacy.jpg" }] });
+    const part = tomorrowStory(state([delivery("2026-10-08", [lunch()], open, legacy)]), at("09:00"), "id")!.parts[0];
+    expect(part).toMatchObject({ title: "Nasi ayam bakar", sides: [], menuSet: true, image: "https://img/legacy.jpg" });
+  });
+
+  it("is not set for a nameless legacy menu, an empty slot menu or one left to the caterer", () => {
+    const part = (m: Record<string, unknown>) =>
+      tomorrowStory(state([delivery("2026-10-08", [lunch()], open, offer({ menus: [m] }))]), at("09:00"), "id")!.parts[0];
+    const bare = { meal: "lunch", name: "", description: "", image: "" };
+    expect(part(bare)).toMatchObject({ menuSet: false, title: null, sides: [] });
+    expect(part({ ...bare, name: "Paket", contentModel: "slots", items: [] })).toMatchObject({ menuSet: false, title: null });
+    expect(part({ ...bare, name: "Paket", selectionStatus: "caterer_choice", items: [] })).toMatchObject({
+      menuSet: false,
+      title: null,
+    });
+    expect(part({ ...bare, name: "Paket", selectionStatus: "caterer_choice" })).toMatchObject({ menuSet: false });
   });
 
   it("gives one part per delivery and meal, with every lunch before any dinner", () => {
@@ -349,11 +405,32 @@ describe("tomorrowStory", () => {
     expect(part).toMatchObject({ title: null, sides: [], menuSet: false, image: "https://img/offer.jpg" });
   });
 
+  it("shows the package photo, not a template photo, while the menu is not set", () => {
+    const withTemplate = offer({
+      menus: [menu("lunch", { items: [], selectionStatus: "pending", image: "https://img/template.jpg" })],
+    });
+    const part = tomorrowStory(state([delivery("2026-10-08", [lunch()], open, withTemplate)]), at("09:00"), "id")!.parts[0];
+    expect(part).toMatchObject({ menuSet: false, image: "https://img/offer.jpg" });
+    const slots = offer({
+      menus: [menu("lunch", { items: [], contentModel: "slots", image: "https://img/template.jpg" })],
+    });
+    expect(tomorrowStory(state([delivery("2026-10-08", [lunch()], open, slots)]), at("09:00"), "id")!.parts[0].image).toBe(
+      "https://img/offer.jpg",
+    );
+  });
+
   it("follows the change cutoff", () => {
     const s = state([delivery("2026-10-08", [lunch()], open)]);
     expect(tomorrowStory(s, at("16:59"), "id")!.parts[0]).toMatchObject({ changeable: true, until: "hari ini 17.00" });
     expect(tomorrowStory(s, at("16:59"), "en")!.parts[0].until).toBe("today 17.00");
     expect(tomorrowStory(s, at("17:00"), "id")!.parts[0]).toMatchObject({ changeable: false, until: null });
+  });
+
+  it("is not changeable when only the address can still be edited", () => {
+    // A fixed plan keeps its days (canChange false); the address stays editable until the cutoff.
+    const s = state([delivery("2026-10-08", [lunch()], { canChange: false, cutoff_at: "2026-10-07T10:00:00Z" })]);
+    expect(canChangeDay(s.deliveries[0], at("12:00"))).toMatchObject({ date: false, address: true });
+    expect(tomorrowStory(s, at("12:00"), "id")!.parts[0]).toMatchObject({ changeable: false, until: null });
   });
 
   it("skips cancelled meals", () => {
