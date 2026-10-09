@@ -1,5 +1,8 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import * as SecureStore from "expo-secure-store";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
+import { ThemeProvider } from "@catera/mobile-ui";
 import type { SettlementState } from "@catera/domain";
 import { quickOffer, packageIssues, type PackageForm } from "../src/business/package";
 import { PackageEditor } from "../src/business/PackageEditor";
@@ -302,6 +305,62 @@ describe("Usaha states", () => {
     }
     fireEvent.press(screen.getByRole("button", { name: "Uang" }));
     expect(require("expo-router").router.push).toHaveBeenCalledWith("/uang");
+  });
+
+  describe("Tampilan", () => {
+    const usahaRuntime = () =>
+      runtimeWith({
+        sellerOperations: jest.fn(async () => ({ caterer: { id: "k-1", name: "Dapur Bu Rina", status: "approved" }, offers: [], datedMenus: [] })),
+        request: jest.fn(async () => ({ active: null })),
+      });
+    const canvas = () => StyleSheet.flatten(screen.UNSAFE_getByType(SafeAreaView).props.style).backgroundColor;
+    // The setup keeps one in-memory store for the whole file. Pressing Gelap and English writes the theme and locale
+    // to it, and later tests in the file would otherwise start in English or dark.
+    const clearStore = () => (SecureStore as unknown as { __store: Map<string, string> }).__store.clear();
+    beforeEach(() => {
+      clearStore();
+      (SecureStore.setItemAsync as jest.Mock).mockClear();
+    });
+    afterEach(clearStore);
+    const renderThemed = async (runtime: MobileRuntime) => {
+      render(
+        <ThemeProvider storageKey={runtime.storageKey("theme")}>
+          <MobileProvider runtime={runtime} linkMapper={() => "/"}>
+            <UsahaScreen />
+          </MobileProvider>
+        </ThemeProvider>,
+      );
+      expect(await screen.findByText("Tampilan")).toBeTruthy();
+      await act(async () => {});
+    };
+
+    it("shows Sistem selected by default", async () => {
+      await renderThemed(usahaRuntime());
+      expect(screen.getByRole("tab", { name: "Sistem" })).toBeSelected();
+      expect(screen.getByRole("tab", { name: "Terang" })).not.toBeSelected();
+      expect(screen.getByRole("tab", { name: "Gelap" })).not.toBeSelected();
+      expect(canvas()).toBe("#FDFAF3");
+    });
+
+    it("pressing Gelap stores dark and repaints the same screen", async () => {
+      const runtime = usahaRuntime();
+      await renderThemed(runtime);
+      fireEvent.press(screen.getByRole("tab", { name: "Gelap" }));
+      expect(SecureStore.setItemAsync).toHaveBeenCalledWith("t.theme", "dark");
+      expect(canvas()).toBe("#151514");
+      expect(screen.getByRole("tab", { name: "Gelap" })).toBeSelected();
+      expect(screen.getByRole("button", { name: "Keluar" })).toBeTruthy();
+    });
+
+    it("reads Appearance, System, Light and Dark in English", async () => {
+      await renderThemed(usahaRuntime());
+      fireEvent.press(screen.getByRole("tab", { name: "English" }));
+      expect(await screen.findByText("Appearance")).toBeTruthy();
+      expect(screen.getByRole("tab", { name: "System" })).toBeSelected();
+      expect(screen.getByRole("tab", { name: "Light" })).toBeTruthy();
+      expect(screen.getByRole("tab", { name: "Dark" })).toBeTruthy();
+      expect(screen.queryByText("Tampilan")).toBeNull();
+    });
   });
 
   it("payments card names the action", async () => {

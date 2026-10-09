@@ -3,7 +3,17 @@ import { router } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { currency } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, colors, PressableRow, Screen, Segmented, Text } from "@catera/mobile-ui";
+import {
+  Button,
+  Card,
+  colors,
+  PressableRow,
+  Screen,
+  Segmented,
+  Text,
+  useThemePreference,
+  type ThemePreference,
+} from "@catera/mobile-ui";
 import { usePaymentsActive } from "../customers/usePayments";
 import { photoUri } from "../photo";
 import { NotifyButton } from "./NotifyButton";
@@ -49,6 +59,7 @@ export function UsahaScreen() {
   const catererId = actor?.catererId ?? "";
   const ops = useData(`menu-ops:${catererId}`, () => runtime.api.sellerOperations(catererId));
   const payments = usePaymentsActive();
+  const { preference, setPreference } = useThemePreference();
   const offers = (ops.data?.offers ?? []).filter((o) => o.status !== "retired");
   return (
     <Screen>
@@ -93,6 +104,18 @@ export function UsahaScreen() {
           { value: "en", label: "English" },
         ]}
       />
+      <View style={{ gap: 8 }}>
+        <Text variant="label">{t("Tampilan", "Appearance")}</Text>
+        <Segmented<ThemePreference>
+          value={preference}
+          onChange={setPreference}
+          options={[
+            { value: "system", label: t("Sistem", "System") },
+            { value: "light", label: t("Terang", "Light") },
+            { value: "dark", label: t("Gelap", "Dark") },
+          ]}
+        />
+      </View>
       <Button variant="text" label={t("Keluar", "Sign out")} onPress={() => void logout()} />
     </Screen>
   );

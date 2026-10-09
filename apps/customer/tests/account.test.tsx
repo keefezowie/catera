@@ -1,8 +1,11 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { StyleSheet } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import * as Notifications from "expo-notifications";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
+import { ThemeProvider } from "@catera/mobile-ui";
 import { addDays, type CustomerActionItem, type CustomerState } from "@catera/domain";
 import { Akun } from "../src/account/Akun";
 import { Addresses } from "../src/account/Addresses";
@@ -181,6 +184,64 @@ describe("Akun", () => {
     const runtime = runtimeWith({});
     renderWith(runtime, <Akun />);
     expect(await screen.findByRole("button", { name: "Notifikasi, Nonaktif" })).toBeTruthy();
+  });
+
+  describe("Tampilan", () => {
+    const canvas = () => StyleSheet.flatten(screen.UNSAFE_getByType(SafeAreaView).props.style).backgroundColor;
+    const renderThemed = async (runtime: MobileRuntime) => {
+      render(
+        <ThemeProvider storageKey={runtime.storageKey("theme")}>
+          <MobileProvider runtime={runtime} linkMapper={customerLink}>
+            <Akun />
+          </MobileProvider>
+        </ThemeProvider>,
+      );
+      expect(await screen.findByRole("button", { name: "Keluar" })).toBeTruthy();
+      await act(async () => {});
+    };
+
+    it("shows Sistem selected by default", async () => {
+      await renderThemed(runtimeWith({}));
+      expect(screen.getByText("Tampilan")).toBeTruthy();
+      expect(screen.getByRole("tab", { name: "Sistem" })).toBeSelected();
+      expect(screen.getByRole("tab", { name: "Terang" })).not.toBeSelected();
+      expect(screen.getByRole("tab", { name: "Gelap" })).not.toBeSelected();
+      expect(canvas()).toBe("#FDFAF3");
+    });
+
+    it("pressing Gelap stores dark and repaints the same screen", async () => {
+      const runtime = runtimeWith({});
+      await renderThemed(runtime);
+      fireEvent.press(screen.getByRole("tab", { name: "Gelap" }));
+      expect(SecureStore.setItemAsync).toHaveBeenCalledWith("catera.theme", "dark");
+      expect(canvas()).toBe("#151514");
+      expect(screen.getByRole("tab", { name: "Gelap" })).toBeSelected();
+      expect(screen.getByRole("button", { name: "Keluar" })).toBeTruthy();
+    });
+
+    it("reads Appearance, System, Light and Dark in English", async () => {
+      await renderThemed(runtimeWith({}));
+      fireEvent.press(screen.getByRole("tab", { name: "English" }));
+      expect(await screen.findByText("Appearance")).toBeTruthy();
+      expect(screen.getByRole("tab", { name: "System" })).toBeSelected();
+      expect(screen.getByRole("tab", { name: "Light" })).toBeTruthy();
+      expect(screen.getByRole("tab", { name: "Dark" })).toBeTruthy();
+      expect(screen.queryByText("Tampilan")).toBeNull();
+    });
+
+    it("is offered while signed out too", async () => {
+      render(
+        <ThemeProvider storageKey="catera.theme">
+          <MobileProvider runtime={runtimeWith({}, { actor: null })} linkMapper={customerLink}>
+            <Akun />
+          </MobileProvider>
+        </ThemeProvider>,
+      );
+      expect(await screen.findByText("Tampilan")).toBeTruthy();
+      await act(async () => {});
+      fireEvent.press(screen.getByRole("tab", { name: "Gelap" }));
+      expect(SecureStore.setItemAsync).toHaveBeenCalledWith("catera.theme", "dark");
+    });
   });
 });
 

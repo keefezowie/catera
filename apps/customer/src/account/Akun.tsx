@@ -3,7 +3,7 @@ import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { router } from "expo-router";
 import type { Locale } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, colors, Screen, Segmented, Text } from "@catera/mobile-ui";
+import { Button, colors, Screen, Segmented, Text, useThemePreference, type ThemePreference } from "@catera/mobile-ui";
 import { failureText } from "./failure";
 import { usePush } from "./push";
 import { Row, SectionLabel } from "./Row";
@@ -31,6 +31,7 @@ export function Akun() {
     return (
       <SignInFirst title={t("Akun", "Account")} next="/akun">
         <Language />
+        <Appearance />
       </SignInFirst>
     );
   return <Account key={actor.id} />;
@@ -48,6 +49,26 @@ function Language() {
         ]}
         value={locale}
         onChange={setLocale}
+      />
+    </View>
+  );
+}
+
+/** System follows the phone's own light or dark setting; the other two are the user's explicit choice. */
+function Appearance() {
+  const { t } = useMobile();
+  const { preference, setPreference } = useThemePreference();
+  return (
+    <View style={{ gap: 8 }}>
+      <SectionLabel>{t("Tampilan", "Appearance")}</SectionLabel>
+      <Segmented<ThemePreference>
+        options={[
+          { value: "system", label: t("Sistem", "System") },
+          { value: "light", label: t("Terang", "Light") },
+          { value: "dark", label: t("Gelap", "Dark") },
+        ]}
+        value={preference}
+        onChange={setPreference}
       />
     </View>
   );
@@ -138,6 +159,7 @@ function Account() {
       </View>
 
       <Language />
+      <Appearance />
 
       {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
       <Button variant="secondary" label={t("Keluar", "Sign out")} disabled={busy} onPress={() => void signOut()} />
