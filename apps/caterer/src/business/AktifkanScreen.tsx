@@ -2,19 +2,20 @@ import { useState, type ReactNode } from "react";
 import { View } from "react-native";
 import { errorLabel, type PayoutSetup } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, colors, Field, Screen, Segmented, Text } from "@catera/mobile-ui";
+import { Button, Card, Field, Screen, Segmented, Text, useColors } from "@catera/mobile-ui";
 import { ReadError } from "../ReadError";
 
 type StepState = "done" | "waiting" | "todo" | "later";
 
 function Step({ n, title, state, children }: { n: number; title: string; state: StepState; children?: ReactNode }) {
   const { t } = useMobile();
+  const c = useColors();
   const badge = { done: t("Selesai", "Done"), waiting: t("Sedang ditinjau", "In review"), todo: "", later: t("Segera", "Soon") }[state];
   return (
     <Card tone={state === "todo" ? "attention" : "surface"}>
       <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 12 }}>
         <Text variant="heading" style={{ flex: 1 }}>{`${n}. ${title}`}</Text>
-        {badge ? <Text variant="label" style={{ color: state === "done" ? colors.forest : colors.muted }}>{badge}</Text> : null}
+        {badge ? <Text variant="label" style={{ color: state === "done" ? c.forest : c.muted }}>{badge}</Text> : null}
       </View>
       {children}
     </Card>
@@ -27,6 +28,7 @@ function Step({ n, title, state, children }: { n: number; title: string; state: 
  */
 export function AktifkanScreen() {
   const { runtime, actor, t, locale, command } = useMobile();
+  const c = useColors();
   const catererId = actor?.catererId ?? "";
   const state = useData(`aktifkan:${catererId}`, async () => {
     const [ops, setup] = await Promise.all([
@@ -97,7 +99,7 @@ export function AktifkanScreen() {
           <Text variant="caption">{`${latest.bank} · ${latest.maskedAccount}`}</Text>
         ) : (
           <View style={{ gap: 10 }}>
-            {latest?.status === "rejected" && latest.reason ? <Text style={{ color: colors.danger }}>{latest.reason}</Text> : null}
+            {latest?.status === "rejected" && latest.reason ? <Text selectable style={{ color: c.danger }}>{latest.reason}</Text> : null}
             <Field label={t("Nama bank", "Bank name")} value={bank.bank} onChangeText={(v) => setBank((b) => ({ ...b, bank: v }))} placeholder="BCA" />
             <Field label={t("Nama pemilik rekening", "Account holder")} value={bank.holder} onChangeText={(v) => setBank((b) => ({ ...b, holder: v }))} />
             <Field label={t("Nomor rekening", "Account number")} value={bank.accountNumber} onChangeText={(v) => setBank((b) => ({ ...b, accountNumber: v.replace(/\D/g, "") }))} keyboardType="number-pad" />
@@ -122,7 +124,7 @@ export function AktifkanScreen() {
           {t("Kami akan mengabari Anda bila ada dokumen tambahan yang diperlukan.", "We'll let you know if any extra documents are needed.")}
         </Text>
       </Step>
-      {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
+      {error ? <Text selectable style={{ color: c.danger }}>{error}</Text> : null}
     </Screen>
   );
 }

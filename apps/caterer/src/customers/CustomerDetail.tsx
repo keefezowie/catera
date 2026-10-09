@@ -3,7 +3,7 @@ import { Linking, View } from "react-native";
 import { router } from "expo-router";
 import { errorLabel, jakartaDay, whatsappUrl, type CustomerSubscription } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, colors, Screen, Text } from "@catera/mobile-ui";
+import { Button, Card, Screen, Text, useColors } from "@catera/mobile-ui";
 import { activeEndLabel, activeSubscriptions, renewalAction } from "./rules";
 import { usePaymentsActive } from "./usePayments";
 import { loadCustomer } from "./load";
@@ -12,6 +12,8 @@ import { ReadError } from "../ReadError";
 /** One customer: when their package ends, how to reach them, and the renewal link. */
 export function CustomerDetail({ id }: { id: string }) {
   const { runtime, actor, t, locale, command } = useMobile();
+  // Named palette because `c` is the customer record below.
+  const palette = useColors();
   const catererId = actor?.catererId ?? "";
   const record = useData(`customer:${catererId}:${id}`, () => loadCustomer(runtime, catererId, id));
   const payments = usePaymentsActive();
@@ -69,7 +71,7 @@ export function CustomerDetail({ id }: { id: string }) {
       <Text variant="title">{c.name}</Text>
       {shown.map((s) => (
         <Card key={s.id} tone={s.status === "active" && s.remaining <= 3 ? "attention" : "surface"}>
-          <Text variant="label" style={{ color: colors.sunriseInk }}>
+          <Text variant="label" style={{ color: palette.sunriseInk }}>
             {s.status === "active"
               ? activeEndLabel(s, today, t, locale, true)
               : t("Paket sudah selesai", "Package finished")}
@@ -91,7 +93,7 @@ export function CustomerDetail({ id }: { id: string }) {
               )}
             </Text>
           ) : null}
-          {error && errorFor === s.id ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
+          {error && errorFor === s.id ? <Text selectable style={{ color: palette.danger }}>{error}</Text> : null}
         </Card>
       ))}
       {c.phone ? (

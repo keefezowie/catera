@@ -10,7 +10,6 @@ import {
   AppHeader,
   Button,
   Chip,
-  colors,
   DemoStrip,
   fontFor,
   fonts,
@@ -26,6 +25,7 @@ import {
   TopInsetOwner,
   useThemePreference,
 } from "@catera/mobile-ui";
+import { nativeThemes } from "@catera/design-tokens";
 
 // The customer setup has no SecureStore mock, so this file keeps its own in-memory one for the dark theme cases.
 jest.mock("expo-secure-store", () => {
@@ -189,11 +189,11 @@ describe("shared foundation (audit 001)", () => {
     expect(screen.queryByText("Demo · data sintetis")).toBeNull();
     view.rerender(<Harness demo />);
     const label = screen.getByText("Demo · data sintetis");
-    expect(StyleSheet.flatten(label.props.style).color).toBe(colors.forest);
+    expect(StyleSheet.flatten(label.props.style).color).toBe(nativeThemes.light.forest);
     const strip = screen.getByLabelText("Demo · data sintetis");
     expect(strip.props.accessibilityRole).toBe("text");
     const style = StyleSheet.flatten(strip.props.style);
-    expect(style.backgroundColor).toBe(colors.sage);
+    expect(style.backgroundColor).toBe(nativeThemes.light.sage);
     expect(style.minHeight).toBeGreaterThanOrEqual(24);
   });
 
@@ -471,7 +471,7 @@ describe("dark theme", () => {
     );
     await waitFor(() => expect(SecureStore.getItemAsync).toHaveBeenCalledWith("k"));
     await act(async () => {});
-    expect(sheetColor()).toBe(colors.surface);
+    expect(sheetColor()).toBe(nativeThemes.light.surface);
     fireEvent.press(screen.getByRole("button", { name: "Gelap" }));
     expect(sheetColor()).toBe(DARK.surface);
   });

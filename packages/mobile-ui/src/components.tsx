@@ -17,7 +17,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { colors, type PaletteKey } from "@catera/design-tokens";
+import type { PaletteKey } from "@catera/design-tokens";
 import { PressableScale, useReduced } from "./motion";
 import { themedStyles, useColors } from "./theme";
 import { useTopInsetOwned } from "./TopInset";
@@ -25,7 +25,6 @@ import { fontFor, fonts } from "./type";
 
 /** The regular-weight family for Plus Jakarta Sans; other weights come from `fonts` / `fontFor`. */
 export const FONT = fonts.regular;
-export { colors };
 
 const textVariants = {
   title: { fontSize: 30, lineHeight: 39, fontWeight: "700", letterSpacing: -0.8 },

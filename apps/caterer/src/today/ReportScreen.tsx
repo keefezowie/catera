@@ -10,7 +10,7 @@ import {
   type DeliveryIssue,
 } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, colors, Field, fontFor, Screen, Text } from "@catera/mobile-ui";
+import { Button, Card, Field, fontFor, Screen, Text, useColors } from "@catera/mobile-ui";
 import { jakartaClock } from "./exceptions";
 
 /** The server needs at least this much text for a reply or a resolution note. */
@@ -45,6 +45,7 @@ const eventLabels: Record<string, [string, string]> = {
 /** One customer's delivery report: what they said, and the caterer's reply or "done". */
 export function ReportScreen({ id }: { id: string }) {
   const { runtime, actor, t } = useMobile();
+  const c = useColors();
   const catererId = actor?.catererId ?? "";
   const issues = useData(`issue:${catererId}:${id}`, () =>
     runtime.api.request<DeliveryIssue[]>(`delivery-issues?${new URLSearchParams({ id: catererId, issue: id })}`),
@@ -54,7 +55,7 @@ export function ReportScreen({ id }: { id: string }) {
       <Screen>
         {issues.error ? (
           <>
-            <Text style={{ color: colors.danger }}>{issues.error}</Text>
+            <Text selectable style={{ color: c.danger }}>{issues.error}</Text>
             <Button label={t("Coba lagi", "Try again")} onPress={() => void issues.reload()} />
           </>
         ) : (
@@ -75,6 +76,7 @@ export function ReportScreen({ id }: { id: string }) {
 
 function Report({ issue: i, reload }: { issue: DeliveryIssue; reload: () => Promise<void> }) {
   const { t, locale, command } = useMobile();
+  const c = useColors();
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -132,8 +134,8 @@ function Report({ issue: i, reload }: { issue: DeliveryIssue; reload: () => Prom
           <Text variant="heading" style={{ flex: 1 }}>
             {i.subject}
           </Text>
-          <View style={{ paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, backgroundColor: colors.sage }}>
-            <Text variant="label" style={{ color: colors.forest }}>
+          <View style={{ paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, backgroundColor: c.sage }}>
+            <Text variant="label" style={{ color: c.forest }}>
               {reportStatus(i.status, t)}
             </Text>
           </View>
@@ -164,11 +166,11 @@ function Report({ issue: i, reload }: { issue: DeliveryIssue; reload: () => Prom
             style={{ minHeight: 88, textAlignVertical: "top", paddingTop: 12 }}
           />
           {tooShort ? (
-            <Text variant="caption" style={{ color: colors.sunriseInk }}>
+            <Text variant="caption" style={{ color: c.sunriseInk }}>
               {t("Tulis minimal 5 karakter.", "Write at least 5 characters.")}
             </Text>
           ) : null}
-          {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
+          {error ? <Text selectable style={{ color: c.danger }}>{error}</Text> : null}
           <Button
             label={t("Balas", "Reply")}
             disabled={busy || reply.length < MIN_BODY}
@@ -192,7 +194,7 @@ function Report({ issue: i, reload }: { issue: DeliveryIssue; reload: () => Prom
         </Text>
       )}
       {/* After a refused action the report may have closed meanwhile: the reason still shows. */}
-      {error && !open ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
+      {error && !open ? <Text selectable style={{ color: c.danger }}>{error}</Text> : null}
       {i.customerPhone ? (
         <Button
           variant="secondary"

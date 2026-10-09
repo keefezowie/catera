@@ -220,7 +220,7 @@ it.each(["REQUEST_TIMEOUT", "INVALID_API_RESPONSE"])(
     expect(await screen.findByText("Belum bisa terhubung.")).toBeTruthy();
     // The reason is an error, so it reads in the error colour like every other failed read.
     const reason = screen.getByTestId("startup-error");
-    expect(require("react-native").StyleSheet.flatten(reason.props.style).color).toBe(require("@catera/mobile-ui").colors.danger);
+    expect(require("react-native").StyleSheet.flatten(reason.props.style).color).toBe(require("@catera/design-tokens").nativeThemes.light.danger);
     expect(screen.queryByText(/^m:/)).toBeNull();
     await act(async () => {
       fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));

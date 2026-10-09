@@ -2,11 +2,12 @@ import { useState } from "react";
 import { Share } from "react-native";
 import { errorLabel } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { Button, Card, colors, Screen, Text } from "@catera/mobile-ui";
+import { Button, Card, Screen, Text, useColors } from "@catera/mobile-ui";
 
 /** Tim: invite a helper who sees Hari ini and Menu, never money or customers. */
 export function TimScreen() {
   const { actor, t, locale, command } = useMobile();
+  const c = useColors();
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -49,7 +50,7 @@ export function TimScreen() {
           <Text variant="caption">{t("Satu kode untuk satu orang.", "One code per person.")}</Text>
         </Card>
       ) : null}
-      {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
+      {error ? <Text selectable style={{ color: c.danger }}>{error}</Text> : null}
     </Screen>
   );
 }

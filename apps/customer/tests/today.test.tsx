@@ -7,7 +7,8 @@ import { Linking, StyleSheet } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Haptics from "expo-haptics";
 import { addDays, type Subscription } from "@catera/domain";
-import { colors, ThemeProvider } from "@catera/mobile-ui";
+import { nativeThemes } from "@catera/design-tokens";
+import { ThemeProvider } from "@catera/mobile-ui";
 import * as Reanimated from "react-native-reanimated";
 import { Beranda } from "../src/today/Beranda";
 import { SunriseButton } from "../src/today/Plate";
@@ -173,7 +174,7 @@ it("EmptyHome shows loading then error with Coba lagi", async () => {
   expect(screen.getByRole("button", { name: "Jelajah paket" })).toBeTruthy();
   release();
   const message = await screen.findByText(/Tidak dapat memuat|Belum berhasil|Periksa koneksi/);
-  expect(StyleSheet.flatten(message.props.style).color).toBe(colors.danger);
+  expect(StyleSheet.flatten(message.props.style).color).toBe(nativeThemes.light.danger);
   expect(screen.queryByText("Memuat paket…")).toBeNull();
   expect(screen.getByRole("button", { name: "Jelajah paket" })).toBeTruthy();
   fail = false;
@@ -191,9 +192,9 @@ it("signed-in Beranda error shows the message in danger with a Coba lagi text bu
   renderHome(runtime);
   const retry = await screen.findByRole("button", { name: "Coba lagi" });
   const message = screen.getByTestId("home-error");
-  expect(StyleSheet.flatten(message.props.style).color).toBe(colors.danger);
+  expect(StyleSheet.flatten(message.props.style).color).toBe(nativeThemes.light.danger);
   // A text button: no forest fill like the primary action.
-  expect(StyleSheet.flatten(retry.props.style).backgroundColor).not.toBe(colors.forest);
+  expect(StyleSheet.flatten(retry.props.style).backgroundColor).not.toBe(nativeThemes.light.forest);
   fail = false;
   fireEvent.press(retry);
   expect(await screen.findByText(/^Besok, /)).toBeTruthy();
@@ -434,8 +435,8 @@ describe("design tokens", () => {
       const icon = within(star).UNSAFE_getByType(Ionicons);
       return { name: icon.props.name, color: icon.props.color, selected: star.props.accessibilityState.selected, star };
     };
-    for (const n of [1, 2, 3]) expect(glyph(n)).toMatchObject({ name: "star", color: colors.sunriseInk, selected: true });
-    for (const n of [4, 5]) expect(glyph(n)).toMatchObject({ name: "star-outline", color: colors.muted, selected: false });
+    for (const n of [1, 2, 3]) expect(glyph(n)).toMatchObject({ name: "star", color: nativeThemes.light.sunriseInk, selected: true });
+    for (const n of [4, 5]) expect(glyph(n)).toMatchObject({ name: "star-outline", color: nativeThemes.light.muted, selected: false });
     // 48dp targets, and a selection haptic on tap.
     const flat = StyleSheet.flatten(glyph(4).star.props.style);
     expect([flat.width, flat.height]).toEqual([48, 48]);

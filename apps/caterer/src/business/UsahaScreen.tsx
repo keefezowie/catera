@@ -6,11 +6,11 @@ import { useData, useMobile } from "@catera/mobile-core";
 import {
   Button,
   Card,
-  colors,
   PressableRow,
   Screen,
   Segmented,
   Text,
+  useColors,
   useThemePreference,
   type ThemePreference,
 } from "@catera/mobile-ui";
@@ -32,6 +32,7 @@ function Row({
   href: string;
   image?: string;
 }) {
+  const c = useColors();
   return (
     <PressableRow
       accessibilityRole="button"
@@ -42,13 +43,13 @@ function Row({
       {image ? (
         <Image source={{ uri: image }} style={{ width: 40, height: 40, borderRadius: 8 }} />
       ) : (
-        <Ionicons name={icon} size={22} color={colors.forest} />
+        <Ionicons name={icon} size={22} color={c.forest} />
       )}
       <View style={{ flex: 1 }}>
         <Text variant="label">{label}</Text>
         {detail ? <Text variant="caption">{detail}</Text> : null}
       </View>
-      <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+      <Ionicons name="chevron-forward" size={18} color={c.muted} />
     </PressableRow>
   );
 }

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { TextInput, View } from "react-native";
 import { selectLibraryDish, type ComponentGroup, type Dish, type LibraryDish } from "@catera/domain";
-import { Button, colors, FONT, fontFor, PressableRow, PressableScale, Text } from "@catera/mobile-ui";
+import { Button, FONT, fontFor, PressableRow, PressableScale, Text, useColors } from "@catera/mobile-ui";
 import { dayComplete, suggestDishes } from "./logic";
 
 /**
@@ -77,6 +77,7 @@ function GroupLine({
   onChange: (items: Dish[]) => void;
   onCreate: (name: string, categoryId: string | undefined) => Promise<LibraryDish>;
 }) {
+  const c = useColors();
   const [query, setQuery] = useState("");
   const filled = items.filter((i) => i.groupId === group.id);
   const open = filled.length < group.slots;
@@ -102,7 +103,7 @@ function GroupLine({
 
   return (
     <View style={{ gap: 8 }}>
-      <Text variant="label" style={{ color: open ? colors.sunriseInk : colors.forest }}>
+      <Text variant="label" style={{ color: open ? c.sunriseInk : c.forest }}>
         {`${group.name} · ${filled.length} dari ${group.slots}`}
       </Text>
       {filled.map((i) => (
@@ -114,9 +115,9 @@ function GroupLine({
             minHeight: 48,
             paddingLeft: 14,
             borderWidth: 1,
-            borderColor: colors.line,
+            borderColor: c.line,
             borderRadius: 10,
-            backgroundColor: colors.surface,
+            backgroundColor: c.surface,
           }}
         >
           <Text style={{ flex: 1 }}>{i.name}</Text>
@@ -127,7 +128,7 @@ function GroupLine({
               onPress={() => onChange(items.filter((x) => x.id !== i.id))}
               style={{ width: 48, height: 48, alignItems: "center", justifyContent: "center" }}
             >
-              <Text style={{ color: colors.muted, fontSize: 18 }}>×</Text>
+              <Text style={{ color: c.muted, fontSize: 18 }}>×</Text>
             </PressableScale>
           ) : null}
         </View>
@@ -139,20 +140,22 @@ function GroupLine({
             value={query}
             onChangeText={setQuery}
             placeholder={`Ketik nama ${group.name.toLowerCase()}…`}
-            placeholderTextColor={colors.muted}
+            placeholderTextColor={c.muted}
             style={{
               minHeight: 48,
               borderWidth: 1,
-              borderColor: colors.fieldBorder,
+              borderColor: c.fieldBorder,
               borderRadius: 10,
               paddingHorizontal: 14,
               fontFamily: FONT,
               fontSize: 15,
-              backgroundColor: colors.surface,
+              // The platform default ink is near black, which vanishes on the dark surface.
+              color: c.charcoal,
+              backgroundColor: c.surface,
             }}
           />
           {query.trim() ? (
-            <View style={{ borderWidth: 1, borderColor: colors.line, borderRadius: 12, backgroundColor: colors.surface }}>
+            <View style={{ borderWidth: 1, borderColor: c.line, borderRadius: 12, backgroundColor: c.surface }}>
               {suggestions.map((d) => (
                 <PressableRow
                   key={d.id}
@@ -167,7 +170,7 @@ function GroupLine({
               <PressableRow
                 accessibilityRole="button"
                 onPress={() => void onCreate(query.trim(), group.categoryId).then(add)}
-                style={{ minHeight: 48, paddingHorizontal: 12, justifyContent: "center", borderTopWidth: 1, borderTopColor: colors.line }}
+                style={{ minHeight: 48, paddingHorizontal: 12, justifyContent: "center", borderTopWidth: 1, borderTopColor: c.line }}
               >
                 <Text style={{ fontFamily: fontFor("700") }}>{`+ Buat hidangan baru “${query.trim()}”`}</Text>
               </PressableRow>

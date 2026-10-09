@@ -250,7 +250,7 @@ describe("Uang error guard", () => {
       </MobileProvider>,
     );
     const crashed = await screen.findByText("Catatan uang belum bisa ditampilkan.");
-    expect(StyleSheet.flatten(crashed.props.style).color).toBe(require("@catera/mobile-ui").colors.danger);
+    expect(StyleSheet.flatten(crashed.props.style).color).toBe(require("@catera/design-tokens").nativeThemes.light.danger);
     fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
     expect(await screen.findByText("Catatan uang belum bisa ditampilkan.")).toBeTruthy();
     errorLog.mockRestore();

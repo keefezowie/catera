@@ -4,7 +4,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
-import { colors } from "@catera/mobile-ui";
+import { nativeThemes } from "@catera/design-tokens";
 import type { Address, CustomerState, Delivery } from "@catera/domain";
 import { Jadwal } from "../src/schedule/Jadwal";
 import { ChangeDaySheet } from "../src/schedule/ChangeDaySheet";
@@ -159,11 +159,11 @@ describe("Jadwal", () => {
     expect(dayButton("Kamis 8 Oktober").props.accessibilityState.selected).toBe(true);
     // Today keeps its ring, in the readable Sunrise ink; its day is covered, so it also carries the scheduled background.
     const old = StyleSheet.flatten(dayButton("Rabu 7 Oktober").props.style);
-    expect(old.borderColor).toBe(colors.sunriseInk);
+    expect(old.borderColor).toBe(nativeThemes.light.sunriseInk);
     expect(old.borderWidth).toBe(1.5);
-    expect(old.backgroundColor).toBe(colors.scheduled);
+    expect(old.backgroundColor).toBe(nativeThemes.light.scheduled);
     const selected = StyleSheet.flatten(dayButton("Kamis 8 Oktober").props.style);
-    expect(selected.backgroundColor).toBe(colors.forest);
+    expect(selected.backgroundColor).toBe(nativeThemes.light.forest);
   });
 
   it("loads the shown month by Jakarta dates", async () => {
@@ -196,9 +196,9 @@ describe("Jadwal", () => {
     renderWith(runtimeWith(month), <Jadwal />);
     await screen.findByText("Makan siang");
     const legend = (id: string) => within(screen.getByTestId(id)).UNSAFE_getByType(Ionicons).props.color;
-    expect(legend("legend-lunch")).toBe(colors.sunriseInk);
-    expect(legend("legend-dinner")).toBe(colors.forest);
-    expect(legend("legend-arrived")).toBe(colors.muted);
+    expect(legend("legend-lunch")).toBe(nativeThemes.light.sunriseInk);
+    expect(legend("legend-dinner")).toBe(nativeThemes.light.forest);
+    expect(legend("legend-arrived")).toBe(nativeThemes.light.muted);
   });
 
   it("month arrows give haptic feedback at 48dp", async () => {
@@ -221,7 +221,7 @@ describe("Jadwal", () => {
     expect(cell().props.accessibilityState.selected).toBe(false);
     fireEvent.press(cell());
     // A selected cell keeps its fill while pressed.
-    expect(StyleSheet.flatten(cell().props.style)).toMatchObject({ opacity: 0.7, backgroundColor: colors.forest });
+    expect(StyleSheet.flatten(cell().props.style)).toMatchObject({ opacity: 0.7, backgroundColor: nativeThemes.light.forest });
     const row = screen.getByRole("button", { name: /Makan Siang Rumahan/ });
     fireEvent(row, "responderGrant", touch);
     expect(StyleSheet.flatten(screen.getByRole("button", { name: /Makan Siang Rumahan/ }).props.style).opacity).toBe(0.7);
@@ -238,7 +238,7 @@ describe("Jadwal", () => {
     const cell = dayButton("Selasa 6 Oktober");
     expect(cell.props.accessibilityLabel).toBe("Selasa 6 Oktober");
     expect(within(cell).UNSAFE_queryAllByType(Ionicons)).toHaveLength(0);
-    expect(StyleSheet.flatten(cell.props.style).backgroundColor).not.toBe(colors.scheduled);
+    expect(StyleSheet.flatten(cell.props.style).backgroundColor).not.toBe(nativeThemes.light.scheduled);
     expect(StyleSheet.flatten(dayButton("Senin 5 Oktober").props.style).backgroundColor).toBeUndefined();
   });
 
@@ -259,21 +259,21 @@ describe("Jadwal", () => {
         .UNSAFE_queryAllByType(Ionicons)
         .map((i) => ({ name: i.props.name, size: i.props.size, color: i.props.color }));
     expect(icons("Jumat 9 Oktober")).toEqual([
-      { name: "sunny", size: 12, color: colors.sunriseInk },
-      { name: "moon", size: 11, color: colors.forest },
+      { name: "sunny", size: 12, color: nativeThemes.light.sunriseInk },
+      { name: "moon", size: 11, color: nativeThemes.light.forest },
     ]);
-    expect(icons("Sabtu 10 Oktober")).toEqual([{ name: "moon", size: 11, color: colors.forest }]);
+    expect(icons("Sabtu 10 Oktober")).toEqual([{ name: "moon", size: 11, color: nativeThemes.light.forest }]);
     expect(icons("Minggu 11 Oktober")).toEqual([]);
     // Arrived days drop the colour cue.
     expect(icons("Selasa 13 Oktober")).toEqual([
-      { name: "sunny", size: 12, color: colors.muted },
-      { name: "moon", size: 11, color: colors.muted },
+      { name: "sunny", size: 12, color: nativeThemes.light.muted },
+      { name: "moon", size: 11, color: nativeThemes.light.muted },
     ]);
-    expect(StyleSheet.flatten(dayButton("Jumat 9 Oktober").props.style).backgroundColor).toBe(colors.scheduled);
+    expect(StyleSheet.flatten(dayButton("Jumat 9 Oktober").props.style).backgroundColor).toBe(nativeThemes.light.scheduled);
     // Selected keeps the forest fill with cream icons.
     fireEvent.press(dayButton("Jumat 9 Oktober"));
-    expect(StyleSheet.flatten(dayButton("Jumat 9 Oktober").props.style).backgroundColor).toBe(colors.forest);
-    expect(icons("Jumat 9 Oktober").map((i) => i.color)).toEqual([colors.cream, colors.cream]);
+    expect(StyleSheet.flatten(dayButton("Jumat 9 Oktober").props.style).backgroundColor).toBe(nativeThemes.light.forest);
+    expect(icons("Jumat 9 Oktober").map((i) => i.color)).toEqual([nativeThemes.light.cream, nativeThemes.light.cream]);
   });
 
   it("lists lunch before dinner on a day with both", async () => {

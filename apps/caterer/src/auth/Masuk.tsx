@@ -4,12 +4,13 @@ import * as Crypto from "expo-crypto";
 import { Link, router } from "expo-router";
 import { errorLabel } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { Button, colors, Field, fontFor, Screen, Segmented, Text } from "@catera/mobile-ui";
+import { Button, Field, fontFor, Screen, Segmented, Text, useColors } from "@catera/mobile-ui";
 import { e164Indonesia } from "../onboarding";
 
 /** Sign in with the WhatsApp number (SMS code) or email; demo roles only in development. */
 export function Masuk() {
   const { runtime, actor, t, locale, signedIn, refresh } = useMobile();
+  const c = useColors();
   // A session that comes back (signal returns, token refreshes) goes straight to the kitchen.
   useEffect(() => {
     if (actor) router.replace("/");
@@ -47,7 +48,7 @@ export function Masuk() {
     <Screen>
       <View style={{ gap: 6, paddingTop: 24 }}>
         <Text variant="title">Catera Dapur</Text>
-        <Text style={{ color: colors.muted }}>
+        <Text style={{ color: c.muted }}>
           {t("Masuk untuk melihat daftar masak dan antar hari ini.", "Sign in to see today's cooking and delivery lists.")}
         </Text>
       </View>
@@ -112,8 +113,8 @@ export function Masuk() {
           />
         </View>
       )}
-      {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
-      <Link href="/daftar" style={{ color: colors.forest, fontFamily: fontFor("700"), paddingVertical: 12 }}>
+      {error ? <Text selectable style={{ color: c.danger }}>{error}</Text> : null}
+      <Link href="/daftar" style={{ color: c.forest, fontFamily: fontFor("700"), paddingVertical: 12 }}>
         {t("Belum punya akun? Daftar dapur baru", "New here? Register your kitchen")}
       </Link>
       {__DEV__ ? (

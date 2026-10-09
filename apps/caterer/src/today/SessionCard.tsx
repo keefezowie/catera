@@ -13,7 +13,7 @@ import {
   type Stop,
 } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { Button, Card, colors, fontFor, PressableScale, Text } from "@catera/mobile-ui";
+import { Button, Card, fontFor, PressableScale, Text, useColors } from "@catera/mobile-ui";
 import { canMoveDelivery, ExceptionSheet } from "./ExceptionSheet";
 
 /**
@@ -47,6 +47,7 @@ function recapLines(recap: CookingRecap, title: string, unfilledLines: string[])
 }
 
 function Row({ label, value }: { label: string; value: number }) {
+  const c = useColors();
   return (
     <View
       style={{
@@ -54,7 +55,7 @@ function Row({ label, value }: { label: string; value: number }) {
         justifyContent: "space-between",
         paddingVertical: 8,
         borderBottomWidth: 1,
-        borderBottomColor: colors.line,
+        borderBottomColor: c.line,
       }}
     >
       <Text>{label}</Text>
@@ -84,6 +85,7 @@ export function SessionCard({
   caterer: string;
 }) {
   const { t, locale, actor } = useMobile();
+  const c = useColors();
   const [part, setPart] = useState(0);
   const [reporting, setReporting] = useState<Stop | null>(null);
   const recap = cookingRecap(ops, meal);
@@ -99,7 +101,7 @@ export function SessionCard({
     <Card>
       <View style={{ flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
         <View>
-          <Text variant="label" style={{ color: colors.muted }}>
+          <Text variant="label" style={{ color: c.muted }}>
             {title}
           </Text>
           <Text variant="number">{`${recap.total} porsi`}</Text>
@@ -119,7 +121,7 @@ export function SessionCard({
           ))}
           {missing.map((m) => (
             <View key={m.packageId} style={{ paddingTop: 8, alignItems: "flex-start" }}>
-              <Text style={{ color: colors.sunriseInk }}>
+              <Text style={{ color: c.sunriseInk }}>
                 {`${t("Menu belum diisi", "Menu not filled in")} · ${m.packageName}: ${m.summary}`}
               </Text>
               {actor?.role === "owner" ? (
@@ -155,7 +157,7 @@ export function SessionCard({
       </View>
       <Text variant="label" style={{ marginTop: 8 }}>{`${t("Antar", "Deliver")} · ${stops.length}`}</Text>
       <Card tone="sage">
-        <Text variant="caption" style={{ color: colors.forest }}>
+        <Text variant="caption" style={{ color: c.forest }}>
           {t(
             "Semua dianggap terkirim setelah jam antar selesai. Tandai hanya kalau ada masalah.",
             "Everything counts as delivered after the delivery window. Only flag problems.",
@@ -165,26 +167,26 @@ export function SessionCard({
       {stops.map((s) => (
         <View
           key={s.deliveryId}
-          style={{ flexDirection: "row", alignItems: "flex-start", gap: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: colors.line }}
+          style={{ flexDirection: "row", alignItems: "flex-start", gap: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: c.line }}
         >
           <View
             style={{
               width: 28,
               height: 28,
               borderRadius: 14,
-              backgroundColor: colors.forest,
+              backgroundColor: c.forest,
               alignItems: "center",
               justifyContent: "center",
             }}
           >
-            <Text style={{ color: colors.cream, fontFamily: fontFor("800"), fontSize: 13 }}>{String(s.n)}</Text>
+            <Text style={{ color: c.cream, fontFamily: fontFor("800"), fontSize: 13 }}>{String(s.n)}</Text>
           </View>
           <View style={{ flex: 1, gap: 2 }}>
             <Text style={{ fontFamily: fontFor("800") }}>{s.name}</Text>
             <Text variant="caption">{[s.addressLine, s.area].filter(Boolean).join(", ")}</Text>
             <Text variant="label">{`${s.portions} porsi · ${s.packageName}`}</Text>
             {s.note ? (
-              <Text variant="caption" style={{ color: colors.sunriseInk }}>
+              <Text variant="caption" style={{ color: c.sunriseInk }}>
                 {s.note}
               </Text>
             ) : null}
@@ -195,7 +197,7 @@ export function SessionCard({
             onPress={() => void Linking.openURL(s.mapsUrl)}
             style={{ width: 48, height: 48, alignItems: "center", justifyContent: "center" }}
           >
-            <Ionicons name="location-outline" size={22} color={colors.forest} />
+            <Ionicons name="location-outline" size={22} color={c.forest} />
           </PressableScale>
           {report === "today" || (report === "tomorrow" && movable(ops, s)) ? (
             <PressableScale
@@ -204,7 +206,7 @@ export function SessionCard({
               onPress={() => setReporting(s)}
               style={{ width: 48, height: 48, alignItems: "center", justifyContent: "center" }}
             >
-              <Ionicons name="ellipsis-horizontal" size={22} color={colors.muted} />
+              <Ionicons name="ellipsis-horizontal" size={22} color={c.muted} />
             </PressableScale>
           ) : null}
         </View>

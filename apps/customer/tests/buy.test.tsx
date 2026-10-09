@@ -8,7 +8,8 @@ import * as SecureStore from "expo-secure-store";
 import * as Haptics from "expo-haptics";
 import { addDays, currency, type Checkout, type Quote, type RenewalContext } from "@catera/domain";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
-import { colors, ThemeProvider } from "@catera/mobile-ui";
+import { nativeThemes } from "@catera/design-tokens";
+import { ThemeProvider } from "@catera/mobile-ui";
 import { customerLink } from "../src/links";
 import { BuyScreen } from "../src/buy/BuyScreen";
 import { QrisCode } from "../src/buy/QrisCode";
@@ -377,7 +378,7 @@ describe("Beli / Perpanjang", () => {
   it("Bayar is a forest primary button", async () => {
     wrap(server(), <BuyScreen packageId="p-rumahan" />);
     await bayarReady();
-    expect(StyleSheet.flatten(screen.getByRole("button", { name: "Bayar" }).props.style).backgroundColor).toBe(colors.forest);
+    expect(StyleSheet.flatten(screen.getByRole("button", { name: "Bayar" }).props.style).backgroundColor).toBe(nativeThemes.light.forest);
   });
 
   it("signed out goes to sign in and comes back to the same screen", async () => {

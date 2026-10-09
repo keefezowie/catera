@@ -14,7 +14,7 @@ import {
   type SellerOperationsState,
 } from "@catera/domain";
 import { useData, useMobile, type MobileRuntime } from "@catera/mobile-core";
-import { Button, Card, colors, FadeSwap, fontFor, PressableRow, Screen, Segmented, Text } from "@catera/mobile-ui";
+import { Button, Card, FadeSwap, fontFor, PressableRow, Screen, Segmented, Text, useColors, useThemePreference } from "@catera/mobile-ui";
 import { jakartaClock } from "./exceptions";
 import { loadCachedDay, saveCachedDay } from "./offline";
 import { SessionCard } from "./SessionCard";
@@ -42,6 +42,7 @@ const MEALS: KitchenMeal[] = ["lunch", "dinner"];
 /** Hari ini; `date` (from a notification) opens Besok when it points to tomorrow. */
 export function TodayScreen({ date: target }: { date?: string } = {}) {
   const { actor, runtime, t, locale } = useMobile();
+  const c = useColors();
   const [offset, setOffset] = useState<"0" | "1">(() => (target === jakartaDay(new Date(), 1) ? "1" : "0"));
   useEffect(() => {
     if (target) setOffset(target === jakartaDay(new Date(), 1) ? "1" : "0");
@@ -81,7 +82,7 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
         <View style={{ gap: 16 }}>
           {day.data?.savedAt ? (
             <Card tone="attention">
-              <Text variant="caption" style={{ color: colors.sunriseInk }}>
+              <Text variant="caption" style={{ color: c.sunriseInk }}>
                 {t("Terakhir diperbarui", "Last updated")} {jakartaClock(day.data.savedAt)} ·{" "}
                 {t("tidak ada sinyal", "offline")}
               </Text>
@@ -95,7 +96,7 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
               {!issues.data && issues.error ? (
                 // A failed read must not look like "no reports".
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                  <Text variant="caption" style={{ flex: 1, color: colors.danger }}>
+                  <Text selectable variant="caption" style={{ flex: 1, color: c.danger }}>
                     {t("Laporan pelanggan belum bisa dimuat.", "Customer reports could not be loaded.")}
                   </Text>
                   <Button variant="text" label={t("Coba lagi", "Try again")} onPress={() => void issues.reload()} />
@@ -131,6 +132,7 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
 /** Reports still waiting on the caterer, each naming who, which day and meal; tap to answer. */
 function ReportCards({ issues }: { issues: DeliveryIssue[] }) {
   const { t, locale } = useMobile();
+  const c = useColors();
   const waiting = issues.filter((i) => !i.case_id && (i.status === "open" || i.status === "responded"));
   return (
     <>
@@ -149,12 +151,12 @@ function ReportCards({ issues }: { issues: DeliveryIssue[] }) {
                 <Text variant="label">{`${shortDate(i.service_date, locale)} · ${mealLabel(i.meal, locale)}`}</Text>
                 <Text variant="caption">{i.subject}</Text>
                 {i.status === "responded" ? (
-                  <Text variant="caption" style={{ color: colors.sunriseInk }}>
+                  <Text variant="caption" style={{ color: c.sunriseInk }}>
                     {t("Sudah dibalas · tandai selesai bila beres", "Replied · mark as done when sorted")}
                   </Text>
                 ) : null}
               </View>
-              <Ionicons name="chevron-forward" size={18} color={colors.muted} />
+              <Ionicons name="chevron-forward" size={18} color={c.muted} />
             </Card>
           </PressableRow>
         );
@@ -174,6 +176,7 @@ const attentionLabels: Partial<Record<SellerAttentionItem["kind"], [string, stri
 
 function ActionCards({ items }: { items: SellerAttentionItem[] }) {
   const { t } = useMobile();
+  const c = useColors();
   const shown = items.filter((i) => attentionLabels[i.kind]).slice(0, 3);
   return (
     <>
@@ -188,7 +191,7 @@ function ActionCards({ items }: { items: SellerAttentionItem[] }) {
               <Text style={{ fontFamily: fontFor("800") }}>{t(id, en)}</Text>
               {item.context ? <Text variant="caption">{item.context}</Text> : null}
             </View>
-            {link ? <Ionicons name="chevron-forward" size={18} color={colors.muted} /> : null}
+            {link ? <Ionicons name="chevron-forward" size={18} color={c.muted} /> : null}
           </Card>
         );
         return link ? (
@@ -207,6 +210,11 @@ function ActionCards({ items }: { items: SellerAttentionItem[] }) {
 
 function MulaiCard() {
   const { t } = useMobile();
+  const c = useColors();
+  const { scheme } = useThemePreference();
+  // The unselected rows sit on the brand card as a faint lift. The card's fill swaps light and dark with the theme,
+  // so the lift is the card's own opposite: a light veil on the dark green, a dark veil on the cream.
+  const veil = scheme === "dark" ? "rgba(22,61,46,0.08)" : "rgba(255,247,233,0.08)";
   const steps: [string, string, string][] = [
     [t("Buat paket pertama", "Create your first package"), t("Satu layar", "One screen"), "/paket/baru"],
     [t("Pindahkan pelanggan lama", "Bring in existing customers"), t("Kirim foto buku catatan atau chat WhatsApp", "Send a notebook photo or WhatsApp chat"), "/impor"],
@@ -215,7 +223,7 @@ function MulaiCard() {
   return (
     <>
       <Card tone="brand">
-        <Text variant="heading" style={{ color: colors.cream }}>
+        <Text variant="heading" style={{ color: c.cream }}>
           {t("Siapkan dapur Anda", "Set up your kitchen")}
         </Text>
         {steps.map(([title, sub, href], i) => (
@@ -227,12 +235,12 @@ function MulaiCard() {
               minHeight: 56,
               padding: 12,
               borderRadius: 12,
-              backgroundColor: i === 0 ? colors.cream : "rgba(255,247,233,0.08)",
+              backgroundColor: i === 0 ? c.cream : veil,
               gap: 2,
             }}
           >
-            <Text style={{ fontFamily: fontFor("800"), color: i === 0 ? colors.forest : colors.cream }}>{title}</Text>
-            <Text variant="caption" style={{ color: i === 0 ? colors.muted : colors.cream }}>
+            <Text style={{ fontFamily: fontFor("800"), color: i === 0 ? c.forest : c.cream }}>{title}</Text>
+            <Text variant="caption" style={{ color: i === 0 ? c.muted : c.cream }}>
               {sub}
             </Text>
           </PressableRow>

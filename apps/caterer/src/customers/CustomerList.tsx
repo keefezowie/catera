@@ -4,7 +4,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { jakartaDay, whatsappUrl, type SellerCustomer } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, Chip, colors, fontFor, PressableRow, PressableScale, Screen, Text } from "@catera/mobile-ui";
+import { Button, Card, Chip, fontFor, PressableRow, PressableScale, Screen, Text, useColors } from "@catera/mobile-ui";
 import { activeSubscriptions, currentSubscription, customerStatus, activeEndLabel, type CustomerStatus } from "./rules";
 import { loadAllCustomers } from "./load";
 import { ReadError } from "../ReadError";
@@ -12,6 +12,8 @@ import { ReadError } from "../ReadError";
 /** Every subscriber, marketplace and own, filtered by where their package stands. */
 export function CustomerList() {
   const { runtime, actor, t, locale } = useMobile();
+  // Named palette because `c` is a customer in the callbacks below.
+  const palette = useColors();
   const id = actor?.catererId ?? "";
   const list = useData(`customers:${id}`, () => loadAllCustomers(runtime, id));
   const [filter, setFilter] = useState<CustomerStatus>("active");
@@ -59,7 +61,7 @@ export function CustomerList() {
               {s ? <Text variant="caption">{`${s.package_name} · ${s.portions} porsi`}</Text> : null}
               <View style={{ flexDirection: "row", gap: 6, marginTop: 2 }}>
                 {s && s.status === "active" ? (
-                  <Text variant="caption" style={{ color: colors.sunriseInk, fontFamily: fontFor("700") }}>
+                  <Text variant="caption" style={{ color: palette.sunriseInk, fontFamily: fontFor("700") }}>
                     {activeEndLabel(s, today, t, locale)}
                   </Text>
                 ) : null}
@@ -76,7 +78,7 @@ export function CustomerList() {
                 onPress={() => void Linking.openURL(whatsappUrl("", c.phone!))}
                 style={{ width: 48, height: 48, alignItems: "center", justifyContent: "center" }}
               >
-                <Ionicons name="chatbubble-ellipses-outline" size={22} color={colors.forest} />
+                <Ionicons name="chatbubble-ellipses-outline" size={22} color={palette.forest} />
               </PressableScale>
             ) : null}
           </Card>

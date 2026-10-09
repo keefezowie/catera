@@ -6,7 +6,7 @@ import * as DocumentPicker from "expo-document-picker";
 import { File } from "expo-file-system";
 import { earliestImportStart, errorLabel, jakartaDay, normalizeCustomerPhone } from "@catera/domain";
 import { plural, useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, Chip, colors, FONT, Field, fontFor, PressableRow, Screen, Sheet, Text } from "@catera/mobile-ui";
+import { Button, Card, Chip, FONT, Field, fontFor, PressableRow, Screen, Sheet, Text, useColors } from "@catera/mobile-ui";
 import { recheck, toImportRow, type AssistantRow } from "./rows";
 import { fitsUpload, MAX_IMAGES, shrinkPhoto } from "./images";
 
@@ -23,6 +23,7 @@ const fail = (e: unknown) => (e as { code?: string }).code || (e as Error).messa
 /** Impor pelanggan: paste or attach anything, check what the assistant read, save the clean rows. */
 export function ImportAssistant() {
   const { runtime, actor, t, locale, command } = useMobile();
+  const c = useColors();
   const catererId = actor?.catererId ?? "";
   const options = useData(`impor:${catererId}`, () => runtime.api.sellerImportOptions(catererId));
   const packages = options.data?.packages ?? [];
@@ -195,8 +196,9 @@ export function ImportAssistant() {
             onChangeText={setText}
             multiline
             placeholder={"Bu Ani – 0812… – Jl. Melati 5 Tebet – Rumahan, sisa 8 hari"}
-            placeholderTextColor={colors.muted}
-            style={{ minHeight: 160, textAlignVertical: "top", borderWidth: 1, borderColor: colors.line, borderRadius: 12, padding: 14, fontFamily: FONT, fontSize: 15, backgroundColor: colors.surface }}
+            placeholderTextColor={c.muted}
+            // The platform default ink is near black, which vanishes on the dark surface.
+            style={{ minHeight: 160, textAlignVertical: "top", borderWidth: 1, borderColor: c.line, borderRadius: 12, padding: 14, fontFamily: FONT, fontSize: 15, color: c.charcoal, backgroundColor: c.surface }}
           />
           <View style={{ flexDirection: "row", gap: 8 }}>
             <Button style={{ flex: 1 }} variant="secondary" label={t("+ Foto", "+ Photo")} onPress={() => void addPhoto()} />
@@ -231,7 +233,7 @@ export function ImportAssistant() {
                 <Text variant="caption">
                   {`${packages.find((p) => p.id === r.packageId)?.name ?? t("Paket belum dipilih", "Package not chosen")} · ${r.remainingDays != null ? t(`${r.remainingDays} hari lagi`, r.remainingDays === 1 ? "1 day left" : `${r.remainingDays} days left`) : t("sisa hari belum diisi", "days left not set")} · ${t(`${r.portions} porsi`, plural(r.portions, "portion"))}`}
                 </Text>
-                {r.needsReview ? <Text style={{ color: colors.sunriseInk, fontFamily: fontFor("700") }}>{r.reason}</Text> : null}
+                {r.needsReview ? <Text style={{ color: c.sunriseInk, fontFamily: fontFor("700") }}>{r.reason}</Text> : null}
               </PressableRow>
             </Card>
           ))}
@@ -239,7 +241,7 @@ export function ImportAssistant() {
           <Button variant="text" label={t("Mulai lagi", "Start over")} onPress={() => setRows(null)} />
         </>
       )}
-      {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
+      {error ? <Text selectable style={{ color: c.danger }}>{error}</Text> : null}
       <Sheet
         visible={!!edit}
         onClose={() => setEditing(null)}
@@ -288,7 +290,7 @@ export function ImportAssistant() {
                 />
               </View>
             </View>
-            {edit.needsReview ? <Text style={{ color: colors.sunriseInk }}>{edit.reason}</Text> : null}
+            {edit.needsReview ? <Text style={{ color: c.sunriseInk }}>{edit.reason}</Text> : null}
             <Button label={t("Selesai", "Done")} onPress={() => setEditing(null)} />
             <Button variant="text" label={t("Hapus baris ini", "Remove this row")} onPress={() => { setRows((all) => all && all.filter((r) => r.n !== editing)); setEditing(null); }} />
           </View>

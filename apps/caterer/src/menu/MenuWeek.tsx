@@ -12,7 +12,7 @@ import {
   type SellerOffer,
 } from "@catera/domain";
 import { plural, useData, useMobile, type MobileRuntime } from "@catera/mobile-core";
-import { Button, Card, Chip, colors, fontFor, PressableRow, RoundButton, Screen, Segmented, Text } from "@catera/mobile-ui";
+import { Button, Card, Chip, fontFor, PressableRow, RoundButton, Screen, Segmented, Text, useColors } from "@catera/mobile-ui";
 import { copyWeekBatches, weekDates } from "./logic";
 import { ReadError } from "../ReadError";
 
@@ -55,6 +55,7 @@ export const mealOf = (offer: SellerOffer, meal: string) =>
 /** Menu: this week's dishes per delivery day for one package. */
 export function MenuWeek() {
   const { runtime, actor, t, locale, command } = useMobile();
+  const c = useColors();
   const catererId = actor?.catererId ?? "";
   const canEdit = actor?.role === "owner";
   const ops = useData(`menu-ops:${catererId}`, () => runtime.api.sellerOperations(catererId));
@@ -208,7 +209,7 @@ export function MenuWeek() {
       ) : null}
       {!weekLoaded ? <Text variant="caption">{t("Memuat…", "Loading…")}</Text> : null}
       {note ? <Text variant="caption">{note}</Text> : null}
-      {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
+      {error ? <Text selectable style={{ color: c.danger }}>{error}</Text> : null}
       {(days.data ?? []).map((d) => {
         const past = d.date < today;
         const items = d.details?.items ?? [];
@@ -225,11 +226,11 @@ export function MenuWeek() {
                   </Text>
                 ))
               ) : past ? (
-                <Text variant="caption" style={{ color: colors.muted }}>
+                <Text variant="caption" style={{ color: c.muted }}>
                   {t("Lewat", "Past")}
                 </Text>
               ) : (
-                <Text style={{ color: colors.sunriseInk, fontFamily: fontFor("700") }}>
+                <Text style={{ color: c.sunriseInk, fontFamily: fontFor("700") }}>
                   {canEdit ? t("Belum diisi · isi menu", "Not filled · add menu") : t("Belum diisi", "Not filled")}
                 </Text>
               )}

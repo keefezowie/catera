@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { router } from "expo-router";
 import { errorLabel, type Dish, type LibraryDish } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, colors, Screen, Text } from "@catera/mobile-ui";
+import { Button, Screen, Text, useColors } from "@catera/mobile-ui";
 import { dishUsage } from "./logic";
 import { loadMenus, MenuLoadError, mealOf } from "./MenuWeek";
 import { SlotEditor } from "./SlotEditor";
@@ -10,6 +10,7 @@ import { SlotEditor } from "./SlotEditor";
 /** Fill one day's menu for one package and meal. */
 export function MenuDayScreen({ date, packageId, meal }: { date: string; packageId: string; meal: string }) {
   const { runtime, actor, t, locale, command } = useMobile();
+  const c = useColors();
   const catererId = actor?.catererId ?? "";
   const ops = useData(`menu-ops:${catererId}`, () => runtime.api.sellerOperations(catererId));
   const offer = ops.data?.offers.find((o) => o.id === packageId);
@@ -78,7 +79,7 @@ export function MenuDayScreen({ date, packageId, meal }: { date: string; package
         saving={saving}
         canEdit={actor?.role === "owner"}
       />
-      {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
+      {error ? <Text selectable style={{ color: c.danger }}>{error}</Text> : null}
     </Screen>
   );
 }

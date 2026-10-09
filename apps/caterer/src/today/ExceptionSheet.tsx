@@ -2,7 +2,7 @@ import { useState } from "react";
 import { View } from "react-native";
 import { errorLabel, type KitchenMeal, type SellerOperationsState, type Stop } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { Button, colors, Field, fontFor, PressableScale, Sheet, Text } from "@catera/mobile-ui";
+import { Button, Field, fontFor, PressableScale, Sheet, Text, useColors } from "@catera/mobile-ui";
 import { issueSteps } from "./exceptions";
 
 /**
@@ -31,6 +31,7 @@ export function ExceptionSheet({
   onClose: () => void;
 }) {
   const { t, locale, command, actor } = useMobile();
+  const c = useColors();
   const delivery = ops.deliveries.find((d) => d.id === stop.deliveryId)!;
   const canMove = canMoveDelivery(delivery);
   const [kind, setKind] = useState<"failed" | "move">(allowFailed ? "failed" : "move");
@@ -79,8 +80,8 @@ export function ExceptionSheet({
         padding: 14,
         borderRadius: 12,
         borderWidth: kind === value ? 2 : 1,
-        borderColor: kind === value ? colors.forest : colors.line,
-        backgroundColor: kind === value ? colors.sage : colors.surface,
+        borderColor: kind === value ? c.forest : c.line,
+        backgroundColor: kind === value ? c.sage : c.surface,
         gap: 2,
       }}
     >
@@ -115,7 +116,7 @@ export function ExceptionSheet({
           <Field label={t("Alasan", "Reason")} value={reason} onChangeText={setReason} />
         </>
       ) : null}
-      {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
+      {error ? <Text selectable style={{ color: c.danger }}>{error}</Text> : null}
       <Button
         label={t("Simpan laporan", "Save report")}
         disabled={busy || (kind === "move" && (!/^\d{4}-\d{2}-\d{2}$/.test(date) || reason.trim().length < 5))}

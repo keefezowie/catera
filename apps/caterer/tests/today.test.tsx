@@ -1,15 +1,17 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
+import * as ReactNative from "react-native";
 import { Share, StyleSheet } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
+import { ThemeProvider } from "@catera/mobile-ui";
 import { TodayScreen } from "../src/today/TodayScreen";
 import { SessionCard } from "../src/today/SessionCard";
 import { issueSteps } from "../src/today/exceptions";
 import * as offline from "../src/today/offline";
 import * as Haptics from "expo-haptics";
 import { canvasDay, emptyDay, quietDay, report } from "./fixtures";
-import { colors } from "@catera/mobile-ui";
+import { nativeThemes } from "@catera/design-tokens";
 
 const touch = { nativeEvent: { touches: [], changedTouches: [] }, persist() {} };
 
@@ -122,7 +124,7 @@ it("report cards and setup rows dim on press and still navigate", async () => {
   fireEvent(card(), "responderGrant", touch);
   expect(StyleSheet.flatten(card().props.style).opacity).toBe(0.7);
   // Same chevron as the link attention cards.
-  expect(within(card()).UNSAFE_getByType(Ionicons).props).toMatchObject({ name: "chevron-forward", size: 18, color: colors.muted });
+  expect(within(card()).UNSAFE_getByType(Ionicons).props).toMatchObject({ name: "chevron-forward", size: 18, color: nativeThemes.light.muted });
   fireEvent.press(card());
   expect(router.push).toHaveBeenCalledWith("/laporan/i-1");
   first.unmount();
@@ -130,11 +132,33 @@ it("report cards and setup rows dim on press and still navigate", async () => {
   renderToday(runtimeWith(async () => emptyDay()));
   const step = () => screen.getByRole("button", { name: /Buat paket pertama/ });
   await screen.findByText("Siapkan dapur Anda");
-  expect(StyleSheet.flatten(step().props.style)).toMatchObject({ minHeight: 56, backgroundColor: colors.cream });
+  expect(StyleSheet.flatten(step().props.style)).toMatchObject({ minHeight: 56, backgroundColor: nativeThemes.light.cream });
   fireEvent(step(), "responderGrant", touch);
-  expect(StyleSheet.flatten(step().props.style)).toMatchObject({ opacity: 0.7, backgroundColor: colors.cream });
+  expect(StyleSheet.flatten(step().props.style)).toMatchObject({ opacity: 0.7, backgroundColor: nativeThemes.light.cream });
   fireEvent.press(step());
   expect(router.push).toHaveBeenCalledWith("/paket/baru");
+});
+
+describe("the setup card in the dark theme", () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it("swaps the brand card and its rows with the theme, and keeps the unselected rows lifted", async () => {
+    jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
+    render(
+      <ThemeProvider storageKey="t.theme">
+        <MobileProvider runtime={runtimeWith(async () => emptyDay())} linkMapper={(h) => h}>
+          <TodayScreen />
+        </MobileProvider>
+      </ThemeProvider>,
+    );
+    await screen.findByText("Siapkan dapur Anda");
+    const row = (name: RegExp) => StyleSheet.flatten(screen.getByRole("button", { name }).props.style);
+    // The first step is the cream token, which is the deep green in dark: it differs from the light value.
+    expect(nativeThemes.dark.cream).not.toBe(nativeThemes.light.cream);
+    expect(row(/Buat paket pertama/).backgroundColor).toBe(nativeThemes.dark.cream);
+    expect(row(/Pindahkan pelanggan lama/).backgroundColor).toBe("rgba(22,61,46,0.08)");
+    expect(StyleSheet.flatten(screen.getByText("Siapkan dapur Anda").props.style).color).toBe(nativeThemes.dark.cream);
+  });
 });
 
 describe("issueSteps", () => {
@@ -507,8 +531,8 @@ describe("attention cards", () => {
     const link = await screen.findByRole("link", { name: /Ada urusan pembayaran/ });
     const chevrons = within(link).UNSAFE_getAllByType(Ionicons);
     expect(chevrons).toHaveLength(1);
-    expect(chevrons[0].props).toMatchObject({ name: "chevron-forward", size: 18, color: colors.muted });
-    expect(within(screen.getByTestId("attention-a-2")).UNSAFE_queryAllByType(Ionicons)).toHaveLength(0);
+    expect(chevrons[0].props).toMatchObject({ name: "chevron-forward", size: 18, color: nativeThemes.light.muted });
+expect(within(screen.getByTestId("attention-a-2")).UNSAFE_queryAllByType(Ionicons)).toHaveLength(0);
     // Both kinds keep the Card's 10 between title and context.
     for (const id of ["a-1", "a-2"]) {
       expect(StyleSheet.flatten(screen.getByTestId(`attention-body-${id}`).props.style).gap).toBe(10);

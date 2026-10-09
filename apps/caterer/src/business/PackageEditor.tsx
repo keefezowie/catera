@@ -4,7 +4,7 @@ import { router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { defaultDishCategories, errorLabel, type SellerOffer } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { Button, Chip, colors, Field, PressableScale, Screen, Segmented, Stepper, Text } from "@catera/mobile-ui";
+import { Button, Chip, Field, PressableScale, Screen, Segmented, Stepper, Text, useColors } from "@catera/mobile-ui";
 import { emptyPackage, formFromOffer, packageIssues, quickOffer, type PackageForm } from "./package";
 import { photoUri } from "../photo";
 import { uploadPhoto } from "./upload";
@@ -14,6 +14,8 @@ const days: [number, string][] = [[1, "Sen"], [2, "Sel"], [3, "Rab"], [4, "Kam"]
 /** One screen for a new package: what it is, what's in a portion, price, days and how many per day. `from` prefills a copy. */
 export function PackageEditor({ from }: { from?: SellerOffer }) {
   const { runtime, actor, demo, t, locale, command } = useMobile();
+  // Named palette because the dish-category rows below use `c` for a category.
+  const palette = useColors();
   const catererId = actor?.catererId ?? "";
   const [form, setForm] = useState<PackageForm>(() => (from ? formFromOffer(from) : emptyPackage));
   const [shown, setShown] = useState<ReturnType<typeof packageIssues>>({});
@@ -64,24 +66,24 @@ export function PackageEditor({ from }: { from?: SellerOffer }) {
         accessibilityRole="button"
         accessibilityLabel={t("Pilih foto paket", "Choose package photo")}
         onPress={() => void pickPhoto()}
-        style={{ height: 168, borderRadius: 14, overflow: "hidden", backgroundColor: colors.sage, alignItems: "center", justifyContent: "center", borderWidth: shown.image ? 1 : 0, borderColor: colors.danger }}
+        style={{ height: 168, borderRadius: 14, overflow: "hidden", backgroundColor: palette.sage, alignItems: "center", justifyContent: "center", borderWidth: shown.image ? 1 : 0, borderColor: palette.danger }}
       >
         {form.image ? (
           <Image source={{ uri: photoUri(form.image, runtime.apiBase) }} style={{ width: "100%", height: "100%" }} />
         ) : (
-          <Text variant="label" style={{ color: colors.forest }}>
+          <Text variant="label" style={{ color: palette.forest }}>
             {uploading ? t("Mengunggah…", "Uploading…") : t("+ Foto paket", "+ Package photo")}
           </Text>
         )}
       </PressableScale>
-      {shown.image ? <Text variant="caption" style={{ color: colors.danger }}>{shown.image}</Text> : null}
+      {shown.image ? <Text selectable variant="caption" style={{ color: palette.danger }}>{shown.image}</Text> : null}
       <Field label={t("Nama paket", "Package name")} value={form.name} onChangeText={(v) => set("name", v)} error={shown.name} placeholder="Makan Siang Rumahan" />
       <Field label={t("Ceritakan paketnya", "Describe it")} value={form.description} onChangeText={(v) => set("description", v)} error={shown.description} multiline />
       <Text variant="label">{t("Isi satu porsi", "In one portion")}</Text>
       {defaultDishCategories.map((c) => (
         <Stepper key={c.id} label={locale === "id" ? c.name : c.nameEn ?? c.name} decreaseLabel={t(`Kurangi ${c.name}`, `Decrease ${c.nameEn ?? c.name}`)} increaseLabel={t(`Tambah ${c.name}`, `Increase ${c.nameEn ?? c.name}`)} value={form.counts[c.id] ?? 0} onChange={(n) => set("counts", { ...form.counts, [c.id]: n })} max={10} />
       ))}
-      {shown.counts ? <Text variant="caption" style={{ color: colors.danger }}>{shown.counts}</Text> : null}
+      {shown.counts ? <Text selectable variant="caption" style={{ color: palette.danger }}>{shown.counts}</Text> : null}
       <Field label={t("Harga per porsi (Rp)", "Price per portion (Rp)")} value={form.price} onChangeText={(v) => set("price", v.replace(/\D/g, ""))} error={shown.price} keyboardType="number-pad" placeholder="28000" />
       <Text variant="label">{t("Waktu makan", "Meal")}</Text>
       <Segmented
@@ -104,7 +106,7 @@ export function PackageEditor({ from }: { from?: SellerOffer }) {
           />
         ))}
       </View>
-      {shown.weekdays ? <Text variant="caption" style={{ color: colors.danger }}>{shown.weekdays}</Text> : null}
+      {shown.weekdays ? <Text selectable variant="caption" style={{ color: palette.danger }}>{shown.weekdays}</Text> : null}
       <Field
         label={t("Kapasitas per hari (porsi)", "Daily capacity (portions)")}
         hint={t("Berapa porsi paling banyak yang sanggup Anda masak per hari.", "The most portions you can cook in a day.")}
@@ -113,7 +115,7 @@ export function PackageEditor({ from }: { from?: SellerOffer }) {
         error={shown.capacity}
         keyboardType="number-pad"
       />
-      {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
+      {error ? <Text selectable style={{ color: palette.danger }}>{error}</Text> : null}
     </Screen>
   );
 }

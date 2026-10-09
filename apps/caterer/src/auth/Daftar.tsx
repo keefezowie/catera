@@ -4,12 +4,13 @@ import * as Crypto from "expo-crypto";
 import { router } from "expo-router";
 import { areaOptions, errorLabel } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { Button, Chip, colors, Field, Screen, Text } from "@catera/mobile-ui";
+import { Button, Chip, Field, Screen, Text, useColors } from "@catera/mobile-ui";
 import { catererSlug, e164Indonesia } from "../onboarding";
 
 /** Sign-up: business name, WhatsApp number (verified by SMS) and kitchen area. */
 export function Daftar() {
   const { runtime, t, locale, signedIn, command } = useMobile();
+  const c = useColors();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [area, setArea] = useState("");
@@ -74,7 +75,7 @@ export function Daftar() {
     >
       <View style={{ gap: 8 }}>
         <Text variant="title">{t("Kelola katering dari satu HP", "Run your catering from one phone")}</Text>
-        <Text style={{ color: colors.muted }}>
+        <Text style={{ color: c.muted }}>
           {t(
             "Daftar masak, rute antar, dan semua pelanggan Anda di satu tempat. Gratis untuk pelanggan yang Anda bawa sendiri.",
             "Cooking lists, delivery routes and all your customers in one place. Free for customers you bring yourself.",
@@ -114,7 +115,7 @@ export function Daftar() {
           autoFocus
         />
       ) : null}
-      {error ? <Text style={{ color: colors.danger }}>{error}</Text> : null}
+      {error ? <Text selectable style={{ color: c.danger }}>{error}</Text> : null}
     </Screen>
   );
 }

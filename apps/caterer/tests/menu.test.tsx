@@ -278,8 +278,8 @@ describe("menu reads", () => {
     render(wrap(<MenuWeek />));
     const message = await screen.findByText("Menu belum bisa dimuat.");
     // Same as every Dapur read error: the message in the error colour and a text "Coba lagi".
-    expect(StyleSheet.flatten(message.props.style).color).toBe(require("@catera/mobile-ui").colors.danger);
-    expect(StyleSheet.flatten(screen.getByRole("button", { name: "Coba lagi" }).props.style).backgroundColor).not.toBe(require("@catera/mobile-ui").colors.forest);
+    expect(StyleSheet.flatten(message.props.style).color).toBe(require("@catera/design-tokens").nativeThemes.light.danger);
+    expect(StyleSheet.flatten(screen.getByRole("button", { name: "Coba lagi" }).props.style).backgroundColor).not.toBe(require("@catera/design-tokens").nativeThemes.light.forest);
     fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
     await waitFor(() => expect(screen.queryByText("Menu belum bisa dimuat.")).toBeNull());
     expect(menuMonth.mock.calls.length).toBeGreaterThanOrEqual(2);
@@ -290,7 +290,7 @@ describe("menu reads", () => {
     const { wrap, MenuDayScreen } = setup(menuMonth);
     render(wrap(<MenuDayScreen date="2026-10-07" packageId="p-1" meal="lunch" />));
     const message = await screen.findByText("Menu belum bisa dimuat.");
-    expect(StyleSheet.flatten(message.props.style).color).toBe(require("@catera/mobile-ui").colors.danger);
+    expect(StyleSheet.flatten(message.props.style).color).toBe(require("@catera/design-tokens").nativeThemes.light.danger);
     // The pushed screen keeps its header as the only heading.
     expect(screen.queryAllByRole("header")).toHaveLength(0);
     expect(screen.queryByText("Memuat…")).toBeNull();

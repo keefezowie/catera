@@ -7,7 +7,7 @@ import type { CustomerActionItem, CustomerState, SupportCase } from "@catera/dom
 import { ReportProblem } from "../src/help/ReportProblem";
 import { ReportList } from "../src/help/ReportList";
 import { customerLink } from "../src/links";
-import { colors } from "@catera/mobile-ui";
+import { nativeThemes } from "@catera/design-tokens";
 import { customerState, TODAY } from "./fixtures";
 
 let mockParams: Record<string, string> = {};
@@ -585,8 +585,8 @@ describe("status pill colours", () => {
       <ReportList />,
     );
     const colour = async (word: string) => StyleSheet.flatten((await screen.findByText(word)).props.style).color;
-    expect(await colour("Dibalas")).toBe(colors.sunriseInk);
-    for (const word of ["Terkirim", "Ditinjau Catera", "Selesai"]) expect(await colour(word)).toBe(colors.charcoal);
+    expect(await colour("Dibalas")).toBe(nativeThemes.light.sunriseInk);
+    for (const word of ["Terkirim", "Ditinjau Catera", "Selesai"]) expect(await colour(word)).toBe(nativeThemes.light.charcoal);
   });
 });
 

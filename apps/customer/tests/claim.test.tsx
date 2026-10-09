@@ -214,7 +214,7 @@ it("a preview that cannot load offers Coba lagi and Ke Beranda", async () => {
   const { runtime } = runtimeWith({ preview });
   renderRoute(runtime);
   const message = await screen.findByText("Belum bisa memuat. Periksa koneksi lalu coba lagi.");
-  expect(StyleSheet.flatten(message.props.style).color).toBe(require("@catera/mobile-ui").colors.danger);
+  expect(StyleSheet.flatten(message.props.style).color).toBe(require("@catera/design-tokens").nativeThemes.light.danger);
   fireEvent.press(await screen.findByRole("button", { name: "Ke Beranda" }));
   expect(router.replace).toHaveBeenCalledWith("/");
   fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
