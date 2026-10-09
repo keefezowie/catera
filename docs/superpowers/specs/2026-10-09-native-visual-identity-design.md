@@ -42,32 +42,38 @@ Rejected on purpose: floating tab bars (Wabi, Crouton) cover content on Android 
 ## 3. Visual system
 
 ### 3.1 Two independent axes
-- **Theme**: light or dark. It follows the phone's system setting. An in-app override is out of scope for this pass.
+- **Theme**: light or dark. It follows the phone's system setting unless the user picks otherwise under "Tampilan" ("Appearance"): Sistem, Terang or Gelap (System, Light, Dark). The row sits beside "Bahasa" in customer Akun and Dapur Usaha. The choice is stored on the device in SecureStore (`runtime.storageKey("theme")`, values `system | light | dark`, default `system`) and applies immediately, without a restart.
 - **Mood**: Siang or Malam. It is chosen by the user and colours only the mood surfaces (section 3.3).
 
 Every screen therefore has four looks: light Siang, light Malam, dark Siang, dark Malam. Body, cards, rows, sheets, forms and the tab bar depend on the theme only.
 
 ### 3.2 Theme tokens
-`packages/design-tokens` gains `nativeThemes.light` and `nativeThemes.dark` with the same keys. Light reuses today's `colors` values unchanged. Dark values come from the canvas Mode gelap row:
+`packages/design-tokens` gains `nativeThemes.light` and `nativeThemes.dark`. Both use **the same keys as today's `colors`** plus `controlRing` and `tabBar`, so migrating a file is a mechanical swap from `colors.x` to the themed palette's `x`. The keys name roles by their light-mode hue, so dark mode inverts the forest and cream pair: forest (headings, selected fills, primary buttons) becomes cream-white, and cream (text on forest, the attention card) becomes forest. A primary button is therefore a cream fill with forest text in dark mode, exactly as on the canvas. Light reuses today's values unchanged.
 
-| Key | Light | Dark |
-| --- | --- | --- |
-| `canvas` (customer body) | `#FDFAF3` | `#151514` |
-| `canvasOps` (Dapur body) | `#F5F6F1` | `#151514` |
-| `surface` (cards, rows, sheets) | `#FFFEFA` | `#232321` |
-| `line` | `#E2E3D8` | `#34332F` |
-| `tabBar` | `#FFFEFA` + top line | `#1E1E1C` + top line `#34332F` |
-| `text` (charcoal role) | `#2E2E2E` | `#F5F1E8` |
-| `strong` (forest text role) | `#163D2E` | `#F5F1E8` |
-| `muted` | `#60675F` | `#B5B2AA` |
-| `primaryFill` / `onPrimary` | `#163D2E` / `#FFF7E9` | `#FFF7E9` / `#163D2E` |
-| `accentInk` (sunrise ink role) | `#9B4309` | `#F5C9A6` |
-| `controlRing` (unchecked boxes, dashed "not set" cells) | `#858D80` | measured by test, at least 3:1 on `surface` |
-| `danger` | `#A33024` | measured by test, at least 4.5:1 on `surface` |
+| Key | Light | Dark | Dark contrast (measured 2026-10-09) |
+| --- | --- | --- | --- |
+| `forest` | `#163D2E` | `#FFF7E9` | 14.79:1 on `surface` |
+| `forestDeep` | `#0C2C20` | `#E9E3D6` | |
+| `sunrise` | `#F47B2A` | `#F47B2A` | |
+| `sunriseInk` | `#9B4309` | `#F5C9A6` | 10.34:1 on `surface` |
+| `cream` | `#FFF7E9` | `#163D2E` | 11.33:1 against `forest` |
+| `charcoal` | `#2E2E2E` | `#F5F1E8` | 13.97:1 on `surface` |
+| `surface` | `#FFFEFA` | `#232321` | |
+| `canvas` | `#FDFAF3` | `#151514` | |
+| `sage` | `#F0F3E9` | `#2A2D27` | |
+| `scheduled` | `#EDF1E6` | `#26302A` | |
+| `muted` | `#60675F` | `#B5B2AA` | 7.43:1 on `surface`, 5.69:1 on `cream` |
+| `line` | `#E2E3D8` | `#34332F` | |
+| `fieldBorder` | `#CFD3C6` | `#7A7872` | |
+| `secondaryBorder` | `#CDD4C4` | `#4A4944` | |
+| `attentionBorder` | `#F3DFC3` | `#4C3322` | |
+| `danger` | `#A33024` | `#FF8F80` | 7.12:1 on `surface` |
+| `controlRing` (new: unchecked boxes, dashed "not set" cells) | `#858D80` | `#8A8780` | 3.40:1 light, 4.39:1 dark on `surface` |
+| `tabBar` (new) | `#FFFEFA` | `#1E1E1C` | |
 
-Status, field and border tokens (`fieldBorder`, `secondaryBorder`, `attentionBorder`, `scheduled`, `sage`) get dark values chosen by the contrast test in section 8, not by eye. `app.config.ts` in both apps switches `userInterfaceStyle` from `"light"` to `"automatic"`, and the status bar style follows theme plus mood (light glyphs on a Malam header or in dark theme).
+`app.config.ts` in both apps switches `userInterfaceStyle` from `"light"` to `"automatic"`. The status bar uses light glyphs in dark theme or on a Malam header, and dark glyphs otherwise.
 
-**Contrast rules (enforced by test):** text at least 4.5:1 on its own fill; state icons and control boundaries at least 3:1. Decorative strokes (the dashed arc track, the lunchbox outline pattern) are exempt and are marked decorative for screen readers. Measured on 2026-10-09: Siang meta `#6B4A2B` on `#FFEFD9` 7.05:1; cream on sunrise ink 6.17:1; Malam muted `#A9BDB0` on `#0B1F16` 8.67:1; dark muted `#B5B2AA` on `#232321` 7.43:1. Three mock colours failed and are replaced here: the idle moon marker on the Siang header (`#B49F82`, 2.26:1, becomes `#9A7A55`, 3.52:1), the dashed "menu belum diisi" cell border (`#D2B48E`, 1.74:1, becomes `#9A7A55`) and the unchecked checklist ring (`#CDD4C4`, 1.51:1, becomes `controlRing` `#858D80`, 3.40:1).
+**Contrast rules (enforced by test):** text at least 4.5:1 on its own fill; state icons and boundaries that are the only cue for a control (`controlRing`) at least 3:1. `fieldBorder` and `secondaryBorder` are not enforced, because their controls also carry a label and a fill; light `fieldBorder` measures 1.51:1, a gap that predates this spec and is left for a later pass. Decorative strokes (the dashed arc track, the lunchbox outline pattern) are exempt and are marked decorative for screen readers. Measured on 2026-10-09: Siang meta `#6B4A2B` on `#FFEFD9` 7.05:1; cream on sunrise ink 6.17:1; Malam muted `#A9BDB0` on `#0B1F16` 8.67:1; dark muted `#B5B2AA` on `#232321` 7.43:1. Three mock colours failed and are replaced here: the idle moon marker on the Siang header (`#B49F82`, 2.26:1, becomes `#9A7A55`, 3.52:1), the dashed "menu belum diisi" cell border (`#D2B48E`, 1.74:1, becomes `#9A7A55`) and the unchecked checklist ring (`#CDD4C4`, 1.51:1, becomes `controlRing` `#858D80`, 3.40:1).
 
 ### 3.3 Mood tokens and surfaces
 Mood surfaces are exactly: the **mood header** (the rounded top block under the demo strip) and the **hero** (the photo card that overlaps it on Beranda, the count card on Dapur Hari ini, the featured card where a screen has one). Nothing else reads mood colours.
@@ -158,7 +164,8 @@ Every screen keeps the Three States Rule. The demo strip stays above the mood he
 
 | Component | Purpose | Notes |
 | --- | --- | --- |
-| `ThemeProvider`, `useColors()` | Resolves `nativeThemes[scheme]` from `useColorScheme()` | Replaces direct `colors.*` reads in app code |
+| `ThemeProvider`, `useColors()`, `useThemePreference()` | Resolves `nativeThemes[scheme]` from the stored preference, falling back to `useColorScheme()` | Replaces direct `colors.*` reads in app code; the preference hook backs the Tampilan row |
+| `themedStyles(factory)` | Builds a `useStyles()` hook that memoises `StyleSheet.create(factory(palette))` per theme | Replaces module-level `StyleSheet.create` that read `colors` |
 | `MoodProvider`, `useMood()` | Mood state and setter, launch default | One per app root |
 | `useMoodColors()` | `nativeMood[theme][mood]` | Only mood surfaces may call it |
 | `MoodHeader` | Rounded header block with title slots, optional toggle, optional arc, optional Malam pattern | Cross-fades its fill on mood change |
@@ -217,7 +224,7 @@ Contrast test: `tests/native-contrast.test.ts` computes WCAG ratios for every te
 
 Each phase ends with an emulator review of both apps in demo mode, light and dark, Siang and Malam.
 
-- **Phase A, theme foundation:** theme tokens and the contrast test; `ThemeProvider` and `useColors`; migrate the 72 native files that read `colors.*` (forest 106 reads, danger 71, muted 58, and so on); a guard test forbidding `colors.*` imports in app sources; `userInterfaceStyle: "automatic"`; status bar handling. No visual change in light mode is expected; dark mode becomes usable everywhere.
+- **Phase A, theme foundation:** theme tokens and the contrast test; `ThemeProvider`, `useColors`, `themedStyles` and the Tampilan row in Akun and Usaha; migrate the 72 native files that read `colors.*` (forest 106 reads, danger 71, muted 58, and so on); a guard test forbidding `colors.*` imports in app sources; `userInterfaceStyle: "automatic"`; status bar handling. No visual change in light mode is expected; dark mode becomes usable everywhere.
 - **Phase B, mood identity:**
   - Mood tokens, `MoodProvider`, `MoodHeader`, `MoodToggle`, `DayArc`, the brand SVGs and the `display` variant.
   - Mood header on every screen and the Beranda hero card.
@@ -247,7 +254,7 @@ Each phase ends with an emulator review of both apps in demo mode, light and dar
 
 ## 11. Out of scope
 
-Web parity; an in-app theme override; time-driven mood switching; floating tab bars; colours sampled from photos; transparent or cut-out artwork; streaks, badges and ratings beyond the existing `ReviewPrompt`; per-stop delivery confirmation; story autoplay; mascot animation.
+Web parity; time-driven mood switching; floating tab bars; colours sampled from photos; transparent or cut-out artwork; streaks, badges and ratings beyond the existing `ReviewPrompt`; per-stop delivery confirmation; story autoplay; mascot animation.
 
 ## 12. Verification
 
