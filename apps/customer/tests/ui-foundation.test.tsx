@@ -11,6 +11,7 @@ import {
   Button,
   Chip,
   DemoStrip,
+  Field,
   fontFor,
   fonts,
   PressableRow,
@@ -483,6 +484,28 @@ describe("dark theme", () => {
       </Text>,
     );
     expect(StyleSheet.flatten(screen.getByText("Pilih").props.style).color).toBe("#123456");
+  });
+
+  it("Field keeps the dark input style when the caller passes a style", async () => {
+    await renderDark(<Field label="Ceritakan kendalanya" multiline style={{ minHeight: 120, textAlignVertical: "top" }} />);
+    const flat = StyleSheet.flatten(screen.getByLabelText("Ceritakan kendalanya").props.style);
+    // The caller's own keys are applied...
+    expect(flat.minHeight).toBe(120);
+    expect(flat.textAlignVertical).toBe("top");
+    // ...on top of the base input style, not instead of it.
+    expect(flat.backgroundColor).toBe(DARK.surface);
+    expect(flat.borderColor).toBe(nativeThemes.dark.fieldBorder);
+    expect(flat.color).toBe(nativeThemes.dark.charcoal);
+    expect(flat.borderWidth).toBe(1);
+    // Control: a dark-only value, so the assertions above cannot pass on the light palette.
+    expect(flat.color).not.toBe(nativeThemes.light.charcoal);
+  });
+
+  it("Field with a caller style still shows the error border", async () => {
+    await renderDark(<Field label="Nama" error="Wajib diisi" style={{ minHeight: 120 }} />);
+    const flat = StyleSheet.flatten(screen.getByLabelText("Nama").props.style);
+    expect(flat.minHeight).toBe(120);
+    expect(flat.borderColor).toBe(nativeThemes.dark.danger);
   });
 
   it("Text forwards selectable", () => {

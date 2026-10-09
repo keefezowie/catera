@@ -9,7 +9,7 @@ const mockMe: { demo: boolean; actor: { id: string; role: string; name: string; 
   actor: null,
 };
 const mockStatusBar: { style?: string } = {};
-const mockTabBar: { style?: Record<string, unknown>; tint?: Record<string, unknown> } = {};
+const mockTabBar: { style?: Record<string, unknown>; itemStyle?: Record<string, unknown>; tint?: Record<string, unknown> } = {};
 
 jest.mock("expo-router", () => {
   const React = require("react");
@@ -29,6 +29,7 @@ jest.mock("expo-router", () => {
   Stack.Screen = Screen;
   const Tabs: any = ({ screenOptions, children }: any) => {
     mockTabBar.style = screenOptions.tabBarStyle;
+    mockTabBar.itemStyle = screenOptions.tabBarItemStyle;
     mockTabBar.tint = { active: screenOptions.tabBarActiveTintColor, inactive: screenOptions.tabBarInactiveTintColor };
     return children;
   };
@@ -130,11 +131,15 @@ describe("appearance", () => {
 
   beforeEach(() => {
     mockTabBar.style = undefined;
+    mockTabBar.itemStyle = undefined;
     mockStatusBar.style = undefined;
   });
 
+  let restoreInsets: (() => void) | undefined;
   afterEach(() => {
     mockMe.actor = null;
+    restoreInsets?.();
+    restoreInsets = undefined;
     jest.restoreAllMocks();
   });
 
@@ -146,6 +151,29 @@ describe("appearance", () => {
     await act(async () => {});
     expect(mockTabBar.style).toMatchObject({ backgroundColor: "#1E1E1C", borderTopColor: "#34332F" });
     expect(mockStatusBar.style).toBe("light");
+  });
+
+  it("clears the bottom gesture inset and keeps every tab item at least 48dp", async () => {
+    // The safe-area mock is a plain jest.fn that restoreAllMocks does not reset, so the default is put back by hand.
+    const insets = require("react-native-safe-area-context").useSafeAreaInsets as jest.Mock;
+    const original = insets.getMockImplementation();
+    insets.mockImplementation(() => ({ top: 0, bottom: 24, left: 0, right: 0 }));
+    restoreInsets = () => insets.mockImplementation(original);
+    mockMe.actor = owner;
+    render(<RootLayout />);
+    await waitFor(() => expect(mockTabBar.style).toBeDefined());
+    await act(async () => {});
+    // 64dp of bar plus the inset, with the inset as bottom padding so the labels sit above the gesture pill.
+    expect(mockTabBar.style).toMatchObject({ height: 88, paddingBottom: 24 });
+    expect(mockTabBar.itemStyle).toMatchObject({ minHeight: 48 });
+  });
+
+  it("is the plain 64dp tab bar when the phone has no bottom inset", async () => {
+    mockMe.actor = owner;
+    render(<RootLayout />);
+    await waitFor(() => expect(mockTabBar.style).toBeDefined());
+    await act(async () => {});
+    expect(mockTabBar.style).toMatchObject({ height: 64, paddingBottom: 0 });
   });
 
   it("keeps the light tab bar and a dark status bar on a light system scheme", async () => {

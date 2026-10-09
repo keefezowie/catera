@@ -1,6 +1,7 @@
 import { Redirect, Tabs } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMobile } from "@catera/mobile-core";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { fonts, useColors } from "@catera/mobile-ui";
 import { tabsForRole, type CatererTab } from "../../src/roles";
 import { RoleGate } from "../../src/RoleGate";
@@ -18,6 +19,7 @@ const icons: Record<CatererTab, { filled: Glyph; outline: Glyph }> = {
 export default function TabsLayout() {
   const { actor, t } = useMobile();
   const palette = useColors();
+  const insets = useSafeAreaInsets();
   if (!actor) return <Redirect href="/masuk" />;
   const allowed = tabsForRole(actor.role);
   const titles: Record<CatererTab, string> = {
@@ -33,7 +35,15 @@ export default function TabsLayout() {
           headerShown: false,
           tabBarActiveTintColor: palette.forest,
           tabBarInactiveTintColor: palette.muted,
-          tabBarStyle: { backgroundColor: palette.tabBar, borderTopColor: palette.line, height: 64 },
+          // The bar is 64dp plus the bottom inset, which it also pads, so the labels sit above the gesture pill and
+          // every item keeps a full 64dp touch area (never under 48dp).
+          tabBarStyle: {
+            backgroundColor: palette.tabBar,
+            borderTopColor: palette.line,
+            height: 64 + insets.bottom,
+            paddingBottom: insets.bottom,
+          },
+          tabBarItemStyle: { minHeight: 48 },
           tabBarLabelStyle: { fontSize: 12, fontFamily: fonts.bold },
         }}
       >

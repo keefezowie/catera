@@ -183,6 +183,15 @@ describe("Jadwal", () => {
     expect(router.push).toHaveBeenCalledWith("/hari/d-next");
   });
 
+  it("a meal row's detail line wraps instead of truncating at large text sizes", async () => {
+    renderWith(runtimeWith(month), <Jadwal />);
+    await screen.findByText("Oktober 2026");
+    fireEvent.press(dayButton("Kamis 8 Oktober"));
+    const row = screen.getByRole("button", { name: /Makan Siang Rumahan/ });
+    // The line carries the window and the arrived state; a one-line cap hid "Sudah sampai" at font scale 1.3.
+    expect(within(row).getByText(/Makan siang · 11.00–13.00/).props.numberOfLines).toBeUndefined();
+  });
+
   it("legend names lunch, dinner and arrived", async () => {
     renderWith(runtimeWith(month), <Jadwal />);
     expect(await screen.findByText("Makan siang")).toBeTruthy();

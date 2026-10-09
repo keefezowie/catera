@@ -209,6 +209,7 @@ export function Field({
   label,
   hint,
   error,
+  style,
   ...input
 }: { label: string; hint?: string; error?: string } & TextInputProps) {
   const c = useColors();
@@ -216,11 +217,12 @@ export function Field({
   return (
     <View style={{ gap: 6 }}>
       <RNText style={[styles.fieldLabel]}>{label}</RNText>
+      {/* The caller's style extends the base input style; spreading it after would replace the fill, border and ink. */}
       <TextInput
         accessibilityLabel={label}
         placeholderTextColor={c.muted}
-        style={[styles.input, !!error && { borderColor: c.danger }]}
         {...input}
+        style={[styles.input, !!error && { borderColor: c.danger }, style]}
       />
       {error ? (
         <RNText style={[styles.caption, { color: c.danger }]}>{error}</RNText>

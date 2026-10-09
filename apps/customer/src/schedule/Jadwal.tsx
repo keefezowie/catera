@@ -189,7 +189,7 @@ function MealRow({
         <Text style={{ fontFamily: fontFor("700") }} numberOfLines={1}>
           {d.offer.name}
         </Text>
-        <Text variant="caption" style={{ fontVariant: ["tabular-nums"] }} numberOfLines={1}>
+        <Text variant="caption" style={{ fontVariant: ["tabular-nums"] }}>
           {sub}
         </Text>
       </View>
