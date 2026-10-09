@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Image, StyleSheet, Text as RNText, View, type StyleProp, type ViewStyle } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
 import { router } from "expo-router";
+import { nativeThemes } from "@catera/design-tokens";
 import { errorLabel, type Plate as PlateData } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
 import { Button, fontFor, PressableScale, Text, themedStyles, useColors } from "@catera/mobile-ui";
@@ -9,14 +10,10 @@ import { ChatKatering } from "../help/ChatKatering";
 
 const JAKARTA_OFFSET_MS = 7 * 60 * 60 * 1000;
 
-// Surfaces that stay the same in light and dark: the photo scrim and the departure chip are fixed
-// overlays, and the Sunrise button is a fixed orange fill. Their ink is fixed too (the values are the
-// light palette's cream, forest and charcoal), because the themed tokens swap roles in dark and would
-// leave dark text on the dark scrim, light text on the light chip and light text on orange.
-const ON_SCRIM = "#FFF7E9";
-const ON_CHIP = "#163D2E";
-const ON_SUNRISE = "#2E2E2E";
-const NO_PHOTO = "#163D2E";
+// The photo scrim, the departure chip and the Sunrise fill look the same in light and dark, so their ink
+// is the light palette on purpose: the themed tokens swap roles in dark and would put dark text on the
+// dark scrim, light text on the light chip and light text on orange.
+const fixedInk = nativeThemes.light;
 
 /** HH.MM in Asia/Jakarta, or "" for an unreadable timestamp. */
 export function jakartaClock(iso: string | null | undefined): string {
@@ -262,7 +259,7 @@ const useStyles = themedStyles((c) => ({
     borderWidth: 1,
     borderColor: c.line,
   },
-  photo: { height: 268, backgroundColor: NO_PHOTO, justifyContent: "flex-end" },
+  photo: { height: 268, backgroundColor: fixedInk.forest, justifyContent: "flex-end" },
   scrimSoft: { position: "absolute", left: 0, right: 0, bottom: 0, height: "75%", backgroundColor: "rgba(12,30,22,0.22)" },
   chip: {
     position: "absolute",
@@ -273,12 +270,12 @@ const useStyles = themedStyles((c) => ({
     borderRadius: 999,
     backgroundColor: "rgba(255,247,233,0.94)",
   },
-  chipLabel: { fontSize: 13, fontFamily: fontFor("700"), color: ON_CHIP, fontVariant: ["tabular-nums"] },
+  chipLabel: { fontSize: 13, fontFamily: fontFor("700"), color: fixedInk.forest, fontVariant: ["tabular-nums"] },
   // 66% forest-black over a pure white photo still gives cream text about 5.3:1.
   overlay: { padding: 18, paddingTop: 14, gap: 4, backgroundColor: "rgba(12,30,22,0.66)" },
-  meal: { fontSize: 13, fontFamily: fontFor("700"), color: ON_SCRIM },
-  sentence: { fontSize: 28, lineHeight: 33, fontFamily: fontFor("800"), letterSpacing: -0.5, color: ON_SCRIM },
-  second: { fontSize: 17, fontFamily: fontFor("600"), color: ON_SCRIM, fontVariant: ["tabular-nums"] },
+  meal: { fontSize: 13, fontFamily: fontFor("700"), color: fixedInk.cream },
+  sentence: { fontSize: 28, lineHeight: 33, fontFamily: fontFor("800"), letterSpacing: -0.5, color: fixedInk.cream },
+  second: { fontSize: 17, fontFamily: fontFor("600"), color: fixedInk.cream, fontVariant: ["tabular-nums"] },
   body: { padding: 16, gap: 12 },
   row: { flexDirection: "row", gap: 8 },
   sunrise: {
@@ -289,7 +286,7 @@ const useStyles = themedStyles((c) => ({
     justifyContent: "center",
     backgroundColor: c.sunrise,
   },
-  sunriseLabel: { fontSize: 15, fontFamily: fontFor("800"), color: ON_SUNRISE },
+  sunriseLabel: { fontSize: 15, fontFamily: fontFor("800"), color: fixedInk.charcoal },
   reaction: {
     flex: 1,
     minHeight: 56,
