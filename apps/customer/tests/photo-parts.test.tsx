@@ -294,6 +294,83 @@ describe("CalendarPhotoCell", () => {
     expect(gone("cell-photo-dot")).toBe(true);
     expect(flat("cell-dashed").borderStyle).toBe("dashed");
   });
+
+  describe("selection bar", () => {
+    const combos = [
+      ["light", "siang", "2026-10-09T07:59:00Z"],
+      ["light", "malam", "2026-10-09T08:00:00Z"],
+      ["dark", "siang", "2026-10-09T07:59:00Z"],
+      ["dark", "malam", "2026-10-09T08:00:00Z"],
+    ] as const;
+
+    it.each(combos)("in %s %s the selected cell has the bar and today and plain cells do not", (scheme, mood, now) => {
+      jest.spyOn(ReactNative, "useColorScheme").mockReturnValue(scheme);
+      const palette = nativeMood[scheme][mood];
+      const mount = (state: { today?: boolean; selected?: boolean }) => (
+        <ThemeProvider storageKey="photo-parts-test">
+          <MoodProvider now={() => new Date(now)}>
+            <CalendarPhotoCell {...base} {...state} />
+          </MoodProvider>
+        </ThemeProvider>
+      );
+      const view = render(mount({ selected: true }));
+      // The bar runs across the bottom inside the cell, 4dp tall and rounded, in the header's text colour.
+      expect(flat("cell-selected-bar")).toMatchObject({
+        position: "absolute",
+        height: 4,
+        borderRadius: 2,
+        bottom: expect.any(Number),
+        left: expect.any(Number),
+        right: expect.any(Number),
+        backgroundColor: palette.headerText,
+      });
+      expect(screen.getByTestId("cell-selected-bar", { includeHiddenElements: true }).props.pointerEvents).toBe("none");
+      // The selected ring is still there as well.
+      expect(flat("cell-outline-selected").borderColor).toBe(palette.headerText);
+      // Today alone keeps its ring and gets no bar; a plain cell has neither.
+      view.rerender(mount({ today: true }));
+      expect(flat("cell-outline-today").borderColor).toBe(palette.todayRing);
+      expect(gone("cell-selected-bar")).toBe(true);
+      view.rerender(mount({}));
+      expect(gone("cell-selected-bar")).toBe(true);
+      // Today and selected together: both rings, and the bar because it is selected.
+      view.rerender(mount({ today: true, selected: true }));
+      expect(screen.getByTestId("cell-selected-bar", { includeHiddenElements: true })).toBeTruthy();
+      expect(gone("cell-outline-today")).toBe(false);
+    });
+
+    it("leaves the number pill alone, so a selected future day does not look like a past one", () => {
+      const view = render(<CalendarPhotoCell {...base} />);
+      const plain = flat("cell-number-pill").backgroundColor;
+      const plainInk = StyleSheet.flatten(screen.getByText("12").props.style).color;
+      expect(plain).toBe(nativeThemes.light.cream);
+      view.rerender(<CalendarPhotoCell {...base} selected />);
+      expect(flat("cell-number-pill").backgroundColor).toBe(plain);
+      expect(StyleSheet.flatten(screen.getByText("12").props.style).color).toBe(plainInk);
+      expect(flat("cell-number-pill").backgroundColor).not.toBe(nativeThemes.light.forest);
+      // A past day stays forest, selected or not.
+      view.rerender(<CalendarPhotoCell {...base} past selected />);
+      expect(flat("cell-number-pill").backgroundColor).toBe(nativeThemes.light.forest);
+    });
+
+    it("a selected number-only day gets the bar and no pill", () => {
+      render(<CalendarPhotoCell {...base} uri={null} menuSet={false} selected />);
+      expect(screen.getByTestId("cell-selected-bar", { includeHiddenElements: true })).toBeTruthy();
+      expect(gone("cell-number-pill")).toBe(true);
+      expect(StyleSheet.flatten(screen.getByText("12").props.style).color).toBe(siang.headerMeta);
+    });
+
+    it("the bar sits on the bottom edge, clear of the corners and of the number pill", () => {
+      render(<CalendarPhotoCell {...base} selected />);
+      const bar = flat("cell-selected-bar");
+      // Inset past the 12dp corner radius, so it never runs into a rounded corner.
+      expect(bar.left).toBeGreaterThanOrEqual(12);
+      expect(bar.right).toBeGreaterThanOrEqual(12);
+      expect(bar.bottom).toBe(0);
+      // The pill rests above the bar: its bottom offset is at least the bar's height.
+      expect(flat("cell-number-pill").bottom).toBeGreaterThanOrEqual(bar.height as number);
+    });
+  });
 });
 
 describe("StoryCover", () => {

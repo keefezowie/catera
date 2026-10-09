@@ -128,6 +128,34 @@ describe("calendarDays", () => {
     expect(day?.dinner).not.toBeNull();
   });
 
+  it("merges two lunches on one day: delivered only when both arrived", () => {
+    const first = delivery("2026-10-09", [{ meal: "lunch", status: "delivered" }], [menu("lunch")]);
+    const second = { ...delivery("2026-10-09", [{ meal: "lunch" }], [menu("lunch")]), id: "d-second" };
+    expect(calendarDays([first, second]).get("2026-10-09")?.lunch?.delivered).toBe(false);
+    // The order does not matter.
+    expect(calendarDays([second, first]).get("2026-10-09")?.lunch?.delivered).toBe(false);
+    const both = { ...delivery("2026-10-09", [{ meal: "lunch", status: "delivered" }], [menu("lunch")]), id: "d-both" };
+    expect(calendarDays([first, both]).get("2026-10-09")?.lunch?.delivered).toBe(true);
+  });
+
+  it("merges two lunches on one day: the menu is set only when both are set", () => {
+    const set = delivery("2026-10-09", [{ meal: "lunch" }], [menu("lunch")]);
+    const unset = {
+      ...delivery("2026-10-09", [{ meal: "lunch" }], [menu("lunch", { contentModel: "slots", items: [] })]),
+      id: "d-unset",
+    };
+    expect(calendarDays([set, unset]).get("2026-10-09")?.lunch?.menuSet).toBe(false);
+    expect(calendarDays([unset, set]).get("2026-10-09")?.lunch?.menuSet).toBe(false);
+  });
+
+  it("merges two lunches on one day: the first photo that exists wins", () => {
+    const withPhoto = delivery("2026-10-09", [{ meal: "lunch" }], [menu("lunch", { image: "https://images.example.test/a.jpg" })]);
+    const bare = { ...delivery("2026-10-09", [{ meal: "lunch" }], [menu("lunch")]), id: "d-bare" };
+    (bare.offer as { image: string }).image = "";
+    expect(calendarDays([bare, withPhoto]).get("2026-10-09")?.lunch?.image).toBe("https://images.example.test/a.jpg");
+    expect(calendarDays([withPhoto, bare]).get("2026-10-09")?.lunch?.image).toBe("https://images.example.test/a.jpg");
+  });
+
   it("copes with a delivery whose meals list is missing", () => {
     const bare = { ...delivery("2026-10-09", [], [menu("lunch")]), meals: null } as unknown as Delivery;
     expect(calendarDays([bare]).size).toBe(0);

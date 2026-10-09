@@ -23,6 +23,7 @@ const HEIGHT = 52;
 const RADIUS = 12;
 const OUTLINE = 2.5;
 const BADGE = 18;
+const BAR = 4;
 // From this font scale up a photo cell gives up the photo: the number no longer fits in its pill over a 52dp photo.
 const LARGE_FONT_SCALE = 1.3;
 
@@ -63,21 +64,10 @@ export function CalendarPhotoCell({
   const showPhoto = photo !== null && fontScale < LARGE_FONT_SCALE;
   const unset = meal && !menuSet;
 
-  // The selected day's number sits in a pill filled with the header's text colour, in the header colour. The two rings
-  // (today, selected) can be close in tone on a dark header, so the pill tells them apart by more than their hue.
-  const pillFill = selected ? mood.headerText : past ? c.forest : c.cream;
-  const pillInk = selected ? mood.header : past ? c.cream : c.forest;
-
   const number = (
     <Text
       variant="label"
-      style={{
-        color: selected ? mood.header : mood.headerMeta,
-        fontSize: 14,
-        lineHeight: 18,
-        textAlign: "center",
-        fontVariant: ["tabular-nums"],
-      }}
+      style={{ color: mood.headerMeta, fontSize: 14, lineHeight: 18, textAlign: "center", fontVariant: ["tabular-nums"] }}
     >
       {String(day)}
     </Text>
@@ -113,12 +103,12 @@ export function CalendarPhotoCell({
               paddingVertical: 1,
               borderRadius: BADGE / 2,
               justifyContent: "center",
-              backgroundColor: pillFill,
+              backgroundColor: past ? c.forest : c.cream,
             }}
           >
             <Text
               variant="label"
-              style={{ color: pillInk, fontSize: 12, lineHeight: 16, fontVariant: ["tabular-nums"] }}
+              style={{ color: past ? c.cream : c.forest, fontSize: 12, lineHeight: 16, fontVariant: ["tabular-nums"] }}
             >
               {String(day)}
             </Text>
@@ -126,22 +116,7 @@ export function CalendarPhotoCell({
         </>
       ) : (
         <View style={{ ...fill, alignItems: "center", justifyContent: "center", gap: 3 }}>
-          {selected ? (
-            <View
-              testID="cell-number-pill"
-              style={{
-                minHeight: BADGE,
-                paddingHorizontal: 8,
-                borderRadius: BADGE / 2,
-                justifyContent: "center",
-                backgroundColor: pillFill,
-              }}
-            >
-              {number}
-            </View>
-          ) : (
-            number
-          )}
+          {number}
           {revealed ? (
             // Without the photo the dot says there is a meal, and a small moon beside it says dinner too. The corner
             // badge would sit on top of a two-digit number at this size, so it is not drawn here.
@@ -207,22 +182,39 @@ export function CalendarPhotoCell({
         />
       ) : null}
       {selected ? (
-        <View
-          testID="cell-outline-selected"
-          pointerEvents="none"
-          style={{
-            ...fill,
-            // Today's outline keeps the edge, so a selected today shows both: the today ring, then this one inside.
-            top: today ? OUTLINE : 0,
-            right: today ? OUTLINE : 0,
-            bottom: today ? OUTLINE : 0,
-            left: today ? OUTLINE : 0,
-            borderWidth: OUTLINE,
-            borderColor: mood.headerText,
-            borderRadius: today ? RADIUS - OUTLINE : RADIUS,
-            borderCurve: "continuous",
-          }}
-        />
+        <>
+          <View
+            testID="cell-outline-selected"
+            pointerEvents="none"
+            style={{
+              ...fill,
+              // Today's outline keeps the edge, so a selected today shows both: the today ring, then this one inside.
+              top: today ? OUTLINE : 0,
+              right: today ? OUTLINE : 0,
+              bottom: today ? OUTLINE : 0,
+              left: today ? OUTLINE : 0,
+              borderWidth: OUTLINE,
+              borderColor: mood.headerText,
+              borderRadius: today ? RADIUS - OUTLINE : RADIUS,
+              borderCurve: "continuous",
+            }}
+          />
+          {/* The two rings can sit close in tone on a header, so selection also has a shape: a bar along the bottom edge.
+              Today has none. It rests below the number pill (4dp up from the edge) and inside the corner radius. */}
+          <View
+            testID="cell-selected-bar"
+            pointerEvents="none"
+            style={{
+              position: "absolute",
+              left: RADIUS + 2,
+              right: RADIUS + 2,
+              bottom: 0,
+              height: BAR,
+              borderRadius: BAR / 2,
+              backgroundColor: mood.headerText,
+            }}
+          />
+        </>
       ) : null}
     </PressableScale>
   );

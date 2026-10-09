@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Image, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
@@ -66,7 +66,8 @@ function SignedInJadwal() {
     setSelected(monthOf(today) === month ? today : `${month}-01`);
   }, [month]);
 
-  const deliveries = state?.deliveries.filter((d) => monthOf(d.service_date) === month) ?? [];
+  const deliveries = useMemo(() => state?.deliveries.filter((d) => monthOf(d.service_date) === month) ?? [], [state, month]);
+  const days = useMemo(() => calendarDays(deliveries), [deliveries]);
   const day = deliveries
     .filter((d) => d.service_date === selected && live(d))
     .flatMap((d) => served(d).map((m) => ({ d, m })))
@@ -103,44 +104,73 @@ function SignedInJadwal() {
     <Screen
       header={
         <MoodHeader testID="jadwal-header" meta={t("Jadwal", "Schedule")} title={monthTitle(month, locale)} trailing={chevrons}>
-          <MonthGrid
-            month={month}
-            today={today}
-            selected={selected}
-            days={calendarDays(deliveries)}
-            apiBase={runtime.apiBase}
-            locale={locale}
-            onSelect={setSelected}
-          />
-          <CalendarLegend
-            labels={{
-              photo: t("Foto menu", "Menu photo"),
-              unset: t("Menu belum diisi", "Menu not set"),
-              dinner: t("Ada makan malam", "Dinner too"),
-            }}
-          />
+          {state ? (
+            <>
+              <MonthGrid
+                month={month}
+                today={today}
+                selected={selected}
+                days={days}
+                apiBase={runtime.apiBase}
+                locale={locale}
+                onSelect={setSelected}
+              />
+              <CalendarLegend
+                labels={{
+                  photo: t("Foto menu", "Menu photo"),
+                  unset: t("Menu belum diisi", "Menu not set"),
+                  dinner: t("Ada makan malam", "Dinner too"),
+                }}
+              />
+            </>
+          ) : data.error ? (
+            // Nothing is known about this month yet, so the header says that instead of drawing it as empty.
+            <View style={{ gap: 4 }}>
+              <Text selectable style={{ color: mood.headerText }}>
+                {data.error}
+              </Text>
+              <PressableScale
+                accessibilityRole="button"
+                accessibilityLabel={t("Coba lagi", "Try again")}
+                onPress={() => void data.reload()}
+                style={{ minHeight: 48, alignSelf: "flex-start", justifyContent: "center" }}
+              >
+                <Text variant="label" style={{ color: mood.headerText, textDecorationLine: "underline" }}>
+                  {t("Coba lagi", "Try again")}
+                </Text>
+              </PressableScale>
+            </View>
+          ) : (
+            <View accessibilityLiveRegion="polite" style={{ flexDirection: "row", alignItems: "center", gap: 10, minHeight: 48 }}>
+              <ActivityIndicator color={mood.headerText} />
+              <Text style={{ color: mood.headerMeta }}>{t("Memuat…", "Loading…")}</Text>
+            </View>
+          )}
         </MoodHeader>
       }
     >
-      {data.error ? (
-        <View style={{ gap: 6 }}>
-          <Text selectable variant="caption" style={{ color: c.danger }}>
-            {data.error}
-          </Text>
-          <Button variant="text" label={t("Coba lagi", "Try again")} onPress={() => void data.reload()} />
-        </View>
-      ) : null}
-      <Text variant="label">{longDay(selected, locale)}</Text>
-      {data.loading && !state ? (
-        <ActivityIndicator color={c.forest} />
-      ) : day.length ? (
-        <Card style={{ padding: 4, gap: 0 }}>
-          {day.map(({ d, m }, i) => (
-            <MealRow key={`${d.id}:${m.meal}`} delivery={d} meal={m.meal} status={m.status} first={i === 0} apiBase={runtime.apiBase} />
-          ))}
-        </Card>
-      ) : state ? (
-        <Text style={{ color: c.muted }}>{t("Tidak ada pengantaran di hari ini.", "No delivery on this day.")}</Text>
+      {state ? (
+        <>
+          {data.error ? (
+            // A refresh failed but the month is on screen: the error stays with its retry in the page.
+            <View style={{ gap: 6 }}>
+              <Text selectable variant="caption" style={{ color: c.danger }}>
+                {data.error}
+              </Text>
+              <Button variant="text" label={t("Coba lagi", "Try again")} onPress={() => void data.reload()} />
+            </View>
+          ) : null}
+          <Text variant="label">{longDay(selected, locale)}</Text>
+          {day.length ? (
+            <Card style={{ padding: 4, gap: 0 }}>
+              {day.map(({ d, m }, i) => (
+                <MealRow key={`${d.id}:${m.meal}`} delivery={d} meal={m.meal} status={m.status} first={i === 0} apiBase={runtime.apiBase} />
+              ))}
+            </Card>
+          ) : (
+            <Text style={{ color: c.muted }}>{t("Tidak ada pengantaran di hari ini.", "No delivery on this day.")}</Text>
+          )}
+        </>
       ) : null}
     </Screen>
   );
