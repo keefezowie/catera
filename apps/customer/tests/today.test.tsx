@@ -513,8 +513,23 @@ describe("fixed surfaces in the dark theme", () => {
 
 describe("Beranda mood", () => {
   // The offline test above leaves a cached day behind; these tests read from the network or fail.
-  beforeEach(() => (offline.loadCachedCustomer as jest.Mock).mockResolvedValue(null));
-  afterEach(() => jest.restoreAllMocks());
+  beforeEach(() => {
+    (offline.loadCachedCustomer as jest.Mock).mockResolvedValue(null);
+    // 12.00 Jakarta on the fixtures' TODAY, so todayPlates and the fixtures can never straddle midnight.
+    // Only the clock is pinned: timers, microtasks and animation frames keep running for real.
+    jest.useFakeTimers({
+      now: new Date(`${TODAY}T05:00:00Z`),
+      doNotFake: [
+        "hrtime", "nextTick", "performance", "queueMicrotask", "requestAnimationFrame",
+        "cancelAnimationFrame", "requestIdleCallback", "cancelIdleCallback", "setImmediate",
+        "clearImmediate", "setInterval", "clearInterval", "setTimeout", "clearTimeout",
+      ],
+    });
+  });
+  afterEach(() => {
+    jest.useRealTimers();
+    jest.restoreAllMocks();
+  });
 
   const SIANG_NOW = () => new Date("2026-10-09T03:00:00Z"); // 10:00 WIB
   const MALAM_NOW = () => new Date("2026-10-09T10:00:00Z"); // 17:00 WIB
