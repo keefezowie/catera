@@ -97,6 +97,7 @@ describe("theme", () => {
       </ThemeProvider>,
     );
     await waitFor(() => expect(SecureStore.getItemAsync).toHaveBeenCalledWith("k"));
+    await act(async () => {});
     expect(text("preference")).toBe("system");
     expect(text("canvas")).toBe(DARK_CANVAS);
   });
@@ -109,8 +110,27 @@ describe("theme", () => {
       </ThemeProvider>,
     );
     await waitFor(() => expect(SecureStore.getItemAsync).toHaveBeenCalledWith("k"));
+    await act(async () => {});
     expect(text("preference")).toBe("system");
     expect(text("canvas")).toBe(LIGHT_CANVAS);
+  });
+
+  it("setPreference before the initial read resolves wins", async () => {
+    let resolveRead: (value: string | null) => void = () => {};
+    (SecureStore.getItemAsync as jest.Mock).mockImplementationOnce(
+      () => new Promise<string | null>((resolve) => (resolveRead = resolve)),
+    );
+    render(
+      <ThemeProvider storageKey="k">
+        <Probe />
+      </ThemeProvider>,
+    );
+    await waitFor(() => expect(SecureStore.getItemAsync).toHaveBeenCalledWith("k"));
+    act(() => setPreferenceRef("dark"));
+    await act(async () => resolveRead("light"));
+    expect(text("preference")).toBe("dark");
+    expect(text("canvas")).toBe(DARK_CANVAS);
+    expect(store.get("k")).toBe("dark");
   });
 
   it("setPreference stores and applies immediately", async () => {

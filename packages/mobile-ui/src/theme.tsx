@@ -1,4 +1,4 @@
-import { createContext, use, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, use, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { StyleSheet, useColorScheme } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import { nativeThemes, type NativePalette, type ThemeName } from "@catera/design-tokens";
@@ -33,12 +33,14 @@ const ThemeContext = createContext<ThemeValue>({
 export function ThemeProvider({ storageKey, children }: { storageKey: string; children: ReactNode }) {
   const [preference, setPreferenceState] = useState<ThemePreference>("system");
   const system = useColorScheme();
+  // Set once the user has chosen in this session: a slower initial read must not overwrite that choice.
+  const chosen = useRef(false);
 
   useEffect(() => {
     let live = true;
     SecureStore.getItemAsync(storageKey)
       .then((stored) => {
-        if (live && isPreference(stored)) setPreferenceState(stored);
+        if (live && !chosen.current && isPreference(stored)) setPreferenceState(stored);
       })
       .catch(() => {});
     return () => {
@@ -48,6 +50,7 @@ export function ThemeProvider({ storageKey, children }: { storageKey: string; ch
 
   const setPreference = useCallback(
     (next: ThemePreference) => {
+      chosen.current = true;
       setPreferenceState(next);
       // A failed write only loses persistence; the choice still applies for this session.
       SecureStore.setItemAsync(storageKey, next).catch(() => {});
