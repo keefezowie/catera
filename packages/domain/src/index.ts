@@ -155,6 +155,7 @@ export type Subscription = {
 export * from "./seller-operations";
 export * from "./kitchen";
 export * from "./customer-day";
+export { windowStartMinutes } from "./windows";
 export * from "./seller-experience";
 export * from "./customer-choice";
 export type DeliveryMeal = {

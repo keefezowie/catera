@@ -230,6 +230,24 @@ describe("sessionStart", () => {
     expect(sessionStart(state, "lunch")).toBe("11.30");
   });
 
+  const unset = { ...hemat, windows: { lunch: "", dinner: "" } };
+  const garbled = { ...rumahan, windows: { lunch: "segera", dinner: "25.00–26.00" } };
+
+  it("shows no time when no delivery has a window the caterer actually set", () => {
+    const state = canvasState();
+    state.deliveries = [delivery(unset, "Tanpa Jam", 3), delivery(garbled, "Jam Rusak", 2)] as never;
+    // The 11.00 and 17.00 fallbacks order rows elsewhere; here they would pass for the caterer's own hours.
+    expect(sessionStart(state, "lunch")).toBeNull();
+    state.deliveries = [delivery(unset, "Tanpa Jam", 3, { meal: "dinner" }), delivery(garbled, "Jam Rusak", 2, { meal: "dinner" })] as never;
+    expect(sessionStart(state, "dinner")).toBeNull();
+  });
+
+  it("skips a delivery without a readable window when another one has one", () => {
+    const state = canvasState();
+    state.deliveries = [delivery(unset, "Tanpa Jam", 3), delivery(late, "Bu Sari Wulandari", 2)] as never;
+    expect(sessionStart(state, "lunch")).toBe("11.30");
+  });
+
   it("is null when the meal has no deliveries", () => {
     const state = canvasState();
     state.deliveries = [delivery(early, "Kantor PT Sinar Rasa", 6)] as never;

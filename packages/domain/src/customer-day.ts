@@ -2,6 +2,7 @@ import { addDays } from "./dates";
 import type { CustomerState, Delivery, DeliveryMeal, Locale, Offer, Subscription } from "./index";
 import type { MealType } from "./offer-schema";
 import { jakartaDay, shortDate } from "./kitchen";
+import { windowStartMinutes } from "./windows";
 
 /** Customer-facing views of a delivery day, shared by the customer app and the web. */
 export type PlateState = "cooking" | "on_the_way" | "due" | "arrived" | "failed" | "reported" | "none";
@@ -42,16 +43,6 @@ export const MEALS = ["lunch", "dinner"] as const;
 const ADDRESS_LABEL_LENGTH = 24;
 
 const mealsOf = (d: Delivery): DeliveryMeal[] => d.meals ?? [];
-
-/** Window start in minutes after midnight, the same rule as SQL v1.window_bounds. */
-export function windowStartMinutes(offer: Offer, meal: "lunch" | "dinner"): number {
-  const m = /^\s*(\d{1,2})[.:](\d{2})\s*[–-]\s*(\d{1,2})[.:](\d{2})\s*$/.exec(offer.windows?.[meal] ?? "");
-  if (m) {
-    const [sh, sm, eh, em] = [m[1], m[2], m[3], m[4]].map(Number);
-    if (sh <= 23 && eh <= 23 && sm <= 59 && em <= 59) return sh * 60 + sm;
-  }
-  return meal === "dinner" ? 17 * 60 : 11 * 60;
-}
 
 function windowStart(date: string, offer: Offer, meal: "lunch" | "dinner"): number {
   const minutes = windowStartMinutes(offer, meal);

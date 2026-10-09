@@ -1,4 +1,4 @@
-import { windowStartMinutes } from "./customer-day";
+import { parsedWindowStart } from "./windows";
 import type { Locale } from "./index";
 import type { SellerDelivery, SellerOperationsState } from "./seller-operations";
 
@@ -123,10 +123,14 @@ export function cookingRecap(state: SellerOperationsState, meal: KitchenMeal): C
 
 /**
  * When the meal's first delivery window opens ("HH.MM", Jakarta), across the day's active deliveries of that meal;
- * null when there are none. The window rule is the customer app's own (`windowStartMinutes`).
+ * null when there are none. Only a window the caterer actually set counts (`parsedWindowStart`): the 11.00 and 17.00
+ * fallbacks that order rows are not shown as if they were the caterer's hours.
  */
 export function sessionStart(state: SellerOperationsState, meal: KitchenMeal): string | null {
-  const starts = state.deliveries.filter((d) => servesMeal(d, meal)).map((d) => windowStartMinutes(d.offer, meal));
+  const starts = state.deliveries
+    .filter((d) => servesMeal(d, meal))
+    .map((d) => parsedWindowStart(d.offer, meal))
+    .filter((minutes): minutes is number => minutes !== null);
   if (!starts.length) return null;
   const first = Math.min(...starts);
   return `${String(Math.floor(first / 60)).padStart(2, "0")}.${String(first % 60).padStart(2, "0")}`;
