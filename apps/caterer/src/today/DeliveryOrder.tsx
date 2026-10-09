@@ -9,7 +9,7 @@ import {
 } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
 import { Button, StopRow, Text, useColors } from "@catera/mobile-ui";
-import { canMoveDelivery, ExceptionSheet } from "./ExceptionSheet";
+import { canMoveDelivery, canReportFailed, ExceptionSheet } from "./ExceptionSheet";
 
 /** The stops shown before "Lihat {n} alamat lainnya": enough to start the route, short enough to see the buttons below. */
 const FIRST_STOPS = 3;
@@ -18,16 +18,20 @@ const ROUTE_LIMIT = 10;
 /** The width of the number badge and its gap in `StopRow`, so a note lines up under the name. */
 const NOTE_INDENT = 40;
 
-/** Today: report a failed stop or move it. Tomorrow: only move, while the cutoff is ahead. */
+/** Move it, on today or tomorrow, while the cutoff is ahead. */
 const movable = (ops: SellerOperationsState, stop: Stop) =>
   canMoveDelivery(ops.deliveries.find((d) => d.id === stop.deliveryId));
 
+/** Report it failed, on today only, while its meal still has a step to "issue" (not delivered, not failed). */
+const failable = (ops: SellerOperationsState, stop: Stop, meal: KitchenMeal) =>
+  canReportFailed(ops.deliveries.find((d) => d.id === stop.deliveryId), meal);
+
 /**
- * "Urutan antar": the session's stops in route order, as numbered rows with a map button and, where the kitchen can act
- * on that day, a "…" button for the exception sheet (a failed delivery, or moving the day). The first three show;
- * the rest are one tap away. Under them: the whole route in Maps, the route as WhatsApp text, and for today a line
- * saying arrival is recorded by itself. The stops come from the session, so a row marked "Gagal diantar" or cancelled is
- * not in the list.
+ * "Urutan antar": the session's stops in route order, as numbered rows with a map button and, where the sheet would
+ * send something, a "…" button for the exception sheet (a failed delivery, or moving the day). A delivered stop has
+ * neither, so it has no "…". The first three show; the rest are one tap away. Under them: the whole route in Maps, the
+ * route as WhatsApp text, and for today a line saying arrival is recorded by itself. The stops come from the session,
+ * so a row marked "Gagal diantar" or cancelled is not in the list.
  */
 export function DeliveryOrder({
   ops,
@@ -57,10 +61,12 @@ export function DeliveryOrder({
   const shown = all ? stops : stops.slice(0, FIRST_STOPS);
   const hidden = stops.length - shown.length;
 
-  const hasMore = (s: Stop) => report === "today" || (report === "tomorrow" && movable(ops, s));
-  // The label says what the sheet can do: today it always has "Gagal diantar", and "Pindah tanggal" while the day can move.
+  // The "…" shows only when its sheet would send something, and its label says what: "Gagal diantar" (today, while the
+  // meal can still fail), "Pindah tanggal" (while the day can move), or both.
+  const canFail = (s: Stop) => report === "today" && failable(ops, s, meal);
+  const hasMore = (s: Stop) => report !== null && (canFail(s) || movable(ops, s));
   const moreLabel = (s: Stop) =>
-    report === "today"
+    canFail(s)
       ? movable(ops, s)
         ? t("Laporkan masalah atau pindah hari", "Report a problem or move the day")
         : t("Laporkan masalah", "Report a problem")

@@ -7,6 +7,7 @@ import { router } from "expo-router";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { errorLabel, kitchenSession, routeMapsUrl, type SellerOperationsState } from "@catera/domain";
 import { MoodProvider } from "@catera/mobile-ui";
+import { ExceptionSheet } from "../src/today/ExceptionSheet";
 import { TodayScreen } from "../src/today/TodayScreen";
 import { dishKey } from "../src/today/ticks";
 import { canvasDay, report } from "./fixtures";
@@ -570,6 +571,60 @@ describe("Urutan antar", () => {
     await act(async () => undefined);
     expect(screen.queryByText("Mulai masak")).toBeNull();
     expect(within(screen.getByTestId("stop-3")).queryByLabelText(/Laporkan|Pindah hari/)).toBeNull();
+  });
+
+  it("shows no ellipsis on a stop whose meal is already delivered, and keeps it on the others", async () => {
+    const day = kitchenDay([delivered, scheduled]);
+    renderToday(runtimeWith(async () => day));
+    const done = stopsOf(day).find((s) => s.deliveryId === day.deliveries[0].id)!;
+    const other = stopsOf(day).find((s) => s.deliveryId !== day.deliveries[0].id)!;
+    const row = await screen.findByTestId(`stop-${done.n}`);
+    expect(within(row).getByText(done.name)).toBeTruthy();
+    expect(within(row).queryByLabelText(/Laporkan|Pindah hari/)).toBeNull();
+    expect(within(screen.getByTestId(`stop-${other.n}`)).getByLabelText(/^Laporkan masalah/)).toBeTruthy();
+  });
+
+  it("sends Gagal diantar for a stop whose sheet can only fail, and closes once saved", async () => {
+    const command = jest.fn(async () => ({}));
+    const day = kitchenDay([departed]);
+    renderToday(runtimeWith(async () => day, command));
+    fireEvent.press(await within(await screen.findByTestId("stop-1")).findByLabelText("Laporkan masalah"));
+    expect(await screen.findByText("Gagal diantar")).toBeTruthy();
+    expect(screen.queryByText("Pindah tanggal")).toBeNull();
+    fireEvent.press(screen.getByText("Simpan laporan"));
+    const first = stopsOf(day)[0];
+    await waitFor(() =>
+      expect(command).toHaveBeenCalledWith(
+        "delivery.status",
+        expect.objectContaining({ id: first.deliveryId, meal: "lunch", status: "issue" }),
+        expect.any(String),
+      ),
+    );
+    await waitFor(() => expect(screen.queryByText("Simpan laporan")).toBeNull());
+  });
+});
+
+describe("the exception sheet on its own", () => {
+  const sheet = (day: SellerOperationsState, onClose: () => void, command = jest.fn(async () => ({}))) => {
+    const runtime = runtimeWith(async () => day, command);
+    render(
+      <MobileProvider runtime={runtime} linkMapper={(h) => h}>
+        <ExceptionSheet stop={stopsOf(day)[0]} meal="lunch" ops={day} onClose={onClose} />
+      </MobileProvider>,
+    );
+    return command;
+  };
+
+  it("never offers Gagal diantar for a delivered meal and never closes silently on save", async () => {
+    const onClose = jest.fn();
+    const command = sheet(kitchenDay([delivered]), onClose);
+    expect(await screen.findByText("Tidak ada yang bisa dilaporkan untuk alamat ini.")).toBeTruthy();
+    expect(screen.queryByText("Gagal diantar")).toBeNull();
+    expect(screen.queryByText("Pindah tanggal")).toBeNull();
+    fireEvent.press(screen.getByText("Simpan laporan"));
+    await act(async () => undefined);
+    expect(command).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
   });
 });
 

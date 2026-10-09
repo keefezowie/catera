@@ -6,8 +6,8 @@ import { dishKey, useTicks } from "./ticks";
 
 /**
  * "Daftar masak": one checkable row per dish of the session's recap, with its photo (or the meal's icon) and how many
- * portions of it to cook. The ticks are the kitchen's own note, kept on this phone; they gate nothing, so the rows
- * only dim and strike through. A session with no dishes yet shows the heading alone and the caller's lines about
+ * portions of it to cook. The ticks are the kitchen's own note, kept on this phone; they gate nothing, so a ticked
+ * row only turns muted and struck through, with its photo dimmed. A session with no dishes yet shows the heading alone and the caller's lines about
  * the menus nobody has filled in follow it.
  */
 export function CookingList({ session, catererId, date }: { session: KitchenSession; catererId: string; date: string }) {

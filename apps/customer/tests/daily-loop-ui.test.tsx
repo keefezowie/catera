@@ -585,22 +585,61 @@ describe("CheckRow", () => {
       </ThemeProvider>,
     );
     expect(flat("row-tick").opacity).toBe(1);
-    expect(flat("row-content").opacity).toBe(0.55);
+    expect(flat("row-media").opacity).toBe(0.55);
     expect(byId("row-check-mark")).toBeTruthy();
   });
 
-  it("strikes the name through and dims the row to 0.55 over the content duration when ticked", () => {
+  it("turns the name muted and struck through, mutes the quantity and dims only the photo over the content duration", () => {
+    const c = nativeThemes.light;
     const timing = jest.spyOn(Reanimated, "withTiming");
     const view = mount(row());
-    expect(StyleSheet.flatten(screen.getByText("Ayam bakar").props.style).textDecorationLine).not.toBe("line-through");
-    expect(flat("row-content").opacity).toBe(1);
+    const style = (text: string) => StyleSheet.flatten(screen.getByText(text).props.style);
+    expect(style("Ayam bakar").textDecorationLine).not.toBe("line-through");
+    expect(style("Ayam bakar").color).toBe(c.charcoal);
+    expect(style("8").color).toBe(c.forest);
+    expect(flat("row-media").opacity).toBe(1);
     view.rerender(
       <ThemeProvider storageKey="daily-loop-test">
         <MoodProvider now={SIANG_NOW}>{row({ checked: true })}</MoodProvider>
       </ThemeProvider>,
     );
-    expect(StyleSheet.flatten(screen.getByText("Ayam bakar").props.style).textDecorationLine).toBe("line-through");
+    expect(style("Ayam bakar").textDecorationLine).toBe("line-through");
+    expect(style("Ayam bakar").color).toBe(c.muted);
+    expect(style("8").color).toBe(c.muted);
     expect(timing).toHaveBeenCalledWith(0.55, expect.objectContaining({ duration: nativeMotion.content }));
+    expect(timing).toHaveBeenCalledWith(1, expect.objectContaining({ duration: nativeMotion.control }));
+    expect(flat("row-content").opacity ?? 1).toBe(1);
+  });
+
+  // R-25: a ticked name must keep 4.5:1, so no text of the row may sit under a dimmed ancestor.
+  it.each(["light", "dark"] as const)("keeps a ticked row's text at full opacity in %s, the name in muted ink", (scheme) => {
+    mount(row({ checked: true }), scheme);
+    const name = screen.getByText("Ayam bakar");
+    expect(StyleSheet.flatten(name.props.style).color).toBe(nativeThemes[scheme].muted);
+    for (const text of [name, screen.getByText("8")]) {
+      for (let node: typeof text | null = text; node; node = node.parent) {
+        expect(StyleSheet.flatten(node.props.style)?.opacity ?? 1).toBe(1);
+      }
+    }
+    expect(flat("row-media").opacity).toBe(0.55);
+  });
+
+  it("ticks instantly under reduced motion", () => {
+    jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
+    const timing = jest.spyOn(Reanimated, "withTiming");
+    const view = mount(row());
+    const rerender = () =>
+      view.rerender(
+        <ThemeProvider storageKey="daily-loop-test">
+          <MoodProvider now={SIANG_NOW}>{row({ checked: true })}</MoodProvider>
+        </ThemeProvider>,
+      );
+    rerender();
+    rerender();
+    expect(timing).not.toHaveBeenCalled();
+    expect(flat("row-tick").opacity).toBe(1);
+    expect(flat("row-media").opacity).toBe(0.55);
+    expect(StyleSheet.flatten(screen.getByText("Ayam bakar").props.style).color).toBe(nativeThemes.light.muted);
   });
 
   it("shows the meal icon when there is no photo, and the photo when there is", () => {

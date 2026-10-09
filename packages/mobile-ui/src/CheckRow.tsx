@@ -15,11 +15,14 @@ const DONE_OPACITY = 0.55;
 /**
  * One line of the kitchen's checklist: how many, what, and a round box to tick. The whole row is the button (56dp or
  * more), so a thumb anywhere on it ticks it.
- * - Ticking fills the ring forest with a cream check over `nativeMotion.control` and dims the row to 0.55 with the name
- *   struck through over `nativeMotion.content`. Instant under reduced motion; nothing loops.
+ * - Ticking fills the ring forest with a cream check over `nativeMotion.control` and dims only the photo or icon to
+ *   0.55 over `nativeMotion.content`. The text never dims, so it keeps 4.5:1: the name turns `muted` and is struck
+ *   through and the quantity turns `muted`, at once, since only opacity and transform animate. Instant under reduced
+ *   motion; nothing loops.
  * - `image` is the dish photo; without one the meal's icon (sun for lunch, moon for dinner) stands in.
  * - The name wraps and is never truncated. The accessibility label is "8× name" and the state is a checkbox's.
- * `testID` names the row; its parts are `<testID>-content`, `-box`, `-tick`, `-check-mark`, `-icon` and `-image`.
+ * `testID` names the row; its parts are `<testID>-content`, `-media`, `-box`, `-tick`, `-check-mark`, `-icon` and
+ * `-image`.
  */
 export function CheckRow({
   quantity,
@@ -59,6 +62,8 @@ export function CheckRow({
 
   const tickStyle = useAnimatedStyle(() => ({ opacity: tick.value }));
   const dimStyle = useAnimatedStyle(() => ({ opacity: dim.value }));
+  // A ticked row's text switches to the muted ink at once; colour is not animated.
+  const done = checked ? { color: c.muted } : null;
 
   return (
     <PressableScale
@@ -70,45 +75,48 @@ export function CheckRow({
       onPress={onToggle}
       style={{ minHeight: 56 }}
     >
-      <Animated.View
+      <View
         testID={`${testID}-content`}
-        style={[{ minHeight: 56, flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 4 }, dimStyle]}
+        style={{ minHeight: 56, flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 4 }}
       >
-        <Text variant="heading" style={{ minWidth: 40, textAlign: "right", fontVariant: ["tabular-nums"] }}>
+        <Text variant="heading" style={[{ minWidth: 40, textAlign: "right", fontVariant: ["tabular-nums"] }, done]}>
           {quantity}
         </Text>
-        {image ? (
-          // The line colour shows while the photo loads or if it never does.
-          <View
-            style={{ width: PHOTO, height: PHOTO, borderRadius: 10, borderCurve: "continuous", overflow: "hidden", backgroundColor: c.line }}
-          >
-            <Image
-              testID={`${testID}-image`}
-              accessibilityIgnoresInvertColors
-              source={{ uri: image }}
-              resizeMode="cover"
-              style={{ width: PHOTO, height: PHOTO }}
-            />
-          </View>
-        ) : (
-          <View
-            testID={`${testID}-icon`}
-            accessibilityElementsHidden
-            importantForAccessibility="no-hide-descendants"
-            style={{
-              width: PHOTO,
-              height: PHOTO,
-              borderRadius: 10,
-              borderCurve: "continuous",
-              backgroundColor: c.sage,
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Ionicons name={icon} size={22} color={c.forest} />
-          </View>
-        )}
-        <Text variant="body" style={{ flex: 1, textDecorationLine: checked ? "line-through" : "none" }}>
+        {/* Only the picture dims: dimming text would drop the ticked name below 4.5:1 on a light card. */}
+        <Animated.View testID={`${testID}-media`} style={dimStyle}>
+          {image ? (
+            // The line colour shows while the photo loads or if it never does.
+            <View
+              style={{ width: PHOTO, height: PHOTO, borderRadius: 10, borderCurve: "continuous", overflow: "hidden", backgroundColor: c.line }}
+            >
+              <Image
+                testID={`${testID}-image`}
+                accessibilityIgnoresInvertColors
+                source={{ uri: image }}
+                resizeMode="cover"
+                style={{ width: PHOTO, height: PHOTO }}
+              />
+            </View>
+          ) : (
+            <View
+              testID={`${testID}-icon`}
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+              style={{
+                width: PHOTO,
+                height: PHOTO,
+                borderRadius: 10,
+                borderCurve: "continuous",
+                backgroundColor: c.sage,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Ionicons name={icon} size={22} color={c.forest} />
+            </View>
+          )}
+        </Animated.View>
+        <Text variant="body" style={[{ flex: 1, textDecorationLine: checked ? "line-through" : "none" }, done]}>
           {name}
         </Text>
         <View
@@ -136,7 +144,7 @@ export function CheckRow({
             </View>
           </Animated.View>
         </View>
-      </Animated.View>
+      </View>
     </PressableScale>
   );
 }
