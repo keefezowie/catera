@@ -7,4 +7,5 @@ export const runtime = createMobileRuntime({
   supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
   supabaseKey: process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
   storagePrefix: "catera",
+  app: "customer",
 });

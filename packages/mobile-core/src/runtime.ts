@@ -10,6 +10,8 @@ export type MobileRuntimeConfig = {
   supabaseKey?: string;
   /** SecureStore key prefix, e.g. "catera" or "dapur", so two apps never share keys. */
   storagePrefix: string;
+  /** Which app is counting its daily use; sent with every usage count and nothing else. */
+  app: "customer" | "dapur";
 };
 
 export type MobileRuntime = ReturnType<typeof createMobileRuntime>;
@@ -115,6 +117,7 @@ export function createMobileRuntime(config: MobileRuntimeConfig) {
   }
 
   return {
+    config,
     apiBase,
     supabase,
     api,

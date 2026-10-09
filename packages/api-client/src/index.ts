@@ -28,6 +28,7 @@ import type {
   SellerAttentionPage,
   SavedPackages,
   ClaimPreview,
+  UsageName,
 } from "@catera/domain";
 export class ApiError extends Error {
   constructor(
@@ -227,5 +228,9 @@ export function createApi(
       payload: unknown,
       requestId: string = globalThis.crypto.randomUUID(),
     ) => request<T>("commands", { action, payload, requestId }),
+    /** One anonymous daily count. The server keeps no user, caterer or device with it. */
+    usage: async (name: UsageName, app: "customer" | "dapur"): Promise<void> => {
+      await request("usage", { name, app });
+    },
   };
 }

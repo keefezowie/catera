@@ -44,6 +44,7 @@ import {
   menuSaveSchema,
   dishSaveSchema,
   dishArchiveSchema,
+  usageSchema,
   type Checkout,
   type PaymentAvailability,
   type Quote,
@@ -505,6 +506,12 @@ export async function POST(request: Request, context: Context) {
     }
     const s = await session(request);
     if (!s.id) throw new Error("UNAUTHORIZED");
+    if (path[0] === "usage") {
+      // An anonymous daily count: the database keeps no user, caterer or device with it.
+      const { name, app } = usageSchema.parse(a);
+      await rpc(s.id, s.token, "catera_v1_usage", { name, app });
+      return ok({});
+    }
     if (path[0] === "quote") {
       const payload = checkoutSchema.parse(a);
       return ok(

@@ -628,6 +628,12 @@ export async function createDemoDatabase(inMemory = false) {
     await db.exec("begin;\n" + await readFile(path.join(projectRoot(),
       "supabase/migrations/20261009090000_kitchen_cooking.sql"), "utf8") + "\ncommit;");
   }
+  if ((await db.query<{ missing: boolean }>(
+    "select to_regclass('v1.usage_daily') is null missing",
+  )).rows[0].missing) {
+    await db.exec("begin;\n" + await readFile(path.join(projectRoot(),
+      "supabase/migrations/20261009091000_usage_counts.sql"), "utf8") + "\ncommit;");
+  }
   return db;
 }
 export async function getDemoDatabase() {
@@ -648,6 +654,7 @@ export async function localRpc<T>(
       "catera_v1_system",
       "catera_v1_manifest",
       "catera_v1_reconcile",
+      "catera_v1_usage",
     ].includes(name)
   )
     throw new Error("INVALID_RPC");

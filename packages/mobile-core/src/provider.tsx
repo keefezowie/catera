@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -14,8 +15,9 @@ import type * as NotificationTypes from "expo-notifications";
 import Constants from "expo-constants";
 import { Notifications } from "./notifications";
 import { router } from "expo-router";
-import { errorLabel, type Actor, type Locale } from "@catera/domain";
+import { errorLabel, type Actor, type Locale, type UsageName } from "@catera/domain";
 import type { MobileRuntime } from "./runtime";
+import { createOpenCounter, sendUsage } from "./usage";
 
 Notifications?.setNotificationHandler({
   handleNotification: async () => ({
@@ -71,6 +73,9 @@ export function MobileProvider({
   const lastNotification = useRef("");
   const mapLink = useRef(linkMapper);
   mapLink.current = linkMapper;
+  const actorRef = useRef(actor);
+  actorRef.current = actor;
+  const countOpen = useMemo(() => createOpenCounter(runtime), [runtime]);
 
   const refresh = useCallback(async () => {
     const session = sessionGeneration.current;
@@ -155,6 +160,7 @@ export function MobileProvider({
       if (state === "active") {
         runtime.supabase?.auth.startAutoRefresh();
         void refresh();
+        void countOpen(actorRef.current);
       } else runtime.supabase?.auth.stopAutoRefresh();
     });
     const received = Notifications?.addNotificationReceivedListener(() =>
@@ -178,7 +184,12 @@ export function MobileProvider({
       received?.remove();
       response?.remove();
     };
-  }, [runtime, refresh]);
+  }, [runtime, refresh, countOpen]);
+
+  // The first open of a Jakarta day is counted once a session exists to send it from.
+  useEffect(() => {
+    void countOpen(actor);
+  }, [countOpen, actor?.id]);
 
   useEffect(() => {
     const client = runtime.supabase;
@@ -279,3 +290,15 @@ export function MobileProvider({
 }
 
 export const useMobile = () => useContext(Context);
+
+/**
+ * Returns the function that counts a usage event. Its identity never changes while the runtime
+ * stays, so an effect that depends on it does not fire again when the session refreshes.
+ * Calling it never throws and never waits; without a signed-in actor it does nothing.
+ */
+export function useTrack(): (name: UsageName) => void {
+  const { runtime, actor } = useMobile();
+  const actorRef = useRef(actor);
+  actorRef.current = actor;
+  return useCallback((name: UsageName) => sendUsage(runtime, actorRef.current, name), [runtime]);
+}

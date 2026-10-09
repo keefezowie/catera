@@ -318,6 +318,27 @@ try {
   await (await import("./postgres-delivery-confirm.mjs")).verifyDeliveryConfirm(pool, cmd, evidence);
   await (await import("./postgres-delivery-confirm.mjs")).verifyDeliveryDepart(pool, cmd, evidence);
   await (await import("./postgres-delivery-confirm.mjs")).verifyDeliveryCook(pool, cmd, evidence);
+  // Usage counts: twenty parallel app_open calls from one phone leave n = 20, one row, no user column.
+  await pool.query(await readFile("supabase/migrations/20261009091000_usage_counts.sql", "utf8"));
+  await Promise.all(
+    Array.from({ length: 20 }, async () => {
+      const c = await pool.connect();
+      try {
+        await c.query("begin");
+        await c.query("select set_config('request.jwt.claim.sub',$1,true),set_config('catera.demo','true',true)", [DEMO_ACTORS.customer]);
+        await c.query("select public.catera_v1_usage('app_open','customer')");
+        await c.query("commit");
+      } catch (e) {
+        await c.query("rollback");
+        throw e;
+      } finally {
+        c.release();
+      }
+    }),
+  );
+  const usageRows = (await pool.query("select app,name,n from v1.usage_daily")).rows;
+  assert.deepEqual(usageRows, [{ app: "customer", name: "app_open", n: 20 }]);
+  evidence.push("Twenty parallel app_open usage counts from one user leave one row with n = 20 and no user column.");
   await pool.query(await readFile("supabase/migrations/20261007110000_import_before_approval.sql", "utf8"));
   await mkdir("output/verification", { recursive: true });
   const evidencePath = process.env.CATERA_POSTGRES_EVIDENCE || "output/verification/postgres.json";
