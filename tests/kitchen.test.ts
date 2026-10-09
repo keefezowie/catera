@@ -5,6 +5,7 @@ import {
   jakartaDay,
   menuShareText,
   routeShareText,
+  sessionStart,
   whatsappUrl,
   type SellerOperationsState,
 } from "@catera/domain";
@@ -194,6 +195,47 @@ describe("deliveryRoute", () => {
       area: "Kuningan",
     });
     expect(stops[0].mapsUrl).toMatch(/^https:\/\/www\.google\.com\/maps\/search\/\?api=1&query=/);
+  });
+});
+
+describe("sessionStart", () => {
+  // Windows are the packages' own; the fixtures above carry none, so each case dresses its offers.
+  const early = { ...hemat, windows: { lunch: "10.30–12.00", dinner: "18.30–20.00" } };
+  const late = { ...rumahan, windows: { lunch: "11.30–13.00", dinner: "17.45–19.30" } };
+
+  it("is the earliest window start among the meal's deliveries, as HH.MM", () => {
+    const state = canvasState();
+    state.deliveries = [
+      delivery(late, "Bu Sari Wulandari", 2),
+      delivery(early, "Kantor PT Sinar Rasa", 6),
+    ] as never;
+    expect(sessionStart(state, "lunch")).toBe("10.30");
+  });
+
+  it("reads the window of the meal asked for", () => {
+    const state = canvasState();
+    state.deliveries = [
+      delivery(late, "Pelanggan Malam", 5, { meal: "dinner" }),
+      delivery(early, "Kantor Malam", 1, { meal: "dinner" }),
+    ] as never;
+    expect(sessionStart(state, "dinner")).toBe("17.45");
+  });
+
+  it("ignores cancelled deliveries", () => {
+    const state = canvasState();
+    state.deliveries = [
+      delivery(early, "Pindah Hari", 4, { status: "cancelled" }),
+      delivery(late, "Bu Sari Wulandari", 2),
+    ] as never;
+    expect(sessionStart(state, "lunch")).toBe("11.30");
+  });
+
+  it("is null when the meal has no deliveries", () => {
+    const state = canvasState();
+    state.deliveries = [delivery(early, "Kantor PT Sinar Rasa", 6)] as never;
+    expect(sessionStart(state, "dinner")).toBeNull();
+    state.deliveries = [];
+    expect(sessionStart(state, "lunch")).toBeNull();
   });
 });
 

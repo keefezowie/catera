@@ -4,14 +4,16 @@ import { Share, StyleSheet } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
-import { ThemeProvider } from "@catera/mobile-ui";
+import { errorLabel, type SellerOperationsState } from "@catera/domain";
+import { MoodProvider, ThemeProvider } from "@catera/mobile-ui";
+import * as SecureStore from "expo-secure-store";
 import { TodayScreen } from "../src/today/TodayScreen";
 import { SessionCard } from "../src/today/SessionCard";
 import { issueSteps } from "../src/today/exceptions";
 import * as offline from "../src/today/offline";
 import * as Haptics from "expo-haptics";
 import { canvasDay, emptyDay, quietDay, report } from "./fixtures";
-import { nativeThemes } from "@catera/design-tokens";
+import { nativeMood, nativeThemes } from "@catera/design-tokens";
 
 const touch = { nativeEvent: { touches: [], changedTouches: [] }, persist() {} };
 
@@ -184,14 +186,14 @@ it("opens on the day a notification points to", async () => {
 it("keeps the day toggle for a kitchen with packages on a day without deliveries", async () => {
   renderToday(runtimeWith(async () => quietDay()));
   expect(await screen.findByText("Tidak ada masakan untuk hari ini.")).toBeTruthy();
-  expect(screen.getByText("Besok")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Ganti hari, sekarang Hari ini" })).toBeTruthy();
   expect(screen.queryByText("Siapkan dapur Anda")).toBeNull();
 });
 
 it("never shows helpers the owner setup steps", async () => {
   renderToday(runtimeWith(async () => emptyDay(), { ...owner, role: "staff" }));
   expect(await screen.findByText("Tidak ada masakan untuk hari ini.")).toBeTruthy();
-  expect(screen.getByText("Besok")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Ganti hari, sekarang Hari ini" })).toBeTruthy();
   expect(screen.queryByText("Siapkan dapur Anda")).toBeNull();
 });
 
@@ -327,25 +329,6 @@ it("says when customer reports could not be loaded and retries", async () => {
 describe("session cards", () => {
   afterEach(() => jest.useRealTimers());
 
-  it("shows the date as the title", async () => {
-    pinToday();
-    renderToday(runtimeWith(async () => canvasDay()));
-    expect(await screen.findByText("Kamis 8 Okt")).toBeTruthy();
-    fireEvent.press(screen.getByText("Besok"));
-    expect(await screen.findByText("Jumat 9 Okt")).toBeTruthy();
-  });
-
-  it("has a single day switch", async () => {
-    renderToday(runtimeWith(async () => canvasDay()));
-    await screen.findByText("34 porsi");
-    const tablists = screen.UNSAFE_root.findAll(
-      (n) => typeof n.type === "string" && n.props.accessibilityRole === "tablist",
-    );
-    expect(tablists).toHaveLength(1);
-    expect(screen.getAllByRole("tab").map((t) => t.props.accessibilityState.selected)).toEqual([true, false]);
-    expect(screen.queryByText("Masak")).toBeNull();
-    expect(screen.queryByText(/^Siang/)).toBeNull();
-  });
 
   it("shows one card per meal session with its delivery list", async () => {
     const base = canvasDay();
@@ -370,8 +353,229 @@ describe("session cards", () => {
   it("words the empty state for tomorrow", async () => {
     renderToday(runtimeWith(async () => quietDay()));
     await screen.findByText("Tidak ada masakan untuk hari ini.");
-    fireEvent.press(screen.getByText("Besok"));
+    fireEvent.press(screen.getByRole("button", { name: "Ganti hari, sekarang Hari ini" }));
     expect(await screen.findByText("Tidak ada masakan untuk besok.")).toBeTruthy();
+  });
+});
+
+describe("Hari ini by mood", () => {
+  afterEach(() => {
+    jest.useRealTimers();
+    (SecureStore as unknown as { __store: Map<string, string> }).__store.clear();
+  });
+
+  // 14:59 and 15:00 in Jakarta: the two sides of the mood default.
+  const SIANG_NOW = () => new Date("2026-10-08T07:59:00Z");
+  const MALAM_NOW = () => new Date("2026-10-08T08:00:00Z");
+
+  const renderMood = (runtime: MobileRuntime, now = SIANG_NOW) =>
+    render(
+      <MoodProvider now={now}>
+        <MobileProvider runtime={runtime} linkMapper={(h) => h}>
+          <TodayScreen />
+        </MobileProvider>
+      </MoodProvider>,
+    );
+
+  /** The canvas day with real windows: Rumahan opens 11.30, Hemat opens 10.30. */
+  const timedDay = () => {
+    const day = canvasDay();
+    for (const d of day.deliveries) {
+      const hemat = d.offer.id === "p-hemat";
+      d.offer = {
+        ...d.offer,
+        windows: hemat ? { lunch: "10.30–12.00", dinner: "18.00–19.30" } : { lunch: "11.30–13.00", dinner: "17.45–19.30" },
+      };
+    }
+    return day;
+  };
+  /** Kost Damai (23 portions) eats at dinner instead, so the day has both sessions. */
+  const toDinner = (day: SellerOperationsState, who = "Kost Damai") => {
+    const d = day.deliveries.find((x) => x.customer.name === who)!;
+    d.meals = d.meals.map((m) => ({ ...m, meal: "dinner" }));
+    return day;
+  };
+  const dinnerOnly = () => {
+    const day = canvasDay();
+    for (const d of day.deliveries) d.meals = d.meals.map((m) => ({ ...m, meal: "dinner" }));
+    return day;
+  };
+  const flat = (id: string) => StyleSheet.flatten(screen.getByTestId(id, { includeHiddenElements: true }).props.style);
+  const tabsSelected = () => screen.getAllByRole("tab").map((t) => t.props.accessibilityState.selected);
+
+  it("titles the header with the date, a button that switches between today and tomorrow", async () => {
+    pinToday();
+    renderMood(runtimeWith(async () => canvasDay()));
+    const button = await screen.findByRole("button", { name: "Ganti hari, sekarang Hari ini" });
+    expect(within(button).getByText("Kamis 8 Okt")).toBeTruthy();
+    expect(StyleSheet.flatten(button.props.style).minHeight).toBe(48);
+    expect(within(button).UNSAFE_getByType(Ionicons).props).toMatchObject({
+      name: "chevron-down",
+      color: nativeMood.light.siang.headerText,
+    });
+    expect(StyleSheet.flatten(within(button).getByText("Kamis 8 Okt").props.style).color).toBe(nativeMood.light.siang.headerText);
+    expect(await screen.findByText("Dapur Bu Rina · Hari ini")).toBeTruthy();
+
+    fireEvent.press(button);
+    expect(await screen.findByText("Dapur Bu Rina · Besok")).toBeTruthy();
+    expect(screen.getByText("Jumat 9 Okt")).toBeTruthy();
+
+    fireEvent.press(screen.getByRole("button", { name: "Ganti hari, sekarang Besok" }));
+    expect(await screen.findByText("Dapur Bu Rina · Hari ini")).toBeTruthy();
+    expect(screen.getByText("Kamis 8 Okt")).toBeTruthy();
+  });
+
+  it("keeps the caterer name in the meta while the other day loads", async () => {
+    pinToday();
+    // Tomorrow's read never answers, so the screen stays in its loading state for that day.
+    const stuck = new Promise<never>(() => {});
+    const byDate = (_id: string, date: string) => (date === "2026-10-09" ? stuck : Promise.resolve(canvasDay()));
+    renderMood(runtimeWith(byDate as unknown as () => Promise<unknown>));
+    await screen.findByText("Dapur Bu Rina · Hari ini");
+    fireEvent.press(screen.getByRole("button", { name: "Ganti hari, sekarang Hari ini" }));
+    expect(await screen.findByText("Dapur Bu Rina · Besok")).toBeTruthy();
+    expect(screen.getByText("Memuat…")).toBeTruthy();
+  });
+
+  it("words the date button in English", async () => {
+    pinToday();
+    const runtime = runtimeWith(async () => canvasDay());
+    (SecureStore as unknown as { __store: Map<string, string> }).__store.set(runtime.storageKey("locale"), "en");
+    renderMood(runtime);
+    const button = await screen.findByRole("button", { name: "Change day, now Today" });
+    expect(await screen.findByText("Dapur Bu Rina · Today")).toBeTruthy();
+    fireEvent.press(button);
+    expect(await screen.findByText("Dapur Bu Rina · Tomorrow")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Change day, now Tomorrow" })).toBeTruthy();
+  });
+
+  it("has exactly one tablist, the mood toggle", async () => {
+    renderMood(runtimeWith(async () => canvasDay()));
+    await screen.findByText("34 porsi");
+    const tablists = screen.UNSAFE_root.findAll(
+      (n) => typeof n.type === "string" && n.props.accessibilityRole === "tablist",
+    );
+    expect(tablists).toHaveLength(1);
+    expect(screen.getAllByRole("tab").map((t) => t.props.accessibilityLabel)).toEqual(["Siang", "Malam"]);
+    expect(tabsSelected()).toEqual([true, false]);
+    expect(screen.queryByText("Masak")).toBeNull();
+  });
+
+  describe("the count card", () => {
+    it("sits on the mood hero fill and counts the mood's meal", async () => {
+      renderMood(runtimeWith(async () => timedDay()));
+      const card = await screen.findByTestId("session-count");
+      const number = within(card).getByText("34");
+      expect(StyleSheet.flatten(number.props.style)).toMatchObject({
+        color: nativeMood.light.siang.heroText,
+        fontVariant: expect.arrayContaining(["tabular-nums"]),
+      });
+      const caption = within(card).getByText("porsi siang · 4 alamat");
+      expect(StyleSheet.flatten(caption.props.style).color).toBe(nativeMood.light.siang.heroMeta);
+      // The earliest of the lunch windows: Paket Hemat opens at 10.30.
+      expect(within(card).getByText("Antar 10.30")).toBeTruthy();
+      expect(flat("session-count-fill-siang").backgroundColor).toBe(nativeMood.light.siang.hero);
+      expect(flat("session-count-fill-malam").backgroundColor).toBe(nativeMood.light.malam.hero);
+      expect(flat("session-count")).toMatchObject({ borderRadius: 22, borderCurve: "continuous", boxShadow: nativeMood.light.siang.heroShadow });
+    });
+
+    it("follows the mood to the dinner session", async () => {
+      renderMood(runtimeWith(async () => toDinner(timedDay())), MALAM_NOW);
+      const card = await screen.findByTestId("session-count");
+      expect(within(card).getByText("23")).toBeTruthy();
+      expect(within(card).getByText("porsi malam · 1 alamat")).toBeTruthy();
+      expect(within(card).getByText("Antar 17.45")).toBeTruthy();
+      expect(StyleSheet.flatten(within(card).getByText("23").props.style).color).toBe(nativeMood.light.malam.heroText);
+      expect(flat("session-count").boxShadow).toBe(nativeMood.light.malam.heroShadow);
+    });
+
+    it("is worded in English", async () => {
+      const runtime = runtimeWith(async () => timedDay());
+      (SecureStore as unknown as { __store: Map<string, string> }).__store.set(runtime.storageKey("locale"), "en");
+      renderMood(runtime);
+      const card = await screen.findByTestId("session-count");
+      expect(await within(card).findByText("lunch portions · 4 addresses")).toBeTruthy();
+      expect(within(card).getByText("Deliver 10.30")).toBeTruthy();
+    });
+  });
+
+  describe("one session at a time", () => {
+    it("shows only the mood's session card and swaps it with the toggle", async () => {
+      renderMood(runtimeWith(async () => toDinner(canvasDay())));
+      expect(await screen.findByText("Makan siang")).toBeTruthy();
+      expect(screen.queryByText("Makan malam")).toBeNull();
+      expect(screen.queryByText("Kost Damai")).toBeNull();
+
+      fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
+      expect(await screen.findByText("Makan malam")).toBeTruthy();
+      expect(screen.getByText("Kost Damai")).toBeTruthy();
+      expect(screen.queryByText("Makan siang")).toBeNull();
+      expect(screen.queryByText("Keluarga Hartono")).toBeNull();
+      expect(tabsSelected()).toEqual([false, true]);
+    });
+
+    it("in Malam with only lunch work says so and offers the lunch session", async () => {
+      renderMood(runtimeWith(async () => canvasDay()), MALAM_NOW);
+      expect(await screen.findByText("Tidak ada antaran makan malam.")).toBeTruthy();
+      expect(screen.queryByText("Makan siang")).toBeNull();
+      expect(screen.queryByTestId("session-count")).toBeNull();
+      expect(tabsSelected()).toEqual([false, true]);
+
+      fireEvent.press(screen.getByRole("button", { name: "Lihat makan siang · 34 porsi" }));
+      expect(await screen.findByText("Makan siang")).toBeTruthy();
+      expect(tabsSelected()).toEqual([true, false]);
+      expect(screen.queryByText("Tidak ada antaran makan malam.")).toBeNull();
+      expect(within(screen.getByTestId("session-count")).getByText("34")).toBeTruthy();
+    });
+
+    it("in Siang with only dinner work offers the dinner session", async () => {
+      renderMood(runtimeWith(async () => dinnerOnly()));
+      expect(await screen.findByText("Tidak ada antaran makan siang.")).toBeTruthy();
+      fireEvent.press(screen.getByRole("button", { name: "Lihat makan malam · 34 porsi" }));
+      expect(await screen.findByText("Makan malam")).toBeTruthy();
+      expect(tabsSelected()).toEqual([false, true]);
+    });
+
+    it("keeps the whole-day empty card when neither meal has work", async () => {
+      renderMood(runtimeWith(async () => quietDay()), MALAM_NOW);
+      expect(await screen.findByText("Tidak ada masakan untuk hari ini.")).toBeTruthy();
+      expect(screen.queryByText("Tidak ada antaran makan malam.")).toBeNull();
+      expect(screen.queryByText(/^Lihat makan/)).toBeNull();
+    });
+
+    it("words the empty session and its way across in English", async () => {
+      const runtime = runtimeWith(async () => canvasDay());
+      (SecureStore as unknown as { __store: Map<string, string> }).__store.set(runtime.storageKey("locale"), "en");
+      renderMood(runtime, MALAM_NOW);
+      expect(await screen.findByText("No dinner deliveries.")).toBeTruthy();
+      expect(screen.getByRole("button", { name: "See lunch · 34 portions" })).toBeTruthy();
+    });
+  });
+
+  describe("in Malam", () => {
+    it("paints the header on the deep Malam fill and keeps the title readable on it", async () => {
+      renderMood(runtimeWith(async () => canvasDay()), MALAM_NOW);
+      await screen.findByText("Tidak ada antaran makan malam.");
+      expect(flat("mood-fill-malam").backgroundColor).toBe("#0B1F16");
+      const title = within(screen.getByTestId("mood-header")).getByRole("button", { name: /^Ganti hari/ });
+      expect(StyleSheet.flatten(within(title).getByText(/\d/).props.style).color).toBe("#FFF7E9");
+    });
+
+    it("keeps a failed read readable: the message sits on the body in the error colour, not inside the header", async () => {
+      (offline.loadCachedDay as jest.Mock).mockResolvedValue(null);
+      renderMood(
+        runtimeWith(async () => {
+          throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
+        }),
+        MALAM_NOW,
+      );
+      const message = await screen.findByText(errorLabel("REQUEST_TIMEOUT", "id"));
+      expect(StyleSheet.flatten(message.props.style).color).toBe(nativeThemes.light.danger);
+      expect(message.props.selectable).toBe(true);
+      expect(within(screen.getByTestId("mood-header")).queryByText(errorLabel("REQUEST_TIMEOUT", "id"))).toBeNull();
+      expect(screen.getByRole("button", { name: "Coba lagi" })).toBeTruthy();
+      expect(screen.queryByTestId("session-count")).toBeNull();
+    });
   });
 });
 

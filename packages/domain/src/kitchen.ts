@@ -1,3 +1,4 @@
+import { windowStartMinutes } from "./customer-day";
 import type { Locale } from "./index";
 import type { SellerDelivery, SellerOperationsState } from "./seller-operations";
 
@@ -118,6 +119,17 @@ export function cookingRecap(state: SellerOperationsState, meal: KitchenMeal): C
     byDish: [...dishes.values()],
     unfilled,
   };
+}
+
+/**
+ * When the meal's first delivery window opens ("HH.MM", Jakarta), across the day's active deliveries of that meal;
+ * null when there are none. The window rule is the customer app's own (`windowStartMinutes`).
+ */
+export function sessionStart(state: SellerOperationsState, meal: KitchenMeal): string | null {
+  const starts = state.deliveries.filter((d) => servesMeal(d, meal)).map((d) => windowStartMinutes(d.offer, meal));
+  if (!starts.length) return null;
+  const first = Math.min(...starts);
+  return `${String(Math.floor(first / 60)).padStart(2, "0")}.${String(first % 60).padStart(2, "0")}`;
 }
 
 function mapsUrl(line: string, area: string, city: string) {
