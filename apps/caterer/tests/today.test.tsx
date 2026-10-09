@@ -636,6 +636,7 @@ describe("route sharing after a same-day revision", () => {
         <SessionCard
           ops={ops}
           session={kitchenSession(ops, "lunch", new Date())!}
+          catererId="k-1"
           meal="lunch"
           date="2026-10-08"
           report="today"

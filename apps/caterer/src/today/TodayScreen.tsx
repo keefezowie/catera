@@ -66,7 +66,9 @@ function CountCard({ ops, session }: { ops: SellerOperationsState; session: Kitc
   const { t, locale } = useMobile();
   const palette = useMoodColors();
   const { meal, portions, addresses } = session;
-  const start = sessionStart(ops, meal);
+  // The window opens with the first row still being served: a failed or cancelled row's hours do not count.
+  const served = new Set(session.stops.map((s) => s.deliveryId));
+  const start = sessionStart({ ...ops, deliveries: ops.deliveries.filter((d) => served.has(d.id)) }, meal);
   return (
     <View
       testID="session-count"
@@ -137,7 +139,9 @@ function KitchenAction({
       if (result?.moved === 0) {
         // Someone else got there first, or the meal had already moved on: nothing changed, and the day reads again.
         setMessage({
-          text: cook ? t("Sudah ditandai dimasak.", "Already marked as cooking.") : t("Sudah ditandai berangkat.", "Already marked as left."),
+          text: cook
+            ? t("Sudah ditandai dimasak.", "Already marked as cooking.")
+            : t("Sudah ditandai berangkat.", "Already marked as out for delivery."),
           failed: false,
         });
       } else {
@@ -250,6 +254,13 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
   const now = new Date();
   const session = ops ? kitchenSession(ops, meal, now) : null;
   const otherSession = ops ? kitchenSession(ops, other, now) : null;
+  // A meal with no session can still have rows: the ones marked "Gagal diantar". Saying "no deliveries" then would be false.
+  const failedCount =
+    ops && !session
+      ? ops.deliveries.filter(
+          (d) => d.status !== "cancelled" && d.meals.some((m) => m.meal === meal && m.status === "issue"),
+        ).length
+      : 0;
   // A copy kept from before the connection dropped may be stale: it can be read, but not acted on.
   const action = session && !day.data?.savedAt && (session.canCook || session.canDepart) ? session : null;
   // The meta keeps the kitchen's name while the other day loads, instead of dropping it for a moment.
@@ -326,33 +337,46 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
             <SessionCard
               ops={ops}
               session={session}
+              catererId={catererId}
               meal={meal}
               date={date}
               report={day.data?.savedAt ? null : offset === "0" ? "today" : "tomorrow"}
               caterer={ops.caterer.name}
             />
-          ) : ops && otherSession ? (
+          ) : ops && (failedCount > 0 || otherSession) ? (
             <Card tone="sage">
-              <Text selectable>
-                {meal === "lunch"
-                  ? t("Tidak ada antaran makan siang.", "No lunch deliveries.")
-                  : t("Tidak ada antaran makan malam.", "No dinner deliveries.")}
-              </Text>
-              <Button
-                variant="secondary"
-                label={
-                  other === "lunch"
+              <Text testID="meal-empty-note" selectable>
+                {failedCount > 0
+                  ? meal === "lunch"
                     ? t(
-                        `Lihat makan siang · ${otherSession.portions} porsi`,
-                        `See lunch · ${otherSession.portions} portions`,
+                        `${failedCount} antaran makan siang ditandai Gagal diantar.`,
+                        `${failedCount} lunch ${failedCount === 1 ? "delivery" : "deliveries"} marked as failed.`,
                       )
                     : t(
-                        `Lihat makan malam · ${otherSession.portions} porsi`,
-                        `See dinner · ${otherSession.portions} portions`,
+                        `${failedCount} antaran makan malam ditandai Gagal diantar.`,
+                        `${failedCount} dinner ${failedCount === 1 ? "delivery" : "deliveries"} marked as failed.`,
                       )
-                }
-                onPress={() => setMood(mood === "siang" ? "malam" : "siang")}
-              />
+                  : meal === "lunch"
+                    ? t("Tidak ada antaran makan siang.", "No lunch deliveries.")
+                    : t("Tidak ada antaran makan malam.", "No dinner deliveries.")}
+              </Text>
+              {otherSession ? (
+                <Button
+                  variant="secondary"
+                  label={
+                    other === "lunch"
+                      ? t(
+                          `Lihat makan siang · ${otherSession.portions} porsi`,
+                          `See lunch · ${otherSession.portions} portions`,
+                        )
+                      : t(
+                          `Lihat makan malam · ${otherSession.portions} porsi`,
+                          `See dinner · ${otherSession.portions} portions`,
+                        )
+                  }
+                  onPress={() => setMood(mood === "siang" ? "malam" : "siang")}
+                />
+              ) : null}
             </Card>
           ) : ops && !newKitchen ? (
             <Card tone="sage">

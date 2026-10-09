@@ -274,8 +274,9 @@ describe("Mulai masak", () => {
 
   it("names the evening meal on the Malam side and sends it for dinner", async () => {
     const command = jest.fn(async () => ({ moved: 4 }));
+    const runtime = runtimeWith(async () => kitchenDay([scheduled], { meal: "dinner", dishes: false }), command);
     render(
-      <MobileProvider runtime={runtimeWith(async () => kitchenDay([scheduled], { meal: "dinner", dishes: false }), command)} linkMapper={(h) => h}>
+      <MobileProvider runtime={runtime} linkMapper={(h) => h}>
         <MoodProvider now={() => new Date("2026-10-08T12:00:00Z")}>
           <TodayScreen />
         </MoodProvider>
@@ -286,6 +287,10 @@ describe("Mulai masak", () => {
     expect(dialog.title).toBe("Mulai masak makan malam?");
     dialog.press("Mulai");
     await waitFor(() => expect(command).toHaveBeenCalledWith("delivery.cook", { catererId: "k-1", date: TODAY, meal: "dinner" }, expect.any(String)));
+    // Let the command settle and the day be read again, so nothing updates after the test has ended.
+    await waitFor(() => expect(Haptics.notificationAsync).toHaveBeenCalledWith("success"));
+    await waitFor(() => expect((runtime.api.sellerOperations as jest.Mock).mock.calls.length).toBeGreaterThan(1));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Mulai masak" }).props.accessibilityState?.disabled).toBeFalsy());
   });
 
   it("is still offered when one stop has already moved on and the rest are scheduled", async () => {
@@ -380,6 +385,47 @@ describe("Berangkat antar", () => {
     expect(screen.queryByText("Mulai masak")).toBeNull();
     expect(screen.queryByText(/^Berangkat antar/)).toBeNull();
     expect(screen.queryByTestId("screen-footer")).toBeNull();
+  });
+});
+
+describe("a meal whose rows all failed", () => {
+  it("says how many were marked Gagal diantar, never that there were none", async () => {
+    renderToday(runtimeWith(async () => kitchenDay([{ status: "issue" }])));
+    expect(await screen.findByText("4 antaran makan siang ditandai Gagal diantar.")).toBeTruthy();
+    expect(screen.queryByText("Tidak ada antaran makan siang.")).toBeNull();
+    expect(screen.queryByText("Tidak ada masakan untuk hari ini.")).toBeNull();
+    // Nothing is cooking, so there is no count card, checklist or footer action.
+    expect(screen.queryByTestId("session-count")).toBeNull();
+    expect(screen.queryByTestId("screen-footer")).toBeNull();
+  });
+
+  it("counts only the real failed rows, and says delivery for one in English", async () => {
+    const runtime = runtimeWith(async () => kitchenDay([{ status: "issue" }, { status: "cancelled" }]));
+    store().set(runtime.storageKey("locale"), "en");
+    renderToday(runtime);
+    expect(await screen.findByText("1 lunch delivery marked as failed.")).toBeTruthy();
+  });
+
+  it("still offers the other meal when it has a session", async () => {
+    const day = kitchenDay([{ status: "issue" }]);
+    day.deliveries[3].meals.push({ meal: "dinner", status: "scheduled" } as never);
+    renderToday(runtimeWith(async () => day));
+    expect(await screen.findByText("4 antaran makan siang ditandai Gagal diantar.")).toBeTruthy();
+    expect(screen.getByText("Lihat makan malam · 6 porsi")).toBeTruthy();
+  });
+});
+
+describe("the delivery time on the count card", () => {
+  it("ignores the window of a row that failed", async () => {
+    const day = kitchenDay([{ status: "issue" }, scheduled]);
+    day.deliveries = day.deliveries.map((d, i) => ({
+      ...d,
+      offer: { ...d.offer, windows: { lunch: i === 0 ? "09.00-10.00" : "11.30-13.00" } },
+    })) as typeof day.deliveries;
+    renderToday(runtimeWith(async () => day));
+    const card = await screen.findByTestId("session-count");
+    expect(within(card).getByText("Antar 11.30")).toBeTruthy();
+    expect(within(card).queryByText("Antar 09.00")).toBeNull();
   });
 });
 

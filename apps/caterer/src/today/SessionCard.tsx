@@ -74,6 +74,7 @@ const movable = (ops: SellerOperationsState, stop: Stop) => canMoveDelivery(ops.
 export function SessionCard({
   ops,
   session,
+  catererId,
   meal,
   date,
   report,
@@ -81,6 +82,8 @@ export function SessionCard({
 }: {
   ops: SellerOperationsState;
   session: KitchenSession;
+  /** The kitchen's id, which keys the checklist ticks stored on this phone. */
+  catererId: string;
   meal: KitchenMeal;
   date: string;
   report: "today" | "tomorrow" | null;
@@ -112,7 +115,7 @@ export function SessionCard({
       </View>
       {recap.byDish.length || missing.length ? (
         <View>
-          <CookingList session={session} catererId={actor?.catererId ?? ""} date={date} />
+          <CookingList session={session} catererId={catererId} date={date} />
           {missing.map((m) => (
             <View key={m.packageId} style={{ paddingTop: 8, alignItems: "flex-start" }}>
               <Text style={{ color: c.sunriseInk }}>
