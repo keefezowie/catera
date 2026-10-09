@@ -18,7 +18,7 @@ import {
   type RenewalContext,
 } from "@catera/domain";
 import { plural, useData, useMobile } from "@catera/mobile-core";
-import { Button, fontFor, RoundButton, Screen, Stepper, Text, themedStyles, useColors } from "@catera/mobile-ui";
+import { Button, fontFor, MoodHeader, RoundButton, Screen, Stepper, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { Breakdown, LengthOptions, percent, StartLine } from "./Breakdown";
 import { ChoiceSheet, NoLongerSold, PayWith, PendingPayment, Retry, Terms } from "./BuyParts";
 import { useQuote, type BuyPayload } from "./useQuote";
@@ -166,11 +166,19 @@ export function BuyScreen({
     }
   }
 
+  // The back control rides in the header's meta slot on its theme-surface disc, and the header stays through every state.
+  const header = (title: string) => (
+    <MoodHeader
+      testID="buy-header"
+      meta={<RoundButton icon="chevron-back" label={t("Kembali", "Back")} onPress={leave} />}
+      title={title}
+    />
+  );
+
   // The renewed package is no longer sold: offer the caterer's other packages, never a spinner.
   if (ready && actor && renew && ctx && (ctx.replacementRequired || !offer))
     return (
-      <Screen>
-        <RoundButton icon="chevron-back" label={t("Kembali", "Back")} onPress={leave} />
+      <Screen header={header(t("Perpanjang", "Renew"))}>
         {/* An open checkout comes first: paying it beats starting a second purchase. */}
         {pendingCheckout ? <PendingPayment checkoutId={pendingCheckout} t={t} /> : null}
         <NoLongerSold
@@ -182,8 +190,7 @@ export function BuyScreen({
     );
   if (!ready || !actor || !offer)
     return (
-      <Screen>
-        <RoundButton icon="chevron-back" label={t("Kembali", "Back")} onPress={leave} />
+      <Screen header={header(renew ? t("Perpanjang", "Renew") : t("Beli", "Buy"))}>
         {loadError ? (
           <Retry message={loadError} onRetry={reloadAll} t={t} />
         ) : loaded.data && !loaded.data.offer ? (
@@ -225,13 +232,7 @@ export function BuyScreen({
   );
 
   return (
-    <Screen footer={footer}>
-      <View style={styles.header}>
-        <RoundButton icon="chevron-back" label={t("Kembali", "Back")} onPress={leave} />
-        <Text variant="heading" style={{ flex: 1 }} numberOfLines={2}>
-          {renew ? t(`Perpanjang ${offer.name}`, `Renew ${offer.name}`) : offer.name}
-        </Text>
-      </View>
+    <Screen footer={footer} header={header(renew ? t(`Perpanjang ${offer.name}`, `Renew ${offer.name}`) : offer.name)}>
       {loadError ? <Retry message={loadError} onRetry={reloadAll} t={t} /> : null}
       {pendingCheckout ? <PendingPayment checkoutId={pendingCheckout} t={t} /> : null}
 
@@ -342,7 +343,6 @@ export function BuyScreen({
 }
 
 const useStyles = themedStyles((c) => ({
-  header: { flexDirection: "row", alignItems: "center", gap: 12 },
   strong: { fontFamily: fontFor("800"), color: c.forest },
   inline: { alignSelf: "flex-start" },
   box: { borderWidth: 1, borderColor: c.line, borderRadius: 16, backgroundColor: c.surface, paddingBottom: 8 },

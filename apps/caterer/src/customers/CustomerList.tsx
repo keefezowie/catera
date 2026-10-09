@@ -4,7 +4,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { jakartaDay, whatsappUrl, type SellerCustomer } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, Chip, fontFor, PressableRow, PressableScale, Screen, Text, useColors } from "@catera/mobile-ui";
+import { Button, Card, Chip, fontFor, MoodHeader, PressableRow, PressableScale, Screen, Text, useColors } from "@catera/mobile-ui";
 import { activeSubscriptions, currentSubscription, customerStatus, activeEndLabel, type CustomerStatus } from "./rules";
 import { loadAllCustomers } from "./load";
 import { ReadError } from "../ReadError";
@@ -30,11 +30,14 @@ export function CustomerList() {
     ended: t("Selesai", "Ended"),
   };
   return (
-    <Screen>
-      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-        <Text variant="title">{t("Pelanggan", "Customers")}</Text>
-        <Button variant="secondary" label={t("+ Pelanggan lama", "+ Existing")} onPress={() => router.push("/impor" as never)} />
-      </View>
+    <Screen header={<MoodHeader testID="pelanggan-header" title={t("Pelanggan", "Customers")} />}>
+      {/* A secondary button draws its label in the theme ink, so it sits on the page and not on the header fill. */}
+      <Button
+        variant="secondary"
+        label={t("+ Pelanggan lama", "+ Existing")}
+        onPress={() => router.push("/impor" as never)}
+        style={{ alignSelf: "flex-start" }}
+      />
       {list.data ? (
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
           {(["active", "ending", "ended"] as const).map((s) => (

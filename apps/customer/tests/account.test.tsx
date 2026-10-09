@@ -1,11 +1,12 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import { StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import * as Notifications from "expo-notifications";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
-import { ThemeProvider } from "@catera/mobile-ui";
+import { nativeMood } from "@catera/design-tokens";
+import { MoodProvider, ThemeProvider } from "@catera/mobile-ui";
 import { addDays, type CustomerActionItem, type CustomerState } from "@catera/domain";
 import { Akun } from "../src/account/Akun";
 import { Addresses } from "../src/account/Addresses";
@@ -609,6 +610,52 @@ describe("Beranda: Pilih menu", () => {
     renderWith(runtime, <Beranda />);
     expect(await screen.findByText(/^Siang ini,/)).toBeTruthy();
     expect(screen.queryByText(/Pilih menu/)).toBeNull();
+  });
+});
+
+describe("Akun mood header", () => {
+  const MALAM_NOW = () => new Date("2026-10-09T08:00:00Z");
+  const SIANG_NOW = () => new Date("2026-10-09T03:00:00Z");
+  const flat = (node: { props: { style?: unknown } }) => StyleSheet.flatten(node.props.style as never) as Record<string, unknown>;
+  const renderMood = (runtime: MobileRuntime, now = MALAM_NOW) =>
+    render(
+      <MoodProvider now={now}>
+        <MobileProvider runtime={runtime} linkMapper={customerLink}>
+          <Akun />
+        </MobileProvider>
+      </MoodProvider>,
+    );
+
+  it("opens with the name on the Malam header fill, with no toggle", async () => {
+    renderMood(runtimeWith({}, { phone: "6281234567890" }));
+    const header = await screen.findByTestId("akun-header");
+    expect(flat(within(header).getByTestId("mood-fill-malam", { includeHiddenElements: true })).backgroundColor).toBe(
+      nativeMood.light.malam.header,
+    );
+    expect(nativeMood.light.malam.header).toBe("#0B1F16");
+    const name = within(header).getByText("Rani Contoh");
+    expect(name.props.accessibilityRole).toBe("header");
+    expect(flat(name).color).toBe("#FFF7E9");
+    expect(await within(header).findByText("0812-3456-7890")).toBeTruthy();
+    expect(screen.queryByRole("tab", { name: "Malam" })).toBeNull();
+    // The rows below stay on the page, outside the header.
+    expect(within(header).queryByText("Paket aktif")).toBeNull();
+    expect(screen.getByText("Paket aktif")).toBeTruthy();
+  });
+
+  it("keeps the Siang header fill before 15.00", async () => {
+    renderMood(runtimeWith({}), SIANG_NOW);
+    const header = await screen.findByTestId("akun-header");
+    expect(flat(within(header).getByTestId("mood-fill-siang")).backgroundColor).toBe(nativeMood.light.siang.header);
+    expect(flat(within(header).getByText("Rani Contoh")).color).toBe(nativeMood.light.siang.headerText);
+  });
+
+  it("signed out keeps a header too, so the status icons never fall on the cream page", async () => {
+    renderMood(runtimeWith({}, { actor: null }));
+    const header = await screen.findByTestId("akun-header");
+    expect(within(header).getByText("Akun")).toBeTruthy();
+    expect(flat(within(header).getByText("Akun")).color).toBe("#FFF7E9");
+    expect(screen.getByRole("button", { name: "Masuk" })).toBeTruthy();
   });
 });
 

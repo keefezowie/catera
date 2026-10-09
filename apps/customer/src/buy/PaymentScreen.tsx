@@ -5,7 +5,7 @@ import * as Clipboard from "expo-clipboard";
 import * as WebBrowser from "expo-web-browser";
 import { currency, errorLabel, type Checkout, type DirectPaymentMethod } from "@catera/domain";
 import { plural, useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, fontFor, RoundButton, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
+import { Button, Card, fontFor, MoodHeader, RoundButton, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { PayWith, Retry } from "./BuyParts";
 import { FINAL, PaymentOutcome, stageOf } from "./PaymentOutcome";
 import { QrisCode, useQris } from "./QrisCode";
@@ -104,11 +104,13 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
     }
   }
 
+  // The same header over every state, outcomes included; the back control rides in its meta slot.
   const header = (
-    <View style={styles.header}>
-      <RoundButton icon="chevron-back" label={t("Kembali", "Back")} onPress={leave} />
-      <Text variant="heading">{t("Bayar", "Pay")}</Text>
-    </View>
+    <MoodHeader
+      testID="payment-header"
+      meta={<RoundButton icon="chevron-back" label={t("Kembali", "Back")} onPress={leave} />}
+      title={t("Bayar", "Pay")}
+    />
   );
   const help = (
     <Button
@@ -119,8 +121,7 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
   );
   if (!c || !stage)
     return (
-      <Screen>
-        {header}
+      <Screen header={header}>
         {state.error ? (
           <Retry message={state.error} onRetry={() => void reload()} t={t} />
         ) : state.loading || !ready ? (
@@ -167,6 +168,7 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
         ];
   return (
     <Screen
+      header={header}
       footer={
         <Button
           label={t("Saya sudah bayar, cek status", "I've paid, check status")}
@@ -178,7 +180,6 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
         />
       }
     >
-      {header}
       {demo || c.provider_environment === "sandbox" ? (
         <Text variant="caption">{t("Sandbox · pembayaran uji", "Sandbox · test payment")}</Text>
       ) : null}
@@ -278,7 +279,6 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
 }
 
 const useStyles = themedStyles((c) => ({
-  header: { flexDirection: "row", alignItems: "center", gap: 12 },
   total: { alignItems: "center", gap: 4 },
   va: { fontSize: 26, fontFamily: fontFor("800"), color: c.forest, fontVariant: ["tabular-nums"], letterSpacing: 1 },
   step: { flexDirection: "row", gap: 10, alignItems: "flex-start" },

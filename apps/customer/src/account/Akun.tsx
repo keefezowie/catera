@@ -5,11 +5,13 @@ import type { Locale } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
 import {
   Button,
+  MoodHeader,
   Screen,
   Segmented,
   Text,
   themedStyles,
   useColors,
+  useMoodColors,
   useThemePreference,
   type ThemePreference,
 } from "@catera/mobile-ui";
@@ -40,7 +42,7 @@ export function Akun() {
     );
   if (!actor)
     return (
-      <SignInFirst title={t("Akun", "Account")} next="/akun">
+      <SignInFirst title={t("Akun", "Account")} next="/akun" headerTestID="akun-header">
         <Language />
         <Appearance />
       </SignInFirst>
@@ -108,6 +110,7 @@ function useContact() {
 function Account() {
   const { actor, runtime, logout, t, locale } = useMobile();
   const c = useColors();
+  const mood = useMoodColors();
   const customer = useData("akun:customer", () => runtime.api.customer());
   const contact = useContact();
   const push = usePush();
@@ -128,12 +131,13 @@ function Account() {
   }
 
   return (
-    <Screen>
-      <View style={{ gap: 4, paddingTop: 8 }}>
-        <Text variant="title">{actor?.name ?? ""}</Text>
-        {contact ? <Text style={{ color: c.muted, fontVariant: ["tabular-nums"] }}>{contact}</Text> : null}
-      </View>
-
+    <Screen
+      header={
+        <MoodHeader testID="akun-header" meta={t("Akun", "Account")} title={actor?.name ?? ""}>
+          {contact ? <Text style={{ color: mood.headerMeta, fontVariant: ["tabular-nums"] }}>{contact}</Text> : null}
+        </MoodHeader>
+      }
+    >
       <View>
         <SectionLabel>{t("Paket aktif", "Active packages")}</SectionLabel>
         {customer.loading && !customer.data ? (

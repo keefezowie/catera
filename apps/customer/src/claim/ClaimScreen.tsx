@@ -4,7 +4,7 @@ import * as Crypto from "expo-crypto";
 import { router, useLocalSearchParams } from "expo-router";
 import { errorLabel, localCustomerPhone, phoneMatchesMask, shortDate, type ClaimPreview } from "@catera/domain";
 import { plural, useMobile } from "@catera/mobile-core";
-import { Button, Card, Field, fontFor, RoundButton, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
+import { Button, Card, Field, fontFor, MoodHeader, RoundButton, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { e164Indonesia } from "../account/Masuk";
 
 /** Failures worth retrying; every other code means this link cannot be used. */
@@ -98,8 +98,7 @@ export function ClaimScreen() {
   );
   if (dead)
     return (
-      <Screen>
-        <Header />
+      <Screen header={<ClaimHeader title="Catera" />}>
         <Text style={{ fontFamily: fontFor("700") }} testID="claim-dead">
           {t(
             "Tautan ini tidak bisa dipakai. Minta tautan baru ke katering Anda.",
@@ -111,8 +110,7 @@ export function ClaimScreen() {
     );
   if (offline)
     return (
-      <Screen>
-        <Header />
+      <Screen header={<ClaimHeader title="Catera" />}>
         <Text selectable style={{ color: palette.danger }}>
           {t("Belum bisa memuat. Periksa koneksi lalu coba lagi.", "Couldn't load. Check your connection and try again.")}
         </Text>
@@ -129,9 +127,7 @@ export function ClaimScreen() {
   const katering = preview.catererName;
   if (review)
     return (
-      <Screen>
-        <Header />
-        <Text variant="title">{t("Perlu dicek dulu", "Needs a check first")}</Text>
+      <Screen header={<ClaimHeader title={t("Perlu dicek dulu", "Needs a check first")} />}>
         <Text>
           {t(
             `${katering} perlu memeriksa langganan ini dulu. Pengantaran Anda tetap berjalan.`,
@@ -187,30 +183,29 @@ export function ClaimScreen() {
 
   const sent = step === "kode";
   return (
-    <Screen>
-      <Header
-        onBack={() => {
-          setStep(sent ? "nomor" : "lihat");
-          setCode("");
-          setError("");
-        }}
-      />
-      <View style={{ gap: 8 }}>
-        <Text style={styles.h1}>
-          {sent ? t("Masukkan kode dari SMS", "Enter the code from the SMS") : t("Nomor HP Anda", "Your phone number")}
-        </Text>
-        <Text>
-          {sent
-            ? t(
-                `Kami kirim 6 angka ke ${localCustomerPhone(e164Indonesia(phone))}, nomor yang dicatat ${katering}.`,
-                `We sent 6 digits to ${localCustomerPhone(e164Indonesia(phone))}, the number ${katering} recorded.`,
-              )
-            : t(
-                `Tulis nomor yang dicatat ${katering} (${preview.maskedPhone}). Kami kirim kode lewat SMS.`,
-                `Enter the number ${katering} recorded (${preview.maskedPhone}). We'll text you a code.`,
-              )}
-        </Text>
-      </View>
+    <Screen
+      header={
+        <ClaimHeader
+          title={sent ? t("Masukkan kode dari SMS", "Enter the code from the SMS") : t("Nomor HP Anda", "Your phone number")}
+          onBack={() => {
+            setStep(sent ? "nomor" : "lihat");
+            setCode("");
+            setError("");
+          }}
+        />
+      }
+    >
+      <Text>
+        {sent
+          ? t(
+              `Kami kirim 6 angka ke ${localCustomerPhone(e164Indonesia(phone))}, nomor yang dicatat ${katering}.`,
+              `We sent 6 digits to ${localCustomerPhone(e164Indonesia(phone))}, the number ${katering} recorded.`,
+            )
+          : t(
+              `Tulis nomor yang dicatat ${katering} (${preview.maskedPhone}). Kami kirim kode lewat SMS.`,
+              `Enter the number ${katering} recorded (${preview.maskedPhone}). We'll text you a code.`,
+            )}
+      </Text>
       {!sent ? (
         <>
           <Field
@@ -284,14 +279,23 @@ export function ClaimScreen() {
   );
 }
 
-function Header({ onBack }: { onBack?: () => void }) {
+/** The mood header every step but the package one opens with; the back control, when there is one, rides in its meta slot. */
+function ClaimHeader({ title, onBack }: { title: string; onBack?: () => void }) {
   const { t } = useMobile();
+  return (
+    <MoodHeader
+      testID="claim-header"
+      meta={onBack ? <RoundButton icon="chevron-back" label={t("Kembali", "Back")} onPress={onBack} /> : undefined}
+      title={title}
+    />
+  );
+}
+
+/** The package step leads with the wordmark; there is nothing else to title it. */
+function Header() {
   const styles = useStyles();
   return (
     <View style={styles.header}>
-      {onBack ? (
-        <RoundButton icon="chevron-back" label={t("Kembali", "Back")} onPress={onBack} />
-      ) : null}
       <Image
         source={require("../../../../packages/brand/assets/wordmark.png")}
         accessibilityLabel="Catera"

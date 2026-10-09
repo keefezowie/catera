@@ -13,7 +13,7 @@ import {
   type Offer,
 } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, RoundButton, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
+import { Button, MoodHeader, RoundButton, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { photoUri } from "../today/Plate";
 import { dayRange, ratingText } from "./format";
 import { useSaved } from "./saved";
@@ -35,8 +35,17 @@ export function PackageDetail() {
 
   if (!o)
     return (
-      <Screen>
-        <RoundButton icon="chevron-back" label={t("Kembali", "Back")} onPress={leave} />
+      // No photo to lead with yet, so the page opens on the mood header like every other plain screen (ruling B3 keeps
+      // the photo branch below as it is).
+      <Screen
+        header={
+          <MoodHeader
+            testID="paket-header"
+            meta={<RoundButton icon="chevron-back" label={t("Kembali", "Back")} onPress={leave} />}
+            title={t("Paket", "Package")}
+          />
+        }
+      >
         {loaded.loading && !loaded.data ? (
           <ActivityIndicator color={c.forest} />
         ) : (

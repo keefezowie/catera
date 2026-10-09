@@ -1,9 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import { StyleSheet } from "react-native";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { ApiError } from "@catera/api-client";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
+import { MoodProvider } from "@catera/mobile-ui";
 import type { Actor, ClaimPreview } from "@catera/domain";
 import ClaimRoute from "../app/claim/[token]";
 import { customerLink } from "../src/links";
@@ -219,4 +220,98 @@ it("a preview that cannot load offers Coba lagi and Ke Beranda", async () => {
   expect(router.replace).toHaveBeenCalledWith("/");
   fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
   expect(await screen.findByText("Dari Dapur Contoh")).toBeTruthy();
+});
+
+describe("claim mood header", () => {
+  const MALAM = () => new Date("2026-10-09T08:00:00Z");
+  const flat = (node: { props: { style?: unknown } }) => StyleSheet.flatten(node.props.style as never) as Record<string, unknown>;
+  const renderMood = (runtime: MobileRuntime) =>
+    render(
+      <MoodProvider now={MALAM}>
+        <MobileProvider runtime={runtime} linkMapper={customerLink}>
+          <ClaimRoute />
+        </MobileProvider>
+      </MoodProvider>,
+    );
+  /** The Malam fill and a header title in the cream text colour: the status icons sit on a dark surface. */
+  const expectMalamHeader = (title: string) => {
+    const header = screen.getByTestId("claim-header");
+    expect(flat(within(header).getByTestId("mood-fill-malam", { includeHiddenElements: true })).backgroundColor).toBe("#0B1F16");
+    const heading = within(header).getByText(title);
+    expect(heading.props.accessibilityRole).toBe("header");
+    expect(flat(heading).color).toBe("#FFF7E9");
+    return header;
+  };
+  const toCodeStep = async (runtime: MobileRuntime) => {
+    fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan 0812-•••-0001" }));
+    fireEvent.changeText(screen.getByLabelText("Nomor HP"), "081234500001");
+    fireEvent.press(screen.getByRole("button", { name: "Kirim kode" }));
+    fireEvent.changeText(await screen.findByLabelText("Kode"), "123456");
+    fireEvent.changeText(screen.getByLabelText("Nama Anda"), "Andre");
+    return runtime;
+  };
+
+  it("an unusable link keeps a header over the plain message", async () => {
+    const { runtime } = runtimeWith({
+      preview: async () => {
+        throw new ApiError("NOT_FOUND");
+      },
+    });
+    renderMood(runtime);
+    expect(await screen.findByTestId("claim-dead")).toBeTruthy();
+    const header = expectMalamHeader("Catera");
+    expect(within(header).queryByTestId("claim-dead")).toBeNull();
+    expect(within(header).queryByRole("button", { name: "Kembali" })).toBeNull();
+  });
+
+  it("a preview that cannot load keeps a header, with the message and retry on the page", async () => {
+    const preview = jest.fn<Promise<ClaimPreview>, []>().mockRejectedValue(new ApiError("REQUEST_TIMEOUT"));
+    const { runtime } = runtimeWith({ preview });
+    renderMood(runtime);
+    const message = await screen.findByText("Belum bisa memuat. Periksa koneksi lalu coba lagi.");
+    const header = expectMalamHeader("Catera");
+    expect(within(header).queryByText("Belum bisa memuat. Periksa koneksi lalu coba lagi.")).toBeNull();
+    expect(flat(message).color).toBe(require("@catera/design-tokens").nativeThemes.light.danger);
+  });
+
+  it("the package step keeps its wordmark and has no mood header (ruling B3)", async () => {
+    renderMood(runtimeWith().runtime);
+    expect(await screen.findByText("Dari Dapur Contoh")).toBeTruthy();
+    expect(screen.queryByTestId("claim-header")).toBeNull();
+    expect(screen.getByLabelText("Catera")).toBeTruthy();
+  });
+
+  it("the phone and code steps title the step in the header, with the 48dp back button inside it", async () => {
+    const { runtime } = runtimeWith();
+    renderMood(runtime);
+    fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan 0812-•••-0001" }));
+    let header = expectMalamHeader("Nomor HP Anda");
+    const back = within(header).getByRole("button", { name: "Kembali" });
+    expect([flat(back).width, flat(back).height]).toEqual([48, 48]);
+
+    fireEvent.changeText(screen.getByLabelText("Nomor HP"), "081234500001");
+    fireEvent.press(screen.getByRole("button", { name: "Kirim kode" }));
+    expect(await screen.findByLabelText("Kode")).toBeTruthy();
+    header = expectMalamHeader("Masukkan kode dari SMS");
+    expect(within(header).queryByLabelText("Kode")).toBeNull();
+    // The back button still returns to the phone step.
+    fireEvent.press(within(header).getByRole("button", { name: "Kembali" }));
+    expect(await screen.findByLabelText("Nomor HP")).toBeTruthy();
+    expectMalamHeader("Nomor HP Anda");
+  });
+
+  it("a claim held for review keeps a header over the plain explanation", async () => {
+    const command = jest.fn(async () => ({ status: "review" }));
+    const { runtime } = runtimeWith({ command });
+    renderMood(runtime);
+    await toCodeStep(runtime);
+    fireEvent.press(screen.getByRole("button", { name: "Sambungkan langganan" }));
+    expect(
+      await screen.findByText("Dapur Contoh perlu memeriksa langganan ini dulu. Pengantaran Anda tetap berjalan."),
+    ).toBeTruthy();
+    const header = expectMalamHeader("Perlu dicek dulu");
+    expect(within(header).queryByRole("button", { name: "Ke Beranda" })).toBeNull();
+    fireEvent.press(screen.getByRole("button", { name: "Ke Beranda" }));
+    expect(router.replace).toHaveBeenCalledWith("/");
+  });
 });

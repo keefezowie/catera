@@ -116,8 +116,7 @@ export function PaymentOutcome({
     addressId: q.address?.id,
   });
   return (
-    <Screen>
-      {header}
+    <Screen header={header}>
       <Text variant="title">{title}</Text>
       {body ? <Text>{body}</Text> : null}
       <Text variant="caption" style={{ fontVariant: ["tabular-nums"] }}>

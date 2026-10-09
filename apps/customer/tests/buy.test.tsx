@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import * as ReactNative from "react-native";
 import { ActivityIndicator, AppState, StyleSheet } from "react-native";
 import { router } from "expo-router";
@@ -8,8 +8,8 @@ import * as SecureStore from "expo-secure-store";
 import * as Haptics from "expo-haptics";
 import { addDays, currency, type Checkout, type Quote, type RenewalContext } from "@catera/domain";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
-import { nativeThemes } from "@catera/design-tokens";
-import { ThemeProvider } from "@catera/mobile-ui";
+import { nativeMood, nativeThemes } from "@catera/design-tokens";
+import { MoodProvider, ThemeProvider } from "@catera/mobile-ui";
 import { customerLink } from "../src/links";
 import { BuyScreen } from "../src/buy/BuyScreen";
 import { QrisCode } from "../src/buy/QrisCode";
@@ -497,6 +497,112 @@ describe("Beli / Perpanjang", () => {
     view.unmount();
     wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
     expect(await screen.findByRole("button", { name: "Tampilkan QRIS" })).toBeTruthy();
+  });
+});
+
+describe("Beli and Bayar mood headers", () => {
+  // 15.00 in Jakarta and later is Malam; the default theme here is light.
+  const MALAM = () => new Date("2026-10-07T08:00:00Z");
+  const malam = nativeMood.light.malam;
+  const flat = (node: { props: { style?: unknown } }) => StyleSheet.flatten(node.props.style as never) as Record<string, unknown>;
+  const wrapMood = (runtime: MobileRuntime, ui: React.ReactElement) =>
+    render(
+      <MoodProvider now={MALAM}>
+        <MobileProvider runtime={runtime} linkMapper={customerLink}>
+          {ui}
+        </MobileProvider>
+      </MoodProvider>,
+    );
+
+  it("Beli titles the screen with the package inside a Malam header, with the back button in it", async () => {
+    wrapMood(server(), <BuyScreen packageId="p-rumahan" />);
+    const header = await screen.findByTestId("buy-header");
+    expect(flat(within(header).getByTestId("mood-fill-malam", { includeHiddenElements: true })).backgroundColor).toBe("#0B1F16");
+    const title = await within(header).findByText("Makan Siang Rumahan");
+    expect(title.props.accessibilityRole).toBe("header");
+    expect(flat(title).color).toBe("#FFF7E9");
+    expect(screen.queryByRole("tab", { name: "Malam" })).toBeNull();
+    // The cards and rows below keep the theme surface, not the header fill.
+    const back = within(header).getByRole("button", { name: "Kembali" });
+    expect(flat(back).backgroundColor).toBe(nativeThemes.light.surface);
+    expect(nativeThemes.light.surface).toBe("#FFFEFA");
+    expect(malam.headerText).toBe("#FFF7E9");
+    // The form below stays on the page, outside the header.
+    expect(within(header).queryByText("Lama paket")).toBeNull();
+    expect(screen.getByText("Lama paket")).toBeTruthy();
+  });
+
+  it("Beli's back button is 48dp and still goes back", async () => {
+    wrapMood(server(), <BuyScreen packageId="p-rumahan" />);
+    const back = await within(await screen.findByTestId("buy-header")).findByRole("button", { name: "Kembali" });
+    expect([flat(back).width, flat(back).height]).toEqual([48, 48]);
+    fireEvent.press(back);
+    expect(router.back).toHaveBeenCalledTimes(1);
+  });
+
+  it("Perpanjang names the renewal in the header", async () => {
+    wrapMood(server(), <BuyScreen renewFrom="s-1" />);
+    const header = await screen.findByTestId("buy-header");
+    expect(await within(header).findByText("Perpanjang Makan Siang Rumahan")).toBeTruthy();
+  });
+
+  it("keeps a header while the package loads, is missing, or cannot be read", async () => {
+    const missing = wrapMood(server(), <BuyScreen packageId="p-nope" />);
+    const header = await screen.findByTestId("buy-header");
+    expect(within(header).getByRole("button", { name: "Kembali" })).toBeTruthy();
+    expect(within(header).getByText("Beli")).toBeTruthy();
+    expect(await screen.findByText("Paket tidak ditemukan.")).toBeTruthy();
+    expect(within(header).queryByText("Paket tidak ditemukan.")).toBeNull();
+    missing.unmount();
+
+    const broken = server();
+    (broken.api.offer as jest.Mock).mockRejectedValue(new Error("REQUEST_TIMEOUT"));
+    wrapMood(broken, <BuyScreen packageId="p-rumahan" />);
+    const again = await screen.findByTestId("buy-header");
+    expect(within(again).getByText("Beli")).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Coba lagi" })).toBeTruthy();
+  });
+
+  it("a renewal of a package that is no longer sold keeps the header and its back button", async () => {
+    const lain = offer({ id: "p-lain", name: "Makan Siang Hemat" });
+    wrapMood(server({ context: { replacementRequired: true, available: false, offers: [lain] } }), <BuyScreen renewFrom="s-1" />);
+    const header = await screen.findByTestId("buy-header");
+    expect(within(header).getByText("Perpanjang")).toBeTruthy();
+    fireEvent.press(within(header).getByRole("button", { name: "Kembali" }));
+    expect(router.back).toHaveBeenCalledTimes(1);
+  });
+
+  it("Bayar titles the QR step in a Malam header and its back button goes back at 48dp", async () => {
+    wrapMood(server({ checkout: pendingCheckout() }), <PaymentScreen checkoutId="ck-1" />);
+    const header = await screen.findByTestId("payment-header");
+    expect(flat(within(header).getByTestId("mood-fill-malam", { includeHiddenElements: true })).backgroundColor).toBe("#0B1F16");
+    const title = within(header).getByText("Bayar");
+    expect(title.props.accessibilityRole).toBe("header");
+    expect(flat(title).color).toBe("#FFF7E9");
+    const back = within(header).getByRole("button", { name: "Kembali" });
+    expect([flat(back).width, flat(back).height]).toEqual([48, 48]);
+    expect(flat(back).backgroundColor).toBe(nativeThemes.light.surface);
+    fireEvent.press(back);
+    expect(router.back).toHaveBeenCalledTimes(1);
+    // The total and the steps stay on the page.
+    expect(within(header).queryByText("Total")).toBeNull();
+    expect(await screen.findByLabelText("Kode QRIS pembayaran ini")).toBeTruthy();
+  });
+
+  it("Bayar keeps the header in the outcome and not-found states", async () => {
+    const paid = pendingCheckout({ state: "paid", subscription_id: "s-2" }, { status: "paid" });
+    const done = wrapMood(server({ checkout: paid }), <PaymentScreen checkoutId="ck-1" />);
+    expect(await screen.findByText("Pembayaran diterima")).toBeTruthy();
+    expect(within(screen.getByTestId("payment-header")).getByText("Bayar")).toBeTruthy();
+    done.unmount();
+
+    // The server has no such checkout: the page says so with a retry, under the same header.
+    wrapMood(server(), <PaymentScreen checkoutId="ck-1" />);
+    const retry = await screen.findByRole("button", { name: "Coba lagi" });
+    const header = screen.getByTestId("payment-header");
+    expect(within(header).getByRole("button", { name: "Kembali" })).toBeTruthy();
+    expect(within(header).queryByRole("button", { name: "Coba lagi" })).toBeNull();
+    expect(retry).toBeTruthy();
   });
 });
 

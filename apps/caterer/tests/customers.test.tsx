@@ -1,7 +1,9 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import { Linking, StyleSheet } from "react-native";
 import { router } from "expo-router";
+import { nativeThemes } from "@catera/design-tokens";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
+import { MoodProvider } from "@catera/mobile-ui";
 import { addDays, jakartaDay, shortDate, type SellerCustomer } from "@catera/domain";
 import { activeEndLabel, customerStatus, endLabel, paymentsActive, renewalAction } from "../src/customers/rules";
 import { CustomerList } from "../src/customers/CustomerList";
@@ -146,6 +148,61 @@ it("asks to turn on payments before the first renewal", async () => {
   fireEvent.press(await screen.findByText("Kirim tautan perpanjang"));
   await waitFor(() => expect(router.push).toHaveBeenCalledWith("/aktifkan"));
   expect(runtime.api.command).not.toHaveBeenCalled();
+});
+
+describe("Pelanggan mood header", () => {
+  const MALAM = () => new Date("2026-10-08T08:00:00Z");
+  const flat = (node: { props: { style?: unknown } }) => (StyleSheet.flatten(node.props.style as never) ?? {}) as Record<string, unknown>;
+  const renderMood = (runtime: MobileRuntime) =>
+    render(
+      <MoodProvider now={MALAM}>
+        <MobileProvider runtime={runtime} linkMapper={(h) => h}>
+          <CustomerList />
+        </MobileProvider>
+      </MoodProvider>,
+    );
+
+  it("titles the list in a Malam header, with the customer cards below it on the theme surface", async () => {
+    renderMood(runtimeWith("approved", true));
+    const header = await screen.findByTestId("pelanggan-header");
+    expect(flat(within(header).getByTestId("mood-fill-malam", { includeHiddenElements: true })).backgroundColor).toBe("#0B1F16");
+    const title = within(header).getByText("Pelanggan");
+    expect(title.props.accessibilityRole).toBe("header");
+    expect(flat(title).color).toBe("#FFF7E9");
+    expect(screen.queryByRole("tab", { name: "Malam" })).toBeNull();
+    // The cards are on the page: Andre's row and its card carry the theme surface, not the header fill.
+    expect(await screen.findByText("Andre Kusuma")).toBeTruthy();
+    expect(within(header).queryByText("Andre Kusuma")).toBeNull();
+    let card = screen.getByText("Andre Kusuma").parent;
+    while (card && !flat(card).backgroundColor) card = card.parent;
+    expect(flat(card!).backgroundColor).toBe(nativeThemes.light.surface);
+    expect(nativeThemes.light.surface).toBe("#FFFEFA");
+  });
+
+  it("keeps + Pelanggan lama as a 48dp button that opens the import", async () => {
+    renderMood(runtimeWith("approved", true));
+    const add = await screen.findByRole("button", { name: "+ Pelanggan lama" });
+    expect(StyleSheet.flatten(add.props.style).minHeight).toBe(48);
+    fireEvent.press(add);
+    expect(router.push).toHaveBeenCalledWith("/impor");
+  });
+
+  it("says Memuat inside the page while loading, and the error with its retry when the read fails", async () => {
+    const pending = runtimeWith("approved", true);
+    (pending.api as { sellerCustomers: jest.Mock }).sellerCustomers = jest.fn(() => new Promise(() => undefined));
+    const first = renderMood(pending);
+    expect(await screen.findByText("Memuat pelanggan…")).toBeTruthy();
+    expect(within(screen.getByTestId("pelanggan-header")).getByText("Pelanggan")).toBeTruthy();
+    first.unmount();
+
+    const broken = runtimeWith("approved", true);
+    (broken.api as { sellerCustomers: jest.Mock }).sellerCustomers = jest.fn(async () => {
+      throw new Error("REQUEST_TIMEOUT");
+    });
+    renderMood(broken);
+    expect(await screen.findByRole("button", { name: "Coba lagi" })).toBeTruthy();
+    expect(within(screen.getByTestId("pelanggan-header")).queryByRole("button", { name: "Coba lagi" })).toBeNull();
+  });
 });
 
 it("counts every customer of a kitchen with more than one page of them", async () => {

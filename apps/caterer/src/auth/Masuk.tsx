@@ -4,13 +4,14 @@ import * as Crypto from "expo-crypto";
 import { Link, router } from "expo-router";
 import { errorLabel } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { Button, Field, fontFor, Screen, Segmented, Text, useColors } from "@catera/mobile-ui";
+import { Button, Field, fontFor, MoodHeader, Screen, Segmented, Text, useColors, useMoodColors } from "@catera/mobile-ui";
 import { e164Indonesia } from "../onboarding";
 
 /** Sign in with the WhatsApp number (SMS code) or email; demo roles only in development. */
 export function Masuk() {
   const { runtime, actor, t, locale, signedIn, refresh } = useMobile();
   const c = useColors();
+  const mood = useMoodColors();
   // A session that comes back (signal returns, token refreshes) goes straight to the kitchen.
   useEffect(() => {
     if (actor) router.replace("/");
@@ -45,13 +46,15 @@ export function Masuk() {
   };
 
   return (
-    <Screen>
-      <View style={{ gap: 6, paddingTop: 24 }}>
-        <Text variant="title">Catera Dapur</Text>
-        <Text style={{ color: c.muted }}>
-          {t("Masuk untuk melihat daftar masak dan antar hari ini.", "Sign in to see today's cooking and delivery lists.")}
-        </Text>
-      </View>
+    <Screen
+      header={
+        <MoodHeader testID="masuk-header" title="Catera Dapur">
+          <Text style={{ color: mood.headerMeta }}>
+            {t("Masuk untuk melihat daftar masak dan antar hari ini.", "Sign in to see today's cooking and delivery lists.")}
+          </Text>
+        </MoodHeader>
+      }
+    >
       <Segmented
         value={method}
         onChange={setMethod}

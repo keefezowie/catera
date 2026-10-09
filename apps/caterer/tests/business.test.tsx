@@ -1,8 +1,9 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as SecureStore from "expo-secure-store";
+import { nativeThemes } from "@catera/design-tokens";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
-import { ThemeProvider } from "@catera/mobile-ui";
+import { MoodProvider, ThemeProvider } from "@catera/mobile-ui";
 import type { SettlementState } from "@catera/domain";
 import { quickOffer, packageIssues, type PackageForm } from "../src/business/package";
 import { PackageEditor } from "../src/business/PackageEditor";
@@ -254,6 +255,60 @@ describe("Uang error guard", () => {
     fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
     expect(await screen.findByText("Catatan uang belum bisa ditampilkan.")).toBeTruthy();
     errorLog.mockRestore();
+  });
+});
+
+describe("Usaha mood header", () => {
+  const MALAM = () => new Date("2026-10-08T08:00:00Z");
+  const flat = (node: { props: { style?: unknown } }) => (StyleSheet.flatten(node.props.style as never) ?? {}) as Record<string, unknown>;
+  const renderMood = (runtime: MobileRuntime) =>
+    render(
+      <MoodProvider now={MALAM}>
+        <MobileProvider runtime={runtime} linkMapper={() => "/"}>
+          <UsahaScreen />
+        </MobileProvider>
+      </MoodProvider>,
+    );
+  const kitchen = (name: string) =>
+    runtimeWith({
+      sellerOperations: jest.fn(async () => ({ caterer: { id: "k-1", name, status: "approved" }, offers: [liveOffer], datedMenus: [] })),
+      request: jest.fn(async () => ({ active: null })),
+    });
+
+  it("titles the screen with the kitchen name in a Malam header, leaving the cards on the theme surface", async () => {
+    renderMood(kitchen("Dapur Bu Rina"));
+    const header = await screen.findByTestId("usaha-header");
+    expect(flat(within(header).getByTestId("mood-fill-malam", { includeHiddenElements: true })).backgroundColor).toBe("#0B1F16");
+    const title = await within(header).findByText("Dapur Bu Rina");
+    expect(title.props.accessibilityRole).toBe("header");
+    expect(flat(title).color).toBe("#FFF7E9");
+    expect(within(header).getByText("Usaha")).toBeTruthy();
+    expect(screen.queryByRole("tab", { name: "Malam" })).toBeNull();
+    // The Paket card is on the page, not in the header, and keeps the theme surface.
+    const label = await screen.findByText("Paket");
+    expect(within(header).queryByText("Paket")).toBeNull();
+    let card = label.parent;
+    while (card && !flat(card).backgroundColor) card = card.parent;
+    expect(flat(card!).backgroundColor).toBe(nativeThemes.light.surface);
+    expect(nativeThemes.light.surface).toBe("#FFFEFA");
+  });
+
+  it("falls back to Usaha as the title while the kitchen name is unknown", async () => {
+    const runtime = runtimeWith({
+      sellerOperations: jest.fn(() => new Promise(() => undefined)),
+      request: jest.fn(async () => ({ active: null })),
+    });
+    renderMood(runtime);
+    const header = await screen.findByTestId("usaha-header");
+    expect(within(header).getByText("Usaha").props.accessibilityRole).toBe("header");
+    expect(await screen.findByText("Memuat…")).toBeTruthy();
+    expect(within(header).queryByText("Memuat…")).toBeNull();
+  });
+
+  it("keeps Keluar and the package rows working under the header", async () => {
+    renderMood(kitchen("Dapur Bu Rina"));
+    expect(await screen.findByRole("button", { name: "Keluar" })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Makan Siang Rumahan" })).toBeTruthy();
   });
 });
 

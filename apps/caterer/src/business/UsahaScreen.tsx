@@ -6,6 +6,7 @@ import { useData, useMobile } from "@catera/mobile-core";
 import {
   Button,
   Card,
+  MoodHeader,
   PressableRow,
   Screen,
   Segmented,
@@ -62,9 +63,17 @@ export function UsahaScreen() {
   const payments = usePaymentsActive();
   const { preference, setPreference } = useThemePreference();
   const offers = (ops.data?.offers ?? []).filter((o) => o.status !== "retired");
+  const name = ops.data?.caterer.name;
   return (
-    <Screen>
-      <Text variant="title">{ops.data?.caterer.name || t("Usaha", "Business")}</Text>
+    <Screen
+      header={
+        <MoodHeader
+          testID="usaha-header"
+          meta={name ? t("Usaha", "Business") : undefined}
+          title={name || t("Usaha", "Business")}
+        />
+      }
+    >
       {payments === false ? (
         <Card tone="attention">
           <Text variant="heading">{t("Terima pembayaran lewat Catera", "Take payments through Catera")}</Text>
