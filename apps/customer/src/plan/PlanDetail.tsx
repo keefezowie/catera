@@ -77,7 +77,11 @@ function Plan({ id, actorId }: { id: string; actorId: string }) {
   const read = useData("plan:customer", () => loadPlan(runtime, actorId));
   const state = read.data?.data;
   const savedAt = read.data?.savedAt ?? null;
-  const plan = useMemo(() => (state ? planDetail(state, id, new Date(), locale) : null), [state, id, locale]);
+  // A status the screen has no words for (not active, completed or cancelled) reads as not found, never as a blank plan.
+  const plan = useMemo(() => {
+    const detail = state ? planDetail(state, id, new Date(), locale) : null;
+    return detail && (detail.status !== "other" || detail.sub.status === "cancelled") ? detail : null;
+  }, [state, id, locale]);
 
   // Once per open, however often the read comes round again.
   const counted = useRef(false);
@@ -111,7 +115,7 @@ function Plan({ id, actorId }: { id: string; actorId: string }) {
             <Button variant="secondary" label={t("Coba lagi", "Try again")} onPress={() => void read.reload()} />
           </View>
         ) : (
-          // The read came back without this plan: cancelled, another account's, or gone from a stale link.
+          // The read came back without this plan (another account's, or gone from a stale link), or in a status this screen cannot name.
           <View style={{ gap: 8, alignItems: "flex-start" }}>
             <Text variant="heading" accessibilityRole="text">
               {t("Paket tidak ditemukan.", "Plan not found.")}
@@ -123,9 +127,11 @@ function Plan({ id, actorId }: { id: string; actorId: string }) {
     );
 
   const offline = !!savedAt;
+  const cancelled = plan.sub.status === "cancelled";
   const { action } = plan;
   // Renewing and buying need the network, so a copy kept from before the connection dropped offers neither.
-  const footer = offline ? null : action.kind === "renew" ? (
+  // A cancelled plan offers nothing either: it names what happened and its dates.
+  const footer = offline || cancelled ? null : action.kind === "renew" ? (
     <StickyAction
       label={t("Lanjutkan paket", "Continue this plan")}
       onPress={() => {
@@ -148,7 +154,7 @@ function Plan({ id, actorId }: { id: string; actorId: string }) {
           {t("Terakhir diperbarui", "Last updated")} {jakartaClock(savedAt)} · {t("tidak ada koneksi", "no connection")}
         </Text>
       ) : null}
-      <Upcoming rows={plan.upcoming} apiBase={runtime.apiBase} />
+      {cancelled ? null : <Upcoming rows={plan.upcoming} apiBase={runtime.apiBase} />}
     </Screen>
   );
 }
@@ -164,12 +170,13 @@ function Hero({ plan, apiBase }: { plan: PlanData; apiBase: string }) {
   const palette = useMoodColors();
   const styles = useStyles();
   const photo = plan.offer.image ?? "";
+  // The screen only reaches here for an active, completed or cancelled plan.
   const headline =
     plan.status === "active"
       ? remainingLabel(plan.remaining, t)
       : plan.status === "completed"
         ? t("Paket selesai", "Plan finished")
-        : "";
+        : t("Paket dibatalkan", "Plan cancelled");
   return (
     <View testID="plan-hero" style={{ padding: 10, borderRadius: HERO_RADIUS, borderCurve: "continuous" }}>
       <MoodFill surface="hero" testID="plan-hero-fill" radius={HERO_RADIUS} heroShadow />
@@ -185,12 +192,10 @@ function Hero({ plan, apiBase }: { plan: PlanData; apiBase: string }) {
         </View>
       ) : null}
       <View style={{ paddingHorizontal: 8, paddingTop: 12, paddingBottom: 8, gap: 2 }}>
-        {headline ? (
-          // The screen's one heading is the package name in the header, so this headline is plain text.
-          <Text variant="title" accessibilityRole="text" selectable style={[{ color: palette.heroText }, tabular]}>
-            {headline}
-          </Text>
-        ) : null}
+        {/* The screen's one heading is the package name in the header, so this headline is plain text. */}
+        <Text variant="title" accessibilityRole="text" selectable style={[{ color: palette.heroText }, tabular]}>
+          {headline}
+        </Text>
         <Text selectable style={[{ color: palette.heroMeta }, tabular]}>
           {shortDate(plan.startsOn, locale)} – {shortDate(plan.endsOn, locale)}
         </Text>

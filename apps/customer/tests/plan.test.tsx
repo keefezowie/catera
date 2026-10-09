@@ -226,6 +226,29 @@ describe("Plan detail states", () => {
     expect(within(screen.getByTestId("sticky-action")).getByRole("button", { name: "Lanjutkan paket" })).toBeTruthy();
   });
 
+  it("a cancelled plan reads Paket dibatalkan with its dates, and offers nothing and lists nothing", async () => {
+    // The plan's later days are still in the read; a cancelled plan does not list them as coming up.
+    renderPlan(runtimeWith(async () => planState({ status: "cancelled", remaining: 4 })));
+    const hero = await screen.findByTestId("plan-hero");
+    expect(within(hero).getByText("Paket dibatalkan")).toBeTruthy();
+    expect(within(hero).getByText(`${shortDate(at(-3), "id")} – ${shortDate(at(7), "id")}`)).toBeTruthy();
+    expect(screen.queryByTestId("sticky-action")).toBeNull();
+    expect(screen.queryByText("Berikutnya")).toBeNull();
+    expect(screen.queryByTestId("plan-upcoming-row")).toBeNull();
+    expect(screen.queryByText("Tidak ada antaran mendatang.")).toBeNull();
+  });
+
+  it("a plan in a status the screen does not know reads as not found and goes home", async () => {
+    const usage: UsageMock = jest.fn(async () => undefined);
+    renderPlan(runtimeWith(async () => planState({ status: "paused" }), usage));
+    expect(await screen.findByText("Paket tidak ditemukan.")).toBeTruthy();
+    expect(screen.queryByTestId("plan-hero")).toBeNull();
+    expect(screen.queryByTestId("sticky-action")).toBeNull();
+    fireEvent.press(screen.getByRole("button", { name: "Ke Beranda" }));
+    expect(router.replace).toHaveBeenCalledWith("/");
+    expect(usageNames(usage)).not.toContain("plan_sheet_opened");
+  });
+
   it("offline: the cached read shows the plan with no renew action", async () => {
     (offline.loadCachedCustomer as jest.Mock).mockResolvedValueOnce({
       savedAt: "2026-10-07T23:12:00Z",
