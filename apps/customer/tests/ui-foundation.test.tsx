@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
-import { Platform, Pressable, StyleSheet, Text as RNText, View } from "react-native";
+import { Platform, Pressable, StyleSheet, Text as RNText } from "react-native";
 import type { ReactElement } from "react";
 import * as Haptics from "expo-haptics";
 import * as SecureStore from "expo-secure-store";
@@ -26,7 +26,7 @@ import {
   TopInsetOwner,
   useThemePreference,
 } from "@catera/mobile-ui";
-import { nativeThemes } from "@catera/design-tokens";
+import { nativeMood, nativeThemes } from "@catera/design-tokens";
 
 // The customer setup has no SecureStore mock, so this file keeps its own in-memory one for the dark theme cases.
 jest.mock("expo-secure-store", () => {
@@ -147,10 +147,10 @@ describe("press feedback and haptics", () => {
 });
 
 describe("AppHeader", () => {
-  it("shows a one-line title and a back button", () => {
+  it("shows a title that wraps instead of truncating, and a back button", () => {
     const onBack = jest.fn();
     render(<AppHeader title="Bantuan dan laporan" onBack={onBack} backLabel="Kembali" />);
-    expect(screen.getByText("Bantuan dan laporan").props.numberOfLines).toBe(1);
+    expect(screen.getByText("Bantuan dan laporan").props.numberOfLines).toBeUndefined();
     fireEvent.press(screen.getByRole("button", { name: "Kembali" }));
     expect(onBack).toHaveBeenCalledTimes(1);
   });
@@ -476,7 +476,7 @@ describe("dark theme", () => {
     expect(StyleSheet.flatten(screen.getByRole("button", { name: "Bayar" }).props.style).backgroundColor).toBe("#CFD3C6");
   });
 
-  it("Screen and AppHeader paint the dark canvas", async () => {
+  it("Screen paints the dark canvas and AppHeader the dark mood header", async () => {
     const view = await renderDark(
       <>
         <AppHeader title="Hari" backLabel="Kembali" />
@@ -486,9 +486,9 @@ describe("dark theme", () => {
       </>,
     );
     expect(StyleSheet.flatten(view.UNSAFE_getByType(SafeAreaView).props.style).backgroundColor).toBe(DARK.canvas);
-    const bars = view.UNSAFE_getAllByType(View).filter((v) => StyleSheet.flatten(v.props.style)?.paddingBottom === 8);
-    expect(bars.length).toBeGreaterThan(0);
-    expect(StyleSheet.flatten(bars[0].props.style).backgroundColor).toBe(DARK.canvas);
+    // No MoodProvider here, so the mood reads Siang: the dark Siang header and its headline ink.
+    expect(StyleSheet.flatten(screen.getByTestId("app-header").props.style).backgroundColor).toBe(nativeMood.dark.siang.header);
+    expect(StyleSheet.flatten(screen.getByText("Hari").props.style).color).toBe(nativeMood.dark.siang.headerText);
   });
 
   it("an open Sheet repaints when the theme changes", async () => {

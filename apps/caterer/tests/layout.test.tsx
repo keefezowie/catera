@@ -26,7 +26,15 @@ jest.mock("expo-router", () => {
     if (resolved?.headerShown === false) return null;
     return <Text testID={`header:${name}`}>{resolved?.title ?? name}</Text>;
   };
-  const Stack: any = ({ children }: any) => <View>{children}</View>;
+  // The stack also renders its shared header once, the way a pushed screen shows it.
+  const Stack: any = ({ children, screenOptions }: any) => (
+    <View>
+      {screenOptions?.header
+        ? screenOptions.header({ options: { title: "Judul uji" }, navigation: { goBack: () => {} }, back: { title: "x" } })
+        : null}
+      {children}
+    </View>
+  );
   Stack.Screen = Screen;
   const Tabs: any = ({ screenOptions, children }: any) => {
     mockTabBar.style = screenOptions.tabBarStyle;
@@ -142,14 +150,77 @@ describe("appearance", () => {
     mockTabBar.itemStyle = undefined;
     mockStatusBar.style = undefined;
     mockNavTheme.value = undefined;
+    // The launch mood comes from the Jakarta clock, so each test pins it: 10:00 WIB (Siang) unless it says otherwise.
+    atJakarta("2026-10-09T03:00:00Z");
   });
 
   let restoreInsets: (() => void) | undefined;
   afterEach(() => {
     mockMe.actor = null;
+    mockMe.demo = false;
     restoreInsets?.();
     restoreInsets = undefined;
+    jest.useRealTimers();
     jest.restoreAllMocks();
+  });
+
+  /** Only Date is faked: timers, microtasks and animation frames keep running for real. */
+  const atJakarta = (iso: string) =>
+    jest.useFakeTimers({
+      now: new Date(iso),
+      doNotFake: [
+        "hrtime", "nextTick", "performance", "queueMicrotask", "requestAnimationFrame", "cancelAnimationFrame",
+        "requestIdleCallback", "cancelIdleCallback", "setImmediate", "clearImmediate", "setInterval", "clearInterval",
+        "setTimeout", "clearTimeout",
+      ],
+    });
+  const MALAM = "2026-10-09T09:00:00Z"; // 16:00 WIB
+
+  it("Malam on a light system theme: light status bar glyphs and a mood header on pushed screens, but the tab bar stays theme", async () => {
+    jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("light");
+    atJakarta(MALAM);
+    mockMe.actor = owner;
+    render(<RootLayout />);
+    await waitFor(() => expect(mockTabBar.style).toBeDefined());
+    await act(async () => {});
+    expect(mockStatusBar.style).toBe("light");
+    const header = ReactNative.StyleSheet.flatten(screen.getByTestId("app-header").props.style);
+    expect(header.backgroundColor).toBe("#0B1F16");
+    expect(ReactNative.StyleSheet.flatten(screen.getByText("Judul uji").props.style).color).toBe("#FFF7E9");
+    // The mood never reaches the tab bar.
+    expect(mockTabBar.style).toMatchObject({ backgroundColor: "#FFFEFA", borderTopColor: "#E2E3D8" });
+  });
+
+  it("Siang on a light system theme keeps the dark status bar and the sunrise header", async () => {
+    jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("light");
+    mockMe.actor = owner;
+    render(<RootLayout />);
+    await waitFor(() => expect(mockTabBar.style).toBeDefined());
+    await act(async () => {});
+    expect(mockStatusBar.style).toBe("dark");
+    expect(ReactNative.StyleSheet.flatten(screen.getByTestId("app-header").props.style).backgroundColor).toBe("#FFEFD9");
+  });
+
+  it("demo on and Malam: the demo strip sits above the header, so the status bar glyphs are dark", async () => {
+    jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("light");
+    atJakarta(MALAM);
+    mockMe.demo = true;
+    mockMe.actor = owner;
+    render(<RootLayout />);
+    expect(await screen.findByText("Demo · data sintetis")).toBeTruthy();
+    await act(async () => {});
+    expect(mockStatusBar.style).toBe("dark");
+  });
+
+  it("the loading spinner sits on the canvas, so Malam does not turn its status bar glyphs light", async () => {
+    jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("light");
+    atJakarta(MALAM);
+    mockMe.actor = owner;
+    render(<RootLayout />);
+    expect(screen.UNSAFE_queryByType(ReactNative.ActivityIndicator)).not.toBeNull();
+    expect(mockStatusBar.style).toBe("dark");
+    await waitFor(() => expect(mockTabBar.style).toBeDefined());
+    expect(mockStatusBar.style).toBe("light");
   });
 
   it("follows a dark system scheme in the tab bar and the status bar", async () => {

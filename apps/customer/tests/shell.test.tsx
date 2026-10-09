@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
-import { Text } from "react-native";
+import { StyleSheet, Text } from "react-native";
 
 /** A fake Supabase client that behaves like supabase-js 2.116 where it matters here:
  * one channel per topic, and no postgres_changes callbacks after subscribe(). */
@@ -97,14 +97,25 @@ jest.mock("expo-router", () => ({
     mockNavTheme.value = value;
     return children;
   },
-  // The tab group renders its real layout, so the tab bar is read under the providers the root mounts.
-  Stack: Object.assign(({ children }: { children: unknown }) => children, {
-    Screen: ({ name }: { name: string }) => {
-      if (name !== "(tabs)") return null;
-      const TabsLayout = require("../app/(tabs)/_layout").default;
-      return <TabsLayout />;
+  // The tab group renders its real layout, so the tab bar is read under the providers the root mounts. The stack also
+  // renders its shared header once, the way a pushed screen shows it.
+  Stack: Object.assign(
+    ({ children, screenOptions }: { children: unknown; screenOptions?: Record<string, any> }) => (
+      <>
+        {screenOptions?.header
+          ? screenOptions.header({ options: { title: "Judul uji" }, navigation: { goBack: () => {} }, back: { title: "x" } })
+          : null}
+        {children}
+      </>
+    ),
+    {
+      Screen: ({ name }: { name: string }) => {
+        if (name !== "(tabs)") return null;
+        const TabsLayout = require("../app/(tabs)/_layout").default;
+        return <TabsLayout />;
+      },
     },
-  }),
+  ),
   Tabs: Object.assign(
     ({ children, screenOptions }: { children: unknown; screenOptions?: Record<string, any> }) => {
       mockTabBar.style = screenOptions?.tabBarStyle;
@@ -123,6 +134,8 @@ jest.mock("expo-router", () => ({
   useFocusEffect: (fn: () => void) => require("react").useEffect(fn, []),
 }));
 jest.mock("@expo/vector-icons", () => ({ Ionicons: () => null }));
+// The shared header's round back button draws its icon from this path.
+jest.mock("@expo/vector-icons/Ionicons", () => ({ __esModule: true, default: () => null }));
 jest.mock("expo-font", () => ({ useFonts: () => [true, null] }));
 jest.mock("expo-status-bar", () => ({
   StatusBar: (props: { style?: string }) => {
@@ -142,6 +155,7 @@ const { AppProviders } = require("../src/shell") as typeof import("../src/shell"
 
 const actor = { id: "u-1", role: "customer", name: "Rani Contoh" };
 let mockActor: typeof actor | null = null;
+let mockDemo = false;
 let mobile: ReturnType<typeof useMobile>;
 
 function Probe() {
@@ -167,8 +181,9 @@ beforeEach(() => {
   mockClient.reset();
   mockResponseListeners.length = 0;
   mockActor = null;
+  mockDemo = false;
   Object.assign(runtime.api, {
-    me: jest.fn(async () => ({ actor: mockActor, demo: false })),
+    me: jest.fn(async () => ({ actor: mockActor, demo: mockDemo })),
     catalog: jest.fn(async () => ({ items: [], nextCursor: null })),
     savedPackages: jest.fn(async () => ({ packageIds: [], items: [], nextCursor: null })),
     command: jest.fn(async () => ({})),
@@ -361,13 +376,28 @@ describe("appearance", () => {
     mockTabBar.itemStyle = undefined;
     mockStatusBar.style = undefined;
     mockNavTheme.value = undefined;
+    // The launch mood comes from the Jakarta clock, so each test pins it: 10:00 WIB (Siang) unless it says otherwise.
+    atJakarta("2026-10-09T03:00:00Z");
   });
   let restoreInsets: (() => void) | undefined;
   afterEach(() => {
     restoreInsets?.();
     restoreInsets = undefined;
+    jest.useRealTimers();
     jest.restoreAllMocks();
   });
+
+  /** Only Date is faked: timers, microtasks and animation frames keep running for real. */
+  const atJakarta = (iso: string) =>
+    jest.useFakeTimers({
+      now: new Date(iso),
+      doNotFake: [
+        "hrtime", "nextTick", "performance", "queueMicrotask", "requestAnimationFrame", "cancelAnimationFrame",
+        "requestIdleCallback", "cancelIdleCallback", "setImmediate", "clearImmediate", "setInterval", "clearInterval",
+        "setTimeout", "clearTimeout",
+      ],
+    });
+  const MALAM = "2026-10-09T09:00:00Z"; // 16:00 WIB
 
   const renderRoot = async () => {
     const RootLayout = (require("../app/_layout") as typeof import("../app/_layout")).default;
@@ -382,6 +412,45 @@ describe("appearance", () => {
     expect(mockTabBar.style).toMatchObject({ backgroundColor: "#FFFEFA", borderTopColor: "#E2E3D8" });
     expect(mockStatusBar.style).toBe("dark");
     expect(mockNavTheme.value).toMatchObject({ dark: false, colors: { background: "#FDFAF3", card: "#FFFEFA" } });
+  });
+
+  it("Malam on a light system theme: light status bar glyphs and a mood header on pushed screens, but the tab bar stays theme", async () => {
+    jest.spyOn(require("react-native"), "useColorScheme").mockReturnValue("light");
+    atJakarta(MALAM);
+    await renderRoot();
+    expect(mockStatusBar.style).toBe("light");
+    const header = StyleSheet.flatten(screen.getByTestId("app-header").props.style);
+    expect(header.backgroundColor).toBe("#0B1F16");
+    expect(StyleSheet.flatten(screen.getByText("Judul uji").props.style).color).toBe("#FFF7E9");
+    // The mood never reaches the tab bar.
+    expect(mockTabBar.style).toMatchObject({ backgroundColor: "#FFFEFA", borderTopColor: "#E2E3D8" });
+  });
+
+  it("Siang on a light system theme keeps the dark status bar and the sunrise header", async () => {
+    jest.spyOn(require("react-native"), "useColorScheme").mockReturnValue("light");
+    await renderRoot();
+    expect(mockStatusBar.style).toBe("dark");
+    expect(StyleSheet.flatten(screen.getByTestId("app-header").props.style).backgroundColor).toBe("#FFEFD9");
+  });
+
+  it("demo on and Malam: the demo strip sits above the header, so the status bar glyphs are dark", async () => {
+    jest.spyOn(require("react-native"), "useColorScheme").mockReturnValue("light");
+    atJakarta(MALAM);
+    mockDemo = true;
+    await renderRoot();
+    expect(await screen.findByText("Demo · data sintetis")).toBeTruthy();
+    expect(mockStatusBar.style).toBe("dark");
+  });
+
+  it("the loading spinner sits on the canvas, so Malam does not turn its status bar glyphs light", async () => {
+    jest.spyOn(require("react-native"), "useColorScheme").mockReturnValue("light");
+    atJakarta(MALAM);
+    const RootLayout = (require("../app/_layout") as typeof import("../app/_layout")).default;
+    render(<RootLayout />);
+    expect(screen.UNSAFE_queryByType(require("react-native").ActivityIndicator)).not.toBeNull();
+    expect(mockStatusBar.style).toBe("dark");
+    await waitFor(() => expect(mockTabBar.style).toBeDefined());
+    expect(mockStatusBar.style).toBe("light");
   });
 
   it("sets the status bar glyphs while the loading spinner is still showing", async () => {

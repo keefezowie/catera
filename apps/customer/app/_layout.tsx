@@ -9,11 +9,14 @@ import {
   AppHeader,
   DemoStrip,
   fontAssets,
+  MoodProvider,
   navigationTheme,
+  statusBarStyle,
   Text,
   ThemeProvider,
   TopInsetOwner,
   useColors,
+  useMood,
   useThemePreference,
 } from "@catera/mobile-ui";
 import { runtime } from "../src/runtime";
@@ -23,8 +26,12 @@ function Navigation() {
   const { t, ready, demo } = useMobile();
   const palette = useColors();
   const { scheme } = useThemePreference();
-  // Above the ready gate, so the loading spinner also gets glyphs that read on the chosen theme.
-  const statusBar = <StatusBar style={scheme === "dark" ? "light" : "dark"} />;
+  const { mood } = useMood();
+  // Above the ready gate, so the loading spinner also gets glyphs that read on the chosen theme. The spinner sits on the
+  // canvas and not under a mood header, so only the theme decides until the app is ready.
+  const statusBar = (
+    <StatusBar style={ready ? statusBarStyle({ scheme, mood, demo }) : statusBarStyle({ scheme, mood: "siang", demo: false })} />
+  );
   if (!ready)
     return (
       <>
@@ -118,11 +125,13 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <ThemeProvider storageKey={runtime.storageKey("theme")}>
-        <AppProviders runtime={runtime}>
-          <NavigationColors>
-            <Navigation />
-          </NavigationColors>
-        </AppProviders>
+        <MoodProvider>
+          <AppProviders runtime={runtime}>
+            <NavigationColors>
+              <Navigation />
+            </NavigationColors>
+          </AppProviders>
+        </MoodProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );
