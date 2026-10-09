@@ -741,6 +741,7 @@ Execution runs in this order (spelled out in each task's Interfaces):
   - Add the Sheet change as a fifth approved light exception (the scrim covers the status bar; the sheet surface fills the gesture band; bottom padding grows by the home-indicator inset on iOS).
   - The claim that `Alert`, the window background and the iOS keyboard follow the Tampilan override gets "not yet verified on device" (only the Android Gboard limit is verified).
   - Correct `anti-slop/audit-002-2026-10-09.md`'s "Fix round 3" sentence that says every other change is dark-only or invisible in light.
+  - Record the owner decision of 2026-10-09: no dark splash until real transparent artwork exists. The splash stays cream (`#FFF7E9`), so a standalone build on a dark phone shows a cream launch frame. This is accepted, and no dark splash asset or config is added.
 - Create: `anti-slop/audit-003-2026-10-09.md`; screenshots in `output/native-review/visual-b/`.
 
 **Interfaces:**
