@@ -38,7 +38,7 @@ jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
   default: () => ({ width: 400, height: 800, scale: 2, fontScale: 1 }),
 }));
 
-const SIANG_NOW =() => new Date("2026-10-09T03:00:00Z"); // 10:00 WIB
+const SIANG_NOW = () => new Date("2026-10-09T03:00:00Z"); // 10:00 WIB
 
 function mount(ui: ReactElement, scheme: "light" | "dark" = "light") {
   jest.spyOn(ReactNative, "useColorScheme").mockReturnValue(scheme);

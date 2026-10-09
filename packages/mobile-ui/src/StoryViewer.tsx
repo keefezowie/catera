@@ -26,6 +26,9 @@ const FLICK_MIN_DISTANCE = 20;
  *   deeper responder and keeps its own press. The region is not an accessibility element (its buttons stay), so
  *   screen readers get the header as an adjustable (swipe up or down) and the close button instead. The first part has
  *   no back and the last has no forward.
+ * - `children` must not contain a ScrollView: the content press target owns the touch, and on Android it becomes the
+ *   responder over a scroll view, which would then never scroll. A part fits the screen: the photo flexes and long
+ *   text wraps.
  * - A downward drag of more than 80dp, or a fast flick down, closes it through `PanResponder` (no gesture library).
  * - It opens with a fade and a scale from 0.92 to 1 over `nativeMotion.feature`; instantly under reduced motion.
  */
@@ -73,8 +76,10 @@ export function StoryViewer({
   const pan = useMemo(
     () =>
       PanResponder.create({
-        // The bubble variant, so a child that scrolls gets the move first. React Native refreshes the gesture state in
-        // the capture phase (PanResponder's own capture handler) before this one runs, so dy and dx are current here.
+        // The bubble variant, so a control that wants a move itself can claim it first. It does not make a scroll
+        // view in the content work: the content press target below owns the touch (see the docblock). React Native
+        // refreshes the gesture state in the capture phase (PanResponder's own capture handler) before this one
+        // runs, so dy and dx are current here.
         onMoveShouldSetPanResponder: (_e, g) => g.dy > 10 && g.dy > Math.abs(g.dx) * 1.5,
         onPanResponderRelease: (_e, g) => {
           const flung = g.vy > DISMISS_VELOCITY && g.dy > FLICK_MIN_DISTANCE;
