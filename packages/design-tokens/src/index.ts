@@ -106,6 +106,90 @@ export const nativeThemes: Record<ThemeName, NativePalette> = {
   },
 };
 
+export type Mood = "siang" | "malam";
+export type MoodKey =
+  | "header" | "headerText" | "headerMeta" | "toggleTrack" | "toggleActive" | "onToggleActive"
+  | "arcTrack" | "markerActive" | "markerIdle" | "hero" | "heroText" | "heroMeta" | "heroShadow";
+export type MoodPalette = Record<MoodKey, string> & { pattern: string | null };
+
+const warmShadow = "0 10px 28px rgba(107,74,43,0.16)";
+const deepShadow = "0 10px 28px rgba(0,0,0,0.35)";
+
+/**
+ * Mood surfaces only: the mood header, the toggle, the day arc, the Malam pattern and the hero card.
+ * A Siang hero is the theme surface, so it reads the same token and cannot drift from it.
+ */
+export const nativeMood: Record<ThemeName, Record<Mood, MoodPalette>> = {
+  light: {
+    siang: {
+      header: "#FFEFD9",
+      headerText: "#163D2E",
+      headerMeta: "#6B4A2B",
+      toggleTrack: "#F6DDBE",
+      toggleActive: "#9B4309",
+      onToggleActive: "#FFF7E9",
+      arcTrack: "#E2C29C",
+      markerActive: "#9B4309",
+      markerIdle: "#9A7A55",
+      hero: nativeThemes.light.surface,
+      heroText: "#163D2E",
+      heroMeta: "#60675F",
+      heroShadow: warmShadow,
+      pattern: null,
+    },
+    malam: {
+      header: "#0B1F16",
+      headerText: "#FFF7E9",
+      headerMeta: "#A9BDB0",
+      toggleTrack: "#1C3A2C",
+      toggleActive: "#FFF7E9",
+      onToggleActive: "#0B1F16",
+      arcTrack: "#2C4C3C",
+      markerActive: "#FFF7E9",
+      markerIdle: "#6E8C7C",
+      hero: "#1C3A2C",
+      heroText: "#FFF7E9",
+      heroMeta: "#A9BDB0",
+      heroShadow: deepShadow,
+      pattern: "#1A3A2B",
+    },
+  },
+  dark: {
+    siang: {
+      header: "#3A2617",
+      headerText: "#F5F1E8",
+      headerMeta: "#E6C3A2",
+      toggleTrack: "#4C3322",
+      toggleActive: "#F5C9A6",
+      onToggleActive: "#3A1A04",
+      arcTrack: "#6A4A33",
+      markerActive: "#F5C9A6",
+      markerIdle: "#A88A6A",
+      hero: nativeThemes.dark.surface,
+      heroText: "#F5F1E8",
+      heroMeta: "#B5B2AA",
+      heroShadow: deepShadow,
+      pattern: null,
+    },
+    malam: {
+      header: "#163D2E",
+      headerText: "#F5F1E8",
+      headerMeta: "#CFE0D2",
+      toggleTrack: "#25553F",
+      toggleActive: "#FFF7E9",
+      onToggleActive: "#163D2E",
+      arcTrack: "#2C5A45",
+      markerActive: "#FFF7E9",
+      markerIdle: "#7FA08E",
+      hero: "#1C3A2C",
+      heroText: "#F5F1E8",
+      heroMeta: "#CFE0D2",
+      heroShadow: deepShadow,
+      pattern: "#1F4A38",
+    },
+  },
+};
+
 function relativeLuminance(hex: string): number {
   const channels = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
   const [r, g, b] = channels.map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));

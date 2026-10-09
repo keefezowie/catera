@@ -90,12 +90,12 @@ Mood surfaces are exactly: the **mood header** (the rounded top block under the 
 | `toggleActive` / `onToggleActive` | `#9B4309` / `#FFF7E9` | `#FFF7E9` / `#0B1F16` | `#F5C9A6` / `#3A1A04` | `#FFF7E9` / `#163D2E` |
 | `arcTrack` (decorative) | `#E2C29C` | `#2C4C3C` | `#6A4A33` | `#2C5A45` |
 | `markerActive` | `#9B4309` | `#FFF7E9` | `#F5C9A6` | `#FFF7E9` |
-| `markerIdle` (at least 3:1 on `header`) | `#9A7A55` | `#6E8C7C` | test | test |
+| `markerIdle` (at least 3:1 on `header`) | `#9A7A55` | `#6E8C7C` | `#A88A6A` | `#7FA08E` |
 | `hero` | `surface` | `#1C3A2C` | `surface` (dark) | `#1C3A2C` |
 | `heroText` / `heroMeta` | `strong` / `muted` | `#FFF7E9` / `#A9BDB0` | theme | `#F5F1E8` / `#CFE0D2` |
 | `pattern` (lunchbox outlines, Malam only, decorative) | none | `#1A3A2B` | none | `#1F4A38` |
 
-Values marked "test" are picked from the brand ramp by the section 8 contrast test before Phase A lands. The dark Malam values for `arcTrack` and `pattern` are starting points that the test may adjust.
+The `markerIdle` dark values were picked from the brand ramp and are enforced by the section 8 contrast test (at least 3:1 on `header`). The dark Malam values for `arcTrack` and `pattern` are decorative and exempt from the test.
 
 ### 3.4 Shapes, depth and type
 - Mood header: bottom corners 28 (Dapur and secondary screens) or 32 (Beranda, where the hero overlaps by 58). Hero card radius 28 with an inner photo radius 20. Content cards 20. Existing panels, inputs (9), buttons (10) and chips keep their radii. Toggles and stickers are pills.
