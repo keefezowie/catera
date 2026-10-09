@@ -114,14 +114,28 @@ it("filters to customers whose package ends within three days", async () => {
 });
 
 it("counts ending customers as active", async () => {
-  // One customer with a single delivery left is both on a running package and about to end.
-  wrap(runtimeWith("approved", true, [customer("c-09", "Rina Maharani", [sub(1)])]), <CustomerList />);
-  expect(await screen.findByText("Aktif · 1")).toBeTruthy();
-  expect(screen.getByText("Segera berakhir · 1")).toBeTruthy();
-  expect(screen.getByText("Selesai · 0")).toBeTruthy();
-  // The Aktif list shows her, with the end label kept.
-  expect(screen.getByText("Rina Maharani")).toBeTruthy();
-  expect(screen.getByText(/^Berakhir/)).toBeTruthy();
+  // The package ends on 9 Oct, so today is pinned to 8 Oct: one delivery left, end date still ahead.
+  jest.useFakeTimers({
+    now: new Date("2026-10-08T03:00:00Z"),
+    // Only the clock is pinned: timers, microtasks and animation frames keep running for real.
+    doNotFake: [
+      "hrtime", "nextTick", "performance", "queueMicrotask", "requestAnimationFrame",
+      "cancelAnimationFrame", "requestIdleCallback", "cancelIdleCallback", "setImmediate",
+      "clearImmediate", "setInterval", "clearInterval", "setTimeout", "clearTimeout",
+    ],
+  });
+  try {
+    // One customer with a single delivery left is both on a running package and about to end.
+    wrap(runtimeWith("approved", true, [customer("c-09", "Rina Maharani", [sub(1)])]), <CustomerList />);
+    expect(await screen.findByText("Aktif · 1")).toBeTruthy();
+    expect(screen.getByText("Segera berakhir · 1")).toBeTruthy();
+    expect(screen.getByText("Selesai · 0")).toBeTruthy();
+    // The Aktif list shows her, with the end label kept.
+    expect(screen.getByText("Rina Maharani")).toBeTruthy();
+    expect(screen.getByText(/^Berakhir/)).toBeTruthy();
+  } finally {
+    jest.useRealTimers();
+  }
 });
 
 it("lists ending and active customers together under Aktif, without the ended ones", async () => {
