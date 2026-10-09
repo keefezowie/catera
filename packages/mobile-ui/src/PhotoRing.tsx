@@ -83,13 +83,18 @@ export function PhotoRing({
           <Lunchbox size={Math.round(inner * 0.52)} color={c.forest} />
         </View>
       ) : (
-        <Image
-          accessibilityIgnoresInvertColors
-          source={{ uri }}
-          resizeMode="cover"
-          // The line colour shows while the photo loads or if it never does.
-          style={{ width: inner, height: inner, borderRadius: inner / 2, backgroundColor: c.line }}
-        />
+        // The line colour shows while the photo loads or if it never does. A uri of "" (real data for a dish without a
+        // photo) has nothing to load, so it is only this ground and no Image.
+        <View style={{ width: inner, height: inner, borderRadius: inner / 2, backgroundColor: c.line, overflow: "hidden" }}>
+          {uri ? (
+            <Image
+              accessibilityIgnoresInvertColors
+              source={{ uri }}
+              resizeMode="cover"
+              style={{ width: inner, height: inner }}
+            />
+          ) : null}
+        </View>
       )}
     </View>
   );

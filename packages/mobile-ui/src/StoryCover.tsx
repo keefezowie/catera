@@ -32,12 +32,15 @@ export function StoryCover({
       testID="story-cover"
       style={{ width, height, borderRadius: RADIUS, borderCurve: "continuous", overflow: "hidden", backgroundColor: ink.forest }}
     >
-      <Image
-        accessibilityIgnoresInvertColors
-        source={{ uri }}
-        resizeMode="cover"
-        style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, width, height }}
-      />
+      {/* A uri of "" (real data for a day without a photo) leaves the dark ground, which the title still reads on. */}
+      {uri ? (
+        <Image
+          accessibilityIgnoresInvertColors
+          source={{ uri }}
+          resizeMode="cover"
+          style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, width, height }}
+        />
+      ) : null}
       <View
         testID="story-gradient"
         pointerEvents="none"

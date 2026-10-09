@@ -91,11 +91,12 @@ Mood surfaces are exactly: the **mood header** (the rounded top block under the 
 | `arcTrack` (decorative) | `#E2C29C` | `#2C4C3C` | `#6A4A33` | `#2C5A45` |
 | `markerActive` | `#9B4309` | `#FFF7E9` | `#F5C9A6` | `#FFF7E9` |
 | `markerIdle` (at least 3:1 on `header`) | `#9A7A55` | `#6E8C7C` | `#A88A6A` | `#7FA08E` |
+| `todayRing` (the today outline on a calendar cell, at least 3:1 on `header`; the selected outline reads `headerText`) | `#9B4309` | `#F5C9A6` | `#F5C9A6` | `#F5C9A6` |
 | `hero` | `surface` | `#1C3A2C` | `surface` (dark) | `#1C3A2C` |
 | `heroText` / `heroMeta` | `strong` / `muted` | `#FFF7E9` / `#A9BDB0` | theme | `#F5F1E8` / `#CFE0D2` |
 | `pattern` (lunchbox outlines, Malam only, decorative) | none | `#1A3A2B` | none | `#1F4A38` |
 
-The `markerIdle` dark values were picked from the brand ramp and are enforced by the section 8 contrast test (at least 3:1 on `header`). The dark Malam values for `arcTrack` and `pattern` are decorative and exempt from the test.
+The `markerIdle` dark values were picked from the brand ramp and are enforced by the section 8 contrast test (at least 3:1 on `header`). `todayRing` and `headerText` (the selected outline) are held to the same 3:1 on `header`: the theme `forest` and `sunriseInk` measured about 1.4:1 and 2.6:1 on the light Malam header, so the calendar outlines read mood tokens. The dark Malam values for `arcTrack` and `pattern` are decorative and exempt from the test.
 
 ### 3.4 Shapes, depth and type
 - Mood header: bottom corners 28 (Dapur and secondary screens) or 32 (Beranda, where the hero overlaps by 58). Hero card radius 28 with an inner photo radius 20. Content cards 20. Existing panels, inputs (9), buttons (10) and chips keep their radii. Toggles and stickers are pills.
@@ -138,7 +139,7 @@ Every screen keeps the Three States Rule. The demo strip stays above the mood he
 - **Before and after cutoff** (keeps interview decision 10): before the change cutoff, the Beranda circles show the dish photos and the story opens directly. After the cutoff, each circle shows a covered plate until that meal's part has been viewed once. Viewed state is stored per delivery in SecureStore. Opening the story is the unveil; there is no separate dome animation.
 - **Jadwal** (canvas: E · Jadwal):
   - Month grid in the mood header. A covered day shows the lunch dish photo, falling back to dinner, then to the package photo, with the day number in a cream pill and a forest moon badge when dinner is also covered.
-  - Today has a sunrise-ink ring and the selected day a forest ring. Past days are dimmed to 50% with a forest number pill. A covered day whose menu is not set has the dashed `markerIdle` border and a sun mark.
+  - Today has a `todayRing` outline and the selected day a `headerText` outline, both mood tokens because the grid sits on the header (the theme `forest` and `sunriseInk` fail 3:1 on the light Malam header). With a large font the moon badge becomes a small dot beside the photo dot. Past days are dimmed to 50% with a forest number pill. A covered day whose menu is not set has the dashed `markerIdle` border and a sun mark.
   - Legend: "Foto menu", "Menu belum diisi", "Ada makan malam". The selected day's meals are listed below with "Ubah hari".
   - Loading and error states stay text, and unknown data is never shown as uncovered.
 - **Jelajah** (canvas: E · Jelajah): mood header with area, headline, Siang/Malam meal buttons and search; a horizontal row of photo category circles (the selected one ringed); package rows with a large photo, name, caterer and days, start date, and price with "/ sekali makan".

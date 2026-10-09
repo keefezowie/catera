@@ -109,7 +109,7 @@ export const nativeThemes: Record<ThemeName, NativePalette> = {
 export type Mood = "siang" | "malam";
 export type MoodKey =
   | "header" | "headerText" | "headerMeta" | "toggleTrack" | "toggleActive" | "onToggleActive"
-  | "arcTrack" | "markerActive" | "markerIdle" | "hero" | "heroText" | "heroMeta" | "heroShadow";
+  | "arcTrack" | "markerActive" | "markerIdle" | "todayRing" | "hero" | "heroText" | "heroMeta" | "heroShadow";
 export type MoodPalette = Record<MoodKey, string> & { pattern: string | null };
 
 const warmShadow = "0 10px 28px rgba(107,74,43,0.16)";
@@ -131,6 +131,7 @@ export const nativeMood: Record<ThemeName, Record<Mood, MoodPalette>> = {
       arcTrack: "#E2C29C",
       markerActive: "#9B4309",
       markerIdle: "#9A7A55",
+      todayRing: "#9B4309",
       hero: nativeThemes.light.surface,
       heroText: "#163D2E",
       heroMeta: "#60675F",
@@ -147,6 +148,7 @@ export const nativeMood: Record<ThemeName, Record<Mood, MoodPalette>> = {
       arcTrack: "#2C4C3C",
       markerActive: "#FFF7E9",
       markerIdle: "#6E8C7C",
+      todayRing: "#F5C9A6",
       hero: "#1C3A2C",
       heroText: "#FFF7E9",
       heroMeta: "#A9BDB0",
@@ -165,6 +167,7 @@ export const nativeMood: Record<ThemeName, Record<Mood, MoodPalette>> = {
       arcTrack: "#6A4A33",
       markerActive: "#F5C9A6",
       markerIdle: "#A88A6A",
+      todayRing: "#F5C9A6",
       hero: nativeThemes.dark.surface,
       heroText: "#F5F1E8",
       heroMeta: "#B5B2AA",
@@ -181,6 +184,7 @@ export const nativeMood: Record<ThemeName, Record<Mood, MoodPalette>> = {
       arcTrack: "#2C5A45",
       markerActive: "#FFF7E9",
       markerIdle: "#7FA08E",
+      todayRing: "#F5C9A6",
       hero: "#1C3A2C",
       heroText: "#F5F1E8",
       heroMeta: "#CFE0D2",

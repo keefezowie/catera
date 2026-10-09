@@ -2,8 +2,8 @@ import { fireEvent, render, screen } from "@testing-library/react-native";
 import * as ReactNative from "react-native";
 import { Image, StyleSheet } from "react-native";
 import * as Haptics from "expo-haptics";
-import { nativeMood, nativeThemes } from "@catera/design-tokens";
-import { CalendarPhotoCell, PhotoRing, StoryCover, Text, ThemeProvider } from "@catera/mobile-ui";
+import { contrastRatio, nativeMood, nativeThemes } from "@catera/design-tokens";
+import { CalendarPhotoCell, MoodProvider, PhotoRing, StoryCover, Text, ThemeProvider } from "@catera/mobile-ui";
 
 // The customer setup has no SecureStore mock, so this file keeps its own in-memory one for the dark theme case.
 jest.mock("expo-secure-store", () => {
@@ -69,6 +69,13 @@ describe("PhotoRing", () => {
     expect(screen.UNSAFE_queryByType(Image)).toBeNull();
     expect(flat("photo-ring-covered").backgroundColor).toBe(nativeThemes.light.cream);
     expect(screen.getByTestId("photo-ring-lunchbox", { includeHiddenElements: true })).toBeTruthy();
+  });
+
+  it("an empty uri renders the ring's ground and no Image", () => {
+    render(<PhotoRing {...base} uri="" ring="forest" />);
+    expect(screen.UNSAFE_queryByType(Image)).toBeNull();
+    expect(flat("photo-ring")).toMatchObject({ borderColor: nativeThemes.light.forest, width: 60, height: 60 });
+    expect(screen.getByTestId("photo-ring")).toBeTruthy();
   });
 
   it("without onPress it is not a button", () => {
@@ -188,21 +195,21 @@ describe("CalendarPhotoCell", () => {
     expect(StyleSheet.flatten(screen.getByText("12").props.style).color).toBe(nativeThemes.light.cream);
   });
 
-  it("today adds a 2.5dp sunrise-ink outline and selected a 2.5dp forest one", () => {
+  it("today adds a 2.5dp todayRing outline and selected a 2.5dp headerText one", () => {
     const view = render(<CalendarPhotoCell {...base} />);
     expect(gone("cell-outline-today")).toBe(true);
     expect(gone("cell-outline-selected")).toBe(true);
     view.rerender(<CalendarPhotoCell {...base} today />);
     expect(flat("cell-outline-today")).toMatchObject({
       borderWidth: 2.5,
-      borderColor: nativeThemes.light.sunriseInk,
+      borderColor: siang.todayRing,
       borderRadius: 12,
     });
     expect(gone("cell-outline-selected")).toBe(true);
     view.rerender(<CalendarPhotoCell {...base} selected />);
     expect(flat("cell-outline-selected")).toMatchObject({
       borderWidth: 2.5,
-      borderColor: nativeThemes.light.forest,
+      borderColor: siang.headerText,
       borderRadius: 12,
     });
     expect(gone("cell-outline-today")).toBe(true);
@@ -210,9 +217,22 @@ describe("CalendarPhotoCell", () => {
 
   it("today and selected together keep both outlines, the selected one inside", () => {
     render(<CalendarPhotoCell {...base} today selected />);
-    expect(flat("cell-outline-today").borderColor).toBe(nativeThemes.light.sunriseInk);
-    expect(flat("cell-outline-selected").borderColor).toBe(nativeThemes.light.forest);
+    expect(flat("cell-outline-today").borderColor).toBe(siang.todayRing);
+    expect(flat("cell-outline-selected").borderColor).toBe(siang.headerText);
     expect(flat("cell-outline-selected").top).toBeGreaterThan(flat("cell-outline-today").top as number);
+  });
+
+  it("under light Malam the outlines read the mood tokens that stay visible on the dark header", () => {
+    render(
+      <MoodProvider now={() => new Date("2026-10-09T08:00:00Z")}>
+        <CalendarPhotoCell {...base} today selected />
+      </MoodProvider>,
+    );
+    expect(flat("cell-outline-selected").borderColor).toBe("#FFF7E9");
+    expect(flat("cell-outline-today").borderColor).toBe("#F5C9A6");
+    // The theme colours these replaced are the ones that failed 3:1 on the Malam header.
+    expect(contrastRatio(nativeThemes.light.forest, nativeMood.light.malam.header)).toBeLessThan(3);
+    expect(contrastRatio(nativeThemes.light.sunriseInk, nativeMood.light.malam.header)).toBeLessThan(3);
   });
 
   it("outlines never take touches", () => {
@@ -228,6 +248,38 @@ describe("CalendarPhotoCell", () => {
     expect(flat("cell-photo-dot")).toMatchObject({ width: 6, height: 6, borderRadius: 3 });
     expect(gone("cell-number-pill")).toBe(true);
     expect(StyleSheet.flatten(screen.getByText("12").props.style).color).toBe(siang.headerMeta);
+  });
+
+  it("at font scale 1.3 dinner becomes a small moon beside the photo dot, with no corner badge", () => {
+    setFontScale(1.3);
+    const view = render(<CalendarPhotoCell {...base} day={28} dinnerToo />);
+    expect(gone("cell-moon")).toBe(true);
+    expect(screen.getByTestId("cell-moon-dot", { includeHiddenElements: true })).toBeTruthy();
+    expect(screen.getByTestId("cell-photo-dot", { includeHiddenElements: true })).toBeTruthy();
+    view.rerender(<CalendarPhotoCell {...base} day={28} />);
+    expect(gone("cell-moon-dot")).toBe(true);
+    expect(screen.getByTestId("cell-photo-dot", { includeHiddenElements: true })).toBeTruthy();
+  });
+
+  it("a covered day whose uri is empty falls back to the number with the dot, and renders no Image", () => {
+    const view = render(<CalendarPhotoCell {...base} uri="" />);
+    expect(screen.UNSAFE_queryByType(Image)).toBeNull();
+    expect(gone("cell-photo")).toBe(true);
+    expect(gone("cell-number-pill")).toBe(true);
+    expect(gone("cell-dashed")).toBe(true);
+    expect(screen.getByTestId("cell-photo-dot", { includeHiddenElements: true })).toBeTruthy();
+    expect(StyleSheet.flatten(screen.getByText("12").props.style).color).toBe(siang.headerMeta);
+    // Dinner shows as the moon dot here too, never as the corner badge over a photo that is not there.
+    view.rerender(<CalendarPhotoCell {...base} uri="" dinnerToo />);
+    expect(gone("cell-moon")).toBe(true);
+    expect(screen.getByTestId("cell-moon-dot", { includeHiddenElements: true })).toBeTruthy();
+  });
+
+  it("an empty uri on a day whose menu is not set is still the dashed cell", () => {
+    render(<CalendarPhotoCell {...base} uri="" menuSet={false} />);
+    expect(screen.UNSAFE_queryByType(Image)).toBeNull();
+    expect(flat("cell-dashed").borderStyle).toBe("dashed");
+    expect(gone("cell-photo-dot")).toBe(true);
   });
 
   it("below font scale 1.3 the photo stays, and the empty and unset cells never get the dot", () => {
@@ -253,6 +305,14 @@ describe("StoryCover", () => {
     const image = screen.UNSAFE_getByType(Image);
     expect(image.props.source).toEqual({ uri: base.uri });
     expect(image.props.resizeMode).toBe("cover");
+  });
+
+  it("an empty uri keeps the dark ground, the bars and the title, with no Image", () => {
+    render(<StoryCover {...base} uri="" />);
+    expect(screen.UNSAFE_queryByType(Image)).toBeNull();
+    expect(flat("story-cover").backgroundColor).toBe(nativeThemes.light.forest);
+    expect(screen.getByTestId("story-segment-3", { includeHiddenElements: true })).toBeTruthy();
+    expect(screen.getByText("Menu hari ini")).toBeTruthy();
   });
 
   it("renders one bar per segment, the first `active` at full opacity and the rest at 0.4, all cream", () => {

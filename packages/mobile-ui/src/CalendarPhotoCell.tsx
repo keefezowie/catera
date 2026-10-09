@@ -31,8 +31,9 @@ const fill = { position: "absolute", top: 0, right: 0, bottom: 0, left: 0 } as c
 /**
  * One day of the Jadwal calendar, drawn as its meal. A set menu shows the photo with the day in a pill and a moon when
  * dinner is also on; an unset one is a dashed outline with a sun, and a day without a meal is only its number. Sits on
- * a mood surface (the header), so the bare number and the dashed outline read the mood palette; the photo and its pill
- * read the theme.
+ * a mood surface (the header), so the bare number, the dashed outline and both outlines (today, selected) read the mood
+ * palette, which keeps them at 3:1 on every header; the photo, its pill and the moon badge sit on the photo and read
+ * the theme. A meal with no photo (`uri` of "") is drawn like the large-font fallback: the number and a dot.
  */
 export function CalendarPhotoCell({
   day,
@@ -55,11 +56,12 @@ export function CalendarPhotoCell({
   const mood = useMoodColors();
   const { fontScale } = useWindowDimensions();
 
-  // The photo of a meal whose menu is set; any other day has none to show.
-  const photo = menuSet ? uri : null;
-  const revealed = photo !== null;
+  // A meal exists when there is a uri; real data also gives "" for a meal without a photo, which is no photo to draw.
+  const meal = uri !== null;
+  const revealed = meal && menuSet;
+  const photo = revealed && uri !== "" ? uri : null;
   const showPhoto = photo !== null && fontScale < LARGE_FONT_SCALE;
-  const unset = uri !== null && !menuSet;
+  const unset = meal && !menuSet;
 
   const number = (
     <Text
@@ -115,10 +117,19 @@ export function CalendarPhotoCell({
         <View style={{ ...fill, alignItems: "center", justifyContent: "center", gap: 3 }}>
           {number}
           {revealed ? (
-            <View
-              testID="cell-photo-dot"
-              style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: mood.headerMeta, opacity: past ? 0.5 : 1 }}
-            />
+            // Without the photo the dot says there is a meal, and a small moon beside it says dinner too. The corner
+            // badge would sit on top of a two-digit number at this size, so it is not drawn here.
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 4, opacity: past ? 0.5 : 1 }}>
+              <View
+                testID="cell-photo-dot"
+                style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: mood.headerMeta }}
+              />
+              {dinnerToo ? (
+                <View testID="cell-moon-dot">
+                  <Ionicons name="moon" size={9} color={mood.headerMeta} />
+                </View>
+              ) : null}
+            </View>
           ) : null}
         </View>
       )}
@@ -143,7 +154,7 @@ export function CalendarPhotoCell({
         </>
       ) : null}
 
-      {revealed && dinnerToo ? (
+      {showPhoto && dinnerToo ? (
         <View
           testID="cell-moon"
           style={{
@@ -166,7 +177,7 @@ export function CalendarPhotoCell({
         <View
           testID="cell-outline-today"
           pointerEvents="none"
-          style={{ ...fill, borderWidth: OUTLINE, borderColor: c.sunriseInk, borderRadius: RADIUS, borderCurve: "continuous" }}
+          style={{ ...fill, borderWidth: OUTLINE, borderColor: mood.todayRing, borderRadius: RADIUS, borderCurve: "continuous" }}
         />
       ) : null}
       {selected ? (
@@ -175,13 +186,13 @@ export function CalendarPhotoCell({
           pointerEvents="none"
           style={{
             ...fill,
-            // Today's outline keeps the edge, so a selected today shows both: the sunrise ring, then the forest one inside.
+            // Today's outline keeps the edge, so a selected today shows both: the today ring, then this one inside.
             top: today ? OUTLINE : 0,
             right: today ? OUTLINE : 0,
             bottom: today ? OUTLINE : 0,
             left: today ? OUTLINE : 0,
             borderWidth: OUTLINE,
-            borderColor: c.forest,
+            borderColor: mood.headerText,
             borderRadius: today ? RADIUS - OUTLINE : RADIUS,
             borderCurve: "continuous",
           }}

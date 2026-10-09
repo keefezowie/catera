@@ -57,13 +57,13 @@ describe("native mood", () => {
         siang: {
           header: "#FFEFD9", headerText: "#163D2E", headerMeta: "#6B4A2B", toggleTrack: "#F6DDBE",
           toggleActive: "#9B4309", onToggleActive: "#FFF7E9", arcTrack: "#E2C29C",
-          markerActive: "#9B4309", markerIdle: "#9A7A55", hero: "#FFFEFA", heroText: "#163D2E",
+          markerActive: "#9B4309", markerIdle: "#9A7A55", todayRing: "#9B4309", hero: "#FFFEFA", heroText: "#163D2E",
           heroMeta: "#60675F", heroShadow: SHADOW_WARM, pattern: null,
         },
         malam: {
           header: "#0B1F16", headerText: "#FFF7E9", headerMeta: "#A9BDB0", toggleTrack: "#1C3A2C",
           toggleActive: "#FFF7E9", onToggleActive: "#0B1F16", arcTrack: "#2C4C3C",
-          markerActive: "#FFF7E9", markerIdle: "#6E8C7C", hero: "#1C3A2C", heroText: "#FFF7E9",
+          markerActive: "#FFF7E9", markerIdle: "#6E8C7C", todayRing: "#F5C9A6", hero: "#1C3A2C", heroText: "#FFF7E9",
           heroMeta: "#A9BDB0", heroShadow: SHADOW_DEEP, pattern: "#1A3A2B",
         },
       },
@@ -71,13 +71,13 @@ describe("native mood", () => {
         siang: {
           header: "#3A2617", headerText: "#F5F1E8", headerMeta: "#E6C3A2", toggleTrack: "#4C3322",
           toggleActive: "#F5C9A6", onToggleActive: "#3A1A04", arcTrack: "#6A4A33",
-          markerActive: "#F5C9A6", markerIdle: "#A88A6A", hero: "#232321", heroText: "#F5F1E8",
+          markerActive: "#F5C9A6", markerIdle: "#A88A6A", todayRing: "#F5C9A6", hero: "#232321", heroText: "#F5F1E8",
           heroMeta: "#B5B2AA", heroShadow: SHADOW_DEEP, pattern: null,
         },
         malam: {
           header: "#163D2E", headerText: "#F5F1E8", headerMeta: "#CFE0D2", toggleTrack: "#25553F",
           toggleActive: "#FFF7E9", onToggleActive: "#163D2E", arcTrack: "#2C5A45",
-          markerActive: "#FFF7E9", markerIdle: "#7FA08E", hero: "#1C3A2C", heroText: "#F5F1E8",
+          markerActive: "#FFF7E9", markerIdle: "#7FA08E", todayRing: "#F5C9A6", hero: "#1C3A2C", heroText: "#F5F1E8",
           heroMeta: "#CFE0D2", heroShadow: SHADOW_DEEP, pattern: "#1F4A38",
         },
       },
@@ -99,6 +99,11 @@ describe("native mood", () => {
         });
         it("arc markers reach 3:1 on the header", () => {
           for (const k of ["markerActive", "markerIdle"] as const)
+            expect(contrastRatio(m[k], m.header), `${k} on header`).toBeGreaterThanOrEqual(3);
+        });
+        // The calendar cell sits on the header: the today outline (todayRing) and the selected outline (headerText).
+        it("the calendar outlines (todayRing, headerText) reach 3:1 on the header", () => {
+          for (const k of ["todayRing", "headerText"] as const)
             expect(contrastRatio(m[k], m.header), `${k} on header`).toBeGreaterThanOrEqual(3);
         });
         it("hero text and meta reach 4.5:1 on the hero", () => {
