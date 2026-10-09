@@ -70,7 +70,8 @@ export function RantangTrack({
 
   return (
     <View testID={testID} accessible accessibilityLabel={caption} style={{ gap: 8 }}>
-      <Text variant="label" style={{ color: ink.heroText }}>
+      {/* The caption carries the cooking and departure times, so its figures are tabular. */}
+      <Text variant="label" style={{ color: ink.heroText, fontVariant: ["tabular-nums"] }}>
         {caption}
       </Text>
       <View style={{ paddingHorizontal: INSET }}>

@@ -139,6 +139,32 @@ export const sentences = (p: PlateData, t: (id: string, en: string) => string): 
   }
 };
 
+const capitalise = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/**
+ * The hero's two status lines. The track under the dishes already says where the meal is, so the hero never says it
+ * twice: a scheduled meal ("Terjadwal") and an on-the-way meal without a departure time ("Sedang diantar") are said
+ * by the track alone, and the second line becomes the header. A meal past its window that the kitchen never tapped
+ * says so instead of leaving the bare window. Cards, the other-meal row and Beranda keep `sentences`.
+ */
+export function heroSentences(
+  p: PlateData,
+  t: (id: string, en: string) => string,
+  trackShown: boolean,
+): [string, string] {
+  const [first, second] = sentences(p, t);
+  if (trackShown && (p.state === "scheduled" || (p.state === "on_the_way" && !jakartaClock(p.journey.departedAt))))
+    return [capitalise(second), ""];
+  if (p.state === "due" && p.journey.stage === "scheduled")
+    return [
+      first,
+      p.window
+        ? t(`${p.window} · belum ada catatan dari dapur`, `${p.window} · no update from the kitchen yet`)
+        : t("Belum ada catatan dari dapur", "No update from the kitchen yet"),
+    ];
+  return [first, second];
+}
+
 const HERO_RADIUS = 28;
 
 /**
@@ -208,12 +234,12 @@ function PlateContent({
   const danger = hero && (mood === "malam" || scheme === "dark") ? nativeThemes.dark.danger : c.danger;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [sentence, second] = sentences(plate, t);
   const track = useTrack();
   // The track tells where a meal is on its way. A meal marked as a problem has no honest place on it, so a failed or
   // reported plate keeps its message alone.
   const caption =
     hero && plate.state !== "failed" && plate.state !== "reported" ? journeyCaption(plate.journey, locale) : null;
+  const [sentence, second] = hero ? heroSentences(plate, t, !!caption) : sentences(plate, t);
   const { deliveryId, meal: mealKey, journey } = plate;
   // A meal nobody tapped has no journey to look at yet, and stale offline data is not a view of today.
   const watched = !!caption && !offline && journey.stage !== "scheduled";
@@ -263,7 +289,7 @@ function PlateContent({
           <RNText style={styles.meal}>
             {meal} · {plate.catererName}
           </RNText>
-          <RNText style={styles.sentence} accessibilityRole="header">
+          <RNText testID="plate-sentence" style={styles.sentence} accessibilityRole="header">
             {sentence}
           </RNText>
           {second ? <RNText style={styles.second}>{second}</RNText> : null}

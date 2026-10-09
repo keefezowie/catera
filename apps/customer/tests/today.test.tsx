@@ -342,8 +342,9 @@ it("offline shows the cached day and when it was updated", async () => {
       throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
     }),
   );
-  // No departure time was saved, so the track caption says "Sedang diantar" too; the sentence is the header.
-  expect(await screen.findByRole("header", { name: "Sedang diantar" })).toBeTruthy();
+  // No departure time was saved, so the track says "Sedang diantar" and the header gives the arrival window instead.
+  expect(await screen.findByRole("header", { name: "Tiba sekitar 11.00–13.00" })).toBeTruthy();
+  expect(screen.getAllByText("Sedang diantar")).toHaveLength(1);
   expect(screen.getByTestId("rantang-track").props.accessibilityLabel).toBe("Sedang diantar");
   expect(screen.getByText(/Terakhir diperbarui 06\.12/)).toBeTruthy();
   expect(offline.loadCachedCustomer).toHaveBeenCalledWith("u-c1");
@@ -433,6 +434,8 @@ describe("design tokens", () => {
     expect(contrast).toBeGreaterThanOrEqual(4.5);
     const meal = StyleSheet.flatten(screen.getByText(/^Makan siang · /).props.style);
     expect(meal.opacity ?? 1).toBe(1);
+    // The track caption holds the departure time, so its figures are tabular.
+    expect(StyleSheet.flatten(screen.getByText("Berangkat 10.42").props.style).fontVariant).toContain("tabular-nums");
   });
 
   it("unselected star is outlined and muted", async () => {
@@ -890,16 +893,94 @@ describe("Beranda mood", () => {
 
     const hero = async () => within(await screen.findByTestId("plate-hero"));
 
-    it("shows a meal nobody tapped as Terjadwal in the sentence and in the track, never as Sedang dimasak", async () => {
+    it("says Terjadwal once, in the track, and never Sedang dimasak; the header is when and where", async () => {
       mount(runtimeWith(async () => lunchToday({ status: "scheduled" })));
       const h = await hero();
-      expect(h.getByRole("header", { name: "Terjadwal" })).toBeTruthy();
       const track = h.getByTestId("rantang-track");
       expect(track.props.accessibilityLabel).toBe("Terjadwal");
       expect(within(track).getByText("Terjadwal")).toBeTruthy();
+      expect(h.getAllByText("Terjadwal")).toHaveLength(1);
+      expect(h.getByTestId("plate-sentence").props.children).toBe(`Diantar ${NOT_YET} ke Kantor`);
       expect(h.queryByText("Sedang dimasak")).toBeNull();
       expect(h.queryByText("Dimasak")).toBeNull();
     });
+
+    it("promotes the second line to the header in English too", async () => {
+      (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.locale", "en");
+      mount(runtimeWith(async () => lunchToday({ status: "scheduled" })));
+      const h = await hero();
+      expect(h.getByTestId("plate-sentence").props.children).toBe(`Delivered ${NOT_YET} to Kantor`);
+      expect(h.getAllByText("Scheduled")).toHaveLength(1);
+    });
+
+    it("promotes 'Tiba sekitar' when a meal is on the way with no departure time", async () => {
+      mount(runtimeWith(async () => lunchToday({ status: "out_for_delivery" })));
+      const h = await hero();
+      expect(h.getByTestId("plate-sentence").props.children).toBe(`Tiba sekitar ${NOT_YET}`);
+      expect(h.getAllByText("Sedang diantar")).toHaveLength(1);
+      expect(h.getByTestId("rantang-track").props.accessibilityLabel).toBe("Sedang diantar");
+    });
+
+    it("keeps both lines when the departure time is known", async () => {
+      mount(runtimeWith(async () => lunchToday({ status: "out_for_delivery", departed_at: `${TODAY}T03:42:00Z` })));
+      const h = await hero();
+      expect(h.getByTestId("plate-sentence").props.children).toBe("Sedang diantar");
+      expect(h.getByText(`tiba sekitar ${NOT_YET}`)).toBeTruthy();
+    });
+
+    // The window started at 00.01 and the clock is 12.00, so a meal the kitchen never started is due.
+    const EARLY = "00.01–00.30";
+    const dueMeal = (meal: Partial<DeliveryMeal>) =>
+      lunchToday(meal, { offer: offer({ windows: { lunch: EARLY, dinner: NOT_YET } }) });
+
+    it("says the kitchen has not reported when a due meal is still scheduled", async () => {
+      mount(runtimeWith(async () => dueMeal({ status: "scheduled" })));
+      const h = await hero();
+      expect(h.getByTestId("plate-sentence").props.children).toBe("Seharusnya sudah tiba");
+      expect(h.getByText(`${EARLY} · belum ada catatan dari dapur`)).toBeTruthy();
+      expect(h.getByTestId("rantang-track").props.accessibilityLabel).toBe("Terjadwal");
+    });
+
+    it("says the same in English", async () => {
+      (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.locale", "en");
+      mount(runtimeWith(async () => dueMeal({ status: "scheduled" })));
+      expect((await hero()).getByText(`${EARLY} · no update from the kitchen yet`)).toBeTruthy();
+    });
+
+    it("keeps the bare window when a due meal is being cooked", async () => {
+      mount(runtimeWith(async () => dueMeal({ status: "preparing", cooking_started_at: `${TODAY}T01:10:00Z` })));
+      const h = await hero();
+      expect(h.getByTestId("plate-sentence").props.children).toBe("Seharusnya sudah tiba");
+      expect(h.getByText(EARLY)).toBeTruthy();
+      expect(h.queryByText(/belum ada catatan/)).toBeNull();
+    });
+
+    it.each([
+      ["scheduled", { status: "scheduled" }],
+      ["due, scheduled", { status: "scheduled" }, true],
+      ["cooking with a time", { status: "preparing", cooking_started_at: `${TODAY}T01:10:00Z` }],
+      ["cooking without a time", { status: "preparing" }],
+      ["due, cooking", { status: "preparing", cooking_started_at: `${TODAY}T01:10:00Z` }, true],
+      ["on the way with a time", { status: "out_for_delivery", departed_at: `${TODAY}T03:42:00Z` }],
+      ["on the way without a time", { status: "out_for_delivery" }],
+      ["arrived by the customer", { status: "delivered", confirmed_at: `${TODAY}T04:48:00Z`, confirmed_by: "customer" }],
+      ["arrived by the system", { status: "delivered", confirmed_at: `${TODAY}T04:48:00Z`, confirmed_by: "auto" }],
+      ["arrived without a recorder", { status: "delivered", confirmed_at: `${TODAY}T04:48:00Z` }],
+    ] as [string, Partial<DeliveryMeal>, boolean?][])(
+      "never says the header again in the track caption (%s)",
+      // `due` has a default so that jest-each, which counts parameters, does not take it for a done callback.
+      async (_name, meal, due = false) => {
+        mount(runtimeWith(async () => (due ? dueMeal(meal) : lunchToday(meal))));
+        const h = await hero();
+        const header = h.getByTestId("plate-sentence").props.children;
+        const caption = h.getByTestId("rantang-track").props.accessibilityLabel;
+        expect(header).toBeTruthy();
+        expect(caption).toBeTruthy();
+        expect(header).not.toBe(caption);
+        // Nor does any other line of the hero repeat the caption.
+        expect(h.getAllByText(caption)).toHaveLength(1);
+      },
+    );
 
     it("says Dimasak with the time the kitchen started, while the sentence stays Sedang dimasak", async () => {
       mount(runtimeWith(async () => lunchToday({ status: "preparing", cooking_started_at: `${TODAY}T01:10:00Z` })));
@@ -1024,6 +1105,20 @@ describe("Beranda mood", () => {
       mount(runtime);
       await hero();
       // The app_open count has gone out by now; only the journey view must be missing.
+      await waitFor(() => expect(runtime.api.usage).toHaveBeenCalled());
+      expect(viewed()).toHaveLength(0);
+    });
+
+    it("shows the saved track but never counts journey_viewed for the offline cache", async () => {
+      const state = lunchToday({ status: "preparing", cooking_started_at: `${TODAY}T01:10:00Z` }, {}, "d-count-offline");
+      (offline.loadCachedCustomer as jest.Mock).mockResolvedValue({ savedAt: `${TODAY}T04:00:00.000Z`, data: state });
+      const { runtime, viewed } = countingRuntime(state);
+      runtime.api.customer = jest.fn(async () => {
+        throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
+      }) as unknown as MobileRuntime["api"]["customer"];
+      mount(runtime);
+      const h = await hero();
+      expect(within(h.getByTestId("rantang-track")).getByText("Dimasak 08.10")).toBeTruthy();
       await waitFor(() => expect(runtime.api.usage).toHaveBeenCalled());
       expect(viewed()).toHaveLength(0);
     });
