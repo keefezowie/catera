@@ -21,7 +21,10 @@ const FLICK_MIN_DISTANCE = 20;
 const TAP_SLOP = 10;
 /** A sideways move longer than this, and mostly sideways, is a swipe that turns the page. */
 const SWIPE_DISTANCE = 40;
-/** "Mostly sideways": the horizontal move is this many times the vertical one (the swipe down uses the same ratio). */
+/**
+ * "Mostly sideways": the horizontal move is more than this many times the vertical one (the swipe down uses the same
+ * ratio).
+ */
 const SWIPE_RATIO = 1.5;
 
 /**
@@ -31,7 +34,7 @@ const SWIPE_RATIO = 1.5;
  *   only two gestures on it turn the page:
  *   - A tap, where the finger moved no more than 10dp on either axis between going down and lifting: on the right half
  *     (at the lift point, split at half the window width) it goes forward, on the left half back.
- *   - A sideways swipe of more than 40dp that is mostly sideways (1.5 times the vertical move), in the story
+ *   - A sideways swipe of more than 40dp that is mostly sideways (more than 1.5 times the vertical move), in the story
  *     convention: right to left goes forward, left to right goes back, wherever it starts or lifts.
  *   Any other drag (up, a short slide, a diagonal) does nothing. A button inside the content is a deeper responder and
  *   keeps its own press. The region is not an accessibility element (its buttons stay), so screen readers get the
@@ -42,6 +45,8 @@ const SWIPE_RATIO = 1.5;
  *   text wraps.
  * - A downward drag of more than 80dp, or a fast flick down, closes it through `PanResponder` (no gesture library).
  * - It opens with a fade and a scale from 0.92 to 1 over `nativeMotion.feature`; instantly under reduced motion.
+ * - The bars start 8dp below `topInset`, which defaults to the status-bar inset. A caller drawn below something that
+ *   already covers the status bar (the demo strip) passes 0, so the inset is not added twice.
  */
 export function StoryViewer({
   count,
@@ -50,6 +55,7 @@ export function StoryViewer({
   onClose,
   header,
   closeLabel,
+  topInset,
   children,
 }: {
   count: number;
@@ -58,9 +64,12 @@ export function StoryViewer({
   onClose: () => void;
   header: string;
   closeLabel: string;
+  /** The space above the bars before their own 8dp; the status-bar inset when omitted. */
+  topInset?: number;
   children: ReactNode;
 }) {
   const insets = useSafeAreaInsets();
+  const top = topInset ?? insets.top;
   const { width } = useWindowDimensions();
   const reduced = useReduced();
   const enter = useSharedValue(reduced ? 1 : 0);
@@ -131,7 +140,7 @@ export function StoryViewer({
     >
       <Animated.View
         testID="story-viewer-stage"
-        style={[{ flex: 1, paddingTop: insets.top + 8, paddingBottom: insets.bottom }, stage]}
+        style={[{ flex: 1, paddingTop: top + 8, paddingBottom: insets.bottom }, stage]}
       >
         <View
           testID="story-viewer-bars"

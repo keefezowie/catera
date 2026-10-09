@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Image, Platform, StyleSheet, View } from "react-native";
+import { Image, StyleSheet, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -45,19 +45,31 @@ function leave() {
 const EMPTY: StoryPart[] = [];
 
 /**
- * The story's status-bar glyphs. On its own the story is black up to the top edge, so the glyphs are light. In demo
- * mode the root demo strip owns the top inset (`TopInsetOwner`) and stays under the status bar on Android, where this
- * full-screen modal is drawn inside the stack below the strip; there the strip's theme fill decides, through the same
- * `statusBarStyle` rule every other screen uses with the strip shown (dark glyphs on the light theme's sage, light on
- * the dark theme's). On iOS a full-screen modal is presented over the whole window, strip included, so the story's
- * black is under the status bar again (reasoned from the presentation, not checked on an iOS device).
+ * Whether the demo strip sits under the status bar above the story. `owned` is the root's `TopInsetOwner` signal (the
+ * strip is shown and owns the top inset). On Android this full-screen modal is drawn inside the stack, below the strip,
+ * so the strip stays on top of the story. On iOS a full-screen modal is presented over the whole window, strip
+ * included, so nothing sits above the story (reasoned from the presentation, not checked on an iOS device). `os`
+ * defaults to the running platform.
  */
-function useStoryStatusBar(): "light" | "dark" {
-  const stripOwnsTop = useTopInsetOwned();
+export function storyStripUnder({ owned, os = process.env.EXPO_OS }: { owned: boolean; os?: string }): boolean {
+  return owned && os !== "ios";
+}
+
+/**
+ * The story's top, from the one `storyStripUnder` check. Status bar: on its own the story is black up to the top edge,
+ * so the glyphs are light; with the strip above it, the strip's theme fill decides through the same `statusBarStyle`
+ * rule every other screen uses with the strip shown (dark glyphs on the light theme's sage, light on the dark theme's).
+ * Top inset: the strip already covers the status bar, so the story starts right below it and adds no inset of its own.
+ */
+function useStoryTop(): { statusBar: "light" | "dark"; topInset: number } {
+  const stripUnder = storyStripUnder({ owned: useTopInsetOwned() });
+  const insets = useSafeAreaInsets();
   const { scheme } = useThemePreference();
   const { mood } = useMood();
-  const stripUnder = stripOwnsTop && Platform.OS !== "ios";
-  return stripUnder ? statusBarStyle({ scheme, mood, demo: true }) : "light";
+  return {
+    statusBar: stripUnder ? statusBarStyle({ scheme, mood, demo: true }) : "light",
+    topInset: stripUnder ? 0 : insets.top,
+  };
 }
 
 /**
@@ -91,14 +103,27 @@ export function TomorrowStoryScreen() {
     if (part) markViewed(part);
   }, [part, markViewed]);
 
-  const statusBar = useStoryStatusBar();
+  const { statusBar, topInset } = useStoryTop();
   const close = t("Tutup", "Close");
   let body: ReactNode;
   if (!state && home.loading) {
-    body = <StoryMessage text={t("Memuat menu besok…", "Loading tomorrow's menu…")} closeLabel={close} onClose={leave} />;
+    body = (
+      <StoryMessage
+        text={t("Memuat menu besok…", "Loading tomorrow's menu…")}
+        closeLabel={close}
+        onClose={leave}
+        topInset={topInset}
+      />
+    );
   } else if (!state && home.error) {
     body = (
-      <StoryMessage text={t("Belum bisa memuat", "Could not load yet")} closeLabel={close} onClose={leave} selectable>
+      <StoryMessage
+        text={t("Belum bisa memuat", "Could not load yet")}
+        closeLabel={close}
+        onClose={leave}
+        topInset={topInset}
+        selectable
+      >
         <Button
           variant="secondary"
           label={t("Coba lagi", "Try again")}
@@ -110,7 +135,12 @@ export function TomorrowStoryScreen() {
     );
   } else if (!story || !part) {
     body = (
-      <StoryMessage text={t("Belum ada antaran besok.", "No delivery tomorrow.")} closeLabel={close} onClose={leave} />
+      <StoryMessage
+        text={t("Belum ada antaran besok.", "No delivery tomorrow.")}
+        closeLabel={close}
+        onClose={leave}
+        topInset={topInset}
+      />
     );
   } else {
     const last = index === story.parts.length - 1;
@@ -127,6 +157,7 @@ export function TomorrowStoryScreen() {
         onIndexChange={setAt}
         onClose={leave}
         closeLabel={close}
+        topInset={topInset}
         header={t(
           `Menu besok · ${shortDate(story.date, "id")} · ${index + 1} dari ${story.parts.length}`,
           `Tomorrow's menu · ${shortDate(story.date, "en")} · ${index + 1} of ${story.parts.length}`,
@@ -255,23 +286,31 @@ function StoryPage({
   );
 }
 
-/** Loading, error and empty: a line on the black ground with the same close button, so there is always a way out. */
+/**
+ * Loading, error and empty: a line on the black ground with the same close button, so there is always a way out. Its
+ * top matches the viewer's: 8dp below `topInset`.
+ */
 function StoryMessage({
   text,
   closeLabel,
   onClose,
+  topInset,
   selectable,
   children,
 }: {
   text: string;
   closeLabel: string;
   onClose: () => void;
+  topInset: number;
   selectable?: boolean;
   children?: ReactNode;
 }) {
   const insets = useSafeAreaInsets();
   return (
-    <View style={{ flex: 1, paddingTop: insets.top + 8, paddingBottom: insets.bottom + 16, paddingHorizontal: 16 }}>
+    <View
+      testID="tomorrow-message"
+      style={{ flex: 1, paddingTop: topInset + 8, paddingBottom: insets.bottom + 16, paddingHorizontal: 16 }}
+    >
       <View style={{ alignItems: "flex-end" }}>
         <PressableScale
           accessibilityRole="button"

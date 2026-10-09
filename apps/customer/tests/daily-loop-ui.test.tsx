@@ -351,6 +351,26 @@ describe("StoryViewer", () => {
     expect(onIndexChange).not.toHaveBeenCalled();
   });
 
+  it("starts the bars 8dp below the status-bar inset, or below the topInset a caller passes", () => {
+    // The safe-area mock is a plain jest.fn that restoreAllMocks does not reset, so the default is put back by hand.
+    const insets = require("react-native-safe-area-context").useSafeAreaInsets as jest.Mock;
+    const original = insets.getMockImplementation();
+    insets.mockImplementation(() => ({ top: 24, bottom: 0, left: 0, right: 0 }));
+    try {
+      const view = mount(viewer(0));
+      expect(flat("story-viewer-stage").paddingTop).toBe(24 + 8);
+      view.unmount();
+      mount(
+        <StoryViewer count={2} index={0} onIndexChange={() => {}} onClose={() => {}} header="Menu" closeLabel="Tutup" topInset={0}>
+          <RNText>Isi cerita</RNText>
+        </StoryViewer>,
+      );
+      expect(flat("story-viewer-stage").paddingTop).toBe(8);
+    } finally {
+      insets.mockImplementation(original);
+    }
+  });
+
   it("leaves a button inside the content its own press", () => {
     const onIndexChange = jest.fn();
     const onInner = jest.fn();

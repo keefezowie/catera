@@ -18,7 +18,7 @@ import {
 import { nativeThemes } from "@catera/design-tokens";
 import { Beranda } from "../src/today/Beranda";
 import { TomorrowRow } from "../src/tomorrow/TomorrowRow";
-import { TomorrowStoryScreen } from "../src/tomorrow/TomorrowStory";
+import { storyStripUnder, TomorrowStoryScreen } from "../src/tomorrow/TomorrowStory";
 import { customerLink } from "../src/links";
 import { delivery, offer, subscription, TODAY } from "./fixtures";
 
@@ -467,23 +467,81 @@ describe("Menu besok story", () => {
   });
 });
 
-describe("Menu besok story status bar", () => {
+describe("storyStripUnder", () => {
+  it("puts the strip above the story only when it owns the inset, and not on iOS", () => {
+    expect(storyStripUnder({ owned: true, os: "android" })).toBe(true);
+    expect(storyStripUnder({ owned: false, os: "android" })).toBe(false);
+    expect(storyStripUnder({ owned: true, os: "ios" })).toBe(false);
+    expect(storyStripUnder({ owned: false, os: "ios" })).toBe(false);
+  });
+
+  it("defaults to the running platform, Android in this suite", () => {
+    expect(storyStripUnder({ owned: true })).toBe(true);
+  });
+});
+
+describe("Menu besok story status bar and top inset", () => {
   const glyphs = () => screen.UNSAFE_getByType(StatusBar).props.style as string;
+  const paddingTop = (id: string) => StyleSheet.flatten(screen.getByTestId(id).props.style).paddingTop as number;
   // The root layout's shape in demo mode: the strip owns the top inset over everything below it.
-  const openUnder = async (owned: boolean, scheme: "light" | "dark" = "light") => {
+  const mountUnder = (owned: boolean, read: () => Promise<unknown>, scheme: "light" | "dark" = "light") => {
     pinClock(BEFORE_CUTOFF);
     jest.spyOn(ReactNative, "useColorScheme").mockReturnValue(scheme);
     wrap(
-      runtimeWith(async () => bothState()),
+      runtimeWith(read),
       <ThemeProvider storageKey="tomorrow-status-test">
         <TopInsetOwner owned={owned}>
           <TomorrowStoryScreen />
         </TopInsetOwner>
       </ThemeProvider>,
     );
+  };
+  const openUnder = async (owned: boolean, scheme: "light" | "dark" = "light") => {
+    mountUnder(owned, async () => bothState(), scheme);
     await screen.findByTestId("story-viewer");
     await settle();
   };
+  // A phone with a 24dp status bar. The safe-area mock is a plain jest.fn that restoreAllMocks does not reset, so the
+  // default is put back by hand.
+  const withStatusBarInset = async (run: () => Promise<void>) => {
+    const insets = require("react-native-safe-area-context").useSafeAreaInsets as jest.Mock;
+    const original = insets.getMockImplementation();
+    insets.mockImplementation(() => ({ top: 24, bottom: 0, left: 0, right: 0 }));
+    try {
+      await run();
+    } finally {
+      insets.mockImplementation(original);
+    }
+  };
+
+  it("pads the story by the status-bar inset with no strip, and only its own 8dp below the strip", async () => {
+    await withStatusBarInset(async () => {
+      await openUnder(false);
+      expect(paddingTop("story-viewer-stage")).toBe(24 + 8);
+      screen.unmount();
+      await openUnder(true);
+      expect(paddingTop("story-viewer-stage")).toBe(8);
+    });
+  });
+
+  it("gives the loading, error and empty message the same top as the viewer", async () => {
+    await withStatusBarInset(async () => {
+      mountUnder(false, () => new Promise(() => undefined));
+      await screen.findByText("Memuat menu besok…");
+      await settle();
+      expect(paddingTop("tomorrow-message")).toBe(24 + 8);
+      screen.unmount();
+      mountUnder(true, () => new Promise(() => undefined));
+      await screen.findByText("Memuat menu besok…");
+      await settle();
+      expect(paddingTop("tomorrow-message")).toBe(8);
+      screen.unmount();
+      mountUnder(true, async () => noTomorrowState());
+      await screen.findByText("Belum ada antaran besok.");
+      await settle();
+      expect(paddingTop("tomorrow-message")).toBe(8);
+    });
+  });
 
   it("keeps light glyphs on the story's black when no demo strip sits under the status bar", async () => {
     await openUnder(false);
@@ -499,23 +557,8 @@ describe("Menu besok story status bar", () => {
     expect(glyphs()).toBe("light");
   });
 
-  it("keeps light glyphs on iOS, where the full-screen story covers the strip", async () => {
-    jest.replaceProperty(ReactNative.Platform, "OS", "ios");
-    await openUnder(true, "light");
-    expect(glyphs()).toBe("light");
-  });
-
   it("follows the strip in the loading state too", async () => {
-    pinClock(BEFORE_CUTOFF);
-    jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("light");
-    wrap(
-      runtimeWith(() => new Promise(() => undefined)),
-      <ThemeProvider storageKey="tomorrow-status-test">
-        <TopInsetOwner owned>
-          <TomorrowStoryScreen />
-        </TopInsetOwner>
-      </ThemeProvider>,
-    );
+    mountUnder(true, () => new Promise(() => undefined));
     await screen.findByText("Memuat menu besok…");
     await settle();
     expect(glyphs()).toBe("dark");
