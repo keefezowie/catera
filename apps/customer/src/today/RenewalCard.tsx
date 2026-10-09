@@ -1,7 +1,7 @@
 import { View } from "react-native";
 import { router } from "expo-router";
 import { currency, dayLabel, jakartaDay, type Subscription } from "@catera/domain";
-import { useMobile } from "@catera/mobile-core";
+import { useMobile, useTrack } from "@catera/mobile-core";
 import { Button, Card, fontFor, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { SunriseButton } from "./Plate";
 
@@ -10,6 +10,7 @@ export function RenewalCard({ subscription: s }: { subscription: Subscription })
   const { t, locale } = useMobile();
   const c = useColors();
   const styles = useStyles();
+  const track = useTrack();
   const offer = s.snapshot.offer;
   return (
     <View style={styles.card}>
@@ -27,7 +28,11 @@ export function RenewalCard({ subscription: s }: { subscription: Subscription })
       </Text>
       <SunriseButton
         label={t("Perpanjang", "Renew")}
-        onPress={() => router.push(`/renew/${encodeURIComponent(s.id)}` as never)}
+        onPress={() => {
+          // Every way into a renewal counts, as Lanjutkan paket does on the recap and the plan page.
+          track("renew_started");
+          router.push(`/renew/${encodeURIComponent(s.id)}` as never);
+        }}
       />
     </View>
   );

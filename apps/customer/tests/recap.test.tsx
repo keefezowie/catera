@@ -359,3 +359,22 @@ describe("the plan lines", () => {
     await waitFor(() => expect(screen.queryByTestId("recap-card")).toBeNull());
   });
 });
+
+describe("the renewal card", () => {
+  it("Perpanjang opens the renewal and counts renew_started on each tap", async () => {
+    const usage: UsageMock = jest.fn(async () => undefined);
+    const due = subscription({ id: "s-1", starts_on: addDays(TODAY, -8), ends_on: addDays(TODAY, 3), remaining: 3 });
+    mount(runtimeWith(async () => stateWith([due]), usage));
+    const renew = await screen.findByRole("button", { name: "Perpanjang" });
+    await settle();
+    fireEvent.press(renew);
+    expect(router.push).toHaveBeenCalledWith("/renew/s-1");
+    fireEvent.press(renew);
+    expect(router.push).toHaveBeenCalledTimes(2);
+    const renewals = usage.mock.calls.filter(([name]) => name === "renew_started");
+    expect(renewals).toEqual([
+      ["renew_started", "customer"],
+      ["renew_started", "customer"],
+    ]);
+  });
+});
