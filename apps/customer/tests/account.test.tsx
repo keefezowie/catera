@@ -598,7 +598,7 @@ describe("Beranda: Pilih menu", () => {
       { actions: [{ ...due, id: "payment-ck-9", kind: "payment_action", status: "awaiting_payment", href: "/payment/ck-9" }] },
     );
     renderWith(runtime, <Beranda />);
-    expect(await screen.findByText("Hari ini")).toBeTruthy();
+    expect(await screen.findByText(/^Siang ini,/)).toBeTruthy();
     await waitFor(() => expect(runtime.api.customerActions).toHaveBeenCalled());
     expect(screen.queryByText(/Pilih menu/)).toBeNull();
   });
@@ -607,7 +607,7 @@ describe("Beranda: Pilih menu", () => {
     const runtime = runtimeWith({});
     (runtime.api.customerActions as jest.Mock).mockRejectedValue(new Error("REQUEST_TIMEOUT"));
     renderWith(runtime, <Beranda />);
-    expect(await screen.findByText("Hari ini")).toBeTruthy();
+    expect(await screen.findByText(/^Siang ini,/)).toBeTruthy();
     expect(screen.queryByText(/Pilih menu/)).toBeNull();
   });
 });

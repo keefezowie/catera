@@ -1,12 +1,20 @@
 import { useState } from "react";
-import { Image, StyleSheet, Text as RNText, View, type StyleProp, type ViewStyle } from "react-native";
+import { Image, Linking, StyleSheet, Text as RNText, View, type StyleProp, type ViewStyle } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
 import { router } from "expo-router";
 import { nativeThemes } from "@catera/design-tokens";
-import { errorLabel, type Plate as PlateData } from "@catera/domain";
+import { errorLabel, whatsappUrl, type Plate as PlateData } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { Button, fontFor, PressableScale, Text, themedStyles, useColors } from "@catera/mobile-ui";
-import { ChatKatering } from "../help/ChatKatering";
+import {
+  fontFor,
+  PressableScale,
+  Text,
+  themedStyles,
+  useColors,
+  useMood,
+  useMoodColors,
+  useThemePreference,
+} from "@catera/mobile-ui";
 
 const JAKARTA_OFFSET_MS = 7 * 60 * 60 * 1000;
 
@@ -117,11 +125,78 @@ const sentences = (p: PlateData, t: (id: string, en: string) => string): [string
   }
 };
 
-/** Today's plate: the photo with one status sentence, the dishes and one action. */
-export function Plate({ plate, apiBase, offline }: { plate: PlateData; apiBase: string; offline?: boolean }) {
+/**
+ * The plate's secondary and text buttons. `Button` reads the theme, but the Malam hero is dark in both themes, so the
+ * plate hands in its own inks: the theme's on a card, the hero's on the hero.
+ */
+function PlateButton({
+  label,
+  onPress,
+  variant,
+  ink,
+  edge,
+  disabled,
+  style,
+}: {
+  label: string;
+  onPress: () => void;
+  variant: "secondary" | "text";
+  ink: string;
+  edge: string;
+  disabled?: boolean;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const styles = useStyles();
+  return (
+    <PressableScale
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: !!disabled }}
+      disabled={disabled}
+      haptic={disabled ? "none" : "tap"}
+      onPress={onPress}
+      style={[
+        styles.button,
+        variant === "secondary" ? { borderWidth: 1, borderColor: edge } : styles.textButton,
+        // No fill to grey out, so a disabled button fades, as `Button` does.
+        disabled && { opacity: 0.45 },
+        style,
+      ]}
+    >
+      <RNText style={[styles.buttonLabel, { color: ink }]}>{label}</RNText>
+    </PressableScale>
+  );
+}
+
+/**
+ * Today's plate: the photo with one status sentence, the dishes and one action. As the `hero` it is the Beranda's
+ * raised card: it takes the mood's fill and inks, rides up over the header and keeps every action of the card.
+ */
+export function Plate({
+  plate,
+  apiBase,
+  offline,
+  variant = "card",
+}: {
+  plate: PlateData;
+  apiBase: string;
+  offline?: boolean;
+  variant?: "card" | "hero";
+}) {
   const { command, t, locale } = useMobile();
   const c = useColors();
   const styles = useStyles();
+  const { mood } = useMood();
+  const moodColors = useMoodColors();
+  const { scheme } = useThemePreference();
+  const hero = variant === "hero";
+  // The hero's inks come from the mood, a card's from the theme. Light Malam puts a dark fill under the light theme's
+  // dark inks, so the error text takes the dark theme's danger there.
+  const ink = hero ? moodColors.heroText : c.forest;
+  const quiet = hero ? moodColors.heroMeta : c.muted;
+  const edge = hero ? moodColors.heroMeta : c.secondaryBorder;
+  const onInk = hero ? moodColors.hero : c.cream;
+  const danger = hero && (mood === "malam" || scheme === "dark") ? nativeThemes.dark.danger : c.danger;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [sentence, second] = sentences(plate, t);
@@ -141,8 +216,30 @@ export function Plate({ plate, apiBase, offline }: { plate: PlateData; apiBase: 
   }
 
   return (
-    <View style={styles.card}>
-      <View style={styles.photo}>
+    <View
+      testID={hero ? "plate-hero" : undefined}
+      style={[
+        styles.card,
+        hero && {
+          padding: 10,
+          marginTop: -58,
+          borderRadius: 28,
+          borderWidth: 0,
+          borderCurve: "continuous",
+          backgroundColor: moodColors.hero,
+          boxShadow: moodColors.heroShadow,
+        },
+      ]}
+    >
+      <View
+        testID="plate-photo"
+        style={[
+          styles.photo,
+          hero
+            ? { minHeight: 168, borderRadius: 20, borderCurve: "continuous", overflow: "hidden" }
+            : { height: 268 },
+        ]}
+      >
         {plate.image ? (
           <Image
             accessibilityIgnoresInvertColors
@@ -168,8 +265,20 @@ export function Plate({ plate, apiBase, offline }: { plate: PlateData; apiBase: 
           {second ? <RNText style={styles.second}>{second}</RNText> : null}
         </View>
       </View>
-      <View style={styles.body}>
-        {plate.dishes.length ? <Text>{plate.dishes.join(" · ")}</Text> : <Text variant="caption">{plate.packageName}</Text>}
+      <View style={[styles.body, hero && { paddingHorizontal: 8, paddingTop: 12, paddingBottom: 8 }]}>
+        {plate.dishes.length ? (
+          <Text
+            testID="plate-dishes"
+            variant={hero ? "heading" : "body"}
+            style={hero ? { color: moodColors.heroText } : undefined}
+          >
+            {plate.dishes.join(" · ")}
+          </Text>
+        ) : (
+          <Text testID="plate-dishes" variant="caption" style={hero ? { color: quiet } : undefined}>
+            {plate.packageName}
+          </Text>
+        )}
         {!offline && (plate.state === "on_the_way" || plate.state === "due") ? (
           <View style={styles.row}>
             <SunriseButton
@@ -178,9 +287,11 @@ export function Plate({ plate, apiBase, offline }: { plate: PlateData; apiBase: 
               onPress={() => void run("delivery.confirm", {})}
               style={{ flex: 2 }}
             />
-            <Button
+            <PlateButton
               variant="secondary"
               label={t("Belum", "Not yet")}
+              ink={ink}
+              edge={edge}
               disabled={busy}
               style={{ flex: 1 }}
               onPress={() =>
@@ -191,7 +302,7 @@ export function Plate({ plate, apiBase, offline }: { plate: PlateData; apiBase: 
         ) : null}
         {!offline && plate.state === "arrived" ? (
           <View style={{ gap: 8 }}>
-            <Text variant="caption">
+            <Text variant="caption" style={hero ? { color: quiet } : undefined}>
               {t("Bagaimana rasanya? Hanya katering yang melihat.", "How was it? Only the caterer sees this.")}
             </Text>
             <View style={styles.row}>
@@ -212,12 +323,14 @@ export function Plate({ plate, apiBase, offline }: { plate: PlateData; apiBase: 
                     disabled={busy}
                     haptic={busy ? "none" : "select"}
                     onPress={() => void run("delivery.react", { reaction: value })}
-                    style={[styles.reaction, selected && styles.reactionOn]}
+                    style={[
+                      styles.reaction,
+                      { borderColor: edge },
+                      selected && { backgroundColor: ink, borderColor: ink },
+                    ]}
                   >
-                    <Face kind={value} color={selected ? c.cream : c.forest} />
-                    <RNText style={[styles.reactionLabel, { color: selected ? c.cream : c.forest }]}>
-                      {label}
-                    </RNText>
+                    <Face kind={value} color={selected ? onInk : ink} />
+                    <RNText style={[styles.reactionLabel, { color: selected ? onInk : ink }]}>{label}</RNText>
                   </PressableScale>
                 );
               })}
@@ -226,11 +339,21 @@ export function Plate({ plate, apiBase, offline }: { plate: PlateData; apiBase: 
         ) : null}
         {plate.state === "failed" ? (
           <View style={{ gap: 4 }}>
-            <ChatKatering phone={plate.catererPhone} />
+            {plate.catererPhone ? (
+              <PlateButton
+                variant="secondary"
+                label={t("Chat katering", "Chat caterer")}
+                ink={ink}
+                edge={edge}
+                onPress={() => void Linking.openURL(whatsappUrl("", plate.catererPhone ?? "")).catch(() => undefined)}
+              />
+            ) : null}
             {!offline ? (
-              <Button
+              <PlateButton
                 variant="text"
                 label={t("Ada masalah", "Report a problem")}
+                ink={ink}
+                edge={edge}
                 onPress={() =>
                   router.push(`/masalah/${encodeURIComponent(plate.deliveryId)}?meal=${plate.meal}` as never)
                 }
@@ -239,10 +362,16 @@ export function Plate({ plate, apiBase, offline }: { plate: PlateData; apiBase: 
           </View>
         ) : null}
         {plate.state === "reported" ? (
-          <Button variant="secondary" label={t("Lihat laporan", "View report")} onPress={() => router.push("/bantuan" as never)} />
+          <PlateButton
+            variant="secondary"
+            label={t("Lihat laporan", "View report")}
+            ink={ink}
+            edge={edge}
+            onPress={() => router.push("/bantuan" as never)}
+          />
         ) : null}
         {error ? (
-          <Text selectable style={{ color: c.danger }} testID="plate-error">
+          <Text selectable style={{ color: danger }} testID="plate-error">
             {error}
           </Text>
         ) : null}
@@ -259,7 +388,7 @@ const useStyles = themedStyles((c) => ({
     borderWidth: 1,
     borderColor: c.line,
   },
-  photo: { height: 268, backgroundColor: fixedInk.forest, justifyContent: "flex-end" },
+  photo: { backgroundColor: fixedInk.forest, justifyContent: "flex-end" },
   scrimSoft: { position: "absolute", left: 0, right: 0, bottom: 0, height: "75%", backgroundColor: "rgba(12,30,22,0.22)" },
   chip: {
     position: "absolute",
@@ -287,17 +416,18 @@ const useStyles = themedStyles((c) => ({
     backgroundColor: c.sunrise,
   },
   sunriseLabel: { fontSize: 15, fontFamily: fontFor("800"), color: fixedInk.charcoal },
+  button: { minHeight: 48, borderRadius: 10, paddingHorizontal: 18, alignItems: "center", justifyContent: "center" },
+  textButton: { paddingHorizontal: 4 },
+  buttonLabel: { fontSize: 15, fontFamily: fontFor("700") },
   reaction: {
     flex: 1,
     minHeight: 56,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: c.secondaryBorder,
     alignItems: "center",
     justifyContent: "center",
     gap: 4,
     paddingVertical: 8,
   },
-  reactionOn: { backgroundColor: c.forest, borderColor: c.forest },
   reactionLabel: { fontSize: 13, fontFamily: fontFor("700") },
 }));

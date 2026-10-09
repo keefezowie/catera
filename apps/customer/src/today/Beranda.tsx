@@ -3,12 +3,15 @@ import { ActivityIndicator, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as SecureStore from "expo-secure-store";
 import {
+  dayLabel,
   errorLabel,
+  jakartaDay,
   renewalDue,
   todayPlates,
   trialFollowUp,
   upcomingRows,
   type CustomerState,
+  type Plate as PlateData,
   type Subscription,
 } from "@catera/domain";
 import { useData, useMobile, type MobileRuntime } from "@catera/mobile-core";
@@ -16,16 +19,20 @@ import {
   Button,
   Field,
   fontFor,
+  MoodHeader,
+  PhotoRing,
   PressableRow,
   PressableScale,
   Screen,
   Text,
   themedStyles,
   useColors,
+  useMood,
+  useMoodColors,
 } from "@catera/mobile-ui";
 import { ChatKatering } from "../help/ChatKatering";
 import { EmptyHome } from "./EmptyHome";
-import { jakartaClock, Plate } from "./Plate";
+import { jakartaClock, photoUri, Plate } from "./Plate";
 import { RenewalCard, TrialCard } from "./RenewalCard";
 import { UpcomingRows } from "./UpcomingRows";
 import { MenuDueRows } from "./MenuDueRows";
@@ -59,14 +66,6 @@ function reviewCandidate(state: CustomerState): Subscription | undefined {
   );
 }
 
-function greeting(t: (id: string, en: string) => string, now: Date) {
-  const hour = (now.getUTCHours() + 7) % 24;
-  if (hour < 11) return t("Selamat pagi", "Good morning");
-  if (hour < 15) return t("Selamat siang", "Good afternoon");
-  if (hour < 18) return t("Selamat sore", "Good afternoon");
-  return t("Selamat malam", "Good evening");
-}
-
 /** Beranda: today's plate, the next days, renewal and the package line. */
 export function Beranda() {
   const { actor, ready } = useMobile();
@@ -79,13 +78,49 @@ export function Beranda() {
       </View>
     );
   if (!actor) return <EmptyHome />;
-  return <SignedInHome actorId={actor.id} name={actor.name} />;
+  return <SignedInHome actorId={actor.id} />;
 }
 
-function SignedInHome({ actorId, name }: { actorId: string; name: string }) {
+/** The compact row for the meal the mood is not on: its ring, when it comes and its first dish. One tap switches to it. */
+function OtherMealRow({ plate, apiBase, onPress }: { plate: PlateData; apiBase: string; onPress: () => void }) {
+  const { t } = useMobile();
+  const styles = useStyles();
+  const dinner = plate.meal === "dinner";
+  const label = dinner ? t("Malam ini", "Dinner tonight") : t("Siang ini", "Lunch today");
+  const dish = plate.dishes[0] ?? plate.packageName;
+  return (
+    <PressableScale
+      testID="other-meal-row"
+      accessibilityRole="button"
+      haptic="select"
+      onPress={onPress}
+      style={styles.otherMeal}
+    >
+      {/* The row is the button and speaks for the ring. */}
+      <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+        <PhotoRing
+          uri={photoUri(plate.image, apiBase)}
+          size={60}
+          ring={dinner ? "forest" : "sunrise"}
+          accessibilityLabel={dish}
+        />
+      </View>
+      <View style={{ flex: 1, gap: 2 }}>
+        <Text variant="label" style={{ lineHeight: 18, fontVariant: ["tabular-nums"] }}>
+          {plate.window ? `${label} · ${plate.window}` : label}
+        </Text>
+        <Text style={{ fontFamily: fontFor("700") }}>{dish}</Text>
+      </View>
+    </PressableScale>
+  );
+}
+
+function SignedInHome({ actorId }: { actorId: string }) {
   const { runtime, t, locale } = useMobile();
   const c = useColors();
   const styles = useStyles();
+  const { mood, setMood } = useMood();
+  const palette = useMoodColors();
   const home = useData(`home:customer`, () => loadCustomer(runtime, actorId));
   // Menu choices that are due; Beranda still shows without them (offline or a failed feed).
   const actions = useData("home:actions", () => runtime.api.customerActions(20).catch(() => null));
@@ -93,19 +128,18 @@ function SignedInHome({ actorId, name }: { actorId: string; name: string }) {
   const now = new Date();
 
   if (!state)
-    return home.loading ? (
-      <View style={styles.center}>
-        <ActivityIndicator color={c.forest} />
-      </View>
-    ) : (
-      <Screen>
-        <Text variant="title">Beranda</Text>
-        <View style={{ gap: 4, alignItems: "flex-start" }}>
-          <Text selectable testID="home-error" style={{ color: c.danger }}>
-            {home.error}
-          </Text>
-          <Button variant="text" label={t("Coba lagi", "Try again")} onPress={() => void home.reload()} />
-        </View>
+    return (
+      <Screen header={<MoodHeader title="Beranda" />}>
+        {home.loading ? (
+          <ActivityIndicator color={c.forest} />
+        ) : (
+          <View style={{ gap: 4, alignItems: "flex-start" }}>
+            <Text selectable testID="home-error" style={{ color: c.danger }}>
+              {home.error}
+            </Text>
+            <Button variant="text" label={t("Coba lagi", "Try again")} onPress={() => void home.reload()} />
+          </View>
+        )}
       </Screen>
     );
 
@@ -114,14 +148,52 @@ function SignedInHome({ actorId, name }: { actorId: string; name: string }) {
   const live = state.subscriptions.filter(isLive);
   if (!plates.length && !rows.length && !live.length) return <EmptyHome />;
   const savedAt = home.data?.savedAt;
-  const firstName = name.trim().split(/\s+/)[0] ?? "";
+
+  const today = jakartaDay(now);
+  const meal = mood === "siang" ? "lunch" : "dinner";
+  const heroPlate = plates.find((p) => p.meal === meal);
+  const otherPlate = plates.find((p) => p.meal !== meal);
+  // A second delivery of either meal stays a card below, so no plate with an action is ever dropped.
+  const morePlates = plates.filter((p) => p !== heroPlate && p !== otherPlate);
+  const lead = mood === "siang" ? t("Siang ini,", "Lunch today,") : t("Malam ini,", "Dinner tonight,");
+  const headline = heroPlate
+    ? `${lead}\n${(heroPlate.dishes[0] ?? heroPlate.packageName).toLowerCase()}.`
+    : `${lead}\n${t("tidak ada antaran.", "no delivery.")}`;
+  const next = rows[0];
+  const nextLabel = next ? (locale === "id" ? next.label : dayLabel(next.date, today, "en")) : "";
+  // With nothing in this meal the meta names the next delivery; with something it keeps the date.
+  const meta = !heroPlate && next ? t(`Berikutnya ${nextLabel}`, `Next ${nextLabel}`) : dayLabel(today, today, locale);
 
   return (
-    <Screen>
-      <View style={{ gap: 2 }}>
-        <Text variant="caption">{greeting(t, now)}{firstName ? `, ${firstName}` : ""}</Text>
-        <Text variant="title">{t("Hari ini", "Today")}</Text>
-      </View>
+    <Screen
+      header={
+        <MoodHeader
+          meta={meta}
+          toggle
+          arc
+          overlap={heroPlate ? 58 : 0}
+          title={
+            <Text
+              testID="home-title"
+              variant="title"
+              accessibilityRole="header"
+              style={{ color: palette.headerText }}
+            >
+              {headline}
+            </Text>
+          }
+        />
+      }
+    >
+      {heroPlate ? (
+        <Plate
+          key={`${heroPlate.deliveryId}:${heroPlate.meal}`}
+          variant="hero"
+          plate={heroPlate}
+          apiBase={runtime.apiBase}
+          offline={!!savedAt}
+        />
+      ) : null}
       {savedAt ? (
         <Text variant="caption" style={{ color: c.sunriseInk, fontVariant: ["tabular-nums"] }}>
           {t("Terakhir diperbarui", "Last updated")} {jakartaClock(savedAt)} ·{" "}
@@ -132,12 +204,16 @@ function SignedInHome({ actorId, name }: { actorId: string; name: string }) {
           {home.error}
         </Text>
       ) : null}
-      {plates.map((p) => (
+      {otherPlate ? (
+        <OtherMealRow
+          plate={otherPlate}
+          apiBase={runtime.apiBase}
+          onPress={() => setMood(mood === "siang" ? "malam" : "siang")}
+        />
+      ) : null}
+      {morePlates.map((p) => (
         <Plate key={`${p.deliveryId}:${p.meal}`} plate={p} apiBase={runtime.apiBase} offline={!!savedAt} />
       ))}
-      {!plates.length ? (
-        <Text style={{ color: c.muted }}>{t("Tidak ada pengantaran hari ini.", "No delivery today.")}</Text>
-      ) : null}
       {savedAt ? null : <MenuDueRows items={actions.data?.items ?? []} />}
       <UpcomingRows rows={rows} />
       {live.filter((s) => renewalDue(s, state.subscriptions)).map((s) => (
@@ -292,6 +368,7 @@ function ReviewPrompt({ state }: { state: CustomerState }) {
 
 const useStyles = themedStyles((c) => ({
   center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: c.canvas },
+  otherMeal: { minHeight: 60, flexDirection: "row", alignItems: "center", gap: 12 },
   packageLine: {
     flexDirection: "row",
     alignItems: "center",

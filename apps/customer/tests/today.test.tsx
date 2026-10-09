@@ -6,9 +6,9 @@ import * as ReactNative from "react-native";
 import { Linking, StyleSheet } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Haptics from "expo-haptics";
-import { addDays, type Subscription } from "@catera/domain";
-import { nativeThemes } from "@catera/design-tokens";
-import { ThemeProvider } from "@catera/mobile-ui";
+import { addDays, upcomingRows, type CustomerState, type Offer, type Subscription } from "@catera/domain";
+import { nativeMood, nativeThemes } from "@catera/design-tokens";
+import { MoodProvider, ThemeProvider } from "@catera/mobile-ui";
 import * as Reanimated from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Beranda } from "../src/today/Beranda";
@@ -508,6 +508,244 @@ describe("fixed surfaces in the dark theme", () => {
     expect(ink(screen.getByText("Sudah sampai"))).toBe("#2E2E2E");
     // Control: the fixed inks above would read the same in light, so prove the dark theme was in force.
     expect(StyleSheet.flatten(screen.UNSAFE_getByType(SafeAreaView).props.style).backgroundColor).toBe(nativeThemes.dark.canvas);
+  });
+});
+
+describe("Beranda mood", () => {
+  // The offline test above leaves a cached day behind; these tests read from the network or fail.
+  beforeEach(() => (offline.loadCachedCustomer as jest.Mock).mockResolvedValue(null));
+  afterEach(() => jest.restoreAllMocks());
+
+  const SIANG_NOW = () => new Date("2026-10-09T03:00:00Z"); // 10:00 WIB
+  const MALAM_NOW = () => new Date("2026-10-09T10:00:00Z"); // 17:00 WIB
+
+  const menu = (meal: "lunch" | "dinner", names: string[]) =>
+    ({
+      meal,
+      name: names[0],
+      description: "",
+      image: "",
+      items: names.map((name, i) => ({ id: `${meal}-${i}`, name })),
+    }) as unknown as Offer["menus"][number];
+
+  const dual = (lunch = ["Ayam bakar madu", "Sayur asem"], dinner = ["Sate ayam madura", "Tumis kangkung"]) =>
+    offer({ meal: "both", menus: [menu("lunch", lunch), menu("dinner", dinner)] });
+
+  /** Today brings lunch and dinner; the next days bring lunch only. */
+  function bothMeals(lunch?: string[], dinner?: string[]): CustomerState {
+    const state = customerState(null);
+    state.deliveries.unshift(
+      delivery("d-both", TODAY, {}, {
+        offer: dual(lunch, dinner),
+        meals: [
+          { meal: "lunch", status: "scheduled" },
+          { meal: "dinner", status: "scheduled" },
+        ],
+      }),
+    );
+    return state;
+  }
+
+  function mount(runtime: MobileRuntime, { now = SIANG_NOW, scheme = "light" as "light" | "dark" } = {}) {
+    jest.spyOn(ReactNative, "useColorScheme").mockReturnValue(scheme);
+    return render(
+      <ThemeProvider storageKey="today-mood-test">
+        <MoodProvider now={now}>
+          <MobileProvider runtime={runtime} linkMapper={customerLink}>
+            <Beranda />
+          </MobileProvider>
+        </MoodProvider>
+      </ThemeProvider>,
+    );
+  }
+
+  const title = () => screen.getByTestId("home-title").props.children;
+  const flat = (id: string) => StyleSheet.flatten(screen.getByTestId(id).props.style);
+
+  it("opens in Siang with the lunch dish in the header, the lunch plate as the hero and dinner as a row", async () => {
+    mount(runtimeWith(async () => bothMeals()));
+    expect(await screen.findByTestId("plate-hero")).toBeTruthy();
+    expect(title()).toBe("Siang ini,\nayam bakar madu.");
+    expect(within(screen.getByTestId("plate-hero")).getByText(/^Makan siang · /)).toBeTruthy();
+    const row = screen.getByTestId("other-meal-row");
+    expect(within(row).getByText("Malam ini · 17.00–19.00")).toBeTruthy();
+    expect(within(row).getByText("Sate ayam madura")).toBeTruthy();
+    expect(screen.getAllByTestId("plate-hero")).toHaveLength(1);
+  });
+
+  it("names the date in the header meta", async () => {
+    mount(runtimeWith(async () => bothMeals()));
+    await screen.findByTestId("plate-hero");
+    expect(
+      within(screen.getByTestId("mood-header")).getByText(/^(Senin|Selasa|Rabu|Kamis|Jumat|Sabtu|Minggu) \d+ \w+$/),
+    ).toBeTruthy();
+  });
+
+  it("switches to Malam from the toggle", async () => {
+    mount(runtimeWith(async () => bothMeals()));
+    await screen.findByTestId("plate-hero");
+    fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
+    expect(title()).toBe("Malam ini,\nsate ayam madura.");
+    expect(within(screen.getByTestId("plate-hero")).getByText(/^Makan malam · /)).toBeTruthy();
+    expect(within(screen.getByTestId("other-meal-row")).getByText("Siang ini · 11.00–13.00")).toBeTruthy();
+  });
+
+  it("switches mood when the other-meal row is pressed", async () => {
+    mount(runtimeWith(async () => bothMeals()));
+    await screen.findByTestId("plate-hero");
+    fireEvent.press(screen.getByTestId("other-meal-row"));
+    expect(title()).toBe("Malam ini,\nsate ayam madura.");
+    expect(within(screen.getByTestId("plate-hero")).getByText(/^Makan malam · /)).toBeTruthy();
+  });
+
+  it("opens in Malam in the evening", async () => {
+    mount(runtimeWith(async () => bothMeals()), { now: MALAM_NOW });
+    await screen.findByTestId("plate-hero");
+    expect(title()).toBe("Malam ini,\nsate ayam madura.");
+  });
+
+  it("says nothing is coming in the chosen meal and names the next delivery (ruling B6)", async () => {
+    const state = customerState({ status: "scheduled" });
+    const next = upcomingRows(state, new Date(), 3, "id")[0].label;
+    mount(runtimeWith(async () => state), { now: MALAM_NOW });
+    await screen.findByTestId("home-title");
+    expect(title()).toBe("Malam ini,\ntidak ada antaran.");
+    expect(within(screen.getByTestId("mood-header")).getByText(`Berikutnya ${next}`)).toBeTruthy();
+    expect(screen.queryByTestId("plate-hero")).toBeNull();
+    // Today's lunch is still one tap away.
+    const row = screen.getByTestId("other-meal-row");
+    expect(within(row).getByText("Siang ini · 11.00–13.00")).toBeTruthy();
+    expect(within(row).getByText("Ayam bakar madu")).toBeTruthy();
+    fireEvent.press(row);
+    expect(title()).toBe("Siang ini,\nayam bakar madu.");
+    expect(screen.getByTestId("plate-hero")).toBeTruthy();
+  });
+
+  it("with no delivery at all today still names the next one", async () => {
+    const state = customerState(null);
+    const next = upcomingRows(state, new Date(), 3, "id")[0].label;
+    mount(runtimeWith(async () => state));
+    await screen.findByTestId("home-title");
+    expect(title()).toBe("Siang ini,\ntidak ada antaran.");
+    expect(within(screen.getByTestId("mood-header")).getByText(`Berikutnya ${next}`)).toBeTruthy();
+    expect(screen.queryByTestId("other-meal-row")).toBeNull();
+  });
+
+  it("speaks English when the locale is English", async () => {
+    (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.locale", "en");
+    const state = customerState({ status: "scheduled" });
+    mount(runtimeWith(async () => state), { now: MALAM_NOW });
+    await screen.findByTestId("home-title");
+    expect(title()).toBe("Dinner tonight,\nno delivery.");
+    expect(within(screen.getByTestId("mood-header")).getByText(/^Next /)).toBeTruthy();
+    expect(within(screen.getByTestId("other-meal-row")).getByText("Lunch today · 11.00–13.00")).toBeTruthy();
+  });
+
+  it("lets a long dish name wrap in the title", async () => {
+    const long = "Nasi campur ayam bakar madu pedas manis dengan sambal terasi";
+    expect(long).toHaveLength(60);
+    mount(runtimeWith(async () => bothMeals([long])));
+    await screen.findByTestId("plate-hero");
+    expect(title()).toBe(`Siang ini,\n${long.toLowerCase()}.`);
+    const node = screen.getByTestId("home-title");
+    expect(node.props.numberOfLines).toBeUndefined();
+    expect(node.props.ellipsizeMode).toBeUndefined();
+  });
+
+  it("keeps the hero frame: padding 10, radius 28, raised 58 over the header", async () => {
+    mount(runtimeWith(async () => bothMeals()));
+    await screen.findByTestId("plate-hero");
+    expect(flat("plate-hero")).toMatchObject({
+      padding: 10,
+      borderRadius: 28,
+      marginTop: -58,
+      backgroundColor: nativeMood.light.siang.hero,
+      boxShadow: nativeMood.light.siang.heroShadow,
+    });
+    expect(flat("plate-photo")).toMatchObject({ minHeight: 168, borderRadius: 20 });
+  });
+
+  it("fills the hero from the Malam palette and sets the plate heading in cream", async () => {
+    mount(runtimeWith(async () => bothMeals()), { now: MALAM_NOW });
+    await screen.findByTestId("plate-hero");
+    expect(flat("plate-hero").backgroundColor).toBe("#1C3A2C");
+    expect(flat("plate-hero").boxShadow).toBe(nativeMood.light.malam.heroShadow);
+    expect(flat("plate-dishes").color).toBe("#FFF7E9");
+  });
+
+  it("keeps the hero actions legible on the Malam fill", async () => {
+    const state = bothMeals();
+    state.deliveries[0].meals = [
+      { meal: "lunch", status: "out_for_delivery" },
+      { meal: "dinner", status: "out_for_delivery" },
+    ];
+    mount(runtimeWith(async () => state), { now: MALAM_NOW });
+    await screen.findByTestId("plate-hero");
+    const hero = within(screen.getByTestId("plate-hero"));
+    expect(hero.getByRole("button", { name: "Sudah sampai" })).toBeTruthy();
+    const belum = StyleSheet.flatten(within(hero.getByRole("button", { name: "Belum" })).getByText("Belum").props.style);
+    expect(belum.color).toBe(nativeMood.light.malam.heroText);
+  });
+
+  it("keeps every plate action on the hero", async () => {
+    const state = bothMeals();
+    state.deliveries[0].meals = [
+      { meal: "lunch", status: "delivered", confirmed_at: `${TODAY}T04:48:00Z` },
+      { meal: "dinner", status: "scheduled" },
+    ];
+    const runtime = runtimeWith(async () => state);
+    mount(runtime);
+    const hero = within(await screen.findByTestId("plate-hero"));
+    expect(hero.getByText("Sudah sampai")).toBeTruthy();
+    fireEvent.press(hero.getByRole("button", { name: "Enak" }));
+    await waitFor(() =>
+      expect(runtime.api.command).toHaveBeenCalledWith(
+        "delivery.react",
+        { deliveryId: "d-both", meal: "lunch", reaction: "enak" },
+        expect.any(String),
+      ),
+    );
+  });
+
+  it("keeps a second plate of the same meal below the hero instead of dropping it", async () => {
+    const state = bothMeals();
+    state.deliveries.unshift(delivery("d-second", TODAY, { status: "scheduled" }, { offer: offer({ name: "Paket Kedua" }) }));
+    mount(runtimeWith(async () => state));
+    await screen.findByTestId("plate-hero");
+    expect(screen.getAllByTestId("plate-hero")).toHaveLength(1);
+    expect(screen.getAllByText(/^Makan siang · /).length).toBe(2);
+  });
+
+  it("shows the error state inside a mood header, in dark-safe danger on the canvas", async () => {
+    const runtime = runtimeWith(async () => {
+      throw Object.assign(new Error("REQUEST_FAILED"), { code: "REQUEST_FAILED" });
+    });
+    mount(runtime, { now: MALAM_NOW, scheme: "dark" });
+    const message = await screen.findByTestId("home-error");
+    expect(within(screen.getByTestId("mood-header")).getByText("Beranda")).toBeTruthy();
+    expect(message.props.selectable).toBe(true);
+    expect(StyleSheet.flatten(message.props.style).color).toBe(nativeThemes.dark.danger);
+  });
+
+  it("Coba lagi reloads from the error state", async () => {
+    let fail = true;
+    const runtime = runtimeWith(async () => {
+      if (fail) throw Object.assign(new Error("REQUEST_FAILED"), { code: "REQUEST_FAILED" });
+      return bothMeals();
+    });
+    mount(runtime, { now: MALAM_NOW });
+    await screen.findByTestId("home-error");
+    fail = false;
+    fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
+    expect(await screen.findByTestId("plate-hero")).toBeTruthy();
+    expect(screen.queryByTestId("home-error")).toBeNull();
+  });
+
+  it("shows a header while the first read is loading", async () => {
+    const gate = new Promise<never>(() => undefined);
+    mount(runtimeWith(() => gate));
+    expect(await screen.findByTestId("mood-header")).toBeTruthy();
+    expect(within(screen.getByTestId("mood-header")).getByText("Beranda")).toBeTruthy();
   });
 });
 
