@@ -12,7 +12,10 @@ const cmd = (action: string, payload: object, actor: string = U.customer) =>
 const report = (deliveryId: string, meal: string, actor?: string) =>
   cmd("deliveryIssue.create", { deliveryId, meal, subject: "Belum sampai", body: "Makanan belum datang." }, actor);
 
-/** One of the customer's days moved to `date`, with a meal it serves. */
+/**
+ * One of the customer's days on `date`, with a meal it serves. The seed schedules weekdays from
+ * today+2, so `date` may already be a delivery day; that day is used as is, otherwise one is moved.
+ */
 async function dayOn(date: string): Promise<{ id: string; meal: string }> {
   const row = (
     await db.query<{ id: string; meal: string }>(
@@ -20,11 +23,13 @@ async function dayOn(date: string): Promise<{ id: string; meal: string }> {
        join v1.fulfillments f on f.day_id=d.id
        where s.user_id=$1 and d.status<>'cancelled' and f.status<>'cancelled'
         and not exists(select 1 from v1.delivery_issues i where i.day_id=d.id)
-        and not exists(select 1 from v1.delivery_days x where x.subscription_id=d.subscription_id and x.service_date=$2::date)
-       order by d.service_date desc,d.id limit 1`,
+        and (d.service_date=$2::date
+         or not exists(select 1 from v1.delivery_days x where x.subscription_id=d.subscription_id and x.service_date=$2::date))
+       order by d.service_date=$2::date desc,d.service_date desc,d.id limit 1`,
       [U.customer, date],
     )
   ).rows[0];
+  if (!row) throw new Error(`no customer delivery day can be placed on ${date}`);
   await db.query("update v1.delivery_days set service_date=$2::date where id=$1", [row.id, date]);
   return row;
 }
