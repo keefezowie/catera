@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
-import { Image, StyleSheet } from "react-native";
+import { ActivityIndicator, Image, StyleSheet } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as ImagePicker from "expo-image-picker";
 import type { LibraryDish, MealMenu } from "@catera/domain";
@@ -974,6 +974,69 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       expect(within(screen.getByTestId("menu-dish-photo-i-ayam")).UNSAFE_getByType(Image).props.source).toEqual({ uri: "https://cdn.test/ayam.jpg" });
       expect(screen.queryByText("Mengunggah…")).toBeNull();
       expect(screen.getByRole("button", { name: "Tambah foto, Sayur asem" }).props.accessibilityState.disabled).toBeFalsy();
+    });
+
+    it("keeps Mengunggah… on the day being uploaded, not on another day's dish in the same slot", async () => {
+      pick.mockResolvedValue({ canceled: false, assets: [asset] });
+      upload.mockReturnValue(new Promise(() => undefined));
+      // Friday has the same slots as Thursday, so the same dish ids.
+      mount({ dates: [filled("2026-10-08"), filled("2026-10-09")] });
+      await screen.findByText("Nasi putih");
+      fireEvent.press(ayamPill());
+      expect(await screen.findByText("Mengunggah…")).toBeTruthy();
+      fireEvent.press(screen.getByTestId("menu-day-2026-10-09"));
+      await screen.findByText("Jumat 9 Okt");
+      expect(screen.queryByText("Mengunggah…")).toBeNull();
+      expect(screen.queryByTestId("menu-photo-pending-i-ayam", { includeHiddenElements: true })).toBeNull();
+      expect(screen.getByTestId("menu-photo-tile-i-ayam", { includeHiddenElements: true })).toBeTruthy();
+      // Still one photo at a time: Friday's pill waits too.
+      expect(ayamPill().props.accessibilityState.disabled).toBe(true);
+      // Back on Thursday the upload is still shown.
+      fireEvent.press(screen.getByTestId("menu-day-2026-10-08"));
+      expect(await screen.findByText("Mengunggah…")).toBeTruthy();
+      expect(screen.getByTestId("menu-photo-pending-i-ayam", { includeHiddenElements: true })).toBeTruthy();
+    });
+
+    it("keeps the wait for the fresh week on the saved day only", async () => {
+      pick.mockResolvedValue({ canceled: false, assets: [asset] });
+      upload.mockResolvedValue("https://cdn.test/ayam.jpg");
+      // Every read after the save is stale (no photo, same version), so the wait lasts.
+      const { command, menuMonth } = mount({ dates: () => [filled("2026-10-08"), filled("2026-10-09")] });
+      await screen.findByText("Nasi putih");
+      const reads = menuMonth.mock.calls.length;
+      fireEvent.press(ayamPill());
+      await waitFor(() => expect(command).toHaveBeenCalled());
+      await waitFor(() => expect(menuMonth.mock.calls.length).toBeGreaterThan(reads));
+      await act(async () => undefined);
+      await act(async () => undefined);
+      expect(screen.getByText("Mengunggah…")).toBeTruthy();
+      fireEvent.press(screen.getByTestId("menu-day-2026-10-09"));
+      await screen.findByText("Jumat 9 Okt");
+      expect(screen.queryByText("Mengunggah…")).toBeNull();
+      expect(screen.queryByTestId("menu-photo-pending-i-ayam", { includeHiddenElements: true })).toBeNull();
+      expect(screen.getByTestId("menu-photo-tile-i-ayam", { includeHiddenElements: true })).toBeTruthy();
+      expect(ayamPill().props.accessibilityState.disabled).toBe(true);
+      fireEvent.press(screen.getByTestId("menu-day-2026-10-08"));
+      expect(await screen.findByText("Mengunggah…")).toBeTruthy();
+      expect(screen.getByTestId("menu-photo-pending-i-ayam", { includeHiddenElements: true })).toBeTruthy();
+    });
+
+    it("shows a hidden system spinner in the pill while uploading, and none otherwise", async () => {
+      pick.mockResolvedValue({ canceled: false, assets: [asset] });
+      upload.mockReturnValue(new Promise(() => undefined));
+      mount({ dates: [filled("2026-10-08")] });
+      await screen.findByText("Nasi putih");
+      expect(screen.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
+      fireEvent.press(ayamPill());
+      await screen.findByText("Mengunggah…");
+      const spinner = screen.getByTestId("menu-photo-spinner-i-ayam", { includeHiddenElements: true });
+      expect(spinner.props.size).toBe("small");
+      expect(spinner.props.color).toBe(nativeThemes.light.forest);
+      expect(spinner.props.accessibilityElementsHidden).toBe(true);
+      expect(spinner.props.importantForAccessibility).toBe("no-hide-descendants");
+      // It sits inside the pill, beside the text, and only on the dish being uploaded.
+      expect(within(ayamPill()).getByTestId("menu-photo-spinner-i-ayam", { includeHiddenElements: true })).toBeTruthy();
+      expect(screen.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(1);
     });
 
     it("gives the pills back when the read after the save fails, so the caterer is never stuck", async () => {

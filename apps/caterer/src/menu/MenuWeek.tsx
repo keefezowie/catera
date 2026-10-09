@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Image, ScrollView, Share, useWindowDimensions, View } from "react-native";
+import { ActivityIndicator, Image, ScrollView, Share, useWindowDimensions, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
@@ -157,11 +157,25 @@ function DishRow({
               paddingHorizontal: 16,
               borderRadius: 999,
               backgroundColor: c.sage,
+              flexDirection: "row",
+              gap: 8,
               alignItems: "center",
               justifyContent: "center",
               opacity: busy && !uploading ? 0.45 : 1,
             }}
           >
+            {/* The loading state per DESIGN.md: a spinner beside the saving text. The small system spinner (about
+                20dp) sits inside the 48dp pill, so the row keeps its height. `busy` carries the meaning for screen
+                readers, so the spinner is hidden from them. */}
+            {uploading ? (
+              <ActivityIndicator
+                testID={`menu-photo-spinner-${dish.id}`}
+                size="small"
+                color={c.forest}
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+              />
+            ) : null}
             <Text variant="label" style={{ color: c.forest }}>
               {uploading ? t("Mengunggah…", "Uploading…") : t("Tambah foto", "Add photo")}
             </Text>
@@ -203,7 +217,9 @@ export function MenuWeek() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
-  const [uploadingId, setUploadingId] = useState("");
+  // The dish whose photo is uploading. Dish ids are slot ids that repeat on every day, so the day (and package and
+  // meal) are kept with it: another day's dish in the same slot is not the one being uploaded.
+  const [uploadingDish, setUploadingDish] = useState<{ key: string; date: string; dishId: string } | null>(null);
   const [photoError, setPhotoError] = useState("");
   // One photo at a time, from the tap until the reloaded menu has landed. The ref stops a double tap before a re-render.
   const [photoBusy, setPhotoBusy] = useState(false);
@@ -313,7 +329,7 @@ export function MenuWeek() {
       try {
         const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.8 });
         if (result.canceled || !result.assets?.[0]) return;
-        setUploadingId(dish.id);
+        setUploadingDish({ key: `${offer.id}:${meal}`, date: day.date, dishId: dish.id });
         url = await uploadPhoto(runtime, result.assets[0], demo);
       } catch {
         setPhotoError(t("Foto gagal diunggah. Coba lagi.", "Photo upload failed. Try again."));
@@ -343,7 +359,7 @@ export function MenuWeek() {
     } finally {
       photoBusyRef.current = false;
       setPhotoBusy(false);
-      setUploadingId("");
+      setUploadingDish(null);
     }
   }
 
@@ -388,6 +404,11 @@ export function MenuWeek() {
     </PressableScale>
   );
   const items = selected?.details?.items ?? [];
+  // Only the day the photo belongs to shows it on its way; the same slot on another day is just waiting its turn.
+  const here = `${offer?.id}:${meal}`;
+  const uploadingHere = (dishId: string) =>
+    (uploadingDish?.key === here && uploadingDish.date === selectedDate && uploadingDish.dishId === dishId) ||
+    (waitingForWeek && awaiting?.date === selectedDate && awaiting.dishId === dishId);
   const past = selectedDate < today;
   const onlyMeal = offer?.meal !== "both" ? offer?.meal : undefined;
   const coverWidth = Math.min(220, Math.min(windowWidth, 760) - 40 - 34);
@@ -521,7 +542,7 @@ export function MenuWeek() {
                       key={dish.id}
                       dish={dish}
                       canAddPhoto={canEdit && selected.editable}
-                      uploading={uploadingId === dish.id || (waitingForWeek && awaiting?.dishId === dish.id)}
+                      uploading={uploadingHere(dish.id)}
                       busy={photoBusy || waitingForWeek}
                       onAdd={() => void addPhoto(selected, dish)}
                     />
