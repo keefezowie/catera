@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Image, ScrollView, Share, useWindowDimensions, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
@@ -78,6 +78,9 @@ export function MenuLoadError({ onRetry, title = true }: { onRetry: () => void; 
 }
 
 const SLOT = 48;
+// A day button needs about 48dp plus its gap; the strip fits as many per row as the width allows, evenly.
+const STRIP_SLOT = 54;
+const STRIP_GAP = 6;
 
 /** One dish in the day card: its photo, or a dashed camera tile with a pill to add one. */
 function DishRow({
@@ -192,6 +195,13 @@ export function MenuWeek() {
   const [note, setNote] = useState("");
   const [uploadingId, setUploadingId] = useState("");
   const [photoError, setPhotoError] = useState("");
+  // One photo at a time, from the tap until the reloaded menu has landed. The ref stops a double tap before a re-render.
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const photoBusyRef = useRef(false);
+  // The newest read of the week, so a save made after a slow picker uses the day's current version, not the tapped one.
+  const latestDays = useRef(new Map<string, MenuDay>());
+  // The strip lays itself out from the width it is given; until it is measured, the window stands in.
+  const [stripWidth, setStripWidth] = useState(Math.min(windowWidth, 760) - 40);
   const template = offer ? mealOf(offer, meal) : undefined;
   // Copying and sharing both act on the visible week, so they wait for it and for something in it.
   const weekLoaded = !!days.data;
@@ -207,6 +217,7 @@ export function MenuWeek() {
   // The day on the card: the one tapped, else today, else the next delivery day of the week.
   const selectedDate = dates.includes(picked) ? picked : (dates.find((d) => d >= today) ?? dates[0] ?? "");
   const byDate = new Map((days.data ?? []).map((d) => [d.date, d] as const));
+  latestDays.current = byDate;
   const selected = byDate.get(selectedDate);
 
   async function copyLastWeek() {
@@ -260,33 +271,38 @@ export function MenuWeek() {
 
   /** Pick a photo for one dish of the day, upload it, and save it on that day's menu item only. */
   async function addPhoto(day: MenuDay, dish: Dish) {
-    if (!offer) return;
+    if (!offer || photoBusyRef.current) return;
+    photoBusyRef.current = true;
+    setPhotoBusy(true);
     setPhotoError("");
-    let url: string;
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.8 });
-      if (result.canceled || !result.assets?.[0]) return;
-      setUploadingId(dish.id);
-      url = await uploadPhoto(runtime, result.assets[0], demo);
-    } catch {
-      setPhotoError(t("Foto gagal diunggah. Coba lagi.", "Photo upload failed. Try again."));
-      setUploadingId("");
-      return;
-    }
-    try {
-      await saveMenuDay(
-        { command },
-        {
-          catererId,
-          offer,
-          meal,
-          day,
-          items: (day.details?.items ?? []).map((i) => (i.id === dish.id ? { ...i, image: url } : i)),
-        },
-      );
-    } catch (e) {
-      setPhotoError(errorLabel((e as { code?: string }).code || (e as Error).message, locale) || t("Belum tersimpan.", "Not saved."));
+      let url: string;
+      try {
+        const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.8 });
+        if (result.canceled || !result.assets?.[0]) return;
+        setUploadingId(dish.id);
+        url = await uploadPhoto(runtime, result.assets[0], demo);
+      } catch {
+        setPhotoError(t("Foto gagal diunggah. Coba lagi.", "Photo upload failed. Try again."));
+        return;
+      }
+      // The week may have been reloaded while the picker and the upload ran: save against its newest version.
+      const current = latestDays.current.get(day.date) ?? day;
+      const items = current.details?.items ?? [];
+      if (!items.some((i) => i.id === dish.id)) return;
+      try {
+        await saveMenuDay(
+          { command },
+          { catererId, offer, meal, day: current, items: items.map((i) => (i.id === dish.id ? { ...i, image: url } : i)) },
+        );
+      } catch (e) {
+        setPhotoError(errorLabel((e as { code?: string }).code || (e as Error).message, locale) || t("Belum tersimpan.", "Not saved."));
+      }
+      // A failed save may mean the day moved on (a conflict): read it again so the next try has the right version.
+      await days.reload();
     } finally {
+      photoBusyRef.current = false;
+      setPhotoBusy(false);
       setUploadingId("");
     }
   }
@@ -335,6 +351,10 @@ export function MenuWeek() {
   const past = selectedDate < today;
   const onlyMeal = offer?.meal !== "both" ? offer?.meal : undefined;
   const coverWidth = Math.min(220, Math.min(windowWidth, 760) - 40 - 34);
+  // Seven 54dp slots to a row is the most that reads comfortably; the days are spread evenly over as few rows as fit.
+  const stripRows = Math.max(1, Math.ceil((dates.length * STRIP_SLOT) / stripWidth));
+  const perRow = Math.max(1, Math.ceil(dates.length / stripRows));
+  const buttonWidth = Math.floor((stripWidth - STRIP_GAP * (perRow - 1)) / perRow);
 
   return (
     <Screen
@@ -352,18 +372,28 @@ export function MenuWeek() {
             </View>
           }
         >
-          <View testID="menu-strip" style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+          <View
+            testID="menu-strip"
+            onLayout={(e) => {
+              const width = Math.floor(e.nativeEvent.layout.width);
+              if (width > 0) setStripWidth(width);
+            }}
+            style={{ flexDirection: "row", flexWrap: "wrap", gap: STRIP_GAP }}
+          >
             {dates.map((date) => {
-              const filled = !!byDate.get(date)?.details?.items?.length;
+              // Until the week has been read, a day's fill is not known: say nothing about it rather than "not filled".
+              const filled = weekLoaded && !!byDate.get(date)?.details?.items?.length;
               const isToday = date === today;
               const isSelected = date === selectedDate;
-              const ink = isSelected ? c.cream : m.headerText;
+              // The chosen day inverts the header (mood tokens), so it stands out on every header, Malam included.
+              const ink = isSelected ? m.header : m.headerText;
+              const fill = weekLoaded ? (filled ? t("menu terisi", "menu filled") : t("menu belum diisi", "menu not filled")) : "";
               return (
                 <PressableScale
                   key={date}
                   testID={`menu-day-${date}`}
                   accessibilityRole="button"
-                  accessibilityLabel={`${shortDate(date, locale)}, ${filled ? t("menu terisi", "menu filled") : t("menu belum diisi", "menu not filled")}`}
+                  accessibilityLabel={[shortDate(date, locale), isToday ? t("hari ini", "today") : "", fill].filter(Boolean).join(", ")}
                   accessibilityState={{ selected: isSelected }}
                   haptic="select"
                   onPress={() => {
@@ -371,16 +401,18 @@ export function MenuWeek() {
                     setPhotoError("");
                   }}
                   style={{
-                    flexGrow: 1,
-                    flexBasis: 48,
+                    // Rows are balanced by width, so the last row never stretches.
+                    flexGrow: 0,
+                    flexShrink: 0,
+                    width: buttonWidth,
                     minHeight: 64,
                     paddingVertical: 6,
                     borderRadius: 16,
                     borderCurve: "continuous",
                     borderWidth: 2,
                     // The ring is today; the fill is the chosen day. A day that is neither keeps a quiet outline.
-                    borderColor: isToday ? m.todayRing : isSelected ? c.forest : m.markerIdle,
-                    backgroundColor: isSelected ? c.forest : "transparent",
+                    borderColor: isToday ? m.todayRing : isSelected ? m.headerText : m.markerIdle,
+                    backgroundColor: isSelected ? m.headerText : "transparent",
                     alignItems: "center",
                     justifyContent: "center",
                   }}
@@ -450,7 +482,7 @@ export function MenuWeek() {
                       dish={dish}
                       canAddPhoto={canEdit && selected.editable}
                       uploading={uploadingId === dish.id}
-                      busy={!!uploadingId}
+                      busy={photoBusy}
                       onAdd={() => void addPhoto(selected, dish)}
                     />
                   ))}
@@ -463,11 +495,11 @@ export function MenuWeek() {
             </Text>
           ) : (
             <Text style={{ color: c.sunriseInk, fontFamily: fontFor("700") }}>
-              {canEdit ? t("Belum diisi · isi menu", "Not filled · add menu") : t("Belum diisi", "Not filled")}
+              {t("Belum diisi", "Not filled")}
             </Text>
           )}
           {photoError ? <Text selectable style={{ color: c.danger }}>{photoError}</Text> : null}
-          {canEdit && !past ? (
+          {canEdit && selected.editable ? (
             <Button
               variant="secondary"
               label={t("Ubah menu", "Edit menu")}
@@ -483,8 +515,9 @@ export function MenuWeek() {
             <StoryCover
               uri={photoUri(menuCoverImage(selected.details, offer.image || ""), runtime.apiBase)}
               title={`${mealLabel(meal, locale)} · ${shortDate(selected.date, locale)}`}
-              segments={Math.min(items.length, 8)}
-              active={1}
+              // The customer story has one slide per meal of the package: lunch, and dinner when it serves both.
+              segments={offer.meal === "both" ? 2 : 1}
+              active={offer.meal === "both" && meal === "dinner" ? 2 : 1}
               width={coverWidth}
               height={Math.round(coverWidth * 1.25)}
             />
