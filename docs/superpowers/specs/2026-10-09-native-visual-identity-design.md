@@ -220,7 +220,7 @@ New in this spec:
 - Tomorrow-menu data for the story: per meal, the dish name, sides, caterer, window, image or package image fallback, `menuSet`, and the change deadline. This comes from the same source as `tomorrowReveal`.
 - No new tables. Checklist ticks and viewed-story state stay on the device.
 
-Contrast test: `tests/native-contrast.test.ts` computes WCAG ratios for every text-on-fill and state-icon pair in `nativeThemes` and `nativeMood` (all four combinations) and fails below 4.5:1 for text or 3:1 for state icons and control boundaries. Dark values marked "test" are chosen to pass it.
+Contrast test: `tests/native-contrast.test.ts` computes WCAG ratios for every text-on-fill and state-icon pair in `nativeThemes` and `nativeMood` (all four combinations) and fails below 4.5:1 for text or 3:1 for state icons and control boundaries. The dark values in the tables are chosen to pass it; the `markerIdle`, `todayRing` and `headerText` rows are held to 3:1 on the header, and the decorative `arcTrack` and `pattern` values are exempt.
 
 ## 9. Phases
 
