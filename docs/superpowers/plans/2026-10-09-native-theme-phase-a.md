@@ -1,6 +1,8 @@
 # Native theme foundation (Phase A) Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+>
+> **REQUIRED SKILLS (owner instruction, 2026-10-09; applies to every implementer and every reviewer):** before touching code or reviewing a diff, invoke the Skill tool for `mcpmarket-me:building-native-ui`, `antislop:antislop`, `antislop:antislop-ui` and `antislop:antislop-layoutmobile`, and apply them. antislop mode is already resolved as **after (session override)**: do not ask the mode question. The concrete rules these skills impose on this plan are listed under "Skill rules" in Global Constraints.
 
 **Goal:** Make both native apps fully themeable (light and dark, following the system or the user's Tampilan choice) with no visible change in light mode, as the base for the mood identity in Phase B.
 
@@ -24,6 +26,45 @@
 - Only transform and opacity animate. A theme change is not animated.
 - Contrast: text at least 4.5:1 on its fill; `controlRing` at least 3:1 on `surface`, enforced by `tests/native-contrast.test.ts`.
 - antislop mode: after (session override). The Delivery Gate runs in Task 8.
+
+### Skill rules
+
+From `building-native-ui`:
+- Read context with `React.use(Context)`, never `useContext`, in new or rewritten code.
+- New platform checks use `process.env.EXPO_OS`, not `Platform.OS`. See ruling R1 for the two existing ones in `Screen`.
+- New styles are inline objects. An existing file whose module-level `StyleSheet.create` reads colours migrates to `themedStyles` (a memoised stylesheet per theme). This is the skill's "unless reusing styles is faster" exception, because those styles are shared by every render of the component.
+- Shadows only through `boxShadow`, never `shadowColor`/`shadowOffset`/`elevation`. None exist today; none may be added.
+- Storage through `expo-secure-store` only (never `AsyncStorage`).
+- `Text` forwards a `selectable` prop (Task 3). Every error message touched in Tasks 6 and 7 sets `selectable`, so users can copy it into a support message.
+- Counters keep `fontVariant: ["tabular-nums"]`.
+
+From `antislop` (core):
+- R-21 and R-34: light and dark must both fully work.
+- R-25: contrast is checked by test (Task 1) and by eye on the emulator (Task 8).
+- R-27: loading, error and empty states keep working in dark mode.
+- R-35: run the apps and record a click-through, not a claim.
+- R-02: no em dashes in copy or comments.
+- R-23: no new assets.
+- **R-33: the colour migration is written by hand in each source file. No codemod, `sed`, regex-rewrite or patch script may edit source, and none may be committed.**
+
+From `antislop-ui`:
+- A theme is a decision, not a default: dark is offered because the owner asked for it, and the app follows the system unless the user chooses.
+- No new decoration: no glow, gradient, glass or extra shadow appears in dark mode.
+- The single accent (Sunrise ink) stays limited to the places it marks in light mode.
+
+From `antislop-layoutmobile`:
+- Every control stays at least 48dp, with spacing between adjacent targets.
+- No text escapes its container and nothing scrolls horizontally, at font scale 1.0 and 1.3, in both themes (checked in Task 8).
+- The bottom tab bar never covers content.
+- Native screens are phone-width only and capped at 760, so tablet widths are out of scope for this phase.
+
+### Rulings on skill conflicts (made 2026-10-09; repo conventions win)
+
+- **R1:** `Screen` keeps its two `Platform.OS` checks. `apps/customer/tests/ui-foundation.test.tsx` switches platforms at runtime with `jest.replaceProperty(Platform, "OS", "ios")`, and `process.env.EXPO_OS` is inlined at build time, so converting them would break that coverage. Cost if wrong: two lines to convert later.
+- **R2:** Component files keep the repo's PascalCase names (`AppHeader.tsx`, `PressableRow.tsx`). The new module is `theme.tsx`, which satisfies both conventions. Cost if wrong: renames only.
+- **R3:** Pushed screens keep the shared `AppHeader` (DESIGN.md, Native motion) instead of native Stack titles.
+- **R4:** Haptics stay on both platforms, as recorded in DESIGN.md, rather than iOS-only.
+- **R5:** The `@expo/vector-icons` Ionicons set stays (DESIGN.md, Navigation), instead of SF Symbols through `expo-image`, because SF Symbols do not render on Android.
 
 ## Review Focus
 
@@ -191,6 +232,7 @@ git commit -m "feat(mobile-ui): theme provider with stored preference and themed
 - `Screen and AppHeader paint the dark canvas`: `#151514`.
 - `an open Sheet repaints when the theme changes` (Review Focus 3): render a `Sheet` with `visible` under light, call `setPreference("dark")` through a probe button inside the tree, and expect the sheet surface to be `#232321`.
 - `explicit style colour still wins over the variant`: `<Text style={{ color: "#123456" }}>` (test-only literal) renders `#123456`.
+- `Text forwards selectable`: `<Text selectable>` renders an RN `Text` with `selectable === true`.
 
 - [ ] **Step 2: Run them and confirm they fail**
 
@@ -199,7 +241,7 @@ Expected: the new dark cases FAIL (light colours rendered); existing cases PASS.
 
 - [ ] **Step 3: Migrate the three files**
 
-Replace the module-level `StyleSheet.create` calls that read `colors` with `const useStyles = themedStyles((c) => ({ ... }))` and `const styles = useStyles()` inside each component. Replace inline `colors.x` with `c.x` from `useColors()`. `Text` merges `{ color: palette[variantColor[variant]] }` before the caller's `style`.
+Replace the module-level `StyleSheet.create` calls that read `colors` with `const useStyles = themedStyles((c) => ({ ... }))` and `const styles = useStyles()` inside each component. Replace inline `colors.x` with `c.x` from `useColors()`. `Text` merges `{ color: palette[variantColor[variant]] }` before the caller's `style`, and accepts and forwards `selectable?: boolean`. Edit by hand (R-33).
 
 - [ ] **Step 4: Run the whole customer and Dapur native suites**
 
@@ -313,7 +355,9 @@ Expected: FAIL, listing the 37 files.
 - Module-level `StyleSheet.create` that reads colours becomes `themedStyles`.
 - A module-level constant or helper that maps state to a colour takes the palette as its first parameter (for example `toneFor(c, state)`).
 - Keep the named literal exceptions (QRIS `#FFFFFF`, `rgba` overlays) as they are.
-- Do not change layout, copy or behaviour.
+- Error messages rendered in `danger` gain `selectable` (Skill rules).
+- Do not change layout, copy or behaviour otherwise.
+- Edit each file by hand. No codemod, `sed` or rewrite script (R-33).
 
 - [ ] **Step 4: Run the guard and the full customer suite**
 
@@ -346,7 +390,7 @@ git commit -m "refactor(customer): read colours from the active theme"
 Run: `npx vitest run tests/native-theme-guard.test.ts`
 Expected: FAIL, listing the 19 Dapur files and the re-export.
 
-- [ ] **Step 3: Migrate**, using the same rules as Task 6. Also update `apps/customer/tests/ui-foundation.test.tsx`, which imports `colors` from `@catera/mobile-ui`: import `nativeThemes` from `@catera/design-tokens` and read `nativeThemes.light.x`.
+- [ ] **Step 3: Migrate**, using the same rules as Task 6 (by hand, error messages `selectable`, no rewrite scripts). Also update `apps/customer/tests/ui-foundation.test.tsx`, which imports `colors` from `@catera/mobile-ui`: import `nativeThemes` from `@catera/design-tokens` and read `nativeThemes.light.x`.
 
 - [ ] **Step 4: Run everything**
 
@@ -385,9 +429,18 @@ Expected: all PASS.
 
 - [ ] **Step 3: Click-through (R-35)**: in dark mode, press every control on Beranda, Jadwal, Jelajah, Akun, Hari ini, Pelanggan, Menu and Usaha, plus one sheet per app. Record element, action, result.
 
-- [ ] **Step 4: Write `anti-slop/audit-002-2026-10-09.md`**: the four Delivery Gate blocks with evidence lines, the dials as in DESIGN.md (customer ENERGY 2 / RHYTHM 2 / MOTION 2; Dapur 1 / 1 / 1), and the click-through list. Any FAIL is fixed before Step 5.
+- [ ] **Step 4: Layout check (antislop-layoutmobile)**: with `adb shell settings put system font_scale 1.3`, revisit every tab screen and the Tampilan row in both themes. Record any text that escapes its container, any horizontal scroll, any control under 48dp, or content hidden behind the tab bar. Restore `font_scale 1.0` afterwards.
 
-- [ ] **Step 5: Update DESIGN.md and commit**
+- [ ] **Step 5: Write `anti-slop/audit-002-2026-10-09.md`** with:
+  - The four core Delivery Gate blocks, each line with evidence.
+  - The antislop-ui "UI Skill Checklist" and the antislop-layoutmobile "Layoutmobile Skill Checklist", each line with evidence.
+  - The dials as in DESIGN.md (customer ENERGY 2 / RHYTHM 2 / MOTION 2; Dapur 1 / 1 / 1).
+  - The click-through list and the font-scale findings.
+  - A building-native-ui compliance line for each Skill rule.
+
+  Any FAIL is fixed before Step 6.
+
+- [ ] **Step 6: Update DESIGN.md and commit**
 
 ```bash
 git add DESIGN.md anti-slop/audit-002-2026-10-09.md output/native-review/visual-a
@@ -398,4 +451,4 @@ git commit -m "docs(design): native dark theme and Tampilan setting, Phase A gat
 
 ## Later plans
 
-Phases B (mood identity), C (daily loop, which absorbs the October 8 Phase 2 backend) and D (purchase and renewal beats) get their own plans after Phase A lands, because they build on `useColors` and `themedStyles` and on the emulator findings from Task 8.
+Phases B (mood identity), C (daily loop, which absorbs the October 8 Phase 2 backend) and D (purchase and renewal beats) get their own plans after Phase A lands, because they build on `useColors` and `themedStyles` and on the emulator findings from Task 8. Each of those plans carries the same REQUIRED SKILLS header, its own Skill rules section and the rulings above.
