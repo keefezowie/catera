@@ -1,20 +1,20 @@
-import { useEffect, useState } from "react";
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from "react-native-reanimated";
+import { useState } from "react";
 import { Image, Linking, StyleSheet, Text as RNText, View, type StyleProp, type ViewStyle } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
 import { router } from "expo-router";
-import { nativeMotion, nativeThemes } from "@catera/design-tokens";
+import { nativeThemes } from "@catera/design-tokens";
 import { errorLabel, whatsappUrl, type Plate as PlateData } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
 import {
+  Button,
   fontFor,
+  MoodFill,
   PressableScale,
   Text,
   themedStyles,
   useColors,
   useMood,
   useMoodColors,
-  useReduced,
   useThemePreference,
 } from "@catera/mobile-ui";
 
@@ -94,7 +94,8 @@ function Face({ kind, color }: { kind: Reaction; color: string }) {
   );
 }
 
-const sentences = (p: PlateData, t: (id: string, en: string) => string): [string, string] => {
+/** The plate's status as two lines: what is happening, and when or where. The hero, a card and the other-meal row all say it this way. */
+export const sentences = (p: PlateData, t: (id: string, en: string) => string): [string, string] => {
   switch (p.state) {
     case "cooking":
       return [
@@ -127,73 +128,13 @@ const sentences = (p: PlateData, t: (id: string, en: string) => string): [string
   }
 };
 
-/**
- * The plate's secondary and text buttons. `Button` reads the theme, but the Malam hero is dark in both themes, so the
- * plate hands in its own inks: the theme's on a card, the hero's on the hero.
- */
-function PlateButton({
-  label,
-  onPress,
-  variant,
-  ink,
-  edge,
-  disabled,
-  style,
-}: {
-  label: string;
-  onPress: () => void;
-  variant: "secondary" | "text";
-  ink: string;
-  edge: string;
-  disabled?: boolean;
-  style?: StyleProp<ViewStyle>;
-}) {
-  const styles = useStyles();
-  return (
-    <PressableScale
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ disabled: !!disabled }}
-      disabled={disabled}
-      haptic={disabled ? "none" : "tap"}
-      onPress={onPress}
-      style={[
-        styles.button,
-        variant === "secondary" ? { borderWidth: 1, borderColor: edge } : styles.textButton,
-        // No fill to grey out, so a disabled button fades, as `Button` does.
-        disabled && { opacity: 0.45 },
-        style,
-      ]}
-    >
-      <RNText style={[styles.buttonLabel, { color: ink }]}>{label}</RNText>
-    </PressableScale>
-  );
-}
-
-const heroEase = Easing.bezier(...nativeMotion.ease);
-
-/**
- * 0 in Siang, 1 in Malam, easing between them over the content duration when the mood changes. Under reduced motion
- * callers read `target` directly, so the change is instant on both threads.
- */
-function useHeroFade(): { progress: SharedValue<number>; target: 0 | 1; reduced: boolean } {
-  const { mood } = useMood();
-  const reduced = useReduced();
-  const target = mood === "malam" ? 1 : 0;
-  const progress = useSharedValue<number>(target);
-  useEffect(() => {
-    progress.value = reduced ? target : withTiming(target, { duration: nativeMotion.content, easing: heroEase });
-  }, [progress, target, reduced]);
-  return { progress, target, reduced };
-}
-
 const HERO_RADIUS = 28;
 
 /**
  * Today's plate: the photo with one status sentence, the dishes and one action. As the `hero` it is the Beranda's
- * raised card: two stacked fills (Siang, and Malam fading over it), riding up over the header. The frame stays
- * mounted when the mood switches, so the fills cross-fade; only its content is keyed to the plate. The shadow sits on
- * the base fill and switches with the mood.
+ * raised card: a `MoodFill` (Siang, and Malam fading over it) riding up over the header. The frame stays mounted when
+ * the mood switches, so the fills cross-fade; only its content is keyed to the plate. The shadow sits on the base fill
+ * and switches with the mood. A `card` plate has no mood of its own and reads the theme.
  */
 export function Plate({
   plate,
@@ -207,11 +148,6 @@ export function Plate({
   variant?: "card" | "hero";
 }) {
   const styles = useStyles();
-  const siang = useMoodColors("siang");
-  const malam = useMoodColors("malam");
-  const current = useMoodColors();
-  const { progress, target, reduced } = useHeroFade();
-  const fade = useAnimatedStyle(() => ({ opacity: progress.value }));
   const content = (
     <PlateContent
       key={`${plate.deliveryId}:${plate.meal}`}
@@ -222,32 +158,13 @@ export function Plate({
     />
   );
   if (variant !== "hero") return <View style={styles.card}>{content}</View>;
-  const layer = {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: HERO_RADIUS,
-    borderCurve: "continuous",
-  } as const;
   return (
     <View
       testID="plate-hero"
       // Not clipped: the shadow of each fill falls outside the frame.
       style={{ padding: 10, marginTop: -74, borderRadius: HERO_RADIUS, borderCurve: "continuous" }}
     >
-      <View
-        testID="plate-hero-fill-siang"
-        pointerEvents="none"
-        // The base layer carries the one shadow, from the current mood's token, so a rest state never stacks two.
-        style={[layer, { backgroundColor: siang.hero, boxShadow: current.heroShadow }]}
-      />
-      <Animated.View
-        testID="plate-hero-fill-malam"
-        pointerEvents="none"
-        style={[layer, { backgroundColor: malam.hero }, reduced ? { opacity: target } : fade]}
-      />
+      <MoodFill surface="hero" testID="plate-hero-fill" radius={HERO_RADIUS} heroShadow />
       {content}
     </View>
   );
@@ -358,7 +275,7 @@ function PlateContent({
               onPress={() => void run("delivery.confirm", {})}
               style={{ flex: 2 }}
             />
-            <PlateButton
+            <Button
               variant="secondary"
               label={t("Belum", "Not yet")}
               ink={ink}
@@ -411,7 +328,7 @@ function PlateContent({
         {plate.state === "failed" ? (
           <View style={{ gap: 4 }}>
             {plate.catererPhone ? (
-              <PlateButton
+              <Button
                 variant="secondary"
                 label={t("Chat katering", "Chat caterer")}
                 ink={ink}
@@ -420,7 +337,7 @@ function PlateContent({
               />
             ) : null}
             {!offline ? (
-              <PlateButton
+              <Button
                 variant="text"
                 label={t("Ada masalah", "Report a problem")}
                 ink={ink}
@@ -433,7 +350,7 @@ function PlateContent({
           </View>
         ) : null}
         {plate.state === "reported" ? (
-          <PlateButton
+          <Button
             variant="secondary"
             label={t("Lihat laporan", "View report")}
             ink={ink}
@@ -487,9 +404,6 @@ const useStyles = themedStyles((c) => ({
     backgroundColor: c.sunrise,
   },
   sunriseLabel: { fontSize: 15, fontFamily: fontFor("800"), color: fixedInk.charcoal },
-  button: { minHeight: 48, borderRadius: 10, paddingHorizontal: 18, alignItems: "center", justifyContent: "center" },
-  textButton: { paddingHorizontal: 4 },
-  buttonLabel: { fontSize: 15, fontFamily: fontFor("700") },
   reaction: {
     flex: 1,
     minHeight: 56,

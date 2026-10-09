@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { StyleSheet, Text as RNText, View, type LayoutChangeEvent } from "react-native";
+import { Text as RNText, View, type LayoutChangeEvent } from "react-native";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -7,7 +7,8 @@ import { nativeMotion } from "@catera/design-tokens";
 import { DayArc } from "./brand/DayArc";
 import { MalamPattern } from "./brand/MalamPattern";
 import { useMoodProgress } from "./brand/useMoodProgress";
-import { Text } from "./components";
+import { RoundButton, Text } from "./components";
+import { MoodFill } from "./MoodFill";
 import { useMood, useMoodColors, useMoodLabels } from "./mood";
 import { PressableScale } from "./motion";
 import { useTopInsetOwned } from "./TopInset";
@@ -110,11 +111,17 @@ const isText = (node: ReactNode): node is string | number => typeof node === "st
  * The rounded block that opens a screen. It paints under the status bar and pays that inset itself (unless the demo
  * strip already does), and holds the meta line, the headline, an optional toggle or trailing control, an optional day
  * arc and anything else the screen puts in it. `overlap` leaves room at the bottom for a card that rides up over it.
- * Its fill is two stacked layers, Siang and Malam, and the Malam one fades in and out.
+ * Its fill is `MoodFill`: two stacked layers, Siang and Malam, and the Malam one fades in and out.
+ * - A string `title` is set in the `title` variant (30/39), which holds a long, dynamic name at large font scales. A
+ *   short fixed headline can opt into `titleVariant="display"` (34/40).
+ * - `onBack` puts the 48dp round back button in the meta slot (in place of `meta`), labelled `backLabel`.
  */
 export function MoodHeader({
   meta,
   title,
+  titleVariant = "title",
+  onBack,
+  backLabel = "Kembali",
   trailing,
   toggle = false,
   arc = false,
@@ -124,6 +131,9 @@ export function MoodHeader({
 }: {
   meta?: ReactNode;
   title: ReactNode;
+  titleVariant?: "title" | "display";
+  onBack?: () => void;
+  backLabel?: string;
   trailing?: ReactNode;
   toggle?: boolean;
   arc?: boolean;
@@ -133,13 +143,10 @@ export function MoodHeader({
 }) {
   const insets = useSafeAreaInsets();
   const topOwned = useTopInsetOwned();
-  const siang = useMoodColors("siang");
-  const malam = useMoodColors("malam");
   const palette = useMoodColors();
-  const { progress, target, reduced } = useMoodProgress(nativeMotion.content);
-  const fade = useAnimatedStyle(() => ({ opacity: progress.value }));
   const radius = overlap === 58 ? 32 : 28;
-  const hasRow = meta != null || toggle || trailing != null;
+  const lead = onBack ? <RoundButton icon="chevron-back" label={backLabel} onPress={onBack} /> : meta;
+  const hasRow = lead != null || toggle || trailing != null;
 
   return (
     <View
@@ -153,20 +160,11 @@ export function MoodHeader({
         borderCurve: "continuous",
       }}
     >
-      <View
-        testID="mood-fill-siang"
-        pointerEvents="none"
-        style={[StyleSheet.absoluteFill, { backgroundColor: siang.header }]}
-      />
-      <Animated.View
-        testID="mood-fill-malam"
-        pointerEvents="none"
-        style={[StyleSheet.absoluteFill, { backgroundColor: malam.header }, reduced ? { opacity: target } : fade]}
-      >
+      <MoodFill surface="header" testID="mood-fill">
         {/* In the Malam layer, so the lunchboxes fade in and out with the fill instead of snapping. Below the toggle
             row, so they show beside the headline instead of hiding behind the toggle. */}
         <MalamPattern mood="malam" top={(topOwned ? 0 : insets.top) + 12 + 54 + 4} />
-      </Animated.View>
+      </MoodFill>
       <View
         testID="mood-header-content"
         style={{ maxWidth: 760, width: "100%", alignSelf: "center", paddingHorizontal: 20, gap: 12 }}
@@ -174,19 +172,19 @@ export function MoodHeader({
         {hasRow ? (
           <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
             <View style={{ flex: 1 }}>
-              {isText(meta) ? (
+              {isText(lead) ? (
                 <Text variant="label" style={{ color: palette.headerMeta, lineHeight: 18 }}>
-                  {meta}
+                  {lead}
                 </Text>
               ) : (
-                meta
+                lead
               )}
             </View>
             <View style={{ flexShrink: 0 }}>{toggle ? <MoodToggle /> : trailing}</View>
           </View>
         ) : null}
         {isText(title) ? (
-          <Text variant="display" accessibilityRole="header" style={{ color: palette.headerText }}>
+          <Text variant={titleVariant} accessibilityRole="header" style={{ color: palette.headerText }}>
             {title}
           </Text>
         ) : (

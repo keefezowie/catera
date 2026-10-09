@@ -355,6 +355,31 @@ describe("disabled look survives reduced motion", () => {
   });
 });
 
+describe("Button on a surface the theme does not own", () => {
+  const style = (name: string) => StyleSheet.flatten(screen.getByRole("button", { name }).props.style);
+  const labelColor = (name: string) =>
+    StyleSheet.flatten(screen.getByText(name).props.style).color;
+
+  test("ink sets the label colour and edge the border of a secondary button", () => {
+    render(<Button label="Belum" variant="secondary" ink="#FFF7E9" edge="#8FB59F" onPress={() => {}} />);
+    expect(labelColor("Belum")).toBe("#FFF7E9");
+    expect(style("Belum")).toMatchObject({ borderWidth: 1, borderColor: "#8FB59F", minHeight: 48 });
+  });
+
+  test("ink colours a text button and a disabled one still fades", () => {
+    render(<Button label="Ada masalah" variant="text" ink="#FFF7E9" edge="#8FB59F" disabled onPress={() => {}} />);
+    expect(labelColor("Ada masalah")).toBe("#FFF7E9");
+    expect(style("Ada masalah").borderWidth).toBeUndefined();
+    expect(style("Ada masalah").opacity).toBe(0.45);
+  });
+
+  test("without ink and edge it reads the theme, as before", () => {
+    render(<Button label="Salin" variant="secondary" onPress={() => {}} />);
+    expect(labelColor("Salin")).toBe(nativeThemes.light.forest);
+    expect(style("Salin").borderColor).toBe(nativeThemes.light.secondaryBorder);
+  });
+});
+
 describe("Sheet and Screen details", () => {
   afterEach(() => {
     jest.restoreAllMocks();

@@ -18,6 +18,9 @@ import { nativeMood, nativeThemes } from "@catera/design-tokens";
 
 const touch = { nativeEvent: { touches: [], changedTouches: [] }, persist() {} };
 
+// The date button's accessible name starts with its visible date and ends with the action.
+const CHANGE_DAY = /, ganti hari$/;
+
 const pinToday = () =>
   jest.useFakeTimers({
     now: new Date("2026-10-08T03:00:00Z"),
@@ -196,14 +199,14 @@ it("opens on the day a notification points to", async () => {
 it("keeps the day toggle for a kitchen with packages on a day without deliveries", async () => {
   renderToday(runtimeWith(async () => quietDay()));
   expect(await screen.findByText("Tidak ada masakan untuk hari ini.")).toBeTruthy();
-  expect(screen.getByRole("button", { name: "Ganti hari, sekarang Hari ini" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: CHANGE_DAY })).toBeTruthy();
   expect(screen.queryByText("Siapkan dapur Anda")).toBeNull();
 });
 
 it("never shows helpers the owner setup steps", async () => {
   renderToday(runtimeWith(async () => emptyDay(), { ...owner, role: "staff" }));
   expect(await screen.findByText("Tidak ada masakan untuk hari ini.")).toBeTruthy();
-  expect(screen.getByRole("button", { name: "Ganti hari, sekarang Hari ini" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: CHANGE_DAY })).toBeTruthy();
   expect(screen.queryByText("Siapkan dapur Anda")).toBeNull();
 });
 
@@ -363,7 +366,7 @@ describe("session cards", () => {
   it("words the empty state for tomorrow", async () => {
     renderToday(runtimeWith(async () => quietDay()));
     await screen.findByText("Tidak ada masakan untuk hari ini.");
-    fireEvent.press(screen.getByRole("button", { name: "Ganti hari, sekarang Hari ini" }));
+    fireEvent.press(screen.getByRole("button", { name: CHANGE_DAY }));
     expect(await screen.findByText("Tidak ada masakan untuk besok.")).toBeTruthy();
   });
 });
@@ -418,10 +421,12 @@ describe("Hari ini by mood", () => {
   it("titles the header with the date, a button that switches between today and tomorrow", async () => {
     pinToday();
     renderMood(runtimeWith(async () => canvasDay()));
-    const button = await screen.findByRole("button", { name: "Ganti hari, sekarang Hari ini" });
+    const button = await screen.findByRole("button", { name: CHANGE_DAY });
     expect(within(button).getByText("Kamis 8 Okt")).toBeTruthy();
     expect(StyleSheet.flatten(button.props.style).minHeight).toBe(48);
-    expect(button.props.accessibilityHint).toBe("Kamis 8 Okt");
+    // Label in Name (WCAG 2.5.3): the accessible name begins with the text the eye reads.
+    expect(button.props.accessibilityLabel).toBe("Kamis 8 Okt, ganti hari");
+    expect(button.props.accessibilityHint).toBeUndefined();
     expect(within(button).UNSAFE_getByType(Ionicons).props).toMatchObject({
       name: "chevron-down",
       color: nativeMood.light.siang.headerText,
@@ -433,7 +438,9 @@ describe("Hari ini by mood", () => {
     expect(await screen.findByText("Dapur Bu Rina · Besok")).toBeTruthy();
     expect(screen.getByText("Jumat 9 Okt")).toBeTruthy();
 
-    fireEvent.press(screen.getByRole("button", { name: "Ganti hari, sekarang Besok" }));
+    const back = screen.getByRole("button", { name: CHANGE_DAY });
+    expect(back.props.accessibilityLabel).toBe("Jumat 9 Okt, ganti hari");
+    fireEvent.press(back);
     expect(await screen.findByText("Dapur Bu Rina · Hari ini")).toBeTruthy();
     expect(screen.getByText("Kamis 8 Okt")).toBeTruthy();
   });
@@ -445,7 +452,7 @@ describe("Hari ini by mood", () => {
     const byDate = (_id: string, date: string) => (date === "2026-10-09" ? stuck : Promise.resolve(canvasDay()));
     renderMood(runtimeWith(byDate as unknown as () => Promise<unknown>));
     await screen.findByText("Dapur Bu Rina · Hari ini");
-    fireEvent.press(screen.getByRole("button", { name: "Ganti hari, sekarang Hari ini" }));
+    fireEvent.press(screen.getByRole("button", { name: CHANGE_DAY }));
     expect(await screen.findByText("Dapur Bu Rina · Besok")).toBeTruthy();
     expect(screen.getByText("Memuat…")).toBeTruthy();
   });
@@ -455,11 +462,12 @@ describe("Hari ini by mood", () => {
     const runtime = runtimeWith(async () => canvasDay());
     (SecureStore as unknown as { __store: Map<string, string> }).__store.set(runtime.storageKey("locale"), "en");
     renderMood(runtime);
-    const button = await screen.findByRole("button", { name: "Change day, now Today" });
+    const button = await screen.findByRole("button", { name: /, change day$/ });
+    expect(button.props.accessibilityLabel).toBe("Thu 8 Oct, change day");
     expect(await screen.findByText("Dapur Bu Rina · Today")).toBeTruthy();
     fireEvent.press(button);
     expect(await screen.findByText("Dapur Bu Rina · Tomorrow")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Change day, now Tomorrow" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Fri 9 Oct, change day" })).toBeTruthy();
   });
 
   it("has exactly one tablist, the mood toggle", async () => {
@@ -489,7 +497,10 @@ describe("Hari ini by mood", () => {
       expect(within(card).getByText("Antar 10.30")).toBeTruthy();
       expect(flat("session-count-fill-siang").backgroundColor).toBe(nativeMood.light.siang.hero);
       expect(flat("session-count-fill-malam").backgroundColor).toBe(nativeMood.light.malam.hero);
-      expect(flat("session-count")).toMatchObject({ borderRadius: 22, borderCurve: "continuous", boxShadow: nativeMood.light.siang.heroShadow });
+      expect(flat("session-count")).toMatchObject({ borderRadius: 22, borderCurve: "continuous" });
+      // The one shadow sits on the base fill (MoodFill), from the current mood's token.
+      expect(flat("session-count-fill-siang")).toMatchObject({ borderRadius: 22, boxShadow: nativeMood.light.siang.heroShadow });
+      expect(flat("session-count-fill-malam").boxShadow).toBeUndefined();
     });
 
     it("cross-fades its Malam fill over the Siang one when the mood switches (instant under reduced motion)", async () => {
@@ -515,7 +526,7 @@ describe("Hari ini by mood", () => {
       expect(within(card).getByText("porsi malam · 1 alamat")).toBeTruthy();
       expect(within(card).getByText("Antar 17.45")).toBeTruthy();
       expect(StyleSheet.flatten(within(card).getByText("23").props.style).color).toBe(nativeMood.light.malam.heroText);
-      expect(flat("session-count").boxShadow).toBe(nativeMood.light.malam.heroShadow);
+      expect(flat("session-count-fill-siang").boxShadow).toBe(nativeMood.light.malam.heroShadow);
     });
 
     it("is worded in English", async () => {
@@ -589,7 +600,7 @@ describe("Hari ini by mood", () => {
       expect(flat("mood-fill-malam").backgroundColor).toBe("#0B1F16");
       // The fill is always mounted; in Malam it is the opaque layer.
       expect(flat("mood-fill-malam").opacity).toBe(1);
-      const title = within(screen.getByTestId("mood-header")).getByRole("button", { name: /^Ganti hari/ });
+      const title = within(screen.getByTestId("mood-header")).getByRole("button", { name: CHANGE_DAY });
       expect(StyleSheet.flatten(within(title).getByText(/\d/).props.style).color).toBe("#FFF7E9");
     });
 

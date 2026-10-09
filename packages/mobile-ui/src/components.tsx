@@ -93,6 +93,8 @@ export function Button({
   variant = "primary",
   disabled = false,
   accessibilityLabel,
+  ink,
+  edge,
   style,
 }: {
   label: string;
@@ -100,6 +102,10 @@ export function Button({
   variant?: "primary" | "secondary" | "text";
   disabled?: boolean;
   accessibilityLabel?: string;
+  /** The label colour, for a button on a surface the theme does not own (the Malam hero is dark in both themes). */
+  ink?: string;
+  /** The border colour of a secondary button, for the same reason. */
+  edge?: string;
   style?: StyleProp<ViewStyle>;
 }) {
   const primary = variant === "primary";
@@ -117,6 +123,7 @@ export function Button({
         styles.button,
         primary && styles.primary,
         variant === "secondary" && styles.secondary,
+        variant === "secondary" && edge !== undefined && { borderColor: edge },
         variant === "text" && styles.textButton,
         disabled && primary && styles.disabled,
         // A secondary or text button has no fill to grey out, so a disabled one fades instead.
@@ -127,7 +134,7 @@ export function Button({
       <RNText
         style={[
           styles.buttonLabel,
-          { color: primary ? (disabled ? c.muted : c.cream) : c.forest },
+          { color: ink ?? (primary ? (disabled ? c.muted : c.cream) : c.forest) },
         ]}
       >
         {label}

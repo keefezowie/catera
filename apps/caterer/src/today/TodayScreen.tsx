@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { StyleSheet, View } from "react-native";
-import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import { View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import {
@@ -15,13 +14,13 @@ import {
   type SellerAttentionItem,
   type SellerOperationsState,
 } from "@catera/domain";
-import { nativeMotion } from "@catera/design-tokens";
 import { useData, useMobile, type MobileRuntime } from "@catera/mobile-core";
 import {
   Button,
   Card,
   FadeSwap,
   fontFor,
+  MoodFill,
   MoodHeader,
   PressableRow,
   PressableScale,
@@ -30,7 +29,6 @@ import {
   useColors,
   useMood,
   useMoodColors,
-  useReduced,
   useThemePreference,
 } from "@catera/mobile-ui";
 import { jakartaClock } from "./exceptions";
@@ -58,30 +56,16 @@ async function loadDay(runtime: MobileRuntime, catererId: string, date: string):
 const hasWork = (ops: SellerOperationsState, meal: KitchenMeal) =>
   cookingRecap(ops, meal).total > 0 || deliveryRoute(ops, meal).length > 0;
 
-const ease = Easing.bezier(...nativeMotion.ease);
-
 /**
  * The session's headline numbers on the mood's hero fill: portions to cook, addresses, and when the first window
- * opens. Two stacked fills (Siang under, Malam over) cross-fade with the header's own timing.
+ * opens. The fill is `MoodFill`, so it cross-fades with the header's own timing; the shadow sits on its base layer.
  */
 function CountCard({ ops, meal }: { ops: SellerOperationsState; meal: KitchenMeal }) {
   const { t } = useMobile();
-  const { mood } = useMood();
-  const siang = useMoodColors("siang");
-  const malam = useMoodColors("malam");
   const palette = useMoodColors();
-  const reduced = useReduced();
-  const target = mood === "malam" ? 1 : 0;
-  const progress = useSharedValue<number>(target);
-  useEffect(() => {
-    progress.value = reduced ? target : withTiming(target, { duration: nativeMotion.content, easing: ease });
-  }, [progress, target, reduced]);
-  const fade = useAnimatedStyle(() => ({ opacity: progress.value }));
-
   const total = cookingRecap(ops, meal).total;
   const addresses = deliveryRoute(ops, meal).length;
   const start = sessionStart(ops, meal);
-  const fill = { ...StyleSheet.absoluteFill, borderRadius: 22, borderCurve: "continuous" } as const;
   return (
     <View
       testID="session-count"
@@ -93,15 +77,9 @@ function CountCard({ ops, meal }: { ops: SellerOperationsState; meal: KitchenMea
         padding: 16,
         borderRadius: 22,
         borderCurve: "continuous",
-        boxShadow: palette.heroShadow,
       }}
     >
-      <View testID="session-count-fill-siang" pointerEvents="none" style={[fill, { backgroundColor: siang.hero }]} />
-      <Animated.View
-        testID="session-count-fill-malam"
-        pointerEvents="none"
-        style={[fill, { backgroundColor: malam.hero }, reduced ? { opacity: target } : fade]}
-      />
+      <MoodFill surface="hero" testID="session-count-fill" radius={22} heroShadow />
       <View style={{ flexShrink: 1 }}>
         <Text variant="number" style={{ color: palette.heroText }}>
           {String(total)}
@@ -121,8 +99,10 @@ function CountCard({ ops, meal }: { ops: SellerOperationsState; meal: KitchenMea
   );
 }
 
-/** Hari ini: the mood's meal as one session with what to cook and where to take it, plus only the exceptions to act on. */
-/** Hari ini; `date` (from a notification) opens Besok when it points to tomorrow. */
+/**
+ * Hari ini: the mood's meal as one session with what to cook and where to take it, plus only the exceptions to act on.
+ * `date` (from a notification) opens Besok when it points to tomorrow.
+ */
 export function TodayScreen({ date: target }: { date?: string } = {}) {
   const { actor, runtime, t, locale } = useMobile();
   const c = useColors();
@@ -166,13 +146,8 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
           title={
             <PressableScale
               accessibilityRole="button"
-              accessibilityLabel={
-                offset === "0"
-                  ? t("Ganti hari, sekarang Hari ini", "Change day, now Today")
-                  : t("Ganti hari, sekarang Besok", "Change day, now Tomorrow")
-              }
-              // The label is pinned, so the visible date reaches screen readers through the hint.
-              accessibilityHint={shortDate(date, locale)}
+              // The name starts with the visible date (WCAG 2.5.3, Label in Name); the meta line above says Hari ini or Besok.
+              accessibilityLabel={`${shortDate(date, locale)}, ${t("ganti hari", "change day")}`}
               haptic="select"
               onPress={() => setOffset(offset === "0" ? "1" : "0")}
               style={{ minHeight: 48, alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 8 }}

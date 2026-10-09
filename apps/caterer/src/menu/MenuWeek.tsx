@@ -64,7 +64,8 @@ export async function loadMenus(
 /** The Menu header while there is no week to show yet (loading, empty, failed): the screen keeps its mood block. */
 function MenuTitle() {
   const { t } = useMobile();
-  return <MoodHeader title={t("Menu", "Menu")} />;
+  // Short and fixed, and the loaded header sets its week range in the display variant, so this one matches it.
+  return <MoodHeader title={t("Menu", "Menu")} titleVariant="display" />;
 }
 
 /** A failed menu read: say so plainly and offer a retry, never an empty week or endless loading. */

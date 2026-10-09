@@ -11,6 +11,7 @@ import {
   defaultMood,
   Field,
   MalamPattern,
+  MoodFill,
   MoodHeader,
   MoodLabelsProvider,
   MoodProvider,
@@ -208,12 +209,14 @@ describe("MoodToggle", () => {
     expect(screen.getByRole("tab", { name: "Malam" })).toBeTruthy();
   });
 
-  it("uses the labels the labels provider is given", () => {
+  it("builds its labels from the translator the labels provider is given", () => {
     mockSystemScheme("light");
+    // An English translator: t(id, en) answers with the second string.
+    const t = jest.fn((_id: string, en: string) => en);
     render(
       <ThemeProvider storageKey="mood-test">
         <MoodProvider now={SIANG_NOW}>
-          <MoodLabelsProvider labels={{ siang: "Lunch", malam: "Dinner" }}>
+          <MoodLabelsProvider t={t}>
             <MoodToggle />
           </MoodLabelsProvider>
         </MoodProvider>
@@ -221,6 +224,25 @@ describe("MoodToggle", () => {
     );
     expect(screen.getByRole("tab", { name: "Lunch" })).toBeTruthy();
     expect(screen.getByRole("tab", { name: "Dinner" })).toBeTruthy();
+    expect(t).toHaveBeenCalledWith("Siang", "Lunch");
+    expect(t).toHaveBeenCalledWith("Malam", "Dinner");
+  });
+
+  it("follows the translator when the language changes", () => {
+    mockSystemScheme("light");
+    const tree = (t: (id: string, en: string) => string) => (
+      <ThemeProvider storageKey="mood-test">
+        <MoodProvider now={SIANG_NOW}>
+          <MoodLabelsProvider t={t}>
+            <MoodToggle />
+          </MoodLabelsProvider>
+        </MoodProvider>
+      </ThemeProvider>
+    );
+    const view = render(tree((id) => id));
+    expect(screen.getByRole("tab", { name: "Siang" })).toBeTruthy();
+    view.rerender(tree((_id, en) => en));
+    expect(screen.getByRole("tab", { name: "Lunch" })).toBeTruthy();
   });
 });
 
@@ -254,10 +276,34 @@ describe("MoodHeader", () => {
     expect(flat("mood-fill-malam").opacity).toBe(1);
   });
 
-  it("paints the title in headerText", () => {
+  it("paints the title in headerText, in the title variant (30/39) that holds long names at large font scales", () => {
     mount(<MoodHeader title="Halo" />, { now: MALAM_NOW });
     expect(StyleSheet.flatten(screen.getByText("Halo").props.style).color).toBe(nativeMood.light.malam.headerText);
+    expect(StyleSheet.flatten(screen.getByText("Halo").props.style)).toMatchObject({ fontSize: 30, lineHeight: 39 });
+    expect(screen.getByText("Halo").props.accessibilityRole).toBe("header");
+  });
+
+  it("sets a short fixed headline in the display variant (34/40) when the caller opts in", () => {
+    mount(<MoodHeader title="Halo" titleVariant="display" />);
     expect(StyleSheet.flatten(screen.getByText("Halo").props.style)).toMatchObject({ fontSize: 34, lineHeight: 40 });
+  });
+
+  it("puts the 48dp round back button in the meta slot, in place of the meta, and presses back", () => {
+    const onBack = jest.fn();
+    mount(<MoodHeader title="Halo" meta="Jumat" onBack={onBack} backLabel="Back" />);
+    const back = screen.getByRole("button", { name: "Back" });
+    expect(StyleSheet.flatten(back.props.style)).toMatchObject({ width: 48, height: 48 });
+    expect(screen.queryByText("Jumat")).toBeNull();
+    fireEvent.press(back);
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
+  it("has no back button unless asked, and the back label defaults to Kembali", () => {
+    mount(<MoodHeader title="Halo" />);
+    expect(screen.queryByRole("button")).toBeNull();
+    screen.unmount();
+    mount(<MoodHeader title="Halo" onBack={() => {}} />);
+    expect(screen.getByRole("button", { name: "Kembali" })).toBeTruthy();
   });
 
   it("shows the meta line in headerMeta and lets a trailing node replace the toggle", () => {
@@ -334,6 +380,50 @@ describe("MoodHeader", () => {
   it("caps its content at 760 and centres it", () => {
     mount(<MoodHeader title="Halo" />);
     expect(flat("mood-header-content")).toMatchObject({ maxWidth: 760, width: "100%", alignSelf: "center" });
+  });
+});
+
+describe("MoodFill", () => {
+  it("stacks the Siang fill under a Malam fill that rides the mood, in the colours of the surface asked for", () => {
+    jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
+    mount(
+      <>
+        <View style={{ width: 100, height: 100 }}>
+          <MoodFill surface="hero" testID="card-fill" />
+        </View>
+        <Probe />
+      </>,
+    );
+    expect(flat("card-fill-siang")).toMatchObject({ backgroundColor: nativeMood.light.siang.hero, position: "absolute" });
+    expect(flat("card-fill-malam")).toMatchObject({ backgroundColor: nativeMood.light.malam.hero, opacity: 0 });
+    act(() => setMoodRef("malam"));
+    expect(flat("card-fill-malam").opacity).toBe(1);
+  });
+
+  it("rounds both fills when given a radius, and shadows only the base fill from the current mood", () => {
+    jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
+    mount(
+      <>
+        <MoodFill surface="hero" testID="card-fill" radius={22} heroShadow />
+        <Probe />
+      </>,
+    );
+    expect(flat("card-fill-siang")).toMatchObject({ borderRadius: 22, borderCurve: "continuous", boxShadow: nativeMood.light.siang.heroShadow });
+    expect(flat("card-fill-malam")).toMatchObject({ borderRadius: 22, borderCurve: "continuous" });
+    expect(flat("card-fill-malam").boxShadow).toBeUndefined();
+    act(() => setMoodRef("malam"));
+    expect(flat("card-fill-siang").boxShadow).toBe(nativeMood.light.malam.heroShadow);
+  });
+
+  it("casts no shadow and has no radius unless asked, and its children ride the Malam layer", () => {
+    mount(
+      <MoodFill surface="header" testID="plain-fill">
+        <RNText testID="inside">dalam</RNText>
+      </MoodFill>,
+    );
+    expect(flat("plain-fill-siang").boxShadow).toBeUndefined();
+    expect(flat("plain-fill-siang").borderRadius).toBeUndefined();
+    expect(within(screen.getByTestId("plain-fill-malam", { includeHiddenElements: true })).getByTestId("inside")).toBeTruthy();
   });
 });
 
@@ -459,8 +549,53 @@ describe("StatusBand", () => {
     mountScreen(false);
     const band = flat("status-band");
     expect(band.height).toBe(30);
-    expect(band.backgroundColor).toBe("#0B1F16");
     expect(band).toMatchObject({ position: "absolute", top: 0, left: 0, right: 0 });
+    // Malam at rest: the Siang fill underneath, the Malam header colour fully opaque over it.
+    expect(flat("status-band-fill-siang").backgroundColor).toBe(nativeMood.light.siang.header);
+    expect(flat("status-band-fill-malam").backgroundColor).toBe("#0B1F16");
+    expect(flat("status-band-fill-malam").opacity).toBe(1);
+  });
+
+  it("fades with the header when the mood switches, instead of snapping (instant under reduced motion)", () => {
+    jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
+    mockSystemScheme("light");
+    render(
+      <SafeAreaProvider initialMetrics={metrics}>
+        <ThemeProvider storageKey="mood-test">
+          <MoodProvider now={SIANG_NOW}>
+            <Screen header={<MoodHeader title="Kepala" toggle />}>
+              <Text>Isi</Text>
+            </Screen>
+          </MoodProvider>
+        </ThemeProvider>
+      </SafeAreaProvider>,
+    );
+    // The band and the header are two fills of one mood: both read Siang, then both read Malam.
+    expect(flat("status-band-fill-malam").opacity).toBe(0);
+    expect(flat("mood-fill-malam").opacity).toBe(0);
+    fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
+    expect(flat("status-band-fill-malam").opacity).toBe(1);
+    expect(flat("mood-fill-malam").opacity).toBe(1);
+  });
+
+  it("eases the band's Malam layer like the header's once motion is allowed", () => {
+    mockSystemScheme("light");
+    const tree = (
+      <SafeAreaProvider initialMetrics={metrics}>
+        <ThemeProvider storageKey="mood-test">
+          <MoodProvider now={SIANG_NOW}>
+            <Screen header={<MoodHeader title="Kepala" toggle />}>
+              <Text>Isi</Text>
+            </Screen>
+          </MoodProvider>
+        </ThemeProvider>
+      </SafeAreaProvider>
+    );
+    const view = render(tree);
+    expect(flat("status-band-fill-malam").opacity).toBe(0);
+    fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
+    view.rerender(tree);
+    expect(flat("status-band-fill-malam").opacity).toBe(1);
   });
 
   it("is decorative: hidden from screen readers and never takes a touch", () => {

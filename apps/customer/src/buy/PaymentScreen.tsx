@@ -5,7 +5,7 @@ import * as Clipboard from "expo-clipboard";
 import * as WebBrowser from "expo-web-browser";
 import { currency, errorLabel, type Checkout, type DirectPaymentMethod } from "@catera/domain";
 import { plural, useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, fontFor, MoodHeader, RoundButton, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
+import { Button, Card, fontFor, MoodHeader, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { PayWith, Retry } from "./BuyParts";
 import { FINAL, PaymentOutcome, stageOf } from "./PaymentOutcome";
 import { QrisCode, useQris } from "./QrisCode";
@@ -108,7 +108,8 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
   const header = (
     <MoodHeader
       testID="payment-header"
-      meta={<RoundButton icon="chevron-back" label={t("Kembali", "Back")} onPress={leave} />}
+      onBack={leave}
+      backLabel={t("Kembali", "Back")}
       title={t("Bayar", "Pay")}
     />
   );

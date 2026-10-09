@@ -18,7 +18,7 @@ import {
   type RenewalContext,
 } from "@catera/domain";
 import { plural, useData, useMobile } from "@catera/mobile-core";
-import { Button, fontFor, MoodHeader, RoundButton, Screen, Stepper, Text, themedStyles, useColors } from "@catera/mobile-ui";
+import { Button, fontFor, MoodHeader, Screen, Stepper, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { Breakdown, LengthOptions, percent, StartLine } from "./Breakdown";
 import { ChoiceSheet, NoLongerSold, PayWith, PendingPayment, Retry, Terms } from "./BuyParts";
 import { useQuote, type BuyPayload } from "./useQuote";
@@ -170,7 +170,8 @@ export function BuyScreen({
   const header = (title: string) => (
     <MoodHeader
       testID="buy-header"
-      meta={<RoundButton icon="chevron-back" label={t("Kembali", "Back")} onPress={leave} />}
+      onBack={leave}
+      backLabel={t("Kembali", "Back")}
       title={title}
     />
   );

@@ -41,7 +41,8 @@ export function PackageDetail() {
         header={
           <MoodHeader
             testID="paket-header"
-            meta={<RoundButton icon="chevron-back" label={t("Kembali", "Back")} onPress={leave} />}
+            onBack={leave}
+            backLabel={t("Kembali", "Back")}
             title={t("Paket", "Package")}
           />
         }

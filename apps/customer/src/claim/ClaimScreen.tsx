@@ -10,7 +10,6 @@ import {
   Field,
   fontFor,
   MoodHeader,
-  RoundButton,
   Screen,
   Text,
   themedStyles,
@@ -133,7 +132,7 @@ export function ClaimScreen() {
     );
   if (!preview)
     return (
-      <Screen header={<ClaimHeader title={t("Langganan Anda", "Your subscription")} loading />}>
+      <Screen header={<ClaimHeader title={t("Membuka tautan", "Opening the link")} loading />}>
         <Header />
       </Screen>
     );
@@ -314,7 +313,9 @@ function ClaimHeader({
   return (
     <MoodHeader
       testID="claim-header"
-      meta={onBack ? <RoundButton icon="chevron-back" label={t("Kembali", "Back")} onPress={onBack} /> : meta}
+      meta={meta}
+      onBack={onBack}
+      backLabel={t("Kembali", "Back")}
       title={title}
     >
       {loading ? (

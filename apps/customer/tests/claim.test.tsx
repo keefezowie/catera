@@ -283,7 +283,9 @@ describe("claim mood header", () => {
   it("while the link is read, the header shows the spinner and Memuat beside it", async () => {
     const { runtime } = runtimeWith({ preview: () => new Promise<ClaimPreview>(() => undefined) });
     const view = renderMood(runtime);
-    const header = expectMalamHeader("Langganan Anda");
+    // The link is not validated yet, so the title cannot claim the subscription is the viewer's.
+    const header = expectMalamHeader("Membuka tautan");
+    expect(screen.queryByText("Langganan Anda")).toBeNull();
     expect(within(header).getByText("Memuat…")).toBeTruthy();
     expect(flat(within(header).getByText("Memuat…")).color).toBe(require("@catera/design-tokens").nativeMood.light.malam.headerMeta);
     expect(view.UNSAFE_queryAllByType(ActivityIndicator).length).toBeGreaterThan(0);

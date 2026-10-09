@@ -2,7 +2,7 @@ import { createContext, use, useMemo, useState, type ReactNode } from "react";
 import { nativeMood, type Mood, type MoodPalette, type ThemeName } from "@catera/design-tokens";
 import { useThemePreference } from "./theme";
 
-/** The two toggle labels. This package has no i18n, so the app hands over translated ones through `MoodLabelsProvider`. */
+/** The two toggle labels. This package has no i18n, so the app hands over its translator through `MoodLabelsProvider`. */
 export type MoodLabels = Record<Mood, string>;
 
 const DEFAULT_LABELS: MoodLabels = { siang: "Siang", malam: "Malam" };
@@ -51,11 +51,13 @@ export function MoodProvider({
 const MoodLabelsContext = createContext<MoodLabels>(DEFAULT_LABELS);
 
 /**
- * Hands the toggle its translated labels. It sits apart from `MoodProvider` because the translator only exists below
- * the app's own providers, while the mood itself lives above them.
+ * Hands the toggle its labels in the app's language: `t(id, en)` is the app's translator, and the provider asks it for
+ * "Siang" / "Lunch" and "Malam" / "Dinner" itself, so an app only passes its `t`. It sits apart from `MoodProvider`
+ * because the translator only exists below the app's own providers, while the mood itself lives above them.
  */
-export function MoodLabelsProvider({ labels, children }: { labels: MoodLabels; children: ReactNode }) {
-  const { siang, malam } = labels;
+export function MoodLabelsProvider({ t, children }: { t: (id: string, en: string) => string; children: ReactNode }) {
+  const siang = t("Siang", "Lunch");
+  const malam = t("Malam", "Dinner");
   const value = useMemo<MoodLabels>(() => ({ siang, malam }), [siang, malam]);
   return <MoodLabelsContext.Provider value={value}>{children}</MoodLabelsContext.Provider>;
 }
