@@ -687,6 +687,13 @@ export async function verifyDeliveryCook(pool, cmd, evidence) {
         cmd("delivery.cook", cookArgs, U.owner),
         wait(lag).then(() => system(pool, "delivery.autoDeliver", { today: tomorrow })),
       ]);
+      // Right after the race, before any second run: a day the job delivered has no row left preparing.
+      const settled = (await pool.query(
+        "select f.day_id,f.status,d.status day_status from v1.fulfillments f join v1.delivery_days d on d.id=f.day_id where f.meal='lunch' and f.day_id=any($1::uuid[])",
+        [cohort])).rows;
+      for (const f of settled)
+        if (f.day_status === "delivered") assert.equal(f.status, "delivered", "lag " + lag + ": a delivered day has a " + f.status + " row");
+      assert(settled.some((f) => f.day_id === racing.id), "lag " + lag + ": the racing day is in the snapshot");
       // A meal the job did not reach (it was locked at that moment) is delivered by the next run.
       await system(pool, "delivery.autoDeliver", { today: tomorrow });
       for (const f of await rows(cohort)) assert.equal(f.status, "delivered", "lag " + lag + ": the meal ends delivered, not " + f.status);

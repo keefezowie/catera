@@ -225,6 +225,13 @@ it("cooking is not a production change", async () => {
   expect((await meal(day.id, "lunch")).status).toBe("preparing");
   expect(await signature()).toEqual(before);
   expect(await attention()).toBe(false);
+  // Setting off is not masked: a move to out_for_delivery still raises the warning (caterer-ux AT-11).
+  await q("update v1.fulfillments set status='out_for_delivery' where day_id=$1 and meal='lunch'", [day.id]);
+  await q("update v1.delivery_days set status='out_for_delivery',version=version+1 where id=$1", [day.id]);
+  expect(await attention()).toBe(true);
+  await q("update v1.fulfillments set status='preparing' where day_id=$1 and meal='lunch'", [day.id]);
+  await q("update v1.delivery_days set status='preparing',version=version+1 where id=$1", [day.id]);
+  expect(await attention()).toBe(false);
   // A real change of what the kitchen makes or where it goes still counts.
   await q(
     "update v1.delivery_days set address=jsonb_set(address,'{instructions}','\"Synthetic new delivery instruction\"'),version=version+1 where id=$1",

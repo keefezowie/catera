@@ -91,19 +91,19 @@ $$;
 
 -- Cooking and who confirmed arrival are not what the kitchen produces: neither may count as a
 -- production change. Frozen snapshots made before these keys existed lack them, so strip both sides.
--- Cooking also moves the day and the meal to 'preparing' and bumps the day's version, as the
--- departure moves them to 'out_for_delivery': progress through the day is not a change either, so
--- both statuses read as 'scheduled' and the version is dropped. Every real change (address, date,
--- portions, menu) still differs in a field that stays in the signature.
+-- Cooking also moves the day and the meal to 'preparing' and bumps the day's version: that is not
+-- a change either, so 'preparing' reads as 'scheduled' and the version is dropped. Every real change
+-- (address, date, portions, menu) still differs in a field that stays in the signature. A move to
+-- 'out_for_delivery' is not masked: it still raises the production-changed warning.
 create or replace function v1.beta_production_signature(entries jsonb) returns jsonb language sql immutable set search_path='' as $$
  select coalesce(jsonb_agg(
   case when jsonb_typeof(y->'meals')='array' then jsonb_set(y,'{meals}',
-   coalesce((select jsonb_agg(case when s.m->>'status' in ('preparing','out_for_delivery') then jsonb_set(s.m,'{status}','"scheduled"') else s.m end order by s.o)
+   coalesce((select jsonb_agg(case when s.m->>'status'='preparing' then jsonb_set(s.m,'{status}','"scheduled"') else s.m end order by s.o)
     from (select m-'departed_at'-'confirmed_at'-'reaction'-'issue'-'cooking_started_at'-'confirmed_by' m,o
      from jsonb_array_elements(y->'meals') with ordinality t(m,o)) s),'[]'))
   else y end
   order by y->>'id'),'[]')
  from jsonb_array_elements(entries)x
- cross join lateral (select (case when x->>'status' in ('preparing','out_for_delivery') then jsonb_set(x,'{status}','"scheduled"') else x end)-'canChange'-'catererPhone'-'version' y) z
+ cross join lateral (select (case when x->>'status'='preparing' then jsonb_set(x,'{status}','"scheduled"') else x end)-'canChange'-'catererPhone'-'version' y) z
 $$;
 revoke all on all functions in schema v1 from public,anon,authenticated;
