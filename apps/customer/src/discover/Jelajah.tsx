@@ -150,15 +150,17 @@ function Browse({ area, onArea }: { area: string; onArea: (value: string) => voi
     () => ((all ?? []) as CatalogOffer[]).filter((o) => !area || (o.areas ?? []).includes(area)),
     [all, area],
   );
-  // The circles are what caterers tagged in the packages shown for this area. A tag that left with an area change
-  // no longer filters, so a list never hides behind a circle that is not on screen.
-  const tags = useMemo(() => topTags(inArea, CIRCLES), [inArea]);
+  const inMeal = useMemo(() => inArea.filter((o) => o.meal === meal || o.meal === "both"), [inArea, meal]);
+  // The circles are what caterers tagged in the packages of this area and meal, so none leads to an empty list. A tag
+  // that left with an area or meal change no longer filters, so a list never hides behind a circle that is not on screen.
+  const tags = useMemo(() => topTags(inMeal, CIRCLES), [inMeal]);
   const activeTag = tags.some((x) => x.tag === tag) ? tag : "";
+  const mealWord = mood === "siang" ? "siang" : "malam";
+  const mealWordEn = mood === "siang" ? "lunch" : "dinner";
   const items = useMemo(
     () =>
-      inArea.filter(
+      inMeal.filter(
         (o) =>
-          (o.meal === meal || o.meal === "both") &&
           (!activeTag || o.tags.includes(activeTag)) &&
           (!budget || perMealPrice(o) <= BUDGET) &&
           (!trial || !!o.trialPrice) &&
@@ -168,7 +170,7 @@ function Browse({ area, onArea }: { area: string; onArea: (value: string) => voi
               .toLowerCase()
               .includes(needle)),
       ),
-    [inArea, meal, activeTag, budget, trial, needle, locale],
+    [inMeal, activeTag, budget, trial, needle, locale],
   );
   // The meal is not a choice that can be cleared: it is the mood, so it is always one of the two.
   const filtered = !!(needle || activeTag || budget || trial);
@@ -219,7 +221,7 @@ function Browse({ area, onArea }: { area: string; onArea: (value: string) => voi
           }
           title={<JelajahTitle />}
         >
-          <View accessibilityRole="tablist" style={{ flexDirection: "row", gap: 10 }}>
+          <View accessibilityRole="tablist" accessibilityLabel={t("Waktu makan", "Meal time")} style={{ flexDirection: "row", gap: 10 }}>
             <MealButton label={t("Siang", "Lunch")} icon="sunny" selected={mood === "siang"} onPress={() => setMood("siang")} />
             <MealButton label={t("Malam", "Dinner")} icon="moon" selected={mood === "malam"} onPress={() => setMood("malam")} />
           </View>
@@ -292,6 +294,20 @@ function Browse({ area, onArea }: { area: string; onArea: (value: string) => voi
             {t(`Belum ada katering yang antar ke ${area}.`, `No caterer delivers to ${area} yet.`)}
           </Text>
           <Button variant="secondary" label={t("Lihat semua area", "See all areas")} onPress={() => onArea("")} />
+        </View>
+      ) : items.length === 0 && !filtered ? (
+        // Only the meal is narrowing, so say which meal has nothing here and offer the other one.
+        <View style={{ gap: 10 }}>
+          <Text variant="heading">
+            {area
+              ? t(`Belum ada paket makan ${mealWord} di ${area}.`, `No ${mealWordEn} packages in ${area} yet.`)
+              : t(`Belum ada paket makan ${mealWord}.`, `No ${mealWordEn} packages yet.`)}
+          </Text>
+          <Button
+            variant="secondary"
+            label={mood === "siang" ? t("Lihat makan malam", "See dinner") : t("Lihat makan siang", "See lunch")}
+            onPress={() => setMood(mood === "siang" ? "malam" : "siang")}
+          />
         </View>
       ) : items.length === 0 ? (
         <View style={{ gap: 10 }}>
