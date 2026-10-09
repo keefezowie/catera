@@ -404,6 +404,41 @@ describe("CalendarPhotoCell", () => {
       },
     );
 
+    it.each([1.3, 1.5])(
+      "at font scale %s an unset or meal-less cell keeps its number truly centred, away from the sun corner",
+      (scale) => {
+        setFontScale(scale);
+        for (const cell of [{ menuSet: false }, { uri: null, menuSet: false }]) {
+          const view = render(<CalendarPhotoCell {...base} {...cell} />);
+          // No dot row, so nothing needs the bar's zone reserved: the column does not lift the number into the sun.
+          expect(flat("cell-content").paddingBottom ?? 0).toBe(0);
+          // Selecting the day does not move it either.
+          view.rerender(<CalendarPhotoCell {...base} {...cell} selected />);
+          expect(flat("cell-content").paddingBottom ?? 0).toBe(0);
+          view.rerender(<CalendarPhotoCell {...base} {...cell} today selected />);
+          expect(flat("cell-content").paddingBottom ?? 0).toBe(0);
+          // Centred in 52dp, the capped number still ends above the highest the bar can go.
+          const bar = flat("cell-selected-bar");
+          const numberHeight = 18 * Math.min(scale, 1.5);
+          expect((52 + numberHeight) / 2).toBeLessThanOrEqual(52 - (bar.bottom as number) - (bar.height as number));
+          view.unmount();
+        }
+      },
+    );
+
+    it.each([
+      ["a photo cell at font scale 1.3", 1.3, { uri: base.uri }],
+      ["a photo cell at font scale 1.5", 1.5, { uri: base.uri }],
+      ["a meal with no photo", 1, { uri: "" }],
+    ])("%s keeps the 10dp lift for its dot row, selected or not", (_name, scale, cell) => {
+      setFontScale(scale);
+      const view = render(<CalendarPhotoCell {...base} {...cell} />);
+      expect(screen.getByTestId("cell-photo-dot", { includeHiddenElements: true })).toBeTruthy();
+      expect(flat("cell-content").paddingBottom).toBe(10);
+      view.rerender(<CalendarPhotoCell {...base} {...cell} selected />);
+      expect(flat("cell-content").paddingBottom).toBe(10);
+    });
+
     it("the number pill text stops growing at 1.15x so it never reaches the moon badge", () => {
       render(<CalendarPhotoCell {...base} dinnerToo />);
       expect(screen.getByText("12").props.maxFontSizeMultiplier).toBe(1.15);

@@ -139,11 +139,18 @@ export function CalendarPhotoCell({
           </View>
         </>
       ) : (
-        // The column ends above the selection bar's zone on every cell (not only a selected one), so the number and the
-        // dots sit in the same place whether or not the day is selected, and never under the bar.
+        // With a dot row, the column ends above the selection bar's zone whether or not the day is selected, so the dots
+        // never sit under the bar and nothing jumps on selection. Without one (unset, no meal) the number is truly
+        // centred: a lift would push it into the sun's corner, and the centred number already clears the bar.
         <View
           testID="cell-content"
-          style={{ ...fill, alignItems: "center", justifyContent: "center", gap: 3, paddingBottom: barBottom(true) + BAR }}
+          style={{
+            ...fill,
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 3,
+            paddingBottom: revealed ? barBottom(true) + BAR : 0,
+          }}
         >
           {number}
           {revealed ? (
