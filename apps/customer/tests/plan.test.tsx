@@ -172,18 +172,48 @@ describe("Plan detail states", () => {
     const rows = screen.getAllByTestId("plan-upcoming-row");
     expect(rows).toHaveLength(5);
     expect(screen.queryByText("Paket Lain")).toBeNull();
-    // Tomorrow, then the dinner day, then three more lunches; today is not "coming up".
-    expect(within(rows[0]).getByText(`Besok, ${shortDate(at(1), "id")}`)).toBeTruthy();
-    expect(within(rows[0]).getByText("Ayam bakar madu, Sayur asem")).toBeTruthy();
-    expect(within(rows[1]).getByText(shortDate(at(2), "id"))).toBeTruthy();
-    expect(within(rows[1]).getByText("Ikan bakar")).toBeTruthy();
+    // Today's lunch is still to come, so today leads (dated as Beranda dates today), then tomorrow and the dinner day.
+    expect(within(rows[0]).getByText(shortDate(DAY, "id"))).toBeTruthy();
+    expect(within(rows[1]).getByText(`Besok, ${shortDate(at(1), "id")}`)).toBeTruthy();
+    expect(within(rows[1]).getByText("Ayam bakar madu, Sayur asem")).toBeTruthy();
+    expect(within(rows[2]).getByText(shortDate(at(2), "id"))).toBeTruthy();
+    expect(within(rows[2]).getByText("Ikan bakar")).toBeTruthy();
     // The row speaks for its ring, so the ring is hidden from screen readers and found with the hidden elements.
     const ring = (row: (typeof rows)[number]) =>
       StyleSheet.flatten(within(row).getByTestId("photo-ring", { includeHiddenElements: true }).props.style);
-    expect(ring(rows[0])).toMatchObject({ width: 60, borderColor: nativeThemes.light.sunriseInk });
-    expect(ring(rows[1])).toMatchObject({ width: 60, borderColor: nativeThemes.light.forest });
-    fireEvent.press(rows[0]);
+    expect(ring(rows[1])).toMatchObject({ width: 60, borderColor: nativeThemes.light.sunriseInk });
+    expect(ring(rows[2])).toMatchObject({ width: 60, borderColor: nativeThemes.light.forest });
+    fireEvent.press(rows[1]);
     expect(router.push).toHaveBeenCalledWith("/hari/d-1");
+  });
+
+  it("today's day leaves Berikutnya once its meal has arrived", async () => {
+    const deliveries = [delivery("d-today", DAY, { status: "delivered" }), delivery("d-1", at(1))];
+    renderPlan(runtimeWith(async () => planState({}, { deliveries })));
+    expect(await screen.findByText("Berikutnya")).toBeTruthy();
+    const rows = screen.getAllByTestId("plan-upcoming-row");
+    expect(rows).toHaveLength(1);
+    expect(within(rows[0]).getByText(`Besok, ${shortDate(at(1), "id")}`)).toBeTruthy();
+  });
+
+  it("a one-day trial on its day lists that day under Berikutnya, not an empty line", async () => {
+    const trial = { offer: offer(), total: 30000, trial: true } as unknown as Subscription["snapshot"];
+    renderPlan(
+      runtimeWith(async () =>
+        planState(
+          { snapshot: trial, starts_on: DAY, ends_on: DAY, remaining: 1 },
+          { deliveries: [delivery("d-today", DAY)] },
+        ),
+      ),
+    );
+    const hero = await screen.findByTestId("plan-hero");
+    expect(within(hero).getByText("1 hari lagi")).toBeTruthy();
+    const rows = screen.getAllByTestId("plan-upcoming-row");
+    expect(rows).toHaveLength(1);
+    expect(within(rows[0]).getByText(shortDate(DAY, "id"))).toBeTruthy();
+    expect(screen.queryByText("Tidak ada antaran mendatang.")).toBeNull();
+    fireEvent.press(rows[0]);
+    expect(router.push).toHaveBeenCalledWith("/hari/d-today");
   });
 
   it("an active plan due for renewal: Lanjutkan paket opens Perpanjang and counts renew_started", async () => {

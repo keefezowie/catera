@@ -120,6 +120,43 @@ describe("planDetail", () => {
     expect(detail?.upcoming.every((r) => ids.has(r.deliveryId))).toBe(true);
   });
 
+  describe("today's day under Berikutnya", () => {
+    const TODAY = "2026-10-07";
+
+    it("comes first while a meal of it is not delivered, labelled the way Beranda labels today", () => {
+      const today = delivery("s1", TODAY, {
+        meals: [
+          { meal: "lunch", status: "delivered" },
+          { meal: "dinner", status: "scheduled" },
+        ],
+      });
+      const rows = [delivery("s1", "2026-10-08"), today];
+      const detail = planDetail(state([sub()], rows), "s1", NOW, "id");
+      expect(detail?.upcoming.map((r) => r.date)).toEqual([TODAY, "2026-10-08"]);
+      expect(detail?.upcoming[0]).toMatchObject({ deliveryId: today.id, label: "Rabu 7 Okt" });
+    });
+
+    it("is left out once every meal of it is delivered or cancelled, and when the day is cancelled", () => {
+      const done = (meals: { meal: "lunch" | "dinner"; status: string }[], over: Partial<Delivery> = {}) =>
+        planDetail(state([sub()], [delivery("s1", TODAY, { meals, ...over })]), "s1", NOW, "id")?.upcoming;
+      expect(done([{ meal: "lunch", status: "delivered" }])).toEqual([]);
+      expect(
+        done([
+          { meal: "lunch", status: "delivered" },
+          { meal: "dinner", status: "cancelled" },
+        ]),
+      ).toEqual([]);
+      expect(done([{ meal: "lunch", status: "scheduled" }], { status: "cancelled" })).toEqual([]);
+    });
+
+    it("counts toward the limit of 5", () => {
+      const later = ["2026-10-08", "2026-10-09", "2026-10-12", "2026-10-13", "2026-10-14", "2026-10-15"];
+      const rows = [...later.map((d) => delivery("s1", d)), delivery("s1", TODAY)];
+      const detail = planDetail(state([sub()], rows), "s1", NOW, "id");
+      expect(detail?.upcoming.map((r) => r.date)).toEqual([TODAY, "2026-10-08", "2026-10-09", "2026-10-12", "2026-10-13"]);
+    });
+  });
+
   describe("action", () => {
     it("renew to /renew/{id} for an active full plan with 3 or fewer days left and no renewal", () => {
       expect(planDetail(state([sub({ remaining: 3 })]), "s1", NOW, "id")?.action).toEqual({

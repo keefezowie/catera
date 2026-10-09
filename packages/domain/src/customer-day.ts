@@ -195,23 +195,26 @@ export function upcomingRows(state: CustomerState, now: Date, n: number, locale:
     .filter((d) => d.service_date > today && d.status !== "cancelled")
     .sort((a, b) => a.service_date.localeCompare(b.service_date))
     .slice(0, Math.max(0, n))
-    .map((d) => {
-      const meals = servedMeals(d);
-      const changeable = canChangeDay(d, now);
-      const menu = meals.length ? d.offer.menus?.find((m) => m.meal === meals[0]) : undefined;
-      // A menu that is not set can still carry a template photo; the package photo is the truth then (as in the story).
-      const cover = menu && menuIsSet(menu) ? menu : null;
-      return {
-        deliveryId: d.id,
-        date: d.service_date,
-        label: dayLabel(d.service_date, today, "id"),
-        packageName: d.offer.name,
-        meal: meals.length > 1 ? "both" : (meals[0] ?? d.offer.meal),
-        dishes: meals.flatMap((meal) => dishesFor(d.offer, meal)).join(", "),
-        image: menuCoverImage(cover, d.offer.image ?? ""),
-        changeUntil: changeable.date || changeable.address ? changeDeadline(d.cutoff_at, now, locale) : null,
-      };
-    });
+    .map((d) => upcomingRow(d, now, locale));
+}
+
+/** One delivery day as an upcoming row, its label read against Jakarta today. */
+export function upcomingRow(d: Delivery, now: Date, locale: Locale = "id"): UpcomingRow {
+  const meals = servedMeals(d);
+  const changeable = canChangeDay(d, now);
+  const menu = meals.length ? d.offer.menus?.find((m) => m.meal === meals[0]) : undefined;
+  // A menu that is not set can still carry a template photo; the package photo is the truth then (as in the story).
+  const cover = menu && menuIsSet(menu) ? menu : null;
+  return {
+    deliveryId: d.id,
+    date: d.service_date,
+    label: dayLabel(d.service_date, jakartaDay(now), "id"),
+    packageName: d.offer.name,
+    meal: meals.length > 1 ? "both" : (meals[0] ?? d.offer.meal),
+    dishes: meals.flatMap((meal) => dishesFor(d.offer, meal)).join(", "),
+    image: menuCoverImage(cover, d.offer.image ?? ""),
+    changeUntil: changeable.date || changeable.address ? changeDeadline(d.cutoff_at, now, locale) : null,
+  };
 }
 
 /** Meals a delivery day brings that are not cancelled; an offer's own meals when the day lists none. */

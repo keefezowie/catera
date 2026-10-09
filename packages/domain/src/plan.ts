@@ -1,7 +1,7 @@
 import { menuCoverImage } from "./contents";
-import { renewalDue, upcomingRows, type UpcomingRow } from "./customer-day";
+import { renewalDue, upcomingRow, upcomingRows, type UpcomingRow } from "./customer-day";
 import { addDays } from "./dates";
-import type { Checkout, CustomerState, Locale, Offer, Subscription } from "./index";
+import type { Checkout, CustomerState, Delivery, Locale, Offer, Subscription } from "./index";
 import { jakartaDay } from "./kitchen";
 
 /** What a plan page offers next. "renewed" is a statement, not an action. */
@@ -18,7 +18,10 @@ export type PlanDetail = {
   remaining: number;
   startsOn: string;
   endsOn: string;
-  /** This plan's next deliveries after Jakarta today, soonest first, at most UPCOMING_LIMIT. */
+  /**
+   * Today's day while a meal of it is still to come, then this plan's deliveries after Jakarta today, soonest first,
+   * at most UPCOMING_LIMIT in all.
+   */
   upcoming: UpcomingRow[];
   action: PlanAction;
 };
@@ -26,6 +29,25 @@ export type PlanDetail = {
 const UPCOMING_LIMIT = 5;
 /** A completed plan's recap shows for this many Jakarta days after its last day. */
 const RECAP_DAYS = 14;
+
+/** A meal of the day is neither delivered nor cancelled (a day that lists no meals goes by its own status). */
+function stillToCome(d: Delivery): boolean {
+  if (d.status === "cancelled") return false;
+  const meals = d.meals ?? [];
+  if (!meals.length) return d.status !== "delivered";
+  return meals.some((m) => m.status !== "delivered" && m.status !== "cancelled");
+}
+
+/**
+ * "Berikutnya" on the plan page. On the plan's last (or only) day the hero still counts that day, so the list keeps
+ * today's day first while it has a meal to come, labelled as Beranda labels today, then the days after.
+ */
+function planUpcoming(mine: CustomerState, now: Date, locale: Locale): UpcomingRow[] {
+  const today = jakartaDay(now);
+  const current = mine.deliveries.filter((d) => d.service_date === today && stillToCome(d));
+  const rows = current.slice(0, UPCOMING_LIMIT).map((d) => upcomingRow(d, now, locale));
+  return [...rows, ...upcomingRows(mine, now, UPCOMING_LIMIT - rows.length, locale)];
+}
 
 /** Another plan that renews `sub` and has not been cancelled. */
 function isRenewed(sub: Subscription, subscriptions: readonly Subscription[]): boolean {
@@ -58,7 +80,7 @@ export function planDetail(state: CustomerState, id: string, now: Date, locale: 
     remaining: sub.remaining,
     startsOn: sub.starts_on,
     endsOn: sub.ends_on,
-    upcoming: upcomingRows(mine, now, UPCOMING_LIMIT, locale),
+    upcoming: planUpcoming(mine, now, locale),
     action: planAction(sub, state.subscriptions),
   };
 }
