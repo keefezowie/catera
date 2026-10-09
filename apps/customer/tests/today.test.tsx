@@ -6,7 +6,7 @@ import * as ReactNative from "react-native";
 import { Linking, StyleSheet } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Haptics from "expo-haptics";
-import { addDays, upcomingRows, type CustomerState, type Offer, type Subscription } from "@catera/domain";
+import { addDays, upcomingRows, type CustomerState, type Delivery, type Offer, type Subscription } from "@catera/domain";
 import { nativeMood, nativeThemes } from "@catera/design-tokens";
 import { MoodProvider, ThemeProvider } from "@catera/mobile-ui";
 import * as Reanimated from "react-native-reanimated";
@@ -605,7 +605,8 @@ describe("Beranda mood", () => {
   });
 
   it("says nothing is coming in the chosen meal and names the next delivery (ruling B6)", async () => {
-    const state = customerState({ status: "scheduled" });
+    // Today's lunch has been delivered, so the next delivery really is a later day.
+    const state = customerState({ status: "delivered", confirmed_at: `${TODAY}T04:48:00Z` });
     const next = upcomingRows(state, new Date(), 3, "id")[0].label;
     mount(runtimeWith(async () => state), { now: MALAM_NOW });
     await screen.findByTestId("home-title");
@@ -621,6 +622,54 @@ describe("Beranda mood", () => {
     expect(screen.getByTestId("plate-hero")).toBeTruthy();
   });
 
+  it("keeps the date, not Berikutnya, while the other meal is still to come today", async () => {
+    // A dinner-only customer before 15.00: Siang has nothing, but tonight's dinner is closer than any later day.
+    const state = customerState(null);
+    state.deliveries.unshift(
+      delivery("d-dinner", TODAY, {}, {
+        offer: offer({ meal: "dinner", menus: [menu("dinner", ["Sate ayam madura"])] }),
+        meals: [{ meal: "dinner", status: "scheduled" }],
+      }),
+    );
+    mount(runtimeWith(async () => state));
+    await screen.findByTestId("home-title");
+    expect(title()).toBe("Siang ini,\ntidak ada antaran.");
+    const header = within(screen.getByTestId("mood-header"));
+    expect(header.queryByText(/^Berikutnya/)).toBeNull();
+    expect(header.getByText(/^(Senin|Selasa|Rabu|Kamis|Jumat|Sabtu|Minggu) \d+ \w+$/)).toBeTruthy();
+    expect(within(screen.getByTestId("other-meal-row")).getByText("Malam ini · 17.00–19.00")).toBeTruthy();
+  });
+
+  it.each(["failed", "reported"] as const)("names the next day once the other meal is %s", async (kind) => {
+    const state = customerState(null);
+    state.deliveries.unshift(
+      delivery("d-dinner", TODAY, kind === "failed" ? { status: "issue" } : {}, {
+        offer: offer({ meal: "dinner", menus: [menu("dinner", ["Sate ayam madura"])] }),
+        meals: [
+          kind === "failed"
+            ? { meal: "dinner", status: "issue" }
+            : {
+                meal: "dinner",
+                status: "scheduled",
+                issue: { status: "open" } as unknown as NonNullable<Delivery["meals"]>[number]["issue"],
+              },
+        ],
+      }),
+    );
+    const next = upcomingRows(state, new Date(), 3, "id")[0].label;
+    mount(runtimeWith(async () => state));
+    await screen.findByTestId("home-title");
+    expect(within(screen.getByTestId("mood-header")).getByText(`Berikutnya ${next}`)).toBeTruthy();
+  });
+
+  it("keeps a package name's own casing when a plate has no dishes", async () => {
+    const state = customerState(null);
+    state.deliveries.unshift(delivery("d-bare", TODAY, { status: "scheduled" }, { offer: offer({ menus: [] }) }));
+    mount(runtimeWith(async () => state));
+    await screen.findByTestId("plate-hero");
+    expect(title()).toBe("Siang ini,\nMakan Siang Rumahan.");
+  });
+
   it("with no delivery at all today still names the next one", async () => {
     const state = customerState(null);
     const next = upcomingRows(state, new Date(), 3, "id")[0].label;
@@ -633,7 +682,7 @@ describe("Beranda mood", () => {
 
   it("speaks English when the locale is English", async () => {
     (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.locale", "en");
-    const state = customerState({ status: "scheduled" });
+    const state = customerState({ status: "delivered", confirmed_at: `${TODAY}T04:48:00Z` });
     mount(runtimeWith(async () => state), { now: MALAM_NOW });
     await screen.findByTestId("home-title");
     expect(title()).toBe("Dinner tonight,\nno delivery.");
@@ -652,15 +701,14 @@ describe("Beranda mood", () => {
     expect(node.props.ellipsizeMode).toBeUndefined();
   });
 
-  it("keeps the hero frame: padding 10, radius 28, raised 58 over the header", async () => {
+  it("keeps the hero frame: padding 10, radius 28, raised 74 (58 over the header plus the body's 16 top padding)", async () => {
     mount(runtimeWith(async () => bothMeals()));
     await screen.findByTestId("plate-hero");
-    expect(flat("plate-hero")).toMatchObject({
-      padding: 10,
-      borderRadius: 28,
-      marginTop: -58,
+    expect(flat("plate-hero")).toMatchObject({ padding: 10, borderRadius: 28, marginTop: -74 });
+    expect(flat("plate-hero-fill-siang")).toMatchObject({
       backgroundColor: nativeMood.light.siang.hero,
       boxShadow: nativeMood.light.siang.heroShadow,
+      borderRadius: 28,
     });
     expect(flat("plate-photo")).toMatchObject({ minHeight: 168, borderRadius: 20 });
   });
@@ -668,9 +716,58 @@ describe("Beranda mood", () => {
   it("fills the hero from the Malam palette and sets the plate heading in cream", async () => {
     mount(runtimeWith(async () => bothMeals()), { now: MALAM_NOW });
     await screen.findByTestId("plate-hero");
-    expect(flat("plate-hero").backgroundColor).toBe("#1C3A2C");
-    expect(flat("plate-hero").boxShadow).toBe(nativeMood.light.malam.heroShadow);
+    expect(flat("plate-hero-fill-malam").backgroundColor).toBe("#1C3A2C");
+    expect(flat("plate-hero-fill-malam").boxShadow).toBe(nativeMood.light.malam.heroShadow);
+    expect(flat("plate-hero-fill-malam").opacity).toBe(1);
     expect(flat("plate-dishes").color).toBe("#FFF7E9");
+  });
+
+  it("cross-fades the hero fill when the mood switches, in one frame that stays mounted", async () => {
+    jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
+    mount(runtimeWith(async () => bothMeals()));
+    const frame = await screen.findByTestId("plate-hero");
+    expect(flat("plate-hero-fill-malam").opacity).toBe(0);
+    fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
+    expect(flat("plate-hero-fill-malam").opacity).toBe(1);
+    // The same frame, not a new one: a remount would swap the fill instead of fading it.
+    expect(screen.getByTestId("plate-hero") === frame).toBe(true);
+    fireEvent.press(screen.getByRole("tab", { name: "Siang" }));
+    expect(flat("plate-hero-fill-malam").opacity).toBe(0);
+  });
+
+  it("starts a plate's busy and error state afresh when the hero swaps meals", async () => {
+    const state = bothMeals();
+    state.deliveries[0].meals = [
+      { meal: "lunch", status: "out_for_delivery" },
+      { meal: "dinner", status: "out_for_delivery" },
+    ];
+    const runtime = runtimeWith(async () => state);
+    (runtime.api.command as jest.Mock).mockRejectedValue(Object.assign(new Error("NOT_ALLOWED"), { code: "NOT_ALLOWED" }));
+    mount(runtime);
+    fireEvent.press(await screen.findByRole("button", { name: "Sudah sampai" }));
+    expect(await screen.findByTestId("plate-error")).toBeTruthy();
+    fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
+    expect(screen.queryByTestId("plate-error")).toBeNull();
+  });
+
+  it("puts the departure chip in flow with the overlay, so a taller overlay grows the photo", async () => {
+    const state = bothMeals();
+    state.deliveries[0].meals = [
+      { meal: "lunch", status: "out_for_delivery", departed_at: `${TODAY}T03:42:00Z` },
+      { meal: "dinner", status: "scheduled" },
+    ];
+    mount(runtimeWith(async () => state));
+    await screen.findByTestId("plate-hero");
+    const chip = screen.getByTestId("plate-chip");
+    expect(within(chip).getByText("Berangkat 10.42")).toBeTruthy();
+    expect(flat("plate-chip").position).not.toBe("absolute");
+    // Both sit in the photo's own column, neither pulled out of flow, and the photo has no fixed height to overflow.
+    const photo = within(screen.getByTestId("plate-photo"));
+    expect(photo.getByTestId("plate-chip")).toBeTruthy();
+    expect(photo.getByTestId("plate-overlay")).toBeTruthy();
+    expect(flat("plate-overlay").position).not.toBe("absolute");
+    expect(flat("plate-photo").height).toBeUndefined();
+    expect(flat("plate-photo").flexDirection).toBeUndefined();
   });
 
   it("keeps the hero actions legible on the Malam fill", async () => {

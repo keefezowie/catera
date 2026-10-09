@@ -156,13 +156,15 @@ function SignedInHome({ actorId }: { actorId: string }) {
   // A second delivery of either meal stays a card below, so no plate with an action is ever dropped.
   const morePlates = plates.filter((p) => p !== heroPlate && p !== otherPlate);
   const lead = mood === "siang" ? t("Siang ini,", "Lunch today,") : t("Malam ini,", "Dinner tonight,");
-  const headline = heroPlate
-    ? `${lead}\n${(heroPlate.dishes[0] ?? heroPlate.packageName).toLowerCase()}.`
-    : `${lead}\n${t("tidak ada antaran.", "no delivery.")}`;
+  // Only a dish is lowercased; a package name keeps its own casing.
+  const dish = heroPlate ? (heroPlate.dishes[0]?.toLowerCase() ?? heroPlate.packageName) : "";
+  const headline = heroPlate ? `${lead}\n${dish}.` : `${lead}\n${t("tidak ada antaran.", "no delivery.")}`;
   const next = rows[0];
   const nextLabel = next ? (locale === "id" ? next.label : dayLabel(next.date, today, "en")) : "";
-  // With nothing in this meal the meta names the next delivery; with something it keeps the date.
-  const meta = !heroPlate && next ? t(`Berikutnya ${nextLabel}`, `Next ${nextLabel}`) : dayLabel(today, today, locale);
+  // "Berikutnya" names a later day, so it is only true when nothing else is left today.
+  const laterToday = !!otherPlate && !["arrived", "failed", "reported"].includes(otherPlate.state);
+  const meta =
+    !heroPlate && !laterToday && next ? t(`Berikutnya ${nextLabel}`, `Next ${nextLabel}`) : dayLabel(today, today, locale);
 
   return (
     <Screen
@@ -186,8 +188,9 @@ function SignedInHome({ actorId }: { actorId: string }) {
       }
     >
       {heroPlate ? (
+        // One frame for the hero whichever meal it shows, so its fill cross-fades when the mood switches.
         <Plate
-          key={`${heroPlate.deliveryId}:${heroPlate.meal}`}
+          key="hero"
           variant="hero"
           plate={heroPlate}
           apiBase={runtime.apiBase}

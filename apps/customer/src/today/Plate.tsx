@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from "react-native-reanimated";
 import { Image, Linking, StyleSheet, Text as RNText, View, type StyleProp, type ViewStyle } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
 import { router } from "expo-router";
-import { nativeThemes } from "@catera/design-tokens";
+import { nativeMotion, nativeThemes } from "@catera/design-tokens";
 import { errorLabel, whatsappUrl, type Plate as PlateData } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
 import {
@@ -13,6 +14,7 @@ import {
   useColors,
   useMood,
   useMoodColors,
+  useReduced,
   useThemePreference,
 } from "@catera/mobile-ui";
 
@@ -168,9 +170,29 @@ function PlateButton({
   );
 }
 
+const heroEase = Easing.bezier(...nativeMotion.ease);
+
+/**
+ * 0 in Siang, 1 in Malam, easing between them over the content duration when the mood changes. Under reduced motion
+ * callers read `target` directly, so the change is instant on both threads.
+ */
+function useHeroFade(): { progress: SharedValue<number>; target: 0 | 1; reduced: boolean } {
+  const { mood } = useMood();
+  const reduced = useReduced();
+  const target = mood === "malam" ? 1 : 0;
+  const progress = useSharedValue<number>(target);
+  useEffect(() => {
+    progress.value = reduced ? target : withTiming(target, { duration: nativeMotion.content, easing: heroEase });
+  }, [progress, target, reduced]);
+  return { progress, target, reduced };
+}
+
+const HERO_RADIUS = 28;
+
 /**
  * Today's plate: the photo with one status sentence, the dishes and one action. As the `hero` it is the Beranda's
- * raised card: it takes the mood's fill and inks, rides up over the header and keeps every action of the card.
+ * raised card: two stacked fills (Siang, and Malam fading over it), riding up over the header. The frame stays
+ * mounted when the mood switches, so the fills cross-fade; only its content is keyed to the plate.
  */
 export function Plate({
   plate,
@@ -182,6 +204,62 @@ export function Plate({
   apiBase: string;
   offline?: boolean;
   variant?: "card" | "hero";
+}) {
+  const styles = useStyles();
+  const siang = useMoodColors("siang");
+  const malam = useMoodColors("malam");
+  const { progress, target, reduced } = useHeroFade();
+  const fade = useAnimatedStyle(() => ({ opacity: progress.value }));
+  const content = (
+    <PlateContent
+      key={`${plate.deliveryId}:${plate.meal}`}
+      plate={plate}
+      apiBase={apiBase}
+      offline={offline}
+      variant={variant}
+    />
+  );
+  if (variant !== "hero") return <View style={styles.card}>{content}</View>;
+  const layer = {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: HERO_RADIUS,
+    borderCurve: "continuous",
+  } as const;
+  return (
+    <View
+      testID="plate-hero"
+      // Not clipped: the shadow of each fill falls outside the frame.
+      style={{ padding: 10, marginTop: -74, borderRadius: HERO_RADIUS, borderCurve: "continuous" }}
+    >
+      <View
+        testID="plate-hero-fill-siang"
+        pointerEvents="none"
+        style={[layer, { backgroundColor: siang.hero, boxShadow: siang.heroShadow }]}
+      />
+      <Animated.View
+        testID="plate-hero-fill-malam"
+        pointerEvents="none"
+        style={[layer, { backgroundColor: malam.hero, boxShadow: malam.heroShadow }, reduced ? { opacity: target } : fade]}
+      />
+      {content}
+    </View>
+  );
+}
+
+function PlateContent({
+  plate,
+  apiBase,
+  offline,
+  variant,
+}: {
+  plate: PlateData;
+  apiBase: string;
+  offline?: boolean;
+  variant: "card" | "hero";
 }) {
   const { command, t, locale } = useMobile();
   const c = useColors();
@@ -216,21 +294,7 @@ export function Plate({
   }
 
   return (
-    <View
-      testID={hero ? "plate-hero" : undefined}
-      style={[
-        styles.card,
-        hero && {
-          padding: 10,
-          marginTop: -58,
-          borderRadius: 28,
-          borderWidth: 0,
-          borderCurve: "continuous",
-          backgroundColor: moodColors.hero,
-          boxShadow: moodColors.heroShadow,
-        },
-      ]}
-    >
+    <>
       <View
         testID="plate-photo"
         style={[
@@ -250,9 +314,13 @@ export function Plate({
         ) : null}
         <View style={styles.scrimSoft} />
         {departed ? (
-          <View style={styles.chip}>
-            <RNText style={styles.chipLabel}>{t(`Berangkat ${departed}`, `Left at ${departed}`)}</RNText>
-          </View>
+          <>
+            {/* In flow, above the overlay, so a taller overlay (large text) grows the photo instead of meeting the chip. */}
+            <View testID="plate-chip" style={styles.chip}>
+              <RNText style={styles.chipLabel}>{t(`Berangkat ${departed}`, `Left at ${departed}`)}</RNText>
+            </View>
+            <View style={{ flex: 1 }} />
+          </>
         ) : null}
         {/* The overlay carries its own dark ground, so every wrapped line sits on it. */}
         <View style={styles.overlay} testID="plate-overlay">
@@ -376,7 +444,7 @@ export function Plate({
           </Text>
         ) : null}
       </View>
-    </View>
+    </>
   );
 }
 
@@ -391,9 +459,9 @@ const useStyles = themedStyles((c) => ({
   photo: { backgroundColor: fixedInk.forest, justifyContent: "flex-end" },
   scrimSoft: { position: "absolute", left: 0, right: 0, bottom: 0, height: "75%", backgroundColor: "rgba(12,30,22,0.22)" },
   chip: {
-    position: "absolute",
-    top: 14,
-    left: 14,
+    alignSelf: "flex-start",
+    marginTop: 14,
+    marginLeft: 14,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 999,
