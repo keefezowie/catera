@@ -85,18 +85,42 @@ jest.mock("expo-constants", () => ({
   default: { expoConfig: { extra: { eas: { projectId: "synthetic-project" } } } },
 }));
 const mockTabScreens: { name: string; options?: { tabBarIcon?: (p: { focused: boolean; color: string; size: number }) => { props: { name: string } } } }[] = [];
+const mockTabBar: { style?: Record<string, unknown>; tint?: { active: unknown; inactive: unknown } } = {};
+const mockStatusBar: { style?: string } = {};
 jest.mock("expo-router", () => ({
   router: { push: jest.fn(), replace: jest.fn() },
-  Tabs: Object.assign(({ children }: { children: unknown }) => children, {
-    Screen: (props: (typeof mockTabScreens)[number]) => {
-      mockTabScreens.push(props);
-      return null;
+  // The tab group renders its real layout, so the tab bar is read under the providers the root mounts.
+  Stack: Object.assign(({ children }: { children: unknown }) => children, {
+    Screen: ({ name }: { name: string }) => {
+      if (name !== "(tabs)") return null;
+      const TabsLayout = require("../app/(tabs)/_layout").default;
+      return <TabsLayout />;
     },
   }),
+  Tabs: Object.assign(
+    ({ children, screenOptions }: { children: unknown; screenOptions?: Record<string, any> }) => {
+      mockTabBar.style = screenOptions?.tabBarStyle;
+      mockTabBar.tint = { active: screenOptions?.tabBarActiveTintColor, inactive: screenOptions?.tabBarInactiveTintColor };
+      return children;
+    },
+    {
+      Screen: (props: (typeof mockTabScreens)[number]) => {
+        mockTabScreens.push(props);
+        return null;
+      },
+    },
+  ),
   useLocalSearchParams: () => ({}),
   useFocusEffect: (fn: () => void) => require("react").useEffect(fn, []),
 }));
 jest.mock("@expo/vector-icons", () => ({ Ionicons: () => null }));
+jest.mock("expo-font", () => ({ useFonts: () => [true, null] }));
+jest.mock("expo-status-bar", () => ({
+  StatusBar: (props: { style?: string }) => {
+    mockStatusBar.style = props.style;
+    return null;
+  },
+}));
 
 process.env.EXPO_PUBLIC_API_URL = "https://api.example.test";
 process.env.EXPO_PUBLIC_SUPABASE_URL = "https://auth.example.test";
@@ -320,4 +344,33 @@ it("tab icons are outline until focused", () => {
     expect(icon(true)).not.toMatch(/-outline$/);
     expect(icon(false)).toBe(`${icon(true)}-outline`);
   }
+});
+
+describe("appearance", () => {
+  beforeEach(() => {
+    mockTabBar.style = undefined;
+    mockStatusBar.style = undefined;
+  });
+  afterEach(() => jest.restoreAllMocks());
+
+  const renderRoot = async () => {
+    const RootLayout = (require("../app/_layout") as typeof import("../app/_layout")).default;
+    render(<RootLayout />);
+    await waitFor(() => expect(mockTabBar.style).toBeDefined());
+    await act(async () => {});
+  };
+
+  it("light system scheme: light tab bar and a dark status bar", async () => {
+    jest.spyOn(require("react-native"), "useColorScheme").mockReturnValue("light");
+    await renderRoot();
+    expect(mockTabBar.style).toMatchObject({ backgroundColor: "#FFFEFA", borderTopColor: "#E2E3D8" });
+    expect(mockStatusBar.style).toBe("dark");
+  });
+
+  it("dark system scheme: dark tab bar and a light status bar", async () => {
+    jest.spyOn(require("react-native"), "useColorScheme").mockReturnValue("dark");
+    await renderRoot();
+    expect(mockTabBar.style).toMatchObject({ backgroundColor: "#1E1E1C", borderTopColor: "#34332F" });
+    expect(mockStatusBar.style).toBe("light");
+  });
 });

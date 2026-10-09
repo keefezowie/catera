@@ -1,30 +1,53 @@
 import fs from "node:fs";
 import path from "node:path";
-import { render, screen } from "@testing-library/react-native";
+import { act, render, screen, waitFor } from "@testing-library/react-native";
+import * as ReactNative from "react-native";
 
 const mockParams = { date: "2030-01-03" };
-const mockMe = { demo: false };
+const mockMe: { demo: boolean; actor: { id: string; role: string; name: string; catererId: string } | null } = {
+  demo: false,
+  actor: null,
+};
+const mockStatusBar: { style?: string } = {};
+const mockTabBar: { style?: Record<string, unknown>; tint?: Record<string, unknown> } = {};
 
 jest.mock("expo-router", () => {
   const React = require("react");
   const { Text, View } = require("react-native");
-  /** Renders each registered screen's header title the way the native stack would show it. */
+  /** Renders each registered screen's header title the way the native stack would show it. The tab group renders
+   * its real layout, so the tab bar is checked under the same providers the app mounts. */
   const Screen = ({ name, options }: any) => {
+    if (name === "(tabs)") {
+      const TabsLayout = require("../app/(tabs)/_layout").default;
+      return <TabsLayout />;
+    }
     const resolved = typeof options === "function" ? options({ route: { name, params: mockParams } }) : options;
     if (resolved?.headerShown === false) return null;
     return <Text testID={`header:${name}`}>{resolved?.title ?? name}</Text>;
   };
   const Stack: any = ({ children }: any) => <View>{children}</View>;
   Stack.Screen = Screen;
-  return { Stack, router: { push: jest.fn(), replace: jest.fn() }, Link: () => null };
+  const Tabs: any = ({ screenOptions, children }: any) => {
+    mockTabBar.style = screenOptions.tabBarStyle;
+    mockTabBar.tint = { active: screenOptions.tabBarActiveTintColor, inactive: screenOptions.tabBarInactiveTintColor };
+    return children;
+  };
+  Tabs.Screen = () => null;
+  return { Stack, Tabs, Redirect: () => null, router: { push: jest.fn(), replace: jest.fn() }, Link: () => null };
 });
+jest.mock("@expo/vector-icons/Ionicons", () => ({ __esModule: true, default: () => null }));
 const mockFonts: { result: [boolean, Error | null] } = { result: [true, null] };
 jest.mock("expo-font", () => ({ useFonts: () => mockFonts.result }));
-jest.mock("expo-status-bar", () => ({ StatusBar: () => null }));
+jest.mock("expo-status-bar", () => ({
+  StatusBar: (props: { style?: string }) => {
+    mockStatusBar.style = props.style;
+    return null;
+  },
+}));
 jest.mock("../src/runtime", () => {
   const { createMobileRuntime } = jest.requireActual("@catera/mobile-core");
   const runtime = createMobileRuntime({ apiUrl: "https://api.example.test", storagePrefix: "layout" });
-  runtime.api = { ...runtime.api, me: jest.fn(async () => ({ actor: null, demo: mockMe.demo })) };
+  runtime.api = { ...runtime.api, me: jest.fn(async () => ({ actor: mockMe.actor, demo: mockMe.demo })) };
   return { runtime };
 });
 jest.mock("expo-notifications", () => ({
@@ -99,6 +122,40 @@ describe("stack headers", () => {
     mockParams.date = jakartaDay(new Date());
     render(<RootLayout />);
     expect((await screen.findByTestId("header:menu/[date]")).props.children).toBe("Menu hari ini");
+  });
+});
+
+describe("appearance", () => {
+  const owner = { id: "u-1", role: "owner", name: "Bu Rina", catererId: "k-1" };
+
+  beforeEach(() => {
+    mockTabBar.style = undefined;
+    mockStatusBar.style = undefined;
+  });
+
+  afterEach(() => {
+    mockMe.actor = null;
+    jest.restoreAllMocks();
+  });
+
+  it("follows a dark system scheme in the tab bar and the status bar", async () => {
+    jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
+    mockMe.actor = owner;
+    render(<RootLayout />);
+    await waitFor(() => expect(mockTabBar.style).toBeDefined());
+    await act(async () => {});
+    expect(mockTabBar.style).toMatchObject({ backgroundColor: "#1E1E1C", borderTopColor: "#34332F" });
+    expect(mockStatusBar.style).toBe("light");
+  });
+
+  it("keeps the light tab bar and a dark status bar on a light system scheme", async () => {
+    jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("light");
+    mockMe.actor = owner;
+    render(<RootLayout />);
+    await waitFor(() => expect(mockTabBar.style).toBeDefined());
+    await act(async () => {});
+    expect(mockTabBar.style).toMatchObject({ backgroundColor: "#FFFEFA", borderTopColor: "#E2E3D8" });
+    expect(mockStatusBar.style).toBe("dark");
   });
 });
 

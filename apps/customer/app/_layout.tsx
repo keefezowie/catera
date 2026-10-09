@@ -4,21 +4,32 @@ import { StatusBar } from "expo-status-bar";
 import { ActivityIndicator, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useMobile } from "@catera/mobile-core";
-import { AppHeader, colors, DemoStrip, fontAssets, Text, TopInsetOwner } from "@catera/mobile-ui";
+import {
+  AppHeader,
+  DemoStrip,
+  fontAssets,
+  Text,
+  ThemeProvider,
+  TopInsetOwner,
+  useColors,
+  useThemePreference,
+} from "@catera/mobile-ui";
 import { runtime } from "../src/runtime";
 import { AppProviders } from "../src/shell";
 
 function Navigation() {
   const { t, ready, demo } = useMobile();
+  const palette = useColors();
+  const { scheme } = useThemePreference();
   if (!ready)
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.canvas }}>
-        <ActivityIndicator color={colors.forest} />
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: palette.canvas }}>
+        <ActivityIndicator color={palette.forest} />
       </View>
     );
   return (
     <TopInsetOwner owned={demo}>
-      <StatusBar style="dark" />
+      <StatusBar style={scheme === "dark" ? "light" : "dark"} />
       {demo ? <DemoStrip label={t("Demo · data sintetis", "Demo · synthetic data")} /> : null}
       <Stack
         screenOptions={{
@@ -31,7 +42,7 @@ function Navigation() {
               backLabel={options.presentation === "modal" ? t("Tutup", "Close") : t("Kembali", "Back")}
             />
           ),
-          contentStyle: { backgroundColor: colors.canvas },
+          contentStyle: { backgroundColor: palette.canvas },
         }}
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -67,20 +78,32 @@ function Navigation() {
   );
 }
 
+/** Language is not ready before the fonts, so this one message is plain Indonesian. It sits on the canvas of the active theme. */
+function FontError() {
+  const palette = useColors();
+  return (
+    <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 24, backgroundColor: palette.canvas }}>
+      <Text selectable>Font tidak dapat dimuat. Mulai ulang aplikasi.</Text>
+    </View>
+  );
+}
+
 export default function RootLayout() {
   const [loaded, error] = useFonts(fontAssets);
   if (error)
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 24 }}>
-        <Text>Font tidak dapat dimuat. Mulai ulang aplikasi.</Text>
-      </View>
+      <ThemeProvider storageKey={runtime.storageKey("theme")}>
+        <FontError />
+      </ThemeProvider>
     );
   if (!loaded) return null;
   return (
     <SafeAreaProvider>
-      <AppProviders runtime={runtime}>
-        <Navigation />
-      </AppProviders>
+      <ThemeProvider storageKey={runtime.storageKey("theme")}>
+        <AppProviders runtime={runtime}>
+          <Navigation />
+        </AppProviders>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }

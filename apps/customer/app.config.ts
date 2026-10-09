@@ -10,7 +10,7 @@ const config: ExpoConfig = {
   scheme: "catera",
   version: "1.0.0",
   orientation: "default",
-  userInterfaceStyle: "light",
+  userInterfaceStyle: "automatic",
   icon: "../../packages/brand/assets/app-icon.png",
   ios: {
     supportsTablet: true,

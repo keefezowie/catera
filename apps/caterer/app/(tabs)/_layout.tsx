@@ -1,7 +1,7 @@
 import { Redirect, Tabs } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMobile } from "@catera/mobile-core";
-import { colors, fonts } from "@catera/mobile-ui";
+import { fonts, useColors } from "@catera/mobile-ui";
 import { tabsForRole, type CatererTab } from "../../src/roles";
 import { RoleGate } from "../../src/RoleGate";
 
@@ -17,6 +17,7 @@ const icons: Record<CatererTab, { filled: Glyph; outline: Glyph }> = {
 
 export default function TabsLayout() {
   const { actor, t } = useMobile();
+  const palette = useColors();
   if (!actor) return <Redirect href="/masuk" />;
   const allowed = tabsForRole(actor.role);
   const titles: Record<CatererTab, string> = {
@@ -30,9 +31,9 @@ export default function TabsLayout() {
       <Tabs
         screenOptions={{
           headerShown: false,
-          tabBarActiveTintColor: colors.forest,
-          tabBarInactiveTintColor: colors.muted,
-          tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.line, height: 64 },
+          tabBarActiveTintColor: palette.forest,
+          tabBarInactiveTintColor: palette.muted,
+          tabBarStyle: { backgroundColor: palette.tabBar, borderTopColor: palette.line, height: 64 },
           tabBarLabelStyle: { fontSize: 12, fontFamily: fonts.bold },
         }}
       >

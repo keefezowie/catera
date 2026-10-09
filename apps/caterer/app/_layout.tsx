@@ -5,21 +5,32 @@ import { ActivityIndicator, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { jakartaDay, shortDate } from "@catera/domain";
 import { MobileProvider, useMobile } from "@catera/mobile-core";
-import { AppHeader, colors, DemoStrip, fontAssets, Text, TopInsetOwner } from "@catera/mobile-ui";
+import {
+  AppHeader,
+  DemoStrip,
+  fontAssets,
+  Text,
+  ThemeProvider,
+  TopInsetOwner,
+  useColors,
+  useThemePreference,
+} from "@catera/mobile-ui";
 import { runtime } from "../src/runtime";
 import { dapurLink } from "../src/links";
 
 function Navigation() {
   const { t, ready, locale, demo } = useMobile();
+  const palette = useColors();
+  const { scheme } = useThemePreference();
   if (!ready)
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: colors.canvas }}>
-        <ActivityIndicator color={colors.forest} />
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: palette.canvas }}>
+        <ActivityIndicator color={palette.forest} />
       </View>
     );
   return (
     <TopInsetOwner owned={demo}>
-      <StatusBar style="dark" />
+      <StatusBar style={scheme === "dark" ? "light" : "dark"} />
       {demo ? <DemoStrip label={t("Demo · data sintetis", "Demo · synthetic data")} /> : null}
       <Stack
         screenOptions={{
@@ -32,7 +43,7 @@ function Navigation() {
               backLabel={options.presentation === "modal" ? t("Tutup", "Close") : t("Kembali", "Back")}
             />
           ),
-          contentStyle: { backgroundColor: colors.canvas },
+          contentStyle: { backgroundColor: palette.canvas },
         }}
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -65,21 +76,32 @@ function Navigation() {
   );
 }
 
+/** Language is not ready before the fonts, so this one message is plain Indonesian, as in the customer app. It sits on the canvas of the active theme. */
+function FontError() {
+  const palette = useColors();
+  return (
+    <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 24, backgroundColor: palette.canvas }}>
+      <Text selectable>Font tidak dapat dimuat. Mulai ulang aplikasi.</Text>
+    </View>
+  );
+}
+
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts(fontAssets);
-  // Language is not ready before the fonts, so this one message is plain Indonesian, as in the customer app.
   if (fontError)
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 24 }}>
-        <Text>Font tidak dapat dimuat. Mulai ulang aplikasi.</Text>
-      </View>
+      <ThemeProvider storageKey={runtime.storageKey("theme")}>
+        <FontError />
+      </ThemeProvider>
     );
   if (!fontsLoaded) return null;
   return (
     <SafeAreaProvider>
-      <MobileProvider runtime={runtime} linkMapper={dapurLink}>
-        <Navigation />
-      </MobileProvider>
+      <ThemeProvider storageKey={runtime.storageKey("theme")}>
+        <MobileProvider runtime={runtime} linkMapper={dapurLink}>
+          <Navigation />
+        </MobileProvider>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }

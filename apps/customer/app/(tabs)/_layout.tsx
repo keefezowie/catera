@@ -1,7 +1,7 @@
 import { Tabs } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMobile } from "@catera/mobile-core";
-import { colors, fonts } from "@catera/mobile-ui";
+import { fonts, useColors } from "@catera/mobile-ui";
 
 type CustomerTab = "index" | "jadwal" | "jelajah" | "akun";
 
@@ -20,6 +20,7 @@ const legacy = ["discover"] as const;
 
 export default function TabsLayout() {
   const { t } = useMobile();
+  const palette = useColors();
   const titles: Record<CustomerTab, string> = {
     index: t("Beranda", "Home"),
     jadwal: t("Jadwal", "Schedule"),
@@ -30,9 +31,9 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.forest,
-        tabBarInactiveTintColor: colors.muted,
-        tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.line, height: 64 },
+        tabBarActiveTintColor: palette.forest,
+        tabBarInactiveTintColor: palette.muted,
+        tabBarStyle: { backgroundColor: palette.tabBar, borderTopColor: palette.line, height: 64 },
         tabBarLabelStyle: { fontSize: 12, fontFamily: fonts.bold },
       }}
     >

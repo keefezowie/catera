@@ -5,7 +5,7 @@ const config: ExpoConfig = {
   scheme: "catera-dapur",
   version: "1.0.0",
   orientation: "portrait",
-  userInterfaceStyle: "light",
+  userInterfaceStyle: "automatic",
   icon: "../../packages/brand/assets/app-icon.png",
   ios: { supportsTablet: true, bundleIdentifier: "id.catera.dapur" },
   android: { package: "id.catera.dapur", permissions: ["POST_NOTIFICATIONS"] },
