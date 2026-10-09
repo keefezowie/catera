@@ -70,6 +70,13 @@ const renderToday = (runtime: MobileRuntime) =>
 
 beforeEach(() => jest.clearAllMocks());
 
+/**
+ * The "…" button of delivery-order row `n` (route order: 1 Bu Sari Wulandari, 2 Kantor PT Sinar Rasa, 3 Keluarga
+ * Hartono, 4 Kost Damai). Its label says what the sheet can do, so it is found by its start.
+ */
+const stopMenu = async (n: number) =>
+  within(await screen.findByTestId(`stop-${n}`)).getByLabelText(/^(Laporkan masalah|Pindah hari)/);
+
 it("shows the lunch cooking total for the day", async () => {
   renderToday(runtimeWith(async () => canvasDay()));
   expect(within(await screen.findByTestId("session-count")).getByText("34")).toBeTruthy();
@@ -98,7 +105,7 @@ it("shares the route as WhatsApp-ready text", async () => {
 it("reports a failed delivery by stepping it to the issue status", async () => {
   const runtime = runtimeWith(async () => canvasDay());
   renderToday(runtime);
-  fireEvent.press(await screen.findByLabelText("Ada masalah: Keluarga Hartono"));
+  fireEvent.press(await stopMenu(3));
   fireEvent.press(await screen.findByText("Gagal diantar"));
   fireEvent.press(screen.getByText("Simpan laporan"));
   await waitFor(() => expect(runtime.api.command).toHaveBeenCalledTimes(3));
@@ -222,7 +229,7 @@ it("moves a customer's day from Besok while the cutoff is still ahead", async ()
       <TodayScreen date={tomorrow} />
     </MobileProvider>,
   );
-  fireEvent.press(await screen.findByLabelText("Pindah tanggal: Keluarga Hartono"));
+  fireEvent.press(await stopMenu(3));
   expect(screen.queryByText("Gagal diantar")).toBeNull();
   fireEvent.changeText(screen.getByLabelText("Tanggal baru (TTTT-BB-HH)"), "2099-01-05");
   fireEvent.changeText(screen.getByLabelText("Alasan"), "Dapur tutup sehari");
@@ -238,7 +245,7 @@ it("moves a customer's day from Besok while the cutoff is still ahead", async ()
 
 it("the stop menu button and the problem options give haptics", async () => {
   renderToday(runtimeWith(async () => canvasDay()));
-  fireEvent.press(await screen.findByLabelText("Ada masalah: Keluarga Hartono"));
+  fireEvent.press(await stopMenu(3));
   expect(Haptics.impactAsync).toHaveBeenCalledTimes(1);
   const option = (await screen.findAllByRole("radio"))[0];
   fireEvent.press(option);
@@ -247,7 +254,7 @@ it("the stop menu button and the problem options give haptics", async () => {
 
 it("tells the caterer plainly what a failed delivery means", async () => {
   renderToday(runtimeWith(async () => canvasDay()));
-  fireEvent.press(await screen.findByLabelText("Ada masalah: Keluarga Hartono"));
+  fireEvent.press(await stopMenu(3));
   expect(await screen.findByText(/tidak dihitung terkirim/)).toBeTruthy();
   expect(screen.queryByText(/pengembalian dana diurus Catera/)).toBeNull();
 });
@@ -287,7 +294,7 @@ it("offers Pindah tanggal on today's stop of a customer before the change deadli
   const sari = day.deliveries.find((x) => x.customer.name === "Bu Sari Wulandari")!;
   const runtime = runtimeWith(async () => day);
   renderToday(runtime);
-  fireEvent.press(await screen.findByLabelText("Ada masalah: Bu Sari Wulandari"));
+  fireEvent.press(await stopMenu(1));
   expect(await screen.findByText("Gagal diantar")).toBeTruthy();
   fireEvent.press(screen.getByText("Pindah tanggal"));
   fireEvent.changeText(screen.getByLabelText("Tanggal baru (TTTT-BB-HH)"), "2099-01-06");
@@ -304,7 +311,7 @@ it("offers Pindah tanggal on today's stop of a customer before the change deadli
 
 it("keeps only Gagal diantar today once the deadline has passed or the package has fixed dates", async () => {
   renderToday(runtimeWith(async () => canvasDay()));
-  fireEvent.press(await screen.findByLabelText("Ada masalah: Keluarga Hartono"));
+  fireEvent.press(await stopMenu(3));
   expect(await screen.findByText("Gagal diantar")).toBeTruthy();
   expect(screen.queryByText("Pindah tanggal")).toBeNull();
 });
@@ -316,12 +323,12 @@ it("shows the move button on Besok only for days that can still move", async () 
       <TodayScreen date={tomorrowDay()} />
     </MobileProvider>,
   );
-  fireEvent.press(await screen.findByLabelText("Pindah tanggal: Bu Sari Wulandari"));
+  fireEvent.press(await stopMenu(1));
   expect(screen.queryByText("Gagal diantar")).toBeNull();
   expect(screen.getByText("Pindah tanggal")).toBeTruthy();
-  // Past the deadline (Keluarga Hartono) or a fixed-date package (Kantor PT Sinar Rasa): no button at all.
-  expect(screen.queryByLabelText("Pindah tanggal: Keluarga Hartono")).toBeNull();
-  expect(screen.queryByLabelText("Pindah tanggal: Kantor PT Sinar Rasa")).toBeNull();
+  // Past the deadline (Keluarga Hartono, 3) or a fixed-date package (Kantor PT Sinar Rasa, 2): no button at all.
+  expect(within(screen.getByTestId("stop-3")).queryByLabelText(/^(Laporkan masalah|Pindah hari)/)).toBeNull();
+  expect(within(screen.getByTestId("stop-2")).queryByLabelText(/^(Laporkan masalah|Pindah hari)/)).toBeNull();
 });
 
 it("says when customer reports could not be loaded and retries", async () => {

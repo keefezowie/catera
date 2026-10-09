@@ -1,14 +1,15 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
-import { Alert } from "react-native";
+import { Alert, Linking, Share } from "react-native";
+import * as Reanimated from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import * as SecureStore from "expo-secure-store";
 import { router } from "expo-router";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
-import { errorLabel, type SellerOperationsState } from "@catera/domain";
+import { errorLabel, kitchenSession, routeMapsUrl, type SellerOperationsState } from "@catera/domain";
 import { MoodProvider } from "@catera/mobile-ui";
 import { TodayScreen } from "../src/today/TodayScreen";
 import { dishKey } from "../src/today/ticks";
-import { canvasDay } from "./fixtures";
+import { canvasDay, report } from "./fixtures";
 
 // The clock is pinned to Thursday 8 Oct 2026, 10.00 Jakarta. Only the clock: timers and microtasks keep running.
 const pinToday = () =>
@@ -447,5 +448,333 @@ describe("other days and data", () => {
     expect(await screen.findByTestId("session-count")).toBeTruthy();
     expect(screen.queryByText("Mulai masak")).toBeNull();
     offline.loadCachedDay.mockResolvedValue(null);
+  });
+});
+
+// ---- The delivery order and the done state ----
+
+/** The canvas day with `n` stops, each with its own address, named so that the route order is stable. */
+function manyStops(n: number): SellerOperationsState {
+  const day = kitchenDay([scheduled]);
+  const base = day.deliveries[0];
+  day.deliveries = Array.from({ length: n }, (_, i) => ({
+    ...base,
+    id: `x-${i}`,
+    customer: { id: `cx-${i}`, name: `Pelanggan ${String(i + 1).padStart(2, "0")}` },
+    address: { ...base.address, id: `ax-${i}`, line: `Jl. Kenanga ${i + 1}` },
+  })) as typeof day.deliveries;
+  return day;
+}
+
+const stopsOf = (day: SellerOperationsState) => kitchenSession(day, "lunch", new Date())!.stops;
+
+/** Where each test id first appears in the rendered tree, in reading order; -1 when it is absent. */
+function readingOrder(ids: string[]) {
+  const seen = new Map<string, number>();
+  let at = 0;
+  const walk = (node: unknown) => {
+    if (!node || typeof node === "string") return;
+    if (Array.isArray(node)) {
+      node.forEach(walk);
+      return;
+    }
+    const n = node as { props?: { testID?: string }; children?: unknown[] | null };
+    at += 1;
+    if (n.props?.testID && !seen.has(n.props.testID)) seen.set(n.props.testID, at);
+    n.children?.forEach(walk);
+  };
+  walk(screen.toJSON());
+  return ids.map((id) => seen.get(id) ?? -1);
+}
+
+const departed: MealState = { status: "out_for_delivery", departed_at: "2026-10-08T02:30:00Z" };
+const delivered: MealState = { status: "delivered" };
+const failed: MealState = { status: "issue" };
+const LINE = "Pengantaran tercatat sampai otomatis, kecuali kamu laporkan masalah di alamatnya.";
+
+describe("Urutan antar", () => {
+  it("shows the first three stops as numbered rows and reveals the rest on Lihat alamat lainnya", async () => {
+    renderToday(runtimeWith(async () => kitchenDay([scheduled])));
+    expect(await screen.findByText("Urutan antar")).toBeTruthy();
+    const first = screen.getByTestId("stop-1");
+    expect(within(first).getByText("1")).toBeTruthy();
+    expect(within(first).getByText("Bu Sari Wulandari")).toBeTruthy();
+    expect(within(first).getByText("2 porsi · Makan Siang Rumahan")).toBeTruthy();
+    expect(within(first).getByText(/^Jl\. Melati \d+, Tebet$/)).toBeTruthy();
+    expect(screen.getByTestId("stop-3")).toBeTruthy();
+    expect(screen.queryByTestId("stop-4")).toBeNull();
+    expect(screen.queryByText("Kost Damai")).toBeNull();
+
+    fireEvent.press(screen.getByText("Lihat 1 alamat lainnya"));
+    expect(within(screen.getByTestId("stop-4")).getByText("Kost Damai")).toBeTruthy();
+    expect(screen.queryByText(/^Lihat \d+ alamat lainnya$/)).toBeNull();
+  });
+
+  it("says how many addresses are folded away, and reveals all of them", async () => {
+    renderToday(runtimeWith(async () => manyStops(12)));
+    fireEvent.press(await screen.findByText("Lihat 9 alamat lainnya"));
+    expect(screen.getByTestId("stop-12")).toBeTruthy();
+  });
+
+  it("keeps the whole address in the row's spoken label while the visible address is one line", async () => {
+    renderToday(runtimeWith(async () => kitchenDay([scheduled])));
+    const info = await screen.findByTestId("stop-1-info");
+    expect(info.props.accessibilityLabel).toMatch(
+      /^1\. Bu Sari Wulandari, 2 porsi · Makan Siang Rumahan, Jl\. Melati \d+, Tebet$/,
+    );
+    expect(within(screen.getByTestId("stop-1")).getByText(/^Jl\. Melati \d+, Tebet$/).props.numberOfLines).toBe(1);
+  });
+
+  it("keeps a stop's delivery note under its row, wrapping", async () => {
+    const day = kitchenDay([scheduled]);
+    day.deliveries[0].address.instructions = "Pagar hijau, titip di pos satpam";
+    renderToday(runtimeWith(async () => day));
+    const note = await screen.findByText("Pagar hijau, titip di pos satpam");
+    expect(note.props.numberOfLines).toBeUndefined();
+  });
+
+  it("opens that stop's map from its map button", async () => {
+    const open = jest.spyOn(Linking, "openURL").mockResolvedValue(true);
+    const day = kitchenDay([scheduled]);
+    renderToday(runtimeWith(async () => day));
+    fireEvent.press(await screen.findByLabelText("Buka peta Keluarga Hartono"));
+    expect(open).toHaveBeenCalledTimes(1);
+    expect(open).toHaveBeenCalledWith(stopsOf(day).find((s) => s.name === "Keluarga Hartono")!.mapsUrl);
+    open.mockRestore();
+  });
+
+  it("opens the exception sheet for that stop from the ellipsis button", async () => {
+    renderToday(runtimeWith(async () => kitchenDay([scheduled])));
+    const more = within(await screen.findByTestId("stop-1")).getByLabelText("Laporkan masalah atau pindah hari");
+    fireEvent.press(more);
+    expect(await screen.findByText("Gagal diantar")).toBeTruthy();
+    expect(screen.getByText("Pindah tanggal")).toBeTruthy();
+    // The sheet is titled with the stop it was opened for: the name is on the row and on the sheet.
+    expect(screen.getAllByText("Bu Sari Wulandari").length).toBeGreaterThan(1);
+  });
+
+  it("names the ellipsis for what its sheet can do: only a report when the day cannot move", async () => {
+    renderToday(runtimeWith(async () => kitchenDay([scheduled])));
+    // Keluarga Hartono's change deadline has passed.
+    fireEvent.press(within(await screen.findByTestId("stop-3")).getByLabelText("Laporkan masalah"));
+    expect(await screen.findByText("Gagal diantar")).toBeTruthy();
+    expect(screen.queryByText("Pindah tanggal")).toBeNull();
+  });
+
+  it("offers only a move on tomorrow, and only where the day can move", async () => {
+    renderToday(runtimeWith(async (_id, date) => kitchenDay([scheduled], { date })));
+    await screen.findByText("Mulai masak");
+    fireEvent.press(screen.getByRole("button", { name: /, ganti hari$/ }));
+    // Tomorrow's day is read before its first stop shows; the checklist beside it reads its note too, so let that settle.
+    expect(await within(await screen.findByTestId("stop-1")).findByLabelText("Pindah hari")).toBeTruthy();
+    await act(async () => undefined);
+    expect(screen.queryByText("Mulai masak")).toBeNull();
+    expect(within(screen.getByTestId("stop-3")).queryByLabelText(/Laporkan|Pindah hari/)).toBeNull();
+  });
+});
+
+describe("Buka semua di Peta", () => {
+  it("opens the directions link for the route", async () => {
+    const open = jest.spyOn(Linking, "openURL").mockResolvedValue(true);
+    const day = kitchenDay([scheduled]);
+    renderToday(runtimeWith(async () => day));
+    fireEvent.press(await screen.findByText("Buka semua di Peta"));
+    expect(open).toHaveBeenCalledWith(routeMapsUrl(stopsOf(day))!.url);
+    open.mockRestore();
+  });
+
+  it("reads Buka 10 alamat pertama di Peta with twelve stops, and opens only those ten", async () => {
+    const open = jest.spyOn(Linking, "openURL").mockResolvedValue(true);
+    const day = manyStops(12);
+    renderToday(runtimeWith(async () => day));
+    fireEvent.press(await screen.findByText("Buka 10 alamat pertama di Peta"));
+    expect(screen.queryByText("Buka semua di Peta")).toBeNull();
+    const link = routeMapsUrl(stopsOf(day))!;
+    expect(link.count).toBe(10);
+    expect(open).toHaveBeenCalledWith(link.url);
+    expect(decodeURIComponent(link.url)).not.toContain("Jl. Kenanga 11");
+    open.mockRestore();
+  });
+
+  it("says it in English", async () => {
+    const runtime = runtimeWith(async () => manyStops(12));
+    store().set(runtime.storageKey("locale"), "en");
+    renderToday(runtime);
+    expect(await screen.findByText("Open the first 10 addresses in Maps")).toBeTruthy();
+  });
+});
+
+describe("Bagikan rute ke WhatsApp", () => {
+  it("still shares the route text", async () => {
+    const share = jest.spyOn(Share, "share").mockResolvedValue({ action: "sharedAction" });
+    renderToday(runtimeWith(async () => kitchenDay([scheduled])));
+    fireEvent.press(await screen.findByText("Bagikan rute ke WhatsApp"));
+    await waitFor(() => expect(share).toHaveBeenCalled());
+    expect(share.mock.calls[0][0]).toEqual(expect.objectContaining({ message: expect.stringMatching(/^\*Antar siang/) }));
+    share.mockRestore();
+  });
+});
+
+describe("the order across the stages", () => {
+  it("sits below the checklist before departure", async () => {
+    renderToday(runtimeWith(async () => kitchenDay([cooking])));
+    await screen.findByText("Urutan antar");
+    const [list, order] = readingOrder(["cooking-list", "delivery-order"]);
+    expect(list).toBeGreaterThan(0);
+    expect(order).toBeGreaterThan(list);
+  });
+
+  it("leads alone after departure: no checklist, the header and track say it is out, and the line explains arrival", async () => {
+    renderToday(runtimeWith(async () => kitchenDay([departed])));
+    expect(await screen.findByText("Urutan antar")).toBeTruthy();
+    expect(screen.queryByTestId("cooking-list")).toBeNull();
+    expect(screen.queryByText("Daftar masak")).toBeNull();
+    expect(screen.queryByText("Per paket")).toBeNull();
+    expect(screen.getByText("Dapur Bu Rina · Sedang diantar")).toBeTruthy();
+    expect(within(screen.getByTestId("session-count")).getByText("Berangkat 09.30")).toBeTruthy();
+    expect(screen.getByText(LINE)).toBeTruthy();
+    expect(screen.queryByTestId("screen-footer")).toBeNull();
+    // The order and its buttons are all still there.
+    expect(screen.getByTestId("stop-1")).toBeTruthy();
+    expect(screen.getByText("Buka semua di Peta")).toBeTruthy();
+    expect(screen.getByText("Bagikan rute ke WhatsApp")).toBeTruthy();
+  });
+
+  it("keeps Hari ini in the header before departure, and says nothing about arrival on tomorrow", async () => {
+    renderToday(runtimeWith(async (_id, date) => kitchenDay([scheduled], { date })));
+    expect(await screen.findByText("Dapur Bu Rina · Hari ini")).toBeTruthy();
+    expect(screen.getByText(LINE)).toBeTruthy();
+    fireEvent.press(screen.getByRole("button", { name: /, ganti hari$/ }));
+    // Wait for tomorrow's own day: the header names it before its stops are read.
+    await screen.findByText("Dapur Bu Rina · Besok");
+    await screen.findByLabelText("Pindah hari");
+    await act(async () => undefined);
+    expect(screen.queryByText(LINE)).toBeNull();
+  });
+
+  it("lets a stop of a meal that is out for delivery be reported", async () => {
+    renderToday(runtimeWith(async () => kitchenDay([departed])));
+    fireEvent.press(await within(await screen.findByTestId("stop-1")).findByLabelText("Laporkan masalah"));
+    expect(await screen.findByText("Gagal diantar")).toBeTruthy();
+  });
+
+  it("fades the body when the stage changes", async () => {
+    let served = kitchenDay([cooking]);
+    renderToday(runtimeWith(async () => served));
+    await screen.findByText("Daftar masak");
+    const timing = jest.spyOn(Reanimated, "withTiming");
+    served = kitchenDay([departed]);
+    fireEvent.press(await screen.findByText("Berangkat antar · 34 porsi"));
+    lastAlert(alert).press("Berangkat");
+    expect(await screen.findByText("Dapur Bu Rina · Sedang diantar", {}, { timeout: 10000 })).toBeTruthy();
+    expect(screen.queryByText("Daftar masak")).toBeNull();
+    expect(timing).toHaveBeenCalledWith(1, expect.objectContaining({ duration: 220 }));
+    timing.mockRestore();
+  }, 30000);
+});
+
+describe("Semua beres", () => {
+  it("replaces the sessions once every delivery is recorded, with a button to tomorrow", async () => {
+    const runtime = runtimeWith(async (_id, date) => kitchenDay([delivered], { date }));
+    renderToday(runtime);
+    expect(await screen.findByText("Semua beres hari ini")).toBeTruthy();
+    expect(screen.getByText("Semua antaran tercatat sampai.")).toBeTruthy();
+    expect(screen.queryByText("Urutan antar")).toBeNull();
+    expect(screen.queryByText("Daftar masak")).toBeNull();
+    expect(screen.queryByTestId("screen-footer")).toBeNull();
+
+    fireEvent.press(screen.getByRole("button", { name: "Lihat besok" }));
+    await waitFor(() => expect(runtime.api.sellerOperations).toHaveBeenLastCalledWith("k-1", TOMORROW));
+    expect(await screen.findByText("Dapur Bu Rina · Besok")).toBeTruthy();
+    await waitFor(() => expect(screen.queryByText("Semua beres hari ini")).toBeNull());
+    expect(await screen.findByText("Urutan antar")).toBeTruthy();
+  });
+
+  it("counts from the real rows when some were marked Gagal diantar, and does not say everything arrived", async () => {
+    renderToday(runtimeWith(async () => kitchenDay([delivered, delivered, delivered, failed])));
+    expect(await screen.findByText("Semua beres hari ini")).toBeTruthy();
+    expect(screen.getByText("3 tercatat sampai, 1 ditandai Gagal diantar.")).toBeTruthy();
+    expect(screen.queryByText("Semua antaran tercatat sampai.")).toBeNull();
+  });
+
+  it("says it in English", async () => {
+    const runtime = runtimeWith(async () => kitchenDay([delivered, delivered, failed, failed]));
+    store().set(runtime.storageKey("locale"), "en");
+    renderToday(runtime);
+    expect(await screen.findByText("All done today")).toBeTruthy();
+    expect(screen.getByText("2 recorded as arrived, 2 marked as failed.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "See tomorrow" })).toBeTruthy();
+  });
+
+  it("counts a cancelled row as neither", async () => {
+    renderToday(runtimeWith(async () => kitchenDay([delivered, delivered, { status: "cancelled" }])));
+    expect(await screen.findByText("Semua antaran tercatat sampai.")).toBeTruthy();
+  });
+
+  it("keeps the sessions while a customer report is still open", async () => {
+    const runtime = runtimeWith(async () => kitchenDay([delivered]));
+    (runtime.api.request as jest.Mock).mockResolvedValue([report({ service_date: TODAY, status: "responded" })]);
+    renderToday(runtime);
+    expect(await screen.findByText("Urutan antar")).toBeTruthy();
+    expect(screen.queryByText("Semua beres hari ini")).toBeNull();
+  });
+
+  it("is done again once that report is resolved", async () => {
+    const runtime = runtimeWith(async () => kitchenDay([delivered]));
+    (runtime.api.request as jest.Mock).mockResolvedValue([report({ service_date: TODAY, status: "resolved" })]);
+    renderToday(runtime);
+    expect(await screen.findByText("Semua beres hari ini")).toBeTruthy();
+  });
+
+  it("does not call the day done when the reports could not be read", async () => {
+    const runtime = runtimeWith(async () => kitchenDay([delivered]));
+    (runtime.api.request as jest.Mock).mockRejectedValue(new Error("REQUEST_TIMEOUT"));
+    renderToday(runtime);
+    expect(await screen.findByText("Laporan pelanggan belum bisa dimuat.")).toBeTruthy();
+    expect(screen.getByText("Urutan antar")).toBeTruthy();
+    expect(screen.queryByText("Semua beres hari ini")).toBeNull();
+  });
+
+  it("is not done while the other meal still has rows to serve", async () => {
+    const day = kitchenDay([failed]);
+    day.deliveries[3].meals.push({ meal: "dinner", status: "scheduled" } as never);
+    renderToday(runtimeWith(async () => day));
+    expect(await screen.findByText("4 antaran makan siang ditandai Gagal diantar.")).toBeTruthy();
+    expect(screen.queryByText("Semua beres hari ini")).toBeNull();
+    expect(screen.getByText("Lihat makan malam · 6 porsi")).toBeTruthy();
+  });
+
+  it("lets a meal whose rows all failed keep its own card, and counts every row once the other meal is shown", async () => {
+    const day = kitchenDay([failed]);
+    day.deliveries[3].meals.push({ meal: "dinner", status: "delivered" } as never);
+    // The mood is what the "Lihat makan malam" button switches, so the screen needs its provider.
+    render(
+      <MobileProvider runtime={runtimeWith(async () => day)} linkMapper={(h) => h}>
+        <MoodProvider>
+          <TodayScreen />
+        </MoodProvider>
+      </MobileProvider>,
+    );
+    expect(await screen.findByText("4 antaran makan siang ditandai Gagal diantar.")).toBeTruthy();
+    expect(screen.queryByText("Semua beres hari ini")).toBeNull();
+    fireEvent.press(screen.getByText("Lihat makan malam · 6 porsi"));
+    expect(await screen.findByText("Semua beres hari ini")).toBeTruthy();
+    expect(screen.getByText("1 tercatat sampai, 4 ditandai Gagal diantar.")).toBeTruthy();
+  });
+
+  it("is not done on a copy kept from before the connection dropped", async () => {
+    const offline = jest.requireMock("../src/today/offline") as { loadCachedDay: jest.Mock };
+    offline.loadCachedDay.mockResolvedValue({ savedAt: "2026-10-08T01:00:00Z", data: kitchenDay([delivered]) });
+    renderToday(runtimeWith(async () => Promise.reject(new Error("REQUEST_TIMEOUT"))));
+    expect(await screen.findByTestId("session-count")).toBeTruthy();
+    expect(screen.queryByText("Semua beres hari ini")).toBeNull();
+    offline.loadCachedDay.mockResolvedValue(null);
+  });
+
+  it("is never done for a day other than today", async () => {
+    renderToday(runtimeWith(async (_id, date) => kitchenDay([delivered], { date })));
+    await screen.findByText("Semua beres hari ini");
+    fireEvent.press(screen.getByRole("button", { name: /, ganti hari$/ }));
+    await waitFor(() => expect(screen.queryByText("Semua beres hari ini")).toBeNull());
   });
 });

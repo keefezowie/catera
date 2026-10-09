@@ -6,6 +6,7 @@ import {
   errorLabel,
   jakartaDay,
   journeyCaption,
+  kitchenDayDone,
   kitchenSession,
   mealLabel,
   sessionStart,
@@ -218,6 +219,49 @@ function KitchenAction({
   );
 }
 
+/** How the day's deliveries ended, counted from the real rows of both meals; a cancelled day or meal counts as neither. */
+function dayOutcome(ops: SellerOperationsState) {
+  let arrived = 0;
+  let failed = 0;
+  for (const d of ops.deliveries) {
+    if (d.status === "cancelled") continue;
+    for (const m of d.meals) {
+      if (m.status === "delivered") arrived += 1;
+      else if (m.status === "issue") failed += 1;
+    }
+  }
+  return { arrived, failed };
+}
+
+/**
+ * "Semua beres hari ini": what the body shows once every delivery is recorded and no report is open. It says everything
+ * arrived only when nothing was marked "Gagal diantar"; otherwise it counts both, so a day with failures never reads as clean.
+ */
+function DoneCard({ ops, onTomorrow }: { ops: SellerOperationsState; onTomorrow: () => void }) {
+  const { t } = useMobile();
+  const c = useColors();
+  const { arrived, failed } = dayOutcome(ops);
+  return (
+    <Card tone="sage" style={{ gap: 12 }}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+        <Ionicons name="checkmark-circle" size={32} color={c.forest} />
+        <Text variant="heading" style={{ flex: 1 }}>
+          {t("Semua beres hari ini", "All done today")}
+        </Text>
+      </View>
+      <Text selectable testID="done-outcome">
+        {failed === 0
+          ? t("Semua antaran tercatat sampai.", "All deliveries recorded as arrived.")
+          : t(
+              `${arrived} tercatat sampai, ${failed} ditandai Gagal diantar.`,
+              `${arrived} recorded as arrived, ${failed} marked as failed.`,
+            )}
+      </Text>
+      <Button label={t("Lihat besok", "See tomorrow")} onPress={onTomorrow} />
+    </Card>
+  );
+}
+
 /**
  * Hari ini: the mood's meal as one session with what to cook and where to take it, plus only the exceptions to act on.
  * `date` (from a notification) opens Besok when it points to tomorrow.
@@ -266,7 +310,23 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
   // The meta keeps the kitchen's name while the other day loads, instead of dropping it for a moment.
   const [catererName, setCatererName] = useState("");
   if (ops && ops.caterer.name !== catererName) setCatererName(ops.caterer.name);
-  const dayWord = offset === "0" ? t("Hari ini", "Today") : t("Besok", "Tomorrow");
+  // Once the meal is out the header says so, in place of the day word: the track and the order below say the rest.
+  const out = offset === "0" && session?.journey.stage === "out_for_delivery";
+  const dayWord = out
+    ? t("Sedang diantar", "On the way")
+    : offset === "0"
+      ? t("Hari ini", "Today")
+      : t("Besok", "Tomorrow");
+  // The day is done when nothing is left to serve and no report is open. It needs the reports read (a failed read could
+  // be hiding an open one), and a copy kept from before the connection dropped may be out of date. A meal whose rows
+  // all failed keeps its own card saying so, which a "Semua beres" would otherwise cover.
+  const done =
+    !!ops &&
+    offset === "0" &&
+    !day.data?.savedAt &&
+    !!issues.data &&
+    (session !== null || failedCount === 0) &&
+    kitchenDayDone(ops, issues.data, now);
 
   return (
     <Screen
@@ -305,7 +365,7 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
         </MoodHeader>
       }
     >
-      <FadeSwap swapKey={`${date}-${mood}`}>
+      <FadeSwap swapKey={`${date}-${mood}-${done ? "done" : (session?.journey.stage ?? "none")}`}>
         <View style={{ gap: 16 }}>
           {day.data?.savedAt ? (
             <Card tone="attention">
@@ -333,7 +393,9 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
               <ActionCards items={attention.data?.items ?? []} />
             </>
           ) : null}
-          {ops && session ? (
+          {ops && done ? (
+            <DoneCard ops={ops} onTomorrow={() => setOffset("1")} />
+          ) : ops && session ? (
             <SessionCard
               ops={ops}
               session={session}
