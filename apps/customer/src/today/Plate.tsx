@@ -153,8 +153,12 @@ export function heroSentences(
   trackShown: boolean,
 ): [string, string] {
   const [first, second] = sentences(p, t);
-  if (trackShown && (p.state === "scheduled" || (p.state === "on_the_way" && !jakartaClock(p.journey.departedAt))))
-    return [capitalise(second), ""];
+  // An offer can carry no window, and a delivery no address label: promoting then would leave "Tiba sekitar " or
+  // "Diantar  ke X" as the header, so both original lines stay (the same guard as the due line below).
+  const promotes =
+    (p.state === "scheduled" && !!p.window && !!p.addressLabel) ||
+    (p.state === "on_the_way" && !!p.window && !jakartaClock(p.journey.departedAt));
+  if (trackShown && promotes) return [capitalise(second), ""];
   if (p.state === "due" && p.journey.stage === "scheduled")
     return [
       first,
@@ -430,7 +434,15 @@ const useStyles = themedStyles((c) => ({
   // 66% forest-black over a pure white photo still gives cream text about 5.3:1.
   overlay: { padding: 18, paddingTop: 14, gap: 4, backgroundColor: "rgba(12,30,22,0.66)" },
   meal: { fontSize: 13, fontFamily: fontFor("700"), color: fixedInk.cream },
-  sentence: { fontSize: 28, lineHeight: 33, fontFamily: fontFor("800"), letterSpacing: -0.5, color: fixedInk.cream },
+  // Tabular: the promoted header carries the delivery window.
+  sentence: {
+    fontSize: 28,
+    lineHeight: 33,
+    fontFamily: fontFor("800"),
+    letterSpacing: -0.5,
+    color: fixedInk.cream,
+    fontVariant: ["tabular-nums"],
+  },
   second: { fontSize: 17, fontFamily: fontFor("600"), color: fixedInk.cream, fontVariant: ["tabular-nums"] },
   body: { padding: 16, gap: 12 },
   row: { flexDirection: "row", gap: 8 },

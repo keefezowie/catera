@@ -900,7 +900,10 @@ describe("Beranda mood", () => {
       expect(track.props.accessibilityLabel).toBe("Terjadwal");
       expect(within(track).getByText("Terjadwal")).toBeTruthy();
       expect(h.getAllByText("Terjadwal")).toHaveLength(1);
-      expect(h.getByTestId("plate-sentence").props.children).toBe(`Diantar ${NOT_YET} ke Kantor`);
+      const header = h.getByTestId("plate-sentence");
+      expect(header.props.children).toBe(`Diantar ${NOT_YET} ke Kantor`);
+      // The promoted header carries the window, so its figures are tabular.
+      expect(StyleSheet.flatten(header.props.style).fontVariant).toContain("tabular-nums");
       expect(h.queryByText("Sedang dimasak")).toBeNull();
       expect(h.queryByText("Dimasak")).toBeNull();
     });
@@ -955,6 +958,64 @@ describe("Beranda mood", () => {
       expect(h.queryByText(/belum ada catatan/)).toBeNull();
     });
 
+    // The offer carries no window: the plate state falls back to 11.00 for lunch and 17.00 for dinner (windows.ts).
+    const noWindow = { windows: { lunch: "", dinner: "" } } as unknown as Partial<Offer>;
+
+    it("says the kitchen has not reported without a dangling window when a due meal has no window", async () => {
+      mount(runtimeWith(async () => lunchToday({ status: "scheduled" }, { offer: offer(noWindow) })));
+      const h = await hero();
+      expect(h.getByTestId("plate-sentence").props.children).toBe("Seharusnya sudah tiba");
+      expect(h.getByText("Belum ada catatan dari dapur")).toBeTruthy();
+      expect(h.queryByText(/^ · /)).toBeNull();
+    });
+
+    it("says the same without a window in English", async () => {
+      (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.locale", "en");
+      mount(runtimeWith(async () => lunchToday({ status: "scheduled" }, { offer: offer(noWindow) })));
+      expect((await hero()).getByText("No update from the kitchen yet")).toBeTruthy();
+    });
+
+    it("keeps both original lines instead of promoting 'Tiba sekitar ' when the window is empty", async () => {
+      mount(runtimeWith(async () => lunchToday({ status: "out_for_delivery" }, { offer: offer(noWindow) })));
+      const h = await hero();
+      expect(h.getByTestId("plate-sentence").props.children).toBe("Sedang diantar");
+      expect(h.getByText("tiba sekitar")).toBeTruthy();
+      expect(h.queryByText(/^Tiba sekitar/)).toBeNull();
+    });
+
+    it("keeps both original lines instead of promoting 'Diantar  ke' when a scheduled meal has no window or no address", async () => {
+      const dinner = (extra: Partial<Delivery>) => {
+        const state = customerState(null);
+        state.deliveries.unshift(
+          delivery("d-guard", TODAY, { meal: "dinner", status: "scheduled" }, {
+            offer: offer({ meal: "dinner", menus: [menu("dinner", ["Sate ayam madura"])], ...noWindow }),
+            meals: [{ meal: "dinner", status: "scheduled" }],
+            ...extra,
+          }),
+        );
+        return state;
+      };
+      mount(runtimeWith(async () => dinner({})), { now: MALAM_NOW });
+      const noWindowHero = await hero();
+      expect(noWindowHero.getByTestId("plate-sentence").props.children).toBe("Terjadwal");
+      expect(noWindowHero.queryByText(/^Diantar /)).toBeNull();
+      screen.unmount();
+
+      const address = { ...delivery("a", TODAY).address, label: "", line: "" };
+      const withWindow = customerState(null);
+      withWindow.deliveries.unshift(
+        delivery("d-guard-2", TODAY, {}, {
+          offer: offer({ meal: "dinner", menus: [menu("dinner", ["Sate ayam madura"])], windows: { lunch: NOT_YET, dinner: NOT_YET } }),
+          meals: [{ meal: "dinner", status: "scheduled" }],
+          address,
+        }),
+      );
+      mount(runtimeWith(async () => withWindow), { now: MALAM_NOW });
+      const noAddressHero = await hero();
+      expect(noAddressHero.getByTestId("plate-sentence").props.children).toBe("Terjadwal");
+      expect(noAddressHero.queryByText(/^Diantar /)).toBeNull();
+    });
+
     it.each([
       ["scheduled", { status: "scheduled" }],
       ["due, scheduled", { status: "scheduled" }, true],
@@ -977,7 +1038,7 @@ describe("Beranda mood", () => {
         expect(header).toBeTruthy();
         expect(caption).toBeTruthy();
         expect(header).not.toBe(caption);
-        // Nor does any other line of the hero repeat the caption.
+        // Nor does any other accessible line of the hero repeat the caption.
         expect(h.getAllByText(caption)).toHaveLength(1);
       },
     );
