@@ -156,6 +156,7 @@ export * from "./seller-operations";
 export * from "./kitchen";
 export * from "./customer-day";
 export * from "./plan";
+export * from "./home";
 export * from "./journey";
 export * from "./usage";
 export { windowStartMinutes } from "./windows";

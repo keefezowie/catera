@@ -35,6 +35,10 @@ export type Plate = {
   issue: DeliveryMeal["issue"];
   /** The caterer's verified WhatsApp number, when the read carries one. */
   catererPhone: string | null;
+  /** The main dish (the story's rule) on a set menu; null while the menu is not set. */
+  lead: string | null;
+  /** The other dishes in composition order; empty while the menu is not set. */
+  sides: string[];
 };
 
 export type UpcomingRow = {
@@ -140,6 +144,8 @@ export function todayPlates(state: CustomerState, now: Date): Plate[] {
       if (m.status === "cancelled") continue;
       const start = windowStart(today, d.offer, m.meal);
       const menu = d.offer.menus?.find((x) => x.meal === m.meal);
+      const set = !!menu && menuIsSet(menu);
+      const dishes = set ? storyDishes(menu) : { title: null, sides: [] };
       plates.push({
         start,
         plate: {
@@ -158,6 +164,8 @@ export function todayPlates(state: CustomerState, now: Date): Plate[] {
           reaction: m.reaction ?? null,
           issue: m.issue ?? null,
           catererPhone: d.catererPhone ?? null,
+          lead: dishes.title,
+          sides: dishes.sides,
         },
       });
     }
@@ -218,7 +226,7 @@ export function upcomingRow(d: Delivery, now: Date, locale: Locale = "id"): Upco
 }
 
 /** Meals a delivery day brings that are not cancelled; an offer's own meals when the day lists none. */
-function servedMeals(d: Delivery): ("lunch" | "dinner")[] {
+export function servedMeals(d: Delivery): ("lunch" | "dinner")[] {
   const served = mealsOf(d)
     .filter((m) => m.status !== "cancelled")
     .map((m) => m.meal);
@@ -230,7 +238,7 @@ function servedMeals(d: Delivery): ("lunch" | "dinner")[] {
  * with no dishes, not an empty slot menu, and either at least one named dish or a legacy menu
  * (no dish rows, no slot model) whose name is the dish.
  */
-function menuIsSet(menu: MealMenu): boolean {
+export function menuIsSet(menu: MealMenu): boolean {
   if (menu.selectionStatus === "pending" || pendingMenu(menu)) return false;
   if (orderedDishes(menu).length) return true;
   if (menu.selectionStatus === "caterer_choice") return false;
@@ -242,7 +250,7 @@ function menuIsSet(menu: MealMenu): boolean {
  * headline is the main dish, else the dish whose photo is the cover, else the first in composition
  * order. A legacy menu has only its name.
  */
-function storyDishes(menu: MealMenu): { title: string | null; sides: string[] } {
+export function storyDishes(menu: MealMenu): { title: string | null; sides: string[] } {
   const dishes = orderedDishes(menu);
   if (!dishes.length) return { title: menu.name.trim() || null, sides: [] };
   const cover = menuCoverImage(menu, "");
