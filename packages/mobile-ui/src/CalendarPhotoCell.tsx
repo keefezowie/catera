@@ -1,9 +1,9 @@
-import { Image, useWindowDimensions, View, type StyleProp, type ViewStyle } from "react-native";
+import { Image, Text as RNText, useWindowDimensions, View, type StyleProp, type ViewStyle } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { PressableScale } from "./motion";
-import { Text } from "./components";
 import { useMoodColors } from "./mood";
 import { useColors } from "./theme";
+import { fontFor } from "./type";
 
 export type CalendarCellState = {
   /** The day of the month. */
@@ -29,6 +29,8 @@ const barBottom = (today: boolean) => (today ? 2 * OUTLINE : OUTLINE) + 1;
 // The number pill sits on every cell at the height that leaves 2dp of photo above the highest the bar can go, so it does
 // not jump when a day is selected.
 const PILL_BOTTOM = barBottom(true) + BAR + 2;
+const NUMBER_MAX_SCALE = 1.5;
+const PILL_MAX_SCALE = 1.15;
 // From this font scale up a photo cell gives up the photo: the number no longer fits in its pill over a 52dp photo.
 const LARGE_FONT_SCALE = 1.3;
 
@@ -69,13 +71,22 @@ export function CalendarPhotoCell({
   const showPhoto = photo !== null && fontScale < LARGE_FONT_SCALE;
   const unset = meal && !menuSet;
 
+  // The cell is a fixed 52dp, so the bare number stops growing at 1.5x: number, gap and dot row then always fit above the
+  // selection bar.
   const number = (
-    <Text
-      variant="label"
-      style={{ color: mood.headerMeta, fontSize: 14, lineHeight: 18, textAlign: "center", fontVariant: ["tabular-nums"] }}
+    <RNText
+      maxFontSizeMultiplier={NUMBER_MAX_SCALE}
+      style={{
+        color: mood.headerMeta,
+        fontFamily: fontFor("700"),
+        fontSize: 14,
+        lineHeight: 18,
+        textAlign: "center",
+        fontVariant: ["tabular-nums"],
+      }}
     >
       {String(day)}
-    </Text>
+    </RNText>
   );
 
   return (
@@ -111,16 +122,29 @@ export function CalendarPhotoCell({
               backgroundColor: past ? c.forest : c.cream,
             }}
           >
-            <Text
-              variant="label"
-              style={{ color: past ? c.cream : c.forest, fontSize: 12, lineHeight: 16, fontVariant: ["tabular-nums"] }}
+            {/* Capped at 1.15x: past that, on a narrow cell, the pill grows into the moon badge before the photo gives way
+                (at 1.3). */}
+            <RNText
+              maxFontSizeMultiplier={PILL_MAX_SCALE}
+              style={{
+                color: past ? c.cream : c.forest,
+                fontFamily: fontFor("700"),
+                fontSize: 12,
+                lineHeight: 16,
+                fontVariant: ["tabular-nums"],
+              }}
             >
               {String(day)}
-            </Text>
+            </RNText>
           </View>
         </>
       ) : (
-        <View style={{ ...fill, alignItems: "center", justifyContent: "center", gap: 3 }}>
+        // The column ends above the selection bar's zone on every cell (not only a selected one), so the number and the
+        // dots sit in the same place whether or not the day is selected, and never under the bar.
+        <View
+          testID="cell-content"
+          style={{ ...fill, alignItems: "center", justifyContent: "center", gap: 3, paddingBottom: barBottom(true) + BAR }}
+        >
           {number}
           {revealed ? (
             // Without the photo the dot says there is a meal, and a small moon beside it says dinner too. The corner

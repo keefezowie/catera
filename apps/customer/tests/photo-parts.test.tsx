@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { fireEvent, render, screen, within } from "@testing-library/react-native";
 import * as ReactNative from "react-native";
 import { Image, StyleSheet } from "react-native";
 import * as Haptics from "expo-haptics";
@@ -376,6 +376,37 @@ describe("CalendarPhotoCell", () => {
       // The photo shows between the pill and the bar: at least 2dp of it.
       const pill = flat("cell-number-pill");
       expect(pill.bottom).toBeGreaterThanOrEqual((bar.bottom as number) + (bar.height as number) + 2);
+    });
+
+    it.each([1.3, 1.5, 2])(
+      "at font scale %s the dots sit above the bar, for a selected and a today-and-selected cell with dinner",
+      (scale) => {
+        setFontScale(scale);
+        const view = render(<CalendarPhotoCell {...base} dinnerToo selected />);
+        for (const state of [{ selected: true }, { today: true, selected: true }]) {
+          view.rerender(<CalendarPhotoCell {...base} dinnerToo {...state} />);
+          const bar = flat("cell-selected-bar");
+          const column = flat("cell-content");
+          // The dots live in a column that reserves the bar's zone: it ends at the cell's bottom edge and its padding
+          // is at least the bar's top, so nothing in it can sit under the bar.
+          expect(column.bottom).toBe(0);
+          expect(column.paddingBottom).toBeGreaterThanOrEqual((bar.bottom as number) + (bar.height as number));
+          const content = screen.getByTestId("cell-content", { includeHiddenElements: true });
+          expect(within(content).getByTestId("cell-photo-dot", { includeHiddenElements: true })).toBeTruthy();
+          expect(within(content).getByTestId("cell-moon-dot", { includeHiddenElements: true })).toBeTruthy();
+          // The number stops growing at 1.5x, so number, gap and the 9dp moon always fit the room above the bar.
+          const number = screen.getByText("12");
+          expect(number.props.maxFontSizeMultiplier).toBe(1.5);
+          const room = 52 - (column.paddingBottom as number);
+          const numberHeight = 18 * Math.min(scale, 1.5);
+          expect(numberHeight + (column.gap as number) + 9).toBeLessThanOrEqual(room);
+        }
+      },
+    );
+
+    it("the number pill text stops growing at 1.15x so it never reaches the moon badge", () => {
+      render(<CalendarPhotoCell {...base} dinnerToo />);
+      expect(screen.getByText("12").props.maxFontSizeMultiplier).toBe(1.15);
     });
 
     it("the number pill does not move when a day is selected or is today", () => {
