@@ -75,3 +75,45 @@ export const webVariables = {
   "--space-xxl": spacing.xxl + "px",
   "--space-section": spacing.section + "px",
 };
+
+export type PaletteKey = keyof typeof colors | "controlRing" | "tabBar";
+export type NativePalette = Record<PaletteKey, string>;
+export type ThemeName = "light" | "dark";
+
+/** Native palettes. Light is the web palette plus the native control ring and tab bar; dark follows the native visual identity spec. */
+export const nativeThemes: Record<ThemeName, NativePalette> = {
+  light: { ...colors, controlRing: "#858D80", tabBar: "#FFFEFA" },
+  dark: {
+    forest: "#FFF7E9",
+    forestDeep: "#E9E3D6",
+    sunrise: "#F47B2A",
+    sunriseInk: "#F5C9A6",
+    cream: "#163D2E",
+    charcoal: "#F5F1E8",
+    surface: "#232321",
+    canvas: "#151514",
+    sage: "#2A2D27",
+    scheduled: "#26302A",
+    muted: "#B5B2AA",
+    line: "#34332F",
+    fieldBorder: "#7A7872",
+    secondaryBorder: "#4A4944",
+    attentionBorder: "#4C3322",
+    danger: "#FF8F80",
+    controlRing: "#8A8780",
+    tabBar: "#1E1E1C",
+  },
+};
+
+function relativeLuminance(hex: string): number {
+  const channels = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const [r, g, b] = channels.map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/** WCAG 2.x contrast ratio between two `#RRGGBB` colors. */
+export function contrastRatio(a: string, b: string): number {
+  const la = relativeLuminance(a);
+  const lb = relativeLuminance(b);
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+}
