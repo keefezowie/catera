@@ -45,7 +45,7 @@ function JelajahTitle() {
   );
 }
 
-/** One of the two 60 point meal buttons: it sets the mood and filters the list to that meal. */
+/** One of the two 60 point meal buttons: a tab of the mood, which is also the meal the list is filtered to. */
 function MealButton({
   label,
   icon,
@@ -61,9 +61,10 @@ function MealButton({
   const ink = selected ? palette.onToggleActive : palette.headerMeta;
   return (
     <PressableScale
-      accessibilityRole="button"
+      accessibilityRole="tab"
       accessibilityState={{ selected }}
-      haptic="select"
+      // The meal that is already chosen has nothing to confirm.
+      haptic={selected ? "none" : "select"}
       onPress={onPress}
       style={{
         flex: 1,
@@ -126,11 +127,12 @@ function Browse({ area, onArea }: { area: string; onArea: (value: string) => voi
   const { runtime, t, locale } = useMobile();
   const c = useColors();
   const palette = useMoodColors();
-  const { setMood } = useMood();
+  const { mood, setMood } = useMood();
+  // The meal buttons are the mood toggle, so the list always follows the mood, wherever it was changed.
+  const meal = mood === "siang" ? "lunch" : "dinner";
   const styles = useStyles();
   const saved = useSaved("/jelajah");
   const [search, setSearch] = useState("");
-  const [meal, setMeal] = useState<"" | "lunch" | "dinner">("");
   const [tag, setTag] = useState("");
   const [budget, setBudget] = useState(false);
   const [trial, setTrial] = useState(false);
@@ -156,7 +158,7 @@ function Browse({ area, onArea }: { area: string; onArea: (value: string) => voi
     () =>
       inArea.filter(
         (o) =>
-          (!meal || o.meal === meal || o.meal === "both") &&
+          (o.meal === meal || o.meal === "both") &&
           (!activeTag || o.tags.includes(activeTag)) &&
           (!budget || perMealPrice(o) <= BUDGET) &&
           (!trial || !!o.trialPrice) &&
@@ -168,18 +170,13 @@ function Browse({ area, onArea }: { area: string; onArea: (value: string) => voi
       ),
     [inArea, meal, activeTag, budget, trial, needle, locale],
   );
-  const filtered = !!(needle || meal || activeTag || budget || trial);
+  // The meal is not a choice that can be cleared: it is the mood, so it is always one of the two.
+  const filtered = !!(needle || activeTag || budget || trial);
   const clear = () => {
     setSearch("");
-    setMeal("");
     setTag("");
     setBudget(false);
     setTrial(false);
-  };
-  // A meal button is both the mood toggle and the meal filter; pressing the chosen one again lifts the filter.
-  const pickMeal = (value: "lunch" | "dinner") => {
-    setMeal(meal === value ? "" : value);
-    setMood(value === "lunch" ? "siang" : "malam");
   };
 
   return (
@@ -222,9 +219,9 @@ function Browse({ area, onArea }: { area: string; onArea: (value: string) => voi
           }
           title={<JelajahTitle />}
         >
-          <View style={{ flexDirection: "row", gap: 10 }}>
-            <MealButton label={t("Siang", "Lunch")} icon="sunny" selected={meal === "lunch"} onPress={() => pickMeal("lunch")} />
-            <MealButton label={t("Malam", "Dinner")} icon="moon" selected={meal === "dinner"} onPress={() => pickMeal("dinner")} />
+          <View accessibilityRole="tablist" style={{ flexDirection: "row", gap: 10 }}>
+            <MealButton label={t("Siang", "Lunch")} icon="sunny" selected={mood === "siang"} onPress={() => setMood("siang")} />
+            <MealButton label={t("Malam", "Dinner")} icon="moon" selected={mood === "malam"} onPress={() => setMood("malam")} />
           </View>
           <View
             style={{

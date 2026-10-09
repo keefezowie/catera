@@ -7,7 +7,7 @@ import * as Haptics from "expo-haptics";
 import { currency, shortDate, startDates, type Offer } from "@catera/domain";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { nativeMood } from "@catera/design-tokens";
-import { MoodProvider, ThemeProvider } from "@catera/mobile-ui";
+import { MoodProvider, ThemeProvider, useMood } from "@catera/mobile-ui";
 import { customerLink } from "../src/links";
 import { topTags } from "../src/discover/categories";
 import { Jelajah } from "../src/discover/Jelajah";
@@ -83,11 +83,18 @@ function savedServer(initial: string[] = [], fail = false) {
   };
 }
 
+const SIANG_NOW = () => new Date("2026-10-09T07:59:00Z"); // 14:59 WIB
+const MALAM_NOW = () => new Date("2026-10-09T08:00:00Z"); // 15:00 WIB
+
+// The mood is part of what Jelajah shows (the meal buttons are the mood toggle), so every screen here has a provider
+// that opens in Siang, like the app does before 15:00.
 const wrap = (runtime: MobileRuntime, ui: React.ReactElement) =>
   render(
-    <MobileProvider runtime={runtime} linkMapper={customerLink}>
-      {ui}
-    </MobileProvider>,
+    <MoodProvider now={SIANG_NOW}>
+      <MobileProvider runtime={runtime} linkMapper={customerLink}>
+        {ui}
+      </MobileProvider>
+    </MoodProvider>,
   );
 
 const lastCatalogQuery = (runtime: MobileRuntime) =>
@@ -116,22 +123,24 @@ describe("Jelajah", () => {
     fireEvent.press(screen.getByRole("button", { name: "Di bawah Rp30.000" }));
     expect(screen.queryByText("Menu Sehat Premium")).toBeNull();
     expect(screen.getByText("Nasi Ayam Bakar")).toBeTruthy();
-    expect(screen.getByText("Makan Malam Nabati")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Di bawah Rp30.000" }).props.accessibilityState.selected).toBe(true);
+    // The dinner package is under 30.000 too, but the list is on Siang.
+    expect(screen.queryByText("Makan Malam Nabati")).toBeNull();
   });
 
-  it("the meal buttons narrow to one meal, switch to the other and clear on a second press", async () => {
+  it("the meal tabs switch between the two meals and a second press changes nothing", async () => {
     wrap(runtimeWith(), <Jelajah />);
     await screen.findByText("Menu Sehat Premium");
-    fireEvent.press(screen.getByRole("button", { name: "Malam" }));
+    expect(screen.queryByText("Makan Malam Nabati")).toBeNull();
+    fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
     expect(screen.queryByText("Menu Sehat Premium")).toBeNull();
     expect(screen.getByText("Makan Malam Nabati")).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: "Siang" }));
+    fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
+    expect(screen.queryByText("Menu Sehat Premium")).toBeNull();
+    expect(screen.getByText("Makan Malam Nabati")).toBeTruthy();
+    fireEvent.press(screen.getByRole("tab", { name: "Siang" }));
     expect(screen.getByText("Menu Sehat Premium")).toBeTruthy();
     expect(screen.queryByText("Makan Malam Nabati")).toBeNull();
-    fireEvent.press(screen.getByRole("button", { name: "Siang" }));
-    expect(screen.getByText("Menu Sehat Premium")).toBeTruthy();
-    expect(screen.getByText("Makan Malam Nabati")).toBeTruthy();
   });
 
   it("trial chip keeps only packages with a one-day trial", async () => {
@@ -148,7 +157,7 @@ describe("Jelajah", () => {
     await screen.findByText("Menu Sehat Premium");
     const calls = (runtime.api.catalog as jest.Mock).mock.calls.length;
     for (const name of ["Siang", "Di bawah Rp30.000", "Bisa coba 1 hari", "Malam"]) {
-      fireEvent.press(screen.getByRole("button", { name }));
+      fireEvent.press(screen.getByRole(name === "Siang" || name === "Malam" ? "tab" : "button", { name }));
       expect(view.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
       expect(screen.queryByText("Nasi Ayam Bakar") || screen.queryByText("Belum ada paket yang cocok.")).toBeTruthy();
     }
@@ -160,16 +169,21 @@ describe("Jelajah", () => {
     wrap(runtimeWith(), <Jelajah />);
     await screen.findByText("Menu Sehat Premium");
     for (const name of ["Siang", "Malam", "Di bawah Rp30.000", "Bisa coba 1 hari", "Pilih area pengantaran"]) {
-      const style = StyleSheet.flatten(screen.getByRole("button", { name }).props.style);
+      const role = name === "Siang" || name === "Malam" ? "tab" : "button";
+      const style = StyleSheet.flatten(screen.getByRole(role, { name }).props.style);
       expect(style.minHeight).toBeGreaterThanOrEqual(48);
     }
   });
 
-  it("filter chips give a selection haptic", async () => {
+  it("filter chips and the other meal tab give a selection haptic, the chosen tab stays quiet", async () => {
     wrap(runtimeWith(), <Jelajah />);
     await screen.findByText("Menu Sehat Premium");
-    fireEvent.press(screen.getByRole("button", { name: "Siang" }));
+    fireEvent.press(screen.getByRole("tab", { name: "Siang" }));
+    expect(Haptics.selectionAsync).not.toHaveBeenCalled();
+    fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
     expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
+    fireEvent.press(screen.getByRole("button", { name: "Di bawah Rp30.000" }));
+    expect(Haptics.selectionAsync).toHaveBeenCalledTimes(2);
   });
 
   it("search narrows by name or caterer without another request", async () => {
@@ -186,7 +200,10 @@ describe("Jelajah", () => {
   it("single-meal offer shows only / sekali makan", async () => {
     wrap(runtimeWith(), <Jelajah />);
     await screen.findByText("Menu Sehat Premium");
-    expect(screen.getAllByText("/ sekali makan")).toHaveLength(3);
+    // Two lunch packages on Siang; the dinner one shows on Malam.
+    expect(screen.getAllByText("/ sekali makan")).toHaveLength(2);
+    fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
+    expect(screen.getAllByText("/ sekali makan")).toHaveLength(1);
     expect(screen.queryByText("2 kali makan / hari")).toBeNull();
   });
 
@@ -244,6 +261,9 @@ describe("Jelajah", () => {
       await waitFor(() => expect(lastCatalogQuery(runtime)).toContain("area=Bandung"));
       expect(await screen.findByText("Menu Sehat Premium")).toBeTruthy();
       expect(screen.queryByText("Nasi Ayam Bakar")).toBeNull();
+      // The dinner package delivers to Bandung too; it shows once the list is on Malam.
+      expect(screen.queryByText("Makan Malam Nabati")).toBeNull();
+      fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
       expect(screen.getByText("Makan Malam Nabati")).toBeTruthy();
     });
 
@@ -371,9 +391,6 @@ describe("topTags", () => {
 });
 
 describe("Jelajah mood header", () => {
-  const SIANG_NOW = () => new Date("2026-10-09T07:59:00Z"); // 14:59 WIB
-  const MALAM_NOW = () => new Date("2026-10-09T08:00:00Z"); // 15:00 WIB
-
   function mount(runtime: MobileRuntime, { now = SIANG_NOW, scheme = "light" as "light" | "dark" } = {}) {
     jest.spyOn(ReactNative, "useColorScheme").mockReturnValue(scheme);
     return render(
@@ -411,35 +428,78 @@ describe("Jelajah mood header", () => {
 
   it("names the Malam meal in the title when the mood is Malam", async () => {
     mount(runtimeWith(), { now: MALAM_NOW });
-    await screen.findByText("Menu Sehat Premium");
+    await screen.findByText("Makan Malam Nabati");
     expect(title()).toBe("Makan malam\nminggu depan?");
   });
 
-  it("has two 60 point meal buttons in the header that are the mood toggle and the meal filter", async () => {
+  it("has two 60 point meal tabs in a tablist that are the mood toggle and the meal filter", async () => {
     mount(runtimeWith());
     await screen.findByText("Menu Sehat Premium");
     expect(title()).toBe("Makan siang\nminggu depan?");
+    expect(screen.UNSAFE_getByProps({ accessibilityRole: "tablist" })).toBeTruthy();
     for (const name of ["Siang", "Malam"]) {
-      expect(flat(header().getByRole("button", { name })).minHeight).toBeGreaterThanOrEqual(60);
+      expect(flat(header().getByRole("tab", { name })).minHeight).toBeGreaterThanOrEqual(60);
     }
-    fireEvent.press(header().getByRole("button", { name: "Malam" }));
-    // The filter keeps dinner and combined packages only, and the mood follows.
+    expect(header().getByRole("tab", { name: "Siang" }).props.accessibilityState.selected).toBe(true);
+    expect(header().getByRole("tab", { name: "Malam" }).props.accessibilityState.selected).toBe(false);
+    fireEvent.press(header().getByRole("tab", { name: "Malam" }));
+    // The list keeps dinner and combined packages only, and the title follows.
     expect(screen.queryByText("Menu Sehat Premium")).toBeNull();
     expect(screen.getByText("Makan Malam Nabati")).toBeTruthy();
-    expect(header().getByRole("button", { name: "Malam" }).props.accessibilityState.selected).toBe(true);
-    expect(header().getByRole("button", { name: "Siang" }).props.accessibilityState.selected).toBe(false);
+    expect(header().getByRole("tab", { name: "Malam" }).props.accessibilityState.selected).toBe(true);
+    expect(header().getByRole("tab", { name: "Siang" }).props.accessibilityState.selected).toBe(false);
     expect(title()).toBe("Makan malam\nminggu depan?");
-    fireEvent.press(header().getByRole("button", { name: "Siang" }));
+    fireEvent.press(header().getByRole("tab", { name: "Siang" }));
     expect(title()).toBe("Makan siang\nminggu depan?");
     expect(screen.getByText("Menu Sehat Premium")).toBeTruthy();
+    expect(screen.queryByText("Makan Malam Nabati")).toBeNull();
   });
 
-  it("keeps a combined package under the Malam button", async () => {
+  it("opens on Malam with the Malam tab selected and the lunch packages hidden", async () => {
+    mount(runtimeWith(), { now: MALAM_NOW });
+    await screen.findByText("Makan Malam Nabati");
+    expect(header().getByRole("tab", { name: "Malam" }).props.accessibilityState.selected).toBe(true);
+    expect(header().getByRole("tab", { name: "Siang" }).props.accessibilityState.selected).toBe(false);
+    expect(screen.queryByText("Menu Sehat Premium")).toBeNull();
+    expect(screen.queryByText("Nasi Ayam Bakar")).toBeNull();
+  });
+
+  it("follows a mood change made outside Jelajah, in the selection, the title and the list", async () => {
+    let setMoodOutside: (mood: "siang" | "malam") => void = () => {};
+    function Probe() {
+      setMoodOutside = useMood().setMood;
+      return null;
+    }
+    jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("light");
+    render(
+      <ThemeProvider storageKey="jelajah-probe-test">
+        <MoodProvider now={SIANG_NOW}>
+          <Probe />
+          <MobileProvider runtime={runtimeWith()} linkMapper={customerLink}>
+            <Jelajah />
+          </MobileProvider>
+        </MoodProvider>
+      </ThemeProvider>,
+    );
+    await screen.findByText("Menu Sehat Premium");
+    act(() => setMoodOutside("malam"));
+    expect(header().getByRole("tab", { name: "Malam" }).props.accessibilityState.selected).toBe(true);
+    expect(header().getByRole("tab", { name: "Siang" }).props.accessibilityState.selected).toBe(false);
+    expect(title()).toBe("Makan malam\nminggu depan?");
+    expect(screen.queryByText("Menu Sehat Premium")).toBeNull();
+    expect(screen.getByText("Makan Malam Nabati")).toBeTruthy();
+    act(() => setMoodOutside("siang"));
+    expect(screen.getByText("Menu Sehat Premium")).toBeTruthy();
+    expect(screen.queryByText("Makan Malam Nabati")).toBeNull();
+  });
+
+  it("keeps a combined package under the Malam tab", async () => {
     const both = offer({ id: "p-dua", name: "Siang dan Malam", meal: "both", price: 60000 });
     const runtime = runtimeWith(customer, { catalog: jest.fn(async () => ({ items: [both, cheap, dinner], nextCursor: null })) });
     mount(runtime);
     await screen.findByText("Siang dan Malam");
-    fireEvent.press(header().getByRole("button", { name: "Malam" }));
+    expect(screen.getByText("Nasi Ayam Bakar")).toBeTruthy();
+    fireEvent.press(header().getByRole("tab", { name: "Malam" }));
     expect(screen.getByText("Siang dan Malam")).toBeTruthy();
     expect(screen.queryByText("Nasi Ayam Bakar")).toBeNull();
   });
@@ -447,8 +507,10 @@ describe("Jelajah mood header", () => {
   it("no longer carries Siang and Malam as filter chips, and keeps the budget and trial chips", async () => {
     mount(runtimeWith());
     await screen.findByText("Menu Sehat Premium");
-    expect(screen.getAllByRole("button", { name: "Siang" })).toHaveLength(1);
-    expect(screen.getAllByRole("button", { name: "Malam" })).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: "Siang" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Malam" })).toBeNull();
+    expect(screen.getAllByRole("tab", { name: "Siang" })).toHaveLength(1);
+    expect(screen.getAllByRole("tab", { name: "Malam" })).toHaveLength(1);
     expect(screen.getByRole("button", { name: "Di bawah Rp30.000" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Bisa coba 1 hari" })).toBeTruthy();
     expect(within(screen.getByTestId("jelajah-header")).queryByRole("button", { name: "Bisa coba 1 hari" })).toBeNull();
@@ -456,11 +518,23 @@ describe("Jelajah mood header", () => {
 
   it("paints the header from the mood palette and the search text on it", async () => {
     mount(runtimeWith(), { now: MALAM_NOW });
-    await screen.findByText("Menu Sehat Premium");
+    await screen.findByText("Makan Malam Nabati");
     const palette = nativeMood.light.malam;
     expect(flat(screen.getByTestId("jelajah-title")).color).toBe(palette.headerText);
     expect(flat(header().getByPlaceholderText("Cari ayam bakar, nabati, Bu Rini…")).color).toBe(palette.headerText);
     expect(flat(screen.getByTestId("mood-fill-malam")).backgroundColor).toBe(palette.header);
+  });
+
+  it("colours the selected Malam tab onToggleActive on toggleActive and the idle one headerMeta on toggleTrack", async () => {
+    mount(runtimeWith(), { now: MALAM_NOW });
+    await screen.findByText("Makan Malam Nabati");
+    const palette = nativeMood.light.malam;
+    const selected = header().getByRole("tab", { name: "Malam" });
+    const idle = header().getByRole("tab", { name: "Siang" });
+    expect(flat(selected).backgroundColor).toBe(palette.toggleActive);
+    expect(flat(within(selected).getByText("Malam")).color).toBe(palette.onToggleActive);
+    expect(flat(idle).backgroundColor).toBe(palette.toggleTrack);
+    expect(flat(within(idle).getByText("Siang")).color).toBe(palette.headerMeta);
   });
 
   describe("category circles", () => {
@@ -478,10 +552,14 @@ describe("Jelajah mood header", () => {
       await screen.findByText("Menu Sehat Premium");
       fireEvent.press(screen.getByRole("button", { name: "Kategori Rumahan" }));
       expect(screen.getByText("Nasi Ayam Bakar")).toBeTruthy();
-      expect(screen.getByText("Makan Malam Nabati")).toBeTruthy();
       expect(screen.queryByText("Menu Sehat Premium")).toBeNull();
       expect(screen.getByRole("button", { name: "Kategori Rumahan" }).props.accessibilityState.selected).toBe(true);
       expect(screen.getByRole("button", { name: "Kategori Sehat" }).props.accessibilityState.selected).toBe(false);
+      // The tag carries over to the other meal: the dinner package is tagged Rumahan too.
+      fireEvent.press(header().getByRole("tab", { name: "Malam" }));
+      expect(screen.getByText("Makan Malam Nabati")).toBeTruthy();
+      expect(screen.queryByText("Nasi Ayam Bakar")).toBeNull();
+      fireEvent.press(header().getByRole("tab", { name: "Siang" }));
       fireEvent.press(screen.getByRole("button", { name: "Kategori Rumahan" }));
       expect(screen.getByText("Menu Sehat Premium")).toBeTruthy();
       expect(screen.getByRole("button", { name: "Kategori Rumahan" }).props.accessibilityState.selected).toBe(false);
@@ -500,18 +578,19 @@ describe("Jelajah mood header", () => {
       expect(screen.getByText("Nasi Ayam Bakar")).toBeTruthy();
     });
 
-    it("Hapus pilihan also clears the tag and the meal", async () => {
+    it("Hapus pilihan clears the tag but never the meal, which is the mood", async () => {
       mount(taggedRuntime());
       await screen.findByText("Menu Sehat Premium");
       fireEvent.press(screen.getByRole("button", { name: "Kategori Sehat" }));
       // No dinner package carries Sehat, so the list is empty and offers the way out.
-      fireEvent.press(header().getByRole("button", { name: "Malam" }));
+      fireEvent.press(header().getByRole("tab", { name: "Malam" }));
       expect(screen.getByText("Belum ada paket yang cocok.")).toBeTruthy();
       fireEvent.press(screen.getByRole("button", { name: "Hapus pilihan" }));
-      expect(screen.getByText("Menu Sehat Premium")).toBeTruthy();
       expect(screen.getByText("Makan Malam Nabati")).toBeTruthy();
+      expect(screen.queryByText("Menu Sehat Premium")).toBeNull();
       expect(screen.getByRole("button", { name: "Kategori Sehat" }).props.accessibilityState.selected).toBe(false);
-      expect(header().getByRole("button", { name: "Malam" }).props.accessibilityState.selected).toBe(false);
+      expect(header().getByRole("tab", { name: "Malam" }).props.accessibilityState.selected).toBe(true);
+      expect(title()).toBe("Makan malam\nminggu depan?");
     });
 
     it("does not render the row when the catalogue has no tags", async () => {
@@ -535,9 +614,10 @@ describe("Jelajah mood header", () => {
       mount(runtimeWith());
       await screen.findByText("Menu Sehat Premium");
       const photos = screen.getAllByTestId("package-photo");
-      expect(photos).toHaveLength(3);
+      // The two lunch packages; the dinner one waits behind the Malam tab.
+      expect(photos).toHaveLength(2);
       expect(flat(photos[0])).toMatchObject({ width: 112, height: 112 });
-      expect(screen.getAllByText("/ sekali makan")).toHaveLength(3);
+      expect(screen.getAllByText("/ sekali makan")).toHaveLength(2);
       // B2: the caterer, the delivery days and the meal, with no start date.
       expect(screen.getAllByText("Dapur Contoh. Sen–Jum siang").length).toBeGreaterThan(0);
       expect(screen.queryByText(/Mulai/)).toBeNull();
