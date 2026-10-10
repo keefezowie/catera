@@ -1,6 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Animated,
   Image,
   StyleSheet,
   View,
@@ -66,6 +67,8 @@ const PHOTO = 250;
 const BAR = process.env.EXPO_OS === "ios" ? 44 : 56;
 /** Once the photo's foot has scrolled under the bar's foot, the bar stands on the canvas instead of the photo. */
 export const PHOTO_PASSED = PHOTO - BAR;
+/** The scrim's height from the photo's top edge. */
+const SCRIM = 140;
 
 /** Paket: one package in full, with the way into Pilih jadwal (or a one-day trial). */
 export function PackageDetail() {
@@ -83,11 +86,16 @@ export function PackageDetail() {
   const name = o?.name ?? "";
   const stackHeader = useMemo(() => nativeHeaderOptions({ palette: c, demo }), [c, demo]);
   // Over the photo the bar is transparent with light ink. Once the photo has scrolled away the light ink would sit on
-  // the cream page, so the bar turns opaque on the canvas with the theme's tint, takes the package name and hands the
-  // status bar back to the theme; scrolling back up undoes it. It stays transparent in layout terms throughout, so the
-  // page never jumps by the bar's height. Leaving the photo state (a failed reload) restores the stack's own bar.
-  const [pastPhoto, setPastPhoto] = useState(false);
-  const past = useRef(false);
+  // the cream page, so the bar turns opaque on the canvas with the theme's tint and hands the status bar back to the
+  // theme; it takes the package name once the name line has scrolled under it, as a content title does. Scrolling back
+  // up undoes each step. The bar stays transparent in layout terms throughout, so the page never jumps by its height.
+  // Leaving the photo state (a failed reload) restores the stack's own bar.
+  const [stage, setStage] = useState<"photo" | "canvas" | "named">("photo");
+  const stageRef = useRef(stage);
+  const nameBlockY = useRef(Number.POSITIVE_INFINITY);
+  const nameLineEnd = useRef(0);
+  const nameEnd = useRef(Number.POSITIVE_INFINITY);
+  const pastPhoto = stage !== "photo";
   const photoApplied = useRef(false);
   useLayoutEffect(() => {
     if (!navigation) return;
@@ -97,7 +105,7 @@ export function PackageDetail() {
         pastPhoto
           ? {
               ...PHOTO_HEADER,
-              headerTitle: name,
+              headerTitle: stage === "named" ? name : "",
               headerStyle: { backgroundColor: c.canvas },
               headerTintColor: stackHeader.headerTintColor,
             }
@@ -116,12 +124,19 @@ export function PackageDetail() {
       // Android's content title starts the bar empty and takes it on scroll; iOS reads the route's `title`.
       headerTitle: process.env.EXPO_OS === "ios" ? undefined : "",
     });
-  }, [navigation, photoHeader, pastPhoto, name, c.canvas, stackHeader]);
+  }, [navigation, photoHeader, pastPhoto, stage, name, c.canvas, stackHeader]);
+  // The scrim stays under the bar while the photo scrolls beneath it, so the light back arrow never lands on a bright
+  // part of the photo; it stops at the photo's foot.
+  const heroHeight = PHOTO + (demo ? 0 : insets.top);
+  const scrimShift = useRef(new Animated.Value(0)).current;
   const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const passed = e.nativeEvent.contentOffset.y >= PHOTO_PASSED;
-    if (passed === past.current) return;
-    past.current = passed;
-    setPastPhoto(passed);
+    const y = e.nativeEvent.contentOffset.y;
+    scrimShift.setValue(Math.min(Math.max(y, 0), heroHeight - SCRIM));
+    // The bar's foot in content terms is the scroll offset plus the bar (and the status bar it covers).
+    const next = y < PHOTO_PASSED ? "photo" : y + heroHeight - PHOTO + BAR >= nameEnd.current ? "named" : "canvas";
+    if (next === stageRef.current) return;
+    stageRef.current = next;
+    setStage(next);
   };
 
   if (!o)
@@ -188,7 +203,7 @@ export function PackageDetail() {
       }
     >
       {/* The photo now runs under the status bar too, so it grows by that inset and keeps its visible height. */}
-      <View style={[styles.hero, { height: PHOTO + (demo ? 0 : insets.top) }]}>
+      <View style={[styles.hero, { height: heroHeight }]}>
         {o.image ? (
           <Image
             accessibilityIgnoresInvertColors
@@ -198,7 +213,11 @@ export function PackageDetail() {
           />
         ) : null}
         {/* Under the transparent bar: the status bar and the back read on the photo whatever it shows. */}
-        <View testID="paket-photo-scrim" pointerEvents="none" style={styles.scrim} />
+        <Animated.View
+          testID="paket-photo-scrim"
+          pointerEvents="none"
+          style={[styles.scrim, { transform: [{ translateY: scrimShift }] }]}
+        />
         {/* Light glyphs on the scrim; with the demo strip above, the strip's own fill keeps the theme's glyphs, and
             once the photo has scrolled away the canvas bar takes the theme's glyphs back. */}
         {demo || pastPhoto ? null : <ScreenStatusBar style="light" />}
@@ -211,10 +230,26 @@ export function PackageDetail() {
         />
       </View>
 
-      <View style={{ gap: 6 }}>
-        <Text variant="title" style={{ fontSize: 26, lineHeight: 32 }}>
-          {o.name}
-        </Text>
+      {/* The name block starts at the page's top in content terms (the photo and this block share one parent), so its
+          frame plus the name line's foot is where the bar takes the name. */}
+      <View
+        style={{ gap: 6 }}
+        onLayout={(e) => {
+          nameBlockY.current = e.nativeEvent.layout.y;
+          nameEnd.current = nameBlockY.current + nameLineEnd.current;
+        }}
+      >
+        <View
+          testID="paket-name"
+          onLayout={(e) => {
+            nameLineEnd.current = e.nativeEvent.layout.y + e.nativeEvent.layout.height;
+            nameEnd.current = nameBlockY.current + nameLineEnd.current;
+          }}
+        >
+          <Text variant="title" style={{ fontSize: 26, lineHeight: 32 }}>
+            {o.name}
+          </Text>
+        </View>
         <Text variant="caption" style={{ fontSize: 13, lineHeight: 18 }}>
           {`${[o.caterer, o.areas[0]].filter(Boolean).join(", ")}. ${ratingText(o, locale, t)}`}
         </Text>
@@ -300,7 +335,7 @@ const useStyles = themedStyles((c) => ({
     top: 0,
     left: 0,
     right: 0,
-    height: 140,
+    height: SCRIM,
     experimental_backgroundImage: "linear-gradient(rgba(11,31,22,0.6), rgba(11,31,22,0))",
   },
   // At the photo's foot, clear of the bar's back button at the top.

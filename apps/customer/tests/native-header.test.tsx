@@ -13,6 +13,9 @@ import { contentTitled, linkTitle, useStackScreenOptions } from "../src/stack";
 import { dayHref, packageHref, planHref } from "../src/hrefs";
 import { customerState, offer } from "./fixtures";
 
+// A cold real-router mount can pass the default 5 s under machine load, as in Dapur's real-router tests.
+jest.setTimeout(30000);
+
 // expo-router's testing library swaps in Reanimated's own jest mock, which has no useReducedMotion (setup.cjs adds it).
 Object.assign(require("react-native-reanimated"), { useReducedMotion: () => false });
 

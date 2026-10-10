@@ -155,22 +155,36 @@ describe("Paket with its photo (ruling B3: the photo is the header)", () => {
     expect(PHOTO_PASSED).toBe(250 - 56);
     at(PHOTO_PASSED - 1);
     expect(navigation.setOptions).toHaveBeenLastCalledWith(overPhoto);
+    // The scrim rides under the bar while the photo scrolls beneath it, and stops at the photo's foot (250 - 140).
+    const scrimShift = () => (flat(screen.getByTestId("paket-photo-scrim")).transform as { translateY: number }[])[0].translateY;
+    at(60);
+    expect(scrimShift()).toBe(60);
+    at(PHOTO_PASSED - 1);
+    expect(scrimShift()).toBe(110);
+    // The name line sits 400dp down the page, 32dp tall.
+    const name = screen.getByTestId("paket-name");
+    let block = name.parent;
+    while (block && (block.type !== "View" || !block.props.onLayout)) block = block.parent;
+    fireEvent(block!, "layout", { nativeEvent: { layout: { x: 20, y: 400, width: 320, height: 60 } } });
+    fireEvent(name, "layout", { nativeEvent: { layout: { x: 0, y: 0, width: 320, height: 32 } } });
     const calls = navigation.setOptions.mock.calls.length;
-    // Past the photo's foot cream ink would sit on the cream page, so the bar stands on the canvas in the theme's ink,
-    // named after the package, and the status bar takes the theme's glyphs back. It stays transparent in layout terms,
-    // so the page does not jump.
+    // Past the photo's foot cream ink would sit on the cream page, so the bar stands on the canvas in the theme's ink
+    // and the status bar takes the theme's glyphs back. It stays transparent in layout terms, so the page does not jump.
     at(PHOTO_PASSED);
-    expect(navigation.setOptions).toHaveBeenLastCalledWith({
+    const onCanvas = {
       ...overPhoto,
-      headerTitle: "Nasi Ayam Bakar",
       headerStyle: { backgroundColor: nativeThemes.light.canvas },
       headerTintColor: nativeThemes.light.charcoal,
-    });
+    };
+    expect(navigation.setOptions).toHaveBeenLastCalledWith(onCanvas);
     expect(lightGlyphs()).toBe(false);
-    // Only the crossing changes the bar.
-    at(PHOTO_PASSED + 200);
-    at(PHOTO_PASSED + 400);
-    expect(navigation.setOptions.mock.calls.length).toBe(calls + 1);
+    // Once the name line has gone under the bar, the bar takes the name.
+    at(400);
+    expect(navigation.setOptions).toHaveBeenLastCalledWith({ ...onCanvas, headerTitle: "Nasi Ayam Bakar" });
+    // Only the crossings change the bar.
+    at(600);
+    at(800);
+    expect(navigation.setOptions.mock.calls.length).toBe(calls + 2);
     // Back over the photo, the transparent bar and the light glyphs return.
     at(20);
     expect(navigation.setOptions).toHaveBeenLastCalledWith(overPhoto);
