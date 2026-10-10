@@ -4,11 +4,14 @@ Catera is an Indonesian catering marketplace: discover a caterer, understand an 
 
 This September 9, 2026 baseline replaces the tenant-specific pilot. The user approved the V1 overhaul and implementation on responsive web and Expo Android/iOS together. Historical pilot requirements are preserved in [Git history](docs/README.md#historical-records); they are evidence, not current instructions. The hosted pilot is preserved and is not the V1 database.
 
+**Status at October 10, 2026 (`v2` branch).** Three applications share one API and transactional database: the responsive web app (`apps/web`), the customer app (`apps/customer`) and the caterer app Catera Dapur (`apps/caterer`). Both native apps are Expo, Indonesian first. Everything is verified only against synthetic data and a DOKU sandbox; no real customer, real payment or store release exists. See [Implementation and release truth](#implementation-and-release-truth).
+
 ## Audiences and surfaces
 
 - Public marketplace: address/area selection, search, food-led packages, seller profiles, menus, reviews and comparison of up to three offers at one quantity.
-- Global customer account: Beranda, Jelajah, Jadwal, Pesan, Akun. One calendar across caterers, immutable purchases, saved addresses, support, delivery changes and explicit renewal.
+- Global customer account: Beranda, Jelajah, Jadwal, Pesan, Akun on web; Beranda, Jadwal, Jelajah, Akun in the native app (see [Native apps](#native-apps--october-2026)). One calendar across caterers, immutable purchases, saved addresses, support, delivery changes and explicit renewal.
 - Caterer web: Hari ini updates delivery statuses through separate lunch/dinner tabs and atomic bulk actions. Jadwal provides a date/package order dashboard with production and whole-day manifest revisions. Publishing, menus, portions-based capacity, customers, support, transactions and staff remain separate workspaces.
+- Catera Dapur (caterer app): the phone-first front door for a caterer's day, built on the same backend. See [Native apps](#native-apps--october-2026). The web seller workspace remains for publishing, settlement and heavier work.
 - Catera admin web: verification, listing/review moderation, transactions, support/refunds, legacy payout approval, delivery-earned weekly settlement, historical promotions and permanent audit history. Platform admins are distinct from seller owners.
 
 September 17 seller workspace update: Schedule customer/destination metrics group and filter the order list in place. Menu has one package selector; caterer-selected packages show the dated calendar, while customer-choice packages show their available dish library. Marketplace subscriptions originate from customer purchases. The beta objective explicitly restores a simple prepaid migration: owners enter an existing or accountless customer and remaining paid obligations, preview exact dates and confirm atomically without a new charge or payout. Standalone manual customer creation and the separate external-renewal control remain removed; historical records and customer details remain manageable. Invitation links are prepared for the seller to share; preparation does not send messages.
@@ -18,6 +21,31 @@ September 17 seller workspace update: Schedule customer/destination metrics grou
 Saved is a private, login-required list of package interests. Saving does not reserve capacity, delivery dates, price, or payment; available entries use current published offers, while unavailable entries retain minimal identity and remain removable. One expiring guest Save intent returns through login to the same filtered/selected card and becomes Saved only after server confirmation. Saved pages load independently of the public catalog's first 100 offers. A cart remains deferred.
 
 Native Discover defaults to one package per deliberate vertical gesture on fitting phone viewports. Since the October 7 UI/UX pass, public web `/` defaults to a scrollable list of photo-led cards on phones, with the vertical swipe feed as a visible alternate. Both keep remembered choice and explicit URL priority. Detail, compare and login returns preserve filters and the selected package; filter changes reset to the first match. Explicit navigation, reduced motion, small-height/enlarged-text list recovery and neutral photo fallbacks preserve access. Desktop discovery uses three photo-on-top columns, and `/home` remains the meal agenda. Web acceptance precedes native release; behavior, local evidence and remaining gates are recorded in [SAVED-DISCOVERY.md](docs/SAVED-DISCOVERY.md).
+
+## Native apps — October 2026
+
+Both apps follow the October 8-10 native UI/UX and motion pass: platform-native tab bars and headers (each tab keeps its own stack), one typeface in bars and labels, mood headers, themed colours, predictive-back handling and photos that fade in. Design contracts are in [DESIGN.md](DESIGN.md) and `docs/superpowers/specs`.
+
+**Customer app.** Four tabs. Beranda leads with today's plate, the next days, "Pilih menu" when a customer-choice menu is due, the renewal card and a one-time Paket selesai recap that leads to renewal. A customer with several plans sees a section per plan, and each plan has a detail screen. Jadwal is a month grid across all packages. Jelajah is area, search and food-led cards with a heart for Saved. Akun holds profile, addresses, Saved, payment history, help and reports, notifications and language. Buying and renewing are one screen each; payment (QRIS or BRI virtual account) ends on a confirmation that shows the food, the first delivery and the reserved days. Sign-in is phone code first, email second. Caterers and admins have no screens here.
+
+**Catera Dapur.** Built around the morning delivery run for home caterers (1-3 people) and small kitchens. Four tabs:
+
+- **Hari ini** (owner and helper): cooking totals by package and dish with a cooking checklist, one session per meal, the numbered delivery route shared as WhatsApp-ready text with map links, and exceptions only (Gagal diantar, Pindah tanggal).
+- **Pelanggan** (owner): active, ending and finished customers, WhatsApp chat, renewal links, and an AI-assisted import for moving existing paid customers.
+- **Menu** (owner edits, helper views): the week per package, dish autocomplete from the caterer's own library, copy last week, photos.
+- **Usaha** (owner): one-screen package editor, the seven money states, team (helper invite) and Aktifkan pembayaran.
+
+Roles are owner and one helper (staff). A helper sees only Hari ini and Menu, with no customers, packages, money or settings. Tab guards enforce this for taps, links and notifications.
+
+Caterer decisions behind the app, from the [caterer simplification design](docs/superpowers/specs/2026-10-07-caterer-simplification-design.md):
+
+1. **Delivery counts as done unless the caterer reports a problem.** A daily job auto-confirms past days. Where no arrival time exists, the app says "Tercatat sampai" rather than implying a time.
+2. **Routing and messaging stay on the caterer's own tools.** One-tap sharing to WhatsApp; no WhatsApp API, paid messaging or courier dispatch.
+3. **Renewal converts.** Imported paid subscriptions run free until they end. Any renewal or new subscription needs Aktifkan pembayaran. Commission applies only to marketplace-sourced customers. The September 17 removal of standalone manual customer creation and external renewal describes the web seller workspace; the native import assistant is the sanctioned migration path.
+4. **Default menu is one menu for everyone**, matching the package composition exactly. Customer-choice stays opt-in.
+5. **Must-decide package fields** are name, photo, portion contents, price per portion per day, meal times, delivery days and daily capacity. The rest sits under advanced settings.
+
+The caterer app has not been tested with a real caterer; the study protocol in [CATERER-SETUP-SIMPLIFICATION.md](docs/CATERER-SETUP-SIMPLIFICATION.md) is still unperformed.
 
 ## Product rules
 
@@ -32,6 +60,7 @@ Web account registration uses name, email and password followed by email verific
 7. Reviews require an actual purchased and delivered meal. Staff see only their caterer's relationships. Financial controls require the owner or platform-admin role as applicable.
 8. Delivery is included; the service fee is itemized. Fees, attribution, discounts and promotions are purchase snapshots. Invited attribution is verified before first purchase and cannot be downgraded retroactively.
 9. Every reservation, entitlement, role-sensitive operation and audit effect belongs to the same database transaction. Commands and provider events are idempotent.
+10. A delivery is treated as delivered once its day passes unless the caterer reports a problem. A reported failure creates support work and does not silently consume or release entitlement.
 
 ## Multi-cycle purchasing and settlement
 
@@ -75,10 +104,16 @@ The five-step editor groups optional settings, summarizes actual configured valu
 
 All packages use this one assembly workflow. The explicitly synthetic demo graph is converted together to category-slot templates and dated recipes; this demo-only conversion never runs against live storage. Production purchase snapshots and dated revision boundaries remain immutable.
 
+## Payments
+
+Direct BRI virtual-account and QRIS checkout run on Catera against the DOKU **sandbox**, with signed callbacks, a durable inbox and recovery by inquiry. New checkouts do not fall back to hosted checkout. Real-money activation, physical banking-app testing and production merchant setup are not done. See [DOKU-DIRECT-PAYMENTS.md](docs/DOKU-DIRECT-PAYMENTS.md). Documents disagree on the production provider: the runbook and AGENTS.md name Xendit, while the verified sandbox is DOKU. Treat the production provider as unresolved until decided.
+
 ## V1 boundary
 
-No automatic renewal, wallet, variable daily portions, per-portion menu customization, courier dispatch, corporate/event catering or advanced inventory.
+No automatic renewal, wallet, variable daily portions, per-portion menu customization, platform courier dispatch (caterers run their own routes), corporate/event catering or advanced inventory.
 
 ## Implementation and release truth
+
+State at October 10, 2026: web, customer app and Catera Dapur are implemented from shared domain, API-client, backend and design-token packages. Android is the native verification target. iOS device testing, EAS builds, store release and real-money transactions are deferred. Native work after October 6 (phases A-E: theme, mood headers, daily loop, renewal, navigation) is planned in `docs/superpowers/plans`. Android runtime and visual acceptance on a physical device remain unrecorded.
 
 The local implementation uses explicit synthetic data, shared transactional SQL services, and real web/native source. See docs/IMPLEMENTATION.md and docs/CATERA-V1-IMPLEMENTATION-PLAN.md for evidence and remaining gates. Production launch is not implied by a local build: docs/RUNBOOK.md requires a separate configured Supabase project, SMS/SMTP, Xendit merchant setup and reconciliation, mobile credentials, device tests, backups and monitoring.
