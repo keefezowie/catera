@@ -24,6 +24,7 @@ import { PressableScale, useReduced } from "./motion";
 import { StatusBand } from "./StatusBand";
 import { themedStyles, useColors } from "./theme";
 import { useScreenNavigation, useUnderStackHeader } from "./navigation";
+import { ScreenHeaderContext, screenInsetBehavior } from "./screenInsets";
 import { useTopInsetOwned } from "./TopInset";
 import { fontFor, fonts } from "./type";
 
@@ -519,19 +520,19 @@ export function Screen({
         keyboardVerticalOffset={keyboardOffset}
       >
         {scroll ? (
-          // The first scroll view in the screen: iOS collapses the large title and minimizes the tab bar from it. A
-          // full-bleed header (a tab root's MoodHeader) already pays the top inset and a photo header runs under the
-          // bar, so neither lets iOS inset the page a second time.
+          // The first scroll view in the screen: iOS collapses the large title and minimizes the tab bar from it, and
+          // insets it for the status bar and the floating tab bar, under a full-bleed header too (the header then pays
+          // no top inset of its own on iOS, through ScreenHeaderContext). A photo header runs under the bar and opts out.
           <ScrollView
             testID="screen-scroll"
-            contentInsetAdjustmentBehavior={header || bleed ? "never" : "automatic"}
+            contentInsetAdjustmentBehavior={screenInsetBehavior({ header: !!header, bleed })}
             automaticallyAdjustKeyboardInsets={ios}
             contentContainerStyle={{ paddingBottom: 32 }}
             keyboardShouldPersistTaps="handled"
             onScroll={handleScroll}
             scrollEventThrottle={handleScroll ? 16 : undefined}
           >
-            {header}
+            {header ? <ScreenHeaderContext.Provider value>{header}</ScreenHeaderContext.Provider> : null}
             {lead}
             {body}
           </ScrollView>

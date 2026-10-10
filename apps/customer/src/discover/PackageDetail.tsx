@@ -116,6 +116,10 @@ export function PackageDetail() {
     }
     if (!photoApplied.current) return;
     photoApplied.current = false;
+    // A photo that comes back starts over the photo again, whatever the page was scrolled to before.
+    stageRef.current = "photo";
+    setStage("photo");
+    scrimShift.setValue(0);
     navigation.setOptions({
       headerTransparent: stackHeader.headerTransparent ?? false,
       headerLargeTitle: stackHeader.headerLargeTitle ?? false,
@@ -125,7 +129,7 @@ export function PackageDetail() {
       // Android's content title starts the bar empty and takes it on scroll; iOS reads the route's `title`.
       headerTitle: process.env.EXPO_OS === "ios" ? undefined : "",
     });
-  }, [navigation, photoHeader, pastPhoto, stage, name, c.canvas, stackHeader]);
+  }, [navigation, photoHeader, pastPhoto, stage, name, c.canvas, c.tabBar, stackHeader]);
   // The scrim stays under the bar while the photo scrolls beneath it, so the light back arrow never lands on a bright
   // part of the photo; it stops at the photo's foot.
   const heroHeight = PHOTO + (demo ? 0 : insets.top);

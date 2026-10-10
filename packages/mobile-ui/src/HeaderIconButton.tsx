@@ -67,13 +67,14 @@ export function HeaderIconButton({
   // The toolbar clips its slot and only delivers touches inside it, so a button pulled outward would lose 12dp of its
   // target. The spoken 48dp button therefore stays inside the slot, and the icon with its ripple sits in an inner
   // button pulled 12dp outward. A tap on the icon reaches the inner one, a tap on the slot's far side the outer one;
-  // both do the same thing.
+  // both do the same thing, and both answer the touch with the same ripple.
   return (
     <Pressable
       testID={`header-${icon}`}
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={onPress}
+      android_ripple={ripple}
       style={{ width: size, height: size }}
     >
       <Pressable

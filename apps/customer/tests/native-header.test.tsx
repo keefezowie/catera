@@ -7,7 +7,7 @@ import { router } from "expo-router";
 import { act, fireEvent, renderRouter, screen, within } from "expo-router/testing-library";
 import { jakartaDay, type Checkout } from "@catera/domain";
 import { nativeThemes } from "@catera/design-tokens";
-import { fonts, nativeHeaderOptions, statusBarStyle } from "@catera/mobile-ui";
+import { fonts, moodHeaderTopInset, nativeHeaderOptions, screenInsetBehavior, statusBarStyle } from "@catera/mobile-ui";
 import { goToTab } from "../src/nav";
 import { contentTitled, linkTitle, useStackScreenOptions } from "../src/stack";
 import { dayHref, packageHref, planHref } from "../src/hrefs";
@@ -232,6 +232,10 @@ describe("native headers on pushed screens", () => {
     // native back arrow sits. A tap on the icon closes too.
     const icon = within(leading as never).getByTestId("header-close-icon", { includeHiddenElements: true });
     expect(StyleSheet.flatten(icon.props.style)).toMatchObject({ marginStart: -12, width: 48, height: 48 });
+    // Both parts answer a touch with the same borderless ripple, so a tap on the outer part is never silent.
+    const rippleOf = (n: { props: Record<string, unknown> }) => n.props.nativeBackgroundAndroid ?? n.props.nativeForegroundAndroid;
+    expect(rippleOf(close)).toMatchObject({ borderless: true, rippleRadius: 24 });
+    expect(rippleOf(icon)).toEqual(rippleOf(close));
     await go(() => fireEvent.press(icon));
     expect(root()).toEqual(["(tabs)"]);
     expect(tab()).toBe("(jadwal)");
@@ -448,15 +452,20 @@ describe("tab roots", () => {
     expect(pads.size).toBe(1);
   });
 
-  it("tab roots let no system inset under their mood header, pushed screens do", async () => {
+  it("tab roots: one top inset under the mood header on each platform, and iOS keeps the bottom inset", async () => {
     await everyTab();
     const scrolls = screen.getAllByTestId("screen-scroll", { includeHiddenElements: true });
     const roots = scrolls.filter(
       (s) => within(s).queryAllByTestId("mood-header-row", { includeHiddenElements: true }).length > 0,
     );
     expect(roots.length).toBeGreaterThanOrEqual(4);
-    // The mood header already pays the top inset; iOS's automatic inset would pay it twice.
+    // Android (this build): the mood header pays the top inset and the scroll view adds none.
     for (const s of roots) expect(s.props.contentInsetAdjustmentBehavior).toBe("never");
+    // iOS: the scroll view keeps "automatic" (top under the status bar, bottom clear of the floating tab bar) and the
+    // mood header pays no top inset as a Screen header. Jest compiles in Android, so iOS is pinned through the helpers;
+    // it is unverified on an iPhone.
+    expect(screenInsetBehavior({ header: true, bleed: false }, "ios")).toBe("automatic");
+    expect(moodHeaderTopInset({ top: 47, topOwned: false, inScreenHeader: true }, "ios")).toBe(0);
     await go(() => router.push(planHref("s1", "Paket Siang")));
     const pushed = screen.getAllByTestId("screen-scroll").at(-1)!;
     expect(within(pushed).queryAllByTestId("mood-header-row")).toHaveLength(0);

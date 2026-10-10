@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import { Platform, Pressable, StyleSheet, Text as RNText } from "react-native";
 import { HeaderShownContext, NavigationContext } from "expo-router/react-navigation";
-import type { ReactElement } from "react";
+import { use, type ReactElement } from "react";
 import * as Haptics from "expo-haptics";
 import * as SecureStore from "expo-secure-store";
 import * as Reanimated from "react-native-reanimated";
@@ -15,7 +15,10 @@ import {
   Field,
   fontFor,
   fonts,
+  moodHeaderTopInset,
   PressableRow,
+  ScreenHeaderContext,
+  screenInsetBehavior,
   PressableScale,
   RoundButton,
   Screen,
@@ -495,6 +498,46 @@ describe("Sheet and Screen details", () => {
     expect(tones()).toEqual([nativeThemes.light.tabBar, nativeThemes.light.canvas]);
     // The screen's own handler still hears every event.
     expect(onScroll).toHaveBeenCalledTimes(5);
+  });
+
+  it("iOS keeps the automatic inset under a mood header and the header pays no top inset there; Android as before", () => {
+    // Jest compiles `process.env.EXPO_OS` in (the Android build), so the platform rules are pure helpers that take the
+    // platform, and both are pinned here. iOS behaviour is unverified on an iPhone.
+    const ios = "ios";
+    const android = "android";
+    // iOS: "automatic" under a full-bleed header too, so UIKit insets the page below the status bar and lets its last
+    // rows scroll clear of the floating tab bar. A photo header still opts out.
+    expect(screenInsetBehavior({ header: true, bleed: false }, ios)).toBe("automatic");
+    expect(screenInsetBehavior({ header: false, bleed: false }, ios)).toBe("automatic");
+    expect(screenInsetBehavior({ header: false, bleed: true }, ios)).toBe("never");
+    // Android ignores the prop; it keeps "never" under any header.
+    expect(screenInsetBehavior({ header: true, bleed: false }, android)).toBe("never");
+    expect(screenInsetBehavior({ header: false, bleed: false }, android)).toBe("automatic");
+    expect(screenInsetBehavior({ header: false, bleed: true }, android)).toBe("never");
+    // The MoodHeader as a Screen header: UIKit already offsets it on iOS, so it pays no inset; on Android it pays the
+    // status-bar inset unless the demo strip owns it. Outside a Screen header it pays it on both.
+    expect(moodHeaderTopInset({ top: 47, topOwned: false, inScreenHeader: true }, ios)).toBe(0);
+    expect(moodHeaderTopInset({ top: 47, topOwned: false, inScreenHeader: false }, ios)).toBe(47);
+    expect(moodHeaderTopInset({ top: 24, topOwned: false, inScreenHeader: true }, android)).toBe(24);
+    expect(moodHeaderTopInset({ top: 24, topOwned: true, inScreenHeader: true }, android)).toBe(0);
+    // Only a header inside the screen's scroll view counts as a Screen header (the scroll view is what UIKit insets).
+    function Probe() {
+      return <Text>{use(ScreenHeaderContext) ? "in" : "out"}</Text>;
+    }
+    const view = render(
+      <Screen header={<Probe />}>
+        <Text>Isi</Text>
+      </Screen>,
+    );
+    expect(screen.getByText("in")).toBeTruthy();
+    // The status band still paints the header colour under the status bar.
+    expect(screen.getByTestId("status-band", { includeHiddenElements: true })).toBeTruthy();
+    view.rerender(
+      <Screen scroll={false} header={<Probe />}>
+        <Text>Isi</Text>
+      </Screen>,
+    );
+    expect(screen.getByText("out")).toBeTruthy();
   });
 
   it("Screen leaves the bar alone on a tab root and under a photo header", () => {

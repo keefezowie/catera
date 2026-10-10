@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { use, useState, type ReactNode } from "react";
 import { Text as RNText, View, type LayoutChangeEvent } from "react-native";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -12,6 +12,7 @@ import { MoodFill } from "./MoodFill";
 import { statusBarStyle, useMood, useMoodColors, useMoodLabels } from "./mood";
 import { PressableScale } from "./motion";
 import { ScreenStatusBar } from "./ScreenStatusBar";
+import { moodHeaderTopInset, ScreenHeaderContext } from "./screenInsets";
 import { useThemePreference } from "./theme";
 import { useTopInsetOwned } from "./TopInset";
 import { fontFor } from "./type";
@@ -147,6 +148,8 @@ export function MoodHeader({
 }) {
   const insets = useSafeAreaInsets();
   const topOwned = useTopInsetOwned();
+  const inScreenHeader = use(ScreenHeaderContext);
+  const topInset = moodHeaderTopInset({ top: insets.top, topOwned, inScreenHeader });
   const palette = useMoodColors();
   const { mood } = useMood();
   const { scheme } = useThemePreference();
@@ -157,7 +160,7 @@ export function MoodHeader({
       testID={testID}
       style={{
         overflow: "hidden",
-        paddingTop: (topOwned ? 0 : insets.top) + 12,
+        paddingTop: topInset + 12,
         paddingBottom: 16 + overlap,
         borderBottomLeftRadius: radius,
         borderBottomRightRadius: radius,
@@ -168,7 +171,7 @@ export function MoodHeader({
       <MoodFill surface="header" testID="mood-fill">
         {/* In the Malam layer, so the lunchboxes fade in and out with the fill instead of snapping. Below the toggle
             row, so they show beside the headline instead of hiding behind the toggle. */}
-        <MalamPattern mood="malam" top={(topOwned ? 0 : insets.top) + 12 + ROW_HEIGHT + TRACK_PADDING * 2 + 4} />
+        <MalamPattern mood="malam" top={topInset + 12 + ROW_HEIGHT + TRACK_PADDING * 2 + 4} />
       </MoodFill>
       <View
         testID="mood-header-content"

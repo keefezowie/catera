@@ -199,6 +199,11 @@ describe("Paket with its photo (ruling B3: the photo is the header)", () => {
     const view = wrap(runtime);
     expect(await screen.findByRole("button", { name: "Pilih jadwal" })).toBeTruthy();
     expect(navigation.setOptions).toHaveBeenLastCalledWith(expect.objectContaining({ headerTransparent: true }));
+    // Scrolled past the photo first, so the bar is opaque when the photo state is left.
+    fireEvent.scroll(screen.getByTestId("screen-scroll"), { nativeEvent: { contentOffset: { x: 0, y: PHOTO_PASSED + 10 } } });
+    expect(navigation.setOptions).toHaveBeenLastCalledWith(
+      expect.objectContaining({ headerStyle: { backgroundColor: nativeThemes.light.tabBar } }),
+    );
     // Another package whose read has not come back: no photo to lead with, so the plain native header returns.
     mockParams = { id: "p-lain", title: "Nasi Liwet" };
     view.rerender(tree(runtime));
@@ -211,5 +216,18 @@ describe("Paket with its photo (ruling B3: the photo is the header)", () => {
       headerTintColor: nativeThemes.light.charcoal,
       headerTitle: "",
     });
+    // Back to the first package: its photo leads again and the bar starts over the photo, not where it was left.
+    mockParams = { id: "p-murah" };
+    view.rerender(tree(runtime));
+    expect(await screen.findByRole("button", { name: "Pilih jadwal" })).toBeTruthy();
+    expect(navigation.setOptions).toHaveBeenLastCalledWith({
+      headerTransparent: true,
+      headerLargeTitle: false,
+      headerTitle: "",
+      headerShadowVisible: false,
+      headerStyle: { backgroundColor: "transparent" },
+      headerTintColor: nativeThemes.light.cream,
+    });
+    expect(view.UNSAFE_queryAllByType(StatusBar).some((s) => s.props.barStyle === "light-content")).toBe(true);
   });
 });
