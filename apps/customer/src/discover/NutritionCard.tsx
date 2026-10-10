@@ -59,9 +59,14 @@ const VALUE_EM = 0.6;
 const LABEL_EM = 0.55;
 const LABEL_SIZE = 12;
 const GAP = 8;
+/** Value sizes: the heading step on iOS, one step down for ranges that need it, and Android's compact value. */
+const IOS_VALUE = 21;
+const IOS_RANGE_VALUE = 17;
+const ANDROID_VALUE = 18;
 
 /**
- * "Gizi per porsi": the caterer's estimates as tiles. iOS sets a label over each value, two by two. Android sets four
+ * "Gizi per porsi": the caterer's estimates as tiles. iOS sets a label over each value, two by two (range values step
+ * down to 17 when that keeps the pairs; one column is left for larger text). Android sets four
  * compact tiles in one row, the value over a short label, and falls back to two by two (then one) when the measured
  * row cannot hold every value and label at the current text size, so nothing is ever cut. Nothing renders when no
  * metric is filled.
@@ -80,16 +85,23 @@ export function NutritionCard({ offer, os = process.env.EXPO_OS }: { offer: Offe
     value: ios || m.key !== "caloriesKcal" ? `${m.amount} ${m.unit}` : m.amount,
     caption: ios ? m.label : m.key === "caloriesKcal" ? m.unit : m.short,
   }));
-  // The widest tile this text size needs; the row is measured, so the column count follows the real screen.
-  const valueSize = ios ? 21 : 18;
+  // The widest tile a value size needs at this text size; the row is measured, so the layout follows the real screen.
   const pad = ios ? 12 : 6;
-  const need = Math.max(
-    ...tiles.map(
-      (m) => Math.max(m.value.length * valueSize * VALUE_EM, m.caption.length * LABEL_SIZE * LABEL_EM) * fontScale + pad * 2,
-    ),
-  );
-  const fits = (cols: number) => !width || cols * need + (cols - 1) * GAP <= width;
-  const cols = (ios ? [2, 1] : [4, 2, 1]).find(fits) ?? 1;
+  const need = (valueSize: number) =>
+    Math.max(
+      ...tiles.map(
+        (m) => Math.max(m.value.length * valueSize * VALUE_EM, m.caption.length * LABEL_SIZE * LABEL_EM) * fontScale + pad * 2,
+      ),
+    );
+  const fits = (cols: number, valueSize: number) => !width || cols * need(valueSize) + (cols - 1) * GAP <= width;
+  // iOS keeps two by two: ranges ("610–640 kkal") that do not fit at the 21 heading step down once to 17 (the card
+  // title's size) before a single column, which is left for larger text. Android keeps its 18 and goes 4, 2, 1.
+  const hasRange = metrics.some((m) => m.amount.includes("–"));
+  const layouts: [number, number][] = ios
+    ? [[2, IOS_VALUE], ...(hasRange ? [[2, IOS_RANGE_VALUE] as [number, number]] : []), [1, IOS_VALUE]]
+    : [[4, ANDROID_VALUE], [2, ANDROID_VALUE], [1, ANDROID_VALUE]];
+  const [cols, valueSize] = layouts.find(([n, size]) => fits(n, size)) ?? layouts[layouts.length - 1];
+  const small = ios && valueSize === IOS_RANGE_VALUE;
   const rows: (typeof tiles)[] = [];
   for (let i = 0; i < tiles.length; i += cols) rows.push(tiles.slice(i, i + cols));
   return (
@@ -113,7 +125,7 @@ export function NutritionCard({ offer, os = process.env.EXPO_OS }: { offer: Offe
                     <Text variant="label" style={styles.tileLabel}>
                       {m.caption}
                     </Text>
-                    <Text variant="heading" style={styles.value}>
+                    <Text variant="heading" style={[styles.value, small && styles.valueRange]}>
                       {m.value}
                     </Text>
                   </>
@@ -161,8 +173,9 @@ const useStyles = themedStyles((c) => ({
   tileCompact: { paddingVertical: 10, paddingHorizontal: 6, alignItems: "center" },
   spacer: { flex: 1 },
   tileLabel: { color: c.muted, lineHeight: 18 },
-  value: { fontSize: 21, lineHeight: 28, fontVariant: ["tabular-nums"] },
-  valueCompact: { fontSize: 18, lineHeight: 24, textAlign: "center" },
+  value: { fontSize: IOS_VALUE, lineHeight: 28, fontVariant: ["tabular-nums"] },
+  valueRange: { fontSize: IOS_RANGE_VALUE, lineHeight: 24 },
+  valueCompact: { fontSize: ANDROID_VALUE, lineHeight: 24, textAlign: "center" },
   centered: { textAlign: "center" },
   caption: { fontSize: 13, lineHeight: 18 },
 }));

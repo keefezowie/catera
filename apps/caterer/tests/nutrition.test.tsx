@@ -1,7 +1,16 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { StyleSheet } from "react-native";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import type { SellerOffer } from "@catera/domain";
-import { emptyPackage, formFromOffer, nutritionIssues, packageIssues, quickOffer, type PackageForm } from "../src/business/package";
+import {
+  editGram,
+  emptyPackage,
+  formFromOffer,
+  nutritionIssues,
+  packageIssues,
+  quickOffer,
+  type PackageForm,
+} from "../src/business/package";
 import { PackageEditor } from "../src/business/PackageEditor";
 import { PackageDetail } from "../src/business/PackageDetail";
 
@@ -58,6 +67,20 @@ const liveOffer = {
   menus: [{ meal: "lunch", name: "x", description: "", image: "", contentModel: "slots", composition: [{ id: "g-main", categoryId: "main", name: "Lauk", slots: 2 }] }],
 } as unknown as SellerOffer;
 
+// The demo seed's Rantang Nusantara (packages/backend/src/seed.ts:254-352, Dapur Senja): its two menus give a range for
+// every metric, as the 20260911163659 backfill does for every legacy two-menu package.
+const rantang = {
+  ...liveOffer,
+  id: "p-rantang",
+  name: "Rantang Nusantara",
+  nutrition: {
+    caloriesKcal: { min: 610, max: 640 },
+    proteinG: { min: 29, max: 30 },
+    carbsG: { min: 76, max: 82 },
+    fatG: { min: 19, max: 21 },
+  },
+} as unknown as SellerOffer;
+
 const mount = (runtime: MobileRuntime, ui: React.ReactElement) =>
   render(
     <MobileProvider runtime={runtime} linkMapper={() => "/"}>
@@ -97,6 +120,18 @@ describe("quickOffer macros", () => {
     expect(packageIssues({ ...form, nutrition: n }).nutrition).toBeTruthy();
     expect(nutritionIssues(emptyPackage.nutrition)).toEqual({});
   });
+
+  it("a range with one end asks for the other", () => {
+    const n = { ...emptyPackage.nutrition, range: true };
+    // Only "dari": the message sits under "sampai".
+    expect(nutritionIssues({ ...n, caloriesKcal: ["600", ""] })).toEqual({ caloriesMax: "Isi juga batas yang satunya" });
+    // Only "sampai": the message sits under "dari".
+    expect(nutritionIssues({ ...n, caloriesKcal: ["", "640"] })).toEqual({ caloriesKcal: "Isi juga batas yang satunya" });
+    expect(packageIssues({ ...form, nutrition: { ...n, caloriesKcal: ["", "640"] } }).nutrition).toBe("Isi juga batas yang satunya");
+    // Both ends, or neither, is fine.
+    expect(nutritionIssues({ ...n, caloriesKcal: ["600", "640"] })).toEqual({});
+    expect(nutritionIssues(n)).toEqual({});
+  });
 });
 
 describe("Gizi per porsi in the editor", () => {
@@ -118,7 +153,10 @@ describe("Gizi per porsi in the editor", () => {
   it("turning the range off keeps one calorie field with the lower value", async () => {
     const command = jest.fn(async () => ({ id: "p-new" }));
     mount(runtimeWith({ command }), <PackageEditor from={liveOffer} />);
-    fireEvent(await screen.findByRole("switch", { name: "Pakai rentang" }), "valueChange", false);
+    // The whole row is the switch: tapping its label turns the range off.
+    await screen.findByRole("switch", { name: "Pakai rentang" });
+    fireEvent.press(screen.getByText("Pakai rentang"));
+    expect(screen.getByRole("switch", { name: "Pakai rentang" }).props.accessibilityState.checked).toBe(false);
     expect(screen.queryByLabelText("Kalori sampai (kkal)")).toBeNull();
     expect(screen.getByLabelText("Kalori (kkal)").props.value).toBe("580");
     fireEvent.press(screen.getByRole("button", { name: "Simpan paket" }));
@@ -139,6 +177,67 @@ describe("Gizi per porsi in the editor", () => {
     await waitFor(() => expect(command).toHaveBeenCalled());
     const [, payload] = command.mock.calls[0] as unknown as [string, { offer: { nutrition: unknown } }];
     expect(payload.offer.nutrition).toEqual({ caloriesKcal: { min: 580, max: 640 }, proteinG: 32, fatG: 0 });
+  });
+
+  it("Salin jadi paket baru keeps Rantang Nusantara's ranges until one is edited", async () => {
+    expect(formFromOffer(rantang).nutrition).toEqual({
+      range: true,
+      caloriesKcal: ["610", "640"],
+      proteinG: "",
+      carbsG: "",
+      fatG: "",
+      carried: { proteinG: { min: 29, max: 30 }, carbsG: { min: 76, max: 82 }, fatG: { min: 19, max: 21 } },
+    });
+    const seedRanges = {
+      caloriesKcal: { min: 610, max: 640 },
+      proteinG: { min: 29, max: 30 },
+      carbsG: { min: 76, max: 82 },
+      fatG: { min: 19, max: 21 },
+    };
+
+    // Copied and saved without edits: all four ranges go out as they came in.
+    let command = jest.fn(async () => ({ id: "p-new" }));
+    let view = mount(runtimeWith({ command }), <PackageEditor from={rantang} />);
+    expect((await screen.findByLabelText("Protein (g)")).props.value).toBe("29–30");
+    expect(screen.getByLabelText("Karbo (g)").props.value).toBe("76–82");
+    expect(screen.getByLabelText("Lemak (g)").props.value).toBe("19–21");
+    // The range is selected on focus, so the first keystroke replaces it.
+    expect(screen.getByLabelText("Protein (g)").props.selectTextOnFocus).toBe(true);
+    fireEvent.press(screen.getByRole("button", { name: "Simpan paket" }));
+    await waitFor(() => expect(command).toHaveBeenCalled());
+    let [, payload] = command.mock.calls[0] as unknown as [string, { offer: { nutrition: unknown } }];
+    expect(payload.offer.nutrition).toEqual(seedRanges);
+    view.unmount();
+
+    // Editing protein replaces its range with the one number typed; the untouched ranges still go out.
+    command = jest.fn(async () => ({ id: "p-new" }));
+    view = mount(runtimeWith({ command }), <PackageEditor from={rantang} />);
+    fireEvent.changeText(await screen.findByLabelText("Protein (g)"), "31");
+    expect(screen.getByLabelText("Protein (g)").props.value).toBe("31");
+    fireEvent.press(screen.getByRole("button", { name: "Simpan paket" }));
+    await waitFor(() => expect(command).toHaveBeenCalled());
+    [, payload] = command.mock.calls[0] as unknown as [string, { offer: { nutrition: unknown } }];
+    expect(payload.offer.nutrition).toEqual({ ...seedRanges, proteinG: 31 });
+    view.unmount();
+  });
+
+  it("the first keystroke into a carried range starts a single number", () => {
+    const n = formFromOffer(rantang).nutrition;
+    // Typed after the shown "29–30" (the cursor at its end): only the new digits stay.
+    expect(editGram(n, "proteinG", "29–303")).toMatchObject({ proteinG: "3", carried: { carbsG: { min: 76, max: 82 } } });
+    expect(editGram(n, "proteinG", "29–303").carried?.proteinG).toBeUndefined();
+    // The field selects "29–30" on focus, so the first digit replaces it.
+    expect(editGram(n, "proteinG", "2").proteinG).toBe("2");
+    // A backspace into the range clears the field.
+    expect(editGram(n, "proteinG", "29–3").proteinG).toBe("");
+    // A field without a carried range takes the text as typed.
+    expect(editGram(editGram(n, "proteinG", "31"), "proteinG", "312").proteinG).toBe("312");
+  });
+
+  it("the calorie and gram fields line up at the top, so an error under one does not lift it", async () => {
+    mount(runtimeWith({}), <PackageEditor from={liveOffer} />);
+    await screen.findByText("Gizi per porsi (opsional)");
+    for (const id of ["gizi-kalori", "gizi-gram"]) expect(StyleSheet.flatten(screen.getByTestId(id).props.style).alignItems).toBe("flex-start");
   });
 
   it("a new package starts with every gizi field empty and the range off", async () => {

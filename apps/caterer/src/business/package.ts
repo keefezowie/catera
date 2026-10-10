@@ -22,6 +22,9 @@ export type PackageForm = {
   nutrition: NutritionForm;
 };
 
+/** The gram metrics, which the form holds as one number each. */
+export type GramKey = "proteinG" | "carbsG" | "fatG";
+
 export type NutritionForm = {
   range: boolean;
   /** [from, to]; with `range` off only the first is used. */
@@ -29,7 +32,32 @@ export type NutritionForm = {
   proteinG: string;
   carbsG: string;
   fatG: string;
+  /**
+   * A gram range copied from the source package ("Salin jadi paket baru") and not edited since. It is saved as it came
+   * in; its field shows it as "29–30", and the first edit replaces it with one number (`editGram`).
+   */
+  carried?: Partial<Record<GramKey, { min: number; max: number }>>;
 };
+
+const gramKeys = ["proteinG", "carbsG", "fatG"] as const;
+
+/** "29–30": how a carried range reads in its field. */
+export const carriedText = (r: { min: number; max: number }) => `${r.min}–${r.max}`;
+
+/**
+ * The form after the caterer types into a gram field. A carried range is not editable as a range: the first edit drops
+ * it. The field selects its text on focus, so a keystroke usually replaces "29–30" and is kept as typed; digits typed
+ * after the shown range keep only the new digits; any other edit that leaves the range's dash (a backspace into it)
+ * clears the field.
+ */
+export function editGram(n: NutritionForm, key: GramKey, typed: string): NutritionForm {
+  const range = n.carried?.[key];
+  if (!range) return { ...n, [key]: typed };
+  const { [key]: _dropped, ...carried } = n.carried!;
+  const shown = carriedText(range);
+  const next = typed.startsWith(shown) ? typed.slice(shown.length) : typed.includes("–") ? "" : typed;
+  return { ...n, [key]: next, carried };
+}
 
 /** A gizi field that can carry a message; `caloriesMax` is the second calorie field of a range. */
 export type NutritionField = "caloriesKcal" | "caloriesMax" | "proteinG" | "carbsG" | "fatG";
@@ -52,13 +80,15 @@ const digits = (v: string) => (/^\d+$/.test(v.trim()) ? Number(v.trim()) : null)
 function nutritionEntries(n: NutritionForm): [NutritionField, string][] {
   const fields: [NutritionField, string][] = [["caloriesKcal", n.caloriesKcal[0]]];
   if (n.range) fields.push(["caloriesMax", n.caloriesKcal[1]]);
-  fields.push(["proteinG", n.proteinG], ["carbsG", n.carbsG], ["fatG", n.fatG]);
+  // A carried range was valid where it came from and is not typed text.
+  for (const key of gramKeys) if (!n.carried?.[key]) fields.push([key, n[key]]);
   return fields;
 }
 
 /**
- * The domain shape (`nutritionSchema`) from the typed fields: an empty field is left out (zero is a value), a range is
- * `{ min, max }` for calories only, and nothing filled is `null`. Call it on fields `nutritionIssues` accepts.
+ * The domain shape (`nutritionSchema`) from the typed fields: an empty field is left out (zero is a value), a typed range
+ * is `{ min, max }` for calories only, a carried gram range goes out unchanged, and nothing filled is `null`. Call it on
+ * fields `nutritionIssues` accepts.
  */
 export function nutritionFromForm(n: NutritionForm): Nutrition | null {
   const value = (v: string) => (v.trim() ? digits(v) : null);
@@ -67,9 +97,11 @@ export function nutritionFromForm(n: NutritionForm): Nutrition | null {
   const to = n.range ? value(n.caloriesKcal[1]) : null;
   if (from !== null && to !== null) result.caloriesKcal = { min: from, max: to };
   else if (from !== null) result.caloriesKcal = from;
-  for (const key of ["proteinG", "carbsG", "fatG"] as const) {
+  for (const key of gramKeys) {
+    const carried = n.carried?.[key];
     const v = value(n[key]);
-    if (v !== null) result[key] = v;
+    if (carried) result[key] = { min: carried.min, max: carried.max };
+    else if (v !== null) result[key] = v;
   }
   return Object.keys(result).length ? result : null;
 }
@@ -166,19 +198,27 @@ export function formFromOffer(o: SellerOffer): PackageForm {
 }
 
 /**
- * The gizi fields for a package's saved estimates. Calories keep their range; the form holds one number for the
- * others, so a protein, carbohydrate or fat range (only the web editor makes one) is left empty for the caterer to fill
- * rather than narrowed to a number they never entered.
+ * The gizi fields for a package's saved estimates. Calories keep their range through the switch. The form holds one
+ * number for protein, carbohydrate and fat, yet saved packages do have ranges there: the 20260911163659 backfill gives
+ * every legacy two-menu package one (the demo seed's Rantang Nusantara reads 29–30 g protein, 76–82 g carbohydrate and
+ * 19–21 g fat). Such a range is carried untouched, so a copy saved without edits keeps it, and it is never narrowed to
+ * a number the caterer did not type.
  */
 function nutritionFormFrom(n: Nutrition | null): NutritionForm {
   const one = (v: NutrientValue | undefined) => (typeof v === "number" ? String(v) : "");
   const kcal = n?.caloriesKcal;
   const range = typeof kcal === "object" && kcal !== null;
+  const carried: NonNullable<NutritionForm["carried"]> = {};
+  for (const key of gramKeys) {
+    const v = n?.[key];
+    if (typeof v === "object" && v !== null) carried[key] = { min: v.min, max: v.max };
+  }
   return {
     range,
     caloriesKcal: typeof kcal === "object" && kcal !== null ? [String(kcal.min), String(kcal.max)] : [one(kcal), ""],
     proteinG: one(n?.proteinG),
     carbsG: one(n?.carbsG),
     fatG: one(n?.fatG),
+    ...(Object.keys(carried).length ? { carried } : {}),
   };
 }

@@ -35,14 +35,26 @@ jest.mock("expo-secure-store", () => {
 jest.mock("expo-crypto", () => ({ randomUUID: () => require("node:crypto").randomUUID() }));
 
 // Values from the demo seed (packages/backend/src/seed.ts): Ayam Panggang Harian has all four, Salmon Teriyaki has no
-// carbohydrate, Ayam Sambal Rumahan has none.
+// carbohydrate, Rantang Nusantara's two menus (lines 316 and 352) give a range for every metric, Ayam Sambal Rumahan
+// has none.
 const full = offer({ id: "p-ayam", name: "Ayam Panggang Harian", nutrition: { caloriesKcal: 620, proteinG: 32, carbsG: 78, fatG: 20 } });
 const noCarbs = offer({ id: "p-salmon", name: "Salmon Teriyaki", nutrition: { caloriesKcal: 580, proteinG: 34, fatG: 22 } });
-const zeroFat = offer({ id: "p-nabati", name: "Sayur Rebus", nutrition: { caloriesKcal: 310, proteinG: 12, fatG: 0 } });
-const range = offer({ id: "p-rantang", name: "Rantang Nusantara", nutrition: { caloriesKcal: { min: 580, max: 640 }, proteinG: 32 } });
-const caloriesOnly = offer({ id: "p-kalori", name: "Nasi Kuning", nutrition: { caloriesKcal: 540 } });
+const range = offer({
+  id: "p-rantang",
+  name: "Rantang Nusantara",
+  nutrition: {
+    caloriesKcal: { min: 610, max: 640 },
+    proteinG: { min: 29, max: 30 },
+    carbsG: { min: 76, max: 82 },
+    fatG: { min: 19, max: 21 },
+  },
+});
 const none = offer({ id: "p-sambal", name: "Ayam Sambal Rumahan", nutrition: null });
-const all = [full, noCarbs, zeroFat, range, caloriesOnly, none];
+// Synthetic, not from the seed: a zero, a calorie-only package and the brief's own range example.
+const zeroFat = offer({ id: "p-nabati", name: "Sayur Rebus", nutrition: { caloriesKcal: 310, proteinG: 12, fatG: 0 } });
+const caloriesOnly = offer({ id: "p-kalori", name: "Nasi Kuning", nutrition: { caloriesKcal: 540 } });
+const calorieRange = offer({ id: "p-contoh", name: "Paket Contoh", nutrition: { caloriesKcal: { min: 580, max: 640 }, proteinG: 32 } });
+const all =[full, noCarbs, zeroFat, range, caloriesOnly, none];
 
 function runtimeWith(): MobileRuntime {
   const runtime = createMobileRuntime({ apiUrl: "https://api.example.test", storagePrefix: "catera" });
@@ -151,12 +163,61 @@ describe("NutritionCard", () => {
   });
 
   it("a calorie range reads 580–640", async () => {
-    const view = card(range, "ios");
+    let view = card(calorieRange, "ios");
     expect(await screen.findByText("580–640 kkal")).toBeTruthy();
+    view.unmount();
+    // Rantang Nusantara from the seed: every metric is a range, on both platforms.
+    view = card(range, "ios");
+    for (const value of ["610–640 kkal", "29–30 g", "76–82 g", "19–21 g"]) expect(await screen.findByText(value)).toBeTruthy();
+    view.unmount();
+    view = card(range, "android");
+    for (const value of ["610–640", "29–30 g", "76–82 g", "19–21 g"]) expect(await screen.findByText(value)).toBeTruthy();
+    expect(screen.getAllByTestId("gizi-tile").map((t) => t.props.accessibilityLabel)).toEqual([
+      "Kalori 610–640 kkal",
+      "Protein 29–30 g",
+      "Karbohidrat 76–82 g",
+      "Lemak 19–21 g",
+    ]);
     view.unmount();
     mockParams = { id: "p-rantang" };
     wrap(<PackageDetail />);
-    expect(await screen.findByText("580–640 kkal · 32 g protein per porsi")).toBeTruthy();
+    expect(await screen.findByText("610–640 kkal · 29–30 g protein per porsi")).toBeTruthy();
+  });
+
+  it("on iOS all-range tiles stay two by two at normal text on a 390pt phone", async () => {
+    const dims = jest.spyOn(require("react-native"), "useWindowDimensions");
+    // 316 is a 390pt screen less the page padding (20 each side), the card border and its padding (1 and 16 each side).
+    const layout = () =>
+      act(() => {
+        fireEvent(screen.getByTestId("gizi-grid"), "layout", { nativeEvent: { layout: { x: 0, y: 0, width: 316, height: 120 } } });
+      });
+    dims.mockReturnValue({ width: 390, height: 844, scale: 3, fontScale: 1 });
+    let view = card(range, "ios");
+    await screen.findByText("610–640 kkal");
+    layout();
+    expect(screen.getAllByTestId("gizi-row").map((r) => within(r).getAllByTestId("gizi-tile").length)).toEqual([2, 2]);
+    // The range values take the next step down the ramp (17/24) so the pairs fit; nothing is cut.
+    for (const value of ["610–640 kkal", "29–30 g", "76–82 g", "19–21 g"])
+      expect(StyleSheet.flatten(screen.getByText(value).props.style)).toMatchObject({ fontSize: 17, lineHeight: 24, fontVariant: ["tabular-nums"] });
+    for (const text of screen.UNSAFE_getAllByType(require("react-native").Text)) expect(text.props.numberOfLines).toBeUndefined();
+    view.unmount();
+
+    // Single values keep the full 21/28 heading.
+    view = card(full, "ios");
+    await screen.findByText("620 kkal");
+    layout();
+    expect(screen.getAllByTestId("gizi-row")).toHaveLength(2);
+    expect(StyleSheet.flatten(screen.getByText("620 kkal").props.style).fontSize).toBe(21);
+    view.unmount();
+
+    // At larger text the ranges fall back to one column at the full size rather than shrinking further.
+    dims.mockReturnValue({ width: 390, height: 844, scale: 3, fontScale: 1.3 });
+    card(range, "ios");
+    await screen.findByText("610–640 kkal");
+    layout();
+    expect(screen.getAllByTestId("gizi-row")).toHaveLength(4);
+    expect(StyleSheet.flatten(screen.getByText("610–640 kkal").props.style).fontSize).toBe(21);
+    dims.mockRestore();
   });
 
   it("no metrics, no card and no line", async () => {
@@ -196,8 +257,9 @@ describe("Jelajah", () => {
     expect(screen.getByText("± 620 kkal")).toBeTruthy();
     expect(screen.getByText("± 310 kkal")).toBeTruthy();
     expect(screen.getByText("± 540 kkal")).toBeTruthy();
-    // Salmon is 580; a range shows its lower bound, so Rantang's 580–640 reads "± 580 kkal" too.
-    expect(screen.getAllByText("± 580 kkal")).toHaveLength(2);
+    expect(screen.getByText("± 580 kkal")).toBeTruthy();
+    // A range shows its lower bound: Rantang's 610–640 reads "± 610 kkal".
+    expect(screen.getByText("± 610 kkal")).toBeTruthy();
     // Six packages, five with calories: the one without has no suffix.
     expect(screen.getAllByText(/^± \d+ kkal$/)).toHaveLength(5);
   });
