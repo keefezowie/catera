@@ -120,6 +120,13 @@ const headerOf = (route: string) => {
   if (!own) throw new Error(`no screen for ${route}`);
   return own.findAll((n: Host) => n.type === "RNSScreenStackHeaderConfig")[0] as Host;
 };
+/** The screen scroll view a node sits in. */
+const scrollAround = (node: unknown) => {
+  let scroll = (node as Host).parent;
+  while (scroll && scroll.props.testID !== "screen-scroll") scroll = scroll.parent;
+  if (!scroll) throw new Error("not in a screen scroll view");
+  return scroll as never;
+};
 const screenOf = (route: string) => hosts("RNSScreen").filter((s) => String(s.props.screenId).startsWith(`${route}-`)).at(-1)!;
 
 /** The status bar style in effect: React Native merges every mounted StatusBar and the newest one wins. */
@@ -214,6 +221,9 @@ describe("native headers on pushed screens", () => {
     const leading = header.findAll((n: Host) => n.type === "RNSScreenStackHeaderSubview" && n.props.type === "left")[0] as Host;
     expect(leading).toBeTruthy();
     const close = within(leading as never).getByRole("button", { name: "Tutup" });
+    // Android insets the slot by 16dp; the 48dp button reaches 12dp out so its icon centres at 28dp, where the native
+    // back arrow sits.
+    expect(StyleSheet.flatten(close.props.style)).toMatchObject({ marginStart: -12, width: 48, height: 48 });
     await go(() => fireEvent.press(close));
     expect(root()).toEqual(["(tabs)"]);
     expect(tab()).toBe("(jadwal)");
@@ -246,6 +256,33 @@ describe("plan titles", () => {
     expect(headerOf("subscriptions/[id]").props.title).toBe(LONG);
     await go(() => fireEvent.scroll(scroll, { nativeEvent: { contentOffset: { x: 0, y: 10 } } }));
     expect(headerOf("subscriptions/[id]").props.title).toBe("");
+  });
+
+  it("the Android top bar takes the surface-container tone on scroll and the canvas at the top", async () => {
+    mockSession.actor = { id: "u1", role: "customer", name: "Rani Contoh" };
+    answer("plan:customer", { data: plan(), savedAt: null });
+    await mount("/");
+    await go(() => router.push("/subscriptions/s1"));
+    const scroll = scrollAround(screen.getAllByTestId("screen-native-title").at(-1)!);
+    const bar = () => headerOf("subscriptions/[id]").props.backgroundColor;
+    expect(bar()).toBe(light.canvas);
+    await go(() => fireEvent.scroll(scroll, { nativeEvent: { contentOffset: { x: 0, y: 1 } } }));
+    expect(bar()).toBe(light.tabBar);
+    await go(() => fireEvent.scroll(scroll, { nativeEvent: { contentOffset: { x: 0, y: 0 } } }));
+    expect(bar()).toBe(light.canvas);
+  });
+
+  it("a signed-out pushed screen names itself once, as the native title", async () => {
+    await mount("/");
+    await go(() => router.push(planHref("s1", LONG)));
+    // The name is the screen's native title (Android's content line, iOS's large title), never a second body title.
+    const line = screen.getAllByTestId("screen-native-title").at(-1)!;
+    expect(within(line).getByText(LONG)).toBeTruthy();
+    expect(screen.getAllByText(LONG)).toHaveLength(1);
+    expect(within(scrollAround(line)).getByRole("button", { name: "Masuk" })).toBeTruthy();
+    // A tab root keeps its mood header.
+    await go(() => goToTab("jadwal"));
+    expect(screen.getByTestId("jadwal-header")).toBeTruthy();
   });
 
   it("a plan link that carries its name never shows Paket", async () => {
@@ -395,6 +432,21 @@ describe("tab roots", () => {
       pads.add(StyleSheet.flatten((content.parent as Host).props.style as never)?.paddingTop);
     }
     expect(pads.size).toBe(1);
+  });
+
+  it("tab roots let no system inset under their mood header, pushed screens do", async () => {
+    await everyTab();
+    const scrolls = screen.getAllByTestId("screen-scroll", { includeHiddenElements: true });
+    const roots = scrolls.filter(
+      (s) => within(s).queryAllByTestId("mood-header-row", { includeHiddenElements: true }).length > 0,
+    );
+    expect(roots.length).toBeGreaterThanOrEqual(4);
+    // The mood header already pays the top inset; iOS's automatic inset would pay it twice.
+    for (const s of roots) expect(s.props.contentInsetAdjustmentBehavior).toBe("never");
+    await go(() => router.push(planHref("s1", "Paket Siang")));
+    const pushed = screen.getAllByTestId("screen-scroll").at(-1)!;
+    expect(within(pushed).queryAllByTestId("mood-header-row")).toHaveLength(0);
+    expect(pushed.props.contentInsetAdjustmentBehavior).toBe("automatic");
   });
 
   it("no tab root repeats its own tab name in the meta line", async () => {

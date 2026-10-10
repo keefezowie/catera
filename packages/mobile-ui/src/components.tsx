@@ -404,6 +404,7 @@ export function Screen({
   nativeTitle,
   title,
   bleed = false,
+  onScroll,
 }: {
   children: ReactNode;
   scroll?: boolean;
@@ -421,10 +422,16 @@ export function Screen({
   nativeTitle?: string;
   /** A bar title on both platforms, for a short name that needs no content line ("Senin 12 Okt"). */
   title?: string;
-  /** The page starts under a transparent header (a photo header), so iOS must not inset it below the bar. */
+  /**
+   * The page starts under a transparent header (a photo header), so iOS must not inset it below the bar. That screen
+   * owns its bar while it scrolls (through `onScroll`), so the Android scrolled tone stays off.
+   */
   bleed?: boolean;
+  /** The scroll view's own events, for a screen whose header follows its content (Paket's photo). */
+  onScroll?: (e: NativeSyntheticEvent<NativeScrollEvent>) => void;
 }) {
   const styles = useStyles();
+  const palette = useColors();
   // The demo strip owns the status-bar inset while it is shown, so the screen must not add a second one. A stack
   // header above the screen pays it too.
   const topOwned = useTopInsetOwned();
@@ -434,15 +441,40 @@ export function Screen({
   const contentTitle = !ios && nativeTitle ? nativeTitle : null;
   const lineEnd = useRef(NO_LINE);
   const [titleInBar, setTitleInBar] = useState(false);
+  const inBar = useRef(false);
   useLayoutEffect(() => {
     if (!navigation) return;
     if (title !== undefined) navigation.setOptions({ title });
     else if (nativeTitle !== undefined)
       navigation.setOptions(ios ? { title: nativeTitle } : { headerTitle: titleInBar ? nativeTitle : "" });
   }, [navigation, title, nativeTitle, ios, titleInBar]);
-  const onScroll = contentTitle
-    ? (e: NativeSyntheticEvent<NativeScrollEvent>) => setTitleInBar(e.nativeEvent.contentOffset.y >= lineEnd.current)
-    : undefined;
+  // Material's small top app bar takes the surface-container tone (the navigation bar's `tabBar`) once the page has
+  // scrolled under it and goes back to the canvas at the top. iOS keeps its own large-title behaviour, and a screen
+  // that owns its bar (`bleed`) decides for itself. The options change only when the page crosses the top.
+  const tonal = !ios && underHeader && !bleed && scroll && !!navigation;
+  const scrolledRef = useRef(false);
+  const [scrolled, setScrolled] = useState(false);
+  const toned = useRef(false);
+  useLayoutEffect(() => {
+    if (!tonal || !navigation || (!scrolled && !toned.current)) return;
+    toned.current = true;
+    navigation.setOptions({ headerStyle: { backgroundColor: scrolled ? palette.tabBar : palette.canvas } });
+  }, [tonal, navigation, scrolled, palette.tabBar, palette.canvas]);
+  const handleScroll =
+    contentTitle || tonal || onScroll
+      ? (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+          const y = e.nativeEvent.contentOffset.y;
+          if (contentTitle && (y >= lineEnd.current) !== inBar.current) {
+            inBar.current = y >= lineEnd.current;
+            setTitleInBar(inBar.current);
+          }
+          if (tonal && (y > 0) !== scrolledRef.current) {
+            scrolledRef.current = y > 0;
+            setScrolled(scrolledRef.current);
+          }
+          onScroll?.(e);
+        }
+      : undefined;
   // On iOS the scroll view insets itself for the keyboard (automaticallyAdjustKeyboardInsets); the avoiding view only
   // lifts a footer, which sits outside the scroll view. It measures its frame relative to its parent while the
   // keyboard is positioned in the window, so the screen asks the OS where its own top edge really is.
@@ -487,15 +519,17 @@ export function Screen({
         keyboardVerticalOffset={keyboardOffset}
       >
         {scroll ? (
-          // The first scroll view in the screen: iOS collapses the large title and minimizes the tab bar from it.
+          // The first scroll view in the screen: iOS collapses the large title and minimizes the tab bar from it. A
+          // full-bleed header (a tab root's MoodHeader) already pays the top inset and a photo header runs under the
+          // bar, so neither lets iOS inset the page a second time.
           <ScrollView
             testID="screen-scroll"
-            contentInsetAdjustmentBehavior={bleed ? "never" : "automatic"}
+            contentInsetAdjustmentBehavior={header || bleed ? "never" : "automatic"}
             automaticallyAdjustKeyboardInsets={ios}
             contentContainerStyle={{ paddingBottom: 32 }}
             keyboardShouldPersistTaps="handled"
-            onScroll={onScroll}
-            scrollEventThrottle={onScroll ? 16 : undefined}
+            onScroll={handleScroll}
+            scrollEventThrottle={handleScroll ? 16 : undefined}
           >
             {header}
             {lead}

@@ -47,7 +47,7 @@ export function useFlowOptions() {
       (presentation: "modal" | "fullScreenModal"): NativeStackNavigationOptions => ({
         presentation,
         headerBackVisible: false,
-        headerLeft: () => <HeaderIconButton icon="close" label={t("Tutup", "Close")} onPress={closeFlow} />,
+        headerLeft: () => <HeaderIconButton icon="close" slot="leading" label={t("Tutup", "Close")} onPress={closeFlow} />,
       }),
     [t],
   );

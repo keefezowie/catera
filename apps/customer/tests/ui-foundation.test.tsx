@@ -454,6 +454,76 @@ describe("Sheet and Screen details", () => {
       </Screen>,
     );
     expect(view.UNSAFE_getByType(ScrollView).props.contentInsetAdjustmentBehavior).toBe("never");
+    // A tab root's mood header already pays the top inset (and the screen drops its top edge), so iOS must not add a
+    // second one under it.
+    view.rerender(
+      <Screen header={<Text>Mood</Text>}>
+        <Text>Isi</Text>
+      </Screen>,
+    );
+    expect(view.UNSAFE_getByType(ScrollView).props.contentInsetAdjustmentBehavior).toBe("never");
+  });
+
+  it("Screen tones the Android top bar once the page scrolls and back at the top, only on the crossing", () => {
+    const setOptions = jest.fn();
+    const navigation = { setOptions, isFocused: () => true, addListener: () => () => undefined };
+    const onScroll = jest.fn();
+    render(
+      <HeaderShownContext.Provider value>
+        <NavigationContext.Provider value={navigation as never}>
+          <Screen onScroll={onScroll}>
+            <Text>Isi</Text>
+          </Screen>
+        </NavigationContext.Provider>
+      </HeaderShownContext.Provider>,
+    );
+    const scroll = screen.getByTestId("screen-scroll");
+    const at = (y: number) => fireEvent.scroll(scroll, { nativeEvent: { contentOffset: { x: 0, y } } });
+    const tones = () =>
+      setOptions.mock.calls.filter(([o]) => "headerStyle" in o).map(([o]) => o.headerStyle.backgroundColor);
+    // At rest the stack's own canvas bar stands; nothing is set until the page moves.
+    expect(tones()).toEqual([]);
+    // Material's scrolled state is the navigation bar's surface-container tone, set once however far the page goes.
+    at(1);
+    at(40);
+    at(400);
+    expect(tones()).toEqual([nativeThemes.light.tabBar]);
+    expect(nativeThemes.light.tabBar).toBe("#F2ECDF");
+    // Back at the top, the canvas again, once.
+    at(0);
+    at(0);
+    expect(tones()).toEqual([nativeThemes.light.tabBar, nativeThemes.light.canvas]);
+    // The screen's own handler still hears every event.
+    expect(onScroll).toHaveBeenCalledTimes(5);
+  });
+
+  it("Screen leaves the bar alone on a tab root and under a photo header", () => {
+    const setOptions = jest.fn();
+    const navigation = { setOptions, isFocused: () => true, addListener: () => () => undefined };
+    const scrollTo = (y: number) =>
+      fireEvent.scroll(screen.getByTestId("screen-scroll"), { nativeEvent: { contentOffset: { x: 0, y } } });
+    // A tab root: no stack header above it.
+    const view = render(
+      <NavigationContext.Provider value={navigation as never}>
+        <Screen header={<Text>Mood</Text>}>
+          <Text>Isi</Text>
+        </Screen>
+      </NavigationContext.Provider>,
+    );
+    scrollTo(200);
+    view.unmount();
+    // Paket's photo: the screen owns its bar while it scrolls.
+    render(
+      <HeaderShownContext.Provider value>
+        <NavigationContext.Provider value={navigation as never}>
+          <Screen bleed>
+            <Text>Isi</Text>
+          </Screen>
+        </NavigationContext.Provider>
+      </HeaderShownContext.Provider>,
+    );
+    scrollTo(200);
+    expect(setOptions.mock.calls.filter(([o]) => "headerStyle" in o)).toEqual([]);
   });
 
   it("Screen adds no keyboard offset on Android", () => {

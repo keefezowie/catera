@@ -1,5 +1,12 @@
-import { useLayoutEffect } from "react";
-import { ActivityIndicator, Image, StyleSheet, View } from "react-native";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  Image,
+  StyleSheet,
+  View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -16,7 +23,17 @@ import {
 } from "@catera/domain";
 import { nativeThemes } from "@catera/design-tokens";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, RoundButton, Screen, ScreenStatusBar, Text, themedStyles, useColors, useScreenNavigation } from "@catera/mobile-ui";
+import {
+  Button,
+  nativeHeaderOptions,
+  RoundButton,
+  Screen,
+  ScreenStatusBar,
+  Text,
+  themedStyles,
+  useColors,
+  useScreenNavigation,
+} from "@catera/mobile-ui";
 import { photoUri } from "../today/Plate";
 import { dayRange, ratingText } from "./format";
 import { useSaved } from "./saved";
@@ -40,6 +57,16 @@ const PHOTO_HEADER = {
   headerTintColor: ink.cream,
 } as const;
 
+/** The photo's visible height below the status bar. */
+const PHOTO = 250;
+/**
+ * The bar's own height below the status bar: iOS's inline bar (large titles are off here) and the Android toolbar at
+ * the theme's `actionBarSize`, measured at 56dp on the emulator.
+ */
+const BAR = process.env.EXPO_OS === "ios" ? 44 : 56;
+/** Once the photo's foot has scrolled under the bar's foot, the bar stands on the canvas instead of the photo. */
+export const PHOTO_PASSED = PHOTO - BAR;
+
 /** Paket: one package in full, with the way into Pilih jadwal (or a one-day trial). */
 export function PackageDetail() {
   const { id, title } = useLocalSearchParams<{ id: string; title?: string }>();
@@ -53,9 +80,49 @@ export function PackageDetail() {
   const insets = useSafeAreaInsets();
   const navigation = useScreenNavigation();
   const photoHeader = !!o;
+  const name = o?.name ?? "";
+  const stackHeader = useMemo(() => nativeHeaderOptions({ palette: c, demo }), [c, demo]);
+  // Over the photo the bar is transparent with light ink. Once the photo has scrolled away the light ink would sit on
+  // the cream page, so the bar turns opaque on the canvas with the theme's tint, takes the package name and hands the
+  // status bar back to the theme; scrolling back up undoes it. It stays transparent in layout terms throughout, so the
+  // page never jumps by the bar's height. Leaving the photo state (a failed reload) restores the stack's own bar.
+  const [pastPhoto, setPastPhoto] = useState(false);
+  const past = useRef(false);
+  const photoApplied = useRef(false);
   useLayoutEffect(() => {
-    if (photoHeader) navigation?.setOptions(PHOTO_HEADER);
-  }, [navigation, photoHeader]);
+    if (!navigation) return;
+    if (photoHeader) {
+      photoApplied.current = true;
+      navigation.setOptions(
+        pastPhoto
+          ? {
+              ...PHOTO_HEADER,
+              headerTitle: name,
+              headerStyle: { backgroundColor: c.canvas },
+              headerTintColor: stackHeader.headerTintColor,
+            }
+          : PHOTO_HEADER,
+      );
+      return;
+    }
+    if (!photoApplied.current) return;
+    photoApplied.current = false;
+    navigation.setOptions({
+      headerTransparent: stackHeader.headerTransparent ?? false,
+      headerLargeTitle: stackHeader.headerLargeTitle ?? false,
+      headerShadowVisible: stackHeader.headerShadowVisible,
+      headerStyle: stackHeader.headerStyle,
+      headerTintColor: stackHeader.headerTintColor,
+      // Android's content title starts the bar empty and takes it on scroll; iOS reads the route's `title`.
+      headerTitle: process.env.EXPO_OS === "ios" ? undefined : "",
+    });
+  }, [navigation, photoHeader, pastPhoto, name, c.canvas, stackHeader]);
+  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const passed = e.nativeEvent.contentOffset.y >= PHOTO_PASSED;
+    if (passed === past.current) return;
+    past.current = passed;
+    setPastPhoto(passed);
+  };
 
   if (!o)
     return (
@@ -88,6 +155,7 @@ export function PackageDetail() {
   return (
     <Screen
       bleed
+      onScroll={onScroll}
       footer={
         <View style={styles.footer}>
           <View style={{ flexShrink: 1 }}>
@@ -120,7 +188,7 @@ export function PackageDetail() {
       }
     >
       {/* The photo now runs under the status bar too, so it grows by that inset and keeps its visible height. */}
-      <View style={[styles.hero, { height: 250 + (demo ? 0 : insets.top) }]}>
+      <View style={[styles.hero, { height: PHOTO + (demo ? 0 : insets.top) }]}>
         {o.image ? (
           <Image
             accessibilityIgnoresInvertColors
@@ -131,8 +199,9 @@ export function PackageDetail() {
         ) : null}
         {/* Under the transparent bar: the status bar and the back read on the photo whatever it shows. */}
         <View testID="paket-photo-scrim" pointerEvents="none" style={styles.scrim} />
-        {/* Light glyphs on the scrim; with the demo strip above, the strip's own fill keeps the theme's glyphs. */}
-        {demo ? null : <ScreenStatusBar style="light" />}
+        {/* Light glyphs on the scrim; with the demo strip above, the strip's own fill keeps the theme's glyphs, and
+            once the photo has scrolled away the canvas bar takes the theme's glyphs back. */}
+        {demo || pastPhoto ? null : <ScreenStatusBar style="light" />}
         <RoundButton
           icon={isSaved ? "heart" : "heart-outline"}
           label={isSaved ? t(`Hapus ${o.name} dari simpanan`, `Remove ${o.name} from saved`) : t(`Simpan ${o.name}`, `Save ${o.name}`)}

@@ -12,19 +12,30 @@ const glyphs: Record<"close" | "chat" | "share", { ios: Glyph; android: Glyph }>
 };
 
 /**
+ * Android's toolbar insets a custom slot by its 16dp content inset, while its own navigation icon sits 4dp from the
+ * edge (icon centre 28dp). A 48dp button in the slot would centre at 40dp, so it reaches 12dp outward to sit where the
+ * Material back arrow and action icons sit.
+ */
+const ANDROID_HEADER_SLOT_PULL = -12;
+
+/**
  * An icon-only button for a native header slot (`headerLeft`, `headerRight`): 44pt on iOS with the bar's forest tint
  * and a dim while pressed, 48dp on Android in the bar's ink with a borderless ripple, the Material icon button's state
- * layer. `label` is the translated spoken name; this package has no i18n.
+ * layer. `label` is the translated spoken name; this package has no i18n. `slot` names the edge it sits on, so on
+ * Android it lines up with the platform's own navigation and action icons; iOS places bar buttons itself.
  */
 export function HeaderIconButton({
   icon,
   label,
   onPress,
+  slot,
   os = process.env.EXPO_OS,
 }: {
   icon: "close" | "chat" | "share";
   label: string;
   onPress: () => void;
+  /** The header edge it sits on: `leading` in `headerLeft`, `trailing` in `headerRight`. */
+  slot?: "leading" | "trailing";
   /** The running platform, for tests. */
   os?: string;
 }) {
@@ -32,6 +43,12 @@ export function HeaderIconButton({
   const ios = os === "ios";
   const size = ios ? 44 : 48;
   const tint = ios ? palette.forest : palette.charcoal;
+  const pull =
+    ios || !slot
+      ? undefined
+      : slot === "leading"
+        ? { marginStart: ANDROID_HEADER_SLOT_PULL }
+        : { marginEnd: ANDROID_HEADER_SLOT_PULL };
   return (
     <Pressable
       testID={`header-${icon}`}
@@ -40,6 +57,7 @@ export function HeaderIconButton({
       onPress={onPress}
       android_ripple={{ color: palette.line, borderless: true, radius: size / 2 }}
       style={({ pressed }) => ({
+        ...pull,
         width: size,
         height: size,
         alignItems: "center",

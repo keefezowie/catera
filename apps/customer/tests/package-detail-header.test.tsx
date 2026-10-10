@@ -1,4 +1,4 @@
-import { ActivityIndicator, StyleSheet } from "react-native";
+import { ActivityIndicator, StatusBar, StyleSheet } from "react-native";
 import { fireEvent, render, screen, within } from "@testing-library/react-native";
 import { NavigationContext } from "expo-router/react-navigation";
 import { nativeThemes } from "@catera/design-tokens";
@@ -6,7 +6,7 @@ import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera
 import { MoodProvider } from "@catera/mobile-ui";
 import { customerLink } from "../src/links";
 import { goToTab } from "../src/nav";
-import { PackageDetail } from "../src/discover/PackageDetail";
+import { PackageDetail, PHOTO_PASSED } from "../src/discover/PackageDetail";
 import { offer } from "./fixtures";
 
 let mockParams: Record<string, string> = {};
@@ -54,16 +54,16 @@ function runtimeWith(read: (id: string) => Promise<{ offer: unknown }>): MobileR
 }
 /** The screen's own stack entry, as the native stack hands it over. */
 const navigation = { setOptions: jest.fn(), isFocused: () => true, addListener: () => () => undefined };
-const wrap = (runtime: MobileRuntime) =>
-  render(
-    <NavigationContext.Provider value={navigation as never}>
-      <MoodProvider now={MALAM}>
-        <MobileProvider runtime={runtime} linkMapper={customerLink}>
-          <PackageDetail />
-        </MobileProvider>
-      </MoodProvider>
-    </NavigationContext.Provider>,
-  );
+const tree = (runtime: MobileRuntime) => (
+  <NavigationContext.Provider value={navigation as never}>
+    <MoodProvider now={MALAM}>
+      <MobileProvider runtime={runtime} linkMapper={customerLink}>
+        <PackageDetail />
+      </MobileProvider>
+    </MoodProvider>
+  </NavigationContext.Provider>
+);
+const wrap = (runtime: MobileRuntime) => render(tree(runtime));
 /** The screen's name: its Android content title (iOS shows it as the large title). */
 const nativeTitle = async () => within(await screen.findByTestId("screen-native-title"));
 
@@ -134,5 +134,65 @@ describe("Paket with its photo (ruling B3: the photo is the header)", () => {
     const heart = screen.getByRole("button", { name: "Simpan Nasi Ayam Bakar" });
     expect(flat(heart)).toMatchObject({ position: "absolute", bottom: 12, right: 16 });
     expect(screen.getByText("Nasi Ayam Bakar")).toBeTruthy();
+  });
+
+  it("turns the bar opaque on the canvas once the photo has scrolled away, and back over the photo", async () => {
+    const view = wrap(runtimeWith(async () => ({ offer: cheap })));
+    expect(await screen.findByRole("button", { name: "Pilih jadwal" })).toBeTruthy();
+    const scroll = screen.getByTestId("screen-scroll");
+    const at = (y: number) => fireEvent.scroll(scroll, { nativeEvent: { contentOffset: { x: 0, y } } });
+    const lightGlyphs = () => view.UNSAFE_queryAllByType(StatusBar).some((s) => s.props.barStyle === "light-content");
+    const overPhoto = {
+      headerTransparent: true,
+      headerLargeTitle: false,
+      headerTitle: "",
+      headerShadowVisible: false,
+      headerStyle: { backgroundColor: "transparent" },
+      headerTintColor: nativeThemes.light.cream,
+    };
+    expect(lightGlyphs()).toBe(true);
+    // 250dp of photo below the status bar, less the 56dp Android bar: still over the photo just before the foot.
+    expect(PHOTO_PASSED).toBe(250 - 56);
+    at(PHOTO_PASSED - 1);
+    expect(navigation.setOptions).toHaveBeenLastCalledWith(overPhoto);
+    const calls = navigation.setOptions.mock.calls.length;
+    // Past the photo's foot cream ink would sit on the cream page, so the bar stands on the canvas in the theme's ink,
+    // named after the package, and the status bar takes the theme's glyphs back. It stays transparent in layout terms,
+    // so the page does not jump.
+    at(PHOTO_PASSED);
+    expect(navigation.setOptions).toHaveBeenLastCalledWith({
+      ...overPhoto,
+      headerTitle: "Nasi Ayam Bakar",
+      headerStyle: { backgroundColor: nativeThemes.light.canvas },
+      headerTintColor: nativeThemes.light.charcoal,
+    });
+    expect(lightGlyphs()).toBe(false);
+    // Only the crossing changes the bar.
+    at(PHOTO_PASSED + 200);
+    at(PHOTO_PASSED + 400);
+    expect(navigation.setOptions.mock.calls.length).toBe(calls + 1);
+    // Back over the photo, the transparent bar and the light glyphs return.
+    at(20);
+    expect(navigation.setOptions).toHaveBeenLastCalledWith(overPhoto);
+    expect(lightGlyphs()).toBe(true);
+  });
+
+  it("gives the stack's own bar back when the photo state is left", async () => {
+    const runtime = runtimeWith((id) => (id === "p-murah" ? Promise.resolve({ offer: cheap }) : new Promise(() => undefined)));
+    const view = wrap(runtime);
+    expect(await screen.findByRole("button", { name: "Pilih jadwal" })).toBeTruthy();
+    expect(navigation.setOptions).toHaveBeenLastCalledWith(expect.objectContaining({ headerTransparent: true }));
+    // Another package whose read has not come back: no photo to lead with, so the plain native header returns.
+    mockParams = { id: "p-lain", title: "Nasi Liwet" };
+    view.rerender(tree(runtime));
+    expect((await nativeTitle()).getByText("Nasi Liwet")).toBeTruthy();
+    expect(navigation.setOptions).toHaveBeenLastCalledWith({
+      headerTransparent: false,
+      headerLargeTitle: false,
+      headerShadowVisible: false,
+      headerStyle: { backgroundColor: nativeThemes.light.canvas },
+      headerTintColor: nativeThemes.light.charcoal,
+      headerTitle: "",
+    });
   });
 });

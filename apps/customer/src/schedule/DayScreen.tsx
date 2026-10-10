@@ -11,7 +11,7 @@ import { ChangeDaySheet } from "./ChangeDaySheet";
 
 /** One delivery day: what is coming, where, and the way into Ubah hari. */
 export function DayScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, title } = useLocalSearchParams<{ id: string; title?: string }>();
   const { actor, ready, t } = useMobile();
   const c = useColors();
   const styles = useStyles();
@@ -21,7 +21,9 @@ export function DayScreen() {
         <ActivityIndicator color={c.forest} />
       </View>
     );
-  if (!actor) return <SignInFirst title={t("Hari", "Day")} next={`/hari/${id}`} />;
+  // Signed out, the screen keeps the day its link carried as its title ("Senin 12 Okt").
+  if (!actor)
+    return <SignInFirst title={typeof title === "string" && title ? title : t("Hari", "Day")} next={`/hari/${id}`} />;
   return <Day key={`${actor.id}:${id}`} id={id} />;
 }
 

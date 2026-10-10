@@ -100,8 +100,8 @@ export function ClaimScreen() {
     else goToTab("index");
   }
 
-  // A link can open the app cold with no screen behind this one (and no header): always
-  // leave a way into the app.
+  // A link can open the app cold with no screen behind this one. The header's Close then lands on Beranda, and the
+  // dead-link and offline states also offer Beranda in the page, so there is always a way into the app.
   const home = (
     <Button variant="secondary" label={t("Ke Beranda", "Go to Home")} onPress={() => goToTab("index")} />
   );
