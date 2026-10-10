@@ -60,6 +60,11 @@ describe("native themes", () => {
     it(`${theme}: the indicator pill stands off the bar at 1.25:1 or more`, () => {
       expect(contrastRatio(p.tabIndicator, p.tabBar)).toBeGreaterThanOrEqual(1.25);
     });
+    // A confirm sheet's danger button is cream text on the danger fill (Buang, Hapus); its icon is danger on sage.
+    it(`${theme}: the danger confirm button reaches 4.5:1 and its icon 3:1 on the circle`, () => {
+      expect(contrastRatio(p.cream, p.danger), "cream on danger").toBeGreaterThanOrEqual(4.5);
+      expect(contrastRatio(p.danger, p.sage), "danger icon on sage").toBeGreaterThanOrEqual(3);
+    });
     // The toast's message and its action label are small text on the toast fill.
     it(`${theme}: toast text and its action reach 4.5:1 on the toast`, () => {
       expect(contrastRatio(p.onToast, p.toast), "onToast on toast").toBeGreaterThanOrEqual(4.5);

@@ -8,6 +8,7 @@ import { ReportProblem } from "../src/help/ReportProblem";
 import { ReportList } from "../src/help/ReportList";
 import { customerLink } from "../src/links";
 import { nativeThemes } from "@catera/design-tokens";
+import { ToastProvider } from "@catera/mobile-ui";
 import { customerState, TODAY } from "./fixtures";
 
 let mockParams: Record<string, string> = {};
@@ -86,10 +87,10 @@ function runtimeWith(
   } as unknown as MobileRuntime["api"];
   return runtime;
 }
-const renderWith = (runtime: MobileRuntime, ui: React.ReactElement) =>
+const renderWith = (runtime: MobileRuntime, ui: React.ReactElement, opts: { toast?: boolean } = {}) =>
   render(
     <MobileProvider runtime={runtime} linkMapper={customerLink}>
-      {ui}
+      {opts.toast ? <ToastProvider>{ui}</ToastProvider> : ui}
     </MobileProvider>,
   );
 const withPhone = (state: CustomerState): CustomerState => ({
@@ -147,18 +148,28 @@ describe("Ada masalah", () => {
     expect(send.props.accessibilityState.disabled).toBe(true);
   });
 
-  it("shows the outcome rule after sending", async () => {
-    renderWith(runtimeWith(), <ReportProblem />);
+  it("sending closes the sheet and shows Laporan terkirim with Lihat", async () => {
+    renderWith(runtimeWith(), <ReportProblem />, { toast: true });
     fireEvent.press(await screen.findByRole("button", { name: "Kirim laporan" }));
-    expect(await screen.findByText("Sekarang: Dapur Contoh mendapat laporan Anda.")).toBeTruthy();
-    expect(screen.getByText("Sampai besok 12.00: Dapur Contoh membalas atau mengganti di sini.")).toBeTruthy();
-    expect(screen.getByText("Belum beres? Catera meninjau dan bisa mengembalikan dana hari ini.")).toBeTruthy();
-    expect(screen.getAllByText(/^[123]$/).map((n) => n.props.children)).toEqual(["1", "2", "3"]);
-    expect(StyleSheet.flatten(screen.getByText(/^Sampai besok 12\.00/).props.style).fontVariant).toContain("tabular-nums");
-    // The form is gone and the report can be followed from Bantuan.
-    expect(screen.queryByRole("button", { name: "Kirim laporan" })).toBeNull();
-    fireEvent.press(screen.getByRole("button", { name: "Lihat laporan saya" }));
-    expect(router.replace).toHaveBeenCalledWith("/bantuan");
+    // The sheet closes back to the page under it; the outcome is a toast whose action opens Bantuan.
+    await waitFor(() => expect(router.back).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText("Laporan terkirim")).toBeTruthy();
+    // The old full "sent" page is gone.
+    expect(screen.queryByText(/^Sekarang:/)).toBeNull();
+    fireEvent.press(screen.getByRole("button", { name: "Lihat" }));
+    expect(router.push).toHaveBeenCalledWith("/bantuan");
+  });
+
+  it("a CONFLICT stays in the sheet with its message", async () => {
+    const command = jest.fn(async () => {
+      throw Object.assign(new Error("CONFLICT"), { code: "CONFLICT" });
+    });
+    renderWith(runtimeWith({ command }), <ReportProblem />, { toast: true });
+    fireEvent.press(await screen.findByRole("button", { name: "Kirim laporan" }));
+    expect(await screen.findByText("Laporan untuk makan ini sudah terkirim.")).toBeTruthy();
+    expect(router.back).not.toHaveBeenCalled();
+    expect(screen.queryByText("Laporan terkirim")).toBeNull();
+    expect(screen.getByRole("header", { name: "Ada masalah" })).toBeTruthy();
   });
 
   it("keeps the form and says so when sending fails", async () => {
@@ -169,7 +180,30 @@ describe("Ada masalah", () => {
     fireEvent.press(await screen.findByRole("button", { name: "Kirim laporan" }));
     await waitFor(() => expect(command).toHaveBeenCalledTimes(1));
     expect(await screen.findByRole("button", { name: "Kirim laporan" })).toBeTruthy();
-    expect(screen.queryByText(/^Sekarang:/)).toBeNull();
+    expect(router.back).not.toHaveBeenCalled();
+  });
+
+  it("shows the day, the package and the caterer under the sheet title", async () => {
+    renderWith(runtimeWith(), <ReportProblem />);
+    expect(await screen.findByText(/Dapur Contoh$/)).toBeTruthy();
+    expect(screen.getByRole("header", { name: "Ada masalah" })).toBeTruthy();
+  });
+
+  it("a day of two meals asks which meal, and the link's meal comes chosen", async () => {
+    const state = customerState({ status: "out_for_delivery" });
+    state.deliveries = state.deliveries.map((d) =>
+      d.id === "d-today" ? { ...d, meals: [...(d.meals ?? []), { ...(d.meals ?? [])[0], meal: "dinner" as const }] } : d,
+    );
+    mockParams = { id: "d-today", meal: "dinner", jenis: "belum" };
+    const command = jest.fn(async () => ({ id: "i-9" }));
+    renderWith(runtimeWith({ state, command }), <ReportProblem />);
+    const dinner = await screen.findByRole("radio", { name: "Makan malam" });
+    expect(dinner.props.accessibilityState.checked).toBe(true);
+    fireEvent.press(screen.getByRole("radio", { name: "Makan siang" }));
+    fireEvent.press(screen.getByRole("button", { name: "Kirim laporan" }));
+    await waitFor(() =>
+      expect(command).toHaveBeenCalledWith("deliveryIssue.create", expect.objectContaining({ meal: "lunch" }), expect.any(String)),
+    );
   });
 
   it("says plainly when the server refuses a report for a day not yet due", async () => {
@@ -181,7 +215,7 @@ describe("Ada masalah", () => {
     expect(
       await screen.findByText("Laporan bisa dikirim mulai hari pengantaran, setelah jam antar dimulai."),
     ).toBeTruthy();
-    expect(screen.queryByText(/^Sekarang:/)).toBeNull();
+    expect(router.back).not.toHaveBeenCalled();
   });
 
   it("says the delivery is not found when the read has no meals list", async () => {
@@ -196,8 +230,10 @@ describe("Ada masalah", () => {
     renderWith(runtimeWith({ state }), <ReportProblem />);
     expect(await screen.findByText("Laporan untuk makan ini sudah terkirim.")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Kirim laporan" })).toBeNull();
+    // The sheet closes and Bantuan opens over the page it sat on.
     fireEvent.press(screen.getByRole("button", { name: "Lihat laporan saya" }));
-    expect(router.replace).toHaveBeenCalledWith("/bantuan");
+    expect(router.back).toHaveBeenCalledTimes(1);
+    expect(router.push).toHaveBeenCalledWith("/bantuan");
   });
 
   it("what-happened picks are 48dp and give a selection haptic", async () => {

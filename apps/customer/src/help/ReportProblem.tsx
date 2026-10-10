@@ -1,10 +1,24 @@
-import { useState } from "react";
-import { ActivityIndicator, Text as RNText, View } from "react-native";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Text as RNText, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { dayLabel, errorLabel, jakartaDay, mealLabel, type Delivery } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, Field, fontFor, PressableScale, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
-import { SignInFirst } from "../account/SignInFirst";
+import {
+  Button,
+  Card,
+  Field,
+  fontFor,
+  PressableScale,
+  SheetBody,
+  SheetHeader,
+  Skeleton,
+  SkeletonGroup,
+  Text,
+  themedStyles,
+  useColors,
+  useToast,
+  useUnsavedGuard,
+} from "@catera/mobile-ui";
 import { ChatKatering, catererPhoneOf } from "./ChatKatering";
 
 type Kind = "belum" | "kurang" | "layak";
@@ -18,104 +32,136 @@ const KINDS: { id: Kind; subject: string; en: string }[] = [
 /** The command needs a body of at least five characters; the note is optional for the customer. */
 const WITHOUT_NOTE = "Tanpa catatan tambahan.";
 
-/** Ada masalah: three choices, an optional note, then what happens next. */
+/**
+ * Notes typed and not sent, per person and delivery, in memory only. Android's bottom sheet closes on a swipe before
+ * anything can ask (`useUnsavedGuard`), so the note waits here and comes back when Ada masalah opens again for that
+ * day. Sending or choosing "Buang" drops it; closing the app forgets it.
+ */
+const drafts = new Map<string, string>();
+
+/** Opens Bantuan from the sheet: the sheet closes, and Bantuan opens over the page it sat on (Hari). */
+function toBantuan() {
+  router.back();
+  router.push("/bantuan" as never);
+}
+
+/** Ada masalah: a form sheet over its Hari with three choices, an optional note and the send button. */
 export function ReportProblem() {
   const params = useLocalSearchParams<{ id: string; meal?: string; jenis?: string }>();
   const { actor, ready, t } = useMobile();
   const c = useColors();
-  const styles = useStyles();
   const { id } = params;
   const query = new URLSearchParams(
     Object.entries({ meal: params.meal, jenis: params.jenis }).filter(
       (entry): entry is [string, string] => typeof entry[1] === "string",
     ),
   ).toString();
-  if (!ready)
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator color={c.forest} />
-      </View>
-    );
+  if (!ready) return <Loading />;
   if (!actor)
     return (
-      <SignInFirst
-        title={t("Ada masalah", "Report a problem")}
-        next={`/masalah/${id}${query ? `?${query}` : ""}`}
-      />
+      <Sheet>
+        <Text style={{ color: c.muted }}>
+          {t("Masuk untuk melihat paket dan jadwal antar Anda.", "Sign in to see your packages and deliveries.")}
+        </Text>
+        <Button
+          label={t("Masuk", "Sign in")}
+          onPress={() =>
+            router.push({ pathname: "/login", params: { next: `/masalah/${id}${query ? `?${query}` : ""}` } } as never)
+          }
+        />
+      </Sheet>
     );
-  return <Report key={`${actor.id}:${id}`} id={id} meal={params.meal} jenis={params.jenis} />;
+  return <Report key={`${actor.id}:${id}`} actorId={actor.id} id={id} meal={params.meal} jenis={params.jenis} />;
 }
 
-function Report({ id, meal: wanted, jenis }: { id: string; meal?: string; jenis?: string }) {
+/** The sheet's frame: the title row ("Ada masalah", with the day under it once known) over the scrolling content. */
+function Sheet({ context, children }: { context?: string; children: ReactNode }) {
+  const { t } = useMobile();
+  return (
+    <View style={{ flex: 1 }}>
+      <SheetHeader title={t("Ada masalah", "Report a problem")} context={context} closeLabel={t("Tutup", "Close")} />
+      <SheetBody>{children}</SheetBody>
+    </View>
+  );
+}
+
+/** The sheet while the day loads: its title, then the shape of the choices. */
+function Loading() {
+  const { t } = useMobile();
+  return (
+    <Sheet>
+      <SkeletonGroup label={t("Memuat pengantaran", "Loading the delivery")}>
+        <View style={{ gap: 8 }}>
+          <Skeleton width="45%" height={14} />
+          <Skeleton height={56} radius={12} />
+          <Skeleton height={56} radius={12} />
+          <Skeleton height={56} radius={12} />
+        </View>
+      </SkeletonGroup>
+    </Sheet>
+  );
+}
+
+function Report({ actorId, id, meal: wanted, jenis }: { actorId: string; id: string; meal?: string; jenis?: string }) {
   const { runtime, command, t, locale } = useMobile();
   const c = useColors();
   const styles = useStyles();
+  const toast = useToast();
   const state = useData(`report:${id}`, () => runtime.api.customer(`?deliveryId=${encodeURIComponent(id)}`));
+  const draftKey = `${actorId}:${id}`;
   const [kind, setKind] = useState<Kind | "">(KINDS.some((k) => k.id === jenis) ? (jenis as Kind) : "");
-  const [note, setNote] = useState("");
+  const [note, setNote] = useState(() => drafts.get(draftKey) ?? "");
   const [meal, setMeal] = useState<string | undefined>(wanted);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [sent, setSent] = useState(false);
+  const closed = useRef(false);
   const d: Delivery | undefined = state.data?.deliveries.find((x) => x.id === id);
+  const meals = (d?.meals ?? []).filter((m) => m.status !== "cancelled");
+  const current = meals.find((m) => m.meal === meal) ?? meals[0];
+
+  // Typed text asks before the sheet closes; choices alone do not. A sent report, or a meal already reported (no form),
+  // has nothing left to lose.
+  useUnsavedGuard(!sent && !current?.issue && note.trim() !== "", t("laporan", "report"), {
+    t,
+    nounEn: "report",
+    onDiscard: () => drafts.delete(draftKey),
+  });
+
+  // The report is in: the sheet closes back to the page under it, and a toast carries the outcome with a way to it.
+  // After the guard has seen `sent`, so closing never asks.
+  useEffect(() => {
+    if (!sent || closed.current) return;
+    closed.current = true;
+    toast.show({
+      message: t("Laporan terkirim", "Report sent"),
+      action: { label: t("Lihat", "View"), onPress: () => router.push("/bantuan" as never) },
+      tone: "success",
+    });
+    router.back();
+  }, [sent, toast, t]);
+
+  const writeNote = (text: string) => {
+    setNote(text);
+    if (text.trim()) drafts.set(draftKey, text);
+    else drafts.delete(draftKey);
+  };
+
+  if (!d && state.loading) return <Loading />;
 
   // A day with every meal cancelled has nothing to report: say so rather than offer a form that cannot send.
-  if (!d || !(d.meals ?? []).some((m) => m.status !== "cancelled"))
+  if (!d || !current)
     return (
-      <Screen>
-        {state.loading ? (
-          <ActivityIndicator color={c.forest} />
-        ) : (
-          <>
-            <Text selectable={!!state.error} style={{ color: state.error ? c.danger : c.muted }}>
-              {state.error || t("Pengantaran tidak ditemukan.", "Delivery not found.")}
-            </Text>
-            {state.error ? <Button label={t("Coba lagi", "Try again")} onPress={() => void state.reload()} /> : null}
-          </>
-        )}
-      </Screen>
+      <Sheet>
+        <Text selectable={!!state.error} style={{ color: state.error ? c.danger : c.muted }}>
+          {state.error || t("Pengantaran tidak ditemukan.", "Delivery not found.")}
+        </Text>
+        {state.error ? <Button label={t("Coba lagi", "Try again")} onPress={() => void state.reload()} /> : null}
+      </Sheet>
     );
 
-  const meals = (d.meals ?? []).filter((m) => m.status !== "cancelled");
-  const current = meals.find((m) => m.meal === meal) ?? meals[0];
   const caterer = d.offer.caterer;
-  const toBantuan = () => router.replace("/bantuan" as never);
-  const when = `${dayLabel(d.service_date, jakartaDay(new Date()), locale)} · ${d.offer.name}`;
-
-  // The sent screen wins over the form even though the reload now shows the new report.
-  if (sent)
-    return (
-      <Screen>
-        <View style={{ gap: 2 }}>
-          <Text variant="title">{t("Laporan terkirim", "Report sent")}</Text>
-          <Text variant="caption" style={{ fontVariant: ["tabular-nums"] }}>
-            {when}
-          </Text>
-        </View>
-        <Card style={{ gap: 14 }}>
-          {[
-            t(`Sekarang: ${caterer} mendapat laporan Anda.`, `Now: ${caterer} has your report.`),
-            t(
-              `Sampai besok 12.00: ${caterer} membalas atau mengganti di sini.`,
-              `By tomorrow 12:00: ${caterer} replies or replaces it here.`,
-            ),
-            t(
-              "Belum beres? Catera meninjau dan bisa mengembalikan dana hari ini.",
-              "Still not sorted? Catera reviews it and can refund today.",
-            ),
-          ].map((line, i) => (
-            <View key={i} style={styles.step}>
-              <View style={styles.badge}>
-                <RNText style={styles.badgeText}>{String(i + 1)}</RNText>
-              </View>
-              <Text style={{ flex: 1, fontVariant: ["tabular-nums"] }}>{line}</Text>
-            </View>
-          ))}
-        </Card>
-        <Button label={t("Lihat laporan saya", "See my reports")} onPress={toBantuan} />
-        <Button variant="text" label={t("Kembali", "Back")} onPress={() => router.back()} />
-      </Screen>
-    );
+  const context = `${dayLabel(d.service_date, jakartaDay(new Date()), locale)} · ${d.offer.name} · ${caterer}`;
 
   async function send() {
     if (busy || !kind || !current) return;
@@ -128,6 +174,7 @@ function Report({ id, meal: wanted, jenis }: { id: string; meal?: string; jenis?
         subject: KINDS.find((k) => k.id === kind)!.subject,
         body: note.trim() || WITHOUT_NOTE,
       });
+      drafts.delete(draftKey);
       setSent(true);
     } catch (e) {
       const code = (e as { code?: string }).code || (e as Error).message;
@@ -149,16 +196,11 @@ function Report({ id, meal: wanted, jenis }: { id: string; meal?: string; jenis?
   }
 
   return (
-    <Screen>
-      <View style={{ gap: 2 }}>
-        <Text variant="caption" style={{ fontVariant: ["tabular-nums"] }}>
-          {when} · {caterer}
-        </Text>
-      </View>
+    <Sheet context={context}>
       {meals.length > 1 ? (
         <View style={{ flexDirection: "row", gap: 8 }} accessibilityRole="radiogroup">
           {meals.map((m) => {
-            const checked = m.meal === current?.meal;
+            const checked = m.meal === current.meal;
             return (
               <PressableScale
                 key={m.meal}
@@ -177,7 +219,7 @@ function Report({ id, meal: wanted, jenis }: { id: string; meal?: string; jenis?
           })}
         </View>
       ) : null}
-      {current?.issue ? (
+      {current.issue ? (
         <>
           <Card tone="sage">
             <Text>{t("Laporan untuk makan ini sudah terkirim.", "A report for this meal was already sent.")}</Text>
@@ -211,7 +253,7 @@ function Report({ id, meal: wanted, jenis }: { id: string; meal?: string; jenis?
             label={t("Catatan (boleh dikosongkan)", "Note (optional)")}
             multiline
             value={note}
-            onChangeText={setNote}
+            onChangeText={writeNote}
             maxLength={2000}
             style={{ minHeight: 88, textAlignVertical: "top", paddingTop: 12 }}
           />
@@ -228,12 +270,11 @@ function Report({ id, meal: wanted, jenis }: { id: string; meal?: string; jenis?
           />
         </>
       )}
-    </Screen>
+    </Sheet>
   );
 }
 
 const useStyles = themedStyles((c) => ({
-  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: c.canvas },
   choice: {
     minHeight: 56,
     justifyContent: "center",
@@ -255,14 +296,4 @@ const useStyles = themedStyles((c) => ({
   },
   on: { backgroundColor: c.forest, borderColor: c.forest },
   choiceLabel: { fontSize: 15, fontFamily: fontFor("700") },
-  step: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
-  badge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: c.forest,
-  },
-  badgeText: { fontSize: 13, fontFamily: fontFor("800"), color: c.cream },
 }));

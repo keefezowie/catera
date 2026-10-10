@@ -45,6 +45,15 @@ const ROOT_STACK = new Set([
   "pembelian",
 ]);
 
+/**
+ * A sheet route a link can reach, and the page it opens over: Ada masalah (`/masalah/{id}`) sits over the Hari of its
+ * delivery (`/hari/{id}`), never alone. Null for any other path.
+ */
+export function sheetParent(path: string): string | null {
+  const match = /^\/masalah\/([^/?#]+)\/?$/.exec(pathname(path));
+  return match ? `/hari/${match[1]}` : null;
+}
+
 /** The array-group layout gets its own segment, `(jadwal)`; this is the tab it hosts. */
 export function tabOfSegment(segment: string): Tab {
   const name = segment.replace(/^\((.*)\)$/, "$1");
@@ -145,21 +154,40 @@ export function goToTab(tab: Tab) {
   dismissAboveTabs(found);
 }
 
+/** Whether the top of a tab's stack is the page `parent` names (`/hari/{id}`). A tab not mounted yet reads as empty. */
+function onTop(found: { tabs: State }, group: string, parent: string): boolean {
+  const routes = found.tabs.routes.find((r) => r.name === group)?.state?.routes ?? [];
+  const top = routes.at(-1) as (Route & { params?: { id?: unknown } }) | undefined;
+  const [, section, id] = parent.split("/");
+  let wanted = id;
+  try {
+    wanted = decodeURIComponent(id);
+  } catch {
+    // A malformed escape names the id as written.
+  }
+  return top?.name === `${section}/[id]` && top.params?.id === wanted;
+}
+
 /** Opens a screen that lives in the tabs in the selected tab, after closing the screens above the tabs, so it never
- * lands in a second tab bar above Beli or Bayar. Named with the tab's group, so it opens there even while they close. */
+ * lands in a second tab bar above Beli or Bayar. Named with the tab's group, so it opens there even while they close.
+ * A sheet route opens over its parent page (`sheetParent`), which opens first unless it is already on top. */
 function openInTab(found: { root: State; at: number; tabs: State }, path: string) {
   dismissAboveTabs(found);
   const group = found.tabs.routes[found.tabs.index]?.name ?? "(index)";
-  router.push(`/(tabs)/${group}${path.startsWith("/") ? path : `/${path}`}` as never);
+  const inTab = (href: string) => `/(tabs)/${group}${href.startsWith("/") ? href : `/${href}`}` as never;
+  const parent = sheetParent(path);
+  if (parent && !onTop(found, group, parent)) router.push(inTab(parent));
+  router.push(inTab(path));
 }
 
 /**
  * An OS link (a cold or warm deep link) to a tab root opens that tab. Without this, "/jadwal" opened cold resolves to the
  * first group that has a jadwal route, so Jadwal would open inside Beranda. /discover is Jelajah. Other paths pass
  * through without their `title`: anyone can craft an OS link, so only links the app builds may name a screen before its
- * record loads. A detail screen opened cold lands in Beranda, the first tab, with Beranda behind it.
+ * record loads. A detail screen opened cold lands in Beranda, the first tab, with Beranda behind it. A sheet route opened
+ * cold (`initial`) opens its parent page instead, and the sheet waits until the tabs are up to open over it.
  */
-export function systemPath(link: string): string {
+export function systemPath(link: string, initial = false): string {
   const url = withoutLinkTitle(link);
   // exp://127.0.0.1:8084/--/jadwal names the path after a host (Expo Go adds "/--"); catera://jadwal has no host.
   const hosted = /^(exps?|https?):\/\/[^/?#]*/i;
@@ -167,7 +195,13 @@ export function systemPath(link: string): string {
     .replace(/^\/*/, "/");
   const tab = tabOfPath(path) ?? LEGACY_ROOTS[pathname(path).slice(1).replace(/\/+$/, "")] ?? null;
   // "/" already opens Beranda: it is the first tab.
-  return tab && tab !== "index" ? ROOT_HREF[tab] : url;
+  if (tab) return tab !== "index" ? ROOT_HREF[tab] : url;
+  const parent = initial ? sheetParent(path) : null;
+  if (parent) {
+    pending = path;
+    return parent;
+  }
+  return url;
 }
 
 /**
@@ -202,8 +236,11 @@ export function leaveFor(path: string) {
   const section = path.replace(/^\/+/, "").split(/[/?#]/)[0];
   if (ROOT_STACK.has(section)) return router.replace(path as never);
   const found = tabsInRoot();
-  if (!found) return router.replace(path as never, { withAnchor: true });
-  openInTab(found, path);
+  if (found) return openInTab(found, path);
+  // With no tabs under it, a sheet route opens its parent page in Beranda and then itself, once the tabs are up.
+  const parent = sheetParent(path);
+  if (parent) pending = path;
+  router.replace((parent ?? path) as never, { withAnchor: true });
 }
 
 /**

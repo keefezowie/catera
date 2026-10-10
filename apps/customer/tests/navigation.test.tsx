@@ -157,6 +157,50 @@ describe("each tab keeps its own stack", () => {
     }
   });
 
+  it("a cold masalah link opens over its Hari", () => {
+    // An OS link opened cold: the sheet opens over the Hari of its delivery, never alone over Beranda.
+    // The second form is what the router does with an Expo Go link: +native-intent rewrites it, then the stack opens.
+    const viaIntent = () => mount(systemPath("exp://127.0.0.1:8084/--/masalah/d1?meal=lunch", true));
+    for (const open of [() => mount(customerLink("/masalah/d1?meal=lunch")), viaIntent]) {
+      const app = open();
+      expect(root()).toEqual(["(tabs)"]);
+      expect(tab()).toBe("(index)");
+      expect(stack("(index)")).toEqual(["index", "hari/[id]", "masalah/[id]"]);
+      const routes = tabsState()!.routes.find((r) => r.name === "(index)")!.state!.routes;
+      expect(routes[1].params).toMatchObject({ id: "d1" });
+      expect(routes[2].params).toMatchObject({ id: "d1", meal: "lunch" });
+      // Closing the sheet leaves its Hari in place.
+      act(() => router.back());
+      expect(stack("(index)")).toEqual(["index", "hari/[id]"]);
+      expect(app.getPathname()).toBe("/hari/d1");
+      app.unmount();
+    }
+  });
+
+  it("a warm OS link to masalah passes through: it opens over the screen in front", () => {
+    expect(systemPath("exp://127.0.0.1:8084/--/masalah/d1?meal=lunch")).toBe("exp://127.0.0.1:8084/--/masalah/d1?meal=lunch");
+    expect(systemPath("catera://hari/d1", true)).toBe("catera://hari/d1");
+  });
+
+  it("a push tap to masalah opens it over its Hari, and over the Hari already open without a second one", () => {
+    let app = mount("/");
+    act(() => openLink(customerLink("/masalah/d1?meal=dinner")));
+    expect(stack("(index)")).toEqual(["index", "hari/[id]", "masalah/[id]"]);
+    app.unmount();
+    app = mount("/");
+    act(() => goToTab("jadwal"));
+    act(() => openLink(customerLink("/deliveries/d1")));
+    act(() => openLink(customerLink("/masalah/d1?meal=lunch")));
+    expect(stack("(jadwal)")).toEqual(["jadwal", "hari/[id]", "masalah/[id]"]);
+    app.unmount();
+    // From a screen above the tabs opened cold, it lands in Beranda over its Hari.
+    app = mount("/bayar/c1");
+    act(() => openLink(customerLink("/masalah/d1?meal=lunch")));
+    expect(root()).toEqual(["(tabs)"]);
+    expect(stack("(index)")).toEqual(["index", "hari/[id]", "masalah/[id]"]);
+    app.unmount();
+  });
+
   it("a push tap that arrives while the app is still loading opens once the tabs exist", () => {
     // Read before the app's stack is mounted (the session still loading on a cold start): it waits, then opens once.
     act(() => openLink(customerLink("/subscriptions/s1")));

@@ -1,6 +1,6 @@
 import { Stack } from "expo-router";
 import { useMobile } from "@catera/mobile-core";
-import { contentTitled, linkTitle, useStackScreenOptions } from "@catera/mobile-ui";
+import { contentTitled, linkTitle, sheetOptions, useColors, useStackScreenOptions } from "@catera/mobile-ui";
 import { tabOfSegment, type Tab } from "../../../src/nav";
 
 /** Each tab's stack starts at its own root, so a cold link to a detail screen has the tab root behind it. */
@@ -21,6 +21,7 @@ const ROOTS: Tab[] = ["index", "jadwal", "jelajah", "akun"];
 export default function TabStack({ segment }: { segment: string }) {
   const { t, demo } = useMobile();
   const screenOptions = useStackScreenOptions(demo);
+  const palette = useColors();
   const root = tabOfSegment(segment);
   return (
     <Stack screenOptions={screenOptions}>
@@ -43,7 +44,8 @@ export default function TabStack({ segment }: { segment: string }) {
       />
       <Stack.Screen name="package/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="bantuan" options={{ title: t("Bantuan dan laporan", "Help and reports") }} />
-      <Stack.Screen name="masalah/[id]" options={{ title: t("Ada masalah", "Report a problem") }} />
+      {/* Ada masalah is a form sheet over the page it was opened from (its Hari); it draws its own title. */}
+      <Stack.Screen name="masalah/[id]" options={sheetOptions({ detents: "form", palette })} />
       <Stack.Screen name="alamat" options={{ title: t("Alamat", "Addresses") }} />
       <Stack.Screen name="addresses" options={{ headerShown: false }} />
       <Stack.Screen name="pembayaran" options={{ title: t("Riwayat pembayaran", "Payment history") }} />

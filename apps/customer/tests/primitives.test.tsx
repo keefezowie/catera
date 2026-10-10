@@ -56,7 +56,7 @@ function fakeNavigation({ types = ["stack"], goBack = jest.fn() }: { types?: str
     goBack,
     setOptions: jest.fn(),
     addListener: (event: string, cb: () => void) => {
-      listeners[event].push(cb);
+      (listeners[event] ??= []).push(cb);
       return () => void listeners[event].splice(listeners[event].indexOf(cb), 1);
     },
   };

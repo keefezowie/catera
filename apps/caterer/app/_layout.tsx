@@ -14,6 +14,7 @@ import {
   MoodLabelsProvider,
   MoodProvider,
   navigationTheme,
+  sheetOptions,
   statusBarStyle,
   Text,
   ThemeProvider,
@@ -88,6 +89,9 @@ function Navigation() {
           <Stack.Protected guard={allowed.includes(SCREEN_TAB.impor)}>
             <Stack.Screen name="impor" options={{ ...modal, title: t("Impor pelanggan", "Import customers") }} />
           </Stack.Protected>
+          {/* The confirm and action sheets (`useConfirm`, `useActionSheet`), sized to their content, over any screen. */}
+          <Stack.Screen name="konfirmasi" options={sheetOptions({ detents: "fit", palette })} />
+          <Stack.Screen name="aksi" options={sheetOptions({ detents: "fit", palette })} />
         </Stack>
       </TopInsetOwner>
     </MoodLabelsProvider>

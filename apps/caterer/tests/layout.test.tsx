@@ -128,9 +128,13 @@ const TAB_ROOTS: readonly string[] = CATERER_TABS;
  * Every pushed file route under app/: the root stack's (Aktifkan, Impor) and the tab stacks' (in
  * `(tabs)/(index,pelanggan,menu,usaha)`). Layouts, the auth group and the tab roots, which have no header, are left out.
  */
+/** The confirm and action sheets: they answer whichever screen asked, so they carry no title and no tab of their own. */
+const SHEET_ROUTES = ["konfirmasi.tsx", "aksi.tsx"];
+
 function pushedRoutes(dir = path.join(__dirname, "..", "app"), prefix = ""): string[] {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     if (entry.name === "_layout.tsx" || entry.name === "(auth)" || entry.name.startsWith("+")) return [];
+    if (!prefix && SHEET_ROUTES.includes(entry.name)) return [];
     if (entry.isDirectory())
       return pushedRoutes(path.join(dir, entry.name), entry.name.startsWith("(") ? prefix : `${prefix}${entry.name}/`);
     const route = `${prefix}${entry.name.replace(/\.tsx?$/, "")}`;
@@ -198,6 +202,18 @@ describe("stack headers", () => {
       expect(mockScreenOptions[route]).toMatchObject({ presentation: "modal", headerBackVisible: false, headerLeft: expect.any(Function) });
     for (const route of pushedRoutes().filter((r) => r !== "aktifkan" && r !== "impor"))
       expect({ route, presentation: mockScreenOptions[route]?.presentation }).toEqual({ route, presentation: undefined });
+  });
+
+  it("declares the confirm and action sheets as native sheets sized to their content", async () => {
+    render(<RootLayout />);
+    await screen.findByTestId("header:pelanggan/[id]");
+    for (const route of ["konfirmasi", "aksi"])
+      expect(mockScreenOptions[route]).toMatchObject({
+        presentation: "formSheet",
+        sheetAllowedDetents: "fitToContents",
+        sheetGrabberVisible: true,
+        headerShown: false,
+      });
   });
 
   it("gives every pushed screen a tab, so the role guards cover it", () => {

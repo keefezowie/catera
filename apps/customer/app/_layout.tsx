@@ -15,6 +15,7 @@ import {
   MoodLabelsProvider,
   MoodProvider,
   navigationTheme,
+  sheetOptions,
   statusBarStyle,
   Text,
   ThemeProvider,
@@ -105,6 +106,9 @@ function Navigation() {
             name="tomorrow"
             options={{ headerShown: false, presentation: "fullScreenModal", animation: "fade" }}
           />
+          {/* The confirm and action sheets (`useConfirm`, `useActionSheet`), sized to their content, over any screen. */}
+          <Stack.Screen name="konfirmasi" options={sheetOptions({ detents: "fit", palette })} />
+          <Stack.Screen name="aksi" options={sheetOptions({ detents: "fit", palette })} />
         </Stack>
       </TopInsetOwner>
     </MoodLabelsProvider>
