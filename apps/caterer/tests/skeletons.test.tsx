@@ -572,7 +572,8 @@ describe("the other screens", () => {
     const header = await screen.findByTestId("usaha-header");
     expect(within(header).getByText("Usaha")).toBeTruthy();
     expect(await screen.findByLabelText("Memuat paket")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Keluar" })).toBeTruthy();
+    // The rest of the page stays live while the packages load: the settings gear and the Pengaturan row.
+    expect(screen.getAllByRole("button", { name: "Pengaturan" })).toHaveLength(2);
     expect(screen.queryByText("Memuat…")).toBeNull();
   });
 

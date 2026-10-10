@@ -1,28 +1,13 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { View } from "react-native";
 import { router } from "expo-router";
-import type { Locale } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import {
-  Button,
-  MoodHeader,
-  Screen,
-  Segmented,
-  Skeleton,
-  SkeletonGroup,
-  Text,
-  useColors,
-  useMoodColors,
-  useThemePreference,
-  type ThemePreference,
-} from "@catera/mobile-ui";
-import { failureText } from "./failure";
-import { usePush } from "./push";
+import { MoodHeader, Screen, Skeleton, SkeletonGroup, Text, useMoodColors } from "@catera/mobile-ui";
 import { Row, SectionLabel } from "./Row";
 import { SignInFirst } from "./SignInFirst";
 import { PlanList } from "../plan/PlanList";
-import { goToTab } from "../nav";
 import { ListSkeleton } from "../skeletons";
+import { SettingsGear } from "../settings/Pengaturan";
 
 /** "6281234567890" (as Supabase keeps it) → "0812-3456-7890". */
 export function localPhone(phone: string): string {
@@ -67,49 +52,20 @@ export function Akun() {
     );
   if (!actor)
     return (
-      <SignInFirst title={t("Akun", "Account")} next="/akun" headerTestID="akun-header">
-        <Language />
-        <Appearance />
+      <SignInFirst title={t("Akun", "Account")} next="/akun" headerTestID="akun-header" trailing={<SettingsGear />}>
+        {/* Language and theme live in Pengaturan, which needs no account. */}
+        <View>
+          <SettingsEntry first />
+        </View>
       </SignInFirst>
     );
   return <Account key={actor.id} />;
 }
 
-function Language() {
-  const { locale, setLocale, t } = useMobile();
-  return (
-    <View style={{ gap: 8 }}>
-      <SectionLabel>{t("Bahasa", "Language")}</SectionLabel>
-      <Segmented<Locale>
-        options={[
-          { value: "id", label: "Indonesia" },
-          { value: "en", label: "English" },
-        ]}
-        value={locale}
-        onChange={setLocale}
-      />
-    </View>
-  );
-}
-
-/** System follows the phone's own light or dark setting; the other two are the user's explicit choice. */
-function Appearance() {
+/** The last row of Akun: Pengaturan holds notifications, language, theme, the app version and Keluar. */
+function SettingsEntry({ first }: { first?: boolean }) {
   const { t } = useMobile();
-  const { preference, setPreference } = useThemePreference();
-  return (
-    <View style={{ gap: 8 }}>
-      <SectionLabel>{t("Tampilan", "Appearance")}</SectionLabel>
-      <Segmented<ThemePreference>
-        options={[
-          { value: "system", label: t("Sistem", "System") },
-          { value: "light", label: t("Terang", "Light") },
-          { value: "dark", label: t("Gelap", "Dark") },
-        ]}
-        value={preference}
-        onChange={setPreference}
-      />
-    </View>
-  );
+  return <Row first={first} label={t("Pengaturan", "Settings")} onPress={() => router.push("/pengaturan" as never)} />;
 }
 
 /** The signed-in phone number (or email) from the device's own session. */
@@ -133,32 +89,16 @@ function useContact() {
 }
 
 function Account() {
-  const { actor, runtime, logout, t, locale } = useMobile();
-  const c = useColors();
+  const { actor, runtime, t } = useMobile();
   const mood = useMoodColors();
   const customer = useData("akun:customer", () => runtime.api.customer());
   const contact = useContact();
-  const push = usePush();
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-
-  async function signOut() {
-    setBusy(true);
-    setError("");
-    try {
-      await logout();
-      goToTab("index");
-    } catch (e) {
-      setError(failureText(e, locale, t));
-      setBusy(false);
-    }
-  }
 
   return (
     <Screen
       header={
-        // The tab bar already names this tab, so the meta row stays empty rather than repeating "Akun".
-        <MoodHeader testID="akun-header" title={actor?.name ?? ""}>
+        // The tab bar already names this tab, so the meta row holds only the settings gear rather than "Akun".
+        <MoodHeader testID="akun-header" title={actor?.name ?? ""} trailing={<SettingsGear />}>
           {/* The line's place is held while the phone reads its session, so the header never grows under the name. */}
           <ContactLine>
             {contact ? <Text style={{ color: mood.headerMeta, fontVariant: ["tabular-nums"] }}>{contact}</Text> : null}
@@ -176,22 +116,9 @@ function Account() {
         <Row label={t("Disimpan", "Saved")} onPress={() => router.push("/disimpan" as never)} />
         <Row label={t("Riwayat pembayaran", "Payment history")} onPress={() => router.push("/pembayaran" as never)} />
         <Row label={t("Bantuan dan laporan", "Help and reports")} onPress={() => router.push("/bantuan" as never)} />
-        <Row
-          label={t("Notifikasi", "Notifications")}
-          value={push.on === null ? undefined : push.on ? t("Aktif", "On") : t("Nonaktif", "Off")}
-          onPress={() => router.push("/notifications" as never)}
-        />
+        <Row label={t("Notifikasi", "Notifications")} onPress={() => router.push("/notifications" as never)} />
+        <SettingsEntry />
       </View>
-
-      <Language />
-      <Appearance />
-
-      {error ? (
-        <Text selectable style={{ color: c.danger }}>
-          {error}
-        </Text>
-      ) : null}
-      <Button variant="secondary" label={t("Keluar", "Sign out")} disabled={busy} onPress={() => void signOut()} />
     </Screen>
   );
 }

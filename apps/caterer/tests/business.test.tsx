@@ -1,7 +1,8 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as SecureStore from "expo-secure-store";
-import { nativeThemes } from "@catera/design-tokens";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { nativeMood, nativeThemes } from "@catera/design-tokens";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { MoodProvider, ThemeProvider } from "@catera/mobile-ui";
 import type { SettlementState } from "@catera/domain";
@@ -13,9 +14,15 @@ import { UangScreen } from "../src/business/UangScreen";
 import { AktifkanScreen } from "../src/business/AktifkanScreen";
 import { TimScreen } from "../src/business/TimScreen";
 import { RoleGate } from "../src/RoleGate";
+import { Pengaturan } from "../src/settings/Pengaturan";
+import { BahasaSheet, TampilanSheet } from "../src/settings/ChoiceSheets";
 import { Image, StyleSheet, Text } from "react-native";
 
-jest.mock("expo-router", () => ({ router: { push: jest.fn(), replace: jest.fn(), back: jest.fn() }, Link: () => null }));
+jest.mock("expo-router", () => ({
+  router: { push: jest.fn(), replace: jest.fn(), back: jest.fn() },
+  Link: () => null,
+  useFocusEffect: (effect: () => void) => require("react").useEffect(effect, [effect]),
+}));
 jest.mock("expo-image-picker", () => ({ launchImageLibraryAsync: jest.fn(), MediaTypeOptions: { Images: "Images" } }));
 jest.mock("expo-notifications", () => ({
   setNotificationHandler: jest.fn(),
@@ -306,10 +313,14 @@ describe("Usaha mood header", () => {
     expect(within(header).queryByLabelText("Memuat paket")).toBeNull();
   });
 
-  it("keeps Keluar and the package rows working under the header", async () => {
+  it("keeps the Pengaturan gear in the header and the package rows working under it", async () => {
     renderMood(kitchen("Dapur Bu Rina"));
-    expect(await screen.findByRole("button", { name: "Keluar" })).toBeTruthy();
+    const header = await screen.findByTestId("usaha-header");
+    const gear = within(header).getByRole("button", { name: "Pengaturan" });
+    // It reads the Malam header's text colour, like the rest of the header.
+    expect(within(gear).UNSAFE_getByType(Ionicons).props.color).toBe(nativeMood.light.malam.headerText);
     expect(await screen.findByRole("button", { name: "Makan Siang Rumahan" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Keluar" })).toBeNull();
   });
 });
 
@@ -363,12 +374,8 @@ describe("Usaha states", () => {
     expect(require("expo-router").router.push).toHaveBeenCalledWith("/uang");
   });
 
-  describe("Tampilan", () => {
-    const usahaRuntime = () =>
-      runtimeWith({
-        sellerOperations: jest.fn(async () => ({ caterer: { id: "k-1", name: "Dapur Bu Rina", status: "approved" }, offers: [], datedMenus: [] })),
-        request: jest.fn(async () => ({ active: null })),
-      });
+  // Tampilan and Bahasa moved from Usaha to Pengaturan's choice sheets (Phase F); Usaha keeps only the way there.
+  describe("Tampilan in Pengaturan", () => {
     const canvas = () => StyleSheet.flatten(screen.UNSAFE_getByType(SafeAreaView).props.style).backgroundColor;
     // The setup keeps one in-memory store for the whole file. Pressing Gelap and English writes the theme and locale
     // to it, and later tests in the file would otherwise start in English or dark.
@@ -382,39 +389,40 @@ describe("Usaha states", () => {
       render(
         <ThemeProvider storageKey={runtime.storageKey("theme")}>
           <MobileProvider runtime={runtime} linkMapper={() => "/"}>
-            <UsahaScreen />
+            <Pengaturan />
+            <TampilanSheet />
+            <BahasaSheet />
           </MobileProvider>
         </ThemeProvider>,
       );
-      expect(await screen.findByText("Tampilan")).toBeTruthy();
+      expect(await screen.findByRole("button", { name: "Tampilan, Ikuti sistem" })).toBeTruthy();
       await act(async () => {});
     };
 
-    it("shows Sistem selected by default", async () => {
-      await renderThemed(usahaRuntime());
-      expect(screen.getByRole("tab", { name: "Sistem" })).toBeSelected();
-      expect(screen.getByRole("tab", { name: "Terang" })).not.toBeSelected();
-      expect(screen.getByRole("tab", { name: "Gelap" })).not.toBeSelected();
+    it("follows the system by default", async () => {
+      await renderThemed(runtimeWith({}));
+      expect(screen.getByRole("radio", { name: "Ikuti sistem" })).toBeChecked();
+      expect(screen.getByRole("radio", { name: "Terang" })).not.toBeChecked();
+      expect(screen.getByRole("radio", { name: "Gelap" })).not.toBeChecked();
       expect(canvas()).toBe("#FDFAF3");
     });
 
-    it("pressing Gelap stores dark and repaints the same screen", async () => {
-      const runtime = usahaRuntime();
-      await renderThemed(runtime);
-      fireEvent.press(screen.getByRole("tab", { name: "Gelap" }));
+    it("pressing Gelap stores dark and repaints Pengaturan under the sheet", async () => {
+      await renderThemed(runtimeWith({}));
+      fireEvent.press(screen.getByRole("radio", { name: "Gelap" }));
       expect(SecureStore.setItemAsync).toHaveBeenCalledWith("t.theme", "dark");
       expect(canvas()).toBe("#151514");
-      expect(screen.getByRole("tab", { name: "Gelap" })).toBeSelected();
-      expect(screen.getByRole("button", { name: "Keluar" })).toBeTruthy();
+      expect(screen.getByRole("radio", { name: "Gelap" })).toBeChecked();
+      expect(screen.getByRole("button", { name: "Tampilan, Gelap" })).toBeTruthy();
     });
 
-    it("reads Appearance, System, Light and Dark in English", async () => {
-      await renderThemed(usahaRuntime());
-      fireEvent.press(screen.getByRole("tab", { name: "English" }));
-      expect(await screen.findByText("Appearance")).toBeTruthy();
-      expect(screen.getByRole("tab", { name: "System" })).toBeSelected();
-      expect(screen.getByRole("tab", { name: "Light" })).toBeTruthy();
-      expect(screen.getByRole("tab", { name: "Dark" })).toBeTruthy();
+    it("reads Appearance, Follow system, Light and Dark in English", async () => {
+      await renderThemed(runtimeWith({}));
+      fireEvent.press(screen.getByRole("radio", { name: "English" }));
+      expect(await screen.findByRole("button", { name: "Appearance, Follow system" })).toBeTruthy();
+      expect(screen.getByRole("radio", { name: "Follow system" })).toBeChecked();
+      expect(screen.getByRole("radio", { name: "Light" })).toBeTruthy();
+      expect(screen.getByRole("radio", { name: "Dark" })).toBeTruthy();
       expect(screen.queryByText("Tampilan")).toBeNull();
     });
   });

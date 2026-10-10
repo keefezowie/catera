@@ -11,19 +11,16 @@ import {
   PressableRow,
   RoundButton,
   Screen,
-  Segmented,
   Text,
   useActionSheet,
   useColors,
-  useThemePreference,
-  type ThemePreference,
 } from "@catera/mobile-ui";
 import { usePaymentsActive } from "../customers/usePayments";
 import { packageHref } from "../hrefs";
 import { photoUri } from "../photo";
-import { NotifyButton } from "./NotifyButton";
 import { ReadError } from "../ReadError";
 import { ListSkeleton } from "../skeletons";
+import { SettingsGear } from "../settings/Pengaturan";
 
 function Row({
   icon,
@@ -70,13 +67,12 @@ function Row({
   );
 }
 
-/** Usaha: packages, money, importing customers, team and payments: the things set up once. */
+/** Usaha: packages, money, importing customers, team and payments: the things set up once. Pengaturan comes last. */
 export function UsahaScreen() {
-  const { runtime, actor, t, locale, setLocale, logout } = useMobile();
+  const { runtime, actor, t, locale } = useMobile();
   const catererId = actor?.catererId ?? "";
   const ops = useData(`menu-ops:${catererId}`, () => runtime.api.sellerOperations(catererId));
   const payments = usePaymentsActive();
-  const { preference, setPreference } = useThemePreference();
   const actions = useActionSheet();
   const offers = (ops.data?.offers ?? []).filter((o) => o.status !== "retired");
   /** "…" on a package: look at it, or copy it into a new package (a live package's terms cannot change). */
@@ -102,6 +98,7 @@ export function UsahaScreen() {
           testID="usaha-header"
           meta={name ? t("Usaha", "Business") : undefined}
           title={name || t("Usaha", "Business")}
+          trailing={<SettingsGear />}
         />
       }
     >
@@ -154,28 +151,15 @@ export function UsahaScreen() {
         <Row icon="person-add-outline" label={t("Tim", "Team")} detail={t("Undang pembantu dapur", "Invite a kitchen helper")} href="/tim" />
         <Row icon="card-outline" label={t("Pembayaran", "Payments")} detail={payments ? t("Aktif", "On") : t("Belum aktif", "Not on yet")} href="/aktifkan" />
       </Card>
-      <NotifyButton />
-      <Segmented
-        value={locale}
-        onChange={setLocale}
-        options={[
-          { value: "id", label: "Bahasa Indonesia" },
-          { value: "en", label: "English" },
-        ]}
-      />
-      <View style={{ gap: 8 }}>
-        <Text variant="label">{t("Tampilan", "Appearance")}</Text>
-        <Segmented<ThemePreference>
-          value={preference}
-          onChange={setPreference}
-          options={[
-            { value: "system", label: t("Sistem", "System") },
-            { value: "light", label: t("Terang", "Light") },
-            { value: "dark", label: t("Gelap", "Dark") },
-          ]}
+      {/* Last: notifications, language, theme and Keluar live in Pengaturan, the same screen a helper opens. */}
+      <Card>
+        <Row
+          icon="settings-outline"
+          label={t("Pengaturan", "Settings")}
+          detail={t("Notifikasi, bahasa, tampilan", "Notifications, language, appearance")}
+          href="/pengaturan"
         />
-      </View>
-      <Button variant="text" label={t("Keluar", "Sign out")} onPress={() => void logout()} />
+      </Card>
     </Screen>
   );
 }

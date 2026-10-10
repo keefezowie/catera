@@ -4,11 +4,12 @@ import { useColors } from "./theme";
 
 type Glyph = keyof typeof Ionicons.glyphMap;
 
-/** iOS and Android draw share differently; close and chat are the same glyph on both. */
-const glyphs: Record<"close" | "chat" | "share", { ios: Glyph; android: Glyph }> = {
+/** iOS and Android draw share differently; close, chat and the settings gear are the same glyph on both. */
+const glyphs: Record<"close" | "chat" | "share" | "settings", { ios: Glyph; android: Glyph }> = {
   close: { ios: "close", android: "close" },
   chat: { ios: "chatbubble-outline", android: "chatbubble-outline" },
   share: { ios: "share-outline", android: "share-social-outline" },
+  settings: { ios: "settings-outline", android: "settings-outline" },
 };
 
 /**
@@ -22,27 +23,32 @@ const ANDROID_HEADER_SLOT_PULL = -12;
  * An icon-only button for a native header slot (`headerLeft`, `headerRight`): 44pt on iOS with the bar's forest tint
  * and a dim while pressed, 48dp on Android in the bar's ink with a borderless ripple, the Material icon button's state
  * layer. `label` is the translated spoken name; this package has no i18n. `slot` names the edge it sits on, so on
- * Android it lines up with the platform's own navigation and action icons; iOS places bar buttons itself.
+ * Android it lines up with the platform's own navigation and action icons; iOS places bar buttons itself. `tint`
+ * replaces the bar's ink where the button sits on another ground, such as a mood header's text colour; such a button
+ * leaves `slot` out.
  */
 export function HeaderIconButton({
   icon,
   label,
   onPress,
   slot,
+  tint: tintOverride,
   os = process.env.EXPO_OS,
 }: {
-  icon: "close" | "chat" | "share";
+  icon: "close" | "chat" | "share" | "settings";
   label: string;
   onPress: () => void;
   /** The header edge it sits on: `leading` in `headerLeft`, `trailing` in `headerRight`. */
   slot?: "leading" | "trailing";
+  /** The icon colour where the ground is not the bar's (a mood header's `headerText`). */
+  tint?: string;
   /** The running platform, for tests. */
   os?: string;
 }) {
   const palette = useColors();
   const ios = os === "ios";
   const size = ios ? 44 : 48;
-  const tint = ios ? palette.forest : palette.charcoal;
+  const tint = tintOverride ?? (ios ? palette.forest : palette.charcoal);
   const glyph = <Ionicons name={glyphs[icon][ios ? "ios" : "android"]} size={ios ? 22 : 24} color={tint} />;
   const ripple = { color: palette.line, borderless: true, radius: size / 2 };
   if (ios || !slot)

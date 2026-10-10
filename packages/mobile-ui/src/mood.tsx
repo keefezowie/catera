@@ -84,6 +84,14 @@ export function useMoodColors(mood?: Mood): MoodPalette {
 }
 
 /**
+ * A theme's Siang header fill whatever theme is active, for a small drawing of the app in that theme (the Tampilan
+ * thumbnails in Pengaturan). Screens read `useMoodColors` instead.
+ */
+export function siangHeaderFill(scheme: ThemeName): string {
+  return nativeMood[scheme].siang.header;
+}
+
+/**
  * The status-bar icon style: light icons on a dark surface. That is the dark theme, or a Malam header; the demo strip
  * sits above the header in the theme's own sage fill, so with it shown the header does not decide. `mood: null` is a
  * screen with no mood header (a pushed screen, the app's default): only the theme decides.

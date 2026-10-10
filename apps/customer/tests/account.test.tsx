@@ -12,6 +12,8 @@ import { Akun } from "../src/account/Akun";
 import { Addresses } from "../src/account/Addresses";
 import { Payments } from "../src/account/Payments";
 import { NotificationsScreen } from "../src/account/Notifications";
+import { Pengaturan } from "../src/settings/Pengaturan";
+import { BahasaSheet, TampilanSheet } from "../src/settings/ChoiceSheets";
 import { Beranda } from "../src/today/Beranda";
 import { customerLink } from "../src/links";
 import { customerState, subscription, offer, TODAY } from "./fixtures";
@@ -23,9 +25,10 @@ jest.mock("../src/nav", () => ({
   openLink: (path: string) => require("expo-router").router.push(path),
 }));
 jest.mock("expo-router", () => ({
-  router: { push: jest.fn(), replace: jest.fn() },
+  router: { push: jest.fn(), replace: jest.fn(), back: jest.fn() },
   Link: () => null,
   useLocalSearchParams: () => ({}),
+  useFocusEffect: (effect: () => void) => require("react").useEffect(effect, [effect]),
 }));
 jest.mock("expo-notifications", () => ({
   setNotificationHandler: jest.fn(),
@@ -107,7 +110,7 @@ beforeEach(() => {
 });
 
 describe("Akun", () => {
-  it("Akun lists packages and signs out", async () => {
+  it("Akun lists packages and opens its account rows", async () => {
     const runtime = runtimeWith(
       {
         subscriptions: [
@@ -142,19 +145,26 @@ describe("Akun", () => {
       fireEvent.press(screen.getByRole("button", { name: new RegExp(`^${label}`) }));
       expect(router.push).toHaveBeenLastCalledWith(href);
     }
-
-    fireEvent.press(screen.getByRole("button", { name: "Keluar" }));
-    await waitFor(() => expect(runtime.signOut).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/"));
-    expect(await screen.findByRole("button", { name: "Masuk" })).toBeTruthy();
+    // Keluar moved to Pengaturan (settings.test), the last row here.
+    const rows = screen.getAllByRole("button", { name: "Pengaturan" });
+    fireEvent.press(rows[rows.length - 1]);
+    expect(router.push).toHaveBeenLastCalledWith("/pengaturan");
+    expect(screen.queryByRole("button", { name: "Keluar" })).toBeNull();
   });
 
   it("language switch changes copy to English", async () => {
-    renderWith(runtimeWith({}), <Akun />);
-    expect(await screen.findByRole("button", { name: "Keluar" })).toBeTruthy();
-    fireEvent.press(screen.getByRole("tab", { name: "English" }));
-    expect(await screen.findByRole("button", { name: "Sign out" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /^Payment history/ })).toBeTruthy();
+    // The language is chosen in Pengaturan's Bahasa sheet; Akun follows it.
+    renderWith(
+      runtimeWith({}),
+      <>
+        <Akun />
+        <BahasaSheet />
+      </>,
+    );
+    expect(await screen.findByRole("button", { name: /^Riwayat pembayaran/ })).toBeTruthy();
+    fireEvent.press(screen.getByRole("radio", { name: "English" }));
+    expect(await screen.findByRole("button", { name: /^Payment history/ })).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: "Settings" })).toHaveLength(2);
     // The same words as Beranda's plans row and Paket saya: plans, never packages.
     expect(screen.getByText("Active plans")).toBeTruthy();
     expect(screen.queryByText(/active packages/i)).toBeNull();
@@ -169,10 +179,13 @@ describe("Akun", () => {
           subscription({ id: "s-2", remaining: 6, snapshot: { offer: offer({ name: "Paket Dua" }), total: 90000 } as never }),
         ],
       }),
-      <Akun />,
+      <>
+        <Akun />
+        <BahasaSheet />
+      </>,
     );
     expect(await screen.findByText("Dapur Contoh · 1 hari lagi")).toBeTruthy();
-    fireEvent.press(screen.getByRole("tab", { name: "English" }));
+    fireEvent.press(screen.getByRole("radio", { name: "English" }));
     expect(await screen.findByText("Dapur Contoh · 1 day to go")).toBeTruthy();
     expect(screen.getByText("Dapur Contoh · 6 days to go")).toBeTruthy();
     expect(screen.queryByText(/1 days/)).toBeNull();
@@ -180,133 +193,86 @@ describe("Akun", () => {
 
   it("shows no caterer or admin workspace links", async () => {
     renderWith(runtimeWith({}, { actor: { id: "u-o1", role: "owner", name: "Pemilik Contoh" } }), <Akun />);
-    expect(await screen.findByRole("button", { name: "Keluar" })).toBeTruthy();
+    expect(await screen.findByText("Pemilik Contoh")).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: "Pengaturan" })).toHaveLength(2);
     expect(screen.queryByText(/ruang kerja|Catera Admin|workspace/i)).toBeNull();
   });
 
-  it("signed out asks to sign in and comes back to Akun, and still offers the language", async () => {
-    renderWith(runtimeWith({}, { actor: null }), <Akun />);
+  it("signed out asks to sign in and comes back to Akun, and still offers Pengaturan", async () => {
+    renderWith(
+      runtimeWith({}, { actor: null }),
+      <>
+        <Akun />
+        <BahasaSheet />
+      </>,
+    );
     fireEvent.press(await screen.findByRole("button", { name: "Masuk" }));
     expect(router.push).toHaveBeenCalledWith({ pathname: "/login", params: { next: "/akun" } });
-    fireEvent.press(screen.getByRole("tab", { name: "English" }));
+    fireEvent.press(screen.getAllByRole("button", { name: "Pengaturan" })[1]);
+    expect(router.push).toHaveBeenLastCalledWith("/pengaturan");
+    fireEvent.press(screen.getByRole("radio", { name: "English" }));
     expect(await screen.findByRole("button", { name: "Sign in" })).toBeTruthy();
   });
 
-  it("says Nonaktif until push is turned on, then Aktif", async () => {
-    const runtime = runtimeWith({});
-    renderWith(runtime, <Akun />);
-    expect(await screen.findByRole("button", { name: "Notifikasi, Nonaktif" })).toBeTruthy();
-  });
-
-  describe("Tampilan", () => {
+  // Tampilan moved from Akun to Pengaturan's sheet (Phase F); signed out reaches it through Pengaturan too.
+  describe("Tampilan in Pengaturan", () => {
     const canvas = () => StyleSheet.flatten(screen.UNSAFE_getByType(SafeAreaView).props.style).backgroundColor;
     const renderThemed = async (runtime: MobileRuntime) => {
       render(
         <ThemeProvider storageKey={runtime.storageKey("theme")}>
           <MobileProvider runtime={runtime} linkMapper={customerLink}>
-            <Akun />
+            <Pengaturan />
+            <TampilanSheet />
+            <BahasaSheet />
           </MobileProvider>
         </ThemeProvider>,
       );
-      expect(await screen.findByRole("button", { name: "Keluar" })).toBeTruthy();
+      expect(await screen.findByRole("button", { name: "Tampilan, Ikuti sistem" })).toBeTruthy();
       await act(async () => {});
     };
 
-    it("shows Sistem selected by default", async () => {
+    it("follows the system by default", async () => {
       await renderThemed(runtimeWith({}));
-      expect(screen.getByText("Tampilan")).toBeTruthy();
-      expect(screen.getByRole("tab", { name: "Sistem" })).toBeSelected();
-      expect(screen.getByRole("tab", { name: "Terang" })).not.toBeSelected();
-      expect(screen.getByRole("tab", { name: "Gelap" })).not.toBeSelected();
+      expect(screen.getByRole("radio", { name: "Ikuti sistem" })).toBeChecked();
+      expect(screen.getByRole("radio", { name: "Terang" })).not.toBeChecked();
+      expect(screen.getByRole("radio", { name: "Gelap" })).not.toBeChecked();
       expect(canvas()).toBe("#FDFAF3");
     });
 
-    it("pressing Gelap stores dark and repaints the same screen", async () => {
-      const runtime = runtimeWith({});
-      await renderThemed(runtime);
-      fireEvent.press(screen.getByRole("tab", { name: "Gelap" }));
+    it("pressing Gelap stores dark and repaints Pengaturan under the sheet", async () => {
+      await renderThemed(runtimeWith({}));
+      fireEvent.press(screen.getByRole("radio", { name: "Gelap" }));
       expect(SecureStore.setItemAsync).toHaveBeenCalledWith("catera.theme", "dark");
       expect(canvas()).toBe("#151514");
-      expect(screen.getByRole("tab", { name: "Gelap" })).toBeSelected();
-      expect(screen.getByRole("button", { name: "Keluar" })).toBeTruthy();
+      expect(screen.getByRole("radio", { name: "Gelap" })).toBeChecked();
+      expect(screen.getByRole("button", { name: "Tampilan, Gelap" })).toBeTruthy();
     });
 
-    it("reads Appearance, System, Light and Dark in English", async () => {
+    it("reads Appearance, Follow system, Light and Dark in English", async () => {
       await renderThemed(runtimeWith({}));
-      fireEvent.press(screen.getByRole("tab", { name: "English" }));
-      expect(await screen.findByText("Appearance")).toBeTruthy();
-      expect(screen.getByRole("tab", { name: "System" })).toBeSelected();
-      expect(screen.getByRole("tab", { name: "Light" })).toBeTruthy();
-      expect(screen.getByRole("tab", { name: "Dark" })).toBeTruthy();
+      fireEvent.press(screen.getByRole("radio", { name: "English" }));
+      expect(await screen.findByRole("button", { name: "Appearance, Follow system" })).toBeTruthy();
+      expect(screen.getByRole("radio", { name: "Follow system" })).toBeChecked();
+      expect(screen.getByRole("radio", { name: "Light" })).toBeTruthy();
+      expect(screen.getByRole("radio", { name: "Dark" })).toBeTruthy();
       expect(screen.queryByText("Tampilan")).toBeNull();
     });
 
     it("is offered while signed out too", async () => {
-      render(
-        <ThemeProvider storageKey="catera.theme">
-          <MobileProvider runtime={runtimeWith({}, { actor: null })} linkMapper={customerLink}>
-            <Akun />
-          </MobileProvider>
-        </ThemeProvider>,
-      );
-      expect(await screen.findByText("Tampilan")).toBeTruthy();
-      await act(async () => {});
-      fireEvent.press(screen.getByRole("tab", { name: "Gelap" }));
+      await renderThemed(runtimeWith({}, { actor: null }));
+      fireEvent.press(screen.getByRole("radio", { name: "Gelap" }));
       expect(SecureStore.setItemAsync).toHaveBeenCalledWith("catera.theme", "dark");
     });
   });
 });
 
 describe("Notifikasi", () => {
-  it("turns push on with device.register and then says Aktif", async () => {
-    const runtime = runtimeWith({});
-    renderWith(runtime, <NotificationsScreen />);
-    expect(await screen.findByText("Nonaktif")).toBeTruthy();
-    (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: "granted" });
-    fireEvent.press(screen.getByRole("button", { name: "Aktifkan" }));
-    await waitFor(() =>
-      expect(runtime.api.command).toHaveBeenCalledWith(
-        "device.register",
-        { token: "ExponentPushToken[synthetic]" },
-        expect.any(String),
-      ),
-    );
-    expect(await screen.findByText("Aktif")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Aktifkan" })).toBeNull();
-  });
-
-  it("the Akun row follows once push is turned on", async () => {
-    renderWith(
-      runtimeWith({}),
-      <>
-        <Akun />
-        <NotificationsScreen />
-      </>,
-    );
-    expect(await screen.findByRole("button", { name: "Notifikasi, Nonaktif" })).toBeTruthy();
-    fireEvent.press(await screen.findByRole("button", { name: "Aktifkan" }));
-    expect(await screen.findByRole("button", { name: "Notifikasi, Aktif" })).toBeTruthy();
-  });
-
-  it.each([
-    ["REQUEST_TIMEOUT", "Koneksi terlalu lama. Periksa koneksi dan coba lagi."],
-    ["DEVICE_SOMETHING", "Notifikasi belum bisa diaktifkan. Coba lagi."],
-  ])("a failed registration (%s) says it plainly, never the code", async (code, message) => {
-    const runtime = runtimeWith({});
-    (runtime.api.command as jest.Mock).mockRejectedValueOnce(Object.assign(new Error(code), { code }));
-    renderWith(runtime, <NotificationsScreen />);
-    fireEvent.press(await screen.findByRole("button", { name: "Aktifkan" }));
-    expect(await screen.findByText(message)).toBeTruthy();
-    expect(screen.queryByText(code)).toBeNull();
-    expect(screen.getByText("Nonaktif")).toBeTruthy();
-  });
-
-  it("says why when the phone refuses permission", async () => {
-    (Notifications.requestPermissionsAsync as jest.Mock).mockResolvedValueOnce({ status: "denied" });
+  it("lists the updates without a push card: the switch lives in Pengaturan", async () => {
     renderWith(runtimeWith({}), <NotificationsScreen />);
-    fireEvent.press(await screen.findByRole("button", { name: "Aktifkan" }));
-    expect(await screen.findByText(/Izin notifikasi belum diberikan/)).toBeTruthy();
-    expect(screen.getByText("Nonaktif")).toBeTruthy();
+    expect(await screen.findByText("Belum ada kabar baru.")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Aktifkan" })).toBeNull();
+    expect(screen.queryByText("Nonaktif")).toBeNull();
+    expect(Notifications.getPermissionsAsync).not.toHaveBeenCalled();
   });
 
   it("marks an unread notification read and opens its app screen", async () => {

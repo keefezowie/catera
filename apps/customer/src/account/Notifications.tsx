@@ -1,17 +1,15 @@
-import { useState } from "react";
 import { View } from "react-native";
-import { errorLabel, jakartaDay, type Locale, type Notice } from "@catera/domain";
+import { jakartaDay, type Notice } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, FadeSwap, fontFor, PressableRow, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
+import { Button, FadeSwap, PressableRow, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { customerLink } from "../links";
 import { longDay } from "../schedule/dates";
 import { jakartaClock } from "../today/Plate";
-import { usePush } from "./push";
 import { SignInFirst } from "./SignInFirst";
 import { openLink } from "../nav";
 import { ListSkeleton } from "../skeletons";
 
-/** Notifikasi: push on this phone (Aktif / Nonaktif) and the latest updates, each opening its screen. */
+/** Notifikasi: the latest updates, each opening its screen. Push on this phone is Pengaturan's switch. */
 export function NotificationsScreen() {
   const { actor, ready, t } = useMobile();
   if (!ready)
@@ -22,62 +20,6 @@ export function NotificationsScreen() {
     );
   if (!actor) return <SignInFirst title={t("Notifikasi", "Notifications")} next="/notifications" />;
   return <Updates key={actor.id} />;
-}
-
-/** The shared label for a code (e.g. REQUEST_TIMEOUT); the phone's own sentence (permission, no EAS
- * project); never a bare code. */
-function pushError(e: unknown, locale: Locale, t: (id: string, en: string) => string): string {
-  const message = (e as Error)?.message ?? "";
-  const code = (e as { code?: string })?.code || message;
-  return (
-    errorLabel(code, locale) ||
-    (/\s/.test(message) ? message : t("Notifikasi belum bisa diaktifkan. Coba lagi.", "Notifications could not be turned on. Try again."))
-  );
-}
-
-function PushCard() {
-  const { t, locale } = useMobile();
-  const c = useColors();
-  const push = usePush();
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  return (
-    <Card>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-        <View style={{ flex: 1, gap: 2 }}>
-          <Text style={{ fontFamily: fontFor("700") }}>{t("Notifikasi di HP ini", "Notifications on this phone")}</Text>
-          <Text variant="caption">
-            {t("Kabar pengantaran, pembayaran dan bantuan.", "Delivery, payment and help updates.")}
-          </Text>
-        </View>
-        {push.on === null ? null : (
-          <Text variant="label" style={{ color: push.on ? c.forest : c.muted }}>
-            {push.on ? t("Aktif", "On") : t("Nonaktif", "Off")}
-          </Text>
-        )}
-      </View>
-      {error ? (
-        <Text selectable style={{ color: c.danger }}>
-          {error}
-        </Text>
-      ) : null}
-      {push.on === false ? (
-        <Button
-          variant="secondary"
-          label={t("Aktifkan", "Turn on")}
-          disabled={busy}
-          onPress={() => {
-            setBusy(true);
-            setError("");
-            push
-              .enable()
-              .catch((e: unknown) => setError(pushError(e, locale, t)))
-              .finally(() => setBusy(false));
-          }}
-        />
-      ) : null}
-    </Card>
-  );
 }
 
 function Updates() {
@@ -95,8 +37,7 @@ function Updates() {
 
   return (
     <Screen>
-      <PushCard />
-      {/* The updates fade in from their skeleton as one block, under the push switch, which never waits. */}
+      {/* The updates fade in from their skeleton as one block. */}
       <FadeSwap swapKey={customer.data ? "ready" : customer.error ? "error" : "loading"}>
         {!customer.data ? (
           customer.error ? (

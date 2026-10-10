@@ -14,11 +14,14 @@ export function SignInFirst({
   next,
   children,
   headerTestID,
+  trailing,
 }: {
   title: string;
   next: string;
   children?: ReactNode;
   headerTestID?: string;
+  /** A control at the end of the mood header's top row (Akun's settings gear); tab roots only. */
+  trailing?: ReactNode;
 }) {
   const { t } = useMobile();
   const c = useColors();
@@ -29,7 +32,7 @@ export function SignInFirst({
       nativeTitle={headerTestID ? undefined : title}
       header={
         headerTestID ? (
-          <MoodHeader testID={headerTestID} title={title}>
+          <MoodHeader testID={headerTestID} title={title} trailing={trailing}>
             <Text style={{ color: mood.headerMeta }}>{sentence}</Text>
           </MoodHeader>
         ) : undefined

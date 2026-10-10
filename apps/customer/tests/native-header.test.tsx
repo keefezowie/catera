@@ -72,7 +72,6 @@ jest.mock("expo-notifications", () => ({
   getPermissionsAsync: jest.fn(async () => ({ status: "undetermined" })),
   setNotificationHandler: jest.fn(),
 }));
-jest.mock("../src/account/push", () => ({ usePush: () => ({ on: null, busy: false, error: "", toggle: async () => undefined }) }));
 jest.mock("../src/account/Addresses", () => ({ Addresses: mockStub("Alamat") }));
 jest.mock("../src/account/Masuk", () => ({ Masuk: mockStub("Masuk") }));
 jest.mock("../src/buy/BuyScreen", () => ({ BuyScreen: mockStub("Beli") }));

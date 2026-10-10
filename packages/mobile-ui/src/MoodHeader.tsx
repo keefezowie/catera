@@ -116,14 +116,16 @@ const isText = (node: ReactNode): node is string | number => typeof node === "st
 
 /**
  * The rounded block that opens a screen. It paints under the status bar and pays that inset itself (unless the demo
- * strip already does), and holds the meta line, the headline, an optional toggle or trailing control, an optional day
+ * strip already does), and holds the meta line, the headline, an optional toggle and trailing control, an optional day
  * arc switch and anything else the screen puts in it. `overlap` leaves room at the bottom for a card that rides up
  * over it. Its fill is `MoodFill`: two stacked layers, Siang and Malam, and the Malam one fades in and out.
  * - A string `title` is set in the `title` variant (30/39), which holds a long, dynamic name at large font scales. A
  *   short fixed headline can opt into `titleVariant="display"` (34/40).
  * - The top row is 48dp on every screen, whether it holds the meta line, a trailing control, the toggle or nothing,
  *   so switching tabs never moves the headline. The toggle's 48dp tabs ride on a 3dp track that overhangs the row
- *   evenly above and below. The meta line carries a fact (a date, the area), never the tab's own name.
+ *   evenly above and below. The meta line carries a fact (a date, the area), never the tab's own name. With both a
+ *   toggle and a trailing control, the toggle comes first and the trailing control (Dapur's settings gear for a helper
+ *   on Menu) sits at the end.
  * - `arc` puts the day arc under the headline as the Siang / Malam switch (`MoodArc`, with each end's title and detail
  *   line). The arc is then the switch, so the toggle is not drawn in the top row even when `toggle` is set.
  * - While its screen is focused it sets the status-bar glyphs for the mood (`statusBarStyle`); once a pushed screen
@@ -202,9 +204,8 @@ export function MoodHeader({
             <View style={{ flexShrink: 0, marginVertical: -TRACK_PADDING }}>
               <MoodToggle />
             </View>
-          ) : trailing != null ? (
-            <View style={{ flexShrink: 0 }}>{trailing}</View>
           ) : null}
+          {trailing != null ? <View style={{ flexShrink: 0 }}>{trailing}</View> : null}
         </View>
         {isText(title) ? (
           <Text variant={titleVariant} accessibilityRole="header" style={{ color: palette.headerText }}>

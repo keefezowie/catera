@@ -85,6 +85,12 @@ export default function TabStack({ segment }: { segment: string }) {
       <Stack.Protected guard={opens("uang")}>
         <Stack.Screen name="uang" options={{ title: t("Uang", "Money") }} />
       </Stack.Protected>
+      {/* Pengaturan belongs to every role: an owner opens it from Usaha, a helper from Menu. Its choice sheets size to
+          their content and draw their own title. They sit under pengaturan/ because a route that sorts before `index`
+          in this shared, guarded folder changes where a guarded cold link and a jump to an unopened tab land. */}
+      <Stack.Screen name="pengaturan" options={contentTitled(t("Pengaturan", "Settings"))} />
+      <Stack.Screen name="pengaturan/tampilan" options={sheetOptions({ detents: "fit", palette })} />
+      <Stack.Screen name="pengaturan/bahasa" options={sheetOptions({ detents: "fit", palette })} />
     </Stack>
   );
 }

@@ -38,6 +38,7 @@ import { uploadPhoto } from "../business/upload";
 import { photoUri } from "../photo";
 import { ReadError } from "../ReadError";
 import { MenuControlsSkeleton, MenuStripSkeleton, MenuWeekSkeleton } from "../skeletons";
+import { SettingsGear } from "../settings/Pengaturan";
 
 export { mealOf } from "./logic";
 
@@ -68,9 +69,16 @@ export async function loadMenus(
  * The first read draws the loaded header itself, its day strip as blocks.
  */
 function MenuTitle() {
-  const { t } = useMobile();
+  const { t, actor } = useMobile();
   // Short and fixed, and the loaded header sets its week range in the display variant, so this one matches it.
-  return <MoodHeader title={t("Menu", "Menu")} titleVariant="display" />;
+  // A helper (staff) has no Usaha, so Menu's header carries the way to Pengaturan; an owner finds it on Usaha.
+  return (
+    <MoodHeader
+      title={t("Menu", "Menu")}
+      titleVariant="display"
+      trailing={actor?.role === "staff" ? <SettingsGear /> : undefined}
+    />
+  );
 }
 
 /** A failed menu read: say so plainly and offer a retry, never an empty week or endless loading. */
@@ -432,6 +440,7 @@ export function MenuWeek() {
         <MoodHeader
           meta={weekLabel}
           toggle={offer?.meal === "both"}
+          trailing={actor?.role === "staff" ? <SettingsGear /> : undefined}
           title={
             // The step buttons' 48dp sets the row; before the packages are known the week has no dates to step
             // through, so the row holds the screen's name at that height until they arrive.

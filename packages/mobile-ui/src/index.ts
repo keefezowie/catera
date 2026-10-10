@@ -54,3 +54,5 @@ export {
 } from "./sheets";
 export * from "./ConfirmSheet";
 export * from "./ActionSheet";
+export * from "./settings/SettingsRows";
+export * from "./settings/ThemeChoice";

@@ -140,6 +140,10 @@ const TASK_SHEETS: Record<string, "form" | "fit"> = {
   "impor-baris": "form",
   tim: "fit",
 };
+/** Pengaturan's choice sheets, in every tab's stack: sheets, not pushed pages. */
+const TAB_SHEETS = ["pengaturan/tampilan", "pengaturan/bahasa"];
+/** Pushed screens every role opens (a helper reaches Pengaturan from Menu), so no tab guards them. */
+const EVERY_ROLE = ["pengaturan"];
 
 function pushedRoutes(dir = path.join(__dirname, "..", "app"), prefix = ""): string[] {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -148,6 +152,7 @@ function pushedRoutes(dir = path.join(__dirname, "..", "app"), prefix = ""): str
     if (entry.isDirectory())
       return pushedRoutes(path.join(dir, entry.name), entry.name.startsWith("(") ? prefix : `${prefix}${entry.name}/`);
     const route = `${prefix}${entry.name.replace(/\.tsx?$/, "")}`;
+    if (TAB_SHEETS.includes(route)) return [];
     return dir.endsWith("(index,pelanggan,menu,usaha)") && TAB_ROOTS.includes(route) ? [] : [route];
   });
 }
@@ -242,8 +247,24 @@ describe("stack headers", () => {
     }
   });
 
+  it("opens Pengaturan for a helper too, with its choice sheets sized to their content", async () => {
+    mockMe.actor = { id: "u-2", role: "staff", name: "Mbak Sari", catererId: "k-1" };
+    mockTabStack = "(menu)";
+    render(<RootLayout />);
+    expect((await screen.findByTestId("header:pengaturan")).props.children).toBe("Pengaturan");
+    // A helper has no Usaha, so none of its screens are in the stack.
+    expect(screen.queryByTestId("header:uang")).toBeNull();
+    for (const route of TAB_SHEETS)
+      expect(mockScreenOptions[route]).toMatchObject({
+        presentation: "formSheet",
+        sheetAllowedDetents: "fitToContents",
+        sheetGrabberVisible: true,
+        headerShown: false,
+      });
+  });
+
   it("gives every pushed screen a tab, so the role guards cover it", () => {
-    expect(Object.keys(SCREEN_TAB).sort()).toEqual(pushedRoutes().sort());
+    expect(Object.keys(SCREEN_TAB).sort()).toEqual(pushedRoutes().filter((r) => !EVERY_ROLE.includes(r)).sort());
   });
 
   it("names the day on the menu screen header", async () => {
