@@ -23,7 +23,7 @@ module.exports = {
     "^@catera/mobile-ui$": "<rootDir>/../../packages/mobile-ui/src/index.ts",
   },
   transformIgnorePatterns: [
-    "node_modules/(?!((jest-)?react-native|react-native-url-polyfill|react-native-reanimated|react-native-safe-area-context|react-native-worklets|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|expo-.*|@expo/.*|react-navigation|@react-navigation/.*|@catera/.*)/)",
+    "node_modules/(?!((jest-)?react-native|react-native-url-polyfill|react-native-reanimated|react-native-safe-area-context|react-native-worklets|@react-native(-community)?|expo(nent)?|@expo(nent)?/.*|expo-.*|@expo/.*|@expo-google-fonts/.*|standard-navigation|react-navigation|@react-navigation/.*|@catera/.*)/)",
   ],
   setupFilesAfterEnv: ["<rootDir>/tests/setup.cjs"],
 };

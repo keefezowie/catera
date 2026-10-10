@@ -106,3 +106,23 @@ it("routes notification taps through the app's link mapper", async () => {
   });
   expect(router.push).toHaveBeenCalledWith("/?date=2026-10-08");
 });
+
+it("hands notification taps to the app's link opener when it has one", async () => {
+  const openLink = jest.fn();
+  render(
+    <MobileProvider runtime={fakeRuntime()} linkMapper={(h) => h.replace("/seller/customers", "/pelanggan")} openLink={openLink}>
+      <Probe loader={async () => "x"} />
+    </MobileProvider>,
+  );
+  await screen.findByText("Halo");
+  const responders = (Notifications as unknown as { __responders: ((r: unknown) => void)[] }).__responders;
+  act(() => {
+    responders[responders.length - 1]({
+      actionIdentifier: "default",
+      notification: { request: { identifier: "n2", content: { data: { href: "/seller/customers" } } } },
+    });
+  });
+  // A tab root: the app selects the tab instead of the provider pushing a second copy of it.
+  expect(openLink).toHaveBeenCalledWith("/pelanggan");
+  expect(router.push).not.toHaveBeenCalled();
+});

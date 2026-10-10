@@ -1,8 +1,10 @@
-import { Redirect } from "expo-router";
+import { useEffect } from "react";
+import { Redirect, useNavigationContainerRef } from "expo-router";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMobile } from "@catera/mobile-core";
 import { tabBarColors, tabLabelStyle, useColors } from "@catera/mobile-ui";
+import { registerNavigation } from "../../src/nav";
 import { tabsForRole, type CatererTab } from "../../src/roles";
 import { RoleGate } from "../../src/RoleGate";
 
@@ -20,10 +22,17 @@ const order = Object.keys(icons) as CatererTab[];
 
 /**
  * The platform's own tab bar, as in the customer app. Every route stays declared so the navigator keeps one shape;
- * the tabs a role may not open (staff: Pelanggan and Usaha) are hidden triggers.
+ * the tabs a role may not open (staff: Pelanggan and Usaha) are hidden triggers. Each trigger is a group, `(menu)`, with
+ * its own stack (`(index,pelanggan,menu,usaha)/_layout.tsx`), so detail screens push inside the tab and the bar stays.
  */
 export default function TabsLayout() {
   const { actor, t } = useMobile();
+  const navigation = useNavigationContainerRef();
+  // goToTab selects a tab by targeting these navigators by key, so it needs the container once the tabs exist; a push
+  // tap that arrived while the session loaded opens then.
+  useEffect(() => {
+    if (actor) registerNavigation(navigation);
+  }, [navigation, actor]);
   const bar = tabBarColors(useColors());
   if (!actor) return <Redirect href="/masuk" />;
   const allowed = tabsForRole(actor.role);
@@ -50,7 +59,7 @@ export default function TabsLayout() {
         }}
       >
         {order.map((name) => (
-          <NativeTabs.Trigger key={name} name={name} hidden={!allowed.includes(name)}>
+          <NativeTabs.Trigger key={name} name={`(${name})`} hidden={!allowed.includes(name)}>
             <NativeTabs.Trigger.Icon
               src={{
                 default: <NativeTabs.Trigger.VectorIcon family={Ionicons} name={icons[name].outline} />,

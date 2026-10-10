@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { View } from "react-native";
 import * as Crypto from "expo-crypto";
-import { Link, router } from "expo-router";
+import { Link } from "expo-router";
 import { errorLabel } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
 import { Button, Field, fontFor, MoodHeader, Screen, Segmented, Text, useColors, useMoodColors } from "@catera/mobile-ui";
+import { goToTab } from "../nav";
 import { e164Indonesia } from "../onboarding";
 
 /** Sign in with the WhatsApp number (SMS code) or email; demo roles only in development. */
@@ -14,7 +15,7 @@ export function Masuk() {
   const mood = useMoodColors();
   // A session that comes back (signal returns, token refreshes) goes straight to the kitchen.
   useEffect(() => {
-    if (actor) router.replace("/");
+    if (actor) goToTab("index");
   }, [actor]);
   const [method, setMethod] = useState<"phone" | "email">("phone");
   const [phone, setPhone] = useState("");
@@ -42,7 +43,7 @@ export function Masuk() {
 
   const finish = async (actor: Parameters<typeof signedIn>[0]) => {
     await signedIn(actor);
-    router.replace("/");
+    goToTab("index");
   };
 
   return (
@@ -132,7 +133,7 @@ export function Masuk() {
                 run(async () => {
                   await runtime.demoLogin(role);
                   await refresh();
-                  router.replace("/");
+                  goToTab("index");
                 })
               }
             />

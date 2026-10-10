@@ -1,5 +1,5 @@
 import { useLocalSearchParams } from "expo-router";
-import { TodayScreen } from "../../src/today/TodayScreen";
+import { TodayScreen } from "../../../src/today/TodayScreen";
 
 export default function TodayRoute() {
   const { date } = useLocalSearchParams<{ date?: string }>();

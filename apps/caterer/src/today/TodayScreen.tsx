@@ -41,6 +41,7 @@ import { jakartaClock } from "./exceptions";
 import { loadCachedDay, saveCachedDay } from "./offline";
 import { SessionCard } from "./SessionCard";
 import { dapurLink } from "../links";
+import { openLink } from "../nav";
 import { ReadError } from "../ReadError";
 
 type LoadedDay = { data: SellerOperationsState; savedAt: string | null };
@@ -518,7 +519,7 @@ function ActionCards({ items }: { items: SellerAttentionItem[] }) {
           </Card>
         );
         return link ? (
-          <PressableRow key={item.id} testID={`attention-${item.id}`} accessibilityRole="link" onPress={() => router.push(route as never)}>
+          <PressableRow key={item.id} testID={`attention-${item.id}`} accessibilityRole="link" onPress={() => openLink(route)}>
             {card}
           </PressableRow>
         ) : (

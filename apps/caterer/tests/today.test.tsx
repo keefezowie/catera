@@ -33,6 +33,8 @@ const pinToday = () =>
   });
 
 jest.mock("expo-router", () => ({ router: { push: jest.fn(), replace: jest.fn() }, Link: () => null }));
+// Links from attention cards open through the app's link opener, which selects a tab for a tab root.
+jest.mock("../src/nav", () => ({ openLink: jest.fn(), goToTab: jest.fn() }));
 jest.mock("expo-print", () => ({ printAsync: jest.fn(async () => undefined) }));
 jest.mock("expo-notifications", () => ({
   setNotificationHandler: jest.fn(),
@@ -777,7 +779,8 @@ describe("attention cards", () => {
     (runtime.api.sellerAttention as jest.Mock).mockResolvedValue(attention("/seller/customers"));
     renderToday(runtime);
     fireEvent.press(await screen.findByRole("link", { name: /Ada urusan pembayaran/ }));
-    expect(router.push).toHaveBeenCalledWith("/pelanggan");
+    expect(require("../src/nav").openLink).toHaveBeenCalledWith("/pelanggan");
+    expect(router.push).not.toHaveBeenCalled();
   });
 
   it("a link card shows a chevron, a plain card does not", async () => {

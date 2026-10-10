@@ -1,7 +1,7 @@
 import { useLocalSearchParams } from "expo-router";
 import { useData, useMobile } from "@catera/mobile-core";
 import { Screen, Text } from "@catera/mobile-ui";
-import { PackageDetail } from "../../src/business/PackageDetail";
+import { PackageDetail } from "../../../../src/business/PackageDetail";
 
 export default function EditPackageRoute() {
   const { id } = useLocalSearchParams<{ id: string }>();

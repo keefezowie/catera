@@ -54,11 +54,14 @@ export const translator = (locale: Locale) => (id: string, en: string) =>
 export function MobileProvider({
   runtime,
   linkMapper,
+  openLink,
   children,
 }: {
   runtime: MobileRuntime;
   /** Maps a server href (e.g. "/seller/schedule?date=…") to an app route. */
   linkMapper: (href: string) => string;
+  /** Opens the mapped route; an app with a stack per tab selects a tab for a tab root instead of pushing it. Default: push. */
+  openLink?: (path: string) => void;
   children: ReactNode;
 }) {
   const [actor, setActor] = useState<Actor | null>(null),
@@ -73,6 +76,8 @@ export function MobileProvider({
   const lastNotification = useRef("");
   const mapLink = useRef(linkMapper);
   mapLink.current = linkMapper;
+  const open = useRef(openLink);
+  open.current = openLink;
   const actorRef = useRef(actor);
   actorRef.current = actor;
   const countOpen = useMemo(() => createOpenCounter(runtime), [runtime]);
@@ -173,7 +178,9 @@ export function MobileProvider({
       const href = r.notification.request.content.data?.href;
       if (typeof href === "string") {
         lastNotification.current = key;
-        router.push(mapLink.current(href) as never);
+        const path = mapLink.current(href);
+        if (open.current) open.current(path);
+        else router.push(path as never);
         void Notifications?.clearLastNotificationResponseAsync();
       }
     };

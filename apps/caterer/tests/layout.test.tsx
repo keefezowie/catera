@@ -11,6 +11,8 @@ const mockMe: { demo: boolean; actor: { id: string; role: string; name: string; 
 const mockStatusBar: { style?: string } = {};
 // When set, the stack also draws the Siang / Malam toggle, the way a screen with a mood header does.
 let mockShowToggle = false;
+// When set, the tabs also render one tab's own stack (the shared group layout) under this segment, so its titles show.
+let mockTabStack: string | null = null;
 const mockNavTheme: { value?: { dark: boolean; colors: Record<string, string> } } = {};
 /** The props the layout hands the native tab bar. */
 const mockNativeTabs: { props?: Record<string, any> } = {};
@@ -35,7 +37,13 @@ jest.mock("expo-router", () => {
   const Screen = ({ name, options }: any) => {
     if (name === "(tabs)") {
       const TabsLayout = require("../app/(tabs)/_layout").default;
-      return <TabsLayout />;
+      const TabStack = require("../app/(tabs)/(index,pelanggan,menu,usaha)/_layout").default;
+      return (
+        <>
+          <TabsLayout />
+          {mockTabStack ? <TabStack segment={mockTabStack} /> : null}
+        </>
+      );
     }
     const resolved = typeof options === "function" ? options({ route: { name, params: mockParams } }) : options;
     if (resolved?.headerShown === false) return null;
@@ -52,6 +60,7 @@ jest.mock("expo-router", () => {
     </View>
   );
   Stack.Screen = Screen;
+  Stack.Protected = ({ guard, children }: any) => (guard ? children : null);
   // The root hands the navigator a theme built from the palette; the library defaults are stood in by plain objects.
   const DefaultTheme = { dark: false, colors: { background: "rgb(242, 242, 242)" } };
   const DarkTheme = { dark: true, colors: { background: "rgb(1, 1, 1)" } };
@@ -59,7 +68,16 @@ jest.mock("expo-router", () => {
     mockNavTheme.value = value;
     return children;
   };
-  return { Stack, DefaultTheme, DarkTheme, ThemeProvider, Redirect: () => null, router: { push: jest.fn(), replace: jest.fn() }, Link: () => null };
+  return {
+    Stack,
+    DefaultTheme,
+    DarkTheme,
+    ThemeProvider,
+    Redirect: () => null,
+    router: { push: jest.fn(), replace: jest.fn() },
+    Link: () => null,
+    useNavigationContainerRef: () => ({ isReady: () => false }),
+  };
 });
 jest.mock("@expo/vector-icons/Ionicons", () => ({ __esModule: true, default: () => null }));
 const mockFonts: { result: [boolean, Error | null] } = { result: [true, null] };
@@ -90,12 +108,19 @@ import { tabBarColors } from "@catera/mobile-ui";
 import RootLayout from "../app/_layout";
 import { runtime } from "../src/runtime";
 
-/** Every file route under app/ that the root stack must name (layouts and tab/auth groups excluded). */
+const TAB_ROOTS = ["index", "pelanggan", "menu", "usaha"];
+
+/**
+ * Every pushed file route under app/: the root stack's (Aktifkan, Impor) and the tab stacks' (in
+ * `(tabs)/(index,pelanggan,menu,usaha)`). Layouts, the auth group and the tab roots, which have no header, are left out.
+ */
 function pushedRoutes(dir = path.join(__dirname, "..", "app"), prefix = ""): string[] {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-    if (entry.name === "_layout.tsx" || entry.name.startsWith("(")) return [];
-    if (entry.isDirectory()) return pushedRoutes(path.join(dir, entry.name), `${prefix}${entry.name}/`);
-    return [`${prefix}${entry.name.replace(/\.tsx?$/, "")}`];
+    if (entry.name === "_layout.tsx" || entry.name === "(auth)") return [];
+    if (entry.isDirectory())
+      return pushedRoutes(path.join(dir, entry.name), entry.name.startsWith("(") ? prefix : `${prefix}${entry.name}/`);
+    const route = `${prefix}${entry.name.replace(/\.tsx?$/, "")}`;
+    return dir.endsWith("(index,pelanggan,menu,usaha)") && TAB_ROOTS.includes(route) ? [] : [route];
   });
 }
 
@@ -112,12 +137,22 @@ describe("demo strip", () => {
 
   it("shows no strip outside demo mode", async () => {
     render(<RootLayout />);
-    await screen.findByTestId("header:pelanggan/[id]");
+    await screen.findByTestId("header:(auth)/daftar");
     expect(screen.queryByText("Demo · data sintetis")).toBeNull();
   });
 });
 
 describe("stack headers", () => {
+  // An owner opens every pushed screen; the root stack and one tab's stack are both drawn.
+  beforeEach(() => {
+    mockMe.actor = { id: "u-1", role: "owner", name: "Bu Rina", catererId: "k-1" };
+    mockTabStack = "(index)";
+  });
+  afterEach(() => {
+    mockMe.actor = null;
+    mockTabStack = null;
+  });
+
   it("titles every pushed route in Indonesian instead of its route path", async () => {
     render(<RootLayout />);
     await screen.findByTestId("header:pelanggan/[id]");

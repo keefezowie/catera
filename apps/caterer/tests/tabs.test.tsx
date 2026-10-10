@@ -10,6 +10,7 @@ const mockNativeTabs: { props?: Record<string, any>; triggers: MockTrigger[] } =
 const mockRedirects: string[] = [];
 jest.mock("expo-router", () => ({
   router: { push: jest.fn(), replace: jest.fn() },
+  useNavigationContainerRef: () => ({ isReady: () => false }),
   Redirect: ({ href }: { href: string }) => {
     mockRedirects.push(href);
     return null;
@@ -91,13 +92,14 @@ it("the Dapur owner's tab bar is the native one with Ionicons, filled when selec
   const Ionicons = require("@expo/vector-icons/Ionicons").default;
   const tabs = mockNativeTabs.triggers.map(readTrigger);
   expect(tabs.map((tab) => [tab.name, tab.hidden])).toEqual([
-    ["index", false],
-    ["pelanggan", false],
-    ["menu", false],
-    ["usaha", false],
+    ["(index)", false],
+    ["(pelanggan)", false],
+    ["(menu)", false],
+    ["(usaha)", false],
   ]);
   expect(tabs.map((tab) => tab.label)).toEqual(["Hari ini", "Pelanggan", "Menu", "Usaha"]);
-  const glyphs: Record<string, string> = { index: "home", pelanggan: "people", menu: "book", usaha: "storefront" };
+  // Each trigger is the tab's group, which holds that tab's own stack.
+  const glyphs: Record<string, string> = { "(index)": "home", "(pelanggan)": "people", "(menu)": "book", "(usaha)": "storefront" };
   for (const tab of tabs) {
     expect(tab.icon).toEqual({
       default: { vector: true, family: Ionicons, name: `${glyphs[tab.name]}-outline` },
@@ -125,11 +127,11 @@ it("staff see only their tabs", async () => {
   await waitFor(() => expect(mockNativeTabs.triggers.length).toBeGreaterThan(0));
   const tabs = mockNativeTabs.triggers.map(readTrigger);
   // Every route stays declared, so the navigator keeps one shape; the ones staff may not open are hidden triggers.
-  expect(tabs.map((tab) => tab.name)).toEqual(["index", "pelanggan", "menu", "usaha"]);
+  expect(tabs.map((tab) => tab.name)).toEqual(["(index)", "(pelanggan)", "(menu)", "(usaha)"]);
   const allowed = tabsForRole("staff");
   expect(allowed).toEqual(["index", "menu"]);
-  expect(tabs.filter((tab) => !tab.hidden).map((tab) => tab.name)).toEqual(allowed);
-  expect(tabs.filter((tab) => tab.hidden).map((tab) => tab.name)).toEqual(["pelanggan", "usaha"]);
+  expect(tabs.filter((tab) => !tab.hidden).map((tab) => tab.name)).toEqual(allowed.map((tab) => `(${tab})`));
+  expect(tabs.filter((tab) => tab.hidden).map((tab) => tab.name)).toEqual(["(pelanggan)", "(usaha)"]);
   expect(tabs.filter((tab) => !tab.hidden).map((tab) => tab.label)).toEqual(["Hari ini", "Menu"]);
 });
 

@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { View } from "react-native";
 import * as Crypto from "expo-crypto";
-import { router } from "expo-router";
 import { areaOptions, errorLabel } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
 import { Button, Chip, Field, Screen, Text, useColors } from "@catera/mobile-ui";
+import { goToTab } from "../nav";
 import { catererSlug, e164Indonesia } from "../onboarding";
 
 /** Sign-up: business name, WhatsApp number (verified by SMS) and kitchen area. */
@@ -56,7 +56,7 @@ export function Daftar() {
         areas: [area],
       });
       await signedIn(actor);
-      router.replace("/");
+      goToTab("index");
     });
 
   return (

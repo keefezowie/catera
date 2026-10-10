@@ -1,6 +1,5 @@
 import { useRef, useState } from "react";
 import { TextInput, View } from "react-native";
-import { router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 import { File } from "expo-file-system";
@@ -8,6 +7,7 @@ import { earliestImportStart, errorLabel, jakartaDay, normalizeCustomerPhone } f
 import { plural, useData, useMobile } from "@catera/mobile-core";
 import { Button, Card, Chip, FONT, Field, fontFor, PressableRow, Screen, Sheet, Text, useColors } from "@catera/mobile-ui";
 import { recheck, toImportRow, type AssistantRow } from "./rows";
+import { goToTab } from "../nav";
 import { fitsUpload, MAX_IMAGES, shrinkPhoto } from "./images";
 
 type Attachment =
@@ -173,7 +173,7 @@ export function ImportAssistant() {
       {saved ? (
         <Card tone="sage">
           <Text variant="heading">{t(`${saved} pelanggan tersimpan`, `${plural(saved, "customer")} saved`)}</Text>
-          <Button variant="text" label={t("Lihat Pelanggan", "View customers")} onPress={() => router.replace("/pelanggan" as never)} />
+          <Button variant="text" label={t("Lihat Pelanggan", "View customers")} onPress={() => goToTab("pelanggan")} />
         </Card>
       ) : null}
       {rows === null ? (
