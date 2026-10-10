@@ -1,6 +1,6 @@
 # Catera native apps, Phase F: loading, launch, settings, sheets, feedback, macros and import photos
 
-**Date:** 2026-10-10 · **Branch:** `v2` (main tree `D:\Project\Catera\catera`, starting at `6fcbaa66`) · **Status:** canvas approved; awaiting written-spec review
+**Date:** 2026-10-10, revised 2026-10-11 (artwork delivered) · **Branch:** `v2` (main tree `D:\Project\Catera\catera`, starting at `6fcbaa66`) · **Status:** canvas approved; awaiting written-spec review
 **Scope:** `apps/customer`, `apps/caterer` (Catera Dapur), `packages/mobile-ui`, `packages/mobile-core`, `packages/design-tokens`, `packages/domain` (read only unless named), `packages/brand` (manifest records only), one database command. Web is out of scope.
 **Inputs:** [research](../research/2026-10-10-native-phase-f-mobbin.md), [antislop audit 008](../../../anti-slop/audit-008-2026-10-10.md) (findings 1 to 17, proposals A to H, owner decisions), design canvas [Catera Phase F directions](https://claude.ai/artifact/H6rGFNL1QBBhtvRa8Q8k2R). The canvas is a reference, not a pixel contract; this spec wins where they differ.
 
@@ -15,6 +15,8 @@ The owner's Phase F request (2026-10-10) names eight problems: generic loading, 
 4. **Dapur dial:** MOTION 2 (was 1). ENERGY 1 and RHYTHM 1 stay. The customer dials stay ENERGY 2 / RHYTHM 2 / MOTION 2.
 5. **Artwork:** both routes. Motion pieces are drawn in code (`react-native-svg`, animated with Reanimated). Illustrated pieces get written briefs; the owner generates them elsewhere and the build swaps them in. Existing art stands in until then.
 6. The canvas boards are approved as the direction ("the others you can proceed").
+7. **Artwork delivered (2026-10-11):** `packages/brand/assets/phase-f/` holds 13 finished stills, 10 aligned rig layers with `rig.json`, a vector `confetti.json`, the untouched generator originals and full provenance (`generation-records.json`, `processing-records.json`, `manifest.json`). The root PNGs are processed transparent derivatives of the originals (dust removal, centring, margins, resampling, no upscaling), approved by the owner on 2026-10-11; they are never described as untouched masters. Mascot animations arrive as the brief's layered-rig alternative, not as Lottie.
+8. **Skills (2026-10-11):** every plan, implementer, reviewer and design pass also invokes `design-taste-frontend` and `impeccable`, on top of `building-native-ui`, `antislop` (core, ui, layoutmobile), `apple-design` and `material-3`. `design-taste-frontend` declares native mobile out of its scope (its section 13), so its general rules apply (skeletons over spinners, motivated motion, contrast, copy self-audit, no em dashes) and its web-stack rules do not.
 
 ### Default taken in this spec (owner may override at review)
 - **Decision C, splash verification:** the splash is configured and covered by config tests, but not seen on a device in this phase. Expo Go shows its own launch screen, and this machine cannot build a development client (no JDK or Android SDK). It is listed as unverified, like Phase E's predictive back. An EAS development build, if the owner supplies the mobile credentials, would close it.
@@ -63,14 +65,15 @@ Platform `RefreshControl` (tint `forest`) on Beranda, Jadwal, Paket saya, Dapur 
 - Truth: cached content is the last confirmed read and is labelled as such until refreshed; nothing is shown that the cache does not hold.
 
 ### 3.2 Hand-off beat
-On a cold start only (not on resume), after the splash hides, a `LaunchCover` with the same canvas and the same mark sits above the first screen for one beat: the mark scales 1 to 1.04 and fades out over `feature` 320ms while three code-drawn sparkles (section 7.1) drift outward and fade, revealing the first screen underneath, which is already mounted. It never delays data or input (input passes through as soon as it starts fading). Skipped under reduced motion and when the cover's art is not decoded.
+On a cold start only (not on resume), after the splash hides, a `LaunchCover` with the same canvas and the same splash mark PNG at the same size and position sits above the first screen for one beat: the mark scales 1 to 1.04 and fades out over `feature` 320ms while three code-drawn sparkles (section 7.1) drift outward and fade, revealing the first screen underneath, which is already mounted. The delivery has no lid or eye parts registered to the splash mark, so the cover does not open the lid or wink; that stays out of scope rather than mixing two drawings. It never delays data or input (input passes through as soon as it starts fading). Skipped under reduced motion and when the cover's art is not decoded.
 
 ### 3.3 Splash configuration
-- Both apps, `expo-splash-screen` plugin:
-  - Light: `backgroundColor` `#FDFAF3` (theme `canvas`), `image` `packages/brand/assets/logo-forest.png`.
-  - Dark: `dark.backgroundColor` `#151514`, `dark.image` `packages/brand/assets/logo-light.png`.
-  - `imageWidth` 176 (iOS); Android sized so the whole lockup sits inside the Android 12+ circular icon safe zone (the system masks the splash icon to a circle). If a development build shows clipping, Android switches to the mark-only mascot (`packages/brand/assets/mascot.png`, real alpha) at the same width; this fallback is decided on the first device check.
-- Android adaptive icon: `foregroundImage` `packages/brand/assets/adaptive-foreground.png` on `backgroundColor` `#163D2E`; the iOS and legacy icon stay `app-icon.png`.
+- Both apps, `expo-splash-screen` plugin (the delivered marks replace the logo lockups chosen on the canvas; they are mark-only and drawn inside the Android 12+ circular safe zone, which the lockups were not):
+  - Light: `backgroundColor` `#FDFAF3` (theme `canvas`), `image` `packages/brand/assets/phase-f/splash-mark-light.png`.
+  - Dark: `dark.backgroundColor` `#151514`, `dark.image` `packages/brand/assets/phase-f/splash-mark-dark.png`.
+  - `imageWidth` 200 on both platforms (the marks carry their own safe padding, so the visible mascot is about 120 wide); the first device check may tune it.
+- Android adaptive icon: `foregroundImage` `phase-f/adaptive-foreground.png` on `backgroundColor` `#163D2E`, `monochromeImage` `phase-f/icon-monochrome.png`.
+- iOS icon: `icon` stays `app-icon.png` for light; the iOS 18 dark and tinted appearances use `phase-f/icon-ios-dark.png` and `phase-f/icon-ios-tinted.png` through the app config's per-appearance iOS icon setting (config test only; unverified on a device).
 - `packages/brand/manifest.brand.json` and DESIGN.md record which derivatives are used where, as derivatives.
 - Verification: a config test asserts both app configs; a device check is a release item (Decision C default).
 
@@ -150,10 +153,18 @@ The custom `Sheet` component is deleted once its last caller moves.
 - Messages (exact copy): "Disimpan" + "Lihat" (save package), "Dihapus dari simpanan" + "Urungkan", "Alamat disimpan", "Alamat dihapus" (no undo: deleting an address already asks first), "Ulasan terkirim", "Laporan terkirim" + "Lihat", "Permintaan bantuan terkirim", "Hari dipindah ke {Senin 12 Okt}", "Menu {Selasa} tersimpan" (customer and Dapur), "Paket diterbitkan" (Dapur), "Undangan dibagikan" (Dapur), "Tampilan: {Gelap}", "Bahasa: {Indonesia}". Errors use the app's existing error text with tone `error`.
 
 ### 6.2 Success beat
-- `SuccessBeat({ variant: "ring" | "illustration", illustration?, title, children })`: a code-drawn ring (`SuccessRing`, 7.1) grows from 0.35 to 1 over 420ms while the check stroke draws, then the illustration (default the existing `confirmation.png`, real alpha) pops in with a spring (scale 0.6 to 1, damping ratio about 0.7), five code-drawn sparkles burst outward and fade (600ms), and the facts below fade up as one block (`content` 220ms, starting at about 620ms). One `success` haptic on the same frame as the ring. Whole beat under 1s; static final frame under reduced motion.
+- `SuccessBeat({ title, children })` plays the delivered success rig (`rig.json` `successRig`, layers stacked at one origin and never trimmed) over a code-drawn `#FFEFD9` disc (`SuccessRing`, 7.1) that grows from 0.35 to 1 over 420ms:
+  - 0 to 120ms: the body squashes to 96% height about `bodyPivot`.
+  - 120 to 420ms: the body hops about 6% of its height; the lid rotates open about `lidHinge`; the arms rise with the body.
+  - 300 to 620ms: the badge pops about `badgePivot` (scale 0.6 to 1.07 to 1); its check is already drawn in the layer.
+  - 420 to 700ms: the body lands (98%, then 100%).
+  - 450 to 1050ms: `rig-sparkles.png` scales from 0.8 to 1 and fades out; five code-drawn sparkles burst outward.
+  - From about 620ms the facts below fade up as one block (`content` 220ms).
+  - One `success` haptic on the first frame. The beat ends on the rig's own resting frame (it does not swap to `mascot-merayakan.png`, which is a separately generated drawing, so nothing jumps).
+  - Reduced motion: the static `mascot-merayakan.png` and the facts, no movement, the haptic kept.
 - It plays once on the transition into success while the screen is open (ruling D8 kept: reopening an already paid checkout shows the final frame with no beat and no haptic).
 - Uses: "Pembayaran diterima" (Bayar), a renewal paid (same screen), Dapur "Paket diterbitkan" (the first time a package is published: full beat; later saves: toast), Dapur import saved ("{n} pelanggan tersimpan", replacing the inline sage card).
-- Confetti: only on a customer's first-ever paid plan and a caterer's first published package, palette colours only, 1.2s, then gone. The "first" fact comes from the read (a customer with no earlier paid plan; a caterer with no earlier published package), never from the device alone.
+- Confetti: the delivered vector `phase-f/confetti.json` (60fps, 1.2s, 24 pieces in palette colours, ends fully transparent) through `lottie-react-native` (installed with `npx expo install`; included in Expo Go), only on a customer's first-ever paid plan and a caterer's first published package. Not shown under reduced motion. The "first" fact comes from the read (a customer with no earlier paid plan; a caterer with no earlier published package), never from the device alone.
 
 ### 6.3 Heart
 `SaveHeart` replaces the heart `RoundButton`: on save, the filled heart (sunrise ink) scales 1 to 1.22 to 1 on a spring and five small dots (sunrise ink and sunrise) burst out and fade within 380ms, `select` haptic, toast "Disimpan · Lihat". On unsave: the outline returns at once, no haptic, toast "Dihapus dari simpanan · Urungkan". The optimistic update and rollback of `useSaved` stay. Static swap under reduced motion.
@@ -168,24 +179,40 @@ The custom `Sheet` component is deleted once its last caller moves.
 ### 7.1 Code-drawn (built in this phase, `packages/mobile-ui/src/brand/`)
 | Piece | Use | Notes |
 | --- | --- | --- |
-| `SuccessRing` | Success beat | Sunrise-ink ring on `#FFEFD9` disc with a cream check; stroke draw by `strokeDashoffset` driven from Reanimated |
+| `SuccessRing` | Success beat | A `#FFEFD9` disc with a 3dp sunrise-ink ring behind the success rig; grows by transform only (the check lives in the delivered badge layer) |
 | `Sparkle` (four-point star and dot) | Beat burst, launch hand-off, heart burst | Sunrise ink, sunrise, forest only |
 
 These are interface objects, recorded in DESIGN.md as code-drawn like the day arc and rantang, not as generated artwork.
 
-### 7.2 Briefs for illustrated pieces (written in this phase, generated by the owner)
-`docs/brand/phase-f-artwork-briefs.md` describes four mascot poses, each a 1254×1254 PNG with real alpha drawn as alpha (not segmented), no text, the approved mascot style and palette (forest `#163D2E`, cream `#FFF7E9`, sunrise `#F47B2A`, sunrise ink `#9B4309`, charcoal outline), the use, the stand-in until delivery and a prompt:
-1. **Merayakan** (celebrating): lid open, arms up, holding a check badge; success beats.
-2. **Membaca** (reading): holding a paper list with a small magnifier; the import assistant.
-3. **Tidur** (resting): lid closed, eyes closed, small "z"; empty states with nothing scheduled.
-4. **Bingung** (puzzled): lid slightly ajar, one eyebrow up; offline and error states.
-When a file arrives, it goes into `packages/brand/assets/` with a manifest record that states how it was made, and replaces its stand-in in one small task. Until then: `confirmation.png` for success, `MascotLoading` for reading, and the existing empty and error states.
+### 7.2 Delivered artwork (2026-10-11) and where it goes
+Briefs: [docs/brand/phase-f-artwork-briefs.md](../../brand/phase-f-artwork-briefs.md). Delivery and provenance: `packages/brand/assets/phase-f/README.md`.
+
+| File | Used for |
+| --- | --- |
+| `splash-mark-light.png`, `splash-mark-dark.png` | Native splash and `LaunchCover` (3.2, 3.3) |
+| `adaptive-foreground.png`, `icon-monochrome.png`, `icon-ios-dark.png`, `icon-ios-tinted.png` | App icons (3.3) |
+| Success rig (`rig-body`, `rig-lid`, `rig-badge`, `rig-arms-up`, `rig-eyes-open`, `rig-eyes-closed`, `rig-sparkles`) | `SuccessBeat` (6.2) |
+| `mascot-merayakan.png` | `SuccessBeat` under reduced motion; Dapur "Semua beres hari ini" |
+| Reading rig (`rig-reading-body`, `rig-reading-eyes`, `rig-reading-magnifier`) and `mascot-membaca.png` (reduced motion) | `MascotReading` in the import assistant (9): magnifier rotates ±4° about its grip, eyes follow, a code-drawn sunrise highlight on the paper line, a blink per eye about its own centre, per `rig.json` `readingRig` |
+| `mascot-tidur.png` | Empty states with nothing scheduled: Beranda with no delivery today and nothing next, Jadwal month with no meals, Dapur Hari ini with no session, Notifikasi with no updates |
+| `mascot-bingung.png` | Offline and failed reads: "Belum bisa terhubung", "Belum bisa memuat" states with "Coba lagi" |
+| `mascot-melambai.png` | Sign-in, the claim link preview, `EmptyHome` ("Mau makan apa minggu ini?") |
+| `mascot-mencari.png` | Jelajah with no results for a filter or search, an empty Disimpan |
+| `mascot-memasak.png` | Dapur after "Mulai masak" while the session is cooking (the count card's side illustration) |
+| `confetti.json` | First-milestone confetti (6.2) |
+
+Rules for every use:
+- **One optical size.** The stills carry different amounts of empty space (the P1 poses sit smaller in their canvas than the P2 poses). `packages/brand/phaseF.ts` records each still's visible box (measured from alpha by a script, never typed by hand), and a shared `MascotArt({ pose, size })` in `packages/mobile-ui` crops the transparent padding so every pose renders at the same visible height for a given `size`. Rig layers are never trimmed (they must stay registered).
+- **Runtime copies.** The 1254px files are too heavy to bundle (about 12 MB in total). A script in `packages/brand` writes downscaled runtime copies (stills 600px, rig layers 600px, splash and icon files untouched) into `packages/brand/assets/phase-f/runtime/`, with hashes in `processing-records.json`; downscaling only, never upscaling, recorded as derivatives. The apps import only `runtime/`.
+- **Size and placement.** Empty and error states: 120pt `MascotArt` above the title, centred, never beside a photo of food. Success: 180pt. Nothing else in the app uses mascot art (DESIGN.md: food photography leads; the mascot is occasional warmth).
+- **Dark theme.** Every still was reviewed on `#151514` and `#163D2E` by the delivery's QA; the app shows the same files in both themes.
+- Mascot art is decorative for screen readers (`accessible={false}`); the state's text carries the meaning.
 
 ## 8. Macros (item 5; finding 9)
 
 Nothing was deleted from the data: `v1.packages.offer->'nutrition'` (`caloriesKcal`, `proteinG`, `carbsG`, `fatG`, each a number or a `{min, max}` range) is in the schema, the API and `packages/domain` (`packageNutrition`, `nutritionSummary`, `nutritionMetrics`, `nutritionSchema`). The native apps stopped showing and writing it.
 
-- **Customer package detail:** a "Gizi per porsi" section after the package contents: the filled metrics as tiles (iOS two by two; Android four in a row, wrapping at large text), values tabular, ranges as "580–640", the units "kkal" and "g", and the caption "Perkiraan dari katering. Bisa berbeda tiap menu." A metric the caterer left empty is not shown; with none filled, no section. Under the package name, "{kalori} kkal · {protein} g protein per porsi" when both exist (canvas `Gizi`).
+- **Customer package detail:** a "Gizi per porsi" section after the package contents: the filled metrics as tiles (iOS two by two; Android four in a row, wrapping at large text), values tabular, ranges as "580–640", the units "kkal" and "g", and the caption "Perkiraan dari katering. Bisa berbeda tiap menu." A metric the caterer left empty is not shown; zero is a value and is shown as "0 g" (PRODUCT.md, Package contents); with none filled, no section. Under the package name, "{kalori} kkal · {protein} g protein per porsi" when both exist (canvas `Gizi`).
 - **Jelajah rows:** "± {kalori} kkal" after the price line when present.
 - **Dapur package editor:** an optional "Gizi per porsi (opsional)" section with a "Pakai rentang" switch, Kalori (kkal) as one field or two ("sampai"), Protein, Karbo and Lemak (g) (canvas `GiziEditor`); numeric keyboards; validated by `nutritionSchema` (whole numbers, min not above max); "Isi kalau kamu tahu. Pelanggan melihatnya sebagai perkiraan per porsi; kolom kosong tidak ditampilkan." `quickOffer` sends the values; "Salin jadi paket baru" carries them; the Dapur package view shows them.
 - **Data:** the demo seed already fills all six demo packages. The hosted catalogue was cleaned with `nutrition: null` on 2026-09-16; Catera never estimates macros, so hosted packages show none until a caterer enters them (web or Dapur). A read-only check of the hosted data is a release note, not a task.
@@ -195,7 +222,7 @@ Nothing was deleted from the data: `v1.packages.offer->'nutrition'` (`caloriesKc
 - Keep the picked `uri` (`Attachment` gains `uri`; `shrinkPhoto` returns it).
 - "Lampiran · {n} dari 6" label, then a wrapping row of 76dp thumbnails (`expo-image`, radius 12, `sage` ground while decoding, cover fit) with a 28dp remove badge on a 48dp touch target ("Hapus foto {i}"), each labelled "Foto {i} dari {n}" for screen readers; tapping a thumbnail opens it full screen (a `fullScreenModal` route with pinch-free fit, Close). An "+ Foto" dashed tile ends the row while under six.
 - PDF and spreadsheets: a row with a document icon, the file name and remove (canvas `ImportPhotos`).
-- While the assistant reads: `MascotLoading` "Membaca daftar pelanggan…" with "{n} foto dan {m} file" under it, in place of the button.
+- While the assistant reads: `MascotReading` (7.2) with "Membaca daftar pelanggan…" and "{n} foto dan {m} file" under it, in place of the button.
 - A new thumbnail enters with `enterRow`; a removed one leaves with `exitRow`.
 
 ## 10. Dials and motion rules (DESIGN.md changes)
@@ -215,7 +242,7 @@ Before any motion task: align `react-native-worklets` with what `react-native-re
 - Not verified on a device: anything on iOS (no Mac), the native splash on either platform (Decision C default), and the Android 12 splash mask.
 
 ## 13. Out of scope
-Web; new raster artwork made by Catera (briefs only); predictive back; a sliding Android tab bar; personal nutrition targets, rings or percentages; editing an existing published package in Dapur (Dapur still only creates and copies); push content changes.
+Web; new raster artwork made in this phase (the delivered set is the artwork); lid or wink motion on the launch cover; predictive back; a sliding Android tab bar; personal nutrition targets, rings or percentages; editing an existing published package in Dapur (Dapur still only creates and copies); push content changes.
 
 ## 14. Risks
 - **Form sheets in Expo Go on Android.** react-native-screens 4.26 ships the Android form sheet, but keyboard handling and `fitToContents` with dynamic content are newer than the stack. Mitigation: the first sheet task (Ada masalah) is the spike; if a check fails on the emulator, the task stops and reports before the rest move.
@@ -236,8 +263,8 @@ Web; new raster artwork made by Catera (briefs only); predictive back; a sliding
 | F6 Pengaturan, both apps | 4 | F1, F5 | opus |
 | F7 Customer sheets and action sheets | 5 (customer rows) | F1 | opus |
 | F8 Dapur sheets and confirm sheets | 5 (Dapur rows) | F7 (helpers proven) | opus |
-| F9 Feedback: `SuccessRing`, `Sparkle`, `SuccessBeat`, `SaveHeart`, toasts wired, insert/remove motion | 6, 7.1 | F1 | opus |
+| F9 Feedback: `SuccessRing`, `Sparkle`, `SuccessBeat` on the success rig, confetti, `SaveHeart`, toasts wired, insert/remove motion | 6, 7.1 | F1, F12 | opus |
 | F10 Macros: customer display, Dapur editor | 8 | none | opus |
-| F11 Import previews and reading mascot | 9 | F1 | opus |
-| F12 Artwork briefs | 7.2 | none | opus |
+| F11 Import previews and `MascotReading` | 9 | F1, F12 | opus |
+| F12 Artwork integration: commit the delivery, runtime copies, `phaseF.ts` visible boxes, `MascotArt`, `MascotReading`, the success rig, empty and error states with their poses | 7.2 | F1 | opus (script: sonnet) |
 | F13 Gate: emulator, DESIGN.md (one opus dispatch), MASCOT-MOTION.md, audit 008 follow-up, next-phase kickoff | all | all | opus |
