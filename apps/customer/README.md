@@ -8,20 +8,20 @@ Four tabs (`app/(tabs)`):
 
 | Tab | Route | Screen |
 |---|---|---|
-| Beranda | `/` | `src/today/Beranda.tsx` — today's plate, the next days, "Pilih menu {hari}" when a menu choice is due, the renewal card, the package line and a one-time review |
-| Jadwal | `/jadwal` | `src/schedule/Jadwal.tsx` — month grid across packages and the chosen day's meals |
-| Jelajah | `/jelajah` | `src/discover/Jelajah.tsx` — area, search, four chips, photo cards with a heart |
-| Akun | `/akun` | `src/account/Akun.tsx` — name and phone, active packages, Alamat, Disimpan, Riwayat pembayaran, Bantuan dan laporan, Notifikasi (Aktif/Nonaktif), Bahasa, Keluar |
+| Beranda | `/` | `src/today/Beranda.tsx`: today's plate, the next days, "Pilih menu {hari}" when a menu choice is due, the renewal card, the package line and a one-time review |
+| Jadwal | `/jadwal` | `src/schedule/Jadwal.tsx`: month grid across packages and the chosen day's meals |
+| Jelajah | `/jelajah` | `src/discover/Jelajah.tsx`: area, search, four chips, photo cards with a heart |
+| Akun | `/akun` | `src/account/Akun.tsx`: name and phone, active packages, Alamat, Disimpan, Riwayat pembayaran, Bantuan dan laporan, Notifikasi (Aktif/Nonaktif), Bahasa, Keluar |
 
-Pushed screens: `paket/[id]` (package), `beli/[id]` and `renew/[id]` (one-screen buy/renew), `bayar/[id]` (QRIS/VA), `hari/[id]` (a day, Ubah hari sheet), `masalah/[id]` (Ada masalah), `bantuan`, `pilih-menu/[id]` (customer-choice menus), `claim/[token]`, `alamat`, `pembayaran`, `notifications`, `disimpan`, `login` (Masuk: phone code first, email second), `register`, `recover` and `auth/callback`.
+Pushed screens: `subscriptions/[id]` (one plan and what comes next), `paket/[id]` (package), `beli/[id]` and `renew/[id]` (one-screen buy/renew), `bayar/[id]` (QRIS/VA), `hari/[id]` (a day, Ubah hari sheet), `masalah/[id]` (Ada masalah), `bantuan`, `pilih-menu/[id]` (customer-choice menus), `claim/[token]`, `alamat`, `pembayaran`, `notifications`, `disimpan`, `login` (Masuk: phone code first, email second), `register`, `recover` and `auth/callback`.
 
-Redirect stubs exist only for hrefs the server or older links still emit: `/subscriptions/<id>` (→ Jadwal), `/subscriptions/<id>/menu` (→ Pilih menu), `/checkout/<id>` (→ Beli or Perpanjang), `/payment/<id>` (→ Bayar), `/package/<id>` (→ Paket), `/saved`, `/addresses` and `/discover`. Push taps and notification rows go through `customerLink` in `src/links.ts`, the one mapper from server hrefs to app routes (it also maps `/deliveries/<id>`, `/packages/<id>`, `/calendar`, `/support`, `/account` and the old web anchors).
+Redirect stubs exist only for hrefs the server or older links still emit: `/subscriptions/<id>/menu` (→ Pilih menu), `/checkout/<id>` (→ Beli or Perpanjang), `/payment/<id>` (→ Bayar), `/package/<id>` (→ Paket), `/saved`, `/addresses` and `/discover`. Push taps and notification rows go through `customerLink` in `src/links.ts`, the one mapper from server hrefs to app routes (it also maps `/deliveries/<id>`, `/packages/<id>`, `/calendar`, `/support`, `/account` and the old web anchors).
 
 Folders in `src/`:
 
-- `runtime.ts` — the one `createMobileRuntime` (API, Supabase session in SecureStore, `catera.*` keys) and `shell.tsx` — `MobileProvider`, which owns the session, commands, realtime, push registration and push-tap routing.
-- `today`, `schedule`, `discover`, `buy`, `help`, `claim`, `account` — one folder per area, built on `@catera/mobile-core` (`useMobile`, `useData`) and `@catera/mobile-ui` (`Text`, `Button`, `Field`, `Card`, `Sheet`, `Screen`, `colors`).
-- `auth.ts` — `nativeReturnPath`, the allow-list for where sign-in returns (`next`).
+- `runtime.ts`: the one `createMobileRuntime` (API, Supabase session in SecureStore, `catera.*` keys). `shell.tsx`: `AppProviders`, which wraps `MobileProvider` from `@catera/mobile-core`; that provider owns the session, commands, realtime, push registration and push-tap routing.
+- `today`, `tomorrow`, `schedule`, `plan`, `discover`, `buy`, `help`, `claim`, `account`: one folder per area, built on the workspace packages in `packages/`: `@catera/domain` (the rules, dates and labels, shared with Catera Dapur and the web), `@catera/mobile-core` (`useMobile`, `useData`) and `@catera/mobile-ui` (`Text`, `Button`, `Field`, `Card`, `Sheet`, `Screen`, `useColors`), both shared with Catera Dapur (`apps/caterer`), and `@catera/design-tokens` (the light, dark and mood palettes that `@catera/mobile-ui` draws with).
+- `auth.ts`: `nativeReturnPath`, the allow-list for where sign-in returns (`next`).
 
 ## Environment
 
