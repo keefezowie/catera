@@ -1,15 +1,17 @@
-import { File, Paths } from "expo-file-system";
+import { Directory, File, Paths } from "expo-file-system";
 import type { CustomerState } from "@catera/domain";
 
 export type CachedCustomer = { savedAt: string; data: CustomerState };
 
-const fileFor = (key: string) =>
-  new File(Paths.document, `catera-customer-${key.replace(/[^a-z0-9-]/gi, "_")}.json`);
+const PREFIX = "catera-customer-";
 
-/** Keeps the last good customer read on the phone so Beranda still opens without signal. */
-export async function saveCachedCustomer(key: string, value: CachedCustomer): Promise<void> {
+/** One file per account: `actorId` keys it, so another person signed in on this phone never reads it. */
+const fileFor = (actorId: string) => new File(Paths.document, `${PREFIX}${actorId.replace(/[^a-z0-9-]/gi, "_")}.json`);
+
+/** Keeps the last good customer read on the phone so Beranda paints at launch and still opens without signal. */
+export async function saveCachedCustomer(actorId: string, value: CachedCustomer): Promise<void> {
   try {
-    const file = fileFor(key);
+    const file = fileFor(actorId);
     if (!file.exists) file.create();
     file.write(JSON.stringify(value));
   } catch {
@@ -17,11 +19,21 @@ export async function saveCachedCustomer(key: string, value: CachedCustomer): Pr
   }
 }
 
-export async function loadCachedCustomer(key: string): Promise<CachedCustomer | null> {
+export async function loadCachedCustomer(actorId: string): Promise<CachedCustomer | null> {
   try {
-    const file = fileFor(key);
+    const file = fileFor(actorId);
     return file.exists ? (JSON.parse(await file.text()) as CachedCustomer) : null;
   } catch {
     return null;
+  }
+}
+
+/** Forgets every kept Beranda on this phone; called whenever the session ends (logout, sign-out, an expired session). */
+export async function clearCachedCustomer(): Promise<void> {
+  try {
+    for (const entry of new Directory(Paths.document).list())
+      if (entry instanceof File && entry.name.startsWith(PREFIX)) entry.delete();
+  } catch {
+    // Nothing kept, or the folder cannot be read: there is nothing to show either.
   }
 }

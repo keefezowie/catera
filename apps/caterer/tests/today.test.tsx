@@ -70,7 +70,11 @@ const renderToday = (runtime: MobileRuntime) =>
     </MobileProvider>,
   );
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  // Hari ini now paints the kept day first (Phase F task 4), so a kept day one test sets must not reach the next.
+  (offline.loadCachedDay as jest.Mock).mockResolvedValue(null);
+});
 
 /**
  * The "…" button of delivery-order row `n` (route order: 1 Bu Sari Wulandari, 2 Kantor PT Sinar Rasa, 3 Keluarga

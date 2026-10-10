@@ -5,13 +5,25 @@ import { MobileProvider, useMobile, type MobileRuntime } from "@catera/mobile-co
 import { Button, Text, useColors } from "@catera/mobile-ui";
 import { customerLink } from "./links";
 import { openLink } from "./nav";
+import { clearCachedCustomer } from "./today/offline";
 
 /** The customer app's one provider: MobileProvider owns the session, commands, realtime,
- * push registration and push-tap routing (customerLink maps the href, openLink opens it in the tabs). */
-export function AppProviders({ runtime, children }: { runtime: MobileRuntime; children: ReactNode }) {
+ * push registration and push-tap routing (customerLink maps the href, openLink opens it in the tabs). Signing out
+ * forgets the cached Beranda, so the next person on this phone never sees it. `overlay` (the launch hand-off) sits
+ * above the gate, so it stays mounted whatever the gate shows. */
+export function AppProviders({
+  runtime,
+  overlay,
+  children,
+}: {
+  runtime: MobileRuntime;
+  overlay?: ReactNode;
+  children: ReactNode;
+}) {
   return (
-    <MobileProvider runtime={runtime} linkMapper={customerLink} openLink={openLink}>
+    <MobileProvider runtime={runtime} linkMapper={customerLink} openLink={openLink} onSignedOut={clearCachedCustomer}>
       <StartupGate>{children}</StartupGate>
+      {overlay}
     </MobileProvider>
   );
 }

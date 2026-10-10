@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { AppState, Platform } from "react-native";
+import { AppState, Platform, type AppStateStatus } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import * as Crypto from "expo-crypto";
 import type * as NotificationTypes from "expo-notifications";
@@ -32,7 +32,15 @@ export type MobileContextValue = {
   runtime: MobileRuntime;
   actor: Actor | null;
   demo: boolean;
+  /**
+   * An actor or a definite signed-out answer is known, so screens can render. With a stored actor and token it turns
+   * true at boot, before `me()` answers; without a stored session it waits for `me()`.
+   */
   ready: boolean;
+  /** The stored actor, token and locale have been read from the phone (or the read failed). */
+  booted: boolean;
+  /** A `me()` is in flight. */
+  refreshing: boolean;
   error: string;
   locale: Locale;
   t: (id: string, en: string) => string;
@@ -50,11 +58,33 @@ const Context = createContext<MobileContextValue>(null!);
 export const translator = (locale: Locale) => (id: string, en: string) =>
   locale === "id" ? id : en;
 
+/** The failure line for a session read: the code's own label, or the connection line. */
+function sessionError(code: string, locale: Locale): string {
+  if (!code) return "";
+  return (
+    errorLabel(code, locale) ||
+    translator(locale)(
+      "Tidak dapat terhubung. Periksa koneksi dan coba lagi.",
+      "Unable to connect. Check your connection and try again.",
+    )
+  );
+}
+
+function parseActor(saved: string | null): Actor | null {
+  if (!saved) return null;
+  try {
+    return JSON.parse(saved) as Actor;
+  } catch {
+    return null;
+  }
+}
+
 /** Session, commands, live refresh and push routing shared by the Catera apps. */
 export function MobileProvider({
   runtime,
   linkMapper,
   openLink,
+  onSignedOut,
   children,
 }: {
   runtime: MobileRuntime;
@@ -62,12 +92,19 @@ export function MobileProvider({
   linkMapper: (href: string) => string;
   /** Opens the mapped route; an app with a stack per tab selects a tab for a tab root instead of pushing it. Default: push. */
   openLink?: (path: string) => void;
+  /**
+   * Forgets what this phone kept for the account (the app's cached first screen) whenever the session ends: a logout,
+   * a sign-out event, or the server answering that the session is gone. Failures are ignored.
+   */
+  onSignedOut?: () => Promise<void> | void;
   children: ReactNode;
 }) {
   const [actor, setActor] = useState<Actor | null>(null),
     [demo, setDemo] = useState(false),
     [ready, setReady] = useState(false),
-    [error, setError] = useState(""),
+    [booted, setBooted] = useState(false),
+    [refreshing, setRefreshing] = useState(false),
+    [errorCode, setErrorCode] = useState(""),
     [locale, setLocaleState] = useState<Locale>("id"),
     [revision, setRevision] = useState(0);
   const requests = useRef(new Map<string, string>());
@@ -78,52 +115,74 @@ export function MobileProvider({
   mapLink.current = linkMapper;
   const open = useRef(openLink);
   open.current = openLink;
+  const forget = useRef(onSignedOut);
+  forget.current = onSignedOut;
   const actorRef = useRef(actor);
   actorRef.current = actor;
+  // How many me() reads are in flight, and whether one has answered yet (a stored actor never overrides an answer).
+  const inFlight = useRef(0);
+  const answered = useRef(false);
+  // The actor painted from the phone at boot, until the first answer: an unchanged answer does not reload every screen.
+  const bootActor = useRef<Actor | null>(null);
   const countOpen = useMemo(() => createOpenCounter(runtime), [runtime]);
 
+  const signedOutLocally = useCallback(() => {
+    void SecureStore.deleteItemAsync(runtime.storageKey("actor")).catch(() => {});
+    void Promise.resolve()
+      .then(() => forget.current?.())
+      .catch(() => {});
+  }, [runtime]);
+
+  // The identity of `refresh` depends on the runtime only: the locale is read at render time, so loading a stored
+  // English choice never re-runs the mount effect below (which would start a second me() and re-add every listener).
   const refresh = useCallback(async () => {
     const session = sessionGeneration.current;
     const request = ++refreshGeneration.current;
     const current = () =>
       session === sessionGeneration.current && request === refreshGeneration.current;
+    inFlight.current += 1;
+    setRefreshing(true);
     try {
       if (!runtime.apiBase) throw new Error("NOT_CONFIGURED");
       const me = await runtime.api.me();
       if (!current()) return;
+      answered.current = true;
+      const painted = bootActor.current;
+      bootActor.current = null;
       setActor(me.actor);
       setDemo(me.demo);
-      // Remembered so a kitchen without signal still opens on its last loaded day.
-      if (me.actor) void SecureStore.setItemAsync(runtime.storageKey("actor"), JSON.stringify(me.actor));
-      else void SecureStore.deleteItemAsync(runtime.storageKey("actor"));
-      setError("");
-      setRevision((r) => r + 1);
+      // Remembered so the next launch paints at once, and so a kitchen without signal still opens on its last day.
+      if (me.actor) void SecureStore.setItemAsync(runtime.storageKey("actor"), JSON.stringify(me.actor)).catch(() => {});
+      else signedOutLocally();
+      setErrorCode("");
+      // Screens painted from the stored actor already read for this account; only a different answer reloads them.
+      const unchanged = !!painted && !!me.actor && painted.id === me.actor.id && painted.role === me.actor.role;
+      if (!unchanged) setRevision((r) => r + 1);
     } catch (e) {
       if (!current()) return;
+      answered.current = true;
+      bootActor.current = null;
       const code = (e as { code?: string }).code || (e as Error).message;
       if (["UNAUTHORIZED", "FORBIDDEN"].includes(code)) {
         setActor(null);
-        void SecureStore.deleteItemAsync(runtime.storageKey("actor"));
+        signedOutLocally();
       } else {
-        // Offline: reopen the last kitchen, but only while this device still holds a session.
+        // Offline: reopen the last account, but only while this device still holds a session.
         const [saved, token] = await Promise.all([
-          SecureStore.getItemAsync(runtime.storageKey("actor")),
+          SecureStore.getItemAsync(runtime.storageKey("actor")).catch(() => null),
           runtime.token().catch(() => null),
         ]);
         if (!current()) return;
-        if (saved && token) setActor((a) => a ?? (JSON.parse(saved) as Actor));
+        const stored = token ? parseActor(saved) : null;
+        if (stored) setActor((a) => a ?? stored);
       }
-      setError(
-        errorLabel(code, locale) ||
-          translator(locale)(
-            "Tidak dapat terhubung. Periksa koneksi dan coba lagi.",
-            "Unable to connect. Check your connection and try again.",
-          ),
-      );
+      setErrorCode(code || "NETWORK");
     } finally {
+      inFlight.current -= 1;
+      if (inFlight.current === 0) setRefreshing(false);
       if (current()) setReady(true);
     }
-  }, [runtime, locale]);
+  }, [runtime, signedOutLocally]);
 
   const command = useCallback(
     async <T,>(action: string, payload: unknown): Promise<T> => {
@@ -144,9 +203,10 @@ export function MobileProvider({
   useEffect(() => {
     const auth = runtime.supabase?.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_OUT") {
-        void SecureStore.deleteItemAsync(runtime.storageKey("actor"));
+        signedOutLocally();
         sessionGeneration.current += 1;
         requests.current.clear();
+        bootActor.current = null;
         setActor(null);
         setRevision((r) => r + 1);
       }
@@ -154,17 +214,39 @@ export function MobileProvider({
         setTimeout(() => void refresh(), 0);
     });
     return () => auth?.data.subscription.unsubscribe();
-  }, [runtime, refresh]);
+  }, [runtime, refresh, signedOutLocally]);
 
   useEffect(() => {
-    void SecureStore.getItemAsync(runtime.storageKey("locale")).then((l) =>
-      setLocaleState(l === "en" ? "en" : "id"),
-    );
+    let live = true;
+    const session = sessionGeneration.current;
+    // Local reads only: the stored account, its token and the language. With an account and a token the app paints
+    // at once from what the phone holds; me() below confirms or replaces it.
+    void Promise.all([
+      SecureStore.getItemAsync(runtime.storageKey("actor")).catch(() => null),
+      runtime.token().catch(() => null),
+      SecureStore.getItemAsync(runtime.storageKey("locale")).catch(() => null),
+    ]).then(([saved, token, storedLocale]) => {
+      if (!live) return;
+      setLocaleState((l) => (storedLocale === "en" ? "en" : storedLocale === "id" ? "id" : l));
+      const stored = token ? parseActor(saved) : null;
+      if (stored && !answered.current && session === sessionGeneration.current) {
+        bootActor.current = stored;
+        setActor((a) => a ?? stored);
+        setReady(true);
+      }
+      setBooted(true);
+    });
+    // The one launch read of the session.
     void refresh();
+    let previous: AppStateStatus | null = AppState.currentState;
     const appState = AppState.addEventListener("change", (state) => {
+      const was = previous;
+      previous = state;
       if (state === "active") {
         runtime.supabase?.auth.startAutoRefresh();
-        void refresh();
+        // Only a return from the background reads again; the "active" a launch reports, or one while a read is still
+        // running, would only repeat it.
+        if ((was === "background" || was === "inactive") && inFlight.current === 0) void refresh();
         void countOpen(actorRef.current);
       } else runtime.supabase?.auth.stopAutoRefresh();
     });
@@ -187,6 +269,7 @@ export function MobileProvider({
     const response = Notifications?.addNotificationResponseReceivedListener(handleResponse);
     void Notifications?.getLastNotificationResponseAsync().then(handleResponse);
     return () => {
+      live = false;
       appState.remove();
       received?.remove();
       response?.remove();
@@ -220,6 +303,7 @@ export function MobileProvider({
   }, [runtime, actor?.id, demo]);
 
   async function signedIn(next: Actor) {
+    bootActor.current = null;
     setActor(next);
     await refresh();
   }
@@ -227,7 +311,11 @@ export function MobileProvider({
   async function logout() {
     sessionGeneration.current += 1;
     requests.current.clear();
+    bootActor.current = null;
     await SecureStore.deleteItemAsync(runtime.storageKey("actor"));
+    await Promise.resolve()
+      .then(() => forget.current?.())
+      .catch(() => {});
     await runtime.signOut();
     setActor(null);
     setRevision((r) => r + 1);
@@ -279,7 +367,9 @@ export function MobileProvider({
         actor,
         demo,
         ready,
-        error,
+        booted,
+        refreshing,
+        error: sessionError(errorCode, locale),
         locale,
         t: translator(locale),
         setLocale,

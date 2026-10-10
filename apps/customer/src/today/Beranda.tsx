@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { View } from "react-native";
 import {
   activePlans,
   dayLabel,
@@ -33,32 +33,38 @@ import { WaitingList } from "./WaitingList";
 import { UpcomingDays } from "./UpcomingDays";
 import { PlansRow } from "./PlansRow";
 import { TomorrowEntry } from "../tomorrow/TomorrowRow";
+import { BerandaSkeleton } from "../skeletons";
 import { loadCachedCustomer, saveCachedCustomer } from "./offline";
 
+/** A customer read; `savedAt` is set when it is the copy this phone kept, not a fresh answer. */
 type LoadedCustomer = { data: CustomerState; savedAt: string | null };
 
-async function loadCustomer(runtime: MobileRuntime, key: string): Promise<LoadedCustomer> {
+async function loadCustomer(runtime: MobileRuntime, actorId: string): Promise<LoadedCustomer> {
   try {
     const data = await runtime.api.customer();
-    await saveCachedCustomer(key, { savedAt: new Date().toISOString(), data });
+    await saveCachedCustomer(actorId, { savedAt: new Date().toISOString(), data });
     return { data, savedAt: null };
   } catch (e) {
-    const cached = await loadCachedCustomer(key);
-    if (cached) return { data: cached.data, savedAt: cached.savedAt };
+    const cached = await keptCustomer(actorId);
+    if (cached) return cached;
     throw e;
   }
 }
 
+/** The last confirmed read this phone kept for this account, painted at launch while the fresh read runs. */
+async function keptCustomer(actorId: string): Promise<LoadedCustomer | null> {
+  const cached = await loadCachedCustomer(actorId);
+  return cached ? { data: cached.data, savedAt: cached.savedAt } : null;
+}
+
 /** Beranda: today's plate (or plates), what waits on the customer, the next days and the running plans. */
 export function Beranda() {
-  const { actor, ready } = useMobile();
-  const c = useColors();
-  const styles = useStyles();
+  const { actor, ready, t } = useMobile();
   if (!ready)
     return (
-      <View style={styles.center}>
-        <ActivityIndicator color={c.forest} />
-      </View>
+      <Screen header={<MoodHeader title={t("Beranda", "Home")} />}>
+        <BerandaSkeleton />
+      </Screen>
     );
   if (!actor) return <EmptyHome />;
   return <SignedInHome actorId={actor.id} />;
@@ -154,7 +160,8 @@ function SignedInHome({ actorId }: { actorId: string }) {
   const c = useColors();
   const { mood, setMood } = useMood();
   const palette = useMoodColors();
-  const home = useData(`home:customer`, () => loadCustomer(runtime, actorId));
+  // A launch paints the copy kept for this account first (`fromCache`); the fresh read replaces it.
+  const home = useData(`home:customer`, () => loadCustomer(runtime, actorId), { cached: () => keptCustomer(actorId) });
   // Menu choices that are due; Beranda still shows without them (offline or a failed feed).
   const actions = useData("home:actions", () => runtime.api.customerActions(20).catch(() => null));
   // The pager's card in view, per meal, so a mood switch never counts the other meal's card as seen.
@@ -166,7 +173,7 @@ function SignedInHome({ actorId }: { actorId: string }) {
     return (
       <Screen header={<MoodHeader title={t("Beranda", "Home")} />}>
         {home.loading ? (
-          <ActivityIndicator color={c.forest} />
+          <BerandaSkeleton />
         ) : (
           <View style={{ gap: 4, alignItems: "flex-start" }}>
             <Text selectable testID="home-error" style={{ color: c.danger }}>
@@ -185,7 +192,10 @@ function SignedInHome({ actorId }: { actorId: string }) {
   const recaps = recapCandidates(state, now);
   const recap = recaps.length ? <RecapCard candidates={recaps} /> : null;
   if (!plates.length && !days.length && !plans.count) return <EmptyHome lead={recap} />;
+  // A kept copy (painted at launch, or kept because the fresh read failed) can be read but not acted on: a meal may
+  // have moved or been cancelled since, so every action stays hidden until a fresh read lands.
   const savedAt = home.data?.savedAt;
+  const refreshing = home.fromCache && home.loading;
 
   const today = jakartaDay(now);
   const meal = mood === "siang" ? "lunch" : "dinner";
@@ -263,7 +273,11 @@ function SignedInHome({ actorId }: { actorId: string }) {
         // One frame for the hero whichever meal it shows, so its fill cross-fades when the mood switches.
         <Plate key="hero" variant="hero" plate={heroPlates[0]} apiBase={runtime.apiBase} offline={!!savedAt} />
       ) : null}
-      {savedAt ? (
+      {refreshing ? (
+        <Text testID="home-refreshing" variant="caption" style={{ color: c.muted }}>
+          {t("Memperbarui…", "Updating…")}
+        </Text>
+      ) : savedAt ? (
         <Text variant="caption" style={{ color: c.sunriseInk, fontVariant: ["tabular-nums"] }}>
           {t("Terakhir diperbarui", "Last updated")} {jakartaClock(savedAt)} ·{" "}
           {t("tidak ada koneksi", "no connection")}
@@ -290,6 +304,5 @@ function SignedInHome({ actorId }: { actorId: string }) {
 }
 
 const useStyles = themedStyles((c) => ({
-  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: c.canvas },
   otherMeal: { minHeight: 60, flexDirection: "row", alignItems: "center", gap: 12 },
 }));

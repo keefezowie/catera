@@ -1,14 +1,17 @@
-import { useEffect, useMemo, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider as NavigationTheme, useNavigationContainerRef } from "expo-router";
 import { useFonts } from "expo-font";
+import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { ActivityIndicator, View } from "react-native";
+import { Appearance, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useMobile } from "@catera/mobile-core";
 import {
   contentTitled,
   DemoStrip,
   fontAssets,
+  LaunchCover,
+  MascotLoading,
   MoodLabelsProvider,
   MoodProvider,
   navigationTheme,
@@ -19,6 +22,7 @@ import {
   TopInsetOwner,
   useColors,
   useStackScreenOptions,
+  useSplashHold,
   useThemePreference,
 } from "@catera/mobile-ui";
 import { registerNavigation } from "../src/nav";
@@ -26,8 +30,20 @@ import { runtime } from "../src/runtime";
 import { AppProviders } from "../src/shell";
 import { useFlowOptions } from "../src/stack";
 
+// The native splash stays up until the phone's own reads are done (fonts, theme, stored session), so the first frame
+// already has the right theme, fonts and, when kept, content. See `Launch`.
+SplashScreen.preventAutoHideAsync().catch(() => {});
+
+/** True until the launch cover has played in this JS context; a root that mounts again later (a warm start) skips it. */
+let coldStart = true;
+/**
+ * The scheme the native splash was drawn in: the system's, read before the theme provider hands a stored choice to
+ * `Appearance`. The launch cover repeats the splash, so it uses this, not the app's theme.
+ */
+const splashScheme = Appearance.getColorScheme() === "dark" ? "dark" : "light";
+
 function Navigation() {
-  const { t, ready, demo } = useMobile();
+  const { t, ready, booted, demo } = useMobile();
   const container = useNavigationContainerRef();
   // goToTab and openLink target each navigator by key; a push tapped while the session loads opens once it can.
   useEffect(() => registerNavigation(container), [container]);
@@ -35,15 +51,17 @@ function Navigation() {
   const { scheme } = useThemePreference();
   const screenOptions = useStackScreenOptions(demo);
   const flow = useFlowOptions();
-  // The app's default glyphs follow the theme: pushed screens and the loading spinner sit on the canvas. A tab root's
+  // The app's default glyphs follow the theme: pushed screens and the launch gate sit on the canvas. A tab root's
   // MoodHeader sets the mood's glyphs over this while its screen is in front.
   const statusBar = <StatusBar style={statusBarStyle({ scheme, mood: null, demo })} />;
+  // No stored session: the gate waits for the first answer. The mascot shows its words only after 300ms, so a quick
+  // answer shows nothing; before the phone's reads finish the canvas is all there is (under the splash).
   if (!ready)
     return (
       <>
         {statusBar}
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: palette.canvas }}>
-          <ActivityIndicator color={palette.forest} />
+        <View style={{ flex: 1, backgroundColor: palette.canvas }}>
+          {booted ? <MascotLoading label={t("Menyiapkan Catera untuk Anda…", "Getting Catera ready for you…")} /> : null}
         </View>
       </>
     );
@@ -114,25 +132,47 @@ function FontError() {
   );
 }
 
+/** Past the splash's ceiling with the fonts still loading: the mascot, its words in the system face. */
+function FontWait() {
+  const { t } = useMobile();
+  return <MascotLoading startup label={t("Menyiapkan Catera untuk Anda…", "Getting Catera ready for you…")} />;
+}
+
+/**
+ * The launch sequence (spec 3.1, 3.2): holds the native splash until the fonts, the stored theme and the stored session
+ * have been read, or 1500ms at most, then on a cold start lays the launch cover over the first screen for one beat.
+ * It sits above the startup gate, so it is mounted whatever the gate shows.
+ */
+function Launch({ fontsDone }: { fontsDone: boolean }) {
+  const { booted } = useMobile();
+  const { loaded } = useThemePreference();
+  const released = useSplashHold(fontsDone && loaded && booted, () => void SplashScreen.hideAsync().catch(() => {}));
+  const [cover, setCover] = useState(coldStart);
+  useEffect(() => {
+    coldStart = false;
+  }, []);
+  return cover ? <LaunchCover scheme={splashScheme} hold={!released} onDone={() => setCover(false)} /> : null;
+}
+
 export default function RootLayout() {
   const [loaded, error] = useFonts(fontAssets);
-  if (error)
-    return (
-      <ThemeProvider storageKey={runtime.storageKey("theme")}>
-        <FontError />
-      </ThemeProvider>
-    );
-  if (!loaded) return null;
+  // Every provider mounts at once, so the theme and the session are read while the fonts load.
   return (
     <SafeAreaProvider>
       <ThemeProvider storageKey={runtime.storageKey("theme")}>
         <MoodProvider>
-          <AppProviders runtime={runtime}>
-            <ToastProvider>
-              <NavigationColors>
-                <Navigation />
-              </NavigationColors>
-            </ToastProvider>
+          <AppProviders runtime={runtime} overlay={<Launch fontsDone={loaded || !!error} />}>
+            {error ? (
+              <FontError />
+            ) : !loaded ? (
+              <FontWait />
+            ) : (
+              <ToastProvider>
+                <NavigationColors>
+                  <Navigation />
+                </NavigationColors>
+              </ToastProvider>
+            )}
           </AppProviders>
         </MoodProvider>
       </ThemeProvider>

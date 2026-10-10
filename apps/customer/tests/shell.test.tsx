@@ -629,24 +629,26 @@ describe("appearance", () => {
     });
   });
 
-  it("the loading spinner and the app's default sit on the canvas, so Malam never turns them light", async () => {
+  // The launch gate replaced the spinner (Phase F task 4): before the session is known the stack is not drawn, and the
+  // gate's canvas (with the mascot once the phone's reads finish) is what the status bar sits on.
+  it("the launch gate and the app's default sit on the canvas, so Malam never turns them light", async () => {
     jest.spyOn(require("react-native"), "useColorScheme").mockReturnValue("light");
     atJakarta(MALAM);
     const RootLayout = (require("../app/_layout") as typeof import("../app/_layout")).default;
     render(<RootLayout />);
-    expect(screen.UNSAFE_queryByType(require("react-native").ActivityIndicator)).not.toBeNull();
+    expect(screen.queryByTestId("mood-probe")).toBeNull();
     expect(mockStatusBar.style).toBe("dark");
     await waitFor(() => expect(mockNativeTabs.props).toBeDefined());
     // Only a mood header in front sets the mood's glyphs (above); the default stays the theme's.
     expect(mockStatusBar.style).toBe("dark");
   });
 
-  it("sets the status bar glyphs while the loading spinner is still showing", async () => {
+  it("sets the status bar glyphs while the launch gate is still showing", async () => {
     jest.spyOn(require("react-native"), "useColorScheme").mockReturnValue("dark");
     const RootLayout = (require("../app/_layout") as typeof import("../app/_layout")).default;
     render(<RootLayout />);
     // Nothing has been awaited yet, so the session read is pending and the app is behind the ready gate.
-    expect(screen.UNSAFE_queryByType(require("react-native").ActivityIndicator)).not.toBeNull();
+    expect(screen.queryByTestId("mood-probe")).toBeNull();
     expect(mockStatusBar.style).toBe("light");
     await waitFor(() => expect(mockNativeTabs.props).toBeDefined());
   });

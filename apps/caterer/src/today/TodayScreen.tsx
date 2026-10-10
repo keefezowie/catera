@@ -45,19 +45,25 @@ import { dapurLink } from "../links";
 import { openLink } from "../nav";
 import { ReadError } from "../ReadError";
 
+/** A day's read; `savedAt` is set when it is the copy this phone kept, not a fresh answer. */
 type LoadedDay = { data: SellerOperationsState; savedAt: string | null };
 
-async function loadDay(runtime: MobileRuntime, catererId: string, date: string): Promise<LoadedDay> {
-  const key = `${catererId}-${date}`;
+async function loadDay(runtime: MobileRuntime, actorId: string, catererId: string, date: string): Promise<LoadedDay> {
   try {
     const data = await runtime.api.sellerOperations(catererId, date);
-    await saveCachedDay(key, { savedAt: new Date().toISOString(), data });
+    await saveCachedDay(actorId, catererId, date, { savedAt: new Date().toISOString(), data });
     return { data, savedAt: null };
   } catch (error) {
-    const cached = await loadCachedDay(key);
-    if (cached) return { data: cached.data, savedAt: cached.savedAt };
+    const cached = await keptDay(actorId, catererId, date);
+    if (cached) return cached;
     throw error;
   }
+}
+
+/** The last confirmed day this phone kept for this account and kitchen, painted at launch while the fresh read runs. */
+async function keptDay(actorId: string, catererId: string, date: string): Promise<LoadedDay | null> {
+  const cached = await loadCachedDay(actorId, catererId, date);
+  return cached ? { data: cached.data, savedAt: cached.savedAt } : null;
 }
 
 /**
@@ -278,8 +284,12 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
     if (target) setOffset(target === jakartaDay(new Date(), 1) ? "1" : "0");
   }, [target]);
   const catererId = actor?.catererId ?? "";
+  const actorId = actor?.id ?? "";
   const date = jakartaDay(new Date(), Number(offset));
-  const day = useData(`ops:${catererId}:${date}`, () => loadDay(runtime, catererId, date));
+  // A launch paints the day kept for this account first (`fromCache`); the fresh read replaces it.
+  const day = useData(`ops:${catererId}:${date}`, () => loadDay(runtime, actorId, catererId, date), {
+    cached: () => keptDay(actorId, catererId, date),
+  });
   const attention = useData(`attention:${catererId}`, () =>
     runtime.api.sellerAttention(catererId, { scope: "future" }),
   );
@@ -369,7 +379,12 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
     >
       <FadeSwap swapKey={`${date}-${mood}-${done ? "done" : (session?.journey.stage ?? "none")}`}>
         <View style={{ gap: 16 }}>
-          {day.data?.savedAt ? (
+          {day.fromCache && day.loading ? (
+            // The kept copy shows while the fresh read runs; its actions stay hidden until that lands.
+            <Text testID="day-refreshing" variant="caption">
+              {t("Memperbarui…", "Updating…")}
+            </Text>
+          ) : day.data?.savedAt ? (
             <Card tone="attention">
               <Text variant="caption" style={{ color: c.sunriseInk }}>
                 {t("Terakhir diperbarui", "Last updated")} {jakartaClock(day.data.savedAt)} ·{" "}

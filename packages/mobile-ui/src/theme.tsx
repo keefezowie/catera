@@ -10,6 +10,8 @@ type ThemeValue = {
   scheme: ThemeName;
   preference: ThemePreference;
   setPreference: (preference: ThemePreference) => void;
+  /** The stored choice has been read, or the read failed; until then the scheme follows the system. */
+  loaded: boolean;
 };
 
 const PREFERENCES: readonly ThemePreference[] = ["system", "light", "dark"];
@@ -24,6 +26,7 @@ const ThemeContext = createContext<ThemeValue>({
   scheme: "light",
   preference: "system",
   setPreference: () => {},
+  loaded: true,
 });
 
 /**
@@ -32,6 +35,7 @@ const ThemeContext = createContext<ThemeValue>({
  */
 export function ThemeProvider({ storageKey, children }: { storageKey: string; children: ReactNode }) {
   const [preference, setPreferenceState] = useState<ThemePreference>("system");
+  const [loaded, setLoaded] = useState(false);
   const system = useColorScheme();
   // Set once the user has chosen in this session: a slower initial read must not overwrite that choice.
   const chosen = useRef(false);
@@ -42,7 +46,11 @@ export function ThemeProvider({ storageKey, children }: { storageKey: string; ch
       .then((stored) => {
         if (live && !chosen.current && isPreference(stored)) setPreferenceState(stored);
       })
-      .catch(() => {});
+      .catch(() => {})
+      // The launch holds its splash until this is known, so the first frame is already in the right theme.
+      .finally(() => {
+        if (live) setLoaded(true);
+      });
     return () => {
       live = false;
     };
@@ -67,8 +75,8 @@ export function ThemeProvider({ storageKey, children }: { storageKey: string; ch
 
   const scheme: ThemeName = preference === "system" ? (system === "dark" ? "dark" : "light") : preference;
   const value = useMemo<ThemeValue>(
-    () => ({ palette: nativeThemes[scheme], scheme, preference, setPreference }),
-    [scheme, preference, setPreference],
+    () => ({ palette: nativeThemes[scheme], scheme, preference, setPreference, loaded }),
+    [scheme, preference, setPreference, loaded],
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
@@ -79,10 +87,18 @@ export function useColors(): NativePalette {
   return use(ThemeContext).palette;
 }
 
-/** The stored choice, the scheme it resolves to, and the setter that stores and applies a new choice. */
-export function useThemePreference(): { preference: ThemePreference; scheme: ThemeName; setPreference: (p: ThemePreference) => void } {
-  const { preference, scheme, setPreference } = use(ThemeContext);
-  return { preference, scheme, setPreference };
+/**
+ * The stored choice, the scheme it resolves to, the setter that stores and applies a new choice, and whether the
+ * stored choice has been read (`loaded`, true outside a provider).
+ */
+export function useThemePreference(): {
+  preference: ThemePreference;
+  scheme: ThemeName;
+  setPreference: (p: ThemePreference) => void;
+  loaded: boolean;
+} {
+  const { preference, scheme, setPreference, loaded } = use(ThemeContext);
+  return { preference, scheme, setPreference, loaded };
 }
 
 /**

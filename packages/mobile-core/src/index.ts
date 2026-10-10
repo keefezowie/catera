@@ -1,5 +1,5 @@
 export { createMobileRuntime, ensureActor, type MobileRuntime, type MobileRuntimeConfig } from "./runtime";
 export { MobileProvider, useMobile, useTrack, translator, type MobileContextValue } from "./provider";
-export { useData } from "./data";
+export { useData, type DataOptions } from "./data";
 export { Notifications, pushAvailable } from "./notifications";
 export { plural } from "./plural";

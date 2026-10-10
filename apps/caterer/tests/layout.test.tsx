@@ -350,12 +350,14 @@ describe("appearance", () => {
     expect(mockStackOptions.value).toMatchObject({ unstable_nativeProps: { headerConfig: { disableTopInsetApplication: true } } });
   });
 
-  it("the loading spinner sits on the canvas, so Malam does not turn its status bar glyphs light", async () => {
+  // The launch gate replaced the spinner (Phase F task 4): before the session is known the stack is not drawn, and the
+  // gate's canvas (with the mascot once the phone's reads finish) is what the status bar sits on.
+  it("the launch gate sits on the canvas, so Malam does not turn its status bar glyphs light", async () => {
     jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("light");
     atJakarta(MALAM);
     mockMe.actor = owner;
     render(<RootLayout />);
-    expect(screen.UNSAFE_queryByType(ReactNative.ActivityIndicator)).not.toBeNull();
+    expect(screen.queryByTestId("mood-probe")).toBeNull();
     expect(mockStatusBar.style).toBe("dark");
     // Once ready the app's default stays the theme's: the Malam glyphs belong to a tab root's MoodHeader
     // (native-header.test "status bar: the mood on a tab root, the theme on a pushed screen").
@@ -375,12 +377,12 @@ describe("appearance", () => {
     expect(mockNavTheme.value).toMatchObject({ dark: true, colors: { background: "#151514", card: "#232321", border: "#34332F" } });
   });
 
-  it("sets the status bar glyphs while the loading spinner is still showing", async () => {
+  it("sets the status bar glyphs while the launch gate is still showing", async () => {
     jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
     mockMe.actor = owner;
     render(<RootLayout />);
     // Nothing has been awaited yet, so the session read is pending and the app is behind the ready gate.
-    expect(screen.UNSAFE_queryByType(ReactNative.ActivityIndicator)).not.toBeNull();
+    expect(screen.queryByTestId("mood-probe")).toBeNull();
     expect(mockStatusBar.style).toBe("light");
     await waitFor(() => expect(mockNativeTabs.props).toBeDefined());
   });
