@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import * as ReactNative from "react-native";
 import { ActivityIndicator, StyleSheet } from "react-native";
 import * as Reanimated from "react-native-reanimated";
-import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
+import { createMobileRuntime, MobileProvider, useMobile, type MobileRuntime } from "@catera/mobile-core";
 import { nativeMood, nativeMotion, nativeThemes } from "@catera/design-tokens";
 import * as SecureStore from "expo-secure-store";
 import { FadeSwap, MoodProvider, SkeletonGroup, ThemeProvider } from "@catera/mobile-ui";
@@ -722,6 +722,31 @@ describe("findings 6 to 8: the swap and the skeleton's frame", () => {
     expect([swap.marginTop, swap.paddingTop]).toEqual([-16, 16]);
   });
 
+  it("Paket's photo and its heart sit inside the fading block, edge to edge (fix round 2, N1)", async () => {
+    mockParams = { id: "p-rumahan" };
+    renderWith(
+      runtimeWith({ offer: jest.fn(async () => ({ offer: offer() })), request: jest.fn(async () => []) }),
+      <PackageDetail />,
+    );
+    await screen.findByTestId("paket-name");
+    const node = screen.UNSAFE_getAllByType(FadeSwap)[0];
+    const swap = flat(node);
+    // The block covers the body's whole box: its top and both sides, the body's 16 and 20 carried as padding.
+    expect([swap.marginTop, swap.paddingTop, swap.marginHorizontal, swap.paddingHorizontal]).toEqual([-16, 16, -20, 20]);
+    // The photo is pulled out by exactly that padding, so its edges are the block's own edges, and the heart on it
+    // (16 from the photo's right) is inside the block, where Android delivers its touches.
+    // The photo: the block's child with its own height and the -20 pull (the block's own view has no height).
+    const photo = node.findAll(
+      (n) => typeof n.type === "string" && flat(n)?.marginHorizontal === -20 && typeof flat(n)?.height === "number",
+    )[0];
+    expect([flat(photo).marginHorizontal, flat(photo).marginTop]).toEqual([
+      -(swap.paddingHorizontal as number),
+      -(swap.paddingTop as number),
+    ]);
+    const heart = within(photo).getByRole("button", { name: /Simpan/ });
+    expect(inside(heart, node)).toBe(true);
+  });
+
   it("Pilih menu fades from its skeleton into the page", async () => {
     mockParams = { id: "s-1" };
     const read = deferred<CustomerState>();
@@ -773,5 +798,89 @@ describe("findings 6 to 8: the swap and the skeleton's frame", () => {
     const hero = screen.getByTestId("beranda-skeleton-hero");
     expect([flat(hero).padding, flat(hero).borderRadius]).toEqual([10, 28]);
     expect(flat(within(hero).getByTestId("beranda-skeleton-hero-fill-siang")).boxShadow).toBeTruthy();
+  });
+});
+
+/* Fix round 2 (re-review N2 and N3; N1 sits with the Paket fade tests above). */
+
+describe("fix round 2", () => {
+  const contentFades = (timing: jest.SpyInstance) =>
+    timing.mock.calls.filter(([to, c]) => to === 1 && c?.duration === nativeMotion.content);
+
+  it("Bayar keeps one mascot from the first read into the checking stage: no remount, no fade (N2)", async () => {
+    const later = new Date(Date.now() + 15 * 60_000).toISOString();
+    const checking = {
+      id: "ck-1",
+      state: "pending",
+      expires_at: later,
+      subscription_id: null,
+      payment_url: null,
+      quote: { packageId: "p-rumahan", portions: 1, cycles: 1, trial: false, total: 562500, offer: offer() },
+      payment: {
+        mode: "direct",
+        availableMethods: ["QRIS"],
+        selectedMethod: "QRIS",
+        status: "checking",
+        expiresAt: later,
+        instructions: null,
+      },
+    };
+    const read = deferred<unknown>();
+    renderWith(
+      runtimeWith({ checkout: jest.fn(() => read.promise), command: jest.fn(async () => ({})) }),
+      <PaymentScreen checkoutId="ck-1" />,
+    );
+    const visual = () => screen.getByTestId("mascot-loading-visual", { includeHiddenElements: true });
+    // The first read's mascot has drawn itself (after its 300ms entry delay).
+    await waitFor(() => expect(flat(visual()).opacity).toBe(1), { timeout: 2000 });
+    const before = screen.getByTestId("mascot-loading");
+    expect(screen.UNSAFE_getAllByType(FadeSwap)[0].props.swapKey).toBe("checking");
+
+    const timing = jest.spyOn(Reanimated, "withTiming");
+    await act(async () => read.resolve(checking));
+    await screen.findByText("Jangan bayar lagi. Status diperiksa langsung dari bank.");
+    // The same mascot is still drawn: a new one would hide for its 300ms entry delay, and a fade would blank it.
+    expect(screen.getByTestId("mascot-loading")).toBe(before);
+    expect(flat(visual()).opacity).toBe(1);
+    expect(screen.getAllByTestId("mascot-loading")).toHaveLength(1);
+    expect(screen.UNSAFE_getAllByType(FadeSwap)[0].props.swapKey).toBe("checking");
+    expect(contentFades(timing)).toHaveLength(0);
+  });
+
+  it("a loaded Beranda that a reload empties goes to the invitation in one fade, never back to the skeleton (N3)", async () => {
+    const nothing: CustomerState = { subscriptions: [], deliveries: [], addresses: [], notifications: [], cases: [] };
+    let mobile!: ReturnType<typeof useMobile>;
+    function Probe() {
+      mobile = useMobile();
+      return null;
+    }
+    const customer = jest.fn(async () => customerState({ status: "scheduled" }));
+    const catalog = jest.fn(async () => ({ items: [offer({ id: "p-a", name: "Makan Siang Rumahan" })], nextCursor: null }));
+    renderAt(
+      runtimeWith({ customer, catalog, command: jest.fn(async () => ({})) }),
+      <>
+        <Beranda />
+        <Probe />
+      </>,
+      SIANG,
+    );
+    await screen.findByTestId("plate-hero");
+    await waitFor(() => expect(catalog).toHaveBeenCalledTimes(1));
+
+    // The last plan ends: a command bumps the revision, every read runs again, and the home read comes back empty.
+    customer.mockImplementation(async () => nothing);
+    const timing = jest.spyOn(Reanimated, "withTiming");
+    await act(async () => {
+      await mobile.command("subscription.cancel", { id: "s-1" });
+    });
+    expect(await screen.findByText("Makan Siang Rumahan")).toBeTruthy();
+    expect(screen.getByText("Mau makan apa minggu ini?")).toBeTruthy();
+    expect(screen.queryByTestId("beranda-skeleton")).toBeNull();
+    expect(screen.queryByRole("progressbar")).toBeNull();
+    expect(screen.UNSAFE_getAllByType(FadeSwap)[0].props.swapKey).toBe("empty");
+    // One fade, fresh page to invitation; through the skeleton it would be two (to loading, then to empty).
+    expect(contentFades(timing)).toHaveLength(1);
+    // The packages read with the first load were kept, so none was read again.
+    expect(catalog).toHaveBeenCalledTimes(1);
   });
 });

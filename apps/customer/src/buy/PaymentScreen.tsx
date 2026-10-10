@@ -6,11 +6,11 @@ import * as Clipboard from "expo-clipboard";
 import * as WebBrowser from "expo-web-browser";
 import { currency, errorLabel, paidSummary, type Checkout, type DirectPaymentMethod } from "@catera/domain";
 import { plural, useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, FadeSwap, fontFor, MascotLoading, Screen, Text, themedStyles, useColors, useHaptic } from "@catera/mobile-ui";
+import { Button, Card, FadeSwap, fontFor, Screen, Text, themedStyles, useColors, useHaptic } from "@catera/mobile-ui";
 import { PayWith, Retry } from "./BuyParts";
 import { FLOW_HREF, goToTab } from "../nav";
 import { PaidActions } from "./PaidOutcome";
-import { FINAL, PaymentOutcome, stageOf, type Stage } from "./PaymentOutcome";
+import { CHECKING, CheckingWait, FINAL, PaymentOutcome, stageOf, type Stage } from "./PaymentOutcome";
 import { QrisCode, useQris } from "./QrisCode";
 
 const POLL_MS = 10_000;
@@ -168,26 +168,34 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
       onPress={() => router.push({ pathname: FLOW_HREF.bantuan, params: { checkoutId } } as never)}
     />
   );
-  if (!c || !stage)
+  if (!c || !stage) {
+    const waiting = !state.error && (state.loading || !ready);
     return (
       <Screen nativeTitle={title}>
-        {state.error ? (
-          <Retry message={state.error} onRetry={() => void reload()} t={t} />
-        ) : state.loading || !ready ? (
-          // Nothing of the checkout can be shown until its status comes back, and the person should know the payment
-          // is being looked up (never a reason to pay again), so this wait is the mascot with its words.
-          <MascotLoading label={t("Memeriksa pembayaran…", "Checking payment…")} />
-        ) : (
-          <Text>{t("Pembayaran tidak ditemukan.", "Payment not found.")}</Text>
-        )}
+        {/* The same FadeSwap, in the same place, as the stages below. Nothing of the checkout can be shown until its
+            status comes back, and the person should know the payment is being looked up (never a reason to pay again),
+            so this wait is the mascot with its words: the checking stage's own wait, under its key, so a read that
+            answers "checking" keeps this mascot instead of fading or mounting a new one. */}
+        <FadeSwap swapKey={state.error ? "error" : waiting ? CHECKING : "missing"} style={{ gap: 16 }}>
+          {state.error ? (
+            <Retry message={state.error} onRetry={() => void reload()} t={t} />
+          ) : waiting ? (
+            <CheckingWait t={t} />
+          ) : (
+            <Text>{t("Pembayaran tidak ditemukan.", "Payment not found.")}</Text>
+          )}
+        </FadeSwap>
       </Screen>
     );
+  }
 
-  // One screen for every stage, so a change of stage fades the new body in instead of remounting the page.
+  // One screen for every stage, so a change of stage fades the new body in instead of remounting the page. The
+  // checking stage's mascot is the first child here, where the first read's wait sits, so it carries over.
   if (stage !== "pay")
     return (
       <Screen nativeTitle={title} footer={paid && summary ? <PaidActions summary={summary} /> : undefined}>
         <FadeSwap swapKey={stage} style={{ gap: 16 }}>
+          {stage === CHECKING ? <CheckingWait t={t} /> : null}
           <PaymentOutcome
             checkout={c}
             stage={stage}

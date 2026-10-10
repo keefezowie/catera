@@ -38,6 +38,18 @@ export function stageOf(c: Checkout, now: number): Stage {
   return p.phase === "checking" ? "checking" : "pay";
 }
 
+/**
+ * The one "Memeriksa pembayaran…" wait of Bayar: the first read of a checkout, and the checking stage after it. The
+ * screen draws it in the same place in both (the first child of its one FadeSwap, under the same key), so a read that
+ * answers "checking" keeps the same mascot on screen instead of mounting a new one, which would hide for its 300ms
+ * entry delay and restart its loop.
+ */
+export const CHECKING = "checking" satisfies Stage;
+
+export function CheckingWait({ t }: { t: (id: string, en: string) => string }) {
+  return <MascotLoading label={t("Memeriksa pembayaran…", "Checking payment…")} />;
+}
+
 /** The choices a new checkout starts from when an unpaid one ran out. */
 export type PayAgain = {
   packageId: string;
@@ -63,9 +75,9 @@ export function payAgainHref(p: PayAgain): string {
 /**
  * Every Bayar state other than paying now, as the screen body: one sentence and the one next step. A paid checkout
  * with its booking is the paid beat (`PaidOutcome`); the screen owns the header and the footer around it.
- * While the payment is checked the mascot waits at the top with "Memeriksa pembayaran…" (it is the stage's title, so
- * the words are not repeated under it), and the instructions stay under it: do not pay again, what is being paid, Cek
- * status and the help link.
+ * While the payment is checked the screen's mascot waits above this body with "Memeriksa pembayaran…" (`CheckingWait`,
+ * placed by PaymentScreen so the first read's wait and this stage share one mascot). It is the stage's title, so the
+ * words are not repeated here; the instructions follow: do not pay again, what is being paid, Cek status, the help link.
  */
 export function PaymentOutcome({
   checkout: c,
@@ -125,11 +137,7 @@ export function PaymentOutcome({
   });
   return (
     <>
-      {stage === "checking" ? (
-        <MascotLoading label={t("Memeriksa pembayaran…", "Checking payment…")} />
-      ) : (
-        <Text variant="title">{title}</Text>
-      )}
+      {stage === "checking" ? null : <Text variant="title">{title}</Text>}
       {body ? <Text>{body}</Text> : null}
       <Text variant="caption" style={{ fontVariant: ["tabular-nums"] }}>
         {c.quote.offer.name} · {currency(c.quote.total, locale)}

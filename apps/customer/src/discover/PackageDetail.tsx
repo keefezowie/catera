@@ -220,10 +220,14 @@ export function PackageDetail() {
         </View>
       }
     >
-      {/* One block that fades in from the skeleton (the loading page's FadeSwap). It starts at the body's own top and
-          carries the body's 16 as padding, so the photo's -16 pull and the name block's measured offset are what they
-          are in the body, and no part of the photo sits outside its parent (where a touch would not reach). */}
-      <FadeSwap swapKey="ready" style={{ gap: 16, marginTop: -16, paddingTop: 16 }}>
+      {/* One block that fades in from the skeleton (the loading page's FadeSwap). It covers the body's whole box (its
+          top and both sides) and carries the body's 16 and 20 as padding, so the photo's -16 and -20 pulls and the name
+          block's measured offset are what they are in the body. No part of the photo, and none of the heart on it, sits
+          outside its parent (where an Android touch would not reach and the fade's layer would clip it). */}
+      <FadeSwap
+        swapKey="ready"
+        style={{ gap: 16, marginTop: -16, paddingTop: 16, marginHorizontal: -20, paddingHorizontal: 20 }}
+      >
         {/* The photo now runs under the status bar too, so it grows by that inset and keeps its visible height. */}
         <View style={[styles.hero, { height: heroHeight }]}>
           {o.image ? (
