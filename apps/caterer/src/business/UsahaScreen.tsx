@@ -16,7 +16,6 @@ import {
   useActionSheet,
   useColors,
   useThemePreference,
-  useToast,
   type ThemePreference,
 } from "@catera/mobile-ui";
 import { usePaymentsActive } from "../customers/usePayments";
@@ -79,7 +78,6 @@ export function UsahaScreen() {
   const payments = usePaymentsActive();
   const { preference, setPreference } = useThemePreference();
   const actions = useActionSheet();
-  const toast = useToast();
   const offers = (ops.data?.offers ?? []).filter((o) => o.status !== "retired");
   /** "…" on a package: look at it, or copy it into a new package (a live package's terms cannot change). */
   async function packageActions(o: (typeof offers)[number], detail: string, image: string | undefined) {
@@ -93,10 +91,8 @@ export function UsahaScreen() {
       closeLabel: t("Tutup", "Close"),
     });
     if (key === "lihat") router.push(packageHref(o.id, o.name) as never);
-    else if (key === "salin") {
-      router.push(`/paket/baru?from=${o.id}` as never);
-      toast.show({ message: t("Paket disalin", "Package copied"), tone: "success" });
-    }
+    // Paket baru says "Paket disalin" once the copy is actually in its editor.
+    else if (key === "salin") router.push(`/paket/baru?from=${o.id}` as never);
   }
   const name = ops.data?.caterer.name;
   return (

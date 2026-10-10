@@ -6,9 +6,16 @@ import { useMobile } from "@catera/mobile-core";
 import { Button, SheetHeader, Text, useColors, useToast } from "@catera/mobile-ui";
 
 /**
+ * Whether the share sheet's answer proves the invite went out. iOS answers `sharedAction` only for a real share and
+ * `dismissedAction` for a dismissal; Android answers `sharedAction` for every share, including one backed out of
+ * (react-native `Share.js`), so there it proves nothing and the sheet makes no claim.
+ */
+export const inviteShared = (action: string, os = process.env.EXPO_OS) => os === "ios" && action === Share.sharedAction;
+
+/**
  * Tim, a sheet over Usaha sized to its content: invite a helper who sees Hari ini and Menu, never money or customers.
  * "Bagikan undangan" makes a new invite code (one code per person) and opens the share sheet with it; the code stays
- * on the sheet, and "Undangan dibagikan" says it went out. A share that was dismissed says nothing.
+ * on the sheet. "Undangan dibagikan" says it went out only where the platform can tell (`inviteShared`).
  */
 export function TimScreen() {
   const { actor, t, locale, command } = useMobile();
@@ -33,7 +40,7 @@ export function TimScreen() {
           `Hi! Install the Catera Dapur app, sign in with your WhatsApp number, then enter this invite code: ${r.code}`,
         ),
       });
-      if (shared.action === Share.sharedAction)
+      if (inviteShared(shared.action))
         toast.show({ message: t("Undangan dibagikan", "Invite shared"), tone: "success" });
     } catch (e) {
       setError(errorLabel((e as { code?: string }).code || (e as Error).message, locale) || t("Belum berhasil. Coba lagi.", "That didn't work. Try again."));

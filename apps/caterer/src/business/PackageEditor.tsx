@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Image, View } from "react-native";
 import { router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { defaultDishCategories, errorLabel, type SellerOffer } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { Button, Chip, Field, PressableScale, Screen, Segmented, Stepper, Text, useColors } from "@catera/mobile-ui";
+import { Button, Chip, Field, PressableScale, Screen, Segmented, Stepper, Text, useColors, useToast } from "@catera/mobile-ui";
 import { emptyPackage, formFromOffer, nutritionIssues, packageIssues, quickOffer, type PackageForm } from "./package";
 import { NutritionFields } from "./NutritionFields";
 import { photoUri } from "../photo";
@@ -19,6 +19,15 @@ export function PackageEditor({ from }: { from?: SellerOffer }) {
   const palette = useColors();
   const catererId = actor?.catererId ?? "";
   const [form, setForm] = useState<PackageForm>(() => (from ? formFromOffer(from) : emptyPackage));
+  // A copy says so once it is really here, filled in this editor: never on the tap, over a package that is still
+  // loading, gone or failed to load. Once per copy (Paket baru keys the editor by the package it copies).
+  const toast = useToast();
+  const copied = useRef(false);
+  useEffect(() => {
+    if (!from || copied.current) return;
+    copied.current = true;
+    toast.show({ message: t("Paket disalin", "Package copied"), tone: "success" });
+  }, [from, toast, t]);
   const [shown, setShown] = useState<ReturnType<typeof packageIssues>>({});
   const [giziShown, setGiziShown] = useState<ReturnType<typeof nutritionIssues>>({});
   const [busy, setBusy] = useState(false);

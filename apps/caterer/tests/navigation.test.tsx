@@ -240,16 +240,15 @@ describe("staff", () => {
     expect(snapshot(r)).toMatchObject({ root: ["(tabs)"], tab: "(index)", stack: ["index"] });
   });
 
-  it("an opened link to an owner screen lands staff on one of their own tabs, never the owner screen", async () => {
-    const r = open("/uang");
-    await waitFor(() => expect(screen.queryAllByTestId("screen").length).toBeGreaterThan(0));
-    // A cold OS link to a screen every tab shares is matched by the router to one of the tab groups, and which one
-    // shifts with the size of the route tree; for staff the guard then shows that tab's root. (A notification goes
-    // through openLink instead, which keeps the tab in front.)
-    expect(["index", "menu"]).toContain(shown());
-    expect(["/", "/menu"]).toContain(r.getPathname());
-    expect(snapshot(r).stack).toHaveLength(1);
-  });
+  it.each(["/uang", "/tim", "/paket/p-1", "/pelanggan/c-1"])(
+    "an opened link to an owner screen (%s) lands staff on Hari ini, never the owner screen",
+    async (link) => {
+      const r = open(link);
+      await waitFor(() => expect(shown()).toBe("index"));
+      expect(r.getPathname()).toBe("/");
+      expect(snapshot(r)).toMatchObject({ root: ["(tabs)"], tab: "(index)", stack: ["index"] });
+    },
+  );
 
   it("every screen follows the role's tabs: granted Pelanggan, staff open a customer", async () => {
     // The guards read tabsForRole, so a policy that gives helpers Pelanggan opens its screens and nothing else.
@@ -371,20 +370,44 @@ describe("links from the system", () => {
     expect(rewrite("exp://192.168.1.2:8081/--/usaha")).toBe("/(tabs)/(usaha)/usaha");
   });
 
+  it("names the group of the tab a screen belongs to, from any link form", () => {
+    expect(rewrite("/uang")).toBe("/(tabs)/(usaha)/uang");
+    expect(rewrite(`/laporan/${ISSUE}`)).toBe(`/(tabs)/(index)/laporan/${ISSUE}`);
+    expect(rewrite("/atur-antaran/d-1?meal=lunch&date=2030-01-04")).toBe("/(tabs)/(index)/atur-antaran/d-1?meal=lunch&date=2030-01-04");
+    expect(rewrite("/menu/2030-01-03")).toBe("/(tabs)/(menu)/menu/2030-01-03");
+    expect(rewrite("catera-dapur://pelanggan/c-1")).toBe("/(tabs)/(pelanggan)/pelanggan/c-1");
+    expect(rewrite("exp://192.168.1.2:8081/--/paket/baru?from=p-1")).toBe("/(tabs)/(usaha)/paket/baru?from=p-1");
+    expect(rewrite("https://dapur.example.test/tim/")).toBe("/(tabs)/(usaha)/tim");
+  });
+
+  it("covers every screen of the shared tab folder from the role table, so a new screen needs no rewrite rule", () => {
+    // The screens above the tabs live in the root stack, not in a tab's group.
+    const above = ["aktifkan", "impor", "impor-baris"];
+    const { SCREEN_TAB } = require("../src/roles") as typeof import("../src/roles");
+    for (const [route, tab] of Object.entries(SCREEN_TAB)) {
+      const path = route.replace(/\[[^\]]+\]/g, "x-1");
+      expect({ route, to: rewrite(`/${path}`) }).toEqual({
+        route,
+        to: above.includes(route) ? `/${path}` : `/(tabs)/(${tab})/${path}`,
+      });
+    }
+  });
+
   it("passes every other link through unchanged", () => {
-    for (const path of [`/laporan/${ISSUE}`, "/menu/2030-01-03", "/aktifkan", "catera-dapur://pelanggan/c-1", "/index"])
+    for (const path of ["/aktifkan", "/impor", "/impor-baris?n=1", "/index", "/apa-ini", "/laporan", "/uang/lain"])
       expect(rewrite(path)).toBe(path);
   });
 
   it("drops the title from every OS link and keeps the rest of it", () => {
     // Anyone can craft an OS link, so only the app's own links may name a screen before its record loads.
-    expect(rewrite("catera-dapur://pelanggan/c-1?title=Nama%20Palsu")).toBe("catera-dapur://pelanggan/c-1");
-    expect(rewrite(`/laporan/${ISSUE}?title=Palsu&from=wa`)).toBe(`/laporan/${ISSUE}?from=wa`);
-    expect(rewrite("https://dapur.example.test/paket/p-1?title=Promo+Palsu#top")).toBe("https://dapur.example.test/paket/p-1#top");
-    expect(rewrite("/pelanggan/c-1?%74itle=Palsu")).toBe("/pelanggan/c-1");
+    expect(rewrite("catera-dapur://pelanggan/c-1?title=Nama%20Palsu")).toBe("/(tabs)/(pelanggan)/pelanggan/c-1");
+    expect(rewrite(`/laporan/${ISSUE}?title=Palsu&from=wa`)).toBe(`/(tabs)/(index)/laporan/${ISSUE}?from=wa`);
+    expect(rewrite("https://dapur.example.test/paket/p-1?title=Promo+Palsu#top")).toBe("/(tabs)/(usaha)/paket/p-1#top");
+    expect(rewrite("/pelanggan/c-1?%74itle=Palsu")).toBe("/(tabs)/(pelanggan)/pelanggan/c-1");
+    expect(rewrite("catera-dapur://aktifkan?title=Palsu")).toBe("catera-dapur://aktifkan");
     // A tab root keeps its other params and loses the title.
     expect(rewrite("/?date=2030-01-04&title=Palsu")).toBe("/(tabs)/(index)?date=2030-01-04");
-    expect(rewrite("/pelanggan/c-1?subtitle=y")).toBe("/pelanggan/c-1?subtitle=y");
+    expect(rewrite("/pelanggan/c-1?subtitle=y")).toBe("/(tabs)/(pelanggan)/pelanggan/c-1?subtitle=y");
   });
 
   it("is what +native-intent hands the router, which applies it to a cold link", async () => {
@@ -410,5 +433,24 @@ describe("links from the system", () => {
     const r = open(link);
     await waitFor(() => expect(shown()).toBe(root));
     expect(snapshot(r)).toMatchObject({ root: ["(tabs)"], tab, stack: [root] });
+  });
+
+  it.each([
+    ["/uang", "(usaha)", ["usaha", "uang"]],
+    ["/tim", "(usaha)", ["usaha", "tim"]],
+    [`/laporan/${ISSUE}`, "(index)", ["index", "laporan/[id]"]],
+    [`/balas/${ISSUE}`, "(index)", ["index", "balas/[id]"]],
+    ["/atur-antaran/d-1?meal=lunch&date=2030-01-04", "(index)", ["index", "atur-antaran/[id]"]],
+    ["/menu/2030-01-03?pkg=p-1&meal=lunch", "(menu)", ["menu", "menu/[date]"]],
+    ["/pelanggan/c-1", "(pelanggan)", ["pelanggan", "pelanggan/[id]"]],
+  ])("an owner's cold link to %s opens in its own tab, with that tab's root behind it", async (link, tab, stack) => {
+    const r = open(link);
+    await waitFor(() => expect(snapshot(r)).toMatchObject({ root: ["(tabs)"], tab, stack }));
+    // The stand-in screen adds the date it was opened with after its name.
+    await waitFor(() => expect(shown().split(" ")[0]).toBe(stack[1]));
+    // Back returns to the tab's root, in the same tab.
+    headerBack();
+    await waitFor(() => expect(shown().split(" ")[0]).toBe(stack[0]));
+    expect(snapshot(r)).toMatchObject({ tab, stack: [stack[0]] });
   });
 });

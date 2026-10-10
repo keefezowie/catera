@@ -63,6 +63,17 @@ export function parkDay(catererId: string, date: string, ops: SellerOperationsSt
 
 type Kind = "failed" | "move";
 
+/** A move typed in a stop's sheet: the new date and the reason, as typed. */
+type Draft = { newDate: string; reason: string };
+
+/**
+ * Moves typed and not saved, per person and stop (`{actor}:{delivery}:{date}`), in memory only. Android's bottom sheet
+ * closes on a swipe before anything can ask (`useUnsavedGuard`), so the move waits here and comes back when this
+ * stop's sheet opens again, as the reply sheet keeps a reply. Saving or choosing "Buang" drops it; closing the app
+ * forgets it.
+ */
+const moveDrafts = new Map<string, Draft>();
+
 /** The sheet's frame: the stop's name, its portions and package under it, then the scrolling content. */
 function Frame({ title, context, children }: { title: string; context?: string; children: ReactNode }) {
   const { t } = useMobile();
@@ -77,7 +88,8 @@ function Frame({ title, context, children }: { title: string; context?: string; 
 /**
  * The only per-stop actions, as a form sheet over Hari ini: the food did not arrive ("Gagal diantar", today only, while
  * the meal can still fail), or the day moves ("Pindah tanggal", the kitchen's own customers before the cutoff). Saving
- * closes the sheet with "Laporan tersimpan"; a typed move asks before it is dropped.
+ * closes the sheet with "Laporan tersimpan"; a typed move asks before it is dropped, and one an Android swipe closed
+ * comes back the next time this person opens this stop.
  */
 export function ExceptionSheet({ id, meal, date }: { id: string; meal: KitchenMeal; date: string }) {
   const { runtime, actor, t, locale, command } = useMobile();
@@ -103,8 +115,37 @@ export function ExceptionSheet({ id, meal, date }: { id: string; meal: KitchenMe
   // sheet has nothing to send (the fresh read may have taken a choice away).
   const kind: Kind | null =
     chosen === "failed" && canFail ? "failed" : chosen === "move" && canMove ? "move" : canFail ? "failed" : canMove ? "move" : null;
-  const [newDate, setNewDate] = useState("");
-  const [reason, setReason] = useState("");
+  const [newDate, setNewDateState] = useState("");
+  const [reason, setReasonState] = useState("");
+  // A move this person typed for this stop and lost to a swipe comes back, chosen, with what was typed: once the
+  // session knows who is signed in, and once per person.
+  const draftKey = actor?.id ? `${actor.id}:${id}:${date}` : null;
+  const [restoredFor, setRestoredFor] = useState<string | null>(null);
+  if (draftKey && restoredFor !== draftKey) {
+    setRestoredFor(draftKey);
+    const draft = moveDrafts.get(draftKey);
+    if (draft) {
+      setChosen("move");
+      setNewDateState(draft.newDate);
+      setReasonState(draft.reason);
+    }
+  }
+  const keep = (move: Draft) => {
+    if (!draftKey) return;
+    if (move.newDate.trim() || move.reason.trim()) moveDrafts.set(draftKey, move);
+    else moveDrafts.delete(draftKey);
+  };
+  const drop = () => {
+    if (draftKey) moveDrafts.delete(draftKey);
+  };
+  const setNewDate = (value: string) => {
+    setNewDateState(value);
+    keep({ newDate: value, reason });
+  };
+  const setReason = (value: string) => {
+    setReasonState(value);
+    keep({ newDate, reason: value });
+  };
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
@@ -116,6 +157,7 @@ export function ExceptionSheet({ id, meal, date }: { id: string; meal: KitchenMe
     t,
     nounEn: "report",
     voice: "kamu",
+    onDiscard: drop,
   });
 
   // Saved: the sheet closes back to Hari ini, which reads the day again, and a toast says it is done. After the guard
@@ -169,6 +211,7 @@ export function ExceptionSheet({ id, meal, date }: { id: string; meal: KitchenMe
           date: newDate,
           reason: reason.trim(),
         });
+      drop();
       setSaved(true);
     } catch (e) {
       setError(

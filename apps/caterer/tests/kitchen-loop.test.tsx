@@ -703,8 +703,8 @@ describe("Urutan antar", () => {
         expect.any(String),
       ),
     );
-    // The sheet closes from an effect once the save has gone through; let it run.
-    await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+    // The save resolves in microtasks and the sheet closes from the effect that follows: one async act lets both finish.
+    await act(async () => undefined);
     expect(screen.queryByText("Simpan laporan")).toBeNull();
     expect(router.back).toHaveBeenCalledTimes(1);
   });

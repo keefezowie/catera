@@ -1,6 +1,6 @@
 import { router, type useNavigationContainerRef } from "expo-router";
 import { withoutLinkTitle } from "@catera/mobile-ui";
-import { CATERER_TABS, type CatererTab } from "./roles";
+import { CATERER_TABS, SCREEN_TAB, type CatererTab } from "./roles";
 
 const TABS: readonly string[] = CATERER_TABS;
 
@@ -42,19 +42,46 @@ function appPathOf(link: string) {
   return /^(https?|exps?)$/i.test(scheme) ? rest.replace(/^[^/?#]*/, "") : `/${rest.replace(/^\/+/, "")}`;
 }
 
+/** First path segments of the screens that sit above the tabs in the root stack. */
+const ROOT_STACK = new Set(["aktifkan", "impor", "impor-baris", "masuk", "daftar"]);
+
 /**
- * `+native-intent`: an OS link to a bare tab root (`/pelanggan`, `/menu`, `/usaha`, `/`) names that tab's own group.
- * Every tab's stack holds every tab root, and a cold start has no current tab for the router to prefer. Any other link
- * passes through. Every OS link loses its `title`: anyone can craft one, so only links the app builds may name a screen
- * before its record loads.
+ * Every screen of the shared tab folder, from the role table (`SCREEN_TAB`), as a path test with the tab it belongs
+ * to: `laporan/[id]` matches `laporan/{anything}`. A screen added to the table is covered here with no rule of its own.
+ */
+const TAB_SCREENS = Object.entries(SCREEN_TAB as Record<string, CatererTab>)
+  .filter(([route]) => !ROOT_STACK.has(route.split("/")[0]))
+  .map(([route, tab]) => {
+    const parts = route.split("/").map((part) => (/^\[.+\]$/.test(part) ? "[^/]+" : part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    return { tab, test: new RegExp(`^${parts.join("/")}$`) };
+  });
+
+/** The tab-folder screen an app path opens, with the tab it belongs to; null for a tab root or any other path. */
+function screenOfPath(app: string): { tab: CatererTab; path: string } | null {
+  const path = new URL(app, "https://catera.invalid").pathname.replace(/^\/+|\/+$/g, "");
+  const screen = TAB_SCREENS.find((s) => s.test.test(path));
+  return screen ? { tab: screen.tab, path } : null;
+}
+
+/**
+ * `+native-intent`: an OS link names the group of the tab it opens in. A bare tab root (`/pelanggan`, `/menu`, `/usaha`,
+ * `/`) opens its own tab; a screen of the shared tab folder opens in the tab `SCREEN_TAB` gives it, with that tab's root
+ * behind it (`/uang` is `/(tabs)/(usaha)/uang`, `/laporan/{id}` is `/(tabs)/(index)/laporan/{id}`). Every tab's stack
+ * holds every one of these screens and a cold start has no current tab to prefer, so without the group the router picks
+ * one by the shape of the route tree. A role without that tab falls to its guard, which shows Hari ini. Any other link
+ * (the screens above the tabs) passes through. Every OS link loses its `title`: anyone can craft one, so only links the
+ * app builds may name a screen before its record loads.
  */
 export function redirectSystemPath({ path: link }: { path: string; initial: boolean }): string {
   const path = withoutLinkTitle(link);
   try {
     const app = appPathOf(path);
+    const rest = /[?#].*$/.exec(app)?.[0] ?? "";
     const root = tabOfPath(app);
-    if (!root) return path;
-    return `${groupHref(root.tab)}${/[?#].*$/.exec(app)?.[0] ?? ""}`;
+    if (root) return `${groupHref(root.tab)}${rest}`;
+    const screen = screenOfPath(app);
+    if (screen) return `/(tabs)/(${screen.tab})/${screen.path}${rest}`;
+    return path;
   } catch {
     return path;
   }
@@ -157,9 +184,6 @@ export function goToTab(tab: CatererTab, params?: Record<string, string>) {
     });
   dismissAboveTabs(found);
 }
-
-/** First path segments of the screens that sit above the tabs in the root stack. */
-const ROOT_STACK = new Set(["aktifkan", "impor", "masuk", "daftar"]);
 
 /**
  * Opens an app path from a link (a notification tap, an attention card): a tab root selects its tab; a screen above the

@@ -12,13 +12,14 @@ import TabStack from "../app/(tabs)/(index,pelanggan,menu,usaha)/_layout";
 import { TodayScreen } from "../src/today/TodayScreen";
 import { ExceptionSheet } from "../src/today/ExceptionSheet";
 import { ReplySheet } from "../src/today/ReportScreen";
-import { TimScreen } from "../src/business/TimScreen";
+import { inviteShared, TimScreen } from "../src/business/TimScreen";
 import { UsahaScreen } from "../src/business/UsahaScreen";
+import NewPackageRoute from "../app/(tabs)/(index,pelanggan,menu,usaha)/paket/baru";
 import { ImportAssistant } from "../src/import/ImportAssistant";
 import { ImportRowEditor } from "../src/import/RowEditor";
 import * as offline from "../src/today/offline";
 import { canvasDay, report } from "./fixtures";
-import { declared, lastActionSheet, lastConfirm, lastGuard, resetSheets, SheetHost, type Opened } from "./sheet-host";
+import { declared, lastActionSheet, lastConfirm, lastGuard, resetSheets, SheetHost, unsavedGuard, type Opened } from "./sheet-host";
 
 jest.mock("expo-router", () => require("./sheet-host").routerModule);
 jest.mock("@catera/mobile-ui", () => require("./sheet-host").mobileUiModule());
@@ -295,6 +296,59 @@ describe("stop exceptions", () => {
     // Half a move cannot be saved.
     expect(within(sheet).getByRole("button", { name: "Simpan laporan" }).props.accessibilityState?.disabled).toBe(true);
   });
+
+  it("keeps a typed move for the same person and stop after an Android swipe closed the sheet", async () => {
+    const id = dayOf(TODAY).deliveries[0].id;
+    const sheetOf = () => <ExceptionSheet id={id} meal="lunch" date={TODAY} />;
+    let mounted = show(runtimeWith(), sheetOf());
+    let sheet = await stopSheet();
+    // Today this stop can fail or move; the caterer chose the move and typed it.
+    fireEvent.press(within(sheet).getByRole("radio", { name: /Pindah tanggal/ }));
+    fireEvent.changeText(within(sheet).getByLabelText("Tanggal baru (TTTT-BB-HH)"), "2026-10-12");
+    fireEvent.changeText(within(sheet).getByLabelText("Alasan"), "Pelanggan ke luar kota");
+    // A swipe closes the sheet before anything can ask: the move waits for the next opening of this stop.
+    mounted.unmount();
+    mounted = show(runtimeWith(), sheetOf());
+    sheet = await stopSheet();
+    expect(within(sheet).getByRole("radio", { name: /Pindah tanggal/ }).props.accessibilityState).toMatchObject({ checked: true });
+    expect(within(sheet).getByLabelText("Tanggal baru (TTTT-BB-HH)").props.value).toBe("2026-10-12");
+    expect(within(sheet).getByLabelText("Alasan").props.value).toBe("Pelanggan ke luar kota");
+    expect(lastGuard()).toEqual({ noun: "laporan", voice: "kamu", nounEn: "report" });
+    mounted.unmount();
+
+    // Another person on this phone opens the same stop empty.
+    mounted = show(runtimeWith({}, staff), sheetOf());
+    sheet = await stopSheet();
+    expect(within(sheet).queryByLabelText("Alasan")).toBeNull();
+    mounted.unmount();
+
+    // "Buang" drops it.
+    mounted = show(runtimeWith(), sheetOf());
+    await stopSheet();
+    const guard = unsavedGuard.mock.calls[unsavedGuard.mock.calls.length - 1][2] as { onDiscard?: () => void };
+    expect(guard.onDiscard).toEqual(expect.any(Function));
+    act(() => guard.onDiscard!());
+    mounted.unmount();
+    mounted = show(runtimeWith(), sheetOf());
+    sheet = await stopSheet();
+    expect(within(sheet).queryByLabelText("Alasan")).toBeNull();
+    mounted.unmount();
+
+    // A saved move is gone too.
+    const command = jest.fn(async () => ({}));
+    mounted = show(runtimeWith({ command }), sheetOf());
+    sheet = await stopSheet();
+    fireEvent.press(within(sheet).getByRole("radio", { name: /Pindah tanggal/ }));
+    fireEvent.changeText(within(sheet).getByLabelText("Tanggal baru (TTTT-BB-HH)"), "2026-10-12");
+    fireEvent.changeText(within(sheet).getByLabelText("Alasan"), "Pelanggan ke luar kota");
+    fireEvent.press(within(sheet).getByRole("button", { name: "Simpan laporan" }));
+    await waitFor(() => expect(command).toHaveBeenCalledWith("customer.deliveryChange", expect.anything(), expect.any(String)));
+    expect(await screen.findByText("Laporan tersimpan")).toBeTruthy();
+    mounted.unmount();
+    show(runtimeWith(), sheetOf());
+    sheet = await stopSheet();
+    expect(within(sheet).queryByLabelText("Alasan")).toBeNull();
+  });
 });
 
 describe("Laporan reply sheet", () => {
@@ -342,7 +396,7 @@ describe("Laporan reply sheet", () => {
 });
 
 describe("Tim", () => {
-  it("Tim is a sheet that shares the invite and toasts", async () => {
+  it("Tim is a sheet that shares the invite and keeps the code, claiming nothing on Android", async () => {
     render(
       <MobileProvider runtime={runtimeWith()} linkMapper={(h) => h}>
         <TabStack segment="(usaha)" />
@@ -361,8 +415,20 @@ describe("Tim", () => {
     await waitFor(() => expect(share).toHaveBeenCalled());
     expect(command.mock.calls[0]).toEqual(["staff.invite", { catererId: "k-1" }, expect.any(String)]);
     expect((share.mock.calls[0][0] as { message: string }).message).toContain("abc123");
-    expect(await screen.findByText("Undangan dibagikan")).toBeTruthy();
-    expect(screen.getByText("abc123")).toBeTruthy();
+    // The code stays on the sheet. Android reports every share as sent, even one backed out of, so this build (Jest
+    // compiles the Android branch in) claims nothing about the invite going out.
+    expect(await screen.findByText("abc123")).toBeTruthy();
+    await act(async () => undefined);
+    expect(screen.queryByText("Undangan dibagikan")).toBeNull();
+  });
+
+  it("says Undangan dibagikan only where the platform's answer can be trusted", () => {
+    // iOS answers sharedAction only for a real share and dismissedAction for a dismissal; Android always answers
+    // sharedAction (react-native Share.js), so it never earns the claim.
+    expect(inviteShared("sharedAction", "ios")).toBe(true);
+    expect(inviteShared("dismissedAction", "ios")).toBe(false);
+    expect(inviteShared("sharedAction", "android")).toBe(false);
+    expect(inviteShared("dismissedAction", "android")).toBe(false);
   });
 
   it("says nothing when the share was dismissed, and keeps the code", async () => {
@@ -390,6 +456,25 @@ describe("package actions", () => {
     { id: "p-1", name: "Makan Siang Rumahan", price: 28000, status: "published", image: "" },
     { id: "p-2", name: "Paket Hemat Kantor", price: null, status: "draft", image: "" },
   ];
+  /** The live package in full, as Paket baru reads it to fill the copy. */
+  const copyable = {
+    ...offers[0],
+    slug: "rumahan",
+    version: 3,
+    catererId: "k-1",
+    description: "Masakan rumahan harian.",
+    days: 20,
+    meal: "lunch",
+    weekdays: [1, 2, 3, 4, 5],
+    flexible: false,
+    trialPrice: null,
+    trialMax: 0,
+    capacity: {},
+    tiers: [],
+    windows: { lunch: "11.00-13.00" },
+    tags: [],
+    menus: [{ meal: "lunch", name: "x", description: "", image: "", contentModel: "slots", composition: [{ id: "g-main", categoryId: "main", name: "Lauk", slots: 2 }] }],
+  };
   const usaha = () =>
     runtimeWith({
       sellerOperations: jest.fn(async () => ({ caterer: { id: "k-1", name: "Dapur Bu Rina", status: "approved" }, offers, datedMenus: [] })),
@@ -407,13 +492,49 @@ describe("package actions", () => {
     expect(sheet.closeLabel).toBe("Tutup");
     await sheet.choose("salin");
     expect(router.push).toHaveBeenLastCalledWith("/paket/baru?from=p-1");
-    expect(await screen.findByText("Paket disalin")).toBeTruthy();
+    // Nothing is copied yet: Paket baru says so once its prefilled editor opens.
+    await act(async () => undefined);
+    expect(screen.queryByText("Paket disalin")).toBeNull();
 
     fireEvent.press(screen.getByLabelText("Lihat atau salin: Paket Hemat Kantor"));
     // A draft with no price yet names only its state: nothing stands in for the missing price.
     expect(lastActionSheet().context?.lines).toEqual(["draf"]);
     await lastActionSheet().choose("lihat");
     expect(router.push).toHaveBeenLastCalledWith("/paket/p-2?title=Paket%20Hemat%20Kantor");
+  });
+
+  it("says Paket disalin once the copy opens in the editor, never over a missing or failed copy", async () => {
+    const routerModule = require("./sheet-host").routerModule as { useLocalSearchParams: () => Record<string, string> };
+    let read!: (value: unknown) => void;
+    const sellerOperations = jest.fn(() => new Promise((resolve) => (read = resolve)));
+    jest.spyOn(routerModule, "useLocalSearchParams").mockReturnValue({ from: "p-1" });
+    show(runtimeWith({ sellerOperations }), <NewPackageRoute />);
+    // While the package it copies loads, nothing has been copied.
+    await waitFor(() => expect(sellerOperations).toHaveBeenCalled());
+    await act(async () => undefined);
+    expect(screen.queryByText("Paket disalin")).toBeNull();
+    await act(async () =>
+      read({ caterer: { id: "k-1", name: "Dapur Bu Rina", status: "approved" }, offers: [copyable, offers[1]], datedMenus: [], dishes: [] }),
+    );
+    expect(await screen.findByText("Paket disalin")).toBeTruthy();
+    expect(screen.getAllByText("Paket disalin")).toHaveLength(1);
+    screen.unmount();
+
+    // A package that is gone: the editor never opens, so nothing was copied.
+    jest.spyOn(routerModule, "useLocalSearchParams").mockReturnValue({ from: "p-gone" });
+    show(usaha(), <NewPackageRoute />);
+    expect(await screen.findByText("Paket ini tidak ditemukan.")).toBeTruthy();
+    await act(async () => undefined);
+    expect(screen.queryByText("Paket disalin")).toBeNull();
+    screen.unmount();
+
+    // A failed read: the error shows, and no success over it.
+    jest.spyOn(routerModule, "useLocalSearchParams").mockReturnValue({ from: "p-1" });
+    const failing = jest.fn(async () => Promise.reject(new Error("offline")));
+    show(runtimeWith({ sellerOperations: failing }), <NewPackageRoute />);
+    await waitFor(() => expect(failing).toHaveBeenCalled());
+    await act(async () => undefined);
+    expect(screen.queryByText("Paket disalin")).toBeNull();
   });
 
   it("closing the package sheet does nothing", async () => {
@@ -458,6 +579,45 @@ describe("import row editor", () => {
     fireEvent.press(within(await screen.findByTestId("import-row-sheet")).getByRole("button", { name: "Hapus baris ini" }));
     await waitFor(() => expect(screen.queryByTestId("import-row-sheet")).toBeNull());
     expect(screen.queryByText("Bu Ani")).toBeNull();
+  });
+
+  it("waits for the package choices instead of calling a loading row gone", async () => {
+    let options!: (value: unknown) => void;
+    const pending = new Promise((resolve) => (options = resolve));
+    const sellerImportOptions = jest.fn(() => pending);
+    global.fetch = jest.fn(async () => disabled) as unknown as typeof fetch;
+    show(runtimeWith({ sellerImportOptions }), <ImportAssistant />);
+    fireEvent.changeText(await screen.findByLabelText("Tempel atau ketik daftar pelanggan"), "daftar");
+    fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
+    fireEvent.press(await screen.findByRole("button", { name: "Isi manual" }));
+    // The row is on the list; only its package choices have not arrived.
+    const sheet = await screen.findByTestId("import-row-sheet");
+    expect(within(sheet).queryByText("Baris ini sudah tidak ada.")).toBeNull();
+    expect(within(sheet).getByLabelText("Memuat pilihan paket")).toBeTruthy();
+    await act(async () =>
+      options({ customers: [], packages: [{ id: "p-hemat", name: "Paket Hemat Kantor", days: 20, areas: [], meal: "lunch" }] }),
+    );
+    expect(await within(screen.getByTestId("import-row-sheet")).findByLabelText("Nama")).toBeTruthy();
+    expect(within(screen.getByTestId("import-row-sheet")).getByText("Paket Hemat Kantor")).toBeTruthy();
+  });
+
+  it("a row whose package choices could not be read says so and tries again", async () => {
+    const sellerImportOptions = jest.fn().mockRejectedValue(new Error("offline"));
+    global.fetch = jest.fn(async () => disabled) as unknown as typeof fetch;
+    show(runtimeWith({ sellerImportOptions }), <ImportAssistant />);
+    fireEvent.changeText(await screen.findByLabelText("Tempel atau ketik daftar pelanggan"), "daftar");
+    fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
+    fireEvent.press(await screen.findByRole("button", { name: "Isi manual" }));
+    const sheet = await screen.findByTestId("import-row-sheet");
+    const retry = await within(sheet).findByRole("button", { name: "Coba lagi" });
+    expect(within(sheet).queryByText("Baris ini sudah tidak ada.")).toBeNull();
+    sellerImportOptions.mockResolvedValue({
+      customers: [],
+      packages: [{ id: "p-hemat", name: "Paket Hemat Kantor", days: 20, areas: [], meal: "lunch" }],
+    });
+    fireEvent.press(retry);
+    // The choices land and the same sheet becomes the row's editor.
+    await waitFor(() => expect(within(screen.getByTestId("import-row-sheet")).getByText("Paket Hemat Kantor")).toBeTruthy());
   });
 
   it("a row link with no row behind it says so", async () => {

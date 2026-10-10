@@ -1,13 +1,49 @@
+import { useEffect } from "react";
 import { View } from "react-native";
 import { router } from "expo-router";
 import { earliestImportStart, normalizeCustomerPhone } from "@catera/domain";
-import { useMobile } from "@catera/mobile-core";
-import { Button, Chip, Field, SheetBody, SheetHeader, Text, useColors } from "@catera/mobile-ui";
+import { useData, useMobile } from "@catera/mobile-core";
+import { Button, Chip, Field, SheetBody, SheetHeader, Skeleton, SkeletonGroup, Text, useColors } from "@catera/mobile-ui";
+import { ReadError } from "../ReadError";
 import { recheck, type AssistantRow } from "./rows";
 import { useImportStore } from "./store";
 
 /** The row sheet for row `n` of the import in progress, a form sheet above Impor in the root stack. */
 export const rowHref = (n: number) => `/impor-baris?n=${n}`;
+
+/**
+ * The row sheet while the kitchen's package choices are not in the import yet: field-shaped skeletons, or the read's
+ * error with Coba lagi. It reads the choices itself (Impor's own read may still be on its way, or may have failed) and
+ * puts them in the import, which then shows the row's editor.
+ */
+function PackageChoices({ title }: { title: string }) {
+  const { runtime, actor, t } = useMobile();
+  const catererId = actor?.catererId ?? "";
+  const { setPackages } = useImportStore();
+  const options = useData(`impor:${catererId}`, () => runtime.api.sellerImportOptions(catererId));
+  useEffect(() => {
+    if (options.data) setPackages(options.data.packages);
+  }, [options.data, setPackages]);
+  return (
+    <View testID="import-row-sheet" style={{ flex: 1 }}>
+      <SheetHeader title={title} closeLabel={t("Tutup", "Close")} />
+      <SheetBody>
+        {options.error ? (
+          <ReadError message={options.error} onRetry={() => void options.reload()} />
+        ) : (
+          <SkeletonGroup label={t("Memuat pilihan paket", "Loading the package choices")}>
+            <View style={{ gap: 12 }}>
+              <Skeleton height={56} radius={12} />
+              <Skeleton height={56} radius={12} />
+              <Skeleton height={56} radius={12} />
+              <Skeleton height={40} width="60%" radius={20} />
+            </View>
+          </SkeletonGroup>
+        )}
+      </SheetBody>
+    </View>
+  );
+}
 
 /**
  * One imported customer, corrected in a form sheet over Impor. Every change goes straight into the import in progress
@@ -22,7 +58,7 @@ export function ImportRowEditor({ n }: { n: number }) {
   const close = () => router.back();
 
   // A link to a row that is gone (saved, removed, or Impor closed meanwhile) has nothing to edit.
-  if (!row || !packages)
+  if (!row)
     return (
       <View testID="import-row-sheet" style={{ flex: 1 }}>
         <SheetHeader title={t("Pelanggan", "Customer")} closeLabel={t("Tutup", "Close")} />
@@ -32,6 +68,9 @@ export function ImportRowEditor({ n }: { n: number }) {
         </SheetBody>
       </View>
     );
+  // The row is there, but Impor's read of the package choices has not landed (or failed): the row is checked against
+  // them, so the sheet waits for them instead of calling the row gone.
+  if (!packages) return <PackageChoices title={row.name || t("Pelanggan", "Customer")} />;
 
   const update = (patch: Partial<AssistantRow>) =>
     setRow(n, (current) => recheck({ ...current, ...patch }, packages, earliestImportStart(new Date())));
