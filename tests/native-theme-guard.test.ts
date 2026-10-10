@@ -33,15 +33,17 @@ test("mobile-ui does not re-export colors", () => {
 });
 
 // Fixed inks (the plate, the story cover, the story viewer and the Menu besok story page, all over a photo or black) are the
-// one reason to read a palette without following the theme. Anything else that imports nativeThemes would bypass the
-// active theme, so it is named here rather than allowed by default.
-test("only the plate, the story cover, the story viewer, the Menu besok story and the theme module import nativeThemes", () => {
+// one reason to read a palette without following the theme. The package detail's bar reads it only while it sits over
+// the photo; past the photo it takes the stack header's themed tint. Anything else that imports nativeThemes would
+// bypass the active theme, so it is named here rather than allowed by default.
+test("only the plate, the story cover, the story viewer, the Menu besok story, the package photo header and the theme module import nativeThemes", () => {
   const importers = appDirs
     .flatMap((d) => walk(join(root, d)))
     .filter((f) => /\bnativeThemes\b/.test(readFileSync(f, "utf8")))
     .map(rel)
     .sort();
   expect(importers).toEqual([
+    "apps/customer/src/discover/PackageDetail.tsx",
     "apps/customer/src/today/Plate.tsx",
     "apps/customer/src/tomorrow/TomorrowStory.tsx",
     "packages/mobile-ui/src/StoryCover.tsx",
