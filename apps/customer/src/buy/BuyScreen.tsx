@@ -22,7 +22,7 @@ import { Button, fontFor, MoodHeader, Screen, Stepper, Text, themedStyles, useCo
 import { Breakdown, LengthOptions, percent, StartLine } from "./Breakdown";
 import { ChoiceSheet, NoLongerSold, PayWith, PendingPayment, Retry, Terms } from "./BuyParts";
 import { useQuote, type BuyPayload } from "./useQuote";
-import { goToTab } from "../nav";
+import { FLOW_HREF, goToTab } from "../nav";
 
 /** Choices a link may carry (old /checkout links, Paket); anything invalid falls back to defaults. */
 export type BuyInitial = { portions?: string; cycles?: string; startDate?: string; addressId?: string };
@@ -281,7 +281,7 @@ export function BuyScreen({
             variant="text"
             label={address ? t("Ganti", "Change") : t("Tambah alamat", "Add address")}
             accessibilityLabel={address ? t("Ganti alamat", "Change address") : undefined}
-            onPress={() => (address ? setSheet("address") : router.push("/alamat" as never))}
+            onPress={() => (address ? setSheet("address") : router.push(FLOW_HREF.alamat as never))}
           />
         </View>
       </View>
@@ -327,7 +327,7 @@ export function BuyScreen({
           label={t("Kelola alamat", "Manage addresses")}
           onPress={() => {
             setSheet("");
-            router.push("/alamat" as never);
+            router.push(FLOW_HREF.alamat as never);
           }}
         />
       </ChoiceSheet>

@@ -118,8 +118,8 @@ const mockNavTheme: { value?: { dark: boolean; colors: Record<string, string> } 
 jest.mock("../src/nav", () => ({ ...jest.requireActual("../src/nav"), openLink: jest.fn() }));
 jest.mock("expo-router", () => ({
   router: { push: jest.fn(), replace: jest.fn() },
-  // The tabs layout registers the navigation container for goToTab.
-  useNavigationContainerRef: () => null,
+  // The root layout registers the navigation container for goToTab and openLink; this one never has a state.
+  useNavigationContainerRef: () => ({ addListener: () => () => undefined, isReady: () => false }),
   // The root hands the navigator a theme built from the palette; the library defaults are stood in by plain objects.
   DefaultTheme: { dark: false, colors: { background: "rgb(242, 242, 242)" } },
   DarkTheme: { dark: true, colors: { background: "rgb(1, 1, 1)" } },

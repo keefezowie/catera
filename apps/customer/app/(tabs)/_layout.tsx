@@ -1,10 +1,7 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useEffect } from "react";
-import { useNavigationContainerRef } from "expo-router";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
 import { useMobile } from "@catera/mobile-core";
 import { tabBarColors, tabLabelStyle, useColors } from "@catera/mobile-ui";
-import { registerNavigation } from "../../src/nav";
 
 type CustomerTab = "index" | "jadwal" | "jelajah" | "akun";
 
@@ -28,9 +25,6 @@ const order = Object.keys(icons) as CustomerTab[];
  */
 export default function TabsLayout() {
   const { t } = useMobile();
-  const navigation = useNavigationContainerRef();
-  // goToTab selects a tab by targeting these navigators by key, so it needs the container once the tabs exist.
-  useEffect(() => registerNavigation(navigation), [navigation]);
   const bar = tabBarColors(useColors());
   const label = tabLabelStyle();
   const titles: Record<CustomerTab, string> = {

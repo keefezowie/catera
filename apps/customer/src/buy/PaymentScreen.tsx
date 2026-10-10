@@ -8,7 +8,7 @@ import { currency, errorLabel, paidSummary, type Checkout, type DirectPaymentMet
 import { plural, useData, useMobile } from "@catera/mobile-core";
 import { Button, Card, FadeSwap, fontFor, MoodHeader, Screen, Text, themedStyles, useColors, useHaptic } from "@catera/mobile-ui";
 import { PayWith, Retry } from "./BuyParts";
-import { goToTab } from "../nav";
+import { FLOW_HREF, goToTab } from "../nav";
 import { PaidActions } from "./PaidOutcome";
 import { FINAL, PaymentOutcome, stageOf, type Stage } from "./PaymentOutcome";
 import { QrisCode, useQris } from "./QrisCode";
@@ -154,7 +154,7 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
     <Button
       variant="text"
       label={t("Bantuan pembayaran", "Payment help")}
-      onPress={() => router.push({ pathname: "/bantuan", params: { checkoutId } } as never)}
+      onPress={() => router.push({ pathname: FLOW_HREF.bantuan, params: { checkoutId } } as never)}
     />
   );
   if (!c || !stage)

@@ -1,20 +1,24 @@
 import { readdirSync } from "node:fs";
 import { join, relative, sep } from "node:path";
-import { createElement } from "react";
+import { createElement, useEffect } from "react";
 import { Text } from "react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, Stack, useNavigationContainerRef } from "expo-router";
 import { act, fireEvent, renderRouter, screen } from "expo-router/testing-library";
-import { goToTab, leaveFor, openLink, systemPath, tabOfPath } from "../src/nav";
+import { FLOW_HREF, goToTab, leaveFor, openLink, registerNavigation, systemPath, tabOfPath } from "../src/nav";
 import { customerLink } from "../src/links";
 
 // expo-router's testing library swaps in Reanimated's own jest mock, which has no useReducedMotion (setup.cjs adds it).
 Object.assign(require("react-native-reanimated"), { useReducedMotion: () => false });
+// The tab bar loads its vector icons as images, asynchronously, and sets them after the test's act() has ended. A
+// ready image source needs no late update; the icons are not under test here.
+jest.spyOn(Ionicons, "getImageSource").mockImplementation((() => ({ uri: "icon" })) as never);
 
 /**
  * The real route tree in `app/` with the real tabs layout, the real stack inside each tab and `+native-intent`. The
  * screens behind the routes are stand-ins (their own suites cover them), except the buttons under test: the paid
- * footer on Bayar and the empty Beranda. The root layout is a bare stack: the app's own adds fonts, theme and session
- * providers around the same routes. The tree is loaded from the files themselves (the in-memory form is the one that
+ * footer on Bayar and the empty Beranda. The root layout is a bare stack that registers the navigation container, as
+ * the app's own does: that one also adds fonts, theme and session providers around the same routes. The tree is loaded from the files themselves (the in-memory form is the one that
  * keeps `+native-intent` working in the test router).
  */
 
@@ -68,6 +72,7 @@ const files = (dir: string): string[] =>
 let container: ReturnType<typeof useNavigationContainerRef>;
 function Root() {
   container = useNavigationContainerRef();
+  useEffect(() => registerNavigation(container), []);
   return <Stack screenOptions={{ headerShown: false }} />;
 }
 
@@ -152,15 +157,34 @@ describe("each tab keeps its own stack", () => {
     }
   });
 
-  it("a push tap that arrives before the tabs exist opens once they do", () => {
-    // A cold Bayar with no tabs under it: the tapped push waits instead of being dropped or opening over Bayar.
-    mount("/bayar/c1");
+  it("a push tap that arrives while the app is still loading opens once the tabs exist", () => {
+    // Read before the app's stack is mounted (the session still loading on a cold start): it waits, then opens once.
     act(() => openLink(customerLink("/subscriptions/s1")));
-    expect(root()).toEqual(["bayar/[id]"]);
-    press("Ke Beranda");
+    mount("/");
     expect(root()).toEqual(["(tabs)"]);
     expect(tab()).toBe("(index)");
     expect(stack("(index)")).toEqual(["index", "subscriptions/[id]"]);
+  });
+
+  it("a push tap on a screen above the tabs opened cold opens at once, with Beranda behind it", () => {
+    // Bayar, claim, Masuk and the story opened cold have no tabs under them; a tapped notification still responds.
+    for (const cold of ["/bayar/c1", "/claim/t1", "/login", "/tomorrow?part=0"]) {
+      const app = mount(cold);
+      expect(root()).not.toContain("(tabs)");
+      act(() => openLink(customerLink("/subscriptions/s1")));
+      expect(root()).toEqual(["(tabs)"]);
+      expect(tab()).toBe("(index)");
+      expect(stack("(index)")).toEqual(["index", "subscriptions/[id]"]);
+      act(() => router.back());
+      expect(stack("(index)")).toEqual(["index"]);
+      app.unmount();
+    }
+    // A tab root selects that tab.
+    mount("/bayar/c1");
+    act(() => openLink(customerLink("/calendar")));
+    expect(root()).toEqual(["(tabs)"]);
+    expect(tab()).toBe("(jadwal)");
+    expectNoSecondRoot();
   });
 
   it("a push tap while Bayar is open opens the screen in the tab, never in a second tab bar", () => {
@@ -205,6 +229,23 @@ describe("each tab keeps its own stack", () => {
       app.unmount();
     }
   });
+
+  it("a warm OS link to a tab root with pushed screens opens that tab at its root", () => {
+    mount("/");
+    act(() => goToTab("jadwal"));
+    act(() => router.push("/hari/d1"));
+    act(() => goToTab("index"));
+    expect(stack("(jadwal)")).toEqual(["jadwal", "hari/[id]"]);
+    // What the router does with an OS link while the app runs: +native-intent rewrites it, linking dispatches it.
+    const { linking } = require("expo-router/build/global-state/store").store;
+    act(() =>
+      container.dispatch(linking.getActionFromState(linking.getStateFromPath(systemPath("exp://127.0.0.1:8086/--/jadwal"), linking.config), linking.config)),
+    );
+    expect(root()).toEqual(["(tabs)"]);
+    expect(tab()).toBe("(jadwal)");
+    expect(stack("(jadwal)")).toEqual(["jadwal"]);
+    expectNoSecondRoot();
+  });
 });
 
 describe("links to tab roots select the tab", () => {
@@ -234,10 +275,19 @@ describe("links to tab roots select the tab", () => {
     expect(tab()).toBe("(jadwal)");
     expect(stack("(jadwal)")).toEqual(["jadwal"]);
     jadwal.unmount();
-    mount("/bayar/c1");
+    const beranda = mount("/bayar/c1");
     press("Ke Beranda");
     expect(root()).toEqual(["(tabs)"]);
     expect(tab()).toBe("(index)");
+    expect(stack("(index)")).toEqual(["index"]);
+    beranda.unmount();
+    // Pilih menu: the menu opens in Beranda with Beranda behind it (leaveFor's cold path), through the legacy menu path.
+    mount("/bayar/c1");
+    press("Pilih menu");
+    expect(root()).toEqual(["(tabs)"]);
+    expect(tab()).toBe("(index)");
+    expect(stack("(index)")).toEqual(["index", "pilih-menu/[id]"]);
+    act(() => router.back());
     expect(stack("(index)")).toEqual(["index"]);
   });
 
@@ -289,6 +339,19 @@ describe("links to tab roots select the tab", () => {
     act(() => openLink(customerLink("/today")));
     expect(tab()).toBe("(index)");
     // Beranda is back at its root; the other tabs were never given a second root.
+    expect(stack("(index)")).toEqual(["index"]);
+    expectNoSecondRoot();
+  });
+
+  it("a link to a tab root with a query selects that tab instead of pushing a second root", () => {
+    mount("/");
+    act(() => goToTab("jadwal"));
+    act(() => router.push("/hari/d1"));
+    act(() => goToTab("index"));
+    act(() => openLink("/jadwal?d=1"));
+    expect(root()).toEqual(["(tabs)"]);
+    expect(tab()).toBe("(jadwal)");
+    expect(stack("(jadwal)")).toEqual(["jadwal"]);
     expect(stack("(index)")).toEqual(["index"]);
     expectNoSecondRoot();
   });
@@ -354,6 +417,49 @@ describe("legacy paths and the screens above the tabs", () => {
     }
   });
 
+  it("Alamat from Beli and Bantuan from Bayar open over the purchase, with one tab bar", () => {
+    mount("/");
+    act(() => goToTab("jelajah"));
+    act(() => router.push("/paket/p1"));
+    act(() => router.push("/beli/p1"));
+    // Beli's Tambah alamat and Kelola alamat.
+    act(() => router.push(FLOW_HREF.alamat as never));
+    expect(root()).toEqual(["(tabs)", "beli/[id]", "pembelian/alamat"]);
+    expect(stack("(jelajah)")).toEqual(["jelajah", "paket/[id]"]);
+    // Close returns to Beli.
+    act(() => router.back());
+    expect(root()).toEqual(["(tabs)", "beli/[id]"]);
+
+    act(() => router.replace("/bayar/c1"));
+    // Bayar's Bantuan pembayaran: payment help for this checkout.
+    act(() => router.push({ pathname: FLOW_HREF.bantuan, params: { checkoutId: "c1" } } as never));
+    expect(root()).toEqual(["(tabs)", "bayar/[id]", "pembelian/bantuan"]);
+    expect(rootStack().routes[2].params).toMatchObject({ checkoutId: "c1" });
+    act(() => router.back());
+    expect(root()).toEqual(["(tabs)", "bayar/[id]"]);
+    expectNoSecondRoot();
+
+    // The bare paths still open the tab's own screens: Akun's rows and links from a notification.
+    act(() => goToTab("akun"));
+    act(() => router.push("/alamat"));
+    expect(root()).toEqual(["(tabs)"]);
+    expect(stack("(akun)")).toEqual(["akun", "alamat"]);
+    act(() => openLink(customerLink("/support?checkoutId=c1")));
+    expect(stack("(akun)")).toEqual(["akun", "alamat", "bantuan"]);
+  });
+
+  it("a cold link to Alamat or Bantuan opens the tab's screen, not the copy over a purchase", () => {
+    for (const [href, route] of [
+      ["/alamat", "alamat"],
+      ["/bantuan?checkoutId=c1", "bantuan"],
+    ]) {
+      const app = mount(href);
+      expect(root()).toEqual(["(tabs)"]);
+      expect(stack("(index)")).toEqual(["index", route]);
+      app.unmount();
+    }
+  });
+
   it("signing in returns to the tab or the screen that asked for it", () => {
     // Signed out on Jadwal: SignInFirst opens Masuk with next=/jadwal.
     const jadwal = mount("/");
@@ -385,16 +491,9 @@ describe("legacy paths and the screens above the tabs", () => {
 
 describe("paths", () => {
   it("names the tab a path is the root of", () => {
-    expect(["/", "/jadwal", "/jelajah", "/akun", "/jadwal/", "/index", "/jadwal?x=1", "/hari/d1"].map(tabOfPath)).toEqual([
-      "index",
-      "jadwal",
-      "jelajah",
-      "akun",
-      "jadwal",
-      null,
-      null,
-      null,
-    ]);
+    expect(
+      ["/", "/jadwal", "/jelajah", "/akun", "/jadwal/", "/index", "/jadwal?d=1", "/akun#top", "/?x=1", "/hari/d1", "/hari/d1?x=1"].map(tabOfPath),
+    ).toEqual(["index", "jadwal", "jelajah", "akun", "jadwal", null, "jadwal", "akun", "index", null, null]);
   });
 
   it("points OS links to a tab root at that tab and leaves every other link alone", () => {
@@ -402,7 +501,11 @@ describe("paths", () => {
     expect(systemPath("catera://jelajah")).toBe("/(tabs)/(jelajah)/jelajah");
     expect(systemPath("/akun")).toBe("/(tabs)/(akun)/akun");
     expect(systemPath("exp://127.0.0.1:8084/--/discover")).toBe("/(tabs)/(jelajah)/jelajah");
-    for (const url of ["exp://127.0.0.1:8084", "exp://127.0.0.1:8084/--/subscriptions/s1", "catera://hari/d1", "/", "/jadwal?d=1"])
+    // A query or hash does not change the screen.
+    for (const url of ["/discover?x=1", "/discover#top", "catera://discover?utm=push", "exp://127.0.0.1:8084/--/discover#packages"])
+      expect(systemPath(url)).toBe("/(tabs)/(jelajah)/jelajah");
+    expect(systemPath("/jadwal?d=1")).toBe("/(tabs)/(jadwal)/jadwal");
+    for (const url of ["exp://127.0.0.1:8084", "exp://127.0.0.1:8084/--/subscriptions/s1", "catera://hari/d1", "/", "/?x=1", "/discover/x"])
       expect(systemPath(url)).toBe(url);
   });
 });

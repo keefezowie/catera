@@ -18,11 +18,31 @@ const ROOT_HREF: Record<Tab, string> = {
   akun: "/(tabs)/(akun)/akun",
 };
 
+/**
+ * Alamat and Bantuan opened from Beli or Bayar: the root-stack copies in `app/pembelian`, presented over the purchase,
+ * so it stays underneath and no second tab bar opens. Close returns to it. They have their own path, not a group: a
+ * group copy would share "/alamat" with the tab's screen, and a cold link to it would open the copy.
+ */
+export const FLOW_HREF = { alamat: "/pembelian/alamat", bantuan: "/pembelian/bantuan" } as const;
+
 /** Old paths whose screen is a tab root. */
 const LEGACY_ROOTS: Record<string, Tab> = { discover: "jelajah" };
 
 /** First path segments of the screens that sit above the tabs in the root stack. */
-const ROOT_STACK = new Set(["login", "register", "recover", "auth", "beli", "renew", "bayar", "checkout", "payment", "claim", "tomorrow"]);
+const ROOT_STACK = new Set([
+  "login",
+  "register",
+  "recover",
+  "auth",
+  "beli",
+  "renew",
+  "bayar",
+  "checkout",
+  "payment",
+  "claim",
+  "tomorrow",
+  "pembelian",
+]);
 
 /** The array-group layout gets its own segment, `(jadwal)`; this is the tab it hosts. */
 export function tabOfSegment(segment: string): Tab {
@@ -30,10 +50,15 @@ export function tabOfSegment(segment: string): Tab {
   return (TABS as readonly string[]).includes(name) ? (name as Tab) : "index";
 }
 
-/** The tab a path is the root of ("/" is Beranda), or null for any other path, including a tab root with a query. */
+/** A path without its query and hash. */
+const pathname = (path: string) => path.split(/[?#]/)[0];
+
+/**
+ * The tab a path is the root of ("/" is Beranda), or null for any other path. A query or hash does not change the
+ * screen ("/jadwal?d=1" is still Jadwal); no tab root reads params, so selecting the tab drops them.
+ */
 export function tabOfPath(path: string): Tab | null {
-  if (path.includes("?") || path.includes("#")) return null;
-  const name = path.replace(/^\/+|\/+$/g, "");
+  const name = pathname(path).replace(/^\/+|\/+$/g, "");
   if (name === "") return "index";
   return (TABS as readonly string[]).includes(name) && name !== "index" ? (name as Tab) : null;
 }
@@ -44,32 +69,50 @@ type State = { key: string; index: number; routes: Route[] };
 type Container = ReturnType<typeof useNavigationContainerRef>;
 
 let container: Container | null = null;
-/** A link that arrived before the tabs were mounted (a cold push tap, read while the session still loads). */
+/** A link that arrived before it had somewhere to open (a cold push tap, read while the session still loads). */
 let pending: string | null = null;
 
 /**
- * The tabs layout registers the navigation container once the tabs exist, so a tab change can target each navigator
- * by its key. A link that arrived before then opens now.
+ * The root layout registers the navigation container, so a tab change can target each navigator by its key, and a
+ * link that arrived while the app was still loading opens once it can. Returns the cleanup for the layout's effect.
  */
-export function registerNavigation(ref: Container | null) {
+export function registerNavigation(ref: Container): () => void {
   container = ref;
-  const waiting = pending;
-  pending = null;
-  if (!ref || !waiting) return;
-  if (tabsInRoot()) return openLink(waiting);
-  // The tab bar reports its first state just after this layout mounts; open the link once the container holds it.
-  const stop = ref.addListener("state", () => {
-    if (!tabsInRoot()) return;
-    stop();
+  const flush = () => {
+    const waiting = pending;
+    if (!waiting || isLoading()) return;
+    pending = null;
     openLink(waiting);
-  });
+  };
+  const stop = ref.addListener("state", flush);
+  flush();
+  return () => {
+    stop();
+    if (container === ref) container = null;
+  };
 }
 
-/** The app's root stack (under the router's own `__root` route) and the tabs route in it, when the tabs are mounted. */
-function tabsInRoot(): { root: State; at: number; tabs: State } | null {
+/** The app's root stack, under the router's own `__root` route, once it is mounted. */
+function appStack(): State | undefined {
   let root = container?.isReady() ? (container.getRootState() as unknown as State | undefined) : undefined;
-  while (root && !root.routes.some((r) => r.name === "(tabs)")) root = root.routes[root.index]?.state;
-  if (!root?.key) return null;
+  if (root?.routes.length === 1 && root.routes[0].name === "__root") root = root.routes[0].state;
+  return root?.key ? root : undefined;
+}
+
+/**
+ * True while a link has nowhere to open yet: the session is still loading (no stack), or the tabs are on screen but
+ * have not reported their state. A screen above the tabs opened cold (Bayar, claim, login, the story) is not loading.
+ */
+function isLoading(): boolean {
+  if (tabsInRoot()) return false;
+  const root = appStack();
+  return !root || root.routes[root.index]?.name === "(tabs)";
+}
+
+/** The app's root stack and the tabs route in it, when the tabs are mounted. */
+function tabsInRoot(): { root: State; at: number; tabs: State } | null {
+  const root = appStack();
+  if (!root?.routes.some((r) => r.name === "(tabs)")) return null;
   const at = root.routes.findIndex((r) => r.name === "(tabs)");
   const tabs = root.routes[at].state;
   return tabs?.key ? { root, at, tabs } : null;
@@ -119,20 +162,22 @@ export function systemPath(url: string): string {
   const hosted = /^(exps?|https?):\/\/[^/?#]*/i;
   const path = (hosted.test(url) ? url.replace(hosted, "").replace(/^\/--(?=[/?#]|$)/, "") : url.replace(/^[a-z][\w+.-]*:\/\//i, "/"))
     .replace(/^\/*/, "/");
-  const tab = tabOfPath(path) ?? LEGACY_ROOTS[path.slice(1).replace(/\/+$/, "")] ?? null;
+  const tab = tabOfPath(path) ?? LEGACY_ROOTS[pathname(path).slice(1).replace(/\/+$/, "")] ?? null;
   // "/" already opens Beranda: it is the first tab.
   return tab && tab !== "index" ? ROOT_HREF[tab] : url;
 }
 
 /**
  * Opens an app path from a link (a push or notification tap, a row that carries an href): a tab root selects its tab; a
- * screen above the tabs (Bayar, Beli, claim) opens over them; any other screen opens in the current tab. Before the
- * tabs exist (the session is still loading on a cold start) the link waits for them.
+ * screen above the tabs (Bayar, Beli, claim) opens over them; any other screen opens in the current tab. While the
+ * session is still loading on a cold start the link waits. On a screen above the tabs opened cold, with no tabs under
+ * it, a tapped link opens at once, the way `leaveFor` leaves such a screen: a tapped notification always responds.
  */
 export function openLink(path: string) {
   const found = tabsInRoot();
   if (!found) {
-    pending = path;
+    if (isLoading()) pending = path;
+    else leaveFor(path);
     return;
   }
   const tab = tabOfPath(path);

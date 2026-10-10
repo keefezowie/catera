@@ -1,5 +1,5 @@
-import { useMemo, type ReactNode } from "react";
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider as NavigationTheme } from "expo-router";
+import { useEffect, useMemo, type ReactNode } from "react";
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider as NavigationTheme, useNavigationContainerRef } from "expo-router";
 import { useFonts } from "expo-font";
 import { StatusBar } from "expo-status-bar";
 import { ActivityIndicator, View } from "react-native";
@@ -19,12 +19,16 @@ import {
   useMood,
   useThemePreference,
 } from "@catera/mobile-ui";
+import { registerNavigation } from "../src/nav";
 import { runtime } from "../src/runtime";
 import { AppProviders } from "../src/shell";
 import { useStackScreenOptions } from "../src/stack";
 
 function Navigation() {
   const { t, ready, demo } = useMobile();
+  const container = useNavigationContainerRef();
+  // goToTab and openLink target each navigator by key; a push tapped while the session loads opens once it can.
+  useEffect(() => registerNavigation(container), [container]);
   const palette = useColors();
   const { scheme } = useThemePreference();
   const { mood } = useMood();
@@ -65,6 +69,13 @@ function Navigation() {
           <Stack.Screen name="checkout/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="payment/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="claim/[token]" options={{ headerShown: false }} />
+          {/* Alamat and Bantuan opened from Beli or Bayar: the same screens as in the tabs, over the purchase, so it
+              stays underneath and no second tab bar opens. Close returns to it. */}
+          <Stack.Screen name="pembelian/alamat" options={{ title: t("Alamat", "Addresses"), presentation: "modal" }} />
+          <Stack.Screen
+            name="pembelian/bantuan"
+            options={{ title: t("Bantuan dan laporan", "Help and reports"), presentation: "modal" }}
+          />
           {/* A black story: its own close button replaces the header, and a fade keeps its ground from cutting in. */}
           <Stack.Screen
             name="tomorrow"
