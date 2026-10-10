@@ -9,6 +9,12 @@ export default function EditPackageRoute() {
   const catererId = actor?.catererId ?? "";
   const ops = useData(`menu-ops:${catererId}`, () => runtime.api.sellerOperations(catererId));
   const offer = ops.data?.offers.find((o) => o.id === id);
-  if (!offer) return <Screen><Text variant="caption">{ops.error || t("Memuat…", "Loading…")}</Text></Screen>;
+  // Until the package arrives the screen is named by what it is; then by the package.
+  if (!offer)
+    return (
+      <Screen nativeTitle={t("Paket", "Package")}>
+        <Text variant="caption">{ops.error || t("Memuat…", "Loading…")}</Text>
+      </Screen>
+    );
   return <PackageDetail offer={offer} />;
 }

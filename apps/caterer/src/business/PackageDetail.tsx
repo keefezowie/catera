@@ -16,9 +16,8 @@ export function PackageDetail({ offer }: { offer: SellerOffer }) {
   const groups = offer.menus[0]?.composition ?? [];
   const capacity = offer.weekdays.length ? offer.capacity[String(offer.weekdays[0])] : undefined;
   return (
-    <Screen>
+    <Screen nativeTitle={offer.name}>
       {offer.image ? <Image source={{ uri: photoUri(offer.image, runtime.apiBase) }} style={{ height: 168, borderRadius: 14 }} /> : null}
-      <Text variant="title">{offer.name}</Text>
       <Text>{offer.description}</Text>
       <Card>
         <Text variant="label">{`${offer.price === null ? "–" : currency(offer.price, locale)} ${t("per porsi", "per portion")}`}</Text>

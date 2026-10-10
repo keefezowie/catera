@@ -109,6 +109,27 @@ function tapTab(name: string) {
   act(() => ref.dispatch({ type: "JUMP_TO", payload: { name }, target: state!.key }));
 }
 
+/**
+ * The native header's back arrow (or Android's back): react-native-screens pops the screen in front, naming it as the
+ * source, from the stack that holds it.
+ */
+function headerBack() {
+  const ref = navigationContainer();
+  type S = { key: string; index: number; routes: { key: string; state?: S }[] };
+  let stack = ref.getRootState() as S;
+  while (stack.routes[stack.index]?.state) stack = stack.routes[stack.index].state!;
+  act(() => ref.dispatch({ type: "POP", payload: { count: 1 }, source: stack.routes[stack.index].key, target: stack.key }));
+}
+
+/** The native header react-native-screens draws for a route (the last screen of that name, the one in front). */
+function nativeHeaderOf(route: string) {
+  type Host = { props: Record<string, any>; findAll: (f: (n: { type: unknown }) => boolean) => Host[] };
+  const screens = screen.UNSAFE_root.findAll(
+    (n) => n.type === "RNSScreen" && String(n.props.screenId).startsWith(`${route}-`),
+  ) as unknown as Host[];
+  return screens.at(-1)!.findAll((n) => n.type === "RNSScreenStackHeaderConfig")[0];
+}
+
 beforeEach(() => {
   mockMe.actor = owner;
   mockLaunch.response = null;
@@ -129,9 +150,10 @@ describe("each tab keeps its own stack", () => {
     // Inside the Hari ini tab, so the tab bar stays, with Hari ini under the report.
     expect(snapshot(r)).toMatchObject({ root: ["(tabs)"], tab: "(index)", stack: ["index", "laporan/[id]"] });
     expect(shown()).toBe("laporan/[id]");
-    expect(screen.getByText("Laporan masalah")).toBeTruthy();
+    // The native bar with the platform back; the report names itself once it loads (`Screen nativeTitle`).
+    expect(nativeHeaderOf("laporan/[id]").props).toMatchObject({ hidden: false, hideBackButton: false });
 
-    fireEvent.press(screen.getByRole("button", { name: "Kembali" }));
+    headerBack();
     await waitFor(() => expect(r.getPathname()).toBe("/"));
     expect(snapshot(r)).toMatchObject({ tab: "(index)", stack: ["index"] });
     expect(shown()).toBe("index");
@@ -142,7 +164,8 @@ describe("each tab keeps its own stack", () => {
     const r = open(`/laporan/${ISSUE}`);
     await waitFor(() => expect(r.getPathname()).toBe(`/laporan/${ISSUE}`));
     expect(snapshot(r)).toMatchObject({ root: ["(tabs)"], tab: "(index)", stack: ["index", "laporan/[id]"] });
-    fireEvent.press(await screen.findByRole("button", { name: "Kembali" }));
+    await waitFor(() => expect(shown()).toBe("laporan/[id]"));
+    headerBack();
     await waitFor(() => expect(shown()).toBe("index"));
   });
 
@@ -268,7 +291,7 @@ describe("screens above the tabs", () => {
     await waitFor(() => expect(r.getSegments()).toEqual(["impor"]));
     // A modal in the root stack: it covers the tab bar, with its own header and Close.
     expect(snapshot(r).root).toEqual(["(tabs)", "impor"]);
-    expect(screen.getByText("Impor pelanggan")).toBeTruthy();
+    expect(nativeHeaderOf("impor").props).toMatchObject({ title: "Impor pelanggan", hideBackButton: true });
     expect(screen.getByRole("button", { name: "Tutup" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Kembali" })).toBeNull();
     // "Lihat Pelanggan" after saving: Impor closes and Pelanggan shows its list.
@@ -283,7 +306,7 @@ describe("screens above the tabs", () => {
     tap("/seller/settings#payout");
     await waitFor(() => expect(r.getSegments()).toEqual(["aktifkan"]));
     expect(snapshot(r).root).toEqual(["(tabs)", "aktifkan"]);
-    expect(screen.getByText("Aktifkan pembayaran")).toBeTruthy();
+    expect(nativeHeaderOf("aktifkan").props).toMatchObject({ title: "Aktifkan pembayaran", hideBackButton: true });
     // A modal, so it closes with Close rather than going Back.
     fireEvent.press(screen.getByRole("button", { name: "Tutup" }));
     await waitFor(() => expect(r.getPathname()).toBe("/"));

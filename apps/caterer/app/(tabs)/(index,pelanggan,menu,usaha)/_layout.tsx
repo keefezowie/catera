@@ -3,7 +3,7 @@ import { jakartaDay, shortDate } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
 import { tabOfSegment } from "../../../src/nav";
 import { CATERER_TABS, SCREEN_TAB, tabsForRole } from "../../../src/roles";
-import { useStackScreenOptions } from "../../../src/stack";
+import { contentTitled, useStackScreenOptions } from "../../../src/stack";
 
 /** Each tab's stack starts at its own root, so a link opened cold to a detail screen has the tab root behind it. */
 export const unstable_settings = Object.fromEntries(CATERER_TABS.map((tab) => [tab, { anchor: tab }]));
@@ -30,9 +30,11 @@ export default function TabStack({ segment }: { segment: string }) {
           <Stack.Screen name={name} options={{ headerShown: false }} />
         </Stack.Protected>
       ))}
-      {/* Every pushed screen gets a plain title; without one the header shows the route path. */}
+      {/* Every pushed screen gets a plain title; without one the header shows the route path. A screen named by its
+          record (the report's customer, the customer, the package) shows that name through `Screen nativeTitle`, and
+          this title stands in on iOS until the record arrives. */}
       <Stack.Protected guard={opens("laporan/[id]")}>
-        <Stack.Screen name="laporan/[id]" options={{ title: t("Laporan masalah", "Problem report") }} />
+        <Stack.Screen name="laporan/[id]" options={contentTitled(t("Laporan masalah", "Problem report"))} />
       </Stack.Protected>
       <Stack.Protected guard={opens("menu/[date]")}>
         <Stack.Screen
@@ -50,10 +52,10 @@ export default function TabStack({ segment }: { segment: string }) {
         />
       </Stack.Protected>
       <Stack.Protected guard={opens("pelanggan/[id]")}>
-        <Stack.Screen name="pelanggan/[id]" options={{ title: t("Pelanggan", "Customer") }} />
+        <Stack.Screen name="pelanggan/[id]" options={contentTitled(t("Pelanggan", "Customer"))} />
       </Stack.Protected>
       <Stack.Protected guard={opens("paket/[id]")}>
-        <Stack.Screen name="paket/[id]" options={{ title: t("Paket", "Package") }} />
+        <Stack.Screen name="paket/[id]" options={contentTitled(t("Paket", "Package"))} />
       </Stack.Protected>
       <Stack.Protected guard={opens("paket/baru")}>
         <Stack.Screen name="paket/baru" options={{ title: t("Paket baru", "New package") }} />

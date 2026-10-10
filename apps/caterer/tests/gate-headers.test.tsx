@@ -53,7 +53,8 @@ describe("RoleGate customer-account state", () => {
 });
 
 describe("ScreenGuard failure state", () => {
-  // Its only caller is pushed under the Stack AppHeader, which already paints the mood fill: no second band here.
+  // Its only caller (Uang) is pushed under the native stack header, which names the screen: no band of its own here.
+  // native-header.test mounts it under the real bar.
   it("shows the plain retry state with no mood header of its own", () => {
     const errorLog = jest.spyOn(console, "error").mockImplementation(() => undefined);
     const Broken = () => {

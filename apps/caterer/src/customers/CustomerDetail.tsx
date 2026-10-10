@@ -21,9 +21,10 @@ export function CustomerDetail({ id }: { id: string }) {
   const [errorFor, setErrorFor] = useState("");
   const [busy, setBusy] = useState("");
   const c = record.data;
+  // Until the record arrives the screen is named by what it is; then by the customer.
   if (!c)
     return (
-      <Screen>
+      <Screen nativeTitle={t("Pelanggan", "Customer")}>
         {record.error ? (
           <ReadError message={record.error} onRetry={() => void record.reload()} />
         ) : (
@@ -67,8 +68,7 @@ export function CustomerDetail({ id }: { id: string }) {
   }
 
   return (
-    <Screen>
-      <Text variant="title">{c.name}</Text>
+    <Screen nativeTitle={c.name}>
       {shown.map((s) => (
         <Card key={s.id} tone={s.status === "active" && s.remaining <= 3 ? "attention" : "surface"}>
           <Text variant="label" style={{ color: palette.sunriseInk }}>

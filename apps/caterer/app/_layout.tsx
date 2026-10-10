@@ -16,30 +16,28 @@ import {
   ThemeProvider,
   TopInsetOwner,
   useColors,
-  useMood,
   useThemePreference,
 } from "@catera/mobile-ui";
 import { runtime } from "../src/runtime";
 import { dapurLink } from "../src/links";
 import { openLink, sessionChanged } from "../src/nav";
 import { SCREEN_TAB, tabsForRole } from "../src/roles";
-import { useStackScreenOptions } from "../src/stack";
+import { useModalOptions, useStackScreenOptions } from "../src/stack";
 
 function Navigation() {
   const { t, ready, demo, actor } = useMobile();
   const screenOptions = useStackScreenOptions();
   const palette = useColors();
   const { scheme } = useThemePreference();
-  const { mood } = useMood();
+  const modal = useModalOptions();
   const allowed = tabsForRole(actor?.role);
   // A link held while the session loads opens once the tabs mount; signed out, it is dropped (`sessionChanged`).
   const session = !ready ? "loading" : actor ? "signedIn" : "signedOut";
   useEffect(() => sessionChanged(session), [session]);
-  // Above the ready gate, so the loading spinner also gets glyphs that read on the chosen theme. The spinner sits on the
-  // canvas and not under a mood header, so only the theme decides until the app is ready.
-  const statusBar = (
-    <StatusBar style={ready ? statusBarStyle({ scheme, mood, demo }) : statusBarStyle({ scheme, mood: "siang", demo: false })} />
-  );
+  // The app's default glyphs follow the theme: pushed screens and the loading spinner sit on the canvas. A tab root's
+  // MoodHeader sets the mood's glyphs over this while its screen is in front. Above the ready gate, so the spinner
+  // gets them too.
+  const statusBar = <StatusBar style={statusBarStyle({ scheme, mood: null, demo })} />;
   if (!ready)
     return (
       <>
@@ -60,17 +58,14 @@ function Navigation() {
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="(auth)/masuk" options={{ headerShown: false }} />
           <Stack.Screen name="(auth)/daftar" options={{ title: t("Daftar", "Sign up") }} />
-          {/* Short, self-contained tasks, so they present as modals (with Close) over the tab bar. A role opens each
-              only when it has that screen's tab (`SCREEN_TAB`): a helper (staff) never does, from a link or a
-              notification. */}
+          {/* Short, self-contained tasks, so they present as modals over the tab bar, with Close at the leading edge
+              of the native bar. A role opens each only when it has that screen's tab (`SCREEN_TAB`): a helper
+              (staff) never does, from a link or a notification. */}
           <Stack.Protected guard={allowed.includes(SCREEN_TAB.aktifkan)}>
-            <Stack.Screen
-              name="aktifkan"
-              options={{ presentation: "modal", title: t("Aktifkan pembayaran", "Turn on payments") }}
-            />
+            <Stack.Screen name="aktifkan" options={{ ...modal, title: t("Aktifkan pembayaran", "Turn on payments") }} />
           </Stack.Protected>
           <Stack.Protected guard={allowed.includes(SCREEN_TAB.impor)}>
-            <Stack.Screen name="impor" options={{ presentation: "modal", title: t("Impor pelanggan", "Import customers") }} />
+            <Stack.Screen name="impor" options={{ ...modal, title: t("Impor pelanggan", "Import customers") }} />
           </Stack.Protected>
         </Stack>
       </TopInsetOwner>

@@ -50,9 +50,11 @@ export function ReportScreen({ id }: { id: string }) {
   const issues = useData(`issue:${catererId}:${id}`, () =>
     runtime.api.request<DeliveryIssue[]>(`delivery-issues?${new URLSearchParams({ id: catererId, issue: id })}`),
   );
+  // Until the report arrives the screen is named by what it is; then by the customer who sent it.
+  const title = t("Laporan masalah", "Problem report");
   if (!issues.data)
     return (
-      <Screen>
+      <Screen nativeTitle={title}>
         {issues.error ? (
           <>
             <Text selectable style={{ color: c.danger }}>{issues.error}</Text>
@@ -66,7 +68,7 @@ export function ReportScreen({ id }: { id: string }) {
   const issue = issues.data.find((i) => i.id === id);
   if (!issue)
     return (
-      <Screen>
+      <Screen nativeTitle={title}>
         <Text>{t("Laporan ini tidak ditemukan.", "This report was not found.")}</Text>
       </Screen>
     );
@@ -123,9 +125,8 @@ function Report({ issue: i, reload }: { issue: DeliveryIssue; reload: () => Prom
   }
 
   return (
-    <Screen>
+    <Screen nativeTitle={i.customerName || t("Pelanggan", "Customer")}>
       <View style={{ gap: 4 }}>
-        <Text variant="title">{i.customerName || t("Pelanggan", "Customer")}</Text>
         <Text style={{ fontFamily: fontFor("800") }}>{`${shortDate(i.service_date, locale)} · ${mealLabel(i.meal, locale)}`}</Text>
         <Text variant="caption">{i.package_name}</Text>
       </View>

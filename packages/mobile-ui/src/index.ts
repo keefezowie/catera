@@ -1,7 +1,6 @@
 export * from "./components";
 export * from "./type";
 export * from "./motion";
-export * from "./AppHeader";
 export * from "./nativeHeader";
 export * from "./HeaderIconButton";
 export * from "./navigation";

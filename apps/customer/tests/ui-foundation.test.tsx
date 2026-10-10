@@ -8,7 +8,6 @@ import * as Reanimated from "react-native-reanimated";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { KeyboardAvoidingView, Modal, ScrollView } from "react-native";
 import {
-  AppHeader,
   Button,
   Chip,
   DemoStrip,
@@ -16,6 +15,7 @@ import {
   fontFor,
   fonts,
   moodHeaderTopInset,
+  MoodHeader,
   PressableRow,
   ScreenHeaderContext,
   screenInsetBehavior,
@@ -147,28 +147,6 @@ describe("press feedback and haptics", () => {
     expect(scales.every((v: number) => v === 1)).toBe(true);
     // The Reanimated jest mock does not replay shared-value changes; the 0.85 dim is checked on the emulator.
     expect(style.transform).toBeUndefined();
-  });
-});
-
-describe("AppHeader", () => {
-  it("shows a title that wraps instead of truncating, and a back button", () => {
-    const onBack = jest.fn();
-    render(<AppHeader title="Bantuan dan laporan" onBack={onBack} backLabel="Kembali" />);
-    expect(screen.getByText("Bantuan dan laporan").props.numberOfLines).toBeUndefined();
-    fireEvent.press(screen.getByRole("button", { name: "Kembali" }));
-    expect(onBack).toHaveBeenCalledTimes(1);
-  });
-
-  it("modal shows a close button", () => {
-    const onBack = jest.fn();
-    render(<AppHeader title="Masuk" onBack={onBack} backLabel="Tutup" modal />);
-    fireEvent.press(screen.getByRole("button", { name: "Tutup" }));
-    expect(onBack).toHaveBeenCalledTimes(1);
-  });
-
-  it("has no button when there is nothing to go back to", () => {
-    render(<AppHeader title="Hari" backLabel="Kembali" />);
-    expect(screen.queryByRole("button")).toBeNull();
   });
 });
 
@@ -655,18 +633,16 @@ describe("dark theme", () => {
     expect(StyleSheet.flatten(screen.getByRole("button", { name: "Bayar" }).props.style).backgroundColor).toBe("#CFD3C6");
   });
 
-  it("Screen paints the dark canvas and AppHeader the dark mood header", async () => {
+  it("Screen paints the dark canvas and its MoodHeader the dark mood header", async () => {
     const view = await renderDark(
-      <>
-        <AppHeader title="Hari" backLabel="Kembali" />
-        <Screen>
-          <Text>Isi</Text>
-        </Screen>
-      </>,
+      <Screen header={<MoodHeader title="Hari" />}>
+        <Text>Isi</Text>
+      </Screen>,
     );
     expect(StyleSheet.flatten(view.UNSAFE_getByType(SafeAreaView).props.style).backgroundColor).toBe(DARK.canvas);
     // No MoodProvider here, so the mood reads Siang: the dark Siang header and its headline ink.
-    expect(StyleSheet.flatten(screen.getByTestId("app-header").props.style).backgroundColor).toBe(nativeMood.dark.siang.header);
+    const fill = screen.getByTestId("mood-fill-siang", { includeHiddenElements: true });
+    expect(StyleSheet.flatten(fill.props.style).backgroundColor).toBe(nativeMood.dark.siang.header);
     expect(StyleSheet.flatten(screen.getByText("Hari").props.style).color).toBe(nativeMood.dark.siang.headerText);
   });
 
