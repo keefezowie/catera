@@ -3,8 +3,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "./components";
 import { themedStyles, useColors } from "./theme";
 
-/** Height of the strip below the status bar. */
-const STRIP_HEIGHT = 24;
+/** Height of the strip below the status bar (the toast reads it to find where a MoodHeader starts). */
+export const DEMO_STRIP_HEIGHT = 24;
 
 /**
  * The persistent "Demo · data sintetis" strip for demo mode. It sits directly under the status bar, above the
@@ -20,7 +20,7 @@ export function DemoStrip({ label }: { label: string }) {
       accessible
       accessibilityRole="text"
       accessibilityLabel={label}
-      style={[styles.strip, { paddingTop: insets.top, minHeight: insets.top + STRIP_HEIGHT }]}
+      style={[styles.strip, { paddingTop: insets.top, minHeight: insets.top + DEMO_STRIP_HEIGHT }]}
     >
       <Text variant="caption" style={{ color: c.forest }}>
         {label}

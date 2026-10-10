@@ -8,6 +8,7 @@ import { nativeMotion } from "@catera/design-tokens";
 import { Text } from "./components";
 import { useReduced } from "./motion";
 import { useColors } from "./theme";
+import { ANDROID_TAB_BAR, ToastAnchorContext, type ToastAnchor } from "./toastAnchor";
 import { fonts } from "./type";
 
 export type ToastInput = {
@@ -21,11 +22,15 @@ export type ToastApi = { show(input: ToastInput): void; hide(): void };
 /** How long a toast stays: long enough to read; one with an action stays long enough to reach it. */
 const SHOW_MS = 3000;
 const SHOW_WITH_ACTION_MS = 5000;
+/**
+ * With a screen reader on, reaching the action takes longer than 5s. Android asks the system for the user's own
+ * accessibility timeout (`getRecommendedTimeoutMillis`); iOS has no such setting, so it holds 10s.
+ */
+const IOS_SCREEN_READER_ACTION_MS = 10000;
 /** The entrance travel, in dp: iOS from above, Android from below. */
 const ENTER_TRAVEL = 12;
-/** iOS sits the pill under a standard 44pt navigation bar; Android sits the snackbar above the 80dp navigation bar. */
+/** With no anchor from the focused screen, iOS assumes a standard 44pt bar and Android the tab bar. */
 const IOS_BAR = 44;
-const ANDROID_NAV_BAR = 80;
 const GAP = 8;
 
 const ease = Easing.bezier(...nativeMotion.ease);
@@ -40,16 +45,49 @@ export function useToast(): ToastApi {
 
 type Shown = ToastInput & { id: number };
 
+/** The edge every anchor clears: the lowest header bottom and the highest footer top. */
+function mergeAnchors(anchors: ReadonlyMap<object, ToastAnchor>): ToastAnchor {
+  let top: number | undefined;
+  let bottom: number | undefined;
+  for (const anchor of anchors.values()) {
+    if (anchor.top !== undefined) top = Math.max(top ?? anchor.top, anchor.top);
+    if (anchor.bottom !== undefined) bottom = Math.max(bottom ?? anchor.bottom, anchor.bottom);
+  }
+  return { top, bottom };
+}
+
 /**
  * One per app, inside `ThemeProvider` and around the navigator, so every screen can report a routine outcome without
  * a dialog. One toast at a time: a new one replaces the shown one. It closes itself after 3s, or 5s when it carries an
- * action, and each `show` is announced once to screen readers. iOS draws a pill under the navigation bar; Android a
- * Material snackbar above the navigation bar. `os` defaults to the running platform.
+ * action; while a screen reader is on, an action toast stays until its action is used, it is replaced, or the
+ * platform's recommended timeout passes. Each `show` is announced once, with its action's name.
+ * iOS draws a pill under the focused screen's header; Android a Material snackbar above its tab bar or footer (see
+ * `useToastAnchor`). `os` defaults to the running platform.
  */
 export function ToastProvider({ children, os = process.env.EXPO_OS }: { children: ReactNode; os?: string }) {
   const [shown, setShown] = useState<Shown | null>(null);
+  const [anchors, setAnchors] = useState<ReadonlyMap<object, ToastAnchor>>(() => new Map());
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const nextId = useRef(0);
+  const shownId = useRef(0);
+  const screenReader = useRef(false);
+
+  useEffect(() => {
+    let live = true;
+    AccessibilityInfo.isScreenReaderEnabled().then(
+      (on) => {
+        if (live) screenReader.current = on === true;
+      },
+      () => {},
+    );
+    const subscription = AccessibilityInfo.addEventListener("screenReaderChanged", (on) => {
+      screenReader.current = on === true;
+    });
+    return () => {
+      live = false;
+      subscription?.remove();
+    };
+  }, []);
 
   const clearTimer = () => {
     if (timer.current) clearTimeout(timer.current);
@@ -58,6 +96,7 @@ export function ToastProvider({ children, os = process.env.EXPO_OS }: { children
 
   const hide = useCallback(() => {
     clearTimer();
+    shownId.current = 0;
     setShown(null);
   }, []);
 
@@ -65,33 +104,72 @@ export function ToastProvider({ children, os = process.env.EXPO_OS }: { children
     (input: ToastInput) => {
       clearTimer();
       nextId.current += 1;
-      setShown({ ...input, id: nextId.current });
-      AccessibilityInfo.announceForAccessibility(input.message);
-      timer.current = setTimeout(hide, input.action ? SHOW_WITH_ACTION_MS : SHOW_MS);
+      const id = nextId.current;
+      shownId.current = id;
+      setShown({ ...input, id });
+      AccessibilityInfo.announceForAccessibility(input.action ? `${input.message}, ${input.action.label}` : input.message);
+      // A timeout that resolves after this toast was replaced or closed schedules nothing.
+      const closeAfter = (ms: number) => {
+        if (shownId.current === id) timer.current = setTimeout(hide, ms);
+      };
+      if (!input.action) return closeAfter(SHOW_MS);
+      if (!screenReader.current) return closeAfter(SHOW_WITH_ACTION_MS);
+      if (os !== "android") return closeAfter(IOS_SCREEN_READER_ACTION_MS);
+      AccessibilityInfo.getRecommendedTimeoutMillis(SHOW_WITH_ACTION_MS).then(
+        (ms) => closeAfter(typeof ms === "number" && ms > SHOW_WITH_ACTION_MS ? ms : SHOW_WITH_ACTION_MS),
+        () => closeAfter(SHOW_WITH_ACTION_MS),
+      );
     },
-    [hide],
+    [hide, os],
   );
 
   useEffect(() => clearTimer, []);
 
+  const register = useCallback((key: object, anchor: ToastAnchor | null) => {
+    setAnchors((prev) => {
+      const current = prev.get(key);
+      if (anchor === null) {
+        if (!current) return prev;
+        const next = new Map(prev);
+        next.delete(key);
+        return next;
+      }
+      if (current && current.top === anchor.top && current.bottom === anchor.bottom) return prev;
+      return new Map(prev).set(key, anchor);
+    });
+  }, []);
+
   const api = useMemo<ToastApi>(() => ({ show, hide }), [show, hide]);
+  const anchor = useMemo(() => mergeAnchors(anchors), [anchors]);
   // iOS presents sheets and modals in their own controllers above this tree, so the toast lives in a window of its
   // own there to stay on top of them. Android keeps every screen in this window, so the toast simply draws last.
-  const Overlay = process.env.EXPO_OS === "ios" ? FullWindowOverlay : Fragment;
+  const Overlay = os === "ios" ? FullWindowOverlay : Fragment;
 
   return (
-    <ToastContext.Provider value={api}>
-      {children}
-      <Overlay>
-        <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
-          {shown ? <ToastView key={shown.id} toast={shown} onDone={hide} ios={os === "ios"} /> : null}
-        </View>
-      </Overlay>
-    </ToastContext.Provider>
+    <ToastAnchorContext.Provider value={register}>
+      <ToastContext.Provider value={api}>
+        {children}
+        <Overlay>
+          <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
+            {shown ? <ToastView key={shown.id} toast={shown} anchor={anchor} onDone={hide} ios={os === "ios"} /> : null}
+          </View>
+        </Overlay>
+      </ToastContext.Provider>
+    </ToastAnchorContext.Provider>
   );
 }
 
-function ToastView({ toast, onDone, ios }: { toast: Shown; onDone: () => void; ios: boolean }) {
+function ToastView({
+  toast,
+  anchor,
+  onDone,
+  ios,
+}: {
+  toast: Shown;
+  anchor: ToastAnchor;
+  onDone: () => void;
+  ios: boolean;
+}) {
   const palette = useColors();
   const insets = useSafeAreaInsets();
   const reduced = useReduced();
@@ -111,12 +189,33 @@ function ToastView({ toast, onDone, ios }: { toast: Shown; onDone: () => void; i
     [reduced, ios],
   );
 
-  // The lane is the full width less 16 on each side. iOS: the pill hugs its words in the lane's centre. Android: the
-  // snackbar fills the lane up to Material's 600dp.
-  const lane = ios ? { top: insets.top + IOS_BAR + GAP } : { bottom: insets.bottom + ANDROID_NAV_BAR + GAP };
+  // iOS: under the focused screen's header, never under the status bar; with no header reported, under a 44pt bar.
+  // Android: above the focused screen's tab bar or footer, never in the system inset; with none reported, above the
+  // tab bar. The lane is the full width less 16 on each side: the iOS pill hugs its words in the lane's centre, the
+  // Android snackbar fills the lane up to Material's 600dp.
+  const lane = ios
+    ? { top: (anchor.top !== undefined ? Math.max(anchor.top, insets.top) : insets.top + IOS_BAR) + GAP }
+    : {
+        bottom:
+          (anchor.bottom !== undefined ? Math.max(anchor.bottom, insets.bottom) : insets.bottom + ANDROID_TAB_BAR) + GAP,
+      };
   const shape = ios
-    ? { borderRadius: 22, minHeight: 44, maxWidth: 560, paddingStart: 18, paddingEnd: toast.action ? 6 : 18, borderCurve: "continuous" as const }
-    : { borderRadius: 4, minHeight: 48, width: "100%" as const, maxWidth: 600, paddingStart: 16, paddingEnd: toast.action ? 8 : 16 };
+    ? {
+        borderRadius: 22,
+        minHeight: 44,
+        maxWidth: 560,
+        paddingStart: 18,
+        paddingEnd: toast.action ? 6 : 18,
+        borderCurve: "continuous" as const,
+      }
+    : {
+        borderRadius: 4,
+        minHeight: 48,
+        width: "100%" as const,
+        maxWidth: 600,
+        paddingStart: 16,
+        paddingEnd: toast.action ? 8 : 16,
+      };
 
   const press = () => {
     toast.action?.onPress();
@@ -132,42 +231,45 @@ function ToastView({ toast, onDone, ios }: { toast: Shown; onDone: () => void; i
       style={[styles.lane, lane]}
     >
       <View testID="toast-surface" style={[styles.surface, shape, { backgroundColor: palette.toast }]}>
-      {toast.tone === "error" ? (
-        <View testID="toast-error" accessible={false} importantForAccessibility="no-hide-descendants">
-          <Ionicons name="alert-circle" size={20} color={palette.onToast} />
-        </View>
-      ) : null}
-      <Text
-        style={{
-          flexShrink: 1,
-          color: palette.onToast,
-          fontFamily: ios ? fonts.semibold : fonts.regular,
-          fontSize: 14,
-          lineHeight: 20,
-          paddingVertical: ios ? 12 : 14,
-        }}
-      >
-        {toast.message}
-      </Text>
-      {toast.action ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={toast.action.label}
-          onPress={press}
-          android_ripple={{ color: palette.toastAction, borderless: false }}
-          style={({ pressed }) => ({
-            minHeight: ios ? 44 : 48,
-            paddingHorizontal: ios ? 12 : 8,
-            justifyContent: "center",
-            borderRadius: ios ? 22 : 4,
-            opacity: ios && pressed ? 0.5 : 1,
-          })}
+        {toast.tone === "error" ? (
+          <View testID="toast-error" accessible={false} importantForAccessibility="no-hide-descendants">
+            <Ionicons name="alert-circle" size={20} color={palette.onToast} />
+          </View>
+        ) : null}
+        <Text
+          style={{
+            flexShrink: 1,
+            color: palette.onToast,
+            fontFamily: ios ? fonts.semibold : fonts.regular,
+            fontSize: 14,
+            lineHeight: 20,
+            paddingVertical: ios ? 12 : 14,
+          }}
         >
-          <Text numberOfLines={1} style={{ color: palette.toastAction, fontFamily: fonts.bold, fontSize: 14, lineHeight: 20 }}>
-            {toast.action.label}
-          </Text>
-        </Pressable>
-      ) : null}
+          {toast.message}
+        </Text>
+        {toast.action ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={toast.action.label}
+            onPress={press}
+            android_ripple={{ color: palette.toastAction, borderless: false }}
+            style={({ pressed }) => ({
+              minHeight: ios ? 44 : 48,
+              paddingHorizontal: ios ? 12 : 8,
+              justifyContent: "center",
+              borderRadius: ios ? 22 : 4,
+              opacity: ios && pressed ? 0.5 : 1,
+            })}
+          >
+            <Text
+              numberOfLines={1}
+              style={{ color: palette.toastAction, fontFamily: fonts.bold, fontSize: 14, lineHeight: 20 }}
+            >
+              {toast.action.label}
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
     </Animated.View>
   );

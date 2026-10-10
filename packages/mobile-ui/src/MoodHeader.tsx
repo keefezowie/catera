@@ -5,6 +5,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { nativeMotion } from "@catera/design-tokens";
 import { MoodArc, type MoodArcProps } from "./brand/MoodArc";
+import { DEMO_STRIP_HEIGHT } from "./DemoStrip";
 import { MalamPattern } from "./brand/MalamPattern";
 import { useMoodProgress } from "./brand/useMoodProgress";
 import { Text } from "./components";
@@ -14,6 +15,7 @@ import { PressableScale } from "./motion";
 import { ScreenStatusBar } from "./ScreenStatusBar";
 import { moodHeaderTopInset, ScreenHeaderContext } from "./screenInsets";
 import { useThemePreference } from "./theme";
+import { useToastAnchor } from "./toastAnchor";
 import { useTopInsetOwned } from "./TopInset";
 import { fontFor } from "./type";
 
@@ -126,6 +128,9 @@ const isText = (node: ReactNode): node is string | number => typeof node === "st
  *   line). The arc is then the switch, so the toggle is not drawn in the top row even when `toggle` is set.
  * - While its screen is focused it sets the status-bar glyphs for the mood (`statusBarStyle`); once a pushed screen
  *   covers it, the app's default for the theme shows again.
+ * - While its screen is focused it reports its bottom edge to the toast (`useToastAnchor`), so on a tab root the iOS
+ *   toast sits under the headline and the toggle instead of over them. The edge is the space above the header (the
+ *   demo strip, or on iOS the status bar the scroll view insets it below) plus its laid-out height.
  */
 export function MoodHeader({
   meta,
@@ -156,10 +161,14 @@ export function MoodHeader({
   const { mood } = useMood();
   const { scheme } = useThemePreference();
   const radius = overlap === 58 ? 32 : 28;
+  const [height, setHeight] = useState<number>();
+  const above = topOwned ? insets.top + DEMO_STRIP_HEIGHT : insets.top - topInset;
+  useToastAnchor(height === undefined ? null : { top: above + height });
 
   return (
     <View
       testID={testID}
+      onLayout={(e) => setHeight(e.nativeEvent.layout.height)}
       style={{
         overflow: "hidden",
         paddingTop: topInset + 12,

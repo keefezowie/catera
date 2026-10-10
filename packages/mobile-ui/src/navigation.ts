@@ -1,5 +1,5 @@
 import { use, useEffect, useState } from "react";
-import { HeaderShownContext, NavigationContext } from "expo-router/react-navigation";
+import { HeaderHeightContext, HeaderShownContext, NavigationContext } from "expo-router/react-navigation";
 
 /**
  * The navigation of the screen this component sits in, or undefined outside a navigator (component tests, early
@@ -12,6 +12,14 @@ export function useScreenNavigation() {
 /** True while a native stack header (or a custom stack header) sits above this screen and pays the top inset. */
 export function useUnderStackHeader(): boolean {
   return use(HeaderShownContext);
+}
+
+/**
+ * The height of the native stack header above this screen, from the window's top (status bar included), as it is at
+ * that moment: on iOS it follows the large title as it collapses into the inline bar. Undefined outside a stack.
+ */
+export function useStackHeaderHeight(): number | undefined {
+  return use(HeaderHeightContext);
 }
 
 /** Whether this component's screen is the focused one; outside a navigator it counts as focused. */

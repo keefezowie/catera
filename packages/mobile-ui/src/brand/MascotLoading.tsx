@@ -40,7 +40,8 @@ const DEFAULT_SIZE = 140;
 function MascotAnimation({ size, active }: { size: number; active: boolean }) {
   const reduced = useReduced();
   const focused = useScreenFocused();
-  const [foreground, setForeground] = useState(AppState.currentState !== "background");
+  // One rule for "in front", at mount and on every change: only "active" counts ("inactive" and "background" pause).
+  const [foreground, setForeground] = useState(AppState.currentState === "active");
   const [loaded, setLoaded] = useState<ReadonlySet<RigLayer>>(() => new Set());
   const [failed, setFailed] = useState(false);
   const progress = useSharedValue(0);

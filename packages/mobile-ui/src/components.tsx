@@ -4,6 +4,7 @@ import {
   type AccessibilityRole,
   Keyboard,
   KeyboardAvoidingView,
+  type LayoutChangeEvent,
   Modal,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
@@ -23,8 +24,9 @@ import type { PaletteKey } from "@catera/design-tokens";
 import { PressableScale, useReduced } from "./motion";
 import { StatusBand } from "./StatusBand";
 import { themedStyles, useColors } from "./theme";
-import { useScreenNavigation, useUnderStackHeader } from "./navigation";
+import { useScreenNavigation, useStackHeaderHeight, useUnderStackHeader } from "./navigation";
 import { ScreenHeaderContext, screenInsetBehavior } from "./screenInsets";
+import { useScreenBottomEdge, useToastAnchor } from "./toastAnchor";
 import { useTopInsetOwned } from "./TopInset";
 import { fontFor, fonts } from "./type";
 
@@ -438,6 +440,11 @@ export function Screen({
   const topOwned = useTopInsetOwned();
   const underHeader = useUnderStackHeader();
   const navigation = useScreenNavigation();
+  // The toast sits under the native header as it is right now (large or collapsed) and above the tab bar when the
+  // screen is inside the tabs; a footer reports its own top (ScreenFooter).
+  const headerHeight = useStackHeaderHeight();
+  const bottomEdge = useScreenBottomEdge();
+  useToastAnchor({ top: underHeader && headerHeight ? headerHeight : undefined, bottom: bottomEdge });
   const ios = process.env.EXPO_OS === "ios";
   const contentTitle = !ios && nativeTitle ? nativeTitle : null;
   const lineEnd = useRef(NO_LINE);
@@ -556,18 +563,23 @@ export function Screen({
  * tabs, covers the screen's foot, so the footer adds the bottom safe area under its own padding and its surface runs
  * beneath the bar. Android adds nothing: inside the tabs NativeTabs already ends the screen above the navigation bar
  * (the edge would add 0), and above the tabs the edge would add the gesture bar's inset, which this change leaves as it
- * was. `os` defaults to the running platform.
+ * was. While its screen is focused it reports its top edge to the toast, so the Android snackbar sits above the
+ * StickyAction instead of over it. `os` defaults to the running platform.
  */
 export function ScreenFooter({ children, os = process.env.EXPO_OS }: { children: ReactNode; os?: string }) {
   const styles = useStyles();
+  const bottomEdge = useScreenBottomEdge();
+  const [height, setHeight] = useState<number>();
+  useToastAnchor(height === undefined ? null : { bottom: bottomEdge + height });
+  const onLayout = (e: LayoutChangeEvent) => setHeight(e.nativeEvent.layout.height);
   if (os === "ios")
     return (
-      <SafeAreaView testID="screen-footer" edges={["bottom"]} style={styles.footer}>
+      <SafeAreaView testID="screen-footer" edges={["bottom"]} style={styles.footer} onLayout={onLayout}>
         {children}
       </SafeAreaView>
     );
   return (
-    <View testID="screen-footer" style={styles.footer}>
+    <View testID="screen-footer" style={styles.footer} onLayout={onLayout}>
       {children}
     </View>
   );

@@ -36,3 +36,4 @@ export * from "./Skeleton";
 export * from "./brand/MascotLoading";
 export * from "./Toast";
 export * from "./SheetHeader";
+export { useToastAnchor, type ToastAnchor } from "./toastAnchor";
