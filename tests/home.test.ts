@@ -200,14 +200,15 @@ describe("waitingItems", () => {
   });
 
   it("menu rows group a plan's due dates and sort by deadline", () => {
+    // Katering Sehat (s-2) arrives first but closes later than s-1's soonest day, so only the sort puts s-1 first.
     const actions = [
-      due("a", day(6), { dueAt: `${day(5)}T10:00:00Z` }),
-      due("b", day(2), { dueAt: `${day(1)}T10:00:00Z` }),
       due("c", day(3), {
         dueAt: `${day(2)}T10:00:00Z`,
         packageName: "Katering Sehat",
         href: `/subscriptions/s-2/menu?date=${day(3)}&meal=lunch`,
       }),
+      due("a", day(6), { dueAt: `${day(5)}T10:00:00Z` }),
+      due("b", day(2), { dueAt: `${day(1)}T10:00:00Z` }),
       due("d", day(4), { dueAt: `${day(3)}T10:00:00Z` }),
       due("e", day(9), { kind: "payment_action", status: "awaiting_payment" }),
       due("f", day(9), { status: "open" }),

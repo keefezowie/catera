@@ -49,6 +49,15 @@ describe("native themes", () => {
       expect(contrastRatio(p.forest, p.tabIndicator)).toBeGreaterThanOrEqual(3);
       expect(contrastRatio(p.muted, p.tabBar)).toBeGreaterThanOrEqual(3);
     });
+    // The labels under the icons are small text (12 on Android, 10 on iOS): muted for the others, forest for the selected.
+    it(`${theme}: the tab labels reach 4.5:1 on the bar`, () => {
+      expect(contrastRatio(p.muted, p.tabBar), "muted label on tabBar").toBeGreaterThanOrEqual(4.5);
+      expect(contrastRatio(p.forest, p.tabBar), "forest label on tabBar").toBeGreaterThanOrEqual(4.5);
+    });
+    // The pill marks the selected tab, so it must stand off the bar it sits on, not only carry its icon.
+    it(`${theme}: the indicator pill stands off the bar at 1.25:1 or more`, () => {
+      expect(contrastRatio(p.tabIndicator, p.tabBar)).toBeGreaterThanOrEqual(1.25);
+    });
   }
   it("contrastRatio matches known WCAG values", () => {
     expect(contrastRatio("#000000", "#FFFFFF")).toBeCloseTo(21, 1);

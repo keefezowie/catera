@@ -420,22 +420,34 @@ describe("menu loading and sharing states", () => {
   });
 
   it("offers Salin minggu lalu once last week has a filled day", async () => {
-    const lastWeek = Array.from({ length: 7 }, (_, i) => ({
-      date: new Date(Date.now() - (i + 1) * 86400000).toISOString().slice(0, 10),
-      version: 1,
-      editable: false,
-      details: {
-        name: "Makan Siang",
-        description: "",
-        image: "",
-        meal: "lunch",
-        composition,
-        items: [{ id: "x", groupId: "g-lauk", categoryId: "main", name: "Ayam", description: "", image: "", serving: "" }],
-      },
-    }));
-    runtimeFor(jest.fn(async () => ({ dates: lastWeek, categories: [] })));
-    await waitFor(() => expect(disabled("Salin minggu lalu")).toBe(false));
-    expect(screen.queryByText("Minggu lalu belum ada menu untuk disalin")).toBeNull();
+    // Thursday 8 October 2026, 12.00 in Jakarta, so last week is Monday 28 September to Sunday 4 October whatever day
+    // the suite runs. Only the clock is pinned: timers and microtasks keep running.
+    jest.useFakeTimers({
+      now: new Date("2026-10-08T05:00:00Z"),
+      doNotFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval", "setImmediate", "clearImmediate", "nextTick", "queueMicrotask", "performance"],
+    });
+    try {
+      const lastWeek = ["2026-09-28", "2026-09-29", "2026-09-30", "2026-10-01", "2026-10-02", "2026-10-03", "2026-10-04"].map(
+        (date) => ({
+          date,
+          version: 1,
+          editable: false,
+          details: {
+            name: "Makan Siang",
+            description: "",
+            image: "",
+            meal: "lunch",
+            composition,
+            items: [{ id: "x", groupId: "g-lauk", categoryId: "main", name: "Ayam", description: "", image: "", serving: "" }],
+          },
+        }),
+      );
+      runtimeFor(jest.fn(async () => ({ dates: lastWeek, categories: [] })));
+      await waitFor(() => expect(disabled("Salin minggu lalu")).toBe(false));
+      expect(screen.queryByText("Minggu lalu belum ada menu untuk disalin")).toBeNull();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it("offers Bagikan menu once a day of the week has dishes", async () => {

@@ -86,21 +86,35 @@ beforeEach(() => {
 });
 
 it("shows the on-the-way plate and confirms arrival", async () => {
-  const runtime = runtimeWith(async () =>
-    customerState({ status: "out_for_delivery", departed_at: `${TODAY}T03:42:00Z` }),
-  );
-  renderHome(runtime);
-  expect(await screen.findByText("Sedang diantar")).toBeTruthy();
-  expect(screen.getByText("tiba sekitar 11.00–13.00")).toBeTruthy();
-  expect(screen.getByText("Berangkat 10.42")).toBeTruthy();
-  fireEvent.press(screen.getByRole("button", { name: "Sudah sampai" }));
-  await waitFor(() =>
-    expect(runtime.api.command).toHaveBeenCalledWith(
-      "delivery.confirm",
-      { deliveryId: "d-today", meal: "lunch" },
-      expect.any(String),
-    ),
-  );
+  // 10.50 in Jakarta on the fixtures' TODAY, eight minutes after it left, so the plate is on the way whatever hour the
+  // suite runs. Only the clock is pinned: timers, microtasks and animation frames keep running for real.
+  jest.useFakeTimers({
+    now: new Date(`${TODAY}T03:50:00Z`),
+    doNotFake: [
+      "hrtime", "nextTick", "performance", "queueMicrotask", "requestAnimationFrame",
+      "cancelAnimationFrame", "requestIdleCallback", "cancelIdleCallback", "setImmediate",
+      "clearImmediate", "setInterval", "clearInterval", "setTimeout", "clearTimeout",
+    ],
+  });
+  try {
+    const runtime = runtimeWith(async () =>
+      customerState({ status: "out_for_delivery", departed_at: `${TODAY}T03:42:00Z` }),
+    );
+    renderHome(runtime);
+    expect(await screen.findByText("Sedang diantar")).toBeTruthy();
+    expect(screen.getByText("tiba sekitar 11.00–13.00")).toBeTruthy();
+    expect(screen.getByText("Berangkat 10.42")).toBeTruthy();
+    fireEvent.press(screen.getByRole("button", { name: "Sudah sampai" }));
+    await waitFor(() =>
+      expect(runtime.api.command).toHaveBeenCalledWith(
+        "delivery.confirm",
+        { deliveryId: "d-today", meal: "lunch" },
+        expect.any(String),
+      ),
+    );
+  } finally {
+    jest.useRealTimers();
+  }
 });
 
 it("the hero's two answers share their row 2:1 and wrap instead of breaking a word", async () => {
