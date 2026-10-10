@@ -157,7 +157,8 @@ describe("native headers on pushed screens", () => {
       titleColor: light.charcoal,
       titleFontFamily: fonts.bold,
       titleFontSize: 22,
-      topInsetEnabled: true,
+      // Without the demo strip the bar pays the status-bar inset itself.
+      consumeTopInset: true,
     });
 
     // Every stack's options are the shared helper's, plus the canvas behind the scenes.
@@ -192,11 +193,13 @@ describe("native headers on pushed screens", () => {
     await mount("/");
     await go(() => router.push("/alamat"));
     expect(screen.getByLabelText("Demo · data sintetis")).toBeTruthy();
-    expect(headerOf("alamat").props.topInsetEnabled).toBe(false);
-    expect(nativeHeaderOptions({ palette: light, demo: true })).toMatchObject({ headerTopInsetEnabled: false });
-    // The screen under the header adds no inset of its own either.
-    const body = screen.getByText("Alamat");
-    expect(body).toBeTruthy();
+    // react-native-screens 4.26 ignores topInsetEnabled on Android and pads the toolbar by the window's status-bar
+    // inset unless the header opts out (consumeTopInset); the emulator showed the double inset before this.
+    expect(headerOf("alamat").props.consumeTopInset).toBe(false);
+    expect(nativeHeaderOptions({ palette: light, demo: true })).toMatchObject({
+      headerTopInsetEnabled: false,
+      unstable_nativeProps: { headerConfig: { disableTopInsetApplication: true } },
+    });
   });
 
   it("sign-in shows Close, labelled Tutup, at the leading edge", async () => {

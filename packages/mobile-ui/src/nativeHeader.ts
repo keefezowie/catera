@@ -3,9 +3,10 @@ import type { NativePalette } from "@catera/design-tokens";
 import { fonts } from "./type";
 
 /**
- * What `nativeHeaderOptions` returns. `headerTopInsetEnabled` states the Android inset rule; the stack computes its own
- * value from the safe-area inset and lays it over the options, so on Android the same rule also travels in
- * `unstable_nativeProps.headerConfig.topInsetEnabled`, which the stack applies last.
+ * What `nativeHeaderOptions` returns. `headerTopInsetEnabled` states the Android inset rule, but react-native-screens
+ * 4.26 ignores `topInsetEnabled` on Android (edge-to-edge) and pads the toolbar by the window's status-bar inset
+ * wherever the bar sits, so under the demo strip it paid the inset twice on the emulator. The rule therefore travels in
+ * `unstable_nativeProps.headerConfig.disableTopInsetApplication`, which turns that padding off.
  */
 export type NativeHeaderOptions = NativeStackNavigationOptions & { headerTopInsetEnabled?: boolean };
 
@@ -45,6 +46,6 @@ export function nativeHeaderOptions({
     headerTintColor: palette.charcoal,
     headerTitleStyle: { fontFamily: fonts.bold, fontSize: 22, color: palette.charcoal },
     headerTopInsetEnabled: !demo,
-    unstable_nativeProps: { headerConfig: { topInsetEnabled: !demo } },
+    unstable_nativeProps: { headerConfig: { disableTopInsetApplication: demo } },
   };
 }

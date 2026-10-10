@@ -624,7 +624,9 @@ describe("appearance", () => {
     expect(mockStatusBar.style).toBe("dark");
     expect(moodGlyphs()).toEqual(["dark-content"]);
     // The strip pays the status-bar inset, so the Android header adds none.
-    expect(mockStack.screenOptions).toMatchObject({ unstable_nativeProps: { headerConfig: { topInsetEnabled: false } } });
+    expect(mockStack.screenOptions).toMatchObject({
+      unstable_nativeProps: { headerConfig: { disableTopInsetApplication: true } },
+    });
   });
 
   it("the loading spinner and the app's default sit on the canvas, so Malam never turns them light", async () => {
