@@ -147,7 +147,10 @@ test("menu and customer context survive reload; filtered empty resets; change dr
   await page
     .getByRole("button", { name: "Clear filters", exact: true })
     .click();
+  // The demo also has synthetic customers; open Nadia's own row.
   await page
+    .locator(".customer-row")
+    .filter({ has: page.getByRole("heading", { name: "Nadia Putri", exact: true }) })
     .getByRole("button", { name: /View customer|View details|View schedule/ })
     .first()
     .click();

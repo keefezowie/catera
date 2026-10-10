@@ -469,7 +469,8 @@ test("distant jumps and delayed responses preserve the selected meal and chronol
   await page.request.post("/api/v1/auth/demo", { data: { role: "customer" } });
   const original = (await (await page.request.get("/api/v1/customer")).json())
     .data;
-  const template = original.deliveries[0];
+  // The demo's first delivery may be delivered history; these future records are still to come.
+  const template = { ...original.deliveries[0], status: "scheduled" };
   const records = [
     {
       ...template,

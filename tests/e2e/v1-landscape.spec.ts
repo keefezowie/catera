@@ -20,9 +20,16 @@ async function sellerDay(page: Page) {
         await page.request.get(`/api/v1/seller/${catererId}?date=${date}`)
       ).json()
     ).data;
-    if (state.deliveries.length) return state;
+    // A day with a lunch still to act on: delivered history has no next order action.
+    const open = (status: string) => !["delivered", "cancelled"].includes(status);
+    if (
+      state.deliveries.some(
+        (d) => open(d.status) && d.meals.some((m) => m.meal === "lunch" && open(m.status)),
+      )
+    )
+      return state;
   }
-  throw new Error("No nearby populated synthetic seller day");
+  throw new Error("No nearby synthetic seller day with a lunch to act on");
 }
 test.beforeEach(async ({ context, baseURL }) => {
   await context.addCookies([
