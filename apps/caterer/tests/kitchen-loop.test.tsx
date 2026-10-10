@@ -33,6 +33,7 @@ jest.mock("expo-notifications", () => ({
   clearLastNotificationResponseAsync: jest.fn(async () => undefined),
 }));
 jest.mock("../src/today/offline", () => ({
+  cacheSession: jest.fn(() => 0),
   saveCachedDay: jest.fn(async () => undefined),
   loadCachedDay: jest.fn(async () => null),
 }));

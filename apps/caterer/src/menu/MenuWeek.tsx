@@ -22,6 +22,7 @@ import {
   Button,
   Card,
   Chip,
+  FadeSwap,
   fontFor,
   MoodHeader,
   PressableScale,
@@ -36,6 +37,7 @@ import { copyWeekBatches, mealOf, saveMenuDay, weekdayShort, weekDates, weekRang
 import { uploadPhoto } from "../business/upload";
 import { photoUri } from "../photo";
 import { ReadError } from "../ReadError";
+import { MenuWeekSkeleton } from "../skeletons";
 
 export { mealOf } from "./logic";
 
@@ -367,10 +369,13 @@ export function MenuWeek() {
   if ((ops.error && !ops.data) || (days.error && !days.data))
     return <MenuLoadError onRetry={() => void (ops.error && !ops.data ? ops.reload() : days.reload())} />;
 
+  // The loaded week draws its body in the same FadeSwap, so it enters from this skeleton as one block.
   if (!ops.data)
     return (
       <Screen header={<MenuTitle />}>
-        <Text variant="caption">{t("Memuat…", "Loading…")}</Text>
+        <FadeSwap swapKey="loading" style={{ gap: 16 }}>
+          <MenuWeekSkeleton controls owner={canEdit} />
+        </FadeSwap>
       </Screen>
     );
 
@@ -506,93 +511,98 @@ export function MenuWeek() {
         </MoodHeader>
       }
     >
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-        {offers.map((o) => (
-          <Chip key={o.id} label={o.name} selected={o.id === offer?.id} onPress={() => setPackageId(o.id)} />
-        ))}
-      </ScrollView>
-      <View style={{ flexDirection: "row", gap: 8 }}>
-        {canEdit ? (
-          <Button style={{ flex: 1 }} variant="secondary" disabled={busy || !weekLoaded || lastWeekPending || lastWeekEmpty} label={t("Salin minggu lalu", "Copy last week")} onPress={() => void copyLastWeek()} />
-        ) : null}
-        <Button style={{ flex: 1 }} variant="secondary" disabled={!hasMenu} label={t("Bagikan menu", "Share menu")} onPress={shareMenu} />
-      </View>
-      {canEdit && weekLoaded && lastWeekPending ? (
-        <Text variant="caption">{t("Memuat minggu lalu…", "Loading last week…")}</Text>
-      ) : null}
-      {canEdit && weekLoaded && lastWeekEmpty ? (
-        <Text variant="caption">{t("Minggu lalu belum ada menu untuk disalin", "Last week has no menu to copy")}</Text>
-      ) : null}
-      {weekLoaded && !hasMenu ? (
-        <Text variant="caption">{t("Belum ada menu untuk dibagikan", "No menu to share yet")}</Text>
-      ) : null}
-      {!weekLoaded ? <Text variant="caption">{t("Memuat…", "Loading…")}</Text> : null}
-      {note ? <Text variant="caption">{note}</Text> : null}
-      {error ? <Text selectable style={{ color: c.danger }}>{error}</Text> : null}
-      {selected ? (
-        <Card>
-          <Text variant="heading">{shortDate(selected.date, locale)}</Text>
-          {items.length ? (
-            (template?.composition ?? []).map((g) => {
-              const rows = items.filter((i) => i.groupId === g.id);
-              return rows.length ? (
-                <View key={g.id} style={{ gap: 8 }}>
-                  <Text variant="caption">{componentLabel(g, locale)}</Text>
-                  {rows.map((dish) => (
-                    <DishRow
-                      key={dish.id}
-                      dish={dish}
-                      canAddPhoto={canEdit && selected.editable}
-                      uploading={uploadingHere(dish.id)}
-                      busy={photoBusy || waitingForWeek}
-                      onAdd={() => void addPhoto(selected, dish)}
-                    />
-                  ))}
-                </View>
-              ) : null;
-            })
-          ) : past || !selected.editable ? (
-            // An empty day nobody can fill any more: past, or past its change cutoff. It is not a to-do, so it is muted.
-            <Text variant="caption" style={{ color: c.muted }}>
-              {past ? t("Lewat", "Past") : t("Sudah lewat batas ubah", "Past the change cutoff")}
-            </Text>
-          ) : (
-            <Text style={{ color: c.sunriseInk, fontFamily: fontFor("700") }}>
-              {t("Belum diisi", "Not filled")}
-            </Text>
-          )}
-          {photoError ? <Text selectable style={{ color: c.danger }}>{photoError}</Text> : null}
-          {canEdit && selected.editable ? (
-            <Button
-              variant="secondary"
-              label={t("Ubah menu", "Edit menu")}
-              onPress={() => router.push(`/menu/${selected.date}?pkg=${offer.id}&meal=${meal}` as never)}
-            />
+      <FadeSwap swapKey="loaded" style={{ gap: 16 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+          {offers.map((o) => (
+            <Chip key={o.id} label={o.name} selected={o.id === offer?.id} onPress={() => setPackageId(o.id)} />
+          ))}
+        </ScrollView>
+        <View style={{ flexDirection: "row", gap: 8 }}>
+          {canEdit ? (
+            <Button style={{ flex: 1 }} variant="secondary" disabled={busy || !weekLoaded || lastWeekPending || lastWeekEmpty} label={t("Salin minggu lalu", "Copy last week")} onPress={() => void copyLastWeek()} />
           ) : null}
-        </Card>
-      ) : null}
-      {selected && items.length ? (
-        <Card>
-          <Text variant="heading">{t("Tampilan di aplikasi pelanggan", "How customers see it")}</Text>
-          <View style={{ alignSelf: "center" }}>
-            <StoryCover
-              uri={photoUri(menuCoverImage(selected.details, offer.image || ""), runtime.apiBase)}
-              title={`${mealLabel(meal, locale)} · ${shortDate(selected.date, locale)}`}
-              // The customer story has one slide per meal of the package: lunch, and dinner when it serves both.
-              segments={offer.meal === "both" ? 2 : 1}
-              active={offer.meal === "both" && meal === "dinner" ? 2 : 1}
-              width={coverWidth}
-              height={Math.round(coverWidth * 1.25)}
-            />
-          </View>
-          <Text variant="caption">
-            {t(
-              "Foto lauk utama jadi sampul menu besok. Menu tanpa foto memakai foto paket.",
-              "The main dish photo becomes the cover of tomorrow's menu. A menu without photos uses the package photo.",
-            )}
-          </Text>
-        </Card>
-      ) : null}
+          <Button style={{ flex: 1 }} variant="secondary" disabled={!hasMenu} label={t("Bagikan menu", "Share menu")} onPress={shareMenu} />
+        </View>
+        {canEdit && weekLoaded && lastWeekPending ? (
+          <Text variant="caption">{t("Memuat minggu lalu…", "Loading last week…")}</Text>
+        ) : null}
+        {canEdit && weekLoaded && lastWeekEmpty ? (
+          <Text variant="caption">{t("Minggu lalu belum ada menu untuk disalin", "Last week has no menu to copy")}</Text>
+        ) : null}
+        {weekLoaded && !hasMenu ? (
+          <Text variant="caption">{t("Belum ada menu untuk dibagikan", "No menu to share yet")}</Text>
+        ) : null}
+        {note ? <Text variant="caption">{note}</Text> : null}
+        {error ? <Text selectable style={{ color: c.danger }}>{error}</Text> : null}
+        {/* The day card waits behind its skeleton while the week reads, and enters as one block. */}
+        <FadeSwap swapKey={weekLoaded ? "week" : "loading"} style={{ gap: 16 }}>
+          {!weekLoaded ? <MenuWeekSkeleton /> : null}
+          {selected ? (
+            <Card>
+              <Text variant="heading">{shortDate(selected.date, locale)}</Text>
+              {items.length ? (
+                (template?.composition ?? []).map((g) => {
+                  const rows = items.filter((i) => i.groupId === g.id);
+                  return rows.length ? (
+                    <View key={g.id} style={{ gap: 8 }}>
+                      <Text variant="caption">{componentLabel(g, locale)}</Text>
+                      {rows.map((dish) => (
+                        <DishRow
+                          key={dish.id}
+                          dish={dish}
+                          canAddPhoto={canEdit && selected.editable}
+                          uploading={uploadingHere(dish.id)}
+                          busy={photoBusy || waitingForWeek}
+                          onAdd={() => void addPhoto(selected, dish)}
+                        />
+                      ))}
+                    </View>
+                  ) : null;
+                })
+              ) : past || !selected.editable ? (
+                // An empty day nobody can fill any more: past, or past its change cutoff. It is not a to-do, so it is muted.
+                <Text variant="caption" style={{ color: c.muted }}>
+                  {past ? t("Lewat", "Past") : t("Sudah lewat batas ubah", "Past the change cutoff")}
+                </Text>
+              ) : (
+                <Text style={{ color: c.sunriseInk, fontFamily: fontFor("700") }}>
+                  {t("Belum diisi", "Not filled")}
+                </Text>
+              )}
+              {photoError ? <Text selectable style={{ color: c.danger }}>{photoError}</Text> : null}
+              {canEdit && selected.editable ? (
+                <Button
+                  variant="secondary"
+                  label={t("Ubah menu", "Edit menu")}
+                  onPress={() => router.push(`/menu/${selected.date}?pkg=${offer.id}&meal=${meal}` as never)}
+                />
+              ) : null}
+            </Card>
+          ) : null}
+          {selected && items.length ? (
+            <Card>
+              <Text variant="heading">{t("Tampilan di aplikasi pelanggan", "How customers see it")}</Text>
+              <View style={{ alignSelf: "center" }}>
+                <StoryCover
+                  uri={photoUri(menuCoverImage(selected.details, offer.image || ""), runtime.apiBase)}
+                  title={`${mealLabel(meal, locale)} · ${shortDate(selected.date, locale)}`}
+                  // The customer story has one slide per meal of the package: lunch, and dinner when it serves both.
+                  segments={offer.meal === "both" ? 2 : 1}
+                  active={offer.meal === "both" && meal === "dinner" ? 2 : 1}
+                  width={coverWidth}
+                  height={Math.round(coverWidth * 1.25)}
+                />
+              </View>
+              <Text variant="caption">
+                {t(
+                  "Foto lauk utama jadi sampul menu besok. Menu tanpa foto memakai foto paket.",
+                  "The main dish photo becomes the cover of tomorrow's menu. A menu without photos uses the package photo.",
+                )}
+              </Text>
+            </Card>
+          ) : null}
+        </FadeSwap>
+      </FadeSwap>
     </Screen>
   );
 }

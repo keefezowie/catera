@@ -1,14 +1,27 @@
 import { useState } from "react";
-import { Linking, View } from "react-native";
+import { Linking, RefreshControl, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { jakartaDay, whatsappUrl, type SellerCustomer } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, Chip, fontFor, MoodHeader, PressableRow, PressableScale, Screen, Text, useColors } from "@catera/mobile-ui";
+import {
+  Button,
+  Card,
+  Chip,
+  FadeSwap,
+  fontFor,
+  MoodHeader,
+  PressableRow,
+  PressableScale,
+  Screen,
+  Text,
+  useColors,
+} from "@catera/mobile-ui";
 import { activeSubscriptions, currentSubscription, customerStatus, activeEndLabel, type CustomerStatus } from "./rules";
 import { loadAllCustomers } from "./load";
 import { customerHref } from "../hrefs";
 import { ReadError } from "../ReadError";
+import { ListSkeleton } from "../skeletons";
 
 /** Every subscriber, marketplace and own, filtered by where their package stands. */
 export function CustomerList() {
@@ -30,8 +43,29 @@ export function CustomerList() {
     ending: t("Segera berakhir", "Ending soon"),
     ended: t("Selesai", "Ended"),
   };
+  // Pull to refresh reads the list again while the rows stay; only the spinner says so.
+  const [pulling, setPulling] = useState(false);
+  async function pull() {
+    setPulling(true);
+    try {
+      await list.reload();
+    } finally {
+      setPulling(false);
+    }
+  }
   return (
-    <Screen header={<MoodHeader testID="pelanggan-header" title={t("Pelanggan", "Customers")} />}>
+    <Screen
+      header={<MoodHeader testID="pelanggan-header" title={t("Pelanggan", "Customers")} />}
+      refreshControl={
+        <RefreshControl
+          refreshing={pulling}
+          onRefresh={() => void pull()}
+          tintColor={palette.forest}
+          colors={[palette.forest]}
+          progressBackgroundColor={palette.surface}
+        />
+      }
+    >
       {/* A secondary button draws its label in the theme ink, so it sits on the page and not on the header fill. */}
       <Button
         variant="secondary"
@@ -39,55 +73,63 @@ export function CustomerList() {
         onPress={() => router.push("/impor" as never)}
         style={{ alignSelf: "flex-start" }}
       />
-      {list.data ? (
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-          {(["active", "ending", "ended"] as const).map((s) => (
-            <Chip key={s} label={`${labels[s]} · ${count(s)}`} selected={filter === s} onPress={() => setFilter(s)} />
-          ))}
-        </View>
-      ) : null}
       {!list.data && list.error ? <ReadError message={list.error} onRetry={() => void list.reload()} /> : null}
-      {!list.data && !list.error ? <Text variant="caption">{t("Memuat pelanggan…", "Loading customers…")}</Text> : null}
-      {list.data && !shown.length ? (
-        <Text variant="caption">{t("Belum ada pelanggan di sini.", "No customers here yet.")}</Text>
-      ) : null}
-      {shown.map((c) => {
-        const s = currentSubscription(c);
-        const others = Math.max(activeSubscriptions(c).length - 1, 0);
-        return (
-          <Card key={c.id} style={{ flexDirection: "row", alignItems: "center" }}>
-            <PressableRow
-              accessibilityRole="button"
-              onPress={() => router.push(customerHref(c.id, c.name) as never)}
-              style={{ flex: 1, gap: 2, minHeight: 48, justifyContent: "center" }}
-            >
-              <Text style={{ fontFamily: fontFor("800") }}>{c.name}</Text>
-              {s ? <Text variant="caption">{`${s.package_name} · ${s.portions} porsi`}</Text> : null}
-              <View style={{ flexDirection: "row", gap: 6, marginTop: 2 }}>
-                {s && s.status === "active" ? (
-                  <Text variant="caption" style={{ color: palette.sunriseInk, fontFamily: fontFor("700") }}>
-                    {activeEndLabel(s, today, t, locale)}
-                  </Text>
-                ) : null}
-                {others ? <Text variant="caption">{`+${others} ${t("paket lain", "more packages")}`}</Text> : null}
-                <Text variant="caption">
-                  {c.origin === "marketplace" ? t("Dari marketplace", "From marketplace") : t("Pelanggan Anda", "Your customer")}
-                </Text>
+      {/* The rows enter from their skeleton as one block, never one by one. */}
+      {list.data || !list.error ? (
+        <FadeSwap swapKey={list.data ? "list" : "loading"}>
+          {list.data ? (
+            <View style={{ gap: 16 }}>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                {(["active", "ending", "ended"] as const).map((s) => (
+                  <Chip key={s} label={`${labels[s]} · ${count(s)}`} selected={filter === s} onPress={() => setFilter(s)} />
+                ))}
               </View>
-            </PressableRow>
-            {c.phone ? (
-              <PressableScale
-                accessibilityRole="link"
-                accessibilityLabel={`${t("Chat", "Chat")} ${c.name}`}
-                onPress={() => void Linking.openURL(whatsappUrl("", c.phone!))}
-                style={{ width: 48, height: 48, alignItems: "center", justifyContent: "center" }}
-              >
-                <Ionicons name="chatbubble-ellipses-outline" size={22} color={palette.forest} />
-              </PressableScale>
-            ) : null}
-          </Card>
-        );
-      })}
+              {!shown.length ? (
+                <Text variant="caption">{t("Belum ada pelanggan di sini.", "No customers here yet.")}</Text>
+              ) : null}
+              {shown.map((c) => {
+                const s = currentSubscription(c);
+                const others = Math.max(activeSubscriptions(c).length - 1, 0);
+                return (
+                  <Card key={c.id} style={{ flexDirection: "row", alignItems: "center" }}>
+                    <PressableRow
+                      accessibilityRole="button"
+                      onPress={() => router.push(customerHref(c.id, c.name) as never)}
+                      style={{ flex: 1, gap: 2, minHeight: 48, justifyContent: "center" }}
+                    >
+                      <Text style={{ fontFamily: fontFor("800") }}>{c.name}</Text>
+                      {s ? <Text variant="caption">{`${s.package_name} · ${s.portions} porsi`}</Text> : null}
+                      <View style={{ flexDirection: "row", gap: 6, marginTop: 2 }}>
+                        {s && s.status === "active" ? (
+                          <Text variant="caption" style={{ color: palette.sunriseInk, fontFamily: fontFor("700") }}>
+                            {activeEndLabel(s, today, t, locale)}
+                          </Text>
+                        ) : null}
+                        {others ? <Text variant="caption">{`+${others} ${t("paket lain", "more packages")}`}</Text> : null}
+                        <Text variant="caption">
+                          {c.origin === "marketplace" ? t("Dari marketplace", "From marketplace") : t("Pelanggan Anda", "Your customer")}
+                        </Text>
+                      </View>
+                    </PressableRow>
+                    {c.phone ? (
+                      <PressableScale
+                        accessibilityRole="link"
+                        accessibilityLabel={`${t("Chat", "Chat")} ${c.name}`}
+                        onPress={() => void Linking.openURL(whatsappUrl("", c.phone!))}
+                        style={{ width: 48, height: 48, alignItems: "center", justifyContent: "center" }}
+                      >
+                        <Ionicons name="chatbubble-ellipses-outline" size={22} color={palette.forest} />
+                      </PressableScale>
+                    ) : null}
+                  </Card>
+                );
+              })}
+            </View>
+          ) : (
+            <ListSkeleton rows={4} label={t("Memuat pelanggan", "Loading customers")} />
+          )}
+        </FadeSwap>
+      ) : null}
     </Screen>
   );
 }

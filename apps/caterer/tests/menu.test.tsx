@@ -371,15 +371,15 @@ describe("menu loading and sharing states", () => {
   it("Menu actions wait for data", async () => {
     runtimeFor(jest.fn(() => new Promise(() => undefined)));
     await screen.findByRole("button", { name: "Bagikan menu" });
-    expect(screen.getByText("Memuat…")).toBeTruthy();
+    expect(screen.getByLabelText("Memuat menu")).toBeTruthy();
     expect(disabled("Salin minggu lalu")).toBe(true);
     expect(disabled("Bagikan menu")).toBe(true);
     expect(screen.queryByText("Belum ada menu untuk dibagikan")).toBeNull();
   });
 
-  it("shows Memuat while the packages load, with no actions", async () => {
+  it("shows the menu skeleton while the packages load, with no actions", async () => {
     runtimeFor(jest.fn(), jest.fn(() => new Promise(() => undefined)));
-    expect(await screen.findByText("Memuat…")).toBeTruthy();
+    expect(await screen.findByLabelText("Memuat menu")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Bagikan menu" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Salin minggu lalu" })).toBeNull();
   });
@@ -690,7 +690,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
           <MenuWeek />
         </MobileProvider>,
       );
-      expect(await screen.findByText("Memuat…")).toBeTruthy();
+      expect(await screen.findByLabelText("Memuat menu")).toBeTruthy();
       expect(screen.getByTestId("mood-header")).toBeTruthy();
       expect(screen.getByText("Menu").props.accessibilityRole).toBe("header");
     });

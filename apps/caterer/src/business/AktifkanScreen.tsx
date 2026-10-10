@@ -2,8 +2,9 @@ import { useState, type ReactNode } from "react";
 import { View } from "react-native";
 import { errorLabel, type PayoutSetup } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, Field, Screen, Segmented, Text, useColors } from "@catera/mobile-ui";
+import { Button, Card, FadeSwap, Field, Screen, Segmented, Text, useColors } from "@catera/mobile-ui";
 import { ReadError } from "../ReadError";
+import { ListSkeleton } from "../skeletons";
 
 type StepState = "done" | "waiting" | "todo" | "later";
 
@@ -41,14 +42,17 @@ export function AktifkanScreen() {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const s = state.data;
+  // Both states draw their body in the same FadeSwap, so the steps enter from their skeleton as one block.
   if (!s)
     return (
       <Screen>
-        {state.error ? (
-          <ReadError message={state.error} onRetry={() => void state.reload()} />
-        ) : (
-          <Text variant="caption">{t("Memuat…", "Loading…")}</Text>
-        )}
+        <FadeSwap swapKey={state.error ? "error" : "loading"} style={{ gap: 16 }}>
+          {state.error ? (
+            <ReadError message={state.error} onRetry={() => void state.reload()} />
+          ) : (
+            <ListSkeleton rows={3} label={t("Memuat pembayaran", "Loading payments")} />
+          )}
+        </FadeSwap>
       </Screen>
     );
 
@@ -71,60 +75,62 @@ export function AktifkanScreen() {
 
   return (
     <Screen>
-      <Text>
-        {t(
-          "Setelah aktif, pelanggan bisa memperpanjang dan memesan langsung lewat Catera. Daftar masak dan antar tetap berjalan seperti biasa.",
-          "Once on, customers can renew and order through Catera. Your cooking and delivery lists keep working as usual.",
-        )}
-      </Text>
-      <Step n={1} title={t("Profil dan paket diperiksa", "Profile and packages checked")} state={review}>
-        {review === "todo" ? (
-          s.packages ? (
-            <Button
-              label={t("Ajukan pemeriksaan", "Request a check")}
-              disabled={busy === "submit"}
-              onPress={() => void run("submit", "seller.submit", { catererId })}
-            />
-          ) : (
-            <Text variant="caption">{t("Buat paket dulu di Usaha › Paket.", "Create a package first in Business › Packages.")}</Text>
-          )
-        ) : review === "waiting" ? (
-          <Text variant="caption">{t("Tim Catera biasanya memeriksa dalam 1–2 hari kerja.", "The Catera team usually checks within 1–2 working days.")}</Text>
-        ) : null}
-      </Step>
-      <Step n={2} title={t("Rekening pencairan", "Payout bank account")} state={payout}>
-        {payout === "done" && s.setup?.active ? (
-          <Text variant="caption">{`${s.setup.active.bank} · ${s.setup.active.maskedAccount} · ${s.setup.active.holder}`}</Text>
-        ) : payout === "waiting" && latest ? (
-          <Text variant="caption">{`${latest.bank} · ${latest.maskedAccount}`}</Text>
-        ) : (
-          <View style={{ gap: 10 }}>
-            {latest?.status === "rejected" && latest.reason ? <Text selectable style={{ color: c.danger }}>{latest.reason}</Text> : null}
-            <Field label={t("Nama bank", "Bank name")} value={bank.bank} onChangeText={(v) => setBank((b) => ({ ...b, bank: v }))} placeholder="BCA" />
-            <Field label={t("Nama pemilik rekening", "Account holder")} value={bank.holder} onChangeText={(v) => setBank((b) => ({ ...b, holder: v }))} />
-            <Field label={t("Nomor rekening", "Account number")} value={bank.accountNumber} onChangeText={(v) => setBank((b) => ({ ...b, accountNumber: v.replace(/\D/g, "") }))} keyboardType="number-pad" />
-            <Segmented
-              value={bank.recipientType}
-              onChange={(v) => setBank((b) => ({ ...b, recipientType: v }))}
-              options={[
-                { value: "INDIVIDUAL", label: t("Perorangan", "Individual") },
-                { value: "BUSINESS", label: t("Badan usaha", "Business") },
-              ]}
-            />
-            <Button
-              label={t("Kirim rekening", "Submit account")}
-              disabled={!bankReady || busy === "bank"}
-              onPress={() => void run("bank", "payoutDestination.submit", { catererId, ...bank })}
-            />
-          </View>
-        )}
-      </Step>
-      <Step n={3} title={t("Verifikasi pembayaran", "Payment verification")} state="later">
-        <Text variant="caption">
-          {t("Kami akan mengabari Anda bila ada dokumen tambahan yang diperlukan.", "We'll let you know if any extra documents are needed.")}
+      <FadeSwap swapKey="steps" style={{ gap: 16 }}>
+        <Text>
+          {t(
+            "Setelah aktif, pelanggan bisa memperpanjang dan memesan langsung lewat Catera. Daftar masak dan antar tetap berjalan seperti biasa.",
+            "Once on, customers can renew and order through Catera. Your cooking and delivery lists keep working as usual.",
+          )}
         </Text>
-      </Step>
-      {error ? <Text selectable style={{ color: c.danger }}>{error}</Text> : null}
+        <Step n={1} title={t("Profil dan paket diperiksa", "Profile and packages checked")} state={review}>
+          {review === "todo" ? (
+            s.packages ? (
+              <Button
+                label={t("Ajukan pemeriksaan", "Request a check")}
+                disabled={busy === "submit"}
+                onPress={() => void run("submit", "seller.submit", { catererId })}
+              />
+            ) : (
+              <Text variant="caption">{t("Buat paket dulu di Usaha › Paket.", "Create a package first in Business › Packages.")}</Text>
+            )
+          ) : review === "waiting" ? (
+            <Text variant="caption">{t("Tim Catera biasanya memeriksa dalam 1–2 hari kerja.", "The Catera team usually checks within 1–2 working days.")}</Text>
+          ) : null}
+        </Step>
+        <Step n={2} title={t("Rekening pencairan", "Payout bank account")} state={payout}>
+          {payout === "done" && s.setup?.active ? (
+            <Text variant="caption">{`${s.setup.active.bank} · ${s.setup.active.maskedAccount} · ${s.setup.active.holder}`}</Text>
+          ) : payout === "waiting" && latest ? (
+            <Text variant="caption">{`${latest.bank} · ${latest.maskedAccount}`}</Text>
+          ) : (
+            <View style={{ gap: 10 }}>
+              {latest?.status === "rejected" && latest.reason ? <Text selectable style={{ color: c.danger }}>{latest.reason}</Text> : null}
+              <Field label={t("Nama bank", "Bank name")} value={bank.bank} onChangeText={(v) => setBank((b) => ({ ...b, bank: v }))} placeholder="BCA" />
+              <Field label={t("Nama pemilik rekening", "Account holder")} value={bank.holder} onChangeText={(v) => setBank((b) => ({ ...b, holder: v }))} />
+              <Field label={t("Nomor rekening", "Account number")} value={bank.accountNumber} onChangeText={(v) => setBank((b) => ({ ...b, accountNumber: v.replace(/\D/g, "") }))} keyboardType="number-pad" />
+              <Segmented
+                value={bank.recipientType}
+                onChange={(v) => setBank((b) => ({ ...b, recipientType: v }))}
+                options={[
+                  { value: "INDIVIDUAL", label: t("Perorangan", "Individual") },
+                  { value: "BUSINESS", label: t("Badan usaha", "Business") },
+                ]}
+              />
+              <Button
+                label={t("Kirim rekening", "Submit account")}
+                disabled={!bankReady || busy === "bank"}
+                onPress={() => void run("bank", "payoutDestination.submit", { catererId, ...bank })}
+              />
+            </View>
+          )}
+        </Step>
+        <Step n={3} title={t("Verifikasi pembayaran", "Payment verification")} state="later">
+          <Text variant="caption">
+            {t("Kami akan mengabari Anda bila ada dokumen tambahan yang diperlukan.", "We'll let you know if any extra documents are needed.")}
+          </Text>
+        </Step>
+        {error ? <Text selectable style={{ color: c.danger }}>{error}</Text> : null}
+      </FadeSwap>
     </Screen>
   );
 }

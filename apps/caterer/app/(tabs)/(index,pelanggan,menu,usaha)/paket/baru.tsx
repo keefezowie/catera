@@ -1,7 +1,8 @@
 import { useLocalSearchParams } from "expo-router";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Screen, Text } from "@catera/mobile-ui";
+import { FadeSwap, Screen, Text } from "@catera/mobile-ui";
 import { PackageEditor } from "../../../../src/business/PackageEditor";
+import { DetailSkeleton } from "../../../../src/skeletons";
 
 export default function NewPackageRoute() {
   const { from } = useLocalSearchParams<{ from?: string }>();
@@ -10,6 +11,20 @@ export default function NewPackageRoute() {
   const ops = useData(`menu-ops:${catererId}`, () => runtime.api.sellerOperations(catererId));
   if (!from) return <PackageEditor />;
   const source = ops.data?.offers.find((o) => o.id === from);
-  if (!source) return <Screen><Text variant="caption">{ops.error || t("Memuat…", "Loading…")}</Text></Screen>;
+  // A copy waits for the package it copies; a read that answered without it says so instead of waiting forever.
+  if (!source)
+    return (
+      <Screen>
+        <FadeSwap swapKey={ops.error ? "error" : ops.data ? "missing" : "loading"} style={{ gap: 16 }}>
+          {ops.error ? (
+            <Text variant="caption">{ops.error}</Text>
+          ) : ops.data ? (
+            <Text>{t("Paket ini tidak ditemukan.", "This package was not found.")}</Text>
+          ) : (
+            <DetailSkeleton label={t("Memuat paket", "Loading the package")} />
+          )}
+        </FadeSwap>
+      </Screen>
+    );
   return <PackageEditor key={source.id} from={source} />;
 }

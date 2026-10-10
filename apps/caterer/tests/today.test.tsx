@@ -44,6 +44,7 @@ jest.mock("expo-notifications", () => ({
   clearLastNotificationResponseAsync: jest.fn(async () => undefined),
 }));
 jest.mock("../src/today/offline", () => ({
+  cacheSession: jest.fn(() => 0),
   saveCachedDay: jest.fn(async () => undefined),
   loadCachedDay: jest.fn(async () => null),
 }));
@@ -468,7 +469,7 @@ describe("Hari ini by mood", () => {
     await screen.findByText("Dapur Bu Rina · Hari ini");
     fireEvent.press(screen.getByRole("button", { name: CHANGE_DAY }));
     expect(await screen.findByText("Dapur Bu Rina · Besok")).toBeTruthy();
-    expect(screen.getByText("Memuat…")).toBeTruthy();
+    expect(screen.getByLabelText("Memuat dapur")).toBeTruthy();
   });
 
   it("words the date button in English", async () => {

@@ -241,7 +241,7 @@ it("another account's kept day never paints, and logout forgets this one", async
   const first = renderToday(runtimeWith(staff, () => new Promise(() => undefined)));
   await act(async () => {});
   expect(screen.queryByTestId("session-count")).toBeNull();
-  expect(screen.getByText("Memuat…")).toBeTruthy();
+  expect(screen.getByLabelText("Memuat dapur")).toBeTruthy();
   await act(async () => {
     await mobile.logout();
   });
@@ -269,4 +269,51 @@ it("staff with a cached day still only see Hari ini and Menu", async () => {
   renderToday(runtimeWith(staff, () => new Promise(() => undefined)));
   expect(await screen.findByTestId("session-count")).toBeTruthy();
   expect(mutatingActions()).toEqual([]);
+});
+
+it("a fresh read that lands after logout keeps nothing on the phone", async () => {
+  // Carried from the Task 4 review: the read started for the owner; Keluar runs before it answers.
+  const fresh = deferred<SellerOperationsState>();
+  storedSession("t", owner);
+  const runtime = runtimeWith(owner, () => fresh.promise);
+  renderToday(runtime);
+  // The owner's own read (the stored account is painted first), not the one made before it was known.
+  await waitFor(() => expect(runtime.api.sellerOperations).toHaveBeenCalledWith("k-1", TODAY));
+  await act(async () => {
+    await mobile.logout();
+  });
+  await act(async () => fresh.resolve(today()));
+  await act(async () => {});
+  // The answer belonged to the session that ended: it is not written back as this phone's kept day.
+  expect([...files.keys()].filter((k) => k.includes("dapur-day-"))).toEqual([]);
+});
+
+it("a fresh read in the same session is kept for the next launch", async () => {
+  storedSession("t", owner);
+  renderToday(runtimeWith(owner, async () => today()));
+  expect(await screen.findByRole("button", { name: "Mulai masak" })).toBeTruthy();
+  await waitFor(() => expect(files.has(`file:///doc/dapur-day-u-owner-k-1-${TODAY}.json`)).toBe(true));
+});
+
+it("the launch gate shows the mascot once the splash lets go, even while the phone's reads hang", async () => {
+  // Carried from the Task 4 review: a SecureStore read that never answers leaves `booted` false; past the 1500ms
+  // ceiling the splash is gone, so the gate must not be a blank canvas.
+  const secure = jest.requireMock("expo-secure-store") as { getItemAsync: jest.Mock };
+  secure.getItemAsync.mockImplementation(() => new Promise(() => undefined));
+  const RootLayout = (require("../app/_layout") as typeof import("../app/_layout")).default;
+  const { runtime } = require("../src/runtime") as typeof import("../src/runtime");
+  runtime.api = { ...runtime.api, me: jest.fn(() => new Promise(() => undefined)) } as MobileRuntime["api"];
+  jest.useFakeTimers({ now: new Date("2026-10-08T03:00:00Z") });
+  try {
+    const root = render(<RootLayout />);
+    await act(async () => {});
+    expect(screen.queryByLabelText("Menyiapkan dapur kamu…")).toBeNull();
+    await act(async () => {
+      jest.advanceTimersByTime(1500);
+    });
+    expect(screen.getByLabelText("Menyiapkan dapur kamu…")).toBeTruthy();
+    root.unmount();
+  } finally {
+    secure.getItemAsync.mockImplementation(async (k: string) => (store.has(k) ? store.get(k) : null));
+  }
 });

@@ -201,11 +201,11 @@ describe("Pelanggan mood header", () => {
     expect(router.push).toHaveBeenCalledWith("/impor");
   });
 
-  it("says Memuat inside the page while loading, and the error with its retry when the read fails", async () => {
+  it("shows the customer skeleton inside the page while loading, and the error with its retry when the read fails", async () => {
     const pending = runtimeWith("approved", true);
     (pending.api as { sellerCustomers: jest.Mock }).sellerCustomers = jest.fn(() => new Promise(() => undefined));
     const first = renderMood(pending);
-    expect(await screen.findByText("Memuat pelanggan…")).toBeTruthy();
+    expect(await screen.findByLabelText("Memuat pelanggan")).toBeTruthy();
     expect(within(screen.getByTestId("pelanggan-header")).getByText("Pelanggan")).toBeTruthy();
     first.unmount();
 
@@ -363,7 +363,7 @@ describe("Pelanggan loading and error states", () => {
     const runtime = runtimeWith("approved", true);
     (runtime.api.sellerCustomers as jest.Mock).mockImplementation(() => new Promise(() => undefined));
     wrap(runtime, <CustomerList />);
-    expect(await screen.findByText("Memuat pelanggan…")).toBeTruthy();
+    expect(await screen.findByLabelText("Memuat pelanggan")).toBeTruthy();
     expect(screen.queryByText(/^Aktif/)).toBeNull();
     expect(screen.queryByText(/^Selesai/)).toBeNull();
     expect(screen.queryByText("Belum ada pelanggan di sini.")).toBeNull();
@@ -381,7 +381,7 @@ describe("Pelanggan loading and error states", () => {
     failing = false;
     fireEvent.press(retry);
     expect(await screen.findByText("Aktif · 2")).toBeTruthy();
-    expect(screen.queryByText("Memuat pelanggan…")).toBeNull();
+    expect(screen.queryByLabelText("Memuat pelanggan")).toBeNull();
   });
 
   it("Pelanggan detail error offers Coba lagi", async () => {

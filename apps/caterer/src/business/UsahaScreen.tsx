@@ -6,6 +6,7 @@ import { useData, useMobile } from "@catera/mobile-core";
 import {
   Button,
   Card,
+  FadeSwap,
   MoodHeader,
   PressableRow,
   Screen,
@@ -20,6 +21,7 @@ import { packageHref } from "../hrefs";
 import { photoUri } from "../photo";
 import { NotifyButton } from "./NotifyButton";
 import { ReadError } from "../ReadError";
+import { ListSkeleton } from "../skeletons";
 
 function Row({
   icon,
@@ -85,19 +87,27 @@ export function UsahaScreen() {
       <Card>
         <Text variant="label">{t("Paket", "Packages")}</Text>
         {!ops.data && ops.error ? <ReadError message={ops.error} onRetry={() => void ops.reload()} /> : null}
-        {!ops.data && !ops.error ? <Text variant="caption">{t("Memuat…", "Loading…")}</Text> : null}
-        {offers.map((o) => (
-          <Row
-            key={o.id}
-            icon="restaurant-outline"
-            label={o.name}
-            detail={`${o.price === null ? "–" : currency(o.price, locale)} · ${o.status === "published" ? t("tayang", "live") : t("draf", "draft")}`}
-            href={packageHref(o.id, o.name)}
-            image={o.image ? photoUri(o.image, runtime.apiBase) : undefined}
-          />
-        ))}
-        {ops.data ? (
-          <Button variant="secondary" label={t("+ Paket baru", "+ New package")} onPress={() => router.push("/paket/baru" as never)} />
+        {/* The package rows enter from their skeleton as one block, inside this card. */}
+        {ops.data || !ops.error ? (
+          <FadeSwap swapKey={ops.data ? "packages" : "loading"} style={{ gap: 10 }}>
+            {ops.data ? (
+              <>
+                {offers.map((o) => (
+                  <Row
+                    key={o.id}
+                    icon="restaurant-outline"
+                    label={o.name}
+                    detail={`${o.price === null ? "–" : currency(o.price, locale)} · ${o.status === "published" ? t("tayang", "live") : t("draf", "draft")}`}
+                    href={packageHref(o.id, o.name)}
+                    image={o.image ? photoUri(o.image, runtime.apiBase) : undefined}
+                  />
+                ))}
+                <Button variant="secondary" label={t("+ Paket baru", "+ New package")} onPress={() => router.push("/paket/baru" as never)} />
+              </>
+            ) : (
+              <ListSkeleton bare rows={2} label={t("Memuat paket", "Loading packages")} />
+            )}
+          </FadeSwap>
         ) : null}
       </Card>
       <Card>

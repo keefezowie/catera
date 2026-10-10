@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Alert, View } from "react-native";
+import { Alert, RefreshControl, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import {
@@ -38,20 +38,23 @@ import {
   useThemePreference,
 } from "@catera/mobile-ui";
 import { jakartaClock } from "./exceptions";
-import { loadCachedDay, saveCachedDay } from "./offline";
+import { cacheSession, loadCachedDay, saveCachedDay } from "./offline";
 import { SessionCard } from "./SessionCard";
 import { reportHref } from "../hrefs";
 import { dapurLink } from "../links";
 import { openLink } from "../nav";
 import { ReadError } from "../ReadError";
+import { TodayCountSkeleton, TodaySkeleton } from "../skeletons";
 
 /** A day's read; `savedAt` is set when it is the copy this phone kept, not a fresh answer. */
 type LoadedDay = { data: SellerOperationsState; savedAt: string | null };
 
 async function loadDay(runtime: MobileRuntime, actorId: string, catererId: string, date: string): Promise<LoadedDay> {
+  // Taken before the read: if the session ends while it runs, its answer is not kept for the next person on the phone.
+  const session = cacheSession();
   try {
     const data = await runtime.api.sellerOperations(catererId, date);
-    await saveCachedDay(actorId, catererId, date, { savedAt: new Date().toISOString(), data });
+    await saveCachedDay(actorId, catererId, date, { savedAt: new Date().toISOString(), data }, session);
     return { data, savedAt: null };
   } catch (error) {
     const cached = await keptDay(actorId, catererId, date);
@@ -339,9 +342,32 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
     !!issues.data &&
     (session !== null || failedCount === 0) &&
     kitchenDayDone(ops, issues.data, now);
+  // The first read of this day: the header and the body each hold their skeleton until it answers. A kept copy or a
+  // failed read is never a skeleton (the copy shows itself, a failure shows Coba lagi).
+  const loading = !ops && !day.error;
+
+  // Pull to refresh reads the day and its reports again while what is on screen stays; only the spinner says so.
+  const [pulling, setPulling] = useState(false);
+  async function pull() {
+    setPulling(true);
+    try {
+      await Promise.all([day.reload(), issues.reload(), attention.reload()]);
+    } finally {
+      setPulling(false);
+    }
+  }
 
   return (
     <Screen
+      refreshControl={
+        <RefreshControl
+          refreshing={pulling}
+          onRefresh={() => void pull()}
+          tintColor={c.forest}
+          colors={[c.forest]}
+          progressBackgroundColor={c.surface}
+        />
+      }
       footer={
         action ? (
           <KitchenAction
@@ -373,11 +399,18 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
             </PressableScale>
           }
         >
-          {ops && session ? <CountCard ops={ops} session={session} /> : null}
+          {/* The count card enters from its skeleton as one block, in the same place on the header. */}
+          {loading || (ops && session) ? (
+            <FadeSwap swapKey={loading ? "loading" : "count"}>
+              {ops && session ? <CountCard ops={ops} session={session} /> : <TodayCountSkeleton />}
+            </FadeSwap>
+          ) : null}
         </MoodHeader>
       }
     >
-      <FadeSwap swapKey={`${date}-${mood}-${done ? "done" : (session?.journey.stage ?? "none")}`}>
+      <FadeSwap
+        swapKey={`${loading ? "loading" : "day"}-${date}-${mood}-${done ? "done" : (session?.journey.stage ?? "none")}`}
+      >
         <View style={{ gap: 16 }}>
           {day.fromCache && day.loading ? (
             // The kept copy shows while the fresh read runs; its actions stay hidden until that lands.
@@ -393,7 +426,7 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
             </Card>
           ) : null}
           {!ops && day.error ? <ReadError message={day.error} onRetry={() => void day.reload()} /> : null}
-          {!ops && !day.error ? <Text variant="caption">{t("Memuat…", "Loading…")}</Text> : null}
+          {loading ? <TodaySkeleton /> : null}
           {newKitchen ? <MulaiCard /> : null}
           {offset === "0" ? (
             <>

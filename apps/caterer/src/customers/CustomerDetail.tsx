@@ -3,11 +3,12 @@ import { Linking, View } from "react-native";
 import { router } from "expo-router";
 import { errorLabel, jakartaDay, whatsappUrl, type CustomerSubscription } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, Screen, Text, useColors } from "@catera/mobile-ui";
+import { Button, Card, FadeSwap, Screen, Text, useColors } from "@catera/mobile-ui";
 import { activeEndLabel, activeSubscriptions, renewalAction } from "./rules";
 import { usePaymentsActive } from "./usePayments";
 import { loadCustomer } from "./load";
 import { ReadError } from "../ReadError";
+import { DetailSkeleton } from "../skeletons";
 
 /**
  * One customer: when their package ends, how to reach them, and the renewal link. `title` is the name the link that
@@ -31,13 +32,16 @@ export function CustomerDetail({ id, title }: { id: string; title?: string }) {
     const loading = record.loading && !record.error;
     return (
       <Screen nativeTitle={loading ? (title ?? t("Pelanggan", "Customer")) : t("Pelanggan", "Customer")}>
-        {record.error ? (
-          <ReadError message={record.error} onRetry={() => void record.reload()} />
-        ) : loading ? (
-          <Text variant="caption">{t("Memuat…", "Loading…")}</Text>
-        ) : (
-          <Text>{t("Pelanggan ini tidak ditemukan.", "This customer was not found.")}</Text>
-        )}
+        {/* The same FadeSwap as the loaded page, so the customer enters from the skeleton as one block. */}
+        <FadeSwap swapKey={loading ? "loading" : "missing"} style={{ gap: 16 }}>
+          {record.error ? (
+            <ReadError message={record.error} onRetry={() => void record.reload()} />
+          ) : loading ? (
+            <DetailSkeleton label={t("Memuat pelanggan", "Loading the customer")} />
+          ) : (
+            <Text>{t("Pelanggan ini tidak ditemukan.", "This customer was not found.")}</Text>
+          )}
+        </FadeSwap>
       </Screen>
     );
   }
@@ -78,54 +82,56 @@ export function CustomerDetail({ id, title }: { id: string; title?: string }) {
 
   return (
     <Screen nativeTitle={c.name}>
-      {shown.map((s) => (
-        <Card key={s.id} tone={s.status === "active" && s.remaining <= 3 ? "attention" : "surface"}>
-          <Text variant="label" style={{ color: palette.sunriseInk }}>
-            {s.status === "active"
-              ? activeEndLabel(s, today, t, locale, true)
-              : t("Paket sudah selesai", "Package finished")}
-          </Text>
-          <Text variant="heading">{`${s.package_name} · ${s.portions} porsi`}</Text>
-          <Text variant="caption">
-            {c.origin === "marketplace"
-              ? t("Dari marketplace · dibayar lewat Catera", "From the marketplace · paid through Catera")
-              : t("Pelanggan Anda · dibayar di luar Catera", "Your customer · paid outside Catera")}
-          </Text>
-          {action !== "none" ? (
-            <Button label={t("Kirim tautan perpanjang", "Send renewal link")} disabled={!!busy} onPress={() => void renew(s)} />
-          ) : null}
-          {action === "invite" ? (
-            <Text variant="caption">
-              {t(
-                "Pelanggan ini belum punya akun Catera. Pesannya berisi tautan untuk membuat akun lalu membayar perpanjangan.",
-                "This customer has no Catera account yet. The message links to creating one, then paying for the renewal.",
-              )}
+      <FadeSwap swapKey="loaded" style={{ gap: 16 }}>
+        {shown.map((s) => (
+          <Card key={s.id} tone={s.status === "active" && s.remaining <= 3 ? "attention" : "surface"}>
+            <Text variant="label" style={{ color: palette.sunriseInk }}>
+              {s.status === "active"
+                ? activeEndLabel(s, today, t, locale, true)
+                : t("Paket sudah selesai", "Package finished")}
             </Text>
-          ) : null}
-          {error && errorFor === s.id ? <Text selectable style={{ color: palette.danger }}>{error}</Text> : null}
-        </Card>
-      ))}
-      {c.phone ? (
-        <Button variant="secondary" label={t("Chat WhatsApp", "WhatsApp chat")} onPress={() => void Linking.openURL(whatsappUrl("", c.phone!))} />
-      ) : null}
-      <Card>
-        <Text variant="label">{t("Alamat antar", "Delivery address")}</Text>
-        <Text>{[c.address.line, c.address.area].filter(Boolean).join(", ")}</Text>
-        {c.address.instructions ? <Text variant="caption">{c.address.instructions}</Text> : null}
-      </Card>
-      {shown
-        .filter((s) => s.deliveries.length)
-        .map((s) => (
-          <Card key={`schedule-${s.id}`}>
-            <Text variant="label">{shown.length > 1 ? `${t("Jadwal", "Schedule")} · ${s.package_name}` : t("Jadwal", "Schedule")}</Text>
-            {s.deliveries.map((d) => (
-              <View key={d.id} style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 8 }}>
-                <Text>{d.service_date}</Text>
-                <Text variant="caption">{d.status === "delivered" ? t("Terkirim", "Delivered") : d.status === "issue" ? t("Gagal diantar", "Not delivered") : t("Terjadwal", "Scheduled")}</Text>
-              </View>
-            ))}
+            <Text variant="heading">{`${s.package_name} · ${s.portions} porsi`}</Text>
+            <Text variant="caption">
+              {c.origin === "marketplace"
+                ? t("Dari marketplace · dibayar lewat Catera", "From the marketplace · paid through Catera")
+                : t("Pelanggan Anda · dibayar di luar Catera", "Your customer · paid outside Catera")}
+            </Text>
+            {action !== "none" ? (
+              <Button label={t("Kirim tautan perpanjang", "Send renewal link")} disabled={!!busy} onPress={() => void renew(s)} />
+            ) : null}
+            {action === "invite" ? (
+              <Text variant="caption">
+                {t(
+                  "Pelanggan ini belum punya akun Catera. Pesannya berisi tautan untuk membuat akun lalu membayar perpanjangan.",
+                  "This customer has no Catera account yet. The message links to creating one, then paying for the renewal.",
+                )}
+              </Text>
+            ) : null}
+            {error && errorFor === s.id ? <Text selectable style={{ color: palette.danger }}>{error}</Text> : null}
           </Card>
         ))}
+        {c.phone ? (
+          <Button variant="secondary" label={t("Chat WhatsApp", "WhatsApp chat")} onPress={() => void Linking.openURL(whatsappUrl("", c.phone!))} />
+        ) : null}
+        <Card>
+          <Text variant="label">{t("Alamat antar", "Delivery address")}</Text>
+          <Text>{[c.address.line, c.address.area].filter(Boolean).join(", ")}</Text>
+          {c.address.instructions ? <Text variant="caption">{c.address.instructions}</Text> : null}
+        </Card>
+        {shown
+          .filter((s) => s.deliveries.length)
+          .map((s) => (
+            <Card key={`schedule-${s.id}`}>
+              <Text variant="label">{shown.length > 1 ? `${t("Jadwal", "Schedule")} · ${s.package_name}` : t("Jadwal", "Schedule")}</Text>
+              {s.deliveries.map((d) => (
+                <View key={d.id} style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 8 }}>
+                  <Text>{d.service_date}</Text>
+                  <Text variant="caption">{d.status === "delivered" ? t("Terkirim", "Delivered") : d.status === "issue" ? t("Gagal diantar", "Not delivered") : t("Terjadwal", "Scheduled")}</Text>
+                </View>
+              ))}
+            </Card>
+          ))}
+      </FadeSwap>
     </Screen>
   );
 }

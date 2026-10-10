@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import { router } from "expo-router";
 import { errorLabel, type Dish, type LibraryDish } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Screen, Text, useColors } from "@catera/mobile-ui";
+import { Button, FadeSwap, Screen, Text, useColors } from "@catera/mobile-ui";
 import { dishUsage, mealOf, saveMenuDay } from "./logic";
 import { loadMenus, MenuLoadError } from "./MenuWeek";
 import { SlotEditor } from "./SlotEditor";
+import { DetailSkeleton } from "../skeletons";
 
 /** Fill one day's menu for one package and meal. */
 export function MenuDayScreen({ date, packageId, meal }: { date: string; packageId: string; meal: string }) {
@@ -33,8 +34,15 @@ export function MenuDayScreen({ date, packageId, meal }: { date: string; package
         <Button label={t("Kembali", "Back")} onPress={() => router.back()} />
       </Screen>
     );
+  // The loaded page draws in the same FadeSwap, so the day's slots enter from this skeleton as one block.
   if (!offer || !current || items === null)
-    return <Screen><Text variant="caption">{t("Memuat…", "Loading…")}</Text></Screen>;
+    return (
+      <Screen>
+        <FadeSwap swapKey="loading" style={{ gap: 16 }}>
+          <DetailSkeleton label={t("Memuat menu", "Loading the menu")} />
+        </FadeSwap>
+      </Screen>
+    );
   const template = mealOf(offer, meal);
 
   async function create(name: string, categoryId: string | undefined) {
@@ -59,19 +67,21 @@ export function MenuDayScreen({ date, packageId, meal }: { date: string; package
 
   return (
     <Screen>
-      <Text variant="caption">{offer.name}</Text>
-      <SlotEditor
-        composition={template.composition ?? []}
-        items={items}
-        library={ops.data?.dishes ?? []}
-        usage={dishUsage((ops.data?.datedMenus ?? []).map((m) => m.details))}
-        onChange={setItems}
-        onCreate={create}
-        onSave={() => void save()}
-        saving={saving}
-        canEdit={actor?.role === "owner"}
-      />
-      {error ? <Text selectable style={{ color: c.danger }}>{error}</Text> : null}
+      <FadeSwap swapKey="day" style={{ gap: 16 }}>
+        <Text variant="caption">{offer.name}</Text>
+        <SlotEditor
+          composition={template.composition ?? []}
+          items={items}
+          library={ops.data?.dishes ?? []}
+          usage={dishUsage((ops.data?.datedMenus ?? []).map((m) => m.details))}
+          onChange={setItems}
+          onCreate={create}
+          onSave={() => void save()}
+          saving={saving}
+          canEdit={actor?.role === "owner"}
+        />
+        {error ? <Text selectable style={{ color: c.danger }}>{error}</Text> : null}
+      </FadeSwap>
     </Screen>
   );
 }

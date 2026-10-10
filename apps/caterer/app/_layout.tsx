@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, use, useEffect, useMemo, useState, type ReactNode } from "react";
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider as NavigationTheme } from "expo-router";
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
@@ -44,8 +44,12 @@ let coldStart = true;
  */
 const splashScheme = Appearance.getColorScheme() === "dark" ? "dark" : "light";
 
+/** Whether the native splash has let go: at once when the phone's reads are done, or at its 1500ms ceiling. */
+const SplashReleased = createContext(false);
+
 function Navigation() {
   const { t, ready, booted, demo, actor } = useMobile();
+  const released = use(SplashReleased);
   const screenOptions = useStackScreenOptions(demo);
   const palette = useColors();
   const { scheme } = useThemePreference();
@@ -59,13 +63,16 @@ function Navigation() {
   // them too.
   const statusBar = <StatusBar style={statusBarStyle({ scheme, mood: null, demo })} />;
   // No stored session: the gate waits for the first answer. The mascot shows its words only after 300ms, so a quick
-  // answer shows nothing; before the phone's reads finish the canvas is all there is (under the splash).
+  // answer shows nothing; before the phone's reads finish the canvas is all there is (under the splash). Once the splash
+  // has let go at its ceiling the mascot shows even if a read still hangs, so the gate is never a blank canvas.
   if (!ready)
     return (
       <>
         {statusBar}
         <View style={{ flex: 1, backgroundColor: palette.canvas }}>
-          {booted ? <MascotLoading label={t("Menyiapkan dapur kamu…", "Getting your kitchen ready…")} /> : null}
+          {booted || released ? (
+            <MascotLoading label={t("Menyiapkan dapur kamu…", "Getting your kitchen ready…")} />
+          ) : null}
         </View>
       </>
     );
@@ -129,7 +136,7 @@ function FontWait() {
  * The launch sequence (spec 3.1, 3.2): holds the native splash until the fonts, the stored theme and the stored session
  * have been read, or 1500ms at most, then on a cold start lays the launch cover over the first screen for one beat.
  */
-function Launch({ fontsDone }: { fontsDone: boolean }) {
+function Launch({ fontsDone, children }: { fontsDone: boolean; children: ReactNode }) {
   const { booted } = useMobile();
   const { loaded } = useThemePreference();
   const released = useSplashHold(fontsDone && loaded && booted, () => void SplashScreen.hideAsync().catch(() => {}));
@@ -137,7 +144,13 @@ function Launch({ fontsDone }: { fontsDone: boolean }) {
   useEffect(() => {
     coldStart = false;
   }, []);
-  return cover ? <LaunchCover scheme={splashScheme} hold={!released} onDone={() => setCover(false)} /> : null;
+  // The app under it learns when the splash let go (the launch gate's mascot); the cover is drawn last, on top.
+  return (
+    <SplashReleased value={released}>
+      {children}
+      {cover ? <LaunchCover scheme={splashScheme} hold={!released} onDone={() => setCover(false)} /> : null}
+    </SplashReleased>
+  );
 }
 
 export default function RootLayout() {
@@ -149,18 +162,19 @@ export default function RootLayout() {
       <ThemeProvider storageKey={runtime.storageKey("theme")}>
         <MoodProvider>
           <MobileProvider runtime={runtime} linkMapper={dapurLink} openLink={openLink} onSignedOut={clearCachedDays}>
-            {fontError ? (
-              <FontError />
-            ) : !fontsLoaded ? (
-              <FontWait />
-            ) : (
-              <ToastProvider>
-                <NavigationColors>
-                  <Navigation />
-                </NavigationColors>
-              </ToastProvider>
-            )}
-            <Launch fontsDone={fontsLoaded || !!fontError} />
+            <Launch fontsDone={fontsLoaded || !!fontError}>
+              {fontError ? (
+                <FontError />
+              ) : !fontsLoaded ? (
+                <FontWait />
+              ) : (
+                <ToastProvider>
+                  <NavigationColors>
+                    <Navigation />
+                  </NavigationColors>
+                </ToastProvider>
+              )}
+            </Launch>
           </MobileProvider>
         </MoodProvider>
       </ThemeProvider>

@@ -302,8 +302,8 @@ describe("Usaha mood header", () => {
     renderMood(runtime);
     const header = await screen.findByTestId("usaha-header");
     expect(within(header).getByText("Usaha").props.accessibilityRole).toBe("header");
-    expect(await screen.findByText("Memuat…")).toBeTruthy();
-    expect(within(header).queryByText("Memuat…")).toBeNull();
+    expect(await screen.findByLabelText("Memuat paket")).toBeTruthy();
+    expect(within(header).queryByLabelText("Memuat paket")).toBeNull();
   });
 
   it("keeps Keluar and the package rows working under the header", async () => {
@@ -327,7 +327,7 @@ describe("Usaha states", () => {
       request: jest.fn(async () => ({ active: null })),
     });
     const first = renderUsaha(pending);
-    expect(await screen.findByText("Memuat…")).toBeTruthy();
+    expect(await screen.findByLabelText("Memuat paket")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "+ Paket baru" })).toBeNull();
     first.unmount();
 

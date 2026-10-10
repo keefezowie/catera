@@ -10,8 +10,9 @@ import {
   type DeliveryIssue,
 } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, Field, fontFor, Screen, Text, useColors } from "@catera/mobile-ui";
+import { Button, Card, FadeSwap, Field, fontFor, Screen, Text, useColors } from "@catera/mobile-ui";
 import { jakartaClock } from "./exceptions";
+import { DetailSkeleton } from "../skeletons";
 
 /** The server needs at least this much text for a reply or a resolution note. */
 const MIN_BODY = 5;
@@ -57,30 +58,36 @@ export function ReportScreen({ id, title: carried }: { id: string; title?: strin
   // then by the customer who sent it. A failed read or a missing report goes back to what it is: the carried name was
   // never checked against a record.
   const generic = t("Laporan masalah", "Problem report");
-  if (!issues.data)
-    return (
-      <Screen nativeTitle={issues.error ? generic : (carried ?? generic)}>
-        {issues.error ? (
+  const issue = issues.data?.find((i) => i.id === id);
+  const loading = !issues.data && !issues.error;
+  const title = issue
+    ? issue.customerName || t("Pelanggan", "Customer")
+    : issues.data || issues.error
+      ? generic
+      : (carried ?? generic);
+  // One screen in every state, so the report enters from its skeleton as one block (the FadeSwap below).
+  return (
+    <Screen nativeTitle={title}>
+      <FadeSwap swapKey={issue ? "report" : loading ? "loading" : "other"} style={{ gap: 16 }}>
+        {issue ? (
+          // No key on the version: a reload after a refused action keeps the typed reply and the message.
+          <Report issue={issue} reload={issues.reload} />
+        ) : issues.data ? (
+          <Text>{t("Laporan ini tidak ditemukan.", "This report was not found.")}</Text>
+        ) : issues.error ? (
           <>
             <Text selectable style={{ color: c.danger }}>{issues.error}</Text>
             <Button label={t("Coba lagi", "Try again")} onPress={() => void issues.reload()} />
           </>
         ) : (
-          <Text variant="caption">{t("Memuat…", "Loading…")}</Text>
+          <DetailSkeleton label={t("Memuat laporan", "Loading the report")} />
         )}
-      </Screen>
-    );
-  const issue = issues.data.find((i) => i.id === id);
-  if (!issue)
-    return (
-      <Screen nativeTitle={generic}>
-        <Text>{t("Laporan ini tidak ditemukan.", "This report was not found.")}</Text>
-      </Screen>
-    );
-  // No key on the version: a reload after a refused action keeps the typed reply and the message.
-  return <Report issue={issue} reload={issues.reload} />;
+      </FadeSwap>
+    </Screen>
+  );
 }
 
+/** The report's page below its title: what the customer said, the replies, and the reply box while it is open. */
 function Report({ issue: i, reload }: { issue: DeliveryIssue; reload: () => Promise<void> }) {
   const { t, locale, command } = useMobile();
   const c = useColors();
@@ -130,7 +137,7 @@ function Report({ issue: i, reload }: { issue: DeliveryIssue; reload: () => Prom
   }
 
   return (
-    <Screen nativeTitle={i.customerName || t("Pelanggan", "Customer")}>
+    <>
       <View style={{ gap: 4 }}>
         <Text style={{ fontFamily: fontFor("800") }}>{`${shortDate(i.service_date, locale)} · ${mealLabel(i.meal, locale)}`}</Text>
         <Text variant="caption">{i.package_name}</Text>
@@ -208,6 +215,6 @@ function Report({ issue: i, reload }: { issue: DeliveryIssue; reload: () => Prom
           onPress={() => void Linking.openURL(whatsappUrl("", i.customerPhone!))}
         />
       ) : null}
-    </Screen>
+    </>
   );
 }

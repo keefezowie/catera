@@ -1,7 +1,8 @@
 import { useLocalSearchParams } from "expo-router";
 import { useData, useMobile } from "@catera/mobile-core";
-import { linkTitle, Screen, Text } from "@catera/mobile-ui";
+import { FadeSwap, linkTitle, Screen, Text } from "@catera/mobile-ui";
 import { PackageDetail } from "../../../../src/business/PackageDetail";
+import { DetailSkeleton } from "../../../../src/skeletons";
 
 export default function EditPackageRoute() {
   const params = useLocalSearchParams<{ id: string; title?: string }>();
@@ -17,9 +18,13 @@ export default function EditPackageRoute() {
     const loading = !ops.error && !missing;
     return (
       <Screen nativeTitle={loading ? (linkTitle(params) ?? t("Paket", "Package")) : t("Paket", "Package")}>
-        <Text variant="caption">
-          {ops.error || (missing ? t("Paket ini tidak ditemukan.", "This package was not found.") : t("Memuat…", "Loading…"))}
-        </Text>
+        <FadeSwap swapKey={loading ? "loading" : "other"} style={{ gap: 16 }}>
+          {loading ? (
+            <DetailSkeleton label={t("Memuat paket", "Loading the package")} />
+          ) : (
+            <Text variant="caption">{ops.error || t("Paket ini tidak ditemukan.", "This package was not found.")}</Text>
+          )}
+        </FadeSwap>
       </Screen>
     );
   }

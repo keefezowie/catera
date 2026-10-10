@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactElement, type ReactNode } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import {
   type AccessibilityRole,
@@ -9,6 +9,7 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
   Pressable,
+  type RefreshControlProps,
   ScrollView,
   StyleSheet,
   Text as RNText,
@@ -408,6 +409,7 @@ export function Screen({
   title,
   bleed = false,
   onScroll,
+  refreshControl,
 }: {
   children: ReactNode;
   scroll?: boolean;
@@ -432,6 +434,8 @@ export function Screen({
   bleed?: boolean;
   /** The scroll view's own events, for a screen whose header follows its content (Paket's photo). */
   onScroll?: (e: NativeSyntheticEvent<NativeScrollEvent>) => void;
+  /** Pull to refresh on the page's scroll view (a `RefreshControl`); ignored when `scroll` is false. */
+  refreshControl?: ReactElement<RefreshControlProps>;
 }) {
   const styles = useStyles();
   const palette = useColors();
@@ -539,6 +543,7 @@ export function Screen({
             keyboardShouldPersistTaps="handled"
             onScroll={handleScroll}
             scrollEventThrottle={handleScroll ? 16 : undefined}
+            refreshControl={refreshControl}
           >
             {header ? <ScreenHeaderContext.Provider value>{header}</ScreenHeaderContext.Provider> : null}
             {lead}

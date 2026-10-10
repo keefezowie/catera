@@ -16,12 +16,13 @@ function walk(dir: string): string[] {
 const rel = (f: string) => relative(root, f).split(sep).join("/");
 
 // The static palette is light-only; native screens read the active palette through useColors/themedStyles.
-// theme.tsx is the one place allowed to touch the palette tables directly.
+// theme.tsx is the one place allowed to touch the palette tables directly. `colors={…}` is RefreshControl's own prop
+// (the Android pull spinner's ink, handed a themed value), not the palette, so that one JSX use is not a reference.
 test("native sources read the theme, never colors", () => {
   const offenders = appDirs
     .flatMap((d) => walk(join(root, d)))
     .filter((f) => rel(f) !== "packages/mobile-ui/src/theme.tsx")
-    .filter((f) => /\bcolors\b/.test(readFileSync(f, "utf8")))
+    .filter((f) => /\bcolors\b(?!=\{)/.test(readFileSync(f, "utf8")))
     .map(rel)
     .sort();
   expect(offenders).toEqual([]);
