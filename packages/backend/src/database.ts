@@ -641,6 +641,12 @@ export async function createDemoDatabase(inMemory = false) {
     await db.exec("begin;\n" + await readFile(path.join(projectRoot(),
       "supabase/migrations/20261010090000_pilot_jakarta_day.sql"), "utf8") + "\ncommit;");
   }
+  if ((await db.query<{ missing: boolean }>(
+    "select to_regprocedure('public.catera_v1_command_unregister_base(text,jsonb,uuid)') is null missing",
+  )).rows[0].missing) {
+    await db.exec("begin;\n" + await readFile(path.join(projectRoot(),
+      "supabase/migrations/20261011090000_device_unregister.sql"), "utf8") + "\ncommit;");
+  }
   // Synthetic renewal, payment and kitchen-loop states for the demo customer, after everything else, only on a demo
   // database seeded just now (`r`: no v1 schema before). Demo storage only: never run against hosted data.
   await applyDemoStates(db, { seeded: !r.rows[0].exists, root: projectRoot(), folder: inMemory ? null : folder });

@@ -366,6 +366,23 @@ try {
     pilotDay.release();
   }
   evidence.push("Paid pilot days: on a UTC session the pilot read defaults to the Jakarta month and today, metrics and pilot date commands run in Asia/Jakarta, and the renamed bases are not executable by clients.");
+  // device.unregister: two sessions of one account remove the same token at once. The delete is the
+  // check, so exactly one removes it, the other answers removed 0, neither errors, and another
+  // account's token is untouched.
+  await pool.query(await readFile("supabase/migrations/20261011090000_device_unregister.sql", "utf8"));
+  const unregisterToken = "ExponentPushToken[concurrent-unregister]";
+  await cmd("device.register", { token: unregisterToken }, users[0]);
+  await cmd("device.register", { token: "ExponentPushToken[other-account]" }, users[1]);
+  const unregisterRace = await Promise.all([
+    cmd("device.unregister", { token: unregisterToken }, users[0]),
+    cmd("device.unregister", { token: unregisterToken }, users[0]),
+  ]);
+  assert.deepEqual(unregisterRace.map((r) => r.removed).sort(), [0, 1]);
+  assert.equal((await pool.query("select 1 from v1.devices where token=$1", [unregisterToken])).rowCount, 0);
+  assert.deepEqual(await cmd("device.unregister", { token: "ExponentPushToken[other-account]" }, users[0]), { removed: 0 });
+  assert.equal((await pool.query("select 1 from v1.devices where token='ExponentPushToken[other-account]' and user_id=$1", [users[1]])).rowCount, 1);
+  assert.equal((await pool.query("select has_function_privilege('authenticated','public.catera_v1_command_unregister_base(text,jsonb,uuid)','execute') c")).rows[0].c, false);
+  evidence.push("Two simultaneous device.unregister calls for one token remove it once (removed 1 and 0, no error), another account's token is untouched, and the renamed base is not executable by clients.");
   await pool.query(await readFile("supabase/migrations/20261007110000_import_before_approval.sql", "utf8"));
   await mkdir("output/verification", { recursive: true });
   const evidencePath = process.env.CATERA_POSTGRES_EVIDENCE || "output/verification/postgres.json";
