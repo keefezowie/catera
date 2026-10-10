@@ -19,11 +19,16 @@ function Line({ width, block, line, onMood, testID }: { width: DimensionValue; b
   );
 }
 
+/** The rantang track's stop labels (Dimasak, Diantar, Sampai): three short caption blocks, left, centre and right. */
+const STOP_ALIGN = ["flex-start", "center", "flex-end"] as const;
+
 /**
  * The count card's numbers on the mood surface, for Hari ini's header while the day loads: the portion figure, its
- * caption and the rantang track's line, at the card's padding. The blocks take the mood's toggle track, which stands off
- * the header fill in Siang and Malam, light and dark (the hero fill is not drawn: in light Malam it is the same colour as
- * the track). The body's `TodaySkeleton` names the wait, so this one is hidden from screen readers.
+ * caption and the rantang track (its caption, the rail and the stop labels), at the card's padding. The track block is
+ * as tall as `RantangTrack` (label line, rail, caption line, 8dp apart), so the header keeps its height when the card
+ * replaces it. The blocks take the mood's toggle track, which stands off the header fill in Siang and Malam, light and
+ * dark (the hero fill is not drawn: in light Malam it is the same colour as the track). The body's `TodaySkeleton`
+ * names the wait, so this one is hidden from screen readers.
  */
 export function TodayCountSkeleton() {
   return (
@@ -40,11 +45,18 @@ export function TodayCountSkeleton() {
             <Line width={72} block={36} line={48} onMood testID="today-count-block-number" />
             <Line width={160} block={10} line={18} onMood testID="today-count-block-caption" />
           </View>
-          <View style={{ gap: 8 }}>
+          <View testID="today-count-track" style={{ gap: 8 }}>
             <Line width={140} block={12} line={23} onMood testID="today-count-block-track-caption" />
             {/* The track's rail (marker, line and stops) as one bar along its foot. */}
             <View style={{ height: 40, justifyContent: "flex-end", paddingBottom: 2 }}>
               <Skeleton height={8} radius={4} onMood testID="today-count-block-track" />
+            </View>
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              {STOP_ALIGN.map((align, i) => (
+                <View key={align} style={{ flex: 1, alignItems: align }}>
+                  <Line width={44} block={10} line={18} onMood testID={`today-count-block-stop-${i}`} />
+                </View>
+              ))}
             </View>
           </View>
         </View>
@@ -83,41 +95,74 @@ export function TodaySkeleton() {
 }
 
 /**
- * Menu while it loads. `controls` (the first read, before the packages are known) adds the package chip and the
- * buttons under the header: Salin minggu lalu only for the owner, who is the one who can copy; Bagikan menu for both.
- * Without it (the week reading under a live header and live controls) only the day card waits.
+ * Menu's day strip while the packages load, in the header: one row of day blocks at the day buttons' height, sharing
+ * the row evenly as the buttons do, on the mood surface. The days a package delivers are not known yet, so the row
+ * shows a working week (five). Hidden from screen readers: the day card names the wait.
  */
-export function MenuWeekSkeleton({ controls = false, owner = false }: { controls?: boolean; owner?: boolean }) {
+export function MenuStripSkeleton({ days = 5, height, gap }: { days?: number; height: number; gap: number }) {
+  return (
+    <View
+      testID="menu-strip-skeleton"
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+    >
+      <SkeletonGroup label="">
+        <View style={{ flexDirection: "row", gap }}>
+          {Array.from({ length: days }, (_, i) => (
+            <View key={i} style={{ flex: 1 }}>
+              <Skeleton height={height} radius={16} onMood testID={`menu-strip-skeleton-day-${i}`} />
+            </View>
+          ))}
+        </View>
+      </SkeletonGroup>
+    </View>
+  );
+}
+
+/**
+ * Menu's controls while the packages load: the package chip and the buttons under the header, Salin minggu lalu only
+ * for the owner (the one who can copy), Bagikan menu for both. Hidden from screen readers: the day card names the wait.
+ */
+export function MenuControlsSkeleton({ owner = false }: { owner?: boolean }) {
+  return (
+    <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <SkeletonGroup label="">
+        <View style={{ gap: 16 }}>
+          <Skeleton width={168} height={40} radius={20} testID="menu-skeleton-chip" />
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            {owner ? (
+              <View style={{ flex: 1 }}>
+                <Skeleton height={48} radius={12} testID="menu-skeleton-copy" />
+              </View>
+            ) : null}
+            <View style={{ flex: 1 }}>
+              <Skeleton height={48} radius={12} testID="menu-skeleton-share" />
+            </View>
+          </View>
+        </View>
+      </SkeletonGroup>
+    </View>
+  );
+}
+
+/**
+ * Menu's day card while its week reads ("Memuat menu"). It sits in its own block below the controls from the first
+ * frame, so it waits through the packages' read and the week's in the same place and enters once.
+ */
+export function MenuWeekSkeleton() {
   const { t } = useMobile();
   return (
     <SkeletonGroup label={t("Memuat menu", "Loading the menu")}>
-      <View style={{ gap: 16 }}>
-        {controls ? (
-          <>
-            <Skeleton width={168} height={40} radius={20} testID="menu-skeleton-chip" />
-            <View style={{ flexDirection: "row", gap: 8 }}>
-              {owner ? (
-                <View style={{ flex: 1 }}>
-                  <Skeleton height={48} radius={12} testID="menu-skeleton-copy" />
-                </View>
-              ) : null}
-              <View style={{ flex: 1 }}>
-                <Skeleton height={48} radius={12} testID="menu-skeleton-share" />
-              </View>
+      <View testID="menu-skeleton-day">
+        <Card>
+          <Line width={132} block={18} line={28} />
+          {[0, 1, 2].map((i) => (
+            <View key={i} style={{ height: 48, flexDirection: "row", alignItems: "center", gap: 12 }}>
+              <Skeleton width={48} height={48} radius={12} />
+              <Skeleton width={i === 1 ? "45%" : "60%"} height={14} radius={7} />
             </View>
-          </>
-        ) : null}
-        <View testID="menu-skeleton-day">
-          <Card>
-            <Line width={132} block={18} line={28} />
-            {[0, 1, 2].map((i) => (
-              <View key={i} style={{ height: 48, flexDirection: "row", alignItems: "center", gap: 12 }}>
-                <Skeleton width={48} height={48} radius={12} />
-                <Skeleton width={i === 1 ? "45%" : "60%"} height={14} radius={7} />
-              </View>
-            ))}
-          </Card>
-        </View>
+          ))}
+        </Card>
       </View>
     </SkeletonGroup>
   );

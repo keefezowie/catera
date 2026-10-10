@@ -162,6 +162,28 @@ function renderWith(runtime: MobileRuntime, node: ReactNode, now = SIANG) {
 const skeletonNames = () =>
   screen.queryAllByRole("progressbar").map((n) => n.props.accessibilityLabel as string);
 
+type Node = ReturnType<typeof screen.getByTestId>;
+/** The drawn views directly under a node, looking through the components between them. */
+const drawnChildren = (n: Node): Node[] =>
+  n.children.flatMap((c) => (typeof c === "string" ? [] : host(c) ? [c] : drawnChildren(c)));
+/**
+ * A column's height from its styles alone, the way the layout adds it up: a fixed height, else a text's line height,
+ * else its drawn children stacked (a column adds them with its gap, a row takes the tallest) plus its vertical padding.
+ * Jest has no layout engine, so this is how a skeleton and the view it stands for are compared.
+ */
+function stackHeight(n: Node): number {
+  const s = flat(n) as ReactNative.ViewStyle & ReactNative.TextStyle;
+  if (typeof s.height === "number") return s.height;
+  if (n.type === "Text") return s.lineHeight ?? Number.NaN;
+  const kids = drawnChildren(n).filter((k) => flat(k).position !== "absolute");
+  const sizes = kids.map(stackHeight);
+  const edge = (side: number | ReactNative.DimensionValue | undefined) => (typeof side === "number" ? side : 0);
+  const pad =
+    edge(s.paddingTop ?? s.paddingVertical ?? s.padding) + edge(s.paddingBottom ?? s.paddingVertical ?? s.padding);
+  if (s.flexDirection === "row") return Math.max(0, ...sizes) + pad;
+  return sizes.reduce((a, b) => a + b, 0) + edge(s.rowGap ?? s.gap) * Math.max(0, kids.length - 1) + pad;
+}
+
 /** The text drawn inside a subtree; a skeleton draws none, so a larger font cannot make it taller. */
 const textsIn = (node: ReturnType<typeof screen.getByTestId>) => node.findAll((n) => n.type === RNText || (n.type as unknown) === "Text");
 
@@ -196,6 +218,24 @@ describe("Hari ini", () => {
     expect(await screen.findByTestId("session-count")).toBeTruthy();
     expect(screen.queryByTestId("today-count-skeleton", { includeHiddenElements: true })).toBeNull();
     expect(skeletonNames()).toEqual([]);
+  });
+
+  it("the count skeleton's track is as tall as the loaded rantang track, so the header keeps its height at the swap", async () => {
+    const read = held<SellerOperationsState>();
+    renderWith(runtimeWith(owner, { sellerOperations: read.fn }), <TodayScreen />);
+    const header = await screen.findByTestId("mood-header");
+    const track = within(header).getByTestId("today-count-track", { includeHiddenElements: true });
+    // The stop labels' row sits under the rail, its blocks on the mood surface like the rest.
+    for (let i = 0; i < 3; i += 1)
+      expect(flat(within(track).getByTestId(`today-count-block-stop-${i}`, { includeHiddenElements: true })).backgroundColor).toBe(
+        nativeMood.light.siang.toggleTrack,
+      );
+    const waiting = stackHeight(track);
+    await act(async () => read.answer(today()));
+    const loaded = stackHeight(await screen.findByTestId("rantang-track"));
+    // The caption line (23), the rail (40) and the stop labels' line (18), 8dp apart.
+    expect(loaded).toBe(23 + 8 + 40 + 8 + 18);
+    expect(waiting).toBe(loaded);
   });
 
   it("Malam's skeleton sits on the Malam header, visible against its fill", async () => {
@@ -353,11 +393,66 @@ describe("Menu", () => {
     expect(screen.queryByText("Memuat…")).toBeNull();
   });
 
-  it("Menu in Malam keeps its skeleton on the page, not on the header", async () => {
-    renderWith(runtimeWith(owner, { sellerOperations: jest.fn(never) }), <MenuWeek />, MALAM);
-    const bar = await screen.findByLabelText("Memuat menu");
-    const fills = bar.findAll((n) => flat(n).backgroundColor === nativeThemes.light.sage);
+  it("Menu's first load draws the loaded header's shape on the Malam surface and keeps the day card on the page", async () => {
+    const read = held<unknown>();
+    renderWith(runtimeWith(owner, { sellerOperations: read.fn, menuMonth: jest.fn(never) }), <MenuWeek />, MALAM);
+    const header = await screen.findByTestId("mood-header");
+    // The week line is already true (the screen opens on this week), and the title row keeps the step buttons' 48dp.
+    expect(within(header).getByText("Minggu ini")).toBeTruthy();
+    expect(flat(within(header).getByTestId("menu-title-row")).minHeight).toBe(48);
+    // One row of five day blocks at the day buttons' 64dp, on the Malam surface, hidden from screen readers.
+    const strip = within(header).getByTestId("menu-strip-skeleton", { includeHiddenElements: true });
+    expect(strip.props.accessibilityElementsHidden).toBe(true);
+    const days = strip.findAll((n) => host(n) && /^menu-strip-skeleton-day-/.test(String(n.props.testID ?? "")));
+    expect(days).toHaveLength(5);
+    for (const day of days) {
+      expect(flat(day).height).toBe(64);
+      expect(flat(day).backgroundColor).toBe(nativeMood.light.malam.toggleTrack);
+    }
+    expect(nativeMood.light.malam.toggleTrack).not.toBe(nativeMood.light.malam.header);
+    // The page holds the controls and the day card; only the day card names the wait.
+    expect(skeletonNames()).toEqual(["Memuat menu"]);
+    const fills = screen.getByLabelText("Memuat menu").findAll((n) => flat(n).backgroundColor === nativeThemes.light.sage);
     expect(fills.length).toBeGreaterThan(0);
+    // The packages arrive: the week's five day buttons take the blocks' place at the same height.
+    await act(async () => read.answer(menuOps()));
+    await screen.findByTestId("menu-strip");
+    const buttons = within(screen.getByTestId("mood-header")).getAllByTestId(/^menu-day-/);
+    expect(buttons).toHaveLength(5);
+    for (const button of buttons) expect(flat(button).minHeight).toBe(64);
+    expect(flat(within(screen.getByTestId("mood-header")).getByTestId("menu-title-row")).minHeight).toBe(48);
+  });
+
+  it("the day card's skeleton stays in place when the packages arrive, so it fades in once", async () => {
+    const ops = held<unknown>();
+    const month = held<unknown>();
+    const timing = jest.spyOn(Reanimated, "withTiming");
+    renderWith(runtimeWith(owner, { sellerOperations: ops.fn, menuMonth: month.fn }), <MenuWeek />);
+    const day = await screen.findByTestId("menu-skeleton-day", { includeHiddenElements: true });
+    await act(async () => ops.answer(menuOps()));
+    expect(await screen.findByRole("button", { name: "Bagikan menu" })).toBeTruthy();
+    // The day card still waits for its week in the very skeleton it started with (the same mounted view, not a new
+    // one): it was not redrawn, so it did not fade with the controls.
+    expect(skeletonNames()).toEqual(["Memuat menu"]);
+    expect(screen.getByTestId("menu-skeleton-day", { includeHiddenElements: true })).toBe(day);
+    // Two blocks entered: the header's day strip and the controls under it.
+    expect(timing.mock.calls.filter(fadeIn)).toHaveLength(2);
+    await act(async () => month.answer({ dates: [], categories: [] }));
+    await waitFor(() => expect(skeletonNames()).toEqual([]));
+    expect(screen.getByTestId("menu-day-2026-10-08").props.accessibilityLabel).toMatch(/menu belum diisi$/);
+    // The day card's one swap.
+    expect(timing.mock.calls.filter(fadeIn)).toHaveLength(3);
+  });
+
+  it("a kitchen with no packages yet fades its empty state in from the skeleton", async () => {
+    const ops = held<unknown>();
+    const timing = jest.spyOn(Reanimated, "withTiming");
+    renderWith(runtimeWith(owner, { sellerOperations: ops.fn }), <MenuWeek />);
+    expect(await screen.findByLabelText("Memuat menu")).toBeTruthy();
+    await act(async () => ops.answer({ ...menuOps(), offers: [] }));
+    expect(await screen.findByRole("button", { name: "Buat paket" })).toBeTruthy();
+    expect(skeletonNames()).toEqual([]);
+    expect(timing.mock.calls.filter(fadeIn)).toHaveLength(1);
   });
 
   it("a failed Menu read keeps Menu belum bisa dimuat with Coba lagi", async () => {
