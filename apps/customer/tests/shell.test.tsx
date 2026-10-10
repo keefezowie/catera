@@ -501,8 +501,8 @@ describe("appearance", () => {
     // Pinned values: the bar surface, the forest indicator pill, forest for selected and muted for the rest.
     expect(tabBarColors(nativeThemes.light)).toEqual({
       backgroundColor: "#F2ECDF",
-      indicatorColor: "#CFE3CC",
-      rippleColor: "#CFE3CC",
+      indicatorColor: "#BFD8BB",
+      rippleColor: "#BFD8BB",
       tintColor: "#163D2E",
       iconColor: { default: "#60675F", selected: "#163D2E" },
       labelColor: { default: "#60675F", selected: "#163D2E" },
