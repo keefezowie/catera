@@ -7,6 +7,7 @@ import {
   dayLabel,
   errorLabel,
   jakartaDay,
+  mealPlates,
   recapCandidates,
   renewalDue,
   todayPlates,
@@ -84,6 +85,37 @@ export function Beranda() {
     );
   if (!actor) return <EmptyHome />;
   return <SignedInHome actorId={actor.id} />;
+}
+
+type Translate = (id: string, en: string) => string;
+
+/**
+ * The second line of the headline for the chosen meal's plates today: the main dish of one plate (lowercased; the
+ * package name, in its own casing, while the menu is not set, so an unset menu never shows a dish), the count of
+ * several, or that none comes.
+ */
+function headlineFor(plates: PlateData[], t: Translate): string {
+  if (plates.length > 1) return t(`${plates.length} antaran.`, `${plates.length} deliveries.`);
+  const plate = plates[0];
+  if (!plate) return t("tidak ada antaran.", "no delivery.");
+  return `${plate.lead?.toLowerCase() ?? plate.packageName}.`;
+}
+
+/**
+ * The line under one end of the day arc: when the meal's one delivery today comes (its window start, "11.00"), how
+ * many come when there are several, or that none does. A window that does not start with a time falls back to the
+ * count, so the line never shows a time the caterer did not set.
+ */
+function arcDetail(plates: PlateData[], t: Translate): string {
+  if (!plates.length) return t("Tidak ada", "None");
+  const start = plates.length === 1 ? windowStart(plates[0].window) : null;
+  return start ?? t(`${plates.length} antaran`, plates.length === 1 ? "1 delivery" : `${plates.length} deliveries`);
+}
+
+/** "11.00" from a window such as "11.00–13.00"; null when the window does not start with a time. */
+function windowStart(window: string): string | null {
+  const m = /^\s*(\d{1,2})[.:](\d{2})\s*[–-]/.exec(window);
+  return m ? `${m[1].padStart(2, "0")}.${m[2]}` : null;
 }
 
 /** Plates that need the customer now. The mood must not hide them behind the other meal's hero. */
@@ -177,10 +209,13 @@ function SignedInHome({ actorId }: { actorId: string }) {
   const otherPlate = plates.find((p) => p.meal !== meal);
   // A second delivery of either meal stays a card below, so no plate with an action is ever dropped.
   const morePlates = plates.filter((p) => p !== heroPlate && p !== otherPlate);
-  const lead = mood === "siang" ? t("Siang ini,", "Lunch today,") : t("Malam ini,", "Dinner tonight,");
-  // Only a dish is lowercased; a package name keeps its own casing.
-  const dish = heroPlate ? (heroPlate.dishes[0]?.toLowerCase() ?? heroPlate.packageName) : "";
-  const headline = heroPlate ? `${lead}\n${dish}.` : `${lead}\n${t("tidak ada antaran.", "no delivery.")}`;
+  const byMeal = mealPlates(plates);
+  const opening = mood === "siang" ? t("Siang ini,", "Lunch today,") : t("Malam ini,", "Dinner tonight,");
+  const headline = `${opening}\n${headlineFor(byMeal[meal], t)}`;
+  const arc = {
+    siang: { title: t("Siang", "Lunch"), label: t("Makan siang", "Lunch"), detail: arcDetail(byMeal.lunch, t) },
+    malam: { title: t("Malam", "Dinner"), label: t("Makan malam", "Dinner"), detail: arcDetail(byMeal.dinner, t) },
+  };
   const next = rows[0];
   const nextLabel = next ? (locale === "id" ? next.label : dayLabel(next.date, today, "en")) : "";
   // "Berikutnya" names a later day, so it is only true when nothing else is left today.
@@ -193,8 +228,7 @@ function SignedInHome({ actorId }: { actorId: string }) {
       header={
         <MoodHeader
           meta={meta}
-          toggle
-          arc
+          arc={arc}
           overlap={heroPlate ? 58 : 0}
           title={
             <Text

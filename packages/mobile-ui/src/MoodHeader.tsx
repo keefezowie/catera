@@ -4,7 +4,7 @@ import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { nativeMotion } from "@catera/design-tokens";
-import { DayArc } from "./brand/DayArc";
+import { MoodArc, type MoodArcProps } from "./brand/MoodArc";
 import { MalamPattern } from "./brand/MalamPattern";
 import { useMoodProgress } from "./brand/useMoodProgress";
 import { Text } from "./components";
@@ -115,13 +115,15 @@ const isText = (node: ReactNode): node is string | number => typeof node === "st
 /**
  * The rounded block that opens a screen. It paints under the status bar and pays that inset itself (unless the demo
  * strip already does), and holds the meta line, the headline, an optional toggle or trailing control, an optional day
- * arc and anything else the screen puts in it. `overlap` leaves room at the bottom for a card that rides up over it.
- * Its fill is `MoodFill`: two stacked layers, Siang and Malam, and the Malam one fades in and out.
+ * arc switch and anything else the screen puts in it. `overlap` leaves room at the bottom for a card that rides up
+ * over it. Its fill is `MoodFill`: two stacked layers, Siang and Malam, and the Malam one fades in and out.
  * - A string `title` is set in the `title` variant (30/39), which holds a long, dynamic name at large font scales. A
  *   short fixed headline can opt into `titleVariant="display"` (34/40).
  * - The top row is 48dp on every screen, whether it holds the meta line, a trailing control, the toggle or nothing,
  *   so switching tabs never moves the headline. The toggle's 48dp tabs ride on a 3dp track that overhangs the row
  *   evenly above and below. The meta line carries a fact (a date, the area), never the tab's own name.
+ * - `arc` puts the day arc under the headline as the Siang / Malam switch (`MoodArc`, with each end's title and detail
+ *   line). The arc is then the switch, so the toggle is not drawn in the top row even when `toggle` is set.
  * - While its screen is focused it sets the status-bar glyphs for the mood (`statusBarStyle`); once a pushed screen
  *   covers it, the app's default for the theme shows again.
  */
@@ -131,7 +133,7 @@ export function MoodHeader({
   titleVariant = "title",
   trailing,
   toggle = false,
-  arc = false,
+  arc,
   children,
   overlap = 0,
   testID = "mood-header",
@@ -141,7 +143,7 @@ export function MoodHeader({
   titleVariant?: "title" | "display";
   trailing?: ReactNode;
   toggle?: boolean;
-  arc?: boolean;
+  arc?: MoodArcProps;
   children?: ReactNode;
   overlap?: 0 | 58;
   testID?: string;
@@ -187,7 +189,7 @@ export function MoodHeader({
               meta
             )}
           </View>
-          {toggle ? (
+          {toggle && !arc ? (
             <View style={{ flexShrink: 0, marginVertical: -TRACK_PADDING }}>
               <MoodToggle />
             </View>
@@ -202,7 +204,7 @@ export function MoodHeader({
         ) : (
           title
         )}
-        {arc ? <DayArc /> : null}
+        {arc ? <MoodArc {...arc} /> : null}
         {children}
       </View>
     </View>

@@ -8,7 +8,6 @@ import { NavigationContext } from "expo-router/react-navigation";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { nativeMood } from "@catera/design-tokens";
 import {
-  DayArc,
   defaultMood,
   Field,
   MalamPattern,
@@ -352,19 +351,6 @@ describe("MoodHeader", () => {
     expect(screen.UNSAFE_queryByProps({ accessibilityRole: "tablist" })).toBeNull();
   });
 
-  it("renders the decorative day arc, hidden from accessibility", () => {
-    mount(<MoodHeader title="Halo" arc />);
-    const arc = screen.getByTestId("day-arc", { includeHiddenElements: true });
-    expect(arc.props.accessibilityElementsHidden).toBe(true);
-    expect(arc.props.importantForAccessibility).toBe("no-hide-descendants");
-    expect(StyleSheet.flatten(arc.props.style).height).toBe(70);
-  });
-
-  it("has no arc unless asked", () => {
-    mount(<MoodHeader title="Halo" />);
-    expect(screen.queryByTestId("day-arc", { includeHiddenElements: true })).toBeNull();
-  });
-
   it("draws the Malam pattern inside the Malam fill, so it fades in and out with it", () => {
     // Siang is the current mood and the pattern is still there: it rides the fill's opacity instead of snapping.
     mount(<MoodHeader title="Halo" toggle />);
@@ -463,49 +449,6 @@ describe("MoodFill", () => {
     expect(flat("plain-fill-siang").boxShadow).toBeUndefined();
     expect(flat("plain-fill-siang").borderRadius).toBeUndefined();
     expect(within(screen.getByTestId("plain-fill-malam", { includeHiddenElements: true })).getByTestId("inside")).toBeTruthy();
-  });
-});
-
-describe("DayArc", () => {
-  const layout = () => fireEvent(screen.getByTestId("day-arc", { includeHiddenElements: true }), "layout", {
-    nativeEvent: { layout: { x: 0, y: 0, width: 320, height: 70 } },
-  });
-
-  it("draws nothing inside until it knows its width", () => {
-    mount(<DayArc />);
-    expect(screen.queryByTestId("day-arc-active", { includeHiddenElements: true })).toBeNull();
-  });
-
-  it("moves the active disc from the sun end to the moon end (instant under reduced motion)", () => {
-    jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
-    mount(
-      <>
-        <DayArc />
-        <MoodToggle />
-      </>,
-    );
-    layout();
-    const at = () => {
-      const t = flat("day-arc-active").transform as { translateX?: number; translateY?: number }[];
-      return { x: t.find((p) => "translateX" in p)!.translateX!, y: t.find((p) => "translateY" in p)!.translateY! };
-    };
-    const sun = at();
-    expect(flat("day-arc-active")).toMatchObject({ width: 40, height: 40 });
-    expect(flat("day-arc-active").backgroundColor).toBe(nativeMood.light.siang.markerActive);
-    fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
-    const moon = at();
-    expect(moon.x).toBeGreaterThan(sun.x);
-    expect(flat("day-arc-active").backgroundColor).toBe(nativeMood.light.malam.markerActive);
-    expect(flat("day-arc-sun-glyph").opacity).toBe(0);
-    expect(flat("day-arc-moon-glyph").opacity).toBe(1);
-  });
-
-  it("keeps an idle sun and moon outline, 32dp, in markerIdle", () => {
-    mount(<DayArc />);
-    layout();
-    for (const id of ["day-arc-idle-sun", "day-arc-idle-moon"]) {
-      expect(flat(id)).toMatchObject({ width: 32, height: 32, borderColor: nativeMood.light.siang.markerIdle });
-    }
   });
 });
 

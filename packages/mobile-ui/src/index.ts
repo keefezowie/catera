@@ -16,7 +16,7 @@ export * from "./mood";
 export * from "./MoodHeader";
 export * from "./MoodFill";
 export * from "./brand/useMoodProgress";
-export * from "./brand/DayArc";
+export * from "./brand/MoodArc";
 export * from "./brand/MalamPattern";
 export * from "./PhotoRing";
 export * from "./CalendarPhotoCell";

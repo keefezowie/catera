@@ -610,10 +610,10 @@ describe("Beranda mood", () => {
     ).toBeTruthy();
   });
 
-  it("switches to Malam from the toggle", async () => {
+  it("switches to Malam from the day arc", async () => {
     mount(runtimeWith(async () => bothMeals()));
     await screen.findByTestId("plate-hero");
-    fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
+    fireEvent.press(screen.getByRole("tab", { name: /^Makan malam, / }));
     expect(title()).toBe("Malam ini,\nsate ayam madura.");
     expect(within(screen.getByTestId("plate-hero")).getByText(/^Makan malam · /)).toBeTruthy();
     expect(within(screen.getByTestId("other-meal-row")).getByText("Siang ini · 11.00–13.00")).toBeTruthy();
@@ -810,10 +810,10 @@ describe("Beranda mood", () => {
     // Only the base layer casts a shadow; the Malam layer fading over it must not add a second one.
     expect(flat("plate-hero-fill-malam").boxShadow).toBeUndefined();
     expect(flat("plate-hero-fill-siang").boxShadow).toBe(nativeMood[scheme].siang.heroShadow);
-    fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
+    fireEvent.press(screen.getByRole("tab", { name: /^Makan malam, / }));
     expect(flat("plate-hero-fill-malam").boxShadow).toBeUndefined();
     expect(flat("plate-hero-fill-siang").boxShadow).toBe(nativeMood[scheme].malam.heroShadow);
-    fireEvent.press(screen.getByRole("tab", { name: "Siang" }));
+    fireEvent.press(screen.getByRole("tab", { name: /^Makan siang, / }));
     expect(flat("plate-hero-fill-siang").boxShadow).toBe(nativeMood[scheme].siang.heroShadow);
   });
 
@@ -822,11 +822,11 @@ describe("Beranda mood", () => {
     mount(runtimeWith(async () => bothMeals()));
     const frame = await screen.findByTestId("plate-hero");
     expect(flat("plate-hero-fill-malam").opacity).toBe(0);
-    fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
+    fireEvent.press(screen.getByRole("tab", { name: /^Makan malam, / }));
     expect(flat("plate-hero-fill-malam").opacity).toBe(1);
     // The same frame, not a new one: a remount would swap the fill instead of fading it.
     expect(screen.getByTestId("plate-hero") === frame).toBe(true);
-    fireEvent.press(screen.getByRole("tab", { name: "Siang" }));
+    fireEvent.press(screen.getByRole("tab", { name: /^Makan siang, / }));
     expect(flat("plate-hero-fill-malam").opacity).toBe(0);
   });
 
@@ -841,7 +841,7 @@ describe("Beranda mood", () => {
     mount(runtime);
     fireEvent.press(await screen.findByRole("button", { name: "Sudah sampai" }));
     expect(await screen.findByTestId("plate-error")).toBeTruthy();
-    fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
+    fireEvent.press(screen.getByRole("tab", { name: /^Makan malam, / }));
     expect(screen.queryByTestId("plate-error")).toBeNull();
   });
 
@@ -1199,7 +1199,7 @@ describe("Beranda mood", () => {
 
     it("counts journey_viewed once for a preparing hero across re-renders and a mood round trip", async () => {
       const state = lunchToday({ status: "preparing", cooking_started_at: `${TODAY}T01:10:00Z` }, {}, "d-count-once");
-      // Dinner is a scheduled plate in the same delivery, so the toggle has a hero to swap to and back.
+      // Dinner is a scheduled plate in the same delivery, so the day arc has a hero to swap to and back.
       state.deliveries[0].meals = [
         { meal: "lunch", status: "preparing", cooking_started_at: `${TODAY}T01:10:00Z` },
         { meal: "dinner", status: "scheduled" },
@@ -1208,10 +1208,10 @@ describe("Beranda mood", () => {
       mount(runtime);
       await hero();
       await waitFor(() => expect(viewed()).toHaveLength(1));
-      fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
-      fireEvent.press(screen.getByRole("tab", { name: "Siang" }));
-      fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
-      fireEvent.press(screen.getByRole("tab", { name: "Siang" }));
+      fireEvent.press(screen.getByRole("tab", { name: /^Makan malam, / }));
+      fireEvent.press(screen.getByRole("tab", { name: /^Makan siang, / }));
+      fireEvent.press(screen.getByRole("tab", { name: /^Makan malam, / }));
+      fireEvent.press(screen.getByRole("tab", { name: /^Makan siang, / }));
       await hero();
       expect(viewed()).toHaveLength(1);
       expect(viewed()[0]).toEqual(["journey_viewed", "customer"]);

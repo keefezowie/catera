@@ -106,6 +106,10 @@ describe("native mood", () => {
         it("the active toggle label reaches 4.5:1 on the active pill", () => {
           expect(contrastRatio(m.onToggleActive, m.toggleActive)).toBeGreaterThanOrEqual(4.5);
         });
+        // The day arc switch: the chosen end's glyph sits on the filled disc.
+        it("the arc disc glyph (onToggleActive) reaches 3:1 on the disc (markerActive)", () => {
+          expect(contrastRatio(m.onToggleActive, m.markerActive)).toBeGreaterThanOrEqual(3);
+        });
         it("arc markers reach 3:1 on the header", () => {
           for (const k of ["markerActive", "markerIdle"] as const)
             expect(contrastRatio(m[k], m.header), `${k} on header`).toBeGreaterThanOrEqual(3);
