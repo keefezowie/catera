@@ -548,6 +548,22 @@ describe("legacy paths and the screens above the tabs", () => {
     expect(root()).toEqual(["(tabs)"]);
     expect(stack("(index)")).toEqual(["index", "subscriptions/[id]"]);
   });
+
+  it("signing in from the signed-out Ada masalah sheet returns to that sheet, not a second Hari and sheet", () => {
+    // Signed out, Ada masalah over its Hari offers Masuk with next=/masalah/{id}. After sign-in the sheet on top is the
+    // one that asked: it is replaced (now signed in, with the link's params), never stacked under another Hari.
+    mount("/hari/d1");
+    act(() => router.push("/masalah/d1?meal=lunch"));
+    expect(stack("(index)")).toEqual(["index", "hari/[id]", "masalah/[id]"]);
+    act(() => router.push({ pathname: "/login", params: { next: "/masalah/d1?meal=lunch&jenis=belum" } }));
+    expect(root()).toEqual(["(tabs)", "login"]);
+    act(() => leaveFor("/masalah/d1?meal=lunch&jenis=belum"));
+    expect(root()).toEqual(["(tabs)"]);
+    expect(stack("(index)")).toEqual(["index", "hari/[id]", "masalah/[id]"]);
+    const routes = tabsState()!.routes.find((r) => r.name === "(index)")!.state!.routes;
+    expect(routes[1].params).toMatchObject({ id: "d1" });
+    expect(routes[2].params).toMatchObject({ id: "d1", meal: "lunch", jenis: "belum" });
+  });
 });
 
 describe("paths", () => {

@@ -14,8 +14,9 @@ const IOS_SIDE = 44;
 
 /**
  * Puts the screen reader on a sheet's title once the sheet has risen, so TalkBack and VoiceOver start on what the sheet
- * is, not on the page under it or the first button. It moves again on the stack's `transitionEnd` (the sheet's own
- * appear); outside a navigator it moves after the `feature` duration. Returns the ref for the title text.
+ * is, not on the page under it or the first button. It moves on the stack's `transitionEnd` (the sheet's own appear),
+ * which cancels the fallback after the `feature` duration; outside a navigator only the fallback runs. Returns the ref
+ * for the title text.
  */
 export function useSheetTitleFocus() {
   const ref = useRef<RNText>(null);
@@ -25,8 +26,11 @@ export function useSheetTitleFocus() {
       if (ref.current) AccessibilityInfo.sendAccessibilityEvent(ref.current, "focus");
     };
     const timer = setTimeout(focus, nativeMotion.feature);
+    // The sheet's own appear is the better moment: once it lands, the fallback timer has nothing left to do.
     const appeared = navigation?.addListener("transitionEnd" as never, (e: { data?: { closing?: boolean } }) => {
-      if (!e.data?.closing) focus();
+      if (e.data?.closing) return;
+      clearTimeout(timer);
+      focus();
     });
     return () => {
       clearTimeout(timer);

@@ -4,6 +4,7 @@ import { createElement } from "react";
 import * as ReactNative from "react-native";
 import { AccessibilityInfo, BackHandler, Pressable, StyleSheet, Text, View } from "react-native";
 import { render } from "@testing-library/react-native";
+import { NavigationContext } from "expo-router/react-navigation";
 import { router } from "expo-router";
 import { act, fireEvent, renderRouter, screen, within } from "expo-router/testing-library";
 import { nativeThemes } from "@catera/design-tokens";
@@ -12,6 +13,7 @@ import {
   canHoldRemoval,
   ConfirmSheet,
   SheetBody,
+  SheetHeader,
   ThemeProvider,
   unsavedCopy,
   type ActionSheetInput,
@@ -95,6 +97,8 @@ const mockActionInput: ActionSheetInput = {
     { key: "pindah", label: "Pindah tanggal", icon: "calendar-outline" },
     { key: "chat", label: "Chat Dapur Contoh", icon: "chatbubble-outline" },
   ],
+  // What the app passes as t("Tutup", "Close") with English chosen.
+  closeLabel: "Close",
 };
 /** Beranda: two buttons that ask the confirm sheet and the action sheet and keep what they resolve to. */
 jest.mock("../src/today/Beranda", () => ({
@@ -243,6 +247,48 @@ describe("useConfirm", () => {
     expect(root()).toEqual(["(tabs)"]);
     app.unmount();
   });
+
+  it("a cold OS link to the confirm or action route lands on Beranda, never an empty stack", async () => {
+    for (const link of ["/konfirmasi?id=9", "/aksi?id=9", "/konfirmasi"]) {
+      const app = await mount(link);
+      // Nothing is under it to go back to: Beranda replaces it.
+      expect(root()).toEqual(["(tabs)"]);
+      expect(screen.getByRole("button", { name: "Tanya" })).toBeTruthy();
+      app.unmount();
+    }
+  });
+
+  it("a confirm that leaves without beforeRemove still answers false, and the guarded sheet can then close", async () => {
+    const back = hardwareBack();
+    try {
+      const app = await mount("/hari/d-today");
+      await go(() => router.push("/masalah/d-today?meal=lunch"));
+      fireEvent.changeText(screen.getByLabelText("Catatan (boleh dikosongkan)"), "Nasinya basi");
+      await act(async () => {});
+      await go(() => void back.press());
+      expect(root()).toEqual(["(tabs)", "konfirmasi"]);
+      // The confirm route goes without any action (the container's state is reset), so no beforeRemove reaches it.
+      const { store } = require("expo-router/build/global-state/store");
+      const ref = store.navigationRef.current;
+      const dropConfirm = (node: Nav): Nav => {
+        if (!node.state) return node;
+        const routes = node.state.routes.filter((r) => r.name !== "konfirmasi").map(dropConfirm);
+        return { ...node, state: { ...node.state, routes, index: Math.min(node.state.index, routes.length - 1) } };
+      };
+      await go(() => ref.resetRoot(dropConfirm({ key: "top", name: "top", state: ref.getRootState() }).state));
+      expect(root()).toEqual(["(tabs)"]);
+      expect(stack("(index)")).toEqual(["index", "hari/[id]", "masalah/[id]"]);
+      // The question was answered (false), so the next close asks again instead of being held forever.
+      await go(() => void back.press());
+      expect(root()).toEqual(["(tabs)", "konfirmasi"]);
+      await go(() => fireEvent.press(screen.getByRole("button", { name: "Buang" })));
+      expect(root()).toEqual(["(tabs)"]);
+      expect(stack("(index)")).toEqual(["index", "hari/[id]"]);
+      app.unmount();
+    } finally {
+      back.restore();
+    }
+  });
 });
 
 describe("useActionSheet", () => {
@@ -255,6 +301,20 @@ describe("useActionSheet", () => {
     expect(root()).toEqual(["(tabs)"]);
     expect(mockResults).toEqual(["pindah", null]);
     app.unmount();
+  });
+
+  it("speaks Close in the caller's language: the route passes closeLabel to the sheet", async () => {
+    const app = await mount("/");
+    await go(() => fireEvent.press(screen.getByRole("button", { name: "Pilihan" })));
+    expect(screen.UNSAFE_getByType(SheetHeader).props.closeLabel).toBe("Close");
+    await swipeAway("aksi");
+    app.unmount();
+    // On iOS that is the Close button's spoken name; without one it stays "Tutup".
+    const ios = render(<ActionSheet {...mockActionInput} onChoose={() => {}} os="ios" />);
+    expect(screen.getByRole("button", { name: "Close" })).toBeTruthy();
+    ios.unmount();
+    render(<ActionSheet {...mockActionInput} closeLabel={undefined} onChoose={() => {}} os="ios" />);
+    expect(screen.getByRole("button", { name: "Tutup" })).toBeTruthy();
   });
 });
 
@@ -339,6 +399,40 @@ describe("ConfirmSheet", () => {
       const [target, event] = focus.mock.calls[0] as unknown as [{ props: { children: string; accessibilityRole: string } }, string];
       expect(event).toBe("focus");
       expect(target.props).toMatchObject({ children: "Hapus alamat?", accessibilityRole: "header" });
+    } finally {
+      jest.useRealTimers();
+      focus.mockRestore();
+    }
+  });
+
+  it("moves the screen reader once: the sheet's own appear cancels the fallback", () => {
+    const focus = jest.spyOn(AccessibilityInfo, "sendAccessibilityEvent").mockImplementation(() => {});
+    type Ended = (e: { data?: { closing?: boolean } }) => void;
+    const listeners: Record<string, Ended[]> = {};
+    const navigation = {
+      getState: () => ({ type: "stack" }),
+      getParent: () => undefined,
+      isFocused: () => true,
+      addListener: (event: string, cb: Ended) => {
+        (listeners[event] ??= []).push(cb);
+        return () => void listeners[event].splice(listeners[event].indexOf(cb), 1);
+      },
+    };
+    jest.useFakeTimers();
+    try {
+      render(
+        <NavigationContext.Provider value={navigation as never}>
+          <ConfirmSheet {...mockConfirmInput} onConfirm={() => {}} onCancel={() => {}} os="android" />
+        </NavigationContext.Provider>,
+      );
+      // The sheet lands before the fallback: focus once, and the fallback never fires a second time.
+      act(() => listeners.transitionEnd.forEach((cb) => cb({ data: { closing: false } })));
+      expect(focus).toHaveBeenCalledTimes(1);
+      act(() => jest.runOnlyPendingTimers());
+      expect(focus).toHaveBeenCalledTimes(1);
+      // A closing transition does not move it.
+      act(() => listeners.transitionEnd.forEach((cb) => cb({ data: { closing: true } })));
+      expect(focus).toHaveBeenCalledTimes(1);
     } finally {
       jest.useRealTimers();
       focus.mockRestore();
@@ -505,6 +599,38 @@ describe("Ada masalah as a sheet", () => {
     }
   });
 
+  it("a kept note belongs to its delivery and its account: another day or another person opens empty", async () => {
+    answer("report:d-next-1", customerState({ status: "out_for_delivery" }));
+    const signedIn = mockSession.actor;
+    const back = hardwareBack();
+    try {
+      const app = await onHari();
+      typeNote("Lauknya kurang");
+      await act(async () => {});
+      await swipeAway("masalah/[id]");
+      // Another delivery: its own sheet, empty.
+      await go(() => router.push("/masalah/d-next-1"));
+      expect(screen.getByLabelText("Catatan (boleh dikosongkan)").props.value).toBe("");
+      await go(() => void back.press());
+      // Another person on the same phone: the same day, empty.
+      mockSession.actor = { id: "u-c2", role: "customer", name: "Dewi Contoh" };
+      await go(() => router.push("/masalah/d-today?meal=lunch"));
+      expect(screen.getByLabelText("Catatan (boleh dikosongkan)").props.value).toBe("");
+      await go(() => void back.press());
+      // Back as the person who wrote it: the note is still theirs. Discarding it leaves nothing behind.
+      mockSession.actor = signedIn;
+      await go(() => router.push("/masalah/d-today?meal=lunch"));
+      expect(screen.getByLabelText("Catatan (boleh dikosongkan)").props.value).toBe("Lauknya kurang");
+      await go(() => void back.press());
+      await go(() => fireEvent.press(screen.getByRole("button", { name: "Buang" })));
+      expect(stack("(index)")).toEqual(["index", "hari/[id]"]);
+      app.unmount();
+    } finally {
+      mockSession.actor = signedIn;
+      back.restore();
+    }
+  });
+
   it("sending closes the sheet without asking, even with a note", async () => {
     const back = hardwareBack();
     try {
@@ -517,6 +643,9 @@ describe("Ada masalah as a sheet", () => {
       expect(root()).toEqual(["(tabs)"]);
       expect(stack("(index)")).toEqual(["index", "hari/[id]"]);
       expect(screen.getByText("Laporan terkirim")).toBeTruthy();
+      // The sent note is not kept as a draft: Ada masalah for that day opens empty.
+      await go(() => router.push("/masalah/d-today?meal=lunch"));
+      expect(screen.getByLabelText("Catatan (boleh dikosongkan)").props.value).toBe("");
       app.unmount();
     } finally {
       back.restore();

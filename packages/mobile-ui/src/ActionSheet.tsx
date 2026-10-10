@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NavigationContext, NavigationRouteContext } from "expo-router/react-navigation";
 import { useHaptic } from "./motion";
 import { SheetHeader } from "./SheetHeader";
-import { actionWaiting, answerAction, type ActionItem, type ActionSheetInput } from "./sheets";
+import { actionWaiting, answerAction, leaveStray, type ActionItem, type ActionSheetInput } from "./sheets";
 import { useColors } from "./theme";
 import { fonts } from "./type";
 
@@ -28,7 +28,7 @@ export function ActionSheet({
   onChoose,
   closeLabel,
   os = process.env.EXPO_OS,
-}: ActionSheetInput & { onChoose: (key: string) => void; closeLabel?: string; os?: string }) {
+}: ActionSheetInput & { onChoose: (key: string) => void; os?: string }) {
   const palette = useColors();
   const insets = useSafeAreaInsets();
   const haptic = useHaptic();
@@ -117,8 +117,8 @@ export function ActionSheet({
 
 /**
  * The `/aksi` route: shows the actions `useActionSheet` parked under `?id=` and answers once with the chosen key, or
- * null when the sheet closes without a choice (Close, the hardware back, a swipe down). A route with nothing waiting
- * closes itself.
+ * null when the sheet closes without a choice (Close, the hardware back, a swipe down, an unmount). A route with nothing
+ * waiting closes itself, to Beranda when nothing is under it (a cold OS link).
  */
 export function ActionRoute() {
   const navigation = use(NavigationContext);
@@ -132,16 +132,19 @@ export function ActionRoute() {
   useEffect(() => {
     if (!navigation) return;
     if (stray) {
-      navigation.goBack();
+      leaveStray(navigation);
       return;
     }
     return navigation.addListener("beforeRemove", () => answerAction(id, null));
   }, [navigation, id, stray]);
+  // Leaving without `beforeRemove` (the navigator unmounts) still answers null. A no-op once answered.
+  useEffect(() => () => answerAction(id, null), [id]);
 
   if (!input) return null;
   return (
     <ActionSheet
       {...input}
+      closeLabel={input.closeLabel}
       onChoose={(key) => {
         if (closing.current) return;
         closing.current = true;

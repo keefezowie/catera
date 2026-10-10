@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
-import { Linking, StyleSheet } from "react-native";
+import { ActivityIndicator, Linking, StyleSheet } from "react-native";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
@@ -139,6 +139,35 @@ describe("Ada masalah", () => {
         expect.any(String),
       ),
     );
+  });
+
+  it("shows the shape of the choices while the day loads, with no spinner", async () => {
+    const runtime = runtimeWith();
+    (runtime.api.customer as jest.Mock).mockImplementation(() => new Promise(() => {}));
+    renderWith(runtime, <ReportProblem />);
+    // The session is in and the day's read has started: this is the sheet waiting for the delivery.
+    await waitFor(() => expect(runtime.api.customer).toHaveBeenCalledWith("?deliveryId=d-today"));
+    const skeleton = screen.getByRole("progressbar", { name: "Memuat pengantaran" });
+    expect(skeleton.props.accessibilityState).toMatchObject({ busy: true });
+    // The sheet already says what it is; the form waits for the day.
+    expect(screen.getByRole("header", { name: "Ada masalah" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Kirim laporan" })).toBeNull();
+    expect(screen.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
+  });
+
+  it("says why the day did not load and Coba lagi reads it again", async () => {
+    const runtime = runtimeWith();
+    const read = runtime.api.customer as jest.Mock;
+    read.mockRejectedValueOnce(new Error("network down"));
+    renderWith(runtime, <ReportProblem />);
+    expect(await screen.findByText("Tidak dapat memuat. Periksa koneksi dan coba lagi.")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Kirim laporan" })).toBeNull();
+    const before = read.mock.calls.length;
+    fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
+    // The read runs again and, once it lands, the form is there.
+    expect(await screen.findByRole("button", { name: "Kirim laporan" })).toBeTruthy();
+    expect(read.mock.calls.length).toBe(before + 1);
+    expect(read).toHaveBeenLastCalledWith("?deliveryId=d-today");
   });
 
   it("waits for a choice when the link names none", async () => {

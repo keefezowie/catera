@@ -43,6 +43,8 @@ export type ActionSheetInput = {
   /** The item the actions are about: an optional photo, its name and up to a few short lines. */
   context?: { image?: string; title: string; lines: string[] };
   items: ActionItem[];
+  /** The spoken name of the iOS Close, translated by the caller (`t("Tutup", "Close")`); "Tutup" when left out. */
+  closeLabel?: string;
 };
 
 export const CONFIRM_ROUTE = "/konfirmasi";
@@ -72,6 +74,15 @@ function ask<I, R>(registry: Map<string, Waiting<I, R>>, pathname: string, input
       registry.get(id)?.answer(fallback);
     }
   });
+}
+
+/**
+ * Closes a confirm or action route that has nothing to show. Opened from the app it goes back to the screen under it; a
+ * cold OS link to `/konfirmasi` or `/aksi` has nothing under it, so Beranda replaces it instead of an empty stack.
+ */
+export function leaveStray(navigation: { canGoBack(): boolean; goBack(): void }) {
+  if (navigation.canGoBack()) navigation.goBack();
+  else router.replace("/" as never);
 }
 
 /** The question a sheet route shows, or undefined when nothing waits under that id (a restored or stray route). */
@@ -184,15 +195,24 @@ export function useUnsavedGuard(dirty: boolean, noun: string, options: UnsavedGu
       const { dirty: unsaved, noun: what, options: opts } = latest.current;
       if (!unsaved || leaving.current) return;
       if (!canHoldRemoval(e.data.action, routeKey, opts.os)) return;
-      e.preventDefault();
+      // One question at a time, and never a trap: a removal that lands while the question is still open goes through
+      // instead of waiting behind an answer that may never come.
       if (asking.current) return;
+      e.preventDefault();
       asking.current = true;
       void confirm(unsavedCopy(what, opts)).then((discard) => {
         asking.current = false;
         if (!discard) return;
-        leaving.current = true;
         opts.onDiscard?.();
-        navigation.dispatch(e.data.action);
+        // The screen may already be gone (removed while the question was open): then there is nothing left to close.
+        if (!navigation.getState()?.routes.some((r) => r.key === routeKey)) return;
+        leaving.current = true;
+        try {
+          navigation.dispatch(e.data.action);
+        } finally {
+          // Removed, or held by something else: either way the next close asks again.
+          leaving.current = false;
+        }
       });
     });
   }, [navigation, routeKey, confirm]);

@@ -6,7 +6,7 @@ import { NavigationContext, NavigationRouteContext } from "expo-router/react-nav
 import { Rantang } from "./brand/Rantang";
 import { PressableScale } from "./motion";
 import { SheetHandle, useSheetTitleFocus } from "./SheetHeader";
-import { answerConfirm, confirmWaiting, type ConfirmIcon, type ConfirmInput } from "./sheets";
+import { answerConfirm, confirmWaiting, leaveStray, type ConfirmIcon, type ConfirmInput } from "./sheets";
 import { useColors } from "./theme";
 import { useToastAnchor } from "./toastAnchor";
 import { fonts } from "./type";
@@ -29,7 +29,7 @@ function ConfirmGlyph({ icon, color }: { icon: ConfirmIcon; color: string }) {
  * buttons. A confirmation before an irreversible or customer-visible action, never a routine outcome (that is a toast).
  * - iOS: everything centred under the system grabber; Cancel and the confirm button side by side, equal width.
  * - Android: the Material drag handle, everything at the start edge; a text button and a filled button at the end edge.
- * `tone: "danger"` fills the confirm button in the danger ink (cream on it reaches 10.3:1 in light, 5.5:1 in dark),
+ * `tone: "danger"` fills the confirm button in the danger ink (cream on it measures 6.6:1 in light, 5.5:1 in dark),
  * and draws the icon in it. The screen reader starts on the title. `os` defaults to the running platform.
  */
 export function ConfirmSheet({
@@ -155,8 +155,8 @@ export function ConfirmSheet({
 /**
  * The `/konfirmasi` route: shows the question `useConfirm` parked under `?id=` and answers it once. The confirm button
  * answers true; Cancel, the hardware back and a swipe down answer false (a `beforeRemove` listener answers whatever is
- * still open when the route goes). A route with nothing waiting (restored after a reload, or opened by a stray link)
- * closes itself.
+ * still open when the route goes, and an unmount answers what is left). A route with nothing waiting (restored after a
+ * reload, or opened by a stray link) closes itself, to Beranda when nothing is under it (a cold OS link).
  */
 export function ConfirmRoute() {
   const navigation = use(NavigationContext);
@@ -170,11 +170,14 @@ export function ConfirmRoute() {
   useEffect(() => {
     if (!navigation) return;
     if (stray) {
-      navigation.goBack();
+      leaveStray(navigation);
       return;
     }
     return navigation.addListener("beforeRemove", () => answerConfirm(id, false));
   }, [navigation, id, stray]);
+  // A route can leave without `beforeRemove` (its navigator unmounts, a reset drops it): the question still gets its
+  // false, so the screen that asked is never left waiting. A no-op once answered.
+  useEffect(() => () => answerConfirm(id, false), [id]);
 
   if (!input) return null;
   // One answer and one close, however many taps land while the sheet slides away.
