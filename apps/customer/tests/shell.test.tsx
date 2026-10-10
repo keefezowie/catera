@@ -417,7 +417,8 @@ describe("native tab bar", () => {
         selected: { vector: true, family: Ionicons, name: glyphs[tab.name] },
       });
     }
-    // Old /discover links still resolve to the route, which redirects to Jelajah; it never shows in the bar.
+    // The legacy /discover route stays declared but never shows in the bar; old /discover links reach Jelajah through
+    // customerLink. A raw OS deep link to /discover is handled in Task 2.
     expect(tabs.filter((tab) => tab.hidden).map((tab) => tab.name)).toEqual(["discover"]);
     // Android: the label always shows under its icon. iOS 26: the bar shrinks while a long list scrolls down.
     expect(mockNativeTabs.props).toMatchObject({ labelVisibilityMode: "labeled", minimizeBehavior: "onScrollDown" });
@@ -499,7 +500,7 @@ describe("appearance", () => {
   it("tab bar colours come from the theme, never the mood", async () => {
     // Pinned values: the bar surface, the forest indicator pill, forest for selected and muted for the rest.
     expect(tabBarColors(nativeThemes.light)).toEqual({
-      backgroundColor: "#FFFEFA",
+      backgroundColor: "#F2ECDF",
       indicatorColor: "#CFE3CC",
       rippleColor: "#CFE3CC",
       tintColor: "#163D2E",
@@ -533,7 +534,7 @@ describe("appearance", () => {
   it("light system scheme: light tab bar and a dark status bar", async () => {
     jest.spyOn(require("react-native"), "useColorScheme").mockReturnValue("light");
     await renderRoot();
-    expect(mockNativeTabs.props).toMatchObject({ backgroundColor: "#FFFEFA" });
+    expect(mockNativeTabs.props).toMatchObject({ backgroundColor: "#F2ECDF" });
     expect(mockStatusBar.style).toBe("dark");
     expect(mockNavTheme.value).toMatchObject({ dark: false, colors: { background: "#FDFAF3", card: "#FFFEFA" } });
   });
@@ -547,7 +548,7 @@ describe("appearance", () => {
     expect(header.backgroundColor).toBe("#0B1F16");
     expect(StyleSheet.flatten(screen.getByText("Judul uji").props.style).color).toBe("#FFF7E9");
     // The mood never reaches the tab bar.
-    expect(mockNativeTabs.props).toMatchObject({ backgroundColor: "#FFFEFA" });
+    expect(mockNativeTabs.props).toMatchObject({ backgroundColor: "#F2ECDF" });
   });
 
   it("Siang on a light system theme keeps the dark status bar and the sunrise header", async () => {

@@ -84,10 +84,12 @@ export type ThemeName = "light" | "dark";
  * Native palettes. Light is the web palette plus the native control ring, tab bar, disabled fill and tab indicator;
  * dark follows the native visual identity spec. `tabIndicator` is the pill behind the selected tab icon on Android:
  * a light forest tint in light, and in dark the brand green of the inverted cream role, so the selected icon (forest)
- * reads on it at 8.9:1 in light and 11.3:1 in dark.
+ * reads on it at 8.9:1 in light and 11.3:1 in dark. The light `tabBar` is #F2ECDF, the value on the owner-approved
+ * canvas: one tonal step below the content, as Material 3 puts the navigation bar on a surface-container step. Dark
+ * keeps #1E1E1C.
  */
 export const nativeThemes: Record<ThemeName, NativePalette> = {
-  light: { ...colors, controlRing: "#858D80", tabBar: "#FFFEFA", disabledFill: "#CFD3C6", tabIndicator: "#CFE3CC" },
+  light: { ...colors, controlRing: "#858D80", tabBar: "#F2ECDF", disabledFill: "#CFD3C6", tabIndicator: "#CFE3CC" },
   dark: {
     forest: "#FFF7E9",
     forestDeep: "#E9E3D6",

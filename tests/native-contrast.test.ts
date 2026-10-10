@@ -20,7 +20,7 @@ describe("native themes", () => {
       disabledFill: "#34332F", tabIndicator: "#163D2E",
     });
     expect(nativeThemes.light).toMatchObject({
-      controlRing: "#858D80", tabBar: "#FFFEFA", disabledFill: "#CFD3C6", tabIndicator: "#CFE3CC",
+      controlRing: "#858D80", tabBar: "#F2ECDF", disabledFill: "#CFD3C6", tabIndicator: "#CFE3CC",
     });
     // The dark pill is the brand green the dark theme already uses for the inverted cream role.
     expect(nativeThemes.dark.tabIndicator).toBe(nativeThemes.dark.cream);

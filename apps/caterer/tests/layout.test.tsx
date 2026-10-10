@@ -198,7 +198,7 @@ describe("appearance", () => {
     expect(header.backgroundColor).toBe("#0B1F16");
     expect(ReactNative.StyleSheet.flatten(screen.getByText("Judul uji").props.style).color).toBe("#FFF7E9");
     // The mood never reaches the tab bar.
-    expect(mockNativeTabs.props).toMatchObject({ backgroundColor: "#FFFEFA" });
+    expect(mockNativeTabs.props).toMatchObject({ backgroundColor: "#F2ECDF" });
   });
 
   it("Dapur tab bar colours come from the theme, never the mood", async () => {
@@ -316,7 +316,7 @@ describe("appearance", () => {
     render(<RootLayout />);
     await waitFor(() => expect(mockNativeTabs.props).toBeDefined());
     await act(async () => {});
-    expect(mockNativeTabs.props).toMatchObject({ backgroundColor: "#FFFEFA" });
+    expect(mockNativeTabs.props).toMatchObject({ backgroundColor: "#F2ECDF" });
     expect(mockStatusBar.style).toBe("dark");
     expect(mockNavTheme.value).toMatchObject({ dark: false, colors: { background: "#FDFAF3", card: "#FFFEFA" } });
   });
