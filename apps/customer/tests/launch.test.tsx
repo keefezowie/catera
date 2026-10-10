@@ -284,6 +284,19 @@ describe("the splash", () => {
     await waitFor(() => expect(SplashScreen.hideAsync).toHaveBeenCalledTimes(1), { timeout: 1500 });
   });
 
+  it("fonts slower than the ceiling: the splash lifts onto the startup mascot in the system face", async () => {
+    mockFonts.loaded = false;
+    storedSession(rani);
+    renderRoot();
+    await act(async () => new Promise((r) => setTimeout(r, 1600)));
+    expect(SplashScreen.hideAsync).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("mascot-loading").props.accessibilityLabel).toBe("Menyiapkan Catera untuk Anda…");
+    expect(screen.queryByTestId("app-stack")).toBeNull();
+    await act(async () => mockFonts.set!(true));
+    expect(await screen.findByTestId("app-stack")).toBeTruthy();
+    expect(SplashScreen.hideAsync).toHaveBeenCalledTimes(1);
+  });
+
   it("a stored dark theme is the first frame's theme on a light phone", async () => {
     jest.spyOn(require("react-native"), "useColorScheme").mockReturnValue("light");
     SecureStore.__store.set("catera.theme", "dark");
