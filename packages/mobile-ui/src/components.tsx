@@ -440,11 +440,8 @@ export function Screen({
   const topOwned = useTopInsetOwned();
   const underHeader = useUnderStackHeader();
   const navigation = useScreenNavigation();
-  // The toast sits under the native header as it is right now (large or collapsed) and above the tab bar when the
-  // screen is inside the tabs; a footer reports its own top (ScreenFooter).
   const headerHeight = useStackHeaderHeight();
   const bottomEdge = useScreenBottomEdge();
-  useToastAnchor({ top: underHeader && headerHeight ? headerHeight : undefined, bottom: bottomEdge });
   const ios = process.env.EXPO_OS === "ios";
   const contentTitle = !ios && nativeTitle ? nativeTitle : null;
   const lineEnd = useRef(NO_LINE);
@@ -483,18 +480,32 @@ export function Screen({
           onScroll?.(e);
         }
       : undefined;
-  // On iOS the scroll view insets itself for the keyboard (automaticallyAdjustKeyboardInsets); the avoiding view only
-  // lifts a footer, which sits outside the scroll view. It measures its frame relative to its parent while the
-  // keyboard is positioned in the window, so the screen asks the OS where its own top edge really is.
-  // iOS keyboard behaviour is not covered by jest or the Android emulator; it is unverified on a device.
+  // Where the screen's own top edge is in the window, asked of the OS on layout and again whenever the header reports
+  // a new height.
+  // - The toast: the stack header height is measured inside the screen's own navigation controller. On a full-screen
+  //   push that controller starts at the window's top, but iOS presents a sheet or modal in a controller of its own,
+  //   lower down and with no status bar in its bar. The screen's window y plus the header height is the bar's bottom
+  //   edge in window points either way, under the large title or the collapsed bar, and a footer reports its own top
+  //   (ScreenFooter). Android's bar is opaque and the screen starts below it, so there `top` lands one bar too low;
+  //   the Android snackbar reads only `bottom` (the tab bar inside the tabs, else the system inset).
+  // - The keyboard: on iOS the scroll view insets itself (automaticallyAdjustKeyboardInsets); the avoiding view only
+  //   lifts a footer, which sits outside the scroll view, and measures its frame relative to its parent while the
+  //   keyboard is positioned in the window, so it is offset by the same window y.
+  // iOS keyboard and sheet behaviour is not covered by jest or the Android emulator; it is unverified on a device.
   const frame = useRef<View>(null);
-  const [keyboardOffset, setKeyboardOffset] = useState(0);
+  const [windowY, setWindowY] = useState(0);
   const measureFrame = () => {
-    if (!ios || !footer) return;
-    frame.current?.measureInWindow((_x, y) => {
-      if (Number.isFinite(y)) setKeyboardOffset(Math.max(0, Math.round(y)));
+    frame.current?.measureInWindow?.((_x, y) => {
+      if (Number.isFinite(y)) setWindowY(Math.max(0, Math.round(y)));
     });
   };
+  useEffect(() => {
+    if (underHeader && headerHeight) measureFrame();
+    // measureFrame only reads the ref.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [underHeader, headerHeight]);
+  useToastAnchor({ top: underHeader && headerHeight ? windowY + headerHeight : undefined, bottom: bottomEdge });
+  const keyboardOffset = ios && footer ? windowY : 0;
   const lead = contentTitle ? (
     <View
       testID="screen-native-title"

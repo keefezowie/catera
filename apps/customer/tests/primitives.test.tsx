@@ -33,12 +33,29 @@ jest.mock("expo-secure-store", () => ({
   setItemAsync: jest.fn(async () => undefined),
 }));
 
+// react-test-renderer gives host refs no measure methods, so the screen's SafeAreaView gets a stand-in that reports
+// where the screen starts in the window (0 for a full-screen push, lower for an iOS sheet).
+let mockWindowY = 0;
+jest.mock("react-native-safe-area-context", () => {
+  const React = require("react");
+  const { View } = require("react-native");
+  const actual = require("react-native-safe-area-context/jest/mock").default;
+  const SafeAreaView = React.forwardRef((props: object, ref: unknown) => {
+    React.useImperativeHandle(ref, () => ({
+      measureInWindow: (cb: (x: number, y: number, w: number, h: number) => void) => cb(0, mockWindowY, 390, 780),
+    }));
+    return React.createElement(View, props);
+  });
+  return { ...actual, SafeAreaView };
+});
+
 beforeEach(() => {
   jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(false);
 });
 afterEach(() => {
   jest.useRealTimers();
   jest.restoreAllMocks();
+  mockWindowY = 0;
 });
 
 const flat = (node: { props: { style?: unknown } }) => StyleSheet.flatten(node.props.style as never) ?? {};
@@ -452,6 +469,31 @@ describe("Toast", () => {
     // Scrolled: the native header reports the inline bar, and the pill moves up under it.
     view.rerender(stack(47 + 44));
     expect(lane().top).toBe(47 + 44 + 8);
+  });
+
+  it("in an iOS sheet the toast sits under the sheet's own bar, in window points", () => {
+    jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
+    // The sheet starts 57 down the window (47 status bar + 10); its bar is measured inside the sheet, with no status bar.
+    mockWindowY = 57;
+    const sheet = (height: number) =>
+      tree(
+        "ios",
+        <HeaderShownContext.Provider value>
+          <HeaderHeightContext.Provider value={height}>
+            <Screen nativeTitle="Masuk">
+              <Text>Isi</Text>
+            </Screen>
+          </HeaderHeightContext.Provider>
+        </HeaderShownContext.Provider>,
+      );
+    const view = render(sheet(56));
+    act(() => toast.show({ message: "Kode terkirim" }));
+    // windowY + headerHeight, then the 8 gap: under the sheet's bar, not on it.
+    expect(lane().top).toBe(57 + 56 + 8);
+    // A new header height measures the screen again (the sheet settled 3 lower while its large title came out).
+    mockWindowY = 60;
+    view.rerender(sheet(108));
+    expect(lane().top).toBe(60 + 108 + 8);
   });
 
   it("on Android the snackbar sits above a StickyAction footer", () => {
