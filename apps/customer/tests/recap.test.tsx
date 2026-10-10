@@ -132,10 +132,13 @@ const mount = (runtime: MobileRuntime) =>
 /** Lets the session read and the storage reads land inside act, so a test never ends mid-update. */
 const settle = () => act(async () => void (await new Promise((r) => setTimeout(r, 10))));
 
-/** Beranda with the live plan's line on screen, and every storage read settled. */
+/** The plans row at the end of Beranda, standing for the running plans. */
+const PLANS_ROW = "1 paket aktif, Dapur Contoh";
+
+/** Beranda with the plans row on screen, and every storage read settled. */
 async function home(runtime: MobileRuntime) {
   const view = mount(runtime);
-  await screen.findByRole("button", { name: "Makan Siang Rumahan, Dapur Contoh, 6 hari lagi, lihat detail paket" });
+  await screen.findByRole("button", { name: PLANS_ROW });
   await settle();
   return view;
 }
@@ -153,7 +156,7 @@ afterEach(() => {
 });
 
 describe("the Paket selesai recap", () => {
-  it("shows the photo, the plan, the caterer and the dates of a plan that ended yesterday, above the plan lines", async () => {
+  it("shows the photo, the plan, the caterer and the dates of a plan that ended yesterday, above the plans row", async () => {
     await home(runtimeWith(async () => stateWith([livePlan(), endedPlan()])));
     const card = within(screen.getByTestId("recap-card"));
     expect(card.getByRole("header", { name: "Paket selesai" })).toBeTruthy();
@@ -166,7 +169,7 @@ describe("the Paket selesai recap", () => {
     // No meal count: the read cannot count an old plan's meals truthfully (Ruling D5).
     expect(card.queryByText(/porsi|kali makan|hari antar/)).toBeNull();
     const tree = JSON.stringify(screen.toJSON());
-    expect(tree.indexOf("Paket selesai")).toBeLessThan(tree.indexOf("lihat detail paket"));
+    expect(tree.indexOf("Paket selesai")).toBeLessThan(tree.indexOf("1 paket aktif"));
   });
 
   it("writes the seen mark on its first render and stays for the rest of the visit; the next visit has no card", async () => {
@@ -236,7 +239,7 @@ describe("the Paket selesai recap", () => {
     await home(runtimeWith(async () => stateWith([livePlan(), endedPlan()])));
     fireEvent.press(screen.getByRole("button", { name: "Tutup" }));
     expect(screen.queryByTestId("recap-card")).toBeNull();
-    expect(screen.getByRole("button", { name: "Makan Siang Rumahan, Dapur Contoh, 6 hari lagi, lihat detail paket" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: PLANS_ROW })).toBeTruthy();
   });
 
   it("Lanjutkan paket opens the renewal and counts renew_started on each tap", async () => {
@@ -330,22 +333,21 @@ describe("the Paket selesai recap", () => {
     expect(card.getByText("Mon 21 Sep – Wed 7 Oct")).toBeTruthy();
     expect(card.getByRole("button", { name: "Continue this plan" })).toBeTruthy();
     expect(card.getByRole("button", { name: "Close" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Makan Siang Rumahan, Dapur Contoh, 6 days to go, see plan details" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "1 active plan, Dapur Contoh" })).toBeTruthy();
     await settle();
   });
 });
 
-describe("the plan lines", () => {
-  it("are 48dp buttons that open the plan's detail", async () => {
+describe("the plans row", () => {
+  it("is one button of at least 48dp that opens Paket saya", async () => {
     await home(runtimeWith(async () => stateWith([livePlan()])));
-    const line = screen.getByRole("button", { name: "Makan Siang Rumahan, Dapur Contoh, 6 hari lagi, lihat detail paket" });
-    expect(StyleSheet.flatten(line.props.style).minHeight).toBeGreaterThanOrEqual(48);
-    expect(within(line).getByText(/6 hari lagi/)).toBeTruthy();
-    fireEvent.press(line);
-    expect(router.push).toHaveBeenCalledWith("/subscriptions/s-1?title=Makan%20Siang%20Rumahan");
+    const row = screen.getByRole("button", { name: PLANS_ROW });
+    expect(StyleSheet.flatten(row.props.style).minHeight).toBeGreaterThanOrEqual(48);
+    fireEvent.press(row);
+    expect(router.push).toHaveBeenCalledWith("/paket-saya");
   });
 
-  it("give every running plan its own line", async () => {
+  it("counts every running plan in one row, with no line per plan", async () => {
     const second = subscription({
       id: "s-2",
       snapshot: { offer: offer({ name: "Makan Malam Hemat" }), total: 150000 } as unknown as Subscription["snapshot"],
@@ -353,19 +355,21 @@ describe("the plan lines", () => {
       ends_on: addDays(TODAY, 10),
       remaining: 9,
     });
-    await home(runtimeWith(async () => stateWith([livePlan(), second])));
-    fireEvent.press(screen.getByRole("button", { name: "Makan Malam Hemat, Dapur Contoh, 9 hari lagi, lihat detail paket" }));
-    expect(router.push).toHaveBeenCalledWith("/subscriptions/s-2?title=Makan%20Malam%20Hemat");
+    mount(runtimeWith(async () => stateWith([livePlan(), second])));
+    // Both plans share a kitchen, so it is named once.
+    expect(await screen.findByRole("button", { name: "2 paket aktif, Dapur Contoh" })).toBeTruthy();
+    expect(screen.queryByText(/lihat detail paket/)).toBeNull();
     await waitFor(() => expect(screen.queryByTestId("recap-card")).toBeNull());
+    await settle();
   });
 });
 
-describe("the renewal card", () => {
+describe("the renewal row", () => {
   it("Perpanjang opens the renewal and counts renew_started on each tap", async () => {
     const usage: UsageMock = jest.fn(async () => undefined);
     const due = subscription({ id: "s-1", starts_on: addDays(TODAY, -8), ends_on: addDays(TODAY, 3), remaining: 3 });
     mount(runtimeWith(async () => stateWith([due]), usage));
-    const renew = await screen.findByRole("button", { name: "Perpanjang" });
+    const renew = await screen.findByRole("button", { name: /, Perpanjang$/ });
     await settle();
     fireEvent.press(renew);
     expect(router.push).toHaveBeenCalledWith("/renew/s-1");

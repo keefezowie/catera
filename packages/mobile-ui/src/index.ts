@@ -27,3 +27,4 @@ export * from "./StoryViewer";
 export * from "./CheckRow";
 export * from "./StopRow";
 export * from "./StickyAction";
+export * from "./HeroPager";

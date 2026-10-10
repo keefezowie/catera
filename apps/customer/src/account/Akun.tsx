@@ -19,8 +19,7 @@ import { failureText } from "./failure";
 import { usePush } from "./push";
 import { Row, SectionLabel } from "./Row";
 import { SignInFirst } from "./SignInFirst";
-import { remainingLabel } from "../remaining";
-import { planHref } from "../hrefs";
+import { PlanList } from "../plan/PlanList";
 import { goToTab } from "../nav";
 
 /** "6281234567890" (as Supabase keeps it) → "0812-3456-7890". */
@@ -118,7 +117,6 @@ function Account() {
   const push = usePush();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const active = (customer.data?.subscriptions ?? []).filter((s) => s.status === "active");
 
   async function signOut() {
     setBusy(true);
@@ -143,28 +141,7 @@ function Account() {
     >
       <View>
         <SectionLabel>{t("Paket aktif", "Active packages")}</SectionLabel>
-        {customer.loading && !customer.data ? (
-          <ActivityIndicator color={c.forest} style={{ alignSelf: "flex-start", marginTop: 8 }} />
-        ) : customer.error && !customer.data ? (
-          <View style={{ gap: 8, marginTop: 6 }}>
-            <Text selectable style={{ color: c.danger }}>
-              {customer.error}
-            </Text>
-            <Button variant="secondary" label={t("Coba lagi", "Try again")} onPress={() => void customer.reload()} />
-          </View>
-        ) : active.length ? (
-          active.map((s, i) => (
-            <Row
-              key={s.id}
-              first={i === 0}
-              label={s.snapshot.offer.name}
-              caption={`${s.snapshot.offer.caterer} · ${remainingLabel(s.remaining, t)}`}
-              onPress={() => router.push(planHref(s.id, s.snapshot.offer.name) as never)}
-            />
-          ))
-        ) : (
-          <Text style={{ color: c.muted, marginTop: 6 }}>{t("Belum ada paket aktif.", "No active packages.")}</Text>
-        )}
+        <PlanList customer={customer} />
       </View>
 
       <View>

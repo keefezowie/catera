@@ -275,7 +275,7 @@ describe("Menu besok row", () => {
     expect(screen.getAllByTestId("photo-ring")).toHaveLength(2);
     view.unmount();
     wrap(runtimeWith(async () => noTomorrowState()), <Beranda />);
-    await screen.findByText(/hari lagi/);
+    await screen.findByTestId("plans-row");
     expect(screen.queryByText("Menu besok")).toBeNull();
   });
 

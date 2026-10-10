@@ -181,6 +181,9 @@ export function heroSentences(
 
 const HERO_RADIUS = 28;
 
+/** The hero rides 58 over the header, plus the body's 16 top padding. */
+export const HERO_OVERLAP = -74;
+
 /**
  * Today's plate: the photo with one status sentence, the dishes and one action. As the `hero` it is the Beranda's
  * raised card: a `MoodFill` (Siang, and Malam fading over it) riding up over the header. The frame stays mounted when
@@ -192,11 +195,17 @@ export function Plate({
   apiBase,
   offline,
   variant = "card",
+  paged = false,
+  counted = true,
 }: {
   plate: PlateData;
   apiBase: string;
   offline?: boolean;
   variant?: "card" | "hero";
+  /** A card of the pager: the pager rides over the header, not the card, and the cards fill its height, so they match. */
+  paged?: boolean;
+  /** Whether this hero is the one in view, so its journey counts as seen. A card behind the pager's first is not. */
+  counted?: boolean;
 }) {
   const styles = useStyles();
   const content = (
@@ -206,6 +215,7 @@ export function Plate({
       apiBase={apiBase}
       offline={offline}
       variant={variant}
+      counted={counted}
     />
   );
   if (variant !== "hero") return <View style={styles.card}>{content}</View>;
@@ -213,7 +223,13 @@ export function Plate({
     <View
       testID="plate-hero"
       // Not clipped: the shadow of each fill falls outside the frame.
-      style={{ padding: 10, marginTop: -74, borderRadius: HERO_RADIUS, borderCurve: "continuous" }}
+      style={{
+        padding: 10,
+        marginTop: paged ? 0 : HERO_OVERLAP,
+        ...(paged ? { flexGrow: 1 } : null),
+        borderRadius: HERO_RADIUS,
+        borderCurve: "continuous",
+      }}
     >
       <MoodFill surface="hero" testID="plate-hero-fill" radius={HERO_RADIUS} heroShadow />
       {content}
@@ -226,11 +242,13 @@ function PlateContent({
   apiBase,
   offline,
   variant,
+  counted,
 }: {
   plate: PlateData;
   apiBase: string;
   offline?: boolean;
   variant: "card" | "hero";
+  counted: boolean;
 }) {
   const { command, t, locale } = useMobile();
   const c = useColors();
@@ -256,7 +274,8 @@ function PlateContent({
   const [sentence, second] = hero ? heroSentences(plate, t, !!caption) : sentences(plate, t);
   const { deliveryId, meal: mealKey, journey } = plate;
   // A meal nobody tapped has no journey to look at yet, and stale offline data is not a view of today.
-  const watched = !!caption && !offline && journey.stage !== "scheduled";
+  // In the pager only the card in view counts; the peeking one counts once it is swiped to.
+  const watched = counted && !!caption && !offline && journey.stage !== "scheduled";
   useEffect(() => {
     if (!watched) return;
     const key = `${deliveryId}:${mealKey}:${journey.stage}`;
@@ -325,12 +344,14 @@ function PlateContent({
           />
         ) : null}
         {!offline && (plate.state === "on_the_way" || plate.state === "due") ? (
-          <View style={styles.row}>
+          // Each button keeps at least its label's width and the two share what is left 2:1; on a narrow card at a
+          // large font (a pager card at 360dp and 1.3) "Belum" moves under "Sudah sampai" instead of breaking mid-word.
+          <View style={[styles.row, { flexWrap: "wrap" }]}>
             <SunriseButton
               label={t("Sudah sampai", "It's here")}
               disabled={busy}
               onPress={() => void run("delivery.confirm", {})}
-              style={{ flex: 2 }}
+              style={{ flexGrow: 2, flexBasis: "auto" }}
             />
             <Button
               variant="secondary"
@@ -338,7 +359,7 @@ function PlateContent({
               ink={ink}
               edge={edge}
               disabled={busy}
-              style={{ flex: 1 }}
+              style={{ flexGrow: 1, flexBasis: "auto" }}
               onPress={() =>
                 router.push(`/masalah/${encodeURIComponent(plate.deliveryId)}?meal=${plate.meal}&jenis=belum` as never)
               }

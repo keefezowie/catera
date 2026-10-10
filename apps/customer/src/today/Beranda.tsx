@@ -1,30 +1,23 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ActivityIndicator, View } from "react-native";
-import Ionicons from "@expo/vector-icons/Ionicons";
-import { router } from "expo-router";
-import * as SecureStore from "expo-secure-store";
 import {
+  activePlans,
   dayLabel,
-  errorLabel,
   jakartaDay,
   mealPlates,
   recapCandidates,
-  renewalDue,
   todayPlates,
-  trialFollowUp,
-  upcomingRows,
+  upcomingDays,
   type CustomerState,
   type Plate as PlateData,
-  type Subscription,
 } from "@catera/domain";
 import { useData, useMobile, type MobileRuntime } from "@catera/mobile-core";
 import {
   Button,
-  Field,
   fontFor,
+  HeroPager,
   MoodHeader,
   PhotoRing,
-  PressableRow,
   PressableScale,
   Screen,
   Text,
@@ -33,17 +26,14 @@ import {
   useMood,
   useMoodColors,
 } from "@catera/mobile-ui";
-import { ChatKatering } from "../help/ChatKatering";
 import { EmptyHome } from "./EmptyHome";
-import { jakartaClock, photoUri, Plate, sentences } from "./Plate";
+import { HERO_OVERLAP, jakartaClock, photoUri, Plate, sentences } from "./Plate";
 import { RecapCard } from "./RecapCard";
-import { RenewalCard, TrialCard } from "./RenewalCard";
-import { UpcomingRows } from "./UpcomingRows";
-import { MenuDueRows } from "./MenuDueRows";
+import { WaitingList } from "./WaitingList";
+import { UpcomingDays } from "./UpcomingDays";
+import { PlansRow } from "./PlansRow";
 import { TomorrowEntry } from "../tomorrow/TomorrowRow";
 import { loadCachedCustomer, saveCachedCustomer } from "./offline";
-import { remainingLabel } from "../remaining";
-import { planHref } from "../hrefs";
 
 type LoadedCustomer = { data: CustomerState; savedAt: string | null };
 
@@ -59,20 +49,7 @@ async function loadCustomer(runtime: MobileRuntime, key: string): Promise<Loaded
   }
 }
 
-/** Subscriptions that still serve days: the package line and renewal card are about these. */
-const isLive = (s: Subscription) => s.status === "active";
-
-/** Asked once, when 3 or fewer days remain or after the final delivery (review.save needs one delivered day). */
-function reviewCandidate(state: CustomerState): Subscription | undefined {
-  return state.subscriptions.find(
-    (s) =>
-      s.status !== "cancelled" &&
-      s.remaining <= 3 &&
-      state.deliveries.some((d) => d.subscription_id === s.id && d.status === "delivered"),
-  );
-}
-
-/** Beranda: today's plate, the next days, renewal and the package line. */
+/** Beranda: today's plate (or plates), what waits on the customer, the next days and the running plans. */
 export function Beranda() {
   const { actor, ready } = useMobile();
   const c = useColors();
@@ -122,18 +99,24 @@ function windowStart(window: string): string | null {
 const NEEDS_YOU: PlateData["state"][] = ["due", "on_the_way", "failed"];
 
 /**
- * The compact row for the meal the mood is not on: its ring, when it comes and its first dish. One tap switches to it.
- * When that plate needs the customer (it should have arrived, is on the way, or failed), its status sentence shows here
- * too, so "needs you now" stays visible; the actions are one tap away, on the hero.
+ * The compact row for the meal the mood is not on: its ring, when it comes ("Malam ini · 17.00–19.00") or how many
+ * come ("Siang ini · 2 antaran"), and the first plate's main dish (the package name while its menu is not set, the
+ * headline's rule). One tap switches to it. When a plate of that meal needs the customer (it should have arrived, is on
+ * the way, or failed), its status sentence shows here too, so "needs you now" stays visible; the actions are one tap
+ * away, on the hero.
  */
-function OtherMealRow({ plate, apiBase, onPress }: { plate: PlateData; apiBase: string; onPress: () => void }) {
+function OtherMealRow({ plates, apiBase, onPress }: { plates: PlateData[]; apiBase: string; onPress: () => void }) {
   const { t } = useMobile();
   const c = useColors();
   const styles = useStyles();
+  const plate = plates[0];
   const dinner = plate.meal === "dinner";
   const label = dinner ? t("Malam ini", "Dinner tonight") : t("Siang ini", "Lunch today");
-  const dish = plate.dishes[0] ?? plate.packageName;
-  const status = NEEDS_YOU.includes(plate.state) ? sentences(plate, t)[0] : "";
+  const when =
+    plates.length > 1 ? t(`${plates.length} antaran`, `${plates.length} deliveries`) : plate.window || "";
+  const dish = plate.lead ?? plate.packageName;
+  const waiting = plates.find((p) => NEEDS_YOU.includes(p.state));
+  const status = waiting ? sentences(waiting, t)[0] : "";
   return (
     <PressableScale
       testID="other-meal-row"
@@ -146,14 +129,14 @@ function OtherMealRow({ plate, apiBase, onPress }: { plate: PlateData; apiBase: 
       <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
         <PhotoRing
           uri={photoUri(plate.image, apiBase)}
-          size={60}
+          size={54}
           ring={dinner ? "forest" : "sunrise"}
           accessibilityLabel={dish}
         />
       </View>
       <View style={{ flex: 1, gap: 2 }}>
         <Text variant="label" style={{ lineHeight: 18, fontVariant: ["tabular-nums"] }}>
-          {plate.window ? `${label} · ${plate.window}` : label}
+          {when ? `${label} · ${when}` : label}
         </Text>
         <Text style={{ fontFamily: fontFor("700") }}>{dish}</Text>
         {status ? (
@@ -169,12 +152,13 @@ function OtherMealRow({ plate, apiBase, onPress }: { plate: PlateData; apiBase: 
 function SignedInHome({ actorId }: { actorId: string }) {
   const { runtime, t, locale } = useMobile();
   const c = useColors();
-  const styles = useStyles();
   const { mood, setMood } = useMood();
   const palette = useMoodColors();
   const home = useData(`home:customer`, () => loadCustomer(runtime, actorId));
   // Menu choices that are due; Beranda still shows without them (offline or a failed feed).
   const actions = useData("home:actions", () => runtime.api.customerActions(20).catch(() => null));
+  // The pager's card in view, per meal, so a mood switch never counts the other meal's card as seen.
+  const [page, setPage] = useState<{ meal: string; index: number }>({ meal: "", index: 0 });
   const state = home.data?.data;
   const now = new Date();
 
@@ -195,33 +179,35 @@ function SignedInHome({ actorId }: { actorId: string }) {
     );
 
   const plates = todayPlates(state, now);
-  const rows = upcomingRows(state, now, 3, locale);
-  const live = state.subscriptions.filter(isLive);
+  const days = upcomingDays(state, now, 3, locale);
+  const plans = activePlans(state);
   // Plans that ended lately and were not renewed; the card itself checks whether its recap was already seen.
   const recaps = recapCandidates(state, now);
   const recap = recaps.length ? <RecapCard candidates={recaps} /> : null;
-  if (!plates.length && !rows.length && !live.length) return <EmptyHome lead={recap} />;
+  if (!plates.length && !days.length && !plans.count) return <EmptyHome lead={recap} />;
   const savedAt = home.data?.savedAt;
 
   const today = jakartaDay(now);
   const meal = mood === "siang" ? "lunch" : "dinner";
-  const heroPlate = plates.find((p) => p.meal === meal);
-  const otherPlate = plates.find((p) => p.meal !== meal);
-  // A second delivery of either meal stays a card below, so no plate with an action is ever dropped.
-  const morePlates = plates.filter((p) => p !== heroPlate && p !== otherPlate);
   const byMeal = mealPlates(plates);
+  const heroPlates = byMeal[meal];
+  const otherPlates = byMeal[meal === "lunch" ? "dinner" : "lunch"];
   const opening = mood === "siang" ? t("Siang ini,", "Lunch today,") : t("Malam ini,", "Dinner tonight,");
-  const headline = `${opening}\n${headlineFor(byMeal[meal], t)}`;
+  const headline = `${opening}\n${headlineFor(heroPlates, t)}`;
   const arc = {
     siang: { title: t("Siang", "Lunch"), label: t("Makan siang", "Lunch"), detail: arcDetail(byMeal.lunch, t) },
     malam: { title: t("Malam", "Dinner"), label: t("Makan malam", "Dinner"), detail: arcDetail(byMeal.dinner, t) },
   };
-  const next = rows[0];
-  const nextLabel = next ? (locale === "id" ? next.label : dayLabel(next.date, today, "en")) : "";
+  const next = days[0];
+  const nextLabel = next?.label ?? "";
   // "Berikutnya" names a later day, so it is only true when nothing else is left today.
-  const laterToday = !!otherPlate && !["arrived", "failed", "reported"].includes(otherPlate.state);
+  const laterToday = otherPlates.some((p) => !["arrived", "failed", "reported"].includes(p.state));
   const meta =
-    !heroPlate && !laterToday && next ? t(`Berikutnya ${nextLabel}`, `Next ${nextLabel}`) : dayLabel(today, today, locale);
+    !heroPlates.length && !laterToday && next
+      ? t(`Berikutnya ${nextLabel}`, `Next ${nextLabel}`)
+      : dayLabel(today, today, locale);
+  const mealName = meal === "lunch" ? t("Makan siang", "Lunch") : t("Makan malam", "Dinner");
+  const inView = page.meal === meal ? page.index : 0;
 
   return (
     <Screen
@@ -229,7 +215,7 @@ function SignedInHome({ actorId }: { actorId: string }) {
         <MoodHeader
           meta={meta}
           arc={arc}
-          overlap={heroPlate ? 58 : 0}
+          overlap={heroPlates.length ? 58 : 0}
           title={
             <Text
               testID="home-title"
@@ -243,15 +229,36 @@ function SignedInHome({ actorId }: { actorId: string }) {
         />
       }
     >
-      {heroPlate ? (
+      {heroPlates.length > 1 ? (
+        // Several deliveries of the chosen meal: equal heroes, one at a time, the next one peeking.
+        <HeroPager
+          key={`pager:${meal}`}
+          count={heroPlates.length}
+          style={{ marginTop: HERO_OVERLAP }}
+          accessibilityLabelFor={(i) =>
+            t(
+              `${mealName} ${i + 1} dari ${heroPlates.length}, ${heroPlates[i]?.catererName ?? ""}`,
+              `${mealName} ${i + 1} of ${heroPlates.length}, ${heroPlates[i]?.catererName ?? ""}`,
+            )
+          }
+          counterLabel={(i) => t(`${i + 1} dari ${heroPlates.length}`, `${i + 1} of ${heroPlates.length}`)}
+          onIndexChange={(index) => setPage({ meal, index })}
+        >
+          {heroPlates.map((p, i) => (
+            <Plate
+              key={`${p.deliveryId}:${p.meal}`}
+              variant="hero"
+              paged
+              counted={i === inView}
+              plate={p}
+              apiBase={runtime.apiBase}
+              offline={!!savedAt}
+            />
+          ))}
+        </HeroPager>
+      ) : heroPlates.length ? (
         // One frame for the hero whichever meal it shows, so its fill cross-fades when the mood switches.
-        <Plate
-          key="hero"
-          variant="hero"
-          plate={heroPlate}
-          apiBase={runtime.apiBase}
-          offline={!!savedAt}
-        />
+        <Plate key="hero" variant="hero" plate={heroPlates[0]} apiBase={runtime.apiBase} offline={!!savedAt} />
       ) : null}
       {savedAt ? (
         <Text variant="caption" style={{ color: c.sunriseInk, fontVariant: ["tabular-nums"] }}>
@@ -263,205 +270,23 @@ function SignedInHome({ actorId }: { actorId: string }) {
           {home.error}
         </Text>
       ) : null}
-      {otherPlate ? (
+      {otherPlates.length ? (
         <OtherMealRow
-          plate={otherPlate}
+          plates={otherPlates}
           apiBase={runtime.apiBase}
           onPress={() => setMood(mood === "siang" ? "malam" : "siang")}
         />
       ) : null}
-      {morePlates.map((p) => (
-        <Plate key={`${p.deliveryId}:${p.meal}`} plate={p} apiBase={runtime.apiBase} offline={!!savedAt} />
-      ))}
-      <TomorrowEntry state={state} now={now} />
-      {savedAt ? null : <MenuDueRows items={actions.data?.items ?? []} />}
-      <UpcomingRows rows={rows} />
       {recap}
-      {live.filter((s) => renewalDue(s, state.subscriptions)).map((s) => (
-        <RenewalCard key={s.id} subscription={s} />
-      ))}
-      {live.filter((s) => trialFollowUp(s, state.subscriptions)).map((s) => (
-        <TrialCard key={s.id} subscription={s} />
-      ))}
-      {live.map((s) => (
-        <PackageLine
-          key={s.id}
-          subscription={s}
-          phone={state.deliveries.find((d) => d.subscription_id === s.id && d.catererPhone)?.catererPhone ?? ""}
-        />
-      ))}
-      {savedAt ? null : <ReviewPrompt state={state} />}
+      <WaitingList state={state} actions={actions.data?.items ?? null} offline={!!savedAt} now={now} />
+      <TomorrowEntry state={state} now={now} />
+      <UpcomingDays days={days} apiBase={runtime.apiBase} />
+      <PlansRow count={plans.count} caterers={plans.caterers} images={plans.images} apiBase={runtime.apiBase} />
     </Screen>
-  );
-}
-
-/** One running plan: the line opens its plan detail; the chat button beside it stays its own control. */
-function PackageLine({ subscription: s, phone }: { subscription: Subscription; phone: string }) {
-  const { t } = useMobile();
-  const c = useColors();
-  const styles = useStyles();
-  const offer = s.snapshot.offer;
-  // The label replaces what the line shows, so it says all of it: the plan, its caterer and the days left.
-  const remaining = remainingLabel(s.remaining, t);
-  return (
-    <View style={styles.packageLine}>
-      <PressableScale
-        accessibilityRole="button"
-        accessibilityLabel={t(
-          `${offer.name}, ${offer.caterer}, ${remaining}, lihat detail paket`,
-          `${offer.name}, ${offer.caterer}, ${remaining}, see plan details`,
-        )}
-        onPress={() => router.push(planHref(s.id, offer.name) as never)}
-        style={styles.packageOpen}
-      >
-        <View style={{ flex: 1, gap: 2 }}>
-          <Text style={{ fontFamily: fontFor("700") }}>{offer.name}</Text>
-          <Text variant="caption">
-            {offer.caterer} · {remaining}
-          </Text>
-        </View>
-        <Ionicons name="chevron-forward" size={18} color={c.muted} />
-      </PressableScale>
-      <ChatKatering phone={phone} variant="text" />
-    </View>
-  );
-}
-
-function ReviewPrompt({ state }: { state: CustomerState }) {
-  const { runtime, command, t, locale } = useMobile();
-  // The `checked` updater below names its argument `c`, so the palette keeps a longer name here.
-  const palette = useColors();
-  const styles = useStyles();
-  const candidate = reviewCandidate(state);
-  const id = candidate?.id;
-  const key = id ? runtime.storageKey(`review.${id}`) : "";
-  const [hidden, setHidden] = useState<Record<string, boolean>>({});
-  const [checked, setChecked] = useState<Record<string, boolean>>({});
-  const [open, setOpen] = useState(false);
-  const [rating, setRating] = useState(5);
-  const [body, setBody] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (!key) return;
-    let live = true;
-    void SecureStore.getItemAsync(key)
-      .catch(() => null)
-      .then((v) => {
-        if (!live) return;
-        setChecked((c) => ({ ...c, [key]: true }));
-        if (v) setHidden((h) => ({ ...h, [key]: true }));
-      });
-    return () => {
-      live = false;
-    };
-  }, [key]);
-
-  if (!candidate || !checked[key] || hidden[key]) return null;
-  const caterer = candidate.snapshot.offer.caterer;
-
-  function hide(value: "dismissed" | "done") {
-    setHidden((h) => ({ ...h, [key]: true }));
-    void SecureStore.setItemAsync(key, value).catch(() => undefined);
-  }
-
-  async function send() {
-    setBusy(true);
-    setError("");
-    try {
-      await command("review.save", {
-        subscriptionId: candidate!.id,
-        rating,
-        food: rating,
-        delivery: rating,
-        value: rating,
-        body,
-      });
-      hide("done");
-    } catch (e) {
-      const code = (e as { code?: string }).code || (e as Error).message;
-      setError(errorLabel(code, locale) || t("Belum berhasil. Coba lagi.", "That didn't work. Try again."));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <View style={styles.review}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-        <PressableRow
-          accessibilityRole="button"
-          onPress={() => setOpen((o) => !o)}
-          style={{ flex: 1, minHeight: 48, justifyContent: "center" }}
-        >
-          <Text style={{ fontFamily: fontFor("700") }}>
-            {t(`Bagaimana ${caterer} selama ini?`, `How has ${caterer} been so far?`)}
-          </Text>
-        </PressableRow>
-        <Button variant="text" label={t("Nanti saja", "Not now")} onPress={() => hide("dismissed")} />
-      </View>
-      {open ? (
-        <View style={{ gap: 12 }}>
-          <View style={{ flexDirection: "row", gap: 6 }}>
-            {[1, 2, 3, 4, 5].map((n) => (
-              <PressableScale
-                key={n}
-                accessibilityRole="button"
-                accessibilityLabel={t(`${n} bintang`, `${n} stars`)}
-                accessibilityState={{ selected: n <= rating }}
-                haptic="select"
-                onPress={() => setRating(n)}
-                style={styles.star}
-              >
-                {/* Outline + muted (5.8:1) for unselected, filled + ink for selected: shape and colour both carry the state. */}
-                <Ionicons
-                  name={n <= rating ? "star" : "star-outline"}
-                  size={28}
-                  color={n <= rating ? palette.sunriseInk : palette.muted}
-                />
-              </PressableScale>
-            ))}
-          </View>
-          <Field
-            label={t("Cerita singkat (opsional)", "A few words (optional)")}
-            value={body}
-            onChangeText={setBody}
-            multiline
-            maxLength={1000}
-          />
-          {error ? (
-            <Text selectable style={{ color: palette.danger }}>
-              {error}
-            </Text>
-          ) : null}
-          <Button label={t("Kirim ulasan", "Send review")} disabled={busy} onPress={() => void send()} />
-        </View>
-      ) : null}
-    </View>
   );
 }
 
 const useStyles = themedStyles((c) => ({
   center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: c.canvas },
   otherMeal: { minHeight: 60, flexDirection: "row", alignItems: "center", gap: 12 },
-  packageLine: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingVertical: 4,
-    borderTopWidth: 1,
-    borderTopColor: c.line,
-  },
-  packageOpen: { flex: 1, minHeight: 48, flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 6 },
-  review: {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: c.line,
-    backgroundColor: c.surface,
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    gap: 8,
-  },
-  star: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
 }));

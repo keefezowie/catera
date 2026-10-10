@@ -596,7 +596,8 @@ describe("Beranda: Pilih menu", () => {
   it("pilih menu appears only when a selection is due", async () => {
     const runtime = runtimeWith({}, { actions: [due] });
     renderWith(runtime, <Beranda />);
-    fireEvent.press(await screen.findByText("Pilih menu Senin"));
+    // One due day reads with its date ("Pilih menu Senin 12 Okt"); the action word opens it.
+    fireEvent.press(await screen.findByText(/^Pilih menu Senin \d+ Okt$/));
     expect(router.push).toHaveBeenCalledWith(`/pilih-menu/s-1?date=${monday}&meal=lunch`);
   });
 

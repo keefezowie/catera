@@ -52,7 +52,8 @@ export function PhotoRing({
   accessibilityLabel,
 }: {
   uri: string;
-  size: 60 | 66;
+  /** 40 in a list row, 54 in the other-meal row, 60 or 66 in a story row. */
+  size: number;
   ring: "sunrise" | "forest" | "none";
   covered?: boolean;
   label?: string;
