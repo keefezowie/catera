@@ -16,6 +16,8 @@ let mockTabStack: string | null = null;
 const mockNavTheme: { value?: { dark: boolean; colors: Record<string, string> } } = {};
 /** The props the layout hands the native tab bar. */
 const mockNativeTabs: { props?: Record<string, any> } = {};
+/** The options each stack screen was declared with, by route name. */
+const mockScreenOptions: Record<string, any> = {};
 // The native bar cannot render under Jest, so a stand-in records its props instead.
 jest.mock("expo-router/unstable-native-tabs", () => {
   const Trigger = Object.assign(() => null, { Icon: () => null, Label: () => null, Badge: () => null, VectorIcon: () => null });
@@ -46,8 +48,13 @@ jest.mock("expo-router", () => {
       );
     }
     const resolved = typeof options === "function" ? options({ route: { name, params: mockParams } }) : options;
+    mockScreenOptions[name] = resolved;
     if (resolved?.headerShown === false) return null;
-    return <Text testID={`header:${name}`}>{resolved?.title ?? name}</Text>;
+    return (
+      <Text testID={`header:${name}`}>
+        {resolved?.title ?? name}
+      </Text>
+    );
   };
   // The stack also renders its shared header once, the way a pushed screen shows it.
   const Stack: any = ({ children, screenOptions }: any) => (
@@ -107,8 +114,9 @@ import { nativeThemes } from "@catera/design-tokens";
 import { tabBarColors } from "@catera/mobile-ui";
 import RootLayout from "../app/_layout";
 import { runtime } from "../src/runtime";
+import { CATERER_TABS, SCREEN_TAB } from "../src/roles";
 
-const TAB_ROOTS = ["index", "pelanggan", "menu", "usaha"];
+const TAB_ROOTS: readonly string[] = CATERER_TABS;
 
 /**
  * Every pushed file route under app/: the root stack's (Aktifkan, Impor) and the tab stacks' (in
@@ -116,7 +124,7 @@ const TAB_ROOTS = ["index", "pelanggan", "menu", "usaha"];
  */
 function pushedRoutes(dir = path.join(__dirname, "..", "app"), prefix = ""): string[] {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-    if (entry.name === "_layout.tsx" || entry.name === "(auth)") return [];
+    if (entry.name === "_layout.tsx" || entry.name === "(auth)" || entry.name.startsWith("+")) return [];
     if (entry.isDirectory())
       return pushedRoutes(path.join(dir, entry.name), entry.name.startsWith("(") ? prefix : `${prefix}${entry.name}/`);
     const route = `${prefix}${entry.name.replace(/\.tsx?$/, "")}`;
@@ -174,6 +182,19 @@ describe("stack headers", () => {
     expect(titleOf("uang")).toBe("Uang");
     expect(titleOf("laporan/[id]")).toBe("Laporan masalah");
     expect(titleOf("menu/[date]")).toMatch(/^Menu /);
+  });
+
+  it("presents Aktifkan and Impor as modals over the tab bar, and only them", async () => {
+    render(<RootLayout />);
+    await screen.findByTestId("header:pelanggan/[id]");
+    expect(mockScreenOptions.aktifkan.presentation).toBe("modal");
+    expect(mockScreenOptions.impor.presentation).toBe("modal");
+    for (const route of pushedRoutes().filter((r) => r !== "aktifkan" && r !== "impor"))
+      expect({ route, presentation: mockScreenOptions[route]?.presentation }).toEqual({ route, presentation: undefined });
+  });
+
+  it("gives every pushed screen a tab, so the role guards cover it", () => {
+    expect(Object.keys(SCREEN_TAB).sort()).toEqual(pushedRoutes().sort());
   });
 
   it("names the day on the menu screen header", async () => {

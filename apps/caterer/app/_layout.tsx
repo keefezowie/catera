@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from "react";
+import { useEffect, useMemo, type ReactNode } from "react";
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider as NavigationTheme } from "expo-router";
 import { useFonts } from "expo-font";
 import { StatusBar } from "expo-status-bar";
@@ -21,7 +21,8 @@ import {
 } from "@catera/mobile-ui";
 import { runtime } from "../src/runtime";
 import { dapurLink } from "../src/links";
-import { openLink } from "../src/nav";
+import { openLink, sessionChanged } from "../src/nav";
+import { SCREEN_TAB, tabsForRole } from "../src/roles";
 import { useStackScreenOptions } from "../src/stack";
 
 function Navigation() {
@@ -30,6 +31,10 @@ function Navigation() {
   const palette = useColors();
   const { scheme } = useThemePreference();
   const { mood } = useMood();
+  const allowed = tabsForRole(actor?.role);
+  // A link held while the session loads opens once the tabs mount; signed out, it is dropped (`sessionChanged`).
+  const session = !ready ? "loading" : actor ? "signedIn" : "signedOut";
+  useEffect(() => sessionChanged(session), [session]);
   // Above the ready gate, so the loading spinner also gets glyphs that read on the chosen theme. The spinner sits on the
   // canvas and not under a mood header, so only the theme decides until the app is ready.
   const statusBar = (
@@ -55,10 +60,17 @@ function Navigation() {
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="(auth)/masuk" options={{ headerShown: false }} />
           <Stack.Screen name="(auth)/daftar" options={{ title: t("Daftar", "Sign up") }} />
-          {/* Owner screens: a helper (staff) never opens them, from a link or a notification. */}
-          <Stack.Protected guard={actor?.role === "owner"}>
-            <Stack.Screen name="aktifkan" options={{ title: t("Aktifkan pembayaran", "Turn on payments") }} />
-            <Stack.Screen name="impor" options={{ title: t("Impor pelanggan", "Import customers") }} />
+          {/* Short, self-contained tasks, so they present as modals (with Close) over the tab bar. A role opens each
+              only when it has that screen's tab (`SCREEN_TAB`): a helper (staff) never does, from a link or a
+              notification. */}
+          <Stack.Protected guard={allowed.includes(SCREEN_TAB.aktifkan)}>
+            <Stack.Screen
+              name="aktifkan"
+              options={{ presentation: "modal", title: t("Aktifkan pembayaran", "Turn on payments") }}
+            />
+          </Stack.Protected>
+          <Stack.Protected guard={allowed.includes(SCREEN_TAB.impor)}>
+            <Stack.Screen name="impor" options={{ presentation: "modal", title: t("Impor pelanggan", "Import customers") }} />
           </Stack.Protected>
         </Stack>
       </TopInsetOwner>

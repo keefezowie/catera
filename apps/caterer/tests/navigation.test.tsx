@@ -1,18 +1,24 @@
-import fs from "node:fs";
-import path from "node:path";
 import { Text } from "react-native";
 import { act, fireEvent, renderRouter, screen, waitFor } from "expo-router/testing-library";
+import { appRoutes, navigationContainer, resetRouterStore } from "./real-router";
 import { router, useIsFocused, useLocalSearchParams } from "expo-router";
-
-// expo-router's testing library swaps in Reanimated's stock mock, which has no useReducedMotion; the app reads it.
-const Reanimated = require("react-native-reanimated");
-Reanimated.useReducedMotion ??= () => false;
+import { useMobile, type MobileContextValue } from "@catera/mobile-core";
 
 /** The account the session read returns; each test sets its role. */
 const mockMe: { actor: { id: string; role: string; name: string; catererId: string } | null } = { actor: null };
 /** The notification the app was opened from (a cold push tap), read once the app is ready. */
 const mockLaunch: { response: unknown } = { response: null };
+/** When set, the tabs a helper (staff) is given instead of the real policy, to prove every guard follows it. */
+const mockStaffTabs: { tabs: string[] | null } = { tabs: null };
 
+jest.mock("../src/roles", () => {
+  const actual = jest.requireActual("../src/roles");
+  return {
+    ...actual,
+    tabsForRole: (role: string | undefined) =>
+      role === "staff" && mockStaffTabs.tabs ? mockStaffTabs.tabs : actual.tabsForRole(role),
+  };
+});
 jest.mock("expo-font", () => ({ ...jest.requireActual("expo-font"), useFonts: () => [true, null], isLoaded: () => true }));
 jest.mock("../src/runtime", () => {
   const { createMobileRuntime } = jest.requireActual("@catera/mobile-core");
@@ -38,18 +44,12 @@ jest.mock("expo-notifications", () => {
 // Each test mounts the whole app (root stack, native tabs, four tab stacks), which takes a few seconds under Jest.
 jest.setTimeout(30000);
 
-const appDir = path.join(__dirname, "..", "app");
 const ISSUE = "3f2a8c1e-9b4d-4e6f-8a7b-1c2d3e4f5a6b";
 const owner = { id: "u-1", role: "owner", name: "Bu Rina", catererId: "k-1" };
 const staff = { id: "u-2", role: "staff", name: "Mas Joko", catererId: "k-1" };
 
-/** Every route file under app/, as the router names it (`(tabs)/(index,pelanggan,menu,usaha)/laporan/[id]`). */
-function routeFiles(dir = appDir, prefix = ""): string[] {
-  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-    if (entry.isDirectory()) return routeFiles(path.join(dir, entry.name), `${prefix}${entry.name}/`);
-    return [`${prefix}${entry.name.replace(/\.tsx?$/, "")}`];
-  });
-}
+/** The session as the screens see it, so a test can sign in and out the way Masuk and Keluar do. */
+let session: MobileContextValue;
 
 /**
  * The real layouts (root stack, native tabs, each tab's stack) over stand-in screens: each screen only names its own
@@ -58,15 +58,17 @@ function routeFiles(dir = appDir, prefix = ""): string[] {
 function stub(file: string) {
   const name = file.replace(/\([^)]*\)\//g, "");
   return function Stub() {
+    session = useMobile();
     const { date } = useLocalSearchParams<{ date?: string }>();
     // Every tab and every screen under the front one stays mounted; only the focused one counts as shown.
     return <Text testID={useIsFocused() ? "screen" : "behind"}>{date ? `${name} ${date}` : name}</Text>;
   };
 }
-const overrides = Object.fromEntries(routeFiles().filter((f) => !f.endsWith("_layout")).map((f) => [f, stub(f)]));
+const routes = appRoutes(stub);
 
+/** Starts the app cold at a link, the way the system opens it (through `+native-intent`). */
 function open(initialUrl = "/") {
-  return renderRouter({ appDir, overrides }, { initialUrl });
+  return renderRouter(routes, { initialUrl });
 }
 
 /** What the router holds now: the root stack's routes, the tab bar's tabs, the focused tab and that tab's stack. */
@@ -100,8 +102,7 @@ const shown = () => String(screen.getByTestId("screen").props.children);
 
 /** A tap on a tab in the bar: the native bar selects the tab and leaves its stack as it was. */
 function tapTab(name: string) {
-  const { store } = require("expo-router/build/global-state/store");
-  const ref = store.navigationRef.current;
+  const ref = navigationContainer();
   type S = { key: string; index: number; routes: { name: string; state?: S }[] };
   let state = ref.getRootState() as S | undefined;
   while (state && !state.routes.some((route) => route.name === name)) state = state.routes[state.index]?.state;
@@ -111,10 +112,8 @@ function tapTab(name: string) {
 beforeEach(() => {
   mockMe.actor = owner;
   mockLaunch.response = null;
-  // The router keeps the last test's place in a module-level store, and resolves a shared path ("/" is in every tab's
-  // group) toward that place. A real cold start has no last place, so each test starts without one.
-  const { storeRef } = require("expo-router/build/global-state/store");
-  if (storeRef.current) storeRef.current.routeInfo = undefined;
+  mockStaffTabs.tabs = null;
+  resetRouterStore();
 });
 
 describe("each tab keeps its own stack", () => {
@@ -225,6 +224,29 @@ describe("staff", () => {
     expect(r.getPathname()).toBe("/");
   });
 
+  it("every screen follows the role's tabs: granted Pelanggan, staff open a customer", async () => {
+    // The guards read tabsForRole, so a policy that gives helpers Pelanggan opens its screens and nothing else.
+    mockStaffTabs.tabs = ["index", "pelanggan", "menu"];
+    const r = open("/");
+    await waitFor(() => expect(shown()).toBe("index"));
+    expect(snapshot(r).tabs).toEqual(["(index)", "(pelanggan)", "(menu)"]);
+    act(() => require("../src/nav").goToTab("pelanggan"));
+    await waitFor(() => expect(snapshot(r).tab).toBe("(pelanggan)"));
+    act(() => router.push("/pelanggan/c-1"));
+    await waitFor(() => expect(snapshot(r)).toMatchObject({ tab: "(pelanggan)", stack: ["pelanggan", "pelanggan/[id]"] }));
+    expect(shown()).toBe("pelanggan/[id]");
+    // Impor belongs to Pelanggan; Usaha's screens stay closed.
+    act(() => router.push("/impor"));
+    await waitFor(() => expect(r.getSegments()).toEqual(["impor"]));
+    act(() => require("../src/nav").goToTab("pelanggan"));
+    await waitFor(() => expect(snapshot(r).root).toEqual(["(tabs)"]));
+    for (const href of ["/usaha", "/uang", "/tim", "/paket/p-1", "/aktifkan"]) {
+      act(() => router.push(href as never));
+      await act(async () => {});
+      expect({ href, shown: shown() }).toEqual({ href, shown: "pelanggan" });
+    }
+  });
+
   it("staff still open reports and the day's menu inside their tabs", async () => {
     const r = open("/");
     await waitFor(() => expect(shown()).toBe("index"));
@@ -244,9 +266,11 @@ describe("screens above the tabs", () => {
     await waitFor(() => expect(snapshot(r).tab).toBe("(pelanggan)"));
     act(() => router.push("/impor"));
     await waitFor(() => expect(r.getSegments()).toEqual(["impor"]));
-    // A root-stack screen: it covers the tab bar, with its own header and Back.
+    // A modal in the root stack: it covers the tab bar, with its own header and Close.
     expect(snapshot(r).root).toEqual(["(tabs)", "impor"]);
     expect(screen.getByText("Impor pelanggan")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Tutup" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Kembali" })).toBeNull();
     // "Lihat Pelanggan" after saving: Impor closes and Pelanggan shows its list.
     act(() => require("../src/nav").goToTab("pelanggan"));
     await waitFor(() => expect(r.getSegments()).toEqual(["(tabs)", "(pelanggan)", "pelanggan"]));
@@ -260,7 +284,8 @@ describe("screens above the tabs", () => {
     await waitFor(() => expect(r.getSegments()).toEqual(["aktifkan"]));
     expect(snapshot(r).root).toEqual(["(tabs)", "aktifkan"]);
     expect(screen.getByText("Aktifkan pembayaran")).toBeTruthy();
-    fireEvent.press(screen.getByRole("button", { name: "Kembali" }));
+    // A modal, so it closes with Close rather than going Back.
+    fireEvent.press(screen.getByRole("button", { name: "Tutup" }));
     await waitFor(() => expect(r.getPathname()).toBe("/"));
     expect(snapshot(r).root).toEqual(["(tabs)"]);
   });
@@ -279,5 +304,73 @@ describe("screens above the tabs", () => {
     mockMe.actor = null;
     const r = open(`/laporan/${ISSUE}`);
     await waitFor(() => expect(r.getSegments()).toEqual(["(auth)", "masuk"]));
+  });
+});
+
+describe("signing out", () => {
+  it("a tap that arrives signed out never opens for the next account", async () => {
+    const r = open("/");
+    await waitFor(() => expect(shown()).toBe("index"));
+    // Keluar: the owner signs out and lands on Masuk.
+    mockMe.actor = null;
+    await act(() => session.logout());
+    await waitFor(() => expect(r.getSegments()).toEqual(["(auth)", "masuk"]));
+    // A report notification for the owner, tapped on Masuk.
+    tap(`/seller/support?issue=${ISSUE}`);
+    await act(async () => {});
+    // A helper signs in on the same phone, as Masuk does, and gets Hari ini without the owner's report.
+    mockMe.actor = staff;
+    await act(() => session.signedIn(staff as never));
+    act(() => require("../src/nav").goToTab("index"));
+    await waitFor(() => expect(shown()).toBe("index"));
+    await act(async () => {});
+    expect(snapshot(r)).toMatchObject({ root: ["(tabs)"], tab: "(index)", stack: ["index"] });
+  });
+});
+
+describe("links from the system", () => {
+  const { redirectSystemPath } = require("../src/nav") as typeof import("../src/nav");
+  const rewrite = (path: string) => redirectSystemPath({ path, initial: true });
+
+  it("names a bare tab root's own group, from any link form", () => {
+    expect(rewrite("/")).toBe("/(tabs)/(index)");
+    expect(rewrite("/?date=2030-01-04")).toBe("/(tabs)/(index)?date=2030-01-04");
+    expect(rewrite("/pelanggan")).toBe("/(tabs)/(pelanggan)/pelanggan");
+    expect(rewrite("/menu/")).toBe("/(tabs)/(menu)/menu");
+    expect(rewrite("catera-dapur://usaha")).toBe("/(tabs)/(usaha)/usaha");
+    expect(rewrite("catera-dapur:///pelanggan")).toBe("/(tabs)/(pelanggan)/pelanggan");
+    expect(rewrite("catera-dapur://")).toBe("/(tabs)/(index)");
+    expect(rewrite("https://dapur.example.test/menu?x=1")).toBe("/(tabs)/(menu)/menu?x=1");
+    expect(rewrite("exp://192.168.1.2:8081/--/usaha")).toBe("/(tabs)/(usaha)/usaha");
+  });
+
+  it("passes every other link through unchanged", () => {
+    for (const path of [`/laporan/${ISSUE}`, "/menu/2030-01-03", "/aktifkan", "catera-dapur://pelanggan/c-1", "/index"])
+      expect(rewrite(path)).toBe(path);
+  });
+
+  it("is what +native-intent hands the router, which applies it to a cold link", async () => {
+    expect(require("../app/+native-intent").redirectSystemPath).toBe(redirectSystemPath);
+    const nav = require("../src/nav");
+    const spy = jest.spyOn(nav, "redirectSystemPath");
+    try {
+      open("/menu");
+      await waitFor(() => expect(shown()).toBe("menu"));
+      expect(spy).toHaveBeenCalledWith({ path: "/menu", initial: true });
+      expect(spy).toHaveReturnedWith("/(tabs)/(menu)/menu");
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it.each([
+    ["/menu", "(menu)", "menu"],
+    ["/pelanggan", "(pelanggan)", "pelanggan"],
+    ["/usaha", "(usaha)", "usaha"],
+    ["/", "(index)", "index"],
+  ])("a cold link to %s opens that tab at its root", async (link, tab, root) => {
+    const r = open(link);
+    await waitFor(() => expect(shown()).toBe(root));
+    expect(snapshot(r)).toMatchObject({ root: ["(tabs)"], tab, stack: [root] });
   });
 });

@@ -4,8 +4,8 @@ import { NativeTabs } from "expo-router/unstable-native-tabs";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMobile } from "@catera/mobile-core";
 import { tabBarColors, tabLabelStyle, useColors } from "@catera/mobile-ui";
-import { registerNavigation } from "../../src/nav";
-import { tabsForRole, type CatererTab } from "../../src/roles";
+import { registerNavigation, releaseNavigation } from "../../src/nav";
+import { CATERER_TABS, tabsForRole, type CatererTab } from "../../src/roles";
 import { RoleGate } from "../../src/RoleGate";
 
 type Glyph = keyof typeof Ionicons.glyphMap;
@@ -18,8 +18,6 @@ const icons: Record<CatererTab, { filled: Glyph; outline: Glyph }> = {
   usaha: { filled: "storefront", outline: "storefront-outline" },
 };
 
-const order = Object.keys(icons) as CatererTab[];
-
 /**
  * The platform's own tab bar, as in the customer app. Every route stays declared so the navigator keeps one shape;
  * the tabs a role may not open (staff: Pelanggan and Usaha) are hidden triggers. Each trigger is a group, `(menu)`, with
@@ -29,10 +27,13 @@ export default function TabsLayout() {
   const { actor, t } = useMobile();
   const navigation = useNavigationContainerRef();
   // goToTab selects a tab by targeting these navigators by key, so it needs the container once the tabs exist; a push
-  // tap that arrived while the session loaded opens then.
+  // tap that arrived while the session loaded opens then. Unmounting or changing account forgets it again.
+  const account = actor?.id;
   useEffect(() => {
-    if (actor) registerNavigation(navigation);
-  }, [navigation, actor]);
+    if (!account) return;
+    registerNavigation(navigation);
+    return releaseNavigation;
+  }, [navigation, account]);
   const bar = tabBarColors(useColors());
   if (!actor) return <Redirect href="/masuk" />;
   const allowed = tabsForRole(actor.role);
@@ -58,7 +59,7 @@ export default function TabsLayout() {
           selected: { ...label, color: bar.labelColor.selected },
         }}
       >
-        {order.map((name) => (
+        {CATERER_TABS.map((name) => (
           <NativeTabs.Trigger key={name} name={`(${name})`} hidden={!allowed.includes(name)}>
             <NativeTabs.Trigger.Icon
               src={{
