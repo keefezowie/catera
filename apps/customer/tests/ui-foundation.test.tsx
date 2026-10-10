@@ -14,6 +14,7 @@ import {
   Field,
   fontFor,
   fonts,
+  HeroPager,
   moodHeaderTopInset,
   MoodHeader,
   PressableRow,
@@ -22,6 +23,7 @@ import {
   PressableScale,
   RoundButton,
   Screen,
+  ScreenFooter,
   Segmented,
   Sheet,
   Stepper,
@@ -588,6 +590,56 @@ describe("Sheet and Screen details", () => {
     );
     expect(setOptions).toHaveBeenLastCalledWith({ title: "Senin 12 Okt" });
     expect(screen.queryByTestId("screen-native-title")).toBeNull();
+  });
+
+  it("the footer pays the bottom safe area on iOS, under the floating tab bar, and nothing more on Android", () => {
+    // Jest compiles `process.env.EXPO_OS` in (the Android build), so the footer takes the platform; the iOS result is
+    // unverified on an iPhone.
+    let view = render(<ScreenFooter os="ios">{<Text>Kaki</Text>}</ScreenFooter>);
+    const [ios] = view.UNSAFE_getAllByType(SafeAreaView);
+    expect(ios.props.testID).toBe("screen-footer");
+    expect(ios.props.edges).toEqual(["bottom"]);
+    // The inset adds to the footer's own padding, and its surface runs under the bar.
+    expect(StyleSheet.flatten(ios.props.style)).toMatchObject({ paddingBottom: 20, backgroundColor: nativeThemes.light.surface });
+    expect(within(screen.getByTestId("screen-footer")).getByText("Kaki")).toBeTruthy();
+    view.unmount();
+    // Android: a plain view, as before. Inside the tabs NativeTabs already ends the screen above the navigation bar.
+    view = render(<ScreenFooter os="android">{<Text>Kaki</Text>}</ScreenFooter>);
+    expect(screen.getByTestId("screen-footer")).toBeTruthy();
+    expect(view.UNSAFE_queryAllByType(SafeAreaView)).toHaveLength(0);
+    view.unmount();
+    // Screen draws its footer through it: on this (Android) build, one SafeAreaView for the screen and none for the footer.
+    const page = render(
+      <Screen footer={<Text>Kaki</Text>}>
+        <Text>Isi</Text>
+      </Screen>,
+    );
+    expect(page.UNSAFE_getAllByType(SafeAreaView)).toHaveLength(1);
+    expect(page.UNSAFE_getByType(ScreenFooter).props.os).toBeUndefined();
+  });
+
+  it("HeroPager follows the cards down when one goes: 3 cards at the third, then 2, reads 2 dari 2", () => {
+    const pager = (count: number) => (
+      <HeroPager count={count} counterLabel={(i) => `${i + 1} dari ${count}`} accessibilityLabelFor={() => "Makan siang"}>
+        {Array.from({ length: count }, (_, i) => (
+          <Text key={i}>{`Kartu ${i + 1}`}</Text>
+        ))}
+      </HeroPager>
+    );
+    const view = render(pager(3));
+    // To the third card.
+    const control = () => screen.getByRole("adjustable");
+    act(() => fireEvent(control(), "accessibilityAction", { nativeEvent: { actionName: "increment" } }));
+    act(() => fireEvent(control(), "accessibilityAction", { nativeEvent: { actionName: "increment" } }));
+    expect(screen.getByText("3 dari 3")).toBeTruthy();
+    // The third card goes away while it is the one in view.
+    view.rerender(pager(2));
+    expect(screen.getByText("2 dari 2")).toBeTruthy();
+    expect(control().props.accessibilityValue).toEqual({ text: "2 dari 2" });
+    expect(StyleSheet.flatten(screen.getByTestId("hero-dot-1", { includeHiddenElements: true }).props.style).width).toBe(20);
+    // It moves back from there, not from a card that is no longer there.
+    act(() => fireEvent(control(), "accessibilityAction", { nativeEvent: { actionName: "decrement" } }));
+    expect(screen.getByText("1 dari 2")).toBeTruthy();
   });
 });
 

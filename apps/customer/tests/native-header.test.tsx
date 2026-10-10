@@ -374,7 +374,7 @@ describe("paid is final", () => {
     expect(root()).not.toContain("beli/[id]");
   };
 
-  it("paid Bayar: header back, iOS swipe and hardware back all replace to /", async () => {
+  it("paid Bayar: the header's back, Close and the hardware back all land on Beranda, never Beli; the iOS swipe is off", async () => {
     // The iOS swipe is off and the header shows no back once paid.
     let app = await paidAfterPurchase();
     expect(screenOf("bayar/[id]").props.gestureEnabled).toBe(false);

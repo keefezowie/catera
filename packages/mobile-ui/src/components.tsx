@@ -543,15 +543,33 @@ export function Screen({
             {body}
           </>
         )}
-        {footer ? (
-          <View testID="screen-footer" style={styles.footer}>
-            {footer}
-          </View>
-        ) : null}
+        {footer ? <ScreenFooter>{footer}</ScreenFooter> : null}
       </KeyboardAvoidingView>
       {/* Last, so it paints above the scrolled page; the demo strip already covers the inset when it is shown. */}
       {header && !topOwned ? <StatusBand /> : null}
     </SafeAreaView>
+  );
+}
+
+/**
+ * A Screen's footer, under its scroll view. On iOS the floating tab bar inside a tab, or the home indicator above the
+ * tabs, covers the screen's foot, so the footer adds the bottom safe area under its own padding and its surface runs
+ * beneath the bar. Android adds nothing: inside the tabs NativeTabs already ends the screen above the navigation bar
+ * (the edge would add 0), and above the tabs the edge would add the gesture bar's inset, which this change leaves as it
+ * was. `os` defaults to the running platform.
+ */
+export function ScreenFooter({ children, os = process.env.EXPO_OS }: { children: ReactNode; os?: string }) {
+  const styles = useStyles();
+  if (os === "ios")
+    return (
+      <SafeAreaView testID="screen-footer" edges={["bottom"]} style={styles.footer}>
+        {children}
+      </SafeAreaView>
+    );
+  return (
+    <View testID="screen-footer" style={styles.footer}>
+      {children}
+    </View>
   );
 }
 
@@ -677,7 +695,7 @@ const useStyles = themedStyles((c) => ({
   screen: { flex: 1, backgroundColor: c.canvas },
   keyboard: { flex: 1 },
   screenBody: { paddingHorizontal: 20, paddingTop: 16, gap: 16, maxWidth: 760, width: "100%", alignSelf: "center" },
-  // Material 3 headline small; the bar's 64dp row already sits above it, so it starts close under the bar.
+  // Material 3 headline small; the bar's 56dp row already sits above it, so it starts close under the bar.
   nativeTitle: { paddingHorizontal: 20, paddingTop: 4, maxWidth: 760, width: "100%", alignSelf: "center" },
   nativeTitleText: { fontFamily: fonts.bold, fontSize: 24, lineHeight: 32, letterSpacing: 0, color: c.forest },
   footer: {

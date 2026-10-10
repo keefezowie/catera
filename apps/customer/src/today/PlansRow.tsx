@@ -88,6 +88,7 @@ const useStyles = themedStyles((c) => ({
     backgroundColor: c.surface,
     overflow: "hidden",
   },
-  title: { fontSize: 15, lineHeight: 20, fontFamily: fonts.bold, color: c.charcoal },
+  // "8 paket aktif" is a count, so its digits are tabular.
+  title: { fontSize: 15, lineHeight: 20, fontFamily: fonts.bold, color: c.charcoal, fontVariant: ["tabular-nums"] },
   caterers: { fontSize: 12, lineHeight: 16 },
 }));

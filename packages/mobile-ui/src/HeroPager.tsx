@@ -68,6 +68,9 @@ export function HeroPager({
   const shown = useRef(0);
   const pages = Children.toArray(children);
   const last = Math.max(0, Math.min(count, pages.length) - 1);
+  // When the cards drop below the one in view (a plate finished, a plan ended), the last card is the one in view: the
+  // counter never reads "3 dari 2". The effect below then brings the state down with it.
+  const current = Math.min(index, last);
   // Until the pager has measured itself, the window stands in for its width (the body caps at 760 plus its padding).
   const width = frame || Math.min(windowWidth, 760 + bleed * 2);
   const page = Math.max(0, width - INSET);
@@ -85,6 +88,12 @@ export function HeroPager({
     // Only a change of card reports; a new callback for the same card (a re-render) does not.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index]);
+
+  useEffect(() => {
+    if (index <= last) return;
+    shown.current = last;
+    setIndex(last);
+  }, [index, last]);
 
   if (count < 2 || pages.length < 2) return <>{pages[0] ?? null}</>;
 
@@ -133,18 +142,18 @@ export function HeroPager({
       <View
         accessible
         accessibilityRole="adjustable"
-        accessibilityLabel={accessibilityLabelFor(index)}
-        accessibilityValue={{ text: (accessibilityValueFor ?? counterLabel)(index) }}
+        accessibilityLabel={accessibilityLabelFor(current)}
+        accessibilityValue={{ text: (accessibilityValueFor ?? counterLabel)(current) }}
         accessibilityActions={[{ name: "increment" }, { name: "decrement" }]}
-        onAccessibilityAction={(e) => move(index + (e.nativeEvent.actionName === "increment" ? 1 : -1))}
+        onAccessibilityAction={(e) => move(current + (e.nativeEvent.actionName === "increment" ? 1 : -1))}
         style={styles.indicator}
       >
         <View style={styles.dots} importantForAccessibility="no-hide-descendants" accessibilityElementsHidden>
           {pages.slice(0, last + 1).map((_, i) => (
-            <View key={i} testID={`hero-dot-${i}`} style={[styles.dot, i === index ? styles.dotActive : null]} />
+            <View key={i} testID={`hero-dot-${i}`} style={[styles.dot, i === current ? styles.dotActive : null]} />
           ))}
         </View>
-        <Text style={styles.counter}>{counterLabel(index)}</Text>
+        <Text style={styles.counter}>{counterLabel(current)}</Text>
       </View>
     </View>
   );

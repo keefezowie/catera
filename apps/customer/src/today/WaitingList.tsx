@@ -358,7 +358,8 @@ const useStyles = themedStyles((c) => ({
     justifyContent: "center",
     backgroundColor: c.sage,
   },
-  title: { fontSize: 15, lineHeight: 20, fontFamily: fonts.bold, color: c.charcoal },
+  // Titles carry counts ("sisa 3 hari", "Pilih menu 2 hari"), so their digits are tabular like the detail's.
+  title: { fontSize: 15, lineHeight: 20, fontFamily: fonts.bold, color: c.charcoal, fontVariant: ["tabular-nums"] },
   detail: { fontSize: 12, lineHeight: 16, fontVariant: ["tabular-nums"] },
   action: { fontSize: 13, lineHeight: 18, fontFamily: fonts.bold },
   star: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
