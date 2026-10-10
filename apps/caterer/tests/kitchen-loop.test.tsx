@@ -646,7 +646,10 @@ describe("Urutan antar", () => {
   });
 
   it("names the customer in English too", async () => {
-    const runtime = runtimeWith(async () => kitchenDay([scheduled]));
+    // One day for every read, as the server returns it: the stored locale arrives after the first read and reads the
+    // day again, and a fresh kitchenDay() per read numbers its rows anew, which would swap the stop rows under the query.
+    const day = kitchenDay([scheduled]);
+    const runtime = runtimeWith(async () => day);
     store().set(runtime.storageKey("locale"), "en");
     renderToday(runtime);
     expect(
