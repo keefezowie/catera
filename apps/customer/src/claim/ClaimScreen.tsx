@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Image, View } from "react-native";
+import { Image, View } from "react-native";
 import * as Crypto from "expo-crypto";
 import { useLocalSearchParams } from "expo-router";
 import { errorLabel, localCustomerPhone, phoneMatchesMask, shortDate, type ClaimPreview } from "@catera/domain";
@@ -9,6 +9,7 @@ import {
   Card,
   Field,
   fontFor,
+  MascotLoading,
   Screen,
   Text,
   themedStyles,
@@ -133,10 +134,8 @@ export function ClaimScreen() {
     return (
       <Screen nativeTitle={t("Membuka tautan", "Opening the link")}>
         <Header />
-        <View accessibilityLiveRegion="polite" style={{ flexDirection: "row", alignItems: "center", gap: 10, minHeight: 48 }}>
-          <ActivityIndicator color={palette.forest} />
-          <Text style={{ color: palette.muted }}>{t("Memuat…", "Loading…")}</Text>
-        </View>
+        {/* Nothing of the link can be shown until it is read, so the wait is the mascot with what it is doing. */}
+        <MascotLoading label={t("Membuka tautan…", "Opening the link…")} />
       </Screen>
     );
   const katering = preview.catererName;

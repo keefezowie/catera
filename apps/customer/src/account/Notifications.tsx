@@ -1,25 +1,24 @@
 import { useState } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { View } from "react-native";
 import { errorLabel, jakartaDay, type Locale, type Notice } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, fontFor, PressableRow, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
+import { Button, Card, FadeSwap, fontFor, PressableRow, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { customerLink } from "../links";
 import { longDay } from "../schedule/dates";
 import { jakartaClock } from "../today/Plate";
 import { usePush } from "./push";
 import { SignInFirst } from "./SignInFirst";
 import { openLink } from "../nav";
+import { ListSkeleton } from "../skeletons";
 
 /** Notifikasi: push on this phone (Aktif / Nonaktif) and the latest updates, each opening its screen. */
 export function NotificationsScreen() {
   const { actor, ready, t } = useMobile();
-  const c = useColors();
-  const styles = useStyles();
   if (!ready)
     return (
-      <View style={styles.center}>
-        <ActivityIndicator color={c.forest} />
-      </View>
+      <Screen>
+        <ListSkeleton rows={4} label={t("Memuat notifikasi", "Loading notifications")} />
+      </Screen>
     );
   if (!actor) return <SignInFirst title={t("Notifikasi", "Notifications")} next="/notifications" />;
   return <Updates key={actor.id} />;
@@ -97,51 +96,53 @@ function Updates() {
   return (
     <Screen>
       <PushCard />
-      {!customer.data ? (
-        customer.error ? (
-          <View style={{ gap: 8 }}>
-            <Text selectable style={{ color: c.danger }}>
-              {customer.error}
-            </Text>
-            <Button variant="secondary" label={t("Coba lagi", "Try again")} onPress={() => void customer.reload()} />
+      {/* The updates fade in from their skeleton as one block, under the push switch, which never waits. */}
+      <FadeSwap swapKey={customer.data ? "ready" : customer.error ? "error" : "loading"}>
+        {!customer.data ? (
+          customer.error ? (
+            <View style={{ gap: 8 }}>
+              <Text selectable style={{ color: c.danger }}>
+                {customer.error}
+              </Text>
+              <Button variant="secondary" label={t("Coba lagi", "Try again")} onPress={() => void customer.reload()} />
+            </View>
+          ) : (
+            <ListSkeleton rows={4} label={t("Memuat notifikasi", "Loading notifications")} />
+          )
+        ) : notes.length ? (
+          <View>
+            {notes.map((n, i) => (
+              <PressableRow
+                key={n.id}
+                accessibilityRole="button"
+                onPress={() => void open(n)}
+                style={[styles.row, i > 0 && styles.divider]}
+              >
+                <View style={[styles.dot, { backgroundColor: n.read_at ? "transparent" : c.forest }]} />
+                <View style={{ flex: 1, gap: 2 }}>
+                  {!n.read_at ? <Text variant="label">{t("Baru", "New")}</Text> : null}
+                  <Text>{n.body}</Text>
+                  <Text variant="caption" style={{ fontVariant: ["tabular-nums"] }}>
+                    {`${longDay(jakartaDay(new Date(n.created_at)), locale)} · ${jakartaClock(n.created_at)}`}
+                  </Text>
+                </View>
+              </PressableRow>
+            ))}
           </View>
         ) : (
-          <ActivityIndicator color={c.forest} />
-        )
-      ) : notes.length ? (
-        <View>
-          {notes.map((n, i) => (
-            <PressableRow
-              key={n.id}
-              accessibilityRole="button"
-              onPress={() => void open(n)}
-              style={[styles.row, i > 0 && styles.divider]}
-            >
-              <View style={[styles.dot, { backgroundColor: n.read_at ? "transparent" : c.forest }]} />
-              <View style={{ flex: 1, gap: 2 }}>
-                {!n.read_at ? <Text variant="label">{t("Baru", "New")}</Text> : null}
-                <Text>{n.body}</Text>
-                <Text variant="caption" style={{ fontVariant: ["tabular-nums"] }}>
-                  {`${longDay(jakartaDay(new Date(n.created_at)), locale)} · ${jakartaClock(n.created_at)}`}
-                </Text>
-              </View>
-            </PressableRow>
-          ))}
-        </View>
-      ) : (
-        <View style={{ gap: 6 }}>
-          <Text variant="heading">{t("Belum ada kabar baru.", "No new updates yet.")}</Text>
-          <Text style={{ color: c.muted }}>
-            {t("Kabar makanan dan bantuan akan hadir di sini.", "Meal and support updates will appear here.")}
-          </Text>
-        </View>
-      )}
+          <View style={{ gap: 6 }}>
+            <Text variant="heading">{t("Belum ada kabar baru.", "No new updates yet.")}</Text>
+            <Text style={{ color: c.muted }}>
+              {t("Kabar makanan dan bantuan akan hadir di sini.", "Meal and support updates will appear here.")}
+            </Text>
+          </View>
+        )}
+      </FadeSwap>
     </Screen>
   );
 }
 
 const useStyles = themedStyles((c) => ({
-  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: c.canvas },
   row: { minHeight: 52, flexDirection: "row", gap: 10, paddingVertical: 12 },
   divider: { borderTopWidth: 1, borderTopColor: c.line },
   dot: { width: 8, height: 8, borderRadius: 4, marginTop: 7 },

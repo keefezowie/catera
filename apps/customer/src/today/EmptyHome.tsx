@@ -3,10 +3,11 @@ import { Image, View } from "react-native";
 import { router } from "expo-router";
 import { currency, perMealPrice, priceUnitLabel, type Offer } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, MoodHeader, PressableRow, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
+import { Button, FadeSwap, MoodHeader, PressableRow, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { photoUri } from "./Plate";
 import { packageHref } from "../hrefs";
 import { goToTab } from "../nav";
+import { OffersSkeleton } from "../skeletons";
 
 /**
  * Beranda without an active package: food first, then how caterer links work.
@@ -29,23 +30,24 @@ export function EmptyHome({ lead }: { lead?: ReactNode } = {}) {
           )}
         </Text>
       </View>
-      {catalog.loading && !catalog.data ? (
-        <Text style={{ color: c.muted }}>{t("Memuat paket…", "Loading packages…")}</Text>
-      ) : null}
-      {catalog.error && !catalog.data ? (
-        <View style={{ gap: 4 }}>
-          <Text selectable style={{ color: c.danger }}>
-            {catalog.error}
-          </Text>
-          <Button variant="text" label={t("Coba lagi", "Try again")} onPress={() => void catalog.reload()} />
-        </View>
-      ) : null}
-      {catalog.data && !offers.length ? (
-        <Text style={{ color: c.muted }}>{t("Belum ada paket.", "No packages yet.")}</Text>
-      ) : null}
-      {offers.map((o) => (
-        <OfferCard key={o.id} offer={o} />
-      ))}
+      {/* The three packages fade in from their skeleton as one block. */}
+      <FadeSwap swapKey={catalog.data ? "ready" : catalog.loading ? "loading" : "error"} style={{ gap: 16 }}>
+        {catalog.loading && !catalog.data ? <OffersSkeleton /> : null}
+        {catalog.error && !catalog.data ? (
+          <View style={{ gap: 4 }}>
+            <Text selectable style={{ color: c.danger }}>
+              {catalog.error}
+            </Text>
+            <Button variant="text" label={t("Coba lagi", "Try again")} onPress={() => void catalog.reload()} />
+          </View>
+        ) : null}
+        {catalog.data && !offers.length ? (
+          <Text style={{ color: c.muted }}>{t("Belum ada paket.", "No packages yet.")}</Text>
+        ) : null}
+        {offers.map((o) => (
+          <OfferCard key={o.id} offer={o} />
+        ))}
+      </FadeSwap>
       <Button label={t("Jelajah paket", "Browse packages")} onPress={() => goToTab("jelajah")} />
       <Text variant="caption">
         {t(

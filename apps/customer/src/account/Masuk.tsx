@@ -4,7 +4,7 @@ import * as Crypto from "expo-crypto";
 import { router, useLocalSearchParams } from "expo-router";
 import { errorLabel, type Actor } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { Button, Field, Screen, Text, useColors } from "@catera/mobile-ui";
+import { Button, Field, MascotLoading, Screen, Text, useColors } from "@catera/mobile-ui";
 import { nativeReturnPath } from "../auth";
 import { leaveFor } from "../nav";
 
@@ -29,6 +29,8 @@ export function Masuk() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  // The SMS code is with the server: nothing on the form can change the answer, so the page waits as the mascot.
+  const [checking, setChecking] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => setError(""), [withEmail]);
@@ -54,6 +56,14 @@ export function Masuk() {
     await signedIn(actor);
     leaveFor(next);
   };
+
+  // The typed number and code stay in this screen, so a code that does not match comes back to them with its message.
+  if (checking)
+    return (
+      <Screen>
+        <MascotLoading label={t("Memeriksa kode…", "Checking the code…")} />
+      </Screen>
+    );
 
   return (
     <Screen>
@@ -95,10 +105,16 @@ export function Masuk() {
                 if (!sent) {
                   await runtime.sendPhoneOtp(e164Indonesia(phone));
                   setSent(true);
-                } else
-                  await finish(
-                    await runtime.verifyPhoneOtp(e164Indonesia(phone), code.trim(), "Pelanggan", Crypto.randomUUID()),
-                  );
+                } else {
+                  setChecking(true);
+                  try {
+                    await finish(
+                      await runtime.verifyPhoneOtp(e164Indonesia(phone), code.trim(), "Pelanggan", Crypto.randomUUID()),
+                    );
+                  } finally {
+                    setChecking(false);
+                  }
+                }
               })
             }
           />

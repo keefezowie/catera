@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ActivityIndicator, Text as RNText, View } from "react-native";
+import { Text as RNText, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import {
   addDays,
@@ -17,6 +17,7 @@ import { useData, useMobile } from "@catera/mobile-core";
 import {
   Button,
   Card,
+  FadeSwap,
   Field,
   fontFor,
   PressableScale,
@@ -27,6 +28,7 @@ import {
   useColors,
 } from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
+import { ListSkeleton } from "../skeletons";
 
 /** Plain status words shared by reports and support cases. */
 export function statusWord(status: string, t: (id: string, en: string) => string): string {
@@ -45,13 +47,11 @@ export function statusWord(status: string, t: (id: string, en: string) => string
 /** Bantuan dan laporan: payment help, the customer's reports and their support cases. */
 export function ReportList() {
   const { actor, ready, t } = useMobile();
-  const c = useColors();
-  const styles = useStyles();
   if (!ready)
     return (
-      <View style={styles.center}>
-        <ActivityIndicator color={c.forest} />
-      </View>
+      <Screen>
+        <ListSkeleton rows={3} label={t("Memuat laporan", "Loading reports")} />
+      </Screen>
     );
   if (!actor) return <SignInFirst title={t("Bantuan dan laporan", "Help and reports")} next="/bantuan" />;
   return <List key={actor.id} />;
@@ -65,7 +65,6 @@ function List() {
   const { runtime, t } = useMobile();
   // The case filter below names its argument `c`, so the palette keeps a longer name here.
   const palette = useColors();
-  const styles = useStyles();
   const params = useLocalSearchParams<{ checkoutId?: string }>();
   const issues = useData("help:issues", () => runtime.api.request<DeliveryIssue[]>("delivery-issues"));
   const customer = useData("help:customer", () => runtime.api.customer());
@@ -89,9 +88,11 @@ function List() {
     );
   if (!issues.data || !customer.data)
     return (
-      <View style={styles.center}>
-        <ActivityIndicator color={palette.forest} />
-      </View>
+      <Screen>
+        <FadeSwap swapKey="loading">
+          <ListSkeleton rows={3} label={t("Memuat laporan", "Loading reports")} />
+        </FadeSwap>
+      </Screen>
     );
 
   const reports = [...issues.data].sort((a, b) => Number(a.status === "resolved") - Number(b.status === "resolved"));
@@ -121,39 +122,42 @@ function List() {
 
   return (
     <Screen>
-      {payments.map((p) => (
-        <Card key={p.id} tone="attention">
-          <Text variant="heading">{t("Pembayaran belum selesai", "Payment not finished")}</Text>
-          {p.detail ? <Text variant="caption">{p.detail}</Text> : null}
-          <Button
-            label={t("Buka pembayaran", "Open payment")}
-            onPress={() => router.push(`/payment/${encodeURIComponent(p.id)}` as never)}
-          />
-        </Card>
-      ))}
-      {customer.data.subscriptions.length ? <AskForHelp subscriptions={customer.data.subscriptions} /> : null}
-      {reports.map((r) => (
-        <ReportCard key={r.id} issue={r} />
-      ))}
-      {cases.map((c) => (
-        <CaseCard key={c.id} item={c} refunds={refunds.filter((x) => x.case_id === c.id)} />
-      ))}
-      {!reports.length && !cases.length && !payments.length ? (
-        <View style={{ gap: 4, paddingTop: 8 }}>
-          <Text variant="heading">{t("Belum ada laporan.", "No reports yet.")}</Text>
-          <Text style={{ color: palette.muted }}>
-            {t(
-              "Kalau ada masalah dengan makanan, laporkan dari hari yang bersangkutan di Jadwal.",
-              "If something is wrong with a meal, report it from that day in Jadwal.",
-            )}
+      {/* The reports fade in from their skeleton as one block. */}
+      <FadeSwap swapKey="ready" style={{ gap: 16 }}>
+        {payments.map((p) => (
+          <Card key={p.id} tone="attention">
+            <Text variant="heading">{t("Pembayaran belum selesai", "Payment not finished")}</Text>
+            {p.detail ? <Text variant="caption">{p.detail}</Text> : null}
+            <Button
+              label={t("Buka pembayaran", "Open payment")}
+              onPress={() => router.push(`/payment/${encodeURIComponent(p.id)}` as never)}
+            />
+          </Card>
+        ))}
+        {customer.data.subscriptions.length ? <AskForHelp subscriptions={customer.data.subscriptions} /> : null}
+        {reports.map((r) => (
+          <ReportCard key={r.id} issue={r} />
+        ))}
+        {cases.map((c) => (
+          <CaseCard key={c.id} item={c} refunds={refunds.filter((x) => x.case_id === c.id)} />
+        ))}
+        {!reports.length && !cases.length && !payments.length ? (
+          <View style={{ gap: 4, paddingTop: 8 }}>
+            <Text variant="heading">{t("Belum ada laporan.", "No reports yet.")}</Text>
+            <Text style={{ color: palette.muted }}>
+              {t(
+                "Kalau ada masalah dengan makanan, laporkan dari hari yang bersangkutan di Jadwal.",
+                "If something is wrong with a meal, report it from that day in Jadwal.",
+              )}
+            </Text>
+          </View>
+        ) : null}
+        {issues.error || customer.error ? (
+          <Text selectable variant="caption" style={{ color: palette.danger }}>
+            {issues.error || customer.error}
           </Text>
-        </View>
-      ) : null}
-      {issues.error || customer.error ? (
-        <Text selectable variant="caption" style={{ color: palette.danger }}>
-          {issues.error || customer.error}
-        </Text>
-      ) : null}
+        ) : null}
+      </FadeSwap>
     </Screen>
   );
 }
@@ -416,7 +420,6 @@ function CaseCard({
 }
 
 const useStyles = themedStyles((c) => ({
-  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: c.canvas },
   head: { flexDirection: "row", alignItems: "center", gap: 8 },
   pill: { minHeight: 28, paddingHorizontal: 10, borderRadius: 14, justifyContent: "center" },
   pillOpen: { backgroundColor: c.cream },

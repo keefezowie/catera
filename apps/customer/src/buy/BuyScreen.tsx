@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { View } from "react-native";
 import { router } from "expo-router";
 import {
   currency,
@@ -23,6 +23,7 @@ import { Breakdown, LengthOptions, percent, StartLine } from "./Breakdown";
 import { ChoiceSheet, NoLongerSold, PayWith, PendingPayment, Retry, Terms } from "./BuyParts";
 import { useQuote, type BuyPayload } from "./useQuote";
 import { FLOW_HREF } from "../nav";
+import { BreakdownSkeleton, BuySkeleton } from "../skeletons";
 
 /** Choices a link may carry (old /checkout links, Paket); anything invalid falls back to defaults. */
 export type BuyInitial = { portions?: string; cycles?: string; startDate?: string; addressId?: string };
@@ -189,7 +190,7 @@ export function BuyScreen({
         ) : loaded.data && !loaded.data.offer ? (
           <Text variant="heading">{t("Paket tidak ditemukan.", "Package not found.")}</Text>
         ) : (
-          <ActivityIndicator color={c.forest} />
+          <BuySkeleton />
         )}
       </Screen>
     );
@@ -283,7 +284,7 @@ export function BuyScreen({
       ) : null}
 
       {shown ? <Breakdown quote={shown} dimmed={quote.pending} locale={locale} t={t} /> : null}
-      {!shown && quote.pending ? <ActivityIndicator color={c.forest} /> : null}
+      {!shown && quote.pending ? <BreakdownSkeleton /> : null}
       {quote.error ? (
         running ? (
           <View style={{ gap: 8 }}>

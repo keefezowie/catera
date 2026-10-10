@@ -1,4 +1,4 @@
-import { act, render, screen, within } from "@testing-library/react-native";
+import { act, render, screen, waitFor, within } from "@testing-library/react-native";
 import { ActivityIndicator, StyleSheet } from "react-native";
 import { Image } from "expo-image";
 import * as Reanimated from "react-native-reanimated";
@@ -36,6 +36,7 @@ jest.mock("expo-crypto", () => ({ randomUUID: () => require("node:crypto").rando
 jest.mock("../src/today/offline", () => ({
   saveCachedCustomer: jest.fn(async () => undefined),
   loadCachedCustomer: jest.fn(async () => null),
+  forgetCachedCustomer: jest.fn(async () => undefined),
 }));
 
 // The jest environment reports a font scale of 2; these checks are for a 360dp phone at the default text size.
@@ -195,12 +196,14 @@ function frameHeight(frame: ReturnType<typeof screen.getByTestId>) {
 describe("Jadwal", () => {
   it("Jadwal keeps the month grid's height while it loads", async () => {
     let resolve: (state: CustomerState) => void = () => {};
-    renderWith(runtimeWith(() => new Promise<CustomerState>((r) => (resolve = r))), <Jadwal />);
-    const header = await screen.findByTestId("jadwal-header");
+    const runtime = runtimeWith(() => new Promise<CustomerState>((r) => (resolve = r)));
+    renderWith(runtime, <Jadwal />);
+    await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
+    const header = screen.getByTestId("jadwal-header");
     const frame = within(header).getByTestId("month-frame");
-    // "Memuat…" sits inside the frame, over its empty weeks, with no day drawn.
-    expect(within(frame).getByText("Memuat…")).toBeTruthy();
-    expect(within(frame).UNSAFE_getByType(ActivityIndicator)).toBeTruthy();
+    // Skeleton cells sit inside the frame's weeks, one per day of the month, with no day drawn.
+    expect(within(frame).getAllByTestId("jadwal-skeleton-cell")).toHaveLength(31);
+    expect(within(frame).UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
     expect(screen.queryByRole("button", { name: /^Rabu 7 Oktober/ })).toBeNull();
     const loading = frameHeight(frame);
     // The legend explains the cells and says nothing about this month, so it holds its place below the frame too.
@@ -209,7 +212,7 @@ describe("Jadwal", () => {
     await act(async () => resolve(october));
     const grid = await within(screen.getByTestId("jadwal-header")).findByTestId("month-grid");
     expect(screen.queryByTestId("month-frame")).toBeNull();
-    expect(screen.queryByText("Memuat…")).toBeNull();
+    expect(screen.queryByTestId("jadwal-skeleton-cell")).toBeNull();
     const loaded = frameHeight(grid);
 
     // Six week rows in both, fixed at the cell height: 28 + 2 + 6 x 52 + 5 x 2.

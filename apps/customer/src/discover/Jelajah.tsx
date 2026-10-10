@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, ScrollView, TextInput, View } from "react-native";
+import { ScrollView, TextInput, View } from "react-native";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -7,6 +7,7 @@ import { areaOptions, menuSummary, perMealPrice, type Offer } from "@catera/doma
 import { useData, useMobile } from "@catera/mobile-core";
 import {
   Button,
+  FadeSwap,
   FONT,
   fonts,
   MoodHeader,
@@ -15,6 +16,7 @@ import {
   PressableScale,
   Screen,
   Sheet,
+  Skeleton,
   Text,
   themedStyles,
   useColors,
@@ -28,6 +30,7 @@ import { type CatalogOffer } from "./format";
 import { useSaved } from "./saved";
 import { photoUri } from "../today/Plate";
 import { packageHref } from "../hrefs";
+import { JelajahSkeleton } from "../skeletons";
 
 const AREA_KEY = "catera.area";
 const BUDGET = 30000;
@@ -89,8 +92,7 @@ function MealButton({
 
 /** Jelajah: choose an area, pick a meal and a category, narrow with two chips, then browse packages as photo rows. */
 export function Jelajah() {
-  const c = useColors();
-  const { t } = useMobile();
+  // null while the area kept on this phone is read; the page is already up, with its list as a skeleton.
   const [area, setArea] = useState<string | null>(null);
   useEffect(() => {
     // The legacy provider reads the same key, so the choice carries over both ways.
@@ -98,21 +100,6 @@ export function Jelajah() {
       .then((value) => setArea(value || ""))
       .catch(() => setArea(""));
   }, []);
-  if (area === null)
-    return (
-      <Screen
-        scroll={false}
-        header={
-          <MoodHeader
-            testID="jelajah-header"
-            meta={t("Memuat…", "Loading…")}
-            title={<JelajahTitle />}
-          />
-        }
-      >
-        <ActivityIndicator color={c.forest} />
-      </Screen>
-    );
   return (
     <Browse
       area={area}
@@ -124,7 +111,7 @@ export function Jelajah() {
   );
 }
 
-function Browse({ area, onArea }: { area: string; onArea: (value: string) => void }) {
+function Browse({ area, onArea }: { area: string | null; onArea: (value: string) => void }) {
   const { runtime, t, locale } = useMobile();
   const c = useColors();
   const palette = useMoodColors();
@@ -142,7 +129,12 @@ function Browse({ area, onArea }: { area: string; onArea: (value: string) => voi
   // The area goes to the server too, but the list is narrowed here by each package's own areas.
   // Chips and search filter what it returned, so toggling one never refetches or blanks the list.
   const query = new URLSearchParams({ limit: "100", ...(area ? { area } : {}) }).toString();
-  const catalog = useData<{ items: Offer[] }>(`jelajah:${query}`, () => runtime.api.catalog("?" + query));
+  // The catalog is read once the area is known, so the first read is already for it.
+  const catalog = useData<{ items: Offer[] } | null>(area === null ? "jelajah:area" : `jelajah:${query}`, () =>
+    area === null ? Promise.resolve(null) : runtime.api.catalog("?" + query),
+  );
+  // One wait from the first frame to the first list: the area read, then the catalog read, under one skeleton.
+  const waiting = area === null || (catalog.loading && !catalog.data);
 
   const needle = search.trim().toLowerCase();
   const all = catalog.data?.items;
@@ -191,14 +183,19 @@ function Browse({ area, onArea }: { area: string; onArea: (value: string) => voi
             <PressableRow
               accessibilityRole="button"
               accessibilityLabel={t("Pilih area pengantaran", "Choose delivery area")}
-              accessibilityValue={{ text: area || t("Belum dipilih", "Not chosen") }}
+              accessibilityValue={area === null ? undefined : { text: area || t("Belum dipilih", "Not chosen") }}
               onPress={() => setPicking(true)}
               style={{ minHeight: 48, flexDirection: "row", alignItems: "center", gap: 6 }}
             >
               <Ionicons name="location-outline" size={18} color={palette.headerMeta} />
-              <Text variant="label" style={{ flexShrink: 1, fontSize: 15, color: palette.headerMeta }} numberOfLines={1}>
-                {area || t("Pilih area", "Choose area")}
-              </Text>
+              {area === null ? (
+                // The kept area is still being read (a moment): its place holds still rather than saying "Pilih area".
+                <Skeleton testID="jelajah-area-skeleton" onMood width={96} height={16} />
+              ) : (
+                <Text variant="label" style={{ flexShrink: 1, fontSize: 15, color: palette.headerMeta }} numberOfLines={1}>
+                  {area || t("Pilih area", "Choose area")}
+                </Text>
+              )}
               <Ionicons name="chevron-down" size={16} color={palette.headerMeta} />
             </PressableRow>
           }
@@ -252,88 +249,96 @@ function Browse({ area, onArea }: { area: string; onArea: (value: string) => voi
         </MoodHeader>
       }
     >
-      {tags.length ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.circles}>
-          {tags.map(({ tag: name, image }) => (
-            <PhotoRing
-              key={name}
-              uri={photoUri(image, runtime.apiBase)}
-              size={66}
-              ring={name === activeTag ? "sunrise" : "none"}
-              label={name}
-              selected={name === activeTag}
-              onPress={() => setTag(name === activeTag ? "" : name)}
-              accessibilityLabel={t(`Kategori ${name}`, `Category ${name}`)}
-            />
-          ))}
-        </ScrollView>
-      ) : null}
+      {/* The circles, the chips and the list arrive together from one skeleton, as one block. The chips filter what
+          the read returned, so before it there is nothing for them to narrow. */}
+      <FadeSwap swapKey={waiting ? "loading" : "ready"} style={{ gap: 16 }}>
+        {waiting ? (
+          <JelajahSkeleton />
+        ) : (
+          <>
+            {tags.length ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.circles}>
+                {tags.map(({ tag: name, image }) => (
+                  <PhotoRing
+                    key={name}
+                    uri={photoUri(image, runtime.apiBase)}
+                    size={66}
+                    ring={name === activeTag ? "sunrise" : "none"}
+                    label={name}
+                    selected={name === activeTag}
+                    onPress={() => setTag(name === activeTag ? "" : name)}
+                    accessibilityLabel={t(`Kategori ${name}`, `Category ${name}`)}
+                  />
+                ))}
+              </ScrollView>
+            ) : null}
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-        <FilterChip label={t("Di bawah Rp30.000", "Under Rp30,000")} selected={budget} onPress={() => setBudget(!budget)} />
-        <FilterChip label={t("Bisa coba 1 hari", "One-day trial")} selected={trial} onPress={() => setTrial(!trial)} />
-      </ScrollView>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+              <FilterChip label={t("Di bawah Rp30.000", "Under Rp30,000")} selected={budget} onPress={() => setBudget(!budget)} />
+              <FilterChip label={t("Bisa coba 1 hari", "One-day trial")} selected={trial} onPress={() => setTrial(!trial)} />
+            </ScrollView>
 
-      {saved.error ? (
-        <Text selectable style={{ color: c.danger }}>
-          {saved.error}
-        </Text>
-      ) : null}
+            {saved.error ? (
+              <Text selectable style={{ color: c.danger }}>
+                {saved.error}
+              </Text>
+            ) : null}
 
-      {catalog.loading && !catalog.data ? (
-        <ActivityIndicator color={c.forest} />
-      ) : catalog.error && !catalog.data ? (
-        <View style={{ gap: 10 }}>
-          <Text selectable style={{ color: c.danger }}>
-            {catalog.error}
-          </Text>
-          <Button variant="secondary" label={t("Coba lagi", "Try again")} onPress={() => void catalog.reload()} />
-        </View>
-      ) : area && inArea.length === 0 ? (
-        <View style={{ gap: 10 }}>
-          <Text variant="heading">
-            {t(`Belum ada katering yang antar ke ${area}.`, `No caterer delivers to ${area} yet.`)}
-          </Text>
-          <Button variant="secondary" label={t("Lihat semua area", "See all areas")} onPress={() => onArea("")} />
-        </View>
-      ) : inArea.length === 0 ? (
-        // Nothing is on offer at all (no area is chosen here), so there is no other meal to send the person to.
-        <Text variant="heading">{t("Belum ada paket.", "No packages yet.")}</Text>
-      ) : items.length === 0 && !filtered ? (
-        // Only the meal is narrowing and the area has packages, so the other meal has some: say which meal is empty
-        // and offer the other one.
-        <View style={{ gap: 10 }}>
-          <Text variant="heading">
-            {area
-              ? t(`Belum ada paket makan ${mealWord} di ${area}.`, `No ${mealWordEn} packages in ${area} yet.`)
-              : t(`Belum ada paket makan ${mealWord}.`, `No ${mealWordEn} packages yet.`)}
-          </Text>
-          <Button
-            variant="secondary"
-            label={mood === "siang" ? t("Lihat makan malam", "See dinner") : t("Lihat makan siang", "See lunch")}
-            onPress={() => setMood(mood === "siang" ? "malam" : "siang")}
-          />
-        </View>
-      ) : items.length === 0 ? (
-        <View style={{ gap: 10 }}>
-          <Text variant="heading">{t("Belum ada paket yang cocok.", "No matching packages yet.")}</Text>
-          <Text style={{ color: c.muted }}>
-            {t("Coba kata kunci atau pilihan lain.", "Try another keyword or choice.")}
-          </Text>
-          {filtered ? <Button variant="secondary" label={t("Hapus pilihan", "Clear choices")} onPress={clear} /> : null}
-        </View>
-      ) : (
-        items.map((o) => (
-          <PackageCard
-            key={o.id}
-            layout="row"
-            offer={o}
-            saved={saved.isSaved(o.id)}
-            onOpen={() => router.push(packageHref(o.id, o.name) as never)}
-            onToggleSaved={() => void saved.toggle(o.id)}
-          />
-        ))
-      )}
+            {catalog.error && !catalog.data ? (
+              <View style={{ gap: 10 }}>
+                <Text selectable style={{ color: c.danger }}>
+                  {catalog.error}
+                </Text>
+                <Button variant="secondary" label={t("Coba lagi", "Try again")} onPress={() => void catalog.reload()} />
+              </View>
+            ) : area && inArea.length === 0 ? (
+              <View style={{ gap: 10 }}>
+                <Text variant="heading">
+                  {t(`Belum ada katering yang antar ke ${area}.`, `No caterer delivers to ${area} yet.`)}
+                </Text>
+                <Button variant="secondary" label={t("Lihat semua area", "See all areas")} onPress={() => onArea("")} />
+              </View>
+            ) : inArea.length === 0 ? (
+              // Nothing is on offer at all (no area is chosen here), so there is no other meal to send the person to.
+              <Text variant="heading">{t("Belum ada paket.", "No packages yet.")}</Text>
+            ) : items.length === 0 && !filtered ? (
+              // Only the meal is narrowing and the area has packages, so the other meal has some: say which meal is empty
+              // and offer the other one.
+              <View style={{ gap: 10 }}>
+                <Text variant="heading">
+                  {area
+                    ? t(`Belum ada paket makan ${mealWord} di ${area}.`, `No ${mealWordEn} packages in ${area} yet.`)
+                    : t(`Belum ada paket makan ${mealWord}.`, `No ${mealWordEn} packages yet.`)}
+                </Text>
+                <Button
+                  variant="secondary"
+                  label={mood === "siang" ? t("Lihat makan malam", "See dinner") : t("Lihat makan siang", "See lunch")}
+                  onPress={() => setMood(mood === "siang" ? "malam" : "siang")}
+                />
+              </View>
+            ) : items.length === 0 ? (
+              <View style={{ gap: 10 }}>
+                <Text variant="heading">{t("Belum ada paket yang cocok.", "No matching packages yet.")}</Text>
+                <Text style={{ color: c.muted }}>
+                  {t("Coba kata kunci atau pilihan lain.", "Try another keyword or choice.")}
+                </Text>
+                {filtered ? <Button variant="secondary" label={t("Hapus pilihan", "Clear choices")} onPress={clear} /> : null}
+              </View>
+            ) : (
+              items.map((o) => (
+                <PackageCard
+                  key={o.id}
+                  layout="row"
+                  offer={o}
+                  saved={saved.isSaved(o.id)}
+                  onOpen={() => router.push(packageHref(o.id, o.name) as never)}
+                  onToggleSaved={() => void saved.toggle(o.id)}
+                />
+              ))
+            )}
+          </>
+        )}
+      </FadeSwap>
 
       <Sheet
         visible={picking}

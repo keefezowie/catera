@@ -61,6 +61,7 @@ beforeEach(() => {
 jest.mock("../src/today/offline", () => ({
   saveCachedCustomer: jest.fn(async () => undefined),
   loadCachedCustomer: jest.fn(async () => null),
+  forgetCachedCustomer: jest.fn(async () => undefined),
 }));
 
 describe("EmptyHome mood header", () => {

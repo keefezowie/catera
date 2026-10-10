@@ -1,6 +1,5 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Animated,
   Image,
   StyleSheet,
@@ -41,6 +40,7 @@ import { dayRange, ratingText } from "./format";
 import { NutritionCard, nutritionLine } from "./NutritionCard";
 import { useSaved } from "./saved";
 import { goToTab } from "../nav";
+import { PackageSkeleton } from "../skeletons";
 
 type Review = { id: string; customer: string; rating: number; body: string };
 
@@ -155,7 +155,7 @@ export function PackageDetail() {
       // name was never checked against a record.
       <Screen nativeTitle={loading ? (linkTitle(params) ?? t("Paket", "Package")) : t("Paket", "Package")}>
         {loading ? (
-          <ActivityIndicator color={c.forest} />
+          <PackageSkeleton />
         ) : (
           <View style={{ gap: 10 }}>
             <Text variant="heading" selectable={!!loaded.error} style={{ color: loaded.error ? c.danger : c.forest }}>

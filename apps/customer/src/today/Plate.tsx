@@ -181,12 +181,15 @@ export function heroSentences(
 
 const HERO_RADIUS = 28;
 
-/** The hero rides 58 over the header, plus the body's 16 top padding. */
+/**
+ * The hero rides 58 over the header, plus the body's 16 top padding. Beranda lifts its whole data area by this much
+ * (and its skeleton by the same), so the hero never sits outside its parent's bounds.
+ */
 export const HERO_OVERLAP = -74;
 
 /**
  * Today's plate: the photo with one status sentence, the dishes and one action. As the `hero` it is the Beranda's
- * raised card: a `MoodFill` (Siang, and Malam fading over it) riding up over the header. The frame stays mounted when
+ * raised card: a `MoodFill` (Siang, and Malam fading over it) that Beranda places over the header. The frame stays mounted when
  * the mood switches, so the fills cross-fade; only its content is keyed to the plate. The shadow sits on the base fill
  * and switches with the mood. A `card` plate has no mood of its own and reads the theme.
  */
@@ -225,7 +228,6 @@ export function Plate({
       // Not clipped: the shadow of each fill falls outside the frame.
       style={{
         padding: 10,
-        marginTop: paged ? 0 : HERO_OVERLAP,
         ...(paged ? { flexGrow: 1 } : null),
         borderRadius: HERO_RADIUS,
         borderCurve: "continuous",

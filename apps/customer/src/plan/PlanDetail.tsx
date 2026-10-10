@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useLocalSearchParams } from "expo-router";
 import {
@@ -14,6 +14,7 @@ import {
 import { useData, useMobile, useTrack, type MobileRuntime } from "@catera/mobile-core";
 import {
   Button,
+  FadeSwap,
   HeaderIconButton,
   linkTitle,
   MoodFill,
@@ -35,6 +36,7 @@ import { loadCachedCustomer } from "../today/offline";
 import { jakartaClock, photoUri } from "../today/Plate";
 import { dayHref } from "../hrefs";
 import { goToTab } from "../nav";
+import { PlanSkeleton } from "../skeletons";
 
 type LoadedPlan = { data: CustomerState; savedAt: string | null };
 
@@ -62,14 +64,13 @@ export function PlanDetailScreen() {
   const params = useLocalSearchParams<{ id: string; title?: string }>();
   const { id } = params;
   const { actor, ready, t } = useMobile();
-  const c = useColors();
   const carried = linkTitle(params);
   const generic = t("Paket", "Plan");
   if (!ready)
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: c.canvas }}>
-        <ActivityIndicator color={c.forest} />
-      </View>
+      <Screen nativeTitle={carried ?? generic}>
+        <PlanSkeleton />
+      </Screen>
     );
   const planId = String(id ?? "");
   if (!actor)
@@ -128,29 +129,32 @@ function Plan({ id, actorId, carried, generic }: { id: string; actorId: string; 
     const loading = !state && read.loading;
     return (
       <Screen nativeTitle={loading ? (carried ?? generic) : generic}>
-        {loading ? (
-          <Text style={{ color: c.muted }}>{t("Memuat paket…", "Loading plan…")}</Text>
-        ) : !state ? (
-          <View style={{ gap: 8, alignItems: "flex-start" }}>
-            <Text variant="heading" accessibilityRole="text" selectable style={{ color: c.danger }}>
-              {t("Belum bisa memuat", "Couldn't load yet")}
-            </Text>
-            {read.error ? (
-              <Text selectable style={{ color: c.danger }}>
-                {read.error}
+        {/* The plan fades in from its skeleton as one block (the same FadeSwap as the loaded page below). */}
+        <FadeSwap swapKey={loading ? "loading" : "missing"} style={{ gap: 16 }}>
+          {loading ? (
+            <PlanSkeleton />
+          ) : !state ? (
+            <View style={{ gap: 8, alignItems: "flex-start" }}>
+              <Text variant="heading" accessibilityRole="text" selectable style={{ color: c.danger }}>
+                {t("Belum bisa memuat", "Couldn't load yet")}
               </Text>
-            ) : null}
-            <Button variant="secondary" label={t("Coba lagi", "Try again")} onPress={() => void read.reload()} />
-          </View>
-        ) : (
-          // The read came back without this plan (another account's, or gone from a stale link), or in a status this screen cannot name.
-          <View style={{ gap: 8, alignItems: "flex-start" }}>
-            <Text variant="heading" accessibilityRole="text">
-              {t("Paket tidak ditemukan.", "Plan not found.")}
-            </Text>
-            <Button variant="secondary" label={t("Ke Beranda", "Go to Beranda")} onPress={() => goToTab("index")} />
-          </View>
-        )}
+              {read.error ? (
+                <Text selectable style={{ color: c.danger }}>
+                  {read.error}
+                </Text>
+              ) : null}
+              <Button variant="secondary" label={t("Coba lagi", "Try again")} onPress={() => void read.reload()} />
+            </View>
+          ) : (
+            // The read came back without this plan (another account's, or gone from a stale link), or in a status this screen cannot name.
+            <View style={{ gap: 8, alignItems: "flex-start" }}>
+              <Text variant="heading" accessibilityRole="text">
+                {t("Paket tidak ditemukan.", "Plan not found.")}
+              </Text>
+              <Button variant="secondary" label={t("Ke Beranda", "Go to Beranda")} onPress={() => goToTab("index")} />
+            </View>
+          )}
+        </FadeSwap>
       </Screen>
     );
   }
@@ -177,18 +181,20 @@ function Plan({ id, actorId, carried, generic }: { id: string; actorId: string; 
 
   return (
     <Screen nativeTitle={plan.offer.name} footer={footer}>
-      {plan.offer.caterer ? (
-        <Text testID="plan-caterer" selectable style={{ color: c.muted, marginTop: -8 }}>
-          {plan.offer.caterer}
-        </Text>
-      ) : null}
-      <Hero plan={plan} apiBase={runtime.apiBase} />
-      {offline ? (
-        <Text variant="caption" style={[{ color: c.sunriseInk }, tabular]}>
-          {t("Terakhir diperbarui", "Last updated")} {jakartaClock(savedAt)} · {t("tidak ada koneksi", "no connection")}
-        </Text>
-      ) : null}
-      {cancelled ? null : <Upcoming rows={plan.upcoming} apiBase={runtime.apiBase} />}
+      <FadeSwap swapKey="ready" style={{ gap: 16 }}>
+        {plan.offer.caterer ? (
+          <Text testID="plan-caterer" selectable style={{ color: c.muted, marginTop: -8 }}>
+            {plan.offer.caterer}
+          </Text>
+        ) : null}
+        <Hero plan={plan} apiBase={runtime.apiBase} />
+        {offline ? (
+          <Text variant="caption" style={[{ color: c.sunriseInk }, tabular]}>
+            {t("Terakhir diperbarui", "Last updated")} {jakartaClock(savedAt)} · {t("tidak ada koneksi", "no connection")}
+          </Text>
+        ) : null}
+        {cancelled ? null : <Upcoming rows={plan.upcoming} apiBase={runtime.apiBase} />}
+      </FadeSwap>
     </Screen>
   );
 }

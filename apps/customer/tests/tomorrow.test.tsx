@@ -52,6 +52,7 @@ jest.mock("expo-crypto", () => ({ randomUUID: () => require("node:crypto").rando
 jest.mock("../src/today/offline", () => ({
   saveCachedCustomer: jest.fn(async () => undefined),
   loadCachedCustomer: jest.fn(async () => null),
+  forgetCachedCustomer: jest.fn(async () => undefined),
 }));
 
 const TOMORROW = addDays(TODAY, 1);

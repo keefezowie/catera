@@ -17,7 +17,7 @@ import {
   type Subscription,
 } from "@catera/domain";
 import { nativeMood, nativeThemes } from "@catera/design-tokens";
-import { MoodProvider, ThemeProvider } from "@catera/mobile-ui";
+import { FadeSwap, MoodProvider, ThemeProvider } from "@catera/mobile-ui";
 import * as Reanimated from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Beranda } from "../src/today/Beranda";
@@ -53,6 +53,7 @@ jest.mock("expo-crypto", () => ({ randomUUID: () => require("node:crypto").rando
 jest.mock("../src/today/offline", () => ({
   saveCachedCustomer: jest.fn(async () => undefined),
   loadCachedCustomer: jest.fn(async () => null),
+  forgetCachedCustomer: jest.fn(async () => undefined),
 }));
 
 const customer = { id: "u-c1", role: "customer", name: "Rani Contoh" };
@@ -205,12 +206,14 @@ it("EmptyHome shows loading then error with Coba lagi", async () => {
     return { items: [offer({ name: "Nasi Ayam Bakar" })], nextCursor: null };
   }) as never;
   renderHome(runtime);
-  expect(await screen.findByText("Memuat paket…")).toBeTruthy();
+  // The three suggested packages wait as their skeleton (one progress bar), the rest of the page is already there.
+  expect(await screen.findByRole("progressbar", { name: "Memuat paket" })).toBeTruthy();
+  expect(screen.getByTestId("offers-skeleton")).toBeTruthy();
   expect(screen.getByRole("button", { name: "Jelajah paket" })).toBeTruthy();
   release();
   const message = await screen.findByText(/Tidak dapat memuat|Belum berhasil|Periksa koneksi/);
   expect(StyleSheet.flatten(message.props.style).color).toBe(nativeThemes.light.danger);
-  expect(screen.queryByText("Memuat paket…")).toBeNull();
+  expect(screen.queryByTestId("offers-skeleton")).toBeNull();
   expect(screen.getByRole("button", { name: "Jelajah paket" })).toBeTruthy();
   fail = false;
   fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
@@ -239,7 +242,7 @@ it("signed-in Beranda error shows the message in danger with a Coba lagi text bu
 it("EmptyHome says so when the catalog has no packages", async () => {
   renderHome(runtimeWith(async () => customerState(null), null));
   expect(await screen.findByText("Belum ada paket.")).toBeTruthy();
-  expect(screen.queryByText("Memuat paket…")).toBeNull();
+  expect(screen.queryByTestId("offers-skeleton")).toBeNull();
   expect(screen.getByRole("button", { name: "Jelajah paket" })).toBeTruthy();
 });
 
@@ -811,7 +814,9 @@ describe("Beranda mood", () => {
   it("keeps the hero frame: padding 10, radius 28, raised 74 (58 over the header plus the body's 16 top padding)", async () => {
     mount(runtimeWith(async () => bothMeals()));
     await screen.findByTestId("plate-hero");
-    expect(flat("plate-hero")).toMatchObject({ padding: 10, borderRadius: 28, marginTop: -74 });
+    expect(flat("plate-hero")).toMatchObject({ padding: 10, borderRadius: 28 });
+    // The rise belongs to the data area the hero leads, so the hero never sits outside its parent (skeletons.test).
+    expect(StyleSheet.flatten(screen.UNSAFE_getByType(FadeSwap).props.style)).toMatchObject({ marginTop: -74 });
     expect(flat("plate-hero-fill-siang")).toMatchObject({
       backgroundColor: nativeMood.light.siang.hero,
       boxShadow: nativeMood.light.siang.heroShadow,

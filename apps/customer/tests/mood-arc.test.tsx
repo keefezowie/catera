@@ -38,6 +38,7 @@ jest.mock("expo-crypto", () => ({ randomUUID: () => require("node:crypto").rando
 jest.mock("../src/today/offline", () => ({
   saveCachedCustomer: jest.fn(async () => undefined),
   loadCachedCustomer: jest.fn(async () => null),
+  forgetCachedCustomer: jest.fn(async () => undefined),
 }));
 
 const SIANG_NOW = () => new Date("2026-10-09T03:00:00Z"); // 10:00 WIB

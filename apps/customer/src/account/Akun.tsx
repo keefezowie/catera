@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { View } from "react-native";
 import { router } from "expo-router";
 import type { Locale } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
@@ -9,7 +9,6 @@ import {
   Screen,
   Segmented,
   Text,
-  themedStyles,
   useColors,
   useMoodColors,
   useThemePreference,
@@ -21,6 +20,7 @@ import { Row, SectionLabel } from "./Row";
 import { SignInFirst } from "./SignInFirst";
 import { PlanList } from "../plan/PlanList";
 import { goToTab } from "../nav";
+import { ListSkeleton } from "../skeletons";
 
 /** "6281234567890" (as Supabase keeps it) → "0812-3456-7890". */
 export function localPhone(phone: string): string {
@@ -33,13 +33,12 @@ export function localPhone(phone: string): string {
 /** Akun: who is signed in, active plans and the account screens. No caterer or admin links. */
 export function Akun() {
   const { actor, ready, t } = useMobile();
-  const c = useColors();
-  const styles = useStyles();
+  // Before the session is known the tab already has its header; who is signed in, and their rows, wait.
   if (!ready)
     return (
-      <View style={styles.center}>
-        <ActivityIndicator color={c.forest} />
-      </View>
+      <Screen header={<MoodHeader title={t("Akun", "Account")} />}>
+        <ListSkeleton rows={4} label={t("Memuat akun", "Loading account")} />
+      </Screen>
     );
   if (!actor)
     return (
@@ -168,7 +167,3 @@ function Account() {
     </Screen>
   );
 }
-
-const useStyles = themedStyles((c) => ({
-  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: c.canvas },
-}));

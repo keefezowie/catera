@@ -27,7 +27,7 @@ const GAP = 2;
  * The header pads its content by 20dp; the grid pulls out by this much so the days sit 12dp from the screen edge,
  * which is what lets seven cells at the floor width fit 360dp.
  */
-const BLEED = -8;
+export const BLEED = -8;
 /** CalendarPhotoCell is always 52dp tall, so a week row is too, with or without days in it. */
 const CELL_HEIGHT = 52;
 /**
@@ -103,17 +103,40 @@ export function MonthGrid({ month, today, selected, days, apiBase, locale, onSel
  * The grid with no month in it, for while the month loads or when it could not be read: the weekday names and six
  * empty week rows at the loaded grid's height, with `children` (the loading line, or the error and its retry) centred
  * over the rows. The rows carry no day numbers, because a bare number is how the grid draws a day without a meal, and
- * nothing is known about these days yet.
+ * nothing is known about these days yet. While a month loads, `month` and `cell` place a placeholder (the skeleton) in
+ * each of that month's day slots, where the loaded grid will draw its cells.
  */
-export function MonthFrame({ locale, children }: { locale: Locale; children: ReactNode }) {
+export function MonthFrame({
+  locale,
+  children,
+  month,
+  cell,
+}: {
+  locale: Locale;
+  children?: ReactNode;
+  month?: string;
+  cell?: (date: string) => ReactNode;
+}) {
+  const weeks: (string | null)[][] = month && cell ? monthWeeks(month) : [];
+  while (weeks.length < WEEKS) weeks.push(Array<null>(7).fill(null));
   return (
     <Frame testID="month-frame" locale={locale}>
-      {Array.from({ length: WEEKS }, (_, row) => (
-        <View key={row} testID="month-week" style={weekRow} />
+      {weeks.map((week, row) => (
+        <View key={row} testID="month-week" style={weekRow}>
+          {cell
+            ? week.map((date, col) => (
+                <View key={col} style={{ flex: 1, minWidth: CELL_MIN_WIDTH, height: CELL_HEIGHT }}>
+                  {date ? cell(date) : null}
+                </View>
+              ))
+            : null}
+        </View>
       ))}
-      <View style={[StyleSheet.absoluteFill, { alignItems: "center", justifyContent: "center", paddingHorizontal: 20 }]}>
-        {children}
-      </View>
+      {children ? (
+        <View style={[StyleSheet.absoluteFill, { alignItems: "center", justifyContent: "center", paddingHorizontal: 20 }]}>
+          {children}
+        </View>
+      ) : null}
     </Frame>
   );
 }

@@ -59,6 +59,7 @@ jest.mock("expo-crypto", () => ({ randomUUID: () => require("node:crypto").rando
 jest.mock("../src/today/offline", () => ({
   saveCachedCustomer: jest.fn(async () => undefined),
   loadCachedCustomer: jest.fn(async () => null),
+  forgetCachedCustomer: jest.fn(async () => undefined),
 }));
 
 const customer = { id: "u-c1", role: "customer", name: "Rani Contoh" };
@@ -571,7 +572,8 @@ describe("the plans row and Paket saya", () => {
     expect(screen.queryByText(/lihat detail paket/)).toBeNull();
     expect(screen.queryByText(/hari lagi/)).toBeNull();
     // Nothing follows the plans row.
-    const tree = JSON.stringify(screen.toJSON());
+    // The page order as text; the pull-to-refresh element on the scroll view is a React element, not page content.
+    const tree = JSON.stringify(screen.toJSON(), (key, value) => (key === "refreshControl" ? undefined : value));
     expect(tree.lastIndexOf("8 paket aktif")).toBeGreaterThan(tree.lastIndexOf("Berikutnya"));
     fireEvent.press(row);
     expect(router.push).toHaveBeenCalledWith("/paket-saya");

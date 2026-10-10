@@ -81,7 +81,10 @@ describe("Paket without a photo to lead with", () => {
     expect(screen.queryByTestId("mood-fill-malam", { includeHiddenElements: true })).toBeNull();
     // The back is the platform's own, in the native header.
     expect(screen.queryByRole("button", { name: "Kembali" })).toBeNull();
-    expect(view.UNSAFE_queryAllByType(ActivityIndicator).length).toBeGreaterThan(0);
+    // The page waits as the package skeleton, one progress bar, with no spinner.
+    expect(screen.getByTestId("package-skeleton")).toBeTruthy();
+    expect(screen.getByRole("progressbar", { name: "Memuat paket" })).toBeTruthy();
+    expect(view.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
   });
 
   it("a link that carries the package name shows it while loading, never Paket", async () => {

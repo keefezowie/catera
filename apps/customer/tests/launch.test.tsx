@@ -1,5 +1,5 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
-import { AppState, StyleSheet, Text, type AppStateStatus } from "react-native";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
+import { AccessibilityInfo, AppState, StyleSheet, Text, type AppStateStatus } from "react-native";
 import * as Reanimated from "react-native-reanimated";
 import * as SplashScreen from "expo-splash-screen";
 import { nativeThemes } from "@catera/design-tokens";
@@ -123,7 +123,7 @@ jest.mock("../src/runtime", () => {
 
 const { runtime } = require("../src/runtime") as typeof import("../src/runtime");
 const { AppProviders } = require("../src/shell") as typeof import("../src/shell");
-const { Beranda } = require("../src/today/Beranda") as typeof import("../src/today/Beranda");
+const { announceUpdating, Beranda } = require("../src/today/Beranda") as typeof import("../src/today/Beranda");
 const SecureStore = jest.requireMock("expo-secure-store") as {
   __store: Map<string, string>;
   __gates: Map<string, Promise<void>>;
@@ -338,9 +338,113 @@ describe("the launch gate", () => {
     expect(await screen.findByTestId("app-stack")).toBeTruthy();
     expect(screen.queryByTestId("mascot-loading")).toBeNull();
   });
+
+  it("a stored-session read that hangs past the splash ceiling lifts onto the mascot, never a blank canvas", async () => {
+    // Carried from Task 4: the session read never answers, so the app is never `booted`; the splash still lifts at
+    // 1500ms and what it lifts onto must say that Catera is getting ready.
+    SecureStore.__gates.set("catera.actor", new Promise(() => undefined));
+    (runtime.api.me as jest.Mock).mockImplementation(() => new Promise(() => undefined));
+    renderRoot();
+    await act(async () => new Promise((r) => setTimeout(r, 1000)));
+    expect(SplashScreen.hideAsync).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("mascot-loading")).toBeNull();
+    await waitFor(() => expect(SplashScreen.hideAsync).toHaveBeenCalledTimes(1), { timeout: 1500 });
+    const gate = await screen.findByTestId("mascot-loading");
+    expect(gate.props.accessibilityLabel).toBe("Menyiapkan Catera untuk Anda…");
+    expect(screen.queryByTestId("app-stack")).toBeNull();
+  });
 });
 
 describe("cache-first Beranda", () => {
+  it("Memperbarui sits in the mood header under the headline, in a live region, never after the hero", async () => {
+    (runtime.api.me as jest.Mock).mockImplementation(() => new Promise(() => undefined));
+    (runtime.api.customer as jest.Mock).mockImplementation(() => new Promise(() => undefined));
+    const announce = jest.spyOn(AccessibilityInfo, "announceForAccessibility");
+    storedSession(rani);
+    keptHome(rani);
+    renderHome();
+    const line = await screen.findByText("Memperbarui…");
+    const header = screen.getByTestId("mood-header");
+    expect(within(header).getByText("Memperbarui…")).toBe(line);
+    expect(within(screen.getByTestId("screen-body")).queryByText("Memperbarui…")).toBeNull();
+    // One polite live region holds it, mounted with the headline, so TalkBack hears the line once when it appears.
+    const region = screen.getByTestId("home-refreshing-region");
+    expect(region.props.accessibilityLiveRegion).toBe("polite");
+    expect(within(region).getByText("Memperbarui…")).toBe(line);
+    // On Android the live region speaks; announcing as well would say it twice.
+    expect(announce).not.toHaveBeenCalled();
+  });
+
+  it("VoiceOver hears Memperbarui once, announced; TalkBack is left to the live region", () => {
+    const announce = jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => undefined);
+    announceUpdating("Memperbarui…", "ios");
+    announceUpdating("Memperbarui…", "android");
+    expect(announce).toHaveBeenCalledTimes(1);
+    expect(announce).toHaveBeenCalledWith("Memperbarui…");
+  });
+
+  it("a read still out when the person signs out never writes the forgotten copy back", async () => {
+    // Carried from Task 4: Keluar forgets the kept Beranda; a fresh read that lands after that must not save it again.
+    const fresh = deferred<unknown>();
+    (runtime.api.customer as jest.Mock).mockImplementation(() => fresh.promise);
+    storedSession(rani);
+    keptHome(rani);
+    renderHome();
+    expect(await screen.findByText("Sedang diantar")).toBeTruthy();
+    await act(async () => {
+      await mobile.logout();
+    });
+    expect([...files.keys()].filter((k) => k.includes("catera-customer-"))).toEqual([]);
+    await act(async () => fresh.resolve(customerState({ status: "out_for_delivery" })));
+    await act(async () => {});
+    expect([...files.keys()].filter((k) => k.includes("catera-customer-"))).toEqual([]);
+  });
+
+  it("a read that answers after logout's first step is not saved", async () => {
+    // Logout deletes the stored actor before it forgets the copies. The check before the save reads the stored actor;
+    // here it is deleted while that check is out, so the read is never written.
+    const fresh = deferred<unknown>();
+    (runtime.api.customer as jest.Mock).mockImplementation(() => fresh.promise);
+    storedSession(rani);
+    renderHome();
+    await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
+    const check = deferred<void>();
+    SecureStore.__gates.set("catera.actor", check.promise);
+    await act(async () => fresh.resolve(customerState({ status: "out_for_delivery" })));
+    SecureStore.__store.delete("catera.actor");
+    await act(async () => check.resolve());
+    await act(async () => {});
+    expect([...files.keys()].filter((k) => k.includes("catera-customer-"))).toEqual([]);
+  });
+
+  it("a save that lands while logout runs is taken back", async () => {
+    // The check before the save still saw the session, so the copy was written; the session ended during the write,
+    // so the check after it deletes the copy again.
+    const fresh = deferred<unknown>();
+    (runtime.api.customer as jest.Mock).mockImplementation(() => fresh.promise);
+    storedSession(rani);
+    renderHome();
+    await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
+    const before = deferred<void>();
+    const after = deferred<void>();
+    SecureStore.__gates.set("catera.actor", before.promise);
+    await act(async () => fresh.resolve(customerState({ status: "out_for_delivery" })));
+    // The first check is waiting on `before`; the next read of the stored actor (the second check) waits on `after`.
+    SecureStore.__gates.set("catera.actor", after.promise);
+    await act(async () => before.resolve());
+    await waitFor(() => expect(files.has("file:///doc/catera-customer-u-rani.json")).toBe(true));
+    SecureStore.__store.delete("catera.actor");
+    await act(async () => after.resolve());
+    await waitFor(() => expect([...files.keys()].filter((k) => k.includes("catera-customer-"))).toEqual([]));
+  });
+
+  it("a fresh read while signed in is kept for the next launch", async () => {
+    storedSession(rani);
+    renderHome();
+    expect(await screen.findByRole("button", { name: "Sudah sampai" })).toBeTruthy();
+    await waitFor(() => expect(files.has("file:///doc/catera-customer-u-rani.json")).toBe(true));
+  });
+
   it("a stored session paints the cached Beranda before me() answers, with Memperbarui", async () => {
     (runtime.api.me as jest.Mock).mockImplementation(() => new Promise(() => undefined));
     (runtime.api.customer as jest.Mock).mockImplementation(() => new Promise(() => undefined));

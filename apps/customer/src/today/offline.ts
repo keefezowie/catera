@@ -28,6 +28,16 @@ export async function loadCachedCustomer(actorId: string): Promise<CachedCustome
   }
 }
 
+/** Forgets the Beranda kept for one account: a save that landed after that account's session had ended. */
+export async function forgetCachedCustomer(actorId: string): Promise<void> {
+  try {
+    const file = fileFor(actorId);
+    if (file.exists) file.delete();
+  } catch {
+    // Nothing kept, or it cannot be reached: there is nothing to show either.
+  }
+}
+
 /** Forgets every kept Beranda on this phone; called whenever the session ends (logout, sign-out, an expired session). */
 export async function clearCachedCustomer(): Promise<void> {
   try {

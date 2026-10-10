@@ -750,10 +750,14 @@ describe("Jelajah mood header", () => {
       expect(header().getByPlaceholderText("Cari ayam bakar, nabati, Bu Rini…")).toBeTruthy();
     });
 
-    it("shows the header and the spinner while the catalogue loads", async () => {
+    it("shows the header and the catalogue skeleton while the catalogue loads", async () => {
       const catalog = jest.fn(() => new Promise<never>(() => {}));
       const view = mount(runtimeWith(customer, { catalog }), { now: MALAM_NOW });
-      await waitFor(() => expect(view.UNSAFE_queryAllByType(ActivityIndicator).length).toBeGreaterThan(0));
+      await waitFor(() => expect(catalog).toHaveBeenCalled());
+      // One wait for the whole data area: circles, chips and rows as one progress bar, and no spinner.
+      expect(screen.getByTestId("jelajah-skeleton")).toBeTruthy();
+      expect(screen.getByRole("progressbar", { name: "Memuat paket" })).toBeTruthy();
+      expect(view.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
       expect(title()).toBe("Makan malam\nminggu depan?");
     });
   });
@@ -954,11 +958,13 @@ describe("Disimpan", () => {
     expect(router.push).toHaveBeenCalled();
   });
 
-  it("while the session loads, the spinner sits in the scrolling Screen, below the iOS large title", async () => {
+  it("while the session loads, the skeleton sits in the scrolling Screen, below the iOS large title", async () => {
     const view = wrap(runtimeWith(customer, { me: jest.fn(() => new Promise(() => undefined)) }), <SavedList />);
     await act(async () => {});
     const scroll = screen.getByTestId("screen-scroll");
-    expect(scroll.findByType(ActivityIndicator)).toBeTruthy();
+    expect(scroll.findByProps({ testID: "saved-skeleton" })).toBeTruthy();
+    expect(screen.getByRole("progressbar", { name: "Memuat paket tersimpan" })).toBeTruthy();
+    expect(view.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
     expect(scroll.props.contentInsetAdjustmentBehavior).toBe("automatic");
     view.unmount();
   });

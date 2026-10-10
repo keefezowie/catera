@@ -283,15 +283,17 @@ describe("claim under the native header", () => {
     expect(within(header).queryByLabelText("Catera")).toBeNull();
   });
 
-  it("while the link is read, the page shows the spinner and Memuat beside it under the title", async () => {
+  it("while the link is read, the page shows the mascot with Membuka tautan under the title", async () => {
     const { runtime } = runtimeWith({ preview: () => new Promise<ClaimPreview>(() => undefined) });
     const view = renderMood(runtime);
     // The link is not validated yet, so the title cannot claim the subscription is the viewer's.
     const header = expectMalamHeader("Membuka tautan");
     expect(screen.queryByText("Langganan Anda")).toBeNull();
-    expect(within(header).queryByText("Memuat…")).toBeNull();
-    expect(flat(screen.getByText("Memuat…")).color).toBe(require("@catera/design-tokens").nativeThemes.light.muted);
-    expect(view.UNSAFE_queryAllByType(ActivityIndicator).length).toBeGreaterThan(0);
+    // Nothing of the link can be shown yet, so the wait is the mascot, named for screen readers at once.
+    const mascot = screen.getByTestId("mascot-loading");
+    expect(mascot.props.accessibilityLabel).toBe("Membuka tautan…");
+    expect(within(header).queryByTestId("mascot-loading")).toBeNull();
+    expect(view.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
   });
 
   it("the package step is titled with its heading, with who it is from, the wordmark and the package in the body", async () => {

@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, AppState, BackHandler, Text as RNText, View } from "react-native";
+import { AppState, BackHandler, Text as RNText, View } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { useNavigation } from "expo-router/react-navigation";
 import * as Clipboard from "expo-clipboard";
 import * as WebBrowser from "expo-web-browser";
 import { currency, errorLabel, paidSummary, type Checkout, type DirectPaymentMethod } from "@catera/domain";
 import { plural, useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, FadeSwap, fontFor, Screen, Text, themedStyles, useColors, useHaptic } from "@catera/mobile-ui";
+import { Button, Card, FadeSwap, fontFor, MascotLoading, Screen, Text, themedStyles, useColors, useHaptic } from "@catera/mobile-ui";
 import { PayWith, Retry } from "./BuyParts";
 import { FLOW_HREF, goToTab } from "../nav";
 import { PaidActions } from "./PaidOutcome";
@@ -174,7 +174,9 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
         {state.error ? (
           <Retry message={state.error} onRetry={() => void reload()} t={t} />
         ) : state.loading || !ready ? (
-          <ActivityIndicator color={palette.forest} />
+          // Nothing of the checkout can be shown until its status comes back, and the person should know the payment
+          // is being looked up (never a reason to pay again), so this wait is the mascot with its words.
+          <MascotLoading label={t("Memeriksa pembayaran…", "Checking payment…")} />
         ) : (
           <Text>{t("Pembayaran tidak ditemukan.", "Payment not found.")}</Text>
         )}

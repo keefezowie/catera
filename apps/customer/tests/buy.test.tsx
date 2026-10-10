@@ -444,6 +444,7 @@ describe("Beli / Perpanjang", () => {
     const view = wrap(runtime, <BuyScreen renewFrom="s-1" />);
     expect(await screen.findByText("Paket sebelumnya sudah tidak tersedia. Pilih paket lain dari Dapur Contoh.")).toBeTruthy();
     expect(view.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
+    expect(screen.queryByTestId("buy-skeleton")).toBeNull();
     expect(screen.queryByRole("button", { name: "Bayar" })).toBeNull();
     fireEvent.press(screen.getByRole("button", { name: "Makan Siang Hemat" }));
     // A renewal that cannot go ahead is left for the other package, or for the Jelajah tab.

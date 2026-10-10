@@ -36,6 +36,7 @@ jest.mock("expo-crypto", () => ({ randomUUID: () => require("node:crypto").rando
 jest.mock("../src/today/offline", () => ({
   saveCachedCustomer: jest.fn(async () => undefined),
   loadCachedCustomer: jest.fn(async () => null),
+  forgetCachedCustomer: jest.fn(async () => undefined),
 }));
 
 // 10.00 in Jakarta on Thursday 8 October 2026. Only the clock is pinned: timers and microtasks keep running.
@@ -125,9 +126,10 @@ afterEach(() => {
 });
 
 describe("Plan detail states", () => {
-  it("loading reads Memuat paket… while the read is pending", async () => {
+  it("loading shows the plan skeleton, named Memuat paket, while the read is pending", async () => {
     renderPlan(runtimeWith(() => new Promise(() => undefined)));
-    expect(await screen.findByText("Memuat paket…")).toBeTruthy();
+    expect(await screen.findByRole("progressbar", { name: "Memuat paket" })).toBeTruthy();
+    expect(screen.getByTestId("plan-skeleton")).toBeTruthy();
     expect(screen.queryByTestId("sticky-action")).toBeNull();
   });
 
@@ -157,7 +159,7 @@ describe("Plan detail states", () => {
     // Loading: the carried name, so "Paket" never flashes.
     mockParams = { id: "s-1", title: carried };
     let view = renderPlan(runtimeWith(() => new Promise(() => undefined)));
-    await screen.findByText("Memuat paket…");
+    await screen.findByTestId("plan-skeleton");
     expect(nativeTitle()).toBe(carried);
     view.unmount();
     // A failed read: the carried name was never checked against a plan, so the screen is "Paket" again.
@@ -180,7 +182,7 @@ describe("Plan detail states", () => {
     // A long carried name is capped at 60 characters, at a word, with "…".
     mockParams = { id: "s-1", title: "Paket Makan Siang Rumahan Sehat Sekeluarga Lima Hari Kerja Penuh Gizi Seimbang" };
     renderPlan(runtimeWith(() => new Promise(() => undefined)));
-    await screen.findByText("Memuat paket…");
+    await screen.findByTestId("plan-skeleton");
     expect(nativeTitle()).toBe("Paket Makan Siang Rumahan Sehat Sekeluarga Lima Hari Kerja…");
   });
 
@@ -188,7 +190,9 @@ describe("Plan detail states", () => {
     renderPlan(runtimeWith(async () => planState()));
     // The package name is the screen's native title (Android's first content line; iOS's large title), the caterer
     // under it on the page, and no mood header: the back is the platform's own.
-    const title = await screen.findByTestId("screen-native-title");
+    // Waits for the plan itself: before the session is read the screen already has a title, over its skeleton.
+    await screen.findByTestId("plan-caterer");
+    const title = screen.getByTestId("screen-native-title");
     expect(within(title).getByRole("header", { name: "Makan Siang Rumahan" })).toBeTruthy();
     expect(screen.getByTestId("plan-caterer").props.children).toBe("Dapur Contoh");
     expect(screen.queryByTestId("plan-header")).toBeNull();

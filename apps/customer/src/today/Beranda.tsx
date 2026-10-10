@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { View } from "react-native";
+import { useEffect, useState } from "react";
+import { AccessibilityInfo, View } from "react-native";
+import * as SecureStore from "expo-secure-store";
 import {
   activePlans,
   dayLabel,
@@ -14,6 +15,7 @@ import {
 import { useData, useMobile, type MobileRuntime } from "@catera/mobile-core";
 import {
   Button,
+  FadeSwap,
   fontFor,
   HeroPager,
   MoodHeader,
@@ -34,15 +36,41 @@ import { UpcomingDays } from "./UpcomingDays";
 import { PlansRow } from "./PlansRow";
 import { TomorrowEntry } from "../tomorrow/TomorrowRow";
 import { BerandaSkeleton } from "../skeletons";
-import { loadCachedCustomer, saveCachedCustomer } from "./offline";
+import { usePullToRefresh } from "../refresh";
+import { forgetCachedCustomer, loadCachedCustomer, saveCachedCustomer } from "./offline";
 
 /** A customer read; `savedAt` is set when it is the copy this phone kept, not a fresh answer. */
 type LoadedCustomer = { data: CustomerState; savedAt: string | null };
 
+/**
+ * Whether this phone still holds `actorId`'s session. Logout deletes the stored actor first, before it forgets the kept
+ * copies and signs out, so a missing or different stored actor means the session this read began in has ended.
+ */
+async function stillSignedIn(runtime: MobileRuntime, actorId: string): Promise<boolean> {
+  const stored = await SecureStore.getItemAsync(runtime.storageKey("actor")).catch(() => null);
+  try {
+    return !!stored && (JSON.parse(stored) as { id?: string }).id === actorId;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Keeps a fresh read for the next launch, only while its session lasts. A read still out when the person taps Keluar
+ * must not write back the copy logout just forgot: it is not saved once the session has ended, and a save that raced
+ * logout's first step is taken back. (A save that lands before logout deletes the stored actor is cleared by logout
+ * itself, which forgets the copies after that step.)
+ */
+async function keepCustomer(runtime: MobileRuntime, actorId: string, data: CustomerState): Promise<void> {
+  if (!(await stillSignedIn(runtime, actorId))) return;
+  await saveCachedCustomer(actorId, { savedAt: new Date().toISOString(), data });
+  if (!(await stillSignedIn(runtime, actorId))) await forgetCachedCustomer(actorId);
+}
+
 async function loadCustomer(runtime: MobileRuntime, actorId: string): Promise<LoadedCustomer> {
   try {
     const data = await runtime.api.customer();
-    await saveCachedCustomer(actorId, { savedAt: new Date().toISOString(), data });
+    await keepCustomer(runtime, actorId, data);
     return { data, savedAt: null };
   } catch (e) {
     const cached = await keptCustomer(actorId);
@@ -60,9 +88,10 @@ async function keptCustomer(actorId: string): Promise<LoadedCustomer | null> {
 /** Beranda: today's plate (or plates), what waits on the customer, the next days and the running plans. */
 export function Beranda() {
   const { actor, ready, t } = useMobile();
+  // The header leaves the hero's 58 for the skeleton, as it does for a loaded hero.
   if (!ready)
     return (
-      <Screen header={<MoodHeader title={t("Beranda", "Home")} />}>
+      <Screen header={<MoodHeader title={t("Beranda", "Home")} overlap={58} />}>
         <BerandaSkeleton />
       </Screen>
     );
@@ -71,6 +100,38 @@ export function Beranda() {
 }
 
 type Translate = (id: string, en: string) => string;
+
+/**
+ * Says "Memperbarui…" to VoiceOver. iOS has no live regions, so the line is announced; Android's TalkBack hears it
+ * from the header's live region instead, so it is not announced twice. `os` is the running platform.
+ */
+export function announceUpdating(text: string, os = process.env.EXPO_OS) {
+  if (os === "ios") AccessibilityInfo.announceForAccessibility(text);
+}
+
+/**
+ * Beranda's headline in the mood header ("Beranda" while it first loads), with the "Memperbarui…" line under it while
+ * a kept copy is being refreshed. The polite live region is mounted from the first frame, empty and zero-high when
+ * there is nothing to say, so TalkBack hears the line once when it appears (a region that mounts already holding its
+ * text is not reliably announced).
+ */
+function HomeTitle({ text, updating }: { text: string; updating: string | null }) {
+  const palette = useMoodColors();
+  return (
+    <View>
+      <Text testID="home-title" variant="title" accessibilityRole="header" style={{ color: palette.headerText }}>
+        {text}
+      </Text>
+      <View testID="home-refreshing-region" accessibilityLiveRegion="polite">
+        {updating ? (
+          <Text testID="home-refreshing" variant="caption" style={{ marginTop: 4, color: palette.headerMeta }}>
+            {updating}
+          </Text>
+        ) : null}
+      </View>
+    </View>
+  );
+}
 
 /**
  * The second line of the headline for the chosen meal's plates today: the main dish of one plate (lowercased; the
@@ -168,20 +229,43 @@ function SignedInHome({ actorId }: { actorId: string }) {
   const [page, setPage] = useState<{ meal: string; index: number }>({ meal: "", index: 0 });
   const state = home.data?.data;
   const now = new Date();
+  // Pulling down reads Beranda and its menu choices again; the page stays as it is until the answers land.
+  const pull = usePullToRefresh(() => Promise.all([home.reload(), actions.reload()]));
+  // A kept copy is on screen and the fresh read is out: "Memperbarui…" sits in the header, under the headline (see
+  // HomeTitle). TalkBack reads it once through its live region; iOS has no live region, so VoiceOver hears it once,
+  // announced when the refresh starts.
+  const updating = !!state && home.fromCache && home.loading;
+  const updatingText = t("Memperbarui…", "Updating…");
+  useEffect(() => {
+    if (updating) announceUpdating(updatingText);
+    // Once per refresh, not again when the language changes under it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [updating]);
 
+  // Before the first answer the data area is the skeleton, in the same `FadeSwap` that will hold the page, so the page
+  // enters as one block. The skeleton draws a hero, so the header leaves room for it as for a loaded one.
   if (!state)
     return (
-      <Screen header={<MoodHeader title={t("Beranda", "Home")} />}>
-        {home.loading ? (
-          <BerandaSkeleton />
-        ) : (
-          <View style={{ gap: 4, alignItems: "flex-start" }}>
-            <Text selectable testID="home-error" style={{ color: c.danger }}>
-              {home.error}
-            </Text>
-            <Button variant="text" label={t("Coba lagi", "Try again")} onPress={() => void home.reload()} />
-          </View>
-        )}
+      <Screen
+        header={
+          <MoodHeader
+            title={<HomeTitle text={t("Beranda", "Home")} updating={null} />}
+            overlap={home.loading ? 58 : 0}
+          />
+        }
+      >
+        <FadeSwap swapKey={home.loading ? "loading" : "error"} style={{ gap: 16 }}>
+          {home.loading ? (
+            <BerandaSkeleton />
+          ) : (
+            <View style={{ gap: 4, alignItems: "flex-start" }}>
+              <Text selectable testID="home-error" style={{ color: c.danger }}>
+                {home.error}
+              </Text>
+              <Button variant="text" label={t("Coba lagi", "Try again")} onPress={() => void home.reload()} />
+            </View>
+          )}
+        </FadeSwap>
       </Screen>
     );
 
@@ -195,7 +279,6 @@ function SignedInHome({ actorId }: { actorId: string }) {
   // A kept copy (painted at launch, or kept because the fresh read failed) can be read but not acted on: a meal may
   // have moved or been cancelled since, so every action stays hidden until a fresh read lands.
   const savedAt = home.data?.savedAt;
-  const refreshing = home.fromCache && home.loading;
 
   const today = jakartaDay(now);
   const meal = mood === "siang" ? "lunch" : "dinner";
@@ -221,84 +304,75 @@ function SignedInHome({ actorId }: { actorId: string }) {
 
   return (
     <Screen
+      refreshControl={pull}
       header={
         <MoodHeader
           meta={meta}
           arc={arc}
           overlap={heroPlates.length ? 58 : 0}
-          title={
-            <Text
-              testID="home-title"
-              variant="title"
-              accessibilityRole="header"
-              style={{ color: palette.headerText }}
-            >
-              {headline}
-            </Text>
-          }
+          title={<HomeTitle text={headline} updating={updating ? updatingText : null} />}
         />
       }
     >
-      {heroPlates.length > 1 ? (
-        // Several deliveries of the chosen meal: equal heroes, one at a time, the next one peeking.
-        <HeroPager
-          key={`pager:${meal}`}
-          count={heroPlates.length}
-          style={{ marginTop: HERO_OVERLAP }}
-          // TalkBack reads "Makan siang, 1 dari 2, Dapur Senja": the meal names the control, and the position with the
-          // card's kitchen is its value, which the platform speaks again after each move.
-          accessibilityLabelFor={() => mealName}
-          accessibilityValueFor={(i) =>
-            t(
-              `${i + 1} dari ${heroPlates.length}, ${heroPlates[i]?.catererName ?? ""}`,
-              `${i + 1} of ${heroPlates.length}, ${heroPlates[i]?.catererName ?? ""}`,
-            )
-          }
-          counterLabel={(i) => t(`${i + 1} dari ${heroPlates.length}`, `${i + 1} of ${heroPlates.length}`)}
-          onIndexChange={(index) => setPage({ meal, index })}
-        >
-          {heroPlates.map((p, i) => (
-            <Plate
-              key={`${p.deliveryId}:${p.meal}`}
-              variant="hero"
-              paged
-              counted={i === inView}
-              plate={p}
-              apiBase={runtime.apiBase}
-              offline={!!savedAt}
-            />
-          ))}
-        </HeroPager>
-      ) : heroPlates.length ? (
-        // One frame for the hero whichever meal it shows, so its fill cross-fades when the mood switches.
-        <Plate key="hero" variant="hero" plate={heroPlates[0]} apiBase={runtime.apiBase} offline={!!savedAt} />
-      ) : null}
-      {refreshing ? (
-        <Text testID="home-refreshing" variant="caption" style={{ color: c.muted }}>
-          {t("Memperbarui…", "Updating…")}
-        </Text>
-      ) : savedAt ? (
-        <Text variant="caption" style={{ color: c.sunriseInk, fontVariant: ["tabular-nums"] }}>
-          {t("Terakhir diperbarui", "Last updated")} {jakartaClock(savedAt)} ·{" "}
-          {t("tidak ada koneksi", "no connection")}
-        </Text>
-      ) : home.error ? (
-        <Text selectable variant="caption" style={{ color: c.danger }}>
-          {home.error}
-        </Text>
-      ) : null}
-      {otherPlates.length ? (
-        <OtherMealRow
-          plates={otherPlates}
-          apiBase={runtime.apiBase}
-          onPress={() => setMood(mood === "siang" ? "malam" : "siang")}
-        />
-      ) : null}
-      {recap}
-      <WaitingList state={state} actions={actions.data?.items ?? null} offline={!!savedAt} now={now} />
-      <TomorrowEntry state={state} now={now} />
-      <UpcomingDays days={days} apiBase={runtime.apiBase} />
-      <PlansRow count={plans.count} caterers={plans.caterers} images={plans.images} apiBase={runtime.apiBase} />
+      {/* The whole page is one block that fades in from the skeleton. A hero rides up over the header from here, the
+          block's own edge, so no part of the hero sits outside its parent's bounds (where a touch would not reach). */}
+      <FadeSwap swapKey="ready" style={[{ gap: 16 }, heroPlates.length ? { marginTop: HERO_OVERLAP } : null]}>
+        {heroPlates.length > 1 ? (
+          // Several deliveries of the chosen meal: equal heroes, one at a time, the next one peeking.
+          <HeroPager
+            key={`pager:${meal}`}
+            count={heroPlates.length}
+            // TalkBack reads "Makan siang, 1 dari 2, Dapur Senja": the meal names the control, and the position with the
+            // card's kitchen is its value, which the platform speaks again after each move.
+            accessibilityLabelFor={() => mealName}
+            accessibilityValueFor={(i) =>
+              t(
+                `${i + 1} dari ${heroPlates.length}, ${heroPlates[i]?.catererName ?? ""}`,
+                `${i + 1} of ${heroPlates.length}, ${heroPlates[i]?.catererName ?? ""}`,
+              )
+            }
+            counterLabel={(i) => t(`${i + 1} dari ${heroPlates.length}`, `${i + 1} of ${heroPlates.length}`)}
+            onIndexChange={(index) => setPage({ meal, index })}
+          >
+            {heroPlates.map((p, i) => (
+              <Plate
+                key={`${p.deliveryId}:${p.meal}`}
+                variant="hero"
+                paged
+                counted={i === inView}
+                plate={p}
+                apiBase={runtime.apiBase}
+                offline={!!savedAt}
+              />
+            ))}
+          </HeroPager>
+        ) : heroPlates.length ? (
+          // One frame for the hero whichever meal it shows, so its fill cross-fades when the mood switches.
+          <Plate key="hero" variant="hero" plate={heroPlates[0]} apiBase={runtime.apiBase} offline={!!savedAt} />
+        ) : null}
+        {updating ? null : savedAt ? (
+          <Text variant="caption" style={{ color: c.sunriseInk, fontVariant: ["tabular-nums"] }}>
+            {t("Terakhir diperbarui", "Last updated")} {jakartaClock(savedAt)} ·{" "}
+            {t("tidak ada koneksi", "no connection")}
+          </Text>
+        ) : home.error ? (
+          <Text selectable variant="caption" style={{ color: c.danger }}>
+            {home.error}
+          </Text>
+        ) : null}
+        {otherPlates.length ? (
+          <OtherMealRow
+            plates={otherPlates}
+            apiBase={runtime.apiBase}
+            onPress={() => setMood(mood === "siang" ? "malam" : "siang")}
+          />
+        ) : null}
+        {recap}
+        <WaitingList state={state} actions={actions.data?.items ?? null} offline={!!savedAt} now={now} />
+        <TomorrowEntry state={state} now={now} />
+        <UpcomingDays days={days} apiBase={runtime.apiBase} />
+        <PlansRow count={plans.count} caterers={plans.caterers} images={plans.images} apiBase={runtime.apiBase} />
+      </FadeSwap>
     </Screen>
   );
 }

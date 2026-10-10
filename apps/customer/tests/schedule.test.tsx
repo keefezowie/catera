@@ -440,21 +440,24 @@ describe("Jadwal", () => {
     expect(within(frame).queryByText("8")).toBeNull();
   };
 
-  it("while the month loads, the header says so inside the grid's empty frame", async () => {
+  it("while the month loads, the header says so with skeleton cells inside the grid's frame", async () => {
     const runtime = runtimeWith(() => new Promise<CustomerState>(() => {}));
     renderWith(runtime, <Jadwal />);
-    const header = await screen.findByTestId("jadwal-header");
+    await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
+    const header = screen.getByTestId("jadwal-header");
     expect(within(header).getByText("Oktober 2026")).toBeTruthy();
     const frame = within(header).getByTestId("month-frame");
-    expect(within(frame).getByText("Memuat…")).toBeTruthy();
-    expect(within(frame).UNSAFE_getByType(ActivityIndicator)).toBeTruthy();
+    // One progress bar names the wait; the cells are placeholders, never days.
+    expect(within(header).getByRole("progressbar", { name: "Memuat jadwal" })).toBeTruthy();
+    expect(within(frame).getAllByTestId("jadwal-skeleton-cell")).toHaveLength(31);
+    expect(within(frame).UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
     noCalendar();
   });
 
   it("the loading text reads in English", async () => {
     (require("expo-secure-store") as { __store: Map<string, string> }).__store.set("catera.locale", "en");
     renderWith(runtimeWith(() => new Promise<CustomerState>(() => {})), <Jadwal />);
-    expect(await screen.findByText("Loading…")).toBeTruthy();
+    expect(await screen.findByRole("progressbar", { name: "Loading schedule" })).toBeTruthy();
   });
 
   it("when the first load fails, the header shows the error and a retry in the grid's empty frame", async () => {
@@ -477,14 +480,16 @@ describe("Jadwal", () => {
     expect(screen.queryByText("Coba lagi")).toBeNull();
   });
 
-  it("moving to a month that has not loaded replaces the grid with the loading text", async () => {
+  it("moving to a month that has not loaded replaces the grid with its skeleton", async () => {
     const runtime = runtimeWith(month);
     renderWith(runtime, <Jadwal />);
     await screen.findByRole("button", { name: /^Rabu 7 Oktober/ });
     (runtime.api.customer as jest.Mock).mockImplementation(() => new Promise<CustomerState>(() => {}));
     fireEvent.press(screen.getByRole("button", { name: "Bulan berikutnya" }));
     expect(await screen.findByText("November 2026")).toBeTruthy();
-    expect(within(screen.getByTestId("jadwal-header")).getByText("Memuat…")).toBeTruthy();
+    expect(within(screen.getByTestId("jadwal-header")).getByRole("progressbar", { name: "Memuat jadwal" })).toBeTruthy();
+    // November 2026 has 30 days, each a placeholder until the month answers.
+    expect(screen.getAllByTestId("jadwal-skeleton-cell")).toHaveLength(30);
     expect(screen.queryByTestId("month-grid")).toBeNull();
   });
 
@@ -492,7 +497,7 @@ describe("Jadwal", () => {
     renderWith(runtimeWith(stateOf([])), <Jadwal />);
     expect(await screen.findByRole("button", { name: /^Rabu 7 Oktober/ })).toBeTruthy();
     expect(screen.getByTestId("month-grid")).toBeTruthy();
-    expect(screen.queryByText("Memuat…")).toBeNull();
+    expect(screen.queryByRole("progressbar")).toBeNull();
   });
 
   it("month arrows give haptic feedback at 48dp", async () => {

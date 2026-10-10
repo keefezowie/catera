@@ -51,6 +51,7 @@ jest.mock("expo-crypto", () => ({ randomUUID: () => require("node:crypto").rando
 jest.mock("../src/today/offline", () => ({
   saveCachedCustomer: jest.fn(async () => undefined),
   loadCachedCustomer: jest.fn(async () => null),
+  forgetCachedCustomer: jest.fn(async () => undefined),
 }));
 
 const store = (SecureStore as unknown as { __store: Map<string, string> }).__store;
@@ -168,7 +169,8 @@ describe("the Paket selesai recap", () => {
     expect(card.getByRole("button", { name: "Tutup" })).toBeTruthy();
     // No meal count: the read cannot count an old plan's meals truthfully (Ruling D5).
     expect(card.queryByText(/porsi|kali makan|hari antar/)).toBeNull();
-    const tree = JSON.stringify(screen.toJSON());
+    // The page order as text; the pull-to-refresh element on the scroll view is a React element, not page content.
+    const tree = JSON.stringify(screen.toJSON(), (key, value) => (key === "refreshControl" ? undefined : value));
     expect(tree.indexOf("Paket selesai")).toBeLessThan(tree.indexOf("1 paket aktif"));
   });
 
@@ -306,7 +308,8 @@ describe("the Paket selesai recap", () => {
   it("shows on a Beranda with no running plan, above the catalogue invitation", async () => {
     mount(runtimeWith(async () => stateWith([endedPlan()], false)));
     expect(await screen.findByTestId("recap-card")).toBeTruthy();
-    const tree = JSON.stringify(screen.toJSON());
+    // The page order as text; the pull-to-refresh element on the scroll view is a React element, not page content.
+    const tree = JSON.stringify(screen.toJSON(), (key, value) => (key === "refreshControl" ? undefined : value));
     expect(tree.indexOf("Paket selesai")).toBeLessThan(tree.indexOf("Mau makan apa minggu ini?"));
   });
 

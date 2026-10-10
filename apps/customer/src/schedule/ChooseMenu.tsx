@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, AppState, Image, View } from "react-native";
+import { Alert, AppState, Image, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useNavigation, usePreventRemove } from "expo-router/react-navigation";
 import {
@@ -29,6 +29,7 @@ import { FilterChip } from "../discover/FilterChip";
 import { jakartaClock, photoUri } from "../today/Plate";
 import { longDay, monthTitle, shiftMonth } from "./dates";
 import { goToTab } from "../nav";
+import { ChooseMenuSkeleton } from "../skeletons";
 
 type MenuDay = CustomerMenuMonth["dates"][number];
 type Meal = "lunch" | "dinner";
@@ -41,16 +42,14 @@ const isDate = (v: unknown): v is string => typeof v === "string" && /^\d{4}-\d{
 export function ChooseMenu() {
   const params = useLocalSearchParams<{ id: string; date?: string; meal?: string }>();
   const { actor, ready, t } = useMobile();
-  const c = useColors();
-  const styles = useStyles();
   const id = String(params.id ?? "");
   const routeDate = isDate(params.date) ? params.date : "";
   const routeMeal: Meal = params.meal === "dinner" ? "dinner" : "lunch";
   if (!ready)
     return (
-      <View style={styles.center}>
-        <ActivityIndicator color={c.forest} />
-      </View>
+      <Screen>
+        <ChooseMenuSkeleton />
+      </Screen>
     );
   if (!actor) {
     const query = new URLSearchParams({ ...(routeDate ? { date: routeDate } : {}), meal: routeMeal }).toString();
@@ -118,9 +117,9 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
         <Button label={t("Coba lagi", "Try again")} onPress={() => void customer.reload()} />
       </Screen>
     ) : (
-      <View style={styles.center}>
-        <ActivityIndicator color={palette.forest} />
-      </View>
+      <Screen>
+        <ChooseMenuSkeleton />
+      </Screen>
     );
 
   if (!subscription || !offer)
@@ -482,7 +481,6 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
 }
 
 const useStyles = themedStyles((c) => ({
-  center: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: c.canvas },
   monthRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   dateRow: { minHeight: 52, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 8 },
   dateOn: { backgroundColor: c.sage, borderRadius: 10 },
