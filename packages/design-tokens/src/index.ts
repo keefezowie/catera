@@ -207,8 +207,8 @@ export const nativeMood: Record<ThemeName, Record<Mood, MoodPalette>> = {
  * art is the same file in both themes and every mood, so these never follow the theme or the mood either.
  */
 export const nativeArt = {
-  /** The success beat's disc, the Siang header cream. */
-  successDisc: "#FFEFD9",
+  /** The success beat's disc, the light Siang header cream (one source, so the two cannot drift). */
+  successDisc: nativeMood.light.siang.header,
   /** The success disc's 3dp ring. */
   successRing: colors.sunriseInk,
   /** The reading rig's paper-line highlight (`rig.json` `readingRig.paperHighlight.color`). */

@@ -8,7 +8,7 @@ export type PhaseFPoint = { x: number; y: number };
 
 export const mascotPoses: readonly MascotPose[] = ["merayakan","membaca","tidur","bingung","melambai","mencari","memasak"];
 
-/** Visible box of each still. `MascotArt` scales by it so every pose renders at one optical size. */
+/** Visible box of each still on its 1254px source canvas. `MascotArt` keeps every pose at one optical size by it. */
 export const visibleBox: Record<MascotPose, PhaseFBox> = {
   "merayakan": {
     "x": 0.22807017543859648,
@@ -54,11 +54,99 @@ export const visibleBox: Record<MascotPose, PhaseFBox> = {
   }
 };
 
+/**
+ * Each still's runtime file is trimmed to its visible box plus a 3% transparent margin. `box` is the same
+ * source-measured visible box as fractions of that trimmed file, and `aspect` its true width over height (the crop's).
+ */
+export const stillRuntime: Record<MascotPose, { box: PhaseFBox; aspect: number }> = {
+  "merayakan": {
+    "box": {
+      "x": 0.027700831024930747,
+      "y": 0.030959752321981424,
+      "w": 0.9445983379501385,
+      "h": 0.9380804953560371
+    },
+    "aspect": 1.1176470588235294
+  },
+  "membaca": {
+    "box": {
+      "x": 0.029595015576323987,
+      "y": 0.02878787878787879,
+      "w": 0.940809968847352,
+      "h": 0.9424242424242424
+    },
+    "aspect": 0.9727272727272728
+  },
+  "tidur": {
+    "box": {
+      "x": 0.028700906344410877,
+      "y": 0.03696498054474708,
+      "w": 0.9425981873111783,
+      "h": 0.9260700389105059
+    },
+    "aspect": 1.2879377431906616
+  },
+  "bingung": {
+    "box": {
+      "x": 0.028712871287128714,
+      "y": 0.034688995215311005,
+      "w": 0.9425742574257425,
+      "h": 0.930622009569378
+    },
+    "aspect": 1.208133971291866
+  },
+  "melambai": {
+    "box": {
+      "x": 0.028517110266159697,
+      "y": 0.03579952267303103,
+      "w": 0.9429657794676806,
+      "h": 0.9284009546539379
+    },
+    "aspect": 1.2553699284009547
+  },
+  "mencari": {
+    "box": {
+      "x": 0.028397565922920892,
+      "y": 0.03297997644287397,
+      "w": 0.9432048681541582,
+      "h": 0.934040047114252
+    },
+    "aspect": 1.1613663133097762
+  },
+  "memasak": {
+    "box": {
+      "x": 0.028517110266159697,
+      "y": 0.03293084522502744,
+      "w": 0.9429657794676806,
+      "h": 0.9341383095499451
+    },
+    "aspect": 1.154774972557629
+  }
+};
+
 /** Visible box of the success rig at rest (eyes open, sparkles hidden), across its registered layers. */
 export const successRigBox: PhaseFBox = {"x":0.07416267942583732,"y":0.17783094098883573,"w":0.9154704944178629,"h":0.6786283891547049};
 
 /** Visible box of the reading rig across its registered layers. */
 export const readingRigBox: PhaseFBox = {"x":0.15789473684210525,"y":0.1850079744816587,"w":0.70414673046252,"h":0.7192982456140351};
+
+/**
+ * The largest `size` in points each piece renders at on a 3x screen without upscaling its runtime file, rounded down to
+ * a tenth. Spec sizes: 180 for the success rig and `merayakan`, 120 for the other stills and the reading rig.
+ */
+export const crispMaxSize = {
+  "stills": {
+    "merayakan": 180.1,
+    "membaca": 180.3,
+    "tidur": 158.6,
+    "bingung": 179.9,
+    "melambai": 180.1,
+    "mencari": 179.9,
+    "memasak": 179.9
+  },
+  "successRig": 180.9,
+  "readingRig": 143.8
+} as const;
 
 export const successRig = {
   "lidHinge": {

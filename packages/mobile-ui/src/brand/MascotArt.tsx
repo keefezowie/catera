@@ -1,10 +1,13 @@
 import { Image, View } from "react-native";
-import { visibleBox, type MascotPose, type PhaseFBox } from "../../../brand/phaseF";
+import { stillRuntime, type MascotPose, type PhaseFBox } from "../../../brand/phaseF";
 import { decorative } from "./decorative";
 
 export type { MascotPose } from "../../../brand/phaseF";
 
-/** The runtime copies (600px downscales of the processed exports). Apps never import the 1254px files. */
+/**
+ * The runtime stills: each trimmed to its visible box plus a 3% transparent margin and downscaled so the subject is
+ * at most 540px tall (180pt on a 3x screen). Apps never import the 1254px files.
+ */
 const stills: Record<MascotPose, number> = {
   merayakan: require("../../../brand/assets/phase-f/runtime/mascot-merayakan.png"),
   membaca: require("../../../brand/assets/phase-f/runtime/mascot-membaca.png"),
@@ -16,13 +19,15 @@ const stills: Record<MascotPose, number> = {
 };
 
 /**
- * Where a square canvas sits so that its visible box is exactly `size` tall: the canvas is scaled to `canvas` points,
- * the box's top meets the frame's top and the frame is as wide as the box (width follows height), so only transparent
- * padding falls outside it. Shared by the stills and the rigs so every pose and rig renders at one optical size.
+ * Where an image sits so that its visible box is exactly `size` tall: the image is drawn `canvas` points tall and
+ * `canvasWidth` wide (`aspect` is its width over height, 1 for the square rig canvases), the box's top meets the
+ * frame's top and the frame is as wide as the box (width follows height), so only transparent padding falls outside
+ * it. Shared by the stills and the rigs so every pose and rig renders at one optical size.
  */
-export function mascotArtFrame(box: PhaseFBox, size: number) {
+export function mascotArtFrame(box: PhaseFBox, size: number, aspect = 1) {
   const canvas = size / box.h;
-  return { width: box.w * canvas, height: size, left: -box.x * canvas, top: -box.y * canvas, canvas };
+  const canvasWidth = canvas * aspect;
+  return { width: box.w * canvasWidth, height: size, left: -box.x * canvasWidth, top: -box.y * canvas, canvas, canvasWidth };
 }
 
 /**
@@ -31,14 +36,17 @@ export function mascotArtFrame(box: PhaseFBox, size: number) {
  * frame would cut the drawing). The same file is shown in the light and the dark theme.
  */
 export function MascotArt({ pose, size }: { pose: MascotPose; size: number }) {
-  const frame = mascotArtFrame(visibleBox[pose], size);
+  const { box, aspect } = stillRuntime[pose];
+  const frame = mascotArtFrame(box, size, aspect);
   return (
     <View testID="mascot-art" {...decorative} style={{ width: frame.width, height: frame.height, overflow: "hidden" }}>
       <Image
         testID="mascot-art-image"
         source={stills[pose]}
         fadeDuration={0}
-        style={{ position: "absolute", left: frame.left, top: frame.top, width: frame.canvas, height: frame.canvas }}
+        // The style carries the crop's true aspect; the file's whole-pixel size can differ from it by under a pixel.
+        resizeMode="stretch"
+        style={{ position: "absolute", left: frame.left, top: frame.top, width: frame.canvasWidth, height: frame.canvas }}
       />
     </View>
   );

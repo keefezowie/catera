@@ -16,7 +16,7 @@ import {
   ThemeProvider,
   type MascotPose,
 } from "@catera/mobile-ui";
-import { mascotPoses, successRigBox, visibleBox } from "../../../packages/brand/phaseF";
+import { mascotPoses, stillRuntime, successRigBox, visibleBox } from "../../../packages/brand/phaseF";
 
 jest.mock("expo-secure-store", () => ({
   getItemAsync: jest.fn(async () => null),
@@ -30,13 +30,21 @@ const flat = (id: string) => StyleSheet.flatten(screen.getByTestId(id, hidden).p
 const sourceOf = (id: string) => JSON.stringify(screen.getByTestId(id, hidden).props.source);
 const close = (a: number, b: number) => expect(Math.abs(a - b)).toBeLessThan(1e-6);
 
-function navigation(focused: boolean) {
+/** A screen's navigation whose focus the test moves with `emit("blur")` and `emit("focus")`, as a navigator does. */
+function navigation(initiallyFocused: boolean) {
+  let focused = initiallyFocused;
   const listeners: Record<string, Array<() => void>> = {};
   return {
     isFocused: () => focused,
     addListener: (name: string, fn: () => void) => {
       (listeners[name] ??= []).push(fn);
-      return () => {};
+      return () => {
+        listeners[name] = (listeners[name] ?? []).filter((listener) => listener !== fn);
+      };
+    },
+    emit(name: "focus" | "blur") {
+      focused = name === "focus";
+      for (const listener of listeners[name] ?? []) listener();
     },
   };
 }
@@ -54,23 +62,35 @@ describe("MascotArt", () => {
     "MascotArt scales the pose so its visible height equals size (%s at %i)",
     (pose: MascotPose, size: number) => {
       render(<MascotArt pose={pose} size={size} />);
-      const box = visibleBox[pose];
-      // Expected from the fixture box: the canvas scales so the box is `size` tall, the box's top sits at the top of
+      // The runtime file is trimmed: its box is a fraction of that file, whose true shape is `aspect`.
+      const { box, aspect } = stillRuntime[pose];
+      // Expected from the fixture box: the file scales so the box is `size` tall, the box's top sits at the top of
       // the frame and the box is centred across the frame's width.
-      const canvas = size / box.h;
+      const height = size / box.h;
+      const width = height * aspect;
       const frame = flat("mascot-art");
       const image = flat("mascot-art-image");
       expect(frame.height).toBe(size);
       expect(frame.overflow).toBe("hidden");
-      close(image.width, canvas);
-      close(image.height, canvas);
+      close(image.width, width);
+      close(image.height, height);
       close(box.h * image.height, size);
-      close(image.top, -box.y * canvas);
-      close(image.left + box.x * canvas + (box.w * canvas) / 2, frame.width / 2);
+      close(image.top, -box.y * height);
+      close(image.left + box.x * width + (box.w * width) / 2, frame.width / 2);
+      // Width follows height exactly as on the 1254px source: the trim changes the file, not the pose's shape.
+      close(frame.width, (size * visibleBox[pose].w) / visibleBox[pose].h);
       // The whole pose stays inside the frame: only transparent padding is cropped.
-      expect(image.left + box.x * canvas).toBeGreaterThanOrEqual(-1e-6);
-      expect(image.left + (box.x + box.w) * canvas).toBeLessThanOrEqual(frame.width + 1e-6);
-      expect(mascotArtFrame(box, size)).toEqual({ width: frame.width, height: size, left: image.left, top: image.top, canvas });
+      expect(image.left + box.x * width).toBeGreaterThanOrEqual(-1e-6);
+      expect(image.left + (box.x + box.w) * width).toBeLessThanOrEqual(frame.width + 1e-6);
+      expect(mascotArtFrame(box, size, aspect)).toEqual({
+        width: frame.width,
+        height: size,
+        left: image.left,
+        top: image.top,
+        canvas: height,
+        canvasWidth: width,
+      });
+      expect(screen.getByTestId("mascot-art-image", hidden).props.resizeMode).toBe("stretch");
       expect(sourceOf("mascot-art-image")).toContain(`phase-f/runtime/mascot-${pose}.png`);
     },
   );
@@ -147,6 +167,18 @@ describe("SuccessRig", () => {
     });
     expect(flat("success-rig-layer-badge").opacity).toBe(1);
     expect(flat("success-rig-layer-sparkles").opacity).toBe(0);
+  });
+
+  it("mounted already playing, paints the timeline's first frame, never a flash of the resting frame", () => {
+    jest.useFakeTimers();
+    const onDone = jest.fn();
+    render(<SuccessRig size={180} play onDone={onDone} />);
+    // The first painted frame: the badge has not appeared yet and the sparkles are hidden.
+    expect(flat("success-rig-layer-badge").opacity).toBe(0);
+    expect(flat("success-rig-layer-badge").transform).toEqual([{ scale: 0.6 }]);
+    expect(flat("success-rig-layer-sparkles").opacity).toBe(0);
+    act(() => jest.advanceTimersByTime(SUCCESS_RIG_MS));
+    expect(onDone).toHaveBeenCalledTimes(1);
   });
 
   it("follows the success timeline: squash, hop with the lid open, badge pop, sparkles fade", () => {
@@ -265,15 +297,26 @@ describe("MascotReading", () => {
   it("loops while its screen is focused and pauses when it loses focus", () => {
     const repeat = jest.spyOn(Reanimated, "withRepeat");
     const cancel = jest.spyOn(Reanimated, "cancelAnimation");
-    const focused = render(
-      <NavigationContext.Provider value={navigation(true) as never}>
+    const screenNavigation = navigation(true);
+    render(
+      <NavigationContext.Provider value={screenNavigation as never}>
         <MascotReading size={120} />
       </NavigationContext.Provider>,
     );
     expect(repeat).toHaveBeenCalledTimes(1);
-    focused.unmount();
-    expect(cancel).toHaveBeenCalled();
+    expect(cancel).not.toHaveBeenCalled();
 
+    // Another screen covers it: the loop stops while the rig stays mounted.
+    act(() => screenNavigation.emit("blur"));
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("mascot-reading-body", hidden)).toBeTruthy();
+    expect(repeat).toHaveBeenCalledTimes(1);
+
+    // Back in focus, it loops again.
+    act(() => screenNavigation.emit("focus"));
+    expect(repeat).toHaveBeenCalledTimes(2);
+
+    screen.unmount();
     repeat.mockClear();
     render(
       <NavigationContext.Provider value={navigation(false) as never}>

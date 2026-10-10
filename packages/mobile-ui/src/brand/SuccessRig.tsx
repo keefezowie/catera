@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { Image, View, type ImageStyle } from "react-native";
 import Animated, { cancelAnimation, Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { successRig, successRigBox } from "../../../brand/phaseF";
@@ -127,15 +127,17 @@ const percent = (point: { x: number; y: number }) => `${point.x * 100}% ${point.
  */
 export function SuccessRig({ size, play, onDone }: { size: number; play: boolean; onDone?: () => void }) {
   const reduced = useReduced();
-  const clock = useSharedValue(SUCCESS_RIG_MS);
+  // Mounted already playing, the first painted frame is the timeline's first frame, never the resting frame.
+  const clock = useSharedValue(play && !reduced ? 0 : SUCCESS_RIG_MS);
   const done = useRef(onDone);
   const reducedNow = useRef(reduced);
-  useEffect(() => {
+  useLayoutEffect(() => {
     done.current = onDone;
     reducedNow.current = reduced;
   });
 
-  useEffect(() => {
+  // A layout effect, so a play that starts on a later render resets the clock before that render paints.
+  useLayoutEffect(() => {
     if (!play) return;
     if (reducedNow.current) {
       done.current?.();

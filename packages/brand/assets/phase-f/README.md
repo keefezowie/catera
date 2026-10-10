@@ -42,10 +42,13 @@ Run from the repository root:
 
 ```sh
 node packages/brand/build-phase-f-exports.mjs
+node packages/brand/build-phase-f-runtime.mjs
 node packages/brand/build-phase-f-confetti.mjs
 node packages/brand/verify-phase-f.mjs
 node packages/brand/preview-phase-f.mjs
 ```
+
+`build-phase-f-runtime.mjs` must run after `build-phase-f-exports.mjs`. The exports script rewrites `processing-records.json` from scratch, which drops the `runtime/*` records; the runtime script reads the fresh exports, rewrites `runtime/`, appends its records again and regenerates `packages/brand/phaseF.ts` and the `phaseFRuntime` block of `packages/brand/manifest.brand.json`. Run in the other order, the records lose the runtime hashes the apps' copies are checked against. The runtime copies are derivatives, never masters: stills are trimmed to their visible box plus a 3% transparent margin (crop rect recorded) and downscaled to a visible height of at most 540px (180pt at 3x); success rig layers are untrimmed 800px canvases and reading rig layers untrimmed 600px canvases. Two runs produce byte-identical files.
 
 Open `http://127.0.0.1:4117`. The preview helper caches the official lottie-web 5.13.0 runtime under ignored `output/phase-f-artwork/`; the delivered Lottie JSON has no runtime dependency embedded in it.
 
