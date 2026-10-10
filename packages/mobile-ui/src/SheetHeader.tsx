@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { nativeMotion } from "@catera/design-tokens";
 import { Text } from "./components";
 import { HeaderIconButton } from "./HeaderIconButton";
+import { Skeleton, SkeletonGroup } from "./Skeleton";
 import { useScreenNavigation } from "./navigation";
 import { useColors } from "./theme";
 import { useToastAnchor } from "./toastAnchor";
@@ -11,6 +12,8 @@ import { fonts } from "./type";
 
 /** iOS reserves this much on each side of the centred title: the 44pt Close and its mirror. */
 const IOS_SIDE = 44;
+/** The context line's height (14/20), held while it is read. */
+const CONTEXT_LINE = 20;
 
 /**
  * Puts the screen reader on a sheet's title once the sheet has risen, so TalkBack and VoiceOver start on what the sheet
@@ -87,7 +90,10 @@ export function SheetBody({ children, os = process.env.EXPO_OS }: { children: Re
  *   under the system grabber.
  * - Android: the Material drag handle (32×4 in a 36dp band) and the title 22 bold at the start edge, the M3 sheet title.
  *   There is no Close: back and a swipe down close the sheet.
- * `context` is an optional line under the title (the day, the package). Close calls `onClose`, else goes back.
+ * `context` is an optional line under the title (the day, the package): one line, ending in "…" when it is longer,
+ * with the whole text given to screen readers. A `context` of null is a line still being read: its 20 is held by a
+ * skeleton line (breathing with the sheet body's own skeleton), so the header keeps its height when the line lands.
+ * Close calls `onClose`, else goes back.
  * The screen reader starts on the title (`useSheetTitleFocus`).
  * In a sheet it also tells the toast so (`useToastAnchor`), so on iOS a sheet without a `Screen` still shows its
  * toasts at the bottom. `os` defaults to the running platform.
@@ -100,7 +106,7 @@ export function SheetHeader({
   os = process.env.EXPO_OS,
 }: {
   title: string;
-  context?: string;
+  context?: string | null;
   onClose?: () => void;
   /** The translated spoken name of Close; this package has no i18n. */
   closeLabel?: string;
@@ -112,11 +118,27 @@ export function SheetHeader({
   useToastAnchor({});
   const ios = os === "ios";
   const close = onClose ?? (() => navigation?.goBack());
-  const contextLine = context ? (
-    <Text selectable style={{ color: palette.muted, fontSize: 14, lineHeight: 20, textAlign: ios ? "center" : "left" }}>
-      {context}
-    </Text>
-  ) : null;
+  const contextLine =
+    context === null ? (
+      <SkeletonGroup>
+        <View
+          testID="sheet-context"
+          style={{ height: CONTEXT_LINE, justifyContent: "center", alignItems: ios ? "center" : "flex-start" }}
+        >
+          <Skeleton width="60%" height={12} radius={6} />
+        </View>
+      </SkeletonGroup>
+    ) : context ? (
+      <Text
+        testID="sheet-context"
+        selectable
+        numberOfLines={1}
+        accessibilityLabel={context}
+        style={{ color: palette.muted, fontSize: 14, lineHeight: CONTEXT_LINE, textAlign: ios ? "center" : "left" }}
+      >
+        {context}
+      </Text>
+    ) : null;
 
   if (ios)
     return (

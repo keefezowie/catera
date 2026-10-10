@@ -5,7 +5,7 @@ import * as Reanimated from "react-native-reanimated";
 import { createMobileRuntime, MobileProvider, useMobile, type MobileRuntime } from "@catera/mobile-core";
 import { nativeMood, nativeMotion, nativeThemes } from "@catera/design-tokens";
 import * as SecureStore from "expo-secure-store";
-import { FadeSwap, MoodProvider, SkeletonGroup, ThemeProvider } from "@catera/mobile-ui";
+import { FadeSwap, MoodProvider, SheetHeader, SkeletonGroup, ThemeProvider } from "@catera/mobile-ui";
 import type { CustomerState } from "@catera/domain";
 import { Beranda } from "../src/today/Beranda";
 import { HERO_OVERLAP } from "../src/today/Plate";
@@ -882,5 +882,69 @@ describe("fix round 2", () => {
     expect(contentFades(timing)).toHaveLength(1);
     // The packages read with the first load were kept, so none was read again.
     expect(catalog).toHaveBeenCalledTimes(1);
+  });
+});
+
+/* Rebase fix (Task 9's Ada masalah sheet): the header holds the day's line, and the sign-in prompt fades in. */
+
+describe("Ada masalah sheet after the rebase", () => {
+  /** The header's fixed parts: the title's line and the context line's height (held, or the one-line text). */
+  function sheetHeader() {
+    const title = screen.getByRole("header", { name: "Ada masalah" });
+    const context = screen.getByTestId("sheet-context");
+    const line = flat(context);
+    return {
+      title: flat(title).lineHeight,
+      context: (line.height ?? line.lineHeight) as number,
+      lines: context.props.numberOfLines ?? 1,
+    };
+  }
+
+  it("the header keeps its fixed parts from loading to ready: the day's line is held, then one line (A)", async () => {
+    mockParams = { id: "d-today" };
+    const read = deferred<CustomerState>();
+    const runtime = runtimeWith({ customer: jest.fn(() => read.promise) });
+    renderWith(runtime, <ReportProblem />);
+    await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
+    const loading = sheetHeader();
+    expect(loading.context).toBe(20);
+    // The held line is a skeleton breathing with the body's; the body's group alone names the wait.
+    expect(screen.getAllByRole("progressbar")).toHaveLength(1);
+
+    await act(async () => read.resolve(customerState({ status: "delivered" })));
+    await screen.findByText("Apa yang terjadi?");
+    const ready = sheetHeader();
+    expect(ready).toEqual(loading);
+    // One line on screen; the whole day, package and kitchen for screen readers.
+    const context = screen.getByTestId("sheet-context");
+    expect(context.props.numberOfLines).toBe(1);
+    expect(context.props.accessibilityLabel).toBe(context.props.children);
+    expect(String(context.props.children)).toContain(" · ");
+  });
+
+  it("a long context stays one line on iOS too, read out in full", () => {
+    const long = "Besok, Sen 12 Okt · Makan Siang Rumahan Sehat Bergizi · Dapur Ibu Sari Jakarta Selatan";
+    renderWith(runtimeWith({}), <SheetHeader title="Ada masalah" context={long} os="ios" />);
+    const context = screen.getByTestId("sheet-context");
+    expect(context.props.numberOfLines).toBe(1);
+    expect(context.props.accessibilityLabel).toBe(long);
+    expect(flat(context).lineHeight).toBe(20);
+  });
+
+  it("signed out, the sign-in prompt fades in from the skeleton through the same FadeSwap (B)", async () => {
+    mockParams = { id: "d-today" };
+    const me = deferred<{ actor: null; demo: boolean }>();
+    const runtime = runtimeWith({ me: jest.fn(() => me.promise), customer: jest.fn() });
+    renderAt(runtime, <ReportProblem />, SIANG);
+    await waitFor(() => expect(screen.UNSAFE_getAllByType(FadeSwap)[0].props.swapKey).toBe("loading"));
+    expect(screen.getByRole("progressbar", { name: "Memuat pengantaran" })).toBeTruthy();
+    const timing = jest.spyOn(Reanimated, "withTiming");
+    await act(async () => me.resolve({ actor: null, demo: false }));
+    expect(await screen.findByRole("button", { name: "Masuk" })).toBeTruthy();
+    expect(screen.UNSAFE_getAllByType(FadeSwap)[0].props.swapKey).toBe("signin");
+    // The same FadeSwap changed its key, so it faded once; a new sheet would have cut in with no fade.
+    expect(timing.mock.calls.filter(([to, c]) => to === 1 && c?.duration === nativeMotion.content)).toHaveLength(1);
+    expect(screen.queryByRole("progressbar")).toBeNull();
+    expect(runtime.api.customer).not.toHaveBeenCalled();
   });
 });

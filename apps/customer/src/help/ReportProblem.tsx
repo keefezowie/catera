@@ -57,19 +57,26 @@ export function ReportProblem() {
       (entry): entry is [string, string] => typeof entry[1] === "string",
     ),
   ).toString();
-  if (!ready) return <Loading />;
-  if (!actor)
+  // Before the session is known, and when it says nobody is signed in, one Sheet: the sign-in prompt fades in from the
+  // skeleton through the same FadeSwap. Only the skeleton holds the context line; a sign-in prompt has no day to name.
+  if (!ready || !actor)
     return (
-      <Sheet swapKey="signin">
-        <Text style={{ color: c.muted }}>
-          {t("Masuk untuk melihat paket dan jadwal antar Anda.", "Sign in to see your packages and deliveries.")}
-        </Text>
-        <Button
-          label={t("Masuk", "Sign in")}
-          onPress={() =>
-            router.push({ pathname: "/login", params: { next: `/masalah/${id}${query ? `?${query}` : ""}` } } as never)
-          }
-        />
+      <Sheet swapKey={ready ? "signin" : "loading"} context={ready ? undefined : null}>
+        {ready ? (
+          <>
+            <Text style={{ color: c.muted }}>
+              {t("Masuk untuk melihat paket dan jadwal antar Anda.", "Sign in to see your packages and deliveries.")}
+            </Text>
+            <Button
+              label={t("Masuk", "Sign in")}
+              onPress={() =>
+                router.push({ pathname: "/login", params: { next: `/masalah/${id}${query ? `?${query}` : ""}` } } as never)
+              }
+            />
+          </>
+        ) : (
+          <ReportSkeleton />
+        )}
       </Sheet>
     );
   return <Report key={`${actor.id}:${id}`} actorId={actor.id} id={id} meal={params.meal} jenis={params.jenis} />;
@@ -77,9 +84,10 @@ export function ReportProblem() {
 
 /**
  * The sheet's frame: the title row ("Ada masalah", with the day under it once known) over the scrolling content. The
- * content sits in one FadeSwap keyed by `swapKey`, so the form fades in from its skeleton as one block.
+ * content sits in one FadeSwap keyed by `swapKey`, so the form fades in from its skeleton as one block. While the day
+ * is read, `context` is null: the header holds the day's line, so it keeps its height when the form lands.
  */
-function Sheet({ context, swapKey, children }: { context?: string; swapKey: string; children: ReactNode }) {
+function Sheet({ context, swapKey, children }: { context?: string | null; swapKey: string; children: ReactNode }) {
   const { t } = useMobile();
   return (
     <View style={{ flex: 1 }}>
@@ -108,14 +116,6 @@ function ReportSkeleton() {
   );
 }
 
-/** The sheet before the session is known: its title, then the shape of the choices. */
-function Loading() {
-  return (
-    <Sheet swapKey="loading">
-      <ReportSkeleton />
-    </Sheet>
-  );
-}
 
 function Report({ actorId, id, meal: wanted, jenis }: { actorId: string; id: string; meal?: string; jenis?: string }) {
   const { runtime, command, t, locale } = useMobile();
@@ -165,7 +165,7 @@ function Report({ actorId, id, meal: wanted, jenis }: { actorId: string; id: str
   // The same Sheet (and its FadeSwap) in every state below, so the form fades in from this skeleton.
   if (!d && state.loading)
     return (
-      <Sheet swapKey="loading">
+      <Sheet swapKey="loading" context={null}>
         <ReportSkeleton />
       </Sheet>
     );
