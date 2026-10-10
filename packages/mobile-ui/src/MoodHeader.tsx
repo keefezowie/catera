@@ -7,15 +7,19 @@ import { nativeMotion } from "@catera/design-tokens";
 import { DayArc } from "./brand/DayArc";
 import { MalamPattern } from "./brand/MalamPattern";
 import { useMoodProgress } from "./brand/useMoodProgress";
-import { RoundButton, Text } from "./components";
+import { Text } from "./components";
 import { MoodFill } from "./MoodFill";
-import { useMood, useMoodColors, useMoodLabels } from "./mood";
+import { statusBarStyle, useMood, useMoodColors, useMoodLabels } from "./mood";
 import { PressableScale } from "./motion";
+import { ScreenStatusBar } from "./ScreenStatusBar";
+import { useThemePreference } from "./theme";
 import { useTopInsetOwned } from "./TopInset";
 import { fontFor } from "./type";
 
 export { StatusBand } from "./StatusBand";
 
+/** The header's top row, the same on every screen so the headline starts at one height. */
+const ROW_HEIGHT = 48;
 const TRACK_PADDING = 3;
 const TAB_MIN_WIDTH = 84;
 const TAB_PADDING = 12;
@@ -114,14 +118,16 @@ const isText = (node: ReactNode): node is string | number => typeof node === "st
  * Its fill is `MoodFill`: two stacked layers, Siang and Malam, and the Malam one fades in and out.
  * - A string `title` is set in the `title` variant (30/39), which holds a long, dynamic name at large font scales. A
  *   short fixed headline can opt into `titleVariant="display"` (34/40).
- * - `onBack` puts the 48dp round back button in the meta slot (in place of `meta`), labelled `backLabel`.
+ * - The top row is 48dp on every screen, whether it holds the meta line, a trailing control, the toggle or nothing,
+ *   so switching tabs never moves the headline. The toggle's 48dp tabs ride on a 3dp track that overhangs the row
+ *   evenly above and below. The meta line carries a fact (a date, the area), never the tab's own name.
+ * - While its screen is focused it sets the status-bar glyphs for the mood (`statusBarStyle`); once a pushed screen
+ *   covers it, the app's default for the theme shows again.
  */
 export function MoodHeader({
   meta,
   title,
   titleVariant = "title",
-  onBack,
-  backLabel = "Kembali",
   trailing,
   toggle = false,
   arc = false,
@@ -132,8 +138,6 @@ export function MoodHeader({
   meta?: ReactNode;
   title: ReactNode;
   titleVariant?: "title" | "display";
-  onBack?: () => void;
-  backLabel?: string;
   trailing?: ReactNode;
   toggle?: boolean;
   arc?: boolean;
@@ -144,9 +148,9 @@ export function MoodHeader({
   const insets = useSafeAreaInsets();
   const topOwned = useTopInsetOwned();
   const palette = useMoodColors();
+  const { mood } = useMood();
+  const { scheme } = useThemePreference();
   const radius = overlap === 58 ? 32 : 28;
-  const lead = onBack ? <RoundButton icon="chevron-back" label={backLabel} onPress={onBack} /> : meta;
-  const hasRow = lead != null || toggle || trailing != null;
 
   return (
     <View
@@ -160,29 +164,34 @@ export function MoodHeader({
         borderCurve: "continuous",
       }}
     >
+      <ScreenStatusBar style={statusBarStyle({ scheme, mood, demo: topOwned })} />
       <MoodFill surface="header" testID="mood-fill">
         {/* In the Malam layer, so the lunchboxes fade in and out with the fill instead of snapping. Below the toggle
             row, so they show beside the headline instead of hiding behind the toggle. */}
-        <MalamPattern mood="malam" top={(topOwned ? 0 : insets.top) + 12 + 54 + 4} />
+        <MalamPattern mood="malam" top={(topOwned ? 0 : insets.top) + 12 + ROW_HEIGHT + TRACK_PADDING * 2 + 4} />
       </MoodFill>
       <View
         testID="mood-header-content"
         style={{ maxWidth: 760, width: "100%", alignSelf: "center", paddingHorizontal: 20, gap: 12 }}
       >
-        {hasRow ? (
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-            <View style={{ flex: 1 }}>
-              {isText(lead) ? (
-                <Text variant="label" style={{ color: palette.headerMeta, lineHeight: 18 }}>
-                  {lead}
-                </Text>
-              ) : (
-                lead
-              )}
-            </View>
-            <View style={{ flexShrink: 0 }}>{toggle ? <MoodToggle /> : trailing}</View>
+        <View testID="mood-header-row" style={{ minHeight: ROW_HEIGHT, flexDirection: "row", alignItems: "center", gap: 12 }}>
+          <View style={{ flex: 1 }}>
+            {isText(meta) ? (
+              <Text variant="label" style={{ color: palette.headerMeta, lineHeight: 18 }}>
+                {meta}
+              </Text>
+            ) : (
+              meta
+            )}
           </View>
-        ) : null}
+          {toggle ? (
+            <View style={{ flexShrink: 0, marginVertical: -TRACK_PADDING }}>
+              <MoodToggle />
+            </View>
+          ) : trailing != null ? (
+            <View style={{ flexShrink: 0 }}>{trailing}</View>
+          ) : null}
+        </View>
         {isText(title) ? (
           <Text variant={titleVariant} accessibilityRole="header" style={{ color: palette.headerText }}>
             {title}

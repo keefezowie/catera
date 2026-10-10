@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { ActivityIndicator, Image, Linking, ScrollView, StyleSheet } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
+import { NavigationContext } from "expo-router/react-navigation";
 import * as Haptics from "expo-haptics";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { nativeMood, nativeThemes } from "@catera/design-tokens";
@@ -356,7 +357,7 @@ describe("Jadwal", () => {
     const row = screen.getByRole("button", { name: /Makan Siang Rumahan/ });
     expect(within(row).getByText(/Makan siang · 11\.00–13\.00/)).toBeTruthy();
     fireEvent.press(row);
-    expect(router.push).toHaveBeenCalledWith("/hari/d-next");
+    expect(router.push).toHaveBeenCalledWith("/hari/d-next?title=Kamis%208%20Okt");
   });
 
   it("a meal row's detail line wraps instead of truncating at large text sizes", async () => {
@@ -813,9 +814,19 @@ describe("Hari", () => {
   it("opens the change sheet from the day", async () => {
     mockParams = { id: "d-next" };
     const d = open("d-next", "2026-10-08");
-    renderWith(runtimeWith(stateOf([d])), <DayScreen />);
+    // The screen's own stack entry: the day is the native bar's title, never "Hari", and the body does not repeat it.
+    const setOptions = jest.fn();
+    const navigation = { setOptions, isFocused: () => true, addListener: () => () => undefined };
+    renderWith(
+      runtimeWith(stateOf([d])),
+      <NavigationContext.Provider value={navigation as never}>
+        <DayScreen />
+      </NavigationContext.Provider>,
+    );
     expect(await screen.findByText(/Makan Siang Rumahan/)).toBeTruthy();
-    expect(screen.getByText(/Kamis 8 Okt/)).toBeTruthy();
+    expect(setOptions).toHaveBeenLastCalledWith({ title: "Kamis 8 Okt" });
+    expect(screen.queryByText(/Kamis 8 Okt/)).toBeNull();
+    expect(screen.queryByText("Hari")).toBeNull();
     fireEvent.press(screen.getByRole("button", { name: "Ubah hari" }));
     expect(await screen.findByText("Bisa diubah sampai hari ini 17.00")).toBeTruthy();
   });

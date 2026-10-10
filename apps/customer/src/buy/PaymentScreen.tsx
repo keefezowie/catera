@@ -6,7 +6,7 @@ import * as Clipboard from "expo-clipboard";
 import * as WebBrowser from "expo-web-browser";
 import { currency, errorLabel, paidSummary, type Checkout, type DirectPaymentMethod } from "@catera/domain";
 import { plural, useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, FadeSwap, fontFor, MoodHeader, Screen, Text, themedStyles, useColors, useHaptic } from "@catera/mobile-ui";
+import { Button, Card, FadeSwap, fontFor, Screen, Text, themedStyles, useColors, useHaptic } from "@catera/mobile-ui";
 import { PayWith, Retry } from "./BuyParts";
 import { FLOW_HREF, goToTab } from "../nav";
 import { PaidActions } from "./PaidOutcome";
@@ -14,9 +14,17 @@ import { FINAL, PaymentOutcome, stageOf, type Stage } from "./PaymentOutcome";
 import { QrisCode, useQris } from "./QrisCode";
 
 const POLL_MS = 10_000;
-const leave = () => (router.canGoBack() ? router.back() : goToTab("index"));
 /** Paid is final: whatever opened this screen (a purchase, a renewal, Payments, a notification), leaving goes home. */
 const home = () => goToTab("index");
+
+/**
+ * A removal that came from the user's back: the hardware back or `router.back()` (Close in the header) send GO_BACK,
+ * and the native header's back and the iOS edge swipe send a POP naming this screen as its source. The app's own exits
+ * (goToTab, leaveFor) carry no source, so the paid footer's buttons still leave the way they say.
+ */
+function isUserBack(action: { type: string; source?: string }) {
+  return action.type === "GO_BACK" || (action.type === "POP" && !!action.source);
+}
 const tabular = { fontVariant: ["tabular-nums" as const] };
 
 const clock = (ms: number) => {
@@ -62,10 +70,20 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
     if (paid && before !== null && before !== "paid") haptic.success();
   }, [stage, paid, haptic]);
 
-  // Paid is final on iOS too: the edge swipe would pop to whatever opened this screen, so it is off while paid.
+  // Paid is final on iOS too: the edge swipe would pop to whatever opened this screen, so it is off while paid, and the
+  // header shows no back. Any back that still reaches the screen (Close, the native back, the hardware back through the
+  // stack) is turned into the way home instead of a step back to Beli.
   const navigation = useNavigation();
   useEffect(() => {
-    navigation.setOptions({ gestureEnabled: !paid });
+    navigation.setOptions(paid ? { gestureEnabled: false, headerBackVisible: false } : { gestureEnabled: true });
+  }, [navigation, paid]);
+  useEffect(() => {
+    if (!paid) return;
+    return navigation.addListener("beforeRemove", (e) => {
+      if (!isUserBack(e.data.action as { type: string; source?: string })) return;
+      e.preventDefault();
+      home();
+    });
   }, [navigation, paid]);
 
   // While paid, the hardware back goes home too; before that it keeps its normal meaning.
@@ -141,15 +159,8 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
     }
   }
 
-  // One header over every state, outcomes included; the back control rides in its meta slot. Paid names the beat.
-  const header = (
-    <MoodHeader
-      testID="payment-header"
-      onBack={paid ? home : leave}
-      backLabel={t("Kembali", "Back")}
-      title={paid ? t("Pembayaran diterima", "Payment received") : t("Bayar", "Pay")}
-    />
-  );
+  // One native title over every state, outcomes included. Paid names the beat.
+  const title = paid ? t("Pembayaran diterima", "Payment received") : t("Bayar", "Pay");
   const help = (
     <Button
       variant="text"
@@ -159,7 +170,7 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
   );
   if (!c || !stage)
     return (
-      <Screen header={header}>
+      <Screen nativeTitle={title}>
         {state.error ? (
           <Retry message={state.error} onRetry={() => void reload()} t={t} />
         ) : state.loading || !ready ? (
@@ -173,7 +184,7 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
   // One screen for every stage, so a change of stage fades the new body in instead of remounting the page.
   if (stage !== "pay")
     return (
-      <Screen header={header} footer={paid && summary ? <PaidActions summary={summary} /> : undefined}>
+      <Screen nativeTitle={title} footer={paid && summary ? <PaidActions summary={summary} /> : undefined}>
         <FadeSwap swapKey={stage} style={{ gap: 16 }}>
           <PaymentOutcome
             checkout={c}
@@ -211,7 +222,7 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
         ];
   return (
     <Screen
-      header={header}
+      nativeTitle={title}
       footer={
         <Button
           label={t("Saya sudah bayar, cek status", "I've paid, check status")}

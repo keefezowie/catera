@@ -128,7 +128,8 @@ describe("Akun", () => {
     expect(screen.getByText("Dapur Contoh · 6 hari lagi")).toBeTruthy();
     expect(screen.queryByText("Paket Lama")).toBeNull();
     fireEvent.press(screen.getByText("Makan Siang Rumahan"));
-    expect(router.push).toHaveBeenCalledWith("/subscriptions/s-1");
+    // The link carries the name, so the plan's header is final on its first frame.
+    expect(router.push).toHaveBeenCalledWith("/subscriptions/s-1?title=Makan%20Siang%20Rumahan");
 
     for (const [label, href] of [
       ["Alamat", "/alamat"],

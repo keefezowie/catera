@@ -342,7 +342,7 @@ describe("the plan lines", () => {
     expect(StyleSheet.flatten(line.props.style).minHeight).toBeGreaterThanOrEqual(48);
     expect(within(line).getByText(/6 hari lagi/)).toBeTruthy();
     fireEvent.press(line);
-    expect(router.push).toHaveBeenCalledWith("/subscriptions/s-1");
+    expect(router.push).toHaveBeenCalledWith("/subscriptions/s-1?title=Makan%20Siang%20Rumahan");
   });
 
   it("give every running plan its own line", async () => {
@@ -355,7 +355,7 @@ describe("the plan lines", () => {
     });
     await home(runtimeWith(async () => stateWith([livePlan(), second])));
     fireEvent.press(screen.getByRole("button", { name: "Makan Malam Hemat, Dapur Contoh, 9 hari lagi, lihat detail paket" }));
-    expect(router.push).toHaveBeenCalledWith("/subscriptions/s-2");
+    expect(router.push).toHaveBeenCalledWith("/subscriptions/s-2?title=Makan%20Malam%20Hemat");
     await waitFor(() => expect(screen.queryByTestId("recap-card")).toBeNull());
   });
 });

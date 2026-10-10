@@ -4,6 +4,7 @@ import { Keyboard, Modal, ScrollView, StyleSheet, Text as RNText, View } from "r
 import type { ReactElement } from "react";
 import * as Haptics from "expo-haptics";
 import * as Reanimated from "react-native-reanimated";
+import { NavigationContext } from "expo-router/react-navigation";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { nativeMood } from "@catera/design-tokens";
 import {
@@ -288,22 +289,60 @@ describe("MoodHeader", () => {
     expect(StyleSheet.flatten(screen.getByText("Halo").props.style)).toMatchObject({ fontSize: 34, lineHeight: 40 });
   });
 
-  it("puts the 48dp round back button in the meta slot, in place of the meta, and presses back", () => {
-    const onBack = jest.fn();
-    mount(<MoodHeader title="Halo" meta="Jumat" onBack={onBack} backLabel="Back" />);
-    const back = screen.getByRole("button", { name: "Back" });
-    expect(StyleSheet.flatten(back.props.style)).toMatchObject({ width: 48, height: 48 });
-    expect(screen.queryByText("Jumat")).toBeNull();
-    fireEvent.press(back);
-    expect(onBack).toHaveBeenCalledTimes(1);
+  it("keeps a 48dp top row whether it holds a meta line, a trailing control, the toggle or nothing", () => {
+    // Pushed screens take the native header, so a mood header never carries a back button.
+    for (const ui of [
+      <MoodHeader key="empty" title="Halo" />,
+      <MoodHeader key="meta" title="Halo" meta="Jumat" />,
+      <MoodHeader key="trailing" title="Halo" trailing={<RNText>Aksi</RNText>} />,
+      <MoodHeader key="toggle" title="Halo" toggle />,
+    ]) {
+      mount(ui);
+      const row = screen.getByTestId("mood-header-row");
+      expect(StyleSheet.flatten(row.props.style)).toMatchObject({ minHeight: 48 });
+      // The row comes first and the title right after it, so the title starts at one height on every tab.
+      const content = screen.getByTestId("mood-header-content");
+      const first = content.children[0];
+      expect(typeof first === "string" ? first : first.props.testID).toBe("mood-header-row");
+      expect(row).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "Kembali" })).toBeNull();
+      screen.unmount();
+    }
+    // The toggle's 48dp tabs sit on a 3dp track; it overhangs the row evenly so the row stays 48.
+    mount(<MoodHeader title="Halo" toggle />);
+    const toggleSlot = screen.UNSAFE_getByProps({ accessibilityRole: "tablist" }).parent!.parent!;
+    expect(StyleSheet.flatten(toggleSlot.props.style)).toMatchObject({ marginVertical: -3 });
   });
 
-  it("has no back button unless asked, and the back label defaults to Kembali", () => {
-    mount(<MoodHeader title="Halo" />);
-    expect(screen.queryByRole("button")).toBeNull();
-    screen.unmount();
-    mount(<MoodHeader title="Halo" onBack={() => {}} />);
-    expect(screen.getByRole("button", { name: "Kembali" })).toBeTruthy();
+  it("sets the mood's status bar glyphs while its screen is focused and hands them back on blur", () => {
+    const listeners: Record<string, (() => void)[]> = { focus: [], blur: [] };
+    let focused = true;
+    const navigation = {
+      isFocused: () => focused,
+      addListener: (event: string, cb: () => void) => {
+        listeners[event].push(cb);
+        return () => void listeners[event].splice(listeners[event].indexOf(cb), 1);
+      },
+    };
+    const bars = () => screen.UNSAFE_queryAllByType(ReactNative.StatusBar).map((b) => b.props.barStyle);
+    mount(
+      <NavigationContext.Provider value={navigation as never}>
+        <MoodHeader title="Halo" />
+      </NavigationContext.Provider>,
+      { now: MALAM_NOW },
+    );
+    // Light theme, Malam: the dark header wants light glyphs.
+    expect(bars()).toEqual(["light-content"]);
+    // A pushed screen covers it: its status bar unmounts, so the app's default (the theme's) shows again.
+    focused = false;
+    act(() => listeners.blur.forEach((cb) => cb()));
+    expect(bars()).toEqual([]);
+    focused = true;
+    act(() => listeners.focus.forEach((cb) => cb()));
+    expect(bars()).toEqual(["light-content"]);
+    // With no mood header, only the theme decides.
+    expect(statusBarStyle({ scheme: "light", mood: null, demo: false })).toBe("dark");
+    expect(statusBarStyle({ scheme: "dark", mood: null, demo: false })).toBe("light");
   });
 
   it("shows the meta line in headerMeta and lets a trailing node replace the toggle", () => {

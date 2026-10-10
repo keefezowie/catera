@@ -8,7 +8,7 @@ import * as SecureStore from "expo-secure-store";
 import * as Haptics from "expo-haptics";
 import { addDays, currency, type Checkout, type Quote, type RenewalContext } from "@catera/domain";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
-import { nativeMood, nativeThemes } from "@catera/design-tokens";
+import { nativeThemes } from "@catera/design-tokens";
 import { fonts, MoodProvider, ThemeProvider } from "@catera/mobile-ui";
 import { customerLink } from "../src/links";
 import { goToTab, leaveFor } from "../src/nav";
@@ -28,9 +28,36 @@ jest.mock("expo-router", () => ({
   // Focused for the whole test: the effect runs on mount and whenever its callback changes.
   useFocusEffect: (effect: () => void | (() => void)) => require("react").useEffect(effect, [effect]),
 }));
-/** The screen's own stack options (Bayar turns the iOS edge swipe off once paid). */
+/**
+ * The screen's own stack options (Bayar turns the iOS edge swipe and the header back off once paid) and its
+ * `beforeRemove` listeners, which the stack calls before a back removes the screen. The real contexts stay (Screen reads
+ * whether a stack header sits above it).
+ */
 const mockSetOptions = jest.fn();
-jest.mock("expo-router/react-navigation", () => ({ useNavigation: () => ({ setOptions: mockSetOptions }) }));
+type RemoveEvent = { data: { action: { type: string; source?: string } }; preventDefault: () => void };
+const mockListeners: { event: string; listener: (e: RemoveEvent) => void }[] = [];
+const mockNavigation = {
+  setOptions: mockSetOptions,
+  addListener: (event: string, listener: (e: RemoveEvent) => void) => {
+    const entry = { event, listener };
+    mockListeners.push(entry);
+    return () => void mockListeners.splice(mockListeners.indexOf(entry), 1);
+  },
+};
+jest.mock("expo-router/react-navigation", () => ({
+  ...jest.requireActual("expo-router/react-navigation"),
+  useNavigation: () => mockNavigation,
+}));
+/** What the stack does before a back removes Bayar: asks every listener; true when one of them kept the screen. */
+function removeBy(action: { type: string; source?: string }) {
+  let prevented = false;
+  for (const { event, listener } of [...mockListeners])
+    if (event === "beforeRemove") listener({ data: { action }, preventDefault: () => (prevented = true) });
+  return prevented;
+}
+/** Close in the header is `router.back()` (GO_BACK); the native header's back and the iOS swipe pop with a source. */
+const CLOSE = { type: "GO_BACK" };
+const NATIVE_BACK = { type: "POP", source: "bayar/[id]-key" };
 jest.mock("expo-notifications", () => ({
   setNotificationHandler: jest.fn(),
   addNotificationReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
@@ -514,11 +541,12 @@ describe("Beli / Perpanjang", () => {
   });
 });
 
-describe("Beli and Bayar mood headers", () => {
-  // 15.00 in Jakarta and later is Malam; the default theme here is light.
+describe("Beli and Bayar under the native header", () => {
+  // 15.00 in Jakarta and later is Malam; the default theme here is light. A flow wears no mood: only tab roots do.
   const MALAM = () => new Date("2026-10-07T08:00:00Z");
-  const malam = nativeMood.light.malam;
   const flat = (node: { props: { style?: unknown } }) => (StyleSheet.flatten(node.props.style as never) ?? {}) as Record<string, unknown>;
+  /** The screen's name: its Android content title (iOS shows the same string as the large title). */
+  const nativeTitle = async () => within(await screen.findByTestId("screen-native-title"));
   /** The fill of the nearest ancestor that paints one: the card or box the text sits in. */
   const surfaceAround = (node: { parent: unknown; props: { style?: unknown } }) => {
     let at = node.parent as typeof node | null;
@@ -534,82 +562,57 @@ describe("Beli and Bayar mood headers", () => {
       </MoodProvider>,
     );
 
-  it("Beli titles the screen with the package inside a Malam header, with the back button in it", async () => {
+  it("Beli names the screen after the package, on the theme canvas with no mood header, even in Malam", async () => {
     wrapMood(server(), <BuyScreen packageId="p-rumahan" />);
-    const header = await screen.findByTestId("buy-header");
-    expect(flat(within(header).getByTestId("mood-fill-malam", { includeHiddenElements: true })).backgroundColor).toBe("#0B1F16");
-    const title = await within(header).findByText("Makan Siang Rumahan");
+    const title = await (await nativeTitle()).findByText("Makan Siang Rumahan");
     expect(title.props.accessibilityRole).toBe("header");
-    expect(flat(title).color).toBe("#FFF7E9");
-    expect(screen.queryByRole("tab", { name: "Malam" })).toBeNull();
-    // The portions card in the body keeps the theme surface, not the header fill.
+    expect(flat(title).color).toBe(nativeThemes.light.forest);
+    expect(screen.queryByTestId("mood-header")).toBeNull();
+    expect(screen.queryByTestId("mood-fill-malam", { includeHiddenElements: true })).toBeNull();
+    // The back is the header's Close (native-header.test); the page has no back of its own.
+    expect(screen.queryByRole("button", { name: "Kembali" })).toBeNull();
+    // The portions card keeps the theme surface.
     const portions = await screen.findByText("Porsi per hari");
-    expect(within(header).queryByText("Porsi per hari")).toBeNull();
-    expect(surfaceAround(portions)).toBe("#FFFEFA");
-    expect(nativeThemes.light.surface).toBe("#FFFEFA");
-    expect(malam.headerText).toBe("#FFF7E9");
-    // The form below stays on the page, outside the header.
-    expect(within(header).queryByText("Lama paket")).toBeNull();
+    expect(surfaceAround(portions)).toBe(nativeThemes.light.surface);
     expect(screen.getByText("Lama paket")).toBeTruthy();
   });
 
-  it("Beli's back button is 48dp and still goes back", async () => {
-    wrapMood(server(), <BuyScreen packageId="p-rumahan" />);
-    const back = await within(await screen.findByTestId("buy-header")).findByRole("button", { name: "Kembali" });
-    expect([flat(back).width, flat(back).height]).toEqual([48, 48]);
-    fireEvent.press(back);
-    expect(router.back).toHaveBeenCalledTimes(1);
-  });
-
-  it("Perpanjang names the renewal in the header", async () => {
+  it("Perpanjang names the renewal", async () => {
     wrapMood(server(), <BuyScreen renewFrom="s-1" />);
-    const header = await screen.findByTestId("buy-header");
-    expect(await within(header).findByText("Perpanjang Makan Siang Rumahan")).toBeTruthy();
+    expect(await screen.findByText("Perpanjang Makan Siang Rumahan")).toBeTruthy();
+    expect((await nativeTitle()).getByText("Perpanjang Makan Siang Rumahan")).toBeTruthy();
   });
 
-  it("keeps a header while the package loads, is missing, or cannot be read", async () => {
+  it("keeps its title while the package loads, is missing, or cannot be read", async () => {
     const missing = wrapMood(server(), <BuyScreen packageId="p-nope" />);
-    const header = await screen.findByTestId("buy-header");
-    expect(within(header).getByRole("button", { name: "Kembali" })).toBeTruthy();
-    expect(within(header).getByText("Beli")).toBeTruthy();
+    expect((await nativeTitle()).getByText("Beli")).toBeTruthy();
     expect(await screen.findByText("Paket tidak ditemukan.")).toBeTruthy();
-    expect(within(header).queryByText("Paket tidak ditemukan.")).toBeNull();
     missing.unmount();
 
     const broken = server();
     (broken.api.offer as jest.Mock).mockRejectedValue(new Error("REQUEST_TIMEOUT"));
     wrapMood(broken, <BuyScreen packageId="p-rumahan" />);
-    const again = await screen.findByTestId("buy-header");
-    expect(within(again).getByText("Beli")).toBeTruthy();
+    expect((await nativeTitle()).getByText("Beli")).toBeTruthy();
     expect(await screen.findByRole("button", { name: "Coba lagi" })).toBeTruthy();
   });
 
-  it("a renewal of a package that is no longer sold keeps the header and its back button", async () => {
+  it("a renewal of a package that is no longer sold keeps its title", async () => {
     const lain = offer({ id: "p-lain", name: "Makan Siang Hemat" });
     wrapMood(server({ context: { replacementRequired: true, available: false, offers: [lain] } }), <BuyScreen renewFrom="s-1" />);
-    const header = await screen.findByTestId("buy-header");
-    expect(within(header).getByText("Perpanjang")).toBeTruthy();
-    fireEvent.press(within(header).getByRole("button", { name: "Kembali" }));
-    expect(router.back).toHaveBeenCalledTimes(1);
+    expect(await screen.findByRole("button", { name: "Makan Siang Hemat" })).toBeTruthy();
+    expect((await nativeTitle()).getByText("Perpanjang")).toBeTruthy();
   });
 
-  it("Bayar titles the QR step in a Malam header and its back button goes back at 48dp", async () => {
+  it("Bayar titles the QR step on the theme canvas, with the total and the steps on the page", async () => {
     wrapMood(server({ checkout: pendingCheckout() }), <PaymentScreen checkoutId="ck-1" />);
-    const header = await screen.findByTestId("payment-header");
-    expect(flat(within(header).getByTestId("mood-fill-malam", { includeHiddenElements: true })).backgroundColor).toBe("#0B1F16");
-    const title = within(header).getByText("Bayar");
-    expect(title.props.accessibilityRole).toBe("header");
-    expect(flat(title).color).toBe("#FFF7E9");
-    const back = within(header).getByRole("button", { name: "Kembali" });
-    expect([flat(back).width, flat(back).height]).toEqual([48, 48]);
-    fireEvent.press(back);
-    expect(router.back).toHaveBeenCalledTimes(1);
-    // The total and the steps stay on the page.
-    expect(within(header).queryByText("Total")).toBeNull();
     expect(await screen.findByLabelText("Kode QRIS pembayaran ini")).toBeTruthy();
+    expect((await nativeTitle()).getByText("Bayar")).toBeTruthy();
+    expect(screen.queryByTestId("mood-header")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Kembali" })).toBeNull();
+    expect(screen.getByText("Total")).toBeTruthy();
   });
 
-  it("Bayar's bank-transfer card stays on the theme surface below the header", async () => {
+  it("Bayar's bank-transfer card stays on the theme surface", async () => {
     const va = pendingCheckout(
       {},
       {
@@ -619,25 +622,22 @@ describe("Beli and Bayar mood headers", () => {
     );
     wrapMood(server({ checkout: va }), <PaymentScreen checkoutId="ck-1" />);
     const label = await screen.findByText("Nomor virtual account BRI");
-    expect(within(screen.getByTestId("payment-header")).queryByText("Nomor virtual account BRI")).toBeNull();
-    expect(surfaceAround(label)).toBe("#FFFEFA");
+    expect(surfaceAround(label)).toBe(nativeThemes.light.surface);
   });
 
-  it("Bayar keeps the header in the outcome and not-found states", async () => {
+  it("Bayar keeps its title in the outcome and not-found states", async () => {
     const paid = pendingCheckout({ state: "paid", subscription_id: "s-2" }, { status: "paid" });
     const done = wrapMood(server({ checkout: paid }), <PaymentScreen checkoutId="ck-1" />);
-    // Paid is its own beat: the header names it instead of the payment step.
-    expect(await within(await screen.findByTestId("payment-header")).findByText("Pembayaran diterima")).toBeTruthy();
-    expect(within(screen.getByTestId("payment-header")).queryByText("Bayar")).toBeNull();
+    // Paid is its own beat: the title names it instead of the payment step.
+    await screen.findByTestId("paid-hero");
+    expect((await nativeTitle()).getByText("Pembayaran diterima")).toBeTruthy();
+    expect((await nativeTitle()).queryByText("Bayar")).toBeNull();
     done.unmount();
 
-    // The server has no such checkout: the page says so with a retry, under the same header.
+    // The server has no such checkout: the page says so with a retry, under the same title.
     wrapMood(server(), <PaymentScreen checkoutId="ck-1" />);
-    const retry = await screen.findByRole("button", { name: "Coba lagi" });
-    const header = screen.getByTestId("payment-header");
-    expect(within(header).getByRole("button", { name: "Kembali" })).toBeTruthy();
-    expect(within(header).queryByRole("button", { name: "Coba lagi" })).toBeNull();
-    expect(retry).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Coba lagi" })).toBeTruthy();
+    expect((await nativeTitle()).getByText("Bayar")).toBeTruthy();
   });
 });
 
@@ -760,7 +760,7 @@ describe("Bayar", () => {
     // No paid beat before the booking exists (Review Focus 4): no hero, no reserved days, the header still says Bayar.
     expect(screen.queryByTestId("paid-hero")).toBeNull();
     expect(screen.queryByText("Jadwal antar Anda sudah tersimpan.")).toBeNull();
-    expect(within(screen.getByTestId("payment-header")).getByText("Bayar")).toBeTruthy();
+    expect(within(screen.getByTestId("screen-native-title")).getByText("Bayar")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Lihat jadwal" })).toBeNull();
     fireEvent.press(screen.getByRole("button", { name: "Cek status" }));
     await waitFor(() =>
@@ -978,8 +978,8 @@ describe("Pembayaran diterima", () => {
 
   it("shows the food, the package, the first delivery and every reserved day of a short plan", async () => {
     wrap(server({ checkout: paidCheckout({}, { dates: SHORT }) }), <PaymentScreen checkoutId="ck-1" />);
-    const header = await screen.findByTestId("payment-header");
-    const title = await within(header).findByText("Pembayaran diterima");
+    await screen.findByTestId("paid-hero");
+    const title = within(screen.getByTestId("screen-native-title")).getByText("Pembayaran diterima");
     expect(title.props.accessibilityRole).toBe("header");
 
     // The hero is the mood surface: the food photo at radius 20, the package, its caterer and the first delivery.
@@ -1047,10 +1047,10 @@ describe("Pembayaran diterima", () => {
     expect(gesture().at(-1)).toBe(false);
   });
 
-  it("opened already paid has the iOS edge swipe off", async () => {
+  it("opened already paid has the iOS edge swipe and the header back off", async () => {
     wrap(server({ checkout: paidCheckout() }), <PaymentScreen checkoutId="ck-1" />);
     await screen.findByTestId("paid-hero");
-    expect(mockSetOptions).toHaveBeenLastCalledWith({ gestureEnabled: false });
+    expect(mockSetOptions).toHaveBeenLastCalledWith({ gestureEnabled: false, headerBackVisible: false });
   });
 
   it("a long plan shows its first six days, then how many more", async () => {
@@ -1132,11 +1132,8 @@ describe("Pembayaran diterima", () => {
   // the tab), so no second tabs navigator lands above the package page or Riwayat pembayaran. navigation.test runs both
   // on the real router.
   const exits: [string, (back: ReturnType<typeof hardwareBack>) => void, string][] = [
-    [
-      "the header back",
-      () => fireEvent.press(within(screen.getByTestId("payment-header")).getByRole("button", { name: "Kembali" })),
-      "index",
-    ],
+    // The native header's back pops with this screen as its source; the screen keeps itself and goes home instead.
+    ["the header back", () => expect(removeBy(NATIVE_BACK)).toBe(true), "index"],
     ["the hardware back", (back) => expect(back.press()).toEqual([true]), "index"],
     ["Ke Beranda", () => fireEvent.press(screen.getByRole("button", { name: "Ke Beranda" })), "index"],
     ["Lihat jadwal", () => fireEvent.press(screen.getByRole("button", { name: "Lihat jadwal" })), "jadwal"],
@@ -1170,9 +1167,9 @@ describe("Pembayaran diterima", () => {
       const back = hardwareBack();
       try {
         wrap(server({ checkout: paidCheckout({}, quote) }), <PaymentScreen checkoutId="ck-1" />);
-        const header = await screen.findByTestId("payment-header");
         await screen.findByTestId("paid-hero");
-        fireEvent.press(within(header).getByRole("button", { name: "Kembali" }));
+        // Close in the header is a back: the screen keeps itself and goes home.
+        expect(removeBy(CLOSE)).toBe(true);
         expect(exit).toHaveBeenLastCalledWith("index");
         // The hardware back is handled (true), so the navigator never pops to the checkout.
         expect(back.press()).toEqual([true]);
@@ -1190,15 +1187,19 @@ describe("Pembayaran diterima", () => {
     try {
       wrap(server({ checkout: pendingCheckout() }), <PaymentScreen checkoutId="ck-1" />);
       expect(await screen.findByLabelText(QR_LABEL)).toBeTruthy();
-      // While paying, back keeps its normal meaning.
+      // While paying, back keeps its normal meaning: nothing holds the screen.
       expect(back.count()).toBe(0);
-      fireEvent.press(within(screen.getByTestId("payment-header")).getByRole("button", { name: "Kembali" }));
-      expect(router.back).toHaveBeenCalledTimes(1);
+      expect(removeBy(CLOSE)).toBe(false);
+      expect(removeBy(NATIVE_BACK)).toBe(false);
+      expect(goToTab).not.toHaveBeenCalled();
       fireEvent.press(screen.getByRole("button", { name: "Saya sudah bayar, cek status" }));
       await screen.findByTestId("paid-hero");
       expect(back.count()).toBe(1);
       expect(back.press()).toEqual([true]);
       expect(goToTab).toHaveBeenLastCalledWith("index");
+      // The app's own exits (the paid footer, a tab change) carry no source, so they are never held.
+      expect(removeBy({ type: "POP" })).toBe(false);
+      expect(removeBy({ type: "REPLACE" })).toBe(false);
     } finally {
       back.restore();
     }

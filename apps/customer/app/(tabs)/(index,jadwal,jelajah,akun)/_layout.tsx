@@ -1,7 +1,7 @@
 import { Stack } from "expo-router";
 import { useMobile } from "@catera/mobile-core";
 import { tabOfSegment, type Tab } from "../../../src/nav";
-import { useStackScreenOptions } from "../../../src/stack";
+import { contentTitled, linkTitle, useStackScreenOptions } from "../../../src/stack";
 
 /** Each tab's stack starts at its own root, so a cold link to a detail screen has the tab root behind it. */
 export const unstable_settings = {
@@ -28,11 +28,19 @@ export default function TabStack({ segment }: { segment: string }) {
       {ROOTS.filter((name) => name !== root).map((name) => (
         <Stack.Screen key={name} name={name} options={{ headerShown: false }} />
       ))}
-      <Stack.Screen name="subscriptions/[id]" options={{ headerShown: false }} />
+      {/* A link that knows the name carries it as `title`, so the header is final on the first frame. */}
+      <Stack.Screen
+        name="subscriptions/[id]"
+        options={({ route }) => contentTitled(linkTitle(route.params) ?? t("Paket", "Plan"))}
+      />
       <Stack.Screen name="subscriptions/[id]/menu" options={{ headerShown: false }} />
       <Stack.Screen name="pilih-menu/[id]" options={{ title: t("Pilih menu", "Choose menus") }} />
-      <Stack.Screen name="hari/[id]" options={{ title: t("Hari", "Day") }} />
-      <Stack.Screen name="paket/[id]" options={{ headerShown: false }} />
+      {/* The day itself ("Senin 12 Okt") is the title; until it is known the bar stays empty, never "Hari". */}
+      <Stack.Screen name="hari/[id]" options={({ route }) => ({ title: linkTitle(route.params) ?? "" })} />
+      <Stack.Screen
+        name="paket/[id]"
+        options={({ route }) => contentTitled(linkTitle(route.params) ?? t("Paket", "Package"))}
+      />
       <Stack.Screen name="package/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="bantuan" options={{ title: t("Bantuan dan laporan", "Help and reports") }} />
       <Stack.Screen name="masalah/[id]" options={{ title: t("Ada masalah", "Report a problem") }} />

@@ -5,8 +5,9 @@ import { useMoodColors } from "./mood";
 import { useTopInsetOwned } from "./TopInset";
 
 /**
- * The one header for pushed screens: round back (or close, for a modal) button and a heading, on the mood header
- * fill with rounded bottom corners. The button stays on the theme surface. `backLabel` is the caller's translated
+ * Dapur's header for pushed screens until it moves to the native header (`nativeHeaderOptions`); the customer app no
+ * longer uses it. Round back (or close, for a modal) button and a heading, on the mood header fill with rounded bottom
+ * corners. The button stays on the theme surface. `backLabel` is the caller's translated
  * accessibility label ("Kembali" / "Tutup"); this package has no i18n.
  */
 export function AppHeader({

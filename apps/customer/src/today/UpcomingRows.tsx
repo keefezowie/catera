@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import { dayLabel, jakartaDay, mealLabel, type UpcomingRow } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
 import { fontFor, PressableRow, Text, themedStyles, useColors } from "@catera/mobile-ui";
+import { dayHref } from "../hrefs";
 
 /** The days after today as plain rows (not cards), each with its change deadline. */
 export function UpcomingRows({ rows }: { rows: UpcomingRow[] }) {
@@ -21,7 +22,7 @@ export function UpcomingRows({ rows }: { rows: UpcomingRow[] }) {
         <PressableRow
           key={row.deliveryId}
           accessibilityRole="button"
-          onPress={() => router.push(`/hari/${encodeURIComponent(row.deliveryId)}` as never)}
+          onPress={() => router.push(dayHref(row.deliveryId, row.date, locale) as never)}
           style={[styles.row, i > 0 && styles.divider]}
         >
           <View style={{ flex: 1, gap: 2 }}>

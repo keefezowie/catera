@@ -1,5 +1,7 @@
+import { useLayoutEffect } from "react";
 import { ActivityIndicator, Image, StyleSheet, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   compositionPreview,
   currency,
@@ -12,8 +14,9 @@ import {
   startDates,
   type Offer,
 } from "@catera/domain";
+import { nativeThemes } from "@catera/design-tokens";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, MoodHeader, RoundButton, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
+import { Button, RoundButton, Screen, ScreenStatusBar, Text, themedStyles, useColors, useScreenNavigation } from "@catera/mobile-ui";
 import { photoUri } from "../today/Plate";
 import { dayRange, ratingText } from "./format";
 import { useSaved } from "./saved";
@@ -21,33 +24,44 @@ import { goToTab } from "../nav";
 
 type Review = { id: string; customer: string; rating: number; body: string };
 
-const leave = () => (router.canGoBack() ? router.back() : goToTab("jelajah"));
+/** The photo and its scrim are dark whatever the theme, so the bar's ink over them does not follow it (as in the story). */
+const ink = nativeThemes.light;
+
+/**
+ * The bar over the photo (ruling B3: the photo is the header): transparent, with no title, so the photo runs to the top
+ * edge and the platform back (iOS glass button, Material arrow) sits on the photo's scrim in light ink.
+ */
+const PHOTO_HEADER = {
+  headerTransparent: true,
+  headerLargeTitle: false,
+  headerTitle: "",
+  headerShadowVisible: false,
+  headerStyle: { backgroundColor: "transparent" },
+  headerTintColor: ink.cream,
+} as const;
 
 /** Paket: one package in full, with the way into Pilih jadwal (or a one-day trial). */
 export function PackageDetail() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const { runtime, t, locale } = useMobile();
+  const { id, title } = useLocalSearchParams<{ id: string; title?: string }>();
+  const { runtime, t, locale, demo } = useMobile();
   const c = useColors();
   const styles = useStyles();
   const saved = useSaved(`/paket/${id}`);
   const loaded = useData<{ offer: Offer | null }>(`paket:${id}`, () => runtime.api.offer(id));
   const reviews = useData<Review[]>(`reviews:${id}`, () => runtime.api.request<Review[]>(`reviews/${id}`));
   const o = loaded.data?.offer;
+  const insets = useSafeAreaInsets();
+  const navigation = useScreenNavigation();
+  const photoHeader = !!o;
+  useLayoutEffect(() => {
+    if (photoHeader) navigation?.setOptions(PHOTO_HEADER);
+  }, [navigation, photoHeader]);
 
   if (!o)
     return (
-      // No photo to lead with yet, so the page opens on the mood header like every other plain screen (ruling B3 keeps
-      // the photo branch below as it is).
-      <Screen
-        header={
-          <MoodHeader
-            testID="paket-header"
-            onBack={leave}
-            backLabel={t("Kembali", "Back")}
-            title={t("Paket", "Package")}
-          />
-        }
-      >
+      // No photo to lead with yet, so the page opens under the plain native header, named after the link's package
+      // when it carried one.
+      <Screen nativeTitle={typeof title === "string" && title ? title : t("Paket", "Package")}>
         {loaded.loading && !loaded.data ? (
           <ActivityIndicator color={c.forest} />
         ) : (
@@ -73,6 +87,7 @@ export function PackageDetail() {
   const earliest = startDates(o, new Date(), 1)[0];
   return (
     <Screen
+      bleed
       footer={
         <View style={styles.footer}>
           <View style={{ flexShrink: 1 }}>
@@ -104,7 +119,8 @@ export function PackageDetail() {
         </View>
       }
     >
-      <View style={styles.hero}>
+      {/* The photo now runs under the status bar too, so it grows by that inset and keeps its visible height. */}
+      <View style={[styles.hero, { height: 250 + (demo ? 0 : insets.top) }]}>
         {o.image ? (
           <Image
             accessibilityIgnoresInvertColors
@@ -113,7 +129,10 @@ export function PackageDetail() {
             resizeMode="cover"
           />
         ) : null}
-        <RoundButton icon="chevron-back" label={t("Kembali", "Back")} onPress={leave} style={styles.back} />
+        {/* Under the transparent bar: the status bar and the back read on the photo whatever it shows. */}
+        <View testID="paket-photo-scrim" pointerEvents="none" style={styles.scrim} />
+        {/* Light glyphs on the scrim; with the demo strip above, the strip's own fill keeps the theme's glyphs. */}
+        {demo ? null : <ScreenStatusBar style="light" />}
         <RoundButton
           icon={isSaved ? "heart" : "heart-outline"}
           label={isSaved ? t(`Hapus ${o.name} dari simpanan`, `Remove ${o.name} from saved`) : t(`Simpan ${o.name}`, `Save ${o.name}`)}
@@ -206,8 +225,17 @@ const useStyles = themedStyles((c) => ({
     marginTop: -16,
     backgroundColor: c.sage,
   },
-  back: { position: "absolute", top: 12, left: 16 },
-  heart: { position: "absolute", top: 12, right: 16 },
+  // The scrim's ink is the story's (TomorrowStory), from the darkest Malam tone.
+  scrim: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 140,
+    experimental_backgroundImage: "linear-gradient(rgba(11,31,22,0.6), rgba(11,31,22,0))",
+  },
+  // At the photo's foot, clear of the bar's back button at the top.
+  heart: { position: "absolute", bottom: 12, right: 16 },
   meal: {
     gap: 4,
     padding: 14,

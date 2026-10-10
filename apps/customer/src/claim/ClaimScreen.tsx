@@ -9,12 +9,10 @@ import {
   Card,
   Field,
   fontFor,
-  MoodHeader,
   Screen,
   Text,
   themedStyles,
   useColors,
-  useMoodColors,
 } from "@catera/mobile-ui";
 import { e164Indonesia } from "../account/Masuk";
 import { goToTab } from "../nav";
@@ -109,7 +107,7 @@ export function ClaimScreen() {
   );
   if (dead)
     return (
-      <Screen header={<ClaimHeader title={t("Tautan tidak bisa dipakai", "This link can't be used")} />}>
+      <Screen nativeTitle={t("Tautan tidak bisa dipakai", "This link can't be used")}>
         <Header />
         <Text style={{ fontFamily: fontFor("700") }} testID="claim-dead">
           {t(
@@ -122,7 +120,7 @@ export function ClaimScreen() {
     );
   if (offline)
     return (
-      <Screen header={<ClaimHeader title={t("Belum bisa memuat", "Couldn't load yet")} />}>
+      <Screen nativeTitle={t("Belum bisa memuat", "Couldn't load yet")}>
         <Header />
         <Text selectable style={{ color: palette.danger }}>
           {t("Belum bisa memuat. Periksa koneksi lalu coba lagi.", "Couldn't load. Check your connection and try again.")}
@@ -133,14 +131,18 @@ export function ClaimScreen() {
     );
   if (!preview)
     return (
-      <Screen header={<ClaimHeader title={t("Membuka tautan", "Opening the link")} loading />}>
+      <Screen nativeTitle={t("Membuka tautan", "Opening the link")}>
         <Header />
+        <View accessibilityLiveRegion="polite" style={{ flexDirection: "row", alignItems: "center", gap: 10, minHeight: 48 }}>
+          <ActivityIndicator color={palette.forest} />
+          <Text style={{ color: palette.muted }}>{t("Memuat…", "Loading…")}</Text>
+        </View>
       </Screen>
     );
   const katering = preview.catererName;
   if (review)
     return (
-      <Screen header={<ClaimHeader title={t("Perlu dicek dulu", "Needs a check first")} />}>
+      <Screen nativeTitle={t("Perlu dicek dulu", "Needs a check first")}>
         <Text>
           {t(
             `${katering} perlu memeriksa langganan ini dulu. Pengantaran Anda tetap berjalan.`,
@@ -154,12 +156,7 @@ export function ClaimScreen() {
   if (step === "lihat")
     return (
       <Screen
-        header={
-          <ClaimHeader
-            meta={t(`Dari ${katering}`, `From ${katering}`)}
-            title={t("Langganan Anda sekarang ada di Catera", "Your subscription is now on Catera")}
-          />
-        }
+        nativeTitle={t("Langganan Anda sekarang ada di Catera", "Your subscription is now on Catera")}
         footer={
           <View style={{ gap: 10 }}>
             <Button
@@ -176,6 +173,9 @@ export function ClaimScreen() {
         }
       >
         <Header />
+        <Text variant="label" style={{ color: palette.muted }}>
+          {t(`Dari ${katering}`, `From ${katering}`)}
+        </Text>
         <Text>
           {t(
             `Sudah dibayar ke ${katering}, tidak ada tagihan baru. Di sini Anda bisa melihat menu, tahu kapan makanan berangkat, dan memindah hari.`,
@@ -198,18 +198,7 @@ export function ClaimScreen() {
 
   const sent = step === "kode";
   return (
-    <Screen
-      header={
-        <ClaimHeader
-          title={sent ? t("Masukkan kode dari SMS", "Enter the code from the SMS") : t("Nomor HP Anda", "Your phone number")}
-          onBack={() => {
-            setStep(sent ? "nomor" : "lihat");
-            setCode("");
-            setError("");
-          }}
-        />
-      }
-    >
+    <Screen nativeTitle={sent ? t("Masukkan kode dari SMS", "Enter the code from the SMS") : t("Nomor HP Anda", "Your phone number")}>
       <Text>
         {sent
           ? t(
@@ -290,42 +279,18 @@ export function ClaimScreen() {
           {error}
         </Text>
       ) : null}
+      {/* The header's Close leaves the link; this steps back inside it, to the number or to the package. */}
+      <Button
+        variant="text"
+        label={t("Kembali", "Back")}
+        accessibilityLabel={sent ? t("Kembali ke nomor HP", "Back to the phone number") : t("Kembali ke paket", "Back to the package")}
+        onPress={() => {
+          setStep(sent ? "nomor" : "lihat");
+          setCode("");
+          setError("");
+        }}
+      />
     </Screen>
-  );
-}
-
-/**
- * The mood header every claim state opens with. The back control, when there is one, rides in its meta slot; the
- * wordmark stays in the body (below), never on the header fill. `loading` puts the spinner and "Memuat…" in the header.
- */
-function ClaimHeader({
-  title,
-  onBack,
-  meta,
-  loading = false,
-}: {
-  title: string;
-  onBack?: () => void;
-  meta?: string;
-  loading?: boolean;
-}) {
-  const { t } = useMobile();
-  const mood = useMoodColors();
-  return (
-    <MoodHeader
-      testID="claim-header"
-      meta={meta}
-      onBack={onBack}
-      backLabel={t("Kembali", "Back")}
-      title={title}
-    >
-      {loading ? (
-        <View accessibilityLiveRegion="polite" style={{ flexDirection: "row", alignItems: "center", gap: 10, minHeight: 48 }}>
-          <ActivityIndicator color={mood.headerText} />
-          <Text style={{ color: mood.headerMeta }}>{t("Memuat…", "Loading…")}</Text>
-        </View>
-      ) : null}
-    </MoodHeader>
   );
 }
 

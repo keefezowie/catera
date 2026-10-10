@@ -273,7 +273,7 @@ it("offers the full package when a trial is ending", async () => {
   // A trial is not renewed.
   expect(screen.queryByRole("button", { name: "Perpanjang" })).toBeNull();
   fireEvent.press(screen.getByRole("button", { name: "Lihat paket penuh" }));
-  expect(router.push).toHaveBeenCalledWith("/paket/p-rumahan");
+  expect(router.push).toHaveBeenCalledWith("/paket/p-rumahan?title=Makan%20Siang%20Rumahan");
 });
 
 it("does not call the last trial day tomorrow when it is further away", async () => {

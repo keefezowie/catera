@@ -1,5 +1,6 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import { Platform, Pressable, StyleSheet, Text as RNText } from "react-native";
+import { HeaderShownContext, NavigationContext } from "expo-router/react-navigation";
 import type { ReactElement } from "react";
 import * as Haptics from "expo-haptics";
 import * as SecureStore from "expo-secure-store";
@@ -433,19 +434,26 @@ describe("Sheet and Screen details", () => {
     expect(screen.queryByRole("header", { includeHiddenElements: true })).toBeNull();
   });
 
-  it("Screen offsets the iOS keyboard by the window position of the screen", () => {
-    jest.replaceProperty(Platform, "OS", "ios");
+  it("Screen's scroll view is the first one in the screen and lets the system inset it", () => {
+    // iOS collapses the large title and minimizes the tab bar from the first scroll view, and insets it for the bars
+    // and the keyboard itself (`automaticallyAdjustKeyboardInsets`). Jest runs the Android build, where
+    // `process.env.EXPO_OS` is compiled in, so the iOS keyboard branch is checked by reading only; it is unverified on
+    // a device.
     const view = render(
       <Screen footer={<Text>Kaki</Text>}>
         <Text>Isi</Text>
       </Screen>,
     );
-    const safe = view.UNSAFE_getByType(SafeAreaView);
-    expect(view.UNSAFE_getByType(KeyboardAvoidingView).props.keyboardVerticalOffset).toBe(0);
-    // The header and demo strip sit above the screen, so the screen asks the OS where it really starts.
-    mockWindowY = 96;
-    act(() => safe.props.onLayout({ nativeEvent: { layout: { x: 0, y: 96, width: 390, height: 800 } } }));
-    expect(view.UNSAFE_getByType(KeyboardAvoidingView).props.keyboardVerticalOffset).toBe(96);
+    const scrolls = view.UNSAFE_getAllByType(ScrollView);
+    expect(scrolls).toHaveLength(1);
+    expect(scrolls[0].props).toMatchObject({ contentInsetAdjustmentBehavior: "automatic", automaticallyAdjustKeyboardInsets: false });
+    // A page that starts under a transparent header (Paket's photo) is not pushed below the bar.
+    view.rerender(
+      <Screen bleed>
+        <Text>Isi</Text>
+      </Screen>,
+    );
+    expect(view.UNSAFE_getByType(ScrollView).props.contentInsetAdjustmentBehavior).toBe("never");
   });
 
   it("Screen adds no keyboard offset on Android", () => {
@@ -455,7 +463,40 @@ describe("Sheet and Screen details", () => {
       </Screen>,
     );
     expect(view.UNSAFE_getByType(KeyboardAvoidingView).props.behavior).toBeUndefined();
+    expect(view.UNSAFE_getByType(KeyboardAvoidingView).props.enabled).toBe(false);
     expect(view.UNSAFE_getByType(KeyboardAvoidingView).props.keyboardVerticalOffset).toBe(0);
+  });
+
+  it("Screen drops its own top inset under a stack header, and on Android names itself in a content line", () => {
+    const setOptions = jest.fn();
+    const navigation = { setOptions, isFocused: () => true, addListener: () => () => undefined };
+    const view = render(
+      <HeaderShownContext.Provider value>
+        <NavigationContext.Provider value={navigation as never}>
+          <Screen nativeTitle="Paket Makan Siang Rumahan Sehat Sekeluarga">
+            <Text>Isi</Text>
+          </Screen>
+        </NavigationContext.Provider>
+      </HeaderShownContext.Provider>,
+    );
+    // The native header pays the status-bar inset, so the screen adds none.
+    expect(view.UNSAFE_getByType(SafeAreaView).props.edges).toEqual(["left", "right"]);
+    // Headline small, 24/32, in Plus Jakarta Sans Bold, wrapping; the bar starts empty.
+    const line = within(screen.getByTestId("screen-native-title")).getByText("Paket Makan Siang Rumahan Sehat Sekeluarga");
+    expect(StyleSheet.flatten(line.props.style)).toMatchObject({ fontFamily: "Jakarta-Bold", fontSize: 24, lineHeight: 32 });
+    expect(line.props.accessibilityRole).toBe("header");
+    expect(setOptions).toHaveBeenLastCalledWith({ headerTitle: "" });
+    view.unmount();
+    // A short bar title (Hari's day) sets the bar on both platforms and adds no content line.
+    render(
+      <NavigationContext.Provider value={navigation as never}>
+        <Screen title="Senin 12 Okt">
+          <Text>Isi</Text>
+        </Screen>
+      </NavigationContext.Provider>,
+    );
+    expect(setOptions).toHaveBeenLastCalledWith({ title: "Senin 12 Okt" });
+    expect(screen.queryByTestId("screen-native-title")).toBeNull();
   });
 });
 

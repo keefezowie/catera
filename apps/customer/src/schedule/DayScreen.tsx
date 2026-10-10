@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ActivityIndicator, Image, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { dayLabel, jakartaDay, mealLabel, reportableMeals, statusLabel, type Delivery } from "@catera/domain";
+import { mealLabel, reportableMeals, shortDate, statusLabel, type Delivery } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
 import { Button, Card, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
@@ -44,7 +44,6 @@ function Day({ id }: { id: string }) {
           <ActivityIndicator color={c.forest} />
         ) : (
           <>
-            <Text variant="title">{t("Hari", "Day")}</Text>
             <Text selectable={!!state.error} style={{ color: state.error ? c.danger : c.muted }}>
               {state.error || t("Pengantaran tidak ditemukan.", "Delivery not found.")}
             </Text>
@@ -64,7 +63,9 @@ function Day({ id }: { id: string }) {
     (d.meals ?? []).some((m) => m.meal === meal && !!m.issue && m.issue.status !== "resolved");
   const reportTarget = reportableMeals(d, new Date()).find((meal) => !openReport(meal));
   return (
+    // The day is the bar's title ("Senin 12 Okt"), so the body starts with the photo and the package.
     <Screen
+      title={shortDate(d.service_date, locale)}
       footer={
         closed ? null : (
           <Button label={t("Ubah hari", "Change this day")} accessibilityLabel={t("Ubah hari", "Change this day")} onPress={() => setSheet(true)} />
@@ -74,14 +75,9 @@ function Day({ id }: { id: string }) {
       {photo ? (
         <Image source={{ uri: photoUri(photo, runtime.apiBase) }} style={styles.photo} accessibilityIgnoresInvertColors />
       ) : null}
-      <View style={{ gap: 2 }}>
-        <Text variant="title" style={{ fontVariant: ["tabular-nums"] }}>
-          {dayLabel(d.service_date, jakartaDay(new Date()), locale)}
-        </Text>
-        <Text variant="caption">
-          {d.offer.name} · {d.offer.caterer}
-        </Text>
-      </View>
+      <Text variant="caption">
+        {d.offer.name} · {d.offer.caterer}
+      </Text>
       {notice ? (
         <Card tone="sage">
           <Text>{notice}</Text>

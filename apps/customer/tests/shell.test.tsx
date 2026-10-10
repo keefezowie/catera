@@ -113,6 +113,9 @@ jest.mock("expo-router/unstable-native-tabs", () => {
 const mockStatusBar: { style?: string } = {};
 // When set, the stack also draws the Siang / Malam toggle, the way a screen with a mood header does.
 let mockShowToggle = false;
+// When set, a tab root's mood header is in front.
+let mockShowHeader = false;
+const mockStack: { screenOptions?: Record<string, any> } = {};
 const mockNavTheme: { value?: { dark: boolean; colors: Record<string, string> } } = {};
 /** A tapped push opens through openLink (navigation.test runs it on the real router). */
 jest.mock("../src/nav", () => ({ ...jest.requireActual("../src/nav"), openLink: jest.fn() }));
@@ -127,18 +130,28 @@ jest.mock("expo-router", () => ({
     mockNavTheme.value = value;
     return children;
   },
-  // The tab group renders its real layout, so the tab bar is read under the providers the root mounts. The stack also
-  // renders its shared header once, the way a pushed screen shows it.
+  // The tab group renders its real layout, so the tab bar is read under the providers the root mounts. The stack records
+  // the header options it hands every pushed screen, shows a probe of the current mood's header fill, and, when asked,
+  // a tab root's mood header in front.
   Stack: Object.assign(
-    ({ children, screenOptions }: { children: unknown; screenOptions?: Record<string, any> }) => (
-      <>
-        {screenOptions?.header
-          ? screenOptions.header({ options: { title: "Judul uji" }, navigation: { goBack: () => {} }, back: { title: "x" } })
-          : null}
-        {mockShowToggle ? require("react").createElement(require("@catera/mobile-ui").MoodToggle) : null}
-        {children}
-      </>
-    ),
+    ({ children, screenOptions }: { children: unknown; screenOptions?: Record<string, any> }) => {
+      const React = require("react");
+      const ui = require("@catera/mobile-ui");
+      mockStack.screenOptions = screenOptions;
+      const Probe = () =>
+        React.createElement(require("react-native").View, {
+          testID: "mood-probe",
+          style: { backgroundColor: ui.useMoodColors().header },
+        });
+      return (
+        <>
+          <Probe />
+          {mockShowHeader ? React.createElement(ui.MoodHeader, { title: "Judul uji" }) : null}
+          {mockShowToggle ? React.createElement(ui.MoodToggle) : null}
+          {children}
+        </>
+      );
+    },
     {
       Screen: ({ name }: { name: string }) => {
         if (name !== "(tabs)") return null;
@@ -471,6 +484,7 @@ describe("appearance", () => {
     jest.useRealTimers();
     jest.restoreAllMocks();
     mockShowToggle = false;
+    mockShowHeader = false;
     (require("expo-secure-store") as { __store: Map<string, string> }).__store.delete(runtime.storageKey("locale"));
   });
 
@@ -531,7 +545,7 @@ describe("appearance", () => {
       for (const [i, at] of ["2026-10-09T03:00:00Z", MALAM].entries()) {
         atJakarta(at);
         await renderRoot();
-        expect(StyleSheet.flatten(screen.getByTestId("app-header").props.style).backgroundColor).toBe(header[theme][i]);
+        expect(StyleSheet.flatten(screen.getByTestId("mood-probe").props.style).backgroundColor).toBe(header[theme][i]);
         // theme and time ride along so a failure names the case.
         expect({ theme, at, ...barColours() }).toEqual({ theme, at, ...tabBarColors(nativeThemes[theme]) });
         screen.unmount();
@@ -548,23 +562,38 @@ describe("appearance", () => {
     expect(mockNavTheme.value).toMatchObject({ dark: false, colors: { background: "#FDFAF3", card: "#FFFEFA" } });
   });
 
-  it("Malam on a light system theme: light status bar glyphs and a mood header on pushed screens, but the tab bar stays theme", async () => {
+  /** The glyphs each mounted mood header asks for while its screen is in front (React Native's own status bar). */
+  const moodGlyphs = () => screen.UNSAFE_queryAllByType(require("react-native").StatusBar).map((b) => b.props.barStyle);
+
+  it("Malam on a light system theme: the mood header in front asks for light glyphs, pushed screens keep the theme's, and the tab bar stays theme", async () => {
     jest.spyOn(require("react-native"), "useColorScheme").mockReturnValue("light");
     atJakarta(MALAM);
+    mockShowHeader = true;
     await renderRoot();
-    expect(mockStatusBar.style).toBe("light");
-    const header = StyleSheet.flatten(screen.getByTestId("app-header").props.style);
-    expect(header.backgroundColor).toBe("#0B1F16");
+    // The app's default follows the theme: a pushed screen sits on the light canvas.
+    expect(mockStatusBar.style).toBe("dark");
+    // A tab root's Malam header in front sets light glyphs over it.
+    expect(moodGlyphs()).toEqual(["light-content"]);
+    expect(StyleSheet.flatten(screen.getByTestId("mood-probe").props.style).backgroundColor).toBe("#0B1F16");
     expect(StyleSheet.flatten(screen.getByText("Judul uji").props.style).color).toBe("#FFF7E9");
+    // Pushed screens get the native header on the theme canvas, never the mood fill.
+    expect(mockStack.screenOptions).toMatchObject({
+      headerStyle: { backgroundColor: "#FDFAF3" },
+      headerTintColor: "#2E2E2E",
+      contentStyle: { backgroundColor: "#FDFAF3" },
+    });
+    expect(mockStack.screenOptions?.header).toBeUndefined();
     // The mood never reaches the tab bar.
     expect(mockNativeTabs.props).toMatchObject({ backgroundColor: "#F2ECDF" });
   });
 
   it("Siang on a light system theme keeps the dark status bar and the sunrise header", async () => {
     jest.spyOn(require("react-native"), "useColorScheme").mockReturnValue("light");
+    mockShowHeader = true;
     await renderRoot();
     expect(mockStatusBar.style).toBe("dark");
-    expect(StyleSheet.flatten(screen.getByTestId("app-header").props.style).backgroundColor).toBe("#FFEFD9");
+    expect(moodGlyphs()).toEqual(["dark-content"]);
+    expect(StyleSheet.flatten(screen.getByTestId("mood-probe").props.style).backgroundColor).toBe("#FFEFD9");
   });
 
   it("the Siang / Malam toggle reads Lunch and Dinner in English", async () => {
@@ -587,14 +616,18 @@ describe("appearance", () => {
     jest.spyOn(require("react-native"), "useColorScheme").mockReturnValue("light");
     atJakarta(MALAM);
     mockDemo = true;
+    mockShowHeader = true;
     await renderRoot();
     expect(await screen.findByText("Demo · data sintetis")).toBeTruthy();
     // Control: the mood really is Malam here, so "dark" is the demo strip's doing and not a Siang launch.
-    expect(StyleSheet.flatten(screen.getByTestId("app-header").props.style).backgroundColor).toBe("#0B1F16");
+    expect(StyleSheet.flatten(screen.getByTestId("mood-probe").props.style).backgroundColor).toBe("#0B1F16");
     expect(mockStatusBar.style).toBe("dark");
+    expect(moodGlyphs()).toEqual(["dark-content"]);
+    // The strip pays the status-bar inset, so the Android header adds none.
+    expect(mockStack.screenOptions).toMatchObject({ unstable_nativeProps: { headerConfig: { topInsetEnabled: false } } });
   });
 
-  it("the loading spinner sits on the canvas, so Malam does not turn its status bar glyphs light", async () => {
+  it("the loading spinner and the app's default sit on the canvas, so Malam never turns them light", async () => {
     jest.spyOn(require("react-native"), "useColorScheme").mockReturnValue("light");
     atJakarta(MALAM);
     const RootLayout = (require("../app/_layout") as typeof import("../app/_layout")).default;
@@ -602,7 +635,8 @@ describe("appearance", () => {
     expect(screen.UNSAFE_queryByType(require("react-native").ActivityIndicator)).not.toBeNull();
     expect(mockStatusBar.style).toBe("dark");
     await waitFor(() => expect(mockNativeTabs.props).toBeDefined());
-    expect(mockStatusBar.style).toBe("light");
+    // Only a mood header in front sets the mood's glyphs (above); the default stays the theme's.
+    expect(mockStatusBar.style).toBe("dark");
   });
 
   it("sets the status bar glyphs while the loading spinner is still showing", async () => {

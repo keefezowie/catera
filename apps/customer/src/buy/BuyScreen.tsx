@@ -18,11 +18,11 @@ import {
   type RenewalContext,
 } from "@catera/domain";
 import { plural, useData, useMobile } from "@catera/mobile-core";
-import { Button, fontFor, MoodHeader, Screen, Stepper, Text, themedStyles, useColors } from "@catera/mobile-ui";
+import { Button, fontFor, Screen, Stepper, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { Breakdown, LengthOptions, percent, StartLine } from "./Breakdown";
 import { ChoiceSheet, NoLongerSold, PayWith, PendingPayment, Retry, Terms } from "./BuyParts";
 import { useQuote, type BuyPayload } from "./useQuote";
-import { FLOW_HREF, goToTab } from "../nav";
+import { FLOW_HREF } from "../nav";
 
 /** Choices a link may carry (old /checkout links, Paket); anything invalid falls back to defaults. */
 export type BuyInitial = { portions?: string; cycles?: string; startDate?: string; addressId?: string };
@@ -31,7 +31,6 @@ const whole = (v: string | undefined, max: number) => {
   const n = Math.trunc(Number(v));
   return n >= 1 && n <= max ? n : null;
 };
-const leave = () => (router.canGoBack() ? router.back() : goToTab("index"));
 const tabular = { fontVariant: ["tabular-nums" as const] };
 
 /** Beli and Perpanjang on one screen: sensible defaults, the server's full price, then Bayar. */
@@ -167,20 +166,12 @@ export function BuyScreen({
     }
   }
 
-  // The back control rides in the header's meta slot on its theme-surface disc, and the header stays through every state.
-  const header = (title: string) => (
-    <MoodHeader
-      testID="buy-header"
-      onBack={leave}
-      backLabel={t("Kembali", "Back")}
-      title={title}
-    />
-  );
-
+  // The flow sits in a full-screen modal under the native header, with Close at its leading edge; the screen names
+  // itself through its native title in every state.
   // The renewed package is no longer sold: offer the caterer's other packages, never a spinner.
   if (ready && actor && renew && ctx && (ctx.replacementRequired || !offer))
     return (
-      <Screen header={header(t("Perpanjang", "Renew"))}>
+      <Screen nativeTitle={t("Perpanjang", "Renew")}>
         {/* An open checkout comes first: paying it beats starting a second purchase. */}
         {pendingCheckout ? <PendingPayment checkoutId={pendingCheckout} t={t} /> : null}
         <NoLongerSold
@@ -192,7 +183,7 @@ export function BuyScreen({
     );
   if (!ready || !actor || !offer)
     return (
-      <Screen header={header(renew ? t("Perpanjang", "Renew") : t("Beli", "Buy"))}>
+      <Screen nativeTitle={renew ? t("Perpanjang", "Renew") : t("Beli", "Buy")}>
         {loadError ? (
           <Retry message={loadError} onRetry={reloadAll} t={t} />
         ) : loaded.data && !loaded.data.offer ? (
@@ -234,7 +225,7 @@ export function BuyScreen({
   );
 
   return (
-    <Screen footer={footer} header={header(renew ? t(`Perpanjang ${offer.name}`, `Renew ${offer.name}`) : offer.name)}>
+    <Screen footer={footer} nativeTitle={renew ? t(`Perpanjang ${offer.name}`, `Renew ${offer.name}`) : offer.name}>
       {loadError ? <Retry message={loadError} onRetry={reloadAll} t={t} /> : null}
       {pendingCheckout ? <PendingPayment checkoutId={pendingCheckout} t={t} /> : null}
 

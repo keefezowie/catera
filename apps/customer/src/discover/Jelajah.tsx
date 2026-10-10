@@ -27,6 +27,7 @@ import { PackageCard } from "./PackageCard";
 import { type CatalogOffer } from "./format";
 import { useSaved } from "./saved";
 import { photoUri } from "../today/Plate";
+import { packageHref } from "../hrefs";
 
 const AREA_KEY = "catera.area";
 const BUDGET = 30000;
@@ -328,7 +329,7 @@ function Browse({ area, onArea }: { area: string; onArea: (value: string) => voi
             layout="row"
             offer={o}
             saved={saved.isSaved(o.id)}
-            onOpen={() => router.push(`/paket/${encodeURIComponent(o.id)}` as never)}
+            onOpen={() => router.push(packageHref(o.id, o.name) as never)}
             onToggleSaved={() => void saved.toggle(o.id)}
           />
         ))

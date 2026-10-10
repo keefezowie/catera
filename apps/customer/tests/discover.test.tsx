@@ -295,7 +295,7 @@ describe("Jelajah", () => {
   it("opens a package when its card is pressed", async () => {
     wrap(runtimeWith(), <Jelajah />);
     fireEvent.press(await screen.findByRole("button", { name: /^Nasi Ayam Bakar,/ }));
-    expect(router.push).toHaveBeenCalledWith("/paket/p-murah");
+    expect(router.push).toHaveBeenCalledWith("/paket/p-murah?title=Nasi%20Ayam%20Bakar");
   });
 
   it("heart while signed out asks to sign in and comes back", async () => {

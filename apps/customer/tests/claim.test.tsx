@@ -109,14 +109,14 @@ it("opens the claim route from a link and connects", async () => {
   expect(verifyPhoneOtp.mock.invocationCallOrder[0]).toBeLessThan(command.mock.invocationCallOrder[0]);
 });
 
-it("the back button is a 48dp round button with a haptic", async () => {
+it("the step back is a 48dp button with a haptic", async () => {
   const { runtime } = runtimeWith();
   renderRoute(runtime);
   fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan 0812-•••-0001" }));
   jest.clearAllMocks();
-  const back = screen.getByRole("button", { name: "Kembali" });
+  const back = screen.getByRole("button", { name: "Kembali ke paket" });
   const style = StyleSheet.flatten(back.props.style);
-  expect([style.width, style.height]).toEqual([48, 48]);
+  expect(style.minHeight).toBe(48);
   fireEvent.press(back);
   expect(Haptics.impactAsync).toHaveBeenCalledTimes(1);
   expect(await screen.findByRole("button", { name: "Lanjut dengan 0812-•••-0001" })).toBeTruthy();
@@ -222,7 +222,7 @@ it("a preview that cannot load offers Coba lagi and Ke Beranda", async () => {
   expect(await screen.findByText("Dari Dapur Contoh")).toBeTruthy();
 });
 
-describe("claim mood header", () => {
+describe("claim under the native header", () => {
   const MALAM = () => new Date("2026-10-09T08:00:00Z");
   const flat = (node: { props: { style?: unknown } }) => StyleSheet.flatten(node.props.style as never) as Record<string, unknown>;
   const renderMood = (runtime: MobileRuntime) =>
@@ -233,13 +233,16 @@ describe("claim mood header", () => {
         </MobileProvider>
       </MoodProvider>,
     );
-  /** The Malam fill and a header title in the cream text colour: the status icons sit on a dark surface. */
+  /**
+   * The claim is a modal flow under the native header: each state names itself through the screen's native title (the
+   * Android content line, iOS's large title) in the theme's forest, on the canvas, with no mood fill even in Malam.
+   */
   const expectMalamHeader = (title: string) => {
-    const header = screen.getByTestId("claim-header");
-    expect(flat(within(header).getByTestId("mood-fill-malam", { includeHiddenElements: true })).backgroundColor).toBe("#0B1F16");
+    expect(screen.queryByTestId("mood-fill-malam", { includeHiddenElements: true })).toBeNull();
+    const header = screen.getByTestId("screen-native-title");
     const heading = within(header).getByText(title);
     expect(heading.props.accessibilityRole).toBe("header");
-    expect(flat(heading).color).toBe("#FFF7E9");
+    expect(flat(heading).color).toBe(require("@catera/design-tokens").nativeThemes.light.forest);
     return header;
   };
   const toCodeStep = async (runtime: MobileRuntime) => {
@@ -280,22 +283,22 @@ describe("claim mood header", () => {
     expect(within(header).queryByLabelText("Catera")).toBeNull();
   });
 
-  it("while the link is read, the header shows the spinner and Memuat beside it", async () => {
+  it("while the link is read, the page shows the spinner and Memuat beside it under the title", async () => {
     const { runtime } = runtimeWith({ preview: () => new Promise<ClaimPreview>(() => undefined) });
     const view = renderMood(runtime);
     // The link is not validated yet, so the title cannot claim the subscription is the viewer's.
     const header = expectMalamHeader("Membuka tautan");
     expect(screen.queryByText("Langganan Anda")).toBeNull();
-    expect(within(header).getByText("Memuat…")).toBeTruthy();
-    expect(flat(within(header).getByText("Memuat…")).color).toBe(require("@catera/design-tokens").nativeMood.light.malam.headerMeta);
+    expect(within(header).queryByText("Memuat…")).toBeNull();
+    expect(flat(screen.getByText("Memuat…")).color).toBe(require("@catera/design-tokens").nativeThemes.light.muted);
     expect(view.UNSAFE_queryAllByType(ActivityIndicator).length).toBeGreaterThan(0);
   });
 
-  it("the package step opens on the header too, titled with its heading, with the wordmark and the package in the body", async () => {
+  it("the package step is titled with its heading, with who it is from, the wordmark and the package in the body", async () => {
     renderMood(runtimeWith().runtime);
     expect(await screen.findByText("Dari Dapur Contoh")).toBeTruthy();
     const header = expectMalamHeader("Langganan Anda sekarang ada di Catera");
-    expect(within(header).getByText("Dari Dapur Contoh")).toBeTruthy();
+    expect(within(header).queryByText("Dari Dapur Contoh")).toBeNull();
     expect(screen.getByLabelText("Catera")).toBeTruthy();
     expect(within(header).queryByLabelText("Catera")).toBeNull();
     expect(within(header).queryByText("Makan Siang Rumahan")).toBeNull();
@@ -304,23 +307,26 @@ describe("claim mood header", () => {
     expect(screen.getByRole("button", { name: "Lanjut dengan 0812-•••-0001" })).toBeTruthy();
   });
 
-  it("the phone and code steps title the step in the header, with the 48dp back button inside it", async () => {
+  it("the phone and code steps title the step, with a 48dp step back on the page (the header's Close leaves)", async () => {
     const { runtime } = runtimeWith();
     renderMood(runtime);
     fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan 0812-•••-0001" }));
     let header = expectMalamHeader("Nomor HP Anda");
-    const back = within(header).getByRole("button", { name: "Kembali" });
-    expect([flat(back).width, flat(back).height]).toEqual([48, 48]);
+    const back = screen.getByRole("button", { name: "Kembali ke paket" });
+    expect(flat(back).minHeight).toBe(48);
+    expect(within(header).queryByRole("button")).toBeNull();
 
     fireEvent.changeText(screen.getByLabelText("Nomor HP"), "081234500001");
     fireEvent.press(screen.getByRole("button", { name: "Kirim kode" }));
     expect(await screen.findByLabelText("Kode")).toBeTruthy();
     header = expectMalamHeader("Masukkan kode dari SMS");
     expect(within(header).queryByLabelText("Kode")).toBeNull();
-    // The back button still returns to the phone step.
-    fireEvent.press(within(header).getByRole("button", { name: "Kembali" }));
+    // The step back returns to the phone step, and from there to the package.
+    fireEvent.press(screen.getByRole("button", { name: "Kembali ke nomor HP" }));
     expect(await screen.findByLabelText("Nomor HP")).toBeTruthy();
     expectMalamHeader("Nomor HP Anda");
+    fireEvent.press(screen.getByRole("button", { name: "Kembali ke paket" }));
+    expect(await screen.findByText("Dari Dapur Contoh")).toBeTruthy();
   });
 
   it("a claim held for review keeps a header over the plain explanation", async () => {

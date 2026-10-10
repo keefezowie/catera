@@ -5,6 +5,7 @@ import { currency, perMealPrice, priceUnitLabel, type Offer } from "@catera/doma
 import { useData, useMobile } from "@catera/mobile-core";
 import { Button, MoodHeader, PressableRow, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { photoUri } from "./Plate";
+import { packageHref } from "../hrefs";
 import { goToTab } from "../nav";
 
 /**
@@ -81,7 +82,7 @@ function OfferCard({ offer: o }: { offer: Offer }) {
     <PressableRow
       accessibilityRole="button"
       accessibilityLabel={`${o.name}, ${o.caterer}`}
-      onPress={() => router.push(`/paket/${encodeURIComponent(o.id)}` as never)}
+      onPress={() => router.push(packageHref(o.id, o.name) as never)}
       style={styles.card}
     >
       {o.image ? (

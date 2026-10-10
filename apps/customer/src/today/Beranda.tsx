@@ -42,6 +42,7 @@ import { MenuDueRows } from "./MenuDueRows";
 import { TomorrowEntry } from "../tomorrow/TomorrowRow";
 import { loadCachedCustomer, saveCachedCustomer } from "./offline";
 import { remainingLabel } from "../remaining";
+import { planHref } from "../hrefs";
 
 type LoadedCustomer = { data: CustomerState; savedAt: string | null };
 
@@ -276,7 +277,7 @@ function PackageLine({ subscription: s, phone }: { subscription: Subscription; p
           `${offer.name}, ${offer.caterer}, ${remaining}, lihat detail paket`,
           `${offer.name}, ${offer.caterer}, ${remaining}, see plan details`,
         )}
-        onPress={() => router.push(`/subscriptions/${encodeURIComponent(s.id)}` as never)}
+        onPress={() => router.push(planHref(s.id, offer.name) as never)}
         style={styles.packageOpen}
       >
         <View style={{ flex: 1, gap: 2 }}>

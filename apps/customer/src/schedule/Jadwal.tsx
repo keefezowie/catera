@@ -26,6 +26,7 @@ import {
   useMoodColors,
 } from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
+import { dayHref } from "../hrefs";
 import { photoUri } from "../today/Plate";
 import { CalendarLegend, MonthGrid } from "./MonthGrid";
 import { longDay, monthOf, monthRange, monthTitle, shiftMonth } from "./dates";
@@ -103,7 +104,8 @@ function SignedInJadwal() {
   return (
     <Screen
       header={
-        <MoodHeader testID="jadwal-header" meta={t("Jadwal", "Schedule")} title={monthTitle(month, locale)} trailing={chevrons}>
+        // The tab bar already names this tab, so the row holds only the month arrows.
+        <MoodHeader testID="jadwal-header" title={monthTitle(month, locale)} trailing={chevrons}>
           {state ? (
             <>
               <MonthGrid
@@ -204,7 +206,7 @@ function MealRow({
     <PressableRow
       accessibilityRole="button"
       accessibilityLabel={`${d.offer.name}, ${sub}`}
-      onPress={() => router.push(`/hari/${encodeURIComponent(d.id)}` as never)}
+      onPress={() => router.push(dayHref(d.id, d.service_date, locale) as never)}
       style={[styles.meal, !first && styles.divider]}
     >
       {image ? (

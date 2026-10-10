@@ -150,13 +150,16 @@ describe("Plan detail states", () => {
     expect(usageNames(usage)).not.toContain("plan_sheet_opened");
   });
 
-  it("an active plan that is not due: header, hero with days left, no footer action", async () => {
+  it("an active plan that is not due: native title, caterer, hero with days left, no footer action", async () => {
     renderPlan(runtimeWith(async () => planState()));
-    const header = await screen.findByTestId("plan-header");
-    expect(within(header).getByRole("header", { name: "Makan Siang Rumahan" })).toBeTruthy();
-    expect(within(header).getByText("Dapur Contoh")).toBeTruthy();
-    fireEvent.press(within(header).getByRole("button", { name: "Kembali" }));
-    expect(router.back).toHaveBeenCalled();
+    // The package name is the screen's native title (Android's first content line; iOS's large title), the caterer
+    // under it on the page, and no mood header: the back is the platform's own.
+    const title = await screen.findByTestId("screen-native-title");
+    expect(within(title).getByRole("header", { name: "Makan Siang Rumahan" })).toBeTruthy();
+    expect(screen.getByTestId("plan-caterer").props.children).toBe("Dapur Contoh");
+    expect(screen.queryByTestId("plan-header")).toBeNull();
+    expect(screen.queryByTestId("mood-header")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Kembali" })).toBeNull();
 
     const hero = screen.getByTestId("plan-hero");
     expect(within(hero).getByText("6 hari lagi")).toBeTruthy();
@@ -184,7 +187,8 @@ describe("Plan detail states", () => {
     expect(ring(rows[1])).toMatchObject({ width: 60, borderColor: nativeThemes.light.sunriseInk });
     expect(ring(rows[2])).toMatchObject({ width: 60, borderColor: nativeThemes.light.forest });
     fireEvent.press(rows[1]);
-    expect(router.push).toHaveBeenCalledWith("/hari/d-1");
+    // The link carries the day, so Hari's bar is final on its first frame.
+    expect(router.push).toHaveBeenCalledWith(`/hari/d-1?title=${encodeURIComponent(shortDate(at(1), "id"))}`);
   });
 
   it("today's day leaves Berikutnya once its meal has arrived", async () => {
@@ -213,7 +217,7 @@ describe("Plan detail states", () => {
     expect(within(rows[0]).getByText(shortDate(DAY, "id"))).toBeTruthy();
     expect(screen.queryByText("Tidak ada antaran mendatang.")).toBeNull();
     fireEvent.press(rows[0]);
-    expect(router.push).toHaveBeenCalledWith("/hari/d-today");
+    expect(router.push).toHaveBeenCalledWith(`/hari/d-today?title=${encodeURIComponent(shortDate(DAY, "id"))}`);
   });
 
   it("an active plan due for renewal: Lanjutkan paket opens Perpanjang and counts renew_started", async () => {

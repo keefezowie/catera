@@ -85,8 +85,17 @@ export function useMoodColors(mood?: Mood): MoodPalette {
 
 /**
  * The status-bar icon style: light icons on a dark surface. That is the dark theme, or a Malam header; the demo strip
- * sits above the header in the theme's own sage fill, so with it shown the header does not decide.
+ * sits above the header in the theme's own sage fill, so with it shown the header does not decide. `mood: null` is a
+ * screen with no mood header (a pushed screen, the app's default): only the theme decides.
  */
-export function statusBarStyle({ scheme, mood, demo }: { scheme: ThemeName; mood: Mood; demo: boolean }): "light" | "dark" {
+export function statusBarStyle({
+  scheme,
+  mood,
+  demo,
+}: {
+  scheme: ThemeName;
+  mood: Mood | null;
+  demo: boolean;
+}): "light" | "dark" {
   return scheme === "dark" || (mood === "malam" && !demo) ? "light" : "dark";
 }

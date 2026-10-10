@@ -15,7 +15,6 @@ import { useData, useMobile, useTrack, type MobileRuntime } from "@catera/mobile
 import {
   Button,
   MoodFill,
-  MoodHeader,
   PhotoRing,
   PressableRow,
   Screen,
@@ -29,6 +28,7 @@ import { SignInFirst } from "../account/SignInFirst";
 import { remainingLabel } from "../remaining";
 import { loadCachedCustomer } from "../today/offline";
 import { jakartaClock, photoUri } from "../today/Plate";
+import { dayHref } from "../hrefs";
 import { goToTab } from "../nav";
 
 type LoadedPlan = { data: CustomerState; savedAt: string | null };
@@ -44,17 +44,19 @@ async function loadPlan(runtime: MobileRuntime, key: string): Promise<LoadedPlan
   }
 }
 
-/** Back to wherever the plan was opened from; a cold link (notification, push) has nothing behind it and goes home. */
-const leave = () => (router.canGoBack() ? router.back() : goToTab("index"));
-
 const tabular = { fontVariant: ["tabular-nums" as const] };
 const HERO_RADIUS = 28;
 
-/** /subscriptions/{id}: one plan, what is left of it and what comes next. */
+/**
+ * /subscriptions/{id}: one plan, what is left of it and what comes next. It sits under the native header, whose back
+ * returns to the tab root behind it, even from a cold link. The plan's name is the screen's native title; a link that
+ * knows the name carries it as `title`, so "Paket" never shows while the plan loads.
+ */
 export function PlanDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, title } = useLocalSearchParams<{ id: string; title?: string }>();
   const { actor, ready, t } = useMobile();
   const c = useColors();
+  const named = typeof title === "string" && title ? title : t("Paket", "Plan");
   if (!ready)
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: c.canvas }}>
@@ -64,14 +66,14 @@ export function PlanDetailScreen() {
   const planId = String(id ?? "");
   if (!actor)
     return (
-      <SignInFirst title={t("Paket", "Plan")} next={`/subscriptions/${encodeURIComponent(planId)}`} headerTestID="plan-header">
+      <SignInFirst title={named} next={`/subscriptions/${encodeURIComponent(planId)}`}>
         <Button variant="text" label={t("Ke Beranda", "Go to Beranda")} onPress={() => goToTab("index")} />
       </SignInFirst>
     );
-  return <Plan key={`${actor.id}:${planId}`} id={planId} actorId={actor.id} />;
+  return <Plan key={`${actor.id}:${planId}`} id={planId} actorId={actor.id} named={named} />;
 }
 
-function Plan({ id, actorId }: { id: string; actorId: string }) {
+function Plan({ id, actorId, named }: { id: string; actorId: string; named: string }) {
   const { runtime, t, locale } = useMobile();
   const c = useColors();
   const track = useTrack();
@@ -92,15 +94,9 @@ function Plan({ id, actorId }: { id: string; actorId: string }) {
     track("plan_sheet_opened");
   }, [plan, track]);
 
-  const header = (title: string, caterer?: string) => (
-    <MoodHeader testID="plan-header" onBack={leave} backLabel={t("Kembali", "Back")} title={title}>
-      {caterer ? <Caterer name={caterer} /> : null}
-    </MoodHeader>
-  );
-
   if (!plan)
     return (
-      <Screen header={header(t("Paket", "Plan"))}>
+      <Screen nativeTitle={named}>
         {!state && read.loading ? (
           <Text style={{ color: c.muted }}>{t("Memuat paket…", "Loading plan…")}</Text>
         ) : !state ? (
@@ -148,7 +144,12 @@ function Plan({ id, actorId }: { id: string; actorId: string }) {
   ) : null;
 
   return (
-    <Screen header={header(plan.offer.name, plan.offer.caterer)} footer={footer}>
+    <Screen nativeTitle={plan.offer.name} footer={footer}>
+      {plan.offer.caterer ? (
+        <Text testID="plan-caterer" selectable style={{ color: c.muted, marginTop: -8 }}>
+          {plan.offer.caterer}
+        </Text>
+      ) : null}
       <Hero plan={plan} apiBase={runtime.apiBase} />
       {offline ? (
         <Text variant="caption" style={[{ color: c.sunriseInk }, tabular]}>
@@ -158,11 +159,6 @@ function Plan({ id, actorId }: { id: string; actorId: string }) {
       {cancelled ? null : <Upcoming rows={plan.upcoming} apiBase={runtime.apiBase} />}
     </Screen>
   );
-}
-
-function Caterer({ name }: { name: string }) {
-  const palette = useMoodColors();
-  return <Text style={{ color: palette.headerMeta }}>{name}</Text>;
 }
 
 /** The screen's one raised card, on the mood's hero fill: the package photo, what is left of the plan and its dates. */
@@ -237,7 +233,7 @@ function Upcoming({ rows, apiBase }: { rows: UpcomingRow[]; apiBase: string }) {
               testID="plan-upcoming-row"
               accessibilityRole="button"
               accessibilityLabel={`${day}, ${dishes}`}
-              onPress={() => router.push(`/hari/${encodeURIComponent(row.deliveryId)}` as never)}
+              onPress={() => router.push(dayHref(row.deliveryId, row.date, locale) as never)}
               style={[styles.row, i > 0 && styles.divider]}
             >
               {/* The row is the button and speaks for the ring. */}

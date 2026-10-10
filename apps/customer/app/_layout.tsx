@@ -16,13 +16,12 @@ import {
   ThemeProvider,
   TopInsetOwner,
   useColors,
-  useMood,
   useThemePreference,
 } from "@catera/mobile-ui";
 import { registerNavigation } from "../src/nav";
 import { runtime } from "../src/runtime";
 import { AppProviders } from "../src/shell";
-import { useStackScreenOptions } from "../src/stack";
+import { contentTitled, useFlowOptions, useStackScreenOptions } from "../src/stack";
 
 function Navigation() {
   const { t, ready, demo } = useMobile();
@@ -31,13 +30,11 @@ function Navigation() {
   useEffect(() => registerNavigation(container), [container]);
   const palette = useColors();
   const { scheme } = useThemePreference();
-  const { mood } = useMood();
   const screenOptions = useStackScreenOptions();
-  // Above the ready gate, so the loading spinner also gets glyphs that read on the chosen theme. The spinner sits on the
-  // canvas and not under a mood header, so only the theme decides until the app is ready.
-  const statusBar = (
-    <StatusBar style={ready ? statusBarStyle({ scheme, mood, demo }) : statusBarStyle({ scheme, mood: "siang", demo: false })} />
-  );
+  const flow = useFlowOptions();
+  // The app's default glyphs follow the theme: pushed screens and the loading spinner sit on the canvas. A tab root's
+  // MoodHeader sets the mood's glyphs over this while its screen is in front.
+  const statusBar = <StatusBar style={statusBarStyle({ scheme, mood: null, demo })} />;
   if (!ready)
     return (
       <>
@@ -56,25 +53,31 @@ function Navigation() {
             sign-in, buying and paying, a claim link and the story. */}
         <Stack screenOptions={screenOptions}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="login" options={{ title: t("Masuk", "Sign in"), presentation: "modal" }} />
-          <Stack.Screen name="register" options={{ title: t("Daftar", "Sign up") }} />
-          <Stack.Screen name="recover" options={{ title: t("Pemulihan akun", "Account recovery") }} />
+          {/* Short forms: a sheet on iOS, each with Close at the leading edge. */}
+          <Stack.Screen name="login" options={{ title: t("Masuk", "Sign in"), ...flow("modal") }} />
+          <Stack.Screen name="register" options={{ title: t("Daftar", "Sign up"), ...flow("modal") }} />
+          <Stack.Screen name="recover" options={{ title: t("Pemulihan akun", "Account recovery"), ...flow("modal") }} />
           <Stack.Screen
             name="auth/callback"
             options={{ title: t("Verifikasi akun", "Verify account"), headerBackVisible: false }}
           />
-          <Stack.Screen name="beli/[id]" options={{ headerShown: false }} />
-          <Stack.Screen name="renew/[id]" options={{ headerShown: false }} />
-          <Stack.Screen name="bayar/[id]" options={{ headerShown: false }} />
+          {/* Buying and paying are full-screen modals: a sheet's swipe could drop a purchase or a payment midway.
+              Beli replaces itself with Bayar, so the two share one presentation. */}
+          <Stack.Screen name="beli/[id]" options={{ ...contentTitled(t("Beli", "Buy")), ...flow("fullScreenModal") }} />
+          <Stack.Screen
+            name="renew/[id]"
+            options={{ ...contentTitled(t("Perpanjang", "Renew")), ...flow("fullScreenModal") }}
+          />
+          <Stack.Screen name="bayar/[id]" options={{ ...contentTitled(t("Bayar", "Pay")), ...flow("fullScreenModal") }} />
           <Stack.Screen name="checkout/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="payment/[id]" options={{ headerShown: false }} />
-          <Stack.Screen name="claim/[token]" options={{ headerShown: false }} />
+          <Stack.Screen name="claim/[token]" options={{ ...contentTitled(""), ...flow("modal") }} />
           {/* Alamat and Bantuan opened from Beli or Bayar: the same screens as in the tabs, over the purchase, so it
               stays underneath and no second tab bar opens. Close returns to it. */}
-          <Stack.Screen name="pembelian/alamat" options={{ title: t("Alamat", "Addresses"), presentation: "modal" }} />
+          <Stack.Screen name="pembelian/alamat" options={{ title: t("Alamat", "Addresses"), ...flow("modal") }} />
           <Stack.Screen
             name="pembelian/bantuan"
-            options={{ title: t("Bantuan dan laporan", "Help and reports"), presentation: "modal" }}
+            options={{ title: t("Bantuan dan laporan", "Help and reports"), ...flow("modal") }}
           />
           {/* A black story: its own close button replaces the header, and a fade keeps its ground from cutting in. */}
           <Stack.Screen

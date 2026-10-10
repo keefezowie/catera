@@ -4,6 +4,7 @@ import { currency, dayLabel, jakartaDay, type Subscription } from "@catera/domai
 import { useMobile, useTrack } from "@catera/mobile-core";
 import { Button, Card, fontFor, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { SunriseButton } from "./Plate";
+import { packageHref } from "../hrefs";
 
 /** Shown at 3 or fewer days left; renewal stays an explicit purchase. */
 export function RenewalCard({ subscription: s }: { subscription: Subscription }) {
@@ -58,7 +59,7 @@ export function TrialCard({ subscription: s }: { subscription: Subscription }) {
       </Text>
       <Button
         label={t("Lihat paket penuh", "See the full package")}
-        onPress={() => router.push(`/paket/${encodeURIComponent(s.package_id)}` as never)}
+        onPress={() => router.push(packageHref(s.package_id, name) as never)}
       />
     </Card>
   );

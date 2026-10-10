@@ -1,7 +1,7 @@
 import { ActivityIndicator, StyleSheet } from "react-native";
 import { fireEvent, render, screen, within } from "@testing-library/react-native";
-import { router } from "expo-router";
-import { nativeMood, nativeThemes } from "@catera/design-tokens";
+import { NavigationContext } from "expo-router/react-navigation";
+import { nativeThemes } from "@catera/design-tokens";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { MoodProvider } from "@catera/mobile-ui";
 import { customerLink } from "../src/links";
@@ -52,14 +52,20 @@ function runtimeWith(read: (id: string) => Promise<{ offer: unknown }>): MobileR
   } as unknown as MobileRuntime["api"];
   return runtime;
 }
+/** The screen's own stack entry, as the native stack hands it over. */
+const navigation = { setOptions: jest.fn(), isFocused: () => true, addListener: () => () => undefined };
 const wrap = (runtime: MobileRuntime) =>
   render(
-    <MoodProvider now={MALAM}>
-      <MobileProvider runtime={runtime} linkMapper={customerLink}>
-        <PackageDetail />
-      </MobileProvider>
-    </MoodProvider>,
+    <NavigationContext.Provider value={navigation as never}>
+      <MoodProvider now={MALAM}>
+        <MobileProvider runtime={runtime} linkMapper={customerLink}>
+          <PackageDetail />
+        </MobileProvider>
+      </MoodProvider>
+    </NavigationContext.Provider>,
   );
+/** The screen's name: its Android content title (iOS shows it as the large title). */
+const nativeTitle = async () => within(await screen.findByTestId("screen-native-title"));
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -67,51 +73,66 @@ beforeEach(() => {
 });
 
 describe("Paket without a photo to lead with", () => {
-  it("shows a Malam header with the back button while the package loads", async () => {
+  it("opens under the plain native header while the package loads, named Paket, with no mood fill even in Malam", async () => {
     const view = wrap(runtimeWith(() => new Promise(() => undefined)));
-    const header = await screen.findByTestId("paket-header");
-    expect(flat(within(header).getByTestId("mood-fill-malam", { includeHiddenElements: true })).backgroundColor).toBe(
-      nativeMood.light.malam.header,
-    );
-    expect(nativeMood.light.malam.header).toBe("#0B1F16");
-    const title = within(header).getByText("Paket");
+    const title = (await nativeTitle()).getByText("Paket");
     expect(title.props.accessibilityRole).toBe("header");
-    expect(flat(title).color).toBe("#FFF7E9");
-    const back = within(header).getByRole("button", { name: "Kembali" });
-    expect([flat(back).width, flat(back).height]).toEqual([48, 48]);
-    expect(flat(back).backgroundColor).toBe(nativeThemes.light.surface);
-    fireEvent.press(back);
-    expect(router.back).toHaveBeenCalledTimes(1);
+    expect(flat(title).color).toBe(nativeThemes.light.forest);
+    expect(screen.queryByTestId("mood-fill-malam", { includeHiddenElements: true })).toBeNull();
+    // The back is the platform's own, in the native header.
+    expect(screen.queryByRole("button", { name: "Kembali" })).toBeNull();
     expect(view.UNSAFE_queryAllByType(ActivityIndicator).length).toBeGreaterThan(0);
   });
 
-  it("keeps the header when the package cannot be read, with the message and retry on the page", async () => {
+  it("a link that carries the package name shows it while loading, never Paket", async () => {
+    mockParams = { id: "p-murah", title: "Nasi Ayam Bakar" };
+    wrap(runtimeWith(() => new Promise(() => undefined)));
+    expect((await nativeTitle()).getByText("Nasi Ayam Bakar")).toBeTruthy();
+    expect(screen.queryByText("Paket")).toBeNull();
+  });
+
+  it("keeps its title when the package cannot be read, with the message and retry on the page", async () => {
     const read = jest.fn(async (): Promise<{ offer: unknown }> => {
       throw new Error("REQUEST_TIMEOUT");
     });
     wrap(runtimeWith(read));
-    const header = await screen.findByTestId("paket-header");
-    expect(within(header).getByText("Paket")).toBeTruthy();
+    expect((await nativeTitle()).getByText("Paket")).toBeTruthy();
     const retry = await screen.findByRole("button", { name: "Coba lagi" });
-    expect(within(header).queryByRole("button", { name: "Coba lagi" })).toBeNull();
     const before = read.mock.calls.length;
     fireEvent.press(retry);
     expect(read.mock.calls.length).toBeGreaterThan(before);
   });
 
-  it("keeps the header when the package is not found and still offers Jelajah paket", async () => {
+  it("keeps its title when the package is not found and still offers Jelajah paket", async () => {
     wrap(runtimeWith(async () => ({ offer: null })));
-    const header = await screen.findByTestId("paket-header");
     expect(await screen.findByText("Paket tidak ditemukan.")).toBeTruthy();
-    expect(within(header).queryByText("Paket tidak ditemukan.")).toBeNull();
+    expect((await nativeTitle()).getByText("Paket")).toBeTruthy();
     fireEvent.press(screen.getByRole("button", { name: "Jelajah paket" }));
     expect(goToTab).toHaveBeenCalledWith("jelajah");
   });
+});
 
-  it("leaves the photo branch with its photo and no mood header (ruling B3)", async () => {
+describe("Paket with its photo (ruling B3: the photo is the header)", () => {
+  it("lays a transparent bar with no title over the photo, its back in light ink on a scrim", async () => {
     wrap(runtimeWith(async () => ({ offer: cheap })));
     expect(await screen.findByRole("button", { name: "Pilih jadwal" })).toBeTruthy();
-    expect(screen.queryByTestId("paket-header")).toBeNull();
-    expect(screen.getByRole("button", { name: "Kembali" })).toBeTruthy();
+    expect(navigation.setOptions).toHaveBeenLastCalledWith({
+      headerTransparent: true,
+      headerLargeTitle: false,
+      headerTitle: "",
+      headerShadowVisible: false,
+      headerStyle: { backgroundColor: "transparent" },
+      headerTintColor: nativeThemes.light.cream,
+    });
+    expect(screen.queryByTestId("screen-native-title")).toBeNull();
+    // No back of its own on the photo: the bar's platform back sits on the scrim.
+    expect(screen.queryByRole("button", { name: "Kembali" })).toBeNull();
+    const scrim = screen.getByTestId("paket-photo-scrim");
+    expect(flat(scrim)).toMatchObject({ position: "absolute", top: 0, left: 0, right: 0 });
+    expect(String(flat(scrim).experimental_backgroundImage)).toMatch(/^linear-gradient\(rgba\(11,31,22,0\.6\)/);
+    // The heart stays on the photo, at its foot, clear of the bar.
+    const heart = screen.getByRole("button", { name: "Simpan Nasi Ayam Bakar" });
+    expect(flat(heart)).toMatchObject({ position: "absolute", bottom: 12, right: 16 });
+    expect(screen.getByText("Nasi Ayam Bakar")).toBeTruthy();
   });
 });

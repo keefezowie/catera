@@ -20,6 +20,7 @@ import { usePush } from "./push";
 import { Row, SectionLabel } from "./Row";
 import { SignInFirst } from "./SignInFirst";
 import { remainingLabel } from "../remaining";
+import { planHref } from "../hrefs";
 import { goToTab } from "../nav";
 
 /** "6281234567890" (as Supabase keeps it) → "0812-3456-7890". */
@@ -134,7 +135,8 @@ function Account() {
   return (
     <Screen
       header={
-        <MoodHeader testID="akun-header" meta={t("Akun", "Account")} title={actor?.name ?? ""}>
+        // The tab bar already names this tab, so the meta row stays empty rather than repeating "Akun".
+        <MoodHeader testID="akun-header" title={actor?.name ?? ""}>
           {contact ? <Text style={{ color: mood.headerMeta, fontVariant: ["tabular-nums"] }}>{contact}</Text> : null}
         </MoodHeader>
       }
@@ -157,7 +159,7 @@ function Account() {
               first={i === 0}
               label={s.snapshot.offer.name}
               caption={`${s.snapshot.offer.caterer} · ${remainingLabel(s.remaining, t)}`}
-              onPress={() => router.push(`/subscriptions/${encodeURIComponent(s.id)}` as never)}
+              onPress={() => router.push(planHref(s.id, s.snapshot.offer.name) as never)}
             />
           ))
         ) : (

@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import {
   type AccessibilityRole,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
-  Platform,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -22,6 +23,7 @@ import type { PaletteKey } from "@catera/design-tokens";
 import { PressableScale, useReduced } from "./motion";
 import { StatusBand } from "./StatusBand";
 import { themedStyles, useColors } from "./theme";
+import { useScreenNavigation, useUnderStackHeader } from "./navigation";
 import { useTopInsetOwned } from "./TopInset";
 import { fontFor, fonts } from "./type";
 
@@ -391,11 +393,17 @@ export function Sheet({
   );
 }
 
+/** Where the Android content title ends, in scroll content coordinates, before it is laid out. */
+const NO_LINE = Number.POSITIVE_INFINITY;
+
 export function Screen({
   children,
   scroll = true,
   footer,
   header,
+  nativeTitle,
+  title,
+  bleed = false,
 }: {
   children: ReactNode;
   scroll?: boolean;
@@ -405,23 +413,61 @@ export function Screen({
    * drops its own top edge; it scrolls with the page, above the capped body.
    */
   header?: ReactNode;
+  /**
+   * The screen's name under a native stack header. iOS shows it as the large title that collapses into the bar. On
+   * Android it is the first content line (headline small, 24/32, wraps), and the bar takes it once that line has
+   * scrolled under the bar and clears it when the line comes back.
+   */
+  nativeTitle?: string;
+  /** A bar title on both platforms, for a short name that needs no content line ("Senin 12 Okt"). */
+  title?: string;
+  /** The page starts under a transparent header (a photo header), so iOS must not inset it below the bar. */
+  bleed?: boolean;
 }) {
   const styles = useStyles();
-  // The demo strip owns the status-bar inset while it is shown, so the screen must not add a second one.
+  // The demo strip owns the status-bar inset while it is shown, so the screen must not add a second one. A stack
+  // header above the screen pays it too.
   const topOwned = useTopInsetOwned();
-  // KeyboardAvoidingView measures its frame relative to its parent, but the keyboard is positioned in the window.
-  // The header and the demo strip sit above this screen, so on iOS the padding is short by exactly their height.
-  // Rather than have each of them report a height (and go stale when a headerless screen is pushed on top), the
-  // screen asks the OS where its own top edge really is, and re-asks whenever it is laid out.
+  const underHeader = useUnderStackHeader();
+  const navigation = useScreenNavigation();
+  const ios = process.env.EXPO_OS === "ios";
+  const contentTitle = !ios && nativeTitle ? nativeTitle : null;
+  const lineEnd = useRef(NO_LINE);
+  const [titleInBar, setTitleInBar] = useState(false);
+  useLayoutEffect(() => {
+    if (!navigation) return;
+    if (title !== undefined) navigation.setOptions({ title });
+    else if (nativeTitle !== undefined)
+      navigation.setOptions(ios ? { title: nativeTitle } : { headerTitle: titleInBar ? nativeTitle : "" });
+  }, [navigation, title, nativeTitle, ios, titleInBar]);
+  const onScroll = contentTitle
+    ? (e: NativeSyntheticEvent<NativeScrollEvent>) => setTitleInBar(e.nativeEvent.contentOffset.y >= lineEnd.current)
+    : undefined;
+  // On iOS the scroll view insets itself for the keyboard (automaticallyAdjustKeyboardInsets); the avoiding view only
+  // lifts a footer, which sits outside the scroll view. It measures its frame relative to its parent while the
+  // keyboard is positioned in the window, so the screen asks the OS where its own top edge really is.
   // iOS keyboard behaviour is not covered by jest or the Android emulator; it is unverified on a device.
   const frame = useRef<View>(null);
   const [keyboardOffset, setKeyboardOffset] = useState(0);
   const measureFrame = () => {
-    if (Platform.OS !== "ios") return;
+    if (!ios || !footer) return;
     frame.current?.measureInWindow((_x, y) => {
       if (Number.isFinite(y)) setKeyboardOffset(Math.max(0, Math.round(y)));
     });
   };
+  const lead = contentTitle ? (
+    <View
+      testID="screen-native-title"
+      style={styles.nativeTitle}
+      onLayout={(e) => {
+        lineEnd.current = e.nativeEvent.layout.y + e.nativeEvent.layout.height;
+      }}
+    >
+      <Text variant="heading" style={styles.nativeTitleText}>
+        {contentTitle}
+      </Text>
+    </View>
+  ) : null;
   const body = (
     <View testID="screen-body" style={styles.screenBody}>
       {children}
@@ -432,21 +478,33 @@ export function Screen({
       ref={frame}
       onLayout={measureFrame}
       style={styles.screen}
-      edges={topOwned || header ? ["left", "right"] : ["top", "left", "right"]}
+      edges={topOwned || header || underHeader ? ["left", "right"] : ["top", "left", "right"]}
     >
       <KeyboardAvoidingView
         style={styles.keyboard}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        enabled={ios && !!footer}
+        behavior={ios ? "padding" : undefined}
         keyboardVerticalOffset={keyboardOffset}
       >
         {scroll ? (
-          <ScrollView contentContainerStyle={{ paddingBottom: 32 }} keyboardShouldPersistTaps="handled">
+          // The first scroll view in the screen: iOS collapses the large title and minimizes the tab bar from it.
+          <ScrollView
+            testID="screen-scroll"
+            contentInsetAdjustmentBehavior={bleed ? "never" : "automatic"}
+            automaticallyAdjustKeyboardInsets={ios}
+            contentContainerStyle={{ paddingBottom: 32 }}
+            keyboardShouldPersistTaps="handled"
+            onScroll={onScroll}
+            scrollEventThrottle={onScroll ? 16 : undefined}
+          >
             {header}
+            {lead}
             {body}
           </ScrollView>
         ) : (
           <>
             {header}
+            {lead}
             {body}
           </>
         )}
@@ -584,6 +642,9 @@ const useStyles = themedStyles((c) => ({
   screen: { flex: 1, backgroundColor: c.canvas },
   keyboard: { flex: 1 },
   screenBody: { paddingHorizontal: 20, paddingTop: 16, gap: 16, maxWidth: 760, width: "100%", alignSelf: "center" },
+  // Material 3 headline small; the bar's 64dp row already sits above it, so it starts close under the bar.
+  nativeTitle: { paddingHorizontal: 20, paddingTop: 4, maxWidth: 760, width: "100%", alignSelf: "center" },
+  nativeTitleText: { fontFamily: fonts.bold, fontSize: 24, lineHeight: 32, letterSpacing: 0, color: c.forest },
   footer: {
     maxWidth: 760,
     width: "100%",

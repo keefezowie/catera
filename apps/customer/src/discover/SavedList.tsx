@@ -5,6 +5,7 @@ import { Button, Card, Screen, Text, useColors } from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
 import { PackageCard } from "./PackageCard";
 import { useSaved } from "./saved";
+import { packageHref } from "../hrefs";
 import { goToTab } from "../nav";
 
 /** Disimpan: the packages the customer hearted, on the same card as Jelajah. */
@@ -56,7 +57,7 @@ function Saved() {
               key={item.packageId}
               offer={item.offer}
               saved
-              onOpen={() => router.push(`/paket/${encodeURIComponent(item.packageId)}` as never)}
+              onOpen={() => router.push(packageHref(item.packageId, item.offer?.name ?? "") as never)}
               onToggleSaved={() => void saved.toggle(item.packageId)}
             />
           ) : (

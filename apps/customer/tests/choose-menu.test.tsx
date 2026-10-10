@@ -9,7 +9,9 @@ jest.mock("expo-router", () => ({
   router: { push: jest.fn(), replace: jest.fn() },
   useLocalSearchParams: () => ({ id: "subscription", date: "2026-11-03", meal: "lunch" }),
 }));
+// The real contexts stay (Screen reads whether a stack header sits above it); only the screen's own hooks are stubbed.
 jest.mock("expo-router/react-navigation", () => ({
+  ...jest.requireActual("expo-router/react-navigation"),
   useNavigation: () => ({ dispatch: jest.fn() }),
   usePreventRemove: jest.fn(),
 }));
