@@ -220,6 +220,7 @@ describe("waitingItems", () => {
         packageName: "Makan Siang Rumahan",
         dates: [day(2), day(4), day(6)],
         deadline: `${day(1)}T10:00:00Z`,
+        href: `/subscriptions/s-1/menu?date=${day(2)}&meal=lunch`,
       },
       {
         kind: "menu",
@@ -227,8 +228,16 @@ describe("waitingItems", () => {
         packageName: "Katering Sehat",
         dates: [day(3)],
         deadline: `${day(2)}T10:00:00Z`,
+        href: `/subscriptions/s-2/menu?date=${day(3)}&meal=lunch`,
       },
     ]);
+  });
+
+  it("a menu row links to its soonest due date, whatever order the actions arrive in", () => {
+    const rows = waitingItems(state([]), [due("late", day(5)), due("soon", day(2)), due("mid", day(3))], NOW);
+    expect(rows).toHaveLength(1);
+    const row = rows[0];
+    expect(row.kind === "menu" && row.href).toBe(`/subscriptions/s-1/menu?date=${day(2)}&meal=lunch`);
   });
 
   it("offline: no menu rows", () => {
@@ -307,6 +316,24 @@ describe("planLabel", () => {
     expect(planLabel(a, all, "id")).toBe("Makan Siang Rumahan · 12–23 Okt");
     expect(planLabel(b, all, "id")).toBe("Makan Siang Rumahan · 26 Okt–6 Nov");
     expect(planLabel(c, all, "id")).toBe("Katering Sehat");
+  });
+
+  it("a one-day plan shows its single day, not a range", () => {
+    const a = sub({ id: "a", starts_on: "2026-10-10", ends_on: "2026-10-10" });
+    const b = sub({ id: "b", starts_on: "2026-10-12", ends_on: "2026-10-12" });
+    const c = sub({ id: "c", starts_on: "2026-10-13", ends_on: "2026-10-26" });
+    const all = [a, b, c];
+    expect(planLabel(a, all, "id")).toBe("Makan Siang Rumahan · 10 Okt");
+    expect(planLabel(b, all, "en")).toBe("Makan Siang Rumahan · 12 Oct");
+    expect(planLabel(c, all, "id")).toBe("Makan Siang Rumahan · 13–26 Okt");
+  });
+
+  it("builds ranges from the calendar date, in either locale", () => {
+    const a = sub({ id: "a", starts_on: "2026-12-28", ends_on: "2027-01-08" });
+    const b = sub({ id: "b", starts_on: "2026-05-01", ends_on: "2026-05-09" });
+    expect(planLabel(a, [a, b], "id")).toBe("Makan Siang Rumahan · 28 Des–8 Jan");
+    expect(planLabel(a, [a, b], "en")).toBe("Makan Siang Rumahan · 28 Dec–8 Jan");
+    expect(planLabel(b, [a, b], "id")).toBe("Makan Siang Rumahan · 1–9 Mei");
   });
 
   it("a finished plan with the same name does not force a range", () => {

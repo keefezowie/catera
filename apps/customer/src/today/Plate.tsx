@@ -346,7 +346,7 @@ function PlateContent({
         {!offline && (plate.state === "on_the_way" || plate.state === "due") ? (
           // Each button keeps at least its label's width and the two share what is left 2:1; on a narrow card at a
           // large font (a pager card at 360dp and 1.3) "Belum" moves under "Sudah sampai" instead of breaking mid-word.
-          <View style={[styles.row, { flexWrap: "wrap" }]}>
+          <View testID="plate-actions" style={[styles.row, { flexWrap: "wrap" }]}>
             <SunriseButton
               label={t("Sudah sampai", "It's here")}
               disabled={busy}

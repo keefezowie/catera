@@ -103,6 +103,25 @@ it("shows the on-the-way plate and confirms arrival", async () => {
   );
 });
 
+it("the hero's two answers share their row 2:1 and wrap instead of breaking a word", async () => {
+  renderHome(runtimeWith(async () => customerState({ status: "out_for_delivery" })));
+  const row = await screen.findByTestId("plate-actions");
+  // On a narrow pager card at a large font "Belum" moves under "Sudah sampai" rather than breaking mid-word.
+  expect(StyleSheet.flatten(row.props.style).flexWrap).toBe("wrap");
+  // The nearest styled box of each button: each keeps at least its label's width and they share the rest 2:1.
+  const sizing = (name: string) => {
+    let node: { props: { style?: unknown }; parent: unknown } | null = within(row).getByRole("button", { name });
+    while (node && node !== row) {
+      const style = StyleSheet.flatten(node.props.style as never) as Record<string, unknown> | undefined;
+      if (style?.flexGrow !== undefined) return { flexGrow: style.flexGrow, flexBasis: style.flexBasis };
+      node = node.parent as typeof node;
+    }
+    return null;
+  };
+  expect(sizing("Sudah sampai")).toEqual({ flexGrow: 2, flexBasis: "auto" });
+  expect(sizing("Belum")).toEqual({ flexGrow: 1, flexBasis: "auto" });
+});
+
 it("Belum opens the report screen preselected", async () => {
   renderHome(runtimeWith(async () => customerState({ status: "out_for_delivery" })));
   fireEvent.press(await screen.findByRole("button", { name: "Belum" }));

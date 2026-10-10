@@ -154,6 +154,9 @@ describe("Akun", () => {
     fireEvent.press(screen.getByRole("tab", { name: "English" }));
     expect(await screen.findByRole("button", { name: "Sign out" })).toBeTruthy();
     expect(screen.getByRole("button", { name: /^Payment history/ })).toBeTruthy();
+    // The same words as Beranda's plans row and Paket saya: plans, never packages.
+    expect(screen.getByText("Active plans")).toBeTruthy();
+    expect(screen.queryByText(/active packages/i)).toBeNull();
     expect(SecureStore.setItemAsync).toHaveBeenCalledWith("catera.locale", "en");
   });
 

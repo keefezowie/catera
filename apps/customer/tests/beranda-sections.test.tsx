@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import * as ReactNative from "react-native";
 import { AccessibilityInfo, StyleSheet } from "react-native";
 import { router } from "expo-router";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import * as SecureStore from "expo-secure-store";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { addDays, currency, type CustomerActionItem, type CustomerState } from "@catera/domain";
@@ -162,13 +163,20 @@ describe("the hero pager", () => {
     expect(dots.map((d) => StyleSheet.flatten(d.props.style).width)).toEqual([20, 8]);
     expect(StyleSheet.flatten(dots[0].props.style).backgroundColor).toBe(light.forest);
 
-    // TalkBack: one adjustable control speaks the card and moves the pager.
+    // TalkBack: one adjustable control moves the pager. The meal names it and the position with the card's kitchen is
+    // its value, which the platform speaks after each move, so "1 dari 2" is never in the label as well, and nothing
+    // is announced on top.
     const control = screen.getByRole("adjustable");
-    expect(control.props.accessibilityLabel).toBe("Makan siang 1 dari 2, Dapur Senja");
+    expect(control.props.accessibilityLabel).toBe("Makan siang");
+    expect(control.props.accessibilityValue).toEqual({ text: "1 dari 2, Dapur Senja" });
     fireEvent(control, "accessibilityAction", { nativeEvent: { actionName: "increment" } });
-    expect(screen.getByRole("adjustable").props.accessibilityLabel).toBe("Makan siang 2 dari 2, Dapur Contoh");
+    expect(screen.getByRole("adjustable").props.accessibilityLabel).toBe("Makan siang");
+    expect(screen.getByRole("adjustable").props.accessibilityValue).toEqual({ text: "2 dari 2, Dapur Contoh" });
     expect(screen.getByText("2 dari 2")).toBeTruthy();
-    expect(announce).toHaveBeenCalledWith("Makan siang 2 dari 2, Dapur Contoh");
+    expect(announce).not.toHaveBeenCalled();
+    fireEvent(screen.getByRole("adjustable"), "accessibilityAction", { nativeEvent: { actionName: "decrement" } });
+    expect(screen.getByRole("adjustable").props.accessibilityValue).toEqual({ text: "1 dari 2, Dapur Senja" });
+    fireEvent(screen.getByRole("adjustable"), "accessibilityAction", { nativeEvent: { actionName: "increment" } });
 
     // A swipe back to the first card moves the counter with it.
     fireEvent.scroll(scroller, {
@@ -178,6 +186,16 @@ describe("the hero pager", () => {
     expect(screen.getByText("1 dari 2")).toBeTruthy();
     fireEvent(scroller, "momentumScrollEnd", { nativeEvent: { contentOffset: { x: widths[0] + 12, y: 0 } } });
     expect(screen.getByText("2 dari 2")).toBeTruthy();
+  });
+
+  it("the pager's value reads in English", async () => {
+    (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.locale", "en");
+    mount(demo().runtime);
+    await screen.findByTestId("hero-pager");
+    const control = screen.getByRole("adjustable");
+    expect(control.props.accessibilityLabel).toBe("Lunch");
+    expect(control.props.accessibilityValue).toEqual({ text: "1 of 2, Dapur Senja" });
+    expect(screen.getByText("1 of 2")).toBeTruthy();
   });
 
   it("one plan with one meal keeps today's single hero, with no counter", async () => {
@@ -299,7 +317,7 @@ describe("Menunggu Anda", () => {
       "Pilih menu Selasa 13 Okt, Makan Siang Kantor · sebelum Senin 17.00, Pilih",
       "Pilih menu Rabu dan Kamis, Makan Siang Rumahan · sebelum Selasa 17.00, Pilih",
       "Pilih menu 3 hari, Makan Malam Hemat · sebelum Kamis 17.00, Pilih",
-      `Paket Sehat, sisa 2 hari, Dapur Hijau · ${currency(30000, "id")} per porsi, Perpanjang`,
+      `Paket Sehat, sisa 2 hari, Dapur Hijau · harga terakhir ${currency(30000, "id")} per porsi, Perpanjang`,
       "Coba Nasi Bakar selesai hari ini, Dapur Arang · paket coba, Paket penuh",
       "Coba Bento selesai besok, Dapur Kecil · paket coba, Paket penuh",
       "Bagaimana Dapur Hijau selama ini?, Ulasan singkat, 1 menit, Nilai",
@@ -328,6 +346,45 @@ describe("Menunggu Anda", () => {
     expect(router.push).toHaveBeenLastCalledWith("/paket/p-s-coba-1?title=Coba%20Nasi%20Bakar");
   });
 
+  it("the renewal row calls its price the last price, never the renewal's", async () => {
+    mount(demo().runtime);
+    const list = within(await screen.findByTestId("waiting-list"));
+    // The snapshot price is what the last plan cost; the server quotes the renewal at today's price.
+    const detail = list.getByText(`Dapur Hijau · harga terakhir ${currency(30000, "id")} per porsi`);
+    expect(StyleSheet.flatten(detail.props.style).fontVariant).toContain("tabular-nums");
+    expect(list.queryByText(`Dapur Hijau · ${currency(30000, "id")} per porsi`)).toBeNull();
+  });
+
+  it("each kind of row carries its own icon: the trial takes the packages bag, not the renewal's arrow", async () => {
+    mount(demo().runtime);
+    const list = within(await screen.findByTestId("waiting-list"));
+    await list.findByText("Bagaimana Dapur Hijau selama ini?");
+    const icons = list.getAllByTestId("waiting-row").map((row) => within(row).UNSAFE_getByType(Ionicons).props.name);
+    expect(icons).toEqual([
+      "reorder-three-outline",
+      "reorder-three-outline",
+      "reorder-three-outline",
+      "refresh-outline",
+      "bag-handle-outline",
+      "bag-handle-outline",
+      "star-outline",
+    ]);
+  });
+
+  it("a menu row opens its soonest day, whatever order the action feed lists it in", async () => {
+    const { state, actions } = demoCustomer();
+    const reversed = [...actions].reverse();
+    mount(runtimeWith(async () => state, async () => ({ total: reversed.length, items: reversed })).runtime);
+    const list = within(await screen.findByTestId("waiting-list"));
+    const rumahan = list.getByRole("button", { name: /^Pilih menu Rabu dan Kamis/ });
+    fireEvent.press(rumahan);
+    expect(router.push).toHaveBeenLastCalledWith(
+      `/pilih-menu/s-rumahan?date=${addDays(DEMO_TODAY, 4)}&meal=lunch`,
+    );
+    fireEvent.press(list.getByRole("button", { name: /^Pilih menu 3 hari/ }));
+    expect(router.push).toHaveBeenLastCalledWith(`/pilih-menu/s-malam?date=${addDays(DEMO_TODAY, 6)}&meal=dinner`);
+  });
+
   it("reads in English", async () => {
     (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.locale", "en");
     mount(demo().runtime);
@@ -337,7 +394,7 @@ describe("Menunggu Anda", () => {
       "Choose the menu for Tue 13 Oct, Makan Siang Kantor · before Mon 17.00, Choose",
       "Choose menus for Wednesday and Thursday, Makan Siang Rumahan · before Tue 17.00, Choose",
       "Choose menus for 3 days, Makan Malam Hemat · before Thu 17.00, Choose",
-      `Paket Sehat, 2 days left, Dapur Hijau · ${currency(30000, "en")} per portion, Renew`,
+      `Paket Sehat, 2 days left, Dapur Hijau · last price ${currency(30000, "en")} per portion, Renew`,
       "Coba Nasi Bakar ends today, Dapur Arang · trial, Full plan",
       "Coba Bento ends tomorrow, Dapur Kecil · trial, Full plan",
       "How has Dapur Hijau been so far?, A short review, 1 minute, Rate",
@@ -537,6 +594,37 @@ describe("the plans row and Paket saya", () => {
     expect(within(screen.getByTestId("screen-native-title")).getByText("Paket aktif")).toBeTruthy();
     fireEvent.press(screen.getByText("Makan Siang Kantor · 19–30 Okt"));
     expect(router.push).toHaveBeenCalledWith("/subscriptions/s-b?title=Makan%20Siang%20Kantor");
+  });
+
+  it("Paket saya lists plans by name, then by start date, so twin names sit together", async () => {
+    const state = eightPlans();
+    const later = state.subscriptions.find((s) => s.id === "s-b")!;
+    const earlier = state.subscriptions.find((s) => s.id === "s-a")!;
+    // The read gives the later twin first and the earlier one last, with every other plan in between.
+    state.subscriptions = [later, ...state.subscriptions.filter((s) => s !== later && s !== earlier), earlier];
+    mount(runtimeWith(async () => state).runtime, { node: <PaketSaya /> });
+    await screen.findByText("Makan Siang Kantor · 5–16 Okt");
+    const names = screen
+      .getAllByText(/^(Bento|Makan|Nasi|Paket (Keluarga|Sehat))/)
+      .map((n) => n.props.children as string);
+    expect(names).toEqual([
+      "Bento Anak",
+      "Makan Malam Hemat",
+      "Makan Siang Kantor · 5–16 Okt",
+      "Makan Siang Kantor · 19–30 Okt",
+      "Makan Siang Rumahan",
+      "Nasi Bakar",
+      "Paket Keluarga",
+      "Paket Sehat",
+    ]);
+  });
+
+  it("reads Active plans and No active plans. in English", async () => {
+    (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.locale", "en");
+    const empty = { ...eightPlans(), subscriptions: [], deliveries: [] };
+    mount(runtimeWith(async () => empty).runtime, { node: <PaketSaya /> });
+    expect(await screen.findByText("No active plans.")).toBeTruthy();
+    expect(within(screen.getByTestId("screen-native-title")).getByText("Active plans")).toBeTruthy();
   });
 
   it("Paket saya says so when the read fails, and reads again", async () => {

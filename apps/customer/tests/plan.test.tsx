@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
-import { StyleSheet } from "react-native";
+import { Linking, StyleSheet } from "react-native";
 import { router } from "expo-router";
+import { NavigationContext } from "expo-router/react-navigation";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { shortDate, type CustomerState, type Delivery, type Offer, type Subscription, type UsageName } from "@catera/domain";
 import { nativeThemes } from "@catera/design-tokens";
@@ -326,6 +327,57 @@ describe("Plan detail states", () => {
     renderPlan(runtime);
     expect(await screen.findByText("6 hari lagi")).toBeTruthy();
     await waitFor(() => expect(usageNames(usage).filter((n) => n === "plan_sheet_opened")).toHaveLength(2));
+  });
+});
+
+describe("Plan detail chat in the native header", () => {
+  /** The screen's own stack entry, as the native stack hands it over. */
+  const navigation = { setOptions: jest.fn(), isFocused: () => true, addListener: () => () => undefined };
+  type HeaderRight = (() => React.ReactElement) | undefined;
+  const lastHeaderRight = (): HeaderRight => {
+    const calls = navigation.setOptions.mock.calls.filter(([o]) => "headerRight" in (o as object));
+    return calls.length ? (calls[calls.length - 1][0] as { headerRight: HeaderRight }).headerRight : undefined;
+  };
+  const renderInStack = (runtime: MobileRuntime) =>
+    render(
+      <NavigationContext.Provider value={navigation as never}>
+        <MobileProvider runtime={runtime} linkMapper={customerLink}>
+          <PlanDetailScreen />
+        </MobileProvider>
+      </NavigationContext.Provider>,
+    );
+  const PHONE = "081234567890";
+  const withPhone = () =>
+    planState({}, { deliveries: [delivery("d-today", DAY, {}, { catererPhone: PHONE }), delivery("d-1", at(1))] });
+
+  it("a plan with the caterer's number gets a trailing chat button that opens WhatsApp", async () => {
+    const openUrl = jest.spyOn(Linking, "openURL").mockResolvedValue(true);
+    renderInStack(runtimeWith(async () => withPhone()));
+    expect(await screen.findByTestId("plan-hero")).toBeTruthy();
+    await waitFor(() => expect(lastHeaderRight()).toBeDefined());
+    const bar = render(lastHeaderRight()!());
+    const chat = bar.getByRole("button", { name: "Chat Dapur Contoh" });
+    expect(chat.props.testID).toBe("header-chat");
+    fireEvent.press(chat);
+    // The same link ChatKatering opens: wa.me with the number in international form and no prefilled text.
+    expect(openUrl).toHaveBeenCalledWith("https://wa.me/6281234567890?text=");
+    openUrl.mockRestore();
+  });
+
+  it("a plan without the caterer's number has no chat button", async () => {
+    renderInStack(runtimeWith(async () => planState()));
+    expect(await screen.findByTestId("plan-hero")).toBeTruthy();
+    await act(async () => undefined);
+    expect(navigation.setOptions).toHaveBeenCalledWith(expect.objectContaining({ headerRight: undefined }));
+    expect(lastHeaderRight()).toBeUndefined();
+  });
+
+  it("another plan's number does not put a chat button on this plan", async () => {
+    const other = delivery("d-other", at(2), {}, { subscription_id: "s-other", catererPhone: PHONE });
+    renderInStack(runtimeWith(async () => planState({}, { deliveries: [delivery("d-today", DAY), other] })));
+    expect(await screen.findByTestId("plan-hero")).toBeTruthy();
+    await act(async () => undefined);
+    expect(lastHeaderRight()).toBeUndefined();
   });
 });
 

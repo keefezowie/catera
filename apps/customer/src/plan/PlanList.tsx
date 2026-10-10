@@ -32,9 +32,16 @@ export function PlanList({
       </View>
     );
   const all = customer.data?.subscriptions ?? [];
-  const active = all.filter((s) => s.status === "active");
+  // By name, then by start date, so plans that share a name sit together in date order.
+  const active = all
+    .filter((s) => s.status === "active")
+    .sort(
+      (a, b) =>
+        (a.snapshot?.offer?.name ?? "").localeCompare(b.snapshot?.offer?.name ?? "", locale) ||
+        a.starts_on.localeCompare(b.starts_on),
+    );
   if (!active.length)
-    return <Text style={{ color: c.muted, marginTop: 6 }}>{t("Belum ada paket aktif.", "No active packages.")}</Text>;
+    return <Text style={{ color: c.muted, marginTop: 6 }}>{t("Belum ada paket aktif.", "No active plans.")}</Text>;
   return (
     <View>
       {active.map((s, i) => (

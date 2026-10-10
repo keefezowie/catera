@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { ActivityIndicator, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useLocalSearchParams } from "expo-router";
@@ -14,6 +14,7 @@ import {
 import { useData, useMobile, useTrack, type MobileRuntime } from "@catera/mobile-core";
 import {
   Button,
+  HeaderIconButton,
   MoodFill,
   Photo,
   PhotoRing,
@@ -24,8 +25,10 @@ import {
   themedStyles,
   useColors,
   useMoodColors,
+  useScreenNavigation,
 } from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
+import { catererPhoneOf, openCatererChat } from "../help/ChatKatering";
 import { remainingLabel } from "../remaining";
 import { loadCachedCustomer } from "../today/offline";
 import { jakartaClock, photoUri } from "../today/Plate";
@@ -94,6 +97,28 @@ function Plan({ id, actorId, named }: { id: string; actorId: string; named: stri
     counted.current = true;
     track("plan_sheet_opened");
   }, [plan, track]);
+
+  // Chat with the kitchen sits at the trailing end of the native bar, as on the approved canvas, and only while the
+  // read carries the caterer's verified number for this plan; without one the bar has no button at all.
+  const navigation = useScreenNavigation();
+  const phone = catererPhoneOf(state?.deliveries.find((d) => d.subscription_id === id && d.catererPhone));
+  const caterer = plan?.offer.caterer ?? "";
+  useLayoutEffect(() => {
+    if (!navigation) return;
+    navigation.setOptions({
+      headerRight:
+        plan && phone
+          ? () => (
+              <HeaderIconButton
+                icon="chat"
+                slot="trailing"
+                label={caterer ? t(`Chat ${caterer}`, `Chat ${caterer}`) : t("Chat katering", "Chat caterer")}
+                onPress={() => openCatererChat(phone)}
+              />
+            )
+          : undefined,
+    });
+  }, [navigation, plan, phone, caterer, t]);
 
   if (!plan)
     return (

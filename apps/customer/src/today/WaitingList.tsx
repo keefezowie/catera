@@ -46,17 +46,6 @@ export function SectionTitle({ children }: { children: string }) {
   );
 }
 
-/** The plan a menu action links to (`/subscriptions/{id}/menu`), as the domain groups menu rows by it. */
-function planOf(item: CustomerActionItem): string {
-  const m = /^\/subscriptions\/([^/?#]+)/.exec(item.href);
-  if (!m) return item.id;
-  try {
-    return decodeURIComponent(m[1]);
-  } catch {
-    return m[1];
-  }
-}
-
 /** "Pilih menu Selasa 13 Okt", "Pilih menu Rabu dan Kamis", "Pilih menu 3 hari". */
 function menuTitle(dates: string[], t: Translate): string {
   if (dates.length === 1)
@@ -142,22 +131,13 @@ export function WaitingList({
     switch (item.kind) {
       case "menu": {
         const deadline = item.deadline ? changeDeadline(item.deadline, now, locale) : null;
-        const link = (actions ?? []).find(
-          (a) =>
-            a.kind === "menu_choice_due" &&
-            a.status === "selection_due" &&
-            a.serviceDate === item.dates[0] &&
-            planOf(a) === item.subscriptionId,
-        );
         return {
           key: `menu:${item.subscriptionId}`,
           icon: "reorder-three-outline",
           title: menuTitle(item.dates, t),
           detail: deadline ? `${item.packageName} · ${t("sebelum", "before")} ${deadline}` : item.packageName,
           action: t("Pilih", "Choose"),
-          onPress: () => {
-            if (link) openLink(customerLink(link.href));
-          },
+          onPress: () => openLink(customerLink(item.href)),
         };
       }
       case "renew": {
@@ -170,7 +150,12 @@ export function WaitingList({
             `${offer.name}, sisa ${s.remaining} hari`,
             `${offer.name}, ${s.remaining === 1 ? "1 day" : `${s.remaining} days`} left`,
           ),
-          detail: `${offer.caterer} · ${currency(offer.price, locale)} ${t("per porsi", "per portion")}`,
+          // The snapshot price is what the last plan cost; the server quotes the renewal at today's price, so the
+          // row never lets this number pass for the renewal's.
+          detail: t(
+            `${offer.caterer} · harga terakhir ${currency(offer.price, locale)} per porsi`,
+            `${offer.caterer} · last price ${currency(offer.price, locale)} per portion`,
+          ),
           action: t("Perpanjang", "Renew"),
           sunrise: true,
           onPress: () => {
@@ -184,7 +169,8 @@ export function WaitingList({
         const s = item.subscription;
         return {
           key: `trial:${s.id}`,
-          icon: "refresh-outline",
+          // The full plan is another package to take, so the row carries the packages bag, not the renewal's arrow.
+          icon: "bag-handle-outline",
           title: trialTitle(s, today, t),
           detail: `${s.snapshot.offer.caterer} · ${t("paket coba", "trial")}`,
           action: t("Paket penuh", "Full plan"),

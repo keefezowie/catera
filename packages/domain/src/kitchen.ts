@@ -62,6 +62,11 @@ export function earliestImportStart(now: Date): string {
   return jakartaDay(now, hour >= 17 ? 2 : 1);
 }
 
+/** The short month name of a calendar date (YYYY-MM-DD): "Okt", "Oct". */
+export function monthName(date: string, locale: Locale) {
+  return monthNames[locale][new Date(`${date}T00:00:00Z`).getUTCMonth()];
+}
+
 export function shortDate(date: string, locale: Locale) {
   const d = new Date(`${date}T00:00:00Z`);
   const day = dayNames[locale][d.getUTCDay()];

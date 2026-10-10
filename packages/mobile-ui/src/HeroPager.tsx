@@ -1,6 +1,5 @@
 import { Children, useEffect, useRef, useState, type ReactNode } from "react";
 import {
-  AccessibilityInfo,
   ScrollView,
   useWindowDimensions,
   View,
@@ -28,14 +27,17 @@ const TOP_ROOM = 12;
  * The pager reaches `bleed` past its parent's side padding on both sides, so the cards line up with the content and
  * peek at the screen edge. It uses the platform's own scroll physics (`snapToInterval`, `decelerationRate="fast"`).
  *
- * Screen readers get one adjustable control under the cards: it speaks `accessibilityLabelFor(index)` ("Makan siang
- * 1 dari 2, Dapur Senja"), its increment and decrement actions move the pager, and every page change is announced.
- * With `count` below 2 it renders its only child and nothing else.
+ * Screen readers get one adjustable control under the cards: its label is `accessibilityLabelFor(index)` ("Makan
+ * siang") and its value `accessibilityValueFor(index)` ("1 dari 2, Dapur Senja", the visible counter by default). Its
+ * increment and decrement actions move the pager, and the platform speaks the new value itself, so nothing is
+ * announced on top and the position is never read twice. With `count` below 2 it renders its only child and nothing
+ * else.
  */
 export function HeroPager({
   count,
   children,
   accessibilityLabelFor,
+  accessibilityValueFor,
   counterLabel,
   onIndexChange,
   bleed = 20,
@@ -44,8 +46,10 @@ export function HeroPager({
 }: {
   count: number;
   children: ReactNode;
-  /** What a screen reader hears for the card at `index`. */
+  /** The control's name for a screen reader while the card at `index` is in view. */
   accessibilityLabelFor: (index: number) => string;
+  /** The control's value for the card at `index`, spoken after each move; `counterLabel(index)` when omitted. */
+  accessibilityValueFor?: (index: number) => string;
   /** The visible counter for the card at `index`, "1 dari 2" ("1 of 2"). */
   counterLabel: (index: number) => string;
   /** Called when another card becomes the one in view. */
@@ -62,7 +66,6 @@ export function HeroPager({
   const [index, setIndex] = useState(0);
   const scroller = useRef<ScrollView>(null);
   const shown = useRef(0);
-  const announced = useRef(false);
   const pages = Children.toArray(children);
   const last = Math.max(0, Math.min(count, pages.length) - 1);
   // Until the pager has measured itself, the window stands in for its width (the body caps at 760 plus its padding).
@@ -79,10 +82,7 @@ export function HeroPager({
 
   useEffect(() => {
     onIndexChange?.(index);
-    // The first card is not announced: the screen reader is already reading the screen.
-    if (announced.current) AccessibilityInfo.announceForAccessibility(accessibilityLabelFor(index));
-    announced.current = true;
-    // Only a change of card speaks; a new label for the same card (a status update) does not.
+    // Only a change of card reports; a new callback for the same card (a re-render) does not.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index]);
 
@@ -134,6 +134,7 @@ export function HeroPager({
         accessible
         accessibilityRole="adjustable"
         accessibilityLabel={accessibilityLabelFor(index)}
+        accessibilityValue={{ text: (accessibilityValueFor ?? counterLabel)(index) }}
         accessibilityActions={[{ name: "increment" }, { name: "decrement" }]}
         onAccessibilityAction={(e) => move(index + (e.nativeEvent.actionName === "increment" ? 1 : -1))}
         style={styles.indicator}

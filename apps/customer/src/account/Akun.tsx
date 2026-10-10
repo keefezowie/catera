@@ -30,7 +30,7 @@ export function localPhone(phone: string): string {
   return [digits.slice(0, 4), digits.slice(4, 8), digits.slice(8)].filter(Boolean).join("-");
 }
 
-/** Akun: who is signed in, active packages and the account screens. No caterer or admin links. */
+/** Akun: who is signed in, active plans and the account screens. No caterer or admin links. */
 export function Akun() {
   const { actor, ready, t } = useMobile();
   const c = useColors();
@@ -140,7 +140,7 @@ function Account() {
       }
     >
       <View>
-        <SectionLabel>{t("Paket aktif", "Active packages")}</SectionLabel>
+        <SectionLabel>{t("Paket aktif", "Active plans")}</SectionLabel>
         <PlanList customer={customer} />
       </View>
 

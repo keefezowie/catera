@@ -12,7 +12,7 @@ import {
   type Plate,
 } from "./customer-day";
 import type { CustomerActionItem, CustomerState, Delivery, Locale, Subscription } from "./index";
-import { jakartaDay, shortDate } from "./kitchen";
+import { jakartaDay, monthName } from "./kitchen";
 import { windowStartMinutes } from "./windows";
 
 /** The sections of Beranda, read from the customer state. A leaf module: type-only imports from ./index. */
@@ -88,7 +88,15 @@ export function upcomingDays(state: CustomerState, now: Date, days: number, loca
 }
 
 export type WaitingItem =
-  | { kind: "menu"; subscriptionId: string; packageName: string; dates: string[]; deadline: string }
+  | {
+      kind: "menu";
+      subscriptionId: string;
+      packageName: string;
+      dates: string[];
+      deadline: string;
+      /** The action's link for the soonest due date, so the row always opens the menu it names. */
+      href: string;
+    }
   | { kind: "renew"; subscription: Subscription }
   | { kind: "trial"; subscription: Subscription }
   | { kind: "review"; subscription: Subscription };
@@ -111,7 +119,10 @@ const deadlineAt = (deadline: string) => {
 
 /** Menu choices that are due, one row per plan: its due dates, soonest first, and the earliest deadline among them. */
 function menuRows(state: CustomerState, actions: CustomerActionItem[]): WaitingItem[] {
-  const plans = new Map<string, { packageName: string; dates: Set<string>; deadline: string }>();
+  const plans = new Map<
+    string,
+    { packageName: string; dates: Set<string>; deadline: string; first: string; href: string }
+  >();
   for (const item of actions) {
     if (item.kind !== "menu_choice_due" || item.status !== "selection_due" || !item.serviceDate) continue;
     const id = menuPlanId(item);
@@ -119,8 +130,14 @@ function menuRows(state: CustomerState, actions: CustomerActionItem[]): WaitingI
       packageName: item.packageName ?? state.subscriptions.find((s) => s.id === id)?.snapshot?.offer?.name ?? "",
       dates: new Set<string>(),
       deadline: "",
+      first: "",
+      href: "",
     };
     plan.dates.add(item.serviceDate);
+    if (!plan.first || item.serviceDate < plan.first) {
+      plan.first = item.serviceDate;
+      plan.href = item.href;
+    }
     if (item.dueAt && (!plan.deadline || deadlineAt(item.dueAt) < deadlineAt(plan.deadline))) plan.deadline = item.dueAt;
     plans.set(id, plan);
   }
@@ -131,6 +148,7 @@ function menuRows(state: CustomerState, actions: CustomerActionItem[]): WaitingI
       packageName: p.packageName,
       dates: [...p.dates].sort(),
       deadline: p.deadline,
+      href: p.href,
     }))
     .sort((a, b) => deadlineAt(a.deadline) - deadlineAt(b.deadline));
 }
@@ -177,13 +195,14 @@ export function activePlans(state: CustomerState): { count: number; caterers: st
   return { count: active.length, caterers, images };
 }
 
-/** "12–23 Okt", or "26 Okt–6 Nov" when the plan crosses a month. */
+/** "12–23 Okt", "26 Okt–6 Nov" when the plan crosses a month, or "10 Okt" for a plan of one day. */
 function rangeLabel(from: string, to: string, locale: Locale): string {
-  const [, fromDay, fromMonth] = shortDate(from, locale).split(" ");
-  const [, toDay, toMonth] = shortDate(to, locale).split(" ");
+  const fromDay = new Date(`${from}T00:00:00Z`).getUTCDate();
+  const toDay = new Date(`${to}T00:00:00Z`).getUTCDate();
+  if (from === to) return `${toDay} ${monthName(to, locale)}`;
   return from.slice(0, 7) === to.slice(0, 7)
-    ? `${fromDay}–${toDay} ${toMonth}`
-    : `${fromDay} ${fromMonth}–${toDay} ${toMonth}`;
+    ? `${fromDay}–${toDay} ${monthName(to, locale)}`
+    : `${fromDay} ${monthName(from, locale)}–${toDay} ${monthName(to, locale)}`;
 }
 
 /** The plan's name, plus its dates only when another active plan carries the same name. */

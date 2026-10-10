@@ -235,10 +235,13 @@ function SignedInHome({ actorId }: { actorId: string }) {
           key={`pager:${meal}`}
           count={heroPlates.length}
           style={{ marginTop: HERO_OVERLAP }}
-          accessibilityLabelFor={(i) =>
+          // TalkBack reads "Makan siang, 1 dari 2, Dapur Senja": the meal names the control, and the position with the
+          // card's kitchen is its value, which the platform speaks again after each move.
+          accessibilityLabelFor={() => mealName}
+          accessibilityValueFor={(i) =>
             t(
-              `${mealName} ${i + 1} dari ${heroPlates.length}, ${heroPlates[i]?.catererName ?? ""}`,
-              `${mealName} ${i + 1} of ${heroPlates.length}, ${heroPlates[i]?.catererName ?? ""}`,
+              `${i + 1} dari ${heroPlates.length}, ${heroPlates[i]?.catererName ?? ""}`,
+              `${i + 1} of ${heroPlates.length}, ${heroPlates[i]?.catererName ?? ""}`,
             )
           }
           counterLabel={(i) => t(`${i + 1} dari ${heroPlates.length}`, `${i + 1} of ${heroPlates.length}`)}
