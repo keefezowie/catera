@@ -491,3 +491,33 @@ describe("Keluar lets go of this phone's push token", () => {
     expect(unregisterCalls(runtime)).toEqual([]);
   });
 });
+
+describe("Keluar while sign-out waits", () => {
+  it("shows the row busy, dimmed and not pressable, and a second tap sends nothing", async () => {
+    const runtime = runtimeWith();
+    (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: "granted" });
+    store().set(FLAG, "on");
+    renderWith(runtime, <Pengaturan />);
+    await waitFor(() => expect(notificationSwitch()).toBeChecked());
+    (Notifications.getExpoPushTokenAsync as jest.Mock).mockReturnValueOnce(new Promise(() => undefined));
+    jest.useFakeTimers();
+    try {
+      const keluar = screen.getByRole("button", { name: "Keluar" });
+      expect(screen.queryByTestId("settings-row-busy")).toBeNull();
+      fireEvent.press(keluar);
+      await act(async () => void (await jest.advanceTimersByTimeAsync(100)));
+      const row = screen.getByRole("button", { name: "Keluar" });
+      expect(row.props.accessibilityState).toEqual({ busy: true, disabled: true });
+      expect(within(row).getByTestId("settings-row-busy")).toBeTruthy();
+      expect(StyleSheet.flatten(within(row).getByTestId("settings-row-body").props.style).opacity).toBe(0.45);
+      // The label stays, so the row still says what it is doing.
+      expect(within(row).getByText("Keluar")).toBeTruthy();
+      fireEvent.press(row);
+      await act(async () => void (await jest.advanceTimersByTimeAsync(2900)));
+      expect(Notifications.getExpoPushTokenAsync).toHaveBeenCalledTimes(1);
+      expect(runtime.signOut).toHaveBeenCalledTimes(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+});

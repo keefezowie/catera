@@ -121,7 +121,7 @@ export function Pengaturan() {
       </SettingsSection>
       {account ? (
         <SettingsSection>
-          <SettingsRow label={t("Keluar", "Sign out")} tone="danger" onPress={() => void signOut()} />
+          <SettingsRow label={t("Keluar", "Sign out")} tone="danger" busy={leaving} onPress={() => void signOut()} />
         </SettingsSection>
       ) : null}
     </Screen>

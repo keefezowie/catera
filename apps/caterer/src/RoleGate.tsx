@@ -11,6 +11,18 @@ export function RoleGate({ children }: { children: ReactNode }) {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [leaving, setLeaving] = useState(false);
+
+  async function signOut() {
+    if (leaving) return;
+    setLeaving(true);
+    try {
+      // Signed out, the gate renders nothing of its own; a failure lets Keluar be tried again.
+      await logout();
+    } catch {
+      setLeaving(false);
+    }
+  }
 
   async function join() {
     setBusy(true);
@@ -61,7 +73,8 @@ export function RoleGate({ children }: { children: ReactNode }) {
               onPress={() => void join()}
             />
           </Card>
-          <Button variant="text" label={t("Keluar", "Sign out")} onPress={() => void logout()} />
+          {/* Disabled while logout() lets go of this phone's push token (up to 3 s), so a second tap sends nothing. */}
+          <Button variant="text" label={t("Keluar", "Sign out")} disabled={leaving} onPress={() => void signOut()} />
         </View>
       </Screen>
     );

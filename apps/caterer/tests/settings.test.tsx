@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
+import { StyleSheet } from "react-native";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import * as Notifications from "expo-notifications";
@@ -198,4 +199,48 @@ it("the Tampilan sheet speaks to kamu and closes on a choice", async () => {
   fireEvent.press(screen.getByRole("radio", { name: "Terang" }));
   expect(SecureStore.setItemAsync).toHaveBeenCalledWith("t.theme", "light");
   expect(router.back).toHaveBeenCalledTimes(1);
+});
+
+describe("Keluar while sign-out waits", () => {
+  it("Pengaturan shows the row busy, dimmed and not pressable, and a second tap sends nothing", async () => {
+    const runtime = runtimeWith(staff);
+    (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: "granted" });
+    renderWith(runtime, <Pengaturan />);
+    await waitFor(() => expect(notificationSwitch()).not.toBeChecked());
+    (Notifications.getExpoPushTokenAsync as jest.Mock).mockReturnValueOnce(new Promise(() => undefined));
+    jest.useFakeTimers();
+    try {
+      fireEvent.press(screen.getByRole("button", { name: "Keluar" }));
+      await act(async () => void (await jest.advanceTimersByTimeAsync(100)));
+      const row = screen.getByRole("button", { name: "Keluar" });
+      expect(row.props.accessibilityState).toEqual({ busy: true, disabled: true });
+      expect(within(row).getByTestId("settings-row-busy")).toBeTruthy();
+      expect(StyleSheet.flatten(within(row).getByTestId("settings-row-body").props.style).opacity).toBe(0.45);
+      fireEvent.press(row);
+      await act(async () => void (await jest.advanceTimersByTimeAsync(2900)));
+      expect(Notifications.getExpoPushTokenAsync).toHaveBeenCalledTimes(1);
+      expect(runtime.signOut).toHaveBeenCalledTimes(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("the customer-account gate's Keluar is disabled while it waits, so a second tap sends nothing", async () => {
+    const runtime = runtimeWith({ id: "u-c", role: "customer" });
+    renderWith(runtime, <RoleGate>{null}</RoleGate>);
+    const keluar = await screen.findByRole("button", { name: "Keluar" });
+    (Notifications.getExpoPushTokenAsync as jest.Mock).mockReturnValueOnce(new Promise(() => undefined));
+    jest.useFakeTimers();
+    try {
+      fireEvent.press(keluar);
+      await act(async () => void (await jest.advanceTimersByTimeAsync(100)));
+      expect(screen.getByRole("button", { name: "Keluar" })).toBeDisabled();
+      fireEvent.press(screen.getByRole("button", { name: "Keluar" }));
+      await act(async () => void (await jest.advanceTimersByTimeAsync(2900)));
+      expect(Notifications.getExpoPushTokenAsync).toHaveBeenCalledTimes(1);
+      expect(runtime.signOut).toHaveBeenCalledTimes(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });

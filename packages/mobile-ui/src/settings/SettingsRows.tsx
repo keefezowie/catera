@@ -1,6 +1,6 @@
 import { Children, Fragment, isValidElement, type ReactNode } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { Pressable, Switch, Text as RNText, View } from "react-native";
+import { ActivityIndicator, Pressable, Switch, Text as RNText, View } from "react-native";
 import { useHaptic } from "../motion";
 import { Skeleton, SkeletonGroup } from "../Skeleton";
 import { useColors } from "../theme";
@@ -124,6 +124,11 @@ function RowText({
  * sits at the trailing edge before a chevron, on Android it is the supporting line. Without `onPress` it only informs
  * ("Versi aplikasi"); `selectable` lets the value be copied. `tone="danger"` is Keluar: the danger ink, centred in its
  * own card on iOS.
+ *
+ * `busy` is a row whose action is still running (Keluar while sign-out lets go of this phone's push token): it ignores
+ * presses, fades its text the way a disabled quiet button does (0.45), keeps its label as its name, reads as
+ * `{ busy, disabled }` and shows the busy tier's small inline indicator at the trailing edge (no mascot: an inline wait,
+ * not a screen). On a centred iOS row the indicator sits over the trailing padding, so the label stays centred.
  */
 export function SettingsRow({
   label,
@@ -132,6 +137,7 @@ export function SettingsRow({
   onPress,
   tone,
   selectable,
+  busy = false,
   os = process.env.EXPO_OS,
 }: {
   label: string;
@@ -140,14 +146,19 @@ export function SettingsRow({
   onPress?: () => void;
   tone?: "danger";
   selectable?: boolean;
+  busy?: boolean;
   os?: string;
 }) {
   const palette = useColors();
   const ios = os === "ios";
   const lines = [supporting, ios ? undefined : value].filter(Boolean).join("\n") || undefined;
   const centred = ios && tone === "danger" && !value;
+  const inset = ios ? 16 : BODY_INSET;
   const body = (
-    <>
+    <View
+      testID="settings-row-body"
+      style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 12, opacity: busy ? 0.45 : 1 }}
+    >
       <RowText label={label} supporting={lines} tone={tone} centred={centred} selectable={selectable} />
       {ios && value ? (
         <RNText
@@ -167,14 +178,22 @@ export function SettingsRow({
         </RNText>
       ) : null}
       {ios && onPress && tone !== "danger" ? <Ionicons name="chevron-forward" size={16} color={palette.controlRing} /> : null}
-    </>
+    </View>
   );
+  const indicator = busy ? (
+    <View
+      pointerEvents="none"
+      style={centred ? { position: "absolute", top: 0, bottom: 0, right: inset, justifyContent: "center" } : null}
+    >
+      <ActivityIndicator testID="settings-row-busy" size="small" color={palette.muted} />
+    </View>
+  ) : null;
   const frame = {
     minHeight: ios ? 52 : lines ? 72 : 56,
     flexDirection: "row" as const,
     alignItems: "center" as const,
     gap: 12,
-    paddingHorizontal: ios ? 16 : BODY_INSET,
+    paddingHorizontal: inset,
     paddingVertical: ios ? 12 : 8,
   };
   if (!onPress)
@@ -188,11 +207,14 @@ export function SettingsRow({
       testID="settings-row"
       accessibilityRole="button"
       accessibilityLabel={value ? `${label}, ${value}` : label}
+      accessibilityState={busy ? { busy: true, disabled: true } : undefined}
+      disabled={busy}
       onPress={onPress}
       android_ripple={{ color: palette.line }}
       style={({ pressed }) => [frame, ios && pressed ? { backgroundColor: palette.sage } : null]}
     >
       {body}
+      {indicator}
     </Pressable>
   );
 }
