@@ -1,12 +1,12 @@
 import { View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { router } from "expo-router";
 import { jakartaDay, mealLabel, type CustomerActionItem } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
 import { fontFor, PressableRow, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { customerLink } from "../links";
 import { longDay, weekdayName } from "../schedule/dates";
 import { jakartaClock } from "./Plate";
+import { openLink } from "../nav";
 
 /** "Pilih menu Senin": one row per delivery whose menu the customer still has to choose. */
 export function MenuDueRows({ items }: { items: CustomerActionItem[] }) {
@@ -21,7 +21,7 @@ export function MenuDueRows({ items }: { items: CustomerActionItem[] }) {
         <PressableRow
           key={item.id}
           accessibilityRole="button"
-          onPress={() => router.push(customerLink(item.href) as never)}
+          onPress={() => openLink(customerLink(item.href))}
           style={[styles.row, i > 0 && styles.divider]}
         >
           <View style={{ flex: 1, gap: 2 }}>

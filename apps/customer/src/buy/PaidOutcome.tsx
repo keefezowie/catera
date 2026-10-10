@@ -1,23 +1,13 @@
 import { useEffect } from "react";
 import { Image, StyleSheet, View } from "react-native";
-import { router } from "expo-router";
 import { dayLabel, jakartaDay, pendingMenu, shortDate, type Offer, type PaidSummary } from "@catera/domain";
 import { useMobile, useTrack } from "@catera/mobile-core";
 import { Button, fontFor, MoodFill, StickyAction, Text, themedStyles, useMoodColors } from "@catera/mobile-ui";
+import { goToTab, leaveFor } from "../nav";
 import { photoUri } from "../today/Plate";
 
 const tabular = { fontVariant: ["tabular-nums" as const] };
 const HERO_RADIUS = 28;
-
-/**
- * Leaves the paid screen for a tab. Replacing Bayar alone would land a second copy of the tabs above whatever opened
- * it (the package page, Riwayat pembayaran), so back from there would reopen that page; popping to the tabs already
- * in the stack drops Bayar and everything above the tabs. A cold open has nothing to dismiss to, so it replaces.
- */
-export function leaveTo(target: "/" | "/jadwal") {
-  if (router.canDismiss()) router.dismissTo(target as never);
-  else router.replace(target as never);
-}
 
 /** purchase_confirmed_viewed is counted once per checkout id for the life of the app process, however often it opens. */
 const confirmedViews = new Set<string>();
@@ -111,22 +101,22 @@ export function PaidOutcome({ checkoutId, summary, offer }: { checkoutId: string
   );
 }
 
-/** The paid footer (Ruling D7): see the schedule, choose the menus when the customer picks them, or go home. None
- * leaves this screen under where it leads, so back from there never returns to a payment. Pilih menu replaces: it is
- * a stack screen, not a tab, so it lands where Bayar was, above the screen that opened the purchase. */
+/** The paid footer (Ruling D7): see the schedule, choose the menus when the customer picks them, or go home. Each one
+ * dismisses Bayar and everything above the tabs, so back from there never returns to a payment. Jadwal and Beranda are
+ * selected as tabs; Pilih menu opens in the current tab, above the screen that opened the purchase. */
 export function PaidActions({ summary }: { summary: PaidSummary }) {
   const { t } = useMobile();
   return (
     <View style={{ gap: 8 }}>
-      <StickyAction testID="paid-action" label={t("Lihat jadwal", "See schedule")} onPress={() => leaveTo("/jadwal")} />
+      <StickyAction testID="paid-action" label={t("Lihat jadwal", "See schedule")} onPress={() => goToTab("jadwal")} />
       {summary.menuChoice ? (
         <Button
           variant="secondary"
           label={t("Pilih menu", "Choose menu")}
-          onPress={() => router.replace(`/subscriptions/${encodeURIComponent(summary.subscriptionId)}/menu` as never)}
+          onPress={() => leaveFor(`/subscriptions/${encodeURIComponent(summary.subscriptionId)}/menu`)}
         />
       ) : null}
-      <Button variant="text" label={t("Ke Beranda", "Go to Beranda")} onPress={() => leaveTo("/")} />
+      <Button variant="text" label={t("Ke Beranda", "Go to Beranda")} onPress={() => goToTab("index")} />
     </View>
   );
 }

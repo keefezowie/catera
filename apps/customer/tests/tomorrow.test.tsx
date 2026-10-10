@@ -20,6 +20,7 @@ import { Beranda } from "../src/today/Beranda";
 import { TomorrowRow } from "../src/tomorrow/TomorrowRow";
 import { storyStripUnder, TomorrowStoryScreen } from "../src/tomorrow/TomorrowStory";
 import { customerLink } from "../src/links";
+import { leaveFor } from "../src/nav";
 import { delivery, offer, subscription, TODAY } from "./fixtures";
 
 jest.mock("expo-router", () => ({
@@ -27,6 +28,8 @@ jest.mock("expo-router", () => ({
   Link: () => null,
   useLocalSearchParams: jest.fn(() => ({})),
 }));
+/** Tab changes and leaving a screen above the tabs go through nav (navigation.test covers them on the real router). */
+jest.mock("../src/nav", () => ({ ...jest.requireActual("../src/nav"), goToTab: jest.fn(), leaveFor: jest.fn() }));
 jest.mock("expo-notifications", () => ({
   setNotificationHandler: jest.fn(),
   addNotificationReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
@@ -364,7 +367,8 @@ describe("Menu besok story", () => {
     await open(bothState, BEFORE_CUTOFF);
     expect(screen.getByText("Bisa diubah sampai hari ini 17.00")).toBeTruthy();
     fireEvent.press(screen.getByRole("button", { name: "Ubah hari" }));
-    expect(router.push).toHaveBeenCalledWith("/hari/d-both");
+    // The story closes and the day opens in the tabs.
+    expect(leaveFor).toHaveBeenCalledWith("/hari/d-both");
   });
 
   it("after the cutoff says the day is closed and offers no Ubah hari", async () => {

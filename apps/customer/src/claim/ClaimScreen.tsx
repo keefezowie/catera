@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Image, View } from "react-native";
 import * as Crypto from "expo-crypto";
-import { router, useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import { errorLabel, localCustomerPhone, phoneMatchesMask, shortDate, type ClaimPreview } from "@catera/domain";
 import { plural, useMobile } from "@catera/mobile-core";
 import {
@@ -17,6 +17,7 @@ import {
   useMoodColors,
 } from "@catera/mobile-ui";
 import { e164Indonesia } from "../account/Masuk";
+import { goToTab } from "../nav";
 
 /** Failures worth retrying; every other code means this link cannot be used. */
 const TRANSIENT = ["REQUEST_TIMEOUT", "REQUEST_FAILED", "INVALID_API_RESPONSE", "AUTH_RATE_LIMITED", "RATE_LIMITED", "NOT_CONFIGURED"];
@@ -98,13 +99,13 @@ export function ClaimScreen() {
       return;
     }
     if (result.status === "review") setReview(true);
-    else router.replace("/" as never);
+    else goToTab("index");
   }
 
   // A link can open the app cold with no screen behind this one (and no header): always
   // leave a way into the app.
   const home = (
-    <Button variant="secondary" label={t("Ke Beranda", "Go to Home")} onPress={() => router.replace("/" as never)} />
+    <Button variant="secondary" label={t("Ke Beranda", "Go to Home")} onPress={() => goToTab("index")} />
   );
   if (dead)
     return (
@@ -146,7 +147,7 @@ export function ClaimScreen() {
             `${katering} needs to check this subscription first. Your deliveries continue.`,
           )}
         </Text>
-        <Button label={t("Ke Beranda", "Go to Home")} onPress={() => router.replace("/" as never)} />
+        <Button label={t("Ke Beranda", "Go to Home")} onPress={() => goToTab("index")} />
       </Screen>
     );
 

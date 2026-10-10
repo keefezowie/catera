@@ -22,6 +22,7 @@ import { Button, fontFor, MoodHeader, Screen, Stepper, Text, themedStyles, useCo
 import { Breakdown, LengthOptions, percent, StartLine } from "./Breakdown";
 import { ChoiceSheet, NoLongerSold, PayWith, PendingPayment, Retry, Terms } from "./BuyParts";
 import { useQuote, type BuyPayload } from "./useQuote";
+import { goToTab } from "../nav";
 
 /** Choices a link may carry (old /checkout links, Paket); anything invalid falls back to defaults. */
 export type BuyInitial = { portions?: string; cycles?: string; startDate?: string; addressId?: string };
@@ -30,7 +31,7 @@ const whole = (v: string | undefined, max: number) => {
   const n = Math.trunc(Number(v));
   return n >= 1 && n <= max ? n : null;
 };
-const leave = () => (router.canGoBack() ? router.back() : router.replace("/" as never));
+const leave = () => (router.canGoBack() ? router.back() : goToTab("index"));
 const tabular = { fontVariant: ["tabular-nums" as const] };
 
 /** Beli and Perpanjang on one screen: sensible defaults, the server's full price, then Bayar. */

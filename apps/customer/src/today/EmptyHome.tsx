@@ -5,6 +5,7 @@ import { currency, perMealPrice, priceUnitLabel, type Offer } from "@catera/doma
 import { useData, useMobile } from "@catera/mobile-core";
 import { Button, MoodHeader, PressableRow, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { photoUri } from "./Plate";
+import { goToTab } from "../nav";
 
 /**
  * Beranda without an active package: food first, then how caterer links work.
@@ -44,7 +45,7 @@ export function EmptyHome({ lead }: { lead?: ReactNode } = {}) {
       {offers.map((o) => (
         <OfferCard key={o.id} offer={o} />
       ))}
-      <Button label={t("Jelajah paket", "Browse packages")} onPress={() => router.push("/jelajah" as never)} />
+      <Button label={t("Jelajah paket", "Browse packages")} onPress={() => goToTab("jelajah")} />
       <Text variant="caption">
         {t(
           "Dapat tautan dari katering Anda? Buka tautannya untuk menyambungkan paket ke akun ini.",

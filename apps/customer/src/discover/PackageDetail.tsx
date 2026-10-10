@@ -17,10 +17,11 @@ import { Button, MoodHeader, RoundButton, Screen, Text, themedStyles, useColors 
 import { photoUri } from "../today/Plate";
 import { dayRange, ratingText } from "./format";
 import { useSaved } from "./saved";
+import { goToTab } from "../nav";
 
 type Review = { id: string; customer: string; rating: number; body: string };
 
-const leave = () => (router.canGoBack() ? router.back() : router.replace("/jelajah" as never));
+const leave = () => (router.canGoBack() ? router.back() : goToTab("jelajah"));
 
 /** Paket: one package in full, with the way into Pilih jadwal (or a one-day trial). */
 export function PackageDetail() {
@@ -57,7 +58,7 @@ export function PackageDetail() {
             {loaded.error ? (
               <Button variant="secondary" label={t("Coba lagi", "Try again")} onPress={() => void loaded.reload()} />
             ) : (
-              <Button label={t("Jelajah paket", "Browse packages")} onPress={() => router.replace("/jelajah" as never)} />
+              <Button label={t("Jelajah paket", "Browse packages")} onPress={() => goToTab("jelajah")} />
             )}
           </View>
         )}

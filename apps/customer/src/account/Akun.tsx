@@ -20,6 +20,7 @@ import { usePush } from "./push";
 import { Row, SectionLabel } from "./Row";
 import { SignInFirst } from "./SignInFirst";
 import { remainingLabel } from "../remaining";
+import { goToTab } from "../nav";
 
 /** "6281234567890" (as Supabase keeps it) → "0812-3456-7890". */
 export function localPhone(phone: string): string {
@@ -123,7 +124,7 @@ function Account() {
     setError("");
     try {
       await logout();
-      router.replace("/" as never);
+      goToTab("index");
     } catch (e) {
       setError(failureText(e, locale, t));
       setBusy(false);

@@ -6,6 +6,7 @@ import { errorLabel, type Actor } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
 import { Button, Field, Screen, Text, useColors } from "@catera/mobile-ui";
 import { nativeReturnPath } from "../auth";
+import { leaveFor } from "../nav";
 
 /** Numbers as typed in Indonesia (0812…, 62812…, +62 812…, 812…) to E.164. */
 export function e164Indonesia(input: string): string {
@@ -51,7 +52,7 @@ export function Masuk() {
 
   const finish = async (actor: Actor) => {
     await signedIn(actor);
-    router.replace(next as never);
+    leaveFor(next);
   };
 
   return (
@@ -169,7 +170,7 @@ export function Masuk() {
               run(async () => {
                 await runtime.demoLogin("customer");
                 await refresh();
-                router.replace(next as never);
+                leaveFor(next);
               })
             }
           />

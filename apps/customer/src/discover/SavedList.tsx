@@ -5,6 +5,7 @@ import { Button, Card, Screen, Text, useColors } from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
 import { PackageCard } from "./PackageCard";
 import { useSaved } from "./saved";
+import { goToTab } from "../nav";
 
 /** Disimpan: the packages the customer hearted, on the same card as Jelajah. */
 export function SavedList() {
@@ -46,7 +47,7 @@ function Saved() {
           <Text style={{ color: c.muted }}>
             {t("Ketuk hati pada paket yang Anda suka.", "Tap the heart on a package you like.")}
           </Text>
-          <Button label={t("Jelajah paket", "Browse packages")} onPress={() => router.push("/jelajah" as never)} />
+          <Button label={t("Jelajah paket", "Browse packages")} onPress={() => goToTab("jelajah")} />
         </View>
       ) : (
         saved.items.map((item) =>

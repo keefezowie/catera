@@ -6,7 +6,6 @@ import { ActivityIndicator, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useMobile } from "@catera/mobile-core";
 import {
-  AppHeader,
   DemoStrip,
   fontAssets,
   MoodLabelsProvider,
@@ -22,12 +21,14 @@ import {
 } from "@catera/mobile-ui";
 import { runtime } from "../src/runtime";
 import { AppProviders } from "../src/shell";
+import { useStackScreenOptions } from "../src/stack";
 
 function Navigation() {
   const { t, ready, demo } = useMobile();
   const palette = useColors();
   const { scheme } = useThemePreference();
   const { mood } = useMood();
+  const screenOptions = useStackScreenOptions();
   // Above the ready gate, so the loading spinner also gets glyphs that read on the chosen theme. The spinner sits on the
   // canvas and not under a mood header, so only the theme decides until the app is ready.
   const statusBar = (
@@ -47,20 +48,9 @@ function Navigation() {
       <TopInsetOwner owned={demo}>
         {statusBar}
         {demo ? <DemoStrip label={t("Demo · data sintetis", "Demo · synthetic data")} /> : null}
-        <Stack
-          screenOptions={{
-            // One header for every pushed screen: round back (or close, for a modal) button and a heading.
-            header: ({ options, navigation, back }) => (
-              <AppHeader
-                title={String(options.title ?? "")}
-                onBack={back && options.headerBackVisible !== false ? navigation.goBack : undefined}
-                modal={options.presentation === "modal"}
-                backLabel={options.presentation === "modal" ? t("Tutup", "Close") : t("Kembali", "Back")}
-              />
-            ),
-            contentStyle: { backgroundColor: palette.canvas },
-          }}
-        >
+        {/* The tabs, each with its own stack of detail screens, and above them the screens that cover the tab bar:
+            sign-in, buying and paying, a claim link and the story. */}
+        <Stack screenOptions={screenOptions}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="login" options={{ title: t("Masuk", "Sign in"), presentation: "modal" }} />
           <Stack.Screen name="register" options={{ title: t("Daftar", "Sign up") }} />
@@ -69,26 +59,12 @@ function Navigation() {
             name="auth/callback"
             options={{ title: t("Verifikasi akun", "Verify account"), headerBackVisible: false }}
           />
-          <Stack.Screen name="pilih-menu/[id]" options={{ title: t("Pilih menu", "Choose menus") }} />
-          <Stack.Screen name="subscriptions/[id]/menu" options={{ headerShown: false }} />
-          <Stack.Screen name="paket/[id]" options={{ headerShown: false }} />
-          <Stack.Screen name="package/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="beli/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="renew/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="bayar/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="checkout/[id]" options={{ headerShown: false }} />
           <Stack.Screen name="payment/[id]" options={{ headerShown: false }} />
-          <Stack.Screen name="hari/[id]" options={{ title: t("Hari", "Day") }} />
-          <Stack.Screen name="subscriptions/[id]" options={{ headerShown: false }} />
-          <Stack.Screen name="bantuan" options={{ title: t("Bantuan dan laporan", "Help and reports") }} />
-          <Stack.Screen name="masalah/[id]" options={{ title: t("Ada masalah", "Report a problem") }} />
           <Stack.Screen name="claim/[token]" options={{ headerShown: false }} />
-          <Stack.Screen name="alamat" options={{ title: t("Alamat", "Addresses") }} />
-          <Stack.Screen name="addresses" options={{ headerShown: false }} />
-          <Stack.Screen name="pembayaran" options={{ title: t("Riwayat pembayaran", "Payment history") }} />
-          <Stack.Screen name="disimpan" options={{ title: t("Disimpan", "Saved") }} />
-          <Stack.Screen name="saved" options={{ headerShown: false }} />
-          <Stack.Screen name="notifications" options={{ title: t("Notifikasi", "Notifications") }} />
           {/* A black story: its own close button replaces the header, and a fade keeps its ground from cutting in. */}
           <Stack.Screen
             name="tomorrow"

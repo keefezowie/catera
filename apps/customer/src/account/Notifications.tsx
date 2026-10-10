@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { ActivityIndicator, View } from "react-native";
-import { router } from "expo-router";
 import { errorLabel, jakartaDay, type Locale, type Notice } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
 import { Button, Card, fontFor, PressableRow, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
@@ -9,6 +8,7 @@ import { longDay } from "../schedule/dates";
 import { jakartaClock } from "../today/Plate";
 import { usePush } from "./push";
 import { SignInFirst } from "./SignInFirst";
+import { openLink } from "../nav";
 
 /** Notifikasi: push on this phone (Aktif / Nonaktif) and the latest updates, each opening its screen. */
 export function NotificationsScreen() {
@@ -91,7 +91,7 @@ function Updates() {
   async function open(n: Notice) {
     // Marking read is a courtesy; the update itself still opens if it fails.
     if (!n.read_at) await command("notification.read", { id: n.id }).catch(() => undefined);
-    router.push(customerLink(n.href) as never);
+    openLink(customerLink(n.href));
   }
 
   return (

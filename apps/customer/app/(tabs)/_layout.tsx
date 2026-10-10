@@ -1,7 +1,10 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { useEffect } from "react";
+import { useNavigationContainerRef } from "expo-router";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
 import { useMobile } from "@catera/mobile-core";
 import { tabBarColors, tabLabelStyle, useColors } from "@catera/mobile-ui";
+import { registerNavigation } from "../../src/nav";
 
 type CustomerTab = "index" | "jadwal" | "jelajah" | "akun";
 
@@ -20,10 +23,14 @@ const order = Object.keys(icons) as CustomerTab[];
 /**
  * The platform's own tab bar: Material 3 navigation bar on Android (label always shown, filled icon on the indicator
  * pill), the system tab bar on iOS, which on iOS 26 shrinks to the selected tab while a long list scrolls down and
- * returns on scroll up. Colours follow the theme and never the mood.
+ * returns on scroll up. Colours follow the theme and never the mood. Each trigger is a group, `(jadwal)`, with its own
+ * stack (`(index,jadwal,jelajah,akun)/_layout.tsx`), so detail screens push inside the tab and the bar stays.
  */
 export default function TabsLayout() {
   const { t } = useMobile();
+  const navigation = useNavigationContainerRef();
+  // goToTab selects a tab by targeting these navigators by key, so it needs the container once the tabs exist.
+  useEffect(() => registerNavigation(navigation), [navigation]);
   const bar = tabBarColors(useColors());
   const label = tabLabelStyle();
   const titles: Record<CustomerTab, string> = {
@@ -47,7 +54,7 @@ export default function TabsLayout() {
       }}
     >
       {order.map((name) => (
-        <NativeTabs.Trigger key={name} name={name}>
+        <NativeTabs.Trigger key={name} name={`(${name})`}>
           <NativeTabs.Trigger.Icon
             src={{
               default: <NativeTabs.Trigger.VectorIcon family={Ionicons} name={icons[name].outline} />,
@@ -57,8 +64,6 @@ export default function TabsLayout() {
           <NativeTabs.Trigger.Label>{titles[name]}</NativeTabs.Trigger.Label>
         </NativeTabs.Trigger>
       ))}
-      {/* The legacy /discover route stays declared but never shows in the bar; old /discover links reach Jelajah through customerLink. */}
-      <NativeTabs.Trigger name="discover" hidden />
     </NativeTabs>
   );
 }

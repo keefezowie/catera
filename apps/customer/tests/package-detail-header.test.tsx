@@ -5,10 +5,13 @@ import { nativeMood, nativeThemes } from "@catera/design-tokens";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { MoodProvider } from "@catera/mobile-ui";
 import { customerLink } from "../src/links";
+import { goToTab } from "../src/nav";
 import { PackageDetail } from "../src/discover/PackageDetail";
 import { offer } from "./fixtures";
 
 let mockParams: Record<string, string> = {};
+/** Tab changes and leaving a screen above the tabs go through nav (navigation.test covers them on the real router). */
+jest.mock("../src/nav", () => ({ ...jest.requireActual("../src/nav"), goToTab: jest.fn(), leaveFor: jest.fn() }));
 jest.mock("expo-router", () => ({
   router: { push: jest.fn(), replace: jest.fn(), back: jest.fn(), canGoBack: jest.fn(() => true) },
   Link: () => null,
@@ -102,7 +105,7 @@ describe("Paket without a photo to lead with", () => {
     expect(await screen.findByText("Paket tidak ditemukan.")).toBeTruthy();
     expect(within(header).queryByText("Paket tidak ditemukan.")).toBeNull();
     fireEvent.press(screen.getByRole("button", { name: "Jelajah paket" }));
-    expect(router.replace).toHaveBeenCalledWith("/jelajah");
+    expect(goToTab).toHaveBeenCalledWith("jelajah");
   });
 
   it("leaves the photo branch with its photo and no mood header (ruling B3)", async () => {

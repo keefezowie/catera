@@ -20,6 +20,7 @@ import {
 import { photoUri } from "../today/Plate";
 import { loadCachedCustomer } from "../today/offline";
 import { useViewedParts } from "./viewed";
+import { goToTab, leaveFor } from "../nav";
 
 // A story sits on a photo and on black whatever the theme, so its inks do not follow it (as in StoryCover and Plate).
 const ink = nativeThemes.light;
@@ -38,7 +39,7 @@ async function loadTomorrow(runtime: MobileRuntime, key: string): Promise<Custom
 
 /** Closes the story; a story opened from a link with nothing behind it goes home instead of stranding the user. */
 function leave() {
-  if (router.canGoBack?.() === false) router.replace("/" as never);
+  if (router.canGoBack?.() === false) goToTab("index");
   else router.back();
 }
 
@@ -275,7 +276,7 @@ function StoryPage({
                 label={t("Ubah hari", "Change day")}
                 ink={ink.cream}
                 edge={ink.cream}
-                onPress={() => router.push(`/hari/${encodeURIComponent(part.deliveryId)}` as never)}
+                onPress={() => leaveFor(`/hari/${encodeURIComponent(part.deliveryId)}`)}
               />
             ) : null}
           </View>

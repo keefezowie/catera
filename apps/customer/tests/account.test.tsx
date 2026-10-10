@@ -16,6 +16,12 @@ import { Beranda } from "../src/today/Beranda";
 import { customerLink } from "../src/links";
 import { customerState, subscription, offer, TODAY } from "./fixtures";
 
+/** Rows that carry an href open through openLink; its tab handling is covered in navigation.test, so here it opens the
+ * path the way a push does. */
+jest.mock("../src/nav", () => ({
+  ...jest.requireActual("../src/nav"),
+  openLink: (path: string) => require("expo-router").router.push(path),
+}));
 jest.mock("expo-router", () => ({
   router: { push: jest.fn(), replace: jest.fn() },
   Link: () => null,

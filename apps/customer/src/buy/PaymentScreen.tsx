@@ -8,14 +8,15 @@ import { currency, errorLabel, paidSummary, type Checkout, type DirectPaymentMet
 import { plural, useData, useMobile } from "@catera/mobile-core";
 import { Button, Card, FadeSwap, fontFor, MoodHeader, Screen, Text, themedStyles, useColors, useHaptic } from "@catera/mobile-ui";
 import { PayWith, Retry } from "./BuyParts";
-import { leaveTo, PaidActions } from "./PaidOutcome";
+import { goToTab } from "../nav";
+import { PaidActions } from "./PaidOutcome";
 import { FINAL, PaymentOutcome, stageOf, type Stage } from "./PaymentOutcome";
 import { QrisCode, useQris } from "./QrisCode";
 
 const POLL_MS = 10_000;
-const leave = () => (router.canGoBack() ? router.back() : router.replace("/" as never));
+const leave = () => (router.canGoBack() ? router.back() : goToTab("index"));
 /** Paid is final: whatever opened this screen (a purchase, a renewal, Payments, a notification), leaving goes home. */
-const home = () => leaveTo("/");
+const home = () => goToTab("index");
 const tabular = { fontVariant: ["tabular-nums" as const] };
 
 const clock = (ms: number) => {

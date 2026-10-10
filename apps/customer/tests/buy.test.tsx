@@ -11,6 +11,7 @@ import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera
 import { nativeMood, nativeThemes } from "@catera/design-tokens";
 import { fonts, MoodProvider, ThemeProvider } from "@catera/mobile-ui";
 import { customerLink } from "../src/links";
+import { goToTab, leaveFor } from "../src/nav";
 import { BuyScreen } from "../src/buy/BuyScreen";
 import { QrisCode } from "../src/buy/QrisCode";
 import { PaymentScreen } from "../src/buy/PaymentScreen";
@@ -22,9 +23,6 @@ jest.mock("expo-router", () => ({
     replace: jest.fn(),
     back: jest.fn(),
     canGoBack: jest.fn(() => true),
-    // Off by default: a stack with nothing to dismiss to, so leaving replaces. The paid exit tests set it.
-    dismissTo: jest.fn(),
-    canDismiss: jest.fn(() => false),
   },
   useLocalSearchParams: () => ({}),
   // Focused for the whole test: the effect runs on mount and whenever its callback changes.
@@ -49,6 +47,8 @@ jest.mock("expo-secure-store", () => {
     deleteItemAsync: jest.fn(async (k: string) => void store.delete(k)),
   };
 });
+/** Tab changes and leaving a screen above the tabs go through nav (navigation.test covers them on the real router). */
+jest.mock("../src/nav", () => ({ ...jest.requireActual("../src/nav"), goToTab: jest.fn(), leaveFor: jest.fn() }));
 jest.mock("expo-crypto", () => ({ randomUUID: () => require("node:crypto").randomUUID() }));
 jest.mock("expo-clipboard", () => ({ setStringAsync: jest.fn(async () => true) }));
 jest.mock("expo-web-browser", () => ({ openBrowserAsync: jest.fn(async () => ({ type: "dismiss" })) }));
@@ -419,9 +419,10 @@ describe("Beli / Perpanjang", () => {
     expect(view.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
     expect(screen.queryByRole("button", { name: "Bayar" })).toBeNull();
     fireEvent.press(screen.getByRole("button", { name: "Makan Siang Hemat" }));
-    expect(router.push).toHaveBeenCalledWith("/paket/p-lain");
+    // A renewal that cannot go ahead is left for the other package, or for the Jelajah tab.
+    expect(leaveFor).toHaveBeenCalledWith("/paket/p-lain");
     fireEvent.press(screen.getByRole("button", { name: "Lihat paket lain" }));
-    expect(router.push).toHaveBeenCalledWith("/jelajah");
+    expect(goToTab).toHaveBeenCalledWith("jelajah");
   });
 
   it("an unpublished renewal with an open checkout still leads to that payment first", async () => {
@@ -661,7 +662,7 @@ describe("Bayar", () => {
     expect(runtime.api.command).toHaveBeenCalledWith("checkout.payment.refresh", { id: "ck-1" }, expect.any(String));
     expect(screen.queryByLabelText(QR_LABEL)).toBeNull();
     fireEvent.press(screen.getByRole("button", { name: "Ke Beranda" }));
-    expect(router.replace).toHaveBeenCalledWith("/");
+    expect(goToTab).toHaveBeenCalledWith("index");
   });
 
   it("cek status while nothing has been paid says so and keeps the payment open", async () => {
@@ -1074,9 +1075,10 @@ describe("Pembayaran diterima", () => {
     await screen.findByTestId("paid-hero");
     expect(footerLabels()).toEqual(["Lihat jadwal", "Ke Beranda"]);
     fireEvent.press(screen.getByRole("button", { name: "Lihat jadwal" }));
-    expect(router.replace).toHaveBeenLastCalledWith("/jadwal");
+    expect(goToTab).toHaveBeenLastCalledWith("jadwal");
     fireEvent.press(screen.getByRole("button", { name: "Ke Beranda" }));
-    expect(router.replace).toHaveBeenLastCalledWith("/");
+    expect(goToTab).toHaveBeenLastCalledWith("index");
+    expect(router.replace).not.toHaveBeenCalled();
     expect(router.push).not.toHaveBeenCalled();
     expect(router.back).not.toHaveBeenCalled();
   });
@@ -1103,7 +1105,8 @@ describe("Pembayaran diterima", () => {
     });
     expect(footerLabels()).toEqual(["Lihat jadwal", "Pilih menu", "Ke Beranda"]);
     fireEvent.press(screen.getByRole("button", { name: "Pilih menu" }));
-    expect(router.replace).toHaveBeenLastCalledWith("/subscriptions/s-2/menu");
+    // Bayar is left for Pilih menu, which opens in the tabs above the screen that started the purchase.
+    expect(leaveFor).toHaveBeenLastCalledWith("/subscriptions/s-2/menu");
   });
 
   it("opened already paid gives no success haptic", async () => {
@@ -1125,43 +1128,35 @@ describe("Pembayaran diterima", () => {
     expect(successes()).toHaveLength(1);
   });
 
-  // Leaving paid pops back to the tabs already in the stack when there is one, so no second tabs navigator lands
-  // above the package page or Riwayat pembayaran; with nothing to dismiss to (a cold open) it replaces.
+  // Leaving paid selects a tab: goToTab drops Bayar and everything above the tabs (or, opened cold, replaces Bayar with
+  // the tab), so no second tabs navigator lands above the package page or Riwayat pembayaran. navigation.test runs both
+  // on the real router.
   const exits: [string, (back: ReturnType<typeof hardwareBack>) => void, string][] = [
     [
       "the header back",
       () => fireEvent.press(within(screen.getByTestId("payment-header")).getByRole("button", { name: "Kembali" })),
-      "/",
+      "index",
     ],
-    ["the hardware back", (back) => expect(back.press()).toEqual([true]), "/"],
-    ["Ke Beranda", () => fireEvent.press(screen.getByRole("button", { name: "Ke Beranda" })), "/"],
-    ["Lihat jadwal", () => fireEvent.press(screen.getByRole("button", { name: "Lihat jadwal" })), "/jadwal"],
+    ["the hardware back", (back) => expect(back.press()).toEqual([true]), "index"],
+    ["Ke Beranda", () => fireEvent.press(screen.getByRole("button", { name: "Ke Beranda" })), "index"],
+    ["Lihat jadwal", () => fireEvent.press(screen.getByRole("button", { name: "Lihat jadwal" })), "jadwal"],
   ];
   for (const [exit, leave, target] of exits)
-    for (const dismissable of [true, false])
-      it(`${exit} after paying ${dismissable ? "dismisses back to" : "replaces Bayar with"} ${target}`, async () => {
-        (router.canDismiss as jest.Mock).mockReturnValue(dismissable);
-        const back = hardwareBack();
-        try {
-          wrap(server({ checkout: paidCheckout() }), <PaymentScreen checkoutId="ck-1" />);
-          await screen.findByTestId("paid-hero");
-          leave(back);
-          if (dismissable) {
-            expect(router.dismissTo).toHaveBeenCalledTimes(1);
-            expect(router.dismissTo).toHaveBeenCalledWith(target);
-            expect(router.replace).not.toHaveBeenCalled();
-          } else {
-            expect(router.replace).toHaveBeenCalledTimes(1);
-            expect(router.replace).toHaveBeenCalledWith(target);
-            expect(router.dismissTo).not.toHaveBeenCalled();
-          }
-          expect(router.back).not.toHaveBeenCalled();
-          expect(router.push).not.toHaveBeenCalled();
-        } finally {
-          back.restore();
-          (router.canDismiss as jest.Mock).mockReturnValue(false);
-        }
-      });
+    it(`${exit} after paying selects the ${target === "index" ? "Beranda" : "Jadwal"} tab`, async () => {
+      const back = hardwareBack();
+      try {
+        wrap(server({ checkout: paidCheckout() }), <PaymentScreen checkoutId="ck-1" />);
+        await screen.findByTestId("paid-hero");
+        leave(back);
+        expect(goToTab).toHaveBeenCalledTimes(1);
+        expect(goToTab).toHaveBeenCalledWith(target);
+        expect(router.replace).not.toHaveBeenCalled();
+        expect(router.back).not.toHaveBeenCalled();
+        expect(router.push).not.toHaveBeenCalled();
+      } finally {
+        back.restore();
+      }
+    });
 
   for (const [entry, quote, canGoBack] of [
     ["a fresh purchase", {}, true],
@@ -1169,26 +1164,24 @@ describe("Pembayaran diterima", () => {
     ["a checkout opened directly (Payments or a notification)", {}, false],
   ] as const)
     it(`back after paying ${entry} goes home, never back to checkout`, async () => {
-      // Opened in a stack, there is something to dismiss to; opened cold, there is not.
+      // Opened in a stack there is something to go back to, opened cold there is not: either way back selects Beranda.
       (router.canGoBack as jest.Mock).mockReturnValue(canGoBack);
-      (router.canDismiss as jest.Mock).mockReturnValue(canGoBack);
-      const exit = (canGoBack ? router.dismissTo : router.replace) as jest.Mock;
+      const exit = goToTab as jest.Mock;
       const back = hardwareBack();
       try {
         wrap(server({ checkout: paidCheckout({}, quote) }), <PaymentScreen checkoutId="ck-1" />);
         const header = await screen.findByTestId("payment-header");
         await screen.findByTestId("paid-hero");
         fireEvent.press(within(header).getByRole("button", { name: "Kembali" }));
-        expect(exit).toHaveBeenLastCalledWith("/");
+        expect(exit).toHaveBeenLastCalledWith("index");
         // The hardware back is handled (true), so the navigator never pops to the checkout.
         expect(back.press()).toEqual([true]);
         expect(exit).toHaveBeenCalledTimes(2);
-        expect(exit).toHaveBeenLastCalledWith("/");
+        expect(exit).toHaveBeenLastCalledWith("index");
         expect(router.back).not.toHaveBeenCalled();
       } finally {
         back.restore();
         (router.canGoBack as jest.Mock).mockReturnValue(true);
-        (router.canDismiss as jest.Mock).mockReturnValue(false);
       }
     });
 
@@ -1205,7 +1198,7 @@ describe("Pembayaran diterima", () => {
       await screen.findByTestId("paid-hero");
       expect(back.count()).toBe(1);
       expect(back.press()).toEqual([true]);
-      expect(router.replace).toHaveBeenLastCalledWith("/");
+      expect(goToTab).toHaveBeenLastCalledWith("index");
     } finally {
       back.restore();
     }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, AppState, Image, View } from "react-native";
-import { router, useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import { useNavigation, usePreventRemove } from "expo-router/react-navigation";
 import {
   componentLabel,
@@ -28,6 +28,7 @@ import { failureText } from "../account/failure";
 import { FilterChip } from "../discover/FilterChip";
 import { jakartaClock, photoUri } from "../today/Plate";
 import { longDay, monthTitle, shiftMonth } from "./dates";
+import { goToTab } from "../nav";
 
 type MenuDay = CustomerMenuMonth["dates"][number];
 type Meal = "lunch" | "dinner";
@@ -126,7 +127,7 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
     return (
       <Screen>
         <Text variant="heading">{t("Paket tidak ditemukan.", "Package not found.")}</Text>
-        <Button label={t("Ke Jadwal", "Go to Schedule")} onPress={() => router.replace("/jadwal" as never)} />
+        <Button label={t("Ke Jadwal", "Go to Schedule")} onPress={() => goToTab("jadwal")} />
       </Screen>
     );
 

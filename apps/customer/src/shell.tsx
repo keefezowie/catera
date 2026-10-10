@@ -4,12 +4,13 @@ import { errorLabel } from "@catera/domain";
 import { MobileProvider, useMobile, type MobileRuntime } from "@catera/mobile-core";
 import { Button, Text, useColors } from "@catera/mobile-ui";
 import { customerLink } from "./links";
+import { openLink } from "./nav";
 
 /** The customer app's one provider: MobileProvider owns the session, commands, realtime,
- * push registration and push-tap routing (through customerLink). */
+ * push registration and push-tap routing (customerLink maps the href, openLink opens it in the tabs). */
 export function AppProviders({ runtime, children }: { runtime: MobileRuntime; children: ReactNode }) {
   return (
-    <MobileProvider runtime={runtime} linkMapper={customerLink}>
+    <MobileProvider runtime={runtime} linkMapper={customerLink} openLink={openLink}>
       <StartupGate>{children}</StartupGate>
     </MobileProvider>
   );

@@ -29,6 +29,7 @@ import { SignInFirst } from "../account/SignInFirst";
 import { remainingLabel } from "../remaining";
 import { loadCachedCustomer } from "../today/offline";
 import { jakartaClock, photoUri } from "../today/Plate";
+import { goToTab } from "../nav";
 
 type LoadedPlan = { data: CustomerState; savedAt: string | null };
 
@@ -44,7 +45,7 @@ async function loadPlan(runtime: MobileRuntime, key: string): Promise<LoadedPlan
 }
 
 /** Back to wherever the plan was opened from; a cold link (notification, push) has nothing behind it and goes home. */
-const leave = () => (router.canGoBack() ? router.back() : router.replace("/" as never));
+const leave = () => (router.canGoBack() ? router.back() : goToTab("index"));
 
 const tabular = { fontVariant: ["tabular-nums" as const] };
 const HERO_RADIUS = 28;
@@ -64,7 +65,7 @@ export function PlanDetailScreen() {
   if (!actor)
     return (
       <SignInFirst title={t("Paket", "Plan")} next={`/subscriptions/${encodeURIComponent(planId)}`} headerTestID="plan-header">
-        <Button variant="text" label={t("Ke Beranda", "Go to Beranda")} onPress={() => router.replace("/" as never)} />
+        <Button variant="text" label={t("Ke Beranda", "Go to Beranda")} onPress={() => goToTab("index")} />
       </SignInFirst>
     );
   return <Plan key={`${actor.id}:${planId}`} id={planId} actorId={actor.id} />;
@@ -120,7 +121,7 @@ function Plan({ id, actorId }: { id: string; actorId: string }) {
             <Text variant="heading" accessibilityRole="text">
               {t("Paket tidak ditemukan.", "Plan not found.")}
             </Text>
-            <Button variant="secondary" label={t("Ke Beranda", "Go to Beranda")} onPress={() => router.replace("/" as never)} />
+            <Button variant="secondary" label={t("Ke Beranda", "Go to Beranda")} onPress={() => goToTab("index")} />
           </View>
         )}
       </Screen>

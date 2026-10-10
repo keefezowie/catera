@@ -8,6 +8,7 @@ import { Button, Field, Screen, Text, useColors } from "@catera/mobile-ui";
 import { nativeReturnPath } from "../auth";
 import { authClient, authError, pendingKey, type Pending } from "./emailAuth";
 import { useAction } from "./useAction";
+import { leaveFor } from "../nav";
 
 /** An email link is good for an hour, on the phone that asked for it. */
 const LINK_LIFETIME_MS = 60 * 60 * 1000;
@@ -56,7 +57,7 @@ export function AuthCallback() {
       });
       if (ensured.error) throw ensured.error;
       await refresh();
-      router.replace(next.current as never);
+      leaveFor(next.current);
     })().catch(() => setPhase("error"));
   }, [code, linkError, refresh, runtime]);
 

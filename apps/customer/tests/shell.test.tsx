@@ -114,8 +114,12 @@ const mockStatusBar: { style?: string } = {};
 // When set, the stack also draws the Siang / Malam toggle, the way a screen with a mood header does.
 let mockShowToggle = false;
 const mockNavTheme: { value?: { dark: boolean; colors: Record<string, string> } } = {};
+/** A tapped push opens through openLink (navigation.test runs it on the real router). */
+jest.mock("../src/nav", () => ({ ...jest.requireActual("../src/nav"), openLink: jest.fn() }));
 jest.mock("expo-router", () => ({
   router: { push: jest.fn(), replace: jest.fn() },
+  // The tabs layout registers the navigation container for goToTab.
+  useNavigationContainerRef: () => null,
   // The root hands the navigator a theme built from the palette; the library defaults are stood in by plain objects.
   DefaultTheme: { dark: false, colors: { background: "rgb(242, 242, 242)" } },
   DarkTheme: { dark: true, colors: { background: "rgb(1, 1, 1)" } },
@@ -162,6 +166,7 @@ process.env.EXPO_PUBLIC_SUPABASE_URL = "https://auth.example.test";
 process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY = "public-test-key";
 
 const { router } = require("expo-router") as typeof import("expo-router");
+const { openLink } = require("../src/nav") as { openLink: jest.Mock };
 const { useMobile } = require("@catera/mobile-core") as typeof import("@catera/mobile-core");
 const { runtime } = require("../src/runtime") as typeof import("../src/runtime");
 const { AppProviders } = require("../src/shell") as typeof import("../src/shell");
@@ -292,13 +297,17 @@ it("one push tap navigates once, through the customer link mapper", async () => 
   expect(mockResponseListeners).toHaveLength(1);
   tapAll(tap("n-1", "/deliveries/d-1"));
   tapAll(tap("n-1", "/deliveries/d-1"));
-  expect(router.push).toHaveBeenCalledTimes(1);
-  expect(router.push).toHaveBeenCalledWith("/hari/d-1");
+  // The mapped path goes to openLink, which selects a tab root or opens the screen in the current tab.
+  expect(openLink).toHaveBeenCalledTimes(1);
+  expect(openLink).toHaveBeenCalledWith("/hari/d-1");
   tapAll(tap("n-2", "/payment/ck-1"));
-  expect(router.push).toHaveBeenLastCalledWith("/bayar/ck-1");
+  expect(openLink).toHaveBeenLastCalledWith("/bayar/ck-1");
   tapAll(tap("n-3", "/subscriptions/s-1/menu?date=2026-11-02&meal=lunch"));
-  expect(router.push).toHaveBeenLastCalledWith("/pilih-menu/s-1?date=2026-11-02&meal=lunch");
-  expect(router.push).toHaveBeenCalledTimes(3);
+  expect(openLink).toHaveBeenLastCalledWith("/pilih-menu/s-1?date=2026-11-02&meal=lunch");
+  tapAll(tap("n-4", "/calendar"));
+  expect(openLink).toHaveBeenLastCalledWith("/jadwal");
+  expect(openLink).toHaveBeenCalledTimes(4);
+  expect(router.push).not.toHaveBeenCalled();
 });
 
 it("registers this phone for push through the shell (device.register)", async () => {
@@ -408,18 +417,18 @@ describe("native tab bar", () => {
     const Ionicons = require("@expo/vector-icons/Ionicons").default;
     const tabs = mockNativeTabs.triggers.map(readTrigger);
     const shown = tabs.filter((tab) => !tab.hidden);
-    expect(shown.map((tab) => tab.name)).toEqual(["index", "jadwal", "jelajah", "akun"]);
+    // Each tab is a group with its own stack.
+    expect(shown.map((tab) => tab.name)).toEqual(["(index)", "(jadwal)", "(jelajah)", "(akun)"]);
     expect(shown.map((tab) => tab.label)).toEqual(["Beranda", "Jadwal", "Jelajah", "Akun"]);
-    const glyphs: Record<string, string> = { index: "home", jadwal: "calendar", jelajah: "search", akun: "person" };
+    const glyphs: Record<string, string> = { "(index)": "home", "(jadwal)": "calendar", "(jelajah)": "search", "(akun)": "person" };
     for (const tab of shown) {
       expect(tab.icon).toEqual({
         default: { vector: true, family: Ionicons, name: `${glyphs[tab.name]}-outline` },
         selected: { vector: true, family: Ionicons, name: glyphs[tab.name] },
       });
     }
-    // The legacy /discover route stays declared but never shows in the bar; old /discover links reach Jelajah through
-    // customerLink. A raw OS deep link to /discover is handled in Task 2.
-    expect(tabs.filter((tab) => tab.hidden).map((tab) => tab.name)).toEqual(["discover"]);
+    // Nothing hidden: old /discover links are a redirect inside the tab stacks, not a trigger.
+    expect(tabs.filter((tab) => tab.hidden)).toEqual([]);
     // Android: the label always shows under its icon. iOS 26: the bar shrinks while a long list scrolls down.
     expect(mockNativeTabs.props).toMatchObject({ labelVisibilityMode: "labeled", minimizeBehavior: "onScrollDown" });
     // Plus Jakarta Sans at the platform's own label size (Jest runs as Android: 12).

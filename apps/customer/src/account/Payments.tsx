@@ -8,6 +8,7 @@ import { customerLink } from "../links";
 import { longDay } from "../schedule/dates";
 import { Row, SectionLabel } from "./Row";
 import { SignInFirst } from "./SignInFirst";
+import { openLink } from "../nav";
 
 /** The customer read carries each subscription's checkout_id; packages a caterer recorded
  * outside Catera have none and are not Catera payments. */
@@ -96,7 +97,7 @@ function History() {
                 <Button
                   label={t("Bayar", "Pay")}
                   accessibilityLabel={t(`Bayar ${name}`, `Pay ${name}`)}
-                  onPress={() => router.push(customerLink(item.href) as never)}
+                  onPress={() => openLink(customerLink(item.href))}
                 />
               </Row>
             );
