@@ -180,29 +180,33 @@ function SignedInJadwal() {
       // Pulling down reads this month again; the grid and the day stay on screen until it answers.
       refreshControl={state ? pull : undefined}
     >
-      {state ? (
-        <>
-          {data.error ? (
-            // A refresh failed but the month is on screen: the error stays with its retry in the page.
-            <View style={{ gap: 6 }}>
-              <Text selectable variant="caption" style={{ color: c.danger }}>
-                {data.error}
-              </Text>
-              <Button variant="text" label={t("Coba lagi", "Try again")} onPress={() => void data.reload()} />
-            </View>
-          ) : null}
-          <Text variant="label">{longDay(selected, locale)}</Text>
-          {day.length ? (
-            <Card style={{ padding: 4, gap: 0 }}>
-              {day.map(({ d, m }, i) => (
-                <MealRow key={`${d.id}:${m.meal}`} delivery={d} meal={m.meal} status={m.status} first={i === 0} apiBase={runtime.apiBase} />
-              ))}
-            </Card>
-          ) : (
-            <Text style={{ color: c.muted }}>{t("Tidak ada pengantaran di hari ini.", "No delivery on this day.")}</Text>
-          )}
-        </>
-      ) : null}
+      {/* The chosen day fades in with the month: this and the grid's FadeSwap swap on the same read, over the same
+          time. While the month is read the panel is empty rather than a second skeleton. */}
+      <FadeSwap swapKey={state ? "ready" : "loading"} style={{ gap: 16 }}>
+        {state ? (
+          <>
+            {data.error ? (
+              // A refresh failed but the month is on screen: the error stays with its retry in the page.
+              <View style={{ gap: 6 }}>
+                <Text selectable variant="caption" style={{ color: c.danger }}>
+                  {data.error}
+                </Text>
+                <Button variant="text" label={t("Coba lagi", "Try again")} onPress={() => void data.reload()} />
+              </View>
+            ) : null}
+            <Text variant="label">{longDay(selected, locale)}</Text>
+            {day.length ? (
+              <Card style={{ padding: 4, gap: 0 }}>
+                {day.map(({ d, m }, i) => (
+                  <MealRow key={`${d.id}:${m.meal}`} delivery={d} meal={m.meal} status={m.status} first={i === 0} apiBase={runtime.apiBase} />
+                ))}
+              </Card>
+            ) : (
+              <Text style={{ color: c.muted }}>{t("Tidak ada pengantaran di hari ini.", "No delivery on this day.")}</Text>
+            )}
+          </>
+        ) : null}
+      </FadeSwap>
     </Screen>
   );
 }

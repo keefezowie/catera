@@ -4,7 +4,8 @@ import { ActivityIndicator, StyleSheet } from "react-native";
 import * as Reanimated from "react-native-reanimated";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { nativeMood, nativeMotion, nativeThemes } from "@catera/design-tokens";
-import { FadeSwap, MoodProvider, ThemeProvider } from "@catera/mobile-ui";
+import * as SecureStore from "expo-secure-store";
+import { FadeSwap, MoodProvider, SkeletonGroup, ThemeProvider } from "@catera/mobile-ui";
 import type { CustomerState } from "@catera/domain";
 import { Beranda } from "../src/today/Beranda";
 import { HERO_OVERLAP } from "../src/today/Plate";
@@ -13,19 +14,35 @@ import { PaymentScreen } from "../src/buy/PaymentScreen";
 import { Masuk } from "../src/account/Masuk";
 import { PaketSaya } from "../src/plan/PlanList";
 import { customerLink } from "../src/links";
-import { customerState } from "./fixtures";
+import { Addresses } from "../src/account/Addresses";
+import { Akun } from "../src/account/Akun";
+import { NotificationsScreen } from "../src/account/Notifications";
+import { Payments } from "../src/account/Payments";
+import { Jelajah } from "../src/discover/Jelajah";
+import { PackageDetail } from "../src/discover/PackageDetail";
+import { ReportList } from "../src/help/ReportList";
+import { ReportProblem } from "../src/help/ReportProblem";
+import { ChooseMenu } from "../src/schedule/ChooseMenu";
+import { DayScreen } from "../src/schedule/DayScreen";
+import * as offline from "../src/today/offline";
+import { PlanSkeleton } from "../src/skeletons";
+import { customerState, offer } from "./fixtures";
 
 /** Spec 2: each screen's data area waits as its own skeleton, or as the mascot when nothing can be shown yet. */
+
+/** The route's params, per test (a screen opened from a link). */
+let mockParams: Record<string, string> = {};
 
 jest.mock("expo-router", () => ({
   router: { push: jest.fn(), replace: jest.fn(), back: jest.fn(), canGoBack: jest.fn(() => true) },
   Link: () => null,
-  useLocalSearchParams: () => ({}),
+  useLocalSearchParams: () => mockParams,
   useFocusEffect: (effect: () => void | (() => void)) => require("react").useEffect(effect, [effect]),
 }));
 jest.mock("expo-router/react-navigation", () => ({
   ...jest.requireActual("expo-router/react-navigation"),
-  useNavigation: () => ({ setOptions: jest.fn(), addListener: () => () => undefined }),
+  useNavigation: () => ({ setOptions: jest.fn(), addListener: () => () => undefined, dispatch: jest.fn() }),
+  usePreventRemove: jest.fn(),
 }));
 jest.mock("expo-notifications", () => ({
   setNotificationHandler: jest.fn(),
@@ -33,6 +50,15 @@ jest.mock("expo-notifications", () => ({
   addNotificationResponseReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
   getLastNotificationResponseAsync: jest.fn(async () => null),
   clearLastNotificationResponseAsync: jest.fn(async () => undefined),
+  getPermissionsAsync: jest.fn(async () => ({ status: "undetermined" })),
+  requestPermissionsAsync: jest.fn(async () => ({ status: "granted" })),
+  getExpoPushTokenAsync: jest.fn(async () => ({ data: "ExponentPushToken[synthetic]" })),
+  setNotificationChannelAsync: jest.fn(async () => undefined),
+  AndroidImportance: { DEFAULT: 3 },
+}));
+jest.mock("expo-constants", () => ({
+  __esModule: true,
+  default: { expoConfig: { extra: { eas: { projectId: "synthetic-project" } } } },
 }));
 jest.mock("expo-secure-store", () => {
   const store = new Map();
@@ -93,7 +119,10 @@ function inside(node: { parent: unknown }, ancestor: unknown) {
 }
 
 beforeEach(() => {
+  mockParams = {};
   jest.clearAllMocks();
+  // The module mocks are plain jest.fn()s, which restoreAllMocks does not reset: no copy is kept unless a test says so.
+  (offline.loadCachedCustomer as jest.Mock).mockImplementation(async () => null);
   jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(false);
 });
 afterEach(() => jest.restoreAllMocks());
@@ -106,7 +135,9 @@ describe("Beranda", () => {
     const skeleton = screen.getByTestId("beranda-skeleton");
     const header = screen.getByTestId("mood-header");
     // The header is chrome and renders at once; only the data area waits, as one progress bar.
-    expect(within(header).getByText("Beranda")).toBeTruthy();
+    // Laid out as the loaded header: the meal's opening line, the second headline line held by a skeleton line.
+    expect(within(header).getByText(/^(Siang ini|Malam ini),$/)).toBeTruthy();
+    expect(within(header).getByTestId("home-title-placeholder")).toBeTruthy();
     expect(inside(skeleton, header)).toBe(false);
     expect(inside(skeleton, screen.getByTestId("screen-body"))).toBe(true);
     expect(screen.getByRole("progressbar", { name: "Memuat beranda" })).toBeTruthy();
@@ -130,7 +161,8 @@ describe("Beranda", () => {
   it("skeleton swaps to content in one FadeSwap, not per row", async () => {
     const read = deferred<CustomerState>();
     const runtime = runtimeWith({ customer: jest.fn(() => read.promise) });
-    renderWith(runtime, <Beranda />);
+    // Siang, so the mood fills' own easing (to 0) is never counted as a fade (to 1).
+    renderAt(runtime, <Beranda />, SIANG);
     await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
     const skeleton = screen.getByTestId("beranda-skeleton");
     const before = screen.UNSAFE_getAllByType(FadeSwap);
@@ -144,7 +176,7 @@ describe("Beranda", () => {
     const after = screen.UNSAFE_getAllByType(FadeSwap);
     // Still one wrapper, now holding the hero and every row below it: the page enters as one block.
     expect(after).toHaveLength(1);
-    expect(after[0].props.swapKey).toBe("ready");
+    expect(after[0].props.swapKey).toBe("fresh");
     expect(inside(hero, after[0])).toBe(true);
     expect(inside(screen.getByTestId("upcoming-days"), after[0])).toBe(true);
     expect(screen.queryByTestId("beranda-skeleton")).toBeNull();
@@ -252,8 +284,14 @@ describe("states", () => {
           .getByTestId("beranda-skeleton")
           .findAll((n) => typeof n.type === "string" && flat(n).height !== undefined && !!flat(n).backgroundColor)
           .map((n) => flat(n));
-        // The hero's photo rides on the header, so it reads the mood track; the rows below sit on the theme canvas.
-        expect(blocks.find((b) => b.height === 168)?.backgroundColor).toBe(nativeMood[scheme][mood].toggleTrack);
+        // The hero's blocks sit on the hero card's own fill, so they read the hero's track (light Malam paints the hero
+        // in the toggle track's colour, where a toggle-track block would vanish); the rows below read the theme.
+        const hero = screen.getByTestId("beranda-skeleton-hero");
+        expect(flat(within(hero).getByTestId("beranda-skeleton-hero-fill-siang")).backgroundColor).toBe(
+          nativeMood[scheme].siang.hero,
+        );
+        expect(blocks.find((b) => b.height === 168)?.backgroundColor).toBe(nativeMood[scheme][mood].arcTrack);
+        expect(nativeMood[scheme][mood].arcTrack).not.toBe(nativeMood[scheme][mood].hero);
         expect(blocks.find((b) => b.height === 54)?.backgroundColor).toBe(nativeThemes[scheme].sage);
       });
 
@@ -377,5 +415,363 @@ describe("pull to refresh", () => {
     renderWith(runtimeWith({ customer: jest.fn(() => new Promise(() => undefined)) }), <PaketSaya />);
     await screen.findByRole("progressbar", { name: "Memuat paket" });
     expect(screen.getByTestId("screen-scroll").props.refreshControl).toBeUndefined();
+  });
+});
+
+/* Fix round 1 (review findings 1 to 11, with the controller's rulings). */
+
+const SIANG = () => new Date("2026-10-09T07:59:00Z"); // 14.59 WIB
+const MALAM = () => new Date("2026-10-09T08:00:00Z"); // 15.00 WIB
+function renderAt(runtime: MobileRuntime, ui: React.ReactElement, now: () => Date) {
+  return render(
+    <ThemeProvider storageKey="skeleton-fix">
+      <MoodProvider now={now}>
+        <MobileProvider runtime={runtime} linkMapper={customerLink}>
+          {ui}
+        </MobileProvider>
+      </MoodProvider>
+    </ThemeProvider>,
+  );
+}
+const num = (v: unknown) => v as number;
+
+/**
+ * Beranda's header height at font scale 1.0, summed from its fixed parts. Jest lays nothing out, so this adds up what
+ * the header is built from: its two paddings, the 48 top row, the headline's lines (each at the title's 39), the day
+ * arc (the tab's top inset, the 50 marker, the 16 title line and the 15 detail line) and the 12 gaps between them. Two
+ * headers with the same sum and the same parts are laid out at the same height at 360dp, where each line fits.
+ */
+function headerHeight(header: ReturnType<typeof screen.getByTestId>) {
+  const box = flat(header);
+  const content = within(header).getByTestId("mood-header-content");
+  const row = flat(within(header).getByTestId("mood-header-row"));
+  const loaded = within(header).queryByTestId("home-title");
+  let title: number;
+  if (loaded) title = num(flat(loaded).lineHeight) * String(loaded.props.children).split("\n").length;
+  else {
+    const loading = within(header).getByTestId("home-title-loading");
+    const first = within(loading).getByText(/ini,$/);
+    title =
+      num(flat(first).lineHeight) * String(first.props.children).split("\n").length +
+      num(flat(within(loading).getByTestId("home-title-placeholder")).height);
+  }
+  const arc = within(header).getByTestId("mood-arc");
+  const details = (["siang", "malam"] as const).map((m) => {
+    const d = flat(within(arc).getByTestId(`mood-arc-detail-${m}`));
+    return num(d.height ?? d.lineHeight);
+  });
+  const arcHeight =
+    num(flat(within(arc).getByTestId("mood-arc-tab-siang")).paddingTop) +
+    num(flat(within(arc).getByTestId("mood-arc-marker-siang")).height) +
+    num(flat(within(arc).getByTestId("mood-arc-title-siang")).lineHeight) +
+    Math.max(...details);
+  const parts = [num(row.minHeight), title, arcHeight];
+  return {
+    height:
+      num(box.paddingTop) +
+      num(box.paddingBottom) +
+      parts.reduce((a, b) => a + b, 0) +
+      num(flat(content).gap) * (parts.length - 1),
+    parts,
+    // The details hold one line each: a detail line taller than 15 would grow the arc.
+    details,
+  };
+}
+
+describe("finding 1: Beranda's header keeps its height when the page lands", () => {
+  for (const [mood, now, meal] of [
+    ["Siang", SIANG, "lunch"],
+    ["Malam", MALAM, "dinner"],
+  ] as const)
+    it(`in ${mood}, the loading header is laid out as the loaded one: meta row, two headline lines, the arc`, async () => {
+      const read = deferred<CustomerState>();
+      const runtime = runtimeWith({ customer: jest.fn(() => read.promise) });
+      renderAt(runtime, <Beranda />, now);
+      await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
+      const before = headerHeight(screen.getByTestId("mood-header"));
+      // The arc is drawn while it loads, each end's detail line held by a skeleton line of its own height.
+      expect(before.details).toEqual([15, 15]);
+      expect(screen.getByTestId("mood-arc-tab-siang").props.accessibilityLabel).toBe("Makan siang");
+      expect(screen.getByTestId("home-meta")).toBeTruthy();
+
+      await act(async () => read.resolve(customerState({ status: "scheduled", meal })));
+      await screen.findByTestId("plate-hero");
+      const after = headerHeight(screen.getByTestId("mood-header"));
+      expect(after.parts).toEqual(before.parts);
+      expect(after.height).toBe(before.height);
+      // Two headline lines in both, at the title's 39.
+      expect(before.parts[1]).toBe(78);
+    });
+});
+
+describe("finding 2 and 9: a kept copy refreshes in place", () => {
+  it("Memperbarui joins the date in the meta row, so the header keeps its height, and the fresh read fades in once", async () => {
+    (offline.loadCachedCustomer as jest.Mock).mockResolvedValue({
+      savedAt: "2026-10-09T02:00:00.000Z",
+      data: customerState({ status: "scheduled" }),
+    } as never);
+    const fresh = deferred<CustomerState>();
+    renderAt(runtimeWith({ customer: jest.fn(() => fresh.promise) }), <Beranda />, SIANG);
+    const word = await screen.findByText("Memperbarui…");
+    const row = screen.getByTestId("mood-header-row");
+    expect(inside(word, row)).toBe(true);
+    // The meta row is 48 whatever it holds; its label lines are 18, so even a wrapped date and word fit in it.
+    expect(flat(row).minHeight).toBe(48);
+    expect(flat(within(row).getByText(/·$/)).lineHeight).toBe(18);
+    const before = headerHeight(screen.getByTestId("mood-header"));
+    expect(screen.UNSAFE_getByType(FadeSwap).props.swapKey).toBe("kept");
+
+    const timing = jest.spyOn(Reanimated, "withTiming");
+    await act(async () => fresh.resolve(customerState({ status: "scheduled" })));
+    await waitFor(() => expect(screen.queryByText("Memperbarui…")).toBeNull());
+    expect(headerHeight(screen.getByTestId("mood-header"))).toEqual(before);
+    // Finding 9: the kept copy and the fresh read are keyed apart, so the fresh page fades in once.
+    expect(screen.UNSAFE_getByType(FadeSwap).props.swapKey).toBe("fresh");
+    expect(timing.mock.calls.filter(([to, c]) => to === 1 && c?.duration === nativeMotion.content)).toHaveLength(1);
+  });
+});
+
+describe("finding 4: nothing running", () => {
+  const nothing: CustomerState = { subscriptions: [], deliveries: [], addresses: [], notifications: [], cases: [] };
+
+  it("the packages are read with the home read: one skeleton, then one fade into the invitation", async () => {
+    const home = deferred<CustomerState>();
+    const packages = deferred<{ items: unknown[]; nextCursor: null }>();
+    const runtime = runtimeWith({ customer: jest.fn(() => home.promise), catalog: jest.fn(() => packages.promise) });
+    // Siang, so the mood fills' own easing (to 0) is never counted as a fade (to 1).
+    renderAt(runtime, <Beranda />, SIANG);
+    // Both reads start together.
+    await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
+    expect(runtime.api.catalog).toHaveBeenCalledWith("?limit=3");
+    const timing = jest.spyOn(Reanimated, "withTiming");
+    const fades = () => timing.mock.calls.filter(([to, c]) => to === 1 && c?.duration === nativeMotion.content);
+
+    await act(async () => home.resolve(nothing));
+    // The home read says nothing runs, but the packages are not in yet: still the one skeleton, no second loader.
+    expect(screen.getByTestId("beranda-skeleton")).toBeTruthy();
+    expect(screen.queryByTestId("offers-skeleton")).toBeNull();
+    expect(screen.getAllByRole("progressbar")).toHaveLength(1);
+    expect(fades()).toHaveLength(0);
+
+    await act(async () =>
+      packages.resolve({ items: [offer({ id: "p-a", name: "Makan Siang Rumahan" })], nextCursor: null }),
+    );
+    expect(await screen.findByText("Makan Siang Rumahan")).toBeTruthy();
+    expect(screen.getByText("Mau makan apa minggu ini?")).toBeTruthy();
+    expect(screen.queryByRole("progressbar")).toBeNull();
+    // One swap of the page's own FadeSwap; the packages arrive inside it, not in a fade of their own.
+    expect(screen.UNSAFE_getAllByType(FadeSwap)[0].props.swapKey).toBe("empty");
+    expect(fades()).toHaveLength(1);
+    expect(runtime.api.catalog).toHaveBeenCalledTimes(1);
+  });
+
+  it("a customer with a running plan never waits on the packages", async () => {
+    const packages = deferred<{ items: unknown[]; nextCursor: null }>();
+    const runtime = runtimeWith({
+      customer: jest.fn(async () => customerState({ status: "scheduled" })),
+      catalog: jest.fn(() => packages.promise),
+    });
+    renderWith(runtime, <Beranda />);
+    expect(await screen.findByTestId("plate-hero")).toBeTruthy();
+    expect(screen.queryByRole("progressbar")).toBeNull();
+  });
+});
+
+describe("finding 3: Bayar while the payment is checked", () => {
+  it("the mascot waits at the top, the instructions stay under it, and its words are not repeated", async () => {
+    const later = new Date(Date.now() + 15 * 60_000).toISOString();
+    const quote = { packageId: "p-rumahan", portions: 1, cycles: 1, trial: false, total: 562500, offer: offer() };
+    const checkout = {
+      id: "ck-1",
+      state: "pending",
+      expires_at: later,
+      subscription_id: null,
+      payment_url: null,
+      quote,
+      payment: {
+        mode: "direct",
+        availableMethods: ["QRIS"],
+        selectedMethod: "QRIS",
+        status: "checking",
+        expiresAt: later,
+        instructions: null,
+      },
+    };
+    renderWith(
+      runtimeWith({ checkout: jest.fn(async () => checkout), command: jest.fn(async () => ({})) }),
+      <PaymentScreen checkoutId="ck-1" />,
+    );
+    const rule = await screen.findByText("Jangan bayar lagi. Status diperiksa langsung dari bank.");
+    const mascot = screen.getByRole("progressbar", { name: "Memeriksa pembayaran…" });
+    // Document order: the mascot first, then the instruction, then Cek status.
+    const order: string[] = [];
+    (function walk(n: unknown) {
+      if (typeof n !== "object" || n === null) return;
+      const node = n as { props?: Record<string, unknown>; children: unknown[] };
+      if (n === mascot) order.push("mascot");
+      if (n === rule) order.push("rule");
+      if (node.props?.accessibilityRole === "button" && typeof node.props?.accessibilityLabel === "string")
+        order.push(node.props.accessibilityLabel);
+      node.children.forEach(walk);
+    })(screen.root);
+    const at = (k: string) => order.indexOf(k);
+    expect(at("mascot")).toBeGreaterThanOrEqual(0);
+    expect(at("mascot")).toBeLessThan(at("rule"));
+    expect(at("rule")).toBeLessThan(at("Cek status"));
+    expect(screen.getByRole("button", { name: "Bantuan pembayaran" })).toBeTruthy();
+    // The mascot is the stage's title: the old heading is not drawn under it as well.
+    expect(screen.queryByText("Memeriksa pembayaran")).toBeNull();
+    expect(screen.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
+  });
+});
+
+describe("finding 5: every screen's first read waits as its own skeleton", () => {
+  const pending = () => new Promise<never>(() => undefined);
+  const cases: [string, () => React.ReactElement, string, Record<string, unknown>, Record<string, string>][] = [
+    ["Alamat", () => <Addresses />, "Memuat alamat", {}, {}],
+    ["Riwayat pembayaran", () => <Payments />, "Memuat riwayat", {}, {}],
+    ["Notifikasi", () => <NotificationsScreen />, "Memuat notifikasi", {}, {}],
+    ["Bantuan", () => <ReportList />, "Memuat laporan", { request: jest.fn(pending) }, {}],
+    ["Ada masalah", () => <ReportProblem />, "Memuat pengantaran", {}, { id: "d-today" }],
+    ["Hari", () => <DayScreen />, "Memuat pengantaran", {}, { id: "d-today" }],
+    ["Pilih menu", () => <ChooseMenu />, "Memuat menu", {}, { id: "s-1" }],
+  ];
+  for (const [name, ui, label, api, params] of cases)
+    it(`${name} loading names its wait (${label}) with no spinner`, async () => {
+      mockParams = params;
+      const runtime = runtimeWith({ customer: jest.fn(pending), ...api });
+      renderWith(runtime, ui());
+      // Past the session check: the screen's own read is out.
+      await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
+      expect(await screen.findByRole("progressbar", { name: label })).toBeTruthy();
+      expect(screen.getAllByRole("progressbar")).toHaveLength(1);
+      expect(screen.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
+    });
+
+  it("Akun before the session is known names its wait and holds the contact line (finding 10)", async () => {
+    renderWith(runtimeWith({ me: jest.fn(pending), customer: jest.fn(pending) }), <Akun />);
+    expect(await screen.findByRole("progressbar", { name: "Memuat akun" })).toBeTruthy();
+    expect(screen.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
+    // The line under the name is reserved at the body line's 23, as the loaded header keeps it.
+    const header = screen.getByTestId("mood-header");
+    expect(flat(within(header).getByTestId("akun-contact")).minHeight).toBe(23);
+  });
+
+  it("Akun keeps the contact line's height once the account is known (finding 10)", async () => {
+    renderWith(runtimeWith({ customer: jest.fn(pending) }), <Akun />);
+    await screen.findByText("Rani Contoh");
+    const header = screen.getByTestId("akun-header");
+    expect(flat(within(header).getByTestId("akun-contact")).minHeight).toBe(23);
+  });
+
+  it("Jelajah's area waits inside a skeleton group, breathing with the list (finding 11)", async () => {
+    const store = SecureStore.getItemAsync as jest.Mock;
+    const real = store.getMockImplementation()!;
+    store.mockImplementation((k: string) => (k === "catera.area" ? pending() : real(k)));
+    try {
+      renderWith(runtimeWith({}), <Jelajah />);
+      await jelajahAreaWaits();
+    } finally {
+      store.mockImplementation(real);
+    }
+  });
+
+  async function jelajahAreaWaits() {
+    const area = await screen.findByTestId("jelajah-area-skeleton");
+    expect(screen.UNSAFE_getAllByType(SkeletonGroup).some((g) => inside(area, g))).toBe(true);
+    // One progress bar for the one wait: the list's.
+    expect(screen.getAllByRole("progressbar")).toHaveLength(1);
+    expect(screen.getByRole("progressbar", { name: "Memuat paket" })).toBeTruthy();
+    expect(screen.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
+  }
+});
+
+describe("findings 6 to 8: the swap and the skeleton's frame", () => {
+  /** The page's first FadeSwap goes from `loading` to `ready` on the same instance, so it fades in. */
+  async function fadesIn(
+    ui: React.ReactElement,
+    api: Record<string, jest.Mock>,
+    read: string,
+    resolve: () => void,
+    landed: () => Promise<unknown>,
+  ) {
+    renderWith(runtimeWith(api), ui);
+    // Past the session check: the screen's own read is out.
+    await waitFor(() => expect(api[read]).toHaveBeenCalled());
+    await waitFor(() => expect(screen.UNSAFE_getAllByType(FadeSwap)[0].props.swapKey).toBe("loading"));
+    const timing = jest.spyOn(Reanimated, "withTiming");
+    await act(async () => resolve());
+    await landed();
+    expect(screen.UNSAFE_getAllByType(FadeSwap)[0].props.swapKey).toBe("ready");
+    expect(timing.mock.calls.filter(([to, c]) => to === 1 && c?.duration === nativeMotion.content)).not.toHaveLength(0);
+    expect(screen.queryByRole("progressbar")).toBeNull();
+  }
+
+  it("Paket fades from its skeleton into the photo page", async () => {
+    mockParams = { id: "p-rumahan" };
+    const read = deferred<{ offer: unknown }>();
+    await fadesIn(
+      <PackageDetail />,
+      { offer: jest.fn(() => read.promise), request: jest.fn(async () => []) },
+      "offer",
+      () => read.resolve({ offer: offer() }),
+      () => screen.findByTestId("paket-name"),
+    );
+    // The block starts at the body's top and carries its padding, so the photo's pull stays inside it.
+    const swap = flat(screen.UNSAFE_getAllByType(FadeSwap)[0]);
+    expect([swap.marginTop, swap.paddingTop]).toEqual([-16, 16]);
+  });
+
+  it("Pilih menu fades from its skeleton into the page", async () => {
+    mockParams = { id: "s-1" };
+    const read = deferred<CustomerState>();
+    await fadesIn(
+      <ChooseMenu />,
+      { customer: jest.fn(() => read.promise) },
+      "customer",
+      () => read.resolve(customerState(null)),
+      () => screen.findByText("Makan Siang Rumahan"),
+    );
+  });
+
+  it("Ada masalah fades from its skeleton into the form", async () => {
+    mockParams = { id: "d-today" };
+    const read = deferred<CustomerState>();
+    await fadesIn(
+      <ReportProblem />,
+      { customer: jest.fn(() => read.promise) },
+      "customer",
+      () => read.resolve(customerState({ status: "delivered" })),
+      () => screen.findByText("Apa yang terjadi?"),
+    );
+  });
+
+  it("Jadwal's day panel fades in with the month instead of appearing at once", async () => {
+    const read = deferred<CustomerState>();
+    renderWith(runtimeWith({ customer: jest.fn(() => read.promise) }), <Jadwal />);
+    await waitFor(() => expect(screen.getAllByTestId("jadwal-skeleton-cell").length).toBeGreaterThan(0));
+    const panel = () => screen.UNSAFE_getAllByType(FadeSwap).find((f) => inside(f, screen.getByTestId("screen-body")))!;
+    expect(panel().props.swapKey).toBe("loading");
+    await act(async () => read.resolve(customerState({ status: "scheduled" })));
+    await screen.findByTestId("month-grid");
+    expect(panel().props.swapKey).toBe("ready");
+  });
+
+  it("the plan's skeleton has the kitchen line and the hero card of the loaded plan (finding 7)", () => {
+    renderWith(runtimeWith({}), <PlanSkeleton />);
+    const caterer = flat(screen.getByTestId("plan-skeleton-caterer"));
+    expect([caterer.height, caterer.marginTop]).toEqual([23, -8]);
+    const hero = screen.getByTestId("plan-skeleton-hero");
+    expect([flat(hero).padding, flat(hero).borderRadius]).toEqual([10, 28]);
+    expect(within(hero).getByTestId("plan-skeleton-hero-fill-siang")).toBeTruthy();
+  });
+
+  it("the Beranda skeleton's hero is the loaded hero's card, fill and shadow (finding 8)", async () => {
+    const runtime = runtimeWith({ customer: jest.fn(() => new Promise(() => undefined)) });
+    renderWith(runtime, <Beranda />);
+    await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
+    const hero = screen.getByTestId("beranda-skeleton-hero");
+    expect([flat(hero).padding, flat(hero).borderRadius]).toEqual([10, 28]);
+    expect(flat(within(hero).getByTestId("beranda-skeleton-hero-fill-siang")).boxShadow).toBeTruthy();
   });
 });

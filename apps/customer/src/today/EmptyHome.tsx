@@ -9,17 +9,46 @@ import { packageHref } from "../hrefs";
 import { goToTab } from "../nav";
 import { OffersSkeleton } from "../skeletons";
 
+/** The read of Beranda's suggested packages, as `useData` returns it. */
+export type HomeCatalog = {
+  data: { items: Offer[] } | null;
+  loading: boolean;
+  error: string;
+  reload: () => Promise<void>;
+};
+
 /**
- * Beranda without an active package: food first, then how caterer links work.
- * `lead` sits above the invitation: the "Paket selesai" recap of a plan that just ended.
+ * Beranda without an active package, on its own: the signed-out Beranda, which reads its packages itself. A signed-in
+ * Beranda that turns out to have nothing running shows the same header and body in its own screen, with the packages
+ * read alongside its first read (see `SignedInHome`), so it arrives in one fade.
  */
 export function EmptyHome({ lead }: { lead?: ReactNode } = {}) {
-  const { runtime, actor, t } = useMobile();
-  const c = useColors();
+  const { runtime } = useMobile();
   const catalog = useData("home:catalog", () => runtime.api.catalog("?limit=3"));
+  return (
+    <Screen header={<EmptyHomeHeader />}>
+      <EmptyHomeBody lead={lead} catalog={catalog} />
+    </Screen>
+  );
+}
+
+/** The header of a Beranda with nothing running: the tab's name, no arc, nothing riding over it. */
+export function EmptyHomeHeader() {
+  const { t } = useMobile();
+  return <MoodHeader testID="beranda-header" title={t("Beranda", "Home")} />;
+}
+
+/**
+ * Beranda without an active package: food first, then how caterer links work. Its blocks are the screen body's
+ * children (a fragment), so they keep the body's gap inside a `FadeSwap` that carries the same gap.
+ * `lead` sits above the invitation: the "Paket selesai" recap of a plan that just ended.
+ */
+export function EmptyHomeBody({ lead, catalog }: { lead?: ReactNode; catalog: HomeCatalog }) {
+  const { actor, t } = useMobile();
+  const c = useColors();
   const offers: Offer[] = (catalog.data?.items ?? []).slice(0, 3);
   return (
-    <Screen header={<MoodHeader testID="beranda-header" title={t("Beranda", "Home")} />}>
+    <>
       {lead}
       <View style={{ gap: 6, paddingTop: 8 }}>
         <Text variant="title">{t("Mau makan apa minggu ini?", "What would you like to eat this week?")}</Text>
@@ -61,7 +90,7 @@ export function EmptyHome({ lead }: { lead?: ReactNode } = {}) {
           <Button variant="secondary" label={t("Masuk", "Sign in")} onPress={() => router.push("/login" as never)} />
         </View>
       ) : null}
-    </Screen>
+    </>
   );
 }
 

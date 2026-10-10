@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AccessibilityInfo, View } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import {
@@ -22,13 +22,17 @@ import {
   PhotoRing,
   PressableScale,
   Screen,
+  Skeleton,
+  SkeletonGroup,
   Text,
   themedStyles,
   useColors,
   useMood,
   useMoodColors,
+  type MoodArcProps,
 } from "@catera/mobile-ui";
-import { EmptyHome } from "./EmptyHome";
+import type { Mood } from "@catera/design-tokens";
+import { EmptyHome, EmptyHomeBody, EmptyHomeHeader } from "./EmptyHome";
 import { HERO_OVERLAP, jakartaClock, photoUri, Plate, sentences } from "./Plate";
 import { RecapCard } from "./RecapCard";
 import { WaitingList } from "./WaitingList";
@@ -87,11 +91,11 @@ async function keptCustomer(actorId: string): Promise<LoadedCustomer | null> {
 
 /** Beranda: today's plate (or plates), what waits on the customer, the next days and the running plans. */
 export function Beranda() {
-  const { actor, ready, t } = useMobile();
-  // The header leaves the hero's 58 for the skeleton, as it does for a loaded hero.
+  const { actor, ready } = useMobile();
+  // Before the session is known the page is already the first read's: its loading header and skeleton.
   if (!ready)
     return (
-      <Screen header={<MoodHeader title={t("Beranda", "Home")} overlap={58} />}>
+      <Screen header={<HomeHeader />}>
         <BerandaSkeleton />
       </Screen>
     );
@@ -101,35 +105,96 @@ export function Beranda() {
 
 type Translate = (id: string, en: string) => string;
 
+/** The title's line height (`title`, 30/39): the loading headline holds its second line at this height. */
+const TITLE_LINE = 39;
+
 /**
- * Says "Memperbarui…" to VoiceOver. iOS has no live regions, so the line is announced; Android's TalkBack hears it
- * from the header's live region instead, so it is not announced twice. `os` is the running platform.
+ * Says "Memperbarui…" to VoiceOver. iOS has no live regions, so the word is announced; Android's TalkBack hears it
+ * from the meta row's live region instead, so it is not announced twice. `os` is the running platform.
  */
 export function announceUpdating(text: string, os = process.env.EXPO_OS) {
   if (os === "ios") AccessibilityInfo.announceForAccessibility(text);
 }
 
+/** The headline's first line, the meal the mood is on: "Siang ini," or "Malam ini,". */
+function openingFor(mood: Mood, t: Translate): string {
+  return mood === "siang" ? t("Siang ini,", "Lunch today,") : t("Malam ini,", "Dinner tonight,");
+}
+
+/** The day arc's two ends; a null detail is a line still being read, held by a skeleton line of its height. */
+function arcFor(t: Translate, lunch: string | null, dinner: string | null): MoodArcProps {
+  return {
+    siang: { title: t("Siang", "Lunch"), label: t("Makan siang", "Lunch"), detail: lunch },
+    malam: { title: t("Malam", "Dinner"), label: t("Makan malam", "Dinner"), detail: dinner },
+  };
+}
+
 /**
- * Beranda's headline in the mood header ("Beranda" while it first loads), with the "Memperbarui…" line under it while
- * a kept copy is being refreshed. The polite live region is mounted from the first frame, empty and zero-high when
- * there is nothing to say, so TalkBack hears the line once when it appears (a region that mounts already holding its
- * text is not reliably announced).
+ * Beranda's meta row: the date (or "Berikutnya …"), and while a kept copy is being refreshed, "· Memperbarui…" after it
+ * in the same row. The row is 48 high whatever it holds (a long line wraps inside it), so the word comes and goes
+ * without moving the header. The word sits in a polite live region mounted from the first frame and empty while there
+ * is nothing to say, so TalkBack hears it once when it appears (a region that mounts already holding its text is not
+ * reliably announced).
  */
-function HomeTitle({ text, updating }: { text: string; updating: string | null }) {
+function HomeMeta({ text, updating }: { text: string; updating: string | null }) {
   const palette = useMoodColors();
+  const line = { color: palette.headerMeta, lineHeight: 18, fontVariant: ["tabular-nums" as const] };
   return (
-    <View>
-      <Text testID="home-title" variant="title" accessibilityRole="header" style={{ color: palette.headerText }}>
-        {text}
+    <View testID="home-meta" style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center" }}>
+      <Text variant="label" style={line}>
+        {updating ? `${text} · ` : text}
       </Text>
       <View testID="home-refreshing-region" accessibilityLiveRegion="polite">
         {updating ? (
-          <Text testID="home-refreshing" variant="caption" style={{ marginTop: 4, color: palette.headerMeta }}>
+          <Text testID="home-refreshing" variant="label" style={line}>
             {updating}
           </Text>
         ) : null}
       </View>
     </View>
+  );
+}
+
+/** What the loaded header says: the meta row, the two-line headline, each end's detail and whether a hero rides over. */
+type HomeHeading = { meta: string; headline: string; arc: MoodArcProps; hero: boolean; updating: string | null };
+
+/**
+ * Beranda's mood header: the meta row, the headline and the day arc. While the first read is out (`loaded` absent) it
+ * is laid out as the loaded header, so it keeps its height when the page lands: the date in the meta row (the phone
+ * knows it), the meal's opening line with the second headline line held by a skeleton line of the title's height, and
+ * the arc with each end's detail line held the same way. It then leaves the hero's 58, as the skeleton draws a hero.
+ * The lines breathe with the data area's group, which names the wait; the header is chrome, never a progress bar. One
+ * component for both, so the header (and its arc) stays mounted across the swap.
+ */
+function HomeHeader({ loaded }: { loaded?: HomeHeading }) {
+  const { t, locale } = useMobile();
+  const { mood } = useMood();
+  const palette = useMoodColors();
+  const today = jakartaDay(new Date());
+  return (
+    <MoodHeader
+      meta={<HomeMeta text={loaded?.meta ?? dayLabel(today, today, locale)} updating={loaded?.updating ?? null} />}
+      arc={loaded?.arc ?? arcFor(t, null, null)}
+      overlap={!loaded || loaded.hero ? 58 : 0}
+      title={
+        loaded ? (
+          <Text testID="home-title" variant="title" accessibilityRole="header" style={{ color: palette.headerText }}>
+            {loaded.headline}
+          </Text>
+        ) : (
+          <View testID="home-title-loading">
+            <Text variant="title" accessibilityRole="header" style={{ color: palette.headerText }}>
+              {openingFor(mood, t)}
+            </Text>
+            <SkeletonGroup>
+              <View testID="home-title-placeholder" style={{ height: TITLE_LINE, justifyContent: "center" }}>
+                <Skeleton onMood width="58%" height={28} />
+              </View>
+            </SkeletonGroup>
+          </View>
+        )
+      }
+    />
   );
 }
 
@@ -229,10 +294,27 @@ function SignedInHome({ actorId }: { actorId: string }) {
   const [page, setPage] = useState<{ meal: string; index: number }>({ meal: "", index: 0 });
   const state = home.data?.data;
   const now = new Date();
+  const plates = state ? todayPlates(state, now) : [];
+  const days = state ? upcomingDays(state, now, 3, locale) : [];
+  const plans = state ? activePlans(state) : null;
+  // Nothing today, nothing coming and no running plan: Beranda invites the customer to pick a package instead.
+  const empty = !!state && !plates.length && !days.length && !plans?.count;
+  // The suggested packages are read together with the first home read, so a customer with nothing running waits on one
+  // skeleton and the page arrives in one fade. Once a read shows something running, later reloads skip the network.
+  const wantsCatalog = useRef(true);
+  wantsCatalog.current = !state || empty;
+  const catalog = useData("home:catalog", () =>
+    wantsCatalog.current ? runtime.api.catalog("?limit=3") : Promise.resolve(null),
+  );
+  // A plan that ended since the last read empties the page after the catalog was skipped: read it now.
+  const catalogMissing = empty && !catalog.data && !catalog.loading && !catalog.error;
+  useEffect(() => {
+    if (catalogMissing) void catalog.reload();
+  }, [catalogMissing, catalog.reload]);
   // Pulling down reads Beranda and its menu choices again; the page stays as it is until the answers land.
   const pull = usePullToRefresh(() => Promise.all([home.reload(), actions.reload()]));
-  // A kept copy is on screen and the fresh read is out: "Memperbarui…" sits in the header, under the headline (see
-  // HomeTitle). TalkBack reads it once through its live region; iOS has no live region, so VoiceOver hears it once,
+  // A kept copy is on screen and the fresh read is out: "· Memperbarui…" follows the date in the meta row (see
+  // HomeMeta). TalkBack reads it once through its live region; iOS has no live region, so VoiceOver hears it once,
   // announced when the refresh starts.
   const updating = !!state && home.fromCache && home.loading;
   const updatingText = t("Memperbarui…", "Updating…");
@@ -243,39 +325,39 @@ function SignedInHome({ actorId }: { actorId: string }) {
   }, [updating]);
 
   // Before the first answer the data area is the skeleton, in the same `FadeSwap` that will hold the page, so the page
-  // enters as one block. The skeleton draws a hero, so the header leaves room for it as for a loaded one.
-  if (!state)
+  // enters as one block. The skeleton draws a hero, so the header leaves room for it as for a loaded one. A page with
+  // nothing running keeps the skeleton until its packages are read too.
+  if (!state || (empty && !catalog.data && !catalog.error)) {
+    const failed = !state && !home.loading;
     return (
-      <Screen
-        header={
-          <MoodHeader
-            title={<HomeTitle text={t("Beranda", "Home")} updating={null} />}
-            overlap={home.loading ? 58 : 0}
-          />
-        }
-      >
-        <FadeSwap swapKey={home.loading ? "loading" : "error"} style={{ gap: 16 }}>
-          {home.loading ? (
-            <BerandaSkeleton />
-          ) : (
+      <Screen header={failed ? <MoodHeader title={t("Beranda", "Home")} /> : <HomeHeader />}>
+        <FadeSwap swapKey={failed ? "error" : "loading"} style={{ gap: 16 }}>
+          {failed ? (
             <View style={{ gap: 4, alignItems: "flex-start" }}>
               <Text selectable testID="home-error" style={{ color: c.danger }}>
                 {home.error}
               </Text>
               <Button variant="text" label={t("Coba lagi", "Try again")} onPress={() => void home.reload()} />
             </View>
+          ) : (
+            <BerandaSkeleton />
           )}
         </FadeSwap>
       </Screen>
     );
+  }
 
-  const plates = todayPlates(state, now);
-  const days = upcomingDays(state, now, 3, locale);
-  const plans = activePlans(state);
   // Plans that ended lately and were not renewed; the card itself checks whether its recap was already seen.
   const recaps = recapCandidates(state, now);
   const recap = recaps.length ? <RecapCard candidates={recaps} /> : null;
-  if (!plates.length && !days.length && !plans.count) return <EmptyHome lead={recap} />;
+  if (empty)
+    return (
+      <Screen header={<EmptyHomeHeader />}>
+        <FadeSwap swapKey="empty" style={{ gap: 16 }}>
+          <EmptyHomeBody lead={recap} catalog={catalog} />
+        </FadeSwap>
+      </Screen>
+    );
   // A kept copy (painted at launch, or kept because the fresh read failed) can be read but not acted on: a meal may
   // have moved or been cancelled since, so every action stays hidden until a fresh read lands.
   const savedAt = home.data?.savedAt;
@@ -285,12 +367,8 @@ function SignedInHome({ actorId }: { actorId: string }) {
   const byMeal = mealPlates(plates);
   const heroPlates = byMeal[meal];
   const otherPlates = byMeal[meal === "lunch" ? "dinner" : "lunch"];
-  const opening = mood === "siang" ? t("Siang ini,", "Lunch today,") : t("Malam ini,", "Dinner tonight,");
-  const headline = `${opening}\n${headlineFor(heroPlates, t)}`;
-  const arc = {
-    siang: { title: t("Siang", "Lunch"), label: t("Makan siang", "Lunch"), detail: arcDetail(byMeal.lunch, t) },
-    malam: { title: t("Malam", "Dinner"), label: t("Makan malam", "Dinner"), detail: arcDetail(byMeal.dinner, t) },
-  };
+  const headline = `${openingFor(mood, t)}\n${headlineFor(heroPlates, t)}`;
+  const arc = arcFor(t, arcDetail(byMeal.lunch, t), arcDetail(byMeal.dinner, t));
   const next = days[0];
   const nextLabel = next?.label ?? "";
   // "Berikutnya" names a later day, so it is only true when nothing else is left today.
@@ -306,17 +384,19 @@ function SignedInHome({ actorId }: { actorId: string }) {
     <Screen
       refreshControl={pull}
       header={
-        <MoodHeader
-          meta={meta}
-          arc={arc}
-          overlap={heroPlates.length ? 58 : 0}
-          title={<HomeTitle text={headline} updating={updating ? updatingText : null} />}
+        <HomeHeader
+          loaded={{ meta, headline, arc, hero: heroPlates.length > 0, updating: updating ? updatingText : null }}
         />
       }
     >
-      {/* The whole page is one block that fades in from the skeleton. A hero rides up over the header from here, the
-          block's own edge, so no part of the hero sits outside its parent's bounds (where a touch would not reach). */}
-      <FadeSwap swapKey="ready" style={[{ gap: 16 }, heroPlates.length ? { marginTop: HERO_OVERLAP } : null]}>
+      {/* The whole page is one block that fades in from the skeleton, and again when the fresh read replaces the copy
+          kept on this phone (the key follows which of the two is on screen; a refresh of a fresh read does not fade). A
+          hero rides up over the header from here, the block's own edge, so no part of the hero sits outside its
+          parent's bounds (where a touch would not reach). */}
+      <FadeSwap
+        swapKey={savedAt ? "kept" : "fresh"}
+        style={[{ gap: 16 }, heroPlates.length ? { marginTop: HERO_OVERLAP } : null]}
+      >
         {heroPlates.length > 1 ? (
           // Several deliveries of the chosen meal: equal heroes, one at a time, the next one peeking.
           <HeroPager
@@ -371,7 +451,9 @@ function SignedInHome({ actorId }: { actorId: string }) {
         <WaitingList state={state} actions={actions.data?.items ?? null} offline={!!savedAt} now={now} />
         <TomorrowEntry state={state} now={now} />
         <UpcomingDays days={days} apiBase={runtime.apiBase} />
-        <PlansRow count={plans.count} caterers={plans.caterers} images={plans.images} apiBase={runtime.apiBase} />
+        {plans ? (
+          <PlansRow count={plans.count} caterers={plans.caterers} images={plans.images} apiBase={runtime.apiBase} />
+        ) : null}
       </FadeSwap>
     </Screen>
   );

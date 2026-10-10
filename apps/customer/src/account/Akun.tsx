@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { View } from "react-native";
 import { router } from "expo-router";
 import type { Locale } from "@catera/domain";
@@ -8,6 +8,8 @@ import {
   MoodHeader,
   Screen,
   Segmented,
+  Skeleton,
+  SkeletonGroup,
   Text,
   useColors,
   useMoodColors,
@@ -30,13 +32,36 @@ export function localPhone(phone: string): string {
   return [digits.slice(0, 4), digits.slice(4, 8), digits.slice(8)].filter(Boolean).join("-");
 }
 
+/** The body text's line height: the contact line under the name holds this much even before it is known. */
+const CONTACT_LINE = 23;
+
+/** The row under the name in the header that carries the phone number (or email), one body line high in every state. */
+function ContactLine({ children }: { children?: ReactNode }) {
+  return (
+    <View testID="akun-contact" style={{ minHeight: CONTACT_LINE, justifyContent: "center" }}>
+      {children}
+    </View>
+  );
+}
+
 /** Akun: who is signed in, active plans and the account screens. No caterer or admin links. */
 export function Akun() {
   const { actor, ready, t } = useMobile();
-  // Before the session is known the tab already has its header; who is signed in, and their rows, wait.
+  // Before the session is known the tab already has its header, with the contact line's place held, so the header
+  // keeps its height when the account lands; who is signed in, and their rows, wait.
   if (!ready)
     return (
-      <Screen header={<MoodHeader title={t("Akun", "Account")} />}>
+      <Screen
+        header={
+          <MoodHeader title={t("Akun", "Account")}>
+            <SkeletonGroup>
+              <ContactLine>
+                <Skeleton onMood width="44%" height={14} />
+              </ContactLine>
+            </SkeletonGroup>
+          </MoodHeader>
+        }
+      >
         <ListSkeleton rows={4} label={t("Memuat akun", "Loading account")} />
       </Screen>
     );
@@ -134,7 +159,10 @@ function Account() {
       header={
         // The tab bar already names this tab, so the meta row stays empty rather than repeating "Akun".
         <MoodHeader testID="akun-header" title={actor?.name ?? ""}>
-          {contact ? <Text style={{ color: mood.headerMeta, fontVariant: ["tabular-nums"] }}>{contact}</Text> : null}
+          {/* The line's place is held while the phone reads its session, so the header never grows under the name. */}
+          <ContactLine>
+            {contact ? <Text style={{ color: mood.headerMeta, fontVariant: ["tabular-nums"] }}>{contact}</Text> : null}
+          </ContactLine>
         </MoodHeader>
       }
     >

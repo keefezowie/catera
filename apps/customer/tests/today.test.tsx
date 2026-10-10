@@ -1367,7 +1367,9 @@ describe("Beranda mood", () => {
     const gate = new Promise<never>(() => undefined);
     mount(runtimeWith(() => gate));
     expect(await screen.findByTestId("mood-header")).toBeTruthy();
-    expect(within(screen.getByTestId("mood-header")).getByText("Beranda")).toBeTruthy();
+    // The loading header is the loaded one's shape: the meal's opening line, its second line still being read.
+    expect(within(screen.getByTestId("mood-header")).getByText(/^(Siang ini|Malam ini),$/)).toBeTruthy();
+    expect(within(screen.getByTestId("mood-header")).getByTestId("home-title-placeholder")).toBeTruthy();
   });
 });
 

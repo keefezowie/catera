@@ -15,6 +15,7 @@ import { plural, useData, useMobile } from "@catera/mobile-core";
 import {
   Button,
   Card,
+  FadeSwap,
   fontFor,
   PressableScale,
   Screen,
@@ -109,24 +110,31 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
   }, [reload]);
 
   if (!customer.data || (offer && offer.menuSelectionMode === "customer" && !menus.data && !menus.error))
-    return customer.error ? (
+    // The menus fade in from their skeleton as one block: every state of this screen keeps one FadeSwap in one place.
+    return (
       <Screen>
-        <Text selectable style={{ color: palette.danger }}>
-          {customer.error}
-        </Text>
-        <Button label={t("Coba lagi", "Try again")} onPress={() => void customer.reload()} />
-      </Screen>
-    ) : (
-      <Screen>
-        <ChooseMenuSkeleton />
+        <FadeSwap swapKey={customer.error ? "error" : "loading"} style={{ gap: 16 }}>
+          {customer.error ? (
+            <>
+              <Text selectable style={{ color: palette.danger }}>
+                {customer.error}
+              </Text>
+              <Button label={t("Coba lagi", "Try again")} onPress={() => void customer.reload()} />
+            </>
+          ) : (
+            <ChooseMenuSkeleton />
+          )}
+        </FadeSwap>
       </Screen>
     );
 
   if (!subscription || !offer)
     return (
       <Screen>
-        <Text variant="heading">{t("Paket tidak ditemukan.", "Package not found.")}</Text>
-        <Button label={t("Ke Jadwal", "Go to Schedule")} onPress={() => goToTab("jadwal")} />
+        <FadeSwap swapKey="missing" style={{ gap: 16 }}>
+          <Text variant="heading">{t("Paket tidak ditemukan.", "Package not found.")}</Text>
+          <Button label={t("Ke Jadwal", "Go to Schedule")} onPress={() => goToTab("jadwal")} />
+        </FadeSwap>
       </Screen>
     );
 
@@ -237,245 +245,247 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
 
   return (
     <Screen>
-      <View style={{ gap: 4 }}>
-        <Text variant="title">{offer.name}</Text>
-        <Text variant="caption" style={{ fontVariant: ["tabular-nums"] }}>
-          {t(
-            `Satu pilihan untuk semua ${subscription.portions} porsi. Tanpa biaya tambahan.`,
-            subscription.portions === 1 ? "Your portion gets this choice. No extra charge." : `One choice for all ${subscription.portions} portions. No extra charge.`,
-          )}
-        </Text>
-      </View>
+      <FadeSwap swapKey="ready" style={{ gap: 16 }}>
+        <View style={{ gap: 4 }}>
+          <Text variant="title">{offer.name}</Text>
+          <Text variant="caption" style={{ fontVariant: ["tabular-nums"] }}>
+            {t(
+              `Satu pilihan untuk semua ${subscription.portions} porsi. Tanpa biaya tambahan.`,
+              subscription.portions === 1 ? "Your portion gets this choice. No extra charge." : `One choice for all ${subscription.portions} portions. No extra charge.`,
+            )}
+          </Text>
+        </View>
 
-      {offer.menuSelectionMode !== "customer" ? (
-        <Text>{t("Menu paket ini ditentukan oleh katering.", "The caterer chooses this package's menus.")}</Text>
-      ) : !draft ? (
-        <>
-          <View style={styles.monthRow}>
-            <Button
-              variant="text"
-              label="‹"
-              accessibilityLabel={t("Bulan sebelumnya", "Previous month")}
-              onPress={() => {
-                setMonth(shiftMonth(month, -1));
-                setDate("");
-              }}
-            />
-            <Text variant="heading" style={{ flex: 1, textAlign: "center" }}>
-              {monthTitle(month, locale)}
-            </Text>
-            <Button
-              variant="text"
-              label="›"
-              accessibilityLabel={t("Bulan berikutnya", "Next month")}
-              onPress={() => {
-                setMonth(shiftMonth(month, 1));
-                setDate("");
-              }}
-            />
-          </View>
-          {offer.meal === "both" ? (
-            <Segmented<Meal>
-              options={(["lunch", "dinner"] as const).map((value) => ({ value, label: mealLabel(value, locale) }))}
-              value={meal}
-              onChange={setMeal}
-            />
-          ) : null}
-          {menus.error ? (
-            <Text selectable style={{ color: palette.danger }}>
-              {menus.error}
-            </Text>
-          ) : null}
-          {menus.data && !dates.length ? (
-            <Text style={{ color: palette.muted }}>
-              {t("Tidak ada pengantaran bulan ini.", "No deliveries this month.")}
-            </Text>
-          ) : null}
-          <View>
-            {dates.map((d, i) => (
-              <PressableScale
-                key={d.dayId}
-                haptic="select"
-                accessibilityRole="button"
-                accessibilityState={{ selected: d.dayId === selected?.dayId }}
-                onPress={() => setDate(d.date)}
-                style={[styles.dateRow, i > 0 && styles.divider, d.dayId === selected?.dayId && styles.dateOn]}
-              >
-                <Text style={{ flex: 1, fontFamily: fontFor("700") }}>{longDay(d.date, locale)}</Text>
-                <Text variant="caption">{stateLabel(d)}</Text>
-              </PressableScale>
-            ))}
-          </View>
-          {selected ? (
-            <Card>
-              <Text variant="heading">{longDay(selected.date, locale)}</Text>
-              <Text variant="caption" style={{ fontVariant: ["tabular-nums"] }}>
-                {stateLabel(selected)} · {t("batas pilihan", "choose by")} {cutoff(selected)}
+        {offer.menuSelectionMode !== "customer" ? (
+          <Text>{t("Menu paket ini ditentukan oleh katering.", "The caterer chooses this package's menus.")}</Text>
+        ) : !draft ? (
+          <>
+            <View style={styles.monthRow}>
+              <Button
+                variant="text"
+                label="‹"
+                accessibilityLabel={t("Bulan sebelumnya", "Previous month")}
+                onPress={() => {
+                  setMonth(shiftMonth(month, -1));
+                  setDate("");
+                }}
+              />
+              <Text variant="heading" style={{ flex: 1, textAlign: "center" }}>
+                {monthTitle(month, locale)}
               </Text>
-              {selected.details ? <Text>{menuSummary(selected.details, locale)}</Text> : null}
-              {editable(selected) && options.length ? (
+              <Button
+                variant="text"
+                label="›"
+                accessibilityLabel={t("Bulan berikutnya", "Next month")}
+                onPress={() => {
+                  setMonth(shiftMonth(month, 1));
+                  setDate("");
+                }}
+              />
+            </View>
+            {offer.meal === "both" ? (
+              <Segmented<Meal>
+                options={(["lunch", "dinner"] as const).map((value) => ({ value, label: mealLabel(value, locale) }))}
+                value={meal}
+                onChange={setMeal}
+              />
+            ) : null}
+            {menus.error ? (
+              <Text selectable style={{ color: palette.danger }}>
+                {menus.error}
+              </Text>
+            ) : null}
+            {menus.data && !dates.length ? (
+              <Text style={{ color: palette.muted }}>
+                {t("Tidak ada pengantaran bulan ini.", "No deliveries this month.")}
+              </Text>
+            ) : null}
+            <View>
+              {dates.map((d, i) => (
+                <PressableScale
+                  key={d.dayId}
+                  haptic="select"
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: d.dayId === selected?.dayId }}
+                  onPress={() => setDate(d.date)}
+                  style={[styles.dateRow, i > 0 && styles.divider, d.dayId === selected?.dayId && styles.dateOn]}
+                >
+                  <Text style={{ flex: 1, fontFamily: fontFor("700") }}>{longDay(d.date, locale)}</Text>
+                  <Text variant="caption">{stateLabel(d)}</Text>
+                </PressableScale>
+              ))}
+            </View>
+            {selected ? (
+              <Card>
+                <Text variant="heading">{longDay(selected.date, locale)}</Text>
+                <Text variant="caption" style={{ fontVariant: ["tabular-nums"] }}>
+                  {stateLabel(selected)} · {t("batas pilihan", "choose by")} {cutoff(selected)}
+                </Text>
+                {selected.details ? <Text>{menuSummary(selected.details, locale)}</Text> : null}
+                {editable(selected) && options.length ? (
+                  <Button
+                    label={selected.details ? t("Ubah menu", "Change menu") : t("Pilih hidangan", "Choose dishes")}
+                    onPress={() => edit(selected)}
+                  />
+                ) : (
+                  <Text>
+                    {t(
+                      "Jika pilihan belum tersimpan sebelum batas waktu, katering yang memilih menu Anda.",
+                      "If no choice is saved before the cutoff, the caterer chooses your menu.",
+                    )}
+                  </Text>
+                )}
+              </Card>
+            ) : null}
+          </>
+        ) : (
+          <Card>
+            <Text variant="heading">
+              {reviewing ? t("Periksa pilihan menu", "Check your choice") : t("Lengkapi pilihan", "Complete your choice")}
+            </Text>
+            <Text>
+              {draft.days.map((d) => longDay(d.date, locale)).join(" · ")} · {mealLabel(meal, locale)}
+            </Text>
+            {!draft.days.every(editable) ? (
+              <Text selectable style={{ color: palette.danger }}>
+                {t(
+                  "Batas pilihan sudah lewat. Pilihan ini tidak bisa disimpan; katering yang memilih.",
+                  "The cutoff has passed. This choice can't be saved; the caterer chooses.",
+                )}
+              </Text>
+            ) : null}
+            {slots.map((slot) => {
+              const choice = draft.choices.find((c) => c.slotId === slot.id);
+              const dish = options.find((o) => o.id === choice?.optionId);
+              return (
+                <View key={slot.id} style={{ gap: 8 }}>
+                  {reviewing ? (
+                    <Text style={{ fontFamily: fontFor("700") }}>{`${slot.label} · ${dish?.name ?? ""}`}</Text>
+                  ) : (
+                    <>
+                      <Text variant="label">{slot.label}</Text>
+                      <View style={styles.chips}>
+                        {options
+                          .filter(
+                            (o) =>
+                              o.categoryId === slot.category &&
+                              !draft.choices.some((c) => c.slotId !== slot.id && c.optionId === o.id),
+                          )
+                          .map((o) => (
+                            <FilterChip
+                              key={o.id}
+                              label={o.name + (o.serving ? ` · ${o.serving}` : "")}
+                              selected={choice?.optionId === o.id}
+                              onPress={() => pick(slot.id, o.id)}
+                            />
+                          ))}
+                      </View>
+                    </>
+                  )}
+                  {dish?.image ? (
+                    <Image
+                      source={{ uri: photoUri(dish.image, runtime.apiBase) }}
+                      style={styles.photo}
+                      accessibilityLabel={dish.name}
+                    />
+                  ) : null}
+                  {dish?.description ? <Text variant="caption">{dish.description}</Text> : null}
+                </View>
+              );
+            })}
+            {!reviewing ? (
+              <>
                 <Button
-                  label={selected.details ? t("Ubah menu", "Change menu") : t("Pilih hidangan", "Choose dishes")}
-                  onPress={() => edit(selected)}
+                  variant="secondary"
+                  label={t("Terapkan juga ke tanggal lain", "Use it on other dates too")}
+                  onPress={() => setMoreDates((v) => !v)}
                 />
-              ) : (
-                <Text>
+                {moreDates ? (
+                  <View style={styles.chips}>
+                    {dates
+                      .filter((d) => d.dayId !== draft.days[0]?.dayId && editable(d))
+                      .map((d) => (
+                        <FilterChip
+                          key={d.dayId}
+                          label={longDay(d.date, locale)}
+                          selected={draft.days.some((x) => x.dayId === d.dayId)}
+                          onPress={() => toggleDay(d)}
+                        />
+                      ))}
+                  </View>
+                ) : null}
+                <Button
+                  label={t("Tinjau pilihan", "Review choice")}
+                  disabled={!valid || !writeable}
+                  onPress={() => setReviewing(true)}
+                />
+              </>
+            ) : (
+              <>
+                <Text variant="caption">
                   {t(
-                    "Jika pilihan belum tersimpan sebelum batas waktu, katering yang memilih menu Anda.",
-                    "If no choice is saved before the cutoff, the caterer chooses your menu.",
+                    "Pilihan yang sudah tersimpan pada tanggal di atas akan diganti. Semua porsi mendapat menu yang sama.",
+                    "Choices already saved on these dates will be replaced. All portions get the same menu.",
                   )}
                 </Text>
-              )}
-            </Card>
-          ) : null}
-        </>
-      ) : (
-        <Card>
-          <Text variant="heading">
-            {reviewing ? t("Periksa pilihan menu", "Check your choice") : t("Lengkapi pilihan", "Complete your choice")}
-          </Text>
-          <Text>
-            {draft.days.map((d) => longDay(d.date, locale)).join(" · ")} · {mealLabel(meal, locale)}
-          </Text>
-          {!draft.days.every(editable) ? (
-            <Text selectable style={{ color: palette.danger }}>
-              {t(
-                "Batas pilihan sudah lewat. Pilihan ini tidak bisa disimpan; katering yang memilih.",
-                "The cutoff has passed. This choice can't be saved; the caterer chooses.",
-              )}
-            </Text>
-          ) : null}
-          {slots.map((slot) => {
-            const choice = draft.choices.find((c) => c.slotId === slot.id);
-            const dish = options.find((o) => o.id === choice?.optionId);
-            return (
-              <View key={slot.id} style={{ gap: 8 }}>
-                {reviewing ? (
-                  <Text style={{ fontFamily: fontFor("700") }}>{`${slot.label} · ${dish?.name ?? ""}`}</Text>
-                ) : (
-                  <>
-                    <Text variant="label">{slot.label}</Text>
-                    <View style={styles.chips}>
-                      {options
-                        .filter(
-                          (o) =>
-                            o.categoryId === slot.category &&
-                            !draft.choices.some((c) => c.slotId !== slot.id && c.optionId === o.id),
-                        )
-                        .map((o) => (
-                          <FilterChip
-                            key={o.id}
-                            label={o.name + (o.serving ? ` · ${o.serving}` : "")}
-                            selected={choice?.optionId === o.id}
-                            onPress={() => pick(slot.id, o.id)}
-                          />
-                        ))}
-                    </View>
-                  </>
-                )}
-                {dish?.image ? (
-                  <Image
-                    source={{ uri: photoUri(dish.image, runtime.apiBase) }}
-                    style={styles.photo}
-                    accessibilityLabel={dish.name}
-                  />
+                {error ? (
+                  <Text selectable style={{ color: palette.danger }} testID="menu-error">
+                    {error}
+                  </Text>
                 ) : null}
-                {dish?.description ? <Text variant="caption">{dish.description}</Text> : null}
-              </View>
-            );
-          })}
-          {!reviewing ? (
-            <>
-              <Button
-                variant="secondary"
-                label={t("Terapkan juga ke tanggal lain", "Use it on other dates too")}
-                onPress={() => setMoreDates((v) => !v)}
-              />
-              {moreDates ? (
-                <View style={styles.chips}>
-                  {dates
-                    .filter((d) => d.dayId !== draft.days[0]?.dayId && editable(d))
-                    .map((d) => (
-                      <FilterChip
-                        key={d.dayId}
-                        label={longDay(d.date, locale)}
-                        selected={draft.days.some((x) => x.dayId === d.dayId)}
-                        onPress={() => toggleDay(d)}
-                      />
-                    ))}
-                </View>
-              ) : null}
-              <Button
-                label={t("Tinjau pilihan", "Review choice")}
-                disabled={!valid || !writeable}
-                onPress={() => setReviewing(true)}
-              />
-            </>
-          ) : (
-            <>
-              <Text variant="caption">
-                {t(
-                  "Pilihan yang sudah tersimpan pada tanggal di atas akan diganti. Semua porsi mendapat menu yang sama.",
-                  "Choices already saved on these dates will be replaced. All portions get the same menu.",
-                )}
+                <Button
+                  label={t("Simpan menu", "Save menu")}
+                  disabled={busy || !valid || !writeable}
+                  onPress={() => void send("customerMenu.saveBatch")}
+                />
+                <Button variant="secondary" label={t("Lanjut mengedit", "Keep editing")} onPress={() => setReviewing(false)} />
+              </>
+            )}
+            {!reviewing && error ? (
+              <Text selectable style={{ color: palette.danger }} testID="menu-error">
+                {error}
               </Text>
-              {error ? (
-                <Text selectable style={{ color: palette.danger }} testID="menu-error">
-                  {error}
-                </Text>
-              ) : null}
+            ) : null}
+            {draft.days.some((d) => d.version > 0) ? (
               <Button
-                label={t("Simpan menu", "Save menu")}
-                disabled={busy || !valid || !writeable}
-                onPress={() => void send("customerMenu.saveBatch")}
+                variant="text"
+                label={t("Hapus pilihan, biar katering memilih", "Clear my choice, let the caterer choose")}
+                disabled={busy || !writeable}
+                onPress={() =>
+                  Alert.alert(
+                    t("Hapus pilihan menu?", "Clear menu choice?"),
+                    t(
+                      "Pilihan pada tanggal di atas dihapus. Katering memilih jika Anda tidak memilih lagi sebelum batas waktu.",
+                      "Choices on these dates are removed. The caterer chooses if you don't choose again before the cutoff.",
+                    ),
+                    [
+                      { text: t("Batal", "Cancel"), style: "cancel" },
+                      {
+                        text: t("Hapus pilihan", "Clear choice"),
+                        style: "destructive",
+                        onPress: () => void send("customerMenu.resetBatch"),
+                      },
+                    ],
+                  )
+                }
               />
-              <Button variant="secondary" label={t("Lanjut mengedit", "Keep editing")} onPress={() => setReviewing(false)} />
-            </>
-          )}
-          {!reviewing && error ? (
-            <Text selectable style={{ color: palette.danger }} testID="menu-error">
-              {error}
-            </Text>
-          ) : null}
-          {draft.days.some((d) => d.version > 0) ? (
+            ) : null}
             <Button
               variant="text"
-              label={t("Hapus pilihan, biar katering memilih", "Clear my choice, let the caterer choose")}
-              disabled={busy || !writeable}
-              onPress={() =>
-                Alert.alert(
-                  t("Hapus pilihan menu?", "Clear menu choice?"),
-                  t(
-                    "Pilihan pada tanggal di atas dihapus. Katering memilih jika Anda tidak memilih lagi sebelum batas waktu.",
-                    "Choices on these dates are removed. The caterer chooses if you don't choose again before the cutoff.",
-                  ),
-                  [
-                    { text: t("Batal", "Cancel"), style: "cancel" },
-                    {
-                      text: t("Hapus pilihan", "Clear choice"),
-                      style: "destructive",
-                      onPress: () => void send("customerMenu.resetBatch"),
-                    },
-                  ],
-                )
-              }
+              label={t("Tutup", "Close")}
+              onPress={() => {
+                const close = () => {
+                  setDraft(null);
+                  setReviewing(false);
+                  setError("");
+                };
+                if (draft.dirty) discard(close);
+                else close();
+              }}
             />
-          ) : null}
-          <Button
-            variant="text"
-            label={t("Tutup", "Close")}
-            onPress={() => {
-              const close = () => {
-                setDraft(null);
-                setReviewing(false);
-                setError("");
-              };
-              if (draft.dirty) discard(close);
-              else close();
-            }}
-          />
-        </Card>
-      )}
+          </Card>
+        )}
+      </FadeSwap>
     </Screen>
   );
 }

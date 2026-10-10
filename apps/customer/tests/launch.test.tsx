@@ -356,7 +356,7 @@ describe("the launch gate", () => {
 });
 
 describe("cache-first Beranda", () => {
-  it("Memperbarui sits in the mood header under the headline, in a live region, never after the hero", async () => {
+  it("Memperbarui follows the date in the header's meta row, in a live region, never after the hero", async () => {
     (runtime.api.me as jest.Mock).mockImplementation(() => new Promise(() => undefined));
     (runtime.api.customer as jest.Mock).mockImplementation(() => new Promise(() => undefined));
     const announce = jest.spyOn(AccessibilityInfo, "announceForAccessibility");
@@ -364,10 +364,13 @@ describe("cache-first Beranda", () => {
     keptHome(rani);
     renderHome();
     const line = await screen.findByText("Memperbarui…");
-    const header = screen.getByTestId("mood-header");
-    expect(within(header).getByText("Memperbarui…")).toBe(line);
+    // Controller ruling (finding 2): it sits in the fixed 48 meta row after the date, never under the headline.
+    const row = screen.getByTestId("mood-header-row");
+    expect(within(row).getByText("Memperbarui…")).toBe(line);
+    expect(within(row).getByText(/·$/)).toBeTruthy();
+    expect(within(screen.getByTestId("home-title")).queryByText("Memperbarui…")).toBeNull();
     expect(within(screen.getByTestId("screen-body")).queryByText("Memperbarui…")).toBeNull();
-    // One polite live region holds it, mounted with the headline, so TalkBack hears the line once when it appears.
+    // One polite live region holds it, mounted with the meta row, so TalkBack hears the word once when it appears.
     const region = screen.getByTestId("home-refreshing-region");
     expect(region.props.accessibilityLiveRegion).toBe("polite");
     expect(within(region).getByText("Memperbarui…")).toBe(line);
@@ -493,7 +496,7 @@ describe("cache-first Beranda", () => {
     renderHome();
     expect(await screen.findByTestId("beranda-skeleton")).toBeTruthy();
     expect(screen.getByRole("progressbar", { name: "Memuat beranda" })).toBeTruthy();
-    expect(screen.getByText("Beranda")).toBeTruthy();
+    expect(within(screen.getByTestId("mood-header")).getByText(/^(Siang ini|Malam ini),$/)).toBeTruthy();
   });
 
   it("after logout the next launch paints no cached home", async () => {

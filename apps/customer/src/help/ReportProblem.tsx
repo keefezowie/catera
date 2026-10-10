@@ -6,6 +6,7 @@ import { useData, useMobile } from "@catera/mobile-core";
 import {
   Button,
   Card,
+  FadeSwap,
   Field,
   fontFor,
   PressableScale,
@@ -59,7 +60,7 @@ export function ReportProblem() {
   if (!ready) return <Loading />;
   if (!actor)
     return (
-      <Sheet>
+      <Sheet swapKey="signin">
         <Text style={{ color: c.muted }}>
           {t("Masuk untuk melihat paket dan jadwal antar Anda.", "Sign in to see your packages and deliveries.")}
         </Text>
@@ -74,30 +75,44 @@ export function ReportProblem() {
   return <Report key={`${actor.id}:${id}`} actorId={actor.id} id={id} meal={params.meal} jenis={params.jenis} />;
 }
 
-/** The sheet's frame: the title row ("Ada masalah", with the day under it once known) over the scrolling content. */
-function Sheet({ context, children }: { context?: string; children: ReactNode }) {
+/**
+ * The sheet's frame: the title row ("Ada masalah", with the day under it once known) over the scrolling content. The
+ * content sits in one FadeSwap keyed by `swapKey`, so the form fades in from its skeleton as one block.
+ */
+function Sheet({ context, swapKey, children }: { context?: string; swapKey: string; children: ReactNode }) {
   const { t } = useMobile();
   return (
     <View style={{ flex: 1 }}>
       <SheetHeader title={t("Ada masalah", "Report a problem")} context={context} closeLabel={t("Tutup", "Close")} />
-      <SheetBody>{children}</SheetBody>
+      <SheetBody>
+        <FadeSwap swapKey={swapKey} style={{ gap: 16 }}>
+          {children}
+        </FadeSwap>
+      </SheetBody>
     </View>
   );
 }
 
-/** The sheet while the day loads: its title, then the shape of the choices. */
-function Loading() {
+/** The shape of the choices while the day loads. */
+function ReportSkeleton() {
   const { t } = useMobile();
   return (
-    <Sheet>
-      <SkeletonGroup label={t("Memuat pengantaran", "Loading the delivery")}>
-        <View style={{ gap: 8 }}>
-          <Skeleton width="45%" height={14} />
-          <Skeleton height={56} radius={12} />
-          <Skeleton height={56} radius={12} />
-          <Skeleton height={56} radius={12} />
-        </View>
-      </SkeletonGroup>
+    <SkeletonGroup label={t("Memuat pengantaran", "Loading the delivery")}>
+      <View style={{ gap: 8 }}>
+        <Skeleton width="45%" height={14} />
+        <Skeleton height={56} radius={12} />
+        <Skeleton height={56} radius={12} />
+        <Skeleton height={56} radius={12} />
+      </View>
+    </SkeletonGroup>
+  );
+}
+
+/** The sheet before the session is known: its title, then the shape of the choices. */
+function Loading() {
+  return (
+    <Sheet swapKey="loading">
+      <ReportSkeleton />
     </Sheet>
   );
 }
@@ -147,12 +162,18 @@ function Report({ actorId, id, meal: wanted, jenis }: { actorId: string; id: str
     else drafts.delete(draftKey);
   };
 
-  if (!d && state.loading) return <Loading />;
+  // The same Sheet (and its FadeSwap) in every state below, so the form fades in from this skeleton.
+  if (!d && state.loading)
+    return (
+      <Sheet swapKey="loading">
+        <ReportSkeleton />
+      </Sheet>
+    );
 
   // A day with every meal cancelled has nothing to report: say so rather than offer a form that cannot send.
   if (!d || !current)
     return (
-      <Sheet>
+      <Sheet swapKey="missing">
         <Text selectable={!!state.error} style={{ color: state.error ? c.danger : c.muted }}>
           {state.error || t("Pengantaran tidak ditemukan.", "Delivery not found.")}
         </Text>
@@ -196,7 +217,7 @@ function Report({ actorId, id, meal: wanted, jenis }: { actorId: string; id: str
   }
 
   return (
-    <Sheet context={context}>
+    <Sheet context={context} swapKey="ready">
       {meals.length > 1 ? (
         <View style={{ flexDirection: "row", gap: 8 }} accessibilityRole="radiogroup">
           {meals.map((m) => {

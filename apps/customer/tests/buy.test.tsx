@@ -8,8 +8,9 @@ import * as SecureStore from "expo-secure-store";
 import * as Haptics from "expo-haptics";
 import { addDays, currency, type Checkout, type Quote, type RenewalContext } from "@catera/domain";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
-import { nativeThemes } from "@catera/design-tokens";
-import { fonts, MoodProvider, ThemeProvider } from "@catera/mobile-ui";
+import * as Reanimated from "react-native-reanimated";
+import { nativeMotion, nativeThemes } from "@catera/design-tokens";
+import { FadeSwap, fonts, MoodProvider, ThemeProvider } from "@catera/mobile-ui";
 import { customerLink } from "../src/links";
 import { goToTab, leaveFor } from "../src/nav";
 import { BuyScreen } from "../src/buy/BuyScreen";
@@ -253,6 +254,14 @@ const wrap = (runtime: MobileRuntime, ui: React.ReactElement) =>
       {ui}
     </MobileProvider>,
   );
+/**
+ * The checking stage: the mascot says "Memeriksa pembayaran…" with the instruction kept under it. The instruction is
+ * awaited first, so the first read's own mascot (the same words) never stands in for the stage.
+ */
+async function checkingShown() {
+  expect(await screen.findByText("Jangan bayar lagi. Status diperiksa langsung dari bank.")).toBeTruthy();
+  return screen.getByRole("progressbar", { name: "Memeriksa pembayaran…" });
+}
 const commands = (runtime: MobileRuntime) => (runtime.api.command as jest.Mock).mock.calls;
 const bayarReady = () => waitFor(() => expect(screen.getByRole("button", { name: "Bayar" })).toBeEnabled());
 
@@ -729,7 +738,7 @@ describe("Bayar", () => {
     const past = new Date(Date.now() - 1000).toISOString();
     const runtime = server({ checkout: pendingCheckout({}, { expiresAt: past }) });
     wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
-    expect(await screen.findByText("Memeriksa pembayaran")).toBeTruthy();
+    expect(await checkingShown()).toBeTruthy();
     expect(screen.queryByLabelText(QR_LABEL)).toBeNull();
     expect(screen.queryByRole("button", { name: "Bayar lagi" })).toBeNull();
   });
@@ -747,7 +756,7 @@ describe("Bayar", () => {
       });
       wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
       expect(await screen.findByText("Waktu habis. Jadwal dicek ulang saat membayar lagi.")).toBeTruthy();
-      expect(screen.queryByText("Memeriksa pembayaran")).toBeNull();
+      expect(screen.queryByRole("progressbar", { name: "Memeriksa pembayaran…" })).toBeNull();
       fireEvent.press(screen.getByRole("button", { name: "Bayar lagi" }));
       expect(router.replace).toHaveBeenCalledWith("/beli/p-rumahan?portions=1&cycles=1&addressId=a-1");
     });
@@ -756,7 +765,7 @@ describe("Bayar", () => {
     const runtime = server({ checkout: pendingCheckout({ state: "paid" }) });
     (runtime.api.command as jest.Mock).mockResolvedValue({});
     wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
-    expect(await screen.findByText("Memeriksa pembayaran")).toBeTruthy();
+    expect(await checkingShown()).toBeTruthy();
     expect(screen.queryByText("Pembayaran diterima")).toBeNull();
     // No paid beat before the booking exists (Review Focus 4): no hero, no reserved days, the header still says Bayar.
     expect(screen.queryByTestId("paid-hero")).toBeNull();
@@ -868,7 +877,7 @@ describe("Bayar", () => {
       (runtime.api.command as jest.Mock).mockResolvedValue({});
       const refreshes = () => commands(runtime).filter((c) => c[0] === "checkout.payment.refresh").length;
       wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
-      expect(await screen.findByText("Memeriksa pembayaran")).toBeTruthy();
+      expect(await checkingShown()).toBeTruthy();
       expect(screen.queryByRole("button", { name: "Bayar lagi" })).toBeNull();
       expect(screen.getByRole("button", { name: "Cek status" })).toBeTruthy();
       await act(async () => {
@@ -1231,8 +1240,39 @@ describe("Pembayaran diterima", () => {
     const runtime = server({ checkout: pendingCheckout({ id: "ck-viewed-3", state: "paid" }) });
     (runtime.api.command as jest.Mock).mockResolvedValue({});
     wrap(runtime, <PaymentScreen checkoutId="ck-viewed-3" />);
-    expect(await screen.findByText("Memeriksa pembayaran")).toBeTruthy();
+    expect(await checkingShown()).toBeTruthy();
     await act(async () => {});
     expect(viewed(runtime)).toHaveLength(0);
+  });
+});
+
+describe("Beli waits (Task 5 fix round 1)", () => {
+  it("while the server prices the first choice, the breakdown names its wait (Menghitung harga) with no spinner", async () => {
+    const runtime = server();
+    (runtime.api.quote as jest.Mock).mockImplementation(() => new Promise(() => undefined));
+    wrap(runtime, <BuyScreen packageId="p-rumahan" />);
+    expect(await screen.findByRole("progressbar", { name: "Menghitung harga" })).toBeTruthy();
+    expect(screen.getByTestId("breakdown-skeleton")).toBeTruthy();
+    expect(screen.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
+  });
+
+  it("the choices fade in from the skeleton through the screen's one FadeSwap", async () => {
+    const runtime = server();
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const offerRead = runtime.api.offer as jest.Mock;
+    const real = offerRead.getMockImplementation()!;
+    offerRead.mockImplementation(async (id: string) => {
+      await gate;
+      return real(id);
+    });
+    wrap(runtime, <BuyScreen packageId="p-rumahan" />);
+    await waitFor(() => expect(screen.UNSAFE_getAllByType(FadeSwap)[0].props.swapKey).toBe("loading"));
+    expect(screen.getByRole("progressbar", { name: "Memuat paket" })).toBeTruthy();
+    const timing = jest.spyOn(Reanimated, "withTiming");
+    await act(async () => release());
+    expect(await screen.findByText("Dengan membayar, Anda setuju dengan Ketentuan Catera.")).toBeTruthy();
+    expect(screen.UNSAFE_getAllByType(FadeSwap)[0].props.swapKey).toBe("ready");
+    expect(timing.mock.calls.filter(([to, c]) => to === 1 && c?.duration === nativeMotion.content)).not.toHaveLength(0);
   });
 });

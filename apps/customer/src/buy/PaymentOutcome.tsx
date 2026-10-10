@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { router } from "expo-router";
 import { currency, paymentPresentation, type Checkout, type Locale, type PaidSummary } from "@catera/domain";
-import { Button, Text, useColors } from "@catera/mobile-ui";
+import { Button, MascotLoading, Text, useColors } from "@catera/mobile-ui";
 import { PaidOutcome } from "./PaidOutcome";
 
 export type Stage = "pay" | "checking" | "paid" | "expired" | "failed" | "review" | "refunded";
@@ -63,6 +63,9 @@ export function payAgainHref(p: PayAgain): string {
 /**
  * Every Bayar state other than paying now, as the screen body: one sentence and the one next step. A paid checkout
  * with its booking is the paid beat (`PaidOutcome`); the screen owns the header and the footer around it.
+ * While the payment is checked the mascot waits at the top with "Memeriksa pembayaran…" (it is the stage's title, so
+ * the words are not repeated under it), and the instructions stay under it: do not pay again, what is being paid, Cek
+ * status and the help link.
  */
 export function PaymentOutcome({
   checkout: c,
@@ -122,7 +125,11 @@ export function PaymentOutcome({
   });
   return (
     <>
-      <Text variant="title">{title}</Text>
+      {stage === "checking" ? (
+        <MascotLoading label={t("Memeriksa pembayaran…", "Checking payment…")} />
+      ) : (
+        <Text variant="title">{title}</Text>
+      )}
       {body ? <Text>{body}</Text> : null}
       <Text variant="caption" style={{ fontVariant: ["tabular-nums"] }}>
         {c.quote.offer.name} · {currency(c.quote.total, locale)}

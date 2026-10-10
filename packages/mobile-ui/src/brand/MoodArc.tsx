@@ -7,10 +7,15 @@ import { nativeMotion, type Mood } from "@catera/design-tokens";
 import { useMood, useMoodColors } from "../mood";
 import { PressableScale } from "../motion";
 import { fontFor } from "../type";
+import { Skeleton, SkeletonGroup } from "../Skeleton";
 import { useMoodProgress } from "./useMoodProgress";
 
-/** One end of the arc: its visible title ("Siang"), the line under it, and the meal name a screen reader says first. */
-export type MoodArcEnd = { title: string; detail: string; label?: string };
+/**
+ * One end of the arc: its visible title ("Siang"), the line under it, and the meal name a screen reader says first.
+ * A `detail` of null is a line still being read: its place holds a pulsing skeleton line of the same height, and the
+ * tab says only its name.
+ */
+export type MoodArcEnd = { title: string; detail: string | null; label?: string };
 export type MoodArcProps = { siang: MoodArcEnd; malam: MoodArcEnd };
 
 // Each end is a column this wide: the marker on top, the title and detail wrapping under it.
@@ -113,7 +118,7 @@ export function MoodArc({ siang, malam }: MoodArcProps) {
               key={value}
               testID={`mood-arc-tab-${value}`}
               accessibilityRole="tab"
-              accessibilityLabel={`${end.label ?? end.title}, ${end.detail}`}
+              accessibilityLabel={end.detail === null ? (end.label ?? end.title) : `${end.label ?? end.title}, ${end.detail}`}
               accessibilityState={{ selected: active }}
               // The end that is already chosen has nothing to confirm: no haptic and no press feedback.
               haptic={active ? "none" : "select"}
@@ -160,20 +165,30 @@ export function MoodArc({ siang, malam }: MoodArcProps) {
               >
                 {end.title}
               </RNText>
-              <RNText
-                testID={`mood-arc-detail-${value}`}
-                style={{
-                  maxWidth: COLUMN,
-                  textAlign: "center",
-                  fontFamily: fontFor("500"),
-                  fontSize: 12,
-                  lineHeight: DETAIL_LINE,
-                  fontVariant: ["tabular-nums"],
-                  color: palette.headerMeta,
-                }}
-              >
-                {end.detail}
-              </RNText>
+              {end.detail === null ? (
+                // The line's own height, so the arc is as tall while it waits as once it is read. The screen's data
+                // area names the wait; this line only breathes with it.
+                <SkeletonGroup>
+                  <View testID={`mood-arc-detail-${value}`} style={{ height: DETAIL_LINE, justifyContent: "center" }}>
+                    <Skeleton onMood width={40} height={10} radius={5} />
+                  </View>
+                </SkeletonGroup>
+              ) : (
+                <RNText
+                  testID={`mood-arc-detail-${value}`}
+                  style={{
+                    maxWidth: COLUMN,
+                    textAlign: "center",
+                    fontFamily: fontFor("500"),
+                    fontSize: 12,
+                    lineHeight: DETAIL_LINE,
+                    fontVariant: ["tabular-nums"],
+                    color: palette.headerMeta,
+                  }}
+                >
+                  {end.detail}
+                </RNText>
+              )}
             </PressableScale>
           );
         })}

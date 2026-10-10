@@ -17,6 +17,7 @@ import {
   Screen,
   Sheet,
   Skeleton,
+  SkeletonGroup,
   Text,
   themedStyles,
   useColors,
@@ -189,8 +190,12 @@ function Browse({ area, onArea }: { area: string | null; onArea: (value: string)
             >
               <Ionicons name="location-outline" size={18} color={palette.headerMeta} />
               {area === null ? (
-                // The kept area is still being read (a moment): its place holds still rather than saying "Pilih area".
-                <Skeleton testID="jelajah-area-skeleton" onMood width={96} height={16} />
+                // The kept area is still being read (a moment): its place waits rather than saying "Pilih area". It is
+                // part of the list's wait, so it breathes with the list's skeleton (mounted in the same commit), and
+                // that group names the wait for screen readers.
+                <SkeletonGroup>
+                  <Skeleton testID="jelajah-area-skeleton" onMood width={96} height={16} />
+                </SkeletonGroup>
               ) : (
                 <Text variant="label" style={{ flexShrink: 1, fontSize: 15, color: palette.headerMeta }} numberOfLines={1}>
                   {area || t("Pilih area", "Choose area")}

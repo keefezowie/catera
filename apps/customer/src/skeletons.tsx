@@ -1,7 +1,8 @@
+import type { ReactNode } from "react";
 import { View } from "react-native";
 import type { Locale } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { Skeleton, SkeletonGroup, useColors } from "@catera/mobile-ui";
+import { MoodFill, Skeleton, SkeletonGroup, useColors } from "@catera/mobile-ui";
 import { MonthFrame } from "./schedule/MonthGrid";
 import { HERO_OVERLAP } from "./today/Plate";
 
@@ -13,24 +14,40 @@ import { HERO_OVERLAP } from "./today/Plate";
  * bar) is never part of a skeleton: it renders at once.
  */
 
+const HERO_RADIUS = 28;
+
+/**
+ * A raised hero card while it loads, in the loaded hero's own frame: 10 padding, the 28 radius, the mood's hero fill
+ * with its shadow (Siang, with Malam fading over it). The blocks inside read the hero's track (`onHero`), so they show
+ * on that fill in both themes and both moods.
+ */
+function HeroFrame({ testID, children }: { testID: string; children: ReactNode }) {
+  return (
+    <View testID={testID} style={{ padding: 10, borderRadius: HERO_RADIUS, borderCurve: "continuous" }}>
+      <MoodFill surface="hero" testID={`${testID}-fill`} radius={HERO_RADIUS} heroShadow />
+      {children}
+    </View>
+  );
+}
+
 /**
  * Beranda's data area: the hero card (photo, dish line, caption), the other meal's row and two Berikutnya rows. Like the
  * loaded hero it rides up over the mood header by `HERO_OVERLAP` (the header leaves its 58 for it), so the skeleton
- * hero sits exactly where the loaded one lands and the swap does not jump. The photo block reads the mood's toggle
- * track: it sits on the header's fill in Siang and Malam alike, where the theme fill would flash in Malam.
+ * hero sits exactly where the loaded one lands and the swap does not jump. The hero is the loaded hero's card, fill and
+ * shadow included, so only its contents change when the page arrives.
  */
 export function BerandaSkeleton() {
   const { t } = useMobile();
   return (
     <SkeletonGroup label={t("Memuat beranda", "Loading home")}>
       <View testID="beranda-skeleton" style={{ gap: 16, marginTop: HERO_OVERLAP }}>
-        <View style={{ padding: 10, gap: 12 }}>
-          <Skeleton onMood height={168} radius={20} />
-          <View style={{ gap: 8, paddingHorizontal: 8, paddingBottom: 8 }}>
-            <Skeleton width="72%" height={22} />
-            <Skeleton width="48%" height={14} />
+        <HeroFrame testID="beranda-skeleton-hero">
+          <Skeleton onHero height={168} radius={20} />
+          <View style={{ gap: 8, paddingHorizontal: 8, paddingTop: 12, paddingBottom: 8 }}>
+            <Skeleton onHero width="72%" height={22} />
+            <Skeleton onHero width="48%" height={14} />
           </View>
-        </View>
+        </HeroFrame>
         <SkeletonRow />
         <View style={{ gap: 10 }}>
           <SkeletonRow />
@@ -166,21 +183,29 @@ export function SavedSkeleton() {
 }
 
 /**
- * A plan's detail (Paket): the hero (10 frame, the 168 photo, the plan's name and its kitchen) and five rows of what is
- * left and what comes next. The blocks read the theme fill: the page sits on the canvas, under the native header.
+ * A plan's detail (Paket): the kitchen's line above the hero (its body line, pulled up 8 like the loaded one), the hero
+ * card (the loaded hero's frame and fill, the 168 photo, the headline's 39 line and the dates' 23 line) and five rows of
+ * what comes next. The kitchen line and the rows sit on the canvas and read the theme; the hero's blocks read its track.
  */
 export function PlanSkeleton() {
   const { t } = useMobile();
   return (
     <SkeletonGroup label={t("Memuat paket", "Loading plan")}>
       <View testID="plan-skeleton" style={{ gap: 16 }}>
-        <View style={{ padding: 10, gap: 12 }}>
-          <Skeleton height={168} radius={20} />
-          <View style={{ gap: 8, paddingHorizontal: 8, paddingBottom: 8 }}>
-            <Skeleton width="70%" height={30} />
-            <Skeleton width="44%" height={16} />
-          </View>
+        <View testID="plan-skeleton-caterer" style={{ height: 23, marginTop: -8, justifyContent: "center" }}>
+          <Skeleton width="40%" height={14} />
         </View>
+        <HeroFrame testID="plan-skeleton-hero">
+          <Skeleton onHero height={168} radius={20} />
+          <View style={{ gap: 2, paddingHorizontal: 8, paddingTop: 12, paddingBottom: 8 }}>
+            <View style={{ height: 39, justifyContent: "center" }}>
+              <Skeleton onHero width="70%" height={28} />
+            </View>
+            <View style={{ height: 23, justifyContent: "center" }}>
+              <Skeleton onHero width="44%" height={14} />
+            </View>
+          </View>
+        </HeroFrame>
         <Rows count={5} />
       </View>
     </SkeletonGroup>

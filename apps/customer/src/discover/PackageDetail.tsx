@@ -25,6 +25,7 @@ import { nativeThemes } from "@catera/design-tokens";
 import { useData, useMobile } from "@catera/mobile-core";
 import {
   Button,
+  FadeSwap,
   linkTitle,
   nativeHeaderOptions,
   RoundButton,
@@ -154,20 +155,23 @@ export function PackageDetail() {
       // while it loads when the link carried one. A failed read or a missing package names it "Paket": the carried
       // name was never checked against a record.
       <Screen nativeTitle={loading ? (linkTitle(params) ?? t("Paket", "Package")) : t("Paket", "Package")}>
-        {loading ? (
-          <PackageSkeleton />
-        ) : (
-          <View style={{ gap: 10 }}>
-            <Text variant="heading" selectable={!!loaded.error} style={{ color: loaded.error ? c.danger : c.forest }}>
-              {loaded.error || t("Paket tidak ditemukan.", "Package not found.")}
-            </Text>
-            {loaded.error ? (
-              <Button variant="secondary" label={t("Coba lagi", "Try again")} onPress={() => void loaded.reload()} />
-            ) : (
-              <Button label={t("Jelajah paket", "Browse packages")} onPress={() => goToTab("jelajah")} />
-            )}
-          </View>
-        )}
+        {/* The same FadeSwap as the loaded page below, so the package fades in from its skeleton as one block. */}
+        <FadeSwap swapKey={loading ? "loading" : "missing"} style={{ gap: 16 }}>
+          {loading ? (
+            <PackageSkeleton />
+          ) : (
+            <View style={{ gap: 10 }}>
+              <Text variant="heading" selectable={!!loaded.error} style={{ color: loaded.error ? c.danger : c.forest }}>
+                {loaded.error || t("Paket tidak ditemukan.", "Package not found.")}
+              </Text>
+              {loaded.error ? (
+                <Button variant="secondary" label={t("Coba lagi", "Try again")} onPress={() => void loaded.reload()} />
+              ) : (
+                <Button label={t("Jelajah paket", "Browse packages")} onPress={() => goToTab("jelajah")} />
+              )}
+            </View>
+          )}
+        </FadeSwap>
       </Screen>
     );
   }
@@ -216,117 +220,122 @@ export function PackageDetail() {
         </View>
       }
     >
-      {/* The photo now runs under the status bar too, so it grows by that inset and keeps its visible height. */}
-      <View style={[styles.hero, { height: heroHeight }]}>
-        {o.image ? (
-          <Image
-            accessibilityIgnoresInvertColors
-            source={{ uri: photoUri(o.image, runtime.apiBase) }}
-            style={StyleSheet.absoluteFill}
-            resizeMode="cover"
+      {/* One block that fades in from the skeleton (the loading page's FadeSwap). It starts at the body's own top and
+          carries the body's 16 as padding, so the photo's -16 pull and the name block's measured offset are what they
+          are in the body, and no part of the photo sits outside its parent (where a touch would not reach). */}
+      <FadeSwap swapKey="ready" style={{ gap: 16, marginTop: -16, paddingTop: 16 }}>
+        {/* The photo now runs under the status bar too, so it grows by that inset and keeps its visible height. */}
+        <View style={[styles.hero, { height: heroHeight }]}>
+          {o.image ? (
+            <Image
+              accessibilityIgnoresInvertColors
+              source={{ uri: photoUri(o.image, runtime.apiBase) }}
+              style={StyleSheet.absoluteFill}
+              resizeMode="cover"
+            />
+          ) : null}
+          {/* Under the transparent bar: the status bar and the back read on the photo whatever it shows. */}
+          <Animated.View
+            testID="paket-photo-scrim"
+            pointerEvents="none"
+            style={[styles.scrim, { transform: [{ translateY: scrimShift }] }]}
           />
-        ) : null}
-        {/* Under the transparent bar: the status bar and the back read on the photo whatever it shows. */}
-        <Animated.View
-          testID="paket-photo-scrim"
-          pointerEvents="none"
-          style={[styles.scrim, { transform: [{ translateY: scrimShift }] }]}
-        />
-        {/* Light glyphs on the scrim; with the demo strip above, the strip's own fill keeps the theme's glyphs, and
-            once the photo has scrolled away the canvas bar takes the theme's glyphs back. */}
-        {demo || pastPhoto ? null : <ScreenStatusBar style="light" />}
-        <RoundButton
-          icon={isSaved ? "heart" : "heart-outline"}
-          label={isSaved ? t(`Hapus ${o.name} dari simpanan`, `Remove ${o.name} from saved`) : t(`Simpan ${o.name}`, `Save ${o.name}`)}
-          selected={isSaved}
-          onPress={() => void saved.toggle(o.id)}
-          style={styles.heart}
-        />
-      </View>
+          {/* Light glyphs on the scrim; with the demo strip above, the strip's own fill keeps the theme's glyphs, and
+              once the photo has scrolled away the canvas bar takes the theme's glyphs back. */}
+          {demo || pastPhoto ? null : <ScreenStatusBar style="light" />}
+          <RoundButton
+            icon={isSaved ? "heart" : "heart-outline"}
+            label={isSaved ? t(`Hapus ${o.name} dari simpanan`, `Remove ${o.name} from saved`) : t(`Simpan ${o.name}`, `Save ${o.name}`)}
+            selected={isSaved}
+            onPress={() => void saved.toggle(o.id)}
+            style={styles.heart}
+          />
+        </View>
 
-      {/* The name block starts at the page's top in content terms (the photo and this block share one parent), so its
-          frame plus the name line's foot is where the bar takes the name. */}
-      <View
-        style={{ gap: 6 }}
-        onLayout={(e) => {
-          nameBlockY.current = e.nativeEvent.layout.y;
-          nameEnd.current = nameBlockY.current + nameLineEnd.current;
-        }}
-      >
+        {/* The name block starts at the page's top in content terms (the photo and this block share one parent), so its
+            frame plus the name line's foot is where the bar takes the name. */}
         <View
-          testID="paket-name"
+          style={{ gap: 6 }}
           onLayout={(e) => {
-            nameLineEnd.current = e.nativeEvent.layout.y + e.nativeEvent.layout.height;
+            nameBlockY.current = e.nativeEvent.layout.y;
             nameEnd.current = nameBlockY.current + nameLineEnd.current;
           }}
         >
-          <Text variant="title" style={{ fontSize: 26, lineHeight: 32 }}>
-            {o.name}
-          </Text>
-        </View>
-        <Text variant="caption" style={{ fontSize: 13, lineHeight: 18 }}>
-          {`${[o.caterer, o.areas[0]].filter(Boolean).join(", ")}. ${ratingText(o, locale, t)}`}
-        </Text>
-        {gizi ? (
-          <Text variant="label" style={{ fontSize: 14, lineHeight: 20, fontVariant: ["tabular-nums"] }}>
-            {gizi}
-          </Text>
-        ) : null}
-        {saved.error ? (
-          <Text selectable style={{ color: c.danger }}>
-            {saved.error}
-          </Text>
-        ) : null}
-      </View>
-      {o.description ? <Text>{o.description}</Text> : null}
-
-      <View style={{ gap: 10 }}>
-        <Text variant="heading">{t("Isi paket", "What is included")}</Text>
-        {o.menus.map((m) => (
-          <View key={m.meal} style={styles.meal}>
-            <Text variant="label">
-              {mealLabel(m.meal, locale)} · {menuSourceLabel(m, locale)}
+          <View
+            testID="paket-name"
+            onLayout={(e) => {
+              nameLineEnd.current = e.nativeEvent.layout.y + e.nativeEvent.layout.height;
+              nameEnd.current = nameBlockY.current + nameLineEnd.current;
+            }}
+          >
+            <Text variant="title" style={{ fontSize: 26, lineHeight: 32 }}>
+              {o.name}
             </Text>
-            {m.composition?.length ? <Text>{compositionPreview(m, o.packageType, locale)}</Text> : null}
-            {menuSummary(m, locale) !== menuSourceLabel(m, locale) ? (
-              <Text variant="caption" style={{ fontSize: 13, lineHeight: 18 }}>
-                {menuSummary(m, locale)}
-              </Text>
-            ) : null}
           </View>
-        ))}
-      </View>
+          <Text variant="caption" style={{ fontSize: 13, lineHeight: 18 }}>
+            {`${[o.caterer, o.areas[0]].filter(Boolean).join(", ")}. ${ratingText(o, locale, t)}`}
+          </Text>
+          {gizi ? (
+            <Text variant="label" style={{ fontSize: 14, lineHeight: 20, fontVariant: ["tabular-nums"] }}>
+              {gizi}
+            </Text>
+          ) : null}
+          {saved.error ? (
+            <Text selectable style={{ color: c.danger }}>
+              {saved.error}
+            </Text>
+          ) : null}
+        </View>
+        {o.description ? <Text>{o.description}</Text> : null}
 
-      <NutritionCard offer={o} />
-
-      <View style={styles.facts}>
-        <Fact label={t("Diantar", "Delivered")} value={`${dayRange(o.weekdays, locale)}, ${windows}`} />
-        <Fact
-          label={t("Ubah hari", "Change a day")}
-          value={t(
-            `Sampai ${o.cutoff.slice(0, 5).replace(":", ".")}, sehari sebelumnya`,
-            `Until ${o.cutoff.slice(0, 5)} the day before`,
-          )}
-        />
-        <Fact label={t("Ongkir", "Delivery fee")} value={t("Pengantaran termasuk", "Delivery included")} />
-        {earliest ? (
-          <Fact label={t("Mulai paling cepat", "Earliest start")} value={shortDate(earliest, locale)} />
-        ) : null}
-      </View>
-
-      {shown.length ? (
         <View style={{ gap: 10 }}>
-          <Text variant="heading">{t("Ulasan", "Reviews")}</Text>
-          {shown.map((r) => (
-            <View key={r.id} style={styles.meal}>
+          <Text variant="heading">{t("Isi paket", "What is included")}</Text>
+          {o.menus.map((m) => (
+            <View key={m.meal} style={styles.meal}>
               <Text variant="label">
-                {r.customer} · {r.rating}/5
+                {mealLabel(m.meal, locale)} · {menuSourceLabel(m, locale)}
               </Text>
-              {r.body ? <Text>{r.body}</Text> : null}
+              {m.composition?.length ? <Text>{compositionPreview(m, o.packageType, locale)}</Text> : null}
+              {menuSummary(m, locale) !== menuSourceLabel(m, locale) ? (
+                <Text variant="caption" style={{ fontSize: 13, lineHeight: 18 }}>
+                  {menuSummary(m, locale)}
+                </Text>
+              ) : null}
             </View>
           ))}
         </View>
-      ) : null}
+
+        <NutritionCard offer={o} />
+
+        <View style={styles.facts}>
+          <Fact label={t("Diantar", "Delivered")} value={`${dayRange(o.weekdays, locale)}, ${windows}`} />
+          <Fact
+            label={t("Ubah hari", "Change a day")}
+            value={t(
+              `Sampai ${o.cutoff.slice(0, 5).replace(":", ".")}, sehari sebelumnya`,
+              `Until ${o.cutoff.slice(0, 5)} the day before`,
+            )}
+          />
+          <Fact label={t("Ongkir", "Delivery fee")} value={t("Pengantaran termasuk", "Delivery included")} />
+          {earliest ? (
+            <Fact label={t("Mulai paling cepat", "Earliest start")} value={shortDate(earliest, locale)} />
+          ) : null}
+        </View>
+
+        {shown.length ? (
+          <View style={{ gap: 10 }}>
+            <Text variant="heading">{t("Ulasan", "Reviews")}</Text>
+            {shown.map((r) => (
+              <View key={r.id} style={styles.meal}>
+                <Text variant="label">
+                  {r.customer} · {r.rating}/5
+                </Text>
+                {r.body ? <Text>{r.body}</Text> : null}
+              </View>
+            ))}
+          </View>
+        ) : null}
+      </FadeSwap>
     </Screen>
   );
 }

@@ -18,7 +18,7 @@ import {
   type RenewalContext,
 } from "@catera/domain";
 import { plural, useData, useMobile } from "@catera/mobile-core";
-import { Button, fontFor, Screen, Stepper, Text, themedStyles, useColors } from "@catera/mobile-ui";
+import { Button, FadeSwap, fontFor, Screen, Stepper, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { Breakdown, LengthOptions, percent, StartLine } from "./Breakdown";
 import { ChoiceSheet, NoLongerSold, PayWith, PendingPayment, Retry, Terms } from "./BuyParts";
 import { useQuote, type BuyPayload } from "./useQuote";
@@ -185,13 +185,19 @@ export function BuyScreen({
   if (!ready || !actor || !offer)
     return (
       <Screen nativeTitle={renew ? t("Perpanjang", "Renew") : t("Beli", "Buy")}>
-        {loadError ? (
-          <Retry message={loadError} onRetry={reloadAll} t={t} />
-        ) : loaded.data && !loaded.data.offer ? (
-          <Text variant="heading">{t("Paket tidak ditemukan.", "Package not found.")}</Text>
-        ) : (
-          <BuySkeleton />
-        )}
+        {/* The same FadeSwap as the loaded page below, so the choices fade in from their skeleton as one block. */}
+        <FadeSwap
+          swapKey={loadError ? "error" : loaded.data && !loaded.data.offer ? "missing" : "loading"}
+          style={{ gap: 16 }}
+        >
+          {loadError ? (
+            <Retry message={loadError} onRetry={reloadAll} t={t} />
+          ) : loaded.data && !loaded.data.offer ? (
+            <Text variant="heading">{t("Paket tidak ditemukan.", "Package not found.")}</Text>
+          ) : (
+            <BuySkeleton />
+          )}
+        </FadeSwap>
       </Screen>
     );
 
@@ -227,111 +233,113 @@ export function BuyScreen({
 
   return (
     <Screen footer={footer} nativeTitle={renew ? t(`Perpanjang ${offer.name}`, `Renew ${offer.name}`) : offer.name}>
-      {loadError ? <Retry message={loadError} onRetry={reloadAll} t={t} /> : null}
-      {pendingCheckout ? <PendingPayment checkoutId={pendingCheckout} t={t} /> : null}
+      <FadeSwap swapKey="ready" style={{ gap: 16 }}>
+        {loadError ? <Retry message={loadError} onRetry={reloadAll} t={t} /> : null}
+        {pendingCheckout ? <PendingPayment checkoutId={pendingCheckout} t={t} /> : null}
 
-      <StartLine
-        startDate={startDate}
-        renew={renew}
-        quote={shown}
-        dimmed={quote.pending}
-        weekdays={offer.weekdays}
-        onChange={choices.length > 1 ? () => setSheet("start") : undefined}
-        locale={locale}
-        t={t}
-      />
+        <StartLine
+          startDate={startDate}
+          renew={renew}
+          quote={shown}
+          dimmed={quote.pending}
+          weekdays={offer.weekdays}
+          onChange={choices.length > 1 ? () => setSheet("start") : undefined}
+          locale={locale}
+          t={t}
+        />
 
-      <View style={{ gap: 8 }}>
-        <Text variant="label">{t("Lama paket", "Length")}</Text>
-        {trial ? (
-          <Text>{t("1 hari, coba dulu", "1 day, as a trial")}</Text>
-        ) : lengths.length === 1 ? (
-          <Text>{t(`${offer.days * lengths[0].cycles} hari`, plural(offer.days * lengths[0].cycles, "day"))}</Text>
-        ) : (
-          <LengthOptions
-            value={cycles}
-            onChange={setCycles}
-            options={lengths.map((d) => ({
-              cycles: d.cycles,
-              label:
-                t(`${offer.days * d.cycles} hari`, plural(offer.days * d.cycles, "day")) +
-                (d.discountPercent ? t(` · Hemat ${percent(d.discountPercent, locale)}`, ` · Save ${percent(d.discountPercent, locale)}`) : ""),
-            }))}
-          />
-        )}
-      </View>
-
-      <View style={styles.box}>
-        <Stepper label={t("Porsi per hari", "Portions per day")} decreaseLabel={t("Kurangi Porsi per hari", "Decrease Portions per day")} increaseLabel={t("Tambah Porsi per hari", "Increase Portions per day")} value={qty} onChange={setPortions} min={1} max={maxQty} />
-        <View style={styles.address}>
-          <Text variant="caption" style={{ flex: 1 }} numberOfLines={2}>
-            {address
-              ? t(`Diantar ke ${address.label} · ${address.line}`, `Delivered to ${address.label} · ${address.line}`)
-              : t("Belum ada alamat pengantaran.", "No delivery address yet.")}
-          </Text>
-          <Button
-            variant="text"
-            label={address ? t("Ganti", "Change") : t("Tambah alamat", "Add address")}
-            accessibilityLabel={address ? t("Ganti alamat", "Change address") : undefined}
-            onPress={() => (address ? setSheet("address") : router.push(FLOW_HREF.alamat as never))}
-          />
+        <View style={{ gap: 8 }}>
+          <Text variant="label">{t("Lama paket", "Length")}</Text>
+          {trial ? (
+            <Text>{t("1 hari, coba dulu", "1 day, as a trial")}</Text>
+          ) : lengths.length === 1 ? (
+            <Text>{t(`${offer.days * lengths[0].cycles} hari`, plural(offer.days * lengths[0].cycles, "day"))}</Text>
+          ) : (
+            <LengthOptions
+              value={cycles}
+              onChange={setCycles}
+              options={lengths.map((d) => ({
+                cycles: d.cycles,
+                label:
+                  t(`${offer.days * d.cycles} hari`, plural(offer.days * d.cycles, "day")) +
+                  (d.discountPercent ? t(` · Hemat ${percent(d.discountPercent, locale)}`, ` · Save ${percent(d.discountPercent, locale)}`) : ""),
+              }))}
+            />
+          )}
         </View>
-      </View>
-      {blocked ? (
-        <Text selectable style={{ color: c.danger }}>
-          {blocked}
-        </Text>
-      ) : null}
 
-      {shown ? <Breakdown quote={shown} dimmed={quote.pending} locale={locale} t={t} /> : null}
-      {!shown && quote.pending ? <BreakdownSkeleton /> : null}
-      {quote.error ? (
-        running ? (
-          <View style={{ gap: 8 }}>
-            <Text>
-              {t(`Paket ini masih berjalan sampai ${shortDate(running.endsOn, locale)}.`, `This package is still running until ${shortDate(running.endsOn, locale)}.`)}
+        <View style={styles.box}>
+          <Stepper label={t("Porsi per hari", "Portions per day")} decreaseLabel={t("Kurangi Porsi per hari", "Decrease Portions per day")} increaseLabel={t("Tambah Porsi per hari", "Increase Portions per day")} value={qty} onChange={setPortions} min={1} max={maxQty} />
+          <View style={styles.address}>
+            <Text variant="caption" style={{ flex: 1 }} numberOfLines={2}>
+              {address
+                ? t(`Diantar ke ${address.label} · ${address.line}`, `Delivered to ${address.label} · ${address.line}`)
+                : t("Belum ada alamat pengantaran.", "No delivery address yet.")}
             </Text>
             <Button
-              variant="primary"
-              label={t(`Mulai ${shortDate(running.start, locale)}`, `Start ${shortDate(running.start, locale)}`)}
-              onPress={() => setStart(running.start)}
+              variant="text"
+              label={address ? t("Ganti", "Change") : t("Tambah alamat", "Add address")}
+              accessibilityLabel={address ? t("Ganti alamat", "Change address") : undefined}
+              onPress={() => (address ? setSheet("address") : router.push(FLOW_HREF.alamat as never))}
             />
           </View>
-        ) : (
-          <Retry message={quote.error} label={t("Hitung ulang", "Recalculate")} onRetry={quote.retry} t={t} />
-        )
-      ) : null}
+        </View>
+        {blocked ? (
+          <Text selectable style={{ color: c.danger }}>
+            {blocked}
+          </Text>
+        ) : null}
 
-      <PayWith availability={pay} chosen={chosenMethod} onChoose={setMethod} t={t} />
-      <Terms apiBase={runtime.apiBase} t={t} />
+        {shown ? <Breakdown quote={shown} dimmed={quote.pending} locale={locale} t={t} /> : null}
+        {!shown && quote.pending ? <BreakdownSkeleton /> : null}
+        {quote.error ? (
+          running ? (
+            <View style={{ gap: 8 }}>
+              <Text>
+                {t(`Paket ini masih berjalan sampai ${shortDate(running.endsOn, locale)}.`, `This package is still running until ${shortDate(running.endsOn, locale)}.`)}
+              </Text>
+              <Button
+                variant="primary"
+                label={t(`Mulai ${shortDate(running.start, locale)}`, `Start ${shortDate(running.start, locale)}`)}
+                onPress={() => setStart(running.start)}
+              />
+            </View>
+          ) : (
+            <Retry message={quote.error} label={t("Hitung ulang", "Recalculate")} onRetry={quote.retry} t={t} />
+          )
+        ) : null}
 
-      <ChoiceSheet
-        visible={sheet === "address"}
-        title={t("Alamat pengantaran", "Delivery address")}
-        items={addresses.map((a) => ({ id: a.id, label: a.label, detail: a.line }))}
-        selected={address?.id}
-        onPick={setAddressId}
-        onClose={() => setSheet("")}
-        closeLabel={t("Tutup", "Close")}
-      >
-        <Button
-          variant="secondary"
-          label={t("Kelola alamat", "Manage addresses")}
-          onPress={() => {
-            setSheet("");
-            router.push(FLOW_HREF.alamat as never);
-          }}
+        <PayWith availability={pay} chosen={chosenMethod} onChoose={setMethod} t={t} />
+        <Terms apiBase={runtime.apiBase} t={t} />
+
+        <ChoiceSheet
+          visible={sheet === "address"}
+          title={t("Alamat pengantaran", "Delivery address")}
+          items={addresses.map((a) => ({ id: a.id, label: a.label, detail: a.line }))}
+          selected={address?.id}
+          onPick={setAddressId}
+          onClose={() => setSheet("")}
+          closeLabel={t("Tutup", "Close")}
+        >
+          <Button
+            variant="secondary"
+            label={t("Kelola alamat", "Manage addresses")}
+            onPress={() => {
+              setSheet("");
+              router.push(FLOW_HREF.alamat as never);
+            }}
+          />
+        </ChoiceSheet>
+        <ChoiceSheet
+          visible={sheet === "start"}
+          title={t("Mulai tanggal", "Start date")}
+          items={choices.map((d) => ({ id: d, label: shortDate(d, locale) }))}
+          selected={startDate}
+          onPick={setStart}
+          onClose={() => setSheet("")}
+          closeLabel={t("Tutup", "Close")}
         />
-      </ChoiceSheet>
-      <ChoiceSheet
-        visible={sheet === "start"}
-        title={t("Mulai tanggal", "Start date")}
-        items={choices.map((d) => ({ id: d, label: shortDate(d, locale) }))}
-        selected={startDate}
-        onPick={setStart}
-        onClose={() => setSheet("")}
-        closeLabel={t("Tutup", "Close")}
-      />
+      </FadeSwap>
     </Screen>
   );
 }
