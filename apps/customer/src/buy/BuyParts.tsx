@@ -3,6 +3,7 @@ import { Linking, Text as RNText, View } from "react-native";
 import { router } from "expo-router";
 import type { DirectPaymentMethod, Offer, PaymentAvailability } from "@catera/domain";
 import { Button, Card, FONT, fontFor, PressableScale, Sheet, Text, themedStyles, useColors } from "@catera/mobile-ui";
+import { packageHref } from "../hrefs";
 import { goToTab, leaveFor } from "../nav";
 
 type T = (id: string, en: string) => string;
@@ -47,7 +48,7 @@ export function NoLongerSold({ caterer, offers, t }: { caterer: string; offers: 
           key={o.id}
           variant="secondary"
           label={o.name}
-          onPress={() => leaveFor(`/paket/${encodeURIComponent(o.id)}`)}
+          onPress={() => leaveFor(packageHref(o.id, o.name))}
         />
       ))}
       <Button label={t("Lihat paket lain", "See other packages")} onPress={() => goToTab("jelajah")} />

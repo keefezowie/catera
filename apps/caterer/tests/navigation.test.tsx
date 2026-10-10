@@ -372,6 +372,17 @@ describe("links from the system", () => {
       expect(rewrite(path)).toBe(path);
   });
 
+  it("drops the title from every OS link and keeps the rest of it", () => {
+    // Anyone can craft an OS link, so only the app's own links may name a screen before its record loads.
+    expect(rewrite("catera-dapur://pelanggan/c-1?title=Nama%20Palsu")).toBe("catera-dapur://pelanggan/c-1");
+    expect(rewrite(`/laporan/${ISSUE}?title=Palsu&from=wa`)).toBe(`/laporan/${ISSUE}?from=wa`);
+    expect(rewrite("https://dapur.example.test/paket/p-1?title=Promo+Palsu#top")).toBe("https://dapur.example.test/paket/p-1#top");
+    expect(rewrite("/pelanggan/c-1?%74itle=Palsu")).toBe("/pelanggan/c-1");
+    // A tab root keeps its other params and loses the title.
+    expect(rewrite("/?date=2030-01-04&title=Palsu")).toBe("/(tabs)/(index)?date=2030-01-04");
+    expect(rewrite("/pelanggan/c-1?subtitle=y")).toBe("/pelanggan/c-1?subtitle=y");
+  });
+
   it("is what +native-intent hands the router, which applies it to a cold link", async () => {
     expect(require("../app/+native-intent").redirectSystemPath).toBe(redirectSystemPath);
     const nav = require("../src/nav");

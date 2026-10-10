@@ -369,8 +369,8 @@ describe("Menu besok story", () => {
     await open(bothState, BEFORE_CUTOFF);
     expect(screen.getByText("Bisa diubah sampai hari ini 17.00")).toBeTruthy();
     fireEvent.press(screen.getByRole("button", { name: "Ubah hari" }));
-    // The story closes and the day opens in the tabs.
-    expect(leaveFor).toHaveBeenCalledWith("/hari/d-both");
+    // The story closes and the day opens in the tabs, titled with the day ("Sabtu 10 Okt"), never "Hari".
+    expect(leaveFor).toHaveBeenCalledWith(`/hari/d-both?title=${encodeURIComponent(shortDate(TOMORROW, "id"))}`);
   });
 
   it("after the cutoff says the day is closed and offers no Ubah hari", async () => {

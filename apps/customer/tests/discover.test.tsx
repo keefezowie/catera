@@ -857,6 +857,30 @@ describe("Paket", () => {
     wrap(runtimeWith(), <PackageDetail />);
     expect(await screen.findByText("Paket tidak ditemukan.")).toBeTruthy();
   });
+
+  it("a link's title names the package only while it loads; gone or failed, it is Paket", async () => {
+    const nativeTitle = () => within(screen.getByTestId("screen-native-title")).getByRole("header").props.children;
+    mockParams = { id: "p-hilang", title: "Promo Palsu" };
+    // Loading: the carried name.
+    let view = wrap(runtimeWith(customer, { offer: jest.fn(() => new Promise(() => undefined)) }), <PackageDetail />);
+    await act(async () => {});
+    expect(nativeTitle()).toBe("Promo Palsu");
+    view.unmount();
+    // Gone: the carried name was never checked against a package.
+    view = wrap(runtimeWith(), <PackageDetail />);
+    await screen.findByText("Paket tidak ditemukan.");
+    expect(nativeTitle()).toBe("Paket");
+    expect(screen.queryByText("Promo Palsu")).toBeNull();
+    view.unmount();
+    // A failed read.
+    const failing = jest.fn(async () => {
+      throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
+    });
+    wrap(runtimeWith(customer, { offer: failing }), <PackageDetail />);
+    await screen.findByRole("button", { name: "Coba lagi" });
+    expect(nativeTitle()).toBe("Paket");
+    expect(screen.queryByText("Promo Palsu")).toBeNull();
+  });
 });
 
 describe("Disimpan", () => {
@@ -887,6 +911,15 @@ describe("Disimpan", () => {
     wrap(runtimeWith(null), <SavedList />);
     fireEvent.press(await screen.findByRole("button", { name: "Masuk" }));
     expect(router.push).toHaveBeenCalled();
+  });
+
+  it("while the session loads, the spinner sits in the scrolling Screen, below the iOS large title", async () => {
+    const view = wrap(runtimeWith(customer, { me: jest.fn(() => new Promise(() => undefined)) }), <SavedList />);
+    await act(async () => {});
+    const scroll = screen.getByTestId("screen-scroll");
+    expect(scroll.findByType(ActivityIndicator)).toBeTruthy();
+    expect(scroll.props.contentInsetAdjustmentBehavior).toBe("automatic");
+    view.unmount();
   });
 
   it("explains an empty list", async () => {

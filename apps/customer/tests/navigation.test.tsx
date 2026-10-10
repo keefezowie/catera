@@ -246,6 +246,23 @@ describe("each tab keeps its own stack", () => {
     expect(stack("(jadwal)")).toEqual(["jadwal"]);
     expectNoSecondRoot();
   });
+
+  it("a cold OS link loses the title it carried; a push tap's in-app href keeps it", () => {
+    /** The params of the top route in Beranda's stack. */
+    const top = () => tabsState()!.routes.find((r) => r.name === "(index)")!.state!.routes.at(-1)!;
+    // Anyone can craft an OS link, so its title never reaches the screen; its other params do.
+    let app = mount("/subscriptions/s1?title=Paket%20Palsu&from=wa");
+    expect(top().name).toBe("subscriptions/[id]");
+    expect(top().params).toMatchObject({ id: "s1", from: "wa" });
+    expect(top().params).not.toHaveProperty("title");
+    app.unmount();
+    // A push or notification tap opens an href the app maps itself (customerLink, then openLink), title and all.
+    app = mount("/");
+    act(() => openLink("/subscriptions/s2?title=Makan%20Siang%20Kantor"));
+    expect(top().name).toBe("subscriptions/[id]");
+    expect(top().params).toMatchObject({ id: "s2", title: "Makan Siang Kantor" });
+    app.unmount();
+  });
 });
 
 describe("links to tab roots select the tab", () => {
@@ -507,5 +524,16 @@ describe("paths", () => {
     expect(systemPath("/jadwal?d=1")).toBe("/(tabs)/(jadwal)/jadwal");
     for (const url of ["exp://127.0.0.1:8084", "exp://127.0.0.1:8084/--/subscriptions/s1", "catera://hari/d1", "/", "/?x=1", "/discover/x"])
       expect(systemPath(url)).toBe(url);
+  });
+
+  it("drops the title from every OS link and keeps the rest of it", () => {
+    expect(systemPath("catera://subscriptions/s1?title=Paket%20Palsu")).toBe("catera://subscriptions/s1");
+    expect(systemPath("exp://127.0.0.1:8084/--/hari/d1?title=Senin&x=1#top")).toBe("exp://127.0.0.1:8084/--/hari/d1?x=1#top");
+    expect(systemPath("https://catera.example/paket/p1?utm=wa&title=Promo+Palsu")).toBe("https://catera.example/paket/p1?utm=wa");
+    // An escaped key is still the title.
+    expect(systemPath("/paket/p1?%74itle=Palsu")).toBe("/paket/p1");
+    // A tab root drops every param anyway; a link with no title is untouched.
+    expect(systemPath("catera://jadwal?title=Palsu")).toBe("/(tabs)/(jadwal)/jadwal");
+    expect(systemPath("/hari/d1?titles=x&subtitle=y")).toBe("/hari/d1?titles=x&subtitle=y");
   });
 });

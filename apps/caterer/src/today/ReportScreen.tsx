@@ -54,11 +54,12 @@ export function ReportScreen({ id, title: carried }: { id: string; title?: strin
     runtime.api.request<DeliveryIssue[]>(`delivery-issues?${new URLSearchParams({ id: catererId, issue: id })}`),
   );
   // Until the report arrives the screen keeps the customer's name its link carried, or else is named by what it is;
-  // then by the customer who sent it.
-  const title = carried ?? t("Laporan masalah", "Problem report");
+  // then by the customer who sent it. A failed read or a missing report goes back to what it is: the carried name was
+  // never checked against a record.
+  const generic = t("Laporan masalah", "Problem report");
   if (!issues.data)
     return (
-      <Screen nativeTitle={title}>
+      <Screen nativeTitle={issues.error ? generic : (carried ?? generic)}>
         {issues.error ? (
           <>
             <Text selectable style={{ color: c.danger }}>{issues.error}</Text>
@@ -72,7 +73,7 @@ export function ReportScreen({ id, title: carried }: { id: string; title?: strin
   const issue = issues.data.find((i) => i.id === id);
   if (!issue)
     return (
-      <Screen nativeTitle={title}>
+      <Screen nativeTitle={generic}>
         <Text>{t("Laporan ini tidak ditemukan.", "This report was not found.")}</Text>
       </Screen>
     );

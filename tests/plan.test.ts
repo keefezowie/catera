@@ -214,10 +214,10 @@ describe("planDetail", () => {
       });
     });
 
-    it("trial to /paket/{package_id} for a trial", () => {
+    it("trial to /paket/{package_id} for a trial, carrying the package name as its title", () => {
       expect(planDetail(state([sub({ trial: true, remaining: 1 })]), "s1", NOW, "id")?.action).toEqual({
         kind: "trial",
-        href: "/paket/p1",
+        href: "/paket/p1?title=Makan%20Siang%20Rumahan",
       });
     });
 
@@ -231,7 +231,7 @@ describe("planDetail", () => {
       const other = sub({ id: "s6", package_id: "p9", starts_on: "2026-10-05" });
       expect(planDetail(state([trial, cancelled, earlier, other]), "s1", NOW, "id")?.action).toEqual({
         kind: "trial",
-        href: "/paket/p1",
+        href: "/paket/p1?title=Makan%20Siang%20Rumahan",
       });
     });
 

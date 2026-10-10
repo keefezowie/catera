@@ -20,6 +20,7 @@ import {
 import { photoUri } from "../today/Plate";
 import { loadCachedCustomer } from "../today/offline";
 import { useViewedParts } from "./viewed";
+import { dayHref } from "../hrefs";
 import { goToTab, leaveFor } from "../nav";
 
 // A story sits on a photo and on black whatever the theme, so its inks do not follow it (as in StoryCover and Plate).
@@ -166,6 +167,7 @@ export function TomorrowStoryScreen() {
       >
         <StoryPage
           part={part}
+          date={story.date}
           apiBase={runtime.apiBase}
           actionLabel={label}
           onAction={last ? leave : () => setAt(index + 1)}
@@ -189,16 +191,19 @@ export function TomorrowStoryScreen() {
  */
 function StoryPage({
   part,
+  date,
   apiBase,
   actionLabel,
   onAction,
 }: {
   part: StoryPart;
+  /** Tomorrow, "2026-10-10": Ubah hari opens that day titled with it. */
+  date: string;
   apiBase: string;
   actionLabel: string;
   onAction: () => void;
 }) {
-  const { t } = useMobile();
+  const { t, locale } = useMobile();
   const uri = photoUri(part.image, apiBase);
   const meal = part.meal === "dinner" ? t("Makan malam", "Dinner") : t("Makan siang", "Lunch");
   const title =
@@ -276,7 +281,7 @@ function StoryPage({
                 label={t("Ubah hari", "Change day")}
                 ink={ink.cream}
                 edge={ink.cream}
-                onPress={() => leaveFor(`/hari/${encodeURIComponent(part.deliveryId)}`)}
+                onPress={() => leaveFor(dayHref(part.deliveryId, date, locale))}
               />
             ) : null}
           </View>

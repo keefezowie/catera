@@ -12,9 +12,11 @@ import { goToTab } from "../nav";
 export function SavedList() {
   const { actor, ready, t } = useMobile();
   const c = useColors();
+  // The scrolling Screen, as when loaded: iOS insets its scroll view below the large title, so the spinner is never
+  // drawn under the bar.
   if (!ready)
     return (
-      <Screen scroll={false}>
+      <Screen>
         <ActivityIndicator color={c.forest} />
       </Screen>
     );

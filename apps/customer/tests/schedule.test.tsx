@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import { ActivityIndicator, Image, Linking, ScrollView, StyleSheet } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
@@ -832,6 +832,37 @@ describe("Hari", () => {
     expect(screen.queryByText("Hari")).toBeNull();
     fireEvent.press(screen.getByRole("button", { name: "Ubah hari" }));
     expect(await screen.findByText("Bisa diubah sampai hari ini 17.00")).toBeTruthy();
+  });
+
+  it("a day the read does not hold, or a failed read, is titled Hari, never the day its link carried", async () => {
+    const navigation = (setOptions: jest.Mock) => ({ setOptions, isFocused: () => true, addListener: () => () => undefined });
+    const show = (state: Parameters<typeof runtimeWith>[0], setOptions: jest.Mock) =>
+      renderWith(
+        runtimeWith(state),
+        <NavigationContext.Provider value={navigation(setOptions) as never}>
+          <DayScreen />
+        </NavigationContext.Provider>,
+      );
+    mockParams = { id: "d-palsu", title: "Senin 12 Okt" };
+    // Loading: the bar keeps the carried day from the layout, and the screen sets no title of its own.
+    let setOptions = jest.fn();
+    let view = show(() => new Promise(() => undefined), setOptions);
+    await act(async () => {});
+    expect(setOptions).not.toHaveBeenCalledWith(expect.objectContaining({ title: expect.anything() }));
+    view.unmount();
+    // Not found.
+    setOptions = jest.fn();
+    view = show(stateOf([open("d-next", "2026-10-08")]), setOptions);
+    expect(await screen.findByText("Pengantaran tidak ditemukan.")).toBeTruthy();
+    expect(setOptions).toHaveBeenLastCalledWith({ title: "Hari" });
+    view.unmount();
+    // A failed read.
+    setOptions = jest.fn();
+    show(async () => {
+      throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
+    }, setOptions);
+    expect(await screen.findByRole("button", { name: "Coba lagi" })).toBeTruthy();
+    expect(setOptions).toHaveBeenLastCalledWith({ title: "Hari" });
   });
 });
 

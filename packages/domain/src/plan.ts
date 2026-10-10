@@ -60,6 +60,15 @@ function isRenewed(sub: Subscription, subscriptions: readonly Subscription[]): b
   return subscriptions.some((s) => s.renewed_from === sub.id && s.status !== "cancelled");
 }
 
+/**
+ * /paket/{id}, carrying the package's name as `title` the way the customer app's `packageHref` does, so Paket opens
+ * named instead of "Paket" while it loads.
+ */
+function packageLink(id: string, name: string | undefined): string {
+  const path = `/paket/${encodeURIComponent(id)}`;
+  return name ? `${path}?title=${encodeURIComponent(name)}` : path;
+}
+
 function planAction(sub: Subscription, subscriptions: readonly Subscription[]): PlanAction {
   if (sub.snapshot?.trial) {
     // A trial invites the full package unless a later plan for it already exists (no duplicate purchase).
@@ -67,7 +76,7 @@ function planAction(sub: Subscription, subscriptions: readonly Subscription[]): 
     const taken = subscriptions.some(
       (s) => s.package_id === sub.package_id && s.status !== "cancelled" && s.starts_on > sub.starts_on,
     );
-    return taken ? { kind: "none" } : { kind: "trial", href: `/paket/${sub.package_id}` };
+    return taken ? { kind: "none" } : { kind: "trial", href: packageLink(sub.package_id, sub.snapshot.offer.name) };
   }
   if (isRenewed(sub, subscriptions)) return { kind: "renewed" };
   if (sub.status === "completed" || renewalDue(sub, subscriptions)) return { kind: "renew", href: `/renew/${sub.id}` };

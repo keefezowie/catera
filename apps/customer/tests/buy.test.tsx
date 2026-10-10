@@ -447,7 +447,7 @@ describe("Beli / Perpanjang", () => {
     expect(screen.queryByRole("button", { name: "Bayar" })).toBeNull();
     fireEvent.press(screen.getByRole("button", { name: "Makan Siang Hemat" }));
     // A renewal that cannot go ahead is left for the other package, or for the Jelajah tab.
-    expect(leaveFor).toHaveBeenCalledWith("/paket/p-lain");
+    expect(leaveFor).toHaveBeenCalledWith("/paket/p-lain?title=Makan%20Siang%20Hemat");
     fireEvent.press(screen.getByRole("button", { name: "Lihat paket lain" }));
     expect(goToTab).toHaveBeenCalledWith("jelajah");
   });

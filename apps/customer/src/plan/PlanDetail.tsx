@@ -15,6 +15,7 @@ import { useData, useMobile, useTrack, type MobileRuntime } from "@catera/mobile
 import {
   Button,
   HeaderIconButton,
+  linkTitle,
   MoodFill,
   Photo,
   PhotoRing,
@@ -54,13 +55,16 @@ const HERO_RADIUS = 28;
 /**
  * /subscriptions/{id}: one plan, what is left of it and what comes next. It sits under the native header, whose back
  * returns to the tab root behind it, even from a cold link. The plan's name is the screen's native title; a link that
- * knows the name carries it as `title`, so "Paket" never shows while the plan loads.
+ * knows the name carries it as `title`, so "Paket" never shows while the plan loads. A read that fails or comes back
+ * without the plan names the screen "Paket" again: the carried name was never checked against a record.
  */
 export function PlanDetailScreen() {
-  const { id, title } = useLocalSearchParams<{ id: string; title?: string }>();
+  const params = useLocalSearchParams<{ id: string; title?: string }>();
+  const { id } = params;
   const { actor, ready, t } = useMobile();
   const c = useColors();
-  const named = typeof title === "string" && title ? title : t("Paket", "Plan");
+  const carried = linkTitle(params);
+  const generic = t("Paket", "Plan");
   if (!ready)
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: c.canvas }}>
@@ -70,14 +74,14 @@ export function PlanDetailScreen() {
   const planId = String(id ?? "");
   if (!actor)
     return (
-      <SignInFirst title={named} next={`/subscriptions/${encodeURIComponent(planId)}`}>
+      <SignInFirst title={carried ?? generic} next={`/subscriptions/${encodeURIComponent(planId)}`}>
         <Button variant="text" label={t("Ke Beranda", "Go to Beranda")} onPress={() => goToTab("index")} />
       </SignInFirst>
     );
-  return <Plan key={`${actor.id}:${planId}`} id={planId} actorId={actor.id} named={named} />;
+  return <Plan key={`${actor.id}:${planId}`} id={planId} actorId={actor.id} carried={carried} generic={generic} />;
 }
 
-function Plan({ id, actorId, named }: { id: string; actorId: string; named: string }) {
+function Plan({ id, actorId, carried, generic }: { id: string; actorId: string; carried?: string; generic: string }) {
   const { runtime, t, locale } = useMobile();
   const c = useColors();
   const track = useTrack();
@@ -120,10 +124,11 @@ function Plan({ id, actorId, named }: { id: string; actorId: string; named: stri
     });
   }, [navigation, plan, phone, caterer, t]);
 
-  if (!plan)
+  if (!plan) {
+    const loading = !state && read.loading;
     return (
-      <Screen nativeTitle={named}>
-        {!state && read.loading ? (
+      <Screen nativeTitle={loading ? (carried ?? generic) : generic}>
+        {loading ? (
           <Text style={{ color: c.muted }}>{t("Memuat paket…", "Loading plan…")}</Text>
         ) : !state ? (
           <View style={{ gap: 8, alignItems: "flex-start" }}>
@@ -148,6 +153,7 @@ function Plan({ id, actorId, named }: { id: string; actorId: string; named: stri
         )}
       </Screen>
     );
+  }
 
   const offline = !!savedAt;
   const cancelled = plan.sub.status === "cancelled";

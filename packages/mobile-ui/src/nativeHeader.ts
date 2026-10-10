@@ -64,13 +64,54 @@ export function useStackScreenOptions(demo: boolean): NativeStackNavigationOptio
   );
 }
 
+/** The longest name a link may put in the bar, in characters, "…" included. */
+export const LINK_TITLE_MAX = 60;
+
 /**
  * The `title` a link carried (`?title=`), so a screen named by its record has its final header on the first frame.
  * A link without one (a cold link, a notification) gives `undefined`, and the screen falls back to its generic name.
+ * The name is the caller's word, not the record's, so it is capped at `LINK_TITLE_MAX` characters: a longer one is cut
+ * at the last space past the halfway mark (else mid-word) and ends in "…". Screens show it only while loading; on an
+ * error or a missing record they fall back to the generic name, and an OS link loses it (`withoutLinkTitle`).
  */
 export function linkTitle(params: object | undefined): string | undefined {
-  const title = (params as { title?: unknown } | undefined)?.title;
-  return typeof title === "string" && title ? title : undefined;
+  const raw = (params as { title?: unknown } | undefined)?.title;
+  if (typeof raw !== "string") return undefined;
+  const title = raw.trim().replace(/\s+/g, " ");
+  if (!title) return undefined;
+  // Counted in code points, so an emoji is never split in half.
+  const chars = Array.from(title);
+  if (chars.length <= LINK_TITLE_MAX) return title;
+  const kept = chars.slice(0, LINK_TITLE_MAX - 1).join("");
+  const space = kept.lastIndexOf(" ");
+  return `${(space >= LINK_TITLE_MAX / 2 ? kept.slice(0, space) : kept).trimEnd()}…`;
+}
+
+/** A query key as the router reads it: `+` is a space and percent escapes are decoded. */
+function queryKey(pair: string): string {
+  const key = pair.split("=")[0].replace(/\+/g, " ");
+  try {
+    return decodeURIComponent(key);
+  } catch {
+    return key;
+  }
+}
+
+/**
+ * An OS link (a deep link, a link opened from another app) without its `title` param. Only links the app builds itself
+ * may name a screen before its record loads; anyone can craft an OS link, so it opens with the generic name until the
+ * record says otherwise. Every other param, the path and the hash are kept as they were.
+ */
+export function withoutLinkTitle(link: string): string {
+  const hashAt = link.indexOf("#");
+  const head = hashAt === -1 ? link : link.slice(0, hashAt);
+  const hash = hashAt === -1 ? "" : link.slice(hashAt);
+  const queryAt = head.indexOf("?");
+  if (queryAt === -1) return link;
+  const pairs = head.slice(queryAt + 1).split("&");
+  const kept = pairs.filter((pair) => pair && queryKey(pair) !== "title");
+  if (kept.length === pairs.length) return link;
+  return `${head.slice(0, queryAt)}${kept.length ? `?${kept.join("&")}` : ""}${hash}`;
 }
 
 /**

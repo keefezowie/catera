@@ -3,7 +3,7 @@ import { ActivityIndicator, Image, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { mealLabel, reportableMeals, shortDate, statusLabel, type Delivery } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
+import { Button, Card, linkTitle, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
 import { ChatKatering, catererPhoneOf } from "../help/ChatKatering";
 import { photoUri } from "../today/Plate";
@@ -11,7 +11,8 @@ import { ChangeDaySheet } from "./ChangeDaySheet";
 
 /** One delivery day: what is coming, where, and the way into Ubah hari. */
 export function DayScreen() {
-  const { id, title } = useLocalSearchParams<{ id: string; title?: string }>();
+  const params = useLocalSearchParams<{ id: string; title?: string }>();
+  const { id } = params;
   const { actor, ready, t } = useMobile();
   const c = useColors();
   const styles = useStyles();
@@ -23,7 +24,7 @@ export function DayScreen() {
     );
   // Signed out, the screen keeps the day its link carried as its title ("Senin 12 Okt").
   if (!actor)
-    return <SignInFirst title={typeof title === "string" && title ? title : t("Hari", "Day")} next={`/hari/${id}`} />;
+    return <SignInFirst title={linkTitle(params) ?? t("Hari", "Day")} next={`/hari/${id}`} />;
   return <Day key={`${actor.id}:${id}`} id={id} />;
 }
 
@@ -39,9 +40,11 @@ function Day({ id }: { id: string }) {
   const [notice, setNotice] = useState("");
   const d = state.data?.deliveries.find((x) => x.id === id);
 
+  // While the day loads the bar keeps the day its link carried. A failed read or a day that is not there names the
+  // screen "Hari": the carried day was never checked against a record.
   if (!d)
     return (
-      <Screen>
+      <Screen title={state.loading ? undefined : t("Hari", "Day")}>
         {state.loading ? (
           <ActivityIndicator color={c.forest} />
         ) : (

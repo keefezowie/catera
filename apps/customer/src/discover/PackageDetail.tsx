@@ -26,6 +26,7 @@ import { nativeThemes } from "@catera/design-tokens";
 import { useData, useMobile } from "@catera/mobile-core";
 import {
   Button,
+  linkTitle,
   nativeHeaderOptions,
   RoundButton,
   Screen,
@@ -72,7 +73,8 @@ const SCRIM = 140;
 
 /** Paket: one package in full, with the way into Pilih jadwal (or a one-day trial). */
 export function PackageDetail() {
-  const { id, title } = useLocalSearchParams<{ id: string; title?: string }>();
+  const params = useLocalSearchParams<{ id: string; title?: string }>();
+  const { id } = params;
   const { runtime, t, locale, demo } = useMobile();
   const c = useColors();
   const styles = useStyles();
@@ -144,12 +146,14 @@ export function PackageDetail() {
     setStage(next);
   };
 
-  if (!o)
+  if (!o) {
+    const loading = loaded.loading && !loaded.data;
     return (
       // No photo to lead with yet, so the page opens under the plain native header, named after the link's package
-      // when it carried one.
-      <Screen nativeTitle={typeof title === "string" && title ? title : t("Paket", "Package")}>
-        {loaded.loading && !loaded.data ? (
+      // while it loads when the link carried one. A failed read or a missing package names it "Paket": the carried
+      // name was never checked against a record.
+      <Screen nativeTitle={loading ? (linkTitle(params) ?? t("Paket", "Package")) : t("Paket", "Package")}>
+        {loading ? (
           <ActivityIndicator color={c.forest} />
         ) : (
           <View style={{ gap: 10 }}>
@@ -165,6 +169,7 @@ export function PackageDetail() {
         )}
       </Screen>
     );
+  }
 
   const open = `/beli/${encodeURIComponent(o.id)}`;
   const windows = (o.meal === "both" ? [o.windows.lunch, o.windows.dinner] : [o.windows[o.meal]]).join(" · ");

@@ -1,4 +1,5 @@
 import { router, type useNavigationContainerRef } from "expo-router";
+import { withoutLinkTitle } from "@catera/mobile-ui";
 import { CATERER_TABS, type CatererTab } from "./roles";
 
 const TABS: readonly string[] = CATERER_TABS;
@@ -44,9 +45,11 @@ function appPathOf(link: string) {
 /**
  * `+native-intent`: an OS link to a bare tab root (`/pelanggan`, `/menu`, `/usaha`, `/`) names that tab's own group.
  * Every tab's stack holds every tab root, and a cold start has no current tab for the router to prefer. Any other link
- * passes through unchanged.
+ * passes through. Every OS link loses its `title`: anyone can craft one, so only links the app builds may name a screen
+ * before its record loads.
  */
-export function redirectSystemPath({ path }: { path: string; initial: boolean }): string {
+export function redirectSystemPath({ path: link }: { path: string; initial: boolean }): string {
+  const path = withoutLinkTitle(link);
   try {
     const app = appPathOf(path);
     const root = tabOfPath(app);

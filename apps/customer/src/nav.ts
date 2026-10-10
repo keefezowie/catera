@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { router, useNavigation, useRoute, type useNavigationContainerRef } from "expo-router";
+import { withoutLinkTitle } from "@catera/mobile-ui";
 
 /** The four tabs. Each keeps its own stack: `app/(tabs)/(index,jadwal,jelajah,akun)`. */
 export type Tab = "index" | "jadwal" | "jelajah" | "akun";
@@ -155,9 +156,11 @@ function openInTab(found: { root: State; at: number; tabs: State }, path: string
 /**
  * An OS link (a cold or warm deep link) to a tab root opens that tab. Without this, "/jadwal" opened cold resolves to the
  * first group that has a jadwal route, so Jadwal would open inside Beranda. /discover is Jelajah. Other paths pass
- * through unchanged; a detail screen opened cold lands in Beranda, the first tab, with Beranda behind it.
+ * through without their `title`: anyone can craft an OS link, so only links the app builds may name a screen before its
+ * record loads. A detail screen opened cold lands in Beranda, the first tab, with Beranda behind it.
  */
-export function systemPath(url: string): string {
+export function systemPath(link: string): string {
+  const url = withoutLinkTitle(link);
   // exp://127.0.0.1:8084/--/jadwal names the path after a host (Expo Go adds "/--"); catera://jadwal has no host.
   const hosted = /^(exps?|https?):\/\/[^/?#]*/i;
   const path = (hosted.test(url) ? url.replace(hosted, "").replace(/^\/--(?=[/?#]|$)/, "") : url.replace(/^[a-z][\w+.-]*:\/\//i, "/"))

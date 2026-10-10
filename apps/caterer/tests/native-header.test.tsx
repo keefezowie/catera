@@ -4,7 +4,7 @@ import { act, fireEvent, renderRouter, screen, waitFor, within } from "expo-rout
 import { appRoutes, navigationContainer, resetRouterStore } from "./real-router";
 import { router } from "expo-router";
 import { nativeThemes } from "@catera/design-tokens";
-import { contentTitled, fonts, linkTitle, MoodHeader, Screen } from "@catera/mobile-ui";
+import { contentTitled, fonts, LINK_TITLE_MAX, linkTitle, MoodHeader, Screen } from "@catera/mobile-ui";
 import { customerHref, packageHref, reportHref } from "../src/hrefs";
 
 /** The account the session read returns, and whether the server reports demo. */
@@ -274,6 +274,18 @@ describe("record titles", () => {
     }
   });
 
+  it("an OS link that carries a title opens with the generic name: only the app's own links name a screen", async () => {
+    for (const [href, route, name, generic] of TITLED) {
+      resetRouterStore();
+      // The same href the app builds, arriving from outside (+native-intent) instead of from a tap inside the app.
+      const r = renderRouter(routes, { initialUrl: href });
+      await waitFor(() => expect(contentTitleOf(route)).toBe(generic));
+      expect(within(screenOf(route) as never).queryByText(name)).toBeNull();
+      expect(navigationContainer().getCurrentOptions()?.title).toBe(generic);
+      r.unmount();
+    }
+  });
+
   it("the links carry the name, and an unknown name carries nothing", () => {
     expect(customerHref("c-1", "Nadia Putri")).toBe("/pelanggan/c-1?title=Nadia%20Putri");
     expect(packageHref("p-1", "Nasi & Ayam")).toBe(`/paket/p-1?title=${encodeURIComponent("Nasi & Ayam")}`);
@@ -284,6 +296,41 @@ describe("record titles", () => {
     expect(linkTitle({ title: "" })).toBeUndefined();
     expect(linkTitle({ title: ["a", "b"] })).toBeUndefined();
     expect(linkTitle(undefined)).toBeUndefined();
+  });
+
+  it("linkTitle caps a long name at 60 characters, at a word where it can, with …", () => {
+    const sixty = "Nasi Ayam Bakar Madu Sambal Matah Lalapan Komplit Rumahan AB";
+    expect(sixty).toHaveLength(LINK_TITLE_MAX);
+    expect(linkTitle({ title: sixty })).toBe(sixty);
+    // One over: cut at the last space, so no word is broken.
+    expect(linkTitle({ title: `${sixty}C` })).toBe("Nasi Ayam Bakar Madu Sambal Matah Lalapan Komplit Rumahan…");
+    // No space past the halfway mark: cut mid-word, still 60 with the ….
+    const capped = linkTitle({ title: "Nasi " + "a".repeat(80) })!;
+    expect(Array.from(capped)).toHaveLength(LINK_TITLE_MAX);
+    expect(capped.endsWith("…")).toBe(true);
+    // Counted in code points: an emoji at the cut is kept whole or dropped, never split.
+    const emoji = linkTitle({ title: "🍛".repeat(70) })!;
+    expect(emoji).toBe(`${"🍛".repeat(59)}…`);
+    // Spaces around and inside are tidied before counting; a blank name is no name.
+    expect(linkTitle({ title: "  Nadia   Putri  " })).toBe("Nadia Putri");
+    expect(linkTitle({ title: "   " })).toBeUndefined();
+  });
+
+  it("a read that fails or misses the record names the screen generically, never by the link's name", async () => {
+    const { runtime } = require("../src/runtime");
+    // Laporan and Pelanggan: the read answers without the record. Paket: the read fails.
+    jest.spyOn(runtime.api, "request").mockImplementation(async () => []);
+    jest.spyOn(runtime.api, "sellerCustomers").mockImplementation(async () => ({ customers: [], total: 0 }));
+    jest.spyOn(runtime.api, "sellerOperations").mockImplementation(async () => {
+      throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
+    });
+    await open("/");
+    for (const [href, route, name, generic] of TITLED) {
+      await go(() => router.push(href as never));
+      await waitFor(() => expect({ route, title: contentTitleOf(route) }).toEqual({ route, title: generic }));
+      expect(within(screenOf(route) as never).queryByText(name)).toBeNull();
+      await go(() => router.back());
+    }
   });
 
   it("contentTitled: iOS keeps the title for the large title, Android empties the bar", () => {

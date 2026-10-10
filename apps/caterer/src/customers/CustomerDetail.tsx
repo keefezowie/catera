@@ -25,17 +25,22 @@ export function CustomerDetail({ id, title }: { id: string; title?: string }) {
   const [busy, setBusy] = useState("");
   const c = record.data;
   // Until the record arrives the screen keeps the name its link carried, or else is named by what it is; then by the
-  // customer.
-  if (!c)
+  // customer. A failed read or a customer the read does not hold goes back to what it is: the carried name was never
+  // checked against a record.
+  if (!c) {
+    const loading = record.loading && !record.error;
     return (
-      <Screen nativeTitle={title ?? t("Pelanggan", "Customer")}>
+      <Screen nativeTitle={loading ? (title ?? t("Pelanggan", "Customer")) : t("Pelanggan", "Customer")}>
         {record.error ? (
           <ReadError message={record.error} onRetry={() => void record.reload()} />
-        ) : (
+        ) : loading ? (
           <Text variant="caption">{t("Memuat…", "Loading…")}</Text>
+        ) : (
+          <Text>{t("Pelanggan ini tidak ditemukan.", "This customer was not found.")}</Text>
         )}
       </Screen>
     );
+  }
   const today = jakartaDay(new Date());
   const active = activeSubscriptions(c);
   // Every active package, soonest ending first; a customer with none shows their latest finished one.

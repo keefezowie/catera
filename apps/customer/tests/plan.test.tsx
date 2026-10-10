@@ -10,7 +10,7 @@ import { customerLink } from "../src/links";
 import * as offline from "../src/today/offline";
 import { delivery, offer, subscription } from "./fixtures";
 
-let mockParams: { id?: string } = { id: "s-1" };
+let mockParams: { id?: string; title?: string } = { id: "s-1" };
 jest.mock("expo-router", () => ({
   router: { push: jest.fn(), replace: jest.fn(), back: jest.fn(), canGoBack: jest.fn(() => true) },
   Link: () => null,
@@ -151,6 +151,39 @@ describe("Plan detail states", () => {
     expect(usageNames(usage)).not.toContain("plan_sheet_opened");
   });
 
+  it("a link's title names the plan only while it loads; a failed read or a missing plan says Paket", async () => {
+    const carried = "Makan Siang Kantor";
+    const nativeTitle = () => within(screen.getByTestId("screen-native-title")).getByRole("header").props.children;
+    // Loading: the carried name, so "Paket" never flashes.
+    mockParams = { id: "s-1", title: carried };
+    let view = renderPlan(runtimeWith(() => new Promise(() => undefined)));
+    await screen.findByText("Memuat paket…");
+    expect(nativeTitle()).toBe(carried);
+    view.unmount();
+    // A failed read: the carried name was never checked against a plan, so the screen is "Paket" again.
+    view = renderPlan(
+      runtimeWith(async () => {
+        throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
+      }),
+    );
+    await screen.findByText("Belum bisa memuat");
+    expect(nativeTitle()).toBe("Paket");
+    expect(screen.queryByText(carried)).toBeNull();
+    view.unmount();
+    // A plan the read does not hold.
+    mockParams = { id: "s-cancelled-elsewhere", title: carried };
+    view = renderPlan(runtimeWith(async () => planState()));
+    await screen.findByText("Paket tidak ditemukan.");
+    expect(nativeTitle()).toBe("Paket");
+    expect(screen.queryByText(carried)).toBeNull();
+    view.unmount();
+    // A long carried name is capped at 60 characters, at a word, with "…".
+    mockParams = { id: "s-1", title: "Paket Makan Siang Rumahan Sehat Sekeluarga Lima Hari Kerja Penuh Gizi Seimbang" };
+    renderPlan(runtimeWith(() => new Promise(() => undefined)));
+    await screen.findByText("Memuat paket…");
+    expect(nativeTitle()).toBe("Paket Makan Siang Rumahan Sehat Sekeluarga Lima Hari Kerja…");
+  });
+
   it("an active plan that is not due: native title, caterer, hero with days left, no footer action", async () => {
     renderPlan(runtimeWith(async () => planState()));
     // The package name is the screen's native title (Android's first content line; iOS's large title), the caterer
@@ -244,7 +277,8 @@ describe("Plan detail states", () => {
     renderPlan(runtimeWith(async () => planState({ snapshot: trial, remaining: 1, ends_on: at(1) }), usage));
     const action = await screen.findByTestId("sticky-action");
     fireEvent.press(within(action).getByRole("button", { name: "Lanjutkan dengan paket penuh" }));
-    expect(router.push).toHaveBeenCalledWith("/paket/p-rumahan");
+    // Paket opens named after the package, never "Paket", while it loads.
+    expect(router.push).toHaveBeenCalledWith(`/paket/p-rumahan?title=${encodeURIComponent(offer().name)}`);
     expect(usageNames(usage)).not.toContain("renew_started");
   });
 
