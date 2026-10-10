@@ -771,6 +771,47 @@ describe("Paket", () => {
     expect(router.push).toHaveBeenCalledWith("/beli/p-murah");
   });
 
+  it("the footer reflows at large text: the buttons wrap under the price, never over it, Pilih jadwal last", async () => {
+    // Jest has no layout engine, so this pins the flex contract the reflow rests on (Yoga breaks the line, checked on
+    // the emulator at font scale 1.3 on a 360dp screen): a wrapping row whose price and button group never shrink below
+    // their own text and never outgrow the row, and a button group that fills its line from the trailing edge.
+    mockParams = { id: "p-murah" };
+    wrap(runtimeWith(), <PackageDetail />);
+    await screen.findByRole("button", { name: "Coba 1 hari" });
+    const style = (id: string) => StyleSheet.flatten(screen.getByTestId(id).props.style);
+    expect(style("paket-footer")).toMatchObject({ flexDirection: "row", flexWrap: "wrap", columnGap: 12, rowGap: 10 });
+    for (const id of ["paket-price", "paket-actions"]) {
+      const s = style(id);
+      expect(s).toMatchObject({ flexShrink: 0, maxWidth: "100%" });
+      // `flex: 1` would make it shrink to fit one line and draw its contents over its neighbour (the G1 gate failure).
+      expect(s.flex).toBeUndefined();
+      expect(s.flexBasis).toBeUndefined();
+      expect(s.width).toBeUndefined();
+    }
+    expect(style("paket-actions")).toMatchObject({
+      flexGrow: 1,
+      flexDirection: "row",
+      flexWrap: "wrap",
+      justifyContent: "flex-end",
+    });
+    // Price first, then the buttons, the primary one last so it lands at the trailing edge.
+    const footer = screen.getByTestId("paket-footer");
+    const order = within(footer)
+      .getAllByRole("button")
+      .map((b) => b.props.accessibilityLabel);
+    expect(order).toEqual(["Coba 1 hari", "Pilih jadwal"]);
+    // The price stays tabular wherever it lands.
+    const price = within(screen.getByTestId("paket-price")).getByText(/^Rp/);
+    expect(StyleSheet.flatten(price.props.style).fontVariant).toEqual(["tabular-nums"]);
+    // The buttons keep their own 48dp height and do not stretch or squeeze on a wrapped line.
+    for (const b of within(footer).getAllByRole("button")) {
+      const s = StyleSheet.flatten(b.props.style);
+      expect(s.minHeight).toBe(48);
+      expect(s.height).toBeUndefined();
+      expect(s.flexShrink ?? 0).toBe(0);
+    }
+  });
+
   it("hides the trial button when the package has no trial", async () => {
     mockParams = { id: "p-mahal" };
     wrap(runtimeWith(), <PackageDetail />);

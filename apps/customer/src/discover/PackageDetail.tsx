@@ -182,8 +182,10 @@ export function PackageDetail() {
       bleed
       onScroll={onScroll}
       footer={
-        <View style={styles.footer}>
-          <View style={{ flexShrink: 1 }}>
+        // One row when the price and both buttons fit; otherwise the buttons wrap under the price (and, at the largest
+        // text, under each other) instead of drawing over it. Nothing in the row shrinks below its own text.
+        <View testID="paket-footer" style={styles.footer}>
+          <View testID="paket-price" style={styles.price}>
             <Text variant="caption">{t("Per sekali makan", "Per meal")}</Text>
             <Text
               variant="title"
@@ -194,7 +196,7 @@ export function PackageDetail() {
             </Text>
             {note ? <Text variant="caption">{note}</Text> : null}
           </View>
-          <View style={styles.actions}>
+          <View testID="paket-actions" style={styles.actions}>
             {o.trialPrice ? (
               <Button
                 variant="secondary"
@@ -361,7 +363,28 @@ const useStyles = themedStyles((c) => ({
   facts: { gap: 10, paddingVertical: 4 },
   fact: { flexDirection: "row", gap: 12 },
   factLabel: { width: "32%", minWidth: 100, flexShrink: 0 },
-  footer: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
-  actions: { flex: 1, flexDirection: "row", justifyContent: "flex-end", gap: 8 },
+  // A wrapping row: price first, then the buttons, "Pilih jadwal" last at the trailing edge on whichever line it lands.
+  // Yoga breaks a line on each child's own width, measured at most the row's width, so a child that cannot shrink moves
+  // to the next line instead of drawing over its neighbour; `maxWidth` keeps a very long one inside the row.
+  footer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    justifyContent: "space-between",
+    columnGap: 12,
+    rowGap: 10,
+  },
+  price: { flexShrink: 0, maxWidth: "100%" },
+  // Grows to fill its line, so the buttons sit at its trailing edge; they wrap under each other when a line of their own
+  // cannot hold both.
+  actions: {
+    flexGrow: 1,
+    flexShrink: 0,
+    maxWidth: "100%",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "flex-end",
+    gap: 8,
+  },
   action: { paddingHorizontal: 14 },
 }));
