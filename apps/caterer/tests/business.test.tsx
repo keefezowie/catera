@@ -139,7 +139,7 @@ it("shares a helper invite code over WhatsApp", async () => {
       <TimScreen />
     </MobileProvider>,
   );
-  fireEvent.press(await screen.findByRole("button", { name: "Undang pembantu" }));
+  fireEvent.press(await screen.findByRole("button", { name: "Bagikan undangan" }));
   await waitFor(() => expect(share).toHaveBeenCalled());
   expect(command.mock.calls[0]).toEqual(["staff.invite", { catererId: "k-1" }, expect.any(String)]);
   expect((share.mock.calls[0][0] as { message: string }).message).toContain("abc123");

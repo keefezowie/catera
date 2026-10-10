@@ -1,9 +1,30 @@
-import { useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { View } from "react-native";
-import { errorLabel, type KitchenMeal, type SellerOperationsState, type Stop } from "@catera/domain";
-import { useMobile } from "@catera/mobile-core";
-import { Button, Field, fontFor, PressableScale, Sheet, Text, useColors } from "@catera/mobile-ui";
+import { router } from "expo-router";
+import {
+  errorLabel,
+  jakartaDay,
+  kitchenSession,
+  type KitchenMeal,
+  type SellerOperationsState,
+} from "@catera/domain";
+import { useData, useMobile } from "@catera/mobile-core";
+import {
+  Button,
+  Field,
+  fontFor,
+  PressableScale,
+  SheetBody,
+  SheetHeader,
+  Skeleton,
+  SkeletonGroup,
+  Text,
+  useColors,
+  useToast,
+  useUnsavedGuard,
+} from "@catera/mobile-ui";
 import { issueSteps } from "./exceptions";
+import { ReadError } from "../ReadError";
 
 /**
  * What customer.deliveryChange accepts for a new date: a day of the caterer's customer record that is
@@ -26,35 +47,105 @@ const mealStatus = (d: SellerOperationsState["deliveries"][number] | undefined, 
 export const canReportFailed = (d: SellerOperationsState["deliveries"][number] | undefined, meal: KitchenMeal) =>
   !!d && issueSteps(mealStatus(d, meal)).length > 0;
 
-/** The only per-stop actions: the food did not arrive, or the day moves (own customers). */
-export function ExceptionSheet({
-  stop,
-  meal,
-  ops,
-  allowFailed = true,
-  onClose,
-}: {
-  stop: Stop;
-  meal: KitchenMeal;
-  ops: SellerOperationsState;
-  /** False for tomorrow's stops: food that hasn't been sent can't have failed. */
-  allowFailed?: boolean;
-  onClose: () => void;
-}) {
-  const { t, locale, command, actor } = useMobile();
+/** The stop's sheet, over Hari ini: `/atur-antaran/{delivery}?meal=…&date=…`. */
+export const stopHref = (deliveryId: string, meal: KitchenMeal, date: string) =>
+  `/atur-antaran/${encodeURIComponent(deliveryId)}?meal=${meal}&date=${date}`;
+
+/**
+ * The day Hari ini showed when its "…" was tapped, so the sheet draws that stop at once instead of a skeleton. It is
+ * only ever a fresh read (a copy kept from before the connection dropped has no "…"), and the sheet reads the day
+ * again anyway; the fresh answer replaces it. One at a time, taken by the sheet that opens next.
+ */
+let parked: { key: string; ops: SellerOperationsState } | null = null;
+export function parkDay(catererId: string, date: string, ops: SellerOperationsState) {
+  parked = { key: `${catererId}:${date}`, ops };
+}
+
+type Kind = "failed" | "move";
+
+/** The sheet's frame: the stop's name, its portions and package under it, then the scrolling content. */
+function Frame({ title, context, children }: { title: string; context?: string; children: ReactNode }) {
+  const { t } = useMobile();
+  return (
+    <View testID="exception-sheet" style={{ flex: 1 }}>
+      <SheetHeader title={title} context={context} closeLabel={t("Tutup", "Close")} />
+      <SheetBody>{children}</SheetBody>
+    </View>
+  );
+}
+
+/**
+ * The only per-stop actions, as a form sheet over Hari ini: the food did not arrive ("Gagal diantar", today only, while
+ * the meal can still fail), or the day moves ("Pindah tanggal", the kitchen's own customers before the cutoff). Saving
+ * closes the sheet with "Laporan tersimpan"; a typed move asks before it is dropped.
+ */
+export function ExceptionSheet({ id, meal, date }: { id: string; meal: KitchenMeal; date: string }) {
+  const { runtime, actor, t, locale, command } = useMobile();
   const c = useColors();
-  const delivery = ops.deliveries.find((d) => d.id === stop.deliveryId)!;
+  const toast = useToast();
+  const catererId = actor?.catererId ?? "";
+  const key = `${catererId}:${date}`;
+  const [seed] = useState(() => (parked?.key === key ? parked.ops : null));
+  // Taken: the next sheet opens from its own tap, never from this one's day.
+  useEffect(() => {
+    if (parked?.key === key) parked = null;
+  }, [key]);
+  const day = useData(`stop-sheet:${key}`, () => runtime.api.sellerOperations(catererId, date));
+  const ops = day.data ?? seed;
+
+  const delivery = ops?.deliveries.find((d) => d.id === id);
+  const stop = ops ? kitchenSession(ops, meal, new Date())?.stops.find((s) => s.deliveryId === id) : undefined;
+  // Food that hasn't been sent can't have failed: Gagal diantar is for today's stops only.
+  const canFail = date === jakartaDay(new Date()) && canReportFailed(delivery, meal);
   const canMove = canMoveDelivery(delivery);
-  const canFail = allowFailed && canReportFailed(delivery, meal);
-  // Null when the sheet has nothing to send; the caller shows no "…" then, so this is only a guard.
-  const [kind, setKind] = useState<"failed" | "move" | null>(canFail ? "failed" : canMove ? "move" : null);
-  const [date, setDate] = useState("");
+  const [chosen, setChosen] = useState<Kind | null>(null);
+  // What the sheet sends: the caterer's choice while it is still allowed, else the first one that is. Null when the
+  // sheet has nothing to send (the fresh read may have taken a choice away).
+  const kind: Kind | null =
+    chosen === "failed" && canFail ? "failed" : chosen === "move" && canMove ? "move" : canFail ? "failed" : canMove ? "move" : null;
+  const [newDate, setNewDate] = useState("");
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [saved, setSaved] = useState(false);
+  const closed = useRef(false);
   const nothing = t("Tidak ada yang bisa dilaporkan untuk alamat ini.", "There is nothing to report for this stop.");
 
+  // A move half typed asks before the sheet drops it; choosing an option alone does not.
+  useUnsavedGuard(!saved && kind === "move" && (newDate.trim() !== "" || reason.trim() !== ""), t("laporan", "report"), {
+    t,
+    nounEn: "report",
+    voice: "kamu",
+  });
+
+  // Saved: the sheet closes back to Hari ini, which reads the day again, and a toast says it is done. After the guard
+  // has seen `saved`, so closing never asks.
+  useEffect(() => {
+    if (!saved || closed.current) return;
+    closed.current = true;
+    toast.show({ message: t("Laporan tersimpan", "Report saved"), tone: "success" });
+    router.back();
+  }, [saved, toast, t]);
+
+  if (!ops)
+    return (
+      <Frame title={t("Antaran", "Delivery")}>
+        {day.error ? (
+          <ReadError message={day.error} onRetry={() => void day.reload()} />
+        ) : (
+          <SkeletonGroup label={t("Memuat antaran", "Loading the delivery")}>
+            <View style={{ gap: 8 }}>
+              <Skeleton height={64} radius={12} />
+              <Skeleton height={64} radius={12} />
+              <Skeleton height={48} radius={12} />
+            </View>
+          </SkeletonGroup>
+        )}
+      </Frame>
+    );
+
   async function save() {
+    if (!delivery) return;
     const steps = issueSteps(mealStatus(delivery, meal));
     // Never close as if saved when nothing would be sent.
     if (kind === null || (kind === "failed" && !steps.length)) {
@@ -72,13 +163,13 @@ export function ExceptionSheet({
         }
       } else
         await command("customer.deliveryChange", {
-          catererId: actor?.catererId,
+          catererId,
           id: delivery.id,
           version: delivery.version,
-          date,
+          date: newDate,
           reason: reason.trim(),
         });
-      onClose();
+      setSaved(true);
     } catch (e) {
       setError(
         errorLabel((e as { code?: string }).code || (e as Error).message, locale) ||
@@ -89,12 +180,12 @@ export function ExceptionSheet({
     }
   }
 
-  const option = (value: "failed" | "move", title: string, body: string) => (
+  const option = (value: Kind, title: string, body: string) => (
     <PressableScale
       haptic="select"
       accessibilityRole="radio"
       accessibilityState={{ checked: kind === value }}
-      onPress={() => setKind(value)}
+      onPress={() => setChosen(value)}
       style={{
         padding: 14,
         borderRadius: 12,
@@ -110,17 +201,21 @@ export function ExceptionSheet({
   );
 
   return (
-    <Sheet visible onClose={onClose} title={stop.name} closeLabel={t("Tutup", "Close")}>
-      <Text variant="caption">{`${stop.portions} porsi · ${stop.packageName}`}</Text>
-      <View style={{ gap: 8 }}>
-        {canFail && option(
-          "failed",
-          t("Gagal diantar", "Not delivered"),
-          t(
-            "Makanan tidak sampai. Hari ini tidak dihitung terkirim dan tidak dibayarkan ke Anda. Hubungi pelanggan untuk menggantinya.",
-            "The food didn't arrive. This day isn't counted as delivered or paid to you. Contact the customer to make up for it.",
-          ),
-        )}
+    <Frame
+      title={stop?.name ?? delivery?.customer.name ?? t("Antaran", "Delivery")}
+      context={stop ? `${stop.portions} porsi · ${stop.packageName}` : undefined}
+    >
+      <View style={{ gap: 8 }} accessibilityRole="radiogroup">
+        {canFail
+          ? option(
+              "failed",
+              t("Gagal diantar", "Not delivered"),
+              t(
+                "Makanan tidak sampai. Hari ini tidak dihitung terkirim dan tidak dibayarkan ke kamu. Hubungi pelanggan untuk menggantinya.",
+                "The food didn't arrive. This day isn't counted as delivered or paid to you. Contact the customer to make up for it.",
+              ),
+            )
+          : null}
         {canMove
           ? option(
               "move",
@@ -128,20 +223,22 @@ export function ExceptionSheet({
               t("Hari ini dipindah ke tanggal lain. Pelanggan diberi tahu.", "Move this day to another date. The customer is told."),
             )
           : null}
-        {kind === null ? <Text>{nothing}</Text> : null}
+        {kind === null ? <Text selectable>{nothing}</Text> : null}
       </View>
       {kind === "move" ? (
         <>
-          <Field label={t("Tanggal baru (TTTT-BB-HH)", "New date (YYYY-MM-DD)")} value={date} onChangeText={setDate} />
+          <Field label={t("Tanggal baru (TTTT-BB-HH)", "New date (YYYY-MM-DD)")} value={newDate} onChangeText={setNewDate} />
           <Field label={t("Alasan", "Reason")} value={reason} onChangeText={setReason} />
         </>
       ) : null}
       {error ? <Text selectable style={{ color: c.danger }}>{error}</Text> : null}
       <Button
         label={t("Simpan laporan", "Save report")}
-        disabled={busy || kind === null || (kind === "move" && (!/^\d{4}-\d{2}-\d{2}$/.test(date) || reason.trim().length < 5))}
+        disabled={
+          busy || kind === null || (kind === "move" && (!/^\d{4}-\d{2}-\d{2}$/.test(newDate) || reason.trim().length < 5))
+        }
         onPress={() => void save()}
       />
-    </Sheet>
+    </Frame>
   );
 }

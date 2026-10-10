@@ -1,43 +1,47 @@
-import { useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { TextInput, View } from "react-native";
+import { router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 import { File } from "expo-file-system";
-import { earliestImportStart, errorLabel, jakartaDay, normalizeCustomerPhone } from "@catera/domain";
+import { earliestImportStart, errorLabel, jakartaDay } from "@catera/domain";
 import { plural, useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, Chip, FONT, Field, fontFor, PressableRow, Screen, Sheet, Text, useColors } from "@catera/mobile-ui";
+import { Button, Card, FONT, fontFor, PressableRow, Screen, Text, useColors } from "@catera/mobile-ui";
 import { recheck, toImportRow, type AssistantRow } from "./rows";
+import { rowHref } from "./RowEditor";
+import { useImportStore, type Attachment } from "./store";
 import { goToTab } from "../nav";
 import { fitsUpload, MAX_IMAGES, shrinkPhoto } from "./images";
-
-type Attachment =
-  | { kind: "image"; name: string; mediaType: "image/jpeg" | "image/png" | "image/webp"; data: string }
-  | { kind: "pdf"; name: string; data: string }
-  | { kind: "csv" | "xlsx"; name: string; data: string };
 
 /** Refusals that belong to one row (pilot_import_row); anything else is about the request itself. */
 const ROW_CODES = new Set(["CAPACITY", "CONFLICT", "CUTOFF", "DUPLICATE_CUSTOMER", "DUPLICATE_IMPORT", "FORBIDDEN", "INVALID_DATE", "INVALID_INPUT", "NOT_AVAILABLE", "OVERLAP", "PRICE_CHANGED"]);
 
 const fail = (e: unknown) => (e as { code?: string }).code || (e as Error).message;
 
-/** Impor pelanggan: paste or attach anything, check what the assistant read, save the clean rows. */
+/**
+ * Impor pelanggan: paste or attach anything, check what the assistant read, save the clean rows. A row is corrected in
+ * its own form sheet (`/impor-baris`); both read the import in progress from `useImportStore`, which empties when
+ * Impor closes.
+ */
 export function ImportAssistant() {
   const { runtime, actor, t, locale, command } = useMobile();
   const c = useColors();
   const catererId = actor?.catererId ?? "";
   const options = useData(`impor:${catererId}`, () => runtime.api.sellerImportOptions(catererId));
   const packages = options.data?.packages ?? [];
-  const [text, setText] = useState("");
-  const [files, setFiles] = useState<Attachment[]>([]);
-  const [rows, setRows] = useState<(AssistantRow & { n: number })[] | null>(null);
-  const [editing, setEditing] = useState<number | null>(null);
+  const { text, files, rows, setText, setFiles, setRows, setPackages, number: numbered, reset } = useImportStore();
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(0);
   const [off, setOff] = useState(false);
-  // Row numbers feed the import reference, so they never repeat within this screen.
-  const counter = useRef(0);
-  const numbered = (all: AssistantRow[]) => all.map((r) => ({ ...r, n: ++counter.current }));
+  // The row sheet checks a row against the same packages this screen read.
+  useEffect(() => {
+    if (options.data) setPackages(options.data.packages);
+  }, [options.data, setPackages]);
+  // Closing Impor forgets the import, as it always has.
+  useEffect(() => reset, [reset]);
+  /** Opens one row's form sheet over this screen. */
+  const edit = (n: number) => router.push(rowHref(n) as never);
   const message = (code: string) =>
     ({
       IMPORT_UNREADABLE: t("Catatan ini belum bisa dibaca. Coba ketik ulang atau kirim foto yang lebih jelas.", "We couldn't read this. Try retyping it or a clearer photo."),
@@ -58,7 +62,7 @@ export function ImportAssistant() {
       ),
     ]);
     setRows((all) => [...(all ?? []), row]);
-    setEditing(row.n);
+    edit(row.n);
   }
 
   async function addPhoto() {
@@ -156,9 +160,6 @@ export function ImportAssistant() {
   }
 
   const clean = rows?.filter((r) => !r.needsReview).length ?? 0;
-  const edit = editing === null ? undefined : rows?.find((r) => r.n === editing);
-  const update = (patch: Partial<AssistantRow>) =>
-    setRows((all) => all && all.map((r) => (r.n === editing ? { ...recheck({ ...r, ...patch }, packages, earliestImportStart(new Date())), n: r.n } : r)));
 
   return (
     <Screen
@@ -227,7 +228,7 @@ export function ImportAssistant() {
           </Text>
           {rows.map((r) => (
             <Card key={r.n} tone={r.needsReview ? "attention" : "surface"}>
-              <PressableRow accessibilityRole="button" accessibilityLabel={`${t("Ubah", "Edit")} ${r.name}`} onPress={() => setEditing(r.n)} style={{ gap: 4 }}>
+              <PressableRow accessibilityRole="button" accessibilityLabel={`${t("Ubah", "Edit")} ${r.name}`} onPress={() => edit(r.n)} style={{ gap: 4 }}>
                 <Text variant="heading">{r.name || t("Tanpa nama", "No name")}</Text>
                 <Text variant="caption">{[r.phone, [r.addressLine, r.area].filter(Boolean).join(", ")].filter(Boolean).join(" · ")}</Text>
                 <Text variant="caption">
@@ -242,60 +243,6 @@ export function ImportAssistant() {
         </>
       )}
       {error ? <Text selectable style={{ color: c.danger }}>{error}</Text> : null}
-      <Sheet
-        visible={!!edit}
-        onClose={() => setEditing(null)}
-        title={edit?.name || t("Pelanggan", "Customer")}
-        closeLabel={t("Tutup", "Close")}
-      >
-        {edit ? (
-          <View style={{ gap: 10 }}>
-            <Field label={t("Nama", "Name")} value={edit.name} onChangeText={(v) => update({ name: v })} />
-            <Field
-              label={t("Nomor WhatsApp", "WhatsApp number")}
-              defaultValue={edit.phone}
-              keyboardType="phone-pad"
-              onEndEditing={(e) => {
-                let phone = e.nativeEvent.text;
-                try {
-                  phone = normalizeCustomerPhone(phone);
-                } catch {}
-                update({ phone });
-              }}
-            />
-            <Field label={t("Alamat", "Address")} value={edit.addressLine} onChangeText={(v) => update({ addressLine: v })} />
-            <View style={{ flexDirection: "row", gap: 8 }}>
-              <View style={{ flex: 1 }}>
-                <Field label={t("Area", "Area")} value={edit.area} onChangeText={(v) => update({ area: v })} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Field label={t("Kota", "City")} value={edit.city} onChangeText={(v) => update({ city: v })} />
-              </View>
-            </View>
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-              {packages.map((p) => (
-                <Chip key={p.id} label={p.name} selected={edit.packageId === p.id} onPress={() => update({ packageId: p.id })} />
-              ))}
-            </View>
-            <View style={{ flexDirection: "row", gap: 8 }}>
-              <View style={{ flex: 1 }}>
-                <Field label={t("Antar berikutnya (TTTT-BB-HH)", "Next delivery (YYYY-MM-DD)")} value={edit.startDate ?? ""} onChangeText={(v) => update({ startDate: v || null })} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Field
-                  label={t("Sisa hari", "Days left")}
-                  value={edit.remainingDays ? String(edit.remainingDays) : ""}
-                  keyboardType="number-pad"
-                  onChangeText={(v) => update({ remainingDays: v ? Number(v.replace(/\D/g, "")) : null })}
-                />
-              </View>
-            </View>
-            {edit.needsReview ? <Text style={{ color: c.sunriseInk }}>{edit.reason}</Text> : null}
-            <Button label={t("Selesai", "Done")} onPress={() => setEditing(null)} />
-            <Button variant="text" label={t("Hapus baris ini", "Remove this row")} onPress={() => { setRows((all) => all && all.filter((r) => r.n !== editing)); setEditing(null); }} />
-          </View>
-        ) : null}
-      </Sheet>
     </Screen>
   );
 }

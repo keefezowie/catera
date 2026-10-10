@@ -1,7 +1,7 @@
 import { Stack } from "expo-router";
 import { jakartaDay, shortDate } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { contentTitled, linkTitle, useStackScreenOptions } from "@catera/mobile-ui";
+import { contentTitled, linkTitle, sheetOptions, useColors, useStackScreenOptions } from "@catera/mobile-ui";
 import { tabOfSegment } from "../../../src/nav";
 import { CATERER_TABS, SCREEN_TAB, tabsForRole } from "../../../src/roles";
 
@@ -19,6 +19,7 @@ export const unstable_settings = Object.fromEntries(CATERER_TABS.map((tab) => [t
 export default function TabStack({ segment }: { segment: string }) {
   const { t, locale, actor, demo } = useMobile();
   const screenOptions = useStackScreenOptions(demo);
+  const palette = useColors();
   const root = tabOfSegment(segment);
   const allowed = tabsForRole(actor?.role);
   const opens = (screen: keyof typeof SCREEN_TAB) => allowed.includes(SCREEN_TAB[screen]);
@@ -70,8 +71,16 @@ export default function TabStack({ segment }: { segment: string }) {
       <Stack.Protected guard={opens("paket/baru")}>
         <Stack.Screen name="paket/baru" options={{ title: t("Paket baru", "New package") }} />
       </Stack.Protected>
+      {/* Short tasks done in place, as native sheets over the screen that opened them: the reply to a report and a
+          stop's exception over Hari ini (owner and helper), and the helper invite over Usaha. Each draws its own title. */}
+      <Stack.Protected guard={opens("balas/[id]")}>
+        <Stack.Screen name="balas/[id]" options={sheetOptions({ detents: "form", palette })} />
+      </Stack.Protected>
+      <Stack.Protected guard={opens("atur-antaran/[id]")}>
+        <Stack.Screen name="atur-antaran/[id]" options={sheetOptions({ detents: "form", palette })} />
+      </Stack.Protected>
       <Stack.Protected guard={opens("tim")}>
-        <Stack.Screen name="tim" options={{ title: t("Tim", "Team") }} />
+        <Stack.Screen name="tim" options={sheetOptions({ detents: "fit", palette })} />
       </Stack.Protected>
       <Stack.Protected guard={opens("uang")}>
         <Stack.Screen name="uang" options={{ title: t("Uang", "Money") }} />

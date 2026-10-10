@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Linking, View } from "react-native";
+import { router } from "expo-router";
 import {
   addDays,
   errorLabel,
@@ -10,9 +11,25 @@ import {
   type DeliveryIssue,
 } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, FadeSwap, Field, fontFor, Screen, Text, useColors } from "@catera/mobile-ui";
+import {
+  Button,
+  Card,
+  FadeSwap,
+  Field,
+  fontFor,
+  Screen,
+  SheetBody,
+  SheetHeader,
+  Skeleton,
+  SkeletonGroup,
+  Text,
+  useColors,
+  useToast,
+  useUnsavedGuard,
+} from "@catera/mobile-ui";
 import { jakartaClock } from "./exceptions";
 import { DetailSkeleton } from "../skeletons";
+import { ReadError } from "../ReadError";
 
 /** The server needs at least this much text for a reply or a resolution note. */
 const MIN_BODY = 5;
@@ -44,16 +61,30 @@ const eventLabels: Record<string, [string, string]> = {
 };
 
 /**
- * One customer's delivery report: what they said, and the caterer's reply or "done". `title` is the customer's name
- * the link that opened it carried (`reportHref`), absent on a cold link or a notification.
+ * Replies typed and not sent, per person and report, in memory only. Android's bottom sheet closes on a swipe before
+ * anything can ask (`useUnsavedGuard`), so the reply waits here and comes back when the sheet opens again for that
+ * report. Sending or choosing "Buang" drops it; closing the app forgets it.
  */
-export function ReportScreen({ id, title: carried }: { id: string; title?: string }) {
-  const { runtime, actor, t } = useMobile();
-  const c = useColors();
+const drafts = new Map<string, string>();
+
+/** One report, read by its id for this kitchen. */
+function useIssue(id: string) {
+  const { runtime, actor } = useMobile();
   const catererId = actor?.catererId ?? "";
-  const issues = useData(`issue:${catererId}:${id}`, () =>
+  return useData(`issue:${catererId}:${id}`, () =>
     runtime.api.request<DeliveryIssue[]>(`delivery-issues?${new URLSearchParams({ id: catererId, issue: id })}`),
   );
+}
+
+/**
+ * One customer's delivery report: what they said, and the caterer's reply or "done". `title` is the customer's name
+ * the link that opened it carried (`reportHref`), absent on a cold link or a notification. Notifications open this
+ * page; from Hari ini a report opens as the reply sheet (`ReplySheet`).
+ */
+export function ReportScreen({ id, title: carried }: { id: string; title?: string }) {
+  const { t } = useMobile();
+  const c = useColors();
+  const issues = useIssue(id);
   // Until the report arrives the screen keeps the customer's name its link carried, or else is named by what it is;
   // then by the customer who sent it. A failed read or a missing report goes back to what it is: the carried name was
   // never checked against a record.
@@ -87,11 +118,75 @@ export function ReportScreen({ id, title: carried }: { id: string; title?: strin
   );
 }
 
-/** The report's page below its title: what the customer said, the replies, and the reply box while it is open. */
-function Report({ issue: i, reload }: { issue: DeliveryIssue; reload: () => Promise<void> }) {
+/** The reply sheet's frame: the customer's name, the day, meal and package under it, then the scrolling content. */
+function SheetFrame({ title, context, children }: { title: string; context?: string; children: ReactNode }) {
+  const { t } = useMobile();
+  return (
+    <View testID="reply-sheet" style={{ flex: 1 }}>
+      <SheetHeader title={title} context={context} closeLabel={t("Tutup", "Close")} />
+      <SheetBody>{children}</SheetBody>
+    </View>
+  );
+}
+
+/**
+ * The reply to a report, as a form sheet over Hari ini (`/balas/{id}`): what the customer said, the replies so far,
+ * and the reply box with "Balas" and "Tandai selesai". Sending closes the sheet with "Balasan terkirim". A typed reply
+ * asks before it is dropped, and one an Android swipe closed comes back next time. `title` is the customer's name the
+ * report card carried.
+ */
+export function ReplySheet({ id, title: carried }: { id: string; title?: string }) {
+  const { actor, t, locale } = useMobile();
+  const issues = useIssue(id);
+  const issue = issues.data?.find((i) => i.id === id);
+  const generic = t("Laporan masalah", "Problem report");
+  const title = issue
+    ? issue.customerName || t("Pelanggan", "Customer")
+    : issues.data || issues.error
+      ? generic
+      : (carried ?? generic);
+  const context = issue
+    ? `${shortDate(issue.service_date, locale)} · ${mealLabel(issue.meal, locale)} · ${issue.package_name}`
+    : undefined;
+  return (
+    <SheetFrame title={title} context={context}>
+      {issue ? (
+        <Report issue={issue} reload={issues.reload} draftKey={`${actor?.id ?? ""}:${id}`} />
+      ) : issues.data ? (
+        <Text>{t("Laporan ini tidak ditemukan.", "This report was not found.")}</Text>
+      ) : issues.error ? (
+        <ReadError message={issues.error} onRetry={() => void issues.reload()} />
+      ) : (
+        <SkeletonGroup label={t("Memuat laporan", "Loading the report")}>
+          <View style={{ gap: 12 }}>
+            <Skeleton height={96} radius={14} />
+            <Skeleton width="60%" height={14} />
+            <Skeleton height={88} radius={12} />
+            <Skeleton height={48} radius={12} />
+          </View>
+        </SkeletonGroup>
+      )}
+    </SheetFrame>
+  );
+}
+
+/**
+ * The report below its title: what the customer said, the replies, and the reply box while it is open. On the page the
+ * day and package lead and a sent reply says so in a toast; in the sheet (`draftKey`, its person and report) they are
+ * the sheet's context line, and sending closes the sheet.
+ */
+function Report({ issue: i, reload, draftKey }: { issue: DeliveryIssue; reload: () => Promise<void>; draftKey?: string }) {
   const { t, locale, command } = useMobile();
   const c = useColors();
-  const [text, setText] = useState("");
+  const toast = useToast();
+  const [text, setTextState] = useState(() => (draftKey ? (drafts.get(draftKey) ?? "") : ""));
+  const [sent, setSent] = useState(false);
+  const setText = (value: string) => {
+    setTextState(value);
+    if (!draftKey) return;
+    if (value.trim()) drafts.set(draftKey, value);
+    else drafts.delete(draftKey);
+  };
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   // Catera has taken over (or it is closed): the caterer can no longer change it here.
@@ -123,6 +218,8 @@ function Report({ issue: i, reload }: { issue: DeliveryIssue; reload: () => Prom
       // The new version comes back with the reload that every command triggers.
       await command(action, { id: i.id, version: i.version, body });
       setText("");
+      if (draftKey) setSent(true);
+      else toast.show({ message: t("Balasan terkirim", "Reply sent"), tone: "success" });
     } catch (e) {
       setError(
         errorLabel((e as { code?: string }).code || (e as Error).message, locale) ||
@@ -138,10 +235,14 @@ function Report({ issue: i, reload }: { issue: DeliveryIssue; reload: () => Prom
 
   return (
     <>
-      <View style={{ gap: 4 }}>
-        <Text style={{ fontFamily: fontFor("800") }}>{`${shortDate(i.service_date, locale)} · ${mealLabel(i.meal, locale)}`}</Text>
-        <Text variant="caption">{i.package_name}</Text>
-      </View>
+      {draftKey ? (
+        <SheetOutcome dirty={open && !sent && reply !== ""} sent={sent} onDiscard={() => drafts.delete(draftKey)} />
+      ) : (
+        <View style={{ gap: 4 }}>
+          <Text style={{ fontFamily: fontFor("800") }}>{`${shortDate(i.service_date, locale)} · ${mealLabel(i.meal, locale)}`}</Text>
+          <Text variant="caption">{i.package_name}</Text>
+        </View>
+      )}
       <Card tone={open ? "attention" : "surface"}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
           <Text variant="heading" style={{ flex: 1 }}>
@@ -217,4 +318,23 @@ function Report({ issue: i, reload }: { issue: DeliveryIssue; reload: () => Prom
       ) : null}
     </>
   );
+}
+
+/**
+ * The reply sheet's guard and close, drawn with the reply box: typed text asks before the sheet drops it ("Buang
+ * balasan?"), and once sent the sheet closes with "Balasan terkirim", after the guard has seen it clean, so closing
+ * never asks. Draws nothing.
+ */
+function SheetOutcome({ dirty, sent, onDiscard }: { dirty: boolean; sent: boolean; onDiscard: () => void }) {
+  const { t } = useMobile();
+  const toast = useToast();
+  const closed = useRef(false);
+  useUnsavedGuard(dirty, t("balasan", "reply"), { t, nounEn: "reply", voice: "kamu", onDiscard });
+  useEffect(() => {
+    if (!sent || closed.current) return;
+    closed.current = true;
+    toast.show({ message: t("Balasan terkirim", "Reply sent"), tone: "success" });
+    router.back();
+  }, [sent, toast, t]);
+  return null;
 }

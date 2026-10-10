@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Linking, Share, View } from "react-native";
+import { router } from "expo-router";
 import {
   routeMapsUrl,
   routeShareText,
@@ -9,7 +10,7 @@ import {
 } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
 import { Button, StopRow, Text, useColors } from "@catera/mobile-ui";
-import { canMoveDelivery, canReportFailed, ExceptionSheet } from "./ExceptionSheet";
+import { canMoveDelivery, canReportFailed, parkDay, stopHref } from "./ExceptionSheet";
 
 /** The stops shown before "Lihat {n} alamat lainnya": enough to start the route, short enough to see the buttons below. */
 const FIRST_STOPS = 3;
@@ -28,7 +29,8 @@ const failable = (ops: SellerOperationsState, stop: Stop, meal: KitchenMeal) =>
 
 /**
  * "Urutan antar": the session's stops in route order, as numbered rows with a map button and, where the sheet would
- * send something, a "…" button for the exception sheet (a failed delivery, or moving the day). A delivered stop has
+ * send something, a "…" button for the stop's exception sheet, a form sheet over Hari ini (a failed delivery, or moving
+ * the day). A delivered stop has
  * neither, so it has no "…". The first three show; the rest are one tap away. Under them: the whole route in Maps, the
  * route as WhatsApp text, and for today a line saying arrival is recorded by itself. The stops come from the session,
  * so a row marked "Gagal diantar" or cancelled is not in the list.
@@ -49,11 +51,10 @@ export function DeliveryOrder({
   report: "today" | "tomorrow" | null;
   caterer: string;
 }) {
-  const { t, locale } = useMobile();
+  const { t, locale, actor } = useMobile();
   const c = useColors();
   const [all, setAll] = useState(false);
   const [part, setPart] = useState(0);
-  const [reporting, setReporting] = useState<Stop | null>(null);
   const parts = routeShareText(stops, { date, meal, caterer }, locale);
   // A same-day revision can shorten the route under a part index already advanced past its end.
   const at = Math.min(part, Math.max(parts.length - 1, 0));
@@ -66,6 +67,11 @@ export function DeliveryOrder({
   // like the map button, so a screen reader hears which stop each "…" belongs to.
   const canFail = (s: Stop) => report === "today" && failable(ops, s, meal);
   const hasMore = (s: Stop) => report !== null && (canFail(s) || movable(ops, s));
+  // The sheet draws from the day on screen at once, and reads it again itself.
+  const openSheet = (s: Stop) => {
+    parkDay(actor?.catererId ?? "", date, ops);
+    router.push(stopHref(s.deliveryId, meal, date) as never);
+  };
   const moreLabel = (s: Stop) =>
     `${
       canFail(s)
@@ -94,7 +100,7 @@ export function DeliveryOrder({
                   address={[s.addressLine, s.area].filter(Boolean).join(", ")}
                   mapLabel={`${t("Buka peta", "Open map")} ${s.name}`}
                   onMap={() => void Linking.openURL(s.mapsUrl)}
-                  onMore={hasMore(s) ? () => setReporting(s) : undefined}
+                  onMore={hasMore(s) ? () => openSheet(s) : undefined}
                   moreLabel={hasMore(s) ? moreLabel(s) : undefined}
                 />
                 {s.note ? (
@@ -155,15 +161,6 @@ export function DeliveryOrder({
       ) : (
         <Text>{t("Tidak ada pengantaran untuk waktu ini.", "No deliveries for this meal.")}</Text>
       )}
-      {reporting ? (
-        <ExceptionSheet
-          stop={reporting}
-          meal={meal}
-          ops={ops}
-          allowFailed={report === "today"}
-          onClose={() => setReporting(null)}
-        />
-      ) : null}
     </View>
   );
 }

@@ -17,6 +17,8 @@ export function tabsForRole(role: string | undefined): CatererTab[] {
  */
 export const SCREEN_TAB = {
   "laporan/[id]": "index",
+  "balas/[id]": "index",
+  "atur-antaran/[id]": "index",
   "menu/[date]": "menu",
   "pelanggan/[id]": "pelanggan",
   "paket/[id]": "usaha",
@@ -25,4 +27,5 @@ export const SCREEN_TAB = {
   uang: "usaha",
   aktifkan: "usaha",
   impor: "pelanggan",
+  "impor-baris": "pelanggan",
 } as const satisfies Record<string, CatererTab>;

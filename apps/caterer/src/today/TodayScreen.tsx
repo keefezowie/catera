@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Alert, RefreshControl, View } from "react-native";
+import { RefreshControl, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import {
@@ -32,6 +32,7 @@ import {
   StickyAction,
   Text,
   useColors,
+  useConfirm,
   useHaptic,
   useMood,
   useMoodColors,
@@ -40,7 +41,7 @@ import {
 import { jakartaClock } from "./exceptions";
 import { cacheSession, loadCachedDay, saveCachedDay } from "./offline";
 import { SessionCard } from "./SessionCard";
-import { reportHref } from "../hrefs";
+import { replyHref } from "../hrefs";
 import { dapurLink } from "../links";
 import { openLink } from "../nav";
 import { ReadError } from "../ReadError";
@@ -115,7 +116,7 @@ function CountCard({ ops, session }: { ops: SellerOperationsState; session: Kitc
 
 /**
  * The one action the session is waiting for, pinned above the tab bar: "Mulai masak" while any row is still
- * scheduled, then "Berangkat antar" once all are cooking. Each asks first, because it tells customers. Ticks on the
+ * scheduled, then "Berangkat antar" once all are cooking. Each asks first in a confirm sheet, because it tells customers. Ticks on the
  * checklist play no part: the screen only goes by the session's own flags, and the database decides (today only).
  * A second press while the command runs is dropped. A failure is a plain line in the caption and re-reads the day.
  */
@@ -134,7 +135,10 @@ function KitchenAction({
   const c = useColors();
   const track = useTrack();
   const haptic = useHaptic();
+  const confirm = useConfirm();
   const running = useRef(false);
+  // The confirm sheet is open: a second tap before it covers the button asks nothing more.
+  const asking = useRef(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ text: string; failed: boolean } | null>(null);
   const { meal } = session;
@@ -176,29 +180,36 @@ function KitchenAction({
     }
   }
 
-  function ask() {
-    if (running.current) return;
-    if (cook)
-      Alert.alert(
-        lunch ? t("Mulai masak makan siang?", "Start cooking lunch?") : t("Mulai masak makan malam?", "Start cooking dinner?"),
-        t("Pelanggan melihat status Dimasak.", "Customers see the status Cooking."),
-        [
-          { text: t("Batal", "Cancel"), style: "cancel" },
-          { text: t("Mulai", "Start"), onPress: () => void run() },
-        ],
+  async function ask() {
+    if (running.current || asking.current) return;
+    asking.current = true;
+    try {
+      const go = await confirm(
+        cook
+          ? {
+              title: lunch
+                ? t("Mulai masak makan siang?", "Start cooking lunch?")
+                : t("Mulai masak makan malam?", "Start cooking dinner?"),
+              message: t("Pelanggan melihat status Dimasak.", "Customers see the status Cooking."),
+              cancelLabel: t("Batal", "Cancel"),
+              confirmLabel: t("Mulai", "Start"),
+              icon: "rantang",
+            }
+          : {
+              title: t("Berangkat antar sekarang?", "Leave to deliver now?"),
+              message: t(
+                "Pelanggan yang memakai aplikasi Catera dapat notifikasi saat kamu berangkat.",
+                "Customers using the Catera app get a notification when you leave.",
+              ),
+              cancelLabel: t("Batal", "Cancel"),
+              confirmLabel: t("Berangkat", "Leave"),
+              icon: "rantang",
+            },
       );
-    else
-      Alert.alert(
-        t("Berangkat antar sekarang?", "Leave to deliver now?"),
-        t(
-          "Pelanggan yang memakai aplikasi Catera dapat notifikasi saat kamu berangkat.",
-          "Customers using the Catera app get a notification when you leave.",
-        ),
-        [
-          { text: t("Batal", "Cancel"), style: "cancel" },
-          { text: t("Berangkat", "Leave"), onPress: () => void run() },
-        ],
-      );
+      if (go) await run();
+    } finally {
+      asking.current = false;
+    }
   }
 
   return (
@@ -224,7 +235,7 @@ function KitchenAction({
               )
         }
         busy={busy}
-        onPress={ask}
+        onPress={() => void ask()}
       />
     </View>
   );
@@ -502,7 +513,7 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
   );
 }
 
-/** Reports still waiting on the caterer, each naming who, which day and meal; tap to answer. */
+/** Reports still waiting on the caterer, each naming who, which day and meal; tap to answer in the reply sheet. */
 function ReportCards({ issues }: { issues: DeliveryIssue[] }) {
   const { t, locale } = useMobile();
   const c = useColors();
@@ -516,7 +527,7 @@ function ReportCards({ issues }: { issues: DeliveryIssue[] }) {
             key={i.id}
             accessibilityRole="button"
             accessibilityLabel={`${t("Buka laporan", "Open report")}: ${who}`}
-            onPress={() => router.push(reportHref(i.id, i.customerName) as never)}
+            onPress={() => router.push(replyHref(i.id, i.customerName) as never)}
           >
             <Card tone="attention" style={{ flexDirection: "row", alignItems: "center" }}>
               <View style={{ flex: 1, gap: 2 }}>

@@ -130,6 +130,16 @@ const TAB_ROOTS: readonly string[] = CATERER_TABS;
  */
 /** The confirm and action sheets: they answer whichever screen asked, so they carry no title and no tab of their own. */
 const SHEET_ROUTES = ["konfirmasi.tsx", "aksi.tsx"];
+/**
+ * Short tasks that are native sheets with a role of their own: they draw their own title (the stack header is hidden),
+ * and the role guards still cover them (`SCREEN_TAB`). Form sheets open at 60% and grow; Tim fits its content.
+ */
+const TASK_SHEETS: Record<string, "form" | "fit"> = {
+  "balas/[id]": "form",
+  "atur-antaran/[id]": "form",
+  "impor-baris": "form",
+  tim: "fit",
+};
 
 function pushedRoutes(dir = path.join(__dirname, "..", "app"), prefix = ""): string[] {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -174,7 +184,7 @@ describe("stack headers", () => {
   it("titles every pushed route in Indonesian instead of its route path", async () => {
     render(<RootLayout />);
     await screen.findByTestId("header:pelanggan/[id]");
-    const routes = pushedRoutes();
+    const routes = pushedRoutes().filter((r) => !TASK_SHEETS[r]);
     expect(routes.length).toBeGreaterThanOrEqual(8);
     for (const route of routes) {
       const header = screen.getByTestId(`header:${route}`);
@@ -187,7 +197,6 @@ describe("stack headers", () => {
     expect(titleOf("paket/[id]")).toBe("Paket");
     expect(titleOf("paket/baru")).toBe("Paket baru");
     expect(titleOf("aktifkan")).toBe("Aktifkan pembayaran");
-    expect(titleOf("tim")).toBe("Tim");
     expect(titleOf("impor")).toBe("Impor pelanggan");
     expect(titleOf("uang")).toBe("Uang");
     expect(titleOf("laporan/[id]")).toBe("Laporan masalah");
@@ -200,7 +209,7 @@ describe("stack headers", () => {
     // Close at the leading edge of the native bar takes the place of back.
     for (const route of ["aktifkan", "impor"])
       expect(mockScreenOptions[route]).toMatchObject({ presentation: "modal", headerBackVisible: false, headerLeft: expect.any(Function) });
-    for (const route of pushedRoutes().filter((r) => r !== "aktifkan" && r !== "impor"))
+    for (const route of pushedRoutes().filter((r) => r !== "aktifkan" && r !== "impor" && !TASK_SHEETS[r]))
       expect({ route, presentation: mockScreenOptions[route]?.presentation }).toEqual({ route, presentation: undefined });
   });
 
@@ -214,6 +223,23 @@ describe("stack headers", () => {
         sheetGrabberVisible: true,
         headerShown: false,
       });
+  });
+
+  it("presents the short Dapur tasks as native sheets that draw their own title", async () => {
+    render(<RootLayout />);
+    await screen.findByTestId("header:pelanggan/[id]");
+    for (const [route, detents] of Object.entries(TASK_SHEETS)) {
+      expect({ route, options: mockScreenOptions[route] }).toMatchObject({
+        route,
+        options: {
+          presentation: "formSheet",
+          sheetAllowedDetents: detents === "fit" ? "fitToContents" : [0.6, 1],
+          sheetGrabberVisible: true,
+          headerShown: false,
+        },
+      });
+      expect(screen.queryByTestId(`header:${route}`)).toBeNull();
+    }
   });
 
   it("gives every pushed screen a tab, so the role guards cover it", () => {

@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
-import { Alert, Linking, Pressable, Share } from "react-native";
+import { Linking, Pressable, Share } from "react-native";
 import * as Reanimated from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import * as SecureStore from "expo-secure-store";
@@ -11,6 +11,7 @@ import { ExceptionSheet } from "../src/today/ExceptionSheet";
 import { TodayScreen } from "../src/today/TodayScreen";
 import { dishKey } from "../src/today/ticks";
 import { canvasDay, report } from "./fixtures";
+import { confirm, lastConfirm, resetSheets, SheetHost } from "./sheet-host";
 
 // The clock is pinned to Thursday 8 Oct 2026, 10.00 Jakarta. Only the clock: timers and microtasks keep running.
 const pinToday = () =>
@@ -23,7 +24,10 @@ const pinToday = () =>
     ],
   });
 
-jest.mock("expo-router", () => ({ router: { push: jest.fn(), replace: jest.fn() }, Link: () => null }));
+// The stop's "…" opens its sheet route; here the sheet shows next to the screen (`SheetHost`), and the confirm sheets
+// answer from the test.
+jest.mock("expo-router", () => require("./sheet-host").routerModule);
+jest.mock("@catera/mobile-ui", () => require("./sheet-host").mobileUiModule());
 jest.mock("expo-print", () => ({ printAsync: jest.fn(async () => undefined) }));
 jest.mock("expo-notifications", () => ({
   setNotificationHandler: jest.fn(),
@@ -101,41 +105,30 @@ function runtimeWith(
   return runtime;
 }
 
+/** A stop's sheet as its route draws it (`/atur-antaran/{id}?meal=…&date=…`). */
+const stopSheet = ({ path, params }: { path: string; params: Record<string, string> }) =>
+  path.startsWith("/atur-antaran/") ? (
+    <ExceptionSheet id={path.split("/")[2]} meal={params.meal === "dinner" ? "dinner" : "lunch"} date={params.date} />
+  ) : null;
+
 const renderToday = (runtime: MobileRuntime) =>
   render(
     <MobileProvider runtime={runtime} linkMapper={(h) => h}>
       <TodayScreen />
+      <SheetHost render={stopSheet} />
     </MobileProvider>,
   );
 
 const store = () => (SecureStore as unknown as { __store: Map<string, string> }).__store;
 
-/** Answers the next confirm dialog: returns its copy and presses the button named `press`. */
-function lastAlert(spy: jest.SpyInstance) {
-  const [title, message, buttons] = spy.mock.calls[spy.mock.calls.length - 1];
-  return {
-    title: title as string,
-    message: message as string,
-    labels: (buttons as { text: string }[]).map((b) => b.text),
-    // The dialog is native: its button runs outside React's event system, so the test wraps it as a tap would be.
-    press: (text: string) =>
-      act(() => {
-        // Batal has no handler: the dialog just closes.
-        (buttons as { text: string; onPress?: () => void }[]).find((b) => b.text === text)!.onPress?.();
-      }),
-  };
-}
-
-let alert: jest.SpyInstance;
 beforeEach(() => {
   jest.clearAllMocks();
+  resetSheets();
   store().clear();
   pinToday();
-  alert = jest.spyOn(Alert, "alert").mockImplementation(() => undefined);
 });
 afterEach(() => {
   jest.useRealTimers();
-  alert.mockRestore();
 });
 
 describe("the count card's rantang track", () => {
@@ -154,7 +147,7 @@ describe("the count card's rantang track", () => {
 
     served = kitchenDay([cooking]);
     fireEvent.press(await screen.findByText("Mulai masak"));
-    lastAlert(alert).press("Mulai");
+    await lastConfirm().press("Mulai");
     expect(await within(screen.getByTestId("session-count")).findByText("Dimasak 08.10")).toBeTruthy();
   });
 });
@@ -289,13 +282,13 @@ describe("Daftar masak", () => {
 
     served = kitchenDay([cooking]);
     fireEvent.press(start);
-    lastAlert(alert).press("Mulai");
+    await lastConfirm().press("Mulai");
     await screen.findByText("Berangkat antar · 34 porsi");
     for (const box of screen.getAllByRole("checkbox")) fireEvent.press(box);
     const depart = screen.getByRole("button", { name: "Berangkat antar · 34 porsi" });
     expect(depart.props.accessibilityState?.disabled).toBeFalsy();
     fireEvent.press(depart);
-    expect(alert).toHaveBeenCalledTimes(2);
+    expect(confirm).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -305,16 +298,19 @@ describe("Mulai masak", () => {
     const runtime = runtimeWith(async () => kitchenDay([scheduled]), command);
     renderToday(runtime);
     fireEvent.press(await screen.findByText("Mulai masak"));
-    const dialog = lastAlert(alert);
+    const dialog = lastConfirm();
     expect(dialog.title).toBe("Mulai masak makan siang?");
     expect(dialog.message).toBe("Pelanggan melihat status Dimasak.");
     expect(dialog.labels).toEqual(["Batal", "Mulai"]);
+    expect(dialog.icon).toBe("rantang");
     // Nothing is sent before the answer, and Batal sends nothing at all.
     expect(command).not.toHaveBeenCalled();
-    dialog.press("Batal");
+    await dialog.press("Batal");
     expect(command).not.toHaveBeenCalled();
 
-    dialog.press("Mulai");
+    // Asked again, Mulai sends it.
+    fireEvent.press(screen.getByText("Mulai masak"));
+    await lastConfirm().press("Mulai");
     await waitFor(() => expect(command).toHaveBeenCalledTimes(1));
     expect(command).toHaveBeenCalledWith("delivery.cook", { catererId: "k-1", date: TODAY, meal: "lunch" }, expect.any(String));
     await waitFor(() => expect(Haptics.notificationAsync).toHaveBeenCalledWith("success"));
@@ -332,9 +328,9 @@ describe("Mulai masak", () => {
       </MobileProvider>,
     );
     fireEvent.press(await screen.findByText("Mulai masak"));
-    const dialog = lastAlert(alert);
+    const dialog = lastConfirm();
     expect(dialog.title).toBe("Mulai masak makan malam?");
-    dialog.press("Mulai");
+    await dialog.press("Mulai");
     await waitFor(() => expect(command).toHaveBeenCalledWith("delivery.cook", { catererId: "k-1", date: TODAY, meal: "dinner" }, expect.any(String)));
     // Let the command settle and the day be read again, so nothing updates after the test has ended.
     await waitFor(() => expect(Haptics.notificationAsync).toHaveBeenCalledWith("success"));
@@ -357,7 +353,7 @@ describe("Mulai masak", () => {
     const runtime = runtimeWith(async () => kitchenDay([scheduled]), command);
     renderToday(runtime);
     fireEvent.press(await screen.findByText("Mulai masak"));
-    lastAlert(alert).press("Mulai");
+    await lastConfirm().press("Mulai");
     const line = await screen.findByText("Hanya bisa untuk hari ini.");
     expect(line.props.selectable).toBe(true);
     expect(within(screen.getByTestId("screen-footer")).getByText("Hanya bisa untuk hari ini.")).toBeTruthy();
@@ -374,7 +370,7 @@ describe("Mulai masak", () => {
     });
     renderToday(runtimeWith(async () => kitchenDay([scheduled]), command));
     fireEvent.press(await screen.findByText("Mulai masak"));
-    lastAlert(alert).press("Mulai");
+    await lastConfirm().press("Mulai");
     const line = await within(await screen.findByTestId("screen-footer")).findByText(errorLabel("REQUEST_TIMEOUT", "id"));
     expect(line.props.selectable).toBe(true);
   });
@@ -385,13 +381,13 @@ describe("Mulai masak", () => {
     renderToday(runtimeWith(async () => kitchenDay([scheduled]), command));
     const start = await screen.findByRole("button", { name: "Mulai masak" });
     fireEvent.press(start);
-    lastAlert(alert).press("Mulai");
+    await lastConfirm().press("Mulai");
     await waitFor(() => expect(command).toHaveBeenCalledTimes(1));
-    // The same dialog answered twice, and the footer pressed again, still make one command.
-    lastAlert(alert).press("Mulai");
+    // The same sheet answered twice, and the footer pressed again, still make one command.
+    await lastConfirm().press("Mulai");
     fireEvent.press(screen.getByRole("button", { name: "Mulai masak" }));
     expect(screen.getByRole("button", { name: "Mulai masak" }).props.accessibilityState?.disabled).toBe(true);
-    expect(alert).toHaveBeenCalledTimes(1);
+    expect(confirm).toHaveBeenCalledTimes(1);
     expect(command).toHaveBeenCalledTimes(1);
     await act(async () => release({ moved: 4 }));
   });
@@ -401,7 +397,7 @@ describe("Mulai masak", () => {
     const runtime = runtimeWith(async () => kitchenDay([scheduled]), command);
     renderToday(runtime);
     fireEvent.press(await screen.findByText("Mulai masak"));
-    lastAlert(alert).press("Mulai");
+    await lastConfirm().press("Mulai");
     expect(await screen.findByText("Sudah ditandai dimasak.")).toBeTruthy();
     expect(Haptics.notificationAsync).not.toHaveBeenCalled();
     expect(runtime.api.usage).not.toHaveBeenCalledWith("cook_started", "dapur");
@@ -418,10 +414,10 @@ describe("Berangkat antar", () => {
     expect(screen.getByText("Pelanggan yang memakai aplikasi Catera dapat notifikasi saat kamu berangkat.")).toBeTruthy();
 
     fireEvent.press(screen.getByRole("button", { name: "Berangkat antar · 34 porsi" }));
-    const dialog = lastAlert(alert);
+    const dialog = lastConfirm();
     expect(dialog.title).toBe("Berangkat antar sekarang?");
     expect(dialog.labels).toEqual(["Batal", "Berangkat"]);
-    dialog.press("Berangkat");
+    await dialog.press("Berangkat");
     await waitFor(() => expect(command).toHaveBeenCalledTimes(1));
     expect(command).toHaveBeenCalledWith("delivery.depart", { catererId: "k-1", date: TODAY, meal: "lunch" }, expect.any(String));
     await waitFor(() => expect(runtime.api.usage).toHaveBeenCalledWith("depart_tapped", "dapur"));
@@ -616,7 +612,9 @@ describe("Urutan antar", () => {
   });
 
   it("opens the exception sheet for that stop from the ellipsis button", async () => {
-    renderToday(runtimeWith(async () => kitchenDay([scheduled])));
+    // One day for every read, as the server answers: the sheet reads it again and must find the same stop.
+    const day = kitchenDay([scheduled]);
+    renderToday(runtimeWith(async () => day));
     const more = within(await screen.findByTestId("stop-1")).getByLabelText(
       "Laporkan masalah atau pindah hari: Bu Sari Wulandari",
     );
@@ -705,31 +703,31 @@ describe("Urutan antar", () => {
         expect.any(String),
       ),
     );
-    await waitFor(() => expect(screen.queryByText("Simpan laporan")).toBeNull());
+    // The sheet closes from an effect once the save has gone through; let it run.
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+    expect(screen.queryByText("Simpan laporan")).toBeNull();
+    expect(router.back).toHaveBeenCalledTimes(1);
   });
 });
 
 describe("the exception sheet on its own", () => {
-  const sheet = (day: SellerOperationsState, onClose: () => void, command = jest.fn(async () => ({}))) => {
-    const runtime = runtimeWith(async () => day, command);
+  it("never offers Gagal diantar for a delivered meal and never closes silently on save", async () => {
+    const day = kitchenDay([delivered]);
+    const command = jest.fn(async () => ({}));
     render(
-      <MobileProvider runtime={runtime} linkMapper={(h) => h}>
-        <ExceptionSheet stop={stopsOf(day)[0]} meal="lunch" ops={day} onClose={onClose} />
+      <MobileProvider runtime={runtimeWith(async () => day, command)} linkMapper={(h) => h}>
+        <ExceptionSheet id={day.deliveries[0].id} meal="lunch" date={TODAY} />
       </MobileProvider>,
     );
-    return command;
-  };
-
-  it("never offers Gagal diantar for a delivered meal and never closes silently on save", async () => {
-    const onClose = jest.fn();
-    const command = sheet(kitchenDay([delivered]), onClose);
     expect(await screen.findByText("Tidak ada yang bisa dilaporkan untuk alamat ini.")).toBeTruthy();
     expect(screen.queryByText("Gagal diantar")).toBeNull();
     expect(screen.queryByText("Pindah tanggal")).toBeNull();
+    // "Simpan laporan" stays disabled: nothing is sent and the sheet does not close as if saved.
+    expect(screen.getByRole("button", { name: "Simpan laporan" }).props.accessibilityState?.disabled).toBe(true);
     fireEvent.press(screen.getByText("Simpan laporan"));
     await act(async () => undefined);
     expect(command).not.toHaveBeenCalled();
-    expect(onClose).not.toHaveBeenCalled();
+    expect(router.back).not.toHaveBeenCalled();
   });
 });
 
@@ -825,7 +823,7 @@ describe("the order across the stages", () => {
     const timing = jest.spyOn(Reanimated, "withTiming");
     served = kitchenDay([departed]);
     fireEvent.press(await screen.findByText("Berangkat antar · 34 porsi"));
-    lastAlert(alert).press("Berangkat");
+    await lastConfirm().press("Berangkat");
     expect(await screen.findByText("Dapur Bu Rina · Sedang diantar", {}, { timeout: 10000 })).toBeTruthy();
     expect(screen.queryByText("Daftar masak")).toBeNull();
     expect(timing).toHaveBeenCalledWith(1, expect.objectContaining({ duration: 220 }));

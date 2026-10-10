@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react-nativ
 import { Linking } from "react-native";
 import { useEffect } from "react";
 import { createMobileRuntime, MobileProvider, useMobile, type MobileRuntime } from "@catera/mobile-core";
+import { ToastProvider } from "@catera/mobile-ui";
 import { ReportScreen } from "../src/today/ReportScreen";
 import { report } from "./fixtures";
 
@@ -72,6 +73,23 @@ it("sends the reply text with Balas", async () => {
       expect.any(String),
     ),
   );
+});
+
+it("says Balasan terkirim on the page once the reply is sent, and stays on the report", async () => {
+  const runtime = runtimeWith(report());
+  render(
+    <MobileProvider runtime={runtime} linkMapper={(h) => h}>
+      <ToastProvider>
+        <ReportScreen id="i-1" />
+      </ToastProvider>
+    </MobileProvider>,
+  );
+  fireEvent.changeText(await screen.findByLabelText("Balasan untuk pelanggan"), "Maaf, kami antar ulang sekarang.");
+  fireEvent.press(screen.getByText("Balas"));
+  expect(await screen.findByText("Balasan terkirim")).toBeTruthy();
+  expect(screen.getByLabelText("Balasan untuk pelanggan").props.value).toBe("");
+  const { router } = jest.requireMock("expo-router") as { router: { back: jest.Mock } };
+  expect(router.back).not.toHaveBeenCalled();
 });
 
 it("closes the report with Tandai selesai", async () => {

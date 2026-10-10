@@ -14,3 +14,7 @@ export const packageHref = (id: string, name: string) => titled(`/paket/${encode
 /** /laporan/{id}: a delivery report, named after the customer who sent it; untitled when the name is unknown. */
 export const reportHref = (id: string, customerName: string | null | undefined) =>
   titled(`/laporan/${encodeURIComponent(id)}`, customerName ?? "");
+
+/** /balas/{id}: the reply sheet for a delivery report over Hari ini, titled with the customer's name. */
+export const replyHref = (id: string, customerName: string | null | undefined) =>
+  titled(`/balas/${encodeURIComponent(id)}`, customerName ?? "");

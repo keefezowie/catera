@@ -3,8 +3,21 @@ import { StyleSheet } from "react-native";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { ImportAssistant } from "../src/import/ImportAssistant";
 import { toImportRow } from "../src/import/rows";
+import { ImportRowEditor } from "../src/import/RowEditor";
+import { resetSheets, SheetHost } from "./sheet-host";
 
-jest.mock("expo-router", () => ({ router: { push: jest.fn(), replace: jest.fn(), back: jest.fn() }, Link: () => null }));
+beforeEach(() => resetSheets());
+
+/** Impor with its row sheet, as the root stack draws them. */
+const Impor = () => (
+  <>
+    <ImportAssistant />
+    <SheetHost render={({ path, params }) => (path === "/impor-baris" ? <ImportRowEditor n={Number(params.n)} /> : null)} />
+  </>
+);
+
+// A row opens its own sheet route (`/impor-baris?n=…`); here the sheet shows next to Impor (`SheetHost`).
+jest.mock("expo-router", () => require("./sheet-host").routerModule);
 jest.mock("expo-image-picker", () => ({ launchImageLibraryAsync: jest.fn() }));
 jest.mock("expo-document-picker", () => ({ getDocumentAsync: jest.fn() }));
 jest.mock("expo-image-manipulator", () => ({ ImageManipulator: { manipulate: jest.fn() }, SaveFormat: { JPEG: "jpeg" } }));
@@ -65,7 +78,7 @@ it("saves only the rows that need no checking", async () => {
   global.fetch = fetchMock as unknown as typeof fetch;
   render(
     <MobileProvider runtime={runtime} linkMapper={() => "/"}>
-      <ImportAssistant />
+      <Impor />
     </MobileProvider>,
   );
   fireEvent.changeText(await screen.findByLabelText("Tempel atau ketik daftar pelanggan"), "daftar pelanggan saya …");
@@ -99,7 +112,7 @@ it("does not retry row by row when the connection drops", async () => {
   global.fetch = jest.fn(async () => ({ ok: true, json: async () => ({ data: { rows: rows.slice(0, 3), needsReview: 0 } }) })) as unknown as typeof fetch;
   render(
     <MobileProvider runtime={runtime} linkMapper={() => "/"}>
-      <ImportAssistant />
+      <Impor />
     </MobileProvider>,
   );
   fireEvent.changeText(await screen.findByLabelText("Tempel atau ketik daftar pelanggan"), "daftar");
@@ -129,7 +142,7 @@ function setup(command: jest.Mock, response: { ok: boolean; status?: number; jso
   global.fetch = jest.fn(async () => response) as unknown as typeof fetch;
   render(
     <MobileProvider runtime={runtime} linkMapper={() => "/"}>
-      <ImportAssistant />
+      <Impor />
     </MobileProvider>,
   );
 }

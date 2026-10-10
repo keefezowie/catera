@@ -108,7 +108,7 @@ const OWNER_PUSHES: [href: string, route: string, title: string][] = [
   ["/pelanggan/c-1", "pelanggan/[id]", "Pelanggan"],
   ["/paket/p-1", "paket/[id]", "Paket"],
   ["/paket/baru", "paket/baru", "Paket baru"],
-  ["/tim", "tim", "Tim"],
+  ["/uang", "uang", "Uang"],
 ];
 
 beforeEach(() => {
@@ -198,17 +198,24 @@ describe("native headers", () => {
   it("dark: the bar sits on the dark canvas with the dark ink", async () => {
     jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
     await open("/");
-    await go(() => router.push("/tim"));
+    await go(() => router.push("/paket/baru"));
     const dark = nativeThemes.dark;
-    expect(headerOf("tim").props).toMatchObject({ backgroundColor: dark.canvas, color: dark.charcoal, titleColor: dark.charcoal });
+    expect(headerOf("paket/baru").props).toMatchObject({ backgroundColor: dark.canvas, color: dark.charcoal, titleColor: dark.charcoal });
   });
 
   it("with the demo strip the Android bar adds no second status-bar inset", async () => {
     mockMe.demo = true;
     await open("/");
     expect(screen.getByText("Demo · data sintetis")).toBeTruthy();
+    await go(() => router.push("/paket/baru"));
+    expect(headerOf("paket/baru").props).toMatchObject({ hidden: false, consumeTopInset: false });
+  });
+
+  it("Tim opens as a native sheet sized to its content, with no bar of its own", async () => {
+    await open("/");
     await go(() => router.push("/tim"));
-    expect(headerOf("tim").props).toMatchObject({ hidden: false, consumeTopInset: false });
+    expect(screenOf("tim").props).toMatchObject({ stackPresentation: "formSheet", sheetAllowedDetents: [-1], sheetGrabberVisible: true });
+    expect(headerOf("tim").props.hidden).toBe(true);
   });
 
   it("status bar: the mood on a tab root, the theme on a pushed screen", async () => {
@@ -225,7 +232,7 @@ describe("native headers", () => {
     try {
       await open("/");
       expect(statusGlyphs()).toBe("light-content");
-      await go(() => router.push("/tim"));
+      await go(() => router.push("/paket/baru"));
       expect(statusGlyphs()).toBe("dark-content");
       await go(() => router.back());
       expect(statusGlyphs()).toBe("light-content");
