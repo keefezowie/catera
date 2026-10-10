@@ -73,11 +73,29 @@ Do this on a throwaway branch named `task-7-device`, cut from `task-7`. Do not m
 
 The versions come from `node_modules/react-native/gradle/libs.versions.toml` (compileSdk 36, build tools 36.0.0, NDK 27.1.12297006, AGP 8.12.0).
 
-Local build path:
+Local build path. These commands are for the owner to run. The spike did not run any of them.
 
 ```
 winget install EclipseAdoptium.Temurin.17.JDK
 setx JAVA_HOME "C:\Program Files\Eclipse Adoptium\jdk-17.<current>"
+winget install Google.AndroidStudio
+```
+
+Open Android Studio once and let its setup wizard install the Android SDK. The default place is `%LOCALAPPDATA%\Android\Sdk`. Then go to Settings, Languages and Frameworks, Android SDK, SDK Tools, and tick "Android SDK Command-line Tools (latest)". That gives `sdkmanager` and `avdmanager`.
+
+Without Android Studio: download "Command line tools only" for Windows from developer.android.com/studio. Unzip it so that `sdkmanager.bat` sits in `%LOCALAPPDATA%\Android\Sdk\cmdline-tools\latest\bin`.
+
+Either way, point the tools at the SDK and put them on the path. Open a new terminal afterwards.
+
+```
+setx ANDROID_HOME "%LOCALAPPDATA%\Android\Sdk"
+setx PATH "%PATH%;%LOCALAPPDATA%\Android\Sdk\cmdline-tools\latest\bin;%LOCALAPPDATA%\Android\Sdk\platform-tools;%LOCALAPPDATA%\Android\Sdk\emulator"
+```
+
+Then install `adb` (in `platform-tools`), the emulator, the build parts and the system images, and create the emulators.
+
+```
+sdkmanager "platform-tools" "emulator"
 sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;27.1.12297006" "cmake;3.22.1"
 sdkmanager "system-images;android-34;google_apis_playstore;x86_64" ^
            "system-images;android-35;google_apis_playstore;x86_64" ^
@@ -137,10 +155,11 @@ Do each row twice, once with hardware (three-button) back and once with gesture 
 | --- | --- | --- |
 | 1 | Pushed screen. From Beranda open a plan (`/subscriptions/{id}`) and press Back. | Exactly one screen pops. Beranda shows. The tab bar stays visible. |
 | 2 | Sheet. Open a sheet (for example Ganti hari) and press Back. | Only the sheet closes. The screen behind it stays. |
-| 3 | Bayar paid guard. Finish a demo payment so Bayar shows the paid state, then press Back. | The app lands on `/` (Beranda) through `router.replace`. It never shows Beli again. |
+| 3 | Bayar paid guard. Finish a demo payment so Bayar shows the paid state, then press Back. | The app lands on Beranda. It never shows Beli again. |
 | 4 | Leave from a tab root. On Beranda with nothing pushed, press Back. | The app leaves to the launcher. Opening it again resumes it. |
 | 5 | Other tab roots. On Jadwal, press Back. | The app goes to Beranda. A second Back leaves. |
 | 6 | Preview. On Beranda with nothing pushed, hold a gesture mid-swipe. | The system back-to-home preview shows: the app window shrinks and the launcher shows behind it. |
+| 7 | Cold launch. Force-stop the app (`adb shell am force-stop` with the app id), open it, and press Back on Beranda as soon as it shows. This row must run on API 34 and 35. Run it on 36 too. | The app leaves to the launcher on the first press. It never stays on Beranda while Back is pressed again and again. |
 
 Extra checks to log, not part of the go rule: Back while the keyboard is open (the keyboard should close first), Back right after returning from the background, and Back after a rotation.
 
@@ -152,7 +171,7 @@ Apply the plugin steps in section 3.4 on the throwaway branch, rebuild, and repe
 
 ### 2.5 Step 4: the go rule
 
-Ship the flag and plugin only if every row 1 to 6 passes on all three API levels, both back types. If any cell fails:
+Ship the flag and plugin only if every row 1 to 7 passes on all three API levels, both back types. If any cell fails:
 
 - Commit only this report, with the failing cells filled in.
 - Leave `predictiveBackGestureEnabled` unset.
@@ -160,7 +179,15 @@ Ship the flag and plugin only if every row 1 to 6 passes on all three API levels
 
 ### 2.6 Step 5: the hide-on-scroll go rule
 
-Use the same build, with the patch from section 4.4 applied. Customer app, Beranda or Jadwal tab with a list long enough to scroll.
+Use the same build, with the patch described in sections 4.2 and 4.3 applied. To apply it on the throwaway branch:
+
+1. Add `patch-package` as a root dev dependency: `npm install --save-dev patch-package`.
+2. Add `"postinstall": "patch-package"` to `scripts` in the root `package.json`.
+3. Run `npm install`. The postinstall step applies `patches/react-native-screens+4.26.2.patch`. Check that its output says the patch was applied.
+4. Add `nestedScrollEnabled` to the page ScrollView at `packages/mobile-ui/src/components.tsx:443`.
+5. Rebuild the development client (section 2.1).
+
+Then use the customer app, on the Beranda or Jadwal tab, with a list long enough to scroll.
 
 | Check | How to measure | Pass means |
 | --- | --- | --- |
@@ -190,19 +217,27 @@ The system plays its back-to-home preview only when the app has no enabled back 
 
 - JS has no way to turn a native callback off. `BackHandler` only adds listeners and can exit. A listener cannot remove the enabled callback, so the system still sees the app as handling Back.
 - ReactActivity's callback is a private field (`ReactActivity.java:31`). The draft finds it by type with reflection, so a renamed field still works. If R8 renames the class itself the lookup returns null and the module does nothing. The default builds do not minify, but this must be checked on a release build.
-- React Native turns its callback back on after every back event (`ReactActivity.java:37` and `:129`). The module cannot stop that. So JS reports the state again after every navigation state change and when the app returns to the foreground. The order works out because JS runs after the native code that re-enables the callback, so the later "off" wins. (To check: a quick double press of Back.)
+- React Native turns its callback back on after every back event (`ReactActivity.java:37` and `:129`). The module cannot stop that. So JS reports the state again after every navigation state change, when the navigation container becomes ready, when a hold is added or removed, and when the app returns to the foreground. The order works out because JS runs after the native code that re-enables the callback, so the later "off" wins. (To check: a quick double press of Back.)
 
 ### 3.3 The API 33 to 35 gap
 
 React Native issue 58407 reports that with `enableOnBackInvokedCallback="true"`, `hardwareBackPress` never reaches JS on API 33 to 35. The reason given is that `ReactActivity` adds its callback only on API 36 (section 1.1). With no callback, Back falls through to `finish()`. The issue says API 36 is not affected. It is still in triage and unchanged on 0.86.3 and main, per a comment on the issue.
 
-The draft module covers this. On API 33 to 35 it adds its own callback that does what ReactActivity's does: switch off, call `onBackPressed()`, switch on. It follows the same "root can go back" switch. The first Back before JS reports once is not covered. That is a short window right after launch.
+The draft module covers this. On API 33 to 35 it adds its own callback that sends Back to JS, as ReactActivity's does. It follows the same "root can go back" switch. It differs in one way: after it runs it stays off, and the next JS report turns it on again.
+
+That difference matters. The first draft switched its callback on again right after `onBackPressed()`, as ReactActivity does. That causes a Back loop. When no JS listener takes Back, `BackHandler.exitApp()` reaches `invokeDefaultOnBackPressed` (`ReactActivity.java:122-130`). That turns off only React Native's own callback, then asks the dispatcher again. The dispatcher finds the module's callback still on and calls it. JS gets `hardwareBackPress` again, falls through again, and so on. On API 33 to 35 the user cannot leave the app.
+
+Two cases led into the loop. One is a hold (`useKeepBackForJs`) at a root. The other is the launch window. JS says "can go back" until the container is ready, and the first draft did not report again until the first navigation, because the `state` event does not fire on ready. So a Back on Beranda right after a cold launch went into the loop. The fixed draft keeps the callback off after it runs, and JS also reports on the container's `ready` event. Row 7 in section 2.3 checks this.
+
+The cost of staying off: if a JS listener handles Back without changing the navigation state, nothing reports, and the next Back on API 33 to 35 goes to the system. Such a listener must call `reportRootBackAgain()`. No such listener exists today. The Bayar guard always navigates to Beranda.
+
+A recreated activity (after a rotation or a theme change) has a new dispatcher. The module remembers which activity it added its callback to, and adds a new one when the activity changes.
 
 ### 3.4 How to enable the draft (throwaway branch only)
 
 1. `apps/customer/app.config.ts`: set `android.predictiveBackGestureEnabled: true` and add `"../../plugins/with-root-back-callback.cjs"` to `plugins`.
 2. `apps/customer/package.json`: add `"expo": { "autolinking": { "nativeModulesDir": "../../plugins" } }` so Expo autolinks `plugins/root-back` as a local module.
-3. `apps/customer/app/_layout.tsx`: call `useReportRootBack()` once. Any screen that keeps its own `BackHandler` listener at a root must call `useKeepBackForJs()` while mounted.
+3. `apps/customer/app/_layout.tsx`: call `useReportRootBack()` once. Any screen that keeps its own `BackHandler` listener at a root must call `useKeepBackForJs()` while mounted. A listener that returns true without navigating must call `reportRootBackAgain()`.
 4. Repeat for the kitchen app after the customer app passes.
 
 The plugin file is `.cjs` because the repo root `package.json` says `"type": "module"`. The plugin does one job: it stops the prebuild if the manifest flag is not `"true"`.
@@ -211,7 +246,9 @@ The plugin file is `.cjs` because the repo root `package.json` says `"type": "mo
 
 - Issue 58407 (above). Enabling the flag without the module is the main risk. The flag must never ship alone.
 - Reflection on a private field. A React Native update can move or remove the field. The module then does nothing and the preview does not play, but Back still works.
-- Race at the end of a back event (section 3.2). A wrong order would leave Back disabled at a screen that needs it. The effect is that the system leaves the app instead of going back one screen. It is the worst failure, so the double-press check matters.
+- Back loop on API 33 to 35 (section 3.3). If the module's callback is still on when `invokeDefaultOnBackPressed` asks the dispatcher again, Back goes to JS forever and the user cannot leave the app. This is the worst failure. The draft prevents it by keeping the callback off after it runs. Rows 4 and 7 check it on API 34 and 35.
+- Race at the end of a back event (section 3.2). A wrong order would leave Back disabled at a screen that needs it. The system then leaves the app instead of going back one screen. The double-press check covers it.
+- A listener that handles Back without navigating (section 3.3). On API 33 to 35 the next Back leaves the app, unless that listener calls `reportRootBackAgain()`.
 - Other JS listeners. At a root, a listener that wants Back would be skipped once the callback is off. Today only the Bayar guard exists and Bayar is a pushed screen. `useKeepBackForJs` is the escape hatch.
 - Leaving the app: with the callback off, the system decides what leaving means. Today the app finishes. On Android 12 and later the system usually moves the task to the back. Check row 4 resumes the app correctly.
 - The Kotlin and the module config have not been compiled. They follow `node_modules/expo-haptics/android` as a template.
