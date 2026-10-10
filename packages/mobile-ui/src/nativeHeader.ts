@@ -64,6 +64,37 @@ export function useStackScreenOptions(demo: boolean): NativeStackNavigationOptio
   );
 }
 
+/** Material 3's bottom sheet corner on Android; iOS keeps the system sheet's own corner. */
+const ANDROID_SHEET_CORNER = 28;
+/** A form sheet that can grow opens at 60% of the screen and expands to full height. */
+const FORM_DETENTS = [0.6, 1];
+
+/**
+ * The options of a route presented as a native sheet (UISheetPresentationController on iOS, the Material bottom sheet
+ * on Android): `fit` sizes it to its content (choice, action and confirm sheets), `form` opens at 60% and expands to
+ * the full height (forms that can grow). The grabber is the system's on iOS; react-native-screens draws none on
+ * Android, so the sheet's own `SheetHeader` draws the drag handle there. The sheet draws its own title row, so the
+ * stack header is hidden, and its ground is the theme `surface`. `os` defaults to the running platform.
+ */
+export function sheetOptions({
+  detents,
+  palette,
+  os = process.env.EXPO_OS,
+}: {
+  detents: "fit" | "form";
+  palette: NativePalette;
+  os?: string;
+}): NativeStackNavigationOptions {
+  return {
+    presentation: "formSheet",
+    sheetGrabberVisible: true,
+    sheetAllowedDetents: detents === "fit" ? "fitToContents" : [...FORM_DETENTS],
+    ...(os === "ios" ? null : { sheetCornerRadius: ANDROID_SHEET_CORNER }),
+    contentStyle: { backgroundColor: palette.surface },
+    headerShown: false,
+  };
+}
+
 /** The longest name a link may put in the bar, in characters, "…" included. */
 export const LINK_TITLE_MAX = 60;
 

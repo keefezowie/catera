@@ -18,9 +18,11 @@ describe("native themes", () => {
       muted: "#B5B2AA", line: "#34332F", fieldBorder: "#7A7872", secondaryBorder: "#4A4944",
       attentionBorder: "#4C3322", danger: "#FF8F80", controlRing: "#8A8780", tabBar: "#1E1E1C",
       disabledFill: "#34332F", tabIndicator: "#163D2E",
+      toast: "#F5F1E8", onToast: "#2E2E2E", toastAction: "#163D2E",
     });
     expect(nativeThemes.light).toMatchObject({
       controlRing: "#858D80", tabBar: "#F2ECDF", disabledFill: "#CFD3C6", tabIndicator: "#BFD8BB",
+      toast: "#2E2E2E", onToast: "#FFF7E9", toastAction: "#BFD8BB",
     });
     // The dark pill is the brand green the dark theme already uses for the inverted cream role.
     expect(nativeThemes.dark.tabIndicator).toBe(nativeThemes.dark.cream);
@@ -57,6 +59,11 @@ describe("native themes", () => {
     // The pill marks the selected tab, so it must stand off the bar it sits on, not only carry its icon.
     it(`${theme}: the indicator pill stands off the bar at 1.25:1 or more`, () => {
       expect(contrastRatio(p.tabIndicator, p.tabBar)).toBeGreaterThanOrEqual(1.25);
+    });
+    // The toast's message and its action label are small text on the toast fill.
+    it(`${theme}: toast text and its action reach 4.5:1 on the toast`, () => {
+      expect(contrastRatio(p.onToast, p.toast), "onToast on toast").toBeGreaterThanOrEqual(4.5);
+      expect(contrastRatio(p.toastAction, p.toast), "toastAction on toast").toBeGreaterThanOrEqual(4.5);
     });
   }
   it("contrastRatio matches known WCAG values", () => {

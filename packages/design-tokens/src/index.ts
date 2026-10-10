@@ -76,7 +76,15 @@ export const webVariables = {
   "--space-section": spacing.section + "px",
 };
 
-export type PaletteKey = keyof typeof colors | "controlRing" | "tabBar" | "disabledFill" | "tabIndicator";
+export type PaletteKey =
+  | keyof typeof colors
+  | "controlRing"
+  | "tabBar"
+  | "disabledFill"
+  | "tabIndicator"
+  | "toast"
+  | "onToast"
+  | "toastAction";
 export type NativePalette = Record<PaletteKey, string>;
 export type ThemeName = "light" | "dark";
 
@@ -87,9 +95,22 @@ export type ThemeName = "light" | "dark";
  * reads on it at 7.9:1 in light and 11.3:1 in dark. The light `tabBar` is #F2ECDF, the value on the owner-approved
  * canvas: one tonal step below the content, as Material 3 puts the navigation bar on a surface-container step. Dark
  * keeps #1E1E1C. The light pill is deep enough to stand 1.30:1 off that bar.
+ *
+ * `toast`, `onToast` and `toastAction` are the toast's fill, message and action label, the theme inverted so a passing
+ * message stands apart from any surface under it: light is charcoal with cream text and the tab-indicator green as the
+ * action; dark is the light ink as the fill with charcoal text and brand forest as the action. All reach 4.5:1.
  */
 export const nativeThemes: Record<ThemeName, NativePalette> = {
-  light: { ...colors, controlRing: "#858D80", tabBar: "#F2ECDF", disabledFill: "#CFD3C6", tabIndicator: "#BFD8BB" },
+  light: {
+    ...colors,
+    controlRing: "#858D80",
+    tabBar: "#F2ECDF",
+    disabledFill: "#CFD3C6",
+    tabIndicator: "#BFD8BB",
+    toast: "#2E2E2E",
+    onToast: "#FFF7E9",
+    toastAction: "#BFD8BB",
+  },
   dark: {
     forest: "#FFF7E9",
     forestDeep: "#E9E3D6",
@@ -111,6 +132,9 @@ export const nativeThemes: Record<ThemeName, NativePalette> = {
     tabBar: "#1E1E1C",
     disabledFill: "#34332F",
     tabIndicator: "#163D2E",
+    toast: "#F5F1E8",
+    onToast: "#2E2E2E",
+    toastAction: "#163D2E",
   },
 };
 

@@ -15,6 +15,7 @@ import {
   statusBarStyle,
   Text,
   ThemeProvider,
+  ToastProvider,
   TopInsetOwner,
   useColors,
   useStackScreenOptions,
@@ -127,9 +128,11 @@ export default function RootLayout() {
       <ThemeProvider storageKey={runtime.storageKey("theme")}>
         <MoodProvider>
           <AppProviders runtime={runtime}>
-            <NavigationColors>
-              <Navigation />
-            </NavigationColors>
+            <ToastProvider>
+              <NavigationColors>
+                <Navigation />
+              </NavigationColors>
+            </ToastProvider>
           </AppProviders>
         </MoodProvider>
       </ThemeProvider>
