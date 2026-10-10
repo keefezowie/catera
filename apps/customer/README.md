@@ -20,7 +20,7 @@ Redirect stubs exist only for hrefs the server or older links still emit: `/subs
 Folders in `src/`:
 
 - `runtime.ts`: the one `createMobileRuntime` (API, Supabase session in SecureStore, `catera.*` keys). `shell.tsx`: `AppProviders`, which wraps `MobileProvider` from `@catera/mobile-core`; that provider owns the session, commands, realtime, push registration and push-tap routing.
-- `today`, `tomorrow`, `schedule`, `plan`, `discover`, `buy`, `help`, `claim`, `account`: one folder per area, built on the workspace packages in `packages/`: `@catera/domain` (the rules, dates and labels, shared with Catera Dapur and the web), `@catera/mobile-core` (`useMobile`, `useData`) and `@catera/mobile-ui` (`Text`, `Button`, `Field`, `Card`, `Sheet`, `Screen`, `useColors`), both shared with Catera Dapur (`apps/caterer`), and `@catera/design-tokens` (the light, dark and mood palettes that `@catera/mobile-ui` draws with).
+- `today`, `tomorrow`, `schedule`, `plan`, `discover`, `buy`, `help`, `claim`, `account`: one folder per area, built on the workspace packages in `packages/`: `@catera/domain` (the rules, dates and labels, shared with Catera Dapur and the web), `@catera/mobile-core` (`useMobile`, `useData`, and the runtime that talks to the server through `@catera/api-client`, the typed client the web shares) and `@catera/mobile-ui` (`Text`, `Button`, `Field`, `Card`, `Sheet`, `Screen`, `useColors`), both shared with Catera Dapur (`apps/caterer`), and `@catera/design-tokens` (the light, dark and mood palettes that `@catera/mobile-ui` draws with).
 - `auth.ts`: `nativeReturnPath`, the allow-list for where sign-in returns (`next`).
 
 ## Environment
