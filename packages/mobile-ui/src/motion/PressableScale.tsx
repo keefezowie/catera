@@ -13,12 +13,15 @@ const dim = { duration: nativeMotion.control, reduceMotion: ReduceMotion.Never }
 
 export type PressableScaleProps = Omit<PressableProps, "style"> & {
   haptic?: "tap" | "select" | "none";
+  /** False for a control whose press changes nothing (the chosen tab): no compress and no dim. Defaults to true. */
+  pressFeedback?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
 /** Pressable that compresses on press-in; under reduced motion it only dims. Fires a haptic on press. */
 export function PressableScale({
   haptic = "tap",
+  pressFeedback = true,
   style,
   onPress,
   onPressIn,
@@ -41,6 +44,10 @@ export function PressableScale({
   );
 
   const pressIn = (e: GestureResponderEvent) => {
+    if (!pressFeedback) {
+      onPressIn?.(e);
+      return;
+    }
     if (reduced) opacity.value = withTiming(REDUCED_OPACITY, dim);
     else scale.value = withSpring(PRESSED_SCALE, nativeMotion.spring);
     onPressIn?.(e);

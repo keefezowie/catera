@@ -101,13 +101,33 @@ describe("MoodArc", () => {
     expect(screen.getByRole("tab", { name: "Dinner, None", selected: false })).toBeTruthy();
   });
 
-  it("gives each end a target of at least 48dp", () => {
+  it("gives each end a target of at least 48dp both ways, in a 104dp block at font scale 1.0", () => {
     mount(<MoodArc {...ENDS} />);
     for (const end of ["siang", "malam"]) {
       const s = flat(`mood-arc-tab-${end}`);
       expect(s.width).toBeGreaterThanOrEqual(48);
-      expect(flat(`mood-arc-marker-${end}`)).toMatchObject({ width: 52, height: 52 });
+      const marker = flat(`mood-arc-marker-${end}`);
+      expect(marker).toMatchObject({ width: 50, height: 50 });
+      // The column stacks its top padding, the marker and the two label lines, with no gaps between them.
+      expect(s.gap).toBeUndefined();
+      const height =
+        (s.paddingTop as number) +
+        (marker.height as number) +
+        (flat(`mood-arc-title-${end}`).lineHeight as number) +
+        (flat(`mood-arc-detail-${end}`).lineHeight as number);
+      expect(height).toBeGreaterThanOrEqual(48);
+      // The owner-approved canvas gives the arc about 104dp under the headline.
+      expect(height).toBe(104);
     }
+  });
+
+  it("gives no press feedback on the chosen end, and keeps it on the other", () => {
+    const spring = jest.spyOn(Reanimated, "withSpring");
+    mount(<MoodArc {...ENDS} />);
+    fireEvent(screen.getByTestId("mood-arc-tab-siang"), "pressIn");
+    expect(spring).not.toHaveBeenCalled();
+    fireEvent(screen.getByTestId("mood-arc-tab-malam"), "pressIn");
+    expect(spring).toHaveBeenCalledWith(0.97, expect.anything());
   });
 
   it("the idle end has the outline ring", () => {
@@ -178,6 +198,19 @@ describe("MoodArc", () => {
     expect(flat("mood-arc-disc").backgroundColor).toBe(nativeMood.light.malam.markerActive);
   });
 
+  it("cross-fades the disc glyph from the sun to the moon, instantly under reduced motion", () => {
+    jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
+    mount(<MoodArc {...ENDS} />);
+    layout();
+    // Both glyphs ride the disc; only opacity tells them apart, so the moon never shows over the sun marker.
+    expect(flat("mood-arc-disc-glyph-siang").opacity).toBe(1);
+    expect(flat("mood-arc-disc-glyph-malam").opacity).toBe(0);
+    fireEvent.press(screen.getByRole("tab", { name: "Makan malam, 17.00" }));
+    expect(flat("mood-arc-disc-glyph-siang").opacity).toBe(0);
+    expect(flat("mood-arc-disc-glyph-malam").opacity).toBe(1);
+    expect(flat("mood-arc-disc-glyph-malam").transform).toBeUndefined();
+  });
+
   it("follows a switch made elsewhere (the Jelajah meal buttons are the same mood)", () => {
     jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
     mount(
@@ -193,10 +226,21 @@ describe("MoodArc", () => {
     expect(discAt().x).toBe(320 - 48 - 22);
   });
 
-  it("draws the disc and the track only once it knows its width, hidden from screen readers", () => {
+  it("draws the disc and the track once it knows its width, and the chosen end is filled from the first frame", () => {
     mount(<MoodArc {...ENDS} />);
     expect(screen.queryByTestId("mood-arc-disc", { includeHiddenElements: true })).toBeNull();
+    // Before layout the chosen end's filled disc sits in its own marker, so neither end looks idle.
+    expect(flat("mood-arc-seed-siang-disc")).toMatchObject({
+      width: 44,
+      height: 44,
+      backgroundColor: nativeMood.light.siang.markerActive,
+    });
+    const seed = screen.getByTestId("mood-arc-seed-siang", { includeHiddenElements: true });
+    expect(seed.props.pointerEvents).toBe("none");
+    expect(within(seed).UNSAFE_getByProps({ name: "sunny" }).props.color).toBe(nativeMood.light.siang.onToggleActive);
+    expect(screen.queryByTestId("mood-arc-seed-malam", { includeHiddenElements: true })).toBeNull();
     layout();
+    expect(screen.queryByTestId("mood-arc-seed-siang", { includeHiddenElements: true })).toBeNull();
     const disc = screen.getByTestId("mood-arc-disc", { includeHiddenElements: true });
     expect(disc.props.accessibilityElementsHidden).toBe(true);
     expect(disc.props.importantForAccessibility).toBe("no-hide-descendants");
@@ -204,8 +248,9 @@ describe("MoodArc", () => {
     expect(screen.getByTestId("mood-arc-track", { includeHiddenElements: true }).props.accessibilityElementsHidden).toBe(true);
   });
 
-  it("arc labels wrap at font scale 1.3 without overlapping", () => {
-    jest.spyOn(ReactNative, "useWindowDimensions").mockReturnValue({ width: 360, height: 780, scale: 3, fontScale: 1.3 });
+  it("arc labels wrap at font scale 1.3 without overlapping (a style check)", () => {
+    // Jest has no text layout or font scale, so this checks the styles that let the labels wrap under their markers at
+    // any scale; the 360dp, font scale 1.3 look itself is the emulator capture in the Task 9 report.
     mount(
       <MoodArc
         siang={{ title: "Siang", detail: "12 antaran", label: "Makan siang" }}
