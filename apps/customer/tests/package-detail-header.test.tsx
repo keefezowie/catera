@@ -168,14 +168,17 @@ describe("Paket with its photo (ruling B3: the photo is the header)", () => {
     fireEvent(block!, "layout", { nativeEvent: { layout: { x: 20, y: 400, width: 320, height: 60 } } });
     fireEvent(name, "layout", { nativeEvent: { layout: { x: 0, y: 0, width: 320, height: 32 } } });
     const calls = navigation.setOptions.mock.calls.length;
-    // Past the photo's foot cream ink would sit on the cream page, so the bar stands on the canvas in the theme's ink
-    // and the status bar takes the theme's glyphs back. It stays transparent in layout terms, so the page does not jump.
+    // Past the photo's foot cream ink would sit on the cream page, so the bar turns opaque in the theme's ink, and the
+    // status bar takes the theme's glyphs back. The page has scrolled, so on Android the bar wears Material's scrolled
+    // tone (the navigation bar's tabBar, #F2ECDF), as every pushed screen does. It stays transparent in layout terms, so
+    // the page does not jump.
     at(PHOTO_PASSED);
     const onCanvas = {
       ...overPhoto,
-      headerStyle: { backgroundColor: nativeThemes.light.canvas },
+      headerStyle: { backgroundColor: nativeThemes.light.tabBar },
       headerTintColor: nativeThemes.light.charcoal,
     };
+    expect(nativeThemes.light.tabBar).toBe("#F2ECDF");
     expect(navigation.setOptions).toHaveBeenLastCalledWith(onCanvas);
     expect(lightGlyphs()).toBe(false);
     // Once the name line has gone under the bar, the bar takes the name.

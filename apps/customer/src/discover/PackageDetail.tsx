@@ -86,8 +86,8 @@ export function PackageDetail() {
   const name = o?.name ?? "";
   const stackHeader = useMemo(() => nativeHeaderOptions({ palette: c, demo }), [c, demo]);
   // Over the photo the bar is transparent with light ink. Once the photo has scrolled away the light ink would sit on
-  // the cream page, so the bar turns opaque on the canvas with the theme's tint and hands the status bar back to the
-  // theme; it takes the package name once the name line has scrolled under it, as a content title does. Scrolling back
+  // the cream page, so the bar turns opaque (the canvas on iOS, the scrolled surface-container tone on Android) with the
+  // theme's tint and hands the status bar back to the theme; it takes the package name once the name line has scrolled under it, as a content title does. Scrolling back
   // up undoes each step. The bar stays transparent in layout terms throughout, so the page never jumps by its height.
   // Leaving the photo state (a failed reload) restores the stack's own bar.
   const [stage, setStage] = useState<"photo" | "canvas" | "named">("photo");
@@ -106,7 +106,8 @@ export function PackageDetail() {
           ? {
               ...PHOTO_HEADER,
               headerTitle: stage === "named" ? name : "",
-              headerStyle: { backgroundColor: c.canvas },
+              // Past the photo the page has scrolled, so Android takes Material's scrolled tone like every pushed screen.
+              headerStyle: { backgroundColor: process.env.EXPO_OS === "ios" ? c.canvas : c.tabBar },
               headerTintColor: stackHeader.headerTintColor,
             }
           : PHOTO_HEADER,
