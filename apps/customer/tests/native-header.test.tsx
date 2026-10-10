@@ -224,12 +224,23 @@ describe("native headers on pushed screens", () => {
     const leading = header.findAll((n: Host) => n.type === "RNSScreenStackHeaderSubview" && n.props.type === "left")[0] as Host;
     expect(leading).toBeTruthy();
     const close = within(leading as never).getByRole("button", { name: "Tutup" });
-    // Android insets the slot by 16dp; the 48dp button reaches 12dp out so its icon centres at 28dp, where the native
-    // back arrow sits.
-    expect(StyleSheet.flatten(close.props.style)).toMatchObject({ marginStart: -12, width: 48, height: 48 });
-    await go(() => fireEvent.press(close));
+    // One spoken button, a full 48dp target inside the slot (the toolbar only delivers touches inside it).
+    expect(within(leading as never).getAllByRole("button")).toHaveLength(1);
+    expect(StyleSheet.flatten(close.props.style)).toMatchObject({ width: 48, height: 48 });
+    expect(StyleSheet.flatten(close.props.style).marginStart).toBeUndefined();
+    // Android insets the slot by 16dp; the icon and its ripple reach 12dp out so the icon centres at 28dp, where the
+    // native back arrow sits. A tap on the icon closes too.
+    const icon = within(leading as never).getByTestId("header-close-icon", { includeHiddenElements: true });
+    expect(StyleSheet.flatten(icon.props.style)).toMatchObject({ marginStart: -12, width: 48, height: 48 });
+    await go(() => fireEvent.press(icon));
     expect(root()).toEqual(["(tabs)"]);
     expect(tab()).toBe("(jadwal)");
+    // The rest of the target (the slot's far side) closes as well.
+    await go(() => router.push("/login"));
+    await go(() =>
+      fireEvent.press(within(headerOf("login") as never).getByRole("button", { name: "Tutup" })),
+    );
+    expect(root()).toEqual(["(tabs)"]);
   });
 });
 

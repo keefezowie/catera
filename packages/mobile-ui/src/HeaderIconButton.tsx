@@ -43,29 +43,56 @@ export function HeaderIconButton({
   const ios = os === "ios";
   const size = ios ? 44 : 48;
   const tint = ios ? palette.forest : palette.charcoal;
-  const pull =
-    ios || !slot
-      ? undefined
-      : slot === "leading"
-        ? { marginStart: ANDROID_HEADER_SLOT_PULL }
-        : { marginEnd: ANDROID_HEADER_SLOT_PULL };
+  const glyph = <Ionicons name={glyphs[icon][ios ? "ios" : "android"]} size={ios ? 22 : 24} color={tint} />;
+  const ripple = { color: palette.line, borderless: true, radius: size / 2 };
+  if (ios || !slot)
+    return (
+      <Pressable
+        testID={`header-${icon}`}
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        onPress={onPress}
+        android_ripple={ripple}
+        style={({ pressed }) => ({
+          width: size,
+          height: size,
+          alignItems: "center",
+          justifyContent: "center",
+          opacity: ios && pressed ? 0.5 : 1,
+        })}
+      >
+        {glyph}
+      </Pressable>
+    );
+  // The toolbar clips its slot and only delivers touches inside it, so a button pulled outward would lose 12dp of its
+  // target. The spoken 48dp button therefore stays inside the slot, and the icon with its ripple sits in an inner
+  // button pulled 12dp outward. A tap on the icon reaches the inner one, a tap on the slot's far side the outer one;
+  // both do the same thing.
   return (
     <Pressable
       testID={`header-${icon}`}
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={onPress}
-      android_ripple={{ color: palette.line, borderless: true, radius: size / 2 }}
-      style={({ pressed }) => ({
-        ...pull,
-        width: size,
-        height: size,
-        alignItems: "center",
-        justifyContent: "center",
-        opacity: ios && pressed ? 0.5 : 1,
-      })}
+      style={{ width: size, height: size }}
     >
-      <Ionicons name={glyphs[icon][ios ? "ios" : "android"]} size={ios ? 22 : 24} color={tint} />
+      <Pressable
+        testID={`header-${icon}-icon`}
+        accessible={false}
+        importantForAccessibility="no-hide-descendants"
+        onPress={onPress}
+        android_ripple={ripple}
+        style={{
+          [slot === "leading" ? "marginStart" : "marginEnd"]: ANDROID_HEADER_SLOT_PULL,
+          ...(slot === "trailing" ? { alignSelf: "flex-end" as const } : null),
+          width: size,
+          height: size,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {glyph}
+      </Pressable>
     </Pressable>
   );
 }
