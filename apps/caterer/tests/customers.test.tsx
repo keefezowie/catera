@@ -410,7 +410,8 @@ describe("Pelanggan row feedback", () => {
     fireEvent(row(), "responderGrant", touch);
     expect(StyleSheet.flatten(row().props.style).opacity).toBe(0.7);
     fireEvent.press(row());
-    expect(router.push).toHaveBeenCalledWith("/pelanggan/c-01");
+    // The link carries the customer's name, so the detail's header is final on its first frame.
+    expect(router.push).toHaveBeenCalledWith("/pelanggan/c-01?title=Andre%20Kusuma");
   });
 
   it("chat button is 48dp", async () => {

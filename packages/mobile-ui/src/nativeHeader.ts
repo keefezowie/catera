@@ -1,5 +1,7 @@
+import { useMemo } from "react";
 import type { NativeStackNavigationOptions } from "expo-router";
 import type { NativePalette } from "@catera/design-tokens";
+import { useColors } from "./theme";
 import { fonts } from "./type";
 
 /**
@@ -48,4 +50,33 @@ export function nativeHeaderOptions({
     headerTopInsetEnabled: !demo,
     unstable_nativeProps: { headerConfig: { disableTopInsetApplication: demo } },
   };
+}
+
+/**
+ * Every stack's screen options in both apps, the root stack and each tab's stack: the native header above, plus the
+ * theme canvas behind the screens while they slide. `demo` is whether the demo strip is shown (`useMobile().demo`).
+ */
+export function useStackScreenOptions(demo: boolean): NativeStackNavigationOptions {
+  const palette = useColors();
+  return useMemo<NativeStackNavigationOptions>(
+    () => ({ ...nativeHeaderOptions({ palette, demo }), contentStyle: { backgroundColor: palette.canvas } }),
+    [palette, demo],
+  );
+}
+
+/**
+ * The `title` a link carried (`?title=`), so a screen named by its record has its final header on the first frame.
+ * A link without one (a cold link, a notification) gives `undefined`, and the screen falls back to its generic name.
+ */
+export function linkTitle(params: object | undefined): string | undefined {
+  const title = (params as { title?: unknown } | undefined)?.title;
+  return typeof title === "string" && title ? title : undefined;
+}
+
+/**
+ * The options of a screen whose name is a `Screen nativeTitle`: iOS shows `title` as the large title; on Android the
+ * name is the first content line, so the bar starts empty and takes it on scroll. `os` defaults to the running platform.
+ */
+export function contentTitled(title: string, os: string | undefined = process.env.EXPO_OS): NativeStackNavigationOptions {
+  return os === "ios" ? { title } : { title, headerTitle: "" };
 }

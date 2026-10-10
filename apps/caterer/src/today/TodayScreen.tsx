@@ -40,6 +40,7 @@ import {
 import { jakartaClock } from "./exceptions";
 import { loadCachedDay, saveCachedDay } from "./offline";
 import { SessionCard } from "./SessionCard";
+import { reportHref } from "../hrefs";
 import { dapurLink } from "../links";
 import { openLink } from "../nav";
 import { ReadError } from "../ReadError";
@@ -467,7 +468,7 @@ function ReportCards({ issues }: { issues: DeliveryIssue[] }) {
             key={i.id}
             accessibilityRole="button"
             accessibilityLabel={`${t("Buka laporan", "Open report")}: ${who}`}
-            onPress={() => router.push(`/laporan/${i.id}` as never)}
+            onPress={() => router.push(reportHref(i.id, i.customerName) as never)}
           >
             <Card tone="attention" style={{ flexDirection: "row", alignItems: "center" }}>
               <View style={{ flex: 1, gap: 2 }}>

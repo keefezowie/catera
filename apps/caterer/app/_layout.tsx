@@ -16,17 +16,18 @@ import {
   ThemeProvider,
   TopInsetOwner,
   useColors,
+  useStackScreenOptions,
   useThemePreference,
 } from "@catera/mobile-ui";
 import { runtime } from "../src/runtime";
 import { dapurLink } from "../src/links";
 import { openLink, sessionChanged } from "../src/nav";
 import { SCREEN_TAB, tabsForRole } from "../src/roles";
-import { useModalOptions, useStackScreenOptions } from "../src/stack";
+import { useModalOptions } from "../src/stack";
 
 function Navigation() {
   const { t, ready, demo, actor } = useMobile();
-  const screenOptions = useStackScreenOptions();
+  const screenOptions = useStackScreenOptions(demo);
   const palette = useColors();
   const { scheme } = useThemePreference();
   const modal = useModalOptions();

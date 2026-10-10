@@ -1,7 +1,7 @@
 import { Stack } from "expo-router";
 import { useMobile } from "@catera/mobile-core";
+import { contentTitled, linkTitle, useStackScreenOptions } from "@catera/mobile-ui";
 import { tabOfSegment, type Tab } from "../../../src/nav";
-import { contentTitled, linkTitle, useStackScreenOptions } from "../../../src/stack";
 
 /** Each tab's stack starts at its own root, so a cold link to a detail screen has the tab root behind it. */
 export const unstable_settings = {
@@ -19,8 +19,8 @@ const ROOTS: Tab[] = ["index", "jadwal", "jelajah", "akun"];
  * folder holds them) but are never opened inside this tab: links to a tab root go through `goToTab`.
  */
 export default function TabStack({ segment }: { segment: string }) {
-  const { t } = useMobile();
-  const screenOptions = useStackScreenOptions();
+  const { t, demo } = useMobile();
+  const screenOptions = useStackScreenOptions(demo);
   const root = tabOfSegment(segment);
   return (
     <Stack screenOptions={screenOptions}>

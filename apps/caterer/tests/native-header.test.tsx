@@ -1,10 +1,11 @@
 import * as ReactNative from "react-native";
 import { StatusBar, Text } from "react-native";
 import { act, fireEvent, renderRouter, screen, waitFor, within } from "expo-router/testing-library";
-import { appRoutes, resetRouterStore } from "./real-router";
+import { appRoutes, navigationContainer, resetRouterStore } from "./real-router";
 import { router } from "expo-router";
 import { nativeThemes } from "@catera/design-tokens";
-import { fonts, MoodHeader, Screen } from "@catera/mobile-ui";
+import { contentTitled, fonts, linkTitle, MoodHeader, Screen } from "@catera/mobile-ui";
+import { customerHref, packageHref, reportHref } from "../src/hrefs";
 
 /** The account the session read returns, and whether the server reports demo. */
 const mockMe: { demo: boolean; actor: { id: string; role: string; name: string; catererId: string } | null } = {
@@ -22,6 +23,10 @@ jest.mock("../src/runtime", () => {
     ...runtime.api,
     me: jest.fn(async () => ({ actor: mockMe.actor, demo: mockMe.demo })),
     settlement: jest.fn(async () => mockSettlement.value),
+    // The customer, package and report reads never answer, so their screens stay on the frame before the record.
+    sellerCustomers: jest.fn(() => new Promise(() => undefined)),
+    sellerOperations: jest.fn(() => new Promise(() => undefined)),
+    request: jest.fn(() => new Promise(() => undefined)),
   };
   return { runtime };
 });
@@ -41,13 +46,18 @@ const owner = { id: "u-1", role: "owner", name: "Bu Rina", catererId: "k-1" };
 const staff = { id: "u-2", role: "staff", name: "Mas Joko", catererId: "k-1" };
 const TAB_ROOTS = new Set(["index", "pelanggan", "menu", "usaha"]);
 
+/** The screens named by their record, which read the name their link carried. */
+const RECORD_NAMED = new Set(["pelanggan/[id]", "paket/[id]", "laporan/[id]"]);
+
 /**
  * The real layouts over stand-in screens. A tab root draws a mood header, as every Dapur tab root does, so the status
- * bar can be read on it; every other screen only names itself. Uang is the real screen, the only host of `ScreenGuard`.
+ * bar can be read on it; every other screen only names itself. Uang is the real screen, the only host of `ScreenGuard`,
+ * and the customer, package and report routes are the real ones, so their first frame can be read.
  */
 const routes = appRoutes((file) => {
   const name = file.replace(/\([^)]*\)\//g, "");
   if (name === "uang") return require("../app/(tabs)/(index,pelanggan,menu,usaha)/uang").default;
+  if (RECORD_NAMED.has(name)) return require(`../app/(tabs)/(index,pelanggan,menu,usaha)/${name}`).default;
   if (TAB_ROOTS.has(name))
     return function Root() {
       return <Screen header={<MoodHeader title={`root:${name}`} />}>{null}</Screen>;
@@ -69,7 +79,12 @@ const headerOf = (route: string) => screenOf(route).findAll((n) => n.type === "R
 const leadingOf = (route: string) =>
   headerOf(route).findAll((n) => n.type === "RNSScreenStackHeaderSubview" && n.props.type === "left")[0];
 
-/** The status bar style in effect: React Native merges every mounted StatusBar and the newest one wins. */
+/**
+ * The status bar style in effect: React Native merges every mounted StatusBar and the newest one wins. That merge is
+ * what this test needs (the tab root's ScreenStatusBar over the app's default), and a mock that records the last
+ * render would not reproduce it, so this reads React Native's own stack: `StatusBar._propsStack`, a private static in
+ * react-native 0.86.3 (`Libraries/Components/StatusBar/StatusBar.js`). Recheck it when React Native changes.
+ */
 const statusGlyphs = () => {
   const stack = (StatusBar as unknown as { _propsStack: { barStyle?: { value: string } }[] })._propsStack;
   return [...stack].reverse().find((e) => e.barStyle?.value)?.barStyle?.value;
@@ -156,9 +171,28 @@ describe("native headers", () => {
       expect(header.props).toMatchObject({ title, hideBackButton: true });
       const close = within(leadingOf(route) as never).getByRole("button", { name: "Tutup" });
       expect(screen.queryByRole("button", { name: "Kembali" })).toBeNull();
+      // The leading slot: one spoken 48dp target inside the toolbar's slot, and the icon pulled 12dp out so it centres
+      // at 28dp, where the back arrow sits on the other pushed screens.
+      expect(within(leadingOf(route) as never).getAllByRole("button")).toHaveLength(1);
+      expect(ReactNative.StyleSheet.flatten(close.props.style)).toMatchObject({ width: 48, height: 48 });
+      const icon = within(leadingOf(route) as never).getByTestId("header-close-icon", { includeHiddenElements: true });
+      expect(ReactNative.StyleSheet.flatten(icon.props.style)).toMatchObject({ marginStart: -12, width: 48, height: 48 });
       await go(() => fireEvent.press(close));
       expect(r.getPathname()).toBe("/");
     }
+  });
+
+  it("Close on a modal opened cold goes to Hari ini with the tabs", async () => {
+    // A link straight to Aktifkan: nothing sits under it in the root stack, so Close has no back to take.
+    const r = renderRouter(routes, { initialUrl: "/aktifkan" });
+    await waitFor(() => expect(headerOf("aktifkan").props).toMatchObject({ title: "Aktifkan pembayaran", hideBackButton: true }));
+    await act(async () => {});
+    expect(screen.queryAllByText(/^root:/)).toHaveLength(0);
+    await go(() => fireEvent.press(within(leadingOf("aktifkan") as never).getByRole("button", { name: "Tutup" })));
+    expect(r.getPathname()).toBe("/");
+    // The tabs are mounted with Hari ini in front, and the modal is gone.
+    await waitFor(() => expect(screen.getByText("root:index")).toBeTruthy());
+    expect(hosts("RNSScreen").some((s) => String(s.props.screenId).startsWith("aktifkan-"))).toBe(false);
   });
 
   it("dark: the bar sits on the dark canvas with the dark ink", async () => {
@@ -198,6 +232,63 @@ describe("native headers", () => {
     } finally {
       jest.useRealTimers();
     }
+  });
+});
+
+describe("record titles", () => {
+  /** Each link that knows the record's name, the route it opens, the name, and the generic name it replaces. */
+  const TITLED: [href: string, route: string, name: string, generic: string][] = [
+    [customerHref("c-1", "Nadia Putri"), "pelanggan/[id]", "Nadia Putri", "Pelanggan"],
+    [packageHref("p-1", "Ayam Sambal Rumahan"), "paket/[id]", "Ayam Sambal Rumahan", "Paket"],
+    [reportHref(ISSUE, "Nadia Putri"), "laporan/[id]", "Nadia Putri", "Laporan masalah"],
+  ];
+  const contentTitleOf = (route: string) =>
+    within(screenOf(route) as never).getByTestId("screen-native-title").findByType(Text).props.children;
+
+  it("a link that carries the record's name titles the screen on the first frame", async () => {
+    await open("/");
+    for (const [href, route, name, generic] of TITLED) {
+      // One render after the push, with the record's read still out: the name is already there, the generic never.
+      act(() => router.push(href as never));
+      expect({ route, title: contentTitleOf(route) }).toEqual({ route, title: name });
+      expect(within(screenOf(route) as never).queryByText(generic)).toBeNull();
+      // Android: the bar starts empty and takes the name on scroll; the content line is the title.
+      expect(headerOf(route).props.title).toBe("");
+      // The route's own title, which iOS shows as the large title, is the carried name as the layout sets it; the iOS
+      // options themselves are checked with the platform passed in, since Jest compiles the platform in.
+      expect({ route, title: navigationContainer().getCurrentOptions()?.title }).toEqual({ route, title: name });
+      expect(contentTitled(linkTitle({ title: name }) ?? generic, "ios")).toEqual({ title: name });
+      await go(() => router.back());
+    }
+  });
+
+  it("a cold link or a notification keeps the generic name until the record arrives", async () => {
+    for (const [href, route, , generic] of TITLED) {
+      resetRouterStore();
+      const path = href.split("?")[0];
+      const r = renderRouter(routes, { initialUrl: path });
+      await waitFor(() => expect(contentTitleOf(route)).toBe(generic));
+      expect(r.getPathname()).toBe(path);
+      expect(navigationContainer().getCurrentOptions()?.title).toBe(generic);
+      r.unmount();
+    }
+  });
+
+  it("the links carry the name, and an unknown name carries nothing", () => {
+    expect(customerHref("c-1", "Nadia Putri")).toBe("/pelanggan/c-1?title=Nadia%20Putri");
+    expect(packageHref("p-1", "Nasi & Ayam")).toBe(`/paket/p-1?title=${encodeURIComponent("Nasi & Ayam")}`);
+    expect(reportHref(ISSUE, "Nadia Putri")).toBe(`/laporan/${ISSUE}?title=Nadia%20Putri`);
+    expect(reportHref(ISSUE, null)).toBe(`/laporan/${ISSUE}`);
+    expect(linkTitle({ id: "c-1", title: "Nadia Putri" })).toBe("Nadia Putri");
+    expect(linkTitle({ id: "c-1" })).toBeUndefined();
+    expect(linkTitle({ title: "" })).toBeUndefined();
+    expect(linkTitle({ title: ["a", "b"] })).toBeUndefined();
+    expect(linkTitle(undefined)).toBeUndefined();
+  });
+
+  it("contentTitled: iOS keeps the title for the large title, Android empties the bar", () => {
+    expect(contentTitled("Paket", "ios")).toEqual({ title: "Paket" });
+    expect(contentTitled("Paket", "android")).toEqual({ title: "Paket", headerTitle: "" });
   });
 });
 

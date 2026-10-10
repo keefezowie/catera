@@ -1,9 +1,9 @@
 import { Stack } from "expo-router";
 import { jakartaDay, shortDate } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
+import { contentTitled, linkTitle, useStackScreenOptions } from "@catera/mobile-ui";
 import { tabOfSegment } from "../../../src/nav";
 import { CATERER_TABS, SCREEN_TAB, tabsForRole } from "../../../src/roles";
-import { contentTitled, useStackScreenOptions } from "../../../src/stack";
 
 /** Each tab's stack starts at its own root, so a link opened cold to a detail screen has the tab root behind it. */
 export const unstable_settings = Object.fromEntries(CATERER_TABS.map((tab) => [tab, { anchor: tab }]));
@@ -17,8 +17,8 @@ export const unstable_settings = Object.fromEntries(CATERER_TABS.map((tab) => [t
  * (`SCREEN_TAB`), is protected, so a helper (staff) never has them in any stack.
  */
 export default function TabStack({ segment }: { segment: string }) {
-  const { t, locale, actor } = useMobile();
-  const screenOptions = useStackScreenOptions();
+  const { t, locale, actor, demo } = useMobile();
+  const screenOptions = useStackScreenOptions(demo);
   const root = tabOfSegment(segment);
   const allowed = tabsForRole(actor?.role);
   const opens = (screen: keyof typeof SCREEN_TAB) => allowed.includes(SCREEN_TAB[screen]);
@@ -31,10 +31,14 @@ export default function TabStack({ segment }: { segment: string }) {
         </Stack.Protected>
       ))}
       {/* Every pushed screen gets a plain title; without one the header shows the route path. A screen named by its
-          record (the report's customer, the customer, the package) shows that name through `Screen nativeTitle`, and
-          this title stands in on iOS until the record arrives. */}
+          record (the report's customer, the customer, the package) shows that name through `Screen nativeTitle`. The
+          link that opens it carries the name (`src/hrefs.ts`), so the title is final on the first frame; a cold link or
+          a notification has none, and the generic name stands in until the record arrives. */}
       <Stack.Protected guard={opens("laporan/[id]")}>
-        <Stack.Screen name="laporan/[id]" options={contentTitled(t("Laporan masalah", "Problem report"))} />
+        <Stack.Screen
+          name="laporan/[id]"
+          options={({ route }) => contentTitled(linkTitle(route.params) ?? t("Laporan masalah", "Problem report"))}
+        />
       </Stack.Protected>
       <Stack.Protected guard={opens("menu/[date]")}>
         <Stack.Screen
@@ -52,10 +56,16 @@ export default function TabStack({ segment }: { segment: string }) {
         />
       </Stack.Protected>
       <Stack.Protected guard={opens("pelanggan/[id]")}>
-        <Stack.Screen name="pelanggan/[id]" options={contentTitled(t("Pelanggan", "Customer"))} />
+        <Stack.Screen
+          name="pelanggan/[id]"
+          options={({ route }) => contentTitled(linkTitle(route.params) ?? t("Pelanggan", "Customer"))}
+        />
       </Stack.Protected>
       <Stack.Protected guard={opens("paket/[id]")}>
-        <Stack.Screen name="paket/[id]" options={contentTitled(t("Paket", "Package"))} />
+        <Stack.Screen
+          name="paket/[id]"
+          options={({ route }) => contentTitled(linkTitle(route.params) ?? t("Paket", "Package"))}
+        />
       </Stack.Protected>
       <Stack.Protected guard={opens("paket/baru")}>
         <Stack.Screen name="paket/baru" options={{ title: t("Paket baru", "New package") }} />

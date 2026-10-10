@@ -7,6 +7,7 @@ import { useData, useMobile } from "@catera/mobile-core";
 import { Button, Card, Chip, fontFor, MoodHeader, PressableRow, PressableScale, Screen, Text, useColors } from "@catera/mobile-ui";
 import { activeSubscriptions, currentSubscription, customerStatus, activeEndLabel, type CustomerStatus } from "./rules";
 import { loadAllCustomers } from "./load";
+import { customerHref } from "../hrefs";
 import { ReadError } from "../ReadError";
 
 /** Every subscriber, marketplace and own, filtered by where their package stands. */
@@ -57,7 +58,7 @@ export function CustomerList() {
           <Card key={c.id} style={{ flexDirection: "row", alignItems: "center" }}>
             <PressableRow
               accessibilityRole="button"
-              onPress={() => router.push(`/pelanggan/${c.id}` as never)}
+              onPress={() => router.push(customerHref(c.id, c.name) as never)}
               style={{ flex: 1, gap: 2, minHeight: 48, justifyContent: "center" }}
             >
               <Text style={{ fontFamily: fontFor("800") }}>{c.name}</Text>

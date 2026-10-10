@@ -7,9 +7,17 @@ import { router } from "expo-router";
 import { act, fireEvent, renderRouter, screen, within } from "expo-router/testing-library";
 import { jakartaDay, type Checkout } from "@catera/domain";
 import { nativeThemes } from "@catera/design-tokens";
-import { fonts, moodHeaderTopInset, nativeHeaderOptions, screenInsetBehavior, statusBarStyle } from "@catera/mobile-ui";
+import {
+  contentTitled,
+  fonts,
+  linkTitle,
+  moodHeaderTopInset,
+  nativeHeaderOptions,
+  screenInsetBehavior,
+  statusBarStyle,
+  useStackScreenOptions,
+} from "@catera/mobile-ui";
 import { goToTab } from "../src/nav";
-import { contentTitled, linkTitle, useStackScreenOptions } from "../src/stack";
 import { dayHref, packageHref, planHref } from "../src/hrefs";
 import { customerState, offer } from "./fixtures";
 
@@ -172,7 +180,7 @@ describe("native headers on pushed screens", () => {
     });
 
     // Every stack's options are the shared helper's, plus the canvas behind the scenes.
-    const { result } = renderHook(() => useStackScreenOptions());
+    const { result } = renderHook(() => useStackScreenOptions(false));
     expect(result.current).toEqual({
       ...nativeHeaderOptions({ palette: light, demo: false }),
       contentStyle: { backgroundColor: light.canvas },

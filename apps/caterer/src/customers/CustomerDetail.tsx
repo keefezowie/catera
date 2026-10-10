@@ -9,8 +9,11 @@ import { usePaymentsActive } from "./usePayments";
 import { loadCustomer } from "./load";
 import { ReadError } from "../ReadError";
 
-/** One customer: when their package ends, how to reach them, and the renewal link. */
-export function CustomerDetail({ id }: { id: string }) {
+/**
+ * One customer: when their package ends, how to reach them, and the renewal link. `title` is the name the link that
+ * opened it carried (`customerHref`), absent on a cold link.
+ */
+export function CustomerDetail({ id, title }: { id: string; title?: string }) {
   const { runtime, actor, t, locale, command } = useMobile();
   // Named palette because `c` is the customer record below.
   const palette = useColors();
@@ -21,10 +24,11 @@ export function CustomerDetail({ id }: { id: string }) {
   const [errorFor, setErrorFor] = useState("");
   const [busy, setBusy] = useState("");
   const c = record.data;
-  // Until the record arrives the screen is named by what it is; then by the customer.
+  // Until the record arrives the screen keeps the name its link carried, or else is named by what it is; then by the
+  // customer.
   if (!c)
     return (
-      <Screen nativeTitle={t("Pelanggan", "Customer")}>
+      <Screen nativeTitle={title ?? t("Pelanggan", "Customer")}>
         {record.error ? (
           <ReadError message={record.error} onRetry={() => void record.reload()} />
         ) : (

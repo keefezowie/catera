@@ -150,7 +150,8 @@ it("report cards and setup rows dim on press and still navigate", async () => {
   // Same chevron as the link attention cards.
   expect(within(card()).UNSAFE_getByType(Ionicons).props).toMatchObject({ name: "chevron-forward", size: 18, color: nativeThemes.light.muted });
   fireEvent.press(card());
-  expect(router.push).toHaveBeenCalledWith("/laporan/i-1");
+  // The link carries the customer's name, so the report's header is final on its first frame.
+  expect(router.push).toHaveBeenCalledWith("/laporan/i-1?title=Nadia%20Putri");
   first.unmount();
 
   renderToday(runtimeWith(async () => emptyDay()));
@@ -279,7 +280,7 @@ it("names the customer, day and meal on a problem report and opens it", async ()
   renderToday(runtime);
   expect(await screen.findByText("Pertanyaan pelanggan menunggu")).toBeTruthy();
   fireEvent.press(await screen.findByText("Nadia Putri melaporkan masalah"));
-  expect(router.push).toHaveBeenCalledWith("/laporan/i-1");
+  expect(router.push).toHaveBeenCalledWith("/laporan/i-1?title=Nadia%20Putri");
   expect(screen.getByText("Kamis 8 Okt · Makan siang")).toBeTruthy();
   expect(screen.getByText("Belum sampai")).toBeTruthy();
   // Only reports still waiting on the caterer are cards; the generic, untappable card is gone.

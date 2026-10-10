@@ -16,6 +16,7 @@ import {
   type ThemePreference,
 } from "@catera/mobile-ui";
 import { usePaymentsActive } from "../customers/usePayments";
+import { packageHref } from "../hrefs";
 import { photoUri } from "../photo";
 import { NotifyButton } from "./NotifyButton";
 import { ReadError } from "../ReadError";
@@ -91,7 +92,7 @@ export function UsahaScreen() {
             icon="restaurant-outline"
             label={o.name}
             detail={`${o.price === null ? "–" : currency(o.price, locale)} · ${o.status === "published" ? t("tayang", "live") : t("draf", "draft")}`}
-            href={`/paket/${o.id}`}
+            href={packageHref(o.id, o.name)}
             image={o.image ? photoUri(o.image, runtime.apiBase) : undefined}
           />
         ))}

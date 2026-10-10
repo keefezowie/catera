@@ -42,16 +42,20 @@ const eventLabels: Record<string, [string, string]> = {
   "support.resolve": ["Keputusan Catera", "Catera's decision"],
 };
 
-/** One customer's delivery report: what they said, and the caterer's reply or "done". */
-export function ReportScreen({ id }: { id: string }) {
+/**
+ * One customer's delivery report: what they said, and the caterer's reply or "done". `title` is the customer's name
+ * the link that opened it carried (`reportHref`), absent on a cold link or a notification.
+ */
+export function ReportScreen({ id, title: carried }: { id: string; title?: string }) {
   const { runtime, actor, t } = useMobile();
   const c = useColors();
   const catererId = actor?.catererId ?? "";
   const issues = useData(`issue:${catererId}:${id}`, () =>
     runtime.api.request<DeliveryIssue[]>(`delivery-issues?${new URLSearchParams({ id: catererId, issue: id })}`),
   );
-  // Until the report arrives the screen is named by what it is; then by the customer who sent it.
-  const title = t("Laporan masalah", "Problem report");
+  // Until the report arrives the screen keeps the customer's name its link carried, or else is named by what it is;
+  // then by the customer who sent it.
+  const title = carried ?? t("Laporan masalah", "Problem report");
   if (!issues.data)
     return (
       <Screen nativeTitle={title}>

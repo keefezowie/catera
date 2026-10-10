@@ -6,6 +6,7 @@ import { ActivityIndicator, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useMobile } from "@catera/mobile-core";
 import {
+  contentTitled,
   DemoStrip,
   fontAssets,
   MoodLabelsProvider,
@@ -16,12 +17,13 @@ import {
   ThemeProvider,
   TopInsetOwner,
   useColors,
+  useStackScreenOptions,
   useThemePreference,
 } from "@catera/mobile-ui";
 import { registerNavigation } from "../src/nav";
 import { runtime } from "../src/runtime";
 import { AppProviders } from "../src/shell";
-import { contentTitled, useFlowOptions, useStackScreenOptions } from "../src/stack";
+import { useFlowOptions } from "../src/stack";
 
 function Navigation() {
   const { t, ready, demo } = useMobile();
@@ -30,7 +32,7 @@ function Navigation() {
   useEffect(() => registerNavigation(container), [container]);
   const palette = useColors();
   const { scheme } = useThemePreference();
-  const screenOptions = useStackScreenOptions();
+  const screenOptions = useStackScreenOptions(demo);
   const flow = useFlowOptions();
   // The app's default glyphs follow the theme: pushed screens and the loading spinner sit on the canvas. A tab root's
   // MoodHeader sets the mood's glyphs over this while its screen is in front.
