@@ -4,6 +4,7 @@ import { useMobile } from "@catera/mobile-core";
 import { PressableRow, RoundButton, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { photoUri } from "../today/Plate";
 import { cardLine, type CatalogOffer } from "./format";
+import { calorieHint } from "./NutritionCard";
 
 /**
  * A package as food first: photo, name, price per portion, who cooks and when. The default is the tall photo card;
@@ -27,6 +28,7 @@ export function PackageCard({
   const styles = useStyles();
   const { unit, note } = priceUnitLabel(offer, locale);
   const row = layout === "row";
+  const kcal = row ? calorieHint(offer, locale) : null;
   const photoStyle = row ? styles.rowPhoto : styles.photo;
   const price = (
     <>
@@ -71,6 +73,12 @@ export function PackageCard({
           {/* A row reads name, who and when, then the price; the tall card keeps its price right under the name. */}
           {row ? line : price}
           {row ? price : line}
+          {/* A row adds the caterer's calorie estimate after its price, when there is one. */}
+          {row && kcal ? (
+            <Text variant="caption" style={{ fontSize: 13, fontVariant: ["tabular-nums"] }}>
+              {kcal}
+            </Text>
+          ) : null}
           {offer.trialPrice ? (
             <Text variant="label" style={{ color: c.sunriseInk }}>
               {t("Bisa coba 1 hari dulu", "One-day trial available")}

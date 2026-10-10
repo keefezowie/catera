@@ -1,6 +1,6 @@
 import { Image, View } from "react-native";
 import { router } from "expo-router";
-import { currency, type SellerOffer } from "@catera/domain";
+import { currency, nutritionSummary, packageNutrition, type SellerOffer } from "@catera/domain";
 import { plural, useMobile } from "@catera/mobile-core";
 import { Button, Card, Screen, Text } from "@catera/mobile-ui";
 import { photoUri } from "../photo";
@@ -15,6 +15,8 @@ export function PackageDetail({ offer }: { offer: SellerOffer }) {
   const { runtime, t, locale } = useMobile();
   const groups = offer.menus[0]?.composition ?? [];
   const capacity = offer.weekdays.length ? offer.capacity[String(offer.weekdays[0])] : undefined;
+  // The caterer's own estimates as customers see them; nothing when none were entered (a zero is shown).
+  const gizi = nutritionSummary(packageNutrition(offer), locale);
   return (
     <Screen nativeTitle={offer.name}>
       {offer.image ? <Image source={{ uri: photoUri(offer.image, runtime.apiBase) }} style={{ height: 168, borderRadius: 14 }} /> : null}
@@ -24,6 +26,11 @@ export function PackageDetail({ offer }: { offer: SellerOffer }) {
         <Text variant="caption">{groups.map((g) => `${g.slots} ${g.name.toLowerCase()}`).join(", ")}</Text>
         <Text variant="caption">{offer.weekdays.map((d) => dayNames[d]).join(", ")}</Text>
         {capacity !== undefined ? <Text variant="caption">{t(`Kapasitas ${capacity} porsi per hari`, `Capacity ${plural(capacity, "portion")} a day`)}</Text> : null}
+        {gizi ? (
+          <Text variant="caption" style={{ fontVariant: ["tabular-nums"] }}>
+            {`${t("Gizi per porsi", "Nutrition per portion")}: ${gizi}`}
+          </Text>
+        ) : null}
       </Card>
       <View style={{ gap: 8 }}>
         <Text variant="caption">

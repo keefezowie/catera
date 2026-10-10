@@ -5,7 +5,8 @@ import * as ImagePicker from "expo-image-picker";
 import { defaultDishCategories, errorLabel, type SellerOffer } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
 import { Button, Chip, Field, PressableScale, Screen, Segmented, Stepper, Text, useColors } from "@catera/mobile-ui";
-import { emptyPackage, formFromOffer, packageIssues, quickOffer, type PackageForm } from "./package";
+import { emptyPackage, formFromOffer, nutritionIssues, packageIssues, quickOffer, type PackageForm } from "./package";
+import { NutritionFields } from "./NutritionFields";
 import { photoUri } from "../photo";
 import { uploadPhoto } from "./upload";
 
@@ -19,6 +20,7 @@ export function PackageEditor({ from }: { from?: SellerOffer }) {
   const catererId = actor?.catererId ?? "";
   const [form, setForm] = useState<PackageForm>(() => (from ? formFromOffer(from) : emptyPackage));
   const [shown, setShown] = useState<ReturnType<typeof packageIssues>>({});
+  const [giziShown, setGiziShown] = useState<ReturnType<typeof nutritionIssues>>({});
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
@@ -43,6 +45,7 @@ export function PackageEditor({ from }: { from?: SellerOffer }) {
   async function save() {
     const issues = packageIssues(form);
     setShown(issues);
+    setGiziShown(nutritionIssues(form.nutrition));
     if (Object.keys(issues).length) return;
     setBusy(true);
     setError("");
@@ -84,6 +87,7 @@ export function PackageEditor({ from }: { from?: SellerOffer }) {
         <Stepper key={c.id} label={locale === "id" ? c.name : c.nameEn ?? c.name} decreaseLabel={t(`Kurangi ${c.name}`, `Decrease ${c.nameEn ?? c.name}`)} increaseLabel={t(`Tambah ${c.name}`, `Increase ${c.nameEn ?? c.name}`)} value={form.counts[c.id] ?? 0} onChange={(n) => set("counts", { ...form.counts, [c.id]: n })} max={10} />
       ))}
       {shown.counts ? <Text selectable variant="caption" style={{ color: palette.danger }}>{shown.counts}</Text> : null}
+      <NutritionFields value={form.nutrition} onChange={(n) => set("nutrition", n)} errors={giziShown} />
       <Field label={t("Harga per porsi (Rp)", "Price per portion (Rp)")} value={form.price} onChangeText={(v) => set("price", v.replace(/\D/g, ""))} error={shown.price} keyboardType="number-pad" placeholder="28000" />
       <Text variant="label">{t("Waktu makan", "Meal")}</Text>
       <Segmented

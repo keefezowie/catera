@@ -34,6 +34,7 @@ const form: PackageForm = {
   capacity: "40",
   image: "https://cdn.example.test/k-1/a.jpg",
   counts: { rice: 1, main: 2, vegetable: 1 },
+  nutrition: { range: false, caloriesKcal: ["", ""], proteinG: "", carbsG: "", fatG: "" },
 };
 
 function runtimeWith(overrides: Partial<MobileRuntime["api"]>): MobileRuntime {

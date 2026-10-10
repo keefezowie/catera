@@ -38,6 +38,7 @@ import {
 } from "@catera/mobile-ui";
 import { photoUri } from "../today/Plate";
 import { dayRange, ratingText } from "./format";
+import { NutritionCard, nutritionLine } from "./NutritionCard";
 import { useSaved } from "./saved";
 import { goToTab } from "../nav";
 
@@ -177,6 +178,7 @@ export function PackageDetail() {
   const shown = (reviews.data ?? []).slice(0, 3);
   const { note } = priceUnitLabel(o, locale);
   const earliest = startDates(o, new Date(), 1)[0];
+  const gizi = nutritionLine(o, locale);
   return (
     <Screen
       bleed
@@ -265,6 +267,11 @@ export function PackageDetail() {
         <Text variant="caption" style={{ fontSize: 13, lineHeight: 18 }}>
           {`${[o.caterer, o.areas[0]].filter(Boolean).join(", ")}. ${ratingText(o, locale, t)}`}
         </Text>
+        {gizi ? (
+          <Text variant="label" style={{ fontSize: 14, lineHeight: 20, fontVariant: ["tabular-nums"] }}>
+            {gizi}
+          </Text>
+        ) : null}
         {saved.error ? (
           <Text selectable style={{ color: c.danger }}>
             {saved.error}
@@ -289,6 +296,8 @@ export function PackageDetail() {
           </View>
         ))}
       </View>
+
+      <NutritionCard offer={o} />
 
       <View style={styles.facts}>
         <Fact label={t("Diantar", "Delivered")} value={`${dayRange(o.weekdays, locale)}, ${windows}`} />
