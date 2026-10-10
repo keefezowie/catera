@@ -646,6 +646,29 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       expect(await screen.findByText("5–9 Okt")).toBeTruthy();
     });
 
+    it("a helper's loaded week keeps the Siang / Malam toggle and the Pengaturan gear in one header row", async () => {
+      const { menuMonth } = mount({ offers: [bothOffer()], role: "staff" });
+      await screen.findByText("5–9 Okt");
+      const row = screen.getByTestId("mood-header-row");
+      // The toggle first, then the gear at the end of the row.
+      expect(within(row).getAllByRole(/^(tab|button)$/).map((n) => n.props.accessibilityRole)).toEqual(["tab", "tab", "button"]);
+      fireEvent.press(within(row).getByRole("button", { name: "Pengaturan" }));
+      expect(require("expo-router").router.push).toHaveBeenLastCalledWith("/pengaturan");
+      // The toggle still works beside it.
+      fireEvent.press(within(row).getByRole("tab", { name: "Malam" }));
+      expect(within(row).getByRole("tab", { name: "Malam" }).props.accessibilityState.selected).toBe(true);
+      await waitFor(() => expect(mealsAsked(menuMonth)).toContain("dinner"));
+      await act(async () => {});
+    });
+
+    it("an owner's loaded week has the toggle and no gear: Pengaturan lives on Usaha", async () => {
+      mount({ offers: [bothOffer()] });
+      await screen.findByText("5–9 Okt");
+      await act(async () => {});
+      expect(within(screen.getByTestId("mood-header-row")).getByRole("tab", { name: "Siang" })).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "Pengaturan" })).toBeNull();
+    });
+
     it("the toggle picks the meal for a package that serves both", async () => {
       const { menuMonth } = mount({ offers: [bothOffer()] });
       await screen.findByText("5–9 Okt");

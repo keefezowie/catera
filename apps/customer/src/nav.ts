@@ -138,8 +138,12 @@ function dismissAboveTabs(found: { root: State; at: number }) {
  * Selects a tab, popped to its root, instead of pushing a second copy of it inside the current tab. Screens above the
  * tabs (Bayar after payment, login, claim) close first, so leaving them never lands back in Beli or Bayar. A screen
  * opened cold, with no tabs under it, is replaced by the tab.
+ *
+ * `everyTab` pops every tab to its root, not only this one: Pengaturan's Keluar uses it, so nothing the last account had
+ * open stays stacked (Akun reopens on its sign-in prompt, not on a signed-out Pengaturan). Otherwise the other tabs keep
+ * their place.
  */
-export function goToTab(tab: Tab) {
+export function goToTab(tab: Tab, { everyTab = false }: { everyTab?: boolean } = {}) {
   const found = tabsInRoot();
   if (!found) {
     router.replace(ROOT_HREF[tab] as never);
@@ -148,8 +152,11 @@ export function goToTab(tab: Tab) {
   const { tabs } = found;
   const group = `(${tab})`;
   // A tab not opened yet has a partial state with no key: it starts at its root when it mounts.
-  const stack = tabs.routes.find((r) => r.name === group)?.state;
-  if (stack?.key && stack.routes.length > 1) container!.dispatch({ type: "POP_TO_TOP", target: stack.key });
+  for (const route of tabs.routes) {
+    if (!everyTab && route.name !== group) continue;
+    const stack = route.state;
+    if (stack?.key && stack.routes.length > 1) container!.dispatch({ type: "POP_TO_TOP", target: stack.key });
+  }
   if (tabs.routes[tabs.index]?.name !== group) container!.dispatch({ type: "JUMP_TO", payload: { name: group }, target: tabs.key });
   dismissAboveTabs(found);
 }

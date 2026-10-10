@@ -98,3 +98,14 @@ test("mood colours never reach tab bars or shared bodies", () => {
     .sort();
   expect(importers).toEqual(["packages/mobile-ui/src/mood.tsx"]);
 });
+
+// siangHeaderFill(scheme) reads a fixed theme's mood fill whatever theme is active, so it bypasses both guards above
+// by name. It is public only because mobile-ui re-exports mood.tsx; the Tampilan thumbnails are its one caller.
+test("only mood.tsx and the Tampilan thumbnails name siangHeaderFill", () => {
+  const callers = appDirs
+    .flatMap((d) => walk(join(root, d)))
+    .filter((f) => /\bsiangHeaderFill\b/.test(readFileSync(f, "utf8")))
+    .map(rel)
+    .sort();
+  expect(callers).toEqual(["packages/mobile-ui/src/mood.tsx", "packages/mobile-ui/src/settings/ThemeChoice.tsx"]);
+});

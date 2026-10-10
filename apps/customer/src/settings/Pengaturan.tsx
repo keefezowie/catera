@@ -89,8 +89,10 @@ export function Pengaturan() {
     if (leaving) return;
     setLeaving(true);
     try {
+      // logout() first lets go of this phone's push token (bounded, best effort), then ends the session.
       await logout();
-      goToTab("index");
+      // Every tab back at its root: Akun reopens on its sign-in prompt, not on this signed-out Pengaturan.
+      goToTab("index", { everyTab: true });
     } catch {
       failed();
       setLeaving(false);

@@ -168,7 +168,8 @@ describe("Pengaturan", () => {
     renderWith(runtime, <Pengaturan />);
     fireEvent.press(await screen.findByRole("button", { name: "Keluar" }));
     await waitFor(() => expect(runtime.signOut).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(require("../src/nav").goToTab).toHaveBeenCalledWith("index"));
+    // Every tab back at its root, so Akun opens on its sign-in prompt and not on this signed-out Pengaturan.
+    await waitFor(() => expect(require("../src/nav").goToTab).toHaveBeenCalledWith("index", { everyTab: true }));
   });
 
   it("signed out shows Bahasa and Tampilan only", async () => {
@@ -422,5 +423,71 @@ describe("choice sheets", () => {
     expect(group.props.accessibilityRole).toBe("radiogroup");
     expect(within(group).getByRole("radio", { name: "Indonesia" })).toBeChecked();
     expect(within(group).getByRole("radio", { name: "English" })).not.toBeChecked();
+  });
+});
+
+describe("Keluar lets go of this phone's push token", () => {
+  const unregisterCalls = (runtime: MobileRuntime) =>
+    (runtime.api.command as jest.Mock).mock.calls.filter(([action]) => action === "device.unregister");
+
+  it("sign-out sends device.unregister with this phone's token before the session ends and clears the flag", async () => {
+    const runtime = runtimeWith();
+    (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: "granted" });
+    store().set(FLAG, "on");
+    renderWith(runtime, <Pengaturan />);
+    await waitFor(() => expect(notificationSwitch()).toBeChecked());
+    fireEvent.press(screen.getByRole("button", { name: "Keluar" }));
+    await waitFor(() => expect(runtime.signOut).toHaveBeenCalledTimes(1));
+    expect(unregisterCalls(runtime)).toEqual([["device.unregister", { token: "ExponentPushToken[synthetic-phone]" }, expect.any(String)]]);
+    // The request still carries the session: it goes out before signOut.
+    const sent = (runtime.api.command as jest.Mock).mock.invocationCallOrder[0];
+    expect(sent).toBeLessThan((runtime.signOut as jest.Mock).mock.invocationCallOrder[0]);
+    expect(store().has(FLAG)).toBe(false);
+  });
+
+  it("a failing unregister still signs out, and the flag stays with the token the server still holds", async () => {
+    const runtime = runtimeWith();
+    (runtime.api.command as jest.Mock).mockRejectedValue(Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" }));
+    (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: "granted" });
+    store().set(FLAG, "on");
+    renderWith(runtime, <Pengaturan />);
+    await waitFor(() => expect(notificationSwitch()).toBeChecked());
+    fireEvent.press(screen.getByRole("button", { name: "Keluar" }));
+    await waitFor(() => expect(runtime.signOut).toHaveBeenCalledTimes(1));
+    expect(unregisterCalls(runtime)).toHaveLength(1);
+    await waitFor(() => expect(require("../src/nav").goToTab).toHaveBeenCalledWith("index", { everyTab: true }));
+    expect(store().get(FLAG)).toBe("on");
+    // Sign-out went through, so nothing says it failed.
+    expect(screen.queryByText("Belum berhasil. Coba lagi.")).toBeNull();
+  });
+
+  it("a token read that never answers still signs out after three seconds", async () => {
+    const runtime = runtimeWith();
+    (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: "granted" });
+    store().set(FLAG, "on");
+    renderWith(runtime, <Pengaturan />);
+    await waitFor(() => expect(notificationSwitch()).toBeChecked());
+    (Notifications.getExpoPushTokenAsync as jest.Mock).mockReturnValueOnce(new Promise(() => undefined));
+    jest.useFakeTimers();
+    try {
+      fireEvent.press(screen.getByRole("button", { name: "Keluar" }));
+      await act(async () => void (await jest.advanceTimersByTimeAsync(2900)));
+      expect(runtime.signOut).not.toHaveBeenCalled();
+      await act(async () => void (await jest.advanceTimersByTimeAsync(100)));
+      expect(runtime.signOut).toHaveBeenCalledTimes(1);
+      expect(unregisterCalls(runtime)).toEqual([]);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("Expo Go signs out without reading a token or sending device.unregister", async () => {
+    constants().executionEnvironment = "storeClient";
+    const runtime = runtimeWith();
+    renderWith(runtime, <Pengaturan />);
+    fireEvent.press(await screen.findByRole("button", { name: "Keluar" }));
+    await waitFor(() => expect(runtime.signOut).toHaveBeenCalledTimes(1));
+    expect(Notifications.getExpoPushTokenAsync).not.toHaveBeenCalled();
+    expect(unregisterCalls(runtime)).toEqual([]);
   });
 });

@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
 import * as SecureStore from "expo-secure-store";
-import Constants from "expo-constants";
 import { useFocusEffect } from "expo-router";
-import { Notifications, pushAvailableNow } from "./notifications";
+import { Notifications, pushAvailableNow, unregisterThisPhone } from "./notifications";
 import { useMobile } from "./provider";
 
 /**
@@ -16,11 +15,17 @@ import { useMobile } from "./provider";
  */
 export type PushSwitchState = "on" | "off" | "denied" | "unavailable" | "loading";
 
+/**
+ * The switch and its two changes. **Callers must catch `turnOn()` and `turnOff()`:** a failed change puts the switch
+ * back where it truly was and then rejects, and the hook cannot say so itself (mobile-core has no toast). Both
+ * Pengaturan screens call `.catch(failed)`, which shows "Belum berhasil. Coba lagi."; an uncaught call would surface as
+ * an unhandled rejection. A refused permission is not a failure and does not reject.
+ */
 export type PushSwitch = {
   state: PushSwitchState;
-  /** Asks for the permission if needed, registers this phone (`device.register`) and remembers it. */
+  /** Asks for the permission if needed, registers this phone (`device.register`) and remembers it. Rejects on failure. */
   turnOn(): Promise<void>;
-  /** Removes this phone's token from the account (`device.unregister`) and forgets the flag. */
+  /** Removes this phone's token from the account (`device.unregister`) and forgets the flag. Rejects on failure. */
   turnOff(): Promise<void>;
 };
 
@@ -137,11 +142,7 @@ export function usePushSwitch(channelName: string): PushSwitch {
   const turnOff = useCallback(
     () =>
       change("off", async () => {
-        const projectId = Constants.expoConfig?.extra?.eas?.projectId;
-        if (!projectId) throw new Error("NOT_CONFIGURED");
-        const { data } = await Notifications!.getExpoPushTokenAsync({ projectId });
-        await command("device.unregister", { token: data });
-        await SecureStore.deleteItemAsync(key).catch(() => undefined);
+        await unregisterThisPhone(command, key);
         return "off";
       }),
     [change, command, key],

@@ -36,6 +36,7 @@ jest.mock("../src/today/Beranda", () => ({
 jest.mock("../src/schedule/Jadwal", () => ({ Jadwal: mockStub("Jadwal") }));
 jest.mock("../src/discover/Jelajah", () => ({ Jelajah: mockStub("Jelajah") }));
 jest.mock("../src/account/Akun", () => ({ Akun: mockStub("Akun") }));
+jest.mock("../src/settings/Pengaturan", () => ({ Pengaturan: mockStub("Pengaturan") }));
 jest.mock("../src/account/Addresses", () => ({ Addresses: mockStub("Alamat") }));
 jest.mock("../src/help/ReportList", () => ({ ReportList: mockStub("Bantuan") }));
 jest.mock("../src/discover/SavedList", () => ({ SavedList: mockStub("Disimpan") }));
@@ -306,6 +307,28 @@ describe("each tab keeps its own stack", () => {
     expect(top().name).toBe("subscriptions/[id]");
     expect(top().params).toMatchObject({ id: "s2", title: "Makan Siang Kantor" });
     app.unmount();
+  });
+});
+
+describe("signing out", () => {
+  it("Keluar in Pengaturan leaves every tab at its root, so Akun opens on its sign-in prompt", () => {
+    mount("/");
+    act(() => goToTab("jadwal"));
+    act(() => router.push("/hari/d1"));
+    act(() => goToTab("akun"));
+    act(() => router.push("/pengaturan"));
+    expect(stack("(akun)")).toEqual(["akun", "pengaturan"]);
+    // What Pengaturan does once the session is gone.
+    act(() => goToTab("index", { everyTab: true }));
+    expect(root()).toEqual(["(tabs)"]);
+    expect(tab()).toBe("(index)");
+    // Nothing of the last account stays stacked: not the signed-out Pengaturan, not the day it had open.
+    expect(stack("(akun)")).toEqual(["akun"]);
+    expect(stack("(jadwal)")).toEqual(["jadwal"]);
+    tapTab("(akun)");
+    expect(tab()).toBe("(akun)");
+    expect(stack("(akun)")).toEqual(["akun"]);
+    expectNoSecondRoot();
   });
 });
 

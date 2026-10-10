@@ -13,11 +13,28 @@ import * as SecureStore from "expo-secure-store";
 import * as Crypto from "expo-crypto";
 import type * as NotificationTypes from "expo-notifications";
 import Constants from "expo-constants";
-import { Notifications } from "./notifications";
+import { Notifications, pushAvailableNow, unregisterThisPhone } from "./notifications";
 import { router } from "expo-router";
 import { errorLabel, type Actor, type Locale, type UsageName } from "@catera/domain";
 import type { MobileRuntime } from "./runtime";
 import { createOpenCounter, sendUsage } from "./usage";
+
+/** How long sign-out waits for this phone's push token to come off the account before it signs out anyway. */
+const RELEASE_PUSH_MS = 3000;
+
+/** Waits for `work` to settle, at most `ms`; its outcome, a rejection included, is ignored. */
+function settleWithin(work: Promise<unknown>, ms: number): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return Promise.race([
+    work.then(
+      () => undefined,
+      () => undefined,
+    ),
+    new Promise<void>((resolve) => {
+      timer = setTimeout(resolve, ms);
+    }),
+  ]).finally(() => clearTimeout(timer));
+}
 
 Notifications?.setNotificationHandler({
   handleNotification: async () => ({
@@ -308,7 +325,19 @@ export function MobileProvider({
     await refresh();
   }
 
+  /**
+   * Signs this phone out: Pengaturan's Keluar in both apps and Dapur's customer-account gate. First, while the session
+   * still exists, this phone's push token comes off the leaving account (`device.unregister`) and its switch flag is
+   * forgotten, so the next person holding the phone never gets that account's notifications. That step is best effort:
+   * skipped in a build without push (Expo Go), bounded by `RELEASE_PUSH_MS`, and every failure (offline, a token read
+   * that never answers, a refusal) is ignored, so it can delay sign-out by at most that long and never stop it.
+   */
   async function logout() {
+    const leaving = actorRef.current;
+    if (leaving && pushAvailableNow()) {
+      const send = (action: string, payload: unknown) => runtime.api.command(action, payload, Crypto.randomUUID());
+      await settleWithin(unregisterThisPhone(send, runtime.storageKey(`push.${leaving.id}`)), RELEASE_PUSH_MS);
+    }
     sessionGeneration.current += 1;
     requests.current.clear();
     bootActor.current = null;

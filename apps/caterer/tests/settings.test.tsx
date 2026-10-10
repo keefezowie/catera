@@ -8,6 +8,7 @@ import { UsahaScreen } from "../src/business/UsahaScreen";
 import { MenuWeek } from "../src/menu/MenuWeek";
 import { Pengaturan } from "../src/settings/Pengaturan";
 import { TampilanSheet } from "../src/settings/ChoiceSheets";
+import { RoleGate } from "../src/RoleGate";
 
 jest.mock("expo-router", () => {
   const { useEffect } = require("react");
@@ -137,6 +138,58 @@ it("Keluar signs the kitchen out", async () => {
   renderWith(runtime, <Pengaturan />);
   fireEvent.press(await screen.findByRole("button", { name: "Keluar" }));
   await waitFor(() => expect(runtime.signOut).toHaveBeenCalledTimes(1));
+});
+
+describe("Keluar lets go of this phone's push token", () => {
+  const unregistered = (runtime: MobileRuntime) =>
+    (runtime.api.command as jest.Mock).mock.calls.filter(([action]) => action === "device.unregister");
+
+  it("Pengaturan's Keluar sends device.unregister before signing out and clears the flag", async () => {
+    const runtime = runtimeWith(staff);
+    (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: "granted" });
+    store().set("t.push.u-2", "on");
+    renderWith(runtime, <Pengaturan />);
+    await waitFor(() => expect(notificationSwitch()).toBeChecked());
+    fireEvent.press(screen.getByRole("button", { name: "Keluar" }));
+    await waitFor(() => expect(runtime.signOut).toHaveBeenCalledTimes(1));
+    expect(unregistered(runtime)).toEqual([["device.unregister", { token: "ExponentPushToken[synthetic-kitchen]" }, expect.any(String)]]);
+    const sent = (runtime.api.command as jest.Mock).mock.invocationCallOrder[0];
+    expect(sent).toBeLessThan((runtime.signOut as jest.Mock).mock.invocationCallOrder[0]);
+    expect(store().has("t.push.u-2")).toBe(false);
+  });
+
+  it("the customer-account gate's Keluar lets go of this phone's token too", async () => {
+    const runtime = runtimeWith({ id: "u-c", role: "customer" });
+    store().set("t.push.u-c", "on");
+    renderWith(runtime, <RoleGate>{null}</RoleGate>);
+    fireEvent.press(await screen.findByRole("button", { name: "Keluar" }));
+    await waitFor(() => expect(runtime.signOut).toHaveBeenCalledTimes(1));
+    expect(unregistered(runtime)).toEqual([["device.unregister", { token: "ExponentPushToken[synthetic-kitchen]" }, expect.any(String)]]);
+    expect(store().has("t.push.u-c")).toBe(false);
+  });
+
+  it("a refused unregister still signs the gate out", async () => {
+    const runtime = runtimeWith({ id: "u-c", role: "customer" });
+    (runtime.api.command as jest.Mock).mockRejectedValue(Object.assign(new Error("UNAUTHORIZED"), { code: "UNAUTHORIZED" }));
+    renderWith(runtime, <RoleGate>{null}</RoleGate>);
+    fireEvent.press(await screen.findByRole("button", { name: "Keluar" }));
+    await waitFor(() => expect(runtime.signOut).toHaveBeenCalledTimes(1));
+    expect(unregistered(runtime)).toHaveLength(1);
+  });
+});
+
+it("a failed turn-off keeps the switch on and says so, never as an unhandled rejection", async () => {
+  const runtime = runtimeWith();
+  (runtime.api.command as jest.Mock).mockRejectedValueOnce(Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" }));
+  (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: "granted" });
+  store().set("t.push.u-1", "on");
+  renderWith(runtime, <Pengaturan />);
+  await waitFor(() => expect(notificationSwitch()).toBeChecked());
+  fireEvent(notificationSwitch(), "valueChange", false);
+  expect(await screen.findByText("Belum berhasil. Coba lagi.")).toBeTruthy();
+  expect(notificationSwitch()).toBeChecked();
+  expect(store().get("t.push.u-1")).toBe("on");
+  expect(screen.queryByText("REQUEST_TIMEOUT")).toBeNull();
 });
 
 it("the Tampilan sheet speaks to kamu and closes on a choice", async () => {
