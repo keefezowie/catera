@@ -1,6 +1,6 @@
 import { createContext, Fragment, use, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { AccessibilityInfo, Pressable, StyleSheet, View } from "react-native";
+import { AccessibilityInfo, Keyboard, Pressable, StyleSheet, View } from "react-native";
 import Animated, { Easing, FadeInDown, FadeInUp, FadeOut } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FullWindowOverlay } from "react-native-screens";
@@ -27,7 +27,7 @@ const SHOW_WITH_ACTION_MS = 5000;
  * accessibility timeout (`getRecommendedTimeoutMillis`); iOS has no such setting, so it holds 10s.
  */
 const IOS_SCREEN_READER_ACTION_MS = 10000;
-/** The entrance travel, in dp: iOS from above, Android from below. */
+/** The entrance travel, in dp: from the edge the toast sits against (iOS top, or bottom in a sheet; Android bottom). */
 const ENTER_TRAVEL = 12;
 /** With no anchor from the focused screen, iOS assumes a standard 44pt bar and Android the tab bar. */
 const IOS_BAR = 44;
@@ -45,15 +45,17 @@ export function useToast(): ToastApi {
 
 type Shown = ToastInput & { id: number };
 
-/** The edge every anchor clears: the lowest header bottom and the highest footer top. */
+/** The edge every anchor clears (the lowest header bottom, the highest footer top), and whether any is a sheet. */
 function mergeAnchors(anchors: ReadonlyMap<object, ToastAnchor>): ToastAnchor {
   let top: number | undefined;
   let bottom: number | undefined;
+  let sheet = false;
   for (const anchor of anchors.values()) {
     if (anchor.top !== undefined) top = Math.max(top ?? anchor.top, anchor.top);
     if (anchor.bottom !== undefined) bottom = Math.max(bottom ?? anchor.bottom, anchor.bottom);
+    if (anchor.sheet) sheet = true;
   }
-  return { top, bottom };
+  return { top, bottom, sheet };
 }
 
 /**
@@ -61,7 +63,8 @@ function mergeAnchors(anchors: ReadonlyMap<object, ToastAnchor>): ToastAnchor {
  * a dialog. One toast at a time: a new one replaces the shown one. It closes itself after 3s, or 5s when it carries an
  * action; while a screen reader is on, an action toast stays until its action is used, it is replaced, or the
  * platform's recommended timeout passes. Each `show` is announced once, with its action's name.
- * iOS draws a pill under the focused screen's header; Android a Material snackbar above its tab bar or footer (see
+ * iOS draws a pill under the focused screen's header, or at the bottom when that screen is a sheet (above the home
+ * indicator, the keyboard and any footer); Android a Material snackbar above its tab bar or footer (see
  * `useToastAnchor`). `os` defaults to the running platform.
  */
 export function ToastProvider({ children, os = process.env.EXPO_OS }: { children: ReactNode; os?: string }) {
@@ -71,6 +74,18 @@ export function ToastProvider({ children, os = process.env.EXPO_OS }: { children
   const nextId = useRef(0);
   const shownId = useRef(0);
   const screenReader = useRef(false);
+  // iOS only: a sheet's toast sits above the keyboard. Android's window resizes for the keyboard, so it needs nothing.
+  const [keyboard, setKeyboard] = useState(0);
+
+  useEffect(() => {
+    if (os !== "ios") return;
+    const onShow = Keyboard.addListener("keyboardWillShow", (e) => setKeyboard(e.endCoordinates.height));
+    const onHide = Keyboard.addListener("keyboardWillHide", () => setKeyboard(0));
+    return () => {
+      onShow.remove();
+      onHide.remove();
+    };
+  }, [os]);
 
   useEffect(() => {
     let live = true;
@@ -151,7 +166,16 @@ export function ToastProvider({ children, os = process.env.EXPO_OS }: { children
         {children}
         <Overlay>
           <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
-            {shown ? <ToastView key={shown.id} toast={shown} anchor={anchor} onDone={hide} ios={os === "ios"} /> : null}
+            {shown ? (
+              <ToastView
+                key={shown.id}
+                toast={shown}
+                anchor={anchor}
+                keyboard={keyboard}
+                onDone={hide}
+                ios={os === "ios"}
+              />
+            ) : null}
           </View>
         </Overlay>
       </ToastContext.Provider>
@@ -162,17 +186,21 @@ export function ToastProvider({ children, os = process.env.EXPO_OS }: { children
 function ToastView({
   toast,
   anchor,
+  keyboard,
   onDone,
   ios,
 }: {
   toast: Shown;
   anchor: ToastAnchor;
+  keyboard: number;
   onDone: () => void;
   ios: boolean;
 }) {
   const palette = useColors();
   const insets = useSafeAreaInsets();
   const reduced = useReduced();
+  // Every placement but iOS full-screen sits against the bottom edge, and enters from below.
+  const atTop = ios && !anchor.sheet;
 
   const motion = useMemo(
     () =>
@@ -180,25 +208,33 @@ function ToastView({
         ? { entering: undefined, exiting: undefined }
         : {
             // Reanimated's FadeInUp starts above its place and FadeInDown below it; both travel 12dp here.
-            entering: (ios ? FadeInUp : FadeInDown)
+            entering: (atTop ? FadeInUp : FadeInDown)
               .duration(nativeMotion.content)
               .easing(ease)
-              .withInitialValues({ opacity: 0, transform: [{ translateY: ios ? -ENTER_TRAVEL : ENTER_TRAVEL }] }),
+              .withInitialValues({ opacity: 0, transform: [{ translateY: atTop ? -ENTER_TRAVEL : ENTER_TRAVEL }] }),
             exiting: FadeOut.duration(nativeMotion.control).easing(ease),
           },
-    [reduced, ios],
+    [reduced, atTop],
   );
 
-  // iOS: under the focused screen's header, never under the status bar; with no header reported, under a 44pt bar.
-  // Android: above the focused screen's tab bar or footer, never in the system inset; with none reported, above the
-  // tab bar. The lane is the full width less 16 on each side: the iOS pill hugs its words in the lane's centre, the
-  // Android snackbar fills the lane up to Material's 600dp.
-  const lane = ios
+  // iOS full screen: under the focused screen's header, never under the status bar; with no header reported, under a
+  // 44pt bar. iOS sheet: at the window's bottom, above the home indicator and any footer, lifted by the part of the
+  // keyboard that rises past the home indicator (the keyboard covers that inset). Android: above the focused screen's
+  // tab bar or footer, never in the system inset; with none reported, above the tab bar. The lane is the full width
+  // less 16 on each side: the iOS pill hugs its words in the lane's centre, the Android snackbar fills the lane up to
+  // Material's 600dp.
+  const lane = atTop
     ? { top: (anchor.top !== undefined ? Math.max(anchor.top, insets.top) : insets.top + IOS_BAR) + GAP }
-    : {
-        bottom:
-          (anchor.bottom !== undefined ? Math.max(anchor.bottom, insets.bottom) : insets.bottom + ANDROID_TAB_BAR) + GAP,
-      };
+    : ios
+      ? {
+          bottom:
+            Math.max(anchor.bottom ?? insets.bottom, insets.bottom) + Math.max(0, keyboard - insets.bottom) + GAP,
+        }
+      : {
+          bottom:
+            (anchor.bottom !== undefined ? Math.max(anchor.bottom, insets.bottom) : insets.bottom + ANDROID_TAB_BAR) +
+            GAP,
+        };
   const shape = ios
     ? {
         borderRadius: 22,

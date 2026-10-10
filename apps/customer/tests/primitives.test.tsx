@@ -2,9 +2,10 @@ import type { ReactNode } from "react";
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as ReactNative from "react-native";
-import { AccessibilityInfo, AppState, StyleSheet, View } from "react-native";
+import { AccessibilityInfo, AppState, Keyboard, StyleSheet, View } from "react-native";
 import * as Reanimated from "react-native-reanimated";
 import { HeaderHeightContext, HeaderShownContext, NavigationContext } from "expo-router/react-navigation";
+import { ScreenPresentationContext } from "expo-router/build/react-navigation/native-stack/utils/ScreenPresentationContext";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { FullWindowOverlay } from "react-native-screens";
 import { nativeThemes } from "@catera/design-tokens";
@@ -33,29 +34,12 @@ jest.mock("expo-secure-store", () => ({
   setItemAsync: jest.fn(async () => undefined),
 }));
 
-// react-test-renderer gives host refs no measure methods, so the screen's SafeAreaView gets a stand-in that reports
-// where the screen starts in the window (0 for a full-screen push, lower for an iOS sheet).
-let mockWindowY = 0;
-jest.mock("react-native-safe-area-context", () => {
-  const React = require("react");
-  const { View } = require("react-native");
-  const actual = require("react-native-safe-area-context/jest/mock").default;
-  const SafeAreaView = React.forwardRef((props: object, ref: unknown) => {
-    React.useImperativeHandle(ref, () => ({
-      measureInWindow: (cb: (x: number, y: number, w: number, h: number) => void) => cb(0, mockWindowY, 390, 780),
-    }));
-    return React.createElement(View, props);
-  });
-  return { ...actual, SafeAreaView };
-});
-
 beforeEach(() => {
   jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(false);
 });
 afterEach(() => {
   jest.useRealTimers();
   jest.restoreAllMocks();
-  mockWindowY = 0;
 });
 
 const flat = (node: { props: { style?: unknown } }) => StyleSheet.flatten(node.props.style as never) ?? {};
@@ -471,29 +455,61 @@ describe("Toast", () => {
     expect(lane().top).toBe(47 + 44 + 8);
   });
 
-  it("in an iOS sheet the toast sits under the sheet's own bar, in window points", () => {
+  // The native stack's own context: each route's `presentation` option, as NativeStackView provides it.
+  const presented = (presentation: string, ui: ReactNode) => (
+    <ScreenPresentationContext.Provider value={presentation as never}>{ui}</ScreenPresentationContext.Provider>
+  );
+  const stackScreen = (footer?: ReactNode) => (
+    <HeaderShownContext.Provider value>
+      {/* A sheet's bar is measured inside the sheet: 56, no status bar. */}
+      <HeaderHeightContext.Provider value={56}>
+        <Screen nativeTitle="Masuk" footer={footer}>
+          <Text>Isi</Text>
+        </Screen>
+      </HeaderHeightContext.Provider>
+    </HeaderShownContext.Provider>
+  );
+
+  it("in an iOS sheet the toast shows at the bottom, above the home indicator and a footer", () => {
     jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
-    // The sheet starts 57 down the window (47 status bar + 10); its bar is measured inside the sheet, with no status bar.
-    mockWindowY = 57;
-    const sheet = (height: number) =>
-      tree(
-        "ios",
-        <HeaderShownContext.Provider value>
-          <HeaderHeightContext.Provider value={height}>
-            <Screen nativeTitle="Masuk">
-              <Text>Isi</Text>
-            </Screen>
-          </HeaderHeightContext.Provider>
-        </HeaderShownContext.Provider>,
-      );
-    const view = render(sheet(56));
+    const keyboard: Record<string, (e: { endCoordinates: { height: number } }) => void> = {};
+    jest.spyOn(Keyboard, "addListener").mockImplementation(((event: string, cb: never) => {
+      keyboard[event] = cb;
+      return { remove: jest.fn() };
+    }) as never);
+    render(tree("ios", presented("modal", stackScreen(<StickyAction label="Kirim kode" onPress={() => {}} />))));
     act(() => toast.show({ message: "Kode terkirim" }));
-    // windowY + headerHeight, then the 8 gap: under the sheet's bar, not on it.
-    expect(lane().top).toBe(57 + 56 + 8);
-    // A new header height measures the screen again (the sheet settled 3 lower while its large title came out).
-    mockWindowY = 60;
-    view.rerender(sheet(108));
-    expect(lane().top).toBe(60 + 108 + 8);
+    // Never on the sheet's own bar: no top at all, and 8 above the 34pt home indicator before the footer is laid out.
+    expect(lane().top).toBeUndefined();
+    expect(lane()).toMatchObject({ bottom: 34 + 8 });
+    // Above the 96 footer.
+    layout("screen-footer", 96);
+    expect(lane()).toMatchObject({ bottom: 34 + 96 + 8 });
+    // The keyboard (336, covering the home indicator) lifts the footer and the toast with it.
+    act(() => keyboard.keyboardWillShow({ endCoordinates: { height: 336 } }));
+    expect(lane()).toMatchObject({ bottom: 34 + 96 + (336 - 34) + 8 });
+    act(() => keyboard.keyboardWillHide({ endCoordinates: { height: 0 } }));
+    expect(lane()).toMatchObject({ bottom: 34 + 96 + 8 });
+  });
+
+  it("an iOS form sheet with only its SheetHeader also shows its toast at the bottom", () => {
+    jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
+    render(tree("ios", presented("formSheet", <SheetHeader title="Ada masalah" os="ios" />)));
+    act(() => toast.show({ message: "Laporan terkirim" }));
+    expect(lane().top).toBeUndefined();
+    expect(lane()).toMatchObject({ bottom: 34 + 8 });
+  });
+
+  it("full-screen stack screens keep the top anchor", () => {
+    jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
+    for (const presentation of ["card", "fullScreenModal"]) {
+      const view = render(tree("ios", presented(presentation, stackScreen())));
+      act(() => toast.show({ message: "Disimpan" }));
+      // Under the bar the stack reports (from the window's top on a full-screen screen).
+      expect(lane()).toMatchObject({ top: 56 + 8 });
+      expect(lane().bottom).toBeUndefined();
+      view.unmount();
+    }
   });
 
   it("on Android the snackbar sits above a StickyAction footer", () => {

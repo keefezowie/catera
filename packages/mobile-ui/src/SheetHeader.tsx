@@ -3,6 +3,7 @@ import { Text } from "./components";
 import { HeaderIconButton } from "./HeaderIconButton";
 import { useScreenNavigation } from "./navigation";
 import { useColors } from "./theme";
+import { useToastAnchor } from "./toastAnchor";
 import { fonts } from "./type";
 
 /** iOS reserves this much on each side of the centred title: the 44pt Close and its mirror. */
@@ -15,7 +16,8 @@ const IOS_SIDE = 44;
  * - Android: the Material drag handle (32×4 in a 36dp band) and the title 22 bold at the start edge, the M3 sheet title.
  *   There is no Close: back and a swipe down close the sheet.
  * `context` is an optional line under the title (the day, the package). Close calls `onClose`, else goes back.
- * `os` defaults to the running platform.
+ * In a sheet it also tells the toast so (`useToastAnchor`), so on iOS a sheet without a `Screen` still shows its
+ * toasts at the bottom. `os` defaults to the running platform.
  */
 export function SheetHeader({
   title,
@@ -33,6 +35,7 @@ export function SheetHeader({
 }) {
   const palette = useColors();
   const navigation = useScreenNavigation();
+  useToastAnchor({});
   const ios = os === "ios";
   const close = onClose ?? (() => navigation?.goBack());
   const contextLine = context ? (
