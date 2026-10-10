@@ -1,0 +1,1227 @@
+{
+  "schemaVersion": 1,
+  "brief": "../../../../docs/brand/phase-f-artwork-briefs.md",
+  "generator": "built-in image_gen",
+  "originalsPreserved": true,
+  "assets": [
+    {
+      "id": "splash-mark-light",
+      "file": "splash-mark-light.png",
+      "priority": "P1",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 246803,
+      "sha256": "c27fe8165c83478fb37ffe0908f63f457508dc5395829aa06b37e9719e33dfea",
+      "nativeGeneratedMaster": false,
+      "upscaled": false,
+      "cropped": false,
+      "retouched": true,
+      "derivation": {
+        "name": "splash-mark-light.png",
+        "retainedOriginal": "originals/splash-mark-light.png",
+        "originalSha256": "fec65fb3d3a9a72a07b818e8b7650235efcbedea50b0c753228bc061f5374115",
+        "exportSha256": "c27fe8165c83478fb37ffe0908f63f457508dc5395829aa06b37e9719e33dfea",
+        "width": 1024,
+        "height": 1024,
+        "method": "Remove alpha <=8/255 and disconnected islands under 32 pixels; premultiplied-alpha bilinear resampling; preserve transparent canvas",
+        "transform": {
+          "sx": 0.8165869218500797,
+          "sy": 0.8165869218500797,
+          "dx": 2.8580542264753035,
+          "dy": -12.657097288676255,
+          "rotationDegrees": 0
+        },
+        "colorConversion": null,
+        "nativeGeneratedMaster": false,
+        "upscaled": false,
+        "authorization": "User approved preserving originals and creating clean exports, 2026-10-11"
+      },
+      "hasAlpha": true,
+      "alpha": {
+        "transparent": 937633,
+        "opaque": 7,
+        "partial": 110936
+      },
+      "bounds": [
+        315,
+        325,
+        708,
+        698
+      ],
+      "outsideCircle": 0,
+      "failures": [],
+      "warnings": []
+    },
+    {
+      "id": "splash-mark-dark",
+      "file": "splash-mark-dark.png",
+      "priority": "P1",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 277897,
+      "sha256": "bb0d97e51f267a016e821597ea0c70e2f73a9d550952a9a64c02a1063b1db9ce",
+      "nativeGeneratedMaster": false,
+      "upscaled": false,
+      "cropped": false,
+      "retouched": true,
+      "derivation": {
+        "name": "splash-mark-dark.png",
+        "retainedOriginal": "originals/splash-mark-dark.png",
+        "originalSha256": "9037c081fe766061ed96c5d5e72d09c31b35fdd4233fe0e6665de91324601ace",
+        "exportSha256": "bb0d97e51f267a016e821597ea0c70e2f73a9d550952a9a64c02a1063b1db9ce",
+        "width": 1024,
+        "height": 1024,
+        "method": "Remove alpha <=8/255 and disconnected islands under 32 pixels; premultiplied-alpha bilinear resampling; preserve transparent canvas",
+        "transform": {
+          "sx": 0.8165869218500797,
+          "sy": 0.8165869218500797,
+          "dx": 1.633173843700149,
+          "dy": -12.657097288676255,
+          "rotationDegrees": 0
+        },
+        "colorConversion": null,
+        "nativeGeneratedMaster": false,
+        "upscaled": false,
+        "authorization": "User approved preserving originals and creating clean exports, 2026-10-11"
+      },
+      "hasAlpha": true,
+      "alpha": {
+        "transparent": 931433,
+        "opaque": 6,
+        "partial": 117137
+      },
+      "bounds": [
+        310,
+        320,
+        713,
+        703
+      ],
+      "outsideCircle": 0,
+      "failures": [],
+      "warnings": []
+    },
+    {
+      "id": "adaptive-foreground",
+      "file": "adaptive-foreground.png",
+      "priority": "P1",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 268292,
+      "sha256": "bde0af4346179395c63d7f0ff1deb15e0ee1a8c5a4674b732dc2533f6a4cc648",
+      "nativeGeneratedMaster": false,
+      "upscaled": false,
+      "cropped": false,
+      "retouched": true,
+      "derivation": {
+        "name": "adaptive-foreground.png",
+        "retainedOriginal": "originals/adaptive-foreground.png",
+        "originalSha256": "7be485f3b0280c42a864c78a41f4a3d384dbca2b1a6fcbec83c28d7f329bc54e",
+        "exportSha256": "bde0af4346179395c63d7f0ff1deb15e0ee1a8c5a4674b732dc2533f6a4cc648",
+        "width": 1024,
+        "height": 1024,
+        "method": "Remove alpha <=8/255 and disconnected islands under 32 pixels; premultiplied-alpha bilinear resampling; preserve transparent canvas",
+        "transform": {
+          "sx": 0.8165869218500797,
+          "sy": 0.8165869218500797,
+          "dx": 0.816586921850103,
+          "dy": -13.065390749601306,
+          "rotationDegrees": 0
+        },
+        "colorConversion": null,
+        "nativeGeneratedMaster": false,
+        "upscaled": false,
+        "authorization": "User approved preserving originals and creating clean exports, 2026-10-11"
+      },
+      "hasAlpha": true,
+      "alpha": {
+        "transparent": 933494,
+        "opaque": 12,
+        "partial": 115070
+      },
+      "bounds": [
+        312,
+        322,
+        711,
+        701
+      ],
+      "outsideCircle": 0,
+      "failures": [],
+      "warnings": []
+    },
+    {
+      "id": "icon-monochrome",
+      "file": "icon-monochrome.png",
+      "priority": "P2",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 54890,
+      "sha256": "847546284ca2908ed3c8b3eb3a0c9b5f6e52db0d09e3ed205f49049f5933f886",
+      "nativeGeneratedMaster": false,
+      "upscaled": false,
+      "cropped": false,
+      "retouched": true,
+      "derivation": {
+        "name": "icon-monochrome.png",
+        "retainedOriginal": "originals/icon-monochrome.png",
+        "originalSha256": "6a78fd6daca9c9f9556bc4801d25d7c19491d400c4dfd483657bf1d688cec44e",
+        "exportSha256": "847546284ca2908ed3c8b3eb3a0c9b5f6e52db0d09e3ed205f49049f5933f886",
+        "width": 1024,
+        "height": 1024,
+        "method": "Remove alpha <=8/255 and disconnected islands under 32 pixels; premultiplied-alpha bilinear resampling; preserve transparent canvas",
+        "transform": {
+          "sx": 0.8165869218500797,
+          "sy": 0.8165869218500797,
+          "dx": -2.449760765550195,
+          "dy": -20.414673046252005,
+          "rotationDegrees": 0
+        },
+        "colorConversion": "Solid RGB #000000; antialiasing in alpha only",
+        "nativeGeneratedMaster": false,
+        "upscaled": false,
+        "authorization": "User approved preserving originals and creating clean exports, 2026-10-11"
+      },
+      "hasAlpha": true,
+      "alpha": {
+        "transparent": 924976,
+        "opaque": 198,
+        "partial": 123402
+      },
+      "bounds": [
+        272,
+        290,
+        751,
+        733
+      ],
+      "outsideCircle": 0,
+      "failures": [],
+      "warnings": []
+    },
+    {
+      "id": "icon-ios-dark",
+      "file": "icon-ios-dark.png",
+      "priority": "P2",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 612696,
+      "sha256": "7917c880e6db7e377ef701f3395de553777137ab2b61e1d22202b4f193738c6a",
+      "nativeGeneratedMaster": false,
+      "upscaled": false,
+      "cropped": false,
+      "retouched": true,
+      "derivation": {
+        "name": "icon-ios-dark.png",
+        "retainedOriginal": "originals/icon-ios-dark.png",
+        "originalSha256": "ee42201950d7be04a0d67e8151757a33383c42f6bb8fd894cebc9e261fb3fada",
+        "exportSha256": "7917c880e6db7e377ef701f3395de553777137ab2b61e1d22202b4f193738c6a",
+        "width": 1024,
+        "height": 1024,
+        "method": "Remove alpha <=8/255 and disconnected islands under 32 pixels; premultiplied-alpha bilinear resampling; preserve transparent canvas",
+        "transform": {
+          "sx": 0.7436310107948969,
+          "sy": 0.7436310107948969,
+          "dx": 39.42249263984303,
+          "dy": 38.67886162904813,
+          "rotationDegrees": 0
+        },
+        "colorConversion": null,
+        "nativeGeneratedMaster": false,
+        "upscaled": false,
+        "authorization": "User approved preserving originals and creating clean exports, 2026-10-11"
+      },
+      "hasAlpha": true,
+      "alpha": {
+        "transparent": 689509,
+        "opaque": 36,
+        "partial": 359031
+      },
+      "bounds": [
+        133,
+        184,
+        890,
+        839
+      ],
+      "outsideCircle": 27849,
+      "failures": [],
+      "warnings": []
+    },
+    {
+      "id": "icon-ios-tinted",
+      "file": "icon-ios-tinted.png",
+      "priority": "P2",
+      "width": 1024,
+      "height": 1024,
+      "bytes": 204000,
+      "sha256": "b42b3077de9c9a09fdd212ddd0885256160865b7ad62b4018e43e0a1e8bbe923",
+      "nativeGeneratedMaster": false,
+      "upscaled": false,
+      "cropped": false,
+      "retouched": true,
+      "derivation": {
+        "name": "icon-ios-tinted.png",
+        "retainedOriginal": "originals/icon-ios-tinted.png",
+        "originalSha256": "77c91584e8f828dfb58d9a0359569438843ec56fb025ef47266a09d7aa04724f",
+        "exportSha256": "b42b3077de9c9a09fdd212ddd0885256160865b7ad62b4018e43e0a1e8bbe923",
+        "width": 1024,
+        "height": 1024,
+        "method": "Remove alpha <=8/255 and disconnected islands under 32 pixels; premultiplied-alpha bilinear resampling; preserve transparent canvas",
+        "transform": {
+          "sx": 0.75776,
+          "sy": 0.75776,
+          "dx": 33.095680000000016,
+          "dy": 11.12063999999998,
+          "rotationDegrees": 0
+        },
+        "colorConversion": "Neutral grayscale, R=G=B; map luminance to 96..255",
+        "nativeGeneratedMaster": false,
+        "upscaled": false,
+        "authorization": "User approved preserving originals and creating clean exports, 2026-10-11"
+      },
+      "hasAlpha": true,
+      "alpha": {
+        "transparent": 703006,
+        "opaque": 23,
+        "partial": 345547
+      },
+      "bounds": [
+        133,
+        191,
+        890,
+        832
+      ],
+      "outsideCircle": 23420,
+      "failures": [],
+      "warnings": []
+    },
+    {
+      "id": "mascot-merayakan",
+      "file": "mascot-merayakan.png",
+      "priority": "P1",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 475517,
+      "sha256": "93034473775659401832fd6914bc036cd4b76f89b4c658a6e6fe208e889bbdae",
+      "nativeGeneratedMaster": false,
+      "upscaled": false,
+      "cropped": false,
+      "retouched": true,
+      "derivation": {
+        "name": "mascot-merayakan.png",
+        "retainedOriginal": "originals/mascot-merayakan.png",
+        "originalSha256": "53d44e060e5ecd37fba7146fa5a7e677aaf16d84740559f8b6b69312743f0ec9",
+        "exportSha256": "93034473775659401832fd6914bc036cd4b76f89b4c658a6e6fe208e889bbdae",
+        "width": 1254,
+        "height": 1254,
+        "method": "Remove alpha <=8/255 and disconnected islands under 32 pixels; premultiplied-alpha bilinear resampling; preserve transparent canvas",
+        "transform": {
+          "sx": 1,
+          "sy": 1,
+          "dx": -10.5,
+          "dy": -34,
+          "rotationDegrees": 0
+        },
+        "colorConversion": null,
+        "nativeGeneratedMaster": false,
+        "upscaled": false,
+        "authorization": "User approved preserving originals and creating clean exports, 2026-10-11"
+      },
+      "hasAlpha": true,
+      "alpha": {
+        "transparent": 1340056,
+        "opaque": 292,
+        "partial": 232168
+      },
+      "bounds": [
+        286,
+        324,
+        967,
+        929
+      ],
+      "outsideCircle": 0,
+      "failures": [],
+      "warnings": []
+    },
+    {
+      "id": "mascot-membaca",
+      "file": "mascot-membaca.png",
+      "priority": "P1",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 542564,
+      "sha256": "edd9fa1377077a9b72b2e74965a2f810dd0b600750a99eeb223d55ea800a8ce3",
+      "nativeGeneratedMaster": false,
+      "upscaled": false,
+      "cropped": false,
+      "retouched": true,
+      "derivation": {
+        "name": "mascot-membaca.png",
+        "retainedOriginal": "originals/mascot-membaca.png",
+        "originalSha256": "eb49f568bddb3fd98a8bbbb15630686c42b7b7c8e360a3582397cb689d4c6d3a",
+        "exportSha256": "edd9fa1377077a9b72b2e74965a2f810dd0b600750a99eeb223d55ea800a8ce3",
+        "width": 1254,
+        "height": 1254,
+        "method": "Remove alpha <=8/255 and disconnected islands under 32 pixels; premultiplied-alpha bilinear resampling; preserve transparent canvas",
+        "transform": {
+          "sx": 1,
+          "sy": 1,
+          "dx": 0,
+          "dy": -28,
+          "rotationDegrees": 0
+        },
+        "colorConversion": null,
+        "nativeGeneratedMaster": false,
+        "upscaled": false,
+        "authorization": "User approved preserving originals and creating clean exports, 2026-10-11"
+      },
+      "hasAlpha": true,
+      "alpha": {
+        "transparent": 1299836,
+        "opaque": 1051,
+        "partial": 271629
+      },
+      "bounds": [
+        325,
+        316,
+        928,
+        937
+      ],
+      "outsideCircle": 0,
+      "failures": [],
+      "warnings": []
+    },
+    {
+      "id": "mascot-tidur",
+      "file": "mascot-tidur.png",
+      "priority": "P1",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 304641,
+      "sha256": "984f485363df871ff575b808a098d0f0eae82f69d1812e467430ecb6d663c042",
+      "nativeGeneratedMaster": false,
+      "upscaled": false,
+      "cropped": false,
+      "retouched": true,
+      "derivation": {
+        "name": "mascot-tidur.png",
+        "retainedOriginal": "originals/mascot-tidur.png",
+        "originalSha256": "5406bba14733acdba9c0183b4b516ff373e0104aa1fb0b0b5cca57a294d149ff",
+        "exportSha256": "984f485363df871ff575b808a098d0f0eae82f69d1812e467430ecb6d663c042",
+        "width": 1254,
+        "height": 1254,
+        "method": "Remove alpha <=8/255 and disconnected islands under 32 pixels; premultiplied-alpha bilinear resampling; preserve transparent canvas",
+        "transform": {
+          "sx": 1,
+          "sy": 1,
+          "dx": -49,
+          "dy": -76,
+          "rotationDegrees": 0
+        },
+        "colorConversion": null,
+        "nativeGeneratedMaster": false,
+        "upscaled": false,
+        "authorization": "User approved preserving originals and creating clean exports, 2026-10-11"
+      },
+      "hasAlpha": true,
+      "alpha": {
+        "transparent": 1402116,
+        "opaque": 894,
+        "partial": 169506
+      },
+      "bounds": [
+        315,
+        389,
+        938,
+        864
+      ],
+      "outsideCircle": 0,
+      "failures": [],
+      "warnings": []
+    },
+    {
+      "id": "mascot-bingung",
+      "file": "mascot-bingung.png",
+      "priority": "P1",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 744744,
+      "sha256": "6a2f75a99e892961e954e015bea1beaf00844bbfd91c07c2b7a50b6f81d3b834",
+      "nativeGeneratedMaster": false,
+      "upscaled": false,
+      "cropped": false,
+      "retouched": true,
+      "derivation": {
+        "name": "mascot-bingung.png",
+        "retainedOriginal": "originals/mascot-bingung.png",
+        "originalSha256": "b16e96f48688c7dd1f6e4cf840a85c21fa6b697ac7dd120b24f3c779cc7181bd",
+        "exportSha256": "6a2f75a99e892961e954e015bea1beaf00844bbfd91c07c2b7a50b6f81d3b834",
+        "width": 1254,
+        "height": 1254,
+        "method": "Remove alpha <=8/255 and disconnected islands under 32 pixels; premultiplied-alpha bilinear resampling; preserve transparent canvas",
+        "transform": {
+          "sx": 1,
+          "sy": 1,
+          "dx": -6.5,
+          "dy": -21,
+          "rotationDegrees": 0
+        },
+        "colorConversion": null,
+        "nativeGeneratedMaster": false,
+        "upscaled": false,
+        "authorization": "User approved preserving originals and creating clean exports, 2026-10-11"
+      },
+      "hasAlpha": true,
+      "alpha": {
+        "transparent": 1072389,
+        "opaque": 603,
+        "partial": 499524
+      },
+      "bounds": [
+        151,
+        238,
+        1102,
+        1015
+      ],
+      "outsideCircle": 43384,
+      "failures": [],
+      "warnings": []
+    },
+    {
+      "id": "mascot-melambai",
+      "file": "mascot-melambai.png",
+      "priority": "P2",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 801845,
+      "sha256": "c84bc7fa2a9162a68250030b4f2c7fe064c6491e77a3741314518fa65e1e5a81",
+      "nativeGeneratedMaster": false,
+      "upscaled": false,
+      "cropped": false,
+      "retouched": true,
+      "derivation": {
+        "name": "mascot-melambai.png",
+        "retainedOriginal": "originals/mascot-melambai.png",
+        "originalSha256": "979f67a6d046f6e05291b8c0f192bb06b6d5918ee8ba1a2e3d3c972cdd63d7c1",
+        "exportSha256": "c84bc7fa2a9162a68250030b4f2c7fe064c6491e77a3741314518fa65e1e5a81",
+        "width": 1254,
+        "height": 1254,
+        "method": "Remove alpha <=8/255 and disconnected islands under 32 pixels; premultiplied-alpha bilinear resampling; preserve transparent canvas",
+        "transform": {
+          "sx": 0.9876969092721836,
+          "sy": 0.9876969092721836,
+          "dx": -3.6444765702891573,
+          "dy": -2.6567796610170262,
+          "rotationDegrees": 0
+        },
+        "colorConversion": null,
+        "nativeGeneratedMaster": false,
+        "upscaled": false,
+        "authorization": "User approved preserving originals and creating clean exports, 2026-10-11"
+      },
+      "hasAlpha": true,
+      "alpha": {
+        "transparent": 1055119,
+        "opaque": 95,
+        "partial": 517302
+      },
+      "bounds": [
+        131,
+        238,
+        1122,
+        1015
+      ],
+      "outsideCircle": 57901,
+      "failures": [],
+      "warnings": []
+    },
+    {
+      "id": "mascot-mencari",
+      "file": "mascot-mencari.png",
+      "priority": "P2",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 875573,
+      "sha256": "e3999da45b7be3fb01578b46c7fb14aebafbda0ab7f4b0ab6a570e53f0ed3bfa",
+      "nativeGeneratedMaster": false,
+      "upscaled": false,
+      "cropped": false,
+      "retouched": true,
+      "derivation": {
+        "name": "mascot-mencari.png",
+        "retainedOriginal": "originals/mascot-mencari.png",
+        "originalSha256": "437db0f63a9699b14b491114d3e612f854ac41247e514c394de549cc8edd1b6b",
+        "exportSha256": "e3999da45b7be3fb01578b46c7fb14aebafbda0ab7f4b0ab6a570e53f0ed3bfa",
+        "width": 1254,
+        "height": 1254,
+        "method": "Remove alpha <=8/255 and disconnected islands under 32 pixels; premultiplied-alpha bilinear resampling; preserve transparent canvas",
+        "transform": {
+          "sx": 1,
+          "sy": 1,
+          "dx": 0,
+          "dy": -0.5,
+          "rotationDegrees": 0
+        },
+        "colorConversion": null,
+        "nativeGeneratedMaster": false,
+        "upscaled": false,
+        "authorization": "User approved preserving originals and creating clean exports, 2026-10-11"
+      },
+      "hasAlpha": true,
+      "alpha": {
+        "transparent": 995067,
+        "opaque": 142,
+        "partial": 577307
+      },
+      "bounds": [
+        162,
+        231,
+        1091,
+        1023
+      ],
+      "outsideCircle": 72310,
+      "failures": [],
+      "warnings": []
+    },
+    {
+      "id": "mascot-memasak",
+      "file": "mascot-memasak.png",
+      "priority": "P2",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 921228,
+      "sha256": "f466e87b97f07184ce47a016660598a663ec39b416bbfb4a6322e5a8ed39d016",
+      "nativeGeneratedMaster": false,
+      "upscaled": false,
+      "cropped": false,
+      "retouched": true,
+      "derivation": {
+        "name": "mascot-memasak.png",
+        "retainedOriginal": "originals/mascot-memasak.png",
+        "originalSha256": "f81c5b9da28e9bb9e8a21c13a530a8e22cbb262cedea09009842690966a3f4e0",
+        "exportSha256": "f466e87b97f07184ce47a016660598a663ec39b416bbfb4a6322e5a8ed39d016",
+        "width": 1254,
+        "height": 1254,
+        "method": "Remove alpha <=8/255 and disconnected islands under 32 pixels; premultiplied-alpha bilinear resampling; preserve transparent canvas",
+        "transform": {
+          "sx": 0.9534744947064486,
+          "sy": 0.9534744947064486,
+          "dx": 11.532213666987445,
+          "dy": 39.659711260827635,
+          "rotationDegrees": 0
+        },
+        "colorConversion": null,
+        "nativeGeneratedMaster": false,
+        "upscaled": false,
+        "authorization": "User approved preserving originals and creating clean exports, 2026-10-11"
+      },
+      "hasAlpha": true,
+      "alpha": {
+        "transparent": 1006840,
+        "opaque": 64,
+        "partial": 565612
+      },
+      "bounds": [
+        131,
+        202,
+        1122,
+        1052
+      ],
+      "outsideCircle": 111439,
+      "failures": [],
+      "warnings": []
+    },
+    {
+      "id": "rig-arms-up",
+      "file": "rig-arms-up.png",
+      "priority": "animation fallback",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 136883,
+      "sha256": "11bb3c00cf82ec6cf1bd089626ed8a1b93944ef21e6a9d9a829bdc4cd5900d7e",
+      "nativeGeneratedMaster": false,
+      "upscaled": false,
+      "cropped": false,
+      "retouched": true,
+      "derivation": {
+        "name": "rig-arms-up.png",
+        "retainedOriginal": "originals/rig-arms-up.png",
+        "originalSha256": "6e39fa4e11c77e7db2bfb45a81ac6fc227989bc1da8b7fafed50d2bc1f2ad194",
+        "exportSha256": "11bb3c00cf82ec6cf1bd089626ed8a1b93944ef21e6a9d9a829bdc4cd5900d7e",
+        "width": 1254,
+        "height": 1254,
+        "method": "Remove alpha <=8/255 and disconnected islands under 32 pixels; premultiplied-alpha bilinear resampling; preserve transparent canvas",
+        "transform": {
+          "sx": 1,
+          "sy": 1,
+          "dx": 0,
+          "dy": -90,
+          "rotationDegrees": 0
+        },
+        "colorConversion": null,
+        "nativeGeneratedMaster": false,
+        "upscaled": false,
+        "authorization": "User approved preserving originals and creating clean exports, 2026-10-11"
+      },
+      "hasAlpha": true,
+      "alpha": {
+        "transparent": 1509828,
+        "opaque": 556,
+        "partial": 62132
+      },
+      "bounds": [
+        93,
+        495,
+        1187,
+        870
+      ],
+      "outsideCircle": 58302,
+      "failures": [],
+      "warnings": []
+    },
+    {
+      "id": "rig-badge",
+      "file": "rig-badge.png",
+      "priority": "animation fallback",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 67763,
+      "sha256": "0fd158ca68f5ba97ad2ff29a5d65c8d19b608ba4fb29489ba8d639f269ded41a",
+      "nativeGeneratedMaster": false,
+      "upscaled": false,
+      "cropped": false,
+      "retouched": true,
+      "derivation": {
+        "name": "rig-badge.png",
+        "retainedOriginal": "originals/rig-badge.png",
+        "originalSha256": "56e5e3a18ffbb71d158ea45dcc0aab3beff2b8fbd9f990074d63911837b1f0af",
+        "exportSha256": "0fd158ca68f5ba97ad2ff29a5d65c8d19b608ba4fb29489ba8d639f269ded41a",
+        "width": 1254,
+        "height": 1254,
+        "method": "Remove alpha <=8/255 and disconnected islands under 32 pixels; premultiplied-alpha bilinear resampling; preserve transparent canvas",
+        "transform": {
+          "sx": 0.63,
+          "sy": 0.63,
+          "dx": 505,
+          "dy": -30,
+          "rotationDegrees": 0
+        },
+        "colorConversion": null,
+        "nativeGeneratedMaster": false,
+        "upscaled": false,
+        "authorization": "User approved preserving originals and creating clean exports, 2026-10-11"
+      },
+      "hasAlpha": true,
+      "alpha": {
+        "transparent": 1534165,
+        "opaque": 3,
+        "partial": 38348
+      },
+      "bounds": [
+        1021,
+        320,
+        1240,
+        541
+      ],
+      "outsideCircle": 38351,
+      "failures": [],
+      "warnings": []
+    },
+    {
+      "id": "rig-body",
+      "file": "rig-body.png",
+      "priority": "animation fallback",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 802763,
+      "sha256": "2b526d9187283752720a1dc9d3324001668da3ef6e2847079d78f572ffcdbd8f",
+      "nativeGeneratedMaster": false,
+      "upscaled": false,
+      "cropped": false,
+      "retouched": true,
+      "derivation": {
+        "name": "rig-body.png",
+        "retainedOriginal": "originals/rig-body.png",
+        "originalSha256": "6037ee15637459d9cb47f0e06d01ccc9cfd5d3045766c29a6e5695c9c962f08b",
+        "exportSha256": "2b526d9187283752720a1dc9d3324001668da3ef6e2847079d78f572ffcdbd8f",
+        "width": 1254,
+        "height": 1254,
+        "method": "Remove alpha <=8/255 and disconnected islands under 32 pixels; premultiplied-alpha bilinear resampling; preserve transparent canvas",
+        "transform": {
+          "sx": 1,
+          "sy": 1,
+          "dx": 0,
+          "dy": 0,
+          "rotationDegrees": 0
+        },
+        "colorConversion": null,
+        "nativeGeneratedMaster": false,
+        "upscaled": false,
+        "authorization": "User approved preserving originals and creating clean exports, 2026-10-11"
+      },
+      "hasAlpha": true,
+      "alpha": {
+        "transparent": 986505,
+        "opaque": 1341,
+        "partial": 584670
+      },
+      "bounds": [
+        94,
+        373,
+        1178,
+        1073
+      ],
+      "outsideCircle": 158278,
+      "failures": [],
+      "warnings": []
+    },
+    {
+      "id": "rig-eyes-closed",
+      "file": "rig-eyes-closed.png",
+      "priority": "animation fallback",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 25719,
+      "sha256": "5443da383b7d982c6db4f1b2a2a45cdf9e39a8d076cebe9cc9e4dda2af097394",
+      "nativeGeneratedMaster": false,
+      "upscaled": false,
+      "cropped": false,
+      "retouched": true,
+      "derivation": {
+        "name": "rig-eyes-closed.png",
+        "retainedOriginal": "originals/rig-eyes-closed.png",
+        "originalSha256": "7dc4a07bd645ef81b8118f638b759e9016e2bd0487d943318d6092a79093b604",
+        "exportSha256": "5443da383b7d982c6db4f1b2a2a45cdf9e39a8d076cebe9cc9e4dda2af097394",
+        "width": 1254,
+        "height": 1254,
+        "method": "Remove alpha <=8/255 and disconnected islands under 32 pixels; premultiplied-alpha bilinear resampling; preserve transparent canvas",
+        "transform": {
+          "parts": [
+            {
+              "sourceRegion": [
+                0,
+                0,
+                700,
+                1254
+              ],
+              "sx": 0.856,
+              "sy": 1,
+              "dx": 53,
+              "dy": -120
+            },
+            {
+              "sourceRegion": [
+                700,
+                0,
+                1254,
+                1254
+              ],
+              "sx": 0.856,
+              "sy": 1,
+              "dx": 105,
+              "dy": -140
+            }
+          ],
+          "note": "Empty source-space regions isolate existing features; all visible pixels retained without painting"
+        },
+        "colorConversion": null,
+        "nativeGeneratedMaster": false,
+        "upscaled": false,
+        "authorization": "User approved preserving originals and creating clean exports, 2026-10-11"
+      },
+      "hasAlpha": true,
+      "alpha": {
+        "transparent": 1560908,
+        "opaque": 133,
+        "partial": 11475
+      },
+      "bounds": [
+        443,
+        799,
+        971,
+        938
+      ],
+      "outsideCircle": 0,
+      "failures": [],
+      "warnings": []
+    },
+    {
+      "id": "rig-eyes-open",
+      "file": "rig-eyes-open.png",
+      "priority": "animation fallback",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 40508,
+      "sha256": "6471ee531dde33e859c30968c7190d14539e6105a892af744801618761d6d49d",
+      "nativeGeneratedMaster": false,
+      "upscaled": false,
+      "cropped": false,
+      "retouched": true,
+      "derivation": {
+        "name": "rig-eyes-open.png",
+        "retainedOriginal": "originals/rig-eyes-open.png",
+        "originalSha256": "55a93ae7e533d4096b1f4e4f04f7388c942623ad88102080c6612cdda3e3d6d6",
+        "exportSha256": "6471ee531dde33e859c30968c7190d14539e6105a892af744801618761d6d49d",
+        "width": 1254,
+        "height": 1254,
+        "method": "Remove alpha <=8/255 and disconnected islands under 32 pixels; premultiplied-alpha bilinear resampling; preserve transparent canvas",
+        "transform": {
+          "parts": [
+            {
+              "sourceRegion": [
+                0,
+                0,
+                700,
+                1254
+              ],
+              "sx": 1,
+              "sy": 1,
+              "dx": 0,
+              "dy": 0
+            },
+            {
+              "sourceRegion": [
+                700,
+                0,
+                1254,
+                1254
+              ],
+              "sx": 1,
+              "sy": 1,
+              "dx": 50,
+              "dy": -20
+            }
+          ],
+          "note": "Empty source-space regions isolate existing features; all visible pixels retained without painting"
+        },
+        "colorConversion": null,
+        "nativeGeneratedMaster": false,
+        "upscaled": false,
+        "authorization": "User approved preserving originals and creating clean exports, 2026-10-11"
+      },
+      "hasAlpha": true,
+      "alpha": {
+        "transparent": 1551340,
+        "opaque": 251,
+        "partial": 20925
+      },
+      "bounds": [
+        447,
+        783,
+        963,
+        955
+      ],
+      "outsideCircle": 25,
+      "failures": [],
+      "warnings": []
+    },
+    {
+      "id": "rig-lid",
+      "file": "rig-lid.png",
+      "priority": "animation fallback",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 327215,
+      "sha256": "47febdd143e64d9d8cd617c6fbc49ec161df7c220e71c95f13c7478c5397639a",
+      "nativeGeneratedMaster": false,
+      "upscaled": false,
+      "cropped": false,
+      "retouched": true,
+      "derivation": {
+        "name": "rig-lid.png",
+        "retainedOriginal": "originals/rig-lid.png",
+        "originalSha256": "5ade7e15ef7ac24d459dc7e2d7975cdeac91cc88adb403c6d7dca1d0e4b60eff",
+        "exportSha256": "47febdd143e64d9d8cd617c6fbc49ec161df7c220e71c95f13c7478c5397639a",
+        "width": 1254,
+        "height": 1254,
+        "method": "Remove alpha <=8/255 and disconnected islands under 32 pixels; premultiplied-alpha bilinear resampling; preserve transparent canvas",
+        "transform": {
+          "sx": 0.945,
+          "sy": 0.805,
+          "dx": 104.93438959930083,
+          "dy": -27.119025633857973,
+          "rotationDegrees": 8
+        },
+        "colorConversion": null,
+        "nativeGeneratedMaster": false,
+        "upscaled": false,
+        "authorization": "User approved preserving originals and creating clean exports, 2026-10-11"
+      },
+      "hasAlpha": true,
+      "alpha": {
+        "transparent": 1326113,
+        "opaque": 41,
+        "partial": 246362
+      },
+      "bounds": [
+        109,
+        223,
+        1086,
+        601
+      ],
+      "outsideCircle": 58377,
+      "failures": [],
+      "warnings": []
+    },
+    {
+      "id": "rig-reading-body",
+      "file": "rig-reading-body.png",
+      "priority": "animation fallback",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 883245,
+      "sha256": "0c4dcbc95d9c62516ffd6205435cf6489266653964e7d357a8ffd82e84d2dd73",
+      "nativeGeneratedMaster": false,
+      "upscaled": false,
+      "cropped": false,
+      "retouched": true,
+      "derivation": {
+        "name": "rig-reading-body.png",
+        "retainedOriginal": "originals/rig-reading-body.png",
+        "originalSha256": "d3fda672d1d368a6cd5ade382cd7abafa20de52ffc1e9c962373cf948df2f8af",
+        "exportSha256": "0c4dcbc95d9c62516ffd6205435cf6489266653964e7d357a8ffd82e84d2dd73",
+        "width": 1254,
+        "height": 1254,
+        "method": "Remove alpha <=8/255 and disconnected islands under 32 pixels; premultiplied-alpha bilinear resampling; preserve transparent canvas",
+        "transform": {
+          "sx": 1,
+          "sy": 1,
+          "dx": 0,
+          "dy": 0,
+          "rotationDegrees": 0
+        },
+        "colorConversion": null,
+        "nativeGeneratedMaster": false,
+        "upscaled": false,
+        "authorization": "User approved preserving originals and creating clean exports, 2026-10-11"
+      },
+      "hasAlpha": true,
+      "alpha": {
+        "transparent": 997956,
+        "opaque": 1330,
+        "partial": 573230
+      },
+      "bounds": [
+        198,
+        232,
+        1080,
+        1133
+      ],
+      "outsideCircle": 87788,
+      "failures": [],
+      "warnings": []
+    },
+    {
+      "id": "rig-reading-eyes",
+      "file": "rig-reading-eyes.png",
+      "priority": "animation fallback",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 33162,
+      "sha256": "03554b8d40f452b1e863993685e922cc876be301411c83fbdd887b8e1d02b476",
+      "nativeGeneratedMaster": false,
+      "upscaled": false,
+      "cropped": false,
+      "retouched": true,
+      "derivation": {
+        "name": "rig-reading-eyes.png",
+        "retainedOriginal": "originals/rig-reading-eyes.png",
+        "originalSha256": "d5f6d4055fc5fef3bcfc8c63dbcd3a975532e2c1a30a7990417c4252047872d1",
+        "exportSha256": "03554b8d40f452b1e863993685e922cc876be301411c83fbdd887b8e1d02b476",
+        "width": 1254,
+        "height": 1254,
+        "method": "Remove alpha <=8/255 and disconnected islands under 32 pixels; premultiplied-alpha bilinear resampling; preserve transparent canvas",
+        "transform": {
+          "sx": 0.785,
+          "sy": 0.785,
+          "dx": 247,
+          "dy": 250,
+          "rotationDegrees": 0
+        },
+        "colorConversion": null,
+        "nativeGeneratedMaster": false,
+        "upscaled": false,
+        "authorization": "User approved preserving originals and creating clean exports, 2026-10-11"
+      },
+      "hasAlpha": true,
+      "alpha": {
+        "transparent": 1559092,
+        "opaque": 2,
+        "partial": 13422
+      },
+      "bounds": [
+        587,
+        765,
+        924,
+        901
+      ],
+      "outsideCircle": 0,
+      "failures": [],
+      "warnings": []
+    },
+    {
+      "id": "rig-reading-magnifier",
+      "file": "rig-reading-magnifier.png",
+      "priority": "animation fallback",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 64744,
+      "sha256": "e36325b289abd7186ab2c2b9991e2ec8e3709e1add3c18dd796e8ff8031c9e6d",
+      "nativeGeneratedMaster": false,
+      "upscaled": false,
+      "cropped": false,
+      "retouched": true,
+      "derivation": {
+        "name": "rig-reading-magnifier.png",
+        "retainedOriginal": "originals/rig-reading-magnifier.png",
+        "originalSha256": "7c5be87f33a0536b54bd3aa327aa5692ac0ca77d1458803566c051fd25c4dede",
+        "exportSha256": "e36325b289abd7186ab2c2b9991e2ec8e3709e1add3c18dd796e8ff8031c9e6d",
+        "width": 1254,
+        "height": 1254,
+        "method": "Remove alpha <=8/255 and disconnected islands under 32 pixels; premultiplied-alpha bilinear resampling; preserve transparent canvas",
+        "transform": {
+          "sx": 0.75,
+          "sy": 0.75,
+          "dx": 230,
+          "dy": 350,
+          "rotationDegrees": 0
+        },
+        "colorConversion": null,
+        "nativeGeneratedMaster": false,
+        "upscaled": false,
+        "authorization": "User approved preserving originals and creating clean exports, 2026-10-11"
+      },
+      "hasAlpha": true,
+      "alpha": {
+        "transparent": 1543571,
+        "opaque": 0,
+        "partial": 28945
+      },
+      "bounds": [
+        648,
+        885,
+        858,
+        1098
+      ],
+      "outsideCircle": 9332,
+      "failures": [],
+      "warnings": []
+    },
+    {
+      "id": "rig-sparkles",
+      "file": "rig-sparkles.png",
+      "priority": "animation fallback",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 45809,
+      "sha256": "94b211d8984cc346202457718eada7ffc34896e1118d75cab5700d1dc99f6125",
+      "nativeGeneratedMaster": false,
+      "upscaled": false,
+      "cropped": false,
+      "retouched": true,
+      "derivation": {
+        "name": "rig-sparkles.png",
+        "retainedOriginal": "originals/rig-sparkles.png",
+        "originalSha256": "407f3046c8154aaed4914a3cebc406f2758ce0166ad36ebf6154a0feaf606630",
+        "exportSha256": "94b211d8984cc346202457718eada7ffc34896e1118d75cab5700d1dc99f6125",
+        "width": 1254,
+        "height": 1254,
+        "method": "Remove alpha <=8/255 and disconnected islands under 32 pixels; premultiplied-alpha bilinear resampling; preserve transparent canvas",
+        "transform": {
+          "parts": [
+            {
+              "sourceRegion": [
+                0,
+                0,
+                800,
+                1254
+              ],
+              "sx": 1,
+              "sy": 1,
+              "dx": -40,
+              "dy": -210
+            },
+            {
+              "sourceRegion": [
+                800,
+                0,
+                1254,
+                470
+              ],
+              "sx": 1,
+              "sy": 1,
+              "dx": 0,
+              "dy": -150
+            },
+            {
+              "sourceRegion": [
+                800,
+                470,
+                1254,
+                590
+              ],
+              "sx": 1,
+              "sy": 1,
+              "dx": -230,
+              "dy": -377
+            },
+            {
+              "sourceRegion": [
+                800,
+                590,
+                1254,
+                1254
+              ],
+              "sx": 1,
+              "sy": 1,
+              "dx": 5,
+              "dy": -495
+            }
+          ],
+          "note": "Empty source-space regions isolate existing features; all visible pixels retained without painting"
+        },
+        "colorConversion": null,
+        "nativeGeneratedMaster": false,
+        "upscaled": false,
+        "authorization": "User approved preserving originals and creating clean exports, 2026-10-11"
+      },
+      "hasAlpha": true,
+      "alpha": {
+        "transparent": 1558628,
+        "opaque": 289,
+        "partial": 13599
+      },
+      "bounds": [
+        85,
+        107,
+        1111,
+        313
+      ],
+      "outsideCircle": 13888,
+      "failures": [],
+      "warnings": []
+    }
+  ],
+  "rigChecks": {
+    "eyeMouthOverlaps": 0,
+    "eyeFoodOverlaps": 0,
+    "eyeArmOverlaps": 0,
+    "badgeCheckOccludedPixels": 0,
+    "handBadgeOverlapPixels": 3180,
+    "handLidOverlapPixels": 3434,
+    "lidBodyOverlapPixels": 86036,
+    "sparkleSubjectOverlapPixels": 0,
+    "hingeContact": true,
+    "lidToBodyWidthRatio": 0.9013824884792627
+  },
+  "animations": [
+    {
+      "file": "confetti.json",
+      "kind": "code-drawn vector Lottie",
+      "fps": 60,
+      "durationSeconds": 1.2,
+      "loop": false,
+      "bytes": 40790,
+      "sha256": "1dd9d31700cab22440501348a687f85f681ca6a408b8f6bddae2607df40eadc7",
+      "poster": "confetti-last-frame.png"
+    }
+  ],
+  "mascotAnimations": "Layered rig alternative from the brief, with registration and motion recipes in rig.json; no mascot Lottie exports claimed"
+}

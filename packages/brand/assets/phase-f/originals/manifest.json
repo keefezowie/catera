@@ -1,0 +1,612 @@
+{
+  "schemaVersion": 1,
+  "brief": "../../../../docs/brand/phase-f-artwork-briefs.md",
+  "generator": "built-in image_gen",
+  "originalsPreserved": true,
+  "assets": [
+    {
+      "id": "splash-mark-dark",
+      "file": "splash-mark-dark.png",
+      "priority": "P1",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 359441,
+      "sha256": "9037c081fe766061ed96c5d5e72d09c31b35fdd4233fe0e6665de91324601ace",
+      "nativeGeneratedMaster": true,
+      "upscaled": false,
+      "cropped": false,
+      "retouched": false,
+      "hasAlpha": true,
+      "alpha": {
+        "transparent": 1393353,
+        "opaque": 322,
+        "partial": 178841
+      },
+      "bounds": [
+        178,
+        136,
+        1201,
+        1068
+      ],
+      "outsideCircle": 7,
+      "failures": [
+        "7 nontransparent pixels outside required circle"
+      ],
+      "warnings": [
+        "Requested 1024x1024; unmodified generator output is 1254x1254"
+      ]
+    },
+    {
+      "id": "adaptive-foreground",
+      "file": "adaptive-foreground.png",
+      "priority": "P1",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 351661,
+      "sha256": "7be485f3b0280c42a864c78a41f4a3d384dbca2b1a6fcbec83c28d7f329bc54e",
+      "nativeGeneratedMaster": true,
+      "upscaled": false,
+      "cropped": false,
+      "retouched": false,
+      "hasAlpha": true,
+      "alpha": {
+        "transparent": 1396912,
+        "opaque": 414,
+        "partial": 175190
+      },
+      "bounds": [
+        49,
+        71,
+        1112,
+        1203
+      ],
+      "outsideCircle": 21,
+      "failures": [
+        "21 nontransparent pixels outside required circle"
+      ],
+      "warnings": [
+        "Requested 1024x1024; unmodified generator output is 1254x1254"
+      ]
+    },
+    {
+      "id": "icon-monochrome",
+      "file": "icon-monochrome.png",
+      "priority": "P2",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 201456,
+      "sha256": "6a78fd6daca9c9f9556bc4801d25d7c19491d400c4dfd483657bf1d688cec44e",
+      "nativeGeneratedMaster": true,
+      "upscaled": false,
+      "cropped": false,
+      "retouched": false,
+      "hasAlpha": true,
+      "alpha": {
+        "transparent": 1375834,
+        "opaque": 4499,
+        "partial": 192183
+      },
+      "bounds": [
+        33,
+        151,
+        1209,
+        1213
+      ],
+      "outsideCircle": 42,
+      "failures": [
+        "42 nontransparent pixels outside required circle",
+        "39584 nonblack pixels in single-black-ink icon"
+      ],
+      "warnings": [
+        "Requested 1024x1024; unmodified generator output is 1254x1254"
+      ]
+    },
+    {
+      "id": "icon-ios-dark",
+      "file": "icon-ios-dark.png",
+      "priority": "P2",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 947674,
+      "sha256": "ee42201950d7be04a0d67e8151757a33383c42f6bb8fd894cebc9e261fb3fada",
+      "nativeGeneratedMaster": true,
+      "upscaled": false,
+      "cropped": false,
+      "retouched": false,
+      "hasAlpha": true,
+      "alpha": {
+        "transparent": 909962,
+        "opaque": 1248,
+        "partial": 661306
+      },
+      "bounds": [
+        41,
+        26,
+        1223,
+        1237
+      ],
+      "outsideCircle": 140168,
+      "failures": [
+        "Artwork exceeds the required 12% empty margin"
+      ],
+      "warnings": [
+        "Requested 1024x1024; unmodified generator output is 1254x1254"
+      ]
+    },
+    {
+      "id": "icon-ios-tinted",
+      "file": "icon-ios-tinted.png",
+      "priority": "P2",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 831583,
+      "sha256": "77c91584e8f828dfb58d9a0359569438843ec56fb025ef47266a09d7aa04724f",
+      "nativeGeneratedMaster": true,
+      "upscaled": false,
+      "cropped": false,
+      "retouched": false,
+      "hasAlpha": true,
+      "alpha": {
+        "transparent": 962867,
+        "opaque": 1275,
+        "partial": 608374
+      },
+      "bounds": [
+        19,
+        108,
+        1241,
+        1187
+      ],
+      "outsideCircle": 112005,
+      "failures": [
+        "397709 colored pixels in grayscale icon",
+        "Artwork exceeds the required 12% empty margin"
+      ],
+      "warnings": [
+        "Requested 1024x1024; unmodified generator output is 1254x1254"
+      ]
+    },
+    {
+      "id": "mascot-merayakan",
+      "file": "mascot-merayakan.png",
+      "priority": "P1",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 449843,
+      "sha256": "53d44e060e5ecd37fba7146fa5a7e677aaf16d84740559f8b6b69312743f0ec9",
+      "nativeGeneratedMaster": true,
+      "upscaled": false,
+      "cropped": false,
+      "retouched": false,
+      "hasAlpha": true,
+      "alpha": {
+        "transparent": 1332316,
+        "opaque": 1098,
+        "partial": 239102
+      },
+      "bounds": [
+        59,
+        87,
+        1231,
+        1219
+      ],
+      "outsideCircle": 1434,
+      "failures": [
+        "Artwork exceeds the required 10% empty margin"
+      ],
+      "warnings": []
+    },
+    {
+      "id": "mascot-membaca",
+      "file": "mascot-membaca.png",
+      "priority": "P1",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 483156,
+      "sha256": "eb49f568bddb3fd98a8bbbb15630686c42b7b7c8e360a3582397cb689d4c6d3a",
+      "nativeGeneratedMaster": true,
+      "upscaled": false,
+      "cropped": false,
+      "retouched": false,
+      "hasAlpha": true,
+      "alpha": {
+        "transparent": 1295154,
+        "opaque": 1051,
+        "partial": 276311
+      },
+      "bounds": [
+        0,
+        87,
+        1223,
+        1120
+      ],
+      "outsideCircle": 572,
+      "failures": [
+        "5 nontransparent pixels touch canvas edge",
+        "Artwork exceeds the required 10% empty margin"
+      ],
+      "warnings": []
+    },
+    {
+      "id": "mascot-tidur",
+      "file": "mascot-tidur.png",
+      "priority": "P1",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 304967,
+      "sha256": "5406bba14733acdba9c0183b4b516ff373e0104aa1fb0b0b5cca57a294d149ff",
+      "nativeGeneratedMaster": true,
+      "upscaled": false,
+      "cropped": false,
+      "retouched": false,
+      "hasAlpha": true,
+      "alpha": {
+        "transparent": 1397445,
+        "opaque": 894,
+        "partial": 174177
+      },
+      "bounds": [
+        31,
+        148,
+        1143,
+        1211
+      ],
+      "outsideCircle": 911,
+      "failures": [
+        "Artwork exceeds the required 10% empty margin"
+      ],
+      "warnings": []
+    },
+    {
+      "id": "mascot-bingung",
+      "file": "mascot-bingung.png",
+      "priority": "P1",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 723594,
+      "sha256": "b16e96f48688c7dd1f6e4cf840a85c21fa6b697ac7dd120b24f3c779cc7181bd",
+      "nativeGeneratedMaster": true,
+      "upscaled": false,
+      "cropped": false,
+      "retouched": false,
+      "hasAlpha": true,
+      "alpha": {
+        "transparent": 1064765,
+        "opaque": 1586,
+        "partial": 506165
+      },
+      "bounds": [
+        0,
+        71,
+        1237,
+        1151
+      ],
+      "outsideCircle": 57554,
+      "failures": [
+        "40 nontransparent pixels touch canvas edge",
+        "Artwork exceeds the required 10% empty margin"
+      ],
+      "warnings": []
+    },
+    {
+      "id": "mascot-melambai",
+      "file": "mascot-melambai.png",
+      "priority": "P2",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 766491,
+      "sha256": "979f67a6d046f6e05291b8c0f192bb06b6d5918ee8ba1a2e3d3c972cdd63d7c1",
+      "nativeGeneratedMaster": true,
+      "upscaled": false,
+      "cropped": false,
+      "retouched": false,
+      "hasAlpha": true,
+      "alpha": {
+        "transparent": 1035312,
+        "opaque": 1813,
+        "partial": 535391
+      },
+      "bounds": [
+        23,
+        86,
+        1175,
+        1227
+      ],
+      "outsideCircle": 67854,
+      "failures": [
+        "Artwork exceeds the required 10% empty margin"
+      ],
+      "warnings": []
+    },
+    {
+      "id": "mascot-mencari",
+      "file": "mascot-mencari.png",
+      "priority": "P2",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 815476,
+      "sha256": "437db0f63a9699b14b491114d3e612f854ac41247e514c394de549cc8edd1b6b",
+      "nativeGeneratedMaster": true,
+      "upscaled": false,
+      "cropped": false,
+      "retouched": false,
+      "hasAlpha": true,
+      "alpha": {
+        "transparent": 986209,
+        "opaque": 1163,
+        "partial": 585144
+      },
+      "bounds": [
+        0,
+        37,
+        1231,
+        1227
+      ],
+      "outsideCircle": 79533,
+      "failures": [
+        "9 nontransparent pixels touch canvas edge",
+        "Artwork exceeds the required 10% empty margin"
+      ],
+      "warnings": []
+    },
+    {
+      "id": "mascot-memasak",
+      "file": "mascot-memasak.png",
+      "priority": "P2",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 919237,
+      "sha256": "f81c5b9da28e9bb9e8a21c13a530a8e22cbb262cedea09009842690966a3f4e0",
+      "nativeGeneratedMaster": true,
+      "upscaled": false,
+      "cropped": false,
+      "retouched": false,
+      "hasAlpha": true,
+      "alpha": {
+        "transparent": 933173,
+        "opaque": 2219,
+        "partial": 637124
+      },
+      "bounds": [
+        0,
+        23,
+        1205,
+        1214
+      ],
+      "outsideCircle": 163864,
+      "failures": [
+        "58 nontransparent pixels touch canvas edge",
+        "Artwork exceeds the required 10% empty margin"
+      ],
+      "warnings": []
+    },
+    {
+      "id": "rig-arms-up",
+      "file": "rig-arms-up.png",
+      "priority": "animation fallback",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 163073,
+      "sha256": "6e39fa4e11c77e7db2bfb45a81ac6fc227989bc1da8b7fafed50d2bc1f2ad194",
+      "nativeGeneratedMaster": true,
+      "upscaled": false,
+      "cropped": false,
+      "retouched": false,
+      "hasAlpha": true,
+      "alpha": {
+        "transparent": 1506217,
+        "opaque": 556,
+        "partial": 65743
+      },
+      "bounds": [
+        31,
+        45,
+        1190,
+        1052
+      ],
+      "outsideCircle": 65060,
+      "failures": [],
+      "warnings": []
+    },
+    {
+      "id": "rig-badge",
+      "file": "rig-badge.png",
+      "priority": "animation fallback",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 171465,
+      "sha256": "56e5e3a18ffbb71d158ea45dcc0aab3beff2b8fbd9f990074d63911837b1f0af",
+      "nativeGeneratedMaster": true,
+      "upscaled": false,
+      "cropped": false,
+      "retouched": false,
+      "hasAlpha": true,
+      "alpha": {
+        "transparent": 1474444,
+        "opaque": 364,
+        "partial": 97708
+      },
+      "bounds": [
+        33,
+        71,
+        1217,
+        1205
+      ],
+      "outsideCircle": 41064,
+      "failures": [],
+      "warnings": []
+    },
+    {
+      "id": "rig-body",
+      "file": "rig-body.png",
+      "priority": "animation fallback",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 775535,
+      "sha256": "6037ee15637459d9cb47f0e06d01ccc9cfd5d3045766c29a6e5695c9c962f08b",
+      "nativeGeneratedMaster": true,
+      "upscaled": false,
+      "cropped": false,
+      "retouched": false,
+      "hasAlpha": true,
+      "alpha": {
+        "transparent": 977404,
+        "opaque": 1341,
+        "partial": 593771
+      },
+      "bounds": [
+        39,
+        39,
+        1239,
+        1197
+      ],
+      "outsideCircle": 165788,
+      "failures": [],
+      "warnings": []
+    },
+    {
+      "id": "rig-eyes-closed",
+      "file": "rig-eyes-closed.png",
+      "priority": "animation fallback",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 79281,
+      "sha256": "7dc4a07bd645ef81b8118f638b759e9016e2bd0487d943318d6092a79093b604",
+      "nativeGeneratedMaster": true,
+      "upscaled": false,
+      "cropped": false,
+      "retouched": false,
+      "hasAlpha": true,
+      "alpha": {
+        "transparent": 1557740,
+        "opaque": 322,
+        "partial": 14454
+      },
+      "bounds": [
+        220,
+        38,
+        1145,
+        1194
+      ],
+      "outsideCircle": 9203,
+      "failures": [],
+      "warnings": []
+    },
+    {
+      "id": "rig-eyes-open",
+      "file": "rig-eyes-open.png",
+      "priority": "animation fallback",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 86776,
+      "sha256": "55a93ae7e533d4096b1f4e4f04f7388c942623ad88102080c6612cdda3e3d6d6",
+      "nativeGeneratedMaster": true,
+      "upscaled": false,
+      "cropped": false,
+      "retouched": false,
+      "hasAlpha": true,
+      "alpha": {
+        "transparent": 1549236,
+        "opaque": 251,
+        "partial": 23029
+      },
+      "bounds": [
+        130,
+        101,
+        1012,
+        1078
+      ],
+      "outsideCircle": 54,
+      "failures": [],
+      "warnings": []
+    },
+    {
+      "id": "rig-lid",
+      "file": "rig-lid.png",
+      "priority": "animation fallback",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 445741,
+      "sha256": "5ade7e15ef7ac24d459dc7e2d7975cdeac91cc88adb403c6d7dca1d0e4b60eff",
+      "nativeGeneratedMaster": true,
+      "upscaled": false,
+      "cropped": false,
+      "retouched": false,
+      "hasAlpha": true,
+      "alpha": {
+        "transparent": 1245634,
+        "opaque": 1141,
+        "partial": 325741
+      },
+      "bounds": [
+        41,
+        38,
+        1223,
+        1084
+      ],
+      "outsideCircle": 82965,
+      "failures": [],
+      "warnings": []
+    },
+    {
+      "id": "rig-sparkles",
+      "file": "rig-sparkles.png",
+      "priority": "animation fallback",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 88704,
+      "sha256": "407f3046c8154aaed4914a3cebc406f2758ce0166ad36ebf6154a0feaf606630",
+      "nativeGeneratedMaster": true,
+      "upscaled": false,
+      "cropped": false,
+      "retouched": false,
+      "hasAlpha": true,
+      "alpha": {
+        "transparent": 1556708,
+        "opaque": 289,
+        "partial": 15519
+      },
+      "bounds": [
+        97,
+        55,
+        1239,
+        1159
+      ],
+      "outsideCircle": 15773,
+      "failures": [],
+      "warnings": []
+    },
+    {
+      "id": "splash-mark-light",
+      "file": "splash-mark-light.png",
+      "priority": "P1",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 322375,
+      "sha256": "fec65fb3d3a9a72a07b818e8b7650235efcbedea50b0c753228bc061f5374115",
+      "nativeGeneratedMaster": true,
+      "upscaled": false,
+      "cropped": false,
+      "retouched": false,
+      "hasAlpha": true,
+      "alpha": {
+        "transparent": 1403234,
+        "opaque": 330,
+        "partial": 168952
+      },
+      "bounds": [
+        81,
+        53,
+        1110,
+        1227
+      ],
+      "outsideCircle": 81,
+      "failures": [
+        "81 nontransparent pixels outside required circle"
+      ],
+      "warnings": [
+        "Requested 1024x1024; unmodified generator output is 1254x1254"
+      ]
+    }
+  ]
+}

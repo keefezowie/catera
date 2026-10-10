@@ -1,0 +1,311 @@
+{
+  "schemaVersion": 1,
+  "delivery": "Layered PNG alternative authorized by the artwork brief; mascot Lottie files are not included",
+  "canvas": {
+    "width": 1254,
+    "height": 1254,
+    "origin": [
+      0,
+      0
+    ],
+    "units": "pixels"
+  },
+  "registration": "Stack the clean exports at x=0, y=0, equal width and height. Alignment corrections are baked into exports and recorded in processing-records.json. Do not trim individual layers.",
+  "successRig": {
+    "drawOrderBackToFront": [
+      "rig-body.png",
+      "rig-lid.png",
+      "rig-badge.png",
+      "rig-arms-up.png",
+      "rig-eyes-open.png",
+      "rig-eyes-closed.png",
+      "rig-sparkles.png"
+    ],
+    "lidHinge": [
+      100,
+      590
+    ],
+    "bodyPivot": [
+      627,
+      1003
+    ],
+    "badgePivot": [
+      1130,
+      430
+    ],
+    "defaultVisibility": {
+      "rig-eyes-open.png": true,
+      "rig-eyes-closed.png": false
+    },
+    "notes": "Revision 3: full-width lid follows the box perspective. Draw it over the back food/rim and under both hands and badge. Intentional hand/lid overlap gives foreground depth; do not shrink the lid to avoid the hand. Each eye remains separately registered, clear of mouth and food."
+  },
+  "readingRig": {
+    "drawOrderBackToFront": [
+      "rig-reading-body.png",
+      "code-drawn paper-line highlight",
+      "rig-reading-eyes.png",
+      "rig-reading-magnifier.png"
+    ],
+    "paperHighlight": {
+      "center": [
+        809,
+        1015
+      ],
+      "width": 88,
+      "height": 12,
+      "rotationDegrees": -5,
+      "color": "#F47B2A"
+    },
+    "magnifierPivot": [
+      690,
+      1015
+    ],
+    "notes": "Render the same eye PNG twice, clipped at x=727. Blink each eye around its own pupil center. These clips pass only through transparent pixels; do not flatten the pair around the canvas center. Rotate the magnifier around its hand grip, rather than translating it away from the fixed hand.",
+    "eyeParts": [
+      {
+        "clipX": [
+          0,
+          727
+        ],
+        "pivot": [
+          628,
+          857
+        ]
+      },
+      {
+        "clipX": [
+          727,
+          1254
+        ],
+        "pivot": [
+          885,
+          850
+        ]
+      }
+    ]
+  },
+  "easing": {
+    "easeOut": [
+      0.16,
+      1,
+      0.3,
+      1
+    ],
+    "overshoot": "Only the success hop and badge pop; keep other movement restrained"
+  },
+  "motionRecipes": [
+    {
+      "name": "success",
+      "briefFile": "success.json",
+      "durationMs": 1200,
+      "loop": false,
+      "poster": "mascot-merayakan.png",
+      "steps": [
+        {
+          "timeMs": [
+            0,
+            120
+          ],
+          "action": "Squash body height from 100% to 96% around the body pivot"
+        },
+        {
+          "timeMs": [
+            120,
+            420
+          ],
+          "action": "Hop upward 6% of displayed mascot height; lift lid"
+        },
+        {
+          "timeMs": [
+            300,
+            620
+          ],
+          "action": "Show badge; scale 0.6 to 1.07 to 1 around badge pivot"
+        },
+        {
+          "timeMs": [
+            420,
+            700
+          ],
+          "action": "Land with 98% height squash, restore 100%"
+        },
+        {
+          "timeMs": [
+            450,
+            1050
+          ],
+          "action": "Burst sparkle layer outward and fade; use code-drawn dots if individual control is needed"
+        },
+        {
+          "timeMs": [
+            1050,
+            1200
+          ],
+          "action": "Settle and hold finished celebration poster"
+        }
+      ],
+      "implementationNote": "Badge check is baked into the PNG; a 200ms check draw-on needs a code mask or vector check."
+    },
+    {
+      "name": "launch-handoff",
+      "briefFiles": [
+        "launch-handoff.json",
+        "launch-handoff-dark.json"
+      ],
+      "durationMs": 800,
+      "loop": false,
+      "firstFrames": [
+        "splash-mark-light.png",
+        "splash-mark-dark.png"
+      ],
+      "lastFrame": "transparent",
+      "steps": [
+        {
+          "timeMs": 0,
+          "action": "Render the matching delivered 1024px splash PNG in the exact native splash image box"
+        },
+        {
+          "timeMs": [
+            0,
+            550
+          ],
+          "action": "Optional lid lift up to 15 degrees, one wink and two fading sparkles"
+        },
+        {
+          "timeMs": [
+            550,
+            800
+          ],
+          "action": "Scale the whole mark from 1 to 1.04 and fade opacity from 1 to 0"
+        }
+      ],
+      "implementationNote": "The success rig is a different composition. Do not swap it into the splash at frame zero. Pixel-identical first-frame handoff requires the delivered splash PNG and matching native layout; isolated matching splash parts are not included."
+    },
+    {
+      "name": "loading-loop",
+      "briefFile": "loading-loop.json",
+      "durationMs": 2400,
+      "loop": true,
+      "existingLayersRelativeToThisDirectory": "../mascot-motion/",
+      "files": [
+        "neutral.png",
+        "body.png",
+        "half.png",
+        "closed.png",
+        "sparkles.png"
+      ],
+      "poster": "../mascot-motion/neutral.png",
+      "bodyPivotPercent": [
+        50,
+        80
+      ],
+      "steps": [
+        {
+          "cyclePercent": [
+            0,
+            50,
+            100
+          ],
+          "translateYPx": [
+            0,
+            -4,
+            0
+          ],
+          "rotationDegrees": [
+            0,
+            1.5,
+            0
+          ]
+        },
+        {
+          "cyclePercent": [
+            46,
+            48,
+            50,
+            52,
+            54
+          ],
+          "eyeStates": [
+            "open",
+            "half",
+            "closed",
+            "half",
+            "open"
+          ]
+        },
+        {
+          "cyclePercent": [
+            0,
+            50,
+            100
+          ],
+          "sparkleScale": [
+            0.9,
+            1,
+            0.9
+          ]
+        }
+      ],
+      "implementationNote": "Reuse the approved existing loader layers. The success-rig preview is a review aid, not a replacement for this neutral loop. The -4px rise is for a 160px displayed canvas; scale it proportionally.",
+      "sourceCanvas": {
+        "width": 480,
+        "height": 480
+      },
+      "referenceDisplaySizePx": 160
+    },
+    {
+      "name": "reading-loop",
+      "briefFile": "reading-loop.json",
+      "durationMs": 2400,
+      "loop": true,
+      "poster": "mascot-membaca.png",
+      "steps": [
+        {
+          "cyclePercent": [
+            0,
+            50,
+            100
+          ],
+          "eyesTranslateXPercentOfCanvas": [
+            -0.67,
+            0.67,
+            -0.67
+          ],
+          "magnifierRotationDegrees": [
+            -4,
+            4,
+            -4
+          ]
+        },
+        {
+          "cyclePercent": [
+            45,
+            50,
+            55
+          ],
+          "eyeScaleY": [
+            1,
+            0.16,
+            1
+          ]
+        },
+        {
+          "cyclePercent": [
+            40,
+            50,
+            55,
+            65
+          ],
+          "paperHighlightOpacity": [
+            0,
+            1,
+            1,
+            0
+          ]
+        }
+      ]
+    }
+  ],
+  "reducedMotion": "Skip movement and show the named finished still. Confetti uses confetti-last-frame.png, which is fully transparent. Run waiting loops only while the associated task is active.",
+  "status": "Layer alignment reviewed in the browser. Motion recipes describe implementation work; native app integration and device acceptance are outside this artwork delivery."
+}

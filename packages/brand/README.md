@@ -1,5 +1,7 @@
 # Catera brand assets
 
+Phase F P1/P2 artwork is delivered separately in [assets/phase-f/README.md](assets/phase-f/README.md), with preserved originals, clean exports, a layered animation rig, and vector confetti.
+
 Sixteen independently regenerated PNG compositions based on the approved Catera identity. The board was used only as visual guidance. The unchanged generated originals are retained in `masters/`. The reusable UI files in `assets/` are transparent derivatives at the original dimensions, without board extraction, cropping, upscaling, tracing, or a raster disguised as SVG.
 
 The exact generation prompts are in `prompts/` and embedded in each PNG as prompt metadata. `generation-records.json` records the original generated-file paths. `manifest.brand.json` records dimensions, alpha status, intended uses, hashes, and source provenance.

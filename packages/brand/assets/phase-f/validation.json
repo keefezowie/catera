@@ -1,0 +1,117 @@
+{
+  "date": "2026-10-11",
+  "branch": "v2",
+  "artifactChecks": {
+    "newPngExports": 23,
+    "failures": 0,
+    "warnings": 0,
+    "originalHashesPreserved": true,
+    "existingBrandAssets": 16,
+    "existingLoaderLayers": 5,
+    "confettiVectorContract": "passed"
+  },
+  "browser": {
+    "stills": 13,
+    "newRigLayers": 10,
+    "allImagesLoaded": true,
+    "backgrounds": [
+      "light",
+      "dark",
+      "forest"
+    ],
+    "displaySizesPx": [
+      24,
+      64,
+      120,
+      240
+    ],
+    "rigPlayback": "passed",
+    "confettiPlaybackAndTransparentCompletion": "passed",
+    "reducedMotion": "passed",
+    "mobileWidthPx": 390,
+    "horizontalOverflow": false,
+    "pageErrors": [],
+    "reviewedSuccessAnimationFrames": [
+      0,
+      25,
+      47,
+      49,
+      50,
+      53,
+      55,
+      75,
+      99
+    ],
+    "eyeStatesMutuallyExclusive": true,
+    "viewportWidthsPx": [
+      320,
+      390,
+      768,
+      1440
+    ],
+    "reviewedReadingAndLoaderCyclePercent": [
+      0,
+      25,
+      45,
+      47,
+      49,
+      50,
+      53,
+      55,
+      75
+    ],
+    "loopPreviews": 3,
+    "keyboardFocus": "visible",
+    "monochromePreview": "alpha mask tinted black on light and cream on dark/forest; original export remains black"
+  },
+  "repositoryChecks": {
+    "typecheck": "blocked: missing exceljs and @anthropic-ai/sdk, with consequent implicit-any diagnostics",
+    "build": "blocked: missing exceljs and @anthropic-ai/sdk",
+    "customerNativeJest": "29 suites stopped before tests: missing expo-image",
+    "catererNativeJest": "20 suites stopped before tests: missing expo-haptics",
+    "dependencyRestore": "blocked: registry returned ETARGET for pinned pg@8.23.0",
+    "rootVitest": "Attempted independently; one suite reported 0 tests and runner made no further progress for over four minutes; stopped without a complete result"
+  },
+  "limits": [
+    "No app integration",
+    "No device or launcher-mask validation",
+    "Mascot animation delivery uses the brief's rig alternative rather than finished Lottie/WebP files",
+    "Launch first-frame matching needs native placement verification"
+  ],
+  "successRigRevision": 3,
+  "assembledRigGeometry": {
+    "eyeMouthOverlaps": 0,
+    "eyeFoodOverlaps": 0,
+    "eyeArmOverlaps": 0,
+    "badgeCheckOccludedPixels": 0,
+    "handBadgeOverlapPixels": 3180,
+    "handLidOverlapPixels": 3434,
+    "lidBodyOverlapPixels": 86036,
+    "sparkleSubjectOverlapPixels": 0,
+    "hingeContact": true,
+    "lidToBodyWidthRatio": 0.9013824884792627
+  },
+  "visualReview": {
+    "date": "2026-10-11",
+    "scope": "All 13 finished stills, all 10 isolated rig PNGs, assembled success and reading rigs, inherited five-layer loader, confetti vector frames and transparent last poster",
+    "backgrounds": [
+      "#FDFAF3",
+      "#151514",
+      "#163D2E"
+    ],
+    "largeStillReviewCanvasPx": 460,
+    "animationReviewCanvasPx": 370,
+    "loaderReviewCanvasPx": 160,
+    "evidenceDirectory": "qa/",
+    "fixedThisPass": [
+      "revision 3 full-width lid with perspective alignment and foreground hand/badge overlap",
+      "reading eye-local blink pivots",
+      "magnifier rotates about grip without detaching",
+      "correct inherited loader source size: 480x480",
+      "themed icon preview uses a system tint",
+      "reduced motion displays finished still posters"
+    ],
+    "result": "No remaining visible blocking defects in the reviewed local artwork and fallback previews. Native integration is not validated.",
+    "userCorrection": "Earlier smaller lid was rejected by user; all success motion sheets were recaptured after revision 3."
+  }
+}

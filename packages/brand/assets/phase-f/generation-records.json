@@ -1,0 +1,205 @@
+[
+  {
+    "name": "splash-mark-light.png",
+    "prompt": "Create ONE small Catera mascot splash symbol on a LARGE EMPTY TRANSPARENT canvas. Reference 1 identifies mascot, reference 2 style. IMPORTANT COMPOSITION: the little mascot must occupy only 40% of total image width and 38% image height, centered exactly at canvas center, surrounded by HUGE EMPTY margins of at least 30% on every side. This is deliberately a SMALL mascot floating in lots of transparent empty space, not a close up. No part including outlines outside the central 60%-diameter circle. The corners and outside 30% ring must contain absolutely no pixels. Canvas requested 1024x1024. Real transparent alpha, no backdrop. Catera cream bento mascot front three-quarter, forest green open hinged lid with cream two-leaf sprout, rice, striped orange salmon, broccoli and flower carrot, one sparkling open eye and wink, happy smile and peach cheeks. Slightly thicker forest outlines, simplified food. Warm restrained hand drawn flat illustration with subtle tonal depth like references. Forest #163D2E Cream #FFF7E9 Sunrise #F47B2A Sunrise ink #9B4309 plus reference food colors. No sparkles, arms, badge, text, logo lettering, shadow, ground, border, background, checkerboard. Preserve mascot identity, render much SMALLER than reference framing.",
+    "rejectedPrompt": "Use case: logo-brand. Generate ONE standalone Catera splash mark, not a sheet. Image 1 is the approved mascot identity; Image 2 is the approved illustration style. Preserve those designs. Transparent background with real alpha. Mascot alone, front three-quarter view, lid open, one sparkling open eye and one wink, peach cheeks, happy open smile, cream two-leaf sprout on forest lid, rice, striped salmon, broccoli and orange flower carrot inside. Compact bold silhouette, slightly thicker forest outlines, simplified food shapes, NO sparkles. Center entire mascot inside an imaginary circle centered at (512,512), maximum radius 325px on a 1024x1024 canvas: every nontransparent pixel must fit inside that circle; corners and outer ring empty. Warm restrained hand-drawn flat illustration, controlled rounded dark-forest outlines, subtle tonal depth. Forest #163D2E, Cream #FFF7E9, Sunrise #F47B2A, Sunrise ink #9B4309 plus reference food colors. No text, wordmark, shadow, background shape, glow, checkerboard or texture. Exact native canvas 1024x1024. Do not include the imaginary guide circle in the image.",
+    "rejectedSource": "exec-72119b3d-3a0f-4350-bb7e-16743f58e14d.png",
+    "sourcePath": "C:\\Users\\nidal\\.codex\\generated_images\\01a126c0-643a-7d93-9e57-a6e7717e4eb0\\exec-edcc5a63-8528-4cc9-8748-9033caa503c5.png",
+    "sourceSha256": "fec65fb3d3a9a72a07b818e8b7650235efcbedea50b0c753228bc061f5374115",
+    "id": 1,
+    "priority": "P1"
+  },
+  {
+    "id": 2,
+    "name": "splash-mark-dark.png",
+    "priority": "P1",
+    "size": 1024,
+    "prompt": "undefined\nCOMPOSITION IS MANDATORY: small mascot occupying only 40% of total canvas width and height, exactly centered, huge empty margins at least 30% every side. All artwork fits inside a centered 60%-diameter circle. Reference is identity guidance; do not enlarge the subject. Real transparent alpha. One standalone image. EDIT ONLY OUTER OUTLINE COLOR. Keep exact same pixel position, subject size, pose and framing as Image 1; add cream outline, preserve all transparent pixels outside subject.",
+    "sourcePath": "C:\\Users\\nidal\\.codex\\generated_images\\01a126c0-643a-7d93-9e57-a6e7717e4eb0\\exec-6ad71ca3-360b-4980-b962-4f6310def1b4.png",
+    "sourceSha256": "9037c081fe766061ed96c5d5e72d09c31b35fdd4233fe0e6665de91324601ace"
+  },
+  {
+    "id": 3,
+    "name": "adaptive-foreground.png",
+    "priority": "P1",
+    "size": 1024,
+    "prompt": "undefined\nUse Image 1 as the ONLY subject. EDIT it to have cream #FFF7E9 outer outlines, lighter forest lid #25553F, real transparent background. Preserve its tiny centered position and exact same size: mascot about 40% canvas width and 38% canvas height, enormous empty margin 30% all around. Reference framing is MANDATORY. No checkmark, badge, sparkles, confetti, arms, lettering or extra objects. Empty transparent space absolutely clean with zero stray pixels. Exact requested native size 1024x1024. All pixels inside the center 60%-diameter circle. NO background.",
+    "sourcePath": "C:\\Users\\nidal\\.codex\\generated_images\\01a126c0-643a-7d93-9e57-a6e7717e4eb0\\exec-efb0b82a-950c-44be-a42e-157a70e7090b.png",
+    "rejectedSource": "C:\\Users\\nidal\\.codex\\generated_images\\01a126c0-643a-7d93-9e57-a6e7717e4eb0\\exec-b88d7d69-688b-43bb-98b1-f1039c456b01.png",
+    "rejectedPrompt": "undefined\nCOMPOSITION IS MANDATORY: small mascot occupying only 40% of total canvas width and height, exactly centered, huge empty margins at least 30% every side. All artwork fits inside a centered 60%-diameter circle. Reference is identity guidance; do not enlarge the subject. Real transparent alpha. One standalone image. ",
+    "sourceSha256": "7be485f3b0280c42a864c78a41f4a3d384dbca2b1a6fcbec83c28d7f329bc54e"
+  },
+  {
+    "id": 4,
+    "name": "icon-monochrome.png",
+    "prompt": "Single-color glyph for Android themed icons. Solid black silhouette on a transparent background. A simplified open bento lunchbox in three-quarter view with its hinged lid open and a small two-leaf sprout cut out of the lid, a tiny wink and smile cut out of the box face. Flat, no gradients, no outlines of a second color, bold shapes that survive at 24px. Centered in the middle 66 percent. 1024x1024.\nImage 1 is mascot identity; Image 2 is STYLE ONLY. New standalone illustration exactly following the requested pose and coloring, not a copy of reference 2. NO check badge except if explicitly asked. Monochrome black silhouette only, all visible RGB pixels #000000; alpha carries antialiasing. Very small centered glyph occupying ONLY 38% of width and height with 31% empty margins. Real transparent alpha, no stray pixels in margins, no shadow or ground, no text. Requested native size 1024x1024.",
+    "priority": "P2",
+    "size": 1024,
+    "sourcePath": "C:\\Users\\nidal\\.codex\\generated_images\\01a126c0-643a-7d93-9e57-a6e7717e4eb0\\exec-c0b3742b-5e3d-45cd-a141-8a6cea22ab71.png",
+    "sourceSha256": "6a78fd6daca9c9f9556bc4801d25d7c19491d400c4dfd483657bf1d688cec44e"
+  },
+  {
+    "id": 5,
+    "name": "icon-ios-dark.png",
+    "prompt": "iOS dark app icon artwork. Transparent background. The Catera mascot as on the app icon, lid open, wink, smile, with a cream outer outline so it reads on a dark system backdrop. Centered with 12 percent margin. No text, no background shape, no shadow. 1024x1024.\nImage 1 is mascot identity; Image 2 is STYLE ONLY. New standalone illustration exactly following the requested pose and coloring, not a copy of reference 2. NO check badge except if explicitly asked. Mascot centered occupying 65% of width and height, at least 17% empty margin on every side. Cream outer outline required. Real transparent alpha, no stray pixels in margins, no shadow or ground, no text. Requested native size 1024x1024.",
+    "priority": "P2",
+    "size": 1024,
+    "sourcePath": "C:\\Users\\nidal\\.codex\\generated_images\\01a126c0-643a-7d93-9e57-a6e7717e4eb0\\exec-bd566b4e-1748-4b92-b6df-31b58478f2b6.png",
+    "sourceSha256": "ee42201950d7be04a0d67e8151757a33383c42f6bb8fd894cebc9e261fb3fada"
+  },
+  {
+    "id": 5,
+    "name": "icon-ios-tinted.png",
+    "prompt": "iOS tinted app icon artwork. The same mascot in pure grayscale (white to mid gray values only, no color) on a transparent background, high contrast between lid, box and food. Centered with 12 percent margin. No text, no background. 1024x1024.\nImage 1 is mascot identity; Image 2 is STYLE ONLY. New standalone illustration exactly following the requested pose and coloring, not a copy of reference 2. NO check badge except if explicitly asked. Mascot centered occupying 65% of width and height, at least 17% empty margin on every side. ALL visible pixels pure neutral grayscale R=G=B, white to medium gray only. No green orange peach or cream coloring. Real transparent alpha, no stray pixels in margins, no shadow or ground, no text. Requested native size 1024x1024.",
+    "priority": "P2",
+    "size": 1024,
+    "sourcePath": "C:\\Users\\nidal\\.codex\\generated_images\\01a126c0-643a-7d93-9e57-a6e7717e4eb0\\exec-1a78b736-d8a5-42e8-a730-2cd581a7721c.png",
+    "sourceSha256": "77c91584e8f828dfb58d9a0359569438843ec56fb025ef47266a09d7aa04724f"
+  },
+  {
+    "id": 6,
+    "name": "mascot-merayakan.png",
+    "prompt": "Create a NEW original standalone illustration matching the supplied POSE reference, with a MUCH SMALLER SUBJECT and much MORE TRANSPARENT EMPTY SPACE. Mandatory canvas1254x1254. Entire mascot, props and every decoration occupy ONLY 55% of canvas width and 55% of height, centered at(627,627), at least22% huge totally EMPTY TRANSPARENT margin on all four sides. Do not produce a close-up. Reference pose is the desired pose but reference framing is too large. No stray flecks, no background, no shadow. Create one new illustration of the approved Catera mascot  in the approved style . Transparent background. The mascot is celebrating: lid flipped wide open, small rounded cream arms raised high, holding up a round forest-green badge with one thick cream checkmark, both eyes joyfully squeezed into happy arcs, big open smile, peach cheeks, a tiny hop so the box floats slightly above an implied ground with no shadow. Three Sunrise #F47B2A four-point sparkles and two small Sunrise ink #9B4309 dots burst around the upper sides. Keep the food inside (rice, striped salmon, broccoli, flower carrot) and the cream sprout emblem on the forest lid. Warm restrained hand-drawn flat illustration, controlled rounded dark-forest outlines, subtle tonal depth. Palette Forest #163D2E, Cream #FFF7E9, Sunrise #F47B2A, Sunrise ink #9B4309. No text, numbers, labels, UI, shadows, background shapes or textures. Centered with 10 percent margin. 1254x1254. Exactly THREE four-point sparkles total and TWO dots total. Both arms raised; badge above and to right, never covers face or food.",
+    "priority": "P1",
+    "size": 1254,
+    "sourcePath": "C:\\Users\\nidal\\.codex\\generated_images\\01a126c0-643a-7d93-9e57-a6e7717e4eb0\\exec-d9ea9692-f793-4aef-91f5-5d6e5293a9c9.png",
+    "sourceSha256": "53d44e060e5ecd37fba7146fa5a7e677aaf16d84740559f8b6b69312743f0ec9"
+  },
+  {
+    "id": 7,
+    "name": "mascot-membaca.png",
+    "prompt": "Create a NEW original standalone illustration matching the supplied POSE reference, with a MUCH SMALLER SUBJECT and much MORE TRANSPARENT EMPTY SPACE. Mandatory canvas1254x1254. Entire mascot, props and every decoration occupy ONLY 55% of canvas width and 55% of height, centered at(627,627), at least22% huge totally EMPTY TRANSPARENT margin on all four sides. Do not produce a close-up. Reference pose is the desired pose but reference framing is too large. No stray flecks, no background, no shadow. Create one new illustration of the approved Catera mascot  in the approved style . Transparent background. The mascot is reading carefully: lid open, small cream arms holding a short paper list with four blank wavy lines (no letters or numbers), a small round magnifying glass with a forest rim held over the paper, eyes focused and looking down at the list, small concentrating smile, peach cheeks. Food inside unchanged, cream sprout on the forest lid. Calm, attentive, friendly. Warm restrained hand-drawn flat illustration, controlled rounded dark-forest outlines. Palette Forest #163D2E, Cream #FFF7E9, Sunrise #F47B2A, Sunrise ink #9B4309. No text, letters, numbers, labels, UI, shadows or background. Centered with 10 percent margin. 1254x1254. Keep list with four blank wavy lines; no text or numbers.",
+    "priority": "P1",
+    "size": 1254,
+    "sourcePath": "C:\\Users\\nidal\\.codex\\generated_images\\01a126c0-643a-7d93-9e57-a6e7717e4eb0\\exec-5a1ed4b8-4878-4219-96ac-309bacd3b7f8.png",
+    "sourceSha256": "eb49f568bddb3fd98a8bbbb15630686c42b7b7c8e360a3582397cb689d4c6d3a"
+  },
+  {
+    "id": 8,
+    "name": "mascot-tidur.png",
+    "prompt": "Create a NEW original standalone illustration matching the supplied POSE reference, with a MUCH SMALLER SUBJECT and much MORE TRANSPARENT EMPTY SPACE. Mandatory canvas1254x1254. Entire mascot, props and every decoration occupy ONLY 55% of canvas width and 55% of height, centered at(627,627), at least22% huge totally EMPTY TRANSPARENT margin on all four sides. Do not produce a close-up. Reference pose is the desired pose but reference framing is too large. No stray flecks, no background, no shadow. Create one new illustration of the approved Catera mascot  in the approved style . Transparent background. The mascot is resting peacefully: the forest lid is closed and the box sits slightly tilted, both eyes closed as soft downward curves, a tiny content smile, peach cheeks, two small cream-outlined \"z\" shapes drawn as simple zigzag marks (not letters in a font) floating up to the right in Sunrise ink #9B4309. The cream sprout emblem stays visible on the closed lid. Calm and cozy, not sad. Warm restrained hand-drawn flat illustration, controlled rounded dark-forest outlines. Palette Forest #163D2E, Cream #FFF7E9, Sunrise #F47B2A, Sunrise ink #9B4309. No text, labels, UI, shadows or background. Centered with 10 percent margin. 1254x1254. The two sleep zigzag marks must be much smaller than the mascot and well inside the wide margin.",
+    "priority": "P1",
+    "size": 1254,
+    "sourcePath": "C:\\Users\\nidal\\.codex\\generated_images\\01a126c0-643a-7d93-9e57-a6e7717e4eb0\\exec-fda8d272-7b87-4d69-9f04-2931a8d6b454.png",
+    "sourceSha256": "5406bba14733acdba9c0183b4b516ff373e0104aa1fb0b0b5cca57a294d149ff"
+  },
+  {
+    "id": 9,
+    "name": "mascot-bingung.png",
+    "prompt": "Create one new illustration of the approved Catera mascot (Image 1) in the approved style (Image 2). Transparent background. The mascot is gently puzzled: lid open only a little, one eyebrow raised, eyes looking up and to the side, a small wavy uncertain mouth, peach cheeks, one small cream arm scratching the side of the lid, a single rounded question-mark shape in Sunrise ink #9B4309 above (drawn as a simple curved stroke with a dot, not a font character). Friendly and reassuring, never alarmed, no red, no warning symbols. Food inside unchanged. Warm restrained hand-drawn flat illustration, controlled rounded dark-forest outlines. Palette Forest #163D2E, Cream #FFF7E9, Sunrise #F47B2A, Sunrise ink #9B4309. No text, labels, UI, shadows or background. Centered with 10 percent margin. 1254x1254.\nREFERENCE ROLES: Image 1 is mascot identity. Image 2 is illustration STYLE ONLY; do not copy its pose, badge or sparkles unless the prompt explicitly calls for them. Produce the requested NEW POSE; do not duplicate the reference. One standalone original PNG with real transparent alpha, native 1254x1254. Entire subject including props and marks within middle 70% of image, at least 15% completely empty transparent margin all four sides, no stray pixels in margin. No shadow or ground.",
+    "priority": "P1",
+    "size": 1254,
+    "sourcePath": "C:\\Users\\nidal\\.codex\\generated_images\\01a126c0-643a-7d93-9e57-a6e7717e4eb0\\exec-91c46d14-45b0-4afb-b121-57b8283581e4.png",
+    "sourceSha256": "b16e96f48688c7dd1f6e4cf840a85c21fa6b697ac7dd120b24f3c779cc7181bd"
+  },
+  {
+    "id": 10,
+    "name": "mascot-melambai.png",
+    "prompt": "Create one new illustration of the approved Catera mascot (Image 1) in the approved style (Image 2). Transparent background. The mascot waves hello: lid open, one small cream arm raised in a friendly wave with two short motion arcs beside the hand, one sparkling open eye and one wink, big warm smile, peach cheeks. Food inside unchanged, cream sprout on the forest lid. Two small Sunrise four-point sparkles at upper right. Warm restrained hand-drawn flat illustration, controlled rounded dark-forest outlines. Palette Forest #163D2E, Cream #FFF7E9, Sunrise #F47B2A, Sunrise ink #9B4309. No text, labels, UI, shadows or background. Centered with 10 percent margin. 1254x1254.\nImage 1 is mascot identity; Image 2 is STYLE ONLY. New standalone illustration exactly following the requested pose and coloring, not a copy of reference 2. NO check badge except if explicitly asked. Complete subject and all props fit inside middle 70% of image with 15% transparent margins every side. Real transparent alpha, no stray pixels in margins, no shadow or ground, no text. Requested native size 1254x1254.",
+    "priority": "P2",
+    "size": 1254,
+    "sourcePath": "C:\\Users\\nidal\\.codex\\generated_images\\01a126c0-643a-7d93-9e57-a6e7717e4eb0\\exec-64a2af1d-ab5c-4902-b829-f2b53723c8eb.png",
+    "sourceSha256": "979f67a6d046f6e05291b8c0f192bb06b6d5918ee8ba1a2e3d3c972cdd63d7c1"
+  },
+  {
+    "id": 11,
+    "name": "mascot-mencari.png",
+    "prompt": "Create one new illustration of the approved Catera mascot (Image 1) in the approved style (Image 2). Transparent background. The mascot is searching: lid lifted halfway like a visor, peeking out from under it, one small cream arm holding a round magnifying glass with a forest rim up to one eye (the eye looks bigger through the lens), curious small smile, peach cheeks. Food inside partly visible. Playful and curious. Warm restrained hand-drawn flat illustration, controlled rounded dark-forest outlines. Palette Forest #163D2E, Cream #FFF7E9, Sunrise #F47B2A, Sunrise ink #9B4309. No text, labels, UI, shadows or background. Centered with 10 percent margin. 1254x1254.\nImage 1 is mascot identity; Image 2 is STYLE ONLY. New standalone illustration exactly following the requested pose and coloring, not a copy of reference 2. NO check badge except if explicitly asked. Complete subject and all props fit inside middle 70% of image with 15% transparent margins every side. Real transparent alpha, no stray pixels in margins, no shadow or ground, no text. Requested native size 1254x1254.",
+    "priority": "P2",
+    "size": 1254,
+    "sourcePath": "C:\\Users\\nidal\\.codex\\generated_images\\01a126c0-643a-7d93-9e57-a6e7717e4eb0\\exec-719f6881-428c-4285-8c46-0a8ef14650b8.png",
+    "sourceSha256": "437db0f63a9699b14b491114d3e612f854ac41247e514c394de549cc8edd1b6b"
+  },
+  {
+    "id": 12,
+    "name": "mascot-memasak.png",
+    "prompt": "Create one new illustration of the approved Catera mascot (Image 1) in the approved style (Image 2). Transparent background. The mascot is cooking proudly: a small cream chef hat with a forest outline perched on the open lid, one small cream arm holding a wooden ladle, one sparkling open eye and one wink, confident smile, peach cheeks, a few soft cream steam curls rising from the food. Food inside unchanged, cream sprout on the forest lid. Warm restrained hand-drawn flat illustration, controlled rounded dark-forest outlines. Palette Forest #163D2E, Cream #FFF7E9, Sunrise #F47B2A, Sunrise ink #9B4309. No text, labels, UI, shadows or background. Centered with 10 percent margin. 1254x1254.\nImage 1 is mascot identity; Image 2 is STYLE ONLY. New standalone illustration exactly following the requested pose and coloring, not a copy of reference 2. NO check badge except if explicitly asked. Complete subject and all props fit inside middle 70% of image with 15% transparent margins every side. Real transparent alpha, no stray pixels in margins, no shadow or ground, no text. Requested native size 1254x1254.",
+    "priority": "P2",
+    "size": 1254,
+    "sourcePath": "C:\\Users\\nidal\\.codex\\generated_images\\01a126c0-643a-7d93-9e57-a6e7717e4eb0\\exec-095d6b27-a491-42aa-b9b3-0237d4241338.png",
+    "sourceSha256": "f81c5b9da28e9bb9e8a21c13a530a8e22cbb262cedea09009842690966a3f4e0"
+  },
+  {
+    "name": "rig-arms-up.png",
+    "prompt": "Use case: precise-object-edit. Generate ONE isolated layer for the Catera animation rig kit. Reference images are identity and style only. Only TWO small rounded cream mascot arms, outlined Forest, raised joyfully. Left arm stretches from its body attachment x230 y830 to little mitten at x180 y630. Right arm stretches from body attachment x1030 y780 to mitten at x1090 y600. No fingers except simple mitten/thumb bumps. Arms on same 1254x1254 coordinate canvas. Center area fully empty. NO box, lid, food, eyes, face, checkmark, badge or sparkles. Mandatory: native 1254x1254 square with exact stated registration; no cropping, re-centering or rescaling. Warm restrained hand drawn flat illustration, rounded forest outlines, cream and sunrise palette as approved. No text, labels, shadows, background or stray pixels. Preserve empty transparent areas.",
+    "size": 1254,
+    "priority": "animation fallback",
+    "sourcePath": "C:\\Users\\nidal\\.codex\\generated_images\\01a126c0-643a-7d93-9e57-a6e7717e4eb0\\exec-f1740264-6547-42ce-8dd2-23741edf8fda.png",
+    "sourceSha256": "6e39fa4e11c77e7db2bfb45a81ac6fc227989bc1da8b7fafed50d2bc1f2ad194"
+  },
+  {
+    "name": "rig-badge.png",
+    "prompt": "Use case: precise-object-edit. Generate ONE isolated layer for the Catera animation rig kit. Reference images are identity and style only. Keep ONLY the circular forest green check badge from reference 2, cream thick checkmark, subtle tonal depth. Position at center x1010 y680, diameter260 on same1254x1254 canvas, exactly where it would sit to the right of mascot face. Huge transparent empty canvas around it. No mascot, box, lid, face, food or sparkles. Do not center badge at canvas center; position at stated x1010 y680. Mandatory: native 1254x1254 square with exact stated registration; no cropping, re-centering or rescaling. Warm restrained hand drawn flat illustration, rounded forest outlines, cream and sunrise palette as approved. No text, labels, shadows, background or stray pixels. Preserve empty transparent areas.",
+    "size": 1254,
+    "priority": "animation fallback",
+    "sourcePath": "C:\\Users\\nidal\\.codex\\generated_images\\01a126c0-643a-7d93-9e57-a6e7717e4eb0\\exec-a5fb849b-bccb-4b48-b476-bd0af4987030.png",
+    "sourceSha256": "56e5e3a18ffbb71d158ea45dcc0aab3beff2b8fbd9f990074d63911837b1f0af"
+  },
+  {
+    "name": "rig-body.png",
+    "part": "Keep ONLY the cream box with all food, mouth and cheeks, including the box's forest outline and side handle. Remove the entire hinged lid, the sprout on it, both eyes and all sparkles. Where the eyes were, cream body is uninterrupted. NO lid anywhere. No arms. Do NOT erase the mouth or food.",
+    "prompt": "Use case: precise-object-edit. Produce one separate transparent animation rig layer from the approved Catera mascot reference. Exact same 1254x1254 canvas and registration as the reference, no rescale, no reposition, no re-centering. Keep ONLY the cream box with all food, mouth and cheeks, including the box's forest outline and side handle. Remove the entire hinged lid, the sprout on it, both eyes and all sparkles. Where the eyes were, cream body is uninterrupted. NO lid anywhere. No arms. Do NOT erase the mouth or food. This is an isolated layer, NOT a new complete illustration. Preserve the original art style, palette and edge weight for the retained components. Real transparent alpha, all empty space transparent with no stray marks. No text, labels, shadows, or background. Layers will stack at coordinate 0,0, so exact registration matters.",
+    "size": 1254,
+    "priority": "animation fallback",
+    "sourcePath": "C:\\Users\\nidal\\.codex\\generated_images\\01a126c0-643a-7d93-9e57-a6e7717e4eb0\\exec-83db229b-bcc2-468d-a2da-ca7463c31937.png",
+    "sourceSha256": "6037ee15637459d9cb47f0e06d01ccc9cfd5d3045766c29a6e5695c9c962f08b"
+  },
+  {
+    "name": "rig-eyes-closed.png",
+    "prompt": "Use case: precise-object-edit. Generate ONE isolated layer for the Catera animation rig kit. Reference images are identity and style only. Only TWO simple happy closed-eye arcs in dark Forest #163D2E with rounded stroke ends. Left eye centered x516 y870 and spans x458 to580, right eye centered x840 y835 spanning x780 to900. 1254x1254 canvas. These replace the mascot face eyes in its original coordinate system. NO other art. Do not center the pair on the canvas; retain these lower-face positions. Mandatory: native 1254x1254 square with exact stated registration; no cropping, re-centering or rescaling. Warm restrained hand drawn flat illustration, rounded forest outlines, cream and sunrise palette as approved. No text, labels, shadows, background or stray pixels. Preserve empty transparent areas.",
+    "size": 1254,
+    "priority": "animation fallback",
+    "sourcePath": "C:\\Users\\nidal\\.codex\\generated_images\\01a126c0-643a-7d93-9e57-a6e7717e4eb0\\exec-7a0e5321-a177-4909-a781-b09a7959a336.png",
+    "sourceSha256": "7dc4a07bd645ef81b8118f638b759e9016e2bd0487d943318d6092a79093b604"
+  },
+  {
+    "name": "rig-eyes-open.png",
+    "part": "Keep ONLY the two face eyes: the open sparkling oval eye and the wink. Remove every other part of the image including the rice eyes, lid, box, food, mouth, cheeks and sparkles. Eyes remain EXACTLY at the original face eye coordinates and scale, no re-centering. All other pixels transparent.",
+    "prompt": "Use case: precise-object-edit. Produce one separate transparent animation rig layer from the approved Catera mascot reference. Exact same 1254x1254 canvas and registration as the reference, no rescale, no reposition, no re-centering. Keep ONLY the two face eyes: the open sparkling oval eye and the wink. Remove every other part of the image including the rice eyes, lid, box, food, mouth, cheeks and sparkles. Eyes remain EXACTLY at the original face eye coordinates and scale, no re-centering. All other pixels transparent. This is an isolated layer, NOT a new complete illustration. Preserve the original art style, palette and edge weight for the retained components. Real transparent alpha, all empty space transparent with no stray marks. No text, labels, shadows, or background. Layers will stack at coordinate 0,0, so exact registration matters.",
+    "size": 1254,
+    "priority": "animation fallback",
+    "sourcePath": "C:\\Users\\nidal\\.codex\\generated_images\\01a126c0-643a-7d93-9e57-a6e7717e4eb0\\exec-0b14b82a-2b4b-4312-8270-8d9abe8a237a.png",
+    "sourceSha256": "55a93ae7e533d4096b1f4e4f04f7388c942623ad88102080c6612cdda3e3d6d6"
+  },
+  {
+    "name": "rig-lid.png",
+    "part": "Keep ONLY the hinged forest lid with its cream sprout and cream lower lip. Remove the entire box, all food, the face and both sparkles. The lid stays EXACTLY where it sits in the reference's open position, same size and angle, no re-centering.",
+    "prompt": "Use case: precise-object-edit. Produce one separate transparent animation rig layer from the approved Catera mascot reference. Exact same 1254x1254 canvas and registration as the reference, no rescale, no reposition, no re-centering. Keep ONLY the hinged forest lid with its cream sprout and cream lower lip. Remove the entire box, all food, the face and both sparkles. The lid stays EXACTLY where it sits in the reference's open position, same size and angle, no re-centering. This is an isolated layer, NOT a new complete illustration. Preserve the original art style, palette and edge weight for the retained components. Real transparent alpha, all empty space transparent with no stray marks. No text, labels, shadows, or background. Layers will stack at coordinate 0,0, so exact registration matters.",
+    "size": 1254,
+    "priority": "animation fallback",
+    "sourcePath": "C:\\Users\\nidal\\.codex\\generated_images\\01a126c0-643a-7d93-9e57-a6e7717e4eb0\\exec-00adc1d9-52db-4f8e-8ed4-ebc6a92ad5be.png",
+    "sourceSha256": "5ade7e15ef7ac24d459dc7e2d7975cdeac91cc88adb403c6d7dca1d0e4b60eff"
+  },
+  {
+    "name": "rig-reading-body.png",
+    "prompt": "Use case: precise-object-edit. Create ONE isolated transparent layer for Catera's reading-loop animation from this reference. Native1254x1254 canvas, same registration, no rescaling, repositioning or recentering. Keep the reading mascot and paper list with four blank wavy lines, mouth, cheeks, box, food, lid, sprout and arms. Remove ONLY the magnifying glass and both FACE eyes (not rice dots); fill their old positions naturally with matching cream body. No glass, glass handle, lens or face eyes remain. Paper stays visible in the same position. This is the base under separately animated eyes and magnifier. Preserve approved art style, forest/cream/sunrise palette and line weight. No text, labels, shadows or background.",
+    "size": 1254,
+    "priority": "animation fallback",
+    "sourcePath": "C:\\Users\\nidal\\.codex\\generated_images\\01a126c0-643a-7d93-9e57-a6e7717e4eb0\\exec-233bbbd1-1fd7-4472-92a8-06edd2eb5e00.png",
+    "sourceSha256": "d3fda672d1d368a6cd5ade382cd7abafa20de52ffc1e9c962373cf948df2f8af"
+  },
+  {
+    "name": "rig-reading-eyes.png",
+    "prompt": "Use case: precise-object-edit. Create ONE isolated transparent layer for Catera's reading-loop animation from this reference. Native1254x1254 canvas, same registration, no rescaling, repositioning or recentering. Keep ONLY the two face eyes and their small concentrating brows from the reading mascot reference, same lower-face coordinates, size and angle. Remove all other art including rice dots, lid, box, paper, arms, magnifier, mouth, cheeks and food. Preserve exact original face-eye registration. Empty space transparent. Preserve approved art style, forest/cream/sunrise palette and line weight. No text, labels, shadows or background.",
+    "size": 1254,
+    "priority": "animation fallback",
+    "sourcePath": "C:\\Users\\nidal\\.codex\\generated_images\\01a126c0-643a-7d93-9e57-a6e7717e4eb0\\exec-66ccb74f-d13b-469a-b30d-8d893ddca5c9.png",
+    "sourceSha256": "d5f6d4055fc5fef3bcfc8c63dbcd3a975532e2c1a30a7990417c4252047872d1"
+  },
+  {
+    "name": "rig-reading-magnifier.png",
+    "prompt": "Use case: precise-object-edit. Create ONE isolated transparent layer for Catera's reading-loop animation from this reference. Native1254x1254 canvas, same registration, no rescaling, repositioning or recentering. Keep ONLY the forest-rim magnifying glass and its short dark forest handle from the reading mascot reference. Remove everything else including lens reflections that depict the mouth: lens interior is pale blue-white translucent glass, not a face. Glass remains at exact same size and canvas coordinates as reference, centered about x700,y800, no recentering. Preserve approved art style, forest/cream/sunrise palette and line weight. No text, labels, shadows or background.",
+    "size": 1254,
+    "priority": "animation fallback",
+    "sourcePath": "C:\\Users\\nidal\\.codex\\generated_images\\01a126c0-643a-7d93-9e57-a6e7717e4eb0\\exec-515aaab8-df29-4723-b8ed-5eee1ff0f1f8.png",
+    "sourceSha256": "7c5be87f33a0536b54bd3aa327aa5692ac0ca77d1458803566c051fd25c4dede"
+  },
+  {
+    "name": "rig-sparkles.png",
+    "prompt": "Use case: precise-object-edit. Generate ONE isolated layer for the Catera animation rig kit. Reference images are identity and style only. Only THREE Sunrise #F47B2A small four-point sparkles and TWO Sunrise ink #9B4309 dots scattered at upper sides of an invisible mascot. Sparkle centers (170,380) size75, (1000,300) size95, (1100,460) size65. Dot centers(260,280) diameter18 and(1080,600) diameter14. Canvas1254x1254. Nothing else: NO mascot, box, lid, food, face, arms or badge. Empty middle and bottom. Real transparent background. Mandatory: native 1254x1254 square with exact stated registration; no cropping, re-centering or rescaling. Warm restrained hand drawn flat illustration, rounded forest outlines, cream and sunrise palette as approved. No text, labels, shadows, background or stray pixels. Preserve empty transparent areas.",
+    "size": 1254,
+    "priority": "animation fallback",
+    "sourcePath": "C:\\Users\\nidal\\.codex\\generated_images\\01a126c0-643a-7d93-9e57-a6e7717e4eb0\\exec-8df58654-be47-4374-8a49-4c5e00ce3b41.png",
+    "sourceSha256": "407f3046c8154aaed4914a3cebc406f2758ce0166ad36ebf6154a0feaf606630"
+  }
+]
