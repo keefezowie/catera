@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Image, Linking, StyleSheet, Text as RNText, View, type StyleProp, type ViewStyle } from "react-native";
+import { Linking, StyleSheet, Text as RNText, View, type StyleProp, type ViewStyle } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
 import { router } from "expo-router";
 import { nativeThemes } from "@catera/design-tokens";
@@ -9,6 +9,7 @@ import {
   Button,
   fontFor,
   MoodFill,
+  Photo,
   PressableScale,
   RantangTrack,
   Text,
@@ -288,14 +289,8 @@ function PlateContent({
             : { height: 268 },
         ]}
       >
-        {plate.image ? (
-          <Image
-            accessibilityIgnoresInvertColors
-            source={{ uri: photoUri(plate.image, apiBase) }}
-            style={StyleSheet.absoluteFill}
-            resizeMode="cover"
-          />
-        ) : null}
+        {/* Fades in over its soft ground, which stays if the photo never comes. */}
+        {plate.image ? <Photo uri={photoUri(plate.image, apiBase)} style={StyleSheet.absoluteFill} /> : null}
         <View style={styles.scrimSoft} />
         {/* The overlay carries its own dark ground, so every wrapped line sits on it. */}
         <View style={styles.overlay} testID="plate-overlay">

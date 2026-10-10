@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, within } from "@testing-library/react-native";
 import * as ReactNative from "react-native";
 import { Image, StyleSheet } from "react-native";
+// PhotoRing draws with expo-image; the calendar cell and the story cover still use React Native's Image.
+import { Image as PhotoImage } from "expo-image";
 import * as Haptics from "expo-haptics";
 import { contrastRatio, nativeMood, nativeThemes } from "@catera/design-tokens";
 import { CalendarPhotoCell, MoodProvider, PhotoRing, StoryCover, Text, ThemeProvider } from "@catera/mobile-ui";
@@ -59,21 +61,21 @@ describe("PhotoRing", () => {
 
   it("shows the photo cover-fit", () => {
     render(<PhotoRing {...base} ring="forest" />);
-    const image = screen.UNSAFE_getByType(Image);
+    const image = screen.UNSAFE_getByType(PhotoImage);
     expect(image.props.source).toEqual({ uri: base.uri });
-    expect(image.props.resizeMode).toBe("cover");
+    expect(image.props.contentFit).toBe("cover");
   });
 
   it("covered shows a cream disc with the closed lunchbox and no photo", () => {
     render(<PhotoRing {...base} ring="forest" covered />);
-    expect(screen.UNSAFE_queryByType(Image)).toBeNull();
+    expect(screen.UNSAFE_queryByType(PhotoImage)).toBeNull();
     expect(flat("photo-ring-covered").backgroundColor).toBe(nativeThemes.light.cream);
     expect(screen.getByTestId("photo-ring-lunchbox", { includeHiddenElements: true })).toBeTruthy();
   });
 
   it("an empty uri renders the ring's ground and no Image", () => {
     render(<PhotoRing {...base} uri="" ring="forest" />);
-    expect(screen.UNSAFE_queryByType(Image)).toBeNull();
+    expect(screen.UNSAFE_queryByType(PhotoImage)).toBeNull();
     expect(flat("photo-ring")).toMatchObject({ borderColor: nativeThemes.light.forest, width: 60, height: 60 });
     expect(screen.getByTestId("photo-ring")).toBeTruthy();
   });

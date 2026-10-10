@@ -28,7 +28,7 @@ import {
 import { SignInFirst } from "../account/SignInFirst";
 import { dayHref } from "../hrefs";
 import { photoUri } from "../today/Plate";
-import { CalendarLegend, MonthGrid } from "./MonthGrid";
+import { CalendarLegend, MonthFrame, MonthGrid } from "./MonthGrid";
 import { longDay, monthOf, monthRange, monthTitle, shiftMonth } from "./dates";
 
 const live = (d: Delivery) => d.status !== "cancelled";
@@ -106,48 +106,53 @@ function SignedInJadwal() {
       header={
         // The tab bar already names this tab, so the row holds only the month arrows.
         <MoodHeader testID="jadwal-header" title={monthTitle(month, locale)} trailing={chevrons}>
+          {/* The header is the same height in all three states: the loaded grid, and the empty frame that stands in for
+              it while the month loads or after a failed read, are both six week rows tall, and the legend stays below. */}
           {state ? (
-            <>
-              <MonthGrid
-                month={month}
-                today={today}
-                selected={selected}
-                days={days}
-                apiBase={runtime.apiBase}
-                locale={locale}
-                onSelect={setSelected}
-              />
-              <CalendarLegend
-                labels={{
-                  photo: t("Foto menu", "Menu photo"),
-                  unset: t("Menu belum diisi", "Menu not set"),
-                  dinner: t("Ada makan malam", "Dinner too"),
-                }}
-              />
-            </>
+            <MonthGrid
+              month={month}
+              today={today}
+              selected={selected}
+              days={days}
+              apiBase={runtime.apiBase}
+              locale={locale}
+              onSelect={setSelected}
+            />
           ) : data.error ? (
-            // Nothing is known about this month yet, so the header says that instead of drawing it as empty.
-            <View style={{ gap: 4 }}>
-              <Text selectable style={{ color: mood.headerText }}>
-                {data.error}
-              </Text>
-              <PressableScale
-                accessibilityRole="button"
-                accessibilityLabel={t("Coba lagi", "Try again")}
-                onPress={() => void data.reload()}
-                style={{ minHeight: 48, alignSelf: "flex-start", justifyContent: "center" }}
-              >
-                <Text variant="label" style={{ color: mood.headerText, textDecorationLine: "underline" }}>
-                  {t("Coba lagi", "Try again")}
+            // Nothing is known about this month yet, so the frame says that instead of drawing its days as empty.
+            <MonthFrame locale={locale}>
+              <View style={{ gap: 4, alignItems: "center" }}>
+                <Text selectable style={{ color: mood.headerText, textAlign: "center" }}>
+                  {data.error}
                 </Text>
-              </PressableScale>
-            </View>
+                <PressableScale
+                  accessibilityRole="button"
+                  accessibilityLabel={t("Coba lagi", "Try again")}
+                  onPress={() => void data.reload()}
+                  style={{ minHeight: 48, paddingHorizontal: 12, justifyContent: "center" }}
+                >
+                  <Text variant="label" style={{ color: mood.headerText, textDecorationLine: "underline" }}>
+                    {t("Coba lagi", "Try again")}
+                  </Text>
+                </PressableScale>
+              </View>
+            </MonthFrame>
           ) : (
-            <View accessibilityLiveRegion="polite" style={{ flexDirection: "row", alignItems: "center", gap: 10, minHeight: 48 }}>
-              <ActivityIndicator color={mood.headerText} />
-              <Text style={{ color: mood.headerMeta }}>{t("Memuat…", "Loading…")}</Text>
-            </View>
+            <MonthFrame locale={locale}>
+              <View accessibilityLiveRegion="polite" style={{ flexDirection: "row", alignItems: "center", gap: 10, minHeight: 48 }}>
+                <ActivityIndicator color={mood.headerText} />
+                <Text style={{ color: mood.headerMeta }}>{t("Memuat…", "Loading…")}</Text>
+              </View>
+            </MonthFrame>
           )}
+          {/* The legend explains the cells and claims nothing about the month, so it holds its place in every state. */}
+          <CalendarLegend
+            labels={{
+              photo: t("Foto menu", "Menu photo"),
+              unset: t("Menu belum diisi", "Menu not set"),
+              dinner: t("Ada makan malam", "Dinner too"),
+            }}
+          />
         </MoodHeader>
       }
     >

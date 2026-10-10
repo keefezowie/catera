@@ -1,8 +1,36 @@
-import { Image, View } from "react-native";
+import { useState } from "react";
+import { View, type ImageStyle, type StyleProp, type ViewStyle } from "react-native";
+import { Image } from "expo-image";
+import { nativeMotion } from "@catera/design-tokens";
 import { Rantang } from "./brand/Rantang";
-import { PressableScale } from "./motion";
+import { PressableScale, useReduced } from "./motion";
 import { Text } from "./components";
 import { useColors } from "./theme";
+
+/**
+ * A remote food photo. It stands on the theme's soft colour (`sage`) while it loads and fades in over `selection`
+ * (180ms) once it arrives, so a photo never pops in; under reduced motion it appears at once. A photo that fails to load
+ * leaves only that soft ground, the same size, with no broken-image mark. The fade is expo-image's own cross-dissolve, which animates opacity only.
+ */
+export function Photo({ uri, style, testID }: { uri: string; style?: StyleProp<ViewStyle>; testID?: string }) {
+  const c = useColors();
+  const reduced = useReduced();
+  // Keyed to the uri, so a new photo in the same place gets its own chance to load.
+  const [failed, setFailed] = useState<string | null>(null);
+  const ground = { backgroundColor: c.sage };
+  if (failed === uri) return <View testID={testID ?? "photo-ground"} style={[style, ground]} />;
+  return (
+    <Image
+      testID={testID}
+      accessibilityIgnoresInvertColors
+      source={{ uri }}
+      contentFit="cover"
+      transition={reduced ? 0 : nativeMotion.selection}
+      onError={() => setFailed(uri)}
+      style={[style, ground] as StyleProp<ImageStyle>}
+    />
+  );
+}
 
 const RING = 3;
 // The photo sits inside the ring with a thin gap, so the ring reads as a ring and not as a border on the photo.
@@ -64,17 +92,10 @@ export function PhotoRing({
           <Rantang size={Math.round(inner * 0.52)} color={c.forest} testID="photo-ring-lunchbox" />
         </View>
       ) : (
-        // The line colour shows while the photo loads or if it never does. A uri of "" (real data for a dish without a
-        // photo) has nothing to load, so it is only this ground and no Image.
-        <View style={{ width: inner, height: inner, borderRadius: inner / 2, backgroundColor: c.line, overflow: "hidden" }}>
-          {uri ? (
-            <Image
-              accessibilityIgnoresInvertColors
-              source={{ uri }}
-              resizeMode="cover"
-              style={{ width: inner, height: inner }}
-            />
-          ) : null}
+        // The disc clips the photo round. A uri of "" (real data for a dish without a photo) has nothing to load, so it
+        // is only the soft ground that a loading or failed photo shows too.
+        <View style={{ width: inner, height: inner, borderRadius: inner / 2, backgroundColor: c.sage, overflow: "hidden" }}>
+          {uri ? <Photo uri={uri} style={{ width: inner, height: inner }} /> : null}
         </View>
       )}
     </View>

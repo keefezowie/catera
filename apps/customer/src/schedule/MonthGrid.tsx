@@ -1,4 +1,5 @@
-import { Text as RNText, View } from "react-native";
+import type { ReactNode } from "react";
+import { StyleSheet, Text as RNText, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import type { CalendarDay, Locale } from "@catera/domain";
 import { CalendarPhotoCell, fontFor, Text, useMoodColors } from "@catera/mobile-ui";
@@ -27,6 +28,13 @@ const GAP = 2;
  * which is what lets seven cells at the floor width fit 360dp.
  */
 const BLEED = -8;
+/** CalendarPhotoCell is always 52dp tall, so a week row is too, with or without days in it. */
+const CELL_HEIGHT = 52;
+/**
+ * Every month is drawn as six weeks, the most a month can span. A four- or five-week month gets empty rows at the end,
+ * so the header keeps one height from month to month and while a month loads.
+ */
+const WEEKS = 6;
 
 /** The meals a day covers, lunch first. */
 const covered = (day: CalendarDay | undefined) => [day?.lunch, day?.dinner].filter((m) => m != null);
@@ -53,34 +61,17 @@ function dayLabel(date: string, locale: Locale, day: CalendarDay | undefined, to
  * One month, Monday first, drawn on the mood header. A covered day is its meal: the lunch photo (else dinner, else the
  * package's), the day in a pill, a moon when dinner is also on. A day whose menu is not set is dashed and keeps its
  * photo hidden. A past day whose meals all arrived is dimmed. Weekday names and the cells read the mood palette because
- * the grid sits on the header.
+ * the grid sits on the header. Always six week rows (see `WEEKS`).
  */
 export function MonthGrid({ month, today, selected, days, apiBase, locale, onSelect }: Props) {
-  const mood = useMoodColors();
+  const weeks = monthWeeks(month);
+  while (weeks.length < WEEKS) weeks.push(Array<null>(7).fill(null));
   return (
-    <View testID="month-grid" style={{ gap: GAP, marginHorizontal: BLEED }}>
-      <View testID="month-week" style={{ flexDirection: "row", gap: GAP }}>
-        {WEEK_HEADER[locale].map((name) => (
-          <RNText
-            key={name}
-            style={{
-              flex: 1,
-              minWidth: CELL_MIN_WIDTH,
-              textAlign: "center",
-              fontFamily: fontFor("700"),
-              fontSize: 12,
-              color: mood.headerMeta,
-              paddingVertical: 6,
-            }}
-          >
-            {name}
-          </RNText>
-        ))}
-      </View>
-      {monthWeeks(month).map((week, row) => (
-        <View key={row} testID="month-week" style={{ flexDirection: "row", gap: GAP }}>
+    <Frame testID="month-grid" locale={locale}>
+      {weeks.map((week, row) => (
+        <View key={row} testID="month-week" style={weekRow}>
           {week.map((date, col) => {
-            if (!date) return <View key={col} style={{ flex: 1, minWidth: CELL_MIN_WIDTH, height: 52 }} />;
+            if (!date) return <View key={col} style={{ flex: 1, minWidth: CELL_MIN_WIDTH, height: CELL_HEIGHT }} />;
             const day = days.get(date);
             const meals = covered(day);
             const isToday = date === today;
@@ -104,6 +95,61 @@ export function MonthGrid({ month, today, selected, days, apiBase, locale, onSel
           })}
         </View>
       ))}
+    </Frame>
+  );
+}
+
+/**
+ * The grid with no month in it, for while the month loads or when it could not be read: the weekday names and six
+ * empty week rows at the loaded grid's height, with `children` (the loading line, or the error and its retry) centred
+ * over the rows. The rows carry no day numbers, because a bare number is how the grid draws a day without a meal, and
+ * nothing is known about these days yet.
+ */
+export function MonthFrame({ locale, children }: { locale: Locale; children: ReactNode }) {
+  return (
+    <Frame testID="month-frame" locale={locale}>
+      {Array.from({ length: WEEKS }, (_, row) => (
+        <View key={row} testID="month-week" style={weekRow} />
+      ))}
+      <View style={[StyleSheet.absoluteFill, { alignItems: "center", justifyContent: "center", paddingHorizontal: 20 }]}>
+        {children}
+      </View>
+    </Frame>
+  );
+}
+
+const weekRow = { flexDirection: "row", gap: GAP, height: CELL_HEIGHT } as const;
+
+/**
+ * What the loaded grid and the empty frame share, so the two are the same height by construction: the weekday names,
+ * then the week rows (and whatever is laid over them) in one column.
+ */
+function Frame({ testID, locale, children }: { testID: string; locale: Locale; children: ReactNode }) {
+  const mood = useMoodColors();
+  return (
+    <View testID={testID} style={{ gap: GAP, marginHorizontal: BLEED }}>
+      <View testID="month-weekdays" style={{ flexDirection: "row", gap: GAP }}>
+        {WEEK_HEADER[locale].map((name) => (
+          <RNText
+            key={name}
+            style={{
+              flex: 1,
+              minWidth: CELL_MIN_WIDTH,
+              textAlign: "center",
+              fontFamily: fontFor("700"),
+              fontSize: 12,
+              lineHeight: 16,
+              color: mood.headerMeta,
+              paddingVertical: 6,
+            }}
+          >
+            {name}
+          </RNText>
+        ))}
+      </View>
+      <View testID="month-weeks" style={{ gap: GAP }}>
+        {children}
+      </View>
     </View>
   );
 }

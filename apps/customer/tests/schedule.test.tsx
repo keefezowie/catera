@@ -429,22 +429,25 @@ describe("Jadwal", () => {
     expect(screen.getByText("Dinner too")).toBeTruthy();
   });
 
-  // Unknown data is never drawn as an uncovered month: with nothing loaded the header says so instead of the grid.
+  // Unknown data is never drawn as an uncovered month: with nothing loaded the header shows the empty frame, with no
+  // days in it, instead of the grid. The legend stays (loading.test.tsx holds the frame's height and the legend).
   const noCalendar = () => {
     expect(screen.queryByTestId("month-grid")).toBeNull();
     expect(screen.queryByRole("button", { name: /^Rabu 7 Oktober/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /^Kamis 8 Oktober/ })).toBeNull();
-    expect(screen.queryByText("Foto menu")).toBeNull();
-    expect(screen.queryByTestId("legend-photo")).toBeNull();
+    const frame = screen.getByTestId("month-frame");
+    expect(within(frame).queryByText("7")).toBeNull();
+    expect(within(frame).queryByText("8")).toBeNull();
   };
 
-  it("while the month loads, the header says so in place of the grid and legend", async () => {
+  it("while the month loads, the header says so inside the grid's empty frame", async () => {
     const runtime = runtimeWith(() => new Promise<CustomerState>(() => {}));
     renderWith(runtime, <Jadwal />);
     const header = await screen.findByTestId("jadwal-header");
     expect(within(header).getByText("Oktober 2026")).toBeTruthy();
-    expect(within(header).getByText("Memuat…")).toBeTruthy();
-    expect(within(header).UNSAFE_getByType(ActivityIndicator)).toBeTruthy();
+    const frame = within(header).getByTestId("month-frame");
+    expect(within(frame).getByText("Memuat…")).toBeTruthy();
+    expect(within(frame).UNSAFE_getByType(ActivityIndicator)).toBeTruthy();
     noCalendar();
   });
 
@@ -454,7 +457,7 @@ describe("Jadwal", () => {
     expect(await screen.findByText("Loading…")).toBeTruthy();
   });
 
-  it("when the first load fails, the header shows the error and a retry in place of the grid", async () => {
+  it("when the first load fails, the header shows the error and a retry in the grid's empty frame", async () => {
     const runtime = runtimeWith(month);
     const failure = Object.assign(new Error("slow"), { code: "REQUEST_TIMEOUT" });
     (runtime.api.customer as jest.Mock).mockRejectedValueOnce(failure);

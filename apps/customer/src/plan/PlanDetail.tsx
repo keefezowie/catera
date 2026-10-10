@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
-import { ActivityIndicator, Image, View } from "react-native";
+import { ActivityIndicator, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useLocalSearchParams } from "expo-router";
 import {
@@ -15,6 +15,7 @@ import { useData, useMobile, useTrack, type MobileRuntime } from "@catera/mobile
 import {
   Button,
   MoodFill,
+  Photo,
   PhotoRing,
   PressableRow,
   Screen,
@@ -179,13 +180,7 @@ function Hero({ plan, apiBase }: { plan: PlanData; apiBase: string }) {
       <MoodFill surface="hero" testID="plan-hero-fill" radius={HERO_RADIUS} heroShadow />
       {photo ? (
         <View style={styles.photoFrame}>
-          <Image
-            testID="plan-photo"
-            accessibilityIgnoresInvertColors
-            source={{ uri: photoUri(photo, apiBase) }}
-            resizeMode="cover"
-            style={{ width: "100%", height: 168 }}
-          />
+          <Photo testID="plan-photo" uri={photoUri(photo, apiBase)} style={{ width: "100%", height: 168 }} />
         </View>
       ) : null}
       <View style={{ paddingHorizontal: 8, paddingTop: 12, paddingBottom: 8, gap: 2 }}>
@@ -263,7 +258,8 @@ function Upcoming({ rows, apiBase }: { rows: UpcomingRow[]; apiBase: string }) {
 }
 
 const useStyles = themedStyles((c) => ({
-  photoFrame: { borderRadius: 20, borderCurve: "continuous", overflow: "hidden", backgroundColor: c.line },
+  // The soft ground of the photo inside, so the frame reads as one tile while the photo loads or if it never does.
+  photoFrame: { borderRadius: 20, borderCurve: "continuous", overflow: "hidden", backgroundColor: c.sage },
   row: { minHeight: 76, flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8 },
   divider: { borderTopWidth: 1, borderTopColor: c.line },
 }));

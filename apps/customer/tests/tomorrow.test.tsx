@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import * as ReactNative from "react-native";
 import { Image, StyleSheet } from "react-native";
+// The row's rings draw their photos with expo-image; the story itself still uses React Native's Image.
+import { Image as RingImage } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import * as SecureStore from "expo-secure-store";
@@ -200,8 +202,8 @@ describe("Menu besok row", () => {
     expect(screen.queryByText(/Bisa diubah sampai/)).toBeNull();
     // Dinner was seen, so only lunch stays covered once the stored marks have been read.
     await waitFor(() => expect(coveredCount()).toBe(1));
-    expect(screen.UNSAFE_getAllByType(Image).some((i) => i.props.source?.uri === SATE_PHOTO)).toBe(true);
-    expect(screen.UNSAFE_getAllByType(Image).some((i) => i.props.source?.uri === AYAM_PHOTO)).toBe(false);
+    expect(screen.UNSAFE_getAllByType(RingImage).some((i) => i.props.source?.uri === SATE_PHOTO)).toBe(true);
+    expect(screen.UNSAFE_getAllByType(RingImage).some((i) => i.props.source?.uri === AYAM_PHOTO)).toBe(false);
   });
 
   it("covers both rings after the cutoff when nothing was seen", async () => {
