@@ -202,6 +202,19 @@ export const nativeMood: Record<ThemeName, Record<Mood, MoodPalette>> = {
   },
 };
 
+/**
+ * Fixed inks of the code-drawn pieces that sit with the delivered Phase F mascot art (spec 7.1 and `rig.json`). The
+ * art is the same file in both themes and every mood, so these never follow the theme or the mood either.
+ */
+export const nativeArt = {
+  /** The success beat's disc, the Siang header cream. */
+  successDisc: "#FFEFD9",
+  /** The success disc's 3dp ring. */
+  successRing: colors.sunriseInk,
+  /** The reading rig's paper-line highlight (`rig.json` `readingRig.paperHighlight.color`). */
+  paperHighlight: colors.sunrise,
+} as const;
+
 function relativeLuminance(hex: string): number {
   const channels = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
   const [r, g, b] = channels.map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));

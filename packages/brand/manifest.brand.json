@@ -654,5 +654,181 @@
       }
     }
   ],
-  "updatedAt": "2026-09-10T05:38:33.245Z"
+  "updatedAt": "2026-09-10T05:38:33.245Z",
+  "phaseFRuntime": {
+    "script": "build-phase-f-runtime.mjs",
+    "note": "Downscaled runtime derivatives of the processed Phase F exports, the only Phase F art the native apps import. Not masters, not upscaled, not trimmed; hashes match assets/phase-f/processing-records.json.",
+    "files": [
+      {
+        "file": "assets/phase-f/runtime/mascot-merayakan.png",
+        "source": "assets/phase-f/mascot-merayakan.png",
+        "width": 600,
+        "height": 600,
+        "bytes": 120803,
+        "sha256": "0a95e3dd5c01ee561c5bbfe86ba574a1f70da79d55fab49404503ebf33a57c56",
+        "nativeGeneratedMaster": false,
+        "upscaled": false
+      },
+      {
+        "file": "assets/phase-f/runtime/mascot-membaca.png",
+        "source": "assets/phase-f/mascot-membaca.png",
+        "width": 600,
+        "height": 600,
+        "bytes": 131171,
+        "sha256": "4bf5a5ed12fd91bb8a5f6cb61520efa5b50be160cc044935ff92d49620e93c30",
+        "nativeGeneratedMaster": false,
+        "upscaled": false
+      },
+      {
+        "file": "assets/phase-f/runtime/mascot-tidur.png",
+        "source": "assets/phase-f/mascot-tidur.png",
+        "width": 600,
+        "height": 600,
+        "bytes": 77300,
+        "sha256": "7df6b0ed6c685759557cdbd53325b4649d2d644dbce444a151eb08f048818e70",
+        "nativeGeneratedMaster": false,
+        "upscaled": false
+      },
+      {
+        "file": "assets/phase-f/runtime/mascot-bingung.png",
+        "source": "assets/phase-f/mascot-bingung.png",
+        "width": 600,
+        "height": 600,
+        "bytes": 191542,
+        "sha256": "d06fe39cf15e84a7949bb77a990bc027e28e77d2960dd583d0af6e87484273a1",
+        "nativeGeneratedMaster": false,
+        "upscaled": false
+      },
+      {
+        "file": "assets/phase-f/runtime/mascot-melambai.png",
+        "source": "assets/phase-f/mascot-melambai.png",
+        "width": 600,
+        "height": 600,
+        "bytes": 198242,
+        "sha256": "0830c8c899761d5b6a811269569d0126d36b324a3aaa90def3b6a73d42358c3b",
+        "nativeGeneratedMaster": false,
+        "upscaled": false
+      },
+      {
+        "file": "assets/phase-f/runtime/mascot-mencari.png",
+        "source": "assets/phase-f/mascot-mencari.png",
+        "width": 600,
+        "height": 600,
+        "bytes": 212746,
+        "sha256": "daac4d40bf4d32d37db5f5f6373b5e0faa3930e97375f9b72d80b5e52c82aa9d",
+        "nativeGeneratedMaster": false,
+        "upscaled": false
+      },
+      {
+        "file": "assets/phase-f/runtime/mascot-memasak.png",
+        "source": "assets/phase-f/mascot-memasak.png",
+        "width": 600,
+        "height": 600,
+        "bytes": 229495,
+        "sha256": "da8d5bbbfdbdd3abaf3d1568baa000e854c07106a00c4521ff916a03fe44f2ec",
+        "nativeGeneratedMaster": false,
+        "upscaled": false
+      },
+      {
+        "file": "assets/phase-f/runtime/rig-body.png",
+        "source": "assets/phase-f/rig-body.png",
+        "width": 600,
+        "height": 600,
+        "bytes": 201180,
+        "sha256": "d8f2c66743629b5c2c15aee6d6743471c1aab1b24faf7eea818422bbedb1b1ba",
+        "nativeGeneratedMaster": false,
+        "upscaled": false
+      },
+      {
+        "file": "assets/phase-f/runtime/rig-lid.png",
+        "source": "assets/phase-f/rig-lid.png",
+        "width": 600,
+        "height": 600,
+        "bytes": 79041,
+        "sha256": "c16b72c5b24f0325c6585fa3bf949a76d890d235c5c2a84fc023b332826f8c3d",
+        "nativeGeneratedMaster": false,
+        "upscaled": false
+      },
+      {
+        "file": "assets/phase-f/runtime/rig-badge.png",
+        "source": "assets/phase-f/rig-badge.png",
+        "width": 600,
+        "height": 600,
+        "bytes": 18418,
+        "sha256": "aaed8070ae086d28decfade3ec54d5884a2ef292b6b21ddadbe239bf5c75c8d7",
+        "nativeGeneratedMaster": false,
+        "upscaled": false
+      },
+      {
+        "file": "assets/phase-f/runtime/rig-arms-up.png",
+        "source": "assets/phase-f/rig-arms-up.png",
+        "width": 600,
+        "height": 600,
+        "bytes": 36251,
+        "sha256": "d044f6f909957d4e54771b012b529601b7bba151f2d4cf659aad4bab198e1cb7",
+        "nativeGeneratedMaster": false,
+        "upscaled": false
+      },
+      {
+        "file": "assets/phase-f/runtime/rig-eyes-open.png",
+        "source": "assets/phase-f/rig-eyes-open.png",
+        "width": 600,
+        "height": 600,
+        "bytes": 12538,
+        "sha256": "2759aa1f13d4e7d8bb396a2b845059793e334fbd0c573cc66e3508b4cf53079d",
+        "nativeGeneratedMaster": false,
+        "upscaled": false
+      },
+      {
+        "file": "assets/phase-f/runtime/rig-eyes-closed.png",
+        "source": "assets/phase-f/rig-eyes-closed.png",
+        "width": 600,
+        "height": 600,
+        "bytes": 8805,
+        "sha256": "58308fee67d12935f413b20269ffef7d80bba3ba57dcc448548c329335f37dc7",
+        "nativeGeneratedMaster": false,
+        "upscaled": false
+      },
+      {
+        "file": "assets/phase-f/runtime/rig-sparkles.png",
+        "source": "assets/phase-f/rig-sparkles.png",
+        "width": 600,
+        "height": 600,
+        "bytes": 13645,
+        "sha256": "a7f957a2e9be06a9b1daed75c0ef9b9fa134fda90caf20435bd48144f8d3d8cb",
+        "nativeGeneratedMaster": false,
+        "upscaled": false
+      },
+      {
+        "file": "assets/phase-f/runtime/rig-reading-body.png",
+        "source": "assets/phase-f/rig-reading-body.png",
+        "width": 600,
+        "height": 600,
+        "bytes": 219983,
+        "sha256": "6d7d86852c583ad0ac46a7a7c5930d75ec015eb1bedc3d27ea69605be41ebde9",
+        "nativeGeneratedMaster": false,
+        "upscaled": false
+      },
+      {
+        "file": "assets/phase-f/runtime/rig-reading-eyes.png",
+        "source": "assets/phase-f/rig-reading-eyes.png",
+        "width": 600,
+        "height": 600,
+        "bytes": 10426,
+        "sha256": "e938034773a72125349f7093b9294f5ffb91b5464ce320b2b3aa96e11066ed32",
+        "nativeGeneratedMaster": false,
+        "upscaled": false
+      },
+      {
+        "file": "assets/phase-f/runtime/rig-reading-magnifier.png",
+        "source": "assets/phase-f/rig-reading-magnifier.png",
+        "width": 600,
+        "height": 600,
+        "bytes": 17876,
+        "sha256": "f894d112d66a8036315aba35b0eb728374581533e49f8d0d4b9254b08632227f",
+        "nativeGeneratedMaster": false,
+        "upscaled": false
+      }
+    ]
+  }
 }
