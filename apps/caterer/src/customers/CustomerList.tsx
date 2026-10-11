@@ -89,7 +89,7 @@ export function CustomerList() {
         onPress={() => router.push("/impor" as never)}
         style={{ alignSelf: "flex-start" }}
       />
-      {!list.data && list.error ? <ReadError message={list.error} onRetry={() => void list.reload()} /> : null}
+      {!list.data && list.error ? <ReadError art message={list.error} onRetry={() => void list.reload()} /> : null}
       {/* The rows enter from their skeleton as one block, never one by one. */}
       {list.data || !list.error ? (
         <FadeSwap swapKey={list.data ? "list" : "loading"}>

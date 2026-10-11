@@ -4,7 +4,7 @@ import * as Crypto from "expo-crypto";
 import { router, useLocalSearchParams } from "expo-router";
 import { errorLabel, type Actor } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { Button, Field, MascotLoading, Screen, Text, useColors } from "@catera/mobile-ui";
+import { Button, Field, MascotLoading, Screen, StateArt, Text, useColors } from "@catera/mobile-ui";
 import { nativeReturnPath } from "../auth";
 import { leaveFor } from "../nav";
 
@@ -67,8 +67,10 @@ export function Masuk() {
 
   return (
     <Screen>
-      <View style={{ paddingTop: 8 }}>
-        <Text style={{ color: c.muted }}>
+      <View style={{ paddingTop: 8, gap: 12 }}>
+        {/* The waving mascot greets the person signing in; the sentence under it carries the meaning. */}
+        <StateArt pose="melambai" />
+        <Text style={{ color: c.muted, textAlign: "center" }}>
           {t(
             "Pakai nomor HP yang Anda berikan ke katering. Kami kirim kode lewat SMS.",
             "Use the phone number you gave your caterer. We'll text you a code.",

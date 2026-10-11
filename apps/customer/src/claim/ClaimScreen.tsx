@@ -11,6 +11,7 @@ import {
   fontFor,
   MascotLoading,
   Screen,
+  StateArt,
   Text,
   themedStyles,
   useColors,
@@ -123,7 +124,8 @@ export function ClaimScreen() {
     return (
       <Screen nativeTitle={t("Belum bisa memuat", "Couldn't load yet")}>
         <Header />
-        <Text selectable style={{ color: palette.danger }}>
+        <StateArt pose="bingung" />
+        <Text selectable style={{ color: palette.danger, textAlign: "center" }}>
           {t("Belum bisa memuat. Periksa koneksi lalu coba lagi.", "Couldn't load. Check your connection and try again.")}
         </Text>
         <Button label={t("Coba lagi", "Try again")} onPress={() => setAttempt((n) => n + 1)} />
@@ -172,10 +174,12 @@ export function ClaimScreen() {
         }
       >
         <Header />
-        <Text variant="label" style={{ color: palette.muted }}>
+        {/* The waving mascot welcomes the customer to Catera above the caterer's name; the card below has no photo. */}
+        <StateArt pose="melambai" />
+        <Text variant="label" style={{ color: palette.muted, textAlign: "center" }}>
           {t(`Dari ${katering}`, `From ${katering}`)}
         </Text>
-        <Text>
+        <Text style={{ textAlign: "center" }}>
           {t(
             `Sudah dibayar ke ${katering}, tidak ada tagihan baru. Di sini Anda bisa melihat menu, tahu kapan makanan berangkat, dan memindah hari.`,
             `Already paid to ${katering}, no new bill. Here you can see the menu, know when your food leaves, and move days.`,

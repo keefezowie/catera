@@ -2,7 +2,7 @@ import { Image, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { mealLabel, reportableMeals, shortDate, statusLabel, type Delivery } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, FadeSwap, linkTitle, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
+import { Button, Card, FadeSwap, linkTitle, Screen, StateArt, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
 import { ChatKatering, catererPhoneOf } from "../help/ChatKatering";
 import { photoUri } from "../today/Plate";
@@ -48,7 +48,12 @@ function Day({ id }: { id: string }) {
             <DaySkeleton />
           ) : (
             <>
-              <Text selectable={!!state.error} style={{ color: state.error ? c.danger : c.muted }}>
+              {/* A failed read leads with the puzzled mascot; a day that is not there is not a failure and has none. */}
+              {state.error ? <StateArt pose="bingung" /> : null}
+              <Text
+                selectable={!!state.error}
+                style={[{ color: state.error ? c.danger : c.muted }, state.error ? { textAlign: "center" } : null]}
+              >
                 {state.error || t("Pengantaran tidak ditemukan.", "Delivery not found.")}
               </Text>
               {state.error ? <Button label={t("Coba lagi", "Try again")} onPress={() => void state.reload()} /> : null}

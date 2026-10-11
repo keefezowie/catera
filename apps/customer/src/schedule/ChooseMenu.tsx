@@ -20,6 +20,7 @@ import {
   PressableScale,
   Screen,
   Segmented,
+  StateArt,
   Text,
   themedStyles,
   useColors,
@@ -143,7 +144,8 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
         <FadeSwap swapKey={customer.error ? "error" : "loading"} style={{ gap: 16 }}>
           {customer.error ? (
             <>
-              <Text selectable style={{ color: palette.danger }}>
+              <StateArt pose="bingung" />
+              <Text selectable style={{ color: palette.danger, textAlign: "center" }}>
                 {customer.error}
               </Text>
               <Button label={t("Coba lagi", "Try again")} onPress={() => void customer.reload()} />

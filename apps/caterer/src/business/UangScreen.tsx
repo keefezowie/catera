@@ -22,7 +22,7 @@ function UangContent() {
           {s ? (
             <Text>{t("Catatan uang belum tersedia.", "Money records aren't available yet.")}</Text>
           ) : money.error ? (
-            <ReadError message={money.error} onRetry={() => void money.reload()} />
+            <ReadError art message={money.error} onRetry={() => void money.reload()} />
           ) : (
             <UangSkeleton />
           )}

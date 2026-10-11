@@ -3,7 +3,17 @@ import { Image, View } from "react-native";
 import { router } from "expo-router";
 import { currency, perMealPrice, priceUnitLabel, type Offer } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, FadeSwap, MoodHeader, PressableRow, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
+import {
+  Button,
+  FadeSwap,
+  MoodHeader,
+  PressableRow,
+  Screen,
+  StateArt,
+  Text,
+  themedStyles,
+  useColors,
+} from "@catera/mobile-ui";
 import { photoUri } from "./Plate";
 import { packageHref } from "../hrefs";
 import { goToTab } from "../nav";
@@ -43,16 +53,31 @@ export function EmptyHomeHeader() {
  * children (a fragment), so they keep the body's gap inside a `FadeSwap` that carries the same gap.
  * `lead` sits above the invitation: the "Paket selesai" recap of a plan that just ended.
  */
-export function EmptyHomeBody({ lead, catalog }: { lead?: ReactNode; catalog: HomeCatalog }) {
+export function EmptyHomeBody({
+  lead,
+  leadShown,
+  catalog,
+}: {
+  lead?: ReactNode;
+  /** Whether `lead` is on the page (the recap reads its seen marks first): undefined while that is not known. */
+  leadShown?: boolean;
+  catalog: HomeCatalog;
+}) {
   const { actor, t } = useMobile();
   const c = useColors();
   const offers: Offer[] = (catalog.data?.items ?? []).slice(0, 3);
+  // The waving mascot says hello above the invitation (spec 7.2), but never under the recap's food photo.
+  const art = !lead || leadShown === false;
+  const centred = art ? ({ textAlign: "center" } as const) : null;
   return (
     <>
       {lead}
       <View style={{ gap: 6, paddingTop: 8 }}>
-        <Text variant="title">{t("Mau makan apa minggu ini?", "What would you like to eat this week?")}</Text>
-        <Text style={{ color: c.muted }}>
+        {art ? <StateArt pose="melambai" style={{ marginBottom: 10 }} /> : null}
+        <Text variant="title" style={centred}>
+          {t("Mau makan apa minggu ini?", "What would you like to eat this week?")}
+        </Text>
+        <Text style={[{ color: c.muted }, centred]}>
           {t(
             "Pilih paket katering rumahan, diantar sesuai jadwal Anda.",
             "Pick a home-style catering package, delivered on your schedule.",

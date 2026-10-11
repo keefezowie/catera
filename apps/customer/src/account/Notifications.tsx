@@ -1,7 +1,7 @@
 import { View } from "react-native";
 import { jakartaDay, type Notice } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, FadeSwap, PressableRow, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
+import { Button, FadeSwap, PressableRow, Screen, StateArt, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { customerLink } from "../links";
 import { longDay } from "../schedule/dates";
 import { jakartaClock } from "../today/Plate";
@@ -42,7 +42,8 @@ function Updates() {
         {!customer.data ? (
           customer.error ? (
             <View style={{ gap: 8 }}>
-              <Text selectable style={{ color: c.danger }}>
+              <StateArt pose="bingung" style={{ marginBottom: 4 }} />
+              <Text selectable style={{ color: c.danger, textAlign: "center" }}>
                 {customer.error}
               </Text>
               <Button variant="secondary" label={t("Coba lagi", "Try again")} onPress={() => void customer.reload()} />
@@ -72,8 +73,11 @@ function Updates() {
           </View>
         ) : (
           <View style={{ gap: 6 }}>
-            <Text variant="heading">{t("Belum ada kabar baru.", "No new updates yet.")}</Text>
-            <Text style={{ color: c.muted }}>
+            <StateArt pose="tidur" style={{ marginBottom: 6 }} />
+            <Text variant="heading" style={{ textAlign: "center" }}>
+              {t("Belum ada kabar baru.", "No new updates yet.")}
+            </Text>
+            <Text style={{ color: c.muted, textAlign: "center" }}>
               {t("Kabar makanan dan bantuan akan hadir di sini.", "Meal and support updates will appear here.")}
             </Text>
           </View>

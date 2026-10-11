@@ -15,7 +15,7 @@ class Boundary extends Component<Props, State> {
     if (!this.state.failed) return this.props.children;
     return (
       <Screen>
-        <ReadError message={this.props.message} onRetry={() => this.setState({ failed: false })} />
+        <ReadError art message={this.props.message} onRetry={() => this.setState({ failed: false })} />
       </Screen>
     );
   }

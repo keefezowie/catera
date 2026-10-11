@@ -28,6 +28,7 @@ export * from "./StopRow";
 export * from "./StickyAction";
 export * from "./HeroPager";
 export * from "./brand/MascotArt";
+export * from "./brand/StateArt";
 export * from "./brand/SuccessRig";
 export * from "./brand/MascotReading";
 export * from "./brand/Sparkle";

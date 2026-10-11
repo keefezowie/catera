@@ -29,6 +29,7 @@ import {
   PressableScale,
   RantangTrack,
   Screen,
+  StateArt,
   StickyAction,
   Text,
   useColors,
@@ -46,6 +47,9 @@ import { dapurLink } from "../links";
 import { openLink } from "../nav";
 import { ReadError } from "../ReadError";
 import { TodayCountSkeleton, TodaySkeleton } from "../skeletons";
+
+/** The cooking mascot's size in the count card (spec 7.2): about the height of the portions and their caption. */
+const COOKING_ART = 72;
 
 /** A day's read; `savedAt` is set when it is the copy this phone kept, not a fresh answer. */
 type LoadedDay = { data: SellerOperationsState; savedAt: string | null };
@@ -88,8 +92,11 @@ function CountCard({ ops, session }: { ops: SellerOperationsState; session: Kitc
       style={{ gap: 16, padding: 16, borderRadius: 22, borderCurve: "continuous" }}
     >
       <MoodFill surface="hero" testID="session-count-fill" radius={22} heroShadow />
-      <View style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: 12 }}>
-        <View style={{ flexShrink: 1 }}>
+      <View
+        testID="session-count-row"
+        style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: 12 }}
+      >
+        <View style={{ flex: 1, flexShrink: 1 }}>
           <Text variant="number" style={{ color: palette.heroText }}>
             {String(portions)}
           </Text>
@@ -99,6 +106,11 @@ function CountCard({ ops, session }: { ops: SellerOperationsState; session: Kitc
               : t(`porsi malam · ${addresses} alamat`, `dinner portions · ${addresses} addresses`)}
           </Text>
         </View>
+        {/* After "Mulai masak", while the whole session cooks, the cooking mascot stands beside the numbers, at about
+            their own height. It goes once the meal leaves. */}
+        {session.journey.stage === "preparing" ? (
+          <StateArt pose="memasak" base={COOKING_ART} style={{ alignSelf: "flex-end" }} />
+        ) : null}
         {start ? (
           <Text variant="label" style={{ color: palette.heroText, flexShrink: 0 }}>
             {t(`Antar ${start}`, `Deliver ${start}`)}
@@ -261,17 +273,15 @@ function dayOutcome(ops: SellerOperationsState) {
  */
 function DoneCard({ ops, onTomorrow }: { ops: SellerOperationsState; onTomorrow: () => void }) {
   const { t } = useMobile();
-  const c = useColors();
   const { arrived, failed } = dayOutcome(ops);
   return (
     <Card tone="sage" style={{ gap: 12 }}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-        <Ionicons name="checkmark-circle" size={32} color={c.forest} />
-        <Text variant="heading" style={{ flex: 1 }}>
-          {t("Semua beres hari ini", "All done today")}
-        </Text>
-      </View>
-      <Text selectable testID="done-outcome">
+      {/* The celebrating mascot holds up its own check, so it takes the place of the check icon. */}
+      <StateArt pose="merayakan" />
+      <Text variant="heading" style={{ textAlign: "center" }}>
+        {t("Semua beres hari ini", "All done today")}
+      </Text>
+      <Text selectable testID="done-outcome" style={{ textAlign: "center" }}>
         {failed === 0
           ? t("Semua antaran tercatat sampai.", "All deliveries recorded as arrived.")
           : t(
@@ -436,7 +446,7 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
               </Text>
             </Card>
           ) : null}
-          {!ops && day.error ? <ReadError message={day.error} onRetry={() => void day.reload()} /> : null}
+          {!ops && day.error ? <ReadError art message={day.error} onRetry={() => void day.reload()} /> : null}
           {loading ? <TodaySkeleton /> : null}
           {newKitchen ? <MulaiCard /> : null}
           {offset === "0" ? (
@@ -468,7 +478,9 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
             />
           ) : ops && (failedCount > 0 || otherSession) ? (
             <Card tone="sage">
-              <Text testID="meal-empty-note" selectable>
+              {/* Nothing scheduled for this meal rests the mascot; rows marked "Gagal diantar" are not a quiet meal. */}
+              {failedCount > 0 ? null : <StateArt pose="tidur" />}
+              <Text testID="meal-empty-note" selectable style={failedCount > 0 ? undefined : { textAlign: "center" }}>
                 {failedCount > 0
                   ? meal === "lunch"
                     ? t(
@@ -503,8 +515,15 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
             </Card>
           ) : ops && !newKitchen ? (
             <Card tone="sage">
-              <Text>{offset === "0" ? t("Tidak ada masakan untuk hari ini.", "Nothing to cook today.") : t("Tidak ada masakan untuk besok.", "Nothing to cook tomorrow.")}</Text>
-              <Text variant="caption">{t("Pesanan baru akan muncul di sini.", "New orders will appear here.")}</Text>
+              <StateArt pose="tidur" />
+              <Text style={{ textAlign: "center" }}>
+                {offset === "0"
+                  ? t("Tidak ada masakan untuk hari ini.", "Nothing to cook today.")
+                  : t("Tidak ada masakan untuk besok.", "Nothing to cook tomorrow.")}
+              </Text>
+              <Text variant="caption" style={{ textAlign: "center" }}>
+                {t("Pesanan baru akan muncul di sini.", "New orders will appear here.")}
+              </Text>
             </Card>
           ) : null}
         </View>

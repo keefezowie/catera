@@ -2,7 +2,7 @@ import { useRef, useState, type ReactNode } from "react";
 import { View } from "react-native";
 import { errorLabel } from "@catera/domain";
 import { MobileProvider, useMobile, type MobileRuntime } from "@catera/mobile-core";
-import { Button, Text, useColors } from "@catera/mobile-ui";
+import { Button, StateArt, Text, useColors } from "@catera/mobile-ui";
 import { customerLink } from "./links";
 import { openLink } from "./nav";
 import { clearCachedCustomer } from "./today/offline";
@@ -42,8 +42,11 @@ function StartupGate({ children }: { children: ReactNode }) {
   if (started.current || !ready) return <>{children}</>;
   return (
     <View style={{ flex: 1, justifyContent: "center", padding: 24, gap: 12, backgroundColor: c.canvas }}>
-      <Text variant="title">{t("Belum bisa terhubung.", "Can't connect yet.")}</Text>
-      <Text selectable testID="startup-error" style={{ color: c.danger }}>
+      <StateArt pose="bingung" style={{ marginBottom: 8 }} />
+      <Text variant="title" style={{ textAlign: "center" }}>
+        {t("Belum bisa terhubung.", "Can't connect yet.")}
+      </Text>
+      <Text selectable testID="startup-error" style={{ color: c.danger, textAlign: "center" }}>
         {error}
       </Text>
       <Button

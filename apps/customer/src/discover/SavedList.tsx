@@ -3,7 +3,17 @@ import { View } from "react-native";
 import Animated from "react-native-reanimated";
 import { router } from "expo-router";
 import { useMobile } from "@catera/mobile-core";
-import { Button, Card, FadeSwap, Screen, Text, useBlockEnter, useColors, useListMotion } from "@catera/mobile-ui";
+import {
+  Button,
+  Card,
+  FadeSwap,
+  Screen,
+  StateArt,
+  Text,
+  useBlockEnter,
+  useColors,
+  useListMotion,
+} from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
 import { PackageCard } from "./PackageCard";
 import { useSaved } from "./saved";
@@ -77,15 +87,19 @@ function Saved() {
           <SavedSkeleton />
         ) : saved.loadError && !saved.items.length ? (
           <View style={{ gap: 10 }}>
-            <Text selectable style={{ color: c.danger }}>
+            <StateArt pose="bingung" />
+            <Text selectable style={{ color: c.danger, textAlign: "center" }}>
               {saved.loadError}
             </Text>
             <Button variant="secondary" label={t("Coba lagi", "Try again")} onPress={() => void saved.reload()} />
           </View>
         ) : !saved.items.length ? (
           <View style={{ gap: 10 }}>
-            <Text variant="heading">{t("Belum ada paket tersimpan.", "No saved packages yet.")}</Text>
-            <Text style={{ color: c.muted }}>
+            <StateArt pose="mencari" />
+            <Text variant="heading" style={{ textAlign: "center" }}>
+              {t("Belum ada paket tersimpan.", "No saved packages yet.")}
+            </Text>
+            <Text style={{ color: c.muted, textAlign: "center" }}>
               {t("Ketuk hati pada paket yang Anda suka.", "Tap the heart on a package you like.")}
             </Text>
             <Button label={t("Jelajah paket", "Browse packages")} onPress={() => goToTab("jelajah")} />

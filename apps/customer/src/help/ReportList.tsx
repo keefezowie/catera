@@ -19,6 +19,7 @@ import {
   FadeSwap,
   fontFor,
   Screen,
+  StateArt,
   Text,
   themedStyles,
   useColors,
@@ -78,7 +79,8 @@ function List({ flow }: { flow: boolean }) {
   if ((!issues.data || !customer.data) && (issues.error || customer.error))
     return (
       <Screen>
-        <Text selectable style={{ color: palette.danger }}>
+        <StateArt pose="bingung" />
+        <Text selectable style={{ color: palette.danger, textAlign: "center" }}>
           {issues.error || customer.error}
         </Text>
         <Button

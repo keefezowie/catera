@@ -10,12 +10,14 @@ import { useData, useMobile, useTrack, type MobileRuntime } from "@catera/mobile
 import {
   Button,
   PressableScale,
+  StateArt,
   statusBarStyle,
   StoryViewer,
   Text,
   useMood,
   useThemePreference,
   useTopInsetOwned,
+  type MascotPose,
 } from "@catera/mobile-ui";
 import { photoUri } from "../today/Plate";
 import { loadCachedCustomer } from "../today/offline";
@@ -125,6 +127,7 @@ export function TomorrowStoryScreen() {
         onClose={leave}
         topInset={topInset}
         selectable
+        art="bingung"
       >
         <Button
           variant="secondary"
@@ -302,6 +305,7 @@ function StoryMessage({
   onClose,
   topInset,
   selectable,
+  art,
   children,
 }: {
   text: string;
@@ -309,6 +313,8 @@ function StoryMessage({
   onClose: () => void;
   topInset: number;
   selectable?: boolean;
+  /** The mascot above the message: a failed read's puzzled one. The still was reviewed on near-black. */
+  art?: MascotPose;
   children?: ReactNode;
 }) {
   const insets = useSafeAreaInsets();
@@ -329,6 +335,7 @@ function StoryMessage({
         </PressableScale>
       </View>
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: 12 }}>
+        {art ? <StateArt pose={art} /> : null}
         <Text variant="heading" selectable={selectable} style={{ color: ink.cream, textAlign: "center" }}>
           {text}
         </Text>

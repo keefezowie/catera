@@ -31,6 +31,7 @@ import {
   SaveHeart,
   Screen,
   ScreenStatusBar,
+  StateArt,
   Text,
   themedStyles,
   useColors,
@@ -161,7 +162,13 @@ export function PackageDetail() {
             <PackageSkeleton />
           ) : (
             <View style={{ gap: 10 }}>
-              <Text variant="heading" selectable={!!loaded.error} style={{ color: loaded.error ? c.danger : c.forest }}>
+              {/* A failed read leads with the puzzled mascot; a package that is gone is not a failure and has none. */}
+              {loaded.error ? <StateArt pose="bingung" /> : null}
+              <Text
+                variant="heading"
+                selectable={!!loaded.error}
+                style={[{ color: loaded.error ? c.danger : c.forest }, loaded.error ? { textAlign: "center" } : null]}
+              >
                 {loaded.error || t("Paket tidak ditemukan.", "Package not found.")}
               </Text>
               {loaded.error ? (

@@ -21,6 +21,7 @@ import {
   PressableRow,
   PressableScale,
   Screen,
+  StateArt,
   Text,
   themedStyles,
   useColors,
@@ -95,6 +96,8 @@ function SignedInJadwal() {
 
   const deliveries = useMemo(() => state?.deliveries.filter((d) => monthOf(d.service_date) === month) ?? [], [state, month]);
   const days = useMemo(() => calendarDays(deliveries), [deliveries]);
+  // No meal comes this month: every delivery is cancelled, or every meal of it is.
+  const monthEmpty = !deliveries.some((d) => live(d) && served(d).length > 0);
   const day = deliveries
     .filter((d) => d.service_date === selected && live(d))
     .flatMap((d) => served(d).map((m) => ({ d, m })))
@@ -194,6 +197,8 @@ function SignedInJadwal() {
                 <Button variant="text" label={t("Coba lagi", "Try again")} onPress={() => void data.reload()} />
               </View>
             ) : null}
+            {/* A month with no meals at all: the resting mascot sits above the day, which says there is nothing. */}
+            {monthEmpty ? <StateArt pose="tidur" /> : null}
             <Text variant="label">{longDay(selected, locale)}</Text>
             {day.length ? (
               <Card style={{ padding: 4, gap: 0 }}>

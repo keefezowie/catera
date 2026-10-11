@@ -23,6 +23,7 @@ import {
   PhotoRing,
   PressableRow,
   Screen,
+  StateArt,
   StickyAction,
   Text,
   themedStyles,
@@ -137,12 +138,18 @@ function Plan({ id, actorId, carried, generic }: { id: string; actorId: string; 
           {loading ? (
             <PlanSkeleton />
           ) : !state ? (
-            <View style={{ gap: 8, alignItems: "flex-start" }}>
-              <Text variant="heading" accessibilityRole="text" selectable style={{ color: c.danger }}>
+            <View style={{ gap: 8 }}>
+              <StateArt pose="bingung" style={{ marginBottom: 4 }} />
+              <Text
+                variant="heading"
+                accessibilityRole="text"
+                selectable
+                style={{ color: c.danger, textAlign: "center" }}
+              >
                 {t("Belum bisa memuat", "Couldn't load yet")}
               </Text>
               {read.error ? (
-                <Text selectable style={{ color: c.danger }}>
+                <Text selectable style={{ color: c.danger, textAlign: "center" }}>
                   {read.error}
                 </Text>
               ) : null}

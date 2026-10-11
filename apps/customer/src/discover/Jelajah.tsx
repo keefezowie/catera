@@ -15,6 +15,7 @@ import {
   Screen,
   Skeleton,
   SkeletonGroup,
+  StateArt,
   Text,
   themedStyles,
   useColors,
@@ -32,6 +33,8 @@ import { packageHref } from "../hrefs";
 import { JelajahSkeleton } from "../skeletons";
 
 const BUDGET = 30000;
+/** An empty or error state's lines sit centred under its mascot. */
+const centred = { textAlign: "center" } as const;
 const CIRCLES = 6;
 
 /** The headline names the meal the mood is on, over two lines like Beranda's. */
@@ -272,28 +275,38 @@ function Browse({ area, onArea }: { area: string | null; onArea: (value: string)
               </Text>
             ) : null}
 
+            {/* Each state without packages leads with its mascot, centred above its line: puzzled when the read failed,
+                searching when the area, meal, search or chips found nothing. */}
             {catalog.error && !catalog.data ? (
               <View style={{ gap: 10 }}>
-                <Text selectable style={{ color: c.danger }}>
+                <StateArt pose="bingung" />
+                <Text selectable style={{ color: c.danger, textAlign: "center" }}>
                   {catalog.error}
                 </Text>
                 <Button variant="secondary" label={t("Coba lagi", "Try again")} onPress={() => void catalog.reload()} />
               </View>
             ) : area && inArea.length === 0 ? (
               <View style={{ gap: 10 }}>
-                <Text variant="heading">
+                <StateArt pose="mencari" />
+                <Text variant="heading" style={centred}>
                   {t(`Belum ada katering yang antar ke ${area}.`, `No caterer delivers to ${area} yet.`)}
                 </Text>
                 <Button variant="secondary" label={t("Lihat semua area", "See all areas")} onPress={() => onArea("")} />
               </View>
             ) : inArea.length === 0 ? (
               // Nothing is on offer at all (no area is chosen here), so there is no other meal to send the person to.
-              <Text variant="heading">{t("Belum ada paket.", "No packages yet.")}</Text>
+              <View style={{ gap: 10 }}>
+                <StateArt pose="mencari" />
+                <Text variant="heading" style={centred}>
+                  {t("Belum ada paket.", "No packages yet.")}
+                </Text>
+              </View>
             ) : items.length === 0 && !filtered ? (
               // Only the meal is narrowing and the area has packages, so the other meal has some: say which meal is empty
               // and offer the other one.
               <View style={{ gap: 10 }}>
-                <Text variant="heading">
+                <StateArt pose="mencari" />
+                <Text variant="heading" style={centred}>
                   {area
                     ? t(`Belum ada paket makan ${mealWord} di ${area}.`, `No ${mealWordEn} packages in ${area} yet.`)
                     : t(`Belum ada paket makan ${mealWord}.`, `No ${mealWordEn} packages yet.`)}
@@ -306,8 +319,11 @@ function Browse({ area, onArea }: { area: string | null; onArea: (value: string)
               </View>
             ) : items.length === 0 ? (
               <View style={{ gap: 10 }}>
-                <Text variant="heading">{t("Belum ada paket yang cocok.", "No matching packages yet.")}</Text>
-                <Text style={{ color: c.muted }}>
+                <StateArt pose="mencari" />
+                <Text variant="heading" style={centred}>
+                  {t("Belum ada paket yang cocok.", "No matching packages yet.")}
+                </Text>
+                <Text style={[{ color: c.muted }, centred]}>
                   {t("Coba kata kunci atau pilihan lain.", "Try another keyword or choice.")}
                 </Text>
                 {filtered ? <Button variant="secondary" label={t("Hapus pilihan", "Clear choices")} onPress={clear} /> : null}

@@ -14,7 +14,17 @@ import { photoUri } from "./Plate";
  * The mark is written when the card first shows with Beranda in front; the card then stays for the rest of this
  * Beranda visit.
  */
-export function RecapCard({ candidates }: { candidates: Subscription[] }) {
+export function RecapCard({
+  candidates,
+  onShownChange,
+}: {
+  candidates: Subscription[];
+  /**
+   * Hears whether the card is on the page: undefined while the seen marks are read, then true or false. An empty
+   * Beranda leaves its mascot out while the card's food photo leads.
+   */
+  onShownChange?: (shown: boolean | undefined) => void;
+}) {
   const { runtime, t, locale } = useMobile();
   const track = useTrack();
   const c = useColors();
@@ -53,6 +63,11 @@ export function RecapCard({ candidates }: { candidates: Subscription[] }) {
     marked.current = true;
     void SecureStore.setItemAsync(runtime.storageKey(`recap.${shownId}`), "seen").catch(() => undefined);
   }, [visible, shownId, runtime]);
+
+  const shown = shownId === undefined ? undefined : !!sub && !closed;
+  useEffect(() => {
+    onShownChange?.(shown);
+  }, [shown, onShownChange]);
 
   if (!sub || closed) return null;
   const offer = sub.snapshot.offer;

@@ -86,7 +86,7 @@ export function MenuLoadError({ onRetry, title = true }: { onRetry: () => void; 
   const { t } = useMobile();
   return (
     <Screen header={title ? <MenuTitle /> : undefined}>
-      <ReadError message={t("Menu belum bisa dimuat.", "The menu couldn't be loaded.")} onRetry={onRetry} />
+      <ReadError art message={t("Menu belum bisa dimuat.", "The menu couldn't be loaded.")} onRetry={onRetry} />
     </Screen>
   );
 }

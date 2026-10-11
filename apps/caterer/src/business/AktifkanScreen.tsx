@@ -48,7 +48,7 @@ export function AktifkanScreen() {
       <Screen>
         <FadeSwap swapKey={state.error ? "error" : "loading"} style={{ gap: 16 }}>
           {state.error ? (
-            <ReadError message={state.error} onRetry={() => void state.reload()} />
+            <ReadError art message={state.error} onRetry={() => void state.reload()} />
           ) : (
             <ListSkeleton rows={3} label={t("Memuat pembayaran", "Loading payments")} />
           )}

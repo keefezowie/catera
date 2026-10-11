@@ -35,7 +35,7 @@ export function CustomerDetail({ id, title }: { id: string; title?: string }) {
         {/* The same FadeSwap as the loaded page, so the customer enters from the skeleton as one block. */}
         <FadeSwap swapKey={loading ? "loading" : "missing"} style={{ gap: 16 }}>
           {record.error ? (
-            <ReadError message={record.error} onRetry={() => void record.reload()} />
+            <ReadError art message={record.error} onRetry={() => void record.reload()} />
           ) : loading ? (
             <DetailSkeleton label={t("Memuat pelanggan", "Loading the customer")} />
           ) : (

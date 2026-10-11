@@ -2,7 +2,7 @@ import { View } from "react-native";
 import { router } from "expo-router";
 import { currency, type CustomerActionItem, type Subscription } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, FadeSwap, Screen, Text, useColors } from "@catera/mobile-ui";
+import { Button, FadeSwap, Screen, StateArt, Text, useColors } from "@catera/mobile-ui";
 import { payAgainHref } from "../buy/PaymentOutcome";
 import { customerLink } from "../links";
 import { longDay } from "../schedule/dates";
@@ -53,7 +53,8 @@ function History() {
   if (!customer.data)
     return customer.error ? (
       <Screen>
-        <Text selectable style={{ color: c.danger }}>
+        <StateArt pose="bingung" />
+        <Text selectable style={{ color: c.danger, textAlign: "center" }}>
           {customer.error}
         </Text>
         <Button label={t("Coba lagi", "Try again")} onPress={() => void customer.reload()} />

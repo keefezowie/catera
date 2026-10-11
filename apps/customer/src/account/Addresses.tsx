@@ -2,7 +2,7 @@ import { View } from "react-native";
 import Animated from "react-native-reanimated";
 import { router } from "expo-router";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, FadeSwap, Screen, Text, useColors, useListMotion } from "@catera/mobile-ui";
+import { Button, Card, FadeSwap, Screen, StateArt, Text, useColors, useListMotion } from "@catera/mobile-ui";
 import { FLOW_HREF } from "../nav";
 import { ListSkeleton } from "../skeletons";
 import { SignInFirst } from "./SignInFirst";
@@ -43,7 +43,8 @@ function AddressBook({ flow }: { flow: boolean }) {
   if (!customer.data)
     return customer.error ? (
       <Screen>
-        <Text selectable style={{ color: c.danger }}>
+        <StateArt pose="bingung" />
+        <Text selectable style={{ color: c.danger, textAlign: "center" }}>
           {customer.error}
         </Text>
         <Button label={t("Coba lagi", "Try again")} onPress={() => void customer.reload()} />
