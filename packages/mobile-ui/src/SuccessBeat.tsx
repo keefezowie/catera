@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, type ReactNode } from "react";
-import { View } from "react-native";
+import { AccessibilityInfo, View } from "react-native";
 import Animated, {
   cancelAnimation,
   Easing,
@@ -84,15 +84,20 @@ function BurstSparkle({ burst, progress, color }: { burst: Burst; progress: Shar
 /**
  * The success beat (spec 6.2): the delivered success rig at 180 in front of the code-drawn disc, which grows over
  * 420ms; five sparkles burst from 450 to 1050ms; the title and `children` (the facts) fade up as one block from about
- * 620ms over `content`. One `success` haptic on the first frame of a play.
+ * 620ms over `content`. One `success` haptic on the first frame of a play, and the title announced to the screen
+ * reader at the same moment (as a toast is), so the arrival is heard as well as felt.
  *
  * `play` true starts a play: on mount, or when it turns true later. The caller sets it only on the transition into
  * success while the screen is open (ruling D8). `play` false draws the resting frame: the rig at rest, the disc full,
- * no sparkles, the facts shown, and no haptic. `confetti` adds the delivered confetti over the beat for a first
- * milestone; it plays with the beat and is never drawn at rest.
+ * no sparkles, the facts shown, no haptic and no announcement (a reader meets the title as a heading in reading order).
+ * `confetti` adds the delivered confetti over the beat for a first milestone; it plays with the beat and is never drawn
+ * at rest.
  *
  * Reduced motion: the `merayakan` still at 180 and the facts, nothing moves, no disc, no burst, no confetti; the one
- * haptic is kept.
+ * haptic and the announcement are kept.
+ *
+ * The title is the outcome's one heading: the screen around it keeps its own title (Bayar stays Bayar), so the words
+ * are never said twice.
  */
 export function SuccessBeat({
   title,
@@ -115,22 +120,25 @@ export function SuccessBeat({
   const facts = useSharedValue(moving ? 0 : 1);
   const reducedNow = useRef(reduced);
   const success = useRef(haptic.success);
+  const said = useRef(title);
   useLayoutEffect(() => {
     reducedNow.current = reduced;
     success.current = haptic.success;
+    said.current = title;
   });
 
   // A layout effect, so a play that starts on a later render resets every value before that render paints.
   useLayoutEffect(() => {
     if (!play) return;
     success.current();
+    AccessibilityInfo.announceForAccessibility(said.current);
     if (reducedNow.current) return;
     for (const v of [ring, burst, facts]) {
       cancelAnimation(v);
       v.value = 0;
     }
     ring.value = withTiming(1, { duration: SUCCESS_RING_MS, easing: ease });
-    burst.value = withDelay(BURST_AT, withTiming(1, { duration: BURST_MS, easing: Easing.out(Easing.quad) }));
+    burst.value = withDelay(BURST_AT, withTiming(1, { duration: BURST_MS, easing: ease }));
     facts.value = withDelay(SUCCESS_FACTS_AT, withTiming(1, { duration: nativeMotion.content, easing: ease }));
     return () => {
       // A play cut short (the screen leaves) rests the beat, so nothing is left half drawn.
@@ -169,7 +177,7 @@ export function SuccessBeat({
         )}
       </View>
       <Animated.View testID="success-beat-facts" style={[{ alignSelf: "stretch", gap: 16 }, factsStyle]}>
-        <Text variant="title" style={{ fontSize: 26, lineHeight: 32, textAlign: "center" }}>
+        <Text variant="outcome" style={{ textAlign: "center" }}>
           {title}
         </Text>
         {children}

@@ -703,10 +703,11 @@ describe("Beli and Bayar under the native header", () => {
   it("Bayar keeps its title in the outcome and not-found states", async () => {
     const paid = pendingCheckout({ state: "paid", subscription_id: "s-2" }, { status: "paid" });
     const done = wrapMood(server({ checkout: paid }), <PaymentScreen checkoutId="ck-1" />);
-    // Paid is its own beat: the title names it instead of the payment step.
+    // Paid keeps the title Bayar: the success beat below it is the one place that says "Pembayaran diterima".
     await screen.findByTestId("paid-hero");
-    expect((await nativeTitle()).getByText("Pembayaran diterima")).toBeTruthy();
-    expect((await nativeTitle()).queryByText("Bayar")).toBeNull();
+    expect((await nativeTitle()).getByText("Bayar")).toBeTruthy();
+    expect((await nativeTitle()).queryByText("Pembayaran diterima")).toBeNull();
+    expect(screen.getAllByText("Pembayaran diterima")).toHaveLength(1);
     done.unmount();
 
     // The server has no such checkout: the page says so with a retry, under the same title.
@@ -733,8 +734,7 @@ describe("Bayar", () => {
     wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
     expect(await screen.findByLabelText(QR_LABEL)).toBeTruthy();
     fireEvent.press(screen.getByRole("button", { name: "Saya sudah bayar, cek status" }));
-    // Paid: the native title and the success beat both name it.
-    expect(await screen.findAllByText("Pembayaran diterima")).toHaveLength(2);
+    expect(await screen.findByText("Pembayaran diterima")).toBeTruthy();
     expect(runtime.api.command).toHaveBeenCalledWith("checkout.payment.refresh", { id: "ck-1" }, expect.any(String));
     expect(screen.queryByLabelText(QR_LABEL)).toBeNull();
     fireEvent.press(screen.getByRole("button", { name: "Ke Beranda" }));
@@ -872,8 +872,7 @@ describe("Bayar", () => {
     const runtime = server({ demo: true, checkout: hosted });
     wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
     fireEvent.press(await screen.findByRole("button", { name: "Bayar (demo)" }));
-    // Paid: the native title and the success beat both name it.
-    expect(await screen.findAllByText("Pembayaran diterima")).toHaveLength(2);
+    expect(await screen.findByText("Pembayaran diterima")).toBeTruthy();
     expect(runtime.api.command).toHaveBeenCalledWith("checkout.demo_pay", { id: "ck-1" }, expect.any(String));
   });
 
@@ -910,8 +909,7 @@ describe("Bayar", () => {
       await act(async () => {
         jest.advanceTimersByTime(10_000);
       });
-      // Paid: the native title and the success beat both name it.
-      expect(await screen.findAllByText("Pembayaran diterima")).toHaveLength(2);
+      expect(await screen.findByText("Pembayaran diterima")).toBeTruthy();
       expect(refreshes()).toBe(1);
       await act(async () => {
         jest.advanceTimersByTime(30_000);
@@ -986,8 +984,7 @@ describe("Bayar", () => {
       .filter((c, i) => c[0] === "change" && !listen.mock.results[i]?.value?.remove?.mock?.calls.length)
       .map((c) => c[1] as (s: string) => void);
     await act(async () => handlers.forEach((h) => h("active")));
-    // Paid: the native title and the success beat both name it.
-    expect(await screen.findAllByText("Pembayaran diterima")).toHaveLength(2);
+    expect(await screen.findByText("Pembayaran diterima")).toBeTruthy();
     expect(commands(runtime).filter((c) => c[0] === "checkout.payment.refresh")).toHaveLength(1);
   });
 
@@ -1058,8 +1055,10 @@ describe("Pembayaran diterima", () => {
   it("shows the food, the package, the first delivery and every reserved day of a short plan", async () => {
     wrap(server({ checkout: paidCheckout({}, { dates: SHORT }) }), <PaymentScreen checkoutId="ck-1" />);
     await screen.findByTestId("paid-hero");
-    const title = within(screen.getByTestId("screen-native-title")).getByText("Pembayaran diterima");
+    // The beat names the moment, once, as a heading; the screen's own title stays Bayar.
+    const title = within(screen.getByTestId("success-beat")).getByText("Pembayaran diterima");
     expect(title.props.accessibilityRole).toBe("header");
+    expect(within(screen.getByTestId("screen-native-title")).getByText("Bayar")).toBeTruthy();
 
     // The hero is the mood surface: the food photo at radius 20, the package, its caterer and the first delivery.
     const hero = within(screen.getByTestId("paid-hero"));

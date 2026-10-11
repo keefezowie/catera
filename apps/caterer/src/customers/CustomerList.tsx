@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Linking, RefreshControl, View } from "react-native";
 import Animated from "react-native-reanimated";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -14,6 +14,7 @@ import {
   MoodHeader,
   PressableRow,
   PressableScale,
+  RowSwap,
   Screen,
   Text,
   useColors,
@@ -21,6 +22,7 @@ import {
 } from "@catera/mobile-ui";
 import { activeSubscriptions, currentSubscription, customerStatus, activeEndLabel, type CustomerStatus } from "./rules";
 import { loadAllCustomers } from "./load";
+import { useImportCommits } from "../import/commits";
 import { customerHref } from "../hrefs";
 import { ReadError } from "../ReadError";
 import { ListSkeleton } from "../skeletons";
@@ -47,9 +49,18 @@ export function CustomerList() {
   };
   // Pull to refresh reads the list again while the rows stay; only the spinner says so.
   const [pulling, setPulling] = useState(false);
-  // Customers who arrive while this list is open (an import the caterer just saved) enter as rows; the first load,
-  // a filter change and a pull to refresh do not animate (Decision A).
-  const rowMotion = useListMotion(list.data ? customers.map((c) => c.id) : null, pulling);
+  // Only the caterer's own import on this phone inserts rows: the answer that follows it lets the new customers enter.
+  // Any other new answer (the first load, a pull to refresh, a push, a change made on the web) is a refresh, and a
+  // refresh or a filter change swaps the rows as one block, with no entrance, no exit and no move (Decision A).
+  const imports = useImportCommits();
+  const seen = useRef({ data: list.data, imports, swaps: 0 });
+  const answered = list.data !== seen.current.data;
+  const byImport = answered && !!seen.current.data && imports !== seen.current.imports;
+  const swaps = seen.current.swaps + (answered && !byImport ? 1 : 0);
+  useEffect(() => {
+    if (answered) seen.current = { data: list.data, imports, swaps };
+  });
+  const rowMotion = useListMotion(list.data ? customers.map((c) => c.id) : null, !byImport);
   async function pull() {
     setPulling(true);
     try {
@@ -92,45 +103,47 @@ export function CustomerList() {
               {!shown.length ? (
                 <Text variant="caption">{t("Belum ada pelanggan di sini.", "No customers here yet.")}</Text>
               ) : null}
-              {shown.map((c) => {
-                const s = currentSubscription(c);
-                const others = Math.max(activeSubscriptions(c).length - 1, 0);
-                return (
-                  <Animated.View key={c.id} testID="customer-row" {...rowMotion(c.id)}>
-                    <Card style={{ flexDirection: "row", alignItems: "center" }}>
-                      <PressableRow
-                        accessibilityRole="button"
-                        onPress={() => router.push(customerHref(c.id, c.name) as never)}
-                        style={{ flex: 1, gap: 2, minHeight: 48, justifyContent: "center" }}
-                      >
-                        <Text style={{ fontFamily: fontFor("800") }}>{c.name}</Text>
-                        {s ? <Text variant="caption">{`${s.package_name} · ${s.portions} porsi`}</Text> : null}
-                        <View style={{ flexDirection: "row", gap: 6, marginTop: 2 }}>
-                          {s && s.status === "active" ? (
-                            <Text variant="caption" style={{ color: palette.sunriseInk, fontFamily: fontFor("700") }}>
-                              {activeEndLabel(s, today, t, locale)}
-                            </Text>
-                          ) : null}
-                          {others ? <Text variant="caption">{`+${others} ${t("paket lain", "more packages")}`}</Text> : null}
-                          <Text variant="caption">
-                            {c.origin === "marketplace" ? t("Dari marketplace", "From marketplace") : t("Pelanggan Anda", "Your customer")}
-                          </Text>
-                        </View>
-                      </PressableRow>
-                      {c.phone ? (
-                        <PressableScale
-                          accessibilityRole="link"
-                          accessibilityLabel={`${t("Chat", "Chat")} ${c.name}`}
-                          onPress={() => void Linking.openURL(whatsappUrl("", c.phone!))}
-                          style={{ width: 48, height: 48, alignItems: "center", justifyContent: "center" }}
+              <RowSwap swapKey={`${filter}:${swaps}`}>
+                {shown.map((c) => {
+                  const s = currentSubscription(c);
+                  const others = Math.max(activeSubscriptions(c).length - 1, 0);
+                  return (
+                    <Animated.View key={c.id} testID="customer-row" {...rowMotion(c.id)}>
+                      <Card style={{ flexDirection: "row", alignItems: "center" }}>
+                        <PressableRow
+                          accessibilityRole="button"
+                          onPress={() => router.push(customerHref(c.id, c.name) as never)}
+                          style={{ flex: 1, gap: 2, minHeight: 48, justifyContent: "center" }}
                         >
-                          <Ionicons name="chatbubble-ellipses-outline" size={22} color={palette.forest} />
-                        </PressableScale>
-                      ) : null}
-                    </Card>
-                  </Animated.View>
-                );
-              })}
+                          <Text style={{ fontFamily: fontFor("800") }}>{c.name}</Text>
+                          {s ? <Text variant="caption">{`${s.package_name} · ${s.portions} porsi`}</Text> : null}
+                          <View style={{ flexDirection: "row", gap: 6, marginTop: 2 }}>
+                            {s && s.status === "active" ? (
+                              <Text variant="caption" style={{ color: palette.sunriseInk, fontFamily: fontFor("700") }}>
+                                {activeEndLabel(s, today, t, locale)}
+                              </Text>
+                            ) : null}
+                            {others ? <Text variant="caption">{`+${others} ${t("paket lain", "more packages")}`}</Text> : null}
+                            <Text variant="caption">
+                              {c.origin === "marketplace" ? t("Dari marketplace", "From marketplace") : t("Pelanggan Anda", "Your customer")}
+                            </Text>
+                          </View>
+                        </PressableRow>
+                        {c.phone ? (
+                          <PressableScale
+                            accessibilityRole="link"
+                            accessibilityLabel={`${t("Chat", "Chat")} ${c.name}`}
+                            onPress={() => void Linking.openURL(whatsappUrl("", c.phone!))}
+                            style={{ width: 48, height: 48, alignItems: "center", justifyContent: "center" }}
+                          >
+                            <Ionicons name="chatbubble-ellipses-outline" size={22} color={palette.forest} />
+                          </PressableScale>
+                        ) : null}
+                      </Card>
+                    </Animated.View>
+                  );
+                })}
+              </RowSwap>
             </View>
           ) : (
             <ListSkeleton rows={4} label={t("Memuat pelanggan", "Loading customers")} />

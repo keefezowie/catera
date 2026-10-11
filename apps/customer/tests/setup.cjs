@@ -1,11 +1,19 @@
 jest.mock("react-native-worklets", () =>
   require("react-native-worklets/src/mock"),
 );
-// Reanimated's jest mock omits useReducedMotion; tests flip it with jest.spyOn.
-jest.mock("react-native-reanimated", () => ({
-  ...require("react-native-reanimated/mock"),
-  useReducedMotion: jest.fn(() => false),
-}));
+// Reanimated's jest mock omits useReducedMotion; tests flip it with jest.spyOn. It also leaves out
+// LayoutAnimationConfig: the stand-in renders its children and keeps its props, so a test reads `skipEntering` and
+// `skipExiting`.
+jest.mock("react-native-reanimated", () => {
+  const { createElement, Fragment } = require("react");
+  const LayoutAnimationConfig = ({ children }) => createElement(Fragment, null, children);
+  LayoutAnimationConfig.displayName = "LayoutAnimationConfig";
+  return {
+    ...require("react-native-reanimated/mock"),
+    useReducedMotion: jest.fn(() => false),
+    LayoutAnimationConfig,
+  };
+});
 // QR rendering and its native SVG ref are verified in the Android runtime.
 jest.mock("react-native-qrcode-svg", () => ({ __esModule: true, default: () => null }));
 jest.mock("react-native-safe-area-context", () => require("react-native-safe-area-context/jest/mock").default);

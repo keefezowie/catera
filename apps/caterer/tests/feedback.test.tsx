@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
+import { RefreshControl } from "react-native";
 import * as Haptics from "expo-haptics";
 import * as Reanimated from "react-native-reanimated";
 import { router } from "expo-router";
@@ -9,6 +10,7 @@ import { MenuDayScreen } from "../src/menu/MenuDayScreen";
 import { SlotEditor } from "../src/menu/SlotEditor";
 import { ImportAssistant } from "../src/import/ImportAssistant";
 import { CustomerList } from "../src/customers/CustomerList";
+import { commitImport } from "../src/import/commits";
 import { goToTab } from "../src/nav";
 
 let mockParams: Record<string, string> = {};
@@ -284,7 +286,7 @@ describe("import", () => {
 });
 
 describe("Pelanggan", () => {
-  const customer = (id: string, name: string): SellerCustomer =>
+  const customer = (id: string, name: string, remaining = 30): SellerCustomer =>
     ({
       id,
       caterer_id: "k-1",
@@ -305,7 +307,7 @@ describe("Pelanggan", () => {
           starts_on: "2026-10-01",
           ends_on: "2026-12-30",
           status: "active",
-          remaining: 30,
+          remaining,
           next_delivery: "2026-10-12",
           legacy: true,
           renewed_from: null,
@@ -329,9 +331,9 @@ describe("Pelanggan", () => {
     await act(async () => {});
     const rows = () => screen.getAllByTestId("customer-row");
     expect(rows()[0].props.entering).toBeUndefined();
-    // An import commits on Impor, over this tab: the list reads again and the two new customers arrive.
+    // An import commits on Impor, over this tab, on this phone: the list reads again and the two new customers arrive.
     list = [...list, customer("c-02", "Bu Ani"), customer("c-03", "Pak Budi")];
-    await act(async () => void (await commandOf!("import.commit", { catererId: "k-1", id: "pv-1" })));
+    await act(async () => void (await commitImport(commandOf!, "k-1", "pv-1")));
     expect(await screen.findByText("Bu Ani")).toBeTruthy();
     const byName = (name: string) => rows().find((r) => within(r).queryByText(name))!;
     expect(byName("Andre Kusuma").props.entering).toBeUndefined();
@@ -342,5 +344,58 @@ describe("Pelanggan", () => {
     fireEvent.press(screen.getByRole("button", { name: /^Selesai/ }));
     fireEvent.press(screen.getByRole("button", { name: /^Aktif/ }));
     for (const r of rows()) expect(r.props.entering).toBeUndefined();
+  });
+
+  it("a customer who arrives by a push or another device's change has no entrance", async () => {
+    let list = [customer("c-01", "Andre Kusuma")];
+    const runtime = runtimeWith({
+      sellerCustomers: jest.fn(async () => ({ customers: list, total: list.length, packages: [] })),
+    });
+    wrap(runtime, <CustomerList />);
+    await screen.findByText("Andre Kusuma");
+    await act(async () => {});
+    // Any revision bump that is not this phone's import (a marketplace purchase pushed in, a save on the web) reads the
+    // list again; what it brings is a refresh, so it swaps in without a row entrance.
+    list = [...list, customer("c-02", "Bu Ani")];
+    await act(async () => void (await commandOf!("customer.note", { id: "c-01" })));
+    expect(await screen.findByText("Bu Ani")).toBeTruthy();
+    for (const r of screen.getAllByTestId("customer-row")) expect(r.props.entering).toBeUndefined();
+  });
+
+  it("a filter change swaps the rows: no exit, no move and no entrance", async () => {
+    const list = [customer("c-01", "Andre Kusuma"), customer("c-02", "Bu Ani", 2)];
+    wrap(runtimeWith({ sellerCustomers: jest.fn(async () => ({ customers: list, total: list.length, packages: [] })) }), <CustomerList />);
+    await screen.findByText("Andre Kusuma");
+    await act(async () => {});
+    const block = () => screen.UNSAFE_getByType(Reanimated.LayoutAnimationConfig);
+    const ani = () => screen.getAllByTestId("customer-row").find((r) => within(r).queryByText("Bu Ani"))!;
+    // The rows sit in a block that skips its children's entrances and exits when it is swapped.
+    expect(block().props).toMatchObject({ skipEntering: true, skipExiting: true });
+    const before = ani();
+    // Bu Ani is about to end, so she is under Aktif and under Segera berakhir: the filter remounts her row in a new
+    // block instead of moving it, and Andre's row leaves with the old block, without its own exit.
+    fireEvent.press(screen.getByRole("button", { name: /^Segera berakhir/ }));
+    expect(screen.queryByText("Andre Kusuma")).toBeNull();
+    expect(ani()).not.toBe(before);
+    expect(block().props).toMatchObject({ skipEntering: true, skipExiting: true });
+  });
+
+  it("a pull to refresh swaps the rows too, and what it brings never enters as an insertion", async () => {
+    let list = [customer("c-01", "Andre Kusuma"), customer("c-02", "Bu Ani")];
+    wrap(runtimeWith({ sellerCustomers: jest.fn(async () => ({ customers: list, total: list.length, packages: [] })) }), <CustomerList />);
+    await screen.findByText("Andre Kusuma");
+    await act(async () => {});
+    const row = (name: string) => screen.getAllByTestId("customer-row").find((r) => within(r).queryByText(name));
+    const andre = row("Andre Kusuma");
+    // The pull drops Bu Ani and brings Pak Budi.
+    list = [customer("c-01", "Andre Kusuma"), customer("c-03", "Pak Budi")];
+    await act(async () => void (await screen.UNSAFE_getByType(RefreshControl).props.onRefresh()));
+    expect(await screen.findByText("Pak Budi")).toBeTruthy();
+    expect(screen.queryByText("Bu Ani")).toBeNull();
+    // The block was swapped: Andre's row is a new mount (no move), Bu Ani left with the old block (no exit), and Pak
+    // Budi has no entrance.
+    expect(row("Andre Kusuma")).not.toBe(andre);
+    expect(row("Pak Budi")!.props.entering).toBeUndefined();
+    expect(screen.UNSAFE_getByType(Reanimated.LayoutAnimationConfig).props).toMatchObject({ skipEntering: true, skipExiting: true });
   });
 });

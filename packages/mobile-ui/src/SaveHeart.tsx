@@ -21,9 +21,10 @@ import { themedStyles, useColors } from "./theme";
 const POP = 1.22;
 /** The dots burst out and fade within this time (spec 6.3). */
 export const HEART_BURST_MS = 380;
-/** Where a dot starts and ends, from the heart's centre, in dp. */
+/** Where a dot starts and ends, from the heart's centre, in dp: it ends past the disc's rim (radius 24), so the burst
+ * reads outside the control. The 48dp hit area does not grow; the dots are drawn outside it. */
 const DOT_FROM = 10;
-const DOT_TO = 22;
+const DOT_TO = 31;
 const DOT = 5;
 /** Five dots around the heart, the first straight up. */
 const DOT_ANGLES = [-90, -18, 54, 126, 198];
@@ -91,7 +92,7 @@ export function SaveHeart({
           withSpring(1, nativeMotion.spring),
         );
         burst.value = 0;
-        burst.value = withTiming(1, { duration: HEART_BURST_MS, easing: Easing.out(Easing.quad) });
+        burst.value = withTiming(1, { duration: HEART_BURST_MS, easing: ease });
         setBurstShown(true);
       }
     }

@@ -1,5 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, type ComponentProps } from "react";
-import Animated, { Easing, FadeInDown, FadeOut, LinearTransition, type EntryOrExitLayoutType } from "react-native-reanimated";
+import { useEffect, useMemo, useRef, type ComponentProps } from "react";
+import Animated, {
+  Easing,
+  FadeIn,
+  FadeInDown,
+  FadeOut,
+  LinearTransition,
+  type EntryOrExitLayoutType,
+} from "react-native-reanimated";
 import { nativeMotion } from "@catera/design-tokens";
 import { useReduced } from "./useReduced";
 
@@ -22,7 +29,8 @@ const ease = Easing.bezier(...nativeMotion.ease);
  * an import row accepted): `entering` fades in and rises 8dp over `content` (220ms) on the Catera ease, `exiting`
  * fades out over `control` (120ms), and `layout` moves the rows that remain with `LinearTransition` over `content`.
  * Spread them on the row's `Animated.View`. Never use them on a first load, a refresh, a search or filter change, a
- * tab return or a mood switch (Decision A): those swap the whole data area through `FadeSwap`.
+ * tab return or a mood switch (Decision A): those swap the whole data area through `FadeSwap`, or swap the rows
+ * as one block through `RowSwap`.
  * Under reduced motion every field is `undefined`, so rows appear and leave at once.
  */
 export function useRowMotion(): RowMotion {
@@ -48,8 +56,11 @@ export function useRowMotion(): RowMotion {
  * `keys` is every key the data holds, not only the rows a filter or search shows, or null while nothing has loaded.
  * A key that was not in the previous drawn set enters; the keys of the first set drawn (the first load) never do, and
  * neither does a row a filter or search brings back, because its key was already held. Rows that leave always exit
- * and the rest move. `quiet` takes the keys of a read the user did not cause by changing the list (a pull to refresh)
- * without an entrance. A list that goes back to null starts over: its next set is a first load again.
+ * and the rest move. `quiet` takes the keys of a read the user did not cause by changing the list (a refresh, a page
+ * loaded below) without an entrance. A list that goes back to null starts over: its next set is a first load again.
+ *
+ * Render only reads: this render's insertions are worked out here and recorded in an effect once the render commits,
+ * so a render React throws away (a StrictMode double render, an interrupted transition) leaves nothing behind.
  */
 export function useListMotion(keys: readonly string[] | null | undefined, quiet = false): (key: string) => RowMotion {
   const motion = useRowMotion();
@@ -59,18 +70,16 @@ export function useListMotion(keys: readonly string[] | null | undefined, quiet 
   const inserted = useRef(new Set<string>());
   const current = keys ? new Set(keys) : null;
   const before = drawn.current;
-  const fresh: string[] = [];
+  const fresh = new Set<string>();
   if (before && !quiet && current)
-    for (const key of current) if (!before.has(key) && !inserted.current.has(key)) fresh.push(key);
-  for (const key of fresh) inserted.current.add(key);
-  // After each commit the drawn set is the one just shown.
-  useEffect(() => {
-    drawn.current = current;
-  });
+    for (const key of current) if (!before.has(key) && !inserted.current.has(key)) fresh.add(key);
   // Each set of insertions forgets its entrance once it has run; only unmounting cancels the timers.
   const timers = useRef(new Set<ReturnType<typeof setTimeout>>());
+  // After each commit the drawn set is the one just shown, and this render's insertions are recorded.
   useEffect(() => {
-    if (!fresh.length) return;
+    drawn.current = current;
+    if (!fresh.size) return;
+    for (const key of fresh) inserted.current.add(key);
     const timer = setTimeout(() => {
       timers.current.delete(timer);
       for (const key of fresh) inserted.current.delete(key);
@@ -83,14 +92,20 @@ export function useListMotion(keys: readonly string[] | null | undefined, quiet 
     },
     [],
   );
-  return useCallback(
-    (key: string) => ({
-      entering: inserted.current.has(key) ? motion.entering : undefined,
-      exiting: motion.exiting,
-      layout: motion.layout,
-    }),
-    // `before` changes with every commit, so the callback reads the inserted set of this render.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [before, quiet, motion],
-  );
+  const entering = inserted.current;
+  return (key: string) => ({
+    entering: fresh.has(key) || entering.has(key) ? motion.entering : undefined,
+    exiting: motion.exiting,
+    layout: motion.layout,
+  });
+}
+
+/**
+ * The entrance of a block of loaded content that arrives below what is already shown (the next page of a list): it
+ * fades in as one block over `content` on the Catera ease, as `FadeSwap` brings in a first load, and its rows take no
+ * entrance of their own. `undefined` under reduced motion, so the block appears at once.
+ */
+export function useBlockEnter(): EntryOrExitLayoutType | undefined {
+  const reduced = useReduced();
+  return useMemo(() => (reduced ? undefined : FadeIn.duration(nativeMotion.content).easing(ease)), [reduced]);
 }

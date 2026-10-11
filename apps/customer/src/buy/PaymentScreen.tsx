@@ -45,9 +45,27 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
     actor ? runtime.api.checkout(checkoutId) : Promise.resolve(null),
   );
   const c = state.data;
-  // The customer's plans, read beside the checkout: whether this payment is their first paid plan (the confetti).
-  const plans = useData<CustomerState | null>(`bayar-plans:${checkoutId}`, () =>
-    actor ? runtime.api.customer() : Promise.resolve(null),
+  // The customer's plans, read once when Bayar comes into view: whether this payment is their first paid plan (the
+  // confetti). Only the paid moment consults it, so a status check or a push never reads it again.
+  const actorId = actor?.id;
+  const [plans, setPlans] = useState<CustomerState | null>(null);
+  useFocusEffect(
+    useCallback(() => {
+      if (!actorId) return;
+      let live = true;
+      // Any failure, thrown or rejected, leaves the plans unknown, which gives no confetti.
+      Promise.resolve()
+        .then(() => runtime.api.customer())
+        .then(
+          (state) => {
+            if (live) setPlans(state);
+          },
+          () => undefined,
+        );
+      return () => {
+        live = false;
+      };
+    }, [actorId, runtime]),
   );
   const [now, setNow] = useState(() => Date.now());
   const [busy, setBusy] = useState(false);
@@ -75,7 +93,7 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
     const before = lastStage.current;
     lastStage.current = stage;
     if (paid && before !== null && before !== "paid")
-      setBeat({ play: true, confetti: firstPaidPlan(plans.data, checkoutId) === true });
+      setBeat({ play: true, confetti: firstPaidPlan(plans, checkoutId) === true });
     // The plans are read at the transition only; a later answer never starts confetti mid-beat.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stage, paid]);
@@ -169,8 +187,8 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
     }
   }
 
-  // One native title over every state, outcomes included. Paid names the beat.
-  const title = paid ? t("Pembayaran diterima", "Payment received") : t("Bayar", "Pay");
+  // One native title over every state, paid included: the success beat is the one heading that names the payment.
+  const title = t("Bayar", "Pay");
   const help = (
     <Button
       variant="text"

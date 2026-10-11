@@ -10,7 +10,11 @@ const blank: SavedPackages = { packageIds: [], items: [], nextCursor: null };
  * The signed-in customer's saved packages. A heart flips at once and is put back if the
  * server refuses; signed out, it sends the visitor to sign in and back to `next`.
  * Once the server confirms, a save says "Disimpan" with Lihat (Disimpan) and a removal says
- * "Dihapus dari simpanan" with Urungkan, which saves it again without a second toast.
+ * "Dihapus dari simpanan" with Urungkan, which saves it again without a second toast. A refusal puts the heart back
+ * and says "Belum tersimpan. Coba lagi." in an error toast as well as in `error`.
+ *
+ * `pages` keeps each page apart (the first read, then each "Lihat lebih banyak"), so a list can show a loaded page
+ * arriving as one block; `items` is every page in order.
  */
 export function useSaved(next: string) {
   const { runtime, actor, command, t } = useMobile();
@@ -19,7 +23,8 @@ export function useSaved(next: string) {
     actor ? runtime.api.savedPackages() : blank,
   );
   const [pending, setPending] = useState<Record<string, boolean>>({});
-  const [more, setMore] = useState<SavedPackage[]>([]);
+  // The pages read after the first, each kept as it arrived.
+  const [more, setMore] = useState<SavedPackage[][]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [error, setError] = useState("");
   const busy = useRef(new Set<string>());
@@ -69,7 +74,11 @@ export function useSaved(next: string) {
         const { [packageId]: _gone, ...rest } = p;
         return rest;
       });
-      setError(t("Belum tersimpan. Coba lagi.", "Could not save. Try again."));
+      // The heart already popped on the press, so the refusal is said where the customer is looking (a toast), as well
+      // as in the screen's own error text, which can sit far from the card in a long list.
+      const failed = t("Belum tersimpan. Coba lagi.", "Could not save. Try again.");
+      setError(failed);
+      toast.show({ message: failed, tone: "error" });
     } finally {
       busy.current.delete(packageId);
     }
@@ -79,15 +88,20 @@ export function useSaved(next: string) {
     if (!cursor) return;
     try {
       const page = await runtime.api.savedPackages(cursor);
-      setMore((m) => [...m, ...page.items.filter((i) => !m.some((x) => x.packageId === i.packageId))]);
+      setMore((m) => {
+        const held = new Set(m.flat().map((i) => i.packageId));
+        return [...m, page.items.filter((i) => !held.has(i.packageId))];
+      });
       setCursor(page.nextCursor);
     } catch {
       setError(t("Tidak dapat memuat lagi. Coba lagi.", "Could not load more. Try again."));
     }
   }
 
+  const pages = [data.items, ...more].map((page) => page.filter((i) => isSaved(i.packageId)));
   return {
-    items: [...data.items, ...more].filter((i) => isSaved(i.packageId)),
+    items: pages.flat(),
+    pages,
     hasMore: !!cursor,
     loading: state.loading && !state.data,
     loadError: state.error,

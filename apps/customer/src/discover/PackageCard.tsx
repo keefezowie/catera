@@ -16,15 +16,16 @@ export function PackageCard({
   layout,
   onOpen,
   onToggleSaved,
-  canSave = true,
+  canSave,
 }: {
   offer: CatalogOffer;
   saved: boolean;
   layout?: "row";
   onOpen: () => void;
   onToggleSaved: () => void;
-  /** False when a heart press cannot save here (signed out), so it neither pops nor buzzes. */
-  canSave?: boolean;
+  /** False when a heart press cannot save here (signed out), so it neither pops nor buzzes. Required, so a new caller
+   * cannot forget it and pop a heart before the sign-in redirect. */
+  canSave: boolean;
 }) {
   const { runtime, t, locale } = useMobile();
   const c = useColors();

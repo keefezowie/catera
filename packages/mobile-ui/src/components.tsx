@@ -35,6 +35,8 @@ const textVariants = {
   display: { fontSize: 34, lineHeight: 40, fontWeight: "800", letterSpacing: -1 },
   title: { fontSize: 30, lineHeight: 39, fontWeight: "700", letterSpacing: -0.8 },
   heading: { fontSize: 21, lineHeight: 28, fontWeight: "700", letterSpacing: -0.4 },
+  /** An outcome's one heading, under its art (the success beat): between heading and title, so a long title wraps. */
+  outcome: { fontSize: 26, lineHeight: 32, fontWeight: "700", letterSpacing: -0.6 },
   body: { fontSize: 14, lineHeight: 23, fontWeight: "400" },
   label: { fontSize: 12, lineHeight: 23, fontWeight: "700" },
   caption: { fontSize: 11, lineHeight: 18, fontWeight: "400" },
@@ -46,11 +48,15 @@ const variantColor: Record<keyof typeof textVariants, PaletteKey> = {
   display: "forest",
   title: "forest",
   heading: "forest",
+  outcome: "forest",
   body: "charcoal",
   label: "forest",
   caption: "muted",
   number: "forest",
 };
+
+/** The variants a screen reader hears as headings. */
+const headerVariants: ReadonlySet<keyof typeof textVariants> = new Set(["title", "heading", "outcome"]);
 
 export function Text({
   variant = "body",
@@ -82,7 +88,7 @@ export function Text({
   return (
     <RNText
       style={[flat, { fontFamily: fontFamily ?? fontFor(fontWeight) }]}
-      accessibilityRole={accessibilityRole ?? (variant === "title" || variant === "heading" ? "header" : undefined)}
+      accessibilityRole={accessibilityRole ?? (headerVariants.has(variant) ? "header" : undefined)}
       {...rest}
     >
       {children}

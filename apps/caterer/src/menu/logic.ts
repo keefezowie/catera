@@ -50,9 +50,9 @@ export function weekRange(dates: string[], locale: "id" | "en"): string {
   return firstMonth === lastMonth ? `${firstDay}–${lastDay} ${lastMonth}` : `${firstDay} ${firstMonth}–${lastDay} ${lastMonth}`;
 }
 
-/** Three letters of the weekday: "Sen", "Mon". */
 /** The full weekday of a date, "Selasa" or "Tuesday" (`shortDate` leads with it). */
 export const weekdayName = (date: string, locale: "id" | "en") => shortDate(date, locale).split(" ")[0];
+/** Three letters of the weekday: "Sen", "Mon". */
 export const weekdayShort = (date: string, locale: "id" | "en") => shortDate(date, locale).split(" ")[0].slice(0, 3);
 
 /** Dishes for one category that match what the caterer is typing, most used first. */

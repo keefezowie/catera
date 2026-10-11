@@ -19,6 +19,7 @@ import {
   useColors,
   useListMotion,
 } from "@catera/mobile-ui";
+import { commitImport } from "./commits";
 import { recheck, toImportRow, type AssistantRow } from "./rows";
 import { rowHref } from "./RowEditor";
 import { useImportStore, type Attachment } from "./store";
@@ -149,7 +150,7 @@ export function ImportAssistant() {
     setError("");
     try {
       const preview = await command<{ id: string }>("import.preview", { catererId, rows: clean.map((r) => toImportRow(r, today, r.n)) });
-      await command("import.commit", { catererId, id: preview.id });
+      await commitImport(command, catererId, preview.id);
       setSaved((s) => s + clean.length);
       setSaves((n) => n + 1);
       setRows(rows.filter((r) => r.needsReview));
