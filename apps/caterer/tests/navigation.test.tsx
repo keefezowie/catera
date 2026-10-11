@@ -453,4 +453,22 @@ describe("links from the system", () => {
     await waitFor(() => expect(shown().split(" ")[0]).toBe(stack[0]));
     expect(snapshot(r)).toMatchObject({ tab, stack: [stack[0]] });
   });
+
+  it("names Hari ini's group for Pengaturan and its choice sheets: every role has that tab", () => {
+    expect(redirectSystemPath({ path: "/pengaturan", initial: true })).toBe("/(tabs)/(index)/pengaturan");
+    expect(redirectSystemPath({ path: "catera-dapur://pengaturan/bahasa", initial: true })).toBe("/(tabs)/(index)/pengaturan/bahasa");
+    expect(redirectSystemPath({ path: "/pengaturan/tampilan", initial: true })).toBe("/(tabs)/(index)/pengaturan/tampilan");
+  });
+
+  it.each([
+    ["an owner", owner],
+    ["a helper", staff],
+  ])("%s's cold link to Pengaturan opens it in Hari ini, with Hari ini behind it", async (_who, actor) => {
+    mockMe.actor = actor;
+    const r = open("/pengaturan");
+    await waitFor(() => expect(snapshot(r)).toMatchObject({ root: ["(tabs)"], tab: "(index)", stack: ["index", "pengaturan"] }));
+    await waitFor(() => expect(shown()).toBe("pengaturan"));
+    headerBack();
+    await waitFor(() => expect(shown()).toBe("index"));
+  });
 });

@@ -37,6 +37,7 @@ jest.mock("../src/schedule/Jadwal", () => ({ Jadwal: mockStub("Jadwal") }));
 jest.mock("../src/discover/Jelajah", () => ({ Jelajah: mockStub("Jelajah") }));
 jest.mock("../src/account/Akun", () => ({ Akun: mockStub("Akun") }));
 jest.mock("../src/settings/Pengaturan", () => ({ Pengaturan: mockStub("Pengaturan") }));
+jest.mock("../src/settings/ChoiceSheets", () => ({ BahasaSheet: mockStub("Bahasa"), TampilanSheet: mockStub("Tampilan") }));
 jest.mock("../src/account/Addresses", () => ({ Addresses: mockStub("Alamat") }));
 jest.mock("../src/help/ReportList", () => ({ ReportList: mockStub("Bantuan") }));
 jest.mock("../src/discover/SavedList", () => ({ SavedList: mockStub("Disimpan") }));
@@ -176,6 +177,33 @@ describe("each tab keeps its own stack", () => {
       expect(app.getPathname()).toBe("/hari/d1");
       app.unmount();
     }
+  });
+
+  it("a cold link to Pengaturan opens it inside Beranda, and its choice sheets open over it", () => {
+    let app = mount(systemPath("/pengaturan", true));
+    expect(root()).toEqual(["(tabs)"]);
+    expect(tab()).toBe("(index)");
+    expect(stack("(index)")).toEqual(["index", "pengaturan"]);
+    app.unmount();
+    for (const sheet of ["bahasa", "tampilan"]) {
+      app = mount(systemPath(`exp://127.0.0.1:8084/--/pengaturan/${sheet}`, true));
+      expect(tab()).toBe("(index)");
+      expect(stack("(index)")).toEqual(["index", "pengaturan", `pengaturan/${sheet}`]);
+      // Closing the sheet leaves Pengaturan in place.
+      act(() => router.back());
+      expect(stack("(index)")).toEqual(["index", "pengaturan"]);
+      app.unmount();
+    }
+  });
+
+  it("a push tap to a Pengaturan sheet already open replaces it instead of stacking a second Pengaturan", () => {
+    mount("/");
+    act(() => goToTab("akun"));
+    act(() => router.push("/pengaturan"));
+    act(() => openLink("/pengaturan/bahasa"));
+    expect(stack("(akun)")).toEqual(["akun", "pengaturan", "pengaturan/bahasa"]);
+    act(() => openLink("/pengaturan/bahasa"));
+    expect(stack("(akun)")).toEqual(["akun", "pengaturan", "pengaturan/bahasa"]);
   });
 
   it("a warm OS link to masalah passes through: it opens over the screen in front", () => {

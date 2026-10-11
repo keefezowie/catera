@@ -47,11 +47,14 @@ const ROOT_STACK = new Set([
 
 /**
  * A sheet route a link can reach, and the page it opens over: Ada masalah (`/masalah/{id}`) sits over the Hari of its
- * delivery (`/hari/{id}`), never alone. Null for any other path.
+ * delivery (`/hari/{id}`), never alone; Pengaturan's choice sheets (`/pengaturan/bahasa`, `/pengaturan/tampilan`) sit
+ * over Pengaturan. Null for any other path.
  */
 export function sheetParent(path: string): string | null {
-  const match = /^\/masalah\/([^/?#]+)\/?$/.exec(pathname(path));
-  return match ? `/hari/${match[1]}` : null;
+  const at = pathname(path);
+  const match = /^\/masalah\/([^/?#]+)\/?$/.exec(at);
+  if (match) return `/hari/${match[1]}`;
+  return /^\/pengaturan\/(bahasa|tampilan)\/?$/.test(at) ? "/pengaturan" : null;
 }
 
 /** The array-group layout gets its own segment, `(jadwal)`; this is the tab it hosts. */
@@ -165,7 +168,11 @@ export function goToTab(tab: Tab, { everyTab = false }: { everyTab?: boolean } =
 function onTop(found: { tabs: State }, group: string, parent: string): boolean {
   const routes = found.tabs.routes.find((r) => r.name === group)?.state?.routes ?? [];
   const top = routes.at(-1) as (Route & { params?: { id?: unknown } }) | undefined;
-  const [, section, id] = parent.split("/");
+  // A page with no id is named by its path (`/pengaturan`, `/pengaturan/bahasa`).
+  const bare = parent.replace(/^\/+|\/+$/g, "");
+  if (top?.name === bare) return true;
+  const [section, id, ...more] = bare.split("/");
+  if (id === undefined || more.length) return false;
   let wanted = id;
   try {
     wanted = decodeURIComponent(id);

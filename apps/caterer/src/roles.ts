@@ -13,12 +13,16 @@ export function tabsForRole(role: string | undefined): CatererTab[] {
 /**
  * The tab each pushed screen belongs to. An account opens the screen only when its role has that tab, from a tap, a
  * link or a notification: a helper (staff) has no Pelanggan or Usaha, so no customer, package, team, money, Aktifkan or
- * Impor screen either.
+ * Impor screen either. Pengaturan and its choice sheets belong to every role (an owner opens them from Usaha, a helper
+ * from Menu), so a cold link to them opens in Hari ini, the one tab every role has.
  */
 export const SCREEN_TAB = {
   "laporan/[id]": "index",
   "balas/[id]": "index",
   "atur-antaran/[id]": "index",
+  pengaturan: "index",
+  "pengaturan/tampilan": "index",
+  "pengaturan/bahasa": "index",
   "menu/[date]": "menu",
   "pelanggan/[id]": "pelanggan",
   "paket/[id]": "usaha",

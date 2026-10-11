@@ -142,8 +142,6 @@ const TASK_SHEETS: Record<string, "form" | "fit"> = {
 };
 /** Pengaturan's choice sheets, in every tab's stack: sheets, not pushed pages. */
 const TAB_SHEETS = ["pengaturan/tampilan", "pengaturan/bahasa"];
-/** Pushed screens every role opens (a helper reaches Pengaturan from Menu), so no tab guards them. */
-const EVERY_ROLE = ["pengaturan"];
 
 function pushedRoutes(dir = path.join(__dirname, "..", "app"), prefix = ""): string[] {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -263,8 +261,10 @@ describe("stack headers", () => {
       });
   });
 
-  it("gives every pushed screen a tab, so the role guards cover it", () => {
-    expect(Object.keys(SCREEN_TAB).sort()).toEqual(pushedRoutes().filter((r) => !EVERY_ROLE.includes(r)).sort());
+  it("gives every pushed screen and choice sheet a tab, so the role guards and cold links cover it", () => {
+    expect(Object.keys(SCREEN_TAB).sort()).toEqual([...pushedRoutes(), ...TAB_SHEETS].sort());
+    // Pengaturan belongs to every role: its tab is one every role has.
+    for (const route of ["pengaturan", ...TAB_SHEETS]) expect(SCREEN_TAB[route as keyof typeof SCREEN_TAB]).toBe("index");
   });
 
   it("names the day on the menu screen header", async () => {
