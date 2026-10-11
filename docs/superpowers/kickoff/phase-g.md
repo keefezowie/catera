@@ -14,18 +14,18 @@ Before you plan, build, review or critique, invoke the Skill tool for `mcpmarket
 
 ## Fixed rules
 
-- **Work on `v2`** in the main tree `D:\Project\Catera\catera` (`v1` is maintenance-only). AGENTS.md applies: tenant authorization and entitlement changes stay in database transactions; never replace production storage with demo data silently; demo mode is explicit and synthetic; no secrets, no real customer fixtures. After a material change run `npm run typecheck`, `npm test`, `npm run build`, both app Jest suites (`npx jest --runInBand --testMatch "**/tests/**/*.test.tsx"` from each app folder), the relevant browser or native checks and `npm run test:postgres`. This Next.js has breaking changes: read the relevant guide in `node_modules/next/dist/docs/` before touching `apps/web`.
+- **Work on `v2`** in the main tree `D:\Project\Catera\catera` (`v1` is maintenance-only). AGENTS.md applies: tenant authorization and entitlement changes stay in database transactions; never replace production storage with demo data silently; demo mode is explicit and synthetic; no secrets, no real customer fixtures. After a material change run `npm run typecheck`, `npm test`, `npm run build`, both app Jest suites (`npx jest --runInBand --testMatch "**/tests/**/*.test.tsx"` from each app folder), the relevant browser or native checks and `npm run test:postgres`. This Next.js has breaking changes: read the relevant guide in `node_modules/next/dist/docs/` before touching `apps/web`. Production release needs separate Supabase, SMS/SMTP, Xendit and mobile credentials plus the gates in docs/RUNBOOK.md. Preserve the existing hosted pilot. When publishing, verify the production deployment's commit and the visible active interface.
 - **Platform-native chrome, brand in the content.** NativeTabs, native stack headers and native sheets stay native; the identity lives in mood headers, the day arc, the rantang, food photos and the mascot. Native bars read the theme, never the mood.
 - **Plus Jakarta Sans** everywhere the app draws text; system-drawn UI (alerts, share sheet, keyboard, pickers) keeps the system font.
 - **Copy:** Indonesian first with English through `t(id, en)`. Customer copy says "Anda", Dapur copy says "kamu". No em dashes. Operational numbers tabular. No invented numbers (R-17).
 - **Motion:** `nativeMotion` control 120, selection 180, content 220, feature 320 ms, ease `(.16, 1, .3, 1)`, press spring damping 18 stiffness 260; transform and opacity only; instant under reduced motion; loops only while waiting (mascot loop, skeleton pulse); Decision A (no motion on a first load, refresh, pull, search, filter, tab return or mood switch). Dials: customer ENERGY 2 / RHYTHM 2 / MOTION 2, Dapur ENERGY 1 / RHYTHM 1 / MOTION 2.
-- **Artwork truth:** apps import only `packages/brand/assets/phase-f/runtime/` (plus the splash marks in `LaunchCover` and `confetti.json`). Everything is a processed derivative, never a master; rig layers are never trimmed; never call opaque or upscaled files transparent or high-resolution masters. Do not reopen naming, concept selection or the approved palette.
+- **Artwork truth:** apps import only `packages/brand/assets/phase-f/runtime/` (plus the splash marks in `LaunchCover` and `confetti.json`). Everything is a processed derivative, never a master; rig layers are never trimmed; never call opaque or upscaled files transparent or high-resolution masters. Do not reopen naming, concept selection or the approved palette. Never crop the reference board. Preserve the individually regenerated artwork, food-led discovery, the delivery-cycle direction, the Indonesian-first interface and the code-first preference.
 - **Never stage** `apps/web/tsconfig.json`, `apps/web/next-env.d.ts`, `output/verification/postgres.json`, `.claude/` or `catera-phase-f-artwork.zip`. Stage by explicit path. Commit messages end with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
 - **Owner's model and gate rules (2026-10-11).** Sonnet writes first builds (Opus only with a written reason), docs and code mapping. Opus runs the fixes (a fresh fixer for round 1, then the same one resumed), every review and every device gate. Only gate agents take screenshots, and contact sheets are captured by script. Contrast, tap-target and truncation checks are scripted, not eyeballed. The final gate re-checks only earlier failures and the unverified list. The controller stays quiet: no idle status turns, it reads return contracts rather than full reports, and it runs checks in the background.
 
 ## What the machine needs first
 
-Phase F could not run a device because this machine has no Android emulator image, no Expo Go APK, no JDK, no Android SDK system image and no Mac. Ask the owner before downloading (the emulator image and Expo Go are about 1 GB), and ask for the Apple and EAS credentials a development build needs. If something is missing, stop at that item, record it as NOT VERIFIED with the reason, and continue with the rest. Never enter or invent credentials.
+Phase F could not run a device. On this machine the Android SDK is present, but there is no system image or AVD; there is no JDK on PATH; the Expo Go APK has not been downloaded; and there is no Mac. Ask the owner before downloading anything (the emulator image and Expo Go are about 1 GB), and ask for the Apple and EAS credentials a development build needs. If something is missing, stop at that item, record it as NOT VERIFIED with the reason, and continue with the rest. Never enter or invent credentials.
 
 ## Goal
 
@@ -41,7 +41,7 @@ Every row of the follow-up audit that says NOT VERIFIED becomes PASS or FAIL wit
 | G3 | iOS run | a Mac or iPhone | Opus |
 | G4 | Development build: native splash, Android 12 splash mask, predictive back, real push states | EAS or a local build | Opus |
 | G5 | Copy task | none | Sonnet |
-| G6 | Address delete (`address.delete`) | none | Opus (backend), Sonnet (UI) |
+| G6 | Address delete (`address.delete`) | none | Sonnet |
 | G7 | "Syarat dan privasi" page | none | Sonnet |
 | G8 | Masuk alignment | G2 | Sonnet |
 | G9 | The other parked Minors (below) | none | Sonnet |
@@ -59,7 +59,7 @@ Expo Go, demo backend, light and dark (`adb shell cmd uimode night yes` and `no`
 - Task 2: Android snackbar assumes an 80dp tab bar and ignores the keyboard over a footer; the screen-reader flag can resolve after launch; a toast whose sheet closes jumps edge (iOS).
 - Task 3: a second `SuccessRig` play may paint one resting frame before the layout-effect reset; crispness at 3x; `MascotReading` above 144pt upscales.
 - Task 4: the hand-off beat; the splash hides before the cached first-screen read lands.
-- Task 5: Android fade clipping; font scale 1.3 on the skeletons; one blank frame on a cached-launch empty reload; iOS VoiceOver reading "Memperbarui...".
+- Task 5: Android fade clipping; font scale 1.3 on the skeletons; one blank frame on a cached-launch empty reload; iOS VoiceOver reading "Memperbarui…".
 - Task 6: header heights measured on the phone, not compared from styles.
 - Task 8: Keluar waiting up to 3 seconds; a cold Dapur link to a Pengaturan sheet opens over Hari ini.
 - Task 10: Android nested scroll in long fit sheets; the picker to Alamat swap.
@@ -82,7 +82,7 @@ Expo Go never shows Catera's splash, icons, predictive back or push. Build a dev
 This copy predates Phase F. Replace "Anda" with "kamu" and the en dashes in older Dapur copy:
 
 - `apps/caterer/src/import/ImportAssistant.tsx` lines 68, 237 and 243 ("Anda"), and the en dashes in the example placeholder at line 252.
-- Other Dapur screens that still say "Anda" to the caterer: `AktifkanScreen.tsx:129`, `TodayScreen.tsx:640` ("Siapkan dapur Anda"), `auth/Daftar.tsx:80`, `PackageEditor.tsx:172`, the hints in `business/money.ts`, and `customers/CustomerList.tsx:128`. **Leave** `customers/CustomerDetail.tsx:69-71`: that text is written for the customer and correctly says "Anda".
+- Other Dapur screens that still say "Anda" to the caterer: `AktifkanScreen.tsx:129`, `TodayScreen.tsx:640` ("Siapkan dapur Anda"), `auth/Daftar.tsx:80`, `PackageEditor.tsx:172`, the hints in `business/money.ts`, `customers/CustomerList.tsx:128`, and `customers/CustomerDetail.tsx:97` ("Pelanggan Anda · dibayar di luar Catera"). **Leave** `customers/CustomerDetail.tsx:69-71`: that message is sent to the customer and correctly says "Anda".
 - Check the en dashes in `AktifkanScreen.tsx`, `PackageDetail.tsx`, `menu/logic.ts`; a numeric range such as "29 to 30" in `NutritionFields.tsx` and `package.ts` is a value format the owner may keep.
 - Update the matching tests and keep English strings unchanged.
 
@@ -92,7 +92,7 @@ No `address.delete` command exists, so Phase F ships no delete and no "Alamat di
 
 ## G7: "Syarat dan privasi"
 
-`apps/customer/src/settings/Pengaturan.tsx:117` and `apps/caterer/src/settings/Pengaturan.tsx:118` show a "Segera hadir" row with a TODO because `apps/web` has no terms page. Add the page (real terms and privacy text must come from the owner; use a clearly labelled placeholder until then, never invented legal text), then open it in the in-app browser from both rows and remove the TODO.
+`apps/customer/src/settings/Pengaturan.tsx:119-120` and `apps/caterer/src/settings/Pengaturan.tsx:118-120` show a "Segera hadir" row with a TODO because `apps/web` has no terms page. Add the page (real terms and privacy text must come from the owner; use a clearly labelled placeholder until then, never invented legal text), then open it in the in-app browser from both rows and remove the TODO.
 
 ## G8: Masuk alignment
 
@@ -100,9 +100,9 @@ Task 13 left Masuk with mixed alignment (the waving mascot centred, the rest sta
 
 ## G9: the other parked Minors
 
-- **Task 1:** reword the comments at `metro.config.js:6-7` and `jest.config.cjs:2` in both apps (they describe the old hoisted-Reanimated workaround); note in RUNBOOK that the root `package.json` `overrides` pin Reanimated and worklets exactly and must be bumped by hand at the next SDK upgrade; Jest 30 is kept through `expo.install.exclude` against the SDK's 29.7.
-- **Task 2:** add `*` peer dependencies for `react-native-screens`, `react-native-safe-area-context` and `expo-router` to `packages/mobile-ui/package.json`; add `ScreenPresentationContext` (a deep expo-router import) to the upgrade checklist; a test for `MoodHeader` as an iOS `Screen` header; the Android footer anchor following the keyboard; the iOS sheet footer over-clear.
-- **Task 3:** `MascotArt` and the rigs use React Native `Image` where `expo-image` is preferred; `Sparkle` colour is a plain string; `MascotArt` stretches by under 0.4%.
+- **Task 1:** reword the comments at `metro.config.js:6-7` and `jest.config.cjs:2` in both apps (they describe the old hoisted-Reanimated workaround); note in RUNBOOK that the root `package.json` `overrides` pin Reanimated and worklets exactly and must be bumped by hand at the next SDK upgrade; Jest 30 is kept through `expo.install.exclude` against the SDK's 29.7. `expo` and `expo-router` moved from exact pins to tilde (`~57.0.27`, `~57.0.25`) through `expo install --fix`; the lockfile pins the actual version. Record this in RUNBOOK beside the overrides note.
+- **Task 2:** add `*` peer dependencies for `react-native-screens`, `react-native-safe-area-context` and `expo-router` to `packages/mobile-ui/package.json`; add `ScreenPresentationContext` (a deep expo-router import) to the upgrade checklist; a test for `MoodHeader` as an iOS `Screen` header; the Android footer anchor following the keyboard; the iOS sheet footer over-clear; detail screens with `headerShown: false` use the toast's fallback anchor, not a measured one.
+- **Task 3:** `MascotArt` and the rigs use React Native `Image` where `expo-image` is preferred; `Sparkle` colour is a plain string; `MascotArt` stretches by under 0.4%; `crispMaxSize` is computed from the nominal `subjectPx`, not the measured visible box.
 - **Task 4:** count `app_open` only after `me()` confirms (`usage.ts:27-43`); the `act()` warnings added in `shell.test` and `today.test`; the UNAUTHORIZED test should assert no command is sent and the actor key is removed; add the in-flight inactive to active case to the single-`me()` test; the AppState guard is timing-dependent; `TOKEN_REFRESHED` can fire a second `me()`.
 - **Task 5:** `stillSignedIn` reads mobile-core's private actor storage (`Beranda.tsx:49-57`); the Jelajah placeholder read keeps hook order; the guard regex spacing; font scale 1.3 on the skeletons; the `inside(heart, node)` tautology at `skeletons.test.tsx:236`; the double blank line at `ReportProblem.tsx:118-119`; the accepted 20pt header difference on sign-in and not-found states.
 - **Task 6:** the Pelanggan skeleton lacks the chip row; Hari ini's body skeleton lacks the "Per paket" rows; the no-spinner scan rules are loose (a `photo-spinner` test id substring and "Memuat" literals that end in an ellipsis); `paket/baru` and `[id]` missing-check inconsistency; Menu cold-read residuals (single-meal caption line, the day count when seven days wrap, the empty-kitchen header shrink; keeping the Menu read cached would remove them); the theme guard regex could over-match a non-self-closing `<RefreshControl>`.
