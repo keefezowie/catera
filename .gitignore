@@ -16,6 +16,8 @@ dist/
 apps/web/public/assets/
 apps/customer/android/
 apps/customer/ios/
+apps/caterer/android/
+apps/caterer/ios/
 
 # Local agent/browser artifacts and disposable verification media
 .codex-remote-attachments/
