@@ -308,11 +308,19 @@ describe("the cooking session", () => {
     expect(artHeight(await within(card).findByTestId("mascot-memasak", hidden))).toBe(58);
   });
 
-  it("keeps the count card's layout the same before and during cooking: the art's slot is held from the start", async () => {
-    // A 360dp phone at the default text size, where the caption had the least room.
+  it("keeps the count card's layout the same before, during and after cooking: the slot is held in the numbers row", async () => {
+    // A 360dp phone at the default text size, where the caption has the least room.
     mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1 };
+    // A lunch window the caterer set, so the row carries "Antar 11.30" beside the slot.
+    const windowed = (status: string): SellerOperationsState => {
+      const ops = day(status);
+      ops.deliveries = ops.deliveries.map(
+        (d) => ({ ...d, offer: { ...d.offer, windows: { ...d.offer?.windows, lunch: "11.30-13.00" } } }) as typeof d,
+      );
+      return ops;
+    };
     const layout = async (status: string) => {
-      render(wrap(runtimeWith({ sellerOperations: jest.fn(async () => day(status)) }), <TodayScreen />));
+      render(wrap(runtimeWith({ sellerOperations: jest.fn(async () => windowed(status)) }), <TodayScreen />));
       const card = await screen.findByTestId("session-count");
       const cooking = status === "preparing";
       const slotId = cooking ? "mascot-memasak" : "mascot-memasak-slot";
@@ -320,18 +328,21 @@ describe("the cooking session", () => {
       const box = StyleSheet.flatten(
         within(slot).getByTestId(cooking ? "mascot-art" : "mascot-art-slot", hidden).props.style,
       );
+      const row = within(card).getByTestId("session-count-row", hidden);
       const caption = within(card).getByTestId("session-count-caption", hidden);
-      const side = within(card).getByTestId("session-count-side", hidden);
       const numbers = within(card).getByTestId("session-count-numbers", hidden);
+      const antar = within(row).getByText(/^Antar /, hidden);
       const shape = {
-        row: StyleSheet.flatten(within(card).getByTestId("session-count-row", hidden).props.style),
+        row: StyleSheet.flatten(row.props.style),
         numbers: StyleSheet.flatten(numbers.props.style),
         caption: { text: caption.props.children, lines: caption.props.numberOfLines },
-        side: StyleSheet.flatten(side.props.style),
-        // The art's slot stands in the side column with "Antar", never in the numbers' column, so the caption's width
-        // (and with it its line count) is the same whether or not the art is drawn.
-        slotInSide: within(side).queryByTestId(slotId, hidden) !== null,
+        antar: StyleSheet.flatten(antar.props.style),
+        // `[numbers flex:1][slot][Antar]` in one row: the slot always takes its width beside the numbers' column
+        // (never inside it, never stacked over "Antar"), so the caption wraps the same way in every stage.
+        slotInRow: within(row).queryByTestId(slotId, hidden) !== null,
         slotInNumbers: within(numbers).queryByTestId(slotId, hidden) !== null,
+        antarInNumbers: within(numbers).queryByText(/^Antar /, hidden) !== null,
+        stacked: within(card).queryByTestId("session-count-side", hidden) !== null,
         slot: StyleSheet.flatten(slot.props.style),
         box: { width: box.width, height: box.height },
       };
@@ -340,10 +351,27 @@ describe("the cooking session", () => {
     };
     const before = await layout("scheduled");
     const during = await layout("preparing");
+    const after = await layout("out_for_delivery");
     expect(during).toEqual(before);
-    expect(before.slotInSide).toBe(true);
-    expect(before.slotInNumbers).toBe(false);
+    expect(after).toEqual(before);
+    expect(before).toMatchObject({ slotInRow: true, slotInNumbers: false, antarInNumbers: false, stacked: false });
     expect(before.box.height).toBe(72);
+  });
+
+  it("fades the cooking mascot out at Berangkat antar, leaving its slot; no fade under reduced motion", async () => {
+    for (const reduced of [false, true]) {
+      jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(reduced);
+      const reads = jest.fn(async () => day("preparing"));
+      render(wrap(runtimeWith({ sellerOperations: reads }), <TodayScreen />));
+      const art = await screen.findByTestId("mascot-memasak", hidden);
+      if (reduced) expect(art.props.exiting).toBeUndefined();
+      else expect(art.props.exiting).toBeDefined();
+      reads.mockImplementation(async () => day("out_for_delivery"));
+      await act(async () => void (await screen.UNSAFE_getByType(RefreshControl).props.onRefresh()));
+      expect(await screen.findByTestId("mascot-memasak-slot", hidden)).toBeTruthy();
+      expect(screen.queryByTestId("mascot-memasak", hidden)).toBeNull();
+      screen.unmount();
+    }
   });
 
   it("fades the cooking mascot in where its slot stood once cooking starts; instant under reduced motion", async () => {
