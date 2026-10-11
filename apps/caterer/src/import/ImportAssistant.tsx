@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { TextInput, View } from "react-native";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { AccessibilityInfo, TextInput, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
@@ -82,19 +82,26 @@ export function ImportAssistant() {
     edit(row.n);
   }
 
+  // One pick at a time, from the tap until its photos land: a second tap before the gallery opens is ignored.
+  const picking = useRef(false);
   async function addPhoto() {
+    if (picking.current) return;
     const room = MAX_IMAGES - files.filter((f) => f.kind === "image").length;
     if (room <= 0) return setError(t(`Maksimal ${MAX_IMAGES} foto sekali kirim.`, `At most ${MAX_IMAGES} photos per send.`));
-    const picked = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsMultipleSelection: true, selectionLimit: room });
-    if (picked.canceled) return;
-    setBusy("photo");
+    picking.current = true;
     try {
+      const picked = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsMultipleSelection: true, selectionLimit: room });
+      if (picked.canceled) return;
+      // The add tile waits, and takes no press, until the photos land.
+      setBusy("photo");
       const images: Attachment[] = [];
       for (const [i, a] of picked.assets.slice(0, room).entries())
         images.push({ kind: "image", name: a.fileName || `Foto ${files.length + i + 1}`, ...(await shrinkPhoto(a)) });
-      setFiles((f) => [...f, ...images]);
+      // Never past six, whatever else landed in the meantime.
+      setFiles((f) => [...f, ...images.slice(0, Math.max(0, MAX_IMAGES - f.filter((g) => g.kind === "image").length))]);
     } finally {
-      setBusy("");
+      picking.current = false;
+      setBusy((b) => (b === "photo" ? "" : b));
     }
   }
 
@@ -186,6 +193,18 @@ export function ImportAssistant() {
     [photoCount ? `${photoCount} foto` : "", fileCount ? `${fileCount} file` : ""].filter(Boolean).join(" dan "),
     [photoCount ? plural(photoCount, "photo") : "", fileCount ? plural(fileCount, "file") : ""].filter(Boolean).join(" and "),
   );
+  const readingSaid = t("Membaca daftar pelanggan…", "Reading the customer list…");
+  // The reading block replaces the button the caterer just pressed, so its focus is gone; the wait is spoken once as
+  // it starts, on both platforms, as SuccessBeat and Toast speak theirs. Re-renders and the read ending say nothing.
+  const wasReading = useRef(false);
+  const said = useRef("");
+  useLayoutEffect(() => {
+    said.current = readingWhat ? `${readingSaid}, ${readingWhat}` : readingSaid;
+  });
+  useEffect(() => {
+    if (reading && !wasReading.current) AccessibilityInfo.announceForAccessibility(said.current);
+    wasReading.current = reading;
+  }, [reading]);
   // Saved rows leave and a row typed in by hand enters; the list the assistant read arrives as one block.
   const rowMotion = useListMotion(rows ? rows.map((r) => String(r.n)) : null);
 
@@ -196,11 +215,9 @@ export function ImportAssistant() {
           <Button label={t(`Simpan ${clean} pelanggan`, `Save ${plural(clean, "customer")}`)} disabled={!clean || !!busy} onPress={() => void save()} />
         ) : reading ? (
           // In place of the button while the assistant reads: the reading mascot names the wait and what is read.
-          <View accessibilityLiveRegion="polite" style={{ alignItems: "center", gap: 4 }}>
+          <View style={{ alignItems: "center", gap: 4 }}>
             <MascotReading size={120} />
-            <Text style={{ color: c.forest, fontFamily: fontFor("600"), textAlign: "center" }}>
-              {t("Membaca daftar pelanggan…", "Reading the customer list…")}
-            </Text>
+            <Text style={{ color: c.forest, fontFamily: fontFor("600"), textAlign: "center" }}>{readingSaid}</Text>
             {readingWhat ? <Text style={{ color: c.muted, textAlign: "center", fontVariant: ["tabular-nums"] }}>{readingWhat}</Text> : null}
           </View>
         ) : (
@@ -241,6 +258,7 @@ export function ImportAssistant() {
             files={files}
             max={MAX_IMAGES}
             locked={reading}
+            adding={busy === "photo"}
             onAddPhoto={() => void addPhoto()}
             onRemove={(index) => setFiles((all) => all.filter((_, j) => j !== index))}
           />

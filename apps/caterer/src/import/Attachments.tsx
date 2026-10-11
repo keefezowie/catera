@@ -3,7 +3,7 @@ import Animated from "react-native-reanimated";
 import { router } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMobile } from "@catera/mobile-core";
-import { fontFor, Photo, PressableRow, PressableScale, Text, useColors, useListMotion } from "@catera/mobile-ui";
+import { fontFor, Photo, PressableRow, PressableScale, Skeleton, SkeletonGroup, Text, useColors, useListMotion } from "@catera/mobile-ui";
 import { photoHref } from "./PhotoViewer";
 import type { Attachment } from "./store";
 
@@ -13,11 +13,16 @@ const RADIUS = 12;
 const BADGE = 28;
 const TARGET = 48;
 /**
- * Room above and to the right of each thumbnail. The remove target is centred on the badge, which hangs 8dp off the
- * photo's corner, so the whole 48dp target needs this much room inside the tile's own box: a touch outside a parent's
- * bounds never reaches its child on Android. The same room is the space between thumbnails.
+ * Room above and to the right of each thumbnail, which is also the space between thumbnails (the canvas's 10dp). The
+ * remove target fills the tile's top-right corner and the badge sits in that target's own corner, so the badge hangs
+ * 8dp off the photo's corner while the whole 48dp target stays inside the tile: a touch outside a parent's bounds
+ * never reaches its child on Android. The target ends where the next photo and the row above begin.
  */
-const ROOM = (TARGET - BADGE) / 2 + 8;
+const ROOM = 10;
+/** The badge's offset from the top and right of its target: the room less the 8dp it hangs off the photo. */
+const BADGE_INSET = ROOM - 8;
+/** A control that takes no press rests at this opacity, as a disabled `Button` does. */
+const DISABLED_OPACITY = 0.45;
 
 /**
  * A stable key per attachment for the row motion, so a removed tile is the one that leaves: a photo by its picked
@@ -60,7 +65,9 @@ function RemoveBadge() {
  * What the caterer attached for the assistant, as they will recognise it: the photos as 76dp thumbnails that open full
  * screen, each with a remove badge, an "+ Foto" tile while fewer than `max` are attached, then each PDF or spreadsheet
  * as a row with its name. A tile the caterer adds enters and one they remove leaves (`useListMotion`); everything else
- * holds still. `locked` (while the assistant reads them) keeps them in view with no way to add or remove.
+ * holds still. `locked` (while the assistant reads them) keeps them in view with no way to add or remove; `adding`
+ * (while picked photos shrink) turns the add tile into a waiting sage tile that takes no press. Neither moves a tile
+ * or a row: the add tile and each row's remove slot keep their room, so only an add or a remove moves anything.
  */
 export function Attachments({
   files,
@@ -68,6 +75,7 @@ export function Attachments({
   onAddPhoto,
   max,
   locked = false,
+  adding = false,
 }: {
   files: Attachment[];
   /** Removes `files[index]`. */
@@ -76,6 +84,8 @@ export function Attachments({
   /** The most photos one read takes (6, the assistant's own cap). */
   max: number;
   locked?: boolean;
+  /** Photos just picked are still being shrunk: the add tile waits and takes no press. */
+  adding?: boolean;
 }) {
   const { t } = useMobile();
   const c = useColors();
@@ -126,34 +136,54 @@ export function Attachments({
                   accessibilityRole="button"
                   accessibilityLabel={t(`Hapus foto ${i}`, `Remove photo ${i}`)}
                   onPress={() => onRemove(index)}
-                  style={{ position: "absolute", top: 0, right: 0, width: TARGET, height: TARGET, alignItems: "center", justifyContent: "center" }}
+                  style={{ position: "absolute", top: 0, right: 0, width: TARGET, height: TARGET }}
                 >
-                  <RemoveBadge />
+                  <View testID="remove-badge-place" style={{ position: "absolute", top: BADGE_INSET, right: BADGE_INSET }}>
+                    <RemoveBadge />
+                  </View>
                 </PressableScale>
               )}
             </Animated.View>
           );
         })}
-        {!locked && n < max ? (
-          <View style={{ paddingTop: ROOM, paddingRight: ROOM }}>
+        {n < max ? (
+          // While the assistant reads, the tile keeps its place, dimmed, so the grid's height and every row below hold.
+          <View testID="add-photo-tile" style={{ paddingTop: ROOM, paddingRight: ROOM }}>
             <PressableScale
               accessibilityRole="button"
               accessibilityLabel={t("Tambah foto", "Add photo")}
+              accessibilityState={{ disabled: locked || adding, busy: adding }}
+              disabled={locked || adding}
+              haptic={locked || adding ? "none" : "tap"}
               onPress={onAddPhoto}
-              style={{
-                width: THUMB,
-                height: THUMB,
-                borderRadius: RADIUS,
-                borderCurve: "continuous",
-                borderWidth: 1.5,
-                borderStyle: "dashed",
-                borderColor: c.muted,
-                alignItems: "center",
-                justifyContent: "center",
-              }}
+              style={
+                adding
+                  ? { width: THUMB, height: THUMB }
+                  : {
+                      width: THUMB,
+                      height: THUMB,
+                      borderRadius: RADIUS,
+                      borderCurve: "continuous",
+                      borderWidth: 1.5,
+                      borderStyle: "dashed",
+                      borderColor: c.muted,
+                      alignItems: "center",
+                      justifyContent: "center",
+                      opacity: locked ? DISABLED_OPACITY : 1,
+                    }
+              }
             >
-              <Ionicons name="add" size={20} color={c.forest} />
-              <Text variant="label">{t("Foto", "Photo")}</Text>
+              {adding ? (
+                // The photos on their way look as a photo does while it decodes: the sage ground, breathing.
+                <SkeletonGroup>
+                  <Skeleton testID="add-photo-waiting" width={THUMB} height={THUMB} radius={RADIUS} />
+                </SkeletonGroup>
+              ) : (
+                <>
+                  <Ionicons name="add" size={20} color={c.forest} />
+                  <Text variant="label">{t("Foto", "Photo")}</Text>
+                </>
+              )}
             </PressableScale>
           </View>
         ) : null}
@@ -168,7 +198,9 @@ export function Attachments({
             gap: 10,
             minHeight: 52,
             paddingLeft: 12,
-            paddingRight: locked ? 12 : 2,
+            // Constant, with the remove slot kept while locked, so a long name never rewraps when reading starts or
+            // ends: the row moves only for an add or a remove (Decision A).
+            paddingRight: 2,
             borderRadius: RADIUS,
             borderCurve: "continuous",
             borderWidth: 1,
@@ -181,7 +213,9 @@ export function Attachments({
           <Text selectable style={{ flex: 1, fontFamily: fontFor("600"), paddingVertical: 8 }}>
             {file.name}
           </Text>
-          {locked ? null : (
+          {locked ? (
+            <View testID="attachment-file-slot" style={{ width: TARGET, height: TARGET }} />
+          ) : (
             <PressableScale
               accessibilityRole="button"
               accessibilityLabel={t(`Hapus ${file.name}`, `Remove ${file.name}`)}

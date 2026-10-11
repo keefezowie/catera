@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
-import { StyleSheet } from "react-native";
+import { AccessibilityInfo, StyleSheet } from "react-native";
 import { nativeThemes } from "@catera/design-tokens";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { ThemeProvider } from "@catera/mobile-ui";
@@ -354,11 +354,26 @@ describe("photo previews", () => {
       const image = screen.getByTestId(`attachment-photo-${i}`);
       expect(flat(image)).toMatchObject({ width: 76, height: 76, borderRadius: 12, backgroundColor: nativeThemes.light.sage });
       expect(image.props.contentFit).toBe("cover");
-      // A 28dp badge on a 48dp target.
+      // The canvas's 10dp between thumbnails: each tile keeps that room above and to the right of its photo.
+      const tile = flat(screen.getByTestId(`attachment-tile-${i}`)) as { paddingTop: number; paddingRight: number };
+      expect(tile).toMatchObject({ paddingTop: 10, paddingRight: 10 });
+      const side = 76 + 10;
+      // A 28dp badge on a 48dp target anchored to the tile's top-right corner, so the whole target lies inside the
+      // tile's own box (Android never sends a touch outside a parent's bounds to its child).
       const remove = screen.getByRole("button", { name: `Hapus foto ${i}` });
-      expect(flat(remove)).toMatchObject({ width: 48, height: 48 });
+      const target = flat(remove) as { top: number; right: number; width: number; height: number };
+      expect(target).toMatchObject({ position: "absolute", top: 0, right: 0, width: 48, height: 48 });
+      expect(target.top + target.height).toBeLessThanOrEqual(side);
+      expect(target.right + target.width).toBeLessThanOrEqual(side);
       expect(flat(within(remove).getByTestId("remove-badge"))).toMatchObject({ width: 28, height: 28, borderRadius: 14 });
+      // The badge sits 2dp into the target's corner, so it still hangs 8dp off the photo's corner, as on the canvas.
+      const place = flat(within(remove).getByTestId("remove-badge-place")) as { top: number; right: number };
+      expect(place).toMatchObject({ position: "absolute", top: 2, right: 2 });
+      expect(tile.paddingTop - place.top).toBe(8);
+      expect(tile.paddingRight - place.right).toBe(8);
     }
+    // The add tile keeps the same 10dp, so the next photo lands where it stood.
+    expect(flat(screen.getByTestId("add-photo-tile"))).toMatchObject({ paddingTop: 10, paddingRight: 10 });
     fireEvent.press(screen.getByRole("button", { name: "Hapus foto 2" }));
     await waitFor(() => expect(screen.getByText("Lampiran · 2 dari 6")).toBeTruthy());
     expect(screen.queryByLabelText("Foto 3 dari 3")).toBeNull();
@@ -443,8 +458,129 @@ describe("photo previews", () => {
     expect(screen.queryByRole("button", { name: "Susun daftar" })).toBeNull();
     expect(screen.getByLabelText("Foto 2 dari 2")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /^Hapus/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Tambah foto" })).toBeNull();
     expect(screen.queryByRole("button", { name: "+ PDF / Excel" })).toBeNull();
+    // The add tile stays in its place, dimmed and taking no press, so nothing below it moves.
+    const add = screen.getByRole("button", { name: "Tambah foto" });
+    expect(add.props.accessibilityState).toMatchObject({ disabled: true });
+    expect(flat(add).opacity).toBe(0.45);
+    fireEvent.press(add);
+    expect(picker.launchImageLibraryAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it("reading is announced once when it starts, not on a re-render or when it ends", async () => {
+    const announce = jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
+    // The preset already mocks it, so earlier tests' words are cleared first.
+    announce.mockClear();
+    const reads = () => announce.mock.calls.filter(([said]) => /Membaca/.test(String(said)));
+    try {
+      const fetchMock = renderImpor();
+      let answer: (reply: Reply) => void = () => {};
+      fetchMock.mockImplementation(() => new Promise<Reply>((resolve) => (answer = resolve)));
+      await pick(2);
+      documents.getDocumentAsync.mockResolvedValueOnce({ canceled: false, assets: [{ name: "daftar.pdf", uri: "file:///cache/daftar.pdf" }] });
+      fireEvent.press(screen.getByRole("button", { name: "+ PDF / Excel" }));
+      await screen.findByText("daftar.pdf");
+      expect(reads()).toEqual([]);
+      fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
+      await screen.findByText("Membaca daftar pelanggan…");
+      // The button the caterer pressed is gone, so the words are spoken on every platform, with what is read.
+      expect(reads()).toEqual([["Membaca daftar pelanggan…, 2 foto dan 1 file"]]);
+      // No live region as well, so Android does not say it twice.
+      expect(screen.UNSAFE_root.findAll((node) => node.props.accessibilityLiveRegion != null)).toEqual([]);
+      fireEvent.changeText(screen.getByLabelText("Tempel atau ketik daftar pelanggan"), "daftar baru");
+      expect(reads()).toHaveLength(1);
+      await act(async () => answer({ ok: true, json: async () => ({ data: { rows: [row(1)], needsReview: 0 } }) }));
+      expect(await screen.findByRole("button", { name: "Simpan 1 pelanggan" })).toBeTruthy();
+      expect(reads()).toHaveLength(1);
+    } finally {
+      announce.mockRestore();
+    }
+  });
+
+  it("while picked photos shrink, the add tile waits and takes no press", async () => {
+    renderImpor();
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const base = manipulator.manipulate.getMockImplementation()!;
+    manipulator.manipulate.mockImplementation((...args: unknown[]) => {
+      const context = base(...args);
+      const render = context.renderAsync;
+      context.renderAsync = async () => {
+        await gate;
+        return render();
+      };
+      return context;
+    });
+    picker.launchImageLibraryAsync.mockResolvedValue({
+      canceled: false,
+      assets: [1, 2].map((n) => ({ uri: `file:///picked-${n}.jpg`, width: 3000, height: 4000, fileName: `IMG_${n}.jpg` })),
+    });
+    fireEvent.press(await screen.findByRole("button", { name: "Tambah foto" }));
+    // The sage ground breathing where the photos will land, and no way to pick again until they do.
+    expect(await screen.findByTestId("add-photo-waiting")).toBeTruthy();
+    const add = screen.getByRole("button", { name: "Tambah foto" });
+    expect(add.props.accessibilityState).toMatchObject({ disabled: true, busy: true });
+    fireEvent.press(add);
+    expect(picker.launchImageLibraryAsync).toHaveBeenCalledTimes(1);
+    await act(async () => release());
+    expect(await screen.findByLabelText("Foto 2 dari 2")).toBeTruthy();
+    expect(screen.queryByTestId("add-photo-waiting")).toBeNull();
+    expect(screen.getByRole("button", { name: "Tambah foto" }).props.accessibilityState).toMatchObject({ disabled: false, busy: false });
+    expect(screen.getByText("Lampiran · 2 dari 6")).toBeTruthy();
+  });
+
+  it("a quick second tap opens the gallery once", async () => {
+    renderImpor();
+    let open: (value: unknown) => void = () => {};
+    picker.launchImageLibraryAsync.mockImplementation(() => new Promise((resolve) => (open = resolve)));
+    const add = await screen.findByRole("button", { name: "Tambah foto" });
+    fireEvent.press(add);
+    fireEvent.press(add);
+    expect(picker.launchImageLibraryAsync).toHaveBeenCalledTimes(1);
+    await act(async () => open({ canceled: false, assets: [{ uri: "file:///picked-1.jpg", width: 3000, height: 4000, fileName: "IMG_1.jpg" }] }));
+    expect(await screen.findByLabelText("Foto 1 dari 1")).toBeTruthy();
+  });
+
+  it("never holds more than six photos, even when the gallery hands back more than it was asked for", async () => {
+    renderImpor();
+    await pick(4);
+    // Some galleries ignore the selection limit; the photos past six are dropped.
+    picker.launchImageLibraryAsync.mockResolvedValueOnce({
+      canceled: false,
+      assets: [5, 6, 7, 8].map((n) => ({ uri: `file:///picked-${n}.jpg`, width: 3000, height: 4000, fileName: `IMG_${n}.jpg` })),
+    });
+    fireEvent.press(screen.getByRole("button", { name: "Tambah foto" }));
+    expect(await screen.findByLabelText("Foto 6 dari 6")).toBeTruthy();
+    expect(screen.getByText("Lampiran · 6 dari 6")).toBeTruthy();
+    expect(screen.queryByLabelText(/dari 7|dari 8/)).toBeNull();
+    expect(screen.queryByRole("button", { name: "Tambah foto" })).toBeNull();
+  });
+
+  it("a file row holds still when reading starts and ends: same inset, its remove slot kept", async () => {
+    renderImpor({ ok: false, status: 503, json: async () => ({ error: { code: "IMPORT_UNAVAILABLE" } }) });
+    const fetchMock = global.fetch as unknown as jest.Mock;
+    let answer: (reply: Reply) => void = () => {};
+    fetchMock.mockImplementation(() => new Promise<Reply>((resolve) => (answer = resolve)));
+    await pick(3);
+    documents.getDocumentAsync.mockResolvedValueOnce({
+      canceled: false,
+      assets: [{ name: "daftar-pelanggan-lama-bulan-september-dan-oktober.csv", uri: "file:///cache/a.csv" }],
+    });
+    fireEvent.press(screen.getByRole("button", { name: "+ PDF / Excel" }));
+    await screen.findByText("daftar-pelanggan-lama-bulan-september-dan-oktober.csv");
+    const before = flat(screen.getByTestId("attachment-file-1"));
+    fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
+    await screen.findByText("Membaca daftar pelanggan…");
+    const docRow = screen.getByTestId("attachment-file-1");
+    expect(flat(docRow).paddingRight).toBe(before.paddingRight);
+    expect(flat(within(docRow).getByTestId("attachment-file-slot"))).toMatchObject({ width: 48, height: 48 });
+    // The add tile keeps its place too, so the photo grid above the row keeps its height.
+    expect(screen.getByTestId("add-photo-tile")).toBeTruthy();
+    await act(async () => answer({ ok: false, status: 503, json: async () => ({ error: { code: "IMPORT_UNAVAILABLE" } }) }));
+    await screen.findByText("Asisten impor sedang tidak tersedia. Coba lagi nanti.");
+    const after = screen.getByTestId("attachment-file-1");
+    expect(flat(after).paddingRight).toBe(before.paddingRight);
+    expect(within(after).getByRole("button", { name: "Hapus daftar-pelanggan-lama-bulan-september-dan-oktober.csv" })).toBeTruthy();
   });
 
   it("reading names only what is there: one photo and no files", async () => {
