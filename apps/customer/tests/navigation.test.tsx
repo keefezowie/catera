@@ -213,6 +213,30 @@ describe("each tab keeps its own stack", () => {
     app.unmount();
   });
 
+  it("a cold link to a purchase's address or help form, with no purchase under it, opens the tab's form over its page", () => {
+    // `/pembelian/alamat-form` and `/pembelian/bantuan-form` belong over a purchase. Opened alone, each gives way to the
+    // tab's own copy with the link's params, over Alamat or Bantuan, never a sheet with nothing under it.
+    for (const [link, below, params] of [
+      ["/pembelian/alamat-form?id=a-2", ["index", "alamat", "alamat-form"], { id: "a-2" }],
+      ["/pembelian/bantuan-form?kind=review&issue=i-1", ["index", "bantuan", "bantuan-form"], { kind: "review", issue: "i-1" }],
+    ] as const) {
+      const app = mount(systemPath(link, true));
+      expect({ link, root: root() }).toEqual({ link, root: ["(tabs)"] });
+      expect({ link, stack: stack("(index)") }).toEqual({ link, stack: below });
+      const top = tabsState()!.routes.find((r) => r.name === "(index)")!.state!.routes.at(-1)!;
+      expect(top.params).toMatchObject(params);
+      act(() => router.back());
+      expect({ link, stack: stack("(index)") }).toEqual({ link, stack: below.slice(0, -1) });
+      app.unmount();
+    }
+    // Over a purchase they stay where they are.
+    const app = mount("/");
+    act(() => router.push("/beli/p-1"));
+    act(() => router.push("/pembelian/alamat-form"));
+    expect(root()).toEqual(["(tabs)", "beli/[id]", "pembelian/alamat-form"]);
+    app.unmount();
+  });
+
   it("a push tap to a Task 10 sheet opens it over its parent, and over a tab root by selecting that tab", () => {
     mount("/");
     act(() => goToTab("akun"));

@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from "react";
-import { AccessibilityInfo, ScrollView, Text as RNText, View } from "react-native";
+import { AccessibilityInfo, ScrollView, Text as RNText, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { nativeMotion } from "@catera/design-tokens";
 import { Text } from "./components";
@@ -81,6 +81,33 @@ export function SheetBody({ children, os = process.env.EXPO_OS }: { children: Re
     >
       {children}
     </ScrollView>
+  );
+}
+
+/** The gap a fit sheet keeps under the top safe area at its tallest: the iOS large detent's and the status bar's. */
+const FIT_TOP_GAP = 24;
+
+/**
+ * A fit sheet (`sheetOptions({ detents: "fit" })`): its `header` (the `SheetHeader`) fixed on top and its content under
+ * it. The sheet sizes to the content while it fits; content that outgrows the screen (a long address book, a larger
+ * font) stops the sheet at its tallest and scrolls under the fixed title row, so the last row and the button under it
+ * stay reachable. The foot clears the home indicator or the gesture bar.
+ */
+export function SheetFitBody({ header, children }: { header: ReactNode; children: ReactNode }) {
+  const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
+  return (
+    <View style={{ maxHeight: height - insets.top - FIT_TOP_GAP }}>
+      {header}
+      <ScrollView
+        testID="sheet-fit-body"
+        style={{ flexGrow: 0, flexShrink: 1 }}
+        alwaysBounceVertical={false}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
+      >
+        {children}
+      </ScrollView>
+    </View>
   );
 }
 

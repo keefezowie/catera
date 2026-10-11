@@ -540,10 +540,11 @@ describe("Beli / Perpanjang", () => {
     // The sheet closes and Beli shows the chosen address; the purchase never left.
     await waitFor(() => expect(screen.queryByTestId("choice-sheet")).toBeNull());
     expect(await screen.findByText(/^Diantar ke Rumah/)).toBeTruthy();
-    // Kelola alamat closes the picker and opens Alamat over the purchase.
+    // Kelola alamat opens Alamat over the purchase in the picker's own place (a replace, not a push after it closes).
     fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" }));
     fireEvent.press(within(await screen.findByTestId("choice-sheet")).getByRole("button", { name: "Kelola alamat" }));
-    await waitFor(() => expect(router.push).toHaveBeenLastCalledWith("/pembelian/alamat"));
+    await waitFor(() => expect(router.replace).toHaveBeenLastCalledWith("/pembelian/alamat"));
+    expect(router.push).not.toHaveBeenCalledWith("/pembelian/alamat");
   });
 
   it("cycle options give a selection haptic", async () => {

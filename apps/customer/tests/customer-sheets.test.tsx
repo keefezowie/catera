@@ -1,13 +1,13 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { createElement } from "react";
+import * as ReactNative from "react-native";
 import { BackHandler, StyleSheet, Text } from "react-native";
-import { render } from "@testing-library/react-native";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { act, fireEvent, renderRouter, screen, within } from "expo-router/testing-library";
+import { nativeThemes } from "@catera/design-tokens";
 import { addDays, jakartaDay, shortDate, type CustomerState, type Delivery } from "@catera/domain";
-import { ChoiceList } from "@catera/mobile-ui";
 import { dayActionInput, dayHasActions } from "../src/schedule/dayActions";
 import { customerState, delivery, subscription } from "./fixtures";
 
@@ -15,7 +15,18 @@ import { customerState, delivery, subscription } from "./fixtures";
 jest.setTimeout(30000);
 
 // expo-router's testing library swaps in Reanimated's own jest mock, which has no useReducedMotion (setup.cjs adds it).
-Object.assign(require("react-native-reanimated"), { useReducedMotion: () => false });
+// `mockReduced` is the phone's Reduce Motion / Remove animations setting.
+let mockReduced = false;
+Object.assign(require("react-native-reanimated"), { useReducedMotion: () => mockReduced });
+
+// React Native's jest environment reports a font scale of 2, so the suite states the one it means (1, or 1.3 for the
+// larger-font case). The hook module is replaced: components read it through react-native's lazy export.
+let mockFontScale = 1;
+const WINDOW_HEIGHT = 800;
+jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
+  __esModule: true,
+  default: () => ({ width: 390, height: 800, scale: 2, fontScale: mockFontScale }),
+}));
 
 /**
  * Task 10's sheets on the real route tree in `app/` with the real root layout (Beli's choice sheets, the confirm and
@@ -69,7 +80,7 @@ const mockStub = (name: string) => () => createElement(Text, { testID: "screen" 
 jest.mock("../src/today/Beranda", () => ({ Beranda: mockStub("Beranda") }));
 jest.mock("../src/discover/Jelajah", () => ({ Jelajah: mockStub("Jelajah") }));
 jest.mock("../src/help/ReportList", () => ({ ReportList: mockStub("Bantuan") }));
-/** Beli: two buttons that ask its choice sheets the way BuyScreen does, and the answer it got. */
+/** Beli: buttons that ask its choice sheets the way BuyScreen does, and the answer it got. */
 jest.mock("../src/buy/BuyScreen", () => ({
   BuyScreen: () => {
     const { useState, createElement: h } = require("react");
@@ -91,7 +102,16 @@ jest.mock("../src/buy/BuyScreen", () => ({
             { id: "a-2", label: "Rumah", detail: "Jl. Mawar No. 9" },
           ],
           selected: "a-1",
-          extra: { key: "kelola", label: "Kelola alamat" },
+          extra: { key: "kelola", label: "Kelola alamat", href: "/pembelian/alamat" },
+        }),
+      ),
+      // A long address book: thirty saved addresses, more than one screen of rows.
+      button("Ganti alamat dari buku panjang", () =>
+        choose("/pembelian/alamat-pilih", {
+          title: "Alamat pengantaran",
+          items: Array.from({ length: 30 }, (_, i) => ({ id: `a-${i + 1}`, label: `Alamat ${i + 1}`, detail: `Jl. Contoh No. ${i + 1}` })),
+          selected: "a-1",
+          extra: { key: "kelola", label: "Kelola alamat", href: "/pembelian/alamat" },
         }),
       ),
       button("Ganti tanggal mulai", () =>
@@ -177,9 +197,43 @@ const rowLabels = () =>
     (n) => n.props.accessibilityLabel,
   );
 
+/** The vertical scroll views inside a mounted node (React Native's jest ScrollView renders an RCTScrollView host). */
+type Node = Host & { parent: Node | null; findAll: (match: (n: Node) => boolean) => Node[] };
+const scrollersIn = (node: unknown) => (node as Node).findAll((n) => n.type === "RCTScrollView" && !n.props.horizontal);
+const isInside = (inner: unknown, outer: unknown) => {
+  for (let n = inner as Node | null; n; n = n.parent) if (n === outer) return true;
+  return false;
+};
+/** The nearest box around `node` (itself included) whose style sets `key`, and that value. */
+const nearestStyle = (node: unknown, key: string) => {
+  for (let n = node as Node | null; n; n = n.parent) {
+    const value = (StyleSheet.flatten(n.props.style as never) as Record<string, unknown> | undefined)?.[key];
+    if (value !== undefined) return value;
+  }
+  return undefined;
+};
+/**
+ * A fit sheet that can outgrow the screen: its rows (and the button under them) sit in one vertical scroller that may
+ * shrink, inside a frame no taller than the window, with the title row fixed above it.
+ */
+const expectScrollsUnderTitle = (route: string, title: string, reachable: unknown[]) => {
+  const sheet = screenOf(route);
+  const scrollers = scrollersIn(sheet);
+  expect(scrollers).toHaveLength(1);
+  const [scroller] = scrollers;
+  for (const node of reachable) expect(isInside(node, scroller)).toBe(true);
+  expect(isInside(within(sheet as never).getByRole("header", { name: title }), scroller)).toBe(false);
+  expect(StyleSheet.flatten(scroller.props.style as never)).toMatchObject({ flexGrow: 0, flexShrink: 1 });
+  const cap = nearestStyle(scroller.parent, "maxHeight");
+  expect(typeof cap).toBe("number");
+  expect(cap as number).toBeLessThan(WINDOW_HEIGHT);
+};
+
 beforeEach(() => {
   mockReads.clear();
   mockCommand.mockClear();
+  mockReduced = false;
+  mockFontScale = 1;
   mockSession.actor = { id: "u-c1", role: "customer", name: "Rani Contoh" };
   (SecureStore as unknown as { __store: Map<string, string> }).__store.clear();
 });
@@ -223,15 +277,44 @@ describe("routes", () => {
     beli.unmount();
   });
 
-  it("the sheets add no motion of their own: under reduced motion the system presents them", async () => {
-    // The sheet routes set no custom animation, so iOS (Reduce Motion: a cross-fade) and Android (Remove animations:
-    // instant) present them their own way; their content enters through FadeSwap, which is static under reduced motion.
-    const layout = readFileSync(join(APP, "(tabs)", "(index,jadwal,jelajah,akun)", "_layout.tsx"), "utf8");
-    for (const name of ["ubah-hari/[id]", "ulasan/[id]", "alamat-form", "bantuan-form", "area"])
-      expect(layout).toMatch(new RegExp(`name="${name.replace(/[[\]/]/g, "\\$&")}" options=\\{sheetOptions\\(`));
-    const { sheetOptions } = require("@catera/mobile-ui");
-    expect(sheetOptions({ detents: "form", palette: {} as never })).not.toHaveProperty("animation");
-  });
+  it.each([false, true])(
+    "the sheets add no motion of their own: the system presents them (reduced motion %s)",
+    async (reduced) => {
+      // Every sheet is handed to react-native-screens with the platform's own presentation, with or without reduced
+      // motion: iOS Reduce Motion cross-fades it and Android Remove animations makes it instant. A custom animation
+      // here would slide past the phone's setting.
+      mockReduced = reduced;
+      answer("ubah-hari:d1", stateWith([open("d1", addDays(TODAY, 2))]));
+      answer("ulasan:s-1", stateWith([]));
+      const presented = (route: string) => {
+        const s = screenOf(route);
+        return { route, presentation: s.props.stackPresentation, animation: s.props.stackAnimation };
+      };
+      const app = await mount("/hari/d1");
+      for (const [path, route] of [
+        ["/ubah-hari/d1", "ubah-hari/[id]"],
+        ["/ulasan/s-1", "ulasan/[id]"],
+        ["/alamat-form", "alamat-form"],
+        ["/bantuan-form?kind=help", "bantuan-form"],
+        ["/area", "area"],
+      ] as const) {
+        await go(() => router.push(path));
+        // No stackAnimation: react-native-screens leaves the presentation to the platform.
+        expect(presented(route)).toEqual({ route, presentation: "formSheet", animation: undefined });
+        await go(() => router.back());
+      }
+      app.unmount();
+      const beli = await mount("/");
+      await go(() => router.push("/beli/p-1"));
+      await go(() => fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" })));
+      expect(presented("pembelian/alamat-pilih")).toEqual({
+        route: "pembelian/alamat-pilih",
+        presentation: "formSheet",
+        animation: undefined,
+      });
+      beli.unmount();
+    },
+  );
 });
 
 describe("the day's actions", () => {
@@ -259,7 +342,6 @@ describe("the day's actions", () => {
     await go(() => fireEvent.press(screen.getByRole("button", { name: `Pilihan untuk makan siang ${shortDate(TODAY, "id")}` })));
     expect(rowLabels()).toEqual(["Chat Dapur Contoh", "Laporkan masalah"]);
     expect(within(screen.getByTestId("action-context")).getByText("Sudah lewat batas ubah")).toBeTruthy();
-    // Pindah tanggal and Ganti alamat open Ubah hari on their side.
     await swipeAway("aksi");
     app.unmount();
   });
@@ -439,10 +521,30 @@ describe("Beli and its sheets", () => {
     await go(() => fireEvent.press(screen.getByRole("radio", { name: "Rumah, Jl. Mawar No. 9" })));
     expect(root()).toEqual(["(tabs)", "beli/[id]"]);
     expect(screen.getByTestId("beli-picked").props.children).toBe("a-2");
-    // Kelola alamat answers its own key; Beli then opens Alamat over the purchase.
+    // Kelola alamat answers its own key, and the sheet itself opens Alamat over the purchase in its place: one stack
+    // change, so Alamat is never presented while the picker is still sliding away. Beli pushes nothing.
     await go(() => fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" })));
     await go(() => fireEvent.press(screen.getByRole("button", { name: "Kelola alamat" })));
-    expect(screen.getByTestId("beli-picked").props.children).toBe("kelola");
+    expect(root()).toEqual(["(tabs)", "beli/[id]", "pembelian/alamat"]);
+    // Beli is under Alamat now, hidden from the screen reader, with the answer it got.
+    expect(screen.getByTestId("beli-picked", { includeHiddenElements: true }).props.children).toBe("kelola");
+    app.unmount();
+  });
+
+  it("a long address book scrolls under its fixed title: the last address and Kelola alamat stay reachable", async () => {
+    const app = await mount("/");
+    await go(() => router.push("/beli/p-1"));
+    await go(() => fireEvent.press(screen.getByRole("button", { name: "Ganti alamat dari buku panjang" })));
+    const sheet = within(screenOf("pembelian/alamat-pilih") as never);
+    expectScrollsUnderTitle("pembelian/alamat-pilih", "Alamat pengantaran", [
+      sheet.getByRole("radio", { name: "Alamat 1, Jl. Contoh No. 1" }),
+      sheet.getByRole("radio", { name: "Alamat 30, Jl. Contoh No. 30" }),
+      sheet.getByRole("button", { name: "Kelola alamat" }),
+    ]);
+    // The last address is still a working choice.
+    await go(() => fireEvent.press(sheet.getByRole("radio", { name: "Alamat 30, Jl. Contoh No. 30" })));
+    expect(root()).toEqual(["(tabs)", "beli/[id]"]);
+    expect(screen.getByTestId("beli-picked").props.children).toBe("a-30");
     app.unmount();
   });
 
@@ -469,34 +571,104 @@ describe("Jelajah's area", () => {
     expect(screen.getByRole("radio", { name: "Jakarta Selatan" }).props.accessibilityState.checked).toBe(true);
     app.unmount();
   });
+
+  it("the area rows scroll under the fixed title when they outgrow the screen", async () => {
+    // Nine rows fit a phone at the default size; a large font on a small phone can pass the screen.
+    mockFontScale = 1.3;
+    const app = await mount("/jelajah");
+    await go(() => router.push("/area"));
+    const radios = within(screenOf("area") as never).getAllByRole("radio");
+    expectScrollsUnderTitle("area", "Area pengantaran", [radios[0], radios.at(-1)]);
+    app.unmount();
+  });
 });
 
 describe("states", () => {
-  it("signed out: the sheets ask to sign in and no day offers a …", async () => {
+  it("signed out: Hari asks to sign in and offers no …, and the sheets ask to sign in", async () => {
     mockSession.actor = null;
-    const app = await mount("/");
+    // A day that offers every action to the person it belongs to: today, before the cutoff, on its way, with the
+    // caterer's number. Signed out, none of it is shown or offered.
+    answer("day:d1", stateWith([open("d1", TODAY, {}, { status: "out_for_delivery" })]));
+    const app = await mount("/hari/d1");
+    expect(within(screenOf("hari/[id]") as never).getByRole("button", { name: "Masuk" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /^Pilihan untuk / })).toBeNull();
+    expect(screen.queryByTestId("header-more")).toBeNull();
     await go(() => router.push("/ubah-hari/d1"));
     expect(screen.getByRole("header", { name: "Ubah hari" })).toBeTruthy();
     expect(within(screenOf("ubah-hari/[id]") as never).getByRole("button", { name: "Masuk" })).toBeTruthy();
-    expect(screen.queryByTestId("header-more")).toBeNull();
     app.unmount();
   });
 
-  it("at a larger font the choice rows grow with their text: no fixed heights, no cut lines", () => {
-    render(
-      <ChoiceList
-        label="Alamat pengantaran"
-        options={[{ value: "a-1", label: "Kantor", detail: "Jl. Contoh No. 1, sebuah alamat yang panjang sekali" }]}
-        value="a-1"
-        onChange={() => {}}
-        os="android"
-      />,
-    );
-    const row = StyleSheet.flatten(screen.getByRole("radio", { name: /Kantor/ }).props.style);
-    expect(row.height).toBeUndefined();
-    // Material's two-line list item.
-    expect(row.minHeight).toBe(72);
-    expect(screen.getByText(/sebuah alamat yang panjang/).props.numberOfLines).toBeUndefined();
+  it("at a larger font the sheets grow with their text: no fixed heights, no cut or capped lines", async () => {
+    mockFontScale = 1.3;
+    /** Every line of text in the sheet scales with the phone's font and wraps; every row with text grows with it. */
+    const expectGrows = (route: string) => {
+      const sheet = screenOf(route) as unknown as Node;
+      const texts = sheet.findAll((n) => n.type === "Text");
+      expect(texts.length).toBeGreaterThan(2);
+      for (const text of texts) {
+        // The header's context line is the one kept to a single line on purpose: it ends in "…" and is spoken whole.
+        if (text.props.testID === "sheet-context") continue;
+        // An icon glyph is a picture drawn as text: it keeps its size, as the platforms' own icons do.
+        if (/ionicons/i.test(String((StyleSheet.flatten(text.props.style as never) as { fontFamily?: string } | undefined)?.fontFamily))) continue;
+        const { numberOfLines, allowFontScaling, maxFontSizeMultiplier } = text.props;
+        expect({ route, numberOfLines, allowFontScaling, maxFontSizeMultiplier }).toEqual({
+          route,
+          numberOfLines: undefined,
+          allowFontScaling: undefined,
+          maxFontSizeMultiplier: undefined,
+        });
+      }
+      const rows = sheet.findAll(
+        (n) => typeof n.type === "string" && ["radio", "button"].includes(n.props.accessibilityRole as string) && n.findAll((m) => m.type === "Text").length > 0,
+      );
+      expect(rows.length).toBeGreaterThan(0);
+      for (const row of rows) {
+        const name = row.props.accessibilityLabel;
+        expect({ route, name, height: (StyleSheet.flatten(row.props.style as never) as { height?: number } | undefined)?.height }).toEqual({
+          route,
+          name,
+          height: undefined,
+        });
+      }
+    };
+    answer("day:d1", stateWith([open("d1", TODAY, {}, { status: "out_for_delivery" })]));
+    let app = await mount("/hari/d1");
+    // The day's action sheet.
+    await go(() => fireEvent.press(screen.getByRole("button", { name: `Pilihan untuk makan siang ${shortDate(TODAY, "id")}` })));
+    expectGrows("aksi");
+    await swipeAway("aksi");
+    // A form sheet.
+    await go(() => router.push("/alamat-form"));
+    expectGrows("alamat-form");
+    app.unmount();
+    // The choice sheets: Beli's address picker, whose two-line rows are Material's 72dp list items at the least.
+    app = await mount("/");
+    await go(() => router.push("/beli/p-1"));
+    await go(() => fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" })));
+    expectGrows("pembelian/alamat-pilih");
+    expect(StyleSheet.flatten(screen.getByRole("radio", { name: "Rumah, Jl. Mawar No. 9" }).props.style).minHeight).toBe(72);
+    app.unmount();
+  });
+
+  it.each(["light", "dark"] as const)("a choice sheet reads the %s palette: its ground, title and rows", async (scheme) => {
+    const system = jest.spyOn(ReactNative, "useColorScheme").mockReturnValue(scheme);
+    try {
+      const palette = nativeThemes[scheme];
+      const app = await mount("/");
+      await go(() => router.push("/beli/p-1"));
+      await go(() => fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" })));
+      const sheet = within(screenOf("pembelian/alamat-pilih") as never);
+      const title = sheet.getByRole("header", { name: "Alamat pengantaran" });
+      // The sheet's ground is the theme's surface (`sheetOptions`), the title and labels its ink.
+      expect(nearestStyle(title, "backgroundColor")).toBe(palette.surface);
+      expect(StyleSheet.flatten(title.props.style).color).toBe(palette.charcoal);
+      expect(StyleSheet.flatten(sheet.getByText("Kantor").props.style).color).toBe(palette.charcoal);
+      expect(StyleSheet.flatten(sheet.getByText("Jl. Contoh No. 1").props.style).color).toBe(palette.muted);
+      app.unmount();
+    } finally {
+      system.mockRestore();
+    }
   });
 });
 

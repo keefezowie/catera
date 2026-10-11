@@ -153,10 +153,10 @@ export function BuyScreen({
       title: t("Alamat pengantaran", "Delivery address"),
       items: addresses.map((a) => ({ id: a.id, label: a.label, detail: a.line })),
       selected: address?.id,
-      extra: { key: "kelola", label: t("Kelola alamat", "Manage addresses") },
+      // Kelola alamat: the sheet opens Alamat over the purchase in its own place.
+      extra: { key: "kelola", label: t("Kelola alamat", "Manage addresses"), href: FLOW_HREF.alamat },
     });
-    if (picked === "kelola") router.push(FLOW_HREF.alamat as never);
-    else if (picked) setAddressId(picked);
+    if (picked && picked !== "kelola") setAddressId(picked);
   }
 
   async function pickStart() {

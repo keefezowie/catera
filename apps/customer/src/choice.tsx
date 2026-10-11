@@ -1,10 +1,9 @@
 import { use, useCallback, useEffect, useRef, useState } from "react";
 import { View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { NavigationContext, NavigationRouteContext } from "expo-router/react-navigation";
 import { useMobile } from "@catera/mobile-core";
-import { Button, ChoiceList, SheetHeader } from "@catera/mobile-ui";
+import { Button, ChoiceList, SheetFitBody, SheetHeader } from "@catera/mobile-ui";
 
 /**
  * Choice sheets opened over a screen whose state they change (Beli's delivery address and start date). They are routes
@@ -19,8 +18,12 @@ export type ChoiceInput = {
   title: string;
   items: ChoiceItem[];
   selected?: string | null;
-  /** A text button under the list ("Kelola alamat"); choosing it answers `extra.key`. */
-  extra?: { key: string; label: string };
+  /**
+   * A text button under the list ("Kelola alamat"); choosing it answers `extra.key`. With `href`, the sheet itself opens
+   * that screen in its own place (one stack change), so the next screen is never presented while the sheet is still
+   * sliding away; the asker then opens nothing.
+   */
+  extra?: { key: string; label: string; href?: string };
 };
 
 type Waiting = { input: ChoiceInput; answer: (result: string | null) => void };
@@ -63,7 +66,6 @@ const answer = (id: string | undefined, result: string | null) => {
  */
 export function ChoiceRoute() {
   const { t } = useMobile();
-  const insets = useSafeAreaInsets();
   const navigation = use(NavigationContext);
   const route = use(NavigationRouteContext);
   const id = (route?.params as { id?: string } | undefined)?.id;
@@ -84,15 +86,16 @@ export function ChoiceRoute() {
   useEffect(() => () => answer(id, null), [id]);
 
   if (!input) return null;
-  const choose = (result: string) => {
+  const choose = (result: string, href?: string) => {
     if (closing.current) return;
     closing.current = true;
     answer(id, result);
-    navigation?.goBack();
+    if (href) router.replace(href as never);
+    else navigation?.goBack();
   };
   return (
-    <View style={{ paddingBottom: insets.bottom + 16 }}>
-      <SheetHeader title={input.title} closeLabel={t("Tutup", "Close")} />
+    // A long list (a full address book, a larger font) scrolls under the fixed title row.
+    <SheetFitBody header={<SheetHeader title={input.title} closeLabel={t("Tutup", "Close")} />}>
       <ChoiceList
         label={input.title}
         options={input.items.map((item) => ({ value: item.id, label: item.label, detail: item.detail }))}
@@ -101,9 +104,9 @@ export function ChoiceRoute() {
       />
       {input.extra ? (
         <View style={{ paddingHorizontal: process.env.EXPO_OS === "ios" ? 20 : 24, paddingTop: 8 }}>
-          <Button variant="secondary" label={input.extra.label} onPress={() => choose(input.extra!.key)} />
+          <Button variant="secondary" label={input.extra.label} onPress={() => choose(input.extra!.key, input.extra!.href)} />
         </View>
       ) : null}
-    </View>
+    </SheetFitBody>
   );
 }

@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
 import { View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { areaOptions } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { ChoiceList, SheetHeader, Skeleton, SkeletonGroup } from "@catera/mobile-ui";
+import { ChoiceList, SheetFitBody, SheetHeader, Skeleton, SkeletonGroup } from "@catera/mobile-ui";
 
 /** The delivery area kept on this phone. The legacy provider reads the same key, so the choice carries over both ways. */
 export const AREA_KEY = "catera.area";
@@ -48,12 +47,11 @@ export function useStoredArea(): string | null {
  */
 export function AreaSheet() {
   const { t } = useMobile();
-  const insets = useSafeAreaInsets();
   const area = useStoredArea();
   const title = t("Area pengantaran", "Delivery area");
   return (
-    <View style={{ paddingBottom: insets.bottom + 16 }}>
-      <SheetHeader title={title} closeLabel={t("Tutup", "Close")} />
+    // Nine rows fit a phone; at a larger font on a small one they scroll under the fixed title row.
+    <SheetFitBody header={<SheetHeader title={title} closeLabel={t("Tutup", "Close")} />}>
       {area === null ? (
         // A moment while the phone reads the kept area: the rows wait in their own shape, not unmarked.
         <SkeletonGroup label={t("Memuat area", "Loading areas")}>
@@ -75,6 +73,6 @@ export function AreaSheet() {
           }}
         />
       )}
-    </View>
+    </SheetFitBody>
   );
 }

@@ -197,13 +197,20 @@ export function ChangeDaySheet({
   const [addressId, setAddressId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const done = useRef(false);
+  // Whether the sheet is on screen: true while mounted (again after a remount: Fast Refresh, StrictMode), false once
+  // it is gone (swiped down while a change was on its way). `sent` keeps a change that went through to one outcome.
+  const mounted = useRef(false);
+  const sent = useRef(false);
   const availability = useData(`availability:${delivery.id}:${today}`, () =>
     can.date ? runtime.api.deliveryAvailability(delivery.id, today, addDays(today, 30)) : Promise.resolve([]),
   );
   const oldDay = shortDate(delivery.service_date, locale);
-  // A sheet that went through closes once, even if a re-render lands before it leaves.
-  useEffect(() => () => void (done.current = true), []);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   const reasons: Record<string, string> = {
     DUPLICATE_DATE: t("Sudah ada pengantaran", "Already has a delivery"),
@@ -236,8 +243,9 @@ export function ChangeDaySheet({
       if (mode === "date")
         await command("delivery.reschedule", { id: delivery.id, version: delivery.version, date: target, kind: "reschedule" });
       else await command("delivery.address", { id: delivery.id, version: delivery.version, addressId });
-      if (done.current) return;
-      done.current = true;
+      if (sent.current) return;
+      sent.current = true;
+      // The change went through: it is told even when the sheet was swiped away meanwhile.
       onDone?.({
         mode,
         label,
@@ -246,7 +254,8 @@ export function ChangeDaySheet({
             ? t(`Hari dipindah ke ${label}`, `Day moved to ${label}`)
             : t(`${oldDay} diantar ke ${label}`, `${oldDay} goes to ${label}`),
       });
-      onClose();
+      // Closing is for a sheet still on screen; once it is gone, a back would leave the page under it.
+      if (mounted.current) onClose();
     } catch (e) {
       setError(changeError(e, locale, t));
       onStale?.();

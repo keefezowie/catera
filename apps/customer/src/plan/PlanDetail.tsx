@@ -38,6 +38,7 @@ import { jakartaClock, photoUri } from "../today/Plate";
 import { dayHref } from "../hrefs";
 import { goToTab } from "../nav";
 import { PlanSkeleton } from "../skeletons";
+import { dayHasActions } from "../schedule/dayActions";
 import { DayMore } from "../schedule/DayMore";
 
 type LoadedPlan = { data: CustomerState; savedAt: string | null };
@@ -256,7 +257,12 @@ function Upcoming({ rows, apiBase, deliveries }: { rows: UpcomingRow[]; apiBase:
   const { t, locale } = useMobile();
   const c = useColors();
   const styles = useStyles();
-  const today = jakartaDay(new Date());
+  const now = new Date();
+  const today = jakartaDay(now);
+  const mealOf = (row: UpcomingRow) => (row.meal === "dinner" || row.meal === "lunch" ? row.meal : undefined);
+  const deliveryOf = (row: UpcomingRow) => deliveries?.find((d) => d.id === row.deliveryId);
+  // While any day has a "…", the others keep its place, so the chevrons line up in one column.
+  const reserve = rows.some((row) => dayHasActions(deliveryOf(row), now, mealOf(row)));
   return (
     <View>
       <Text variant="label" style={{ marginBottom: 4 }}>
@@ -292,10 +298,7 @@ function Upcoming({ rows, apiBase, deliveries }: { rows: UpcomingRow[]; apiBase:
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={c.muted} />
               </PressableRow>
-              <DayMore
-                delivery={deliveries?.find((d) => d.id === row.deliveryId)}
-                meal={row.meal === "dinner" || row.meal === "lunch" ? row.meal : undefined}
-              />
+              <DayMore delivery={deliveryOf(row)} meal={mealOf(row)} reserve={reserve} />
             </View>
           );
         })

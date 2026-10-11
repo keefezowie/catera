@@ -1,3 +1,4 @@
+import { StrictMode } from "react";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import { ActivityIndicator, Image, Linking, ScrollView, StyleSheet } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -641,6 +642,44 @@ describe("Ubah hari sheet", () => {
         expect.any(String),
       ),
     );
+  });
+
+  it("a change that goes through says so and closes, even after the sheet mounted twice", async () => {
+    // StrictMode mounts, unmounts and mounts again, as Fast Refresh does: the sheet still knows it is open.
+    const onDone = jest.fn();
+    const onClose = jest.fn();
+    render(
+      <StrictMode>
+        <MobileProvider runtime={runtimeWith(stateOf([flexible]), available)} linkMapper={customerLink}>
+          <ChangeDaySheet delivery={flexible} addresses={[home, rumah, jauh]} onClose={onClose} onDone={onDone} />
+        </MobileProvider>
+      </StrictMode>,
+    );
+    fireEvent.press(await screen.findByRole("button", { name: "Senin 19 Okt" }));
+    fireEvent.press(screen.getByRole("button", { name: "Pindah ke Senin 19 Okt" }));
+    await waitFor(() => expect(onDone).toHaveBeenCalledTimes(1));
+    expect(onDone).toHaveBeenCalledWith({ mode: "date", label: "Senin 19 Okt", message: "Hari dipindah ke Senin 19 Okt" });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("a change that lands after the sheet was swiped away still says so, and closes nothing", async () => {
+    let settle = () => {};
+    const command = jest.fn(() => new Promise((resolve) => (settle = () => resolve({}))));
+    const onDone = jest.fn();
+    const onClose = jest.fn();
+    const view = renderWith(
+      runtimeWith(stateOf([flexible]), available, command),
+      <ChangeDaySheet delivery={flexible} addresses={[home, rumah, jauh]} onClose={onClose} onDone={onDone} />,
+    );
+    fireEvent.press(await screen.findByRole("button", { name: "Senin 19 Okt" }));
+    fireEvent.press(screen.getByRole("button", { name: "Pindah ke Senin 19 Okt" }));
+    await waitFor(() => expect(command).toHaveBeenCalled());
+    // Swiped down while the change is on its way: the sheet is gone, the change still goes through.
+    view.unmount();
+    await act(async () => settle());
+    // The toast still tells what happened; nothing is closed, because a back now would leave the page under it.
+    expect(onDone).toHaveBeenCalledWith({ mode: "date", label: "Senin 19 Okt", message: "Hari dipindah ke Senin 19 Okt" });
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it("shows bookable dates as chips and picks one", async () => {

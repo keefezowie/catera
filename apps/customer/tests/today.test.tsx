@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { createMobileRuntime, MobileProvider, plural, type MobileRuntime } from "@catera/mobile-core";
@@ -390,6 +390,19 @@ it("the hero's … opens the day's actions from a fresh read, and is gone from a
   );
   expect(await screen.findByText(/Terakhir diperbarui/)).toBeTruthy();
   expect(screen.queryByTestId("header-more")).toBeNull();
+});
+
+it("signed out, Beranda has no hero to act on: no … and no read of anyone's days", async () => {
+  // The same answer that gives a signed-in customer the hero and its "…": today's plate on its way, with the
+  // caterer's number. Signed out, Beranda is the empty home and nothing in it offers the day's actions.
+  const runtime = runtimeWith(async () => customerState({ status: "out_for_delivery" }, { catererPhone: "+6281200000001" }), null);
+  renderHome(runtime);
+  expect(await screen.findByText("Belum ada paket.")).toBeTruthy();
+  await act(async () => {});
+  expect(screen.queryByTestId("plate-photo")).toBeNull();
+  expect(screen.queryByRole("button", { name: /^Pilihan untuk / })).toBeNull();
+  expect(screen.queryByTestId("header-more")).toBeNull();
+  expect(runtime.api.customer).not.toHaveBeenCalled();
 });
 
 it("offline shows the cached day and when it was updated", async () => {

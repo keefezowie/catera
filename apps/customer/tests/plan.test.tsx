@@ -240,6 +240,41 @@ describe("Plan detail states", () => {
     expect(router.push).toHaveBeenCalledWith({ pathname: "/aksi", params: { id: expect.any(String) } });
   });
 
+  /** This plan's days with every day past its cutoff and no caterer number (nothing to offer), except the ids kept. */
+  const quietExcept = (...kept: string[]) =>
+    planState().deliveries.map((d) =>
+      kept.includes(d.id) ? { ...d, cutoff_at: "2099-01-01T10:00:00Z" } : { ...d, cutoff_at: "2020-01-01T10:00:00Z", catererPhone: null },
+    );
+
+  it("the upcoming rows' chevrons line up: a day without a … keeps the …'s place while another day has one", async () => {
+    renderPlan(runtimeWith(async () => planState({}, { deliveries: quietExcept("d-1") })));
+    expect(await screen.findByText("Berikutnya")).toBeTruthy();
+    const rows = screen.getAllByTestId("plan-upcoming-row");
+    const mores = screen.getAllByTestId("header-more");
+    const slots = screen.queryAllByTestId("day-more-slot", { includeHiddenElements: true });
+    // Tomorrow offers a "…"; the other days offer nothing.
+    expect(mores).toHaveLength(1);
+    expect(rows.length).toBeGreaterThan(1);
+    // Every row ends in the "…"'s width: its button, or an empty slot the same size that no screen reader stops on.
+    expect(slots).toHaveLength(rows.length - 1);
+    const size = (n: { props: { style?: unknown } }) => {
+      const s = StyleSheet.flatten(n.props.style as never) as { width?: number; height?: number };
+      return { width: s.width, height: s.height };
+    };
+    for (const slot of slots) {
+      expect(size(slot)).toEqual(size(mores[0]));
+      expect(slot.props.importantForAccessibility).toBe("no-hide-descendants");
+    }
+  });
+
+  it("with no day offering a …, the rows keep no empty slot", async () => {
+    renderPlan(runtimeWith(async () => planState({}, { deliveries: quietExcept() })));
+    expect(await screen.findByText("Berikutnya")).toBeTruthy();
+    expect(screen.getAllByTestId("plan-upcoming-row").length).toBeGreaterThan(0);
+    expect(screen.queryByTestId("header-more")).toBeNull();
+    expect(screen.queryByTestId("day-more-slot", { includeHiddenElements: true })).toBeNull();
+  });
+
   it("offline, no upcoming day offers a …: a kept copy acts on nothing", async () => {
     (offline.loadCachedCustomer as jest.Mock).mockResolvedValueOnce({ savedAt: "2026-10-07T23:12:00Z", data: planState() });
     renderPlan(
