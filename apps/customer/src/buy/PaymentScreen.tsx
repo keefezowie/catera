@@ -206,7 +206,8 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
             answers "checking" keeps this mascot instead of fading or mounting a new one. */}
         <FadeSwap swapKey={state.error ? "error" : waiting ? CHECKING : "missing"} style={{ gap: 16 }}>
           {state.error ? (
-            <Retry message={state.error} onRetry={() => void reload()} t={t} />
+            // The failed read replaces the checking wait, so the page still holds one mascot: the puzzled one.
+            <Retry art message={state.error} onRetry={() => void reload()} t={t} />
           ) : waiting ? (
             <CheckingWait t={t} />
           ) : (

@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import * as ReactNative from "react-native";
 import { StyleSheet, Text } from "react-native";
 import * as Reanimated from "react-native-reanimated";
@@ -12,12 +12,15 @@ import LoginRoute from "../app/login";
 import { Payments } from "../src/account/Payments";
 import { Addresses } from "../src/account/Addresses";
 import { NotificationsScreen } from "../src/account/Notifications";
+import { BuyScreen } from "../src/buy/BuyScreen";
+import { PaymentScreen } from "../src/buy/PaymentScreen";
 import { Jelajah } from "../src/discover/Jelajah";
 import { PackageDetail } from "../src/discover/PackageDetail";
 import { SavedList } from "../src/discover/SavedList";
 import { ReportList } from "../src/help/ReportList";
 import { customerLink } from "../src/links";
 import { PlanDetailScreen } from "../src/plan/PlanDetail";
+import { PaketSaya, PlanList } from "../src/plan/PlanList";
 import { ChooseMenu } from "../src/schedule/ChooseMenu";
 import { DayScreen } from "../src/schedule/DayScreen";
 import { Jadwal } from "../src/schedule/Jadwal";
@@ -363,7 +366,42 @@ const STATES: State[] = [
     copy: [],
     action: "Coba lagi",
   },
+  {
+    name: "Beli that could not load",
+    pose: "bingung",
+    runtime: () => runtimeWith({ offer: jest.fn(async () => Promise.reject(offline())) }),
+    ui: <BuyScreen packageId="p-rumahan" />,
+    copy: [],
+    action: "Coba lagi",
+  },
+  {
+    name: "Bayar that could not load",
+    pose: "bingung",
+    runtime: () => runtimeWith({ checkout: jest.fn(async () => Promise.reject(offline())) }),
+    ui: <PaymentScreen checkoutId="ck-1" />,
+    copy: [],
+    action: "Coba lagi",
+  },
+  {
+    name: "Paket aktif that could not load",
+    pose: "bingung",
+    runtime: () => runtimeWith({ customer: jest.fn(async () => Promise.reject(offline())) }),
+    ui: <PaketSaya />,
+    copy: [],
+    action: "Coba lagi",
+  },
+  {
+    name: "a Jadwal month that could not load",
+    pose: "bingung",
+    runtime: () => runtimeWith({ customer: jest.fn(async () => Promise.reject(offline())) }),
+    ui: <Jadwal />,
+    copy: [],
+    action: "Coba lagi",
+  },
 ];
+
+/** The table rows added in fix round 1, by name. */
+const state = (name: string) => STATES.find((s) => s.name === name)!;
 
 /** Opens `state` and waits until its art is drawn. */
 async function open(state: State) {
@@ -425,6 +463,21 @@ describe("each empty and error state shows its pose and keeps its copy and actio
     expect(within(art).getByTestId("mascot-art-image", hidden)).toBeTruthy();
     expect(artHeight(art)).toBe(120);
   });
+
+  it("puts Jadwal's failed month art inside the month frame, which keeps its six week rows", async () => {
+    const art = await open(state("a Jadwal month that could not load"));
+    const frame = screen.getByTestId("month-frame", hidden);
+    expect(within(frame).getByTestId("mascot-bingung", hidden)).toBe(art);
+    expect(within(frame).getAllByTestId("month-week", hidden)).toHaveLength(6);
+    expect(within(frame).getByRole("button", { name: "Coba lagi" })).toBeTruthy();
+  });
+
+  it("keeps Akun's embedded plan list the compact line when its read fails: the page around it still stands", async () => {
+    const reload = jest.fn(async () => undefined);
+    render(wrap(runtimeWith(), <PlanList customer={{ data: null, loading: false, error: "Belum bisa memuat.", reload }} />));
+    expect(await screen.findByRole("button", { name: "Coba lagi" })).toBeTruthy();
+    for (const pose of POSES) expect(screen.queryByTestId(`mascot-${pose}`, hidden)).toBeNull();
+  });
 });
 
 it("mascot art is hidden from screen readers", async () => {
@@ -468,5 +521,68 @@ describe("no mascot art next to a food photo", () => {
     await screen.findByText("Mau makan apa minggu ini?", {}, { timeout: 4000 });
     expect(await screen.findByTestId("recap-photo", hidden)).toBeTruthy();
     noArt();
+  });
+
+  /** A plan still running with nothing today or next, and a plan that ended yesterday and was not renewed. */
+  const quietWithRecap = (): CustomerState => {
+    const quiet = nothingNext();
+    const ended = subscription({
+      id: "s-old",
+      status: "completed",
+      starts_on: addDays(TODAY, -12),
+      ends_on: addDays(TODAY, -1),
+      remaining: 0,
+    });
+    return { ...quiet, subscriptions: [...quiet.subscriptions, ended] };
+  };
+
+  it("a Beranda with nothing today or next leaves the resting mascot out while the Paket selesai photo shows", async () => {
+    render(wrap(runtimeWith({ customer: jest.fn(async () => quietWithRecap()) }), <Beranda />));
+    expect(await screen.findByTestId("recap-photo", hidden, { timeout: 4000 })).toBeTruthy();
+    expect(screen.getByText(/tidak ada antaran\.$/)).toBeTruthy();
+    noArt();
+    expect(screen.queryByTestId("mascot-tidur-slot", hidden)).toBeNull();
+  });
+
+  it("draws the resting mascot on that Beranda once the recap was already seen", async () => {
+    const runtime = runtimeWith({ customer: jest.fn(async () => quietWithRecap()) });
+    secureStoreMap().set(runtime.storageKey("recap.s-old"), "1");
+    render(wrap(runtime, <Beranda />));
+    expect(await screen.findByTestId("mascot-tidur", hidden, { timeout: 4000 })).toBeTruthy();
+    expect(screen.queryByTestId("recap-photo", hidden)).toBeNull();
+  });
+});
+
+/** The synthetic SecureStore behind the mock. */
+const secureStoreMap = () => (require("expo-secure-store") as { __store: Map<string, string> }).__store;
+
+describe("EmptyHome while the recap's seen marks are read", () => {
+  it("holds the waving mascot's place at its size, then draws it there with a fade once the recap turns out seen", async () => {
+    const ended = subscription({ status: "completed", starts_on: addDays(TODAY, -12), ends_on: addDays(TODAY, -1), remaining: 0 });
+    const runtime = runtimeWith({
+      customer: jest.fn(async () => ({ ...customerState(null), subscriptions: [ended], deliveries: [] })),
+    });
+    const store = require("expo-secure-store") as { getItemAsync: jest.Mock };
+    const original = store.getItemAsync.getMockImplementation()!;
+    let release: (mark: string | null) => void = () => undefined;
+    const marks = new Promise<string | null>((resolve) => (release = resolve));
+    store.getItemAsync.mockImplementation((key: string) => (key.includes("recap.") ? marks : original(key)));
+    try {
+      render(wrap(runtime, <Beranda />));
+      await screen.findByText("Mau makan apa minggu ini?", {}, { timeout: 4000 });
+      // Not known yet: the art's box is held, empty, where the art will stand.
+      const slot = screen.getByTestId("mascot-melambai-slot", hidden);
+      expect(StyleSheet.flatten(within(slot).getByTestId("mascot-art-slot", hidden).props.style).height).toBe(120);
+      expect(screen.queryByTestId("mascot-melambai", hidden)).toBeNull();
+      const held = StyleSheet.flatten(slot.props.style);
+      await act(async () => release("1"));
+      const art = await screen.findByTestId("mascot-melambai", hidden);
+      expect(StyleSheet.flatten(art.props.style)).toEqual(held);
+      expect(artHeight(art)).toBe(120);
+      expect(art.props.entering).toBeDefined();
+      expect(screen.queryByTestId("mascot-melambai-slot", hidden)).toBeNull();
+    } finally {
+      store.getItemAsync.mockImplementation(original);
+    }
   });
 });

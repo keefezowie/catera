@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
-import { render, screen, within } from "@testing-library/react-native";
+import { act, render, screen, within } from "@testing-library/react-native";
 import * as ReactNative from "react-native";
-import { StyleSheet } from "react-native";
+import { RefreshControl, StyleSheet } from "react-native";
 import * as Reanimated from "react-native-reanimated";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { MoodProvider, ThemeProvider, type MascotPose } from "@catera/mobile-ui";
@@ -13,6 +13,7 @@ import { UsahaScreen } from "../src/business/UsahaScreen";
 import { CustomerDetail } from "../src/customers/CustomerDetail";
 import { CustomerList } from "../src/customers/CustomerList";
 import { MenuWeek } from "../src/menu/MenuWeek";
+import { ReportScreen } from "../src/today/ReportScreen";
 import { TodayScreen } from "../src/today/TodayScreen";
 import { canvasDay } from "./fixtures";
 
@@ -203,6 +204,14 @@ const STATES: State[] = [
     action: "Coba lagi",
   },
   {
+    name: "a Laporan page that could not load",
+    pose: "bingung",
+    runtime: () => runtimeWith({ request: jest.fn(offline) }),
+    ui: <ReportScreen id="i-01" />,
+    copy: [],
+    action: "Coba lagi",
+  },
+  {
     name: "Aktifkan pembayaran that could not load",
     pose: "bingung",
     runtime: () => runtimeWith({ sellerOperations: jest.fn(offline) }),
@@ -297,6 +306,66 @@ describe("the cooking session", () => {
     render(wrap(runtimeWith({ sellerOperations: jest.fn(async () => day("preparing")) }), <TodayScreen />));
     const card = await screen.findByTestId("session-count");
     expect(artHeight(await within(card).findByTestId("mascot-memasak", hidden))).toBe(58);
+  });
+
+  it("keeps the count card's layout the same before and during cooking: the art's slot is held from the start", async () => {
+    // A 360dp phone at the default text size, where the caption had the least room.
+    mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1 };
+    const layout = async (status: string) => {
+      render(wrap(runtimeWith({ sellerOperations: jest.fn(async () => day(status)) }), <TodayScreen />));
+      const card = await screen.findByTestId("session-count");
+      const cooking = status === "preparing";
+      const slotId = cooking ? "mascot-memasak" : "mascot-memasak-slot";
+      const slot = within(card).getByTestId(slotId, hidden);
+      const box = StyleSheet.flatten(
+        within(slot).getByTestId(cooking ? "mascot-art" : "mascot-art-slot", hidden).props.style,
+      );
+      const caption = within(card).getByTestId("session-count-caption", hidden);
+      const side = within(card).getByTestId("session-count-side", hidden);
+      const numbers = within(card).getByTestId("session-count-numbers", hidden);
+      const shape = {
+        row: StyleSheet.flatten(within(card).getByTestId("session-count-row", hidden).props.style),
+        numbers: StyleSheet.flatten(numbers.props.style),
+        caption: { text: caption.props.children, lines: caption.props.numberOfLines },
+        side: StyleSheet.flatten(side.props.style),
+        // The art's slot stands in the side column with "Antar", never in the numbers' column, so the caption's width
+        // (and with it its line count) is the same whether or not the art is drawn.
+        slotInSide: within(side).queryByTestId(slotId, hidden) !== null,
+        slotInNumbers: within(numbers).queryByTestId(slotId, hidden) !== null,
+        slot: StyleSheet.flatten(slot.props.style),
+        box: { width: box.width, height: box.height },
+      };
+      screen.unmount();
+      return shape;
+    };
+    const before = await layout("scheduled");
+    const during = await layout("preparing");
+    expect(during).toEqual(before);
+    expect(before.slotInSide).toBe(true);
+    expect(before.slotInNumbers).toBe(false);
+    expect(before.box.height).toBe(72);
+  });
+
+  it("fades the cooking mascot in where its slot stood once cooking starts; instant under reduced motion", async () => {
+    for (const reduced of [false, true]) {
+      jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(reduced);
+      const reads = jest.fn(async () => day("scheduled"));
+      render(wrap(runtimeWith({ sellerOperations: reads }), <TodayScreen />));
+      await screen.findByTestId("mascot-memasak-slot", hidden);
+      reads.mockImplementation(async () => day("preparing"));
+      await act(async () => void (await screen.UNSAFE_getByType(RefreshControl).props.onRefresh()));
+      const art = await screen.findByTestId("mascot-memasak", hidden);
+      expect(screen.queryByTestId("mascot-memasak-slot", hidden)).toBeNull();
+      if (reduced) expect(art.props.entering).toBeUndefined();
+      else expect(art.props.entering).toBeDefined();
+      screen.unmount();
+    }
+  });
+
+  it("draws a session already cooking at first paint with no fade of its own: the header's fade brings it in", async () => {
+    render(wrap(runtimeWith({ sellerOperations: jest.fn(async () => day("preparing")) }), <TodayScreen />));
+    const art = await screen.findByTestId("mascot-memasak", hidden);
+    expect(art.props.entering).toBeUndefined();
   });
 
   it("shows no mascot before cooking starts or once the meal is on its way", async () => {

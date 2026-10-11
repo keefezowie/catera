@@ -155,9 +155,13 @@ function SignedInJadwal() {
                 onSelect={setSelected}
               />
             ) : data.error ? (
-              // Nothing is known about this month yet, so the frame says that instead of drawing its days as empty.
+              // Nothing is known about this month yet, so the frame says that instead of drawing its days as empty. The
+              // failed read is the month, so the puzzled mascot leads it (spec 7.2), inside the frame: the art (120, or
+              // 96 on a 360dp phone at font scale 1.3), the message and the 48dp retry fit its six 52dp week rows, so
+              // the header keeps its height.
               <MonthFrame locale={locale}>
                 <View style={{ gap: 4, alignItems: "center" }}>
+                  <StateArt pose="bingung" style={{ marginBottom: 8 }} />
                   <Text selectable style={{ color: mood.headerText, textAlign: "center" }}>
                     {data.error}
                   </Text>

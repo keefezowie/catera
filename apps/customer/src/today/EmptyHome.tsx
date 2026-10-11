@@ -66,14 +66,16 @@ export function EmptyHomeBody({
   const { actor, t } = useMobile();
   const c = useColors();
   const offers: Offer[] = (catalog.data?.items ?? []).slice(0, 3);
-  // The waving mascot says hello above the invitation (spec 7.2), but never under the recap's food photo.
-  const art = !lead || leadShown === false;
+  // The waving mascot says hello above the invitation (spec 7.2), but never under the recap's food photo. While the
+  // recap reads its seen marks the art's box is held, so the invitation does not move down when the art lands.
+  const held = !!lead && leadShown === undefined;
+  const art = !lead || leadShown === false || held;
   const centred = art ? ({ textAlign: "center" } as const) : null;
   return (
     <>
       {lead}
       <View style={{ gap: 6, paddingTop: 8 }}>
-        {art ? <StateArt pose="melambai" style={{ marginBottom: 10 }} /> : null}
+        {art ? <StateArt pose="melambai" held={held} style={{ marginBottom: 10 }} /> : null}
         <Text variant="title" style={centred}>
           {t("Mau makan apa minggu ini?", "What would you like to eat this week?")}
         </Text>

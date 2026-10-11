@@ -2,7 +2,7 @@ import { View } from "react-native";
 import { router } from "expo-router";
 import { planLabel, type CustomerState } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, FadeSwap, Screen, Text, useColors } from "@catera/mobile-ui";
+import { Button, FadeSwap, Screen, StateArt, Text, useColors } from "@catera/mobile-ui";
 import { Row } from "../account/Row";
 import { SignInFirst } from "../account/SignInFirst";
 import { remainingLabel } from "../remaining";
@@ -14,18 +14,21 @@ import { ListSkeleton } from "../skeletons";
  * The running plans as plain rows: the plan's name (with its dates when another running plan has the same name), its
  * kitchen and the days left. A row opens the plan detail. Loading (two skeleton rows), a failed read with "Coba lagi",
  * and no plan each say so; the rows fade in from the skeleton as one block. Akun's "Paket aktif" and Paket saya both
- * show it.
+ * show it. Where the list is the whole page (Paket saya, `art`), its failed read leads with the puzzled mascot (spec
+ * 7.2); inside Akun the page around it still stands, so the failure stays the compact line.
  */
 export function PlanList({
   customer,
+  art = false,
 }: {
   customer: { data: CustomerState | null; loading: boolean; error: string; reload: () => Promise<void> };
+  art?: boolean;
 }) {
   const loading = customer.loading && !customer.data;
   const failed = !!customer.error && !customer.data;
   return (
     <FadeSwap swapKey={loading ? "loading" : failed ? "error" : "ready"}>
-      <PlanRows customer={customer} loading={loading} failed={failed} />
+      <PlanRows customer={customer} loading={loading} failed={failed} art={art} />
     </FadeSwap>
   );
 }
@@ -34,10 +37,12 @@ function PlanRows({
   customer,
   loading,
   failed,
+  art,
 }: {
   customer: { data: CustomerState | null; error: string; reload: () => Promise<void> };
   loading: boolean;
   failed: boolean;
+  art: boolean;
 }) {
   const { t, locale } = useMobile();
   const c = useColors();
@@ -45,7 +50,8 @@ function PlanRows({
   if (failed)
     return (
       <View style={{ gap: 8, marginTop: 6 }}>
-        <Text selectable style={{ color: c.danger }}>
+        {art ? <StateArt pose="bingung" style={{ marginBottom: 8 }} /> : null}
+        <Text selectable style={[{ color: c.danger }, art ? { textAlign: "center" } : null]}>
           {customer.error}
         </Text>
         <Button variant="secondary" label={t("Coba lagi", "Try again")} onPress={() => void customer.reload()} />
@@ -98,7 +104,7 @@ function Plans() {
   const pull = usePullToRefresh(customer.reload);
   return (
     <Screen nativeTitle={t("Paket aktif", "Active plans")} refreshControl={customer.data ? pull : undefined}>
-      <PlanList customer={customer} />
+      <PlanList customer={customer} art />
     </Screen>
   );
 }

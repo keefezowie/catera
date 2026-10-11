@@ -214,7 +214,8 @@ export function BuyScreen({
           style={{ gap: 16 }}
         >
           {loadError ? (
-            <Retry message={loadError} onRetry={reloadAll} t={t} />
+            // Nothing of the page could be read: the failure is the page, so the puzzled mascot leads it.
+            <Retry art message={loadError} onRetry={reloadAll} t={t} />
           ) : loaded.data && !loaded.data.offer ? (
             <Text variant="heading">{t("Paket tidak ditemukan.", "Package not found.")}</Text>
           ) : (

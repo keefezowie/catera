@@ -48,7 +48,10 @@ import { openLink } from "../nav";
 import { ReadError } from "../ReadError";
 import { TodayCountSkeleton, TodaySkeleton } from "../skeletons";
 
-/** The cooking mascot's size in the count card (spec 7.2): about the height of the portions and their caption. */
+/**
+ * The cooking mascot's size in the count card (spec 7.2): about the height of the portions and their caption. Its slot
+ * is held for the whole session (`StateArt held`), so the card keeps one shape before, during and after cooking.
+ */
 const COOKING_ART = 72;
 
 /** A day's read; `savedAt` is set when it is the copy this phone kept, not a fresh answer. */
@@ -96,26 +99,33 @@ function CountCard({ ops, session }: { ops: SellerOperationsState; session: Kitc
         testID="session-count-row"
         style={{ flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: 12 }}
       >
-        <View style={{ flex: 1, flexShrink: 1 }}>
+        <View testID="session-count-numbers" style={{ flex: 1, flexShrink: 1 }}>
           <Text variant="number" style={{ color: palette.heroText }}>
             {String(portions)}
           </Text>
-          <Text variant="caption" style={{ color: palette.heroMeta }}>
+          <Text testID="session-count-caption" variant="caption" style={{ color: palette.heroMeta }}>
             {meal === "lunch"
               ? t(`porsi siang · ${addresses} alamat`, `lunch portions · ${addresses} addresses`)
               : t(`porsi malam · ${addresses} alamat`, `dinner portions · ${addresses} addresses`)}
           </Text>
         </View>
-        {/* After "Mulai masak", while the whole session cooks, the cooking mascot stands beside the numbers, at about
-            their own height. It goes once the meal leaves. */}
-        {session.journey.stage === "preparing" ? (
-          <StateArt pose="memasak" base={COOKING_ART} style={{ alignSelf: "flex-end" }} />
-        ) : null}
-        {start ? (
-          <Text variant="label" style={{ color: palette.heroText, flexShrink: 0 }}>
-            {t(`Antar ${start}`, `Deliver ${start}`)}
-          </Text>
-        ) : null}
+        {/* The side column: the cooking mascot's slot above "Antar". After "Mulai masak", while the whole session
+            cooks, the mascot stands in it beside the numbers, at about their own height, fading in; before and after,
+            the slot is held empty. The card is the same shape through the whole session, so the header never grows
+            when cooking starts, and the caption keeps the numbers column's full width. */}
+        <View testID="session-count-side" style={{ alignItems: "flex-end", flexShrink: 0, gap: 4 }}>
+          <StateArt
+            pose="memasak"
+            base={COOKING_ART}
+            held={session.journey.stage !== "preparing"}
+            style={{ alignSelf: "flex-end" }}
+          />
+          {start ? (
+            <Text variant="label" style={{ color: palette.heroText }}>
+              {t(`Antar ${start}`, `Deliver ${start}`)}
+            </Text>
+          ) : null}
+        </View>
       </View>
       <RantangTrack
         stage={session.journey.stage}

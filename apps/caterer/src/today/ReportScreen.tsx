@@ -22,6 +22,7 @@ import {
   SheetHeader,
   Skeleton,
   SkeletonGroup,
+  StateArt,
   Text,
   useColors,
   useToast,
@@ -106,8 +107,12 @@ export function ReportScreen({ id, title: carried }: { id: string; title?: strin
         ) : issues.data ? (
           <Text>{t("Laporan ini tidak ditemukan.", "This report was not found.")}</Text>
         ) : issues.error ? (
+          // The failed read stands in for the whole page, so it leads with the puzzled mascot (spec 7.2).
           <>
-            <Text selectable style={{ color: c.danger }}>{issues.error}</Text>
+            <StateArt pose="bingung" />
+            <Text selectable style={{ color: c.danger, textAlign: "center" }}>
+              {issues.error}
+            </Text>
             <Button label={t("Coba lagi", "Try again")} onPress={() => void issues.reload()} />
           </>
         ) : (

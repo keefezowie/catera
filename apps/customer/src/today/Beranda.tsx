@@ -293,8 +293,8 @@ function SignedInHome({ actorId }: { actorId: string }) {
   const actions = useData("home:actions", () => runtime.api.customerActions(20).catch(() => null));
   // The pager's card in view, per meal, so a mood switch never counts the other meal's card as seen.
   const [page, setPage] = useState<{ meal: string; index: number }>({ meal: "", index: 0 });
-  // Whether the "Paket selesai" recap is on the page (undefined while it reads its seen marks): its food photo leads an
-  // empty Beranda, so the waving mascot stays out while it shows.
+  // Whether the "Paket selesai" recap is on the page (undefined while it reads its seen marks). Its food photo is never
+  // next to a mascot: the waving one on an empty Beranda and the resting one on a quiet day stay out while it shows.
   const [recapShown, setRecapShown] = useState<boolean | undefined>(undefined);
   const state = home.data?.data;
   const now = new Date();
@@ -413,8 +413,13 @@ function SignedInHome({ actorId }: { actorId: string }) {
         style={[{ gap: 16 }, heroPlates.length ? { marginTop: HERO_OVERLAP } : null]}
       >
         {/* Nothing comes today and nothing is scheduled next: the resting mascot stands where a plate would, under the
-            headline that says so. A day with a plate leads with its photo and never shows the mascot. */}
-        {!plates.length && !days.length ? <StateArt pose="tidur" /> : null}
+            headline that says so. A day with a plate leads with its photo and never shows the mascot. Nothing else
+            sits between the mascot and the Paket selesai recap here, so it stays out while the recap's food photo
+            shows; while the recap reads its seen marks the art's box is held, so the page does not move when it
+            lands. */}
+        {!plates.length && !days.length && (!recap || recapShown !== true) ? (
+          <StateArt pose="tidur" held={!!recap && recapShown === undefined} />
+        ) : null}
         {heroPlates.length > 1 ? (
           // Several deliveries of the chosen meal: equal heroes, one at a time, the next one peeking.
           <HeroPager

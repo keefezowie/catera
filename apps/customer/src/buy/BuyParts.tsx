@@ -1,17 +1,35 @@
 import { Linking, Text as RNText, View } from "react-native";
 import { router } from "expo-router";
 import type { DirectPaymentMethod, Offer, PaymentAvailability } from "@catera/domain";
-import { Button, Card, FONT, fontFor, Text, themedStyles, useColors } from "@catera/mobile-ui";
+import { Button, Card, FONT, fontFor, StateArt, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { packageHref } from "../hrefs";
 import { goToTab, leaveFor } from "../nav";
 
 type T = (id: string, en: string) => string;
 
-export function Retry({ message, label, onRetry, t }: { message: string; label?: string; onRetry: () => void; t: T }) {
+/**
+ * A failed read and "Coba lagi". A read whose failure stands in for the whole page (`art`: Beli's package, Bayar's
+ * checkout) leads with the puzzled mascot, centred above the message (spec 7.2); one inside a loaded page (a price
+ * that could not be worked out) stays the compact line.
+ */
+export function Retry({
+  message,
+  label,
+  onRetry,
+  t,
+  art = false,
+}: {
+  message: string;
+  label?: string;
+  onRetry: () => void;
+  t: T;
+  art?: boolean;
+}) {
   const c = useColors();
   return (
     <View style={{ gap: 6 }}>
-      <Text selectable style={{ color: c.danger }}>
+      {art ? <StateArt pose="bingung" style={{ marginBottom: 10 }} /> : null}
+      <Text selectable style={[{ color: c.danger }, art ? { textAlign: "center" } : null]}>
         {message}
       </Text>
       <Button variant="secondary" label={label ?? t("Coba lagi", "Try again")} onPress={onRetry} />
