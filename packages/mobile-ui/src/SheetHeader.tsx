@@ -77,6 +77,8 @@ export function SheetBody({ children, os = process.env.EXPO_OS }: { children: Re
       style={{ flex: 1 }}
       automaticallyAdjustKeyboardInsets={ios}
       keyboardShouldPersistTaps="handled"
+      // Android: a drag on the form scrolls it, rather than dragging the bottom sheet.
+      nestedScrollEnabled
       contentContainerStyle={{ paddingHorizontal: ios ? 20 : 24, paddingTop: 4, paddingBottom: insets.bottom + 24, gap: 16 }}
     >
       {children}
@@ -103,6 +105,8 @@ export function SheetFitBody({ header, children }: { header: ReactNode; children
         testID="sheet-fit-body"
         style={{ flexGrow: 0, flexShrink: 1 }}
         alwaysBounceVertical={false}
+        // Android: a drag on a long list scrolls it, rather than dragging the bottom sheet.
+        nestedScrollEnabled
         contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
       >
         {children}

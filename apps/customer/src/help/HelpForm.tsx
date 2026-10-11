@@ -41,12 +41,16 @@ const failure = (e: unknown, locale: "id" | "en", t: (id: string, en: string) =>
   errorLabel((e as { code?: string }).code || (e as Error).message, locale) ||
   t("Belum berhasil. Coba lagi.", "That did not work. Try again.");
 
-/** The sheet's frame: the title row over the scrolling form, in one FadeSwap so the form fades in as one block. */
+/**
+ * The sheet's frame: the title row over the scrolling form, in one FadeSwap so the form fades in as one block. The
+ * header holds its context line (`holdContextLine`) on every render: while the report is read a skeleton keeps the line
+ * (null), then the report's subject, day and meal land as one line (read out in full), so the header keeps its height.
+ */
 function Frame({ title, context, swapKey, children }: { title: string; context?: string | null; swapKey: string; children: ReactNode }) {
   const { t } = useMobile();
   return (
     <View style={{ flex: 1 }}>
-      <SheetHeader title={title} context={context} closeLabel={t("Tutup", "Close")} />
+      <SheetHeader title={title} context={context} holdContextLine closeLabel={t("Tutup", "Close")} />
       <SheetBody>
         <FadeSwap swapKey={swapKey} style={{ gap: 12 }}>
           {children}

@@ -51,8 +51,9 @@ function changeError(e: unknown, locale: "id" | "en", t: (id: string, en: string
 
 /**
  * The frame of the Ubah hari sheet: the title row (the day, with the package and caterer under it) over the scrolling
- * content, which sits in one FadeSwap so the form fades in from its skeleton as one block. While the day is read the
- * title is "Ubah hari" and the context line is held (null), so the header keeps its height when the day lands.
+ * content, which sits in one FadeSwap so the form fades in from its skeleton as one block. The header holds its context
+ * line (`holdContextLine`) on every render: while the day is read the title is "Ubah hari" and a skeleton keeps the
+ * line (null), then the package and caterer land as one line (read out in full), so the header keeps its height.
  */
 function Frame({
   title,
@@ -70,7 +71,7 @@ function Frame({
   const { t } = useMobile();
   return (
     <View style={{ flex: 1 }}>
-      <SheetHeader title={title} context={context} onClose={onClose} closeLabel={t("Tutup", "Close")} />
+      <SheetHeader title={title} context={context} holdContextLine onClose={onClose} closeLabel={t("Tutup", "Close")} />
       <SheetBody>
         <FadeSwap swapKey={swapKey} style={{ gap: 14 }}>
           {children}

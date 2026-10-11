@@ -191,6 +191,8 @@ describe("sheet routes", () => {
     expect(screen.getByRole("header", { name: "Ada masalah" })).toBeTruthy();
     // The scroll view lets iOS move the focused field above the keyboard.
     expect(within(sheet as never).getByTestId("sheet-body").props.keyboardShouldPersistTaps).toBe("handled");
+    // On Android a drag on the form scrolls it, rather than dragging the bottom sheet.
+    expect(within(sheet as never).getByTestId("sheet-body").props.nestedScrollEnabled).toBe(true);
     app.unmount();
   });
 

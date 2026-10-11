@@ -23,6 +23,7 @@ import { PackageDetail } from "../src/discover/PackageDetail";
 import { ReportList } from "../src/help/ReportList";
 import { ReportProblem } from "../src/help/ReportProblem";
 import { ChooseMenu } from "../src/schedule/ChooseMenu";
+import { ChangeDayRoute } from "../src/schedule/ChangeDaySheet";
 import { DayScreen } from "../src/schedule/DayScreen";
 import * as offline from "../src/today/offline";
 import { PlanSkeleton } from "../src/skeletons";
@@ -920,6 +921,26 @@ describe("Ada masalah sheet after the rebase", () => {
     expect(context.props.numberOfLines).toBe(1);
     expect(context.props.accessibilityLabel).toBe(context.props.children);
     expect(String(context.props.children)).toContain(" · ");
+  });
+
+  it("Ubah hari holds its context line too: the header keeps its fixed parts while the day is read", async () => {
+    // After v2's SheetHeader, a null context draws nothing unless the sheet holds the line.
+    mockParams = { id: "d-today" };
+    const read = deferred<CustomerState>();
+    const runtime = runtimeWith({ customer: jest.fn(() => read.promise) });
+    renderWith(runtime, <ChangeDayRoute />);
+    await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
+    const held = screen.getByTestId("sheet-context");
+    expect(flat(held).height).toBe(20);
+    const title = flat(screen.getByRole("header", { name: "Ubah hari" })).lineHeight;
+
+    await act(async () => read.resolve(customerState({ status: "scheduled" })));
+    const context = await screen.findByText(/ · /);
+    expect(context.props.testID).toBe("sheet-context");
+    expect(flat(context).lineHeight).toBe(20);
+    expect(context.props.numberOfLines).toBe(1);
+    expect(context.props.accessibilityLabel).toBe(context.props.children);
+    expect(flat(screen.getAllByRole("header")[0]).lineHeight).toBe(title);
   });
 
   it("a held context stays one line on iOS too, read out in full", () => {

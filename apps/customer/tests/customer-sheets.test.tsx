@@ -224,6 +224,8 @@ const expectScrollsUnderTitle = (route: string, title: string, reachable: unknow
   for (const node of reachable) expect(isInside(node, scroller)).toBe(true);
   expect(isInside(within(sheet as never).getByRole("header", { name: title }), scroller)).toBe(false);
   expect(StyleSheet.flatten(scroller.props.style as never)).toMatchObject({ flexGrow: 0, flexShrink: 1 });
+  // On Android a drag on the list scrolls it, rather than dragging the bottom sheet.
+  expect(scroller.props.nestedScrollEnabled).toBe(true);
   const cap = nearestStyle(scroller.parent, "maxHeight");
   expect(typeof cap).toBe("number");
   expect(cap as number).toBeLessThan(WINDOW_HEIGHT);
