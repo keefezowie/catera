@@ -1,0 +1,223 @@
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { View } from "react-native";
+import { router, useLocalSearchParams } from "expo-router";
+import { areaOptions, type Address } from "@catera/domain";
+import { useData, useMobile } from "@catera/mobile-core";
+import {
+  Button,
+  FadeSwap,
+  Field,
+  SheetBody,
+  SheetHeader,
+  Skeleton,
+  SkeletonGroup,
+  Text,
+  useColors,
+  useToast,
+  useUnsavedGuard,
+} from "@catera/mobile-ui";
+import { FilterChip } from "../discover/FilterChip";
+import { failureText } from "./failure";
+
+type Draft = { label: string; line: string; area: string; city: string; instructions: string };
+
+/**
+ * Addresses typed and not saved, per person and address ("baru" for a new one), in memory only. Android's bottom sheet
+ * closes on a swipe before anything can ask (`useUnsavedGuard`), so the typing waits here and comes back when the form
+ * opens again for that address. Saving or "Buang" drops it; closing the app forgets it.
+ */
+const drafts = new Map<string, Draft>();
+
+const blank = (t: (id: string, en: string) => string, a?: Address | null): Draft => ({
+  label: a?.label ?? t("Rumah", "Home"),
+  line: a?.line ?? "",
+  area: a?.area ?? "Jakarta Selatan",
+  city: a?.city ?? "Jakarta",
+  instructions: a?.instructions ?? "",
+});
+
+/** The sheet's frame: the title row over the scrolling form, in one FadeSwap so the form fades in as one block. */
+function Frame({ title, swapKey, children }: { title: string; swapKey: string; children: ReactNode }) {
+  const { t } = useMobile();
+  return (
+    <View style={{ flex: 1 }}>
+      <SheetHeader title={title} closeLabel={t("Tutup", "Close")} />
+      <SheetBody>
+        <FadeSwap swapKey={swapKey} style={{ gap: 12 }}>
+          {children}
+        </FadeSwap>
+      </SheetBody>
+    </View>
+  );
+}
+
+function FormSkeleton() {
+  const { t } = useMobile();
+  return (
+    <SkeletonGroup label={t("Memuat alamat", "Loading the address")}>
+      <View style={{ gap: 14 }}>
+        {[0, 1, 2].map((i) => (
+          <View key={i} style={{ gap: 6 }}>
+            <Skeleton width="35%" height={12} />
+            <Skeleton height={48} radius={9} />
+          </View>
+        ))}
+      </View>
+    </SkeletonGroup>
+  );
+}
+
+/**
+ * `/alamat-form` (new) and `/alamat-form?id={id}` (edit): an address as a native form sheet over Alamat
+ * (`sheetOptions({ detents: "form" })`); from Beli or Bayar the same form opens as `/pembelian/alamat-form` over the
+ * purchase. Saving closes the sheet with the toast "Alamat disimpan". Typed changes ask before the sheet closes.
+ */
+export function AddressForm() {
+  const params = useLocalSearchParams<{ id?: string }>();
+  const { actor, ready, t } = useMobile();
+  const id = typeof params.id === "string" && params.id ? params.id : "";
+  const title = id ? t("Ubah alamat", "Edit address") : t("Alamat baru", "New address");
+  if (!ready || !actor)
+    return (
+      <Frame title={title} swapKey={ready ? "signin" : "loading"}>
+        {ready ? (
+          <Button
+            label={t("Masuk", "Sign in")}
+            onPress={() => router.push({ pathname: "/login", params: { next: "/alamat" } } as never)}
+          />
+        ) : (
+          <FormSkeleton />
+        )}
+      </Frame>
+    );
+  return <Book key={`${actor.id}:${id}`} actorId={actor.id} id={id} title={title} />;
+}
+
+function Book({ actorId, id, title }: { actorId: string; id: string; title: string }) {
+  const { runtime, t } = useMobile();
+  const c = useColors();
+  // A new address needs nothing read first; an edit reads the book for its version.
+  const customer = useData(`alamat-form:${id}`, () => (id ? runtime.api.customer() : Promise.resolve(null)));
+  if (!id) return <Form actorId={actorId} address={null} title={title} />;
+  const address = customer.data?.addresses.find((a) => a.id === id);
+  if (!address)
+    return (
+      <Frame title={title} swapKey={customer.loading ? "loading" : "missing"}>
+        {customer.loading ? (
+          <FormSkeleton />
+        ) : (
+          <>
+            <Text selectable={!!customer.error} style={{ color: customer.error ? c.danger : c.muted }}>
+              {customer.error || t("Alamat tidak ditemukan.", "Address not found.")}
+            </Text>
+            {customer.error ? <Button label={t("Coba lagi", "Try again")} onPress={() => void customer.reload()} /> : null}
+          </>
+        )}
+      </Frame>
+    );
+  return <Form actorId={actorId} address={address} title={title} />;
+}
+
+function Form({ actorId, address, title }: { actorId: string; address: Address | null; title: string }) {
+  const { command, t, locale } = useMobile();
+  const c = useColors();
+  const toast = useToast();
+  const draftKey = `${actorId}:${address?.id ?? "baru"}`;
+  const [start] = useState(() => blank(t, address));
+  const [draft, setDraft] = useState<Draft>(() => drafts.get(draftKey) ?? start);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [saved, setSaved] = useState(false);
+  const closed = useRef(false);
+  // Only typed text asks: a field that differs from what the form opened with. Choosing an area alone does not.
+  const typed = (["label", "line", "city", "instructions"] as const).some((k) => draft[k].trim() !== start[k].trim());
+
+  useUnsavedGuard(!saved && typed, t("alamat", "address"), {
+    t,
+    nounEn: "address",
+    onDiscard: () => drafts.delete(draftKey),
+  });
+
+  // After the guard has seen `saved`, so closing never asks.
+  useEffect(() => {
+    if (!saved || closed.current) return;
+    closed.current = true;
+    toast.show({ message: t("Alamat disimpan", "Address saved"), tone: "success" });
+    router.back();
+  }, [saved, toast, t]);
+
+  const set = (patch: Partial<Draft>) =>
+    setDraft((d) => {
+      const next = { ...d, ...patch };
+      const changed = (["label", "line", "city", "instructions"] as const).some((k) => next[k].trim() !== start[k].trim());
+      if (changed) drafts.set(draftKey, next);
+      else drafts.delete(draftKey);
+      return next;
+    });
+  const areas = !areaOptions.includes(draft.area) ? [draft.area, ...areaOptions] : areaOptions;
+
+  async function save() {
+    if (busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      await command("address.save", {
+        ...(address ? { id: address.id, version: address.version } : {}),
+        label: draft.label,
+        line: draft.line,
+        area: draft.area,
+        city: draft.city,
+        instructions: draft.instructions,
+      });
+      drafts.delete(draftKey);
+      setSaved(true);
+    } catch (e) {
+      setError(failureText(e, locale, t));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Frame title={title} swapKey="ready">
+      <Field label={t("Label alamat", "Address label")} value={draft.label} onChangeText={(label) => set({ label })} maxLength={60} />
+      <Field
+        label={t("Jalan, nomor, detail", "Street, number, details")}
+        value={draft.line}
+        onChangeText={(line) => set({ line })}
+        multiline
+        maxLength={300}
+      />
+      <Text variant="label">{t("Area", "Area")}</Text>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+        {areas.map((area) => (
+          <FilterChip key={area} label={area} selected={draft.area === area} onPress={() => set({ area })} />
+        ))}
+      </View>
+      <Field label={t("Kota", "City")} value={draft.city} onChangeText={(city) => set({ city })} maxLength={80} />
+      <Field
+        label={t("Petunjuk pengantaran", "Delivery instructions")}
+        value={draft.instructions}
+        onChangeText={(instructions) => set({ instructions })}
+        multiline
+        maxLength={300}
+      />
+      <Text variant="caption">
+        {t(
+          "Alamat pengantaran yang sudah dijadwalkan hanya berubah lewat Ubah hari di Jadwal.",
+          "A delivery already scheduled changes its address only through Change day in Schedule.",
+        )}
+      </Text>
+      {error ? (
+        <Text selectable style={{ color: c.danger }} testID="address-error">
+          {error}
+        </Text>
+      ) : null}
+      <Button
+        label={t("Simpan alamat", "Save address")}
+        disabled={busy || !draft.label.trim() || draft.line.trim().length < 5 || !draft.city.trim()}
+        onPress={() => void save()}
+      />
+    </Frame>
+  );
+}

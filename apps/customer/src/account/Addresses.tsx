@@ -1,11 +1,9 @@
-import { useState } from "react";
 import { View } from "react-native";
-import { areaOptions, type Address } from "@catera/domain";
+import { router } from "expo-router";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, FadeSwap, Field, Screen, Text, useColors } from "@catera/mobile-ui";
-import { FilterChip } from "../discover/FilterChip";
+import { Button, Card, FadeSwap, Screen, Text, useColors } from "@catera/mobile-ui";
+import { FLOW_HREF } from "../nav";
 import { ListSkeleton } from "../skeletons";
-import { failureText } from "./failure";
 import { SignInFirst } from "./SignInFirst";
 
 /** The address list's wait: its rows, under the screen's own header. */
@@ -18,55 +16,26 @@ function AddressesLoading() {
   );
 }
 
-/** Alamat: the delivery addresses (address.save adds or edits one). */
-export function Addresses() {
+/**
+ * Alamat: the delivery addresses. Adding and editing one is a native form sheet over this list (`/alamat-form`); from
+ * Beli or Bayar (`flow`) the list and its form open over the purchase instead (`/pembelian/alamat-form`), so the
+ * purchase stays underneath.
+ */
+export function Addresses({ flow = false }: { flow?: boolean }) {
   const { actor, ready, t } = useMobile();
   if (!ready) return <AddressesLoading />;
   if (!actor) return <SignInFirst title={t("Alamat", "Addresses")} next="/alamat" />;
-  return <AddressBook key={actor.id} />;
+  return <AddressBook key={actor.id} flow={flow} />;
 }
 
-type Draft = { address: Address | null; label: string; line: string; area: string; city: string; instructions: string };
+/** The form route for this list's context: the tab's own sheet, or the copy over the purchase. */
+const formHref = (flow: boolean, id?: string) =>
+  `${flow ? FLOW_HREF.alamatForm : "/alamat-form"}${id ? `?id=${encodeURIComponent(id)}` : ""}`;
 
-function AddressBook() {
-  const { runtime, command, t, locale } = useMobile();
+function AddressBook({ flow }: { flow: boolean }) {
+  const { runtime, t } = useMobile();
   const c = useColors();
   const customer = useData("alamat:customer", () => runtime.api.customer());
-  const [draft, setDraft] = useState<Draft | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-
-  function edit(address: Address | null) {
-    setError("");
-    setDraft({
-      address,
-      label: address?.label ?? t("Rumah", "Home"),
-      line: address?.line ?? "",
-      area: address?.area ?? "Jakarta Selatan",
-      city: address?.city ?? "Jakarta",
-      instructions: address?.instructions ?? "",
-    });
-  }
-
-  async function save(d: Draft) {
-    setBusy(true);
-    setError("");
-    try {
-      await command("address.save", {
-        ...(d.address ? { id: d.address.id, version: d.address.version } : {}),
-        label: d.label,
-        line: d.line,
-        area: d.area,
-        city: d.city,
-        instructions: d.instructions,
-      });
-      setDraft(null);
-    } catch (e) {
-      setError(failureText(e, locale, t));
-    } finally {
-      setBusy(false);
-    }
-  }
 
   if (!customer.data)
     return customer.error ? (
@@ -83,9 +52,6 @@ function AddressBook() {
         </FadeSwap>
       </Screen>
     );
-
-  const set = (patch: Partial<Draft>) => setDraft((d) => (d ? { ...d, ...patch } : d));
-  const areas = draft && !areaOptions.includes(draft.area) ? [draft.area, ...areaOptions] : areaOptions;
 
   return (
     <Screen>
@@ -107,60 +73,15 @@ function AddressBook() {
                 variant="text"
                 label={t("Ubah", "Edit")}
                 accessibilityLabel={t(`Ubah ${a.label}`, `Edit ${a.label}`)}
-                onPress={() => edit(a)}
+                onPress={() => router.push(formHref(flow, a.id) as never)}
               />
             </View>
           </Card>
         ))}
-        {!customer.data.addresses.length && !draft ? (
+        {!customer.data.addresses.length ? (
           <Text style={{ color: c.muted }}>{t("Belum ada alamat.", "No addresses yet.")}</Text>
         ) : null}
-        {draft ? (
-          <Card>
-            <Text variant="heading">{draft.address ? t("Ubah alamat", "Edit address") : t("Alamat baru", "New address")}</Text>
-            <Field label={t("Label alamat", "Address label")} value={draft.label} onChangeText={(label) => set({ label })} maxLength={60} />
-            <Field
-              label={t("Jalan, nomor, detail", "Street, number, details")}
-              value={draft.line}
-              onChangeText={(line) => set({ line })}
-              multiline
-              maxLength={300}
-            />
-            <Text variant="label">{t("Area", "Area")}</Text>
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-              {areas.map((area) => (
-                <FilterChip key={area} label={area} selected={draft.area === area} onPress={() => set({ area })} />
-              ))}
-            </View>
-            <Field label={t("Kota", "City")} value={draft.city} onChangeText={(city) => set({ city })} maxLength={80} />
-            <Field
-              label={t("Petunjuk pengantaran", "Delivery instructions")}
-              value={draft.instructions}
-              onChangeText={(instructions) => set({ instructions })}
-              multiline
-              maxLength={300}
-            />
-            <Text variant="caption">
-              {t(
-                "Alamat pengantaran yang sudah dijadwalkan hanya berubah lewat Ubah hari di Jadwal.",
-                "A delivery already scheduled changes its address only through Change day in Schedule.",
-              )}
-            </Text>
-            {error ? (
-              <Text selectable style={{ color: c.danger }} testID="address-error">
-                {error}
-              </Text>
-            ) : null}
-            <Button
-              label={t("Simpan alamat", "Save address")}
-              disabled={busy || !draft.label.trim() || draft.line.trim().length < 5 || !draft.city.trim()}
-              onPress={() => void save(draft)}
-            />
-            <Button variant="secondary" label={t("Batal", "Cancel")} onPress={() => setDraft(null)} />
-          </Card>
-        ) : (
-          <Button label={t("Tambah alamat", "Add address")} onPress={() => edit(null)} />
-        )}
+        <Button label={t("Tambah alamat", "Add address")} onPress={() => router.push(formHref(flow) as never)} />
       </FadeSwap>
     </Screen>
   );

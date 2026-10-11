@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ScrollView, Text as RNText, View } from "react-native";
+import { router, useLocalSearchParams } from "expo-router";
 import {
   addDays,
   availabilityReasonLabel,
@@ -16,14 +17,19 @@ import {
 import { useData, useMobile } from "@catera/mobile-core";
 import {
   Button,
+  FadeSwap,
   FONT,
   fontFor,
   PressableScale,
   Segmented,
-  Sheet,
+  SheetBody,
+  SheetHeader,
+  Skeleton,
+  SkeletonGroup,
   Text,
   themedStyles,
   useColors,
+  useToast,
 } from "@catera/mobile-ui";
 import { ChatKatering, catererPhoneOf } from "../help/ChatKatering";
 import { longDay } from "./dates";
@@ -43,25 +49,140 @@ function changeError(e: unknown, locale: "id" | "en", t: (id: string, en: string
   return t("Belum berhasil. Coba lagi.", "That did not work. Try again.");
 }
 
-/** Bottom sheet to move one delivery day to another date or send it to another address. */
+/**
+ * The frame of the Ubah hari sheet: the title row (the day, with the package and caterer under it) over the scrolling
+ * content, which sits in one FadeSwap so the form fades in from its skeleton as one block. While the day is read the
+ * title is "Ubah hari" and the context line is held (null), so the header keeps its height when the day lands.
+ */
+function Frame({
+  title,
+  context,
+  swapKey,
+  onClose,
+  children,
+}: {
+  title: string;
+  context?: string | null;
+  swapKey: string;
+  onClose?: () => void;
+  children: ReactNode;
+}) {
+  const { t } = useMobile();
+  return (
+    <View style={{ flex: 1 }}>
+      <SheetHeader title={title} context={context} onClose={onClose} closeLabel={t("Tutup", "Close")} />
+      <SheetBody>
+        <FadeSwap swapKey={swapKey} style={{ gap: 14 }}>
+          {children}
+        </FadeSwap>
+      </SheetBody>
+    </View>
+  );
+}
+
+/** The shape of the change sheet while its day loads: the cutoff line, the two sides and a row of dates. */
+function ChangeDaySkeleton() {
+  const { t } = useMobile();
+  return (
+    <SkeletonGroup label={t("Memuat hari", "Loading the day")}>
+      <View style={{ gap: 14 }}>
+        <Skeleton width="55%" height={14} />
+        <Skeleton height={44} radius={10} />
+        <View style={{ flexDirection: "row", gap: 8 }}>
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} width={64} height={56} radius={10} />
+          ))}
+        </View>
+        <Skeleton height={48} radius={10} />
+      </View>
+    </SkeletonGroup>
+  );
+}
+
+/**
+ * `/ubah-hari/{id}?mode=date|address`: Ubah hari as a native form sheet over the page it was opened from (Hari, Beranda,
+ * the plan), or over the day's Hari on a cold link. It reads the day itself. A change that goes through closes the sheet
+ * and says what happened in a toast ("Hari dipindah ke Senin 12 Okt"); the page under it reads again on its own.
+ */
+export function ChangeDayRoute() {
+  const params = useLocalSearchParams<{ id: string; mode?: string }>();
+  const { actor, ready, t } = useMobile();
+  const id = String(params.id ?? "");
+  const mode: Mode | undefined = params.mode === "address" ? "address" : params.mode === "date" ? "date" : undefined;
+  if (!ready || !actor)
+    return (
+      <Frame title={t("Ubah hari", "Change this day")} context={ready ? undefined : null} swapKey={ready ? "signin" : "loading"}>
+        {ready ? (
+          <Button
+            label={t("Masuk", "Sign in")}
+            onPress={() => router.push({ pathname: "/login", params: { next: `/hari/${id}` } } as never)}
+          />
+        ) : (
+          <ChangeDaySkeleton />
+        )}
+      </Frame>
+    );
+  return <ChangeDayLoaded key={`${actor.id}:${id}`} id={id} mode={mode} />;
+}
+
+function ChangeDayLoaded({ id, mode }: { id: string; mode?: Mode }) {
+  const { runtime, t } = useMobile();
+  const c = useColors();
+  const toast = useToast();
+  const state = useData(`ubah-hari:${id}`, () => runtime.api.customer(`?deliveryId=${encodeURIComponent(id)}`));
+  const d = state.data?.deliveries.find((x) => x.id === id);
+  if (!d)
+    return (
+      <Frame title={t("Ubah hari", "Change this day")} context={state.loading ? null : undefined} swapKey={state.loading ? "loading" : "missing"}>
+        {state.loading ? (
+          <ChangeDaySkeleton />
+        ) : (
+          <>
+            <Text selectable={!!state.error} style={{ color: state.error ? c.danger : c.muted }}>
+              {state.error || t("Pengantaran tidak ditemukan.", "Delivery not found.")}
+            </Text>
+            {state.error ? <Button label={t("Coba lagi", "Try again")} onPress={() => void state.reload()} /> : null}
+          </>
+        )}
+      </Frame>
+    );
+  return (
+    <ChangeDaySheet
+      delivery={d}
+      addresses={state.data?.addresses ?? []}
+      mode={mode}
+      onClose={() => router.back()}
+      onDone={({ message }) => toast.show({ message, tone: "success" })}
+      onStale={() => void state.reload()}
+    />
+  );
+}
+
+/**
+ * Ubah hari, the content of the native form sheet `/ubah-hari/{id}` (`ChangeDayRoute`): move one delivery day to another
+ * date, or send it to another address. The title is the day, the context line the package and caterer. `mode` is the
+ * side it opens on (the day's "…" opens Pindah tanggal or Ganti alamat); a side the day no longer allows falls back to
+ * the other. After the cutoff it says so and offers the caterer's chat.
+ */
 export function ChangeDaySheet({
   delivery: live,
   addresses,
+  mode: wanted,
   onClose,
   onDone,
   onStale,
 }: {
   delivery: Delivery;
   addresses: Address[];
+  mode?: Mode;
   onClose: () => void;
-  /** Called after a change went through, with a sentence to show. */
-  onDone?: (message: string) => void;
+  /** Called after a change went through: the side, what it changed to, and the sentence to show. */
+  onDone?: (done: { mode: Mode; label: string; message: string }) => void;
   /** Called when a change failed, so the screen can reload the day. */
   onStale?: () => void;
 }) {
   const { runtime, command, t, locale } = useMobile();
   const c = useColors();
-  const styles = useStyles();
   const [opened] = useState(() => new Date());
   // What the customer is looking at: captured on open and again whenever the live day moved on.
   const [delivery, setDelivery] = useState(live);
@@ -69,15 +190,20 @@ export function ChangeDaySheet({
   const can = canChangeDay(delivery, opened);
   const open = can.date || can.address;
   const deadline = changeDeadline(delivery.cutoff_at, opened, locale) ?? "";
-  const [mode, setMode] = useState<Mode>(can.date ? "date" : "address");
+  const [mode, setMode] = useState<Mode>(
+    wanted === "address" && can.address ? "address" : wanted === "date" && can.date ? "date" : can.date ? "date" : "address",
+  );
   const [target, setTarget] = useState("");
   const [addressId, setAddressId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const done = useRef(false);
   const availability = useData(`availability:${delivery.id}:${today}`, () =>
     can.date ? runtime.api.deliveryAvailability(delivery.id, today, addDays(today, 30)) : Promise.resolve([]),
   );
   const oldDay = shortDate(delivery.service_date, locale);
+  // A sheet that went through closes once, even if a re-render lands before it leaves.
+  useEffect(() => () => void (done.current = true), []);
 
   const reasons: Record<string, string> = {
     DUPLICATE_DATE: t("Sudah ada pengantaran", "Already has a delivery"),
@@ -110,11 +236,16 @@ export function ChangeDaySheet({
       if (mode === "date")
         await command("delivery.reschedule", { id: delivery.id, version: delivery.version, date: target, kind: "reschedule" });
       else await command("delivery.address", { id: delivery.id, version: delivery.version, addressId });
-      onDone?.(
-        mode === "date"
-          ? t(`Sudah dipindah ke ${label}.`, `Moved to ${label}.`)
-          : t(`${oldDay} diantar ke ${label}.`, `${oldDay} will be delivered to ${label}.`),
-      );
+      if (done.current) return;
+      done.current = true;
+      onDone?.({
+        mode,
+        label,
+        message:
+          mode === "date"
+            ? t(`Hari dipindah ke ${label}`, `Day moved to ${label}`)
+            : t(`${oldDay} diantar ke ${label}`, `${oldDay} goes to ${label}`),
+      });
       onClose();
     } catch (e) {
       setError(changeError(e, locale, t));
@@ -126,120 +257,112 @@ export function ChangeDaySheet({
   }
 
   return (
-    <Sheet visible onClose={onClose} title="" closeLabel={t("Tutup", "Close")}>
-      {/* Sheet always draws a title line; the date header takes its place. */}
-      <View style={{ gap: 14, marginTop: -14 }}>
-        <View style={{ gap: 2 }}>
-          <RNText style={styles.date} accessibilityRole="header">
-            {longDay(delivery.service_date, locale)}
-          </RNText>
-          <Text variant="caption">
-            {delivery.offer.name} · {delivery.offer.caterer}
-          </Text>
-          <Text
-            variant="label"
-            style={{ color: open ? c.sunriseInk : c.charcoal, fontVariant: ["tabular-nums"], marginTop: 4 }}
-          >
-            {open
-              ? t(`Bisa diubah sampai ${deadline}`, `Can be changed until ${deadline}`)
-              : t("Hari ini sudah tidak bisa diubah", "This day can no longer be changed")}
-          </Text>
-        </View>
+    <Frame title={longDay(delivery.service_date, locale)} context={`${delivery.offer.name} · ${delivery.offer.caterer}`} swapKey="ready" onClose={onClose}>
+      <Text variant="label" style={{ color: open ? c.sunriseInk : c.charcoal, fontVariant: ["tabular-nums"] }}>
+        {open
+          ? t(`Bisa diubah sampai ${deadline}`, `Can be changed until ${deadline}`)
+          : t("Hari ini sudah tidak bisa diubah", "This day can no longer be changed")}
+      </Text>
 
-        {!open ? (
-          <>
-            <Text style={{ color: c.muted }}>
-              {t(`Perlu bantuan? Hubungi ${delivery.offer.caterer}.`, `Need help? Contact ${delivery.offer.caterer}.`)}
-            </Text>
-            <ChatKatering phone={catererPhoneOf(delivery)} />
-            <Button variant="text" label={t("Tutup", "Close")} onPress={onClose} />
-          </>
-        ) : (
-          <>
-            <Segmented<Mode>
-              value={mode}
-              onChange={(m) => {
-                setMode(m);
-                setError("");
-              }}
-              options={[
-                ...(can.date ? [{ value: "date" as const, label: t("Pindah tanggal", "Move date") }] : []),
-                ...(can.address ? [{ value: "address" as const, label: t("Ganti alamat", "Change address") }] : []),
-              ]}
-            />
-            {mode === "date" ? (
-              availability.loading && !availability.data ? (
-                <Text style={{ color: c.muted }}>{t("Memuat tanggal…", "Loading dates…")}</Text>
-              ) : availability.error && !availability.data ? (
-                <Text selectable style={{ color: c.danger }}>
-                  {availability.error}
-                </Text>
-              ) : (
-                <>
-                  {dates.some((r) => r.available) ? null : (
-                    <Text style={{ color: c.muted }}>
-                      {t("Belum ada tanggal yang tersedia dalam 30 hari ke depan.", "No dates are available in the next 30 days.")}
-                    </Text>
-                  )}
-                  {dates.length ? (
-                    <DateChips dates={dates} selected={target} onSelect={setTarget} reasons={reasons} today={today} locale={locale} />
-                  ) : null}
-                </>
-              )
-            ) : (
-              // Inside the sheet's own ScrollView: without this Android hands the touch to the outer one.
-              <ScrollView nestedScrollEnabled style={{ maxHeight: 280 }} contentContainerStyle={{ gap: 8 }}>
-                {addresses.map((a) => {
-                  const here = a.id === delivery.address.id;
-                  const outside = !delivery.offer.areas.includes(a.area);
-                  return (
-                    <OptionRow
-                      key={a.id}
-                      label={a.label || a.line}
-                      sub={a.label ? a.line : a.area}
-                      note={here ? t("Alamat sekarang", "Current address") : outside ? t("Di luar area antar", "Outside delivery area") : ""}
-                      selected={addressId === a.id}
-                      disabled={here || outside}
-                      onPress={() => setAddressId(a.id)}
-                    />
-                  );
-                })}
-              </ScrollView>
-            )}
-
-            {error ? (
-              <Text selectable variant="caption" style={{ color: c.danger }}>
-                {error}
+      {!open ? (
+        <>
+          <Text style={{ color: c.muted }}>
+            {t(`Perlu bantuan? Hubungi ${delivery.offer.caterer}.`, `Need help? Contact ${delivery.offer.caterer}.`)}
+          </Text>
+          <ChatKatering phone={catererPhoneOf(delivery)} />
+        </>
+      ) : (
+        <>
+          <Segmented<Mode>
+            value={mode}
+            onChange={(m) => {
+              setMode(m);
+              setError("");
+            }}
+            options={[
+              ...(can.date ? [{ value: "date" as const, label: t("Pindah tanggal", "Move date") }] : []),
+              ...(can.address ? [{ value: "address" as const, label: t("Ganti alamat", "Change address") }] : []),
+            ]}
+          />
+          {mode === "date" ? (
+            availability.loading && !availability.data ? (
+              // The dates wait in their own shape: four chips under the sides.
+              <SkeletonGroup label={t("Memuat tanggal", "Loading dates")}>
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  {[0, 1, 2, 3].map((i) => (
+                    <Skeleton key={i} width={64} height={56} radius={10} />
+                  ))}
+                </View>
+              </SkeletonGroup>
+            ) : availability.error && !availability.data ? (
+              <Text selectable style={{ color: c.danger }}>
+                {availability.error}
               </Text>
-            ) : null}
-            <Button
-              label={
-                mode === "date"
-                  ? target
-                    ? t(`Pindah ke ${label}`, `Move to ${label}`)
-                    : t("Pilih tanggal", "Choose a date")
-                  : addressId
-                    ? t(`Antar ke ${label}`, `Deliver to ${label}`)
-                    : t("Pilih alamat", "Choose an address")
-              }
-              disabled={busy || (mode === "date" ? !target : !addressId)}
-              onPress={() => void confirm()}
-            />
-            <Text variant="caption">
-              {mode === "date"
-                ? t(
-                    `Tempat di hari baru dipesan dulu, baru ${oldDay} dilepas. ${delivery.offer.caterer} otomatis tahu.`,
-                    `The new day is booked first, then ${oldDay} is released. ${delivery.offer.caterer} is told automatically.`,
-                  )
-                : t(
-                    `Hanya untuk ${oldDay}. Hari lain tetap ke ${delivery.address.label || delivery.address.line}.`,
-                    `Only for ${oldDay}. Other days still go to ${delivery.address.label || delivery.address.line}.`,
-                  )}
+            ) : (
+              <>
+                {dates.some((r) => r.available) ? null : (
+                  <Text style={{ color: c.muted }}>
+                    {t("Belum ada tanggal yang tersedia dalam 30 hari ke depan.", "No dates are available in the next 30 days.")}
+                  </Text>
+                )}
+                {dates.length ? (
+                  <DateChips dates={dates} selected={target} onSelect={setTarget} reasons={reasons} today={today} locale={locale} />
+                ) : null}
+              </>
+            )
+          ) : (
+            // The sheet's own scroll view carries the list; each row is a 56dp option.
+            <View style={{ gap: 8 }}>
+              {addresses.map((a) => {
+                const here = a.id === delivery.address.id;
+                const outside = !delivery.offer.areas.includes(a.area);
+                return (
+                  <OptionRow
+                    key={a.id}
+                    label={a.label || a.line}
+                    sub={a.label ? a.line : a.area}
+                    note={here ? t("Alamat sekarang", "Current address") : outside ? t("Di luar area antar", "Outside delivery area") : ""}
+                    selected={addressId === a.id}
+                    disabled={here || outside}
+                    onPress={() => setAddressId(a.id)}
+                  />
+                );
+              })}
+            </View>
+          )}
+
+          {error ? (
+            <Text selectable variant="caption" style={{ color: c.danger }}>
+              {error}
             </Text>
-          </>
-        )}
-      </View>
-    </Sheet>
+          ) : null}
+          <Button
+            label={
+              mode === "date"
+                ? target
+                  ? t(`Pindah ke ${label}`, `Move to ${label}`)
+                  : t("Pilih tanggal", "Choose a date")
+                : addressId
+                  ? t(`Antar ke ${label}`, `Deliver to ${label}`)
+                  : t("Pilih alamat", "Choose an address")
+            }
+            disabled={busy || (mode === "date" ? !target : !addressId)}
+            onPress={() => void confirm()}
+          />
+          <Text variant="caption">
+            {mode === "date"
+              ? t(
+                  `Tempat di hari baru dipesan dulu, baru ${oldDay} dilepas. ${delivery.offer.caterer} otomatis tahu.`,
+                  `The new day is booked first, then ${oldDay} is released. ${delivery.offer.caterer} is told automatically.`,
+                )
+              : t(
+                  `Hanya untuk ${oldDay}. Hari lain tetap ke ${delivery.address.label || delivery.address.line}.`,
+                  `Only for ${oldDay}. Other days still go to ${delivery.address.label || delivery.address.line}.`,
+                )}
+          </Text>
+        </>
+      )}
+    </Frame>
   );
 }
 
@@ -342,7 +465,6 @@ function OptionRow({
 }
 
 const useStyles = themedStyles((c) => ({
-  date: { fontSize: 22, fontFamily: fontFor("800"), color: c.forest },
   row: {
     minHeight: 56,
     flexDirection: "row",

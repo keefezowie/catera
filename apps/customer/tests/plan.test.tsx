@@ -229,6 +229,29 @@ describe("Plan detail states", () => {
     expect(router.push).toHaveBeenCalledWith(`/hari/d-1?title=${encodeURIComponent(shortDate(at(1), "id"))}`);
   });
 
+  it("each upcoming day has its … beside the row: the day's actions in the native action sheet", async () => {
+    renderPlan(runtimeWith(async () => planState()));
+    expect(await screen.findByText("Berikutnya")).toBeTruthy();
+    // Tomorrow can still change (its cutoff is today 17.00), so its "…" is there, named for the meal and the day.
+    const more = screen.getByRole("button", { name: `Pilihan untuk makan siang ${shortDate(at(1), "id")}` });
+    // It sits beside the row, not inside it: the row stays one button that opens Hari.
+    expect(within(screen.getAllByTestId("plan-upcoming-row")[1]).queryByTestId("header-more")).toBeNull();
+    fireEvent.press(more);
+    expect(router.push).toHaveBeenCalledWith({ pathname: "/aksi", params: { id: expect.any(String) } });
+  });
+
+  it("offline, no upcoming day offers a …: a kept copy acts on nothing", async () => {
+    (offline.loadCachedCustomer as jest.Mock).mockResolvedValueOnce({ savedAt: "2026-10-07T23:12:00Z", data: planState() });
+    renderPlan(
+      runtimeWith(async () => {
+        throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
+      }),
+    );
+    expect(await screen.findByText("Berikutnya")).toBeTruthy();
+    expect(screen.getAllByTestId("plan-upcoming-row").length).toBeGreaterThan(0);
+    expect(screen.queryByTestId("header-more")).toBeNull();
+  });
+
   it("today's day leaves Berikutnya once its meal has arrived", async () => {
     const deliveries = [delivery("d-today", DAY, { status: "delivered" }), delivery("d-1", at(1))];
     renderPlan(runtimeWith(async () => planState({}, { deliveries })));

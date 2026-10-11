@@ -1,14 +1,11 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactElement, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type ReactElement, type ReactNode } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import {
   type AccessibilityRole,
-  Keyboard,
   KeyboardAvoidingView,
   type LayoutChangeEvent,
-  Modal,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
-  Pressable,
   type RefreshControlProps,
   ScrollView,
   StyleSheet,
@@ -20,9 +17,9 @@ import {
   type TextStyle,
   type ViewStyle,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 import type { PaletteKey } from "@catera/design-tokens";
-import { PressableScale, useReduced } from "./motion";
+import { PressableScale } from "./motion";
 import { StatusBand } from "./StatusBand";
 import { themedStyles, useColors } from "./theme";
 import { useScreenNavigation, useStackHeaderHeight, useUnderStackHeader } from "./navigation";
@@ -300,100 +297,6 @@ export function Stepper({
         <RNText style={styles.stepGlyph}>+</RNText>
       </PressableScale>
     </View>
-  );
-}
-
-const SHEET_PADDING = 20;
-
-/**
- * The height of the on-screen keyboard while it is up, or 0. The Sheet's Modal reaches under the system bars
- * (navigationBarTranslucent), and Android does not resize such a window for the keyboard, so the sheet reads the
- * keyboard itself. iOS announces the frame before it animates, so the sheet moves with it.
- */
-function useKeyboardHeight(active: boolean): number {
-  const [height, setHeight] = useState(0);
-  useEffect(() => {
-    if (!active) {
-      setHeight(0);
-      return;
-    }
-    const ios = process.env.EXPO_OS === "ios";
-    const show = Keyboard.addListener(ios ? "keyboardWillShow" : "keyboardDidShow", (e) =>
-      setHeight(e.endCoordinates.height),
-    );
-    const hide = Keyboard.addListener(ios ? "keyboardWillHide" : "keyboardDidHide", () => setHeight(0));
-    return () => {
-      show.remove();
-      hide.remove();
-    };
-  }, [active]);
-  return height;
-}
-
-/** Bottom sheet for short decisions (share, exceptions). */
-export function Sheet({
-  visible,
-  onClose,
-  title,
-  closeLabel,
-  children,
-}: {
-  visible: boolean;
-  onClose: () => void;
-  title: string;
-  /** Translated accessibility label of the scrim ("Tutup" / "Close"). */
-  closeLabel: string;
-  children: ReactNode;
-}) {
-  const reduced = useReduced();
-  const styles = useStyles();
-  const insets = useSafeAreaInsets();
-  const keyboard = useKeyboardHeight(visible);
-  // A sheet taller than the room left above the keyboard scrolls inside itself, so its title and its last button stay
-  // reachable. It only becomes scrollable when it overflows: an inner list (a day picker) then keeps its own touches.
-  const [viewport, setViewport] = useState(0);
-  const [content, setContent] = useState(0);
-  const overflow = content > viewport + 1;
-  return (
-    // The modal window reaches under the status and gesture bars so the scrim covers them; without it the screen
-    // behind shows through the gesture band as a bright strip. The sheet then pads its own bottom to clear that band.
-    // Android refuses a translucent navigation bar without a translucent status bar, so both are set.
-    <Modal
-      visible={visible}
-      transparent
-      statusBarTranslucent
-      navigationBarTranslucent
-      animationType={reduced ? "fade" : "slide"}
-      onRequestClose={onClose}
-    >
-      <View style={styles.sheetRoot}>
-        <Pressable style={styles.scrim} onPress={onClose} accessibilityRole="button" accessibilityLabel={closeLabel} />
-        <View
-          style={[
-            styles.sheet,
-            // With the keyboard up it covers the gesture band, so the sheet clears the keyboard instead of the inset.
-            // The top margin keeps a full-height sheet below the status bar.
-            { paddingBottom: SHEET_PADDING + (keyboard > 0 ? keyboard : insets.bottom), marginTop: insets.top + 8 },
-          ]}
-          accessibilityViewIsModal
-          onAccessibilityEscape={onClose}
-        >
-          <View style={styles.grabber} />
-          {title ? <Text variant="heading">{title}</Text> : null}
-          <ScrollView
-            style={styles.sheetBody}
-            contentContainerStyle={styles.sheetContent}
-            keyboardShouldPersistTaps="handled"
-            scrollEnabled={overflow}
-            showsVerticalScrollIndicator={overflow}
-            onLayout={(e) => setViewport(e.nativeEvent.layout.height)}
-            onContentSizeChange={(_w, h) => setContent(h)}
-          >
-            {children}
-          </ScrollView>
-        </View>
-      </View>
-    </Modal>
   );
 }
 
@@ -689,27 +592,6 @@ const useStyles = themedStyles((c) => ({
   },
   stepButton: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
   stepGlyph: { fontSize: 22, color: c.forest },
-  sheetRoot: { flex: 1, justifyContent: "flex-end" },
-  scrim: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: "rgba(20,30,25,0.45)" },
-  sheet: {
-    backgroundColor: c.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: SHEET_PADDING,
-    paddingTop: 10,
-    gap: 14,
-    // The sheet gives up height before it leaves the window, and its body scrolls inside what is left.
-    flexShrink: 1,
-  },
-  sheetBody: { flexShrink: 1 },
-  sheetContent: { gap: 14 },
-  grabber: {
-    alignSelf: "center",
-    width: 40,
-    height: 4,
-    borderRadius: 4,
-    backgroundColor: c.fieldBorder,
-  },
   screen: { flex: 1, backgroundColor: c.canvas },
   keyboard: { flex: 1 },
   screenBody: { paddingHorizontal: 20, paddingTop: 16, gap: 16, maxWidth: 760, width: "100%", alignSelf: "center" },

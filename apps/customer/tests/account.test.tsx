@@ -6,7 +6,7 @@ import * as SecureStore from "expo-secure-store";
 import * as Notifications from "expo-notifications";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { nativeMood } from "@catera/design-tokens";
-import { MoodProvider, ThemeProvider } from "@catera/mobile-ui";
+import { MoodProvider, ThemeProvider, ToastProvider } from "@catera/mobile-ui";
 import { addDays, type CustomerActionItem, type CustomerState } from "@catera/domain";
 import { Akun } from "../src/account/Akun";
 import { Addresses } from "../src/account/Addresses";
@@ -16,7 +16,21 @@ import { Pengaturan } from "../src/settings/Pengaturan";
 import { BahasaSheet, TampilanSheet } from "../src/settings/ChoiceSheets";
 import { Beranda } from "../src/today/Beranda";
 import { customerLink } from "../src/links";
+import { AddressForm } from "../src/account/AddressForm";
 import { customerState, subscription, offer, TODAY } from "./fixtures";
+import { SheetHost } from "./sheetHost";
+
+let mockParams: Record<string, string> = {};
+/** Adding and editing an address is a sheet route (`/alamat-form`): the host shows it over Alamat. */
+const SHEETS = { "/alamat-form": AddressForm };
+const toParams = (params: Record<string, string>) => void (mockParams = params);
+/** Alamat with its form sheet's stand-in stack, and the toast the sheet shows on saving. */
+const withForm = (
+  <ToastProvider>
+    <Addresses />
+    <SheetHost routes={SHEETS} onParams={toParams} />
+  </ToastProvider>
+);
 
 /** Rows that carry an href open through openLink; its tab handling is covered in navigation.test, so here it opens the
  * path the way a push does. */
@@ -27,7 +41,7 @@ jest.mock("../src/nav", () => ({
 jest.mock("expo-router", () => ({
   router: { push: jest.fn(), replace: jest.fn(), back: jest.fn() },
   Link: () => null,
-  useLocalSearchParams: () => ({}),
+  useLocalSearchParams: () => mockParams,
   useFocusEffect: (effect: () => void) => require("react").useEffect(effect, [effect]),
 }));
 jest.mock("expo-notifications", () => ({
@@ -328,9 +342,12 @@ describe("Alamat", () => {
 
   it("edits an address with the same address.save payload", async () => {
     const runtime = runtimeWith({ addresses: [kantor] });
-    renderWith(runtime, <Addresses />);
+    renderWith(runtime, withForm);
     fireEvent.press(await screen.findByRole("button", { name: "Ubah Kantor" }));
-    fireEvent.changeText(screen.getByLabelText("Jalan, nomor, detail"), "Jl. Baru No. 2");
+    // The form is a native sheet over Alamat, opened with the address's id.
+    expect(router.push).toHaveBeenCalledWith("/alamat-form?id=a-1");
+    // An edit reads the book for the address's version first.
+    fireEvent.changeText(await screen.findByLabelText("Jalan, nomor, detail"), "Jl. Baru No. 2");
     fireEvent.press(screen.getByRole("button", { name: "Simpan alamat" }));
     await waitFor(() =>
       expect(runtime.api.command).toHaveBeenCalledWith(
@@ -347,13 +364,19 @@ describe("Alamat", () => {
         expect.any(String),
       ),
     );
+    // Saved: the sheet closes and the toast says so.
+    await waitFor(() => expect(router.back).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(screen.queryByRole("button", { name: "Simpan alamat" })).toBeNull());
+    expect(router.back).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText("Alamat disimpan")).toBeTruthy();
   });
 
   it("adds a new address in the chosen area", async () => {
     const runtime = runtimeWith({ addresses: [] });
-    renderWith(runtime, <Addresses />);
+    renderWith(runtime, withForm);
     fireEvent.press(await screen.findByRole("button", { name: "Tambah alamat" }));
+    expect(router.push).toHaveBeenCalledWith("/alamat-form");
+    expect(screen.getByRole("header", { name: "Alamat baru" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Simpan alamat" })).toBeDisabled();
     fireEvent.changeText(screen.getByLabelText("Jalan, nomor, detail"), "Jl. Melati No. 9");
     fireEvent.press(screen.getByRole("button", { name: "Tangerang Selatan" }));
@@ -376,11 +399,12 @@ describe("Alamat", () => {
   it("keeps the form and says so when saving fails", async () => {
     const runtime = runtimeWith({ addresses: [kantor] });
     (runtime.api.command as jest.Mock).mockRejectedValueOnce(Object.assign(new Error("CONFLICT"), { code: "CONFLICT" }));
-    renderWith(runtime, <Addresses />);
+    renderWith(runtime, withForm);
     fireEvent.press(await screen.findByRole("button", { name: "Ubah Kantor" }));
-    fireEvent.press(screen.getByRole("button", { name: "Simpan alamat" }));
+    fireEvent.press(await screen.findByRole("button", { name: "Simpan alamat" }));
     expect(await screen.findByTestId("address-error")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Simpan alamat" })).toBeTruthy();
+    expect(router.back).not.toHaveBeenCalled();
   });
 });
 

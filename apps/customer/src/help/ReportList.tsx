@@ -10,7 +10,6 @@ import {
   shortDate,
   type CustomerActionItem,
   type DeliveryIssue,
-  type Subscription,
   type SupportCase,
 } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
@@ -18,16 +17,14 @@ import {
   Button,
   Card,
   FadeSwap,
-  Field,
   fontFor,
-  PressableScale,
   Screen,
-  Segmented,
   Text,
   themedStyles,
   useColors,
 } from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
+import { FLOW_HREF } from "../nav";
 import { ListSkeleton } from "../skeletons";
 
 /** Plain status words shared by reports and support cases. */
@@ -44,8 +41,12 @@ export function statusWord(status: string, t: (id: string, en: string) => string
   }
 }
 
-/** Bantuan dan laporan: payment help, the customer's reports and their support cases. */
-export function ReportList() {
+/**
+ * Bantuan dan laporan: payment help, the customer's reports and their support cases. "Minta bantuan" and "Minta Catera
+ * meninjau" open their forms as native sheets over this list (`/bantuan-form`); from Beli or Bayar (`flow`) the list and
+ * its forms open over the purchase instead (`/pembelian/bantuan-form`).
+ */
+export function ReportList({ flow = false }: { flow?: boolean }) {
   const { actor, ready, t } = useMobile();
   if (!ready)
     return (
@@ -54,14 +55,17 @@ export function ReportList() {
       </Screen>
     );
   if (!actor) return <SignInFirst title={t("Bantuan dan laporan", "Help and reports")} next="/bantuan" />;
-  return <List key={actor.id} />;
+  return <List key={actor.id} flow={flow} />;
 }
 
 /** The caterer's last word on a report, if they have given one. */
 const lastReply = (i: DeliveryIssue) =>
   [...(i.events ?? [])].reverse().find((e) => e.action === "deliveryIssue.respond" || e.action === "deliveryIssue.resolve");
 
-function List() {
+/** The help form route for this list's context: the tab's own sheet, or the copy over the purchase. */
+const helpHref = (flow: boolean, query: string) => `${flow ? FLOW_HREF.bantuanForm : "/bantuan-form"}?${query}`;
+
+function List({ flow }: { flow: boolean }) {
   const { runtime, t } = useMobile();
   // The case filter below names its argument `c`, so the palette keeps a longer name here.
   const palette = useColors();
@@ -134,9 +138,15 @@ function List() {
             />
           </Card>
         ))}
-        {customer.data.subscriptions.length ? <AskForHelp subscriptions={customer.data.subscriptions} /> : null}
+        {customer.data.subscriptions.length ? (
+          <Button
+            variant="secondary"
+            label={t("Minta bantuan", "Ask for help")}
+            onPress={() => router.push(helpHref(flow, "kind=help") as never)}
+          />
+        ) : null}
         {reports.map((r) => (
-          <ReportCard key={r.id} issue={r} />
+          <ReportCard key={r.id} issue={r} flow={flow} />
         ))}
         {cases.map((c) => (
           <CaseCard key={c.id} item={c} refunds={refunds.filter((x) => x.case_id === c.id)} />
@@ -177,110 +187,10 @@ function StatusPill({ status }: { status: string }) {
   );
 }
 
-const TOPICS = [
-  { id: "Pembatalan", en: "Cancellation" },
-  { id: "Pembayaran", en: "Payment" },
-  { id: "Lainnya", en: "Other" },
-];
-
-/** Cancellations, refunds and other requests all enter support: a topic, a few words and the package. */
-function AskForHelp({ subscriptions }: { subscriptions: Subscription[] }) {
-  const { command, t, locale } = useMobile();
+function ReportCard({ issue: i, flow }: { issue: DeliveryIssue; flow: boolean }) {
+  const { t, locale } = useMobile();
   const c = useColors();
   const styles = useStyles();
-  const [open, setOpen] = useState(false);
-  const [topic, setTopic] = useState("");
-  const [subscriptionId, setSubscriptionId] = useState(subscriptions[0]?.id ?? "");
-  const [text, setText] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const chosen = subscriptions.some((s) => s.id === subscriptionId) ? subscriptionId : (subscriptions[0]?.id ?? "");
-
-  if (!open)
-    return <Button variant="secondary" label={t("Minta bantuan", "Ask for help")} onPress={() => setOpen(true)} />;
-
-  async function send() {
-    if (busy || !topic || !chosen || text.trim().length < 5) return;
-    setBusy(true);
-    setError("");
-    try {
-      await command("support.create", { subscriptionId: chosen, subject: topic, description: text.trim() });
-      setOpen(false);
-      setTopic("");
-      setText("");
-    } catch (e) {
-      setError(
-        errorLabel((e as { code?: string }).code || (e as Error).message, locale) ||
-          t("Belum berhasil. Coba lagi.", "That did not work. Try again."),
-      );
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <Card style={{ gap: 12 }}>
-      <Text variant="heading">{t("Minta bantuan", "Ask for help")}</Text>
-      <Segmented<string>
-        value={topic}
-        onChange={setTopic}
-        options={TOPICS.map((x) => ({ value: x.id, label: t(x.id, x.en) }))}
-      />
-      {subscriptions.length > 1 ? (
-        <View style={styles.chips}>
-          {subscriptions.map((s) => (
-            <PressableScale
-              key={s.id}
-              accessibilityRole="button"
-              accessibilityState={{ selected: s.id === chosen }}
-              haptic="select"
-              onPress={() => setSubscriptionId(s.id)}
-              style={[styles.pick, s.id === chosen && styles.pickOn]}
-            >
-              <RNText style={[styles.pickText, { color: s.id === chosen ? c.cream : c.forest }]}>
-                {s.snapshot.offer.name}
-              </RNText>
-            </PressableScale>
-          ))}
-        </View>
-      ) : null}
-      <Field
-        label={t("Ceritakan kendalanya", "Tell us what is wrong")}
-        multiline
-        value={text}
-        onChangeText={setText}
-        maxLength={2000}
-        style={{ minHeight: 88, textAlignVertical: "top", paddingTop: 12 }}
-      />
-      <Text variant="caption">
-        {t(
-          "Katering membalas lebih dulu. Pembatalan dan pengembalian dana selalu ditinjau.",
-          "The caterer replies first. Cancellations and refunds are always reviewed.",
-        )}
-      </Text>
-      {error ? (
-        <Text selectable variant="caption" style={{ color: c.danger }}>
-          {error}
-        </Text>
-      ) : null}
-      <Button
-        label={t("Kirim permintaan", "Send request")}
-        disabled={busy || !topic || !chosen || text.trim().length < 5}
-        onPress={() => void send()}
-      />
-      <Button variant="text" label={t("Batal", "Cancel")} onPress={() => setOpen(false)} />
-    </Card>
-  );
-}
-
-function ReportCard({ issue: i }: { issue: DeliveryIssue }) {
-  const { command, t, locale } = useMobile();
-  const c = useColors();
-  const styles = useStyles();
-  const [asking, setAsking] = useState(false);
-  const [reason, setReason] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
   const reply = lastReply(i);
   // An unanswered report can go to Catera from 12.00 Jakarta the day after it was sent; a reply or a
   // "done" from the caterer can be questioned at any time. Days and the noon mark are Jakarta's (+07:00).
@@ -292,23 +202,6 @@ function ReportCard({ issue: i }: { issue: DeliveryIssue }) {
     sentDay === jakartaDay(now)
       ? t("Bisa minta Catera meninjau mulai besok 12.00", "You can ask Catera to review from tomorrow 12.00")
       : t("Bisa minta Catera meninjau hari ini 12.00", "You can ask Catera to review from today 12.00");
-
-  async function escalate() {
-    if (busy) return;
-    setBusy(true);
-    setError("");
-    try {
-      await command("deliveryIssue.escalate", { id: i.id, version: i.version, body: reason.trim() });
-      setAsking(false);
-    } catch (e) {
-      setError(
-        errorLabel((e as { code?: string }).code || (e as Error).message, locale) ||
-          t("Belum berhasil. Coba lagi.", "That did not work. Try again."),
-      );
-    } finally {
-      setBusy(false);
-    }
-  }
 
   return (
     <Card style={{ gap: 8 }}>
@@ -332,31 +225,13 @@ function ReportCard({ issue: i }: { issue: DeliveryIssue }) {
           {hint}
         </Text>
       ) : null}
-      {canEscalate && !asking ? (
-        <Button variant="secondary" label={t("Minta Catera meninjau", "Ask Catera to review")} onPress={() => setAsking(true)} />
-      ) : null}
-      {asking ? (
-        <>
-          <Field
-            label={t("Apa yang belum beres?", "What is still wrong?")}
-            multiline
-            value={reason}
-            onChangeText={setReason}
-            maxLength={2000}
-            style={{ minHeight: 88, textAlignVertical: "top", paddingTop: 12 }}
-          />
-          {error ? (
-            <Text selectable variant="caption" style={{ color: c.danger }}>
-              {error}
-            </Text>
-          ) : null}
-          <Button
-            label={t("Kirim ke Catera", "Send to Catera")}
-            disabled={busy || reason.trim().length < 5}
-            onPress={() => void escalate()}
-          />
-          <Button variant="text" label={t("Batal", "Cancel")} onPress={() => setAsking(false)} />
-        </>
+      {canEscalate ? (
+        // What is still wrong goes in a form sheet over this list.
+        <Button
+          variant="secondary"
+          label={t("Minta Catera meninjau", "Ask Catera to review")}
+          onPress={() => router.push(helpHref(flow, `kind=review&issue=${encodeURIComponent(i.id)}`) as never)}
+        />
       ) : null}
     </Card>
   );
@@ -425,9 +300,5 @@ const useStyles = themedStyles((c) => ({
   pillOpen: { backgroundColor: c.cream },
   pillDone: { backgroundColor: c.sage },
   pillText: { fontSize: 12, fontFamily: fontFor("700") },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  pick: { minHeight: 48, paddingHorizontal: 14, borderRadius: 10, borderWidth: 1, borderColor: c.secondaryBorder, justifyContent: "center" },
-  pickOn: { backgroundColor: c.forest, borderColor: c.forest },
-  pickText: { fontSize: 13, fontFamily: fontFor("700") },
   reply: { gap: 2, padding: 12, borderRadius: 12, backgroundColor: c.sage },
 }));

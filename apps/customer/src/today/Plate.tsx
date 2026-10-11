@@ -3,7 +3,7 @@ import { Linking, StyleSheet, Text as RNText, View, type StyleProp, type ViewSty
 import Svg, { Circle, Path } from "react-native-svg";
 import { router } from "expo-router";
 import { nativeThemes } from "@catera/design-tokens";
-import { errorLabel, journeyCaption, whatsappUrl, type Plate as PlateData } from "@catera/domain";
+import { errorLabel, journeyCaption, whatsappUrl, type Delivery, type Plate as PlateData } from "@catera/domain";
 import { useMobile, useTrack } from "@catera/mobile-core";
 import {
   Button,
@@ -19,6 +19,8 @@ import {
   useMoodColors,
   useThemePreference,
 } from "@catera/mobile-ui";
+import { dayHasActions } from "../schedule/dayActions";
+import { DayMore } from "../schedule/DayMore";
 
 const JAKARTA_OFFSET_MS = 7 * 60 * 60 * 1000;
 
@@ -200,6 +202,7 @@ export function Plate({
   variant = "card",
   paged = false,
   counted = true,
+  delivery,
 }: {
   plate: PlateData;
   apiBase: string;
@@ -209,6 +212,8 @@ export function Plate({
   paged?: boolean;
   /** Whether this hero is the one in view, so its journey counts as seen. A card behind the pager's first is not. */
   counted?: boolean;
+  /** The day behind a hero plate, from a fresh read: its "…" opens the day's actions. Left out offline. */
+  delivery?: Delivery;
 }) {
   const styles = useStyles();
   const content = (
@@ -219,6 +224,7 @@ export function Plate({
       offline={offline}
       variant={variant}
       counted={counted}
+      delivery={delivery}
     />
   );
   if (variant !== "hero") return <View style={styles.card}>{content}</View>;
@@ -245,12 +251,14 @@ function PlateContent({
   offline,
   variant,
   counted,
+  delivery,
 }: {
   plate: PlateData;
   apiBase: string;
   offline?: boolean;
   variant: "card" | "hero";
   counted: boolean;
+  delivery?: Delivery;
 }) {
   const { command, t, locale } = useMobile();
   const c = useColors();
@@ -259,6 +267,8 @@ function PlateContent({
   const moodColors = useMoodColors();
   const { scheme } = useThemePreference();
   const hero = variant === "hero";
+  // The hero's "…": a fresh read with something the day still allows.
+  const more = hero && !offline && dayHasActions(delivery, new Date(), plate.meal);
   // The hero's inks come from the mood, a card's from the theme. Light Malam puts a dark fill under the light theme's
   // dark inks, so the error text takes the dark theme's danger there.
   const ink = hero ? moodColors.heroText : c.forest;
@@ -315,7 +325,8 @@ function PlateContent({
         <View style={styles.scrimSoft} />
         {/* The overlay carries its own dark ground, so every wrapped line sits on it. */}
         <View style={styles.overlay} testID="plate-overlay">
-          <RNText style={styles.meal}>
+          {/* The meal line keeps clear of the "…" when a large font lifts the overlay to the photo's top. */}
+          <RNText style={[styles.meal, more && { paddingEnd: 48 }]}>
             {meal} · {plate.catererName}
           </RNText>
           <RNText testID="plate-sentence" style={styles.sentence} accessibilityRole="header">
@@ -323,6 +334,13 @@ function PlateContent({
           </RNText>
           {second ? <RNText style={styles.second}>{second}</RNText> : null}
         </View>
+        {/* The day's other actions, at the photo's top corner on its own dark ground, so a light photo never hides it.
+            Only the hero has it, and only from a fresh read: a copy kept offline acts on nothing. */}
+        {more ? (
+          <View style={styles.more}>
+            <DayMore delivery={delivery} meal={plate.meal} tint={fixedInk.cream} ground="rgba(12,30,22,0.66)" />
+          </View>
+        ) : null}
       </View>
       <View style={[styles.body, hero && { paddingHorizontal: 8, paddingTop: 12, paddingBottom: 8 }]}>
         {plate.dishes.length ? (
@@ -458,6 +476,7 @@ const useStyles = themedStyles((c) => ({
   },
   photo: { backgroundColor: fixedInk.forest, justifyContent: "flex-end" },
   scrimSoft: { position: "absolute", left: 0, right: 0, bottom: 0, height: "75%", backgroundColor: "rgba(12,30,22,0.22)" },
+  more: { position: "absolute", top: 8, right: 8 },
   // 66% forest-black over a pure white photo still gives cream text about 5.3:1.
   overlay: { padding: 18, paddingTop: 14, gap: 4, backgroundColor: "rgba(12,30,22,0.66)" },
   meal: { fontSize: 13, fontFamily: fontFor("700"), color: fixedInk.cream },

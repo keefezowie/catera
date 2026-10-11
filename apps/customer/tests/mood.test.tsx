@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, within } from "@testing-library/react-native";
 import * as ReactNative from "react-native";
-import { Keyboard, Modal, ScrollView, StyleSheet, Text as RNText, View } from "react-native";
+import { ScrollView, StyleSheet, Text as RNText, View } from "react-native";
 import type { ReactElement } from "react";
 import * as Haptics from "expo-haptics";
 import * as Reanimated from "react-native-reanimated";
@@ -9,7 +9,6 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { nativeMood } from "@catera/design-tokens";
 import {
   defaultMood,
-  Field,
   MalamPattern,
   MoodFill,
   MoodHeader,
@@ -17,7 +16,6 @@ import {
   MoodProvider,
   MoodToggle,
   Screen,
-  Sheet,
   statusBarStyle,
   Text,
   ThemeProvider,
@@ -602,92 +600,5 @@ describe("StatusBand", () => {
   it("is absent on a screen without a header, which keeps its own top edge", () => {
     mountScreen(false, false);
     expect(screen.queryByTestId("status-band", { includeHiddenElements: true })).toBeNull();
-  });
-});
-
-describe("Sheet keyboard", () => {
-  // Since the Modal is navigationBarTranslucent, Android no longer resizes it for the keyboard, so the sheet lifts
-  // itself by the keyboard height.
-  function captureKeyboard() {
-    const handlers: Record<string, (e: unknown) => void> = {};
-    const remove = jest.fn();
-    jest.spyOn(Keyboard, "addListener").mockImplementation(((name: string, cb: (e: unknown) => void) => {
-      handlers[name] = cb;
-      return { remove };
-    }) as never);
-    return { handlers, remove };
-  }
-  const sheetPadding = () =>
-    StyleSheet.flatten(screen.UNSAFE_getAllByProps({ accessibilityViewIsModal: true })[0].props.style).paddingBottom;
-
-  it("pads the sheet by the keyboard height while it is open, and releases it on hide", () => {
-    const { handlers } = captureKeyboard();
-    render(
-      <Sheet visible onClose={() => {}} title="Pindah" closeLabel="Tutup">
-        <Field label="Alasan" value="" onChangeText={() => {}} />
-      </Sheet>,
-    );
-    expect(sheetPadding()).toBe(20);
-    act(() => handlers.keyboardDidShow({ endCoordinates: { height: 300 } }));
-    expect(sheetPadding()).toBeGreaterThanOrEqual(300);
-    act(() => handlers.keyboardDidHide({}));
-    expect(sheetPadding()).toBe(20);
-  });
-
-  it("scrolls its content only once it outgrows the room above the keyboard", () => {
-    const view = render(
-      <Sheet visible onClose={() => {}} title="Pelanggan" closeLabel="Tutup">
-        <Field label="Nama" value="" onChangeText={() => {}} />
-      </Sheet>,
-    );
-    const body = () => view.UNSAFE_getByType(ScrollView);
-    expect(body().props.keyboardShouldPersistTaps).toBe("handled");
-    expect(body().props.scrollEnabled).toBe(false);
-    act(() => body().props.onLayout({ nativeEvent: { layout: { height: 300 } } }));
-    act(() => body().props.onContentSizeChange(320, 300));
-    expect(body().props.scrollEnabled).toBe(false);
-    act(() => body().props.onContentSizeChange(320, 640));
-    expect(body().props.scrollEnabled).toBe(true);
-  });
-
-  it("keeps the sheet below the status bar and the scrim behind the whole window", () => {
-    const metrics = { frame: { x: 0, y: 0, width: 390, height: 800 }, insets: { top: 30, left: 0, right: 0, bottom: 0 } };
-    render(
-      <SafeAreaProvider initialMetrics={metrics}>
-        <Sheet visible onClose={() => {}} title="Pelanggan" closeLabel="Tutup">
-          <Text>Isi</Text>
-        </Sheet>
-      </SafeAreaProvider>,
-    );
-    const sheet = StyleSheet.flatten(screen.UNSAFE_getAllByProps({ accessibilityViewIsModal: true })[0].props.style);
-    expect(sheet.marginTop).toBeGreaterThanOrEqual(30);
-    const scrim = StyleSheet.flatten(screen.getByLabelText("Tutup", { includeHiddenElements: true }).props.style);
-    expect(scrim).toMatchObject({ position: "absolute", top: 0, bottom: 0, left: 0, right: 0 });
-  });
-
-  it("stops listening when the sheet closes or unmounts", () => {
-    const { remove } = captureKeyboard();
-    const view = render(
-      <Sheet visible onClose={() => {}} title="Pindah" closeLabel="Tutup">
-        <Text>Isi</Text>
-      </Sheet>,
-    );
-    view.unmount();
-    expect(remove).toHaveBeenCalled();
-  });
-
-  it("forgets the keyboard when the sheet is hidden while it is up", () => {
-    const { handlers } = captureKeyboard();
-    const sheet = (visible: boolean) => (
-      <Sheet visible={visible} onClose={() => {}} title="Pindah" closeLabel="Tutup">
-        <Text>Isi</Text>
-      </Sheet>
-    );
-    const view = render(sheet(true));
-    act(() => handlers.keyboardDidShow({ endCoordinates: { height: 300 } }));
-    view.rerender(sheet(false));
-    view.rerender(sheet(true));
-    expect(sheetPadding()).toBe(20);
-    expect(view.UNSAFE_getByType(Modal).props.visible).toBe(true);
   });
 });

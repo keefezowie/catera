@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
-import { Alert, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
 import * as Haptics from "expo-haptics";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { ChooseMenu } from "../src/schedule/ChooseMenu";
@@ -10,10 +10,22 @@ jest.mock("expo-router", () => ({
   useLocalSearchParams: () => ({ id: "subscription", date: "2026-11-03", meal: "lunch" }),
 }));
 // The real contexts stay (Screen reads whether a stack header sits above it); only the screen's own hooks are stubbed.
+const mockDispatch = jest.fn();
 jest.mock("expo-router/react-navigation", () => ({
   ...jest.requireActual("expo-router/react-navigation"),
-  useNavigation: () => ({ dispatch: jest.fn() }),
+  useNavigation: () => ({ dispatch: mockDispatch }),
   usePreventRemove: jest.fn(),
+}));
+/**
+ * The confirm sheet (`useConfirm`, the `/konfirmasi` route) answers what each test sets; the toast is captured. The
+ * real sheets are covered on the real router in sheets.test.tsx and customer-sheets.test.tsx.
+ */
+const mockConfirm = jest.fn(async (_input: Record<string, unknown>) => true);
+const mockToast = jest.fn();
+jest.mock("@catera/mobile-ui", () => ({
+  ...jest.requireActual("@catera/mobile-ui"),
+  useConfirm: () => mockConfirm,
+  useToast: () => ({ show: mockToast, hide: jest.fn() }),
 }));
 jest.mock("expo-notifications", () => ({
   setNotificationHandler: jest.fn(),
@@ -170,9 +182,7 @@ it("clears saved choices with resetBatch after confirming", async () => {
   (runtime.api.customerMenuMonth as jest.Mock).mockResolvedValue(
     month([day({ version: 2, selectionStatus: "selected", details: { meal: "lunch", name: "", description: "", image: "", items: [{ id: "main:0", name: "Ayam panggang", optionId: "option", optionVersion: 4 }] } })]),
   );
-  const alert = jest.spyOn(Alert, "alert").mockImplementation((_t, _m, buttons) => {
-    buttons?.find((b) => b.style === "destructive")?.onPress?.();
-  });
+  mockConfirm.mockResolvedValueOnce(true);
   renderMenu();
   fireEvent.press(await screen.findByRole("button", { name: "Ubah menu" }));
   fireEvent.press(screen.getByRole("button", { name: "Hapus pilihan, biar katering memilih" }));
@@ -187,7 +197,55 @@ it("clears saved choices with resetBatch after confirming", async () => {
       expect.any(String),
     ),
   );
-  alert.mockRestore();
+  // Asked first, in the native confirm sheet, as a destructive choice.
+  expect(mockConfirm).toHaveBeenCalledWith({
+    title: "Hapus pilihan menu?",
+    message:
+      "Pilihan pada tanggal di atas dihapus. Katering memilih jika Anda tidak memilih lagi sebelum batas waktu.",
+    confirmLabel: "Hapus pilihan",
+    cancelLabel: "Batal",
+    tone: "danger",
+    icon: "trash",
+  });
+});
+
+it("discarding menu changes asks through a confirm sheet", async () => {
+  const { usePreventRemove } = require("expo-router/react-navigation") as { usePreventRemove: jest.Mock };
+  renderMenu();
+  await choose();
+  fireEvent.press(screen.getByRole("button", { name: "Lanjut mengedit" }));
+  // Close with a dish chosen: the confirm sheet asks; "Lanjut mengedit" keeps the choice on screen.
+  mockConfirm.mockResolvedValueOnce(false);
+  fireEvent.press(screen.getByRole("button", { name: "Tutup" }));
+  await waitFor(() => expect(mockConfirm).toHaveBeenCalledTimes(1));
+  expect(mockConfirm.mock.calls[0][0]).toEqual({
+    title: "Tinggalkan perubahan?",
+    message: "Menu yang belum disimpan akan dihapus.",
+    confirmLabel: "Tinggalkan",
+    cancelLabel: "Lanjut mengedit",
+    tone: "danger",
+    icon: "trash",
+  });
+  expect(screen.getByRole("button", { name: "Tinjau pilihan" })).toBeTruthy();
+  // "Tinggalkan" drops the choice.
+  mockConfirm.mockResolvedValueOnce(true);
+  fireEvent.press(screen.getByRole("button", { name: "Tutup" }));
+  expect(await screen.findByRole("button", { name: "Pilih hidangan" })).toBeTruthy();
+  // Leaving the screen while dirty (back, a swipe) is held and asks the same way; "Tinggalkan" lets the removal go on.
+  await choose();
+  const held = usePreventRemove.mock.calls.at(-1)!;
+  expect(held[0]).toBe(true);
+  mockConfirm.mockResolvedValueOnce(true);
+  const action = { type: "GO_BACK" };
+  held[1]({ data: { action } });
+  await waitFor(() => expect(mockDispatch).toHaveBeenCalledWith(action));
+});
+
+it("saving toasts Menu {weekday} tersimpan", async () => {
+  renderMenu();
+  await choose();
+  fireEvent.press(screen.getByRole("button", { name: "Simpan menu" }));
+  await waitFor(() => expect(mockToast).toHaveBeenCalledWith({ message: "Menu Selasa tersimpan", tone: "success" }));
 });
 
 it("after the cutoff the caterer chooses and nothing can be edited", async () => {

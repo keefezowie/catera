@@ -433,12 +433,20 @@ function SignedInHome({ actorId }: { actorId: string }) {
                 plate={p}
                 apiBase={runtime.apiBase}
                 offline={!!savedAt}
+                delivery={savedAt ? undefined : state.deliveries.find((d) => d.id === p.deliveryId)}
               />
             ))}
           </HeroPager>
         ) : heroPlates.length ? (
           // One frame for the hero whichever meal it shows, so its fill cross-fades when the mood switches.
-          <Plate key="hero" variant="hero" plate={heroPlates[0]} apiBase={runtime.apiBase} offline={!!savedAt} />
+          <Plate
+            key="hero"
+            variant="hero"
+            plate={heroPlates[0]}
+            apiBase={runtime.apiBase}
+            offline={!!savedAt}
+            delivery={savedAt ? undefined : state.deliveries.find((d) => d.id === heroPlates[0].deliveryId)}
+          />
         ) : null}
         {updating ? null : savedAt ? (
           <Text variant="caption" style={{ color: c.sunriseInk, fontVariant: ["tabular-nums"] }}>

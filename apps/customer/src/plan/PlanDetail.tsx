@@ -8,6 +8,7 @@ import {
   planDetail,
   shortDate,
   type CustomerState,
+  type Delivery,
   type PlanDetail as PlanData,
   type UpcomingRow,
 } from "@catera/domain";
@@ -37,6 +38,7 @@ import { jakartaClock, photoUri } from "../today/Plate";
 import { dayHref } from "../hrefs";
 import { goToTab } from "../nav";
 import { PlanSkeleton } from "../skeletons";
+import { DayMore } from "../schedule/DayMore";
 
 type LoadedPlan = { data: CustomerState; savedAt: string | null };
 
@@ -193,7 +195,9 @@ function Plan({ id, actorId, carried, generic }: { id: string; actorId: string; 
             {t("Terakhir diperbarui", "Last updated")} {jakartaClock(savedAt)} · {t("tidak ada koneksi", "no connection")}
           </Text>
         ) : null}
-        {cancelled ? null : <Upcoming rows={plan.upcoming} apiBase={runtime.apiBase} />}
+        {cancelled ? null : (
+          <Upcoming rows={plan.upcoming} apiBase={runtime.apiBase} deliveries={offline ? undefined : state?.deliveries} />
+        )}
       </FadeSwap>
     </Screen>
   );
@@ -244,8 +248,11 @@ function Hero({ plan, apiBase }: { plan: PlanData; apiBase: string }) {
   );
 }
 
-/** This plan's next days: a ring with the day's photo (lunch sunrise, dinner forest), the day and its dishes. */
-function Upcoming({ rows, apiBase }: { rows: UpcomingRow[]; apiBase: string }) {
+/**
+ * This plan's next days: a ring with the day's photo (lunch sunrise, dinner forest), the day and its dishes. The row
+ * opens Hari; the "…" beside it opens the day's actions, only from a fresh read (`deliveries` is left out offline).
+ */
+function Upcoming({ rows, apiBase, deliveries }: { rows: UpcomingRow[]; apiBase: string; deliveries?: Delivery[] }) {
   const { t, locale } = useMobile();
   const c = useColors();
   const styles = useStyles();
@@ -260,31 +267,36 @@ function Upcoming({ rows, apiBase }: { rows: UpcomingRow[]; apiBase: string }) {
           const day = locale === "id" ? row.label : dayLabel(row.date, today, "en");
           const dishes = row.dishes || t("Menu belum ditentukan", "Menu not set yet");
           return (
-            <PressableRow
-              key={row.deliveryId}
-              testID="plan-upcoming-row"
-              accessibilityRole="button"
-              accessibilityLabel={`${day}, ${dishes}`}
-              onPress={() => router.push(dayHref(row.deliveryId, row.date, locale) as never)}
-              style={[styles.row, i > 0 && styles.divider]}
-            >
-              {/* The row is the button and speaks for the ring. */}
-              <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-                <PhotoRing
-                  uri={photoUri(row.image, apiBase)}
-                  size={60}
-                  ring={row.meal === "dinner" ? "forest" : "sunrise"}
-                  accessibilityLabel={dishes}
-                />
-              </View>
-              <View style={{ flex: 1, gap: 2 }}>
-                <Text variant="label" style={[{ lineHeight: 18 }, tabular]}>
-                  {day}
-                </Text>
-                <Text>{dishes}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={c.muted} />
-            </PressableRow>
+            <View key={row.deliveryId} style={[styles.line, i > 0 && styles.divider]}>
+              <PressableRow
+                testID="plan-upcoming-row"
+                accessibilityRole="button"
+                accessibilityLabel={`${day}, ${dishes}`}
+                onPress={() => router.push(dayHref(row.deliveryId, row.date, locale) as never)}
+                style={styles.row}
+              >
+                {/* The row is the button and speaks for the ring. */}
+                <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+                  <PhotoRing
+                    uri={photoUri(row.image, apiBase)}
+                    size={60}
+                    ring={row.meal === "dinner" ? "forest" : "sunrise"}
+                    accessibilityLabel={dishes}
+                  />
+                </View>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text variant="label" style={[{ lineHeight: 18 }, tabular]}>
+                    {day}
+                  </Text>
+                  <Text>{dishes}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={c.muted} />
+              </PressableRow>
+              <DayMore
+                delivery={deliveries?.find((d) => d.id === row.deliveryId)}
+                meal={row.meal === "dinner" || row.meal === "lunch" ? row.meal : undefined}
+              />
+            </View>
           );
         })
       ) : (
@@ -297,6 +309,7 @@ function Upcoming({ rows, apiBase }: { rows: UpcomingRow[]; apiBase: string }) {
 const useStyles = themedStyles((c) => ({
   // The soft ground of the photo inside, so the frame reads as one tile while the photo loads or if it never does.
   photoFrame: { borderRadius: 20, borderCurve: "continuous", overflow: "hidden", backgroundColor: c.sage },
-  row: { minHeight: 76, flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8 },
+  line: { flexDirection: "row", alignItems: "center", gap: 4 },
+  row: { flex: 1, minHeight: 76, flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8 },
   divider: { borderTopWidth: 1, borderTopColor: c.line },
 }));

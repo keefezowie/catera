@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Alert, AppState, Image, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { AppState, Image, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useNavigation, usePreventRemove } from "expo-router/react-navigation";
 import {
@@ -23,12 +23,14 @@ import {
   Text,
   themedStyles,
   useColors,
+  useConfirm,
+  useToast,
 } from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
 import { failureText } from "../account/failure";
 import { FilterChip } from "../discover/FilterChip";
 import { jakartaClock, photoUri } from "../today/Plate";
-import { longDay, monthTitle, shiftMonth } from "./dates";
+import { longDay, monthTitle, shiftMonth, weekdayName } from "./dates";
 import { goToTab } from "../nav";
 import { ChooseMenuSkeleton } from "../skeletons";
 
@@ -38,6 +40,19 @@ type Choice = { slotId: string; optionId: string; optionVersion: number };
 type Draft = { days: MenuDay[]; choices: Choice[]; template: MealMenu; dirty: boolean };
 
 const isDate = (v: unknown): v is string => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
+
+/** The toast after saving: "Menu Selasa tersimpan", "Menu Selasa dan Rabu tersimpan", "Menu 3 hari tersimpan". */
+function savedMessage(days: { date: string }[], t: (id: string, en: string) => string): string {
+  const [first, second] = days;
+  if (days.length === 1)
+    return t(`Menu ${weekdayName(first.date, "id")} tersimpan`, `${weekdayName(first.date, "en")} menu saved`);
+  if (days.length === 2)
+    return t(
+      `Menu ${weekdayName(first.date, "id")} dan ${weekdayName(second.date, "id")} tersimpan`,
+      `${weekdayName(first.date, "en")} and ${weekdayName(second.date, "en")} menus saved`,
+    );
+  return t(`Menu ${days.length} hari tersimpan`, `Menus for ${days.length} days saved`);
+}
 
 /** Pilih menu: the customer picks the dishes for a delivery (customer-choice packages only). */
 export function ChooseMenu() {
@@ -83,16 +98,28 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
     offer ? runtime.api.customerMenuMonth(id, `${month}-01`, meal) : Promise.resolve(null),
   );
 
-  const discard = (then: () => void) =>
-    Alert.alert(
-      t("Tinggalkan perubahan?", "Discard changes?"),
-      t("Menu yang belum disimpan akan dihapus.", "Unsaved menu changes will be discarded."),
-      [
-        { text: t("Lanjut mengedit", "Keep editing"), style: "cancel" },
-        { text: t("Tinggalkan", "Discard"), style: "destructive", onPress: then },
-      ],
-    );
-  usePreventRemove(!!draft?.dirty, ({ data }) => discard(() => navigation.dispatch(data.action)));
+  // Leaving with unsaved choices asks in the native confirm sheet; one question at a time.
+  const confirm = useConfirm();
+  const toast = useToast();
+  const asking = useRef(false);
+  const discard = async (then: () => void) => {
+    if (asking.current) return;
+    asking.current = true;
+    try {
+      const leave = await confirm({
+        title: t("Tinggalkan perubahan?", "Discard changes?"),
+        message: t("Menu yang belum disimpan akan dihapus.", "Unsaved menu changes will be discarded."),
+        confirmLabel: t("Tinggalkan", "Discard"),
+        cancelLabel: t("Lanjut mengedit", "Keep editing"),
+        tone: "danger",
+        icon: "trash",
+      });
+      if (leave) then();
+    } finally {
+      asking.current = false;
+    }
+  };
+  usePreventRemove(!!draft?.dirty, ({ data }) => void discard(() => navigation.dispatch(data.action)));
 
   // The cutoff passes while the screen is open; coming back from another app re-reads the month.
   const reload = menus.reload;
@@ -211,6 +238,7 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
         days: daysPayload(),
         ...(action === "customerMenu.saveBatch" ? { choices: draft.choices } : {}),
       });
+      if (action === "customerMenu.saveBatch") toast.show({ message: savedMessage(draft.days, t), tone: "success" });
       setDraft(null);
       setReviewing(false);
     } catch (e) {
@@ -452,21 +480,19 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
                 label={t("Hapus pilihan, biar katering memilih", "Clear my choice, let the caterer choose")}
                 disabled={busy || !writeable}
                 onPress={() =>
-                  Alert.alert(
-                    t("Hapus pilihan menu?", "Clear menu choice?"),
-                    t(
+                  void confirm({
+                    title: t("Hapus pilihan menu?", "Clear menu choice?"),
+                    message: t(
                       "Pilihan pada tanggal di atas dihapus. Katering memilih jika Anda tidak memilih lagi sebelum batas waktu.",
                       "Choices on these dates are removed. The caterer chooses if you don't choose again before the cutoff.",
                     ),
-                    [
-                      { text: t("Batal", "Cancel"), style: "cancel" },
-                      {
-                        text: t("Hapus pilihan", "Clear choice"),
-                        style: "destructive",
-                        onPress: () => void send("customerMenu.resetBatch"),
-                      },
-                    ],
-                  )
+                    confirmLabel: t("Hapus pilihan", "Clear choice"),
+                    cancelLabel: t("Batal", "Cancel"),
+                    tone: "danger",
+                    icon: "trash",
+                  }).then((clear) => {
+                    if (clear) void send("customerMenu.resetBatch");
+                  })
                 }
               />
             ) : null}
@@ -479,7 +505,7 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
                   setReviewing(false);
                   setError("");
                 };
-                if (draft.dirty) discard(close);
+                if (draft.dirty) void discard(close);
                 else close();
               }}
             />

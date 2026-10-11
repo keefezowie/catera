@@ -9,7 +9,9 @@ import { ReportList } from "../src/help/ReportList";
 import { customerLink } from "../src/links";
 import { nativeThemes } from "@catera/design-tokens";
 import { ToastProvider } from "@catera/mobile-ui";
+import { HelpForm } from "../src/help/HelpForm";
 import { customerState, TODAY } from "./fixtures";
+import { SheetHost } from "./sheetHost";
 
 let mockParams: Record<string, string> = {};
 jest.mock("expo-router", () => ({
@@ -93,6 +95,15 @@ const renderWith = (runtime: MobileRuntime, ui: React.ReactElement, opts: { toas
       {opts.toast ? <ToastProvider>{ui}</ToastProvider> : ui}
     </MobileProvider>,
   );
+/** "Minta bantuan" and "Minta Catera meninjau" open form sheets (`/bantuan-form`): the host shows them over the list. */
+const FORMS = { "/bantuan-form": HelpForm };
+const toParams = (params: Record<string, string>) => void (mockParams = params);
+const listWithForms = (
+  <>
+    <ReportList />
+    <SheetHost routes={FORMS} onParams={toParams} />
+  </>
+);
 const withPhone = (state: CustomerState): CustomerState => ({
   ...state,
   deliveries: state.deliveries.map((d) => ({ ...d, catererPhone: "+6281200000001" })),
@@ -338,10 +349,13 @@ describe("Bantuan dan laporan", () => {
     const command = jest.fn(async () => ({}));
     renderWith(
       runtimeWith({ command, issues: [issue({ status: "responded", version: 4, events: [...issue().events, reply] })] }),
-      <ReportList />,
+      listWithForms,
+      { toast: true },
     );
     fireEvent.press(await screen.findByRole("button", { name: "Minta Catera meninjau" }));
-    const send = screen.getByRole("button", { name: "Kirim ke Catera" });
+    // The form is a native sheet over the list, opened for this report.
+    expect(router.push).toHaveBeenCalledWith("/bantuan-form?kind=review&issue=i-1");
+    const send = await screen.findByRole("button", { name: "Kirim ke Catera" });
     expect(send.props.accessibilityState.disabled).toBe(true);
     fireEvent.changeText(screen.getByLabelText("Apa yang belum beres?"), "Makanan tetap tidak datang");
     fireEvent.press(screen.getByRole("button", { name: "Kirim ke Catera" }));
@@ -352,6 +366,9 @@ describe("Bantuan dan laporan", () => {
         expect.any(String),
       ),
     );
+    // Sent: the sheet closes and the toast says so.
+    expect(await screen.findByText("Permintaan bantuan terkirim")).toBeTruthy();
+    expect(router.back).toHaveBeenCalled();
   });
 
   it("does not offer review before the caterer has replied or after Catera took it", async () => {
@@ -456,10 +473,11 @@ describe("Bantuan: asking Catera to review an ignored report", () => {
     jest.setSystemTime(new Date("2026-10-07T05:01:00Z"));
     renderWith(
       runtimeWith({ command, issues: [issue({ status: "open", version: 3, created_at: "2026-10-06T16:30:00Z" })] }),
-      <ReportList />,
+      listWithForms,
+      { toast: true },
     );
     fireEvent.press(await screen.findByRole("button", { name: "Minta Catera meninjau" }));
-    fireEvent.changeText(screen.getByLabelText("Apa yang belum beres?"), "Belum ada balasan sama sekali");
+    fireEvent.changeText(await screen.findByLabelText("Apa yang belum beres?"), "Belum ada balasan sama sekali");
     fireEvent.press(screen.getByRole("button", { name: "Kirim ke Catera" }));
     await waitFor(() =>
       expect(command).toHaveBeenCalledWith(
@@ -506,8 +524,10 @@ describe("Bantuan: Minta bantuan", () => {
         ];
       return { id: "c-new" };
     });
-    renderWith(runtimeWith({ state, command }), <ReportList />);
+    renderWith(runtimeWith({ state, command }), listWithForms, { toast: true });
     fireEvent.press(await screen.findByRole("button", { name: "Minta bantuan" }));
+    expect(router.push).toHaveBeenCalledWith("/bantuan-form?kind=help");
+    await screen.findByRole("tab", { name: "Pembatalan" });
     for (const topic of ["Pembatalan", "Pembayaran", "Lainnya"]) expect(screen.getByRole("tab", { name: topic })).toBeTruthy();
     fireEvent.press(screen.getByRole("tab", { name: "Pembatalan" }));
     expect(screen.getByRole("button", { name: "Kirim permintaan" }).props.accessibilityState.disabled).toBe(true);
@@ -522,17 +542,18 @@ describe("Bantuan: Minta bantuan", () => {
     );
     expect(await screen.findByText("Terkirim")).toBeTruthy();
     expect(screen.getByText("Pembatalan", { exact: true })).toBeTruthy();
-    // The form closes after sending.
+    // The form sheet closes after sending, with the toast.
     expect(screen.queryByLabelText("Ceritakan kendalanya")).toBeNull();
+    expect(screen.getByText("Permintaan bantuan terkirim")).toBeTruthy();
   });
 
   it("keeps the form when sending fails", async () => {
     const command = jest.fn(async () => {
       throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
     });
-    renderWith(runtimeWith({ state: customerState(null), command }), <ReportList />);
+    renderWith(runtimeWith({ state: customerState(null), command }), listWithForms, { toast: true });
     fireEvent.press(await screen.findByRole("button", { name: "Minta bantuan" }));
-    fireEvent.press(screen.getByRole("tab", { name: "Lainnya" }));
+    fireEvent.press(await screen.findByRole("tab", { name: "Lainnya" }));
     fireEvent.changeText(screen.getByLabelText("Ceritakan kendalanya"), "Pertanyaan soal paket");
     fireEvent.press(screen.getByRole("button", { name: "Kirim permintaan" }));
     await waitFor(() => expect(command).toHaveBeenCalledTimes(1));
@@ -547,9 +568,9 @@ describe("Bantuan: Minta bantuan", () => {
       { ...first, id: "s-2", snapshot: { ...first.snapshot, offer: { ...first.snapshot.offer, name: "Makan Malam Sehat" } } },
     ];
     const command = jest.fn(async () => ({}));
-    renderWith(runtimeWith({ state, command }), <ReportList />);
+    renderWith(runtimeWith({ state, command }), listWithForms, { toast: true });
     fireEvent.press(await screen.findByRole("button", { name: "Minta bantuan" }));
-    fireEvent.press(screen.getByRole("button", { name: "Makan Malam Sehat" }));
+    fireEvent.press(await screen.findByRole("button", { name: "Makan Malam Sehat" }));
     fireEvent.press(screen.getByRole("tab", { name: "Pembayaran" }));
     fireEvent.changeText(screen.getByLabelText("Ceritakan kendalanya"), "Sudah bayar tapi belum aktif");
     fireEvent.press(screen.getByRole("button", { name: "Kirim permintaan" }));
@@ -569,9 +590,9 @@ describe("Bantuan: Minta bantuan", () => {
       first,
       { ...first, id: "s-2", snapshot: { ...first.snapshot, offer: { ...first.snapshot.offer, name: "Makan Malam Sehat" } } },
     ];
-    renderWith(runtimeWith({ state }), <ReportList />);
+    renderWith(runtimeWith({ state }), listWithForms, { toast: true });
     fireEvent.press(await screen.findByRole("button", { name: "Minta bantuan" }));
-    const pick = screen.getByRole("button", { name: "Makan Malam Sehat" });
+    const pick = await screen.findByRole("button", { name: "Makan Malam Sehat" });
     expect(StyleSheet.flatten(pick.props.style).minHeight).toBeGreaterThanOrEqual(48);
     fireEvent.press(pick);
     expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);

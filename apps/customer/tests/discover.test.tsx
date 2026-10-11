@@ -13,7 +13,9 @@ import { topTags } from "../src/discover/categories";
 import { Jelajah } from "../src/discover/Jelajah";
 import { PackageDetail } from "../src/discover/PackageDetail";
 import { SavedList } from "../src/discover/SavedList";
+import { AreaSheet } from "../src/discover/area";
 import { offer } from "./fixtures";
+import { SheetHost } from "./sheetHost";
 
 let mockParams: Record<string, string> = {};
 jest.mock("expo-router", () => ({
@@ -96,6 +98,16 @@ const wrap = (runtime: MobileRuntime, ui: React.ReactElement) =>
       </MobileProvider>
     </MoodProvider>,
   );
+
+/** The area choice is a sheet route (`/area`): the host shows it over Jelajah when the area line pushes it. */
+const AREA = { "/area": AreaSheet };
+const toParams = (params: Record<string, string>) => void (mockParams = params);
+const jelajahWithArea = (
+  <>
+    <Jelajah />
+    <SheetHost routes={AREA} onParams={toParams} />
+  </>
+);
 
 const lastCatalogQuery = (runtime: MobileRuntime) =>
   String((runtime.api.catalog as jest.Mock).mock.calls.at(-1)![0]);
@@ -234,10 +246,13 @@ describe("Jelajah", () => {
 
   it("remembers the delivery area in SecureStore and sends it to the catalog", async () => {
     const runtime = runtimeWith();
-    wrap(runtime, <Jelajah />);
+    wrap(runtime, jelajahWithArea);
     await screen.findByText("Menu Sehat Premium");
     fireEvent.press(screen.getByRole("button", { name: "Pilih area pengantaran" }));
-    fireEvent.press(await screen.findByRole("button", { name: "Jakarta Selatan" }));
+    // The area is a native choice sheet over Jelajah; a choice closes it.
+    expect(router.push).toHaveBeenCalledWith("/area");
+    fireEvent.press(await screen.findByRole("radio", { name: "Jakarta Selatan" }));
+    expect(router.back).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(SecureStore.setItemAsync).toHaveBeenCalledWith("catera.area", "Jakarta Selatan"));
     await waitFor(() => expect(lastCatalogQuery(runtime)).toContain("area=Jakarta+Selatan"));
   });
@@ -250,12 +265,12 @@ describe("Jelajah", () => {
       runtimeWith(customer, { catalog: jest.fn(async () => ({ items: [selatan, bandung, both], nextCursor: null })) });
     const choose = async (name: string) => {
       fireEvent.press(screen.getByRole("button", { name: "Pilih area pengantaran" }));
-      fireEvent.press(await screen.findByRole("button", { name }));
+      fireEvent.press(await screen.findByRole("radio", { name }));
     };
 
     it("shows only packages that deliver to the chosen area", async () => {
       const runtime = areaRuntime();
-      wrap(runtime, <Jelajah />);
+      wrap(runtime, jelajahWithArea);
       await screen.findByText("Menu Sehat Premium");
       await choose("Bandung");
       await waitFor(() => expect(lastCatalogQuery(runtime)).toContain("area=Bandung"));
@@ -269,7 +284,7 @@ describe("Jelajah", () => {
 
     it("Semua area shows everything again", async () => {
       (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.area", "Bandung");
-      wrap(areaRuntime(), <Jelajah />);
+      wrap(areaRuntime(), jelajahWithArea);
       await screen.findByText("Menu Sehat Premium");
       expect(screen.queryByText("Nasi Ayam Bakar")).toBeNull();
       await choose("Semua area");
@@ -279,7 +294,7 @@ describe("Jelajah", () => {
 
     it("says when no caterer delivers there, and Lihat semua area clears the area", async () => {
       (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.area", "Jakarta Utara");
-      wrap(areaRuntime(), <Jelajah />);
+      wrap(areaRuntime(), jelajahWithArea);
       expect(await screen.findByText("Belum ada katering yang antar ke Jakarta Utara.")).toBeTruthy();
       expect(screen.queryByText("Nasi Ayam Bakar")).toBeNull();
       fireEvent.press(screen.getByRole("button", { name: "Lihat semua area" }));

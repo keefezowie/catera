@@ -107,6 +107,12 @@ function Navigation() {
             name="pembelian/bantuan"
             options={{ title: t("Bantuan dan laporan", "Help and reports"), ...flow("modal") }}
           />
+          {/* Beli's choice sheets (delivery address, start date) and the address and help forms opened over a
+              purchase: native sheets in this stack, so the purchase stays underneath and Close returns to it. */}
+          <Stack.Screen name="pembelian/alamat-pilih" options={sheetOptions({ detents: "fit", palette })} />
+          <Stack.Screen name="pembelian/mulai" options={sheetOptions({ detents: "fit", palette })} />
+          <Stack.Screen name="pembelian/alamat-form" options={sheetOptions({ detents: "form", palette })} />
+          <Stack.Screen name="pembelian/bantuan-form" options={sheetOptions({ detents: "form", palette })} />
           {/* A black story: its own close button replaces the header, and a fade keeps its ground from cutting in. */}
           <Stack.Screen
             name="tomorrow"

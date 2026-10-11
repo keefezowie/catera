@@ -717,12 +717,31 @@ describe("Ubah hari sheet", () => {
     );
   });
 
-  it("lets the address list scroll inside the sheet's own scroller on Android", async () => {
+  it("scrolls the address list with the native sheet's own body, never a scroller inside it", async () => {
     renderSheet(flexible, runtimeWith(stateOf([flexible]), available));
     fireEvent.press(await screen.findByRole("tab", { name: "Ganti alamat" }));
-    const list = screen.UNSAFE_getAllByType(ScrollView).find((s) => StyleSheet.flatten(s.props.style)?.maxHeight === 280);
-    expect(list).toBeTruthy();
-    expect(list!.props.nestedScrollEnabled).toBe(true);
+    // The form sheet's SheetBody is the one vertical scroller; the dates keep their horizontal strip.
+    const vertical = screen.UNSAFE_getAllByType(ScrollView).filter((s) => !s.props.horizontal);
+    expect(vertical.map((s) => s.props.testID)).toEqual(["sheet-body"]);
+    expect(within(screen.getByTestId("sheet-body")).getByRole("button", { name: /Rumah/ })).toBeTruthy();
+  });
+
+  it("opens on the side the day's … asked for, and falls back when the day no longer allows it", async () => {
+    const runtime = runtimeWith(stateOf([flexible]), available);
+    const view = renderWith(runtime, <ChangeDaySheet delivery={flexible} addresses={[home, rumah, jauh]} mode="address" onClose={jest.fn()} />);
+    expect((await screen.findByRole("tab", { name: "Ganti alamat" })).props.accessibilityState.selected).toBe(true);
+    view.unmount();
+    // A fixed plan cannot move its date: asked for Pindah tanggal, it opens on Ganti alamat.
+    const fixed = open("d-1", "2026-10-08", { canChange: false, offer: offer({ flexible: false }) });
+    renderWith(runtimeWith(stateOf([fixed])), <ChangeDaySheet delivery={fixed} addresses={[home, rumah, jauh]} mode="date" onClose={jest.fn()} />);
+    expect(await screen.findByText("Pilih alamat")).toBeTruthy();
+    expect(screen.queryByText("Pilih tanggal")).toBeNull();
+  });
+
+  it("is a native sheet: the day is its title and the package its context line", async () => {
+    renderSheet(flexible, runtimeWith(stateOf([flexible]), available));
+    expect(await screen.findByRole("header", { name: "Kamis 8 Oktober" })).toBeTruthy();
+    expect(screen.getByTestId("sheet-context").props.children).toBe("Makan Siang Rumahan · Dapur Contoh");
   });
 
   it("address rows are 48dp picks with a selection haptic; a disabled row is set to no haptic", async () => {
@@ -835,8 +854,9 @@ describe("Hari", () => {
     expect(setOptions).toHaveBeenLastCalledWith({ title: "Kamis 8 Okt" });
     expect(screen.queryByText(/Kamis 8 Okt/)).toBeNull();
     expect(screen.queryByText("Hari")).toBeNull();
+    // Ubah hari is a native form sheet route over this day.
     fireEvent.press(screen.getByRole("button", { name: "Ubah hari" }));
-    expect(await screen.findByText("Bisa diubah sampai hari ini 17.00")).toBeTruthy();
+    expect(router.push).toHaveBeenCalledWith("/ubah-hari/d-next");
   });
 
   it("a day the read does not hold, or a failed read, is titled Hari, never the day its link carried", async () => {

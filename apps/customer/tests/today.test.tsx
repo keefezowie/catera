@@ -25,12 +25,19 @@ import { SunriseButton, sentences } from "../src/today/Plate";
 import { customerLink } from "../src/links";
 import { Masuk } from "../src/account/Masuk";
 import * as offline from "../src/today/offline";
+import { ReviewRoute } from "../src/today/ReviewSheet";
 import { customerState, delivery, offer, TODAY } from "./fixtures";
+import { SheetHost } from "./sheetHost";
+
+let mockParams: Record<string, string> = {};
+/** The review is a sheet route (`/ulasan/{id}`): the host shows it over Beranda when the row pushes it. */
+const SHEETS = { "/ulasan": ReviewRoute };
+const toParams = (params: Record<string, string>) => void (mockParams = params);
 
 jest.mock("expo-router", () => ({
-  router: { push: jest.fn(), replace: jest.fn() },
+  router: { push: jest.fn(), replace: jest.fn(), back: jest.fn() },
   Link: () => null,
-  useLocalSearchParams: () => ({}),
+  useLocalSearchParams: () => mockParams,
 }));
 jest.mock("expo-notifications", () => ({
   setNotificationHandler: jest.fn(),
@@ -78,6 +85,7 @@ const renderHome = (runtime: MobileRuntime) =>
   render(
     <MobileProvider runtime={runtime} linkMapper={customerLink}>
       <Beranda />
+      <SheetHost routes={SHEETS} onParams={toParams} />
     </MobileProvider>,
   );
 
@@ -326,9 +334,10 @@ it("asks for a review once near the end", async () => {
     customerState(null, { subscription: { remaining: 2 }, past: [past] }),
   );
   renderHome(runtime);
-  // The row opens the form in a sheet, where "Nanti saja" puts it off for good.
+  // The row opens the form as a sheet route over Beranda, where "Nanti saja" puts it off for good.
   fireEvent.press(await screen.findByText("Bagaimana Dapur Contoh selama ini?"));
-  fireEvent.press(screen.getByRole("button", { name: "Nanti saja" }));
+  expect(router.push).toHaveBeenCalledWith("/ulasan/s-1");
+  fireEvent.press(await screen.findByRole("button", { name: "Nanti saja" }));
   await waitFor(() => expect(screen.queryByText("Bagaimana Dapur Contoh selama ini?")).toBeNull());
   expect(SecureStore.setItemAsync).toHaveBeenCalledWith("catera.review.s-1", "dismissed");
 });
@@ -340,7 +349,7 @@ it("sends the review with the existing review.save payload", async () => {
   );
   renderHome(runtime);
   fireEvent.press(await screen.findByText("Bagaimana Dapur Contoh selama ini?"));
-  fireEvent.press(screen.getByRole("button", { name: "4 bintang" }));
+  fireEvent.press(await screen.findByRole("button", { name: "4 bintang" }));
   fireEvent.changeText(screen.getByLabelText("Cerita singkat (opsional)"), "Enak dan tepat waktu");
   fireEvent.press(screen.getByRole("button", { name: "Kirim ulasan" }));
   await waitFor(() =>
@@ -358,6 +367,29 @@ it("signed out shows Mau makan apa minggu ini?", async () => {
   expect(await screen.findByText("Mau makan apa minggu ini?")).toBeTruthy();
   fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
   expect(router.push).toHaveBeenCalledWith("/login");
+});
+
+it("the hero's … opens the day's actions from a fresh read, and is gone from a kept copy", async () => {
+  // Fresh: today's plate on its way, with the caterer's number. The "…" sits on its own dark ground over the photo.
+  const view = renderHome(runtimeWith(async () => customerState({ status: "out_for_delivery" }, { catererPhone: "+6281200000001" })));
+  const more = await screen.findByRole("button", { name: /^Pilihan untuk makan siang / });
+  expect(within(screen.getByTestId("plate-photo")).getByTestId("header-more")).toBe(more);
+  expect(StyleSheet.flatten(screen.getByTestId("day-more-ground").props.style).backgroundColor).toBe("rgba(12,30,22,0.66)");
+  fireEvent.press(more);
+  expect(router.push).toHaveBeenCalledWith({ pathname: "/aksi", params: { id: expect.any(String) } });
+  view.unmount();
+  // The copy kept offline: the hero shows, its "…" does not.
+  (offline.loadCachedCustomer as jest.Mock).mockResolvedValueOnce({
+    savedAt: "2026-10-07T23:12:00.000Z",
+    data: customerState({ status: "out_for_delivery" }, { catererPhone: "+6281200000001" }),
+  });
+  renderHome(
+    runtimeWith(async () => {
+      throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
+    }),
+  );
+  expect(await screen.findByText(/Terakhir diperbarui/)).toBeTruthy();
+  expect(screen.queryByTestId("header-more")).toBeNull();
 });
 
 it("offline shows the cached day and when it was updated", async () => {
@@ -470,7 +502,7 @@ describe("design tokens", () => {
     const past = delivery("d-past", addDays(TODAY, -1), { status: "delivered" }, { status: "delivered" });
     renderHome(runtimeWith(async () => customerState(null, { subscription: { remaining: 2 }, past: [past] })));
     fireEvent.press(await screen.findByText("Bagaimana Dapur Contoh selama ini?"));
-    fireEvent.press(screen.getByRole("button", { name: "3 bintang" }));
+    fireEvent.press(await screen.findByRole("button", { name: "3 bintang" }));
     const glyph = (n: number) => {
       const star = screen.getByRole("button", { name: `${n} bintang` });
       const icon = within(star).UNSAFE_getByType(Ionicons);

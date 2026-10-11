@@ -1,8 +1,7 @@
-import type { ReactNode } from "react";
 import { Linking, Text as RNText, View } from "react-native";
 import { router } from "expo-router";
 import type { DirectPaymentMethod, Offer, PaymentAvailability } from "@catera/domain";
-import { Button, Card, FONT, fontFor, PressableScale, Sheet, Text, themedStyles, useColors } from "@catera/mobile-ui";
+import { Button, Card, FONT, fontFor, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { packageHref } from "../hrefs";
 import { goToTab, leaveFor } from "../nav";
 
@@ -120,64 +119,9 @@ export function Terms({ apiBase, t }: { apiBase: string; t: T }) {
   );
 }
 
-/** A sheet of 48pt radio rows (addresses, start dates). */
-export function ChoiceSheet({
-  visible,
-  title,
-  items,
-  selected,
-  onPick,
-  onClose,
-  closeLabel,
-  children,
-}: {
-  visible: boolean;
-  title: string;
-  /** Translated accessibility label for the sheet's scrim ("Tutup" / "Close"). */
-  closeLabel: string;
-  items: { id: string; label: string; detail?: string }[];
-  selected: string | null | undefined;
-  onPick: (id: string) => void;
-  onClose: () => void;
-  children?: ReactNode;
-}) {
-  const c = useColors();
-  const styles = useStyles();
-  return (
-    <Sheet visible={visible} onClose={onClose} title={title} closeLabel={closeLabel}>
-      {items.map((item) => (
-        <PressableScale
-          key={item.id}
-          haptic="select"
-          accessibilityRole="radio"
-          accessibilityState={{ checked: item.id === selected }}
-          onPress={() => {
-            onPick(item.id);
-            onClose();
-          }}
-          style={[styles.row, item.id === selected && { borderColor: c.forest }]}
-        >
-          <Text variant="label">{item.label}</Text>
-          {item.detail ? <Text variant="caption">{item.detail}</Text> : null}
-        </PressableScale>
-      ))}
-      {children}
-    </Sheet>
-  );
-}
-
 const useStyles = themedStyles((c) => ({
   strong: { fontFamily: fontFor("800"), color: c.forest },
   method: { borderColor: c.forest, borderWidth: 1.5, gap: 4 },
   terms: { fontFamily: FONT, fontSize: 12, color: c.muted, lineHeight: 17 },
   link: { color: c.forest, fontFamily: fontFor("700"), textDecorationLine: "underline" },
-  row: {
-    minHeight: 48,
-    padding: 12,
-    justifyContent: "center",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: c.line,
-    gap: 2,
-  },
 }));

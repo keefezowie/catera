@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Image, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { mealLabel, reportableMeals, shortDate, statusLabel, type Delivery } from "@catera/domain";
@@ -8,7 +7,7 @@ import { SignInFirst } from "../account/SignInFirst";
 import { ChatKatering, catererPhoneOf } from "../help/ChatKatering";
 import { photoUri } from "../today/Plate";
 import { DaySkeleton } from "../skeletons";
-import { ChangeDaySheet } from "./ChangeDaySheet";
+import { DayMore } from "./DayMore";
 
 /** One delivery day: what is coming, where, and the way into Ubah hari. */
 export function DayScreen() {
@@ -36,8 +35,6 @@ function Day({ id }: { id: string }) {
   const c = useColors();
   const styles = useStyles();
   const state = useData(`day:${id}`, () => runtime.api.customer(`?deliveryId=${encodeURIComponent(id)}`));
-  const [sheet, setSheet] = useState(false);
-  const [notice, setNotice] = useState("");
   const d = state.data?.deliveries.find((x) => x.id === id);
 
   // While the day loads the bar keeps the day its link carried. A failed read or a day that is not there names the
@@ -76,7 +73,11 @@ function Day({ id }: { id: string }) {
       title={shortDate(d.service_date, locale)}
       footer={
         closed ? null : (
-          <Button label={t("Ubah hari", "Change this day")} accessibilityLabel={t("Ubah hari", "Change this day")} onPress={() => setSheet(true)} />
+          <Button
+            label={t("Ubah hari", "Change this day")}
+            accessibilityLabel={t("Ubah hari", "Change this day")}
+            onPress={() => router.push(`/ubah-hari/${encodeURIComponent(d.id)}` as never)}
+          />
         )
       }
     >
@@ -87,17 +88,18 @@ function Day({ id }: { id: string }) {
         <Text variant="caption">
           {d.offer.name} · {d.offer.caterer}
         </Text>
-        {notice ? (
-          <Card tone="sage">
-            <Text>{notice}</Text>
-          </Card>
-        ) : null}
         {meals.map((m) => (
-          <Card key={m.meal} style={{ gap: 4 }}>
-            <Text variant="label" style={{ fontVariant: ["tabular-nums"] }}>
-              {mealLabel(m.meal, locale)} · {d.offer.windows?.[m.meal]} · {statusLabel(m.status, locale)}
-            </Text>
-            {dishesOf(d, m.meal) ? <Text>{dishesOf(d, m.meal)}</Text> : null}
+          // Each meal is a row with its own "…": the day's other actions for that meal (spec 5.3).
+          <Card key={m.meal} style={{ flexDirection: "row", alignItems: "flex-start", gap: 4 }}>
+            <View style={{ flex: 1, gap: 4 }}>
+              <Text variant="label" style={{ fontVariant: ["tabular-nums"] }}>
+                {mealLabel(m.meal, locale)} · {d.offer.windows?.[m.meal]} · {statusLabel(m.status, locale)}
+              </Text>
+              {dishesOf(d, m.meal) ? <Text>{dishesOf(d, m.meal)}</Text> : null}
+            </View>
+            <View style={{ marginTop: -10, marginEnd: -10 }}>
+              <DayMore delivery={d} meal={m.meal} />
+            </View>
           </Card>
         ))}
         <View style={{ gap: 2 }}>
@@ -124,15 +126,6 @@ function Day({ id }: { id: string }) {
             variant="text"
             label={t("Ada masalah", "Report a problem")}
             onPress={() => router.push(`/masalah/${encodeURIComponent(d.id)}?meal=${reportTarget}` as never)}
-          />
-        ) : null}
-        {sheet ? (
-          <ChangeDaySheet
-            delivery={d}
-            addresses={state.data?.addresses ?? []}
-            onClose={() => setSheet(false)}
-            onDone={setNotice}
-            onStale={() => void state.reload()}
           />
         ) : null}
       </FadeSwap>

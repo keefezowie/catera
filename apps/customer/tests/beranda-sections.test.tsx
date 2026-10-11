@@ -9,8 +9,10 @@ import { addDays, currency, type CustomerActionItem, type CustomerState } from "
 import { nativeThemes } from "@catera/design-tokens";
 import { MoodProvider, ThemeProvider } from "@catera/mobile-ui";
 import { Beranda } from "../src/today/Beranda";
+import { ReviewRoute } from "../src/today/ReviewSheet";
 import { PaketSaya } from "../src/plan/PlanList";
 import { customerLink } from "../src/links";
+import { SheetHost } from "./sheetHost";
 import * as offline from "../src/today/offline";
 import {
   DEMO_TODAY,
@@ -33,9 +35,9 @@ jest.mock("../src/nav", () => ({
   openLink: (path: string) => require("expo-router").router.push(path),
 }));
 jest.mock("expo-router", () => ({
-  router: { push: jest.fn(), replace: jest.fn() },
+  router: { push: jest.fn(), replace: jest.fn(), back: jest.fn() },
   Link: () => null,
-  useLocalSearchParams: () => ({}),
+  useLocalSearchParams: () => mockParams,
   useIsFocused: () => true,
 }));
 jest.mock("expo-notifications", () => ({
@@ -91,6 +93,11 @@ const demo = () => {
   return runtimeWith(async () => state, async () => ({ total: actions.length, items: actions }));
 };
 
+let mockParams: Record<string, string> = {};
+/** The review is a sheet route (`/ulasan/{id}`): the host shows it over Beranda when the row pushes it. */
+const SHEETS = { "/ulasan": ReviewRoute };
+const toParams = (params: Record<string, string>) => void (mockParams = params);
+
 function mount(
   runtime: MobileRuntime,
   { now = morningOf(DEMO_TODAY), scheme = "light" as "light" | "dark", node = <Beranda /> } = {},
@@ -101,6 +108,7 @@ function mount(
       <MoodProvider now={() => now}>
         <MobileProvider runtime={runtime} linkMapper={customerLink}>
           {node}
+          <SheetHost routes={SHEETS} onParams={toParams} />
         </MobileProvider>
       </MoodProvider>
     </ThemeProvider>,
@@ -450,6 +458,8 @@ describe("Menunggu Anda", () => {
     const { runtime } = demo();
     mount(runtime);
     fireEvent.press(await screen.findByRole("button", { name: /^Bagaimana Dapur Hijau selama ini\?/ }));
+    // A native form sheet over Beranda (`/ulasan/{id}`), not a sheet inside the list.
+    expect(router.push).toHaveBeenCalledWith("/ulasan/s-sehat");
     const sheet = within(await screen.findByTestId("review-sheet"));
     fireEvent.press(sheet.getByRole("button", { name: "4 bintang" }));
     expect(sheet.getByRole("button", { name: "4 bintang" }).props.accessibilityState.selected).toBe(true);

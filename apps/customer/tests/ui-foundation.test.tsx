@@ -1,12 +1,12 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
-import { Platform, Pressable, StyleSheet, Text as RNText } from "react-native";
+import { Platform, StyleSheet } from "react-native";
 import { HeaderShownContext, NavigationContext } from "expo-router/react-navigation";
 import { use, type ReactElement } from "react";
 import * as Haptics from "expo-haptics";
 import * as SecureStore from "expo-secure-store";
 import * as Reanimated from "react-native-reanimated";
-import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-import { KeyboardAvoidingView, Modal, ScrollView } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { KeyboardAvoidingView, ScrollView } from "react-native";
 import {
   Button,
   Chip,
@@ -25,12 +25,10 @@ import {
   Screen,
   ScreenFooter,
   Segmented,
-  Sheet,
   Stepper,
   Text,
   ThemeProvider,
   TopInsetOwner,
-  useThemePreference,
 } from "@catera/mobile-ui";
 import { nativeMood, nativeThemes } from "@catera/design-tokens";
 
@@ -222,29 +220,6 @@ describe("shared foundation (audit 001)", () => {
     expect(screen.getByLabelText("Tiga porsi").props.accessible).toBe(true);
   });
 
-  it("Sheet scrim is a labelled button and fades under reduced motion", () => {
-    const onClose = jest.fn();
-    const view = render(
-      <Sheet visible onClose={onClose} title="Bagikan" closeLabel="Close">
-        <Text>Isi</Text>
-      </Sheet>,
-    );
-    expect(view.UNSAFE_getByType(Modal).props.animationType).toBe("slide");
-    expect(screen.getByLabelText("Close", { includeHiddenElements: true }).props.accessibilityRole).toBe("button");
-    // The sibling sheet is accessibilityViewIsModal, which RNTL treats as hiding the scrim.
-    fireEvent.press(screen.getByLabelText("Close", { includeHiddenElements: true }));
-    expect(onClose).toHaveBeenCalledTimes(1);
-    view.unmount();
-
-    jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
-    const reduced = render(
-      <Sheet visible onClose={() => {}} title="Bagikan" closeLabel="Tutup">
-        <Text>Isi</Text>
-      </Sheet>,
-    );
-    expect(reduced.UNSAFE_getByType(Modal).props.animationType).toBe("fade");
-  });
-
   it("Stepper labels come from props and its buttons are 48dp", () => {
     jest.clearAllMocks();
     const onChange = jest.fn();
@@ -364,57 +339,10 @@ describe("Button on a surface the theme does not own", () => {
   });
 });
 
-describe("Sheet and Screen details", () => {
+describe("Screen details", () => {
   afterEach(() => {
     jest.restoreAllMocks();
     mockWindowY = 0;
-  });
-
-  it("Sheet closes on the VoiceOver escape gesture", () => {
-    const onClose = jest.fn();
-    render(
-      <Sheet visible onClose={onClose} title="Bagikan" closeLabel="Tutup">
-        <Text>Isi</Text>
-      </Sheet>,
-    );
-    const sheet = screen.UNSAFE_getAllByProps({ accessibilityViewIsModal: true })[0];
-    expect(sheet.props.onAccessibilityEscape).toBe(onClose);
-  });
-
-  // On gesture navigation the Modal window must reach under the system bars, or the screen behind it shows through
-  // the gesture band without the scrim; the sheet then pads its own bottom so its content clears that band.
-  it("Sheet draws under the system bars and pads its bottom by the safe-area inset", () => {
-    const sheetPadding = () =>
-      StyleSheet.flatten(screen.UNSAFE_getAllByProps({ accessibilityViewIsModal: true })[0].props.style).paddingBottom;
-    const plain = render(
-      <Sheet visible onClose={() => {}} title="Bagikan" closeLabel="Tutup">
-        <Text>Isi</Text>
-      </Sheet>,
-    );
-    const modal = plain.UNSAFE_getByType(Modal);
-    expect(modal.props.navigationBarTranslucent).toBe(true);
-    expect(modal.props.statusBarTranslucent).toBe(true);
-    const base = sheetPadding();
-    expect(base).toBe(20);
-    plain.unmount();
-
-    render(
-      <SafeAreaProvider initialMetrics={{ frame: { x: 0, y: 0, width: 390, height: 800 }, insets: { top: 0, left: 0, right: 0, bottom: 24 } }}>
-        <Sheet visible onClose={() => {}} title="Bagikan" closeLabel="Tutup">
-          <Text>Isi</Text>
-        </Sheet>
-      </SafeAreaProvider>,
-    );
-    expect(sheetPadding()).toBe(base + 24);
-  });
-
-  it("Sheet with an empty title renders no heading", () => {
-    render(
-      <Sheet visible onClose={() => {}} title="" closeLabel="Tutup">
-        <Text>Isi</Text>
-      </Sheet>,
-    );
-    expect(screen.queryByRole("header", { includeHiddenElements: true })).toBeNull();
   });
 
   it("Screen's scroll view is the first one in the screen and lets the system inset it", () => {
@@ -696,32 +624,6 @@ describe("dark theme", () => {
     const fill = screen.getByTestId("mood-fill-siang", { includeHiddenElements: true });
     expect(StyleSheet.flatten(fill.props.style).backgroundColor).toBe(nativeMood.dark.siang.header);
     expect(StyleSheet.flatten(screen.getByText("Hari").props.style).color).toBe(nativeMood.dark.siang.headerText);
-  });
-
-  it("an open Sheet repaints when the theme changes", async () => {
-    function Probe() {
-      const { setPreference } = useThemePreference();
-      return (
-        <Pressable accessibilityRole="button" accessibilityLabel="Gelap" onPress={() => setPreference("dark")}>
-          <RNText>Gelap</RNText>
-        </Pressable>
-      );
-    }
-    const sheetColor = () =>
-      StyleSheet.flatten(screen.UNSAFE_getAllByProps({ accessibilityViewIsModal: true })[0].props.style).backgroundColor;
-    render(
-      <ThemeProvider storageKey="k">
-        <Probe />
-        <Sheet visible onClose={() => {}} title="Bagikan" closeLabel="Tutup">
-          <Text>Isi</Text>
-        </Sheet>
-      </ThemeProvider>,
-    );
-    await waitFor(() => expect(SecureStore.getItemAsync).toHaveBeenCalledWith("k"));
-    await act(async () => {});
-    expect(sheetColor()).toBe(nativeThemes.light.surface);
-    fireEvent.press(screen.getByRole("button", { name: "Gelap" }));
-    expect(sheetColor()).toBe(DARK.surface);
   });
 
   it("explicit style colour still wins over the variant", async () => {

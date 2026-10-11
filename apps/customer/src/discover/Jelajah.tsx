@@ -1,21 +1,18 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { ScrollView, TextInput, View } from "react-native";
 import { router } from "expo-router";
-import * as SecureStore from "expo-secure-store";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { areaOptions, menuSummary, perMealPrice, type Offer } from "@catera/domain";
+import { menuSummary, perMealPrice, type Offer } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
 import {
   Button,
   FadeSwap,
   FONT,
-  fonts,
   MoodHeader,
   PhotoRing,
   PressableRow,
   PressableScale,
   Screen,
-  Sheet,
   Skeleton,
   SkeletonGroup,
   Text,
@@ -28,12 +25,12 @@ import { topTags } from "./categories";
 import { FilterChip } from "./FilterChip";
 import { PackageCard } from "./PackageCard";
 import { type CatalogOffer } from "./format";
+import { chooseArea, useStoredArea } from "./area";
 import { useSaved } from "./saved";
 import { photoUri } from "../today/Plate";
 import { packageHref } from "../hrefs";
 import { JelajahSkeleton } from "../skeletons";
 
-const AREA_KEY = "catera.area";
 const BUDGET = 30000;
 const CIRCLES = 6;
 
@@ -93,23 +90,10 @@ function MealButton({
 
 /** Jelajah: choose an area, pick a meal and a category, narrow with two chips, then browse packages as photo rows. */
 export function Jelajah() {
-  // null while the area kept on this phone is read; the page is already up, with its list as a skeleton.
-  const [area, setArea] = useState<string | null>(null);
-  useEffect(() => {
-    // The legacy provider reads the same key, so the choice carries over both ways.
-    void SecureStore.getItemAsync(AREA_KEY)
-      .then((value) => setArea(value || ""))
-      .catch(() => setArea(""));
-  }, []);
-  return (
-    <Browse
-      area={area}
-      onArea={(value) => {
-        setArea(value);
-        void SecureStore.setItemAsync(AREA_KEY, value).catch(() => {});
-      }}
-    />
-  );
+  // null while the area kept on this phone is read; the page is already up, with its list as a skeleton. The area
+  // sheet (`/area`) keeps a new choice through `chooseArea`, which this hears at once.
+  const area = useStoredArea();
+  return <Browse area={area} onArea={chooseArea} />;
 }
 
 function Browse({ area, onArea }: { area: string | null; onArea: (value: string) => void }) {
@@ -125,7 +109,6 @@ function Browse({ area, onArea }: { area: string | null; onArea: (value: string)
   const [tag, setTag] = useState("");
   const [budget, setBudget] = useState(false);
   const [trial, setTrial] = useState(false);
-  const [picking, setPicking] = useState(false);
 
   // The area goes to the server too, but the list is narrowed here by each package's own areas.
   // Chips and search filter what it returned, so toggling one never refetches or blanks the list.
@@ -185,7 +168,7 @@ function Browse({ area, onArea }: { area: string | null; onArea: (value: string)
               accessibilityRole="button"
               accessibilityLabel={t("Pilih area pengantaran", "Choose delivery area")}
               accessibilityValue={area === null ? undefined : { text: area || t("Belum dipilih", "Not chosen") }}
-              onPress={() => setPicking(true)}
+              onPress={() => router.push("/area" as never)}
               style={{ minHeight: 48, flexDirection: "row", alignItems: "center", gap: 6 }}
             >
               <Ionicons name="location-outline" size={18} color={palette.headerMeta} />
@@ -344,31 +327,6 @@ function Browse({ area, onArea }: { area: string | null; onArea: (value: string)
           </>
         )}
       </FadeSwap>
-
-      <Sheet
-        visible={picking}
-        onClose={() => setPicking(false)}
-        title={t("Area pengantaran", "Delivery area")}
-        closeLabel={t("Tutup", "Close")}
-      >
-        {["", ...areaOptions].map((value) => (
-          <PressableRow
-            key={value || "all"}
-            accessibilityRole="button"
-            accessibilityState={{ selected: value === area }}
-            onPress={() => {
-              onArea(value);
-              setPicking(false);
-            }}
-            style={styles.option}
-          >
-            <Text style={{ flex: 1, fontFamily: value === area ? fonts.extrabold : fonts.regular }}>
-              {value || t("Semua area", "All areas")}
-            </Text>
-            {value === area ? <Ionicons name="checkmark" size={20} color={c.forest} /> : null}
-          </PressableRow>
-        ))}
-      </Sheet>
     </Screen>
   );
 }
@@ -376,5 +334,4 @@ function Browse({ area, onArea }: { area: string | null; onArea: (value: string)
 const useStyles = themedStyles(() => ({
   circles: { gap: 8 },
   chips: { gap: 8 },
-  option: { minHeight: 48, flexDirection: "row", alignItems: "center", gap: 10 },
 }));

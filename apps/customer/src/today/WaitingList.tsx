@@ -7,7 +7,6 @@ import {
   addDays,
   changeDeadline,
   currency,
-  errorLabel,
   jakartaDay,
   shortDate,
   waitingItems,
@@ -18,12 +17,8 @@ import {
 } from "@catera/domain";
 import { useMobile, useTrack } from "@catera/mobile-core";
 import {
-  Button,
-  Field,
   fonts,
   PressableRow,
-  PressableScale,
-  Sheet,
   Text,
   themedStyles,
   useColors,
@@ -32,6 +27,7 @@ import { customerLink } from "../links";
 import { openLink } from "../nav";
 import { packageHref } from "../hrefs";
 import { weekdayName } from "../schedule/dates";
+import { onReviewMarked } from "./reviewMark";
 
 type Translate = (id: string, en: string) => string;
 type IconName = ComponentProps<typeof Ionicons>["name"];
@@ -103,7 +99,9 @@ export function WaitingList({
   const review = offline ? undefined : items.find((i) => i.kind === "review")?.subscription;
   const reviewKey = review ? runtime.storageKey(`review.${review.id}`) : "";
   const [reviewShown, setReviewShown] = useState<Record<string, boolean>>({});
-  const [sheetOpen, setSheetOpen] = useState(false);
+
+  // The review sheet (`/ulasan/{id}`) marks the review dealt with; its row leaves at once, under the closing sheet.
+  useEffect(() => onReviewMarked((key) => setReviewShown((s) => ({ ...s, [key]: false }))), []);
 
   useEffect(() => {
     if (!reviewKey) return;
@@ -186,16 +184,10 @@ export function WaitingList({
           title: t(`Bagaimana ${caterer} selama ini?`, `How has ${caterer} been so far?`),
           detail: t("Ulasan singkat, 1 menit", "A short review, 1 minute"),
           action: t("Nilai", "Rate"),
-          onPress: () => setSheetOpen(true),
+          onPress: () => router.push(`/ulasan/${encodeURIComponent(item.subscription.id)}` as never),
         };
       }
     }
-  }
-
-  function hideReview(value: "dismissed" | "done") {
-    setSheetOpen(false);
-    setReviewShown((s) => ({ ...s, [reviewKey]: false }));
-    void SecureStore.setItemAsync(reviewKey, value).catch(() => undefined);
   }
 
   return (
@@ -228,104 +220,7 @@ export function WaitingList({
           </PressableRow>
         ))}
       </View>
-      {review && reviewShown[reviewKey] ? (
-        <ReviewSheet
-          subscription={review}
-          visible={sheetOpen}
-          onClose={() => setSheetOpen(false)}
-          onDone={hideReview}
-        />
-      ) : null}
     </View>
-  );
-}
-
-/** The review form, in a sheet: the stars, a few words and "Kirim ulasan", with "Nanti saja" to put it off for good. */
-function ReviewSheet({
-  subscription,
-  visible,
-  onClose,
-  onDone,
-}: {
-  subscription: Subscription;
-  visible: boolean;
-  onClose: () => void;
-  onDone: (value: "dismissed" | "done") => void;
-}) {
-  const { command, t, locale } = useMobile();
-  const palette = useColors();
-  const styles = useStyles();
-  const [rating, setRating] = useState(5);
-  const [body, setBody] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const caterer = subscription.snapshot.offer.caterer;
-
-  async function send() {
-    setBusy(true);
-    setError("");
-    try {
-      await command("review.save", {
-        subscriptionId: subscription.id,
-        rating,
-        food: rating,
-        delivery: rating,
-        value: rating,
-        body,
-      });
-      onDone("done");
-    } catch (e) {
-      const code = (e as { code?: string }).code || (e as Error).message;
-      setError(errorLabel(code, locale) || t("Belum berhasil. Coba lagi.", "That didn't work. Try again."));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <Sheet
-      visible={visible}
-      onClose={onClose}
-      title={t(`Ulasan untuk ${caterer}`, `Your review of ${caterer}`)}
-      closeLabel={t("Tutup", "Close")}
-    >
-      <View testID="review-sheet" style={{ gap: 12 }}>
-        <View style={{ flexDirection: "row", gap: 6 }}>
-          {[1, 2, 3, 4, 5].map((n) => (
-            <PressableScale
-              key={n}
-              accessibilityRole="button"
-              accessibilityLabel={t(`${n} bintang`, `${n} stars`)}
-              accessibilityState={{ selected: n <= rating }}
-              haptic="select"
-              onPress={() => setRating(n)}
-              style={styles.star}
-            >
-              {/* Outline + muted (5.8:1) for unselected, filled + ink for selected: shape and colour both carry the state. */}
-              <Ionicons
-                name={n <= rating ? "star" : "star-outline"}
-                size={28}
-                color={n <= rating ? palette.sunriseInk : palette.muted}
-              />
-            </PressableScale>
-          ))}
-        </View>
-        <Field
-          label={t("Cerita singkat (opsional)", "A few words (optional)")}
-          value={body}
-          onChangeText={setBody}
-          multiline
-          maxLength={1000}
-        />
-        {error ? (
-          <Text selectable style={{ color: palette.danger }}>
-            {error}
-          </Text>
-        ) : null}
-        <Button label={t("Kirim ulasan", "Send review")} disabled={busy} onPress={() => void send()} />
-        <Button variant="text" label={t("Nanti saja", "Not now")} disabled={busy} onPress={() => onDone("dismissed")} />
-      </View>
-    </Sheet>
   );
 }
 
@@ -362,5 +257,4 @@ const useStyles = themedStyles((c) => ({
   title: { fontSize: 15, lineHeight: 20, fontFamily: fonts.bold, color: c.charcoal, fontVariant: ["tabular-nums"] },
   detail: { fontSize: 12, lineHeight: 16, fontVariant: ["tabular-nums"] },
   action: { fontSize: 13, lineHeight: 18, fontFamily: fonts.bold },
-  star: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
 }));

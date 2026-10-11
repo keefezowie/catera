@@ -20,8 +20,9 @@ import {
 import { plural, useData, useMobile } from "@catera/mobile-core";
 import { Button, FadeSwap, fontFor, Screen, Stepper, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { Breakdown, LengthOptions, percent, StartLine } from "./Breakdown";
-import { ChoiceSheet, NoLongerSold, PayWith, PendingPayment, Retry, Terms } from "./BuyParts";
+import { NoLongerSold, PayWith, PendingPayment, Retry, Terms } from "./BuyParts";
 import { useQuote, type BuyPayload } from "./useQuote";
+import { useChoice } from "../choice";
 import { FLOW_HREF } from "../nav";
 import { BreakdownSkeleton, BuySkeleton } from "../skeletons";
 
@@ -61,7 +62,9 @@ export function BuyScreen({
   const [addressId, setAddressId] = useState<string | null>(initial.addressId || null);
   const [start, setStart] = useState<string | null>(null);
   const [method, setMethod] = useState<DirectPaymentMethod | null>(null);
-  const [sheet, setSheet] = useState<"" | "address" | "start">("");
+  // The address and start-date pickers are native choice sheets over Beli (`/pembelian/alamat-pilih`,
+  // `/pembelian/mulai`): the purchase stays underneath with every choice made so far.
+  const choose = useChoice();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [now, setNow] = useState(() => new Date());
@@ -144,6 +147,26 @@ export function BuyScreen({
   const pendingCheckout = renew ? ctx?.pendingCheckoutId : null;
   const loadError = [loaded, context, customer, methods].find((r) => r.error && !r.data)?.error;
   const reloadAll = () => [loaded, context, customer, methods].forEach((r) => void r.reload());
+
+  async function pickAddress() {
+    const picked = await choose("/pembelian/alamat-pilih", {
+      title: t("Alamat pengantaran", "Delivery address"),
+      items: addresses.map((a) => ({ id: a.id, label: a.label, detail: a.line })),
+      selected: address?.id,
+      extra: { key: "kelola", label: t("Kelola alamat", "Manage addresses") },
+    });
+    if (picked === "kelola") router.push(FLOW_HREF.alamat as never);
+    else if (picked) setAddressId(picked);
+  }
+
+  async function pickStart() {
+    const picked = await choose("/pembelian/mulai", {
+      title: t("Mulai tanggal", "Start date"),
+      items: choices.map((d) => ({ id: d, label: shortDate(d, locale) })),
+      selected: startDate,
+    });
+    if (picked) setStart(picked);
+  }
 
   async function submit() {
     if (!payload || !quote.ready) return;
@@ -243,7 +266,7 @@ export function BuyScreen({
           quote={shown}
           dimmed={quote.pending}
           weekdays={offer.weekdays}
-          onChange={choices.length > 1 ? () => setSheet("start") : undefined}
+          onChange={choices.length > 1 ? () => void pickStart() : undefined}
           locale={locale}
           t={t}
         />
@@ -280,7 +303,7 @@ export function BuyScreen({
               variant="text"
               label={address ? t("Ganti", "Change") : t("Tambah alamat", "Add address")}
               accessibilityLabel={address ? t("Ganti alamat", "Change address") : undefined}
-              onPress={() => (address ? setSheet("address") : router.push(FLOW_HREF.alamat as never))}
+              onPress={() => (address ? void pickAddress() : router.push(FLOW_HREF.alamat as never))}
             />
           </View>
         </View>
@@ -311,34 +334,6 @@ export function BuyScreen({
 
         <PayWith availability={pay} chosen={chosenMethod} onChoose={setMethod} t={t} />
         <Terms apiBase={runtime.apiBase} t={t} />
-
-        <ChoiceSheet
-          visible={sheet === "address"}
-          title={t("Alamat pengantaran", "Delivery address")}
-          items={addresses.map((a) => ({ id: a.id, label: a.label, detail: a.line }))}
-          selected={address?.id}
-          onPick={setAddressId}
-          onClose={() => setSheet("")}
-          closeLabel={t("Tutup", "Close")}
-        >
-          <Button
-            variant="secondary"
-            label={t("Kelola alamat", "Manage addresses")}
-            onPress={() => {
-              setSheet("");
-              router.push(FLOW_HREF.alamat as never);
-            }}
-          />
-        </ChoiceSheet>
-        <ChoiceSheet
-          visible={sheet === "start"}
-          title={t("Mulai tanggal", "Start date")}
-          items={choices.map((d) => ({ id: d, label: shortDate(d, locale) }))}
-          selected={startDate}
-          onPick={setStart}
-          onClose={() => setSheet("")}
-          closeLabel={t("Tutup", "Close")}
-        />
       </FadeSwap>
     </Screen>
   );

@@ -11,11 +11,13 @@ import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera
 import * as Reanimated from "react-native-reanimated";
 import { nativeMotion, nativeThemes } from "@catera/design-tokens";
 import { FadeSwap, fonts, MoodProvider, ThemeProvider } from "@catera/mobile-ui";
+import { NavigationContext, NavigationRouteContext } from "expo-router/react-navigation";
 import { customerLink } from "../src/links";
 import { goToTab, leaveFor } from "../src/nav";
 import { BuyScreen } from "../src/buy/BuyScreen";
 import { QrisCode } from "../src/buy/QrisCode";
 import { PaymentScreen } from "../src/buy/PaymentScreen";
+import { ChoiceRoute } from "../src/choice";
 import { offer, subscription } from "./fixtures";
 
 jest.mock("expo-router", () => ({
@@ -262,6 +264,47 @@ async function checkingShown() {
   expect(await screen.findByText("Jangan bayar lagi. Status diperiksa langsung dari bank.")).toBeTruthy();
   return screen.getByRole("progressbar", { name: "Memeriksa pembayaran…" });
 }
+/**
+ * Beli's pickers are choice sheet routes in the root stack (`/pembelian/alamat-pilih`, `/pembelian/mulai`). The router
+ * is mocked here, so this host stands in for the stack: a push to one shows the real `ChoiceRoute` with its `?id=`,
+ * and its goBack closes it, the way the sheet slides away over Beli.
+ */
+function ChoiceHost() {
+  const { useEffect, useState } = require("react") as typeof import("react");
+  const [open, setOpen] = useState<{ pathname: string; params: { id: string } } | null>(null);
+  useEffect(() => {
+    (router.push as jest.Mock).mockImplementation((href: unknown) => {
+      const link = href as { pathname?: string; params?: { id: string } };
+      if (typeof link === "object" && String(link.pathname).startsWith("/pembelian/") && link.params?.id)
+        setOpen({ pathname: link.pathname!, params: link.params });
+    });
+    return () => void (router.push as jest.Mock).mockReset();
+  }, []);
+  if (!open) return null;
+  const navigation = {
+    goBack: () => setOpen(null),
+    canGoBack: () => true,
+    addListener: () => () => undefined,
+    setOptions: () => undefined,
+    isFocused: () => true,
+  };
+  return (
+    <NavigationContext.Provider value={navigation as never}>
+      <NavigationRouteContext.Provider value={{ key: "choice", name: open.pathname, params: open.params } as never}>
+        <ReactNative.View testID="choice-sheet">
+          <ChoiceRoute />
+        </ReactNative.View>
+      </NavigationRouteContext.Provider>
+    </NavigationContext.Provider>
+  );
+}
+const withChoices = (ui: React.ReactElement) => (
+  <>
+    {ui}
+    <ChoiceHost />
+  </>
+);
+
 const commands = (runtime: MobileRuntime) => (runtime.api.command as jest.Mock).mock.calls;
 const bayarReady = () => waitFor(() => expect(screen.getByRole("button", { name: "Bayar" })).toBeEnabled());
 
@@ -473,13 +516,34 @@ describe("Beli / Perpanjang", () => {
   });
 
   it("sheet options are 48dp picks with a selection haptic", async () => {
-    wrap(server(), <BuyScreen packageId="p-rumahan" />);
+    wrap(server(), withChoices(<BuyScreen packageId="p-rumahan" />));
     await bayarReady();
     fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" }));
-    const home = screen.getByRole("radio", { name: /Rumah/ });
+    const home = await screen.findByRole("radio", { name: /Rumah/ });
     expect(StyleSheet.flatten(home.props.style).minHeight).toBeGreaterThanOrEqual(48);
     fireEvent.press(home);
     expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it("Beli's address picker returns to Beli with the chosen address", async () => {
+    wrap(server(), withChoices(<BuyScreen packageId="p-rumahan" />));
+    await bayarReady();
+    fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" }));
+    // A native choice sheet over Beli, with the current address marked and Kelola alamat under the list.
+    expect(router.push).toHaveBeenCalledWith({ pathname: "/pembelian/alamat-pilih", params: { id: expect.any(String) } });
+    const sheet = within(await screen.findByTestId("choice-sheet"));
+    expect(sheet.getByRole("header", { name: "Alamat pengantaran" })).toBeTruthy();
+    const radios = sheet.getAllByRole("radio");
+    expect(radios.filter((r) => r.props.accessibilityState.checked)).toHaveLength(1);
+    expect(sheet.getByRole("button", { name: "Kelola alamat" })).toBeTruthy();
+    fireEvent.press(sheet.getByRole("radio", { name: /Rumah/ }));
+    // The sheet closes and Beli shows the chosen address; the purchase never left.
+    await waitFor(() => expect(screen.queryByTestId("choice-sheet")).toBeNull());
+    expect(await screen.findByText(/^Diantar ke Rumah/)).toBeTruthy();
+    // Kelola alamat closes the picker and opens Alamat over the purchase.
+    fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" }));
+    fireEvent.press(within(await screen.findByTestId("choice-sheet")).getByRole("button", { name: "Kelola alamat" }));
+    await waitFor(() => expect(router.push).toHaveBeenLastCalledWith("/pembelian/alamat"));
   });
 
   it("cycle options give a selection haptic", async () => {
@@ -492,11 +556,11 @@ describe("Beli / Perpanjang", () => {
   });
 
   it("an address outside the area hides the old price", async () => {
-    wrap(server(), <BuyScreen packageId="p-rumahan" />);
+    wrap(server(), withChoices(<BuyScreen packageId="p-rumahan" />));
     await bayarReady();
     expect(screen.getByText("Biaya layanan")).toBeTruthy();
     fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" }));
-    fireEvent.press(screen.getByRole("radio", { name: /Rumah/ }));
+    fireEvent.press(await screen.findByRole("radio", { name: /Rumah/ }));
     expect(await screen.findByText("Alamat ini di luar jangkauan Dapur Contoh. Pilih alamat lain.")).toBeTruthy();
     expect(screen.queryByText("Biaya layanan")).toBeNull();
     expect(screen.queryByText(totalOf({ startDate: "2026-10-08" }))).toBeNull();

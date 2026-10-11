@@ -43,6 +43,11 @@ jest.mock("../src/help/ReportList", () => ({ ReportList: mockStub("Bantuan") }))
 jest.mock("../src/discover/SavedList", () => ({ SavedList: mockStub("Disimpan") }));
 jest.mock("../src/schedule/DayScreen", () => ({ DayScreen: mockStub("Hari") }));
 jest.mock("../src/help/ReportProblem", () => ({ ReportProblem: mockStub("Ada masalah") }));
+jest.mock("../src/schedule/ChangeDaySheet", () => ({ ChangeDayRoute: mockStub("Ubah hari") }));
+jest.mock("../src/today/ReviewSheet", () => ({ ReviewRoute: mockStub("Ulasan") }));
+jest.mock("../src/discover/area", () => ({ AreaSheet: mockStub("Area") }));
+jest.mock("../src/account/AddressForm", () => ({ AddressForm: mockStub("Alamat baru") }));
+jest.mock("../src/help/HelpForm", () => ({ HelpForm: mockStub("Minta bantuan") }));
 jest.mock("../src/account/Notifications", () => ({ NotificationsScreen: mockStub("Notifikasi") }));
 jest.mock("../src/discover/PackageDetail", () => ({ PackageDetail: mockStub("Paket") }));
 jest.mock("../src/account/Payments", () => ({ Payments: mockStub("Riwayat pembayaran") }));
@@ -177,6 +182,49 @@ describe("each tab keeps its own stack", () => {
       expect(app.getPathname()).toBe("/hari/d1");
       app.unmount();
     }
+  });
+
+  it("a cold link to a Task 10 sheet opens it over its parent page, never alone", () => {
+    // Ubah hari over its Hari; the address form over Alamat; the help form over Bantuan.
+    for (const [link, below] of [
+      ["/ubah-hari/d1?mode=date", ["index", "hari/[id]", "ubah-hari/[id]"]],
+      ["/alamat-form", ["index", "alamat", "alamat-form"]],
+      ["/bantuan-form?kind=help", ["index", "bantuan", "bantuan-form"]],
+    ] as const) {
+      const app = mount(systemPath(`exp://127.0.0.1:8084/--${link}`, true));
+      expect(root()).toEqual(["(tabs)"]);
+      expect({ link, stack: stack("(index)") }).toEqual({ link, stack: below });
+      // Closing the sheet leaves its parent page in place.
+      act(() => router.back());
+      expect({ link, stack: stack("(index)") }).toEqual({ link, stack: below.slice(0, -1) });
+      app.unmount();
+    }
+    // The review sits over Beranda itself.
+    let app = mount(systemPath("/ulasan/s-1", true));
+    expect(tab()).toBe("(index)");
+    expect(stack("(index)")).toEqual(["index", "ulasan/[id]"]);
+    app.unmount();
+    // The area choice sits over Jelajah, in Jelajah's tab.
+    app = mount(systemPath("/area", true));
+    expect(tab()).toBe("(jelajah)");
+    expect(stack("(jelajah)")).toEqual(["jelajah", "area"]);
+    act(() => router.back());
+    expect(stack("(jelajah)")).toEqual(["jelajah"]);
+    app.unmount();
+  });
+
+  it("a push tap to a Task 10 sheet opens it over its parent, and over a tab root by selecting that tab", () => {
+    mount("/");
+    act(() => goToTab("akun"));
+    act(() => openLink("/ubah-hari/d1"));
+    expect(tab()).toBe("(akun)");
+    expect(stack("(akun)")).toEqual(["akun", "hari/[id]", "ubah-hari/[id]"]);
+    act(() => openLink("/area"));
+    expect(tab()).toBe("(jelajah)");
+    expect(stack("(jelajah)")).toEqual(["jelajah", "area"]);
+    act(() => openLink("/ulasan/s-1"));
+    expect(tab()).toBe("(index)");
+    expect(stack("(index)")).toEqual(["index", "ulasan/[id]"]);
   });
 
   it("a cold link to Pengaturan opens it inside Beranda, and its choice sheets open over it", () => {

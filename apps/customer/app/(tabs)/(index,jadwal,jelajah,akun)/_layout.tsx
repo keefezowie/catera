@@ -46,6 +46,13 @@ export default function TabStack({ segment }: { segment: string }) {
       <Stack.Screen name="bantuan" options={{ title: t("Bantuan dan laporan", "Help and reports") }} />
       {/* Ada masalah is a form sheet over the page it was opened from (its Hari); it draws its own title. */}
       <Stack.Screen name="masalah/[id]" options={sheetOptions({ detents: "form", palette })} />
+      {/* The day's short tasks and the account's forms, each a native sheet over the page it was opened from; they draw
+          their own title row (spec 5.3). Forms that can grow open at 60%; the area choice fits its rows. */}
+      <Stack.Screen name="ubah-hari/[id]" options={sheetOptions({ detents: "form", palette })} />
+      <Stack.Screen name="ulasan/[id]" options={sheetOptions({ detents: "form", palette })} />
+      <Stack.Screen name="alamat-form" options={sheetOptions({ detents: "form", palette })} />
+      <Stack.Screen name="bantuan-form" options={sheetOptions({ detents: "form", palette })} />
+      <Stack.Screen name="area" options={sheetOptions({ detents: "fit", palette })} />
       <Stack.Screen name="alamat" options={{ title: t("Alamat", "Addresses") }} />
       <Stack.Screen name="addresses" options={{ headerShown: false }} />
       <Stack.Screen name="pembayaran" options={{ title: t("Riwayat pembayaran", "Payment history") }} />

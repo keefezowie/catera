@@ -303,6 +303,8 @@ export function SettingsSwitchRow({
  * A single choice as a list (the Bahasa sheet): a `radiogroup` named `label`, one `radio` per option. iOS marks the
  * chosen row with a trailing checkmark; Android leads each row with the Material radio button. Choosing gives the
  * selection haptic and calls `onChange`, also for the option already chosen, so a sheet can close on any choice.
+ * An option's `detail` is a muted supporting line under its label (an address's street); a row with one is at least
+ * 72dp on Android, Material's two-line list item. `value` may be null when nothing is chosen yet.
  */
 export function ChoiceList<T extends string>({
   label,
@@ -312,8 +314,8 @@ export function ChoiceList<T extends string>({
   os = process.env.EXPO_OS,
 }: {
   label: string;
-  options: { value: T; label: string }[];
-  value: T;
+  options: { value: T; label: string; detail?: string }[];
+  value: T | null | undefined;
   onChange: (next: T) => void;
   os?: string;
 }) {
@@ -329,7 +331,7 @@ export function ChoiceList<T extends string>({
             {ios && i > 0 ? <View style={{ height: 1, marginStart: 20, backgroundColor: palette.line }} /> : null}
             <Pressable
               accessibilityRole="radio"
-              accessibilityLabel={option.label}
+              accessibilityLabel={option.detail ? `${option.label}, ${option.detail}` : option.label}
               accessibilityState={{ checked: chosen }}
               onPress={() => {
                 haptic.select();
@@ -338,7 +340,7 @@ export function ChoiceList<T extends string>({
               android_ripple={{ color: palette.line }}
               style={({ pressed }) => [
                 {
-                  minHeight: ios ? 52 : 56,
+                  minHeight: ios ? 52 : option.detail ? 72 : 56,
                   flexDirection: "row",
                   alignItems: "center",
                   gap: 16,
@@ -363,17 +365,23 @@ export function ChoiceList<T extends string>({
                   {chosen ? <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: palette.forest }} /> : null}
                 </View>
               )}
-              <RNText
-                style={{
-                  flex: 1,
-                  fontFamily: chosen ? fonts.semibold : fonts.regular,
-                  fontSize: ios ? 17 : 16,
-                  lineHeight: 22,
-                  color: palette.charcoal,
-                }}
-              >
-                {option.label}
-              </RNText>
+              <View style={{ flex: 1, gap: 2 }}>
+                <RNText
+                  style={{
+                    fontFamily: chosen ? fonts.semibold : fonts.regular,
+                    fontSize: ios ? 17 : 16,
+                    lineHeight: 22,
+                    color: palette.charcoal,
+                  }}
+                >
+                  {option.label}
+                </RNText>
+                {option.detail ? (
+                  <RNText style={{ fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: palette.muted }}>
+                    {option.detail}
+                  </RNText>
+                ) : null}
+              </View>
               {ios && chosen ? <Ionicons name="checkmark" size={20} color={palette.forest} /> : null}
             </Pressable>
           </Fragment>

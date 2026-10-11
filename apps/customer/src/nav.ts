@@ -24,7 +24,14 @@ const ROOT_HREF: Record<Tab, string> = {
  * so it stays underneath and no second tab bar opens. Close returns to it. They have their own path, not a group: a
  * group copy would share "/alamat" with the tab's screen, and a cold link to it would open the copy.
  */
-export const FLOW_HREF = { alamat: "/pembelian/alamat", bantuan: "/pembelian/bantuan" } as const;
+export const FLOW_HREF = {
+  alamat: "/pembelian/alamat",
+  bantuan: "/pembelian/bantuan",
+  /** The address form sheet over the purchase (the tabs have `/alamat-form`). */
+  alamatForm: "/pembelian/alamat-form",
+  /** The help form sheet over the purchase (the tabs have `/bantuan-form`). */
+  bantuanForm: "/pembelian/bantuan-form",
+} as const;
 
 /** Old paths whose screen is a tab root. */
 const LEGACY_ROOTS: Record<string, Tab> = { discover: "jelajah" };
@@ -46,15 +53,24 @@ const ROOT_STACK = new Set([
 ]);
 
 /**
- * A sheet route a link can reach, and the page it opens over: Ada masalah (`/masalah/{id}`) sits over the Hari of its
- * delivery (`/hari/{id}`), never alone; Pengaturan's choice sheets (`/pengaturan/bahasa`, `/pengaturan/tampilan`) sit
- * over Pengaturan. Null for any other path.
+ * A sheet route a link can reach, and the page it opens over, never alone:
+ * - Ada masalah (`/masalah/{id}`) and Ubah hari (`/ubah-hari/{id}`) sit over the Hari of their delivery (`/hari/{id}`).
+ * - Pengaturan's choice sheets (`/pengaturan/bahasa`, `/pengaturan/tampilan`) sit over Pengaturan.
+ * - The address form (`/alamat-form`) sits over Alamat; the help form (`/bantuan-form`) over Bantuan.
+ * - The review (`/ulasan/{id}`) sits over Beranda ("/"), and the area choice (`/area`) over Jelajah ("/jelajah"): a tab
+ *   root, which is selected rather than pushed.
+ * Null for any other path. A query stays with the sheet, never the parent.
  */
 export function sheetParent(path: string): string | null {
   const at = pathname(path);
-  const match = /^\/masalah\/([^/?#]+)\/?$/.exec(at);
-  if (match) return `/hari/${match[1]}`;
-  return /^\/pengaturan\/(bahasa|tampilan)\/?$/.test(at) ? "/pengaturan" : null;
+  const day = /^\/(?:masalah|ubah-hari)\/([^/?#]+)\/?$/.exec(at);
+  if (day) return `/hari/${day[1]}`;
+  if (/^\/pengaturan\/(bahasa|tampilan)\/?$/.test(at)) return "/pengaturan";
+  if (/^\/alamat-form\/?$/.test(at)) return "/alamat";
+  if (/^\/bantuan-form\/?$/.test(at)) return "/bantuan";
+  if (/^\/ulasan\/[^/?#]+\/?$/.test(at)) return "/";
+  if (/^\/area\/?$/.test(at)) return "/jelajah";
+  return null;
 }
 
 /** The array-group layout gets its own segment, `(jadwal)`; this is the tab it hosts. */
@@ -62,6 +78,12 @@ export function tabOfSegment(segment: string): Tab {
   const name = segment.replace(/^\((.*)\)$/, "$1");
   return (TABS as readonly string[]).includes(name) ? (name as Tab) : "index";
 }
+
+/** Where a sheet's parent opens from outside the tabs: a tab root by its group (`ROOT_HREF`), any other page as is. */
+const parentHref = (parent: string) => {
+  const tab = tabOfPath(parent);
+  return tab ? ROOT_HREF[tab] : parent;
+};
 
 /** A path without its query and hash. */
 const pathname = (path: string) => path.split(/[?#]/)[0];
@@ -192,6 +214,12 @@ function openInTab(found: { root: State; at: number; tabs: State }, path: string
   const group = found.tabs.routes[found.tabs.index]?.name ?? "(index)";
   const inTab = (href: string) => `/(tabs)/${group}${href.startsWith("/") ? href : `/${href}`}` as never;
   const parent = sheetParent(path);
+  // A sheet over a tab root (the review over Beranda, the area over Jelajah) opens in that tab, at its root.
+  const parentTab = parent ? tabOfPath(parent) : null;
+  if (parentTab) {
+    goToTab(parentTab);
+    return router.push(`/(tabs)/(${parentTab})${path.startsWith("/") ? path : `/${path}`}` as never);
+  }
   if (parent && onTop(found, group, pathname(path))) return router.replace(inTab(path));
   if (parent && !onTop(found, group, parent)) router.push(inTab(parent));
   router.push(inTab(path));
@@ -216,7 +244,7 @@ export function systemPath(link: string, initial = false): string {
   const parent = initial ? sheetParent(path) : null;
   if (parent) {
     pending = path;
-    return parent;
+    return parentHref(parent);
   }
   return url;
 }
@@ -257,7 +285,7 @@ export function leaveFor(path: string) {
   // With no tabs under it, a sheet route opens its parent page in Beranda and then itself, once the tabs are up.
   const parent = sheetParent(path);
   if (parent) pending = path;
-  router.replace((parent ?? path) as never, { withAnchor: true });
+  router.replace((parent ? parentHref(parent) : path) as never, { withAnchor: true });
 }
 
 /**

@@ -4,12 +4,18 @@ import { useColors } from "./theme";
 
 type Glyph = keyof typeof Ionicons.glyphMap;
 
-/** iOS and Android draw share differently; close, chat and the settings gear are the same glyph on both. */
-const glyphs: Record<"close" | "chat" | "share" | "settings", { ios: Glyph; android: Glyph }> = {
+export type HeaderIcon = "close" | "chat" | "share" | "settings" | "more";
+
+/**
+ * iOS and Android draw share and "more" differently (iOS's horizontal ellipsis, Material's vertical overflow); close,
+ * chat and the settings gear are the same glyph on both.
+ */
+const glyphs: Record<HeaderIcon, { ios: Glyph; android: Glyph }> = {
   close: { ios: "close", android: "close" },
   chat: { ios: "chatbubble-outline", android: "chatbubble-outline" },
   share: { ios: "share-outline", android: "share-social-outline" },
   settings: { ios: "settings-outline", android: "settings-outline" },
+  more: { ios: "ellipsis-horizontal", android: "ellipsis-vertical" },
 };
 
 /**
@@ -35,7 +41,7 @@ export function HeaderIconButton({
   tint: tintOverride,
   os = process.env.EXPO_OS,
 }: {
-  icon: "close" | "chat" | "share" | "settings";
+  icon: HeaderIcon;
   label: string;
   onPress: () => void;
   /** The header edge it sits on: `leading` in `headerLeft`, `trailing` in `headerRight`. */
