@@ -1,12 +1,24 @@
 import { useEffect, useState } from "react";
 import { TextInput, View } from "react-native";
+import Animated from "react-native-reanimated";
 import { router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 import { File } from "expo-file-system";
 import { earliestImportStart, errorLabel, jakartaDay } from "@catera/domain";
 import { plural, useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, FONT, fontFor, PressableRow, Screen, Text, useColors } from "@catera/mobile-ui";
+import {
+  Button,
+  Card,
+  FONT,
+  fontFor,
+  PressableRow,
+  Screen,
+  SuccessBeat,
+  Text,
+  useColors,
+  useListMotion,
+} from "@catera/mobile-ui";
 import { recheck, toImportRow, type AssistantRow } from "./rows";
 import { rowHref } from "./RowEditor";
 import { useImportStore, type Attachment } from "./store";
@@ -33,6 +45,8 @@ export function ImportAssistant() {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(0);
+  // Each save plays the beat again: it is keyed by the number of saves made on this screen.
+  const [saves, setSaves] = useState(0);
   const [off, setOff] = useState(false);
   // The row sheet checks a row against the same packages this screen read.
   useEffect(() => {
@@ -137,6 +151,7 @@ export function ImportAssistant() {
       const preview = await command<{ id: string }>("import.preview", { catererId, rows: clean.map((r) => toImportRow(r, today, r.n)) });
       await command("import.commit", { catererId, id: preview.id });
       setSaved((s) => s + clean.length);
+      setSaves((n) => n + 1);
       setRows(rows.filter((r) => r.needsReview));
     } catch (e) {
       if (!ROW_CODES.has(fail(e))) {
@@ -160,6 +175,8 @@ export function ImportAssistant() {
   }
 
   const clean = rows?.filter((r) => !r.needsReview).length ?? 0;
+  // Saved rows leave and a row typed in by hand enters; the list the assistant read arrives as one block.
+  const rowMotion = useListMotion(rows ? rows.map((r) => String(r.n)) : null);
 
   return (
     <Screen
@@ -172,10 +189,9 @@ export function ImportAssistant() {
       }
     >
       {saved ? (
-        <Card tone="sage">
-          <Text variant="heading">{t(`${saved} pelanggan tersimpan`, `${plural(saved, "customer")} saved`)}</Text>
-          <Button variant="text" label={t("Lihat Pelanggan", "View customers")} onPress={() => goToTab("pelanggan")} />
-        </Card>
+        <SuccessBeat key={saves} title={t(`${saved} pelanggan tersimpan`, `${plural(saved, "customer")} saved`)} play>
+          <Button variant="secondary" label={t("Lihat Pelanggan", "View customers")} onPress={() => goToTab("pelanggan")} />
+        </SuccessBeat>
       ) : null}
       {rows === null ? (
         <>
@@ -227,16 +243,18 @@ export function ImportAssistant() {
               : t(`${clean} siap disimpan`, `${clean} ready to save`)}
           </Text>
           {rows.map((r) => (
-            <Card key={r.n} tone={r.needsReview ? "attention" : "surface"}>
-              <PressableRow accessibilityRole="button" accessibilityLabel={`${t("Ubah", "Edit")} ${r.name}`} onPress={() => edit(r.n)} style={{ gap: 4 }}>
-                <Text variant="heading">{r.name || t("Tanpa nama", "No name")}</Text>
-                <Text variant="caption">{[r.phone, [r.addressLine, r.area].filter(Boolean).join(", ")].filter(Boolean).join(" · ")}</Text>
-                <Text variant="caption">
-                  {`${packages.find((p) => p.id === r.packageId)?.name ?? t("Paket belum dipilih", "Package not chosen")} · ${r.remainingDays != null ? t(`${r.remainingDays} hari lagi`, r.remainingDays === 1 ? "1 day left" : `${r.remainingDays} days left`) : t("sisa hari belum diisi", "days left not set")} · ${t(`${r.portions} porsi`, plural(r.portions, "portion"))}`}
-                </Text>
-                {r.needsReview ? <Text style={{ color: c.sunriseInk, fontFamily: fontFor("700") }}>{r.reason}</Text> : null}
-              </PressableRow>
-            </Card>
+            <Animated.View key={r.n} testID="import-row" {...rowMotion(String(r.n))}>
+              <Card tone={r.needsReview ? "attention" : "surface"}>
+                <PressableRow accessibilityRole="button" accessibilityLabel={`${t("Ubah", "Edit")} ${r.name}`} onPress={() => edit(r.n)} style={{ gap: 4 }}>
+                  <Text variant="heading">{r.name || t("Tanpa nama", "No name")}</Text>
+                  <Text variant="caption">{[r.phone, [r.addressLine, r.area].filter(Boolean).join(", ")].filter(Boolean).join(" · ")}</Text>
+                  <Text variant="caption">
+                    {`${packages.find((p) => p.id === r.packageId)?.name ?? t("Paket belum dipilih", "Package not chosen")} · ${r.remainingDays != null ? t(`${r.remainingDays} hari lagi`, r.remainingDays === 1 ? "1 day left" : `${r.remainingDays} days left`) : t("sisa hari belum diisi", "days left not set")} · ${t(`${r.portions} porsi`, plural(r.portions, "portion"))}`}
+                  </Text>
+                  {r.needsReview ? <Text style={{ color: c.sunriseInk, fontFamily: fontFor("700") }}>{r.reason}</Text> : null}
+                </PressableRow>
+              </Card>
+            </Animated.View>
           ))}
           <Button variant="secondary" label={t("Tambah baris", "Add a row")} onPress={addRow} />
           <Button variant="text" label={t("Mulai lagi", "Start over")} onPress={() => setRows(null)} />

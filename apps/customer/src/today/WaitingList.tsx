@@ -1,5 +1,6 @@
 import { useEffect, useState, type ComponentProps } from "react";
 import { View } from "react-native";
+import Animated from "react-native-reanimated";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
@@ -22,6 +23,7 @@ import {
   Text,
   themedStyles,
   useColors,
+  useRowMotion,
 } from "@catera/mobile-ui";
 import { customerLink } from "../links";
 import { openLink } from "../nav";
@@ -95,6 +97,10 @@ export function WaitingList({
   const c = useColors();
   const styles = useStyles();
   const track = useTrack();
+  // A row leaves after its action (a menu chosen, a plan renewed, a review given) and the rest move up. Rows never
+  // enter on their own, and the saved offline copy never animates (Decision A).
+  const motion = useRowMotion();
+  const rowMotion = offline ? {} : { exiting: motion.exiting, layout: motion.layout };
   const items = waitingItems(state, offline ? null : actions, now);
   const review = offline ? undefined : items.find((i) => i.kind === "review")?.subscription;
   const reviewKey = review ? runtime.storageKey(`review.${review.id}`) : "";
@@ -195,29 +201,30 @@ export function WaitingList({
       <SectionTitle>{t("Menunggu Anda", "Waiting on you")}</SectionTitle>
       <View testID="waiting-list" style={styles.card}>
         {rows.map((row, i) => (
-          <PressableRow
-            key={row.key}
-            testID="waiting-row"
-            accessibilityRole="button"
-            accessibilityLabel={`${row.title}, ${row.detail}, ${row.action}`}
-            onPress={row.onPress}
-            style={[styles.row, i > 0 && styles.divider]}
-          >
-            <View style={styles.icon}>
-              <Ionicons name={row.icon} size={18} color={c.forest} />
-            </View>
-            <View style={{ flex: 1, gap: 2 }}>
-              <Text testID="waiting-title" style={styles.title}>
-                {row.title}
+          <Animated.View key={row.key} testID="waiting-row-motion" {...rowMotion}>
+            <PressableRow
+              testID="waiting-row"
+              accessibilityRole="button"
+              accessibilityLabel={`${row.title}, ${row.detail}, ${row.action}`}
+              onPress={row.onPress}
+              style={[styles.row, i > 0 && styles.divider]}
+            >
+              <View style={styles.icon}>
+                <Ionicons name={row.icon} size={18} color={c.forest} />
+              </View>
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text testID="waiting-title" style={styles.title}>
+                  {row.title}
+                </Text>
+                <Text variant="caption" style={styles.detail}>
+                  {row.detail}
+                </Text>
+              </View>
+              <Text testID="waiting-action" style={[styles.action, { color: row.sunrise ? c.sunriseInk : c.forest }]}>
+                {row.action}
               </Text>
-              <Text variant="caption" style={styles.detail}>
-                {row.detail}
-              </Text>
-            </View>
-            <Text testID="waiting-action" style={[styles.action, { color: row.sunrise ? c.sunriseInk : c.forest }]}>
-              {row.action}
-            </Text>
-          </PressableRow>
+            </PressableRow>
+          </Animated.View>
         ))}
       </View>
     </View>

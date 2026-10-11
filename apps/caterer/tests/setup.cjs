@@ -24,3 +24,12 @@ jest.mock("expo-haptics", () => ({
   ImpactFeedbackStyle: { Light: "light" },
   NotificationFeedbackType: { Success: "success", Warning: "warning" },
 }));
+// lottie-react-native draws through a native view. The stand-in is a host View that keeps every prop, so a test reads
+// the `source`, `loop` and `autoPlay` it was given.
+jest.mock("lottie-react-native", () => {
+  const { createElement } = require("react");
+  const { View } = require("react-native");
+  const LottieView = (props) => createElement(View, props);
+  LottieView.displayName = "LottieView";
+  return { __esModule: true, default: LottieView };
+});

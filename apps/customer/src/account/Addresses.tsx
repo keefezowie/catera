@@ -1,7 +1,8 @@
 import { View } from "react-native";
+import Animated from "react-native-reanimated";
 import { router } from "expo-router";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, FadeSwap, Screen, Text, useColors } from "@catera/mobile-ui";
+import { Button, Card, FadeSwap, Screen, Text, useColors, useListMotion } from "@catera/mobile-ui";
 import { FLOW_HREF } from "../nav";
 import { ListSkeleton } from "../skeletons";
 import { SignInFirst } from "./SignInFirst";
@@ -36,6 +37,8 @@ function AddressBook({ flow }: { flow: boolean }) {
   const { runtime, t } = useMobile();
   const c = useColors();
   const customer = useData("alamat:customer", () => runtime.api.customer());
+  // An address the customer adds enters as a row; the book's first load enters as one block (Decision A).
+  const rowMotion = useListMotion(customer.data?.addresses.map((a) => a.id) ?? null);
 
   if (!customer.data)
     return customer.error ? (
@@ -59,24 +62,26 @@ function AddressBook({ flow }: { flow: boolean }) {
       <FadeSwap swapKey="ready" style={{ gap: 16 }}>
         <Text variant="title">{t("Makanan diantar ke mana?", "Where should meals go?")}</Text>
         {customer.data.addresses.map((a) => (
-          <Card key={a.id}>
-            <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
-              <View style={{ flex: 1, gap: 2 }}>
-                <Text variant="heading">{a.label}</Text>
-                <Text>{a.line}</Text>
-                <Text variant="caption">
-                  {a.area}, {a.city}
-                </Text>
-                {a.instructions ? <Text variant="caption">{a.instructions}</Text> : null}
+          <Animated.View key={a.id} testID="address-row" {...rowMotion(a.id)}>
+            <Card>
+              <View style={{ flexDirection: "row", alignItems: "flex-start", gap: 8 }}>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text variant="heading">{a.label}</Text>
+                  <Text>{a.line}</Text>
+                  <Text variant="caption">
+                    {a.area}, {a.city}
+                  </Text>
+                  {a.instructions ? <Text variant="caption">{a.instructions}</Text> : null}
+                </View>
+                <Button
+                  variant="text"
+                  label={t("Ubah", "Edit")}
+                  accessibilityLabel={t(`Ubah ${a.label}`, `Edit ${a.label}`)}
+                  onPress={() => router.push(formHref(flow, a.id) as never)}
+                />
               </View>
-              <Button
-                variant="text"
-                label={t("Ubah", "Edit")}
-                accessibilityLabel={t(`Ubah ${a.label}`, `Edit ${a.label}`)}
-                onPress={() => router.push(formHref(flow, a.id) as never)}
-              />
-            </View>
-          </Card>
+            </Card>
+          </Animated.View>
         ))}
         {!customer.data.addresses.length ? (
           <Text style={{ color: c.muted }}>{t("Belum ada alamat.", "No addresses yet.")}</Text>

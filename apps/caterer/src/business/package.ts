@@ -222,3 +222,13 @@ function nutritionFormFrom(n: Nutrition | null): NutritionForm {
     ...(Object.keys(carried).length ? { carried } : {}),
   };
 }
+
+/**
+ * Whether saving a package now is the caterer's first publish (the success beat with confetti, spec 6.2): true when no
+ * package of theirs was ever published (only drafts, or none). A suspended or retired package was published once.
+ * Null while the package read has not answered: a first that cannot be told is a later publish (a toast).
+ */
+export function isFirstPublish(offers: readonly SellerOffer[] | null | undefined): boolean | null {
+  if (!offers) return null;
+  return offers.every((o) => o.status === "draft");
+}

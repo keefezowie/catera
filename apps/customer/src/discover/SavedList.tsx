@@ -1,7 +1,8 @@
 import { View } from "react-native";
+import Animated from "react-native-reanimated";
 import { router } from "expo-router";
 import { useMobile } from "@catera/mobile-core";
-import { Button, Card, FadeSwap, Screen, Text, useColors } from "@catera/mobile-ui";
+import { Button, Card, FadeSwap, Screen, Text, useColors, useListMotion } from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
 import { PackageCard } from "./PackageCard";
 import { useSaved } from "./saved";
@@ -28,6 +29,9 @@ function Saved() {
   const { t } = useMobile();
   const c = useColors();
   const saved = useSaved("/disimpan");
+  // A removal leaves and the rest close up; Urungkan brings the row back as one the customer inserted. The list's
+  // first load enters as one block (Decision A).
+  const rowMotion = useListMotion(saved.loading ? null : saved.items.map((i) => i.packageId));
   return (
     <Screen>
       {saved.error ? (
@@ -55,28 +59,29 @@ function Saved() {
             <Button label={t("Jelajah paket", "Browse packages")} onPress={() => goToTab("jelajah")} />
           </View>
         ) : (
-          saved.items.map((item) =>
-            item.offer ? (
-              <PackageCard
-                key={item.packageId}
-                offer={item.offer}
-                saved
-                onOpen={() => router.push(packageHref(item.packageId, item.offer?.name ?? "") as never)}
-                onToggleSaved={() => void saved.toggle(item.packageId)}
-              />
-            ) : (
-              <Card key={item.packageId} tone="sage">
-                <Text variant="heading">{item.summary.name}</Text>
-                <Text variant="caption">{t("Paket ini tidak tersedia lagi.", "This package is no longer available.")}</Text>
-                <Button
-                  variant="text"
-                  label={t("Hapus dari simpanan", "Remove from saved")}
-                  accessibilityLabel={t(`Hapus ${item.summary.name} dari simpanan`, `Remove ${item.summary.name} from saved`)}
-                  onPress={() => void saved.toggle(item.packageId)}
+          saved.items.map((item) => (
+            <Animated.View key={item.packageId} testID="saved-row" {...rowMotion(item.packageId)}>
+              {item.offer ? (
+                <PackageCard
+                  offer={item.offer}
+                  saved
+                  onOpen={() => router.push(packageHref(item.packageId, item.offer?.name ?? "") as never)}
+                  onToggleSaved={() => void saved.toggle(item.packageId)}
                 />
-              </Card>
-            ),
-          )
+              ) : (
+                <Card tone="sage">
+                  <Text variant="heading">{item.summary.name}</Text>
+                  <Text variant="caption">{t("Paket ini tidak tersedia lagi.", "This package is no longer available.")}</Text>
+                  <Button
+                    variant="text"
+                    label={t("Hapus dari simpanan", "Remove from saved")}
+                    accessibilityLabel={t(`Hapus ${item.summary.name} dari simpanan`, `Remove ${item.summary.name} from saved`)}
+                    onPress={() => void saved.toggle(item.packageId)}
+                  />
+                </Card>
+              )}
+            </Animated.View>
+          ))
         )}
       </FadeSwap>
       {saved.hasMore ? (

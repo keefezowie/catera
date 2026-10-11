@@ -28,7 +28,7 @@ import {
   FadeSwap,
   linkTitle,
   nativeHeaderOptions,
-  RoundButton,
+  SaveHeart,
   Screen,
   ScreenStatusBar,
   Text,
@@ -247,11 +247,11 @@ export function PackageDetail() {
           {/* Light glyphs on the scrim; with the demo strip above, the strip's own fill keeps the theme's glyphs, and
               once the photo has scrolled away the canvas bar takes the theme's glyphs back. */}
           {demo || pastPhoto ? null : <ScreenStatusBar style="light" />}
-          <RoundButton
-            icon={isSaved ? "heart" : "heart-outline"}
+          <SaveHeart
+            saved={isSaved}
+            canSave={saved.signedIn}
             label={isSaved ? t(`Hapus ${o.name} dari simpanan`, `Remove ${o.name} from saved`) : t(`Simpan ${o.name}`, `Save ${o.name}`)}
-            selected={isSaved}
-            onPress={() => void saved.toggle(o.id)}
+            onToggle={() => void saved.toggle(o.id)}
             style={styles.heart}
           />
         </View>

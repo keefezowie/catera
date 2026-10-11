@@ -56,3 +56,6 @@ export * from "./ConfirmSheet";
 export * from "./ActionSheet";
 export * from "./settings/SettingsRows";
 export * from "./settings/ThemeChoice";
+export * from "./Confetti";
+export * from "./SuccessBeat";
+export * from "./SaveHeart";

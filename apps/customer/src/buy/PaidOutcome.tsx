@@ -1,8 +1,17 @@
 import { useEffect } from "react";
 import { Image, StyleSheet, View } from "react-native";
-import { dayLabel, jakartaDay, pendingMenu, shortDate, type Offer, type PaidSummary } from "@catera/domain";
+import {
+  dayLabel,
+  jakartaDay,
+  pendingMenu,
+  shortDate,
+  type CustomerState,
+  type Offer,
+  type PaidSummary,
+  type Subscription,
+} from "@catera/domain";
 import { useMobile, useTrack } from "@catera/mobile-core";
-import { Button, fontFor, MoodFill, StickyAction, Text, themedStyles, useMoodColors } from "@catera/mobile-ui";
+import { Button, fontFor, MoodFill, StickyAction, SuccessBeat, Text, themedStyles, useMoodColors } from "@catera/mobile-ui";
 import { goToTab, leaveFor } from "../nav";
 import { photoUri } from "../today/Plate";
 
@@ -98,6 +107,44 @@ export function PaidOutcome({ checkoutId, summary, offer }: { checkoutId: string
         </View>
       ) : null}
     </>
+  );
+}
+
+/**
+ * Whether this checkout pays for the customer's first paid plan, from the customer read: true when no other plan of
+ * theirs carries a checkout (a plan the caterer recorded outside Catera has none and is not a paid plan). Null when
+ * the read has not answered, so a first that cannot be told gets no confetti.
+ */
+export function firstPaidPlan(state: CustomerState | null | undefined, checkoutId: string): boolean | null {
+  if (!state) return null;
+  return !(state.subscriptions as (Subscription & { checkout_id?: string | null })[]).some(
+    (s) => !!s.checkout_id && s.checkout_id !== checkoutId,
+  );
+}
+
+/**
+ * The paid body: the success beat over the facts (the food, the first delivery, the reserved days). `play` is true
+ * only when the payment turned paid while Bayar was open (ruling D8); reopening a paid checkout shows the resting frame
+ * with no haptic. `confetti` is the first paid plan.
+ */
+export function PaidBeat({
+  checkoutId,
+  summary,
+  offer,
+  play,
+  confetti,
+}: {
+  checkoutId: string;
+  summary: PaidSummary;
+  offer: Offer;
+  play: boolean;
+  confetti: boolean;
+}) {
+  const { t } = useMobile();
+  return (
+    <SuccessBeat title={t("Pembayaran diterima", "Payment received")} play={play} confetti={confetti}>
+      <PaidOutcome checkoutId={checkoutId} summary={summary} offer={offer} />
+    </SuccessBeat>
   );
 }
 

@@ -1,7 +1,7 @@
 import { Image, View } from "react-native";
 import { currency, perMealPrice, priceUnitLabel } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { PressableRow, RoundButton, Text, themedStyles, useColors } from "@catera/mobile-ui";
+import { PressableRow, SaveHeart, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { photoUri } from "../today/Plate";
 import { cardLine, type CatalogOffer } from "./format";
 import { calorieHint } from "./NutritionCard";
@@ -16,12 +16,15 @@ export function PackageCard({
   layout,
   onOpen,
   onToggleSaved,
+  canSave = true,
 }: {
   offer: CatalogOffer;
   saved: boolean;
   layout?: "row";
   onOpen: () => void;
   onToggleSaved: () => void;
+  /** False when a heart press cannot save here (signed out), so it neither pops nor buzzes. */
+  canSave?: boolean;
 }) {
   const { runtime, t, locale } = useMobile();
   const c = useColors();
@@ -86,11 +89,11 @@ export function PackageCard({
           ) : null}
         </View>
       </PressableRow>
-      <RoundButton
-        icon={saved ? "heart" : "heart-outline"}
+      <SaveHeart
+        saved={saved}
+        canSave={canSave}
         label={saved ? t(`Hapus ${offer.name} dari simpanan`, `Remove ${offer.name} from saved`) : t(`Simpan ${offer.name}`, `Save ${offer.name}`)}
-        selected={saved}
-        onPress={onToggleSaved}
+        onToggle={onToggleSaved}
         style={{ position: "absolute", top: row ? 4 : 10, right: row ? 4 : 10 }}
       />
     </View>

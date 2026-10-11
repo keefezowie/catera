@@ -2,6 +2,7 @@ import { useLocalSearchParams } from "expo-router";
 import { useData, useMobile } from "@catera/mobile-core";
 import { FadeSwap, Screen, Text } from "@catera/mobile-ui";
 import { PackageEditor } from "../../../../src/business/PackageEditor";
+import { isFirstPublish } from "../../../../src/business/package";
 import { DetailSkeleton } from "../../../../src/skeletons";
 
 export default function NewPackageRoute() {
@@ -9,7 +10,9 @@ export default function NewPackageRoute() {
   const { runtime, actor, t } = useMobile();
   const catererId = actor?.catererId ?? "";
   const ops = useData(`menu-ops:${catererId}`, () => runtime.api.sellerOperations(catererId));
-  if (!from) return <PackageEditor />;
+  // Whether this is the first package the caterer publishes, from the packages this route already reads.
+  const firstPublish = isFirstPublish(ops.data?.offers);
+  if (!from) return <PackageEditor firstPublish={firstPublish} />;
   const source = ops.data?.offers.find((o) => o.id === from);
   // A copy waits for the package it copies; a read that answered without it says so instead of waiting forever.
   if (!source)
@@ -26,5 +29,5 @@ export default function NewPackageRoute() {
         </FadeSwap>
       </Screen>
     );
-  return <PackageEditor key={source.id} from={source} />;
+  return <PackageEditor key={source.id} from={source} firstPublish={firstPublish} />;
 }

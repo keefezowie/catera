@@ -733,7 +733,8 @@ describe("Bayar", () => {
     wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
     expect(await screen.findByLabelText(QR_LABEL)).toBeTruthy();
     fireEvent.press(screen.getByRole("button", { name: "Saya sudah bayar, cek status" }));
-    expect(await screen.findByText("Pembayaran diterima")).toBeTruthy();
+    // Paid: the native title and the success beat both name it.
+    expect(await screen.findAllByText("Pembayaran diterima")).toHaveLength(2);
     expect(runtime.api.command).toHaveBeenCalledWith("checkout.payment.refresh", { id: "ck-1" }, expect.any(String));
     expect(screen.queryByLabelText(QR_LABEL)).toBeNull();
     fireEvent.press(screen.getByRole("button", { name: "Ke Beranda" }));
@@ -871,7 +872,8 @@ describe("Bayar", () => {
     const runtime = server({ demo: true, checkout: hosted });
     wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
     fireEvent.press(await screen.findByRole("button", { name: "Bayar (demo)" }));
-    expect(await screen.findByText("Pembayaran diterima")).toBeTruthy();
+    // Paid: the native title and the success beat both name it.
+    expect(await screen.findAllByText("Pembayaran diterima")).toHaveLength(2);
     expect(runtime.api.command).toHaveBeenCalledWith("checkout.demo_pay", { id: "ck-1" }, expect.any(String));
   });
 
@@ -908,7 +910,8 @@ describe("Bayar", () => {
       await act(async () => {
         jest.advanceTimersByTime(10_000);
       });
-      expect(await screen.findByText("Pembayaran diterima")).toBeTruthy();
+      // Paid: the native title and the success beat both name it.
+      expect(await screen.findAllByText("Pembayaran diterima")).toHaveLength(2);
       expect(refreshes()).toBe(1);
       await act(async () => {
         jest.advanceTimersByTime(30_000);
@@ -983,7 +986,8 @@ describe("Bayar", () => {
       .filter((c, i) => c[0] === "change" && !listen.mock.results[i]?.value?.remove?.mock?.calls.length)
       .map((c) => c[1] as (s: string) => void);
     await act(async () => handlers.forEach((h) => h("active")));
-    expect(await screen.findByText("Pembayaran diterima")).toBeTruthy();
+    // Paid: the native title and the success beat both name it.
+    expect(await screen.findAllByText("Pembayaran diterima")).toHaveLength(2);
     expect(commands(runtime).filter((c) => c[0] === "checkout.payment.refresh")).toHaveLength(1);
   });
 

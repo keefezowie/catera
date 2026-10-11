@@ -1,7 +1,18 @@
 import { useState } from "react";
 import { TextInput, View } from "react-native";
+import Animated from "react-native-reanimated";
 import { selectLibraryDish, type ComponentGroup, type Dish, type LibraryDish } from "@catera/domain";
-import { Button, FONT, fontFor, PressableRow, PressableScale, Text, useColors } from "@catera/mobile-ui";
+import {
+  Button,
+  FONT,
+  fontFor,
+  PressableRow,
+  PressableScale,
+  Text,
+  useColors,
+  useListMotion,
+  type RowMotion,
+} from "@catera/mobile-ui";
 import { dayComplete, suggestDishes } from "./logic";
 
 /**
@@ -29,6 +40,8 @@ export function SlotEditor({
   saving: boolean;
   canEdit: boolean;
 }) {
+  // A dish the caterer adds enters and one removed leaves, the rest moving; the day's first draw does not animate.
+  const rowMotion = useListMotion(items.map((i) => i.id));
   const complete = dayComplete(composition, items);
   const missing = composition.reduce(
     (n, g) => n + Math.max(0, g.slots - items.filter((i) => i.groupId === g.id).length),
@@ -46,6 +59,7 @@ export function SlotEditor({
           canEdit={canEdit}
           onChange={onChange}
           onCreate={onCreate}
+          rowMotion={rowMotion}
         />
       ))}
       {!complete && missing > 0 ? (
@@ -68,6 +82,7 @@ function GroupLine({
   canEdit,
   onChange,
   onCreate,
+  rowMotion,
 }: {
   group: ComponentGroup;
   items: Dish[];
@@ -76,6 +91,7 @@ function GroupLine({
   canEdit: boolean;
   onChange: (items: Dish[]) => void;
   onCreate: (name: string, categoryId: string | undefined) => Promise<LibraryDish>;
+  rowMotion: (key: string) => RowMotion;
 }) {
   const c = useColors();
   const [query, setQuery] = useState("");
@@ -107,31 +123,32 @@ function GroupLine({
         {`${group.name} · ${filled.length} dari ${group.slots}`}
       </Text>
       {filled.map((i) => (
-        <View
-          key={i.id}
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            minHeight: 48,
-            paddingLeft: 14,
-            borderWidth: 1,
-            borderColor: c.line,
-            borderRadius: 10,
-            backgroundColor: c.surface,
-          }}
-        >
-          <Text style={{ flex: 1 }}>{i.name}</Text>
-          {canEdit ? (
-            <PressableScale
-              accessibilityRole="button"
-              accessibilityLabel={`Hapus ${i.name}`}
-              onPress={() => onChange(items.filter((x) => x.id !== i.id))}
-              style={{ width: 48, height: 48, alignItems: "center", justifyContent: "center" }}
-            >
-              <Text style={{ color: c.muted, fontSize: 18 }}>×</Text>
-            </PressableScale>
-          ) : null}
-        </View>
+        <Animated.View key={i.id} testID="menu-slot-row" {...rowMotion(i.id)}>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              minHeight: 48,
+              paddingLeft: 14,
+              borderWidth: 1,
+              borderColor: c.line,
+              borderRadius: 10,
+              backgroundColor: c.surface,
+            }}
+          >
+            <Text style={{ flex: 1 }}>{i.name}</Text>
+            {canEdit ? (
+              <PressableScale
+                accessibilityRole="button"
+                accessibilityLabel={`Hapus ${i.name}`}
+                onPress={() => onChange(items.filter((x) => x.id !== i.id))}
+                style={{ width: 48, height: 48, alignItems: "center", justifyContent: "center" }}
+              >
+                <Text style={{ color: c.muted, fontSize: 18 }}>×</Text>
+              </PressableScale>
+            ) : null}
+          </View>
+        </Animated.View>
       ))}
       {open && canEdit ? (
         <View style={{ gap: 6 }}>

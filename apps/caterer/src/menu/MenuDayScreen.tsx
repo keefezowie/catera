@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { router } from "expo-router";
 import { errorLabel, type Dish, type LibraryDish } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, FadeSwap, Screen, Text, useColors } from "@catera/mobile-ui";
-import { dishUsage, mealOf, saveMenuDay } from "./logic";
+import { Button, FadeSwap, Screen, Text, useColors, useToast } from "@catera/mobile-ui";
+import { dishUsage, mealOf, saveMenuDay, weekdayName } from "./logic";
 import { loadMenus, MenuLoadError } from "./MenuWeek";
 import { SlotEditor } from "./SlotEditor";
 import { DetailSkeleton } from "../skeletons";
@@ -12,6 +12,7 @@ import { DetailSkeleton } from "../skeletons";
 export function MenuDayScreen({ date, packageId, meal }: { date: string; packageId: string; meal: string }) {
   const { runtime, actor, t, locale, command } = useMobile();
   const c = useColors();
+  const toast = useToast();
   const catererId = actor?.catererId ?? "";
   const ops = useData(`menu-ops:${catererId}`, () => runtime.api.sellerOperations(catererId));
   const offer = ops.data?.offers.find((o) => o.id === packageId);
@@ -58,6 +59,10 @@ export function MenuDayScreen({ date, packageId, meal }: { date: string; package
     try {
       await saveMenuDay({ command }, { catererId, offer: offer!, meal, day: current!, items: items! });
       router.back();
+      toast.show({
+        message: t(`Menu ${weekdayName(date, "id")} tersimpan`, `${weekdayName(date, "en")} menu saved`),
+        tone: "success",
+      });
     } catch (e) {
       setError(errorLabel((e as { code?: string }).code || (e as Error).message, locale) || t("Belum tersimpan.", "Not saved."));
     } finally {

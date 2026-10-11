@@ -321,6 +321,7 @@ function Browse({ area, onArea }: { area: string | null; onArea: (value: string)
                   saved={saved.isSaved(o.id)}
                   onOpen={() => router.push(packageHref(o.id, o.name) as never)}
                   onToggleSaved={() => void saved.toggle(o.id)}
+                  canSave={saved.signedIn}
                 />
               ))
             )}

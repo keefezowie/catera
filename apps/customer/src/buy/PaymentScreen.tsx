@@ -1,15 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AppState, BackHandler, Text as RNText, View } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { useNavigation } from "expo-router/react-navigation";
 import * as Clipboard from "expo-clipboard";
 import * as WebBrowser from "expo-web-browser";
-import { currency, errorLabel, paidSummary, type Checkout, type DirectPaymentMethod } from "@catera/domain";
+import { currency, errorLabel, paidSummary, type Checkout, type CustomerState, type DirectPaymentMethod } from "@catera/domain";
 import { plural, useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, FadeSwap, fontFor, Screen, Text, themedStyles, useColors, useHaptic } from "@catera/mobile-ui";
+import { Button, Card, FadeSwap, fontFor, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { PayWith, Retry } from "./BuyParts";
 import { FLOW_HREF, goToTab } from "../nav";
-import { PaidActions } from "./PaidOutcome";
+import { firstPaidPlan, PaidActions, PaidBeat } from "./PaidOutcome";
 import { CHECKING, CheckingWait, FINAL, PaymentOutcome, stageOf, type Stage } from "./PaymentOutcome";
 import { QrisCode, useQris } from "./QrisCode";
 
@@ -45,6 +45,10 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
     actor ? runtime.api.checkout(checkoutId) : Promise.resolve(null),
   );
   const c = state.data;
+  // The customer's plans, read beside the checkout: whether this payment is their first paid plan (the confetti).
+  const plans = useData<CustomerState | null>(`bayar-plans:${checkoutId}`, () =>
+    actor ? runtime.api.customer() : Promise.resolve(null),
+  );
   const [now, setNow] = useState(() => Date.now());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -60,15 +64,21 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
   const live = !!stage && !FINAL.includes(stage);
   const direct = c?.payment?.mode === "direct";
 
-  // One success haptic when the payment turns paid while this screen is open; reopening a paid checkout gives none.
-  const haptic = useHaptic();
+  // The beat plays (with its one success haptic) only when the payment turns paid while this screen is open; reopening
+  // a paid checkout shows its resting frame with no haptic (ruling D8). Whether it is the first paid plan is fixed at
+  // that moment, from the plans read so far: a read that has not answered gives no confetti. A layout effect, so the
+  // paid body never paints its resting frame before the beat starts.
   const lastStage = useRef<Stage | null>(null);
-  useEffect(() => {
+  const [beat, setBeat] = useState({ play: false, confetti: false });
+  useLayoutEffect(() => {
     if (!stage) return;
     const before = lastStage.current;
     lastStage.current = stage;
-    if (paid && before !== null && before !== "paid") haptic.success();
-  }, [stage, paid, haptic]);
+    if (paid && before !== null && before !== "paid")
+      setBeat({ play: true, confetti: firstPaidPlan(plans.data, checkoutId) === true });
+    // The plans are read at the transition only; a later answer never starts confetti mid-beat.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage, paid]);
 
   // Paid is final on iOS too: the edge swipe would pop to whatever opened this screen, so it is off while paid, and the
   // header shows no back. Any back that still reaches the screen (Close, the native back, the hardware back through the
@@ -196,17 +206,27 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
       <Screen nativeTitle={title} footer={paid && summary ? <PaidActions summary={summary} /> : undefined}>
         <FadeSwap swapKey={stage} style={{ gap: 16 }}>
           {stage === CHECKING ? <CheckingWait t={t} /> : null}
-          <PaymentOutcome
-            checkout={c}
-            stage={stage}
-            summary={summary}
-            help={help}
-            busy={busy}
-            error={error}
-            onCheck={() => void run(check)}
-            locale={locale}
-            t={t}
-          />
+          {paid && summary ? (
+            <PaidBeat
+              checkoutId={c.id}
+              summary={summary}
+              offer={c.quote.offer}
+              play={beat.play}
+              confetti={beat.confetti}
+            />
+          ) : (
+            <PaymentOutcome
+              checkout={c}
+              stage={stage}
+              summary={summary}
+              help={help}
+              busy={busy}
+              error={error}
+              onCheck={() => void run(check)}
+              locale={locale}
+              t={t}
+            />
+          )}
         </FadeSwap>
       </Screen>
     );
