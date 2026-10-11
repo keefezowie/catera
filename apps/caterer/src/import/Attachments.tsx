@@ -152,6 +152,7 @@ export function Attachments({
             <PressableScale
               accessibilityRole="button"
               accessibilityLabel={t("Tambah foto", "Add photo")}
+              accessibilityHint={locked ? t("Bisa lagi setelah selesai membaca.", "Available again once reading is done.") : undefined}
               accessibilityState={{ disabled: locked || adding, busy: adding }}
               disabled={locked || adding}
               haptic={locked || adding ? "none" : "tap"}

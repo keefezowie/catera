@@ -262,7 +262,14 @@ export function ImportAssistant() {
             onAddPhoto={() => void addPhoto()}
             onRemove={(index) => setFiles((all) => all.filter((_, j) => j !== index))}
           />
-          {reading ? null : <Button variant="secondary" label={t("+ PDF / Excel", "+ PDF / Excel")} onPress={() => void addFile()} />}
+          {/* While the assistant reads it stays in place, dimmed, as the add tile does, and says why it waits. */}
+          <Button
+            variant="secondary"
+            label={t("+ PDF / Excel", "+ PDF / Excel")}
+            disabled={reading}
+            accessibilityHint={reading ? t("Bisa lagi setelah selesai membaca.", "Available again once reading is done.") : undefined}
+            onPress={() => void addFile()}
+          />
           {off ? (
             <Card tone="attention">
               <Text>{message("IMPORT_ASSISTANT_DISABLED")}</Text>

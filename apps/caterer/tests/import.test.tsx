@@ -458,13 +458,18 @@ describe("photo previews", () => {
     expect(screen.queryByRole("button", { name: "Susun daftar" })).toBeNull();
     expect(screen.getByLabelText("Foto 2 dari 2")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /^Hapus/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: "+ PDF / Excel" })).toBeNull();
-    // The add tile stays in its place, dimmed and taking no press, so nothing below it moves.
+    // Both add controls stay in their place, dimmed and taking no press, and say why, so nothing below them moves.
     const add = screen.getByRole("button", { name: "Tambah foto" });
-    expect(add.props.accessibilityState).toMatchObject({ disabled: true });
-    expect(flat(add).opacity).toBe(0.45);
+    const addFile = screen.getByRole("button", { name: "+ PDF / Excel" });
+    for (const control of [add, addFile]) {
+      expect(control.props.accessibilityState).toMatchObject({ disabled: true });
+      expect(control.props.accessibilityHint).toBe("Bisa lagi setelah selesai membaca.");
+      expect(flat(control).opacity).toBe(0.45);
+    }
     fireEvent.press(add);
     expect(picker.launchImageLibraryAsync).toHaveBeenCalledTimes(1);
+    fireEvent.press(addFile);
+    expect(documents.getDocumentAsync).toHaveBeenCalledTimes(1);
   });
 
   it("reading is announced once when it starts, not on a re-render or when it ends", async () => {

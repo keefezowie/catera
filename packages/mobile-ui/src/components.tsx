@@ -102,6 +102,7 @@ export function Button({
   variant = "primary",
   disabled = false,
   accessibilityLabel,
+  accessibilityHint,
   ink,
   edge,
   style,
@@ -111,6 +112,8 @@ export function Button({
   variant?: "primary" | "secondary" | "text";
   disabled?: boolean;
   accessibilityLabel?: string;
+  /** What a screen reader adds after the label, such as why a disabled button waits. */
+  accessibilityHint?: string;
   /** The label colour, for a button on a surface the theme does not own (the Malam hero is dark in both themes). */
   ink?: string;
   /** The border colour of a secondary button, for the same reason. */
@@ -124,6 +127,7 @@ export function Button({
     <PressableScale
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled }}
       disabled={disabled}
       haptic={disabled ? "none" : "tap"}
