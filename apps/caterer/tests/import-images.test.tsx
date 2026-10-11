@@ -19,7 +19,14 @@ it("shrinks a full-size notebook photo to 1600 px on its long side as JPEG", asy
   const photo = await shrinkPhoto({ uri: "file:///a.jpg", width: 3000, height: 4000 });
   expect(ImageManipulator.manipulate).toHaveBeenCalledWith("file:///a.jpg");
   expect(resize).toHaveBeenCalledWith({ height: 1600 });
-  expect(photo).toEqual({ mediaType: "image/jpeg", data: "c21hbGw=" });
+  // The picked file's uri rides along for the thumbnail; only the shrunk base64 is ever uploaded.
+  expect(photo).toEqual({ mediaType: "image/jpeg", data: "c21hbGw=", uri: "file:///a.jpg" });
+});
+
+it("keeps the picked uri for a photo that needs no shrinking", async () => {
+  const photo = await shrinkPhoto({ uri: "content://media/7", width: 1200, height: 900 });
+  expect(photo.uri).toBe("content://media/7");
+  expect(photo.data).toBe("c21hbGw=");
 });
 
 it("matches the server's limits", () => {

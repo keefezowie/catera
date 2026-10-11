@@ -1,9 +1,12 @@
 import { useMemo, useSyncExternalStore } from "react";
 import type { AssistantRow } from "./rows";
 
-/** A file the caterer attached for the assistant to read. */
+/**
+ * A file the caterer attached for the assistant to read. `data` is the base64 that is uploaded; a photo also keeps the
+ * picked file's `uri`, on the phone only, for its thumbnail and the photo viewer.
+ */
 export type Attachment =
-  | { kind: "image"; name: string; mediaType: "image/jpeg" | "image/png" | "image/webp"; data: string }
+  | { kind: "image"; name: string; mediaType: "image/jpeg" | "image/png" | "image/webp"; data: string; uri: string }
   | { kind: "pdf"; name: string; data: string }
   | { kind: "csv" | "xlsx"; name: string; data: string };
 

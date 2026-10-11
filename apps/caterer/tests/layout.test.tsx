@@ -212,8 +212,30 @@ describe("stack headers", () => {
     // Close at the leading edge of the native bar takes the place of back.
     for (const route of ["aktifkan", "impor"])
       expect(mockScreenOptions[route]).toMatchObject({ presentation: "modal", headerBackVisible: false, headerLeft: expect.any(Function) });
-    for (const route of pushedRoutes().filter((r) => r !== "aktifkan" && r !== "impor" && !TASK_SHEETS[r]))
+    for (const route of pushedRoutes().filter((r) => r !== "aktifkan" && r !== "impor" && r !== "impor-foto" && !TASK_SHEETS[r]))
       expect({ route, presentation: mockScreenOptions[route]?.presentation }).toEqual({ route, presentation: undefined });
+  });
+
+  it("opens an import photo full screen over Impor, with Close where back would be", async () => {
+    render(<RootLayout />);
+    await screen.findByTestId("header:pelanggan/[id]");
+    expect(mockScreenOptions["impor-foto"]).toMatchObject({
+      presentation: "fullScreenModal",
+      headerBackVisible: false,
+      headerLeft: expect.any(Function),
+      title: "Foto",
+    });
+    // The viewer reads Impor's attachments, so it has Impor's role.
+    expect(SCREEN_TAB["impor-foto"]).toBe(SCREEN_TAB.impor);
+  });
+
+  it("gives a helper no import photo viewer, as no Impor", async () => {
+    mockMe.actor = { id: "u-2", role: "staff", name: "Mbak Sari", catererId: "k-1" };
+    mockTabStack = "(menu)";
+    render(<RootLayout />);
+    await screen.findByTestId("header:pengaturan");
+    expect(screen.queryByTestId("header:impor-foto")).toBeNull();
+    expect(screen.queryByTestId("header:impor")).toBeNull();
   });
 
   it("declares the confirm and action sheets as native sheets sized to their content", async () => {

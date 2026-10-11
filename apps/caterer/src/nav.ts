@@ -43,7 +43,7 @@ function appPathOf(link: string) {
 }
 
 /** First path segments of the screens that sit above the tabs in the root stack. */
-const ROOT_STACK = new Set(["aktifkan", "impor", "impor-baris", "masuk", "daftar"]);
+const ROOT_STACK = new Set(["aktifkan", "impor", "impor-baris", "impor-foto", "masuk", "daftar"]);
 
 /**
  * Every screen of the shared tab folder, from the role table (`SCREEN_TAB`), as a path test with the tab it belongs

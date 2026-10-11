@@ -1,10 +1,13 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import { StyleSheet } from "react-native";
+import { nativeThemes } from "@catera/design-tokens";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
+import { ThemeProvider } from "@catera/mobile-ui";
 import { ImportAssistant } from "../src/import/ImportAssistant";
+import { ImportPhotoViewer } from "../src/import/PhotoViewer";
 import { toImportRow } from "../src/import/rows";
 import { ImportRowEditor } from "../src/import/RowEditor";
-import { resetSheets, SheetHost } from "./sheet-host";
+import { declared, resetSheets, SheetHost } from "./sheet-host";
 
 beforeEach(() => resetSheets());
 
@@ -20,6 +23,17 @@ const Impor = () => (
 jest.mock("expo-router", () => require("./sheet-host").routerModule);
 jest.mock("expo-image-picker", () => ({ launchImageLibraryAsync: jest.fn() }));
 jest.mock("expo-document-picker", () => ({ getDocumentAsync: jest.fn() }));
+// A picked file reads as base64 for the upload; here every file holds the same short body.
+jest.mock("expo-file-system", () => ({ File: jest.fn().mockImplementation(() => ({ base64: async () => "RklMRQ==" })) }));
+// expo-image draws through a native view. The stand-in is a host View that keeps every prop, so a test reads the
+// `source` and `contentFit` it was given and can fire its `onError`.
+jest.mock("expo-image", () => {
+  const { createElement } = require("react");
+  const { View } = require("react-native");
+  const Image = (props: Record<string, unknown>) => createElement(View, props);
+  Image.displayName = "ExpoImage";
+  return { Image };
+});
 jest.mock("expo-image-manipulator", () => ({ ImageManipulator: { manipulate: jest.fn() }, SaveFormat: { JPEG: "jpeg" } }));
 jest.mock("expo-notifications", () => ({
   setNotificationHandler: jest.fn(),
@@ -226,4 +240,322 @@ it("import row names a missing package", async () => {
   expect(await screen.findByText("Paket belum dipilih · sisa hari belum diisi · 1 porsi")).toBeTruthy();
   expect(screen.queryByText(/—/)).toBeNull();
   expect(screen.queryByText(/\?/)).toBeNull();
+});
+
+describe("photo previews", () => {
+  const picker = jest.requireMock("expo-image-picker") as { launchImageLibraryAsync: jest.Mock };
+  const documents = jest.requireMock("expo-document-picker") as { getDocumentAsync: jest.Mock };
+  const manipulator = (jest.requireMock("expo-image-manipulator") as { ImageManipulator: { manipulate: jest.Mock } }).ImageManipulator;
+  const { router } = jest.requireMock("expo-router") as { router: { push: jest.Mock; replace: jest.Mock } };
+  const secureStore = (jest.requireMock("expo-secure-store") as { __store: Map<string, string> }).__store;
+  const reanimated = jest.requireMock("react-native-reanimated") as { useReducedMotion: jest.Mock };
+  const flat = (node: { props: { style?: unknown } }) => StyleSheet.flatten(node.props.style as never) ?? {};
+
+  /** Impor with its row sheet and its photo viewer, as the root stack draws them. */
+  const ImporWithViewer = () => (
+    <>
+      <ImportAssistant />
+      <SheetHost
+        render={({ path, params }) =>
+          path === "/impor-baris" ? (
+            <ImportRowEditor n={Number(params.n)} />
+          ) : path === "/impor-foto" ? (
+            <ImportPhotoViewer i={Number(params.i)} />
+          ) : null
+        }
+      />
+    </>
+  );
+
+  let shrunk = 0;
+  beforeEach(() => {
+    shrunk = 0;
+    picker.launchImageLibraryAsync.mockReset();
+    documents.getDocumentAsync.mockReset();
+    router.push.mockClear();
+    router.replace.mockClear();
+    // Each shrunk photo uploads its own base64, so a test can tell which one was sent.
+    manipulator.manipulate.mockImplementation(() => {
+      const context = {
+        resize: () => context,
+        renderAsync: async () => ({
+          saveAsync: async () => {
+            shrunk += 1;
+            return { base64: `QkFTRTY0LQ${shrunk}`, uri: `file:///cache/shrunk-${shrunk}.jpg` };
+          },
+        }),
+      };
+      return context;
+    });
+  });
+  afterEach(() => secureStore.delete("impor.theme"));
+
+  type Reply = { ok: boolean; status?: number; json: () => Promise<unknown> };
+  function renderImpor(response: Reply | "pending" = { ok: true, json: async () => ({ data: { rows: [row(1)], needsReview: 0 } }) }) {
+    const runtime = createMobileRuntime({ apiUrl: "https://catera.example.test", storagePrefix: "t" });
+    runtime.api = {
+      ...runtime.api,
+      me: jest.fn(async () => ({ actor: { id: "u-1", role: "owner", catererId: "k-1" }, demo: false })),
+      sellerImportOptions: jest.fn(async () => ({
+        customers: [],
+        packages: [{ id: "p-rumahan", name: "Makan Siang Rumahan", days: 20, areas: [], meal: "lunch" }],
+      })),
+      command: jest.fn(),
+    } as unknown as MobileRuntime["api"];
+    const fetchMock = jest.fn(response === "pending" ? () => new Promise<Reply>(() => {}) : async () => response);
+    global.fetch = fetchMock as unknown as typeof fetch;
+    render(
+      <ThemeProvider storageKey="impor.theme">
+        <MobileProvider runtime={runtime} linkMapper={() => "/"}>
+          <ImporWithViewer />
+        </MobileProvider>
+      </ThemeProvider>,
+    );
+    return fetchMock;
+  }
+
+  /** Picks `count` photos from the gallery through the "+ Foto" tile; they are numbered on from `from`. */
+  async function pick(count: number, from = 1) {
+    picker.launchImageLibraryAsync.mockResolvedValueOnce({
+      canceled: false,
+      assets: Array.from({ length: count }, (_, i) => ({
+        uri: `file:///picked-${from + i}.jpg`,
+        width: 3000,
+        height: 4000,
+        fileName: `IMG_${from + i}.jpg`,
+      })),
+    });
+    fireEvent.press(await screen.findByRole("button", { name: "Tambah foto" }));
+    const total = from + count - 1;
+    await screen.findByLabelText(`Foto ${total} dari ${total}`);
+  }
+
+  const thumbUri = (i: number) => screen.getByTestId(`attachment-photo-${i}`).props.source?.uri ?? null;
+
+  it("starts with no attachments: the count and the add tile, no thumbnails", async () => {
+    renderImpor();
+    expect(await screen.findByText("Lampiran · 0 dari 6")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Tambah foto" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "+ PDF / Excel" })).toBeTruthy();
+    expect(screen.queryByLabelText(/^Foto \d dari/)).toBeNull();
+    // The add tile took the place of the old "+ Foto" button: one way to add a photo.
+    expect(screen.queryByRole("button", { name: "+ Foto" })).toBeNull();
+  });
+
+  it("picked photos show as thumbnails with remove targets", async () => {
+    renderImpor();
+    await pick(3);
+    expect(screen.getByText("Lampiran · 3 dari 6")).toBeTruthy();
+    for (const i of [1, 2, 3]) {
+      const thumb = screen.getByLabelText(`Foto ${i} dari 3`);
+      expect(thumb.props.accessibilityRole).toBe("imagebutton");
+      expect(thumbUri(i)).toBe(`file:///picked-${i}.jpg`);
+      // 76dp, radius 12, cover fit, on the sage ground while it decodes.
+      const image = screen.getByTestId(`attachment-photo-${i}`);
+      expect(flat(image)).toMatchObject({ width: 76, height: 76, borderRadius: 12, backgroundColor: nativeThemes.light.sage });
+      expect(image.props.contentFit).toBe("cover");
+      // A 28dp badge on a 48dp target.
+      const remove = screen.getByRole("button", { name: `Hapus foto ${i}` });
+      expect(flat(remove)).toMatchObject({ width: 48, height: 48 });
+      expect(flat(within(remove).getByTestId("remove-badge"))).toMatchObject({ width: 28, height: 28, borderRadius: 14 });
+    }
+    fireEvent.press(screen.getByRole("button", { name: "Hapus foto 2" }));
+    await waitFor(() => expect(screen.getByText("Lampiran · 2 dari 6")).toBeTruthy());
+    expect(screen.queryByLabelText("Foto 3 dari 3")).toBeNull();
+    expect(thumbUri(1)).toBe("file:///picked-1.jpg");
+    expect(thumbUri(2)).toBe("file:///picked-3.jpg");
+    expect(screen.getByRole("button", { name: "Tambah foto" })).toBeTruthy();
+  });
+
+  it("six photos hide the add tile", async () => {
+    renderImpor();
+    await pick(4);
+    // The gallery is asked for no more than the room left.
+    await pick(2, 5);
+    expect(picker.launchImageLibraryAsync).toHaveBeenLastCalledWith(expect.objectContaining({ selectionLimit: 2 }));
+    expect(screen.getByText("Lampiran · 6 dari 6")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Tambah foto" })).toBeNull();
+    fireEvent.press(screen.getByRole("button", { name: "Hapus foto 6" }));
+    expect(await screen.findByRole("button", { name: "Tambah foto" })).toBeTruthy();
+  });
+
+  it("spreadsheets keep icon and name", async () => {
+    renderImpor();
+    await pick(2);
+    documents.getDocumentAsync.mockResolvedValueOnce({
+      canceled: false,
+      assets: [{ name: "pelanggan-oktober.xlsx", uri: "file:///cache/pelanggan-oktober.xlsx" }],
+    });
+    fireEvent.press(screen.getByRole("button", { name: "+ PDF / Excel" }));
+    const name = await screen.findByText("pelanggan-oktober.xlsx");
+    // The count is of photos, the cap the assistant sets; a file is a row of its own.
+    expect(screen.getByText("Lampiran · 2 dari 6")).toBeTruthy();
+    const docRow = screen.getByTestId("attachment-file-1");
+    expect(within(docRow).getByTestId("attachment-file-icon")).toBeTruthy();
+    expect(within(docRow).getByText("pelanggan-oktober.xlsx")).toBe(name);
+    // The whole name shows, wrapped at large text rather than cut.
+    expect(name.props.numberOfLines).toBeUndefined();
+    expect(flat(docRow).minHeight).toBe(52);
+    expect(flat(docRow).height).toBeUndefined();
+    const remove = within(docRow).getByRole("button", { name: "Hapus pelanggan-oktober.xlsx" });
+    expect(flat(remove)).toMatchObject({ width: 48, height: 48 });
+    fireEvent.press(remove);
+    await waitFor(() => expect(screen.queryByText("pelanggan-oktober.xlsx")).toBeNull());
+    expect(screen.getByLabelText("Foto 2 dari 2")).toBeTruthy();
+  });
+
+  it("tapping a thumbnail opens the viewer", async () => {
+    renderImpor();
+    await pick(3);
+    fireEvent.press(screen.getByLabelText("Foto 2 dari 3"));
+    expect(router.push).toHaveBeenLastCalledWith("/impor-foto?i=2");
+    const viewer = await screen.findByTestId("import-photo-viewer");
+    const full = within(viewer).getByLabelText("Foto 2 dari 3");
+    // The whole photo, fitted to the screen with no pinch, from the file the caterer picked.
+    expect(full.props.source).toEqual({ uri: "file:///picked-2.jpg" });
+    expect(full.props.contentFit).toBe("contain");
+    // The viewer names the photo in its own bar, from inside the screen (a `Stack.Screen` with no name).
+    expect(declared[String(undefined)]).toMatchObject({ title: "Foto 2 dari 3" });
+  });
+
+  it("a viewer link with no photo behind it opens Impor instead of an empty viewer", async () => {
+    render(
+      <MobileProvider runtime={createMobileRuntime({ apiUrl: "https://catera.example.test", storagePrefix: "t" })} linkMapper={() => "/"}>
+        <ImportPhotoViewer i={4} />
+      </MobileProvider>,
+    );
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/impor"));
+    expect(screen.queryByTestId("import-photo-viewer")).toBeNull();
+  });
+
+  it("reading shows the reading mascot with the counts", async () => {
+    renderImpor("pending");
+    await pick(2);
+    documents.getDocumentAsync.mockResolvedValueOnce({ canceled: false, assets: [{ name: "daftar.pdf", uri: "file:///cache/daftar.pdf" }] });
+    fireEvent.press(screen.getByRole("button", { name: "+ PDF / Excel" }));
+    await screen.findByText("daftar.pdf");
+    fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
+    // The mascot is decorative (hidden from screen readers); the words carry the wait.
+    expect(await screen.findByTestId("mascot-reading", { includeHiddenElements: true })).toBeTruthy();
+    expect(screen.getByText("Membaca daftar pelanggan…")).toBeTruthy();
+    expect(screen.getByText("2 foto dan 1 file")).toBeTruthy();
+    // In place of the button; the attachments stay in view but cannot change while they are read.
+    expect(screen.queryByRole("button", { name: "Susun daftar" })).toBeNull();
+    expect(screen.getByLabelText("Foto 2 dari 2")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /^Hapus/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Tambah foto" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "+ PDF / Excel" })).toBeNull();
+  });
+
+  it("reading names only what is there: one photo and no files", async () => {
+    renderImpor("pending");
+    await pick(1);
+    fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
+    expect(await screen.findByText("1 foto")).toBeTruthy();
+    expect(screen.queryByText(/\bfile\b/)).toBeNull();
+  });
+
+  it("reading pasted text alone shows the mascot with no count", async () => {
+    renderImpor("pending");
+    fireEvent.changeText(await screen.findByLabelText("Tempel atau ketik daftar pelanggan"), "daftar");
+    fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
+    expect(await screen.findByText("Membaca daftar pelanggan…")).toBeTruthy();
+    expect(screen.queryByText(/\d+ (foto|file)/)).toBeNull();
+  });
+
+  it("the picked uri is kept and the base64 still uploads", async () => {
+    const fetchMock = renderImpor();
+    await pick(2);
+    expect(thumbUri(1)).toBe("file:///picked-1.jpg");
+    expect(thumbUri(2)).toBe("file:///picked-2.jpg");
+    fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    const body = JSON.parse((fetchMock.mock.calls[0] as unknown as [string, { body: string }])[1].body);
+    expect(body.images).toEqual([
+      { mediaType: "image/jpeg", data: "QkFTRTY0LQ1" },
+      { mediaType: "image/jpeg", data: "QkFTRTY0LQ2" },
+    ]);
+    // No uri leaves the phone.
+    expect(JSON.stringify(body)).not.toMatch(/file:\/\//);
+  });
+
+  it("a photo that fails to decode keeps the sage ground and stays removable", async () => {
+    renderImpor();
+    await pick(2);
+    act(() => screen.getByTestId("attachment-photo-1").props.onError?.({ error: "decode" }));
+    const ground = await screen.findByTestId("attachment-photo-1");
+    expect(ground.props.source).toBeUndefined();
+    expect(flat(ground)).toMatchObject({ width: 76, height: 76, borderRadius: 12, backgroundColor: nativeThemes.light.sage });
+    expect(screen.getByLabelText("Foto 1 dari 2")).toBeTruthy();
+    fireEvent.press(screen.getByRole("button", { name: "Hapus foto 1" }));
+    await waitFor(() => expect(screen.getByText("Lampiran · 1 dari 6")).toBeTruthy());
+    expect(thumbUri(1)).toBe("file:///picked-2.jpg");
+  });
+
+  it("a failed read keeps the attachments and shows the error", async () => {
+    renderImpor({ ok: false, status: 503, json: async () => ({ error: { code: "IMPORT_UNAVAILABLE" } }) });
+    await pick(2);
+    fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
+    expect(await screen.findByText("Asisten impor sedang tidak tersedia. Coba lagi nanti.")).toBeTruthy();
+    expect(screen.getByLabelText("Foto 2 dari 2")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Hapus foto 1" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Susun daftar" })).toBeTruthy();
+    expect(screen.queryByTestId("mascot-reading", { includeHiddenElements: true })).toBeNull();
+  });
+
+  it("an assistant that is switched off keeps the attachments next to Isi manual", async () => {
+    renderImpor(disabled);
+    await pick(1);
+    fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
+    expect(await screen.findByRole("button", { name: "Isi manual" })).toBeTruthy();
+    expect(screen.getByLabelText("Foto 1 dari 1")).toBeTruthy();
+    expect(screen.getByText("Lampiran · 1 dari 6")).toBeTruthy();
+  });
+
+  it("in the dark theme the thumbnails, badge and add tile read the dark palette", async () => {
+    secureStore.set("impor.theme", "dark");
+    renderImpor();
+    await pick(1);
+    const dark = nativeThemes.dark;
+    await waitFor(() => expect(flat(screen.getByTestId("attachment-photo-1")).backgroundColor).toBe(dark.sage));
+    const badge = within(screen.getByRole("button", { name: "Hapus foto 1" })).getByTestId("remove-badge");
+    expect(flat(badge)).toMatchObject({ backgroundColor: dark.charcoal, borderColor: dark.canvas });
+    expect(flat(screen.getByRole("button", { name: "Tambah foto" })).borderColor).toBe(dark.muted);
+    expect(flat(screen.getByText("Lampiran · 1 dari 6")).color).toBe(dark.muted);
+  });
+
+  it("keeps every label whole at large text: nothing is cut to one line", async () => {
+    renderImpor("pending");
+    await pick(1);
+    documents.getDocumentAsync.mockResolvedValueOnce({
+      canceled: false,
+      assets: [{ name: "daftar-pelanggan-lama-bulan-september.csv", uri: "file:///cache/a.csv" }],
+    });
+    fireEvent.press(screen.getByRole("button", { name: "+ PDF / Excel" }));
+    await screen.findByText("daftar-pelanggan-lama-bulan-september.csv");
+    for (const text of ["Lampiran · 1 dari 6", "daftar-pelanggan-lama-bulan-september.csv", "Foto"])
+      expect({ text, lines: screen.getByText(text).props.numberOfLines }).toEqual({ text, lines: undefined });
+    fireEvent.press(screen.getByRole("button", { name: "Susun daftar" }));
+    for (const text of ["Membaca daftar pelanggan…", "1 foto dan 1 file"])
+      expect({ text, lines: (await screen.findByText(text)).props.numberOfLines }).toEqual({ text, lines: undefined });
+  });
+
+  it("a thumbnail enters when it is added and leaves when it is removed, and not under reduced motion", async () => {
+    renderImpor();
+    await pick(1);
+    const tile = screen.getByTestId("attachment-tile-1");
+    expect(tile.props.entering).toBeDefined();
+    expect(tile.props.exiting).toBeDefined();
+    screen.unmount();
+    reanimated.useReducedMotion.mockReturnValue(true);
+    try {
+      renderImpor();
+      await pick(1);
+      const still = screen.getByTestId("attachment-tile-1");
+      expect(still.props.entering).toBeUndefined();
+      expect(still.props.exiting).toBeUndefined();
+    } finally {
+      reanimated.useReducedMotion.mockReturnValue(false);
+    }
+  });
 });

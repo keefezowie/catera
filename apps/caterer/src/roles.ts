@@ -32,4 +32,5 @@ export const SCREEN_TAB = {
   aktifkan: "usaha",
   impor: "pelanggan",
   "impor-baris": "pelanggan",
+  "impor-foto": "pelanggan",
 } as const satisfies Record<string, CatererTab>;

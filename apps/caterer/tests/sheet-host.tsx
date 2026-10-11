@@ -29,8 +29,8 @@ function parse(to: unknown): Opened | null {
   return null;
 }
 
-/** The sheet paths the host shows; any other push is only recorded. */
-const SHEETS = [/^\/atur-antaran\//, /^\/balas\//, /^\/impor-baris$/, /^\/tim$/];
+/** The sheet paths the host shows (and Impor's photo viewer, a screen above it); any other push is only recorded. */
+const SHEETS = [/^\/atur-antaran\//, /^\/balas\//, /^\/impor-baris$/, /^\/impor-foto$/, /^\/tim$/];
 
 let show: ((opened: Opened | null) => void) | null = null;
 

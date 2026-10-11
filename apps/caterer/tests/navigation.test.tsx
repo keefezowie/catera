@@ -382,7 +382,7 @@ describe("links from the system", () => {
 
   it("covers every screen of the shared tab folder from the role table, so a new screen needs no rewrite rule", () => {
     // The screens above the tabs live in the root stack, not in a tab's group.
-    const above = ["aktifkan", "impor", "impor-baris"];
+    const above = ["aktifkan", "impor", "impor-baris", "impor-foto"];
     const { SCREEN_TAB } = require("../src/roles") as typeof import("../src/roles");
     for (const [route, tab] of Object.entries(SCREEN_TAB)) {
       const path = route.replace(/\[[^\]]+\]/g, "x-1");
@@ -394,7 +394,7 @@ describe("links from the system", () => {
   });
 
   it("passes every other link through unchanged", () => {
-    for (const path of ["/aktifkan", "/impor", "/impor-baris?n=1", "/index", "/apa-ini", "/laporan", "/uang/lain"])
+    for (const path of ["/aktifkan", "/impor", "/impor-baris?n=1", "/impor-foto?i=1", "/index", "/apa-ini", "/laporan", "/uang/lain"])
       expect(rewrite(path)).toBe(path);
   });
 

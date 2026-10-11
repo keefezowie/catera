@@ -12,6 +12,7 @@ import {
   Card,
   FONT,
   fontFor,
+  MascotReading,
   PressableRow,
   Screen,
   SuccessBeat,
@@ -19,6 +20,7 @@ import {
   useColors,
   useListMotion,
 } from "@catera/mobile-ui";
+import { Attachments } from "./Attachments";
 import { commitImport } from "./commits";
 import { recheck, toImportRow, type AssistantRow } from "./rows";
 import { rowHref } from "./RowEditor";
@@ -176,6 +178,14 @@ export function ImportAssistant() {
   }
 
   const clean = rows?.filter((r) => !r.needsReview).length ?? 0;
+  const reading = busy === "read";
+  // What the assistant is reading, named only as far as it holds: "2 foto dan 1 file", "1 foto", or nothing for text.
+  const photoCount = files.filter((f) => f.kind === "image").length;
+  const fileCount = files.length - photoCount;
+  const readingWhat = t(
+    [photoCount ? `${photoCount} foto` : "", fileCount ? `${fileCount} file` : ""].filter(Boolean).join(" dan "),
+    [photoCount ? plural(photoCount, "photo") : "", fileCount ? plural(fileCount, "file") : ""].filter(Boolean).join(" and "),
+  );
   // Saved rows leave and a row typed in by hand enters; the list the assistant read arrives as one block.
   const rowMotion = useListMotion(rows ? rows.map((r) => String(r.n)) : null);
 
@@ -184,6 +194,15 @@ export function ImportAssistant() {
       footer={
         rows ? (
           <Button label={t(`Simpan ${clean} pelanggan`, `Save ${plural(clean, "customer")}`)} disabled={!clean || !!busy} onPress={() => void save()} />
+        ) : reading ? (
+          // In place of the button while the assistant reads: the reading mascot names the wait and what is read.
+          <View accessibilityLiveRegion="polite" style={{ alignItems: "center", gap: 4 }}>
+            <MascotReading size={120} />
+            <Text style={{ color: c.forest, fontFamily: fontFor("600"), textAlign: "center" }}>
+              {t("Membaca daftar pelanggan…", "Reading the customer list…")}
+            </Text>
+            {readingWhat ? <Text style={{ color: c.muted, textAlign: "center", fontVariant: ["tabular-nums"] }}>{readingWhat}</Text> : null}
+          </View>
         ) : (
           <Button label={t("Susun daftar", "Build the list")} disabled={(!text.trim() && !files.length) || !!busy} onPress={() => void read()} />
         )
@@ -218,23 +237,20 @@ export function ImportAssistant() {
             // The platform default ink is near black, which vanishes on the dark surface.
             style={{ minHeight: 160, textAlignVertical: "top", borderWidth: 1, borderColor: c.line, borderRadius: 12, padding: 14, fontFamily: FONT, fontSize: 15, color: c.charcoal, backgroundColor: c.surface }}
           />
-          <View style={{ flexDirection: "row", gap: 8 }}>
-            <Button style={{ flex: 1 }} variant="secondary" label={t("+ Foto", "+ Photo")} onPress={() => void addPhoto()} />
-            <Button style={{ flex: 1 }} variant="secondary" label={t("+ PDF / Excel", "+ PDF / Excel")} onPress={() => void addFile()} />
-          </View>
-          {files.map((f, i) => (
-            <View key={`${f.name}-${i}`} style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <Text style={{ flex: 1 }}>{f.name}</Text>
-              <Button variant="text" label={t("Hapus", "Remove")} onPress={() => setFiles((all) => all.filter((_, j) => j !== i))} />
-            </View>
-          ))}
+          <Attachments
+            files={files}
+            max={MAX_IMAGES}
+            locked={reading}
+            onAddPhoto={() => void addPhoto()}
+            onRemove={(index) => setFiles((all) => all.filter((_, j) => j !== index))}
+          />
+          {reading ? null : <Button variant="secondary" label={t("+ PDF / Excel", "+ PDF / Excel")} onPress={() => void addFile()} />}
           {off ? (
             <Card tone="attention">
               <Text>{message("IMPORT_ASSISTANT_DISABLED")}</Text>
               <Button label={t("Isi manual", "Fill in by hand")} onPress={addRow} />
             </Card>
           ) : null}
-          {busy === "read" ? <Text variant="caption">{t("Sedang membaca… biasanya kurang dari satu menit.", "Reading… usually under a minute.")}</Text> : null}
         </>
       ) : (
         <>

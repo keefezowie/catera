@@ -100,6 +100,11 @@ function Navigation() {
           <Stack.Protected guard={allowed.includes(SCREEN_TAB["impor-baris"])}>
             <Stack.Screen name="impor-baris" options={sheetOptions({ detents: "form", palette })} />
           </Stack.Protected>
+          {/* One attached photo, whole, over Impor: a full-screen modal with Close where back would be. The viewer
+              names which photo in its bar; it reads Impor's attachments, so it has Impor's guard. */}
+          <Stack.Protected guard={allowed.includes(SCREEN_TAB["impor-foto"])}>
+            <Stack.Screen name="impor-foto" options={{ ...modal, presentation: "fullScreenModal", title: t("Foto", "Photo") }} />
+          </Stack.Protected>
           {/* The confirm and action sheets (`useConfirm`, `useActionSheet`), sized to their content, over any screen. */}
           <Stack.Screen name="konfirmasi" options={sheetOptions({ detents: "fit", palette })} />
           <Stack.Screen name="aksi" options={sheetOptions({ detents: "fit", palette })} />
