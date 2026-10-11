@@ -84,14 +84,20 @@ export function ReportProblem() {
 
 /**
  * The sheet's frame: the title row ("Ada masalah", with the day under it once known) over the scrolling content. The
- * content sits in one FadeSwap keyed by `swapKey`, so the form fades in from its skeleton as one block. While the day
- * is read, `context` is null: the header holds the day's line, so it keeps its height when the form lands.
+ * content sits in one FadeSwap keyed by `swapKey`, so the form fades in from its skeleton as one block. The header
+ * holds its context line (`holdContextLine`) on every render: while the day is read, `context` is null and a skeleton
+ * keeps the day's line, then the day lands as one line, so the header keeps its height when the form lands.
  */
 function Sheet({ context, swapKey, children }: { context?: string | null; swapKey: string; children: ReactNode }) {
   const { t } = useMobile();
   return (
     <View style={{ flex: 1 }}>
-      <SheetHeader title={t("Ada masalah", "Report a problem")} context={context} closeLabel={t("Tutup", "Close")} />
+      <SheetHeader
+        title={t("Ada masalah", "Report a problem")}
+        context={context}
+        holdContextLine
+        closeLabel={t("Tutup", "Close")}
+      />
       <SheetBody>
         <FadeSwap swapKey={swapKey} style={{ gap: 16 }}>
           {children}

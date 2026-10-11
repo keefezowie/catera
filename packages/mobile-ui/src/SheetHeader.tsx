@@ -90,9 +90,12 @@ export function SheetBody({ children, os = process.env.EXPO_OS }: { children: Re
  *   under the system grabber.
  * - Android: the Material drag handle (32×4 in a 36dp band) and the title 22 bold at the start edge, the M3 sheet title.
  *   There is no Close: back and a swipe down close the sheet.
- * `context` is an optional line under the title (the day, the package): one line, ending in "…" when it is longer,
- * with the whole text given to screen readers. A `context` of null is a line still being read: its 20 is held by a
- * skeleton line (breathing with the sheet body's own skeleton), so the header keeps its height when the line lands.
+ * `context` is an optional line under the title (the day, the package). By default it wraps, so at a larger font it
+ * grows with its text and nothing is cut; a null or missing `context` draws no line.
+ * A sheet whose header must keep one height from loading to ready opts in with `holdContextLine`: the context is then
+ * one line, ending in "…" when it is longer, with the whole text given to screen readers, and a `context` of null is a
+ * line still being read: its 20 is held by a skeleton line (breathing with the sheet body's own skeleton), so the
+ * header keeps its height when the line lands.
  * Close calls `onClose`, else goes back.
  * The screen reader starts on the title (`useSheetTitleFocus`).
  * In a sheet it also tells the toast so (`useToastAnchor`), so on iOS a sheet without a `Screen` still shows its
@@ -101,12 +104,15 @@ export function SheetBody({ children, os = process.env.EXPO_OS }: { children: Re
 export function SheetHeader({
   title,
   context,
+  holdContextLine = false,
   onClose,
   closeLabel = "Tutup",
   os = process.env.EXPO_OS,
 }: {
   title: string;
   context?: string | null;
+  /** Holds the context to one line, and a null context to a skeleton line, so the header keeps its height. */
+  holdContextLine?: boolean;
   onClose?: () => void;
   /** The translated spoken name of Close; this package has no i18n. */
   closeLabel?: string;
@@ -119,7 +125,7 @@ export function SheetHeader({
   const ios = os === "ios";
   const close = onClose ?? (() => navigation?.goBack());
   const contextLine =
-    context === null ? (
+    holdContextLine && context === null ? (
       <SkeletonGroup>
         <View
           testID="sheet-context"
@@ -132,8 +138,8 @@ export function SheetHeader({
       <Text
         testID="sheet-context"
         selectable
-        numberOfLines={1}
-        accessibilityLabel={context}
+        numberOfLines={holdContextLine ? 1 : undefined}
+        accessibilityLabel={holdContextLine ? context : undefined}
         style={{ color: palette.muted, fontSize: 14, lineHeight: CONTEXT_LINE, textAlign: ios ? "center" : "left" }}
       >
         {context}

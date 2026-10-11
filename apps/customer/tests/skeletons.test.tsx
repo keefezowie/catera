@@ -922,13 +922,40 @@ describe("Ada masalah sheet after the rebase", () => {
     expect(String(context.props.children)).toContain(" · ");
   });
 
-  it("a long context stays one line on iOS too, read out in full", () => {
+  it("a held context stays one line on iOS too, read out in full", () => {
     const long = "Besok, Sen 12 Okt · Makan Siang Rumahan Sehat Bergizi · Dapur Ibu Sari Jakarta Selatan";
-    renderWith(runtimeWith({}), <SheetHeader title="Ada masalah" context={long} os="ios" />);
+    renderWith(runtimeWith({}), <SheetHeader title="Ada masalah" context={long} holdContextLine os="ios" />);
     const context = screen.getByTestId("sheet-context");
     expect(context.props.numberOfLines).toBe(1);
     expect(context.props.accessibilityLabel).toBe(long);
     expect(flat(context).lineHeight).toBe(20);
+  });
+
+  it("a held null context keeps the line's 20 with a skeleton, on both platforms", () => {
+    for (const os of ["ios", "android"]) {
+      const view = renderWith(runtimeWith({}), <SheetHeader title="Ada masalah" context={null} holdContextLine os={os} />);
+      expect(flat(screen.getByTestId("sheet-context")).height).toBe(20);
+      // A skeleton line, unnamed: the sheet body's own group names the wait.
+      expect(screen.UNSAFE_getAllByType(SkeletonGroup)).toHaveLength(1);
+      expect(screen.queryByRole("progressbar")).toBeNull();
+      view.unmount();
+    }
+  });
+
+  it("by default a long context wraps with a larger font, and a null context draws no line", () => {
+    const long = "Besok, Sen 12 Okt · Makan Siang Rumahan Sehat Bergizi · Dapur Ibu Sari Jakarta Selatan";
+    for (const os of ["ios", "android"]) {
+      const view = renderWith(runtimeWith({}), <SheetHeader title="Ada masalah" context={long} os={os} />);
+      const context = screen.getByTestId("sheet-context");
+      expect(context.props.numberOfLines).toBeUndefined();
+      expect(context.props.accessibilityLabel).toBeUndefined();
+      expect(flat(context).height).toBeUndefined();
+      expect(String(context.props.children)).toBe(long);
+      view.unmount();
+    }
+    renderWith(runtimeWith({}), <SheetHeader title="Ada masalah" context={null} os="android" />);
+    expect(screen.queryByTestId("sheet-context")).toBeNull();
+    expect(screen.UNSAFE_queryAllByType(SkeletonGroup)).toHaveLength(0);
   });
 
   it("signed out, the sign-in prompt fades in from the skeleton through the same FadeSwap (B)", async () => {
