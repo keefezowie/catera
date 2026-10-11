@@ -567,22 +567,81 @@ describe("EmptyHome while the recap's seen marks are read", () => {
     let release: (mark: string | null) => void = () => undefined;
     const marks = new Promise<string | null>((resolve) => (release = resolve));
     store.getItemAsync.mockImplementation((key: string) => (key.includes("recap.") ? marks : original(key)));
+    const timing = jest.spyOn(Reanimated, "withTiming");
     try {
       render(wrap(runtime, <Beranda />));
       await screen.findByText("Mau makan apa minggu ini?", {}, { timeout: 4000 });
-      // Not known yet: the art's box is held, empty, where the art will stand.
+      // Not known yet: the art's box is held where the art will stand, the mascot invisible in it.
       const slot = screen.getByTestId("mascot-melambai-slot", hidden);
-      expect(StyleSheet.flatten(within(slot).getByTestId("mascot-art-slot", hidden).props.style).height).toBe(120);
+      const fade = within(slot).getByTestId("mascot-art-fade", hidden);
+      expect(StyleSheet.flatten(fade.props.style).height).toBe(120);
+      expect(StyleSheet.flatten(fade.props.style).opacity).toBe(0);
       expect(screen.queryByTestId("mascot-melambai", hidden)).toBeNull();
-      const held = StyleSheet.flatten(slot.props.style);
+      timing.mockClear();
       await act(async () => release("1"));
+      // The same box, never remounted: only the mascot's opacity goes to 1, over the content token.
       const art = await screen.findByTestId("mascot-melambai", hidden);
-      expect(StyleSheet.flatten(art.props.style)).toEqual(held);
+      expect(art).toBe(slot);
+      expect(within(art).getByTestId("mascot-art-fade", hidden)).toBe(fade);
       expect(artHeight(art)).toBe(120);
-      expect(art.props.entering).toBeDefined();
+      expect(timing.mock.calls.filter(([to, config]) => to === 1 && (config as { duration?: number })?.duration === 220)).toHaveLength(1);
+      for (const el of [art, fade]) {
+        expect(el.props.entering).toBeUndefined();
+        expect(el.props.exiting).toBeUndefined();
+      }
       expect(screen.queryByTestId("mascot-melambai-slot", hidden)).toBeNull();
     } finally {
       store.getItemAsync.mockImplementation(original);
+    }
+  });
+
+  it("draws it at once under reduced motion", async () => {
+    jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
+    const ended = subscription({ status: "completed", starts_on: addDays(TODAY, -12), ends_on: addDays(TODAY, -1), remaining: 0 });
+    const runtime = runtimeWith({
+      customer: jest.fn(async () => ({ ...customerState(null), subscriptions: [ended], deliveries: [] })),
+    });
+    const store = require("expo-secure-store") as { getItemAsync: jest.Mock };
+    const original = store.getItemAsync.getMockImplementation()!;
+    let release: (mark: string | null) => void = () => undefined;
+    const marks = new Promise<string | null>((resolve) => (release = resolve));
+    store.getItemAsync.mockImplementation((key: string) => (key.includes("recap.") ? marks : original(key)));
+    const timing = jest.spyOn(Reanimated, "withTiming");
+    try {
+      render(wrap(runtime, <Beranda />));
+      await screen.findByTestId("mascot-melambai-slot", hidden, { timeout: 4000 });
+      timing.mockClear();
+      await act(async () => release("1"));
+      const art = await screen.findByTestId("mascot-melambai", hidden);
+      expect(StyleSheet.flatten(within(art).getByTestId("mascot-art-fade", hidden).props.style).opacity).toBe(1);
+      expect(timing.mock.calls.filter(([, config]) => (config as { duration?: number })?.duration === 220)).toHaveLength(0);
+    } finally {
+      store.getItemAsync.mockImplementation(original);
+    }
+  });
+});
+
+describe("art leaves with its section", () => {
+  it("an empty Beranda that turns into one with a plan leaves no waving mascot behind", async () => {
+    // The copy kept on this phone had nothing running; the fresh read, answered later, has today's plate.
+    const kept = jest.requireMock("../src/today/offline") as { loadCachedCustomer: jest.Mock };
+    kept.loadCachedCustomer.mockResolvedValueOnce({
+      savedAt: "2026-10-08T00:00:00Z",
+      data: { ...customerState(null), subscriptions: [], deliveries: [] },
+    });
+    let answer: (state: CustomerState) => void = () => undefined;
+    const fresh = new Promise<CustomerState>((resolve) => (answer = resolve));
+    render(wrap(runtimeWith({ customer: jest.fn(() => fresh) }), <Beranda />));
+    const art = await screen.findByTestId("mascot-melambai", hidden, { timeout: 4000 });
+    for (const el of [art, within(art).getByTestId("mascot-art-fade", hidden)]) {
+      expect(el.props.exiting).toBeUndefined();
+      expect(el.props.entering).toBeUndefined();
+    }
+    await act(async () => answer(customerState({ status: "scheduled" })));
+    expect(await screen.findByTestId("plate-hero", hidden, { timeout: 4000 })).toBeTruthy();
+    for (const pose of POSES) {
+      expect(screen.queryByTestId(`mascot-${pose}`, hidden)).toBeNull();
+      expect(screen.queryByTestId(`mascot-${pose}-slot`, hidden)).toBeNull();
     }
   });
 });

@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useWindowDimensions, View, type StyleProp, type ViewStyle } from "react-native";
-import Animated, { Easing, FadeOut } from "react-native-reanimated";
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { nativeMotion } from "@catera/design-tokens";
 import { stillRuntime } from "../../../brand/phaseF";
-import { useBlockEnter } from "../motion/layout";
 import { useReduced } from "../motion/useReduced";
 import { MascotArt, mascotArtFrame, type MascotPose } from "./MascotArt";
 import { decorative } from "./decorative";
@@ -29,18 +28,18 @@ export function stateArtSize({ width, fontScale }: { width: number; fontScale: n
  * Decorative: the state's own text carries the meaning, so screen readers skip it. `testID` is `mascot-{pose}`.
  * Never placed beside a photo of food (DESIGN.md: food photography leads; the mascot is occasional warmth).
  *
- * `held` keeps the art's exact box on the page without drawing it (`testID` `mascot-{pose}-slot`), for art that is
+ * `held` keeps the art's box on the page with the mascot invisible (`testID` `mascot-{pose}-slot`), for art that is
  * not known or not due yet: the cooking mascot before "Mulai masak" and after "Berangkat antar", the hello while the
- * recap's seen marks are read. Nothing around it moves when the art comes or goes. A caller that passes `held` owns
- * the art's presence, so the art fades out over `content` when it goes back to its slot; art that arrives after being
- * held fades in over `content`. Both are instant under reduced motion. Art drawn from the first render has no fade
- * of its own: the block it sits in brings it in.
+ * recap's seen marks are read. The box is one view that never remounts when `held` changes, so nothing around it
+ * moves; only the mascot's opacity changes, over `content` on the Catera ease (instant under reduced motion). The art
+ * has no entering or exiting animation of its own: it arrives and leaves with the block it sits in, so it never
+ * lingers over the content that replaces that block.
  */
 export function StateArt({
   pose,
   base = STATE_ART,
   style,
-  held,
+  held = false,
 }: {
   pose: MascotPose;
   base?: number;
@@ -49,34 +48,28 @@ export function StateArt({
 }) {
   const window = useWindowDimensions();
   const reduced = useReduced();
-  const enter = useBlockEnter();
-  const exit = useMemo(() => (reduced ? undefined : FadeOut.duration(nativeMotion.content).easing(ease)), [reduced]);
   const size = stateArtSize(window, base);
-  // Whether a held slot was committed before: a drawing that follows one is an arrival, so it fades in. Recorded after
-  // commit, so a render React throws away never marks it.
-  const wasHeld = useRef(held === true);
+  const { box, aspect } = stillRuntime[pose];
+  const { width, height } = mascotArtFrame(box, size, aspect);
+  // Drawn as it first renders; later changes of `held` fade the mascot in or out where it stands.
+  const opacity = useSharedValue(held ? 0 : 1);
+  const last = useRef(held);
   useEffect(() => {
-    if (held) wasHeld.current = true;
-  }, [held]);
-  const frame = { alignSelf: "center" } as const;
-  if (held) {
-    const { box, aspect } = stillRuntime[pose];
-    const { width, height } = mascotArtFrame(box, size, aspect);
-    return (
-      <View testID={`mascot-${pose}-slot`} {...decorative} style={[frame, style]}>
-        <View testID="mascot-art-slot" style={{ width, height }} />
-      </View>
-    );
-  }
+    if (last.current === held) return;
+    last.current = held;
+    const to = held ? 0 : 1;
+    opacity.value = reduced ? to : withTiming(to, { duration: nativeMotion.content, easing: ease });
+  }, [held, reduced, opacity]);
+  const fade = useAnimatedStyle(() => ({ opacity: opacity.value }));
   return (
-    <Animated.View
-      testID={`mascot-${pose}`}
+    <View
+      testID={held ? `mascot-${pose}-slot` : `mascot-${pose}`}
       {...decorative}
-      entering={wasHeld.current ? enter : undefined}
-      exiting={held === false ? exit : undefined}
-      style={[frame, style]}
+      style={[{ alignSelf: "center" }, style]}
     >
-      <MascotArt pose={pose} size={size} />
-    </Animated.View>
+      <Animated.View testID="mascot-art-fade" style={[{ width, height }, fade]}>
+        <MascotArt pose={pose} size={size} />
+      </Animated.View>
+    </View>
   );
 }

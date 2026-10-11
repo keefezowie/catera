@@ -1,5 +1,5 @@
 import type { ReactElement } from "react";
-import { act, render, screen, within } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import * as ReactNative from "react-native";
 import { RefreshControl, StyleSheet } from "react-native";
 import * as Reanimated from "react-native-reanimated";
@@ -326,7 +326,7 @@ describe("the cooking session", () => {
       const slotId = cooking ? "mascot-memasak" : "mascot-memasak-slot";
       const slot = within(card).getByTestId(slotId, hidden);
       const box = StyleSheet.flatten(
-        within(slot).getByTestId(cooking ? "mascot-art" : "mascot-art-slot", hidden).props.style,
+        within(slot).getByTestId("mascot-art-fade", hidden).props.style,
       );
       const row = within(card).getByTestId("session-count-row", hidden);
       const caption = within(card).getByTestId("session-count-caption", hidden);
@@ -358,42 +358,77 @@ describe("the cooking session", () => {
     expect(before.box.height).toBe(72);
   });
 
-  it("fades the cooking mascot out at Berangkat antar, leaving its slot; no fade under reduced motion", async () => {
-    for (const reduced of [false, true]) {
-      jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(reduced);
-      const reads = jest.fn(async () => day("preparing"));
-      render(wrap(runtimeWith({ sellerOperations: reads }), <TodayScreen />));
-      const art = await screen.findByTestId("mascot-memasak", hidden);
-      if (reduced) expect(art.props.exiting).toBeUndefined();
-      else expect(art.props.exiting).toBeDefined();
-      reads.mockImplementation(async () => day("out_for_delivery"));
+  /** `withTiming` calls that move a value to `to` over `nativeMotion.content`. */
+  const contentFades = (timing: jest.SpyInstance, to: number) =>
+    timing.mock.calls.filter(([value, config]) => value === to && (config as { duration?: number })?.duration === 220);
+  const opacityOf = (el: ReturnType<typeof screen.getByTestId>) => StyleSheet.flatten(el.props.style).opacity;
+
+  it("changes only the mascot's opacity at Mulai masak and Berangkat antar: one box that never remounts", async () => {
+    const reads = jest.fn(async () => day("scheduled"));
+    const timing = jest.spyOn(Reanimated, "withTiming");
+    render(wrap(runtimeWith({ sellerOperations: reads }), <TodayScreen />));
+    const box = await screen.findByTestId("mascot-memasak-slot", hidden);
+    const fade = within(box).getByTestId("mascot-art-fade", hidden);
+    expect(opacityOf(fade)).toBe(0);
+
+    timing.mockClear();
+    reads.mockImplementation(async () => day("preparing"));
+    await act(async () => void (await screen.UNSAFE_getByType(RefreshControl).props.onRefresh()));
+    // The same box and the same fading view, now drawn: no mount, so no layout animation, just the opacity to 1.
+    expect(await screen.findByTestId("mascot-memasak", hidden)).toBe(box);
+    expect(within(box).getByTestId("mascot-art-fade", hidden)).toBe(fade);
+    expect(contentFades(timing, 1).length).toBeGreaterThan(0);
+    for (const el of [box, fade]) {
+      expect(el.props.entering).toBeUndefined();
+      expect(el.props.exiting).toBeUndefined();
+    }
+
+    timing.mockClear();
+    reads.mockImplementation(async () => day("out_for_delivery"));
+    await act(async () => void (await screen.UNSAFE_getByType(RefreshControl).props.onRefresh()));
+    expect(await screen.findByTestId("mascot-memasak-slot", hidden)).toBe(box);
+    expect(within(box).getByTestId("mascot-art-fade", hidden)).toBe(fade);
+    expect(contentFades(timing, 0).length).toBeGreaterThan(0);
+  });
+
+  it("makes the change at once under reduced motion", async () => {
+    jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
+    const reads = jest.fn(async () => day("scheduled"));
+    const timing = jest.spyOn(Reanimated, "withTiming");
+    render(wrap(runtimeWith({ sellerOperations: reads }), <TodayScreen />));
+    const box = await screen.findByTestId("mascot-memasak-slot", hidden);
+    for (const next of ["preparing", "out_for_delivery"]) {
+      timing.mockClear();
+      reads.mockImplementation(async () => day(next));
       await act(async () => void (await screen.UNSAFE_getByType(RefreshControl).props.onRefresh()));
-      expect(await screen.findByTestId("mascot-memasak-slot", hidden)).toBeTruthy();
-      expect(screen.queryByTestId("mascot-memasak", hidden)).toBeNull();
-      screen.unmount();
+      await screen.findByTestId(next === "preparing" ? "mascot-memasak" : "mascot-memasak-slot", hidden);
+      expect(contentFades(timing, 0)).toHaveLength(0);
+      expect(contentFades(timing, 1)).toHaveLength(0);
+      expect(opacityOf(within(box).getByTestId("mascot-art-fade", hidden))).toBe(next === "preparing" ? 1 : 0);
     }
   });
 
-  it("fades the cooking mascot in where its slot stood once cooking starts; instant under reduced motion", async () => {
-    for (const reduced of [false, true]) {
-      jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(reduced);
-      const reads = jest.fn(async () => day("scheduled"));
-      render(wrap(runtimeWith({ sellerOperations: reads }), <TodayScreen />));
-      await screen.findByTestId("mascot-memasak-slot", hidden);
-      reads.mockImplementation(async () => day("preparing"));
-      await act(async () => void (await screen.UNSAFE_getByType(RefreshControl).props.onRefresh()));
-      const art = await screen.findByTestId("mascot-memasak", hidden);
-      expect(screen.queryByTestId("mascot-memasak-slot", hidden)).toBeNull();
-      if (reduced) expect(art.props.entering).toBeUndefined();
-      else expect(art.props.entering).toBeDefined();
-      screen.unmount();
-    }
-  });
-
-  it("draws a session already cooking at first paint with no fade of its own: the header's fade brings it in", async () => {
+  it("draws a session already cooking at first paint at full opacity: the header's fade brings it in", async () => {
     render(wrap(runtimeWith({ sellerOperations: jest.fn(async () => day("preparing")) }), <TodayScreen />));
     const art = await screen.findByTestId("mascot-memasak", hidden);
+    expect(opacityOf(within(art).getByTestId("mascot-art-fade", hidden))).toBe(1);
     expect(art.props.entering).toBeUndefined();
+  });
+
+  it("leaves with its block: switching to Besok leaves no cooking mascot behind and it has no exit animation", async () => {
+    const reads = jest.fn((_id: string, date: string) =>
+      date === TODAY ? Promise.resolve(day("preparing")) : new Promise<SellerOperationsState>(() => undefined),
+    );
+    render(wrap(runtimeWith({ sellerOperations: reads }), <TodayScreen />));
+    const art = await screen.findByTestId("mascot-memasak", hidden);
+    for (const el of [art, within(art).getByTestId("mascot-art-fade", hidden)]) {
+      expect(el.props.exiting).toBeUndefined();
+      expect(el.props.entering).toBeUndefined();
+    }
+    fireEvent.press(screen.getByRole("button", { name: /ganti hari$/ }));
+    await waitFor(() => expect(screen.queryByTestId("session-count", hidden)).toBeNull());
+    expect(screen.queryByTestId("mascot-memasak", hidden)).toBeNull();
+    expect(screen.queryByTestId("mascot-memasak-slot", hidden)).toBeNull();
   });
 
   it("shows no mascot before cooking starts or once the meal is on its way", async () => {
