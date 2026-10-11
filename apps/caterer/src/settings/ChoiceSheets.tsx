@@ -1,10 +1,10 @@
 import { View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import type { Locale } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
 import {
   ChoiceList,
+  SheetFitBody,
   SheetHeader,
   Text,
   ThemeChoice,
@@ -23,11 +23,10 @@ export function TampilanSheet() {
   const { t } = useMobile();
   const { preference, setPreference } = useThemePreference();
   const palette = useColors();
-  const insets = useSafeAreaInsets();
   const ios = process.env.EXPO_OS === "ios";
   return (
-    <View style={{ paddingBottom: insets.bottom + 24 }}>
-      <SheetHeader title={t("Tampilan", "Appearance")} closeLabel={t("Tutup", "Close")} />
+    // At a larger font on a small phone the thumbnails and their note scroll under the fixed title row.
+    <SheetFitBody foot={24} header={<SheetHeader title={t("Tampilan", "Appearance")} closeLabel={t("Tutup", "Close")} />}>
       <View style={{ paddingHorizontal: ios ? 20 : 24, gap: 16 }}>
         <ThemeChoice
           label={t("Tampilan", "Appearance")}
@@ -44,7 +43,7 @@ export function TampilanSheet() {
             : t("Ikuti sistem memakai pengaturan ponsel kamu.", "Follow system uses your phone's setting.")}
         </Text>
       </View>
-    </View>
+    </SheetFitBody>
   );
 }
 
@@ -56,10 +55,8 @@ const LANGUAGES: { value: Locale; label: string }[] = [
 /** Bahasa: Indonesia or English, each named in its own language. */
 export function BahasaSheet() {
   const { t, locale, setLocale } = useMobile();
-  const insets = useSafeAreaInsets();
   return (
-    <View style={{ paddingBottom: insets.bottom + 16 }}>
-      <SheetHeader title={t("Bahasa", "Language")} closeLabel={t("Tutup", "Close")} />
+    <SheetFitBody header={<SheetHeader title={t("Bahasa", "Language")} closeLabel={t("Tutup", "Close")} />}>
       <ChoiceList
         label={t("Bahasa", "Language")}
         options={LANGUAGES}
@@ -69,6 +66,6 @@ export function BahasaSheet() {
           router.back();
         }}
       />
-    </View>
+    </SheetFitBody>
   );
 }

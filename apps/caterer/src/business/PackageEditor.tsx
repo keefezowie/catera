@@ -89,8 +89,8 @@ export function PackageEditor({ from, firstPublish = null }: { from?: SellerOffe
         setPublished(true);
         return;
       }
-      toast.show({ message: t("Paket diterbitkan", "Package published"), tone: "success" });
       router.back();
+      toast.show({ message: t("Paket diterbitkan", "Package published"), tone: "success" });
     } catch (e) {
       setError(failed(e));
     } finally {

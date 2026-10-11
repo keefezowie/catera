@@ -123,8 +123,8 @@ function useRequest(draftKey: string, noun: { id: string; en: string }) {
   useEffect(() => {
     if (!sent || closed.current) return;
     closed.current = true;
-    toast.show({ message: t("Permintaan bantuan terkirim", "Help request sent"), tone: "success" });
     router.back();
+    toast.show({ message: t("Permintaan bantuan terkirim", "Help request sent"), tone: "success" });
   }, [sent, toast, t]);
   const write = (value: string) => {
     setText(value);

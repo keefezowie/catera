@@ -149,7 +149,7 @@ export function ToastProvider({ children, os = process.env.EXPO_OS }: { children
         next.delete(key);
         return next;
       }
-      if (current && current.top === anchor.top && current.bottom === anchor.bottom) return prev;
+      if (current && current.top === anchor.top && current.bottom === anchor.bottom && current.sheet === anchor.sheet) return prev;
       return new Map(prev).set(key, anchor);
     });
   }, []);
@@ -220,9 +220,10 @@ function ToastView({
   // iOS full screen: under the focused screen's header, never under the status bar; with no header reported, under a
   // 44pt bar. iOS sheet: at the window's bottom, above the home indicator and any footer, lifted by the part of the
   // keyboard that rises past the home indicator (the keyboard covers that inset). Android: above the focused screen's
-  // tab bar or footer, never in the system inset; with none reported, above the tab bar. The lane is the full width
-  // less 16 on each side: the iOS pill hugs its words in the lane's centre, the Android snackbar fills the lane up to
-  // Material's 600dp.
+  // tab bar or footer, never in the system inset; with none reported, above the tab bar, except in a sheet, which has
+  // no tab bar under it, so the snackbar sits on the system inset. The lane is the full width less 16 on each side: the
+  // iOS pill hugs its words in the lane's centre, the Android snackbar fills the lane up to Material's 600dp.
+  const androidFloor = anchor.sheet ? insets.bottom : insets.bottom + ANDROID_TAB_BAR;
   const lane = atTop
     ? { top: (anchor.top !== undefined ? Math.max(anchor.top, insets.top) : insets.top + IOS_BAR) + GAP }
     : ios
@@ -230,11 +231,7 @@ function ToastView({
           bottom:
             Math.max(anchor.bottom ?? insets.bottom, insets.bottom) + Math.max(0, keyboard - insets.bottom) + GAP,
         }
-      : {
-          bottom:
-            (anchor.bottom !== undefined ? Math.max(anchor.bottom, insets.bottom) : insets.bottom + ANDROID_TAB_BAR) +
-            GAP,
-        };
+      : { bottom: (anchor.bottom !== undefined ? Math.max(anchor.bottom, insets.bottom) : androidFloor) + GAP };
   const shape = ios
     ? {
         borderRadius: 22,

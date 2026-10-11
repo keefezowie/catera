@@ -57,17 +57,20 @@ export function ImportRowEditor({ n }: { n: number }) {
   const row = rows?.find((r) => r.n === n);
   const close = () => router.back();
 
-  // A link to a row that is gone (saved, removed, or Impor closed meanwhile) has nothing to edit.
-  if (!row)
+  // A link to a row that is gone (saved, removed, or Impor closed meanwhile) has nothing to edit. Opened cold, nothing is
+  // under the sheet to go back to, so both closes open Impor in its place, as the photo viewer does.
+  if (!row) {
+    const leave = () => (router.canGoBack() ? router.back() : router.replace("/impor" as never));
     return (
       <View testID="import-row-sheet" style={{ flex: 1 }}>
-        <SheetHeader title={t("Pelanggan", "Customer")} closeLabel={t("Tutup", "Close")} />
+        <SheetHeader title={t("Pelanggan", "Customer")} closeLabel={t("Tutup", "Close")} onClose={leave} />
         <SheetBody>
           <Text selectable>{t("Baris ini sudah tidak ada.", "This row is no longer there.")}</Text>
-          <Button variant="secondary" label={t("Tutup", "Close")} onPress={close} />
+          <Button variant="secondary" label={t("Tutup", "Close")} onPress={leave} />
         </SheetBody>
       </View>
     );
+  }
   // The row is there, but Impor's read of the package choices has not landed (or failed): the row is checked against
   // them, so the sheet waits for them instead of calling the row gone.
   if (!packages) return <PackageChoices title={row.name || t("Pelanggan", "Customer")} />;

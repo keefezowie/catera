@@ -500,6 +500,15 @@ describe("Toast", () => {
     expect(lane()).toMatchObject({ bottom: 34 + 8 });
   });
 
+  it("in an Android sheet the snackbar sits on the system inset: there is no tab bar under a sheet", () => {
+    jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
+    render(tree("android", presented("formSheet", <SheetHeader title="Ada masalah" os="android" />)));
+    act(() => toast.show({ message: "Laporan terkirim" }));
+    // 8 above the 34dp gesture inset, not the 80dp tab bar's fallback.
+    expect(lane()).toMatchObject({ bottom: 34 + 8 });
+    expect(lane().top).toBeUndefined();
+  });
+
   it("full-screen stack screens keep the top anchor", () => {
     jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
     for (const presentation of ["card", "fullScreenModal"]) {

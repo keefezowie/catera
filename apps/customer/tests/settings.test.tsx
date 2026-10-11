@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
-import { AppState, Linking, StyleSheet, type AppStateStatus } from "react-native";
+import { AppState, Dimensions, Linking, StyleSheet, type AppStateStatus } from "react-native";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import * as Notifications from "expo-notifications";
@@ -97,6 +97,31 @@ const rowNames = () =>
     .map((row) => within(row).getAllByTestId("settings-label")[0].props.children as string);
 
 const notificationSwitch = () => screen.getByRole("switch", { name: "Notifikasi di ponsel ini" });
+
+type Node = { type: unknown; props: Record<string, unknown>; parent: Node | null };
+const isInside = (inner: unknown, outer: unknown) => {
+  for (let n = inner as Node | null; n; n = n.parent) if (n === outer) return true;
+  return false;
+};
+/**
+ * A fit sheet that can outgrow the screen (a larger font on a small phone): its choices sit in one vertical scroller
+ * that may shrink, inside a frame no taller than the window, with the title row fixed above it.
+ */
+function expectFitScrolls(title: string, reachable: unknown[]) {
+  const scrollers = screen.UNSAFE_root.findAll((n) => n.type === "RCTScrollView" && !n.props.horizontal) as unknown as Node[];
+  expect(scrollers).toHaveLength(1);
+  const [scroller] = scrollers;
+  for (const node of reachable) expect(isInside(node, scroller)).toBe(true);
+  expect(isInside(screen.getByRole("header", { name: title }), scroller)).toBe(false);
+  expect(StyleSheet.flatten(scroller.props.style as never)).toMatchObject({ flexGrow: 0, flexShrink: 1 });
+  expect(scroller.props.nestedScrollEnabled).toBe(true);
+  // The nearest frame above the scroller that sets a height cap.
+  let cap: unknown;
+  for (let n = scroller.parent; n && cap === undefined; n = n.parent)
+    cap = (StyleSheet.flatten(n.props.style as never) as { maxHeight?: number } | undefined)?.maxHeight;
+  expect(typeof cap).toBe("number");
+  expect(cap as number).toBeLessThan(Dimensions.get("window").height);
+}
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -423,6 +448,14 @@ describe("choice sheets", () => {
     expect(group.props.accessibilityRole).toBe("radiogroup");
     expect(within(group).getByRole("radio", { name: "Indonesia" })).toBeChecked();
     expect(within(group).getByRole("radio", { name: "English" })).not.toBeChecked();
+  });
+
+  it.each([
+    ["Tampilan", () => <TampilanSheet />, "Gelap"],
+    ["Bahasa", () => <BahasaSheet />, "English"],
+  ] as const)("the %s sheet scrolls under its title once it outgrows the screen", async (title, sheet, last) => {
+    renderWith(runtimeWith(), sheet());
+    expectFitScrolls(title, [await screen.findByRole("radio", { name: last })]);
   });
 });
 

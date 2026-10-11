@@ -93,13 +93,25 @@ const FIT_TOP_GAP = 24;
  * A fit sheet (`sheetOptions({ detents: "fit" })`): its `header` (the `SheetHeader`) fixed on top and its content under
  * it. The sheet sizes to the content while it fits; content that outgrows the screen (a long address book, a larger
  * font) stops the sheet at its tallest and scrolls under the fixed title row, so the last row and the button under it
- * stay reachable. The foot clears the home indicator or the gesture bar.
+ * stay reachable. The foot clears the home indicator or the gesture bar, plus `foot` (16 by default). Every fit sheet
+ * draws its body through this, so none can hide its last button behind the screen's edge.
  */
-export function SheetFitBody({ header, children }: { header: ReactNode; children: ReactNode }) {
+export function SheetFitBody({
+  header,
+  children,
+  foot = 16,
+  testID,
+}: {
+  header: ReactNode;
+  children: ReactNode;
+  /** The space under the content, above the home indicator or the gesture bar. */
+  foot?: number;
+  testID?: string;
+}) {
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   return (
-    <View style={{ maxHeight: height - insets.top - FIT_TOP_GAP }}>
+    <View testID={testID} style={{ maxHeight: height - insets.top - FIT_TOP_GAP }}>
       {header}
       <ScrollView
         testID="sheet-fit-body"
@@ -107,7 +119,7 @@ export function SheetFitBody({ header, children }: { header: ReactNode; children
         alwaysBounceVertical={false}
         // Android: a drag on a long list scrolls it, rather than dragging the bottom sheet.
         nestedScrollEnabled
-        contentContainerStyle={{ paddingBottom: insets.bottom + 16 }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + foot }}
       >
         {children}
       </ScrollView>

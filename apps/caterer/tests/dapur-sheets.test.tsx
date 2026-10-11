@@ -2,12 +2,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import * as ReactNative from "react-native";
-import { Alert, Share, StyleSheet } from "react-native";
+import { AccessibilityInfo, Alert, Dimensions, Share, StyleSheet } from "react-native";
 import { router } from "expo-router";
 import { nativeThemes } from "@catera/design-tokens";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { type SellerOperationsState } from "@catera/domain";
-import { ThemeProvider, ToastProvider } from "@catera/mobile-ui";
+import { SheetHeader, ThemeProvider, ToastProvider } from "@catera/mobile-ui";
 import TabStack from "../app/(tabs)/(index,pelanggan,menu,usaha)/_layout";
 import { TodayScreen } from "../src/today/TodayScreen";
 import { ExceptionSheet } from "../src/today/ExceptionSheet";
@@ -223,6 +223,7 @@ describe("stop exceptions", () => {
     });
     screen.unmount();
 
+    const announce = jest.spyOn(AccessibilityInfo, "announceForAccessibility");
     const runtime = runtimeWith();
     show(runtime, <TodayScreen />);
     const sari = (await screen.findAllByText("Bu Sari Wulandari"))[0];
@@ -244,6 +245,10 @@ describe("stop exceptions", () => {
     expect(await screen.findByText("Laporan tersimpan")).toBeTruthy();
     await waitFor(() => expect(screen.queryByTestId("exception-sheet")).toBeNull());
     expect(router.back).toHaveBeenCalledTimes(1);
+    // The toast is shown once the sheet is on its way out, so it is drawn against Hari ini, not the sheet.
+    const saved = announce.mock.calls.findIndex(([message]) => message === "Laporan tersimpan");
+    expect(saved).toBeGreaterThanOrEqual(0);
+    expect((router.back as jest.Mock).mock.invocationCallOrder[0]).toBeLessThan(announce.mock.invocationCallOrder[saved]);
   });
 
   it("names each … for what it can do: both, report only, or move only on Besok", async () => {
@@ -353,6 +358,7 @@ describe("stop exceptions", () => {
 
 describe("Laporan reply sheet", () => {
   it("opens over Hari ini from a report card, sends, closes and says Balasan terkirim", async () => {
+    const announce = jest.spyOn(AccessibilityInfo, "announceForAccessibility");
     const runtime = runtimeWith({
       request: jest.fn(async (p: string) => (p.startsWith("delivery-issues") ? [report()] : [])),
       command: jest.fn(async () => ({})),
@@ -375,6 +381,9 @@ describe("Laporan reply sheet", () => {
     );
     expect(await screen.findByText("Balasan terkirim")).toBeTruthy();
     await waitFor(() => expect(screen.queryByTestId("reply-sheet")).toBeNull());
+    const sent = announce.mock.calls.findIndex(([message]) => message === "Balasan terkirim");
+    expect(sent).toBeGreaterThanOrEqual(0);
+    expect((router.back as jest.Mock).mock.invocationCallOrder.at(-1)).toBeLessThan(announce.mock.invocationCallOrder[sent]);
   });
 
   it("keeps a typed reply for the same report and person after the sheet closed without sending", async () => {
@@ -437,6 +446,30 @@ describe("Tim", () => {
     fireEvent.press(await screen.findByRole("button", { name: "Bagikan undangan" }));
     expect(await screen.findByText("zz9")).toBeTruthy();
     expect(screen.queryByText("Undangan dibagikan")).toBeNull();
+  });
+
+  it("scrolls under its title once it outgrows the screen, so Bagikan undangan stays reachable", async () => {
+    jest.spyOn(Share, "share").mockResolvedValue({ action: "dismissedAction" });
+    show(runtimeWith({ command: jest.fn(async () => ({ code: "zz9" })) }), <TimScreen />);
+    fireEvent.press(await screen.findByRole("button", { name: "Bagikan undangan" }));
+    expect(await screen.findByText("zz9")).toBeTruthy();
+    type Node = { type: unknown; props: Record<string, unknown>; parent: Node | null };
+    const inside = (inner: unknown, outer: unknown) => {
+      for (let n = inner as Node | null; n; n = n.parent) if (n === outer) return true;
+      return false;
+    };
+    const sheet = screen.getByTestId("tim-sheet");
+    const scrollers = (sheet as unknown as { findAll: (m: (n: Node) => boolean) => Node[] }).findAll(
+      (n) => n.type === "RCTScrollView" && !n.props.horizontal,
+    );
+    expect(scrollers).toHaveLength(1);
+    const [scroller] = scrollers;
+    expect(inside(screen.getByText("zz9"), scroller)).toBe(true);
+    expect(inside(screen.getByRole("button", { name: "Bagikan undangan" }), scroller)).toBe(true);
+    expect(inside(screen.getByRole("header", { name: "Undang pembantu dapur" }), scroller)).toBe(false);
+    expect(flat(scroller)).toMatchObject({ flexGrow: 0, flexShrink: 1 });
+    expect(scroller.props.nestedScrollEnabled).toBe(true);
+    expect(flat(sheet).maxHeight).toBeLessThan(Dimensions.get("window").height);
   });
 
   it("staff have no Tim", async () => {
@@ -620,9 +653,27 @@ describe("import row editor", () => {
     await waitFor(() => expect(within(screen.getByTestId("import-row-sheet")).getByText("Paket Hemat Kantor")).toBeTruthy());
   });
 
-  it("a row link with no row behind it says so", async () => {
-    show(importer(), <ImportRowEditor n={42} />);
-    expect(await screen.findByText("Baris ini sudah tidak ada.")).toBeTruthy();
+  it("a row link with no row behind it says so, and its Close never strands the person", async () => {
+    const canGoBack = router.canGoBack as jest.Mock;
+    try {
+      // A cold link: /impor-baris is the only route, so both closes open Impor in its place.
+      canGoBack.mockReturnValue(false);
+      show(importer(), <ImportRowEditor n={42} />);
+      expect(await screen.findByText("Baris ini sudah tidak ada.")).toBeTruthy();
+      fireEvent.press(screen.getByRole("button", { name: "Tutup" }));
+      expect(router.replace).toHaveBeenLastCalledWith("/impor");
+      // The header's Close (iOS) does the same.
+      act(() => (screen.UNSAFE_getByType(SheetHeader).props.onClose as () => void)());
+      expect(router.replace).toHaveBeenCalledTimes(2);
+      expect(router.back).not.toHaveBeenCalled();
+      // Opened from Impor: back to it.
+      canGoBack.mockReturnValue(true);
+      fireEvent.press(screen.getByRole("button", { name: "Tutup" }));
+      expect(router.back).toHaveBeenCalledTimes(1);
+      expect(router.replace).toHaveBeenCalledTimes(2);
+    } finally {
+      canGoBack.mockReturnValue(true);
+    }
   });
 });
 

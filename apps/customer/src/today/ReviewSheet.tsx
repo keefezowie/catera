@@ -111,8 +111,8 @@ function Review({ actorId, id }: { actorId: string; id: string }) {
   useEffect(() => {
     if (!finished || closed.current) return;
     closed.current = true;
-    if (finished === "sent") toast.show({ message: t("Ulasan terkirim", "Review sent"), tone: "success" });
     router.back();
+    if (finished === "sent") toast.show({ message: t("Ulasan terkirim", "Review sent"), tone: "success" });
   }, [finished, toast, t]);
 
   const keep = (next: { rating?: number; body?: string }) => {

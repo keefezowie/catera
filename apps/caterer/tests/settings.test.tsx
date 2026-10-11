@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
-import { StyleSheet } from "react-native";
+import { Dimensions, StyleSheet } from "react-native";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import * as Notifications from "expo-notifications";
@@ -8,7 +8,7 @@ import { ThemeProvider, ToastProvider } from "@catera/mobile-ui";
 import { UsahaScreen } from "../src/business/UsahaScreen";
 import { MenuWeek } from "../src/menu/MenuWeek";
 import { Pengaturan } from "../src/settings/Pengaturan";
-import { TampilanSheet } from "../src/settings/ChoiceSheets";
+import { BahasaSheet, TampilanSheet } from "../src/settings/ChoiceSheets";
 import { RoleGate } from "../src/RoleGate";
 
 jest.mock("expo-router", () => {
@@ -199,6 +199,31 @@ it("the Tampilan sheet speaks to kamu and closes on a choice", async () => {
   fireEvent.press(screen.getByRole("radio", { name: "Terang" }));
   expect(SecureStore.setItemAsync).toHaveBeenCalledWith("t.theme", "light");
   expect(router.back).toHaveBeenCalledTimes(1);
+});
+
+it.each([
+  ["Tampilan", () => <TampilanSheet />, "Gelap"],
+  ["Bahasa", () => <BahasaSheet />, "English"],
+] as const)("the %s sheet scrolls under its title once it outgrows the screen", async (title, sheet, last) => {
+  type Node = { type: unknown; props: Record<string, unknown>; parent: Node | null };
+  const inside = (inner: unknown, outer: unknown) => {
+    for (let n = inner as Node | null; n; n = n.parent) if (n === outer) return true;
+    return false;
+  };
+  renderWith(runtimeWith(), sheet());
+  const lastChoice = await screen.findByRole("radio", { name: last });
+  const scrollers = screen.UNSAFE_root.findAll((n) => n.type === "RCTScrollView" && !n.props.horizontal) as unknown as Node[];
+  expect(scrollers).toHaveLength(1);
+  const [scroller] = scrollers;
+  expect(inside(lastChoice, scroller)).toBe(true);
+  expect(inside(screen.getByRole("header", { name: title }), scroller)).toBe(false);
+  expect(StyleSheet.flatten(scroller.props.style as never)).toMatchObject({ flexGrow: 0, flexShrink: 1 });
+  expect(scroller.props.nestedScrollEnabled).toBe(true);
+  // The nearest frame above the scroller that sets a height cap.
+  let cap: unknown;
+  for (let n = scroller.parent; n && cap === undefined; n = n.parent)
+    cap = (StyleSheet.flatten(n.props.style as never) as { maxHeight?: number } | undefined)?.maxHeight;
+  expect(cap).toBeLessThan(Dimensions.get("window").height);
 });
 
 describe("Keluar while sign-out waits", () => {

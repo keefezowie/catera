@@ -165,8 +165,8 @@ export function ExceptionSheet({ id, meal, date }: { id: string; meal: KitchenMe
   useEffect(() => {
     if (!saved || closed.current) return;
     closed.current = true;
-    toast.show({ message: t("Laporan tersimpan", "Report saved"), tone: "success" });
     router.back();
+    toast.show({ message: t("Laporan tersimpan", "Report saved"), tone: "success" });
   }, [saved, toast, t]);
 
   if (!ops)

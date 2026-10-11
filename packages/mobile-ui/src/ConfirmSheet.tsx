@@ -1,12 +1,9 @@
-import { use, useEffect, useRef, useState } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Text as RNText, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { NavigationContext, NavigationRouteContext } from "expo-router/react-navigation";
 import { Rantang } from "./brand/Rantang";
 import { PressableScale } from "./motion";
-import { SheetHandle, useSheetTitleFocus } from "./SheetHeader";
-import { answerConfirm, confirmWaiting, leaveStray, type ConfirmIcon, type ConfirmInput } from "./sheets";
+import { SheetFitBody, SheetHandle, useSheetTitleFocus } from "./SheetHeader";
+import { useConfirmRoute, type ConfirmIcon, type ConfirmInput } from "./sheets";
 import { useColors } from "./theme";
 import { useToastAnchor } from "./toastAnchor";
 import { fonts } from "./type";
@@ -44,7 +41,6 @@ export function ConfirmSheet({
   os = process.env.EXPO_OS,
 }: ConfirmInput & { onConfirm: () => void; onCancel: () => void; os?: string }) {
   const palette = useColors();
-  const insets = useSafeAreaInsets();
   const titleRef = useSheetTitleFocus();
   // A sheet: the iOS toast of whatever follows sits at the bottom, not under a header this screen does not have.
   useToastAnchor({});
@@ -101,8 +97,9 @@ export function ConfirmSheet({
   );
 
   return (
-    <View testID="confirm-sheet" style={{ paddingBottom: insets.bottom + 16 }}>
-      {ios ? <View style={{ height: 24 }} /> : <SheetHandle />}
+    // At a larger font on a small phone the question can outgrow the screen: it scrolls, buttons included, under the
+    // grabber or the drag handle.
+    <SheetFitBody testID="confirm-sheet" header={ios ? <View style={{ height: 24 }} /> : <SheetHandle />}>
       <View style={{ paddingHorizontal: 24, gap: 12, alignItems: align }}>
         {icon ? (
           <View
@@ -148,44 +145,19 @@ export function ConfirmSheet({
         {cancel}
         {confirm}
       </View>
-    </View>
+    </SheetFitBody>
   );
 }
 
 /**
  * The `/konfirmasi` route: shows the question `useConfirm` parked under `?id=` and answers it once. The confirm button
- * answers true; Cancel, the hardware back and a swipe down answer false (a `beforeRemove` listener answers whatever is
- * still open when the route goes, and an unmount answers what is left). A route with nothing waiting (restored after a
- * reload, or opened by a stray link) closes itself, to Beranda when nothing is under it (a cold OS link).
+ * answers true; Cancel, the hardware back, a swipe down and an unmount answer false. The answer comes once the sheet
+ * has gone (`useQuestionRoute`), so a discard that then closes the form under it never dismisses that sheet while this
+ * one is still sliding away. A route with nothing waiting (restored after a reload, or opened by a stray link) closes
+ * itself, to Beranda when nothing is under it (a cold OS link). `os` defaults to the running platform.
  */
-export function ConfirmRoute() {
-  const navigation = use(NavigationContext);
-  const route = use(NavigationRouteContext);
-  const id = (route?.params as { id?: string } | undefined)?.id;
-  // Read once: the entry is dropped when answered, while the sheet still shows as it slides away.
-  const [input] = useState(() => confirmWaiting(id));
-  const stray = !input;
-  const closing = useRef(false);
-
-  useEffect(() => {
-    if (!navigation) return;
-    if (stray) {
-      leaveStray(navigation);
-      return;
-    }
-    return navigation.addListener("beforeRemove", () => answerConfirm(id, false));
-  }, [navigation, id, stray]);
-  // A route can leave without `beforeRemove` (its navigator unmounts, a reset drops it): the question still gets its
-  // false, so the screen that asked is never left waiting. A no-op once answered.
-  useEffect(() => () => answerConfirm(id, false), [id]);
-
+export function ConfirmRoute({ os }: { os?: string } = {}) {
+  const { input, close } = useConfirmRoute(os);
   if (!input) return null;
-  // One answer and one close, however many taps land while the sheet slides away.
-  const choose = (result: boolean) => {
-    if (closing.current) return;
-    closing.current = true;
-    answerConfirm(id, result);
-    navigation?.goBack();
-  };
-  return <ConfirmSheet {...input} onConfirm={() => choose(true)} onCancel={() => choose(false)} />;
+  return <ConfirmSheet {...input} onConfirm={() => close(true)} onCancel={() => close(false)} />;
 }

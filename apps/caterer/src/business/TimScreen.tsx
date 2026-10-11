@@ -1,9 +1,8 @@
 import { useState } from "react";
 import { Share, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { errorLabel } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { Button, SheetHeader, Text, useColors, useToast } from "@catera/mobile-ui";
+import { Button, SheetFitBody, SheetHeader, Text, useColors, useToast } from "@catera/mobile-ui";
 
 /**
  * Whether the share sheet's answer proves the invite went out. iOS answers `sharedAction` only for a real share and
@@ -21,7 +20,6 @@ export function TimScreen() {
   const { actor, t, locale, command } = useMobile();
   const c = useColors();
   const toast = useToast();
-  const insets = useSafeAreaInsets();
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -50,8 +48,12 @@ export function TimScreen() {
   }
 
   return (
-    <View testID="tim-sheet" style={{ paddingBottom: insets.bottom + 16 }}>
-      <SheetHeader title={t("Undang pembantu dapur", "Invite a kitchen helper")} closeLabel={t("Tutup", "Close")} />
+    // At a larger font on a small phone the paragraph, the code and the button scroll under the fixed title row, so
+    // Bagikan undangan is never cut off.
+    <SheetFitBody
+      testID="tim-sheet"
+      header={<SheetHeader title={t("Undang pembantu dapur", "Invite a kitchen helper")} closeLabel={t("Tutup", "Close")} />}
+    >
       <View style={{ paddingHorizontal: inset, gap: 16 }}>
         <Text>
           {t(
@@ -71,6 +73,6 @@ export function TimScreen() {
         {error ? <Text selectable style={{ color: c.danger }}>{error}</Text> : null}
         <Button label={t("Bagikan undangan", "Share invite")} disabled={busy} onPress={() => void invite()} />
       </View>
-    </View>
+    </SheetFitBody>
   );
 }

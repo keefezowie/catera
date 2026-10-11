@@ -2,11 +2,12 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { createElement } from "react";
 import * as ReactNative from "react-native";
-import { BackHandler, StyleSheet, Text } from "react-native";
+import { AccessibilityInfo, BackHandler, StyleSheet, Text } from "react-native";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { act, fireEvent, renderRouter, screen, within } from "expo-router/testing-library";
 import { nativeThemes } from "@catera/design-tokens";
+import { SHEET_CLOSE_MS } from "@catera/mobile-ui";
 import { addDays, jakartaDay, shortDate, type CustomerState, type Delivery } from "@catera/domain";
 import { dayActionInput, dayHasActions } from "../src/schedule/dayActions";
 import { customerState, delivery, subscription } from "./fixtures";
@@ -121,6 +122,27 @@ jest.mock("../src/buy/BuyScreen", () => ({
   },
 }));
 
+/**
+ * The platform the question sheets (`/aksi`, `/konfirmasi`, Beli's address picker) run as. Unset, they follow this
+ * Android jest run; a test sets "ios" to check the iOS hand-off once the sheet has finished sliding away.
+ */
+let mockSheetOs: string | undefined;
+jest.mock("../app/aksi", () => {
+  const { createElement: h } = require("react");
+  const { ActionRoute } = require("@catera/mobile-ui");
+  return { __esModule: true, default: () => h(ActionRoute, { os: mockSheetOs }) };
+});
+jest.mock("../app/konfirmasi", () => {
+  const { createElement: h } = require("react");
+  const { ConfirmRoute } = require("@catera/mobile-ui");
+  return { __esModule: true, default: () => h(ConfirmRoute, { os: mockSheetOs }) };
+});
+jest.mock("../app/pembelian/alamat-pilih", () => {
+  const { createElement: h } = require("react");
+  const { ChoiceRoute } = require("../src/choice");
+  return { __esModule: true, default: () => h(ChoiceRoute, { os: mockSheetOs }) };
+});
+
 const APP = join(__dirname, "..", "app");
 const files = (dir: string): string[] =>
   readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? files(join(dir, e.name)) : [join(dir, e.name)]));
@@ -231,10 +253,44 @@ const expectScrollsUnderTitle = (route: string, title: string, reachable: unknow
   expect(cap as number).toBeLessThan(WINDOW_HEIGHT);
 };
 
+/** A fit sheet whose whole body may scroll: one vertical scroller that may shrink, inside a frame under the window. */
+const expectFitScrolls = (route: string, reachable: unknown[]) => {
+  const scrollers = scrollersIn(screenOf(route));
+  expect({ route, scrollers: scrollers.length }).toEqual({ route, scrollers: 1 });
+  const [scroller] = scrollers;
+  for (const node of reachable) expect(isInside(node, scroller)).toBe(true);
+  expect(StyleSheet.flatten(scroller.props.style as never)).toMatchObject({ flexGrow: 0, flexShrink: 1 });
+  expect(scroller.props.nestedScrollEnabled).toBe(true);
+  const cap = nearestStyle(scroller.parent, "maxHeight");
+  expect(typeof cap).toBe("number");
+  expect(cap as number).toBeLessThan(WINDOW_HEIGHT);
+};
+/** Waits out the iOS sheet's own slide away, as the question routes do before they answer (renderRouter fakes timers). */
+const sheetClosed = async () => {
+  act(() => void jest.advanceTimersByTime(SHEET_CLOSE_MS));
+  await act(async () => {});
+};
+/** A sheet that closes on its outcome shows the toast once it is on its way out, so the toast meets the page under it. */
+const expectToastAfterBack = async (message: string, run: () => Promise<void>) => {
+  const back = jest.spyOn(router, "back");
+  const announce = jest.spyOn(AccessibilityInfo, "announceForAccessibility");
+  try {
+    await run();
+    expect(back).toHaveBeenCalledTimes(1);
+    const toast = announce.mock.calls.findIndex(([said]) => said === message);
+    expect(toast).toBeGreaterThanOrEqual(0);
+    expect(back.mock.invocationCallOrder[0]).toBeLessThan(announce.mock.invocationCallOrder[toast]);
+  } finally {
+    back.mockRestore();
+    announce.mockRestore();
+  }
+};
+
 beforeEach(() => {
   mockReads.clear();
   mockCommand.mockClear();
   mockReduced = false;
+  mockSheetOs = undefined;
   mockFontScale = 1;
   mockSession.actor = { id: "u-c1", role: "customer", name: "Rani Contoh" };
   (SecureStore as unknown as { __store: Map<string, string> }).__store.clear();
@@ -402,23 +458,24 @@ describe("the day's actions", () => {
 });
 
 describe("outcomes", () => {
-  it("saving an address closes the sheet and toasts Alamat disimpan", async () => {
-    answer("alamat:customer", stateWith([]));
-    const app = await mount("/alamat");
-    await go(() => fireEvent.press(screen.getByRole("button", { name: "Tambah alamat" })));
-    expect(stack("(index)")).toEqual(["index", "alamat", "alamat-form"]);
-    expect(screen.getByRole("header", { name: "Alamat baru" })).toBeTruthy();
-    fireEvent.changeText(screen.getByLabelText("Jalan, nomor, detail"), "Jl. Kenanga No. 4");
-    await go(() => fireEvent.press(screen.getByRole("button", { name: "Simpan alamat" })));
-    expect(mockCommand).toHaveBeenCalledWith(
-      "address.save",
-      expect.objectContaining({ label: "Rumah", line: "Jl. Kenanga No. 4", area: "Jakarta Selatan", city: "Jakarta" }),
-    );
-    await act(async () => {});
-    expect(stack("(index)")).toEqual(["index", "alamat"]);
-    expect(screen.getByText("Alamat disimpan")).toBeTruthy();
-    app.unmount();
-  });
+  it("saving an address closes the sheet and toasts Alamat disimpan", () =>
+    expectToastAfterBack("Alamat disimpan", async () => {
+      answer("alamat:customer", stateWith([]));
+      const app = await mount("/alamat");
+      await go(() => fireEvent.press(screen.getByRole("button", { name: "Tambah alamat" })));
+      expect(stack("(index)")).toEqual(["index", "alamat", "alamat-form"]);
+      expect(screen.getByRole("header", { name: "Alamat baru" })).toBeTruthy();
+      fireEvent.changeText(screen.getByLabelText("Jalan, nomor, detail"), "Jl. Kenanga No. 4");
+      await go(() => fireEvent.press(screen.getByRole("button", { name: "Simpan alamat" })));
+      expect(mockCommand).toHaveBeenCalledWith(
+        "address.save",
+        expect.objectContaining({ label: "Rumah", line: "Jl. Kenanga No. 4", area: "Jakarta Selatan", city: "Jakarta" }),
+      );
+      await act(async () => {});
+      expect(stack("(index)")).toEqual(["index", "alamat"]);
+      expect(screen.getByText("Alamat disimpan")).toBeTruthy();
+      app.unmount();
+    }));
 
   it("an edited address with typed changes asks before closing; nothing typed closes at once", async () => {
     answer("alamat:customer", stateWith([]));
@@ -470,41 +527,133 @@ describe("outcomes", () => {
     app.unmount();
   });
 
-  it("sending a review closes the sheet, toasts Ulasan terkirim and marks the row dealt with", async () => {
-    answer("ulasan:s-1", stateWith([], { subscriptions: [subscription()] }));
-    const app = await mount("/");
-    await go(() => router.push("/ulasan/s-1"));
-    expect(screen.getByRole("header", { name: "Ulasan untuk Dapur Contoh" })).toBeTruthy();
-    await go(() => fireEvent.press(screen.getByRole("button", { name: "4 bintang" })));
-    await go(() => fireEvent.press(screen.getByRole("button", { name: "Kirim ulasan" })));
-    expect(mockCommand).toHaveBeenCalledWith(
-      "review.save",
-      expect.objectContaining({ subscriptionId: "s-1", rating: 4, food: 4, delivery: 4, value: 4 }),
-    );
-    await act(async () => {});
-    expect(stack("(index)")).toEqual(["index"]);
-    expect(screen.getByText("Ulasan terkirim")).toBeTruthy();
-    expect(SecureStore.setItemAsync).toHaveBeenCalledWith("catera.review.s-1", "done");
+  it("sending a review closes the sheet, toasts Ulasan terkirim and marks the row dealt with", () =>
+    expectToastAfterBack("Ulasan terkirim", async () => {
+      answer("ulasan:s-1", stateWith([], { subscriptions: [subscription()] }));
+      const app = await mount("/");
+      await go(() => router.push("/ulasan/s-1"));
+      expect(screen.getByRole("header", { name: "Ulasan untuk Dapur Contoh" })).toBeTruthy();
+      await go(() => fireEvent.press(screen.getByRole("button", { name: "4 bintang" })));
+      await go(() => fireEvent.press(screen.getByRole("button", { name: "Kirim ulasan" })));
+      expect(mockCommand).toHaveBeenCalledWith(
+        "review.save",
+        expect.objectContaining({ subscriptionId: "s-1", rating: 4, food: 4, delivery: 4, value: 4 }),
+      );
+      await act(async () => {});
+      expect(stack("(index)")).toEqual(["index"]);
+      expect(screen.getByText("Ulasan terkirim")).toBeTruthy();
+      expect(SecureStore.setItemAsync).toHaveBeenCalledWith("catera.review.s-1", "done");
+      app.unmount();
+    }));
+
+  it("asking for help closes the sheet and toasts Permintaan bantuan terkirim", () =>
+    expectToastAfterBack("Permintaan bantuan terkirim", async () => {
+      answer("bantuan-form:customer", stateWith([], { subscriptions: [subscription()] }));
+      const app = await mount("/bantuan");
+      await go(() => router.push("/bantuan-form?kind=help"));
+      expect(screen.getByRole("header", { name: "Minta bantuan" })).toBeTruthy();
+      await go(() => fireEvent.press(screen.getByRole("tab", { name: "Pembatalan" })));
+      fireEvent.changeText(screen.getByLabelText("Ceritakan kendalanya"), "Saya pindah kota bulan depan.");
+      await go(() => fireEvent.press(screen.getByRole("button", { name: "Kirim permintaan" })));
+      expect(mockCommand).toHaveBeenCalledWith("support.create", {
+        subscriptionId: "s-1",
+        subject: "Pembatalan",
+        description: "Saya pindah kota bulan depan.",
+      });
+      await act(async () => {});
+      expect(stack("(index)")).toEqual(["index", "bantuan"]);
+      expect(screen.getByText("Permintaan bantuan terkirim")).toBeTruthy();
+      app.unmount();
+    }));
+});
+
+describe("handing off once a sheet has closed", () => {
+  it("on iOS the day's … opens Pindah tanggal only once /aksi has finished sliding away", async () => {
+    mockSheetOs = "ios";
+    const d = open("d1", addDays(TODAY, 2));
+    answer("day:d1", stateWith([d]));
+    answer("ubah-hari:d1", stateWith([d]));
+    const app = await mount("/hari/d1");
+    await go(() => fireEvent.press(screen.getByRole("button", { name: `Pilihan untuk makan siang ${shortDate(d.service_date, "id")}` })));
+    await go(() => fireEvent.press(screen.getByRole("button", { name: "Pindah tanggal" })));
+    // /aksi has left the stack and is still sliding away: UIKit would refuse a sheet presented over it now.
+    expect(root()).toEqual(["(tabs)"]);
+    expect(stack("(index)")).toEqual(["index", "hari/[id]"]);
+    await sheetClosed();
+    expect(stack("(index)")).toEqual(["index", "hari/[id]", "ubah-hari/[id]"]);
+    expect(screen.getByRole("tab", { name: "Pindah tanggal" }).props.accessibilityState.selected).toBe(true);
     app.unmount();
   });
 
-  it("asking for help closes the sheet and toasts Permintaan bantuan terkirim", async () => {
-    answer("bantuan-form:customer", stateWith([], { subscriptions: [subscription()] }));
-    const app = await mount("/bantuan");
-    await go(() => router.push("/bantuan-form?kind=help"));
-    expect(screen.getByRole("header", { name: "Minta bantuan" })).toBeTruthy();
-    await go(() => fireEvent.press(screen.getByRole("tab", { name: "Pembatalan" })));
-    fireEvent.changeText(screen.getByLabelText("Ceritakan kendalanya"), "Saya pindah kota bulan depan.");
-    await go(() => fireEvent.press(screen.getByRole("button", { name: "Kirim permintaan" })));
-    expect(mockCommand).toHaveBeenCalledWith("support.create", {
-      subscriptionId: "s-1",
-      subject: "Pembatalan",
-      description: "Saya pindah kota bulan depan.",
+  it("on iOS a discard confirm closes the form under it only once the confirm has gone", async () => {
+    mockSheetOs = "ios";
+    answer("alamat:customer", stateWith([]));
+    answer("alamat-form:a-2", stateWith([]));
+    const back = hardwareBack();
+    try {
+      const app = await mount("/alamat");
+      await go(() => fireEvent.press(screen.getByRole("button", { name: "Ubah Rumah" })));
+      fireEvent.changeText(screen.getByLabelText("Petunjuk pengantaran"), "Pagar hijau");
+      await act(async () => {});
+      await go(() => void back.press());
+      expect(screen.getByRole("header", { name: "Buang alamat?" })).toBeTruthy();
+      await go(() => fireEvent.press(screen.getByRole("button", { name: "Buang" })));
+      expect(root()).toEqual(["(tabs)"]);
+      expect(stack("(index)")).toEqual(["index", "alamat", "alamat-form"]);
+      await sheetClosed();
+      expect(stack("(index)")).toEqual(["index", "alamat"]);
+      app.unmount();
+    } finally {
+      back.restore();
+    }
+  });
+
+  it("on iOS Beli hears its choice once the picker has gone; a swipe answers as its close ends", async () => {
+    mockSheetOs = "ios";
+    const app = await mount("/");
+    await go(() => router.push("/beli/p-1"));
+    await go(() => fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" })));
+    await go(() => fireEvent.press(screen.getByRole("radio", { name: "Rumah, Jl. Mawar No. 9" })));
+    expect(root()).toEqual(["(tabs)", "beli/[id]"]);
+    expect(screen.getByTestId("beli-picked").props.children).toBe("belum");
+    await sheetClosed();
+    expect(screen.getByTestId("beli-picked").props.children).toBe("a-2");
+    // A swipe: UIKit has already finished the slide when it reports the dismissal, and the close transition that
+    // follows answers at once.
+    await go(() => fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" })));
+    const sheet = screenOf("pembelian/alamat-pilih");
+    await go(() => {
+      (sheet.props.onDismissed as (e: unknown) => void)({ nativeEvent: { dismissCount: 1 } });
+      (sheet.props.onDisappear as () => void)();
     });
-    await act(async () => {});
-    expect(stack("(index)")).toEqual(["index", "bantuan"]);
-    expect(screen.getByText("Permintaan bantuan terkirim")).toBeTruthy();
+    expect(root()).toEqual(["(tabs)", "beli/[id]"]);
+    expect(screen.getByTestId("beli-picked").props.children).toBe("null");
     app.unmount();
+  });
+
+  it("on Android the asker hears the answer only after /aksi has left the stack", async () => {
+    const d = open("d1", TODAY, {}, { status: "out_for_delivery" });
+    answer("day:d1", stateWith([d]));
+    const original = router.push.bind(router);
+    const push = jest.spyOn(router, "push");
+    const atPush: string[][] = [];
+    push.mockImplementation(((...args: Parameters<typeof router.push>) => {
+      atPush.push(root());
+      return original(...args);
+    }) as never);
+    try {
+      const app = await mount("/hari/d1");
+      push.mockClear();
+      atPush.length = 0;
+      await go(() => fireEvent.press(screen.getByRole("button", { name: `Pilihan untuk makan siang ${shortDate(TODAY, "id")}` })));
+      atPush.length = 0;
+      await go(() => fireEvent.press(screen.getByRole("button", { name: "Laporkan masalah" })));
+      expect(atPush).toEqual([["(tabs)"]]);
+      expect(stack("(index)")).toEqual(["index", "hari/[id]", "masalah/[id]"]);
+      app.unmount();
+    } finally {
+      push.mockRestore();
+    }
   });
 });
 
@@ -582,6 +731,39 @@ describe("Jelajah's area", () => {
     const radios = within(screenOf("area") as never).getAllByRole("radio");
     expectScrollsUnderTitle("area", "Area pengantaran", [radios[0], radios.at(-1)]);
     app.unmount();
+  });
+});
+
+describe("every fit sheet scrolls once it outgrows the screen", () => {
+  it("the action and confirm sheets keep their last row and their buttons reachable at a larger font", async () => {
+    mockFontScale = 1.3;
+    answer("day:d1", stateWith([open("d1", TODAY, {}, { status: "out_for_delivery" })]));
+    answer("alamat:customer", stateWith([]));
+    answer("alamat-form:a-2", stateWith([]));
+    let app = await mount("/hari/d1");
+    await go(() => fireEvent.press(screen.getByRole("button", { name: `Pilihan untuk makan siang ${shortDate(TODAY, "id")}` })));
+    const action = within(screenOf("aksi") as never);
+    expectFitScrolls("aksi", [action.getByRole("button", { name: "Pindah tanggal" }), action.getByRole("button", { name: "Laporkan masalah" })]);
+    await swipeAway("aksi");
+    app.unmount();
+
+    const back = hardwareBack();
+    try {
+      app = await mount("/alamat");
+      await go(() => fireEvent.press(screen.getByRole("button", { name: "Ubah Rumah" })));
+      fireEvent.changeText(screen.getByLabelText("Petunjuk pengantaran"), "Pagar hijau");
+      await act(async () => {});
+      await go(() => void back.press());
+      const confirm = within(screenOf("konfirmasi") as never);
+      expectFitScrolls("konfirmasi", [
+        confirm.getByRole("header", { name: "Buang alamat?" }),
+        confirm.getByRole("button", { name: "Lanjut menulis" }),
+        confirm.getByRole("button", { name: "Buang" }),
+      ]);
+      app.unmount();
+    } finally {
+      back.restore();
+    }
   });
 });
 

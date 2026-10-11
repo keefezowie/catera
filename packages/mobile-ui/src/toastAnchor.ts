@@ -12,8 +12,9 @@ import { useScreenFocused, useScreenNavigation } from "./navigation";
  *   moment, or a MoodHeader). iOS sets the pill under it on full-screen screens.
  * - `bottom`: the distance from the window's bottom to the top edge of whatever is pinned there (the tab bar, a
  *   StickyAction footer). Android sets the snackbar above it, and so does iOS in a sheet.
- * - `sheet`: the screen is presented as an iOS sheet. A sheet's header is measured inside the sheet, not the window,
- *   so iOS shows that screen's toasts at the bottom instead (above the home indicator, the keyboard and any footer).
+ * - `sheet`: the screen is presented as a sheet. A sheet's header is measured inside the sheet, not the window, so iOS
+ *   shows that screen's toasts at the bottom instead (above the home indicator, the keyboard and any footer); a sheet
+ *   has no tab bar under it, so Android sets the snackbar on the system inset rather than above a tab bar.
  *   `useToastAnchor` fills it in from the screen's presentation; callers do not pass it.
  */
 export type ToastAnchor = { top?: number; bottom?: number; sheet?: boolean };

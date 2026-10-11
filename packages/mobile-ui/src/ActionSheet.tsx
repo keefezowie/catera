@@ -1,12 +1,10 @@
-import { Fragment, use, useEffect, useRef, useState } from "react";
+import { Fragment } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Image } from "expo-image";
 import { Pressable, StyleSheet, Text as RNText, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { NavigationContext, NavigationRouteContext } from "expo-router/react-navigation";
 import { useHaptic } from "./motion";
-import { SheetHeader } from "./SheetHeader";
-import { actionWaiting, answerAction, leaveStray, type ActionItem, type ActionSheetInput } from "./sheets";
+import { SheetFitBody, SheetHeader } from "./SheetHeader";
+import { useActionRoute, type ActionItem, type ActionSheetInput } from "./sheets";
 import { useColors } from "./theme";
 import { fonts } from "./type";
 
@@ -30,7 +28,6 @@ export function ActionSheet({
   os = process.env.EXPO_OS,
 }: ActionSheetInput & { onChoose: (key: string) => void; os?: string }) {
   const palette = useColors();
-  const insets = useSafeAreaInsets();
   const haptic = useHaptic();
   const ios = os === "ios";
   const inset = ios ? 20 : 24;
@@ -38,8 +35,8 @@ export function ActionSheet({
   const firstDanger = ordered.findIndex((i) => i.tone === "danger");
 
   return (
-    <View testID="action-sheet" style={{ paddingBottom: insets.bottom + 8 }}>
-      <SheetHeader title={title} closeLabel={closeLabel} os={os} />
+    // A long list (many items, a larger font on a small phone) scrolls under the fixed title row.
+    <SheetFitBody testID="action-sheet" foot={8} header={<SheetHeader title={title} closeLabel={closeLabel} os={os} />}>
       {context ? (
         <View testID="action-context" style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: inset, paddingBottom: 12 }}>
           {context.image ? (
@@ -111,46 +108,19 @@ export function ActionSheet({
           </Fragment>
         );
       })}
-    </View>
+    </SheetFitBody>
   );
 }
 
 /**
  * The `/aksi` route: shows the actions `useActionSheet` parked under `?id=` and answers once with the chosen key, or
- * null when the sheet closes without a choice (Close, the hardware back, a swipe down, an unmount). A route with nothing
- * waiting closes itself, to Beranda when nothing is under it (a cold OS link).
+ * null when the sheet closes without a choice (Close, the hardware back, a swipe down, an unmount). The answer comes
+ * once the sheet has gone (`useQuestionRoute`), so the asker can open Pindah tanggal or Laporkan masalah straight away.
+ * A route with nothing waiting closes itself, to Beranda when nothing is under it (a cold OS link). `os` defaults to
+ * the running platform.
  */
-export function ActionRoute() {
-  const navigation = use(NavigationContext);
-  const route = use(NavigationRouteContext);
-  const id = (route?.params as { id?: string } | undefined)?.id;
-  // Read once: the entry is dropped when answered, while the sheet still shows as it slides away.
-  const [input] = useState(() => actionWaiting(id));
-  const stray = !input;
-  const closing = useRef(false);
-
-  useEffect(() => {
-    if (!navigation) return;
-    if (stray) {
-      leaveStray(navigation);
-      return;
-    }
-    return navigation.addListener("beforeRemove", () => answerAction(id, null));
-  }, [navigation, id, stray]);
-  // Leaving without `beforeRemove` (the navigator unmounts) still answers null. A no-op once answered.
-  useEffect(() => () => answerAction(id, null), [id]);
-
+export function ActionRoute({ os }: { os?: string } = {}) {
+  const { input, close } = useActionRoute(os);
   if (!input) return null;
-  return (
-    <ActionSheet
-      {...input}
-      closeLabel={input.closeLabel}
-      onChoose={(key) => {
-        if (closing.current) return;
-        closing.current = true;
-        answerAction(id, key);
-        navigation?.goBack();
-      }}
-    />
-  );
+  return <ActionSheet {...input} closeLabel={input.closeLabel} onChoose={(key) => close(key)} />;
 }

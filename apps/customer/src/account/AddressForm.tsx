@@ -142,8 +142,8 @@ function Form({ actorId, address, title }: { actorId: string; address: Address |
   useEffect(() => {
     if (!saved || closed.current) return;
     closed.current = true;
-    toast.show({ message: t("Alamat disimpan", "Address saved"), tone: "success" });
     router.back();
+    toast.show({ message: t("Alamat disimpan", "Address saved"), tone: "success" });
   }, [saved, toast, t]);
 
   const set = (patch: Partial<Draft>) =>

@@ -1,4 +1,4 @@
-import { use, useCallback, useEffect, useId, useRef } from "react";
+import { use, useCallback, useEffect, useId, useRef, useState } from "react";
 import { router } from "expo-router";
 import {
   NavigationContext,
@@ -8,9 +8,12 @@ import {
 
 /**
  * The confirm and action sheets are routes (`/konfirmasi`, `/aksi`) declared in each app's root stack with
- * `sheetOptions({ detents: "fit" })`. A route cannot take a callback as a param, so the caller's question waits here,
- * under an id the route reads from `?id=`, until the sheet answers it or closes. Each question is answered exactly once:
- * the first of the sheet's own buttons, a swipe down, the hardware back or Close wins, and the entry is dropped.
+ * `sheetOptions({ detents: "fit" })`, and so are the customer app's choice sheets. A route cannot take a callback as a
+ * param, so the caller's question waits in a registry (`parkQuestion`), under an id the route reads from `?id=`, until
+ * the sheet answers it or closes (`useQuestionRoute`). Each question is answered exactly once: the first of the sheet's
+ * own buttons, a swipe down, the hardware back or Close wins, and the entry is dropped. The answer is given once the
+ * sheet has gone, never while it is still sliding away, so whatever the asker opens next is presented over a settled
+ * screen.
  */
 
 /** The icon in the confirm sheet's circle: the rantang for a kitchen step, the bin for a deletion, the flag for a report. */
@@ -52,12 +55,18 @@ export const ACTION_ROUTE = "/aksi";
 
 type Waiting<I, R> = { input: I; answer: (result: R) => void };
 
-const confirms = new Map<string, Waiting<ConfirmInput, boolean>>();
-const actions = new Map<string, Waiting<ActionSheetInput, string | null>>();
+/** The questions of one kind of sheet route waiting for their answers, by id. Keep one at module level per route. */
+export type QuestionRegistry<I, R> = Map<string, Waiting<I, R>>;
+
+const confirms: QuestionRegistry<ConfirmInput, boolean> = new Map();
+const actions: QuestionRegistry<ActionSheetInput, string | null> = new Map();
 let nextId = 0;
 
-/** Parks the question, opens its route, and resolves once with the sheet's answer (or `fallback` if it cannot open). */
-function ask<I, R>(registry: Map<string, Waiting<I, R>>, pathname: string, input: I, fallback: R): Promise<R> {
+/**
+ * Parks a question in `registry`, opens the sheet route at `pathname` with its id, and resolves once with the sheet's
+ * answer (or `fallback` if the route cannot open). The route reads it with `useQuestionRoute`.
+ */
+export function parkQuestion<I, R>(registry: QuestionRegistry<I, R>, pathname: string, input: I, fallback: NoInfer<R>): Promise<R> {
   nextId += 1;
   const id = `${nextId}`;
   return new Promise<R>((resolve) => {
@@ -76,46 +85,125 @@ function ask<I, R>(registry: Map<string, Waiting<I, R>>, pathname: string, input
   });
 }
 
+/** Answers a waiting question once; later answers for the same id are ignored. */
+function answerQuestion<I, R>(registry: QuestionRegistry<I, R>, id: string | undefined, result: R) {
+  if (id) registry.get(id)?.answer(result);
+}
+
 /**
- * Closes a confirm or action route that has nothing to show. Opened from the app it goes back to the screen under it; a
- * cold OS link to `/konfirmasi` or `/aksi` has nothing under it, so Beranda replaces it instead of an empty stack.
+ * Closes a question route that has nothing to show. Opened from the app it goes back to the screen under it; a cold OS
+ * link to `/konfirmasi` or `/aksi` has nothing under it, so Beranda replaces it instead of an empty stack.
  */
 export function leaveStray(navigation: { canGoBack(): boolean; goBack(): void }) {
   if (navigation.canGoBack()) navigation.goBack();
   else router.replace("/" as never);
 }
 
-/** The question a sheet route shows, or undefined when nothing waits under that id (a restored or stray route). */
-export function confirmWaiting(id: string | undefined): ConfirmInput | undefined {
-  return id ? confirms.get(id)?.input : undefined;
-}
-export function actionWaiting(id: string | undefined): ActionSheetInput | undefined {
-  return id ? actions.get(id)?.input : undefined;
+/**
+ * How long an iOS sheet takes to slide away once its route has gone (UIKit's sheet dismissal). react-native-screens
+ * drops the close event of a screen that has already left the React tree, so an answer waits this long after the route
+ * goes instead. Unverified on a device (no Mac); see the iOS device list in the Phase G kickoff.
+ */
+export const SHEET_CLOSE_MS = 400;
+
+/**
+ * The route side of `parkQuestion`: the question waiting under `?id=` (read once, as the entry is dropped when
+ * answered), and `close(result)`, which closes the sheet once and answers `result` when it has gone. Without a `close`
+ * (Close, the hardware back, a swipe down, an unmount) the answer is `fallback`. A route with nothing waiting (restored
+ * after a reload, or a stray link) closes itself, to Beranda when nothing is under it (a cold OS link).
+ *
+ * When the answer is given matters on iOS: the sheet is a UIKit presentation that keeps sliding away after its route
+ * has left the stack, and UIKit refuses to present another sheet (Pindah tanggal opened from the day's "…") while one
+ * is still leaving. So the answer waits for the route's own close transition (`beforeRemove` then `transitionEnd`),
+ * which arrives when UIKit reports a swipe; when the route has gone first (the sheet's own buttons close it from JS),
+ * it waits `SHEET_CLOSE_MS` after the route goes. Android's bottom sheet lives in the app's window, so there the answer
+ * comes as the route goes. `leave` replaces the default `goBack` (a choice that opens its own next screen in the
+ * sheet's place). `os` defaults to the running platform.
+ */
+export function useQuestionRoute<I, R>(
+  registry: QuestionRegistry<I, R>,
+  fallback: NoInfer<R>,
+  os: string | undefined = process.env.EXPO_OS,
+): { input: I | undefined; close: (result: R, leave?: () => void) => void } {
+  const navigation = use(NavigationContext);
+  const route = use(NavigationRouteContext);
+  const id = (route?.params as { id?: string } | undefined)?.id;
+  // Read once: the entry is dropped when answered, while the sheet still shows as it slides away.
+  const [input] = useState(() => (id ? registry.get(id)?.input : undefined));
+  const stray = !input;
+  const result = useRef(fallback);
+  const closing = useRef(false);
+  const removing = useRef(false);
+
+  useEffect(() => {
+    if (!navigation) return;
+    if (stray) {
+      leaveStray(navigation);
+      return;
+    }
+    const onRemove = navigation.addListener("beforeRemove", () => {
+      removing.current = true;
+    });
+    // The route's own close has ended (UIKit's swipe, reported while the route is still mounted): answer now.
+    const onClosed = navigation.addListener("transitionEnd" as never, (e: { data?: { closing?: boolean } }) => {
+      if (e.data?.closing && (removing.current || closing.current)) answerQuestion(registry, id, result.current);
+    });
+    return () => {
+      onRemove();
+      onClosed();
+    };
+  }, [navigation, registry, id, stray]);
+
+  // The route has left the tree (its own close from JS, a back, or its navigator unmounting): answer what is left,
+  // once the iOS sheet has slid away. A no-op once answered.
+  useEffect(
+    () => () => {
+      if (!id || !registry.has(id)) return;
+      const value = result.current;
+      if (os === "ios") setTimeout(() => answerQuestion(registry, id, value), SHEET_CLOSE_MS);
+      else answerQuestion(registry, id, value);
+    },
+    [registry, id, os],
+  );
+
+  // One answer and one close, however many taps land while the sheet slides away.
+  const close = useCallback(
+    (value: R, leave?: () => void) => {
+      if (closing.current) return;
+      closing.current = true;
+      result.current = value;
+      if (leave) leave();
+      else navigation?.goBack();
+    },
+    [navigation],
+  );
+  return { input, close };
 }
 
-/** Answers a waiting confirm once; later answers for the same id are ignored. */
-export function answerConfirm(id: string | undefined, result: boolean) {
-  if (id) confirms.get(id)?.answer(result);
+/** The `/konfirmasi` route's side of `useConfirm`. */
+export function useConfirmRoute(os?: string) {
+  return useQuestionRoute(confirms, false, os);
 }
-/** Answers a waiting action sheet once with the chosen key, or null when it closed without a choice. */
-export function answerAction(id: string | undefined, result: string | null) {
-  if (id) actions.get(id)?.answer(result);
+/** The `/aksi` route's side of `useActionSheet`. */
+export function useActionRoute(os?: string) {
+  return useQuestionRoute(actions, null, os);
 }
 
 /**
  * Asks before an irreversible or customer-visible action, in the native confirm sheet (`/konfirmasi`). Resolves true on
- * the confirm button; false on cancel, Close, a swipe down or the hardware back.
+ * the confirm button; false on cancel, Close, a swipe down or the hardware back. It resolves once the sheet has gone.
  */
 export function useConfirm(): (input: ConfirmInput) => Promise<boolean> {
-  return useCallback((input: ConfirmInput) => ask(confirms, CONFIRM_ROUTE, input, false), []);
+  return useCallback((input: ConfirmInput) => parkQuestion(confirms, CONFIRM_ROUTE, input, false), []);
 }
 
 /**
  * Offers several secondary actions on one item in the native action sheet (`/aksi`), destructive items last. Resolves
- * the chosen item's key, or null when the sheet closes without a choice.
+ * the chosen item's key, or null when the sheet closes without a choice, once the sheet has gone: the asker may open
+ * the next sheet straight away.
  */
 export function useActionSheet(): (input: ActionSheetInput) => Promise<string | null> {
-  return useCallback((input: ActionSheetInput) => ask(actions, ACTION_ROUTE, input, null), []);
+  return useCallback((input: ActionSheetInput) => parkQuestion(actions, ACTION_ROUTE, input, null), []);
 }
 
 type Translate = (id: string, en: string) => string;

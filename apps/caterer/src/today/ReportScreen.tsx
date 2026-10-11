@@ -338,8 +338,8 @@ function SheetOutcome({ dirty, sent, onDiscard }: { dirty: boolean; sent: boolea
   useEffect(() => {
     if (!sent || closed.current) return;
     closed.current = true;
-    toast.show({ message: t("Balasan terkirim", "Reply sent"), tone: "success" });
     router.back();
+    toast.show({ message: t("Balasan terkirim", "Reply sent"), tone: "success" });
   }, [sent, toast, t]);
   return null;
 }

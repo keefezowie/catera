@@ -246,7 +246,10 @@ export function ChangeDaySheet({
       else await command("delivery.address", { id: delivery.id, version: delivery.version, addressId });
       if (sent.current) return;
       sent.current = true;
-      // The change went through: it is told even when the sheet was swiped away meanwhile.
+      // Closing is for a sheet still on screen; once it is gone, a back would leave the page under it.
+      if (mounted.current) onClose();
+      // The change went through: it is told even when the sheet was swiped away meanwhile, and after the close, so the
+      // toast meets the page under the sheet.
       onDone?.({
         mode,
         label,
@@ -255,8 +258,6 @@ export function ChangeDaySheet({
             ? t(`Hari dipindah ke ${label}`, `Day moved to ${label}`)
             : t(`${oldDay} diantar ke ${label}`, `${oldDay} goes to ${label}`),
       });
-      // Closing is for a sheet still on screen; once it is gone, a back would leave the page under it.
-      if (mounted.current) onClose();
     } catch (e) {
       setError(changeError(e, locale, t));
       onStale?.();

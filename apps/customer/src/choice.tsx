@@ -1,15 +1,23 @@
-import { use, useCallback, useEffect, useRef, useState } from "react";
+import { useCallback } from "react";
 import { View } from "react-native";
 import { router } from "expo-router";
-import { NavigationContext, NavigationRouteContext } from "expo-router/react-navigation";
 import { useMobile } from "@catera/mobile-core";
-import { Button, ChoiceList, SheetFitBody, SheetHeader } from "@catera/mobile-ui";
+import {
+  Button,
+  ChoiceList,
+  parkQuestion,
+  SheetFitBody,
+  SheetHeader,
+  useQuestionRoute,
+  type QuestionRegistry,
+} from "@catera/mobile-ui";
 
 /**
  * Choice sheets opened over a screen whose state they change (Beli's delivery address and start date). They are routes
  * (`/pembelian/alamat-pilih`, `/pembelian/mulai`, `sheetOptions({ detents: "fit" })`), and a route cannot take the
- * screen's state as a param, so the question waits here under the id the route reads from `?id=`, the way `useConfirm`
- * parks its question. Each question is answered once: a choice, a swipe down, the hardware back or Close wins.
+ * screen's state as a param, so the question waits under the id the route reads from `?id=`, through the same
+ * `parkQuestion` and `useQuestionRoute` as `useConfirm`. Each question is answered once: a choice, a swipe down, the
+ * hardware back or Close wins, and the answer comes once the sheet has gone.
  */
 
 export type ChoiceItem = { id: string; label: string; detail?: string };
@@ -26,73 +34,24 @@ export type ChoiceInput = {
   extra?: { key: string; label: string; href?: string };
 };
 
-type Waiting = { input: ChoiceInput; answer: (result: string | null) => void };
-
-const waiting = new Map<string, Waiting>();
-let nextId = 0;
+const waiting: QuestionRegistry<ChoiceInput, string | null> = new Map();
 
 /** Asks a choice sheet at `pathname` and resolves the chosen item's id (or `extra.key`), or null when it closes. */
 export function useChoice(): (pathname: string, input: ChoiceInput) => Promise<string | null> {
-  return useCallback(
-    (pathname: string, input: ChoiceInput) =>
-      new Promise<string | null>((resolve) => {
-        nextId += 1;
-        const id = `${nextId}`;
-        waiting.set(id, {
-          input,
-          answer: (result) => {
-            waiting.delete(id);
-            resolve(result);
-          },
-        });
-        try {
-          router.push({ pathname, params: { id } } as never);
-        } catch {
-          waiting.get(id)?.answer(null);
-        }
-      }),
-    [],
-  );
+  return useCallback((pathname: string, input: ChoiceInput) => parkQuestion(waiting, pathname, input, null), []);
 }
-
-const answer = (id: string | undefined, result: string | null) => {
-  if (id) waiting.get(id)?.answer(result);
-};
 
 /**
  * The route of a choice sheet: the question `useChoice` parked under `?id=`, as the sheet title over a radio list.
- * A choice answers and closes at once. A route with nothing waiting (a stray or cold link: there is no purchase to
- * choose for) closes itself, to Beranda when nothing is under it.
+ * A choice closes the sheet at once and answers once it has gone. A route with nothing waiting (a stray or cold link:
+ * there is no purchase to choose for) closes itself, to Beranda when nothing is under it. `os` defaults to the running
+ * platform.
  */
-export function ChoiceRoute() {
+export function ChoiceRoute({ os }: { os?: string } = {}) {
   const { t } = useMobile();
-  const navigation = use(NavigationContext);
-  const route = use(NavigationRouteContext);
-  const id = (route?.params as { id?: string } | undefined)?.id;
-  // Read once: the entry is dropped when answered, while the sheet still shows as it slides away.
-  const [input] = useState(() => (id ? waiting.get(id)?.input : undefined));
-  const closing = useRef(false);
-
-  useEffect(() => {
-    if (!navigation) return;
-    if (!input) {
-      if (navigation.canGoBack()) navigation.goBack();
-      else router.replace("/" as never);
-      return;
-    }
-    return navigation.addListener("beforeRemove", () => answer(id, null));
-  }, [navigation, id, input]);
-  // Leaving without `beforeRemove` (the navigator unmounts) still answers null; a no-op once answered.
-  useEffect(() => () => answer(id, null), [id]);
-
+  const { input, close } = useQuestionRoute(waiting, null, os);
   if (!input) return null;
-  const choose = (result: string, href?: string) => {
-    if (closing.current) return;
-    closing.current = true;
-    answer(id, result);
-    if (href) router.replace(href as never);
-    else navigation?.goBack();
-  };
+  const choose = (result: string, href?: string) => close(result, href ? () => router.replace(href as never) : undefined);
   return (
     // A long list (a full address book, a larger font) scrolls under the fixed title row.
     <SheetFitBody header={<SheetHeader title={input.title} closeLabel={t("Tutup", "Close")} />}>
