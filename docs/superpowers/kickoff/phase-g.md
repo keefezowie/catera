@@ -488,17 +488,22 @@ The owner found the wording AI-sounding: flat and "kaku", the Indonesian most of
   - the old "Anda" list, folded in;
   - one R-17 problem: the date-move sheet says "Pelanggan diberi tahu", which is not true for customers without an account.
 
-**Owner decisions before the build** (the full lists are in each audit's decisions section)
-- Customer register: move from "Anda" to "kamu", and drop the pronoun where the sentence works without it. The audit recommends it. It touches about 45 strings, DESIGN.md (the unsaved guard and the launch line) and the customer `useUnsavedGuard` voice.
-- "Menunggu Anda" becomes "Perlu kamu urus" / "Needs you" (recommended) if the register changes.
-- **Decided (October 12, 2026): "katering"** for the business, across both apps, the shared strings and the pushes. The owner finds it more familiar. Every customer-visible "katerer" becomes "katering" (about 11 in the shared domain strings and the pushes).
-- Dapur: "Pembantu" for the staff role (proposed "staf dapur"; PRODUCT.md fixes the name), "Pindah hari" or "Pindah tanggal", "antaran" and "HP" as the glossary, "Simpan paket" or "Terbitkan paket" (check what `package.save` does first), and the push title "Catera" or "Catera Dapur".
+**Owner decisions** (the full lists are in each audit's decisions section)
+
+Decided on October 12, 2026:
+- **Customer register: "kamu".** The customer app moves from "Anda" to "kamu" and drops the pronoun where the sentence works without it, with no slang ("gak", "aja", "banget", "dong") and full verbs. It touches about 45 strings, DESIGN.md (the unsaved guard and the launch line) and the customer `useUnsavedGuard` voice (pass `voice: "kamu"`). Both apps now speak "kamu". `customers/CustomerDetail.tsx:69-71`, the message Dapur sends to a customer, moves to "kamu" too.
+- **"katering"** for the business, across both apps, the shared strings and the pushes. The owner finds it more familiar. Every customer-visible "katerer" becomes "katering" (about 11 in the shared domain strings and the pushes).
+- **"staf dapur"** ("kitchen staff") replaces "Pembantu" as the second Dapur role's name, because "pembantu" reads as a household servant. Change the visible label only (`RoleGate.tsx:50,60`, `auth/Masuk.tsx:131`, `business/TimScreen.tsx:55,59`, `business/UsahaScreen.tsx:151`); the role's stored value stays, so no migration. Neither PRODUCT.md nor DESIGN.md uses "pembantu"; check them for the English "helper" and align it to "kitchen staff".
+
+Still open, settled in G2:
+- "Menunggu Anda" has to change with the register. Recommended: "Perlu kamu urus" / "Needs you", since every row is an action.
+- Dapur: "Pindah hari" or "Pindah tanggal", "antaran" and "HP" as the glossary, "Simpan paket" or "Terbitkan paket" (check what `package.save` does first), and the push title "Catera" or "Catera Dapur".
 - The rest: "Tercatat sampai", "Demo (data sintetis)", the invented-looking "Bu Rini" search placeholder (R-38), and the review-time claim "1 sampai 2 hari kerja".
 
 **Build**
 1. Apply the approved rows in both apps and the shared packages, plus the push bodies in SQL and `apps/web/src/lib/push-dispatch.ts`. Push bodies change through a new migration; never edit an applied migration.
 2. The status words, the glossary and the error map are shared. Change them once in `packages/domain` so both apps and the pushes say the same thing.
-3. Keep `customers/CustomerDetail.tsx:69-71` as written: it is sent to the customer, and its register follows the customer decision.
+3. `customers/CustomerDetail.tsx:69-71` is sent to the customer, so it follows the customer register ("kamu").
 4. Update the asserting tests in the same commit as each string. Update DESIGN.md where it quotes a changed string.
 5. New copy written for the FB items (busy states, banners, the tracker, the calendar, Data akun, the selection mode, the address sheets) uses the approved voice from the start. G2's canvas shows it.
 6. Gate: an Opus copy review of the diff with `humanizer`, both languages, before G10 captures the screens.
