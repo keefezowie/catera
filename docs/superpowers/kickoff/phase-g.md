@@ -66,8 +66,8 @@ Before you plan, build, review or critique, invoke the Skill tool for these skil
 
 ## What the machine and the owner need first
 
-- **Owner's phone.** The owner has an Android phone that runs the customer app in Expo Go (the October 12 screenshots come from it). Use it as the first device: USB debugging through `adb` (the Android SDK is present), and Metro with `EXPO_PUBLIC_API_URL` set to this PC's LAN address, not `10.0.2.2`.
-- **Emulator.** There is still no system image or AVD, no JDK on PATH and no Mac. The emulator matters for API 34, 35 and 36 (predictive back) and for font scale and density sweeps. Ask before downloading anything; the emulator image and Expo Go are about 1 GB.
+- **No phone (October 12, 2026).** The owner has no phone attached; every device step runs on the Android emulator. The October 12 screenshots came from the owner's phone earlier; reproduce FB7's pale band on the emulator first.
+- **Emulator, checked October 12.** Present: the SDK (`%LOCALAPPDATA%\Android\Sdk` with `emulator`, `platform-tools`, platforms 36 and 37), Android Studio with its bundled JDK (`C:\Program Files\Android\Android Studio\jbr`, usable as `JAVA_HOME`, so `npx expo run:android` in G12 needs no separate JDK), and WHPX acceleration ("installed and usable"). Missing: any system image, any AVD and `cmdline-tools` (`sdkmanager`, `avdmanager`). Preferred path: the owner creates the AVD in Android Studio's Device Manager (Pixel-class phone, API 36, Google APIs, x86_64; about 1.5 GB). Otherwise, ask before downloading `cmdline-tools` and the image, naming each package and its size. Expo Go installs itself on the emulator on the first `expo start --android` (about 100 MB); ask before that too. API 34 and 35 images (predictive back, G12) come later, with the same ask. Metro uses `EXPO_PUBLIC_API_URL=http://10.0.2.2:<port>` on the emulator. No Mac, so iOS stays G11.
 - **Credentials.** Ask for the Apple, EAS and Firebase (FCM V1) credentials that a development build and real push need. If something is missing, stop at that item, record it as NOT VERIFIED with the reason, and continue with the rest. Never enter or invent credentials.
 
 ## Goal
@@ -114,7 +114,7 @@ Code facts below are from a read-only mapping on `c20e8ee7`. Verify line numbers
 - `native-contrast.test.ts` checks text only. It has no rule for adjacent surfaces, and it does not check the Sunrise button or text over photos.
 
 **Process:**
-1. Make audit-009 from a scripted contact sheet: the four looks (light/dark × Siang/Malam) × Beranda, Jelajah, Jadwal, plan detail, Akun, Pengaturan, and Dapur Hari ini, captured on the owner's phone.
+1. Make audit-009 from a scripted contact sheet: the four looks (light/dark × Siang/Malam) × Beranda, Jelajah, Jadwal, plan detail, Akun, Pengaturan, and Dapur Hari ini, captured on the emulator.
 2. The owner marks the pairings that look wrong.
 3. A design canvas shows two or three directions on the same screens, iOS and Android side by side.
 4. The owner picks one.
@@ -181,7 +181,7 @@ Code facts below are from a read-only mapping on `c20e8ee7`. Verify line numbers
   - Dedupe per customer, date, meal and stage, so a multi-package customer gets one push per change.
 - Settle one EAS project per app.
 - Then verify end to end on the development build (G12): enable, receive the depart push, tap through to `data.href`, revoke in phone settings, `device.unregister` on Keluar.
-- The in-app updates list (Akun › Notifikasi) works without push. Check it on the phone in the Android gate (G10).
+- The in-app updates list (Akun › Notifikasi) works without push. Check it on the emulator in the Android gate (G10).
 
 ### FB5: no way to change account information
 
@@ -325,8 +325,8 @@ Three sub-phases, each in a fresh session with a handoff file.
 | Task | What | Depends on | Builder |
 | --- | --- | --- | --- |
 | **G-a design** | | | |
-| G0 | Device environment: the owner's phone over `adb` with Expo Go, the demo backend on a fresh `CATERA_DEMO_DATA_DIR`, Metro per app with `EXPO_PUBLIC_API_URL` set to the LAN address; the emulator only if the owner approves the download | owner permission | Opus |
-| G1 | Sheet go/no-go (below), on the phone | G0 | Opus |
+| G0 | Device environment: an API 36 emulator (the owner creates the AVD, or approves the downloads), Expo Go on it, the demo backend on a fresh `CATERA_DEMO_DATA_DIR`, Metro per app with `EXPO_PUBLIC_API_URL` set to `10.0.2.2` | the AVD or the owner's download approval | Opus |
+| G1 | Sheet go/no-go (below), on the emulator | G0 | Opus |
 | G2 | FB design pass: audit-009 (FB2 contact sheet plus FB1, FB7 to FB10 findings), a design canvas Artifact with iOS and Android side by side (busy button, banner and error states, the four-stop tracker with glyphs and motion, the calendar sheet, Data akun, the Dapur selection mode, two or three palette directions), the owner's picks for D1 to D7, then the spec `docs/superpowers/specs/2026-10-1x-native-phase-g-design.md` and the plan | G0, research doc | Opus (design and gate), Sonnet (spec and plan text) |
 | **G-b build** | | | |
 | G3 | Delivery state: `arrived_at`/`arrived_by`, `delivery.arrive`, `delivery.depart` subsets, auto-confirm, web alignment, domain states, demo, unit and PostgreSQL scenarios (FB3, FB11 data) | G2 | Opus (written reason) |
@@ -341,7 +341,7 @@ Three sub-phases, each in a fresh session with a handoff file.
 | G15 | "Syarat dan privasi" page (old G7) | owner text or placeholder | Sonnet |
 | G17 | The other parked Minors (old G9) | none | Sonnet |
 | **G-c gate** | | | |
-| G10 | Full Android gate on the final UI (old G2, below), plus every FB item on the phone and, if approved, the emulator | G8, G9 | Opus |
+| G10 | Full Android gate on the final UI (old G2, below), plus every FB item on the emulator | G8, G9 | Opus |
 | G16 | Masuk alignment (old G8) | G10 | Sonnet |
 | G11 | iOS run (old G3) | a Mac or iPhone | Opus |
 | G12 | Development build: native splash, the Android 12 splash mask, predictive back, real push end to end (old G4 plus FB4) | EAS or a local build, FCM and APNs credentials | Opus |
@@ -349,7 +349,7 @@ Three sub-phases, each in a fresh session with a handoff file.
 
 ## G1: the sheet go/no-go (Task 9 Step 4)
 
-On the phone (or the emulator) in Expo Go, open Ada masalah from a Hari row and check:
+On the emulator in Expo Go, open Ada masalah from a Hari row and check:
 
 - (a) the sheet opens at the form detent;
 - (b) typing expands it, and the keyboard never covers the focused field;
@@ -368,7 +368,7 @@ Take it to the owner before continuing. The FB6 `CalendarSheet` follows whatever
 ## G10: the full Android gate (was G2)
 
 **Coverage**
-- Setup: the phone (and the emulator, if approved), demo backend, light and dark (`adb shell cmd uimode night yes` and `no`), Siang and Malam where relevant.
+- Setup: the emulator, demo backend, light and dark (`adb shell cmd uimode night yes` and `no`), Siang and Malam where relevant.
 - Cold start signed in and signed out (before and after recordings).
 - Beranda, Jelajah, Jadwal, plan detail, and Pengaturan with every switch state Expo Go can reach (Expo Go reports `unavailable`).
 - Every new sheet, the success beat, the heart and toast, list motion, gizi, import, the four empty states, and Dapur Hari ini with its confirm sheets.
@@ -405,7 +405,7 @@ Record each Review Focus line of the plan as PASS or FAIL with a capture.
   - font scale 1.3 on the skeletons;
   - one blank frame on a cached-launch empty reload;
   - iOS VoiceOver reading "Memperbarui…".
-- Task 6: header heights measured on the phone, not compared from styles.
+- Task 6: header heights measured on the emulator, not compared from styles.
 - Task 8: Keluar waiting up to 3 seconds; a cold Dapur link to a Pengaturan sheet opens over Hari ini.
 - Task 10: Android nested scroll in long fit sheets; the picker to Alamat swap.
 - Task 11: sheet detents and keyboard expansion in the Dapur sheets; TalkBack focus on each sheet title.
