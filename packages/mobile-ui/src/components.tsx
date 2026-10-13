@@ -535,7 +535,8 @@ export function RoundButton({
 }
 
 const useCardTones = themedStyles((c) => ({
-  surface: { backgroundColor: c.surface, borderColor: c.line },
+  // Direction K: a card stands off the page by its fill (1.33:1), so it draws no visible border.
+  surface: { backgroundColor: c.surface, borderColor: c.surface },
   attention: { backgroundColor: c.cream, borderColor: c.attentionBorder },
   brand: { backgroundColor: c.forest, borderColor: c.forest },
   sage: { backgroundColor: c.sage, borderColor: c.sage },

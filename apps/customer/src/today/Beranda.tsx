@@ -273,7 +273,7 @@ function OtherMealRow({ plates, apiBase, onPress }: { plates: PlateData[]; apiBa
         </Text>
         <Text style={{ fontFamily: fontFor("700") }}>{dish}</Text>
         {status ? (
-          <Text testID="other-meal-status" style={{ fontFamily: fontFor("700"), color: c.sunriseInk }}>
+          <Text testID="other-meal-status" style={{ fontFamily: fontFor("700"), color: c.charcoal }}>
             {status}
           </Text>
         ) : null}
@@ -462,7 +462,7 @@ function SignedInHome({ actorId }: { actorId: string }) {
           />
         ) : null}
         {updating ? null : savedAt ? (
-          <Text variant="caption" style={{ color: c.sunriseInk, fontVariant: ["tabular-nums"] }}>
+          <Text variant="caption" style={{ color: c.charcoal, fontVariant: ["tabular-nums"] }}>
             {t("Terakhir diperbarui", "Last updated")} {jakartaClock(savedAt)} ·{" "}
             {t("tidak ada koneksi", "no connection")}
           </Text>

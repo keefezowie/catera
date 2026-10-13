@@ -607,14 +607,15 @@ describe("Jelajah mood header", () => {
     expect(flat(screen.getByTestId("mood-fill-malam")).backgroundColor).toBe(palette.header);
   });
 
-  it("colours the selected Malam tab onToggleActive on toggleActive and the idle one headerMeta on toggleTrack", async () => {
+  it("draws the selected Malam tab as a card-coloured pill with a toggleActive ring and label, and the idle one headerMeta on toggleTrack", async () => {
     mount(runtimeWith(), { now: MALAM_NOW });
     await screen.findByText("Makan Malam Nabati");
     const palette = nativeMood.light.malam;
     const selected = header().getByRole("tab", { name: "Malam" });
     const idle = header().getByRole("tab", { name: "Siang" });
-    expect(flat(selected).backgroundColor).toBe(palette.toggleActive);
-    expect(flat(within(selected).getByText("Malam")).color).toBe(palette.onToggleActive);
+    // Direction K: a pill in the card colour with a forest ring and label.
+    expect(flat(selected)).toMatchObject({ backgroundColor: palette.onToggleActive, borderWidth: 2, borderColor: palette.toggleActive });
+    expect(flat(within(selected).getByText("Malam")).color).toBe(palette.toggleActive);
     expect(flat(idle).backgroundColor).toBe(palette.toggleTrack);
     expect(flat(within(idle).getByText("Siang")).color).toBe(palette.headerMeta);
   });

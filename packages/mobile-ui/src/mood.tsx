@@ -92,18 +92,16 @@ export function siangHeaderFill(scheme: ThemeName): string {
 }
 
 /**
- * The status-bar icon style: light icons on a dark surface. That is the dark theme, or a Malam header; the demo strip
- * sits above the header in the theme's own sage fill, so with it shown the header does not decide. `mood: null` is a
- * screen with no mood header (a pushed screen, the app's default): only the theme decides.
+ * The status-bar icon style: light icons on a dark surface, which is the dark theme only. Direction K makes every
+ * header a light neutral in the light theme (Malam is a pale sage, not a dark green), so a Malam header and the demo
+ * strip no longer change the glyphs; `mood` and `demo` stay in the signature so callers do not change.
  */
 export function statusBarStyle({
   scheme,
-  mood,
-  demo,
 }: {
   scheme: ThemeName;
-  mood: Mood | null;
-  demo: boolean;
+  mood?: Mood | null;
+  demo?: boolean;
 }): "light" | "dark" {
-  return scheme === "dark" || (mood === "malam" && !demo) ? "light" : "dark";
+  return scheme === "dark" ? "light" : "dark";
 }

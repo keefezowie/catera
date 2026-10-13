@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Linking, StyleSheet, Text as RNText, View, type StyleProp, type ViewStyle } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
 import { router } from "expo-router";
-import { nativeThemes } from "@catera/design-tokens";
+import { nativePhoto, nativeThemes } from "@catera/design-tokens";
 import { errorLabel, journeyCaption, whatsappUrl, type Delivery, type Plate as PlateData } from "@catera/domain";
 import { useMobile, useTrack } from "@catera/mobile-core";
 import {
@@ -15,18 +15,17 @@ import {
   Text,
   themedStyles,
   useColors,
-  useMood,
   useMoodColors,
-  useThemePreference,
 } from "@catera/mobile-ui";
 import { dayHasActions } from "../schedule/dayActions";
 import { DayMore } from "../schedule/DayMore";
 
 const JAKARTA_OFFSET_MS = 7 * 60 * 60 * 1000;
 
-// The photo scrim and the Sunrise fill look the same in light and dark, so their ink is the light palette on
-// purpose: the themed tokens swap roles in dark and would put dark text on the dark scrim and light text on orange.
+// The photo overlay looks the same in light and dark (cream text on the neutral overlay ink), so its inks are the light
+// palette on purpose: the themed tokens swap roles in dark and would put dark text on the dark overlay.
 const fixedInk = nativeThemes.light;
+const OVERLAY = (alpha: number) => `rgba(27,27,26,${alpha})`;
 
 /**
  * journey_viewed is counted once per delivery, meal and stage for the life of the app process (ruling C12). The hero is
@@ -47,7 +46,7 @@ export function photoUri(src: string, apiBase: string): string {
   return src.startsWith("/") && !src.startsWith("//") ? apiBase + src : src;
 }
 
-/** Sunrise is reserved for "needs you now": Sudah sampai and Perpanjang. */
+/** The hero button (direction K): a forest fill with the cream label and no edge, the screen's one filled brand control. */
 export function SunriseButton({
   label,
   onPress,
@@ -68,9 +67,9 @@ export function SunriseButton({
       disabled={disabled}
       haptic={disabled ? "none" : "tap"}
       onPress={onPress}
-      style={[styles.sunrise, disabled && { opacity: 0.6 }, style]}
+      style={[styles.heroButton, disabled && { opacity: 0.6 }, style]}
     >
-      <RNText style={styles.sunriseLabel}>{label}</RNText>
+      <RNText style={styles.heroButtonLabel}>{label}</RNText>
     </PressableScale>
   );
 }
@@ -268,19 +267,16 @@ function PlateContent({
   const { command, t, locale } = useMobile();
   const c = useColors();
   const styles = useStyles();
-  const { mood } = useMood();
   const moodColors = useMoodColors();
-  const { scheme } = useThemePreference();
   const hero = variant === "hero";
   // The hero's "…": a fresh read with something the day still allows.
   const more = hero && !offline && dayHasActions(delivery, new Date(), plate.meal);
-  // The hero's inks come from the mood, a card's from the theme. Light Malam puts a dark fill under the light theme's
-  // dark inks, so the error text takes the dark theme's danger there.
+  // The hero's inks come from the mood, a card's from the theme; the hero's warning is `heroWarn` (Gagal diantar and errors).
   const ink = hero ? moodColors.heroText : c.forest;
   const quiet = hero ? moodColors.heroMeta : c.muted;
   const edge = hero ? moodColors.heroMeta : c.secondaryBorder;
   const onInk = hero ? moodColors.hero : c.cream;
-  const danger = hero && (mood === "malam" || scheme === "dark") ? nativeThemes.dark.danger : c.danger;
+  const danger = hero ? moodColors.heroWarn : c.danger;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const track = useTrack();
@@ -327,8 +323,9 @@ function PlateContent({
       >
         {/* Fades in over its soft ground, which stays if the photo never comes. */}
         {plate.image ? <Photo uri={photoUri(plate.image, apiBase)} style={StyleSheet.absoluteFill} /> : null}
-        <View style={styles.scrimSoft} />
-        {/* The overlay carries its own dark ground, so every wrapped line sits on it. */}
+        {/* The K ramp: 0 at the top of the photo to 0.3 at the bottom, so a loaded photo has no straight edge. */}
+        <View testID="plate-scrim" pointerEvents="none" style={styles.scrim} />
+        {/* The text block ramps in over its top 26dp and holds, so every wrapped line sits on the full overlay. */}
         <View style={styles.overlay} testID="plate-overlay">
           {/* The meal line keeps clear of the "…" when a large font lifts the overlay to the photo's top. */}
           <RNText style={[styles.meal, more && { paddingEnd: 48 }]}>
@@ -343,7 +340,7 @@ function PlateContent({
             Only the hero has it, and only from a fresh read: a copy kept offline acts on nothing. */}
         {more ? (
           <View style={styles.more}>
-            <DayMore delivery={delivery} meal={plate.meal} tint={fixedInk.cream} ground="rgba(12,30,22,0.66)" />
+            <DayMore delivery={delivery} meal={plate.meal} tint={fixedInk.cream} ground={OVERLAY(nativePhoto.cornerButtonAlpha)} />
           </View>
         ) : null}
       </View>
@@ -477,13 +474,26 @@ const useStyles = themedStyles((c) => ({
     overflow: "hidden",
     backgroundColor: c.surface,
     borderWidth: 1,
-    borderColor: c.line,
+    borderColor: c.surface,
   },
-  photo: { backgroundColor: fixedInk.forest, justifyContent: "flex-end" },
-  scrimSoft: { position: "absolute", left: 0, right: 0, bottom: 0, height: "75%", backgroundColor: "rgba(12,30,22,0.22)" },
+  // A failed or loading photo shows the neutral ground; the overlay below it is the same ink, so no band shows.
+  photo: { backgroundColor: fixedInk.photoGround, justifyContent: "flex-end" },
+  scrim: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    experimental_backgroundImage: `linear-gradient(${OVERLAY(0)}, ${OVERLAY(nativePhoto.scrimBottomAlpha)})`,
+  },
   more: { position: "absolute", top: 8, right: 8 },
-  // 66% forest-black over a pure white photo still gives cream text about 5.3:1.
-  overlay: { padding: 18, paddingTop: 14, gap: 4, backgroundColor: "rgba(12,30,22,0.66)" },
+  // 0.72 of the overlay ink over a pure white photo still gives cream text 8.6:1 (15.5:1 over a failed photo).
+  overlay: {
+    padding: 18,
+    paddingTop: nativePhoto.textBlockHeight,
+    gap: 4,
+    experimental_backgroundImage: `linear-gradient(${OVERLAY(0)}, ${OVERLAY(nativePhoto.textBlockAlpha)} ${nativePhoto.textBlockHeight}px, ${OVERLAY(nativePhoto.textBlockAlpha)})`,
+  },
   meal: { fontSize: 13, fontFamily: fontFor("700"), color: fixedInk.cream },
   // Tabular: the promoted header carries the delivery window.
   sentence: {
@@ -497,15 +507,15 @@ const useStyles = themedStyles((c) => ({
   second: { fontSize: 17, fontFamily: fontFor("600"), color: fixedInk.cream, fontVariant: ["tabular-nums"] },
   body: { padding: 16, gap: 12 },
   row: { flexDirection: "row", gap: 8 },
-  sunrise: {
+  heroButton: {
     minHeight: 48,
     borderRadius: 10,
     paddingHorizontal: 18,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: c.sunrise,
+    backgroundColor: c.forest,
   },
-  sunriseLabel: { fontSize: 15, fontFamily: fontFor("800"), color: fixedInk.charcoal },
+  heroButtonLabel: { fontSize: 15, fontFamily: fontFor("800"), color: c.cream },
   reaction: {
     flex: 1,
     minHeight: 56,

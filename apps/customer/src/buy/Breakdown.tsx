@@ -105,7 +105,7 @@ export function Breakdown({
             `Save ${percent(quote.discountPercent, locale)} for ${plural(quote.portions, "portion")}`,
           )}
           value={minus(quote.discount)}
-          tone={c.sunriseInk}
+          tone={c.charcoal}
         />
       ) : null}
       {quote.durationDiscount ? (
@@ -115,10 +115,10 @@ export function Breakdown({
             `Save ${percent(quote.durationDiscountPercent ?? 0, locale)} for ${plural(days, "day")}`,
           )}
           value={minus(quote.durationDiscount)}
-          tone={c.sunriseInk}
+          tone={c.charcoal}
         />
       ) : null}
-      {quote.promotion > 0 ? <Row label={t("Promo", "Promotion")} value={minus(quote.promotion)} tone={c.sunriseInk} /> : null}
+      {quote.promotion > 0 ? <Row label={t("Promo", "Promotion")} value={minus(quote.promotion)} tone={c.charcoal} /> : null}
       <Row label={t("Biaya layanan", "Service fee")} value={currency(quote.serviceFee, locale)} />
       <Row label={t("Pengantaran", "Delivery")} value={t("Termasuk", "Included")} />
     </View>

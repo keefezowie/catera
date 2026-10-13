@@ -360,7 +360,7 @@ describe("the cooking session", () => {
 
   /** `withTiming` calls that move a value to `to` over `nativeMotion.content`. */
   const contentFades = (timing: jest.SpyInstance, to: number) =>
-    timing.mock.calls.filter(([value, config]) => value === to && (config as { duration?: number })?.duration === 220);
+    timing.mock.calls.filter(([value, config]) => value === to && (config as { duration?: number })?.duration === 440);
   const opacityOf = (el: ReturnType<typeof screen.getByTestId>) => StyleSheet.flatten(el.props.style).opacity;
 
   it("changes only the mascot's opacity at Mulai masak and Berangkat antar: one box that never remounts", async () => {

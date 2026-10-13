@@ -119,7 +119,7 @@ function GroupLine({
 
   return (
     <View style={{ gap: 8 }}>
-      <Text variant="label" style={{ color: open ? c.sunriseInk : c.forest }}>
+      <Text variant="label" style={{ color: open ? c.charcoal : c.forest }}>
         {`${group.name} · ${filled.length} dari ${group.slots}`}
       </Text>
       {filled.map((i) => (

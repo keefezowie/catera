@@ -826,7 +826,7 @@ describe("the order across the stages", () => {
     await lastConfirm().press("Berangkat");
     expect(await screen.findByText("Dapur Bu Rina · Sedang diantar", {}, { timeout: 10000 })).toBeTruthy();
     expect(screen.queryByText("Daftar masak")).toBeNull();
-    expect(timing).toHaveBeenCalledWith(1, expect.objectContaining({ duration: 220 }));
+    expect(timing).toHaveBeenCalledWith(1, expect.objectContaining({ duration: 440 }));
     timing.mockRestore();
   }, 30000);
 });

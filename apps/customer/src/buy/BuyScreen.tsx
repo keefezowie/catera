@@ -239,7 +239,7 @@ export function BuyScreen({
           <Text
             variant="title"
             accessibilityRole="text"
-            style={[{ fontSize: 22, lineHeight: 28 }, tabular, quote.pending && { opacity: 0.45 }]}
+            style={[{ fontSize: 22, lineHeight: 28, color: c.charcoal }, tabular, quote.pending && { opacity: 0.45 }]}
           >
             {shown ? currency(shown.total, locale) : "–"}
           </Text>

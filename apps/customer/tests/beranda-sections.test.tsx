@@ -331,12 +331,12 @@ describe("Menunggu Anda", () => {
       "Coba Bento selesai besok, Dapur Kecil · paket coba, Paket penuh",
       "Bagaimana Dapur Hijau selama ini?, Ulasan singkat, 1 menit, Nilai",
     ]);
-    // One action word per row; only Perpanjang takes the sunrise ink.
+    // One action word per row; only Perpanjang is charcoal (the urgent one), the rest forest.
     const actions = list.getAllByTestId("waiting-action");
     expect(actions.map((a) => a.props.children)).toEqual([
       "Pilih", "Pilih", "Pilih", "Perpanjang", "Paket penuh", "Paket penuh", "Nilai",
     ]);
-    expect(actions.filter((a) => color(a) === light.sunriseInk).map((a) => a.props.children)).toEqual(["Perpanjang"]);
+    expect(actions.filter((a) => color(a) === light.charcoal).map((a) => a.props.children)).toEqual(["Perpanjang"]);
     expect(actions.filter((a) => color(a) === light.forest)).toHaveLength(6);
     // Rows are at least 64dp, separated by hairlines, in one bordered card with no shadow.
     for (const row of rows) expect(StyleSheet.flatten(row.props.style).minHeight).toBeGreaterThanOrEqual(64);
@@ -523,11 +523,11 @@ describe("Berikutnya", () => {
       "Selasa 13 Okt, Ayam bakar madu, Siang · Makan Siang Kantor · Dapur Senja",
       "Rabu 14 Okt, Ayam bakar madu, Siang · Paket Sehat · Dapur Hijau",
     ]);
-    // A lunch ring is sunrise ink, a dinner ring forest; the label is forest and bold, the count muted.
+    // A lunch ring is charcoal ink (Sunrise is not spent on rings), a dinner ring forest; the label is forest and bold, the count muted.
     const rings = days.getAllByTestId("photo-ring", { includeHiddenElements: true });
     expect(rings.map((r) => StyleSheet.flatten(r.props.style).borderColor).slice(0, 3)).toEqual([
-      light.sunriseInk,
-      light.sunriseInk,
+      light.charcoal,
+      light.charcoal,
       light.forest,
     ]);
     expect(StyleSheet.flatten(rings[0].props.style).width).toBe(40);

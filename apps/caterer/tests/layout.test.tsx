@@ -354,7 +354,7 @@ describe("appearance", () => {
     expect(mockStackOptions.value.header).toBeUndefined();
     expect(screen.queryByTestId("app-header")).toBeNull();
     // The mood never reaches the tab bar.
-    expect(mockNativeTabs.props).toMatchObject({ backgroundColor: "#F2ECDF" });
+    expect(mockNativeTabs.props).toMatchObject({ backgroundColor: "#FFF7E9" });
   });
 
   it("Dapur tab bar colours come from the theme, never the mood", async () => {
@@ -456,10 +456,10 @@ describe("appearance", () => {
     render(<RootLayout />);
     await waitFor(() => expect(mockNativeTabs.props).toBeDefined());
     await act(async () => {});
-    expect(mockNativeTabs.props).toMatchObject({ backgroundColor: "#1E1E1C" });
+    expect(mockNativeTabs.props).toMatchObject({ backgroundColor: "#292927" });
     expect(mockStatusBar.style).toBe("light");
     // Scene containers get the dark canvas, not the navigation library's light default.
-    expect(mockNavTheme.value).toMatchObject({ dark: true, colors: { background: "#151514", card: "#232321", border: "#34332F" } });
+    expect(mockNavTheme.value).toMatchObject({ dark: true, colors: { background: "#151514", card: "#292927", border: "#3A3A37" } });
   });
 
   it("sets the status bar glyphs while the launch gate is still showing", async () => {
@@ -478,9 +478,9 @@ describe("appearance", () => {
     render(<RootLayout />);
     await waitFor(() => expect(mockNativeTabs.props).toBeDefined());
     await act(async () => {});
-    expect(mockNativeTabs.props).toMatchObject({ backgroundColor: "#F2ECDF" });
+    expect(mockNativeTabs.props).toMatchObject({ backgroundColor: "#FFF7E9" });
     expect(mockStatusBar.style).toBe("dark");
-    expect(mockNavTheme.value).toMatchObject({ dark: false, colors: { background: "#FDFAF3", card: "#FFFEFA" } });
+    expect(mockNavTheme.value).toMatchObject({ dark: false, colors: { background: "#E4DED1", card: "#FFFEFA" } });
   });
 });
 

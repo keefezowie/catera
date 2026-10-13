@@ -221,7 +221,7 @@ describe("the launch cover", () => {
     await waitFor(() => expect(SplashScreen.hideAsync).toHaveBeenCalledTimes(1));
     // Released: touches pass through from the first frame of the beat, and the beat lasts `feature` 320ms.
     expect(screen.getByTestId("launch-cover", hidden).props.pointerEvents).toBe("none");
-    await act(async () => new Promise((r) => setTimeout(r, 400)));
+    await act(async () => new Promise((r) => setTimeout(r, 800)));
     expect(screen.queryByTestId("launch-cover", hidden)).toBeNull();
     first.unmount();
     renderRoot();

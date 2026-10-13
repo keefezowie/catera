@@ -9,7 +9,6 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { nativeMood } from "@catera/design-tokens";
 import {
   defaultMood,
-  MalamPattern,
   MoodFill,
   MoodHeader,
   MoodLabelsProvider,
@@ -112,10 +111,10 @@ describe("MoodProvider and colours", () => {
 
   it("useMoodColors follows the theme and the mood", () => {
     const light = mount(<Probe />, { now: MALAM_NOW, scheme: "light" });
-    expect(text("header")).toBe("#0B1F16");
+    expect(text("header")).toBe("#F3F6EF");
     light.unmount();
     mount(<Probe />, { now: SIANG_NOW, scheme: "dark" });
-    expect(text("header")).toBe("#3A2617");
+    expect(text("header")).toBe("#2E2B25");
   });
 
   it("useMoodColors(mood) reads that mood without switching", () => {
@@ -129,7 +128,7 @@ describe("MoodProvider and colours", () => {
 
 describe("statusBarStyle", () => {
   it.each([
-    [{ scheme: "light", mood: "malam", demo: false }, "light"],
+    [{ scheme: "light", mood: "malam", demo: false }, "dark"],
     [{ scheme: "light", mood: "malam", demo: true }, "dark"],
     [{ scheme: "dark", mood: "siang", demo: true }, "light"],
     [{ scheme: "light", mood: "siang", demo: false }, "dark"],
@@ -328,15 +327,15 @@ describe("MoodHeader", () => {
       </NavigationContext.Provider>,
       { now: MALAM_NOW },
     );
-    // Light theme, Malam: the dark header wants light glyphs.
-    expect(bars()).toEqual(["light-content"]);
+    // Light theme, Malam: a pale header (direction K), so dark glyphs, as in Siang.
+    expect(bars()).toEqual(["dark-content"]);
     // A pushed screen covers it: its status bar unmounts, so the app's default (the theme's) shows again.
     focused = false;
     act(() => listeners.blur.forEach((cb) => cb()));
     expect(bars()).toEqual([]);
     focused = true;
     act(() => listeners.focus.forEach((cb) => cb()));
-    expect(bars()).toEqual(["light-content"]);
+    expect(bars()).toEqual(["dark-content"]);
     // With no mood header, only the theme decides.
     expect(statusBarStyle({ scheme: "light", mood: null, demo: false })).toBe("dark");
     expect(statusBarStyle({ scheme: "dark", mood: null, demo: false })).toBe("light");
@@ -347,21 +346,6 @@ describe("MoodHeader", () => {
     expect(StyleSheet.flatten(screen.getByText("Jumat, 9 Okt").props.style).color).toBe(nativeMood.light.malam.headerMeta);
     expect(screen.getByText("Aksi")).toBeTruthy();
     expect(screen.UNSAFE_queryByProps({ accessibilityRole: "tablist" })).toBeNull();
-  });
-
-  it("draws the Malam pattern inside the Malam fill, so it fades in and out with it", () => {
-    // Siang is the current mood and the pattern is still there: it rides the fill's opacity instead of snapping.
-    mount(<MoodHeader title="Halo" toggle />);
-    const fill = screen.getByTestId("mood-fill-malam", { includeHiddenElements: true });
-    const pattern = within(fill).getByTestId("malam-pattern", { includeHiddenElements: true });
-    expect(pattern.props.accessibilityElementsHidden).toBe(true);
-    expect(pattern.props.pointerEvents).toBe("none");
-    expect(screen.getAllByTestId("malam-pattern", { includeHiddenElements: true })).toHaveLength(1);
-  });
-
-  it("MalamPattern alone renders nothing in Siang", () => {
-    mount(<MalamPattern />);
-    expect(screen.queryByTestId("malam-pattern", { includeHiddenElements: true })).toBeNull();
   });
 
   it("makes room for an overlapping card: bottom padding of at least overlap + 16, and a 32 corner", () => {
@@ -532,7 +516,7 @@ describe("StatusBand", () => {
     expect(band).toMatchObject({ position: "absolute", top: 0, left: 0, right: 0 });
     // Malam at rest: the Siang fill underneath, the Malam header colour fully opaque over it.
     expect(flat("status-band-fill-siang").backgroundColor).toBe(nativeMood.light.siang.header);
-    expect(flat("status-band-fill-malam").backgroundColor).toBe("#0B1F16");
+    expect(flat("status-band-fill-malam").backgroundColor).toBe("#F3F6EF");
     expect(flat("status-band-fill-malam").opacity).toBe(1);
   });
 

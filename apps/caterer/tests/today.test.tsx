@@ -176,9 +176,9 @@ it("report cards and setup rows dim on press and still navigate", async () => {
   renderToday(runtimeWith(async () => emptyDay()));
   const step = () => screen.getByRole("button", { name: /Buat paket pertama/ });
   await screen.findByText("Siapkan dapur Anda");
-  expect(StyleSheet.flatten(step().props.style)).toMatchObject({ minHeight: 56, backgroundColor: nativeThemes.light.cream });
+  expect(StyleSheet.flatten(step().props.style)).toMatchObject({ minHeight: 56, backgroundColor: nativeThemes.light.forest });
   fireEvent(step(), "responderGrant", touch);
-  expect(StyleSheet.flatten(step().props.style)).toMatchObject({ opacity: 0.7, backgroundColor: nativeThemes.light.cream });
+  expect(StyleSheet.flatten(step().props.style)).toMatchObject({ opacity: 0.7, backgroundColor: nativeThemes.light.forest });
   fireEvent.press(step());
   expect(router.push).toHaveBeenCalledWith("/paket/baru");
 });
@@ -186,7 +186,7 @@ it("report cards and setup rows dim on press and still navigate", async () => {
 describe("the setup card in the dark theme", () => {
   afterEach(() => jest.restoreAllMocks());
 
-  it("swaps the brand card and its rows with the theme, and keeps the unselected rows lifted", async () => {
+  it("draws the setup card plain, with forest on the first step only, in the dark theme", async () => {
     jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
     render(
       <ThemeProvider storageKey="t.theme">
@@ -197,11 +197,10 @@ describe("the setup card in the dark theme", () => {
     );
     await screen.findByText("Siapkan dapur Anda");
     const row = (name: RegExp) => StyleSheet.flatten(screen.getByRole("button", { name }).props.style);
-    // The first step is the cream token, which is the deep green in dark: it differs from the light value.
-    expect(nativeThemes.dark.cream).not.toBe(nativeThemes.light.cream);
-    expect(row(/Buat paket pertama/).backgroundColor).toBe(nativeThemes.dark.cream);
-    expect(row(/Pindahkan pelanggan lama/).backgroundColor).toBe("rgba(22,61,46,0.08)");
-    expect(StyleSheet.flatten(screen.getByText("Siapkan dapur Anda").props.style).color).toBe(nativeThemes.dark.cream);
+    // Direction K: forest fills only the first step (the one brand control here); the other rows sit on sage.
+    expect(row(/Buat paket pertama/).backgroundColor).toBe(nativeThemes.dark.forest);
+    expect(row(/Pindahkan pelanggan lama/).backgroundColor).toBe(nativeThemes.dark.sage);
+    expect(StyleSheet.flatten(screen.getByText("Siapkan dapur Anda").props.style).color).toBe(nativeThemes.dark.forest);
   });
 });
 
@@ -618,11 +617,11 @@ describe("Hari ini by mood", () => {
       jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
       renderMood(runtimeWith(same(canvasDay())), MALAM_NOW);
       await screen.findByText("Tidak ada antaran makan malam.");
-      expect(flat("mood-fill-malam").backgroundColor).toBe("#0B1F16");
+      expect(flat("mood-fill-malam").backgroundColor).toBe("#F3F6EF");
       // The fill is always mounted; in Malam it is the opaque layer.
       expect(flat("mood-fill-malam").opacity).toBe(1);
       const title = within(screen.getByTestId("mood-header")).getByRole("button", { name: CHANGE_DAY });
-      expect(StyleSheet.flatten(within(title).getByText(/\d/).props.style).color).toBe("#FFF7E9");
+      expect(StyleSheet.flatten(within(title).getByText(/\d/).props.style).color).toBe("#2E2E2E");
     });
 
     it("keeps a failed read readable: the message sits on the body in the error colour, not inside the header", async () => {

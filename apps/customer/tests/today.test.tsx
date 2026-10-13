@@ -374,7 +374,7 @@ it("the hero's … opens the day's actions from a fresh read, and is gone from a
   const view = renderHome(runtimeWith(async () => customerState({ status: "out_for_delivery" }, { catererPhone: "+6281200000001" })));
   const more = await screen.findByRole("button", { name: /^Pilihan untuk makan siang / });
   expect(within(screen.getByTestId("plate-photo")).getByTestId("header-more")).toBe(more);
-  expect(StyleSheet.flatten(screen.getByTestId("day-more-ground").props.style).backgroundColor).toBe("rgba(12,30,22,0.66)");
+  expect(StyleSheet.flatten(screen.getByTestId("day-more-ground").props.style).backgroundColor).toBe("rgba(27,27,26,0.66)");
   fireEvent.press(more);
   expect(router.push).toHaveBeenCalledWith({ pathname: "/aksi", params: { id: expect.any(String) } });
   view.unmount();
@@ -498,11 +498,18 @@ describe("design tokens", () => {
   it("keeps cream plate text at 4.5:1 or more even over a white photo", async () => {
     renderHome(runtimeWith(async () => customerState({ status: "out_for_delivery", departed_at: `${TODAY}T03:42:00Z` })));
     await screen.findByText("Sedang diantar");
-    const overlay = StyleSheet.flatten(screen.getByTestId("plate-overlay").props.style);
-    const m = /rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)/.exec(String(overlay.backgroundColor));
-    expect(m).not.toBeNull();
-    const [r, g, b, a] = m!.slice(1).map(Number);
-    const over = [r, g, b].map((c) => c * a + 255 * (1 - a));
+    // The text block is a ramp that holds at 0.72 of the neutral overlay ink; the photo's own scrim adds 0.3 beneath it.
+    const stops = (id: string) =>
+      [...String(StyleSheet.flatten(screen.getByTestId(id).props.style).experimental_backgroundImage).matchAll(/rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)/g)].map(
+        (x) => x.slice(1).map(Number),
+      );
+    const [r, g, b, a] = stops("plate-overlay")[2];
+    expect(a).toBe(0.72);
+    expect(stops("plate-overlay")[0][3]).toBe(0);
+    const scrim = stops("plate-scrim");
+    expect(scrim[0][3]).toBe(0);
+    const white = [r, g, b].map((c) => c * scrim[1][3] + 255 * (1 - scrim[1][3]));
+    const over = [r, g, b].map((c, i) => c * a + white[i] * (1 - a));
     const contrast = (luminance([0xff, 0xf7, 0xe9]) + 0.05) / (luminance(over) + 0.05);
     expect(contrast).toBeGreaterThanOrEqual(4.5);
     const meal = StyleSheet.flatten(screen.getByText(/^Makan siang · /).props.style);
@@ -521,7 +528,7 @@ describe("design tokens", () => {
       const icon = within(star).UNSAFE_getByType(Ionicons);
       return { name: icon.props.name, color: icon.props.color, selected: star.props.accessibilityState.selected, star };
     };
-    for (const n of [1, 2, 3]) expect(glyph(n)).toMatchObject({ name: "star", color: nativeThemes.light.sunriseInk, selected: true });
+    for (const n of [1, 2, 3]) expect(glyph(n)).toMatchObject({ name: "star", color: nativeThemes.light.forest, selected: true });
     for (const n of [4, 5]) expect(glyph(n)).toMatchObject({ name: "star-outline", color: nativeThemes.light.muted, selected: false });
     // 48dp targets, and a selection haptic on tap.
     const flat = StyleSheet.flatten(glyph(4).star.props.style);
@@ -577,7 +584,7 @@ describe("fixed surfaces in the dark theme", () => {
 
   // The scrim and the Sunrise fill do not change with the theme, so their ink must not either. The track below the photo
   // is a hero surface and reads the mood's hero ink instead.
-  it("keeps the plate text cream on the scrim and the Sunrise label charcoal, and the track caption in the hero ink", async () => {
+  it("keeps the plate text cream on the scrim, the hero button label cream on forest, and the track caption in the hero ink", async () => {
     jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
     const runtime = runtimeWith(async () =>
       customerState({ status: "out_for_delivery", departed_at: `${TODAY}T03:42:00Z` }),
@@ -592,7 +599,7 @@ describe("fixed surfaces in the dark theme", () => {
     const ink = (node: { props: { style?: unknown } }) => StyleSheet.flatten(node.props.style as never).color;
     expect(ink(await screen.findByText("Sedang diantar"))).toBe("#FFF7E9");
     expect(ink(screen.getByText("Berangkat 10.42"))).toBe(nativeMood.dark.siang.heroText);
-    expect(ink(screen.getByText("Sudah sampai"))).toBe("#2E2E2E");
+    expect(ink(screen.getByText("Sudah sampai"))).toBe(nativeThemes.dark.cream);
     // Control: the fixed inks above would read the same in light, so prove the dark theme was in force.
     expect(StyleSheet.flatten(screen.UNSAFE_getByType(SafeAreaView).props.style).backgroundColor).toBe(nativeThemes.dark.canvas);
   });
@@ -870,12 +877,12 @@ describe("Beranda mood", () => {
     expect(flat("plate-photo")).toMatchObject({ minHeight: 168, borderRadius: 20 });
   });
 
-  it("fills the hero from the Malam palette and sets the plate heading in cream", async () => {
+  it("fills the hero from the Malam palette and sets the plate heading in the hero ink (the hero is the card colour in both moods)", async () => {
     mount(runtimeWith(async () => bothMeals()), { now: MALAM_NOW });
     await screen.findByTestId("plate-hero");
-    expect(flat("plate-hero-fill-malam").backgroundColor).toBe("#1C3A2C");
+    expect(flat("plate-hero-fill-malam").backgroundColor).toBe("#FFFEFA");
     expect(flat("plate-hero-fill-malam").opacity).toBe(1);
-    expect(flat("plate-dishes").color).toBe("#FFF7E9");
+    expect(flat("plate-dishes").color).toBe("#2E2E2E");
   });
 
   it.each(["light", "dark"] as const)("carries exactly one hero shadow, from the current mood's token (%s theme)", async (scheme) => {

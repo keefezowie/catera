@@ -399,7 +399,7 @@ describe("Screen details", () => {
     at(40);
     at(400);
     expect(tones()).toEqual([nativeThemes.light.tabBar]);
-    expect(nativeThemes.light.tabBar).toBe("#F2ECDF");
+    expect(nativeThemes.light.tabBar).toBe("#FFF7E9");
     // Back at the top, the canvas again, once.
     at(0);
     at(0);
@@ -573,7 +573,7 @@ describe("Screen details", () => {
 
 describe("dark theme", () => {
   const store = (SecureStore as unknown as { __store: Map<string, string> }).__store;
-  const DARK = { forest: "#FFF7E9", cream: "#163D2E", canvas: "#151514", surface: "#232321" };
+  const DARK = { forest: "#9CCBAE", cream: "#163D2E", canvas: "#151514", surface: "#292927" };
 
   beforeEach(() => {
     store.clear();
@@ -594,7 +594,7 @@ describe("dark theme", () => {
     expect(StyleSheet.flatten(screen.getByText("Jadwal").props.style).color).toBe(DARK.forest);
   });
 
-  it("primary Button is a cream fill with forest text", async () => {
+  it("primary Button is a light-forest fill with cream text", async () => {
     await renderDark(<Button label="Bayar" onPress={() => {}} />);
     expect(StyleSheet.flatten(screen.getByRole("button", { name: "Bayar" }).props.style).backgroundColor).toBe(DARK.forest);
     expect(StyleSheet.flatten(screen.getByText("Bayar").props.style).color).toBe(DARK.cream);

@@ -269,7 +269,7 @@ export function ChangeDaySheet({
 
   return (
     <Frame title={longDay(delivery.service_date, locale)} context={`${delivery.offer.name} · ${delivery.offer.caterer}`} swapKey="ready" onClose={onClose}>
-      <Text variant="label" style={{ color: open ? c.sunriseInk : c.charcoal, fontVariant: ["tabular-nums"] }}>
+      <Text variant="label" style={{ color: open ? c.forest : c.charcoal, fontVariant: ["tabular-nums"] }}>
         {open
           ? t(`Bisa diubah sampai ${deadline}`, `Can be changed until ${deadline}`)
           : t("Hari ini sudah tidak bisa diubah", "This day can no longer be changed")}

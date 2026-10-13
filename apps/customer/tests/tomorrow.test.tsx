@@ -179,7 +179,7 @@ afterEach(() => {
 });
 
 describe("Menu besok row", () => {
-  it("before the cutoff shows one 60dp ring per part, lunch in sunrise ink and dinner in forest, none covered", async () => {
+  it("before the cutoff shows one 60dp ring per part, lunch in ink and dinner in forest, none covered", async () => {
     pinClock(BEFORE_CUTOFF);
     const runtime = runtimeWith(async () => bothState());
     wrap(runtime, <TomorrowRow story={storyOf(bothState(), BEFORE_CUTOFF)} />);
@@ -190,7 +190,7 @@ describe("Menu besok row", () => {
     const rings = ringStyles();
     expect(rings).toHaveLength(2);
     expect(rings.map((r) => r.width)).toEqual([60, 60]);
-    expect(rings.map((r) => r.borderColor)).toEqual([nativeThemes.light.sunriseInk, nativeThemes.light.forest]);
+    expect(rings.map((r) => r.borderColor)).toEqual([nativeThemes.light.charcoal, nativeThemes.light.forest]);
     expect(coveredCount()).toBe(0);
   });
 
@@ -285,7 +285,7 @@ describe("Menu besok row", () => {
     const state = twoLunchesState();
     wrap(runtimeWith(async () => state), <TomorrowRow story={storyOf(state, BEFORE_CUTOFF)} />);
     await settle();
-    expect(ringStyles().map((r) => r.borderColor)).toEqual([nativeThemes.light.sunriseInk, nativeThemes.light.sunriseInk]);
+    expect(ringStyles().map((r) => r.borderColor)).toEqual([nativeThemes.light.charcoal, nativeThemes.light.charcoal]);
   });
 });
 
@@ -573,14 +573,14 @@ describe("Menu besok story status bar and top inset", () => {
 });
 
 describe("Menu besok story look", () => {
-  it("sets the sticker on a cream fill with a sunrise ink border, tilted two degrees", async () => {
+  it("sets the sticker on a cream fill with a forest border, tilted two degrees", async () => {
     pinClock(BEFORE_CUTOFF);
     wrap(runtimeWith(async () => bothState()), <TomorrowStoryScreen />);
     const sticker = await screen.findByTestId("tomorrow-sticker");
     await settle();
     const style = StyleSheet.flatten(sticker.props.style);
     expect(style.backgroundColor).toBe(nativeThemes.light.cream);
-    expect(style.borderColor).toBe(nativeThemes.light.sunriseInk);
+    expect(style.borderColor).toBe(nativeThemes.light.forest);
     expect(style.borderWidth).toBe(1.5);
     expect(style.transform).toEqual([{ rotate: "-2deg" }]);
     expect(within(sticker).getByText("Makan siang · 11.00–13.00")).toBeTruthy();
@@ -592,8 +592,8 @@ describe("Menu besok story look", () => {
     const scrim = await screen.findByTestId("tomorrow-scrim");
     await settle();
     const image = String(StyleSheet.flatten(scrim.props.style).experimental_backgroundImage);
-    expect(image).toContain("rgba(11,31,22,0.92)");
-    const solid = /rgba\(11,31,22,(0\.\d+)\) (\d+)px/.exec(image);
+    expect(image).toContain("rgba(27,27,26,0.92)");
+    const solid = /rgba\(27,27,26,(0\.\d+)\) (\d+)px/.exec(image);
     expect(Number(solid?.[1])).toBeGreaterThanOrEqual(0.85);
   });
 });

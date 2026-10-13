@@ -658,7 +658,7 @@ describe("Ada masalah without a reportable meal", () => {
 });
 
 describe("status pill colours", () => {
-  it("uses Sunrise ink only for the reply that needs the customer", async () => {
+  it("spends no Sunrise on a status pill", async () => {
     renderWith(
       runtimeWith({
         issues: [
@@ -671,8 +671,8 @@ describe("status pill colours", () => {
       <ReportList />,
     );
     const colour = async (word: string) => StyleSheet.flatten((await screen.findByText(word)).props.style).color;
-    expect(await colour("Dibalas")).toBe(nativeThemes.light.sunriseInk);
-    for (const word of ["Terkirim", "Ditinjau Catera", "Selesai"]) expect(await colour(word)).toBe(nativeThemes.light.charcoal);
+    // No pill is Sunrise now; the reply that needs the customer sits on the cream pill and the rest on sage.
+    for (const word of ["Dibalas", "Terkirim", "Ditinjau Catera", "Selesai"]) expect(await colour(word)).toBe(nativeThemes.light.charcoal);
   });
 });
 

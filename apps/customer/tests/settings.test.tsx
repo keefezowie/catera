@@ -408,7 +408,7 @@ describe("notification switch", () => {
     await waitFor(() => expect(notificationSwitch()).toBeChecked());
     await waitFor(() => expect(notificationSwitch().props.thumbTintColor).toBe(nativeThemes.dark.cream));
     expect(notificationSwitch().props.trackColorForTrue).toBe(nativeThemes.dark.forest);
-    expect(nativeThemes.dark.forest).toBe("#FFF7E9");
+    expect(nativeThemes.dark.forest).toBe("#9CCBAE");
   });
 });
 

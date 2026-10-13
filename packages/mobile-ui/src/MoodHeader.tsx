@@ -6,7 +6,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { nativeMotion } from "@catera/design-tokens";
 import { MoodArc, type MoodArcProps } from "./brand/MoodArc";
 import { DEMO_STRIP_HEIGHT } from "./DemoStrip";
-import { MalamPattern } from "./brand/MalamPattern";
 import { useMoodProgress } from "./brand/useMoodProgress";
 import { Text } from "./components";
 import { MoodFill } from "./MoodFill";
@@ -24,6 +23,9 @@ export { StatusBand } from "./StatusBand";
 /** The header's top row, the same on every screen so the headline starts at one height. */
 const ROW_HEIGHT = 48;
 const TRACK_PADDING = 3;
+/** The track's edge (`markerIdle`, 3:1 off the header): the white track is 1.0x off a pale header, so the edge is its boundary. */
+const TRACK_EDGE = 1.5;
+const TRACK_INNER = TRACK_PADDING - TRACK_EDGE;
 const TAB_MIN_WIDTH = 84;
 const TAB_PADDING = 12;
 
@@ -59,7 +61,14 @@ export function MoodToggle() {
   return (
     <View
       accessibilityRole="tablist"
-      style={{ flexDirection: "row", padding: TRACK_PADDING, borderRadius: 999, backgroundColor: palette.toggleTrack }}
+      style={{
+        flexDirection: "row",
+        padding: TRACK_INNER,
+        borderRadius: 999,
+        backgroundColor: palette.toggleTrack,
+        borderWidth: TRACK_EDGE,
+        borderColor: palette.markerIdle,
+      }}
     >
       <Animated.View
         testID="mood-toggle-pill"
@@ -67,19 +76,22 @@ export function MoodToggle() {
         style={[
           {
             position: "absolute",
-            top: TRACK_PADDING,
-            bottom: TRACK_PADDING,
-            left: TRACK_PADDING,
+            top: TRACK_INNER,
+            bottom: TRACK_INNER,
+            left: TRACK_INNER,
             width: tabWidth,
             borderRadius: 999,
-            backgroundColor: palette.toggleActive,
+            // The selected segment is a pill in the card colour with a forest ring and label (direction K).
+            backgroundColor: palette.onToggleActive,
+            borderWidth: 2,
+            borderColor: palette.toggleActive,
           },
           reduced ? rest : slide,
         ]}
       />
       {options.map((option, index) => {
         const active = option.value === mood;
-        const ink = active ? palette.onToggleActive : palette.headerMeta;
+        const ink = active ? palette.toggleActive : palette.headerMeta;
         return (
           <PressableScale
             key={option.value}
@@ -181,11 +193,7 @@ export function MoodHeader({
       }}
     >
       <ScreenStatusBar style={statusBarStyle({ scheme, mood, demo: topOwned })} />
-      <MoodFill surface="header" testID="mood-fill">
-        {/* In the Malam layer, so the lunchboxes fade in and out with the fill instead of snapping. Below the toggle
-            row, so they show beside the headline instead of hiding behind the toggle. */}
-        <MalamPattern mood="malam" top={topInset + 12 + ROW_HEIGHT + TRACK_PADDING * 2 + 4} />
-      </MoodFill>
+      <MoodFill surface="header" testID="mood-fill" />
       <View
         testID="mood-header-content"
         style={{ maxWidth: 760, width: "100%", alignSelf: "center", paddingHorizontal: 20, gap: 12 }}

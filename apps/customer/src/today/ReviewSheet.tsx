@@ -184,7 +184,7 @@ function Review({ actorId, id }: { actorId: string; id: string }) {
               <Ionicons
                 name={n <= rating ? "star" : "star-outline"}
                 size={28}
-                color={n <= rating ? palette.sunriseInk : palette.muted}
+                color={n <= rating ? palette.forest : palette.muted}
               />
             </PressableScale>
           ))}

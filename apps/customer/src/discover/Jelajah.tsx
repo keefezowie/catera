@@ -63,7 +63,7 @@ function MealButton({
   onPress: () => void;
 }) {
   const palette = useMoodColors();
-  const ink = selected ? palette.onToggleActive : palette.headerMeta;
+  const ink = selected ? palette.toggleActive : palette.headerMeta;
   return (
     <PressableScale
       accessibilityRole="tab"
@@ -80,7 +80,10 @@ function MealButton({
         gap: 8,
         borderRadius: 18,
         borderCurve: "continuous",
-        backgroundColor: selected ? palette.toggleActive : palette.toggleTrack,
+        // Selected: a pill in the card colour with a forest ring and label (direction K).
+        backgroundColor: selected ? palette.onToggleActive : palette.toggleTrack,
+        borderWidth: 2,
+        borderColor: selected ? palette.toggleActive : palette.markerIdle,
       }}
     >
       <Ionicons name={icon} size={20} color={ink} />
@@ -203,6 +206,8 @@ function Browse({ area, onArea }: { area: string | null; onArea: (value: string)
                 alignItems: "center",
                 justifyContent: "center",
                 backgroundColor: palette.toggleTrack,
+                borderWidth: 1.5,
+                borderColor: palette.markerIdle,
               }}
             >
               <Ionicons name="heart-outline" size={22} color={palette.headerText} />
@@ -223,7 +228,10 @@ function Browse({ area, onArea }: { area: string | null; onArea: (value: string)
               paddingHorizontal: 14,
               borderRadius: 14,
               borderCurve: "continuous",
+              // The field is the card colour, 1.0x off a pale header, so its edge (3:1) is its boundary.
               backgroundColor: palette.toggleTrack,
+              borderWidth: 1.5,
+              borderColor: palette.markerIdle,
             }}
           >
             <Ionicons name="search-outline" size={20} color={palette.headerMeta} />

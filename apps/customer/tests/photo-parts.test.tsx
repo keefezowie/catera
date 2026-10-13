@@ -40,11 +40,11 @@ beforeEach(() => {
 describe("PhotoRing", () => {
   const base = { uri: "https://example.test/a.jpg", size: 60 as const, accessibilityLabel: "Soto" };
 
-  it("draws a 3dp ring in the theme's sunrise ink", () => {
+  it("draws a 3dp ring in the theme's ink (Sunrise is not spent on rings)", () => {
     render(<PhotoRing {...base} ring="sunrise" />);
     expect(flat("photo-ring")).toMatchObject({
       borderWidth: 3,
-      borderColor: nativeThemes.light.sunriseInk,
+      borderColor: nativeThemes.light.charcoal,
       width: 60,
       height: 60,
       borderRadius: 30,
@@ -167,7 +167,7 @@ describe("CalendarPhotoCell", () => {
       borderColor: siang.markerIdle,
       borderRadius: 12,
     });
-    expect(siang.markerIdle).toBe("#9A7A55");
+    expect(siang.markerIdle).toBe("#858D80");
     expect(screen.getByTestId("cell-sun", { includeHiddenElements: true })).toBeTruthy();
     expect(StyleSheet.flatten(screen.getByText("12").props.style).color).toBe(siang.headerMeta);
   });
@@ -225,17 +225,17 @@ describe("CalendarPhotoCell", () => {
     expect(flat("cell-outline-selected").top).toBeGreaterThan(flat("cell-outline-today").top as number);
   });
 
-  it("under light Malam the outlines read the mood tokens that stay visible on the dark header", () => {
+  it("under light Malam the outlines read the mood tokens that stay visible on the pale sage header", () => {
     render(
       <MoodProvider now={() => new Date("2026-10-09T08:00:00Z")}>
         <CalendarPhotoCell {...base} today selected />
       </MoodProvider>,
     );
-    expect(flat("cell-outline-selected").borderColor).toBe("#FFF7E9");
-    expect(flat("cell-outline-today").borderColor).toBe("#F5C9A6");
-    // The theme colours these replaced are the ones that failed 3:1 on the Malam header.
-    expect(contrastRatio(nativeThemes.light.forest, nativeMood.light.malam.header)).toBeLessThan(3);
-    expect(contrastRatio(nativeThemes.light.sunriseInk, nativeMood.light.malam.header)).toBeLessThan(3);
+    expect(flat("cell-outline-selected").borderColor).toBe("#2E2E2E");
+    expect(flat("cell-outline-today").borderColor).toBe("#163D2E");
+    // Both outlines read 3:1 on the header (the mood tokens are the theme's ink and forest in direction K).
+    expect(contrastRatio("#2E2E2E", nativeMood.light.malam.header)).toBeGreaterThanOrEqual(3);
+    expect(contrastRatio("#163D2E", nativeMood.light.malam.header)).toBeGreaterThanOrEqual(3);
   });
 
   it("outlines never take touches", () => {
@@ -488,7 +488,7 @@ describe("StoryCover", () => {
   it("lays a bottom gradient over the photo", () => {
     render(<StoryCover {...base} />);
     expect(flat("story-gradient").experimental_backgroundImage).toBe(
-      "linear-gradient(rgba(11,31,22,0) 40%, rgba(11,31,22,0.9))",
+      "linear-gradient(rgba(27,27,26,0) 40%, rgba(27,27,26,0.9))",
     );
   });
 

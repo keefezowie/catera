@@ -9,7 +9,7 @@ import Animated, {
   withTiming,
   type SharedValue,
 } from "react-native-reanimated";
-import { nativeMotion } from "@catera/design-tokens";
+import { nativeArt, nativeMotion } from "@catera/design-tokens";
 import { successRigBox } from "../../brand/phaseF";
 import { MascotArt } from "./brand/MascotArt";
 import { Sparkle } from "./brand/Sparkle";
@@ -20,7 +20,7 @@ import { Text } from "./components";
 import { Confetti } from "./Confetti";
 import { useHaptic } from "./motion/useHaptic";
 import { useReduced } from "./motion/useReduced";
-import { useColors } from "./theme";
+import { useColors, useThemePreference } from "./theme";
 
 /** The rig's visible height in the beat (spec 6.2). */
 const RIG = 180;
@@ -40,14 +40,14 @@ const FACTS_RISE = 8;
 
 const ease = Easing.bezier(...nativeMotion.ease);
 
-type Burst = { angle: number; kind: "star" | "dot"; size: number; tone: "sunriseInk" | "sunrise" | "forest" };
+type Burst = { angle: number; kind: "star" | "dot"; size: number; tone: "ink" | "sun" | "forest" };
 /** Five sparkles over the top half of the disc, from upper left to upper right, alternating star and dot. */
 const BURST: Burst[] = [
-  { angle: -160, kind: "star", size: 16, tone: "sunriseInk" },
-  { angle: -122, kind: "dot", size: 8, tone: "sunrise" },
+  { angle: -160, kind: "star", size: 16, tone: "ink" },
+  { angle: -122, kind: "dot", size: 8, tone: "sun" },
   { angle: -90, kind: "star", size: 14, tone: "forest" },
-  { angle: -58, kind: "dot", size: 8, tone: "sunrise" },
-  { angle: -20, kind: "star", size: 16, tone: "sunriseInk" },
+  { angle: -58, kind: "dot", size: 8, tone: "sun" },
+  { angle: -20, kind: "star", size: 16, tone: "ink" },
 ];
 /** Where a sparkle starts and ends, from the stage's centre, in dp. */
 const BURST_FROM = 70;
@@ -113,6 +113,7 @@ export function SuccessBeat({
   const reduced = useReduced();
   const haptic = useHaptic();
   const c = useColors();
+  const { scheme } = useThemePreference();
   const moving = play && !reduced;
   // Mounted already playing, the first painted frame is the beat's first frame, never its resting frame.
   const ring = useSharedValue(moving ? 0 : 1);
@@ -170,7 +171,7 @@ export function SuccessBeat({
             <SuccessRig size={RIG} play={play} />
             <View style={{ position: "absolute", width: STAGE, height: STAGE }}>
               {BURST.map((b) => (
-                <BurstSparkle key={b.angle} burst={b} progress={burst} color={c[b.tone]} />
+                <BurstSparkle key={b.angle} burst={b} progress={burst} color={b.tone === "forest" ? c.forest : nativeArt.sparkles[scheme][b.tone]} />
               ))}
             </View>
           </>

@@ -152,12 +152,12 @@ const surfaces: { name: string; ground: string; photo: () => Instance; show: () 
 ];
 
 describe("photos", () => {
-  it.each(surfaces)("photos fade in over 180ms and appear at once under reduced motion: $name", async ({ photo: find, show }) => {
+  it.each(surfaces)("photos fade in over 340ms and appear at once under reduced motion: $name", async ({ photo: find, show }) => {
     await show();
     const photo = find();
     expect(photo.props.source).toEqual({ uri: PHOTO });
     expect(photo.props.transition).toBe(nativeMotion.selection);
-    expect(nativeMotion.selection).toBe(180);
+    expect(nativeMotion.selection).toBe(340);
     expect(photo.props.contentFit).toBe("cover");
     // While it loads, the photo's own ground is the soft colour.
     expect(flat(photo).backgroundColor).toBe(soft);

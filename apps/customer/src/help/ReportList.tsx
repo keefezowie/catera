@@ -182,7 +182,7 @@ function StatusPill({ status }: { status: string }) {
   const needsYou = status === "responded";
   return (
     <View style={[styles.pill, needsYou ? styles.pillOpen : styles.pillDone]}>
-      <RNText style={[styles.pillText, { color: needsYou ? c.sunriseInk : c.charcoal }]}>
+      <RNText style={[styles.pillText, { color: c.charcoal }]}>
         {statusWord(status, t)}
       </RNText>
     </View>

@@ -203,7 +203,7 @@ export function PackageDetail() {
             <Text
               variant="title"
               accessibilityRole="text"
-              style={{ fontSize: 20, lineHeight: 26, fontVariant: ["tabular-nums"] }}
+              style={{ fontSize: 20, lineHeight: 26, color: c.charcoal, fontVariant: ["tabular-nums"] }}
             >
               {currency(perMealPrice(o), locale)}
             </Text>
@@ -377,7 +377,7 @@ const useStyles = themedStyles((c) => ({
     left: 0,
     right: 0,
     height: SCRIM,
-    experimental_backgroundImage: "linear-gradient(rgba(11,31,22,0.6), rgba(11,31,22,0))",
+    experimental_backgroundImage: "linear-gradient(rgba(27,27,26,0.6), rgba(27,27,26,0))",
   },
   // At the photo's foot, clear of the bar's back button at the top.
   heart: { position: "absolute", bottom: 12, right: 16 },

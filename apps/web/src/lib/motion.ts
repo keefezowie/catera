@@ -1,10 +1,10 @@
-/** Web-only timing. Keep the existing shared/native motion contract unchanged. */
+/** Web timing. Shared with the native apps (packages/design-tokens nativeMotion), guarded by tests/native-motion-tokens.test.ts. */
 export const webMotion = {
-  control: 120,
-  selection: 180,
-  content: 220,
-  feature: 320,
-  ease: "cubic-bezier(.16,1,.3,1)",
+  control: 200,
+  selection: 340,
+  content: 440,
+  feature: 680,
+  ease: "cubic-bezier(.33,1,.68,1)",
   exit: "cubic-bezier(.4,0,1,1)",
 } as const;
 

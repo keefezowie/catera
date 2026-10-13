@@ -68,10 +68,10 @@ describe("EmptyHome mood header", () => {
   it("opens on a Malam header titled Beranda, with no toggle, and the food stays on the page", async () => {
     renderEmpty(null);
     const header = await screen.findByTestId("beranda-header");
-    expect(flat(within(header).getByTestId("mood-fill-malam", { includeHiddenElements: true })).backgroundColor).toBe("#0B1F16");
+    expect(flat(within(header).getByTestId("mood-fill-malam", { includeHiddenElements: true })).backgroundColor).toBe("#F3F6EF");
     const title = within(header).getByText("Beranda");
     expect(title.props.accessibilityRole).toBe("header");
-    expect(flat(title).color).toBe("#FFF7E9");
+    expect(flat(title).color).toBe("#2E2E2E");
     expect(screen.queryByRole("tab", { name: "Malam" })).toBeNull();
     // Existing copy and actions are untouched and sit below the header.
     expect(await screen.findByText("Mau makan apa minggu ini?")).toBeTruthy();

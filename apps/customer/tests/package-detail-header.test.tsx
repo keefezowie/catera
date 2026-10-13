@@ -132,7 +132,7 @@ describe("Paket with its photo (ruling B3: the photo is the header)", () => {
     expect(screen.queryByRole("button", { name: "Kembali" })).toBeNull();
     const scrim = screen.getByTestId("paket-photo-scrim");
     expect(flat(scrim)).toMatchObject({ position: "absolute", top: 0, left: 0, right: 0 });
-    expect(String(flat(scrim).experimental_backgroundImage)).toMatch(/^linear-gradient\(rgba\(11,31,22,0\.6\)/);
+    expect(String(flat(scrim).experimental_backgroundImage)).toMatch(/^linear-gradient\(rgba\(27,27,26,0\.6\)/);
     // The heart stays on the photo, at its foot, clear of the bar.
     const heart = screen.getByRole("button", { name: "Simpan Nasi Ayam Bakar" });
     expect(flat(heart)).toMatchObject({ position: "absolute", bottom: 12, right: 16 });
@@ -173,7 +173,7 @@ describe("Paket with its photo (ruling B3: the photo is the header)", () => {
     const calls = navigation.setOptions.mock.calls.length;
     // Past the photo's foot cream ink would sit on the cream page, so the bar turns opaque in the theme's ink, and the
     // status bar takes the theme's glyphs back. The page has scrolled, so on Android the bar wears Material's scrolled
-    // tone (the navigation bar's tabBar, #F2ECDF), as every pushed screen does. It stays transparent in layout terms, so
+    // tone (the navigation bar's tabBar, #FFF7E9), as every pushed screen does. It stays transparent in layout terms, so
     // the page does not jump.
     at(PHOTO_PASSED);
     const onCanvas = {
@@ -181,7 +181,7 @@ describe("Paket with its photo (ruling B3: the photo is the header)", () => {
       headerStyle: { backgroundColor: nativeThemes.light.tabBar },
       headerTintColor: nativeThemes.light.charcoal,
     };
-    expect(nativeThemes.light.tabBar).toBe("#F2ECDF");
+    expect(nativeThemes.light.tabBar).toBe("#FFF7E9");
     expect(navigation.setOptions).toHaveBeenLastCalledWith(onCanvas);
     expect(lightGlyphs()).toBe(false);
     // Once the name line has gone under the bar, the bar takes the name.

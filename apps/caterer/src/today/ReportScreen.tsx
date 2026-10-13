@@ -285,7 +285,7 @@ function Report({ issue: i, reload, draftKey }: { issue: DeliveryIssue; reload: 
             style={{ minHeight: 88, textAlignVertical: "top", paddingTop: 12 }}
           />
           {tooShort ? (
-            <Text variant="caption" style={{ color: c.sunriseInk }}>
+            <Text variant="caption" style={{ color: c.danger }}>
               {t("Tulis minimal 5 karakter.", "Write at least 5 characters.")}
             </Text>
           ) : null}

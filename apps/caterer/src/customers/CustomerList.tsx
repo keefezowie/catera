@@ -119,7 +119,7 @@ export function CustomerList() {
                           {s ? <Text variant="caption">{`${s.package_name} · ${s.portions} porsi`}</Text> : null}
                           <View style={{ flexDirection: "row", gap: 6, marginTop: 2 }}>
                             {s && s.status === "active" ? (
-                              <Text variant="caption" style={{ color: palette.sunriseInk, fontFamily: fontFor("700") }}>
+                              <Text variant="caption" style={{ color: palette.charcoal, fontFamily: fontFor("700") }}>
                                 {activeEndLabel(s, today, t, locale)}
                               </Text>
                             ) : null}

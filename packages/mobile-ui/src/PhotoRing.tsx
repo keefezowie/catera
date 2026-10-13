@@ -38,7 +38,7 @@ const GAP = 2;
 
 /**
  * A round photo with a 3dp ring, as in a story row: a Jelajah category, a day's meal, a caterer. The ring colour is the
- * caller's signal (sunrise for what needs a look, forest for what is settled, none for neither) and follows the theme.
+ * caller's signal (ink for what needs a look, forest for what is settled, none for neither; the prop value "sunrise" stays, Sunrise itself is not spent here) and follows the theme.
  * `covered` swaps the photo for a closed lunchbox. With `onPress` the whole thing, label included, is one 48dp button.
  */
 export function PhotoRing({
@@ -63,7 +63,7 @@ export function PhotoRing({
 }) {
   const c = useColors();
   const inner = size - (RING + GAP) * 2;
-  const ringColor = ring === "sunrise" ? c.sunriseInk : ring === "forest" ? c.forest : "transparent";
+  const ringColor = ring === "sunrise" ? c.charcoal : ring === "forest" ? c.forest : "transparent";
 
   const disc = (
     <View

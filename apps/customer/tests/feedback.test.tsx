@@ -385,17 +385,17 @@ describe("the heart", () => {
     const heart = await screen.findByRole("button", { name: "Simpan Nasi Ayam Bakar" });
     expect(flat(heart)).toMatchObject({ width: 48, height: 48 });
     fireEvent.press(heart);
-    // The pop: scale up to 1.22, then a spring back to 1; the five dots burst within 380ms.
+    // The pop: scale up to 1.22, then a spring back to 1; the five dots burst within 680ms.
     expect(sequence).toHaveBeenCalledWith(1.22, 1);
-    expect(timing).toHaveBeenCalledWith(1, expect.objectContaining({ duration: 380 }));
+    expect(timing).toHaveBeenCalledWith(1, expect.objectContaining({ duration: 680 }));
     expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
     expect(Haptics.impactAsync).not.toHaveBeenCalled();
     expect(screen.getAllByTestId("heart-dot", { includeHiddenElements: true })).toHaveLength(5);
     // The dots ride the same Catera ease as the pop.
     const easingOf = (duration: number) =>
       (timing.mock.calls.find(([, config]) => (config as { duration?: number })?.duration === duration)?.[1] as { easing?: unknown })?.easing;
-    expect(easingOf(120)).toBeDefined();
-    expect(easingOf(380)).toBe(easingOf(120));
+    expect(easingOf(200)).toBeDefined();
+    expect(easingOf(680)).toBe(easingOf(200));
     // They burst out past the 48dp disc (radius 24), not inside its rim; the control itself stays 48dp.
     for (const dot of screen.getAllByTestId("heart-dot", { includeHiddenElements: true })) {
       const [{ translateX }, { translateY }] = flat(dot).transform as [{ translateX: number }, { translateY: number }];
@@ -403,11 +403,9 @@ describe("the heart", () => {
       expect(reach).toBeGreaterThanOrEqual(30);
       expect(reach).toBeLessThanOrEqual(32);
     }
-    // The filled heart is sunrise ink.
+    // The filled heart is forest (a saved heart is a selection).
     const filled = await screen.findByRole("button", { name: "Hapus Nasi Ayam Bakar dari simpanan" });
-    expect(within(filled).UNSAFE_getByType(Ionicons).props.color).toBe(
-      nativeThemes.light.sunriseInk,
-    );
+    expect(within(filled).UNSAFE_getByType(Ionicons).props.color).toBe(nativeThemes.light.forest);
     expect(await screen.findByText("Disimpan")).toBeTruthy();
     fireEvent.press(screen.getByRole("button", { name: "Lihat" }));
     expect(router.push).toHaveBeenCalledWith("/disimpan");
@@ -464,7 +462,7 @@ describe("the heart", () => {
     sequence.mockRestore();
   });
 
-  it("in the dark theme the filled heart is the dark sunrise ink", async () => {
+  it("in the dark theme the filled heart is the dark forest", async () => {
     const scheme = jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
     try {
       render(
@@ -478,7 +476,7 @@ describe("the heart", () => {
       );
       const filled = await screen.findByRole("button", { name: "Hapus Nasi Ayam Bakar dari simpanan" });
       expect(within(filled).UNSAFE_getByType(Ionicons).props.color).toBe(
-        nativeThemes.dark.sunriseInk,
+        nativeThemes.dark.forest,
       );
     } finally {
       scheme.mockRestore();
@@ -547,7 +545,7 @@ describe("row motion", () => {
     expect(result.current("b").entering).toBeDefined();
     expect(result.current("a").entering).toBeUndefined();
     // After `content` (220ms) the row is an ordinary row again: a later remount (a filter return) has no entrance.
-    await act(async () => void (await new Promise((r) => setTimeout(r, 300))));
+    await act(async () => void (await new Promise((r) => setTimeout(r, 500))));
     rerender({ keys: ["a", "b"] });
     expect(result.current("b").entering).toBeUndefined();
   });

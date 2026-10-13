@@ -218,9 +218,9 @@ describe("native headers", () => {
     expect(headerOf("tim").props.hidden).toBe(true);
   });
 
-  it("status bar: the mood on a tab root, the theme on a pushed screen", async () => {
+  it("status bar: the theme decides on a tab root and on a pushed screen (Malam is a pale header in light)", async () => {
     jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("light");
-    // 16.00 in Jakarta: Malam, whose dark header wants light glyphs. Only Date is faked.
+    // 16.00 in Jakarta: Malam. Direction K makes the light Malam header pale, so its glyphs are dark like Siang. Only Date is faked.
     jest.useFakeTimers({
       now: new Date("2026-10-09T09:00:00Z"),
       doNotFake: [
@@ -231,11 +231,11 @@ describe("native headers", () => {
     });
     try {
       await open("/");
-      expect(statusGlyphs()).toBe("light-content");
+      expect(statusGlyphs()).toBe("dark-content");
       await go(() => router.push("/paket/baru"));
       expect(statusGlyphs()).toBe("dark-content");
       await go(() => router.back());
-      expect(statusGlyphs()).toBe("light-content");
+      expect(statusGlyphs()).toBe("dark-content");
     } finally {
       jest.useRealTimers();
     }

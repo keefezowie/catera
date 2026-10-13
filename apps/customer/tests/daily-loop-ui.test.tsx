@@ -140,7 +140,8 @@ describe("RantangTrack", () => {
     expect(flat("journey-progress").backgroundColor).toBe(ink.heroText);
     expect(flat("journey-line").backgroundColor).toBe(ink.heroMeta);
     expect(flat("journey-stop-0").backgroundColor).toBe(ink.heroText);
-    expect(flat("journey-stop-1").backgroundColor).toBe(ink.heroText);
+    // The current stop is the mood's Sunrise step (`stopActive`), the one place the track spends it.
+    expect(flat("journey-stop-1").backgroundColor).toBe(ink.stopActive);
     expect(flat("journey-stop-2").backgroundColor).toBe(ink.heroMeta);
     expect(StyleSheet.flatten(screen.getByText("Berangkat 11.00").props.style)).toMatchObject({ color: ink.heroText, fontSize: 12 });
     expect(StyleSheet.flatten(screen.getByText("Sampai", { includeHiddenElements: true }).props.style).color).toBe(ink.heroMeta);

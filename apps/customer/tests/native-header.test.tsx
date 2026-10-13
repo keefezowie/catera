@@ -411,19 +411,19 @@ describe("paid is final", () => {
 });
 
 describe("status bar", () => {
-  it("status bar follows the mood on Beranda and the theme on a pushed screen", async () => {
+  it("status bar follows the theme on Beranda and on a pushed screen (Malam is a pale header in light)", async () => {
     pinMalam();
     await mount("/");
-    // Light theme, Malam: the dark mood header wants light glyphs.
-    expect(statusBarStyle({ scheme: "light", mood: "malam", demo: false })).toBe("light");
-    expect(statusGlyphs()).toBe("light-content");
+    // Light theme, Malam: a pale header (direction K), so the glyphs are dark as in Siang.
+    expect(statusBarStyle({ scheme: "light", mood: "malam", demo: false })).toBe("dark");
+    expect(statusGlyphs()).toBe("dark-content");
     // A pushed screen sits on the light canvas: the theme's dark glyphs.
     await go(() => router.push("/alamat"));
     expect(statusGlyphs()).toBe("dark-content");
     expect(statusBarStyle({ scheme: "light", mood: null, demo: false })).toBe("dark");
-    // Back on Beranda, the mood's glyphs again.
+    // Back on Beranda, the same.
     await go(() => router.back());
-    expect(statusGlyphs()).toBe("light-content");
+    expect(statusGlyphs()).toBe("dark-content");
   });
 });
 

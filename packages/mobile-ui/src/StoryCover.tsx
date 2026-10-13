@@ -50,7 +50,7 @@ export function StoryCover({
           right: 0,
           bottom: 0,
           left: 0,
-          experimental_backgroundImage: "linear-gradient(rgba(11,31,22,0) 40%, rgba(11,31,22,0.9))",
+          experimental_backgroundImage: "linear-gradient(rgba(27,27,26,0) 40%, rgba(27,27,26,0.9))",
         }}
       />
       <View

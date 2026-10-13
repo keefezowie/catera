@@ -742,17 +742,18 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       expect(screen.getByTestId("menu-day-2026-10-09").props.accessibilityLabel).toBe("Jumat 9 Okt, menu belum diisi");
     });
 
-    it("draws today with a sunrise ink ring and the selected day with a forest fill", async () => {
+    it("draws today with a forest ring and the selected day with a filled chip", async () => {
       mount();
       await screen.findByText("5–9 Okt");
       const light = nativeThemes.light;
       // Today starts selected.
-      expect(flatOf("menu-day-2026-10-08")).toMatchObject({ backgroundColor: light.forest, borderColor: light.sunriseInk });
-      expect(light.sunriseInk).toBe(nativeMood.light.siang.todayRing);
+      const mood = nativeMood.light.siang;
+      expect(flatOf("menu-day-2026-10-08")).toMatchObject({ backgroundColor: mood.headerText, borderColor: mood.todayRing });
+      expect(light.forest).toBe(mood.todayRing);
       // Any other day has neither.
       const friday = flatOf("menu-day-2026-10-09");
-      expect(friday.backgroundColor).not.toBe(light.forest);
-      expect(friday.borderColor).not.toBe(light.sunriseInk);
+      expect(friday.backgroundColor).not.toBe(mood.headerText);
+      expect(friday.borderColor).not.toBe(mood.todayRing);
     });
 
     it("reads the mood's ring colour on a Malam header", async () => {
@@ -765,11 +766,11 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       mount();
       await screen.findByText("5–9 Okt");
       fireEvent.press(screen.getByTestId("menu-day-2026-10-09"));
-      expect(flatOf("menu-day-2026-10-09").backgroundColor).toBe(nativeThemes.light.forest);
+      expect(flatOf("menu-day-2026-10-09").backgroundColor).toBe(nativeMood.light.siang.headerText);
       expect(screen.getByTestId("menu-day-2026-10-09").props.accessibilityState.selected).toBe(true);
       // Today loses the fill but keeps its ring.
-      expect(flatOf("menu-day-2026-10-08").backgroundColor).not.toBe(nativeThemes.light.forest);
-      expect(flatOf("menu-day-2026-10-08").borderColor).toBe(nativeThemes.light.sunriseInk);
+      expect(flatOf("menu-day-2026-10-08").backgroundColor).not.toBe(nativeMood.light.siang.headerText);
+      expect(flatOf("menu-day-2026-10-08").borderColor).toBe(nativeMood.light.siang.todayRing);
       expect(await screen.findByText("Jumat 9 Okt")).toBeTruthy();
       expect(require("expo-router").router.push).not.toHaveBeenCalled();
     });

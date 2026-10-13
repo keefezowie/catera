@@ -107,14 +107,14 @@ describe("Skeleton", () => {
       expect(flat(block)).toMatchObject({ opacity: 0.75 });
   });
 
-  it("a skeleton on a mood surface takes the mood's toggle track", () => {
+  it("a skeleton on a mood surface takes the mood's arc track", () => {
     render(
       <SkeletonGroup label="Memuat dapur">
         <Skeleton testID="block" height={40} onMood />
       </SkeletonGroup>,
     );
-    // Light Siang toggle track.
-    expect(flat(screen.getByTestId("block", { includeHiddenElements: true }))).toMatchObject({ backgroundColor: "#F6DDBE" });
+    // Light Siang arc track (the toggle track is the card colour now and would vanish on the header).
+    expect(flat(screen.getByTestId("block", { includeHiddenElements: true }))).toMatchObject({ backgroundColor: "#C9C6BA" });
   });
 });
 

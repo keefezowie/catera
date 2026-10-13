@@ -71,8 +71,8 @@ type Row = {
   title: string;
   detail: string;
   action: string;
-  /** Only the renewal takes the sunrise ink: it is the one thing on the screen that needs the customer now. */
-  sunrise?: boolean;
+  /** Only the renewal is urgent: it is the one thing on the screen that needs the customer now, so its action is charcoal. */
+  urgent?: boolean;
   onPress: () => void;
 };
 
@@ -161,7 +161,7 @@ export function WaitingList({
             `${offer.caterer} · last price ${currency(offer.price, locale)} per portion`,
           ),
           action: t("Perpanjang", "Renew"),
-          sunrise: true,
+          urgent: true,
           onPress: () => {
             // Every way into a renewal counts, as Lanjutkan paket does on the recap and the plan page.
             track("renew_started");
@@ -220,7 +220,7 @@ export function WaitingList({
                   {row.detail}
                 </Text>
               </View>
-              <Text testID="waiting-action" style={[styles.action, { color: row.sunrise ? c.sunriseInk : c.forest }]}>
+              <Text testID="waiting-action" style={[styles.action, { color: row.urgent ? c.charcoal : c.forest }]}>
                 {row.action}
               </Text>
             </PressableRow>

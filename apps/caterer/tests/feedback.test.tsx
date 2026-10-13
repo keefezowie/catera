@@ -340,7 +340,7 @@ describe("Pelanggan", () => {
     expect(byName("Bu Ani").props.entering).toBeDefined();
     expect(byName("Pak Budi").props.entering).toBeDefined();
     // Once their entrance has run (220ms), switching to Selesai and back shows the same customers again: no entrance.
-    await act(async () => void (await new Promise((r) => setTimeout(r, 300))));
+    await act(async () => void (await new Promise((r) => setTimeout(r, 500))));
     fireEvent.press(screen.getByRole("button", { name: /^Selesai/ }));
     fireEvent.press(screen.getByRole("button", { name: /^Aktif/ }));
     for (const r of rows()) expect(r.props.entering).toBeUndefined();

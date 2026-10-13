@@ -17,7 +17,7 @@ jest.mock("expo-secure-store", () => {
   };
 });
 
-const LIGHT_CANVAS = "#FDFAF3";
+const LIGHT_CANVAS = "#E4DED1";
 const DARK_CANVAS = "#151514";
 const store = (SecureStore as unknown as { __store: Map<string, string> }).__store;
 
@@ -223,6 +223,6 @@ describe("navigationTheme", () => {
     expect(base.colors.background).toBe("b");
     const dark = navigationTheme(base, nativeThemes.dark);
     expect(dark.colors.background).toBe("#151514");
-    expect(dark.colors.card).toBe("#232321");
+    expect(dark.colors.card).toBe("#292927");
   });
 });

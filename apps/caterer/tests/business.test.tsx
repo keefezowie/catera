@@ -286,10 +286,10 @@ describe("Usaha mood header", () => {
   it("titles the screen with the kitchen name in a Malam header, leaving the cards on the theme surface", async () => {
     renderMood(kitchen("Dapur Bu Rina"));
     const header = await screen.findByTestId("usaha-header");
-    expect(flat(within(header).getByTestId("mood-fill-malam", { includeHiddenElements: true })).backgroundColor).toBe("#0B1F16");
+    expect(flat(within(header).getByTestId("mood-fill-malam", { includeHiddenElements: true })).backgroundColor).toBe("#F3F6EF");
     const title = await within(header).findByText("Dapur Bu Rina");
     expect(title.props.accessibilityRole).toBe("header");
-    expect(flat(title).color).toBe("#FFF7E9");
+    expect(flat(title).color).toBe("#2E2E2E");
     expect(within(header).getByText("Usaha")).toBeTruthy();
     expect(screen.queryByRole("tab", { name: "Malam" })).toBeNull();
     // The Paket card is on the page, not in the header, and keeps the theme surface.
@@ -404,7 +404,7 @@ describe("Usaha states", () => {
       expect(screen.getByRole("radio", { name: "Ikuti sistem" })).toBeChecked();
       expect(screen.getByRole("radio", { name: "Terang" })).not.toBeChecked();
       expect(screen.getByRole("radio", { name: "Gelap" })).not.toBeChecked();
-      expect(canvas()).toBe("#FDFAF3");
+      expect(canvas()).toBe("#E4DED1");
     });
 
     it("pressing Gelap stores dark and repaints Pengaturan under the sheet", async () => {

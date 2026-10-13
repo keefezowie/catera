@@ -250,7 +250,7 @@ describe("Akun", () => {
       expect(screen.getByRole("radio", { name: "Ikuti sistem" })).toBeChecked();
       expect(screen.getByRole("radio", { name: "Terang" })).not.toBeChecked();
       expect(screen.getByRole("radio", { name: "Gelap" })).not.toBeChecked();
-      expect(canvas()).toBe("#FDFAF3");
+      expect(canvas()).toBe("#E4DED1");
     });
 
     it("pressing Gelap stores dark and repaints Pengaturan under the sheet", async () => {
@@ -634,10 +634,10 @@ describe("Akun mood header", () => {
     expect(flat(within(header).getByTestId("mood-fill-malam", { includeHiddenElements: true })).backgroundColor).toBe(
       nativeMood.light.malam.header,
     );
-    expect(nativeMood.light.malam.header).toBe("#0B1F16");
+    expect(nativeMood.light.malam.header).toBe("#F3F6EF");
     const name = within(header).getByText("Rani Contoh");
     expect(name.props.accessibilityRole).toBe("header");
-    expect(flat(name).color).toBe("#FFF7E9");
+    expect(flat(name).color).toBe("#2E2E2E");
     expect(await within(header).findByText("0812-3456-7890")).toBeTruthy();
     expect(screen.queryByRole("tab", { name: "Malam" })).toBeNull();
     // The rows below stay on the page, outside the header.
@@ -666,7 +666,7 @@ describe("Akun mood header", () => {
     renderMood(runtimeWith({}, { actor: null }));
     const header = await screen.findByTestId("akun-header");
     expect(within(header).getByText("Akun")).toBeTruthy();
-    expect(flat(within(header).getByText("Akun")).color).toBe("#FFF7E9");
+    expect(flat(within(header).getByText("Akun")).color).toBe("#2E2E2E");
     expect(screen.getByRole("button", { name: "Masuk" })).toBeTruthy();
   });
 });

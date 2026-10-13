@@ -39,10 +39,10 @@ describe("Masuk mood header", () => {
     expect(flat(within(header).getByTestId("mood-fill-malam", { includeHiddenElements: true })).backgroundColor).toBe(
       nativeMood.light.malam.header,
     );
-    expect(nativeMood.light.malam.header).toBe("#0B1F16");
+    expect(nativeMood.light.malam.header).toBe("#F3F6EF");
     const title = within(header).getByText("Catera Dapur");
     expect(title.props.accessibilityRole).toBe("header");
-    expect(flat(title).color).toBe("#FFF7E9");
+    expect(flat(title).color).toBe("#2E2E2E");
     const purpose = within(header).getByText("Masuk untuk melihat daftar masak dan antar hari ini.");
     expect(flat(purpose).color).toBe(nativeMood.light.malam.headerMeta);
     expect(screen.queryByRole("tab", { name: "Malam" })).toBeNull();

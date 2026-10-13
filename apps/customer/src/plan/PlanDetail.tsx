@@ -199,7 +199,7 @@ function Plan({ id, actorId, carried, generic }: { id: string; actorId: string; 
         ) : null}
         <Hero plan={plan} apiBase={runtime.apiBase} />
         {offline ? (
-          <Text variant="caption" style={[{ color: c.sunriseInk }, tabular]}>
+          <Text variant="caption" style={[{ color: c.charcoal }, tabular]}>
             {t("Terakhir diperbarui", "Last updated")} {jakartaClock(savedAt)} · {t("tidak ada koneksi", "no connection")}
           </Text>
         ) : null}

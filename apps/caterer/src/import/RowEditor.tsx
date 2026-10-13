@@ -84,7 +84,7 @@ export function ImportRowEditor({ n }: { n: number }) {
       <SheetHeader title={row.name || t("Pelanggan", "Customer")} closeLabel={t("Tutup", "Close")} />
       <SheetBody>
         {/* What still stops this row from being saved, in the words the list uses. */}
-        {row.needsReview ? <Text selectable style={{ color: c.sunriseInk }}>{row.reason}</Text> : null}
+        {row.needsReview ? <Text selectable style={{ color: c.danger }}>{row.reason}</Text> : null}
         <Field label={t("Nama", "Name")} value={row.name} onChangeText={(v) => update({ name: v })} />
         <Field
           label={t("Nomor WhatsApp", "WhatsApp number")}

@@ -105,7 +105,7 @@ export function DeliveryOrder({
                 />
                 {s.note ? (
                   <View style={{ paddingLeft: NOTE_INDENT, paddingBottom: 8 }}>
-                    <Text variant="caption" style={{ color: c.sunriseInk }}>
+                    <Text variant="caption" style={{ color: c.charcoal }}>
                       {s.note}
                     </Text>
                   </View>

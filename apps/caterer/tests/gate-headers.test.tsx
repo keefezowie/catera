@@ -32,10 +32,10 @@ const wrap = (runtime: MobileRuntime, ui: React.ReactElement) =>
   );
 const expectMalam = (id: string, title: string) => {
   const header = screen.getByTestId(id);
-  expect(flat(within(header).getByTestId("mood-fill-malam", { includeHiddenElements: true })).backgroundColor).toBe("#0B1F16");
+  expect(flat(within(header).getByTestId("mood-fill-malam", { includeHiddenElements: true })).backgroundColor).toBe("#F3F6EF");
   const heading = within(header).getByText(title);
   expect(heading.props.accessibilityRole).toBe("header");
-  expect(flat(heading).color).toBe("#FFF7E9");
+  expect(flat(heading).color).toBe("#2E2E2E");
   return header;
 };
 

@@ -37,7 +37,6 @@ import {
   useHaptic,
   useMood,
   useMoodColors,
-  useThemePreference,
 } from "@catera/mobile-ui";
 import { jakartaClock } from "./exceptions";
 import { cacheSession, loadCachedDay, saveCachedDay } from "./offline";
@@ -450,7 +449,7 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
             </Text>
           ) : day.data?.savedAt ? (
             <Card tone="attention">
-              <Text variant="caption" style={{ color: c.sunriseInk }}>
+              <Text variant="caption" style={{ color: c.charcoal }}>
                 {t("Terakhir diperbarui", "Last updated")} {jakartaClock(day.data.savedAt)} ·{" "}
                 {t("tidak ada sinyal", "offline")}
               </Text>
@@ -564,7 +563,7 @@ function ReportCards({ issues }: { issues: DeliveryIssue[] }) {
                 <Text variant="label">{`${shortDate(i.service_date, locale)} · ${mealLabel(i.meal, locale)}`}</Text>
                 <Text variant="caption">{i.subject}</Text>
                 {i.status === "responded" ? (
-                  <Text variant="caption" style={{ color: c.sunriseInk }}>
+                  <Text variant="caption" style={{ color: c.charcoal }}>
                     {t("Sudah dibalas · tandai selesai bila beres", "Replied · mark as done when sorted")}
                   </Text>
                 ) : null}
@@ -624,10 +623,6 @@ function ActionCards({ items }: { items: SellerAttentionItem[] }) {
 function MulaiCard() {
   const { t } = useMobile();
   const c = useColors();
-  const { scheme } = useThemePreference();
-  // The unselected rows sit on the brand card as a faint lift. The card's fill swaps light and dark with the theme,
-  // so the lift is the card's own opposite: a light veil on the dark green, a dark veil on the cream.
-  const veil = scheme === "dark" ? "rgba(22,61,46,0.08)" : "rgba(255,247,233,0.08)";
   const steps: [string, string, string][] = [
     [t("Buat paket pertama", "Create your first package"), t("Satu layar", "One screen"), "/paket/baru"],
     [t("Pindahkan pelanggan lama", "Bring in existing customers"), t("Kirim foto buku catatan atau chat WhatsApp", "Send a notebook photo or WhatsApp chat"), "/impor"],
@@ -635,10 +630,9 @@ function MulaiCard() {
   ];
   return (
     <>
-      <Card tone="brand">
-        <Text variant="heading" style={{ color: c.cream }}>
-          {t("Siapkan dapur Anda", "Set up your kitchen")}
-        </Text>
+      {/* Direction K: a plain card. Forest fills only the first step, the one brand control here; the rest sit on sage. */}
+      <Card>
+        <Text variant="heading">{t("Siapkan dapur Anda", "Set up your kitchen")}</Text>
         {steps.map(([title, sub, href], i) => (
           <PressableRow
             key={href}
@@ -648,12 +642,12 @@ function MulaiCard() {
               minHeight: 56,
               padding: 12,
               borderRadius: 12,
-              backgroundColor: i === 0 ? c.cream : veil,
+              backgroundColor: i === 0 ? c.forest : c.sage,
               gap: 2,
             }}
           >
-            <Text style={{ fontFamily: fontFor("800"), color: i === 0 ? c.forest : c.cream }}>{title}</Text>
-            <Text variant="caption" style={{ color: i === 0 ? c.muted : c.cream }}>
+            <Text style={{ fontFamily: fontFor("800"), color: i === 0 ? c.cream : c.forest }}>{title}</Text>
+            <Text variant="caption" style={{ color: i === 0 ? c.cream : c.muted }}>
               {sub}
             </Text>
           </PressableRow>

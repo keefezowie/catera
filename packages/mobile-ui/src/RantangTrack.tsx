@@ -30,7 +30,8 @@ const POSITION: Record<DeliveryStage, number> = {
 /**
  * A meal's journey as a lunchbox on a line: three stops (kitchen, on the road, at the door), a progress line behind the
  * marker and a one-line caption that says what is true now. It sits on a hero surface and reads the hero inks of the
- * current mood: `heroText` for the marker, the progress, the reached stops and the caption, `heroMeta` for the rest.
+ * current mood: `heroText` for the marker, the progress, the stops behind and the caption, `heroMeta` for the stops
+ * ahead, and `stopActive` for the current stop: the one place the track spends Sunrise (direction K).
  * - The stage comes from fulfilment status, never from the clock, so a meal nobody tapped stays "scheduled" and its
  *   marker is an outline; from "preparing" on the box is tinted.
  * - A stage change after mount slides the marker over `nativeMotion.feature` (transform only: the progress line is a
@@ -113,7 +114,8 @@ export function RantangTrack({
                   width: DOT,
                   height: DOT,
                   borderRadius: DOT / 2,
-                  backgroundColor: i <= reached ? ink.heroText : ink.heroMeta,
+                  // Ink for the stops behind, the mood's Sunrise step (`stopActive`) for the current stop, the quiet ink ahead.
+                  backgroundColor: i < reached ? ink.heroText : i === reached ? ink.stopActive : ink.heroMeta,
                 }}
               />
             ))}

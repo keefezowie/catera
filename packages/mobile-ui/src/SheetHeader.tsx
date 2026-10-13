@@ -1,7 +1,6 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { AccessibilityInfo, ScrollView, Text as RNText, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { nativeMotion } from "@catera/design-tokens";
 import { Text } from "./components";
 import { HeaderIconButton } from "./HeaderIconButton";
 import { Skeleton, SkeletonGroup } from "./Skeleton";
@@ -9,6 +8,12 @@ import { useScreenNavigation } from "./navigation";
 import { useColors } from "./theme";
 import { useToastAnchor } from "./toastAnchor";
 import { fonts } from "./type";
+
+/**
+ * The TalkBack focus fallback runs 320ms after mount, the old `feature` duration. It is its own constant so that
+ * slowing the motion tokens (`feature` is 680ms) does not push the focus later (spec 3 and 4.1).
+ */
+const SHEET_FOCUS_FALLBACK_MS = 320;
 
 /** iOS reserves this much on each side of the centred title: the 44pt Close and its mirror. */
 const IOS_SIDE = 44;
@@ -28,7 +33,7 @@ export function useSheetTitleFocus() {
     const focus = () => {
       if (ref.current) AccessibilityInfo.sendAccessibilityEvent(ref.current, "focus");
     };
-    const timer = setTimeout(focus, nativeMotion.feature);
+    const timer = setTimeout(focus, SHEET_FOCUS_FALLBACK_MS);
     // The sheet's own appear is the better moment: once it lands, the fallback timer has nothing left to do.
     const appeared = navigation?.addListener("transitionEnd" as never, (e: { data?: { closing?: boolean } }) => {
       if (e.data?.closing) return;

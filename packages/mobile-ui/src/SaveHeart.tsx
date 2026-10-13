@@ -20,7 +20,7 @@ import { themedStyles, useColors } from "./theme";
 /** The heart grows to this scale and springs back on a save (spec 6.3). */
 const POP = 1.22;
 /** The dots burst out and fade within this time (spec 6.3). */
-export const HEART_BURST_MS = 380;
+export const HEART_BURST_MS = nativeMotion.feature;
 /** Where a dot starts and ends, from the heart's centre, in dp: it ends past the disc's rim (radius 24), so the burst
  * reads outside the control. The 48dp hit area does not grow; the dots are drawn outside it. */
 const DOT_FROM = 10;
@@ -53,8 +53,8 @@ function Dot({ angle, progress, color }: { angle: number; progress: SharedValue<
 }
 
 /**
- * The save heart (spec 6.3), a 48dp round control. Saving fills it in sunrise ink, scales it 1 to 1.22 and springs it
- * back, and bursts five dots (sunrise ink and sunrise) that fade within 380ms, with the `select` haptic. Unsaving
+ * The save heart (spec 6.3), a 48dp round control. Saving fills it (forest, like every selection: a saved heart is a selection, spec 2.1), scales it 1 to 1.22 and
+ * springs it back, and bursts five dots (forest and its pressed step) that fade within 680ms (`nativeMotion.feature`), with the `select` haptic. Unsaving
  * swaps to the outline at once, with no haptic. Under reduced motion both are a plain swap; the save keeps its haptic.
  *
  * The pop follows the press, never a change of `saved` from a read, so a refresh or an undo never pops it. `canSave`
@@ -111,7 +111,7 @@ export function SaveHeart({
       {burstShown && !reduced ? (
         <View {...decorative} pointerEvents="none" style={styles.burst}>
           {DOT_ANGLES.map((angle, i) => (
-            <Dot key={angle} angle={angle} progress={burst} color={i % 2 ? c.sunrise : c.sunriseInk} />
+            <Dot key={angle} angle={angle} progress={burst} color={i % 2 ? c.forestDeep : c.forest} />
           ))}
         </View>
       ) : null}
@@ -120,7 +120,7 @@ export function SaveHeart({
           testID="save-heart-icon"
           name={saved ? "heart" : "heart-outline"}
           size={22}
-          color={saved ? c.sunriseInk : c.forest}
+          color={c.forest}
         />
       </Animated.View>
     </PressableScale>

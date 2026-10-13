@@ -179,10 +179,10 @@ describe("Pelanggan mood header", () => {
   it("titles the list in a Malam header, with the customer cards below it on the theme surface", async () => {
     renderMood(runtimeWith("approved", true));
     const header = await screen.findByTestId("pelanggan-header");
-    expect(flat(within(header).getByTestId("mood-fill-malam", { includeHiddenElements: true })).backgroundColor).toBe("#0B1F16");
+    expect(flat(within(header).getByTestId("mood-fill-malam", { includeHiddenElements: true })).backgroundColor).toBe("#F3F6EF");
     const title = within(header).getByText("Pelanggan");
     expect(title.props.accessibilityRole).toBe("header");
-    expect(flat(title).color).toBe("#FFF7E9");
+    expect(flat(title).color).toBe("#2E2E2E");
     expect(screen.queryByRole("tab", { name: "Malam" })).toBeNull();
     // The cards are on the page: Andre's row and its card carry the theme surface, not the header fill.
     expect(await screen.findByText("Andre Kusuma")).toBeTruthy();

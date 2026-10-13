@@ -289,11 +289,11 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
         ) : null}
         <View style={styles.total}>
           <Text variant="caption">Total</Text>
-          <Text variant="title" style={[{ fontSize: 32 }, tabular]}>
+          <Text variant="title" style={[{ fontSize: 32, color: palette.charcoal }, tabular]}>
             {total}
           </Text>
           {deadline > 0 ? (
-            <Text style={[{ color: palette.sunriseInk, fontFamily: fontFor("700") }, tabular]}>
+            <Text style={[{ color: palette.charcoal, fontFamily: fontFor("700") }, tabular]}>
               {t(`Bayar dalam ${clock(deadline)}`, `Pay within ${clock(deadline)}`)}
             </Text>
           ) : null}

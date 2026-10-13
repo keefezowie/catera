@@ -43,12 +43,12 @@ export const motion = {
 } as const;
 /** Native motion contract: durations match apps/web/src/lib/motion.ts (guarded by tests/native-motion-tokens.test.ts). */
 export const nativeMotion = {
-  control: 120,
-  selection: 180,
-  content: 220,
-  feature: 320,
-  ease: [0.16, 1, 0.3, 1] as const,
-  spring: { damping: 18, stiffness: 260 },
+  control: 200,
+  selection: 340,
+  content: 440,
+  feature: 680,
+  ease: [0.33, 1, 0.68, 1] as const,
+  spring: { damping: 22, stiffness: 120 },
 } as const;
 export const focus = { color: "#B65B13", width: 3, offset: 3 } as const;
 export const webVariables = {
@@ -84,146 +84,134 @@ export type PaletteKey =
   | "tabIndicator"
   | "toast"
   | "onToast"
-  | "toastAction";
+  | "toastAction"
+  | "overlayInk"
+  | "photoGround";
 export type NativePalette = Record<PaletteKey, string>;
 export type ThemeName = "light" | "dark";
 
 /**
- * Native palettes. Light is the web palette plus the native control ring, tab bar, disabled fill and tab indicator;
- * dark follows the native visual identity spec. `tabIndicator` is the pill behind the selected tab icon on Android:
- * a light forest tint in light, and in dark the brand green of the inverted cream role, so the selected icon (forest)
- * reads on it at 7.9:1 in light and 11.3:1 in dark. The light `tabBar` is #F2ECDF, the value on the owner-approved
- * canvas: one tonal step below the content, as Material 3 puts the navigation bar on a surface-container step. Dark
- * keeps #1E1E1C. The light pill is deep enough to stand 1.30:1 off that bar.
+ * Native palettes, direction K (spec 2.2): today's hues spent with restraint. Neutral ground and bars (a cream tab bar
+ * and a warm-grey page in light, charcoal steps in dark); forest fills only the primary button and marks selection, and
+ * in dark it is the lifted `#9CCBAE` so it reads on the dark cards. `cream` is the label on a forest button in both.
+ * Keys K does not change keep today's value (`sunrise`, `sunriseInk`, `danger`, the field and secondary borders, the
+ * toast keys). `forestDeep` is the pressed fill of the forest button: dark has a derived step (the palette script's
+ * method, spec 14.4) that keeps the cream label at 4.5:1 and stands 1.36:1 off the resting forest.
  *
- * `toast`, `onToast` and `toastAction` are the toast's fill, message and action label, the theme inverted so a passing
- * message stands apart from any surface under it: light is charcoal with cream text and the tab-indicator green as the
- * action; dark is the light ink as the fill with charcoal text and brand forest as the action. All reach 4.5:1.
+ * `tabIndicator` is the Android pill behind the selected tab icon (spec 14.3). K spends no brand fill behind content,
+ * so it is a neutral step: the page neutral in light (1.26:1 off the cream bar) and a charcoal step in dark (1.49:1
+ * off the bar), with the forest icon at 9:1 and 5.4:1 on it.
+ *
+ * `overlayInk` is the neutral photo overlay and `photoGround` the failed-photo ground (spec 2.2); both themes use the
+ * same two values, so a failed photo and a loaded one carry the same cream text.
  */
 export const nativeThemes: Record<ThemeName, NativePalette> = {
   light: {
     ...colors,
+    canvas: "#E4DED1",
+    line: "#D3CEC1",
+    muted: "#555B54",
     controlRing: "#858D80",
-    tabBar: "#F2ECDF",
+    tabBar: "#FFF7E9",
     disabledFill: "#CFD3C6",
-    tabIndicator: "#BFD8BB",
+    tabIndicator: "#E4DED1",
     toast: "#2E2E2E",
     onToast: "#FFF7E9",
     toastAction: "#BFD8BB",
+    overlayInk: "#1B1B1A",
+    photoGround: "#2E2E2E",
   },
   dark: {
-    forest: "#FFF7E9",
-    forestDeep: "#E9E3D6",
+    forest: "#9CCBAE",
+    forestDeep: "#7FB093",
     sunrise: "#F47B2A",
     sunriseInk: "#F5C9A6",
     cream: "#163D2E",
     charcoal: "#F5F1E8",
-    surface: "#232321",
+    surface: "#292927",
     canvas: "#151514",
     sage: "#2A2D27",
     scheduled: "#26302A",
     muted: "#B5B2AA",
-    line: "#34332F",
+    line: "#3A3A37",
     fieldBorder: "#7A7872",
     secondaryBorder: "#4A4944",
     attentionBorder: "#4C3322",
     danger: "#FF8F80",
     controlRing: "#8A8780",
-    tabBar: "#1E1E1C",
+    tabBar: "#292927",
     disabledFill: "#34332F",
-    tabIndicator: "#163D2E",
+    tabIndicator: "#444441",
     toast: "#F5F1E8",
     onToast: "#2E2E2E",
     toastAction: "#163D2E",
+    overlayInk: "#1B1B1A",
+    photoGround: "#2E2E2E",
   },
 };
 
 export type Mood = "siang" | "malam";
 export type MoodKey =
   | "header" | "headerText" | "headerMeta" | "toggleTrack" | "toggleActive" | "onToggleActive"
-  | "arcTrack" | "markerActive" | "markerIdle" | "todayRing" | "hero" | "heroText" | "heroMeta" | "heroShadow";
+  | "arcTrack" | "markerActive" | "markerIdle" | "todayRing" | "hero" | "heroText" | "heroMeta" | "heroShadow"
+  | "heroWarn" | "heroEdge" | "stopActive";
 export type MoodPalette = Record<MoodKey, string> & { pattern: string | null };
 
-const warmShadow = "0 10px 28px rgba(107,74,43,0.16)";
-const deepShadow = "0 10px 28px rgba(0,0,0,0.35)";
-
 /**
- * Mood surfaces only: the mood header, the toggle, the day arc, the Malam pattern and the hero card.
- * A Siang hero is the theme surface, so it reads the same token and cannot drift from it.
+ * Mood surfaces only (direction K, spec 2.3): the mood header, the toggle, the day arc and the hero card. A mood is a
+ * faint header tint plus the sun or moon mark, so the values differ by `header` alone within a theme (the Siang and
+ * Malam headers are cream and pale sage in light, warm and green-grey charcoal in dark). There is no Malam pattern.
+ * The hero is the theme surface in both moods, so it reads the same token and cannot drift from it.
+ *
+ * The selected Siang / Malam segment is a pill in `onToggleActive` (the card colour) drawn with a `toggleActive` (forest)
+ * ring and label. `heroWarn` is Gagal diantar on the hero, `heroEdge` the 1.5dp edge of the hero and the Dapur count
+ * card (the hero is 1.03:1 on the header, so the edge carries it), `stopActive` the tracker's current stop: the one
+ * place Sunrise is spent on a screen (sunrise ink in light, sunrise in dark).
  */
+const lightMood = (header: string): MoodPalette => ({
+  header,
+  headerText: "#2E2E2E",
+  headerMeta: "#555B54",
+  toggleTrack: "#FFFEFA",
+  toggleActive: "#163D2E",
+  onToggleActive: "#FFFEFA",
+  arcTrack: "#C9C6BA",
+  markerActive: "#2E2E2E",
+  markerIdle: "#858D80",
+  todayRing: "#163D2E",
+  hero: nativeThemes.light.surface,
+  heroText: "#2E2E2E",
+  heroMeta: "#555B54",
+  heroShadow: "0 6px 18px rgba(46,46,46,0.10)",
+  heroWarn: "#A33024",
+  heroEdge: "#C9C6BA",
+  stopActive: "#9B4309",
+  pattern: null,
+});
+const darkMood = (header: string): MoodPalette => ({
+  header,
+  headerText: "#F5F1E8",
+  headerMeta: "#B5B2AA",
+  toggleTrack: "#292927",
+  toggleActive: "#9CCBAE",
+  onToggleActive: "#292927",
+  arcTrack: "#4E4C47",
+  markerActive: "#F5F1E8",
+  markerIdle: "#8A8780",
+  todayRing: "#9CCBAE",
+  hero: nativeThemes.dark.surface,
+  heroText: "#F5F1E8",
+  heroMeta: "#B5B2AA",
+  heroShadow: "0 6px 18px rgba(0,0,0,0.35)",
+  heroWarn: "#FF8F80",
+  heroEdge: "#4E4C47",
+  stopActive: "#F47B2A",
+  pattern: null,
+});
+
 export const nativeMood: Record<ThemeName, Record<Mood, MoodPalette>> = {
-  light: {
-    siang: {
-      header: "#FFEFD9",
-      headerText: "#163D2E",
-      headerMeta: "#6B4A2B",
-      toggleTrack: "#F6DDBE",
-      toggleActive: "#9B4309",
-      onToggleActive: "#FFF7E9",
-      arcTrack: "#E2C29C",
-      markerActive: "#9B4309",
-      markerIdle: "#9A7A55",
-      todayRing: "#9B4309",
-      hero: nativeThemes.light.surface,
-      heroText: "#163D2E",
-      heroMeta: "#60675F",
-      heroShadow: warmShadow,
-      pattern: null,
-    },
-    malam: {
-      header: "#0B1F16",
-      headerText: "#FFF7E9",
-      headerMeta: "#A9BDB0",
-      toggleTrack: "#1C3A2C",
-      toggleActive: "#FFF7E9",
-      onToggleActive: "#0B1F16",
-      arcTrack: "#2C4C3C",
-      markerActive: "#FFF7E9",
-      markerIdle: "#6E8C7C",
-      todayRing: "#F5C9A6",
-      hero: "#1C3A2C",
-      heroText: "#FFF7E9",
-      heroMeta: "#A9BDB0",
-      heroShadow: deepShadow,
-      pattern: "#1A3A2B",
-    },
-  },
-  dark: {
-    siang: {
-      header: "#3A2617",
-      headerText: "#F5F1E8",
-      headerMeta: "#E6C3A2",
-      toggleTrack: "#4C3322",
-      toggleActive: "#F5C9A6",
-      onToggleActive: "#3A1A04",
-      arcTrack: "#6A4A33",
-      markerActive: "#F5C9A6",
-      markerIdle: "#A88A6A",
-      todayRing: "#F5C9A6",
-      hero: nativeThemes.dark.surface,
-      heroText: "#F5F1E8",
-      heroMeta: "#B5B2AA",
-      heroShadow: deepShadow,
-      pattern: null,
-    },
-    malam: {
-      header: "#163D2E",
-      headerText: "#F5F1E8",
-      headerMeta: "#CFE0D2",
-      toggleTrack: "#25553F",
-      toggleActive: "#FFF7E9",
-      onToggleActive: "#163D2E",
-      arcTrack: "#2C5A45",
-      markerActive: "#FFF7E9",
-      markerIdle: "#7FA08E",
-      todayRing: "#F5C9A6",
-      hero: "#1C3A2C",
-      heroText: "#F5F1E8",
-      heroMeta: "#CFE0D2",
-      heroShadow: deepShadow,
-      pattern: "#1F4A38",
-    },
-  },
+  light: { siang: lightMood("#FFF7E9"), malam: lightMood("#F3F6EF") },
+  dark: { siang: darkMood("#2E2B25"), malam: darkMood("#2A2D27") },
 };
 
 /**
@@ -231,12 +219,17 @@ export const nativeMood: Record<ThemeName, Record<Mood, MoodPalette>> = {
  * art is the same file in both themes and every mood, so these never follow the theme or the mood either.
  */
 export const nativeArt = {
-  /** The success beat's disc, the light Siang header cream (one source, so the two cannot drift). */
-  successDisc: nativeMood.light.siang.header,
+  /** The success beat's disc. A literal: it was the light Siang header, which direction K changes (spec 2.6). */
+  successDisc: "#FFEFD9",
   /** The success disc's 3dp ring. */
   successRing: colors.sunriseInk,
   /** The reading rig's paper-line highlight (`rig.json` `readingRig.paperHighlight.color`). */
   paperHighlight: colors.sunrise,
+  /** The success burst and the launch sparkles: Sunrise ink and Sunrise per theme, so the burst reads on either page. */
+  sparkles: {
+    light: { ink: nativeThemes.light.sunriseInk, sun: nativeThemes.light.sunrise },
+    dark: { ink: nativeThemes.dark.sunriseInk, sun: nativeThemes.dark.sunrise },
+  },
 } as const;
 
 function relativeLuminance(hex: string): number {
@@ -251,3 +244,16 @@ export function contrastRatio(a: string, b: string): number {
   const lb = relativeLuminance(b);
   return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
 }
+
+/**
+ * The photo scrim (spec 2.3). A ramp in `overlayInk` from 0 at the top of the photo to `scrimBottomAlpha` at the
+ * bottom, so a loaded photo has no straight edge, plus a text block that ramps from 0 to `textBlockAlpha` over
+ * `textBlockHeight` dp at the bottom and then holds, so every wrapped line of cream text sits on it. The corner button
+ * ("...") sits on its own `cornerButtonAlpha` disc. The flat 0.66 overlay and `scrimSoft` are gone.
+ */
+export const nativePhoto = {
+  scrimBottomAlpha: 0.3,
+  textBlockAlpha: 0.72,
+  textBlockHeight: 26,
+  cornerButtonAlpha: 0.66,
+} as const;

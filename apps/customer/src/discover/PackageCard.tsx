@@ -37,7 +37,7 @@ export function PackageCard({
   const price = (
     <>
       <View style={styles.price}>
-        <Text variant="heading" style={{ fontVariant: ["tabular-nums"] }}>
+        <Text variant="heading" style={{ color: c.charcoal, fontVariant: ["tabular-nums"] }}>
           {currency(perMealPrice(offer), locale)}
         </Text>
         <Text variant="caption">{unit}</Text>
@@ -84,7 +84,7 @@ export function PackageCard({
             </Text>
           ) : null}
           {offer.trialPrice ? (
-            <Text variant="label" style={{ color: c.sunriseInk }}>
+            <Text variant="label">
               {t("Bisa coba 1 hari dulu", "One-day trial available")}
             </Text>
           ) : null}

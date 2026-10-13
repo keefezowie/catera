@@ -60,9 +60,9 @@ export function SkeletonGroup({ label, children }: { label?: string; children: R
 }
 
 /**
- * One placeholder block in the theme `sage` fill; the mood's `toggleTrack` when it sits on a mood header fill (`onMood`:
- * a mood header, the Dapur count card); the mood's `arcTrack` when it sits on a hero card fill (`onHero`). Light Malam
- * paints its hero in the toggle track's own colour, so a block there would vanish; the arc's track shows on the hero in
+ * One placeholder block in the theme `sage` fill; the mood's `arcTrack` when it sits on a mood header fill (`onMood`:
+ * a mood header, the Dapur count card) or on a hero card fill (`onHero`). Direction K paints the toggle track and the
+ * hero in the card colour, so a block there would vanish; the arc's track (1.5:1 off the header and the card) shows in
  * every theme and mood. `width` defaults to the full row; `radius` to 8. Place it inside a `SkeletonGroup`, which
  * pulses it and names the wait; alone it holds still.
  */
@@ -85,7 +85,7 @@ export function Skeleton({
   const mood = useMoodColors();
   const pulse = use(PulseContext);
   const animated = useAnimatedStyle(() => ({ opacity: pulse ? pulse.value : 1 }));
-  const fill = onHero ? mood.arcTrack : onMood ? mood.toggleTrack : palette.sage;
+  const fill = onHero || onMood ? mood.arcTrack : palette.sage;
   return (
     <Animated.View
       testID={testID}

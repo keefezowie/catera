@@ -275,7 +275,7 @@ describe("states", () => {
         renderThemed(runtime, <Jadwal />, scheme, now);
         await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
         for (const cell of screen.getAllByTestId("jadwal-skeleton-cell"))
-          expect(flat(cell).backgroundColor).toBe(nativeMood[scheme][mood].toggleTrack);
+          expect(flat(cell).backgroundColor).toBe(nativeMood[scheme][mood].arcTrack);
         screen.unmount();
 
         const home = pending();

@@ -85,7 +85,7 @@ export function CustomerDetail({ id, title }: { id: string; title?: string }) {
       <FadeSwap swapKey="loaded" style={{ gap: 16 }}>
         {shown.map((s) => (
           <Card key={s.id} tone={s.status === "active" && s.remaining <= 3 ? "attention" : "surface"}>
-            <Text variant="label" style={{ color: palette.sunriseInk }}>
+            <Text variant="label" style={{ color: palette.charcoal }}>
               {s.status === "active"
                 ? activeEndLabel(s, today, t, locale, true)
                 : t("Paket sudah selesai", "Package finished")}

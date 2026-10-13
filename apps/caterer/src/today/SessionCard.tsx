@@ -111,7 +111,7 @@ export function SessionCard({
               <CookingList session={session} catererId={catererId} date={date} />
               {missing.map((m) => (
                 <View key={m.packageId} style={{ paddingTop: 8, alignItems: "flex-start" }}>
-                  <Text style={{ color: c.sunriseInk }}>
+                  <Text style={{ color: c.danger }}>
                     {`${t("Menu belum diisi", "Menu not filled in")} · ${m.packageName}: ${m.summary}`}
                   </Text>
                   {actor?.role === "owner" ? (

@@ -338,7 +338,7 @@ describe("Jadwal", () => {
     await gridReady();
     expect(flat(outline("Rabu 7 Oktober", "today")!).borderColor).toBe(malam.todayRing);
     expect(flat(outline("Rabu 7 Oktober", "selected")!).borderColor).toBe(malam.headerText);
-    expect(malam.headerText).toBe("#FFF7E9");
+    expect(malam.headerText).toBe("#2E2E2E");
     expect(flat(cell("Rabu 7 Oktober").getByTestId("cell-selected-bar")).backgroundColor).toBe(malam.headerText);
     // The pill is the ordinary one, so it does not borrow the selected state's colour.
     expect(flat(cell("Rabu 7 Oktober").getByTestId("cell-number-pill")).backgroundColor).toBe(nativeThemes.light.cream);

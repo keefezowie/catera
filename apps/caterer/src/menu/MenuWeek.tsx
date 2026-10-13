@@ -594,7 +594,7 @@ export function MenuWeek() {
                 {past ? t("Lewat", "Past") : t("Sudah lewat batas ubah", "Past the change cutoff")}
               </Text>
             ) : (
-              <Text style={{ color: c.sunriseInk, fontFamily: fontFor("700") }}>
+              <Text style={{ color: c.danger, fontFamily: fontFor("700") }}>
                 {t("Belum diisi", "Not filled")}
               </Text>
             )}

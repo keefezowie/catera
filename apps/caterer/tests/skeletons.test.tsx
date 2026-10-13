@@ -200,7 +200,7 @@ describe("Hari ini", () => {
     expect(count.props.accessibilityElementsHidden).toBe(true);
     const blocks = count.findAll((n) => host(n) && typeof n.props.testID === "string" && n.props.testID.startsWith("today-count-block"));
     expect(blocks.length).toBeGreaterThanOrEqual(3);
-    for (const block of blocks) expect(flat(block).backgroundColor).toBe(nativeMood.light.siang.toggleTrack);
+    for (const block of blocks) expect(flat(block).backgroundColor).toBe(nativeMood.light.siang.arcTrack);
     // The body holds the session card's shape: four checklist rows, one progress bar named for the kitchen.
     expect(skeletonNames()).toEqual(["Memuat dapur"]);
     const body = screen.getByLabelText("Memuat dapur");
@@ -228,7 +228,7 @@ describe("Hari ini", () => {
     // The stop labels' row sits under the rail, its blocks on the mood surface like the rest.
     for (let i = 0; i < 3; i += 1)
       expect(flat(within(track).getByTestId(`today-count-block-stop-${i}`, { includeHiddenElements: true })).backgroundColor).toBe(
-        nativeMood.light.siang.toggleTrack,
+        nativeMood.light.siang.arcTrack,
       );
     const waiting = stackHeight(track);
     await act(async () => read.answer(today()));
@@ -243,8 +243,8 @@ describe("Hari ini", () => {
     const header = await screen.findByTestId("mood-header");
     const count = within(header).getByTestId("today-count-skeleton", { includeHiddenElements: true });
     const block = count.find((n) => host(n) && n.props.testID === "today-count-block-number");
-    expect(flat(block).backgroundColor).toBe(nativeMood.light.malam.toggleTrack);
-    expect(nativeMood.light.malam.toggleTrack).not.toBe(nativeMood.light.malam.header);
+    expect(flat(block).backgroundColor).toBe(nativeMood.light.malam.arcTrack);
+    expect(nativeMood.light.malam.arcTrack).not.toBe(nativeMood.light.malam.header);
     expect(screen.getByLabelText("Memuat dapur")).toBeTruthy();
   });
 
@@ -255,7 +255,7 @@ describe("Hari ini", () => {
     // The stored choice is read from the phone, so the dark palette lands a moment after the first frame.
     await waitFor(() =>
       expect(flat(within(header).getByTestId("today-count-block-number", { includeHiddenElements: true })).backgroundColor).toBe(
-        nativeMood.dark.siang.toggleTrack,
+        nativeMood.dark.siang.arcTrack,
       ),
     );
     const row = within(screen.getByLabelText("Memuat dapur")).getByTestId("today-skeleton-row-0", { includeHiddenElements: true });
@@ -407,9 +407,9 @@ describe("Menu", () => {
     expect(days).toHaveLength(5);
     for (const day of days) {
       expect(flat(day).height).toBe(64);
-      expect(flat(day).backgroundColor).toBe(nativeMood.light.malam.toggleTrack);
+      expect(flat(day).backgroundColor).toBe(nativeMood.light.malam.arcTrack);
     }
-    expect(nativeMood.light.malam.toggleTrack).not.toBe(nativeMood.light.malam.header);
+    expect(nativeMood.light.malam.arcTrack).not.toBe(nativeMood.light.malam.header);
     // The page holds the controls and the day card; only the day card names the wait.
     expect(skeletonNames()).toEqual(["Memuat menu"]);
     const fills = screen.getByLabelText("Memuat menu").findAll((n) => flat(n).backgroundColor === nativeThemes.light.sage);
