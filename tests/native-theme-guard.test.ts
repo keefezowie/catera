@@ -163,16 +163,29 @@ test("the Malam pattern is gone", () => {
 
 // Errors are never loose text (spec 5.2). A `Text` coloured `danger` or `heroWarn` belongs only inside `FormError`, a
 // `Field` error, `ReadError` and `ConnectionBanner`, which add the icon and the ground. Everything else routes its
-// message through one of them. The scan reads each opening `<Text …>` / `<RNText …>` tag.
+// message through one of them. The scan reads each opening `<Text …>` / `<RNText …>` tag. A tag counts when it names
+// `danger` or `heroWarn` itself, or when it reads a style that sets `color` to one: an entry of a style object
+// (`error: { color: c.danger }`, read as `styles.error`) or a plain constant (`const warn = { color: … }`). A danger
+// border or a danger style on a View is not text and does not count.
 const ERROR_OWNERS = new Set([
   "packages/mobile-ui/src/FormError.tsx",
   "packages/mobile-ui/src/ReadError.tsx",
   "packages/mobile-ui/src/ConnectionBanner.tsx",
-  "packages/mobile-ui/src/components.tsx", // Field's error line
   "packages/mobile-ui/src/settings/SettingsRows.tsx", // Keluar, a destructive action label, not an error
 ]);
-const bareErrorTexts = (source: string) =>
-  [...source.matchAll(/<(?:RNText|Text)\b[^>]*?\b(?:danger|heroWarn)\b[^>]*>/g)].length;
+const DANGER_INK = String.raw`\bcolor\s*:\s*[^,}]*\b(?:danger|heroWarn)\b`;
+const bareErrorTexts = (source: string) => {
+  const entries = [...source.matchAll(new RegExp(String.raw`(\w+)\s*:\s*\{[^{}]*${DANGER_INK}`, "g"))].map((m) => m[1]);
+  const constants = [...source.matchAll(new RegExp(String.raw`\bconst\s+(\w+)\s*=\s*\{[^{}]*${DANGER_INK}`, "g"))].map((m) => m[1]);
+  const readsDanger = (tag: string) =>
+    /\b(?:danger|heroWarn)\b/.test(tag) ||
+    entries.some((name) => new RegExp(String.raw`\.${name}\b`).test(tag)) ||
+    constants.some((name) => new RegExp(String.raw`[{\[,\s]${name}\b`).test(tag));
+  return [...source.matchAll(/<(?:RNText|Text)\b[^>]*>/g)].filter((m) => readsDanger(m[0])).length;
+};
+// components.tsx owns one error line, Field's. Only the Field function is lifted out; the rest of the file is scanned.
+const withoutField = (source: string) =>
+  source.replace(/export function Field\b[\s\S]*?(?=\nexport function |$)/, "");
 
 test("a bare danger caption fails the scan", () => {
   expect(bareErrorTexts(`<Text selectable style={{ color: c.danger }}>{error}</Text>`)).toBe(1);
@@ -181,6 +194,25 @@ test("a bare danger caption fails the scan", () => {
   expect(bareErrorTexts(`<Text\n  selectable\n  style={{ color: c.danger, textAlign: "center" }}\n>x</Text>`)).toBe(1);
   expect(bareErrorTexts(`<FormError message={error} />`)).toBe(0);
   expect(bareErrorTexts(`<Text style={{ color: c.muted }}>danger zone</Text>`)).toBe(0);
+});
+
+test("a danger colour moved into a style entry still fails the scan", () => {
+  const sheet = `const useStyles = themedStyles((c) => ({\n  error: { color: c.danger, marginTop: 4 },\n  note: { color: c.muted },\n  edge: { borderColor: c.danger },\n}));\n`;
+  expect(bareErrorTexts(`${sheet}<Text selectable style={styles.error}>{error}</Text>`)).toBe(1);
+  expect(bareErrorTexts(`${sheet}<RNText style={[styles.caption, styles.error]}>x</RNText>`)).toBe(1);
+  expect(bareErrorTexts(`const warn = { color: moodColors.heroWarn };\n<Text style={warn}>x</Text>`)).toBe(1);
+  // A danger border, a muted entry and a danger entry on a View are not loose text.
+  expect(bareErrorTexts(`${sheet}<Text style={styles.note}>x</Text><View style={styles.edge} /><View style={styles.error} />`)).toBe(0);
+  // One tag counts once, whichever way it reaches danger.
+  expect(bareErrorTexts(`${sheet}<Text style={[styles.error, { color: c.danger }]}>x</Text>`)).toBe(1);
+});
+
+test("components.tsx is exempt only inside Field", () => {
+  const field = `export function Field() {\n  return error ? <RNText style={[styles.caption, { color: c.danger }]}>{error}</RNText> : null;\n}\n`;
+  const after = `export function Stepper() {\n  return null;\n}\n`;
+  expect(bareErrorTexts(withoutField(`${field}${after}`))).toBe(0);
+  expect(bareErrorTexts(withoutField(`${field}${after.replace("null;", "<Text style={{ color: c.danger }}>x</Text>;")}`))).toBe(1);
+  expect(bareErrorTexts(withoutField(`export function Chip() {\n  return <Text style={{ color: c.danger }}>x</Text>;\n}\n${field}`))).toBe(1);
 });
 
 // Existing call sites that still draw their own error text. G8 and G9 route them through `FormError` / `ReadError` as
@@ -232,7 +264,8 @@ test("no error text is loose outside FormError, Field error, ReadError and Conne
   const found: Record<string, number> = {};
   for (const file of appDirs.flatMap((d) => walk(join(root, d))).map(rel)) {
     if (ERROR_OWNERS.has(file)) continue;
-    const count = bareErrorTexts(readFileSync(join(root, file), "utf8"));
+    const source = readFileSync(join(root, file), "utf8");
+    const count = bareErrorTexts(file === "packages/mobile-ui/src/components.tsx" ? withoutField(source) : source);
     if (count) found[file] = count;
   }
   expect(found).toEqual(LEGACY_BARE_ERRORS);

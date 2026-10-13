@@ -56,17 +56,26 @@ jest.mock("expo-notifications", () => ({
   setNotificationChannelAsync: jest.fn(async () => undefined),
   AndroidImportance: { DEFAULT: 3 },
 }));
-// NetInfo reads a native module that Jest does not have. The stand-in keeps the listeners so a test drives the
-// connection with `NetInfo.__emit({ isConnected: false })`; nothing is emitted on its own.
+// NetInfo reads a native module that Jest does not have. The stand-in keeps the listeners and the current state: a
+// test sets what the first `NetInfo.fetch()` reports with `NetInfo.__set(state)` and drives a change with
+// `NetInfo.__emit(state)`. Nothing is emitted on its own, and the state starts online.
 jest.mock("@react-native-community/netinfo", () => {
   const listeners = new Set();
+  const online = { isConnected: true, isInternetReachable: true };
+  let current = online;
   const NetInfo = {
     addEventListener: jest.fn((listener) => {
       listeners.add(listener);
       return () => listeners.delete(listener);
     }),
-    fetch: jest.fn(async () => ({ isConnected: true })),
-    __emit: (state) => [...listeners].forEach((listener) => listener(state)),
+    fetch: jest.fn(async () => current),
+    __set: (state) => {
+      current = state ?? online;
+    },
+    __emit: (state) => {
+      current = state;
+      [...listeners].forEach((listener) => listener(state));
+    },
     __listeners: listeners,
   };
   return { __esModule: true, default: NetInfo, ...NetInfo };

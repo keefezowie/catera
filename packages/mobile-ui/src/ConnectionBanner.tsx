@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AccessibilityInfo, Platform, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import NetInfo from "@react-native-community/netinfo";
+import NetInfo, { type NetInfoState } from "@react-native-community/netinfo";
 import { Button, Text } from "./components";
 import { themedStyles, useColors } from "./theme";
 import { useT } from "./useT";
@@ -12,45 +12,73 @@ export function bannerTime(at: Date): string {
   return `${two(at.getHours())}.${two(at.getMinutes())}`;
 }
 
+/** Offline means NetInfo says so: no connection, or a connection with no internet. Unknown reachability is not offline. */
+const isOffline = (state: Pick<NetInfoState, "isConnected" | "isInternetReachable">) =>
+  state.isConnected === false || state.isInternetReachable === false;
+
 /**
- * Shown by a screen that could not reach the server: an icon, "Tidak ada koneksi", the time of the data on screen
- * (`lastSeen`, left out when nothing is cached) and "Coba lagi". Announced once when it appears. It watches the
- * connection: when the phone comes back online it hides itself and calls `onRetry` once. A phone that was already
- * online (the server is the problem) keeps the banner until "Coba lagi" is pressed.
+ * "Tidak ada koneksi": an icon, the title, the time of the data on screen (`lastSeen`, left out when nothing is cached)
+ * and "Coba lagi". It reads the phone's connection itself and renders only while NetInfo reports the phone offline, so
+ * an online phone never reads "Tidak ada koneksi" (a server failure is a `ReadError` or a `FormError`, which say what
+ * failed). Nothing renders until NetInfo has reported once, through its first event or `NetInfo.fetch()`, whichever
+ * comes first. Each time the phone goes offline the banner shows and is announced once; each time it comes back the
+ * banner hides and `onRetry` runs once.
+ *
+ * How screens mount it (G8, G9): a screen that shows cached data mounts `<ConnectionBanner lastSeen={…} onRetry={reload} />`
+ * unconditionally above that data and lets the banner decide when to appear; it needs no state of its own. A screen
+ * with nothing cached shows a `ReadError` when its load fails and mounts the banner without `lastSeen` beside it.
  */
 export function ConnectionBanner({ lastSeen, onRetry }: { lastSeen?: Date; onRetry: () => void }) {
   const c = useColors();
   const styles = useStyles();
   const t = useT();
-  const [visible, setVisible] = useState(true);
+  // null until NetInfo has reported once.
+  const [offline, setOffline] = useState<boolean | null>(null);
   const retry = useRef(onRetry);
   retry.current = onRetry;
   useEffect(() => {
-    let wasOffline = false;
-    return NetInfo.addEventListener((state) => {
-      if (state.isConnected === false) {
-        wasOffline = true;
-        setVisible(true);
-      } else if (state.isConnected === true && wasOffline) {
-        wasOffline = false;
-        setVisible(false);
-        retry.current();
-      }
+    let known: boolean | null = null;
+    let live = true;
+    const apply = (state: NetInfoState) => {
+      const next = isOffline(state);
+      // Only a return from a reported offline state is a reconnect; the first report never retries.
+      if (known === true && !next) retry.current();
+      known = next;
+      setOffline(next);
+    };
+    const unsubscribe = NetInfo.addEventListener(apply);
+    void NetInfo.fetch().then((state) => {
+      // An event that arrived first is newer than this answer.
+      if (live && known === null) apply(state);
     });
+    return () => {
+      live = false;
+      unsubscribe();
+    };
   }, []);
   const title = t("Tidak ada koneksi", "No connection");
-  const line = lastSeen ? t(`Menampilkan data terakhir, ${bannerTime(lastSeen)}`, `Showing the last data, ${bannerTime(lastSeen)}`) : null;
+  const line = lastSeen ? t(`Menampilkan data terakhir, ${bannerTime(lastSeen)}`, `Showing data from ${bannerTime(lastSeen)}`) : null;
+  // Read through a ref so a re-render with new words does not announce the same episode again.
+  const spoken = useRef("");
+  spoken.current = line ? `${title}. ${line}` : title;
   useEffect(() => {
-    if (visible && Platform.OS === "ios") AccessibilityInfo.announceForAccessibility(line ? `${title}. ${line}` : title);
-  }, [visible, title, line]);
-  if (!visible) return null;
+    // Android speaks through the live region; iOS has none, so each offline episode is announced once here.
+    if (offline && Platform.OS === "ios") AccessibilityInfo.announceForAccessibility(spoken.current);
+  }, [offline]);
+  if (!offline) return null;
   return (
     <View testID="connection-banner" accessibilityLiveRegion="polite" style={styles.box}>
-      <Ionicons name="cloud-offline-outline" size={22} color={c.danger} />
+      <Ionicons
+        testID="connection-banner-icon"
+        name="cloud-offline-outline"
+        size={22}
+        color={c.danger}
+        accessible={false}
+        importantForAccessibility="no-hide-descendants"
+        accessibilityElementsHidden
+      />
       <View style={styles.text}>
-        <Text style={{ color: c.danger, fontWeight: "700" }}>
-          {title}
-        </Text>
+        <Text style={{ color: c.danger, fontWeight: "700" }}>{title}</Text>
         {line ? <Text variant="caption">{line}</Text> : null}
       </View>
       <Button variant="text" label={t("Coba lagi", "Try again")} onPress={onRetry} />

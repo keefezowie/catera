@@ -768,10 +768,13 @@ describe("StickyAction", () => {
   it("shows a spinner and blocks presses while busy", () => {
     const onPress = jest.fn();
     jest.useFakeTimers();
-    mount(<StickyAction label="Mulai masak" onPress={onPress} busy testID="act" />);
-    act(() => void jest.advanceTimersByTime(150));
-    expect(byId("act-spinner")).toBeTruthy();
-    jest.useRealTimers();
+    try {
+      mount(<StickyAction label="Mulai masak" onPress={onPress} busy testID="act" />);
+      act(() => void jest.advanceTimersByTime(150));
+      expect(byId("act-spinner")).toBeTruthy();
+    } finally {
+      jest.useRealTimers();
+    }
     fireEvent.press(screen.getByRole("button", { name: "Mulai masak" }));
     expect(onPress).not.toHaveBeenCalled();
   });

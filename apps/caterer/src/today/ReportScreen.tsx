@@ -23,7 +23,6 @@ import {
   SheetHeader,
   Skeleton,
   SkeletonGroup,
-  StateArt,
   Text,
   useColors,
   useToast,
