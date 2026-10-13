@@ -431,10 +431,16 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
             </PressableScale>
           }
         >
-          {/* The count card enters from its skeleton as one block, in the same place on the header. */}
+          {/* The count card enters from its skeleton as one block, in the same place on the header. It is keyed by
+              day and meal, so the mood toggle and Hari ini/Besok mount the other session's track in place instead of
+              sliding it (Decision A); only a stage change of the same session moves it. */}
           {loading || (ops && session) ? (
             <FadeSwap swapKey={loading ? "loading" : "count"}>
-              {ops && session ? <CountCard ops={ops} session={session} /> : <TodayCountSkeleton />}
+              {ops && session ? (
+                <CountCard key={`${date}:${session.meal}`} ops={ops} session={session} />
+              ) : (
+                <TodayCountSkeleton />
+              )}
             </FadeSwap>
           ) : null}
         </MoodHeader>

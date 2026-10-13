@@ -6,6 +6,7 @@ import * as SecureStore from "expo-secure-store";
 import { router } from "expo-router";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { errorLabel, kitchenSession, routeMapsUrl, type SellerOperationsState } from "@catera/domain";
+import { nativeMotion } from "@catera/design-tokens";
 import { MoodProvider, useMood } from "@catera/mobile-ui";
 import { ExceptionSheet } from "../src/today/ExceptionSheet";
 import { TodayScreen } from "../src/today/TodayScreen";
@@ -167,10 +168,35 @@ describe("the count card's four-stop track with mixed stages", () => {
     const figure = (i: number) => (within(card).getByTestId(`rantang-track-count-${i}`, hidden).children as string[]).join("");
     expect([0, 1, 2, 3].map(figure)).toEqual(["0", "2", "1", "1"]);
     const track = within(card).getByTestId("rantang-track");
-    // The least advanced row speaks in the caption; the line and the sentence follow the furthest.
-    expect(within(card).getByText("Dimasak 08.10")).toBeTruthy();
+    // The caption, the line, the ring and the sentence all follow the furthest stage, so they never disagree.
+    expect((within(card).getByTestId("rantang-track-caption").children as string[]).join("")).toBe("Ditandai sampai");
+    expect(within(card).queryByText("Dimasak 08.10")).toBeNull();
     expect(track.props.accessibilityLabel).toBe("Pesanan: Ditandai sampai, langkah 4 dari 4");
     expect(within(card).getByTestId("rantang-track-stop-3-half", hidden)).toBeTruthy();
+  });
+
+  it("stays still across a mood switch: the other meal's track mounts in place (Decision A)", async () => {
+    const day = kitchenDay([cooking]);
+    for (const d of day.deliveries) d.meals.push({ meal: "dinner", status: "scheduled" } as never);
+    const Switch = () => {
+      const { setMood } = useMood();
+      return <Pressable accessibilityLabel="ke Malam" onPress={() => setMood("malam")} />;
+    };
+    render(
+      <MobileProvider runtime={runtimeWith(async () => day)} linkMapper={(h) => h}>
+        <MoodProvider now={() => new Date("2026-10-08T03:00:00Z")}>
+          <Switch />
+          <TodayScreen />
+        </MoodProvider>
+      </MobileProvider>,
+    );
+    const sentence = () => within(screen.getByTestId("session-count")).getByTestId("rantang-track").props.accessibilityLabel;
+    await waitFor(() => expect(sentence()).toBe("Pesanan: Dimasak, langkah 2 dari 4"));
+    const timing = jest.spyOn(Reanimated, "withTiming");
+    fireEvent.press(screen.getByLabelText("ke Malam"));
+    await waitFor(() => expect(sentence()).toBe("Pesanan: Terjadwal, langkah 1 dari 4"));
+    // The tracker moves over `feature` only on a real stage change; the other meal is not one.
+    expect(timing.mock.calls.filter(([, config]) => config?.duration === nativeMotion.feature)).toEqual([]);
   });
 });
 
@@ -364,8 +390,10 @@ describe("Mulai masak", () => {
     renderToday(runtimeWith(async () => kitchenDay([{ status: "out_for_delivery", departed_at: "2026-10-08T02:00:00Z" }, scheduled])));
     expect(await screen.findByText("Mulai masak")).toBeTruthy();
     expect(screen.queryByText(/^Berangkat antar/)).toBeNull();
-    // The session is as far along as its least advanced row.
-    expect(within(screen.getByTestId("session-count")).getByText("Terjadwal")).toBeTruthy();
+    // The action follows the least advanced row; the track and its words follow the furthest one.
+    const card = within(screen.getByTestId("session-count"));
+    expect((card.getByTestId("rantang-track-caption").children as string[]).join("")).toBe("Diantar");
+    expect(card.getByTestId("rantang-track").props.accessibilityLabel).toBe("Pesanan: Diantar, langkah 3 dari 4");
   });
 
   it("answers an INVALID_DATE with a plain, selectable line in the footer and reads the day again", async () => {

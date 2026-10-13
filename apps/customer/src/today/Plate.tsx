@@ -281,8 +281,8 @@ function PlateContent({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const track = useTrack();
-  // The track tells where a meal is on its way. A meal marked as a problem has no honest place on it, so a failed or
-  // reported plate keeps its message alone.
+  // The journey caption (with its times) belongs to a meal on its normal way; a failed or reported plate gets none and
+  // keeps its own message.
   const caption =
     hero && plate.state !== "failed" && plate.state !== "reported" ? journeyCaption(plate.journey, locale) : null;
   // A failed meal keeps the track, with its warning stop: it has an honest place on it. A reported one does not.

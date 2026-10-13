@@ -101,8 +101,11 @@ const fallbackT = (id: string) => id;
  *   (transform and opacity only). The first render, a refresh, a tab return and reduced motion put everything in place
  *   at once. It never loops.
  * - A screen reader gets one sentence for the whole track, "Pesanan: {stage}, langkah {n} dari 4", with the caption
- *   (and the counts) as its state; the stops and their labels are decoration for the eye.
- * - `counts` (Dapur) puts a figure under each stop and fills the line to the furthest stage any meal has reached.
+ *   (and the counts) as its state; the stops and their labels are decoration for the eye. A failed meal's step is the
+ *   stop it reached. Each label stays on one line, centred on its stop.
+ * - `counts` (Dapur) puts a figure under each stop and fills the line to the furthest stage any meal has reached; the
+ *   words then name that stage too, so the caption never disagrees with the ring.
+ * - The caller remounts the track (a `key`) when it starts showing another meal or day, so a switch is not a change.
  */
 export function RantangTrack({
   stage: given,
@@ -168,17 +171,21 @@ export function RantangTrack({
     issue: t("Gagal diantar", "Not delivered"),
   };
   const labels = [t("Terjadwal", "Scheduled"), t("Dimasak", "Cooking"), t("Diantar", "On the way"), t("Sampai", "Arrived")];
-  const step = issue ? STOPS : here + 1;
+  // A failed meal is counted at the stop it reached.
+  const step = here + 1;
   const sentence = t(
     `Pesanan: ${names[stage]}, langkah ${step} dari ${STOPS}`,
     `Order: ${names[stage]}, step ${step} of ${STOPS}`,
   );
+  // With counts the line can run past the stage given; a caption written for that stage would then disagree with the
+  // ring and the sentence, so the words name the furthest stage instead.
   const words = issue
     ? names.issue
-    : (caption ??
-      (stage === "arrived_unconfirmed"
+    : caption && stage === given
+      ? caption
+      : stage === "arrived_unconfirmed" && !counts
         ? t("Ditandai sampai, menunggu konfirmasimu", "Marked as arrived, waiting for you to confirm")
-        : names[stage]));
+        : names[stage];
   const total = (i: number) =>
     i === LAST ? (counts?.arrived_unconfirmed ?? 0) + (counts?.delivered ?? 0) : (counts?.[ORDER[i] as Flow] ?? 0);
   const state = [words, ...(counts ? labels.map((label, i) => `${label} ${total(i)}`) : [])].join(". ");
@@ -250,7 +257,7 @@ export function RantangTrack({
                 position={position}
                 warn={warn}
                 issue={issue}
-                half={i === LAST && (stage === "arrived_unconfirmed" || stage === "delivered")}
+                half={i === LAST && !issue}
                 testID={`${testID}-stop-${i}`}
               />
             ))}
@@ -263,14 +270,18 @@ export function RantangTrack({
         importantForAccessibility="no-hide-descendants"
         style={{ flexDirection: "row" }}
       >
+        {/* Each label is centred on its stop in a box twice its column, so a long word ("Terjadwal", "Scheduled" at
+            font scale 1.3) runs past the column on one line instead of breaking; the shorter neighbours leave it room. */}
         {labels.map((label, i) => (
           <View key={i} style={{ flex: 1, alignItems: "center" }}>
             <Text
               testID={`${testID}-label-${i}`}
               variant="caption"
+              numberOfLines={1}
               style={{
                 color: issue && i === LAST ? ink.heroWarn : !issue && i === here ? ink.heroText : ink.heroMeta,
                 textAlign: "center",
+                width: "200%",
               }}
             >
               {label}
@@ -279,6 +290,7 @@ export function RantangTrack({
               <Text
                 testID={`${testID}-count-${i}`}
                 variant="caption"
+                numberOfLines={1}
                 style={{ color: total(i) > 0 ? ink.heroText : ink.heroMeta, fontVariant: ["tabular-nums"], textAlign: "center" }}
               >
                 {String(total(i))}
@@ -336,10 +348,12 @@ function TrackStop({
     "worklet";
     return clamp01(p - index + 1);
   };
+  // The stop the fill stands on. `delivered` sits one past the last stop, so nothing is current then: the journey is
+  // over and Sunrise marks only a stop the meal is still at.
   const current = (p: number) => {
     "worklet";
     if (issue) return 0;
-    return last ? arrived(p) : arrived(p) * (1 - clamp01(p - index));
+    return arrived(p) * (1 - clamp01(p - index));
   };
   const done = useAnimatedStyle(() => ({ opacity: passed(position.value) }), [issue]);
   const now = useAnimatedStyle(() => ({ opacity: arrived(position.value) }), [issue]);
@@ -349,6 +363,8 @@ function TrackStop({
     [issue],
   );
   const warning = useAnimatedStyle(() => ({ opacity: warn.value }));
+  // Sampai half fills as the fill reaches it, over the same timing (instant under reduced motion, like the fill).
+  const halfway = useAnimatedStyle(() => ({ opacity: arrived(position.value) }), [issue]);
 
   return (
     <View
@@ -372,7 +388,7 @@ function TrackStop({
           ring,
         ]}
       />
-      <Animated.View style={[{ width: DISC, height: DISC }, disc]}>
+      <Animated.View testID={`${testID}-disc`} style={[{ width: DISC, height: DISC }, disc]}>
         <View testID={`${testID}-ahead`} style={[layer, { backgroundColor: ink.hero, borderWidth: 1.6, borderColor: ink.heroMeta }]}>
           <StopGlyph name={glyph} size={GLYPH} color={ink.heroMeta} />
         </View>
@@ -383,13 +399,13 @@ function TrackStop({
           <StopGlyph name={glyph} size={GLYPH} color={ink.heroText} />
         </Animated.View>
         {half ? (
-          <View testID={`${testID}-half`} style={layer}>
+          <Animated.View testID={`${testID}-half`} style={[layer, halfway]}>
             <View style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: DISC / 2, overflow: "hidden", backgroundColor: ink.heroText }}>
               <View style={{ position: "absolute", left: 0, top: 0, width: DISC, height: DISC, alignItems: "center", justifyContent: "center" }}>
                 <StopGlyph name={glyph} size={GLYPH} color={ink.hero} />
               </View>
             </View>
-          </View>
+          </Animated.View>
         ) : null}
         <Animated.View testID={`${testID}-done`} style={[layer, { backgroundColor: ink.heroText }, done]}>
           <StopGlyph name={glyph} size={GLYPH} color={ink.hero} />

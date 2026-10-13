@@ -189,8 +189,94 @@ describe("RantangTrack", () => {
     for (let i = 0; i < 4; i += 1) expect(byId(`journey-stop-${i}`).props.accessibilityElementsHidden).toBe(true);
     expect(byId("journey-labels").props.importantForAccessibility).toBe("no-hide-descendants");
     screen.unmount();
+    // A failed meal is counted at the stop it reached, not at the end it never got to.
     mount(track("issue"));
-    expect(byId("journey").props.accessibilityLabel).toBe("Pesanan: Gagal diantar, langkah 4 dari 4");
+    expect(byId("journey").props.accessibilityLabel).toBe("Pesanan: Gagal diantar, langkah 3 dari 4");
+    screen.unmount();
+    mount(<RantangTrack stage="issue" reached="preparing" testID="journey" />);
+    expect(byId("journey").props.accessibilityLabel).toBe("Pesanan: Gagal diantar, langkah 2 dari 4");
+  });
+
+  it("delivered has no current stop: no stopActive ring and no larger disc anywhere", () => {
+    mount(track("delivered"));
+    measure();
+    for (let i = 0; i < 4; i += 1) {
+      expect(op(`journey-stop-${i}-ring`)).toBe(0);
+      expect((flat(`journey-stop-${i}-disc`).transform as { scale: number }[])[0].scale).toBe(1);
+      expect(op(`journey-stop-${i}-done`)).toBe(1);
+    }
+    screen.unmount();
+    mount(track("arrived_unconfirmed"));
+    measure();
+    expect(op("journey-stop-3-ring")).toBe(1);
+    expect((flat("journey-stop-3-disc").transform as { scale: number }[])[0].scale).toBeCloseTo(1.14);
+  });
+
+  it("keeps the marker and the progress line invisible until the rail has been measured", () => {
+    mount(track("delivered"));
+    expect(op("journey-marker")).toBe(0);
+    expect(op("journey-progress")).toBe(0);
+    measure();
+    expect(op("journey-marker")).toBe(1);
+    expect(op("journey-progress")).toBe(1);
+  });
+
+  it("reads the hero inks: heroMeta for the line, heroText for the progress and caption, heroWarn when it failed", () => {
+    mount(track("out_for_delivery", { caption: "Berangkat 11.00" }));
+    measure();
+    expect(flat("journey-line").backgroundColor).toBe(ink.heroMeta);
+    expect(flat("journey-progress").backgroundColor).toBe(ink.heroText);
+    expect(StyleSheet.flatten(screen.getByText("Berangkat 11.00").props.style).color).toBe(ink.heroText);
+    expect(flat("journey-label-3").color).toBe(ink.heroMeta);
+    expect(flat("journey-label-2").color).toBe(ink.heroText);
+    screen.unmount();
+    mount(track("issue"));
+    expect(flat("journey-caption").color).toBe(ink.heroWarn);
+    expect(flat("journey-label-3").color).toBe(ink.heroWarn);
+  });
+
+  it.each([
+    ["scheduled", false],
+    ["preparing", true],
+    ["out_for_delivery", true],
+    ["arrived_unconfirmed", true],
+    ["delivered", true],
+    ["issue", true],
+  ] as const)("%s draws the marker box filled: %s", (stage, filled) => {
+    mount(track(stage));
+    measure();
+    expect(byId("journey-marker-glyph-body").props.fill != null).toBe(filled);
+  });
+
+  it("keeps every stop label on one line, centred on its stop and free to run past its column", () => {
+    mount(track("scheduled", { counts: trackCounts({ scheduled: 2 }) }));
+    for (let i = 0; i < 4; i += 1) {
+      expect(byId(`journey-label-${i}`).props.numberOfLines).toBe(1);
+      const style = flat(`journey-label-${i}`);
+      expect(style.textAlign).toBe("center");
+      // Twice the column: "Terjadwal" or "Scheduled" at caption size and font scale 1.3 runs past a 64dp column
+      // without wrapping, and the shorter neighbours leave it room.
+      expect(style.width).toBe("200%");
+      expect(byId(`journey-count-${i}`).props.numberOfLines).toBe(1);
+    }
+    expect(flat("journey-labels").overflow).not.toBe("hidden");
+  });
+
+  it("fades the half-filled Sampai in with the fill, and puts it in place at once under reduced motion", () => {
+    const timing = jest.spyOn(Reanimated, "withTiming");
+    const view = mount(track("out_for_delivery"));
+    measure();
+    expect(op("journey-stop-3-half")).toBe(0);
+    view.rerender(wrap(track("arrived_unconfirmed")));
+    expect(timing).toHaveBeenCalledWith(3, expect.objectContaining({ duration: nativeMotion.feature }));
+    expect(op("journey-stop-3-half")).toBe(1);
+    screen.unmount();
+    jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
+    timing.mockClear();
+    const quiet = mount(track("out_for_delivery"));
+    quiet.rerender(wrap(track("arrived_unconfirmed")));
+    expect(timing).not.toHaveBeenCalled();
+    expect(op("journey-stop-3-half")).toBe(1);
   });
 
   it("with counts the figures sit under the stops and the line fills to the furthest stage reached", () => {
