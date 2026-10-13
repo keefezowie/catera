@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
-import { Linking } from "react-native";
+import { Linking, StyleSheet } from "react-native";
+import { nativeThemes } from "@catera/design-tokens";
 import { useEffect } from "react";
 import { createMobileRuntime, MobileProvider, useMobile, type MobileRuntime } from "@catera/mobile-core";
 import { ToastProvider } from "@catera/mobile-ui";
@@ -187,6 +188,8 @@ describe("Tandai selesai says what the customer will read", () => {
     show(runtime);
     fireEvent.changeText(await screen.findByLabelText("Balasan untuk pelanggan"), "Oke");
     expect(screen.getByText("Tulis minimal 5 karakter.")).toBeTruthy();
+    // A field validation goes through Field's own error: the input takes the danger edge with the line under it.
+    expect(StyleSheet.flatten(screen.getByLabelText("Balasan untuk pelanggan").props.style).borderColor).toBe(nativeThemes.light.danger);
     expect(screen.queryByText(/Pelanggan akan menerima/)).toBeNull();
     expect(screen.getByRole("button", { name: "Tandai selesai" }).props.accessibilityState.disabled).toBe(true);
     expect(screen.getByRole("button", { name: "Balas" }).props.accessibilityState.disabled).toBe(true);

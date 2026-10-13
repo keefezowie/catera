@@ -21,7 +21,7 @@ import { FadeSwap, MoodProvider, ThemeProvider } from "@catera/mobile-ui";
 import * as Reanimated from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Beranda } from "../src/today/Beranda";
-import { SunriseButton, sentences } from "../src/today/Plate";
+import { HeroButton, sentences } from "../src/today/Plate";
 import { customerLink } from "../src/links";
 import { Masuk } from "../src/account/Masuk";
 import * as offline from "../src/today/offline";
@@ -570,11 +570,11 @@ it("Beranda renewal row says 1 day left in English", async () => {
   expect(screen.queryByText(/1 days/)).toBeNull();
 });
 
-describe("SunriseButton disabled look", () => {
+describe("HeroButton disabled look", () => {
   afterEach(() => jest.restoreAllMocks());
   test.each([false, true])("stays at 0.6 when disabled (reduced motion %s)", (reduced) => {
     jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(reduced);
-    render(<SunriseButton label="Perpanjang" disabled onPress={() => {}} />);
+    render(<HeroButton label="Perpanjang" disabled onPress={() => {}} />);
     expect(StyleSheet.flatten(screen.getByRole("button", { name: "Perpanjang" }).props.style).opacity).toBe(0.6);
   });
 });

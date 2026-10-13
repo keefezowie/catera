@@ -215,15 +215,15 @@ describe("Jadwal", () => {
     expect(other.props.accessibilityState.selected).toBe(false);
     expect(flat(other).height).toBe(52);
     expect(flat(other).minWidth).toBeGreaterThanOrEqual(44);
-    // Today carries the todayRing outline and, being selected as well, the headerText one inside it.
+    // Today carries the todayRing outline and, being selected as well, the forest (toggleActive) one inside it: the chosen date is a selection (direction K rule 3).
     expect(flat(outline("Rabu 7 Oktober", "today")!).borderColor).toBe(siang.todayRing);
-    expect(flat(outline("Rabu 7 Oktober", "selected")!).borderColor).toBe(siang.headerText);
+    expect(flat(outline("Rabu 7 Oktober", "selected")!).borderColor).toBe(siang.toggleActive);
     expect(outline("Kamis 8 Oktober", "today")).toBeNull();
     expect(outline("Kamis 8 Oktober", "selected")).toBeNull();
     fireEvent.press(other);
     expect(dayButton("Kamis 8 Oktober").props.accessibilityState.selected).toBe(true);
     expect(dayButton("Rabu 7 Oktober").props.accessibilityState.selected).toBe(false);
-    expect(flat(outline("Kamis 8 Oktober", "selected")!).borderColor).toBe(siang.headerText);
+    expect(flat(outline("Kamis 8 Oktober", "selected")!).borderColor).toBe(siang.toggleActive);
     // Today keeps its ring after another day is picked, and the selected ring moves away from it.
     expect(flat(outline("Rabu 7 Oktober", "today")!).borderColor).toBe(siang.todayRing);
     expect(outline("Rabu 7 Oktober", "selected")).toBeNull();
@@ -235,8 +235,8 @@ describe("Jadwal", () => {
     await gridReady();
     fireEvent.press(dayButton("Kamis 8 Oktober"));
     const bar = (date: string) => cell(date).queryByTestId("cell-selected-bar", { includeHiddenElements: true });
-    // The selected day carries a selection bar along its bottom edge, in the header's text colour: a shape, not a hue.
-    expect(flat(bar("Kamis 8 Oktober")!)).toMatchObject({ height: 4, backgroundColor: siang.headerText });
+    // The selected day carries a selection bar along its bottom edge, in the selection's forest: a shape, since today's ring is forest too.
+    expect(flat(bar("Kamis 8 Oktober")!)).toMatchObject({ height: 4, backgroundColor: siang.toggleActive });
     // Today, no longer selected, keeps its ring and has no bar.
     expect(outline("Rabu 7 Oktober", "today")).toBeTruthy();
     expect(bar("Rabu 7 Oktober")).toBeNull();
@@ -337,9 +337,9 @@ describe("Jadwal", () => {
     );
     await gridReady();
     expect(flat(outline("Rabu 7 Oktober", "today")!).borderColor).toBe(malam.todayRing);
-    expect(flat(outline("Rabu 7 Oktober", "selected")!).borderColor).toBe(malam.headerText);
-    expect(malam.headerText).toBe("#2E2E2E");
-    expect(flat(cell("Rabu 7 Oktober").getByTestId("cell-selected-bar")).backgroundColor).toBe(malam.headerText);
+    expect(flat(outline("Rabu 7 Oktober", "selected")!).borderColor).toBe(malam.toggleActive);
+    expect(malam.toggleActive).toBe("#163D2E");
+    expect(flat(cell("Rabu 7 Oktober").getByTestId("cell-selected-bar")).backgroundColor).toBe(malam.toggleActive);
     // The pill is the ordinary one, so it does not borrow the selected state's colour.
     expect(flat(cell("Rabu 7 Oktober").getByTestId("cell-number-pill")).backgroundColor).toBe(nativeThemes.light.cream);
   });

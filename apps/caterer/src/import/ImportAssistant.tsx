@@ -301,7 +301,8 @@ export function ImportAssistant() {
                   <Text variant="caption">
                     {`${packages.find((p) => p.id === r.packageId)?.name ?? t("Paket belum dipilih", "Package not chosen")} · ${r.remainingDays != null ? t(`${r.remainingDays} hari lagi`, r.remainingDays === 1 ? "1 day left" : `${r.remainingDays} days left`) : t("sisa hari belum diisi", "days left not set")} · ${t(`${r.portions} porsi`, plural(r.portions, "portion"))}`}
                   </Text>
-                  {r.needsReview ? <Text style={{ color: c.danger, fontFamily: fontFor("700") }}>{r.reason}</Text> : null}
+                  {/* What the row still needs is a to-do on an attention card, so bold charcoal, not a danger caption. */}
+                  {r.needsReview ? <Text style={{ color: c.charcoal, fontFamily: fontFor("700") }}>{r.reason}</Text> : null}
                 </PressableRow>
               </Card>
             </Animated.View>

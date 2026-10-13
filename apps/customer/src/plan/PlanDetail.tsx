@@ -257,7 +257,7 @@ function Hero({ plan, apiBase }: { plan: PlanData; apiBase: string }) {
 }
 
 /**
- * This plan's next days: a ring with the day's photo (lunch sunrise, dinner forest), the day and its dishes. The row
+ * This plan's next days: a ring with the day's photo (lunch grey, dinner ink), the day and its dishes. The row
  * opens Hari; the "…" beside it opens the day's actions, only from a fresh read (`deliveries` is left out offline).
  */
 function Upcoming({ rows, apiBase, deliveries }: { rows: UpcomingRow[]; apiBase: string; deliveries?: Delivery[] }) {
@@ -293,7 +293,7 @@ function Upcoming({ rows, apiBase, deliveries }: { rows: UpcomingRow[]; apiBase:
                   <PhotoRing
                     uri={photoUri(row.image, apiBase)}
                     size={60}
-                    ring={row.meal === "dinner" ? "forest" : "sunrise"}
+                    ring={row.meal === "dinner" ? "dinner" : "lunch"}
                     accessibilityLabel={dishes}
                   />
                 </View>

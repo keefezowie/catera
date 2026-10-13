@@ -7,7 +7,7 @@ import { photoUri } from "../today/Plate";
 import { partId, useViewedParts } from "./viewed";
 
 /**
- * Tomorrow's menu as a story row: one ring per delivery and meal, lunch in sunrise ink and dinner in forest, then
+ * Tomorrow's menu as a story row: one ring per delivery and meal, lunch in grey and dinner in ink, then
  * whether the day can still be changed. Before the change cutoff the rings show the dishes. After it each ring is a
  * closed lunchbox until its part has been opened once, so opening the story is the unveil. "After it" means the
  * cutoff has passed (`closed`), not that the plan lets days move. A ring is covered while the seen marks are still being
@@ -48,7 +48,7 @@ export function TomorrowRow({ story }: { story: TomorrowStory }) {
               key={partId(part)}
               uri={photoUri(part.image, runtime.apiBase)}
               size={60}
-              ring={dinner ? "forest" : "sunrise"}
+              ring={dinner ? "dinner" : "lunch"}
               covered={covered}
               accessibilityLabel={`${t("Menu besok", "Tomorrow's menu")}, ${meal}, ${what}`}
               onPress={() => router.push(`/tomorrow?part=${i}` as never)}

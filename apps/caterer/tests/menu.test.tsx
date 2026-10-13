@@ -254,6 +254,11 @@ describe("menu reads", () => {
       await screen.findByText("5–9 Okt");
       fireEvent.press(screen.getByTestId("menu-day-2026-10-09"));
       expect(await screen.findByText("Belum diisi")).toBeTruthy();
+      // A status, not an error: bold charcoal, never a bare danger caption.
+      expect(StyleSheet.flatten(screen.getByText("Belum diisi").props.style)).toMatchObject({
+        color: nativeThemes.light.charcoal,
+        fontFamily: "Jakarta-Bold",
+      });
       expect(screen.getByRole("button", { name: "Ubah menu" })).toBeTruthy();
       // Monday is behind us: it says so and offers no editor.
       fireEvent.press(screen.getByTestId("menu-day-2026-10-05"));
@@ -748,11 +753,14 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       const light = nativeThemes.light;
       // Today starts selected.
       const mood = nativeMood.light.siang;
-      expect(flatOf("menu-day-2026-10-08")).toMatchObject({ backgroundColor: mood.headerText, borderColor: mood.todayRing });
+      // The chosen day is a selection (direction K rule 3), so its fill is forest (toggleActive), never the charcoal ink.
+      expect(flatOf("menu-day-2026-10-08")).toMatchObject({ backgroundColor: mood.toggleActive, borderColor: mood.todayRing });
       expect(light.forest).toBe(mood.todayRing);
+      expect(light.forest).toBe(mood.toggleActive);
+      expect(flatOf("menu-day-2026-10-08").backgroundColor).not.toBe(mood.headerText);
       // Any other day has neither.
       const friday = flatOf("menu-day-2026-10-09");
-      expect(friday.backgroundColor).not.toBe(mood.headerText);
+      expect(friday.backgroundColor).not.toBe(mood.toggleActive);
       expect(friday.borderColor).not.toBe(mood.todayRing);
     });
 
@@ -766,27 +774,31 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       mount();
       await screen.findByText("5–9 Okt");
       fireEvent.press(screen.getByTestId("menu-day-2026-10-09"));
-      expect(flatOf("menu-day-2026-10-09").backgroundColor).toBe(nativeMood.light.siang.headerText);
+      expect(flatOf("menu-day-2026-10-09")).toMatchObject({
+        backgroundColor: nativeMood.light.siang.toggleActive,
+        borderColor: nativeMood.light.siang.toggleActive,
+      });
       expect(screen.getByTestId("menu-day-2026-10-09").props.accessibilityState.selected).toBe(true);
       // Today loses the fill but keeps its ring.
-      expect(flatOf("menu-day-2026-10-08").backgroundColor).not.toBe(nativeMood.light.siang.headerText);
+      expect(flatOf("menu-day-2026-10-08").backgroundColor).toBe("transparent");
       expect(flatOf("menu-day-2026-10-08").borderColor).toBe(nativeMood.light.siang.todayRing);
       expect(await screen.findByText("Jumat 9 Okt")).toBeTruthy();
       expect(require("expo-router").router.push).not.toHaveBeenCalled();
     });
 
-    it("shows the selected day on a Malam header: an inverted fill that stands out, in the mood's own tokens", async () => {
+    it("shows the selected day on a Malam header: a forest fill that stands out, in the mood's own tokens", async () => {
       mount({ launch: MALAM });
       await screen.findByText("5–9 Okt");
       const malam = nativeMood.light.malam;
-      // Today (selected) keeps its ring and takes the inverted fill and ink.
+      // Today (selected) keeps its ring and takes the selected segment's fill and ink.
       const thursday = screen.getByTestId("menu-day-2026-10-08");
-      expect(flatOf("menu-day-2026-10-08")).toMatchObject({ backgroundColor: malam.headerText, borderColor: malam.todayRing });
-      expect(StyleSheet.flatten(within(thursday).getByText("8").props.style).color).toBe(malam.header);
-      expect(contrastRatio(malam.headerText, malam.header)).toBeGreaterThanOrEqual(3);
-      // A selected day that is not today is outlined in the same token.
+      expect(flatOf("menu-day-2026-10-08")).toMatchObject({ backgroundColor: malam.toggleActive, borderColor: malam.todayRing });
+      expect(StyleSheet.flatten(within(thursday).getByText("8").props.style).color).toBe(malam.onToggleActive);
+      expect(contrastRatio(malam.toggleActive, malam.header)).toBeGreaterThanOrEqual(3);
+      expect(contrastRatio(malam.onToggleActive, malam.toggleActive)).toBeGreaterThanOrEqual(4.5);
+      // A selected day that is not today is filled and outlined in the same token.
       fireEvent.press(screen.getByTestId("menu-day-2026-10-09"));
-      expect(flatOf("menu-day-2026-10-09")).toMatchObject({ backgroundColor: malam.headerText, borderColor: malam.headerText });
+      expect(flatOf("menu-day-2026-10-09")).toMatchObject({ backgroundColor: malam.toggleActive, borderColor: malam.toggleActive });
       // An unselected day has no fill.
       expect(flatOf("menu-day-2026-10-06").backgroundColor).toBe("transparent");
     });

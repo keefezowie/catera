@@ -230,12 +230,13 @@ export function CalendarPhotoCell({
               bottom: today ? OUTLINE : 0,
               left: today ? OUTLINE : 0,
               borderWidth: OUTLINE,
-              borderColor: mood.headerText,
+              // The chosen date is a selection (direction K rule 3), so it is forest, the selected segment's colour.
+              borderColor: mood.toggleActive,
               borderRadius: today ? RADIUS - OUTLINE : RADIUS,
               borderCurve: "continuous",
             }}
           />
-          {/* The two rings can sit close in tone on a header, so selection also has a shape: a bar along the bottom edge.
+          {/* Today and selection are both forest, so selection also has a shape: a bar along the bottom edge.
               Today has none. It floats just inside the ring(s), under the number pill with photo between, and inside the
               corner radius. */}
           <View
@@ -248,7 +249,7 @@ export function CalendarPhotoCell({
               bottom: barBottom(today),
               height: BAR,
               borderRadius: BAR / 2,
-              backgroundColor: mood.headerText,
+              backgroundColor: mood.toggleActive,
             }}
           />
         </>

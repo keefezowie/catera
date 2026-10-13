@@ -725,6 +725,9 @@ describe("unfilled menus on the session card", () => {
     renderToday(runtimeWith(same(canvasDay())));
     expect(await screen.findByText("Menu belum diisi · Makan Siang Rumahan: 2 lauk, 1 nasi, 1 sayur")).toBeTruthy();
     expect(screen.getByText("Menu belum diisi · Paket Hemat Kantor: 1 nasi, 1 lauk, 1 sayur")).toBeTruthy();
+    // A to-do status in bold charcoal, never a bare danger caption.
+    for (const line of screen.getAllByText(/^Menu belum diisi · /))
+      expect(StyleSheet.flatten(line.props.style)).toMatchObject({ color: nativeThemes.light.charcoal, fontFamily: "Jakarta-Bold" });
     expect(screen.queryByText(/Lauk ×/)).toBeNull();
     expect(screen.queryByText(/Nasi ×/)).toBeNull();
     const buttons = screen.getAllByText("Isi menu");

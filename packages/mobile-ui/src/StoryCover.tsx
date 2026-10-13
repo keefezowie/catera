@@ -30,9 +30,10 @@ export function StoryCover({
   return (
     <View
       testID="story-cover"
-      style={{ width, height, borderRadius: RADIUS, borderCurve: "continuous", overflow: "hidden", backgroundColor: ink.forest }}
+      style={{ width, height, borderRadius: RADIUS, borderCurve: "continuous", overflow: "hidden", backgroundColor: ink.photoGround }}
     >
-      {/* A uri of "" (real data for a day without a photo) leaves the dark ground, which the title still reads on. */}
+      {/* A uri of "" (real data for a day without a photo) leaves the failed-photo ground (photoGround, the same
+          neutral as a photo that failed elsewhere, never a forest block), which the title still reads on. */}
       {uri ? (
         <Image
           accessibilityIgnoresInvertColors

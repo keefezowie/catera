@@ -33,11 +33,14 @@ function UangContent() {
   return (
     <Screen>
       <FadeSwap swapKey="money" style={{ gap: 16 }}>
-        <Card tone="brand">
-          <Text variant="label" style={{ color: c.cream }}>{t("Masuk ke rekening berikutnya", "Next payout to your account")}</Text>
-          <Text variant="number" style={{ color: c.cream }}>{settlementCurrency(s.available, locale)}</Text>
+        {/* A plain card (direction K): the amount is a price, so it is bold charcoal, and forest stays on buttons and selection. */}
+        <Card>
+          <Text variant="label">{t("Masuk ke rekening berikutnya", "Next payout to your account")}</Text>
+          <Text variant="number" testID="uang-available" style={{ color: c.charcoal }}>
+            {settlementCurrency(s.available, locale)}
+          </Text>
           {s.nextPayoutAt ? (
-            <Text variant="caption" style={{ color: c.cream }}>
+            <Text variant="caption">
               {`${t("Pencairan berikutnya", "Next payout")} ${new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-GB", { timeZone: "Asia/Jakarta", weekday: "long", day: "numeric", month: "short" }).format(new Date(s.nextPayoutAt))}`}
             </Text>
           ) : null}
@@ -47,7 +50,7 @@ function UangContent() {
             <View key={m.key} style={{ paddingVertical: 10, borderTopWidth: i ? 1 : 0, borderTopColor: c.line, gap: 2 }}>
               <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 12 }}>
                 <Text variant="label">{pick(m.label)}</Text>
-                <Text variant="label">{settlementCurrency(s[m.key], locale)}</Text>
+                <Text variant="label" style={{ color: c.charcoal }}>{settlementCurrency(s[m.key], locale)}</Text>
               </View>
               <Text variant="caption">{pick(m.hint)}</Text>
             </View>

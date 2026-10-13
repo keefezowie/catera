@@ -178,7 +178,7 @@ function StatusPill({ status }: { status: string }) {
   const { t } = useMobile();
   const c = useColors();
   const styles = useStyles();
-  // Only the caterer's reply needs the customer to act, so only it is Sunrise.
+  // Only the caterer's reply needs the customer to act, so only it takes the cream pill.
   const needsYou = status === "responded";
   return (
     <View style={[styles.pill, needsYou ? styles.pillOpen : styles.pillDone]}>

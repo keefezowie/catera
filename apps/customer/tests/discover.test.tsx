@@ -6,7 +6,7 @@ import * as SecureStore from "expo-secure-store";
 import * as Haptics from "expo-haptics";
 import { currency, shortDate, startDates, type Offer } from "@catera/domain";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
-import { nativeMood } from "@catera/design-tokens";
+import { nativeMood, nativeThemes } from "@catera/design-tokens";
 import { MoodProvider, ThemeProvider, useMood } from "@catera/mobile-ui";
 import { customerLink } from "../src/links";
 import { topTags } from "../src/discover/categories";
@@ -638,6 +638,11 @@ describe("Jelajah mood header", () => {
       expect(screen.queryByText("Menu Sehat Premium")).toBeNull();
       expect(screen.getByRole("button", { name: "Kategori Rumahan" }).props.accessibilityState.selected).toBe(true);
       expect(screen.getByRole("button", { name: "Kategori Sehat" }).props.accessibilityState.selected).toBe(false);
+      // The active tag is a selection, so its ring is forest (direction K rule 3); the others draw none.
+      const ringOf = (name: string) =>
+        StyleSheet.flatten(within(screen.getByRole("button", { name })).getByTestId("photo-ring", { includeHiddenElements: true }).props.style);
+      expect(ringOf("Kategori Rumahan").borderColor).toBe(nativeThemes.light.forest);
+      expect(ringOf("Kategori Sehat").borderColor).toBe("transparent");
       // The tag carries over to the other meal: the dinner package is tagged Rumahan too.
       fireEvent.press(header().getByRole("tab", { name: "Malam" }));
       expect(screen.getByText("Makan Malam Nabati")).toBeTruthy();

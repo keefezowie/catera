@@ -140,6 +140,21 @@ test("sunrise and sunriseInk are read only by RantangTrack, nativeArt, Confetti 
   expect(readers.filter((f) => !allowed.has(f))).toEqual([]);
 });
 
+// Direction K rules 1, 2 and 6: forest fills only the primary button and marks selection. A forest card (the old
+// `tone="brand"`) is a coloured block behind content, so the tone is gone and no source may bring it back.
+test("no card is filled in forest: the brand tone is gone", () => {
+  const components = stripComments(readFileSync(join(root, "packages/mobile-ui/src/components.tsx"), "utf8"));
+  const tones = components.match(/const useCardTones = themedStyles\(\(c\) => \(\{([\s\S]*?)\}\)\);/);
+  expect(tones).not.toBeNull();
+  expect(tones?.[1]).not.toMatch(/c\.forest/);
+  expect(components).not.toMatch(/"brand"/);
+  const callers = appDirs
+    .flatMap((d) => walk(join(root, d)))
+    .filter((f) => /\btone=\{?["']brand["']/.test(readFileSync(f, "utf8")))
+    .map(rel);
+  expect(callers).toEqual([]);
+});
+
 test("the Malam pattern is gone", () => {
   const sources = appDirs.flatMap((d) => walk(join(root, d)));
   expect(sources.map(rel).filter((f) => /MalamPattern/.test(f))).toEqual([]);

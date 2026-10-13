@@ -126,7 +126,7 @@ const surfaces: { name: string; ground: string; photo: () => Instance; show: () 
     ground: "photo-ground",
     photo: onlyImage,
     show: async () => {
-      render(<PhotoRing uri={PHOTO} size={60} ring="forest" accessibilityLabel="Ayam bakar" />);
+      render(<PhotoRing uri={PHOTO} size={60} ring="dinner" accessibilityLabel="Ayam bakar" />);
     },
   },
   {

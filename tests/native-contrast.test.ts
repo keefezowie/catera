@@ -50,6 +50,10 @@ describe("direction K theme tokens", () => {
     expect(nativeThemes.light).toMatchObject({
       controlRing: "#858D80", disabledFill: "#CFD3C6", toast: "#2E2E2E", onToast: "#FFF7E9", toastAction: "#BFD8BB",
     });
+    // The light Android tab pill is the line step, 1.48:1 off the cream bar; dark keeps its charcoal step.
+    expect(nativeThemes.light.tabIndicator).toBe("#D3CEC1");
+    expect(nativeThemes.light.tabIndicator).toBe(nativeThemes.light.line);
+    expect(nativeThemes.dark.tabIndicator).toBe("#444441");
   });
   it("the success disc is a literal, not the Siang header", () => {
     expect(nativeArt.successDisc).toBe("#FFEFD9");
@@ -148,7 +152,9 @@ describe("direction K: the pairs per look", () => {
   for (const { look, theme, mood } of LOOKS) {
     describe(look, () => {
       const list = pairs(theme, mood);
-      it("has 37 ratio pairs, plus the failed-photo band and the scrim edge: 39 per look", () => {
+      // Spec 2.5 counts 39 per look: these 37 ratio pairs, the failed-photo band (the last test in this block) and the
+      // scrim edge, which is not a ratio and is pinned by "the scrim numbers are the K ramp" above.
+      it("runs 37 ratio pairs; the failed-photo band and the scrim ramp are checked on their own", () => {
         expect(list).toHaveLength(37);
       });
       for (const p of list) {
@@ -197,12 +203,22 @@ describe("derived steps and component rules", () => {
       expect(contrastRatio(p.forestDeep, p.forest)).toBeGreaterThanOrEqual(1.2);
       expect(contrastRatio(p.forestDeep, p.canvas)).toBeGreaterThanOrEqual(3);
     });
-    // Android: the selected icon (forest) on the pill, the pill standing off the bar, the others muted on the bar.
-    it(`${theme}: the tab indicator pill holds the forest icon at 3:1 and stands 1.25:1 off the bar`, () => {
+    // Android: the selected icon (forest) on the pill, the pill standing off the bar, the others muted on the bar. The
+    // pill is a neutral step, never the page colour (a pill in the canvas reads as a hole punched in the bar).
+    it(`${theme}: the tab indicator pill holds the forest icon at 3:1 and stands 1.4:1 off the bar`, () => {
       expect(contrastRatio(p.forest, p.tabIndicator)).toBeGreaterThanOrEqual(3);
-      expect(contrastRatio(p.tabIndicator, p.tabBar)).toBeGreaterThanOrEqual(1.25);
+      expect(contrastRatio(p.tabIndicator, p.tabBar)).toBeGreaterThanOrEqual(1.4);
+      expect(p.tabIndicator).not.toBe(p.canvas);
       expect(contrastRatio(p.muted, p.tabBar)).toBeGreaterThanOrEqual(4.5);
       expect(contrastRatio(p.forest, p.tabBar)).toBeGreaterThanOrEqual(4.5);
+    });
+    // PhotoRing (rule 3): forest is the selected ring; the meal cue is neutral, dinner in ink and lunch in controlRing.
+    // The two meals stay 3:1 apart (charcoal on forest was 1.13:1 in light), and the dinner ring reads on its grounds.
+    it(`${theme}: the lunch and dinner rings are 3:1 apart and neither is forest`, () => {
+      expect(contrastRatio(p.charcoal, p.controlRing)).toBeGreaterThanOrEqual(3);
+      expect([p.charcoal, p.controlRing]).not.toContain(p.forest);
+      for (const ground of [p.surface, p.canvas]) expect(contrastRatio(p.charcoal, ground)).toBeGreaterThanOrEqual(3);
+      expect(contrastRatio(p.forest, p.canvas), "selected ring on the page").toBeGreaterThanOrEqual(3);
     });
     it(`${theme}: the disabled label reads on the disabled fill`, () => {
       expect(contrastRatio(p.muted, p.disabledFill)).toBeGreaterThanOrEqual(theme === "dark" ? 4.5 : 3.8);

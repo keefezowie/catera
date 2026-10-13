@@ -471,8 +471,9 @@ export function MenuWeek() {
                   const filled = weekLoaded && !!byDate.get(date)?.details?.items?.length;
                   const isToday = date === today;
                   const isSelected = date === selectedDate;
-                  // The chosen day inverts the header (mood tokens), so it stands out on every header, Malam included.
-                  const ink = isSelected ? m.header : m.headerText;
+                  // The chosen day is a selection (direction K rule 3): a forest fill with the selected segment's ink, in the
+                  // mood tokens, so it stands out on every header, Malam included.
+                  const ink = isSelected ? m.onToggleActive : m.headerText;
                   const fill = weekLoaded ? (filled ? t("menu terisi", "menu filled") : t("menu belum diisi", "menu not filled")) : "";
                   return (
                     <PressableScale
@@ -497,8 +498,8 @@ export function MenuWeek() {
                         borderCurve: "continuous",
                         borderWidth: 2,
                         // The ring is today; the fill is the chosen day. A day that is neither keeps a quiet outline.
-                        borderColor: isToday ? m.todayRing : isSelected ? m.headerText : m.markerIdle,
-                        backgroundColor: isSelected ? m.headerText : "transparent",
+                        borderColor: isToday ? m.todayRing : isSelected ? m.toggleActive : m.markerIdle,
+                        backgroundColor: isSelected ? m.toggleActive : "transparent",
                         alignItems: "center",
                         justifyContent: "center",
                       }}
@@ -594,7 +595,8 @@ export function MenuWeek() {
                 {past ? t("Lewat", "Past") : t("Sudah lewat batas ubah", "Past the change cutoff")}
               </Text>
             ) : (
-              <Text style={{ color: c.danger, fontFamily: fontFor("700") }}>
+              // A status, not an error: bold charcoal, never a bare danger caption (spec 5.2).
+              <Text style={{ color: c.charcoal, fontFamily: fontFor("700") }}>
                 {t("Belum diisi", "Not filled")}
               </Text>
             )}

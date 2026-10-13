@@ -111,7 +111,8 @@ export function SessionCard({
               <CookingList session={session} catererId={catererId} date={date} />
               {missing.map((m) => (
                 <View key={m.packageId} style={{ paddingTop: 8, alignItems: "flex-start" }}>
-                  <Text style={{ color: c.danger }}>
+                  {/* A to-do status, not an error: bold charcoal, never a bare danger caption (spec 5.2). */}
+                  <Text style={{ color: c.charcoal, fontFamily: fontFor("700") }}>
                     {`${t("Menu belum diisi", "Menu not filled in")} · ${m.packageName}: ${m.summary}`}
                   </Text>
                   {actor?.role === "owner" ? (

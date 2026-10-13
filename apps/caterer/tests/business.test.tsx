@@ -137,6 +137,25 @@ it("explains all seven money states", async () => {
     expect(screen.getByText(label)).toBeTruthy();
 });
 
+// Direction K rules 1, 2 and 6: forest fills only the primary button, so the payout card is a plain card and its
+// amount is a price (bold charcoal), not a forest block with cream text.
+it("Uang paints no forest block and shows the payout amount in bold charcoal", async () => {
+  const runtime = runtimeWith({ settlement: jest.fn(async () => settlement) });
+  render(
+    <MobileProvider runtime={runtime} linkMapper={() => "/"}>
+      <UangScreen />
+    </MobileProvider>,
+  );
+  const amount = await screen.findByTestId("uang-available");
+  expect(StyleSheet.flatten(amount.props.style)).toMatchObject({ color: nativeThemes.light.charcoal, fontFamily: "Jakarta-ExtraBold" });
+  const forestFills = screen.UNSAFE_root.findAll(
+    (n) => typeof n.type === "string" && StyleSheet.flatten(n.props.style)?.backgroundColor === nativeThemes.light.forest,
+  );
+  expect(forestFills).toHaveLength(0);
+  // A money state's amount (Akan diterima, 840.000) is a price too.
+  expect(StyleSheet.flatten(screen.getByText(/840\.000/).props.style).color).toBe(nativeThemes.light.charcoal);
+});
+
 it("shares a helper invite code over WhatsApp", async () => {
   const { Share } = jest.requireActual("react-native") as typeof import("react-native");
   const share = jest.spyOn(Share, "share").mockResolvedValue({ action: "sharedAction" });

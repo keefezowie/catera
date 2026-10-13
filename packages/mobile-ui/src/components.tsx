@@ -221,7 +221,8 @@ export function Card({
   style,
 }: {
   children: ReactNode;
-  tone?: "surface" | "attention" | "brand" | "sage";
+  /** No forest tone: direction K never fills a card in forest (rules 1, 2 and 6). */
+  tone?: "surface" | "attention" | "sage";
   style?: StyleProp<ViewStyle>;
 }) {
   const styles = useStyles();
@@ -538,7 +539,6 @@ const useCardTones = themedStyles((c) => ({
   // Direction K: a card stands off the page by its fill (1.33:1), so it draws no visible border.
   surface: { backgroundColor: c.surface, borderColor: c.surface },
   attention: { backgroundColor: c.cream, borderColor: c.attentionBorder },
-  brand: { backgroundColor: c.forest, borderColor: c.forest },
   sage: { backgroundColor: c.sage, borderColor: c.sage },
 }));
 

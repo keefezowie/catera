@@ -222,8 +222,8 @@ describe("Plan detail states", () => {
     // The row speaks for its ring, so the ring is hidden from screen readers and found with the hidden elements.
     const ring = (row: (typeof rows)[number]) =>
       StyleSheet.flatten(within(row).getByTestId("photo-ring", { includeHiddenElements: true }).props.style);
-    expect(ring(rows[1])).toMatchObject({ width: 60, borderColor: nativeThemes.light.charcoal });
-    expect(ring(rows[2])).toMatchObject({ width: 60, borderColor: nativeThemes.light.forest });
+    expect(ring(rows[1])).toMatchObject({ width: 60, borderColor: nativeThemes.light.controlRing });
+    expect(ring(rows[2])).toMatchObject({ width: 60, borderColor: nativeThemes.light.charcoal });
     fireEvent.press(rows[1]);
     // The link carries the day, so Hari's bar is final on its first frame.
     expect(router.push).toHaveBeenCalledWith(`/hari/d-1?title=${encodeURIComponent(shortDate(at(1), "id"))}`);

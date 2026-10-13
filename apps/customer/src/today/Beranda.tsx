@@ -263,7 +263,7 @@ function OtherMealRow({ plates, apiBase, onPress }: { plates: PlateData[]; apiBa
         <PhotoRing
           uri={photoUri(plate.image, apiBase)}
           size={54}
-          ring={dinner ? "forest" : "sunrise"}
+          ring={dinner ? "dinner" : "lunch"}
           accessibilityLabel={dish}
         />
       </View>

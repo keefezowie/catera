@@ -99,8 +99,8 @@ export type ThemeName = "light" | "dark";
  * method, spec 14.4) that keeps the cream label at 4.5:1 and stands 1.36:1 off the resting forest.
  *
  * `tabIndicator` is the Android pill behind the selected tab icon (spec 14.3). K spends no brand fill behind content,
- * so it is a neutral step: the page neutral in light (1.26:1 off the cream bar) and a charcoal step in dark (1.49:1
- * off the bar), with the forest icon at 9:1 and 5.4:1 on it.
+ * so it is a neutral step: the `line` step in light (1.48:1 off the cream bar; the page neutral read as a hole in the
+ * bar) and a charcoal step in dark (1.49:1 off the bar), with the forest icon at 7.7:1 and 5.4:1 on it.
  *
  * `overlayInk` is the neutral photo overlay and `photoGround` the failed-photo ground (spec 2.2); both themes use the
  * same two values, so a failed photo and a loaded one carry the same cream text.
@@ -114,7 +114,7 @@ export const nativeThemes: Record<ThemeName, NativePalette> = {
     controlRing: "#858D80",
     tabBar: "#FFF7E9",
     disabledFill: "#CFD3C6",
-    tabIndicator: "#E4DED1",
+    tabIndicator: "#D3CEC1",
     toast: "#2E2E2E",
     onToast: "#FFF7E9",
     toastAction: "#BFD8BB",

@@ -262,7 +262,7 @@ function Browse({ area, onArea }: { area: string | null; onArea: (value: string)
                     key={name}
                     uri={photoUri(image, runtime.apiBase)}
                     size={66}
-                    ring={name === activeTag ? "sunrise" : "none"}
+                    ring={name === activeTag ? "selected" : "none"}
                     label={name}
                     selected={name === activeTag}
                     onPress={() => setTag(name === activeTag ? "" : name)}

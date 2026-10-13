@@ -190,7 +190,7 @@ describe("Menu besok row", () => {
     const rings = ringStyles();
     expect(rings).toHaveLength(2);
     expect(rings.map((r) => r.width)).toEqual([60, 60]);
-    expect(rings.map((r) => r.borderColor)).toEqual([nativeThemes.light.charcoal, nativeThemes.light.forest]);
+    expect(rings.map((r) => r.borderColor)).toEqual([nativeThemes.light.controlRing, nativeThemes.light.charcoal]);
     expect(coveredCount()).toBe(0);
   });
 
@@ -285,7 +285,7 @@ describe("Menu besok row", () => {
     const state = twoLunchesState();
     wrap(runtimeWith(async () => state), <TomorrowRow story={storyOf(state, BEFORE_CUTOFF)} />);
     await settle();
-    expect(ringStyles().map((r) => r.borderColor)).toEqual([nativeThemes.light.charcoal, nativeThemes.light.charcoal]);
+    expect(ringStyles().map((r) => r.borderColor)).toEqual([nativeThemes.light.controlRing, nativeThemes.light.controlRing]);
   });
 });
 
@@ -595,5 +595,15 @@ describe("Menu besok story look", () => {
     expect(image).toContain("rgba(27,27,26,0.92)");
     const solid = /rgba\(27,27,26,(0\.\d+)\) (\d+)px/.exec(image);
     expect(Number(solid?.[1])).toBeGreaterThanOrEqual(0.85);
+  });
+
+  // FB7 / direction K: under a photo, or where none loads, the page is the neutral failed-photo ground, never forest.
+  it("stands each page on the failed-photo ground, not a forest block", async () => {
+    pinClock(BEFORE_CUTOFF);
+    wrap(runtimeWith(async () => bothState()), <TomorrowStoryScreen />);
+    const part = (await screen.findAllByTestId("tomorrow-part"))[0];
+    await settle();
+    expect(StyleSheet.flatten(part.props.style).backgroundColor).toBe(nativeThemes.light.photoGround);
+    expect(StyleSheet.flatten(part.props.style).backgroundColor).not.toBe(nativeThemes.light.forest);
   });
 });

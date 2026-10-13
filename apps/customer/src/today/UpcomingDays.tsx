@@ -10,7 +10,7 @@ import { SectionTitle } from "./WaitingList";
 
 /**
  * "Berikutnya": the next days that have a delivery, each under one label with its count ("Senin 12 Okt", "3 antaran"),
- * then one row per meal and plan: the photo ring (sunrise ink for lunch, forest for dinner), the dish or "Menu belum
+ * then one row per meal and plan: the photo ring (grey for lunch, ink for dinner), the dish or "Menu belum
  * ditentukan", and "Siang · {paket} · {katerer}". A row opens that day.
  */
 export function UpcomingDays({ days, apiBase }: { days: UpcomingDay[]; apiBase: string }) {
@@ -50,7 +50,7 @@ export function UpcomingDays({ days, apiBase }: { days: UpcomingDay[]; apiBase: 
                     <PhotoRing
                       uri={m.image ? photoUri(m.image, apiBase) : ""}
                       size={40}
-                      ring={m.meal === "dinner" ? "forest" : "sunrise"}
+                      ring={m.meal === "dinner" ? "dinner" : "lunch"}
                       accessibilityLabel={dish}
                     />
                   </View>

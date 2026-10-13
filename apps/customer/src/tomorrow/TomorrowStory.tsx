@@ -222,8 +222,8 @@ function StoryPage({
       ? t("Sudah lewat batas ubah", "Change window closed")
       : null;
   return (
-    <View testID="tomorrow-part" style={{ flex: 1, backgroundColor: ink.forest, justifyContent: "flex-end" }}>
-      {/* A dish without a photo leaves the forest ground, which the text still reads on. */}
+    <View testID="tomorrow-part" style={{ flex: 1, backgroundColor: ink.photoGround, justifyContent: "flex-end" }}>
+      {/* A dish without a photo leaves the failed-photo ground (photoGround, never a forest block), which the text still reads on. */}
       {uri ? <Image accessibilityIgnoresInvertColors source={{ uri }} resizeMode="cover" style={StyleSheet.absoluteFill} /> : null}
       {/* Softens the join between the black header and the photo's top edge. */}
       <View

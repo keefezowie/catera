@@ -233,8 +233,12 @@ it("a review row dims on press and still opens its editor", async () => {
   const edit = async () => screen.findByRole("button", { name: "Ubah Pelanggan 1" });
   fireEvent(await edit(), "responderGrant", touch);
   expect(StyleSheet.flatten((await edit()).props.style).opacity).toBe(0.7);
+  // What the row still needs is a to-do: bold charcoal on the list and in its sheet, never a bare danger caption.
+  const bold = { color: nativeThemes.light.charcoal, fontFamily: "Jakarta-Bold" };
+  expect(StyleSheet.flatten(screen.getByText("Perlu dicek").props.style)).toMatchObject(bold);
   fireEvent.press(await edit());
   expect(await screen.findByRole("button", { name: "Selesai" })).toBeTruthy();
+  expect(StyleSheet.flatten(screen.getByTestId("import-row-reason").props.style)).toMatchObject(bold);
 });
 
 describe("deleting an import row", () => {

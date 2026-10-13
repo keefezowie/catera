@@ -523,12 +523,13 @@ describe("Berikutnya", () => {
       "Selasa 13 Okt, Ayam bakar madu, Siang · Makan Siang Kantor · Dapur Senja",
       "Rabu 14 Okt, Ayam bakar madu, Siang · Paket Sehat · Dapur Hijau",
     ]);
-    // A lunch ring is charcoal ink (Sunrise is not spent on rings), a dinner ring forest; the label is forest and bold, the count muted.
+    // A lunch ring is the quiet control-ring grey, a dinner ring the charcoal ink (forest is only for selection); the label
+    // is forest and bold, the count muted.
     const rings = days.getAllByTestId("photo-ring", { includeHiddenElements: true });
     expect(rings.map((r) => StyleSheet.flatten(r.props.style).borderColor).slice(0, 3)).toEqual([
+      light.controlRing,
+      light.controlRing,
       light.charcoal,
-      light.charcoal,
-      light.forest,
     ]);
     expect(StyleSheet.flatten(rings[0].props.style).width).toBe(40);
     expect(color(days.getAllByTestId("upcoming-day-label")[0])).toBe(light.forest);

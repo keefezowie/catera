@@ -3,7 +3,7 @@ import { View } from "react-native";
 import { router } from "expo-router";
 import { earliestImportStart, normalizeCustomerPhone } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Chip, Field, SheetBody, SheetHeader, Skeleton, SkeletonGroup, Text, useColors, useToast } from "@catera/mobile-ui";
+import { Button, Chip, Field, fontFor, SheetBody, SheetHeader, Skeleton, SkeletonGroup, Text, useColors, useToast } from "@catera/mobile-ui";
 import { ReadError } from "../ReadError";
 import { recheck, type AssistantRow } from "./rows";
 import { useImportStore } from "./store";
@@ -83,8 +83,12 @@ export function ImportRowEditor({ n }: { n: number }) {
     <View testID="import-row-sheet" style={{ flex: 1 }}>
       <SheetHeader title={row.name || t("Pelanggan", "Customer")} closeLabel={t("Tutup", "Close")} />
       <SheetBody>
-        {/* What still stops this row from being saved, in the words the list uses. */}
-        {row.needsReview ? <Text selectable style={{ color: c.danger }}>{row.reason}</Text> : null}
+        {/* What still stops this row from being saved, in the words and the bold charcoal the list uses (a to-do, not an error). */}
+        {row.needsReview ? (
+          <Text testID="import-row-reason" selectable style={{ color: c.charcoal, fontFamily: fontFor("700") }}>
+            {row.reason}
+          </Text>
+        ) : null}
         <Field label={t("Nama", "Name")} value={row.name} onChangeText={(v) => update({ name: v })} />
         <Field
           label={t("Nomor WhatsApp", "WhatsApp number")}

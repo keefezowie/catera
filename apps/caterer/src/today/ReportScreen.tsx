@@ -283,12 +283,9 @@ function Report({ issue: i, reload, draftKey }: { issue: DeliveryIssue; reload: 
             onChangeText={setText}
             maxLength={2000}
             style={{ minHeight: 88, textAlignVertical: "top", paddingTop: 12 }}
+            // A field validation: the Field's own error line and edge, never a loose danger caption (spec 5.2).
+            error={tooShort ? t("Tulis minimal 5 karakter.", "Write at least 5 characters.") : undefined}
           />
-          {tooShort ? (
-            <Text variant="caption" style={{ color: c.danger }}>
-              {t("Tulis minimal 5 karakter.", "Write at least 5 characters.")}
-            </Text>
-          ) : null}
           {error ? <Text selectable style={{ color: c.danger }}>{error}</Text> : null}
           <Button
             label={t("Balas", "Reply")}

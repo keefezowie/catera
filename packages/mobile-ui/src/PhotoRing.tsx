@@ -32,13 +32,17 @@ export function Photo({ uri, style, testID }: { uri: string; style?: StyleProp<V
   );
 }
 
+export type PhotoRingKind = "selected" | "lunch" | "dinner" | "none";
+
 const RING = 3;
 // The photo sits inside the ring with a thin gap, so the ring reads as a ring and not as a border on the photo.
 const GAP = 2;
 
 /**
- * A round photo with a 3dp ring, as in a story row: a Jelajah category, a day's meal, a caterer. The ring colour is the
- * caller's signal (ink for what needs a look, forest for what is settled, none for neither; the prop value "sunrise" stays, Sunrise itself is not spent here) and follows the theme.
+ * A round photo with a 3dp ring, as in a story row: a Jelajah category, a day's meal, a caterer. The ring is the
+ * caller's signal and follows the theme. Direction K keeps forest for selection (rule 3), so only `selected` (the active
+ * Jelajah tag) is forest. The meal cue is neutral: `dinner` is the ink ring, `lunch` the quiet control-ring grey, at least
+ * 3:1 apart in both themes so the two meals never read as one colour. `none` draws no visible ring.
  * `covered` swaps the photo for a closed lunchbox. With `onPress` the whole thing, label included, is one 48dp button.
  */
 export function PhotoRing({
@@ -54,7 +58,7 @@ export function PhotoRing({
   uri: string;
   /** 40 in a list row, 54 in the other-meal row, 60 or 66 in a story row. */
   size: number;
-  ring: "sunrise" | "forest" | "none";
+  ring: PhotoRingKind;
   covered?: boolean;
   label?: string;
   selected?: boolean;
@@ -63,7 +67,7 @@ export function PhotoRing({
 }) {
   const c = useColors();
   const inner = size - (RING + GAP) * 2;
-  const ringColor = ring === "sunrise" ? c.charcoal : ring === "forest" ? c.forest : "transparent";
+  const ringColor = { selected: c.forest, dinner: c.charcoal, lunch: c.controlRing, none: "transparent" }[ring];
 
   const disc = (
     <View
