@@ -87,6 +87,25 @@ function furthest(stage: TrackStage, counts?: TrackCounts): TrackStage {
 
 const fallbackT = (id: string) => id;
 
+/** "Scheduled" at font scale 1.3 is about 74dp against a 64dp pager column: 0.85 lets it fit whole. */
+const MIN_LABEL_SCALE = 0.85;
+
+type Translate = (id: string, en: string) => string;
+const stopLabels = (t: Translate) => [
+  t("Terjadwal", "Scheduled"),
+  t("Dimasak", "Cooking"),
+  t("Diantar", "On the way"),
+  t("Sampai", "Arrived"),
+];
+
+/**
+ * How many caption lines the stop labels take in this language: 2 when any label has two words (English "On the
+ * way" wraps), else 1. Skeletons read it to stand as tall as the track.
+ */
+export function trackLabelLines(t: Translate): 1 | 2 {
+  return stopLabels(t).some((label) => label.includes(" ")) ? 2 : 1;
+}
+
 /**
  * A meal's journey as a lunchbox on a line with four stops: Terjadwal (a calendar), Dimasak (a pot with steam), Diantar
  * (a motorbike) and Sampai (a house with a check), at 0, a third, two thirds and the end. It sits on a hero surface and
@@ -102,7 +121,7 @@ const fallbackT = (id: string) => id;
  *   at once. It never loops.
  * - A screen reader gets one sentence for the whole track, "Pesanan: {stage}, langkah {n} dari 4", with the caption
  *   (and the counts) as its state; the stops and their labels are decoration for the eye. A failed meal's step is the
- *   stop it reached. Each label stays on one line, centred on its stop.
+ *   stop it reached. Each label keeps to its column: two words wrap, one word shrinks a little to fit.
  * - `counts` (Dapur) puts a figure under each stop and fills the line to the furthest stage any meal has reached; the
  *   words then name that stage too, so the caption never disagrees with the ring.
  * - The caller remounts the track (a `key`) when it starts showing another meal or day, so a switch is not a change.
@@ -170,7 +189,8 @@ export function RantangTrack({
     delivered: t("Sampai", "Arrived"),
     issue: t("Gagal diantar", "Not delivered"),
   };
-  const labels = [t("Terjadwal", "Scheduled"), t("Dimasak", "Cooking"), t("Diantar", "On the way"), t("Sampai", "Arrived")];
+  const labels = stopLabels(t);
+  const twoLines = trackLabelLines(t) === 2;
   // A failed meal is counted at the stop it reached.
   const step = here + 1;
   const sentence = t(
@@ -270,22 +290,46 @@ export function RantangTrack({
         importantForAccessibility="no-hide-descendants"
         style={{ flexDirection: "row" }}
       >
-        {/* Each label is centred on its stop in a box twice its column, so a long word ("Terjadwal", "Scheduled" at
-            font scale 1.3) runs past the column on one line instead of breaking; the shorter neighbours leave it room. */}
-        {labels.map((label, i) => (
-          <View key={i} style={{ flex: 1, alignItems: "center" }}>
+        {/* Each label keeps to its own column, centred on its stop, so neighbours never touch. A label of two words
+            wraps to two lines; a single word stays whole on one line and shrinks a little if it must ("Scheduled" at
+            font scale 1.3 on a 64dp pager column). When any label can wrap, every column holds two lines' room, so
+            the track's height does not depend on which label wraps. */}
+        {labels.map((label, i) => {
+          const words = label.includes(" ");
+          const text = (
             <Text
               testID={`${testID}-label-${i}`}
               variant="caption"
-              numberOfLines={1}
-              style={{
-                color: issue && i === LAST ? ink.heroWarn : !issue && i === here ? ink.heroText : ink.heroMeta,
-                textAlign: "center",
-                width: "200%",
-              }}
+              numberOfLines={words ? 2 : 1}
+              adjustsFontSizeToFit={!words}
+              minimumFontScale={words ? undefined : MIN_LABEL_SCALE}
+              style={[
+                {
+                  color: issue && i === LAST ? ink.heroWarn : !issue && i === here ? ink.heroText : ink.heroMeta,
+                  textAlign: "center",
+                },
+                twoLines ? { position: "absolute", top: 0, left: 0, right: 0 } : { width: "100%" },
+              ]}
             >
               {label}
             </Text>
+          );
+          return (
+          <View key={i} style={{ flex: 1, alignItems: "center" }}>
+            {twoLines ? (
+              <View testID={`${testID}-label-slot-${i}`} style={{ alignSelf: "stretch" }}>
+                {/* Two invisible caption lines hold the room at any font scale; the label sits over them. */}
+                <Text variant="caption" style={{ opacity: 0 }}>
+                  {" "}
+                </Text>
+                <Text variant="caption" style={{ opacity: 0 }}>
+                  {" "}
+                </Text>
+                {text}
+              </View>
+            ) : (
+              text
+            )}
             {counts ? (
               <Text
                 testID={`${testID}-count-${i}`}
@@ -297,7 +341,8 @@ export function RantangTrack({
               </Text>
             ) : null}
           </View>
-        ))}
+          );
+        })}
       </View>
     </View>
   );

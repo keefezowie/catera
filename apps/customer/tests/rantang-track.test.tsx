@@ -23,6 +23,10 @@ jest.mock("expo-secure-store", () => {
   };
 });
 jest.mock("expo-font", () => ({ ...jest.requireActual("expo-font"), isLoaded: () => true }));
+// No provider by default (the track falls back to Indonesian); the English test hands it an English `t`.
+jest.mock("@catera/mobile-core", () => ({ ...jest.requireActual("@catera/mobile-core"), useMobile: jest.fn(() => undefined) }));
+const useMobile = (jest.requireMock("@catera/mobile-core") as { useMobile: jest.Mock }).useMobile;
+const english = { t: (_id: string, en: string) => en };
 
 const SIANG_NOW = () => new Date("2026-10-09T03:00:00Z");
 const RAIL = 300;
@@ -248,18 +252,38 @@ describe("RantangTrack", () => {
     expect(byId("journey-marker-glyph-body").props.fill != null).toBe(filled);
   });
 
-  it("keeps every stop label on one line, centred on its stop and free to run past its column", () => {
+  it("keeps each Indonesian label whole on one line inside its own column, shrinking a little rather than breaking", () => {
     mount(track("scheduled", { counts: trackCounts({ scheduled: 2 }) }));
     for (let i = 0; i < 4; i += 1) {
-      expect(byId(`journey-label-${i}`).props.numberOfLines).toBe(1);
-      const style = flat(`journey-label-${i}`);
-      expect(style.textAlign).toBe("center");
-      // Twice the column: "Terjadwal" or "Scheduled" at caption size and font scale 1.3 runs past a 64dp column
-      // without wrapping, and the shorter neighbours leave it room.
-      expect(style.width).toBe("200%");
+      const label = byId(`journey-label-${i}`);
+      expect(label.props.numberOfLines).toBe(1);
+      expect(label.props.adjustsFontSizeToFit).toBe(true);
+      expect(label.props.minimumFontScale).toBe(0.85);
+      expect(flat(`journey-label-${i}`)).toMatchObject({ textAlign: "center", width: "100%" });
       expect(byId(`journey-count-${i}`).props.numberOfLines).toBe(1);
     }
+    // No two-line room in a language where nothing wraps.
+    expect(has("journey-label-slot-0")).toBe(false);
     expect(flat("journey-labels").overflow).not.toBe("hidden");
+  });
+
+  it("in English a two-word label wraps in its column, one word fits, and every column holds two lines", () => {
+    useMobile.mockReturnValue(english);
+    mount(track("scheduled"));
+    // "On the way" wraps (two lines, centred, the column's width); "Scheduled", "Cooking" and "Arrived" fit one line.
+    expect(byId("journey-label-2").props.numberOfLines).toBe(2);
+    expect(byId("journey-label-2").props.adjustsFontSizeToFit).toBe(false);
+    for (const i of [0, 1, 3]) {
+      expect(byId(`journey-label-${i}`).props.numberOfLines).toBe(1);
+      expect(byId(`journey-label-${i}`).props.adjustsFontSizeToFit).toBe(true);
+    }
+    for (let i = 0; i < 4; i += 1) {
+      // The label sits over two invisible caption lines, so the row is as tall whichever label wraps.
+      expect(flat(`journey-label-${i}`)).toMatchObject({ position: "absolute", left: 0, right: 0, textAlign: "center" });
+      const room = byId(`journey-label-slot-${i}`).children.filter((n) => typeof n !== "string" && n.props.testID === undefined);
+      expect(room).toHaveLength(2);
+    }
+    useMobile.mockReturnValue(undefined);
   });
 
   it("fades the half-filled Sampai in with the fill, and puts it in place at once under reduced motion", () => {

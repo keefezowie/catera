@@ -1,6 +1,6 @@
 import { View, type DimensionValue } from "react-native";
 import { useMobile } from "@catera/mobile-core";
-import { Card, Skeleton, SkeletonGroup } from "@catera/mobile-ui";
+import { Card, Skeleton, SkeletonGroup, trackLabelLines } from "@catera/mobile-ui";
 
 /**
  * Dapur's loading shapes (Phase F task 6). Each one is drawn in the place and roughly the size of what it stands for, so
@@ -31,6 +31,8 @@ const STOPS = [0, 1, 2, 3] as const;
  * names the wait, so this one is hidden from screen readers.
  */
 export function TodayCountSkeleton() {
+  // The stop labels take two lines' room in a language where one wraps (English "On the way"), so the block does too.
+  const labelLines = trackLabelLines(useMobile().t);
   return (
     <View
       testID="today-count-skeleton"
@@ -54,7 +56,7 @@ export function TodayCountSkeleton() {
             <View style={{ flexDirection: "row" }}>
               {STOPS.map((i) => (
                 <View key={i} style={{ flex: 1, alignItems: "center" }}>
-                  <Line width={44} block={10} line={18} onMood testID={`today-count-block-stop-${i}`} />
+                  <Line width={44} block={10} line={18 * labelLines} onMood testID={`today-count-block-stop-${i}`} />
                   <Line width={16} block={10} line={18} onMood testID={`today-count-block-count-${i}`} />
                 </View>
               ))}

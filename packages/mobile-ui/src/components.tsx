@@ -71,6 +71,9 @@ export function Text({
   children: ReactNode;
   testID?: string;
   numberOfLines?: number;
+  /** With `numberOfLines`, shrinks the text (down to `minimumFontScale`) instead of cutting it. */
+  adjustsFontSizeToFit?: boolean;
+  minimumFontScale?: number;
   accessibilityRole?: AccessibilityRole;
   accessibilityLabel?: string;
   accessible?: boolean;

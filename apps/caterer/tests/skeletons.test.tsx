@@ -238,6 +238,22 @@ describe("Hari ini", () => {
     expect(waiting).toBe(loaded);
   });
 
+  it("in English the stop labels hold two lines' room (On the way wraps), in the track and in its skeleton alike", async () => {
+    const read = held<SellerOperationsState>();
+    const runtime = runtimeWith(owner, { sellerOperations: read.fn });
+    secureStore.set(runtime.storageKey("locale"), "en");
+    renderWith(runtime, <TodayScreen />);
+    const header = await screen.findByTestId("mood-header");
+    await waitFor(() => expect(within(header).getByLabelText(/, change day$/)).toBeTruthy());
+    const waiting = stackHeight(within(header).getByTestId("today-count-track", { includeHiddenElements: true }));
+    await act(async () => read.answer(today()));
+    const loaded = stackHeight(await screen.findByTestId("rantang-track"));
+    // The caption line (23), the rail (64), two label lines (36) and the count line (18), 8dp apart.
+    expect(loaded).toBe(23 + 8 + 64 + 8 + 54);
+    expect(waiting).toBe(loaded);
+    secureStore.delete(runtime.storageKey("locale"));
+  });
+
   it("Malam's skeleton sits on the Malam header, visible against its fill", async () => {
     renderWith(runtimeWith(owner, { sellerOperations: jest.fn(never) }), <TodayScreen />, MALAM);
     const header = await screen.findByTestId("mood-header");
