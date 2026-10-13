@@ -3,7 +3,7 @@ import { View } from "react-native";
 import { router } from "expo-router";
 import { earliestImportStart, normalizeCustomerPhone } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Chip, Field, SheetBody, SheetHeader, Skeleton, SkeletonGroup, Text, useColors } from "@catera/mobile-ui";
+import { Button, Chip, Field, SheetBody, SheetHeader, Skeleton, SkeletonGroup, Text, useColors, useToast } from "@catera/mobile-ui";
 import { ReadError } from "../ReadError";
 import { recheck, type AssistantRow } from "./rows";
 import { useImportStore } from "./store";
@@ -48,12 +48,13 @@ function PackageChoices({ title }: { title: string }) {
 /**
  * One imported customer, corrected in a form sheet over Impor. Every change goes straight into the import in progress
  * (`useImportStore`) and is checked again with the server's rules, so the list under the sheet already shows it and
- * closing the sheet in any way loses nothing. "Selesai" returns to the list; "Hapus baris ini" takes the row off it.
+ * closing the sheet in any way loses nothing. "Selesai" returns to the list; "Hapus baris ini" takes the row off it and offers "Urungkan" in a toast.
  */
 export function ImportRowEditor({ n }: { n: number }) {
   const { t } = useMobile();
   const c = useColors();
-  const { rows, packages, setRow, removeRow } = useImportStore();
+  const toast = useToast();
+  const { rows, packages, setRow, removeRow, restoreRow } = useImportStore();
   const row = rows?.find((r) => r.n === n);
   const close = () => router.back();
 
@@ -135,7 +136,13 @@ export function ImportRowEditor({ n }: { n: number }) {
           onPress={() => {
             // The sheet leaves first, so it slides away showing the row rather than "no longer there".
             close();
-            removeRow(n);
+            const removed = removeRow(n);
+            // The toast outlives this sheet; Urungkan puts the row back with the edits it had, at its place.
+            if (removed)
+              toast.show({
+                message: t("Baris dihapus", "Row removed"),
+                action: { label: t("Urungkan", "Undo"), onPress: () => restoreRow(removed.row, removed.index) },
+              });
           }}
         />
       </SheetBody>

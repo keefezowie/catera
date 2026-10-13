@@ -59,7 +59,10 @@ export type ImportStore = State & {
   number(rows: AssistantRow[]): ImportRow[];
   /** Replaces row `n` (its number is kept). */
   setRow(n: number, update: Update<AssistantRow>): void;
-  removeRow(n: number): void;
+  /** Takes row `n` off the list and returns it with the place it held, so a restore can put it back. */
+  removeRow(n: number): { row: ImportRow; index: number } | null;
+  /** Puts a removed row back at its place with the edits it had; a row already there is left alone. */
+  restoreRow(row: ImportRow, index: number): void;
   /** Forgets everything: Impor closed. */
   reset(): void;
 };
@@ -78,7 +81,18 @@ const actions: Omit<ImportStore, keyof State> = {
   },
   setRow: (n, update) =>
     patch({ rows: read().rows?.map((row) => (row.n === n ? { ...apply<AssistantRow>(update, row), n } : row)) ?? null }),
-  removeRow: (n) => patch({ rows: read().rows?.filter((row) => row.n !== n) ?? null }),
+  removeRow(n) {
+    const rows = read().rows;
+    const index = rows?.findIndex((row) => row.n === n) ?? -1;
+    if (!rows || index < 0) return null;
+    patch({ rows: rows.filter((row) => row.n !== n) });
+    return { row: rows[index], index };
+  },
+  restoreRow(row, index) {
+    const rows = read().rows;
+    if (!rows || rows.some((r) => r.n === row.n)) return;
+    patch({ rows: [...rows.slice(0, index), row, ...rows.slice(index)] });
+  },
   reset: () => write(EMPTY),
 };
 

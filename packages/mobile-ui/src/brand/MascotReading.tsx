@@ -96,7 +96,8 @@ export function MascotReading({ size }: { size: number }) {
   const [leftPivot, rightPivot] = readingRig.eyePivots;
   const mark = readingRig.paperHighlight;
   // Both eye views span the whole canvas (the right one is shifted back by the seam), so a pivot is in canvas points.
-  const pivotAt = (point: { x: number; y: number }) => `${point.x * canvas}px ${point.y * canvas}px`;
+  // Numbers (points), never a float inside a string: a long fraction in a string origin crashed the Dapur build.
+  const pivotAt = (point: { x: number; y: number }): [number, number, number] => [point.x * canvas, point.y * canvas, 0];
   return (
     <View testID="mascot-reading" {...decorative} style={{ width: frame.width, height: frame.height }}>
       <View style={{ position: "absolute", left: frame.left, top: frame.top, width: canvas, height: canvas }}>
@@ -138,7 +139,7 @@ export function MascotReading({ size }: { size: number }) {
           testID="mascot-reading-magnifier"
           source={layers.magnifier}
           fadeDuration={0}
-          style={[full, { transformOrigin: `${readingRig.magnifierPivot.x * 100}% ${readingRig.magnifierPivot.y * 100}%` }, magnifier]}
+          style={[full, { transformOrigin: pivotAt(readingRig.magnifierPivot) }, magnifier]}
         />
       </View>
     </View>

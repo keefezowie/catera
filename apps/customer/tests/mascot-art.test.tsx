@@ -16,7 +16,7 @@ import {
   ThemeProvider,
   type MascotPose,
 } from "@catera/mobile-ui";
-import { mascotPoses, stillRuntime, successRigBox, visibleBox } from "../../../packages/brand/phaseF";
+import { mascotPoses, readingRig, readingRigBox, stillRuntime, successRigBox, visibleBox } from "../../../packages/brand/phaseF";
 
 jest.mock("expo-secure-store", () => ({
   getItemAsync: jest.fn(async () => null),
@@ -368,5 +368,18 @@ describe("SuccessRing and Sparkle", () => {
     view.rerender(<Sparkle kind="dot" color="#163D2E" size={6} />);
     expect(screen.queryByTestId("sparkle-star", hidden)).toBeNull();
     expect(screen.getByTestId("sparkle-dot", hidden).props.fill.payload).toBe(ReactNative.processColor("#163D2E"));
+  });
+});
+
+describe("MascotReading transform origins", () => {
+  it("renders with magnifierPivot y 0.8094098883572568", () => {
+    render(<MascotReading size={120} />);
+    {
+      const origin = flat("mascot-reading-magnifier").transformOrigin;
+      // Numbers, never a string holding an unrounded float.
+      expect(Array.isArray(origin)).toBe(true);
+      expect((origin as unknown[]).every((part) => typeof part === "number" && Number.isFinite(part))).toBe(true);
+      expect((origin as number[])[1]).toBeCloseTo(readingRig.magnifierPivot.y * mascotArtFrame(readingRigBox, 120).canvas, 5);
+    }
   });
 });

@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import { AccessibilityInfo, StyleSheet } from "react-native";
 import { nativeThemes } from "@catera/design-tokens";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
-import { ThemeProvider } from "@catera/mobile-ui";
+import { ThemeProvider, ToastProvider } from "@catera/mobile-ui";
 import { ImportAssistant } from "../src/import/ImportAssistant";
 import { ImportPhotoViewer } from "../src/import/PhotoViewer";
 import { toImportRow } from "../src/import/rows";
@@ -155,9 +155,13 @@ function setup(command: jest.Mock, response: { ok: boolean; status?: number; jso
   } as unknown as MobileRuntime["api"];
   global.fetch = jest.fn(async () => response) as unknown as typeof fetch;
   render(
-    <MobileProvider runtime={runtime} linkMapper={() => "/"}>
-      <Impor />
-    </MobileProvider>,
+    <ThemeProvider storageKey="impor.undo.theme">
+      <MobileProvider runtime={runtime} linkMapper={() => "/"}>
+        <ToastProvider>
+          <Impor />
+        </ToastProvider>
+      </MobileProvider>
+    </ThemeProvider>,
   );
 }
 const read = async () => {
@@ -231,6 +235,55 @@ it("a review row dims on press and still opens its editor", async () => {
   expect(StyleSheet.flatten((await edit()).props.style).opacity).toBe(0.7);
   fireEvent.press(await edit());
   expect(await screen.findByRole("button", { name: "Selesai" })).toBeTruthy();
+});
+
+describe("deleting an import row", () => {
+  const three = { ok: true, json: async () => ({ data: { rows: [row(1), row(2), row(3)], needsReview: 0 } }) };
+  const names = () => screen.getAllByTestId("import-row").map((card) => within(card).getByRole("button").props.accessibilityLabel);
+  /** Opens row 2, renames it, and takes it off with Hapus baris ini. */
+  async function deleteSecond() {
+    setup(jest.fn(), three);
+    await read();
+    fireEvent.press(await screen.findByRole("button", { name: "Ubah Pelanggan 2" }));
+    fireEvent.changeText(await screen.findByLabelText("Nama"), "Budi");
+    fireEvent.press(await screen.findByRole("button", { name: "Hapus baris ini" }));
+  }
+
+  it("deleting an import row shows the undo toast", async () => {
+    await deleteSecond();
+    expect(await screen.findByText("Baris dihapus")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Urungkan" })).toBeTruthy();
+    await waitFor(() => expect(names()).toEqual(["Ubah Pelanggan 1", "Ubah Pelanggan 3"]));
+  });
+
+  it("Urungkan restores the row at its place with its edits", async () => {
+    await deleteSecond();
+    fireEvent.press(await screen.findByRole("button", { name: "Urungkan" }));
+    await waitFor(() => expect(names()).toEqual(["Ubah Pelanggan 1", "Ubah Budi", "Ubah Pelanggan 3"]));
+    expect(screen.queryByText("Baris dihapus")).toBeNull();
+  });
+
+  it("the toast passing leaves the row deleted", async () => {
+    jest.useFakeTimers();
+    try {
+      await deleteSecond();
+      expect(await screen.findByText("Baris dihapus")).toBeTruthy();
+      act(() => void jest.advanceTimersByTime(5100));
+      await waitFor(() => expect(screen.queryByText("Baris dihapus")).toBeNull());
+      expect(names()).toEqual(["Ubah Pelanggan 1", "Ubah Pelanggan 3"]);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("deleting the only row, then Urungkan, brings it back", async () => {
+    setup(jest.fn(), { ok: true, json: async () => ({ data: { rows: [row(1)], needsReview: 0 } }) });
+    await read();
+    fireEvent.press(await screen.findByRole("button", { name: "Ubah Pelanggan 1" }));
+    fireEvent.press(await screen.findByRole("button", { name: "Hapus baris ini" }));
+    fireEvent.press(await screen.findByRole("button", { name: "Urungkan" }));
+    await waitFor(() => expect(names()).toEqual(["Ubah Pelanggan 1"]));
+  });
 });
 
 it("import row names a missing package", async () => {

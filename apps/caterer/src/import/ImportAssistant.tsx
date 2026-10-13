@@ -19,6 +19,7 @@ import {
   Text,
   useColors,
   useListMotion,
+  useToast,
 } from "@catera/mobile-ui";
 import { Attachments } from "./Attachments";
 import { commitImport } from "./commits";
@@ -45,6 +46,7 @@ export function ImportAssistant() {
   const options = useData(`impor:${catererId}`, () => runtime.api.sellerImportOptions(catererId));
   const packages = options.data?.packages ?? [];
   const { text, files, rows, setText, setFiles, setRows, setPackages, number: numbered, reset } = useImportStore();
+  const toast = useToast();
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(0);
@@ -162,7 +164,11 @@ export function ImportAssistant() {
       await commitImport(command, catererId, preview.id);
       setSaved((s) => s + clean.length);
       setSaves((n) => n + 1);
-      setRows(rows.filter((r) => r.needsReview));
+      // From the current list, not the one this save began with: a row deleted meanwhile stays deleted.
+      const savedNs = new Set(clean.map((r) => r.n));
+      setRows((current) => current?.filter((r) => !savedNs.has(r.n)) ?? null);
+      // A row deleted during the save went with it, so its Urungkan would bring back a customer already saved.
+      toast.hide();
     } catch (e) {
       if (!ROW_CODES.has(fail(e))) {
         setError(message(fail(e)));
@@ -177,7 +183,7 @@ export function ImportAssistant() {
           flagged.set(r.n, message(fail(rowError)));
         }
       }
-      setRows(rows.map((r) => (flagged.has(r.n) ? { ...r, needsReview: true, reason: flagged.get(r.n)! } : r)));
+      setRows((current) => current?.map((r) => (flagged.has(r.n) ? { ...r, needsReview: true, reason: flagged.get(r.n)! } : r)) ?? null);
       setError(flagged.size ? t(`${flagged.size} baris perlu dicek sebelum disimpan.`, `${flagged.size} rows need checking before saving.`) : message(fail(e)));
     } finally {
       setBusy("");
