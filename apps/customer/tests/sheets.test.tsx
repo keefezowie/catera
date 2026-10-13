@@ -2,7 +2,7 @@ import { readdirSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { createElement } from "react";
 import * as ReactNative from "react-native";
-import { AccessibilityInfo, BackHandler, Pressable, StyleSheet, Text, View } from "react-native";
+import { AccessibilityInfo, BackHandler, Dimensions, Pressable, StyleSheet, Text, View } from "react-native";
 import { render } from "@testing-library/react-native";
 import { NavigationContext } from "expo-router/react-navigation";
 import { router } from "expo-router";
@@ -11,6 +11,7 @@ import { nativeThemes } from "@catera/design-tokens";
 import {
   ActionSheet,
   ANDROID_TAB_BAR,
+  androidTabBarHeight,
   canHoldRemoval,
   ConfirmSheet,
   SheetBody,
@@ -581,8 +582,11 @@ describe("Ada masalah as a sheet", () => {
   it("in the tab's stack the form ends above the Android tab bar, so Kirim laporan scrolls clear of it", async () => {
     const app = await onHari();
     const body = screen.getByTestId("sheet-body");
-    // The bar is 80dp over the system inset (0 in the test's safe area); iOS presents the sheet above the bar.
-    expect(StyleSheet.flatten(body.props.style).marginBottom).toBe(process.env.EXPO_OS === "ios" ? 0 : ANDROID_TAB_BAR);
+    // The bar is 80dp, grown with the font scale (React Native's jest window reports 2), over the system inset (0 in the
+    // test's safe area); iOS presents the sheet above the bar.
+    const bar = androidTabBarHeight(Dimensions.get("window").fontScale);
+    expect(bar).toBeGreaterThanOrEqual(ANDROID_TAB_BAR);
+    expect(StyleSheet.flatten(body.props.style).marginBottom).toBe(process.env.EXPO_OS === "ios" ? 0 : bar);
     expect(within(body).getByRole("button", { name: "Kirim laporan" })).toBeTruthy();
     app.unmount();
   });

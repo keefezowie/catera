@@ -7,6 +7,7 @@ import { NavigationContext } from "expo-router/react-navigation";
 import { nativeMotion } from "@catera/design-tokens";
 import {
   ANDROID_TAB_BAR,
+  androidTabBarHeight,
   DemoStrip,
   SHEET_FOCUS_FALLBACK_MS,
   SHEET_FOCUS_SETTLE_MS,
@@ -21,24 +22,39 @@ import {
  * the emulator gate's.
  */
 
+// React Native's jest environment reports a font scale of 2; the suite states the one it means.
+let mockFontScale = 1;
+jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
+  __esModule: true,
+  default: () => ({ width: 360, height: 800, scale: 2.625, fontScale: mockFontScale }),
+}));
+
 type Listener = (e: { data?: { closing?: boolean } }) => void;
 
-/** A stand-in for the screen's navigation: `parent` is the navigator above (a "tab" one for a tab-stack sheet). */
+/**
+ * A stand-in for the screen's navigation: `parent` is the navigator above (a "tab" one for a tab-stack sheet). `emit`
+ * of "focus" or "blur" also moves what `isFocused` reports, as react-navigation does.
+ */
 function fakeNavigation(parent: "tab" | "stack" | null = null) {
   const listeners: Record<string, Listener[]> = {};
   const parentNav = parent ? { getState: () => ({ type: parent }), getParent: () => undefined } : undefined;
+  let focused = true;
   const navigation = {
     getState: () => ({ type: "stack" }),
     getParent: () => parentNav,
-    isFocused: () => true,
+    isFocused: () => focused,
     goBack: () => {},
     addListener: (event: string, cb: Listener) => {
       (listeners[event] ??= []).push(cb);
       return () => void listeners[event].splice(listeners[event].indexOf(cb), 1);
     },
   };
-  const emit = (event: string, closing: boolean) =>
-    act(() => [...(listeners[event] ?? [])].forEach((cb) => cb({ data: { closing } })));
+  const emit = (event: string, closing = false) =>
+    act(() => {
+      if (event === "focus") focused = true;
+      if (event === "blur") focused = false;
+      [...(listeners[event] ?? [])].forEach((cb) => cb({ data: { closing } }));
+    });
   return { navigation, emit };
 }
 
@@ -50,6 +66,7 @@ function spyFocus() {
 }
 
 afterEach(() => {
+  mockFontScale = 1;
   jest.useRealTimers();
   jest.restoreAllMocks();
 });
@@ -158,6 +175,97 @@ describe("the page under a sheet", () => {
   });
 });
 
+describe("the strip follows the sheet's focus, not its mount", () => {
+  const LABEL = "Demo · data sintetis";
+  const strip = () => screen.getByTestId("demo-strip", { includeHiddenElements: true });
+  const hidden = () => strip().props.importantForAccessibility === "no-hide-descendants";
+  const sheet = (navigation: unknown, title = "Ada masalah") => (
+    <NavigationContext.Provider value={navigation as never}>
+      <SheetHeader title={title} os="android" />
+    </NavigationContext.Provider>
+  );
+
+  beforeEach(() => {
+    jest.spyOn(AccessibilityInfo, "sendAccessibilityEvent").mockImplementation(() => {});
+  });
+
+  it("a push over the sheet restores the strip, and coming back hides it again", () => {
+    // Signed out, Kirim laporan pushes /login over Ada masalah without closing it: the sheet stays mounted under it.
+    const ada = fakeNavigation("tab");
+    const view = render(
+      <>
+        <DemoStrip label={LABEL} />
+        {sheet(ada.navigation)}
+      </>,
+    );
+    expect(hidden()).toBe(true);
+    ada.emit("blur");
+    expect(hidden()).toBe(false);
+    expect(screen.getByLabelText(LABEL)).toBeTruthy();
+    ada.emit("focus");
+    expect(hidden()).toBe(true);
+    view.unmount();
+  });
+
+  it("a blur (tab switch) restores the strip, and the sheet leaving while blurred does not count twice", () => {
+    // Android keeps tab A's stack, its sheet included, mounted after a switch to tab B.
+    const ada = fakeNavigation("tab");
+    const view = render(
+      <>
+        <DemoStrip label={LABEL} />
+        {sheet(ada.navigation)}
+      </>,
+    );
+    ada.emit("blur");
+    expect(hidden()).toBe(false);
+    view.rerender(<DemoStrip label={LABEL} />);
+    expect(hidden()).toBe(false);
+    // A later sheet still hides the strip: the count did not go below zero.
+    const next = fakeNavigation("tab");
+    view.rerender(
+      <>
+        <DemoStrip label={LABEL} />
+        {sheet(next.navigation, "Ubah hari")}
+      </>,
+    );
+    expect(hidden()).toBe(true);
+    view.unmount();
+  });
+
+  it("a confirm over a sheet keeps the strip hidden until the last sheet goes", () => {
+    const ada = fakeNavigation("tab");
+    const view = render(
+      <>
+        <DemoStrip label={LABEL} />
+        {sheet(ada.navigation)}
+      </>,
+    );
+    // The root stack presents the confirm (focused) and the sheet under it blurs.
+    const confirm = fakeNavigation(null);
+    view.rerender(
+      <>
+        <DemoStrip label={LABEL} />
+        {sheet(ada.navigation)}
+        {sheet(confirm.navigation, "Buang laporan?")}
+      </>,
+    );
+    ada.emit("blur");
+    expect(hidden()).toBe(true);
+    // The confirm closes and the sheet takes the focus back: still hidden.
+    view.rerender(
+      <>
+        <DemoStrip label={LABEL} />
+        {sheet(ada.navigation)}
+      </>,
+    );
+    ada.emit("focus");
+    expect(hidden()).toBe(true);
+    view.rerender(<DemoStrip label={LABEL} />);
+    expect(hidden()).toBe(false);
+    view.unmount();
+  });
+});
+
 describe("tab-stack form sheets", () => {
   it("the form sheet content reserves the tab bar height", () => {
     jest.spyOn(SafeArea, "useSafeAreaInsets").mockReturnValue({ top: 24, bottom: 24, left: 0, right: 0 });
@@ -199,5 +307,21 @@ describe("tab-stack form sheets", () => {
     within("tab", "ios");
     expect(StyleSheet.flatten(body().props.style).marginBottom).toBe(0);
     expect(StyleSheet.flatten(body().props.contentContainerStyle).paddingBottom).toBe(24 + 24);
+  });
+
+  it("the reserve grows with the bar's label at font scale 1.3", () => {
+    jest.spyOn(SafeArea, "useSafeAreaInsets").mockReturnValue({ top: 24, bottom: 24, left: 0, right: 0 });
+    // The bar's 12/16 label line grows 16 × 0.3 = 4.8dp at 1.3; the reserve rounds it up and never shrinks below 80.
+    expect(androidTabBarHeight(1)).toBe(ANDROID_TAB_BAR);
+    expect(androidTabBarHeight(0.85)).toBe(ANDROID_TAB_BAR);
+    expect(androidTabBarHeight(1.3)).toBe(ANDROID_TAB_BAR + 5);
+    mockFontScale = 1.3;
+    const { navigation } = fakeNavigation("tab");
+    render(
+      <NavigationContext.Provider value={navigation as never}>
+        <SheetBody os="android">{null}</SheetBody>
+      </NavigationContext.Provider>,
+    );
+    expect(StyleSheet.flatten(screen.getByTestId("sheet-body").props.style).marginBottom).toBe(ANDROID_TAB_BAR + 5 + 24);
   });
 });

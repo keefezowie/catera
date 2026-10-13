@@ -26,7 +26,10 @@ import {
 export const SHEET_FOCUS_FALLBACK_MS = 400;
 export const SHEET_FOCUS_SETTLE_MS = 250;
 
-/** How many sheets are mounted now. Any sheet counts: a confirm over Ada masalah keeps the page hidden. */
+/**
+ * How many sheets hold the focus now. Any sheet counts: a confirm over Ada masalah keeps the page hidden, because the
+ * confirm gains the focus as Ada masalah loses it.
+ */
 let sheetsUp = 0;
 const sheetWatchers = new Set<() => void>();
 
@@ -40,18 +43,37 @@ function watchSheets(watch: () => void) {
   return () => void sheetWatchers.delete(watch);
 }
 
-/** Counts this sheet as up while it is mounted. Every sheet's title row calls it (`useSheetTitleFocus`). */
+/**
+ * Counts this sheet as up while its screen is focused, not merely mounted. Every sheet's title row calls it
+ * (`useSheetTitleFocus`). A sheet can stay mounted out of sight: a signed-out sheet pushes `/login` over itself, and on
+ * Android a tab switch keeps the other tab's stack, sheet included. Its screen blurs then and the page chrome returns.
+ * Outside a navigator the sheet counts while it is mounted.
+ */
 export function useSheetPresence(): void {
+  const navigation = use(NavigationContext);
   useEffect(() => {
-    countSheet(1);
-    return () => countSheet(-1);
-  }, []);
+    let counted = false;
+    const count = (up: boolean) => {
+      if (up === counted) return;
+      counted = up;
+      countSheet(up ? 1 : -1);
+    };
+    count(navigation?.isFocused() ?? true);
+    const focused = navigation?.addListener("focus", () => count(true));
+    const blurred = navigation?.addListener("blur", () => count(false));
+    return () => {
+      focused?.();
+      blurred?.();
+      count(false);
+    };
+  }, [navigation]);
 }
 
 /**
  * True while a sheet route is on top. The chrome outside the sheet's stack (the demo strip, the tab bar) leaves the
  * accessibility tree then, so TalkBack cannot fall back onto it when the page under the sheet is hidden; it comes back
- * when the last sheet unmounts. react-native-screens already hides the screens under the sheet in its own stack.
+ * when the last sheet closes or loses the focus. react-native-screens already hides the screens under the sheet in its
+ * own stack.
  */
 export function useSheetOnTop(): boolean {
   return useSyncExternalStore(watchSheets, () => sheetsUp > 0, () => false);

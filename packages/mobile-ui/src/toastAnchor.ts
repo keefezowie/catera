@@ -30,6 +30,17 @@ export const ToastAnchorContext = createContext<Register>(() => {});
  */
 export const ANDROID_TAB_BAR = 80;
 
+/** The bar's label line (Material 3 label medium, 12/16sp), the part of the bar that grows with the font scale. */
+const TAB_LABEL_LINE = 16;
+
+/**
+ * The Android tab bar's height at a font scale: the 80dp minimum plus what the label line gains above 1 (16 × 0.3,
+ * rounded up to 5, at 1.3). The bar reports no laid-out height to JS, so this is its Material layout, never below 80.
+ */
+export function androidTabBarHeight(fontScale: number): number {
+  return ANDROID_TAB_BAR + Math.max(0, Math.ceil(TAB_LABEL_LINE * (fontScale - 1) - 1e-9));
+}
+
 /** The presentations iOS draws as a card sliding over the screen below, rather than a full screen. */
 const SHEETS = new Set(["modal", "pageSheet", "formSheet"]);
 

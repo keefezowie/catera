@@ -36,7 +36,7 @@ export * from "./Skeleton";
 export * from "./brand/MascotLoading";
 export * from "./Toast";
 export * from "./SheetHeader";
-export { ANDROID_TAB_BAR, useToastAnchor, type ToastAnchor } from "./toastAnchor";
+export { ANDROID_TAB_BAR, androidTabBarHeight, useToastAnchor, type ToastAnchor } from "./toastAnchor";
 export * from "./LaunchCover";
 export {
   ACTION_ROUTE,

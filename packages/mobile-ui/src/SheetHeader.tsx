@@ -7,7 +7,7 @@ import { Skeleton, SkeletonGroup } from "./Skeleton";
 import { useScreenNavigation } from "./navigation";
 import { SHEET_FOCUS_FALLBACK_MS, SHEET_FOCUS_SETTLE_MS, useSheetPresence } from "./sheets";
 import { useColors } from "./theme";
-import { ANDROID_TAB_BAR, insideTabs, useToastAnchor } from "./toastAnchor";
+import { androidTabBarHeight, insideTabs, useToastAnchor } from "./toastAnchor";
 import { fonts } from "./type";
 
 /** iOS reserves this much on each side of the centred title: the 44pt Close and its mirror. */
@@ -21,8 +21,8 @@ const CONTEXT_LINE = 20;
  * present, never its close) and once more `SHEET_FOCUS_SETTLE_MS` later, because TalkBack re-asserts its focus on the
  * window under the sheet after react-native-screens hides the page there. A present that has not reported after
  * `SHEET_FOCUS_FALLBACK_MS` (outside a navigator) is replaced by the fallback, which settles the same way. While the
- * sheet is mounted it counts as on top (`useSheetPresence`), so the demo strip and the tab bar leave the accessibility
- * tree and cannot catch the focus. Returns the ref for the title text.
+ * sheet's screen is focused it counts as on top (`useSheetPresence`), so the demo strip and the tab bar leave the
+ * accessibility tree and cannot catch the focus. Returns the ref for the title text.
  */
 export function useSheetTitleFocus() {
   const ref = useRef<RNText>(null);
@@ -90,14 +90,15 @@ function useKeyboardUp(): boolean {
  * tab host, under the Material 3 navigation bar (80dp, `ANDROID_TAB_BAR`) and the system inset it pays. iOS presents
  * every sheet above the tab bar, a root-stack sheet has no bar under it, and while the keyboard is up it covers the bar:
  * then 0. react-native-screens 4.26 gives JS no reading of the bar's laid-out height, so this is the bar's Material
- * height plus the inset measured on the phone.
+ * height, grown with the font scale's label line (`androidTabBarHeight`), plus the inset measured on the phone.
  */
 function useTabBarOverSheet(os: string | undefined): number {
   const insets = useSafeAreaInsets();
   const navigation = useScreenNavigation();
   const keyboardUp = useKeyboardUp();
+  const { fontScale } = useWindowDimensions();
   if (os === "ios" || keyboardUp || !insideTabs(navigation as Parameters<typeof insideTabs>[0])) return 0;
-  return ANDROID_TAB_BAR + insets.bottom;
+  return androidTabBarHeight(fontScale) + insets.bottom;
 }
 
 /**
