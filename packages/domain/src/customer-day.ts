@@ -12,6 +12,8 @@ export type PlateState =
   | "cooking"
   | "on_the_way"
   | "due"
+  /** The kitchen marked it Sampai: the customer is asked "Sudah diterima?". */
+  | "arrived_unconfirmed"
   | "arrived"
   | "failed"
   | "reported"
@@ -31,6 +33,9 @@ export type Plate = {
   addressLabel: string;
   departedAt: string | null;
   confirmedAt: string | null;
+  /** When the kitchen marked Sampai, and whether it left a proof photo (read through /api/proof). */
+  arrivedAt: string | null;
+  proofPhoto: boolean;
   reaction: DeliveryMeal["reaction"];
   issue: DeliveryMeal["issue"];
   /** The caterer's verified WhatsApp number, when the read carries one. */
@@ -116,7 +121,7 @@ function dishesFor(offer: Offer, meal: "lunch" | "dinner"): string[] {
 }
 
 /**
- * reported > failed > arrived > on_the_way > due > cooking > scheduled. "cooking" is only a meal the
+ * reported > failed > arrived > arrived_unconfirmed > on_the_way > due > cooking > scheduled. "cooking" is only a meal the
  * kitchen started; one it never tapped stays "scheduled" until its window starts, then "due".
  */
 function plateState(meal: DeliveryMeal, due: boolean): PlateState {
@@ -124,7 +129,7 @@ function plateState(meal: DeliveryMeal, due: boolean): PlateState {
   // The caterer marked the meal "Gagal diantar": it is not coming today.
   if (meal.status === "issue") return "failed";
   if (meal.status === "delivered") return "arrived";
-  if (meal.status === "out_for_delivery") return "on_the_way";
+  if (meal.status === "out_for_delivery") return meal.arrived_at ? "arrived_unconfirmed" : "on_the_way";
   if (due) return "due";
   return meal.status === "preparing" ? "cooking" : "scheduled";
 }
@@ -161,6 +166,8 @@ export function todayPlates(state: CustomerState, now: Date): Plate[] {
           addressLabel: addressLabel(d),
           departedAt: m.departed_at ?? null,
           confirmedAt: m.confirmed_at ?? null,
+          arrivedAt: m.arrived_at ?? null,
+          proofPhoto: !!m.arrived_photo,
           reaction: m.reaction ?? null,
           issue: m.issue ?? null,
           catererPhone: d.catererPhone ?? null,

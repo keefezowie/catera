@@ -25,7 +25,8 @@ export const deliveryBatchSchema = z
     catererId: z.uuid(),
     date: z.iso.date(),
     meal: z.enum(["lunch", "dinner"]),
-    status: z.enum(["preparing", "out_for_delivery", "delivered", "issue"]),
+    // Only the customer or the system closes a meal; the kitchen marks Sampai through delivery.arrive.
+    status: z.enum(["preparing", "out_for_delivery", "issue"]),
     items: z
       .array(z.object({ id: z.uuid(), version: z.number().int().positive() }))
       .min(1)
@@ -35,17 +36,63 @@ export const deliveryBatchSchema = z
     (p) => new Set(p.items.map((i) => i.id)).size === p.items.length,
     "Duplicate delivery",
   );
-export function nextDeliveryStatuses(status: string): string[] {
+/** A stop the caterer selected, by delivery day id (one meal per command, so the day names the fulfilment). */
+const stopIds = z
+  .array(z.uuid())
+  .min(1)
+  .max(500)
+  .refine((ids) => new Set(ids).size === ids.length, "Duplicate delivery");
+/** Proof photos live at {catererId}/{deliveryId}/{meal}/{uuid}.{ext} in the private proof bucket. */
+export const proofPathPattern =
+  /^[0-9a-f-]{36}\/[0-9a-f-]{36}\/(lunch|dinner)\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(png|jpg|webp)$/;
+export const deliveryDepartSchema = z
+  .object({
+    catererId: z.uuid(),
+    date: z.iso.date(),
+    meal: z.enum(["lunch", "dinner"]),
+    fulfillmentIds: stopIds.optional(),
+  })
+  .strict();
+export const deliveryArriveSchema = z
+  .object({
+    catererId: z.uuid(),
+    date: z.iso.date(),
+    meal: z.enum(["lunch", "dinner"]),
+    fulfillmentIds: stopIds,
+    photos: z.record(z.uuid(), z.string().regex(proofPathPattern)),
+  })
+  .strict()
+  .refine(
+    (p) =>
+      Object.keys(p.photos).length === p.fulfillmentIds.length &&
+      p.fulfillmentIds.every((id) =>
+        p.photos[id]?.startsWith(`${p.catererId}/${id}/${p.meal}/`),
+      ),
+    "Every stop needs its own photo",
+  );
+/**
+ * What the workspace offers next for one meal. "arrived" is Sampai with a proof photo (delivery.arrive);
+ * a stop already marked waits for the customer, so it is offered only "issue".
+ */
+export function nextDeliveryStatuses(
+  status: string,
+  arrived = false,
+): string[] {
+  if (status === "out_for_delivery" && arrived) return ["issue"];
   return (
     (
       {
         scheduled: ["preparing"],
         preparing: ["out_for_delivery"],
-        out_for_delivery: ["delivered", "issue"],
+        out_for_delivery: ["arrived", "issue"],
         issue: ["out_for_delivery"],
       } as Record<string, string[]>
     )[status] || []
   );
+}
+/** Whether the kitchen already marked this meal Sampai. */
+export function mealArrived(d: Delivery, meal: string) {
+  return !!d.meals.find((m) => m.meal === meal)?.arrived_at;
 }
 export function fulfillmentStatus(d: Delivery, meal: string) {
   return d.status === "cancelled"

@@ -37,7 +37,9 @@ export async function GET(request: Request) {
       console.warn("Staged food upload cleanup unavailable");
     }
   }
-  // Deliveries count as done unless reported; earnings follow before settlement.
+  // Meals marked Sampai two hours ago with no answer and no report close first; the next-morning
+  // rule then closes whatever was never marked, unless reported. Earnings follow before settlement.
+  await system("delivery.autoConfirm");
   await system("delivery.autoDeliver", { today: jakartaDay(new Date()) });
   await system("settlement.run");
   const reconciliation = await reconcileEarnedPayouts();

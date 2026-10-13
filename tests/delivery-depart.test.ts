@@ -230,3 +230,44 @@ it("completes a subscription through the shared helper once its last open day is
   await db.query("select v1.complete_subscription_if_done($1)", [sub]);
   expect((await q<{ status: string }>("select status from v1.subscriptions where id=$1", [sub]))[0].status).toBe("completed");
 });
+
+it("depart with a subset leaves the others scheduled", async () => {
+  // Two Dapur Senja lunches of today from their own purchases, plus a Hijau Kitchen lunch.
+  const day = async (packageId: string, offset: number) => {
+    const checkout: Checkout = await cmd("checkout.create", {
+      acceptedTerms: true,
+      packageId,
+      addressId: A,
+      portions: 1,
+      startDate: addDays(localDay(), offset),
+      trial: false,
+    });
+    await cmd("checkout.demo_pay", { id: checkout.id });
+    const [first] = await q<Day>(
+      "select d.id from v1.delivery_days d join v1.subscriptions s on s.id=d.subscription_id where s.checkout_id=$1 order by d.service_date limit 1",
+      [checkout.id],
+    );
+    await q("update v1.delivery_days set service_date=$2::date where id=$1", [first.id, today]);
+    return first.id;
+  };
+  const [a, b, other] = [await day(P[4], 140), await day(P[0], 160), await day(P[3], 180)];
+  const subset = (ids: string[], user: string = U.owner) =>
+    cmd("delivery.depart", { catererId: K[0], date: today, meal: "lunch", fulfillmentIds: ids }, user);
+  const before = (await pushes("delivery")).length;
+  // An id outside the caterer moves nothing, not even the valid one beside it.
+  await expect(subset([a, other])).rejects.toThrow("NOT_FOUND");
+  expect((await mealRows(a))[0].status).toBe("scheduled");
+  await expect(subset([a, crypto.randomUUID()])).rejects.toThrow("NOT_FOUND");
+  for (const ids of [[], [a, a], ["nope"]]) await expect(subset(ids)).rejects.toThrow("INVALID_INPUT");
+  expect(await subset([a])).toEqual({ moved: 1 });
+  expect((await mealRows(a))[0].status).toBe("out_for_delivery");
+  expect((await mealRows(b))[0].status).toBe("scheduled");
+  expect(await dayStatus(b)).toBe("scheduled");
+  // The same customer's second package leaves later: the departure was already announced for this caterer, date and meal.
+  const pushed = (await pushes("delivery")).length;
+  expect(pushed - before).toBeLessThanOrEqual(1);
+  expect(await subset([a, b], U.staff)).toEqual({ moved: 1 });
+  expect((await pushes("delivery")).length).toBe(pushed);
+  expect((await mealRows(other))[0].status).toBe("scheduled");
+  await expect(subset([a], U.customer)).rejects.toThrow("FORBIDDEN");
+});

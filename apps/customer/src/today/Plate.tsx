@@ -120,11 +120,16 @@ export const sentences = (p: PlateData, t: (id: string, en: string) => string): 
       return [t("Sedang diantar", "On the way"), t(`tiba sekitar ${p.window}`, `arriving around ${p.window}`)];
     case "due":
       return [t("Seharusnya sudah tiba", "Should have arrived"), p.window];
+    case "arrived_unconfirmed":
+      return [
+        t("Dapur menandai pesananmu sudah sampai", "The kitchen marked your order as arrived"),
+        t("Sudah diterima?", "Has it reached you?"),
+      ];
     case "arrived": {
       const at = jakartaClock(p.confirmedAt);
       // Nobody tapped: the system recorded the arrival, and the track says so in the same words.
       const first =
-        p.journey.arrivedBy === "auto" ? t("Tercatat sampai", "Recorded as arrived") : t("Sudah sampai", "Arrived");
+        p.journey.arrivedBy === "auto" ? t("Ditandai sampai otomatis", "Marked as arrived automatically") : t("Sudah sampai", "Arrived");
       return [first, at ? t(`pukul ${at}`, `at ${at}`) : ""];
     }
     case "failed":
@@ -152,7 +157,7 @@ const capitalise = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
  * twice: a scheduled meal ("Terjadwal") and an on-the-way meal without a departure time ("Sedang diantar") are said
  * by the track alone, and the second line becomes the header. A meal past its window that the kitchen never tapped
  * says so instead of leaving the bare window. An arrival the system recorded is the same: the track caption reads
- * "Tercatat sampai", so the header becomes the time ("Pukul 11.48"); with no time kept it still reads "Tercatat sampai". Cards, the
+ * "Ditandai sampai otomatis", so the header becomes the time ("Pukul 11.48"); with no time kept it still reads "Ditandai sampai otomatis". Cards, the
  * other-meal row and Beranda keep `sentences`.
  */
 export function heroSentences(

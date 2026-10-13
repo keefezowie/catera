@@ -87,7 +87,7 @@ export function SessionCard({
   const { t, actor } = useMobile();
   const c = useColors();
   const { recap, stops } = session;
-  const departed = session.journey.stage === "out_for_delivery" || session.journey.stage === "delivered";
+  const departed = ["out_for_delivery", "arrived", "delivered"].includes(session.journey.stage);
   const missing = unfilledByPackage(recap.unfilled);
   // The shared and printed recap is written in Indonesian, like the rest of its text.
   const missingForSharing = missing.map((m) => `Menu belum diisi · ${m.packageName}: ${m.summary}`);

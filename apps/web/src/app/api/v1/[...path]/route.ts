@@ -40,6 +40,7 @@ import {
   normalizeCustomerPhone,
   commandSchema,
   deliveryBatchSchema,
+  deliveryArriveSchema,
   offerSchema,
   menuSaveSchema,
   dishSaveSchema,
@@ -64,6 +65,7 @@ import {
 export const runtime = "nodejs";
 const immediatePush = new Set([
   "delivery.depart",
+  "delivery.arrive",
   "customer.followup",
   "deliveryIssue.respond",
   "deliveryIssue.resolve",
@@ -569,6 +571,8 @@ export async function POST(request: Request, context: Context) {
         command.payload = customerMenuResetSchema.parse(command.payload);
       if (command.action === "delivery.statusBatch")
         command.payload = deliveryBatchSchema.parse(command.payload);
+      if (command.action === "delivery.arrive")
+        command.payload = deliveryArriveSchema.parse(command.payload);
       if (
         command.action === "checkout.create" &&
         command.payload.acceptedTerms !== true

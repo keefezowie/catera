@@ -5,17 +5,22 @@ import type { DeliveryMeal } from "./index";
  * customer and kitchen views can both build on it without a require cycle.
  *
  * Stages come from fulfilment status and timestamps, never from the clock: a meal the kitchen
- * never tapped stays "scheduled".
+ * never tapped stays "scheduled". "arrived" is a meal the kitchen marked Sampai that is still
+ * out for delivery, waiting for the customer (or the system) to confirm it.
  */
-export type JourneyStage = "scheduled" | "preparing" | "out_for_delivery" | "delivered";
+export type JourneyStage = "scheduled" | "preparing" | "out_for_delivery" | "arrived" | "delivered";
 
 export type Journey = {
   stage: JourneyStage;
   /** When the kitchen started cooking, when it was recorded. */
   cookingAt: string | null;
   departedAt: string | null;
+  /** When the kitchen marked Sampai; for a meal closed without that mark, when it was confirmed. */
   arrivedAt: string | null;
-  /** Who recorded the arrival; "auto" means nobody tapped and the system closed the meal. */
+  /**
+   * Who closed the meal; "auto" means nobody tapped and the system closed it. While the meal waits for
+   * the customer ("arrived") it is "caterer", the kitchen that marked it.
+   */
   arrivedBy: "customer" | "auto" | "caterer" | null;
   /** The caterer marked the meal "Gagal diantar". The stage keeps what the timestamps imply. */
   issue: boolean;
@@ -35,26 +40,33 @@ export function jakartaClock(iso: string | null | undefined): string | null {
 export function mealJourney(meal: DeliveryMeal): Journey {
   const cookingAt = meal.cooking_started_at ?? null;
   const departedAt = meal.departed_at ?? null;
+  const markedAt = meal.arrived_at ?? null;
   const issue = meal.status === "issue";
   let stage: JourneyStage;
   if (meal.status === "delivered") stage = "delivered";
-  else if (meal.status === "out_for_delivery") stage = "out_for_delivery";
+  else if (meal.status === "out_for_delivery") stage = markedAt ? "arrived" : "out_for_delivery";
   else if (meal.status === "preparing") stage = "preparing";
   else if (issue) stage = departedAt ? "out_for_delivery" : cookingAt ? "preparing" : "scheduled";
   else stage = "scheduled";
-  const delivered = stage === "delivered";
   return {
     stage,
     cookingAt,
     departedAt,
-    arrivedAt: delivered ? (meal.confirmed_at ?? null) : null,
-    arrivedBy: delivered ? (meal.confirmed_by ?? null) : null,
+    arrivedAt: stage === "delivered" ? (markedAt ?? meal.confirmed_at ?? null) : stage === "arrived" ? markedAt : null,
+    arrivedBy: stage === "delivered" ? (meal.confirmed_by ?? null) : stage === "arrived" ? "caterer" : null,
     issue,
   };
 }
 
-/** One short line for the stage, or null when the meal is marked as a problem. Times are HH.MM Jakarta. */
-export function journeyCaption(j: Journey, locale: "id" | "en"): string | null {
+/**
+ * One short line for the stage, or null when the meal is marked as a problem. Times are HH.MM Jakarta.
+ * The kitchen reads the arrived stage about its customer, the customer about themselves.
+ */
+export function journeyCaption(
+  j: Journey,
+  locale: "id" | "en",
+  audience: "customer" | "kitchen" = "customer",
+): string | null {
   if (j.issue) return null;
   const en = locale === "en";
   switch (j.stage) {
@@ -70,8 +82,12 @@ export function journeyCaption(j: Journey, locale: "id" | "en"): string | null {
       if (!at) return en ? "On the way" : "Sedang diantar";
       return en ? `Left at ${at}` : `Berangkat ${at}`;
     }
+    case "arrived":
+      if (audience === "kitchen")
+        return en ? "Marked as arrived, waiting for the customer" : "Ditandai sampai, menunggu konfirmasi pelanggan";
+      return en ? "Marked as arrived, waiting for you to confirm" : "Ditandai sampai, menunggu konfirmasimu";
     case "delivered":
-      if (j.arrivedBy === "auto") return en ? "Recorded as arrived" : "Tercatat sampai";
+      if (j.arrivedBy === "auto") return en ? "Marked as arrived automatically" : "Ditandai sampai otomatis";
       return en ? "Arrived" : "Sampai";
   }
 }

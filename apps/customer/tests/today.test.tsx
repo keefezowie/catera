@@ -1122,21 +1122,21 @@ describe("Beranda mood", () => {
 
     // Carve-out from the table above: with no time to promote, the truthful state wins over the no-repeat rule. The
     // data writers always set `confirmed_at`, so this only shows on malformed data.
-    it("keeps Tercatat sampai in the header, with no second line, when the system arrival has no time", async () => {
+    it("keeps Ditandai sampai otomatis in the header, with no second line, when the system arrival has no time", async () => {
       mount(runtimeWith(async () => lunchToday({ status: "delivered", confirmed_by: "auto" })));
       const h = await hero();
-      expect(h.getByTestId("plate-sentence").props.children).toBe("Tercatat sampai");
-      expect(h.getByRole("header", { name: "Tercatat sampai" })).toBeTruthy();
+      expect(h.getByTestId("plate-sentence").props.children).toBe("Ditandai sampai otomatis");
+      expect(h.getByRole("header", { name: "Ditandai sampai otomatis" })).toBeTruthy();
       expect(h.queryByText("Sudah sampai")).toBeNull();
       expect(h.queryByText(/^pukul /i)).toBeNull();
-      expect(h.getByTestId("rantang-track").props.accessibilityLabel).toBe("Tercatat sampai");
+      expect(h.getByTestId("rantang-track").props.accessibilityLabel).toBe("Ditandai sampai otomatis");
     });
 
     it("says it in English too when the system arrival has no time", async () => {
       (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.locale", "en");
       mount(runtimeWith(async () => lunchToday({ status: "delivered", confirmed_by: "auto" })));
       const h = await hero();
-      expect(h.getByTestId("plate-sentence").props.children).toBe("Recorded as arrived");
+      expect(h.getByTestId("plate-sentence").props.children).toBe("Marked as arrived automatically");
       expect(h.queryByText("Arrived")).toBeNull();
     });
 
@@ -1166,21 +1166,21 @@ describe("Beranda mood", () => {
       expect(h.getByRole("header", { name: "Sedang diantar" })).toBeTruthy();
     });
 
-    it("says Tercatat sampai when nobody tapped and the system closed the meal", async () => {
+    it("says Ditandai sampai otomatis when nobody tapped and the system closed the meal", async () => {
       mount(
         runtimeWith(async () =>
           lunchToday({ status: "delivered", confirmed_at: `${TODAY}T04:48:00Z`, confirmed_by: "auto" }),
         ),
       );
       const h = await hero();
-      expect(within(h.getByTestId("rantang-track")).getByText("Tercatat sampai")).toBeTruthy();
+      expect(within(h.getByTestId("rantang-track")).getByText("Ditandai sampai otomatis")).toBeTruthy();
       // The track says it, so the header carries the time instead of "Sudah sampai", and nothing says it twice.
       expect(h.getByRole("header", { name: "Pukul 11.48" })).toBeTruthy();
-      expect(h.getAllByText("Tercatat sampai")).toHaveLength(1);
+      expect(h.getAllByText("Ditandai sampai otomatis")).toHaveLength(1);
       expect(h.queryByText("Sudah sampai")).toBeNull();
     });
 
-    it("says it in English: Recorded as arrived on the track, At 11.48 in the header", async () => {
+    it("says it in English: Marked as arrived automatically on the track, At 11.48 in the header", async () => {
       (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.locale", "en");
       mount(
         runtimeWith(async () =>
@@ -1188,19 +1188,19 @@ describe("Beranda mood", () => {
         ),
       );
       const h = await hero();
-      expect(within(h.getByTestId("rantang-track")).getByText("Recorded as arrived")).toBeTruthy();
+      expect(within(h.getByTestId("rantang-track")).getByText("Marked as arrived automatically")).toBeTruthy();
       expect(h.getByRole("header", { name: "At 11.48" })).toBeTruthy();
-      expect(h.getAllByText("Recorded as arrived")).toHaveLength(1);
+      expect(h.getAllByText("Marked as arrived automatically")).toHaveLength(1);
     });
 
-    it("keeps both lines for a card and the other-meal row: Tercatat sampai, then the time", () => {
+    it("keeps both lines for a card and the other-meal row: Ditandai sampai otomatis, then the time", () => {
       const now = new Date(`${TODAY}T05:00:00Z`);
       const [plate] = todayPlates(
         lunchToday({ status: "delivered", confirmed_at: `${TODAY}T04:48:00Z`, confirmed_by: "auto" }),
         now,
       );
-      expect(sentences(plate, (id) => id)).toEqual(["Tercatat sampai", "pukul 11.48"]);
-      expect(sentences(plate, (_id, en) => en)).toEqual(["Recorded as arrived", "at 11.48"]);
+      expect(sentences(plate, (id) => id)).toEqual(["Ditandai sampai otomatis", "pukul 11.48"]);
+      expect(sentences(plate, (_id, en) => en)).toEqual(["Marked as arrived automatically", "at 11.48"]);
       const [byCustomer] = todayPlates(
         lunchToday({ status: "delivered", confirmed_at: `${TODAY}T04:48:00Z`, confirmed_by: "customer" }),
         now,

@@ -106,6 +106,8 @@ const plate: PlateData = {
   addressLabel: "Kantor",
   departedAt: null,
   confirmedAt: null,
+  arrivedAt: null,
+  proofPhoto: false,
   reaction: null,
   issue: null,
   catererPhone: null,

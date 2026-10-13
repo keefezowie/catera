@@ -163,6 +163,26 @@ describe("todayPlates", () => {
     expect(plate({ ...arrived, issue: { id: "i3", status: "resolved" } }).state).toBe("arrived");
   });
 
+  it("plate is arrived_unconfirmed once the kitchen marks Sampai, until the customer or the system confirms", () => {
+    const marked = lunch({
+      status: "out_for_delivery",
+      departed_at: "2026-10-07T04:30:00Z",
+      arrived_at: "2026-10-07T05:00:00Z",
+      arrived_photo: "c/d/lunch/p.jpg",
+    });
+    const plate = (m: DeliveryMeal) => todayPlates(state([delivery("2026-10-07", [m])]), at("12:30"))[0];
+    expect(plate(marked)).toMatchObject({
+      state: "arrived_unconfirmed",
+      arrivedAt: "2026-10-07T05:00:00Z",
+      proofPhoto: true,
+      journey: { stage: "arrived", arrivedBy: "caterer" },
+    });
+    // A report still wins, and a confirmed meal is simply arrived.
+    expect(plate({ ...marked, issue: { id: "i9", status: "open" } }).state).toBe("reported");
+    expect(plate({ ...marked, status: "delivered", confirmed_by: "customer" }).state).toBe("arrived");
+    expect(plate(lunch({ status: "out_for_delivery" }))).toMatchObject({ state: "on_the_way", arrivedAt: null, proofPhoto: false });
+  });
+
   it("plate is failed when the caterer marked the meal undelivered, unless the customer reported it", () => {
     const failed = lunch({ status: "issue", departed_at: "2026-10-07T04:30:00Z" });
     const plate = (m: DeliveryMeal, now = at("12:00")) =>

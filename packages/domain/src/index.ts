@@ -171,6 +171,10 @@ export type DeliveryMeal = {
   cooking_started_at?: string | null;
   /** Who recorded the arrival: the customer, the system after the window ("auto"), or the caterer. */
   confirmed_by?: "customer" | "auto" | "caterer" | null;
+  /** When the kitchen marked the meal Sampai; it stays out_for_delivery until confirmed. */
+  arrived_at?: string | null;
+  /** The proof photo's private storage path; read it through /api/proof, never directly. */
+  arrived_photo?: string | null;
   reaction?: "enak" | "biasa" | "kurang" | null;
   issue?: { id: string; status: string } | null;
 };
@@ -538,6 +542,7 @@ export const statusLabel = (status: string, locale: Locale = "id") =>
         preparing: "Preparing",
         out_for_delivery: "Out for delivery",
         delivered: "Delivered",
+        arrived: "Marked as arrived",
         issue: "Issue reported",
         pending: "Payment pending",
         paid: "Paid",
@@ -573,6 +578,7 @@ export const statusLabel = (status: string, locale: Locale = "id") =>
         preparing: "Disiapkan",
         out_for_delivery: "Dalam pengantaran",
         delivered: "Diterima",
+        arrived: "Ditandai sampai",
         issue: "Ada kendala",
         pending: "Menunggu pembayaran",
         paid: "Dibayar",

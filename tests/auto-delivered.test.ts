@@ -111,3 +111,19 @@ it("leaves days from before the rule was switched on untouched", async () => {
   expect(await dayStatus(day.id)).toBe("scheduled");
   expect(await earned(day.id)).toBe(0);
 });
+
+it("closes a meal the kitchen marked Sampai that nobody confirmed, and earns once", async () => {
+  // A day of this purchase, out for delivery and marked arrived, never answered and never reported.
+  const day = days[2];
+  await db.query("update v1.auto_deliver_policy set since=$1::date", [day.service_date]);
+  await db.query("update v1.delivery_days set status='out_for_delivery' where id=$1", [day.id]);
+  await db.query(
+    "update v1.fulfillments set status='out_for_delivery',arrived_at=now(),arrived_photo='x' where day_id=$1",
+    [day.id],
+  );
+  await autoDeliver(addDays(day.service_date, 1));
+  expect(await dayStatus(day.id)).toBe("delivered");
+  expect(await earned(day.id)).toBe(1);
+  const meals = await db.query<{ confirmed_by: string }>("select confirmed_by from v1.fulfillments where day_id=$1", [day.id]);
+  expect(meals.rows.every((m) => m.confirmed_by === "auto")).toBe(true);
+});

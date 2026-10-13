@@ -25,6 +25,7 @@ import {
   mealLabel,
   fulfillmentStatus,
   nextDeliveryStatuses,
+  mealArrived,
   scheduleSummary,
   mealWorkload,
   deliveryDeadlines,
@@ -1182,8 +1183,14 @@ function OrderTable({
     status: string;
     invalidCount: number;
   } | null>(null);
-  const [receiptConfirmed, setReceiptConfirmed] = useState(false);
-  useEffect(() => setReceiptConfirmed(false), [confirmation]);
+  // Sampai needs one photo per stop, picked in the confirmation and cleared with each new one.
+  const [proofs, setProofs] = useState<Record<string, File>>({});
+  useEffect(() => setProofs({}), [confirmation]);
+  // A meal marked Sampai is still on its way until the customer confirms; the table says which.
+  const shownStatus = (d: SellerDelivery, m: string) =>
+    fulfillmentStatus(d, m) === "out_for_delivery" && mealArrived(d, m)
+      ? "arrived"
+      : fulfillmentStatus(d, m);
   const detailRef = useRef<HTMLElement>(null);
   const ordersHeading = useRef<HTMLHeadingElement>(null);
   const outcomeFocus = useRef<HTMLElement>(null);
@@ -1192,22 +1199,28 @@ function OrderTable({
   const all = useRef<HTMLInputElement>(null);
   const eligible = rows.filter(
     (d) =>
-      date <= today && nextDeliveryStatuses(fulfillmentStatus(d, meal)).length,
+      date <= today &&
+      nextDeliveryStatuses(fulfillmentStatus(d, meal), mealArrived(d, meal))
+        .length,
   );
   const chosen = eligible.filter((d) => selected.includes(d.id));
   const options = [
     ...new Set(
       chosen.flatMap((order) =>
-        nextDeliveryStatuses(fulfillmentStatus(order, meal)),
+        nextDeliveryStatuses(
+          fulfillmentStatus(order, meal),
+          mealArrived(order, meal),
+        ),
       ),
     ),
   ];
   const effectiveTarget = options.includes(target) ? target : options[0] || "";
   const validChosen = effectiveTarget
     ? chosen.filter((order) =>
-        nextDeliveryStatuses(fulfillmentStatus(order, meal)).includes(
-          effectiveTarget,
-        ),
+        nextDeliveryStatuses(
+          fulfillmentStatus(order, meal),
+          mealArrived(order, meal),
+        ).includes(effectiveTarget),
       )
     : [];
   const validPortions = validChosen.reduce(
@@ -1218,11 +1231,13 @@ function OrderTable({
     (id) => !validChosen.some((order) => order.id === id),
   );
   const d = rows.find((d) => d.id === detail);
+  const photosReady =
+    !!confirmation && confirmation.items.every((item) => !!proofs[item.id]);
   const actionLabel = (status: string) =>
     ({
       preparing: t("Mulai siapkan", "Start preparing"),
       out_for_delivery: t("Mulai antar", "Start delivery"),
-      delivered: t("Tandai diterima", "Mark received"),
+      arrived: t("Tandai sampai", "Mark arrived"),
       issue: t("Tandai kendala", "Report issue"),
     })[status] || statusLabel(status, locale);
   const actionIcon = (status: string) =>
@@ -1268,26 +1283,67 @@ function OrderTable({
       all.current.indeterminate =
         chosen.length > 0 && chosen.length < eligible.length;
   }, [chosen.length, eligible.length]);
+  /** Uploads each stop's photo, then marks them Sampai in one command. Nothing is marked if an upload fails. */
+  async function arrive(items: SellerDelivery[]) {
+    const photos: Record<string, string> = {};
+    for (const item of items) {
+      const form = new FormData();
+      form.append("file", proofs[item.id]);
+      form.append("deliveryId", item.id);
+      form.append("meal", meal);
+      const response = await fetch("/api/uploads/proof", {
+        method: "POST",
+        body: form,
+      });
+      const body = (await response.json().catch(() => ({}))) as {
+        data?: { path?: string };
+      };
+      if (!response.ok || !body.data?.path)
+        throw Object.assign(new Error("UPLOAD"), { code: "UPLOAD" });
+      photos[item.id] = body.data.path;
+    }
+    await perform("delivery.arrive", {
+      catererId,
+      date,
+      meal,
+      fulfillmentIds: items.map((d) => d.id),
+      photos,
+    });
+  }
   async function update(items: SellerDelivery[], status: string) {
     if (busy || loading) return;
     setBusy(true);
     setError("");
     setSuccess("");
     try {
-      await perform("delivery.statusBatch", {
-        catererId,
-        date,
-        meal,
-        status,
-        items: items.map((d) => ({ id: d.id, version: d.version })),
-      });
+      if (status === "arrived") await arrive(items);
+      else
+        await perform("delivery.statusBatch", {
+          catererId,
+          date,
+          meal,
+          status,
+          items: items.map((d) => ({ id: d.id, version: d.version })),
+        });
       setSelected([]);
       setConfirmation(null);
       setSuccess(
-        `${items.length} ${t("pesanan diperbarui", items.length === 1 ? "order updated" : "orders updated")} · ${mealLabel(meal, locale)} · ${statusLabel(status, locale)}`,
+        status === "arrived"
+          ? `${items.length} ${t("pesanan ditandai sampai", items.length === 1 ? "order marked as arrived" : "orders marked as arrived")} · ${mealLabel(meal, locale)} · ${t("menunggu konfirmasi pelanggan", "waiting for the customer")}`
+          : `${items.length} ${t("pesanan diperbarui", items.length === 1 ? "order updated" : "orders updated")} · ${mealLabel(meal, locale)} · ${statusLabel(status, locale)}`,
       );
     } catch (e) {
       const code = (e as { code?: string }).code;
+      if (code === "UPLOAD") {
+        // The photos stay picked, so the same confirmation can be sent again.
+        setError(
+          t(
+            "Foto belum terunggah, jadi belum ada pesanan yang ditandai sampai. Periksa foto lalu coba lagi.",
+            "A photo did not upload, so no order was marked as arrived. Check the photos and try again.",
+          ),
+        );
+        return;
+      }
       // A refreshed list requires a new review with current versions.
       setConfirmation(null);
       setError(
@@ -1658,7 +1714,7 @@ function OrderTable({
                             data-cell="status"
                             data-label={t("Status", "Status")}
                           >
-                            <Status status={fulfillmentStatus(x, meal)} />
+                            <Status status={shownStatus(x, meal)} />
                           </td>
                         )}
                         <td data-cell="actions">
@@ -1676,7 +1732,10 @@ function OrderTable({
                             </Button>
                             {!schedule &&
                               date <= today &&
-                              nextDeliveryStatuses(fulfillmentStatus(x, meal))
+                              nextDeliveryStatuses(
+                                fulfillmentStatus(x, meal),
+                                mealArrived(x, meal),
+                              )
                                 .slice(0, 1)
                                 .map((next) => (
                                   <Button
@@ -1686,7 +1745,7 @@ function OrderTable({
                                     disabled={busy || loading}
                                     aria-label={`${actionLabel(next)}: ${x.customer.name}, ${x.offer.name}`}
                                     onClick={() =>
-                                      next === "delivered"
+                                      next === "arrived"
                                         ? setConfirmation({
                                             items: [x],
                                             status: next,
@@ -1776,8 +1835,8 @@ function OrderTable({
         fallbackFocus={error || success ? outcomeFocus : ordersHeading}
         busy={busy}
         title={
-          confirmation?.status === "delivered"
-            ? t("Konfirmasi makanan diterima", "Confirm meals received")
+          confirmation?.status === "arrived"
+            ? t("Tandai sampai dengan foto", "Mark arrived with a photo")
             : t("Konfirmasi pembaruan pesanan", "Confirm order update")
         }
         description={t(
@@ -1787,11 +1846,11 @@ function OrderTable({
       >
         {confirmation && (
           <div className="bulk-confirmation">
-            {confirmation.status === "delivered" && (
+            {confirmation.status === "arrived" && (
               <p className="notice receipt-consequence">
                 {t(
-                  "Tandai hanya setelah pelanggan menerima makanan. Status ini menyelesaikan waktu makan yang dipilih. Satu hari pengantaran dihitung untuk penghasilan setelah seluruh waktu makannya selesai; pembayaran mengikuti ketentuan pencairan.",
-                  "Mark delivered only after customers receive their meals. This completes the selected meal. A delivery day counts toward earnings when all its meals are complete; payment follows the settlement terms.",
+                  "Foto setiap pesanan dikirim ke pelanggannya, lalu pelanggan mengonfirmasi sendiri. Tanpa jawaban dan tanpa laporan, pesanan dianggap sampai 2 jam kemudian. Penghasilan dihitung setelah seluruh waktu makan hari itu selesai.",
+                  "Each order's photo goes to its customer, who confirms it. With no answer and no report, the order counts as arrived 2 hours later. Earnings count once every meal of that day is done.",
                 )}
               </p>
             )}
@@ -1837,6 +1896,33 @@ function OrderTable({
                     {item.address.line}, {item.address.area} · {item.portions}{" "}
                     {t("porsi", item.portions === 1 ? "portion" : "portions")}
                   </p>
+                  {confirmation.status === "arrived" && (
+                    <label className="field proof-photo">
+                      <span>
+                        {proofs[item.id]
+                          ? t("Foto sampai", "Arrival photo")
+                          : t(
+                              "Foto sampai (belum ada)",
+                              "Arrival photo (missing)",
+                            )}
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        disabled={busy}
+                        aria-label={`${t("Foto sampai", "Arrival photo")}: ${item.customer.name}`}
+                        onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          setProofs((current) => {
+                            const next = { ...current };
+                            if (file) next[item.id] = file;
+                            else delete next[item.id];
+                            return next;
+                          });
+                        }}
+                      />
+                    </label>
+                  )}
                 </li>
               ))}
             </ul>
@@ -1854,21 +1940,13 @@ function OrderTable({
                 {error}
               </p>
             )}
-            {confirmation.status === "delivered" && (
-              <label className="check-row receipt-acknowledgement">
-                <input
-                  type="checkbox"
-                  checked={receiptConfirmed}
-                  disabled={busy}
-                  onChange={(event) =>
-                    setReceiptConfirmed(event.target.checked)
-                  }
-                />
+            {confirmation.status === "arrived" && !photosReady && (
+              <p className="small muted" id="proof-missing">
                 {t(
-                  "Saya memastikan semua makanan di atas sudah diterima pelanggan.",
-                  "I confirm customers have received all meals listed above.",
+                  "Tambahkan satu foto untuk setiap pesanan sebelum menandai sampai.",
+                  "Add one photo for each order before marking it as arrived.",
                 )}
-              </label>
+              </p>
             )}
             <div className="action-row">
               <Button
@@ -1876,15 +1954,20 @@ function OrderTable({
                 disabled={
                   busy ||
                   loading ||
-                  (confirmation.status === "delivered" && !receiptConfirmed)
+                  (confirmation.status === "arrived" && !photosReady)
+                }
+                aria-describedby={
+                  confirmation.status === "arrived" && !photosReady
+                    ? "proof-missing"
+                    : undefined
                 }
                 onClick={() => update(confirmation.items, confirmation.status)}
               >
                 {actionIcon(confirmation.status)}
                 {busy
                   ? t("Menyimpan…", "Saving…")
-                  : confirmation.status === "delivered"
-                    ? t("Tandai diterima", "Mark received")
+                  : confirmation.status === "arrived"
+                    ? `${t("Tandai sampai", "Mark arrived")} · ${confirmation.items.length}`
                     : t("Konfirmasi perubahan", "Confirm change")}
               </Button>
               <Button
@@ -1946,23 +2029,23 @@ function OrderTable({
                     m.meal === "lunch"
                       ? t("Siang", "Lunch")
                       : t("Malam", "Dinner"),
-                    <Status
-                      key={m.meal}
-                      status={fulfillmentStatus(d, m.meal)}
-                    />,
+                    <Status key={m.meal} status={shownStatus(d, m.meal)} />,
                   ] as [string, React.ReactNode],
               ),
             ]}
           />
           {!schedule && date <= today && (
             <div className="ops-detail-actions">
-              {nextDeliveryStatuses(fulfillmentStatus(d, meal)).map((s) => (
+              {nextDeliveryStatuses(
+                fulfillmentStatus(d, meal),
+                mealArrived(d, meal),
+              ).map((s) => (
                 <Button
                   className="button secondary small"
                   key={s}
                   disabled={busy || loading}
                   onClick={() =>
-                    s === "delivered"
+                    s === "arrived"
                       ? setConfirmation({
                           items: [d],
                           status: s,

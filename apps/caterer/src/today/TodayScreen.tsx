@@ -129,7 +129,7 @@ function CountCard({ ops, session }: { ops: SellerOperationsState; session: Kitc
       </View>
       <RantangTrack
         stage={session.journey.stage}
-        caption={journeyCaption(session.journey, locale) ?? ""}
+        caption={journeyCaption(session.journey, locale, "kitchen") ?? ""}
         labels={[t("Dimasak", "Cooking"), t("Diantar", "On the way"), t("Sampai", "Arrived")]}
       />
     </View>
@@ -357,7 +357,7 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
   const [catererName, setCatererName] = useState("");
   if (ops && ops.caterer.name !== catererName) setCatererName(ops.caterer.name);
   // Once the meal is out the header says so, in place of the day word: the track and the order below say the rest.
-  const out = offset === "0" && session?.journey.stage === "out_for_delivery";
+  const out = offset === "0" && (session?.journey.stage === "out_for_delivery" || session?.journey.stage === "arrived");
   const dayWord = out
     ? t("Sedang diantar", "On the way")
     : offset === "0"

@@ -26,6 +26,10 @@ export type Stop = {
   portions: number;
   packageName: string;
   mapsUrl: string;
+  /** Where this stop's meal is: stops leave in subsets, so one session can hold several stages. */
+  stage: JourneyStage;
+  /** When the kitchen marked this stop Sampai (or, closed without that mark, when it was confirmed). */
+  arrivedAt: string | null;
 };
 
 export type MenuShareDay = {
@@ -157,24 +161,29 @@ export function deliveryRoute(state: SellerOperationsState, meal: KitchenMeal): 
         a.address.area.localeCompare(b.address.area, "id") ||
         a.customer.name.localeCompare(b.customer.name, "id"),
     )
-    .map((d, i) => ({
-      n: i + 1,
-      deliveryId: d.id,
-      version: d.version,
-      name: d.customer.name,
-      addressLine: d.address.line,
-      area: d.address.area,
-      note: d.address.instructions,
-      portions: d.portions,
-      packageName: d.offer.name,
-      mapsUrl: mapsUrl(d.address.line, d.address.area, d.address.city),
-    }));
+    .map((d, i) => {
+      const journey = mealJourney(d.meals.find((m) => m.meal === meal)!);
+      return {
+        n: i + 1,
+        deliveryId: d.id,
+        version: d.version,
+        name: d.customer.name,
+        addressLine: d.address.line,
+        area: d.address.area,
+        note: d.address.instructions,
+        portions: d.portions,
+        packageName: d.offer.name,
+        mapsUrl: mapsUrl(d.address.line, d.address.area, d.address.city),
+        stage: journey.stage,
+        arrivedAt: journey.arrivedAt,
+      };
+    });
 }
 
 /** The most stops one Google Maps directions link takes: ten, the last being the destination. */
 const MAPS_STOP_LIMIT = 10;
 const KITCHEN_MEALS: KitchenMeal[] = ["lunch", "dinner"];
-const STAGES: JourneyStage[] = ["scheduled", "preparing", "out_for_delivery", "delivered"];
+const STAGES: JourneyStage[] = ["scheduled", "preparing", "out_for_delivery", "arrived", "delivered"];
 
 /** The directions link for the first ten stops, in route order; null for none. `count` is how many it opens. */
 export function routeMapsUrl(stops: Stop[]): { url: string; count: number } | null {
@@ -206,6 +215,12 @@ export type KitchenSession = {
   canCook: boolean;
   /** "Berangkat antar": today only, once no active row is scheduled and some row is preparing. */
   canDepart: boolean;
+  /** "Sampai": today only, while some stop is on its way and not yet marked. */
+  canArrive: boolean;
+  /** Stops that have not left yet (scheduled or preparing): "Berangkat semua sisa · {portions} porsi". */
+  remaining: { stops: number; portions: number };
+  /** Stops per stage; a session mid-run holds several. */
+  counts: Record<JourneyStage, number>;
   recap: CookingRecap;
   stops: Stop[];
 };
@@ -246,25 +261,37 @@ export function kitchenSession(state: SellerOperationsState, meal: KitchenMeal, 
   const arrivedBy = journeys.map((j) => j.arrivedBy);
   const today = state.operationalDate === jakartaDay(now);
   const scheduled = journeys.some((j) => j.stage === "scheduled");
+  const waiting = rows.filter((r) => r.journey.stage === "scheduled" || r.journey.stage === "preparing");
   return {
     meal,
     journey: {
       stage,
       cookingAt: pickTime(journeys.map((j) => j.cookingAt), "earliest"),
       departedAt: pickTime(journeys.map((j) => j.departedAt), "earliest"),
-      arrivedAt: stage === "delivered" ? pickTime(journeys.map((j) => j.arrivedAt), "latest") : null,
+      arrivedAt:
+        stage === "delivered" || stage === "arrived" ? pickTime(journeys.map((j) => j.arrivedAt), "latest") : null,
       arrivedBy:
-        stage !== "delivered"
-          ? null
-          : arrivedBy.every((by) => by === "auto")
-            ? "auto"
-            : (arrivedBy.find((by) => by && by !== "auto") ?? null),
+        stage === "arrived"
+          ? "caterer"
+          : stage !== "delivered"
+            ? null
+            : arrivedBy.every((by) => by === "auto")
+              ? "auto"
+              : (arrivedBy.find((by) => by && by !== "auto") ?? null),
       issue: false,
     },
     portions: rows.reduce((sum, r) => sum + r.d.portions, 0),
     addresses: new Set(rows.map((r) => destinationKey(r.d.address))).size,
     canCook: today && scheduled,
     canDepart: today && !scheduled && journeys.some((j) => j.stage === "preparing"),
+    canArrive: today && journeys.some((j) => j.stage === "out_for_delivery"),
+    remaining: {
+      stops: waiting.length,
+      portions: waiting.reduce((sum, r) => sum + r.d.portions, 0),
+    },
+    counts: Object.fromEntries(
+      STAGES.map((s) => [s, journeys.filter((j) => j.stage === s).length]),
+    ) as Record<JourneyStage, number>,
     recap: cookingRecap(activeState, meal),
     stops: deliveryRoute(activeState, meal),
   };

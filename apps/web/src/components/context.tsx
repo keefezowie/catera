@@ -53,6 +53,10 @@ const actionMessages: Record<string, [string, string]> = {
     "Status pesanan diperbarui.",
     "Order statuses updated.",
   ],
+  "delivery.arrive": [
+    "Ditandai sampai. Menunggu konfirmasi pelanggan.",
+    "Marked as arrived. Waiting for the customer.",
+  ],
   "delivery.status": [
     "Status pengantaran diperbarui.",
     "Delivery status updated.",

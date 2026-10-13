@@ -31,6 +31,25 @@ describe("mealJourney", () => {
     });
   });
 
+  it("mealJourney reads arrived_at", () => {
+    const marked = mealJourney(
+      meal({ status: "out_for_delivery", departed_at: "2026-10-09T03:42:00Z", arrived_at: "2026-10-09T04:20:00Z" }),
+    );
+    expect(marked).toEqual({
+      stage: "arrived",
+      cookingAt: null,
+      departedAt: "2026-10-09T03:42:00Z",
+      arrivedAt: "2026-10-09T04:20:00Z",
+      arrivedBy: "caterer",
+      issue: false,
+    });
+    // Once closed, the kitchen's mark is the arrival time, whoever confirmed it.
+    const closed = mealJourney(
+      meal({ status: "delivered", arrived_at: "2026-10-09T04:20:00Z", confirmed_at: "2026-10-09T06:20:00Z", confirmed_by: "auto" }),
+    );
+    expect(closed).toMatchObject({ stage: "delivered", arrivedAt: "2026-10-09T04:20:00Z", arrivedBy: "auto" });
+  });
+
   it("has no arrival before the meal is delivered", () => {
     const j = mealJourney(meal({ status: "out_for_delivery", confirmed_at: "2026-10-09T04:30:00Z", confirmed_by: "auto" }));
     expect(j.arrivedAt).toBeNull();
@@ -75,12 +94,24 @@ describe("journeyCaption", () => {
       "Left at 10.42",
     ],
     ["out for delivery without a departure", { status: "out_for_delivery" }, "Sedang diantar", "On the way"],
-    ["delivered by the system", { status: "delivered", confirmed_by: "auto" }, "Tercatat sampai", "Recorded as arrived"],
+    [
+      "marked arrived by the kitchen",
+      { status: "out_for_delivery", arrived_at: "2026-10-09T04:20:00Z" },
+      "Ditandai sampai, menunggu konfirmasimu",
+      "Marked as arrived, waiting for you to confirm",
+    ],
+    ["delivered by the system", { status: "delivered", confirmed_by: "auto" }, "Ditandai sampai otomatis", "Marked as arrived automatically"],
     ["delivered by the customer", { status: "delivered", confirmed_by: "customer" }, "Sampai", "Arrived"],
     ["delivered by the caterer", { status: "delivered", confirmed_by: "caterer" }, "Sampai", "Arrived"],
   ] as [string, Partial<DeliveryMeal>, string, string][])("%s", (_name, m, id, en) => {
     expect(caption(m, "id")).toBe(id);
     expect(caption(m, "en")).toBe(en);
+  });
+
+  it("words the arrived stage for the kitchen about its customer", () => {
+    const j = mealJourney(meal({ status: "out_for_delivery", arrived_at: "2026-10-09T04:20:00Z" }));
+    expect(journeyCaption(j, "id", "kitchen")).toBe("Ditandai sampai, menunggu konfirmasi pelanggan");
+    expect(journeyCaption(j, "en", "kitchen")).toBe("Marked as arrived, waiting for the customer");
   });
 
   it("says nothing for a meal marked a problem", () => {

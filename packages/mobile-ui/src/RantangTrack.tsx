@@ -7,7 +7,7 @@ import { Text } from "./components";
 import { useMoodColors } from "./mood";
 import { useReduced } from "./motion";
 
-export type DeliveryStage = "scheduled" | "preparing" | "out_for_delivery" | "delivered";
+export type DeliveryStage = "scheduled" | "preparing" | "out_for_delivery" | "arrived" | "delivered";
 
 const ease = Easing.bezier(...nativeMotion.ease);
 const MARKER = 24;
@@ -22,6 +22,8 @@ const POSITION: Record<DeliveryStage, number> = {
   scheduled: 0,
   preparing: 0,
   out_for_delivery: 0.5,
+  // Marked Sampai by the kitchen: at the door, and the caption says it waits for the customer.
+  arrived: 1,
   delivered: 1,
 };
 
