@@ -1,0 +1,54 @@
+# Phase G-b handoff (build, partial), 2026-10-13
+
+G-b stopped early on the usage budget. The weekly limit was at 79% when the session started and 93% when it stopped. Nine of the seventeen plan tasks are merged and reviewed. Next session: **G-b2**. Continue the plan from the open items below. Spec, plan and decisions are unchanged.
+
+## Where things are
+- Branch `v2`. G-b started at 456d5bd4. The last build commit is 77fba8d1, and the commit that adds this file sits on top of it (`git log -1 -- docs/superpowers/handoffs`).
+- Source of truth: the spec `docs/superpowers/specs/2026-10-13-native-phase-g-design.md` and the plan `docs/superpowers/plans/2026-10-13-native-phase-g.md`. The G-a handoff `2026-10-13-native-phase-g-a-handoff.md` still holds the decisions and the run commands.
+- Ledger: `.superpowers/sdd/2026-10-12-native-phase-g/progress.md`, section "G-b build session". It holds the baseline, every review and gate result, and the decisions below.
+- Pool: `C:\wt\1`, `C:\wt\2`, `C:\wt\3`. Briefs and logs are in `C:\wt\logs-g\` (`brief-common.md`, `brief-review.md`, `brief-gate.md`, plus the check logs).
+- Gate captures: `output/native-review/phase-g/gates/g7-g1a/` and `output/native-review/phase-g/gates/g1b/`. They are not committed.
+- Demo backend: restarted on the fresh dir `.data/phase-g-b-1`. The old G-a database predated the G3/G4/G5 migrations, which load only when the database is created.
+
+## What shipped (merged into v2; each had an Opus review, reached CLEAN and passed post-rebase checks)
+| Task | Commits | Notes |
+|---|---|---|
+| G17a shared Pengaturan | 37e6636f | `Pengaturan` and the choice sheets now live in mobile-ui, with an `extraRows` slot between Tentang and Keluar. The customer Tampilan note still passes `voice="Anda"`, which G18 flips. |
+| G3 delivery arrive | abc9a6f3, a4cff03a | `delivery.arrive` with proof photos (private bucket `catera-v1-proof`, `/api/uploads/proof`, `/api/proof`), subset `delivery.depart`, and `v1.auto_confirm_arrived` (2 h, holds on the caterer pilot lock). Staff can no longer set `delivered` through either status command. The trigger clears the arrival on `issue` or a new departure. Domain stage is `arrived`/`arrived_unconfirmed`. The web workspace has "Tandai sampai", today only. |
+| G1a | 248123cd, 98bdbf1e | Numeric transform origins in MascotReading **and SuccessRig** (the same crash), with a test using RN's `processTransformOrigin`. Impor has the "Baris dihapus" / "Urungkan" toast and a safe undo after a save. |
+| G7 palette K and motion | 98af208e, 15413164 | Token tables, motion 200/340/440/680 with web parity, Sunrise guard, MalamPattern deleted. Dark `forestDeep` is #7FB093. The light tab pill is #D3CEC1 and the dark one #444441. The brand Card tone is removed. |
+| G4 account commands | a8692d88, 797d7088 | `profile.update`. mobile-core gains `updateProfileName`, `sendPhoneChangeCode` and `verifyPhoneChangeCode` (on the mobile Supabase session), `requestEmailChange`, `changePassword({current,next})` (email read from `getUser`, `ACCOUNT_MISMATCH` guard), `requestAccountDeletion` (once per open request, receipt-safe), `requestHelp` and `listAccountRequests`. Errors are typed as `AccountErrorCode`. |
+| G5 push at the event | 6c6e57d2, 2547d9be | DB triggers push Dimasak, Berangkat, Sampai, Gagal diantar (opens `/deliveries/<day>`) and Pindah tanggal by the caterer. A redelivery gets a per-trip key. Titles are "Catera Dapur" and "Catera". The root `app.json` EAS fallback is removed. RUNBOOK §14 has the hosted `pg_cron` backstop. |
+| G6a busy and errors | 239f0619, 4e3aabb9 | `Button busy` (150 ms), `useBusy`, `FormError({message, retry?, failureKey?})`, `ConnectionBanner` (shows only while NetInfo says offline), shared `ReadError`, netinfo 12.0.1. The loose-danger scan has a strict ratchet table `LEGACY_BARE_ERRORS` (39 files) that G8 and G9 must shrink. |
+| G1b sheet focus | d9c7b02f, c0ae2b46 | `SHEET_FOCUS_FALLBACK_MS` 400 and `SHEET_FOCUS_SETTLE_MS` 250. The demo strip and the iOS tab host are hidden while a focused sheet is on top. The `SheetBody` reserve is `androidTabBarHeight(fontScale)` plus the inset. **The emulator gate FAILED**, see below. |
+| G6c four-stop tracker | bb4fc11a, 6286fa1f, e446132e, 77fba8d1 | Four stops with glyphs, `arrived_unconfirmed` half fill, `issue` reads "Gagal diantar". No motion on first paint or on a session switch (CountCard keyed by `date:meal`). Labels fit a 64dp column in English. The emulator gate has not run. |
+
+## In flight at stop (not merged; branches exist)
+- `task-G7gate` (C:\wt\1): fixes for the G7 and G1a gate failures. The demo strip is canvas with muted text (9-07). The failed hero photo ground is `photoGround` (9-24/25). Headings, titles and labels are charcoal, with a forest allow-list guard. Impor delete runs after the sheet closes. The reviewer asked for round 2: neutral CalendarPhotoCell pills, a line-scoped forest guard, unselected chip labels in charcoal, and clearing `gone` on quiet reads. The fixer was resumed for round 2. Check the branch for a commit after 0ee098f9, re-review it, then merge.
+- `task-G6b` (C:\wt\3): `CalendarSheet` (7615e66a). An Opus fixer is working on the review findings: the grid overflows at 360dp (cells need at least 48dp), dimmed numerals fail 4.5:1, the current-day copy, forest chevrons, and the no-available-day state. Check for a fix commit, re-review it, then merge.
+
+## Gate results
+- **g7-g1a (G7 and G1a):** 102 sampled colours match the tokens. The Sunrise spend, the pill, reduced motion and audit rows 9-01 to 9-26 pass except 9-07, 9-24 and 9-25, which `task-G7gate` fixes. The gate also found forest used as heading text, also fixed there. G1a passes: no crash, the undo toast works, TalkBack received "Baris dihapus, Urungkan", and SuccessBeat does not crash. NOT VERIFIED: audible TalkBack speech and the Paket selesai disc (no demo route reaches it).
+- **g1b: FAIL at check 1.** After a real TalkBack double tap on Ada masalah, focus lands on an unlabelled full-area clickable ViewGroup. This is the react-native-screens formSheet backdrop, the first child of the sheet container. `sendAccessibilityEvent(focus)` on the title has no visible effect, either at `transitionEnd` or after the settle. With TalkBack on, the form's content was also clipped at the tab bar top. Checks 2 to 5 were not run.
+  - **Decision for G-b2 (spec 4.1 fallback, pre-agreed in the spec):** first try making the backdrop not important for accessibility, if react-native-screens 4.26 exposes it. If it does not, move the tab-stack forms that have fields (Ada masalah, Alamat, review, Ubah hari, and the calendar from G6b) to root-stack sheets the way `impor-baris` is. Choice, action and confirm sheets stay native. Then re-run the g1b gate in full.
+- G6c and G6b gates have not run yet. Their reproduction steps are in the ledger (the G6c builder's gate steps).
+
+## Not started (plan order for G-b2)
+G13 (Opus first build), G15, then G8 and G9 (they need G6b merged and the G1b fallback settled), then G18, G17b and G20. Every remaining dependency for G8 and G9 except G6b is merged.
+
+## Open risks and notes
+- **Baseline:** `npm test` has 2 date-dependent `tests/push-timing.test.ts` renewal failures, and customer Jest has 3 `tests/empty-states.test.tsx` failures. Both pre-date G-b and are unchanged.
+- **Accepted edge (G5):** if package A re-departs and package B in the same group fails at the same moment, B's Gagal diantar push can be silent.
+- **EAS ids (spec 14.8):** the removed root id was `f5259168-4993-48b8-9071-a25cfe03ca7b`. The customer config uses `17010cc0-…` and Dapur uses `1c3f597c-…`. The owner confirms which are real. Never invent credentials.
+- **Dapur calendar availability read:** still unresolved; G9 decides it.
+- **Main-tree environment:** the main tree needed `npm install` for netinfo (the lockfile did not change). The classifier blocks subagents from stopping long-running dev servers, so the controller restarts the backend and Metro.
+- `graphify-out/` appeared untracked in the main tree. Do not stage it.
+- Skills: `material-3` is not installed. The antislop-contrast MCP failed to connect, so ratios were computed by script.
+
+## Next step
+Start a fresh G-b2 session after the weekly reset (2026-10-16 21:00 UTC), or earlier if the owner chooses. Steps, in order:
+1. Read this file, record the start usage, and finish `task-G7gate` and `task-G6b`.
+2. Resolve the G1b fallback and re-gate it.
+3. Run the G6c and G6b gates.
+4. Continue G13, G15, G8, G9, G18, G17b and G20 with the plan's gates.
+5. Write the G-b handoff at the end, with the full gate results.
