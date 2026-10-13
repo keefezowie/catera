@@ -45,7 +45,7 @@ export function ImportAssistant() {
   const catererId = actor?.catererId ?? "";
   const options = useData(`impor:${catererId}`, () => runtime.api.sellerImportOptions(catererId));
   const packages = options.data?.packages ?? [];
-  const { text, files, rows, setText, setFiles, setRows, setPackages, number: numbered, reset } = useImportStore();
+  const { text, files, rows, setText, setFiles, setRows, setPackages, number: numbered, lastRemoved, reset } = useImportStore();
   const toast = useToast();
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
@@ -167,8 +167,10 @@ export function ImportAssistant() {
       // From the current list, not the one this save began with: a row deleted meanwhile stays deleted.
       const savedNs = new Set(clean.map((r) => r.n));
       setRows((current) => current?.filter((r) => !savedNs.has(r.n)) ?? null);
-      // A row deleted during the save went with it, so its Urungkan would bring back a customer already saved.
-      toast.hide();
+      // A row deleted during this save went with it, so its Urungkan would bring back a customer already saved. A row
+      // deleted before the save was never sent, and its Urungkan stays.
+      const removed = lastRemoved();
+      if (removed !== null && savedNs.has(removed)) toast.hide();
     } catch (e) {
       if (!ROW_CODES.has(fail(e))) {
         setError(message(fail(e)));

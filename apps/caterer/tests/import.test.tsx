@@ -284,6 +284,64 @@ describe("deleting an import row", () => {
     fireEvent.press(await screen.findByRole("button", { name: "Urungkan" }));
     await waitFor(() => expect(names()).toEqual(["Ubah Pelanggan 1"]));
   });
+
+  /** A command whose `import.commit` waits until the test lets it go. */
+  function pendingCommit() {
+    let finish: () => void = () => {};
+    const command = jest.fn((action: string) =>
+      action === "import.preview" ? Promise.resolve({ id: "pv-1", rows: [] }) : new Promise((resolve) => (finish = () => resolve({ created: 3 }))),
+    );
+    return { command, finish: () => finish() };
+  }
+
+  it("a row deleted during a save stays gone, and Urungkan cannot bring back a customer that got saved", async () => {
+    const { command, finish } = pendingCommit();
+    setup(command, three);
+    await read();
+    fireEvent.press(await screen.findByRole("button", { name: "Simpan 3 pelanggan" }));
+    await waitFor(() => expect(command).toHaveBeenCalledWith("import.commit", { catererId: "k-1", id: "pv-1" }, expect.any(String)));
+    // The save carries row 2; while it waits, the caterer deletes row 2.
+    fireEvent.press(screen.getByRole("button", { name: "Ubah Pelanggan 2" }));
+    fireEvent.press(await screen.findByRole("button", { name: "Hapus baris ini" }));
+    expect(await screen.findByText("Baris dihapus")).toBeTruthy();
+    await waitFor(() => expect(names()).toEqual(["Ubah Pelanggan 1", "Ubah Pelanggan 3"]));
+    await act(async () => finish());
+    // Row 2 was saved with the batch, so its undo goes away and the row does not come back.
+    await waitFor(() => expect(screen.queryByText("Baris dihapus")).toBeNull());
+    expect(screen.queryByRole("button", { name: "Urungkan" })).toBeNull();
+    expect(screen.queryAllByTestId("import-row")).toHaveLength(0);
+  });
+
+  it("a row deleted before a save was never saved, so its Urungkan stays after the save", async () => {
+    const { command, finish } = pendingCommit();
+    setup(command, three);
+    await read();
+    fireEvent.press(await screen.findByRole("button", { name: "Ubah Pelanggan 2" }));
+    fireEvent.changeText(await screen.findByLabelText("Nama"), "Budi");
+    fireEvent.press(await screen.findByRole("button", { name: "Hapus baris ini" }));
+    fireEvent.press(await screen.findByRole("button", { name: "Simpan 2 pelanggan" }));
+    await waitFor(() => expect(command).toHaveBeenCalledWith("import.commit", { catererId: "k-1", id: "pv-1" }, expect.any(String)));
+    await act(async () => finish());
+    await waitFor(() => expect(screen.queryAllByTestId("import-row")).toHaveLength(0));
+    fireEvent.press(screen.getByRole("button", { name: "Urungkan" }));
+    await waitFor(() => expect(names()).toEqual(["Ubah Budi"]));
+  });
+
+  it("Urungkan under reduced motion puts the row back at once, with no entrance or exit", async () => {
+    const reanimated = jest.requireMock("react-native-reanimated") as { useReducedMotion: jest.Mock };
+    reanimated.useReducedMotion.mockReturnValue(true);
+    try {
+      await deleteSecond();
+      fireEvent.press(await screen.findByRole("button", { name: "Urungkan" }));
+      await waitFor(() => expect(names()).toEqual(["Ubah Pelanggan 1", "Ubah Budi", "Ubah Pelanggan 3"]));
+      for (const card of screen.getAllByTestId("import-row")) {
+        expect(card.props.entering).toBeUndefined();
+        expect(card.props.exiting).toBeUndefined();
+      }
+    } finally {
+      reanimated.useReducedMotion.mockReturnValue(false);
+    }
+  });
 });
 
 it("import row names a missing package", async () => {

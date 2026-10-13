@@ -26,8 +26,9 @@ const ease = Easing.bezier(...nativeMotion.ease);
 
 /**
  * Layout animations for a row the user's own action inserts or removes (an address saved, a saved package removed,
- * an import row accepted): `entering` fades in and rises 8dp over `content` (220ms) on the Catera ease, `exiting`
- * fades out over `control` (120ms), and `layout` moves the rows that remain with `LinearTransition` over `content`.
+ * an import row deleted or put back): `entering` fades in and rises 8dp over `nativeMotion.content` on
+ * `nativeMotion.ease`, `exiting` fades out over `nativeMotion.control`, and `layout` moves the rows that remain with
+ * `LinearTransition` over `nativeMotion.content`.
  * Spread them on the row's `Animated.View`. Never use them on a first load, a refresh, a search or filter change, a
  * tab return or a mood switch (Decision A): those swap the whole data area through `FadeSwap`, or swap the rows
  * as one block through `RowSwap`.

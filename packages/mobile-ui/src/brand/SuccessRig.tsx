@@ -113,7 +113,13 @@ export function successRigFrame(t: number): SuccessRigFrame {
   return { hop, bodyScaleY, lidRotate, badgeScale, badgeOpacity, sparkleScale, sparkleOpacity };
 }
 
-const percent = (point: { x: number; y: number }) => `${point.x * 100}% ${point.y * 100}%`;
+// A pivot in points on the canvas-sized layer, as numbers. RN parses a string origin with a regex that has no decimals,
+// so a percent string built from these fractions misparses (bodyPivot, lidHinge) or throws (badgePivot).
+const pivotAt = (point: { x: number; y: number }, canvas: number): [number, number, number] => [
+  point.x * canvas,
+  point.y * canvas,
+  0,
+];
 
 /**
  * The delivered success rig: seven registered layers stacked at one origin in `rig.json` draw order, never trimmed,
@@ -178,19 +184,19 @@ export function SuccessRig({ size, play, onDone }: { size: number; play: boolean
   return (
     <View testID="success-rig" {...decorative} style={{ width: frame.width, height: frame.height }}>
       <View style={{ position: "absolute", left: frame.left, top: frame.top, width: frame.canvas, height: frame.canvas }}>
-        <Animated.View style={[fill, { transformOrigin: percent(successRig.bodyPivot) }, body]}>
+        <Animated.View style={[fill, { transformOrigin: pivotAt(successRig.bodyPivot, frame.canvas) }, body]}>
           <Image testID="success-rig-layer-body" source={layers.body} fadeDuration={0} style={layer} />
           <Animated.Image
             testID="success-rig-layer-lid"
             source={layers.lid}
             fadeDuration={0}
-            style={[layer, { transformOrigin: percent(successRig.lidHinge) }, lid]}
+            style={[layer, { transformOrigin: pivotAt(successRig.lidHinge, frame.canvas) }, lid]}
           />
           <Animated.Image
             testID="success-rig-layer-badge"
             source={layers.badge}
             fadeDuration={0}
-            style={[layer, { transformOrigin: percent(successRig.badgePivot) }, badge]}
+            style={[layer, { transformOrigin: pivotAt(successRig.badgePivot, frame.canvas) }, badge]}
           />
           <Image testID="success-rig-layer-arms-up" source={layers.armsUp} fadeDuration={0} style={layer} />
           <Image testID="success-rig-layer-eyes-open" source={layers.eyesOpen} fadeDuration={0} style={layer} />

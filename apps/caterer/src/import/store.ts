@@ -24,9 +24,11 @@ type State = {
   packages: ImportPackage[] | null;
   /** The last row number handed out. */
   counter: number;
+  /** The row "Hapus baris ini" took off last and Urungkan has not put back. */
+  removed: number | null;
 };
 
-const EMPTY: State = { text: "", files: [], rows: null, packages: null, counter: 0 };
+const EMPTY: State = { text: "", files: [], rows: null, packages: null, counter: 0, removed: null };
 
 /**
  * What Impor holds while it is open, shared with the row sheet (`/impor-baris`), which is a route of its own above it:
@@ -63,6 +65,8 @@ export type ImportStore = State & {
   removeRow(n: number): { row: ImportRow; index: number } | null;
   /** Puts a removed row back at its place with the edits it had; a row already there is left alone. */
   restoreRow(row: ImportRow, index: number): void;
+  /** The row taken off last and not put back, read at call time, so a save that ends after a render still sees it. */
+  lastRemoved(): number | null;
   /** Forgets everything: Impor closed. */
   reset(): void;
 };
@@ -85,14 +89,15 @@ const actions: Omit<ImportStore, keyof State> = {
     const rows = read().rows;
     const index = rows?.findIndex((row) => row.n === n) ?? -1;
     if (!rows || index < 0) return null;
-    patch({ rows: rows.filter((row) => row.n !== n) });
+    patch({ rows: rows.filter((row) => row.n !== n), removed: n });
     return { row: rows[index], index };
   },
   restoreRow(row, index) {
-    const rows = read().rows;
+    const { rows, removed } = read();
     if (!rows || rows.some((r) => r.n === row.n)) return;
-    patch({ rows: [...rows.slice(0, index), row, ...rows.slice(index)] });
+    patch({ rows: [...rows.slice(0, index), row, ...rows.slice(index)], removed: removed === row.n ? null : removed });
   },
+  lastRemoved: () => read().removed,
   reset: () => write(EMPTY),
 };
 
