@@ -79,6 +79,7 @@ let both: Day[]; // Rantang Nusantara, lunch and dinner, Dapur Senja
 let senja: Day[]; // Ayam Sambal Rumahan, lunch, Dapur Senja
 let hijau: Day[]; // Plant-based Everyday, lunch, Hijau Kitchen
 let plain: Day, reported: Day, belum: Day; // one Dapur Senja lunch each, for auto-confirm
+let bypass: Day, failed: Day; // one Dapur Senja lunch each: the delivered bypass, and a failed stop
 const otherStaff = crypto.randomUUID();
 const otherCustomer = crypto.randomUUID();
 beforeAll(async () => {
@@ -91,6 +92,8 @@ beforeAll(async () => {
   plain = (await buy(P[0], addDays(today, 70)))[0];
   reported = (await buy(P[4], addDays(today, 90)))[0];
   belum = (await buy(P[2], addDays(today, 110)))[0];
+  bypass = (await buy(P[0], addDays(today, 130)))[0];
+  failed = (await buy(P[4], addDays(today, 150)))[0];
   // Another kitchen's staff member and another customer, both synthetic.
   await q("insert into v1.profiles(id,name,role) values($1,'Staf Contoh Lain','owner'),($2,'Pelanggan Contoh Lain','customer')", [
     otherStaff,
@@ -220,6 +223,17 @@ describe("delivery.arrive", () => {
     expect(await meal(senja[0].id)).toEqual(row);
   });
 
+  it("staff cannot mark a meal delivered with a single delivery.status", async () => {
+    await outToday(bypass);
+    const { version } = (await q<{ version: number }>("select version from v1.delivery_days where id=$1", [bypass.id]))[0];
+    for (const user of [U.owner, U.staff])
+      await expect(
+        cmd("delivery.status", { id: bypass.id, version, meal: "lunch", status: "delivered" }, user),
+      ).rejects.toThrow("NOT_ALLOWED");
+    expect(await meal(bypass.id)).toMatchObject({ status: "out_for_delivery", confirmed_by: null });
+    expect(await dayStatus(bypass.id)).toBe("out_for_delivery");
+  });
+
   it("the workspace can no longer mark a meal delivered itself", async () => {
     await expect(
       cmd(
@@ -270,6 +284,33 @@ describe("auto-confirm", () => {
   });
 });
 
+describe("a failed stop", () => {
+  const status = async (next: string) => {
+    const { version } = (await q<{ version: number }>("select version from v1.delivery_days where id=$1", [failed.id]))[0];
+    return cmd("delivery.status", { id: failed.id, version, meal: "lunch", status: next }, U.owner);
+  };
+
+  it("a meal moved to issue loses its arrival, and sending it again starts unmarked", async () => {
+    await outToday(failed);
+    expect((await arrive([failed.id])).arrived).toBe(1);
+    await status("issue");
+    expect(await meal(failed.id)).toMatchObject({ status: "issue", arrived_at: null, arrived_by: null, arrived_photo: null });
+    await status("out_for_delivery");
+    expect(await meal(failed.id)).toMatchObject({ status: "out_for_delivery", arrived_at: null, arrived_photo: null });
+    // Nothing reads it as Sampai, and auto-confirm has no arrival to close.
+    const state = await read("customer", {}, U.customer);
+    const lunch = state.deliveries
+      .find((d: { id: string }) => d.id === failed.id)
+      .meals.find((m: { meal: string }) => m.meal === "lunch");
+    expect(lunch.arrived_at).toBeNull();
+    await system("delivery.autoConfirm", { now: new Date(Date.now() + 3 * 3600_000).toISOString() });
+    expect((await meal(failed.id)).status).toBe("out_for_delivery");
+    // Marked again, it carries the new photo only.
+    expect((await arrive([failed.id])).arrived).toBe(1);
+    expect((await meal(failed.id)).arrived_photo).toMatch(new RegExp(`^${K[0]}/${failed.id}/lunch/`));
+  });
+});
+
 describe("delivery-proof read", () => {
   it("lets the stop's customer and that caterer's staff read the photo, and nobody else", async () => {
     const day = plain.id;
@@ -293,6 +334,16 @@ describe("delivery-proof read", () => {
     expect(await canRead(otherCustomer)).toBe(false);
     // A meal not yet marked has no photo to read.
     await expect(read("delivery-proof", { deliveryId: hijau[0].id, meal: "lunch" }, U.customer)).rejects.toThrow("NOT_FOUND");
+    // A stop that does not exist answers like one that is not yours: existence is not revealed.
+    await expect(read("delivery-proof", { deliveryId: crypto.randomUUID(), meal: "lunch" }, U.customer)).rejects.toThrow("FORBIDDEN");
+    await expect(read("delivery-proof", { deliveryId: hijau[0].id, meal: "dinner" }, otherCustomer)).rejects.toThrow("FORBIDDEN");
+  });
+
+  it("keeps the storage policy's check callable by signed-in users once every migration has run", async () => {
+    const [grant] = await q<{ ok: boolean }>(
+      "select has_function_privilege('authenticated','v1.can_read_proof(text)','execute') ok",
+    );
+    expect(grant.ok).toBe(true);
   });
 
   it("carries the arrival into the customer's delivery read", async () => {

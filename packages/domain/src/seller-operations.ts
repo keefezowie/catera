@@ -72,13 +72,15 @@ export const deliveryArriveSchema = z
   );
 /**
  * What the workspace offers next for one meal. "arrived" is Sampai with a proof photo (delivery.arrive);
- * a stop already marked waits for the customer, so it is offered only "issue".
+ * a stop already marked waits for the customer, so it is offered only "issue". delivery.arrive takes the
+ * Jakarta day only, so Sampai is left out on any other date (`onToday` false).
  */
 export function nextDeliveryStatuses(
   status: string,
   arrived = false,
+  onToday = true,
 ): string[] {
-  if (status === "out_for_delivery" && arrived) return ["issue"];
+  if (status === "out_for_delivery" && (arrived || !onToday)) return ["issue"];
   return (
     (
       {

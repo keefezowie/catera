@@ -1,4 +1,4 @@
-import { demoEnabled } from "@catera/backend";
+import { demoEnabled, rpc } from "@catera/backend";
 import { session } from "@/lib/auth";
 import { assertSameOrigin } from "@/lib/request-origin";
 import {
@@ -17,8 +17,9 @@ import {
 
 /**
  * One Sampai photo for one stop: multipart `file`, `deliveryId`, `meal`. The kitchen's owner or staff
- * upload it before delivery.arrive, which checks that the stop is theirs and on its way. The bytes are
- * decoded on the server and land in the caterer's own folder of the private proof bucket.
+ * upload it before delivery.arrive, which checks that the stop is on its way. The stop must be their
+ * kitchen's before anything is stored. The bytes are decoded on the server and land in the caterer's
+ * own folder of the private proof bucket.
  * Answers { data: { path } }, the path delivery.arrive takes in `photos`.
  */
 export async function POST(request: Request) {
@@ -33,6 +34,13 @@ export async function POST(request: Request) {
     const deliveryId = form.get("deliveryId");
     const meal = form.get("meal");
     if (!isUuid(deliveryId) || !isMeal(meal)) throw Error("INVALID_TYPE");
+    const slot = await rpc<{ catererId: string }>(
+      s.id,
+      s.token,
+      "catera_v1_read",
+      { resource: "delivery-proof-slot", params: { deliveryId, meal } },
+    );
+    if (slot.catererId !== s.actor.catererId) throw Error("FORBIDDEN");
     if (!(file instanceof File) || !file.size) throw Error("INVALID_SIZE");
     const bytes = Buffer.from(await file.arrayBuffer());
     const ext = await validateFoodImage(bytes);

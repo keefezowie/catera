@@ -60,6 +60,11 @@ export async function verifyDeliveryArrive(pool, cmd, evidence) {
   }
   for (const file of ["20261014090000_delivery_arrive.sql", "20261014091000_delivery_depart_subset.sql"])
     await pool.query(await readFile("supabase/migrations/" + file, "utf8"));
+  // Meals delivered without confirmed_by before this scenario began (earlier scenarios' own setup).
+  const unconfirmed = async () =>
+    (await pool.query("select day_id||':'||meal k from v1.fulfillments where status='delivered' and confirmed_by is null")).rows.map((r) => r.k);
+  const before = new Set(await unconfirmed());
+  const newlyUnconfirmed = async () => (await unconfirmed()).filter((k) => !before.has(k));
 
   const today = localDay();
   // Each stop is the first day of its own purchase by its own synthetic customer, moved to today: a
@@ -128,12 +133,14 @@ export async function verifyDeliveryArrive(pool, cmd, evidence) {
     if (row.arrived_at) order.arriveFirst++;
     else order.confirmFirst++;
   }
-  assert.equal(
-    (await pool.query("select count(*)::int n from v1.fulfillments where status='delivered' and confirmed_by is null and arrived_at is not null")).rows[0].n,
-    0,
-  );
+  // The kitchen cannot close a meal itself: the single-meal delivery.status refuses "delivered" too.
+  const open = await stop();
+  const { version } = (await pool.query("select version from v1.delivery_days where id=$1", [open])).rows[0];
+  await assert.rejects(cmd("delivery.status", { id: open, version, meal: "lunch", status: "delivered" }, U.owner), /NOT_ALLOWED/);
+  assert.equal((await lunch(open)).status, "out_for_delivery");
+  assert.deepEqual(await newlyUnconfirmed(), []);
   evidence.push(
-    `delivery.arrive racing delivery.confirm 6 times always ends delivered by the customer (${order.arriveFirst} arrived first, ${order.confirmFirst} confirmed first); no arrived meal is delivered without confirmed_by.`,
+    `delivery.arrive racing delivery.confirm 6 times always ends delivered by the customer (${order.arriveFirst} arrived first, ${order.confirmFirst} confirmed first); staff delivery.status "delivered" is refused with NOT_ALLOWED.`,
   );
 
   // 2. Arrive against a report being filed: both land, the meal stays open with its report, and the
@@ -167,18 +174,25 @@ export async function verifyDeliveryArrive(pool, cmd, evidence) {
   }
   evidence.push("Two simultaneous arrives of one stop stamp it once, both answer the same arrived_at, and the customer gets one arrived push per caterer, date and meal.");
 
-  // 4. Auto-confirm against a late report. An uncommitted report holds its meal, so the job skips it;
-  // once committed it keeps the meal open. Racing them leaves either a delivered meal with its report
-  // filed after, or an open meal, never a delivered meal hiding an open report it saw.
+  // 4. Auto-confirm against a late report: the job waits on the report's pilot lock, then sees it.
+  // Racing them never leaves a delivered meal hiding a report it could see.
   const late = await stop();
   await arrive([late]);
   const later = new Date(Date.now() + 2 * 3600_000 + 60_000).toISOString();
-  await held(pool, customerOf.get(late), async (c) => {
+  let job;
+  const waits = await held(pool, customerOf.get(late), async (c) => {
     await c.query("select public.catera_v1_command('deliveryIssue.create',$1,gen_random_uuid())", [issue(late)]);
-    await system(pool, "delivery.autoConfirm", { now: later });
+    let done = false;
+    job = system(pool, "delivery.autoConfirm", { now: later }).finally(() => (done = true));
+    await untilBlocked(pool);
+    const blocked = !done && (await waitingOnALock(pool)) > 0;
     assert.equal((await lunch(late)).status, "out_for_delivery", "an in-flight report holds the meal");
     await c.query("commit");
+    return blocked;
   });
+  assert.equal(waits, true, "auto-confirm waits for the report in flight instead of passing it");
+  await job;
+  assert.equal((await lunch(late)).status, "out_for_delivery", "the report it waited for keeps the meal open");
   await system(pool, "delivery.autoConfirm", { now: later });
   assert.equal((await lunch(late)).status, "out_for_delivery");
   const outcome = { held: 0, closedFirst: 0 };
@@ -214,7 +228,7 @@ export async function verifyDeliveryArrive(pool, cmd, evidence) {
   await system(pool, "delivery.autoConfirm", { now: bounds.exact });
   assert.equal((await lunch(edge)).confirmed_by, "auto");
   evidence.push(
-    `Auto-confirm skips a meal whose report is in flight and keeps it open once committed; racing late reports 6 times (${outcome.held} held, ${outcome.closedFirst} closed first) never closes a meal over a report it could see; exactly 2 hours closes, 1 minute less does not.`,
+    `Auto-confirm waits on the caterer lock while a report is in flight, then keeps the meal open once the report commits; racing late reports 6 times (${outcome.held} held, ${outcome.closedFirst} closed first) never closes a meal over a report it could see; exactly 2 hours closes, 1 minute less does not.`,
   );
 
   // 5. Two staff depart overlapping subsets at once: each stop leaves once, nothing outside the lists
@@ -302,5 +316,7 @@ export async function verifyDeliveryArrive(pool, cmd, evidence) {
     (await pool.query("select has_function_privilege('authenticated','public.catera_v1_command_arrive_base(text,jsonb,uuid)','execute') a,has_function_privilege('authenticated','public.catera_v1_command_subset_base(text,jsonb,uuid)','execute') b,has_function_privilege('authenticated','v1.auto_confirm_arrived(timestamptz)','execute') c")).rows[0],
     { a: false, b: false, c: false },
   );
+  assert.deepEqual(await newlyUnconfirmed(), [], "no meal delivered in this scenario lacks confirmed_by");
+  evidence.push("Every meal delivered across these scenarios carries confirmed_by (customer or auto).");
   evidence.push("Proof photos sit in a private bucket: the stop's customer and that caterer's staff read the object and its path, another kitchen's staff and another customer read neither; the renamed bases and the auto-confirm job are not executable by clients.");
 }

@@ -129,4 +129,16 @@ it("uploads a decoded photo into the caterer's own folder for that stop, for sta
   expect((await request({ deliveryId: day, meal: "breakfast" })).status).toBe(400);
   expect((await request({ deliveryId: day, meal: "lunch" }, new Blob(["not an image"]))).status).toBe(400);
   expect(state.upload).toHaveBeenCalledTimes(1);
+  // Another kitchen's staff, or a stop that does not exist, store nothing.
+  as(otherStaff, "owner", K[1]);
+  expect((await request({ deliveryId: day, meal: "lunch" })).status).toBe(403);
+  as(U.staff, "staff", K[0]);
+  expect((await request({ deliveryId: crypto.randomUUID(), meal: "lunch" })).status).toBe(403);
+  expect(state.upload).toHaveBeenCalledTimes(1);
+});
+
+it("answers a stop that does not exist like one that is not the caller's", async () => {
+  as(U.customer, "customer");
+  expect((await get(crypto.randomUUID())).status).toBe(403);
+  expect(state.signed).not.toHaveBeenCalled();
 });

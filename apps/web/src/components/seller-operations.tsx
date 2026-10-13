@@ -1200,8 +1200,11 @@ function OrderTable({
   const eligible = rows.filter(
     (d) =>
       date <= today &&
-      nextDeliveryStatuses(fulfillmentStatus(d, meal), mealArrived(d, meal))
-        .length,
+      nextDeliveryStatuses(
+        fulfillmentStatus(d, meal),
+        mealArrived(d, meal),
+        date === today,
+      ).length,
   );
   const chosen = eligible.filter((d) => selected.includes(d.id));
   const options = [
@@ -1210,6 +1213,7 @@ function OrderTable({
         nextDeliveryStatuses(
           fulfillmentStatus(order, meal),
           mealArrived(order, meal),
+          date === today,
         ),
       ),
     ),
@@ -1220,6 +1224,7 @@ function OrderTable({
         nextDeliveryStatuses(
           fulfillmentStatus(order, meal),
           mealArrived(order, meal),
+          date === today,
         ).includes(effectiveTarget),
       )
     : [];
@@ -1735,6 +1740,7 @@ function OrderTable({
                               nextDeliveryStatuses(
                                 fulfillmentStatus(x, meal),
                                 mealArrived(x, meal),
+                                date === today,
                               )
                                 .slice(0, 1)
                                 .map((next) => (
@@ -1849,8 +1855,8 @@ function OrderTable({
             {confirmation.status === "arrived" && (
               <p className="notice receipt-consequence">
                 {t(
-                  "Foto setiap pesanan dikirim ke pelanggannya, lalu pelanggan mengonfirmasi sendiri. Tanpa jawaban dan tanpa laporan, pesanan dianggap sampai 2 jam kemudian. Penghasilan dihitung setelah seluruh waktu makan hari itu selesai.",
-                  "Each order's photo goes to its customer, who confirms it. With no answer and no report, the order counts as arrived 2 hours later. Earnings count once every meal of that day is done.",
+                  "Foto setiap pesanan dikirim ke pelanggannya, lalu pelanggan mengonfirmasi sendiri. Kalau pelanggan tidak menjawab dan tidak melapor, pesanan ditandai sampai otomatis. Penghasilan dihitung setelah seluruh waktu makan hari itu selesai.",
+                  "Each order's photo goes to its customer, who confirms it. If the customer does not answer and files no report, the order is marked arrived automatically. Earnings count once every meal of that day is done.",
                 )}
               </p>
             )}
@@ -2039,6 +2045,7 @@ function OrderTable({
               {nextDeliveryStatuses(
                 fulfillmentStatus(d, meal),
                 mealArrived(d, meal),
+                date === today,
               ).map((s) => (
                 <Button
                   className="button secondary small"

@@ -210,13 +210,15 @@ it("combined meals fulfill independently while sharing one daily reservation", a
       U.staff,
     ),
   ).rejects.toThrow("INVALID_INPUT");
-  for (const status of ["preparing", "out_for_delivery", "delivered"]) {
+  for (const status of ["preparing", "out_for_delivery"]) {
     await command(
       "delivery.status",
       { id: day.id, version: day.version++, meal: "lunch", status },
       U.staff,
     );
   }
+  // Only the customer or the system closes a meal.
+  await command("delivery.confirm", { deliveryId: day.id, meal: "lunch" }, U.customer);
   const fresh = (await read<CustomerState>("customer", { deliveryId: day.id }))
     .deliveries[0];
   expect(fresh.meals.find((m) => m.meal === "lunch")?.status).toBe("delivered");

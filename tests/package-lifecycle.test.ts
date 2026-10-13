@@ -59,7 +59,11 @@ it("hides suspended offers and rejects checkout/import while preserving existing
   for (const d of days.rows) {
     const meals = await db.query<{ meal: string }>("select meal from v1.fulfillments where day_id=$1", [d.id]);
     let version = 1;
-    for (const { meal } of meals.rows) for (const status of ["preparing", "out_for_delivery", "delivered"]) await cmd("delivery.status", { id: d.id, version: version++, meal, status });
+    // The kitchen sends each meal out; the customer closes it, as only they or the system may.
+    for (const { meal } of meals.rows) {
+      for (const status of ["preparing", "out_for_delivery"]) await cmd("delivery.status", { id: d.id, version: version++, meal, status });
+      await cmd("delivery.confirm", { deliveryId: d.id, meal }, U.customer);
+    }
   }
   expect((await state()).offers.find(p => p.id === o.id)!.canArchive).toBe(true);
   await cmd("package.archive", args(suspended));

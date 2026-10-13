@@ -182,6 +182,10 @@ it("rejects mixed transitions, duplicates, future days, cancelled deliveries and
     "INVALID_DATE",
   );
   expect(nextDeliveryStatuses("delivered")).toEqual([]);
+  // Sampai is offered only on the Jakarta day itself; a past day can still be reported as failed.
+  expect(nextDeliveryStatuses("out_for_delivery")).toEqual(["arrived", "issue"]);
+  expect(nextDeliveryStatuses("out_for_delivery", false, false)).toEqual(["issue"]);
+  expect(nextDeliveryStatuses("issue", false, false)).toEqual(["out_for_delivery"]);
   expect(deliveryBatchSchema.safeParse(payload([a, a])).success).toBe(false);
 });
 it("filters calendar by package, meal and cancellation without counting cancelled production", async () => {
@@ -224,4 +228,11 @@ it("filters calendar by package, meal and cancellation without counting cancelle
       "all",
     ).portions,
   ).toBe(0);
+});
+it("does not promise an auto-confirm time the scheduler does not keep yet", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const source = await readFile("apps/web/src/components/seller-operations.tsx", "utf8");
+  // The arrived-photo notice: the job runs daily until the scheduler is live, so no hour count.
+  expect(source).not.toMatch(/dianggap sampai \d+ jam|counts as arrived \d+ hours?/);
+  expect(source).toContain("ditandai sampai otomatis");
 });

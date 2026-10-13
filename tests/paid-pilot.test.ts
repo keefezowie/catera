@@ -213,13 +213,13 @@ it("audits staff customer-requested changes and fulfills both meals before accou
       ])
     ).rows.at(-1).details.reason,
   ).toBe("Customer requested address");
-  // Move only this synthetic fixture into today to exercise time-gated fulfillment.
+  // Move only this synthetic fixture into the Jakarta day to exercise time-gated fulfillment.
   await db.query(
-    "update v1.delivery_days set service_date=current_date where id=$1",
-    [day.id],
+    "update v1.delivery_days set service_date=$2::date where id=$1",
+    [day.id, localDay()],
   );
   for (const meal of ["lunch", "dinner"])
-    for (const status of ["preparing", "out_for_delivery", "delivered"]) {
+    for (const status of ["preparing", "out_for_delivery"]) {
       const d = (
         await db.query<any>(
           "select version from v1.delivery_days where id=$1",
@@ -232,6 +232,25 @@ it("audits staff customer-requested changes and fulfills both meals before accou
         U.staff,
       );
     }
+  // A customer without an account cannot confirm: the kitchen marks Sampai with a photo and the
+  // system closes both meals once nobody answered.
+  for (const meal of ["lunch", "dinner"])
+    await cmd(
+      "delivery.arrive",
+      {
+        catererId: K[0],
+        date: localDay(),
+        meal,
+        fulfillmentIds: [day.id],
+        photos: { [day.id]: `${K[0]}/${day.id}/${meal}/${crypto.randomUUID()}.jpg` },
+      },
+      U.staff,
+    );
+  expect(
+    await sys("delivery.autoConfirm", {
+      now: new Date(Date.now() + 3 * 3600_000).toISOString(),
+    }),
+  ).toBe(2);
   expect(
     (await read("seller-customers", { id: K[0], customerRecordId: guest.id }))
       .customers[0].subscriptions[0].remaining,

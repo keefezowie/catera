@@ -2,6 +2,7 @@
 --   delivery.arrive {catererId, date, meal, fulfillmentIds, photos} -> {arrived, arrivedAt}
 --   delivery.autoConfirm (system) {now?}                             -> confirmed count
 --   read 'delivery-proof' {deliveryId, meal}                         -> {path}
+--   read 'delivery-proof-slot' {deliveryId, meal}                    -> {catererId} (staff only)
 -- A fulfilment is one meal of one delivery day, so with the meal in the payload a fulfilment id is
 -- the delivery day id. No new status: an arrived meal stays out_for_delivery until the customer's
 -- delivery.confirm, v1.auto_confirm_arrived two hours later, or the next-morning v1.auto_deliver.
@@ -10,6 +11,19 @@ alter table v1.fulfillments
  add column arrived_at timestamptz,
  add column arrived_by uuid references v1.profiles,
  add column arrived_photo text;
+
+-- An arrival belongs to one trip. A meal that fails (issue) or sets out again loses its mark and
+-- photo, whichever command moves it, so a re-sent meal is not read as Sampai or auto-confirmed.
+create function v1.fulfillment_clear_arrival() returns trigger
+language plpgsql set search_path='' as $$
+begin
+ if new.status in ('issue','out_for_delivery') and new.status is distinct from old.status then
+  new.arrived_at:=null;new.arrived_by:=null;new.arrived_photo:=null;
+ end if;
+ return new;
+end $$;
+create trigger fulfillments_clear_arrival before update of status on v1.fulfillments
+ for each row execute function v1.fulfillment_clear_arrival();
 
 -- Proof photos live in a private bucket at {catererId}/{dayId}/{meal}/{uuid}.{ext}. The API server
 -- writes them with the service key; clients only ever read through a signed URL or this policy.
@@ -74,25 +88,29 @@ $$;
 
 -- Closes arrived meals nobody answered: two hours after arrived_at (inclusive), with no open report
 -- and no "Belum" (a report filed on the meal at or after its arrival, whatever its status now).
--- Lock order is the day, then the meal, as delivery.confirm and v1.auto_deliver. A row locked by a
--- confirmation or a report being filed is skipped and looked at on the next run.
+-- Locks the caterer's pilot lock, then the day, then the meal, as arrive and depart do. A report
+-- takes that pilot lock first, so one in flight holds the job until it commits and is then seen.
+-- A row locked by a customer's confirmation is skipped until the next run.
 create function v1.auto_confirm_arrived(p_now timestamptz default now()) returns integer
 language plpgsql set search_path='' as $$
 declare r record; confirmed integer:=0; nextstatus text; meals text[];
 begin
  for r in
-  select d.id, d.subscription_id from v1.delivery_days d
+  select d.id, d.subscription_id, (s.snapshot->'offer'->>'catererId')::uuid cid from v1.delivery_days d
+   join v1.subscriptions s on s.id=d.subscription_id
   where d.status<>'cancelled'
    and exists(select 1 from v1.fulfillments f where f.day_id=d.id and f.status='out_for_delivery' and f.arrived_at<=p_now-interval '2 hours')
-  order by d.id
-  for update skip locked
+  order by 3, d.id
  loop
   begin
+   perform pg_advisory_xact_lock(hashtext('pilot:'||r.cid::text));
+   perform 1 from v1.delivery_days d where d.id=r.id and d.status<>'cancelled' for update skip locked;
+   if not found then continue;end if;
    select coalesce(array_agg(x.meal),'{}') into meals from (
     select f.meal from v1.fulfillments f
     where f.day_id=r.id and f.status='out_for_delivery' and f.arrived_at<=p_now-interval '2 hours'
     order by f.meal for update skip locked) x;
-   -- Checked after the lock: a report committed before it is seen, one still in flight held the row.
+   -- Checked under the pilot lock: any report filed before it was taken is committed and seen here.
    with closed as (
     update v1.fulfillments f set status='delivered', confirmed_at=p_now, confirmed_by='auto'
     where f.day_id=r.id and f.meal=any(meals)
@@ -146,18 +164,25 @@ create function public.catera_v1_read(resource text,params jsonb default '{}') r
 language plpgsql security definer set search_path='' as $$
 declare u uuid:=auth.uid(); did uuid; photo text; owner uuid; cid uuid;
 begin
- if resource is distinct from 'delivery-proof' then
+ if resource is distinct from 'delivery-proof' and resource is distinct from 'delivery-proof-slot' then
   return public.catera_v1_read_proof_base(resource,params);
  end if;
  if u is null then raise exception 'UNAUTHORIZED';end if;
  if jsonb_typeof(params) is distinct from 'object' or jsonb_typeof(params->'deliveryId') is distinct from 'string'
   or params->>'meal' is null or params->>'meal' not in ('lunch','dinner') then raise exception 'INVALID_INPUT';end if;
  begin did:=(params->>'deliveryId')::uuid;exception when others then raise exception 'INVALID_INPUT';end;
- select f.arrived_photo,s.user_id,p.caterer_id into photo,owner,cid from v1.fulfillments f
-  join v1.delivery_days d on d.id=f.day_id join v1.subscriptions s on s.id=d.subscription_id join v1.packages p on p.id=s.package_id
-  where f.day_id=did and f.meal=params->>'meal';
- if not found then raise exception 'NOT_FOUND';end if;
- if owner is distinct from u and not v1.is_staff(u,cid) then raise exception 'FORBIDDEN';end if;
+ select s.user_id,p.caterer_id into owner,cid from v1.delivery_days d
+  join v1.subscriptions s on s.id=d.subscription_id join v1.packages p on p.id=s.package_id
+  where d.id=did;
+ -- 'delivery-proof-slot' {deliveryId, meal}: whether the caller's kitchen may upload a photo for
+ -- that stop, asked by the upload route before it stores anything. Answers {catererId}.
+ if resource='delivery-proof-slot' then
+  if not found or not v1.is_staff(u,cid) then raise exception 'FORBIDDEN';end if;
+  return jsonb_build_object('catererId',cid);
+ end if;
+ -- A stop that does not exist answers like one that is not the caller's, so ids reveal nothing.
+ if not found or (owner is distinct from u and not v1.is_staff(u,cid)) then raise exception 'FORBIDDEN';end if;
+ select f.arrived_photo into photo from v1.fulfillments f where f.day_id=did and f.meal=params->>'meal';
  if photo is null then raise exception 'NOT_FOUND';end if;
  return jsonb_build_object('path',photo);
 end $$;
@@ -181,7 +206,7 @@ declare u uuid:=auth.uid(); cid uuid; dt date; m text; old v1.receipts; r record
 begin
  if action<>'delivery.arrive' then
   -- The workspace marks Sampai through delivery.arrive; only the customer or the system closes a meal.
-  if action='delivery.statusBatch' and payload->>'status'='delivered' then raise exception 'NOT_ALLOWED';end if;
+  if action in ('delivery.statusBatch','delivery.status') and payload->>'status'='delivered' then raise exception 'NOT_ALLOWED';end if;
   return public.catera_v1_command_arrive_base(action,payload,request_id);
  end if;
  if u is null then raise exception 'UNAUTHORIZED';end if;
