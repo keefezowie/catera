@@ -122,18 +122,41 @@ describe("stage pushes queued by the database", () => {
     expect(await pushes("cooking:%")).toHaveLength(1);
   });
 
-  it("Gagal diantar tells the customer once, in the kamu register", async () => {
-    const day = (await buy(P[0], addDays(today, 90)))[0];
-    await toToday(day);
-    await q("update v1.fulfillments set status='out_for_delivery',departed_at=now() where day_id=$1", [day.id]);
-    const version = (await q<any>("select version from v1.delivery_days where id=$1", [day.id]))[0].version;
-    const before = (await pushes("failed:%")).length;
-    await cmd("delivery.status", { id: day.id, version, meal: "lunch", status: "issue" }, U.owner);
+  let failedDay: Day;
+  const versionOf = async (id: string) => (await q<any>("select version from v1.delivery_days where id=$1", [id]))[0].version;
+  const status = async (id: string, next: string) =>
+    cmd("delivery.status", { id, version: await versionOf(id), meal: "lunch", status: next }, U.owner);
+  const trip = `${U.customer}:${K[0]}:${today}:lunch`;
+
+  it("Gagal diantar tells the customer once, in the kamu register, and opens that day", async () => {
+    failedDay = (await buy(P[0], addDays(today, 90)))[0];
+    await toToday(failedDay);
+    await q("update v1.fulfillments set status='out_for_delivery',departed_at=now() where day_id=$1", [failedDay.id]);
+    await status(failedDay.id, "issue");
     const failed = await pushes("failed:%");
-    expect(failed).toHaveLength(before + 1);
-    expect(failed[0].body).toMatch(/^Makan siangmu gagal diantar dari .+\. Buka Catera untuk melihat detailnya\.$/);
+    expect(failed.map((r) => r.dedupe)).toEqual([`failed:${trip}`]);
+    expect(failed[0].body).toMatch(/^Makan siangmu dari .+ gagal diantar\.$/);
+    // delivery.status takes past dates too, so the push opens the day it is about, not Beranda.
+    expect(failed[0].href).toBe(`/deliveries/${failedDay.id}`);
+    // Another package of the same trip failing tells nobody again.
+    await q("update v1.fulfillments set status='issue' where day_id=$1 and meal='lunch'", [second[0].id]);
+    expect(await pushes("failed:%")).toHaveLength(1);
     // The old "Anda" status notice is gone.
     expect(await q("select 1 from v1.outbox where payload->>'body' like 'Status pengantaran Anda%'")).toHaveLength(0);
+  });
+
+  it("a redelivery after Gagal diantar is announced again, once per customer per trip", async () => {
+    await status(failedDay.id, "out_for_delivery");
+    expect((await pushes("depart:%")).map((r) => r.dedupe)).toEqual([`depart:${trip}`, `depart:${trip}:1`]);
+    expect((await pushes(`depart:${trip}:1`))[0].body).toMatch(/^Makan siangmu sedang diantar dari .+/);
+    // The other package setting out on the same second trip queues nothing.
+    await q("update v1.fulfillments set status='out_for_delivery' where day_id=$1 and meal='lunch'", [second[0].id]);
+    expect(await pushes("depart:%")).toHaveLength(2);
+    // The second trip failing is news, and so is the third departure.
+    await status(failedDay.id, "issue");
+    expect((await pushes("failed:%")).map((r) => r.dedupe)).toEqual([`failed:${trip}`, `failed:${trip}:1`]);
+    await status(failedDay.id, "out_for_delivery");
+    expect((await pushes("depart:%")).map((r) => r.dedupe)).toEqual([`depart:${trip}`, `depart:${trip}:1`, `depart:${trip}:2`]);
   });
 
   it("Pindah tanggal by the caterer pushes the customer; the customer's own move does not", async () => {
@@ -159,6 +182,14 @@ describe("stage pushes queued by the database", () => {
 
     await cmd("delivery.reschedule", { id: day.id, version: moved.delivery.version, date: next(to) }, U.customer);
     expect(await pushes("moved:%")).toHaveLength(1);
+  });
+
+  it("an address change by the caterer keeps its own notice, which names the address", async () => {
+    const day = flexible[1];
+    const address = (await q<any>("select line,area,city from v1.addresses where id=$1", [A]))[0];
+    await cmd("customer.deliveryChange", { catererId: K[0], id: day.id, version: day.version, address, reason: "Pindah kantor sementara" }, U.owner);
+    const notes = await q<any>("select body,href from v1.notifications where user_id=$1 and kind='change' and href=$2", [U.customer, `/deliveries/${day.id}`]);
+    expect(notes).toEqual([{ body: "Katering mengubah alamat pengantaranmu sesuai permintaanmu.", href: `/deliveries/${day.id}` }]);
   });
 
   it("a stop without an account queues no push", async () => {

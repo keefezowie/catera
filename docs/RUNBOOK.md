@@ -205,7 +205,7 @@ The rebuilt customer app (`apps/customer`) adds timed pushes, app links and new 
 
 **One EAS project per app.** The customer app and Catera Dapur each read their own `extra.eas.projectId` (set per build with `EXPO_PUBLIC_EAS_PROJECT_ID` in that app's EAS environment); the root `app.json` carries none. `tests/app-config.test.ts` fails when either is missing or the two are equal.
 
-Until one of these is set up, arrival reminders and the 3-days-left renewal push are **not sent**. Departure pushes and report replies are still sent right after the caterer's command, and the daily `/api/jobs` maintenance still sends its own renewal reminder.
+Until one of these is set up, arrival reminders and the 3-days-left renewal push are **not sent**. The stage pushes sent at the event (Dimasak, Berangkat, Sampai waiting for confirmation, Gagal diantar, Pindah tanggal) and report replies are still sent right after the caterer's command, and the daily `/api/jobs` maintenance still sends its own renewal reminder. A stage push whose first send fails waits for the scheduler.
 
 **Web environment.** `CRON_SECRET` (shared with the scheduler), `CATERA_PUBLIC_URL`, `CATERA_ANDROID_SHA256` (comma-separated SHA-256 signing-certificate fingerprints of every Android build that should open `/claim` and `/renew` links), `CATERA_APPLE_TEAM_ID` and `NEXT_PUBLIC_CATERA_ANDROID_URL` (the Android download link shown on the web). Without the fingerprints or team id the app-link files claim nothing and links open on the web.
 

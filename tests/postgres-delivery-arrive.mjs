@@ -318,5 +318,33 @@ export async function verifyDeliveryArrive(pool, cmd, evidence) {
   );
   assert.deepEqual(await newlyUnconfirmed(), [], "no meal delivered in this scenario lacks confirmed_by");
   evidence.push("Every meal delivered across these scenarios carries confirmed_by (customer or auto).");
+
+  // 8. Stage pushes under the triggers (20261014110000): owner and staff cook, depart, fail and send out
+  // again a customer's two packages at the same moment. Each stage reaches the customer once per trip,
+  // and the trip that sets out again after Gagal diantar is announced again.
+  const one = await stop("scheduled");
+  const pair = customerOf.get(one);
+  const two = await stop("scheduled", pair);
+  const tail = pair + ":" + K[0] + ":" + today + ":lunch";
+  const pushesFor = async () =>
+    (await pool.query("select dedupe from v1.outbox where kind='push' and dedupe like '%:'||$1||'%' order by dedupe", [tail])).rows.map((r) =>
+      r.dedupe.replace(tail, "*"),
+    );
+  const cook = (user) => cmd("delivery.cook", { catererId: K[0], date: today, meal: "lunch" }, user);
+  const setStatus = async (id, status, user) => {
+    const { version: v } = (await pool.query("select version from v1.delivery_days where id=$1", [id])).rows[0];
+    return cmd("delivery.status", { id, version: v, meal: "lunch", status }, user);
+  };
+  assert.deepEqual(settled(await Promise.allSettled([cook(U.owner), cook(U.staff)])), ["ok", "ok"]);
+  assert.deepEqual(settled(await Promise.allSettled([depart([one], U.owner), depart([two], U.staff)])), ["ok", "ok"]);
+  assert.deepEqual(settled(await Promise.allSettled([setStatus(one, "issue", U.owner), setStatus(two, "issue", U.staff)])), ["ok", "ok"]);
+  assert.deepEqual(
+    settled(await Promise.allSettled([setStatus(one, "out_for_delivery", U.owner), setStatus(two, "out_for_delivery", U.staff)])),
+    ["ok", "ok"],
+  );
+  assert.deepEqual(await pushesFor(), ["cooking:*", "depart:*", "depart:*:1", "failed:*"]);
+  evidence.push(
+    "Owner and staff cooking, departing, failing and resending a two-package customer's stops at once queue one push per stage per trip (Dimasak, Berangkat, Gagal diantar, then Berangkat again for the second trip).",
+  );
   evidence.push("Proof photos sit in a private bucket: the stop's customer and that caterer's staff read the object and its path, another kitchen's staff and another customer read neither; the renamed bases and the auto-confirm job are not executable by clients.");
 }
