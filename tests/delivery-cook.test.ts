@@ -103,8 +103,8 @@ it("owner cooks today's lunch", async () => {
   expect(dinner.status).toBe("scheduled");
   expect(dinner.cooking_started_at).toBeNull();
   expect((await mealRows(lunchHijau[0].id))[0].status).toBe("scheduled");
-  // No push (Ruling C2). One realtime event for the customer and one audit row.
-  expect(await pushCount()).toBe(pushes);
+  // One Dimasak push for the customer (Phase G; it replaced Ruling C2's silence), one realtime event and one audit row.
+  expect(await pushCount()).toBe(pushes + 1);
   expect(await eventCount(U.customer)).toBe(events + 1);
   expect(await auditCount()).toBe(audits + 1);
 });

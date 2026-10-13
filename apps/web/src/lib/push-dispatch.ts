@@ -10,6 +10,10 @@ export const pushHeaders = () => ({
 });
 type PushJob = { id: string; payload: Record<string, string> };
 
+/** Pushes for kitchen staff open under /seller; every other push is for a customer. */
+export const pushTitle = (href: string | undefined) =>
+  href?.startsWith("/seller") ? "Catera Dapur" : "Catera";
+
 /** Jobs claimed at a time when the run has a time budget. */
 const BUDGET_BATCH = 20;
 
@@ -64,7 +68,7 @@ async function sendJob(job: PushJob): Promise<boolean> {
         body: JSON.stringify(
           batch.map((to) => ({
             to,
-            title: "Catera",
+            title: pushTitle(job.payload.href),
             body: job.payload.body,
             collapseId: job.id,
             data: { href: job.payload.href, notificationId: job.id },

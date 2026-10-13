@@ -58,7 +58,7 @@ export async function verifyDeliveryArrive(pool, cmd, evidence) {
       grant usage on schema storage to authenticated;
       grant select on storage.objects to authenticated;`);
   }
-  for (const file of ["20261014090000_delivery_arrive.sql", "20261014091000_delivery_depart_subset.sql"])
+  for (const file of ["20261014090000_delivery_arrive.sql", "20261014091000_delivery_depart_subset.sql", "20261014110000_push_events.sql"])
     await pool.query(await readFile("supabase/migrations/" + file, "utf8"));
   // Meals delivered without confirmed_by before this scenario began (earlier scenarios' own setup).
   const unconfirmed = async () =>

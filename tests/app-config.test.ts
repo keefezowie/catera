@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import customer from '../apps/customer/app.config';
@@ -60,5 +60,21 @@ describe.each(apps)('%s app config', (_name, config, appDir) => {
     });
     const ios = config.ios?.icon as { light: string; dark: string; tinted: string };
     for (const file of [ios.light, ios.dark, ios.tinted]) expect(exists(appDir, file)).toBe(true);
+  });
+});
+
+describe('one EAS project per app', () => {
+  const projectId = (config: typeof customer) => (config.extra as { eas?: { projectId?: string } } | undefined)?.eas?.projectId;
+
+  it('each app config declares its own project id and the two differ', () => {
+    const [a, b] = [projectId(customer), projectId(dapur)];
+    expect(a).toMatch(/^[0-9a-f-]{36}$/);
+    expect(b).toMatch(/^[0-9a-f-]{36}$/);
+    expect(a).not.toBe(b);
+  });
+
+  it('the root app.json carries no project id for either app to fall back to', () => {
+    const root = JSON.parse(readFileSync(path.join(process.cwd(), 'app.json'), 'utf8'));
+    expect(root.expo?.extra?.eas?.projectId).toBeUndefined();
   });
 });

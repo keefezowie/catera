@@ -9,7 +9,7 @@ const system = <T = unknown>(action: string, payload: unknown = {}) =>
 // Hour of the day in Asia/Jakarta (UTC+7, no daylight saving).
 const jakartaHour = (now: Date) => (now.getUTCHours() + 7) % 24;
 
-/** Every fifteen minutes: queue the timed reminders, then send what is due. */
+/** The backstop: queue the timed reminders, then send what is due, including pushes whose send right after the command failed. */
 export async function GET(request: Request) {
   if (
     !process.env.CRON_SECRET ||

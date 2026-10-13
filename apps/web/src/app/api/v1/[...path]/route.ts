@@ -73,8 +73,13 @@ const profileUpdateSchema = z
   })
   .strict();
 const immediatePush = new Set([
+  "delivery.cook",
   "delivery.depart",
   "delivery.arrive",
+  "delivery.status",
+  "delivery.statusBatch",
+  "delivery.reschedule",
+  "customer.deliveryChange",
   "customer.followup",
   "deliveryIssue.respond",
   "deliveryIssue.resolve",

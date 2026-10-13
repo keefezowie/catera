@@ -1,3 +1,7 @@
+# FALLBACK ONLY. Pushes for delivery stages are sent right after the command; this job (or the
+# Supabase pg_cron plus pg_net call every 5 minutes in docs/RUNBOOK.md, section 14) only retries what
+# that send missed and queues the timed reminders. Use it when the hosted project cannot run pg_cron.
+#
 # Calls GET /api/jobs/push every 15 minutes (arrival reminders, the 3-days-left renewal push,
 # then sending due pushes).
 #

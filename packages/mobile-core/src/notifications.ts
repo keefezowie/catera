@@ -31,6 +31,7 @@ export async function unregisterThisPhone(
   send: (action: string, payload: unknown) => Promise<unknown>,
   flagKey: string,
 ): Promise<void> {
+  // Each app config declares its own EAS project; the token belongs to that project.
   const projectId = Constants.expoConfig?.extra?.eas?.projectId;
   if (!Notifications || !projectId) throw new Error("NOT_CONFIGURED");
   const { data } = await Notifications.getExpoPushTokenAsync({ projectId });
