@@ -63,6 +63,9 @@ import {
   workspaceCookieName,
 } from "@/lib/workspace";
 export const runtime = "nodejs";
+const profileUpdateSchema = z
+  .object({ name: z.string().trim().min(2).max(80) })
+  .strict();
 const immediatePush = new Set([
   "delivery.depart",
   "delivery.arrive",
@@ -571,6 +574,8 @@ export async function POST(request: Request, context: Context) {
         command.payload = customerMenuResetSchema.parse(command.payload);
       if (command.action === "delivery.statusBatch")
         command.payload = deliveryBatchSchema.parse(command.payload);
+      if (command.action === "profile.update")
+        command.payload = profileUpdateSchema.parse(command.payload);
       if (command.action === "delivery.arrive")
         command.payload = deliveryArriveSchema.parse(command.payload);
       if (
