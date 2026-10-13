@@ -47,7 +47,7 @@ const TOMORROW = "2026-10-09";
 const YESTERDAY = "2026-10-07";
 const owner = { id: "u-1", role: "owner", name: "Bu Rina", catererId: "k-1" };
 
-type MealState = { status: string; cooking_started_at?: string | null; departed_at?: string | null };
+type MealState = { status: string; cooking_started_at?: string | null; departed_at?: string | null; arrived_at?: string | null };
 const scheduled: MealState = { status: "scheduled" };
 const cooking: MealState = { status: "preparing", cooking_started_at: "2026-10-08T01:10:00Z" };
 
@@ -149,6 +149,28 @@ describe("the count card's rantang track", () => {
     fireEvent.press(await screen.findByText("Mulai masak"));
     await lastConfirm().press("Mulai");
     expect(await within(screen.getByTestId("session-count")).findByText("Dimasak 08.10")).toBeTruthy();
+  });
+});
+
+describe("the count card's four-stop track with mixed stages", () => {
+  it("puts a figure under each stop and fills the line to the furthest stage any row reached", async () => {
+    const left = { departed_at: "2026-10-08T03:00:00Z" };
+    const day = kitchenDay([
+      cooking,
+      cooking,
+      { status: "out_for_delivery", cooking_started_at: cooking.cooking_started_at, ...left },
+      { status: "out_for_delivery", cooking_started_at: cooking.cooking_started_at, ...left, arrived_at: "2026-10-08T04:00:00Z" },
+    ]);
+    renderToday(runtimeWith(async () => day));
+    const card = await screen.findByTestId("session-count");
+    const hidden = { includeHiddenElements: true };
+    const figure = (i: number) => (within(card).getByTestId(`rantang-track-count-${i}`, hidden).children as string[]).join("");
+    expect([0, 1, 2, 3].map(figure)).toEqual(["0", "2", "1", "1"]);
+    const track = within(card).getByTestId("rantang-track");
+    // The least advanced row speaks in the caption; the line and the sentence follow the furthest.
+    expect(within(card).getByText("Dimasak 08.10")).toBeTruthy();
+    expect(track.props.accessibilityLabel).toBe("Pesanan: Ditandai sampai, langkah 4 dari 4");
+    expect(within(card).getByTestId("rantang-track-stop-3-half", hidden)).toBeTruthy();
   });
 });
 

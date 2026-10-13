@@ -19,13 +19,13 @@ function Line({ width, block, line, onMood, testID }: { width: DimensionValue; b
   );
 }
 
-/** The rantang track's stop labels (Dimasak, Diantar, Sampai): three short caption blocks, left, centre and right. */
-const STOP_ALIGN = ["flex-start", "center", "flex-end"] as const;
+/** The rantang track's four stop labels (Terjadwal, Dimasak, Diantar, Sampai) and the count under each: centred caption blocks. */
+const STOPS = [0, 1, 2, 3] as const;
 
 /**
  * The count card's numbers on the mood surface, for Hari ini's header while the day loads: the portion figure, its
  * caption and the rantang track (its caption, the rail and the stop labels), at the card's padding. The track block is
- * as tall as `RantangTrack` (label line, rail, caption line, 8dp apart), so the header keeps its height when the card
+ * as tall as `RantangTrack` (caption line, rail, stop label and count lines, 8dp apart), so the header keeps its height when the card
  * replaces it. The blocks take the mood's toggle track, which stands off the header fill in Siang and Malam, light and
  * dark (the hero fill is not drawn: in light Malam it is the same colour as the track). The body's `TodaySkeleton`
  * names the wait, so this one is hidden from screen readers.
@@ -48,13 +48,14 @@ export function TodayCountSkeleton() {
           <View testID="today-count-track" style={{ gap: 8 }}>
             <Line width={140} block={12} line={23} onMood testID="today-count-block-track-caption" />
             {/* The track's rail (marker, line and stops) as one bar along its foot. */}
-            <View style={{ height: 40, justifyContent: "flex-end", paddingBottom: 2 }}>
+            <View style={{ height: 64, justifyContent: "flex-end", paddingBottom: 14 }}>
               <Skeleton height={8} radius={4} onMood testID="today-count-block-track" />
             </View>
-            <View style={{ flexDirection: "row", gap: 8 }}>
-              {STOP_ALIGN.map((align, i) => (
-                <View key={align} style={{ flex: 1, alignItems: align }}>
+            <View style={{ flexDirection: "row" }}>
+              {STOPS.map((i) => (
+                <View key={i} style={{ flex: 1, alignItems: "center" }}>
                   <Line width={44} block={10} line={18} onMood testID={`today-count-block-stop-${i}`} />
+                  <Line width={16} block={10} line={18} onMood testID={`today-count-block-count-${i}`} />
                 </View>
               ))}
             </View>

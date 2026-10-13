@@ -20,6 +20,7 @@ export * from "./PhotoRing";
 export * from "./CalendarPhotoCell";
 export * from "./StoryCover";
 export * from "./brand/Rantang";
+export * from "./brand/StopGlyphs";
 export * from "./RantangTrack";
 export * from "./StoryViewer";
 export * from "./CheckRow";

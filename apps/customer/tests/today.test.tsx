@@ -418,7 +418,7 @@ it("offline shows the cached day and when it was updated", async () => {
   // No departure time was saved, so the track says "Sedang diantar" and the header gives the arrival window instead.
   expect(await screen.findByRole("header", { name: "Tiba sekitar 11.00–13.00" })).toBeTruthy();
   expect(screen.getAllByText("Sedang diantar")).toHaveLength(1);
-  expect(screen.getByTestId("rantang-track").props.accessibilityLabel).toBe("Sedang diantar");
+  expect(screen.getByTestId("rantang-track").props.accessibilityValue.text).toBe("Sedang diantar");
   expect(screen.getByText(/Terakhir diperbarui 06\.12/)).toBeTruthy();
   expect(offline.loadCachedCustomer).toHaveBeenCalledWith("u-c1");
 });
@@ -980,7 +980,8 @@ describe("Beranda mood", () => {
       mount(runtimeWith(async () => lunchToday({ status: "scheduled" })));
       const h = await hero();
       const track = h.getByTestId("rantang-track");
-      expect(track.props.accessibilityLabel).toBe("Terjadwal");
+      expect(track.props.accessibilityLabel).toBe("Pesanan: Terjadwal, langkah 1 dari 4");
+      expect(track.props.accessibilityValue.text).toBe("Terjadwal");
       expect(within(track).getByText("Terjadwal")).toBeTruthy();
       expect(h.getAllByText("Terjadwal")).toHaveLength(1);
       const header = h.getByTestId("plate-sentence");
@@ -1004,7 +1005,7 @@ describe("Beranda mood", () => {
       const h = await hero();
       expect(h.getByTestId("plate-sentence").props.children).toBe(`Tiba sekitar ${NOT_YET}`);
       expect(h.getAllByText("Sedang diantar")).toHaveLength(1);
-      expect(h.getByTestId("rantang-track").props.accessibilityLabel).toBe("Sedang diantar");
+      expect(h.getByTestId("rantang-track").props.accessibilityValue.text).toBe("Sedang diantar");
     });
 
     it("keeps both lines when the departure time is known", async () => {
@@ -1024,7 +1025,7 @@ describe("Beranda mood", () => {
       const h = await hero();
       expect(h.getByTestId("plate-sentence").props.children).toBe("Seharusnya sudah tiba");
       expect(h.getByText(`${EARLY} · belum ada catatan dari dapur`)).toBeTruthy();
-      expect(h.getByTestId("rantang-track").props.accessibilityLabel).toBe("Terjadwal");
+      expect(h.getByTestId("rantang-track").props.accessibilityValue.text).toBe("Terjadwal");
     });
 
     it("says the same in English", async () => {
@@ -1118,7 +1119,7 @@ describe("Beranda mood", () => {
         mount(runtimeWith(async () => (due ? dueMeal(meal) : lunchToday(meal))));
         const h = await hero();
         const header = h.getByTestId("plate-sentence").props.children;
-        const caption = h.getByTestId("rantang-track").props.accessibilityLabel;
+        const caption = h.getByTestId("rantang-track").props.accessibilityValue.text;
         expect(header).toBeTruthy();
         expect(caption).toBeTruthy();
         expect(header).not.toBe(caption);
@@ -1136,7 +1137,7 @@ describe("Beranda mood", () => {
       expect(h.getByRole("header", { name: "Ditandai sampai otomatis" })).toBeTruthy();
       expect(h.queryByText("Sudah sampai")).toBeNull();
       expect(h.queryByText(/^pukul /i)).toBeNull();
-      expect(h.getByTestId("rantang-track").props.accessibilityLabel).toBe("Ditandai sampai otomatis");
+      expect(h.getByTestId("rantang-track").props.accessibilityValue.text).toBe("Ditandai sampai otomatis");
     });
 
     it("says it in English too when the system arrival has no time", async () => {
@@ -1242,9 +1243,9 @@ describe("Beranda mood", () => {
       return (names: string[]) => names.map((n) => row.getByText(n, { includeHiddenElements: true }).props.children);
     };
 
-    it("labels the three stops in Indonesian", async () => {
+    it("labels the four stops in Indonesian", async () => {
       mount(runtimeWith(async () => lunchToday({ status: "preparing" })));
-      expect(stopLabels(await hero())(["Dimasak", "Diantar", "Sampai"])).toEqual(["Dimasak", "Diantar", "Sampai"]);
+      expect(stopLabels(await hero())(["Terjadwal", "Dimasak", "Diantar", "Sampai"])).toEqual(["Terjadwal", "Dimasak", "Diantar", "Sampai"]);
     });
 
     it("labels the stops and the caption in English when the locale is English", async () => {
@@ -1252,17 +1253,25 @@ describe("Beranda mood", () => {
       mount(runtimeWith(async () => lunchToday({ status: "preparing", cooking_started_at: `${TODAY}T01:10:00Z` })));
       const h = await hero();
       expect(within(h.getByTestId("rantang-track")).getByText("Cooking since 08.10")).toBeTruthy();
-      expect(stopLabels(h)(["Cooking", "On the way", "Arrived"])).toEqual(["Cooking", "On the way", "Arrived"]);
+      expect(stopLabels(h)(["Scheduled", "Cooking", "On the way", "Arrived"])).toEqual(["Scheduled", "Cooking", "On the way", "Arrived"]);
     });
 
     it.each([
-      ["failed", { status: "issue" }, "Tidak bisa diantar hari ini"],
-      ["failed after leaving", { status: "issue", departed_at: `${TODAY}T03:42:00Z` }, "Tidak bisa diantar hari ini"],
-      ["reported", { status: "scheduled", issue: { status: "open" } }, "Laporan terkirim"],
-    ] as const)("shows no track for a %s plate and keeps its message", async (_name, meal, message) => {
+      ["failed", { status: "issue" }],
+      ["failed after leaving", { status: "issue", departed_at: `${TODAY}T03:42:00Z` }],
+    ] as const)("shows the warning stop and Gagal diantar for a %s plate, next to its message", async (_name, meal) => {
       mount(runtimeWith(async () => lunchToday(meal as unknown as Partial<DeliveryMeal>)));
       const h = await hero();
-      expect(h.getByText(message)).toBeTruthy();
+      expect(h.getByText("Tidak bisa diantar hari ini")).toBeTruthy();
+      expect(within(h.getByTestId("rantang-track")).getByText("Gagal diantar")).toBeTruthy();
+      expect(h.getByTestId("rantang-track").props.accessibilityLabel).toBe("Pesanan: Gagal diantar, langkah 4 dari 4");
+      expect(screen.queryByTestId("rantang-track-stop-3-warn", { includeHiddenElements: true })).not.toBeNull();
+    });
+
+    it("shows no track for a reported plate and keeps its message", async () => {
+      mount(runtimeWith(async () => lunchToday({ status: "scheduled", issue: { status: "open" } } as unknown as Partial<DeliveryMeal>)));
+      const h = await hero();
+      expect(h.getByText("Laporan terkirim")).toBeTruthy();
       expect(screen.queryByTestId("rantang-track")).toBeNull();
     });
 

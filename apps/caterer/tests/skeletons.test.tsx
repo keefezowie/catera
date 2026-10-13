@@ -226,15 +226,15 @@ describe("Hari ini", () => {
     const header = await screen.findByTestId("mood-header");
     const track = within(header).getByTestId("today-count-track", { includeHiddenElements: true });
     // The stop labels' row sits under the rail, its blocks on the mood surface like the rest.
-    for (let i = 0; i < 3; i += 1)
+    for (let i = 0; i < 4; i += 1)
       expect(flat(within(track).getByTestId(`today-count-block-stop-${i}`, { includeHiddenElements: true })).backgroundColor).toBe(
         nativeMood.light.siang.arcTrack,
       );
     const waiting = stackHeight(track);
     await act(async () => read.answer(today()));
     const loaded = stackHeight(await screen.findByTestId("rantang-track"));
-    // The caption line (23), the rail (40) and the stop labels' line (18), 8dp apart.
-    expect(loaded).toBe(23 + 8 + 40 + 8 + 18);
+    // The caption line (23), the rail (64) and the stop labels' and counts' lines (18 each), 8dp apart.
+    expect(loaded).toBe(23 + 8 + 64 + 8 + 36);
     expect(waiting).toBe(loaded);
   });
 

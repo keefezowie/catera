@@ -12,6 +12,7 @@ import {
   Photo,
   PressableScale,
   RantangTrack,
+  trackStage,
   Text,
   themedStyles,
   useColors,
@@ -284,6 +285,8 @@ function PlateContent({
   // reported plate keeps its message alone.
   const caption =
     hero && plate.state !== "failed" && plate.state !== "reported" ? journeyCaption(plate.journey, locale) : null;
+  // A failed meal keeps the track, with its warning stop: it has an honest place on it. A reported one does not.
+  const showTrack = hero && plate.state !== "reported" && (!!caption || plate.state === "failed");
   const [sentence, second] = hero ? heroSentences(plate, t, !!caption) : sentences(plate, t);
   const { deliveryId, meal: mealKey, journey } = plate;
   // A meal nobody tapped has no journey to look at yet, and stale offline data is not a view of today.
@@ -358,11 +361,11 @@ function PlateContent({
             {plate.packageName}
           </Text>
         )}
-        {caption ? (
+        {showTrack ? (
           <RantangTrack
-            stage={journey.stage}
-            caption={caption}
-            labels={[t("Dimasak", "Cooking"), t("Diantar", "On the way"), t("Sampai", "Arrived")]}
+            stage={trackStage(journey)}
+            caption={caption ?? undefined}
+            reached={journey.stage === "preparing" || journey.stage === "out_for_delivery" ? journey.stage : "scheduled"}
           />
         ) : null}
         {!offline && (plate.state === "on_the_way" || plate.state === "due") ? (

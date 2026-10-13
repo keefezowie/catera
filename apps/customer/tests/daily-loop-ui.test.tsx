@@ -10,7 +10,6 @@ import {
   FadeSwap,
   MoodProvider,
   Rantang,
-  RantangTrack,
   Screen,
   StickyAction,
   StopRow,
@@ -82,108 +81,7 @@ describe("Rantang", () => {
   });
 });
 
-describe("RantangTrack", () => {
-  const LABELS: [string, string, string] = ["Dimasak", "Berangkat", "Sampai"];
-  const RAIL = 200;
-  const MARKER_HALF = 12;
-
-  const track = (stage: "scheduled" | "preparing" | "out_for_delivery" | "delivered", caption = "Dimasak 10.15") => (
-    <RantangTrack stage={stage} caption={caption} labels={LABELS} testID="journey" />
-  );
-  const measure = () =>
-    act(() => {
-      fireEvent(byId("journey-rail"), "layout", { nativeEvent: { layout: { x: 0, y: 0, width: RAIL, height: 40 } } });
-    });
-  const markerX = () => {
-    const transform = flat("journey-marker").transform as { translateX: number }[];
-    return transform[0].translateX + MARKER_HALF;
-  };
-
-  it.each([
-    ["scheduled", 0, false],
-    ["preparing", 0, true],
-    ["out_for_delivery", RAIL / 2, true],
-    ["delivered", RAIL, true],
-  ] as const)("%s puts the marker at x %d with the box filled: %s", (stage, x, filled) => {
-    mount(track(stage));
-    measure();
-    expect(markerX()).toBe(x);
-    expect(bodyFilled("journey-marker-glyph-body")).toBe(filled);
-  });
-
-  it("keeps the marker and the progress line invisible until the rail has been measured", () => {
-    mount(track("delivered"));
-    expect(flat("journey-marker").opacity).toBe(0);
-    expect(flat("journey-progress").opacity).toBe(0);
-    measure();
-    expect(flat("journey-marker").opacity).toBe(1);
-    expect(flat("journey-progress").opacity).toBe(1);
-  });
-
-  it("is one element for a screen reader, labelled with the caption, and hides the three stop labels", () => {
-    mount(track("preparing", "Dimasak 10.15"));
-    expect(byId("journey").props.accessibilityLabel).toBe("Dimasak 10.15");
-    expect(byId("journey").props.accessible).toBe(true);
-    for (const label of LABELS) {
-      const node = screen.getByText(label, { includeHiddenElements: true });
-      // The hiding sits on the row that holds the labels, an ancestor of the text.
-      expect(byId("journey-labels").props.accessibilityElementsHidden).toBe(true);
-      expect(byId("journey-labels").props.importantForAccessibility).toBe("no-hide-descendants");
-      expect(node).toBeTruthy();
-    }
-  });
-
-  it("reads the hero inks: heroText for the marker, progress and caption, heroMeta for idle stops and labels", () => {
-    const ink = nativeMood.light.siang;
-    mount(track("out_for_delivery", "Berangkat 11.00"));
-    measure();
-    expect(flat("journey-progress").backgroundColor).toBe(ink.heroText);
-    expect(flat("journey-line").backgroundColor).toBe(ink.heroMeta);
-    expect(flat("journey-stop-0").backgroundColor).toBe(ink.heroText);
-    // The current stop is the mood's Sunrise step (`stopActive`), the one place the track spends it.
-    expect(flat("journey-stop-1").backgroundColor).toBe(ink.stopActive);
-    expect(flat("journey-stop-2").backgroundColor).toBe(ink.heroMeta);
-    expect(StyleSheet.flatten(screen.getByText("Berangkat 11.00").props.style)).toMatchObject({ color: ink.heroText, fontSize: 12 });
-    expect(StyleSheet.flatten(screen.getByText("Sampai", { includeHiddenElements: true }).props.style).color).toBe(ink.heroMeta);
-  });
-
-  it("sets the position directly on the first render, with no timing", () => {
-    const timing = jest.spyOn(Reanimated, "withTiming");
-    mount(track("out_for_delivery"));
-    measure();
-    expect(timing).not.toHaveBeenCalled();
-    expect(markerX()).toBe(RAIL / 2);
-  });
-
-  it("starts a withTiming of the feature duration when the stage changes after mount", () => {
-    const timing = jest.spyOn(Reanimated, "withTiming");
-    const view = mount(track("preparing"));
-    measure();
-    view.rerender(
-      <ThemeProvider storageKey="daily-loop-test">
-        <MoodProvider now={SIANG_NOW}>{track("out_for_delivery")}</MoodProvider>
-      </ThemeProvider>,
-    );
-    expect(timing).toHaveBeenCalledTimes(1);
-    expect(timing).toHaveBeenCalledWith(0.5, expect.objectContaining({ duration: nativeMotion.feature }));
-    measure();
-    expect(markerX()).toBe(RAIL / 2);
-  });
-
-  it("moves instantly under reduced motion", () => {
-    jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
-    const timing = jest.spyOn(Reanimated, "withTiming");
-    const view = mount(track("preparing"));
-    view.rerender(
-      <ThemeProvider storageKey="daily-loop-test">
-        <MoodProvider now={SIANG_NOW}>{track("delivered")}</MoodProvider>
-      </ThemeProvider>,
-    );
-    measure();
-    expect(timing).not.toHaveBeenCalled();
-    expect(markerX()).toBe(RAIL);
-  });
-});
+// RantangTrack is covered by rantang-track.test.tsx.
 
 describe("FadeSwap", () => {
   // The wrapper is the nearest ancestor of the child that carries an opacity (the fade), so its style is read there.

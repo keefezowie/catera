@@ -28,6 +28,8 @@ import {
   PressableRow,
   PressableScale,
   RantangTrack,
+  trackCounts,
+  trackStage,
   Screen,
   StateArt,
   StickyAction,
@@ -127,9 +129,9 @@ function CountCard({ ops, session }: { ops: SellerOperationsState; session: Kitc
         ) : null}
       </View>
       <RantangTrack
-        stage={session.journey.stage}
-        caption={journeyCaption(session.journey, locale, "kitchen") ?? ""}
-        labels={[t("Dimasak", "Cooking"), t("Diantar", "On the way"), t("Sampai", "Arrived")]}
+        stage={trackStage(session.journey)}
+        caption={journeyCaption(session.journey, locale, "kitchen") ?? undefined}
+        counts={trackCounts(session.counts)}
       />
     </View>
   );
