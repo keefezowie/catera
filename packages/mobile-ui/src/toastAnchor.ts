@@ -67,7 +67,7 @@ export function useToastAnchor(anchor: ToastAnchor | null | undefined): void {
 type NavigationLike = { getState?: () => { type?: string } | undefined; getParent?: () => NavigationLike | undefined };
 
 /** True when this screen, or a navigator above it, is the tab navigator (so the tab bar is drawn under it). */
-function insideTabs(navigation: NavigationLike | undefined): boolean {
+export function insideTabs(navigation: NavigationLike | undefined): boolean {
   for (let nav = navigation; nav; nav = nav.getParent?.()) if (nav.getState?.()?.type === "tab") return true;
   return false;
 }

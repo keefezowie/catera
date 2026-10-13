@@ -1,4 +1,4 @@
-import { use, useCallback, useEffect, useId, useRef, useState } from "react";
+import { use, useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { router } from "expo-router";
 import {
   NavigationContext,
@@ -15,6 +15,55 @@ import {
  * sheet has gone, never while it is still sliding away, so whatever the asker opens next is presented over a settled
  * screen.
  */
+
+/**
+ * When a sheet puts the screen reader on its title (`useSheetTitleFocus`). Fixed numbers, never the motion tokens, so a
+ * change of pace cannot move the focus (spec 4.1).
+ * - `SHEET_FOCUS_FALLBACK_MS`: after mount, for a sheet whose present never reports (outside a navigator).
+ * - `SHEET_FOCUS_SETTLE_MS`: after the present, the focus is sent once more. TalkBack re-asserts its focus on the window
+ *   under the sheet when react-native-screens hides the page beneath it, and that can land after the present.
+ */
+export const SHEET_FOCUS_FALLBACK_MS = 400;
+export const SHEET_FOCUS_SETTLE_MS = 250;
+
+/** How many sheets are mounted now. Any sheet counts: a confirm over Ada masalah keeps the page hidden. */
+let sheetsUp = 0;
+const sheetWatchers = new Set<() => void>();
+
+function countSheet(change: 1 | -1) {
+  sheetsUp += change;
+  sheetWatchers.forEach((watch) => watch());
+}
+
+function watchSheets(watch: () => void) {
+  sheetWatchers.add(watch);
+  return () => void sheetWatchers.delete(watch);
+}
+
+/** Counts this sheet as up while it is mounted. Every sheet's title row calls it (`useSheetTitleFocus`). */
+export function useSheetPresence(): void {
+  useEffect(() => {
+    countSheet(1);
+    return () => countSheet(-1);
+  }, []);
+}
+
+/**
+ * True while a sheet route is on top. The chrome outside the sheet's stack (the demo strip, the tab bar) leaves the
+ * accessibility tree then, so TalkBack cannot fall back onto it when the page under the sheet is hidden; it comes back
+ * when the last sheet unmounts. react-native-screens already hides the screens under the sheet in its own stack.
+ */
+export function useSheetOnTop(): boolean {
+  return useSyncExternalStore(watchSheets, () => sheetsUp > 0, () => false);
+}
+
+/** A view's accessibility props while a sheet covers it: out of the tree on Android and iOS, or as normal. */
+export function coveredBySheet(covered: boolean) {
+  return {
+    importantForAccessibility: covered ? ("no-hide-descendants" as const) : ("auto" as const),
+    accessibilityElementsHidden: covered,
+  };
+}
 
 /** The icon in the confirm sheet's circle: the rantang for a kitchen step, the bin for a deletion, the flag for a report. */
 export type ConfirmIcon = "rantang" | "trash" | "flag";

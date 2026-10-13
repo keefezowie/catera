@@ -10,6 +10,7 @@ import { act, fireEvent, renderRouter, screen, within } from "expo-router/testin
 import { nativeThemes } from "@catera/design-tokens";
 import {
   ActionSheet,
+  ANDROID_TAB_BAR,
   canHoldRemoval,
   ConfirmSheet,
   SheetBody,
@@ -406,7 +407,7 @@ describe("ConfirmSheet", () => {
     }
   });
 
-  it("moves the screen reader once: the sheet's own appear cancels the fallback", () => {
+  it("moves the screen reader on the sheet's own present and once more after the settle; the present cancels the fallback", () => {
     const focus = jest.spyOn(AccessibilityInfo, "sendAccessibilityEvent").mockImplementation(() => {});
     type Ended = (e: { data?: { closing?: boolean } }) => void;
     const listeners: Record<string, Ended[]> = {};
@@ -426,14 +427,17 @@ describe("ConfirmSheet", () => {
           <ConfirmSheet {...mockConfirmInput} onConfirm={() => {}} onCancel={() => {}} os="android" />
         </NavigationContext.Provider>,
       );
-      // The sheet lands before the fallback: focus once, and the fallback never fires a second time.
+      // The sheet lands before the fallback: focus at once, again after the settle, and the fallback never fires.
       act(() => listeners.transitionEnd.forEach((cb) => cb({ data: { closing: false } })));
       expect(focus).toHaveBeenCalledTimes(1);
       act(() => jest.runOnlyPendingTimers());
-      expect(focus).toHaveBeenCalledTimes(1);
+      expect(focus).toHaveBeenCalledTimes(2);
+      act(() => jest.runOnlyPendingTimers());
+      expect(focus).toHaveBeenCalledTimes(2);
       // A closing transition does not move it.
       act(() => listeners.transitionEnd.forEach((cb) => cb({ data: { closing: true } })));
-      expect(focus).toHaveBeenCalledTimes(1);
+      act(() => jest.runOnlyPendingTimers());
+      expect(focus).toHaveBeenCalledTimes(2);
     } finally {
       jest.useRealTimers();
       focus.mockRestore();
@@ -571,6 +575,15 @@ describe("Ada masalah as a sheet", () => {
     expect(root()).toEqual(["(tabs)", "konfirmasi"]);
     await go(() => fireEvent.press(screen.getByRole("button", { name: "Buang" })));
     expect(stack("(index)")).toEqual(["index", "hari/[id]"]);
+    app.unmount();
+  });
+
+  it("in the tab's stack the form ends above the Android tab bar, so Kirim laporan scrolls clear of it", async () => {
+    const app = await onHari();
+    const body = screen.getByTestId("sheet-body");
+    // The bar is 80dp over the system inset (0 in the test's safe area); iOS presents the sheet above the bar.
+    expect(StyleSheet.flatten(body.props.style).marginBottom).toBe(process.env.EXPO_OS === "ios" ? 0 : ANDROID_TAB_BAR);
+    expect(within(body).getByRole("button", { name: "Kirim laporan" })).toBeTruthy();
     app.unmount();
   });
 

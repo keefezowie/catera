@@ -1,19 +1,14 @@
-import { useEffect, useRef, type ReactNode } from "react";
-import { AccessibilityInfo, ScrollView, Text as RNText, useWindowDimensions, View } from "react-native";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { AccessibilityInfo, Keyboard, ScrollView, Text as RNText, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "./components";
 import { HeaderIconButton } from "./HeaderIconButton";
 import { Skeleton, SkeletonGroup } from "./Skeleton";
 import { useScreenNavigation } from "./navigation";
+import { SHEET_FOCUS_FALLBACK_MS, SHEET_FOCUS_SETTLE_MS, useSheetPresence } from "./sheets";
 import { useColors } from "./theme";
-import { useToastAnchor } from "./toastAnchor";
+import { ANDROID_TAB_BAR, insideTabs, useToastAnchor } from "./toastAnchor";
 import { fonts } from "./type";
-
-/**
- * The TalkBack focus fallback runs 320ms after mount, the old `feature` duration. It is its own constant so that
- * slowing the motion tokens (`feature` is 680ms) does not push the focus later (spec 3 and 4.1).
- */
-const SHEET_FOCUS_FALLBACK_MS = 320;
 
 /** iOS reserves this much on each side of the centred title: the 44pt Close and its mirror. */
 const IOS_SIDE = 44;
@@ -22,27 +17,37 @@ const CONTEXT_LINE = 20;
 
 /**
  * Puts the screen reader on a sheet's title once the sheet has risen, so TalkBack and VoiceOver start on what the sheet
- * is, not on the page under it or the first button. It moves on the stack's `transitionEnd` (the sheet's own appear),
- * which cancels the fallback after the `feature` duration; outside a navigator only the fallback runs. Returns the ref
- * for the title text.
+ * is, not on the page under it or the first button. It sends the focus on the stack's `transitionEnd` (the sheet's own
+ * present, never its close) and once more `SHEET_FOCUS_SETTLE_MS` later, because TalkBack re-asserts its focus on the
+ * window under the sheet after react-native-screens hides the page there. A present that has not reported after
+ * `SHEET_FOCUS_FALLBACK_MS` (outside a navigator) is replaced by the fallback, which settles the same way. While the
+ * sheet is mounted it counts as on top (`useSheetPresence`), so the demo strip and the tab bar leave the accessibility
+ * tree and cannot catch the focus. Returns the ref for the title text.
  */
 export function useSheetTitleFocus() {
   const ref = useRef<RNText>(null);
   const navigation = useScreenNavigation();
+  useSheetPresence();
   useEffect(() => {
+    let settle: ReturnType<typeof setTimeout> | undefined;
     const focus = () => {
       if (ref.current) AccessibilityInfo.sendAccessibilityEvent(ref.current, "focus");
     };
-    const timer = setTimeout(focus, SHEET_FOCUS_FALLBACK_MS);
-    // The sheet's own appear is the better moment: once it lands, the fallback timer has nothing left to do.
-    const appeared = navigation?.addListener("transitionEnd" as never, (e: { data?: { closing?: boolean } }) => {
-      if (e.data?.closing) return;
-      clearTimeout(timer);
+    const land = () => {
       focus();
+      clearTimeout(settle);
+      settle = setTimeout(focus, SHEET_FOCUS_SETTLE_MS);
+    };
+    const fallback = setTimeout(land, SHEET_FOCUS_FALLBACK_MS);
+    const presented = navigation?.addListener("transitionEnd" as never, (e: { data?: { closing?: boolean } }) => {
+      if (e.data?.closing) return;
+      clearTimeout(fallback);
+      land();
     });
     return () => {
-      clearTimeout(timer);
-      appeared?.();
+      clearTimeout(fallback);
+      clearTimeout(settle);
+      presented?.();
     };
   }, [navigation]);
   return ref;
@@ -66,25 +71,58 @@ export function SheetHandle() {
   );
 }
 
+/** True while the on-screen keyboard is up. */
+function useKeyboardUp(): boolean {
+  const [up, setUp] = useState(false);
+  useEffect(() => {
+    const shown = Keyboard.addListener("keyboardDidShow", () => setUp(true));
+    const hidden = Keyboard.addListener("keyboardDidHide", () => setUp(false));
+    return () => {
+      shown.remove();
+      hidden.remove();
+    };
+  }, []);
+  return up;
+}
+
+/**
+ * How much of an Android form sheet's bottom the tab bar draws over: in a tab's stack the bottom sheet sits inside the
+ * tab host, under the Material 3 navigation bar (80dp, `ANDROID_TAB_BAR`) and the system inset it pays. iOS presents
+ * every sheet above the tab bar, a root-stack sheet has no bar under it, and while the keyboard is up it covers the bar:
+ * then 0. react-native-screens 4.26 gives JS no reading of the bar's laid-out height, so this is the bar's Material
+ * height plus the inset measured on the phone.
+ */
+function useTabBarOverSheet(os: string | undefined): number {
+  const insets = useSafeAreaInsets();
+  const navigation = useScreenNavigation();
+  const keyboardUp = useKeyboardUp();
+  if (os === "ios" || keyboardUp || !insideTabs(navigation as Parameters<typeof insideTabs>[0])) return 0;
+  return ANDROID_TAB_BAR + insets.bottom;
+}
+
 /**
  * The scrolling content of a form sheet (`sheetOptions({ detents: "form" })`), under its `SheetHeader`. Keyboard: on
  * iOS the scroll view insets itself so the focused field stays above the keyboard (`automaticallyAdjustKeyboardInsets`);
  * on Android a two-detent sheet expands to its top detent while the keyboard is up (react-native-screens'
  * `SheetDelegate`), and the scroll view keeps taps on its buttons while it is up. The foot clears the home indicator or
- * the gesture bar. `os` defaults to the running platform.
+ * the gesture bar. In a tab's stack on Android the scroll view ends above the tab bar, which draws over the sheet's
+ * bottom (spec 4.2): the last button scrolls fully clear of it at the 0.6 detent, and TalkBack's scroll-into-view stops
+ * above it too. `os` defaults to the running platform.
  */
 export function SheetBody({ children, os = process.env.EXPO_OS }: { children: ReactNode; os?: string }) {
   const insets = useSafeAreaInsets();
   const ios = os === "ios";
+  const bar = useTabBarOverSheet(os);
   return (
     <ScrollView
       testID="sheet-body"
-      style={{ flex: 1 }}
+      // The bar pays the system inset itself, so a sheet that ends above it keeps only the 24 foot.
+      style={{ flex: 1, marginBottom: bar }}
       automaticallyAdjustKeyboardInsets={ios}
       keyboardShouldPersistTaps="handled"
       // Android: a drag on the form scrolls it, rather than dragging the bottom sheet.
       nestedScrollEnabled
-      contentContainerStyle={{ paddingHorizontal: ios ? 20 : 24, paddingTop: 4, paddingBottom: insets.bottom + 24, gap: 16 }}
+      contentContainerStyle={{ paddingHorizontal: ios ? 20 : 24, paddingTop: 4, paddingBottom: (bar ? 0 : insets.bottom) + 24, gap: 16 }}
     >
       {children}
     </ScrollView>

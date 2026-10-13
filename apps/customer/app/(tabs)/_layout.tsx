@@ -1,7 +1,7 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
 import { useMobile } from "@catera/mobile-core";
-import { tabBarColors, tabLabelStyle, useColors } from "@catera/mobile-ui";
+import { tabBarColors, tabLabelStyle, useColors, useTabBarNativeProps } from "@catera/mobile-ui";
 
 type CustomerTab = "index" | "jadwal" | "jelajah" | "akun";
 
@@ -21,12 +21,14 @@ const order = Object.keys(icons) as CustomerTab[];
  * The platform's own tab bar: Material 3 navigation bar on Android (label always shown, filled icon on the indicator
  * pill), the system tab bar on iOS, which on iOS 26 shrinks to the selected tab while a long list scrolls down and
  * returns on scroll up. Colours follow the theme and never the mood. Each trigger is a group, `(jadwal)`, with its own
- * stack (`(index,jadwal,jelajah,akun)/_layout.tsx`), so detail screens push inside the tab and the bar stays.
+ * stack (`(index,jadwal,jelajah,akun)/_layout.tsx`), so detail screens push inside the tab and the bar stays. While a sheet
+ * is on top the bar leaves the accessibility tree where the platform allows it (`tabBarNativeProps`).
  */
 export default function TabsLayout() {
   const { t } = useMobile();
   const bar = tabBarColors(useColors());
   const label = tabLabelStyle();
+  const nativeProps = useTabBarNativeProps();
   const titles: Record<CustomerTab, string> = {
     index: t("Beranda", "Home"),
     jadwal: t("Jadwal", "Schedule"),
@@ -35,6 +37,7 @@ export default function TabsLayout() {
   };
   return (
     <NativeTabs
+      unstable_nativeProps={nativeProps}
       labelVisibilityMode="labeled"
       minimizeBehavior="onScrollDown"
       backgroundColor={bar.backgroundColor}

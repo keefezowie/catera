@@ -1,6 +1,7 @@
 import type { ColorValue } from "react-native";
-import type { NativeTabsLabelStyle } from "expo-router/unstable-native-tabs";
+import type { NativeTabsHostNativeProps, NativeTabsLabelStyle } from "expo-router/unstable-native-tabs";
 import type { NativePalette } from "@catera/design-tokens";
+import { useSheetOnTop } from "./sheets";
 import { fonts } from "./type";
 
 export type TabBarColors = {
@@ -35,4 +36,23 @@ export function tabBarColors(palette: NativePalette): TabBarColors {
  */
 export function tabLabelStyle(os: string | undefined = process.env.EXPO_OS): NativeTabsLabelStyle {
   return { fontFamily: fonts.semibold, fontSize: os === "ios" ? 10 : 12 };
+}
+
+/**
+ * The tab host's accessibility while a sheet is on top or not (spec 4.1), for `NativeTabs`' `unstable_nativeProps`.
+ * - iOS: the host leaves the tree (`accessibilityElementsHidden`) while a sheet is up. UIKit presents the sheet outside
+ *   the host, so the sheet stays readable.
+ * - Android: nothing. react-native-screens 4.26 draws a tab-stack bottom sheet inside the tab host, beside the bar
+ *   (`TabsContainer`), and gives JS no handle on the bar alone, so hiding the host would hide the sheet as well. The bar
+ *   comes after the sheet in reading order, so it cannot take the first focus.
+ * The host passes props it does not know on to its native view (react-native-screens' `TabsHost.ios`), where the view
+ * props apply; its types list only its own, hence the cast. `os` defaults to the running platform.
+ */
+export function tabBarNativeProps(sheetOnTop: boolean, os: string | undefined = process.env.EXPO_OS): NativeTabsHostNativeProps {
+  return (os === "ios" ? { accessibilityElementsHidden: sheetOnTop } : {}) as NativeTabsHostNativeProps;
+}
+
+/** `tabBarNativeProps` for the sheet state right now. */
+export function useTabBarNativeProps(os?: string) {
+  return tabBarNativeProps(useSheetOnTop(), os);
 }

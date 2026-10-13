@@ -36,19 +36,24 @@ export * from "./Skeleton";
 export * from "./brand/MascotLoading";
 export * from "./Toast";
 export * from "./SheetHeader";
-export { useToastAnchor, type ToastAnchor } from "./toastAnchor";
+export { ANDROID_TAB_BAR, useToastAnchor, type ToastAnchor } from "./toastAnchor";
 export * from "./LaunchCover";
 export {
   ACTION_ROUTE,
   canHoldRemoval,
   CONFIRM_ROUTE,
+  coveredBySheet,
   leaveStray,
   parkQuestion,
   SHEET_CLOSE_MS,
+  SHEET_FOCUS_FALLBACK_MS,
+  SHEET_FOCUS_SETTLE_MS,
   unsavedCopy,
   useActionSheet,
   useConfirm,
   useQuestionRoute,
+  useSheetOnTop,
+  useSheetPresence,
   useUnsavedGuard,
   type ActionItem,
   type ActionSheetInput,
