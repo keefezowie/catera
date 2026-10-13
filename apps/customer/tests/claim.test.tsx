@@ -242,7 +242,7 @@ describe("claim under the native header", () => {
     const header = screen.getByTestId("screen-native-title");
     const heading = within(header).getByText(title);
     expect(heading.props.accessibilityRole).toBe("header");
-    expect(flat(heading).color).toBe(require("@catera/design-tokens").nativeThemes.light.forest);
+    expect(flat(heading).color).toBe(require("@catera/design-tokens").nativeThemes.light.charcoal);
     return header;
   };
   const toCodeStep = async (runtime: MobileRuntime) => {

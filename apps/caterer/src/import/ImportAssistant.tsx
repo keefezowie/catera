@@ -226,7 +226,7 @@ export function ImportAssistant() {
           // In place of the button while the assistant reads: the reading mascot names the wait and what is read.
           <View style={{ alignItems: "center", gap: 4 }}>
             <MascotReading size={120} />
-            <Text style={{ color: c.forest, fontFamily: fontFor("600"), textAlign: "center" }}>{readingSaid}</Text>
+            <Text style={{ color: c.charcoal, fontFamily: fontFor("600"), textAlign: "center" }}>{readingSaid}</Text>
             {readingWhat ? <Text style={{ color: c.muted, textAlign: "center", fontVariant: ["tabular-nums"] }}>{readingWhat}</Text> : null}
           </View>
         ) : (

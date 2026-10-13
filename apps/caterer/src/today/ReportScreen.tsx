@@ -248,7 +248,7 @@ function Report({ issue: i, reload, draftKey }: { issue: DeliveryIssue; reload: 
             {i.subject}
           </Text>
           <View style={{ paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, backgroundColor: c.sage }}>
-            <Text variant="label" style={{ color: c.forest }}>
+            <Text variant="label" style={{ color: c.charcoal }}>
               {reportStatus(i.status, t)}
             </Text>
           </View>

@@ -82,7 +82,18 @@ const renderWith = (runtime: MobileRuntime, ui: React.ReactElement) =>
   );
 
 const flat = (node: { props: { style?: unknown } }) => StyleSheet.flatten(node.props.style as never) as Record<string, unknown>;
-const soft = nativeThemes.light.sage;
+// Direction K: a card's photo waits and fails on the neutral page tone, never sage; a photo with text over it (the
+// plate) on the dark failed-photo ground, the overlay's own neutral, so no pale band shows above the overlay (9-24/9-25).
+const neutral = nativeThemes.light.canvas;
+function luminance(hex: string) {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+const ratio = (a: string, b: string) => {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+};
+const dark = nativeThemes.light.photoGround;
 const PHOTO = "https://images.example.test/rumahan.jpg";
 
 const october: CustomerState = {
@@ -120,10 +131,11 @@ const images = () => screen.UNSAFE_queryAllByType(Image);
 const onlyImage = () => screen.UNSAFE_getByType(Image);
 
 /** The three photo surfaces this task moves to expo-image, each rendered on its own. */
-const surfaces: { name: string; ground: string; photo: () => Instance; show: () => Promise<void> }[] = [
+const surfaces: { name: string; ground: string; fill: string; photo: () => Instance; show: () => Promise<void> }[] = [
   {
     name: "PhotoRing",
     ground: "photo-ground",
+    fill: neutral,
     photo: onlyImage,
     show: async () => {
       render(<PhotoRing uri={PHOTO} size={60} ring="dinner" accessibilityLabel="Ayam bakar" />);
@@ -132,6 +144,7 @@ const surfaces: { name: string; ground: string; photo: () => Instance; show: () 
   {
     name: "the plate",
     ground: "photo-ground",
+    fill: dark,
     photo: onlyImage,
     show: async () => {
       renderWith(runtimeWith(async () => october), <Plate plate={plate} apiBase="https://api.example.test" />);
@@ -142,6 +155,7 @@ const surfaces: { name: string; ground: string; photo: () => Instance; show: () 
     name: "the plan detail",
     // The plan's photo keeps its test id when it falls back to the ground.
     ground: "plan-photo",
+    fill: neutral,
     // The plan's next days below are PhotoRings with photos of their own; this is the hero's.
     photo: () => images().find((image) => image.props.testID === "plan-photo") as Instance,
     show: async () => {
@@ -152,15 +166,16 @@ const surfaces: { name: string; ground: string; photo: () => Instance; show: () 
 ];
 
 describe("photos", () => {
-  it.each(surfaces)("photos fade in over 340ms and appear at once under reduced motion: $name", async ({ photo: find, show }) => {
+  it.each(surfaces)("photos fade in over 340ms and appear at once under reduced motion: $name", async ({ fill, photo: find, show }) => {
     await show();
     const photo = find();
     expect(photo.props.source).toEqual({ uri: PHOTO });
     expect(photo.props.transition).toBe(nativeMotion.selection);
     expect(nativeMotion.selection).toBe(340);
     expect(photo.props.contentFit).toBe("cover");
-    // While it loads, the photo's own ground is the soft colour.
-    expect(flat(photo).backgroundColor).toBe(soft);
+    // While it loads, the photo's own ground is its neutral fallback, never sage.
+    expect(flat(photo).backgroundColor).toBe(fill);
+    expect(fill).not.toBe(nativeThemes.light.sage);
     screen.unmount();
 
     jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
@@ -168,18 +183,33 @@ describe("photos", () => {
     expect(find().props.transition).toBe(0);
   });
 
-  it.each(surfaces)("a photo that never loads keeps its soft ground and draws no broken image: $name", async ({ ground: groundId, photo: find, show }) => {
+  it.each(surfaces)("a photo that never loads keeps its neutral ground and draws no broken image: $name", async ({ ground: groundId, fill, photo: find, show }) => {
     await show();
     const before = images().length;
     const photo = find();
     const size = flat(photo);
     act(() => photo.props.onError({ error: "404" }));
-    // The image is gone; what stays is a plain view of the same size on the soft colour, with nothing drawn in it.
+    // The image is gone; what stays is a plain view of the same size on its neutral ground, with nothing drawn in it.
     expect(images()).toHaveLength(before - 1);
     const ground = screen.getByTestId(groundId, { includeHiddenElements: true });
     expect(ground.props.source).toBeUndefined();
-    expect(flat(ground)).toMatchObject({ ...size, backgroundColor: soft });
+    expect(flat(ground)).toMatchObject({ ...size, backgroundColor: fill });
     expect(ground.children).toHaveLength(0);
+  });
+
+  it("a failed hero photo leaves no pale band above the overlay (audit 9-24, 9-25)", async () => {
+    await surfaces[1].show();
+    act(() => onlyImage().props.onError({ error: "offline" }));
+    const ground = flat(screen.getByTestId("photo-ground", { includeHiddenElements: true }));
+    const frame = flat(screen.getByTestId("plate-photo"));
+    // The failed photo fills the frame in the frame's own ground: nothing paints a lighter strip at the top (it was sage).
+    expect(ground.backgroundColor).toBe(nativeThemes.light.photoGround);
+    expect(ground.backgroundColor).toBe(frame.backgroundColor);
+    for (const scheme of ["light", "dark"] as const) {
+      // The ground is the same neutral in both themes and sits within 2:1 of the overlay ink, so no edge shows (spec 2.5).
+      expect(nativeThemes[scheme].photoGround).toBe(ground.backgroundColor);
+      expect(ratio(nativeThemes[scheme].photoGround, nativeThemes[scheme].overlayInk)).toBeLessThanOrEqual(2);
+    }
   });
 });
 

@@ -176,7 +176,7 @@ const useStyles = themedStyles((c) => ({
     fontSize: 12,
     lineHeight: 16,
     fontFamily: fonts.bold,
-    color: c.forest,
+    color: c.charcoal,
     fontVariant: ["tabular-nums"],
   },
 }));

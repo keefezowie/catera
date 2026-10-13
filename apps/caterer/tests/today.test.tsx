@@ -200,7 +200,7 @@ describe("the setup card in the dark theme", () => {
     // Direction K: forest fills only the first step (the one brand control here); the other rows sit on sage.
     expect(row(/Buat paket pertama/).backgroundColor).toBe(nativeThemes.dark.forest);
     expect(row(/Pindahkan pelanggan lama/).backgroundColor).toBe(nativeThemes.dark.sage);
-    expect(StyleSheet.flatten(screen.getByText("Siapkan dapur Anda").props.style).color).toBe(nativeThemes.dark.forest);
+    expect(StyleSheet.flatten(screen.getByText("Siapkan dapur Anda").props.style).color).toBe(nativeThemes.dark.charcoal);
   });
 });
 

@@ -495,7 +495,7 @@ describe("CheckRow", () => {
     const style = (text: string) => StyleSheet.flatten(screen.getByText(text).props.style);
     expect(style("Ayam bakar").textDecorationLine).not.toBe("line-through");
     expect(style("Ayam bakar").color).toBe(c.charcoal);
-    expect(style("8").color).toBe(c.forest);
+    expect(style("8").color).toBe(c.charcoal);
     expect(flat("row-media").opacity).toBe(1);
     view.rerender(
       <ThemeProvider storageKey="daily-loop-test">

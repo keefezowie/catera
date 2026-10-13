@@ -654,7 +654,7 @@ function MulaiCard() {
               gap: 2,
             }}
           >
-            <Text style={{ fontFamily: fontFor("800"), color: i === 0 ? c.cream : c.forest }}>{title}</Text>
+            <Text style={{ fontFamily: fontFor("800"), color: i === 0 ? c.cream : c.charcoal }}>{title}</Text>
             <Text variant="caption" style={{ color: i === 0 ? c.cream : c.muted }}>
               {sub}
             </Text>

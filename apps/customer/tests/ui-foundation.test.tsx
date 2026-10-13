@@ -172,11 +172,12 @@ describe("shared foundation (audit 001)", () => {
     expect(screen.queryByText("Demo · data sintetis")).toBeNull();
     view.rerender(<Harness demo />);
     const label = screen.getByText("Demo · data sintetis");
-    expect(StyleSheet.flatten(label.props.style).color).toBe(nativeThemes.light.forest);
+    // Spec 2.3 (audit 9-07): the strip is a neutral band, canvas under muted text, never sage under forest.
+    expect(StyleSheet.flatten(label.props.style).color).toBe(nativeThemes.light.muted);
     const strip = screen.getByLabelText("Demo · data sintetis");
     expect(strip.props.accessibilityRole).toBe("text");
     const style = StyleSheet.flatten(strip.props.style);
-    expect(style.backgroundColor).toBe(nativeThemes.light.sage);
+    expect(style.backgroundColor).toBe(nativeThemes.light.canvas);
     expect(style.minHeight).toBeGreaterThanOrEqual(24);
   });
 
@@ -589,9 +590,9 @@ describe("dark theme", () => {
     return view;
   }
 
-  it("Text title uses dark forest", async () => {
+  it("Text title uses the dark charcoal ink, never forest (direction K)", async () => {
     await renderDark(<Text variant="title">Jadwal</Text>);
-    expect(StyleSheet.flatten(screen.getByText("Jadwal").props.style).color).toBe(DARK.forest);
+    expect(StyleSheet.flatten(screen.getByText("Jadwal").props.style).color).toBe(nativeThemes.dark.charcoal);
   });
 
   it("primary Button is a light-forest fill with cream text", async () => {

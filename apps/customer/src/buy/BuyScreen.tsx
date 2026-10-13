@@ -341,7 +341,7 @@ export function BuyScreen({
 }
 
 const useStyles = themedStyles((c) => ({
-  strong: { fontFamily: fontFor("800"), color: c.forest },
+  strong: { fontFamily: fontFor("800"), color: c.charcoal },
   inline: { alignSelf: "flex-start" },
   box: { borderWidth: 1, borderColor: c.line, borderRadius: 16, backgroundColor: c.surface, paddingBottom: 8 },
   address: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14 },

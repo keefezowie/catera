@@ -385,7 +385,7 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
 
 const useStyles = themedStyles((c) => ({
   total: { alignItems: "center", gap: 4 },
-  va: { fontSize: 26, fontFamily: fontFor("800"), color: c.forest, fontVariant: ["tabular-nums"], letterSpacing: 1 },
+  va: { fontSize: 26, fontFamily: fontFor("800"), color: c.charcoal, fontVariant: ["tabular-nums"], letterSpacing: 1 },
   step: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
   stepNo: {
     width: 26,

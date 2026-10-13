@@ -194,7 +194,7 @@ describe("native headers on pushed screens", () => {
       headerTintColor: light.forest,
       headerLargeStyle: { backgroundColor: light.canvas },
       headerStyle: { backgroundColor: light.canvas },
-      headerLargeTitleStyle: { fontFamily: fonts.bold, fontSize: 34, color: light.forest },
+      headerLargeTitleStyle: { fontFamily: fonts.bold, fontSize: 34, color: light.charcoal },
       headerTitleStyle: { fontFamily: fonts.bold, fontSize: 17, color: light.charcoal },
     });
 

@@ -258,7 +258,7 @@ describe("the hero pager", () => {
     const dots = screen.getAllByTestId(/^hero-dot-/, { includeHiddenElements: true });
     expect(StyleSheet.flatten(dots[0].props.style).backgroundColor).toBe(palette.forest);
     expect(StyleSheet.flatten(dots[1].props.style).backgroundColor).toBe(palette.secondaryBorder);
-    expect(color(screen.getByText("1 dari 2"))).toBe(palette.forest);
+    expect(color(screen.getByText("1 dari 2"))).toBe(palette.charcoal);
   });
 });
 
@@ -532,7 +532,7 @@ describe("Berikutnya", () => {
       light.charcoal,
     ]);
     expect(StyleSheet.flatten(rings[0].props.style).width).toBe(40);
-    expect(color(days.getAllByTestId("upcoming-day-label")[0])).toBe(light.forest);
+    expect(color(days.getAllByTestId("upcoming-day-label")[0])).toBe(light.charcoal);
     expect(color(days.getAllByTestId("upcoming-day-count")[0])).toBe(light.muted);
     fireEvent.press(rows[2]);
     expect(router.push).toHaveBeenLastCalledWith("/hari/d-s-malam-2026-10-12?title=Senin%2012%20Okt");

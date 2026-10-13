@@ -117,7 +117,7 @@ export function Attachments({
                 accessibilityHint={t("Buka foto", "Opens the photo")}
                 onPress={() => router.push(photoHref(i) as never)}
               >
-                {/* On the sage ground while it decodes; a photo that cannot be decoded keeps only that ground. */}
+                {/* On the neutral ground while it decodes; a photo that cannot be decoded keeps only that ground. */}
                 <Photo
                   testID={`attachment-photo-${i}`}
                   uri={file.uri}

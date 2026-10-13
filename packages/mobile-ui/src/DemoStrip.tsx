@@ -28,7 +28,7 @@ export function DemoStrip({ label }: { label: string }) {
       accessibilityLabel={label}
       style={[styles.strip, { paddingTop: insets.top, minHeight: insets.top + DEMO_STRIP_HEIGHT }]}
     >
-      <Text variant="caption" style={{ color: c.forest }}>
+      <Text variant="caption" style={{ color: c.muted }}>
         {label}
       </Text>
     </View>
@@ -40,6 +40,7 @@ const useStyles = themedStyles((c) => ({
     width: "100%",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: c.sage,
+    // Spec 2.3: a neutral band (canvas under muted text, 5.2:1), not a sage block with forest text (audit 9-07).
+    backgroundColor: c.canvas,
   },
 }));

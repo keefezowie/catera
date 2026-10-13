@@ -44,16 +44,19 @@ const textVariants = {
   number: { fontSize: 40, fontWeight: "800", letterSpacing: -1, fontVariant: ["tabular-nums"] },
 } satisfies Record<string, TextStyle>;
 
-/** Which palette entry each variant reads; the palette is the active theme's. */
+/**
+ * Which palette entry each variant reads; the palette is the active theme's. Direction K (spec 2.1 rules 1 to 3): forest
+ * fills the primary button and marks selection, so headings, titles, labels and counts are charcoal ink.
+ */
 const variantColor: Record<keyof typeof textVariants, PaletteKey> = {
-  display: "forest",
-  title: "forest",
-  heading: "forest",
-  outcome: "forest",
+  display: "charcoal",
+  title: "charcoal",
+  heading: "charcoal",
+  outcome: "charcoal",
   body: "charcoal",
-  label: "forest",
+  label: "charcoal",
   caption: "muted",
-  number: "forest",
+  number: "charcoal",
 };
 
 /** The variants a screen reader hears as headings. */
@@ -609,7 +612,7 @@ const useStyles = themedStyles((c) => ({
   segment: { flex: 1, minHeight: 48, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   segmentOn: { backgroundColor: c.forest },
   card: { borderWidth: 1, borderRadius: 16, padding: 16, gap: 10 },
-  fieldLabel: { fontFamily: fontFor("700"), fontSize: 13, color: c.forest },
+  fieldLabel: { fontFamily: fontFor("700"), fontSize: 13, color: c.charcoal },
   input: {
     minHeight: 48,
     borderWidth: 1,
@@ -637,7 +640,7 @@ const useStyles = themedStyles((c) => ({
   screenBody: { paddingHorizontal: 20, paddingTop: 16, gap: 16, maxWidth: 760, width: "100%", alignSelf: "center" },
   // Material 3 headline small; the bar's 56dp row already sits above it, so it starts close under the bar.
   nativeTitle: { paddingHorizontal: 20, paddingTop: 4, maxWidth: 760, width: "100%", alignSelf: "center" },
-  nativeTitleText: { fontFamily: fonts.bold, fontSize: 24, lineHeight: 32, letterSpacing: 0, color: c.forest },
+  nativeTitleText: { fontFamily: fonts.bold, fontSize: 24, lineHeight: 32, letterSpacing: 0, color: c.charcoal },
   footer: {
     maxWidth: 760,
     width: "100%",

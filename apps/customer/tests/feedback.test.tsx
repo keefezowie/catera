@@ -336,7 +336,7 @@ describe("Pembayaran diterima: the success beat", () => {
         </ThemeProvider>,
       );
       await act(async () => {});
-      expect(flat(screen.getByText("Pembayaran diterima")).color).toBe(nativeThemes.dark.forest);
+      expect(flat(screen.getByText("Pembayaran diterima")).color).toBe(nativeThemes.dark.charcoal);
       const fills = screen.UNSAFE_getAllByType(Sparkle).map((s) => s.props.color as string);
       expect(fills).toContain(nativeThemes.dark.sunriseInk);
     } finally {

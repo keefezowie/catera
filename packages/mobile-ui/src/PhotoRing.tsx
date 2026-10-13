@@ -8,16 +8,30 @@ import { Text } from "./components";
 import { useColors } from "./theme";
 
 /**
- * A remote food photo. It stands on the theme's soft colour (`sage`) while it loads and fades in over `selection`
- * (180ms) once it arrives, so a photo never pops in; under reduced motion it appears at once. A photo that fails to load
- * leaves only that soft ground, the same size, with no broken-image mark. The fade is expo-image's own cross-dissolve, which animates opacity only.
+ * A remote food photo. It stands on a neutral ground while it loads and fades in over `selection` once it arrives, so
+ * a photo never pops in; under reduced motion it appears at once. A photo that fails to load leaves only that ground, the
+ * same size, with no broken-image mark. The fade is expo-image's own cross-dissolve, which animates opacity only.
+ *
+ * The ground (direction K, never sage): a card's photo uses the page neutral `canvas`. A photo with text over it (the
+ * plate's hero) passes `ground="photo"` for `photoGround`, the dark neutral under the overlay ink (1.21:1), so a
+ * failed photo shows one even slab and no pale band above the overlay (audit 9-24, 9-25).
  */
-export function Photo({ uri, style, testID }: { uri: string; style?: StyleProp<ViewStyle>; testID?: string }) {
+export function Photo({
+  uri,
+  style,
+  testID,
+  ground: groundKind = "neutral",
+}: {
+  uri: string;
+  style?: StyleProp<ViewStyle>;
+  testID?: string;
+  ground?: "neutral" | "photo";
+}) {
   const c = useColors();
   const reduced = useReduced();
   // Keyed to the uri, so a new photo in the same place gets its own chance to load.
   const [failed, setFailed] = useState<string | null>(null);
-  const ground = { backgroundColor: c.sage };
+  const ground = { backgroundColor: groundKind === "photo" ? c.photoGround : c.canvas };
   if (failed === uri) return <View testID={testID ?? "photo-ground"} style={[style, ground]} />;
   return (
     <Image
@@ -98,8 +112,8 @@ export function PhotoRing({
         </View>
       ) : (
         // The disc clips the photo round. A uri of "" (real data for a dish without a photo) has nothing to load, so it
-        // is only the soft ground that a loading or failed photo shows too.
-        <View style={{ width: inner, height: inner, borderRadius: inner / 2, backgroundColor: c.sage, overflow: "hidden" }}>
+        // is only the neutral ground that a loading or failed photo shows too.
+        <View style={{ width: inner, height: inner, borderRadius: inner / 2, backgroundColor: c.canvas, overflow: "hidden" }}>
           {uri ? <Photo uri={uri} style={{ width: inner, height: inner }} /> : null}
         </View>
       )}
@@ -109,7 +123,8 @@ export function PhotoRing({
   // Wide enough that a short label wraps under the ring instead of pushing its neighbours apart.
   const column = { alignItems: "center", gap: 6, width: size + 16 } as const;
   const caption = label ? (
-    <Text variant={selected ? "label" : "caption"} style={{ textAlign: "center", lineHeight: 16 }}>
+    // The selected tag's label is part of its selection mark (rule 3: ring and label), so it alone stays forest.
+    <Text variant={selected ? "label" : "caption"} style={[{ textAlign: "center", lineHeight: 16 }, selected && { color: c.forest }]}>
       {label}
     </Text>
   ) : null;

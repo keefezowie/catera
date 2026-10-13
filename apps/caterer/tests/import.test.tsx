@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import { AccessibilityInfo, StyleSheet } from "react-native";
-import { nativeThemes } from "@catera/design-tokens";
+import { nativeMotion, nativeThemes } from "@catera/design-tokens";
+import { router } from "expo-router";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { ThemeProvider, ToastProvider } from "@catera/mobile-ui";
 import { ImportAssistant } from "../src/import/ImportAssistant";
@@ -331,6 +332,55 @@ describe("deleting an import row", () => {
     await waitFor(() => expect(names()).toEqual(["Ubah Budi"]));
   });
 
+  it("Hapus baris ini closes the sheet first and takes the row off only once the sheet has gone (G1a)", async () => {
+    setup(jest.fn(), three);
+    await read();
+    fireEvent.press(await screen.findByRole("button", { name: "Ubah Pelanggan 2" }));
+    // On the phone the sheet stays drawn while it slides away (and longer under TalkBack): here back does not unmount it.
+    const back = router.back as jest.Mock;
+    const unmount = back.getMockImplementation()!;
+    back.mockImplementationOnce(() => {});
+    const calls = back.mock.calls.length;
+    fireEvent.press(await screen.findByRole("button", { name: "Hapus baris ini" }));
+    expect(back).toHaveBeenCalledTimes(calls + 1);
+    // While it leaves, the sheet still shows the row, never "no longer there", and the list still holds it.
+    const sheet = screen.getByTestId("import-row-sheet");
+    expect(within(sheet).queryByText("Baris ini sudah tidak ada.")).toBeNull();
+    expect(names()).toEqual(["Ubah Pelanggan 1", "Ubah Pelanggan 2", "Ubah Pelanggan 3"]);
+    expect(screen.queryByText("Baris dihapus")).toBeNull();
+    // A second tap while it leaves removes nothing twice.
+    fireEvent.press(within(sheet).getByRole("button", { name: "Hapus baris ini" }));
+    // The sheet has gone: now the row leaves the list and the undo is offered.
+    act(() => unmount());
+    await waitFor(() => expect(names()).toEqual(["Ubah Pelanggan 1", "Ubah Pelanggan 3"]));
+    expect(await screen.findByText("Baris dihapus")).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: "Urungkan" })).toHaveLength(1);
+  });
+
+  it("a restored row waits for the rows below to make room, then fades in, so it never overlaps the next card", async () => {
+    const reanimated = jest.requireMock("react-native-reanimated") as { FadeIn: { delay: (ms: number) => unknown }; FadeInDown: unknown };
+    const delay = jest.spyOn(reanimated.FadeIn, "delay");
+    try {
+      await deleteSecond();
+      fireEvent.press(await screen.findByRole("button", { name: "Urungkan" }));
+      await waitFor(() => expect(names()).toEqual(["Ubah Pelanggan 1", "Ubah Budi", "Ubah Pelanggan 3"]));
+      const card = (name: string) => screen.getAllByTestId("import-row").find((c) => within(c).queryByRole("button", { name }))!;
+      // Fade only (no rise), starting once the rows' own move (content) has run; the rows below still move with layout.
+      expect(card("Ubah Budi").props.entering).toBe(reanimated.FadeIn);
+      expect(delay).toHaveBeenCalledWith(nativeMotion.content);
+      expect(card("Ubah Pelanggan 3").props.layout).toBeDefined();
+      expect(card("Ubah Pelanggan 3").props.entering).toBeUndefined();
+      // A row typed in by hand is new, not restored: it keeps the usual rise.
+      fireEvent.press(screen.getByRole("button", { name: "Tambah baris" }));
+      if (screen.queryByTestId("import-row-sheet")) fireEvent.press(screen.getByRole("button", { name: "Selesai" }));
+      const rows = screen.getAllByTestId("import-row");
+      expect(rows).toHaveLength(4);
+      expect(rows[3].props.entering).toBe(reanimated.FadeInDown);
+    } finally {
+      delay.mockRestore();
+    }
+  });
+
   it("Urungkan under reduced motion puts the row back at once, with no entrance or exit", async () => {
     const reanimated = jest.requireMock("react-native-reanimated") as { useReducedMotion: jest.Mock };
     reanimated.useReducedMotion.mockReturnValue(true);
@@ -465,9 +515,9 @@ describe("photo previews", () => {
       const thumb = screen.getByLabelText(`Foto ${i} dari 3`);
       expect(thumb.props.accessibilityRole).toBe("imagebutton");
       expect(thumbUri(i)).toBe(`file:///picked-${i}.jpg`);
-      // 76dp, radius 12, cover fit, on the sage ground while it decodes.
+      // 76dp, radius 12, cover fit, on the neutral ground while it decodes.
       const image = screen.getByTestId(`attachment-photo-${i}`);
-      expect(flat(image)).toMatchObject({ width: 76, height: 76, borderRadius: 12, backgroundColor: nativeThemes.light.sage });
+      expect(flat(image)).toMatchObject({ width: 76, height: 76, borderRadius: 12, backgroundColor: nativeThemes.light.canvas });
       expect(image.props.contentFit).toBe("cover");
       // The canvas's 10dp between thumbnails: each tile keeps that room above and to the right of its photo.
       const tile = flat(screen.getByTestId(`attachment-tile-${i}`)) as { paddingTop: number; paddingRight: number };
@@ -735,13 +785,13 @@ describe("photo previews", () => {
     expect(JSON.stringify(body)).not.toMatch(/file:\/\//);
   });
 
-  it("a photo that fails to decode keeps the sage ground and stays removable", async () => {
+  it("a photo that fails to decode keeps the neutral ground and stays removable", async () => {
     renderImpor();
     await pick(2);
     act(() => screen.getByTestId("attachment-photo-1").props.onError?.({ error: "decode" }));
     const ground = await screen.findByTestId("attachment-photo-1");
     expect(ground.props.source).toBeUndefined();
-    expect(flat(ground)).toMatchObject({ width: 76, height: 76, borderRadius: 12, backgroundColor: nativeThemes.light.sage });
+    expect(flat(ground)).toMatchObject({ width: 76, height: 76, borderRadius: 12, backgroundColor: nativeThemes.light.canvas });
     expect(screen.getByLabelText("Foto 1 dari 2")).toBeTruthy();
     fireEvent.press(screen.getByRole("button", { name: "Hapus foto 1" }));
     await waitFor(() => expect(screen.getByText("Lampiran · 1 dari 6")).toBeTruthy());
@@ -773,7 +823,7 @@ describe("photo previews", () => {
     renderImpor();
     await pick(1);
     const dark = nativeThemes.dark;
-    await waitFor(() => expect(flat(screen.getByTestId("attachment-photo-1")).backgroundColor).toBe(dark.sage));
+    await waitFor(() => expect(flat(screen.getByTestId("attachment-photo-1")).backgroundColor).toBe(dark.canvas));
     const badge = within(screen.getByRole("button", { name: "Hapus foto 1" })).getByTestId("remove-badge");
     expect(flat(badge)).toMatchObject({ backgroundColor: dark.charcoal, borderColor: dark.canvas });
     expect(flat(screen.getByRole("button", { name: "Tambah foto" })).borderColor).toBe(dark.muted);

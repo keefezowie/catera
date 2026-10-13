@@ -79,7 +79,7 @@ const useStyles = themedStyles((c) => ({
     gap: 12,
     paddingVertical: 4,
   },
-  dayLabel: { flexShrink: 1, fontSize: 13, lineHeight: 18, fontFamily: fonts.bold, color: c.forest },
+  dayLabel: { flexShrink: 1, fontSize: 13, lineHeight: 18, fontFamily: fonts.bold, color: c.charcoal },
   count: { fontSize: 12, lineHeight: 16, color: c.muted, fontVariant: ["tabular-nums"] },
   row: { minHeight: 60, flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8 },
   divider: { borderTopWidth: 1, borderTopColor: c.line },

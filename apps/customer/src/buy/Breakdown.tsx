@@ -163,7 +163,7 @@ export function StartLine({
   return (
     <View style={{ gap: 4 }}>
       <Text variant="caption">{t("Mulai", "Starts")}</Text>
-      <Text style={{ fontFamily: fontFor("800"), color: c.forest }}>
+      <Text style={{ fontFamily: fontFor("800"), color: c.charcoal }}>
         {!startDate
           ? t("Belum ada tanggal yang bisa dipesan.", "No bookable date yet.")
           : renew

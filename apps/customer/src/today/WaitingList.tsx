@@ -232,7 +232,7 @@ export function WaitingList({
 }
 
 const useStyles = themedStyles((c) => ({
-  sectionTitle: { fontSize: 18, lineHeight: 24, fontFamily: fonts.bold, color: c.forest },
+  sectionTitle: { fontSize: 18, lineHeight: 24, fontFamily: fonts.bold, color: c.charcoal },
   // A body card on theme colours: a border, no shadow (the hero is the screen's one raised surface).
   card: {
     borderRadius: 16,

@@ -324,8 +324,8 @@ function PlateContent({
             : { height: 268 },
         ]}
       >
-        {/* Fades in over its soft ground, which stays if the photo never comes. */}
-        {plate.image ? <Photo uri={photoUri(plate.image, apiBase)} style={StyleSheet.absoluteFill} /> : null}
+        {/* Fades in over the dark failed-photo ground, which stays if the photo never comes: the frame's own ground, so no band. */}
+        {plate.image ? <Photo ground="photo" uri={photoUri(plate.image, apiBase)} style={StyleSheet.absoluteFill} /> : null}
         {/* The K ramp: 0 at the top of the photo to 0.3 at the bottom, so a loaded photo has no straight edge. */}
         <View testID="plate-scrim" pointerEvents="none" style={styles.scrim} />
         {/* The text block ramps in over its top 26dp and holds, so every wrapped line sits on the full overlay. */}

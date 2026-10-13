@@ -16,7 +16,7 @@ function Step({ n, title, state, children }: { n: number; title: string; state: 
     <Card tone={state === "todo" ? "attention" : "surface"}>
       <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 12 }}>
         <Text variant="heading" style={{ flex: 1 }}>{`${n}. ${title}`}</Text>
-        {badge ? <Text variant="label" style={{ color: state === "done" ? c.forest : c.muted }}>{badge}</Text> : null}
+        {badge ? <Text variant="label" style={{ color: state === "done" ? c.charcoal : c.muted }}>{badge}</Text> : null}
       </View>
       {children}
     </Card>

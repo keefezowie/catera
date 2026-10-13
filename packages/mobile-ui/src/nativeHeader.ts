@@ -39,7 +39,7 @@ export function nativeHeaderOptions({
       headerTintColor: palette.forest,
       headerLargeStyle: { backgroundColor: palette.canvas },
       headerStyle: { backgroundColor: palette.canvas },
-      headerLargeTitleStyle: { fontFamily: fonts.bold, fontSize: 34, color: palette.forest },
+      headerLargeTitleStyle: { fontFamily: fonts.bold, fontSize: 34, color: palette.charcoal },
       headerTitleStyle: { fontFamily: fonts.bold, fontSize: 17, color: palette.charcoal },
     };
   return {

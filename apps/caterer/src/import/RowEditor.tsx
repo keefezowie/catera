@@ -1,9 +1,23 @@
-import { useEffect } from "react";
+import { use, useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import { router } from "expo-router";
+import { NavigationContext } from "expo-router/react-navigation";
 import { earliestImportStart, normalizeCustomerPhone } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Chip, Field, fontFor, SheetBody, SheetHeader, Skeleton, SkeletonGroup, Text, useColors, useToast } from "@catera/mobile-ui";
+import {
+  Button,
+  Chip,
+  Field,
+  fontFor,
+  SHEET_CLOSE_MS,
+  SheetBody,
+  SheetHeader,
+  Skeleton,
+  SkeletonGroup,
+  Text,
+  useColors,
+  useToast,
+} from "@catera/mobile-ui";
 import { ReadError } from "../ReadError";
 import { recheck, type AssistantRow } from "./rows";
 import { useImportStore } from "./store";
@@ -55,8 +69,37 @@ export function ImportRowEditor({ n }: { n: number }) {
   const c = useColors();
   const toast = useToast();
   const { rows, packages, setRow, removeRow, restoreRow } = useImportStore();
-  const row = rows?.find((r) => r.n === n);
+  // While the sheet leaves after "Hapus baris ini" it keeps drawing the row it had, so it never turns into "no longer
+  // there" on its way out (or, under TalkBack, while it lingers).
+  const [leavingWith, setLeavingWith] = useState<AssistantRow | null>(null);
+  const row = leavingWith ?? rows?.find((r) => r.n === n);
   const close = () => router.back();
+
+  // The removal waits for the sheet to have gone (G1a): first the sheet closes, then the row leaves the list under it
+  // and the toast offers Urungkan. "Gone" is the route's own close transition (`transitionEnd` closing, which UIKit
+  // reports for a swipe), or the route leaving the tree: at once on Android, whose bottom sheet lives in the app's
+  // window, and after `SHEET_CLOSE_MS` on iOS, where the sheet keeps sliding away after its route has gone. Once only.
+  const navigation = use(NavigationContext);
+  const afterClose = useRef<(() => void) | null>(null);
+  const runAfterClose = useRef(() => {
+    const run = afterClose.current;
+    afterClose.current = null;
+    run?.();
+  }).current;
+  useEffect(() => {
+    if (!navigation) return;
+    return navigation.addListener("transitionEnd" as never, (e: { data?: { closing?: boolean } }) => {
+      if (e.data?.closing) runAfterClose();
+    });
+  }, [navigation, runAfterClose]);
+  useEffect(
+    () => () => {
+      if (!afterClose.current) return;
+      if (process.env.EXPO_OS === "ios") setTimeout(runAfterClose, SHEET_CLOSE_MS);
+      else runAfterClose();
+    },
+    [runAfterClose],
+  );
 
   // A link to a row that is gone (saved, removed, or Impor closed meanwhile) has nothing to edit. Opened cold, nothing is
   // under the sheet to go back to, so both closes open Impor in its place, as the photo viewer does.
@@ -138,15 +181,19 @@ export function ImportRowEditor({ n }: { n: number }) {
           variant="text"
           label={t("Hapus baris ini", "Remove this row")}
           onPress={() => {
-            // The sheet leaves first, so it slides away showing the row rather than "no longer there".
+            // One removal however many taps land while the sheet leaves.
+            if (leavingWith || afterClose.current) return;
+            setLeavingWith(row);
+            afterClose.current = () => {
+              const removed = removeRow(n);
+              // The toast outlives this sheet; Urungkan puts the row back with the edits it had, at its place.
+              if (removed)
+                toast.show({
+                  message: t("Baris dihapus", "Row removed"),
+                  action: { label: t("Urungkan", "Undo"), onPress: () => restoreRow(removed.row, removed.index) },
+                });
+            };
             close();
-            const removed = removeRow(n);
-            // The toast outlives this sheet; Urungkan puts the row back with the edits it had, at its place.
-            if (removed)
-              toast.show({
-                message: t("Baris dihapus", "Row removed"),
-                action: { label: t("Urungkan", "Undo"), onPress: () => restoreRow(removed.row, removed.index) },
-              });
           }}
         />
       </SheetBody>

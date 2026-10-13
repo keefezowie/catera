@@ -186,7 +186,7 @@ export function ClaimScreen() {
           )}
         </Text>
         <Card>
-          <Text style={{ fontSize: 18, fontFamily: fontFor("800"), color: palette.forest }}>{preview.packageName}</Text>
+          <Text style={{ fontSize: 18, fontFamily: fontFor("800"), color: palette.charcoal }}>{preview.packageName}</Text>
           <Fact label={t("Sisa", "Left")} value={t(`${preview.remainingDays} hari`, plural(preview.remainingDays, "day"))} />
           {preview.nextDate ? (
             <Fact

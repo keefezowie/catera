@@ -167,7 +167,7 @@ export function PackageDetail() {
               <Text
                 variant="heading"
                 selectable={!!loaded.error}
-                style={[{ color: loaded.error ? c.danger : c.forest }, loaded.error ? { textAlign: "center" } : null]}
+                style={[{ color: loaded.error ? c.danger : c.charcoal }, loaded.error ? { textAlign: "center" } : null]}
               >
                 {loaded.error || t("Paket tidak ditemukan.", "Package not found.")}
               </Text>

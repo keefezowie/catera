@@ -122,5 +122,5 @@ export function themedStyles<T extends StyleSheet.NamedStyles<T>>(factory: (c: N
  * theme in light and its Dark theme in dark, which keeps the `dark` flag and the fonts it expects.
  */
 export function navigationTheme<T extends { colors: object }>(base: T, p: NativePalette): T {
-  return { ...base, colors: { ...base.colors, primary: p.forest, background: p.canvas, card: p.surface, text: p.forest, border: p.line } };
+  return { ...base, colors: { ...base.colors, primary: p.forest, background: p.canvas, card: p.surface, text: p.charcoal, border: p.line } };
 }

@@ -38,7 +38,7 @@ export function SettingsSection({
       style={
         ios
           ? { fontFamily: fonts.semibold, fontSize: 13, lineHeight: 18, color: palette.muted, paddingHorizontal: 16 }
-          : { fontFamily: fonts.bold, fontSize: 14, lineHeight: 20, color: palette.forest, paddingHorizontal: BODY_INSET, paddingTop: 8, paddingBottom: 4 }
+          : { fontFamily: fonts.bold, fontSize: 14, lineHeight: 20, color: palette.charcoal, paddingHorizontal: BODY_INSET, paddingTop: 8, paddingBottom: 4 }
       }
     >
       {title}

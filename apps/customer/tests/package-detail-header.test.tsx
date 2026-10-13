@@ -77,7 +77,7 @@ describe("Paket without a photo to lead with", () => {
     const view = wrap(runtimeWith(() => new Promise(() => undefined)));
     const title = (await nativeTitle()).getByText("Paket");
     expect(title.props.accessibilityRole).toBe("header");
-    expect(flat(title).color).toBe(nativeThemes.light.forest);
+    expect(flat(title).color).toBe(nativeThemes.light.charcoal);
     expect(screen.queryByTestId("mood-fill-malam", { includeHiddenElements: true })).toBeNull();
     // The back is the platform's own, in the native header.
     expect(screen.queryByRole("button", { name: "Kembali" })).toBeNull();

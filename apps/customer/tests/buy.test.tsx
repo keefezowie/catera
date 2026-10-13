@@ -641,7 +641,7 @@ describe("Beli and Bayar under the native header", () => {
     wrapMood(server(), <BuyScreen packageId="p-rumahan" />);
     const title = await (await nativeTitle()).findByText("Makan Siang Rumahan");
     expect(title.props.accessibilityRole).toBe("header");
-    expect(flat(title).color).toBe(nativeThemes.light.forest);
+    expect(flat(title).color).toBe(nativeThemes.light.charcoal);
     expect(screen.queryByTestId("mood-header")).toBeNull();
     expect(screen.queryByTestId("mood-fill-malam", { includeHiddenElements: true })).toBeNull();
     // The back is the header's Close (native-header.test); the page has no back of its own.

@@ -215,7 +215,7 @@ describe("navigationTheme", () => {
       primary: nativeThemes.light.forest,
       background: nativeThemes.light.canvas,
       card: nativeThemes.light.surface,
-      text: nativeThemes.light.forest,
+      text: nativeThemes.light.charcoal,
       border: nativeThemes.light.line,
       notification: "n",
     });
