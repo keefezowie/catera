@@ -63,8 +63,14 @@ import {
   workspaceCookieName,
 } from "@/lib/workspace";
 export const runtime = "nodejs";
+// Counted in code points, as the database's char_length and the mobile check count.
 const profileUpdateSchema = z
-  .object({ name: z.string().trim().min(2).max(80) })
+  .object({
+    name: z
+      .string()
+      .trim()
+      .refine((name) => [...name].length >= 2 && [...name].length <= 80),
+  })
   .strict();
 const immediatePush = new Set([
   "delivery.depart",

@@ -2,10 +2,13 @@
 --   profile.update {name} -> {name}: renames the caller's own profile row. The name is trimmed and
 --   must be 2 to 80 characters. The row is the caller's by construction (id = auth.uid()), so there
 --   is no id to pass and no other row to reach. Setting the same name again is not an error.
+--   Trimming and counting match the mobile and web checks: JavaScript's String.trim whitespace set,
+--   and length in code points (the web schema counts code points too).
 --   accountRequest.create answers { id, status: 'open' }. A deletion request is created once per
 --   open request: while the caller has an open one, asking again returns it (existing: true). A
---   per-user lock makes two phones asking at once end with one row. A resolved request lets a new
---   one be made. Help requests are unchanged apart from the status in the answer.
+--   retry with a request_id already answered returns that stored receipt first. A per-user lock
+--   makes two phones asking at once end with one row. A resolved request lets a new one be made.
+--   Help requests are unchanged apart from the status in the answer.
 -- The current command body names its own receipt lookup with the function name, so the base is
 -- re-created under its new name, as 20261011090000_device_unregister.sql does.
 do $$ declare d text;begin
@@ -19,6 +22,7 @@ revoke all on function public.catera_v1_command_profile_base(text,jsonb,uuid) fr
 create function public.catera_v1_command(action text,payload jsonb,request_id uuid) returns jsonb
 language plpgsql security definer set search_path='' as $$
 declare u uuid:=auth.uid(); nm text; found_id uuid; r jsonb;
+ ws text:='[[:space:]'||chr(160)||chr(5760)||chr(8192)||'-'||chr(8202)||chr(8232)||chr(8233)||chr(8239)||chr(8287)||chr(12288)||chr(65279)||']';
 begin
  if action not in('profile.update','accountRequest.create') then
   return public.catera_v1_command_profile_base(action,payload,request_id);
@@ -27,7 +31,7 @@ begin
  if action='profile.update' then
   if jsonb_typeof(payload) is distinct from 'object' or (payload - 'name')<>'{}'::jsonb
    or jsonb_typeof(payload->'name') is distinct from 'string' then raise exception 'INVALID_INPUT';end if;
-  nm:=btrim(payload->>'name');
+  nm:=regexp_replace(payload->>'name','^'||ws||'+|'||ws||'+$','','g');
   if char_length(nm) not between 2 and 80 then raise exception 'INVALID_INPUT';end if;
   update v1.profiles set name=nm where id=u;
   if not found then raise exception 'NOT_FOUND';end if;
@@ -36,6 +40,9 @@ begin
  -- accountRequest.create
  if jsonb_typeof(payload) is distinct from 'object' then raise exception 'INVALID_INPUT';end if;
  perform pg_advisory_xact_lock(hashtext('account-request:'||u::text));
+ if exists(select 1 from v1.receipts x where x.actor_id=u and x.request_id=catera_v1_command.request_id) then
+  return public.catera_v1_command_profile_base(action,payload,request_id)||jsonb_build_object('status','open');
+ end if;
  if coalesce(payload->>'kind','') not in('help','deletion') or length(trim(coalesce(payload->>'body',''))) not between 5 and 2000 then raise exception 'INVALID_INPUT';end if;
  if payload->>'kind'='deletion' then
   select id into found_id from v1.account_requests where user_id=u and kind='deletion' and status='open' order by created_at limit 1;

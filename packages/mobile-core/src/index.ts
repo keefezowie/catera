@@ -17,6 +17,7 @@ export {
   PROFILE_NAME_MAX,
   PASSWORD_MIN,
   type AccountApi,
+  type AccountErrorCode,
   type AccountCommand,
   type AccountChange,
   type AccountRequestKind,

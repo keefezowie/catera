@@ -69,43 +69,107 @@ it("the deletion request is created once per open request", async () => {
 });
 
 it("the demo simulates phone and email change without calling Supabase", async () => {
-  const api = { request: vi.fn() };
-  const auth = { updateUser: vi.fn(), verifyOtp: vi.fn(), signInWithPassword: vi.fn() };
+  const auth = { updateUser: vi.fn(), verifyOtp: vi.fn(), signInWithPassword: vi.fn(), getUser: vi.fn() };
   const supabase = { auth } as any;
-  await expect(sendPhoneChangeCode(api, true, "+62 812-3456-7890")).resolves.toEqual({ simulated: true });
-  await expect(verifyPhoneChangeCode(api, true, "+6281234567890", "123456")).resolves.toEqual({ simulated: true });
+  await expect(sendPhoneChangeCode(supabase, true, "0812-3456-7890")).resolves.toEqual({ simulated: true });
+  await expect(verifyPhoneChangeCode(supabase, true, "+6281234567890", "123456")).resolves.toEqual({ simulated: true });
   await expect(requestEmailChange(supabase, true, "baru@example.test")).resolves.toEqual({ simulated: true });
-  await expect(changePassword(supabase, true, { email: "a@example.test", current: "lama-lama", next: "baru-baru-1" })).resolves.toEqual({ simulated: true });
-  expect(api.request).not.toHaveBeenCalled();
-  expect(auth.updateUser).not.toHaveBeenCalled();
-  expect(auth.verifyOtp).not.toHaveBeenCalled();
-  expect(auth.signInWithPassword).not.toHaveBeenCalled();
+  await expect(changePassword(supabase, true, { current: "lama-lama", next: "baru-baru-1" })).resolves.toEqual({ simulated: true });
+  await expect(sendPhoneChangeCode(supabase, true, "+1 555 0100")).rejects.toThrow("INVALID_PHONE");
+  for (const fn of Object.values(auth)) expect(fn).not.toHaveBeenCalled();
 });
 
-it("outside the demo the callers use the web routes and Supabase, and check input first", async () => {
-  const api = { request: vi.fn().mockResolvedValue({ sent: true }) };
-  await expect(sendPhoneChangeCode(api, false, "081234567890")).resolves.toEqual({ simulated: false });
-  expect(api.request).toHaveBeenLastCalledWith("auth/phone-send", { phone: "081234567890" });
-  await verifyPhoneChangeCode(api, false, "081234567890", "123456");
-  expect(api.request).toHaveBeenLastCalledWith("auth/phone-verify", { phone: "081234567890", token: "123456" });
-  await expect(verifyPhoneChangeCode(api, false, "081234567890", "12")).rejects.toThrow("INVALID_INPUT");
-  await expect(sendPhoneChangeCode(api, false, "abc")).rejects.toThrow("INVALID_INPUT");
-
+it("outside the demo the phone change runs on the mobile Supabase session, not the cookie-only web routes", async () => {
   const auth = {
-    updateUser: vi.fn().mockResolvedValue({ error: null }),
-    signInWithPassword: vi.fn().mockResolvedValue({ data: { session: {} }, error: null }),
+    updateUser: vi.fn().mockResolvedValue({ data: {}, error: null }),
+    verifyOtp: vi.fn().mockResolvedValue({ data: {}, error: null }),
   };
   const supabase = { auth } as any;
-  await requestEmailChange(supabase, false, " baru@example.test ");
-  expect(auth.updateUser).toHaveBeenLastCalledWith({ email: "baru@example.test" });
-  await changePassword(supabase, false, { email: "a@example.test", current: "lama-lama", next: "baru-baru-1" });
+  await expect(sendPhoneChangeCode(supabase, false, "0812-3456-7890")).resolves.toEqual({ simulated: false });
+  expect(auth.updateUser).toHaveBeenLastCalledWith({ phone: "+6281234567890" });
+  await verifyPhoneChangeCode(supabase, false, "6281234567890", "123456");
+  expect(auth.verifyOtp).toHaveBeenLastCalledWith({ phone: "+6281234567890", token: "123456", type: "phone_change" });
+  await expect(verifyPhoneChangeCode(supabase, false, "081234567890", "12")).rejects.toThrow("INVALID_INPUT");
+  await expect(sendPhoneChangeCode(supabase, false, "abc")).rejects.toThrow("INVALID_PHONE");
+  await expect(sendPhoneChangeCode(null, false, "081234567890")).rejects.toThrow("NOT_CONFIGURED");
+  expect(auth.updateUser).toHaveBeenCalledTimes(1);
+});
+
+it("Supabase failures become typed codes the screens can name", async () => {
+  const fail = (error: object) => vi.fn().mockResolvedValue({ data: {}, error });
+  const client = (updateUser: any, verifyOtp?: any) => ({ auth: { updateUser, verifyOtp } }) as any;
+  const phone = "081234567890";
+  await expect(sendPhoneChangeCode(client(fail({ status: 422, code: "phone_exists" })), false, phone)).rejects.toThrow("PHONE_IN_USE");
+  await expect(sendPhoneChangeCode(client(fail({ status: 429, code: "over_sms_send_rate_limit" })), false, phone)).rejects.toThrow("AUTH_RATE_LIMITED");
+  await expect(sendPhoneChangeCode(client(fail({ status: 500, code: "sms_send_failed" })), false, phone)).rejects.toThrow("PHONE_CHANGE_FAILED");
+  await expect(verifyPhoneChangeCode(client(vi.fn(), fail({ status: 403, code: "otp_expired" })), false, phone, "123456")).rejects.toThrow("CODE_INVALID");
+  await expect(verifyPhoneChangeCode(client(vi.fn(), fail({ status: 400 })), false, phone, "123456")).rejects.toThrow("CODE_INVALID");
+  await expect(verifyPhoneChangeCode(client(vi.fn(), fail({ status: 422, code: "phone_exists" })), false, phone, "123456")).rejects.toThrow("PHONE_IN_USE");
+  await expect(requestEmailChange(client(fail({ status: 422, code: "email_exists" })), false, "a@example.test")).rejects.toThrow("EMAIL_IN_USE");
+  await expect(requestEmailChange(client(fail({ status: 400, code: "email_address_invalid" })), false, "a@example.test")).rejects.toThrow("INVALID_INPUT");
+  await expect(requestEmailChange(client(fail({ status: 500 })), false, "a@example.test")).rejects.toThrow("EMAIL_CHANGE_FAILED");
+});
+
+it("changePassword re-checks the signed-in account's own email and never switches accounts", async () => {
+  const me = { id: "user-1", email: "a@example.test" };
+  const input = { current: "lama-lama", next: "baru-baru-1" };
+  const make = (signedInAs: object | null, user: object | null = me) => ({
+    getUser: vi.fn().mockResolvedValue({ data: { user }, error: user ? null : { status: 401 } }),
+    signInWithPassword: vi.fn().mockResolvedValue(
+      signedInAs
+        ? { data: { session: {}, user: signedInAs }, error: null }
+        : { data: { session: null, user: null }, error: { status: 400, code: "invalid_credentials" } },
+    ),
+    updateUser: vi.fn().mockResolvedValue({ data: {}, error: null }),
+  });
+  let auth = make(me);
+  await expect(changePassword({ auth } as any, false, input)).resolves.toEqual({ simulated: false });
   expect(auth.signInWithPassword).toHaveBeenCalledWith({ email: "a@example.test", password: "lama-lama" });
   expect(auth.updateUser).toHaveBeenLastCalledWith({ password: "baru-baru-1" });
-  auth.updateUser.mockClear();
-  auth.signInWithPassword.mockResolvedValue({ data: { session: null }, error: { status: 400 } });
-  await expect(changePassword(supabase, false, { email: "a@example.test", current: "salah-salah", next: "baru-baru-1" })).rejects.toThrow("INVALID_CREDENTIALS");
+
+  auth = make({ id: "user-2", email: "a@example.test" });
+  await expect(changePassword({ auth } as any, false, input)).rejects.toThrow("ACCOUNT_MISMATCH");
   expect(auth.updateUser).not.toHaveBeenCalled();
-  await expect(changePassword(supabase, false, { email: "a@example.test", current: "x", next: "pendek" })).rejects.toThrow("INVALID_INPUT");
+
+  auth = make(null);
+  await expect(changePassword({ auth } as any, false, { ...input, current: "salah-salah" })).rejects.toThrow("INVALID_CREDENTIALS");
+  expect(auth.updateUser).not.toHaveBeenCalled();
+
+  auth = make(me, null);
+  await expect(changePassword({ auth } as any, false, input)).rejects.toThrow("UNAUTHORIZED");
+  auth = make(me, { id: "user-1", email: "" });
+  await expect(changePassword({ auth } as any, false, input)).rejects.toThrow("NO_EMAIL");
+  expect(auth.signInWithPassword).not.toHaveBeenCalled();
+
+  auth = make(me);
+  auth.updateUser.mockResolvedValue({ data: {}, error: { status: 422, code: "same_password" } });
+  await expect(changePassword({ auth } as any, false, { current: "lama-lama", next: "lama-lama" })).rejects.toThrow("PASSWORD_REJECTED");
+  await expect(changePassword({ auth } as any, false, { current: "x", next: "pendek" })).rejects.toThrow("INVALID_INPUT");
+});
+
+it("a retried deletion request returns its stored receipt, and help for another caterer is FORBIDDEN", async () => {
+  const requestId = crypto.randomUUID();
+  const payload = { kind: "deletion", body: "Tolong hapus akun staf saya." };
+  const ask = () => localRpc<any>(db, U.staff, "catera_v1_command", ["accountRequest.create", payload, requestId]);
+  const first = await ask();
+  expect(first.existing).toBeUndefined();
+  await expect(ask()).resolves.toEqual({ id: first.id, status: "open" });
+  await expect(
+    cmd("accountRequest.create", { kind: "help", body: "Ubah nama dapur Hijau Kitchen.", catererId: K[1] }, U.owner),
+  ).rejects.toThrow("FORBIDDEN");
+});
+
+it("names are trimmed and counted the same way by the database and the mobile check", async () => {
+  const rice = "\u{1F35A}";
+  const [nbsp, wide] = [String.fromCharCode(0xa0), String.fromCharCode(0x3000)];
+  await expect(cmd("profile.update", { name: nbsp + "\tSari" + wide })).resolves.toEqual({ name: "Sari" });
+  await expect(cmd("profile.update", { name: nbsp + "a" + nbsp })).rejects.toThrow("INVALID_INPUT");
+  await expect(updateProfileName((async () => ({ name: "x" })) as any, nbsp + "a" + wide)).rejects.toThrow("INVALID_INPUT");
+  await expect(cmd("profile.update", { name: rice.repeat(80) })).resolves.toEqual({ name: rice.repeat(80) });
+  await expect(cmd("profile.update", { name: rice.repeat(81) })).rejects.toThrow("INVALID_INPUT");
+  const run = <T,>(action: string, payload: unknown) => cmd(action, payload) as Promise<T>;
+  await expect(updateProfileName(run, rice.repeat(80))).resolves.toEqual({ name: rice.repeat(80) });
+  await expect(updateProfileName(run, rice.repeat(81))).rejects.toThrow("INVALID_INPUT");
 });
 
 it("the typed account callers send the commands the database accepts", async () => {
