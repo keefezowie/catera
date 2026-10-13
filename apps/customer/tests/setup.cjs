@@ -42,3 +42,17 @@ jest.mock("lottie-react-native", () => {
   LottieView.displayName = "LottieView";
   return { __esModule: true, default: LottieView };
 });
+// mobile-ui's Pengaturan reaches mobile-core, which loads expo-notifications; the real module throws in Expo Go
+// at import. Suites that exercise push mock it themselves with the full surface.
+jest.mock("expo-notifications", () => ({
+  setNotificationHandler: jest.fn(),
+  addNotificationReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
+  addNotificationResponseReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
+  getLastNotificationResponseAsync: jest.fn(async () => null),
+  clearLastNotificationResponseAsync: jest.fn(async () => undefined),
+  getPermissionsAsync: jest.fn(async () => ({ status: "undetermined", canAskAgain: true })),
+  requestPermissionsAsync: jest.fn(async () => ({ status: "granted" })),
+  getExpoPushTokenAsync: jest.fn(async () => ({ data: "ExponentPushToken[synthetic-phone]" })),
+  setNotificationChannelAsync: jest.fn(async () => undefined),
+  AndroidImportance: { DEFAULT: 3 },
+}));
