@@ -1,7 +1,8 @@
-import { useLayoutEffect, useRef, useState, type ReactElement, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactElement, type ReactNode } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import {
   type AccessibilityRole,
+  ActivityIndicator,
   KeyboardAvoidingView,
   type LayoutChangeEvent,
   type NativeScrollEvent,
@@ -96,21 +97,32 @@ export function Text({
   );
 }
 
+/** How long a button waits before it shows its spinner: an answer faster than this never flashes one. */
+export const BUSY_DELAY_MS = 150;
+
 export function Button({
   label,
   onPress,
   variant = "primary",
   disabled = false,
+  busy = false,
   accessibilityLabel,
   accessibilityHint,
   ink,
   edge,
   style,
+  spinnerTestID = "button-spinner",
 }: {
   label: string;
   onPress: () => void;
   variant?: "primary" | "secondary" | "text";
   disabled?: boolean;
+  /**
+   * An action is waiting on the API. After `BUSY_DELAY_MS` the label gives way to a spinner in the label colour; the
+   * button keeps its width and height (the label stays in the layout, unseen), ignores presses, and keeps the label
+   * as its accessible name. The spinner is a wait, not decoration, so reduced motion keeps it.
+   */
+  busy?: boolean;
   accessibilityLabel?: string;
   /** What a screen reader adds after the label, such as why a disabled button waits. */
   accessibilityHint?: string;
@@ -119,19 +131,32 @@ export function Button({
   /** The border colour of a secondary button, for the same reason. */
   edge?: string;
   style?: StyleProp<ViewStyle>;
+  spinnerTestID?: string;
 }) {
   const primary = variant === "primary";
   const c = useColors();
   const styles = useStyles();
+  const [spinning, setSpinning] = useState(false);
+  useEffect(() => {
+    if (!busy) {
+      setSpinning(false);
+      return;
+    }
+    const timer = setTimeout(() => setSpinning(true), BUSY_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [busy]);
+  const labelColor = ink ?? (primary ? (disabled ? c.muted : c.cream) : c.forest);
   return (
     <PressableScale
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityHint={accessibilityHint}
-      accessibilityState={{ disabled }}
-      disabled={disabled}
-      haptic={disabled ? "none" : "tap"}
-      onPress={onPress}
+      accessibilityState={{ disabled, busy }}
+      disabled={disabled || busy}
+      haptic={disabled || busy ? "none" : "tap"}
+      onPress={() => {
+        if (!busy) onPress();
+      }}
       style={[
         styles.button,
         primary && styles.primary,
@@ -144,14 +169,15 @@ export function Button({
         style,
       ]}
     >
-      <RNText
-        style={[
-          styles.buttonLabel,
-          { color: ink ?? (primary ? (disabled ? c.muted : c.cream) : c.forest) },
-        ]}
-      >
-        {label}
-      </RNText>
+      <RNText style={[styles.buttonLabel, { color: labelColor }, spinning && { opacity: 0 }]}>{label}</RNText>
+      {spinning ? (
+        <View
+          pointerEvents="none"
+          style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, alignItems: "center", justifyContent: "center" }}
+        >
+          <ActivityIndicator testID={spinnerTestID} color={labelColor} />
+        </View>
+      ) : null}
     </PressableScale>
   );
 }

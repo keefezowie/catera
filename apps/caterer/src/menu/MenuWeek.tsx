@@ -24,6 +24,7 @@ import {
   Chip,
   FadeSwap,
   fontFor,
+  FormError,
   MoodHeader,
   PressableScale,
   Screen,
@@ -559,7 +560,7 @@ export function MenuWeek() {
               <Text variant="caption">{t("Belum ada menu untuk dibagikan", "No menu to share yet")}</Text>
             ) : null}
             {note ? <Text variant="caption">{note}</Text> : null}
-            {error ? <Text selectable style={{ color: c.danger }}>{error}</Text> : null}
+            {error ? <FormError message={error} /> : null}
           </>
         )}
       </FadeSwap>
@@ -600,7 +601,7 @@ export function MenuWeek() {
                 {t("Belum diisi", "Not filled")}
               </Text>
             )}
-            {photoError ? <Text selectable style={{ color: c.danger }}>{photoError}</Text> : null}
+            {photoError ? <FormError message={photoError} /> : null}
             {canEdit && selected.editable ? (
               <Button
                 variant="secondary"

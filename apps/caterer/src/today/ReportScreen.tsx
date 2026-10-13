@@ -17,6 +17,7 @@ import {
   FadeSwap,
   Field,
   fontFor,
+  FormError,
   Screen,
   SheetBody,
   SheetHeader,
@@ -108,13 +109,7 @@ export function ReportScreen({ id, title: carried }: { id: string; title?: strin
           <Text>{t("Laporan ini tidak ditemukan.", "This report was not found.")}</Text>
         ) : issues.error ? (
           // The failed read stands in for the whole page, so it leads with the puzzled mascot (spec 7.2).
-          <>
-            <StateArt pose="bingung" />
-            <Text selectable style={{ color: c.danger, textAlign: "center" }}>
-              {issues.error}
-            </Text>
-            <Button label={t("Coba lagi", "Try again")} onPress={() => void issues.reload()} />
-          </>
+          <ReadError art message={issues.error} onRetry={() => void issues.reload()} />
         ) : (
           <DetailSkeleton label={t("Memuat laporan", "Loading the report")} />
         )}
@@ -286,7 +281,7 @@ function Report({ issue: i, reload, draftKey }: { issue: DeliveryIssue; reload: 
             // A field validation: the Field's own error line and edge, never a loose danger caption (spec 5.2).
             error={tooShort ? t("Tulis minimal 5 karakter.", "Write at least 5 characters.") : undefined}
           />
-          {error ? <Text selectable style={{ color: c.danger }}>{error}</Text> : null}
+          {error ? <FormError message={error} /> : null}
           <Button
             label={t("Balas", "Reply")}
             disabled={busy || reply.length < MIN_BODY}
@@ -310,7 +305,7 @@ function Report({ issue: i, reload, draftKey }: { issue: DeliveryIssue; reload: 
         </Text>
       )}
       {/* After a refused action the report may have closed meanwhile: the reason still shows. */}
-      {error && !open ? <Text selectable style={{ color: c.danger }}>{error}</Text> : null}
+      {error && !open ? <FormError message={error} /> : null}
       {i.customerPhone ? (
         <Button
           variant="secondary"

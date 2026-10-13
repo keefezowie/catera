@@ -11,6 +11,7 @@ import { join, relative } from "node:path";
  * Named `.test.tsx` (not `.ts`) so the app's run (`--testMatch "**\/tests/**\/*.test.tsx"`) picks it up.
  */
 const APP = join(__dirname, "..");
+const APP_ROOT = APP;
 const ROOTS = ["src", "app"];
 const UPLOAD_TILES = new Set<string>();
 
@@ -40,4 +41,16 @@ it("no screen or section in the customer app waits on a bare ActivityIndicator",
 it("the scan reads both source folders", () => {
   // Guards the test itself: a renamed folder must not turn the rule into an empty pass.
   for (const root of ROOTS) expect(sources(join(APP, root)).length).toBeGreaterThan(5);
+});
+
+it("an ActivityIndicator is allowed only inside a busy Button, StickyAction, SettingsRow or the Menu upload tile", () => {
+  // The shared package: the busy Button draws the spinner, StickyAction hands `busy` to that Button, and the settings
+  // row draws its own while a toggle waits. No other shared component may wait behind a bare spinner.
+  const shared = join(APP_ROOT, "..", "..", "packages", "mobile-ui", "src");
+  const found = sources(shared)
+    .map((path) => relative(shared, path).split("\\").join("/"))
+    .filter((file) => /\bActivityIndicator\b/.test(readFileSync(join(shared, file), "utf8")))
+    .sort();
+  expect(found).toEqual(["components.tsx", "settings/SettingsRows.tsx"]);
+  expect(readFileSync(join(shared, "StickyAction.tsx"), "utf8")).toMatch(/<Button\b[^>]*\bbusy=\{busy\}/);
 });

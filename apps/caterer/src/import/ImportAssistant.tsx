@@ -12,6 +12,7 @@ import {
   Card,
   FONT,
   fontFor,
+  FormError,
   MascotReading,
   PressableRow,
   Screen,
@@ -311,7 +312,7 @@ export function ImportAssistant() {
           <Button variant="text" label={t("Mulai lagi", "Start over")} onPress={() => setRows(null)} />
         </>
       )}
-      {error ? <Text selectable style={{ color: c.danger }}>{error}</Text> : null}
+      {error ? <FormError message={error} /> : null}
     </Screen>
   );
 }

@@ -10,6 +10,7 @@ import { join, relative } from "node:path";
  * uploads (Menu's "Mengunggah…" pill, marked by its `photo-spinner` test id).
  */
 const root = join(__dirname, "..");
+const APP_ROOT = root;
 const scanned = ["src", "app"].map((dir) => join(root, dir));
 
 function sources(dir: string): string[] {
@@ -63,4 +64,16 @@ it("no bare Memuat… line stands in for a screen or a section", () => {
         if (!allowed.has(match[1])) offending.push(`${file}:${i + 1}: ${match[1]}`);
     });
   expect(offending).toEqual([]);
+});
+
+it("an ActivityIndicator is allowed only inside a busy Button, StickyAction, SettingsRow or the Menu upload tile", () => {
+  // The shared package: the busy Button draws the spinner, StickyAction hands `busy` to that Button, and the settings
+  // row draws its own while a toggle waits. No other shared component may wait behind a bare spinner.
+  const shared = join(APP_ROOT, "..", "..", "packages", "mobile-ui", "src");
+  const found = sources(shared)
+    .map((path) => relative(shared, path).split("\\").join("/"))
+    .filter((file) => /\bActivityIndicator\b/.test(readFileSync(join(shared, file), "utf8")))
+    .sort();
+  expect(found).toEqual(["components.tsx", "settings/SettingsRows.tsx"]);
+  expect(readFileSync(join(shared, "StickyAction.tsx"), "utf8")).toMatch(/<Button\b[^>]*\bbusy=\{busy\}/);
 });

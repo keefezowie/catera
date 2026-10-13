@@ -160,3 +160,80 @@ test("the Malam pattern is gone", () => {
   expect(sources.map(rel).filter((f) => /MalamPattern/.test(f))).toEqual([]);
   expect(sources.filter((f) => /\bMalamPattern\b/.test(readFileSync(f, "utf8"))).map(rel)).toEqual([]);
 });
+
+// Errors are never loose text (spec 5.2). A `Text` coloured `danger` or `heroWarn` belongs only inside `FormError`, a
+// `Field` error, `ReadError` and `ConnectionBanner`, which add the icon and the ground. Everything else routes its
+// message through one of them. The scan reads each opening `<Text …>` / `<RNText …>` tag.
+const ERROR_OWNERS = new Set([
+  "packages/mobile-ui/src/FormError.tsx",
+  "packages/mobile-ui/src/ReadError.tsx",
+  "packages/mobile-ui/src/ConnectionBanner.tsx",
+  "packages/mobile-ui/src/components.tsx", // Field's error line
+  "packages/mobile-ui/src/settings/SettingsRows.tsx", // Keluar, a destructive action label, not an error
+]);
+const bareErrorTexts = (source: string) =>
+  [...source.matchAll(/<(?:RNText|Text)\b[^>]*?\b(?:danger|heroWarn)\b[^>]*>/g)].length;
+
+test("a bare danger caption fails the scan", () => {
+  expect(bareErrorTexts(`<Text selectable style={{ color: c.danger }}>{error}</Text>`)).toBe(1);
+  expect(bareErrorTexts(`<Text variant="caption" style={{ color: palette.danger }}>x</Text>`)).toBe(1);
+  expect(bareErrorTexts(`<RNText style={{ color: moodColors.heroWarn }}>x</RNText>`)).toBe(1);
+  expect(bareErrorTexts(`<Text\n  selectable\n  style={{ color: c.danger, textAlign: "center" }}\n>x</Text>`)).toBe(1);
+  expect(bareErrorTexts(`<FormError message={error} />`)).toBe(0);
+  expect(bareErrorTexts(`<Text style={{ color: c.muted }}>danger zone</Text>`)).toBe(0);
+});
+
+// Existing call sites that still draw their own error text. G8 and G9 route them through `FormError` / `ReadError` as
+// they adopt `Button busy`; each file leaves this table when its count reaches zero, and the test fails if a count
+// drops without the table following, or if a file outside the table gains one.
+const LEGACY_BARE_ERRORS: Record<string, number> = {
+  "apps/customer/src/account/Addresses.tsx": 1,
+  "apps/customer/src/account/AddressForm.tsx": 2,
+  "apps/customer/src/account/AuthCallback.tsx": 1,
+  "apps/customer/src/account/Masuk.tsx": 1,
+  "apps/customer/src/account/Notifications.tsx": 1,
+  "apps/customer/src/account/Payments.tsx": 2,
+  "apps/customer/src/account/Recover.tsx": 1,
+  "apps/customer/src/account/Register.tsx": 1,
+  "apps/customer/src/buy/BuyParts.tsx": 2,
+  "apps/customer/src/buy/BuyScreen.tsx": 2,
+  "apps/customer/src/buy/PaymentOutcome.tsx": 1,
+  "apps/customer/src/buy/PaymentScreen.tsx": 1,
+  "apps/customer/src/claim/ClaimScreen.tsx": 2,
+  "apps/customer/src/discover/Jelajah.tsx": 2,
+  "apps/customer/src/discover/PackageDetail.tsx": 2,
+  "apps/customer/src/discover/SavedList.tsx": 2,
+  "apps/customer/src/help/HelpForm.tsx": 4,
+  "apps/customer/src/help/ReportList.tsx": 3,
+  "apps/customer/src/help/ReportProblem.tsx": 2,
+  "apps/customer/src/plan/PlanDetail.tsx": 2,
+  "apps/customer/src/plan/PlanList.tsx": 1,
+  "apps/customer/src/schedule/ChangeDaySheet.tsx": 3,
+  "apps/customer/src/schedule/ChooseMenu.tsx": 5,
+  "apps/customer/src/schedule/DayScreen.tsx": 1,
+  "apps/customer/src/schedule/Jadwal.tsx": 1,
+  "apps/customer/src/shell.tsx": 1,
+  "apps/customer/src/today/Beranda.tsx": 2,
+  "apps/customer/src/today/EmptyHome.tsx": 1,
+  "apps/customer/src/today/Plate.tsx": 1,
+  "apps/customer/src/today/ReviewSheet.tsx": 2,
+  "apps/caterer/src/auth/Daftar.tsx": 1,
+  "apps/caterer/src/auth/Masuk.tsx": 1,
+  "apps/caterer/src/business/AktifkanScreen.tsx": 2,
+  "apps/caterer/src/business/PackageEditor.tsx": 4,
+  "apps/caterer/src/business/TimScreen.tsx": 1,
+  "apps/caterer/src/customers/CustomerDetail.tsx": 1,
+  "apps/caterer/src/menu/MenuDayScreen.tsx": 1,
+  "apps/caterer/src/today/ExceptionSheet.tsx": 1,
+  "apps/caterer/src/today/TodayScreen.tsx": 2,
+};
+
+test("no error text is loose outside FormError, Field error, ReadError and ConnectionBanner", () => {
+  const found: Record<string, number> = {};
+  for (const file of appDirs.flatMap((d) => walk(join(root, d))).map(rel)) {
+    if (ERROR_OWNERS.has(file)) continue;
+    const count = bareErrorTexts(readFileSync(join(root, file), "utf8"));
+    if (count) found[file] = count;
+  }
+  expect(found).toEqual(LEGACY_BARE_ERRORS);
+});
