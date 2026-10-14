@@ -235,6 +235,6 @@ const useStyles = themedStyles((c) => ({
   num: { fontSize: 16, lineHeight: 22, color: c.charcoal, fontVariant: ["tabular-nums"] },
   /** Unavailable: muted (4.5:1 on the sheet surface) and struck through, so the state never rests on colour alone. */
   numOff: { color: c.muted, textDecorationLine: "line-through" },
-  numChosen: { fontWeight: "700", color: c.forest },
+  numChosen: { fontWeight: "700", color: c.forest }, // forest: selection (the chosen date)
   caption: { color: c.muted, fontSize: 14, lineHeight: 20, minHeight: 20 },
 }));
