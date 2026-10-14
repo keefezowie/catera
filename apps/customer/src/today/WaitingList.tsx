@@ -220,6 +220,7 @@ export function WaitingList({
                   {row.detail}
                 </Text>
               </View>
+              {/* forest: action (the row's action word) */}
               <Text testID="waiting-action" style={[styles.action, { color: row.urgent ? c.charcoal : c.forest }]}>
                 {row.action}
               </Text>

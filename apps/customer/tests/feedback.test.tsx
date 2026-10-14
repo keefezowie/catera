@@ -9,7 +9,7 @@ import * as Haptics from "expo-haptics";
 import * as Reanimated from "react-native-reanimated";
 import { addDays, type Checkout, type CustomerState, type Quote, type Subscription } from "@catera/domain";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
-import { nativeThemes } from "@catera/design-tokens";
+import { nativeMotion, nativeThemes } from "@catera/design-tokens";
 import {
   Confetti,
   MoodProvider,
@@ -548,6 +548,34 @@ describe("row motion", () => {
     await act(async () => void (await new Promise((r) => setTimeout(r, 500))));
     rerender({ keys: ["a", "b"] });
     expect(result.current("b").entering).toBeUndefined();
+  });
+
+  it("only a row put back soon after it left takes the returning fade; a quiet read or a later insert does not", async () => {
+    const motion = jest.requireMock("react-native-reanimated") as { FadeIn: unknown; FadeInDown: unknown };
+    const hook = () =>
+      renderHook(({ keys, quiet }: { keys: string[]; quiet?: boolean }) => useListMotion(keys, quiet), {
+        initialProps: { keys: ["a", "b"] } as { keys: string[]; quiet?: boolean },
+      });
+    // An undo: b leaves and comes straight back, so it waits for the rows to make room and fades in.
+    let h = hook();
+    h.rerender({ keys: ["a"] });
+    h.rerender({ keys: ["a", "b"] });
+    expect(h.result.current("b").entering).toBe(motion.FadeIn);
+    h.unmount();
+    // A quiet read (a refresh) forgets what left, so a key the user adds afterwards is an ordinary insert.
+    h = hook();
+    h.rerender({ keys: ["a"] });
+    h.rerender({ keys: ["a"], quiet: true });
+    h.rerender({ keys: ["a", "b"] });
+    expect(h.result.current("b").entering).toBe(motion.FadeInDown);
+    h.unmount();
+    // What left is forgotten after one content window: added again later, it rises in like any new row.
+    h = hook();
+    h.rerender({ keys: ["a"] });
+    await act(async () => void (await new Promise((r) => setTimeout(r, nativeMotion.content + 60))));
+    h.rerender({ keys: ["a", "b"] });
+    expect(h.result.current("b").entering).toBe(motion.FadeInDown);
+    h.unmount();
   });
 
   it("row motion is off under reduced motion", async () => {

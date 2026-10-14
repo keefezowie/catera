@@ -88,11 +88,21 @@ export function useListMotion(keys: readonly string[] | null | undefined, quiet 
   const timers = useRef(new Set<ReturnType<typeof setTimeout>>());
   // After each commit the drawn set is the one just shown, and this render's insertions are recorded.
   useEffect(() => {
-    if (before && current) {
-      for (const key of before) if (!current.has(key)) gone.current.add(key);
+    if (before && current && !quiet) {
+      const left = [...before].filter((key) => !current.has(key));
+      for (const key of left) gone.current.add(key);
+      // A key only counts as put back for one content window after it left; then it is an ordinary insert again.
+      if (left.length) {
+        const timer = setTimeout(() => {
+          timers.current.delete(timer);
+          for (const key of left) gone.current.delete(key);
+        }, nativeMotion.content);
+        timers.current.add(timer);
+      }
     }
     drawn.current = current;
-    if (!current) gone.current.clear();
+    // A quiet read (a refresh, a page below) is not the user's change: what left before it is forgotten.
+    if (!current || quiet) gone.current.clear();
     if (!fresh.size) return;
     for (const key of fresh) {
       inserted.current.add(key);

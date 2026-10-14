@@ -207,7 +207,7 @@ export function Chip({
       onPress={onPress}
       style={[styles.chip, selected ? styles.chipOn : styles.chipOff]}
     >
-      <RNText style={[styles.chipLabel, { color: selected ? c.cream : c.forest }]}>
+      <RNText style={[styles.chipLabel, { color: selected ? c.cream : c.charcoal }]}>
         {label}
       </RNText>
     </PressableScale>
@@ -237,7 +237,7 @@ export function Segmented<T extends string>({
           style={[styles.segment, o.value === value && styles.segmentOn]}
         >
           <RNText
-            style={[styles.chipLabel, { color: o.value === value ? c.cream : c.forest }]}
+            style={[styles.chipLabel, { color: o.value === value ? c.cream : c.charcoal }]}
           >
             {o.label}
           </RNText>
@@ -634,7 +634,7 @@ const useStyles = themedStyles((c) => ({
     minHeight: 52,
   },
   stepButton: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
-  stepGlyph: { fontSize: 22, color: c.forest },
+  stepGlyph: { fontSize: 22, color: c.forest }, // forest: action (the stepper's + and -)
   screen: { flex: 1, backgroundColor: c.canvas },
   keyboard: { flex: 1 },
   screenBody: { paddingHorizontal: 20, paddingTop: 16, gap: 16, maxWidth: 760, width: "100%", alignSelf: "center" },

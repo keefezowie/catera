@@ -206,7 +206,7 @@ function Help({ actorId, title }: { actorId: string; title: string }) {
                   onPress={() => setSubscriptionId(s.id)}
                   style={[styles.pick, s.id === chosen && styles.pickOn]}
                 >
-                  <RNText style={[styles.pickText, { color: s.id === chosen ? c.cream : c.forest }]}>
+                  <RNText style={[styles.pickText, { color: s.id === chosen ? c.cream : c.charcoal }]}>
                     {s.snapshot.offer.name}
                   </RNText>
                 </PressableScale>

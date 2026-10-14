@@ -273,46 +273,42 @@ test("no error text is loose outside FormError, Field error, ReadError and Conne
 });
 
 // Direction K (spec 2.1 rules 1 to 3): forest fills the primary button and marks selection; a heading, title, label,
-// count or data value is charcoal ink. A text colour that can resolve to forest is allowed only where the text is a
-// selection mark or the label of an action (a text button, a link, a chip or segment you pick), each named with its
-// reason, so a heading that turns forest again fails here (the G7 gate saw "Menunggu Anda", plan and Pengaturan titles,
-// package-card titles, Dapur counts and Impor rows in forest). Icons (`color={…}` props) are not text and not scanned.
-const forestTextAllowed: Record<string, string> = {
-  "apps/caterer/src/auth/Masuk.tsx": "the Daftar link is an action",
-  "apps/caterer/src/business/PackageEditor.tsx": "the + Foto paket label sits inside the photo button (an action)",
-  "apps/caterer/src/menu/MenuWeek.tsx": "the Tambah foto label sits inside its button (an action)",
-  "apps/customer/src/buy/Breakdown.tsx": "an unselected option chip's label (a selection control)",
-  "apps/customer/src/buy/BuyParts.tsx": "the underlined link style (an action)",
-  "apps/customer/src/discover/FilterChip.tsx": "an unselected filter chip's label (a selection control)",
-  "apps/customer/src/help/HelpForm.tsx": "an unselected topic chip's label (a selection control)",
-  "apps/customer/src/schedule/ChangeDaySheet.tsx": "the chosen date (rule 3 marks the chosen date in forest)",
-  "apps/customer/src/today/WaitingList.tsx": "a row's action word (an action)",
-  "apps/customer/src/tomorrow/TomorrowStory.tsx": "the Menu besok sticker in fixed ink over the photo, the story's one accent",
-  "packages/mobile-ui/src/CalendarPhotoCell.tsx": "the day pill on a photo cell (a date mark, rule 3)",
-  "packages/mobile-ui/src/ConfirmSheet.tsx": "the cancel label (an action)",
-  "packages/mobile-ui/src/PhotoRing.tsx": "the selected tag's label, with its ring (a selection mark, rule 3)",
-  "packages/mobile-ui/src/components.tsx": "unselected Chip and Segmented labels and the Stepper glyph (controls)",
-  "packages/mobile-ui/src/settings/SettingsRows.tsx": "an action row's label (an action)",
-  "packages/mobile-ui/src/settings/ThemeChoice.tsx": "the chosen theme's label (a selection mark)",
-};
+// count or data value is charcoal ink. A text colour that can resolve to forest is allowed only on a line that says why,
+// with a marker on that line or the line above: `forest: selection` (a selection mark, rule 3), `forest: action` (the
+// label of a text button or link) or `forest: accent` (the Menu besok sticker, the story's one accent). The scan is per
+// line, so a new forest heading fails even in a file that already holds an allowed one (the G7 gate saw "Menunggu
+// Anda", plan and Pengaturan titles, package-card titles, Dapur counts and Impor rows in forest). Icons (`color={…}`
+// props) are not text and are not scanned.
 
 // `color:` (lowercase, so not backgroundColor or borderColor) whose value on that line can be `<palette>.forest`.
-const forestText = (source: string) => /\bcolor:\s*[^,}\n]*\b[A-Za-z]+\.forest\b/.test(source);
+const forestText = (line: string) => /\bcolor:\s*[^,}\n]*\b[A-Za-z]+\.forest\b/.test(line);
+const forestReason = /forest: (selection|action|accent)\b/;
 
-test("the forest text scan sees a heading in forest and ignores fills and borders", () => {
+/** Each line of `source` that sets forest text with no reason on it or on the line above, as "line: text". */
+function unexplainedForest(source: string) {
+  const lines = source.split("\n");
+  return lines.flatMap((line, i) =>
+    forestText(line) && !forestReason.test(line) && !forestReason.test(lines[i - 1] ?? "") ? [`${i + 1}: ${line.trim()}`] : [],
+  );
+}
+
+test("the forest text scan sees a heading in forest and ignores fills, borders and explained lines", () => {
   expect(forestText("sectionTitle: { fontSize: 18, color: c.forest },")).toBe(true);
   expect(forestText("<Text style={{ color: open ? c.charcoal : c.forest }}>")).toBe(true);
   expect(forestText("primary: { backgroundColor: c.forest },")).toBe(false);
   expect(forestText("{ borderColor: palette.forest, color: c.charcoal }")).toBe(false);
+  expect(unexplainedForest("title: { color: c.forest },")).toEqual(["1: title: { color: c.forest },"]);
+  expect(unexplainedForest("link: { color: c.forest }, // forest: action")).toEqual([]);
+  expect(unexplainedForest("{/* forest: selection */}\n<Text style={{ color: c.forest }}>")).toEqual([]);
+  // A marker reaches one line only: a second forest line under it needs its own.
+  expect(unexplainedForest("// forest: action\na: { color: c.forest },\nb: { color: c.forest },")).toEqual(["3: b: { color: c.forest },"]);
 });
 
-test("forest is text colour only for selection marks and actions (direction K)", () => {
+test("forest is text colour only on lines marked as a selection, an action or the one accent (direction K)", () => {
   const offenders = appDirs
     .flatMap((d) => walk(join(root, d)))
-    .filter((f) => forestText(readFileSync(f, "utf8")))
-    .map(rel)
-    .sort();
-  expect(offenders).toEqual(Object.keys(forestTextAllowed).sort());
+    .flatMap((f) => unexplainedForest(readFileSync(f, "utf8")).map((line) => `${rel(f)}:${line}`));
+  expect(offenders).toEqual([]);
 });
 
 test("no Text variant reads forest: headings, titles, labels and counts are charcoal ink", () => {

@@ -246,16 +246,16 @@ describe("Jadwal", () => {
     expect(dayButton("Kamis 8 Oktober").props.accessibilityState.selected).toBe(true);
   });
 
-  it("a selected photo day gets the bar and keeps its cream pill, which is not the past pill", async () => {
+  it("a selected photo day gets the bar and keeps its neutral pill, which is not the past pill", async () => {
     renderWith(runtimeWith(coverage), <Jadwal />);
     await gridReady();
-    expect(flat(cell("Jumat 9 Oktober").getByTestId("cell-number-pill")).backgroundColor).toBe(nativeThemes.light.cream);
+    expect(flat(cell("Jumat 9 Oktober").getByTestId("cell-number-pill")).backgroundColor).toBe(nativeThemes.light.canvas);
     expect(cell("Jumat 9 Oktober").queryByTestId("cell-selected-bar", { includeHiddenElements: true })).toBeNull();
     fireEvent.press(dayButton("Jumat 9 Oktober"));
-    expect(flat(cell("Jumat 9 Oktober").getByTestId("cell-number-pill")).backgroundColor).toBe(nativeThemes.light.cream);
+    expect(flat(cell("Jumat 9 Oktober").getByTestId("cell-number-pill")).backgroundColor).toBe(nativeThemes.light.canvas);
     expect(cell("Jumat 9 Oktober").getByTestId("cell-selected-bar", { includeHiddenElements: true })).toBeTruthy();
-    // A past delivered day keeps its forest pill whether or not it is selected.
-    expect(flat(cell("Senin 5 Oktober").getByTestId("cell-number-pill")).backgroundColor).toBe(nativeThemes.light.forest);
+    // A past delivered day keeps its muted pill whether or not it is selected.
+    expect(flat(cell("Senin 5 Oktober").getByTestId("cell-number-pill")).backgroundColor).toBe(nativeThemes.light.muted);
   });
 
   it("keeps the grid inside 360dp wide screens with no horizontal overflow", async () => {
@@ -286,9 +286,9 @@ describe("Jadwal", () => {
     await gridReady();
     expect(cell("Jumat 9 Oktober").UNSAFE_getByType(Image).props.source).toEqual({ uri: shot("siang-9") });
     expect(cell("Jumat 9 Oktober").queryByTestId("cell-dashed", { includeHiddenElements: true })).toBeNull();
-    // Past (before today) and every meal delivered: dimmed, with the forest pill.
+    // Past (before today) and every meal delivered: dimmed, with the muted pill.
     expect(flat(cell("Senin 5 Oktober").getByTestId("cell-photo")).opacity).toBe(0.5);
-    expect(flat(cell("Senin 5 Oktober").getByTestId("cell-number-pill")).backgroundColor).toBe(nativeThemes.light.forest);
+    expect(flat(cell("Senin 5 Oktober").getByTestId("cell-number-pill")).backgroundColor).toBe(nativeThemes.light.muted);
     // Today's delivered lunch is not past, and neither is a delivered day still ahead.
     expect(flat(cell("Rabu 7 Oktober").getByTestId("cell-photo")).opacity).toBe(1);
     expect(flat(cell("Selasa 13 Oktober").getByTestId("cell-photo")).opacity).toBe(1);
@@ -341,7 +341,7 @@ describe("Jadwal", () => {
     expect(malam.toggleActive).toBe("#163D2E");
     expect(flat(cell("Rabu 7 Oktober").getByTestId("cell-selected-bar")).backgroundColor).toBe(malam.toggleActive);
     // The pill is the ordinary one, so it does not borrow the selected state's colour.
-    expect(flat(cell("Rabu 7 Oktober").getByTestId("cell-number-pill")).backgroundColor).toBe(nativeThemes.light.cream);
+    expect(flat(cell("Rabu 7 Oktober").getByTestId("cell-number-pill")).backgroundColor).toBe(nativeThemes.light.canvas);
   });
 
   it("loads the shown month by Jakarta dates", async () => {

@@ -263,6 +263,7 @@ function StoryPage({
             transform: [{ rotate: "-2deg" }],
           }}
         >
+          {/* forest: accent (the sticker, the story's one accent) */}
           <Text variant="label" style={{ color: ink.forest, fontVariant: ["tabular-nums"] }}>
             {part.window ? `${meal} · ${part.window}` : meal}
           </Text>

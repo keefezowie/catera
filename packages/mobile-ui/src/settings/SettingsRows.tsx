@@ -290,6 +290,7 @@ export function SettingsSwitchRow({
               hitSlop={4}
               style={({ pressed }) => ({ minHeight: ios ? 44 : 48, justifyContent: "center", opacity: ios && pressed ? 0.5 : 1 })}
             >
+              {/* forest: action (an action row's label) */}
               <RNText style={{ fontFamily: fonts.semibold, fontSize: 16, lineHeight: 22, color: palette.forest }}>{action.label}</RNText>
             </Pressable>
           ) : null}

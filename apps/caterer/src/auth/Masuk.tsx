@@ -118,6 +118,7 @@ export function Masuk() {
         </View>
       )}
       {error ? <Text selectable style={{ color: c.danger }}>{error}</Text> : null}
+      {/* forest: action (the Daftar link) */}
       <Link href="/daftar" style={{ color: c.forest, fontFamily: fontFor("700"), paddingVertical: 12 }}>
         {t("Belum punya akun? Daftar dapur baru", "New here? Register your kitchen")}
       </Link>

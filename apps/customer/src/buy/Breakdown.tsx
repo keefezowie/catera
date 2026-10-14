@@ -54,7 +54,7 @@ export function LengthOptions({
             onPress={() => onChange(o.cycles)}
             style={[styles.option, on ? styles.optionOn : styles.optionOff]}
           >
-            <Text style={[styles.optionLabel, { color: on ? c.cream : c.forest }]}>{o.label}</Text>
+            <Text style={[styles.optionLabel, { color: on ? c.cream : c.charcoal }]}>{o.label}</Text>
           </PressableScale>
         );
       })}

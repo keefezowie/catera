@@ -430,7 +430,7 @@ function DateChips({
         })}
       </ScrollView>
       {selected ? (
-        <Text testID="chosen-day" variant="label" style={{ color: c.forest }}>
+        <Text testID="chosen-day" variant="label" style={{ color: c.forest /* forest: selection (the chosen date) */ }}>
           {dayLabel(selected, today, locale)}
         </Text>
       ) : null}

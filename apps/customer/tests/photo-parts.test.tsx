@@ -3,6 +3,7 @@ import * as ReactNative from "react-native";
 import { Image, StyleSheet } from "react-native";
 // PhotoRing draws with expo-image; the calendar cell and the story cover still use React Native's Image.
 import { Image as PhotoImage } from "expo-image";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Haptics from "expo-haptics";
 import { contrastRatio, nativeMood, nativeThemes } from "@catera/design-tokens";
 import { CalendarPhotoCell, MoodProvider, PhotoRing, StoryCover, Text, ThemeProvider } from "@catera/mobile-ui";
@@ -158,18 +159,27 @@ describe("CalendarPhotoCell", () => {
     expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
   });
 
-  it("with a photo and a menu it shows the image and the day in a cream pill, with no dashed border", () => {
+  it("with a photo and a menu it shows the image and the day in a neutral pill, with no dashed border", () => {
     render(<CalendarPhotoCell {...base} />);
     expect(screen.UNSAFE_getByType(Image).props.source).toEqual({ uri: base.uri });
     expect(gone("cell-dashed")).toBe(true);
     expect(flat("cell-number-pill")).toMatchObject({
-      backgroundColor: nativeThemes.light.cream,
+      // Direction K (rules 1, 3): a month of day numbers spends no forest; the pill is the page neutral, the number ink.
+      backgroundColor: nativeThemes.light.canvas,
       position: "absolute",
       left: 4,
       // Lifted to leave photo between the pill and the selection bar, whatever the cell's state.
       bottom: 12,
     });
-    expect(StyleSheet.flatten(screen.getByText("12").props.style).color).toBe(nativeThemes.light.forest);
+    expect(StyleSheet.flatten(screen.getByText("12").props.style).color).toBe(nativeThemes.light.charcoal);
+  });
+
+  it("the day pills and the moon badge are neutral and readable in both themes", () => {
+    for (const t of [nativeThemes.light, nativeThemes.dark]) {
+      expect(contrastRatio(t.charcoal, t.canvas)).toBeGreaterThanOrEqual(4.5);
+      expect(contrastRatio(t.surface, t.muted)).toBeGreaterThanOrEqual(4.5);
+      expect(contrastRatio(t.surface, t.charcoal)).toBeGreaterThanOrEqual(3);
+    }
   });
 
   it("menu not set draws a dashed 1.5dp markerIdle border and a sun, and no image", () => {
@@ -195,21 +205,22 @@ describe("CalendarPhotoCell", () => {
     expect(StyleSheet.flatten(screen.getByText("12").props.style).color).toBe(siang.headerMeta);
   });
 
-  it("dinnerToo adds the forest moon badge; without it there is none", () => {
+  it("dinnerToo adds the charcoal moon badge; without it there is none", () => {
     const view = render(<CalendarPhotoCell {...base} dinnerToo />);
-    expect(flat("cell-moon").backgroundColor).toBe(nativeThemes.light.forest);
+    expect(flat("cell-moon").backgroundColor).toBe(nativeThemes.light.charcoal);
+    expect(screen.UNSAFE_getByType(Ionicons).props.color).toBe(nativeThemes.light.surface);
     expect(flat("cell-moon")).toMatchObject({ position: "absolute", top: 4, right: 4 });
     view.rerender(<CalendarPhotoCell {...base} />);
     expect(gone("cell-moon")).toBe(true);
   });
 
-  it("past dims the photo to 0.5 and turns the pill forest with cream text", () => {
+  it("past dims the photo to 0.5 and turns the pill muted with surface text", () => {
     const view = render(<CalendarPhotoCell {...base} />);
     expect(flat("cell-photo").opacity).toBe(1);
     view.rerender(<CalendarPhotoCell {...base} past />);
     expect(flat("cell-photo").opacity).toBe(0.5);
-    expect(flat("cell-number-pill").backgroundColor).toBe(nativeThemes.light.forest);
-    expect(StyleSheet.flatten(screen.getByText("12").props.style).color).toBe(nativeThemes.light.cream);
+    expect(flat("cell-number-pill").backgroundColor).toBe(nativeThemes.light.muted);
+    expect(StyleSheet.flatten(screen.getByText("12").props.style).color).toBe(nativeThemes.light.surface);
   });
 
   it("today adds a 2.5dp todayRing outline and selected a 2.5dp forest (toggleActive) one", () => {
@@ -362,14 +373,14 @@ describe("CalendarPhotoCell", () => {
       const view = render(<CalendarPhotoCell {...base} />);
       const plain = flat("cell-number-pill").backgroundColor;
       const plainInk = StyleSheet.flatten(screen.getByText("12").props.style).color;
-      expect(plain).toBe(nativeThemes.light.cream);
+      expect(plain).toBe(nativeThemes.light.canvas);
       view.rerender(<CalendarPhotoCell {...base} selected />);
       expect(flat("cell-number-pill").backgroundColor).toBe(plain);
       expect(StyleSheet.flatten(screen.getByText("12").props.style).color).toBe(plainInk);
-      expect(flat("cell-number-pill").backgroundColor).not.toBe(nativeThemes.light.forest);
-      // A past day stays forest, selected or not.
+      expect(flat("cell-number-pill").backgroundColor).not.toBe(nativeThemes.light.muted);
+      // A past day stays muted, selected or not.
       view.rerender(<CalendarPhotoCell {...base} past selected />);
-      expect(flat("cell-number-pill").backgroundColor).toBe(nativeThemes.light.forest);
+      expect(flat("cell-number-pill").backgroundColor).toBe(nativeThemes.light.muted);
     });
 
     it("a selected number-only day gets the bar and no pill", () => {

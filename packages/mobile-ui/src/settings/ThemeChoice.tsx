@@ -97,7 +97,7 @@ export function ThemeChoice({
                 fontFamily: chosen ? fonts.semibold : fonts.medium,
                 fontSize: 14,
                 lineHeight: 20,
-                color: chosen ? palette.forest : palette.muted,
+                color: chosen ? palette.forest : palette.muted, // forest: selection (the chosen theme)
                 textAlign: "center",
               }}
             >

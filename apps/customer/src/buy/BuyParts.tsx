@@ -141,5 +141,5 @@ const useStyles = themedStyles((c) => ({
   strong: { fontFamily: fontFor("800"), color: c.charcoal },
   method: { borderColor: c.forest, borderWidth: 1.5, gap: 4 },
   terms: { fontFamily: FONT, fontSize: 12, color: c.muted, lineHeight: 17 },
-  link: { color: c.forest, fontFamily: fontFor("700"), textDecorationLine: "underline" },
+  link: { color: c.forest, fontFamily: fontFor("700"), textDecorationLine: "underline" }, // forest: action
 }));

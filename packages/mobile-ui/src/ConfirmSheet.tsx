@@ -72,6 +72,7 @@ export function ConfirmSheet({
           : { minHeight: 48, paddingHorizontal: 12, alignItems: "center", justifyContent: "center" }
       }
     >
+      {/* forest: action (the cancel label) */}
       <RNText style={{ fontFamily: fonts.bold, fontSize: 15, color: palette.forest, textAlign: "center" }}>{cancelLabel}</RNText>
     </PressableScale>
   );

@@ -123,7 +123,7 @@ export function PhotoRing({
   // Wide enough that a short label wraps under the ring instead of pushing its neighbours apart.
   const column = { alignItems: "center", gap: 6, width: size + 16 } as const;
   const caption = label ? (
-    // The selected tag's label is part of its selection mark (rule 3: ring and label), so it alone stays forest.
+    // forest: selection. The selected tag's label is part of its selection mark (rule 3: ring and label).
     <Text variant={selected ? "label" : "caption"} style={[{ textAlign: "center", lineHeight: 16 }, selected && { color: c.forest }]}>
       {label}
     </Text>

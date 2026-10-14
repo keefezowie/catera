@@ -119,7 +119,9 @@ export function CalendarPhotoCell({
               paddingVertical: 1,
               borderRadius: BADGE / 2,
               justifyContent: "center",
-              backgroundColor: past ? c.forest : c.cream,
+              // Direction K (rules 1, 3): a month of numbers spends no forest. The pill is the page neutral with the ink
+              // number; a past day is the muted step with surface text, so past still reads apart without the brand.
+              backgroundColor: past ? c.muted : c.canvas,
             }}
           >
             {/* Capped at 1.15x: past that, on a narrow cell, the pill grows into the moon badge before the photo gives way
@@ -127,7 +129,7 @@ export function CalendarPhotoCell({
             <RNText
               maxFontSizeMultiplier={PILL_MAX_SCALE}
               style={{
-                color: past ? c.cream : c.forest,
+                color: past ? c.surface : c.charcoal,
                 fontFamily: fontFor("700"),
                 fontSize: 12,
                 lineHeight: 16,
@@ -203,10 +205,11 @@ export function CalendarPhotoCell({
             borderRadius: BADGE / 2,
             alignItems: "center",
             justifyContent: "center",
-            backgroundColor: c.forest,
+            // Ink, not forest: dinner is a fact about the day, not a selection.
+            backgroundColor: c.charcoal,
           }}
         >
-          <Ionicons name="moon" size={11} color={c.cream} />
+          <Ionicons name="moon" size={11} color={c.surface} />
         </View>
       ) : null}
 

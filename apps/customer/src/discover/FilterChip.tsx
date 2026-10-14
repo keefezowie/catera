@@ -21,7 +21,7 @@ export function FilterChip({
       onPress={onPress}
       style={[styles.chip, selected ? styles.on : styles.off]}
     >
-      <RNText style={[styles.label, { color: selected ? c.cream : c.forest }]}>{label}</RNText>
+      <RNText style={[styles.label, { color: selected ? c.cream : c.charcoal }]}>{label}</RNText>
     </PressableScale>
   );
 }

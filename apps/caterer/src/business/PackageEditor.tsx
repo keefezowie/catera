@@ -130,7 +130,7 @@ export function PackageEditor({ from, firstPublish = null }: { from?: SellerOffe
         {form.image ? (
           <Image source={{ uri: photoUri(form.image, runtime.apiBase) }} style={{ width: "100%", height: "100%" }} />
         ) : (
-          <Text variant="label" style={{ color: palette.forest }}>
+          <Text variant="label" style={{ color: palette.forest /* forest: action (inside the photo button) */ }}>
             {uploading ? t("Mengunggah…", "Uploading…") : t("+ Foto paket", "+ Package photo")}
           </Text>
         )}

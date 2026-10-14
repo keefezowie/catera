@@ -193,6 +193,7 @@ function DishRow({
                 importantForAccessibility="no-hide-descendants"
               />
             ) : null}
+            {/* forest: action (the label inside its button) */}
             <Text variant="label" style={{ color: c.forest }}>
               {uploading ? t("Mengunggah…", "Uploading…") : t("Tambah foto", "Add photo")}
             </Text>
