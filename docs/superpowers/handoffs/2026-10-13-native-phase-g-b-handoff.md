@@ -31,9 +31,16 @@ G-b stopped early on the usage budget. The weekly limit was at 79% when the sess
   - Step B moved the forms with fields to root-stack sheets: `masalah/[id]`, `ubah-hari/[id]` (which hosts the CalendarSheet), `ulasan/[id]`, `alamat-form` and `bantuan-form`. Links still work through `nav.ts` `isRootSheet`/`openInTab`.
   - **Risk:** the dimming view is added for root-stack form sheets too, so TalkBack may still land on it.
   - Next session: rebase it on v2 (expect conflicts in ChangeDaySheet and the moved route files), run an Opus review, then re-run the full g1b gate. The reproduction steps are in the ledger. If focus still fails, report to the owner: no JS-only route is left without a development build or a native patch.
+- **Later on 2026-10-14 (owner: "continue till 98%, then build the two APKs"):**
+  - `task-G1b2` was merged as 3badae44 after three Sonnet attempts and Opus reviews. The re-gate `g1b-2` (captures in `output/native-review/phase-g/gates/g1b-2/`) passed on focus: TalkBack lands on the title for Ada masalah and Ubah hari.
+  - It failed on one thing: "Kirim laporan" sits about 17px off-screen, under the gesture bar, at the form detent.
+  - **Unmerged fix:** `task-G1b3` in C:\wt\2 (7d4dc2b2, Sonnet attempt 1). Root cause: react-native-screens lays out a two-detent sheet at its tallest detent, so the `flex:1` ScrollView never scrolls at 0.6. The fix measures the part of the sheet below the screen edge and shortens the body by that much (`SheetHeader.tsx` `useSheetHiddenBelow`). It needs an Opus review and an emulator check before merging.
+  - Side findings: the tab-stack "…" action sheet still focuses its dimming view under TalkBack, which needs an owner call (Android `presentation: "modal"` or patch-package). A dev-only require cycle `Plate.tsx` <-> `schedule/dayActions.ts` shows a LogBox warning.
+  - **APKs** (release, debug-signed, arm64-v8a, UAT env from `C:\wt\uat-mobile.env`), built from 3badae44: `output/apk/catera-customer-uat-arm64-v8a-20261014-3badae44.apk` and `output/apk/catera-dapur-uat-arm64-v8a-20261014-3badae44.apk`. Build with `C:\wt\logs-g\build-apks.sh`.
+  - Android Studio's JBR is now JDK 25, and its restricted-method warning breaks the react-native-worklets CMake step, so the script uses Gradle's JDK 17. The hosted UAT backend does not have the G3, G4 and G5 migrations yet, so arrive, the account callers and the new pushes will fail against it until they are applied.
 - **For G18 or the final gate:** `Plate.tsx:276` (card `ink = c.forest` on unselected reaction labels) and `ChangeDaySheet.tsx:408` (forest ink on unselected date chips) still use forest. The scan cannot see colours passed through variables.
 - The customer `empty-states` baseline fails intermittently, 1 to 3 tests per run.
-- Weekly usage was 95% at the stop on 2026-10-14.
+- Weekly usage was 97% at the final stop on 2026-10-14.
 
 ## Gate results
 - **g7-g1a (G7 and G1a):** 102 sampled colours match the tokens. The Sunrise spend, the pill, reduced motion and audit rows 9-01 to 9-26 pass except 9-07, 9-24 and 9-25, which `task-G7gate` fixes. The gate also found forest used as heading text, also fixed there. G1a passes: no crash, the undo toast works, TalkBack received "Baris dihapus, Urungkan", and SuccessBeat does not crash. NOT VERIFIED: audible TalkBack speech and the Paket selesai disc (no demo route reaches it).
