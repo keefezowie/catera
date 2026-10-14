@@ -23,9 +23,17 @@ G-b stopped early on the usage budget. The weekly limit was at 79% when the sess
 | G1b sheet focus | d9c7b02f, c0ae2b46 | `SHEET_FOCUS_FALLBACK_MS` 400 and `SHEET_FOCUS_SETTLE_MS` 250. The demo strip and the iOS tab host are hidden while a focused sheet is on top. The `SheetBody` reserve is `androidTabBarHeight(fontScale)` plus the inset. **The emulator gate FAILED**, see below. |
 | G6c four-stop tracker | bb4fc11a, 6286fa1f, e446132e, 77fba8d1 | Four stops with glyphs, `arrived_unconfirmed` half fill, `issue` reads "Gagal diantar". No motion on first paint or on a session switch (CountCard keyed by `date:meal`). Labels fit a 64dp column in English. The emulator gate has not run. |
 
-## In flight at stop (not merged; branches exist)
-- `task-G7gate` (C:\wt\1): fixes for the G7 and G1a gate failures. The demo strip is canvas with muted text (9-07). The failed hero photo ground is `photoGround` (9-24/25). Headings, titles and labels are charcoal, with a forest allow-list guard. Impor delete runs after the sheet closes. The reviewer asked for round 2: neutral CalendarPhotoCell pills, a line-scoped forest guard, unselected chip labels in charcoal, and clearing `gone` on quiet reads. The fixer was resumed for round 2. Check the branch for a commit after 0ee098f9, re-review it, then merge.
-- `task-G6b` (C:\wt\3): `CalendarSheet` (7615e66a). An Opus fixer is working on the review findings: the grid overflows at 360dp (cells need at least 48dp), dimmed numerals fail 4.5:1, the current-day copy, forest chevrons, and the no-available-day state. Check for a fix commit, re-review it, then merge.
+## Update, 2026-10-14 (resumed session, Sonnet-first ladder)
+- **Merged:** `task-G6b` (CalendarSheet plus the fixes in 8c6d7d12; re-review CLEAN) and `task-G7gate` (gate fixes, rounds 1 and 2; re-review CLEAN). v2 head is 4f307e7b.
+  - `task-G7gate` fixes: the demo strip is canvas with muted text. The failed hero photo ground is `photoGround`. Headings, titles and labels are charcoal. Impor delete runs after the sheet closes. Calendar cells are neutral. Forest text needs a line-scoped `forest: selection|action|accent` marker. Unselected chip labels are charcoal. `returning` is cleared on quiet reads.
+- **Built, not reviewed or merged:** `task-G1b2` in C:\wt\2 (ebf82876, Sonnet attempt 1).
+  - Step A found no option-only fix. react-native-screens 4.26.2 `DimmingViewManager.kt:30` adds a clickable dimming view on every present (lines 156-166).
+  - Step B moved the forms with fields to root-stack sheets: `masalah/[id]`, `ubah-hari/[id]` (which hosts the CalendarSheet), `ulasan/[id]`, `alamat-form` and `bantuan-form`. Links still work through `nav.ts` `isRootSheet`/`openInTab`.
+  - **Risk:** the dimming view is added for root-stack form sheets too, so TalkBack may still land on it.
+  - Next session: rebase it on v2 (expect conflicts in ChangeDaySheet and the moved route files), run an Opus review, then re-run the full g1b gate. The reproduction steps are in the ledger. If focus still fails, report to the owner: no JS-only route is left without a development build or a native patch.
+- **For G18 or the final gate:** `Plate.tsx:276` (card `ink = c.forest` on unselected reaction labels) and `ChangeDaySheet.tsx:408` (forest ink on unselected date chips) still use forest. The scan cannot see colours passed through variables.
+- The customer `empty-states` baseline fails intermittently, 1 to 3 tests per run.
+- Weekly usage was 95% at the stop on 2026-10-14.
 
 ## Gate results
 - **g7-g1a (G7 and G1a):** 102 sampled colours match the tokens. The Sunrise spend, the pill, reduced motion and audit rows 9-01 to 9-26 pass except 9-07, 9-24 and 9-25, which `task-G7gate` fixes. The gate also found forest used as heading text, also fixed there. G1a passes: no crash, the undo toast works, TalkBack received "Baris dihapus, Urungkan", and SuccessBeat does not crash. NOT VERIFIED: audible TalkBack speech and the Paket selesai disc (no demo route reaches it).
