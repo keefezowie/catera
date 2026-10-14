@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { StyleSheet } from "react-native";
-import { nativeThemes } from "@catera/design-tokens";
-import { CalendarSheet } from "@catera/mobile-ui";
+import { contrastRatio, nativeThemes } from "@catera/design-tokens";
+import { CalendarSheet, calendarCellWidth } from "@catera/mobile-ui";
 
 /** G6b (spec 5.5): the shared calendar for changing a delivery day. */
 
@@ -140,5 +140,78 @@ describe("CalendarSheet", () => {
     fireEvent.press(cell("2026-10-13"));
     await act(async () => void fireEvent.press(confirm()));
     expect(screen.getByTestId("form-error")).toHaveTextContent(/Tanggal itu sudah penuh./);
+  });
+  it("seven cells reach 48dp at 360dp on both platforms", () => {
+    expect(calendarCellWidth(360, "android")).toBeGreaterThanOrEqual(48);
+    expect(calendarCellWidth(360, "ios")).toBeGreaterThanOrEqual(48);
+    // The grid and the weekday row bleed into the sheet's side padding and keep no gap between cells.
+    setup();
+    const row = flat(screen.getByTestId("calendar-week-0"));
+    expect(row.gap ?? 0).toBe(0);
+    expect(Number(row.marginHorizontal)).toBeLessThan(0);
+    expect(flat(cell("2026-10-13")).minWidth).toBeUndefined();
+  });
+
+  it("an unavailable day keeps a legible muted numeral and a strike-through, not a dim", () => {
+    setup();
+    expect(flat(cell("2026-10-14")).opacity ?? 1).toBe(1);
+    const num = flat(screen.getByTestId("calendar-num-2026-10-14"));
+    expect(num.opacity ?? 1).toBe(1);
+    expect(num.textDecorationLine).toBe("line-through");
+    expect(num.color).toBe(nativeThemes.light.muted);
+    expect(flat(screen.getByTestId("calendar-num-2026-10-13")).textDecorationLine ?? "none").toBe("none");
+    // Muted numerals sit on the sheet's surface as normal text, so 4.5:1 in both looks.
+    for (const look of [nativeThemes.light, nativeThemes.dark]) expect(contrastRatio(look.muted, look.surface)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("tapping the current day says it is the delivery day now", () => {
+    setup();
+    fireEvent.press(cell("2026-10-12"));
+    expect(screen.getByTestId("calendar-caption")).toHaveTextContent("Ini hari pengantaranmu sekarang.");
+  });
+
+  it("the month chevrons are charcoal, not forest", () => {
+    setup();
+    for (const [label, name] of [["Bulan sebelumnya", "chevron-back"], ["Bulan berikutnya", "chevron-forward"]]) {
+      expect(screen.getByLabelText(label).findByProps({ name }).props.color).toBe(nativeThemes.light.charcoal);
+    }
+  });
+
+  it("says when no day in the range can be picked", () => {
+    setup({ days: { "2026-10-12": { state: "current" }, "2026-10-14": { state: "unavailable", reason: "Penuh" } } });
+    expect(screen.getByTestId("calendar-caption")).toHaveTextContent("Belum ada hari lain yang bisa kamu pilih di rentang ini.");
+    expect(confirm().props.accessibilityState.disabled).toBe(true);
+  });
+
+  it("an available day outside the window does not count as a choice", () => {
+    setup({ days: { "2026-10-12": { state: "current" }, "2026-12-01": { state: "available" } } });
+    expect(screen.getByTestId("calendar-caption")).toHaveTextContent(/Belum ada hari lain/);
+  });
+
+  it("the English locale drives the sheet's own words too", () => {
+    setup({ locale: "en", days: { "2026-10-12": { state: "current" } } });
+    expect(screen.getByTestId("calendar-caption")).toHaveTextContent("There is no other day you can pick in this range.");
+    expect(screen.getByLabelText("Previous month")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Move date/ })).toBeTruthy();
+  });
+
+  it("the weekday header is hidden from both screen readers", () => {
+    setup();
+    const header = screen.getByTestId("calendar-weekdays", { includeHiddenElements: true });
+    expect(header.props.importantForAccessibility).toBe("no-hide-descendants");
+    expect(header.props.accessibilityElementsHidden).toBe(true);
+  });
+
+  it("day taps do nothing while the move runs", async () => {
+    let release: () => void = () => {};
+    const onConfirm = jest.fn(() => new Promise<void>((r) => (release = r)));
+    const { onPick } = setup({ onConfirm });
+    fireEvent.press(cell("2026-10-13"));
+    await act(async () => void fireEvent.press(confirm()));
+    expect(cell("2026-10-15").props.accessibilityState.disabled).toBe(true);
+    fireEvent.press(cell("2026-10-15"));
+    expect(onPick).toHaveBeenCalledTimes(1);
+    await act(async () => release());
+    expect(cell("2026-10-15").props.accessibilityState.disabled).toBe(false);
   });
 });

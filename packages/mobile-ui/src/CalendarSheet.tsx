@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { Pressable, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { useMobile } from "@catera/mobile-core";
+import { translator, useMobile } from "@catera/mobile-core";
 import { longDay, monthOf, monthTitle, monthWeeks, shiftMonth, shortDate, WEEK_HEADER, type Locale } from "@catera/domain";
 import { Button, Text } from "./components";
 import { FormError } from "./FormError";
-import { SheetBody, SheetHeader } from "./SheetHeader";
+import { SheetBody, SheetHeader, sheetSidePadding } from "./SheetHeader";
 import { themedStyles, useColors } from "./theme";
 import { useBusy } from "./useBusy";
 import { useT } from "./useT";
@@ -27,8 +27,10 @@ export type CalendarSheetProps = {
   onConfirm: (date: string) => Promise<void>;
   /** The first and last day that can be paged to. Paging stops at the months they sit in. */
   window: { from: string; to: string };
-  /** Overrides the app's language; the sheet otherwise follows it. */
+  /** Overrides the app's language for the dates and the sheet's own words; the sheet otherwise follows the app. */
   locale?: Locale;
+  /** The platform the grid is measured for; defaults to the running one. */
+  os?: string;
 };
 
 const REASON_EN: Record<CalendarReason, string> = {
@@ -37,9 +39,16 @@ const REASON_EN: Record<CalendarReason, string> = {
   "Dapur libur": "Kitchen closed",
   "Lewat batas waktu": "Past the cutoff",
 };
-/** 48dp controls; seven cells at the 44dp floor fit 360dp. */
 const CELL_HEIGHT = 48;
-const CELL_MIN_WIDTH = 44;
+/**
+ * The grid and the weekday row bleed into the sheet's side padding, leaving an 8dp gutter, and keep no gap between
+ * cells: seven cells then reach 48dp wide at 360dp (344 / 7 = 49) on both platforms.
+ */
+const GUTTER = 8;
+const bleed = (os?: string) => GUTTER - sheetSidePadding(os);
+/** The width of one day cell on a screen `screen` dp wide. */
+export const calendarCellWidth = (screen: number, os = process.env.EXPO_OS) =>
+  (screen - 2 * sheetSidePadding(os) - 2 * bleed(os)) / 7;
 /** A month is always drawn as six weeks, so the sheet keeps one height while paging. */
 const WEEKS = 6;
 const clamp = (month: string, from: string, to: string) => (month < from ? from : month > to ? to : month);
@@ -47,15 +56,17 @@ const clamp = (month: string, from: string, to: string) => (month < from ? from 
 /**
  * The calendar for changing a delivery day (spec 5.5), the body of a native large-detent sheet
  * (`sheetOptions({ detents: "large" })`). The current day is outlined; the chosen day takes a forest ring, a neutral
- * fill and a forest label (rule 3: selection is a small mark, never a block). An unavailable day is dimmed, and a tap
- * reads why in the caption under the grid. "Pindah ke {tanggal}" waits for a new day and shows `busy` while it runs.
+ * fill and a forest label (rule 3: selection is a small mark, never a block). An unavailable day is muted and struck
+ * through, and a tap reads why in the caption under the grid. "Pindah ke {tanggal}" waits for a new day and shows `busy` while it runs.
  */
-export function CalendarSheet({ month, days, current, onPick, confirmLabel, onConfirm, window, locale: forced }: CalendarSheetProps) {
+export function CalendarSheet({ month, days, current, onPick, confirmLabel, onConfirm, window, locale: forced, os = process.env.EXPO_OS }: CalendarSheetProps) {
   const c = useColors();
   const styles = useStyles();
-  const t = useT();
+  const appT = useT();
+  const t = forced ? translator(forced) : appT;
   const mobile = useMobile() as { locale?: Locale } | null;
   const locale: Locale = forced ?? mobile?.locale ?? "id";
+  const rowBleed = { marginHorizontal: bleed(os) };
   const first = monthOf(window.from);
   const last = monthOf(window.to);
   const [shown, setShown] = useState(() => clamp(month, first, last));
@@ -85,10 +96,19 @@ export function CalendarSheet({ month, days, current, onPick, confirmLabel, onCo
     return why ? `${t("tidak tersedia", "unavailable")}, ${why}` : t("tidak tersedia", "unavailable");
   };
 
+  /** No day inside the window can be picked: the caption says so before anyone taps. */
+  const noneOpen = !Object.entries(days).some(
+    ([date, day]) => day.state === "available" && date !== current && date >= window.from && date <= window.to,
+  );
+  const prompt = noneOpen
+    ? t("Belum ada hari lain yang bisa kamu pilih di rentang ini.", "There is no other day you can pick in this range.")
+    : t("Pilih hari baru untuk pengantaranmu.", "Choose a new day for your delivery.");
+
   const press = (date: string) => {
+    if (busy) return;
     const day = days[date];
     if (day?.state === "current" || date === current) {
-      setCaption(t("Pengantaran sekarang jatuh di hari ini.", "Your delivery is on this day now."));
+      setCaption(t("Ini hari pengantaranmu sekarang.", "This is your delivery day now."));
     } else if (day?.state === "available") {
       setChosen(date);
       setCaption(null);
@@ -112,7 +132,7 @@ export function CalendarSheet({ month, days, current, onPick, confirmLabel, onCo
             onPress={() => setShown(shiftMonth(shown, -1))}
             style={[styles.pagerButton, shown <= first && styles.dim]}
           >
-            <Ionicons name="chevron-back" size={22} color={c.forest} />
+            <Ionicons name="chevron-back" size={22} color={c.charcoal} />
           </Pressable>
           <Text testID="calendar-month" variant="heading" accessibilityRole="header" style={styles.monthTitle}>
             {monthTitle(shown, locale)}
@@ -125,10 +145,16 @@ export function CalendarSheet({ month, days, current, onPick, confirmLabel, onCo
             onPress={() => setShown(shiftMonth(shown, 1))}
             style={[styles.pagerButton, shown >= last && styles.dim]}
           >
-            <Ionicons name="chevron-forward" size={22} color={c.forest} />
+            <Ionicons name="chevron-forward" size={22} color={c.charcoal} />
           </Pressable>
         </View>
-        <View style={styles.weekRow} accessible={false} importantForAccessibility="no-hide-descendants">
+        <View
+          testID="calendar-weekdays"
+          style={[styles.weekRow, rowBleed]}
+          accessible={false}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        >
           {WEEK_HEADER[locale].map((name) => (
             <Text key={name} style={styles.weekName}>
               {name}
@@ -137,7 +163,7 @@ export function CalendarSheet({ month, days, current, onPick, confirmLabel, onCo
         </View>
         <View testID="calendar-grid" style={styles.grid}>
           {weeks.map((week, row) => (
-            <View key={row} style={styles.weekRow}>
+            <View key={row} testID={`calendar-week-${row}`} style={[styles.weekRow, rowBleed]}>
               {week.map((date, col) => {
                 if (!date) return <View key={col} style={styles.empty} />;
                 const day = days[date];
@@ -150,11 +176,15 @@ export function CalendarSheet({ month, days, current, onPick, confirmLabel, onCo
                     testID={`calendar-day-${date}`}
                     accessibilityRole="button"
                     accessibilityLabel={`${shortDate(date, locale)}, ${stateWord(date, day)}`}
-                    accessibilityState={{ selected: isChosen }}
+                    accessibilityState={{ selected: isChosen, disabled: busy }}
+                    disabled={busy}
                     onPress={() => press(date)}
-                    style={[styles.cell, isCurrent && styles.current, isChosen && styles.chosen, off && styles.off]}
+                    style={[styles.cell, isCurrent && styles.current, isChosen && styles.chosen]}
                   >
-                    <Text testID={`calendar-num-${date}`} style={[styles.num, isChosen && styles.numChosen, isChosen && { color: c.forest }]}>
+                    <Text
+                      testID={`calendar-num-${date}`}
+                      style={[styles.num, off && styles.numOff, isChosen && styles.numChosen]}
+                    >
                       {Number(date.slice(8))}
                     </Text>
                   </Pressable>
@@ -165,7 +195,7 @@ export function CalendarSheet({ month, days, current, onPick, confirmLabel, onCo
         </View>
         <View testID="calendar-caption" accessibilityLiveRegion="polite">
           <Text selectable style={styles.caption}>
-            {caption ?? (chosen ? longDay(chosen, locale) : t("Pilih hari baru untuk pengantaranmu.", "Choose a new day for your delivery."))}
+            {caption ?? (chosen ? longDay(chosen, locale) : prompt)}
           </Text>
         </View>
         {failure ? (
@@ -187,13 +217,12 @@ const useStyles = themedStyles((c) => ({
   pagerButton: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
   dim: { opacity: 0.35 },
   monthTitle: { flex: 1, textAlign: "center" },
-  weekRow: { flexDirection: "row", gap: 2 },
-  weekName: { flex: 1, minWidth: CELL_MIN_WIDTH, textAlign: "center", fontSize: 12, lineHeight: 16, color: c.muted },
-  grid: { gap: 2 },
-  empty: { flex: 1, minWidth: CELL_MIN_WIDTH, height: CELL_HEIGHT },
+  weekRow: { flexDirection: "row" },
+  weekName: { flex: 1, textAlign: "center", fontSize: 12, lineHeight: 16, color: c.muted },
+  grid: {},
+  empty: { flex: 1, height: CELL_HEIGHT },
   cell: {
     flex: 1,
-    minWidth: CELL_MIN_WIDTH,
     height: CELL_HEIGHT,
     borderRadius: 12,
     alignItems: "center",
@@ -203,8 +232,9 @@ const useStyles = themedStyles((c) => ({
   },
   current: { borderWidth: 1.5, borderColor: c.forest },
   chosen: { borderWidth: 2, borderColor: c.forest, backgroundColor: c.line },
-  off: { opacity: 0.45 },
   num: { fontSize: 16, lineHeight: 22, color: c.charcoal, fontVariant: ["tabular-nums"] },
-  numChosen: { fontWeight: "700" },
+  /** Unavailable: muted (4.5:1 on the sheet surface) and struck through, so the state never rests on colour alone. */
+  numOff: { color: c.muted, textDecorationLine: "line-through" },
+  numChosen: { fontWeight: "700", color: c.forest },
   caption: { color: c.muted, fontSize: 14, lineHeight: 20, minHeight: 20 },
 }));

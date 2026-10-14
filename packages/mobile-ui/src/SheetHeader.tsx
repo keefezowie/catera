@@ -110,6 +110,9 @@ function useTabBarOverSheet(os: string | undefined): number {
  * bottom (spec 4.2): the last button scrolls fully clear of it at the 0.6 detent, and TalkBack's scroll-into-view stops
  * above it too. `os` defaults to the running platform.
  */
+/** The side padding of a `SheetBody`: 20 on iOS, 24 on Android. */
+export const sheetSidePadding = (os = process.env.EXPO_OS) => (os === "ios" ? 20 : 24);
+
 export function SheetBody({ children, os = process.env.EXPO_OS }: { children: ReactNode; os?: string }) {
   const insets = useSafeAreaInsets();
   const ios = os === "ios";
@@ -123,7 +126,7 @@ export function SheetBody({ children, os = process.env.EXPO_OS }: { children: Re
       keyboardShouldPersistTaps="handled"
       // Android: a drag on the form scrolls it, rather than dragging the bottom sheet.
       nestedScrollEnabled
-      contentContainerStyle={{ paddingHorizontal: ios ? 20 : 24, paddingTop: 4, paddingBottom: (bar ? 0 : insets.bottom) + 24, gap: 16 }}
+      contentContainerStyle={{ paddingHorizontal: sheetSidePadding(os), paddingTop: 4, paddingBottom: (bar ? 0 : insets.bottom) + 24, gap: 16 }}
     >
       {children}
     </ScrollView>

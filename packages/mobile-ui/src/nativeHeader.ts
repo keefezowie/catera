@@ -75,9 +75,9 @@ const LARGE_DETENTS = [1];
  * The options of a route presented as a native sheet (UISheetPresentationController on iOS, the Material bottom sheet
  * on Android): `fit` sizes it to its content (choice, action and confirm sheets), `form` opens at 60% and expands to
  * the full height (forms that can grow), `large` opens at the full height (the calendar). The grabber is the system's
- * on iOS; react-native-screens draws none on
- * Android, so the sheet's own `SheetHeader` draws the drag handle there. The sheet draws its own title row, so the
- * stack header is hidden, and its ground is the theme `surface`. `os` defaults to the running platform.
+ * on iOS; react-native-screens draws none on Android, so the sheet's own `SheetHeader` draws the drag handle there.
+ * The sheet draws its own title row, so the stack header is hidden, and its ground is the theme `surface`. `os`
+ * defaults to the running platform.
  */
 export function sheetOptions({
   detents,
