@@ -116,6 +116,13 @@ const tab = () => {
 };
 /** One tab's stack by route name ([] before the tab has a stack). */
 const stack = (group: string) => tabsState()?.routes.find((r) => r.name === group)?.state?.routes.map((r) => r.name) ?? [];
+/** A form sheet is a root-stack route above the tabs; the page it opened over stays in its tab. */
+const overPage = (group: string, page: string[], sheet: string) => {
+  expect(stack(group)).toEqual(page);
+  expect(root()).toEqual(["(tabs)", sheet]);
+};
+/** The params of the sheet on top of the root stack. */
+const sheetParams = () => rootStack().routes.at(-1)!.params;
 const TABS = ["(index)", "(jadwal)", "(jelajah)", "(akun)"];
 const ROOTS = ["index", "jadwal", "jelajah", "akun"];
 /** No tab holds another tab's root and there is one tabs navigator: a tab root link never pushes a second copy. */
@@ -170,14 +177,14 @@ describe("each tab keeps its own stack", () => {
     const viaIntent = () => mount(systemPath("exp://127.0.0.1:8084/--/masalah/d1?meal=lunch", true));
     for (const open of [() => mount(customerLink("/masalah/d1?meal=lunch")), viaIntent]) {
       const app = open();
-      expect(root()).toEqual(["(tabs)"]);
       expect(tab()).toBe("(index)");
-      expect(stack("(index)")).toEqual(["index", "hari/[id]", "masalah/[id]"]);
+      overPage("(index)", ["index", "hari/[id]"], "masalah/[id]");
       const routes = tabsState()!.routes.find((r) => r.name === "(index)")!.state!.routes;
       expect(routes[1].params).toMatchObject({ id: "d1" });
-      expect(routes[2].params).toMatchObject({ id: "d1", meal: "lunch" });
+      expect(sheetParams()).toMatchObject({ id: "d1", meal: "lunch" });
       // Closing the sheet leaves its Hari in place.
       act(() => router.back());
+      expect(root()).toEqual(["(tabs)"]);
       expect(stack("(index)")).toEqual(["index", "hari/[id]"]);
       expect(app.getPathname()).toBe("/hari/d1");
       app.unmount();
@@ -186,23 +193,23 @@ describe("each tab keeps its own stack", () => {
 
   it("a cold link to a Task 10 sheet opens it over its parent page, never alone", () => {
     // Ubah hari over its Hari; the address form over Alamat; the help form over Bantuan.
-    for (const [link, below] of [
-      ["/ubah-hari/d1?mode=date", ["index", "hari/[id]", "ubah-hari/[id]"]],
-      ["/alamat-form", ["index", "alamat", "alamat-form"]],
-      ["/bantuan-form?kind=help", ["index", "bantuan", "bantuan-form"]],
+    // Each sheet is a root-stack route above the tabs; its parent page opens in the tab beneath it.
+    for (const [link, page, sheet] of [
+      ["/ubah-hari/d1?mode=date", ["index", "hari/[id]"], "ubah-hari/[id]"],
+      ["/alamat-form", ["index", "alamat"], "alamat-form"],
+      ["/bantuan-form?kind=help", ["index", "bantuan"], "bantuan-form"],
     ] as const) {
       const app = mount(systemPath(`exp://127.0.0.1:8084/--${link}`, true));
-      expect(root()).toEqual(["(tabs)"]);
-      expect({ link, stack: stack("(index)") }).toEqual({ link, stack: below });
+      expect({ link, stack: stack("(index)"), root: root() }).toEqual({ link, stack: page, root: ["(tabs)", sheet] });
       // Closing the sheet leaves its parent page in place.
       act(() => router.back());
-      expect({ link, stack: stack("(index)") }).toEqual({ link, stack: below.slice(0, -1) });
+      expect({ link, stack: stack("(index)"), root: root() }).toEqual({ link, stack: page, root: ["(tabs)"] });
       app.unmount();
     }
     // The review sits over Beranda itself.
     let app = mount(systemPath("/ulasan/s-1", true));
     expect(tab()).toBe("(index)");
-    expect(stack("(index)")).toEqual(["index", "ulasan/[id]"]);
+    overPage("(index)", ["index"], "ulasan/[id]");
     app.unmount();
     // The area choice sits over Jelajah, in Jelajah's tab.
     app = mount(systemPath("/area", true));
@@ -216,17 +223,15 @@ describe("each tab keeps its own stack", () => {
   it("a cold link to a purchase's address or help form, with no purchase under it, opens the tab's form over its page", () => {
     // `/pembelian/alamat-form` and `/pembelian/bantuan-form` belong over a purchase. Opened alone, each gives way to the
     // tab's own copy with the link's params, over Alamat or Bantuan, never a sheet with nothing under it.
-    for (const [link, below, params] of [
-      ["/pembelian/alamat-form?id=a-2", ["index", "alamat", "alamat-form"], { id: "a-2" }],
-      ["/pembelian/bantuan-form?kind=review&issue=i-1", ["index", "bantuan", "bantuan-form"], { kind: "review", issue: "i-1" }],
+    for (const [link, page, sheet, params] of [
+      ["/pembelian/alamat-form?id=a-2", ["index", "alamat"], "alamat-form", { id: "a-2" }],
+      ["/pembelian/bantuan-form?kind=review&issue=i-1", ["index", "bantuan"], "bantuan-form", { kind: "review", issue: "i-1" }],
     ] as const) {
       const app = mount(systemPath(link, true));
-      expect({ link, root: root() }).toEqual({ link, root: ["(tabs)"] });
-      expect({ link, stack: stack("(index)") }).toEqual({ link, stack: below });
-      const top = tabsState()!.routes.find((r) => r.name === "(index)")!.state!.routes.at(-1)!;
-      expect(top.params).toMatchObject(params);
+      expect({ link, stack: stack("(index)"), root: root() }).toEqual({ link, stack: page, root: ["(tabs)", sheet] });
+      expect(sheetParams()).toMatchObject(params);
       act(() => router.back());
-      expect({ link, stack: stack("(index)") }).toEqual({ link, stack: below.slice(0, -1) });
+      expect({ link, stack: stack("(index)"), root: root() }).toEqual({ link, stack: page, root: ["(tabs)"] });
       app.unmount();
     }
     // Over a purchase they stay where they are.
@@ -242,13 +247,14 @@ describe("each tab keeps its own stack", () => {
     act(() => goToTab("akun"));
     act(() => openLink("/ubah-hari/d1"));
     expect(tab()).toBe("(akun)");
-    expect(stack("(akun)")).toEqual(["akun", "hari/[id]", "ubah-hari/[id]"]);
+    overPage("(akun)", ["akun", "hari/[id]"], "ubah-hari/[id]");
     act(() => openLink("/area"));
     expect(tab()).toBe("(jelajah)");
     expect(stack("(jelajah)")).toEqual(["jelajah", "area"]);
+    expect(root()).toEqual(["(tabs)"]);
     act(() => openLink("/ulasan/s-1"));
     expect(tab()).toBe("(index)");
-    expect(stack("(index)")).toEqual(["index", "ulasan/[id]"]);
+    overPage("(index)", ["index"], "ulasan/[id]");
   });
 
   it("a cold link to Pengaturan opens it inside Beranda, and its choice sheets open over it", () => {
@@ -286,19 +292,18 @@ describe("each tab keeps its own stack", () => {
   it("a push tap to masalah opens it over its Hari, and over the Hari already open without a second one", () => {
     let app = mount("/");
     act(() => openLink(customerLink("/masalah/d1?meal=dinner")));
-    expect(stack("(index)")).toEqual(["index", "hari/[id]", "masalah/[id]"]);
+    overPage("(index)", ["index", "hari/[id]"], "masalah/[id]");
     app.unmount();
     app = mount("/");
     act(() => goToTab("jadwal"));
     act(() => openLink(customerLink("/deliveries/d1")));
     act(() => openLink(customerLink("/masalah/d1?meal=lunch")));
-    expect(stack("(jadwal)")).toEqual(["jadwal", "hari/[id]", "masalah/[id]"]);
+    overPage("(jadwal)", ["jadwal", "hari/[id]"], "masalah/[id]");
     app.unmount();
     // From a screen above the tabs opened cold, it lands in Beranda over its Hari.
     app = mount("/bayar/c1");
     act(() => openLink(customerLink("/masalah/d1?meal=lunch")));
-    expect(root()).toEqual(["(tabs)"]);
-    expect(stack("(index)")).toEqual(["index", "hari/[id]", "masalah/[id]"]);
+    overPage("(index)", ["index", "hari/[id]"], "masalah/[id]");
     app.unmount();
   });
 
@@ -674,18 +679,18 @@ describe("legacy paths and the screens above the tabs", () => {
 
   it("signing in from the signed-out Ada masalah sheet returns to that sheet, not a second Hari and sheet", () => {
     // Signed out, Ada masalah over its Hari offers Masuk with next=/masalah/{id}. After sign-in the sheet on top is the
-    // one that asked: it is replaced (now signed in, with the link's params), never stacked under another Hari.
+    // one that asked: it closes with Masuk and opens again (now signed in, with the link's params), never stacked
+    // under another Hari or another sheet.
     mount("/hari/d1");
     act(() => router.push("/masalah/d1?meal=lunch"));
-    expect(stack("(index)")).toEqual(["index", "hari/[id]", "masalah/[id]"]);
+    overPage("(index)", ["index", "hari/[id]"], "masalah/[id]");
     act(() => router.push({ pathname: "/login", params: { next: "/masalah/d1?meal=lunch&jenis=belum" } }));
-    expect(root()).toEqual(["(tabs)", "login"]);
+    expect(root()).toEqual(["(tabs)", "masalah/[id]", "login"]);
     act(() => leaveFor("/masalah/d1?meal=lunch&jenis=belum"));
-    expect(root()).toEqual(["(tabs)"]);
-    expect(stack("(index)")).toEqual(["index", "hari/[id]", "masalah/[id]"]);
+    overPage("(index)", ["index", "hari/[id]"], "masalah/[id]");
     const routes = tabsState()!.routes.find((r) => r.name === "(index)")!.state!.routes;
     expect(routes[1].params).toMatchObject({ id: "d1" });
-    expect(routes[2].params).toMatchObject({ id: "d1", meal: "lunch", jenis: "belum" });
+    expect(sheetParams()).toMatchObject({ id: "d1", meal: "lunch", jenis: "belum" });
   });
 });
 

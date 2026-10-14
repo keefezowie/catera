@@ -113,6 +113,15 @@ function Navigation() {
           <Stack.Screen name="pembelian/mulai" options={sheetOptions({ detents: "fit", palette })} />
           <Stack.Screen name="pembelian/alamat-form" options={sheetOptions({ detents: "form", palette })} />
           <Stack.Screen name="pembelian/bantuan-form" options={sheetOptions({ detents: "form", palette })} />
+          {/* The forms with fields are sheets in this stack, not in a tab's: a root sheet draws above the tab bar, so
+              TalkBack lands on its title and the bar never covers "Kirim laporan" (spec 4.1 fallback). Their URLs are
+              unchanged; `openLink` opens the page each sits over first (`sheetParent`): Ada masalah and Ubah hari over
+              their Hari, the address and help forms over Alamat and Bantuan, the review over Beranda. */}
+          <Stack.Screen name="masalah/[id]" options={sheetOptions({ detents: "form", palette })} />
+          <Stack.Screen name="ubah-hari/[id]" options={sheetOptions({ detents: "form", palette })} />
+          <Stack.Screen name="ulasan/[id]" options={sheetOptions({ detents: "form", palette })} />
+          <Stack.Screen name="alamat-form" options={sheetOptions({ detents: "form", palette })} />
+          <Stack.Screen name="bantuan-form" options={sheetOptions({ detents: "form", palette })} />
           {/* A black story: its own close button replaces the header, and a fade keeps its ground from cutting in. */}
           <Stack.Screen
             name="tomorrow"

@@ -167,6 +167,15 @@ const rootStack = () => {
 const root = () => rootStack().routes.map((r) => r.name);
 const tabsState = () => rootStack().routes.find((r) => r.name === "(tabs)")?.state;
 const stack = (group: string) => tabsState()?.routes.find((r) => r.name === group)?.state?.routes.map((r) => r.name) ?? [];
+/** A form sheet is a root-stack route above the tabs; the page it opened over stays in its tab. */
+const overDay = (sheet: string) => {
+  expect(stack("(index)")).toEqual(["index", "hari/[id]"]);
+  expect(root()).toEqual(["(tabs)", sheet]);
+};
+const overAlamat = () => {
+  expect(stack("(index)")).toEqual(["index", "alamat"]);
+  expect(root()).toEqual(["(tabs)", "alamat-form"]);
+};
 const go = async (work: () => void) => {
   act(work);
   await act(async () => {});
@@ -310,6 +319,8 @@ describe("routes", () => {
     ] as const) {
       await go(() => router.push(path));
       expectSheet(route, detents);
+      // The forms with fields sit in the root stack above the tabs; only the area choice stays in its tab.
+      expect(root()).toEqual(route === "area" ? ["(tabs)"] : ["(tabs)", route]);
       // Each draws its own title row: the stack header is hidden.
       expect(within(screenOf(route) as never).getAllByRole("header").length).toBeGreaterThan(0);
       await go(() => router.back());
@@ -390,8 +401,7 @@ describe("the day's actions", () => {
     expect(context.getByText(/^Bisa diubah sampai /)).toBeTruthy();
     // Laporkan masalah opens Ada masalah for that meal over Hari.
     await go(() => fireEvent.press(screen.getByRole("button", { name: "Laporkan masalah" })));
-    expect(root()).toEqual(["(tabs)"]);
-    expect(stack("(index)")).toEqual(["index", "hari/[id]", "masalah/[id]"]);
+    overDay("masalah/[id]");
     app.unmount();
 
     // After the cutoff: no Pindah tanggal, no Ganti alamat hari ini.
@@ -412,7 +422,7 @@ describe("the day's actions", () => {
     const more = () => screen.getByRole("button", { name: `Pilihan untuk makan siang ${shortDate(d.service_date, "id")}` });
     await go(() => fireEvent.press(more()));
     await go(() => fireEvent.press(screen.getByRole("button", { name: "Ganti alamat hari ini" })));
-    expect(stack("(index)")).toEqual(["index", "hari/[id]", "ubah-hari/[id]"]);
+    overDay("ubah-hari/[id]");
     expect(screen.getByRole("tab", { name: "Ganti alamat" }).props.accessibilityState.selected).toBe(true);
     app.unmount();
   });
@@ -463,7 +473,7 @@ describe("outcomes", () => {
       answer("alamat:customer", stateWith([]));
       const app = await mount("/alamat");
       await go(() => fireEvent.press(screen.getByRole("button", { name: "Tambah alamat" })));
-      expect(stack("(index)")).toEqual(["index", "alamat", "alamat-form"]);
+      overAlamat();
       expect(screen.getByRole("header", { name: "Alamat baru" })).toBeTruthy();
       fireEvent.changeText(screen.getByLabelText("Jalan, nomor, detail"), "Jl. Kenanga No. 4");
       await go(() => fireEvent.press(screen.getByRole("button", { name: "Simpan alamat" })));
@@ -513,7 +523,7 @@ describe("outcomes", () => {
     answer(`availability:d1:${TODAY}`, [{ date: target, available: true, reason: null, remaining: 3 }]);
     const app = await mount("/hari/d1");
     await go(() => fireEvent.press(screen.getByRole("button", { name: "Ubah hari" })));
-    expect(stack("(index)")).toEqual(["index", "hari/[id]", "ubah-hari/[id]"]);
+    overDay("ubah-hari/[id]");
     // The sheet's title is the day, its context the package and caterer.
     expect(within(screenOf("ubah-hari/[id]") as never).getByTestId("sheet-context").props.children).toBe(
       "Makan Siang Rumahan · Dapur Contoh",
@@ -580,7 +590,7 @@ describe("handing off once a sheet has closed", () => {
     expect(root()).toEqual(["(tabs)"]);
     expect(stack("(index)")).toEqual(["index", "hari/[id]"]);
     await sheetClosed();
-    expect(stack("(index)")).toEqual(["index", "hari/[id]", "ubah-hari/[id]"]);
+    overDay("ubah-hari/[id]");
     expect(screen.getByRole("tab", { name: "Pindah tanggal" }).props.accessibilityState.selected).toBe(true);
     app.unmount();
   });
@@ -598,10 +608,10 @@ describe("handing off once a sheet has closed", () => {
       await go(() => void back.press());
       expect(screen.getByRole("header", { name: "Buang alamat?" })).toBeTruthy();
       await go(() => fireEvent.press(screen.getByRole("button", { name: "Buang" })));
-      expect(root()).toEqual(["(tabs)"]);
-      expect(stack("(index)")).toEqual(["index", "alamat", "alamat-form"]);
+      overAlamat();
       await sheetClosed();
       expect(stack("(index)")).toEqual(["index", "alamat"]);
+      expect(root()).toEqual(["(tabs)"]);
       app.unmount();
     } finally {
       back.restore();
@@ -649,7 +659,7 @@ describe("handing off once a sheet has closed", () => {
       atPush.length = 0;
       await go(() => fireEvent.press(screen.getByRole("button", { name: "Laporkan masalah" })));
       expect(atPush).toEqual([["(tabs)"]]);
-      expect(stack("(index)")).toEqual(["index", "hari/[id]", "masalah/[id]"]);
+      overDay("masalah/[id]");
       app.unmount();
     } finally {
       push.mockRestore();

@@ -1,8 +1,8 @@
-import { readdirSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { createElement } from "react";
 import * as ReactNative from "react-native";
-import { AccessibilityInfo, BackHandler, Dimensions, Pressable, StyleSheet, Text, View } from "react-native";
+import { AccessibilityInfo, BackHandler, Pressable, StyleSheet, Text, View } from "react-native";
 import { render } from "@testing-library/react-native";
 import { NavigationContext } from "expo-router/react-navigation";
 import { router } from "expo-router";
@@ -10,9 +10,9 @@ import { act, fireEvent, renderRouter, screen, within } from "expo-router/testin
 import { nativeThemes } from "@catera/design-tokens";
 import {
   ActionSheet,
-  ANDROID_TAB_BAR,
-  androidTabBarHeight,
   canHoldRemoval,
+  SHEET_FOCUS_FALLBACK_MS,
+  SHEET_FOCUS_SETTLE_MS,
   ConfirmSheet,
   SheetBody,
   SheetHeader,
@@ -31,7 +31,7 @@ Object.assign(require("react-native-reanimated"), { useReducedMotion: () => fals
 
 /**
  * The real route tree in `app/` with the real root layout (which declares the confirm and action sheets) and the real
- * stack inside each tab (which presents Ada masalah as a form sheet). The session is a stand-in, Beranda is a harness
+ * stack inside each tab (Ada masalah is a form sheet in the root stack, above the tabs). The session is a stand-in, Beranda is a harness
  * that asks the confirm and action sheets, and Ada masalah is the real screen over a stand-in Hari.
  */
 const mockStub = (name: string) => () => createElement(Text, { testID: "screen" }, name);
@@ -145,6 +145,11 @@ const rootStack = () => {
 const root = () => rootStack().routes.map((r) => r.name);
 const tabsState = () => rootStack().routes.find((r) => r.name === "(tabs)")?.state;
 const stack = (group: string) => tabsState()?.routes.find((r) => r.name === group)?.state?.routes.map((r) => r.name) ?? [];
+/** A form sheet is a root-stack route above the tabs; the page it opened over stays in the tab. */
+const overHari = (sheet = "masalah/[id]") => {
+  expect(stack("(index)")).toEqual(["index", "hari/[id]"]);
+  expect(root()).toEqual(["(tabs)", sheet]);
+};
 const go = async (work: () => void) => {
   act(work);
   await act(async () => {});
@@ -183,7 +188,7 @@ describe("sheet routes", () => {
   it("masalah is a form sheet with the form detents", async () => {
     const app = await mount("/hari/d-today");
     await go(() => router.push("/masalah/d-today?meal=lunch"));
-    expect(stack("(index)")).toEqual(["index", "hari/[id]", "masalah/[id]"]);
+    overHari();
     const sheet = screenOf("masalah/[id]");
     // Opens at 60% and grows to the full height (the keyboard expands it on Android); the sheet draws its own title.
     expect(sheet.props.stackPresentation).toBe("formSheet");
@@ -196,6 +201,38 @@ describe("sheet routes", () => {
     // On Android a drag on the form scrolls it, rather than dragging the bottom sheet.
     expect(within(sheet as never).getByTestId("sheet-body").props.nestedScrollEnabled).toBe(true);
     app.unmount();
+  });
+
+  it("the five form sheets are declared by the root layout, and no tab stack declares one", () => {
+    const rootLayout = readFileSync(join(APP, "_layout.tsx"), "utf8");
+    const tabLayout = readFileSync(join(APP, "(tabs)", "(index,jadwal,jelajah,akun)", "_layout.tsx"), "utf8");
+    for (const name of ["masalah/[id]", "ubah-hari/[id]", "ulasan/[id]", "alamat-form", "bantuan-form"]) {
+      expect(rootLayout).toContain(`name="${name}" options={sheetOptions({ detents: "form"`);
+      expect(tabLayout).not.toContain(`name="${name}"`);
+    }
+    // The choice sheet without fields stays in its tab.
+    expect(tabLayout).toContain('name="area"');
+  });
+
+  it("a root-stack Ada masalah still sends the screen reader to its title, after the present and again after the settle", async () => {
+    const focus = jest.spyOn(AccessibilityInfo, "sendAccessibilityEvent").mockImplementation(() => {});
+    try {
+      const app = await mount("/hari/d-today");
+      focus.mockClear();
+      jest.useFakeTimers();
+      await go(() => router.push("/masalah/d-today?meal=lunch"));
+      overHari();
+      act(() => void jest.advanceTimersByTime(SHEET_FOCUS_FALLBACK_MS + 1));
+      expect(focus).toHaveBeenCalled();
+      expect(focus.mock.calls.every(([, event]) => event === "focus")).toBe(true);
+      const afterPresent = focus.mock.calls.length;
+      act(() => void jest.advanceTimersByTime(SHEET_FOCUS_SETTLE_MS + 1));
+      expect(focus.mock.calls.length).toBeGreaterThan(afterPresent);
+      app.unmount();
+    } finally {
+      jest.useRealTimers();
+      focus.mockRestore();
+    }
   });
 
   it("confirm and action sheets are fit-to-content sheets over everything", async () => {
@@ -269,7 +306,7 @@ describe("useConfirm", () => {
       fireEvent.changeText(screen.getByLabelText("Catatan (boleh dikosongkan)"), "Nasinya basi");
       await act(async () => {});
       await go(() => void back.press());
-      expect(root()).toEqual(["(tabs)", "konfirmasi"]);
+      expect(root()).toEqual(["(tabs)", "masalah/[id]", "konfirmasi"]);
       // The confirm route goes without any action (the container's state is reset), so no beforeRemove reaches it.
       const { store } = require("expo-router/build/global-state/store");
       const ref = store.navigationRef.current;
@@ -279,11 +316,10 @@ describe("useConfirm", () => {
         return { ...node, state: { ...node.state, routes, index: Math.min(node.state.index, routes.length - 1) } };
       };
       await go(() => ref.resetRoot(dropConfirm({ key: "top", name: "top", state: ref.getRootState() }).state));
-      expect(root()).toEqual(["(tabs)"]);
-      expect(stack("(index)")).toEqual(["index", "hari/[id]", "masalah/[id]"]);
+      overHari();
       // The question was answered (false), so the next close asks again instead of being held forever.
       await go(() => void back.press());
-      expect(root()).toEqual(["(tabs)", "konfirmasi"]);
+      expect(root()).toEqual(["(tabs)", "masalah/[id]", "konfirmasi"]);
       await go(() => fireEvent.press(screen.getByRole("button", { name: "Buang" })));
       expect(root()).toEqual(["(tabs)"]);
       expect(stack("(index)")).toEqual(["index", "hari/[id]"]);
@@ -513,7 +549,7 @@ describe("Ada masalah as a sheet", () => {
   async function onHari() {
     const app = await mount("/hari/d-today");
     await go(() => router.push("/masalah/d-today?meal=lunch"));
-    expect(stack("(index)")).toEqual(["index", "hari/[id]", "masalah/[id]"]);
+    overHari();
     return app;
   }
 
@@ -534,14 +570,13 @@ describe("Ada masalah as a sheet", () => {
       await act(async () => {});
       expect(screenOf("masalah/[id]").props.preventNativeDismiss).toBe(true);
       await go(() => void back.press());
-      expect(root()).toEqual(["(tabs)", "konfirmasi"]);
-      expect(stack("(index)")).toEqual(["index", "hari/[id]", "masalah/[id]"]);
+      expect(root()).toEqual(["(tabs)", "masalah/[id]", "konfirmasi"]);
+      expect(stack("(index)")).toEqual(["index", "hari/[id]"]);
       expect(screen.getByRole("header", { name: "Buang laporan?" })).toBeTruthy();
       expect(screen.getByText("Yang sudah Anda tulis akan hilang.")).toBeTruthy();
       // Keep writing: the sheet and the text stay.
       await go(() => fireEvent.press(screen.getByRole("button", { name: "Lanjut menulis" })));
-      expect(root()).toEqual(["(tabs)"]);
-      expect(stack("(index)")).toEqual(["index", "hari/[id]", "masalah/[id]"]);
+      overHari();
       expect(screen.getByLabelText("Catatan (boleh dikosongkan)").props.value).toBe("Nasinya basi");
       // Asked once per close: back again, then Buang closes the sheet and keeps Hari.
       await go(() => void back.press());
@@ -569,24 +604,21 @@ describe("Ada masalah as a sheet", () => {
     await act(async () => {});
     // Close at the leading edge of the iOS title row goes back, and asks first.
     await go(() => router.back());
-    expect(root()).toEqual(["(tabs)", "konfirmasi"]);
+    expect(root()).toEqual(["(tabs)", "masalah/[id]", "konfirmasi"]);
     await go(() => fireEvent.press(screen.getByRole("button", { name: "Lanjut menulis" })));
-    expect(stack("(index)")).toEqual(["index", "hari/[id]", "masalah/[id]"]);
+    overHari();
     await go(() => router.back());
-    expect(root()).toEqual(["(tabs)", "konfirmasi"]);
+    expect(root()).toEqual(["(tabs)", "masalah/[id]", "konfirmasi"]);
     await go(() => fireEvent.press(screen.getByRole("button", { name: "Buang" })));
     expect(stack("(index)")).toEqual(["index", "hari/[id]"]);
     app.unmount();
   });
 
-  it("in the tab's stack the form ends above the Android tab bar, so Kirim laporan scrolls clear of it", async () => {
+  it("in the root stack the form has no tab bar under it, so it reserves nothing and Kirim laporan is reachable", async () => {
     const app = await onHari();
     const body = screen.getByTestId("sheet-body");
-    // The bar is 80dp, grown with the font scale (React Native's jest window reports 2), over the system inset (0 in the
-    // test's safe area); iOS presents the sheet above the bar.
-    const bar = androidTabBarHeight(Dimensions.get("window").fontScale);
-    expect(bar).toBeGreaterThanOrEqual(ANDROID_TAB_BAR);
-    expect(StyleSheet.flatten(body.props.style).marginBottom).toBe(process.env.EXPO_OS === "ios" ? 0 : bar);
+    // A root-stack sheet draws above the tab bar (the bar sits under the page, not beside the sheet), on Android and iOS.
+    expect(StyleSheet.flatten(body.props.style).marginBottom ?? 0).toBe(0);
     expect(within(body).getByRole("button", { name: "Kirim laporan" })).toBeTruthy();
     app.unmount();
   });

@@ -73,6 +73,15 @@ export function sheetParent(path: string): string | null {
   return null;
 }
 
+/**
+ * The form sheets that live in the root stack (`app/masalah`, `app/ubah-hari`, `app/ulasan`, `app/alamat-form`,
+ * `app/bantuan-form`), not in a tab's stack. A tab-stack sheet is drawn inside the tab host on Android, where the dimming
+ * view takes TalkBack's first focus and the tab bar covers the form. Their URLs did not change.
+ */
+export function isRootSheet(path: string): boolean {
+  return /^\/(?:(?:masalah|ubah-hari|ulasan)\/[^/?#]+|alamat-form|bantuan-form)\/?$/.test(pathname(path));
+}
+
 /** The array-group layout gets its own segment, `(jadwal)`; this is the tab it hosts. */
 export function tabOfSegment(segment: string): Tab {
   const name = segment.replace(/^\((.*)\)$/, "$1");
@@ -206,9 +215,9 @@ function onTop(found: { tabs: State }, group: string, parent: string): boolean {
 
 /** Opens a screen that lives in the tabs in the selected tab, after closing the screens above the tabs, so it never
  * lands in a second tab bar above Beli or Bayar. Named with the tab's group, so it opens there even while they close.
- * A sheet route opens over its parent page (`sheetParent`), which opens first unless it is already on top. The same
- * sheet already on top (Ada masalah that sent the person to Masuk) is already open: it is replaced with the link's
- * params, so signing in never stacks a second Hari and sheet over the first. */
+ * A sheet route opens over its parent page (`sheetParent`), which opens first unless it is already on top. A choice
+ * sheet of the tab already on top is replaced with the link's params, so signing in never stacks a second page and sheet
+ * over the first; a root form sheet (`isRootSheet`) closes with the screens above the tabs and opens again. */
 function openInTab(found: { root: State; at: number; tabs: State }, path: string) {
   dismissAboveTabs(found);
   const group = found.tabs.routes[found.tabs.index]?.name ?? "(index)";
@@ -218,7 +227,13 @@ function openInTab(found: { root: State; at: number; tabs: State }, path: string
   const parentTab = parent ? tabOfPath(parent) : null;
   if (parentTab) {
     goToTab(parentTab);
-    return router.push(`/(tabs)/(${parentTab})${path.startsWith("/") ? path : `/${path}`}` as never);
+    return router.push((isRootSheet(path) ? path : `/(tabs)/(${parentTab})${path.startsWith("/") ? path : `/${path}`}`) as never);
+  }
+  // A form sheet lives in the root stack: its parent page opens in the tab first, the sheet above the tabs. One that
+  // was already open (Ada masalah that sent the person to Masuk) went with the screens above the tabs just now.
+  if (parent && isRootSheet(path)) {
+    if (!onTop(found, group, parent)) router.push(inTab(parent));
+    return router.push(path as never);
   }
   if (parent && onTop(found, group, pathname(path))) return router.replace(inTab(path));
   if (parent && !onTop(found, group, parent)) router.push(inTab(parent));

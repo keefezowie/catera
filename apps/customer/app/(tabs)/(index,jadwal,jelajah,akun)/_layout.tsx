@@ -44,14 +44,10 @@ export default function TabStack({ segment }: { segment: string }) {
       />
       <Stack.Screen name="package/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="bantuan" options={{ title: t("Bantuan dan laporan", "Help and reports") }} />
-      {/* Ada masalah is a form sheet over the page it was opened from (its Hari); it draws its own title. */}
-      <Stack.Screen name="masalah/[id]" options={sheetOptions({ detents: "form", palette })} />
-      {/* The day's short tasks and the account's forms, each a native sheet over the page it was opened from; they draw
-          their own title row (spec 5.3). Forms that can grow open at 60%; the area choice fits its rows. */}
-      <Stack.Screen name="ubah-hari/[id]" options={sheetOptions({ detents: "form", palette })} />
-      <Stack.Screen name="ulasan/[id]" options={sheetOptions({ detents: "form", palette })} />
-      <Stack.Screen name="alamat-form" options={sheetOptions({ detents: "form", palette })} />
-      <Stack.Screen name="bantuan-form" options={sheetOptions({ detents: "form", palette })} />
+      {/* The forms with fields (Ada masalah, Ubah hari, the review, the address and help forms) are root-stack sheets
+          (`app/_layout.tsx`): react-native-screens 4.26 draws a tab-stack sheet inside the tab host, where its dimming
+          view takes the first TalkBack focus and the tab bar covers the form. The area choice has no fields and fits
+          its rows, so it stays a native sheet over Jelajah. */}
       <Stack.Screen name="area" options={sheetOptions({ detents: "fit", palette })} />
       <Stack.Screen name="alamat" options={{ title: t("Alamat", "Addresses") }} />
       <Stack.Screen name="addresses" options={{ headerShown: false }} />
