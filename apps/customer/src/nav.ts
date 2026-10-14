@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { router, useNavigation, useRoute, type useNavigationContainerRef } from "expo-router";
+import { nativeMotion } from "@catera/design-tokens";
 import { withoutLinkTitle } from "@catera/mobile-ui";
 
 /** The four tabs. Each keeps its own stack: `app/(tabs)/(index,jadwal,jelajah,akun)`. */
@@ -116,7 +117,7 @@ let container: Container | null = null;
 /** Counts the navigation state changes, so a push can tell whether the router has shown the one before it yet. */
 let stateTick = 0;
 /** The last sheet `pushSheet` pushed, and the state count when it did. */
-let lastSheet: { href: string; tick: number } | null = null;
+let lastSheet: { href: string; tick: number; at: number } | null = null;
 
 /** A link that arrived before it had somewhere to open (a cold push tap, read while the session still loads). */
 let pending: string | null = null;
@@ -140,6 +141,7 @@ export function registerNavigation(ref: Container): () => void {
   flush();
   return () => {
     stop();
+    waiting?.();
     if (container === ref) container = null;
   };
 }
@@ -254,6 +256,8 @@ function openInTab(found: { root: State; at: number; tabs: State }, path: string
 
 /** How long a link waits for a held sheet to go once the discard question has closed (the iOS sheet slides away first). */
 export const LINK_WAIT_MS = 1000;
+/** The longest a link waits for a held sheet, whatever the navigation does meanwhile. */
+export const LINK_WAIT_LIMIT_MS = 60_000;
 
 /** The link waiting for a held sheet to go: one at a time, a newer link replaces it. */
 let waiting: (() => void) | null = null;
@@ -267,6 +271,8 @@ function openWhenClear(path: string) {
   const ref = container;
   if (!ref) return;
   let timer: ReturnType<typeof setTimeout> | undefined;
+  // However it ends, a link never waits for ever: a sheet that stays up is the person's to close.
+  const hard = setTimeout(() => give(), LINK_WAIT_LIMIT_MS);
   const stop = ref.addListener("state", () => {
     const found = tabsInRoot();
     if (!found) return give();
@@ -282,6 +288,7 @@ function openWhenClear(path: string) {
   });
   function give() {
     clearTimeout(timer);
+    clearTimeout(hard);
     stop();
     if (waiting === give) waiting = null;
   }
@@ -330,10 +337,11 @@ function sameSheetOnTop(href: string): boolean {
 /** Pushes a root-stack form sheet unless that same sheet is already on top, so a double tap opens one. */
 export function pushSheet(href: string) {
   // The same sheet again before the router has shown the first push (a double tap in one frame) is the same tap.
-  if (container && lastSheet?.href === href && lastSheet.tick === stateTick) return;
+  if (container && lastSheet?.href === href && lastSheet.tick === stateTick && Date.now() - lastSheet.at < nativeMotion.content) return;
   if (sameSheetOnTop(href)) return;
-  lastSheet = { href, tick: stateTick };
   router.push(href as never);
+  // Remembered only once the push went through, so a push that threw cannot block the next tap.
+  lastSheet = { href, tick: stateTick, at: Date.now() };
 }
 
 /**
@@ -394,7 +402,8 @@ export function leaveFor(path: string) {
   const found = tabsInRoot();
   if (found) {
     // Back from Masuk: a form sheet opens again only over the page that opened it, never a new page over Beranda.
-    if (isRootSheet(path) && !parentOpen(found, path)) return;
+    // Masuk (and whatever sheet asked for it) still close: only the re-push is skipped.
+    if (isRootSheet(path) && !parentOpen(found, path)) return dismissAboveTabs(found);
     return openInTab(found, path);
   }
   // With no tabs under it, a sheet route opens its parent page in Beranda and then itself, once the tabs are up.

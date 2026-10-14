@@ -6,6 +6,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, Stack, useNavigationContainerRef } from "expo-router";
 import { act, fireEvent, renderRouter, screen } from "expo-router/testing-library";
 import { closeSheetFor, FLOW_HREF, goToTab, leaveFor, openLink, pushSheet, registerNavigation, systemPath, tabOfPath } from "../src/nav";
+import { nativeMotion } from "@catera/design-tokens";
 import { customerLink } from "../src/links";
 
 // expo-router's testing library swaps in Reanimated's own jest mock, which has no useReducedMotion (setup.cjs adds it).
@@ -712,6 +713,49 @@ describe("legacy paths and the screens above the tabs", () => {
     // The review sits over Beranda itself, so Beranda in front is its parent.
     act(() => leaveFor("/ulasan/s-1"));
     overPage("(index)", ["index"], "ulasan/[id]");
+  });
+
+  it("back from Masuk over a Plate-opened Ada masalah clears the stack above the tabs, even when its Hari is not open", () => {
+    // Beranda's plate opens the sheet with no Hari under it; Masuk sits above the sheet. Leaving Masuk must not leave
+    // a signed-in Masuk (or the sheet) on screen, and must not push a new Hari over Beranda.
+    mount("/");
+    act(() => pushSheet("/masalah/d1?meal=lunch"));
+    act(() => router.push({ pathname: "/login", params: { next: "/masalah/d1?meal=lunch" } }));
+    expect(root()).toEqual(["(tabs)", "masalah/[id]", "login"]);
+    act(() => leaveFor("/masalah/d1?meal=lunch"));
+    expect(root()).toEqual(["(tabs)"]);
+    expect(stack("(index)")).toEqual(["index"]);
+  });
+
+  it("a warm purchase form with no purchase under it is cleared when its tab form has no page to open over", () => {
+    mount("/");
+    act(() => router.push("/pembelian/alamat-form"));
+    expect(root()).toEqual(["(tabs)", "pembelian/alamat-form"]);
+    act(() => leaveFor("/bantuan-form?kind=help"));
+    expect(root()).toEqual(["(tabs)"]);
+    expect(stack("(index)")).toEqual(["index"]);
+  });
+
+  it("the same sheet pushed again after the repeat window opens again; a failed push does not block the next", () => {
+    jest.useFakeTimers();
+    try {
+      mount("/hari/d1");
+      act(() => pushSheet("/masalah/d1?meal=lunch"));
+      act(() => router.back());
+      act(() => void jest.advanceTimersByTime(nativeMotion.content + 1));
+      act(() => pushSheet("/masalah/d1?meal=lunch"));
+      expect(root()).toEqual(["(tabs)", "masalah/[id]"]);
+      act(() => router.back());
+      const push = jest.spyOn(router, "push").mockImplementationOnce(() => {
+        throw new Error("not ready");
+      });
+      expect(() => pushSheet("/ubah-hari/d1")).toThrow();
+      push.mockRestore();
+      act(() => pushSheet("/ubah-hari/d1"));
+      expect(root()).toEqual(["(tabs)", "ubah-hari/[id]"]);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it("signing in from the signed-out Ada masalah sheet returns to that sheet, not a second Hari and sheet", () => {
