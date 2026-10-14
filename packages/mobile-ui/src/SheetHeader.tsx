@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { AccessibilityInfo, Keyboard, ScrollView, Text as RNText, useWindowDimensions, View } from "react-native";
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { AccessibilityInfo, Dimensions, Keyboard, ScrollView, Text as RNText, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "./components";
 import { HeaderIconButton } from "./HeaderIconButton";
@@ -101,6 +101,74 @@ function useTabBarOverSheet(os: string | undefined): number {
   return androidTabBarHeight(fontScale) + insets.bottom;
 }
 
+/** How long after a sheet's present the body measures itself, for a present that never reports. */
+const SHEET_MEASURE_FALLBACK_MS = 700;
+
+/**
+ * How much of a sheet body's bottom lies under the screen's edge. react-native-screens 4.26 lays an Android form sheet
+ * out at its tallest detent and slides it down to the lower one, so at the 0.6 detent the lower 40% of the scroll view,
+ * and the foot padding with the last button in it, sit below the window and no scrolling brings them back. `top` and
+ * `height` are the scroll view's window position and size now, `margin` the bottom margin already given to it (its
+ * `height` is that much shorter), `windowHeight` the screen's. Once the sheet is expanded the answer falls to 0.
+ */
+export function sheetHiddenBelow({
+  top,
+  height,
+  margin,
+  windowHeight,
+}: {
+  top: number;
+  height: number;
+  margin: number;
+  windowHeight: number;
+}): number {
+  const hidden = top + height + margin - windowHeight;
+  return hidden > 1 ? Math.round(hidden) : 0;
+}
+
+/**
+ * The bottom margin an Android root-stack form sheet's scroll view needs so that it ends at the screen's edge (see
+ * `sheetHiddenBelow`). It measures after the sheet has risen and each time it settles on a detent; 0 when inactive.
+ */
+function useSheetHiddenBelow(active: boolean, ref: RefObject<ScrollView | null>): number {
+  const navigation = useScreenNavigation();
+  const [margin, setMargin] = useState(0);
+  const marginRef = useRef(0);
+  useEffect(() => {
+    if (!active) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const measure = () => {
+      const view = ref.current;
+      const host = view as unknown as Partial<Pick<View, "measureInWindow">> | null;
+      if (!host?.measureInWindow) return;
+      host.measureInWindow((_x: number, top: number, _w: number, height: number) => {
+        if (!Number.isFinite(top) || !Number.isFinite(height) || height <= 0) return;
+        const next = sheetHiddenBelow({ top, height, margin: marginRef.current, windowHeight: Dimensions.get("screen").height });
+        if (next !== marginRef.current) {
+          marginRef.current = next;
+          setMargin(next);
+        }
+      });
+    };
+    const later = () => {
+      clearTimeout(timer);
+      timer = setTimeout(measure, 50);
+    };
+    const fallback = setTimeout(measure, SHEET_MEASURE_FALLBACK_MS);
+    const done = navigation?.addListener("transitionEnd" as never, later);
+    const detent = navigation?.addListener("sheetDetentChange" as never, (e: { data?: { stable?: boolean } }) => {
+      if (e.data?.stable !== false) later();
+    });
+    return () => {
+      clearTimeout(fallback);
+      clearTimeout(timer);
+      done?.();
+      detent?.();
+    };
+  }, [active, navigation, ref]);
+  return active ? margin : 0;
+}
+
 /** The side padding of a `SheetBody`: 20 on iOS, 24 on Android. */
 export const sheetSidePadding = (os = process.env.EXPO_OS) => (os === "ios" ? 20 : 24);
 
@@ -117,11 +185,15 @@ export function SheetBody({ children, os = process.env.EXPO_OS }: { children: Re
   const insets = useSafeAreaInsets();
   const ios = os === "ios";
   const bar = useTabBarOverSheet(os);
+  const scroll = useRef<ScrollView>(null);
+  // A root-stack Android sheet (no bar under it) is laid out at its tallest detent: its scroll view must end at the edge.
+  const below = useSheetHiddenBelow(os === "android" && bar === 0, scroll);
   return (
     <ScrollView
+      ref={scroll}
       testID="sheet-body"
       // The bar pays the system inset itself, so a sheet that ends above it keeps only the 24 foot.
-      style={{ flex: 1, marginBottom: bar }}
+      style={{ flex: 1, marginBottom: bar + below }}
       automaticallyAdjustKeyboardInsets={ios}
       keyboardShouldPersistTaps="handled"
       // Android: a drag on the form scrolls it, rather than dragging the bottom sheet.
