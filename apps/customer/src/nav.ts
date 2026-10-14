@@ -113,6 +113,11 @@ type State = { key: string; index: number; routes: Route[] };
 type Container = ReturnType<typeof useNavigationContainerRef>;
 
 let container: Container | null = null;
+/** Counts the navigation state changes, so a push can tell whether the router has shown the one before it yet. */
+let stateTick = 0;
+/** The last sheet `pushSheet` pushed, and the state count when it did. */
+let lastSheet: { href: string; tick: number } | null = null;
+
 /** A link that arrived before it had somewhere to open (a cold push tap, read while the session still loads). */
 let pending: string | null = null;
 
@@ -128,7 +133,10 @@ export function registerNavigation(ref: Container): () => void {
     pending = null;
     openLink(waiting);
   };
-  const stop = ref.addListener("state", flush);
+  const stop = ref.addListener("state", () => {
+    stateTick += 1;
+    flush();
+  });
   flush();
   return () => {
     stop();
@@ -220,6 +228,10 @@ function onTop(found: { tabs: State }, group: string, parent: string): boolean {
  * over the first; a root form sheet (`isRootSheet`) closes with the screens above the tabs and opens again. */
 function openInTab(found: { root: State; at: number; tabs: State }, path: string) {
   dismissAboveTabs(found);
+  // A form with typed text holds its own removal (`useUnsavedGuard`): the pop did not happen and the discard question is
+  // up. The link waits for that answer instead of opening its page behind the sheet.
+  const after = tabsInRoot();
+  if (after && after.root.index > after.at) return openWhenClear(path);
   const group = found.tabs.routes[found.tabs.index]?.name ?? "(index)";
   const inTab = (href: string) => `/(tabs)/${group}${href.startsWith("/") ? href : `/${href}`}` as never;
   const parent = sheetParent(path);
@@ -238,6 +250,90 @@ function openInTab(found: { root: State; at: number; tabs: State }, path: string
   if (parent && onTop(found, group, pathname(path))) return router.replace(inTab(path));
   if (parent && !onTop(found, group, parent)) router.push(inTab(parent));
   router.push(inTab(path));
+}
+
+/** How long a link waits for a held sheet to go once the discard question has closed (the iOS sheet slides away first). */
+export const LINK_WAIT_MS = 1000;
+
+/** The link waiting for a held sheet to go: one at a time, a newer link replaces it. */
+let waiting: (() => void) | null = null;
+
+/**
+ * Opens `path` once nothing is above the tabs. It gives up when the held sheet is kept instead (the discard question came
+ * and went, and the sheet is still up), so a link never opens later, out of the blue, when that sheet finally closes.
+ */
+function openWhenClear(path: string) {
+  waiting?.();
+  const ref = container;
+  if (!ref) return;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const stop = ref.addListener("state", () => {
+    const found = tabsInRoot();
+    if (!found) return give();
+    const top = found.root.routes[found.root.index]?.name;
+    if (found.root.index === found.at) {
+      give();
+      return openInTab(found, path);
+    }
+    // The question is up (`konfirmasi`). Once it is gone with the sheet still there, either the person kept writing, or
+    // they discarded and the sheet is about to go (on iOS it goes after the confirm has slid away): wait for that.
+    clearTimeout(timer);
+    timer = top === "konfirmasi" ? undefined : setTimeout(give, LINK_WAIT_MS);
+  });
+  function give() {
+    clearTimeout(timer);
+    stop();
+    if (waiting === give) waiting = null;
+  }
+  waiting = give;
+}
+
+/**
+ * Closes the sheet the person is on and opens `path` in the tab beneath it, the way a link would (Ada masalah offering
+ * Bantuan). A tab-less `router.push` would resolve in whichever tab group declares the path first. If the sheet holds its
+ * own closing for unsaved text, the page opens after the person discards.
+ */
+export function closeSheetFor(path: string) {
+  // One step: `openLink` pops the screens above the tabs itself. A `router.back()` before it would still be pending
+  // when it reads the stack, and pop the page under the sheet as well.
+  openLink(path);
+}
+
+/** Whether a sheet's parent page is the one in front now, so a return from Masuk can open the sheet over it again. */
+function parentOpen(found: { tabs: State }, path: string): boolean {
+  const parent = sheetParent(path);
+  if (!parent) return true;
+  const group = found.tabs.routes[found.tabs.index]?.name ?? "(index)";
+  const tab = tabOfPath(parent);
+  return tab ? group === `(${tab})` : onTop(found, group, parent);
+}
+
+/** The root-stack sheet on top now, if it is the one `href` names (same route, same id and query). */
+function sameSheetOnTop(href: string): boolean {
+  const root = appStack();
+  const top = root?.routes[root.index] as (Route & { params?: Record<string, unknown> }) | undefined;
+  if (!top) return false;
+  const [path, query = ""] = href.split("?");
+  const [section, ...rest] = path.replace(/^\/+|\/+$/g, "").split("/");
+  if (top.name !== (rest.length ? `${section}/[id]` : section)) return false;
+  const wanted: Record<string, string> = Object.fromEntries(new URLSearchParams(query));
+  if (rest.length) {
+    try {
+      wanted.id = decodeURIComponent(rest.join("/"));
+    } catch {
+      wanted.id = rest.join("/");
+    }
+  }
+  return Object.entries(wanted).every(([key, value]) => String(top.params?.[key]) === value);
+}
+
+/** Pushes a root-stack form sheet unless that same sheet is already on top, so a double tap opens one. */
+export function pushSheet(href: string) {
+  // The same sheet again before the router has shown the first push (a double tap in one frame) is the same tap.
+  if (container && lastSheet?.href === href && lastSheet.tick === stateTick) return;
+  if (sameSheetOnTop(href)) return;
+  lastSheet = { href, tick: stateTick };
+  router.push(href as never);
 }
 
 /**
@@ -296,7 +392,11 @@ export function leaveFor(path: string) {
   const section = path.replace(/^\/+/, "").split(/[/?#]/)[0];
   if (ROOT_STACK.has(section)) return router.replace(path as never);
   const found = tabsInRoot();
-  if (found) return openInTab(found, path);
+  if (found) {
+    // Back from Masuk: a form sheet opens again only over the page that opened it, never a new page over Beranda.
+    if (isRootSheet(path) && !parentOpen(found, path)) return;
+    return openInTab(found, path);
+  }
   // With no tabs under it, a sheet route opens its parent page in Beranda and then itself, once the tabs are up.
   const parent = sheetParent(path);
   if (parent) pending = path;

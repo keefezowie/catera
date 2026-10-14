@@ -9,6 +9,7 @@ import { ReportList } from "../src/help/ReportList";
 import { customerLink } from "../src/links";
 import { nativeThemes } from "@catera/design-tokens";
 import { ToastProvider } from "@catera/mobile-ui";
+import * as nav from "../src/nav";
 import { HelpForm } from "../src/help/HelpForm";
 import { customerState, TODAY } from "./fixtures";
 import { SheetHost } from "./sheetHost";
@@ -270,10 +271,11 @@ describe("Ada masalah", () => {
     renderWith(runtimeWith({ state }), <ReportProblem />);
     expect(await screen.findByText("Laporan untuk makan ini sudah terkirim.")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Kirim laporan" })).toBeNull();
-    // The sheet closes and Bantuan opens over the page it sat on.
+    // The sheet closes and Bantuan opens in the tab beneath it (the router tree is covered in navigation.test).
+    const close = jest.spyOn(nav, "closeSheetFor").mockImplementation(() => {});
     fireEvent.press(screen.getByRole("button", { name: "Lihat laporan saya" }));
-    expect(router.back).toHaveBeenCalledTimes(1);
-    expect(router.push).toHaveBeenCalledWith("/bantuan");
+    expect(close).toHaveBeenCalledWith("/bantuan");
+    close.mockRestore();
   });
 
   it("what-happened picks are 48dp and give a selection haptic", async () => {

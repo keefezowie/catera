@@ -1,5 +1,6 @@
 import { Image, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
+import { pushSheet } from "../nav";
 import { mealLabel, reportableMeals, shortDate, statusLabel, type Delivery } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
 import { Button, Card, FadeSwap, linkTitle, Screen, StateArt, Text, themedStyles, useColors } from "@catera/mobile-ui";
@@ -81,7 +82,7 @@ function Day({ id }: { id: string }) {
           <Button
             label={t("Ubah hari", "Change this day")}
             accessibilityLabel={t("Ubah hari", "Change this day")}
-            onPress={() => router.push(`/ubah-hari/${encodeURIComponent(d.id)}` as never)}
+            onPress={() => pushSheet(`/ubah-hari/${encodeURIComponent(d.id)}` as never)}
           />
         )
       }
@@ -130,7 +131,7 @@ function Day({ id }: { id: string }) {
           <Button
             variant="text"
             label={t("Ada masalah", "Report a problem")}
-            onPress={() => router.push(`/masalah/${encodeURIComponent(d.id)}?meal=${reportTarget}` as never)}
+            onPress={() => pushSheet(`/masalah/${encodeURIComponent(d.id)}?meal=${reportTarget}` as never)}
           />
         ) : null}
       </FadeSwap>

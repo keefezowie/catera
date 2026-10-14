@@ -26,7 +26,7 @@ import {
   useRowMotion,
 } from "@catera/mobile-ui";
 import { customerLink } from "../links";
-import { openLink } from "../nav";
+import { openLink, pushSheet } from "../nav";
 import { packageHref } from "../hrefs";
 import { weekdayName } from "../schedule/dates";
 import { onReviewMarked } from "./reviewMark";
@@ -190,7 +190,7 @@ export function WaitingList({
           title: t(`Bagaimana ${caterer} selama ini?`, `How has ${caterer} been so far?`),
           detail: t("Ulasan singkat, 1 menit", "A short review, 1 minute"),
           action: t("Nilai", "Rate"),
-          onPress: () => router.push(`/ulasan/${encodeURIComponent(item.subscription.id)}` as never),
+          onPress: () => pushSheet(`/ulasan/${encodeURIComponent(item.subscription.id)}` as never),
         };
       }
     }

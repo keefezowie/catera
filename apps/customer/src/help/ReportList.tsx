@@ -25,7 +25,7 @@ import {
   useColors,
 } from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
-import { FLOW_HREF } from "../nav";
+import { FLOW_HREF, pushSheet } from "../nav";
 import { ListSkeleton } from "../skeletons";
 
 /** Plain status words shared by reports and support cases. */
@@ -144,7 +144,7 @@ function List({ flow }: { flow: boolean }) {
           <Button
             variant="secondary"
             label={t("Minta bantuan", "Ask for help")}
-            onPress={() => router.push(helpHref(flow, "kind=help") as never)}
+            onPress={() => pushSheet(helpHref(flow, "kind=help") as never)}
           />
         ) : null}
         {reports.map((r) => (
@@ -232,7 +232,7 @@ function ReportCard({ issue: i, flow }: { issue: DeliveryIssue; flow: boolean })
         <Button
           variant="secondary"
           label={t("Minta Catera meninjau", "Ask Catera to review")}
-          onPress={() => router.push(helpHref(flow, `kind=review&issue=${encodeURIComponent(i.id)}`) as never)}
+          onPress={() => pushSheet(helpHref(flow, `kind=review&issue=${encodeURIComponent(i.id)}`) as never)}
         />
       ) : null}
     </Card>

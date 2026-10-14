@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Linking, StyleSheet, Text as RNText, View, type StyleProp, type ViewStyle } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
 import { router } from "expo-router";
+import { pushSheet } from "../nav";
 import { nativePhoto, nativeThemes } from "@catera/design-tokens";
 import { errorLabel, journeyCaption, whatsappUrl, type Delivery, type Plate as PlateData } from "@catera/domain";
 import { useMobile, useTrack } from "@catera/mobile-core";
@@ -386,7 +387,7 @@ function PlateContent({
               disabled={busy}
               style={{ flexGrow: 1, flexBasis: "auto" }}
               onPress={() =>
-                router.push(`/masalah/${encodeURIComponent(plate.deliveryId)}?meal=${plate.meal}&jenis=belum` as never)
+                pushSheet(`/masalah/${encodeURIComponent(plate.deliveryId)}?meal=${plate.meal}&jenis=belum` as never)
               }
             />
           </View>
@@ -446,7 +447,7 @@ function PlateContent({
                 ink={ink}
                 edge={edge}
                 onPress={() =>
-                  router.push(`/masalah/${encodeURIComponent(plate.deliveryId)}?meal=${plate.meal}` as never)
+                  pushSheet(`/masalah/${encodeURIComponent(plate.deliveryId)}?meal=${plate.meal}` as never)
                 }
               />
             ) : null}

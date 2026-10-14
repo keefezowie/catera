@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { router } from "expo-router";
+import { pushSheet } from "../nav";
 import {
   canChangeDay,
   changeDeadline,
@@ -100,9 +101,9 @@ export function useDayActions(delivery: Delivery | null | undefined, meal?: Meal
     if (!input.items.length) return;
     const key = await ask(input);
     const id = encodeURIComponent(delivery.id);
-    if (key === "pindah") router.push(`/ubah-hari/${id}?mode=date` as never);
-    else if (key === "alamat") router.push(`/ubah-hari/${id}?mode=address` as never);
+    if (key === "pindah") pushSheet(`/ubah-hari/${id}?mode=date` as never);
+    else if (key === "alamat") pushSheet(`/ubah-hari/${id}?mode=address` as never);
     else if (key === "chat") openCatererChat(catererPhoneOf(delivery));
-    else if (key === "lapor") router.push(`/masalah/${id}?meal=${target}` as never);
+    else if (key === "lapor") pushSheet(`/masalah/${id}?meal=${target}` as never);
   }, [delivery, meal, t, locale, runtime.apiBase, ask]);
 }

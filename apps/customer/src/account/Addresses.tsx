@@ -3,7 +3,7 @@ import Animated from "react-native-reanimated";
 import { router } from "expo-router";
 import { useData, useMobile } from "@catera/mobile-core";
 import { Button, Card, FadeSwap, Screen, StateArt, Text, useColors, useListMotion } from "@catera/mobile-ui";
-import { FLOW_HREF } from "../nav";
+import { FLOW_HREF, pushSheet } from "../nav";
 import { ListSkeleton } from "../skeletons";
 import { SignInFirst } from "./SignInFirst";
 
@@ -78,7 +78,7 @@ function AddressBook({ flow }: { flow: boolean }) {
                   variant="text"
                   label={t("Ubah", "Edit")}
                   accessibilityLabel={t(`Ubah ${a.label}`, `Edit ${a.label}`)}
-                  onPress={() => router.push(formHref(flow, a.id) as never)}
+                  onPress={() => pushSheet(formHref(flow, a.id) as never)}
                 />
               </View>
             </Card>
@@ -87,7 +87,7 @@ function AddressBook({ flow }: { flow: boolean }) {
         {!customer.data.addresses.length ? (
           <Text style={{ color: c.muted }}>{t("Belum ada alamat.", "No addresses yet.")}</Text>
         ) : null}
-        <Button label={t("Tambah alamat", "Add address")} onPress={() => router.push(formHref(flow) as never)} />
+        <Button label={t("Tambah alamat", "Add address")} onPress={() => pushSheet(formHref(flow) as never)} />
       </FadeSwap>
     </Screen>
   );

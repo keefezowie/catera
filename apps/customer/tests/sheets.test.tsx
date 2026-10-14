@@ -21,6 +21,7 @@ import {
   type ActionSheetInput,
   type ConfirmInput,
 } from "@catera/mobile-ui";
+import { LINK_WAIT_MS, openLink } from "../src/nav";
 import { customerState } from "./fixtures";
 
 // A cold real-router mount can pass the default 5 s under machine load, as in the other real-router suites.
@@ -610,6 +611,37 @@ describe("Ada masalah as a sheet", () => {
     await go(() => router.back());
     expect(root()).toEqual(["(tabs)", "masalah/[id]", "konfirmasi"]);
     await go(() => fireEvent.press(screen.getByRole("button", { name: "Buang" })));
+    expect(stack("(index)")).toEqual(["index", "hari/[id]"]);
+    app.unmount();
+  });
+
+  it("a link tapped during an unsaved report waits for the discard answer, then opens; its page is never pushed behind the sheet", async () => {
+    const app = await onHari();
+    typeNote("Kurang sambal");
+    await act(async () => {});
+    await go(() => openLink("/hari/d-next-1"));
+    expect(root()).toEqual(["(tabs)", "masalah/[id]", "konfirmasi"]);
+    expect(stack("(index)")).toEqual(["index", "hari/[id]"]);
+    await go(() => fireEvent.press(screen.getByRole("button", { name: "Buang" })));
+    expect(root()).toEqual(["(tabs)"]);
+    expect(stack("(index)")).toEqual(["index", "hari/[id]", "hari/[id]"]);
+    app.unmount();
+  });
+
+  it("a link tapped during an unsaved report is dropped when the person keeps writing, and does not open later", async () => {
+    const app = await onHari();
+    typeNote("Kurang sambal");
+    await act(async () => {});
+    await go(() => openLink("/hari/d-next-1"));
+    jest.useFakeTimers();
+    await go(() => fireEvent.press(screen.getByRole("button", { name: "Lanjut menulis" })));
+    overHari();
+    act(() => void jest.advanceTimersByTime(LINK_WAIT_MS + 1));
+    jest.useRealTimers();
+    // Closing the report later (discarding) must not open the old link out of the blue.
+    await go(() => router.back());
+    await go(() => fireEvent.press(screen.getByRole("button", { name: "Buang" })));
+    expect(root()).toEqual(["(tabs)"]);
     expect(stack("(index)")).toEqual(["index", "hari/[id]"]);
     app.unmount();
   });

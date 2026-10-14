@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Text as RNText, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
+import { closeSheetFor } from "../nav";
 import { dayLabel, errorLabel, jakartaDay, mealLabel, type Delivery } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
 import {
@@ -42,8 +43,7 @@ const drafts = new Map<string, string>();
 
 /** Opens Bantuan from the sheet: the sheet closes, and Bantuan opens over the page it sat on (Hari). */
 function toBantuan() {
-  router.back();
-  router.push("/bantuan" as never);
+  closeSheetFor("/bantuan");
 }
 
 /** Ada masalah: a form sheet over its Hari with three choices, an optional note and the send button. */

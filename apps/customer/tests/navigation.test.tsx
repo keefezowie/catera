@@ -5,7 +5,7 @@ import { Text } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, Stack, useNavigationContainerRef } from "expo-router";
 import { act, fireEvent, renderRouter, screen } from "expo-router/testing-library";
-import { FLOW_HREF, goToTab, leaveFor, openLink, registerNavigation, systemPath, tabOfPath } from "../src/nav";
+import { closeSheetFor, FLOW_HREF, goToTab, leaveFor, openLink, pushSheet, registerNavigation, systemPath, tabOfPath } from "../src/nav";
 import { customerLink } from "../src/links";
 
 // expo-router's testing library swaps in Reanimated's own jest mock, which has no useReducedMotion (setup.cjs adds it).
@@ -675,6 +675,43 @@ describe("legacy paths and the screens above the tabs", () => {
     act(() => leaveFor("/subscriptions/s1"));
     expect(root()).toEqual(["(tabs)"]);
     expect(stack("(index)")).toEqual(["index", "subscriptions/[id]"]);
+  });
+
+  it("a help link from a sheet opens Bantuan in the tab the sheet sat in, not the first group that declares it", () => {
+    mount("/");
+    act(() => goToTab("jadwal"));
+    act(() => openLink("/masalah/d1?meal=lunch"));
+    overPage("(jadwal)", ["jadwal", "hari/[id]"], "masalah/[id]");
+    act(() => closeSheetFor("/bantuan"));
+    expect(root()).toEqual(["(tabs)"]);
+    expect(tab()).toBe("(jadwal)");
+    expect(stack("(jadwal)")).toEqual(["jadwal", "hari/[id]", "bantuan"]);
+    expect(stack("(index)")).toEqual(["index"]);
+  });
+
+  it("pushing the same root sheet twice in a row opens it once; another sheet or another day still opens", () => {
+    mount("/hari/d1");
+    act(() => {
+      pushSheet("/masalah/d1?meal=lunch");
+      pushSheet("/masalah/d1?meal=lunch");
+    });
+    overPage("(index)", ["index", "hari/[id]"], "masalah/[id]");
+    act(() => router.back());
+    expect(root()).toEqual(["(tabs)"]);
+    act(() => pushSheet("/masalah/d1?meal=lunch"));
+    expect(root()).toEqual(["(tabs)", "masalah/[id]"]);
+    act(() => pushSheet("/ubah-hari/d1"));
+    expect(root()).toEqual(["(tabs)", "masalah/[id]", "ubah-hari/[id]"]);
+  });
+
+  it("back from Masuk opens a form sheet again only over the page that opened it, never a new page over Beranda", () => {
+    mount("/");
+    act(() => leaveFor("/masalah/d1?meal=lunch"));
+    expect(root()).toEqual(["(tabs)"]);
+    expect(stack("(index)")).toEqual(["index"]);
+    // The review sits over Beranda itself, so Beranda in front is its parent.
+    act(() => leaveFor("/ulasan/s-1"));
+    overPage("(index)", ["index"], "ulasan/[id]");
   });
 
   it("signing in from the signed-out Ada masalah sheet returns to that sheet, not a second Hari and sheet", () => {
