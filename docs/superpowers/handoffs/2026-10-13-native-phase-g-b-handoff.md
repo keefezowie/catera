@@ -58,7 +58,7 @@ G13 (Opus first build), G15, then G8 and G9 (they need G6b merged and the G1b fa
 - **Dapur calendar availability read:** still unresolved; G9 decides it.
 - **Main-tree environment:** the main tree needed `npm install` for netinfo (the lockfile did not change). The classifier blocks subagents from stopping long-running dev servers, so the controller restarts the backend and Metro.
 - `graphify-out/` appeared untracked in the main tree. Do not stage it.
-- Skills: `material-3` is not installed. The antislop-contrast MCP failed to connect, so ratios were computed by script.
+- Skills: from 2026-10-17 the only design skill is `ui-ux-pro-max` (plus `humanizer` for copy); see SL-UI in the Phase G plan. The antislop-contrast MCP failed to connect, so ratios were computed by script.
 
 ## Next step: the G-b2 session (state on 2026-10-17)
 State: v2 is at 797f7c2d, the weekly limit reset to 0%, and nothing is pushed. `task-G7gate`, `task-G6b` and `task-G1b2` are merged. The pool worktrees are clean (C:\wt\1 and C:\wt\3 detached at v2, C:\wt\2 on `task-G1b3`). The demo backend on :3000 and Metro on :8081/:8082 may still be running from the last session. Check before restarting; use a fresh `CATERA_DEMO_DATA_DIR` if you restart.

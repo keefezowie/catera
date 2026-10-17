@@ -32,7 +32,12 @@ Two files in the main tree have uncommitted edits made outside this session:
 - `docs/superpowers/plans/2026-10-13-native-phase-g.md` lines 7-9: SL-UI now names only `ui-ux-pro-max`. The other design skills are retired as of 2026-10-17. SL-COPY is that skill plus `humanizer`. Data tasks carry no design skill.
 - The G-b handoff's Skills line, to match.
 
-Every G-b2 agent used the old skill list. G-c should confirm the change with the owner, commit it if it is theirs, and brief agents with the new SL-UI line.
+Every G-b2 agent used the old skill list.
+
+**Owner confirmed (2026-10-17):** all subsequent work uses the new stack, and the edits are committed.
+- **Design:** `ui-ux-pro-max` only, plus `humanizer` for copy.
+- **Process:** the superpowers skills, as the new SL-SP line in the plan.
+- **Not installed:** `ui-ux-pro-max` was not on this machine when this was written. G-c checks first and asks the owner to install it before any UI or gate dispatch.
 
 ## Decisions this session
 - The tab-stack "…" action-sheet backdrop is fixed with a patch-package patch, not an Android `presentation: "modal"` (owner).
