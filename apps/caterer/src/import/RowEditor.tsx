@@ -137,6 +137,9 @@ export function ImportRowEditor({ n }: { n: number }) {
           label={t("Nomor WhatsApp", "WhatsApp number")}
           defaultValue={row.phone}
           keyboardType="phone-pad"
+          // The row holds what is typed at once, so Selesai or Simpan pressed with the keyboard still up loses nothing;
+          // the tidy +62 form replaces it when the field ends (and again when the row is sent).
+          onChangeText={(v) => update({ phone: v })}
           onEndEditing={(e) => {
             let phone = e.nativeEvent.text;
             try {

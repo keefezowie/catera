@@ -54,7 +54,7 @@ const none = offer({ id: "p-sambal", name: "Ayam Sambal Rumahan", nutrition: nul
 const zeroFat = offer({ id: "p-nabati", name: "Sayur Rebus", nutrition: { caloriesKcal: 310, proteinG: 12, fatG: 0 } });
 const caloriesOnly = offer({ id: "p-kalori", name: "Nasi Kuning", nutrition: { caloriesKcal: 540 } });
 const calorieRange = offer({ id: "p-contoh", name: "Paket Contoh", nutrition: { caloriesKcal: { min: 580, max: 640 }, proteinG: 32 } });
-const all =[full, noCarbs, zeroFat, range, caloriesOnly, none];
+const all = [full, noCarbs, zeroFat, range, caloriesOnly, none];
 
 function runtimeWith(): MobileRuntime {
   const runtime = createMobileRuntime({ apiUrl: "https://api.example.test", storagePrefix: "catera" });

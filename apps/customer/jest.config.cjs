@@ -1,5 +1,5 @@
 const path = require("node:path");
-// packages/mobile-ui imports Reanimated from the hoisted root copy; pin it to this app's pinned SDK copy.
+// Resolve Reanimated and worklets from this app so tests and packages/mobile-ui load the one copy the root `overrides` pin.
 const pinned = (name) => path.dirname(require.resolve(`${name}/package.json`));
 
 module.exports = {

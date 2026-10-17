@@ -748,7 +748,9 @@ describe("findings 6 to 8: the swap and the skeleton's frame", () => {
       -(swap.paddingHorizontal as number),
       -(swap.paddingTop as number),
     ]);
-    const heart = within(photo).getByRole("button", { name: /Simpan/ });
+    // Found from the whole screen, so being inside the photo and the block is a fact about the tree, not the query.
+    const heart = screen.getByRole("button", { name: /Simpan/ });
+    expect(inside(heart, photo)).toBe(true);
     expect(inside(heart, node)).toBe(true);
   });
 

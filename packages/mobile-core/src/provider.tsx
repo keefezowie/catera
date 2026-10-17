@@ -169,8 +169,11 @@ export function MobileProvider({
       setActor(me.actor);
       setDemo(me.demo);
       // Remembered so the next launch paints at once, and so a kitchen without signal still opens on its last day.
-      if (me.actor) void SecureStore.setItemAsync(runtime.storageKey("actor"), JSON.stringify(me.actor)).catch(() => {});
-      else signedOutLocally();
+      if (me.actor) {
+        void SecureStore.setItemAsync(runtime.storageKey("actor"), JSON.stringify(me.actor)).catch(() => {});
+        // The open is counted only now: an account painted from the phone at boot is not yet confirmed by the server.
+        void countOpen(me.actor);
+      } else signedOutLocally();
       setErrorCode("");
       // Screens painted from the stored actor already read for this account; only a different answer reloads them.
       const unchanged = !!painted && !!me.actor && painted.id === me.actor.id && painted.role === me.actor.role;
@@ -199,7 +202,7 @@ export function MobileProvider({
       if (inFlight.current === 0) setRefreshing(false);
       if (current()) setReady(true);
     }
-  }, [runtime, signedOutLocally]);
+  }, [runtime, signedOutLocally, countOpen]);
 
   const command = useCallback(
     async <T,>(action: string, payload: unknown): Promise<T> => {
@@ -264,7 +267,8 @@ export function MobileProvider({
         // Only a return from the background reads again; the "active" a launch reports, or one while a read is still
         // running, would only repeat it.
         if ((was === "background" || was === "inactive") && inFlight.current === 0) void refresh();
-        void countOpen(actorRef.current);
+        // Before the first answer the actor may be only the one painted from the phone; refresh() counts it once confirmed.
+        if (answered.current) void countOpen(actorRef.current);
       } else runtime.supabase?.auth.stopAutoRefresh();
     });
     const received = Notifications?.addNotificationReceivedListener(() =>
@@ -292,11 +296,6 @@ export function MobileProvider({
       response?.remove();
     };
   }, [runtime, refresh, countOpen]);
-
-  // The first open of a Jakarta day is counted once a session exists to send it from.
-  useEffect(() => {
-    void countOpen(actor);
-  }, [countOpen, actor?.id]);
 
   useEffect(() => {
     const client = runtime.supabase;

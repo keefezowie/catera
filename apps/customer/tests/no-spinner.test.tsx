@@ -54,3 +54,18 @@ it("an ActivityIndicator is allowed only inside a busy Button, StickyAction, Set
   expect(found).toEqual(["components.tsx", "settings/SettingsRows.tsx"]);
   expect(readFileSync(join(shared, "StickyAction.tsx"), "utf8")).toMatch(/<Button\b[^>]*\bbusy=\{busy\}/);
 });
+
+it("a Memuat literal is a skeleton's spoken label or a MascotLoading line, never bare text", () => {
+  // "Memuat menu besok…" is MascotLoading's `text`: a wait with nothing to show. Anything else must name a skeleton.
+  const offending: string[] = [];
+  for (const root of ROOTS)
+    for (const path of sources(join(APP, root)))
+      readFileSync(path, "utf8")
+        .split("\n")
+        .forEach((line, i) => {
+          if (/^\s*(\*|\/\/)/.test(line) || line.includes("label=") || line.includes("text={t(")) return;
+          for (const match of line.matchAll(/["'`](Memuat[^"'`]*)["'`]/g))
+            offending.push(`${relative(APP, path)}:${i + 1}: ${match[1]}`);
+        });
+  expect(offending).toEqual([]);
+});

@@ -4,6 +4,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import NetInfo, { type NetInfoState } from "@react-native-community/netinfo";
 import { Button, Text } from "./components";
 import { themedStyles, useColors } from "./theme";
+import { fonts } from "./type";
 import { useT } from "./useT";
 
 /** `HH.MM` on the phone's clock, the way Indonesian screens write a time. */
@@ -78,7 +79,7 @@ export function ConnectionBanner({ lastSeen, onRetry }: { lastSeen?: Date; onRet
         accessibilityElementsHidden
       />
       <View style={styles.text}>
-        <Text style={{ color: c.danger, fontWeight: "700" }}>{title}</Text>
+        <Text style={{ color: c.danger, fontFamily: fonts.bold }}>{title}</Text>
         {line ? <Text variant="caption">{line}</Text> : null}
       </View>
       <Button variant="text" label={t("Coba lagi", "Try again")} onPress={onRetry} />

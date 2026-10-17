@@ -136,6 +136,15 @@ On both Android and iOS verify public browsing, OTP, checkout, backgrounding, in
 
 `npm run native:export` and the iOS/Android Jest presets verify bundles and components, not these device flows. Keep device model, OS, build ID, API environment, test date and redacted screenshots with release evidence. [Expo push setup](https://docs.expo.dev/push-notifications/push-notifications-setup/).
 
+### Native toolchain pins and the SDK upgrade checklist
+
+- The root `package.json` `overrides` pin `react-native-reanimated` and `react-native-worklets` to exact versions so the workspace has one native copy. Bump both by hand at the next Expo SDK upgrade (take the versions `expo install --check` reports), then run both app Jest suites.
+- Jest 30 is kept through `expo.install.exclude` in both apps, against the SDK's own Jest 29.7. `expo install --fix` leaves it alone; revisit the exclusion when the SDK moves to Jest 30.
+- `expo` (`~57.0.27`) and `expo-router` (`~57.0.25`) are tilde pins set by `expo install --fix`, not exact pins; the lockfile holds the version actually installed.
+- `packages/mobile-ui` declares `expo-router`, `react-native-safe-area-context` and `react-native-screens` as `*` peer dependencies; the apps own the versions.
+- Upgrade checklist for expo-router and react-native-screens: `packages/mobile-ui/src/toastAnchor.ts` imports `ScreenPresentationContext` from `expo-router/build/react-navigation/native-stack/utils/ScreenPresentationContext`, a deep path that can move between releases. Re-check that import, then the toast anchor on a sheet and on a detail screen.
+- Not verified without a device: the Android footer anchor following the keyboard, and the iOS sheet footer over-clear. Detail screens with `headerShown: false` use the toast's fallback anchor, not a measured one.
+
 ## 9. Verification, backup and rollback
 
 Run `npm ci`, `npm run typecheck`, `npm test`, `npm run build`, `npm run test:postgres`, `npm run test:e2e`, both native Jest presets and `npm run native:export` from a clean checkout. CI runs these with isolated PostgreSQL. Examine concurrency failures before rerunning; do not weaken assertions or reset a shared database.

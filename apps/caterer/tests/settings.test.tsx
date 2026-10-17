@@ -235,6 +235,19 @@ it.each([
   expect(cap).toBeLessThan(Dimensions.get("window").height);
 });
 
+describe("Keluar after a sign-out that failed", () => {
+  it("the row comes back and the next tap tries again (the busy flag resets)", async () => {
+    const runtime = runtimeWith();
+    (runtime.signOut as jest.Mock).mockRejectedValueOnce(new Error("NETWORK"));
+    renderWith(runtime, <Pengaturan />);
+    fireEvent.press(await screen.findByRole("button", { name: "Keluar" }));
+    await waitFor(() => expect(runtime.signOut).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Keluar" }).props.accessibilityState).not.toMatchObject({ busy: true }));
+    fireEvent.press(screen.getByRole("button", { name: "Keluar" }));
+    await waitFor(() => expect(runtime.signOut).toHaveBeenCalledTimes(2));
+  });
+});
+
 describe("Keluar while sign-out waits", () => {
   it("Pengaturan shows the row busy, dimmed and not pressable, and a second tap sends nothing", async () => {
     const runtime = runtimeWith(staff);

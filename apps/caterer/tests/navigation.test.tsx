@@ -352,6 +352,22 @@ describe("signing out", () => {
     await act(async () => {});
     expect(snapshot(r)).toMatchObject({ root: ["(tabs)"], tab: "(index)", stack: ["index"] });
   });
+
+  it("a screen left open on a tab when the owner signs out is gone for the next account (no pop needed)", async () => {
+    const r = open(`/laporan/${ISSUE}`);
+    await waitFor(() => expect(shown()).toBe("laporan/[id]"));
+    expect(snapshot(r)).toMatchObject({ tab: "(index)", stack: ["index", "laporan/[id]"] });
+    mockMe.actor = null;
+    await act(() => session.logout());
+    await waitFor(() => expect(r.getSegments()).toEqual(["(auth)", "masuk"]));
+    // Masuk lands on Hari ini with goToTab; the tabs mount fresh, so the owner's report is not under the next account.
+    mockMe.actor = staff;
+    await act(() => session.signedIn(staff as never));
+    act(() => require("../src/nav").goToTab("index"));
+    await waitFor(() => expect(r.getSegments()[0]).toBe("(tabs)"));
+    await act(async () => {});
+    expect(snapshot(r)).toMatchObject({ root: ["(tabs)"], tab: "(index)", stack: ["index"] });
+  });
 });
 
 describe("links from the system", () => {

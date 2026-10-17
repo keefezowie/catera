@@ -1,4 +1,4 @@
-import type { PilotImportRow } from "@catera/domain";
+import { normalizeCustomerPhone, type PilotImportRow } from "@catera/domain";
 
 /** One customer as the assistant read it; the caterer can correct any field before saving. */
 export type AssistantRow = {
@@ -20,7 +20,7 @@ export type AssistantRow = {
 export function recheck(r: AssistantRow, packages: { id: string; days: number }[], earliest: string): AssistantRow {
   const reasons: string[] = [];
   if (!r.name.trim()) reasons.push("Nama belum ada");
-  if (!/^\+62\d{8,13}$/.test(r.phone)) reasons.push("Nomor WhatsApp tidak lengkap");
+  if (!/^\+62\d{8,13}$/.test(tidyPhone(r.phone))) reasons.push("Nomor WhatsApp tidak lengkap");
   const pkg = packages.find((p) => p.id === r.packageId);
   if (!pkg) reasons.push("Paket belum dipilih");
   if (r.addressLine.trim().length < 5 || !r.area.trim() || !r.city.trim()) reasons.push("Alamat belum lengkap");
@@ -31,11 +31,20 @@ export function recheck(r: AssistantRow, packages: { id: string; days: number }[
 }
 
 /** A clean assistant row as an import.preview row; the reference is generated per import day. */
+/** The +62 form of a typed number; a number that does not parse goes as typed and the server names it. */
+function tidyPhone(value: string) {
+  try {
+    return normalizeCustomerPhone(value);
+  } catch {
+    return value;
+  }
+}
+
 export function toImportRow(r: AssistantRow, today: string, n: number): PilotImportRow {
   return {
     customer: {
       name: r.name.trim(),
-      phone: r.phone,
+      phone: tidyPhone(r.phone),
       address: { label: "Rumah", line: r.addressLine.trim(), area: r.area.trim(), city: r.city.trim(), instructions: r.notes.trim() },
     },
     packageId: r.packageId!,

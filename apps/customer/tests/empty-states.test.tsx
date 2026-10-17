@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import * as ReactNative from "react-native";
 import { StyleSheet, Text } from "react-native";
 import * as Reanimated from "react-native-reanimated";
+import { nativeMotion } from "@catera/design-tokens";
 import { ApiError } from "@catera/api-client";
 import { addDays, type ClaimPreview, type CustomerState } from "@catera/domain";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
@@ -584,7 +585,7 @@ describe("EmptyHome while the recap's seen marks are read", () => {
       expect(art).toBe(slot);
       expect(within(art).getByTestId("mascot-art-fade", hidden)).toBe(fade);
       expect(artHeight(art)).toBe(120);
-      expect(timing.mock.calls.filter(([to, config]) => to === 1 && (config as { duration?: number })?.duration === 220)).toHaveLength(1);
+      expect(timing.mock.calls.filter(([to, config]) => to === 1 && (config as { duration?: number })?.duration === nativeMotion.content)).toHaveLength(1);
       for (const el of [art, fade]) {
         expect(el.props.entering).toBeUndefined();
         expect(el.props.exiting).toBeUndefined();
@@ -614,7 +615,7 @@ describe("EmptyHome while the recap's seen marks are read", () => {
       await act(async () => release("1"));
       const art = await screen.findByTestId("mascot-melambai", hidden);
       expect(StyleSheet.flatten(within(art).getByTestId("mascot-art-fade", hidden).props.style).opacity).toBe(1);
-      expect(timing.mock.calls.filter(([, config]) => (config as { duration?: number })?.duration === 220)).toHaveLength(0);
+      expect(timing.mock.calls.filter(([, config]) => (config as { duration?: number })?.duration === nativeMotion.content)).toHaveLength(0);
     } finally {
       store.getItemAsync.mockImplementation(original);
     }

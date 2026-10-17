@@ -357,7 +357,8 @@ describe("the offline copy", () => {
     renderToday(runtime);
     const banner = await screen.findByTestId("connection-banner");
     expect(within(banner).getByText("Tidak ada koneksi")).toBeTruthy();
-    expect(within(banner).getByText(/^Menampilkan data terakhir, \d\d\.\d\d$/)).toBeTruthy();
+    // The banner follows NetInfo; the cached day (and so its time) arrives one async read later, so wait for it.
+    expect(await within(banner).findByText(/^Menampilkan data terakhir, \d\d\.\d\d$/)).toBeTruthy();
     expect(within(banner).getByRole("button", { name: "Coba lagi" })).toBeTruthy();
     // The old attention card is gone: no loose "Terakhir diperbarui" caption beside the banner.
     expect(screen.queryByText(/Terakhir diperbarui/)).toBeNull();

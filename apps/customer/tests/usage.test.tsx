@@ -193,3 +193,38 @@ describe("usage counts", () => {
     expect(appOpenCalls(usage)).toHaveLength(0);
   });
 });
+
+describe("app_open waits for the server to confirm the account", () => {
+  it("a stored account painted at boot is not counted until me() answers", async () => {
+    const usage: UsageMock = jest.fn(async () => undefined);
+    await SecureStore.setItemAsync("catera.actor", JSON.stringify(customer));
+    await SecureStore.setItemAsync("catera.demo.token", "synthetic");
+    const runtime = runtimeWith(customer, usage);
+    let answer: (v: { actor: typeof customer; demo: boolean }) => void = () => undefined;
+    (runtime.api as unknown as { me: jest.Mock }).me = jest.fn(() => new Promise((resolve) => (answer = resolve as typeof answer)));
+    mount(runtime);
+    await waitFor(() => expect(runtime.api.me).toHaveBeenCalled());
+    await settle();
+    // The phone holds an account and paints from it, but nothing is confirmed yet.
+    await becomeActive();
+    await settle();
+    expect(appOpenCalls(usage)).toHaveLength(0);
+    await act(async () => answer({ actor: customer, demo: false }));
+    await waitFor(() => expect(appOpenCalls(usage)).toHaveLength(1));
+  });
+
+  it("a session the server rejects never counts an open", async () => {
+    const usage: UsageMock = jest.fn(async () => undefined);
+    await SecureStore.setItemAsync("catera.actor", JSON.stringify(customer));
+    await SecureStore.setItemAsync("catera.demo.token", "synthetic");
+    const runtime = runtimeWith(customer, usage);
+    (runtime.api as unknown as { me: jest.Mock }).me = jest.fn(async () => {
+      throw Object.assign(new Error("UNAUTHORIZED"), { code: "UNAUTHORIZED" });
+    });
+    mount(runtime);
+    await waitFor(() => expect(runtime.api.me).toHaveBeenCalled());
+    await settle();
+    expect(usage).not.toHaveBeenCalled();
+    expect(await SecureStore.getItemAsync("catera.actor")).toBeNull();
+  });
+});

@@ -26,7 +26,7 @@ const files = scanned.flatMap(sources).map((path) => ({
   lines: readFileSync(path, "utf8").split(/\r?\n/),
 }));
 
-/** A spinner use is allowed only as a photo tile's upload spinner, named so within its opening tag. */
+/** A spinner use is allowed only as a photo tile's upload spinner: its opening tag names it `menu-photo-spinner-…`. */
 function uploadTile(lines: string[], at: number): boolean {
   const tag = lines.slice(at, at + 6).join("\n");
   const end = tag.indexOf(">");
@@ -54,14 +54,16 @@ it("no ActivityIndicator outside an upload tile, a button's busy state or Refres
   expect(offending).toEqual([]);
 });
 
-it("no bare Memuat… line stands in for a screen or a section", () => {
-  // "Memuat minggu lalu…" is not a loader: it is the reason "Salin minggu lalu" is still off, beside that button.
+it("no bare Memuat line stands in for a screen or a section", () => {
+  // Any "Memuat" literal (with or without an ellipsis, three dots included) must be a skeleton's spoken `label=`, not
+  // visible text. "Memuat minggu lalu…" is not a loader: it is the reason "Salin minggu lalu" is still off, beside it.
   const allowed = new Set(["Memuat minggu lalu…"]);
   const offending: string[] = [];
   for (const { file, lines } of files)
     lines.forEach((line, i) => {
-      for (const match of line.matchAll(/["'`](Memuat[^"'`]*…)["'`]/g))
-        if (!allowed.has(match[1])) offending.push(`${file}:${i + 1}: ${match[1]}`);
+      for (const match of line.matchAll(/["'`](Memuat[^"'`]*)["'`]/g))
+        if (!allowed.has(match[1]) && !line.includes("label=") && !/^\s*(\*|\/\/)/.test(line))
+          offending.push(`${file}:${i + 1}: ${match[1]}`);
     });
   expect(offending).toEqual([]);
 });

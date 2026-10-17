@@ -187,6 +187,27 @@ it("keeps 'Coba lagi nanti' and no manual button for a real outage", async () =>
   expect(screen.queryByRole("button", { name: "Isi manual" })).toBeNull();
 });
 
+it("a phone typed and never blurred still reaches the preview in the +62 form", async () => {
+  const command = jest.fn(async (action: string) => (action === "import.preview" ? { id: "pv-9", rows: [] } : { created: 1 }));
+  setup(command, disabled);
+  await read();
+  fireEvent.press(await screen.findByRole("button", { name: "Isi manual" }));
+  fireEvent.changeText(await screen.findByLabelText("Nama"), "Bu Ani");
+  // changeText only: the keyboard never ends the edit before Selesai is pressed.
+  fireEvent.changeText(screen.getByLabelText("Nomor WhatsApp"), "0812 3456 7890");
+  fireEvent.changeText(screen.getByLabelText("Alamat"), "Jl. Melati 5");
+  fireEvent.changeText(screen.getByLabelText("Area"), "Tebet");
+  fireEvent.changeText(screen.getByLabelText("Kota"), "Jakarta Selatan");
+  fireEvent.press(screen.getByRole("button", { name: "Paket Hemat Kantor" }));
+  fireEvent.changeText(screen.getByLabelText("Antar berikutnya (TTTT-BB-HH)"), "2999-01-05");
+  fireEvent.changeText(screen.getByLabelText("Sisa hari"), "8");
+  fireEvent.press(screen.getByRole("button", { name: "Selesai" }));
+  fireEvent.press(await screen.findByRole("button", { name: "Simpan 1 pelanggan" }));
+  await waitFor(() => expect(command).toHaveBeenCalledWith("import.commit", { catererId: "k-1", id: "pv-9" }, expect.any(String)));
+  const preview = command.mock.calls.find((c) => c[0] === "import.preview")! as unknown as [string, { rows: Record<string, any>[] }];
+  expect(preview[1].rows[0].customer.phone).toBe("+6281234567890");
+});
+
 it("saves manually typed rows through import.preview then import.commit", async () => {
   const command = jest.fn(async (action: string) => (action === "import.preview" ? { id: "pv-9", rows: [] } : { created: 1 }));
   setup(command, disabled);

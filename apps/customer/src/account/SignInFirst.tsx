@@ -3,6 +3,10 @@ import { router } from "expo-router";
 import { useMobile } from "@catera/mobile-core";
 import { Button, MoodHeader, Screen, Text, useColors, useMoodColors } from "@catera/mobile-ui";
 
+/** The one line every signed-out stand-in says; ReportProblem's sheet reads it from here too. */
+export const signInSentence = (t: (id: string, en: string) => string) =>
+  t("Masuk untuk melihat paket dan jadwal antar Anda.", "Sign in to see your packages and deliveries.");
+
 /**
  * Signed-out stand-in for screens that need an account: one way to sign in that comes back here.
  * A tab root passes `headerTestID` to open on the mood header, so its status icons never sit on the cream page.
@@ -26,7 +30,7 @@ export function SignInFirst({
   const { t } = useMobile();
   const c = useColors();
   const mood = useMoodColors();
-  const sentence = t("Masuk untuk melihat paket dan jadwal antar Anda.", "Sign in to see your packages and deliveries.");
+  const sentence = signInSentence(t);
   return (
     <Screen
       nativeTitle={headerTestID ? undefined : title}

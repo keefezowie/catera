@@ -3,8 +3,8 @@ const { getDefaultConfig } = require("expo/metro-config");
 
 const config = getDefaultConfig(__dirname);
 
-// Shared packages (packages/mobile-ui) sit beside a hoisted root copy of Reanimated that differs from the
-// SDK-pinned copy in this app. Resolve these native-bound modules from the app so only one instance loads.
+// The root package.json `overrides` pin one copy of Reanimated and worklets for the whole workspace. Resolving these
+// native-bound modules from the app keeps shared packages (packages/mobile-ui) on that single copy at runtime.
 const pinned = ["react-native-reanimated", "react-native-worklets"];
 const origin = path.join(__dirname, "package.json");
 

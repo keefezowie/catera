@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Text as RNText, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
+import { signInSentence } from "../account/SignInFirst";
 import { closeSheetFor } from "../nav";
 import { dayLabel, errorLabel, jakartaDay, mealLabel, type Delivery } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
@@ -66,9 +67,7 @@ export function ReportProblem() {
       <Sheet swapKey={ready ? "signin" : "loading"} context={ready ? undefined : null}>
         {ready ? (
           <>
-            <Text style={{ color: c.muted }}>
-              {t("Masuk untuk melihat paket dan jadwal antar Anda.", "Sign in to see your packages and deliveries.")}
-            </Text>
+            <Text style={{ color: c.muted }}>{signInSentence(t)}</Text>
             <Button
               label={t("Masuk", "Sign in")}
               onPress={() =>
@@ -123,7 +122,6 @@ function ReportSkeleton() {
     </SkeletonGroup>
   );
 }
-
 
 function Report({ actorId, id, meal: wanted, jenis }: { actorId: string; id: string; meal?: string; jenis?: string }) {
   const { runtime, command, t, locale } = useMobile();

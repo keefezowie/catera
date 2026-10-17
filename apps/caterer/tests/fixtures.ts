@@ -18,6 +18,11 @@ const rumahan = offer("p-rumahan", "Makan Siang Rumahan", 2);
 const hemat = offer("p-hemat", "Paket Hemat Kantor", 1, false);
 
 let seq = 0;
+// Each test starts from d-1: ids never depend on which tests ran before. (Fixtures built while a file is collected keep
+// their ids; a test that mixes them with fresh ones should build both inside the test.)
+beforeEach(() => {
+  seq = 0;
+});
 export function delivery(
   pkg: { id: string; name: string },
   name: string,

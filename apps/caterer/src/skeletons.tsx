@@ -69,8 +69,9 @@ export function TodayCountSkeleton() {
 }
 
 /**
- * Hari ini's session card while the day loads: its meal label, "Daftar masak" and four checklist rows at CheckRow's
- * 56dp, each a dish photo, the dish name and the round tick.
+ * Hari ini's session card while the day loads: its meal label, the "Per paket" label with two package rows at the
+ * recap Row's 40dp, "Daftar masak" and four checklist rows at CheckRow's 56dp, each a dish photo, the dish name and the
+ * round tick.
  */
 export function TodaySkeleton() {
   const { t } = useMobile();
@@ -78,6 +79,19 @@ export function TodaySkeleton() {
     <SkeletonGroup label={t("Memuat dapur", "Loading the kitchen")}>
       <Card>
         <Line width={96} block={12} line={23} />
+        <View>
+          <Line width={72} block={12} line={23} />
+          {[0, 1].map((i) => (
+            <View
+              key={i}
+              testID={`today-skeleton-package-${i}`}
+              style={{ height: 40, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}
+            >
+              <Skeleton width={i ? "40%" : "55%"} height={14} radius={7} />
+              <Skeleton width={24} height={14} radius={7} />
+            </View>
+          ))}
+        </View>
         <Line width={120} block={12} line={23} />
         {[0, 1, 2, 3].map((i) => (
           <View
@@ -176,11 +190,29 @@ export function MenuWeekSkeleton() {
  * step list). `bare` draws the rows without their own cards, for rows that sit inside a card already (Usaha's packages:
  * a 40dp photo, the name and its price line, at the row's 56dp).
  */
-export function ListSkeleton({ rows, label, bare = false }: { rows: number; label: string; bare?: boolean }) {
+export function ListSkeleton({
+  rows,
+  label,
+  bare = false,
+  chips = 0,
+}: {
+  rows: number;
+  label: string;
+  bare?: boolean;
+  /** A row of filter chips over the rows (Pelanggan's Aktif, Segera berakhir, Selesai), at the Chip's 48dp. */
+  chips?: number;
+}) {
   const shapes = Array.from({ length: rows }, (_, i) => i);
   return (
     <SkeletonGroup label={label}>
       <View style={{ gap: bare ? 0 : 16 }}>
+        {chips ? (
+          <View testID="list-skeleton-chips" style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+            {Array.from({ length: chips }, (_, i) => (
+              <Skeleton key={i} width={i === 1 ? 148 : 108} height={48} radius={9} testID={`list-skeleton-chip-${i}`} />
+            ))}
+          </View>
+        ) : null}
         {shapes.map((i) =>
           bare ? (
             <View key={i} testID={`list-skeleton-row-${i}`} style={{ height: 56, flexDirection: "row", alignItems: "center", gap: 12 }}>

@@ -205,6 +205,10 @@ describe("Hari ini", () => {
     expect(skeletonNames()).toEqual(["Memuat dapur"]);
     const body = screen.getByLabelText("Memuat dapur");
     expect(within(body).queryAllByTestId(/^today-skeleton-row-/, { includeHiddenElements: true })).toHaveLength(4);
+    // The recap's "Per paket" rows stand above the checklist, at the loaded Row's 40dp, so the card does not grow.
+    const packages = within(body).queryAllByTestId(/^today-skeleton-package-/, { includeHiddenElements: true });
+    expect(packages).toHaveLength(2);
+    for (const row of packages) expect(flat(row).height).toBe(40);
     expect(screen.queryByText(/Memuat…/)).toBeNull();
     expect(screen.queryByRole("button", { name: /Mulai masak/ })).toBeNull();
     expect(screen.queryByText(/Tidak ada masakan/)).toBeNull();
@@ -527,6 +531,10 @@ describe("Pelanggan", () => {
     expect(within(header).getByText("Pelanggan")).toBeTruthy();
     expect(skeletonNames()).toEqual(["Memuat pelanggan"]);
     expect(within(header).queryByLabelText("Memuat pelanggan")).toBeNull();
+    // The three filter chips hold their row, at the Chip's 48dp, above the customer rows.
+    const chips = screen.queryAllByTestId(/^list-skeleton-chip-/, { includeHiddenElements: true });
+    expect(chips).toHaveLength(3);
+    for (const chip of chips) expect(flat(chip).height).toBe(48);
     expect(screen.getByRole("button", { name: "+ Pelanggan lama" })).toBeTruthy();
     expect(screen.queryByText("Memuat pelanggan…")).toBeNull();
     const timing = jest.spyOn(Reanimated, "withTiming");
