@@ -8,7 +8,6 @@ import {
   Button,
   FadeSwap,
   FONT,
-  FormError,
   MoodHeader,
   PhotoRing,
   PressableRow,
@@ -279,7 +278,7 @@ function Browse({ area, onArea }: { area: string | null; onArea: (value: string)
               <FilterChip label={t("Bisa coba 1 hari", "One-day trial")} selected={trial} onPress={() => setTrial(!trial)} />
             </ScrollView>
 
-            {saved.error ? <FormError message={saved.error} /> : null}
+            {saved.error ? <ReadError message={saved.error} onRetry={() => void saved.reload()} /> : null}
 
             {/* Each state without packages leads with its mascot, centred above its line: puzzled when the read failed,
                 searching when the area, meal, search or chips found nothing. */}

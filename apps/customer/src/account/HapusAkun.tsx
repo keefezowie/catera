@@ -14,6 +14,7 @@ import {
   Skeleton,
   SkeletonGroup,
   Text,
+  useToast,
 } from "@catera/mobile-ui";
 import { accountMessage } from "./accountMessages";
 import { useAction } from "./useAction";
@@ -72,6 +73,7 @@ function HapusAkun() {
   const { runtime, command, t, locale } = useMobile();
   const customer = useData("hapus-akun:customer", () => runtime.api.customer());
   const action = useAction(accountMessage);
+  const toast = useToast();
   const [result, setResult] = useState<{ existing: boolean } | null>(null);
 
   const all = customer.data?.subscriptions ?? [];
@@ -122,7 +124,11 @@ function HapusAkun() {
     <Button
       variant="text"
       label={t("Baca kebijakan privasi", "Read the privacy policy")}
-      onPress={() => void WebBrowser.openBrowserAsync(`${runtime.apiBase}/syarat-dan-privasi#privasi`)}
+      onPress={() =>
+        void WebBrowser.openBrowserAsync(`${runtime.apiBase}/syarat-dan-privasi#privasi`).catch(() =>
+          toast.show({ message: t("Belum berhasil. Coba lagi.", "That didn't work. Try again."), tone: "error" }),
+        )
+      }
     />
   );
 

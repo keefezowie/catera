@@ -110,7 +110,9 @@ describe("Data akun", () => {
   it("names a demo account as sample data and still offers every row", async () => {
     const { runtime } = runtimeWith({ demo: true });
     renderWith(runtime, <DataAkun />);
-    expect(await screen.findByText("Demo (data contoh): perubahan di sini tidak disimpan.")).toBeTruthy();
+    expect(
+      await screen.findByText("Demo (data contoh): nomor HP, email, dan kata sandi hanya disimulasikan."),
+    ).toBeTruthy();
     expect(screen.getByRole("button", { name: "Kata sandi" })).toBeTruthy();
   });
 
@@ -185,6 +187,30 @@ describe("Data akun", () => {
     const error = await screen.findByTestId("password-error");
     expect(within(error).getByText("Kata sandi saat ini belum cocok.")).toBeTruthy();
     expect(auth.updateUser).not.toHaveBeenCalled();
+  });
+
+  it("says a simulated demo change did not change anything", async () => {
+    const { runtime } = runtimeWith({ demo: true });
+    renderWith(runtime, <DataAkun />);
+    fireEvent.press(await screen.findByRole("button", { name: "Kata sandi" }));
+    fireEvent.changeText(screen.getByLabelText("Kata sandi saat ini"), "lama-1234");
+    fireEvent.changeText(screen.getByLabelText("Kata sandi baru"), "baru-12345");
+    fireEvent.changeText(screen.getByLabelText("Ulangi kata sandi baru"), "baru-12345");
+    fireEvent.press(screen.getByRole("button", { name: "Ganti kata sandi" }));
+    expect(await screen.findByText("Contoh saja: kata sandi tidak berubah")).toBeTruthy();
+    expect(screen.queryByText("Kata sandi diganti")).toBeNull();
+  });
+
+  it("rows that open an editor say whether it is open, and the editor takes the focus", async () => {
+    const { runtime } = runtimeWith({ user: emailUser });
+    renderWith(runtime, <DataAkun />);
+    const row = await screen.findByRole("button", { name: /^Nama, / });
+    expect(row.props.accessibilityState.expanded).toBe(false);
+    fireEvent.press(row);
+    expect(screen.getByRole("button", { name: /^Nama, / }).props.accessibilityState.expanded).toBe(true);
+    expect(screen.getByLabelText("Nama").props.autoFocus).toBe(true);
+    fireEvent.press(screen.getByRole("button", { name: /^Nama, / }));
+    expect(screen.getByRole("button", { name: /^Nama, / }).props.accessibilityState.expanded).toBe(false);
   });
 
   it("opens the delete request sheet", async () => {

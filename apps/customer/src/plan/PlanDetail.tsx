@@ -35,6 +35,7 @@ import {
 import { SignInFirst } from "../account/SignInFirst";
 import { catererPhoneOf, openCatererChat } from "../help/ChatKatering";
 import { remainingLabel } from "../remaining";
+import { StaleCopy } from "../staleCopy";
 import { loadCachedCustomer } from "../today/offline";
 import { photoUri } from "../today/Plate";
 import { dayHref } from "../hrefs";
@@ -189,6 +190,7 @@ function Plan({ id, actorId, carried, generic }: { id: string; actorId: string; 
         <Hero plan={plan} apiBase={runtime.apiBase} />
         {/* Mounted whatever the page shows; it appears only while the phone is offline, naming the time of this copy. */}
         <ConnectionBanner lastSeen={savedAt ? new Date(savedAt) : undefined} onRetry={() => void read.reload()} />
+        <StaleCopy savedAt={read.loading ? null : savedAt} onRetry={() => void read.reload()} />
         {cancelled ? null : (
           <Upcoming rows={plan.upcoming} apiBase={runtime.apiBase} deliveries={offline ? undefined : state?.deliveries} />
         )}

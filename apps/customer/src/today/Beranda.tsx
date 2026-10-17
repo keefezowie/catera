@@ -37,6 +37,7 @@ import type { Mood } from "@catera/design-tokens";
 import { EmptyHome, EmptyHomeBody, EmptyHomeHeader, type HomeCatalog } from "./EmptyHome";
 import { HERO_OVERLAP, photoUri, Plate, sentences } from "./Plate";
 import { RecapCard } from "./RecapCard";
+import { StaleCopy } from "../staleCopy";
 import { WaitingList } from "./WaitingList";
 import { UpcomingDays } from "./UpcomingDays";
 import { PlansRow } from "./PlansRow";
@@ -462,6 +463,8 @@ function SignedInHome({ actorId }: { actorId: string }) {
             up over the header. */}
         <ConnectionBanner lastSeen={savedAt ? new Date(savedAt) : undefined} onRetry={() => void home.reload()} />
         {!savedAt && home.error ? <ReadError message={home.error} onRetry={() => void home.reload()} /> : null}
+        {/* A copy kept while the phone is online means the read failed: say how old it is, never let it pass as current. */}
+        <StaleCopy savedAt={updating ? null : savedAt} onRetry={() => void home.reload()} />
         {otherPlates.length ? (
           <OtherMealRow
             plates={otherPlates}

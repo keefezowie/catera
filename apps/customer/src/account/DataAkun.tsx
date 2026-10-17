@@ -86,18 +86,24 @@ function Details() {
     <Screen nativeTitle={t("Data akun", "Account details")}>
       {demo ? (
         <Text variant="caption">
-          {t("Demo (data contoh): perubahan di sini tidak disimpan.", "Demo (sample data): changes here are not saved.")}
+          {t(
+            "Demo (data contoh): nomor HP, email, dan kata sandi hanya disimulasikan.",
+            "Demo (sample data): the phone number, email and password are only simulated.",
+          )}
         </Text>
       ) : null}
       <SettingsSection>
-        <SettingsRow label={t("Nama", "Name")} value={actor?.name ?? ""} onPress={() => toggle("nama")} />
+        <SettingsRow label={t("Nama", "Name")} value={actor?.name ?? ""} expanded={open === "nama"} onPress={() => toggle("nama")} />
         <SettingsRow
           label={t("Nomor HP", "Phone number")}
           value={info?.phone ? localPhone(info.phone) : none}
+          expanded={open === "hp"}
           onPress={() => toggle("hp")}
         />
-        <SettingsRow label="Email" value={info?.email || none} onPress={() => toggle("email")} />
-        {hasPassword ? <SettingsRow label={t("Kata sandi", "Password")} onPress={() => toggle("sandi")} /> : null}
+        <SettingsRow label="Email" value={info?.email || none} expanded={open === "email"} onPress={() => toggle("email")} />
+        {hasPassword ? (
+          <SettingsRow label={t("Kata sandi", "Password")} expanded={open === "sandi"} onPress={() => toggle("sandi")} />
+        ) : null}
       </SettingsSection>
       {open === "nama" ? <NameEditor key="nama" current={actor?.name ?? ""} onDone={() => setOpen("")} /> : null}
       {open === "hp" ? <PhoneEditor key="hp" onChanged={reload} onDone={() => setOpen("")} /> : null}
@@ -134,7 +140,7 @@ function NameEditor({ current, onDone }: { current: string; onDone: () => void }
     });
   return (
     <Editor>
-      <Field label={t("Nama", "Name")} value={name} onChangeText={setName} autoComplete="name" maxLength={80} />
+      <Field label={t("Nama", "Name")} value={name} onChangeText={setName} autoComplete="name" maxLength={80} autoFocus />
       {action.error ? <FormError message={action.error} failureKey={action.failures} testID="name-error" /> : null}
       <Button
         label={t("Simpan nama", "Save name")}
@@ -160,9 +166,12 @@ function PhoneEditor({ onChanged, onDone }: { onChanged: () => void; onDone: () 
     });
   const verify = () =>
     action.run(async () => {
-      await verifyPhoneChangeCode(runtime.supabase, demo, phone, code.trim());
+      const done = await verifyPhoneChangeCode(runtime.supabase, demo, phone, code.trim());
       onChanged();
-      toast.show({ message: t("Nomor HP diganti", "Phone number changed"), tone: "success" });
+      toast.show({
+        message: done.simulated ? t("Contoh saja: nomor HP tidak berubah", "Sample only: the number did not change") : t("Nomor HP diganti", "Phone number changed"),
+        tone: "success",
+      });
       onDone();
     });
   return (
@@ -175,6 +184,7 @@ function PhoneEditor({ onChanged, onDone }: { onChanged: () => void; onDone: () 
         autoComplete="tel"
         placeholder="0812…"
         editable={!sent}
+        autoFocus={!sent}
         hint={sent ? undefined : t("Kami kirim kode lewat SMS ke nomor ini.", "We text a code to this number.")}
       />
       {sent ? (
@@ -239,6 +249,7 @@ function EmailEditor() {
         autoCorrect={false}
         autoComplete="email"
         maxLength={254}
+        autoFocus
       />
       {sent ? (
         <Text testID="email-sent">
@@ -268,8 +279,11 @@ function PasswordEditor({ onDone }: { onDone: () => void }) {
   const action = useAction(accountMessage);
   const save = () =>
     action.run(async () => {
-      await changePassword(runtime.supabase, demo, { current, next });
-      toast.show({ message: t("Kata sandi diganti", "Password changed"), tone: "success" });
+      const done = await changePassword(runtime.supabase, demo, { current, next });
+      toast.show({
+        message: done.simulated ? t("Contoh saja: kata sandi tidak berubah", "Sample only: the password did not change") : t("Kata sandi diganti", "Password changed"),
+        tone: "success",
+      });
       onDone();
     });
   return (
@@ -283,6 +297,7 @@ function PasswordEditor({ onDone }: { onDone: () => void }) {
         autoCorrect={false}
         autoComplete="current-password"
         maxLength={256}
+        autoFocus
       />
       <Field
         label={t("Kata sandi baru", "New password")}

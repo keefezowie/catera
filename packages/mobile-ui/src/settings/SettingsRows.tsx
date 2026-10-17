@@ -138,6 +138,7 @@ export function SettingsRow({
   tone,
   selectable,
   busy = false,
+  expanded,
   os = process.env.EXPO_OS,
 }: {
   label: string;
@@ -147,6 +148,8 @@ export function SettingsRow({
   tone?: "danger";
   selectable?: boolean;
   busy?: boolean;
+  /** A row that opens an editor under the list: whether that editor is open (read out as expanded or collapsed). */
+  expanded?: boolean;
   os?: string;
 }) {
   const palette = useColors();
@@ -207,7 +210,9 @@ export function SettingsRow({
       testID="settings-row"
       accessibilityRole="button"
       accessibilityLabel={value ? `${label}, ${value}` : label}
-      accessibilityState={busy ? { busy: true, disabled: true } : undefined}
+      accessibilityState={
+        busy || expanded !== undefined ? { ...(busy ? { busy: true, disabled: true } : null), ...(expanded !== undefined ? { expanded } : null) } : undefined
+      }
       disabled={busy}
       onPress={onPress}
       android_ripple={{ color: palette.line }}

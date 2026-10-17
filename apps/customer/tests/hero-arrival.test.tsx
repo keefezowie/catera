@@ -5,7 +5,7 @@ import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { nativeThemes } from "@catera/design-tokens";
-import { ToastProvider } from "@catera/mobile-ui";
+import { bannerTime, ToastProvider } from "@catera/mobile-ui";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { todayPlates } from "@catera/domain";
@@ -237,7 +237,7 @@ describe("Beranda offline and failed reads", () => {
     expect(screen.queryByText(/Terakhir diperbarui|tidak ada koneksi/)).toBeNull();
   });
 
-  it("an online phone with a kept copy never reads Tidak ada koneksi", async () => {
+  it("an online phone with a kept copy and a failed read names the copy's time in a ReadError", async () => {
     (offline.loadCachedCustomer as jest.Mock).mockResolvedValue({
       savedAt: `${TODAY}T03:12:00.000Z`,
       data: customerState({ status: "out_for_delivery" }),
@@ -248,8 +248,11 @@ describe("Beranda offline and failed reads", () => {
       }),
     );
     await screen.findByText("Sedang diantar");
-    await act(async () => {});
+    // Not "no connection" (the phone is online): the read failed, so the copy may be old, and the page says so.
+    const clock = bannerTime(new Date(`${TODAY}T03:12:00.000Z`));
+    expect(await screen.findByText(`Belum bisa memperbarui. Menampilkan data terakhir, ${clock}.`)).toBeTruthy();
     expect(screen.queryByText("Tidak ada koneksi")).toBeNull();
+    expect(screen.getByRole("button", { name: "Coba lagi" })).toBeTruthy();
   });
 
   it("a read with no cache shows ReadError", async () => {
@@ -258,7 +261,7 @@ describe("Beranda offline and failed reads", () => {
     });
     renderHome(runtime);
     const page = within(await screen.findByTestId("home-error"));
-    expect(page.getAllByText(/./)[0]).toBeTruthy();
+    expect(page.getByText("Tidak dapat memuat. Periksa koneksi dan coba lagi.")).toBeTruthy();
     fireEvent.press(page.getByRole("button", { name: "Coba lagi" }));
     await waitFor(() => expect(runtime.api.customer).toHaveBeenCalledTimes(2));
   });
