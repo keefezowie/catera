@@ -24,6 +24,7 @@ import {
   Skeleton,
   SkeletonGroup,
   Text,
+  useBusy,
   useColors,
   useToast,
   useUnsavedGuard,
@@ -186,8 +187,9 @@ function Report({ issue: i, reload, draftKey }: { issue: DeliveryIssue; reload: 
     if (value.trim()) drafts.set(draftKey, value);
     else drafts.delete(draftKey);
   };
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [failure, setFailure] = useState<{ message: string; key: number } | null>(null);
+  // Which of the two buttons is waiting; the hook drops a second press while one runs.
+  const [which, setWhich] = useState<"deliveryIssue.respond" | "deliveryIssue.resolve" | null>(null);
   // Catera has taken over (or it is closed): the caterer can no longer change it here.
   const open = !i.case_id && (i.status === "open" || i.status === "responded");
   const replies = (i.events ?? []).filter((e) => eventLabels[e.action]);
@@ -208,11 +210,11 @@ function Report({ issue: i, reload, draftKey }: { issue: DeliveryIssue; reload: 
   // 1 to 4 characters: too short to send, and not empty enough to mean "use the standard note".
   const tooShort = reply.length > 0 && reply.length < MIN_BODY;
 
-  async function act(action: "deliveryIssue.respond" | "deliveryIssue.resolve") {
+  const [busy, act] = useBusy(async (action: "deliveryIssue.respond" | "deliveryIssue.resolve") => {
     const body = action === "deliveryIssue.resolve" && !reply ? RESOLVE_NOTE : reply;
-    if (busy || body.length < MIN_BODY) return;
-    setBusy(true);
-    setError("");
+    if (body.length < MIN_BODY) return;
+    setWhich(action);
+    setFailure(null);
     try {
       // The new version comes back with the reload that every command triggers.
       await command(action, { id: i.id, version: i.version, body });
@@ -220,17 +222,19 @@ function Report({ issue: i, reload, draftKey }: { issue: DeliveryIssue; reload: 
       if (draftKey) setSent(true);
       else toast.show({ message: t("Balasan terkirim", "Reply sent"), tone: "success" });
     } catch (e) {
-      setError(
-        errorLabel((e as { code?: string }).code || (e as Error).message, locale) ||
-          t("Belum terkirim. Coba lagi.", "Not sent. Try again."),
-      );
+      setFailure((f) => ({
+        message:
+          errorLabel((e as { code?: string }).code || (e as Error).message, locale) ||
+          (action === "deliveryIssue.respond"
+            ? t("Balasan belum terkirim. Coba lagi.", "The reply was not sent. Try again.")
+            : t("Laporan belum bisa ditandai selesai. Coba lagi.", "The report could not be marked as done. Try again.")),
+        key: (f?.key ?? 0) + 1,
+      }));
       // A refused action usually means the report changed (a reply elsewhere, or the customer asked
       // Catera): fetch it again so the next tap sends the current version.
       void reload();
-    } finally {
-      setBusy(false);
     }
-  }
+  });
 
   return (
     <>
@@ -280,16 +284,18 @@ function Report({ issue: i, reload, draftKey }: { issue: DeliveryIssue; reload: 
             // A field validation: the Field's own error line and edge, never a loose danger caption (spec 5.2).
             error={tooShort ? t("Tulis minimal 5 karakter.", "Write at least 5 characters.") : undefined}
           />
-          {error ? <FormError message={error} /> : null}
+          {failure ? <FormError message={failure.message} failureKey={failure.key} /> : null}
           <Button
             label={t("Balas", "Reply")}
-            disabled={busy || reply.length < MIN_BODY}
+            busy={busy && which === "deliveryIssue.respond"}
+            disabled={reply.length < MIN_BODY || (busy && which !== "deliveryIssue.respond")}
             onPress={() => void act("deliveryIssue.respond")}
           />
           <Button
             variant="secondary"
             label={t("Tandai selesai", "Mark as done")}
-            disabled={busy || tooShort}
+            busy={busy && which === "deliveryIssue.resolve"}
+            disabled={tooShort || (busy && which !== "deliveryIssue.resolve")}
             onPress={() => void act("deliveryIssue.resolve")}
           />
           {!reply ? (
@@ -304,7 +310,7 @@ function Report({ issue: i, reload, draftKey }: { issue: DeliveryIssue; reload: 
         </Text>
       )}
       {/* After a refused action the report may have closed meanwhile: the reason still shows. */}
-      {error && !open ? <FormError message={error} /> : null}
+      {failure && !open ? <FormError message={failure.message} failureKey={failure.key} /> : null}
       {i.customerPhone ? (
         <Button
           variant="secondary"

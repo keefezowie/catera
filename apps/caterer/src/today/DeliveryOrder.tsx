@@ -11,6 +11,7 @@ import {
 import { useMobile } from "@catera/mobile-core";
 import { Button, StopRow, Text, useColors } from "@catera/mobile-ui";
 import { canMoveDelivery, canReportFailed, parkDay, stopHref } from "./ExceptionSheet";
+import { areaRuns, selectableStops, stopChoices, type Selection } from "./selection";
 
 /** The stops shown before "Lihat {n} alamat lainnya": enough to start the route, short enough to see the buttons below. */
 const FIRST_STOPS = 3;
@@ -42,6 +43,7 @@ export function DeliveryOrder({
   date,
   report,
   caterer,
+  selection,
 }: {
   ops: SellerOperationsState;
   stops: Stop[];
@@ -50,6 +52,8 @@ export function DeliveryOrder({
   /** Which exceptions the day allows; null on a copy kept from before the connection dropped, which cannot be acted on. */
   report: "today" | "tomorrow" | null;
   caterer: string;
+  /** "Pilih" mode, owned by the screen so its bottom bar can read it. Left out, the list has no selection. */
+  selection?: Selection;
 }) {
   const { t, locale, actor } = useMobile();
   const c = useColors();
@@ -59,7 +63,10 @@ export function DeliveryOrder({
   // A same-day revision can shorten the route under a part index already advanced past its end.
   const at = Math.min(part, Math.max(parts.length - 1, 0));
   const route = routeMapsUrl(stops);
-  const shown = all ? stops : stops.slice(0, FIRST_STOPS);
+  // Picking needs the whole list in view, and only today's stops on a fresh read can take an action.
+  const picking = !!selection?.active && report === "today";
+  const canPick = !!selection && report === "today" && selectableStops(stops).length > 0;
+  const shown = all || picking ? stops : stops.slice(0, FIRST_STOPS);
   const hidden = stops.length - shown.length;
 
   // The "…" shows only when its sheet would send something, and its label says what: "Gagal diantar" (today, while the
@@ -83,37 +90,86 @@ export function DeliveryOrder({
 
   return (
     <View testID="delivery-order" style={{ gap: 12 }}>
-      <Text variant="label">{t("Urutan antar", "Delivery order")}</Text>
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 48 }}>
+        <Text testID="order-title" variant="label" accessibilityRole="header">
+          {picking
+            ? selection!.selected.size
+              ? t(`${selection!.selected.size} dipilih`, `${selection!.selected.size} selected`)
+              : t("Pilih pengantaran", "Select deliveries")
+            : t("Urutan antar", "Delivery order")}
+        </Text>
+        {picking ? (
+          <Button variant="text" label={t("Selesai", "Done")} onPress={selection!.stop} />
+        ) : canPick ? (
+          <Button variant="text" label={t("Pilih", "Select")} onPress={selection!.start} />
+        ) : null}
+      </View>
       {stops.length ? (
         <>
           <View>
-            {shown.map((s, i) => (
-              <View
-                key={s.deliveryId}
-                style={{ borderTopWidth: i ? 1 : 0, borderTopColor: c.line, paddingVertical: 4 }}
-              >
-                <StopRow
-                  testID={`stop-${s.n}`}
-                  n={s.n}
-                  name={s.name}
-                  detail={`${s.portions} porsi · ${s.packageName}`}
-                  address={[s.addressLine, s.area].filter(Boolean).join(", ")}
-                  mapLabel={`${t("Buka peta", "Open map")} ${s.name}`}
-                  onMap={() => void Linking.openURL(s.mapsUrl)}
-                  onMore={hasMore(s) ? () => openSheet(s) : undefined}
-                  moreLabel={hasMore(s) ? moreLabel(s) : undefined}
-                />
-                {s.note ? (
-                  <View style={{ paddingLeft: NOTE_INDENT, paddingBottom: 8 }}>
-                    <Text variant="caption" style={{ color: c.charcoal }}>
-                      {s.note}
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
-            ))}
+            {(picking ? areaRuns(shown) : [{ area: "", stops: shown }]).map((run) => {
+              const open = run.stops.filter((x) => stopChoices(x, t).selectable);
+              const every = open.length > 0 && open.every((x) => selection!.selected.has(x.deliveryId));
+              return (
+                <View key={`${run.area}-${run.stops[0].deliveryId}`}>
+                  {picking ? (
+                    <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 48 }}>
+                      <Text variant="label" style={{ flex: 1 }}>
+                        {run.area || t("Tanpa area", "No area")}
+                      </Text>
+                      {open.length ? (
+                        <Button
+                          variant="text"
+                          label={every ? t("Lepas semua", "Clear all") : t("Pilih semua", "Select all")}
+                          accessibilityLabel={`${every ? t("Lepas semua", "Clear all") : t("Pilih semua", "Select all")}: ${run.area || t("Tanpa area", "No area")}`}
+                          onPress={() => selection!.setMany(open.map((x) => x.deliveryId), !every)}
+                        />
+                      ) : null}
+                    </View>
+                  ) : null}
+                  {run.stops.map((s, i) => {
+                    const choice = stopChoices(s, t);
+                    return (
+                      <View
+                        key={s.deliveryId}
+                        style={{ borderTopWidth: i || picking ? 1 : 0, borderTopColor: c.line, paddingVertical: 4 }}
+                      >
+                        <StopRow
+                          testID={`stop-${s.n}`}
+                          n={s.n}
+                          name={s.name}
+                          detail={`${s.portions} porsi · ${s.packageName}`}
+                          address={[s.addressLine, s.area].filter(Boolean).join(", ")}
+                          mapLabel={`${t("Buka peta", "Open map")} ${s.name}`}
+                          onMap={() => void Linking.openURL(s.mapsUrl)}
+                          onMore={hasMore(s) ? () => openSheet(s) : undefined}
+                          moreLabel={hasMore(s) ? moreLabel(s) : undefined}
+                          selection={
+                            picking
+                              ? {
+                                  selected: selection!.selected.has(s.deliveryId),
+                                  disabled: !choice.selectable,
+                                  onToggle: () => selection!.toggle(s.deliveryId),
+                                  note: choice.note ?? undefined,
+                                }
+                              : undefined
+                          }
+                        />
+                        {s.note ? (
+                          <View style={{ paddingLeft: NOTE_INDENT, paddingBottom: 8 }}>
+                            <Text variant="caption" style={{ color: c.charcoal }}>
+                              {s.note}
+                            </Text>
+                          </View>
+                        ) : null}
+                      </View>
+                    );
+                  })}
+                </View>
+              );
+            })}
           </View>
-          {hidden > 0 ? (
+          {hidden > 0 && !picking ? (
             <Button
               variant="text"
               label={
@@ -124,7 +180,7 @@ export function DeliveryOrder({
               onPress={() => setAll(true)}
             />
           ) : null}
-          <View style={{ gap: 8 }}>
+          {picking ? null : <View style={{ gap: 8 }}>
             {route ? (
               <Button
                 variant="secondary"
@@ -148,12 +204,12 @@ export function DeliveryOrder({
                 setPart(at + 1 < parts.length ? at + 1 : 0);
               }}
             />
-          </View>
-          {report === "today" ? (
+          </View>}
+          {report === "today" && !picking ? (
             <Text variant="caption">
               {t(
-                "Pengantaran tercatat sampai otomatis, kecuali kamu laporkan masalah di alamatnya.",
-                "Deliveries are recorded as arrived automatically, unless you report a problem at the address.",
+                "Tandai Sampai dengan foto bukti. Pelanggan lalu mengonfirmasi, dan tanpa laporan pengantaran ditandai sampai otomatis.",
+                "Mark Sampai with a proof photo. The customer then confirms, and with no report the delivery is marked as arrived automatically.",
               )}
             </Text>
           ) : null}

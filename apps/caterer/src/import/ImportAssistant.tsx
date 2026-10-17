@@ -49,7 +49,11 @@ export function ImportAssistant() {
   const { text, files, rows, setText, setFiles, setRows, setPackages, number: numbered, lastRemoved, reset } = useImportStore();
   const toast = useToast();
   const [busy, setBusy] = useState("");
-  const [error, setError] = useState("");
+  // The message and a number that rises with every failure, so an identical failure is announced again.
+  const [errorState, setErrorState] = useState({ message: "", key: 0 });
+  const error = errorState.message;
+  const setError = (message: string) => setErrorState((s) => ({ message, key: message ? s.key + 1 : s.key }));
+  const savingRef = useRef(false);
   const [saved, setSaved] = useState(0);
   // Each save plays the beat again: it is keyed by the number of saves made on this screen.
   const [saves, setSaves] = useState(0);
@@ -68,9 +72,9 @@ export function ImportAssistant() {
       IMPORT_TOO_LONG: t("Daftarnya terlalu panjang. Kirim sebagian dulu, maksimal 100 pelanggan.", "The list is too long. Send part of it first, up to 100 customers."),
       INVALID_SIZE: t("Lampiran terlalu besar. Maksimal 4 MB.", "Attachments are too large. 4 MB at most."),
       QUOTA: t("Batas baca hari ini sudah tercapai. Coba lagi besok.", "Today's reading limit is reached. Try again tomorrow."),
-      IMPORT_ASSISTANT_DISABLED: t("Asisten impor belum aktif. Anda tetap bisa memasukkan pelanggan satu per satu.", "The import assistant isn't switched on yet. You can still add customers one by one."),
+      IMPORT_ASSISTANT_DISABLED: t("Asisten impor belum aktif. Kamu tetap bisa memasukkan pelanggan satu per satu.", "The import assistant isn't switched on yet. You can still add customers one by one."),
       IMPORT_UNAVAILABLE: t("Asisten impor sedang tidak tersedia. Coba lagi nanti.", "The import assistant is unavailable. Try again later."),
-    })[code] ?? (errorLabel(code, locale) || t("Belum berhasil. Coba lagi.", "That didn't work. Try again."));
+    })[code] ?? (errorLabel(code, locale) || t("Catatan belum bisa diproses. Coba lagi.", "The notes could not be processed. Try again."));
 
   /** One empty row for typing a customer in by hand; it goes through the same review and save as the assistant's rows. */
   function addRow() {
@@ -155,7 +159,8 @@ export function ImportAssistant() {
   }
 
   async function save() {
-    if (!rows) return;
+    if (!rows || savingRef.current) return;
+    savingRef.current = true;
     const today = jakartaDay(new Date());
     const clean = rows.filter((r) => !r.needsReview);
     setBusy("save");
@@ -189,6 +194,7 @@ export function ImportAssistant() {
       setRows((current) => current?.map((r) => (flagged.has(r.n) ? { ...r, needsReview: true, reason: flagged.get(r.n)! } : r)) ?? null);
       setError(flagged.size ? t(`${flagged.size} baris perlu dicek sebelum disimpan.`, `${flagged.size} rows need checking before saving.`) : message(fail(e)));
     } finally {
+      savingRef.current = false;
       setBusy("");
     }
   }
@@ -221,7 +227,7 @@ export function ImportAssistant() {
     <Screen
       footer={
         rows ? (
-          <Button label={t(`Simpan ${clean} pelanggan`, `Save ${plural(clean, "customer")}`)} disabled={!clean || !!busy} onPress={() => void save()} />
+          <Button label={t(`Simpan ${clean} pelanggan`, `Save ${plural(clean, "customer")}`)} busy={busy === "save"} disabled={!clean || (!!busy && busy !== "save")} onPress={() => void save()} />
         ) : reading ? (
           // In place of the button while the assistant reads: the reading mascot names the wait and what is read.
           <View style={{ alignItems: "center", gap: 4 }}>
@@ -243,13 +249,13 @@ export function ImportAssistant() {
         <>
           <Text>
             {t(
-              "Tempel catatan, chat WhatsApp, atau lampirkan foto buku, PDF dan Excel. Asisten akan menyusunnya menjadi daftar untuk Anda periksa.",
+              "Tempel catatan, chat WhatsApp, atau lampirkan foto buku, PDF dan Excel. Asisten akan menyusunnya menjadi daftar untuk kamu periksa.",
               "Paste notes or WhatsApp chats, or attach notebook photos, PDFs and Excel files. The assistant turns them into a list for you to check.",
             )}
           </Text>
           <Text variant="caption">
             {t(
-              "Data ini dibaca oleh AI untuk menyusun daftar. Tidak ada yang tersimpan sebelum Anda menekan Simpan.",
+              "Data ini dibaca oleh AI untuk menyusun daftar. Tidak ada yang tersimpan sebelum kamu menekan Simpan.",
               "This data is read by AI to build the list. Nothing is saved until you press Save.",
             )}
           </Text>
@@ -312,7 +318,7 @@ export function ImportAssistant() {
           <Button variant="text" label={t("Mulai lagi", "Start over")} onPress={() => setRows(null)} />
         </>
       )}
-      {error ? <FormError message={error} /> : null}
+      {error ? <FormError message={error} failureKey={errorState.key} /> : null}
     </Screen>
   );
 }

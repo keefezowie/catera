@@ -30,6 +30,7 @@ import {
   Screen,
   StoryCover,
   Text,
+  useBusy,
   useColors,
   useMood,
   useMoodColors,
@@ -232,13 +233,17 @@ export function MenuWeek() {
   const previous = useData(`menu-week:${offer?.id}:${meal}:${lastWeekDates[0]}`, () =>
     offer ? loadMenus(runtime, offer, meal, lastWeekDates) : Promise.resolve([]),
   );
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  // A message and a number that rises with every failure, so an identical failure is announced again.
+  const [errorState, setErrorState] = useState({ message: "", key: 0 });
+  const error = errorState.message;
+  const setError = (message: string) => setErrorState((s) => ({ message, key: message ? s.key + 1 : s.key }));
   const [note, setNote] = useState("");
   // The dish whose photo is uploading. Dish ids are slot ids that repeat on every day, so the day (and package and
   // meal) are kept with it: another day's dish in the same slot is not the one being uploaded.
   const [uploadingDish, setUploadingDish] = useState<{ key: string; date: string; dishId: string } | null>(null);
-  const [photoError, setPhotoError] = useState("");
+  const [photoErrorState, setPhotoErrorState] = useState({ message: "", key: 0 });
+  const photoError = photoErrorState.message;
+  const setPhotoError = (message: string) => setPhotoErrorState((s) => ({ message, key: message ? s.key + 1 : s.key }));
   // One photo at a time, from the tap until the reloaded menu has landed. The ref stops a double tap before a re-render.
   const [photoBusy, setPhotoBusy] = useState(false);
   const photoBusyRef = useRef(false);
@@ -287,9 +292,8 @@ export function MenuWeek() {
     else if (awaiting && !awaiting.started && days.loading) setAwaiting({ ...awaiting, started: true });
   }, [awaiting, waitingForWeek, days.loading]);
 
-  async function copyLastWeek() {
+  const [busy, copyLastWeek] = useBusy(async () => {
     if (!offer) return;
-    setBusy(true);
     setError("");
     setNote("");
     try {
@@ -314,11 +318,9 @@ export function MenuWeek() {
       }
       setNote(copyNote(copied, skipped));
     } catch (e) {
-      setError(errorLabel((e as { code?: string }).code || (e as Error).message, locale) || t("Belum tersimpan.", "Not saved."));
-    } finally {
-      setBusy(false);
+      setError(errorLabel((e as { code?: string }).code || (e as Error).message, locale) || t("Menu minggu lalu belum tersalin. Coba lagi.", "Last week's menu was not copied. Try again."));
     }
-  }
+  });
 
   function shareMenu() {
     if (!offer || !template) return;
@@ -370,7 +372,7 @@ export function MenuWeek() {
         // The save refreshes the week by itself; the pills stay off until that read carries the photo.
         setAwaiting({ key: `${offer.id}:${meal}`, date: day.date, dishId: dish.id, url, version: current.version, started: false });
       } catch (e) {
-        setPhotoError(errorLabel((e as { code?: string }).code || (e as Error).message, locale) || t("Belum tersimpan.", "Not saved."));
+        setPhotoError(errorLabel((e as { code?: string }).code || (e as Error).message, locale) || t("Foto belum tersimpan. Coba lagi.", "The photo was not saved. Try again."));
         // A failed save may mean the day moved on (a conflict): read it again so the next try has the right version.
         await days.reload();
       }
@@ -547,7 +549,7 @@ export function MenuWeek() {
             </ScrollView>
             <View style={{ flexDirection: "row", gap: 8 }}>
               {canEdit ? (
-                <Button style={{ flex: 1 }} variant="secondary" disabled={busy || !weekLoaded || lastWeekPending || lastWeekEmpty} label={t("Salin minggu lalu", "Copy last week")} onPress={() => void copyLastWeek()} />
+                <Button style={{ flex: 1 }} variant="secondary" busy={busy} disabled={!weekLoaded || lastWeekPending || lastWeekEmpty} label={t("Salin minggu lalu", "Copy last week")} onPress={() => void copyLastWeek()} />
               ) : null}
               <Button style={{ flex: 1 }} variant="secondary" disabled={!hasMenu} label={t("Bagikan menu", "Share menu")} onPress={shareMenu} />
             </View>
@@ -561,7 +563,7 @@ export function MenuWeek() {
               <Text variant="caption">{t("Belum ada menu untuk dibagikan", "No menu to share yet")}</Text>
             ) : null}
             {note ? <Text variant="caption">{note}</Text> : null}
-            {error ? <FormError message={error} /> : null}
+            {error ? <FormError message={error} failureKey={errorState.key} /> : null}
           </>
         )}
       </FadeSwap>
@@ -602,7 +604,7 @@ export function MenuWeek() {
                 {t("Belum diisi", "Not filled")}
               </Text>
             )}
-            {photoError ? <FormError message={photoError} /> : null}
+            {photoError ? <FormError message={photoError} failureKey={photoErrorState.key} /> : null}
             {canEdit && selected.editable ? (
               <Button
                 variant="secondary"

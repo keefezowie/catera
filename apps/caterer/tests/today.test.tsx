@@ -149,12 +149,12 @@ it("keeps showing the last loaded day when offline", async () => {
     }),
   );
   expect(within(await screen.findByTestId("session-count")).getByText("34")).toBeTruthy();
-  expect(screen.getByText(/Terakhir diperbarui 06\.12/)).toBeTruthy();
+  expect(screen.getByText(/Ini data terakhir, 06.12/)).toBeTruthy();
 });
 
 it("welcomes a new caterer with the setup card instead of empty lists", async () => {
   renderToday(runtimeWith(async () => emptyDay()));
-  expect(await screen.findByText("Siapkan dapur Anda")).toBeTruthy();
+  expect(await screen.findByText("Siapkan dapurmu")).toBeTruthy();
 });
 
 it("report cards and setup rows dim on press and still navigate", async () => {
@@ -175,7 +175,7 @@ it("report cards and setup rows dim on press and still navigate", async () => {
 
   renderToday(runtimeWith(async () => emptyDay()));
   const step = () => screen.getByRole("button", { name: /Buat paket pertama/ });
-  await screen.findByText("Siapkan dapur Anda");
+  await screen.findByText("Siapkan dapurmu");
   expect(StyleSheet.flatten(step().props.style)).toMatchObject({ minHeight: 56, backgroundColor: nativeThemes.light.forest });
   fireEvent(step(), "responderGrant", touch);
   expect(StyleSheet.flatten(step().props.style)).toMatchObject({ opacity: 0.7, backgroundColor: nativeThemes.light.forest });
@@ -195,12 +195,12 @@ describe("the setup card in the dark theme", () => {
         </MobileProvider>
       </ThemeProvider>,
     );
-    await screen.findByText("Siapkan dapur Anda");
+    await screen.findByText("Siapkan dapurmu");
     const row = (name: RegExp) => StyleSheet.flatten(screen.getByRole("button", { name }).props.style);
     // Direction K: forest fills only the first step (the one brand control here); the other rows sit on sage.
     expect(row(/Buat paket pertama/).backgroundColor).toBe(nativeThemes.dark.forest);
     expect(row(/Pindahkan pelanggan lama/).backgroundColor).toBe(nativeThemes.dark.sage);
-    expect(StyleSheet.flatten(screen.getByText("Siapkan dapur Anda").props.style).color).toBe(nativeThemes.dark.charcoal);
+    expect(StyleSheet.flatten(screen.getByText("Siapkan dapurmu").props.style).color).toBe(nativeThemes.dark.charcoal);
   });
 });
 
@@ -228,14 +228,14 @@ it("keeps the day toggle for a kitchen with packages on a day without deliveries
   renderToday(runtimeWith(async () => quietDay()));
   expect(await screen.findByText("Tidak ada masakan untuk hari ini.")).toBeTruthy();
   expect(screen.getByRole("button", { name: CHANGE_DAY })).toBeTruthy();
-  expect(screen.queryByText("Siapkan dapur Anda")).toBeNull();
+  expect(screen.queryByText("Siapkan dapurmu")).toBeNull();
 });
 
 it("never shows helpers the owner setup steps", async () => {
   renderToday(runtimeWith(async () => emptyDay(), { ...owner, role: "staff" }));
   expect(await screen.findByText("Tidak ada masakan untuk hari ini.")).toBeTruthy();
   expect(screen.getByRole("button", { name: CHANGE_DAY })).toBeTruthy();
-  expect(screen.queryByText("Siapkan dapur Anda")).toBeNull();
+  expect(screen.queryByText("Siapkan dapurmu")).toBeNull();
 });
 
 it("moves a customer's day from Besok while the cutoff is still ahead", async () => {
@@ -248,24 +248,16 @@ it("moves a customer's day from Besok while the cutoff is still ahead", async ()
   renderToday(runtime, tomorrow);
   fireEvent.press(await stopMenu(3));
   expect(screen.queryByText("Gagal diantar")).toBeNull();
-  fireEvent.changeText(screen.getByLabelText("Tanggal baru (TTTT-BB-HH)"), "2099-01-05");
-  fireEvent.changeText(screen.getByLabelText("Alasan"), "Dapur tutup sehari");
-  fireEvent.press(screen.getByText("Simpan laporan"));
-  await waitFor(() =>
-    expect(runtime.api.command).toHaveBeenCalledWith(
-      "customer.deliveryChange",
-      expect.objectContaining({ id: d.id, date: "2099-01-05" }),
-      expect.any(String),
-    ),
-  );
+  // The date is chosen on the calendar sheet, which replaces this one (the whole move is covered in selection-mode).
+  fireEvent.press(screen.getByRole("button", { name: "Pindah tanggal" }));
+  expect(router.replace).toHaveBeenCalledWith(`/pindah-tanggal/${d.id}?meal=lunch&date=${tomorrow}`);
 });
 
 it("the stop menu button and the problem options give haptics", async () => {
   renderToday(runtimeWith(same(canvasDay())));
-  fireEvent.press(await stopMenu(3));
+  fireEvent.press(await stopMenu(1));
   expect(Haptics.impactAsync).toHaveBeenCalledTimes(1);
-  const option = (await screen.findAllByRole("radio"))[0];
-  fireEvent.press(option);
+  fireEvent.press(await screen.findByRole("button", { name: "Pindah tanggal" }));
   expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
 });
 
@@ -313,17 +305,9 @@ it("offers Pindah tanggal on today's stop of a customer before the change deadli
   renderToday(runtime);
   fireEvent.press(await stopMenu(1));
   expect(await screen.findByText("Gagal diantar")).toBeTruthy();
-  fireEvent.press(screen.getByText("Pindah tanggal"));
-  fireEvent.changeText(screen.getByLabelText("Tanggal baru (TTTT-BB-HH)"), "2099-01-06");
-  fireEvent.changeText(screen.getByLabelText("Alasan"), "Pelanggan minta pindah");
-  fireEvent.press(screen.getByText("Simpan laporan"));
-  await waitFor(() =>
-    expect(runtime.api.command).toHaveBeenCalledWith(
-      "customer.deliveryChange",
-      { catererId: "k-1", id: sari.id, version: 3, date: "2099-01-06", reason: "Pelanggan minta pindah" },
-      expect.any(String),
-    ),
-  );
+  fireEvent.press(screen.getByRole("button", { name: "Pindah tanggal" }));
+  expect(router.replace).toHaveBeenCalledWith(`/pindah-tanggal/${sari.id}?meal=lunch&date=${new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(new Date())}`);
+  expect(screen.queryByLabelText("Tanggal baru (TTTT-BB-HH)")).toBeNull();
 });
 
 it("keeps only Gagal diantar today once the deadline has passed or the package has fixed dates", async () => {
@@ -576,7 +560,7 @@ describe("Hari ini by mood", () => {
 
     it("in Malam with only lunch work says so and offers the lunch session", async () => {
       renderMood(runtimeWith(same(canvasDay())), MALAM_NOW);
-      expect(await screen.findByText("Tidak ada antaran makan malam.")).toBeTruthy();
+      expect(await screen.findByText("Tidak ada pengantaran makan malam.")).toBeTruthy();
       expect(screen.queryByText("Makan siang")).toBeNull();
       expect(screen.queryByTestId("session-count")).toBeNull();
       expect(tabsSelected()).toEqual([false, true]);
@@ -584,13 +568,13 @@ describe("Hari ini by mood", () => {
       fireEvent.press(screen.getByRole("button", { name: "Lihat makan siang · 34 porsi" }));
       expect(await screen.findByText("Makan siang")).toBeTruthy();
       expect(tabsSelected()).toEqual([true, false]);
-      expect(screen.queryByText("Tidak ada antaran makan malam.")).toBeNull();
+      expect(screen.queryByText("Tidak ada pengantaran makan malam.")).toBeNull();
       expect(within(screen.getByTestId("session-count")).getByText("34")).toBeTruthy();
     });
 
     it("in Siang with only dinner work offers the dinner session", async () => {
       renderMood(runtimeWith(async () => dinnerOnly()));
-      expect(await screen.findByText("Tidak ada antaran makan siang.")).toBeTruthy();
+      expect(await screen.findByText("Tidak ada pengantaran makan siang.")).toBeTruthy();
       fireEvent.press(screen.getByRole("button", { name: "Lihat makan malam · 34 porsi" }));
       expect(await screen.findByText("Makan malam")).toBeTruthy();
       expect(tabsSelected()).toEqual([false, true]);
@@ -599,7 +583,7 @@ describe("Hari ini by mood", () => {
     it("keeps the whole-day empty card when neither meal has work", async () => {
       renderMood(runtimeWith(async () => quietDay()), MALAM_NOW);
       expect(await screen.findByText("Tidak ada masakan untuk hari ini.")).toBeTruthy();
-      expect(screen.queryByText("Tidak ada antaran makan malam.")).toBeNull();
+      expect(screen.queryByText("Tidak ada pengantaran makan malam.")).toBeNull();
       expect(screen.queryByText(/^Lihat makan/)).toBeNull();
     });
 
@@ -616,7 +600,7 @@ describe("Hari ini by mood", () => {
     it("paints the header on the deep Malam fill and keeps the title readable on it", async () => {
       jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
       renderMood(runtimeWith(same(canvasDay())), MALAM_NOW);
-      await screen.findByText("Tidak ada antaran makan malam.");
+      await screen.findByText("Tidak ada pengantaran makan malam.");
       expect(flat("mood-fill-malam").backgroundColor).toBe("#F3F6EF");
       // The fill is always mounted; in Malam it is the opaque layer.
       expect(flat("mood-fill-malam").opacity).toBe(1);

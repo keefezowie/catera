@@ -173,7 +173,7 @@ const read = async () => {
 it("offers manual entry, not 'try later', when the assistant is switched off", async () => {
   setup(jest.fn(), disabled);
   await read();
-  expect(await screen.findByText("Asisten impor belum aktif. Anda tetap bisa memasukkan pelanggan satu per satu.")).toBeTruthy();
+  expect(await screen.findByText("Asisten impor belum aktif. Kamu tetap bisa memasukkan pelanggan satu per satu.")).toBeTruthy();
   expect(screen.queryByText(/Coba lagi nanti/)).toBeNull();
   fireEvent.press(screen.getByRole("button", { name: "Isi manual" }));
   expect(await screen.findByText("Tanpa nama")).toBeTruthy();

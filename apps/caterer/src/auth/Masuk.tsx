@@ -2,11 +2,11 @@ import { useEffect, useState } from "react";
 import { View } from "react-native";
 import * as Crypto from "expo-crypto";
 import { Link } from "expo-router";
-import { errorLabel } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { Button, Field, fontFor, MoodHeader, Screen, Segmented, Text, useColors, useMoodColors } from "@catera/mobile-ui";
+import { Button, Field, fontFor, FormError, MoodHeader, Screen, Segmented, Text, useColors, useMoodColors } from "@catera/mobile-ui";
 import { goToTab } from "../nav";
 import { e164Indonesia } from "../onboarding";
+import { useFormRun } from "../useFormRun";
 
 /** Sign in with the WhatsApp number (SMS code) or email; demo roles only in development. */
 export function Masuk() {
@@ -23,23 +23,10 @@ export function Masuk() {
   const [sent, setSent] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-
-  async function run(step: () => Promise<void>) {
-    setBusy(true);
-    setError("");
-    try {
-      await step();
-    } catch (e) {
-      setError(
-        errorLabel((e as Error).message, locale) ||
-          t("Belum berhasil. Coba lagi.", "That didn't work. Try again."),
-      );
-    } finally {
-      setBusy(false);
-    }
-  }
+  const { busy, failure, run } = useFormRun(
+    locale,
+    t("Belum bisa masuk. Periksa nomor atau kodenya, lalu coba lagi.", "Could not sign in. Check the number or the code and try again."),
+  );
 
   const finish = async (actor: Parameters<typeof signedIn>[0]) => {
     await signedIn(actor);
@@ -85,7 +72,8 @@ export function Masuk() {
           ) : null}
           <Button
             label={sent ? t("Masuk", "Sign in") : t("Kirim kode", "Send code")}
-            disabled={busy || (sent ? code.trim().length < 6 : phone.replace(/\D/g, "").length < 9)}
+            busy={busy}
+            disabled={(sent ? code.trim().length < 6 : phone.replace(/\D/g, "").length < 9)}
             onPress={() =>
               run(async () => {
                 if (!sent) {
@@ -110,14 +98,15 @@ export function Masuk() {
           />
           <Button
             label={t("Masuk", "Sign in")}
-            disabled={busy || !email || !password}
+            busy={busy}
+            disabled={!email || !password}
             onPress={() =>
               run(async () => finish(await runtime.signInPassword(email, password, Crypto.randomUUID())))
             }
           />
         </View>
       )}
-      {error ? <Text selectable style={{ color: c.danger }}>{error}</Text> : null}
+      {failure ? <FormError message={failure.message} failureKey={failure.key} /> : null}
       {/* forest: action (the Daftar link) */}
       <Link href="/daftar" style={{ color: c.forest, fontFamily: fontFor("700"), paddingVertical: 12 }}>
         {t("Belum punya akun? Daftar dapur baru", "New here? Register your kitchen")}
@@ -129,7 +118,8 @@ export function Masuk() {
             <Button
               key={role}
               variant="secondary"
-              label={role === "owner" ? t("Masuk sebagai pemilik", "Sign in as owner") : t("Masuk sebagai pembantu", "Sign in as helper")}
+              disabled={busy}
+              label={role === "owner" ? t("Masuk sebagai pemilik", "Sign in as owner") : t("Masuk sebagai staf dapur", "Sign in as kitchen staff")}
               onPress={() =>
                 run(async () => {
                   await runtime.demoLogin(role);

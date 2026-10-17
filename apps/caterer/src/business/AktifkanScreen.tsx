@@ -1,10 +1,11 @@
 import { useState, type ReactNode } from "react";
 import { View } from "react-native";
-import { errorLabel, type PayoutSetup } from "@catera/domain";
+import { type PayoutSetup } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, FadeSwap, Field, Screen, Segmented, Text, useColors } from "@catera/mobile-ui";
+import { Button, Card, FadeSwap, Field, FormError, Screen, Segmented, Text, useColors } from "@catera/mobile-ui";
 import { ReadError } from "../ReadError";
 import { ListSkeleton } from "../skeletons";
+import { useFormRun } from "../useFormRun";
 
 type StepState = "done" | "waiting" | "todo" | "later";
 
@@ -39,8 +40,12 @@ export function AktifkanScreen() {
     return { status: ops.caterer.status ?? "draft", packages: ops.offers.length, setup };
   });
   const [bank, setBank] = useState({ bank: "", holder: "", accountNumber: "", recipientType: "INDIVIDUAL" as "INDIVIDUAL" | "BUSINESS" });
-  const [busy, setBusy] = useState("");
-  const [error, setError] = useState("");
+  // Which of the two buttons is waiting; the hook drops a second press while one runs.
+  const [which, setWhich] = useState("");
+  const { busy, failure, run: guarded } = useFormRun(
+    locale,
+    t("Belum bisa dikirim. Coba lagi.", "Could not send it. Try again."),
+  );
   const s = state.data;
   // Both states draw their body in the same FadeSwap, so the steps enter from their skeleton as one block.
   if (!s)
@@ -56,17 +61,10 @@ export function AktifkanScreen() {
       </Screen>
     );
 
-  async function run(key: string, action: string, payload: unknown) {
-    setBusy(key);
-    setError("");
-    try {
-      await command(action, payload);
-    } catch (e) {
-      setError(errorLabel((e as { code?: string }).code || (e as Error).message, locale) || t("Belum berhasil. Coba lagi.", "That didn't work. Try again."));
-    } finally {
-      setBusy("");
-    }
-  }
+  const run = (key: string, action: string, payload: unknown) => {
+    setWhich(key);
+    return guarded(() => command(action, payload));
+  };
 
   const review: StepState = s.status === "approved" ? "done" : s.status === "submitted" ? "waiting" : "todo";
   const latest = s.setup?.latest;
@@ -87,14 +85,15 @@ export function AktifkanScreen() {
             s.packages ? (
               <Button
                 label={t("Ajukan pemeriksaan", "Request a check")}
-                disabled={busy === "submit"}
+                busy={busy && which === "submit"}
+                disabled={busy && which !== "submit"}
                 onPress={() => void run("submit", "seller.submit", { catererId })}
               />
             ) : (
               <Text variant="caption">{t("Buat paket dulu di Usaha › Paket.", "Create a package first in Business › Packages.")}</Text>
             )
           ) : review === "waiting" ? (
-            <Text variant="caption">{t("Tim Catera biasanya memeriksa dalam 1–2 hari kerja.", "The Catera team usually checks within 1–2 working days.")}</Text>
+            <Text variant="caption">{t("Tim Catera biasanya memeriksa dalam 1 sampai 2 hari kerja.", "The Catera team usually checks within 1 to 2 working days.")}</Text>
           ) : null}
         </Step>
         <Step n={2} title={t("Rekening pencairan", "Payout bank account")} state={payout}>
@@ -104,7 +103,7 @@ export function AktifkanScreen() {
             <Text variant="caption">{`${latest.bank} · ${latest.maskedAccount}`}</Text>
           ) : (
             <View style={{ gap: 10 }}>
-              {latest?.status === "rejected" && latest.reason ? <Text selectable style={{ color: c.danger }}>{latest.reason}</Text> : null}
+              {latest?.status === "rejected" && latest.reason ? <FormError message={latest.reason} failureKey={latest.reason} /> : null}
               <Field label={t("Nama bank", "Bank name")} value={bank.bank} onChangeText={(v) => setBank((b) => ({ ...b, bank: v }))} placeholder="BCA" />
               <Field label={t("Nama pemilik rekening", "Account holder")} value={bank.holder} onChangeText={(v) => setBank((b) => ({ ...b, holder: v }))} />
               <Field label={t("Nomor rekening", "Account number")} value={bank.accountNumber} onChangeText={(v) => setBank((b) => ({ ...b, accountNumber: v.replace(/\D/g, "") }))} keyboardType="number-pad" />
@@ -118,7 +117,8 @@ export function AktifkanScreen() {
               />
               <Button
                 label={t("Kirim rekening", "Submit account")}
-                disabled={!bankReady || busy === "bank"}
+                busy={busy && which === "bank"}
+                disabled={!bankReady || (busy && which !== "bank")}
                 onPress={() => void run("bank", "payoutDestination.submit", { catererId, ...bank })}
               />
             </View>
@@ -126,10 +126,10 @@ export function AktifkanScreen() {
         </Step>
         <Step n={3} title={t("Verifikasi pembayaran", "Payment verification")} state="later">
           <Text variant="caption">
-            {t("Kami akan mengabari Anda bila ada dokumen tambahan yang diperlukan.", "We'll let you know if any extra documents are needed.")}
+            {t("Kami akan mengabarimu bila ada dokumen tambahan yang diperlukan.", "We'll let you know if any extra documents are needed.")}
           </Text>
         </Step>
-        {error ? <Text selectable style={{ color: c.danger }}>{error}</Text> : null}
+        {failure ? <FormError message={failure.message} failureKey={failure.key} /> : null}
       </FadeSwap>
     </Screen>
   );

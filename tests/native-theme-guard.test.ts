@@ -220,15 +220,6 @@ test("components.tsx is exempt only inside Field", () => {
 // they adopt `Button busy`; each file leaves this table when its count reaches zero, and the test fails if a count
 // drops without the table following, or if a file outside the table gains one.
 const LEGACY_BARE_ERRORS: Record<string, number> = {
-  "apps/caterer/src/auth/Daftar.tsx": 1,
-  "apps/caterer/src/auth/Masuk.tsx": 1,
-  "apps/caterer/src/business/AktifkanScreen.tsx": 2,
-  "apps/caterer/src/business/PackageEditor.tsx": 4,
-  "apps/caterer/src/business/TimScreen.tsx": 1,
-  "apps/caterer/src/customers/CustomerDetail.tsx": 1,
-  "apps/caterer/src/menu/MenuDayScreen.tsx": 1,
-  "apps/caterer/src/today/ExceptionSheet.tsx": 1,
-  "apps/caterer/src/today/TodayScreen.tsx": 2,
 };
 
 test("no error text is loose outside FormError, Field error, ReadError and ConnectionBanner", () => {

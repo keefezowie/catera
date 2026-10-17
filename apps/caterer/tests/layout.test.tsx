@@ -134,9 +134,12 @@ const SHEET_ROUTES = ["konfirmasi.tsx", "aksi.tsx"];
  * Short tasks that are native sheets with a role of their own: they draw their own title (the stack header is hidden),
  * and the role guards still cover them (`SCREEN_TAB`). Form sheets open at 60% and grow; Tim fits its content.
  */
-const TASK_SHEETS: Record<string, "form" | "fit"> = {
+const TASK_SHEETS: Record<string, "form" | "fit" | "large"> = {
   "balas/[id]": "form",
   "atur-antaran/[id]": "form",
+  "pindah-tanggal/[id]": "large",
+  sampai: "large",
+  "pengaturan/hapus-akun": "fit",
   "impor-baris": "form",
   tim: "fit",
 };
@@ -258,7 +261,7 @@ describe("stack headers", () => {
         route,
         options: {
           presentation: "formSheet",
-          sheetAllowedDetents: detents === "fit" ? "fitToContents" : [0.6, 1],
+          sheetAllowedDetents: detents === "fit" ? "fitToContents" : detents === "large" ? [1] : [0.6, 1],
           sheetGrabberVisible: true,
           headerShown: false,
         },

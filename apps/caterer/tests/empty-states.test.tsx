@@ -140,7 +140,7 @@ const STATES: State[] = [
     pose: "tidur",
     runtime: () => runtimeWith({ sellerOperations: jest.fn(async () => day("scheduled", "dinner")) }),
     ui: <TodayScreen />,
-    copy: ["Tidak ada antaran makan siang."],
+    copy: ["Tidak ada pengantaran makan siang."],
     action: /^Lihat makan malam · \d+ porsi$/,
   },
   {
@@ -148,7 +148,7 @@ const STATES: State[] = [
     pose: "merayakan",
     runtime: () => runtimeWith({ sellerOperations: jest.fn(async () => day("delivered")) }),
     ui: <TodayScreen />,
-    copy: ["Semua beres hari ini", "Semua antaran tercatat sampai."],
+    copy: ["Semua beres hari ini", "Semua pengantaran tercatat sampai."],
     action: "Lihat besok",
   },
   {

@@ -8,12 +8,14 @@ import {
   Button,
   Chip,
   Field,
+  FormError,
   PressableScale,
   Screen,
   Segmented,
   Stepper,
   SuccessBeat,
   Text,
+  useBusy,
   useColors,
   useToast,
 } from "@catera/mobile-ui";
@@ -47,14 +49,15 @@ export function PackageEditor({ from, firstPublish = null }: { from?: SellerOffe
   }, [from, toast, t]);
   const [shown, setShown] = useState<ReturnType<typeof packageIssues>>({});
   const [giziShown, setGiziShown] = useState<ReturnType<typeof nutritionIssues>>({});
-  const [busy, setBusy] = useState(false);
+  // Counts the saves that were held back by a missing field, so the same message is announced again on a second try.
+  const [attempt, setAttempt] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   // The first publish, once saved: the beat replaces the form.
   const [published, setPublished] = useState(false);
   const set = <K extends keyof PackageForm>(key: K, value: PackageForm[K]) => setForm((f) => ({ ...f, [key]: value }));
-  const failed = (e: unknown) =>
-    errorLabel((e as { code?: string }).code || (e as Error).message, locale) || t("Belum tersimpan. Coba lagi.", "Not saved. Try again.");
+  const failed = (e: unknown, fallback: string) =>
+    errorLabel((e as { code?: string }).code || (e as Error).message, locale) || fallback;
 
   async function pickPhoto() {
     const picked = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.8 });
@@ -64,20 +67,21 @@ export function PackageEditor({ from, firstPublish = null }: { from?: SellerOffe
     try {
       set("image", await uploadPhoto(runtime, picked.assets[0], demo));
     } catch (e) {
-      setError(failed(e));
+      setAttempt((n) => n + 1);
+      setError(failed(e, t("Foto belum terunggah. Coba lagi.", "The photo was not uploaded. Try again.")));
     } finally {
       setUploading(false);
     }
   }
 
-  async function save() {
+  const [busy, save] = useBusy(async () => {
     const issues = packageIssues(form);
     setShown(issues);
     setGiziShown(nutritionIssues(form.nutrition));
+    setAttempt((n) => n + 1);
     if (Object.keys(issues).length) return;
     // Fixed before the save: the save itself makes the package read show a published package.
     const first = firstPublish === true;
-    setBusy(true);
     setError("");
     try {
       await command("package.save", {
@@ -92,11 +96,9 @@ export function PackageEditor({ from, firstPublish = null }: { from?: SellerOffe
       router.back();
       toast.show({ message: t("Paket diterbitkan", "Package published"), tone: "success" });
     } catch (e) {
-      setError(failed(e));
-    } finally {
-      setBusy(false);
+      setError(failed(e, t("Paket belum tersimpan. Coba lagi.", "The package was not saved. Try again.")));
     }
-  }
+  });
 
   if (published) {
     const dayNames = days.filter(([d]) => form.weekdays.includes(d)).map(([, label]) => label);
@@ -120,7 +122,7 @@ export function PackageEditor({ from, firstPublish = null }: { from?: SellerOffe
   }
 
   return (
-    <Screen footer={<Button label={t("Simpan paket", "Save package")} disabled={busy || uploading} onPress={() => void save()} />}>
+    <Screen footer={<Button label={t("Simpan paket", "Save package")} busy={busy} disabled={uploading} onPress={() => void save()} />}>
       <PressableScale
         accessibilityRole="button"
         accessibilityLabel={t("Pilih foto paket", "Choose package photo")}
@@ -135,14 +137,14 @@ export function PackageEditor({ from, firstPublish = null }: { from?: SellerOffe
           </Text>
         )}
       </PressableScale>
-      {shown.image ? <Text selectable variant="caption" style={{ color: palette.danger }}>{shown.image}</Text> : null}
+      {shown.image ? <FormError message={shown.image} failureKey={attempt} testID="form-error-image" /> : null}
       <Field label={t("Nama paket", "Package name")} value={form.name} onChangeText={(v) => set("name", v)} error={shown.name} placeholder="Makan Siang Rumahan" />
       <Field label={t("Ceritakan paketnya", "Describe it")} value={form.description} onChangeText={(v) => set("description", v)} error={shown.description} multiline />
       <Text variant="label">{t("Isi satu porsi", "In one portion")}</Text>
       {defaultDishCategories.map((c) => (
         <Stepper key={c.id} label={locale === "id" ? c.name : c.nameEn ?? c.name} decreaseLabel={t(`Kurangi ${c.name}`, `Decrease ${c.nameEn ?? c.name}`)} increaseLabel={t(`Tambah ${c.name}`, `Increase ${c.nameEn ?? c.name}`)} value={form.counts[c.id] ?? 0} onChange={(n) => set("counts", { ...form.counts, [c.id]: n })} max={10} />
       ))}
-      {shown.counts ? <Text selectable variant="caption" style={{ color: palette.danger }}>{shown.counts}</Text> : null}
+      {shown.counts ? <FormError message={shown.counts} failureKey={attempt} testID="form-error-counts" /> : null}
       <NutritionFields value={form.nutrition} onChange={(n) => set("nutrition", n)} errors={giziShown} />
       <Field label={t("Harga per porsi (Rp)", "Price per portion (Rp)")} value={form.price} onChangeText={(v) => set("price", v.replace(/\D/g, ""))} error={shown.price} keyboardType="number-pad" placeholder="28000" />
       <Text variant="label">{t("Waktu makan", "Meal")}</Text>
@@ -166,16 +168,16 @@ export function PackageEditor({ from, firstPublish = null }: { from?: SellerOffe
           />
         ))}
       </View>
-      {shown.weekdays ? <Text selectable variant="caption" style={{ color: palette.danger }}>{shown.weekdays}</Text> : null}
+      {shown.weekdays ? <FormError message={shown.weekdays} failureKey={attempt} testID="form-error-weekdays" /> : null}
       <Field
         label={t("Kapasitas per hari (porsi)", "Daily capacity (portions)")}
-        hint={t("Berapa porsi paling banyak yang sanggup Anda masak per hari.", "The most portions you can cook in a day.")}
+        hint={t("Berapa porsi paling banyak yang sanggup kamu masak per hari.", "The most portions you can cook in a day.")}
         value={form.capacity}
         onChangeText={(v) => set("capacity", v.replace(/\D/g, ""))}
         error={shown.capacity}
         keyboardType="number-pad"
       />
-      {error ? <Text selectable style={{ color: palette.danger }}>{error}</Text> : null}
+      {error ? <FormError message={error} failureKey={attempt} /> : null}
     </Screen>
   );
 }

@@ -1,0 +1,102 @@
+import { useState } from "react";
+import { View } from "react-native";
+import { router } from "expo-router";
+import { errorLabel, type KitchenSession, type SellerOperationsState } from "@catera/domain";
+import { useMobile, useTrack } from "@catera/mobile-core";
+import { Button, FormError, Text, useBusy, useConfirm, useHaptic } from "@catera/mobile-ui";
+import { parkDay } from "./ExceptionSheet";
+import { proofHref } from "./ProofSheet";
+import { selectedFor, type Selection } from "./selection";
+
+/**
+ * The bar above the tab bar while "Pilih" is on (spec 5.7): "Berangkat (n)" for the selected stops that are cooking and
+ * "Sampai (n)" for the ones on their way. Each counts only the stops it can take, so a stop that has already left is
+ * not part of Berangkat, and a button with nothing to do waits. Berangkat asks first (customers are told) and goes
+ * through `delivery.depart` with exactly these stops; Sampai opens the proof-photo sheet. A failure is a `FormError`
+ * at the bar with "Coba lagi".
+ */
+export function SelectionBar({
+  ops,
+  session,
+  catererId,
+  date,
+  selection,
+  onFailed,
+}: {
+  ops: SellerOperationsState;
+  session: KitchenSession;
+  catererId: string;
+  date: string;
+  selection: Selection;
+  onFailed: () => void;
+}) {
+  const { t, locale, command } = useMobile();
+  const track = useTrack();
+  const haptic = useHaptic();
+  const confirm = useConfirm();
+  const { meal } = session;
+  const depart = selectedFor(session.stops, selection.selected, "depart");
+  const arrive = selectedFor(session.stops, selection.selected, "arrive");
+  const [failure, setFailure] = useState<{ message: string; key: number } | null>(null);
+
+  const [busy, leave] = useBusy(async () => {
+    if (!depart.length) return;
+    const go = await confirm({
+      title: t(`Berangkat dengan ${depart.length} pengantaran?`, `Leave with ${depart.length} ${depart.length === 1 ? "delivery" : "deliveries"}?`),
+      message: t(
+        "Pelanggan yang memakai aplikasi Catera dapat notifikasi saat kamu berangkat.",
+        "Customers using the Catera app get a notification when you leave.",
+      ),
+      cancelLabel: t("Batal", "Cancel"),
+      confirmLabel: t("Berangkat", "Leave"),
+      icon: "rantang",
+    });
+    if (!go) return;
+    setFailure(null);
+    try {
+      await command("delivery.depart", { catererId, date, meal, fulfillmentIds: depart.map((s) => s.deliveryId) });
+      haptic.success();
+      track("depart_tapped");
+      selection.stop();
+    } catch (e) {
+      const code = (e as { code?: string }).code || (e as Error).message;
+      setFailure((f) => ({
+        message:
+          errorLabel(code, locale) || t("Belum bisa menandai berangkat. Coba lagi.", "Could not mark them as out for delivery. Try again."),
+        key: (f?.key ?? 0) + 1,
+      }));
+      onFailed();
+    }
+  });
+
+  const openProof = () => {
+    if (!arrive.length) return;
+    parkDay(catererId, date, ops);
+    router.push(proofHref(arrive.map((s) => s.deliveryId), meal, date) as never);
+  };
+
+  return (
+    <View testID="selection-bar" style={{ gap: 8 }}>
+      {failure ? <FormError message={failure.message} failureKey={failure.key} retry={() => void leave()} /> : null}
+      {selection.selected.size === 0 ? (
+        <Text variant="caption">{t("Pilih pengantaran dulu.", "Select deliveries first.")}</Text>
+      ) : null}
+      <View style={{ flexDirection: "row", gap: 8 }}>
+        <Button
+          style={{ flex: 1 }}
+          label={t(`Berangkat (${depart.length})`, `Leave (${depart.length})`)}
+          disabled={!depart.length}
+          busy={busy}
+          onPress={() => void leave()}
+        />
+        <Button
+          style={{ flex: 1 }}
+          variant="secondary"
+          label={t(`Sampai (${arrive.length})`, `Arrived (${arrive.length})`)}
+          disabled={!arrive.length || busy}
+          onPress={openProof}
+        />
+      </View>
+    </View>
+  );
+}

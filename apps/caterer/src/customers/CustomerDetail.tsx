@@ -3,7 +3,7 @@ import { Linking, View } from "react-native";
 import { router } from "expo-router";
 import { errorLabel, jakartaDay, whatsappUrl, type CustomerSubscription } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, FadeSwap, Screen, Text, useColors } from "@catera/mobile-ui";
+import { Button, Card, FadeSwap, FormError, Screen, Text, useBusy, useColors } from "@catera/mobile-ui";
 import { activeEndLabel, activeSubscriptions, renewalAction } from "./rules";
 import { usePaymentsActive } from "./usePayments";
 import { loadCustomer } from "./load";
@@ -21,10 +21,40 @@ export function CustomerDetail({ id, title }: { id: string; title?: string }) {
   const catererId = actor?.catererId ?? "";
   const record = useData(`customer:${catererId}:${id}`, () => loadCustomer(runtime, catererId, id));
   const payments = usePaymentsActive();
-  const [error, setError] = useState("");
-  const [errorFor, setErrorFor] = useState("");
-  const [busy, setBusy] = useState("");
+  const [failure, setFailure] = useState<{ message: string; key: number; subscription: string } | null>(null);
+  // Which package's button is waiting; the hook drops a second press while one runs.
+  const [which, setWhich] = useState("");
   const c = record.data;
+  const [busy, renew] = useBusy(async (s: CustomerSubscription) => {
+    if (!c) return;
+    if (payments !== true) {
+      router.push("/aktifkan" as never);
+      return;
+    }
+    setWhich(s.id);
+    setFailure(null);
+    try {
+      const followup = renewalAction(c) === "followup";
+      const result = followup
+        ? await command<{ path: string }>("customer.followup", { catererId, subscriptionId: s.id, kind: "prepared" })
+        : await command<{ path: string }>("customer.invite", { catererId, customerRecordId: c.id });
+      const message = followup
+        ? t("Paket kateringmu hampir selesai. Perpanjang di sini:", "Your catering package is nearly finished. Renew here:")
+        : t(
+            "Paket kateringmu hampir selesai. Buat akun Catera lalu perpanjang di sini:",
+            "Your catering package is nearly finished. Create your Catera account and renew here:",
+          );
+      await Linking.openURL(whatsappUrl(`${message} ${runtime.apiBase}${result.path}`, c.phone!));
+    } catch (e) {
+      setFailure((f) => ({
+        subscription: s.id,
+        key: (f?.key ?? 0) + 1,
+        message:
+          errorLabel((e as { code?: string }).code || (e as Error).message, locale) ||
+          t("Tautan perpanjang belum terkirim. Coba lagi.", "The renewal link was not sent. Try again."),
+      }));
+    }
+  });
   // Until the record arrives the screen keeps the name its link carried, or else is named by what it is; then by the
   // customer. A failed read or a customer the read does not hold goes back to what it is: the carried name was never
   // checked against a record.
@@ -51,35 +81,6 @@ export function CustomerDetail({ id, title }: { id: string; title?: string }) {
   const shown = active.length ? active : c.subscriptions.slice(0, 1);
   const action = renewalAction(c);
 
-  async function renew(s: CustomerSubscription) {
-    if (!c) return;
-    if (payments !== true) {
-      router.push("/aktifkan" as never);
-      return;
-    }
-    setBusy(s.id);
-    setError("");
-    try {
-      const result =
-        action === "followup"
-          ? await command<{ path: string }>("customer.followup", { catererId, subscriptionId: s.id, kind: "prepared" })
-          : await command<{ path: string }>("customer.invite", { catererId, customerRecordId: c.id });
-      const message =
-        action === "followup"
-          ? t("Paket katering Anda hampir selesai. Perpanjang di sini:", "Your catering package is nearly finished. Renew here:")
-          : t(
-              "Paket katering Anda hampir selesai. Buat akun Catera lalu perpanjang di sini:",
-              "Your catering package is nearly finished. Create your Catera account and renew here:",
-            );
-      await Linking.openURL(whatsappUrl(`${message} ${runtime.apiBase}${result.path}`, c.phone!));
-    } catch (e) {
-      setErrorFor(s.id);
-      setError(errorLabel((e as { code?: string }).code || (e as Error).message, locale) || t("Belum berhasil. Coba lagi.", "That didn't work. Try again."));
-    } finally {
-      setBusy("");
-    }
-  }
-
   return (
     <Screen nativeTitle={c.name}>
       <FadeSwap swapKey="loaded" style={{ gap: 16 }}>
@@ -94,10 +95,10 @@ export function CustomerDetail({ id, title }: { id: string; title?: string }) {
             <Text variant="caption">
               {c.origin === "marketplace"
                 ? t("Dari marketplace · dibayar lewat Catera", "From the marketplace · paid through Catera")
-                : t("Pelanggan Anda · dibayar di luar Catera", "Your customer · paid outside Catera")}
+                : t("Pelangganmu · dibayar di luar Catera", "Your customer · paid outside Catera")}
             </Text>
             {action !== "none" ? (
-              <Button label={t("Kirim tautan perpanjang", "Send renewal link")} disabled={!!busy} onPress={() => void renew(s)} />
+              <Button label={t("Kirim tautan perpanjang", "Send renewal link")} busy={busy && which === s.id} disabled={busy && which !== s.id} onPress={() => void renew(s)} />
             ) : null}
             {action === "invite" ? (
               <Text variant="caption">
@@ -107,7 +108,7 @@ export function CustomerDetail({ id, title }: { id: string; title?: string }) {
                 )}
               </Text>
             ) : null}
-            {error && errorFor === s.id ? <Text selectable style={{ color: palette.danger }}>{error}</Text> : null}
+            {failure?.subscription === s.id ? <FormError message={failure.message} failureKey={failure.key} retry={() => void renew(s)} /> : null}
           </Card>
         ))}
         {c.phone ? (

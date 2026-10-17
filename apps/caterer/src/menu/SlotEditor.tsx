@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { TextInput, View } from "react-native";
 import Animated from "react-native-reanimated";
+import { useMobile } from "@catera/mobile-core";
 import { selectLibraryDish, type ComponentGroup, type Dish, type LibraryDish } from "@catera/domain";
 import {
   Button,
@@ -40,6 +41,8 @@ export function SlotEditor({
   saving: boolean;
   canEdit: boolean;
 }) {
+  // Indonesian as written when no provider is mounted (isolated component tests).
+  const t = (useMobile() as { t?: (id: string, en: string) => string } | null)?.t ?? ((id: string) => id);
   // A dish the caterer adds enters and one removed leaves, the rest moving; the day's first draw does not animate.
   const rowMotion = useListMotion(items.map((i) => i.id));
   const complete = dayComplete(composition, items);
@@ -64,11 +67,14 @@ export function SlotEditor({
       ))}
       {!complete && missing > 0 ? (
         <Text variant="caption" style={{ textAlign: "center" }}>
-          {`Paket ini berisi ${composition.map((g) => `${g.slots} ${g.name.toLowerCase()}`).join(", ")}. Lengkapi ${missing} lagi.`}
+          {t(
+            `Paket ini berisi ${composition.map((g) => `${g.slots} ${g.name.toLowerCase()}`).join(", ")}. Lengkapi ${missing} lagi.`,
+            `This package holds ${composition.map((g) => `${g.slots} ${g.name.toLowerCase()}`).join(", ")}. ${missing} more to go.`,
+          )}
         </Text>
       ) : null}
       {canEdit ? (
-        <Button label="Simpan menu" disabled={!complete || saving} onPress={onSave} />
+        <Button label={t("Simpan menu", "Save menu")} busy={saving} disabled={!complete} onPress={onSave} />
       ) : null}
     </View>
   );

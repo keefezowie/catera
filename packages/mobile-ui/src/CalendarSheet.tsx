@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Pressable, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { translator, useMobile } from "@catera/mobile-core";
@@ -31,6 +31,14 @@ export type CalendarSheetProps = {
   locale?: Locale;
   /** The platform the grid is measured for; defaults to the running one. */
   os?: string;
+  /** What the move sets off, in one line under the caption (Dapur: who is told). Left out, nothing is added. */
+  note?: string;
+  /** A line under the sheet's title, such as whose delivery it is (`CalendarSheet` only: a panel has its host's header). */
+  context?: string;
+  /** More fields between the grid and the button (Dapur's reason for the move). */
+  extra?: ReactNode;
+  /** Holds the button back even once a day is chosen, while `extra` is not yet filled in. */
+  confirmDisabled?: boolean;
 };
 
 const REASON_EN: Record<CalendarReason, string> = {
@@ -63,7 +71,10 @@ export function CalendarSheet(props: CalendarSheetProps) {
   const t = useT();
   return (
     <>
-      <SheetHeader title={props.locale ? translator(props.locale)("Pindah tanggal", "Move date") : t("Pindah tanggal", "Move date")} />
+      <SheetHeader
+        title={props.locale ? translator(props.locale)("Pindah tanggal", "Move date") : t("Pindah tanggal", "Move date")}
+        context={props.context}
+      />
       <SheetBody>
         <CalendarPanel {...props} />
       </SheetBody>
@@ -76,7 +87,20 @@ export function CalendarSheet(props: CalendarSheetProps) {
  * that already has a header and a body (Ubah hari, which keeps its day title and the side switch) puts this inside its
  * body; `CalendarSheet` is the same panel under its own "Pindah tanggal" header.
  */
-export function CalendarPanel({ month, days, current, onPick, confirmLabel, onConfirm, window, locale: forced, os = process.env.EXPO_OS }: CalendarSheetProps) {
+export function CalendarPanel({
+  month,
+  days,
+  current,
+  onPick,
+  confirmLabel,
+  onConfirm,
+  window,
+  locale: forced,
+  os = process.env.EXPO_OS,
+  note,
+  extra,
+  confirmDisabled = false,
+}: CalendarSheetProps) {
   const c = useColors();
   const styles = useStyles();
   const appT = useT();
@@ -213,12 +237,18 @@ export function CalendarPanel({ month, days, current, onPick, confirmLabel, onCo
           {caption ?? (chosen ? longDay(chosen, locale) : prompt)}
         </Text>
       </View>
+      {note ? (
+        <Text testID="calendar-note" variant="caption">
+          {note}
+        </Text>
+      ) : null}
+      {extra}
       {failure ? (
         <FormError message={failure.message} failureKey={failure.key} retry={chosen ? () => void move(chosen) : undefined} />
       ) : null}
       <Button
         label={chosen ? confirmLabel(chosen) : t("Pindah tanggal", "Move date")}
-        disabled={!chosen}
+        disabled={!chosen || confirmDisabled}
         busy={busy}
         onPress={() => chosen && void move(chosen)}
       />

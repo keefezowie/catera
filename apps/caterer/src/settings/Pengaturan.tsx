@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { useMobile } from "@catera/mobile-core";
-import { HeaderIconButton, Pengaturan as SharedPengaturan, useMoodColors } from "@catera/mobile-ui";
+import { HeaderIconButton, Pengaturan as SharedPengaturan, SettingsRow, SettingsSection, useMoodColors } from "@catera/mobile-ui";
 
 /**
  * The gear at the end of a tab root's header row: Usaha's for an owner, Menu's for a helper (staff), who has no Usaha.
@@ -29,6 +29,11 @@ export function Pengaturan() {
       channelName="Catera Dapur"
       // The root layout answers a signed-out session with Masuk.
       onSignedOut={() => undefined}
+      extraRows={
+        <SettingsSection>
+          <SettingsRow label={t("Data akun", "Account data")} onPress={() => router.push("/pengaturan/data-akun" as never)} />
+        </SettingsSection>
+      }
     />
   );
 }

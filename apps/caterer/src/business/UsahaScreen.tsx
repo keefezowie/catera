@@ -148,7 +148,7 @@ export function UsahaScreen() {
       <Card>
         <Row icon="wallet-outline" label={t("Uang", "Money")} detail={t("Saldo dan pencairan", "Balance and payouts")} href="/uang" />
         <Row icon="people-outline" label={t("Impor pelanggan", "Import customers")} detail={t("Dari catatan, foto atau Excel", "From notes, photos or Excel")} href="/impor" />
-        <Row icon="person-add-outline" label={t("Tim", "Team")} detail={t("Undang pembantu dapur", "Invite a kitchen helper")} href="/tim" />
+        <Row icon="person-add-outline" label={t("Tim", "Team")} detail={t("Undang staf dapur", "Invite kitchen staff")} href="/tim" />
         <Row icon="card-outline" label={t("Pembayaran", "Payments")} detail={payments ? t("Aktif", "On") : t("Belum aktif", "Not on yet")} href="/aktifkan" />
       </Card>
       {/* Last: notifications, language, theme and Keluar live in Pengaturan, the same screen a helper opens. */}

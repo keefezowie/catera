@@ -21,7 +21,9 @@ import { useData, useMobile, useTrack, type MobileRuntime } from "@catera/mobile
 import {
   Button,
   Card,
+  ConnectionBanner,
   FadeSwap,
+  FormError,
   fontFor,
   MoodFill,
   MoodHeader,
@@ -42,6 +44,8 @@ import {
 } from "@catera/mobile-ui";
 import { jakartaClock } from "./exceptions";
 import { cacheSession, loadCachedDay, saveCachedDay } from "./offline";
+import { SelectionBar } from "./SelectionBar";
+import { useStopSelection } from "./selection";
 import { SessionCard } from "./SessionCard";
 import { replyHref } from "../hrefs";
 import { dapurLink } from "../links";
@@ -155,7 +159,6 @@ function KitchenAction({
   onFailed: () => void;
 }) {
   const { t, locale, command } = useMobile();
-  const c = useColors();
   const track = useTrack();
   const haptic = useHaptic();
   const confirm = useConfirm();
@@ -163,7 +166,9 @@ function KitchenAction({
   // The confirm sheet is open: a second tap before it covers the button asks nothing more.
   const asking = useRef(false);
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<{ text: string; failed: boolean } | null>(null);
+  // Nothing changed ("someone got there first") is a note; a failure is a FormError at the button, with Coba lagi.
+  const [note, setNote] = useState("");
+  const [failure, setFailure] = useState<{ message: string; key: number } | null>(null);
   const { meal } = session;
   const cook = session.canCook;
   const lunch = meal === "lunch";
@@ -172,30 +177,33 @@ function KitchenAction({
     if (running.current) return;
     running.current = true;
     setBusy(true);
-    setMessage(null);
+    setNote("");
+    setFailure(null);
     try {
       const result = await command<{ moved?: number }>(cook ? "delivery.cook" : "delivery.depart", { catererId, date, meal });
       if (result?.moved === 0) {
         // Someone else got there first, or the meal had already moved on: nothing changed, and the day reads again.
-        setMessage({
-          text: cook
+        setNote(
+          cook
             ? t("Sudah ditandai dimasak.", "Already marked as cooking.")
             : t("Sudah ditandai berangkat.", "Already marked as out for delivery."),
-          failed: false,
-        });
+        );
       } else {
         haptic.success();
         track(cook ? "cook_started" : "depart_tapped");
       }
     } catch (e) {
       const code = (e as { code?: string }).code || (e as Error).message;
-      setMessage({
-        text:
+      setFailure((f) => ({
+        message:
           code === "INVALID_DATE"
             ? t("Hanya bisa untuk hari ini.", "Only possible for today.")
-            : errorLabel(code, locale) || t("Belum berhasil. Coba lagi.", "That didn't work. Try again."),
-        failed: true,
-      });
+            : errorLabel(code, locale) ||
+              (cook
+                ? t("Belum bisa menandai Dimasak. Coba lagi.", "Could not mark it as cooking. Try again.")
+                : t("Belum bisa menandai berangkat. Coba lagi.", "Could not mark it as out for delivery. Try again.")),
+        key: (f?.key ?? 0) + 1,
+      }));
       onFailed();
     } finally {
       running.current = false;
@@ -235,18 +243,24 @@ function KitchenAction({
     }
   }
 
+  // Once some stops have left, the button takes whatever is still waiting, and the portions say how many.
+  const left = session.counts.out_for_delivery + session.counts.arrived + session.counts.delivered > 0;
+  const portions = left ? session.remaining.portions : session.portions;
   return (
     <View style={{ gap: 8 }}>
-      {message ? (
-        <Text selectable variant="caption" style={message.failed ? { color: c.danger } : undefined}>
-          {message.text}
+      {note ? (
+        <Text selectable variant="caption">
+          {note}
         </Text>
       ) : null}
+      {failure ? <FormError message={failure.message} failureKey={failure.key} retry={() => void run()} /> : null}
       <StickyAction
         label={
           cook
             ? t("Mulai masak", "Start cooking")
-            : t(`Berangkat antar · ${session.portions} porsi`, `Leave to deliver · ${session.portions} portions`)
+            : left
+              ? t(`Berangkat semua sisa · ${portions} porsi`, `Leave with everything left · ${portions} portions`)
+              : t(`Berangkat antar · ${portions} porsi`, `Leave to deliver · ${portions} portions`)
         }
         // The push reaches only customers with an account, and the kitchen cannot count them, so no number is promised.
         caption={
@@ -294,7 +308,7 @@ function DoneCard({ ops, onTomorrow }: { ops: SellerOperationsState; onTomorrow:
       </Text>
       <Text selectable testID="done-outcome" style={{ textAlign: "center" }}>
         {failed === 0
-          ? t("Semua antaran tercatat sampai.", "All deliveries recorded as arrived.")
+          ? t("Semua pengantaran tercatat sampai.", "All deliveries recorded as arrived.")
           : t(
               `${arrived} tercatat sampai, ${failed} ditandai Gagal diantar.`,
               `${arrived} recorded as arrived, ${failed} marked as failed.`,
@@ -354,6 +368,9 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
       : 0;
   // A copy kept from before the connection dropped may be stale: it can be read, but not acted on.
   const action = session && !day.data?.savedAt && (session.canCook || session.canDepart) ? session : null;
+  // "Pilih": the order list and the bottom bar share one selection, reset when the day or the meal changes.
+  const selection = useStopSelection(session?.stops ?? [], `${date}:${meal}`);
+  const picking = !!session && selection.active && offset === "0" && !day.data?.savedAt;
   // The meta keeps the kitchen's name while the other day loads, instead of dropping it for a moment.
   const [catererName, setCatererName] = useState("");
   if (ops && ops.caterer.name !== catererName) setCatererName(ops.caterer.name);
@@ -401,7 +418,17 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
         />
       }
       footer={
-        action ? (
+        picking && ops && session ? (
+          <SelectionBar
+            key={`${date}-${session.meal}`}
+            ops={ops}
+            session={session}
+            catererId={catererId}
+            date={date}
+            selection={selection}
+            onFailed={() => void day.reload()}
+          />
+        ) : action ? (
           <KitchenAction
             key={`${date}-${action.meal}`}
             session={action}
@@ -450,18 +477,23 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
         swapKey={`${loading ? "loading" : "day"}-${date}-${mood}-${done ? "done" : (session?.journey.stage ?? "none")}`}
       >
         <View style={{ gap: 16 }}>
+          {/* The banner decides for itself when the phone is offline; with a kept copy it names the time of that copy. */}
+          <ConnectionBanner
+            lastSeen={day.data?.savedAt ? new Date(day.data.savedAt) : undefined}
+            onRetry={() => void pull()}
+          />
           {day.fromCache && day.loading ? (
             // The kept copy shows while the fresh read runs; its actions stay hidden until that lands.
             <Text testID="day-refreshing" variant="caption">
               {t("Memperbarui…", "Updating…")}
             </Text>
           ) : day.data?.savedAt ? (
-            <Card tone="attention">
-              <Text variant="caption" style={{ color: c.charcoal }}>
-                {t("Terakhir diperbarui", "Last updated")} {jakartaClock(day.data.savedAt)} ·{" "}
-                {t("tidak ada sinyal", "offline")}
-              </Text>
-            </Card>
+            <Text testID="day-kept" variant="caption">
+              {t(
+                `Ini data terakhir, ${jakartaClock(day.data.savedAt)}. Mulai masak dan Berangkat kembali setelah data diperbarui.`,
+                `This is the last data, ${jakartaClock(day.data.savedAt)}. Start cooking and Leave come back once the data is refreshed.`,
+              )}
+            </Text>
           ) : null}
           {!ops && day.error ? <ReadError art message={day.error} onRetry={() => void day.reload()} /> : null}
           {loading ? <TodaySkeleton /> : null}
@@ -470,12 +502,10 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
             <>
               {!issues.data && issues.error ? (
                 // A failed read must not look like "no reports".
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                  <Text selectable variant="caption" style={{ flex: 1, color: c.danger }}>
-                    {t("Laporan pelanggan belum bisa dimuat.", "Customer reports could not be loaded.")}
-                  </Text>
-                  <Button variant="text" label={t("Coba lagi", "Try again")} onPress={() => void issues.reload()} />
-                </View>
+                <ReadError
+                  message={t("Laporan pelanggan belum bisa dimuat.", "Customer reports could not be loaded.")}
+                  onRetry={() => void issues.reload()}
+                />
               ) : null}
               <ReportCards issues={issues.data ?? []} />
               <ActionCards items={attention.data?.items ?? []} />
@@ -492,6 +522,7 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
               date={date}
               report={day.data?.savedAt ? null : offset === "0" ? "today" : "tomorrow"}
               caterer={ops.caterer.name}
+              selection={selection}
             />
           ) : ops && (failedCount > 0 || otherSession) ? (
             <Card tone="sage">
@@ -501,16 +532,16 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
                 {failedCount > 0
                   ? meal === "lunch"
                     ? t(
-                        `${failedCount} antaran makan siang ditandai Gagal diantar.`,
+                        `${failedCount} pengantaran makan siang ditandai Gagal diantar.`,
                         `${failedCount} lunch ${failedCount === 1 ? "delivery" : "deliveries"} marked as failed.`,
                       )
                     : t(
-                        `${failedCount} antaran makan malam ditandai Gagal diantar.`,
+                        `${failedCount} pengantaran makan malam ditandai Gagal diantar.`,
                         `${failedCount} dinner ${failedCount === 1 ? "delivery" : "deliveries"} marked as failed.`,
                       )
                   : meal === "lunch"
-                    ? t("Tidak ada antaran makan siang.", "No lunch deliveries.")
-                    : t("Tidak ada antaran makan malam.", "No dinner deliveries.")}
+                    ? t("Tidak ada pengantaran makan siang.", "No lunch deliveries.")
+                    : t("Tidak ada pengantaran makan malam.", "No dinner deliveries.")}
               </Text>
               {otherSession ? (
                 <Button
@@ -640,7 +671,7 @@ function MulaiCard() {
     <>
       {/* Direction K: a plain card. Forest fills only the first step, the one brand control here; the rest sit on sage. */}
       <Card>
-        <Text variant="heading">{t("Siapkan dapur Anda", "Set up your kitchen")}</Text>
+        <Text variant="heading">{t("Siapkan dapurmu", "Set up your kitchen")}</Text>
         {steps.map(([title, sub, href], i) => (
           <PressableRow
             key={href}

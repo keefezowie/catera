@@ -278,3 +278,10 @@ describe("Keluar while sign-out waits", () => {
     }
   });
 });
+
+it("Pengaturan lists Data akun after Tentang and opens it", async () => {
+  renderWith(runtimeWith(), <Pengaturan />);
+  const row = await screen.findByRole("button", { name: "Data akun" });
+  fireEvent.press(row);
+  expect(router.push).toHaveBeenCalledWith("/pengaturan/data-akun");
+});

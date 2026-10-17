@@ -30,7 +30,7 @@ function parse(to: unknown): Opened | null {
 }
 
 /** The sheet paths the host shows (and Impor's photo viewer, a screen above it); any other push is only recorded. */
-const SHEETS = [/^\/atur-antaran\//, /^\/balas\//, /^\/impor-baris$/, /^\/impor-foto$/, /^\/tim$/];
+const SHEETS = [/^\/atur-antaran\//, /^\/pindah-tanggal\//, /^\/sampai$/, /^\/pengaturan\/hapus-akun$/, /^\/balas\//, /^\/impor-baris$/, /^\/impor-foto$/, /^\/tim$/];
 
 let show: ((opened: Opened | null) => void) | null = null;
 
@@ -55,7 +55,10 @@ export const routerModule = {
       if (opened && SHEETS.some((r) => r.test(opened.path))) show?.(opened);
     }),
     back: jest.fn(() => show?.(null)),
-    replace: jest.fn(),
+    replace: jest.fn((to: unknown) => {
+      const opened = parse(to);
+      if (opened && SHEETS.some((r) => r.test(opened.path))) show?.(opened);
+    }),
     canGoBack: jest.fn(() => true),
   },
   Link: () => null,

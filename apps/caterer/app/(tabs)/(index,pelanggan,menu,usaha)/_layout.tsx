@@ -79,6 +79,12 @@ export default function TabStack({ segment }: { segment: string }) {
       <Stack.Protected guard={opens("atur-antaran/[id]")}>
         <Stack.Screen name="atur-antaran/[id]" options={sheetOptions({ detents: "form", palette })} />
       </Stack.Protected>
+      <Stack.Protected guard={opens("pindah-tanggal/[id]")}>
+        <Stack.Screen name="pindah-tanggal/[id]" options={sheetOptions({ detents: "large", palette })} />
+      </Stack.Protected>
+      <Stack.Protected guard={opens("sampai")}>
+        <Stack.Screen name="sampai" options={sheetOptions({ detents: "large", palette })} />
+      </Stack.Protected>
       <Stack.Protected guard={opens("tim")}>
         <Stack.Screen name="tim" options={sheetOptions({ detents: "fit", palette })} />
       </Stack.Protected>
@@ -89,6 +95,8 @@ export default function TabStack({ segment }: { segment: string }) {
           their content and draw their own title. They sit under pengaturan/ because a route that sorts before `index`
           in this shared, guarded folder changes where a guarded cold link and a jump to an unopened tab land. */}
       <Stack.Screen name="pengaturan" options={contentTitled(t("Pengaturan", "Settings"))} />
+      <Stack.Screen name="pengaturan/data-akun" options={contentTitled(t("Data akun", "Account data"))} />
+      <Stack.Screen name="pengaturan/hapus-akun" options={sheetOptions({ detents: "fit", palette })} />
       <Stack.Screen name="pengaturan/tampilan" options={sheetOptions({ detents: "fit", palette })} />
       <Stack.Screen name="pengaturan/bahasa" options={sheetOptions({ detents: "fit", palette })} />
     </Stack>

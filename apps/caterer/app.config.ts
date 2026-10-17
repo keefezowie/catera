@@ -30,7 +30,7 @@ const config: ExpoConfig = {
     "expo-router",
     "expo-secure-store",
     ["expo-notifications", { color: "#163D2E" }],
-    ["expo-image-picker", { photosPermission: "Catera Dapur memakai foto Anda untuk gambar paket." }],
+    ["expo-image-picker", { photosPermission: "Catera Dapur memakai foto kamu untuk gambar paket.", cameraPermission: "Catera Dapur memakai kamera untuk foto bukti pengantaran sampai." }],
     // The theme canvas with the mascot mark, light and dark (spec 3.3). The marks are processed transparent
     // derivatives drawn inside the Android 12+ circular safe zone; LaunchCover repeats them at the same 200dp.
     [

@@ -1,0 +1,404 @@
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
+import * as ImagePicker from "expo-image-picker";
+import NetInfo from "@react-native-community/netinfo";
+import { router } from "expo-router";
+import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
+import { kitchenSession, type SellerOperationsState } from "@catera/domain";
+import { ToastProvider } from "@catera/mobile-ui";
+import { ExceptionSheet } from "../src/today/ExceptionSheet";
+import { MoveSheet } from "../src/today/MoveSheet";
+import { ProofSheet } from "../src/today/ProofSheet";
+import { TodayScreen } from "../src/today/TodayScreen";
+import * as offline from "../src/today/offline";
+import * as proof from "../src/today/proof";
+import { canvasDay } from "./fixtures";
+import { lastConfirm, resetSheets, SheetHost, type Opened } from "./sheet-host";
+
+jest.mock("expo-router", () => require("./sheet-host").routerModule);
+jest.mock("@catera/mobile-ui", () => require("./sheet-host").mobileUiModule());
+jest.mock("expo-print", () => ({ printAsync: jest.fn(async () => undefined) }));
+jest.mock("expo-image-picker", () => ({
+  requestCameraPermissionsAsync: jest.fn(async () => ({ granted: true })),
+  launchCameraAsync: jest.fn(),
+}));
+jest.mock("../src/today/proof", () => ({
+  shrinkProof: jest.fn(async (photo: { uri: string }) => ({ uri: `small:${photo.uri}` })),
+  uploadProof: jest.fn(async (_runtime: unknown, uri: string, id: string) => `k-1/${id}/lunch/${uri.length}.jpg`),
+}));
+jest.mock("expo-notifications", () => ({
+  setNotificationHandler: jest.fn(),
+  addNotificationReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
+  addNotificationResponseReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
+  getLastNotificationResponseAsync: jest.fn(async () => null),
+  clearLastNotificationResponseAsync: jest.fn(async () => undefined),
+}));
+jest.mock("../src/today/offline", () => ({
+  cacheSession: jest.fn(() => 0),
+  saveCachedDay: jest.fn(async () => undefined),
+  loadCachedDay: jest.fn(async () => null),
+}));
+
+// Thursday 8 Oct 2026, 10.00 Jakarta. Only the clock: timers and microtasks keep running.
+const TODAY = "2026-10-08";
+const owner = { id: "u-1", role: "owner", name: "Bu Rina", catererId: "k-1" };
+beforeEach(() => {
+  jest.useFakeTimers({
+    now: new Date("2026-10-08T03:00:00Z"),
+    doNotFake: [
+      "hrtime", "nextTick", "performance", "queueMicrotask", "requestAnimationFrame",
+      "cancelAnimationFrame", "requestIdleCallback", "cancelIdleCallback", "setImmediate",
+      "clearImmediate", "setInterval", "clearInterval", "setTimeout", "clearTimeout",
+    ],
+  });
+  jest.clearAllMocks();
+  resetSheets();
+  (offline.loadCachedDay as jest.Mock).mockResolvedValue(null);
+  (NetInfo as unknown as { __set(state?: unknown): void }).__set();
+});
+afterEach(() => jest.useRealTimers());
+
+type MealState = { status: string; cooking_started_at?: string | null; departed_at?: string | null; arrived_at?: string | null };
+const cooking: MealState = { status: "preparing", cooking_started_at: "2026-10-08T01:10:00Z" };
+const out: MealState = { ...cooking, status: "out_for_delivery", departed_at: "2026-10-08T02:30:00Z" };
+const waiting: MealState = { status: "scheduled" };
+
+/** The canvas day (Bu Sari 2, Keluarga Hartono 3, Kost Damai 23, Kantor PT Sinar Rasa 6 porsi) with one meal state per row. */
+function dayWith(meals: MealState[]): SellerOperationsState {
+  const day = canvasDay();
+  day.operationalDate = TODAY;
+  day.deliveries = day.deliveries.map((d, i) => {
+    const m = meals[Math.min(i, meals.length - 1)];
+    return { ...d, service_date: TODAY, status: m.status, meals: [{ meal: "lunch", ...m }] } as typeof d;
+  });
+  return day;
+}
+
+type Extras = Partial<Record<"command" | "deliveryAvailability" | "request", jest.Mock>>;
+function runtimeFor(build: () => SellerOperationsState, extras: Extras = {}): MobileRuntime {
+  // One day for every read, as the server answers (a fresh fixture would give its stops new ids on each read).
+  const day = build();
+  const runtime = createMobileRuntime({ apiUrl: "https://api.example.test", storagePrefix: "t", app: "dapur" });
+  runtime.api = {
+    ...runtime.api,
+    me: jest.fn(async () => ({ actor: owner, demo: false })),
+    sellerOperations: jest.fn(async () => day),
+    sellerAttention: jest.fn(async () => ({ items: [], total: 0, nextCursor: null, timezone: "Asia/Jakarta" })),
+    request: extras.request ?? jest.fn(async () => []),
+    command: extras.command ?? jest.fn(async () => ({ moved: 1 })),
+    deliveryAvailability: extras.deliveryAvailability ?? jest.fn(async () => []),
+    usage: jest.fn(async () => undefined),
+  } as unknown as MobileRuntime["api"];
+  return runtime;
+}
+
+/** The sheets Hari ini opens, drawn as their routes draw them. */
+const sheets = ({ path, params }: Opened) => {
+  const meal = params.meal === "dinner" ? "dinner" : "lunch";
+  if (path.startsWith("/atur-antaran/")) return <ExceptionSheet id={path.split("/")[2]} meal={meal} date={params.date} />;
+  if (path.startsWith("/pindah-tanggal/")) return <MoveSheet id={path.split("/")[2]} meal={meal} date={params.date} />;
+  if (path === "/sampai") return <ProofSheet ids={params.ids.split(",")} meal={meal} date={params.date} />;
+  return null;
+};
+
+const renderToday = (runtime: MobileRuntime) =>
+  render(
+    <MobileProvider runtime={runtime} linkMapper={(h) => h}>
+      <ToastProvider>
+        <TodayScreen />
+        <SheetHost render={sheets} />
+      </ToastProvider>
+    </MobileProvider>,
+  );
+
+const pilih = async () => fireEvent.press(await screen.findByRole("button", { name: "Pilih" }));
+const stopBox = (name: RegExp) => screen.getByRole("checkbox", { name });
+const checked = (name: RegExp) => stopBox(name).props.accessibilityState.checked;
+const disabledOf = (label: string) => screen.getByRole("button", { name: label }).props.accessibilityState.disabled;
+
+describe("Pilih: selecting stops in Urutan antar", () => {
+  it("selecting stops shows the count and Berangkat (n) and Sampai (n)", async () => {
+    // Bu Sari and Keluarga Hartono are cooking; Kost Damai is on its way; Kantor PT Sinar Rasa has not started.
+    renderToday(runtimeFor(() => dayWith([cooking, cooking, out, waiting])));
+    await pilih();
+    expect(screen.getByTestId("order-title").props.children).toEqual("Pilih pengantaran");
+    // Nothing selected: both buttons wait, and the bar says why.
+    expect(disabledOf("Berangkat (0)")).toBe(true);
+    expect(disabledOf("Sampai (0)")).toBe(true);
+    expect(screen.getByText("Pilih pengantaran dulu.")).toBeTruthy();
+    fireEvent.press(stopBox(/Bu Sari/));
+    expect(screen.getByText("1 dipilih")).toBeTruthy();
+    expect(disabledOf("Berangkat (1)")).toBe(false);
+    expect(disabledOf("Sampai (0)")).toBe(true);
+    fireEvent.press(stopBox(/Kost Damai/));
+    expect(screen.getByText("2 dipilih")).toBeTruthy();
+    expect(disabledOf("Berangkat (1)")).toBe(false);
+    expect(disabledOf("Sampai (1)")).toBe(false);
+    // Selecting again clears; Selesai leaves the mode with nothing kept.
+    fireEvent.press(stopBox(/Bu Sari/));
+    expect(checked(/Bu Sari/)).toBe(false);
+    fireEvent.press(screen.getByRole("button", { name: "Selesai" }));
+    expect(screen.queryByRole("checkbox")).toBeNull();
+    expect(screen.getByText("Urutan antar")).toBeTruthy();
+  });
+
+  it("Pilih semua ticks the stops an area can still take, and Lepas semua clears them", async () => {
+    renderToday(runtimeFor(() => dayWith([cooking, cooking, out, waiting])));
+    await pilih();
+    fireEvent.press(screen.getByRole("button", { name: /^Pilih semua: Tebet/ }));
+    // Three of the four can be picked; the one that has not started cannot.
+    expect(screen.getByText("3 dipilih")).toBeTruthy();
+    expect(checked(/Kantor PT Sinar Rasa/)).toBe(false);
+    expect(screen.getByRole("button", { name: /^Lepas semua: Tebet/ })).toBeTruthy();
+    fireEvent.press(screen.getByRole("button", { name: /^Lepas semua: Tebet/ }));
+    expect(screen.getByText("Pilih pengantaran")).toBeTruthy();
+  });
+
+  it("a stop already departed cannot be selected for Berangkat and says why", async () => {
+    const command = jest.fn(async () => ({ moved: 2 }));
+    const day = dayWith([cooking, cooking, out, waiting]);
+    renderToday(runtimeFor(() => day, { command }));
+    await pilih();
+    const departed = day.deliveries[2].id;
+    // The note under the departed stop and the one under the stop that has not started say why each is limited.
+    expect(screen.getByText("Sudah berangkat, tinggal ditandai Sampai.")).toBeTruthy();
+    expect(screen.getByText("Belum dimasak.")).toBeTruthy();
+    expect(stopBox(/Kantor PT Sinar Rasa/).props.accessibilityState.disabled).toBe(true);
+    fireEvent.press(screen.getByRole("button", { name: /^Pilih semua: Tebet/ }));
+    // Berangkat counts only the two cooking stops, never the one already out.
+    fireEvent.press(screen.getByRole("button", { name: "Berangkat (2)" }));
+    await waitFor(() => expect(confirmAsked()).toBe(true));
+    expect(lastConfirm().title).toBe("Berangkat dengan 2 pengantaran?");
+    await lastConfirm().press("Berangkat");
+    await waitFor(() => expect(command).toHaveBeenCalledWith("delivery.depart", expect.anything(), expect.any(String)));
+    const payload = (command.mock.calls[0] as unknown[])[1] as { fulfillmentIds: string[] };
+    expect(payload).toMatchObject({ catererId: "k-1", date: TODAY, meal: "lunch" });
+    expect([...payload.fulfillmentIds].sort()).toEqual([day.deliveries[0].id, day.deliveries[1].id].sort());
+    expect(payload.fulfillmentIds).not.toContain(departed);
+  });
+
+  it("the footer reads Berangkat semua sisa after a first round", async () => {
+    const day = dayWith([cooking, cooking, out, out]);
+    renderToday(runtimeFor(() => day));
+    const left = kitchenSession(day, "lunch", new Date())!.remaining.portions;
+    expect(left).toBe(5);
+    expect(await screen.findByRole("button", { name: `Berangkat semua sisa · ${left} porsi` })).toBeTruthy();
+    // Before anyone has left, the footer keeps its first wording.
+    renderToday(runtimeFor(() => dayWith([cooking])));
+    expect(await screen.findByRole("button", { name: /^Berangkat antar · 34 porsi$/ })).toBeTruthy();
+  });
+});
+
+/** Whether a confirm question has been asked since the last reset. */
+function confirmAsked() {
+  try {
+    lastConfirm();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+describe("Sampai (n): the proof-photo sheet", () => {
+  const shot = (uri: string) => (ImagePicker.launchCameraAsync as jest.Mock).mockResolvedValueOnce({ canceled: false, assets: [{ uri, width: 3000, height: 4000 }] });
+  const sheet = () => within(screen.getByTestId("exception-sheet"));
+  const openProof = async (command: jest.Mock) => {
+    const day = dayWith([out, out, cooking, waiting]);
+    renderToday(runtimeFor(() => day, { command }));
+    await pilih();
+    fireEvent.press(stopBox(/Bu Sari/));
+    fireEvent.press(stopBox(/Keluarga Hartono/));
+    fireEvent.press(screen.getByRole("button", { name: "Sampai (2)" }));
+    await screen.findByText("Foto bukti sampai");
+    return day;
+  };
+
+  it("Sampai (n) stays disabled until every selected stop has a photo", async () => {
+    const command = jest.fn(async () => ({ moved: 2 }));
+    const day = await openProof(command);
+    expect(router.push).toHaveBeenLastCalledWith(expect.stringMatching(/^\/sampai\?meal=lunch&date=2026-10-08&ids=/));
+    // Two tiles, each marked as missing, any order; the button waits and says why.
+    expect(sheet().getAllByText("Belum ada foto")).toHaveLength(2);
+    expect(sheet().getByRole("button", { name: "Sampai (2)" }).props.accessibilityState.disabled).toBe(true);
+    expect(sheet().getByTestId("proof-reason").props.children).toBe("Ambil foto untuk 2 alamat lagi.");
+    // The second stop first, then the first.
+    shot("file:///hartono.jpg");
+    fireEvent.press(sheet().getByLabelText(/^Ambil foto: Keluarga Hartono/));
+    await act(async () => undefined);
+    await waitFor(() => expect(sheet().getAllByText("Foto siap")).toHaveLength(1));
+    expect(sheet().getByRole("button", { name: "Sampai (2)" }).props.accessibilityState.disabled).toBe(true);
+    expect(sheet().getByTestId("proof-reason").props.children).toBe("Ambil foto untuk 1 alamat lagi.");
+    shot("file:///sari.jpg");
+    fireEvent.press(sheet().getByLabelText(/^Ambil foto: Bu Sari/));
+    await act(async () => undefined);
+    await waitFor(() => expect(sheet().getAllByText("Foto siap")).toHaveLength(2));
+    expect(sheet().getByRole("button", { name: "Sampai (2)" }).props.accessibilityState.disabled).toBe(false);
+    expect(command).not.toHaveBeenCalled();
+    fireEvent.press(sheet().getByRole("button", { name: "Sampai (2)" }));
+    await waitFor(() => expect(command).toHaveBeenCalledWith("delivery.arrive", expect.anything(), expect.any(String)));
+    const sent = (command.mock.calls[0] as unknown[])[1] as { fulfillmentIds: string[]; photos: Record<string, string> };
+    expect(sent.fulfillmentIds.sort()).toEqual([day.deliveries[0].id, day.deliveries[1].id].sort());
+    expect(Object.keys(sent.photos).sort()).toEqual(sent.fulfillmentIds.slice().sort());
+    expect(proof.shrinkProof).toHaveBeenCalledTimes(2);
+    // The photos were sent first, one per stop, for the stops' own ids.
+    expect((proof.uploadProof as jest.Mock).mock.calls.map((c) => c[2]).sort()).toEqual(sent.fulfillmentIds.slice().sort());
+  });
+
+  it("a failed photo upload keeps the other photos and shows FormError", async () => {
+    const command = jest.fn(async () => ({ moved: 2 }));
+    const day = await openProof(command);
+    const hartono = day.deliveries[1].id;
+    shot("file:///sari.jpg");
+    fireEvent.press(sheet().getByLabelText(/^Ambil foto: Bu Sari/));
+    await act(async () => undefined);
+    await waitFor(() => expect(sheet().getAllByText("Foto siap")).toHaveLength(1));
+    shot("file:///hartono.jpg");
+    fireEvent.press(sheet().getByLabelText(/^Ambil foto: Keluarga Hartono/));
+    await act(async () => undefined);
+    await waitFor(() => expect(sheet().getAllByText("Foto siap")).toHaveLength(2));
+    (proof.uploadProof as jest.Mock).mockImplementation(async (_r: unknown, uri: string, id: string) => {
+      if (id === hartono) throw new Error("UPLOAD_UNAVAILABLE");
+      return `k-1/${id}/lunch/ok.jpg`;
+    });
+    fireEvent.press(sheet().getByRole("button", { name: "Sampai (2)" }));
+    const error = await screen.findByTestId("form-error");
+    expect(within(error).getByText(/Foto Keluarga Hartono belum terkirim\. Foto lain tetap tersimpan\./)).toBeTruthy();
+    // The tile that failed says so; the other tile and every photo are kept, and nothing was marked arrived.
+    expect(sheet().getByTestId(`proof-state-${hartono}`).props.children).toBe("Foto belum terkirim");
+    expect(sheet().getAllByText("Foto siap")).toHaveLength(1);
+    expect(sheet().getByTestId(`proof-photo-${hartono}`)).toBeTruthy();
+    expect(command).not.toHaveBeenCalled();
+    // Coba lagi sends only the photo that did not go, then marks both.
+    (proof.uploadProof as jest.Mock).mockClear();
+    (proof.uploadProof as jest.Mock).mockImplementation(async (_r: unknown, _u: string, id: string) => `k-1/${id}/lunch/ok.jpg`);
+    fireEvent.press(within(error).getByRole("button", { name: "Coba lagi" }));
+    await waitFor(() => expect(command).toHaveBeenCalledWith("delivery.arrive", expect.anything(), expect.any(String)));
+    expect((proof.uploadProof as jest.Mock).mock.calls.map((c) => c[2])).toEqual([hartono]);
+  });
+});
+
+describe("Pindah tanggal: the calendar", () => {
+  const availability = jest.fn(async () => [
+    { date: "2026-10-12", available: true, reason: null, remaining: 5 },
+    { date: "2026-10-13", available: false, reason: "CAPACITY", remaining: 0 },
+    { date: "2026-10-14", available: false, reason: "INVALID_DATE", remaining: 0 },
+  ]);
+  const openMove = async (command = jest.fn(async () => ({}))) => {
+    const day = dayWith([waiting]);
+    const runtime = runtimeFor(() => day, { command, deliveryAvailability: availability });
+    renderToday(runtime);
+    fireEvent.press(await within(await screen.findByTestId("stop-1")).findByLabelText(/^Laporkan masalah atau pindah hari/));
+    fireEvent.press(await screen.findByRole("button", { name: "Pindah tanggal" }));
+    await screen.findByTestId("calendar-grid");
+    return { day, command, runtime };
+  };
+
+  it("Pindah tanggal uses the calendar", async () => {
+    const { day, command, runtime } = await openMove();
+    // The stop's sheet gave way to the calendar; the days come from the availability read for this stop.
+    expect(runtime.api.deliveryAvailability).toHaveBeenCalledWith(day.deliveries[0].id, TODAY, "2026-12-07");
+    expect(screen.queryByLabelText("Tanggal baru (TTTT-BB-HH)")).toBeNull();
+    expect(screen.getByTestId("calendar-day-2026-10-08").props.accessibilityLabel).toMatch(/hari pengantaran sekarang/);
+    // A full day reads why when tapped, and cannot be chosen; the move waits for a day and a reason.
+    fireEvent.press(screen.getByTestId("calendar-day-2026-10-13"));
+    expect(within(screen.getByTestId("calendar-caption")).getByText(/Penuh/)).toBeTruthy();
+    fireEvent.press(screen.getByTestId("calendar-day-2026-10-14"));
+    expect(within(screen.getByTestId("calendar-caption")).getByText(/Dapur libur/)).toBeTruthy();
+    fireEvent.press(screen.getByTestId("calendar-day-2026-10-12"));
+    const move = () => screen.getByRole("button", { name: /^Pindah ke 12/ });
+    expect(move().props.accessibilityState.disabled).toBe(true);
+    fireEvent.changeText(screen.getByLabelText("Alasan"), "Dapur tutup sehari");
+    expect(move().props.accessibilityState.disabled).toBe(false);
+    fireEvent.press(move());
+    await waitFor(() =>
+      expect(command).toHaveBeenCalledWith(
+        "customer.deliveryChange",
+        { catererId: "k-1", id: day.deliveries[0].id, version: 3, date: "2026-10-12", reason: "Dapur tutup sehari" },
+        expect.any(String),
+      ),
+    );
+    expect(await screen.findByText("Tanggal dipindah")).toBeTruthy();
+    expect(router.back).toHaveBeenCalled();
+  });
+
+  it("the consequence line says only customers with the app are told", async () => {
+    await openMove();
+    expect(screen.getByTestId("calendar-note").props.children).toBe("Pelanggan yang memakai aplikasi diberi tahu.");
+    expect(screen.queryByText("Pelanggan diberi tahu.")).toBeNull();
+  });
+});
+
+describe("the offline copy", () => {
+  it("the offline state shows the banner", async () => {
+    (offline.loadCachedDay as jest.Mock).mockResolvedValue({ savedAt: "2026-10-07T23:12:00.000Z", data: dayWith([cooking]) });
+    (NetInfo as unknown as { __set(state?: unknown): void }).__set({ isConnected: false, isInternetReachable: false });
+    const runtime = runtimeFor(() => dayWith([cooking]));
+    (runtime.api.sellerOperations as jest.Mock).mockRejectedValue(new TypeError("Network request failed"));
+    renderToday(runtime);
+    const banner = await screen.findByTestId("connection-banner");
+    expect(within(banner).getByText("Tidak ada koneksi")).toBeTruthy();
+    expect(within(banner).getByText(/^Menampilkan data terakhir, \d\d\.\d\d$/)).toBeTruthy();
+    expect(within(banner).getByRole("button", { name: "Coba lagi" })).toBeTruthy();
+    // The old attention card is gone: no loose "Terakhir diperbarui" caption beside the banner.
+    expect(screen.queryByText(/Terakhir diperbarui/)).toBeNull();
+    // The kept copy can be read but not acted on.
+    expect(screen.queryByRole("button", { name: "Pilih" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Berangkat/ })).toBeNull();
+  });
+
+  it("an online phone shows no banner", async () => {
+    renderToday(runtimeFor(() => dayWith([cooking])));
+    await screen.findByTestId("session-count");
+    await act(async () => undefined);
+    expect(screen.queryByTestId("connection-banner")).toBeNull();
+  });
+});
+
+describe("every awaiting command button is busy while it waits", () => {
+  /** A command that stays pending until the test lets it go. */
+  const held = () => {
+    let release!: (value: unknown) => void;
+    const command = jest.fn(() => new Promise((resolve) => (release = resolve)));
+    return { command, release: () => act(async () => release({ moved: 1 })) };
+  };
+  const busyOf = (name: string | RegExp) => screen.getByRole("button", { name }).props.accessibilityState.busy;
+
+  it("Mulai masak", async () => {
+    const { command, release } = held();
+    renderToday(runtimeFor(() => dayWith([waiting]), { command }));
+    fireEvent.press(await screen.findByRole("button", { name: "Mulai masak" }));
+    await lastConfirmReady();
+    await lastConfirm().press("Mulai");
+    await waitFor(() => expect(busyOf("Mulai masak")).toBe(true));
+    // A second press while it waits sends nothing.
+    fireEvent.press(screen.getByRole("button", { name: "Mulai masak" }));
+    expect(command).toHaveBeenCalledTimes(1);
+    await release();
+    await waitFor(() => expect(busyOf("Mulai masak")).toBe(false));
+  });
+
+  it("Berangkat (n)", async () => {
+    const { command, release } = held();
+    renderToday(runtimeFor(() => dayWith([cooking, out]), { command }));
+    await pilih();
+    fireEvent.press(stopBox(/Bu Sari/));
+    fireEvent.press(screen.getByRole("button", { name: "Berangkat (1)" }));
+    await lastConfirmReady();
+    await lastConfirm().press("Berangkat");
+    await waitFor(() => expect(busyOf("Berangkat (1)")).toBe(true));
+    expect(command).toHaveBeenCalledTimes(1);
+    await release();
+  });
+
+  it("Simpan laporan", async () => {
+    const { command, release } = held();
+    renderToday(runtimeFor(() => dayWith([cooking]), { command }));
+    fireEvent.press(await within(await screen.findByTestId("stop-1")).findByLabelText(/^Laporkan masalah/));
+    fireEvent.press(await screen.findByRole("button", { name: "Simpan laporan" }));
+    await waitFor(() => expect(busyOf("Simpan laporan")).toBe(true));
+    await release();
+  });
+});
+
+async function lastConfirmReady() {
+  await waitFor(() => expect(confirmAsked()).toBe(true));
+}

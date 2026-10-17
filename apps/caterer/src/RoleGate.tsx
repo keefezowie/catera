@@ -2,14 +2,13 @@ import { useState, type ReactNode } from "react";
 import { Linking, View } from "react-native";
 import { errorLabel } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { Button, Card, Field, MoodHeader, Screen, Text } from "@catera/mobile-ui";
+import { Button, Card, Field, MoodHeader, Screen, Text, useBusy } from "@catera/mobile-ui";
 import { tabsForRole } from "./roles";
 
 /** Customer accounts belong in the Catera app, unless they hold a helper invite code. */
 export function RoleGate({ children }: { children: ReactNode }) {
   const { actor, t, locale, logout, command, refresh } = useMobile();
   const [code, setCode] = useState("");
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [leaving, setLeaving] = useState(false);
 
@@ -24,8 +23,7 @@ export function RoleGate({ children }: { children: ReactNode }) {
     }
   }
 
-  async function join() {
-    setBusy(true);
+  const [busy, join] = useBusy(async () => {
     setError("");
     try {
       await command("invite.accept", { code: code.trim() });
@@ -35,12 +33,10 @@ export function RoleGate({ children }: { children: ReactNode }) {
       setError(
         c === "NOT_FOUND"
           ? t("Kode tidak ditemukan atau sudah dipakai.", "Code not found or already used.")
-          : errorLabel(c, locale) || t("Belum berhasil. Coba lagi.", "That didn't work. Try again."),
+          : errorLabel(c, locale) || t("Belum bisa bergabung. Coba lagi.", "Could not join. Try again."),
       );
-    } finally {
-      setBusy(false);
     }
-  }
+  });
 
   if (actor && !tabsForRole(actor.role).length)
     return (
@@ -48,8 +44,8 @@ export function RoleGate({ children }: { children: ReactNode }) {
         <View style={{ gap: 12 }}>
           <Text>
             {t(
-              "Akun ini adalah akun pelanggan. Catera Dapur hanya untuk katerer dan pembantunya.",
-              "This is a customer account. Catera Dapur is for caterers and their helpers.",
+              "Akun ini adalah akun pelanggan. Catera Dapur hanya untuk katering dan staf dapurnya.",
+              "This is a customer account. Catera Dapur is for caterers and their kitchen staff.",
             )}
           </Text>
           <Button
@@ -57,7 +53,7 @@ export function RoleGate({ children }: { children: ReactNode }) {
             onPress={() => void Linking.openURL("catera://")}
           />
           <Card tone="sage">
-            <Text variant="heading">{t("Pembantu dapur?", "Kitchen helper?")}</Text>
+            <Text variant="heading">{t("Staf dapur?", "Kitchen staff?")}</Text>
             <Field
               label={t("Kode undangan", "Invite code")}
               value={code}
@@ -69,12 +65,13 @@ export function RoleGate({ children }: { children: ReactNode }) {
             <Button
               variant="secondary"
               label={t("Gabung ke dapur", "Join the kitchen")}
-              disabled={busy || !code.trim()}
+              busy={busy}
+              disabled={!code.trim()}
               onPress={() => void join()}
             />
           </Card>
           {/* Disabled while logout() lets go of this phone's push token (up to 3 s), so a second tap sends nothing. */}
-          <Button variant="text" label={t("Keluar", "Sign out")} disabled={leaving} onPress={() => void signOut()} />
+          <Button variant="text" label={t("Keluar", "Sign out")} busy={leaving} onPress={() => void signOut()} />
         </View>
       </Screen>
     );

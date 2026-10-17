@@ -293,7 +293,7 @@ describe("Hari ini", () => {
     expect(screen.queryByTestId("today-count-skeleton", { includeHiddenElements: true })).toBeNull();
   });
 
-  it("the kept day offline keeps its tidak ada sinyal card and shows no skeleton", async () => {
+  it("the kept day offline keeps its kept-data note and shows no skeleton", async () => {
     (offline.loadCachedDay as jest.Mock).mockResolvedValue({ savedAt: "2026-10-08T01:00:00.000Z", data: today() });
     renderWith(
       runtimeWith(owner, {
@@ -303,7 +303,7 @@ describe("Hari ini", () => {
       }),
       <TodayScreen />,
     );
-    expect(await screen.findByText(/Terakhir diperbarui 08\.00 · tidak ada sinyal/)).toBeTruthy();
+    expect(await screen.findByText(/Ini data terakhir, 08.00/)).toBeTruthy();
     expect(screen.getByTestId("session-count")).toBeTruthy();
     expect(skeletonNames()).toEqual([]);
   });

@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Share, View } from "react-native";
-import { errorLabel } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { Button, SheetFitBody, SheetHeader, Text, useColors, useToast } from "@catera/mobile-ui";
+import { useFormRun } from "../useFormRun";
+import { Button, FormError, SheetFitBody, SheetHeader, Text, useColors, useToast } from "@catera/mobile-ui";
 
 /**
  * Whether the share sheet's answer proves the invite went out. iOS answers `sharedAction` only for a real share and
@@ -12,7 +12,7 @@ import { Button, SheetFitBody, SheetHeader, Text, useColors, useToast } from "@c
 export const inviteShared = (action: string, os = process.env.EXPO_OS) => os === "ios" && action === Share.sharedAction;
 
 /**
- * Tim, a sheet over Usaha sized to its content: invite a helper who sees Hari ini and Menu, never money or customers.
+ * Tim, a sheet over Usaha sized to its content: invite kitchen staff who see Hari ini and Menu, never money or customers.
  * "Bagikan undangan" makes a new invite code (one code per person) and opens the share sheet with it; the code stays
  * on the sheet. "Undangan dibagikan" says it went out only where the platform can tell (`inviteShared`).
  */
@@ -21,15 +21,14 @@ export function TimScreen() {
   const c = useColors();
   const toast = useToast();
   const [code, setCode] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const { busy, failure, run } = useFormRun(
+    locale,
+    t("Undangan belum bisa dibuat. Coba lagi.", "The invite could not be made. Try again."),
+  );
   const inset = process.env.EXPO_OS === "ios" ? 20 : 24;
 
-  async function invite() {
-    if (busy) return;
-    setBusy(true);
-    setError("");
-    try {
+  const invite = () =>
+    run(async () => {
       const r = await command<{ code: string }>("staff.invite", { catererId: actor?.catererId });
       setCode(r.code);
       const shared = await Share.share({
@@ -40,25 +39,20 @@ export function TimScreen() {
       });
       if (inviteShared(shared.action))
         toast.show({ message: t("Undangan dibagikan", "Invite shared"), tone: "success" });
-    } catch (e) {
-      setError(errorLabel((e as { code?: string }).code || (e as Error).message, locale) || t("Belum berhasil. Coba lagi.", "That didn't work. Try again."));
-    } finally {
-      setBusy(false);
-    }
-  }
+    });
 
   return (
     // At a larger font on a small phone the paragraph, the code and the button scroll under the fixed title row, so
     // Bagikan undangan is never cut off.
     <SheetFitBody
       testID="tim-sheet"
-      header={<SheetHeader title={t("Undang pembantu dapur", "Invite a kitchen helper")} closeLabel={t("Tutup", "Close")} />}
+      header={<SheetHeader title={t("Undang staf dapur", "Invite kitchen staff")} closeLabel={t("Tutup", "Close")} />}
     >
       <View style={{ paddingHorizontal: inset, gap: 16 }}>
         <Text>
           {t(
-            "Pembantu bisa melihat daftar masak, rute antar dan menu. Uang dan data pelanggan tetap hanya untuk kamu.",
-            "Helpers see the cooking list, delivery route and menu. Money and customer details stay with you.",
+            "Staf dapur bisa melihat daftar masak, rute antar dan menu. Uang dan data pelanggan tetap hanya untuk kamu.",
+            "Kitchen staff see the cooking list, delivery route and menu. Money and customer details stay with you.",
           )}
         </Text>
         {code ? (
@@ -70,8 +64,8 @@ export function TimScreen() {
             <Text variant="caption">{t("Satu kode untuk satu orang.", "One code per person.")}</Text>
           </View>
         ) : null}
-        {error ? <Text selectable style={{ color: c.danger }}>{error}</Text> : null}
-        <Button label={t("Bagikan undangan", "Share invite")} disabled={busy} onPress={() => void invite()} />
+        {failure ? <FormError message={failure.message} failureKey={failure.key} /> : null}
+        <Button label={t("Bagikan undangan", "Share invite")} busy={busy} onPress={() => void invite()} />
       </View>
     </SheetFitBody>
   );

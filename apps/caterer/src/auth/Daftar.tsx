@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { View } from "react-native";
 import * as Crypto from "expo-crypto";
-import { areaOptions, errorLabel } from "@catera/domain";
+import { areaOptions } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { Button, Chip, Field, Screen, Text, useColors } from "@catera/mobile-ui";
+import { Button, Chip, Field, FormError, Screen, Text, useColors } from "@catera/mobile-ui";
 import { goToTab } from "../nav";
 import { catererSlug, e164Indonesia } from "../onboarding";
+import { useFormRun } from "../useFormRun";
 
 /** Sign-up: business name, WhatsApp number (verified by SMS) and kitchen area. */
 export function Daftar() {
@@ -16,24 +17,11 @@ export function Daftar() {
   const [area, setArea] = useState("");
   const [code, setCode] = useState("");
   const [sent, setSent] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const { busy, failure, run } = useFormRun(
+    locale,
+    t("Belum bisa mendaftar. Periksa datanya, lalu coba lagi.", "Could not register. Check the details and try again."),
+  );
   const ready = name.trim().length >= 3 && phone.replace(/\D/g, "").length >= 9 && !!area;
-
-  async function run(step: () => Promise<void>) {
-    setBusy(true);
-    setError("");
-    try {
-      await step();
-    } catch (e) {
-      setError(
-        errorLabel((e as Error).message, locale) ||
-          t("Belum berhasil. Coba lagi.", "That didn't work. Try again."),
-      );
-    } finally {
-      setBusy(false);
-    }
-  }
 
   const sendCode = () =>
     run(async () => {
@@ -65,11 +53,12 @@ export function Daftar() {
         sent ? (
           <Button
             label={t("Buat dapur saya", "Create my kitchen")}
-            disabled={busy || code.trim().length < 6}
+            busy={busy}
+            disabled={code.trim().length < 6}
             onPress={create}
           />
         ) : (
-          <Button label={t("Kirim kode", "Send code")} disabled={busy || !ready} onPress={sendCode} />
+          <Button label={t("Kirim kode", "Send code")} busy={busy} disabled={!ready} onPress={sendCode} />
         )
       }
     >
@@ -77,7 +66,7 @@ export function Daftar() {
         <Text variant="title">{t("Kelola katering dari satu HP", "Run your catering from one phone")}</Text>
         <Text style={{ color: c.muted }}>
           {t(
-            "Daftar masak, rute antar, dan semua pelanggan Anda di satu tempat. Gratis untuk pelanggan yang Anda bawa sendiri.",
+            "Daftar masak, rute antar, dan semua pelangganmu di satu tempat. Gratis untuk pelanggan yang kamu bawa sendiri.",
             "Cooking lists, delivery routes and all your customers in one place. Free for customers you bring yourself.",
           )}
         </Text>
@@ -115,7 +104,7 @@ export function Daftar() {
           autoFocus
         />
       ) : null}
-      {error ? <Text selectable style={{ color: c.danger }}>{error}</Text> : null}
+      {failure ? <FormError message={failure.message} failureKey={failure.key} /> : null}
     </Screen>
   );
 }

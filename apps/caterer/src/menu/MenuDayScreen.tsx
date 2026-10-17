@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { router } from "expo-router";
 import { errorLabel, type Dish, type LibraryDish } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, FadeSwap, Screen, Text, useColors, useToast } from "@catera/mobile-ui";
+import { Button, FadeSwap, FormError, Screen, Text, useBusy, useToast } from "@catera/mobile-ui";
 import { dishUsage, mealOf, saveMenuDay, weekdayName } from "./logic";
 import { loadMenus, MenuLoadError } from "./MenuWeek";
 import { SlotEditor } from "./SlotEditor";
@@ -11,7 +11,6 @@ import { DetailSkeleton } from "../skeletons";
 /** Fill one day's menu for one package and meal. */
 export function MenuDayScreen({ date, packageId, meal }: { date: string; packageId: string; meal: string }) {
   const { runtime, actor, t, locale, command } = useMobile();
-  const c = useColors();
   const toast = useToast();
   const catererId = actor?.catererId ?? "";
   const ops = useData(`menu-ops:${catererId}`, () => runtime.api.sellerOperations(catererId));
@@ -20,12 +19,27 @@ export function MenuDayScreen({ date, packageId, meal }: { date: string; package
     offer ? loadMenus(runtime, offer, meal, [date]) : Promise.resolve([]),
   );
   const [items, setItems] = useState<Dish[] | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  const [failure, setFailure] = useState<{ message: string; key: number } | null>(null);
   const current = day.data?.[0];
   useEffect(() => {
     if (current && items === null) setItems(current.details?.items ?? []);
   }, [current, items]);
+  const [saving, save] = useBusy(async () => {
+    setFailure(null);
+    try {
+      await saveMenuDay({ command }, { catererId, offer: offer!, meal, day: current!, items: items! });
+      router.back();
+      toast.show({
+        message: t(`Menu ${weekdayName(date, "id")} tersimpan`, `${weekdayName(date, "en")} menu saved`),
+        tone: "success",
+      });
+    } catch (e) {
+      setFailure((f) => ({
+        message: errorLabel((e as { code?: string }).code || (e as Error).message, locale) || t("Menu belum tersimpan. Coba lagi.", "The menu was not saved. Try again."),
+        key: (f?.key ?? 0) + 1,
+      }));
+    }
+  });
   if ((ops.error && !ops.data) || (day.error && !day.data))
     return <MenuLoadError title={false} onRetry={() => void (ops.error && !ops.data ? ops.reload() : day.reload())} />;
   if (ops.data && !offer)
@@ -53,22 +67,6 @@ export function MenuDayScreen({ date, packageId, meal }: { date: string; package
     });
   }
 
-  async function save() {
-    setSaving(true);
-    setError("");
-    try {
-      await saveMenuDay({ command }, { catererId, offer: offer!, meal, day: current!, items: items! });
-      router.back();
-      toast.show({
-        message: t(`Menu ${weekdayName(date, "id")} tersimpan`, `${weekdayName(date, "en")} menu saved`),
-        tone: "success",
-      });
-    } catch (e) {
-      setError(errorLabel((e as { code?: string }).code || (e as Error).message, locale) || t("Belum tersimpan.", "Not saved."));
-    } finally {
-      setSaving(false);
-    }
-  }
 
   return (
     <Screen>
@@ -85,7 +83,7 @@ export function MenuDayScreen({ date, packageId, meal }: { date: string; package
           saving={saving}
           canEdit={actor?.role === "owner"}
         />
-        {error ? <Text selectable style={{ color: c.danger }}>{error}</Text> : null}
+        {failure ? <FormError message={failure.message} failureKey={failure.key} /> : null}
       </FadeSwap>
     </Screen>
   );

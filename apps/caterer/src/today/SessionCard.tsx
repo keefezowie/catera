@@ -11,6 +11,7 @@ import { useMobile } from "@catera/mobile-core";
 import { Button, Card, fontFor, Text, useColors } from "@catera/mobile-ui";
 import { CookingList } from "./CookingList";
 import { DeliveryOrder } from "./DeliveryOrder";
+import type { Selection } from "./selection";
 
 /**
  * The slots nobody has filled yet, one entry per package ("2 lauk, 1 nasi, 1 sayur", biggest first). Packages are
@@ -74,6 +75,7 @@ export function SessionCard({
   date,
   report,
   caterer,
+  selection,
 }: {
   ops: SellerOperationsState;
   session: KitchenSession;
@@ -83,6 +85,8 @@ export function SessionCard({
   date: string;
   report: "today" | "tomorrow" | null;
   caterer: string;
+  /** "Pilih" mode for the delivery order, owned by the screen. */
+  selection?: Selection;
 }) {
   const { t, actor } = useMobile();
   const c = useColors();
@@ -150,7 +154,7 @@ export function SessionCard({
       )}
       {/* One order per meal: its expanded list and WhatsApp part belong to the meal they were opened on. The checklist is
           not keyed, so its ticks stay loaded and do not re-animate when the mood switches. */}
-      <DeliveryOrder key={meal} ops={ops} stops={stops} meal={meal} date={date} report={report} caterer={caterer} />
+      <DeliveryOrder key={meal} ops={ops} stops={stops} meal={meal} date={date} report={report} caterer={caterer} selection={selection} />
     </Card>
   );
 }

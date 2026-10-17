@@ -125,7 +125,7 @@ export function CustomerList() {
                             ) : null}
                             {others ? <Text variant="caption">{`+${others} ${t("paket lain", "more packages")}`}</Text> : null}
                             <Text variant="caption">
-                              {c.origin === "marketplace" ? t("Dari marketplace", "From marketplace") : t("Pelanggan Anda", "Your customer")}
+                              {c.origin === "marketplace" ? t("Dari marketplace", "From marketplace") : t("Pelangganmu", "Your customer")}
                             </Text>
                           </View>
                         </PressableRow>

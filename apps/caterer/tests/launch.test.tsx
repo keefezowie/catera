@@ -214,7 +214,7 @@ it("a stored kitchen paints its cached day first with mutating actions hidden", 
   expect(screen.getByText("Memperbarui…")).toBeTruthy();
   // Review Focus 1: nothing on the kept copy changes data, and it is not labelled as offline.
   expect(mutatingActions()).toEqual([]);
-  expect(screen.queryByText(/tidak ada sinyal/)).toBeNull();
+  expect(screen.queryByText(/Ini data terakhir/)).toBeNull();
   await act(async () => fresh.resolve(today()));
   expect(await screen.findByRole("button", { name: "Mulai masak" })).toBeTruthy();
   expect(screen.queryAllByLabelText(/^(Laporkan masalah|Pindah hari)/).length).toBeGreaterThan(0);
@@ -229,8 +229,8 @@ it("a failed fresh read keeps the kept day with its offline card", async () => {
       throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
     }),
   );
-  expect(await screen.findByText(/Terakhir diperbarui 08\.00/)).toBeTruthy();
-  expect(screen.getByText(/tidak ada sinyal/)).toBeTruthy();
+  expect(await screen.findByText(/Ini data terakhir, 08.00/)).toBeTruthy();
+  expect(screen.getByTestId("day-kept")).toBeTruthy();
   expect(mutatingActions()).toEqual([]);
 });
 

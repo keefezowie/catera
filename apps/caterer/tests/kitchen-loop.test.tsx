@@ -486,8 +486,8 @@ describe("Berangkat antar", () => {
 describe("a meal whose rows all failed", () => {
   it("says how many were marked Gagal diantar, never that there were none", async () => {
     renderToday(runtimeWith(async () => kitchenDay([{ status: "issue" }])));
-    expect(await screen.findByText("4 antaran makan siang ditandai Gagal diantar.")).toBeTruthy();
-    expect(screen.queryByText("Tidak ada antaran makan siang.")).toBeNull();
+    expect(await screen.findByText("4 pengantaran makan siang ditandai Gagal diantar.")).toBeTruthy();
+    expect(screen.queryByText("Tidak ada pengantaran makan siang.")).toBeNull();
     expect(screen.queryByText("Tidak ada masakan untuk hari ini.")).toBeNull();
     // Nothing is cooking, so there is no count card, checklist or footer action.
     expect(screen.queryByTestId("session-count")).toBeNull();
@@ -505,7 +505,7 @@ describe("a meal whose rows all failed", () => {
     const day = kitchenDay([{ status: "issue" }]);
     day.deliveries[3].meals.push({ meal: "dinner", status: "scheduled" } as never);
     renderToday(runtimeWith(async () => day));
-    expect(await screen.findByText("4 antaran makan siang ditandai Gagal diantar.")).toBeTruthy();
+    expect(await screen.findByText("4 pengantaran makan siang ditandai Gagal diantar.")).toBeTruthy();
     expect(screen.getByText("Lihat makan malam · 6 porsi")).toBeTruthy();
   });
 });
@@ -584,7 +584,7 @@ function readingOrder(ids: string[]) {
 const departed: MealState = { status: "out_for_delivery", departed_at: "2026-10-08T02:30:00Z" };
 const delivered: MealState = { status: "delivered" };
 const failed: MealState = { status: "issue" };
-const LINE = "Pengantaran tercatat sampai otomatis, kecuali kamu laporkan masalah di alamatnya.";
+const LINE = "Tandai Sampai dengan foto bukti. Pelanggan lalu mengonfirmasi, dan tanpa laporan pengantaran ditandai sampai otomatis.";
 
 describe("Urutan antar", () => {
   it("shows the first three stops as numbered rows and reveals the rest on Lihat alamat lainnya", async () => {
@@ -772,9 +772,8 @@ describe("the exception sheet on its own", () => {
     expect(await screen.findByText("Tidak ada yang bisa dilaporkan untuk alamat ini.")).toBeTruthy();
     expect(screen.queryByText("Gagal diantar")).toBeNull();
     expect(screen.queryByText("Pindah tanggal")).toBeNull();
-    // "Simpan laporan" stays disabled: nothing is sent and the sheet does not close as if saved.
-    expect(screen.getByRole("button", { name: "Simpan laporan" }).props.accessibilityState?.disabled).toBe(true);
-    fireEvent.press(screen.getByText("Simpan laporan"));
+    // There is nothing to save, so there is no "Simpan laporan": nothing is sent and the sheet does not close as if saved.
+    expect(screen.queryByRole("button", { name: "Simpan laporan" })).toBeNull();
     await act(async () => undefined);
     expect(command).not.toHaveBeenCalled();
     expect(router.back).not.toHaveBeenCalled();
@@ -886,7 +885,7 @@ describe("Semua beres", () => {
     const runtime = runtimeWith(async (_id, date) => kitchenDay([delivered], { date }));
     renderToday(runtime);
     expect(await screen.findByText("Semua beres hari ini")).toBeTruthy();
-    expect(screen.getByText("Semua antaran tercatat sampai.")).toBeTruthy();
+    expect(screen.getByText("Semua pengantaran tercatat sampai.")).toBeTruthy();
     expect(screen.queryByText("Urutan antar")).toBeNull();
     expect(screen.queryByText("Daftar masak")).toBeNull();
     expect(screen.queryByTestId("screen-footer")).toBeNull();
@@ -902,7 +901,7 @@ describe("Semua beres", () => {
     renderToday(runtimeWith(async () => kitchenDay([delivered, delivered, delivered, failed])));
     expect(await screen.findByText("Semua beres hari ini")).toBeTruthy();
     expect(screen.getByText("3 tercatat sampai, 1 ditandai Gagal diantar.")).toBeTruthy();
-    expect(screen.queryByText("Semua antaran tercatat sampai.")).toBeNull();
+    expect(screen.queryByText("Semua pengantaran tercatat sampai.")).toBeNull();
   });
 
   it("says it in English", async () => {
@@ -916,7 +915,7 @@ describe("Semua beres", () => {
 
   it("counts a cancelled row as neither", async () => {
     renderToday(runtimeWith(async () => kitchenDay([delivered, delivered, { status: "cancelled" }])));
-    expect(await screen.findByText("Semua antaran tercatat sampai.")).toBeTruthy();
+    expect(await screen.findByText("Semua pengantaran tercatat sampai.")).toBeTruthy();
   });
 
   it("keeps the sessions while a customer report is still open", async () => {
@@ -947,7 +946,7 @@ describe("Semua beres", () => {
     const day = kitchenDay([failed]);
     day.deliveries[3].meals.push({ meal: "dinner", status: "scheduled" } as never);
     renderToday(runtimeWith(async () => day));
-    expect(await screen.findByText("4 antaran makan siang ditandai Gagal diantar.")).toBeTruthy();
+    expect(await screen.findByText("4 pengantaran makan siang ditandai Gagal diantar.")).toBeTruthy();
     expect(screen.queryByText("Semua beres hari ini")).toBeNull();
     expect(screen.getByText("Lihat makan malam · 6 porsi")).toBeTruthy();
   });
@@ -963,7 +962,7 @@ describe("Semua beres", () => {
         </MoodProvider>
       </MobileProvider>,
     );
-    expect(await screen.findByText("4 antaran makan siang ditandai Gagal diantar.")).toBeTruthy();
+    expect(await screen.findByText("4 pengantaran makan siang ditandai Gagal diantar.")).toBeTruthy();
     expect(screen.queryByText("Semua beres hari ini")).toBeNull();
     fireEvent.press(screen.getByText("Lihat makan malam · 6 porsi"));
     expect(await screen.findByText("Semua beres hari ini")).toBeTruthy();

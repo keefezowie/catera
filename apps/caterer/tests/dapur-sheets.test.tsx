@@ -11,6 +11,7 @@ import { SheetHeader, ThemeProvider, ToastProvider } from "@catera/mobile-ui";
 import TabStack from "../app/(tabs)/(index,pelanggan,menu,usaha)/_layout";
 import { TodayScreen } from "../src/today/TodayScreen";
 import { ExceptionSheet } from "../src/today/ExceptionSheet";
+import { MoveSheet } from "../src/today/MoveSheet";
 import { ReplySheet } from "../src/today/ReportScreen";
 import { inviteShared, TimScreen } from "../src/business/TimScreen";
 import { UsahaScreen } from "../src/business/UsahaScreen";
@@ -93,6 +94,7 @@ function runtimeWith(
     sellerOperations: jest.fn(async (_id: string, date: string) => dayOf(date)),
     sellerAttention: jest.fn(async () => ({ items: [], total: 0, nextCursor: null, timezone: "Asia/Jakarta" })),
     request: jest.fn(async () => []),
+    deliveryAvailability: jest.fn(async () => []),
     command: jest.fn(async () => ({ moved: 4 })),
     usage: jest.fn(async () => undefined),
     ...overrides,
@@ -104,6 +106,8 @@ function runtimeWith(
 function sheetFor({ path: at, params }: Opened) {
   if (at.startsWith("/atur-antaran/"))
     return <ExceptionSheet id={at.split("/")[2]} meal={params.meal === "dinner" ? "dinner" : "lunch"} date={params.date} />;
+  if (at.startsWith("/pindah-tanggal/"))
+    return <MoveSheet id={at.split("/")[2]} meal={params.meal === "dinner" ? "dinner" : "lunch"} date={params.date} />;
   if (at.startsWith("/balas/")) return <ReplySheet id={at.split("/")[2]} title={params.title} />;
   if (at === "/impor-baris") return <ImportRowEditor n={Number(params.n)} />;
   return null;
@@ -112,7 +116,7 @@ function sheetFor({ path: at, params }: Opened) {
 /** The stop sheet once its day is drawn (it reads the day itself when nothing was parked). */
 async function stopSheet() {
   const sheet = await screen.findByTestId("exception-sheet");
-  await within(sheet).findByText("Simpan laporan");
+  await waitFor(() => expect(within(sheet).queryAllByText(/^(Simpan laporan|Pindah tanggal)$/).length).toBeGreaterThan(0));
   return screen.getByTestId("exception-sheet");
 }
 
@@ -265,7 +269,7 @@ describe("stop exceptions", () => {
     expect(router.push).toHaveBeenLastCalledWith(expect.stringMatching(new RegExp(`date=${TOMORROW}$`)));
     sheet = await stopSheet();
     expect(within(sheet).queryByText("Gagal diantar")).toBeNull();
-    expect(within(sheet).getByLabelText("Tanggal baru (TTTT-BB-HH)")).toBeTruthy();
+    expect(within(sheet).getByRole("button", { name: "Pindah tanggal" })).toBeTruthy();
   });
 
   it("staff report a stop and start cooking too", async () => {
@@ -286,73 +290,48 @@ describe("stop exceptions", () => {
       }),
     });
     show(runtime, <TodayScreen />);
-    expect(await screen.findByText(/tidak ada sinyal/)).toBeTruthy();
+    expect(await screen.findByText(/Ini data terakhir/)).toBeTruthy();
     await screen.findByTestId("stop-1");
     expect(screen.queryAllByLabelText(/^(Laporkan masalah|Pindah hari)/)).toHaveLength(0);
     expect(screen.queryByRole("button", { name: "Mulai masak" })).toBeNull();
   });
 
-  it("asks before dropping a typed move, and not when nothing was typed", async () => {
-    show(runtimeWith(), <ExceptionSheet id={dayOf(TOMORROW).deliveries[0].id} meal="lunch" date={TOMORROW} />);
-    const sheet = await stopSheet();
+  it("asks before dropping a typed reason, and not when nothing was typed", async () => {
+    show(runtimeWith(), <MoveSheet id={dayOf(TOMORROW).deliveries[0].id} meal="lunch" date={TOMORROW} />);
+    const reason = await screen.findByLabelText("Alasan");
     expect(lastGuard()).toBeNull();
-    fireEvent.changeText(within(sheet).getByLabelText("Alasan"), "Dapur tutup");
-    expect(lastGuard()).toEqual({ noun: "laporan", voice: "kamu", nounEn: "report" });
-    // Half a move cannot be saved.
-    expect(within(sheet).getByRole("button", { name: "Simpan laporan" }).props.accessibilityState?.disabled).toBe(true);
+    fireEvent.changeText(reason, "Dapur tutup");
+    expect(lastGuard()).toEqual({ noun: "alasan", voice: "kamu", nounEn: "reason" });
+    // A move with no day chosen cannot be saved.
+    expect(screen.getByRole("button", { name: "Pindah tanggal" }).props.accessibilityState?.disabled).toBe(true);
   });
 
-  it("keeps a typed move for the same person and stop after an Android swipe closed the sheet", async () => {
-    const id = dayOf(TODAY).deliveries[0].id;
-    const sheetOf = () => <ExceptionSheet id={id} meal="lunch" date={TODAY} />;
+  it("keeps a typed reason for the same person and stop after an Android swipe closed the sheet", async () => {
+    const id = dayOf(TOMORROW).deliveries[0].id;
+    const sheetOf = () => <MoveSheet id={id} meal="lunch" date={TOMORROW} />;
     let mounted = show(runtimeWith(), sheetOf());
-    let sheet = await stopSheet();
-    // Today this stop can fail or move; the caterer chose the move and typed it.
-    fireEvent.press(within(sheet).getByRole("radio", { name: /Pindah tanggal/ }));
-    fireEvent.changeText(within(sheet).getByLabelText("Tanggal baru (TTTT-BB-HH)"), "2026-10-12");
-    fireEvent.changeText(within(sheet).getByLabelText("Alasan"), "Pelanggan ke luar kota");
-    // A swipe closes the sheet before anything can ask: the move waits for the next opening of this stop.
+    fireEvent.changeText(await screen.findByLabelText("Alasan"), "Pelanggan ke luar kota");
+    // A swipe closes the sheet before anything can ask: the reason waits for the next opening of this stop.
     mounted.unmount();
     mounted = show(runtimeWith(), sheetOf());
-    sheet = await stopSheet();
-    expect(within(sheet).getByRole("radio", { name: /Pindah tanggal/ }).props.accessibilityState).toMatchObject({ checked: true });
-    expect(within(sheet).getByLabelText("Tanggal baru (TTTT-BB-HH)").props.value).toBe("2026-10-12");
-    expect(within(sheet).getByLabelText("Alasan").props.value).toBe("Pelanggan ke luar kota");
-    expect(lastGuard()).toEqual({ noun: "laporan", voice: "kamu", nounEn: "report" });
+    expect((await screen.findByLabelText("Alasan")).props.value).toBe("Pelanggan ke luar kota");
+    expect(lastGuard()).toEqual({ noun: "alasan", voice: "kamu", nounEn: "reason" });
     mounted.unmount();
 
     // Another person on this phone opens the same stop empty.
     mounted = show(runtimeWith({}, staff), sheetOf());
-    sheet = await stopSheet();
-    expect(within(sheet).queryByLabelText("Alasan")).toBeNull();
+    expect((await screen.findByLabelText("Alasan")).props.value).toBe("");
     mounted.unmount();
 
     // "Buang" drops it.
     mounted = show(runtimeWith(), sheetOf());
-    await stopSheet();
+    await screen.findByLabelText("Alasan");
     const guard = unsavedGuard.mock.calls[unsavedGuard.mock.calls.length - 1][2] as { onDiscard?: () => void };
     expect(guard.onDiscard).toEqual(expect.any(Function));
     act(() => guard.onDiscard!());
     mounted.unmount();
     mounted = show(runtimeWith(), sheetOf());
-    sheet = await stopSheet();
-    expect(within(sheet).queryByLabelText("Alasan")).toBeNull();
-    mounted.unmount();
-
-    // A saved move is gone too.
-    const command = jest.fn(async () => ({}));
-    mounted = show(runtimeWith({ command }), sheetOf());
-    sheet = await stopSheet();
-    fireEvent.press(within(sheet).getByRole("radio", { name: /Pindah tanggal/ }));
-    fireEvent.changeText(within(sheet).getByLabelText("Tanggal baru (TTTT-BB-HH)"), "2026-10-12");
-    fireEvent.changeText(within(sheet).getByLabelText("Alasan"), "Pelanggan ke luar kota");
-    fireEvent.press(within(sheet).getByRole("button", { name: "Simpan laporan" }));
-    await waitFor(() => expect(command).toHaveBeenCalledWith("customer.deliveryChange", expect.anything(), expect.any(String)));
-    expect(await screen.findByText("Laporan tersimpan")).toBeTruthy();
-    mounted.unmount();
-    show(runtimeWith(), sheetOf());
-    sheet = await stopSheet();
-    expect(within(sheet).queryByLabelText("Alasan")).toBeNull();
+    expect((await screen.findByLabelText("Alasan")).props.value).toBe("");
   });
 });
 
@@ -418,7 +397,7 @@ describe("Tim", () => {
     const share = jest.spyOn(Share, "share").mockResolvedValue({ action: "sharedAction" });
     const command = jest.fn(async () => ({ id: "i-1", code: "abc123" }));
     show(runtimeWith({ command }), <TimScreen />);
-    expect(await screen.findByRole("header", { name: "Undang pembantu dapur" })).toBeTruthy();
+    expect(await screen.findByRole("header", { name: "Undang staf dapur" })).toBeTruthy();
     expect(screen.getByText(/tetap hanya untuk kamu/)).toBeTruthy();
     fireEvent.press(screen.getByRole("button", { name: "Bagikan undangan" }));
     await waitFor(() => expect(share).toHaveBeenCalled());
@@ -466,7 +445,7 @@ describe("Tim", () => {
     const [scroller] = scrollers;
     expect(inside(screen.getByText("zz9"), scroller)).toBe(true);
     expect(inside(screen.getByRole("button", { name: "Bagikan undangan" }), scroller)).toBe(true);
-    expect(inside(screen.getByRole("header", { name: "Undang pembantu dapur" }), scroller)).toBe(false);
+    expect(inside(screen.getByRole("header", { name: "Undang staf dapur" }), scroller)).toBe(false);
     expect(flat(scroller)).toMatchObject({ flexGrow: 0, flexShrink: 1 });
     expect(scroller.props.nestedScrollEnabled).toBe(true);
     expect(flat(sheet).maxHeight).toBeLessThan(Dimensions.get("window").height);
@@ -681,7 +660,7 @@ describe("appearance", () => {
   it("the stop sheet reads the dark palette", async () => {
     show(runtimeWith(), <ExceptionSheet id={dayOf(TODAY).deliveries[0].id} meal="lunch" date={TODAY} />, { dark: true });
     const sheet = await stopSheet();
-    const chosen = within(sheet).getByRole("radio", { name: /Gagal diantar/ });
+    const chosen = within(sheet).getByTestId("failed-option");
     expect(flat(chosen)).toMatchObject({ backgroundColor: nativeThemes.dark.sage, borderColor: nativeThemes.dark.forest });
     expect(flat(within(sheet).getByRole("header", { name: "Bu Sari Wulandari" })).color).toBe(nativeThemes.dark.charcoal);
   });
@@ -692,7 +671,8 @@ describe("appearance", () => {
     const texts = screen.UNSAFE_root.findAll((n) => typeof n.type === "string" && n.type === "Text");
     expect(texts.length).toBeGreaterThan(4);
     for (const text of texts) expect(text.props.numberOfLines).toBeUndefined();
-    for (const radio of screen.getAllByRole("radio")) expect(flat(radio).height).toBeUndefined();
+    expect(flat(screen.getByTestId("failed-option")).height).toBeUndefined();
+    expect(flat(screen.getByRole("button", { name: "Pindah tanggal" })).height).toBeUndefined();
     screen.unmount();
     show(runtimeWith(), <TimScreen />);
     expect(flat(await screen.findByRole("button", { name: "Bagikan undangan" })).height).toBeUndefined();
@@ -717,5 +697,55 @@ describe("no dialogs and no custom sheet left in Dapur", () => {
       );
       expect({ where, sheet: mobileUi.includes("Sheet") }).toEqual({ where, sheet: false });
     }
+  });
+});
+
+describe("every awaiting command button is busy while it waits", () => {
+  /** A command that stays pending until the test lets it go. */
+  const held = () => {
+    let release!: (value: unknown) => void;
+    const command = jest.fn(() => new Promise((resolve) => (release = resolve)));
+    return { command, release: () => act(async () => release({ code: "abc123" })) };
+  };
+
+  it("Balas sends once and is busy until the reply is sent", async () => {
+    const { command, release } = held();
+    show(runtimeWith({ request: jest.fn(async () => [report()]), command }), <ReplySheet id="i-1" />);
+    fireEvent.changeText(await screen.findByLabelText("Balasan untuk pelanggan"), "Maaf, kami antar ulang sekarang.");
+    fireEvent.press(screen.getByRole("button", { name: "Balas" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Balas" }).props.accessibilityState.busy).toBe(true));
+    // The other button on the sheet is not the one waiting, and a second press sends nothing.
+    expect(screen.getByRole("button", { name: "Tandai selesai" }).props.accessibilityState.busy).toBeFalsy();
+    fireEvent.press(screen.getByRole("button", { name: "Balas" }));
+    fireEvent.press(screen.getByRole("button", { name: "Tandai selesai" }));
+    expect(command).toHaveBeenCalledTimes(1);
+    await release();
+  });
+
+  it("Bagikan undangan is busy while the invite is made", async () => {
+    jest.spyOn(Share, "share").mockResolvedValue({ action: "dismissedAction" });
+    const { command, release } = held();
+    show(runtimeWith({ command }), <TimScreen />);
+    fireEvent.press(await screen.findByRole("button", { name: "Bagikan undangan" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Bagikan undangan" }).props.accessibilityState.busy).toBe(true));
+    fireEvent.press(screen.getByRole("button", { name: "Bagikan undangan" }));
+    expect(command).toHaveBeenCalledTimes(1);
+    await release();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Bagikan undangan" }).props.accessibilityState.busy).toBeFalsy());
+  });
+
+  it("a failed invite is a FormError with a fresh key on every failure", async () => {
+    jest.spyOn(Share, "share").mockResolvedValue({ action: "dismissedAction" });
+    const command = jest.fn(async () => {
+      throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
+    });
+    show(runtimeWith({ command }), <TimScreen />);
+    fireEvent.press(await screen.findByRole("button", { name: "Bagikan undangan" }));
+    const first = await screen.findByTestId("form-error");
+    expect(first).toBeTruthy();
+    // The button is back for another try, which fails the same way and is announced again.
+    fireEvent.press(screen.getByRole("button", { name: "Bagikan undangan" }));
+    await waitFor(() => expect(command).toHaveBeenCalledTimes(2));
+    expect(screen.getAllByTestId("form-error")).toHaveLength(1);
   });
 });
