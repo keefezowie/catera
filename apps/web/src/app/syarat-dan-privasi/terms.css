@@ -1,11 +1,17 @@
-/* One quiet page: forest on cream by day, cream on a dark forest ground at night. Text and edge pairs pass AA. */
+/*
+ * One quiet page. Light uses the web tokens; dark uses the native dark theme values (nativeThemes.dark: canvas #151514,
+ * ink #F5F1E8, muted #B5B2AA, line #3A3A37, lifted forest #9CCBAE). Checked with the WCAG formula: text 13.0 (ink),
+ * 5.6 (muted) and 11.6 (link) on the light ground, 16.2, 8.6 and 10.1 on the dark one; the focus ring is 4.5 and 10.1.
+ * The dividers and the notice border are decoration, not controls, so they carry no contrast requirement.
+ */
 .terms-page {
-  --terms-bg: #fdfaf3;
-  --terms-ink: #2e2e2e;
-  --terms-muted: #555b54;
-  --terms-edge: #c9c6ba;
-  --terms-link: #163d2e;
-  --terms-focus: #b65b13;
+  --terms-bg: var(--canvas);
+  --terms-ink: var(--ink);
+  --terms-muted: var(--muted);
+  --terms-edge: var(--line);
+  --terms-link: var(--forest);
+  --terms-focus: var(--focus);
+  color-scheme: light dark;
   min-height: 100dvh;
   padding: clamp(32px, 8vh, 96px) 20px;
   background: var(--terms-bg);
@@ -13,12 +19,17 @@
 }
 @media (prefers-color-scheme: dark) {
   .terms-page {
-    --terms-bg: #1b1d1a;
+    --terms-bg: #151514;
     --terms-ink: #f5f1e8;
-    --terms-muted: #bdbfb4;
-    --terms-edge: #4e4c47;
+    --terms-muted: #b5b2aa;
+    --terms-edge: #3a3a37;
     --terms-link: #9ccbae;
-    --terms-focus: #f2b07a;
+    --terms-focus: #9ccbae;
+  }
+  /* Only while this page is open: the page ground reaches the overscroll area, so no light strip shows. */
+  html:has(.terms-page),
+  body:has(.terms-page) {
+    background: #151514;
   }
 }
 .terms-body {

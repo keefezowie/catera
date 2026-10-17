@@ -11,7 +11,7 @@ const copy = {
   id: {
     title: "Syarat dan privasi",
     notice:
-      "Halaman ini masih placeholder. Syarat penggunaan dan kebijakan privasi Catera belum diberikan oleh pemiliknya, dan teks resminya akan menggantikan halaman ini.",
+      "Halaman ini masih sementara. Teks resmi syarat penggunaan dan kebijakan privasi Catera belum tersedia dan akan menggantikan halaman ini.",
     terms: "Syarat penggunaan",
     privacy: "Privasi",
     empty: "Belum ada teks.",
@@ -20,7 +20,7 @@ const copy = {
   en: {
     title: "Terms and privacy",
     notice:
-      "This page is a placeholder. The owner has not yet supplied Catera's terms of use or privacy policy, and the official text will replace this page.",
+      "This page is temporary. The official terms of use and privacy policy for Catera are not available yet and will replace this page.",
     terms: "Terms of use",
     privacy: "Privacy",
     empty: "No text yet.",

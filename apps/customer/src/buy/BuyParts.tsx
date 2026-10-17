@@ -129,7 +129,7 @@ export function Terms({ apiBase, t }: { apiBase: string; t: T }) {
   return (
     <RNText style={styles.terms}>
       {t("Dengan membayar, Anda setuju dengan ", "By paying, you agree to the ")}
-      <RNText accessibilityRole="link" style={styles.link} onPress={() => void Linking.openURL(`${apiBase}/terms`)}>
+      <RNText accessibilityRole="link" style={styles.link} onPress={() => void Linking.openURL(`${apiBase}/syarat-dan-privasi#syarat`)}>
         {t("Ketentuan Catera", "Catera Terms")}
       </RNText>
       .

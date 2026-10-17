@@ -27,7 +27,7 @@ it("the page renders and says it is a placeholder", async () => {
   // The first text after the heading is the placeholder notice.
   expect(html.indexOf("terms-notice")).toBeGreaterThan(html.indexOf("</h1>"));
   expect(html.indexOf("terms-notice")).toBeLessThan(html.indexOf("<h2"));
-  expect(html).toMatch(/<p[^>]*class="terms-notice"[^>]*>[^<]*placeholder/i);
+  expect(html).toMatch(/<p[^>]*class="terms-notice"[^>]*>[^<]*sementara/i);
   // Hapus akun links to the privacy section.
   expect(html).toContain('id="privasi"');
   expect(html).toContain('id="syarat"');
@@ -40,7 +40,7 @@ it("the page speaks English when the locale cookie says so", async () => {
   locale = "en";
   const html = await render();
   expect(html).toContain("<h1>Terms and privacy</h1>");
-  expect(html).toMatch(/placeholder/i);
+  expect(html).toMatch(/temporary/i);
 });
 
 it("both Pengaturan rows open the page and the TODO is gone", () => {
