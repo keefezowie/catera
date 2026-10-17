@@ -4,6 +4,7 @@ import { useMobile } from "@catera/mobile-core";
 import { contentTitled, linkTitle, sheetOptions, useColors, useStackScreenOptions } from "@catera/mobile-ui";
 import { tabOfSegment } from "../../../src/nav";
 import { CATERER_TABS, SCREEN_TAB, tabsForRole } from "../../../src/roles";
+import { useHandoffStack } from "../../../src/today/handoff";
 
 /** Each tab's stack starts at its own root, so a link opened cold to a detail screen has the tab root behind it. */
 export const unstable_settings = Object.fromEntries(CATERER_TABS.map((tab) => [tab, { anchor: tab }]));
@@ -23,8 +24,10 @@ export default function TabStack({ segment }: { segment: string }) {
   const root = tabOfSegment(segment);
   const allowed = tabsForRole(actor?.role);
   const opens = (screen: keyof typeof SCREEN_TAB) => allowed.includes(SCREEN_TAB[screen]);
+  // The stack reports when a sheet has finished leaving, so a stop's sheet can hand over to the root-stack calendar.
+  const nativeProps = useHandoffStack(actor ? `${actor.catererId ?? ""}:${actor.role}` : undefined);
   return (
-    <Stack screenOptions={screenOptions}>
+    <Stack screenOptions={screenOptions} unstable_nativeProps={nativeProps}>
       <Stack.Screen name={root} options={{ headerShown: false }} />
       {CATERER_TABS.filter((name) => name !== root).map((name) => (
         <Stack.Protected key={name} guard={allowed.includes(name)}>

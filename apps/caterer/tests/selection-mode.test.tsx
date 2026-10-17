@@ -328,7 +328,9 @@ describe("Pindah tanggal: the calendar", () => {
     (router.push as jest.Mock).mockClear();
     fireEvent.press(await screen.findByRole("button", { name: "Pindah tanggal" }));
     expect(router.back).toHaveBeenCalledTimes(1);
-    // The sheet leaves (the host unmounts it on back), and only then does the root route open.
+    // Unmounting the sheet is not enough: the root route opens only once the tab stack reports the native dismissal
+    // ended (the host's `back` reports it a tick later, as `onFinishTransitioning` would).
+    expect(router.push).not.toHaveBeenCalled();
     await waitFor(() => expect(router.push).toHaveBeenCalledWith(expect.stringContaining("/pindah-tanggal/")));
     expect((router.back as jest.Mock).mock.invocationCallOrder[0]).toBeLessThan((router.push as jest.Mock).mock.invocationCallOrder[0]);
   });

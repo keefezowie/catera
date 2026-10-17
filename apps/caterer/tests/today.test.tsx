@@ -250,7 +250,8 @@ it("moves a customer's day from Besok while the cutoff is still ahead", async ()
   expect(screen.queryByText("Gagal diantar")).toBeNull();
   // The date is chosen on the calendar sheet, which replaces this one (the whole move is covered in selection-mode).
   fireEvent.press(screen.getByRole("button", { name: "Pindah tanggal" }));
-  expect(router.push).toHaveBeenLastCalledWith(`/pindah-tanggal/${d.id}?meal=lunch&date=${tomorrow}`);
+  // The calendar opens once the tab stack reports the stop sheet has finished leaving.
+  await waitFor(() => expect(router.push).toHaveBeenLastCalledWith(`/pindah-tanggal/${d.id}?meal=lunch&date=${tomorrow}`));
 });
 
 it("the stop menu button and the problem options give haptics", async () => {
@@ -306,7 +307,7 @@ it("offers Pindah tanggal on today's stop of a customer before the change deadli
   fireEvent.press(await stopMenu(1));
   expect(await screen.findByText("Gagal diantar")).toBeTruthy();
   fireEvent.press(screen.getByRole("button", { name: "Pindah tanggal" }));
-  expect(router.push).toHaveBeenLastCalledWith(`/pindah-tanggal/${sari.id}?meal=lunch&date=${new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(new Date())}`);
+  await waitFor(() => expect(router.push).toHaveBeenLastCalledWith(`/pindah-tanggal/${sari.id}?meal=lunch&date=${new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(new Date())}`));
   expect(screen.queryByLabelText("Tanggal baru (TTTT-BB-HH)")).toBeNull();
 });
 

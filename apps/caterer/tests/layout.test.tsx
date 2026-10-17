@@ -90,6 +90,7 @@ jest.mock("expo-router", () => {
     router: { push: jest.fn(), replace: jest.fn() },
     Link: () => null,
     useNavigationContainerRef: () => ({ isReady: () => false }),
+    useNavigation: () => ({ addListener: () => () => undefined }),
   };
 });
 jest.mock("@expo/vector-icons/Ionicons", () => ({ __esModule: true, default: () => null }));

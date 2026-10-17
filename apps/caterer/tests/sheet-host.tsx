@@ -54,7 +54,12 @@ export const routerModule = {
       const opened = parse(to);
       if (opened && SHEETS.some((r) => r.test(opened.path))) show?.(opened);
     }),
-    back: jest.fn(() => show?.(null)),
+    // The sheet leaves the tree at once, as native-stack does; the tab stack reports the end of the native dismissal a
+    // moment later (`onFinishTransitioning`), which is what the hand-off to a root-stack sheet waits for.
+    back: jest.fn(() => {
+      show?.(null);
+      setTimeout(() => require("../src/today/handoff").stackSettled(), 0);
+    }),
     replace: jest.fn((to: unknown) => {
       const opened = parse(to);
       if (opened && SHEETS.some((r) => r.test(opened.path))) show?.(opened);
@@ -63,6 +68,8 @@ export const routerModule = {
   },
   Link: () => null,
   useLocalSearchParams: () => ({}),
+  useNavigation: () => ({ addListener: () => () => undefined }),
+  useRoute: () => ({ key: "sheet" }),
 };
 
 /** Shows the sheet the last push opened, drawn by `render`, until `router.back` closes it. */

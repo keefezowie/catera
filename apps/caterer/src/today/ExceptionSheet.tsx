@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { router } from "expo-router";
+import { router, useNavigation, useRoute } from "expo-router";
 import {
   errorLabel,
   jakartaDay,
@@ -25,7 +25,7 @@ import {
   useToast,
 } from "@catera/mobile-ui";
 import { issueSteps } from "./exceptions";
-import { pushAfterClose, sheetGone } from "./handoff";
+import { pushAfterClose, type SheetEvents } from "./handoff";
 import { ReadError } from "../ReadError";
 
 /**
@@ -101,8 +101,9 @@ export function ExceptionSheet({ id, meal, date }: { id: string; meal: KitchenMe
   useEffect(() => {
     if (parked?.key === key) parked = null;
   }, [key]);
-  // Leaving the screen is the signal that the dismissal has ended (native-stack unmounts a sheet after it has gone).
-  useEffect(() => sheetGone, []);
+  // This sheet's own route, for the hand-off to the calendar: its "gone" event is targeted at this key.
+  const navigation = useNavigation();
+  const route = useRoute();
   const day = useData(`stop-sheet:${key}`, () => runtime.api.sellerOperations(catererId, date));
   const ops = day.data ?? seed;
 
@@ -169,8 +170,11 @@ export function ExceptionSheet({ id, meal, date }: { id: string; meal: KitchenMe
 
   const openMove = () => {
     parkDay(catererId, date, ops);
-    // The calendar is a root-stack sheet: this tab sheet closes, and the root route opens once it has gone.
-    pushAfterClose(moveHref(id, meal, date));
+    // The calendar is a root-stack sheet: this tab sheet closes, and the root route opens once the native dismissal has
+    // ended (the tab stack reports it, see `pushAfterClose`), not when this component unmounts.
+    pushAfterClose(moveHref(id, meal, date), {
+      sheet: navigation && route ? { events: navigation as unknown as SheetEvents, key: route.key } : undefined,
+    });
   };
 
   return (
