@@ -19,6 +19,7 @@ export * from "./customer-actions";
 export * from "./settlement";
 export * from "./saved-packages";
 export * from "./dates";
+export * from "./address-use";
 export * from "./offer-schema";
 import type { MealType } from "./offer-schema";
 
@@ -656,6 +657,7 @@ export const errors: Record<string, string> = {
     "Porsi pada salah satu tanggal sudah habis. Pilih tanggal mulai atau jumlah porsi lain.",
   CUTOFF: "Batas perubahan sudah lewat. Pilih tanggal berikutnya.",
   COVERAGE: "Alamat ini berada di luar area pengantaran katerer.",
+  ADDRESS_IN_USE: "Alamat ini masih dipakai untuk pengantaran yang akan datang.",
   CONFLICT: "Data sudah berubah. Muat ulang sebelum mencoba lagi.",
   OVERLAP: "Paket yang sama masih berjalan pada rentang tanggal ini.",
   TRIAL_USED: "Anda sudah pernah membeli trial dari katerer ini.",
@@ -722,6 +724,7 @@ const errorsEn: Record<string, string> = {
     "One or more dates no longer have enough capacity. Choose another start date or portion count.",
   CUTOFF: "The change cutoff has passed. Choose a later date.",
   COVERAGE: "This address is outside the caterer's delivery area.",
+  ADDRESS_IN_USE: "This address is still used for upcoming deliveries.",
   CONFLICT: "The data changed. Reload before trying again.",
   OVERLAP: "The same package is already active during these dates.",
   TRIAL_USED: "You have already bought a trial from this caterer.",

@@ -259,7 +259,7 @@ it("never fails the command when the deferred push fails, and ignores other comm
   expect(warn).toHaveBeenCalledOnce();
   state.rpc.mockClear();
   state.rpc.mockResolvedValue({ id: "x" });
-  await POST(command("address.delete"), context);
+  await POST(command("support.create"), context);
   expect(state.after).not.toHaveBeenCalled();
   expect(state.rpc.mock.calls.map((c) => c[2])).toEqual(["catera_v1_command"]);
 });

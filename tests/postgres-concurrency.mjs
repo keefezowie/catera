@@ -385,6 +385,7 @@ try {
   evidence.push("Two simultaneous device.unregister calls for one token remove it once (removed 1 and 0, no error), another account's token is untouched, and the renamed base is not executable by clients.");
   await (await import("./postgres-delivery-arrive.mjs")).verifyDeliveryArrive(pool, cmd, evidence);
   await (await import("./postgres-profile-update.mjs")).verifyProfileUpdate(pool, cmd, evidence);
+  await (await import("./postgres-address-delete.mjs")).verifyAddressDelete(pool, cmd, evidence);
   await pool.query(await readFile("supabase/migrations/20261007110000_import_before_approval.sql", "utf8"));
   await mkdir("output/verification", { recursive: true });
   const evidencePath = process.env.CATERA_POSTGRES_EVIDENCE || "output/verification/postgres.json";

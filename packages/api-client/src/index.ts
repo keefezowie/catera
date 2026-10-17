@@ -1,5 +1,6 @@
 import type {
   Offer,
+  AddressUse,
   CustomerState,
   SellerState,
   AdminState,
@@ -103,6 +104,7 @@ export function createApi(
         limit: String(limit), ...(cursor ? { cursor } : {}),
       })),
     customer: (query = "") => request<CustomerState>("customer" + query),
+    addressUse: (id: string) => request<AddressUse>("address-use/" + encodeURIComponent(id)),
     customerActions: (limit = 20) =>
       request<CustomerActionFeed>(
         "customer-actions?" + new URLSearchParams({ limit: String(limit) }),

@@ -29,6 +29,8 @@ import {
 } from "@catera/backend";
 import {
   addressSchema,
+  addressDeleteSchema,
+  addressReplaceSchema,
   savedPackageSchema,
   packageOptionSchema,
   customerMenuSaveSchema,
@@ -207,6 +209,7 @@ export async function GET(request: Request, context: Context) {
         "availability",
         "customer",
         "customer-actions",
+        "address-use",
         "seller",
         "seller-calendar",
         "seller-import-options",
@@ -233,6 +236,7 @@ export async function GET(request: Request, context: Context) {
       );
     }
     if (resource === "offer") z.string().min(1).max(100).parse(params.id);
+    if (resource === "address-use") z.string().uuid().parse(params.id);
     if (resource === "saved-packages") {
       if (!s.id) throw new Error("UNAUTHORIZED");
       params.limit = z.coerce.number().int().min(1).max(100)
@@ -616,6 +620,10 @@ export async function POST(request: Request, context: Context) {
       }
       if (command.action === "address.save")
         command.payload = addressSchema.parse(command.payload);
+      if (command.action === "address.delete")
+        command.payload = addressDeleteSchema.parse(command.payload);
+      if (command.action === "address.replace")
+        command.payload = addressReplaceSchema.parse(command.payload);
       if (command.action === "menu.save")
         command.payload = menuSaveSchema.parse(command.payload);
       if (command.action === "menu.saveBatch")
