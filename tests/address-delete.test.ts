@@ -280,9 +280,9 @@ it("the stayed line names the deadline whenever a kitchen missed it, also beside
     deleted: false,
   };
   expect(addressReplaceLine(result, "id")).toBe(
-    "3 pengantaran tetap ke alamat lama sampai 20 Okt. Hijau Kitchen tidak mengantar ke alamat baru, dan sebagian sudah lewat batas waktu.",
+    "3 pengantaran tetap ke alamat lama sampai 20 Okt. Hijau Kitchen tidak mengantar ke alamat baru, dan sebagian pengantaran sudah lewat batas waktu.",
   );
   expect(addressReplaceLine(result, "en")).toBe(
-    "3 deliveries stay at the old address until 20 Oct. Hijau Kitchen does not deliver to the new address, and some are past the change deadline.",
+    "3 deliveries stay at the old address until 20 Oct. Hijau Kitchen does not deliver to the new address, and some deliveries are past the change deadline.",
   );
 });
