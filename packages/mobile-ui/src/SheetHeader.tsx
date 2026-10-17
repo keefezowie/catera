@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { AccessibilityInfo, Dimensions, Keyboard, ScrollView, Text as RNText, useWindowDimensions, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSafeAreaFrame, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "./components";
 import { HeaderIconButton } from "./HeaderIconButton";
 import { Skeleton, SkeletonGroup } from "./Skeleton";
@@ -129,13 +129,15 @@ export function sheetHiddenBelow({
 /**
  * The bottom margin an Android root-stack form sheet's scroll view needs so that it ends at the screen's edge (see
  * `sheetHiddenBelow`). It measures after the sheet has risen, each time it settles on a detent and each time the window
- * changes size (rotation, split screen), against the window's height; 0 when inactive.
+ * changes size (rotation, split screen), against the root frame's height; 0 when inactive.
  */
 function useSheetHiddenBelow(active: boolean, ref: RefObject<ScrollView | null>): number {
   const navigation = useScreenNavigation();
   const [margin, setMargin] = useState(0);
   const marginRef = useRef(0);
-  const { width, height: windowHeight } = useWindowDimensions();
+  // The root view's frame is the one `measureInWindow` reports in. `useWindowDimensions` can differ from it by the
+  // navigation bar on Android 14 and older, which would count that bar twice.
+  const { width, height: windowHeight } = useSafeAreaFrame();
   const measuredSize = useRef<string>("");
   useEffect(() => {
     if (!active) return;

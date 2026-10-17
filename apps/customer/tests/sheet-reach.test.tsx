@@ -1,5 +1,7 @@
 import { Dimensions, Keyboard, ScrollView, StyleSheet } from "react-native";
+import type { ReactNode } from "react";
 import { act, render, screen } from "@testing-library/react-native";
+import { SafeAreaFrameContext } from "react-native-safe-area-context";
 import { NavigationContext } from "expo-router/react-navigation";
 import { SheetBody, sheetHiddenBelow } from "@catera/mobile-ui";
 
@@ -33,6 +35,12 @@ function mockMeasure(position: { top: number; height: number }) {
       cb(0, position.top, 400, position.height - marginOf())) as never);
 }
 
+/** The root view's frame, which differs from the window's size on purpose: the margin must follow the frame. */
+const frame = (width: number, height: number) => ({ x: 0, y: 0, width, height });
+const inFrame = (f: ReturnType<typeof frame>, node: ReactNode) => (
+  <SafeAreaFrameContext.Provider value={f}>{node}</SafeAreaFrameContext.Provider>
+);
+
 const marginOf = () => StyleSheet.flatten(screen.getByTestId("sheet-body").props.style).marginBottom ?? 0;
 const settle = (ms = 100) =>
   act(async () => {
@@ -57,12 +65,12 @@ describe("a form sheet's last button clears the gesture bar", () => {
 
   it("an Android root-stack body ends at the screen's edge once measured", async () => {
     jest.useFakeTimers();
-    const screenHeight = Dimensions.get("screen").height;
+    const screenHeight = 914;
     const spy = jest
       .spyOn(ScrollView.prototype as unknown as { measureInWindow: () => void }, "measureInWindow")
       .mockImplementation(((cb: (x: number, y: number, w: number, h: number) => void) =>
         cb(0, screenHeight - 600, 400, 800)) as never);
-    render(<SheetBody os="android">{null}</SheetBody>);
+    render(inFrame(frame(411, screenHeight), <SheetBody os="android">{null}</SheetBody>));
     await act(async () => {
       jest.advanceTimersByTime(1000);
     });
@@ -82,38 +90,46 @@ describe("a form sheet's last button clears the gesture bar", () => {
 
   describe("the margin follows the sheet", () => {
     const original = { window: Dimensions.get("window"), screen: Dimensions.get("screen") };
-    const bodyTop = () => original.window.height - 600;
-    beforeEach(() => jest.useFakeTimers());
+    // 411x914dp frame in a window 48 taller (the nav bar the window's metrics count on Android 14 and older).
+    const FRAME = frame(411, 914);
+    const bodyTop = () => FRAME.height - 600;
+    beforeEach(() => {
+      jest.useFakeTimers();
+      Dimensions.set({ window: { ...original.window, width: 411, height: 962 }, screen: { ...original.screen, width: 411, height: 962 } });
+    });
     afterEach(() => {
       Dimensions.set(original);
       jest.useRealTimers();
       jest.restoreAllMocks();
     });
 
-    it("measures again when the window height changes (rotation, split screen)", async () => {
+    it("measures against the root frame, not the window size", async () => {
+      mockMeasure({ top: bodyTop(), height: 800 });
+      render(inFrame(FRAME, <SheetBody os="android">{null}</SheetBody>));
+      await settle(1000);
+      // 914-600+800-914 = 200; against the window's 962 it would be 152.
+      expect(marginOf()).toBe(200);
+    });
+
+    it("measures again when the frame height changes (rotation, split screen)", async () => {
       const spy = mockMeasure({ top: bodyTop(), height: 800 });
-      render(<SheetBody os="android">{null}</SheetBody>);
+      const view = render(inFrame(FRAME, <SheetBody os="android">{null}</SheetBody>));
       await settle(1000);
       expect(marginOf()).toBe(200);
       const calls = spy.mock.calls.length;
-      // The window is 100 shorter and the scroll view starts at the same place: 100 more of it is below the edge.
-      await act(async () => {
-        const h = original.window.height - 100;
-        Dimensions.set({ window: { ...original.window, height: h }, screen: { ...original.screen, height: h } });
-      });
+      // The frame is 100 shorter and the scroll view starts at the same place: 100 more of it is below the edge.
+      view.rerender(inFrame(frame(411, 814), <SheetBody os="android">{null}</SheetBody>));
       await settle();
       expect(spy.mock.calls.length).toBeGreaterThan(calls);
       expect(marginOf()).toBe(300);
     });
 
-    it("measures again when only the width changes", async () => {
+    it("measures again when only the frame width changes", async () => {
       const spy = mockMeasure({ top: bodyTop(), height: 800 });
-      render(<SheetBody os="android">{null}</SheetBody>);
+      const view = render(inFrame(FRAME, <SheetBody os="android">{null}</SheetBody>));
       await settle(1000);
       const calls = spy.mock.calls.length;
-      await act(async () => {
-        Dimensions.set({ window: { ...original.window, width: original.window.width + 100 }, screen: original.screen });
-      });
+      view.rerender(inFrame(frame(511, 914), <SheetBody os="android">{null}</SheetBody>));
       await settle();
       expect(spy.mock.calls.length).toBeGreaterThan(calls);
     });
@@ -122,9 +138,9 @@ describe("a form sheet's last button clears the gesture bar", () => {
       const spy = mockMeasure({ top: bodyTop(), height: 800 });
       const nav = fakeNavigation();
       render(
-        <NavigationContext.Provider value={nav.navigation as never}>
+        inFrame(FRAME, <NavigationContext.Provider value={nav.navigation as never}>
           <SheetBody os="android">{null}</SheetBody>
-        </NavigationContext.Provider>,
+        </NavigationContext.Provider>),
       );
       await settle(1000);
       let calls = spy.mock.calls.length;
@@ -144,9 +160,9 @@ describe("a form sheet's last button clears the gesture bar", () => {
       const spy = mockMeasure({ top: bodyTop(), height: 800 });
       const nav = fakeNavigation();
       const view = render(
-        <NavigationContext.Provider value={nav.navigation as never}>
+        inFrame(FRAME, <NavigationContext.Provider value={nav.navigation as never}>
           <SheetBody os="android">{null}</SheetBody>
-        </NavigationContext.Provider>,
+        </NavigationContext.Provider>),
       );
       expect(nav.count("transitionEnd")).toBe(1);
       expect(nav.count("sheetDetentChange")).toBe(1);
@@ -169,9 +185,9 @@ describe("a form sheet's last button clears the gesture bar", () => {
         return { remove: () => undefined };
       }) as never);
       render(
-        <NavigationContext.Provider value={nav.navigation as never}>
+        inFrame(FRAME, <NavigationContext.Provider value={nav.navigation as never}>
           <SheetBody os="android">{null}</SheetBody>
-        </NavigationContext.Provider>,
+        </NavigationContext.Provider>),
       );
       const before = spy.mock.calls.length;
       await act(async () => {
