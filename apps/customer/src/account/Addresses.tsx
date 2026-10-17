@@ -110,12 +110,13 @@ function AddressRow({
           </Text>
           {a.instructions ? <Text variant="caption">{a.instructions}</Text> : null}
         </View>
-        <View style={{ alignItems: "flex-end" }}>
+        <View style={{ alignItems: "flex-end", gap: 4 }}>
           <Button
             variant="text"
             label={t("Ubah", "Edit")}
             accessibilityLabel={t(`Ubah ${a.label}`, `Edit ${a.label}`)}
             onPress={onEdit}
+            style={{ minWidth: 48 }}
           />
           <Button
             variant="text"
@@ -123,6 +124,7 @@ function AddressRow({
             accessibilityLabel={t(`Hapus ${a.label}`, `Delete ${a.label}`)}
             busy={busy}
             onPress={press}
+            style={{ minWidth: 48 }}
           />
         </View>
       </View>

@@ -5,14 +5,16 @@
 --   address.delete {addressId} soft-deletes an unused address (archived_at) and raises
 --   ADDRESS_IN_USE otherwise. Paid checkouts and past days keep reading the row.
 --   address.replace {fromAddressId,toAddressId} moves every movable day to the other address in one
---   transaction: the day is still 'scheduled', before its one-day cutoff, and the target lies in its
---   plan's areas (COVERAGE per plan). Other days stay. When nothing uses the old address afterwards
+--   transaction: the day is still 'scheduled', before its one-day cutoff, and the target lies in the
+--   live offer's areas of its package (COVERAGE per plan, as delivery.address checks). Other days stay. When nothing uses the old address afterwards
 --   it is archived in the same transaction.
 --   Lock order as delivery.address and checkout.create: the caller's lock, then each caterer's
 --   'pilot:' lock in caterer id order, then the day rows in id order, so a move serialises with
---   delivery.cook and delivery.depart on the same day and with the caller's own checkouts.
+--   delivery.cook and delivery.depart on the same day and with the caller's own checkouts. The old
+--   address row is locked for update only after the caterer locks, and a caterer import reads the
+--   row for share after its own caterer lock, so the two keep one order and one waits for the other.
 --   Archived addresses leave the reads (customer list, seller import options, renewal context) and
---   are refused by checkout.create, quote, address.save and delivery.address.
+--   are refused by checkout.create, quote, address.save, delivery.address and the import rows.
 --   Editing an address (address.save with an id) is unchanged: it updates the row only, and the
 --   days already booked keep the copy they were given.
 
@@ -61,6 +63,10 @@ begin
  if action in('checkout.create','address.save','delivery.address') then
   -- The caller's lock first, as the base takes it, so an archive and this command never interleave.
   perform pg_advisory_xact_lock(hashtext(u::text));
+  -- A retry answers its stored receipt first, even when the address has gone since.
+  if exists(select 1 from v1.receipts x where x.actor_id=u and x.request_id=catera_v1_command.request_id) then
+   return public.catera_v1_command_address_base(action,payload,request_id);
+  end if;
   if jsonb_typeof(payload) is not distinct from 'object' then
    begin aid:=nullif(payload->>case when action='address.save' then 'id' else 'addressId' end,'')::uuid;
    exception when others then aid:=null;end;
@@ -81,10 +87,21 @@ begin
  perform pg_advisory_xact_lock(hashtext(u::text));
  select * into old from v1.receipts x where x.actor_id=u and x.request_id=catera_v1_command.request_id;
  if found then if old.hash<>fingerprint then raise exception 'CONFLICT';end if;return old.result;end if;
+ if action='address.replace' then
+  for cid in
+   select distinct p.caterer_id from v1.delivery_days d join v1.subscriptions s on s.id=d.subscription_id join v1.packages p on p.id=s.package_id
+   where s.user_id=u and d.address->>'id'=aid::text and d.status not in('delivered','cancelled')
+    and d.service_date>=(now() at time zone 'Asia/Jakarta')::date
+   order by p.caterer_id
+  loop
+   perform pg_advisory_xact_lock(hashtext('pilot:'||cid::text));
+  end loop;
+ end if;
+ -- The address rows after the caterer locks: an import holds its caterer lock, then the row for share.
  select * into src from v1.addresses where id=aid and user_id=u for update;
  if not found then raise exception 'NOT_FOUND';end if;
  if action='address.replace' then
-  select * into dst from v1.addresses where id=dst.id and user_id=u and archived_at is null;
+  select * into dst from v1.addresses where id=dst.id and user_id=u and archived_at is null for share;
   if not found then raise exception 'NOT_FOUND';end if;
  end if;
 
@@ -97,24 +114,16 @@ begin
   result:=jsonb_build_object('id',aid,'deleted',true);
  else
   if src.archived_at is not null then raise exception 'NOT_FOUND';end if;
-  for cid in
-   select distinct p.caterer_id from v1.delivery_days d join v1.subscriptions s on s.id=d.subscription_id join v1.packages p on p.id=s.package_id
-   where s.user_id=u and d.address->>'id'=aid::text and d.status not in('delivered','cancelled')
-    and d.service_date>=(now() at time zone 'Asia/Jakarta')::date
-   order by p.caterer_id
-  loop
-   perform pg_advisory_xact_lock(hashtext('pilot:'||cid::text));
-  end loop;
   -- Rows locked and re-read after the caterer locks: a day delivery.cook moved meanwhile is no longer 'scheduled'.
   for r in
-   select d.id,d.service_date,d.status,s.snapshot->'offer' o,p.caterer_id,c.name from v1.delivery_days d
+   select d.id,d.service_date,d.status,s.snapshot->'offer' o,v1.offer(p)->'areas' areas,p.caterer_id,c.name from v1.delivery_days d
     join v1.subscriptions s on s.id=d.subscription_id join v1.packages p on p.id=s.package_id join v1.caterers c on c.id=p.caterer_id
    where s.user_id=u and d.address->>'id'=aid::text and d.status not in('delivered','cancelled')
     and d.service_date>=(now() at time zone 'Asia/Jakarta')::date
    order by d.id for update of d
   loop
    reason:=case when r.status<>'scheduled' or v1.cutoff(r.o,r.service_date)<=clock_timestamp() then 'CUTOFF'
-    when not coalesce(r.o->'areas' ? dst.area,false) then 'COVERAGE' end;
+    when not coalesce(r.areas ? dst.area,false) then 'COVERAGE' end;
    if reason is null then
     update v1.delivery_days set address=to_jsonb(dst)-'user_id'-'archived_at',version=version+1 where id=r.id;
     moved:=moved+1;
@@ -142,6 +151,23 @@ begin
 end $$;
 revoke all on function public.catera_v1_command(text,jsonb,uuid) from public,anon;
 grant execute on function public.catera_v1_command(text,jsonb,uuid) to authenticated;
+
+-- A caterer import row (import.preview and import.commit, after the caterer lock) cannot name a removed address.
+alter function v1.pilot_import_row(uuid,jsonb,boolean) rename to pilot_import_row_address_base;
+create function v1.pilot_import_row(cid uuid,a jsonb,commit_row boolean) returns jsonb language plpgsql set search_path='' as $$
+declare aid uuid; gone timestamptz;
+begin
+ if jsonb_typeof(a) is not distinct from 'object' and nullif(a->>'addressId','') is not null then
+  begin aid:=(a->>'addressId')::uuid;exception when others then aid:=null;end;
+  if aid is not null then
+   select archived_at into gone from v1.addresses where id=aid for share;
+   if gone is not null then raise exception 'NOT_FOUND';end if;
+  end if;
+ end if;
+ return v1.pilot_import_row_address_base(cid,a,commit_row);
+end $$;
+revoke all on function v1.pilot_import_row(uuid,jsonb,boolean) from public,anon,authenticated;
+revoke all on function v1.pilot_import_row_address_base(uuid,jsonb,boolean) from public,anon,authenticated;
 
 alter function public.catera_v1_read(text,jsonb) rename to catera_v1_read_address_base;
 revoke all on function public.catera_v1_read_address_base(text,jsonb) from public,anon,authenticated;

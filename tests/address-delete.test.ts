@@ -209,3 +209,80 @@ it("the sheet lines name the count, the dates and the kitchen in both languages"
   expect(addressReplaceLine(result, "en")).toBe("1 delivery stays at the old address until 14 Oct, because the change deadline has passed.");
   expect(addressReplaceLine({ ...result, stayed: 0 }, "id")).toBe("");
 });
+
+let imports = 0;
+/** A caterer's prepaid import row for an existing customer at one of their saved addresses. */
+const importRow = (user: string, addressId: string) => ({
+  customerId: user,
+  addressId,
+  packageId: P[2],
+  portions: 1,
+  startDate: addDays(today, 30 + 7 * (imports % 20)),
+  remainingDays: 1,
+  externalReference: "alamat-impor-" + imports++,
+});
+
+it("an import cannot use a removed address, in its preview or its commit", async () => {
+  const user = await customer();
+  await q("insert into v1.relationships(user_id,caterer_id,source) values($1,$2,'legacy')", [user, K[0]]);
+  const gone = await address(user, "Lama");
+  const kept = await address(user, "Rumah");
+  const preview = await cmd("import.preview", { catererId: K[0], rows: [importRow(user, gone)] }, U.owner);
+  await cmd("address.delete", { addressId: gone }, user);
+  await expect(cmd("import.commit", { catererId: K[0], id: preview.id }, U.owner)).rejects.toThrow("NOT_FOUND");
+  await expect(cmd("import.preview", { catererId: K[0], rows: [importRow(user, gone)] }, U.owner)).rejects.toThrow("NOT_FOUND");
+  const ok = await cmd("import.preview", { catererId: K[0], rows: [importRow(user, kept)] }, U.owner);
+  await expect(cmd("import.commit", { catererId: K[0], id: ok.id }, U.owner)).resolves.toMatchObject({ id: ok.id });
+});
+
+it("replace checks each kitchen's area as it is now, not as it was bought", async () => {
+  const user = await customer();
+  const home = await address(user, "Rumah");
+  const west = await address(user, "Kantor Barat", "Jakarta Barat");
+  const hijau = await buy(user, P[1], home); // Hijau Kitchen delivered to Jakarta Barat when this was bought
+  const [{ areas }] = await q<{ areas: string[] }>("select areas from v1.caterers where id=$1", [K[1]]);
+  await q("update v1.caterers set areas=array['Jakarta Selatan'] where id=$1", [K[1]]);
+  try {
+    await expect(cmd("address.replace", { fromAddressId: home, toAddressId: west }, user)).resolves.toMatchObject({
+      moved: 0,
+      stayed: hijau.length,
+      kitchens: [{ id: K[1], name: "Hijau Kitchen", reason: "COVERAGE" }],
+    });
+  } finally {
+    await q("update v1.caterers set areas=$2 where id=$1", [K[1], areas]);
+  }
+});
+
+it("a retried checkout keeps its stored answer after the address is removed", async () => {
+  const user = await customer();
+  const home = await address(user, "Rumah");
+  const key = crypto.randomUUID();
+  const payload = { acceptedTerms: true, packageId: P[0], addressId: home, portions: 1, startDate: addDays(today, 20), trial: false };
+  const first = await localRpc<any>(db, user, "catera_v1_command", ["checkout.create", payload, key]);
+  await q("update v1.checkouts set state='expired' where id=$1", [first.id]);
+  await cmd("address.delete", { addressId: home }, user);
+  await expect(localRpc<any>(db, user, "catera_v1_command", ["checkout.create", payload, key])).resolves.toMatchObject({ id: first.id });
+});
+
+it("the stayed line names the deadline whenever a kitchen missed it, also beside a kitchen outside the area", async () => {
+  const { addressReplaceLine } = await import("@catera/domain");
+  const result = {
+    fromAddressId: "a",
+    toAddressId: "b",
+    moved: 0,
+    stayed: 3,
+    stayedUntil: "2026-10-20",
+    kitchens: [
+      { id: "s", name: "Dapur Senja", reason: "CUTOFF" as const },
+      { id: "h", name: "Hijau Kitchen", reason: "COVERAGE" as const },
+    ],
+    pendingCheckouts: 0,
+    deleted: false,
+  };
+  expect(addressReplaceLine(result, "id")).toBe(
+    "3 pengantaran tetap ke alamat lama sampai 20 Okt. Hijau Kitchen tidak mengantar ke alamat baru, dan sebagian sudah lewat batas waktu.",
+  );
+  expect(addressReplaceLine(result, "en")).toBe(
+    "3 deliveries stay at the old address until 20 Oct. Hijau Kitchen does not deliver to the new address, and some are past the change deadline.",
+  );
+});

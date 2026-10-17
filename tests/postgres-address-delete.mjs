@@ -95,6 +95,51 @@ export async function verifyAddressDelete(pool, cmd, evidence) {
     `address.delete racing checkout.create 8 times ends with one winner (${outcomes.deleted} deleted, ${outcomes.bought} bought); a held delete makes the checkout wait and fail NOT_FOUND, a held checkout makes the delete wait and fail ADDRESS_IN_USE; no pending checkout is left on an archived address; the renamed base is not executable by clients.`,
   );
 
+  // 1b. Delete racing a caterer import.commit that names the address: the import reads the address row for share,
+  // the delete takes it for update, so one waits for the other and no imported day lands on a removed address.
+  let imported = 0;
+  async function importPreview(user, addressId) {
+    await pool.query("insert into v1.relationships(user_id,caterer_id,source) values($1,$2,'legacy') on conflict do nothing", [user, K[0]]);
+    const row = { customerId: user, addressId, packageId: P[2], portions: 1, startDate: addDays(today, 40 + 7 * (imported % 30)), remainingDays: 1, externalReference: "alamat-race-" + imported++ };
+    return cmd("import.preview", { catererId: K[0], rows: [row] }, U.owner);
+  }
+  const dayOnRemoved = async () =>
+    (await pool.query("select count(*)::int n from v1.delivery_days d join v1.addresses a on a.id::text=d.address->>'id' where a.archived_at is not null and d.status not in('delivered','cancelled') and d.service_date>=$1::date", [today])).rows[0].n;
+  {
+    const { user, home } = await customer();
+    const preview = await importPreview(user, home);
+    let committing;
+    const waited = await held(pool, user, async (c) => {
+      await c.query("select public.catera_v1_command('address.delete',$1,gen_random_uuid())", [{ addressId: home }]);
+      committing = Promise.allSettled([cmd("import.commit", { catererId: K[0], id: preview.id }, U.owner)]);
+      await untilBlocked(pool);
+      const blocked = (await waitingOnALock(pool)) > 0;
+      await c.query("commit");
+      return blocked;
+    });
+    assert.equal(waited, true, "the import waits for the delete in flight");
+    assert.deepEqual(settled(await committing), ["NOT_FOUND"]);
+  }
+  {
+    const { user, home } = await customer();
+    const preview = await importPreview(user, home);
+    let deleting;
+    const waited = await held(pool, U.owner, async (c) => {
+      await c.query("select public.catera_v1_command('import.commit',$1,gen_random_uuid())", [{ catererId: K[0], id: preview.id }]);
+      deleting = Promise.allSettled([cmd("address.delete", { addressId: home }, user)]);
+      await untilBlocked(pool);
+      const blocked = (await waitingOnALock(pool)) > 0;
+      await c.query("commit");
+      return blocked;
+    });
+    assert.equal(waited, true, "the delete waits for the import in flight");
+    assert.deepEqual(settled(await deleting), ["ADDRESS_IN_USE"]);
+  }
+  assert.equal(await dayOnRemoved(), 0);
+  evidence.push(
+    "address.delete racing import.commit on the same address, in both forced orders: each waits for the other on the address row; a delete first makes the import fail NOT_FOUND, an import first makes the delete fail ADDRESS_IN_USE, and no upcoming day sits on a removed address.",
+  );
+
   // 2. Replace racing delivery.cook on the same day: the day is either moved or cooked, never both.
   async function dayToday() {
     const { user, home, office } = await customer();

@@ -68,7 +68,8 @@ export function addressReplaceLine(result: AddressReplaceResult, locale: Locale)
   if (!outside.length)
     return en ? `${days}, because the change deadline has passed.` : `${days}, karena sudah lewat batas waktu.`;
   const names = outside.join(", ");
+  const late = result.kitchens.some((k) => k.reason === "CUTOFF");
   return en
-    ? `${days}. ${names} ${outside.length === 1 ? "does" : "do"} not deliver to the new address.`
-    : `${days}. ${names} tidak mengantar ke alamat baru.`;
+    ? `${days}. ${names} ${outside.length === 1 ? "does" : "do"} not deliver to the new address${late ? ", and some are past the change deadline" : ""}.`
+    : `${days}. ${names} tidak mengantar ke alamat baru${late ? ", dan sebagian sudah lewat batas waktu" : ""}.`;
 }

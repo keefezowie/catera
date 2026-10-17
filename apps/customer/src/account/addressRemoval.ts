@@ -77,17 +77,21 @@ export function useAddressRemoval(newAddressHref: string) {
           deleted();
           return;
         }
-        const left =
-          addressReplaceLine(result, locale) ||
-          addressUseLine({ ...use, count: 0, pendingCheckouts: result.pendingCheckouts }, locale);
+        // Days that stayed keep the old address in the list; with none, only a payment still open holds it.
+        const left = result.stayed
+          ? `${addressReplaceLine(result, locale)} ${t(
+              "Alamat lama tetap ada di daftar. Hapus lagi setelah pengantaran itu selesai.",
+              "The old address stays in your list. Delete it again once those deliveries are done.",
+            )}`
+          : t(
+              "Alamat lama masih dipakai untuk pembayaran yang belum selesai, jadi belum terhapus. Hapus lagi setelah pembayaran itu selesai atau kedaluwarsa.",
+              "The old address is still used by a payment that has not finished, so it was not deleted. Delete it again once that payment is done or has expired.",
+            );
         const schedule = await confirm({
           title: result.moved
             ? t(`${result.moved} pengantaran dipindahkan`, `${plural(result.moved, "delivery", "deliveries")} moved`)
             : t("Belum ada pengantaran yang dipindahkan", "No deliveries moved"),
-          message: `${left} ${t(
-            "Alamat lama tetap tersimpan sampai pengantaran itu selesai.",
-            "The old address stays until those deliveries are done.",
-          )}`,
+          message: left,
           confirmLabel: t("Lihat jadwal", "See schedule"),
           cancelLabel: t("Tutup", "Close"),
         });
@@ -96,7 +100,8 @@ export function useAddressRemoval(newAddressHref: string) {
         const code = (e as { code?: string }).code || (e as Error).message;
         toast.show({
           message: errorLabel(code, locale) || t("Alamat belum terhapus.", "The address was not deleted."),
-          tone: "error", action: { label: t("Coba lagi", "Try again"), onPress: retry },
+          tone: "error",
+          action: { label: t("Coba lagi", "Try again"), onPress: retry },
         });
       }
     },

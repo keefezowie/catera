@@ -155,7 +155,7 @@ it("days that stayed are counted, dated and blamed on the kitchen outside the ne
   expect(mockConfirm.mock.calls[1][0]).toEqual({
     title: "10 pengantaran dipindahkan",
     message:
-      "2 pengantaran tetap ke alamat lama sampai 14 Okt. Hijau Kitchen tidak mengantar ke alamat baru. Alamat lama tetap tersimpan sampai pengantaran itu selesai.",
+      "2 pengantaran tetap ke alamat lama sampai 14 Okt. Hijau Kitchen tidak mengantar ke alamat baru. Alamat lama tetap ada di daftar. Hapus lagi setelah pengantaran itu selesai.",
     confirmLabel: "Lihat jadwal",
     cancelLabel: "Tutup",
   });
@@ -214,4 +214,21 @@ it("a payment still open blocks the delete and offers no move", async () => {
   );
   expect(mockConfirm).not.toHaveBeenCalled();
   expect(command).not.toHaveBeenCalled();
+});
+
+it("a move held back only by an open payment says so", async () => {
+  addressUse.mockResolvedValue(inUse);
+  mockAsk.mockResolvedValueOnce(OFFICE.id);
+  mockConfirm.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+  command.mockResolvedValueOnce({ moved: 12, stayed: 0, stayedUntil: null, kitchens: [], pendingCheckouts: 1, deleted: false });
+  renderBook();
+  await pressDelete();
+  await waitFor(() => expect(mockConfirm).toHaveBeenCalledTimes(2));
+  expect(mockConfirm.mock.calls[1][0]).toEqual({
+    title: "12 pengantaran dipindahkan",
+    message:
+      "Alamat lama masih dipakai untuk pembayaran yang belum selesai, jadi belum terhapus. Hapus lagi setelah pembayaran itu selesai atau kedaluwarsa.",
+    confirmLabel: "Lihat jadwal",
+    cancelLabel: "Tutup",
+  });
 });
