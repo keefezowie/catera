@@ -63,6 +63,7 @@ export function Pengaturan({
   channelName,
   onSignedOut,
   extraRows,
+  openWebPage = (url) => Linking.openURL(url),
 }: {
   /** The voice of the app's strings; "kamu" in both apps. The choice sheets carry the voiced note. */
   voice: "kamu";
@@ -74,8 +75,10 @@ export function Pengaturan({
   onSignedOut(): void;
   /** Rows after Tentang and before Keluar. */
   extraRows?: ReactNode;
+  /** How a web page opens; the customer app passes its in-app browser, the default is the phone's browser. */
+  openWebPage?: (url: string) => Promise<unknown>;
 }) {
-  const { actor, ready, t, locale, logout } = useMobile();
+  const { actor, ready, t, locale, logout, runtime } = useMobile();
   const { preference } = useThemePreference();
   const failed = useFailed();
   const [leaving, setLeaving] = useState(false);
@@ -112,8 +115,10 @@ export function Pengaturan({
       </SettingsSection>
       <SettingsSection title={t("Tentang", "About")}>
         {version ? <SettingsRow label={t("Versi aplikasi", "App version")} value={version} selectable /> : null}
-        {/* TODO: open the web terms page once apps/web has one; there is none yet (2026-10-11). */}
-        <SettingsRow label={t("Syarat dan privasi", "Terms and privacy")} value={t("Segera hadir", "Coming soon")} />
+        <SettingsRow
+          label={t("Syarat dan privasi", "Terms and privacy")}
+          onPress={() => void openWebPage(`${runtime.apiBase}/syarat-dan-privasi`).catch(failed)}
+        />
       </SettingsSection>
       {extraRows}
       {account ? (

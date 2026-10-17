@@ -3,6 +3,7 @@ import { AppState, Dimensions, Linking, StyleSheet, type AppStateStatus } from "
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import * as Notifications from "expo-notifications";
+import * as WebBrowser from "expo-web-browser";
 import { nativeThemes } from "@catera/design-tokens";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { ThemeProvider, themeChoiceLabels, ToastProvider } from "@catera/mobile-ui";
@@ -44,6 +45,7 @@ jest.mock("expo-notifications", () => ({
   setNotificationChannelAsync: jest.fn(async () => undefined),
   AndroidImportance: { DEFAULT: 3 },
 }));
+jest.mock("expo-web-browser", () => ({ openBrowserAsync: jest.fn(async () => ({ type: "dismiss" })) }));
 jest.mock("expo-constants", () => ({
   __esModule: true,
   default: { expoConfig: { version: "2.4.1", extra: { eas: { projectId: "synthetic-project" } } } },
@@ -181,9 +183,10 @@ describe("Pengaturan", () => {
     expect(router.push).toHaveBeenLastCalledWith("/pengaturan/bahasa");
     fireEvent.press(screen.getByRole("button", { name: "Tampilan, Ikuti sistem" }));
     expect(router.push).toHaveBeenLastCalledWith("/pengaturan/tampilan");
-    // There is no terms page on the web yet, so the row says so instead of opening nothing.
-    expect(screen.queryByRole("button", { name: /Syarat dan privasi/ })).toBeNull();
-    expect(screen.getByText("Segera hadir")).toBeTruthy();
+    // The terms row opens the web page in the in-app browser.
+    expect(screen.queryByText("Segera hadir")).toBeNull();
+    fireEvent.press(screen.getByRole("button", { name: "Syarat dan privasi" }));
+    expect(WebBrowser.openBrowserAsync).toHaveBeenLastCalledWith("https://api.example.test/syarat-dan-privasi");
     const keluar = screen.getByRole("button", { name: "Keluar" });
     expect(StyleSheet.flatten(within(keluar).getByText("Keluar").props.style).color).toBe(nativeThemes.light.danger);
   });
@@ -208,8 +211,16 @@ describe("Pengaturan", () => {
     expect(screen.getAllByRole("button").map((b) => b.props.accessibilityLabel)).toEqual([
       "Bahasa, Indonesia",
       "Tampilan, Ikuti sistem",
+      "Syarat dan privasi",
     ]);
     expect(screen.getByText("Versi aplikasi")).toBeTruthy();
+  });
+
+  it("the terms row says so when the page does not open", async () => {
+    (WebBrowser.openBrowserAsync as jest.Mock).mockRejectedValueOnce(new Error("offline"));
+    renderWith(runtimeWith(), <Pengaturan />);
+    fireEvent.press(await screen.findByRole("button", { name: "Syarat dan privasi" }));
+    expect(await screen.findByText("Belum berhasil. Coba lagi.")).toBeTruthy();
   });
 
   it("Versi aplikasi reads the app config version", async () => {

@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
-import { Dimensions, StyleSheet } from "react-native";
+import { Dimensions, Linking, StyleSheet } from "react-native";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import * as Notifications from "expo-notifications";
@@ -111,6 +111,15 @@ it("Dapur supporting copy reads Pesanan baru, laporan, pembayaran", async () => 
   expect(await screen.findByText("Pesanan baru, laporan, pembayaran")).toBeTruthy();
   expect(screen.getAllByRole("header").map((h) => h.props.children)).toEqual(["Pengaturan", "Notifikasi", "Aplikasi", "Tentang"]);
   expect(screen.getByRole("button", { name: "Keluar" })).toBeTruthy();
+});
+
+it("the Syarat dan privasi row opens the web page", async () => {
+  const open = jest.spyOn(Linking, "openURL").mockResolvedValue(true as never);
+  renderWith(runtimeWith(staff), <Pengaturan />);
+  expect(screen.queryByText("Segera hadir")).toBeNull();
+  fireEvent.press(await screen.findByRole("button", { name: "Syarat dan privasi" }));
+  expect(open).toHaveBeenLastCalledWith("https://catera.example.test/syarat-dan-privasi");
+  open.mockRestore();
 });
 
 it("turning on registers on the Catera Dapur channel and is still on after the screen is opened again", async () => {
