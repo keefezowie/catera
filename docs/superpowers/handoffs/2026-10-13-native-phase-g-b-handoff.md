@@ -60,10 +60,15 @@ G13 (Opus first build), G15, then G8 and G9 (they need G6b merged and the G1b fa
 - `graphify-out/` appeared untracked in the main tree. Do not stage it.
 - Skills: `material-3` is not installed. The antislop-contrast MCP failed to connect, so ratios were computed by script.
 
-## Next step
-Start a fresh G-b2 session after the weekly reset (2026-10-16 21:00 UTC), or earlier if the owner chooses. Steps, in order:
-1. Read this file, record the start usage, and finish `task-G7gate` and `task-G6b`.
-2. Resolve the G1b fallback and re-gate it.
-3. Run the G6c and G6b gates.
-4. Continue G13, G15, G8, G9, G18, G17b and G20 with the plan's gates.
-5. Write the G-b handoff at the end, with the full gate results.
+## Next step: the G-b2 session (state on 2026-10-17)
+State: v2 is at 797f7c2d, the weekly limit reset to 0%, and nothing is pushed. `task-G7gate`, `task-G6b` and `task-G1b2` are merged. The pool worktrees are clean (C:\wt\1 and C:\wt\3 detached at v2, C:\wt\2 on `task-G1b3`). The demo backend on :3000 and Metro on :8081/:8082 may still be running from the last session. Check before restarting; use a fresh `CATERA_DEMO_DATA_DIR` if you restart.
+
+Models (owner rule from 2026-10-13, memory `catera-usage-aware-execution`): each task gets up to 3 Sonnet attempts (resume the same agent for attempts 2 and 3), then one fresh Opus escalation. Reviewers and emulator gates are Opus. Never use Haiku. Record each task's attempt count in the ledger.
+
+Steps, in order:
+1. Record the start usage in the ledger.
+2. `task-G1b3` (7d4dc2b2): Opus review, rebase, merge. Then run a focused gate: "Kirim laporan" fully visible above the gesture bar at the form detent, at font scale 1.0 and 1.3, and again after expanding. Check the other moved sheets too.
+3. Ask the owner about the tab-stack "…" action sheet, which still sends TalkBack focus to the react-native-screens dimming view. The options are an Android-only `presentation: "modal"` (a visible change) or a patch-package on `DimmingView` (a dependency change).
+4. Run the emulator gates for G6c (the tracker in every stage, the Dapur count card, labels at 360dp and font scale 1.3) and G6b (the calendar at 360dp and 1.3, TalkBack on the cells). The reproduction steps are in the ledger.
+5. Build G13 and G15 (no dependencies), then G8 and G9 (every dependency is merged), then G18, G17b and G20, each with the plan's gates. G8 and G9 also shrink `LEGACY_BARE_ERRORS`, pass `failureKey` to `FormError`, and mount `ConnectionBanner` per its header contract.
+6. Rebuild the APKs with `C:\wt\logs-g\build-apks.sh`; it uses JDK 17. Write the final G-b handoff with the full gate results and the Phase H kickoff (plan G20).
