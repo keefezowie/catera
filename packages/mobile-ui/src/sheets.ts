@@ -280,8 +280,8 @@ export function useActionSheet(): (input: ActionSheetInput) => Promise<string | 
 type Translate = (id: string, en: string) => string;
 
 export type UnsavedGuardOptions = {
-  /** The app's form of address: the customer app says "Anda", Catera Dapur says "kamu". */
-  voice?: "anda" | "kamu";
+  /** The app's form of address: "kamu" in both apps. */
+  voice?: "kamu";
   /** The app's `t(id, en)`; without it the copy is Indonesian. */
   t?: Translate;
   /** The noun in English ("report"), for `t`. */
@@ -293,8 +293,8 @@ export type UnsavedGuardOptions = {
 };
 
 /** What the discard question says. Exported so the copy has one home. */
-export function unsavedCopy(noun: string, { voice = "anda", t = (id) => id, nounEn = noun }: UnsavedGuardOptions = {}): ConfirmInput {
-  const who = voice === "kamu" ? "kamu" : "Anda";
+export function unsavedCopy(noun: string, { voice = "kamu", t = (id) => id, nounEn = noun }: UnsavedGuardOptions = {}): ConfirmInput {
+  const who = voice;
   return {
     title: t(`Buang ${noun}?`, `Discard ${nounEn}?`),
     message: t(`Yang sudah ${who} tulis akan hilang.`, "What you wrote will be lost."),

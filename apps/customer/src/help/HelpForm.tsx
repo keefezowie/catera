@@ -41,7 +41,7 @@ const drafts = new Map<string, string>();
 /** A plain sentence for a refused request: the shared label, or "try again". */
 const failure = (e: unknown, locale: "id" | "en", t: (id: string, en: string) => string) =>
   errorLabel((e as { code?: string }).code || (e as Error).message, locale) ||
-  t("Belum berhasil. Coba lagi.", "That did not work. Try again.");
+  t("Permintaannya belum terkirim. Coba lagi.", "Your request didn't send. Try again.");
 
 /**
  * The sheet's frame: the title row over the scrolling form, in one FadeSwap so the form fades in as one block. The
@@ -185,7 +185,7 @@ function Help({ actorId, title }: { actorId: string; title: string }) {
     <Frame title={title} swapKey="ready">
       {!subscriptions.length ? (
         <Text style={{ color: c.muted }}>
-          {t("Permintaan bantuan butuh paket yang sudah dibeli.", "A help request needs a package you bought.")}
+          {t("Kamu bisa minta bantuan setelah membeli paket.", "You can ask for help once you've bought a package.")}
         </Text>
       ) : (
         <>
@@ -213,7 +213,7 @@ function Help({ actorId, title }: { actorId: string; title: string }) {
             </View>
           ) : null}
           <Field
-            label={t("Ceritakan kendalanya", "Tell us what is wrong")}
+            label={t("Ceritakan masalahnya", "Tell us what's wrong")}
             multiline
             value={text}
             onChangeText={write}

@@ -134,20 +134,20 @@ describe("the page under a sheet", () => {
   it("the demo strip and tab bar are hidden from accessibility while a sheet is on top and restored after", () => {
     jest.spyOn(AccessibilityInfo, "sendAccessibilityEvent").mockImplementation(() => {});
     const strip = () => screen.getByTestId("demo-strip", { includeHiddenElements: true });
-    const page = render(<DemoStrip label="Demo · data sintetis" />);
+    const page = render(<DemoStrip label="Demo (data contoh)" />);
     expect(strip().props).toMatchObject({ accessible: true, importantForAccessibility: "auto", accessibilityElementsHidden: false });
-    expect(screen.getByLabelText("Demo · data sintetis")).toBeTruthy();
+    expect(screen.getByLabelText("Demo (data contoh)")).toBeTruthy();
     expect(tabBarNativeProps(false, "ios")).toEqual({ accessibilityElementsHidden: false });
 
     // A sheet rises: the strip leaves the accessibility tree on both platforms.
     page.rerender(
       <>
-        <DemoStrip label="Demo · data sintetis" />
+        <DemoStrip label="Demo (data contoh)" />
         <SheetHeader title="Ada masalah" os="android" />
       </>,
     );
     expect(strip().props).toMatchObject({ accessible: false, importantForAccessibility: "no-hide-descendants", accessibilityElementsHidden: true });
-    expect(screen.queryByLabelText("Demo · data sintetis")).toBeNull();
+    expect(screen.queryByLabelText("Demo (data contoh)")).toBeNull();
     // iOS hides the tab host: UIKit presents the sheet outside it. On Android the sheet is drawn inside the tab host
     // (react-native-screens' TabsContainer, beside the bar), so hiding the host would hide the sheet too: the bar stays
     // in the tree there, after the sheet in reading order.
@@ -157,26 +157,26 @@ describe("the page under a sheet", () => {
     // A confirm sheet over the first one keeps the page hidden; the page comes back only when the last sheet goes.
     page.rerender(
       <>
-        <DemoStrip label="Demo · data sintetis" />
+        <DemoStrip label="Demo (data contoh)" />
         <SheetHeader title="Ada masalah" os="android" />
         <SheetHeader title="Buang laporan?" os="android" />
       </>,
     );
     page.rerender(
       <>
-        <DemoStrip label="Demo · data sintetis" />
+        <DemoStrip label="Demo (data contoh)" />
         <SheetHeader title="Ada masalah" os="android" />
       </>,
     );
     expect(strip().props.importantForAccessibility).toBe("no-hide-descendants");
-    page.rerender(<DemoStrip label="Demo · data sintetis" />);
+    page.rerender(<DemoStrip label="Demo (data contoh)" />);
     expect(strip().props).toMatchObject({ accessible: true, importantForAccessibility: "auto", accessibilityElementsHidden: false });
-    expect(screen.getByLabelText("Demo · data sintetis")).toBeTruthy();
+    expect(screen.getByLabelText("Demo (data contoh)")).toBeTruthy();
   });
 });
 
 describe("the strip follows the sheet's focus, not its mount", () => {
-  const LABEL = "Demo · data sintetis";
+  const LABEL = "Demo (data contoh)";
   const strip = () => screen.getByTestId("demo-strip", { includeHiddenElements: true });
   const hidden = () => strip().props.importantForAccessibility === "no-hide-descendants";
   const sheet = (navigation: unknown, title = "Ada masalah") => (

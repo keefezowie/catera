@@ -54,7 +54,7 @@ export function dayActionInput(
   const items: ActionSheetInput["items"] = [
     ...(can.date ? [{ key: "pindah", label: t("Pindah tanggal", "Move to another date"), icon: "calendar-outline" }] : []),
     ...(can.address
-      ? [{ key: "alamat", label: t("Ganti alamat hari ini", "Change today's address"), icon: "location-outline" }]
+      ? [{ key: "alamat", label: t("Ganti alamat antar", "Change delivery address"), icon: "location-outline" }]
       : []),
     ...(phone ? [{ key: "chat", label: t(`Chat ${caterer}`, `Chat ${caterer}`), icon: "chatbubble-outline" }] : []),
     ...(reportable
@@ -67,12 +67,12 @@ export function dayActionInput(
       title: shortDate(d.service_date, locale),
       context: {
         ...(photo ? { image: photoUri(photo, apiBase) } : null),
-        title: lead || t("Menu belum ditentukan", "Menu not set yet"),
+        title: lead || t("Menu belum diisi", "Menu not set yet"),
         lines: [
           `${meal === "dinner" ? t("Makan malam", "Dinner") : t("Makan siang", "Lunch")} · ${caterer}`,
           deadline
             ? t(`Bisa diubah sampai ${deadline}`, `Can be changed until ${deadline}`)
-            : t("Sudah lewat batas ubah", "Past the change cutoff"),
+            : t("Sudah tidak bisa diubah", "Can't be changed anymore"),
         ],
       },
       items,

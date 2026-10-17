@@ -4,7 +4,7 @@ import Animated from "react-native-reanimated";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { jakartaDay, whatsappUrl, type SellerCustomer } from "@catera/domain";
-import { useData, useMobile } from "@catera/mobile-core";
+import { useData, useMobile, plural } from "@catera/mobile-core";
 import {
   Button,
   Card,
@@ -116,7 +116,7 @@ export function CustomerList() {
                           style={{ flex: 1, gap: 2, minHeight: 48, justifyContent: "center" }}
                         >
                           <Text style={{ fontFamily: fontFor("800") }}>{c.name}</Text>
-                          {s ? <Text variant="caption">{`${s.package_name} · ${s.portions} porsi`}</Text> : null}
+                          {s ? <Text variant="caption">{t(`${s.package_name} · ${s.portions} porsi`, `${s.package_name} · ${plural(s.portions, "portion")}`)}</Text> : null}
                           <View style={{ flexDirection: "row", gap: 6, marginTop: 2 }}>
                             {s && s.status === "active" ? (
                               <Text variant="caption" style={{ color: palette.charcoal, fontFamily: fontFor("700") }}>

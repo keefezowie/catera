@@ -122,7 +122,7 @@ export function TomorrowStoryScreen() {
   } else if (!state && home.error) {
     body = (
       <StoryMessage
-        text={t("Belum bisa memuat", "Could not load yet")}
+        text={t("Belum bisa memuat", "Couldn't load tomorrow's menu")}
         closeLabel={close}
         onClose={leave}
         topInset={topInset}
@@ -141,7 +141,7 @@ export function TomorrowStoryScreen() {
   } else if (!story || !part) {
     body = (
       <StoryMessage
-        text={t("Belum ada antaran besok.", "No delivery tomorrow.")}
+        text={t("Belum ada pengantaran besok.", "No delivery tomorrow.")}
         closeLabel={close}
         onClose={leave}
         topInset={topInset}
@@ -212,14 +212,14 @@ function StoryPage({
   const title =
     part.menuSet && part.title
       ? part.title
-      : t(`Menu belum diisi oleh ${part.catererName}`, `${part.catererName} has not set this menu yet`);
+      : t(`${part.catererName} belum mengisi menunya`, `${part.catererName} hasn't set this menu yet`);
   // A plan whose days cannot move, still before its cutoff, has nothing to say about a deadline.
   const deadline = part.changeable
     ? part.until
       ? t(`Bisa diubah sampai ${part.until}`, `Can be changed until ${part.until}`)
       : t("Masih bisa diubah", "Can still be changed")
     : part.closed
-      ? t("Sudah lewat batas ubah", "Change window closed")
+      ? t("Sudah tidak bisa diubah", "Can't be changed anymore")
       : null;
   return (
     <View testID="tomorrow-part" style={{ flex: 1, backgroundColor: ink.photoGround, justifyContent: "flex-end" }}>

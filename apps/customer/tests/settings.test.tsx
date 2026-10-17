@@ -98,7 +98,7 @@ const rowNames = () =>
     .getAllByTestId(/^settings-(row|switch-row)$/)
     .map((row) => within(row).getAllByTestId("settings-label")[0].props.children as string);
 
-const notificationSwitch = () => screen.getByRole("switch", { name: "Notifikasi di ponsel ini" });
+const notificationSwitch = () => screen.getByRole("switch", { name: "Notifikasi di HP ini" });
 
 type Node = { type: unknown; props: Record<string, unknown>; parent: Node | null };
 const isInside = (inner: unknown, outer: unknown) => {
@@ -164,11 +164,11 @@ describe("Pengaturan entry", () => {
 describe("Pengaturan", () => {
   it("Pengaturan lists Notifikasi, Bahasa, Tampilan, Versi aplikasi, Syarat dan privasi, Data akun and Keluar in that order", async () => {
     renderWith(runtimeWith(), <Pengaturan />);
-    expect(await screen.findByRole("switch", { name: "Notifikasi di ponsel ini" })).toBeTruthy();
+    expect(await screen.findByRole("switch", { name: "Notifikasi di HP ini" })).toBeTruthy();
     // Android sets the screen's name as its first content line, then the four section labels.
     expect(screen.getAllByRole("header").map((h) => h.props.children)).toEqual(["Pengaturan", "Notifikasi", "Aplikasi", "Tentang", "Akun"]);
     expect(rowNames()).toEqual([
-      "Notifikasi di ponsel ini",
+      "Notifikasi di HP ini",
       "Bahasa",
       "Tampilan",
       "Versi aplikasi",
@@ -223,7 +223,7 @@ describe("Pengaturan", () => {
     (WebBrowser.openBrowserAsync as jest.Mock).mockRejectedValueOnce(new Error("offline"));
     renderWith(runtimeWith(), <Pengaturan />);
     fireEvent.press(await screen.findByRole("button", { name: "Syarat dan privasi" }));
-    expect(await screen.findByText("Belum berhasil. Coba lagi.")).toBeTruthy();
+    expect(await screen.findByText("Halaman belum bisa dibuka. Coba lagi.")).toBeTruthy();
   });
 
   it("Versi aplikasi reads the app config version", async () => {
@@ -232,7 +232,7 @@ describe("Pengaturan", () => {
     expect(version.props.selectable).toBe(true);
     expect(StyleSheet.flatten(version.props.style).fontVariant).toEqual(["tabular-nums"]);
     // The switch's first read settles before the screen goes away.
-    expect(await screen.findByRole("switch", { name: "Notifikasi di ponsel ini" })).toBeTruthy();
+    expect(await screen.findByRole("switch", { name: "Notifikasi di HP ini" })).toBeTruthy();
   });
 
   it("speaks English after the language changes", async () => {
@@ -254,7 +254,7 @@ describe("Pengaturan", () => {
 
   it("large text grows the rows: minimum heights only and no truncated line", async () => {
     renderWith(runtimeWith(), <Pengaturan />);
-    await screen.findByRole("switch", { name: "Notifikasi di ponsel ini" });
+    await screen.findByRole("switch", { name: "Notifikasi di HP ini" });
     for (const row of screen.getAllByTestId(/^settings-(row|switch-row)$/)) {
       const style = StyleSheet.flatten(row.props.style) ?? {};
       expect(style.height).toBeUndefined();
@@ -302,7 +302,7 @@ describe("notification switch", () => {
     (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: "denied", canAskAgain: false });
     focus();
     await waitFor(() => expect(notificationSwitch()).not.toBeChecked());
-    expect(screen.getByText("Izinkan notifikasi di Pengaturan ponsel")).toBeTruthy();
+    expect(screen.getByText("Izinkan notifikasi di Pengaturan HP")).toBeTruthy();
   });
 
   it("reads the permission again when the app returns from the phone's settings", async () => {
@@ -322,7 +322,7 @@ describe("notification switch", () => {
       act(() => listeners.forEach((l) => l("background")));
       act(() => listeners.forEach((l) => l("active")));
       await waitFor(() => expect(notificationSwitch()).not.toBeChecked());
-      expect(screen.getByText("Izinkan notifikasi di Pengaturan ponsel")).toBeTruthy();
+      expect(screen.getByText("Izinkan notifikasi di Pengaturan HP")).toBeTruthy();
       view.unmount();
     } finally {
       AppState.addEventListener = original;
@@ -334,7 +334,7 @@ describe("notification switch", () => {
     (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: "denied", canAskAgain: false });
     store().set(FLAG, "on");
     renderWith(runtimeWith(), <Pengaturan />);
-    expect(await screen.findByText("Izinkan notifikasi di Pengaturan ponsel")).toBeTruthy();
+    expect(await screen.findByText("Izinkan notifikasi di Pengaturan HP")).toBeTruthy();
     // Never on while the system blocks it, even though this phone was registered earlier.
     expect(notificationSwitch()).not.toBeChecked();
     fireEvent.press(screen.getByRole("button", { name: "Buka Pengaturan" }));
@@ -345,7 +345,7 @@ describe("notification switch", () => {
     expect(notificationSwitch()).not.toBeChecked();
     await waitFor(() => expect(Notifications.requestPermissionsAsync).toHaveBeenCalledTimes(1));
     expect(notificationSwitch()).not.toBeChecked();
-    expect(screen.getByText("Izinkan notifikasi di Pengaturan ponsel")).toBeTruthy();
+    expect(screen.getByText("Izinkan notifikasi di Pengaturan HP")).toBeTruthy();
     open.mockRestore();
   });
 
@@ -355,7 +355,7 @@ describe("notification switch", () => {
     renderWith(runtime, <Pengaturan />);
     await waitFor(() => expect(notificationSwitch()).not.toBeChecked());
     fireEvent(notificationSwitch(), "valueChange", true);
-    expect(await screen.findByText("Izinkan notifikasi di Pengaturan ponsel")).toBeTruthy();
+    expect(await screen.findByText("Izinkan notifikasi di Pengaturan HP")).toBeTruthy();
     expect(notificationSwitch()).not.toBeChecked();
     expect(runtime.api.command).not.toHaveBeenCalledWith("device.register", expect.anything(), expect.anything());
   });
@@ -376,7 +376,7 @@ describe("notification switch", () => {
     );
     await waitFor(() => expect(store().has(FLAG)).toBe(false));
     expect(notificationSwitch()).not.toBeChecked();
-    expect(screen.queryByText("Belum berhasil. Coba lagi.")).toBeNull();
+    expect(screen.queryByText("Pengaturan notifikasi belum tersimpan. Coba lagi.")).toBeNull();
   });
 
   it("a failed turn-off keeps the switch on and shows the error toast", async () => {
@@ -387,7 +387,7 @@ describe("notification switch", () => {
     renderWith(runtime, <Pengaturan />);
     await waitFor(() => expect(notificationSwitch()).toBeChecked());
     fireEvent(notificationSwitch(), "valueChange", false);
-    expect(await screen.findByText("Belum berhasil. Coba lagi.")).toBeTruthy();
+    expect(await screen.findByText("Pengaturan notifikasi belum tersimpan. Coba lagi.")).toBeTruthy();
     expect(notificationSwitch()).toBeChecked();
     expect(store().get(FLAG)).toBe("on");
   });
@@ -399,7 +399,7 @@ describe("notification switch", () => {
     renderWith(runtime, <Pengaturan />);
     await waitFor(() => expect(notificationSwitch()).not.toBeChecked());
     fireEvent(notificationSwitch(), "valueChange", true);
-    expect(await screen.findByText("Belum berhasil. Coba lagi.")).toBeTruthy();
+    expect(await screen.findByText("Pengaturan notifikasi belum tersimpan. Coba lagi.")).toBeTruthy();
     expect(notificationSwitch()).not.toBeChecked();
     expect(screen.queryByText("REQUEST_TIMEOUT")).toBeNull();
     expect(store().has(FLAG)).toBe(false);
@@ -439,7 +439,7 @@ describe("choice sheets", () => {
     const group = await screen.findByLabelText("Tampilan");
     expect(group.props.accessibilityRole).toBe("radiogroup");
     expect(within(group).getByRole("radio", { name: "Ikuti sistem" })).toBeChecked();
-    expect(screen.getByText("Ikuti sistem memakai pengaturan ponsel Anda.")).toBeTruthy();
+    expect(screen.getByText("Ikuti sistem berarti ikut tema HP kamu.")).toBeTruthy();
     fireEvent.press(within(group).getByRole("radio", { name: "Gelap" }));
     expect(SecureStore.setItemAsync).toHaveBeenCalledWith("catera.theme", "dark");
     expect(router.back).toHaveBeenCalledTimes(1);
@@ -505,7 +505,7 @@ describe("Keluar lets go of this phone's push token", () => {
     await waitFor(() => expect(require("../src/nav").goToTab).toHaveBeenCalledWith("index", { everyTab: true }));
     expect(store().get(FLAG)).toBe("on");
     // Sign-out went through, so nothing says it failed.
-    expect(screen.queryByText("Belum berhasil. Coba lagi.")).toBeNull();
+    expect(screen.queryByText("Pengaturan notifikasi belum tersimpan. Coba lagi.")).toBeNull();
   });
 
   it("a token read that never answers still signs out after three seconds", async () => {

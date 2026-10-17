@@ -30,8 +30,8 @@ export function Recover() {
       <View style={{ gap: 14, paddingTop: 8 }}>
         <Text>
           {t(
-            "Kami kirim tautan ke email Anda. Buka tautan itu di HP ini untuk membuat kata sandi baru.",
-            "We will email a link. Open it on this phone to choose a new password.",
+            "Kami kirim tautan ke emailmu. Buka tautannya di HP ini untuk membuat kata sandi baru.",
+            "We'll email you a link. Open it on this phone to set a new password.",
           )}
         </Text>
         <Field
@@ -47,8 +47,8 @@ export function Recover() {
         {sent ? (
           <Text>
             {t(
-              "Jika akun itu terdaftar, email pemulihan telah dikirim. Periksa juga folder spam.",
-              "If the account exists, a recovery email has been sent. Check your spam folder too.",
+              "Kalau email itu terdaftar, kami sudah mengirim tautan pemulihan. Cek juga folder spam.",
+              "If that email has an account, we've sent a recovery link. Check your spam folder too.",
             )}
           </Text>
         ) : null}

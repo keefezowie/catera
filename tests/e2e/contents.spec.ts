@@ -76,7 +76,7 @@ test("slot purchase resolves dated dishes through customer delivery and frozen p
   await page.goto("/deliveries/" + delivery.id);
   await page.getByText("Isi paket", { exact: true }).click();
   await expect(page.locator("#main .package-contents:visible")).toContainText(
-    "Menu belum ditentukan",
+    "Menu belum diisi",
   );
   await page.request.post("/api/v1/auth/demo", { data: { role: "owner" } });
   const details = {
@@ -129,7 +129,7 @@ test("slot purchase resolves dated dishes through customer delivery and frozen p
   );
   await page.goto("/subscriptions/" + sub.id);
   await expect(page.locator("#main .package-contents:visible")).toContainText(
-    "Menu belum ditentukan",
+    "Menu belum diisi",
   );
   const after = (await (await page.request.get("/api/v1/customer")).json())
     .data;

@@ -596,7 +596,7 @@ export function MenuWeek() {
             ) : past || !selected.editable ? (
               // An empty day nobody can fill any more: past, or past its change cutoff. It is not a to-do, so it is muted.
               <Text variant="caption" style={{ color: c.muted }}>
-                {past ? t("Lewat", "Past") : t("Sudah lewat batas ubah", "Past the change cutoff")}
+                {past ? t("Lewat", "Past") : t("Sudah tidak bisa diubah", "Can't be changed anymore")}
               </Text>
             ) : (
               // A status, not an error: bold charcoal, never a bare danger caption (spec 5.2).

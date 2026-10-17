@@ -22,7 +22,7 @@ export function PackageDetail({ offer }: { offer: SellerOffer }) {
       {offer.image ? <Image source={{ uri: photoUri(offer.image, runtime.apiBase) }} style={{ height: 168, borderRadius: 14 }} /> : null}
       <Text>{offer.description}</Text>
       <Card>
-        <Text variant="label">{`${offer.price === null ? "–" : currency(offer.price, locale)} ${t("per porsi", "per portion")}`}</Text>
+        <Text variant="label">{offer.price === null ? t("Belum ada harga", "No price yet") : `${currency(offer.price, locale)} ${t("per porsi", "per portion")}`}</Text>
         <Text variant="caption">{groups.map((g) => `${g.slots} ${g.name.toLowerCase()}`).join(", ")}</Text>
         <Text variant="caption">{offer.weekdays.map((d) => dayNames[d]).join(", ")}</Text>
         {capacity !== undefined ? <Text variant="caption">{t(`Kapasitas ${capacity} porsi per hari`, `Capacity ${plural(capacity, "portion")} a day`)}</Text> : null}
@@ -35,8 +35,8 @@ export function PackageDetail({ offer }: { offer: SellerOffer }) {
       <View style={{ gap: 8 }}>
         <Text variant="caption">
           {t(
-            "Paket yang sudah tayang tidak bisa diubah supaya pelanggan tetap mendapat yang mereka beli. Untuk mengubah harga, isi atau kapasitas, buat paket baru dari paket ini.",
-            "A live package can't change, so customers keep what they bought. To change price, contents or capacity, make a new package from this one.",
+            "Paket yang sudah tayang dikunci, supaya pelanggan dapat persis yang mereka beli. Mau ganti harga, isi atau kapasitas? Salin jadi paket baru.",
+            "Live packages are locked so customers get exactly what they bought. To change the price, contents or capacity, copy it into a new package.",
           )}
         </Text>
         <Button label={t("Salin jadi paket baru", "Copy into a new package")} onPress={() => router.push(`/paket/baru?from=${offer.id}`)} />

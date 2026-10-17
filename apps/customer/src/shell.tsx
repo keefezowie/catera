@@ -44,7 +44,7 @@ function StartupGate({ children }: { children: ReactNode }) {
     <View style={{ flex: 1, justifyContent: "center", padding: 24, gap: 12, backgroundColor: c.canvas }}>
       <StateArt pose="bingung" style={{ marginBottom: 8 }} />
       <Text variant="title" style={{ textAlign: "center" }}>
-        {t("Belum bisa terhubung.", "Can't connect yet.")}
+        {t("Belum bisa terhubung. Cek koneksimu.", "Can't connect. Check your connection.")}
       </Text>
       <FormError message={error} testID="startup-error" />
       <Button label={t("Coba lagi", "Try again")} busy={busy} onPress={() => void retry()} />

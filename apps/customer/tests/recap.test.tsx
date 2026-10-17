@@ -163,7 +163,7 @@ describe("the Paket selesai recap", () => {
     const card = within(screen.getByTestId("recap-card"));
     expect(card.getByRole("header", { name: "Paket selesai" })).toBeTruthy();
     expect(card.getByText("Makan Malam Keluarga · Dapur Contoh")).toBeTruthy();
-    expect(card.getByText("Senin 21 Sep – Rabu 7 Okt")).toBeTruthy();
+    expect(card.getByText("Senin 21 Sep sampai Rabu 7 Okt")).toBeTruthy();
     // The photo is decoration for screen readers: the plan's name is in the text beside it.
     expect(card.getByTestId("recap-photo", { includeHiddenElements: true }).props.source).toEqual({ uri: "https://images.example.test/keluarga.jpg" });
     expect(card.getByRole("button", { name: "Lanjutkan paket" })).toBeTruthy();
@@ -320,13 +320,13 @@ describe("the Paket selesai recap", () => {
     const state = () => stateWith([livePlan(), older, endedPlan()]);
     const first = await home(runtimeWith(async () => state()));
     expect(screen.getAllByTestId("recap-card")).toHaveLength(1);
-    expect(screen.getByText("Senin 21 Sep – Rabu 7 Okt")).toBeTruthy();
+    expect(screen.getByText("Senin 21 Sep sampai Rabu 7 Okt")).toBeTruthy();
     expect(store.get("catera.recap.s-older")).toBeUndefined();
     first.unmount();
 
     await home(runtimeWith(async () => state()));
     expect(screen.getAllByTestId("recap-card")).toHaveLength(1);
-    expect(screen.getByText("Senin 14 Sep – Sabtu 3 Okt")).toBeTruthy();
+    expect(screen.getByText("Senin 14 Sep sampai Sabtu 3 Okt")).toBeTruthy();
     expect(store.get("catera.recap.s-older")).toBe("seen");
   });
 
@@ -335,7 +335,7 @@ describe("the Paket selesai recap", () => {
     mount(runtimeWith(async () => stateWith([livePlan(), endedPlan()])));
     const card = within(await screen.findByTestId("recap-card"));
     expect(card.getByText("Plan finished")).toBeTruthy();
-    expect(card.getByText("Mon 21 Sep – Wed 7 Oct")).toBeTruthy();
+    expect(card.getByText("Mon 21 Sep to Wed 7 Oct")).toBeTruthy();
     expect(card.getByRole("button", { name: "Continue this plan" })).toBeTruthy();
     expect(card.getByRole("button", { name: "Close" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "1 active plan, Dapur Contoh" })).toBeTruthy();

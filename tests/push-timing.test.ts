@@ -163,7 +163,7 @@ it("renews once at three days left after 09.00", async () => {
   expect(rows).toHaveLength(1);
   expect(rows[0].payload.href).toBe("/renew/" + both[0].subscription_id);
   expect(rows[0].payload.userId).toBe(U.customer);
-  expect(rows[0].payload.body).toMatch(/^Paket .+ tinggal 3 hari\. Perpanjang tanpa jeda\.$/);
+  expect(rows[0].payload.body).toMatch(/^Paket .+ tinggal 3 hari lagi. Perpanjang kalau mau lanjut\.$/);
   // Other subscriptions still have more than three days left.
   expect(await q("select 1 from v1.outbox where dedupe like 'renew%'")).toHaveLength(1);
   // The daily maintenance run at two days left adds no second push for the same package.

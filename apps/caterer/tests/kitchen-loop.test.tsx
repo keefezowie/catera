@@ -216,7 +216,7 @@ describe("Daftar masak", () => {
     // A dish with a photo shows it; one without shows the meal's icon.
     expect(screen.getByTestId("check-row-1-image")).toBeTruthy();
     expect(screen.getByTestId("check-row-0-icon", { includeHiddenElements: true })).toBeTruthy();
-    expect(screen.getByText("Centang hanya catatan dapur, tidak dikirim ke pelanggan.")).toBeTruthy();
+    expect(screen.getByText("Centang ini cuma catatan dapur. Pelanggan tidak melihatnya.")).toBeTruthy();
     // The old plain list is gone.
     expect(screen.queryByText("Yang dimasak")).toBeNull();
   });
@@ -350,7 +350,7 @@ describe("Mulai masak", () => {
     fireEvent.press(await screen.findByText("Mulai masak"));
     const dialog = lastConfirm();
     expect(dialog.title).toBe("Mulai masak makan siang?");
-    expect(dialog.message).toBe("Pelanggan melihat status Dimasak.");
+    expect(dialog.message).toBe("Pelanggan akan melihat status Dimasak.");
     expect(dialog.labels).toEqual(["Batal", "Mulai"]);
     expect(dialog.icon).toBe("rantang");
     // Nothing is sent before the answer, and Batal sends nothing at all.
@@ -493,7 +493,7 @@ describe("a meal whose rows all failed", () => {
     renderToday(runtimeWith(async () => kitchenDay([{ status: "issue" }])));
     expect(await screen.findByText("4 pengantaran makan siang ditandai Gagal diantar.")).toBeTruthy();
     expect(screen.queryByText("Tidak ada pengantaran makan siang.")).toBeNull();
-    expect(screen.queryByText("Tidak ada masakan untuk hari ini.")).toBeNull();
+    expect(screen.queryByText("Tidak ada yang dimasak hari ini.")).toBeNull();
     // Nothing is cooking, so there is no count card, checklist or footer action.
     expect(screen.queryByTestId("session-count")).toBeNull();
     expect(screen.queryByTestId("screen-footer")).toBeNull();
@@ -503,7 +503,7 @@ describe("a meal whose rows all failed", () => {
     const runtime = runtimeWith(async () => kitchenDay([{ status: "issue" }, { status: "cancelled" }]));
     store().set(runtime.storageKey("locale"), "en");
     renderToday(runtime);
-    expect(await screen.findByText("1 lunch delivery marked as failed.")).toBeTruthy();
+    expect(await screen.findByText("1 lunch delivery marked Not delivered.")).toBeTruthy();
   });
 
   it("still offers the other meal when it has a session", async () => {
@@ -671,7 +671,7 @@ describe("Urutan antar", () => {
     const day = kitchenDay([scheduled]);
     renderToday(runtimeWith(async () => day));
     const more = within(await screen.findByTestId("stop-1")).getByLabelText(
-      "Laporkan masalah atau pindah hari: Bu Sari Wulandari",
+      "Laporkan masalah atau pindah tanggal: Bu Sari Wulandari",
     );
     fireEvent.press(more);
     expect(await screen.findByText("Gagal diantar")).toBeTruthy();
@@ -692,7 +692,7 @@ describe("Urutan antar", () => {
     renderToday(runtimeWith(async () => kitchenDay([scheduled])));
     await screen.findByTestId("stop-1");
     const labels = screen
-      .getAllByLabelText(/^(Laporkan masalah|Pindah hari)/)
+      .getAllByLabelText(/^(Laporkan masalah|Pindah tanggal)/)
       .map((b) => b.props.accessibilityLabel as string);
     expect(labels.length).toBeGreaterThan(1);
     expect(new Set(labels).size).toBe(labels.length);
@@ -708,7 +708,7 @@ describe("Urutan antar", () => {
     renderToday(runtime);
     expect(
       within(await screen.findByTestId("stop-1")).getByLabelText(
-        "Report a problem or move the day: Bu Sari Wulandari",
+        "Report a problem or move the date: Bu Sari Wulandari",
       ),
     ).toBeTruthy();
     expect(
@@ -722,11 +722,11 @@ describe("Urutan antar", () => {
     fireEvent.press(screen.getByRole("button", { name: /, ganti hari$/ }));
     // Tomorrow's day is read before its first stop shows; the checklist beside it reads its note too, so let that settle.
     expect(
-      await within(await screen.findByTestId("stop-1")).findByLabelText("Pindah hari: Bu Sari Wulandari"),
+      await within(await screen.findByTestId("stop-1")).findByLabelText("Pindah tanggal: Bu Sari Wulandari"),
     ).toBeTruthy();
     await act(async () => undefined);
     expect(screen.queryByText("Mulai masak")).toBeNull();
-    expect(within(screen.getByTestId("stop-3")).queryByLabelText(/Laporkan|Pindah hari/)).toBeNull();
+    expect(within(screen.getByTestId("stop-3")).queryByLabelText(/Laporkan|Pindah tanggal/)).toBeNull();
   });
 
   it("shows no ellipsis on a stop whose meal is already delivered, and keeps it on the others", async () => {
@@ -736,7 +736,7 @@ describe("Urutan antar", () => {
     const other = stopsOf(day).find((s) => s.deliveryId !== day.deliveries[0].id)!;
     const row = await screen.findByTestId(`stop-${done.n}`);
     expect(within(row).getByText(done.name)).toBeTruthy();
-    expect(within(row).queryByLabelText(/Laporkan|Pindah hari/)).toBeNull();
+    expect(within(row).queryByLabelText(/Laporkan|Pindah tanggal/)).toBeNull();
     expect(within(screen.getByTestId(`stop-${other.n}`)).getByLabelText(/^Laporkan masalah/)).toBeTruthy();
   });
 
@@ -750,7 +750,7 @@ describe("Urutan antar", () => {
     );
     expect(await screen.findByText("Gagal diantar")).toBeTruthy();
     expect(screen.queryByText("Pindah tanggal")).toBeNull();
-    fireEvent.press(screen.getByText("Simpan laporan"));
+    fireEvent.press(screen.getByText("Tandai gagal diantar"));
     await waitFor(() =>
       expect(command).toHaveBeenCalledWith(
         "delivery.status",
@@ -760,7 +760,7 @@ describe("Urutan antar", () => {
     );
     // The save resolves in microtasks and the sheet closes from the effect that follows: one async act lets both finish.
     await act(async () => undefined);
-    expect(screen.queryByText("Simpan laporan")).toBeNull();
+    expect(screen.queryByText("Tandai gagal diantar")).toBeNull();
     expect(router.back).toHaveBeenCalledTimes(1);
   });
 });
@@ -777,8 +777,8 @@ describe("the exception sheet on its own", () => {
     expect(await screen.findByText("Tidak ada yang bisa dilaporkan untuk alamat ini.")).toBeTruthy();
     expect(screen.queryByText("Gagal diantar")).toBeNull();
     expect(screen.queryByText("Pindah tanggal")).toBeNull();
-    // There is nothing to save, so there is no "Simpan laporan": nothing is sent and the sheet does not close as if saved.
-    expect(screen.queryByRole("button", { name: "Simpan laporan" })).toBeNull();
+    // There is nothing to save, so there is no "Tandai gagal diantar": nothing is sent and the sheet does not close as if saved.
+    expect(screen.queryByRole("button", { name: "Tandai gagal diantar" })).toBeNull();
     await act(async () => undefined);
     expect(command).not.toHaveBeenCalled();
     expect(router.back).not.toHaveBeenCalled();
@@ -859,7 +859,7 @@ describe("the order across the stages", () => {
     fireEvent.press(screen.getByRole("button", { name: /, ganti hari$/ }));
     // Wait for tomorrow's own day: the header names it before its stops are read.
     await screen.findByText("Dapur Bu Rina · Besok");
-    await screen.findByLabelText(/^Pindah hari: /);
+    await screen.findByLabelText(/^Pindah tanggal: /);
     await act(async () => undefined);
     expect(screen.queryByText(LINE)).toBeNull();
   });
@@ -890,7 +890,7 @@ describe("Semua beres", () => {
     const runtime = runtimeWith(async (_id, date) => kitchenDay([delivered], { date }));
     renderToday(runtime);
     expect(await screen.findByText("Semua beres hari ini")).toBeTruthy();
-    expect(screen.getByText("Semua pengantaran tercatat sampai.")).toBeTruthy();
+    expect(screen.getByText("Semua pengantaran sudah ditandai sampai.")).toBeTruthy();
     expect(screen.queryByText("Urutan antar")).toBeNull();
     expect(screen.queryByText("Daftar masak")).toBeNull();
     expect(screen.queryByTestId("screen-footer")).toBeNull();
@@ -905,8 +905,8 @@ describe("Semua beres", () => {
   it("counts from the real rows when some were marked Gagal diantar, and does not say everything arrived", async () => {
     renderToday(runtimeWith(async () => kitchenDay([delivered, delivered, delivered, failed])));
     expect(await screen.findByText("Semua beres hari ini")).toBeTruthy();
-    expect(screen.getByText("3 tercatat sampai, 1 ditandai Gagal diantar.")).toBeTruthy();
-    expect(screen.queryByText("Semua pengantaran tercatat sampai.")).toBeNull();
+    expect(screen.getByText("3 ditandai sampai, 1 ditandai Gagal diantar.")).toBeTruthy();
+    expect(screen.queryByText("Semua pengantaran sudah ditandai sampai.")).toBeNull();
   });
 
   it("says it in English", async () => {
@@ -914,13 +914,13 @@ describe("Semua beres", () => {
     store().set(runtime.storageKey("locale"), "en");
     renderToday(runtime);
     expect(await screen.findByText("All done today")).toBeTruthy();
-    expect(screen.getByText("2 recorded as arrived, 2 marked as failed.")).toBeTruthy();
+    expect(screen.getByText("2 marked as arrived, 2 marked Not delivered.")).toBeTruthy();
     expect(screen.getByRole("button", { name: "See tomorrow" })).toBeTruthy();
   });
 
   it("counts a cancelled row as neither", async () => {
     renderToday(runtimeWith(async () => kitchenDay([delivered, delivered, { status: "cancelled" }])));
-    expect(await screen.findByText("Semua pengantaran tercatat sampai.")).toBeTruthy();
+    expect(await screen.findByText("Semua pengantaran sudah ditandai sampai.")).toBeTruthy();
   });
 
   it("keeps the sessions while a customer report is still open", async () => {
@@ -971,7 +971,7 @@ describe("Semua beres", () => {
     expect(screen.queryByText("Semua beres hari ini")).toBeNull();
     fireEvent.press(screen.getByText("Lihat makan malam · 6 porsi"));
     expect(await screen.findByText("Semua beres hari ini")).toBeTruthy();
-    expect(screen.getByText("1 tercatat sampai, 4 ditandai Gagal diantar.")).toBeTruthy();
+    expect(screen.getByText("1 ditandai sampai, 4 ditandai Gagal diantar.")).toBeTruthy();
   });
 
   it("is not done on a copy kept from before the connection dropped", async () => {

@@ -96,6 +96,8 @@ export function SessionCard({
   // The shared and printed recap is written in Indonesian, like the rest of its text.
   const missingForSharing = missing.map((m) => `Menu belum diisi · ${m.packageName}: ${m.summary}`);
   const title = meal === "lunch" ? t("Makan siang", "Lunch") : t("Makan malam", "Dinner");
+  // The shared and printed text is Indonesian whatever the app language, so its title is too.
+  const sharedTitle = meal === "lunch" ? "Makan siang" : "Makan malam";
   return (
     <Card>
       {/* The header's count card already carries the portion count; the card only names its session. */}
@@ -135,7 +137,7 @@ export function SessionCard({
             <Button
               style={{ flex: 1 }}
               label={t("Bagikan", "Share")}
-              onPress={() => void Share.share({ message: `${caterer}\n${recapLines(recap, title, missingForSharing)}` })}
+              onPress={() => void Share.share({ message: `${caterer}\n${recapLines(recap, sharedTitle, missingForSharing)}` })}
             />
             <Button
               style={{ flex: 1 }}
@@ -143,7 +145,7 @@ export function SessionCard({
               label={t("Cetak", "Print")}
               onPress={() =>
                 void Print.printAsync({
-                  html: `<h2>${caterer} · ${title}: ${recap.total} porsi</h2><ul>${recap.byDish
+                  html: `<h2>${caterer} · ${sharedTitle}: ${recap.total} porsi</h2><ul>${recap.byDish
                     .map((d) => `<li>${d.count} × ${d.name}</li>`)
                     .join("")}</ul>${missingForSharing.map((l) => `<p>${l}</p>`).join("")}`,
                 })

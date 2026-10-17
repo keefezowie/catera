@@ -185,7 +185,7 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
       await work();
     } catch (e) {
       const code = (e as { code?: string }).code || (e as Error).message;
-      setError(errorLabel(code, locale) || t("Belum berhasil. Coba lagi.", "That didn't work. Try again."));
+      setError(errorLabel(code, locale) || t("Belum bisa mengecek pembayaran. Coba lagi.", "Couldn't check the payment. Try again."));
       setFailures((n) => n + 1);
     } finally {
       setWaiting("");
@@ -378,8 +378,8 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
         <Card tone="sage">
           <Text>
             {t(
-              `${c.quote.dates.length} hari antar Anda dijaga selama 15 menit. Lewat dari itu, jadwal dicek ulang sebelum dibayar.`,
-              `${c.quote.dates.length === 1 ? "Your delivery day is" : `Your ${c.quote.dates.length} delivery days are`} held for 15 minutes. After that, the schedule is checked again before payment.`,
+              `Kami tahan ${c.quote.dates.length} hari antarmu selama 15 menit. Lewat dari itu, jadwalnya kami cek ulang sebelum kamu bayar.`,
+              `We're holding ${c.quote.dates.length === 1 ? "your delivery day" : `your ${c.quote.dates.length} delivery days`} for 15 minutes. After that, we check the schedule again before you pay.`,
             )}
           </Text>
         </Card>

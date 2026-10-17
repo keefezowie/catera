@@ -67,7 +67,7 @@ export function SlotEditor({
       {!complete && missing > 0 ? (
         <Text variant="caption" style={{ textAlign: "center" }}>
           {t(
-            `Paket ini berisi ${composition.map((g) => `${g.slots} ${g.name.toLowerCase()}`).join(", ")}. Lengkapi ${missing} lagi.`,
+            `Paket ini berisi ${composition.map((g) => `${g.slots} ${g.name.toLowerCase()}`).join(", ")}. Tambah ${missing} lagi.`,
             `This package holds ${composition.map((g) => `${g.slots} ${g.name.toLowerCase()}`).join(", ")}. ${missing} more to go.`,
           )}
         </Text>
@@ -98,6 +98,7 @@ function GroupLine({
   onCreate: (name: string, categoryId: string | undefined) => Promise<LibraryDish>;
   rowMotion: (key: string) => RowMotion;
 }) {
+  const { t } = useMobile();
   const c = useColors();
   const [query, setQuery] = useState("");
   const filled = items.filter((i) => i.groupId === group.id);
@@ -125,7 +126,7 @@ function GroupLine({
   return (
     <View style={{ gap: 8 }}>
       <Text variant="label" style={{ color: c.charcoal }}>
-        {`${group.name} · ${filled.length} dari ${group.slots}`}
+        {t(`${group.name} · ${filled.length} dari ${group.slots}`, `${group.name} · ${filled.length} of ${group.slots}`)}
       </Text>
       {filled.map((i) => (
         <Animated.View key={i.id} testID="menu-slot-row" {...rowMotion(i.id)}>
@@ -145,7 +146,7 @@ function GroupLine({
             {canEdit ? (
               <PressableScale
                 accessibilityRole="button"
-                accessibilityLabel={`Hapus ${i.name}`}
+                accessibilityLabel={t(`Hapus ${i.name}`, `Remove ${i.name}`)}
                 onPress={() => onChange(items.filter((x) => x.id !== i.id))}
                 style={{ width: 48, height: 48, alignItems: "center", justifyContent: "center" }}
               >
@@ -158,10 +159,10 @@ function GroupLine({
       {open && canEdit ? (
         <View style={{ gap: 6 }}>
           <TextInput
-            accessibilityLabel={`${group.name} berikutnya`}
+            accessibilityLabel={t(`Tambah ${group.name.toLowerCase()}`, `Add ${group.name.toLowerCase()}`)}
             value={query}
             onChangeText={setQuery}
-            placeholder={`Ketik nama ${group.name.toLowerCase()}…`}
+            placeholder={t(`Ketik nama ${group.name.toLowerCase()}…`, `Type a ${group.name.toLowerCase()} name…`)}
             placeholderTextColor={c.muted}
             style={{
               minHeight: 48,
@@ -186,7 +187,7 @@ function GroupLine({
                   style={{ minHeight: 48, paddingHorizontal: 12, flexDirection: "row", alignItems: "center" }}
                 >
                   <Text style={{ flex: 1 }}>{d.name}</Text>
-                  <Text variant="caption">{`dipakai ${usage.get(d.id) ?? 0}×`}</Text>
+                  <Text variant="caption">{t(`dipakai ${usage.get(d.id) ?? 0} kali`, `used ${usage.get(d.id) ?? 0} ${usage.get(d.id) === 1 ? "time" : "times"}`)}</Text>
                 </PressableRow>
               ))}
               <PressableRow
@@ -194,7 +195,7 @@ function GroupLine({
                 onPress={() => void onCreate(query.trim(), group.categoryId).then(add)}
                 style={{ minHeight: 48, paddingHorizontal: 12, justifyContent: "center", borderTopWidth: 1, borderTopColor: c.line }}
               >
-                <Text style={{ fontFamily: fontFor("700") }}>{`+ Buat hidangan baru “${query.trim()}”`}</Text>
+                <Text style={{ fontFamily: fontFor("700") }}>{t(`+ Buat hidangan baru “${query.trim()}”`, `+ Create new dish “${query.trim()}”`)}</Text>
               </PressableRow>
             </View>
           ) : null}

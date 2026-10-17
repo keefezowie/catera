@@ -23,7 +23,7 @@ export function TomorrowRow({ story }: { story: TomorrowStory }) {
       ? t(`Bisa diubah sampai ${open.until}`, `Can be changed until ${open.until}`)
       : t("Masih bisa diubah", "Can still be changed")
     : story.parts.every((p) => p.closed)
-      ? t("Sudah lewat batas ubah", "Change window closed")
+      ? t("Sudah tidak bisa diubah", "Can't be changed anymore")
       : null;
   return (
     <View testID="tomorrow-row" style={{ gap: 8 }}>

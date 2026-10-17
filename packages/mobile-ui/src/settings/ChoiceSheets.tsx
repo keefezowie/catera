@@ -13,8 +13,8 @@ import { ThemeChoice, themeChoiceLabels } from "./ThemeChoice";
  * A choice applies at once and the sheet closes on it; back, a swipe down or Close leave everything as it was.
  */
 
-/** The second person the Tampilan note speaks in; the customer app still says "Anda" until the copy pass (G18). */
-export type SheetVoice = "kamu" | "Anda";
+/** The second person the Tampilan note speaks in: "kamu" in both apps. */
+export type SheetVoice = "kamu";
 
 /** Tampilan: the three theme thumbnails and what following the system means. */
 export function TampilanSheet({ voice = "kamu" }: { voice?: SheetVoice }) {
@@ -37,8 +37,8 @@ export function TampilanSheet({ voice = "kamu" }: { voice?: SheetVoice }) {
         />
         <Text style={{ color: palette.muted, textAlign: ios ? "center" : "left" }}>
           {ios
-            ? t(`Sistem mengikuti pengaturan ponsel ${voice}.`, "System follows your phone's setting.")
-            : t(`Ikuti sistem memakai pengaturan ponsel ${voice}.`, "Follow system uses your phone's setting.")}
+            ? t(`Sistem ikut tema HP ${voice}.`, "System matches your phone's theme.")
+            : t(`Ikuti sistem berarti ikut tema HP ${voice}.`, "Follow system matches your phone's theme.")}
         </Text>
       </View>
     </SheetFitBody>

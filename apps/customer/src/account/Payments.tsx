@@ -108,7 +108,7 @@ function History() {
             <SectionLabel>{t("Sedang diproses", "In progress")}</SectionLabel>
             <Text variant="caption">
               {t(
-                "Jangan membayar lagi. Kami kabari setelah selesai.",
+                "Jangan bayar lagi. Statusnya muncul di sini setelah selesai.",
                 "Don’t pay again. We’ll let you know when it’s done.",
               )}
             </Text>
@@ -175,7 +175,7 @@ function History() {
           <View style={{ gap: 6 }}>
             <Text variant="heading">{t("Belum ada pembayaran.", "No payments yet.")}</Text>
             <Text style={{ color: c.muted }}>
-              {t("Paket yang Anda beli lewat Catera muncul di sini.", "Packages you buy through Catera appear here.")}
+              {t("Paket yang kamu beli lewat Catera muncul di sini.", "Packages you buy through Catera show up here.")}
             </Text>
           </View>
         ) : null}

@@ -540,11 +540,11 @@ export const statusLabel = (status: string, locale: Locale = "id") =>
   locale === "en"
     ? {
         scheduled: "Scheduled",
-        preparing: "Preparing",
-        out_for_delivery: "Out for delivery",
-        delivered: "Delivered",
+        preparing: "Cooking",
+        out_for_delivery: "On the way",
+        delivered: "Arrived",
         arrived: "Marked as arrived",
-        issue: "Issue reported",
+        issue: "Problem reported",
         pending: "Payment pending",
         paid: "Paid",
         expired: "Expired",
@@ -553,7 +553,7 @@ export const statusLabel = (status: string, locale: Locale = "id") =>
         completed: "Completed",
         cancelled: "Cancelled",
         open: "Awaiting response",
-        responded: "Caterer responded",
+        responded: "Caterer replied",
         escalated: "Under Catera review",
         resolved: "Resolved",
         draft: "Draft",
@@ -576,11 +576,11 @@ export const statusLabel = (status: string, locale: Locale = "id") =>
       }[status] || status.replaceAll("_", " ")
     : {
         scheduled: "Terjadwal",
-        preparing: "Disiapkan",
-        out_for_delivery: "Dalam pengantaran",
-        delivered: "Diterima",
+        preparing: "Dimasak",
+        out_for_delivery: "Sedang diantar",
+        delivered: "Sampai",
         arrived: "Ditandai sampai",
-        issue: "Ada kendala",
+        issue: "Ada laporan",
         pending: "Menunggu pembayaran",
         paid: "Dibayar",
         expired: "Kedaluwarsa",
@@ -589,7 +589,7 @@ export const statusLabel = (status: string, locale: Locale = "id") =>
         completed: "Selesai",
         cancelled: "Dibatalkan",
         open: "Menunggu respons",
-        responded: "Ditanggapi katerer",
+        responded: "Ditanggapi katering",
         escalated: "Ditinjau Catera",
         resolved: "Selesai",
         draft: "Draf",
@@ -612,80 +612,99 @@ export const statusLabel = (status: string, locale: Locale = "id") =>
       }[status] || status;
 export const errors: Record<string, string> = {
   PAYMENT_UNAVAILABLE:
-    "Pembayaran sedang tidak tersedia. Silakan coba lagi nanti.",
+    "Pembayaran sedang tidak bisa dipakai. Coba lagi nanti.",
   PAYMENT_METHOD_LOCKED:
-    "Metode pembayaran sudah dipilih dan tidak dapat diganti.",
+    "Cara bayar untuk pesanan ini sudah dipilih dan tidak bisa diganti.",
   TERMS_REQUIRED: "Setujui Syarat & Ketentuan untuk melanjutkan.",
   DURATION_UNAVAILABLE: "Durasi ini belum tersedia. Pilih durasi lain.",
   BOOKING_HORIZON:
-    "Seluruh pengantaran harus selesai dalam 366 hari ke depan. Pilih durasi lebih pendek atau tanggal lebih awal.",
+    "Semua pengantaran harus selesai dalam 366 hari dari sekarang. Pilih paket yang lebih pendek atau mulai lebih awal.",
   PROMOTIONS_DISABLED:
     "Kode promosi tidak digunakan. Diskon paket dihitung otomatis.",
   AMOUNT_TOO_LARGE: "Nilai pembelian terlalu besar. Kurangi porsi atau durasi.",
   SETTLEMENT_SCHEDULED:
-    "Pendapatan pengantaran dicairkan melalui jadwal mingguan.",
-  SETTLEMENT_NOT_CONFIGURED: "Konfigurasi pencairan katerer belum siap.",
+    "Pendapatan pengantaran dicairkan lewat jadwal mingguan.",
+  SETTLEMENT_NOT_CONFIGURED:
+    "Pengaturan pencairan katering belum siap.",
   INSUFFICIENT_OPTIONS:
     "Sediakan cukup hidangan aktif yang berbeda untuk setiap kategori paket.",
   OPTION_CHANGED:
-    "Pilihan hidangan telah berubah. Muat ulang dan pilih hidangan yang tersedia.",
+    "Pilihan hidangannya sudah berubah. Muat ulang, lalu pilih yang tersedia.",
   CLASSIFY_PACKAGE:
     "Pilih jenis paket dan lengkapi isi paket sebelum menyimpan.",
   COMPOSITION_CHANGED:
-    "Isi menu harus sesuai komposisi yang dibeli. Gunakan versi isi paket yang benar.",
-  PRICE_CHANGED: "Harga atau ketentuan berubah. Tinjau ulang sebelum membayar.",
-  UNAUTHORIZED: "Silakan masuk kembali.",
+    "Isi menu harus sama dengan isi paket yang dibeli. Muat ulang, lalu pilih lagi.",
+  PRICE_CHANGED:
+    "Harga atau ketentuannya berubah. Cek lagi sebelum bayar.",
+  UNAUTHORIZED:
+    "Masuk lagi untuk melanjutkan.",
   EMAIL_NOT_CONFIRMED:
-    "Verifikasi email Anda terlebih dahulu. Buka halaman Daftar untuk mengirim ulang tautan.",
+    "Verifikasi email dulu. Tautannya bisa dikirim ulang dari halaman Daftar.",
   PASSWORD_REJECTED:
     "Gunakan kata sandi lain yang lebih kuat, minimal 8 karakter.",
-  AUTH_UNAVAILABLE: "Layanan akun belum tersedia. Silakan coba lagi nanti.",
+  AUTH_UNAVAILABLE:
+    "Belum bisa masuk sekarang. Coba lagi nanti.",
   RECOVERY_EXPIRED:
-    "Sesi pemulihan tidak valid atau kedaluwarsa. Minta tautan pemulihan baru.",
-  INVALID_CREDENTIALS: "Email atau kata sandi tidak cocok. Silakan coba lagi.",
+    "Tautan pemulihannya sudah tidak berlaku. Minta tautan baru.",
+  INVALID_CREDENTIALS:
+    "Email atau kata sandinya salah. Coba lagi.",
   AUTH_RATE_LIMITED:
     "Terlalu banyak percobaan masuk. Tunggu sebentar lalu coba lagi.",
-  FORBIDDEN: "Akun ini tidak memiliki akses.",
+  FORBIDDEN:
+    "Akun ini tidak punya akses ke halaman ini.",
   CUSTOMER_NOT_LINKED:
     "Undang pelanggan untuk menghubungkan akun sebelum mengirim pesan.",
   PACKAGE_IMMUTABLE:
-    "Paket yang sudah tayang tidak dapat diubah. Buat paket baru.",
+    "Paket yang sudah tayang tidak bisa diubah. Buat paket baru.",
   SUSPEND_FIRST: "Tangguhkan paket sebelum mengarsipkannya.",
   PACKAGE_HAS_DELIVERIES:
     "Selesaikan seluruh pengantaran dan tunggu pembayaran tertunda sebelum mengarsipkan paket.",
   CAPACITY:
     "Porsi pada salah satu tanggal sudah habis. Pilih tanggal mulai atau jumlah porsi lain.",
   CUTOFF: "Batas perubahan sudah lewat. Pilih tanggal berikutnya.",
-  COVERAGE: "Alamat ini berada di luar area pengantaran katerer.",
+  COVERAGE:
+    "Alamat ini di luar area antar katering.",
   ADDRESS_IN_USE: "Alamat ini masih dipakai untuk pengantaran yang akan datang.",
-  CONFLICT: "Data sudah berubah. Muat ulang sebelum mencoba lagi.",
-  OVERLAP: "Paket yang sama masih berjalan pada rentang tanggal ini.",
-  TRIAL_USED: "Anda sudah pernah membeli trial dari katerer ini.",
+  CONFLICT:
+    "Ada yang berubah. Muat ulang, lalu coba lagi.",
+  OVERLAP:
+    "Paket yang sama masih berjalan di tanggal-tanggal ini.",
+  TRIAL_USED:
+    "Paket coba dari katering ini sudah pernah dibeli.",
   FIXED_PACKAGE:
-    "Jadwal paket ini tetap. Hubungi katerer jika membutuhkan bantuan.",
+    "Jadwal paket ini tidak bisa diubah. Butuh bantuan? Hubungi katering.",
   DUPLICATE_DATE:
-    "Langganan ini sudah memiliki pengantaran pada tanggal tersebut.",
-  INVALID_DATE: "Tanggal tidak sesuai hari operasional paket.",
-  INVALID_INPUT: "Periksa kembali data yang Anda masukkan.",
-  NOT_FOUND: "Data tidak ditemukan.",
-  NOT_CONFIGURED: "Layanan ini belum dikonfigurasi. Silakan hubungi Catera.",
-  REQUEST_TIMEOUT: "Koneksi terlalu lama. Periksa koneksi dan coba lagi.",
-  INVALID_API_RESPONSE: "Catera sementara tidak tersedia. Silakan coba lagi.",
-  PAYMENT_PENDING: "Pembayaran belum terkonfirmasi.",
-  AMOUNT_INVALID: "Jumlah melebihi nilai yang dapat dikembalikan.",
+    "Paket ini sudah ada pengantaran di tanggal itu.",
+  INVALID_DATE:
+    "Katering tidak mengantar paket ini di tanggal itu.",
+  INVALID_INPUT:
+    "Ada yang belum benar. Cek lagi isiannya.",
+  NOT_FOUND:
+    "Yang dicari tidak ditemukan.",
+  NOT_CONFIGURED:
+    "Fitur ini belum siap. Hubungi Catera.",
+  REQUEST_TIMEOUT:
+    "Terlalu lama menunggu jawaban. Cek koneksi lalu coba lagi.",
+  INVALID_API_RESPONSE:
+    "Catera sedang tidak bisa dihubungi. Coba lagi sebentar lagi.",
+  PAYMENT_PENDING:
+    "Pembayarannya belum masuk.",
+  AMOUNT_INVALID:
+    "Jumlah melebihi nilai yang bisa dikembalikan.",
   BOOKED_DATE:
-    "Tanggal ini memiliki pesanan. Selesaikan pesanan sebelum menutupnya.",
+    "Tanggal ini sudah ada pesanan. Selesaikan pesanan sebelum menutupnya.",
 };
 const errorsEn: Record<string, string> = {
   PAYMENT_UNAVAILABLE:
-    "Payment is currently unavailable. Please try again later.",
+    "Payments aren't available right now. Try again later.",
   PAYMENT_METHOD_LOCKED:
-    "The payment method has already been selected and cannot be changed.",
-  TERMS_REQUIRED: "Please accept the Terms & Conditions to continue.",
+    "This order's payment method is set and can't be changed.",
+  TERMS_REQUIRED:
+    "Accept the Terms & Conditions to continue.",
   DURATION_UNAVAILABLE:
     "This duration is unavailable. Choose another duration.",
   BOOKING_HORIZON:
-    "All deliveries must finish within the next 366 days. Choose a shorter term or earlier start.",
+    "All deliveries have to finish within 366 days from now. Pick a shorter package or an earlier start.",
   PROMOTIONS_DISABLED:
     "Promotion codes are not used. Package discounts apply automatically.",
   AMOUNT_TOO_LARGE:
@@ -693,30 +712,37 @@ const errorsEn: Record<string, string> = {
   SETTLEMENT_SCHEDULED:
     "Delivery earnings are paid through the weekly settlement schedule.",
   SETTLEMENT_NOT_CONFIGURED:
-    "The caterer’s settlement configuration is not ready.",
+    "The caterer's payout setup isn't ready.",
   INSUFFICIENT_OPTIONS:
     "Provide enough distinct active dishes for each package category.",
-  OPTION_CHANGED: "Dish options changed. Reload and choose available dishes.",
+  OPTION_CHANGED:
+    "The dish options changed. Reload and pick from what's available.",
   CLASSIFY_PACKAGE:
     "Choose a package type and complete the package contents before saving.",
   COMPOSITION_CHANGED:
-    "The menu must match the purchased composition. Use the correct package revision.",
-  PRICE_CHANGED: "The price or terms changed. Review them before paying.",
-  UNAUTHORIZED: "Please sign in again.",
+    "The menu must match what was bought. Reload and choose again.",
+  PRICE_CHANGED:
+    "The price or terms changed. Check them before you pay.",
+  UNAUTHORIZED:
+    "Sign in again to continue.",
   EMAIL_NOT_CONFIRMED:
-    "Verify your email first. Open Register to resend the link.",
+    "Verify your email first. You can resend the link from Sign up.",
   PASSWORD_REJECTED:
     "Use a different, stronger password with at least 8 characters.",
-  AUTH_UNAVAILABLE: "Account services are unavailable. Please try again later.",
+  AUTH_UNAVAILABLE:
+    "Sign-in isn't available right now. Try again later.",
   RECOVERY_EXPIRED:
-    "The recovery session is invalid or expired. Request a new recovery link.",
-  INVALID_CREDENTIALS: "Email or password is incorrect. Please try again.",
-  AUTH_RATE_LIMITED: "Too many sign-in attempts. Please wait and try again.",
-  FORBIDDEN: "This account does not have access.",
+    "This recovery link no longer works. Request a new one.",
+  INVALID_CREDENTIALS:
+    "Wrong email or password. Try again.",
+  AUTH_RATE_LIMITED:
+    "Too many sign-in attempts. Wait a moment and try again.",
+  FORBIDDEN:
+    "This account can't open this.",
   CUSTOMER_NOT_LINKED:
     "Invite this customer to link an account before sending messages.",
   PACKAGE_IMMUTABLE:
-    "Published packages cannot be edited. Create a new package.",
+    "Published packages can't be edited. Create a new package.",
   SUSPEND_FIRST: "Suspend the package before archiving it.",
   PACKAGE_HAS_DELIVERIES:
     "Complete all deliveries and wait for pending payments before archiving this package.",
@@ -725,18 +751,30 @@ const errorsEn: Record<string, string> = {
   CUTOFF: "The change cutoff has passed. Choose a later date.",
   COVERAGE: "This address is outside the caterer's delivery area.",
   ADDRESS_IN_USE: "This address is still used for upcoming deliveries.",
-  CONFLICT: "The data changed. Reload before trying again.",
-  OVERLAP: "The same package is already active during these dates.",
-  TRIAL_USED: "You have already bought a trial from this caterer.",
-  FIXED_PACKAGE: "This package has fixed dates. Contact the caterer for help.",
-  DUPLICATE_DATE: "This subscription already has a delivery on that date.",
-  INVALID_DATE: "The date is not an operating day for this package.",
-  INVALID_INPUT: "Check the information you entered.",
-  NOT_FOUND: "The requested data was not found.",
-  NOT_CONFIGURED: "This service is not configured. Please contact Catera.",
-  REQUEST_TIMEOUT: "Connection timed out. Check your connection and try again.",
-  INVALID_API_RESPONSE: "Catera is temporarily unavailable. Please try again.",
-  PAYMENT_PENDING: "Payment has not been confirmed.",
+  CONFLICT:
+    "Something changed. Reload and try again.",
+  OVERLAP:
+    "The same package is already running on these dates.",
+  TRIAL_USED:
+    "You've already had a trial from this caterer.",
+  FIXED_PACKAGE:
+    "This package's dates can't be changed. Need help? Contact the caterer.",
+  DUPLICATE_DATE:
+    "This package already has a delivery on that date.",
+  INVALID_DATE:
+    "The caterer doesn't deliver this package on that date.",
+  INVALID_INPUT:
+    "Something isn't right. Check what you entered.",
+  NOT_FOUND:
+    "We couldn't find that.",
+  NOT_CONFIGURED:
+    "This isn't set up yet. Contact Catera.",
+  REQUEST_TIMEOUT:
+    "This took too long. Check your connection and try again.",
+  INVALID_API_RESPONSE:
+    "Catera isn't responding right now. Try again in a moment.",
+  PAYMENT_PENDING:
+    "We haven't received the payment yet.",
   AMOUNT_INVALID: "The amount exceeds the refundable balance.",
   BOOKED_DATE: "This date has orders. Complete them before closing the date.",
 };

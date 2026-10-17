@@ -48,7 +48,7 @@ export function nutritionMetrics(
     label: labels[index],
     value:
       n?.[key] == null
-        ? "—"
+        ? "-"
         : (() => {
             const bounds = nutrientBounds(n[key])!;
             const amount =
@@ -67,9 +67,9 @@ export function menuSourceLabel(menu: MealMenu, locale = "id") {
   if (menu.selectionStatus === "pending")
     return locale === "id" ? "Pilih menu sendiri" : "Choose your menu";
   if (menu.selectionStatus === "caterer_choice")
-    return locale === "id" ? "Katerer memilih" : "Caterer chooses";
+    return locale === "id" ? "Katering memilih" : "Caterer chooses";
   if (menu.contentModel === "slots" && !menu.items?.length)
-    return locale === "id" ? "Menu belum ditentukan" : "Menu not yet set";
+    return locale === "id" ? "Menu belum diisi" : "Menu not yet set";
   return menu.source === "dated"
     ? locale === "id"
       ? "Menu tanggal ini"

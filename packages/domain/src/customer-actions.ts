@@ -118,26 +118,26 @@ export function customerActionPresentation(
       return copy(
         locale,
         nextActor[item.status],
-        ["Katerer sudah menanggapi kendala", "Lihat tanggapan", "attention"],
-        ["The caterer responded to your issue", "View response", "attention"],
+        ["Katering sudah menanggapi laporanmu", "Lihat tanggapan", "attention"],
+        ["The caterer replied to your report", "View response", "attention"],
       );
     case "escalated":
       return copy(
         locale,
         nextActor[item.status],
-        ["Catera sedang meninjau kendala", "Lihat perkembangan", "informative"],
-        ["Catera is reviewing your issue", "View progress", "informative"],
+        ["Catera sedang meninjau laporanmu", "Lihat perkembangan", "informative"],
+        ["Catera is reviewing your report", "View progress", "informative"],
       );
     default:
       return copy(
         locale,
         nextActor[item.status],
         [
-          "Kendala pengantaran menunggu tanggapan",
-          "Lihat kendala",
+          "Laporan pengantaran menunggu tanggapan",
+          "Lihat laporan",
           "attention",
         ],
-        ["A delivery issue is awaiting a response", "View issue", "attention"],
+        ["A delivery report is waiting for a reply", "View report", "attention"],
       );
   }
 }

@@ -9,27 +9,27 @@ import { useToast } from "../Toast";
 import { SettingsRow, SettingsSection, SettingsSwitchRow } from "./SettingsRows";
 import { themeChoiceLabels } from "./ThemeChoice";
 
-/** One line for any change that did not go through; the switch is already back where it truly is. */
-function useFailed() {
+/** One line, saying what did not go through (the notification switch is already back where it truly is). */
+function useFailed(id: string, en: string) {
   const { t } = useMobile();
   const toast = useToast();
-  return () => toast.show({ message: t("Belum berhasil. Coba lagi.", "That didn't work. Try again."), tone: "error" });
+  return () => toast.show({ message: t(id, en), tone: "error" });
 }
 
 /**
- * Notifikasi di ponsel ini: the phone's permission and this account's registration, read whenever the screen or the
+ * Notifikasi di HP ini: the phone's permission and this account's registration, read whenever the screen or the
  * app comes back (`usePushSwitch`). A phone that blocks Catera shows off with the way to the phone's settings; Expo Go
  * shows the switch disabled.
  */
 function NotificationSection({ supporting, channelName }: { supporting: string; channelName: string }) {
   const { t } = useMobile();
   const push = usePushSwitch(channelName);
-  const failed = useFailed();
+  const failed = useFailed("Pengaturan notifikasi belum tersimpan. Coba lagi.", "Your notification setting didn't save. Try again.");
   const { state } = push;
   return (
     <SettingsSection title={t("Notifikasi", "Notifications")}>
       <SettingsSwitchRow
-        label={t("Notifikasi di ponsel ini", "Notifications on this phone")}
+        label={t("Notifikasi di HP ini", "Notifications on this phone")}
         supporting={supporting}
         value={state === "on"}
         loading={state === "loading"}
@@ -37,7 +37,7 @@ function NotificationSection({ supporting, channelName }: { supporting: string; 
         disabled={state === "unavailable"}
         notice={
           state === "denied"
-            ? t("Izinkan notifikasi di Pengaturan ponsel", "Allow notifications in your phone's Settings")
+            ? t("Izinkan notifikasi di Pengaturan HP", "Allow notifications in your phone's Settings")
             : state === "unavailable"
               ? t("Tidak tersedia di versi aplikasi ini", "Not available in this version of the app")
               : undefined
@@ -80,7 +80,8 @@ export function Pengaturan({
 }) {
   const { actor, ready, t, locale, logout, runtime } = useMobile();
   const { preference } = useThemePreference();
-  const failed = useFailed();
+  const failed = useFailed("Belum bisa keluar. Coba lagi.", "Couldn't sign you out. Try again.");
+  const pageFailed = useFailed("Halaman belum bisa dibuka. Coba lagi.", "Couldn't open the page. Try again.");
   const [leaving, setLeaving] = useState(false);
   const version = Constants.expoConfig?.version;
   const account = ready && actor ? actor : null;
@@ -117,7 +118,7 @@ export function Pengaturan({
         {version ? <SettingsRow label={t("Versi aplikasi", "App version")} value={version} selectable /> : null}
         <SettingsRow
           label={t("Syarat dan privasi", "Terms and privacy")}
-          onPress={() => void openWebPage(`${runtime.apiBase}/syarat-dan-privasi`).catch(failed)}
+          onPress={() => void openWebPage(`${runtime.apiBase}/syarat-dan-privasi`).catch(pageFailed)}
         />
       </SettingsSection>
       {extraRows}

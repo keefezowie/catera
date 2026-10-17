@@ -113,7 +113,7 @@ export function Masuk() {
       </Link>
       {__DEV__ ? (
         <View style={{ gap: 8 }}>
-          <Text variant="caption">{t("Demo (data sintetis)", "Demo (synthetic data)")}</Text>
+          <Text variant="caption">{t("Demo (data contoh)", "Demo (sample data)")}</Text>
           {(["owner", "staff"] as const).map((role) => (
             <Button
               key={role}

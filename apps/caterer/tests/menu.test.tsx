@@ -166,7 +166,7 @@ it("gives a re-added dish a free slot id instead of reusing a taken one", () => 
       canEdit
     />),
   );
-  fireEvent.changeText(screen.getByLabelText("Lauk berikutnya"), "ikan");
+  fireEvent.changeText(screen.getByLabelText("Tambah lauk"), "ikan");
   fireEvent.press(screen.getByText("Ikan bakar"));
   const ids = (onChange.mock.calls[0][0] as { id: string }[]).map((i) => i.id);
   expect(new Set(ids).size).toBe(ids.length);
@@ -497,7 +497,7 @@ describe("SlotEditor touch targets", () => {
     );
     const remove = StyleSheet.flatten(screen.getByRole("button", { name: "Hapus Tempe bacem" }).props.style);
     expect([remove.width, remove.height]).toEqual([48, 48]);
-    fireEvent.changeText(screen.getByLabelText("Lauk berikutnya"), "ikan");
+    fireEvent.changeText(screen.getByLabelText("Tambah lauk"), "ikan");
     expect(StyleSheet.flatten(screen.getByRole("button", { name: /Ikan bakar/ }).props.style).minHeight).toBeGreaterThanOrEqual(48);
     const create = screen.getByRole("button", { name: /Buat hidangan baru/ });
     expect(StyleSheet.flatten(create.props.style).minHeight).toBeGreaterThanOrEqual(48);
@@ -862,7 +862,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
     it("calls an empty day past its change cutoff closed, in muted ink with no action", async () => {
       // Today in production: the cutoff was yesterday, so nothing can be filled and nothing is asked of the caterer.
       mount({ dates: [{ date: "2026-10-08", version: 0, editable: false, details: null }] });
-      const label = await screen.findByText("Sudah lewat batas ubah");
+      const label = await screen.findByText("Sudah tidak bisa diubah");
       expect(StyleSheet.flatten(label.props.style).color).toBe(nativeThemes.light.muted);
       expect(screen.queryByText("Belum diisi")).toBeNull();
       expect(screen.queryByText("Lewat")).toBeNull();
@@ -971,7 +971,7 @@ describe("Menu week header, strip, day card and photo prompt", () => {
       const reads = menuMonth.mock.calls.length;
       fireEvent.press(ayamPill());
       await waitFor(() => expect(command).toHaveBeenCalled());
-      const message = await screen.findByText("Data sudah berubah. Muat ulang sebelum mencoba lagi.");
+      const message = await screen.findByText("Ada yang berubah. Muat ulang, lalu coba lagi.");
       expect(message.props.selectable).toBe(true);
       expect(StyleSheet.flatten(message.props.style).color).toBe(nativeThemes.light.danger);
       await waitFor(() => expect(menuMonth.mock.calls.length).toBeGreaterThan(reads));

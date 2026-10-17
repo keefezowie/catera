@@ -272,7 +272,7 @@ it.each(["REQUEST_TIMEOUT", "INVALID_API_RESPONSE"])(
   async (code) => {
     (runtime.api.me as jest.Mock).mockRejectedValueOnce(Object.assign(new Error(code), { code }));
     renderShell();
-    expect(await screen.findByText("Belum bisa terhubung.")).toBeTruthy();
+    expect(await screen.findByText("Belum bisa terhubung. Cek koneksimu.")).toBeTruthy();
     // The reason is an error, so it reads in the error colour like every other failed read.
     // It sits in the shared form error: an icon and the words in the error colour, never loose small text.
     const reason = within(screen.getByTestId("startup-error")).getByText(/./);
@@ -282,7 +282,7 @@ it.each(["REQUEST_TIMEOUT", "INVALID_API_RESPONSE"])(
       fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
     });
     expect(await screen.findByText("m:-")).toBeTruthy();
-    expect(screen.queryByText("Belum bisa terhubung.")).toBeNull();
+    expect(screen.queryByText("Belum bisa terhubung. Cek koneksimu.")).toBeNull();
   },
 );
 
@@ -290,7 +290,7 @@ it("an expired session (UNAUTHORIZED) opens as a guest without the retry screen"
   (runtime.api.me as jest.Mock).mockRejectedValueOnce(Object.assign(new Error("UNAUTHORIZED"), { code: "UNAUTHORIZED" }));
   renderShell();
   expect(await screen.findByText("m:-")).toBeTruthy();
-  expect(screen.queryByText("Belum bisa terhubung.")).toBeNull();
+  expect(screen.queryByText("Belum bisa terhubung. Cek koneksimu.")).toBeNull();
 });
 
 it("a later failed refresh never replaces a started app with the retry screen", async () => {
@@ -301,7 +301,7 @@ it("a later failed refresh never replaces a started app with the retry screen", 
     await mobile.refresh();
   });
   expect(screen.getByText("m:-")).toBeTruthy();
-  expect(screen.queryByText("Belum bisa terhubung.")).toBeNull();
+  expect(screen.queryByText("Belum bisa terhubung. Cek koneksimu.")).toBeNull();
 });
 
 it("one push tap navigates once, through the customer link mapper", async () => {
@@ -359,12 +359,12 @@ describe("runtime.signInPassword", () => {
     });
   });
 
-  it("keeps Katerer as the default for Catera Dapur", async () => {
+  it("keeps Katering as the default for Catera Dapur", async () => {
     signIn();
     await runtime.signInPassword("dapur@example.test", "synthetic-password", "req-2");
     expect(mockClient.rpc).toHaveBeenCalledWith("catera_v1_command", {
       action: "profile.ensure",
-      payload: { name: "Katerer" },
+      payload: { name: "Katering" },
       request_id: "req-2",
     });
   });
@@ -621,7 +621,7 @@ describe("appearance", () => {
     mockDemo = true;
     mockShowHeader = true;
     await renderRoot();
-    expect(await screen.findByText("Demo · data sintetis")).toBeTruthy();
+    expect(await screen.findByText("Demo (data contoh)")).toBeTruthy();
     // Control: the mood really is Malam here, so "dark" is the demo strip's doing and not a Siang launch.
     expect(StyleSheet.flatten(screen.getByTestId("mood-probe").props.style).backgroundColor).toBe("#F3F6EF");
     expect(mockStatusBar.style).toBe("dark");

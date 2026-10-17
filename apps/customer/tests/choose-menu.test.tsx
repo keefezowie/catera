@@ -150,7 +150,7 @@ it("a menu conflict keeps the selected dishes available for correction", async (
   fireEvent.press(screen.getByRole("button", { name: "Simpan menu" }));
   expect(await screen.findByTestId("menu-error")).toBeTruthy();
   expect(screen.getByText("Lauk · Ayam panggang")).toBeTruthy();
-  expect(screen.getByRole("button", { name: "Lanjut mengedit" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Lanjut memilih" })).toBeTruthy();
 });
 
 it("applies one choice to another open date too", async () => {
@@ -201,7 +201,7 @@ it("clears saved choices with resetBatch after confirming", async () => {
   expect(mockConfirm).toHaveBeenCalledWith({
     title: "Hapus pilihan menu?",
     message:
-      "Pilihan pada tanggal di atas dihapus. Katering memilih jika Anda tidak memilih lagi sebelum batas waktu.",
+      "Pilihan di tanggal-tanggal ini akan dihapus. Kalau kamu tidak memilih lagi sebelum batas waktu, katering yang memilihkan.",
     confirmLabel: "Hapus pilihan",
     cancelLabel: "Batal",
     tone: "danger",
@@ -213,25 +213,25 @@ it("discarding menu changes asks through a confirm sheet", async () => {
   const { usePreventRemove } = require("expo-router/react-navigation") as { usePreventRemove: jest.Mock };
   renderMenu();
   await choose();
-  fireEvent.press(screen.getByRole("button", { name: "Lanjut mengedit" }));
-  // Close with a dish chosen: the confirm sheet asks; "Lanjut mengedit" keeps the choice on screen.
+  fireEvent.press(screen.getByRole("button", { name: "Lanjut memilih" }));
+  // Close with a dish chosen: the confirm sheet asks; "Lanjut memilih" keeps the choice on screen.
   mockConfirm.mockResolvedValueOnce(false);
   fireEvent.press(screen.getByRole("button", { name: "Tutup" }));
   await waitFor(() => expect(mockConfirm).toHaveBeenCalledTimes(1));
   expect(mockConfirm.mock.calls[0][0]).toEqual({
-    title: "Tinggalkan perubahan?",
-    message: "Menu yang belum disimpan akan dihapus.",
-    confirmLabel: "Tinggalkan",
-    cancelLabel: "Lanjut mengedit",
+    title: "Buang pilihan menu?",
+    message: "Pilihan yang belum disimpan akan hilang.",
+    confirmLabel: "Buang",
+    cancelLabel: "Lanjut memilih",
     tone: "danger",
     icon: "trash",
   });
   expect(screen.getByRole("button", { name: "Tinjau pilihan" })).toBeTruthy();
-  // "Tinggalkan" drops the choice.
+  // "Buang" drops the choice.
   mockConfirm.mockResolvedValueOnce(true);
   fireEvent.press(screen.getByRole("button", { name: "Tutup" }));
   expect(await screen.findByRole("button", { name: "Pilih hidangan" })).toBeTruthy();
-  // Leaving the screen while dirty (back, a swipe) is held and asks the same way; "Tinggalkan" lets the removal go on.
+  // Leaving the screen while dirty (back, a swipe) is held and asks the same way; "Buang" lets the removal go on.
   await choose();
   const held = usePreventRemove.mock.calls.at(-1)!;
   expect(held[0]).toBe(true);
@@ -253,7 +253,7 @@ it("after the cutoff the caterer chooses and nothing can be edited", async () =>
     month([day({ cutoffAt: "2020-01-01T10:00:00Z", editable: false })]),
   );
   renderMenu();
-  expect(await screen.findByText(/katering yang memilih menu Anda/)).toBeTruthy();
+  expect(await screen.findByText(/katering yang memilihkan menunya/)).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Pilih hidangan" })).toBeNull();
 });
 

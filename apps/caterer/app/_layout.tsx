@@ -80,7 +80,7 @@ function Navigation() {
     <MoodLabelsProvider t={t}>
       <TopInsetOwner owned={demo}>
         {statusBar}
-        {demo ? <DemoStrip label={t("Demo · data sintetis", "Demo · synthetic data")} /> : null}
+        {demo ? <DemoStrip label={t("Demo (data contoh)", "Demo (sample data)")} /> : null}
         {/* The tabs, each with its own stack of detail screens (`(tabs)/(index,pelanggan,menu,usaha)`), and above them
             the screens that cover the tab bar: signing in, and the owner's Aktifkan and Impor. */}
         <Stack screenOptions={screenOptions}>
@@ -135,7 +135,7 @@ function FontError() {
   const palette = useColors();
   return (
     <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 24, backgroundColor: palette.canvas }}>
-      <Text selectable>Font tidak dapat dimuat. Mulai ulang aplikasi.</Text>
+      <Text selectable>Huruf aplikasi gagal dimuat. Tutup lalu buka lagi aplikasinya.</Text>
     </View>
   );
 }

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { View } from "react-native";
-import { currency, shortDate, type Locale, type Quote } from "@catera/domain";
+import { addDays, currency, shortDate, type Locale, type Quote } from "@catera/domain";
 import { plural } from "@catera/mobile-core";
 import { Button, fontFor, PressableScale, Text, themedStyles, useColors } from "@catera/mobile-ui";
 
@@ -137,10 +137,33 @@ const useStyles = themedStyles((c) => ({
   rowValue: { color: c.charcoal, fontFamily: fontFor("600") },
 }));
 
-/** "Mulai": the start date, and once priced, how many delivery days and until when. */
+/** The renewal's start line: "Mulai Selasa 13 Okt, tepat setelah paket sekarang", or, for any later start, the running package's end. */
+export function renewalLine(
+  label: string,
+  startDate: string,
+  currentEnd: string | null | undefined,
+  locale: Locale,
+  t: (id: string, en: string) => string,
+) {
+  if (!currentEnd) return t(`Mulai ${label}`, `Starts ${label}`);
+  if (startDate === addDays(currentEnd, 1)) {
+    return t(`Mulai ${label}, tepat setelah paket sekarang`, `Starts ${label}, right after your current package`);
+  }
+  const end = shortDate(currentEnd, locale);
+  return t(
+    `Mulai ${label}. Paket ini masih berjalan sampai ${end}.`,
+    `Starts ${label}. This package is still running until ${end}.`,
+  );
+}
+
+/**
+ * "Mulai": the start date, and once priced, how many delivery days and until when. A renewal says "right after" only
+ * when the start really is the day after the running package ends; any later start names the package that still runs.
+ */
 export function StartLine({
   startDate,
   renew,
+  currentEnd,
   quote,
   dimmed,
   weekdays,
@@ -150,6 +173,8 @@ export function StartLine({
 }: {
   startDate: string | null;
   renew: boolean;
+  /** The last day of the package being renewed. */
+  currentEnd?: string | null;
   quote: Quote | null;
   dimmed: boolean;
   weekdays: number[];
@@ -162,12 +187,12 @@ export function StartLine({
   const label = startDate ? shortDate(startDate, locale) : "";
   return (
     <View style={{ gap: 4 }}>
-      <Text variant="caption">{t("Mulai", "Starts")}</Text>
+      {renew && startDate ? null : <Text variant="caption">{t("Mulai", "Starts")}</Text>}
       <Text style={{ fontFamily: fontFor("800"), color: c.charcoal }}>
         {!startDate
           ? t("Belum ada tanggal yang bisa dipesan.", "No bookable date yet.")
           : renew
-            ? t(`${label}, tepat setelah paket sekarang`, `${label}, right after your current package`)
+            ? renewalLine(label, startDate, currentEnd, locale, t)
             : label}
       </Text>
       {quote && last ? (

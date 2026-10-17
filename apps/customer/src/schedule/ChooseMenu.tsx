@@ -112,10 +112,10 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
     asking.current = true;
     try {
       const leave = await confirm({
-        title: t("Tinggalkan perubahan?", "Discard changes?"),
-        message: t("Menu yang belum disimpan akan dihapus.", "Unsaved menu changes will be discarded."),
-        confirmLabel: t("Tinggalkan", "Discard"),
-        cancelLabel: t("Lanjut mengedit", "Keep editing"),
+        title: t("Buang pilihan menu?", "Discard menu choices?"),
+        message: t("Pilihan yang belum disimpan akan hilang.", "Choices you haven't saved will be lost."),
+        confirmLabel: t("Buang", "Discard"),
+        cancelLabel: t("Lanjut memilih", "Keep choosing"),
         tone: "danger",
         icon: "trash",
       });
@@ -286,7 +286,7 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
         </View>
 
         {offer.menuSelectionMode !== "customer" ? (
-          <Text>{t("Menu paket ini ditentukan oleh katering.", "The caterer chooses this package's menus.")}</Text>
+          <Text>{t("Katering yang memilih menu paket ini.", "The caterer picks the menu for this package.")}</Text>
         ) : !draft ? (
           <>
             <View style={styles.monthRow}>
@@ -355,8 +355,8 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
                 ) : (
                   <Text>
                     {t(
-                      "Jika pilihan belum tersimpan sebelum batas waktu, katering yang memilih menu Anda.",
-                      "If no choice is saved before the cutoff, the caterer chooses your menu.",
+                      "Kalau kamu belum menyimpan pilihan sebelum batas waktu, katering yang memilihkan menunya.",
+                      "If you don't save a choice before the cutoff, the caterer picks for you.",
                     )}
                   </Text>
                 )}
@@ -374,8 +374,8 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
             {!draft.days.every(editable) ? (
               <FormError
                 message={t(
-                  "Batas pilihan sudah lewat. Pilihan ini tidak bisa disimpan; katering yang memilih.",
-                  "The cutoff has passed. This choice can't be saved; the caterer chooses.",
+                  "Batas memilih sudah lewat, jadi pilihan ini tidak bisa disimpan. Katering yang memilihkan.",
+                  "The cutoff has passed, so this choice can't be saved. The caterer will pick.",
                 )}
               />
             ) : null}
@@ -449,8 +449,8 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
               <>
                 <Text variant="caption">
                   {t(
-                    "Pilihan yang sudah tersimpan pada tanggal di atas akan diganti. Semua porsi mendapat menu yang sama.",
-                    "Choices already saved on these dates will be replaced. All portions get the same menu.",
+                    "Pilihan yang sudah tersimpan di tanggal-tanggal ini akan diganti. Semua porsi dapat menu yang sama.",
+                    "Choices already saved on these dates will be replaced. Every portion gets the same menu.",
                   )}
                 </Text>
                 {error ? <FormError message={error} failureKey={failures} testID="menu-error" /> : null}
@@ -460,7 +460,7 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
                   disabled={!valid || !writeable || sending === "reset"}
                   onPress={() => void send("customerMenu.saveBatch")}
                 />
-                <Button variant="secondary" label={t("Lanjut mengedit", "Keep editing")} onPress={() => setReviewing(false)} />
+                <Button variant="secondary" label={t("Lanjut memilih", "Keep choosing")} onPress={() => setReviewing(false)} />
               </>
             )}
             {!reviewing && error ? <FormError message={error} failureKey={failures} testID="menu-error" /> : null}
@@ -474,8 +474,8 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
                   void confirm({
                     title: t("Hapus pilihan menu?", "Clear menu choice?"),
                     message: t(
-                      "Pilihan pada tanggal di atas dihapus. Katering memilih jika Anda tidak memilih lagi sebelum batas waktu.",
-                      "Choices on these dates are removed. The caterer chooses if you don't choose again before the cutoff.",
+                      "Pilihan di tanggal-tanggal ini akan dihapus. Kalau kamu tidak memilih lagi sebelum batas waktu, katering yang memilihkan.",
+                      "Your choices on these dates will be removed. If you don't choose again before the cutoff, the caterer picks.",
                     ),
                     confirmLabel: t("Hapus pilihan", "Clear choice"),
                     cancelLabel: t("Batal", "Cancel"),

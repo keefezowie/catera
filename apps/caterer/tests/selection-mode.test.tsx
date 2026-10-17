@@ -286,7 +286,7 @@ describe("Pindah tanggal: the calendar", () => {
     const day = dayWith([waiting]);
     const runtime = runtimeFor(() => day, { command, deliveryAvailability: availability });
     renderToday(runtime);
-    fireEvent.press(await within(await screen.findByTestId("stop-1")).findByLabelText(/^Laporkan masalah atau pindah hari/));
+    fireEvent.press(await within(await screen.findByTestId("stop-1")).findByLabelText(/^Laporkan masalah atau pindah tanggal/));
     fireEvent.press(await screen.findByRole("button", { name: "Pindah tanggal" }));
     await screen.findByTestId("calendar-grid");
     return { day, command, runtime };
@@ -323,7 +323,7 @@ describe("Pindah tanggal: the calendar", () => {
   it("the calendar is a root-stack sheet: the stop's tab sheet closes, then the root route opens", async () => {
     const runtime = runtimeFor(() => dayWith([waiting]), { deliveryAvailability: availability });
     renderToday(runtime);
-    fireEvent.press(await within(await screen.findByTestId("stop-1")).findByLabelText(/^Laporkan masalah atau pindah hari/));
+    fireEvent.press(await within(await screen.findByTestId("stop-1")).findByLabelText(/^Laporkan masalah atau pindah tanggal/));
     (router.back as jest.Mock).mockClear();
     (router.push as jest.Mock).mockClear();
     fireEvent.press(await screen.findByRole("button", { name: "Pindah tanggal" }));
@@ -343,7 +343,7 @@ describe("Pindah tanggal: the calendar", () => {
 
   it("the consequence line says only customers with the app are told", async () => {
     await openMove();
-    expect(screen.getByTestId("calendar-note").props.children).toBe("Pelanggan yang memakai aplikasi diberi tahu.");
+    expect(screen.getByTestId("calendar-note").props.children).toBe("Pelanggan yang memakai aplikasi Catera dapat notifikasi.");
     expect(screen.queryByText("Pelanggan diberi tahu.")).toBeNull();
   });
 });
@@ -457,12 +457,12 @@ describe("every awaiting command button is busy while it waits", () => {
     expect(screen.getByTestId("order-live").props.accessibilityLiveRegion).toBe("polite");
   });
 
-  it("Simpan laporan", async () => {
+  it("Tandai gagal diantar", async () => {
     const { command, release } = held();
     renderToday(runtimeFor(() => dayWith([cooking]), { command }));
     fireEvent.press(await within(await screen.findByTestId("stop-1")).findByLabelText(/^Laporkan masalah/));
-    fireEvent.press(await screen.findByRole("button", { name: "Simpan laporan" }));
-    await waitFor(() => expect(busyOf("Simpan laporan")).toBe(true));
+    fireEvent.press(await screen.findByRole("button", { name: "Tandai gagal diantar" }));
+    await waitFor(() => expect(busyOf("Tandai gagal diantar")).toBe(true));
     await release();
   });
 });

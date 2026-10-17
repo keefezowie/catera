@@ -397,7 +397,7 @@ describe("the day's actions", () => {
     let app = await mount("/hari/d1");
     await go(() => fireEvent.press(screen.getByRole("button", { name: `Pilihan untuk makan siang ${shortDate(TODAY, "id")}` })));
     expect(root()).toEqual(["(tabs)", "aksi"]);
-    expect(rowLabels()).toEqual(["Pindah tanggal", "Ganti alamat hari ini", "Chat Dapur Contoh", "Laporkan masalah"]);
+    expect(rowLabels()).toEqual(["Pindah tanggal", "Ganti alamat antar", "Chat Dapur Contoh", "Laporkan masalah"]);
     expect(screen.getByTestId("action-divider")).toBeTruthy();
     // The context names what the actions are about.
     const context = within(screen.getByTestId("action-context"));
@@ -408,12 +408,12 @@ describe("the day's actions", () => {
     overDay("masalah/[id]");
     app.unmount();
 
-    // After the cutoff: no Pindah tanggal, no Ganti alamat hari ini.
+    // After the cutoff: no Pindah tanggal, no Ganti alamat antar.
     answer("day:d1", stateWith([past("d1", TODAY, {}, { status: "out_for_delivery" })]));
     app = await mount("/hari/d1");
     await go(() => fireEvent.press(screen.getByRole("button", { name: `Pilihan untuk makan siang ${shortDate(TODAY, "id")}` })));
     expect(rowLabels()).toEqual(["Chat Dapur Contoh", "Laporkan masalah"]);
-    expect(within(screen.getByTestId("action-context")).getByText("Sudah lewat batas ubah")).toBeTruthy();
+    expect(within(screen.getByTestId("action-context")).getByText("Sudah tidak bisa diubah")).toBeTruthy();
     await swipeAway("aksi");
     app.unmount();
   });
@@ -425,7 +425,7 @@ describe("the day's actions", () => {
     const app = await mount("/hari/d1");
     const more = () => screen.getByRole("button", { name: `Pilihan untuk makan siang ${shortDate(d.service_date, "id")}` });
     await go(() => fireEvent.press(more()));
-    await go(() => fireEvent.press(screen.getByRole("button", { name: "Ganti alamat hari ini" })));
+    await go(() => fireEvent.press(screen.getByRole("button", { name: "Ganti alamat antar" })));
     overDay("ubah-hari/[id]");
     expect(screen.getByRole("tab", { name: "Ganti alamat" }).props.accessibilityState.selected).toBe(true);
     app.unmount();
@@ -449,7 +449,7 @@ describe("the day's actions", () => {
     expect(items(nothing)).toEqual([]);
     expect(dayHasActions(nothing, now)).toBe(false);
     expect(dayHasActions(undefined, now)).toBe(false);
-    // The context: the meal's photo through the API base, the main dish or "Menu belum ditentukan".
+    // The context: the meal's photo through the API base, the main dish or "Menu belum diisi".
     const opts = { t: mockT, locale: "id" as const, apiBase: "https://api.test" };
     const { input } = dayActionInput(open("d1", addDays(TODAY, 2)), now, opts);
     expect(input.title).toBe(shortDate(addDays(TODAY, 2), "id"));
@@ -466,7 +466,7 @@ describe("the day's actions", () => {
     });
     expect(dayActionInput(unset, now, opts).input.context).toMatchObject({
       image: "https://api.test/food/rumahan.jpg",
-      title: "Menu belum ditentukan",
+      title: "Menu belum diisi",
     });
   });
 });
@@ -537,7 +537,7 @@ describe("outcomes", () => {
     expect(mockCommand).toHaveBeenCalledWith("delivery.reschedule", { id: "d1", version: 1, date: target, kind: "reschedule" });
     await act(async () => {});
     expect(stack("(index)")).toEqual(["index", "hari/[id]"]);
-    expect(screen.getByText(`Hari dipindah ke ${shortDate(target, "id")}`)).toBeTruthy();
+    expect(screen.getByText(`Pengantaran pindah ke ${shortDate(target, "id")}`)).toBeTruthy();
     app.unmount();
   });
 
@@ -567,7 +567,7 @@ describe("outcomes", () => {
       await go(() => router.push("/bantuan-form?kind=help"));
       expect(screen.getByRole("header", { name: "Minta bantuan" })).toBeTruthy();
       await go(() => fireEvent.press(screen.getByRole("tab", { name: "Pembatalan" })));
-      fireEvent.changeText(screen.getByLabelText("Ceritakan kendalanya"), "Saya pindah kota bulan depan.");
+      fireEvent.changeText(screen.getByLabelText("Ceritakan masalahnya"), "Saya pindah kota bulan depan.");
       await go(() => fireEvent.press(screen.getByRole("button", { name: "Kirim permintaan" })));
       expect(mockCommand).toHaveBeenCalledWith("support.create", {
         subscriptionId: "s-1",

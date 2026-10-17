@@ -261,7 +261,7 @@ const wrap = (runtime: MobileRuntime, ui: React.ReactElement) =>
  * awaited first, so the first read's own mascot (the same words) never stands in for the stage.
  */
 async function checkingShown() {
-  expect(await screen.findByText("Jangan bayar lagi. Status diperiksa langsung dari bank.")).toBeTruthy();
+  expect(await screen.findByText("Jangan bayar lagi. Kami sedang mengecek statusnya.")).toBeTruthy();
   return screen.getByRole("progressbar", { name: "Memeriksa pembayaran…" });
 }
 /**
@@ -318,7 +318,7 @@ describe("Beli / Perpanjang", () => {
     const runtime = server();
     wrap(runtime, <BuyScreen renewFrom="s-1" />);
     expect(await screen.findByText("Perpanjang Makan Siang Rumahan")).toBeTruthy();
-    expect(await screen.findByText("Senin 19 Okt, tepat setelah paket sekarang")).toBeTruthy();
+    expect(await screen.findByText("Mulai Senin 19 Okt. Paket ini masih berjalan sampai Jumat 16 Okt.")).toBeTruthy();
     expect(screen.getByRole("radio", { name: "20 hari" }).props.accessibilityState.checked).toBe(true);
     expect(screen.getByRole("radio", { name: "40 hari · Hemat 5%" }).props.accessibilityState.checked).toBe(false);
     await waitFor(() =>
@@ -343,8 +343,15 @@ describe("Beli / Perpanjang", () => {
   it("prefers the start date the renewal context returns", async () => {
     const runtime = server({ context: { startDate: "2026-10-20" } });
     wrap(runtime, <BuyScreen renewFrom="s-1" />);
-    expect(await screen.findByText("Selasa 20 Okt, tepat setelah paket sekarang")).toBeTruthy();
+    expect(await screen.findByText("Mulai Selasa 20 Okt. Paket ini masih berjalan sampai Jumat 16 Okt.")).toBeTruthy();
     await waitFor(() => expect(runtime.api.quote).toHaveBeenCalledWith(expect.objectContaining({ startDate: "2026-10-20" })));
+  });
+
+  it("says right after the current package only when the start really is the next day", async () => {
+    const runtime = server({ context: { startDate: "2026-10-17" } });
+    wrap(runtime, <BuyScreen renewFrom="s-1" />);
+    expect(await screen.findByText("Mulai Sabtu 17 Okt, tepat setelah paket sekarang")).toBeTruthy();
+    expect(screen.queryByText(/masih berjalan sampai/)).toBeNull();
   });
 
   it("changing length requotes with cycles 2", async () => {
@@ -364,7 +371,7 @@ describe("Beli / Perpanjang", () => {
   it("Bayar creates the checkout with accepted terms and starts QRIS", async () => {
     const runtime = server();
     wrap(runtime, <BuyScreen packageId="p-rumahan" />);
-    expect(await screen.findByText("Dengan membayar, Anda setuju dengan Ketentuan Catera.")).toBeTruthy();
+    expect(await screen.findByText("Dengan membayar, kamu setuju dengan Ketentuan Catera.")).toBeTruthy();
     await bayarReady();
     fireEvent.press(screen.getByRole("button", { name: "Bayar" }));
     await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/bayar/ck-1"));
@@ -579,7 +586,7 @@ describe("Beli / Perpanjang", () => {
     await bayarReady();
     const quotes = (runtime.api.quote as jest.Mock).mock.calls.length;
     fireEvent.press(screen.getByRole("button", { name: "Bayar" }));
-    expect(await screen.findByText("Harga atau ketentuan berubah. Tinjau ulang sebelum membayar.")).toBeTruthy();
+    expect(await screen.findByText("Harga atau ketentuannya berubah. Cek lagi sebelum bayar.")).toBeTruthy();
     await waitFor(() => expect((runtime.api.quote as jest.Mock).mock.calls.length).toBeGreaterThan(quotes));
     expect(router.replace).not.toHaveBeenCalled();
     create.mockImplementation(real);
@@ -727,7 +734,7 @@ describe("Bayar", () => {
     expect(screen.getByText("Bayar dalam 15:00")).toBeTruthy();
     expect(screen.getAllByText(totalOf()).length).toBeGreaterThan(0);
     expect(
-      screen.getByText("20 hari antar Anda dijaga selama 15 menit. Lewat dari itu, jadwal dicek ulang sebelum dibayar."),
+      screen.getByText("Kami tahan 20 hari antarmu selama 15 menit. Lewat dari itu, jadwalnya kami cek ulang sebelum kamu bayar."),
     ).toBeTruthy();
     first.unmount();
 
@@ -786,7 +793,7 @@ describe("Bayar", () => {
   it("expired payment offers Bayar lagi", async () => {
     const runtime = server({ checkout: pendingCheckout({ state: "expired" }, { status: "expired" }) });
     wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
-    expect(await screen.findByText("Waktu habis. Jadwal dicek ulang saat membayar lagi.")).toBeTruthy();
+    expect(await screen.findByText("Waktu bayar habis. Kalau bayar lagi, kami cek ulang jadwalnya dulu.")).toBeTruthy();
     expect(screen.queryByLabelText(QR_LABEL)).toBeNull();
     fireEvent.press(screen.getByRole("button", { name: "Bayar lagi" }));
     expect(router.replace).toHaveBeenCalledWith("/beli/p-rumahan?portions=1&cycles=1&addressId=a-1");
@@ -821,7 +828,7 @@ describe("Bayar", () => {
         checkout: pendingCheckout({ expires_at: past }, { status, expiresAt: past, instructions: null, ...extra }),
       });
       wrap(runtime, <PaymentScreen checkoutId="ck-1" />);
-      expect(await screen.findByText("Waktu habis. Jadwal dicek ulang saat membayar lagi.")).toBeTruthy();
+      expect(await screen.findByText("Waktu bayar habis. Kalau bayar lagi, kami cek ulang jadwalnya dulu.")).toBeTruthy();
       expect(screen.queryByRole("progressbar", { name: "Memeriksa pembayaran…" })).toBeNull();
       fireEvent.press(screen.getByRole("button", { name: "Bayar lagi" }));
       expect(router.replace).toHaveBeenCalledWith("/beli/p-rumahan?portions=1&cycles=1&addressId=a-1");
@@ -835,7 +842,7 @@ describe("Bayar", () => {
     expect(screen.queryByText("Pembayaran diterima")).toBeNull();
     // No paid beat before the booking exists (Review Focus 4): no hero, no reserved days, the header still says Bayar.
     expect(screen.queryByTestId("paid-hero")).toBeNull();
-    expect(screen.queryByText("Jadwal antar Anda sudah tersimpan.")).toBeNull();
+    expect(screen.queryByText("Jadwal antar sudah kami simpan.")).toBeNull();
     expect(within(screen.getByTestId("screen-native-title")).getByText("Bayar")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Lihat jadwal" })).toBeNull();
     fireEvent.press(screen.getByRole("button", { name: "Cek status" }));
@@ -846,7 +853,7 @@ describe("Bayar", () => {
   });
 
   for (const [state, title] of [
-    ["failed", "Pembayaran gagal. Jadwal dicek ulang saat membayar lagi."],
+    ["failed", "Pembayaran gagal. Kalau bayar lagi, kami cek ulang jadwalnya dulu."],
     ["payment_exception", "Pembayaran sedang ditinjau"],
     ["refunded", "Pembayaran dikembalikan"],
     ["partially_refunded", "Sebagian pembayaran dikembalikan"],
@@ -1072,7 +1079,7 @@ describe("Pembayaran diterima", () => {
     const first = hero.getByText("Antar pertama Senin 19 Okt");
     expect(flat(first).fontVariant).toEqual(["tabular-nums"]);
 
-    expect(screen.getByText("Jadwal antar Anda sudah tersimpan.")).toBeTruthy();
+    expect(screen.getByText("Jadwal antar sudah kami simpan.")).toBeTruthy();
     // Every reserved day, sorted, as plain wrapped chips on the body (not buttons, not in the hero), tabular figures.
     const chips = screen.getAllByTestId("paid-date");
     expect(chips.map((c) => c.props.children)).toEqual(["Senin 19 Okt", "Selasa 20 Okt", "Rabu 21 Okt"]);
@@ -1339,7 +1346,7 @@ describe("Beli waits (Task 5 fix round 1)", () => {
     expect(screen.getByRole("progressbar", { name: "Memuat paket" })).toBeTruthy();
     const timing = jest.spyOn(Reanimated, "withTiming");
     await act(async () => release());
-    expect(await screen.findByText("Dengan membayar, Anda setuju dengan Ketentuan Catera.")).toBeTruthy();
+    expect(await screen.findByText("Dengan membayar, kamu setuju dengan Ketentuan Catera.")).toBeTruthy();
     expect(screen.UNSAFE_getAllByType(FadeSwap)[0].props.swapKey).toBe("ready");
     expect(timing.mock.calls.filter(([to, c]) => to === 1 && c?.duration === nativeMotion.content)).not.toHaveLength(0);
   });

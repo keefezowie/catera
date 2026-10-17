@@ -126,7 +126,7 @@ describe("Ada masalah", () => {
     const belum = await screen.findByRole("radio", { name: "Belum sampai" });
     expect(belum.props.accessibilityState.checked).toBe(true);
     expect(screen.getByRole("radio", { name: "Ada yang kurang atau salah" }).props.accessibilityState.checked).toBe(false);
-    expect(screen.getByRole("radio", { name: "Makanan tidak layak" })).toBeTruthy();
+    expect(screen.getByRole("radio", { name: "Makanannya tidak layak dimakan" })).toBeTruthy();
     fireEvent.press(screen.getByRole("button", { name: "Kirim laporan" }));
     await waitFor(() =>
       expect(command).toHaveBeenCalledWith(
@@ -141,13 +141,13 @@ describe("Ada masalah", () => {
     mockParams = { id: "d-today", meal: "lunch" };
     const command = jest.fn(async () => ({ id: "i-9" }));
     renderWith(runtimeWith({ command }), <ReportProblem />);
-    fireEvent.press(await screen.findByRole("radio", { name: "Makanan tidak layak" }));
+    fireEvent.press(await screen.findByRole("radio", { name: "Makanannya tidak layak dimakan" }));
     fireEvent.changeText(screen.getByLabelText("Catatan (boleh dikosongkan)"), "  Nasinya basi  ");
     fireEvent.press(screen.getByRole("button", { name: "Kirim laporan" }));
     await waitFor(() =>
       expect(command).toHaveBeenCalledWith(
         "deliveryIssue.create",
-        { deliveryId: "d-today", meal: "lunch", subject: "Makanan tidak layak", body: "Nasinya basi" },
+        { deliveryId: "d-today", meal: "lunch", subject: "Makanannya tidak layak dimakan", body: "Nasinya basi" },
         expect.any(String),
       ),
     );
@@ -172,7 +172,7 @@ describe("Ada masalah", () => {
     const read = runtime.api.customer as jest.Mock;
     read.mockRejectedValueOnce(new Error("network down"));
     renderWith(runtime, <ReportProblem />);
-    expect(await screen.findByText("Tidak dapat memuat. Periksa koneksi dan coba lagi.")).toBeTruthy();
+    expect(await screen.findByText("Belum bisa memuat. Cek koneksi lalu coba lagi.")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Kirim laporan" })).toBeNull();
     const before = read.mock.calls.length;
     fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
@@ -254,7 +254,7 @@ describe("Ada masalah", () => {
     renderWith(runtimeWith({ command }), <ReportProblem />);
     fireEvent.press(await screen.findByRole("button", { name: "Kirim laporan" }));
     expect(
-      await screen.findByText("Laporan bisa dikirim mulai hari pengantaran, setelah jam antar dimulai."),
+      await screen.findByText("Kamu bisa melapor mulai hari pengantaran, setelah jam antarnya mulai."),
     ).toBeTruthy();
     expect(router.back).not.toHaveBeenCalled();
   });
@@ -280,11 +280,11 @@ describe("Ada masalah", () => {
 
   it("what-happened picks are 48dp and give a selection haptic", async () => {
     renderWith(runtimeWith(), <ReportProblem />);
-    const pick = await screen.findByRole("radio", { name: "Makanan tidak layak" });
+    const pick = await screen.findByRole("radio", { name: "Makanannya tidak layak dimakan" });
     expect(StyleSheet.flatten(pick.props.style).minHeight).toBeGreaterThanOrEqual(48);
     fireEvent.press(pick);
     expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole("radio", { name: "Makanan tidak layak" }).props.accessibilityState.checked).toBe(true);
+    expect(screen.getByRole("radio", { name: "Makanannya tidak layak dimakan" }).props.accessibilityState.checked).toBe(true);
   });
 
   it("opens WhatsApp with the caterer first, and hides the chat without a number", async () => {
@@ -336,7 +336,7 @@ describe("Bantuan dan laporan", () => {
       runtimeWith({
         issues: [
           issue({ id: "i-1", status: "open" }),
-          issue({ id: "i-2", status: "escalated", case_id: "c-2", subject: "Makanan tidak layak" }),
+          issue({ id: "i-2", status: "escalated", case_id: "c-2", subject: "Makanannya tidak layak dimakan" }),
           issue({ id: "i-3", status: "resolved", subject: "Ada yang kurang atau salah" }),
         ],
       }),
@@ -386,20 +386,20 @@ describe("Bantuan dan laporan", () => {
 
   it("lists support cases once, without the ones a report already escalated", async () => {
     const cases = [
-      { id: "c-2", subject: "Makanan tidak layak", status: "escalated", description: "", resolution: null, amount: null, checkout_id: null },
+      { id: "c-2", subject: "Makanannya tidak layak dimakan", status: "escalated", description: "", resolution: null, amount: null, checkout_id: null },
       { id: "c-7", subject: "Ajukan pembatalan", status: "resolved", description: "", resolution: "Dibatalkan, dana kembali.", amount: 90000, checkout_id: null },
     ] as unknown as SupportCase[];
     const state = { ...customerState(null), cases };
     renderWith(
       runtimeWith({
         state,
-        issues: [issue({ id: "i-2", status: "escalated", case_id: "c-2", subject: "Makanan tidak layak" })],
+        issues: [issue({ id: "i-2", status: "escalated", case_id: "c-2", subject: "Makanannya tidak layak dimakan" })],
       }),
       <ReportList />,
     );
     expect(await screen.findByText("Ajukan pembatalan")).toBeTruthy();
     expect(screen.getByText("Dibatalkan, dana kembali.")).toBeTruthy();
-    expect(screen.getAllByText("Makanan tidak layak")).toHaveLength(1);
+    expect(screen.getAllByText("Makanannya tidak layak dimakan")).toHaveLength(1);
   });
 
   it("links payment help to the checkout's payment screen", async () => {
@@ -533,7 +533,7 @@ describe("Bantuan: Minta bantuan", () => {
     for (const topic of ["Pembatalan", "Pembayaran", "Lainnya"]) expect(screen.getByRole("tab", { name: topic })).toBeTruthy();
     fireEvent.press(screen.getByRole("tab", { name: "Pembatalan" }));
     expect(screen.getByRole("button", { name: "Kirim permintaan" }).props.accessibilityState.disabled).toBe(true);
-    fireEvent.changeText(screen.getByLabelText("Ceritakan kendalanya"), "Saya pindah kota, mohon dibatalkan");
+    fireEvent.changeText(screen.getByLabelText("Ceritakan masalahnya"), "Saya pindah kota, mohon dibatalkan");
     fireEvent.press(screen.getByRole("button", { name: "Kirim permintaan" }));
     await waitFor(() =>
       expect(command).toHaveBeenCalledWith(
@@ -545,7 +545,7 @@ describe("Bantuan: Minta bantuan", () => {
     expect(await screen.findByText("Terkirim")).toBeTruthy();
     expect(screen.getByText("Pembatalan", { exact: true })).toBeTruthy();
     // The form sheet closes after sending, with the toast.
-    expect(screen.queryByLabelText("Ceritakan kendalanya")).toBeNull();
+    expect(screen.queryByLabelText("Ceritakan masalahnya")).toBeNull();
     expect(screen.getByText("Permintaan bantuan terkirim")).toBeTruthy();
   });
 
@@ -556,10 +556,10 @@ describe("Bantuan: Minta bantuan", () => {
     renderWith(runtimeWith({ state: customerState(null), command }), listWithForms, { toast: true });
     fireEvent.press(await screen.findByRole("button", { name: "Minta bantuan" }));
     fireEvent.press(await screen.findByRole("tab", { name: "Lainnya" }));
-    fireEvent.changeText(screen.getByLabelText("Ceritakan kendalanya"), "Pertanyaan soal paket");
+    fireEvent.changeText(screen.getByLabelText("Ceritakan masalahnya"), "Pertanyaan soal paket");
     fireEvent.press(screen.getByRole("button", { name: "Kirim permintaan" }));
     await waitFor(() => expect(command).toHaveBeenCalledTimes(1));
-    expect(await screen.findByLabelText("Ceritakan kendalanya")).toBeTruthy();
+    expect(await screen.findByLabelText("Ceritakan masalahnya")).toBeTruthy();
   });
 
   it("asks which package when there are several", async () => {
@@ -574,7 +574,7 @@ describe("Bantuan: Minta bantuan", () => {
     fireEvent.press(await screen.findByRole("button", { name: "Minta bantuan" }));
     fireEvent.press(await screen.findByRole("button", { name: "Makan Malam Sehat" }));
     fireEvent.press(screen.getByRole("tab", { name: "Pembayaran" }));
-    fireEvent.changeText(screen.getByLabelText("Ceritakan kendalanya"), "Sudah bayar tapi belum aktif");
+    fireEvent.changeText(screen.getByLabelText("Ceritakan masalahnya"), "Sudah bayar tapi belum aktif");
     fireEvent.press(screen.getByRole("button", { name: "Kirim permintaan" }));
     await waitFor(() =>
       expect(command).toHaveBeenCalledWith(

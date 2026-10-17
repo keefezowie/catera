@@ -17,7 +17,7 @@ import {
   type SellerAttentionItem,
   type SellerOperationsState,
 } from "@catera/domain";
-import { useData, useMobile, useTrack, type MobileRuntime } from "@catera/mobile-core";
+import { useData, useMobile, useTrack, type MobileRuntime, plural } from "@catera/mobile-core";
 import {
   Button,
   Card,
@@ -128,7 +128,7 @@ function CountCard({ ops, session }: { ops: SellerOperationsState; session: Kitc
         />
         {start ? (
           <Text variant="label" style={{ color: palette.heroText, flexShrink: 0 }}>
-            {t(`Antar ${start}`, `Deliver ${start}`)}
+            {t(`Antar ${start}`, `Delivery ${start}`)}
           </Text>
         ) : null}
       </View>
@@ -221,19 +221,19 @@ function KitchenAction({
               title: lunch
                 ? t("Mulai masak makan siang?", "Start cooking lunch?")
                 : t("Mulai masak makan malam?", "Start cooking dinner?"),
-              message: t("Pelanggan melihat status Dimasak.", "Customers see the status Cooking."),
+              message: t("Pelanggan akan melihat status Dimasak.", "Customers will see Cooking."),
               cancelLabel: t("Batal", "Cancel"),
               confirmLabel: t("Mulai", "Start"),
               icon: "rantang",
             }
           : {
-              title: t("Berangkat antar sekarang?", "Leave to deliver now?"),
+              title: t("Berangkat antar sekarang?", "Head out now?"),
               message: t(
                 "Pelanggan yang memakai aplikasi Catera dapat notifikasi saat kamu berangkat.",
-                "Customers using the Catera app get a notification when you leave.",
+                "Customers using the Catera app get a notification when you head out.",
               ),
               cancelLabel: t("Batal", "Cancel"),
-              confirmLabel: t("Berangkat", "Leave"),
+              confirmLabel: t("Berangkat", "Head out"),
               icon: "rantang",
             },
       );
@@ -258,8 +258,8 @@ function KitchenAction({
           cook
             ? t("Mulai masak", "Start cooking")
             : left
-              ? t(`Berangkat semua sisa · ${portions} porsi`, `Leave with everything left · ${portions} portions`)
-              : t(`Berangkat antar · ${portions} porsi`, `Leave to deliver · ${portions} portions`)
+              ? t(`Berangkat semua sisa · ${portions} porsi`, `Head out with everything left · ${plural(portions, "portion")}`)
+              : t(`Berangkat antar · ${portions} porsi`, `Head out · ${plural(portions, "portion")}`)
         }
         // The push reaches only customers with an account, and the kitchen cannot count them, so no number is promised.
         caption={
@@ -267,7 +267,7 @@ function KitchenAction({
             ? undefined
             : t(
                 "Pelanggan yang memakai aplikasi Catera dapat notifikasi saat kamu berangkat.",
-                "Customers using the Catera app get a notification when you leave.",
+                "Customers using the Catera app get a notification when you head out.",
               )
         }
         busy={busy}
@@ -307,10 +307,10 @@ function DoneCard({ ops, onTomorrow }: { ops: SellerOperationsState; onTomorrow:
       </Text>
       <Text selectable testID="done-outcome" style={{ textAlign: "center" }}>
         {failed === 0
-          ? t("Semua pengantaran tercatat sampai.", "All deliveries recorded as arrived.")
+          ? t("Semua pengantaran sudah ditandai sampai.", "All deliveries are marked as arrived.")
           : t(
-              `${arrived} tercatat sampai, ${failed} ditandai Gagal diantar.`,
-              `${arrived} recorded as arrived, ${failed} marked as failed.`,
+              `${arrived} ditandai sampai, ${failed} ditandai Gagal diantar.`,
+              `${arrived} marked as arrived, ${failed} marked Not delivered.`,
             )}
       </Text>
       <Button label={t("Lihat besok", "See tomorrow")} onPress={onTomorrow} />
@@ -532,11 +532,11 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
                   ? meal === "lunch"
                     ? t(
                         `${failedCount} pengantaran makan siang ditandai Gagal diantar.`,
-                        `${failedCount} lunch ${failedCount === 1 ? "delivery" : "deliveries"} marked as failed.`,
+                        `${failedCount} lunch ${failedCount === 1 ? "delivery" : "deliveries"} marked Not delivered.`,
                       )
                     : t(
                         `${failedCount} pengantaran makan malam ditandai Gagal diantar.`,
-                        `${failedCount} dinner ${failedCount === 1 ? "delivery" : "deliveries"} marked as failed.`,
+                        `${failedCount} dinner ${failedCount === 1 ? "delivery" : "deliveries"} marked Not delivered.`,
                       )
                   : meal === "lunch"
                     ? t("Tidak ada pengantaran makan siang.", "No lunch deliveries.")
@@ -549,11 +549,11 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
                     other === "lunch"
                       ? t(
                           `Lihat makan siang · ${otherSession.portions} porsi`,
-                          `See lunch · ${otherSession.portions} portions`,
+                          `See lunch · ${plural(otherSession.portions, "portion")}`,
                         )
                       : t(
                           `Lihat makan malam · ${otherSession.portions} porsi`,
-                          `See dinner · ${otherSession.portions} portions`,
+                          `See dinner · ${plural(otherSession.portions, "portion")}`,
                         )
                   }
                   onPress={() => setMood(mood === "siang" ? "malam" : "siang")}
@@ -565,8 +565,8 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
               <StateArt pose="tidur" />
               <Text style={{ textAlign: "center" }}>
                 {offset === "0"
-                  ? t("Tidak ada masakan untuk hari ini.", "Nothing to cook today.")
-                  : t("Tidak ada masakan untuk besok.", "Nothing to cook tomorrow.")}
+                  ? t("Tidak ada yang dimasak hari ini.", "Nothing to cook today.")
+                  : t("Tidak ada yang dimasak besok.", "Nothing to cook tomorrow.")}
               </Text>
               <Text variant="caption" style={{ textAlign: "center" }}>
                 {t("Pesanan baru akan muncul di sini.", "New orders will appear here.")}
@@ -602,7 +602,7 @@ function ReportCards({ issues }: { issues: DeliveryIssue[] }) {
                 <Text variant="caption">{i.subject}</Text>
                 {i.status === "responded" ? (
                   <Text variant="caption" style={{ color: c.charcoal }}>
-                    {t("Sudah dibalas · tandai selesai bila beres", "Replied · mark as done when sorted")}
+                    {t("Sudah kamu balas. Tandai selesai kalau sudah beres.", "You replied. Mark it done once it's sorted.")}
                   </Text>
                 ) : null}
               </View>
@@ -621,7 +621,7 @@ const attentionLabels: Partial<Record<SellerAttentionItem["kind"], [string, stri
   delivery: ["Ada pengantaran bermasalah", "A delivery needs attention"],
   choice_fallback: ["Menu pilihan pelanggan perlu dicek", "Customer menu choices need a check"],
   choice_deadline: ["Batas pilih menu pelanggan sudah dekat", "Customer menu choice deadline is near"],
-  payment: ["Ada urusan pembayaran", "A payment needs attention"],
+  payment: ["Ada pembayaran yang perlu dicek", "A payment needs attention"],
 };
 
 function ActionCards({ items }: { items: SellerAttentionItem[] }) {
@@ -662,7 +662,7 @@ function MulaiCard() {
   const { t } = useMobile();
   const c = useColors();
   const steps: [string, string, string][] = [
-    [t("Buat paket pertama", "Create your first package"), t("Satu layar", "One screen"), "/paket/baru"],
+    [t("Buat paket pertama", "Create your first package"), t("Nama, foto, harga, hari antar", "Name, photo, price, days"), "/paket/baru"],
     [t("Pindahkan pelanggan lama", "Bring in existing customers"), t("Kirim foto buku catatan atau chat WhatsApp", "Send a notebook photo or WhatsApp chat"), "/impor"],
     [t("Aktifkan pembayaran", "Turn on payments"), t("Perlu sebelum perpanjangan pertama", "Needed before the first renewal"), "/aktifkan"],
   ];
@@ -692,11 +692,11 @@ function MulaiCard() {
         ))}
       </Card>
       <Card>
-        <Text variant="heading">{t("Nanti di sini", "Coming up here")}</Text>
+        <Text variant="heading">{t("Setelah ada pelanggan", "Once you have customers")}</Text>
         <Text variant="caption">
           {t(
-            "Setelah pelanggan masuk, halaman ini menunjukkan berapa porsi yang dimasak dan rute antar hari ini dan besok.",
-            "Once customers are in, this page shows what to cook and where to deliver today and tomorrow.",
+            "Halaman ini menunjukkan porsi yang perlu dimasak dan rute antar, hari ini dan besok.",
+            "This page shows what to cook and where to deliver, today and tomorrow.",
           )}
         </Text>
       </Card>

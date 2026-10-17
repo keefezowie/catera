@@ -8,7 +8,7 @@ import {
   type SellerOperationsState,
   type Stop,
 } from "@catera/domain";
-import { useMobile } from "@catera/mobile-core";
+import { useMobile, plural } from "@catera/mobile-core";
 import { Button, StopRow, Text, useColors } from "@catera/mobile-ui";
 import { canMoveDelivery, canReportFailed, parkDay, stopHref } from "./ExceptionSheet";
 import { areaRuns, selectableStops, stopChoices, type Selection } from "./selection";
@@ -90,9 +90,9 @@ export function DeliveryOrder({
     `${
       canFail(s)
         ? movable(ops, s)
-          ? t("Laporkan masalah atau pindah hari", "Report a problem or move the day")
+          ? t("Laporkan masalah atau pindah tanggal", "Report a problem or move the date")
           : t("Laporkan masalah", "Report a problem")
-        : t("Pindah hari", "Move the day")
+        : t("Pindah tanggal", "Move date")
     }: ${s.name}`;
 
   return (
@@ -147,7 +147,7 @@ export function DeliveryOrder({
                           testID={`stop-${s.n}`}
                           n={s.n}
                           name={s.name}
-                          detail={`${s.portions} porsi · ${s.packageName}`}
+                          detail={t(`${s.portions} porsi · ${s.packageName}`, `${plural(s.portions, "portion")} · ${s.packageName}`)}
                           address={[s.addressLine, s.area].filter(Boolean).join(", ")}
                           mapLabel={`${t("Buka peta", "Open map")} ${s.name}`}
                           onMap={() => void Linking.openURL(s.mapsUrl)}
@@ -224,7 +224,7 @@ export function DeliveryOrder({
           ) : null}
         </>
       ) : (
-        <Text>{t("Tidak ada pengantaran untuk waktu ini.", "No deliveries for this meal.")}</Text>
+        <Text>{t("Tidak ada pengantaran untuk waktu makan ini.", "No deliveries for this meal.")}</Text>
       )}
     </View>
   );

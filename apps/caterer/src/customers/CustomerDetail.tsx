@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Linking, View } from "react-native";
 import { router } from "expo-router";
 import { errorLabel, jakartaDay, whatsappUrl, type CustomerSubscription } from "@catera/domain";
-import { useData, useMobile } from "@catera/mobile-core";
+import { useData, useMobile, plural } from "@catera/mobile-core";
 import { Button, Card, FadeSwap, FormError, Screen, Text, useBusy, useColors } from "@catera/mobile-ui";
 import { activeEndLabel, activeSubscriptions, renewalAction } from "./rules";
 import { usePaymentsActive } from "./usePayments";
@@ -91,7 +91,7 @@ export function CustomerDetail({ id, title }: { id: string; title?: string }) {
                 ? activeEndLabel(s, today, t, locale, true)
                 : t("Paket sudah selesai", "Package finished")}
             </Text>
-            <Text variant="heading">{`${s.package_name} · ${s.portions} porsi`}</Text>
+            <Text variant="heading">{t(`${s.package_name} · ${s.portions} porsi`, `${s.package_name} · ${plural(s.portions, "portion")}`)}</Text>
             <Text variant="caption">
               {c.origin === "marketplace"
                 ? t("Dari marketplace · dibayar lewat Catera", "From the marketplace · paid through Catera")
@@ -103,8 +103,8 @@ export function CustomerDetail({ id, title }: { id: string; title?: string }) {
             {action === "invite" ? (
               <Text variant="caption">
                 {t(
-                  "Pelanggan ini belum punya akun Catera. Pesannya berisi tautan untuk membuat akun lalu membayar perpanjangan.",
-                  "This customer has no Catera account yet. The message links to creating one, then paying for the renewal.",
+                  "Pelanggan ini belum punya akun Catera. Tautan di pesan mengajaknya buat akun, lalu bayar perpanjangan.",
+                  "This customer has no Catera account yet. The link in the message takes them to create one, then pay for the renewal.",
                 )}
               </Text>
             ) : null}
@@ -127,7 +127,7 @@ export function CustomerDetail({ id, title }: { id: string; title?: string }) {
               {s.deliveries.map((d) => (
                 <View key={d.id} style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 8 }}>
                   <Text>{d.service_date}</Text>
-                  <Text variant="caption">{d.status === "delivered" ? t("Terkirim", "Delivered") : d.status === "issue" ? t("Gagal diantar", "Not delivered") : t("Terjadwal", "Scheduled")}</Text>
+                  <Text variant="caption">{d.status === "delivered" ? t("Sampai", "Arrived") : d.status === "issue" ? t("Gagal diantar", "Not delivered") : t("Terjadwal", "Scheduled")}</Text>
                 </View>
               ))}
             </Card>

@@ -209,7 +209,7 @@ describe("native headers on pushed screens", () => {
     mockSession.demo = true;
     await mount("/");
     await go(() => router.push("/alamat"));
-    expect(screen.getByLabelText("Demo · data sintetis")).toBeTruthy();
+    expect(screen.getByLabelText("Demo (data contoh)")).toBeTruthy();
     // react-native-screens 4.26 ignores topInsetEnabled on Android and pads the toolbar by the window's status-bar
     // inset unless the header opts out (consumeTopInset); the emulator showed the double inset before this.
     expect(headerOf("alamat").props.consumeTopInset).toBe(false);

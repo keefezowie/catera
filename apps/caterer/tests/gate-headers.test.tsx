@@ -62,12 +62,12 @@ describe("ScreenGuard failure state", () => {
     };
     wrap(
       runtimeWith(null),
-      <ScreenGuard message="Catatan uang belum bisa ditampilkan.">
+      <ScreenGuard message="Rincian uang belum bisa ditampilkan.">
         <Broken />
         <Text>never</Text>
       </ScreenGuard>,
     );
-    expect(screen.getByText("Catatan uang belum bisa ditampilkan.")).toBeTruthy();
+    expect(screen.getByText("Rincian uang belum bisa ditampilkan.")).toBeTruthy();
     expect(screen.queryByTestId("guard-header")).toBeNull();
     expect(screen.queryByTestId("mood-fill-siang", { includeHiddenElements: true })).toBeNull();
     expect(screen.queryByTestId("mood-fill-malam", { includeHiddenElements: true })).toBeNull();

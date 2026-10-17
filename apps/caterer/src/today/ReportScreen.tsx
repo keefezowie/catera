@@ -204,8 +204,8 @@ function Report({ issue: i, reload, draftKey }: { issue: DeliveryIssue; reload: 
       : new Date() >= reviewFrom
         ? t("Pelanggan sudah bisa meminta Catera meninjau. Balas sekarang.", "The customer can now ask Catera to review. Reply now.")
         : sentDay === jakartaDay(new Date())
-          ? t("Balas sebelum besok 12.00, sebelum pelanggan bisa meminta Catera meninjau.", "Reply before tomorrow 12.00, before the customer can ask Catera to review.")
-          : t("Balas sebelum hari ini 12.00, sebelum pelanggan bisa meminta Catera meninjau.", "Reply before today 12.00, before the customer can ask Catera to review.");
+          ? t("Balas sebelum besok pukul 12.00. Setelah itu pelanggan bisa minta Catera meninjau.", "Reply by 12.00 tomorrow. After that, the customer can ask Catera to review it.")
+          : t("Balas sebelum pukul 12.00 hari ini. Setelah itu pelanggan bisa minta Catera meninjau.", "Reply by 12.00 today. After that, the customer can ask Catera to review it.");
 
   // 1 to 4 characters: too short to send, and not empty enough to mean "use the standard note".
   const tooShort = reply.length > 0 && reply.length < MIN_BODY;

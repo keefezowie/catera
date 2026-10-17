@@ -116,7 +116,7 @@ function sheetFor({ path: at, params }: Opened) {
 /** The stop sheet once its day is drawn (it reads the day itself when nothing was parked). */
 async function stopSheet() {
   const sheet = await screen.findByTestId("exception-sheet");
-  await waitFor(() => expect(within(sheet).queryAllByText(/^(Simpan laporan|Pindah tanggal)$/).length).toBeGreaterThan(0));
+  await waitFor(() => expect(within(sheet).queryAllByText(/^(Tandai gagal diantar|Pindah tanggal)$/).length).toBeGreaterThan(0));
   return screen.getByTestId("exception-sheet");
 }
 
@@ -146,7 +146,7 @@ describe("confirm sheets in place of dialogs", () => {
     const asked = lastConfirm();
     expect(asked).toMatchObject({
       title: "Mulai masak makan siang?",
-      message: "Pelanggan melihat status Dimasak.",
+      message: "Pelanggan akan melihat status Dimasak.",
       cancelLabel: "Batal",
       confirmLabel: "Mulai",
       icon: "rantang",
@@ -233,7 +233,7 @@ describe("stop exceptions", () => {
     const sari = (await screen.findAllByText("Bu Sari Wulandari"))[0];
     expect(sari).toBeTruthy();
     const id = dayOf(TODAY).deliveries[0].id;
-    fireEvent.press(within(screen.getByTestId("stop-1")).getByLabelText("Laporkan masalah atau pindah hari: Bu Sari Wulandari"));
+    fireEvent.press(within(screen.getByTestId("stop-1")).getByLabelText("Laporkan masalah atau pindah tanggal: Bu Sari Wulandari"));
     expect(router.push).toHaveBeenLastCalledWith(`/atur-antaran/${id}?meal=lunch&date=${TODAY}`);
     // The sheet is named for the stop and keeps its two choices and their words.
     const sheet = await stopSheet();
@@ -241,16 +241,16 @@ describe("stop exceptions", () => {
     expect(within(sheet).getByText("2 porsi · Makan Siang Rumahan")).toBeTruthy();
     expect(within(sheet).getByText("Gagal diantar")).toBeTruthy();
     expect(within(sheet).getByText("Pindah tanggal")).toBeTruthy();
-    expect(within(sheet).getByText(/tidak dibayarkan ke kamu/)).toBeTruthy();
-    fireEvent.press(within(sheet).getByText("Simpan laporan"));
+    expect(within(sheet).getByText(/tidak dibayar ke kamu/)).toBeTruthy();
+    fireEvent.press(within(sheet).getByText("Tandai gagal diantar"));
     await waitFor(() => expect(runtime.api.command).toHaveBeenCalledTimes(3));
     expect((runtime.api.command as jest.Mock).mock.calls.map((c) => c[1].status)).toEqual(["preparing", "out_for_delivery", "issue"]);
     // Saved: the sheet closes and says so.
-    expect(await screen.findByText("Laporan tersimpan")).toBeTruthy();
+    expect(await screen.findByText("Ditandai gagal diantar")).toBeTruthy();
     await waitFor(() => expect(screen.queryByTestId("exception-sheet")).toBeNull());
     expect(router.back).toHaveBeenCalledTimes(1);
     // The toast is shown once the sheet is on its way out, so it is drawn against Hari ini, not the sheet.
-    const saved = announce.mock.calls.findIndex(([message]) => message === "Laporan tersimpan");
+    const saved = announce.mock.calls.findIndex(([message]) => message === "Ditandai gagal diantar");
     expect(saved).toBeGreaterThanOrEqual(0);
     expect((router.back as jest.Mock).mock.invocationCallOrder[0]).toBeLessThan(announce.mock.invocationCallOrder[saved]);
   });
@@ -265,7 +265,7 @@ describe("stop exceptions", () => {
     act(() => router.back());
     // Besok: only a move, and only where the day can move.
     fireEvent.press(screen.getByRole("button", { name: /, ganti hari$/ }));
-    fireEvent.press(await within(await screen.findByTestId("stop-1")).findByLabelText("Pindah hari: Bu Sari Wulandari"));
+    fireEvent.press(await within(await screen.findByTestId("stop-1")).findByLabelText("Pindah tanggal: Bu Sari Wulandari"));
     expect(router.push).toHaveBeenLastCalledWith(expect.stringMatching(new RegExp(`date=${TOMORROW}$`)));
     sheet = await stopSheet();
     expect(within(sheet).queryByText("Gagal diantar")).toBeNull();
@@ -275,7 +275,7 @@ describe("stop exceptions", () => {
   it("staff report a stop and start cooking too", async () => {
     const runtime = runtimeWith({}, staff);
     show(runtime, <TodayScreen />);
-    fireEvent.press(within(await screen.findByTestId("stop-1")).getByLabelText(/^Laporkan masalah atau pindah hari/));
+    fireEvent.press(within(await screen.findByTestId("stop-1")).getByLabelText(/^Laporkan masalah atau pindah tanggal/));
     expect(await stopSheet()).toBeTruthy();
     act(() => router.back());
     fireEvent.press(screen.getByRole("button", { name: "Mulai masak" }));
@@ -292,7 +292,7 @@ describe("stop exceptions", () => {
     show(runtime, <TodayScreen />);
     expect(await screen.findByText(/Ini data terakhir/)).toBeTruthy();
     await screen.findByTestId("stop-1");
-    expect(screen.queryAllByLabelText(/^(Laporkan masalah|Pindah hari)/)).toHaveLength(0);
+    expect(screen.queryAllByLabelText(/^(Laporkan masalah|Pindah tanggal)/)).toHaveLength(0);
     expect(screen.queryByRole("button", { name: "Mulai masak" })).toBeNull();
   });
 

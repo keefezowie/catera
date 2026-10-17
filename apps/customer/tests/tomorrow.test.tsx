@@ -199,7 +199,7 @@ describe("Menu besok row", () => {
     const runtime = runtimeWith(async () => bothState());
     store().set(seenKey(runtime, "d-both", "dinner"), "seen");
     wrap(runtime, <TomorrowRow story={storyOf(bothState(), AFTER_CUTOFF)} />);
-    expect(screen.getByText("Sudah lewat batas ubah")).toBeTruthy();
+    expect(screen.getByText("Sudah tidak bisa diubah")).toBeTruthy();
     expect(screen.queryByText(/Bisa diubah sampai/)).toBeNull();
     // Dinner was seen, so only lunch stays covered once the stored marks have been read.
     await waitFor(() => expect(coveredCount()).toBe(1));
@@ -223,7 +223,7 @@ describe("Menu besok row", () => {
     wrap(runtime, <TomorrowRow story={storyOf(fixedState(), BEFORE_CUTOFF)} />);
     await waitFor(() => expect(SecureStore.getItemAsync).toHaveBeenCalled());
     expect(coveredCount()).toBe(0);
-    expect(screen.queryByText("Sudah lewat batas ubah")).toBeNull();
+    expect(screen.queryByText("Sudah tidak bisa diubah")).toBeNull();
     expect(screen.queryByText(/Bisa diubah sampai/)).toBeNull();
     expect(screen.getByRole("button", { name: "Menu besok, makan siang, Ayam bakar madu" })).toBeTruthy();
   });
@@ -232,7 +232,7 @@ describe("Menu besok row", () => {
     pinClock(AFTER_CUTOFF);
     const runtime = runtimeWith(async () => fixedState());
     wrap(runtime, <TomorrowRow story={storyOf(fixedState(), AFTER_CUTOFF)} />);
-    expect(screen.getByText("Sudah lewat batas ubah")).toBeTruthy();
+    expect(screen.getByText("Sudah tidak bisa diubah")).toBeTruthy();
     await waitFor(() => expect(SecureStore.getItemAsync).toHaveBeenCalled());
     expect(coveredCount()).toBe(2);
   });
@@ -337,7 +337,7 @@ describe("Menu besok story", () => {
   it("says the menu is not set by the caterer, over the package photo", async () => {
     (useLocalSearchParams as jest.Mock).mockReturnValue({ part: "1" });
     await open(unsetDinnerState, BEFORE_CUTOFF);
-    expect(screen.getByText("Menu belum diisi oleh Dapur Senja")).toBeTruthy();
+    expect(screen.getByText("Dapur Senja belum mengisi menunya")).toBeTruthy();
     expect(screen.UNSAFE_getAllByType(Image).some((i) => i.props.source?.uri === PACKAGE_PHOTO)).toBe(true);
   });
 
@@ -376,7 +376,7 @@ describe("Menu besok story", () => {
 
   it("after the cutoff says the day is closed and offers no Ubah hari", async () => {
     await open(bothState, AFTER_CUTOFF);
-    expect(screen.getByText("Sudah lewat batas ubah")).toBeTruthy();
+    expect(screen.getByText("Sudah tidak bisa diubah")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Ubah hari" })).toBeNull();
     expect(screen.queryByText(/Bisa diubah sampai/)).toBeNull();
   });
@@ -384,7 +384,7 @@ describe("Menu besok story", () => {
   it("before the cutoff, a plan whose days cannot move has no deadline line and no Ubah hari", async () => {
     await open(fixedState, BEFORE_CUTOFF);
     expect(screen.getByText("Ayam bakar madu")).toBeTruthy();
-    expect(screen.queryByText("Sudah lewat batas ubah")).toBeNull();
+    expect(screen.queryByText("Sudah tidak bisa diubah")).toBeNull();
     expect(screen.queryByText(/Bisa diubah sampai/)).toBeNull();
     expect(screen.queryByRole("button", { name: "Ubah hari" })).toBeNull();
     // The way on is still there.
@@ -393,7 +393,7 @@ describe("Menu besok story", () => {
 
   it("after the cutoff, a plan whose days cannot move reads as closed", async () => {
     await open(fixedState, AFTER_CUTOFF);
-    expect(screen.getByText("Sudah lewat batas ubah")).toBeTruthy();
+    expect(screen.getByText("Sudah tidak bisa diubah")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Ubah hari" })).toBeNull();
   });
 
@@ -446,10 +446,10 @@ describe("Menu besok story", () => {
     expect(read).toHaveBeenCalledTimes(2);
   });
 
-  it("reads Belum ada antaran besok with a close button when tomorrow has no delivery", async () => {
+  it("reads Belum ada pengantaran besok with a close button when tomorrow has no delivery", async () => {
     pinClock(BEFORE_CUTOFF);
     wrap(runtimeWith(async () => noTomorrowState()), <TomorrowStoryScreen />);
-    expect(await screen.findByText("Belum ada antaran besok.")).toBeTruthy();
+    expect(await screen.findByText("Belum ada pengantaran besok.")).toBeTruthy();
     await settle();
     expect(screen.queryByTestId("story-viewer")).toBeNull();
     fireEvent.press(screen.getByRole("button", { name: "Tutup" }));
@@ -544,7 +544,7 @@ describe("Menu besok story status bar and top inset", () => {
       expect(paddingTop("tomorrow-message")).toBe(8);
       screen.unmount();
       mountUnder(true, async () => noTomorrowState());
-      await screen.findByText("Belum ada antaran besok.");
+      await screen.findByText("Belum ada pengantaran besok.");
       await settle();
       expect(paddingTop("tomorrow-message")).toBe(8);
     });

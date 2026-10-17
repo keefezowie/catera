@@ -177,7 +177,7 @@ export function WaitingList({
           icon: "bag-handle-outline",
           title: trialTitle(s, today, t),
           detail: `${s.snapshot.offer.caterer} · ${t("paket coba", "trial")}`,
-          action: t("Paket penuh", "Full plan"),
+          action: t("Beli paket", "Buy package"),
           onPress: () => router.push(packageHref(s.package_id, s.snapshot.offer.name) as never),
         };
       }
@@ -188,7 +188,7 @@ export function WaitingList({
           key: `review:${item.subscription.id}`,
           icon: "star-outline",
           title: t(`Bagaimana ${caterer} selama ini?`, `How has ${caterer} been so far?`),
-          detail: t("Ulasan singkat, 1 menit", "A short review, 1 minute"),
+          detail: t("Beri bintang, tulisan boleh menyusul", "Give stars, add words if you like"),
           action: t("Nilai", "Rate"),
           onPress: () => pushSheet(`/ulasan/${encodeURIComponent(item.subscription.id)}` as never),
         };
@@ -198,7 +198,7 @@ export function WaitingList({
 
   return (
     <View style={{ gap: 10 }}>
-      <SectionTitle>{t("Menunggu Anda", "Waiting on you")}</SectionTitle>
+      <SectionTitle>{t("Perlu kamu urus", "Needs you")}</SectionTitle>
       <View testID="waiting-list" style={styles.card}>
         {rows.map((row, i) => (
           <Animated.View key={row.key} testID="waiting-row-motion" {...rowMotion}>

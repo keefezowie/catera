@@ -185,7 +185,7 @@ export function BuyScreen({
       router.replace(`/bayar/${encodeURIComponent(created.id)}` as never);
     } catch (e) {
       const code = (e as { code?: string }).code || (e as Error).message;
-      setError(errorLabel(code, locale) || t("Belum berhasil. Coba lagi.", "That didn't work. Try again."));
+      setError(errorLabel(code, locale) || t("Pembayaran belum bisa dimulai. Coba lagi.", "Couldn't start the payment. Try again."));
       setFailures((n) => n + 1);
       quote.retry();
       setBusy(false);
@@ -201,7 +201,7 @@ export function BuyScreen({
         {/* An open checkout comes first: paying it beats starting a second purchase. */}
         {pendingCheckout ? <PendingPayment checkoutId={pendingCheckout} t={t} /> : null}
         <NoLongerSold
-          caterer={ctx.offers[0]?.caterer || current?.snapshot.offer?.caterer || t("katering Anda", "your caterer")}
+          caterer={ctx.offers[0]?.caterer || current?.snapshot.offer?.caterer || t("kateringmu", "your caterer")}
           offers={ctx.offers.filter((o) => o.id !== ctx.packageId)}
           t={t}
         />
@@ -239,7 +239,7 @@ export function BuyScreen({
             accessibilityRole="text"
             style={[{ fontSize: 22, lineHeight: 28, color: c.charcoal }, tabular, quote.pending && { opacity: 0.45 }]}
           >
-            {shown ? currency(shown.total, locale) : "–"}
+            {shown ? currency(shown.total, locale) : "-"}
           </Text>
         </View>
         <Button
@@ -263,6 +263,7 @@ export function BuyScreen({
         <StartLine
           startDate={startDate}
           renew={renew}
+          currentEnd={current?.ends_on ?? null}
           quote={shown}
           dimmed={quote.pending}
           weekdays={offer.weekdays}
@@ -272,7 +273,7 @@ export function BuyScreen({
         />
 
         <View style={{ gap: 8 }}>
-          <Text variant="label">{t("Lama paket", "Length")}</Text>
+          <Text variant="label">{t("Lama paket", "Package length")}</Text>
           {trial ? (
             <Text>{t("1 hari, coba dulu", "1 day, as a trial")}</Text>
           ) : lengths.length === 1 ? (

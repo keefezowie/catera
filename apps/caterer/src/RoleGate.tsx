@@ -44,7 +44,7 @@ export function RoleGate({ children }: { children: ReactNode }) {
         <View style={{ gap: 12 }}>
           <Text>
             {t(
-              "Akun ini adalah akun pelanggan. Catera Dapur hanya untuk katering dan staf dapurnya.",
+              "Ini akun pelanggan. Catera Dapur khusus untuk katering dan staf dapurnya.",
               "This is a customer account. Catera Dapur is for caterers and their kitchen staff.",
             )}
           </Text>

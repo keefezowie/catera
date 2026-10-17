@@ -82,7 +82,7 @@ export function EmptyHomeBody({
         </Text>
         <Text style={[{ color: c.muted }, centred]}>
           {t(
-            "Pilih paket katering rumahan, diantar sesuai jadwal Anda.",
+            "Pilih paket katering rumahan, diantar sesuai jadwalmu.",
             "Pick a home-style catering package, delivered on your schedule.",
           )}
         </Text>
@@ -103,7 +103,7 @@ export function EmptyHomeBody({
       <Button label={t("Jelajah paket", "Browse packages")} onPress={() => goToTab("jelajah")} />
       <Text variant="caption">
         {t(
-          "Dapat tautan dari katering Anda? Buka tautannya untuk menyambungkan paket ke akun ini.",
+          "Dapat tautan dari katering? Buka tautannya untuk menyambungkan paketmu ke akun ini.",
           "Got a link from your caterer? Open it to connect your package to this account.",
         )}
       </Text>

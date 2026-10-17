@@ -78,17 +78,17 @@ it("opens the claim route from a link and connects", async () => {
 
   expect(await screen.findByText("Dari Dapur Contoh")).toBeTruthy();
   expect(runtime.api.claimPreview).toHaveBeenCalledWith(TOKEN);
-  expect(screen.getByText("Langganan Anda sekarang ada di Catera")).toBeTruthy();
+  expect(screen.getByText("Langgananmu sekarang ada di Catera")).toBeTruthy();
   expect(
     screen.getByText(
-      "Sudah dibayar ke Dapur Contoh, tidak ada tagihan baru. Di sini Anda bisa melihat menu, tahu kapan makanan berangkat, dan memindah hari.",
+      "Sudah dibayar ke Dapur Contoh, tidak ada tagihan baru. Di sini kamu bisa melihat menu, tahu kapan makanan berangkat, dan memindahkan tanggal pengantaran.",
     ),
   ).toBeTruthy();
   expect(screen.getByText("Makan Siang Rumahan")).toBeTruthy();
   expect(screen.getByText("9 hari")).toBeTruthy();
   expect(screen.getByText("Kamis 8 Okt, 11.00–13.00")).toBeTruthy();
   expect(screen.getByText("Kantor Sudirman")).toBeTruthy();
-  expect(screen.getByText("Bukan nomor Anda? Minta Dapur Contoh mengirim tautan baru.")).toBeTruthy();
+  expect(screen.getByText("Bukan nomormu? Minta Dapur Contoh mengirim tautan baru.")).toBeTruthy();
   // The phone is asked for only after the customer has seen the package.
   expect(screen.queryByLabelText("Nomor HP")).toBeNull();
 
@@ -100,7 +100,7 @@ it("opens the claim route from a link and connects", async () => {
   expect(await screen.findByText("Masukkan kode dari SMS")).toBeTruthy();
   expect(screen.getByText("Kami kirim 6 angka ke 0812-3450-0001, nomor yang dicatat Dapur Contoh.")).toBeTruthy();
   fireEvent.changeText(screen.getByLabelText("Kode"), "123456");
-  fireEvent.changeText(screen.getByLabelText("Nama Anda"), "Andre");
+  fireEvent.changeText(screen.getByLabelText("Namamu"), "Andre");
   fireEvent.press(screen.getByRole("button", { name: "Sambungkan langganan" }));
 
   await waitFor(() => expect(router.replace).toHaveBeenCalledWith("/"));
@@ -129,10 +129,10 @@ it.each(["NOT_FOUND", "INVALID_INPUT"])("a %s preview shows only the plain messa
     },
   });
   renderRoute(runtime);
-  expect(await screen.findByText("Tautan ini tidak bisa dipakai. Minta tautan baru ke katering Anda.")).toBeTruthy();
+  expect(await screen.findByText("Tautan ini tidak bisa dipakai. Minta tautan baru ke kateringmu.")).toBeTruthy();
   expect(screen.queryByText(/Dapur Contoh/)).toBeNull();
   expect(screen.queryByText(/Lanjut dengan/)).toBeNull();
-  expect(screen.queryByText("Langganan Anda sekarang ada di Catera")).toBeNull();
+  expect(screen.queryByText("Langgananmu sekarang ada di Catera")).toBeNull();
 });
 
 it("a refused claim ends in the plain message and never on Beranda", async () => {
@@ -145,9 +145,9 @@ it("a refused claim ends in the plain message and never on Beranda", async () =>
   fireEvent.changeText(screen.getByLabelText("Nomor HP"), "081234500001");
   fireEvent.press(screen.getByRole("button", { name: "Kirim kode" }));
   fireEvent.changeText(await screen.findByLabelText("Kode"), "123456");
-  fireEvent.changeText(screen.getByLabelText("Nama Anda"), "Andre");
+  fireEvent.changeText(screen.getByLabelText("Namamu"), "Andre");
   fireEvent.press(screen.getByRole("button", { name: "Sambungkan langganan" }));
-  expect(await screen.findByText("Tautan ini tidak bisa dipakai. Minta tautan baru ke katering Anda.")).toBeTruthy();
+  expect(await screen.findByText("Tautan ini tidak bisa dipakai. Minta tautan baru ke kateringmu.")).toBeTruthy();
   expect(screen.queryByText(/Dapur Contoh/)).toBeNull();
   expect(router.replace).not.toHaveBeenCalled();
 });
@@ -160,7 +160,7 @@ it("a wrong SMS code keeps the customer on the code step", async () => {
   fireEvent.changeText(screen.getByLabelText("Nomor HP"), "081234500001");
   fireEvent.press(screen.getByRole("button", { name: "Kirim kode" }));
   fireEvent.changeText(await screen.findByLabelText("Kode"), "000000");
-  fireEvent.changeText(screen.getByLabelText("Nama Anda"), "Andre");
+  fireEvent.changeText(screen.getByLabelText("Namamu"), "Andre");
   fireEvent.press(screen.getByRole("button", { name: "Sambungkan langganan" }));
   expect(await screen.findByText("Kode belum cocok. Periksa SMS lalu coba lagi.")).toBeTruthy();
   expect(screen.getByLabelText("Kode")).toBeTruthy();
@@ -168,7 +168,7 @@ it("a wrong SMS code keeps the customer on the code step", async () => {
 });
 
 const MISMATCH =
-  "Nomor ini berbeda dengan yang dicatat Dapur Contoh. Pakai nomor yang Anda berikan ke Dapur Contoh, atau minta Dapur Contoh memperbarui nomor Anda.";
+  "Nomor ini beda dengan yang dicatat Dapur Contoh. Pakai nomor yang kamu berikan ke mereka, atau minta mereka memperbarui nomormu.";
 
 it("a number that differs from the recorded one gets no SMS and a plain explanation", async () => {
   const { runtime, sendPhoneOtp } = runtimeWith();
@@ -250,7 +250,7 @@ describe("claim under the native header", () => {
     fireEvent.changeText(screen.getByLabelText("Nomor HP"), "081234500001");
     fireEvent.press(screen.getByRole("button", { name: "Kirim kode" }));
     fireEvent.changeText(await screen.findByLabelText("Kode"), "123456");
-    fireEvent.changeText(screen.getByLabelText("Nama Anda"), "Andre");
+    fireEvent.changeText(screen.getByLabelText("Namamu"), "Andre");
     return runtime;
   };
 
@@ -299,7 +299,7 @@ describe("claim under the native header", () => {
   it("the package step is titled with its heading, with who it is from, the wordmark and the package in the body", async () => {
     renderMood(runtimeWith().runtime);
     expect(await screen.findByText("Dari Dapur Contoh")).toBeTruthy();
-    const header = expectMalamHeader("Langganan Anda sekarang ada di Catera");
+    const header = expectMalamHeader("Langgananmu sekarang ada di Catera");
     expect(within(header).queryByText("Dari Dapur Contoh")).toBeNull();
     expect(screen.getByLabelText("Catera")).toBeTruthy();
     expect(within(header).queryByLabelText("Catera")).toBeNull();
@@ -313,7 +313,7 @@ describe("claim under the native header", () => {
     const { runtime } = runtimeWith();
     renderMood(runtime);
     fireEvent.press(await screen.findByRole("button", { name: "Lanjut dengan 0812-•••-0001" }));
-    let header = expectMalamHeader("Nomor HP Anda");
+    let header = expectMalamHeader("Nomor HP kamu");
     const back = screen.getByRole("button", { name: "Kembali ke paket" });
     expect(flat(back).minHeight).toBe(48);
     expect(within(header).queryByRole("button")).toBeNull();
@@ -326,7 +326,7 @@ describe("claim under the native header", () => {
     // The step back returns to the phone step, and from there to the package.
     fireEvent.press(screen.getByRole("button", { name: "Kembali ke nomor HP" }));
     expect(await screen.findByLabelText("Nomor HP")).toBeTruthy();
-    expectMalamHeader("Nomor HP Anda");
+    expectMalamHeader("Nomor HP kamu");
     fireEvent.press(screen.getByRole("button", { name: "Kembali ke paket" }));
     expect(await screen.findByText("Dari Dapur Contoh")).toBeTruthy();
   });
@@ -338,7 +338,7 @@ describe("claim under the native header", () => {
     await toCodeStep(runtime);
     fireEvent.press(screen.getByRole("button", { name: "Sambungkan langganan" }));
     expect(
-      await screen.findByText("Dapur Contoh perlu memeriksa langganan ini dulu. Pengantaran Anda tetap berjalan."),
+      await screen.findByText("Dapur Contoh perlu mengecek langganan ini dulu. Pengantaranmu tetap jalan."),
     ).toBeTruthy();
     const header = expectMalamHeader("Perlu dicek dulu");
     expect(within(header).queryByRole("button", { name: "Ke Beranda" })).toBeNull();

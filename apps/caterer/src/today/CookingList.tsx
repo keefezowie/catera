@@ -34,7 +34,7 @@ export function CookingList({ session, catererId, date }: { session: KitchenSess
       })}
       {dishes.length ? (
         <Text variant="caption">
-          {t("Centang hanya catatan dapur, tidak dikirim ke pelanggan.", "Ticks are a kitchen note only and are not sent to customers.")}
+          {t("Centang ini cuma catatan dapur. Pelanggan tidak melihatnya.", "Ticks are just for the kitchen. Customers don't see them.")}
         </Text>
       ) : null}
     </View>

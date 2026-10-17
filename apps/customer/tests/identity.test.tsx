@@ -97,7 +97,7 @@ describe("Daftar dengan email", () => {
         options: { data: { name: "Rani Contoh" }, emailRedirectTo: "catera://auth/callback" },
       }),
     );
-    expect(await screen.findByText("Periksa email Anda")).toBeTruthy();
+    expect(await screen.findByText("Cek emailmu")).toBeTruthy();
     const pending = JSON.parse(store.get("catera.auth.pending") ?? "{}");
     expect(pending).toMatchObject({ purpose: "signup", next: "/beli/p-1?portions=2" });
 
@@ -117,7 +117,7 @@ describe("Daftar dengan email", () => {
     expect(screen.queryAllByRole("header")).toHaveLength(0);
     expect(screen.queryByText("Daftar dengan email")).toBeNull();
     expect(screen.queryByText("Daftar dengan email dan kata sandi.")).toBeNull();
-    expect(screen.getByText("Kami kirim tautan verifikasi ke email Anda.")).toBeTruthy();
+    expect(screen.getByText("Kami kirim tautan verifikasi ke emailmu.")).toBeTruthy();
   });
 
   it("explains a rejected password and stays on the form", async () => {
@@ -131,7 +131,7 @@ describe("Daftar dengan email", () => {
     fireEvent.changeText(screen.getByLabelText("Kata sandi"), "synthetic-password");
     fireEvent.press(screen.getByRole("button", { name: "Daftar & verifikasi email" }));
     expect(await screen.findByTestId("identity-error")).toBeTruthy();
-    expect(screen.queryByText("Periksa email Anda")).toBeNull();
+    expect(screen.queryByText("Cek emailmu")).toBeNull();
   });
 });
 
@@ -154,7 +154,7 @@ describe("Lupa kata sandi", () => {
         redirectTo: "catera://auth/callback",
       }),
     );
-    expect(await screen.findByText(/email pemulihan telah dikirim/)).toBeTruthy();
+    expect(await screen.findByText(/tautan pemulihan/)).toBeTruthy();
     expect(JSON.parse(store.get("catera.auth.pending") ?? "{}")).toMatchObject({ purpose: "recovery", next: "/akun" });
   });
 });
@@ -176,7 +176,7 @@ describe("Masuk heading", () => {
     renderWith(<Masuk />);
     expect(await screen.findByRole("button", { name: "Kirim kode" })).toBeTruthy();
     expect(screen.queryAllByText("Masuk ke Catera")).toHaveLength(0);
-    expect(screen.getByText(/Pakai nomor HP yang Anda berikan/)).toBeTruthy();
+    expect(screen.getByText(/Pakai nomor HP yang kamu berikan/)).toBeTruthy();
   });
 });
 
@@ -191,7 +191,7 @@ describe("Masuk with email", () => {
     fireEvent.changeText(screen.getByLabelText("Email"), "rani@example.test");
     fireEvent.changeText(screen.getByLabelText("Kata sandi"), "wrong-password");
     fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
-    expect(await screen.findByText(/Email atau kata sandi tidak cocok/)).toBeTruthy();
+    expect(await screen.findByText(/Email atau kata sandinya salah/)).toBeTruthy();
     expect(router.replace).not.toHaveBeenCalled();
   });
 });

@@ -81,8 +81,8 @@ function sessionError(code: string, locale: Locale): string {
   return (
     errorLabel(code, locale) ||
     translator(locale)(
-      "Tidak dapat terhubung. Periksa koneksi dan coba lagi.",
-      "Unable to connect. Check your connection and try again.",
+      "Belum bisa terhubung. Cek koneksi lalu coba lagi.",
+      "Can't connect. Check your connection and try again.",
     )
   );
 }
@@ -367,8 +367,8 @@ export function MobileProvider({
     if (!projectId)
       throw new Error(
         t(
-          "Push memerlukan development build dan EAS project yang dikonfigurasi.",
-          "Push notifications require a configured development build and EAS project.",
+          "Notifikasi belum bisa dipakai di versi aplikasi ini.",
+          "Notifications aren't available in this version of the app.",
         ),
       );
     if (Platform.OS === "android")

@@ -126,7 +126,7 @@ function HapusAkun() {
       label={t("Baca kebijakan privasi", "Read the privacy policy")}
       onPress={() =>
         void WebBrowser.openBrowserAsync(`${runtime.apiBase}/syarat-dan-privasi#privasi`).catch(() =>
-          toast.show({ message: t("Belum berhasil. Coba lagi.", "That didn't work. Try again."), tone: "error" }),
+          toast.show({ message: t("Halaman belum bisa dibuka. Coba lagi.", "Couldn't open the page. Try again."), tone: "error" }),
         )
       }
     />

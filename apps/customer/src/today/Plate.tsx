@@ -53,12 +53,12 @@ export function commandError(e: unknown, locale: "id" | "en", t: (id: string, en
   const code = (e as { code?: string }).code || (e as Error).message;
   if (code === "NOT_ALLOWED")
     return t(
-      "Belum bisa sekarang. Tunggu jam antar dimulai, atau tunggu balasan atas laporan Anda.",
-      "Not yet. Wait until the delivery window starts, or for a reply to your report.",
+      "Belum bisa sekarang. Tunggu sampai jam antar mulai, atau sampai laporanmu dibalas.",
+      "Not yet. Wait until the delivery window starts, or until your report gets a reply.",
     );
   if (code === "NOT_AVAILABLE")
     return t("Pengantaran ini sudah tidak bisa diubah.", "This delivery can no longer be changed.");
-  return errorLabel(code, locale) || t("Belum berhasil. Coba lagi.", "That didn't work. Try again.");
+  return errorLabel(code, locale) || t("Belum tersimpan. Coba lagi.", "Didn't save. Try again.");
 }
 
 type Reaction = "enak" | "biasa" | "kurang";
@@ -153,8 +153,8 @@ export function heroSentences(
     return [
       first,
       p.window
-        ? t(`${p.window} · belum ada catatan dari dapur`, `${p.window} · no update from the kitchen yet`)
-        : t("Belum ada catatan dari dapur", "No update from the kitchen yet"),
+        ? t(`${p.window} · belum ada kabar dari dapur`, `${p.window} · no word from the kitchen yet`)
+        : t("Belum ada kabar dari dapur", "No word from the kitchen yet"),
     ];
   return [first, second];
 }
@@ -387,7 +387,7 @@ function PlateContent({
         {!offline && plate.state === "arrived" ? (
           <View style={{ gap: 8 }}>
             <Text variant="caption" style={hero ? { color: quiet } : undefined}>
-              {t("Bagaimana rasanya? Hanya katering yang melihat.", "How was it? Only the caterer sees this.")}
+              {t("Bagaimana rasanya? Cuma katering yang bisa melihat jawabanmu.", "How was it? Only the caterer sees your answer.")}
             </Text>
             <View style={styles.row}>
               {(

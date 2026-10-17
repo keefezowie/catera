@@ -20,7 +20,7 @@ function UangContent() {
       <Screen>
         <FadeSwap swapKey={s ? "unavailable" : money.error ? "error" : "loading"} style={{ gap: 16 }}>
           {s ? (
-            <Text>{t("Catatan uang belum tersedia.", "Money records aren't available yet.")}</Text>
+            <Text>{t("Rincian uang belum tersedia.", "Money details aren't available yet.")}</Text>
           ) : money.error ? (
             <ReadError art message={money.error} onRetry={() => void money.reload()} />
           ) : (
@@ -35,7 +35,7 @@ function UangContent() {
       <FadeSwap swapKey="money" style={{ gap: 16 }}>
         {/* A plain card (direction K): the amount is a price, so it is bold charcoal, and forest stays on buttons and selection. */}
         <Card>
-          <Text variant="label">{t("Masuk ke rekening berikutnya", "Next payout to your account")}</Text>
+          <Text variant="label">{t("Akan masuk ke rekening", "Going to your bank")}</Text>
           <Text variant="number" testID="uang-available" style={{ color: c.charcoal }}>
             {settlementCurrency(s.available, locale)}
           </Text>
@@ -64,7 +64,7 @@ function UangContent() {
 export function UangScreen() {
   const { t } = useMobile();
   return (
-    <ScreenGuard message={t("Catatan uang belum bisa ditampilkan.", "Money records can't be shown right now.")}>
+    <ScreenGuard message={t("Rincian uang belum bisa ditampilkan.", "Money details can't be shown right now.")}>
       <UangContent />
     </ScreenGuard>
   );

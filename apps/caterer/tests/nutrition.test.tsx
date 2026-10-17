@@ -143,7 +143,7 @@ describe("Gizi per porsi in the editor", () => {
     expect(screen.getByRole("switch", { name: "Pakai rentang" }).props.accessibilityState.checked).toBe(true);
     fireEvent.changeText(screen.getByLabelText("Kalori dari (kkal)"), "700");
     fireEvent.changeText(screen.getByLabelText("Kalori sampai (kkal)"), "600");
-    fireEvent.press(screen.getByRole("button", { name: "Simpan paket" }));
+    fireEvent.press(screen.getByRole("button", { name: "Terbitkan paket" }));
     expect(await screen.findByText("Batas bawah tidak boleh lebih dari batas atas")).toBeTruthy();
     expect(command).not.toHaveBeenCalled();
     // The fields take a number keyboard.
@@ -159,7 +159,7 @@ describe("Gizi per porsi in the editor", () => {
     expect(screen.getByRole("switch", { name: "Pakai rentang" }).props.accessibilityState.checked).toBe(false);
     expect(screen.queryByLabelText("Kalori sampai (kkal)")).toBeNull();
     expect(screen.getByLabelText("Kalori (kkal)").props.value).toBe("580");
-    fireEvent.press(screen.getByRole("button", { name: "Simpan paket" }));
+    fireEvent.press(screen.getByRole("button", { name: "Terbitkan paket" }));
     await waitFor(() => expect(command).toHaveBeenCalled());
     const [, payload] = command.mock.calls[0] as unknown as [string, { offer: { nutrition: unknown } }];
     expect(payload.offer.nutrition).toEqual({ caloriesKcal: 580, proteinG: 32, fatG: 0 });
@@ -173,7 +173,7 @@ describe("Gizi per porsi in the editor", () => {
     expect(screen.getByLabelText("Kalori sampai (kkal)").props.value).toBe("640");
     expect(screen.getByLabelText("Lemak (g)").props.value).toBe("0");
     expect(screen.getByLabelText("Karbo (g)").props.value).toBe("");
-    fireEvent.press(screen.getByRole("button", { name: "Simpan paket" }));
+    fireEvent.press(screen.getByRole("button", { name: "Terbitkan paket" }));
     await waitFor(() => expect(command).toHaveBeenCalled());
     const [, payload] = command.mock.calls[0] as unknown as [string, { offer: { nutrition: unknown } }];
     expect(payload.offer.nutrition).toEqual({ caloriesKcal: { min: 580, max: 640 }, proteinG: 32, fatG: 0 });
@@ -203,7 +203,7 @@ describe("Gizi per porsi in the editor", () => {
     expect(screen.getByLabelText("Lemak (g)").props.value).toBe("19–21");
     // The range is selected on focus, so the first keystroke replaces it.
     expect(screen.getByLabelText("Protein (g)").props.selectTextOnFocus).toBe(true);
-    fireEvent.press(screen.getByRole("button", { name: "Simpan paket" }));
+    fireEvent.press(screen.getByRole("button", { name: "Terbitkan paket" }));
     await waitFor(() => expect(command).toHaveBeenCalled());
     let [, payload] = command.mock.calls[0] as unknown as [string, { offer: { nutrition: unknown } }];
     expect(payload.offer.nutrition).toEqual(seedRanges);
@@ -214,7 +214,7 @@ describe("Gizi per porsi in the editor", () => {
     view = mount(runtimeWith({ command }), <PackageEditor from={rantang} />);
     fireEvent.changeText(await screen.findByLabelText("Protein (g)"), "31");
     expect(screen.getByLabelText("Protein (g)").props.value).toBe("31");
-    fireEvent.press(screen.getByRole("button", { name: "Simpan paket" }));
+    fireEvent.press(screen.getByRole("button", { name: "Terbitkan paket" }));
     await waitFor(() => expect(command).toHaveBeenCalled());
     [, payload] = command.mock.calls[0] as unknown as [string, { offer: { nutrition: unknown } }];
     expect(payload.offer.nutrition).toEqual({ ...seedRanges, proteinG: 31 });

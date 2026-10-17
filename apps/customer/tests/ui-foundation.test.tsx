@@ -166,15 +166,15 @@ describe("shared foundation (audit 001)", () => {
 
   it("renders the demo strip only in demo mode", () => {
     const Harness = ({ demo }: { demo: boolean }) => (
-      <>{demo ? <DemoStrip label="Demo · data sintetis" /> : null}</>
+      <>{demo ? <DemoStrip label="Demo (data contoh)" /> : null}</>
     );
     const view = render(<Harness demo={false} />);
-    expect(screen.queryByText("Demo · data sintetis")).toBeNull();
+    expect(screen.queryByText("Demo (data contoh)")).toBeNull();
     view.rerender(<Harness demo />);
-    const label = screen.getByText("Demo · data sintetis");
+    const label = screen.getByText("Demo (data contoh)");
     // Spec 2.3 (audit 9-07): the strip is a neutral band, canvas under muted text, never sage under forest.
     expect(StyleSheet.flatten(label.props.style).color).toBe(nativeThemes.light.muted);
-    const strip = screen.getByLabelText("Demo · data sintetis");
+    const strip = screen.getByLabelText("Demo (data contoh)");
     expect(strip.props.accessibilityRole).toBe("text");
     const style = StyleSheet.flatten(strip.props.style);
     expect(style.backgroundColor).toBe(nativeThemes.light.canvas);
@@ -637,8 +637,8 @@ describe("dark theme", () => {
   });
 
   it("Field keeps the dark input style when the caller passes a style", async () => {
-    await renderDark(<Field label="Ceritakan kendalanya" multiline style={{ minHeight: 120, textAlignVertical: "top" }} />);
-    const flat = StyleSheet.flatten(screen.getByLabelText("Ceritakan kendalanya").props.style);
+    await renderDark(<Field label="Ceritakan masalahnya" multiline style={{ minHeight: 120, textAlignVertical: "top" }} />);
+    const flat = StyleSheet.flatten(screen.getByLabelText("Ceritakan masalahnya").props.style);
     // The caller's own keys are applied...
     expect(flat.minHeight).toBe(120);
     expect(flat.textAlignVertical).toBe("top");

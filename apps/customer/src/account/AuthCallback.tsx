@@ -113,7 +113,7 @@ export function AuthCallback() {
               autoCapitalize="none"
               autoCorrect={false}
               maxLength={256}
-              hint={t("Minimal 8 karakter. Kedua isian harus sama.", "At least 8 characters. Both fields must match.")}
+              hint={t("Minimal 8 karakter, dan keduanya harus sama.", "At least 8 characters, and both must match.")}
             />
             {action.error ? <FormError message={action.error} failureKey={action.failures} testID="identity-error" /> : null}
             <Button

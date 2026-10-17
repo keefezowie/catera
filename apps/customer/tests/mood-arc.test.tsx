@@ -45,7 +45,7 @@ const SIANG_NOW = () => new Date("2026-10-09T03:00:00Z"); // 10:00 WIB
 const MALAM_NOW = () => new Date("2026-10-09T10:00:00Z"); // 17:00 WIB
 
 const ENDS = {
-  siang: { title: "Siang", detail: "2 antaran", label: "Makan siang" },
+  siang: { title: "Siang", detail: "2 pengantaran", label: "Makan siang" },
   malam: { title: "Malam", detail: "17.00", label: "Makan malam" },
 };
 
@@ -79,7 +79,7 @@ describe("MoodArc", () => {
   it("the arc is a tablist and switching fires the select haptic", () => {
     mount(<MoodArc {...ENDS} />);
     expect(screen.getByTestId("mood-arc").props.accessibilityRole).toBe("tablist");
-    const siang = screen.getByRole("tab", { name: "Makan siang, 2 antaran" });
+    const siang = screen.getByRole("tab", { name: "Makan siang, 2 pengantaran" });
     const malam = screen.getByRole("tab", { name: "Makan malam, 17.00" });
     expect(siang.props.accessibilityState).toMatchObject({ selected: true });
     expect(malam.props.accessibilityState).toMatchObject({ selected: false });
@@ -89,7 +89,7 @@ describe("MoodArc", () => {
     fireEvent.press(malam);
     expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("tab", { name: "Makan malam, 17.00" }).props.accessibilityState).toMatchObject({ selected: true });
-    expect(screen.getByRole("tab", { name: "Makan siang, 2 antaran" }).props.accessibilityState).toMatchObject({
+    expect(screen.getByRole("tab", { name: "Makan siang, 2 pengantaran" }).props.accessibilityState).toMatchObject({
       selected: false,
     });
   });
@@ -169,7 +169,7 @@ describe("MoodArc", () => {
     const idle = mood === "siang" ? "malam" : "siang";
     expect(flat(`mood-arc-ring-${idle}`).borderColor).toBe(m.markerIdle);
     expect(StyleSheet.flatten(screen.getByText("Siang").props.style).color).toBe(m.headerText);
-    expect(StyleSheet.flatten(screen.getByText("2 antaran").props.style).color).toBe(m.headerMeta);
+    expect(StyleSheet.flatten(screen.getByText("2 pengantaran").props.style).color).toBe(m.headerMeta);
     const glyph = within(screen.getByTestId("mood-arc-disc", { includeHiddenElements: true })).UNSAFE_getByProps({
       name: mood === "siang" ? "sunny" : "moon",
     });
@@ -254,7 +254,7 @@ describe("MoodArc", () => {
     // any scale; the 360dp, font scale 1.3 look itself is the emulator capture in the Task 9 report.
     mount(
       <MoodArc
-        siang={{ title: "Siang", detail: "12 antaran", label: "Makan siang" }}
+        siang={{ title: "Siang", detail: "12 pengantaran", label: "Makan siang" }}
         malam={{ title: "Malam", detail: "Tidak ada", label: "Makan malam" }}
       />,
     );
@@ -377,7 +377,7 @@ describe("Beranda header", () => {
   it("counts one delivery under the arc when its window does not start with a time", async () => {
     home(lunches(offer({ windows: { lunch: "siang hari", dinner: "17.00–19.00" } })));
     await screen.findByTestId("plate-hero");
-    expect(screen.getByTestId("mood-arc-detail-siang").props.children).toBe("1 antaran");
+    expect(screen.getByTestId("mood-arc-detail-siang").props.children).toBe("1 pengantaran");
   });
 
   it("headline counts two lunches", async () => {
@@ -385,9 +385,9 @@ describe("Beranda header", () => {
     const second = offer({ id: "p-sehat", name: "Paket Sehat", windows: { lunch: "12.00–13.00", dinner: "17.00–19.00" } });
     home(lunches(first, second));
     await screen.findAllByTestId(/^plate-/);
-    expect(title()).toBe("Siang ini,\n2 antaran.");
-    expect(screen.getByRole("tab", { name: "Makan siang, 2 antaran", selected: true })).toBeTruthy();
-    expect(screen.getByTestId("mood-arc-detail-siang").props.children).toBe("2 antaran");
+    expect(title()).toBe("Siang ini,\n2 pengantaran.");
+    expect(screen.getByRole("tab", { name: "Makan siang, 2 pengantaran", selected: true })).toBeTruthy();
+    expect(screen.getByTestId("mood-arc-detail-siang").props.children).toBe("2 pengantaran");
   });
 
   it("says nothing comes with no plate for the chosen meal, and counts the other meal in English", async () => {

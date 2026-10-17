@@ -56,15 +56,15 @@ export function Register() {
     <Screen>
       {sent ? (
         <View style={{ gap: 12, paddingTop: 8 }}>
-          <Text variant="title">{t("Periksa email Anda", "Check your email")}</Text>
+          <Text variant="title">{t("Cek emailmu", "Check your email")}</Text>
           <Text>
             {t(
-              "Jika alamat ini bisa didaftarkan, tautan verifikasi sudah dikirim. Buka tautan itu di HP ini untuk kembali ke Catera. Periksa juga folder spam.",
-              "If this address can be registered, a verification link has been sent. Open it on this phone to return to Catera. Check your spam folder too.",
+              "Kalau email ini bisa didaftarkan, kami sudah mengirim tautan verifikasi. Buka tautannya di HP ini untuk kembali ke Catera. Cek juga folder spam.",
+              "If this email can be registered, we've sent a verification link. Open it on this phone to come back to Catera. Check your spam folder too.",
             )}
           </Text>
           {resent ? (
-            <Text variant="caption">{t("Permintaan terkirim. Periksa email Anda.", "Request sent. Check your email.")}</Text>
+            <Text variant="caption">{t("Permintaan sudah dikirim. Cek emailmu.", "Request sent. Check your email.")}</Text>
           ) : null}
           <Button
             variant="secondary"
@@ -76,7 +76,7 @@ export function Register() {
         </View>
       ) : (
         <View style={{ gap: 14, paddingTop: 8 }}>
-          <Text>{t("Kami kirim tautan verifikasi ke email Anda.", "We will send a verification link to your email.")}</Text>
+          <Text>{t("Kami kirim tautan verifikasi ke emailmu.", "We'll send a verification link to your email.")}</Text>
           <Field label={t("Nama", "Name")} value={name} onChangeText={setName} autoComplete="name" maxLength={100} />
           <Field
             label="Email"

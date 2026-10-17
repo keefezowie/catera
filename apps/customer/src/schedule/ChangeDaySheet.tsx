@@ -48,8 +48,8 @@ function changeError(e: unknown, locale: "id" | "en", t: (id: string, en: string
   const shared = errorLabel(code, locale);
   if (shared) return shared;
   if (code === "NOT_AVAILABLE")
-    return t("Hari ini sudah tidak bisa diubah.", "This day can no longer be changed.");
-  return t("Belum berhasil. Coba lagi.", "That did not work. Try again.");
+    return t("Hari itu sudah tidak bisa diubah.", "This day can no longer be changed.");
+  return t("Perubahannya belum tersimpan. Coba lagi.", "Your change didn't save. Try again.");
 }
 
 /**
@@ -236,7 +236,7 @@ export function ChangeDaySheet({
     if (live.version !== delivery.version) {
       setDelivery(live);
       stale();
-      throw new Error(t("Detail hari ini berubah. Periksa lagi.", "This day changed. Please check again."));
+      throw new Error(t("Ada yang berubah di hari itu. Cek lagi sebelum lanjut.", "Something changed on this day. Check it again."));
     }
     try {
       // The minute may have passed while the sheet was open.
@@ -261,7 +261,7 @@ export function ChangeDaySheet({
       label: to,
       message:
         kind === "date"
-          ? t(`Hari dipindah ke ${to}`, `Day moved to ${to}`)
+          ? t(`Pengantaran pindah ke ${to}`, `Delivery moved to ${to}`)
           : t(`${oldDay} diantar ke ${to}`, `${oldDay} goes to ${to}`),
     });
   }
@@ -281,7 +281,7 @@ export function ChangeDaySheet({
       <Text variant="label" style={{ color: c.charcoal, fontVariant: ["tabular-nums"] }}>
         {open
           ? t(`Bisa diubah sampai ${deadline}`, `Can be changed until ${deadline}`)
-          : t("Hari ini sudah tidak bisa diubah", "This day can no longer be changed")}
+          : t("Hari itu sudah tidak bisa diubah", "This day can no longer be changed")}
       </Text>
 
       {!open ? (
@@ -365,7 +365,7 @@ export function ChangeDaySheet({
           <Text variant="caption">
             {mode === "date"
               ? t(
-                  `Tempat di hari baru dipesan dulu, baru ${oldDay} dilepas. ${delivery.offer.caterer} otomatis tahu.`,
+                  `Kami pesan tempat di hari baru dulu, baru ${oldDay} dilepas. ${delivery.offer.caterer} otomatis dapat kabar.`,
                   `The new day is booked first, then ${oldDay} is released. ${delivery.offer.caterer} is told automatically.`,
                 )
               : t(

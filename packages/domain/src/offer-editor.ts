@@ -82,7 +82,7 @@ export function offerEditorIssues(
       step: "offer",
       path: "packageType",
       message:
-        "Pilih jenis paket terlebih dahulu / Choose a package type first",
+        "Pilih jenis paket dulu / Choose a package type first",
     });
   // Validate prerequisites independently: a malformed later field must not suppress them.
   for (const [key, minimum] of [

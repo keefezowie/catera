@@ -16,7 +16,7 @@ const reasonLabels: Record<string, [string, string]> = {
     "This package already has a delivery",
   ],
   CAPACITY: ["Kapasitas tidak mencukupi", "Not enough capacity"],
-  OVERLAP: ["Bertabrakan dengan paket aktif", "Overlaps an active package"],
+  OVERLAP: ["Bentrok dengan paket aktif", "Clashes with an active package"],
 };
 
 export function availabilityReasonLabel(

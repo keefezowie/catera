@@ -110,7 +110,24 @@ it("flags a start date before the earliest one the kitchen can cook for", () => 
   const { recheck } = jest.requireActual("../src/import/rows") as typeof import("../src/import/rows");
   const checked = recheck(row(1, { startDate: "2026-10-01" }), [{ id: "p-rumahan", days: 20 }], "2026-10-08");
   expect(checked.needsReview).toBe(true);
-  expect(checked.reason).toMatch(/2026-10-08/);
+  expect(checked.reason).toMatch(/Kamis 8 Okt/);
+});
+
+it("gives a row's reasons in English, with the date named and no ISO date", () => {
+  const { recheck } = jest.requireActual("../src/import/rows") as typeof import("../src/import/rows");
+  const checked = recheck(row(1, { name: "", startDate: "2026-10-01" }), [{ id: "p-rumahan", days: 20 }], "2026-10-08", (_id, en) => en, "en");
+  expect(checked.reason).toContain("Name missing");
+  expect(checked.reason).toContain("Next delivery can be Thu 8 Oct at the earliest");
+  expect(checked.reason).not.toMatch(/\d{4}-\d{2}-\d{2}/);
+});
+
+it("says what is wrong with a package in English too", () => {
+  const { packageIssues, emptyPackage } = jest.requireActual("../src/business/package") as typeof import("../src/business/package");
+  const form = emptyPackage;
+  const english = packageIssues(form, (_id: string, en: string) => en);
+  expect(english.name).toBe("The package name needs at least 3 letters");
+  expect(english.image).toBe("Add a package photo");
+  expect(packageIssues(form).name).toBe("Nama paket minimal 3 huruf");
 });
 
 it("does not retry row by row when the connection drops", async () => {

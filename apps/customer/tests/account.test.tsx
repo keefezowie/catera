@@ -479,7 +479,7 @@ describe("Riwayat pembayaran", () => {
     expect(pay.map((b) => b.props.accessibilityLabel)).toEqual(["Bayar Paket Pilih Metode", "Bayar Paket Menunggu"]);
     expect(screen.getByText(/Pembayaran sedang dicek/)).toBeTruthy();
     expect(screen.getByText(/Pembayaran diterima, pemesanan sedang ditinjau Catera/)).toBeTruthy();
-    expect(screen.getByText(/Jangan membayar lagi/)).toBeTruthy();
+    expect(screen.getByText(/Jangan bayar lagi/)).toBeTruthy();
     fireEvent.press(screen.getByText("Paket Dicek"));
     expect(router.push).not.toHaveBeenCalled();
     fireEvent.press(screen.getByText("Paket Ditinjau"));
@@ -659,7 +659,7 @@ describe("Akun mood header", () => {
     expect(screen.queryByTestId("mood-fill-siang", { includeHiddenElements: true })).toBeNull();
     expect(screen.queryByTestId("mood-fill-malam", { includeHiddenElements: true })).toBeNull();
     expect(screen.getByText("Alamat")).toBeTruthy();
-    expect(screen.getByText("Masuk untuk melihat paket dan jadwal antar Anda.")).toBeTruthy();
+    expect(screen.getByText("Masuk dulu untuk melihat paket dan jadwal antar.")).toBeTruthy();
   });
 
   it("signed out keeps a header too, so the status icons never fall on the cream page", async () => {

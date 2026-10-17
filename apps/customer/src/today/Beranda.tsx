@@ -207,9 +207,9 @@ function HomeHeader({ loaded }: { loaded?: HomeHeading }) {
  * several, or that none comes.
  */
 function headlineFor(plates: PlateData[], t: Translate): string {
-  if (plates.length > 1) return t(`${plates.length} antaran.`, `${plates.length} deliveries.`);
+  if (plates.length > 1) return t(`${plates.length} pengantaran.`, `${plates.length} deliveries.`);
   const plate = plates[0];
-  if (!plate) return t("tidak ada antaran.", "no delivery.");
+  if (!plate) return t("tidak ada pengantaran.", "no delivery.");
   return `${plate.lead?.toLowerCase() ?? plate.packageName}.`;
 }
 
@@ -221,7 +221,7 @@ function headlineFor(plates: PlateData[], t: Translate): string {
 function arcDetail(plates: PlateData[], t: Translate): string {
   if (!plates.length) return t("Tidak ada", "None");
   const start = plates.length === 1 ? windowStart(plates[0].window) : null;
-  return start ?? t(`${plates.length} antaran`, plates.length === 1 ? "1 delivery" : `${plates.length} deliveries`);
+  return start ?? t(`${plates.length} pengantaran`, plates.length === 1 ? "1 delivery" : `${plates.length} deliveries`);
 }
 
 /** "11.00" from a window such as "11.00–13.00"; null when the window does not start with a time. */
@@ -248,7 +248,7 @@ function OtherMealRow({ plates, apiBase, onPress }: { plates: PlateData[]; apiBa
   const dinner = plate.meal === "dinner";
   const label = dinner ? t("Malam ini", "Dinner tonight") : t("Siang ini", "Lunch today");
   const when =
-    plates.length > 1 ? t(`${plates.length} antaran`, `${plates.length} deliveries`) : plate.window || "";
+    plates.length > 1 ? t(`${plates.length} pengantaran`, `${plates.length} deliveries`) : plate.window || "";
   const dish = plate.lead ?? plate.packageName;
   const waiting = plates.find((p) => NEEDS_YOU.includes(p.state));
   const status = waiting ? sentences(waiting, t)[0] : "";

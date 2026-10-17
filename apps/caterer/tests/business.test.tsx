@@ -97,7 +97,7 @@ it("asks for daily capacity before saving", async () => {
     </MobileProvider>,
   );
   expect(packageIssues({ ...form, capacity: "" }).capacity).toBe("Isi kapasitas per hari");
-  fireEvent.press(await screen.findByRole("button", { name: "Simpan paket" }));
+  fireEvent.press(await screen.findByRole("button", { name: "Terbitkan paket" }));
   expect(await screen.findByText("Isi kapasitas per hari")).toBeTruthy();
   expect(command).not.toHaveBeenCalled();
 });
@@ -221,7 +221,7 @@ it("shows a live package read-only and copies it into a new package", async () =
     </MobileProvider>,
   );
   expect(await screen.findByText("Makan Siang Rumahan")).toBeTruthy();
-  expect(screen.queryByRole("button", { name: "Simpan paket" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Terbitkan paket" })).toBeNull();
   fireEvent.press(screen.getByRole("button", { name: "Salin jadi paket baru" }));
   expect(router.push).toHaveBeenCalledWith("/paket/baru?from=p-live");
 });
@@ -259,7 +259,7 @@ it("saves a copied package as a new one, never over the original", async () => {
       <PackageEditor from={liveOffer} />
     </MobileProvider>,
   );
-  fireEvent.press(await screen.findByRole("button", { name: "Simpan paket" }));
+  fireEvent.press(await screen.findByRole("button", { name: "Terbitkan paket" }));
   await waitFor(() => expect(command).toHaveBeenCalled());
   const [action, payload] = command.mock.calls[0] as unknown as [string, Record<string, unknown>];
   expect(action).toBe("package.save");
@@ -277,10 +277,10 @@ describe("Uang error guard", () => {
         <UangScreen />
       </MobileProvider>,
     );
-    const crashed = await screen.findByText("Catatan uang belum bisa ditampilkan.");
+    const crashed = await screen.findByText("Rincian uang belum bisa ditampilkan.");
     expect(StyleSheet.flatten(crashed.props.style).color).toBe(require("@catera/design-tokens").nativeThemes.light.danger);
     fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
-    expect(await screen.findByText("Catatan uang belum bisa ditampilkan.")).toBeTruthy();
+    expect(await screen.findByText("Rincian uang belum bisa ditampilkan.")).toBeTruthy();
     errorLog.mockRestore();
   });
 });
@@ -477,7 +477,7 @@ describe("Uang and Aktifkan errors", () => {
     const retry = await screen.findByRole("button", { name: "Coba lagi" });
     down = false;
     fireEvent.press(retry);
-    expect(await screen.findByText("Masuk ke rekening berikutnya")).toBeTruthy();
+    expect(await screen.findByText("Akan masuk ke rekening")).toBeTruthy();
   });
 
   it("Aktifkan error offers Coba lagi", async () => {

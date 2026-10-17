@@ -68,10 +68,10 @@ export function ImportAssistant() {
   const edit = (n: number) => router.push(rowHref(n) as never);
   const message = (code: string) =>
     ({
-      IMPORT_UNREADABLE: t("Catatan ini belum bisa dibaca. Coba ketik ulang atau kirim foto yang lebih jelas.", "We couldn't read this. Try retyping it or a clearer photo."),
+      IMPORT_UNREADABLE: t("Catatan ini belum bisa dibaca. Coba ketik ulang atau kirim foto yang lebih jelas.", "We couldn't read this. Retype it, or send a clearer photo."),
       IMPORT_TOO_LONG: t("Daftarnya terlalu panjang. Kirim sebagian dulu, maksimal 100 pelanggan.", "The list is too long. Send part of it first, up to 100 customers."),
       INVALID_SIZE: t("Lampiran terlalu besar. Maksimal 4 MB.", "Attachments are too large. 4 MB at most."),
-      QUOTA: t("Batas baca hari ini sudah tercapai. Coba lagi besok.", "Today's reading limit is reached. Try again tomorrow."),
+      QUOTA: t("Jatah baca hari ini sudah habis. Coba lagi besok.", "You've used today's reading limit. Try again tomorrow."),
       IMPORT_ASSISTANT_DISABLED: t("Asisten impor belum aktif. Kamu tetap bisa memasukkan pelanggan satu per satu.", "The import assistant isn't switched on yet. You can still add customers one by one."),
       IMPORT_UNAVAILABLE: t("Asisten impor sedang tidak tersedia. Coba lagi nanti.", "The import assistant is unavailable. Try again later."),
     })[code] ?? (errorLabel(code, locale) || t("Catatan belum bisa diproses. Coba lagi.", "The notes could not be processed. Try again."));
@@ -83,6 +83,8 @@ export function ImportAssistant() {
         { name: "", phone: "", addressLine: "", area: "", city: "", notes: "", packageId: packages.length === 1 ? packages[0].id : null, startDate: null, remainingDays: null, portions: 1, needsReview: true, reason: "" },
         packages,
         earliestImportStart(new Date()),
+        t,
+        locale,
       ),
     ]);
     setRows((all) => [...(all ?? []), row]);
@@ -249,13 +251,13 @@ export function ImportAssistant() {
         <>
           <Text>
             {t(
-              "Tempel catatan, chat WhatsApp, atau lampirkan foto buku, PDF dan Excel. Asisten akan menyusunnya menjadi daftar untuk kamu periksa.",
+              "Tempel catatan atau chat WhatsApp, atau lampirkan foto buku, PDF dan Excel. Asisten menyusunnya jadi daftar, lalu kamu cek.",
               "Paste notes or WhatsApp chats, or attach notebook photos, PDFs and Excel files. The assistant turns them into a list for you to check.",
             )}
           </Text>
           <Text variant="caption">
             {t(
-              "Data ini dibaca oleh AI untuk menyusun daftar. Tidak ada yang tersimpan sebelum kamu menekan Simpan.",
+              "AI membaca data ini untuk menyusun daftar. Belum ada yang tersimpan sampai kamu tekan Simpan.",
               "This data is read by AI to build the list. Nothing is saved until you press Save.",
             )}
           </Text>
@@ -264,7 +266,7 @@ export function ImportAssistant() {
             value={text}
             onChangeText={setText}
             multiline
-            placeholder={"Bu Ani – 0812… – Jl. Melati 5 Tebet – Rumahan, sisa 8 hari"}
+            placeholder={"Bu Ani, 0812…, Jl. Melati 5 Tebet, Rumahan, sisa 8 hari"}
             placeholderTextColor={c.muted}
             // The platform default ink is near black, which vanishes on the dark surface.
             style={{ minHeight: 160, textAlignVertical: "top", borderWidth: 1, borderColor: c.line, borderRadius: 12, padding: 14, fontFamily: FONT, fontSize: 15, color: c.charcoal, backgroundColor: c.surface }}

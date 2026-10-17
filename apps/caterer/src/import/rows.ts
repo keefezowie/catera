@@ -1,4 +1,4 @@
-import { normalizeCustomerPhone, type PilotImportRow } from "@catera/domain";
+import { normalizeCustomerPhone, shortDate, type Locale, type PilotImportRow } from "@catera/domain";
 
 /** One customer as the assistant read it; the caterer can correct any field before saving. */
 export type AssistantRow = {
@@ -17,16 +17,25 @@ export type AssistantRow = {
 };
 
 /** Re-check a row after the caterer edits it, with the same rules the server applies. */
-export function recheck(r: AssistantRow, packages: { id: string; days: number }[], earliest: string): AssistantRow {
+export function recheck(
+  r: AssistantRow,
+  packages: { id: string; days: number }[],
+  earliest: string,
+  t: (id: string, en: string) => string = (id) => id,
+  locale: Locale = "id",
+): AssistantRow {
   const reasons: string[] = [];
-  if (!r.name.trim()) reasons.push("Nama belum ada");
-  if (!/^\+62\d{8,13}$/.test(tidyPhone(r.phone))) reasons.push("Nomor WhatsApp tidak lengkap");
+  if (!r.name.trim()) reasons.push(t("Nama belum ada", "Name missing"));
+  if (!/^\+62\d{8,13}$/.test(tidyPhone(r.phone))) reasons.push(t("Nomor WhatsApp tidak lengkap", "WhatsApp number incomplete"));
   const pkg = packages.find((p) => p.id === r.packageId);
-  if (!pkg) reasons.push("Paket belum dipilih");
-  if (r.addressLine.trim().length < 5 || !r.area.trim() || !r.city.trim()) reasons.push("Alamat belum lengkap");
-  if (!r.startDate || !/^\d{4}-\d{2}-\d{2}$/.test(r.startDate)) reasons.push("Tanggal mulai belum ada");
-  else if (r.startDate < earliest) reasons.push(`Tanggal antar berikutnya paling cepat ${earliest}`);
-  if (!r.remainingDays || r.remainingDays < 1 || (pkg && r.remainingDays > pkg.days)) reasons.push("Sisa hari perlu dicek");
+  if (!pkg) reasons.push(t("Paket belum dipilih", "Package not chosen"));
+  if (r.addressLine.trim().length < 5 || !r.area.trim() || !r.city.trim()) reasons.push(t("Alamat belum lengkap", "Address incomplete"));
+  if (!r.startDate || !/^\d{4}-\d{2}-\d{2}$/.test(r.startDate)) reasons.push(t("Tanggal mulai belum ada", "Start date missing"));
+  else if (r.startDate < earliest) {
+    const day = shortDate(earliest, locale);
+    reasons.push(t(`Tanggal antar berikutnya paling cepat ${day}`, `Next delivery can be ${day} at the earliest`));
+  }
+  if (!r.remainingDays || r.remainingDays < 1 || (pkg && r.remainingDays > pkg.days)) reasons.push(t("Sisa hari perlu dicek", "Check the days left"));
   return { ...r, needsReview: reasons.length > 0, reason: reasons.join(" · ") };
 }
 

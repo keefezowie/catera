@@ -117,36 +117,42 @@ export function nutritionFromForm(n: NutritionForm): Nutrition | null {
 }
 
 /** Field → message for the gizi fields; empty when they can be saved (all empty is fine: the section is optional). */
-export function nutritionIssues(n: NutritionForm): Partial<Record<NutritionField, string>> {
+export function nutritionIssues(
+  n: NutritionForm,
+  t: (id: string, en: string) => string = (id) => id,
+): Partial<Record<NutritionField, string>> {
   const issues: Partial<Record<NutritionField, string>> = {};
-  for (const [field, v] of nutritionEntries(n)) if (v.trim() && digits(v) === null) issues[field] = "Angka bulat saja";
+  for (const [field, v] of nutritionEntries(n)) if (v.trim() && digits(v) === null) issues[field] = t("Angka bulat saja", "Whole numbers only");
   if (Object.keys(issues).length) return issues;
   // A range needs both ends; one end alone is not a range a customer can read.
   const [from, to] = n.caloriesKcal.map((v) => !!v.trim());
   if (n.range && from !== to) {
-    issues[from ? "caloriesMax" : "caloriesKcal"] = "Isi juga batas yang satunya";
+    issues[from ? "caloriesMax" : "caloriesKcal"] = t("Isi juga batas yang satunya", "Fill in the other end too");
     return issues;
   }
   // The shared schema owns the range rule (min not above max).
   if (!nutritionSchema.safeParse(nutritionFromForm(n) ?? {}).success)
-    issues.caloriesMax = "Batas bawah tidak boleh lebih dari batas atas";
+    issues.caloriesMax = t("Batas bawah tidak boleh lebih dari batas atas", "The lower end can't be above the upper end");
   return issues;
 }
 
-/** Field → message, Indonesian first; empty when the package can be saved. */
-export function packageIssues(f: PackageForm): Partial<Record<keyof PackageForm, string>> {
+/** Field → message, Indonesian first (or through the app's `t`); empty when the package can be saved. */
+export function packageIssues(
+  f: PackageForm,
+  t: (id: string, en: string) => string = (id) => id,
+): Partial<Record<keyof PackageForm, string>> {
   const issues: Partial<Record<keyof PackageForm, string>> = {};
-  if (f.name.trim().length < 3) issues.name = "Nama paket minimal 3 huruf";
-  if (f.description.trim().length < 10) issues.description = "Ceritakan paketnya, minimal 10 huruf";
+  if (f.name.trim().length < 3) issues.name = t("Nama paket minimal 3 huruf", "The package name needs at least 3 letters");
+  if (f.description.trim().length < 10) issues.description = t("Ceritakan paketnya, minimal 10 huruf", "Describe the package, at least 10 letters");
   const price = digits(f.price);
-  if (price === null || price < 1000) issues.price = "Isi harga per porsi";
-  if (!f.weekdays.length) issues.weekdays = "Pilih hari antar";
+  if (price === null || price < 1000) issues.price = t("Isi harga per porsi, minimal Rp1.000", "Enter a price per portion, at least Rp1,000");
+  if (!f.weekdays.length) issues.weekdays = t("Pilih hari antar", "Choose delivery days");
   const capacity = digits(f.capacity);
-  if (capacity === null || capacity < 1) issues.capacity = "Isi kapasitas per hari";
-  if (!f.image.trim()) issues.image = "Tambahkan foto paket";
-  if (!Object.values(f.counts).some((n) => n > 0)) issues.counts = "Isi minimal satu hidangan per porsi";
+  if (capacity === null || capacity < 1) issues.capacity = t("Isi kapasitas per hari", "Enter the daily capacity");
+  if (!f.image.trim()) issues.image = t("Tambahkan foto paket", "Add a package photo");
+  if (!Object.values(f.counts).some((n) => n > 0)) issues.counts = t("Isi minimal satu hidangan per porsi", "Add at least one dish per portion");
   // The gizi messages sit under their own fields; this entry only stops the save.
-  const gizi = Object.values(nutritionIssues(f.nutrition));
+  const gizi = Object.values(nutritionIssues(f.nutrition, t));
   if (gizi.length) issues.nutrition = gizi[0];
   return issues;
 }

@@ -218,7 +218,7 @@ test("the complete Indonesian order row fits at 1280 with the long delivery stat
   const row = page
     .locator(".ops-order-table tbody tr:not(.ops-group-heading)")
     .first();
-  await expect(row).toContainText("Dalam pengantaran");
+  await expect(row).toContainText("Sedang diantar");
   const bounds = (await row.boundingBox())!;
   expect(bounds.y + bounds.height).toBeLessThanOrEqual(800);
   expect(
@@ -363,7 +363,7 @@ for (const locale of ["en", "id"]) {
     await expect.poll(() => reads).toBeGreaterThanOrEqual(2);
     await expect(
       page.getByRole("dialog").getByRole("alert").first(),
-    ).toContainText(locale === "en" ? "delivered" : "Diterima");
+    ).toContainText(locale === "en" ? "Arrived" : "Sampai");
     await expect(
       page.getByRole("button", {
         name: locale === "en" ? "Review change" : "Tinjau perubahan",

@@ -48,7 +48,7 @@ export function Masuk() {
       setError(
         code === "INVALID_OTP"
           ? t("Kode belum cocok. Periksa SMS lalu coba lagi.", "That code doesn't match. Check the SMS and try again.")
-          : errorLabel(code, locale) || t("Belum berhasil. Coba lagi.", "That didn't work. Try again."),
+          : errorLabel(code, locale) || t("Belum bisa masuk. Coba lagi.", "Couldn't sign you in. Try again."),
       );
       setFailures((n) => n + 1);
     } finally {
@@ -69,7 +69,7 @@ export function Masuk() {
         <StateArt pose="melambai" />
         <Text style={{ color: c.muted, textAlign: "center" }}>
           {t(
-            "Pakai nomor HP yang Anda berikan ke katering. Kami kirim kode lewat SMS.",
+            "Pakai nomor HP yang kamu berikan ke katering. Kodenya kami kirim lewat SMS.",
             "Use the phone number you gave your caterer. We'll text you a code.",
           )}
         </Text>
@@ -168,7 +168,7 @@ export function Masuk() {
       />
       {__DEV__ ? (
         <View style={{ gap: 8 }}>
-          <Text variant="caption">{t("Demo (data sintetis)", "Demo (synthetic data)")}</Text>
+          <Text variant="caption">{t("Demo (data contoh)", "Demo (sample data)")}</Text>
           <Button
             variant="secondary"
             label={t("Masuk sebagai pelanggan demo", "Sign in as demo customer")}

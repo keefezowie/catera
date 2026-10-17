@@ -96,7 +96,7 @@ export function RecapCard({
             {/* A one-day plan names its day once. */}
             {sub.starts_on === sub.ends_on
               ? shortDate(sub.starts_on, locale)
-              : `${shortDate(sub.starts_on, locale)} – ${shortDate(sub.ends_on, locale)}`}
+              : t(`${shortDate(sub.starts_on, locale)} sampai ${shortDate(sub.ends_on, locale)}`, `${shortDate(sub.starts_on, locale)} to ${shortDate(sub.ends_on, locale)}`)}
           </Text>
         </View>
       </View>

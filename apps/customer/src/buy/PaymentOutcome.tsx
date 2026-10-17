@@ -108,15 +108,15 @@ export function PaymentOutcome({
   const message: Record<Exclude<Stage, "pay" | "paid">, [string, string]> = {
     checking: [
       t("Memeriksa pembayaran", "Checking payment"),
-      t("Jangan bayar lagi. Status diperiksa langsung dari bank.", "Don't pay again. The status is checked with the bank."),
+      t("Jangan bayar lagi. Kami sedang mengecek statusnya.", "Don't pay again. We're checking the status."),
     ],
-    expired: [t("Waktu habis. Jadwal dicek ulang saat membayar lagi.", "Time's up. The schedule is checked again when you pay."), ""],
-    failed: [t("Pembayaran gagal. Jadwal dicek ulang saat membayar lagi.", "Payment failed. The schedule is checked again when you pay."), ""],
+    expired: [t("Waktu bayar habis. Kalau bayar lagi, kami cek ulang jadwalnya dulu.", "Payment time ran out. If you pay again, we'll check the schedule first."), ""],
+    failed: [t("Pembayaran gagal. Kalau bayar lagi, kami cek ulang jadwalnya dulu.", "Payment failed. If you pay again, we'll check the schedule first."), ""],
     review: [
       t("Pembayaran sedang ditinjau", "Payment under review"),
       t(
-        "Pembayaran diterima, tetapi jadwal belum terkonfirmasi. Tim Catera membantu menyelesaikannya. Jangan bayar lagi.",
-        "Payment arrived but the schedule isn't confirmed yet. Catera will sort it out. Don't pay again.",
+        "Pembayaranmu sudah masuk, tapi jadwalnya belum pasti. Tim Catera sedang membantu menyelesaikannya. Jangan bayar lagi.",
+        "Your payment came through, but the schedule isn't confirmed yet. The Catera team is helping sort it out. Don't pay again.",
       ),
     ],
     refunded: [

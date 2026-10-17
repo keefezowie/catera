@@ -74,8 +74,8 @@ export function useData<T>(key: string, loader: () => Promise<T>, options?: Data
       const error =
         errorLabel((e as { code?: string }).code || (e as Error).message, locale) ||
         (locale === "en"
-          ? "Unable to load. Check your connection and try again."
-          : "Tidak dapat memuat. Periksa koneksi dan coba lagi.");
+          ? "Couldn't load. Check your connection and try again."
+          : "Belum bisa memuat. Cek koneksi lalu coba lagi.");
       setState((s) => {
         if (s.key === identity && s.data !== null) return { ...s, loading: false, error };
         const fallback = value !== null && value !== undefined;

@@ -669,7 +669,7 @@ test("package wizard publishes composition only and customers buy before dated m
   await page.request.post("/api/v1/auth/demo", { data: { role: "customer" } });
   await page.goto("/packages/" + id);
   await expect(
-    page.getByText("Menu belum ditentukan", { exact: true }).first(),
+    page.getByText("Menu belum diisi", { exact: true }).first(),
   ).toBeVisible();
   await expect(page.getByText("2 Lauk", { exact: true }).first()).toBeVisible();
   const customer = (await (await page.request.get("/api/v1/customer")).json())

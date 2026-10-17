@@ -32,7 +32,7 @@ type Kind = "belum" | "kurang" | "layak";
 const KINDS: { id: Kind; subject: string; en: string }[] = [
   { id: "belum", subject: "Belum sampai", en: "Has not arrived" },
   { id: "kurang", subject: "Ada yang kurang atau salah", en: "Something is missing or wrong" },
-  { id: "layak", subject: "Makanan tidak layak", en: "The food is not fit to eat" },
+  { id: "layak", subject: "Makanannya tidak layak dimakan", en: "The food isn't fit to eat" },
 ];
 /** The command needs a body of at least five characters; the note is optional for the customer. */
 const WITHOUT_NOTE = "Tanpa catatan tambahan.";
@@ -214,11 +214,11 @@ function Report({ actorId, id, meal: wanted, jenis }: { actorId: string; id: str
         // The server takes reports only for today or earlier in Jakarta.
         setError(
           t(
-            "Laporan bisa dikirim mulai hari pengantaran, setelah jam antar dimulai.",
+            "Kamu bisa melapor mulai hari pengantaran, setelah jam antarnya mulai.",
             "You can report from the delivery day, once the delivery window starts.",
           ),
         );
-      } else setError(errorLabel(code, locale) || t("Belum berhasil. Coba lagi.", "That did not work. Try again."));
+      } else setError(errorLabel(code, locale) || t("Laporannya belum terkirim. Coba lagi.", "Your report didn't send. Try again."));
       setFailures((n) => n + 1);
     } finally {
       setBusy(false);

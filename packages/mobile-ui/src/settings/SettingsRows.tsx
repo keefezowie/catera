@@ -225,10 +225,10 @@ export function SettingsRow({
 }
 
 /**
- * A row with the platform's own switch (Pengaturan's "Notifikasi di ponsel ini"). The track is `forest` when on; on
+ * A row with the platform's own switch (Pengaturan's "Notifikasi di HP ini"). The track is `forest` when on; on
  * Android the thumb is `cream` on it, the M3 on-primary handle. `loading` holds the switch's place with a skeleton block
  * until the first read answers, so the switch never flips by itself on open. `notice` is a line under the row that
- * explains a state ("Izinkan notifikasi di Pengaturan ponsel"), and `action` the one button that resolves it.
+ * explains a state ("Izinkan notifikasi di Pengaturan HP"), and `action` the one button that resolves it.
  */
 export function SettingsSwitchRow({
   label,

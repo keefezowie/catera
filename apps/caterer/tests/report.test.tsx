@@ -227,11 +227,11 @@ it("reloads the report after a refused action so the next tap uses the fresh ver
   show(runtime);
   fireEvent.changeText(await screen.findByLabelText("Balasan untuk pelanggan"), "Kami antar ulang sekarang.");
   fireEvent.press(screen.getByText("Balas"));
-  expect(await screen.findByText("Data sudah berubah. Muat ulang sebelum mencoba lagi.")).toBeTruthy();
+  expect(await screen.findByText("Ada yang berubah. Muat ulang, lalu coba lagi.")).toBeTruthy();
   // Nothing else reloads after a failed command: only the screen itself can fetch the new version.
   expect(await screen.findByText("Dibalas")).toBeTruthy();
   // The message and the typed reply survive the reload.
-  expect(screen.getByText("Data sudah berubah. Muat ulang sebelum mencoba lagi.")).toBeTruthy();
+  expect(screen.getByText("Ada yang berubah. Muat ulang, lalu coba lagi.")).toBeTruthy();
   fireEvent.press(screen.getByText("Balas"));
   await waitFor(() =>
     expect(runtime.api.command).toHaveBeenLastCalledWith(

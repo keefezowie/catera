@@ -167,7 +167,7 @@ const STATES: State[] = [
     pose: "tidur",
     runtime: () => runtimeWith({ customer: jest.fn(async () => nothingNext()) }),
     ui: <Beranda />,
-    copy: [/tidak ada antaran\.$/],
+    copy: [/tidak ada pengantaran\.$/],
   },
   {
     name: "Jadwal month with no meals",
@@ -181,7 +181,7 @@ const STATES: State[] = [
     pose: "tidur",
     runtime: () => runtimeWith(),
     ui: <NotificationsScreen />,
-    copy: ["Belum ada kabar baru.", "Kabar makanan dan bantuan akan hadir di sini."],
+    copy: ["Belum ada kabar baru.", "Kabar soal makananmu dan permintaan bantuan muncul di sini."],
   },
   // mencari: nothing found.
   {
@@ -207,7 +207,7 @@ const STATES: State[] = [
     pose: "mencari",
     runtime: () => runtimeWith(),
     ui: <SavedList />,
-    copy: ["Belum ada paket tersimpan.", "Ketuk hati pada paket yang Anda suka."],
+    copy: ["Belum ada paket tersimpan.", "Ketuk hati di paket yang kamu suka."],
     action: "Jelajah paket",
   },
   // melambai: hello.
@@ -216,7 +216,7 @@ const STATES: State[] = [
     pose: "melambai",
     runtime: () => runtimeWith({}, null),
     ui: <Beranda />,
-    copy: ["Mau makan apa minggu ini?", "Pilih paket katering rumahan, diantar sesuai jadwal Anda."],
+    copy: ["Mau makan apa minggu ini?", "Pilih paket katering rumahan, diantar sesuai jadwalmu."],
     action: "Jelajah paket",
   },
   {
@@ -232,7 +232,7 @@ const STATES: State[] = [
     pose: "melambai",
     runtime: () => runtimeWith({}, null),
     ui: <LoginRoute />,
-    copy: ["Pakai nomor HP yang Anda berikan ke katering. Kami kirim kode lewat SMS."],
+    copy: ["Pakai nomor HP yang kamu berikan ke katering. Kodenya kami kirim lewat SMS."],
     action: "Kirim kode",
   },
   {
@@ -251,7 +251,7 @@ const STATES: State[] = [
     runtime: () => runtimeWith({ me: jest.fn(async () => Promise.reject(offline())) }),
     ui: <Text>app</Text>,
     bare: true,
-    copy: ["Belum bisa terhubung."],
+    copy: ["Belum bisa terhubung. Cek koneksimu."],
     action: "Coba lagi",
   },
   {
@@ -292,7 +292,7 @@ const STATES: State[] = [
     runtime: () => runtimeWith({ customer: jest.fn(async () => Promise.reject(offline())) }),
     ui: <PlanDetailScreen />,
     params: { id: "s-1" },
-    copy: ["Koneksi terlalu lama. Periksa koneksi dan coba lagi."],
+    copy: ["Terlalu lama menunggu jawaban. Cek koneksi lalu coba lagi."],
     action: "Coba lagi",
   },
   {
@@ -540,7 +540,7 @@ describe("no mascot art next to a food photo", () => {
   it("a Beranda with nothing today or next leaves the resting mascot out while the Paket selesai photo shows", async () => {
     render(wrap(runtimeWith({ customer: jest.fn(async () => quietWithRecap()) }), <Beranda />));
     expect(await screen.findByTestId("recap-photo", hidden, { timeout: 4000 })).toBeTruthy();
-    expect(screen.getByText(/tidak ada antaran\.$/)).toBeTruthy();
+    expect(screen.getByText(/tidak ada pengantaran\.$/)).toBeTruthy();
     noArt();
     expect(screen.queryByTestId("mascot-tidur-slot", hidden)).toBeNull();
   });

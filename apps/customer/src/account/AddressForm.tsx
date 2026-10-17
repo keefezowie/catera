@@ -206,7 +206,7 @@ function Form({ actorId, address, title }: { actorId: string; address: Address |
       />
       <Text variant="caption">
         {t(
-          "Alamat pengantaran yang sudah dijadwalkan hanya berubah lewat Ubah hari di Jadwal.",
+          "Mengubah alamat ini tidak mengubah pengantaran yang sudah terjadwal. Untuk itu, pakai Ubah hari di Jadwal.",
           "A delivery already scheduled changes its address only through Change day in Schedule.",
         )}
       </Text>

@@ -206,7 +206,7 @@ describe("native headers", () => {
   it("with the demo strip the Android bar adds no second status-bar inset", async () => {
     mockMe.demo = true;
     await open("/");
-    expect(screen.getByText("Demo · data sintetis")).toBeTruthy();
+    expect(screen.getByText("Demo (data contoh)")).toBeTruthy();
     await go(() => router.push("/paket/baru"));
     expect(headerOf("paket/baru").props).toMatchObject({ hidden: false, consumeTopInset: false });
   });
@@ -357,7 +357,7 @@ describe("ScreenGuard under the native bar", () => {
     };
     await open("/");
     await go(() => router.push("/uang"));
-    const message = await screen.findByText("Catatan uang belum bisa ditampilkan.");
+    const message = await screen.findByText("Rincian uang belum bisa ditampilkan.");
     const uang = screenOf("uang");
     // One header for the screen, the native bar, titled Uang with the platform back.
     const bars = uang.findAll((n) => n.type === "RNSScreenStackHeaderConfig");

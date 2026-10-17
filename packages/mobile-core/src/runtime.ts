@@ -62,8 +62,8 @@ export function createMobileRuntime(config: MobileRuntimeConfig) {
     null;
   const api = createApi(apiBase, token, { timeoutMs: 15_000 });
 
-  /** `name` names a brand-new profile when the account carries none (default "Katerer"). */
-  async function signInPassword(email: string, password: string, requestId: string, name = "Katerer") {
+  /** `name` names a brand-new profile when the account carries none (default "Katering"). */
+  async function signInPassword(email: string, password: string, requestId: string, name = "Katering") {
     if (!supabase) throw new Error("NOT_CONFIGURED");
     if (!email.trim() || !password) throw new Error("INVALID_CREDENTIALS");
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -101,7 +101,7 @@ export function createMobileRuntime(config: MobileRuntimeConfig) {
     const { data, error } = await supabase.auth.verifyOtp({ phone, token: otp, type: "sms" });
     if (error || !data.session) throw new Error("INVALID_OTP");
     await SecureStore.deleteItemAsync(key("demo.token"));
-    return ensureActor(supabase, name || "Katerer", requestId);
+    return ensureActor(supabase, name || "Katering", requestId);
   }
 
   async function demoLogin(role: "owner" | "staff" | "customer") {

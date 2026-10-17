@@ -75,9 +75,9 @@ export function PackageEditor({ from, firstPublish = null }: { from?: SellerOffe
   }
 
   const [busy, save] = useBusy(async () => {
-    const issues = packageIssues(form);
+    const issues = packageIssues(form, t);
     setShown(issues);
-    setGiziShown(nutritionIssues(form.nutrition));
+    setGiziShown(nutritionIssues(form.nutrition, t));
     setAttempt((n) => n + 1);
     if (Object.keys(issues).length) return;
     // Fixed before the save: the save itself makes the package read show a published package.
@@ -122,7 +122,7 @@ export function PackageEditor({ from, firstPublish = null }: { from?: SellerOffe
   }
 
   return (
-    <Screen footer={<Button label={t("Simpan paket", "Save package")} busy={busy} disabled={uploading} onPress={() => void save()} />}>
+    <Screen footer={<Button label={t("Terbitkan paket", "Publish package")} busy={busy} disabled={uploading} onPress={() => void save()} />}>
       <PressableScale
         accessibilityRole="button"
         accessibilityLabel={t("Pilih foto paket", "Choose package photo")}
@@ -139,15 +139,15 @@ export function PackageEditor({ from, firstPublish = null }: { from?: SellerOffe
       </PressableScale>
       {shown.image ? <FormError message={shown.image} failureKey={attempt} testID="form-error-image" /> : null}
       <Field label={t("Nama paket", "Package name")} value={form.name} onChangeText={(v) => set("name", v)} error={shown.name} placeholder="Makan Siang Rumahan" />
-      <Field label={t("Ceritakan paketnya", "Describe it")} value={form.description} onChangeText={(v) => set("description", v)} error={shown.description} multiline />
-      <Text variant="label">{t("Isi satu porsi", "In one portion")}</Text>
+      <Field label={t("Ceritakan paketnya", "Describe the package")} value={form.description} onChangeText={(v) => set("description", v)} error={shown.description} multiline />
+      <Text variant="label">{t("Isi satu porsi", "What's in one portion")}</Text>
       {defaultDishCategories.map((c) => (
         <Stepper key={c.id} label={locale === "id" ? c.name : c.nameEn ?? c.name} decreaseLabel={t(`Kurangi ${c.name}`, `Decrease ${c.nameEn ?? c.name}`)} increaseLabel={t(`Tambah ${c.name}`, `Increase ${c.nameEn ?? c.name}`)} value={form.counts[c.id] ?? 0} onChange={(n) => set("counts", { ...form.counts, [c.id]: n })} max={10} />
       ))}
       {shown.counts ? <FormError message={shown.counts} failureKey={attempt} testID="form-error-counts" /> : null}
       <NutritionFields value={form.nutrition} onChange={(n) => set("nutrition", n)} errors={giziShown} />
       <Field label={t("Harga per porsi (Rp)", "Price per portion (Rp)")} value={form.price} onChangeText={(v) => set("price", v.replace(/\D/g, ""))} error={shown.price} keyboardType="number-pad" placeholder="28000" />
-      <Text variant="label">{t("Waktu makan", "Meal")}</Text>
+      <Text variant="label">{t("Waktu makan", "Meal times")}</Text>
       <Segmented
         value={form.meal}
         onChange={(v) => set("meal", v)}
@@ -171,7 +171,7 @@ export function PackageEditor({ from, firstPublish = null }: { from?: SellerOffe
       {shown.weekdays ? <FormError message={shown.weekdays} failureKey={attempt} testID="form-error-weekdays" /> : null}
       <Field
         label={t("Kapasitas per hari (porsi)", "Daily capacity (portions)")}
-        hint={t("Berapa porsi paling banyak yang sanggup kamu masak per hari.", "The most portions you can cook in a day.")}
+        hint={t("Paling banyak berapa porsi yang sanggup kamu masak dalam sehari?", "The most portions you can cook in a day.")}
         value={form.capacity}
         onChangeText={(v) => set("capacity", v.replace(/\D/g, ""))}
         error={shown.capacity}

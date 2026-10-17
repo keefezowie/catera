@@ -96,7 +96,7 @@ beforeEach(() => {
  * Hartono, 4 Kost Damai). Its label says what the sheet can do, so it is found by its start.
  */
 const stopMenu = async (n: number) =>
-  within(await screen.findByTestId(`stop-${n}`)).getByLabelText(/^(Laporkan masalah|Pindah hari)/);
+  within(await screen.findByTestId(`stop-${n}`)).getByLabelText(/^(Laporkan masalah|Pindah tanggal)/);
 
 it("shows the lunch cooking total for the day", async () => {
   renderToday(runtimeWith(same(canvasDay())));
@@ -128,7 +128,7 @@ it("reports a failed delivery by stepping it to the issue status", async () => {
   renderToday(runtime);
   fireEvent.press(await stopMenu(3));
   fireEvent.press(await screen.findByText("Gagal diantar"));
-  fireEvent.press(screen.getByText("Simpan laporan"));
+  fireEvent.press(screen.getByText("Tandai gagal diantar"));
   await waitFor(() => expect(runtime.api.command).toHaveBeenCalledTimes(3));
   const calls = (runtime.api.command as jest.Mock).mock.calls;
   expect(calls.map((c) => [c[0], c[1].status, c[1].version])).toEqual([
@@ -226,14 +226,14 @@ it("opens on the day a notification points to", async () => {
 
 it("keeps the day toggle for a kitchen with packages on a day without deliveries", async () => {
   renderToday(runtimeWith(async () => quietDay()));
-  expect(await screen.findByText("Tidak ada masakan untuk hari ini.")).toBeTruthy();
+  expect(await screen.findByText("Tidak ada yang dimasak hari ini.")).toBeTruthy();
   expect(screen.getByRole("button", { name: CHANGE_DAY })).toBeTruthy();
   expect(screen.queryByText("Siapkan dapurmu")).toBeNull();
 });
 
 it("never shows helpers the owner setup steps", async () => {
   renderToday(runtimeWith(async () => emptyDay(), { ...owner, role: "staff" }));
-  expect(await screen.findByText("Tidak ada masakan untuk hari ini.")).toBeTruthy();
+  expect(await screen.findByText("Tidak ada yang dimasak hari ini.")).toBeTruthy();
   expect(screen.getByRole("button", { name: CHANGE_DAY })).toBeTruthy();
   expect(screen.queryByText("Siapkan dapurmu")).toBeNull();
 });
@@ -265,7 +265,7 @@ it("the stop menu button and the problem options give haptics", async () => {
 it("tells the caterer plainly what a failed delivery means", async () => {
   renderToday(runtimeWith(same(canvasDay())));
   fireEvent.press(await stopMenu(3));
-  expect(await screen.findByText(/tidak dihitung terkirim/)).toBeTruthy();
+  expect(await screen.findByText(/tidak dihitung sampai/)).toBeTruthy();
   expect(screen.queryByText(/pengembalian dana diurus Catera/)).toBeNull();
 });
 
@@ -325,8 +325,8 @@ it("shows the move button on Besok only for days that can still move", async () 
   expect(screen.queryByText("Gagal diantar")).toBeNull();
   expect(screen.getByText("Pindah tanggal")).toBeTruthy();
   // Past the deadline (Keluarga Hartono, 3) or a fixed-date package (Kantor PT Sinar Rasa, 2): no button at all.
-  expect(within(screen.getByTestId("stop-3")).queryByLabelText(/^(Laporkan masalah|Pindah hari)/)).toBeNull();
-  expect(within(screen.getByTestId("stop-2")).queryByLabelText(/^(Laporkan masalah|Pindah hari)/)).toBeNull();
+  expect(within(screen.getByTestId("stop-3")).queryByLabelText(/^(Laporkan masalah|Pindah tanggal)/)).toBeNull();
+  expect(within(screen.getByTestId("stop-2")).queryByLabelText(/^(Laporkan masalah|Pindah tanggal)/)).toBeNull();
 });
 
 it("says when customer reports could not be loaded and retries", async () => {
@@ -364,15 +364,15 @@ describe("session cards", () => {
 
   it("shows a calm empty state", async () => {
     renderToday(runtimeWith(async () => quietDay()));
-    expect(await screen.findByText("Tidak ada masakan untuk hari ini.")).toBeTruthy();
+    expect(await screen.findByText("Tidak ada yang dimasak hari ini.")).toBeTruthy();
     expect(screen.getByText("Pesanan baru akan muncul di sini.")).toBeTruthy();
   });
 
   it("words the empty state for tomorrow", async () => {
     renderToday(runtimeWith(async () => quietDay()));
-    await screen.findByText("Tidak ada masakan untuk hari ini.");
+    await screen.findByText("Tidak ada yang dimasak hari ini.");
     fireEvent.press(screen.getByRole("button", { name: CHANGE_DAY }));
-    expect(await screen.findByText("Tidak ada masakan untuk besok.")).toBeTruthy();
+    expect(await screen.findByText("Tidak ada yang dimasak besok.")).toBeTruthy();
   });
 });
 
@@ -540,7 +540,7 @@ describe("Hari ini by mood", () => {
       renderMood(runtime);
       const card = await screen.findByTestId("session-count");
       expect(await within(card).findByText("lunch portions · 4 addresses")).toBeTruthy();
-      expect(within(card).getByText("Deliver 10.30")).toBeTruthy();
+      expect(within(card).getByText("Delivery 10.30")).toBeTruthy();
     });
   });
 
@@ -583,7 +583,7 @@ describe("Hari ini by mood", () => {
 
     it("keeps the whole-day empty card when neither meal has work", async () => {
       renderMood(runtimeWith(async () => quietDay()), MALAM_NOW);
-      expect(await screen.findByText("Tidak ada masakan untuk hari ini.")).toBeTruthy();
+      expect(await screen.findByText("Tidak ada yang dimasak hari ini.")).toBeTruthy();
       expect(screen.queryByText("Tidak ada pengantaran makan malam.")).toBeNull();
       expect(screen.queryByText(/^Lihat makan/)).toBeNull();
     });
@@ -679,7 +679,7 @@ it("Today error offers Coba lagi", async () => {
 
 it("new kitchen card makes no time claim", async () => {
   renderToday(runtimeWith(async () => emptyDay()));
-  expect(await screen.findByText("Satu layar")).toBeTruthy();
+  expect(await screen.findByText("Nama, foto, harga, hari antar")).toBeTruthy();
   expect(screen.queryByText(/menit/)).toBeNull();
 });
 
@@ -777,7 +777,7 @@ describe("attention cards", () => {
     const runtime = runtimeWith(same(canvasDay()));
     (runtime.api.sellerAttention as jest.Mock).mockResolvedValue(attention("/seller/customers"));
     renderToday(runtime);
-    fireEvent.press(await screen.findByRole("link", { name: /Ada urusan pembayaran/ }));
+    fireEvent.press(await screen.findByRole("link", { name: /Ada pembayaran yang perlu dicek/ }));
     expect(require("../src/nav").openLink).toHaveBeenCalledWith("/pelanggan");
     expect(router.push).not.toHaveBeenCalled();
   });
@@ -792,7 +792,7 @@ describe("attention cards", () => {
       total: 2, nextCursor: null, timezone: "Asia/Jakarta",
     });
     renderToday(runtime);
-    const link = await screen.findByRole("link", { name: /Ada urusan pembayaran/ });
+    const link = await screen.findByRole("link", { name: /Ada pembayaran yang perlu dicek/ });
     const chevrons = within(link).UNSAFE_getAllByType(Ionicons);
     expect(chevrons).toHaveLength(1);
     expect(chevrons[0].props).toMatchObject({ name: "chevron-forward", size: 18, color: nativeThemes.light.muted });

@@ -65,7 +65,7 @@ function PackageChoices({ title }: { title: string }) {
  * closing the sheet in any way loses nothing. "Selesai" returns to the list; "Hapus baris ini" takes the row off it and offers "Urungkan" in a toast.
  */
 export function ImportRowEditor({ n }: { n: number }) {
-  const { t } = useMobile();
+  const { t, locale } = useMobile();
   const c = useColors();
   const toast = useToast();
   const { rows, packages, setRow, removeRow, restoreRow } = useImportStore();
@@ -120,7 +120,7 @@ export function ImportRowEditor({ n }: { n: number }) {
   if (!packages) return <PackageChoices title={row.name || t("Pelanggan", "Customer")} />;
 
   const update = (patch: Partial<AssistantRow>) =>
-    setRow(n, (current) => recheck({ ...current, ...patch }, packages, earliestImportStart(new Date())));
+    setRow(n, (current) => recheck({ ...current, ...patch }, packages, earliestImportStart(new Date()), t, locale));
 
   return (
     <View testID="import-row-sheet" style={{ flex: 1 }}>

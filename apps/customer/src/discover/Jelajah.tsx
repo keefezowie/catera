@@ -240,7 +240,7 @@ function Browse({ area, onArea }: { area: string | null; onArea: (value: string)
               accessibilityLabel={t("Cari paket", "Search packages")}
               value={search}
               onChangeText={setSearch}
-              placeholder={t("Cari ayam bakar, nabati, Bu Rini…", "Search grilled chicken, plant-based, Bu Rini…")}
+              placeholder={t("Cari menu atau katering…", "Search a dish or caterer…")}
               placeholderTextColor={palette.headerMeta}
               returnKeyType="search"
               style={{ flex: 1, minHeight: 48, fontFamily: FONT, fontSize: 15, color: palette.headerText }}

@@ -80,7 +80,7 @@ export function ClaimScreen() {
       setError(
         c === "INVALID_OTP"
           ? t("Kode belum cocok. Periksa SMS lalu coba lagi.", "That code doesn't match. Check the SMS and try again.")
-          : errorLabel(c, locale) || t("Belum berhasil. Coba lagi.", "That didn't work. Try again."),
+          : errorLabel(c, locale) || t("Belum bisa menyambungkan langganan. Coba lagi.", "Couldn't connect the subscription. Try again."),
       );
       setFailures((n) => n + 1);
     } finally {
@@ -118,7 +118,7 @@ export function ClaimScreen() {
         <Header />
         <Text style={{ fontFamily: fontFor("700") }} testID="claim-dead">
           {t(
-            "Tautan ini tidak bisa dipakai. Minta tautan baru ke katering Anda.",
+            "Tautan ini tidak bisa dipakai. Minta tautan baru ke kateringmu.",
             "This link can't be used. Ask your caterer for a new one.",
           )}
         </Text>
@@ -127,7 +127,7 @@ export function ClaimScreen() {
     );
   if (offline)
     return (
-      <Screen nativeTitle={t("Belum bisa memuat", "Couldn't load yet")}>
+      <Screen nativeTitle={t("Belum bisa memuat", "Couldn't load")}>
         <Header />
         <ReadError
           art
@@ -151,8 +151,8 @@ export function ClaimScreen() {
       <Screen nativeTitle={t("Perlu dicek dulu", "Needs a check first")}>
         <Text>
           {t(
-            `${katering} perlu memeriksa langganan ini dulu. Pengantaran Anda tetap berjalan.`,
-            `${katering} needs to check this subscription first. Your deliveries continue.`,
+            `${katering} perlu mengecek langganan ini dulu. Pengantaranmu tetap jalan.`,
+            `${katering} needs to check this subscription first. Your deliveries carry on.`,
           )}
         </Text>
         <Button label={t("Ke Beranda", "Go to Home")} onPress={() => goToTab("index")} />
@@ -162,7 +162,7 @@ export function ClaimScreen() {
   if (step === "lihat")
     return (
       <Screen
-        nativeTitle={t("Langganan Anda sekarang ada di Catera", "Your subscription is now on Catera")}
+        nativeTitle={t("Langgananmu sekarang ada di Catera", "Your subscription is now on Catera")}
         footer={
           <View style={{ gap: 10 }}>
             <Button
@@ -171,7 +171,7 @@ export function ClaimScreen() {
             />
             <Text variant="caption" style={{ textAlign: "center" }}>
               {t(
-                `Bukan nomor Anda? Minta ${katering} mengirim tautan baru.`,
+                `Bukan nomormu? Minta ${katering} mengirim tautan baru.`,
                 `Not your number? Ask ${katering} to send a new link.`,
               )}
             </Text>
@@ -186,8 +186,8 @@ export function ClaimScreen() {
         </Text>
         <Text style={{ textAlign: "center" }}>
           {t(
-            `Sudah dibayar ke ${katering}, tidak ada tagihan baru. Di sini Anda bisa melihat menu, tahu kapan makanan berangkat, dan memindah hari.`,
-            `Already paid to ${katering}, no new bill. Here you can see the menu, know when your food leaves, and move days.`,
+            `Sudah dibayar ke ${katering}, tidak ada tagihan baru. Di sini kamu bisa melihat menu, tahu kapan makanan berangkat, dan memindahkan tanggal pengantaran.`,
+            `Already paid to ${katering}, no new bill. Here you can see the menu, know when your food leaves, and move delivery dates.`,
           )}
         </Text>
         <Card>
@@ -206,7 +206,7 @@ export function ClaimScreen() {
 
   const sent = step === "kode";
   return (
-    <Screen nativeTitle={sent ? t("Masukkan kode dari SMS", "Enter the code from the SMS") : t("Nomor HP Anda", "Your phone number")}>
+    <Screen nativeTitle={sent ? t("Masukkan kode dari SMS", "Enter the code from the SMS") : t("Nomor HP kamu", "Your phone number")}>
       <Text>
         {sent
           ? t(
@@ -240,8 +240,8 @@ export function ClaimScreen() {
                 if (!phoneMatchesMask(number, preview.maskedPhone)) {
                   setError(
                     t(
-                      `Nomor ini berbeda dengan yang dicatat ${katering}. Pakai nomor yang Anda berikan ke ${katering}, atau minta ${katering} memperbarui nomor Anda.`,
-                      `This number differs from the one ${katering} has. Use the number you gave ${katering}, or ask ${katering} to update it.`,
+                      `Nomor ini beda dengan yang dicatat ${katering}. Pakai nomor yang kamu berikan ke mereka, atau minta mereka memperbarui nomormu.`,
+                      `This number doesn't match the one ${katering} has. Use the number you gave them, or ask them to update it.`,
                     ),
                   );
                   setFailures((n) => n + 1);
@@ -265,7 +265,7 @@ export function ClaimScreen() {
             autoFocus
           />
           <Field
-            label={t("Nama Anda", "Your name")}
+            label={t("Namamu", "Your name")}
             value={name}
             onChangeText={setName}
             autoComplete="name"
@@ -279,7 +279,7 @@ export function ClaimScreen() {
           />
           <Text variant="caption" style={{ textAlign: "center" }}>
             {t(
-              "Dengan melanjutkan, Anda setuju dengan Ketentuan dan Kebijakan Privasi Catera.",
+              "Dengan melanjutkan, kamu setuju dengan Ketentuan dan Kebijakan Privasi Catera.",
               "By continuing, you agree to Catera's Terms and Privacy Policy.",
             )}
           </Text>

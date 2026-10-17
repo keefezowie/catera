@@ -68,17 +68,17 @@ test("both apps render the same Pengaturan rows from one component", async () =>
     runtimeWith(person),
     <Pengaturan voice="kamu" supporting="Makanan berangkat, menu besok, pembayaran" channelName="Pengantaran & bantuan" onSignedOut={jest.fn()} />,
   );
-  await screen.findByRole("switch", { name: "Notifikasi di ponsel ini" });
+  await screen.findByRole("switch", { name: "Notifikasi di HP ini" });
   const customerRows = rowNames();
   customerSide.unmount();
   renderWith(
     runtimeWith({ ...person, id: "u-2", role: "owner" }),
     <Pengaturan voice="kamu" supporting="Pesanan baru, laporan, pembayaran" channelName="Catera Dapur" onSignedOut={jest.fn()} />,
   );
-  await screen.findByRole("switch", { name: "Notifikasi di ponsel ini" });
+  await screen.findByRole("switch", { name: "Notifikasi di HP ini" });
   expect(rowNames()).toEqual(customerRows);
   expect(customerRows).toEqual([
-    "Notifikasi di ponsel ini",
+    "Notifikasi di HP ini",
     "Bahasa",
     "Tampilan",
     "Versi aplikasi",

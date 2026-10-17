@@ -107,7 +107,7 @@ describe("Paket diterbitkan", () => {
     mockParams = { from: "p-draf" };
     const first = runtimeWith({ sellerOperations: ops([pkg("p-draf", "draft")]) });
     const view = wrap(first, <NewPackageRoute />);
-    fireEvent.press(await screen.findByRole("button", { name: "Simpan paket" }));
+    fireEvent.press(await screen.findByRole("button", { name: "Terbitkan paket" }));
     await waitFor(() => expect(first.api.command).toHaveBeenCalledWith("package.save", expect.anything(), expect.any(String)));
     const beat = within(await screen.findByTestId("success-beat"));
     expect(beat.getByText("Paket diterbitkan")).toBeTruthy();
@@ -126,7 +126,7 @@ describe("Paket diterbitkan", () => {
     mockParams = { from: "p-live" };
     const later = runtimeWith({ sellerOperations: ops([pkg("p-live", "published")]) });
     wrap(later, <NewPackageRoute />);
-    fireEvent.press(await screen.findByRole("button", { name: "Simpan paket" }));
+    fireEvent.press(await screen.findByRole("button", { name: "Terbitkan paket" }));
     await waitFor(() => expect(router.back).toHaveBeenCalledTimes(1));
     expect(await screen.findByText("Paket diterbitkan")).toBeTruthy();
     expect(screen.queryByTestId("success-beat")).toBeNull();
@@ -148,7 +148,7 @@ describe("Paket diterbitkan", () => {
     reduced(true);
     mockParams = { from: "p-draf" };
     wrap(runtimeWith({ sellerOperations: ops([pkg("p-draf", "draft")]) }), <NewPackageRoute />);
-    fireEvent.press(await screen.findByRole("button", { name: "Simpan paket" }));
+    fireEvent.press(await screen.findByRole("button", { name: "Terbitkan paket" }));
     const beat = within(await screen.findByTestId("success-beat"));
     expect(beat.getByTestId("mascot-art", { includeHiddenElements: true })).toBeTruthy();
     expect(screen.queryByTestId("confetti", { includeHiddenElements: true })).toBeNull();
@@ -224,7 +224,7 @@ describe("menu", () => {
     expect(rows()[0].props.exiting).toBeDefined();
     expect(rows()[0].props.layout).toBeDefined();
     // Add the lauk.
-    fireEvent.changeText(screen.getByLabelText("Lauk berikutnya"), "ikan");
+    fireEvent.changeText(screen.getByLabelText("Tambah lauk"), "ikan");
     fireEvent.press(screen.getByText("Ikan bakar"));
     view.rerender(ui());
     expect(rows()).toHaveLength(2);

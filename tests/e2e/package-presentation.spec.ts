@@ -317,7 +317,7 @@ test("seller pricing and card preview stay aligned without persisting a total", 
     currency(20500),
   );
   await card.getByRole("button", { name: "Malam", exact: true }).click();
-  await expect(card).toContainText("Menu belum ditentukan");
+  await expect(card).toContainText("Menu belum diisi");
   await expect(card).not.toContainText("27 g");
   await expect(
     card.getByRole("button", { name: /^Bandingkan:/ }),

@@ -536,7 +536,7 @@ describe("sheet states", () => {
   it("the discard question speaks to each app in its own voice", () => {
     expect(unsavedCopy("laporan")).toEqual({
       title: "Buang laporan?",
-      message: "Yang sudah Anda tulis akan hilang.",
+      message: "Yang sudah kamu tulis akan hilang.",
       confirmLabel: "Buang",
       cancelLabel: "Lanjut menulis",
       tone: "danger",
@@ -577,7 +577,7 @@ describe("Ada masalah as a sheet", () => {
       expect(root()).toEqual(["(tabs)", "masalah/[id]", "konfirmasi"]);
       expect(stack("(index)")).toEqual(["index", "hari/[id]"]);
       expect(screen.getByRole("header", { name: "Buang laporan?" })).toBeTruthy();
-      expect(screen.getByText("Yang sudah Anda tulis akan hilang.")).toBeTruthy();
+      expect(screen.getByText("Yang sudah kamu tulis akan hilang.")).toBeTruthy();
       // Keep writing: the sheet and the text stay.
       await go(() => fireEvent.press(screen.getByRole("button", { name: "Lanjut menulis" })));
       overHari();

@@ -94,7 +94,7 @@ export function useSaved(next: string) {
       });
       setCursor(page.nextCursor);
     } catch {
-      setError(t("Tidak dapat memuat lagi. Coba lagi.", "Could not load more. Try again."));
+      setError(t("Belum bisa memuat lebih banyak. Coba lagi.", "Couldn't load more. Try again."));
     }
   }
 

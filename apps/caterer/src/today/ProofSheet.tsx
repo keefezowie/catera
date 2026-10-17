@@ -5,7 +5,7 @@ import * as ImagePicker from "expo-image-picker";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { errorLabel, kitchenSession, type KitchenMeal, type Stop } from "@catera/domain";
-import { useData, useMobile } from "@catera/mobile-core";
+import { useData, useMobile, plural } from "@catera/mobile-core";
 import {
   Button,
   FormError,
@@ -84,7 +84,7 @@ function Tile({
       </View>
       <View style={{ flex: 1, gap: 2 }}>
         <Text style={{ fontFamily: fontFor("800") }}>{stop.name}</Text>
-        <Text variant="caption">{`${stop.portions} porsi · ${stop.packageName}`}</Text>
+        <Text variant="caption">{t(`${stop.portions} porsi · ${stop.packageName}`, `${plural(stop.portions, "portion")} · ${stop.packageName}`)}</Text>
         {/* A missing photo is a to-do on the tile, in words: bold charcoal, never a danger caption. */}
         <Text testID={`proof-state-${stop.deliveryId}`} variant="caption" style={{ color: c.charcoal, fontFamily: fontFor("700") }}>
           {failed

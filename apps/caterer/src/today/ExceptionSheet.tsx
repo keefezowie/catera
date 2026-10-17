@@ -9,7 +9,7 @@ import {
   type KitchenMeal,
   type SellerOperationsState,
 } from "@catera/domain";
-import { useData, useMobile } from "@catera/mobile-core";
+import { useData, useMobile, plural } from "@catera/mobile-core";
 import {
   Button,
   FormError,
@@ -122,7 +122,7 @@ export function ExceptionSheet({ id, meal, date }: { id: string; meal: KitchenMe
     if (!saved || closed.current) return;
     closed.current = true;
     router.back();
-    toast.show({ message: t("Laporan tersimpan", "Report saved"), tone: "success" });
+    toast.show({ message: t("Ditandai gagal diantar", "Marked not delivered"), tone: "success" });
   }, [saved, toast, t]);
 
   const [busy, save] = useBusy(async () => {
@@ -180,7 +180,7 @@ export function ExceptionSheet({ id, meal, date }: { id: string; meal: KitchenMe
   return (
     <Frame
       title={stop?.name ?? delivery?.customer.name ?? t("Pengantaran", "Delivery")}
-      context={stop ? `${stop.portions} porsi · ${stop.packageName}` : undefined}
+      context={stop ? t(`${stop.portions} porsi · ${stop.packageName}`, `${plural(stop.portions, "portion")} · ${stop.packageName}`) : undefined}
     >
       <View style={{ gap: 8 }}>
         {canFail ? (
@@ -191,8 +191,8 @@ export function ExceptionSheet({ id, meal, date }: { id: string; meal: KitchenMe
             <Text style={{ fontFamily: fontFor("800") }}>{t("Gagal diantar", "Not delivered")}</Text>
             <Text variant="caption">
               {t(
-                "Makanan tidak sampai. Hari ini tidak dihitung terkirim dan tidak dibayarkan ke kamu. Hubungi pelanggan untuk menggantinya.",
-                "The food didn't arrive. This day isn't counted as delivered or paid to you. Contact the customer to make up for it.",
+                "Makanan tidak sampai. Hari ini tidak dihitung sampai dan tidak dibayar ke kamu. Hubungi pelanggan untuk atur penggantinya.",
+                "The food didn't arrive. This day isn't counted as arrived or paid to you. Contact the customer to arrange a replacement.",
               )}
             </Text>
           </View>
@@ -219,8 +219,8 @@ export function ExceptionSheet({ id, meal, date }: { id: string; meal: KitchenMe
               <Text style={{ fontFamily: fontFor("800") }}>{t("Pindah tanggal", "Move date")}</Text>
               <Text variant="caption">
                 {t(
-                  "Hari ini dipindah ke tanggal lain. Pelanggan yang memakai aplikasi diberi tahu.",
-                  "Move this day to another date. Customers using the app are told.",
+                  "Pindahkan pengantaran ini ke tanggal lain. Pelanggan yang memakai aplikasi Catera dapat notifikasi.",
+                  "Move this delivery to another date. Customers using the Catera app get a notification.",
                 )}
               </Text>
             </View>
@@ -230,7 +230,7 @@ export function ExceptionSheet({ id, meal, date }: { id: string; meal: KitchenMe
         {!canFail && !canMove ? <Text selectable>{nothing}</Text> : null}
       </View>
       {failure ? <FormError message={failure.message} failureKey={failure.key} /> : null}
-      {canFail ? <Button label={t("Simpan laporan", "Save report")} busy={busy} onPress={() => void save()} /> : null}
+      {canFail ? <Button label={t("Tandai gagal diantar", "Mark not delivered")} busy={busy} onPress={() => void save()} /> : null}
     </Frame>
   );
 }

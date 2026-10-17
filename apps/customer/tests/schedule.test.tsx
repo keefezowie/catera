@@ -468,7 +468,7 @@ describe("Jadwal", () => {
     renderWith(runtime, <Jadwal />);
     const header = await screen.findByTestId("jadwal-header");
     const retry = await within(header).findByRole("button", { name: "Coba lagi" });
-    const message = within(header).getByText("Koneksi terlalu lama. Periksa koneksi dan coba lagi.");
+    const message = within(header).getByText("Terlalu lama menunggu jawaban. Cek koneksi lalu coba lagi.");
     expect(message.props.selectable).toBe(true);
     // Readable on both moods: the header's own text colour, not the theme danger red.
     expect(StyleSheet.flatten(message.props.style).color).toBe(siang.headerText);
@@ -633,7 +633,7 @@ describe("Ubah hari sheet", () => {
     expect(screen.getByRole("button", { name: "Pindah tanggal" }).props.accessibilityState.disabled).toBe(true);
     fireEvent.press(screen.getByTestId("calendar-day-2026-10-19"));
     expect(
-      screen.getByText("Tempat di hari baru dipesan dulu, baru Kamis 8 Okt dilepas. Dapur Contoh otomatis tahu."),
+      screen.getByText("Kami pesan tempat di hari baru dulu, baru Kamis 8 Okt dilepas. Dapur Contoh otomatis dapat kabar."),
     ).toBeTruthy();
     fireEvent.press(screen.getByRole("button", { name: "Pindah ke Senin 19 Okt" }));
     await waitFor(() =>
@@ -659,7 +659,7 @@ describe("Ubah hari sheet", () => {
     fireEvent.press(await screen.findByTestId("calendar-day-2026-10-19"));
     fireEvent.press(screen.getByRole("button", { name: "Pindah ke Senin 19 Okt" }));
     await waitFor(() => expect(onDone).toHaveBeenCalledTimes(1));
-    expect(onDone).toHaveBeenCalledWith({ mode: "date", label: "Senin 19 Okt", message: "Hari dipindah ke Senin 19 Okt" });
+    expect(onDone).toHaveBeenCalledWith({ mode: "date", label: "Senin 19 Okt", message: "Pengantaran pindah ke Senin 19 Okt" });
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
@@ -679,7 +679,7 @@ describe("Ubah hari sheet", () => {
     view.unmount();
     await act(async () => settle());
     // The toast still tells what happened; nothing is closed, because a back now would leave the page under it.
-    expect(onDone).toHaveBeenCalledWith({ mode: "date", label: "Senin 19 Okt", message: "Hari dipindah ke Senin 19 Okt" });
+    expect(onDone).toHaveBeenCalledWith({ mode: "date", label: "Senin 19 Okt", message: "Pengantaran pindah ke Senin 19 Okt" });
     expect(onClose).not.toHaveBeenCalled();
   });
 
@@ -820,7 +820,7 @@ describe("Ubah hari sheet", () => {
     const runtime = runtimeWith(stateOf([late]), available);
     const openUrl = jest.spyOn(Linking, "openURL").mockResolvedValue(true);
     renderSheet(late, runtime);
-    expect(await screen.findByText("Hari ini sudah tidak bisa diubah")).toBeTruthy();
+    expect(await screen.findByText("Hari itu sudah tidak bisa diubah")).toBeTruthy();
     expect(screen.queryByText("Pindah tanggal")).toBeNull();
     expect(screen.queryByText("Ganti alamat")).toBeNull();
     expect(screen.queryByRole("button", { name: /Pindah ke|Antar ke/ })).toBeNull();
@@ -846,7 +846,7 @@ describe("Ubah hari sheet", () => {
     renderSheet(flexible, runtimeWith(stateOf([flexible]), available, command));
     fireEvent.press(await screen.findByTestId("calendar-day-2026-10-19"));
     fireEvent.press(screen.getByRole("button", { name: "Pindah ke Senin 19 Okt" }));
-    expect(await screen.findByText("Data sudah berubah. Muat ulang sebelum mencoba lagi.")).toBeTruthy();
+    expect(await screen.findByText("Ada yang berubah. Muat ulang, lalu coba lagi.")).toBeTruthy();
   });
 
   it("sends the version captured on open and stops when the day changed underneath", async () => {
@@ -862,7 +862,7 @@ describe("Ubah hari sheet", () => {
     // The live day moves to version 4 while the sheet is open.
     view.rerender(ui({ ...flexible, version: 4 }));
     fireEvent.press(screen.getByRole("button", { name: "Pindah ke Senin 19 Okt" }));
-    expect(await screen.findByText("Detail hari ini berubah. Periksa lagi.")).toBeTruthy();
+    expect(await screen.findByText("Ada yang berubah di hari itu. Cek lagi sebelum lanjut.")).toBeTruthy();
     expect(command).not.toHaveBeenCalled();
     // Checked again: the next confirm sends the new version.
     fireEvent.press(screen.getByRole("button", { name: "Pindah ke Senin 19 Okt" }));
@@ -873,7 +873,7 @@ describe("Ubah hari sheet", () => {
         expect.any(String),
       ),
     );
-    expect(screen.queryByText("Detail hari ini berubah. Periksa lagi.")).toBeNull();
+    expect(screen.queryByText("Ada yang berubah di hari itu. Cek lagi sebelum lanjut.")).toBeNull();
   });
 
   it("does not send once the cutoff passes while the sheet is open", async () => {

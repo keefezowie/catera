@@ -336,7 +336,7 @@ describe("states", () => {
     await act(async () => void screen.getByTestId("screen-scroll").props.refreshControl.props.onRefresh());
     await waitFor(() => expect(screen.getByTestId("screen-scroll").props.refreshControl.props.refreshing).toBe(false));
     expect(screen.getByTestId("plate-hero")).toBeTruthy();
-    expect(await screen.findByText("Koneksi terlalu lama. Periksa koneksi dan coba lagi.")).toBeTruthy();
+    expect(await screen.findByText("Terlalu lama menunggu jawaban. Cek koneksi lalu coba lagi.")).toBeTruthy();
   });
 
   it("the skeleton's fixed heights match the loaded page at the default text size, so a larger text only grows the page", async () => {
@@ -606,7 +606,7 @@ describe("finding 3: Bayar while the payment is checked", () => {
       runtimeWith({ checkout: jest.fn(async () => checkout), command: jest.fn(async () => ({})) }),
       <PaymentScreen checkoutId="ck-1" />,
     );
-    const rule = await screen.findByText("Jangan bayar lagi. Status diperiksa langsung dari bank.");
+    const rule = await screen.findByText("Jangan bayar lagi. Kami sedang mengecek statusnya.");
     const mascot = screen.getByRole("progressbar", { name: "Memeriksa pembayaran…" });
     // Document order: the mascot first, then the instruction, then Cek status.
     const order: string[] = [];
@@ -845,7 +845,7 @@ describe("fix round 2", () => {
 
     const timing = jest.spyOn(Reanimated, "withTiming");
     await act(async () => read.resolve(checking));
-    await screen.findByText("Jangan bayar lagi. Status diperiksa langsung dari bank.");
+    await screen.findByText("Jangan bayar lagi. Kami sedang mengecek statusnya.");
     // The same mascot is still drawn: a new one would hide for its 300ms entry delay, and a fade would blank it.
     expect(screen.getByTestId("mascot-loading")).toBe(before);
     expect(flat(visual()).opacity).toBe(1);

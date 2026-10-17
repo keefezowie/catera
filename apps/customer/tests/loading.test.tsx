@@ -263,7 +263,7 @@ describe("Jadwal", () => {
     const retry = await within(header).findByRole("button", { name: "Coba lagi" });
     const frame = within(header).getByTestId("month-frame");
     expect(within(frame).getByRole("button", { name: "Coba lagi" })).toBe(retry);
-    expect(within(frame).getByText("Koneksi terlalu lama. Periksa koneksi dan coba lagi.")).toBeTruthy();
+    expect(within(frame).getByText("Terlalu lama menunggu jawaban. Cek koneksi lalu coba lagi.")).toBeTruthy();
     expect(frameHeight(frame)).toEqual({ rows: 6, height: 352 });
     expect(screen.queryByTestId("month-grid")).toBeNull();
   });

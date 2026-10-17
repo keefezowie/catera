@@ -137,9 +137,9 @@ describe("MascotLoading", () => {
 
   it("mascot shows its label at once and its art after 300ms", () => {
     jest.useFakeTimers();
-    render(<MascotLoading label="Menyiapkan Catera untuk Anda…" />);
+    render(<MascotLoading label="Menyiapkan Catera…" />);
     // The status is spoken at once; the drawing waits 300ms so a fast answer shows nothing.
-    expect(screen.getByRole("progressbar").props.accessibilityLabel).toBe("Menyiapkan Catera untuk Anda…");
+    expect(screen.getByRole("progressbar").props.accessibilityLabel).toBe("Menyiapkan Catera…");
     expect(flat(visual())).toMatchObject({ opacity: 0 });
     act(() => jest.advanceTimersByTime(299));
     expect(flat(visual())).toMatchObject({ opacity: 0 });
@@ -261,20 +261,20 @@ describe("MascotLoading", () => {
     view.unmount();
     render(
       <ThemeProvider storageKey="primitives-theme">
-        <MascotLoading label="Menyiapkan Catera untuk Anda…" startup />
+        <MascotLoading label="Menyiapkan Catera…" startup />
       </ThemeProvider>,
     );
     expect(flat(screen.getByTestId("mascot-loading"))).toMatchObject({ backgroundColor: dark.canvas });
-    const label = screen.getByText("Menyiapkan Catera untuk Anda…", { includeHiddenElements: true });
+    const label = screen.getByText("Menyiapkan Catera…", { includeHiddenElements: true });
     expect(flat(label)).toMatchObject({ color: dark.charcoal });
     expect(flat(label).fontFamily).toBeUndefined();
   });
 
   it("the startup mascot fills the canvas and its label uses the system font", () => {
     jest.useFakeTimers();
-    render(<MascotLoading label="Menyiapkan Catera untuk Anda…" startup size={160} />);
+    render(<MascotLoading label="Menyiapkan Catera…" startup size={160} />);
     expect(flat(screen.getByTestId("mascot-loading"))).toMatchObject({ backgroundColor: nativeThemes.light.canvas });
-    const label = screen.getByText("Menyiapkan Catera untuk Anda…", { includeHiddenElements: true });
+    const label = screen.getByText("Menyiapkan Catera…", { includeHiddenElements: true });
     expect(flat(label).fontFamily).toBeUndefined();
     expect(flat(screen.getByTestId("mascot-art", { includeHiddenElements: true }))).toMatchObject({ width: 160 });
   });

@@ -72,7 +72,7 @@ function Updates() {
               {t("Belum ada kabar baru.", "No new updates yet.")}
             </Text>
             <Text style={{ color: c.muted, textAlign: "center" }}>
-              {t("Kabar makanan dan bantuan akan hadir di sini.", "Meal and support updates will appear here.")}
+              {t("Kabar soal makananmu dan permintaan bantuan muncul di sini.", "Updates on your meals and help requests show up here.")}
             </Text>
           </View>
         )}

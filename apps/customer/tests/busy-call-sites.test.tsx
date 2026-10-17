@@ -148,7 +148,7 @@ const sites: Site[] = [
     ui: <HelpForm />,
     fill: async () => {
       fireEvent.press(await screen.findByRole("tab", { name: "Pembayaran" }));
-      fireEvent.changeText(screen.getByLabelText("Ceritakan kendalanya"), "Pembayaran saya belum tercatat");
+      fireEvent.changeText(screen.getByLabelText("Ceritakan masalahnya"), "Pembayaran saya belum tercatat");
       return "Kirim permintaan";
     },
     calls: (r) => (r.runtime.api.command as jest.Mock).mock.calls.filter(([a]) => a === "support.create").length,

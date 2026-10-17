@@ -283,7 +283,7 @@ describe("Beranda offline and failed reads", () => {
     });
     renderHome(runtime);
     const page = within(await screen.findByTestId("home-error"));
-    expect(page.getByText("Tidak dapat memuat. Periksa koneksi dan coba lagi.")).toBeTruthy();
+    expect(page.getByText("Belum bisa memuat. Cek koneksi lalu coba lagi.")).toBeTruthy();
     fireEvent.press(page.getByRole("button", { name: "Coba lagi" }));
     await waitFor(() => expect(runtime.api.customer).toHaveBeenCalledTimes(2));
   });

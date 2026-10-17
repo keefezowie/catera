@@ -334,9 +334,9 @@ export function menuSummary(m: MealMenu, locale: "id" | "en" = "id"): string {
   if (m.selectionStatus === "pending")
     return locale === "en" ? "Choose your menu" : "Pilih menu sendiri";
   if (m.selectionStatus === "caterer_choice")
-    return locale === "en" ? "Caterer chooses" : "Katerer memilih";
+    return locale === "en" ? "Caterer chooses" : "Katering memilih";
   if (pendingMenu(m))
-    return locale === "en" ? "Menu not yet set" : "Menu belum ditentukan";
+    return locale === "en" ? "Menu not yet set" : "Menu belum diisi";
   return menuItems(m)
     .map((i) => {
       const group = m.composition?.find((g) => g.id === i.groupId);

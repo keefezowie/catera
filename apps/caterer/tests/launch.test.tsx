@@ -193,7 +193,7 @@ const renderToday = (runtime: MobileRuntime) =>
 const mutatingActions = () => [
   ...screen.queryAllByRole("button", { name: /^Mulai masak/ }),
   ...screen.queryAllByRole("button", { name: /^Berangkat antar/ }),
-  ...screen.queryAllByLabelText(/^(Laporkan masalah|Pindah hari)/),
+  ...screen.queryAllByLabelText(/^(Laporkan masalah|Pindah tanggal)/),
 ];
 
 beforeEach(() => {
@@ -217,7 +217,7 @@ it("a stored kitchen paints its cached day first with mutating actions hidden", 
   expect(screen.queryByText(/Ini data terakhir/)).toBeNull();
   await act(async () => fresh.resolve(today()));
   expect(await screen.findByRole("button", { name: "Mulai masak" })).toBeTruthy();
-  expect(screen.queryAllByLabelText(/^(Laporkan masalah|Pindah hari)/).length).toBeGreaterThan(0);
+  expect(screen.queryAllByLabelText(/^(Laporkan masalah|Pindah tanggal)/).length).toBeGreaterThan(0);
   expect(screen.queryByText("Memperbarui…")).toBeNull();
 });
 

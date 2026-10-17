@@ -49,7 +49,7 @@ for (const locale of ["id", "en"])
       ),
     ).toBeVisible();
     await expect(
-      page.getByText("The requested data was not found.", { exact: true }),
+      page.getByText("We couldn't find that.", { exact: true }),
     ).toHaveCount(0);
     await expect(
       page.getByText(

@@ -82,7 +82,7 @@ export function PlanDetailScreen() {
   if (!actor)
     return (
       <SignInFirst title={carried ?? generic} next={`/subscriptions/${encodeURIComponent(planId)}`}>
-        <Button variant="text" label={t("Ke Beranda", "Go to Beranda")} onPress={() => goToTab("index")} />
+        <Button variant="text" label={t("Ke Beranda", "Go to Home")} onPress={() => goToTab("index")} />
       </SignInFirst>
     );
   return <Plan key={`${actor.id}:${planId}`} id={planId} actorId={actor.id} carried={carried} generic={generic} />;
@@ -142,7 +142,7 @@ function Plan({ id, actorId, carried, generic }: { id: string; actorId: string; 
           ) : !state ? (
             <ReadError
               art
-              message={read.error || t("Belum bisa memuat", "Couldn't load yet")}
+              message={read.error || t("Belum bisa memuat paket", "Couldn't load this package")}
               onRetry={() => void read.reload()}
             />
           ) : (
@@ -151,7 +151,7 @@ function Plan({ id, actorId, carried, generic }: { id: string; actorId: string; 
               <Text variant="heading" accessibilityRole="text">
                 {t("Paket tidak ditemukan.", "Plan not found.")}
               </Text>
-              <Button variant="secondary" label={t("Ke Beranda", "Go to Beranda")} onPress={() => goToTab("index")} />
+              <Button variant="secondary" label={t("Ke Beranda", "Go to Home")} onPress={() => goToTab("index")} />
             </View>
           )}
         </FadeSwap>
@@ -229,7 +229,7 @@ function Hero({ plan, apiBase }: { plan: PlanData; apiBase: string }) {
           {/* A one-day plan names its day once. */}
           {plan.startsOn === plan.endsOn
             ? shortDate(plan.startsOn, locale)
-            : `${shortDate(plan.startsOn, locale)} – ${shortDate(plan.endsOn, locale)}`}
+            : t(`${shortDate(plan.startsOn, locale)} sampai ${shortDate(plan.endsOn, locale)}`, `${shortDate(plan.startsOn, locale)} to ${shortDate(plan.endsOn, locale)}`)}
         </Text>
         {plan.action.kind === "renewed" ? (
           <View style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingTop: 6 }}>
@@ -266,7 +266,7 @@ function Upcoming({ rows, apiBase, deliveries }: { rows: UpcomingRow[]; apiBase:
       {rows.length ? (
         rows.map((row, i) => {
           const day = locale === "id" ? row.label : dayLabel(row.date, today, "en");
-          const dishes = row.dishes || t("Menu belum ditentukan", "Menu not set yet");
+          const dishes = row.dishes || t("Menu belum diisi", "Menu not set yet");
           return (
             <View key={row.deliveryId} style={[styles.line, i > 0 && styles.divider]}>
               <PressableRow
@@ -298,7 +298,7 @@ function Upcoming({ rows, apiBase, deliveries }: { rows: UpcomingRow[]; apiBase:
           );
         })
       ) : (
-        <Text style={{ color: c.muted }}>{t("Tidak ada antaran mendatang.", "No upcoming deliveries.")}</Text>
+        <Text style={{ color: c.muted }}>{t("Belum ada pengantaran berikutnya.", "No upcoming deliveries.")}</Text>
       )}
     </View>
   );

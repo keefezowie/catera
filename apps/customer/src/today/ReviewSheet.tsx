@@ -159,7 +159,7 @@ function Review({ actorId, id }: { actorId: string; id: string }) {
       setFinished("sent");
     } catch (e) {
       const code = (e as { code?: string }).code || (e as Error).message;
-      setError(errorLabel(code, locale) || t("Belum berhasil. Coba lagi.", "That didn't work. Try again."));
+      setError(errorLabel(code, locale) || t("Ulasannya belum terkirim. Coba lagi.", "Your review didn't send. Try again."));
       setFailures((n) => n + 1);
     } finally {
       setBusy(false);

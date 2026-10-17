@@ -156,8 +156,8 @@ function List({ flow }: { flow: boolean }) {
             <Text variant="heading">{t("Belum ada laporan.", "No reports yet.")}</Text>
             <Text style={{ color: palette.muted }}>
               {t(
-                "Kalau ada masalah dengan makanan, laporkan dari hari yang bersangkutan di Jadwal.",
-                "If something is wrong with a meal, report it from that day in Jadwal.",
+                "Ada masalah dengan makanan? Laporkan dari hari itu di Jadwal.",
+                "Something wrong with a meal? Report it from that day in Schedule.",
               )}
             </Text>
           </View>
@@ -281,7 +281,7 @@ function CaseCard({
               .catch((e) => {
                 setError(
                   errorLabel((e as { code?: string }).code || (e as Error).message, locale) ||
-                    t("Belum berhasil. Coba lagi.", "That did not work. Try again."),
+                    t("Belum bisa diteruskan ke Catera. Coba lagi.", "Couldn't send this to Catera. Try again."),
                 );
                 setFailures((n) => n + 1);
               })

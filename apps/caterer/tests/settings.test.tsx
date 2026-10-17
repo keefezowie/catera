@@ -68,7 +68,7 @@ const renderWith = (runtime: MobileRuntime, ui: React.ReactElement) =>
     </ThemeProvider>,
   );
 
-const notificationSwitch = () => screen.getByRole("switch", { name: "Notifikasi di ponsel ini" });
+const notificationSwitch = () => screen.getByRole("switch", { name: "Notifikasi di HP ini" });
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -196,7 +196,7 @@ it("a failed turn-off keeps the switch on and says so, never as an unhandled rej
   renderWith(runtime, <Pengaturan />);
   await waitFor(() => expect(notificationSwitch()).toBeChecked());
   fireEvent(notificationSwitch(), "valueChange", false);
-  expect(await screen.findByText("Belum berhasil. Coba lagi.")).toBeTruthy();
+  expect(await screen.findByText("Pengaturan notifikasi belum tersimpan. Coba lagi.")).toBeTruthy();
   expect(notificationSwitch()).toBeChecked();
   expect(store().get("t.push.u-1")).toBe("on");
   expect(screen.queryByText("REQUEST_TIMEOUT")).toBeNull();
@@ -204,7 +204,7 @@ it("a failed turn-off keeps the switch on and says so, never as an unhandled rej
 
 it("the Tampilan sheet speaks to kamu and closes on a choice", async () => {
   renderWith(runtimeWith(), <TampilanSheet />);
-  expect(await screen.findByText("Ikuti sistem memakai pengaturan ponsel kamu.")).toBeTruthy();
+  expect(await screen.findByText("Ikuti sistem berarti ikut tema HP kamu.")).toBeTruthy();
   fireEvent.press(screen.getByRole("radio", { name: "Terang" }));
   expect(SecureStore.setItemAsync).toHaveBeenCalledWith("t.theme", "light");
   expect(router.back).toHaveBeenCalledTimes(1);

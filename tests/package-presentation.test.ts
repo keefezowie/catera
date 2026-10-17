@@ -19,10 +19,10 @@ const menu: MealMenu = {
 };
 describe("discovery presentation preserves menu truth", () => {
   it("provides localized shared status, error, and menu labels", () => {
-    expect(statusLabel("out_for_delivery", "en")).toBe("Out for delivery");
+    expect(statusLabel("out_for_delivery", "en")).toBe("On the way");
     expect(statusLabel("payment_exception", "en")).toBe("Payment under review");
     expect(errorLabel("INVALID_DATE", "en")).toBe(
-      "The date is not an operating day for this package.",
+      "The caterer doesn't deliver this package on that date.",
     );
     expect(packageTypeLabel("nasi_box", "en")).toBe("Rice box");
     expect(localizedMessage("Isi kapasitas / Enter capacity", "en")).toBe(
@@ -84,7 +84,7 @@ describe("discovery presentation preserves menu truth", () => {
     expect(nutritionMetrics({})).toEqual([]);
     expect(
       nutritionMetrics({ carbsG: 0, proteinG: 45 }).map((m) => m.value),
-    ).toEqual(["—", "45 g", "0 g", "—"]);
+    ).toEqual(["-", "45 g", "0 g", "-"]);
     expect(nutritionMetrics({ caloriesKcal: 650 }, "en")[0].value).toBe(
       "650 kcal",
     );

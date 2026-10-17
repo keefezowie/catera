@@ -196,7 +196,7 @@ it("a failed read ends in an error toast with Coba lagi", async () => {
   await pressDelete();
   await waitFor(() => expect(mockToast).toHaveBeenCalledTimes(1));
   const toast = mockToast.mock.calls[0][0];
-  expect(toast).toMatchObject({ message: "Koneksi terlalu lama. Periksa koneksi dan coba lagi.", tone: "error", action: { label: "Coba lagi" } });
+  expect(toast).toMatchObject({ message: "Terlalu lama menunggu jawaban. Cek koneksi lalu coba lagi.", tone: "error", action: { label: "Coba lagi" } });
   addressUse.mockResolvedValueOnce(unused);
   await act(async () => toast.action.onPress());
   await waitFor(() => expect(command).toHaveBeenCalledWith("address.delete", { addressId: HOME.id }, expect.any(String)));

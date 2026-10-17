@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import { router } from "expo-router";
 import { errorLabel, jakartaDay, kitchenSession, monthOf, type DeliveryAvailability, type KitchenMeal } from "@catera/domain";
-import { useData, useMobile } from "@catera/mobile-core";
+import { useData, useMobile, plural } from "@catera/mobile-core";
 import {
   CalendarSheet,
   Field,
@@ -101,7 +101,7 @@ export function MoveSheet({ id, meal, date }: { id: string; meal: KitchenMeal; d
   }, [saved, toast, t]);
 
   const title = stop?.name ?? delivery?.customer.name;
-  const context = stop ? `${stop.portions} porsi · ${stop.packageName}` : undefined;
+  const context = stop ? t(`${stop.portions} porsi · ${stop.packageName}`, `${plural(stop.portions, "portion")} · ${stop.packageName}`) : undefined;
   if (!ops || !availability.data) {
     const error = day.error || availability.error;
     return (
@@ -145,7 +145,7 @@ export function MoveSheet({ id, meal, date }: { id: string; meal: KitchenMeal; d
       current={date}
       window={{ from, to }}
       context={context ? `${title} · ${context}` : title}
-      note={t("Pelanggan yang memakai aplikasi diberi tahu.", "Customers who use the app are told.")}
+      note={t("Pelanggan yang memakai aplikasi Catera dapat notifikasi.", "Customers who use the Catera app get a notification.")}
       onPick={() => undefined}
       confirmLabel={(d) => t(`Pindah ke ${sheetDate(d)}`, `Move to ${sheetDate(d)}`)}
       confirmDisabled={reason.trim().length < MIN_REASON}

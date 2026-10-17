@@ -167,13 +167,13 @@ describe("demo strip", () => {
   it("shows the synthetic-data strip when the server reports demo", async () => {
     mockMe.demo = true;
     render(<RootLayout />);
-    expect(await screen.findByText("Demo · data sintetis")).toBeTruthy();
+    expect(await screen.findByText("Demo (data contoh)")).toBeTruthy();
   });
 
   it("shows no strip outside demo mode", async () => {
     render(<RootLayout />);
     await screen.findByTestId("header:(auth)/daftar");
-    expect(screen.queryByText("Demo · data sintetis")).toBeNull();
+    expect(screen.queryByText("Demo (data contoh)")).toBeNull();
   });
 });
 
@@ -430,7 +430,7 @@ describe("appearance", () => {
     mockMe.demo = true;
     mockMe.actor = owner;
     render(<RootLayout />);
-    expect(await screen.findByText("Demo · data sintetis")).toBeTruthy();
+    expect(await screen.findByText("Demo (data contoh)")).toBeTruthy();
     await act(async () => {});
     // Control: the mood really is Malam here, so "dark" is not a Siang launch.
     expect(screen.getAllByTestId("mood-probe")[0].props.children).toBe("malam");
@@ -496,6 +496,6 @@ describe("font load failure", () => {
   it("Dapur shows a font error message", () => {
     mockFonts.result = [false, new Error("font")];
     render(<RootLayout />);
-    expect(screen.getByText("Font tidak dapat dimuat. Mulai ulang aplikasi.")).toBeTruthy();
+    expect(screen.getByText("Huruf aplikasi gagal dimuat. Tutup lalu buka lagi aplikasinya.")).toBeTruthy();
   });
 });

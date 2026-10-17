@@ -30,11 +30,11 @@ export function UpcomingDays({ days, apiBase }: { days: UpcomingDay[]; apiBase: 
                 {day.label}
               </Text>
               <Text testID="upcoming-day-count" variant="caption" style={styles.count}>
-                {t(`${n} antaran`, n === 1 ? "1 delivery" : `${n} deliveries`)}
+                {t(`${n} pengantaran`, n === 1 ? "1 delivery" : `${n} deliveries`)}
               </Text>
             </View>
             {day.meals.map((m, i) => {
-              const dish = m.lead ?? t("Menu belum ditentukan", "Menu not set yet");
+              const dish = m.lead ?? t("Menu belum diisi", "Menu not set yet");
               const meal = m.meal === "dinner" ? t("Malam", "Dinner") : t("Siang", "Lunch");
               const line = [meal, m.packageName, m.catererName].filter(Boolean).join(" · ");
               return (

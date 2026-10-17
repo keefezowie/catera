@@ -291,7 +291,7 @@ describe("the splash", () => {
     renderRoot();
     await act(async () => new Promise((r) => setTimeout(r, 1600)));
     expect(SplashScreen.hideAsync).toHaveBeenCalledTimes(1);
-    expect(screen.getByTestId("mascot-loading").props.accessibilityLabel).toBe("Menyiapkan Catera untuk Anda…");
+    expect(screen.getByTestId("mascot-loading").props.accessibilityLabel).toBe("Menyiapkan Catera…");
     expect(screen.queryByTestId("app-stack")).toBeNull();
     await act(async () => mockFonts.set!(true));
     expect(await screen.findByTestId("app-stack")).toBeTruthy();
@@ -321,7 +321,7 @@ describe("the launch gate", () => {
     renderRoot();
     const gate = await screen.findByTestId("mascot-loading");
     // Screen readers hear it at once; the drawing and its words wait.
-    expect(gate.props.accessibilityLabel).toBe("Menyiapkan Catera untuk Anda…");
+    expect(gate.props.accessibilityLabel).toBe("Menyiapkan Catera…");
     expect(StyleSheet.flatten(screen.getByTestId("mascot-loading-visual", hidden).props.style).opacity).toBe(0);
     await waitFor(
       () => expect(StyleSheet.flatten(screen.getByTestId("mascot-loading-visual", hidden).props.style).opacity).toBe(1),
@@ -351,7 +351,7 @@ describe("the launch gate", () => {
     expect(screen.queryByTestId("mascot-loading")).toBeNull();
     await waitFor(() => expect(SplashScreen.hideAsync).toHaveBeenCalledTimes(1), { timeout: 1500 });
     const gate = await screen.findByTestId("mascot-loading");
-    expect(gate.props.accessibilityLabel).toBe("Menyiapkan Catera untuk Anda…");
+    expect(gate.props.accessibilityLabel).toBe("Menyiapkan Catera…");
     expect(screen.queryByTestId("app-stack")).toBeNull();
   });
 });

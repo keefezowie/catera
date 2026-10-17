@@ -327,7 +327,7 @@ function routeHeader(
 
 function stopBlock(stop: Stop, locale: Locale) {
   const lines = [
-    `${stop.n}. ${stop.name}, ${stop.portions} ${locale === "en" ? "portions" : "porsi"}`,
+    `${stop.n}. ${stop.name}, ${stop.portions} ${locale === "en" ? (stop.portions === 1 ? "portion" : "portions") : "porsi"}`,
     [stop.addressLine, stop.area].filter(Boolean).join(", "),
   ];
   if (stop.note) lines.push(`${locale === "en" ? "Note" : "Catatan"}: ${stop.note}`);

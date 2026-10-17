@@ -134,13 +134,13 @@ describe("Plan detail states", () => {
     expect(screen.queryByTestId("sticky-action")).toBeNull();
   });
 
-  it("a failed read says Belum bisa memuat and Coba lagi reads again", async () => {
+  it("a failed read says Belum bisa memuat paket and Coba lagi reads again", async () => {
     const runtime = runtimeWith(async () => {
       throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
     });
     renderPlan(runtime);
     // Nothing is kept to show: the failure is the page, with the read error's own words and the way to try again.
-    expect(await screen.findByText("Koneksi terlalu lama. Periksa koneksi dan coba lagi.")).toBeTruthy();
+    expect(await screen.findByText("Terlalu lama menunggu jawaban. Cek koneksi lalu coba lagi.")).toBeTruthy();
     fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
     await waitFor(() => expect(runtime.api.customer).toHaveBeenCalledTimes(2));
   });
@@ -170,7 +170,7 @@ describe("Plan detail states", () => {
         throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
       }),
     );
-    await screen.findByText("Koneksi terlalu lama. Periksa koneksi dan coba lagi.");
+    await screen.findByText("Terlalu lama menunggu jawaban. Cek koneksi lalu coba lagi.");
     expect(nativeTitle()).toBe("Paket");
     expect(screen.queryByText(carried)).toBeNull();
     view.unmount();
@@ -204,7 +204,7 @@ describe("Plan detail states", () => {
     const hero = screen.getByTestId("plan-hero");
     expect(within(hero).getByText("6 hari lagi")).toBeTruthy();
     expect(within(hero).getByTestId("plan-photo").props.source).toEqual({ uri: "https://images.example.test/rumahan.jpg" });
-    expect(within(hero).getByText(`${shortDate(at(-3), "id")} – ${shortDate(at(7), "id")}`)).toBeTruthy();
+    expect(within(hero).getByText(`${shortDate(at(-3), "id")} sampai ${shortDate(at(7), "id")}`)).toBeTruthy();
     expect(screen.queryByTestId("sticky-action")).toBeNull();
     expect(screen.queryByText("Sudah diperpanjang")).toBeNull();
   });
@@ -313,7 +313,7 @@ describe("Plan detail states", () => {
     const rows = screen.getAllByTestId("plan-upcoming-row");
     expect(rows).toHaveLength(1);
     expect(within(rows[0]).getByText(shortDate(DAY, "id"))).toBeTruthy();
-    expect(screen.queryByText("Tidak ada antaran mendatang.")).toBeNull();
+    expect(screen.queryByText("Belum ada pengantaran berikutnya.")).toBeNull();
     fireEvent.press(rows[0]);
     expect(router.push).toHaveBeenCalledWith(`/hari/d-today?title=${encodeURIComponent(shortDate(DAY, "id"))}`);
   });
@@ -354,8 +354,8 @@ describe("Plan detail states", () => {
     );
     const hero = await screen.findByTestId("plan-hero");
     expect(within(hero).getByText("Paket selesai")).toBeTruthy();
-    expect(within(hero).getByText(`${shortDate(at(-7), "id")} – ${shortDate(at(-3), "id")}`)).toBeTruthy();
-    expect(screen.getByText("Tidak ada antaran mendatang.")).toBeTruthy();
+    expect(within(hero).getByText(`${shortDate(at(-7), "id")} sampai ${shortDate(at(-3), "id")}`)).toBeTruthy();
+    expect(screen.getByText("Belum ada pengantaran berikutnya.")).toBeTruthy();
     expect(within(screen.getByTestId("sticky-action")).getByRole("button", { name: "Lanjutkan paket" })).toBeTruthy();
   });
 
@@ -375,11 +375,11 @@ describe("Plan detail states", () => {
     renderPlan(runtimeWith(async () => planState({ status: "cancelled", remaining: 4 })));
     const hero = await screen.findByTestId("plan-hero");
     expect(within(hero).getByText("Paket dibatalkan")).toBeTruthy();
-    expect(within(hero).getByText(`${shortDate(at(-3), "id")} – ${shortDate(at(7), "id")}`)).toBeTruthy();
+    expect(within(hero).getByText(`${shortDate(at(-3), "id")} sampai ${shortDate(at(7), "id")}`)).toBeTruthy();
     expect(screen.queryByTestId("sticky-action")).toBeNull();
     expect(screen.queryByText("Berikutnya")).toBeNull();
     expect(screen.queryByTestId("plan-upcoming-row")).toBeNull();
-    expect(screen.queryByText("Tidak ada antaran mendatang.")).toBeNull();
+    expect(screen.queryByText("Belum ada pengantaran berikutnya.")).toBeNull();
   });
 
   it("a plan in a status the screen does not know reads as not found and goes home", async () => {

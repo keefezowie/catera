@@ -92,7 +92,7 @@ function Saved() {
               {t("Belum ada paket tersimpan.", "No saved packages yet.")}
             </Text>
             <Text style={{ color: c.muted, textAlign: "center" }}>
-              {t("Ketuk hati pada paket yang Anda suka.", "Tap the heart on a package you like.")}
+              {t("Ketuk hati di paket yang kamu suka.", "Tap the heart on a package you like.")}
             </Text>
             <Button label={t("Jelajah paket", "Browse packages")} onPress={() => goToTab("jelajah")} />
           </View>

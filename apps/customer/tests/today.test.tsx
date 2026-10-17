@@ -224,7 +224,7 @@ it("EmptyHome shows loading then error with Coba lagi", async () => {
   expect(screen.getByTestId("offers-skeleton")).toBeTruthy();
   expect(screen.getByRole("button", { name: "Jelajah paket" })).toBeTruthy();
   release();
-  const message = await screen.findByText(/Tidak dapat memuat|Belum berhasil|Periksa koneksi/);
+  const message = await screen.findByText(/Belum bisa memuat|Cek koneksi/);
   expect(StyleSheet.flatten(message.props.style).color).toBe(nativeThemes.light.danger);
   expect(screen.queryByTestId("offers-skeleton")).toBeNull();
   expect(screen.getByRole("button", { name: "Jelajah paket" })).toBeTruthy();
@@ -281,12 +281,12 @@ it("upcoming rows name the meal, the package and the caterer", async () => {
   expect(screen.getAllByText("Siang · Makan Siang Rumahan · Dapur Contoh")).toHaveLength(3);
 });
 
-it("empty upcoming row says Menu belum ditentukan", async () => {
+it("empty upcoming row says Menu belum diisi", async () => {
   const state = customerState(null);
   state.deliveries[0] = delivery("d-empty", addDays(TODAY, 1), {}, { offer: offer({ menus: [] }) });
   renderHome(runtimeWith(async () => state));
   await screen.findByText(/^Besok, /);
-  expect(screen.getAllByText("Menu belum ditentukan")).toHaveLength(1);
+  expect(screen.getAllByText("Menu belum diisi")).toHaveLength(1);
 });
 
 it("shows the renewal row at three days left", async () => {
@@ -313,7 +313,7 @@ it("offers the full package when a trial is ending", async () => {
   expect(await screen.findByText("Makan Siang Rumahan selesai besok")).toBeTruthy();
   // A trial is not renewed.
   expect(screen.queryByRole("button", { name: /Perpanjang$/ })).toBeNull();
-  fireEvent.press(screen.getByRole("button", { name: /, Paket penuh$/ }));
+  fireEvent.press(screen.getByRole("button", { name: /, Beli paket$/ }));
   expect(router.push).toHaveBeenCalledWith("/paket/p-rumahan?title=Makan%20Siang%20Rumahan");
 });
 
@@ -470,7 +470,7 @@ describe("Masuk", () => {
     expect(screen.getByLabelText("Kata sandi").props.secureTextEntry).toBe(true);
   });
 
-  it("signs a new email customer in as Pelanggan, not Katerer", async () => {
+  it("signs a new email customer in as Pelanggan, not Katering", async () => {
     const runtime = runtimeWith(async () => customerState(null), null);
     runtime.signInPassword = jest.fn(async () => customer as never);
     render(
@@ -777,7 +777,7 @@ describe("Beranda mood", () => {
     const next = upcomingRows(state, new Date(), 3, "id")[0].label;
     mount(runtimeWith(async () => state), { now: MALAM_NOW });
     await screen.findByTestId("home-title");
-    expect(title()).toBe("Malam ini,\ntidak ada antaran.");
+    expect(title()).toBe("Malam ini,\ntidak ada pengantaran.");
     expect(within(screen.getByTestId("mood-header")).getByText(`Berikutnya ${next}`)).toBeTruthy();
     expect(screen.queryByTestId("plate-hero")).toBeNull();
     // Today's lunch is still one tap away.
@@ -800,7 +800,7 @@ describe("Beranda mood", () => {
     );
     mount(runtimeWith(async () => state));
     await screen.findByTestId("home-title");
-    expect(title()).toBe("Siang ini,\ntidak ada antaran.");
+    expect(title()).toBe("Siang ini,\ntidak ada pengantaran.");
     const header = within(screen.getByTestId("mood-header"));
     expect(header.queryByText(/^Berikutnya/)).toBeNull();
     expect(header.getByText(/^(Senin|Selasa|Rabu|Kamis|Jumat|Sabtu|Minggu) \d+ \w+$/)).toBeTruthy();
@@ -842,7 +842,7 @@ describe("Beranda mood", () => {
     const next = upcomingRows(state, new Date(), 3, "id")[0].label;
     mount(runtimeWith(async () => state));
     await screen.findByTestId("home-title");
-    expect(title()).toBe("Siang ini,\ntidak ada antaran.");
+    expect(title()).toBe("Siang ini,\ntidak ada pengantaran.");
     expect(within(screen.getByTestId("mood-header")).getByText(`Berikutnya ${next}`)).toBeTruthy();
     expect(screen.queryByTestId("other-meal-row")).toBeNull();
   });
@@ -1030,14 +1030,14 @@ describe("Beranda mood", () => {
       mount(runtimeWith(async () => dueMeal({ status: "scheduled" })));
       const h = await hero();
       expect(h.getByTestId("plate-sentence").props.children).toBe("Seharusnya sudah tiba");
-      expect(h.getByText(`${EARLY} · belum ada catatan dari dapur`)).toBeTruthy();
+      expect(h.getByText(`${EARLY} · belum ada kabar dari dapur`)).toBeTruthy();
       expect(h.getByTestId("rantang-track").props.accessibilityValue.text).toBe("Terjadwal");
     });
 
     it("says the same in English", async () => {
       (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.locale", "en");
       mount(runtimeWith(async () => dueMeal({ status: "scheduled" })));
-      expect((await hero()).getByText(`${EARLY} · no update from the kitchen yet`)).toBeTruthy();
+      expect((await hero()).getByText(`${EARLY} · no word from the kitchen yet`)).toBeTruthy();
     });
 
     it("keeps the bare window when a due meal is being cooked", async () => {
@@ -1055,14 +1055,14 @@ describe("Beranda mood", () => {
       mount(runtimeWith(async () => lunchToday({ status: "scheduled" }, { offer: offer(noWindow) })));
       const h = await hero();
       expect(h.getByTestId("plate-sentence").props.children).toBe("Seharusnya sudah tiba");
-      expect(h.getByText("Belum ada catatan dari dapur")).toBeTruthy();
+      expect(h.getByText("Belum ada kabar dari dapur")).toBeTruthy();
       expect(h.queryByText(/^ · /)).toBeNull();
     });
 
     it("says the same without a window in English", async () => {
       (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.locale", "en");
       mount(runtimeWith(async () => lunchToday({ status: "scheduled" }, { offer: offer(noWindow) })));
-      expect((await hero()).getByText("No update from the kitchen yet")).toBeTruthy();
+      expect((await hero()).getByText("No word from the kitchen yet")).toBeTruthy();
     });
 
     it("keeps both original lines instead of promoting 'Tiba sekitar ' when the window is empty", async () => {
@@ -1404,7 +1404,7 @@ describe("Beranda mood", () => {
     const pager = within(await screen.findByTestId("hero-pager"));
     expect(pager.getAllByTestId("plate-hero")).toHaveLength(2);
     expect(screen.getAllByText(/^Makan siang · /).length).toBe(2);
-    expect(title()).toBe("Siang ini,\n2 antaran.");
+    expect(title()).toBe("Siang ini,\n2 pengantaran.");
   });
 
   it("shows the error state inside a mood header, in dark-safe danger on the canvas", async () => {

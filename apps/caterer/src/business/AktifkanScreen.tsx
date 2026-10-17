@@ -12,7 +12,7 @@ type StepState = "done" | "waiting" | "todo" | "later";
 function Step({ n, title, state, children }: { n: number; title: string; state: StepState; children?: ReactNode }) {
   const { t } = useMobile();
   const c = useColors();
-  const badge = { done: t("Selesai", "Done"), waiting: t("Sedang ditinjau", "In review"), todo: "", later: t("Segera", "Soon") }[state];
+  const badge = { done: t("Selesai", "Done"), waiting: t("Sedang ditinjau", "In review"), todo: "", later: t("Nanti", "Later") }[state];
   return (
     <Card tone={state === "todo" ? "attention" : "surface"}>
       <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 12 }}>
@@ -80,11 +80,11 @@ export function AktifkanScreen() {
             "Once on, customers can renew and order through Catera. Your cooking and delivery lists keep working as usual.",
           )}
         </Text>
-        <Step n={1} title={t("Profil dan paket diperiksa", "Profile and packages checked")} state={review}>
+        <Step n={1} title={t("Pemeriksaan profil dan paket", "Profile and package check")} state={review}>
           {review === "todo" ? (
             s.packages ? (
               <Button
-                label={t("Ajukan pemeriksaan", "Request a check")}
+                label={t("Minta diperiksa", "Ask for a check")}
                 busy={busy && which === "submit"}
                 disabled={busy && which !== "submit"}
                 onPress={() => void run("submit", "seller.submit", { catererId })}
@@ -116,7 +116,7 @@ export function AktifkanScreen() {
                 ]}
               />
               <Button
-                label={t("Kirim rekening", "Submit account")}
+                label={t("Kirim untuk diperiksa", "Send for review")}
                 busy={busy && which === "bank"}
                 disabled={!bankReady || (busy && which !== "bank")}
                 onPress={() => void run("bank", "payoutDestination.submit", { catererId, ...bank })}
@@ -126,7 +126,7 @@ export function AktifkanScreen() {
         </Step>
         <Step n={3} title={t("Verifikasi pembayaran", "Payment verification")} state="later">
           <Text variant="caption">
-            {t("Kami akan mengabarimu bila ada dokumen tambahan yang diperlukan.", "We'll let you know if any extra documents are needed.")}
+            {t("Kami kabari kamu kalau perlu dokumen tambahan.", "We'll tell you if we need more documents.")}
           </Text>
         </Step>
         {failure ? <FormError message={failure.message} failureKey={failure.key} /> : null}

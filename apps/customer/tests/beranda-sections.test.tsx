@@ -151,7 +151,7 @@ describe("the hero pager", () => {
     const announce = jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => undefined);
     mount(demo().runtime);
     const pager = await screen.findByTestId("hero-pager");
-    expect(title()).toBe("Siang ini,\n2 antaran.");
+    expect(title()).toBe("Siang ini,\n2 pengantaran.");
     const heroes = within(pager).getAllByTestId("plate-hero");
     expect(heroes).toHaveLength(2);
     // Equal cards: each page is the same width, and the pager snaps one card at a time.
@@ -271,7 +271,7 @@ describe("the other-meal row", () => {
     // Malam: one dinner is the hero; the two lunches are one row that counts them.
     expect(screen.queryByTestId("hero-pager")).toBeNull();
     const row = within(screen.getByTestId("other-meal-row"));
-    expect(row.getByText("Siang ini · 2 antaran")).toBeTruthy();
+    expect(row.getByText("Siang ini · 2 pengantaran")).toBeTruthy();
     expect(row.getByText("Ayam bakar madu")).toBeTruthy();
     // A tap switches to Siang, where both lunches are the pager.
     fireEvent.press(screen.getByTestId("other-meal-row"));
@@ -312,14 +312,14 @@ describe("the other-meal row", () => {
   });
 });
 
-describe("Menunggu Anda", () => {
+describe("Perlu kamu urus", () => {
   beforeEach(() => pin(morningOf(DEMO_TODAY)));
 
   it("waiting rows are one list with a single sunrise action", async () => {
     const { runtime, usage } = demo();
     mount(runtime);
     const list = within(await screen.findByTestId("waiting-list"));
-    expect(screen.getByRole("header", { name: "Menunggu Anda" })).toBeTruthy();
+    expect(screen.getByRole("header", { name: "Perlu kamu urus" })).toBeTruthy();
     // The review row appears once its dismissal mark has been read.
     await list.findByText("Bagaimana Dapur Hijau selama ini?");
     const rows = list.getAllByTestId("waiting-row");
@@ -328,14 +328,14 @@ describe("Menunggu Anda", () => {
       "Pilih menu Rabu dan Kamis, Makan Siang Rumahan · sebelum Selasa 17.00, Pilih",
       "Pilih menu 3 hari, Makan Malam Hemat · sebelum Kamis 17.00, Pilih",
       `Paket Sehat, sisa 2 hari, Dapur Hijau · harga terakhir ${currency(30000, "id")} per porsi, Perpanjang`,
-      "Coba Nasi Bakar selesai hari ini, Dapur Arang · paket coba, Paket penuh",
-      "Coba Bento selesai besok, Dapur Kecil · paket coba, Paket penuh",
-      "Bagaimana Dapur Hijau selama ini?, Ulasan singkat, 1 menit, Nilai",
+      "Coba Nasi Bakar selesai hari ini, Dapur Arang · paket coba, Beli paket",
+      "Coba Bento selesai besok, Dapur Kecil · paket coba, Beli paket",
+      "Bagaimana Dapur Hijau selama ini?, Beri bintang, tulisan boleh menyusul, Nilai",
     ]);
     // One action word per row; only Perpanjang is charcoal (the urgent one), the rest forest.
     const actions = list.getAllByTestId("waiting-action");
     expect(actions.map((a) => a.props.children)).toEqual([
-      "Pilih", "Pilih", "Pilih", "Perpanjang", "Paket penuh", "Paket penuh", "Nilai",
+      "Pilih", "Pilih", "Pilih", "Perpanjang", "Beli paket", "Beli paket", "Nilai",
     ]);
     expect(actions.filter((a) => color(a) === light.charcoal).map((a) => a.props.children)).toEqual(["Perpanjang"]);
     expect(actions.filter((a) => color(a) === light.forest)).toHaveLength(6);
@@ -405,11 +405,11 @@ describe("Menunggu Anda", () => {
       "Choose menus for Wednesday and Thursday, Makan Siang Rumahan · before Tue 17.00, Choose",
       "Choose menus for 3 days, Makan Malam Hemat · before Thu 17.00, Choose",
       `Paket Sehat, 2 days left, Dapur Hijau · last price ${currency(30000, "en")} per portion, Renew`,
-      "Coba Nasi Bakar ends today, Dapur Arang · trial, Full plan",
-      "Coba Bento ends tomorrow, Dapur Kecil · trial, Full plan",
-      "How has Dapur Hijau been so far?, A short review, 1 minute, Rate",
+      "Coba Nasi Bakar ends today, Dapur Arang · trial, Buy package",
+      "Coba Bento ends tomorrow, Dapur Kecil · trial, Buy package",
+      "How has Dapur Hijau been so far?, Give stars, add words if you like, Rate",
     ]);
-    expect(screen.getByRole("header", { name: "Waiting on you" })).toBeTruthy();
+    expect(screen.getByRole("header", { name: "Needs you" })).toBeTruthy();
   });
 
   it("nothing waiting hides the section", async () => {
@@ -418,7 +418,7 @@ describe("Menunggu Anda", () => {
     await screen.findByTestId("plate-hero");
     await settle();
     expect(screen.queryByTestId("waiting-list")).toBeNull();
-    expect(screen.queryByText("Menunggu Anda")).toBeNull();
+    expect(screen.queryByText("Perlu kamu urus")).toBeNull();
   });
 
   it("offline hides menu rows", async () => {
@@ -494,7 +494,7 @@ describe("Menunggu Anda", () => {
     fireEvent.press(await screen.findByRole("button", { name: /^Bagaimana Dapur Hijau selama ini\?/ }));
     const sheet = within(await screen.findByTestId("review-sheet"));
     fireEvent.press(sheet.getByRole("button", { name: "Kirim ulasan" }));
-    expect(await sheet.findByText("Belum berhasil. Coba lagi.")).toBeTruthy();
+    expect(await sheet.findByText("Ulasannya belum terkirim. Coba lagi.")).toBeTruthy();
     expect(screen.getByText("Bagaimana Dapur Hijau selama ini?")).toBeTruthy();
   });
 });
@@ -513,9 +513,9 @@ describe("Berikutnya", () => {
       "Rabu 14 Okt",
     ]);
     expect(days.getAllByTestId("upcoming-day-count").map((n) => n.props.children)).toEqual([
-      "3 antaran",
-      "1 antaran",
-      "1 antaran",
+      "3 pengantaran",
+      "1 pengantaran",
+      "1 pengantaran",
     ]);
     const rows = days.getAllByRole("button");
     expect(rows.map((r) => r.props.accessibilityLabel)).toEqual([
@@ -540,7 +540,7 @@ describe("Berikutnya", () => {
     expect(router.push).toHaveBeenLastCalledWith("/hari/d-s-malam-2026-10-12?title=Senin%2012%20Okt");
   });
 
-  it("says Menu belum ditentukan for a menu that is not set, never a dish", async () => {
+  it("says Menu belum diisi for a menu that is not set, never a dish", async () => {
     const only = plan("s-1", { name: "Makan Siang Rumahan", caterer: "Dapur Contoh", today: DEMO_TODAY, menus: [pendingMenu("lunch")] });
     const state = {
       subscriptions: [only],
@@ -552,14 +552,14 @@ describe("Berikutnya", () => {
     const { runtime } = runtimeWith(async () => state);
     mount(runtime);
     const days = within(await screen.findByTestId("upcoming-days"));
-    expect(days.getByText("Menu belum ditentukan")).toBeTruthy();
+    expect(days.getByText("Menu belum diisi")).toBeTruthy();
   });
 
   it("on a Saturday with nothing today, names Monday and lists it first", async () => {
     const { runtime } = runtimeWith(async () => quietSaturday());
     mount(runtime);
     await screen.findByTestId("home-title");
-    expect(title()).toBe("Siang ini,\ntidak ada antaran.");
+    expect(title()).toBe("Siang ini,\ntidak ada pengantaran.");
     expect(screen.queryByTestId("plate-hero")).toBeNull();
     expect(within(screen.getByTestId("mood-header")).getByText("Berikutnya Senin 12 Okt")).toBeTruthy();
     expect(within(screen.getByTestId("upcoming-days")).getAllByTestId("upcoming-day-label")[0].props.children).toBe(

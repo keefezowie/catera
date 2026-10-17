@@ -68,7 +68,7 @@ function Navigation() {
       <>
         {statusBar}
         <View style={{ flex: 1, backgroundColor: palette.canvas }}>
-          {booted || released ? <MascotLoading label={t("Menyiapkan Catera untuk Anda…", "Getting Catera ready for you…")} /> : null}
+          {booted || released ? <MascotLoading label={t("Menyiapkan Catera…", "Getting Catera ready…")} /> : null}
         </View>
       </>
     );
@@ -76,7 +76,7 @@ function Navigation() {
     <MoodLabelsProvider t={t}>
       <TopInsetOwner owned={demo}>
         {statusBar}
-        {demo ? <DemoStrip label={t("Demo · data sintetis", "Demo · synthetic data")} /> : null}
+        {demo ? <DemoStrip label={t("Demo (data contoh)", "Demo (sample data)")} /> : null}
         {/* The tabs, each with its own stack of detail screens, and above them the screens that cover the tab bar:
             sign-in, buying and paying, a claim link and the story. */}
         <Stack screenOptions={screenOptions}>
@@ -154,7 +154,7 @@ function FontError() {
   const palette = useColors();
   return (
     <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 24, backgroundColor: palette.canvas }}>
-      <Text selectable>Font tidak dapat dimuat. Mulai ulang aplikasi.</Text>
+      <Text selectable>Huruf aplikasi gagal dimuat. Tutup lalu buka lagi aplikasinya.</Text>
     </View>
   );
 }
@@ -162,7 +162,7 @@ function FontError() {
 /** Past the splash's ceiling with the fonts still loading: the mascot, its words in the system face. */
 function FontWait() {
   const { t } = useMobile();
-  return <MascotLoading startup label={t("Menyiapkan Catera untuk Anda…", "Getting Catera ready for you…")} />;
+  return <MascotLoading startup label={t("Menyiapkan Catera…", "Getting Catera ready…")} />;
 }
 
 /**

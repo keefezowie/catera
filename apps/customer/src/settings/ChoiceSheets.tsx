@@ -1,5 +1,5 @@
 import { BahasaSheet, TampilanSheet as SharedTampilanSheet } from "@catera/mobile-ui";
 
-/** The choice sheets live in mobile-ui; the customer app still says "Anda" in the Tampilan note until the copy pass. */
+/** The choice sheets live in mobile-ui; the Tampilan note speaks in "kamu", as the whole app does. */
 export { BahasaSheet };
-export const TampilanSheet = () => <SharedTampilanSheet voice="Anda" />;
+export const TampilanSheet = () => <SharedTampilanSheet voice="kamu" />;

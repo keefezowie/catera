@@ -203,7 +203,7 @@ describe("Jelajah", () => {
     wrap(runtime, <Jelajah />);
     await screen.findByText("Menu Sehat Premium");
     const calls = (runtime.api.catalog as jest.Mock).mock.calls.length;
-    fireEvent.changeText(screen.getByPlaceholderText("Cari ayam bakar, nabati, Bu Rini…"), "sehat");
+    fireEvent.changeText(screen.getByPlaceholderText("Cari menu atau katering…"), "sehat");
     await waitFor(() => expect(screen.queryByText("Nasi Ayam Bakar")).toBeNull());
     expect(screen.getByText("Menu Sehat Premium")).toBeTruthy();
     expect((runtime.api.catalog as jest.Mock).mock.calls.length).toBe(calls);
@@ -366,7 +366,7 @@ describe("Jelajah", () => {
   it("says so when a search matches nothing, with Hapus pilihan", async () => {
     wrap(runtimeWith(), <Jelajah />);
     await screen.findByText("Menu Sehat Premium");
-    fireEvent.changeText(screen.getByPlaceholderText("Cari ayam bakar, nabati, Bu Rini…"), "tidak ada");
+    fireEvent.changeText(screen.getByPlaceholderText("Cari menu atau katering…"), "tidak ada");
     expect(await screen.findByText("Belum ada paket yang cocok.")).toBeTruthy();
     expect(screen.getByText("Coba kata kunci atau pilihan lain.")).toBeTruthy();
     fireEvent.press(screen.getByRole("button", { name: "Hapus pilihan" }));
@@ -504,7 +504,7 @@ describe("Jelajah mood header", () => {
     expect(header().getByRole("button", { name: "Pilih area pengantaran" })).toBeTruthy();
     expect(header().getByText("Pilih area")).toBeTruthy();
     expect(title()).toBe("Makan siang\nminggu depan?");
-    expect(header().getByPlaceholderText("Cari ayam bakar, nabati, Bu Rini…")).toBeTruthy();
+    expect(header().getByPlaceholderText("Cari menu atau katering…")).toBeTruthy();
     expect(header().getByRole("button", { name: "Paket disimpan" })).toBeTruthy();
   });
 
@@ -603,7 +603,7 @@ describe("Jelajah mood header", () => {
     await screen.findByText("Makan Malam Nabati");
     const palette = nativeMood.light.malam;
     expect(flat(screen.getByTestId("jelajah-title")).color).toBe(palette.headerText);
-    expect(flat(header().getByPlaceholderText("Cari ayam bakar, nabati, Bu Rini…")).color).toBe(palette.headerText);
+    expect(flat(header().getByPlaceholderText("Cari menu atau katering…")).color).toBe(palette.headerText);
     expect(flat(screen.getByTestId("mood-fill-malam")).backgroundColor).toBe(palette.header);
   });
 
@@ -768,7 +768,7 @@ describe("Jelajah mood header", () => {
       mount(runtimeWith(customer, { catalog }), { now: MALAM_NOW });
       expect(await screen.findByRole("button", { name: "Coba lagi" })).toBeTruthy();
       expect(title()).toBe("Makan malam\nminggu depan?");
-      expect(header().getByPlaceholderText("Cari ayam bakar, nabati, Bu Rini…")).toBeTruthy();
+      expect(header().getByPlaceholderText("Cari menu atau katering…")).toBeTruthy();
     });
 
     it("shows the header and the catalogue skeleton while the catalogue loads", async () => {
@@ -870,7 +870,7 @@ describe("Paket", () => {
     expect(screen.getByText(/Ayam bakar madu, Sayur asem/)).toBeTruthy();
   });
 
-  it("shows \"Menu belum ditentukan\" once", async () => {
+  it("shows \"Menu belum diisi\" once", async () => {
     mockParams = { id: "p-kosong" };
     const slots = offer({
       id: "p-kosong",
@@ -879,7 +879,7 @@ describe("Paket", () => {
     });
     wrap(runtimeWith(customer, { offer: jest.fn(async () => ({ offer: slots })) }), <PackageDetail />);
     await screen.findByText("Isi paket");
-    expect(screen.getAllByText(/Menu belum ditentukan/)).toHaveLength(1);
+    expect(screen.getAllByText(/Menu belum diisi/)).toHaveLength(1);
   });
 
   it("package detail labels the price per meal and notes a combined day", async () => {

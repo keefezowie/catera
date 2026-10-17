@@ -89,7 +89,7 @@ export function PaidOutcome({ checkoutId, summary, offer }: { checkoutId: string
         </View>
       </View>
 
-      <Text>{t("Jadwal antar Anda sudah tersimpan.", "Your deliveries are booked.")}</Text>
+      <Text>{t("Jadwal antar sudah kami simpan.", "Your deliveries are booked.")}</Text>
       {/* Read-only tags, not chips: a quiet fill and regular body ink, never an outline or a 48dp control. They wrap,
           so a long plan never scrolls sideways. */}
       {summary.dates.length ? (
@@ -163,7 +163,7 @@ export function PaidActions({ summary }: { summary: PaidSummary }) {
           onPress={() => leaveFor(`/subscriptions/${encodeURIComponent(summary.subscriptionId)}/menu`)}
         />
       ) : null}
-      <Button variant="text" label={t("Ke Beranda", "Go to Beranda")} onPress={() => goToTab("index")} />
+      <Button variant="text" label={t("Ke Beranda", "Go to Home")} onPress={() => goToTab("index")} />
     </View>
   );
 }
