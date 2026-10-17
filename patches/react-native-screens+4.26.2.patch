@@ -1,0 +1,13 @@
+diff --git a/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/bottomsheet/DimmingView.kt b/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/bottomsheet/DimmingView.kt
+index 124010f..3664e49 100644
+--- a/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/bottomsheet/DimmingView.kt
++++ b/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/bottomsheet/DimmingView.kt
+@@ -32,6 +32,8 @@ internal class DimmingView(
+     init {
+         pointerEventsProxy.pointerEventsImpl = DimmingViewPointerEventsImpl(this)
+         setFocusable(false)
++        // Catera patch: keep TalkBack off the sheet backdrop; tap-outside still works via onTouchEvent.
++        importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
+     }
+ 
+     internal val blockGestures
