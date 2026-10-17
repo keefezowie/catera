@@ -659,7 +659,7 @@ describe("Akun mood header", () => {
     expect(screen.queryByTestId("mood-fill-siang", { includeHiddenElements: true })).toBeNull();
     expect(screen.queryByTestId("mood-fill-malam", { includeHiddenElements: true })).toBeNull();
     expect(screen.getByText("Alamat")).toBeTruthy();
-    expect(screen.getByText("Masuk dulu untuk melihat paket dan jadwal antar.")).toBeTruthy();
+    expect(screen.getByText("Masuk dulu untuk melihat paket dan jadwal pengantaranmu.")).toBeTruthy();
   });
 
   it("signed out keeps a header too, so the status icons never fall on the cream page", async () => {

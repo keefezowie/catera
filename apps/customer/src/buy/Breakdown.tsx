@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { View } from "react-native";
-import { addDays, currency, shortDate, type Locale, type Quote } from "@catera/domain";
+import { currency, firstOperatingDayAfter, shortDate, type Locale, type Quote } from "@catera/domain";
 import { plural } from "@catera/mobile-core";
 import { Button, fontFor, PressableScale, Text, themedStyles, useColors } from "@catera/mobile-ui";
 
@@ -137,16 +137,10 @@ const useStyles = themedStyles((c) => ({
   rowValue: { color: c.charcoal, fontFamily: fontFor("600") },
 }));
 
-/** The first day the package delivers after `end`: weekends and closed days do not count as a gap. */
-function firstDeliveryDayAfter(end: string, weekdays: number[]) {
-  let day = addDays(end, 1);
-  for (let i = 0; i < 7 && weekdays.length && !weekdays.includes(new Date(`${day}T00:00:00Z`).getUTCDay()); i += 1) day = addDays(day, 1);
-  return day;
-}
-
 /**
  * The renewal's start line: "Mulai Selasa 13 Okt, tepat setelah paket sekarang" when the start is the first delivery day
- * after the plan being renewed; any later start names the plan that still runs and blocks the earlier dates.
+ * after the plan being renewed; any later start names the plan that still runs and blocks the earlier dates. A plan that
+ * ended before `today` is not running, so it is named neither way: the line is just the start.
  */
 export function renewalLine(
   label: string,
@@ -154,14 +148,16 @@ export function renewalLine(
   currentEnd: string | null | undefined,
   blockingEnd: string | null | undefined,
   weekdays: number[],
+  today: string,
   locale: Locale,
   t: (id: string, en: string) => string,
 ) {
-  if (!currentEnd) return t(`Mulai ${label}`, `Starts ${label}`);
-  if (startDate === firstDeliveryDayAfter(currentEnd, weekdays)) {
+  const named = blockingEnd && currentEnd && blockingEnd > currentEnd ? blockingEnd : currentEnd;
+  if (!currentEnd || !named || named < today) return t(`Mulai ${label}`, `Starts ${label}`);
+  if (startDate === firstOperatingDayAfter(currentEnd, weekdays)) {
     return t(`Mulai ${label}, tepat setelah paket sekarang`, `Starts ${label}, right after your current package`);
   }
-  const end = shortDate(blockingEnd && blockingEnd > currentEnd ? blockingEnd : currentEnd, locale);
+  const end = shortDate(named, locale);
   return t(
     `Mulai ${label}. Paket ini masih berjalan sampai ${end}.`,
     `Starts ${label}. This package is still running until ${end}.`,
@@ -177,6 +173,7 @@ export function StartLine({
   renew,
   currentEnd,
   blockingEnd,
+  today,
   quote,
   dimmed,
   weekdays,
@@ -190,6 +187,8 @@ export function StartLine({
   currentEnd?: string | null;
   /** The latest end, before the start, of the customer's plans of this package. */
   blockingEnd?: string | null;
+  /** Today in Jakarta (YYYY-MM-DD). */
+  today: string;
   quote: Quote | null;
   dimmed: boolean;
   weekdays: number[];
@@ -207,7 +206,7 @@ export function StartLine({
         {!startDate
           ? t("Belum ada tanggal yang bisa dipesan.", "No bookable date yet.")
           : renew
-            ? renewalLine(label, startDate, currentEnd, blockingEnd, weekdays, locale, t)
+            ? renewalLine(label, startDate, currentEnd, blockingEnd, weekdays, today, locale, t)
             : label}
       </Text>
       {quote && last ? (

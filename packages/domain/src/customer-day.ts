@@ -340,19 +340,22 @@ export function changeDeadline(cutoffAt: string, now: Date, locale: Locale = "id
   return `${withinWeek ? date.split(" ")[0] : date} ${time}`;
 }
 
+/** The first day after `end` on which the package delivers; any day when it lists no weekdays. */
+export function firstOperatingDayAfter(end: string, weekdays: readonly number[] | undefined): string {
+  let day = addDays(end, 1);
+  if (weekdays?.length) {
+    for (let i = 0; i < 7 && !weekdays.includes(new Date(`${day}T00:00:00Z`).getUTCDay()); i += 1) day = addDays(day, 1);
+  }
+  return day;
+}
+
 /** Next cycle of the same package, starting the first operating weekday after the current end. */
 export function renewalDefaults(
   sub: Subscription,
   offer: Offer,
 ): { startDate: string; cycles: number; portions: number; packageId: string; renewedFrom: string } {
-  let startDate = addDays(sub.ends_on, 1);
-  if (offer.weekdays?.length) {
-    for (let i = 0; i < 7 && !offer.weekdays.includes(new Date(`${startDate}T00:00:00Z`).getUTCDay()); i += 1) {
-      startDate = addDays(startDate, 1);
-    }
-  }
   return {
-    startDate,
+    startDate: firstOperatingDayAfter(sub.ends_on, offer.weekdays),
     cycles: 1,
     portions: sub.portions,
     packageId: sub.package_id,

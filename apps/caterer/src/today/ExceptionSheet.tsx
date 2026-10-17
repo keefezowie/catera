@@ -220,7 +220,7 @@ export function ExceptionSheet({ id, meal, date }: { id: string; meal: KitchenMe
               <Text variant="caption">
                 {t(
                   "Pindahkan pengantaran ini ke tanggal lain. Pelanggan yang memakai aplikasi diberi tahu.",
-                  "Move this delivery to another date. Customers using the app are told.",
+                  "Move this delivery to another date. Customers who use the app get notified.",
                 )}
               </Text>
             </View>

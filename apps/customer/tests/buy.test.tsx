@@ -361,6 +361,14 @@ describe("Beli / Perpanjang", () => {
     expect(await screen.findByText("Mulai Selasa 10 Nov. Paket ini masih berjalan sampai Senin 9 Nov.")).toBeTruthy();
   });
 
+  it("renewing a plan that already ended never says it is still running", async () => {
+    const ended = subscription({ id: "s-1", package_id: "p-rumahan", status: "completed", starts_on: "2026-09-14", ends_on: "2026-10-05", remaining: 0 });
+    const runtime = server({ context: { startDate: "2026-10-08" }, subscriptions: [ended] });
+    wrap(runtime, <BuyScreen renewFrom="s-1" />);
+    expect(await screen.findByText("Mulai Kamis 8 Okt")).toBeTruthy();
+    expect(screen.queryByText(/masih berjalan sampai/)).toBeNull();
+  });
+
   it("changing length requotes with cycles 2", async () => {
     const runtime = server();
     wrap(runtime, <BuyScreen renewFrom="s-1" />);

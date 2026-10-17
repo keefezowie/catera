@@ -7,6 +7,7 @@ import {
   errorLabel,
   nextStartAfter,
   purchaseStartAvailable,
+  jakartaDay,
   renewalDefaults,
   shortDate,
   startDates,
@@ -274,6 +275,7 @@ export function BuyScreen({
           renew={renew}
           currentEnd={current?.ends_on ?? null}
           blockingEnd={blockingEnd}
+          today={jakartaDay(now)}
           quote={shown}
           dimmed={quote.pending}
           weekdays={offer.weekdays}

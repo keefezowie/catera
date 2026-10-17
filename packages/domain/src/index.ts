@@ -651,7 +651,7 @@ export const errors: Record<string, string> = {
   AUTH_RATE_LIMITED:
     "Terlalu banyak percobaan masuk. Tunggu sebentar lalu coba lagi.",
   FORBIDDEN:
-    "Akun ini tidak punya akses untuk ini.",
+    "Akun ini tidak bisa melakukan itu.",
   CUSTOMER_NOT_LINKED:
     "Undang pelanggan untuk menghubungkan akun sebelum mengirim pesan.",
   PACKAGE_IMMUTABLE:
@@ -738,7 +738,7 @@ const errorsEn: Record<string, string> = {
   AUTH_RATE_LIMITED:
     "Too many sign-in attempts. Wait a moment and try again.",
   FORBIDDEN:
-    "This account doesn't have access to this.",
+    "This account can't do that.",
   CUSTOMER_NOT_LINKED:
     "Invite this customer to link an account before sending messages.",
   PACKAGE_IMMUTABLE:
