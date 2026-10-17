@@ -397,7 +397,7 @@ describe("the day's actions", () => {
     let app = await mount("/hari/d1");
     await go(() => fireEvent.press(screen.getByRole("button", { name: `Pilihan untuk makan siang ${shortDate(TODAY, "id")}` })));
     expect(root()).toEqual(["(tabs)", "aksi"]);
-    expect(rowLabels()).toEqual(["Pindah tanggal", "Ganti alamat antar", "Chat Dapur Contoh", "Laporkan masalah"]);
+    expect(rowLabels()).toEqual(["Pindah tanggal", "Ganti alamat pengantaran ini", "Chat Dapur Contoh", "Laporkan masalah"]);
     expect(screen.getByTestId("action-divider")).toBeTruthy();
     // The context names what the actions are about.
     const context = within(screen.getByTestId("action-context"));
@@ -408,7 +408,7 @@ describe("the day's actions", () => {
     overDay("masalah/[id]");
     app.unmount();
 
-    // After the cutoff: no Pindah tanggal, no Ganti alamat antar.
+    // After the cutoff: no Pindah tanggal, no Ganti alamat pengantaran ini.
     answer("day:d1", stateWith([past("d1", TODAY, {}, { status: "out_for_delivery" })]));
     app = await mount("/hari/d1");
     await go(() => fireEvent.press(screen.getByRole("button", { name: `Pilihan untuk makan siang ${shortDate(TODAY, "id")}` })));
@@ -425,7 +425,7 @@ describe("the day's actions", () => {
     const app = await mount("/hari/d1");
     const more = () => screen.getByRole("button", { name: `Pilihan untuk makan siang ${shortDate(d.service_date, "id")}` });
     await go(() => fireEvent.press(more()));
-    await go(() => fireEvent.press(screen.getByRole("button", { name: "Ganti alamat antar" })));
+    await go(() => fireEvent.press(screen.getByRole("button", { name: "Ganti alamat pengantaran ini" })));
     overDay("ubah-hari/[id]");
     expect(screen.getByRole("tab", { name: "Ganti alamat" }).props.accessibilityState.selected).toBe(true);
     app.unmount();

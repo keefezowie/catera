@@ -544,7 +544,7 @@ export const statusLabel = (status: string, locale: Locale = "id") =>
         out_for_delivery: "On the way",
         delivered: "Arrived",
         arrived: "Marked as arrived",
-        issue: "Problem reported",
+        issue: "Not delivered",
         pending: "Payment pending",
         paid: "Paid",
         expired: "Expired",
@@ -580,7 +580,7 @@ export const statusLabel = (status: string, locale: Locale = "id") =>
         out_for_delivery: "Sedang diantar",
         delivered: "Sampai",
         arrived: "Ditandai sampai",
-        issue: "Ada laporan",
+        issue: "Gagal diantar",
         pending: "Menunggu pembayaran",
         paid: "Dibayar",
         expired: "Kedaluwarsa",
@@ -612,13 +612,13 @@ export const statusLabel = (status: string, locale: Locale = "id") =>
       }[status] || status;
 export const errors: Record<string, string> = {
   PAYMENT_UNAVAILABLE:
-    "Pembayaran sedang tidak bisa dipakai. Coba lagi nanti.",
+    "Pembayaran sedang tidak tersedia. Coba lagi nanti.",
   PAYMENT_METHOD_LOCKED:
     "Cara bayar untuk pesanan ini sudah dipilih dan tidak bisa diganti.",
   TERMS_REQUIRED: "Setujui Syarat & Ketentuan untuk melanjutkan.",
   DURATION_UNAVAILABLE: "Durasi ini belum tersedia. Pilih durasi lain.",
   BOOKING_HORIZON:
-    "Semua pengantaran harus selesai dalam 366 hari dari sekarang. Pilih paket yang lebih pendek atau mulai lebih awal.",
+    "Semua pengantaran harus selesai dalam 366 hari dari sekarang. Pilih durasi yang lebih pendek atau mulai lebih awal.",
   PROMOTIONS_DISABLED:
     "Kode promosi tidak digunakan. Diskon paket dihitung otomatis.",
   AMOUNT_TOO_LARGE: "Nilai pembelian terlalu besar. Kurangi porsi atau durasi.",
@@ -651,7 +651,7 @@ export const errors: Record<string, string> = {
   AUTH_RATE_LIMITED:
     "Terlalu banyak percobaan masuk. Tunggu sebentar lalu coba lagi.",
   FORBIDDEN:
-    "Akun ini tidak punya akses ke halaman ini.",
+    "Akun ini tidak punya akses untuk ini.",
   CUSTOMER_NOT_LINKED:
     "Undang pelanggan untuk menghubungkan akun sebelum mengirim pesan.",
   PACKAGE_IMMUTABLE:
@@ -674,13 +674,13 @@ export const errors: Record<string, string> = {
   FIXED_PACKAGE:
     "Jadwal paket ini tidak bisa diubah. Butuh bantuan? Hubungi katering.",
   DUPLICATE_DATE:
-    "Paket ini sudah ada pengantaran di tanggal itu.",
+    "Paket ini sudah punya pengantaran di tanggal itu.",
   INVALID_DATE:
     "Katering tidak mengantar paket ini di tanggal itu.",
   INVALID_INPUT:
     "Ada yang belum benar. Cek lagi isiannya.",
   NOT_FOUND:
-    "Yang dicari tidak ditemukan.",
+    "Datanya tidak ditemukan.",
   NOT_CONFIGURED:
     "Fitur ini belum siap. Hubungi Catera.",
   REQUEST_TIMEOUT:
@@ -704,7 +704,7 @@ const errorsEn: Record<string, string> = {
   DURATION_UNAVAILABLE:
     "This duration is unavailable. Choose another duration.",
   BOOKING_HORIZON:
-    "All deliveries have to finish within 366 days from now. Pick a shorter package or an earlier start.",
+    "All deliveries have to finish within 366 days from now. Pick a shorter duration or an earlier start.",
   PROMOTIONS_DISABLED:
     "Promotion codes are not used. Package discounts apply automatically.",
   AMOUNT_TOO_LARGE:
@@ -738,7 +738,7 @@ const errorsEn: Record<string, string> = {
   AUTH_RATE_LIMITED:
     "Too many sign-in attempts. Wait a moment and try again.",
   FORBIDDEN:
-    "This account can't open this.",
+    "This account doesn't have access to this.",
   CUSTOMER_NOT_LINKED:
     "Invite this customer to link an account before sending messages.",
   PACKAGE_IMMUTABLE:

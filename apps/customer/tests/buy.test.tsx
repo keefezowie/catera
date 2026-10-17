@@ -318,7 +318,7 @@ describe("Beli / Perpanjang", () => {
     const runtime = server();
     wrap(runtime, <BuyScreen renewFrom="s-1" />);
     expect(await screen.findByText("Perpanjang Makan Siang Rumahan")).toBeTruthy();
-    expect(await screen.findByText("Mulai Senin 19 Okt. Paket ini masih berjalan sampai Jumat 16 Okt.")).toBeTruthy();
+    expect(await screen.findByText("Mulai Senin 19 Okt, tepat setelah paket sekarang")).toBeTruthy();
     expect(screen.getByRole("radio", { name: "20 hari" }).props.accessibilityState.checked).toBe(true);
     expect(screen.getByRole("radio", { name: "40 hari · Hemat 5%" }).props.accessibilityState.checked).toBe(false);
     await waitFor(() =>
@@ -347,11 +347,18 @@ describe("Beli / Perpanjang", () => {
     await waitFor(() => expect(runtime.api.quote).toHaveBeenCalledWith(expect.objectContaining({ startDate: "2026-10-20" })));
   });
 
-  it("says right after the current package only when the start really is the next day", async () => {
-    const runtime = server({ context: { startDate: "2026-10-17" } });
+  it("says right after the current package when the start is the first delivery day after it, weekend or not", async () => {
+    const runtime = server({ context: { startDate: "2026-10-19" } });
     wrap(runtime, <BuyScreen renewFrom="s-1" />);
-    expect(await screen.findByText("Mulai Sabtu 17 Okt, tepat setelah paket sekarang")).toBeTruthy();
+    expect(await screen.findByText("Mulai Senin 19 Okt, tepat setelah paket sekarang")).toBeTruthy();
     expect(screen.queryByText(/masih berjalan sampai/)).toBeNull();
+  });
+
+  it("names the plan that blocks a later start, not the plan being renewed", async () => {
+    const later = subscription({ id: "s-9", package_id: "p-rumahan", ends_on: "2026-11-09" });
+    const runtime = server({ context: { startDate: "2026-11-10" }, subscriptions: [current, later] });
+    wrap(runtime, <BuyScreen renewFrom="s-1" />);
+    expect(await screen.findByText("Mulai Selasa 10 Nov. Paket ini masih berjalan sampai Senin 9 Nov.")).toBeTruthy();
   });
 
   it("changing length requotes with cycles 2", async () => {

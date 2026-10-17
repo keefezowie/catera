@@ -105,6 +105,15 @@ export function BuyScreen({
       (initial.startDate && offer && purchaseStartAvailable(offer, initial.startDate, now) ? initial.startDate : null) ??
       choices[0] ??
       null);
+  // The plans of this package that end before a renewal starts: the latest one is what the start waits for.
+  const blockingEnd =
+    renew && startDate && current
+      ? ((customer.data?.subscriptions ?? [])
+          .filter((s) => s.package_id === current.package_id && s.status !== "cancelled" && s.ends_on < startDate)
+          .map((s) => s.ends_on)
+          .sort()
+          .pop() ?? null)
+      : null;
   const qty = portions ?? (renew ? ctx?.portions : null) ?? 1;
   const maxQty = trial ? offer?.trialMax || 100 : 100;
   const lengths = offer ? durationOptions(offer) : [];
@@ -264,6 +273,7 @@ export function BuyScreen({
           startDate={startDate}
           renew={renew}
           currentEnd={current?.ends_on ?? null}
+          blockingEnd={blockingEnd}
           quote={shown}
           dimmed={quote.pending}
           weekdays={offer.weekdays}

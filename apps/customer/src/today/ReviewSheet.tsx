@@ -64,7 +64,7 @@ function ReviewSkeleton() {
 /**
  * `/ulasan/{subscriptionId}`: the review as a native form sheet over Beranda (`sheetOptions({ detents: "form" })`): the
  * stars, a few words and "Kirim ulasan", with "Nanti saja" to put it off for good. Either answer marks the plan's review
- * row as dealt with (`markReview`), so it leaves "Menunggu Anda" under the sheet. Sending closes the sheet with the toast
+ * row as dealt with (`markReview`), so it leaves "Perlu kamu urus" under the sheet. Sending closes the sheet with the toast
  * "Ulasan terkirim"; a failure stays in the sheet.
  */
 export function ReviewRoute() {

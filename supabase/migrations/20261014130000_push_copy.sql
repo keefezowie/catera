@@ -86,4 +86,9 @@ begin
    where n.nspname in('public','v1') and p.prokind='f' and position(olds[i] in p.prosrc)>0)
   then raise exception 'PUSH_COPY_ANCHOR_MISSING';end if;
  end loop;
+ -- And no notify call in any live function still carries a retired fragment, whatever the exact old text was.
+ if exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+  where n.nspname in('public','v1') and p.prokind='f'
+   and p.prosrc ~ $re$(notify|beta_notify_once)\([^;]*(\mAnda\M|[Kk]aterer|service_date\|\|' · ')$re$)
+ then raise exception 'PUSH_COPY_RETIRED_FRAGMENT';end if;
 end $$;

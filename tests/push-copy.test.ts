@@ -38,6 +38,14 @@ it("no push body speaks to \"Anda\" or about a \"katerer\" any more", async () =
   }
 });
 
+it("no live notify call carries \"Anda\", \"katerer\" or a raw service date, whatever its exact text", async () => {
+  const rows = await db.query<{ name: string }>(
+    "select n.nspname||'.'||p.proname as name from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in('public','v1') and p.prokind='f' and p.prosrc ~ $1 order by 1",
+    ["(notify|beta_notify_once)\\([^;]*(\\mAnda\\M|[Kk]aterer|service_date\\|\\|' · ')"],
+  );
+  expect(rows.rows.map((r) => r.name)).toEqual([]);
+});
+
 it("the choice-menu pushes name the day instead of printing an ISO date", async () => {
   expect(await sources("r.service_date||' · '")).toEqual([]);
   expect((await sources("v1.push_day(r.service_date)")).length).toBeGreaterThan(0);

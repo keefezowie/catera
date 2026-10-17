@@ -343,7 +343,7 @@ describe("Pindah tanggal: the calendar", () => {
 
   it("the consequence line says only customers with the app are told", async () => {
     await openMove();
-    expect(screen.getByTestId("calendar-note").props.children).toBe("Pelanggan yang memakai aplikasi Catera dapat notifikasi.");
+    expect(screen.getByTestId("calendar-note").props.children).toBe("Pelanggan yang memakai aplikasi diberi tahu.");
     expect(screen.queryByText("Pelanggan diberi tahu.")).toBeNull();
   });
 });

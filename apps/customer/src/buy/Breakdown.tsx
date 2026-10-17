@@ -137,19 +137,31 @@ const useStyles = themedStyles((c) => ({
   rowValue: { color: c.charcoal, fontFamily: fontFor("600") },
 }));
 
-/** The renewal's start line: "Mulai Selasa 13 Okt, tepat setelah paket sekarang", or, for any later start, the running package's end. */
+/** The first day the package delivers after `end`: weekends and closed days do not count as a gap. */
+function firstDeliveryDayAfter(end: string, weekdays: number[]) {
+  let day = addDays(end, 1);
+  for (let i = 0; i < 7 && weekdays.length && !weekdays.includes(new Date(`${day}T00:00:00Z`).getUTCDay()); i += 1) day = addDays(day, 1);
+  return day;
+}
+
+/**
+ * The renewal's start line: "Mulai Selasa 13 Okt, tepat setelah paket sekarang" when the start is the first delivery day
+ * after the plan being renewed; any later start names the plan that still runs and blocks the earlier dates.
+ */
 export function renewalLine(
   label: string,
   startDate: string,
   currentEnd: string | null | undefined,
+  blockingEnd: string | null | undefined,
+  weekdays: number[],
   locale: Locale,
   t: (id: string, en: string) => string,
 ) {
   if (!currentEnd) return t(`Mulai ${label}`, `Starts ${label}`);
-  if (startDate === addDays(currentEnd, 1)) {
+  if (startDate === firstDeliveryDayAfter(currentEnd, weekdays)) {
     return t(`Mulai ${label}, tepat setelah paket sekarang`, `Starts ${label}, right after your current package`);
   }
-  const end = shortDate(currentEnd, locale);
+  const end = shortDate(blockingEnd && blockingEnd > currentEnd ? blockingEnd : currentEnd, locale);
   return t(
     `Mulai ${label}. Paket ini masih berjalan sampai ${end}.`,
     `Starts ${label}. This package is still running until ${end}.`,
@@ -164,6 +176,7 @@ export function StartLine({
   startDate,
   renew,
   currentEnd,
+  blockingEnd,
   quote,
   dimmed,
   weekdays,
@@ -175,6 +188,8 @@ export function StartLine({
   renew: boolean;
   /** The last day of the package being renewed. */
   currentEnd?: string | null;
+  /** The latest end, before the start, of the customer's plans of this package. */
+  blockingEnd?: string | null;
   quote: Quote | null;
   dimmed: boolean;
   weekdays: number[];
@@ -192,7 +207,7 @@ export function StartLine({
         {!startDate
           ? t("Belum ada tanggal yang bisa dipesan.", "No bookable date yet.")
           : renew
-            ? renewalLine(label, startDate, currentEnd, locale, t)
+            ? renewalLine(label, startDate, currentEnd, blockingEnd, weekdays, locale, t)
             : label}
       </Text>
       {quote && last ? (

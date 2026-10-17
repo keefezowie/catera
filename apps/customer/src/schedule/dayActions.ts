@@ -54,7 +54,7 @@ export function dayActionInput(
   const items: ActionSheetInput["items"] = [
     ...(can.date ? [{ key: "pindah", label: t("Pindah tanggal", "Move to another date"), icon: "calendar-outline" }] : []),
     ...(can.address
-      ? [{ key: "alamat", label: t("Ganti alamat antar", "Change delivery address"), icon: "location-outline" }]
+      ? [{ key: "alamat", label: t("Ganti alamat pengantaran ini", "Change this delivery's address"), icon: "location-outline" }]
       : []),
     ...(phone ? [{ key: "chat", label: t(`Chat ${caterer}`, `Chat ${caterer}`), icon: "chatbubble-outline" }] : []),
     ...(reportable

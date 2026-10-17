@@ -145,7 +145,7 @@ export function MoveSheet({ id, meal, date }: { id: string; meal: KitchenMeal; d
       current={date}
       window={{ from, to }}
       context={context ? `${title} · ${context}` : title}
-      note={t("Pelanggan yang memakai aplikasi Catera dapat notifikasi.", "Customers who use the Catera app get a notification.")}
+      note={t("Pelanggan yang memakai aplikasi diberi tahu.", "Customers who use the app are told.")}
       onPick={() => undefined}
       confirmLabel={(d) => t(`Pindah ke ${sheetDate(d)}`, `Move to ${sheetDate(d)}`)}
       confirmDisabled={reason.trim().length < MIN_REASON}

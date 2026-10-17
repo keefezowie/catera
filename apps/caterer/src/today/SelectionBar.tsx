@@ -45,7 +45,7 @@ export function SelectionBar({
       title: t(`Berangkat dengan ${depart.length} pengantaran?`, `Leave with ${depart.length} ${depart.length === 1 ? "delivery" : "deliveries"}?`),
       message: t(
         "Pelanggan yang memakai aplikasi Catera dapat notifikasi saat kamu berangkat.",
-        "Customers using the Catera app get a notification when you leave.",
+        "Customers using the Catera app get a notification when you head out.",
       ),
       cancelLabel: t("Batal", "Cancel"),
       confirmLabel: t("Berangkat", "Leave"),

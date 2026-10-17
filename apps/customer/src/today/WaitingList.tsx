@@ -34,7 +34,7 @@ import { onReviewMarked } from "./reviewMark";
 type Translate = (id: string, en: string) => string;
 type IconName = ComponentProps<typeof Ionicons>["name"];
 
-/** An 18pt forest section title on Beranda ("Menunggu Anda", "Berikutnya"). */
+/** An 18pt forest section title on Beranda ("Perlu kamu urus", "Berikutnya"). */
 export function SectionTitle({ children }: { children: string }) {
   const styles = useStyles();
   return (
@@ -77,7 +77,7 @@ type Row = {
 };
 
 /**
- * "Menunggu Anda": everything that waits on the customer, as one bordered list with one action word per row, in the
+ * "Perlu kamu urus": everything that waits on the customer, as one bordered list with one action word per row, in the
  * domain's order (menus to choose, plans to renew, trials ending, then the review). Hidden when nothing waits. The
  * saved offline copy gives no menu rows (they come from the action read) and no review (it cannot be sent).
  */
@@ -188,7 +188,7 @@ export function WaitingList({
           key: `review:${item.subscription.id}`,
           icon: "star-outline",
           title: t(`Bagaimana ${caterer} selama ini?`, `How has ${caterer} been so far?`),
-          detail: t("Beri bintang, tulisan boleh menyusul", "Give stars, add words if you like"),
+          detail: t("Bintang saja cukup, ulasan tertulis boleh dilewati", "Stars are enough; words are optional"),
           action: t("Nilai", "Rate"),
           onPress: () => pushSheet(`/ulasan/${encodeURIComponent(item.subscription.id)}` as never),
         };

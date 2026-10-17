@@ -191,8 +191,8 @@ export function ExceptionSheet({ id, meal, date }: { id: string; meal: KitchenMe
             <Text style={{ fontFamily: fontFor("800") }}>{t("Gagal diantar", "Not delivered")}</Text>
             <Text variant="caption">
               {t(
-                "Makanan tidak sampai. Hari ini tidak dihitung sampai dan tidak dibayar ke kamu. Hubungi pelanggan untuk atur penggantinya.",
-                "The food didn't arrive. This day isn't counted as arrived or paid to you. Contact the customer to arrange a replacement.",
+                "Makanan tidak sampai. Hari ini tidak dihitung sebagai pengantaran dan tidak dibayar ke kamu. Hubungi pelanggan untuk atur penggantinya.",
+                "The food didn't arrive. This day isn't counted as a delivery or paid to you. Contact the customer to arrange a replacement.",
               )}
             </Text>
           </View>
@@ -219,8 +219,8 @@ export function ExceptionSheet({ id, meal, date }: { id: string; meal: KitchenMe
               <Text style={{ fontFamily: fontFor("800") }}>{t("Pindah tanggal", "Move date")}</Text>
               <Text variant="caption">
                 {t(
-                  "Pindahkan pengantaran ini ke tanggal lain. Pelanggan yang memakai aplikasi Catera dapat notifikasi.",
-                  "Move this delivery to another date. Customers using the Catera app get a notification.",
+                  "Pindahkan pengantaran ini ke tanggal lain. Pelanggan yang memakai aplikasi diberi tahu.",
+                  "Move this delivery to another date. Customers using the app are told.",
                 )}
               </Text>
             </View>

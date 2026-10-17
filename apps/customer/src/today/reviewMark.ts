@@ -2,8 +2,8 @@ import * as SecureStore from "expo-secure-store";
 
 /**
  * Whether a plan's review row has been dealt with ("done" or "dismissed"), kept on the phone under
- * `runtime.storageKey("review.{subscriptionId}")`. The review sheet (`/ulasan/{id}`) writes it; Beranda's "Menunggu
- * Anda" hears it at once, so its row leaves while the sheet closes over it.
+ * `runtime.storageKey("review.{subscriptionId}")`. The review sheet (`/ulasan/{id}`) writes it; Beranda's "Perlu kamu
+ * urus" hears it at once, so its row leaves while the sheet closes over it.
  */
 const listeners = new Set<(key: string) => void>();
 

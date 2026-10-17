@@ -330,7 +330,7 @@ describe("Perlu kamu urus", () => {
       `Paket Sehat, sisa 2 hari, Dapur Hijau · harga terakhir ${currency(30000, "id")} per porsi, Perpanjang`,
       "Coba Nasi Bakar selesai hari ini, Dapur Arang · paket coba, Beli paket",
       "Coba Bento selesai besok, Dapur Kecil · paket coba, Beli paket",
-      "Bagaimana Dapur Hijau selama ini?, Beri bintang, tulisan boleh menyusul, Nilai",
+      "Bagaimana Dapur Hijau selama ini?, Bintang saja cukup, ulasan tertulis boleh dilewati, Nilai",
     ]);
     // One action word per row; only Perpanjang is charcoal (the urgent one), the rest forest.
     const actions = list.getAllByTestId("waiting-action");
@@ -407,7 +407,7 @@ describe("Perlu kamu urus", () => {
       `Paket Sehat, 2 days left, Dapur Hijau · last price ${currency(30000, "en")} per portion, Renew`,
       "Coba Nasi Bakar ends today, Dapur Arang · trial, Buy package",
       "Coba Bento ends tomorrow, Dapur Kecil · trial, Buy package",
-      "How has Dapur Hijau been so far?, Give stars, add words if you like, Rate",
+      "How has Dapur Hijau been so far?, Stars are enough; words are optional, Rate",
     ]);
     expect(screen.getByRole("header", { name: "Needs you" })).toBeTruthy();
   });

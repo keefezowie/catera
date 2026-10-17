@@ -890,7 +890,7 @@ export function DeliveryPage({ id }: { id: string }) {
                 : d.status !== "scheduled"
                   ? t(
                       `Perubahan tidak tersedia pada status ${statusLabel(d.status, locale)}. Hubungi katerer untuk bantuan.`,
-                      `Changes are unavailable while this delivery is ${statusLabel(d.status, locale).toLowerCase()}. Contact your caterer for help.`,
+                      `Changes aren't available for this delivery (status: ${statusLabel(d.status, locale)}). Contact your caterer for help.`,
                     )
                   : t(
                       "Perubahan jadwal tidak tersedia untuk pengantaran ini. Hubungi katerer untuk bantuan.",
@@ -1048,7 +1048,7 @@ export function DeliveryPage({ id }: { id: string }) {
                 )
               : t(
                   `Perubahan tidak tersedia pada status ${statusLabel(d.status, locale)}. Tutup jendela ini untuk melihat jadwal terbaru.`,
-                  `Changes are unavailable while this delivery is ${statusLabel(d.status, locale).toLowerCase()}. Close this window to review the current schedule.`,
+                  `Changes aren't available for this delivery (status: ${statusLabel(d.status, locale)}). Close this window to review the current schedule.`,
                 )}
           </p>
         )}

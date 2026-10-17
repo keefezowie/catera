@@ -85,7 +85,7 @@ export function CustomerList() {
       {/* A secondary button draws its label in the theme ink, so it sits on the page and not on the header fill. */}
       <Button
         variant="secondary"
-        label={t("+ Pelanggan lama", "+ Existing")}
+        label={t("+ Pelanggan lama", "+ Existing customer")}
         onPress={() => router.push("/impor" as never)}
         style={{ alignSelf: "flex-start" }}
       />

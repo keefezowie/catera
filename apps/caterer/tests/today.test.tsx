@@ -265,7 +265,7 @@ it("the stop menu button and the problem options give haptics", async () => {
 it("tells the caterer plainly what a failed delivery means", async () => {
   renderToday(runtimeWith(same(canvasDay())));
   fireEvent.press(await stopMenu(3));
-  expect(await screen.findByText(/tidak dihitung sampai/)).toBeTruthy();
+  expect(await screen.findByText(/tidak dihitung sebagai pengantaran/)).toBeTruthy();
   expect(screen.queryByText(/pengembalian dana diurus Catera/)).toBeNull();
 });
 
