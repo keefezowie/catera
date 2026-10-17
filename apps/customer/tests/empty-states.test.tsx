@@ -28,7 +28,7 @@ import { Jadwal } from "../src/schedule/Jadwal";
 import { AppProviders } from "../src/shell";
 import { Beranda } from "../src/today/Beranda";
 import { TomorrowStoryScreen } from "../src/tomorrow/TomorrowStory";
-import { customerState, delivery, offer, subscription, TODAY } from "./fixtures";
+import { customerState, delivery, offer, subscription, TODAY, morningOf } from "./fixtures";
 
 /**
  * Spec 7.2, Task 13: every empty and error state of the customer app shows its delivered mascot still, 120pt and
@@ -136,7 +136,7 @@ function nothingNext(): CustomerState {
 
 const wrap = (runtime: MobileRuntime, ui: ReactElement) => (
   <ThemeProvider storageKey="catera.test.theme">
-    <MoodProvider>
+    <MoodProvider now={() => morningOf(TODAY)}>
       <MobileProvider runtime={runtime} linkMapper={customerLink}>
         {ui}
       </MobileProvider>
