@@ -428,6 +428,8 @@ describe("native tab bar", () => {
     // Signed out (no actor, the beforeEach default): the customer tabs still show.
     expect(mockActor).toBeNull();
     renderTabs();
+    // The session read answers after the first paint; let it settle inside act.
+    await act(async () => {});
     const Ionicons = require("@expo/vector-icons/Ionicons").default;
     const tabs = mockNativeTabs.triggers.map(readTrigger);
     const shown = tabs.filter((tab) => !tab.hidden);

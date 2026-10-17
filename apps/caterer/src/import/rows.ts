@@ -30,7 +30,6 @@ export function recheck(r: AssistantRow, packages: { id: string; days: number }[
   return { ...r, needsReview: reasons.length > 0, reason: reasons.join(" · ") };
 }
 
-/** A clean assistant row as an import.preview row; the reference is generated per import day. */
 /** The +62 form of a typed number; a number that does not parse goes as typed and the server names it. */
 function tidyPhone(value: string) {
   try {
@@ -40,6 +39,7 @@ function tidyPhone(value: string) {
   }
 }
 
+/** A clean assistant row as an import.preview row; the reference is generated per import day. */
 export function toImportRow(r: AssistantRow, today: string, n: number): PilotImportRow {
   return {
     customer: {

@@ -122,6 +122,8 @@ it("shows the on-the-way plate and confirms arrival", async () => {
         expect.any(String),
       ),
     );
+    // The confirmed reload lands after the call; let it settle inside act.
+    await act(async () => {});
   } finally {
     jest.useRealTimers();
   }
@@ -167,6 +169,8 @@ it("offers a private reaction after arrival", async () => {
       expect.any(String),
     ),
   );
+  // The reaction reload lands after the call; let it settle inside act.
+  await act(async () => {});
 });
 
 it("has no per-plan lines: a scheduled day offers no chat on Beranda, the plans row stands for the plans", async () => {
@@ -1390,6 +1394,7 @@ describe("Beranda mood", () => {
         expect.any(String),
       ),
     );
+    await act(async () => {});
   });
 
   it("keeps a second plate of the same meal as a second hero in the pager instead of dropping it", async () => {
@@ -1435,6 +1440,7 @@ describe("Beranda mood", () => {
     // The loading header is the loaded one's shape: the meal's opening line, its second line still being read.
     expect(within(screen.getByTestId("mood-header")).getByText(/^(Siang ini|Malam ini),$/)).toBeTruthy();
     expect(within(screen.getByTestId("mood-header")).getByTestId("home-title-placeholder")).toBeTruthy();
+    await act(async () => {});
   });
 });
 

@@ -44,18 +44,28 @@ const gramKeys = ["proteinG", "carbsG", "fatG"] as const;
 /** "29–30": how a carried range reads in its field. */
 export const carriedText = (r: { min: number; max: number }) => `${r.min}–${r.max}`;
 
+/** What was inserted into `shown` to make `typed` (a pure insertion, the cursor inside the range); "" for any other edit. */
+function insertedInside(shown: string, typed: string): string {
+  if (typed.length <= shown.length) return "";
+  let head = 0;
+  while (head < shown.length && shown[head] === typed[head]) head += 1;
+  let tail = 0;
+  while (tail < shown.length - head && shown[shown.length - 1 - tail] === typed[typed.length - 1 - tail]) tail += 1;
+  return shown.length - head - tail === 0 ? typed.slice(head, typed.length - tail) : "";
+}
+
 /**
  * The form after the caterer types into a gram field. A carried range is not editable as a range: the first edit drops
  * it. The field selects its text on focus, so a keystroke usually replaces "29–30" and is kept as typed; digits typed
- * after the shown range keep only the new digits; any other edit that leaves the range's dash (a backspace into it)
- * clears the field.
+ * after the shown range keep only the new digits; digits typed inside it keep just the inserted run; any other edit that
+ * leaves the range's dash (a backspace into it) clears the field.
  */
 export function editGram(n: NutritionForm, key: GramKey, typed: string): NutritionForm {
   const range = n.carried?.[key];
   if (!range) return { ...n, [key]: typed };
   const { [key]: _dropped, ...carried } = n.carried!;
   const shown = carriedText(range);
-  const next = typed.startsWith(shown) ? typed.slice(shown.length) : typed.includes("–") ? "" : typed;
+  const next = typed.startsWith(shown) ? typed.slice(shown.length) : typed.includes("–") ? insertedInside(shown, typed) : typed;
   return { ...n, [key]: next, carried };
 }
 

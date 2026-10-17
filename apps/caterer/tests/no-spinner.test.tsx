@@ -54,17 +54,49 @@ it("no ActivityIndicator outside an upload tile, a button's busy state or Refres
   expect(offending).toEqual([]);
 });
 
+/** Components that may speak a "Memuat…" wait: a skeleton's progress-bar name, or the mascot's line for a wait with nothing to show. */
+const LOADING_TAGS = new Set(["SkeletonGroup", "ListSkeleton", "DetailSkeleton", "MascotLoading"]);
+
+/**
+ * Every "Memuat…" string a source file draws: a quoted literal whose nearest opening JSX tag (on its line or the three
+ * before) is not a loading component, and any unquoted JSX text such as `<Text>Memuat…</Text>`. Comments are skipped.
+ */
+export function loadingOffenders(lines: string[], allowed: ReadonlySet<string> = new Set()): { line: number; text: string }[] {
+  const found: { line: number; text: string }[] = [];
+  lines.forEach((line, i) => {
+    if (/^\s*(\*|\/\/|\/\*)/.test(line)) return;
+    for (const match of line.matchAll(/["'`](Memuat[^"'`]*)["'`]/g)) {
+      if (allowed.has(match[1])) continue;
+      const before = [...lines.slice(Math.max(0, i - 3), i), line.slice(0, match.index)].join("\n");
+      const tag = [...before.matchAll(/<([A-Z]\w*)/g)].at(-1)?.[1];
+      if (!tag || !LOADING_TAGS.has(tag)) found.push({ line: i + 1, text: match[1] });
+    }
+    for (const match of line.matchAll(/>\s*(Memuat[^<{]*)</g)) found.push({ line: i + 1, text: match[1].trim() });
+  });
+  return found;
+}
+
+it("the Memuat scan catches a button label and bare JSX text, and lets a skeleton's label through", () => {
+  const source = [
+    '<Button label={t("Memuat…", "Loading…")} onPress={go} />',
+    "<Text>Memuat daftar…</Text>",
+    '<Text variant="caption">{t("Memuat minggu lalu…", "x")}</Text>',
+    '<ListSkeleton rows={3} label={t("Memuat paket", "Loading")} />',
+    "<SkeletonGroup",
+    '  label={t("Memuat dapur", "Loading")}',
+    ">",
+    '// label: "Memuat uang"',
+  ];
+  expect(loadingOffenders(source, new Set(["Memuat minggu lalu…"]))).toEqual([
+    { line: 1, text: "Memuat…" },
+    { line: 2, text: "Memuat daftar…" },
+  ]);
+});
+
 it("no bare Memuat line stands in for a screen or a section", () => {
-  // Any "Memuat" literal (with or without an ellipsis, three dots included) must be a skeleton's spoken `label=`, not
-  // visible text. "Memuat minggu lalu…" is not a loader: it is the reason "Salin minggu lalu" is still off, beside it.
+  // "Memuat minggu lalu…" is not a loader: it is the reason "Salin minggu lalu" is still off, beside that button.
   const allowed = new Set(["Memuat minggu lalu…"]);
-  const offending: string[] = [];
-  for (const { file, lines } of files)
-    lines.forEach((line, i) => {
-      for (const match of line.matchAll(/["'`](Memuat[^"'`]*)["'`]/g))
-        if (!allowed.has(match[1]) && !line.includes("label=") && !/^\s*(\*|\/\/)/.test(line))
-          offending.push(`${file}:${i + 1}: ${match[1]}`);
-    });
+  const offending = files.flatMap(({ file, lines }) => loadingOffenders(lines, allowed).map((o) => `${file}:${o.line}: ${o.text}`));
   expect(offending).toEqual([]);
 });
 

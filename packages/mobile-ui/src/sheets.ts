@@ -368,6 +368,8 @@ export function useUnsavedGuard(dirty: boolean, noun: string, options: UnsavedGu
         leaving.current = true;
         try {
           navigation.dispatch(e.data.action);
+        } catch {
+          // The navigator refused the removal: nothing to report, the screen stays and the next close asks again.
         } finally {
           // Removed, or held by something else: either way the next close asks again.
           leaving.current = false;

@@ -55,17 +55,50 @@ it("an ActivityIndicator is allowed only inside a busy Button, StickyAction, Set
   expect(readFileSync(join(shared, "StickyAction.tsx"), "utf8")).toMatch(/<Button\b[^>]*\bbusy=\{busy\}/);
 });
 
-it("a Memuat literal is a skeleton's spoken label or a MascotLoading line, never bare text", () => {
-  // "Memuat menu besok…" is MascotLoading's `text`: a wait with nothing to show. Anything else must name a skeleton.
+/** Components that may speak a "Memuat…" wait: a skeleton's progress-bar name, or a full-screen line (mascot, story) for a wait with nothing to show. */
+const LOADING_TAGS = new Set(["SkeletonGroup", "ListSkeleton", "DetailSkeleton", "MascotLoading", "StoryMessage"]);
+
+/**
+ * Every "Memuat…" string a source file draws: a quoted literal whose nearest opening JSX tag (on its line or the three
+ * before) is not a loading component, and any unquoted JSX text such as `<Text>Memuat…</Text>`. Comments are skipped.
+ */
+export function loadingOffenders(lines: string[], allowed: ReadonlySet<string> = new Set()): { line: number; text: string }[] {
+  const found: { line: number; text: string }[] = [];
+  lines.forEach((line, i) => {
+    if (/^\s*(\*|\/\/|\/\*)/.test(line)) return;
+    for (const match of line.matchAll(/["'`](Memuat[^"'`]*)["'`]/g)) {
+      if (allowed.has(match[1])) continue;
+      const before = [...lines.slice(Math.max(0, i - 3), i), line.slice(0, match.index)].join("\n");
+      const tag = [...before.matchAll(/<([A-Z]\w*)/g)].at(-1)?.[1];
+      if (!tag || !LOADING_TAGS.has(tag)) found.push({ line: i + 1, text: match[1] });
+    }
+    for (const match of line.matchAll(/>\s*(Memuat[^<{]*)</g)) found.push({ line: i + 1, text: match[1].trim() });
+  });
+  return found;
+}
+
+it("the Memuat scan catches a button label and bare JSX text, and lets a skeleton's label through", () => {
+  const source = [
+    '<Button label={t("Memuat…", "Loading…")} onPress={go} />',
+    "<Text>Memuat daftar…</Text>",
+    '<Text variant="caption">{t("Memuat minggu lalu…", "x")}</Text>',
+    '<ListSkeleton rows={3} label={t("Memuat paket", "Loading")} />',
+    "<SkeletonGroup",
+    '  label={t("Memuat dapur", "Loading")}',
+    ">",
+    '// label: "Memuat uang"',
+  ];
+  expect(loadingOffenders(source, new Set(["Memuat minggu lalu…"]))).toEqual([
+    { line: 1, text: "Memuat…" },
+    { line: 2, text: "Memuat daftar…" },
+  ]);
+});
+
+it("a Memuat string is a skeleton's spoken label or a MascotLoading line, never bare text", () => {
   const offending: string[] = [];
   for (const root of ROOTS)
     for (const path of sources(join(APP, root)))
-      readFileSync(path, "utf8")
-        .split("\n")
-        .forEach((line, i) => {
-          if (/^\s*(\*|\/\/)/.test(line) || line.includes("label=") || line.includes("text={t(")) return;
-          for (const match of line.matchAll(/["'`](Memuat[^"'`]*)["'`]/g))
-            offending.push(`${relative(APP, path)}:${i + 1}: ${match[1]}`);
-        });
+      for (const o of loadingOffenders(readFileSync(path, "utf8").split(/\r?\n/)))
+        offending.push(`${relative(APP, path)}:${o.line}: ${o.text}`);
   expect(offending).toEqual([]);
 });

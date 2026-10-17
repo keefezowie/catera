@@ -234,6 +234,18 @@ describe("Gizi per porsi in the editor", () => {
     expect(editGram(editGram(n, "proteinG", "31"), "proteinG", "312").proteinG).toBe("312");
   });
 
+  it("a keystroke typed inside a carried range keeps the new digit instead of clearing the field", () => {
+    const n = { ...formFromOffer(rantang).nutrition, carried: { proteinG: { min: 29, max: 30 } } };
+    // The cursor sat between the 2 and the 9: "2|9–30" plus a 5.
+    expect(editGram(n, "proteinG", "259–30").proteinG).toBe("5");
+    expect(editGram(n, "proteinG", "259–30").carried?.proteinG).toBeUndefined();
+    // Inside the dash side too, and at the very start.
+    expect(editGram(n, "proteinG", "29–530").proteinG).toBe("5");
+    expect(editGram(n, "proteinG", "529–30").proteinG).toBe("5");
+    // A deletion into the dash still clears, as before.
+    expect(editGram(n, "proteinG", "29–3").proteinG).toBe("");
+  });
+
   it("the calorie and gram fields line up at the top, so an error under one does not lift it", async () => {
     mount(runtimeWith({}), <PackageEditor from={liveOffer} />);
     await screen.findByText("Gizi per porsi (opsional)");
@@ -257,5 +269,45 @@ describe("Dapur package view", () => {
     mount(runtimeWith({}), <PackageDetail offer={{ ...liveOffer, nutrition: null } as SellerOffer} />);
     expect(await screen.findByText("Makan Siang Rumahan")).toBeTruthy();
     expect(screen.queryByText(/Gizi per porsi/)).toBeNull();
+  });
+});
+
+describe("the gram fields at a larger text size", () => {
+  const { NutritionFields } = require("../src/business/NutritionFields") as typeof import("../src/business/NutritionFields");
+  const ReactNative = require("react-native") as typeof import("react-native");
+
+  function gramCells(fontScale: number) {
+    jest.spyOn(ReactNative, "useWindowDimensions").mockReturnValue({ width: 360, height: 800, scale: 3, fontScale });
+    const view = mount(runtimeWith({}), <NutritionFields value={formFromOffer(rantang).nutrition} onChange={() => undefined} errors={{}} />);
+    const row = StyleSheet.flatten(screen.getByTestId("gizi-gram").props.style);
+    const cells = ["Protein (g)", "Karbo (g)", "Lemak (g)"].map((label) => {
+      let node = screen.getByLabelText(label).parent;
+      while (node && StyleSheet.flatten(node.props.style)?.flexBasis === undefined) node = node.parent;
+      return StyleSheet.flatten(node!.props.style);
+    });
+    view.unmount();
+    return { row, cells };
+  }
+  afterEach(() => jest.restoreAllMocks());
+
+  it("each basis grows with the text and the row wraps instead of squeezing a label onto two lines", () => {
+    const normal = gramCells(1);
+    expect(normal.cells.map((c) => c.flexBasis)).toEqual([92, 92, 92]);
+    const large = gramCells(1.3);
+    expect(large.row).toMatchObject({ flexDirection: "row", flexWrap: "wrap", alignItems: "flex-start" });
+    for (const cell of large.cells) expect(cell).toMatchObject({ flexGrow: 1, minWidth: 0 });
+    expect(large.cells.map((c) => c.flexBasis)).toEqual([92 * 1.3, 92 * 1.3, 92 * 1.3]);
+    // At 360dp less the sheet's 20dp padding, three 1.3x cells and two gaps do not fit one line, so the row wraps.
+    const needed = large.cells.reduce((sum, c) => sum + (c.flexBasis as number), 0) + 2 * (large.row.gap as number);
+    expect(needed).toBeGreaterThan(360 - 40);
+  });
+});
+
+describe("the Gizi per porsi header", () => {
+  it("is the label text variant, 12/23, like the editor's other section headers", () => {
+    const { NutritionFields } = require("../src/business/NutritionFields") as typeof import("../src/business/NutritionFields");
+    mount(runtimeWith({}), <NutritionFields value={formFromOffer(rantang).nutrition} onChange={() => undefined} errors={{}} />);
+    const header = StyleSheet.flatten(screen.getByRole("header", { name: /Gizi per porsi/ }).props.style);
+    expect([header.fontSize, header.lineHeight]).toEqual([12, 23]);
   });
 });

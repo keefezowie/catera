@@ -31,9 +31,9 @@ export function NutritionFields({
   const cell = (basis: number) => ({ flexGrow: 1, flexBasis: basis * fontScale, minWidth: 0 });
   return (
     <View style={{ gap: 12 }}>
-      <Text variant="label" accessibilityRole="header" style={{ fontSize: 15, lineHeight: 22 }}>
+      <Text variant="label" accessibilityRole="header">
         {t("Gizi per porsi", "Nutrition per portion")}
-        <Text variant="caption" style={{ fontSize: 15, lineHeight: 22 }}>{` ${t("(opsional)", "(optional)")}`}</Text>
+        <Text variant="caption">{` ${t("(opsional)", "(optional)")}`}</Text>
       </Text>
       {/* The whole 48dp row is the switch: its label toggles it too, and it is read once as a switch. */}
       <PressableRow
