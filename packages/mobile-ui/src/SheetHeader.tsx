@@ -128,12 +128,15 @@ export function sheetHiddenBelow({
 
 /**
  * The bottom margin an Android root-stack form sheet's scroll view needs so that it ends at the screen's edge (see
- * `sheetHiddenBelow`). It measures after the sheet has risen and each time it settles on a detent; 0 when inactive.
+ * `sheetHiddenBelow`). It measures after the sheet has risen, each time it settles on a detent and each time the window
+ * changes size (rotation, split screen), against the window's height; 0 when inactive.
  */
 function useSheetHiddenBelow(active: boolean, ref: RefObject<ScrollView | null>): number {
   const navigation = useScreenNavigation();
   const [margin, setMargin] = useState(0);
   const marginRef = useRef(0);
+  const { width, height: windowHeight } = useWindowDimensions();
+  const measuredSize = useRef<string>("");
   useEffect(() => {
     if (!active) return;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -143,7 +146,7 @@ function useSheetHiddenBelow(active: boolean, ref: RefObject<ScrollView | null>)
       if (!host?.measureInWindow) return;
       host.measureInWindow((_x: number, top: number, _w: number, height: number) => {
         if (!Number.isFinite(top) || !Number.isFinite(height) || height <= 0) return;
-        const next = sheetHiddenBelow({ top, height, margin: marginRef.current, windowHeight: Dimensions.get("screen").height });
+        const next = sheetHiddenBelow({ top, height, margin: marginRef.current, windowHeight });
         if (next !== marginRef.current) {
           marginRef.current = next;
           setMargin(next);
@@ -155,6 +158,10 @@ function useSheetHiddenBelow(active: boolean, ref: RefObject<ScrollView | null>)
       timer = setTimeout(measure, 50);
     };
     const fallback = setTimeout(measure, SHEET_MEASURE_FALLBACK_MS);
+    // A new window size moves the sheet and its scroll view: measure again once the layout has followed.
+    const size = `${width}x${windowHeight}`;
+    if (measuredSize.current && measuredSize.current !== size) later();
+    measuredSize.current = size;
     const done = navigation?.addListener("transitionEnd" as never, later);
     const detent = navigation?.addListener("sheetDetentChange" as never, (e: { data?: { stable?: boolean } }) => {
       if (e.data?.stable !== false) later();
@@ -165,7 +172,7 @@ function useSheetHiddenBelow(active: boolean, ref: RefObject<ScrollView | null>)
       done?.();
       detent?.();
     };
-  }, [active, navigation, ref]);
+  }, [active, navigation, ref, width, windowHeight]);
   return active ? margin : 0;
 }
 
@@ -186,8 +193,10 @@ export function SheetBody({ children, os = process.env.EXPO_OS }: { children: Re
   const ios = os === "ios";
   const bar = useTabBarOverSheet(os);
   const scroll = useRef<ScrollView>(null);
+  const navigation = useScreenNavigation();
   // A root-stack Android sheet (no bar under it) is laid out at its tallest detent: its scroll view must end at the edge.
-  const below = useSheetHiddenBelow(os === "android" && bar === 0, scroll);
+  // Inside the tabs the bar's share is 0 only while the keyboard is up, and the sheet is not a root one then.
+  const below = useSheetHiddenBelow(os === "android" && !insideTabs(navigation as Parameters<typeof insideTabs>[0]), scroll);
   return (
     <ScrollView
       ref={scroll}
