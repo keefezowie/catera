@@ -27,7 +27,7 @@ test("the app Metro and Jest configs no longer describe a hoisted-copy workaroun
 });
 
 test("the signed-out sentence is written once and shared", () => {
-  const sentence = "Masuk untuk melihat paket dan jadwal antar";
+  const sentence = "Masuk dulu untuk melihat paket dan jadwal antar";
   expect(read("apps/customer/src/account/SignInFirst.tsx")).toContain(sentence);
   expect(read("apps/customer/src/help/ReportProblem.tsx")).not.toContain(sentence);
   expect(read("apps/customer/src/help/ReportProblem.tsx")).toContain("signInSentence(t)");

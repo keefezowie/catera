@@ -5,7 +5,7 @@ import { Button, MoodHeader, Screen, Text, useColors, useMoodColors } from "@cat
 
 /** The one line every signed-out stand-in says; ReportProblem's sheet reads it from here too. */
 export const signInSentence = (t: (id: string, en: string) => string) =>
-  t("Masuk untuk melihat paket dan jadwal antar Anda.", "Sign in to see your packages and deliveries.");
+  t("Masuk dulu untuk melihat paket dan jadwal antar.", "Sign in to see your packages and deliveries.");
 
 /**
  * Signed-out stand-in for screens that need an account: one way to sign in that comes back here.
