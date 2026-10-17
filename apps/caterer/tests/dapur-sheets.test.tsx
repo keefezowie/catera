@@ -661,7 +661,7 @@ describe("appearance", () => {
     show(runtimeWith(), <ExceptionSheet id={dayOf(TODAY).deliveries[0].id} meal="lunch" date={TODAY} />, { dark: true });
     const sheet = await stopSheet();
     const chosen = within(sheet).getByTestId("failed-option");
-    expect(flat(chosen)).toMatchObject({ backgroundColor: nativeThemes.dark.sage, borderColor: nativeThemes.dark.forest });
+    expect(flat(chosen)).toMatchObject({ backgroundColor: nativeThemes.dark.surface, borderColor: nativeThemes.dark.line });
     expect(flat(within(sheet).getByRole("header", { name: "Bu Sari Wulandari" })).color).toBe(nativeThemes.dark.charcoal);
   });
 

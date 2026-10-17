@@ -303,7 +303,7 @@ describe("Hari ini", () => {
       }),
       <TodayScreen />,
     );
-    expect(await screen.findByText(/Ini data terakhir, 08.00/)).toBeTruthy();
+    expect(await screen.findByText(/Ini data terakhir yang tersimpan/)).toBeTruthy();
     expect(screen.getByTestId("session-count")).toBeTruthy();
     expect(skeletonNames()).toEqual([]);
   });

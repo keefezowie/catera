@@ -229,7 +229,7 @@ it("a failed fresh read keeps the kept day with its offline card", async () => {
       throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
     }),
   );
-  expect(await screen.findByText(/Ini data terakhir, 08.00/)).toBeTruthy();
+  expect(await screen.findByText(/Ini data terakhir yang tersimpan/)).toBeTruthy();
   expect(screen.getByTestId("day-kept")).toBeTruthy();
   expect(mutatingActions()).toEqual([]);
 });

@@ -1,6 +1,6 @@
 import { useLocalSearchParams } from "expo-router";
 import { jakartaDay } from "@catera/domain";
-import { MoveSheet } from "../../../../src/today/MoveSheet";
+import { MoveSheet } from "../../src/today/MoveSheet";
 
 /** One stop's Pindah tanggal as a large form sheet over Hari ini: `?meal=lunch&date=YYYY-MM-DD`. */
 export default function MoveRoute() {

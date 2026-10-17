@@ -320,6 +320,24 @@ describe("Pindah tanggal: the calendar", () => {
     expect(router.back).toHaveBeenCalled();
   });
 
+  it("the calendar is a root-stack sheet: the stop's tab sheet closes, then the root route opens", async () => {
+    const runtime = runtimeFor(() => dayWith([waiting]), { deliveryAvailability: availability });
+    renderToday(runtime);
+    fireEvent.press(await within(await screen.findByTestId("stop-1")).findByLabelText(/^Laporkan masalah atau pindah hari/));
+    (router.back as jest.Mock).mockClear();
+    (router.push as jest.Mock).mockClear();
+    fireEvent.press(await screen.findByRole("button", { name: "Pindah tanggal" }));
+    expect(router.back).toHaveBeenCalledTimes(1);
+    expect(router.push).toHaveBeenCalledWith(expect.stringContaining("/pindah-tanggal/"));
+    expect((router.back as jest.Mock).mock.invocationCallOrder[0]).toBeLessThan((router.push as jest.Mock).mock.invocationCallOrder[0]);
+  });
+
+  it("names the minimum reason before the move can be sent", async () => {
+    await openMove();
+    expect(screen.getByText("Minimal 5 karakter.")).toBeTruthy();
+    expect(screen.queryByText(/Dibaca pelanggan/)).toBeNull();
+  });
+
   it("the consequence line says only customers with the app are told", async () => {
     await openMove();
     expect(screen.getByTestId("calendar-note").props.children).toBe("Pelanggan yang memakai aplikasi diberi tahu.");
@@ -387,6 +405,28 @@ describe("every awaiting command button is busy while it waits", () => {
     await waitFor(() => expect(busyOf("Berangkat (1)")).toBe(true));
     expect(command).toHaveBeenCalledTimes(1);
     await release();
+  });
+
+  it("a failed Berangkat (n) is an error toast with Coba lagi that sends again without asking", async () => {
+    const command = jest.fn(async () => {
+      throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
+    });
+    renderToday(runtimeFor(() => dayWith([cooking, out]), { command }));
+    await pilih();
+    fireEvent.press(stopBox(/Bu Sari/));
+    fireEvent.press(screen.getByRole("button", { name: "Berangkat (1)" }));
+    await lastConfirmReady();
+    await lastConfirm().press("Berangkat");
+    expect(await screen.findByLabelText("Coba lagi")).toBeTruthy();
+    expect(screen.queryByTestId("form-error")).toBeNull();
+    fireEvent.press(screen.getByLabelText("Coba lagi"));
+    await waitFor(() => expect(command).toHaveBeenCalledTimes(2));
+  });
+
+  it("the selection title is a polite live region", async () => {
+    renderToday(runtimeFor(() => dayWith([cooking, out])));
+    await pilih();
+    expect(screen.getByTestId("order-live").props.accessibilityLiveRegion).toBe("polite");
   });
 
   it("Simpan laporan", async () => {

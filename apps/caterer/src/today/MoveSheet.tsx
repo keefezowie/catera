@@ -154,7 +154,7 @@ export function MoveSheet({ id, meal, date }: { id: string; meal: KitchenMeal; d
           label={t("Alasan", "Reason")}
           value={reason}
           onChangeText={setReason}
-          hint={t("Dibaca pelanggan. Tulis singkat.", "The customer reads this. Keep it short.")}
+          hint={t(`Minimal ${MIN_REASON} karakter.`, `At least ${MIN_REASON} characters.`)}
         />
       }
       onConfirm={async (newDate) => {

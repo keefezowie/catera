@@ -1,3 +1,4 @@
+import { withMobile } from "./with-mobile";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import { ActivityIndicator, Image, StyleSheet } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -116,7 +117,7 @@ describe("weekDates", () => {
 
 it("keeps Simpan disabled until every category is filled exactly", () => {
   render(
-    <SlotEditor
+    withMobile(<SlotEditor
       composition={composition}
       items={[item("a", "g-nasi", "rice", "Nasi putih"), item("b", "g-lauk", "main", "Ayam goreng kremes"), item("c", "g-sayur", "vegetable", "Sayur asem")]}
       library={[]}
@@ -126,7 +127,7 @@ it("keeps Simpan disabled until every category is filled exactly", () => {
       onSave={() => undefined}
       saving={false}
       canEdit
-    />,
+    />),
   );
   expect(screen.getByText("Lauk · 1 dari 2")).toBeTruthy();
   expect(screen.getByRole("button", { name: "Simpan menu" }).props.accessibilityState.disabled).toBe(true);
@@ -153,7 +154,7 @@ it("does not offer helpers package creation on an empty menu", async () => {
 it("gives a re-added dish a free slot id instead of reusing a taken one", () => {
   const onChange = jest.fn();
   render(
-    <SlotEditor
+    withMobile(<SlotEditor
       composition={composition}
       items={[item("g-lauk-2", "g-lauk", "main", "Tempe bacem")]}
       library={[dish("d-ikan", "Ikan bakar")]}
@@ -163,7 +164,7 @@ it("gives a re-added dish a free slot id instead of reusing a taken one", () => 
       onSave={() => undefined}
       saving={false}
       canEdit
-    />,
+    />),
   );
   fireEvent.changeText(screen.getByLabelText("Lauk berikutnya"), "ikan");
   fireEvent.press(screen.getByText("Ikan bakar"));
@@ -482,7 +483,7 @@ describe("menu loading and sharing states", () => {
 describe("SlotEditor touch targets", () => {
   it("remove and suggestion controls are 48dp", () => {
     render(
-      <SlotEditor
+      withMobile(<SlotEditor
         composition={composition}
         items={[item("g-lauk-1", "g-lauk", "main", "Tempe bacem")]}
         library={[dish("d-ikan", "Ikan bakar")]}
@@ -492,7 +493,7 @@ describe("SlotEditor touch targets", () => {
         onSave={() => undefined}
         saving={false}
         canEdit
-      />,
+      />),
     );
     const remove = StyleSheet.flatten(screen.getByRole("button", { name: "Hapus Tempe bacem" }).props.style);
     expect([remove.width, remove.height]).toEqual([48, 48]);

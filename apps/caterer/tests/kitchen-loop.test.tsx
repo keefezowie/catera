@@ -7,7 +7,7 @@ import { router } from "expo-router";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { errorLabel, kitchenSession, routeMapsUrl, type SellerOperationsState } from "@catera/domain";
 import { nativeMotion } from "@catera/design-tokens";
-import { MoodProvider, useMood } from "@catera/mobile-ui";
+import { MoodProvider, ToastProvider, useMood } from "@catera/mobile-ui";
 import { ExceptionSheet } from "../src/today/ExceptionSheet";
 import { TodayScreen } from "../src/today/TodayScreen";
 import { dishKey } from "../src/today/ticks";
@@ -115,8 +115,10 @@ const stopSheet = ({ path, params }: { path: string; params: Record<string, stri
 const renderToday = (runtime: MobileRuntime) =>
   render(
     <MobileProvider runtime={runtime} linkMapper={(h) => h}>
-      <TodayScreen />
-      <SheetHost render={stopSheet} />
+      <ToastProvider>
+        <TodayScreen />
+        <SheetHost render={stopSheet} />
+      </ToastProvider>
     </MobileProvider>,
   );
 
@@ -396,7 +398,7 @@ describe("Mulai masak", () => {
     expect(card.getByTestId("rantang-track").props.accessibilityLabel).toBe("Pesanan: Diantar, langkah 3 dari 4");
   });
 
-  it("answers an INVALID_DATE with a plain, selectable line in the footer and reads the day again", async () => {
+  it("answers an INVALID_DATE with an error toast with Coba lagi, and reads the day again", async () => {
     const command = jest.fn(async () => {
       throw Object.assign(new Error("INVALID_DATE"), { code: "INVALID_DATE" });
     });
@@ -404,9 +406,10 @@ describe("Mulai masak", () => {
     renderToday(runtime);
     fireEvent.press(await screen.findByText("Mulai masak"));
     await lastConfirm().press("Mulai");
-    const line = await screen.findByText("Hanya bisa untuk hari ini.");
-    expect(line.props.selectable).toBe(true);
-    expect(within(screen.getByTestId("screen-footer")).getByText("Hanya bisa untuk hari ini.")).toBeTruthy();
+    expect(await screen.findByText("Hanya bisa untuk hari ini.")).toBeTruthy();
+    expect(screen.getByLabelText("Coba lagi")).toBeTruthy();
+    // No loose line in the footer: the failure is the toast.
+    expect(within(screen.getByTestId("screen-footer")).queryByText("Hanya bisa untuk hari ini.")).toBeNull();
     await waitFor(() => expect((runtime.api.sellerOperations as jest.Mock).mock.calls.length).toBeGreaterThan(1));
     expect(runtime.api.usage).not.toHaveBeenCalledWith("cook_started", "dapur");
     expect(Haptics.notificationAsync).not.toHaveBeenCalled();
@@ -421,8 +424,10 @@ describe("Mulai masak", () => {
     renderToday(runtimeWith(async () => kitchenDay([scheduled]), command));
     fireEvent.press(await screen.findByText("Mulai masak"));
     await lastConfirm().press("Mulai");
-    const line = await within(await screen.findByTestId("screen-footer")).findByText(errorLabel("REQUEST_TIMEOUT", "id"));
-    expect(line.props.selectable).toBe(true);
+    expect(await screen.findByText(errorLabel("REQUEST_TIMEOUT", "id"))).toBeTruthy();
+    // Coba lagi runs the command again without asking again.
+    fireEvent.press(screen.getByLabelText("Coba lagi"));
+    await waitFor(() => expect(command).toHaveBeenCalledTimes(2));
   });
 
   it("sends one command for a double press while it runs", async () => {

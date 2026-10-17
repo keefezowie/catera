@@ -100,6 +100,11 @@ function Navigation() {
           <Stack.Protected guard={allowed.includes(SCREEN_TAB["impor-baris"])}>
             <Stack.Screen name="impor-baris" options={sheetOptions({ detents: "form", palette })} />
           </Stack.Protected>
+          {/* Pindah tanggal: the calendar and its reason field, a large form sheet in the root stack (spec 4.1). The stop's
+              sheet in the tab dismisses first (`ExceptionSheet`). It reads the day, so it has the stop sheet's guard. */}
+          <Stack.Protected guard={allowed.includes(SCREEN_TAB["pindah-tanggal/[id]"])}>
+            <Stack.Screen name="pindah-tanggal/[id]" options={sheetOptions({ detents: "large", palette })} />
+          </Stack.Protected>
           {/* One attached photo, whole, over Impor: a full-screen modal with Close where back would be. The viewer
               names which photo in its bar; it reads Impor's attachments, so it has Impor's guard. */}
           <Stack.Protected guard={allowed.includes(SCREEN_TAB["impor-foto"])}>

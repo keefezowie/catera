@@ -23,7 +23,6 @@ import {
   Card,
   ConnectionBanner,
   FadeSwap,
-  FormError,
   fontFor,
   MoodFill,
   MoodHeader,
@@ -38,6 +37,7 @@ import {
   Text,
   useColors,
   useConfirm,
+  useToast,
   useHaptic,
   useMood,
   useMoodColors,
@@ -166,9 +166,9 @@ function KitchenAction({
   // The confirm sheet is open: a second tap before it covers the button asks nothing more.
   const asking = useRef(false);
   const [busy, setBusy] = useState(false);
-  // Nothing changed ("someone got there first") is a note; a failure is a FormError at the button, with Coba lagi.
+  // Nothing changed ("someone got there first") is a note; a failure is an error toast with Coba lagi (spec 5.2).
   const [note, setNote] = useState("");
-  const [failure, setFailure] = useState<{ message: string; key: number } | null>(null);
+  const toast = useToast();
   const { meal } = session;
   const cook = session.canCook;
   const lunch = meal === "lunch";
@@ -178,7 +178,6 @@ function KitchenAction({
     running.current = true;
     setBusy(true);
     setNote("");
-    setFailure(null);
     try {
       const result = await command<{ moved?: number }>(cook ? "delivery.cook" : "delivery.depart", { catererId, date, meal });
       if (result?.moved === 0) {
@@ -194,7 +193,9 @@ function KitchenAction({
       }
     } catch (e) {
       const code = (e as { code?: string }).code || (e as Error).message;
-      setFailure((f) => ({
+      toast.show({
+        tone: "error",
+        action: { label: t("Coba lagi", "Try again"), onPress: () => void run() },
         message:
           code === "INVALID_DATE"
             ? t("Hanya bisa untuk hari ini.", "Only possible for today.")
@@ -202,8 +203,7 @@ function KitchenAction({
               (cook
                 ? t("Belum bisa menandai Dimasak. Coba lagi.", "Could not mark it as cooking. Try again.")
                 : t("Belum bisa menandai berangkat. Coba lagi.", "Could not mark it as out for delivery. Try again.")),
-        key: (f?.key ?? 0) + 1,
-      }));
+      });
       onFailed();
     } finally {
       running.current = false;
@@ -253,7 +253,6 @@ function KitchenAction({
           {note}
         </Text>
       ) : null}
-      {failure ? <FormError message={failure.message} failureKey={failure.key} retry={() => void run()} /> : null}
       <StickyAction
         label={
           cook
@@ -490,8 +489,8 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
           ) : day.data?.savedAt ? (
             <Text testID="day-kept" variant="caption">
               {t(
-                `Ini data terakhir, ${jakartaClock(day.data.savedAt)}. Mulai masak dan Berangkat kembali setelah data diperbarui.`,
-                `This is the last data, ${jakartaClock(day.data.savedAt)}. Start cooking and Leave come back once the data is refreshed.`,
+                "Ini data terakhir yang tersimpan. Mulai masak dan Berangkat kembali setelah data diperbarui.",
+                "This is the last data saved. Start cooking and Leave come back once the data is refreshed.",
               )}
             </Text>
           ) : null}

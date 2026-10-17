@@ -166,7 +166,9 @@ export function ExceptionSheet({ id, meal, date }: { id: string; meal: KitchenMe
 
   const openMove = () => {
     parkDay(catererId, date, ops);
-    router.replace(moveHref(id, meal, date) as never);
+    // The calendar is a root-stack sheet: this tab sheet closes, then the root route opens over Hari ini.
+    router.back();
+    router.push(moveHref(id, meal, date) as never);
   };
 
   return (
@@ -178,7 +180,7 @@ export function ExceptionSheet({ id, meal, date }: { id: string; meal: KitchenMe
         {canFail ? (
           <View
             testID="failed-option"
-            style={{ padding: 14, borderRadius: 12, borderWidth: 2, borderColor: c.forest, backgroundColor: c.sage, gap: 2 }}
+            style={{ padding: 14, borderRadius: 12, borderWidth: 1, borderColor: c.line, backgroundColor: c.surface, gap: 2 }}
           >
             <Text style={{ fontFamily: fontFor("800") }}>{t("Gagal diantar", "Not delivered")}</Text>
             <Text variant="caption">

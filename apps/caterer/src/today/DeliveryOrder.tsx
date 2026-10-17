@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Linking, Share, View } from "react-native";
+import { useEffect, useState } from "react";
+import { AccessibilityInfo, Linking, Platform, Share, View } from "react-native";
 import { router } from "expo-router";
 import {
   routeMapsUrl,
@@ -65,6 +65,13 @@ export function DeliveryOrder({
   const route = routeMapsUrl(stops);
   // Picking needs the whole list in view, and only today's stops on a fresh read can take an action.
   const picking = !!selection?.active && report === "today";
+  // Android reads the title through its live region; iOS has none, so a change of the count is announced here.
+  const pickedCount = selection?.selected.size ?? 0;
+  useEffect(() => {
+    if (Platform.OS === "ios" && picking)
+      AccessibilityInfo.announceForAccessibility(pickedCount ? t(`${pickedCount} dipilih`, `${pickedCount} selected`) : t("Pilih pengantaran", "Select deliveries"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pickedCount, picking]);
   const canPick = !!selection && report === "today" && selectableStops(stops).length > 0;
   const shown = all || picking ? stops : stops.slice(0, FIRST_STOPS);
   const hidden = stops.length - shown.length;
@@ -91,13 +98,15 @@ export function DeliveryOrder({
   return (
     <View testID="delivery-order" style={{ gap: 12 }}>
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 48 }}>
-        <Text testID="order-title" variant="label" accessibilityRole="header">
-          {picking
-            ? selection!.selected.size
-              ? t(`${selection!.selected.size} dipilih`, `${selection!.selected.size} selected`)
-              : t("Pilih pengantaran", "Select deliveries")
-            : t("Urutan antar", "Delivery order")}
-        </Text>
+        <View testID="order-live" accessibilityLiveRegion={picking ? "polite" : "none"} style={{ flex: 1 }}>
+          <Text testID="order-title" variant="label" accessibilityRole="header">
+            {picking
+              ? selection!.selected.size
+                ? t(`${selection!.selected.size} dipilih`, `${selection!.selected.size} selected`)
+                : t("Pilih pengantaran", "Select deliveries")
+              : t("Urutan antar", "Delivery order")}
+          </Text>
+        </View>
         {picking ? (
           <Button variant="text" label={t("Selesai", "Done")} onPress={selection!.stop} />
         ) : canPick ? (

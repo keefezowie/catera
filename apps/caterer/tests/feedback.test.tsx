@@ -1,3 +1,4 @@
+import { withMobile } from "./with-mobile";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import { RefreshControl } from "react-native";
 import * as Haptics from "expo-haptics";
@@ -204,7 +205,7 @@ describe("menu", () => {
     const library = [{ ...dish("d-ikan", "", "main", "Ikan bakar"), archived: false }] as never;
     let items = [dish("g-nasi-1", "g-nasi", "rice", "Nasi putih")];
     const ui = () => (
-      <SlotEditor
+      withMobile(<SlotEditor
         composition={composition}
         items={items}
         library={library}
@@ -214,7 +215,7 @@ describe("menu", () => {
         onSave={() => undefined}
         saving={false}
         canEdit
-      />
+      />)
     );
     const view = render(ui());
     const rows = () => screen.getAllByTestId("menu-slot-row");

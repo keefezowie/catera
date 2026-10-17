@@ -41,8 +41,7 @@ export function SlotEditor({
   saving: boolean;
   canEdit: boolean;
 }) {
-  // Indonesian as written when no provider is mounted (isolated component tests).
-  const t = (useMobile() as { t?: (id: string, en: string) => string } | null)?.t ?? ((id: string) => id);
+  const { t } = useMobile();
   // A dish the caterer adds enters and one removed leaves, the rest moving; the day's first draw does not animate.
   const rowMotion = useListMotion(items.map((i) => i.id));
   const complete = dayComplete(composition, items);

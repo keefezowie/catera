@@ -18,7 +18,7 @@ export function stopChoices(stop: Pick<Stop, "stage">, t: (id: string, en: strin
         depart: false,
         arrive: true,
         selectable: true,
-        note: t("Sudah berangkat, tinggal ditandai Sampai.", "Already left, only Sampai is left."),
+        note: t("Sudah berangkat, tinggal ditandai Sampai.", "Already left. Mark it Sampai when it arrives."),
       };
     case "arrived":
       return { depart: false, arrive: false, selectable: false, note: t("Sudah ditandai sampai.", "Already marked as arrived.") };

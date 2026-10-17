@@ -1,9 +1,8 @@
-import { useState } from "react";
 import { View } from "react-native";
 import { router } from "expo-router";
 import { errorLabel, type KitchenSession, type SellerOperationsState } from "@catera/domain";
 import { useMobile, useTrack } from "@catera/mobile-core";
-import { Button, FormError, Text, useBusy, useConfirm, useHaptic } from "@catera/mobile-ui";
+import { Button, Text, useBusy, useConfirm, useHaptic, useToast } from "@catera/mobile-ui";
 import { parkDay } from "./ExceptionSheet";
 import { proofHref } from "./ProofSheet";
 import { selectedFor, type Selection } from "./selection";
@@ -37,11 +36,12 @@ export function SelectionBar({
   const { meal } = session;
   const depart = selectedFor(session.stops, selection.selected, "depart");
   const arrive = selectedFor(session.stops, selection.selected, "arrive");
-  const [failure, setFailure] = useState<{ message: string; key: number } | null>(null);
+  const toast = useToast();
 
-  const [busy, leave] = useBusy(async () => {
+  // `asked` is a retry from the error toast: the question was answered already.
+  const [busy, leave] = useBusy(async (asked?: boolean) => {
     if (!depart.length) return;
-    const go = await confirm({
+    const go = asked || await confirm({
       title: t(`Berangkat dengan ${depart.length} pengantaran?`, `Leave with ${depart.length} ${depart.length === 1 ? "delivery" : "deliveries"}?`),
       message: t(
         "Pelanggan yang memakai aplikasi Catera dapat notifikasi saat kamu berangkat.",
@@ -52,7 +52,6 @@ export function SelectionBar({
       icon: "rantang",
     });
     if (!go) return;
-    setFailure(null);
     try {
       await command("delivery.depart", { catererId, date, meal, fulfillmentIds: depart.map((s) => s.deliveryId) });
       haptic.success();
@@ -60,11 +59,12 @@ export function SelectionBar({
       selection.stop();
     } catch (e) {
       const code = (e as { code?: string }).code || (e as Error).message;
-      setFailure((f) => ({
+      toast.show({
+        tone: "error",
+        action: { label: t("Coba lagi", "Try again"), onPress: () => void leave(true) },
         message:
           errorLabel(code, locale) || t("Belum bisa menandai berangkat. Coba lagi.", "Could not mark them as out for delivery. Try again."),
-        key: (f?.key ?? 0) + 1,
-      }));
+      });
       onFailed();
     }
   });
@@ -77,7 +77,6 @@ export function SelectionBar({
 
   return (
     <View testID="selection-bar" style={{ gap: 8 }}>
-      {failure ? <FormError message={failure.message} failureKey={failure.key} retry={() => void leave()} /> : null}
       {selection.selected.size === 0 ? (
         <Text variant="caption">{t("Pilih pengantaran dulu.", "Select deliveries first.")}</Text>
       ) : null}
