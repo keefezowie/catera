@@ -21,11 +21,17 @@ export function Photo({
   style,
   testID,
   ground: groundKind = "neutral",
+  headers,
+  onFail,
 }: {
   uri: string;
   style?: StyleProp<ViewStyle>;
   testID?: string;
   ground?: "neutral" | "photo";
+  /** Request headers, for a photo behind the signed-in session (the Sampai proof photo). */
+  headers?: Record<string, string>;
+  /** Called once when the photo fails to load, so a caller can say so in words next to the ground that remains. */
+  onFail?: () => void;
 }) {
   const c = useColors();
   const reduced = useReduced();
@@ -37,10 +43,13 @@ export function Photo({
     <Image
       testID={testID}
       accessibilityIgnoresInvertColors
-      source={{ uri }}
+      source={headers ? { uri, headers } : { uri }}
       contentFit="cover"
       transition={reduced ? 0 : nativeMotion.selection}
-      onError={() => setFailed(uri)}
+      onError={() => {
+        setFailed(uri);
+        onFail?.();
+      }}
       style={[style, ground] as StyleProp<ImageStyle>}
     />
   );

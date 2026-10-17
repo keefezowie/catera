@@ -8,7 +8,9 @@ import {
   Button,
   FadeSwap,
   Field,
+  FormError,
   PressableScale,
+  ReadError,
   SheetBody,
   SheetHeader,
   Skeleton,
@@ -97,6 +99,7 @@ function Review({ actorId, id }: { actorId: string; id: string }) {
   const [body, setBody] = useState(() => drafts.get(draftKey)?.body ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [failures, setFailures] = useState(0);
   const [finished, setFinished] = useState<"" | "sent" | "later">("");
   const closed = useRef(false);
 
@@ -127,12 +130,11 @@ function Review({ actorId, id }: { actorId: string; id: string }) {
         {state.loading ? (
           <ReviewSkeleton />
         ) : (
-          <>
-            <Text selectable={!!state.error} style={{ color: state.error ? palette.danger : palette.muted }}>
-              {state.error || t("Paket tidak ditemukan.", "Plan not found.")}
-            </Text>
-            {state.error ? <Button label={t("Coba lagi", "Try again")} onPress={() => void state.reload()} /> : null}
-          </>
+          state.error ? (
+            <ReadError message={state.error} onRetry={() => void state.reload()} />
+          ) : (
+            <Text style={{ color: palette.muted }}>{t("Paket tidak ditemukan.", "Plan not found.")}</Text>
+          )
         )}
       </Frame>
     );
@@ -158,6 +160,7 @@ function Review({ actorId, id }: { actorId: string; id: string }) {
     } catch (e) {
       const code = (e as { code?: string }).code || (e as Error).message;
       setError(errorLabel(code, locale) || t("Belum berhasil. Coba lagi.", "That didn't work. Try again."));
+      setFailures((n) => n + 1);
     } finally {
       setBusy(false);
     }
@@ -199,12 +202,8 @@ function Review({ actorId, id }: { actorId: string; id: string }) {
           multiline
           maxLength={1000}
         />
-        {error ? (
-          <Text selectable style={{ color: palette.danger }}>
-            {error}
-          </Text>
-        ) : null}
-        <Button label={t("Kirim ulasan", "Send review")} disabled={busy} onPress={() => void send()} />
+        {error ? <FormError message={error} failureKey={failures} /> : null}
+        <Button label={t("Kirim ulasan", "Send review")} busy={busy} onPress={() => void send()} />
         <Button
           variant="text"
           label={t("Nanti saja", "Not now")}

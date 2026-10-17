@@ -80,3 +80,7 @@ jest.mock("@react-native-community/netinfo", () => {
   };
   return { __esModule: true, default: NetInfo, ...NetInfo };
 });
+// A test that went offline (`goOffline()` in tests/offline.ts) must not leave the phone offline for the next one.
+afterEach(() => {
+  require("@react-native-community/netinfo").__set();
+});

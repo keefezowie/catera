@@ -1,7 +1,7 @@
 import { View } from "react-native";
 import { jakartaDay, type Notice } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, FadeSwap, PressableRow, Screen, StateArt, Text, themedStyles, useColors } from "@catera/mobile-ui";
+import { FadeSwap, PressableRow, ReadError, Screen, StateArt, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { customerLink } from "../links";
 import { longDay } from "../schedule/dates";
 import { jakartaClock } from "../today/Plate";
@@ -41,13 +41,7 @@ function Updates() {
       <FadeSwap swapKey={customer.data ? "ready" : customer.error ? "error" : "loading"}>
         {!customer.data ? (
           customer.error ? (
-            <View style={{ gap: 8 }}>
-              <StateArt pose="bingung" style={{ marginBottom: 4 }} />
-              <Text selectable style={{ color: c.danger, textAlign: "center" }}>
-                {customer.error}
-              </Text>
-              <Button variant="secondary" label={t("Coba lagi", "Try again")} onPress={() => void customer.reload()} />
-            </View>
+            <ReadError art message={customer.error} onRetry={() => void customer.reload()} />
           ) : (
             <ListSkeleton rows={4} label={t("Memuat notifikasi", "Loading notifications")} />
           )

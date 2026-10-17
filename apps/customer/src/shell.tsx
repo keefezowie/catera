@@ -1,8 +1,8 @@
-import { useRef, useState, type ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 import { View } from "react-native";
 import { errorLabel } from "@catera/domain";
 import { MobileProvider, useMobile, type MobileRuntime } from "@catera/mobile-core";
-import { Button, StateArt, Text, useColors } from "@catera/mobile-ui";
+import { Button, FormError, StateArt, Text, useBusy, useColors } from "@catera/mobile-ui";
 import { customerLink } from "./links";
 import { openLink } from "./nav";
 import { clearCachedCustomer } from "./today/offline";
@@ -36,7 +36,7 @@ function StartupGate({ children }: { children: ReactNode }) {
   const { ready, actor, error, locale, refresh, t } = useMobile();
   const c = useColors();
   const started = useRef(false);
-  const [busy, setBusy] = useState(false);
+  const [busy, retry] = useBusy(refresh);
   const signedOut = [errorLabel("UNAUTHORIZED", locale), errorLabel("FORBIDDEN", locale)].includes(error);
   if (ready && (actor || !error || signedOut)) started.current = true;
   if (started.current || !ready) return <>{children}</>;
@@ -46,17 +46,8 @@ function StartupGate({ children }: { children: ReactNode }) {
       <Text variant="title" style={{ textAlign: "center" }}>
         {t("Belum bisa terhubung.", "Can't connect yet.")}
       </Text>
-      <Text selectable testID="startup-error" style={{ color: c.danger, textAlign: "center" }}>
-        {error}
-      </Text>
-      <Button
-        label={t("Coba lagi", "Try again")}
-        disabled={busy}
-        onPress={() => {
-          setBusy(true);
-          void refresh().finally(() => setBusy(false));
-        }}
-      />
+      <FormError message={error} testID="startup-error" />
+      <Button label={t("Coba lagi", "Try again")} busy={busy} onPress={() => void retry()} />
     </View>
   );
 }

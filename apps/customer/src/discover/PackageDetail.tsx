@@ -26,12 +26,13 @@ import { useData, useMobile } from "@catera/mobile-core";
 import {
   Button,
   FadeSwap,
+  FormError,
   linkTitle,
   nativeHeaderOptions,
+  ReadError,
   SaveHeart,
   Screen,
   ScreenStatusBar,
-  StateArt,
   Text,
   themedStyles,
   useColors,
@@ -163,18 +164,15 @@ export function PackageDetail() {
           ) : (
             <View style={{ gap: 10 }}>
               {/* A failed read leads with the puzzled mascot; a package that is gone is not a failure and has none. */}
-              {loaded.error ? <StateArt pose="bingung" /> : null}
-              <Text
-                variant="heading"
-                selectable={!!loaded.error}
-                style={[{ color: loaded.error ? c.danger : c.charcoal }, loaded.error ? { textAlign: "center" } : null]}
-              >
-                {loaded.error || t("Paket tidak ditemukan.", "Package not found.")}
-              </Text>
               {loaded.error ? (
-                <Button variant="secondary" label={t("Coba lagi", "Try again")} onPress={() => void loaded.reload()} />
+                <ReadError art message={loaded.error} onRetry={() => void loaded.reload()} />
               ) : (
-                <Button label={t("Jelajah paket", "Browse packages")} onPress={() => goToTab("jelajah")} />
+                <>
+                  <Text variant="heading" style={{ color: c.charcoal }}>
+                    {t("Paket tidak ditemukan.", "Package not found.")}
+                  </Text>
+                  <Button label={t("Jelajah paket", "Browse packages")} onPress={() => goToTab("jelajah")} />
+                </>
               )}
             </View>
           )}
@@ -291,11 +289,7 @@ export function PackageDetail() {
               {gizi}
             </Text>
           ) : null}
-          {saved.error ? (
-            <Text selectable style={{ color: c.danger }}>
-              {saved.error}
-            </Text>
-          ) : null}
+          {saved.error ? <FormError message={saved.error} /> : null}
         </View>
         {o.description ? <Text>{o.description}</Text> : null}
 

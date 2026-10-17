@@ -368,11 +368,15 @@ describe("Masuk", () => {
     return runtime;
   }
 
-  it("while the SMS code is checked, the page is the mascot with Memeriksa kode", async () => {
+  it("the OTP check keeps the code visible and busies Masuk", async () => {
     await codeEntered(() => new Promise(() => undefined));
     await act(async () => fireEvent.press(screen.getByRole("button", { name: "Masuk" })));
-    expect(screen.getByTestId("mascot-loading").props.accessibilityLabel).toBe("Memeriksa kode…");
-    expect(screen.queryByLabelText("Kode dari SMS")).toBeNull();
+    // The page stays the form: no mascot screen, the typed code still on it, and the button is the busy one.
+    expect(screen.queryByTestId("mascot-loading")).toBeNull();
+    expect(screen.getByLabelText("Kode dari SMS").props.value).toBe("123456");
+    expect(screen.getByRole("button", { name: "Masuk" }).props.accessibilityState.busy).toBe(true);
+    // A second press while it waits sends nothing more.
+    fireEvent.press(screen.getByRole("button", { name: "Masuk" }));
     expect(screen.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
   });
 

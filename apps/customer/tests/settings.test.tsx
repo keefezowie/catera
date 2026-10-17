@@ -162,20 +162,23 @@ describe("Pengaturan entry", () => {
 });
 
 describe("Pengaturan", () => {
-  it("Pengaturan lists Notifikasi, Bahasa, Tampilan, Versi aplikasi, Syarat dan privasi and Keluar in that order", async () => {
+  it("Pengaturan lists Notifikasi, Bahasa, Tampilan, Versi aplikasi, Syarat dan privasi, Data akun and Keluar in that order", async () => {
     renderWith(runtimeWith(), <Pengaturan />);
     expect(await screen.findByRole("switch", { name: "Notifikasi di ponsel ini" })).toBeTruthy();
-    // Android sets the screen's name as its first content line, then the three section labels.
-    expect(screen.getAllByRole("header").map((h) => h.props.children)).toEqual(["Pengaturan", "Notifikasi", "Aplikasi", "Tentang"]);
+    // Android sets the screen's name as its first content line, then the four section labels.
+    expect(screen.getAllByRole("header").map((h) => h.props.children)).toEqual(["Pengaturan", "Notifikasi", "Aplikasi", "Tentang", "Akun"]);
     expect(rowNames()).toEqual([
       "Notifikasi di ponsel ini",
       "Bahasa",
       "Tampilan",
       "Versi aplikasi",
       "Syarat dan privasi",
+      "Data akun",
       "Keluar",
     ]);
     expect(screen.getByText("Makanan berangkat, menu besok, pembayaran")).toBeTruthy();
+    fireEvent.press(screen.getByRole("button", { name: "Data akun" }));
+    expect(router.push).toHaveBeenLastCalledWith("/data-akun");
     // Each row shows its current value; Android (the Jest build) words the system theme "Ikuti sistem".
     expect(screen.getByRole("button", { name: "Bahasa, Indonesia" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Tampilan, Ikuti sistem" })).toBeTruthy();

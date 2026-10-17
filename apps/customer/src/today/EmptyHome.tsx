@@ -8,6 +8,7 @@ import {
   FadeSwap,
   MoodHeader,
   PressableRow,
+  ReadError,
   Screen,
   StateArt,
   Text,
@@ -90,12 +91,7 @@ export function EmptyHomeBody({
       <FadeSwap swapKey={catalog.data ? "ready" : catalog.loading ? "loading" : "error"} style={{ gap: 16 }}>
         {catalog.loading && !catalog.data ? <OffersSkeleton /> : null}
         {catalog.error && !catalog.data ? (
-          <View style={{ gap: 4 }}>
-            <Text selectable style={{ color: c.danger }}>
-              {catalog.error}
-            </Text>
-            <Button variant="text" label={t("Coba lagi", "Try again")} onPress={() => void catalog.reload()} />
-          </View>
+          <ReadError message={catalog.error} onRetry={() => void catalog.reload()} />
         ) : null}
         {catalog.data && !offers.length ? (
           <Text style={{ color: c.muted }}>{t("Belum ada paket.", "No packages yet.")}</Text>

@@ -6,7 +6,7 @@ import * as Clipboard from "expo-clipboard";
 import * as WebBrowser from "expo-web-browser";
 import { currency, errorLabel, paidSummary, type Checkout, type CustomerState, type DirectPaymentMethod } from "@catera/domain";
 import { plural, useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, FadeSwap, fontFor, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
+import { Button, Card, FadeSwap, fontFor, FormError, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { PayWith, Retry } from "./BuyParts";
 import { FLOW_HREF, goToTab } from "../nav";
 import { firstPaidPlan, PaidActions, PaidBeat } from "./PaidOutcome";
@@ -68,8 +68,11 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
     }, [actorId, runtime]),
   );
   const [now, setNow] = useState(() => Date.now());
-  const [busy, setBusy] = useState(false);
+  // Which button is waiting (so only it shows the spinner); "" when none is.
+  const [waiting, setWaiting] = useState("");
+  const busy = waiting !== "";
   const [error, setError] = useState("");
+  const [failures, setFailures] = useState(0);
   // What the customer's own "cek status" found while the payment is still open.
   const [notice, setNotice] = useState("");
   const [method, setMethod] = useState<DirectPaymentMethod | null>(null);
@@ -174,16 +177,18 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
       );
   }
 
-  async function run(work: () => Promise<unknown>) {
-    setBusy(true);
+  async function run(work: () => Promise<unknown>, which = "work") {
+    if (waiting) return;
+    setWaiting(which);
     setError("");
     try {
       await work();
     } catch (e) {
       const code = (e as { code?: string }).code || (e as Error).message;
       setError(errorLabel(code, locale) || t("Belum berhasil. Coba lagi.", "That didn't work. Try again."));
+      setFailures((n) => n + 1);
     } finally {
-      setBusy(false);
+      setWaiting("");
     }
   }
 
@@ -241,7 +246,8 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
               help={help}
               busy={busy}
               error={error}
-              onCheck={() => void run(check)}
+              failures={failures}
+              onCheck={() => void run(check, "check")}
               locale={locale}
               t={t}
             />
@@ -275,10 +281,10 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
       footer={
         <Button
           label={t("Saya sudah bayar, cek status", "I've paid, check status")}
-          disabled={busy}
+          busy={waiting === "check"}
           onPress={() => {
             setNotice("");
-            void run(checkNow);
+            void run(checkNow, "check");
           }}
         />
       }
@@ -305,8 +311,8 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
             <Button
               variant="secondary"
               label={t("Simpan gambar QR", "Save QR image")}
-              disabled={busy}
-              onPress={() => void run(() => qris.save(c.id))}
+              busy={waiting === "qr"}
+              onPress={() => void run(() => qris.save(c.id), "qr")}
             />
           </>
         ) : null}
@@ -337,32 +343,32 @@ export function PaymentScreen({ checkoutId }: { checkoutId: string }) {
             {chosen ? (
               <Button
                 label={chosen === "QRIS" ? t("Tampilkan QRIS", "Show QRIS") : t("Tampilkan nomor VA", "Show VA number")}
-                disabled={busy}
-                onPress={() => void run(() => command("checkout.payment.start", { id: c.id, method: chosen }))}
+                busy={waiting === "start"}
+                onPress={() => void run(() => command("checkout.payment.start", { id: c.id, method: chosen }), "start")}
               />
             ) : null}
           </>
         ) : null}
         {!direct && demo ? (
-          <Button label={t("Bayar (demo)", "Pay (demo)")} disabled={busy} onPress={() => void run(() => command("checkout.demo_pay", { id: c.id }))} />
+          <Button
+            label={t("Bayar (demo)", "Pay (demo)")}
+            busy={waiting === "demo"}
+            onPress={() => void run(() => command("checkout.demo_pay", { id: c.id }), "demo")}
+          />
         ) : null}
         {!direct && !demo && c.payment_url ? (
           <Button
             label={t("Buka halaman pembayaran", "Open payment page")}
-            disabled={busy}
+            busy={waiting === "page"}
             onPress={() =>
               void run(async () => {
                 await WebBrowser.openBrowserAsync(c.payment_url!);
                 await reload();
-              })
+              }, "page")
             }
           />
         ) : null}
-        {error ? (
-          <Text selectable style={{ color: palette.danger }}>
-            {error}
-          </Text>
-        ) : null}
+        {error ? <FormError message={error} failureKey={failures} /> : null}
         {notice && !error ? (
           <Text style={{ fontFamily: fontFor("700") }} testID="payment-notice">
             {notice}

@@ -6,6 +6,7 @@ import { nativeThemes } from "@catera/design-tokens";
 import { useMobile } from "@catera/mobile-core";
 import { LaunchCover, ThemeProvider } from "@catera/mobile-ui";
 import { customerState, TODAY } from "./fixtures";
+import { goOffline, keptLine } from "./offline";
 
 /**
  * The launch sequence (spec 3): the splash held until the phone's own reads finish, Beranda painted from the copy kept
@@ -483,9 +484,11 @@ describe("cache-first Beranda", () => {
     );
     storedSession(rani);
     keptHome(rani, `${TODAY}T03:12:00.000Z`);
+    goOffline();
     renderHome();
-    expect(await screen.findByText(/Terakhir diperbarui 10\.12/)).toBeTruthy();
-    expect(screen.getByText(/tidak ada koneksi/)).toBeTruthy();
+    expect(await screen.findByText("Tidak ada koneksi")).toBeTruthy();
+    expect(screen.getByText(keptLine(`${TODAY}T03:12:00.000Z`))).toBeTruthy();
+    expect(screen.queryByText(/Terakhir diperbarui|tidak ada koneksi/)).toBeNull();
     expect(screen.queryByText("Memperbarui…")).toBeNull();
     expect(screen.queryByRole("button", { name: "Sudah sampai" })).toBeNull();
   });

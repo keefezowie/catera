@@ -59,7 +59,24 @@ const clamp = (month: string, from: string, to: string) => (month < from ? from 
  * fill and a forest label (rule 3: selection is a small mark, never a block). An unavailable day is muted and struck
  * through, and a tap reads why in the caption under the grid. "Pindah ke {tanggal}" waits for a new day and shows `busy` while it runs.
  */
-export function CalendarSheet({ month, days, current, onPick, confirmLabel, onConfirm, window, locale: forced, os = process.env.EXPO_OS }: CalendarSheetProps) {
+export function CalendarSheet(props: CalendarSheetProps) {
+  const t = useT();
+  return (
+    <>
+      <SheetHeader title={props.locale ? translator(props.locale)("Pindah tanggal", "Move date") : t("Pindah tanggal", "Move date")} />
+      <SheetBody>
+        <CalendarPanel {...props} />
+      </SheetBody>
+    </>
+  );
+}
+
+/**
+ * The calendar without its own sheet frame: the month pager, the grid, the caption and "Pindah ke {tanggal}". A sheet
+ * that already has a header and a body (Ubah hari, which keeps its day title and the side switch) puts this inside its
+ * body; `CalendarSheet` is the same panel under its own "Pindah tanggal" header.
+ */
+export function CalendarPanel({ month, days, current, onPick, confirmLabel, onConfirm, window, locale: forced, os = process.env.EXPO_OS }: CalendarSheetProps) {
   const c = useColors();
   const styles = useStyles();
   const appT = useT();
@@ -121,93 +138,90 @@ export function CalendarSheet({ month, days, current, onPick, confirmLabel, onCo
 
   return (
     <>
-      <SheetHeader title={t("Pindah tanggal", "Move date")} />
-      <SheetBody>
-        <View style={styles.pager}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t("Bulan sebelumnya", "Previous month")}
-            accessibilityState={{ disabled: shown <= first }}
-            disabled={shown <= first}
-            onPress={() => setShown(shiftMonth(shown, -1))}
-            style={[styles.pagerButton, shown <= first && styles.dim]}
-          >
-            <Ionicons name="chevron-back" size={22} color={c.charcoal} />
-          </Pressable>
-          <Text testID="calendar-month" variant="heading" accessibilityRole="header" style={styles.monthTitle}>
-            {monthTitle(shown, locale)}
-          </Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t("Bulan berikutnya", "Next month")}
-            accessibilityState={{ disabled: shown >= last }}
-            disabled={shown >= last}
-            onPress={() => setShown(shiftMonth(shown, 1))}
-            style={[styles.pagerButton, shown >= last && styles.dim]}
-          >
-            <Ionicons name="chevron-forward" size={22} color={c.charcoal} />
-          </Pressable>
-        </View>
-        <View
-          testID="calendar-weekdays"
-          style={[styles.weekRow, rowBleed]}
-          accessible={false}
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
+      <View style={styles.pager}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("Bulan sebelumnya", "Previous month")}
+          accessibilityState={{ disabled: shown <= first }}
+          disabled={shown <= first}
+          onPress={() => setShown(shiftMonth(shown, -1))}
+          style={[styles.pagerButton, shown <= first && styles.dim]}
         >
-          {WEEK_HEADER[locale].map((name) => (
-            <Text key={name} style={styles.weekName}>
-              {name}
-            </Text>
-          ))}
-        </View>
-        <View testID="calendar-grid" style={styles.grid}>
-          {weeks.map((week, row) => (
-            <View key={row} testID={`calendar-week-${row}`} style={[styles.weekRow, rowBleed]}>
-              {week.map((date, col) => {
-                if (!date) return <View key={col} style={styles.empty} />;
-                const day = days[date];
-                const isCurrent = day?.state === "current" || date === current;
-                const isChosen = date === chosen;
-                const off = !isCurrent && day?.state !== "available";
-                return (
-                  <Pressable
-                    key={col}
-                    testID={`calendar-day-${date}`}
-                    accessibilityRole="button"
-                    accessibilityLabel={`${shortDate(date, locale)}, ${stateWord(date, day)}`}
-                    accessibilityState={{ selected: isChosen, disabled: busy }}
-                    disabled={busy}
-                    onPress={() => press(date)}
-                    style={[styles.cell, isCurrent && styles.current, isChosen && styles.chosen]}
-                  >
-                    <Text
-                      testID={`calendar-num-${date}`}
-                      style={[styles.num, off && styles.numOff, isChosen && styles.numChosen]}
-                    >
-                      {Number(date.slice(8))}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          ))}
-        </View>
-        <View testID="calendar-caption" accessibilityLiveRegion="polite">
-          <Text selectable style={styles.caption}>
-            {caption ?? (chosen ? longDay(chosen, locale) : prompt)}
+          <Ionicons name="chevron-back" size={22} color={c.charcoal} />
+        </Pressable>
+        <Text testID="calendar-month" variant="heading" accessibilityRole="header" style={styles.monthTitle}>
+          {monthTitle(shown, locale)}
+        </Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("Bulan berikutnya", "Next month")}
+          accessibilityState={{ disabled: shown >= last }}
+          disabled={shown >= last}
+          onPress={() => setShown(shiftMonth(shown, 1))}
+          style={[styles.pagerButton, shown >= last && styles.dim]}
+        >
+          <Ionicons name="chevron-forward" size={22} color={c.charcoal} />
+        </Pressable>
+      </View>
+      <View
+        testID="calendar-weekdays"
+        style={[styles.weekRow, rowBleed]}
+        accessible={false}
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      >
+        {WEEK_HEADER[locale].map((name) => (
+          <Text key={name} style={styles.weekName}>
+            {name}
           </Text>
-        </View>
-        {failure ? (
-          <FormError message={failure.message} failureKey={failure.key} retry={chosen ? () => void move(chosen) : undefined} />
-        ) : null}
-        <Button
-          label={chosen ? confirmLabel(chosen) : t("Pindah tanggal", "Move date")}
-          disabled={!chosen}
-          busy={busy}
-          onPress={() => chosen && void move(chosen)}
-        />
-      </SheetBody>
+        ))}
+      </View>
+      <View testID="calendar-grid" style={styles.grid}>
+        {weeks.map((week, row) => (
+          <View key={row} testID={`calendar-week-${row}`} style={[styles.weekRow, rowBleed]}>
+            {week.map((date, col) => {
+              if (!date) return <View key={col} style={styles.empty} />;
+              const day = days[date];
+              const isCurrent = day?.state === "current" || date === current;
+              const isChosen = date === chosen;
+              const off = !isCurrent && day?.state !== "available";
+              return (
+                <Pressable
+                  key={col}
+                  testID={`calendar-day-${date}`}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${shortDate(date, locale)}, ${stateWord(date, day)}`}
+                  accessibilityState={{ selected: isChosen, disabled: busy }}
+                  disabled={busy}
+                  onPress={() => press(date)}
+                  style={[styles.cell, isCurrent && styles.current, isChosen && styles.chosen]}
+                >
+                  <Text
+                    testID={`calendar-num-${date}`}
+                    style={[styles.num, off && styles.numOff, isChosen && styles.numChosen]}
+                  >
+                    {Number(date.slice(8))}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        ))}
+      </View>
+      <View testID="calendar-caption" accessibilityLiveRegion="polite">
+        <Text selectable style={styles.caption}>
+          {caption ?? (chosen ? longDay(chosen, locale) : prompt)}
+        </Text>
+      </View>
+      {failure ? (
+        <FormError message={failure.message} failureKey={failure.key} retry={chosen ? () => void move(chosen) : undefined} />
+      ) : null}
+      <Button
+        label={chosen ? confirmLabel(chosen) : t("Pindah tanggal", "Move date")}
+        disabled={!chosen}
+        busy={busy}
+        onPress={() => chosen && void move(chosen)}
+      />
     </>
   );
 }

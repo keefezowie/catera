@@ -204,13 +204,16 @@ describe("sheet routes", () => {
     app.unmount();
   });
 
-  it("the five form sheets are declared by the root layout, and no tab stack declares one", () => {
+  it("the six form sheets are declared by the root layout, and no tab stack declares one", () => {
     const rootLayout = readFileSync(join(APP, "_layout.tsx"), "utf8");
     const tabLayout = readFileSync(join(APP, "(tabs)", "(index,jadwal,jelajah,akun)", "_layout.tsx"), "utf8");
-    for (const name of ["masalah/[id]", "ubah-hari/[id]", "ulasan/[id]", "alamat-form", "bantuan-form"]) {
+    for (const name of ["masalah/[id]", "ulasan/[id]", "alamat-form", "bantuan-form", "hapus-akun"]) {
       expect(rootLayout).toContain(`name="${name}" options={sheetOptions({ detents: "form"`);
       expect(tabLayout).not.toContain(`name="${name}"`);
     }
+    // Ubah hari holds a month calendar and opens at the large detent.
+    expect(rootLayout).toContain('name="ubah-hari/[id]" options={sheetOptions({ detents: "large"');
+    expect(tabLayout).not.toContain('name="ubah-hari/[id]"');
     // The choice sheet without fields stays in its tab.
     expect(tabLayout).toContain('name="area"');
   });

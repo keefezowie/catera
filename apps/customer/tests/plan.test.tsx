@@ -9,6 +9,7 @@ import { PlanDetailScreen } from "../src/plan/PlanDetail";
 import { customerLink } from "../src/links";
 import * as offline from "../src/today/offline";
 import { delivery, offer, subscription } from "./fixtures";
+import { goOffline, keptLine } from "./offline";
 
 let mockParams: { id?: string; title?: string } = { id: "s-1" };
 jest.mock("expo-router", () => ({
@@ -138,7 +139,8 @@ describe("Plan detail states", () => {
       throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
     });
     renderPlan(runtime);
-    expect(await screen.findByText("Belum bisa memuat")).toBeTruthy();
+    // Nothing is kept to show: the failure is the page, with the read error's own words and the way to try again.
+    expect(await screen.findByText("Koneksi terlalu lama. Periksa koneksi dan coba lagi.")).toBeTruthy();
     fireEvent.press(screen.getByRole("button", { name: "Coba lagi" }));
     await waitFor(() => expect(runtime.api.customer).toHaveBeenCalledTimes(2));
   });
@@ -168,7 +170,7 @@ describe("Plan detail states", () => {
         throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
       }),
     );
-    await screen.findByText("Belum bisa memuat");
+    await screen.findByText("Koneksi terlalu lama. Periksa koneksi dan coba lagi.");
     expect(nativeTitle()).toBe("Paket");
     expect(screen.queryByText(carried)).toBeNull();
     view.unmount();
@@ -399,9 +401,12 @@ describe("Plan detail states", () => {
     const runtime = runtimeWith(async () => {
       throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
     });
+    goOffline();
     renderPlan(runtime);
     expect(await screen.findByText("2 hari lagi")).toBeTruthy();
-    expect(screen.getByText(/Terakhir diperbarui 06\.12/)).toBeTruthy();
+    expect(await screen.findByText("Tidak ada koneksi")).toBeTruthy();
+    expect(screen.getByText(keptLine("2026-10-07T23:12:00Z"))).toBeTruthy();
+    expect(screen.queryByText(/Terakhir diperbarui/)).toBeNull();
     expect(screen.queryByTestId("sticky-action")).toBeNull();
     expect(screen.queryByText("Lanjutkan paket")).toBeNull();
     expect(offline.loadCachedCustomer).toHaveBeenCalledWith("u-c1");

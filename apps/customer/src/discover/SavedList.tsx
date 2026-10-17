@@ -7,6 +7,8 @@ import {
   Button,
   Card,
   FadeSwap,
+  FormError,
+  ReadError,
   Screen,
   StateArt,
   Text,
@@ -76,23 +78,13 @@ function Saved() {
   );
   return (
     <Screen>
-      {saved.error ? (
-        <Text selectable style={{ color: c.danger }}>
-          {saved.error}
-        </Text>
-      ) : null}
+      {saved.error ? <FormError message={saved.error} /> : null}
       {/* The list enters from its skeleton as one block. */}
       <FadeSwap swapKey={saved.loading ? "loading" : "ready"} style={{ gap: 16 }}>
         {saved.loading ? (
           <SavedSkeleton />
         ) : saved.loadError && !saved.items.length ? (
-          <View style={{ gap: 10 }}>
-            <StateArt pose="bingung" />
-            <Text selectable style={{ color: c.danger, textAlign: "center" }}>
-              {saved.loadError}
-            </Text>
-            <Button variant="secondary" label={t("Coba lagi", "Try again")} onPress={() => void saved.reload()} />
-          </View>
+          <ReadError art message={saved.loadError} onRetry={() => void saved.reload()} />
         ) : !saved.items.length ? (
           <View style={{ gap: 10 }}>
             <StateArt pose="mencari" />

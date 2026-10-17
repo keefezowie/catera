@@ -14,13 +14,14 @@ import {
 } from "@catera/domain";
 import { useData, useMobile, type MobileRuntime } from "@catera/mobile-core";
 import {
-  Button,
+  ConnectionBanner,
   FadeSwap,
   fontFor,
   HeroPager,
   MoodHeader,
   PhotoRing,
   PressableScale,
+  ReadError,
   Screen,
   Skeleton,
   SkeletonGroup,
@@ -34,7 +35,7 @@ import {
 } from "@catera/mobile-ui";
 import type { Mood } from "@catera/design-tokens";
 import { EmptyHome, EmptyHomeBody, EmptyHomeHeader, type HomeCatalog } from "./EmptyHome";
-import { HERO_OVERLAP, jakartaClock, photoUri, Plate, sentences } from "./Plate";
+import { HERO_OVERLAP, photoUri, Plate, sentences } from "./Plate";
 import { RecapCard } from "./RecapCard";
 import { WaitingList } from "./WaitingList";
 import { UpcomingDays } from "./UpcomingDays";
@@ -284,9 +285,7 @@ function OtherMealRow({ plates, apiBase, onPress }: { plates: PlateData[]; apiBa
 
 function SignedInHome({ actorId }: { actorId: string }) {
   const { runtime, t, locale } = useMobile();
-  const c = useColors();
   const { mood, setMood } = useMood();
-  const palette = useMoodColors();
   // A launch paints the copy kept for this account first (`fromCache`); the fresh read replaces it.
   const home = useData(`home:customer`, () => loadCustomer(runtime, actorId), { cached: () => keptCustomer(actorId) });
   // Menu choices that are due; Beranda still shows without them (offline or a failed feed).
@@ -346,12 +345,9 @@ function SignedInHome({ actorId }: { actorId: string }) {
       <Screen header={failed ? <MoodHeader title={t("Beranda", "Home")} /> : <HomeHeader />}>
         <FadeSwap swapKey={failed ? "error" : "loading"} style={{ gap: 16 }}>
           {failed ? (
-            <View style={{ gap: 4, alignItems: "center" }}>
-              <StateArt pose="bingung" style={{ marginBottom: 12 }} />
-              <Text selectable testID="home-error" style={{ color: c.danger, textAlign: "center" }}>
-                {home.error}
-              </Text>
-              <Button variant="text" label={t("Coba lagi", "Try again")} onPress={() => void home.reload()} />
+            // Nothing is kept on this phone to show: the failure is the page, with the way to try again.
+            <View testID="home-error">
+              <ReadError art message={home.error} onRetry={() => void home.reload()} />
             </View>
           ) : (
             <BerandaSkeleton />
@@ -461,16 +457,11 @@ function SignedInHome({ actorId }: { actorId: string }) {
             delivery={savedAt ? undefined : state.deliveries.find((d) => d.id === heroPlates[0].deliveryId)}
           />
         ) : null}
-        {updating ? null : savedAt ? (
-          <Text variant="caption" style={{ color: c.charcoal, fontVariant: ["tabular-nums"] }}>
-            {t("Terakhir diperbarui", "Last updated")} {jakartaClock(savedAt)} ·{" "}
-            {t("tidak ada koneksi", "no connection")}
-          </Text>
-        ) : home.error ? (
-          <Text selectable variant="caption" style={{ color: c.danger }}>
-            {home.error}
-          </Text>
-        ) : null}
+        {/* Mounted whatever the page shows: the banner reads the phone's connection itself and appears only offline,
+            with the time of the copy on screen; when the phone is back it reads again. It follows the hero, which rides
+            up over the header. */}
+        <ConnectionBanner lastSeen={savedAt ? new Date(savedAt) : undefined} onRetry={() => void home.reload()} />
+        {!savedAt && home.error ? <ReadError message={home.error} onRetry={() => void home.reload()} /> : null}
         {otherPlates.length ? (
           <OtherMealRow
             plates={otherPlates}

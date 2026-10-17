@@ -2,7 +2,7 @@ import { useState } from "react";
 import { View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useMobile } from "@catera/mobile-core";
-import { Button, Field, Screen, Text, useColors } from "@catera/mobile-ui";
+import { Button, Field, FormError, Screen, Text } from "@catera/mobile-ui";
 import { nativeReturnPath } from "../auth";
 import { authClient, authError, REDIRECT_TO, savePending, validEmail } from "./emailAuth";
 import { useAction } from "./useAction";
@@ -10,7 +10,6 @@ import { useAction } from "./useAction";
 /** Lupa kata sandi: a recovery link by email, opened on this phone to choose a new password. */
 export function Recover() {
   const { runtime, t } = useMobile();
-  const c = useColors();
   const params = useLocalSearchParams<{ next?: string }>();
   const next = nativeReturnPath(typeof params.next === "string" ? params.next : undefined);
   const [email, setEmail] = useState("");
@@ -53,14 +52,11 @@ export function Recover() {
             )}
           </Text>
         ) : null}
-        {action.error ? (
-          <Text selectable style={{ color: c.danger }} testID="identity-error">
-            {action.error}
-          </Text>
-        ) : null}
+        {action.error ? <FormError message={action.error} failureKey={action.failures} testID="identity-error" /> : null}
         <Button
           label={sent ? t("Kirim ulang tautan", "Resend link") : t("Kirim tautan pemulihan", "Send recovery link")}
-          disabled={action.busy || !validEmail(email)}
+          busy={action.busy}
+          disabled={!validEmail(email)}
           onPress={() => void send()}
         />
         <Button

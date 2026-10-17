@@ -624,13 +624,14 @@ describe("Ubah hari sheet", () => {
     renderSheet(flexible, runtime);
     expect(await screen.findByText("Bisa diubah sampai hari ini 17.00")).toBeTruthy();
     expect(runtime.api.deliveryAvailability).toHaveBeenCalledWith("d-1", "2026-10-07", "2026-11-06");
-    // Unavailable dates are listed and disabled, with the reason.
-    const full = await screen.findByRole("button", { name: "Selasa 20 Okt, Katering penuh" });
-    expect(full.props.accessibilityState.disabled).toBe(true);
-    expect(screen.getByRole("button", { name: "Rabu 21 Okt, Sudah ada pengantaran" }).props.accessibilityState.disabled).toBe(true);
+    // An unavailable day stays in the calendar; a tap on it reads why.
+    fireEvent.press(await screen.findByTestId("calendar-day-2026-10-20"));
+    expect(within(screen.getByTestId("calendar-caption")).getByText("Selasa 20 Okt: Penuh")).toBeTruthy();
+    fireEvent.press(screen.getByTestId("calendar-day-2026-10-21"));
+    expect(within(screen.getByTestId("calendar-caption")).getByText("Rabu 21 Okt: Terisi")).toBeTruthy();
     // Confirm waits for a choice.
-    expect(screen.getByRole("button", { name: "Pilih tanggal" }).props.accessibilityState.disabled).toBe(true);
-    fireEvent.press(screen.getByRole("button", { name: "Senin 19 Okt" }));
+    expect(screen.getByRole("button", { name: "Pindah tanggal" }).props.accessibilityState.disabled).toBe(true);
+    fireEvent.press(screen.getByTestId("calendar-day-2026-10-19"));
     expect(
       screen.getByText("Tempat di hari baru dipesan dulu, baru Kamis 8 Okt dilepas. Dapur Contoh otomatis tahu."),
     ).toBeTruthy();
@@ -655,7 +656,7 @@ describe("Ubah hari sheet", () => {
         </MobileProvider>
       </StrictMode>,
     );
-    fireEvent.press(await screen.findByRole("button", { name: "Senin 19 Okt" }));
+    fireEvent.press(await screen.findByTestId("calendar-day-2026-10-19"));
     fireEvent.press(screen.getByRole("button", { name: "Pindah ke Senin 19 Okt" }));
     await waitFor(() => expect(onDone).toHaveBeenCalledTimes(1));
     expect(onDone).toHaveBeenCalledWith({ mode: "date", label: "Senin 19 Okt", message: "Hari dipindah ke Senin 19 Okt" });
@@ -671,7 +672,7 @@ describe("Ubah hari sheet", () => {
       runtimeWith(stateOf([flexible]), available, command),
       <ChangeDaySheet delivery={flexible} addresses={[home, rumah, jauh]} onClose={onClose} onDone={onDone} />,
     );
-    fireEvent.press(await screen.findByRole("button", { name: "Senin 19 Okt" }));
+    fireEvent.press(await screen.findByTestId("calendar-day-2026-10-19"));
     fireEvent.press(screen.getByRole("button", { name: "Pindah ke Senin 19 Okt" }));
     await waitFor(() => expect(command).toHaveBeenCalled());
     // Swiped down while the change is on its way: the sheet is gone, the change still goes through.
@@ -682,59 +683,71 @@ describe("Ubah hari sheet", () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it("shows bookable dates as chips and picks one", async () => {
+  it("Ubah hari uses the calendar and disables the button until a day is chosen", async () => {
     const dates: Availability = [
       { date: "2026-10-12", available: true, reason: null, remaining: 4 },
       { date: "2026-10-13", available: false, reason: "CAPACITY", remaining: 0 },
     ];
     renderSheet(flexible, runtimeWith(stateOf([flexible]), dates));
-    const chip = await screen.findByRole("button", { name: /Senin 12 Okt/ });
-    expect(chip.props.accessibilityState.selected).toBe(false);
-    expect(screen.getByRole("button", { name: "Pilih tanggal" }).props.accessibilityState.disabled).toBe(true);
-    fireEvent.press(chip);
-    expect(screen.getByRole("button", { name: "Senin 12 Okt" }).props.accessibilityState.selected).toBe(true);
-    // The long label of the chosen day appears under the strip.
-    expect(within(screen.getByTestId("chosen-day")).getByText("Senin 12 Okt")).toBeTruthy();
+    const day = await screen.findByTestId("calendar-day-2026-10-12");
+    expect(day.props.accessibilityLabel).toBe("Senin 12 Okt, tersedia");
+    // The delivery day itself is outlined, not offered; the chip strip is gone.
+    expect(screen.getByTestId("calendar-day-2026-10-08").props.accessibilityLabel).toBe("Kamis 8 Okt, hari pengantaran sekarang");
+    expect(screen.queryByTestId("chosen-day")).toBeNull();
+    expect(screen.getByRole("button", { name: "Pindah tanggal" }).props.accessibilityState.disabled).toBe(true);
+    fireEvent.press(day);
+    expect(screen.getByTestId("calendar-day-2026-10-12").props.accessibilityState.selected).toBe(true);
     expect(screen.getByRole("button", { name: "Pindah ke Senin 12 Okt" }).props.accessibilityState.disabled).toBe(false);
   });
 
-  it("marks a full date as unavailable", async () => {
+  it("a day that is full cannot be chosen: its tap reads Penuh and the button stays off", async () => {
     const dates: Availability = [
       { date: "2026-10-12", available: true, reason: null, remaining: 4 },
       { date: "2026-10-13", available: false, reason: "CAPACITY", remaining: 0 },
     ];
     renderSheet(flexible, runtimeWith(stateOf([flexible]), dates));
-    const chip = await screen.findByRole("button", { name: /Selasa 13 Okt, Katering penuh/ });
-    expect(chip.props.accessibilityState.disabled).toBe(true);
-    fireEvent.press(chip);
-    expect(screen.getByRole("button", { name: "Pilih tanggal" }).props.accessibilityState.disabled).toBe(true);
+    const full = await screen.findByTestId("calendar-day-2026-10-13");
+    expect(full.props.accessibilityLabel).toBe("Selasa 13 Okt, tidak tersedia, Penuh");
+    fireEvent.press(full);
+    expect(within(screen.getByTestId("calendar-caption")).getByText("Selasa 13 Okt: Penuh")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Pindah tanggal" }).props.accessibilityState.disabled).toBe(true);
   });
 
-  it("shows why a date is unavailable", async () => {
+  it("reads Terisi for a day that already has a delivery", async () => {
     const dates: Availability = [
       { date: "2026-10-12", available: false, reason: "DUPLICATE_DATE", remaining: 3 },
       { date: "2026-10-13", available: false, reason: "CAPACITY", remaining: 0 },
     ];
     renderSheet(flexible, runtimeWith(stateOf([flexible]), dates));
-    const full = await screen.findByRole("button", { name: /Selasa 13 Okt, Katering penuh/ });
-    expect(within(full).getByText("Penuh")).toBeTruthy();
-    const taken = screen.getByRole("button", { name: /Senin 12 Okt, Sudah ada pengantaran/ });
-    expect(within(taken).getByText("Terisi")).toBeTruthy();
+    fireEvent.press(await screen.findByTestId("calendar-day-2026-10-12"));
+    expect(within(screen.getByTestId("calendar-caption")).getByText("Senin 12 Okt: Terisi")).toBeTruthy();
   });
 
-  it("shows the empty message when no date is bookable", async () => {
+  it("says no other day can be picked when no date is bookable", async () => {
     renderSheet(flexible, runtimeWith(stateOf([flexible]), []));
-    expect(await screen.findByText("Belum ada tanggal yang tersedia dalam 30 hari ke depan.")).toBeTruthy();
+    expect(await screen.findByText("Belum ada hari lain yang bisa kamu pilih di rentang ini.")).toBeTruthy();
   });
 
-  it("shows the empty message when every date is unavailable", async () => {
+  it("says no other day can be picked when every date is unavailable", async () => {
     const full = [
       { date: "2026-10-12", available: false, reason: "DUPLICATE_DATE", remaining: 3 },
       { date: "2026-10-13", available: false, reason: "CAPACITY", remaining: 0 },
     ];
     renderSheet(flexible, runtimeWith(stateOf([flexible]), full));
-    expect(await screen.findByText("Belum ada tanggal yang tersedia dalam 30 hari ke depan.")).toBeTruthy();
-    expect(screen.getByRole("button", { name: /Selasa 13 Okt, Katering penuh/ })).toBeTruthy();
+    expect(await screen.findByText("Belum ada hari lain yang bisa kamu pilih di rentang ini.")).toBeTruthy();
+  });
+
+  it("shows a busy button while the move is on its way and sends it once", async () => {
+    let settle = () => {};
+    const command = jest.fn(() => new Promise((resolve) => (settle = () => resolve({}))));
+    renderSheet(flexible, runtimeWith(stateOf([flexible]), available, command));
+    fireEvent.press(await screen.findByTestId("calendar-day-2026-10-19"));
+    const move = screen.getByRole("button", { name: "Pindah ke Senin 19 Okt" });
+    fireEvent.press(move);
+    fireEvent.press(move);
+    await waitFor(() => expect(command).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole("button", { name: "Pindah ke Senin 19 Okt" }).props.accessibilityState.busy).toBe(true);
+    await act(async () => settle());
   });
 
   it("changes the address for one day", async () => {
@@ -821,7 +834,7 @@ describe("Ubah hari sheet", () => {
       throw Object.assign(new Error(code), { code });
     });
     renderSheet(flexible, runtimeWith(stateOf([flexible]), available, command));
-    fireEvent.press(await screen.findByRole("button", { name: "Senin 19 Okt" }));
+    fireEvent.press(await screen.findByTestId("calendar-day-2026-10-19"));
     fireEvent.press(screen.getByRole("button", { name: "Pindah ke Senin 19 Okt" }));
     expect(await screen.findByText("Hari itu sudah penuh. Pilih tanggal lain.")).toBeTruthy();
   });
@@ -831,7 +844,7 @@ describe("Ubah hari sheet", () => {
       throw Object.assign(new Error("CONFLICT"), { code: "CONFLICT" });
     });
     renderSheet(flexible, runtimeWith(stateOf([flexible]), available, command));
-    fireEvent.press(await screen.findByRole("button", { name: "Senin 19 Okt" }));
+    fireEvent.press(await screen.findByTestId("calendar-day-2026-10-19"));
     fireEvent.press(screen.getByRole("button", { name: "Pindah ke Senin 19 Okt" }));
     expect(await screen.findByText("Data sudah berubah. Muat ulang sebelum mencoba lagi.")).toBeTruthy();
   });
@@ -845,7 +858,7 @@ describe("Ubah hari sheet", () => {
       </MobileProvider>
     );
     const view = render(ui(flexible));
-    fireEvent.press(await screen.findByRole("button", { name: "Senin 19 Okt" }));
+    fireEvent.press(await screen.findByTestId("calendar-day-2026-10-19"));
     // The live day moves to version 4 while the sheet is open.
     view.rerender(ui({ ...flexible, version: 4 }));
     fireEvent.press(screen.getByRole("button", { name: "Pindah ke Senin 19 Okt" }));
@@ -867,7 +880,7 @@ describe("Ubah hari sheet", () => {
     const command = jest.fn(async () => ({}));
     const closing = open("d-1", "2026-10-08", { cutoff_at: "2026-10-07T03:00:01Z" });
     renderSheet(closing, runtimeWith(stateOf([closing]), available, command));
-    fireEvent.press(await screen.findByRole("button", { name: "Senin 19 Okt" }));
+    fireEvent.press(await screen.findByTestId("calendar-day-2026-10-19"));
     jest.setSystemTime(new Date("2026-10-07T03:00:05Z"));
     fireEvent.press(screen.getByRole("button", { name: "Pindah ke Senin 19 Okt" }));
     expect(await screen.findByText("Batas perubahan sudah lewat. Pilih tanggal berikutnya.")).toBeTruthy();

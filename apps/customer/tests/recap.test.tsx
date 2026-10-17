@@ -8,6 +8,7 @@ import { Beranda } from "../src/today/Beranda";
 import { customerLink } from "../src/links";
 import * as offline from "../src/today/offline";
 import { delivery, offer, subscription } from "./fixtures";
+import { goOffline, keptLine } from "./offline";
 
 // Whether Beranda is the screen in front. A pushed screen or the sign-in modal on top leaves Beranda mounted but
 // unfocused; flipping this re-renders the subscribers, as the navigator does on a focus change.
@@ -295,12 +296,13 @@ describe("the Paket selesai recap", () => {
       savedAt: "2026-10-08T02:00:00Z",
       data: stateWith([livePlan(), endedPlan()]),
     });
+    goOffline();
     await home(
       runtimeWith(async () => {
         throw new Error("Network request failed");
       }),
     );
-    expect(screen.getByText(/tidak ada koneksi/)).toBeTruthy();
+    expect(await screen.findByText("Tidak ada koneksi")).toBeTruthy();
     fireEvent.press(within(screen.getByTestId("recap-card")).getByRole("button", { name: "Lanjutkan paket" }));
     expect(router.push).toHaveBeenCalledWith("/renew/s-old");
   });

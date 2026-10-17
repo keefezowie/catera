@@ -14,7 +14,7 @@ import {
 import { useMobile } from "@catera/mobile-core";
 import { useActionSheet, type ActionSheetInput } from "@catera/mobile-ui";
 import { catererPhoneOf, openCatererChat } from "../help/ChatKatering";
-import { photoUri } from "../today/Plate";
+import { photoUri } from "../today/photoUri";
 
 type Meal = "lunch" | "dinner";
 type Translate = (id: string, en: string) => string;

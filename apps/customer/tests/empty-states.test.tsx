@@ -291,7 +291,7 @@ const STATES: State[] = [
     runtime: () => runtimeWith({ customer: jest.fn(async () => Promise.reject(offline())) }),
     ui: <PlanDetailScreen />,
     params: { id: "s-1" },
-    copy: ["Belum bisa memuat"],
+    copy: ["Koneksi terlalu lama. Periksa koneksi dan coba lagi."],
     action: "Coba lagi",
   },
   {

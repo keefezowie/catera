@@ -27,6 +27,7 @@ import {
   planDelivery,
   quietSaturday,
 } from "./fixtures";
+import { goOffline, keptLine } from "./offline";
 
 /** Rows that carry an href open through openLink; its tab handling is covered in navigation.test, so here it opens the
  * path the way a push does. */
@@ -429,9 +430,10 @@ describe("Menunggu Anda", () => {
       },
       async () => ({ total: actions.length, items: actions }),
     );
+    goOffline();
     mount(runtime);
     const list = within(await screen.findByTestId("waiting-list"));
-    expect(screen.getByText(/Terakhir diperbarui 08\.12/)).toBeTruthy();
+    expect(await screen.findByText(keptLine(`${DEMO_TODAY}T01:12:00.000Z`))).toBeTruthy();
     expect(list.queryByText(/^Pilih menu/)).toBeNull();
     expect(list.getByText("Paket Sehat, sisa 2 hari")).toBeTruthy();
     // A review cannot be sent from the saved copy.

@@ -7,6 +7,8 @@ import {
   Button,
   FadeSwap,
   Field,
+  FormError,
+  ReadError,
   SheetBody,
   SheetHeader,
   Skeleton,
@@ -106,12 +108,11 @@ function Book({ actorId, id, title }: { actorId: string; id: string; title: stri
         {customer.loading ? (
           <FormSkeleton />
         ) : (
-          <>
-            <Text selectable={!!customer.error} style={{ color: customer.error ? c.danger : c.muted }}>
-              {customer.error || t("Alamat tidak ditemukan.", "Address not found.")}
-            </Text>
-            {customer.error ? <Button label={t("Coba lagi", "Try again")} onPress={() => void customer.reload()} /> : null}
-          </>
+          customer.error ? (
+            <ReadError message={customer.error} onRetry={() => void customer.reload()} />
+          ) : (
+            <Text style={{ color: c.muted }}>{t("Alamat tidak ditemukan.", "Address not found.")}</Text>
+          )
         )}
       </Frame>
     );
@@ -120,13 +121,13 @@ function Book({ actorId, id, title }: { actorId: string; id: string; title: stri
 
 function Form({ actorId, address, title }: { actorId: string; address: Address | null; title: string }) {
   const { command, t, locale } = useMobile();
-  const c = useColors();
   const toast = useToast();
   const draftKey = `${actorId}:${address?.id ?? "baru"}`;
   const [start] = useState(() => blank(t, address));
   const [draft, setDraft] = useState<Draft>(() => drafts.get(draftKey) ?? start);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [failures, setFailures] = useState(0);
   const [saved, setSaved] = useState(false);
   const closed = useRef(false);
   // Only typed text asks: a field that differs from what the form opened with. Choosing an area alone does not.
@@ -173,6 +174,7 @@ function Form({ actorId, address, title }: { actorId: string; address: Address |
       setSaved(true);
     } catch (e) {
       setError(failureText(e, locale, t));
+      setFailures((n) => n + 1);
     } finally {
       setBusy(false);
     }
@@ -208,14 +210,11 @@ function Form({ actorId, address, title }: { actorId: string; address: Address |
           "A delivery already scheduled changes its address only through Change day in Schedule.",
         )}
       </Text>
-      {error ? (
-        <Text selectable style={{ color: c.danger }} testID="address-error">
-          {error}
-        </Text>
-      ) : null}
+      {error ? <FormError message={error} failureKey={failures} testID="address-error" /> : null}
       <Button
         label={t("Simpan alamat", "Save address")}
-        disabled={busy || !draft.label.trim() || draft.line.trim().length < 5 || !draft.city.trim()}
+        busy={busy}
+        disabled={!draft.label.trim() || draft.line.trim().length < 5 || !draft.city.trim()}
         onPress={() => void save()}
       />
     </Frame>

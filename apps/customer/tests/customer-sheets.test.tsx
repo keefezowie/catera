@@ -200,10 +200,13 @@ function hardwareBack() {
 }
 
 /** The form-sheet and fit-sheet options react-native-screens gets ([-1] is fitToContents). */
-const expectSheet = (route: string, detents: "form" | "fit") => {
+const expectSheet = (route: string, detents: "form" | "fit" | "large") => {
   const s = screenOf(route);
   expect({ route, presentation: s.props.stackPresentation }).toEqual({ route, presentation: "formSheet" });
-  expect({ route, detents: s.props.sheetAllowedDetents }).toEqual({ route, detents: detents === "form" ? [0.6, 1] : [-1] });
+  expect({ route, detents: s.props.sheetAllowedDetents }).toEqual({
+    route,
+    detents: detents === "form" ? [0.6, 1] : detents === "large" ? [1] : [-1],
+  });
   expect(s.props.sheetGrabberVisible).toBe(true);
   expect(s.props.sheetCornerRadius).toBe(28);
 };
@@ -311,7 +314,8 @@ describe("routes", () => {
     answer("ulasan:s-1", stateWith([]));
     const app = await mount("/hari/d1");
     for (const [path, route, detents] of [
-      ["/ubah-hari/d1", "ubah-hari/[id]", "form"],
+      // Ubah hari holds a month calendar, so it opens at the large detent.
+      ["/ubah-hari/d1", "ubah-hari/[id]", "large"],
       ["/ulasan/s-1", "ulasan/[id]", "form"],
       ["/alamat-form", "alamat-form", "form"],
       ["/bantuan-form?kind=help", "bantuan-form", "form"],
@@ -528,7 +532,7 @@ describe("outcomes", () => {
     expect(within(screenOf("ubah-hari/[id]") as never).getByTestId("sheet-context").props.children).toBe(
       "Makan Siang Rumahan · Dapur Contoh",
     );
-    await go(() => fireEvent.press(screen.getByRole("button", { name: shortDate(target, "id") })));
+    await go(() => fireEvent.press(screen.getByTestId(`calendar-day-${target}`)));
     await go(() => fireEvent.press(screen.getByRole("button", { name: `Pindah ke ${shortDate(target, "id")}` })));
     expect(mockCommand).toHaveBeenCalledWith("delivery.reschedule", { id: "d1", version: 1, date: target, kind: "reschedule" });
     await act(async () => {});

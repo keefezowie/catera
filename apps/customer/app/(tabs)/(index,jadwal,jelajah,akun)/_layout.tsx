@@ -58,6 +58,7 @@ export default function TabStack({ segment }: { segment: string }) {
       <Stack.Screen name="saved" options={{ headerShown: false }} />
       <Stack.Screen name="notifications" options={{ title: t("Notifikasi", "Notifications") }} />
       <Stack.Screen name="pengaturan" options={contentTitled(t("Pengaturan", "Settings"))} />
+      <Stack.Screen name="data-akun" options={contentTitled(t("Data akun", "Account details"))} />
       {/* Pengaturan's choice sheets size to their content and draw their own title. */}
       <Stack.Screen name="pengaturan/tampilan" options={sheetOptions({ detents: "fit", palette })} />
       <Stack.Screen name="pengaturan/bahasa" options={sheetOptions({ detents: "fit", palette })} />

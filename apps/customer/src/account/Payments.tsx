@@ -2,7 +2,7 @@ import { View } from "react-native";
 import { router } from "expo-router";
 import { currency, type CustomerActionItem, type Subscription } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, FadeSwap, Screen, StateArt, Text, useColors } from "@catera/mobile-ui";
+import { Button, FadeSwap, ReadError, Screen, Text, useColors } from "@catera/mobile-ui";
 import { payAgainHref } from "../buy/PaymentOutcome";
 import { customerLink } from "../links";
 import { longDay } from "../schedule/dates";
@@ -53,11 +53,7 @@ function History() {
   if (!customer.data)
     return customer.error ? (
       <Screen>
-        <StateArt pose="bingung" />
-        <Text selectable style={{ color: c.danger, textAlign: "center" }}>
-          {customer.error}
-        </Text>
-        <Button label={t("Coba lagi", "Try again")} onPress={() => void customer.reload()} />
+        <ReadError art message={customer.error} onRetry={() => void customer.reload()} />
       </Screen>
     ) : (
       <Screen>
@@ -80,9 +76,10 @@ function History() {
     <Screen>
       <FadeSwap swapKey="ready" style={{ gap: 16 }}>
         {feed.error ? (
-          <Text selectable variant="caption" style={{ color: c.danger }}>
-            {t("Pembayaran yang menunggu belum bisa dimuat.", "Payments waiting could not be loaded.")}
-          </Text>
+          <ReadError
+            message={t("Pembayaran yang menunggu belum bisa dimuat.", "Payments waiting could not be loaded.")}
+            onRetry={() => void feed.reload()}
+          />
         ) : null}
         {unpaid.length ? (
           <View>

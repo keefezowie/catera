@@ -13,13 +13,13 @@ import {
 } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
 import {
-  Button,
   Card,
   FadeSwap,
   fontFor,
   MoodHeader,
   PressableRow,
   PressableScale,
+  ReadError,
   Screen,
   StateArt,
   Text,
@@ -194,12 +194,7 @@ function SignedInJadwal() {
           <>
             {data.error ? (
               // A refresh failed but the month is on screen: the error stays with its retry in the page.
-              <View style={{ gap: 6 }}>
-                <Text selectable variant="caption" style={{ color: c.danger }}>
-                  {data.error}
-                </Text>
-                <Button variant="text" label={t("Coba lagi", "Try again")} onPress={() => void data.reload()} />
-              </View>
+              <ReadError message={data.error} onRetry={() => void data.reload()} />
             ) : null}
             {/* A month with no meals at all: the resting mascot sits above the day, which says there is nothing. */}
             {monthEmpty ? <StateArt pose="tidur" /> : null}

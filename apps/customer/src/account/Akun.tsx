@@ -3,19 +3,14 @@ import { View } from "react-native";
 import { router } from "expo-router";
 import { useData, useMobile } from "@catera/mobile-core";
 import { MoodHeader, Screen, Skeleton, SkeletonGroup, Text, useMoodColors } from "@catera/mobile-ui";
+import { localPhone } from "./localPhone";
 import { Row, SectionLabel } from "./Row";
 import { SignInFirst } from "./SignInFirst";
 import { PlanList } from "../plan/PlanList";
 import { ListSkeleton } from "../skeletons";
 import { SettingsGear } from "../settings/Pengaturan";
 
-/** "6281234567890" (as Supabase keeps it) → "0812-3456-7890". */
-export function localPhone(phone: string): string {
-  let digits = phone.replace(/\D/g, "");
-  if (!digits) return "";
-  if (digits.startsWith("62")) digits = "0" + digits.slice(2);
-  return [digits.slice(0, 4), digits.slice(4, 8), digits.slice(8)].filter(Boolean).join("-");
-}
+export { localPhone };
 
 /** The body text's line height: the contact line under the name holds this much even before it is known. */
 const CONTACT_LINE = 23;
@@ -112,7 +107,8 @@ function Account() {
       </View>
 
       <View>
-        <Row first label={t("Alamat", "Addresses")} onPress={() => router.push("/alamat" as never)} />
+        <Row first label={t("Data akun", "Account details")} onPress={() => router.push("/data-akun" as never)} />
+        <Row label={t("Alamat", "Addresses")} onPress={() => router.push("/alamat" as never)} />
         <Row label={t("Disimpan", "Saved")} onPress={() => router.push("/disimpan" as never)} />
         <Row label={t("Riwayat pembayaran", "Payment history")} onPress={() => router.push("/pembayaran" as never)} />
         <Row label={t("Bantuan dan laporan", "Help and reports")} onPress={() => router.push("/bantuan" as never)} />

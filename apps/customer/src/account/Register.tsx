@@ -2,7 +2,7 @@ import { useState } from "react";
 import { View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useMobile } from "@catera/mobile-core";
-import { Button, Field, Screen, Text, useColors } from "@catera/mobile-ui";
+import { Button, Field, FormError, Screen, Text } from "@catera/mobile-ui";
 import { nativeReturnPath } from "../auth";
 import { authClient, authError, REDIRECT_TO, savePending, validEmail } from "./emailAuth";
 import { useAction } from "./useAction";
@@ -10,7 +10,6 @@ import { useAction } from "./useAction";
 /** Daftar dengan email: name, email and password, then a verification link opened on this phone. */
 export function Register() {
   const { runtime, t } = useMobile();
-  const c = useColors();
   const params = useLocalSearchParams<{ next?: string }>();
   const next = nativeReturnPath(typeof params.next === "string" ? params.next : undefined);
   const [name, setName] = useState("");
@@ -70,7 +69,7 @@ export function Register() {
           <Button
             variant="secondary"
             label={t("Kirim ulang verifikasi", "Resend verification")}
-            disabled={action.busy}
+            busy={action.busy}
             onPress={() => void resend()}
           />
           <Button variant="text" label={t("Ubah email", "Change email")} onPress={() => setSent(false)} />
@@ -105,16 +104,13 @@ export function Register() {
           />
           <Button
             label={t("Daftar & verifikasi email", "Sign up & verify email")}
-            disabled={action.busy || !name.trim() || !validEmail(email) || password.length < 8}
+            busy={action.busy}
+            disabled={!name.trim() || !validEmail(email) || password.length < 8}
             onPress={() => void signUp()}
           />
         </View>
       )}
-      {action.error ? (
-        <Text selectable style={{ color: c.danger }} testID="identity-error">
-          {action.error}
-        </Text>
-      ) : null}
+      {action.error ? <FormError message={action.error} failureKey={action.failures} testID="identity-error" /> : null}
       <Button
         variant="text"
         label={t("Sudah punya akun? Masuk", "Already registered? Sign in")}

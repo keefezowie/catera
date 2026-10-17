@@ -4,7 +4,7 @@ import * as Crypto from "expo-crypto";
 import { router, useLocalSearchParams } from "expo-router";
 import { errorLabel, type Actor } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { Button, Field, MascotLoading, Screen, StateArt, Text, useColors } from "@catera/mobile-ui";
+import { Button, Field, FormError, Screen, StateArt, Text, useColors } from "@catera/mobile-ui";
 import { nativeReturnPath } from "../auth";
 import { leaveFor } from "../nav";
 
@@ -29,14 +29,17 @@ export function Masuk() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
-  // The SMS code is with the server: nothing on the form can change the answer, so the page waits as the mascot.
-  const [checking, setChecking] = useState(false);
+  // Which action is waiting, so only its button shows the spinner; the typed number and the code stay on screen.
+  const [waiting, setWaiting] = useState<"step" | "demo" | "">("");
   const [error, setError] = useState("");
+  const [failures, setFailures] = useState(0);
 
   useEffect(() => setError(""), [withEmail]);
 
-  async function run(step: () => Promise<void>) {
+  async function run(step: () => Promise<void>, which: "step" | "demo" = "step") {
+    if (busy) return;
     setBusy(true);
+    setWaiting(which);
     setError("");
     try {
       await step();
@@ -47,8 +50,10 @@ export function Masuk() {
           ? t("Kode belum cocok. Periksa SMS lalu coba lagi.", "That code doesn't match. Check the SMS and try again.")
           : errorLabel(code, locale) || t("Belum berhasil. Coba lagi.", "That didn't work. Try again."),
       );
+      setFailures((n) => n + 1);
     } finally {
       setBusy(false);
+      setWaiting("");
     }
   }
 
@@ -56,14 +61,6 @@ export function Masuk() {
     await signedIn(actor);
     leaveFor(next);
   };
-
-  // The typed number and code stay in this screen, so a code that does not match comes back to them with its message.
-  if (checking)
-    return (
-      <Screen>
-        <MascotLoading label={t("Memeriksa kode…", "Checking the code…")} />
-      </Screen>
-    );
 
   return (
     <Screen>
@@ -101,21 +98,16 @@ export function Masuk() {
           ) : null}
           <Button
             label={sent ? t("Masuk", "Sign in") : t("Kirim kode", "Send code")}
-            disabled={busy || (sent ? code.trim().length < 6 : phone.replace(/\D/g, "").length < 9)}
+            busy={waiting === "step"}
+            disabled={sent ? code.trim().length < 6 : phone.replace(/\D/g, "").length < 9}
             onPress={() =>
               run(async () => {
                 if (!sent) {
                   await runtime.sendPhoneOtp(e164Indonesia(phone));
                   setSent(true);
                 } else {
-                  setChecking(true);
-                  try {
-                    await finish(
-                      await runtime.verifyPhoneOtp(e164Indonesia(phone), code.trim(), "Pelanggan", Crypto.randomUUID()),
-                    );
-                  } finally {
-                    setChecking(false);
-                  }
+                  // The code stays on screen while it is checked; a code that does not match comes back to it.
+                  await finish(await runtime.verifyPhoneOtp(e164Indonesia(phone), code.trim(), "Pelanggan", Crypto.randomUUID()));
                 }
               })
             }
@@ -156,7 +148,8 @@ export function Masuk() {
           />
           <Button
             label={t("Masuk", "Sign in")}
-            disabled={busy || !email || !password}
+            busy={waiting === "step"}
+            disabled={!email || !password}
             onPress={() => run(async () => finish(await runtime.signInPassword(email, password, Crypto.randomUUID(), "Pelanggan")))}
           />
           <Button
@@ -167,11 +160,7 @@ export function Masuk() {
           <Button variant="text" label={t("Masuk dengan nomor HP", "Sign in with phone")} onPress={() => setWithEmail(false)} />
         </View>
       )}
-      {error ? (
-        <Text selectable style={{ color: c.danger }} testID="masuk-error">
-          {error}
-        </Text>
-      ) : null}
+      {error ? <FormError message={error} failureKey={failures} testID="masuk-error" /> : null}
       <Button
         variant="text"
         label={t("Daftar dengan email", "Sign up with email")}
@@ -183,13 +172,14 @@ export function Masuk() {
           <Button
             variant="secondary"
             label={t("Masuk sebagai pelanggan demo", "Sign in as demo customer")}
-            disabled={busy}
+            busy={waiting === "demo"}
+            disabled={busy && waiting !== "demo"}
             onPress={() =>
               run(async () => {
                 await runtime.demoLogin("customer");
                 await refresh();
                 leaveFor(next);
-              })
+              }, "demo")
             }
           />
         </View>

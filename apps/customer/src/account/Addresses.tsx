@@ -3,7 +3,7 @@ import Animated from "react-native-reanimated";
 import { router } from "expo-router";
 import type { Address } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, FadeSwap, Screen, StateArt, Text, useBusy, useColors, useListMotion } from "@catera/mobile-ui";
+import { Button, Card, FadeSwap, ReadError, Screen, Text, useBusy, useColors, useListMotion } from "@catera/mobile-ui";
 import { useAddressRemoval } from "./addressRemoval";
 import { FLOW_HREF, pushSheet } from "../nav";
 import { ListSkeleton } from "../skeletons";
@@ -46,11 +46,7 @@ function AddressBook({ flow }: { flow: boolean }) {
   if (!customer.data)
     return customer.error ? (
       <Screen>
-        <StateArt pose="bingung" />
-        <Text selectable style={{ color: c.danger, textAlign: "center" }}>
-          {customer.error}
-        </Text>
-        <Button label={t("Coba lagi", "Try again")} onPress={() => void customer.reload()} />
+        <ReadError art message={customer.error} onRetry={() => void customer.reload()} />
       </Screen>
     ) : (
       <Screen>

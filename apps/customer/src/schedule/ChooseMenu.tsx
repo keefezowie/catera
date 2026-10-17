@@ -17,10 +17,11 @@ import {
   Card,
   FadeSwap,
   fontFor,
+  FormError,
   PressableScale,
+  ReadError,
   Screen,
   Segmented,
-  StateArt,
   Text,
   themedStyles,
   useColors,
@@ -91,8 +92,11 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
   const [draft, setDraft] = useState<Draft | null>(null);
   const [reviewing, setReviewing] = useState(false);
   const [moreDates, setMoreDates] = useState(false);
-  const [busy, setBusy] = useState(false);
+  // Which command is waiting: Simpan menu and Hapus pilihan share one request at a time, each with its own spinner.
+  const [sending, setSending] = useState<"" | "save" | "reset">("");
+  const busy = sending !== "";
   const [error, setError] = useState("");
+  const [failures, setFailures] = useState(0);
   const [now, setNow] = useState(Date.now());
   const navigation = useNavigation();
   const menus = useData(`pilih-menu:${id}:${month}:${meal}:${offer ? "ready" : "wait"}`, () =>
@@ -143,13 +147,7 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
       <Screen>
         <FadeSwap swapKey={customer.error ? "error" : "loading"} style={{ gap: 16 }}>
           {customer.error ? (
-            <>
-              <StateArt pose="bingung" />
-              <Text selectable style={{ color: palette.danger, textAlign: "center" }}>
-                {customer.error}
-              </Text>
-              <Button label={t("Coba lagi", "Try again")} onPress={() => void customer.reload()} />
-            </>
+            <ReadError art message={customer.error} onRetry={() => void customer.reload()} />
           ) : (
             <ChooseMenuSkeleton />
           )}
@@ -230,8 +228,8 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
     draft!.days.map((d) => ({ id: d.dayId, date: d.date, deliveryVersion: d.deliveryVersion, version: d.version }));
 
   async function send(action: "customerMenu.saveBatch" | "customerMenu.resetBatch") {
-    if (!draft) return;
-    setBusy(true);
+    if (!draft || busy) return;
+    setSending(action === "customerMenu.saveBatch" ? "save" : "reset");
     setError("");
     try {
       await command(action, {
@@ -245,8 +243,9 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
       setReviewing(false);
     } catch (e) {
       setError(failureText(e, locale, t));
+      setFailures((n) => n + 1);
     } finally {
-      setBusy(false);
+      setSending("");
     }
   }
 
@@ -320,11 +319,7 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
                 onChange={setMeal}
               />
             ) : null}
-            {menus.error ? (
-              <Text selectable style={{ color: palette.danger }}>
-                {menus.error}
-              </Text>
-            ) : null}
+            {menus.error ? <ReadError message={menus.error} onRetry={() => void menus.reload()} /> : null}
             {menus.data && !dates.length ? (
               <Text style={{ color: palette.muted }}>
                 {t("Tidak ada pengantaran bulan ini.", "No deliveries this month.")}
@@ -377,12 +372,12 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
               {draft.days.map((d) => longDay(d.date, locale)).join(" · ")} · {mealLabel(meal, locale)}
             </Text>
             {!draft.days.every(editable) ? (
-              <Text selectable style={{ color: palette.danger }}>
-                {t(
+              <FormError
+                message={t(
                   "Batas pilihan sudah lewat. Pilihan ini tidak bisa disimpan; katering yang memilih.",
                   "The cutoff has passed. This choice can't be saved; the caterer chooses.",
                 )}
-              </Text>
+              />
             ) : null}
             {slots.map((slot) => {
               const choice = draft.choices.find((c) => c.slotId === slot.id);
@@ -458,29 +453,23 @@ function Menu({ id, routeDate, routeMeal }: { id: string; routeDate: string; rou
                     "Choices already saved on these dates will be replaced. All portions get the same menu.",
                   )}
                 </Text>
-                {error ? (
-                  <Text selectable style={{ color: palette.danger }} testID="menu-error">
-                    {error}
-                  </Text>
-                ) : null}
+                {error ? <FormError message={error} failureKey={failures} testID="menu-error" /> : null}
                 <Button
                   label={t("Simpan menu", "Save menu")}
-                  disabled={busy || !valid || !writeable}
+                  busy={sending === "save"}
+                  disabled={!valid || !writeable || sending === "reset"}
                   onPress={() => void send("customerMenu.saveBatch")}
                 />
                 <Button variant="secondary" label={t("Lanjut mengedit", "Keep editing")} onPress={() => setReviewing(false)} />
               </>
             )}
-            {!reviewing && error ? (
-              <Text selectable style={{ color: palette.danger }} testID="menu-error">
-                {error}
-              </Text>
-            ) : null}
+            {!reviewing && error ? <FormError message={error} failureKey={failures} testID="menu-error" /> : null}
             {draft.days.some((d) => d.version > 0) ? (
               <Button
                 variant="text"
                 label={t("Hapus pilihan, biar katering memilih", "Clear my choice, let the caterer choose")}
-                disabled={busy || !writeable}
+                busy={sending === "reset"}
+                disabled={!writeable || sending === "save"}
                 onPress={() =>
                   void confirm({
                     title: t("Hapus pilihan menu?", "Clear menu choice?"),

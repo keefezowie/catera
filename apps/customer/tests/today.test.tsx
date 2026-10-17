@@ -21,12 +21,13 @@ import { FadeSwap, MoodProvider, ThemeProvider } from "@catera/mobile-ui";
 import * as Reanimated from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Beranda } from "../src/today/Beranda";
-import { HeroButton, sentences } from "../src/today/Plate";
+import { sentences } from "../src/today/Plate";
 import { customerLink } from "../src/links";
 import { Masuk } from "../src/account/Masuk";
 import * as offline from "../src/today/offline";
 import { ReviewRoute } from "../src/today/ReviewSheet";
 import { customerState, delivery, offer, TODAY } from "./fixtures";
+import { goOffline, keptLine } from "./offline";
 import { SheetHost } from "./sheetHost";
 
 let mockParams: Record<string, string> = {};
@@ -237,7 +238,8 @@ it("signed-in Beranda error shows the message in danger with a Coba lagi text bu
   });
   renderHome(runtime);
   const retry = await screen.findByRole("button", { name: "Coba lagi" });
-  const message = screen.getByTestId("home-error");
+  // The read error is the page: its words in the error colour, then the way to try again.
+  const message = within(screen.getByTestId("home-error")).getAllByText(/./)[0];
   expect(StyleSheet.flatten(message.props.style).color).toBe(nativeThemes.light.danger);
   // A text button: no forest fill like the primary action.
   expect(StyleSheet.flatten(retry.props.style).backgroundColor).not.toBe(nativeThemes.light.forest);
@@ -379,6 +381,7 @@ it("the hero's … opens the day's actions from a fresh read, and is gone from a
   expect(router.push).toHaveBeenCalledWith({ pathname: "/aksi", params: { id: expect.any(String) } });
   view.unmount();
   // The copy kept offline: the hero shows, its "…" does not.
+  goOffline();
   (offline.loadCachedCustomer as jest.Mock).mockResolvedValueOnce({
     savedAt: "2026-10-07T23:12:00.000Z",
     data: customerState({ status: "out_for_delivery" }, { catererPhone: "+6281200000001" }),
@@ -388,7 +391,7 @@ it("the hero's … opens the day's actions from a fresh read, and is gone from a
       throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
     }),
   );
-  expect(await screen.findByText(/Terakhir diperbarui/)).toBeTruthy();
+  expect(await screen.findByText("Tidak ada koneksi")).toBeTruthy();
   expect(screen.queryByTestId("header-more")).toBeNull();
 });
 
@@ -406,6 +409,7 @@ it("signed out, Beranda has no hero to act on: no … and no read of anyone's da
 });
 
 it("offline shows the cached day and when it was updated", async () => {
+  goOffline();
   (offline.loadCachedCustomer as jest.Mock).mockResolvedValue({
     savedAt: "2026-10-07T23:12:00.000Z",
     data: customerState({ status: "out_for_delivery" }),
@@ -419,7 +423,10 @@ it("offline shows the cached day and when it was updated", async () => {
   expect(await screen.findByRole("header", { name: "Tiba sekitar 11.00–13.00" })).toBeTruthy();
   expect(screen.getAllByText("Sedang diantar")).toHaveLength(1);
   expect(screen.getByTestId("rantang-track").props.accessibilityValue.text).toBe("Sedang diantar");
-  expect(screen.getByText(/Terakhir diperbarui 06\.12/)).toBeTruthy();
+  expect(await screen.findByText("Tidak ada koneksi")).toBeTruthy();
+  expect(screen.getByText(keptLine("2026-10-07T23:12:00.000Z"))).toBeTruthy();
+  // No loose caption: the banner is the only place the copy says it is old.
+  expect(screen.queryByText(/Terakhir diperbarui|tidak ada koneksi/)).toBeNull();
   expect(offline.loadCachedCustomer).toHaveBeenCalledWith("u-c1");
 });
 
@@ -548,7 +555,8 @@ describe("design tokens", () => {
     expect(StyleSheet.flatten(row().props.style).opacity).toBe(0.7);
   });
 
-  it("shows when offline data was saved in tabular numerals", async () => {
+  it("shows when offline data was saved, in the banner", async () => {
+    goOffline();
     (offline.loadCachedCustomer as jest.Mock).mockResolvedValue({
       savedAt: "2026-10-07T23:12:00.000Z",
       data: customerState({ status: "out_for_delivery" }),
@@ -558,8 +566,9 @@ describe("design tokens", () => {
         throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
       }),
     );
-    const updated = await screen.findByText(/Terakhir diperbarui 06\.12/);
-    expect(StyleSheet.flatten(updated.props.style).fontVariant).toContain("tabular-nums");
+    const updated = await screen.findByText(keptLine("2026-10-07T23:12:00.000Z"));
+    expect(updated).toBeTruthy();
+    expect(screen.queryByText(/Terakhir diperbarui/)).toBeNull();
   });
 });
 
@@ -570,14 +579,6 @@ it("Beranda renewal row says 1 day left in English", async () => {
   expect(screen.queryByText(/1 days/)).toBeNull();
 });
 
-describe("HeroButton disabled look", () => {
-  afterEach(() => jest.restoreAllMocks());
-  test.each([false, true])("stays at 0.6 when disabled (reduced motion %s)", (reduced) => {
-    jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(reduced);
-    render(<HeroButton label="Perpanjang" disabled onPress={() => {}} />);
-    expect(StyleSheet.flatten(screen.getByRole("button", { name: "Perpanjang" }).props.style).opacity).toBe(0.6);
-  });
-});
 
 describe("fixed surfaces in the dark theme", () => {
   afterEach(() => jest.restoreAllMocks());
@@ -912,19 +913,20 @@ describe("Beranda mood", () => {
     expect(flat("plate-hero-fill-malam").opacity).toBe(0);
   });
 
-  it("starts a plate's busy and error state afresh when the hero swaps meals", async () => {
+  it("starts a plate's busy state afresh when the hero swaps meals", async () => {
     const state = bothMeals();
     state.deliveries[0].meals = [
       { meal: "lunch", status: "out_for_delivery" },
       { meal: "dinner", status: "out_for_delivery" },
     ];
     const runtime = runtimeWith(async () => state);
-    (runtime.api.command as jest.Mock).mockRejectedValue(Object.assign(new Error("NOT_ALLOWED"), { code: "NOT_ALLOWED" }));
+    // The answer for lunch never comes back: lunch's button waits, and dinner's hero starts with its own idle one.
+    (runtime.api.command as jest.Mock).mockImplementation(() => new Promise(() => undefined));
     mount(runtime);
     fireEvent.press(await screen.findByRole("button", { name: "Sudah sampai" }));
-    expect(await screen.findByTestId("plate-error")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Sudah sampai" }).props.accessibilityState.busy).toBe(true);
     fireEvent.press(screen.getByRole("tab", { name: /^Makan malam, / }));
-    expect(screen.queryByTestId("plate-error")).toBeNull();
+    expect(screen.getByRole("button", { name: "Sudah sampai" }).props.accessibilityState.busy).toBe(false);
   });
 
   it("keeps the overlay in flow, so a taller overlay grows the photo instead of overflowing it", async () => {
@@ -1405,7 +1407,8 @@ describe("Beranda mood", () => {
       throw Object.assign(new Error("REQUEST_FAILED"), { code: "REQUEST_FAILED" });
     });
     mount(runtime, { now: MALAM_NOW, scheme: "dark" });
-    const message = await screen.findByTestId("home-error");
+    await screen.findByTestId("home-error");
+    const message = within(screen.getByTestId("home-error")).getAllByText(/./)[0];
     expect(within(screen.getByTestId("mood-header")).getByText("Beranda")).toBeTruthy();
     expect(message.props.selectable).toBe(true);
     expect(StyleSheet.flatten(message.props.style).color).toBe(nativeThemes.dark.danger);

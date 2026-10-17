@@ -8,7 +8,9 @@ import {
   FadeSwap,
   Field,
   fontFor,
+  FormError,
   PressableScale,
+  ReadError,
   Segmented,
   SheetBody,
   SheetHeader,
@@ -149,6 +151,7 @@ function Help({ actorId, title }: { actorId: string; title: string }) {
   const [subscriptionId, setSubscriptionId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [failures, setFailures] = useState(0);
   const subscriptions: Subscription[] = customer.data?.subscriptions ?? [];
   const chosen = subscriptions.some((s) => s.id === subscriptionId) ? subscriptionId : (subscriptions[0]?.id ?? "");
 
@@ -156,12 +159,7 @@ function Help({ actorId, title }: { actorId: string; title: string }) {
     return (
       <Frame title={title} swapKey={customer.error ? "error" : "loading"}>
         {customer.error ? (
-          <>
-            <Text selectable style={{ color: c.danger }}>
-              {customer.error}
-            </Text>
-            <Button label={t("Coba lagi", "Try again")} onPress={() => void customer.reload()} />
-          </>
+          <ReadError message={customer.error} onRetry={() => void customer.reload()} />
         ) : (
           <HelpSkeleton />
         )}
@@ -177,6 +175,7 @@ function Help({ actorId, title }: { actorId: string; title: string }) {
       done();
     } catch (e) {
       setError(failure(e, locale, t));
+      setFailures((n) => n + 1);
     } finally {
       setBusy(false);
     }
@@ -227,14 +226,11 @@ function Help({ actorId, title }: { actorId: string; title: string }) {
               "The caterer replies first. Cancellations and refunds are always reviewed.",
             )}
           </Text>
-          {error ? (
-            <Text selectable variant="caption" style={{ color: c.danger }}>
-              {error}
-            </Text>
-          ) : null}
+          {error ? <FormError message={error} failureKey={failures} /> : null}
           <Button
             label={t("Kirim permintaan", "Send request")}
-            disabled={busy || !topic || !chosen || text.trim().length < 5}
+            busy={busy}
+            disabled={!topic || !chosen || text.trim().length < 5}
             onPress={() => void send()}
           />
         </>
@@ -251,6 +247,7 @@ function Review({ actorId, issueId, title }: { actorId: string; issueId: string;
   const { text, write, done } = useRequest(`${actorId}:review:${issueId}`, { id: "permintaan", en: "request" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [failures, setFailures] = useState(0);
   const issue = issues.data?.find((i) => i.id === issueId);
 
   if (!issue)
@@ -259,12 +256,11 @@ function Review({ actorId, issueId, title }: { actorId: string; issueId: string;
         {issues.loading ? (
           <HelpSkeleton />
         ) : (
-          <>
-            <Text selectable={!!issues.error} style={{ color: issues.error ? c.danger : c.muted }}>
-              {issues.error || t("Laporan tidak ditemukan.", "Report not found.")}
-            </Text>
-            {issues.error ? <Button label={t("Coba lagi", "Try again")} onPress={() => void issues.reload()} /> : null}
-          </>
+          issues.error ? (
+            <ReadError message={issues.error} onRetry={() => void issues.reload()} />
+          ) : (
+            <Text style={{ color: c.muted }}>{t("Laporan tidak ditemukan.", "Report not found.")}</Text>
+          )
         )}
       </Frame>
     );
@@ -278,6 +274,7 @@ function Review({ actorId, issueId, title }: { actorId: string; issueId: string;
       done();
     } catch (e) {
       setError(failure(e, locale, t));
+      setFailures((n) => n + 1);
     } finally {
       setBusy(false);
     }
@@ -297,14 +294,11 @@ function Review({ actorId, issueId, title }: { actorId: string; issueId: string;
         maxLength={2000}
         style={{ minHeight: 88, textAlignVertical: "top", paddingTop: 12 }}
       />
-      {error ? (
-        <Text selectable variant="caption" style={{ color: c.danger }}>
-          {error}
-        </Text>
-      ) : null}
+      {error ? <FormError message={error} failureKey={failures} /> : null}
       <Button
         label={t("Kirim ke Catera", "Send to Catera")}
-        disabled={busy || text.trim().length < 5}
+        busy={busy}
+        disabled={text.trim().length < 5}
         onPress={() => void escalate()}
       />
     </Frame>

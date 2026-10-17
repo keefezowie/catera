@@ -57,7 +57,8 @@ const ROOT_STACK = new Set([
  * A sheet route a link can reach, and the page it opens over, never alone:
  * - Ada masalah (`/masalah/{id}`) and Ubah hari (`/ubah-hari/{id}`) sit over the Hari of their delivery (`/hari/{id}`).
  * - Pengaturan's choice sheets (`/pengaturan/bahasa`, `/pengaturan/tampilan`) sit over Pengaturan.
- * - The address form (`/alamat-form`) sits over Alamat; the help form (`/bantuan-form`) over Bantuan.
+ * - The address form (`/alamat-form`) sits over Alamat; the help form (`/bantuan-form`) over Bantuan; the request to
+ *   delete the account (`/hapus-akun`) over Data akun.
  * - The review (`/ulasan/{id}`) sits over Beranda ("/"), and the area choice (`/area`) over Jelajah ("/jelajah"): a tab
  *   root, which is selected rather than pushed.
  * Null for any other path. A query stays with the sheet, never the parent.
@@ -69,6 +70,7 @@ export function sheetParent(path: string): string | null {
   if (/^\/pengaturan\/(bahasa|tampilan)\/?$/.test(at)) return "/pengaturan";
   if (/^\/alamat-form\/?$/.test(at)) return "/alamat";
   if (/^\/bantuan-form\/?$/.test(at)) return "/bantuan";
+  if (/^\/hapus-akun\/?$/.test(at)) return "/data-akun";
   if (/^\/ulasan\/[^/?#]+\/?$/.test(at)) return "/";
   if (/^\/area\/?$/.test(at)) return "/jelajah";
   return null;
@@ -76,11 +78,11 @@ export function sheetParent(path: string): string | null {
 
 /**
  * The form sheets that live in the root stack (`app/masalah`, `app/ubah-hari`, `app/ulasan`, `app/alamat-form`,
- * `app/bantuan-form`), not in a tab's stack. A tab-stack sheet is drawn inside the tab host on Android, where the dimming
+ * `app/bantuan-form`, `app/hapus-akun`), not in a tab's stack. A tab-stack sheet is drawn inside the tab host on Android, where the dimming
  * view takes TalkBack's first focus and the tab bar covers the form. Their URLs did not change.
  */
 export function isRootSheet(path: string): boolean {
-  return /^\/(?:(?:masalah|ubah-hari|ulasan)\/[^/?#]+|alamat-form|bantuan-form)\/?$/.test(pathname(path));
+  return /^\/(?:(?:masalah|ubah-hari|ulasan)\/[^/?#]+|alamat-form|bantuan-form|hapus-akun)\/?$/.test(pathname(path));
 }
 
 /** The array-group layout gets its own segment, `(jadwal)`; this is the tab it hosts. */

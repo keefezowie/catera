@@ -9,7 +9,9 @@ import {
   Card,
   Field,
   fontFor,
+  FormError,
   MascotLoading,
+  ReadError,
   Screen,
   StateArt,
   Text,
@@ -45,6 +47,7 @@ export function ClaimScreen() {
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [failures, setFailures] = useState(0);
   const [review, setReview] = useState(false);
   // A used SMS code cannot be verified twice: a retry after a dropped claim goes straight to it.
   const verified = useRef("");
@@ -67,6 +70,7 @@ export function ClaimScreen() {
   }, [runtime, token, attempt]);
 
   async function run(work: () => Promise<void>) {
+    if (busy) return;
     setBusy(true);
     setError("");
     try {
@@ -78,6 +82,7 @@ export function ClaimScreen() {
           ? t("Kode belum cocok. Periksa SMS lalu coba lagi.", "That code doesn't match. Check the SMS and try again.")
           : errorLabel(c, locale) || t("Belum berhasil. Coba lagi.", "That didn't work. Try again."),
       );
+      setFailures((n) => n + 1);
     } finally {
       setBusy(false);
     }
@@ -124,11 +129,11 @@ export function ClaimScreen() {
     return (
       <Screen nativeTitle={t("Belum bisa memuat", "Couldn't load yet")}>
         <Header />
-        <StateArt pose="bingung" />
-        <Text selectable style={{ color: palette.danger, textAlign: "center" }}>
-          {t("Belum bisa memuat. Periksa koneksi lalu coba lagi.", "Couldn't load. Check your connection and try again.")}
-        </Text>
-        <Button label={t("Coba lagi", "Try again")} onPress={() => setAttempt((n) => n + 1)} />
+        <ReadError
+          art
+          message={t("Belum bisa memuat. Periksa koneksi lalu coba lagi.", "Couldn't load. Check your connection and try again.")}
+          onRetry={() => setAttempt((n) => n + 1)}
+        />
         {home}
       </Screen>
     );
@@ -226,7 +231,8 @@ export function ClaimScreen() {
           />
           <Button
             label={t("Kirim kode", "Send code")}
-            disabled={busy || phone.replace(/\D/g, "").length < 9}
+            busy={busy}
+            disabled={phone.replace(/\D/g, "").length < 9}
             onPress={() =>
               run(async () => {
                 const number = e164Indonesia(phone);
@@ -238,6 +244,7 @@ export function ClaimScreen() {
                       `This number differs from the one ${katering} has. Use the number you gave ${katering}, or ask ${katering} to update it.`,
                     ),
                   );
+                  setFailures((n) => n + 1);
                   return;
                 }
                 await runtime.sendPhoneOtp(number);
@@ -266,7 +273,8 @@ export function ClaimScreen() {
           />
           <Button
             label={t("Sambungkan langganan", "Connect subscription")}
-            disabled={busy || code.trim().length < 6 || !name.trim()}
+            busy={busy}
+            disabled={code.trim().length < 6 || !name.trim()}
             onPress={() => run(connect)}
           />
           <Text variant="caption" style={{ textAlign: "center" }}>
@@ -277,11 +285,7 @@ export function ClaimScreen() {
           </Text>
         </>
       )}
-      {error ? (
-        <Text selectable style={{ color: palette.danger }}>
-          {error}
-        </Text>
-      ) : null}
+      {error ? <FormError message={error} failureKey={failures} /> : null}
       {/* The header's Close leaves the link; this steps back inside it, to the number or to the package. */}
       <Button
         variant="text"

@@ -10,7 +10,9 @@ import {
   FadeSwap,
   Field,
   fontFor,
+  FormError,
   PressableScale,
+  ReadError,
   SheetBody,
   SheetHeader,
   Skeleton,
@@ -135,6 +137,7 @@ function Report({ actorId, id, meal: wanted, jenis }: { actorId: string; id: str
   const [meal, setMeal] = useState<string | undefined>(wanted);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [failures, setFailures] = useState(0);
   const [sent, setSent] = useState(false);
   const closed = useRef(false);
   const d: Delivery | undefined = state.data?.deliveries.find((x) => x.id === id);
@@ -180,10 +183,11 @@ function Report({ actorId, id, meal: wanted, jenis }: { actorId: string; id: str
   if (!d || !current)
     return (
       <Sheet swapKey="missing">
-        <Text selectable={!!state.error} style={{ color: state.error ? c.danger : c.muted }}>
-          {state.error || t("Pengantaran tidak ditemukan.", "Delivery not found.")}
-        </Text>
-        {state.error ? <Button label={t("Coba lagi", "Try again")} onPress={() => void state.reload()} /> : null}
+        {state.error ? (
+          <ReadError message={state.error} onRetry={() => void state.reload()} />
+        ) : (
+          <Text style={{ color: c.muted }}>{t("Pengantaran tidak ditemukan.", "Delivery not found.")}</Text>
+        )}
       </Sheet>
     );
 
@@ -217,6 +221,7 @@ function Report({ actorId, id, meal: wanted, jenis }: { actorId: string; id: str
           ),
         );
       } else setError(errorLabel(code, locale) || t("Belum berhasil. Coba lagi.", "That did not work. Try again."));
+      setFailures((n) => n + 1);
     } finally {
       setBusy(false);
     }
@@ -284,12 +289,8 @@ function Report({ actorId, id, meal: wanted, jenis }: { actorId: string; id: str
             maxLength={2000}
             style={{ minHeight: 88, textAlignVertical: "top", paddingTop: 12 }}
           />
-          {error ? (
-            <Text selectable variant="caption" style={{ color: c.danger }}>
-              {error}
-            </Text>
-          ) : null}
-          <Button label={t("Kirim laporan", "Send report")} disabled={!kind || busy} onPress={() => void send()} />
+          {error ? <FormError message={error} failureKey={failures} /> : null}
+          <Button label={t("Kirim laporan", "Send report")} busy={busy} disabled={!kind} onPress={() => void send()} />
           <ChatKatering
             phone={catererPhoneOf(d)}
             variant="text"

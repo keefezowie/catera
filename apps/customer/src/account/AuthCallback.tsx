@@ -4,7 +4,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import * as Crypto from "expo-crypto";
 import { useMobile } from "@catera/mobile-core";
-import { Button, Field, Screen, Text, useColors } from "@catera/mobile-ui";
+import { Button, Field, FormError, Screen, Text } from "@catera/mobile-ui";
 import { nativeReturnPath } from "../auth";
 import { authClient, authError, pendingKey, type Pending } from "./emailAuth";
 import { useAction } from "./useAction";
@@ -16,7 +16,6 @@ const LINK_LIFETIME_MS = 60 * 60 * 1000;
 /** catera://auth/callback: finishes email verification, or sets a new password after recovery. */
 export function AuthCallback() {
   const { runtime, refresh, t } = useMobile();
-  const c = useColors();
   const params = useLocalSearchParams<{ code?: string; error?: string }>();
   const code = typeof params.code === "string" ? params.code : "";
   const linkError = typeof params.error === "string" ? params.error : "";
@@ -116,14 +115,11 @@ export function AuthCallback() {
               maxLength={256}
               hint={t("Minimal 8 karakter. Kedua isian harus sama.", "At least 8 characters. Both fields must match.")}
             />
-            {action.error ? (
-              <Text selectable style={{ color: c.danger }} testID="identity-error">
-                {action.error}
-              </Text>
-            ) : null}
+            {action.error ? <FormError message={action.error} failureKey={action.failures} testID="identity-error" /> : null}
             <Button
               label={t("Simpan kata sandi & masuk", "Save password & sign in")}
-              disabled={action.busy || password.length < 8 || password !== confirm}
+              busy={action.busy}
+              disabled={password.length < 8 || password !== confirm}
               onPress={() => void savePassword()}
             />
           </>

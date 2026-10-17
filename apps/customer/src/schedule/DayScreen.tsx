@@ -3,7 +3,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { pushSheet } from "../nav";
 import { mealLabel, reportableMeals, shortDate, statusLabel, type Delivery } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, Card, FadeSwap, linkTitle, Screen, StateArt, Text, themedStyles, useColors } from "@catera/mobile-ui";
+import { Button, Card, FadeSwap, linkTitle, ReadError, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
 import { ChatKatering, catererPhoneOf } from "../help/ChatKatering";
 import { photoUri } from "../today/Plate";
@@ -50,14 +50,11 @@ function Day({ id }: { id: string }) {
           ) : (
             <>
               {/* A failed read leads with the puzzled mascot; a day that is not there is not a failure and has none. */}
-              {state.error ? <StateArt pose="bingung" /> : null}
-              <Text
-                selectable={!!state.error}
-                style={[{ color: state.error ? c.danger : c.muted }, state.error ? { textAlign: "center" } : null]}
-              >
-                {state.error || t("Pengantaran tidak ditemukan.", "Delivery not found.")}
-              </Text>
-              {state.error ? <Button label={t("Coba lagi", "Try again")} onPress={() => void state.reload()} /> : null}
+              {state.error ? (
+                <ReadError art message={state.error} onRetry={() => void state.reload()} />
+              ) : (
+                <Text style={{ color: c.muted }}>{t("Pengantaran tidak ditemukan.", "Delivery not found.")}</Text>
+              )}
             </>
           )}
         </FadeSwap>

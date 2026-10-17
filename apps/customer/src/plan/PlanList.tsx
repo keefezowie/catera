@@ -2,7 +2,7 @@ import { View } from "react-native";
 import { router } from "expo-router";
 import { planLabel, type CustomerState } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import { Button, FadeSwap, Screen, StateArt, Text, useColors } from "@catera/mobile-ui";
+import { FadeSwap, ReadError, Screen, Text, useColors } from "@catera/mobile-ui";
 import { Row } from "../account/Row";
 import { SignInFirst } from "../account/SignInFirst";
 import { remainingLabel } from "../remaining";
@@ -49,12 +49,8 @@ function PlanRows({
   if (loading) return <ListSkeleton rows={2} label={t("Memuat paket", "Loading plans")} />;
   if (failed)
     return (
-      <View style={{ gap: 8, marginTop: 6 }}>
-        {art ? <StateArt pose="bingung" style={{ marginBottom: 8 }} /> : null}
-        <Text selectable style={[{ color: c.danger }, art ? { textAlign: "center" } : null]}>
-          {customer.error}
-        </Text>
-        <Button variant="secondary" label={t("Coba lagi", "Try again")} onPress={() => void customer.reload()} />
+      <View style={{ marginTop: 6 }}>
+        <ReadError art={art} message={customer.error} onRetry={() => void customer.reload()} />
       </View>
     );
   const all = customer.data?.subscriptions ?? [];

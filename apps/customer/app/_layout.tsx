@@ -118,10 +118,12 @@ function Navigation() {
               unchanged; `openLink` opens the page each sits over first (`sheetParent`): Ada masalah and Ubah hari over
               their Hari, the address and help forms over Alamat and Bantuan, the review over Beranda. */}
           <Stack.Screen name="masalah/[id]" options={sheetOptions({ detents: "form", palette })} />
-          <Stack.Screen name="ubah-hari/[id]" options={sheetOptions({ detents: "form", palette })} />
+          {/* The calendar needs the room of the large detent. */}
+          <Stack.Screen name="ubah-hari/[id]" options={sheetOptions({ detents: "large", palette })} />
           <Stack.Screen name="ulasan/[id]" options={sheetOptions({ detents: "form", palette })} />
           <Stack.Screen name="alamat-form" options={sheetOptions({ detents: "form", palette })} />
           <Stack.Screen name="bantuan-form" options={sheetOptions({ detents: "form", palette })} />
+          <Stack.Screen name="hapus-akun" options={sheetOptions({ detents: "form", palette })} />
           {/* A black story: its own close button replaces the header, and a fade keeps its ground from cutting in. */}
           <Stack.Screen
             name="tomorrow"

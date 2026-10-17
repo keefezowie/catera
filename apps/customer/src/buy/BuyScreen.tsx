@@ -18,7 +18,7 @@ import {
   type RenewalContext,
 } from "@catera/domain";
 import { plural, useData, useMobile } from "@catera/mobile-core";
-import { Button, FadeSwap, fontFor, Screen, Stepper, Text, themedStyles, useColors } from "@catera/mobile-ui";
+import { Button, FadeSwap, fontFor, FormError, Screen, Stepper, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { Breakdown, LengthOptions, percent, StartLine } from "./Breakdown";
 import { NoLongerSold, PayWith, PendingPayment, Retry, Terms } from "./BuyParts";
 import { useQuote, type BuyPayload } from "./useQuote";
@@ -67,6 +67,7 @@ export function BuyScreen({
   const choose = useChoice();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [failures, setFailures] = useState(0);
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 60_000);
@@ -169,7 +170,7 @@ export function BuyScreen({
   }
 
   async function submit() {
-    if (!payload || !quote.ready) return;
+    if (!payload || !quote.ready || busy) return;
     setBusy(true);
     setError("");
     try {
@@ -185,6 +186,7 @@ export function BuyScreen({
     } catch (e) {
       const code = (e as { code?: string }).code || (e as Error).message;
       setError(errorLabel(code, locale) || t("Belum berhasil. Coba lagi.", "That didn't work. Try again."));
+      setFailures((n) => n + 1);
       quote.retry();
       setBusy(false);
     }
@@ -228,11 +230,7 @@ export function BuyScreen({
   const shown = quote.shown;
   const footer = (
     <View style={{ gap: 8 }}>
-      {error ? (
-        <Text selectable style={{ color: c.danger }}>
-          {error}
-        </Text>
-      ) : null}
+      {error ? <FormError message={error} failureKey={failures} /> : null}
       <View style={styles.footer}>
         <View style={{ flex: 1 }}>
           <Text variant="caption">Total</Text>
@@ -247,7 +245,8 @@ export function BuyScreen({
         <Button
           variant="primary"
           label={t("Bayar", "Pay")}
-          disabled={!quote.ready || !payable || busy || !!pendingCheckout || (renew && !context.data)}
+          busy={busy}
+          disabled={!quote.ready || !payable || !!pendingCheckout || (renew && !context.data)}
           onPress={() => void submit()}
           style={{ flex: 1 }}
         />
@@ -308,11 +307,7 @@ export function BuyScreen({
             />
           </View>
         </View>
-        {blocked ? (
-          <Text selectable style={{ color: c.danger }}>
-            {blocked}
-          </Text>
-        ) : null}
+        {blocked ? <FormError message={blocked} /> : null}
 
         {shown ? <Breakdown quote={shown} dimmed={quote.pending} locale={locale} t={t} /> : null}
         {!shown && quote.pending ? <BreakdownSkeleton /> : null}

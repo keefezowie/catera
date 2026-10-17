@@ -8,10 +8,12 @@ import {
   Button,
   FadeSwap,
   FONT,
+  FormError,
   MoodHeader,
   PhotoRing,
   PressableRow,
   PressableScale,
+  ReadError,
   Screen,
   Skeleton,
   SkeletonGroup,
@@ -277,22 +279,12 @@ function Browse({ area, onArea }: { area: string | null; onArea: (value: string)
               <FilterChip label={t("Bisa coba 1 hari", "One-day trial")} selected={trial} onPress={() => setTrial(!trial)} />
             </ScrollView>
 
-            {saved.error ? (
-              <Text selectable style={{ color: c.danger }}>
-                {saved.error}
-              </Text>
-            ) : null}
+            {saved.error ? <FormError message={saved.error} /> : null}
 
             {/* Each state without packages leads with its mascot, centred above its line: puzzled when the read failed,
                 searching when the area, meal, search or chips found nothing. */}
             {catalog.error && !catalog.data ? (
-              <View style={{ gap: 10 }}>
-                <StateArt pose="bingung" />
-                <Text selectable style={{ color: c.danger, textAlign: "center" }}>
-                  {catalog.error}
-                </Text>
-                <Button variant="secondary" label={t("Coba lagi", "Try again")} onPress={() => void catalog.reload()} />
-              </View>
+              <ReadError art message={catalog.error} onRetry={() => void catalog.reload()} />
             ) : area && inArea.length === 0 ? (
               <View style={{ gap: 10 }}>
                 <StateArt pose="mencari" />

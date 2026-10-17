@@ -2,6 +2,7 @@ import { router } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import { useMobile } from "@catera/mobile-core";
 import { HeaderIconButton, Pengaturan as SharedPengaturan, useMoodColors } from "@catera/mobile-ui";
+import { DataAkunEntry } from "../account/DataAkun";
 import { goToTab } from "../nav";
 
 /** The gear at the end of Akun's header row; it reads the mood header's text colour. */
@@ -24,6 +25,8 @@ export function Pengaturan() {
   return (
     <SharedPengaturan
       voice="kamu"
+      // Data akun: the name, HP number, email, password and the request to delete the account.
+      extraRows={<DataAkunEntry />}
       // The terms page opens inside the app, the way the payment page does.
       openWebPage={(url) => WebBrowser.openBrowserAsync(url)}
       supporting={t("Makanan berangkat, menu besok, pembayaran", "Meals on the way, tomorrow's menu, payments")}

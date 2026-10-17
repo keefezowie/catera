@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { router } from "expo-router";
 import { currency, paymentPresentation, type Checkout, type Locale, type PaidSummary } from "@catera/domain";
-import { Button, MascotLoading, Text, useColors } from "@catera/mobile-ui";
+import { Button, FormError, MascotLoading, Text } from "@catera/mobile-ui";
 import { PaidOutcome } from "./PaidOutcome";
 
 export type Stage = "pay" | "checking" | "paid" | "expired" | "failed" | "review" | "refunded";
@@ -86,6 +86,7 @@ export function PaymentOutcome({
   help,
   busy,
   error,
+  failures,
   onCheck,
   locale,
   t,
@@ -97,12 +98,12 @@ export function PaymentOutcome({
   help: ReactNode;
   busy: boolean;
   error: string;
+  /** Failed attempts so far, so a repeated message is announced again. */
+  failures?: number;
   onCheck: () => void;
   locale: Locale;
   t: (id: string, en: string) => string;
 }) {
-  // `c` is the checkout in this component, so the palette keeps a longer name.
-  const palette = useColors();
   if (stage === "paid") return summary ? <PaidOutcome checkoutId={c.id} summary={summary} offer={c.quote.offer} /> : null;
   const message: Record<Exclude<Stage, "pay" | "paid">, [string, string]> = {
     checking: [
@@ -142,12 +143,8 @@ export function PaymentOutcome({
       <Text variant="caption" style={{ fontVariant: ["tabular-nums"] }}>
         {c.quote.offer.name} · {currency(c.quote.total, locale)}
       </Text>
-      {error ? (
-        <Text selectable style={{ color: palette.danger }}>
-          {error}
-        </Text>
-      ) : null}
-      {stage === "checking" ? <Button label={t("Cek status", "Check status")} disabled={busy} onPress={onCheck} /> : null}
+      {error ? <FormError message={error} failureKey={failures} /> : null}
+      {stage === "checking" ? <Button label={t("Cek status", "Check status")} busy={busy} onPress={onCheck} /> : null}
       {stage === "expired" || stage === "failed" ? (
         <Button label={t("Bayar lagi", "Pay again")} onPress={() => router.replace(again as never)} />
       ) : null}

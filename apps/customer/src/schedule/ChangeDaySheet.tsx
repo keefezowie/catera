@@ -1,26 +1,28 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ScrollView, Text as RNText, View } from "react-native";
+import { Text as RNText, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import {
   addDays,
-  availabilityReasonLabel,
   canChangeDay,
   changeDeadline,
-  dayLabel,
   errorLabel,
   jakartaDay,
   shortDate,
   type Address,
   type Delivery,
-  type DeliveryAvailability,
 } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
 import {
   Button,
+  CalendarPanel,
+  type CalendarDayState,
+  type CalendarReason,
   FadeSwap,
   FONT,
   fontFor,
+  FormError,
   PressableScale,
+  ReadError,
   Segmented,
   SheetBody,
   SheetHeader,
@@ -28,6 +30,7 @@ import {
   SkeletonGroup,
   Text,
   themedStyles,
+  useBusy,
   useColors,
   useToast,
 } from "@catera/mobile-ui";
@@ -138,12 +141,11 @@ function ChangeDayLoaded({ id, mode }: { id: string; mode?: Mode }) {
         {state.loading ? (
           <ChangeDaySkeleton />
         ) : (
-          <>
-            <Text selectable={!!state.error} style={{ color: state.error ? c.danger : c.muted }}>
-              {state.error || t("Pengantaran tidak ditemukan.", "Delivery not found.")}
-            </Text>
-            {state.error ? <Button label={t("Coba lagi", "Try again")} onPress={() => void state.reload()} /> : null}
-          </>
+          state.error ? (
+            <ReadError message={state.error} onRetry={() => void state.reload()} />
+          ) : (
+            <Text style={{ color: c.muted }}>{t("Pengantaran tidak ditemukan.", "Delivery not found.")}</Text>
+          )
         )}
       </Frame>
     );
@@ -194,10 +196,9 @@ export function ChangeDaySheet({
   const [mode, setMode] = useState<Mode>(
     wanted === "address" && can.address ? "address" : wanted === "date" && can.date ? "date" : can.date ? "date" : "address",
   );
-  const [target, setTarget] = useState("");
   const [addressId, setAddressId] = useState("");
-  const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [failures, setFailures] = useState(0);
   // Whether the sheet is on screen: true while mounted (again after a remount: Fast Refresh, StrictMode), false once
   // it is gone (swiped down while a change was on its way). `sent` keeps a change that went through to one outcome.
   const mounted = useRef(false);
@@ -213,59 +214,67 @@ export function ChangeDaySheet({
     };
   }, []);
 
-  const reasons: Record<string, string> = {
-    DUPLICATE_DATE: t("Sudah ada pengantaran", "Already has a delivery"),
-    CAPACITY: t("Katering penuh", "Caterer is full"),
-    OVERLAP: availabilityReasonLabel("OVERLAP", locale),
-  };
-  // Bookable dates, plus full or double-booked ones with their reason. Non-operating days and
-  // passed cutoffs are left out rather than listed as dead rows.
-  const dates = (availability.data ?? []).filter(
-    (r) => r.date !== delivery.service_date && (r.available || (r.reason ?? "") in reasons),
-  );
+  // What the calendar knows of each day: bookable ones, today's delivery day (outlined) and the ones that cannot be
+  // chosen, each with the reason the calendar reads out. A day the read leaves out is unavailable with no reason.
+  const days: Record<string, CalendarDayState> = { [delivery.service_date]: { state: "current" } };
+  for (const r of availability.data ?? []) {
+    if (r.date === delivery.service_date) continue;
+    days[r.date] = r.available ? { state: "available" } : { state: "unavailable", reason: calendarReason(r.reason) };
+  }
   const chosen = addresses.find((a) => a.id === addressId);
-  const label = mode === "date" ? shortDate(target || delivery.service_date, locale) : chosen?.label || chosen?.line || "";
+  const label = chosen?.label || chosen?.line || "";
 
-  async function confirm() {
-    if (busy) return;
-    setBusy(true);
-    setError("");
-    try {
-      if (live.version !== delivery.version) {
-        setDelivery(live);
-        setError(t("Detail hari ini berubah. Periksa lagi.", "This day changed. Please check again."));
-        onStale?.();
-        void availability.reload();
-        return;
-      }
-      // The minute may have passed while the sheet was open.
-      const now = canChangeDay(delivery, new Date());
-      if (mode === "date" ? !now.date : !now.address) throw Object.assign(new Error("CUTOFF"), { code: "CUTOFF" });
-      if (mode === "date")
-        await command("delivery.reschedule", { id: delivery.id, version: delivery.version, date: target, kind: "reschedule" });
-      else await command("delivery.address", { id: delivery.id, version: delivery.version, addressId });
-      if (sent.current) return;
-      sent.current = true;
-      // Closing is for a sheet still on screen; once it is gone, a back would leave the page under it.
-      if (mounted.current) onClose();
-      // The change went through: it is told even when the sheet was swiped away meanwhile, and after the close, so the
-      // toast meets the page under the sheet.
-      onDone?.({
-        mode,
-        label,
-        message:
-          mode === "date"
-            ? t(`Hari dipindah ke ${label}`, `Day moved to ${label}`)
-            : t(`${oldDay} diantar ke ${label}`, `${oldDay} goes to ${label}`),
-      });
-    } catch (e) {
-      setError(changeError(e, locale, t));
+  /**
+   * Moves the day or sends it to another address. A failure rejects with the sentence to show (the calendar and the
+   * address side both put it in a `FormError`), after the screen under the sheet has been told to read again.
+   */
+  async function perform(kind: Mode, value: string) {
+    const stale = () => {
       onStale?.();
       void availability.reload();
-    } finally {
-      setBusy(false);
+    };
+    if (live.version !== delivery.version) {
+      setDelivery(live);
+      stale();
+      throw new Error(t("Detail hari ini berubah. Periksa lagi.", "This day changed. Please check again."));
     }
+    try {
+      // The minute may have passed while the sheet was open.
+      const now = canChangeDay(delivery, new Date());
+      if (kind === "date" ? !now.date : !now.address) throw Object.assign(new Error("CUTOFF"), { code: "CUTOFF" });
+      if (kind === "date")
+        await command("delivery.reschedule", { id: delivery.id, version: delivery.version, date: value, kind: "reschedule" });
+      else await command("delivery.address", { id: delivery.id, version: delivery.version, addressId: value });
+    } catch (e) {
+      stale();
+      throw new Error(changeError(e, locale, t));
+    }
+    if (sent.current) return;
+    sent.current = true;
+    const to = kind === "date" ? shortDate(value, locale) : chosen?.label || chosen?.line || "";
+    // Closing is for a sheet still on screen; once it is gone, a back would leave the page under it.
+    if (mounted.current) onClose();
+    // The change went through: it is told even when the sheet was swiped away meanwhile, and after the close, so the
+    // toast meets the page under the sheet.
+    onDone?.({
+      mode: kind,
+      label: to,
+      message:
+        kind === "date"
+          ? t(`Hari dipindah ke ${to}`, `Day moved to ${to}`)
+          : t(`${oldDay} diantar ke ${to}`, `${oldDay} goes to ${to}`),
+    });
   }
+
+  const [sending, sendAddress] = useBusy(async () => {
+    setError("");
+    try {
+      await perform("address", addressId);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : changeError(e, locale, t));
+      setFailures((n) => n + 1);
+    }
+  });
 
   return (
     <Frame title={longDay(delivery.service_date, locale)} context={`${delivery.offer.name} · ${delivery.offer.caterer}`} swapKey="ready" onClose={onClose}>
@@ -297,29 +306,29 @@ export function ChangeDaySheet({
           />
           {mode === "date" ? (
             availability.loading && !availability.data ? (
-              // The dates wait in their own shape: four chips under the sides.
+              // The calendar waits in its own shape: a month of days under the pager.
               <SkeletonGroup label={t("Memuat tanggal", "Loading dates")}>
-                <View style={{ flexDirection: "row", gap: 8 }}>
+                <View style={{ gap: 8 }}>
+                  <Skeleton height={44} radius={10} />
                   {[0, 1, 2, 3].map((i) => (
-                    <Skeleton key={i} width={64} height={56} radius={10} />
+                    <Skeleton key={i} height={48} radius={10} />
                   ))}
                 </View>
               </SkeletonGroup>
             ) : availability.error && !availability.data ? (
-              <Text selectable style={{ color: c.danger }}>
-                {availability.error}
-              </Text>
+              <ReadError message={availability.error} onRetry={() => void availability.reload()} />
             ) : (
-              <>
-                {dates.some((r) => r.available) ? null : (
-                  <Text style={{ color: c.muted }}>
-                    {t("Belum ada tanggal yang tersedia dalam 30 hari ke depan.", "No dates are available in the next 30 days.")}
-                  </Text>
-                )}
-                {dates.length ? (
-                  <DateChips dates={dates} selected={target} onSelect={setTarget} reasons={reasons} today={today} locale={locale} />
-                ) : null}
-              </>
+              // The sheet's day-by-day calendar: a new day is chosen in the grid, and the button under it stays off
+              // until one is.
+              <CalendarPanel
+                month={delivery.service_date.slice(0, 7)}
+                days={days}
+                current={delivery.service_date}
+                onPick={() => setError("")}
+                confirmLabel={(date) => t(`Pindah ke ${shortDate(date, locale)}`, `Move to ${shortDate(date, locale)}`)}
+                onConfirm={(date) => perform("date", date)}
+                window={{ from: today, to: addDays(today, 30) }}
+              />
             )
           ) : (
             // The sheet's own scroll view carries the list; each row is a 56dp option.
@@ -342,24 +351,17 @@ export function ChangeDaySheet({
             </View>
           )}
 
-          {error ? (
-            <Text selectable variant="caption" style={{ color: c.danger }}>
-              {error}
-            </Text>
+          {mode === "address" ? (
+            <>
+              {error ? <FormError message={error} failureKey={failures} /> : null}
+              <Button
+                label={addressId ? t(`Antar ke ${label}`, `Deliver to ${label}`) : t("Pilih alamat", "Choose an address")}
+                busy={sending}
+                disabled={!addressId}
+                onPress={() => void sendAddress()}
+              />
+            </>
           ) : null}
-          <Button
-            label={
-              mode === "date"
-                ? target
-                  ? t(`Pindah ke ${label}`, `Move to ${label}`)
-                  : t("Pilih tanggal", "Choose a date")
-                : addressId
-                  ? t(`Antar ke ${label}`, `Deliver to ${label}`)
-                  : t("Pilih alamat", "Choose an address")
-            }
-            disabled={busy || (mode === "date" ? !target : !addressId)}
-            onPress={() => void confirm()}
-          />
           <Text variant="caption">
             {mode === "date"
               ? t(
@@ -374,67 +376,6 @@ export function ChangeDaySheet({
         </>
       )}
     </Frame>
-  );
-}
-
-/** One strip of dates: bookable ones are chips, full or double-booked ones stay visible but dimmed. */
-function DateChips({
-  dates,
-  selected,
-  onSelect,
-  reasons,
-  today,
-  locale,
-}: {
-  dates: DeliveryAvailability[];
-  selected: string;
-  onSelect: (date: string) => void;
-  reasons: Record<string, string>;
-  today: string;
-  locale: "id" | "en";
-}) {
-  const { t } = useMobile();
-  const c = useColors();
-  const styles = useStyles();
-  return (
-    <View style={{ gap: 10 }}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-        {dates.map((r) => {
-          const full = shortDate(r.date, locale);
-          // "Senin 12 Okt" -> weekday on top, "12 Okt" below.
-          const [weekday, ...rest] = full.split(" ");
-          const on = selected === r.date;
-          const off = !r.available;
-          const ink = on ? c.cream : off ? c.muted : c.forest;
-          return (
-            <PressableScale
-              key={r.date}
-              accessibilityRole="button"
-              accessibilityLabel={off ? `${full}, ${reasons[r.reason ?? ""]}` : full}
-              accessibilityState={{ selected: on, disabled: off }}
-              disabled={off}
-              haptic={off ? "none" : "select"}
-              onPress={() => onSelect(r.date)}
-              style={[styles.chip, on && styles.chipOn, off && styles.chipOff]}
-            >
-              <RNText style={[styles.chipDay, { color: ink }]}>{weekday.slice(0, 3)}</RNText>
-              <RNText style={[styles.chipDate, { color: ink }]}>{rest.join(" ")}</RNText>
-              {off ? (
-                // State is paired with text, not only a dimmed look.
-                <Text variant="caption" style={styles.chipWhy}>
-                  {r.reason === "CAPACITY" ? t("Penuh", "Full") : t("Terisi", "Taken")}
-                </Text>
-              ) : null}
-            </PressableScale>
-          );
-        })}
-      </ScrollView>
-      {selected ? (
-        <Text testID="chosen-day" variant="label" style={{ color: c.forest /* forest: selection (the chosen date) */ }}>
-          {dayLabel(selected, today, locale)}
-        </Text>
-      ) : null}
-    </View>
   );
 }
 
@@ -489,23 +430,15 @@ const useStyles = themedStyles((c) => ({
   },
   rowOn: { backgroundColor: c.forest, borderColor: c.forest },
   rowOff: { borderStyle: "dashed", borderColor: c.fieldBorder, backgroundColor: "transparent" },
-  chip: {
-    minWidth: 64,
-    minHeight: 56,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: c.line,
-    backgroundColor: c.surface,
-  },
-  chipOn: { backgroundColor: c.forest, borderColor: c.forest },
-  chipOff: { borderStyle: "dashed", borderColor: c.fieldBorder, backgroundColor: "transparent" },
-  chipWhy: { color: c.muted, lineHeight: 16 },
-  chipDay: { fontFamily: FONT, fontSize: 11, lineHeight: 16 },
-  chipDate: { fontFamily: fontFor("700"), fontSize: 15, lineHeight: 20, fontVariant: ["tabular-nums"] },
   rowLabel: { fontSize: 15, fontFamily: fontFor("700"), fontVariant: ["tabular-nums"] },
   rowSub: { fontFamily: FONT, fontSize: 12 },
 }));
+
+/** The calendar's word for why a day cannot be chosen; a reason it has no word for leaves the day without one. */
+function calendarReason(reason: string | null): CalendarReason | undefined {
+  if (reason === "CAPACITY") return "Penuh";
+  if (reason === "DUPLICATE_DATE" || reason === "OVERLAP") return "Terisi";
+  if (reason === "CUTOFF") return "Lewat batas waktu";
+  if (reason === "INVALID_DATE") return "Dapur libur";
+  return undefined;
+}

@@ -1,7 +1,7 @@
 import { Linking, Text as RNText, View } from "react-native";
 import { router } from "expo-router";
 import type { DirectPaymentMethod, Offer, PaymentAvailability } from "@catera/domain";
-import { Button, Card, FONT, fontFor, StateArt, Text, themedStyles, useColors } from "@catera/mobile-ui";
+import { Button, Card, FONT, fontFor, FormError, ReadError, Text, themedStyles } from "@catera/mobile-ui";
 import { packageHref } from "../hrefs";
 import { goToTab, leaveFor } from "../nav";
 
@@ -25,14 +25,12 @@ export function Retry({
   t: T;
   art?: boolean;
 }) {
-  const c = useColors();
+  // The usual retry is the shared read error; a price that is worked out again says "Hitung ulang" under its message.
+  if (!label) return <ReadError art={art} message={message} onRetry={onRetry} />;
   return (
     <View style={{ gap: 6 }}>
-      {art ? <StateArt pose="bingung" style={{ marginBottom: 10 }} /> : null}
-      <Text selectable style={[{ color: c.danger }, art ? { textAlign: "center" } : null]}>
-        {message}
-      </Text>
-      <Button variant="secondary" label={label ?? t("Coba lagi", "Try again")} onPress={onRetry} />
+      <FormError message={message} />
+      <Button variant="secondary" label={label} onPress={onRetry} />
     </View>
   );
 }
@@ -85,7 +83,6 @@ export function PayWith({
   onChoose: (m: DirectPaymentMethod) => void;
   t: T;
 }) {
-  const c = useColors();
   const styles = useStyles();
   const other = chosen === "QRIS" ? "VIRTUAL_ACCOUNT_BRI" : "QRIS";
   return (
@@ -96,9 +93,7 @@ export function PayWith({
           <Text>{t("Pilih cara bayar di halaman berikutnya.", "Choose how to pay on the next page.")}</Text>
         </Card>
       ) : !chosen ? (
-        <Text selectable style={{ color: c.danger }}>
-          {t("Pembayaran belum tersedia. Coba lagi nanti.", "Payment isn't available yet. Try again later.")}
-        </Text>
+        <FormError message={t("Pembayaran belum tersedia. Coba lagi nanti.", "Payment isn't available yet. Try again later.")} />
       ) : (
         <>
           <Card style={styles.method}>

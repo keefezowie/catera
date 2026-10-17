@@ -18,8 +18,9 @@ import {
   Card,
   FadeSwap,
   fontFor,
+  FormError,
+  ReadError,
   Screen,
-  StateArt,
   Text,
   themedStyles,
   useColors,
@@ -79,13 +80,10 @@ function List({ flow }: { flow: boolean }) {
   if ((!issues.data || !customer.data) && (issues.error || customer.error))
     return (
       <Screen>
-        <StateArt pose="bingung" />
-        <Text selectable style={{ color: palette.danger, textAlign: "center" }}>
-          {issues.error || customer.error}
-        </Text>
-        <Button
-          label={t("Coba lagi", "Try again")}
-          onPress={() => {
+        <ReadError
+          art
+          message={issues.error || customer.error}
+          onRetry={() => {
             void issues.reload();
             void customer.reload();
           }}
@@ -165,9 +163,13 @@ function List({ flow }: { flow: boolean }) {
           </View>
         ) : null}
         {issues.error || customer.error ? (
-          <Text selectable variant="caption" style={{ color: palette.danger }}>
-            {issues.error || customer.error}
-          </Text>
+          <ReadError
+            message={issues.error || customer.error}
+            onRetry={() => {
+              void issues.reload();
+              void customer.reload();
+            }}
+          />
         ) : null}
       </FadeSwap>
     </Screen>
@@ -247,11 +249,10 @@ function CaseCard({
   refunds: { id: string; amount: number; state: string }[];
 }) {
   const { command, t, locale } = useMobile();
-  // The case is `c` in this component, so the palette keeps a longer name.
-  const palette = useColors();
   const styles = useStyles();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [failures, setFailures] = useState(0);
   return (
     <Card style={{ gap: 8 }}>
       <View style={styles.head}>
@@ -272,26 +273,23 @@ function CaseCard({
         <Button
           variant="secondary"
           label={t("Minta Catera meninjau", "Ask Catera to review")}
-          disabled={busy}
+          busy={busy}
           onPress={() => {
             setBusy(true);
             setError("");
             command("support.escalate", { id: c.id })
-              .catch((e) =>
+              .catch((e) => {
                 setError(
                   errorLabel((e as { code?: string }).code || (e as Error).message, locale) ||
                     t("Belum berhasil. Coba lagi.", "That did not work. Try again."),
-                ),
-              )
+                );
+                setFailures((n) => n + 1);
+              })
               .finally(() => setBusy(false));
           }}
         />
       ) : null}
-      {error ? (
-        <Text selectable variant="caption" style={{ color: palette.danger }}>
-          {error}
-        </Text>
-      ) : null}
+      {error ? <FormError message={error} failureKey={failures} /> : null}
     </Card>
   );
 }

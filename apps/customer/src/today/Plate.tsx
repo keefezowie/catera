@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Linking, StyleSheet, Text as RNText, View, type StyleProp, type ViewStyle } from "react-native";
+import { Linking, StyleSheet, Text as RNText, View } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
 import { router } from "expo-router";
 import { pushSheet } from "../nav";
@@ -18,9 +18,14 @@ import {
   themedStyles,
   useColors,
   useMoodColors,
+  useToast,
 } from "@catera/mobile-ui";
 import { dayHasActions } from "../schedule/dayActions";
 import { DayMore } from "../schedule/DayMore";
+import { photoUri } from "./photoUri";
+
+// `photoUri` lives in its own module so the day actions can read it without importing the hero back.
+export { photoUri };
 
 const JAKARTA_OFFSET_MS = 7 * 60 * 60 * 1000;
 
@@ -41,39 +46,6 @@ export function jakartaClock(iso: string | null | undefined): string {
   if (Number.isNaN(t)) return "";
   const d = new Date(t + JAKARTA_OFFSET_MS);
   return `${String(d.getUTCHours()).padStart(2, "0")}.${String(d.getUTCMinutes()).padStart(2, "0")}`;
-}
-
-/** Photos from the API may be site-relative ("/food/…"). */
-export function photoUri(src: string, apiBase: string): string {
-  return src.startsWith("/") && !src.startsWith("//") ? apiBase + src : src;
-}
-
-/** The hero button (direction K): a forest fill with the cream label and no edge, the screen's one filled brand control. */
-export function HeroButton({
-  label,
-  onPress,
-  disabled,
-  style,
-}: {
-  label: string;
-  onPress: () => void;
-  disabled?: boolean;
-  style?: StyleProp<ViewStyle>;
-}) {
-  const styles = useStyles();
-  return (
-    <PressableScale
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ disabled: !!disabled }}
-      disabled={disabled}
-      haptic={disabled ? "none" : "tap"}
-      onPress={onPress}
-      style={[styles.heroButton, disabled && { opacity: 0.6 }, style]}
-    >
-      <RNText style={styles.heroButtonLabel}>{label}</RNText>
-    </PressableScale>
-  );
 }
 
 /** Plain-language messages for the confirm/react codes errorLabel does not cover. */
@@ -273,14 +245,17 @@ function PlateContent({
   const hero = variant === "hero";
   // The hero's "…": a fresh read with something the day still allows.
   const more = hero && !offline && dayHasActions(delivery, new Date(), plate.meal);
-  // The hero's inks come from the mood, a card's from the theme; the hero's warning is `heroWarn` (Gagal diantar and errors).
-  const ink = hero ? moodColors.heroText : c.forest;
+  // The hero's inks come from the mood, a card's from the theme. A card's labels are charcoal; forest is only the fill
+  // that marks the chosen reaction (the hero marks it in its own ink).
+  const ink = hero ? moodColors.heroText : c.charcoal;
+  const mark = hero ? moodColors.heroText : c.forest; // forest: selection (the chosen reaction's fill)
   const quiet = hero ? moodColors.heroMeta : c.muted;
   const edge = hero ? moodColors.heroMeta : c.secondaryBorder;
   const onInk = hero ? moodColors.hero : c.cream;
-  const danger = hero ? moodColors.heroWarn : c.danger;
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  // Which answer is on its way to the API (only its button shows the spinner); "" when none is.
+  const [waiting, setWaiting] = useState<"" | "confirm" | "react">("");
+  const busy = waiting !== "";
+  const toast = useToast();
   const track = useTrack();
   // The journey caption (with its times) belongs to a meal on its normal way; a failed or reported plate gets none and
   // keeps its own message.
@@ -301,16 +276,42 @@ function PlateContent({
     track("journey_viewed");
   }, [watched, deliveryId, mealKey, journey.stage, track]);
   const meal = plate.meal === "dinner" ? t("Makan malam", "Dinner") : t("Makan siang", "Lunch");
+  // "Sudah sampai" and "Belum": the same two answers whether the kitchen marked the meal or nobody has yet.
+  const answers = (
+    <>
+      <Button
+        label={t("Sudah sampai", "It's here")}
+        busy={waiting === "confirm"}
+        disabled={waiting === "react"}
+        onPress={() => void run("delivery.confirm", {}, "confirm")}
+        style={{ flexGrow: 2, flexBasis: "auto" }}
+      />
+      <Button
+        variant="secondary"
+        label={t("Belum", "Not yet")}
+        ink={ink}
+        edge={edge}
+        disabled={busy}
+        style={{ flexGrow: 1, flexBasis: "auto" }}
+        onPress={() => pushSheet(`/masalah/${encodeURIComponent(plate.deliveryId)}?meal=${plate.meal}&jenis=belum` as never)}
+      />
+    </>
+  );
 
-  async function run(action: string, payload: Record<string, unknown>) {
-    setBusy(true);
-    setError("");
+  /** An answer that did not go through is not a form's field: a toast says why, with "Coba lagi" to send it again. */
+  async function run(action: string, payload: Record<string, unknown>, which: "confirm" | "react") {
+    if (waiting) return;
+    setWaiting(which);
     try {
       await command(action, { deliveryId: plate.deliveryId, meal: plate.meal, ...payload });
     } catch (e) {
-      setError(commandError(e, locale, t));
+      toast.show({
+        message: commandError(e, locale, t),
+        tone: "error",
+        action: { label: t("Coba lagi", "Try again"), onPress: () => void run(action, payload, which) },
+      });
     } finally {
-      setBusy(false);
+      setWaiting("");
     }
   }
 
@@ -373,23 +374,14 @@ function PlateContent({
           // Each button keeps at least its label's width and the two share what is left 2:1; on a narrow card at a
           // large font (a pager card at 360dp and 1.3) "Belum" moves under "Sudah sampai" instead of breaking mid-word.
           <View testID="plate-actions" style={[styles.row, { flexWrap: "wrap" }]}>
-            <HeroButton
-              label={t("Sudah sampai", "It's here")}
-              disabled={busy}
-              onPress={() => void run("delivery.confirm", {})}
-              style={{ flexGrow: 2, flexBasis: "auto" }}
-            />
-            <Button
-              variant="secondary"
-              label={t("Belum", "Not yet")}
-              ink={ink}
-              edge={edge}
-              disabled={busy}
-              style={{ flexGrow: 1, flexBasis: "auto" }}
-              onPress={() =>
-                pushSheet(`/masalah/${encodeURIComponent(plate.deliveryId)}?meal=${plate.meal}&jenis=belum` as never)
-              }
-            />
+            {answers}
+          </View>
+        ) : null}
+        {!offline && plate.state === "arrived_unconfirmed" ? (
+          // The kitchen marked it Sampai: the photo it left sits beside the two answers.
+          <View testID="plate-actions" style={[styles.row, { alignItems: "flex-start" }]}>
+            {plate.proofPhoto ? <ProofPhoto plate={plate} apiBase={apiBase} hero={hero} /> : null}
+            <View style={{ flex: 1, gap: 8 }}>{answers}</View>
           </View>
         ) : null}
         {!offline && plate.state === "arrived" ? (
@@ -414,11 +406,11 @@ function PlateContent({
                     accessibilityState={{ selected, disabled: busy }}
                     disabled={busy}
                     haptic={busy ? "none" : "select"}
-                    onPress={() => void run("delivery.react", { reaction: value })}
+                    onPress={() => void run("delivery.react", { reaction: value }, "react")}
                     style={[
                       styles.reaction,
                       { borderColor: edge },
-                      selected && { backgroundColor: ink, borderColor: ink },
+                      selected && { backgroundColor: mark, borderColor: mark },
                     ]}
                   >
                     <Face kind={value} color={selected ? onInk : ink} />
@@ -462,17 +454,67 @@ function PlateContent({
             onPress={() => router.push("/bantuan" as never)}
           />
         ) : null}
-        {error ? (
-          <Text selectable style={{ color: danger }} testID="plate-error">
-            {error}
-          </Text>
-        ) : null}
       </View>
     </>
   );
 }
 
+const PROOF_SIZE = 96;
+
+/**
+ * The photo the kitchen took at the door, read behind the signed-in session (`/api/proof`, a private location only this
+ * customer and that kitchen read). It stands on the neutral ground while it loads; if it cannot be read the ground
+ * stays, the same size, and a line says so, so a missing picture is never a blank.
+ */
+function ProofPhoto({ plate, apiBase, hero }: { plate: PlateData; apiBase: string; hero: boolean }) {
+  const { runtime, t } = useMobile();
+  const moodColors = useMoodColors();
+  const styles = useStyles();
+  const [token, setToken] = useState<string | null | undefined>(undefined);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let live = true;
+    runtime
+      .token()
+      .then((value) => live && setToken(value ?? null))
+      .catch(() => live && setToken(null));
+    return () => {
+      live = false;
+    };
+  }, [runtime]);
+  const uri = `${apiBase}/api/proof?deliveryId=${encodeURIComponent(plate.deliveryId)}&meal=${plate.meal}`;
+  return (
+    <View style={{ width: PROOF_SIZE, gap: 4 }}>
+      <View
+        testID="plate-proof"
+        accessible
+        accessibilityRole="image"
+        accessibilityLabel={t("Foto dari dapur saat pesanan sampai", "The kitchen's photo at the door")}
+        style={styles.proof}
+      >
+        {token ? (
+          <Photo
+            ground="photo"
+            uri={uri}
+            headers={{ Authorization: `Bearer ${token}` }}
+            onFail={() => setFailed(true)}
+            style={StyleSheet.absoluteFill}
+          />
+        ) : (
+          <View testID="plate-proof-ground" style={[StyleSheet.absoluteFill, { backgroundColor: fixedInk.photoGround }]} />
+        )}
+      </View>
+      {failed || token === null ? (
+        <Text testID="plate-proof-failed" variant="caption" style={hero ? { color: moodColors.heroMeta } : undefined}>
+          {t("Foto belum bisa dimuat", "The photo could not load")}
+        </Text>
+      ) : null}
+    </View>
+  );
+}
+
 const useStyles = themedStyles((c) => ({
+  proof: { width: PROOF_SIZE, height: PROOF_SIZE, borderRadius: 12, borderCurve: "continuous", overflow: "hidden", backgroundColor: fixedInk.photoGround },
   card: {
     borderRadius: 22,
     overflow: "hidden",
@@ -511,15 +553,6 @@ const useStyles = themedStyles((c) => ({
   second: { fontSize: 17, fontFamily: fontFor("600"), color: fixedInk.cream, fontVariant: ["tabular-nums"] },
   body: { padding: 16, gap: 12 },
   row: { flexDirection: "row", gap: 8 },
-  heroButton: {
-    minHeight: 48,
-    borderRadius: 10,
-    paddingHorizontal: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: c.forest,
-  },
-  heroButtonLabel: { fontSize: 15, fontFamily: fontFor("800"), color: c.cream },
   reaction: {
     flex: 1,
     minHeight: 56,

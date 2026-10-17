@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import { StyleSheet, Text } from "react-native";
 import { nativeThemes } from "@catera/design-tokens";
 import { tabBarColors, tabLabelStyle } from "@catera/mobile-ui";
@@ -274,7 +274,8 @@ it.each(["REQUEST_TIMEOUT", "INVALID_API_RESPONSE"])(
     renderShell();
     expect(await screen.findByText("Belum bisa terhubung.")).toBeTruthy();
     // The reason is an error, so it reads in the error colour like every other failed read.
-    const reason = screen.getByTestId("startup-error");
+    // It sits in the shared form error: an icon and the words in the error colour, never loose small text.
+    const reason = within(screen.getByTestId("startup-error")).getByText(/./);
     expect(require("react-native").StyleSheet.flatten(reason.props.style).color).toBe(require("@catera/design-tokens").nativeThemes.light.danger);
     expect(screen.queryByText(/^m:/)).toBeNull();
     await act(async () => {

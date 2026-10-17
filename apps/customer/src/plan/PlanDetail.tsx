@@ -15,6 +15,7 @@ import {
 import { useData, useMobile, useTrack, type MobileRuntime } from "@catera/mobile-core";
 import {
   Button,
+  ConnectionBanner,
   FadeSwap,
   HeaderIconButton,
   linkTitle,
@@ -22,8 +23,8 @@ import {
   Photo,
   PhotoRing,
   PressableRow,
+  ReadError,
   Screen,
-  StateArt,
   StickyAction,
   Text,
   themedStyles,
@@ -35,7 +36,7 @@ import { SignInFirst } from "../account/SignInFirst";
 import { catererPhoneOf, openCatererChat } from "../help/ChatKatering";
 import { remainingLabel } from "../remaining";
 import { loadCachedCustomer } from "../today/offline";
-import { jakartaClock, photoUri } from "../today/Plate";
+import { photoUri } from "../today/Plate";
 import { dayHref } from "../hrefs";
 import { goToTab } from "../nav";
 import { PlanSkeleton } from "../skeletons";
@@ -138,23 +139,11 @@ function Plan({ id, actorId, carried, generic }: { id: string; actorId: string; 
           {loading ? (
             <PlanSkeleton />
           ) : !state ? (
-            <View style={{ gap: 8 }}>
-              <StateArt pose="bingung" style={{ marginBottom: 4 }} />
-              <Text
-                variant="heading"
-                accessibilityRole="text"
-                selectable
-                style={{ color: c.danger, textAlign: "center" }}
-              >
-                {t("Belum bisa memuat", "Couldn't load yet")}
-              </Text>
-              {read.error ? (
-                <Text selectable style={{ color: c.danger, textAlign: "center" }}>
-                  {read.error}
-                </Text>
-              ) : null}
-              <Button variant="secondary" label={t("Coba lagi", "Try again")} onPress={() => void read.reload()} />
-            </View>
+            <ReadError
+              art
+              message={read.error || t("Belum bisa memuat", "Couldn't load yet")}
+              onRetry={() => void read.reload()}
+            />
           ) : (
             // The read came back without this plan (another account's, or gone from a stale link), or in a status this screen cannot name.
             <View style={{ gap: 8, alignItems: "flex-start" }}>
@@ -198,11 +187,8 @@ function Plan({ id, actorId, carried, generic }: { id: string; actorId: string; 
           </Text>
         ) : null}
         <Hero plan={plan} apiBase={runtime.apiBase} />
-        {offline ? (
-          <Text variant="caption" style={[{ color: c.charcoal }, tabular]}>
-            {t("Terakhir diperbarui", "Last updated")} {jakartaClock(savedAt)} · {t("tidak ada koneksi", "no connection")}
-          </Text>
-        ) : null}
+        {/* Mounted whatever the page shows; it appears only while the phone is offline, naming the time of this copy. */}
+        <ConnectionBanner lastSeen={savedAt ? new Date(savedAt) : undefined} onRetry={() => void read.reload()} />
         {cancelled ? null : (
           <Upcoming rows={plan.upcoming} apiBase={runtime.apiBase} deliveries={offline ? undefined : state?.deliveries} />
         )}
