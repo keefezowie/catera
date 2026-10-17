@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactElement, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactElement, type ReactNode, type Ref } from "react";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import {
   type AccessibilityRole,
@@ -267,8 +267,9 @@ export function Field({
   hint,
   error,
   style,
+  inputRef,
   ...input
-}: { label: string; hint?: string; error?: string } & TextInputProps) {
+}: { label: string; hint?: string; error?: string; inputRef?: Ref<TextInput> } & TextInputProps) {
   const c = useColors();
   const styles = useStyles();
   return (
@@ -276,6 +277,7 @@ export function Field({
       <RNText style={[styles.fieldLabel]}>{label}</RNText>
       {/* The caller's style extends the base input style; spreading it after would replace the fill, border and ink. */}
       <TextInput
+        ref={inputRef}
         accessibilityLabel={label}
         placeholderTextColor={c.muted}
         {...input}

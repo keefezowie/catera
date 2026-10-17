@@ -194,6 +194,28 @@ describe("the hero with a failed photo", () => {
   });
 });
 
+describe("Coba lagi on a stale copy", () => {
+  it("keeps the line and busies the button while the retry runs, on Beranda", async () => {
+    (offline.loadCachedCustomer as jest.Mock).mockResolvedValue({
+      savedAt: `${TODAY}T03:12:00.000Z`,
+      data: customerState({ status: "out_for_delivery" }),
+    });
+    let settle = () => {};
+    const runtime = runtimeWith(async () => {
+      throw Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" });
+    });
+    renderHome(runtime);
+    const line = `Belum bisa memperbarui. Menampilkan data terakhir, ${bannerTime(new Date(`${TODAY}T03:12:00.000Z`))}.`;
+    await screen.findByText(line);
+    (runtime.api.customer as jest.Mock).mockImplementation(() => new Promise((_, reject) => (settle = () => reject(new Error("REQUEST_TIMEOUT")))));
+    fireEvent.press(within(screen.getByTestId("stale-copy")).getByRole("button", { name: "Coba lagi" }));
+    await waitFor(() => expect(within(screen.getByTestId("stale-copy")).getByRole("button", { name: "Coba lagi" }).props.accessibilityState.busy).toBe(true));
+    expect(screen.getByText(line)).toBeTruthy();
+    await act(async () => settle());
+    expect(await screen.findByText(line)).toBeTruthy();
+  });
+});
+
 describe("the card's reactions", () => {
   it("keeps unselected reaction labels charcoal; forest only fills the chosen one", async () => {
     const state = customerState({ status: "delivered", confirmed_at: `${TODAY}T05:00:00Z`, confirmed_by: "customer", reaction: "enak" });

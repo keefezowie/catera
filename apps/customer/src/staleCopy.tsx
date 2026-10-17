@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import NetInfo, { type NetInfoState } from "@react-native-community/netinfo";
 import { useMobile } from "@catera/mobile-core";
-import { bannerTime, ReadError } from "@catera/mobile-ui";
+import { bannerTime, Button, FormError, useBusy } from "@catera/mobile-ui";
+import { View } from "react-native";
 
 const offlineNow = (s: Pick<NetInfoState, "isConnected" | "isInternetReachable">) =>
   s.isConnected === false || s.isInternetReachable === false;
@@ -24,17 +25,22 @@ function useOnline(): boolean | null {
 /**
  * A kept copy is on screen although the phone is online: the read failed on the server side, so the copy may be old.
  * The connection banner stays silent then (it is for a phone without signal), and this says so, with the copy's time
- * and "Coba lagi". Renders nothing without a kept copy or while the phone is offline.
+ * and "Coba lagi". Retrying keeps the line where it is and busies the button until the read settles, so nothing hides
+ * and the page does not jump; the line goes when the fresh read replaces the copy. Renders nothing without a kept copy
+ * or while the phone is offline. Beranda and the plan use it the same way.
  */
-export function StaleCopy({ savedAt, onRetry }: { savedAt?: string | null; onRetry: () => void }) {
+export function StaleCopy({ savedAt, onRetry }: { savedAt?: string | null; onRetry: () => Promise<unknown> | void }) {
   const { t } = useMobile();
   const online = useOnline();
+  const [busy, retry] = useBusy(async () => {
+    await onRetry();
+  });
   if (!savedAt || online !== true) return null;
   const at = bannerTime(new Date(savedAt));
   return (
-    <ReadError
-      message={t(`Belum bisa memperbarui. Menampilkan data terakhir, ${at}.`, `Couldn't refresh. Showing data from ${at}.`)}
-      onRetry={onRetry}
-    />
+    <View testID="stale-copy" style={{ gap: 4 }}>
+      <FormError message={t(`Belum bisa memperbarui. Menampilkan data terakhir, ${at}.`, `Couldn't refresh. Showing data from ${at}.`)} />
+      <Button variant="text" label={t("Coba lagi", "Try again")} busy={busy} onPress={() => void retry()} style={{ alignSelf: "flex-start" }} />
+    </View>
   );
 }

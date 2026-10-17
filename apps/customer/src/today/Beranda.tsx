@@ -464,7 +464,7 @@ function SignedInHome({ actorId }: { actorId: string }) {
         <ConnectionBanner lastSeen={savedAt ? new Date(savedAt) : undefined} onRetry={() => void home.reload()} />
         {!savedAt && home.error ? <ReadError message={home.error} onRetry={() => void home.reload()} /> : null}
         {/* A copy kept while the phone is online means the read failed: say how old it is, never let it pass as current. */}
-        <StaleCopy savedAt={updating ? null : savedAt} onRetry={() => void home.reload()} />
+        <StaleCopy savedAt={savedAt} onRetry={home.reload} />
         {otherPlates.length ? (
           <OtherMealRow
             plates={otherPlates}

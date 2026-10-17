@@ -190,7 +190,7 @@ function Plan({ id, actorId, carried, generic }: { id: string; actorId: string; 
         <Hero plan={plan} apiBase={runtime.apiBase} />
         {/* Mounted whatever the page shows; it appears only while the phone is offline, naming the time of this copy. */}
         <ConnectionBanner lastSeen={savedAt ? new Date(savedAt) : undefined} onRetry={() => void read.reload()} />
-        <StaleCopy savedAt={read.loading ? null : savedAt} onRetry={() => void read.reload()} />
+        <StaleCopy savedAt={savedAt} onRetry={read.reload} />
         {cancelled ? null : (
           <Upcoming rows={plan.upcoming} apiBase={runtime.apiBase} deliveries={offline ? undefined : state?.deliveries} />
         )}

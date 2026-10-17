@@ -1,4 +1,5 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { AccessibilityInfo, type TextInput } from "react-native";
 import { router } from "expo-router";
 import {
   changePassword,
@@ -17,6 +18,21 @@ import { localPhone } from "./localPhone";
 import { accountMessage } from "./accountMessages";
 import { SignInFirst } from "./SignInFirst";
 import { useAction } from "./useAction";
+
+/**
+ * Puts the screen reader on an editor's first field once the editor has opened. `autoFocus` only raises the keyboard;
+ * TalkBack and VoiceOver would stay on the row that was pressed.
+ */
+function useFirstField() {
+  const ref = useRef<TextInput>(null);
+  useEffect(() => {
+    const id = setTimeout(() => {
+      if (ref.current) AccessibilityInfo.sendAccessibilityEvent(ref.current, "focus");
+    }, 0);
+    return () => clearTimeout(id);
+  }, []);
+  return ref;
+}
 
 type Open = "nama" | "hp" | "email" | "sandi" | "";
 
@@ -130,6 +146,7 @@ function NameEditor({ current, onDone }: { current: string; onDone: () => void }
   const { command, refresh, t } = useMobile();
   const toast = useToast();
   const [name, setName] = useState(current);
+  const first = useFirstField();
   const action = useAction(accountMessage);
   const save = () =>
     action.run(async () => {
@@ -140,7 +157,7 @@ function NameEditor({ current, onDone }: { current: string; onDone: () => void }
     });
   return (
     <Editor>
-      <Field label={t("Nama", "Name")} value={name} onChangeText={setName} autoComplete="name" maxLength={80} autoFocus />
+      <Field inputRef={first} label={t("Nama", "Name")} value={name} onChangeText={setName} autoComplete="name" maxLength={80} autoFocus />
       {action.error ? <FormError message={action.error} failureKey={action.failures} testID="name-error" /> : null}
       <Button
         label={t("Simpan nama", "Save name")}
@@ -158,6 +175,7 @@ function PhoneEditor({ onChanged, onDone }: { onChanged: () => void; onDone: () 
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [sent, setSent] = useState(false);
+  const first = useFirstField();
   const action = useAction(accountMessage);
   const send = () =>
     action.run(async () => {
@@ -170,13 +188,15 @@ function PhoneEditor({ onChanged, onDone }: { onChanged: () => void; onDone: () 
       onChanged();
       toast.show({
         message: done.simulated ? t("Contoh saja: nomor HP tidak berubah", "Sample only: the number did not change") : t("Nomor HP diganti", "Phone number changed"),
-        tone: "success",
+        // A simulated change is not a success to celebrate: it carries no tone.
+        tone: done.simulated ? undefined : "success",
       });
       onDone();
     });
   return (
     <Editor>
       <Field
+        inputRef={first}
         label={t("Nomor HP baru", "New phone number")}
         value={phone}
         onChangeText={setPhone}
@@ -185,7 +205,13 @@ function PhoneEditor({ onChanged, onDone }: { onChanged: () => void; onDone: () 
         placeholder="0812…"
         editable={!sent}
         autoFocus={!sent}
-        hint={sent ? undefined : t("Kami kirim kode lewat SMS ke nomor ini.", "We text a code to this number.")}
+        hint={
+          sent
+            ? demo
+              ? t("Demo: tidak ada SMS yang dikirim. Isi enam angka apa saja.", "Demo: no SMS was sent. Enter any six digits.")
+              : undefined
+            : t("Kami kirim kode lewat SMS ke nomor ini.", "We text a code to this number.")
+        }
       />
       {sent ? (
         <Field
@@ -232,6 +258,7 @@ function EmailEditor() {
   const { runtime, demo, t } = useMobile();
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
+  const first = useFirstField();
   const action = useAction(accountMessage);
   const send = () =>
     action.run(async () => {
@@ -241,6 +268,7 @@ function EmailEditor() {
   return (
     <Editor>
       <Field
+        inputRef={first}
         label={t("Email baru", "New email")}
         value={email}
         onChangeText={setEmail}
@@ -253,10 +281,12 @@ function EmailEditor() {
       />
       {sent ? (
         <Text testID="email-sent">
-          {t(
-            "Periksa emailmu. Kami mengirim tautan ke email lama dan email baru. Email baru berlaku setelah kedua tautan dibuka.",
-            "Check your email. We sent a link to the old and the new address. The new email takes effect once both links are opened.",
-          )}
+          {demo
+            ? t("Demo: tidak ada email yang dikirim dan emailmu tidak berubah.", "Demo: no email was sent and your email did not change.")
+            : t(
+                "Periksa emailmu. Kami mengirim tautan ke email lama dan email baru. Email baru berlaku setelah kedua tautan dibuka.",
+                "Check your email. We sent a link to the old and the new address. The new email takes effect once both links are opened.",
+              )}
         </Text>
       ) : null}
       {action.error ? <FormError message={action.error} failureKey={action.failures} testID="email-error" /> : null}
@@ -276,19 +306,21 @@ function PasswordEditor({ onDone }: { onDone: () => void }) {
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [again, setAgain] = useState("");
+  const first = useFirstField();
   const action = useAction(accountMessage);
   const save = () =>
     action.run(async () => {
       const done = await changePassword(runtime.supabase, demo, { current, next });
       toast.show({
         message: done.simulated ? t("Contoh saja: kata sandi tidak berubah", "Sample only: the password did not change") : t("Kata sandi diganti", "Password changed"),
-        tone: "success",
+        tone: done.simulated ? undefined : "success",
       });
       onDone();
     });
   return (
     <Editor>
       <Field
+        inputRef={first}
         label={t("Kata sandi saat ini", "Current password")}
         value={current}
         onChangeText={setCurrent}

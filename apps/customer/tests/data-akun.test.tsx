@@ -1,3 +1,4 @@
+import { AccessibilityInfo } from "react-native";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
@@ -211,6 +212,28 @@ describe("Data akun", () => {
     expect(screen.getByLabelText("Nama").props.autoFocus).toBe(true);
     fireEvent.press(screen.getByRole("button", { name: /^Nama, / }));
     expect(screen.getByRole("button", { name: /^Nama, / }).props.accessibilityState.expanded).toBe(false);
+  });
+
+  it("moves the screen reader to the editor's first field, not just the keyboard", async () => {
+    const focus = jest.spyOn(AccessibilityInfo, "sendAccessibilityEvent").mockImplementation(() => {});
+    const { runtime } = runtimeWith({ user: emailUser });
+    renderWith(runtime, <DataAkun />);
+    fireEvent.press(await screen.findByRole("button", { name: /^Nama, / }));
+    await waitFor(() => expect(focus).toHaveBeenCalled());
+    const [target, event] = focus.mock.calls.at(-1) as [{ props: { accessibilityLabel?: string } }, string];
+    expect(event).toBe("focus");
+    expect(target.props.accessibilityLabel).toBe("Nama");
+    focus.mockRestore();
+  });
+
+  it("in demo the hints and toasts do not claim anything was sent or changed", async () => {
+    const { runtime } = runtimeWith({ demo: true });
+    renderWith(runtime, <DataAkun />);
+    fireEvent.press(await screen.findByRole("button", { name: /^Email/ }));
+    fireEvent.changeText(screen.getByLabelText("Email baru"), "baru@example.test");
+    fireEvent.press(screen.getByRole("button", { name: "Kirim tautan" }));
+    expect((await screen.findByTestId("email-sent")).props.children).toBe("Demo: tidak ada email yang dikirim dan emailmu tidak berubah.");
+    expect(screen.queryByText(/Kami mengirim tautan/)).toBeNull();
   });
 
   it("opens the delete request sheet", async () => {
