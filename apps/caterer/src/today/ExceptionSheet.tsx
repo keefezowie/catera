@@ -25,6 +25,7 @@ import {
   useToast,
 } from "@catera/mobile-ui";
 import { issueSteps } from "./exceptions";
+import { pushAfterClose, sheetGone } from "./handoff";
 import { ReadError } from "../ReadError";
 
 /**
@@ -100,6 +101,8 @@ export function ExceptionSheet({ id, meal, date }: { id: string; meal: KitchenMe
   useEffect(() => {
     if (parked?.key === key) parked = null;
   }, [key]);
+  // Leaving the screen is the signal that the dismissal has ended (native-stack unmounts a sheet after it has gone).
+  useEffect(() => sheetGone, []);
   const day = useData(`stop-sheet:${key}`, () => runtime.api.sellerOperations(catererId, date));
   const ops = day.data ?? seed;
 
@@ -166,9 +169,8 @@ export function ExceptionSheet({ id, meal, date }: { id: string; meal: KitchenMe
 
   const openMove = () => {
     parkDay(catererId, date, ops);
-    // The calendar is a root-stack sheet: this tab sheet closes, then the root route opens over Hari ini.
-    router.back();
-    router.push(moveHref(id, meal, date) as never);
+    // The calendar is a root-stack sheet: this tab sheet closes, and the root route opens once it has gone.
+    pushAfterClose(moveHref(id, meal, date));
   };
 
   return (

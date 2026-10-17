@@ -328,7 +328,8 @@ describe("Pindah tanggal: the calendar", () => {
     (router.push as jest.Mock).mockClear();
     fireEvent.press(await screen.findByRole("button", { name: "Pindah tanggal" }));
     expect(router.back).toHaveBeenCalledTimes(1);
-    expect(router.push).toHaveBeenCalledWith(expect.stringContaining("/pindah-tanggal/"));
+    // The sheet leaves (the host unmounts it on back), and only then does the root route open.
+    await waitFor(() => expect(router.push).toHaveBeenCalledWith(expect.stringContaining("/pindah-tanggal/")));
     expect((router.back as jest.Mock).mock.invocationCallOrder[0]).toBeLessThan((router.push as jest.Mock).mock.invocationCallOrder[0]);
   });
 
@@ -421,6 +422,30 @@ describe("every awaiting command button is busy while it waits", () => {
     expect(screen.queryByTestId("form-error")).toBeNull();
     fireEvent.press(screen.getByLabelText("Coba lagi"));
     await waitFor(() => expect(command).toHaveBeenCalledTimes(2));
+  });
+
+  it("the retry sends the stops that failed, not the selection at retry time, and asks nothing", async () => {
+    const day = dayWith([cooking, cooking, out, waiting]);
+    const command = jest
+      .fn()
+      .mockRejectedValueOnce(Object.assign(new Error("REQUEST_TIMEOUT"), { code: "REQUEST_TIMEOUT" }))
+      .mockResolvedValue({ moved: 1 });
+    renderToday(runtimeFor(() => day, { command }));
+    await pilih();
+    fireEvent.press(stopBox(/Bu Sari/));
+    fireEvent.press(screen.getByRole("button", { name: "Berangkat (1)" }));
+    await lastConfirmReady();
+    await lastConfirm().press("Berangkat");
+    const retry = await screen.findByLabelText("Coba lagi");
+    // The selection changes before the retry: Bu Sari is cleared and Keluarga Hartono is picked.
+    fireEvent.press(stopBox(/Bu Sari/));
+    fireEvent.press(stopBox(/Keluarga Hartono/));
+    const asked = (require("./sheet-host").confirm as jest.Mock).mock.calls.length;
+    fireEvent.press(retry);
+    await waitFor(() => expect(command).toHaveBeenCalledTimes(2));
+    const ids = (command.mock.calls[1] as unknown[])[1] as { fulfillmentIds: string[] };
+    expect(ids.fulfillmentIds).toEqual([day.deliveries[0].id]);
+    expect((require("./sheet-host").confirm as jest.Mock).mock.calls.length).toBe(asked);
   });
 
   it("the selection title is a polite live region", async () => {

@@ -38,10 +38,10 @@ export function SelectionBar({
   const arrive = selectedFor(session.stops, selection.selected, "arrive");
   const toast = useToast();
 
-  // `asked` is a retry from the error toast: the question was answered already.
-  const [busy, leave] = useBusy(async (asked?: boolean) => {
-    if (!depart.length) return;
-    const go = asked || await confirm({
+  // `again` is a retry from the error toast: it carries the stops that failed, and the question was answered already.
+  const [busy, leave] = useBusy(async (again?: string[]) => {
+    if (!again && !depart.length) return;
+    const go = !!again || await confirm({
       title: t(`Berangkat dengan ${depart.length} pengantaran?`, `Leave with ${depart.length} ${depart.length === 1 ? "delivery" : "deliveries"}?`),
       message: t(
         "Pelanggan yang memakai aplikasi Catera dapat notifikasi saat kamu berangkat.",
@@ -52,8 +52,9 @@ export function SelectionBar({
       icon: "rantang",
     });
     if (!go) return;
+    const ids = again ?? depart.map((s) => s.deliveryId);
     try {
-      await command("delivery.depart", { catererId, date, meal, fulfillmentIds: depart.map((s) => s.deliveryId) });
+      await command("delivery.depart", { catererId, date, meal, fulfillmentIds: ids });
       haptic.success();
       track("depart_tapped");
       selection.stop();
@@ -61,7 +62,7 @@ export function SelectionBar({
       const code = (e as { code?: string }).code || (e as Error).message;
       toast.show({
         tone: "error",
-        action: { label: t("Coba lagi", "Try again"), onPress: () => void leave(true) },
+        action: { label: t("Coba lagi", "Try again"), onPress: () => void leave(ids) },
         message:
           errorLabel(code, locale) || t("Belum bisa menandai berangkat. Coba lagi.", "Could not mark them as out for delivery. Try again."),
       });

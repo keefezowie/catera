@@ -20,6 +20,7 @@ export const SCREEN_TAB = {
   "laporan/[id]": "index",
   "balas/[id]": "index",
   "atur-antaran/[id]": "index",
+  // Lives in the root stack now (`app/pindah-tanggal`), and keeps the `index` role mapping on purpose: Hari ini opens it.
   "pindah-tanggal/[id]": "index",
   sampai: "index",
   "pengaturan/data-akun": "index",
