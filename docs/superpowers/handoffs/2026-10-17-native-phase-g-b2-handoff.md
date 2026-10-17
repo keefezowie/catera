@@ -25,7 +25,14 @@ Each task had an Opus review and reached CLEAN, or minor-only findings checked b
 | G17b parked minors | 56efae39, 82b2e9fc | 2 Sonnet | Fixed the v2 baselines: native-font-weights, the empty-states mascot timing, the selection-mode flake. `app_open` counts only after `me()` answers. The `useUnsavedGuard` leaving reset gained a catch and a test. The no-spinner scans are now tag-keyed. Covered the gram range, the act() warnings and the RUNBOOK toolchain checklist. |
 | G18 copy pass | a8ca0695, d2a98101, bedf4d0e, 2bd750d0, bb044f66 | 3 Sonnet | Applied the spec 6 table and added `tests/copy-scan.test.ts`. Migration `20261014130000_push_copy.sql` patches live push bodies (`v1.push_day`) and checks anchors and retired fragments. Status `issue` reads "Gagal diantar". The renewal line is weekday-aware and names the blocking plan, or shows the plain start for a completed plan. The empty-states clock is pinned. |
 
-Test state on v2: npm test 1038/1038, customer Jest 1411/1411, caterer Jest 593/593, typecheck, build and test:postgres all pass. The old baseline failures are fixed. The G18 post-merge `test:postgres` result is in `C:\wt\logs-g\b2-g18-post.log`.
+Test state on v2: npm test 1038/1038, customer Jest 1411/1411, caterer Jest 593/593, typecheck, build and test:postgres all pass. The old baseline failures are fixed. The G18 post-merge `test:postgres` passed.
+
+## Skill line change (seen at the end of this session, not made by it)
+Two files in the main tree have uncommitted edits made outside this session:
+- `docs/superpowers/plans/2026-10-13-native-phase-g.md` lines 7-9: SL-UI now names only `ui-ux-pro-max`. The other design skills are retired as of 2026-10-17. SL-COPY is that skill plus `humanizer`. Data tasks carry no design skill.
+- The G-b handoff's Skills line, to match.
+
+Every G-b2 agent used the old skill list. G-c should confirm the change with the owner, commit it if it is theirs, and brief agents with the new SL-UI line.
 
 ## Decisions this session
 - The tab-stack "…" action-sheet backdrop is fixed with a patch-package patch, not an Android `presentation: "modal"` (owner).
