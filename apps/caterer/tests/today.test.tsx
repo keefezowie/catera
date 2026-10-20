@@ -782,7 +782,21 @@ describe("attention cards", () => {
     renderToday(runtime);
     const body = await screen.findByTestId("attention-body-a-9");
     expect(within(body).queryByText(/2026-10-20|dinner/)).toBeNull();
-    expect(within(body).getByText("Selasa 20 Okt · Malam · Paket Hemat")).toBeTruthy();
+    expect(within(body).getByText("Selasa 20 Okt · Makan malam · Paket Hemat")).toBeTruthy();
+  });
+
+  it("builds the line from the payload's own fields, and copes with no package name", async () => {
+    const runtime = runtimeWith(same(canvasDay()));
+    (runtime.api.sellerAttention as jest.Mock).mockResolvedValue({
+      items: [
+        { id: "a-7", kind: "choice_deadline", priority: 2, at_time: "2026-10-08T05:40:00Z", context: "x", href: "/seller", serviceDate: "2026-10-21", meal: "lunch", packageName: "Paket Hemat" },
+        { id: "a-8", kind: "delivery", priority: 0, at_time: "2026-10-08T05:41:00Z", context: "", href: "/seller", serviceDate: "2026-10-21", meal: "dinner" },
+      ],
+      total: 2, nextCursor: null, timezone: "Asia/Jakarta",
+    });
+    renderToday(runtime);
+    expect(await within(await screen.findByTestId("attention-body-a-7")).findByText("Rabu 21 Okt · Makan siang · Paket Hemat")).toBeTruthy();
+    expect(within(screen.getByTestId("attention-body-a-8")).getByText("Rabu 21 Okt · Makan malam")).toBeTruthy();
   });
 
   it("opens its link when the href maps to a Dapur screen", async () => {

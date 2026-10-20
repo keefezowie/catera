@@ -11,7 +11,13 @@ import { GET as pushJobs } from "../apps/web/src/app/api/jobs/push/route";
 
 type Day = { id: string; service_date: string; subscription_id: string };
 let db: Awaited<ReturnType<typeof createDemoDatabase>>;
-const start = addDays(localDay(), 5);
+// The packages serve weekdays and a purchase starts on the first service day, so a start that falls on a
+// weekend would sit after the "today" these tests hand to the reminder. Begin on a weekday.
+const weekdayOnOrAfter = (day: string): string => {
+  const dow = new Date(day + "T00:00:00Z").getUTCDay();
+  return dow === 6 ? addDays(day, 2) : dow === 0 ? addDays(day, 1) : day;
+};
+const start = weekdayOnOrAfter(addDays(localDay(), 5));
 const today = localDay();
 const cmd = (action: string, payload: object, user: string = U.customer) =>
   localRpc<any>(db, user, "catera_v1_command", [action, payload, crypto.randomUUID()]);

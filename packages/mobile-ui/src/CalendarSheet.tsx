@@ -148,7 +148,7 @@ export function CalendarPanel({
   const prompt = noneOpen
     ? staff
       ? t("Belum ada hari lain yang bisa dipilih di rentang ini.", "There is no other day that can be picked in this range.")
-      : t("Belum ada hari lain yang bisa kamu pilih di rentang ini.", "There is no other day you can pick in this range.")
+      : t("Belum ada hari lain yang bisa kamu pilih di rentang ini.", "No other day is open in this range.")
     : staff
       ? t("Pilih hari baru untuk pengantaran pelanggan.", "Choose a new day for the customer's delivery.")
       : t("Pilih hari baru untuk pengantaranmu.", "Choose a new day for your delivery.");

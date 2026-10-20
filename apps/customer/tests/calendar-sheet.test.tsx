@@ -200,7 +200,7 @@ describe("CalendarSheet", () => {
 
   it("the English locale drives the sheet's own words too", () => {
     setup({ locale: "en", days: { "2026-10-12": { state: "current" } } });
-    expect(screen.getByTestId("calendar-caption")).toHaveTextContent("There is no other day you can pick in this range.");
+    expect(screen.getByTestId("calendar-caption")).toHaveTextContent("No other day is open in this range.");
     expect(screen.getByLabelText("Previous month")).toBeTruthy();
     expect(screen.getByRole("button", { name: /Move date/ })).toBeTruthy();
   });

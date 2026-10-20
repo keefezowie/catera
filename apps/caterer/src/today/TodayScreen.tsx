@@ -625,12 +625,20 @@ const attentionLabels: Partial<Record<SellerAttentionItem["kind"], [string, stri
   payment: ["Ada pembayaran yang perlu dicek", "A payment needs attention"],
 };
 
-/** The server writes "2026-10-20 · dinner · Paket" for delivery rows; show the day and the meal the way the rest of Dapur does. */
-function attentionContext(context: string, locale: Locale, t: (id: string, en: string) => string) {
-  const m = /^([0-9]{4}-[0-9]{2}-[0-9]{2}) · (lunch|dinner)(?=$| · |:)/.exec(context);
-  if (!m) return context;
-  const meal = m[2] === "lunch" ? t("Siang", "Lunch") : t("Malam", "Dinner");
-  return `${shortDate(m[1], locale)} · ${meal}${context.slice(m[0].length)}`;
+/**
+ * The delivery rows read "2026-10-20 · dinner · Paket" from the server. Build the line from the payload's own
+ * `serviceDate`, `meal` and `packageName` when they are there, and from that string when they are not, then show
+ * the day and meal the way the rest of Dapur does ("Selasa 20 Okt · Makan malam · Paket").
+ */
+function attentionContext(item: SellerAttentionItem, locale: Locale) {
+  const context = item.context;
+  const tail = (name?: string | null) => (name ? ` · ${name}` : "");
+  if (item.kind === "delivery" || item.kind === "choice_fallback" || item.kind === "choice_deadline") {
+    if (item.serviceDate && item.meal) return `${shortDate(item.serviceDate, locale)} · ${mealLabel(item.meal, locale)}${tail(item.packageName)}`;
+    const m = /^([0-9]{4}-[0-9]{2}-[0-9]{2}) · (lunch|dinner)(?=$| · |:)/.exec(context ?? "");
+    if (m) return `${shortDate(m[1], locale)} · ${mealLabel(m[2], locale)}${context.slice(m[0].length)}`;
+  }
+  return context;
 }
 
 function ActionCards({ items }: { items: SellerAttentionItem[] }) {
@@ -648,7 +656,7 @@ function ActionCards({ items }: { items: SellerAttentionItem[] }) {
           <Card tone="attention" style={link ? { flexDirection: "row", alignItems: "center" } : undefined}>
             <View testID={`attention-body-${item.id}`} style={{ flex: link ? 1 : undefined, gap: 10 }}>
               <Text style={{ fontFamily: fontFor("800") }}>{t(id, en)}</Text>
-              {item.context ? <Text variant="caption">{attentionContext(item.context, locale, t)}</Text> : null}
+              {attentionContext(item, locale) ? <Text variant="caption">{attentionContext(item, locale)}</Text> : null}
             </View>
             {link ? <Ionicons name="chevron-forward" size={18} color={c.muted} /> : null}
           </Card>
