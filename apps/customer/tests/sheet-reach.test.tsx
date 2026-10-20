@@ -1,7 +1,7 @@
 import { Dimensions, Keyboard, ScrollView, StyleSheet } from "react-native";
 import type { ReactNode } from "react";
 import { act, render, screen } from "@testing-library/react-native";
-import { SafeAreaFrameContext } from "react-native-safe-area-context";
+import { SafeAreaFrameContext, SafeAreaInsetsContext } from "react-native-safe-area-context";
 import { NavigationContext } from "expo-router/react-navigation";
 import { SheetBody, sheetHiddenBelow } from "@catera/mobile-ui";
 
@@ -38,7 +38,9 @@ function mockMeasure(position: { top: number; height: number }) {
 /** The root view's frame, which differs from the window's size on purpose: the margin must follow the frame. */
 const frame = (width: number, height: number) => ({ x: 0, y: 0, width, height });
 const inFrame = (f: ReturnType<typeof frame>, node: ReactNode) => (
-  <SafeAreaFrameContext.Provider value={f}>{node}</SafeAreaFrameContext.Provider>
+  <SafeAreaFrameContext.Provider value={f}>
+    <SafeAreaInsetsContext.Provider value={{ top: 0, left: 0, right: 0, bottom: 34 }}>{node}</SafeAreaInsetsContext.Provider>
+  </SafeAreaFrameContext.Provider>
 );
 
 const marginOf = () => StyleSheet.flatten(screen.getByTestId("sheet-body").props.style).marginBottom ?? 0;
@@ -214,12 +216,38 @@ describe("a form sheet's last button clears the gesture bar", () => {
       await act(async () => {
         keyboard.keyboardDidShow?.({ endCoordinates: { height: 420, screenY: 500 } });
       });
-      expect(marginOf()).toBeGreaterThanOrEqual(420);
+      // The reported height stops at the navigation bar: its inset (34 here) is added.
+      expect(marginOf()).toBe(420 + 34);
       await act(async () => {
         keyboard.keyboardDidHide?.();
       });
+      await settle(100);
+      expect(marginOf()).toBe(resting);
       await settle(1000);
       expect(marginOf()).toBe(resting);
+    });
+
+    it("a tab-stack sheet also ends at the keyboard's top, and returns when it hides", async () => {
+      const nav = fakeNavigation("tab");
+      const keyboard: Record<string, (e?: unknown) => void> = {};
+      jest.spyOn(Keyboard, "addListener").mockImplementation(((event: string, cb: (e?: unknown) => void) => {
+        keyboard[event] = cb;
+        return { remove: () => undefined };
+      }) as never);
+      render(
+        inFrame(FRAME, <NavigationContext.Provider value={nav.navigation as never}>
+          <SheetBody os="android">{null}</SheetBody>
+        </NavigationContext.Provider>),
+      );
+      await act(async () => {
+        keyboard.keyboardDidShow?.({ endCoordinates: { height: 300, screenY: 600 } });
+      });
+      expect(marginOf()).toBe(300 + 34);
+      await act(async () => {
+        keyboard.keyboardDidHide?.();
+      });
+      expect(marginOf()).toBeGreaterThan(0);
+      expect(marginOf()).not.toBe(300 + 34);
     });
   });
 });

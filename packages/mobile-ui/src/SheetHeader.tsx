@@ -140,8 +140,8 @@ function useSheetHiddenBelow(active: boolean, ref: RefObject<ScrollView | null>,
   const [margin, setMargin] = useState(0);
   // The margin the scroll view has now: the larger of what is below the edge and the keyboard (it measures against it).
   const marginRef = useRef(0);
-  const keyboardRef = useRef(keyboard);
-  keyboardRef.current = keyboard;
+  // Kept equal to what is rendered, so a measure never works from a margin the scroll view no longer has.
+  marginRef.current = Math.max(margin, keyboard);
   // The root view's frame is the one `measureInWindow` reports in. `useWindowDimensions` can differ from it by the
   // navigation bar on Android 14 and older, which would count that bar twice.
   const { width, height: windowHeight } = useSafeAreaFrame();
@@ -157,7 +157,6 @@ function useSheetHiddenBelow(active: boolean, ref: RefObject<ScrollView | null>,
       host.measureInWindow((_x: number, top: number, _w: number, height: number) => {
         if (!Number.isFinite(top) || !Number.isFinite(height) || height <= 0) return;
         const next = sheetHiddenBelow({ top, height, margin: marginRef.current, windowHeight });
-        marginRef.current = Math.max(next, keyboardRef.current);
         setMargin((was) => (was === next ? was : next));
       });
     };
@@ -210,9 +209,12 @@ export function SheetBody({ children, os = process.env.EXPO_OS }: { children: Re
   const navigation = useScreenNavigation();
   // A root-stack Android sheet (no bar under it) is laid out at its tallest detent: its scroll view must end at the edge.
   // Inside the tabs the bar's share is 0 only while the keyboard is up, and the sheet is not a root one then.
-  const below = useSheetHiddenBelow(os === "android" && !insideTabs(navigation as Parameters<typeof insideTabs>[0]), scroll, keyboard);
+  // The reported height stops at the navigation bar (ime.bottom minus the system bars) while the sheet reaches the
+  // window bottom, so the bar's inset is added to end at the keyboard's top.
+  const keyboardLift = os === "android" && keyboard > 0 ? keyboard + insets.bottom : 0;
+  const below = useSheetHiddenBelow(os === "android" && !insideTabs(navigation as Parameters<typeof insideTabs>[0]), scroll, keyboardLift);
   // While the keyboard is up an Android scroll view ends at its top, so the focused field scrolls into view above it.
-  const lift = os === "android" ? Math.max(below, keyboard) : below;
+  const lift = os === "android" ? Math.max(below, keyboardLift) : below;
   return (
     <ScrollView
       ref={scroll}
