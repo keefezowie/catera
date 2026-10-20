@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
-import { AccessibilityInfo, Dimensions, Keyboard, ScrollView, Text as RNText, useWindowDimensions, View } from "react-native";
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { AccessibilityInfo, Dimensions, Keyboard, ScrollView, StatusBar, Text as RNText, useWindowDimensions, View } from "react-native";
 import { useSafeAreaFrame, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "./components";
 import { HeaderIconButton } from "./HeaderIconButton";
 import { Skeleton, SkeletonGroup } from "./Skeleton";
 import { useScreenNavigation } from "./navigation";
+import { measureWindowEdge } from "./windowEdge";
 import { SHEET_FOCUS_FALLBACK_MS, SHEET_FOCUS_SETTLE_MS, useSheetPresence } from "./sheets";
 import { useColors } from "./theme";
 import { androidTabBarHeight, insideTabs, useToastAnchor } from "./toastAnchor";
@@ -107,12 +108,6 @@ function useTabBarOverSheet(os: string | undefined, keyboardUp: boolean): number
 
 /** How long after a sheet's present the body measures itself, for a present that never reports. */
 const SHEET_MEASURE_FALLBACK_MS = 700;
-/**
- * Further measures after the present. `transitionEnd` can report before the sheet has slid down to its lower detent
- * (on the phone a reading taken then saw nothing below the edge and kept it), so the body reads again while it settles.
- * Each reading is idempotent: the margin only changes when the answer does.
- */
-const SHEET_MEASURE_SETTLE_MS = [250, 1200, 2500];
 
 /**
  * How much of a sheet body's bottom lies under the screen's edge. react-native-screens 4.26 lays an Android form sheet
@@ -141,12 +136,11 @@ export function sheetHiddenBelow({
  * `sheetHiddenBelow`). It measures after the sheet has risen, each time it settles on a detent and each time the window
  * changes size (rotation, split screen), against the root frame's height; 0 when inactive.
  */
-function useSheetHiddenBelow(
-  active: boolean,
-  ref: RefObject<ScrollView | null>,
-  keyboard = 0,
-): { margin: number; onLayout: () => void } {
+function useSheetHiddenBelow(active: boolean, ref: RefObject<ScrollView | null>, keyboard = 0): number {
   const navigation = useScreenNavigation();
+  const insetsRef = useRef({ top: 0, bottom: 0 });
+  const insets = useSafeAreaInsets();
+  insetsRef.current = { top: insets.top, bottom: insets.bottom };
   const [margin, setMargin] = useState(0);
   // The margin the scroll view has now: the larger of what is below the edge and the keyboard (it measures against it).
   const marginRef = useRef(0);
@@ -157,9 +151,6 @@ function useSheetHiddenBelow(
   const { width, height: windowHeight } = useSafeAreaFrame();
   const measuredSize = useRef<string>("");
   const keyboardChanged = useRef(0);
-  // The scroll view's own layout (the sheet moved, the font scale changed the content) asks for a new reading.
-  const layoutMeasure = useRef<(() => void) | undefined>(undefined);
-  const onLayout = useCallback(() => layoutMeasure.current?.(), []);
   useEffect(() => {
     if (!active) return;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -169,8 +160,24 @@ function useSheetHiddenBelow(
       if (!host?.measureInWindow) return;
       host.measureInWindow((_x: number, top: number, _w: number, height: number) => {
         if (!Number.isFinite(top) || !Number.isFinite(height) || height <= 0) return;
-        const next = sheetHiddenBelow({ top, height, margin: marginRef.current, windowHeight });
-        setMargin((was) => (was === next ? was : next));
+        // The screen's edge in the same window space as `top`; the frame's height only while no root reference exists.
+        measureWindowEdge((edge) => {
+          const edgeBottom = edge ?? windowHeight;
+          const next = sheetHiddenBelow({ top, height, margin: marginRef.current, windowHeight: edgeBottom });
+          if (__DEV__)
+            console.log("[sheet-reach]", {
+              top,
+              height,
+              margin: marginRef.current,
+              edgeBottom,
+              windowHeight,
+              screenHeight: Dimensions.get("screen").height,
+              statusBar: StatusBar.currentHeight,
+              insets: insetsRef.current,
+              next,
+            });
+          setMargin((was) => (was === next ? was : next));
+        });
       });
     };
     const later = () => {
@@ -178,8 +185,6 @@ function useSheetHiddenBelow(
       timer = setTimeout(measure, 50);
     };
     const fallback = setTimeout(measure, SHEET_MEASURE_FALLBACK_MS);
-    const settled = SHEET_MEASURE_SETTLE_MS.map((ms) => setTimeout(measure, ms));
-    layoutMeasure.current = later;
     // A new window size moves the sheet and its scroll view: measure again once the layout has followed.
     // The keyboard rising or leaving moves the sheet too (it expands to its top detent): measure again after it settles.
     if (keyboardChanged.current !== keyboard) {
@@ -195,14 +200,12 @@ function useSheetHiddenBelow(
     });
     return () => {
       clearTimeout(fallback);
-      settled.forEach(clearTimeout);
       clearTimeout(timer);
-      layoutMeasure.current = undefined;
       done?.();
       detent?.();
     };
   }, [active, navigation, ref, width, windowHeight, keyboard]);
-  return { margin: active ? margin : 0, onLayout };
+  return active ? margin : 0;
 }
 
 /** The side padding of a `SheetBody`: 20 on iOS, 24 on Android. */
@@ -229,13 +232,12 @@ export function SheetBody({ children, os = process.env.EXPO_OS }: { children: Re
   // The reported height stops at the navigation bar (ime.bottom minus the system bars) while the sheet reaches the
   // window bottom, so the bar's inset is added to end at the keyboard's top.
   const keyboardLift = os === "android" && keyboard > 0 ? keyboard + insets.bottom : 0;
-  const { margin: below, onLayout } = useSheetHiddenBelow(os === "android" && !insideTabs(navigation as Parameters<typeof insideTabs>[0]), scroll, keyboardLift);
+  const below = useSheetHiddenBelow(os === "android" && !insideTabs(navigation as Parameters<typeof insideTabs>[0]), scroll, keyboardLift);
   // While the keyboard is up an Android scroll view ends at its top, so the focused field scrolls into view above it.
   const lift = os === "android" ? Math.max(below, keyboardLift) : below;
   return (
     <ScrollView
       ref={scroll}
-      onLayout={onLayout}
       testID="sheet-body"
       // The bar pays the system inset itself, so a sheet that ends above it keeps only the 24 foot.
       style={{ flex: 1, marginBottom: bar + lift }}
@@ -299,8 +301,9 @@ export function SheetFitBody({
  *   There is no Close: back and a swipe down close the sheet.
  * `context` is an optional line under the title (the day, the package). By default it wraps, so at a larger font it
  * grows with its text and nothing is cut; a null or missing `context` draws no line.
- * A sheet whose header must keep one height from loading to ready opts in with `holdContextLine`: a `context` of null is a
- * line still being read, and its 20 is held by a skeleton line (breathing with the sheet body's own skeleton), so the
+ * A sheet whose header must keep one height from loading to ready opts in with `holdContextLine`: the context is then
+ * one line, ending in "…" when it is longer, with the whole text given to screen readers, and a `context` of null is a
+ * line still being read: its 20 is held by a skeleton line (breathing with the sheet body's own skeleton), so the
  * header keeps its height when the line lands.
  * Close calls `onClose`, else goes back.
  * The screen reader starts on the title (`useSheetTitleFocus`).
@@ -343,7 +346,10 @@ export function SheetHeader({
     ) : context ? (
       <Text
         testID="sheet-context"
-        selectable
+        // A selectable TextView on Android does not ellipsize: a held line wraps inside its one-line height.
+        selectable={!holdContextLine}
+        numberOfLines={holdContextLine ? 1 : undefined}
+        accessibilityLabel={holdContextLine ? context : undefined}
         style={{ color: palette.muted, fontSize: 14, lineHeight: CONTEXT_LINE, textAlign: ios ? "center" : "left" }}
       >
         {context}

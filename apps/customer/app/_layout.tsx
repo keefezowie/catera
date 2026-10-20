@@ -25,6 +25,7 @@ import {
   useStackScreenOptions,
   useSplashHold,
   useThemePreference,
+  WindowEdge,
 } from "@catera/mobile-ui";
 import { registerNavigation } from "../src/nav";
 import { runtime } from "../src/runtime";
@@ -192,6 +193,7 @@ export default function RootLayout() {
   // Every provider mounts at once, so the theme and the session are read while the fonts load.
   return (
     <SafeAreaProvider>
+      <WindowEdge />
       <ThemeProvider storageKey={runtime.storageKey("theme")}>
         <MoodProvider>
           <SplashReleased value={released}>

@@ -903,7 +903,7 @@ describe("Ada masalah sheet after the rebase", () => {
     return {
       title: flat(title).lineHeight,
       context: (line.height ?? line.lineHeight) as number,
-      lines: 1,
+      lines: context.props.numberOfLines ?? 1,
     };
   }
 
@@ -924,8 +924,8 @@ describe("Ada masalah sheet after the rebase", () => {
     expect(ready).toEqual(loading);
     // One line on screen; the whole day, package and kitchen for screen readers.
     const context = screen.getByTestId("sheet-context");
-    expect(context.props.numberOfLines).toBeUndefined();
-    expect(flat(context).height).toBeUndefined();
+    expect(context.props.numberOfLines).toBe(1);
+    expect(context.props.accessibilityLabel).toBe(context.props.children);
     expect(String(context.props.children)).toContain(" · ");
   });
 
@@ -944,17 +944,26 @@ describe("Ada masalah sheet after the rebase", () => {
     const context = await screen.findByText(/ · /);
     expect(context.props.testID).toBe("sheet-context");
     expect(flat(context).lineHeight).toBe(20);
-    expect(context.props.numberOfLines).toBeUndefined();
+    expect(context.props.numberOfLines).toBe(1);
+    expect(context.props.accessibilityLabel).toBe(context.props.children);
     expect(flat(screen.getAllByRole("header")[0]).lineHeight).toBe(title);
   });
 
-  it("a held context wraps at a larger font on iOS too: the header grows with its text, never a fixed height", () => {
+  it("a held context stays one line on iOS too, read out in full", () => {
     const long = "Besok, Sen 12 Okt · Makan Siang Rumahan Sehat Bergizi · Dapur Ibu Sari Jakarta Selatan";
     renderWith(runtimeWith({}), <SheetHeader title="Ada masalah" context={long} holdContextLine os="ios" />);
     const context = screen.getByTestId("sheet-context");
-    expect(context.props.numberOfLines).toBeUndefined();
-    expect(flat(context).height).toBeUndefined();
+    expect(context.props.numberOfLines).toBe(1);
+    expect(context.props.accessibilityLabel).toBe(long);
     expect(flat(context).lineHeight).toBe(20);
+  });
+
+  it("a held context is not selectable (a selectable TextView on Android does not ellipsize), a plain one is", () => {
+    const view = renderWith(runtimeWith({}), <SheetHeader title="Ada masalah" context="Besok · Makan" holdContextLine os="android" />);
+    expect(screen.getByTestId("sheet-context").props.selectable).toBe(false);
+    view.unmount();
+    renderWith(runtimeWith({}), <SheetHeader title="Ada masalah" context="Besok · Makan" os="android" />);
+    expect(screen.getByTestId("sheet-context").props.selectable).toBe(true);
   });
 
   it("a held null context keeps the line's 20 with a skeleton, on both platforms", () => {

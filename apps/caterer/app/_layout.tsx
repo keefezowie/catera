@@ -24,6 +24,7 @@ import {
   useStackScreenOptions,
   useSplashHold,
   useThemePreference,
+  WindowEdge,
 } from "@catera/mobile-ui";
 import { runtime } from "../src/runtime";
 import { dapurLink } from "../src/links";
@@ -173,6 +174,7 @@ export default function RootLayout() {
   // kept days, so the next person on this phone never sees them.
   return (
     <SafeAreaProvider>
+      <WindowEdge />
       <ThemeProvider storageKey={runtime.storageKey("theme")}>
         <MoodProvider>
           <MobileProvider runtime={runtime} linkMapper={dapurLink} openLink={openLink} onSignedOut={clearCachedDays}>
