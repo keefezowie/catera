@@ -903,7 +903,7 @@ describe("Ada masalah sheet after the rebase", () => {
     return {
       title: flat(title).lineHeight,
       context: (line.height ?? line.lineHeight) as number,
-      lines: context.props.numberOfLines ?? 1,
+      lines: 1,
     };
   }
 
@@ -924,8 +924,8 @@ describe("Ada masalah sheet after the rebase", () => {
     expect(ready).toEqual(loading);
     // One line on screen; the whole day, package and kitchen for screen readers.
     const context = screen.getByTestId("sheet-context");
-    expect(context.props.numberOfLines).toBe(1);
-    expect(context.props.accessibilityLabel).toBe(context.props.children);
+    expect(context.props.numberOfLines).toBeUndefined();
+    expect(flat(context).height).toBeUndefined();
     expect(String(context.props.children)).toContain(" · ");
   });
 
@@ -944,17 +944,16 @@ describe("Ada masalah sheet after the rebase", () => {
     const context = await screen.findByText(/ · /);
     expect(context.props.testID).toBe("sheet-context");
     expect(flat(context).lineHeight).toBe(20);
-    expect(context.props.numberOfLines).toBe(1);
-    expect(context.props.accessibilityLabel).toBe(context.props.children);
+    expect(context.props.numberOfLines).toBeUndefined();
     expect(flat(screen.getAllByRole("header")[0]).lineHeight).toBe(title);
   });
 
-  it("a held context stays one line on iOS too, read out in full", () => {
+  it("a held context wraps at a larger font on iOS too: the header grows with its text, never a fixed height", () => {
     const long = "Besok, Sen 12 Okt · Makan Siang Rumahan Sehat Bergizi · Dapur Ibu Sari Jakarta Selatan";
     renderWith(runtimeWith({}), <SheetHeader title="Ada masalah" context={long} holdContextLine os="ios" />);
     const context = screen.getByTestId("sheet-context");
-    expect(context.props.numberOfLines).toBe(1);
-    expect(context.props.accessibilityLabel).toBe(long);
+    expect(context.props.numberOfLines).toBeUndefined();
+    expect(flat(context).height).toBeUndefined();
     expect(flat(context).lineHeight).toBe(20);
   });
 

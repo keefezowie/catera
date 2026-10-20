@@ -1,6 +1,6 @@
 import { Dimensions, Keyboard, ScrollView, StyleSheet } from "react-native";
 import type { ReactNode } from "react";
-import { act, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { SafeAreaFrameContext, SafeAreaInsetsContext } from "react-native-safe-area-context";
 import { NavigationContext } from "expo-router/react-navigation";
 import { SheetBody, sheetHiddenBelow } from "@catera/mobile-ui";
@@ -105,6 +105,44 @@ describe("a form sheet's last button clears the gesture bar", () => {
       jest.restoreAllMocks();
     });
 
+    it("keeps measuring while the sheet slides to its detent, so a first reading taken mid-slide does not stick", async () => {
+      // transitionEnd reports before the sheet has slid down to the 0.6 detent: the first readings see nothing below the edge.
+      let slid = false;
+      jest
+        .spyOn(ScrollView.prototype as unknown as { measureInWindow: () => void }, "measureInWindow")
+        .mockImplementation(((cb: (x: number, y: number, w: number, h: number) => void) =>
+          cb(0, slid ? bodyTop() : bodyTop() - 200, 400, 800 - marginOf())) as never);
+      const nav = fakeNavigation();
+      render(
+        inFrame(FRAME, <NavigationContext.Provider value={nav.navigation as never}>
+          <SheetBody os="android">{null}</SheetBody>
+        </NavigationContext.Provider>),
+      );
+      nav.emit("transitionEnd");
+      await settle(100);
+      expect(marginOf()).toBe(0);
+      slid = true;
+      await settle(2500);
+      expect(marginOf()).toBe(200);
+    });
+
+    it("measures again when the scroll view is laid out", async () => {
+      let top = bodyTop() - 200;
+      const spy = jest
+        .spyOn(ScrollView.prototype as unknown as { measureInWindow: () => void }, "measureInWindow")
+        .mockImplementation(((cb: (x: number, y: number, w: number, h: number) => void) =>
+          cb(0, top, 400, 800 - marginOf())) as never);
+      render(inFrame(FRAME, <SheetBody os="android">{null}</SheetBody>));
+      await settle(5000);
+      expect(marginOf()).toBe(0);
+      const calls = spy.mock.calls.length;
+      top = bodyTop();
+      fireEvent(screen.getByTestId("sheet-body"), "layout", { nativeEvent: { layout: { x: 0, y: top, width: 400, height: 800 } } });
+      await settle(100);
+      expect(spy.mock.calls.length).toBeGreaterThan(calls);
+      expect(marginOf()).toBe(200);
+    });
+
     it("measures against the root frame, not the window size", async () => {
       mockMeasure({ top: bodyTop(), height: 800 });
       render(inFrame(FRAME, <SheetBody os="android">{null}</SheetBody>));
@@ -144,7 +182,7 @@ describe("a form sheet's last button clears the gesture bar", () => {
           <SheetBody os="android">{null}</SheetBody>
         </NavigationContext.Provider>),
       );
-      await settle(1000);
+      await settle(3000);
       let calls = spy.mock.calls.length;
       nav.emit("sheetDetentChange", { data: { stable: false } });
       await settle();
