@@ -71,18 +71,23 @@ export function SheetHandle() {
   );
 }
 
-/** True while the on-screen keyboard is up. */
-function useKeyboardUp(): boolean {
-  const [up, setUp] = useState(false);
+/**
+ * Whether the on-screen keyboard is up, and its height (0 while it is down). An Android form sheet does not resize for the keyboard, so
+ * the keyboard covers its lower part: the body gives that much up so a focused field and the action under it stay above it.
+ */
+function useKeyboard(): { up: boolean; height: number } {
+  const [state, setState] = useState({ up: false, height: 0 });
   useEffect(() => {
-    const shown = Keyboard.addListener("keyboardDidShow", () => setUp(true));
-    const hidden = Keyboard.addListener("keyboardDidHide", () => setUp(false));
+    const shown = Keyboard.addListener("keyboardDidShow", (e?: { endCoordinates?: { height?: number } }) =>
+      setState({ up: true, height: Math.max(0, Math.round(e?.endCoordinates?.height ?? 0)) }),
+    );
+    const hidden = Keyboard.addListener("keyboardDidHide", () => setState({ up: false, height: 0 }));
     return () => {
       shown.remove();
       hidden.remove();
     };
   }, []);
-  return up;
+  return state;
 }
 
 /**
@@ -92,10 +97,9 @@ function useKeyboardUp(): boolean {
  * then 0. react-native-screens 4.26 gives JS no reading of the bar's laid-out height, so this is the bar's Material
  * height, grown with the font scale's label line (`androidTabBarHeight`), plus the inset measured on the phone.
  */
-function useTabBarOverSheet(os: string | undefined): number {
+function useTabBarOverSheet(os: string | undefined, keyboardUp: boolean): number {
   const insets = useSafeAreaInsets();
   const navigation = useScreenNavigation();
-  const keyboardUp = useKeyboardUp();
   const { fontScale } = useWindowDimensions();
   if (os === "ios" || keyboardUp || !insideTabs(navigation as Parameters<typeof insideTabs>[0])) return 0;
   return androidTabBarHeight(fontScale) + insets.bottom;
@@ -131,14 +135,18 @@ export function sheetHiddenBelow({
  * `sheetHiddenBelow`). It measures after the sheet has risen, each time it settles on a detent and each time the window
  * changes size (rotation, split screen), against the root frame's height; 0 when inactive.
  */
-function useSheetHiddenBelow(active: boolean, ref: RefObject<ScrollView | null>): number {
+function useSheetHiddenBelow(active: boolean, ref: RefObject<ScrollView | null>, keyboard = 0): number {
   const navigation = useScreenNavigation();
   const [margin, setMargin] = useState(0);
+  // The margin the scroll view has now: the larger of what is below the edge and the keyboard (it measures against it).
   const marginRef = useRef(0);
+  const keyboardRef = useRef(keyboard);
+  keyboardRef.current = keyboard;
   // The root view's frame is the one `measureInWindow` reports in. `useWindowDimensions` can differ from it by the
   // navigation bar on Android 14 and older, which would count that bar twice.
   const { width, height: windowHeight } = useSafeAreaFrame();
   const measuredSize = useRef<string>("");
+  const keyboardChanged = useRef(0);
   useEffect(() => {
     if (!active) return;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -149,10 +157,8 @@ function useSheetHiddenBelow(active: boolean, ref: RefObject<ScrollView | null>)
       host.measureInWindow((_x: number, top: number, _w: number, height: number) => {
         if (!Number.isFinite(top) || !Number.isFinite(height) || height <= 0) return;
         const next = sheetHiddenBelow({ top, height, margin: marginRef.current, windowHeight });
-        if (next !== marginRef.current) {
-          marginRef.current = next;
-          setMargin(next);
-        }
+        marginRef.current = Math.max(next, keyboardRef.current);
+        setMargin((was) => (was === next ? was : next));
       });
     };
     const later = () => {
@@ -161,6 +167,11 @@ function useSheetHiddenBelow(active: boolean, ref: RefObject<ScrollView | null>)
     };
     const fallback = setTimeout(measure, SHEET_MEASURE_FALLBACK_MS);
     // A new window size moves the sheet and its scroll view: measure again once the layout has followed.
+    // The keyboard rising or leaving moves the sheet too (it expands to its top detent): measure again after it settles.
+    if (keyboardChanged.current !== keyboard) {
+      keyboardChanged.current = keyboard;
+      later();
+    }
     const size = `${width}x${windowHeight}`;
     if (measuredSize.current && measuredSize.current !== size) later();
     measuredSize.current = size;
@@ -174,7 +185,7 @@ function useSheetHiddenBelow(active: boolean, ref: RefObject<ScrollView | null>)
       done?.();
       detent?.();
     };
-  }, [active, navigation, ref, width, windowHeight]);
+  }, [active, navigation, ref, width, windowHeight, keyboard]);
   return active ? margin : 0;
 }
 
@@ -193,18 +204,21 @@ export const sheetSidePadding = (os = process.env.EXPO_OS) => (os === "ios" ? 20
 export function SheetBody({ children, os = process.env.EXPO_OS }: { children: ReactNode; os?: string }) {
   const insets = useSafeAreaInsets();
   const ios = os === "ios";
-  const bar = useTabBarOverSheet(os);
+  const { up, height: keyboard } = useKeyboard();
+  const bar = useTabBarOverSheet(os, up);
   const scroll = useRef<ScrollView>(null);
   const navigation = useScreenNavigation();
   // A root-stack Android sheet (no bar under it) is laid out at its tallest detent: its scroll view must end at the edge.
   // Inside the tabs the bar's share is 0 only while the keyboard is up, and the sheet is not a root one then.
-  const below = useSheetHiddenBelow(os === "android" && !insideTabs(navigation as Parameters<typeof insideTabs>[0]), scroll);
+  const below = useSheetHiddenBelow(os === "android" && !insideTabs(navigation as Parameters<typeof insideTabs>[0]), scroll, keyboard);
+  // While the keyboard is up an Android scroll view ends at its top, so the focused field scrolls into view above it.
+  const lift = os === "android" ? Math.max(below, keyboard) : below;
   return (
     <ScrollView
       ref={scroll}
       testID="sheet-body"
       // The bar pays the system inset itself, so a sheet that ends above it keeps only the 24 foot.
-      style={{ flex: 1, marginBottom: bar + below }}
+      style={{ flex: 1, marginBottom: bar + lift }}
       automaticallyAdjustKeyboardInsets={ios}
       keyboardShouldPersistTaps="handled"
       // Android: a drag on the form scrolls it, rather than dragging the bottom sheet.

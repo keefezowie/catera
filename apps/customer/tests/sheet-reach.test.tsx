@@ -200,5 +200,26 @@ describe("a form sheet's last button clears the gesture bar", () => {
       expect(nav.count("sheetDetentChange")).toBe(0);
       expect(marginOf()).toBe(0);
     });
+
+    it("with the keyboard up the scroll view ends at the keyboard's top, and returns when it hides", async () => {
+      mockMeasure({ top: bodyTop(), height: 800 });
+      const keyboard: Record<string, (e?: unknown) => void> = {};
+      jest.spyOn(Keyboard, "addListener").mockImplementation(((event: string, cb: (e?: unknown) => void) => {
+        keyboard[event] = cb;
+        return { remove: () => undefined };
+      }) as never);
+      render(inFrame(FRAME, <SheetBody os="android">{null}</SheetBody>));
+      await settle(1000);
+      const resting = marginOf();
+      await act(async () => {
+        keyboard.keyboardDidShow?.({ endCoordinates: { height: 420, screenY: 500 } });
+      });
+      expect(marginOf()).toBeGreaterThanOrEqual(420);
+      await act(async () => {
+        keyboard.keyboardDidHide?.();
+      });
+      await settle(1000);
+      expect(marginOf()).toBe(resting);
+    });
   });
 });
