@@ -604,7 +604,8 @@ describe("Toast", () => {
     jest.spyOn(AccessibilityInfo, "announceForAccessibility").mockImplementation(() => {});
     let onReader: (on: boolean) => void = () => {};
     const remove = jest.fn();
-    jest.spyOn(AccessibilityInfo, "addEventListener").mockImplementation(((_event: string, cb: (on: boolean) => void) => {
+    jest.spyOn(AccessibilityInfo, "addEventListener").mockImplementation(((event: string, cb: (on: boolean) => void) => {
+      if (event !== "screenReaderChanged") return { remove: () => {} };
       onReader = cb;
       return { remove };
     }) as never);

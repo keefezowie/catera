@@ -773,6 +773,18 @@ describe("attention cards", () => {
     total: 1, nextCursor: null, timezone: "Asia/Jakarta",
   });
 
+  it("writes a delivery row's day and meal in words, not as 2026-10-20 · dinner", async () => {
+    const runtime = runtimeWith(same(canvasDay()));
+    (runtime.api.sellerAttention as jest.Mock).mockResolvedValue({
+      items: [{ id: "a-9", kind: "delivery", priority: 1, at_time: "2026-10-08T05:40:00Z", context: "2026-10-20 · dinner · Paket Hemat", href: "/seller" }],
+      total: 1, nextCursor: null, timezone: "Asia/Jakarta",
+    });
+    renderToday(runtime);
+    const body = await screen.findByTestId("attention-body-a-9");
+    expect(within(body).queryByText(/2026-10-20|dinner/)).toBeNull();
+    expect(within(body).getByText("Selasa 20 Okt · Malam · Paket Hemat")).toBeTruthy();
+  });
+
   it("opens its link when the href maps to a Dapur screen", async () => {
     const runtime = runtimeWith(same(canvasDay()));
     (runtime.api.sellerAttention as jest.Mock).mockResolvedValue(attention("/seller/customers"));

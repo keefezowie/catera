@@ -14,6 +14,7 @@ import {
   type DeliveryIssue,
   type KitchenMeal,
   type KitchenSession,
+  type Locale,
   type SellerAttentionItem,
   type SellerOperationsState,
 } from "@catera/domain";
@@ -624,8 +625,16 @@ const attentionLabels: Partial<Record<SellerAttentionItem["kind"], [string, stri
   payment: ["Ada pembayaran yang perlu dicek", "A payment needs attention"],
 };
 
+/** The server writes "2026-10-20 · dinner · Paket" for delivery rows; show the day and the meal the way the rest of Dapur does. */
+function attentionContext(context: string, locale: Locale, t: (id: string, en: string) => string) {
+  const m = /^([0-9]{4}-[0-9]{2}-[0-9]{2}) · (lunch|dinner)(?=$| · |:)/.exec(context);
+  if (!m) return context;
+  const meal = m[2] === "lunch" ? t("Siang", "Lunch") : t("Malam", "Dinner");
+  return `${shortDate(m[1], locale)} · ${meal}${context.slice(m[0].length)}`;
+}
+
 function ActionCards({ items }: { items: SellerAttentionItem[] }) {
-  const { t } = useMobile();
+  const { t, locale } = useMobile();
   const c = useColors();
   const shown = items.filter((i) => attentionLabels[i.kind]).slice(0, 3);
   return (
@@ -639,7 +648,7 @@ function ActionCards({ items }: { items: SellerAttentionItem[] }) {
           <Card tone="attention" style={link ? { flexDirection: "row", alignItems: "center" } : undefined}>
             <View testID={`attention-body-${item.id}`} style={{ flex: link ? 1 : undefined, gap: 10 }}>
               <Text style={{ fontFamily: fontFor("800") }}>{t(id, en)}</Text>
-              {item.context ? <Text variant="caption">{item.context}</Text> : null}
+              {item.context ? <Text variant="caption">{attentionContext(item.context, locale, t)}</Text> : null}
             </View>
             {link ? <Ionicons name="chevron-forward" size={18} color={c.muted} /> : null}
           </Card>

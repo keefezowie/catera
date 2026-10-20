@@ -39,6 +39,16 @@ const confirm = () => screen.getByRole("button", { name: /Pindah/ });
 const flat = (node: { props: { style?: unknown } }) => StyleSheet.flatten(node.props.style as never) as Record<string, unknown>;
 
 describe("CalendarSheet", () => {
+  it("keeps the customer line, and speaks to kitchen staff when `staff` is set", () => {
+    const customer = setup();
+    expect(screen.getByText("Pilih hari baru untuk pengantaranmu.")).toBeTruthy();
+    customer.unmount();
+    setup({ staff: true });
+    expect(screen.getByText("Pilih hari baru untuk pengantaran pelanggan.")).toBeTruthy();
+    fireEvent.press(cell("2026-10-12"));
+    expect(screen.getByText("Ini hari pengantaran pelanggan sekarang.")).toBeTruthy();
+  });
+
   it("the button stays disabled until a new day is chosen", async () => {
     const { onPick, onConfirm } = setup();
     expect(confirm().props.accessibilityState.disabled).toBe(true);

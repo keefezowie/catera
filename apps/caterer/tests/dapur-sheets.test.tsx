@@ -296,6 +296,13 @@ describe("stop exceptions", () => {
     expect(screen.queryByRole("button", { name: "Mulai masak" })).toBeNull();
   });
 
+  it("the move calendar speaks to staff, not in the customer's kamu voice", async () => {
+    show(runtimeWith(), <MoveSheet id={dayOf(TOMORROW).deliveries[0].id} meal="lunch" date={TOMORROW} />);
+    await screen.findByLabelText("Alasan");
+    expect(await screen.findByText("Belum ada hari lain yang bisa dipilih di rentang ini.")).toBeTruthy();
+    expect(screen.queryByText(/kamu/)).toBeNull();
+  });
+
   it("asks before dropping a typed reason, and not when nothing was typed", async () => {
     show(runtimeWith(), <MoveSheet id={dayOf(TOMORROW).deliveries[0].id} meal="lunch" date={TOMORROW} />);
     const reason = await screen.findByLabelText("Alasan");

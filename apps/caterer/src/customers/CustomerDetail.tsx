@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Linking, View } from "react-native";
 import { router } from "expo-router";
-import { errorLabel, jakartaDay, whatsappUrl, type CustomerSubscription } from "@catera/domain";
+import { errorLabel, jakartaDay, shortDate, whatsappUrl, type CustomerSubscription } from "@catera/domain";
 import { useData, useMobile, plural } from "@catera/mobile-core";
 import { Button, Card, FadeSwap, FormError, Screen, Text, useBusy, useColors } from "@catera/mobile-ui";
 import { activeEndLabel, activeSubscriptions, renewalAction } from "./rules";
@@ -126,7 +126,7 @@ export function CustomerDetail({ id, title }: { id: string; title?: string }) {
               <Text variant="label">{shown.length > 1 ? `${t("Jadwal", "Schedule")} · ${s.package_name}` : t("Jadwal", "Schedule")}</Text>
               {s.deliveries.map((d) => (
                 <View key={d.id} style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 8 }}>
-                  <Text>{d.service_date}</Text>
+                  <Text>{shortDate(d.service_date, locale)}</Text>
                   <Text variant="caption">{d.status === "delivered" ? t("Sampai", "Arrived") : d.status === "issue" ? t("Gagal diantar", "Not delivered") : t("Terjadwal", "Scheduled")}</Text>
                 </View>
               ))}

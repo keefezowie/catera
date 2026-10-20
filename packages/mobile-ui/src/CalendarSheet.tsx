@@ -40,6 +40,8 @@ export type CalendarSheetProps = {
   extra?: ReactNode;
   /** Holds the button back even once a day is chosen, while `extra` is not yet filled in. */
   confirmDisabled?: boolean;
+  /** Dapur moves a customer's delivery: the captions speak to kitchen staff, not to the customer whose day it is. */
+  staff?: boolean;
 };
 
 const REASON_EN: Record<CalendarReason, string> = {
@@ -101,6 +103,7 @@ export function CalendarPanel({
   note,
   extra,
   confirmDisabled = false,
+  staff = false,
 }: CalendarSheetProps) {
   const c = useColors();
   const styles = useStyles();
@@ -143,14 +146,22 @@ export function CalendarPanel({
     ([date, day]) => day.state === "available" && date !== current && date >= window.from && date <= window.to,
   );
   const prompt = noneOpen
-    ? t("Belum ada hari lain yang bisa kamu pilih di rentang ini.", "There is no other day you can pick in this range.")
-    : t("Pilih hari baru untuk pengantaranmu.", "Choose a new day for your delivery.");
+    ? staff
+      ? t("Belum ada hari lain yang bisa dipilih di rentang ini.", "There is no other day that can be picked in this range.")
+      : t("Belum ada hari lain yang bisa kamu pilih di rentang ini.", "There is no other day you can pick in this range.")
+    : staff
+      ? t("Pilih hari baru untuk pengantaran pelanggan.", "Choose a new day for the customer's delivery.")
+      : t("Pilih hari baru untuk pengantaranmu.", "Choose a new day for your delivery.");
 
   const press = (date: string) => {
     if (busy) return;
     const day = days[date];
     if (day?.state === "current" || date === current) {
-      setCaption(t("Ini hari pengantaranmu sekarang.", "This is your delivery day now."));
+      setCaption(
+        staff
+          ? t("Ini hari pengantaran pelanggan sekarang.", "This is the customer's delivery day now.")
+          : t("Ini hari pengantaranmu sekarang.", "This is your delivery day now."),
+      );
     } else if (day?.state === "available") {
       setChosen(date);
       setCaption(null);

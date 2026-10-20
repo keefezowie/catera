@@ -148,6 +148,7 @@ export function MoveSheet({ id, meal, date }: { id: string; meal: KitchenMeal; d
       note={t("Pelanggan yang memakai aplikasi diberi tahu.", "Customers who use the app get notified.")}
       onPick={() => undefined}
       confirmLabel={(d) => t(`Pindah ke ${sheetDate(d)}`, `Move to ${sheetDate(d)}`)}
+      staff
       confirmDisabled={reason.trim().length < MIN_REASON}
       extra={
         <Field

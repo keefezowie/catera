@@ -239,7 +239,7 @@ it("opens a customer's own record with their delivery schedule", async () => {
     query.includes("customerRecordId=c-01") ? { customers: [detailed], total: 1, packages: [] } : { customers: [], total: 0, packages: [] },
   );
   wrap(runtime, <CustomerDetail id="c-01" />);
-  expect(await screen.findByText("2026-10-08")).toBeTruthy();
+  expect(await screen.findByText("Kamis 8 Okt")).toBeTruthy();
   expect(screen.getByText("Jadwal")).toBeTruthy();
 });
 
