@@ -303,7 +303,8 @@ describe("a form sheet's last button clears the gesture bar", () => {
     });
 
     it("with the keyboard up the scroll view ends at the keyboard's top, and returns when it hides", async () => {
-      mockMeasure({ top: bodyTop(), height: 800 });
+      const position = { top: bodyTop(), height: 800 };
+      mockMeasure(position);
       const keyboard: Record<string, (e?: unknown) => void> = {};
       jest.spyOn(Keyboard, "addListener").mockImplementation(((event: string, cb: (e?: unknown) => void) => {
         keyboard[event] = cb;
@@ -312,11 +313,15 @@ describe("a form sheet's last button clears the gesture bar", () => {
       render(inFrame(FRAME, <SheetBody os="android">{null}</SheetBody>));
       await settle(1000);
       const resting = marginOf();
+      // The keyboard expands the sheet to its top detent, which ends at the screen's edge.
+      position.top = FRAME.height - 800;
       await act(async () => {
         keyboard.keyboardDidShow?.({ endCoordinates: { height: 420, screenY: 500 } });
       });
+      await settle(1000);
       // The reported height stops at the navigation bar: its inset (34 here) is added.
       expect(marginOf()).toBe(420 + 34);
+      position.top = bodyTop();
       await act(async () => {
         keyboard.keyboardDidHide?.();
       });
@@ -324,6 +329,29 @@ describe("a form sheet's last button clears the gesture bar", () => {
       expect(marginOf()).toBe(resting);
       await settle(1000);
       expect(marginOf()).toBe(resting);
+    });
+
+    it("a sheet that still reaches past the screen's edge with the keyboard up is lifted by the keyboard and that overshoot", async () => {
+      // The Dapur import row: a form sheet over a modal keeps 50 below the edge even at its top detent.
+      mockMeasure({ top: FRAME.height - 800 + 50, height: 800 });
+      const keyboard: Record<string, (e?: unknown) => void> = {};
+      jest.spyOn(Keyboard, "addListener").mockImplementation(((event: string, cb: (e?: unknown) => void) => {
+        keyboard[event] = cb;
+        return { remove: () => undefined };
+      }) as never);
+      render(inFrame(FRAME, <SheetBody os="android" footer={<Text>Selesai</Text>}>{null}</SheetBody>));
+      await settle(1000);
+      expect(marginOf()).toBe(50);
+      await act(async () => {
+        keyboard.keyboardDidShow?.({ endCoordinates: { height: 420, screenY: 500 } });
+      });
+      await settle(1000);
+      expect(marginOf()).toBe(420 + 34 + 50);
+      await act(async () => {
+        keyboard.keyboardDidHide?.();
+      });
+      await settle(1000);
+      expect(marginOf()).toBe(50);
     });
 
     it("a tab-stack sheet also ends at the keyboard's top, and returns when it hides", async () => {

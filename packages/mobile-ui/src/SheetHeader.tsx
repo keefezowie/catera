@@ -139,10 +139,10 @@ export function sheetHiddenBelow({
 function useSheetHiddenBelow(active: boolean, ref: RefObject<{ measureInWindow?: unknown } | null>, keyboard = 0): number {
   const navigation = useScreenNavigation();
   const [margin, setMargin] = useState(0);
-  // The margin the scroll view has now: the larger of what is below the edge and the keyboard (it measures against it).
+  // The margin the scroll view has now: what is below the edge plus the keyboard's lift (it measures against it).
   const marginRef = useRef(0);
   // Kept equal to what is rendered, so a measure never works from a margin the scroll view no longer has.
-  marginRef.current = Math.max(margin, keyboard);
+  marginRef.current = margin + keyboard;
   // The root view's frame is the one `measureInWindow` reports in. `useWindowDimensions` can differ from it by the
   // navigation bar on Android 14 and older, which would count that bar twice.
   const { width, height: windowHeight } = useSafeAreaFrame();
@@ -239,7 +239,10 @@ export function SheetBody({
   // The frame holds the scroll view and the footer, so both are lifted by what is measured.
   const below = useSheetHiddenBelow(os === "android" && !insideTabs(navigation as Parameters<typeof insideTabs>[0]), frame, keyboardLift);
   // While the keyboard is up an Android frame ends at its top, so the focused field scrolls into view above it.
-  const lift = os === "android" ? Math.max(below, keyboardLift) : below;
+  // `below` is how far the frame's unlifted bottom still lies under the screen's edge (measured with the keyboard's
+  // lift counted), and the keyboard sits above that edge, so the two add: a sheet that reaches 50dp past the edge with
+  // the keyboard up (the Dapur import row, a sheet over a modal) needs the keyboard's lift plus those 50dp.
+  const lift = below + keyboardLift;
   // iOS: a sheet is not resized for the keyboard, so a pinned footer rides on it (the scroll view then needs no inset of its own).
   const iosLift = ios && hasFooter ? keyboard : 0;
   return (
