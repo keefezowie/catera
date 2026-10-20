@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
-import { AccessibilityInfo, Dimensions, Keyboard, ScrollView, StatusBar, Text as RNText, useWindowDimensions, View } from "react-native";
+import { AccessibilityInfo, Keyboard, ScrollView, Text as RNText, useWindowDimensions, View } from "react-native";
 import { useSafeAreaFrame, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "./components";
 import { HeaderIconButton } from "./HeaderIconButton";
@@ -138,9 +138,6 @@ export function sheetHiddenBelow({
  */
 function useSheetHiddenBelow(active: boolean, ref: RefObject<ScrollView | null>, keyboard = 0): number {
   const navigation = useScreenNavigation();
-  const insetsRef = useRef({ top: 0, bottom: 0 });
-  const insets = useSafeAreaInsets();
-  insetsRef.current = { top: insets.top, bottom: insets.bottom };
   const [margin, setMargin] = useState(0);
   // The margin the scroll view has now: the larger of what is below the edge and the keyboard (it measures against it).
   const marginRef = useRef(0);
@@ -164,18 +161,6 @@ function useSheetHiddenBelow(active: boolean, ref: RefObject<ScrollView | null>,
         measureWindowEdge((edge) => {
           const edgeBottom = edge ?? windowHeight;
           const next = sheetHiddenBelow({ top, height, margin: marginRef.current, windowHeight: edgeBottom });
-          if (__DEV__)
-            console.log("[sheet-reach]", {
-              top,
-              height,
-              margin: marginRef.current,
-              edgeBottom,
-              windowHeight,
-              screenHeight: Dimensions.get("screen").height,
-              statusBar: StatusBar.currentHeight,
-              insets: insetsRef.current,
-              next,
-            });
           setMargin((was) => (was === next ? was : next));
         });
       });

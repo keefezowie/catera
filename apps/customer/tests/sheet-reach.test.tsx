@@ -114,10 +114,13 @@ describe("a form sheet's last button clears the gesture bar", () => {
         </>),
       );
       setWindowEdgeReference({ measureInWindow: ((cb: (x: number, y: number, w: number, h: number) => void) => cb(0, 0, 411, 962)) as never });
-      await settle(1000);
-      setWindowEdgeReference(null);
-      // top 362 + 800 = 1162 against 962 is 200; against the frame's 914 it would be 248.
-      expect(marginOf()).toBe(200);
+      try {
+        await settle(1000);
+        // top 362 + 800 = 1162 against 962 is 200; against the frame's 914 it would be 248.
+        expect(marginOf()).toBe(200);
+      } finally {
+        setWindowEdgeReference(null);
+      }
     });
 
     it("measures against the root frame, not the window size", async () => {
