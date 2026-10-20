@@ -467,7 +467,8 @@ describe("Perlu kamu urus", () => {
     expect(sheet.getByRole("button", { name: "4 bintang" }).props.accessibilityState.selected).toBe(true);
     expect(sheet.getByRole("button", { name: "5 bintang" }).props.accessibilityState.selected).toBe(false);
     fireEvent.changeText(sheet.getByLabelText("Cerita singkat (opsional)"), "Enak dan tepat waktu");
-    fireEvent.press(sheet.getByRole("button", { name: "Kirim ulasan" }));
+    // "Kirim ulasan" is pinned under the form, outside the scrolling content.
+    fireEvent.press(screen.getByRole("button", { name: "Kirim ulasan" }));
     await waitFor(() =>
       expect(runtime.api.command).toHaveBeenCalledWith(
         "review.save",
@@ -482,7 +483,8 @@ describe("Perlu kamu urus", () => {
   it("Nanti saja in the sheet hides the review row for good", async () => {
     mount(demo().runtime);
     fireEvent.press(await screen.findByRole("button", { name: /^Bagaimana Dapur Hijau selama ini\?/ }));
-    fireEvent.press(within(await screen.findByTestId("review-sheet")).getByRole("button", { name: "Nanti saja" }));
+    await screen.findByTestId("review-sheet");
+    fireEvent.press(screen.getByRole("button", { name: "Nanti saja" }));
     await waitFor(() => expect(screen.queryByText("Bagaimana Dapur Hijau selama ini?")).toBeNull());
     expect(SecureStore.setItemAsync).toHaveBeenCalledWith("catera.review.s-sehat", "dismissed");
   });
@@ -492,9 +494,9 @@ describe("Perlu kamu urus", () => {
     (runtime.api.command as jest.Mock).mockRejectedValue(Object.assign(new Error("NOPE"), { code: "NOPE" }));
     mount(runtime);
     fireEvent.press(await screen.findByRole("button", { name: /^Bagaimana Dapur Hijau selama ini\?/ }));
-    const sheet = within(await screen.findByTestId("review-sheet"));
-    fireEvent.press(sheet.getByRole("button", { name: "Kirim ulasan" }));
-    expect(await sheet.findByText("Ulasannya belum terkirim. Coba lagi.")).toBeTruthy();
+    await screen.findByTestId("review-sheet");
+    fireEvent.press(screen.getByRole("button", { name: "Kirim ulasan" }));
+    expect(await screen.findByText("Ulasannya belum terkirim. Coba lagi.")).toBeTruthy();
     expect(screen.getByText("Bagaimana Dapur Hijau selama ini?")).toBeTruthy();
   });
 });

@@ -89,7 +89,17 @@ export function ReportProblem() {
  * holds its context line (`holdContextLine`) on every render: while the day is read, `context` is null and a skeleton
  * keeps the day's line, then the day lands as one line, so the header keeps its height when the form lands.
  */
-function Sheet({ context, swapKey, children }: { context?: string | null; swapKey: string; children: ReactNode }) {
+function Sheet({
+  context,
+  swapKey,
+  children,
+  footer,
+}: {
+  context?: string | null;
+  swapKey: string;
+  children: ReactNode;
+  footer?: ReactNode;
+}) {
   const { t } = useMobile();
   return (
     <View style={{ flex: 1 }}>
@@ -99,7 +109,7 @@ function Sheet({ context, swapKey, children }: { context?: string | null; swapKe
         holdContextLine
         closeLabel={t("Tutup", "Close")}
       />
-      <SheetBody>
+      <SheetBody footer={footer}>
         <FadeSwap swapKey={swapKey} style={{ gap: 16 }}>
           {children}
         </FadeSwap>
@@ -226,7 +236,18 @@ function Report({ actorId, id, meal: wanted, jenis }: { actorId: string; id: str
   }
 
   return (
-    <Sheet context={context} swapKey="ready">
+    <Sheet
+      context={context}
+      swapKey="ready"
+      footer={
+        current.issue ? undefined : (
+          <>
+            {error ? <FormError message={error} failureKey={failures} /> : null}
+            <Button label={t("Kirim laporan", "Send report")} busy={busy} disabled={!kind} onPress={() => void send()} />
+          </>
+        )
+      }
+    >
       {meals.length > 1 ? (
         <View style={{ flexDirection: "row", gap: 8 }} accessibilityRole="radiogroup">
           {meals.map((m) => {
@@ -287,8 +308,6 @@ function Report({ actorId, id, meal: wanted, jenis }: { actorId: string; id: str
             maxLength={2000}
             style={{ minHeight: 88, textAlignVertical: "top", paddingTop: 12 }}
           />
-          {error ? <FormError message={error} failureKey={failures} /> : null}
-          <Button label={t("Kirim laporan", "Send report")} busy={busy} disabled={!kind} onPress={() => void send()} />
           <ChatKatering
             phone={catererPhoneOf(d)}
             variant="text"

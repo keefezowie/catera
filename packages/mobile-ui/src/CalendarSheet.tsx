@@ -5,7 +5,7 @@ import { translator, useMobile } from "@catera/mobile-core";
 import { longDay, monthOf, monthTitle, monthWeeks, shiftMonth, shortDate, WEEK_HEADER, type Locale } from "@catera/domain";
 import { Button, Text } from "./components";
 import { FormError } from "./FormError";
-import { SheetBody, SheetHeader, sheetSidePadding } from "./SheetHeader";
+import { SheetBody, SheetFooter, SheetHeader, sheetSidePadding } from "./SheetHeader";
 import { themedStyles, useColors } from "./theme";
 import { fonts } from "./type";
 import { useBusy } from "./useBusy";
@@ -255,15 +255,17 @@ export function CalendarPanel({
         </Text>
       ) : null}
       {extra}
-      {failure ? (
-        <FormError message={failure.message} failureKey={failure.key} retry={chosen ? () => void move(chosen) : undefined} />
-      ) : null}
-      <Button
-        label={chosen ? confirmLabel(chosen) : t("Pindah tanggal", "Move date")}
-        disabled={!chosen || confirmDisabled}
-        busy={busy}
-        onPress={() => chosen && void move(chosen)}
-      />
+      <SheetFooter>
+        {failure ? (
+          <FormError message={failure.message} failureKey={failure.key} retry={chosen ? () => void move(chosen) : undefined} />
+        ) : null}
+        <Button
+          label={chosen ? confirmLabel(chosen) : t("Pindah tanggal", "Move date")}
+          disabled={!chosen || confirmDisabled}
+          busy={busy}
+          onPress={() => chosen && void move(chosen)}
+        />
+      </SheetFooter>
     </>
   );
 }

@@ -25,6 +25,7 @@ import {
   ReadError,
   Segmented,
   SheetBody,
+  SheetFooter,
   SheetHeader,
   Skeleton,
   SkeletonGroup,
@@ -352,7 +353,7 @@ export function ChangeDaySheet({
           )}
 
           {mode === "address" ? (
-            <>
+            <SheetFooter>
               {error ? <FormError message={error} failureKey={failures} /> : null}
               <Button
                 label={addressId ? t(`Antar ke ${label}`, `Deliver to ${label}`) : t("Pilih alamat", "Choose an address")}
@@ -360,7 +361,7 @@ export function ChangeDaySheet({
                 disabled={!addressId}
                 onPress={() => void sendAddress()}
               />
-            </>
+            </SheetFooter>
           ) : null}
           <Text variant="caption">
             {mode === "date"

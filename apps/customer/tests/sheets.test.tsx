@@ -651,10 +651,13 @@ describe("Ada masalah as a sheet", () => {
 
   it("in the root stack the form has no tab bar under it, so it reserves nothing and Kirim laporan is reachable", async () => {
     const app = await onHari();
-    const body = screen.getByTestId("sheet-body");
+    const frame = screen.getByTestId("sheet-frame");
     // A root-stack sheet draws above the tab bar (the bar sits under the page, not beside the sheet), on Android and iOS.
-    expect(StyleSheet.flatten(body.props.style).marginBottom ?? 0).toBe(0);
-    expect(within(body).getByRole("button", { name: "Kirim laporan" })).toBeTruthy();
+    expect(StyleSheet.flatten(frame.props.style).marginBottom ?? 0).toBe(0);
+    // Kirim laporan is pinned under the scroll view, not inside it.
+    expect(within(frame).getByRole("button", { name: "Kirim laporan" })).toBeTruthy();
+    expect(within(screen.getByTestId("sheet-body")).queryByRole("button", { name: "Kirim laporan" })).toBeNull();
+    expect(within(screen.getByTestId("sheet-footer")).getByRole("button", { name: "Kirim laporan" })).toBeTruthy();
     app.unmount();
   });
 

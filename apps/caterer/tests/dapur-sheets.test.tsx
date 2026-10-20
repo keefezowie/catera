@@ -589,6 +589,9 @@ describe("import row editor", () => {
     fireEvent.changeText(within(sheet).getByLabelText("Nama"), "Bu Ani");
     // The list under the sheet reads the same row.
     expect(screen.getByRole("button", { name: "Ubah Bu Ani" })).toBeTruthy();
+    // Selesai is pinned in the footer; "Hapus baris ini" stays in the content.
+    expect(within(screen.getByTestId("sheet-footer")).getByRole("button", { name: "Selesai" })).toBeTruthy();
+    expect(within(screen.getByTestId("sheet-body")).getByRole("button", { name: "Hapus baris ini" })).toBeTruthy();
     fireEvent.press(within(sheet).getByRole("button", { name: "Selesai" }));
     expect(router.back).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(screen.queryByTestId("import-row-sheet")).toBeNull());

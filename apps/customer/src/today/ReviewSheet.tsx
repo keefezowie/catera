@@ -30,12 +30,12 @@ import { markReview } from "./reviewMark";
 const drafts = new Map<string, { rating: number; body: string }>();
 
 /** The sheet's frame: the title row over the scrolling content, in one FadeSwap so the form fades in as one block. */
-function Frame({ title, swapKey, children }: { title: string; swapKey: string; children: ReactNode }) {
+function Frame({ title, swapKey, children, footer }: { title: string; swapKey: string; children: ReactNode; footer?: ReactNode }) {
   const { t } = useMobile();
   return (
     <View style={{ flex: 1 }}>
       <SheetHeader title={title} closeLabel={t("Tutup", "Close")} />
-      <SheetBody>
+      <SheetBody footer={footer}>
         <FadeSwap swapKey={swapKey} style={{ gap: 12 }}>
           {children}
         </FadeSwap>
@@ -167,7 +167,26 @@ function Review({ actorId, id }: { actorId: string; id: string }) {
   }
 
   return (
-    <Frame title={t(`Ulasan untuk ${caterer}`, `Your review of ${caterer}`)} swapKey="ready">
+    <Frame
+      title={t(`Ulasan untuk ${caterer}`, `Your review of ${caterer}`)}
+      swapKey="ready"
+      footer={
+        <>
+          {error ? <FormError message={error} failureKey={failures} /> : null}
+          <Button label={t("Kirim ulasan", "Send review")} busy={busy} onPress={() => void send()} />
+          <Button
+            variant="text"
+            label={t("Nanti saja", "Not now")}
+            disabled={busy}
+            onPress={() => {
+              drafts.delete(draftKey);
+              markReview(markKey, "dismissed");
+              setFinished("later");
+            }}
+          />
+        </>
+      }
+    >
       <View testID="review-sheet" style={{ gap: 12 }}>
         <View style={{ flexDirection: "row", gap: 6 }}>
           {[1, 2, 3, 4, 5].map((n) => (
@@ -201,18 +220,6 @@ function Review({ actorId, id }: { actorId: string; id: string }) {
           }}
           multiline
           maxLength={1000}
-        />
-        {error ? <FormError message={error} failureKey={failures} /> : null}
-        <Button label={t("Kirim ulasan", "Send review")} busy={busy} onPress={() => void send()} />
-        <Button
-          variant="text"
-          label={t("Nanti saja", "Not now")}
-          disabled={busy}
-          onPress={() => {
-            drafts.delete(draftKey);
-            markReview(markKey, "dismissed");
-            setFinished("later");
-          }}
         />
       </View>
     </Frame>

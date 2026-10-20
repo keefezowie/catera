@@ -262,6 +262,8 @@ describe("Hapus akun", () => {
         "Paket yang masih berjalan diselesaikan dulu oleh tim Catera. Kami hubungi kamu soal sisa harinya sebelum akun dihapus.",
       ),
     ).toBeTruthy();
+    // The primary action is pinned in the sheet's footer, not in the scrolling content.
+    expect(within(screen.getByTestId("sheet-footer")).getByRole("button", { name: "Kirim permintaan hapus akun" })).toBeTruthy();
     fireEvent.press(screen.getByRole("button", { name: "Kirim permintaan hapus akun" }));
     await waitFor(() =>
       expect(runtime.api.command).toHaveBeenCalledWith(

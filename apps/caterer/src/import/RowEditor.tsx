@@ -125,7 +125,8 @@ export function ImportRowEditor({ n }: { n: number }) {
   return (
     <View testID="import-row-sheet" style={{ flex: 1 }}>
       <SheetHeader title={row.name || t("Pelanggan", "Customer")} closeLabel={t("Tutup", "Close")} />
-      <SheetBody>
+      {/* Selesai is pinned under the form; "Hapus baris ini" is destructive and secondary, so it stays in the scrolling content. */}
+      <SheetBody footer={<Button label={t("Selesai", "Done")} onPress={close} />}>
         {/* What still stops this row from being saved, in the words and the bold charcoal the list uses (a to-do, not an error). */}
         {row.needsReview ? (
           <Text testID="import-row-reason" selectable style={{ color: c.charcoal, fontFamily: fontFor("700") }}>
@@ -179,7 +180,6 @@ export function ImportRowEditor({ n }: { n: number }) {
             />
           </View>
         </View>
-        <Button label={t("Selesai", "Done")} onPress={close} />
         <Button
           variant="text"
           label={t("Hapus baris ini", "Remove this row")}

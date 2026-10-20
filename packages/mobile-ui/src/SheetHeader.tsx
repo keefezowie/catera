@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
-import { AccessibilityInfo, Keyboard, ScrollView, Text as RNText, useWindowDimensions, View } from "react-native";
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { AccessibilityInfo, Keyboard, ScrollView, StyleSheet, Text as RNText, useWindowDimensions, View } from "react-native";
 import { useSafeAreaFrame, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "./components";
 import { HeaderIconButton } from "./HeaderIconButton";
@@ -136,7 +136,7 @@ export function sheetHiddenBelow({
  * `sheetHiddenBelow`). It measures after the sheet has risen, each time it settles on a detent and each time the window
  * changes size (rotation, split screen), against the root frame's height; 0 when inactive.
  */
-function useSheetHiddenBelow(active: boolean, ref: RefObject<ScrollView | null>, keyboard = 0): number {
+function useSheetHiddenBelow(active: boolean, ref: RefObject<{ measureInWindow?: unknown } | null>, keyboard = 0): number {
   const navigation = useScreenNavigation();
   const [margin, setMargin] = useState(0);
   // The margin the scroll view has now: the larger of what is below the edge and the keyboard (it measures against it).
@@ -205,36 +205,100 @@ export const sheetSidePadding = (os = process.env.EXPO_OS) => (os === "ios" ? 20
  * bottom (spec 4.2): the last button scrolls fully clear of it at the 0.6 detent, and TalkBack's scroll-into-view stops
  * above it too. `os` defaults to the running platform.
  */
-export function SheetBody({ children, os = process.env.EXPO_OS }: { children: ReactNode; os?: string }) {
+export function SheetBody({
+  children,
+  footer,
+  os = process.env.EXPO_OS,
+}: {
+  children: ReactNode;
+  /**
+   * The sheet's primary action (and the error above it), pinned under the scroll view instead of scrolling with it. It is
+   * lifted by the same amounts as the body (the part of an Android root-stack sheet below the screen's edge, the keyboard,
+   * the tab bar), so it is visible and tappable at the form detent at any font size, above the gesture bar or home
+   * indicator. It follows the content in the tree, so a screen reader reaches it last. A component deep in the content
+   * that owns the action's state can pin it with `SheetFooter` instead.
+   */
+  footer?: ReactNode;
+  os?: string;
+}) {
   const insets = useSafeAreaInsets();
+  const palette = useColors();
   const ios = os === "ios";
   const { up, height: keyboard } = useKeyboard();
   const bar = useTabBarOverSheet(os, up);
-  const scroll = useRef<ScrollView>(null);
+  const frame = useRef<View>(null);
+  const [slot, setSlot] = useState<ReactNode>(null);
+  const pinned = footer ?? slot;
+  const hasFooter = pinned != null && pinned !== false;
   const navigation = useScreenNavigation();
-  // A root-stack Android sheet (no bar under it) is laid out at its tallest detent: its scroll view must end at the edge.
+  // A root-stack Android sheet (no bar under it) is laid out at its tallest detent: its frame must end at the edge.
   // Inside the tabs the bar's share is 0 only while the keyboard is up, and the sheet is not a root one then.
   // The reported height stops at the navigation bar (ime.bottom minus the system bars) while the sheet reaches the
   // window bottom, so the bar's inset is added to end at the keyboard's top.
   const keyboardLift = os === "android" && keyboard > 0 ? keyboard + insets.bottom : 0;
-  const below = useSheetHiddenBelow(os === "android" && !insideTabs(navigation as Parameters<typeof insideTabs>[0]), scroll, keyboardLift);
-  // While the keyboard is up an Android scroll view ends at its top, so the focused field scrolls into view above it.
+  // The frame holds the scroll view and the footer, so both are lifted by what is measured.
+  const below = useSheetHiddenBelow(os === "android" && !insideTabs(navigation as Parameters<typeof insideTabs>[0]), frame, keyboardLift);
+  // While the keyboard is up an Android frame ends at its top, so the focused field scrolls into view above it.
   const lift = os === "android" ? Math.max(below, keyboardLift) : below;
+  // iOS: a sheet is not resized for the keyboard, so a pinned footer rides on it (the scroll view then needs no inset of its own).
+  const iosLift = ios && hasFooter ? keyboard : 0;
   return (
-    <ScrollView
-      ref={scroll}
-      testID="sheet-body"
-      // The bar pays the system inset itself, so a sheet that ends above it keeps only the 24 foot.
-      style={{ flex: 1, marginBottom: bar + lift }}
-      automaticallyAdjustKeyboardInsets={ios}
-      keyboardShouldPersistTaps="handled"
-      // Android: a drag on the form scrolls it, rather than dragging the bottom sheet.
-      nestedScrollEnabled
-      contentContainerStyle={{ paddingHorizontal: sheetSidePadding(os), paddingTop: 4, paddingBottom: (bar ? 0 : insets.bottom) + 24, gap: 16 }}
-    >
-      {children}
-    </ScrollView>
+    <SheetFooterContext.Provider value={setSlot}>
+      {/* The bar pays the system inset itself, so a sheet that ends above it keeps only the 24 foot. */}
+      <View ref={frame} testID="sheet-frame" style={{ flex: 1, marginBottom: bar + lift + iosLift }}>
+        <ScrollView
+          testID="sheet-body"
+          style={{ flex: 1 }}
+          automaticallyAdjustKeyboardInsets={ios && !hasFooter}
+          keyboardShouldPersistTaps="handled"
+          // Android: a drag on the form scrolls it, rather than dragging the bottom sheet.
+          nestedScrollEnabled
+          contentContainerStyle={{
+            paddingHorizontal: sheetSidePadding(os),
+            paddingTop: 4,
+            paddingBottom: hasFooter ? 16 : (bar ? 0 : insets.bottom) + 24,
+            gap: 16,
+          }}
+        >
+          {children}
+        </ScrollView>
+        {hasFooter ? (
+          <View
+            testID="sheet-footer"
+            style={{
+              paddingHorizontal: sheetSidePadding(os),
+              paddingTop: 12,
+              // The tab bar and the keyboard already clear the system inset; the screen's edge does not, so the footer pays it there.
+              paddingBottom: (bar > 0 || keyboardLift > 0 || iosLift > 0 ? 0 : insets.bottom) + 16,
+              gap: 12,
+              borderTopWidth: StyleSheet.hairlineWidth,
+              borderTopColor: palette.line,
+              backgroundColor: palette.surface,
+            }}
+          >
+            {pinned}
+          </View>
+        ) : null}
+      </View>
+    </SheetFooterContext.Provider>
   );
+}
+
+const SheetFooterContext = createContext<((node: ReactNode) => void) | null>(null);
+
+/**
+ * Pins its children as the footer of the `SheetBody` it sits in, for an action whose state lives in a component inside
+ * the content (the calendar's "Pindah ke …"). It draws nothing where it stands. Outside a `SheetBody` it draws its
+ * children in place.
+ */
+export function SheetFooter({ children }: { children: ReactNode }) {
+  const set = useContext(SheetFooterContext);
+  // Every render hands over the current children; the body re-renders, this does not (its element is unchanged).
+  useLayoutEffect(() => {
+    set?.(children);
+  });
+  useLayoutEffect(() => () => set?.(null), [set]);
+  return set ? null : <>{children}</>;
 }
 
 /** The gap a fit sheet keeps under the top safe area at its tallest: the iOS large detent's and the status bar's. */

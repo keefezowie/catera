@@ -48,12 +48,24 @@ const failure = (e: unknown, locale: "id" | "en", t: (id: string, en: string) =>
  * header holds its context line (`holdContextLine`) on every render: while the report is read a skeleton keeps the line
  * (null), then the report's subject, day and meal land as one line (read out in full), so the header keeps its height.
  */
-function Frame({ title, context, swapKey, children }: { title: string; context?: string | null; swapKey: string; children: ReactNode }) {
+function Frame({
+  title,
+  context,
+  swapKey,
+  children,
+  footer,
+}: {
+  title: string;
+  context?: string | null;
+  swapKey: string;
+  children: ReactNode;
+  footer?: ReactNode;
+}) {
   const { t } = useMobile();
   return (
     <View style={{ flex: 1 }}>
       <SheetHeader title={title} context={context} holdContextLine closeLabel={t("Tutup", "Close")} />
-      <SheetBody>
+      <SheetBody footer={footer}>
         <FadeSwap swapKey={swapKey} style={{ gap: 12 }}>
           {children}
         </FadeSwap>
@@ -182,7 +194,23 @@ function Help({ actorId, title }: { actorId: string; title: string }) {
   }
 
   return (
-    <Frame title={title} swapKey="ready">
+    <Frame
+      title={title}
+      swapKey="ready"
+      footer={
+        subscriptions.length ? (
+          <>
+            {error ? <FormError message={error} failureKey={failures} /> : null}
+            <Button
+              label={t("Kirim permintaan", "Send request")}
+              busy={busy}
+              disabled={!topic || !chosen || text.trim().length < 5}
+              onPress={() => void send()}
+            />
+          </>
+        ) : undefined
+      }
+    >
       {!subscriptions.length ? (
         <Text style={{ color: c.muted }}>
           {t("Kamu bisa minta bantuan setelah membeli paket.", "You can ask for help once you've bought a package.")}
@@ -226,13 +254,6 @@ function Help({ actorId, title }: { actorId: string; title: string }) {
               "The caterer replies first. Cancellations and refunds are always reviewed.",
             )}
           </Text>
-          {error ? <FormError message={error} failureKey={failures} /> : null}
-          <Button
-            label={t("Kirim permintaan", "Send request")}
-            busy={busy}
-            disabled={!topic || !chosen || text.trim().length < 5}
-            onPress={() => void send()}
-          />
         </>
       )}
     </Frame>
@@ -285,6 +306,17 @@ function Review({ actorId, issueId, title }: { actorId: string; issueId: string;
       title={title}
       context={`${issue.subject} · ${shortDate(issue.service_date, locale)} · ${mealLabel(issue.meal, locale)}`}
       swapKey="ready"
+      footer={
+        <>
+          {error ? <FormError message={error} failureKey={failures} /> : null}
+          <Button
+            label={t("Kirim ke Catera", "Send to Catera")}
+            busy={busy}
+            disabled={text.trim().length < 5}
+            onPress={() => void escalate()}
+          />
+        </>
+      }
     >
       <Field
         label={t("Apa yang belum beres?", "What is still wrong?")}
@@ -293,13 +325,6 @@ function Review({ actorId, issueId, title }: { actorId: string; issueId: string;
         onChangeText={write}
         maxLength={2000}
         style={{ minHeight: 88, textAlignVertical: "top", paddingTop: 12 }}
-      />
-      {error ? <FormError message={error} failureKey={failures} /> : null}
-      <Button
-        label={t("Kirim ke Catera", "Send to Catera")}
-        busy={busy}
-        disabled={text.trim().length < 5}
-        onPress={() => void escalate()}
       />
     </Frame>
   );

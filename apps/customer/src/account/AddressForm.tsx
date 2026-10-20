@@ -39,12 +39,12 @@ const blank = (t: (id: string, en: string) => string, a?: Address | null): Draft
 });
 
 /** The sheet's frame: the title row over the scrolling form, in one FadeSwap so the form fades in as one block. */
-function Frame({ title, swapKey, children }: { title: string; swapKey: string; children: ReactNode }) {
+function Frame({ title, swapKey, children, footer }: { title: string; swapKey: string; children: ReactNode; footer?: ReactNode }) {
   const { t } = useMobile();
   return (
     <View style={{ flex: 1 }}>
       <SheetHeader title={title} closeLabel={t("Tutup", "Close")} />
-      <SheetBody>
+      <SheetBody footer={footer}>
         <FadeSwap swapKey={swapKey} style={{ gap: 12 }}>
           {children}
         </FadeSwap>
@@ -181,7 +181,21 @@ function Form({ actorId, address, title }: { actorId: string; address: Address |
   }
 
   return (
-    <Frame title={title} swapKey="ready">
+    <Frame
+      title={title}
+      swapKey="ready"
+      footer={
+        <>
+          {error ? <FormError message={error} failureKey={failures} testID="address-error" /> : null}
+          <Button
+            label={t("Simpan alamat", "Save address")}
+            busy={busy}
+            disabled={!draft.label.trim() || draft.line.trim().length < 5 || !draft.city.trim()}
+            onPress={() => void save()}
+          />
+        </>
+      }
+    >
       <Field label={t("Label alamat", "Address label")} value={draft.label} onChangeText={(label) => set({ label })} maxLength={60} />
       <Field
         label={t("Jalan, nomor, detail", "Street, number, details")}
@@ -210,13 +224,6 @@ function Form({ actorId, address, title }: { actorId: string; address: Address |
           "A delivery already scheduled changes its address only through Change day in Schedule.",
         )}
       </Text>
-      {error ? <FormError message={error} failureKey={failures} testID="address-error" /> : null}
-      <Button
-        label={t("Simpan alamat", "Save address")}
-        busy={busy}
-        disabled={!draft.label.trim() || draft.line.trim().length < 5 || !draft.city.trim()}
-        onPress={() => void save()}
-      />
     </Frame>
   );
 }

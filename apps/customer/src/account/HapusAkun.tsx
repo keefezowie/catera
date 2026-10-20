@@ -19,12 +19,12 @@ import {
 import { accountMessage } from "./accountMessages";
 import { useAction } from "./useAction";
 
-function Frame({ swapKey, children }: { swapKey: string; children: ReactNode }) {
+function Frame({ swapKey, children, footer }: { swapKey: string; children: ReactNode; footer?: ReactNode }) {
   const { t } = useMobile();
   return (
     <View style={{ flex: 1 }}>
       <SheetHeader title={t("Hapus akun", "Delete account")} closeLabel={t("Tutup", "Close")} />
-      <SheetBody>
+      <SheetBody footer={footer}>
         <FadeSwap swapKey={swapKey} style={{ gap: 14 }}>
           {children}
         </FadeSwap>
@@ -134,7 +134,7 @@ function HapusAkun() {
 
   if (result)
     return (
-      <Frame swapKey="sent">
+      <Frame swapKey="sent" footer={<Button label={t("Selesai", "Done")} onPress={() => router.back()} />}>
         <Text variant="heading" testID="hapus-akun-sent">
           {result.existing
             ? t("Permintaanmu sudah kami terima", "We already have your request")
@@ -148,12 +148,20 @@ function HapusAkun() {
         </Text>
         {plans}
         {privacy}
-        <Button label={t("Selesai", "Done")} onPress={() => router.back()} />
       </Frame>
     );
 
   return (
-    <Frame swapKey="ready">
+    <Frame
+      swapKey="ready"
+      footer={
+        <>
+          {action.error ? <FormError message={action.error} failureKey={action.failures} testID="hapus-akun-error" /> : null}
+          <Button label={t("Kirim permintaan hapus akun", "Send delete request")} busy={action.busy} onPress={() => void send()} />
+          <Button variant="text" label={t("Batal", "Cancel")} onPress={() => router.back()} />
+        </>
+      }
+    >
       <Text>
         {t(
           "Permintaan ini dikirim ke tim Catera. Akunmu belum dihapus sampai tim memeriksanya.",
@@ -162,9 +170,6 @@ function HapusAkun() {
       </Text>
       {plans}
       {privacy}
-      {action.error ? <FormError message={action.error} failureKey={action.failures} testID="hapus-akun-error" /> : null}
-      <Button label={t("Kirim permintaan hapus akun", "Send delete request")} busy={action.busy} onPress={() => void send()} />
-      <Button variant="text" label={t("Batal", "Cancel")} onPress={() => router.back()} />
     </Frame>
   );
 }

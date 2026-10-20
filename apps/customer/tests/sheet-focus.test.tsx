@@ -275,6 +275,7 @@ describe("tab-stack form sheets", () => {
       return { remove: () => void delete keyboard[event] };
     }) as never);
     const body = () => screen.getByTestId("sheet-body");
+    const frame = () => screen.getByTestId("sheet-frame");
     const within = (parent: "tab" | "stack", os: string) => {
       const { navigation } = fakeNavigation(parent);
       return render(
@@ -287,25 +288,25 @@ describe("tab-stack form sheets", () => {
     // Android, in a tab's stack: the bar (80dp and the system inset under it) is drawn over the sheet's bottom, so the
     // scroll view ends above it and the last button scrolls clear of it.
     let view = within("tab", "android");
-    expect(StyleSheet.flatten(body().props.style).marginBottom).toBe(ANDROID_TAB_BAR + 24);
+    expect(StyleSheet.flatten(frame().props.style).marginBottom).toBe(ANDROID_TAB_BAR + 24);
     expect(StyleSheet.flatten(body().props.contentContainerStyle).paddingBottom).toBe(24);
 
     // The keyboard covers the bar: no reserve while it is up, and it returns when it goes.
     act(() => keyboard.keyboardDidShow());
-    expect(StyleSheet.flatten(body().props.style).marginBottom).toBe(0);
+    expect(StyleSheet.flatten(frame().props.style).marginBottom).toBe(0);
     expect(StyleSheet.flatten(body().props.contentContainerStyle).paddingBottom).toBe(24 + 24);
     act(() => keyboard.keyboardDidHide());
-    expect(StyleSheet.flatten(body().props.style).marginBottom).toBe(ANDROID_TAB_BAR + 24);
+    expect(StyleSheet.flatten(frame().props.style).marginBottom).toBe(ANDROID_TAB_BAR + 24);
     view.unmount();
 
     // A sheet over the root stack (a purchase, the Dapur import) has no bar under it; iOS presents every sheet above
     // the tab bar. Both keep the plain foot over the system inset.
     view = within("stack", "android");
-    expect(StyleSheet.flatten(body().props.style).marginBottom).toBe(0);
+    expect(StyleSheet.flatten(frame().props.style).marginBottom).toBe(0);
     expect(StyleSheet.flatten(body().props.contentContainerStyle).paddingBottom).toBe(24 + 24);
     view.unmount();
     within("tab", "ios");
-    expect(StyleSheet.flatten(body().props.style).marginBottom).toBe(0);
+    expect(StyleSheet.flatten(frame().props.style).marginBottom).toBe(0);
     expect(StyleSheet.flatten(body().props.contentContainerStyle).paddingBottom).toBe(24 + 24);
   });
 
@@ -322,6 +323,6 @@ describe("tab-stack form sheets", () => {
         <SheetBody os="android">{null}</SheetBody>
       </NavigationContext.Provider>,
     );
-    expect(StyleSheet.flatten(screen.getByTestId("sheet-body").props.style).marginBottom).toBe(ANDROID_TAB_BAR + 5 + 24);
+    expect(StyleSheet.flatten(screen.getByTestId("sheet-frame").props.style).marginBottom).toBe(ANDROID_TAB_BAR + 5 + 24);
   });
 });

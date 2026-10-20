@@ -348,6 +348,8 @@ describe("Alamat", () => {
     expect(router.push).toHaveBeenCalledWith("/alamat-form?id=a-1");
     // An edit reads the book for the address's version first.
     fireEvent.changeText(await screen.findByLabelText("Jalan, nomor, detail"), "Jl. Baru No. 2");
+    // The primary action is pinned in the sheet's footer, not in the scrolling content.
+    expect(within(screen.getByTestId("sheet-footer")).getByRole("button", { name: "Simpan alamat" })).toBeTruthy();
     fireEvent.press(screen.getByRole("button", { name: "Simpan alamat" }));
     await waitFor(() =>
       expect(runtime.api.command).toHaveBeenCalledWith(

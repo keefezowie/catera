@@ -1,9 +1,10 @@
-import { Dimensions, Keyboard, ScrollView, StyleSheet } from "react-native";
+import { Dimensions, Keyboard, StyleSheet, View } from "react-native";
 import type { ReactNode } from "react";
-import { act, render, screen } from "@testing-library/react-native";
+import { act, render, screen, within } from "@testing-library/react-native";
 import { SafeAreaFrameContext, SafeAreaInsetsContext } from "react-native-safe-area-context";
 import { NavigationContext } from "expo-router/react-navigation";
-import { SheetBody, setWindowEdgeReference, sheetHiddenBelow } from "@catera/mobile-ui";
+import { Text } from "react-native";
+import { SheetBody, SheetFooter, setWindowEdgeReference, sheetHiddenBelow } from "@catera/mobile-ui";
 
 type Listener = (e?: { data?: { stable?: boolean } }) => void;
 
@@ -29,7 +30,7 @@ function fakeNavigation(stateType: "stack" | "tab" = "stack") {
 
 function mockMeasure(position: { top: number; height: number }) {
   return jest
-    .spyOn(ScrollView.prototype as unknown as { measureInWindow: () => void }, "measureInWindow")
+    .spyOn(View.prototype as unknown as { measureInWindow: () => void }, "measureInWindow")
     .mockImplementation(((cb: (x: number, y: number, w: number, h: number) => void) =>
       // The scroll view is as much shorter as the margin it was given, as on the phone.
       cb(0, position.top, 400, position.height - marginOf())) as never);
@@ -43,7 +44,7 @@ const inFrame = (f: ReturnType<typeof frame>, node: ReactNode) => (
   </SafeAreaFrameContext.Provider>
 );
 
-const marginOf = () => StyleSheet.flatten(screen.getByTestId("sheet-body").props.style).marginBottom ?? 0;
+const marginOf = () => StyleSheet.flatten(screen.getByTestId("sheet-frame").props.style).marginBottom ?? 0;
 const settle = (ms = 100) =>
   act(async () => {
     jest.advanceTimersByTime(ms);
@@ -69,14 +70,14 @@ describe("a form sheet's last button clears the gesture bar", () => {
     jest.useFakeTimers();
     const screenHeight = 914;
     const spy = jest
-      .spyOn(ScrollView.prototype as unknown as { measureInWindow: () => void }, "measureInWindow")
+      .spyOn(View.prototype as unknown as { measureInWindow: () => void }, "measureInWindow")
       .mockImplementation(((cb: (x: number, y: number, w: number, h: number) => void) =>
         cb(0, screenHeight - 600, 400, 800)) as never);
     render(inFrame(frame(411, screenHeight), <SheetBody os="android">{null}</SheetBody>));
     await act(async () => {
       jest.advanceTimersByTime(1000);
     });
-    const style = StyleSheet.flatten(screen.getByTestId("sheet-body").props.style);
+    const style = StyleSheet.flatten(screen.getByTestId("sheet-frame").props.style);
     expect(style.flex).toBe(1);
     expect(style.marginBottom).toBe(200);
     // The foot keeps the gesture bar's inset and 24 inside the scroll content.
@@ -87,7 +88,87 @@ describe("a form sheet's last button clears the gesture bar", () => {
 
   it("iOS bodies are never measured or shortened", () => {
     render(<SheetBody os="ios">{null}</SheetBody>);
-    expect(StyleSheet.flatten(screen.getByTestId("sheet-body").props.style).marginBottom ?? 0).toBe(0);
+    expect(StyleSheet.flatten(screen.getByTestId("sheet-frame").props.style).marginBottom ?? 0).toBe(0);
+  });
+
+  describe("a pinned footer", () => {
+    const FRAME = frame(411, 914);
+    const footerStyle = () => StyleSheet.flatten(screen.getByTestId("sheet-footer").props.style);
+    const keyboard: Record<string, (e?: unknown) => void> = {};
+    beforeEach(() => {
+      jest.useFakeTimers();
+      jest.spyOn(Keyboard, "addListener").mockImplementation(((event: string, cb: (e?: unknown) => void) => {
+        keyboard[event] = cb;
+        return { remove: () => undefined };
+      }) as never);
+    });
+    afterEach(() => {
+      jest.useRealTimers();
+      jest.restoreAllMocks();
+    });
+
+    it("sits outside the scroll view, after the content", () => {
+      render(inFrame(FRAME, <SheetBody os="android" footer={<Text>Kirim</Text>}><Text>isi</Text></SheetBody>));
+      expect(within(screen.getByTestId("sheet-body")).queryByText("Kirim")).toBeNull();
+      expect(within(screen.getByTestId("sheet-frame")).getByText("Kirim")).toBeTruthy();
+      const order = screen.getByTestId("sheet-frame").children.map((c) => (typeof c === "string" ? c : c.props.testID));
+      expect(order).toEqual(["sheet-body", "sheet-footer"]);
+    });
+
+    it("clears the gesture bar at the screen's edge, with the divider on top", () => {
+      render(inFrame(FRAME, <SheetBody os="android" footer={<Text>Kirim</Text>}>{null}</SheetBody>));
+      expect(footerStyle().paddingBottom).toBe(34 + 16);
+      expect(footerStyle().borderTopWidth).toBeGreaterThan(0);
+    });
+
+    it("is lifted by the measured hidden-below amount at the form detent", async () => {
+      mockMeasure({ top: FRAME.height - 600, height: 800 });
+      render(inFrame(FRAME, <SheetBody os="android" footer={<Text>Kirim</Text>}>{null}</SheetBody>));
+      await settle(1000);
+      // The frame ends 200 above where it was laid out, and the footer is its last child.
+      expect(marginOf()).toBe(200);
+      expect(within(screen.getByTestId("sheet-frame")).getByTestId("sheet-footer")).toBeTruthy();
+      expect(footerStyle().paddingBottom).toBe(34 + 16);
+    });
+
+    it("is lifted by the keyboard and the inset on Android, and drops the inset it no longer pays", async () => {
+      render(inFrame(FRAME, <SheetBody os="android" footer={<Text>Kirim</Text>}>{null}</SheetBody>));
+      await act(async () => {
+        keyboard.keyboardDidShow?.({ endCoordinates: { height: 420, screenY: 500 } });
+      });
+      expect(marginOf()).toBe(420 + 34);
+      expect(footerStyle().paddingBottom).toBe(16);
+      await act(async () => {
+        keyboard.keyboardDidHide?.();
+      });
+      expect(marginOf()).toBe(0);
+    });
+
+    it("rides on the keyboard on iOS, where the scroll view then insets nothing itself", async () => {
+      render(inFrame(FRAME, <SheetBody os="ios" footer={<Text>Kirim</Text>}>{null}</SheetBody>));
+      expect(screen.getByTestId("sheet-body").props.automaticallyAdjustKeyboardInsets).toBe(false);
+      expect(footerStyle().paddingBottom).toBe(34 + 16);
+      await act(async () => {
+        keyboard.keyboardDidShow?.({ endCoordinates: { height: 336, screenY: 578 } });
+      });
+      expect(marginOf()).toBe(336);
+      expect(footerStyle().paddingBottom).toBe(16);
+    });
+
+    it("a body without a footer keeps its scroll behaviour and draws none", () => {
+      render(inFrame(FRAME, <SheetBody os="ios">{null}</SheetBody>));
+      expect(screen.queryByTestId("sheet-footer")).toBeNull();
+      expect(screen.getByTestId("sheet-body").props.automaticallyAdjustKeyboardInsets).toBe(true);
+    });
+
+    it("SheetFooter pins what a nested component renders, and draws it in place outside a body", async () => {
+      const view = render(inFrame(FRAME, <SheetBody os="android"><SheetFooter><Text>Pindah</Text></SheetFooter></SheetBody>));
+      expect(within(screen.getByTestId("sheet-footer")).getByText("Pindah")).toBeTruthy();
+      expect(within(screen.getByTestId("sheet-body")).queryByText("Pindah")).toBeNull();
+      view.unmount();
+      render(<SheetFooter><Text>Pindah</Text></SheetFooter>);
+      expect(screen.getByText("Pindah")).toBeTruthy();
+    });
   });
 
   describe("the margin follows the sheet", () => {

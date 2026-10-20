@@ -635,6 +635,8 @@ describe("Ubah hari sheet", () => {
     expect(
       screen.getByText("Kami pesan tempat di hari baru dulu, baru Kamis 8 Okt dilepas. Dapur Contoh otomatis dapat kabar."),
     ).toBeTruthy();
+    // The primary action is pinned in the sheet's footer, not in the scrolling content.
+    expect(within(screen.getByTestId("sheet-footer")).getByRole("button", { name: "Pindah ke Senin 19 Okt" })).toBeTruthy();
     fireEvent.press(screen.getByRole("button", { name: "Pindah ke Senin 19 Okt" }));
     await waitFor(() =>
       expect(command).toHaveBeenCalledWith(
@@ -759,6 +761,8 @@ describe("Ubah hari sheet", () => {
     expect(screen.getByRole("button", { name: /Villa/ }).props.accessibilityState.disabled).toBe(true);
     fireEvent.press(screen.getByRole("button", { name: /Rumah/ }));
     expect(screen.getByText("Hanya untuk Kamis 8 Okt. Hari lain tetap ke Kantor.")).toBeTruthy();
+    // The primary action is pinned in the sheet's footer, not in the scrolling content.
+    expect(within(screen.getByTestId("sheet-footer")).getByRole("button", { name: "Antar ke Rumah" })).toBeTruthy();
     fireEvent.press(screen.getByRole("button", { name: "Antar ke Rumah" }));
     await waitFor(() =>
       expect(command).toHaveBeenCalledWith(

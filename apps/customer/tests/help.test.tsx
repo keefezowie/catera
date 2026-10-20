@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import { ActivityIndicator, Linking, StyleSheet } from "react-native";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
@@ -358,6 +358,8 @@ describe("Bantuan dan laporan", () => {
     // The form is a native sheet over the list, opened for this report.
     expect(router.push).toHaveBeenCalledWith("/bantuan-form?kind=review&issue=i-1");
     const send = await screen.findByRole("button", { name: "Kirim ke Catera" });
+    // The primary action is pinned in the sheet's footer, not in the scrolling content.
+    expect(within(screen.getByTestId("sheet-footer")).getByRole("button", { name: "Kirim ke Catera" })).toBeTruthy();
     expect(send.props.accessibilityState.disabled).toBe(true);
     fireEvent.changeText(screen.getByLabelText("Apa yang belum beres?"), "Makanan tetap tidak datang");
     fireEvent.press(screen.getByRole("button", { name: "Kirim ke Catera" }));
@@ -532,6 +534,8 @@ describe("Bantuan: Minta bantuan", () => {
     await screen.findByRole("tab", { name: "Pembatalan" });
     for (const topic of ["Pembatalan", "Pembayaran", "Lainnya"]) expect(screen.getByRole("tab", { name: topic })).toBeTruthy();
     fireEvent.press(screen.getByRole("tab", { name: "Pembatalan" }));
+    // The primary action is pinned in the sheet's footer, not in the scrolling content.
+    expect(within(screen.getByTestId("sheet-footer")).getByRole("button", { name: "Kirim permintaan" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Kirim permintaan" }).props.accessibilityState.disabled).toBe(true);
     fireEvent.changeText(screen.getByLabelText("Ceritakan masalahnya"), "Saya pindah kota, mohon dibatalkan");
     fireEvent.press(screen.getByRole("button", { name: "Kirim permintaan" }));
