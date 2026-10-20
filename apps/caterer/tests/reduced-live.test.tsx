@@ -1,7 +1,8 @@
 import { act, renderHook } from "@testing-library/react-native";
 import { AccessibilityInfo } from "react-native";
 import * as Reanimated from "react-native-reanimated";
-import { resetReducedMotionStore, useReduced } from "@catera/mobile-ui";
+import { useReduced } from "@catera/mobile-ui";
+import { __resetReducedMotionStoreForTests as resetReducedMotionStore } from "../../../packages/mobile-ui/src/motion/useReduced";
 
 let emit: (on: boolean) => void;
 let listeners: number;

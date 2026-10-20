@@ -649,6 +649,7 @@ function ActionCards({ items }: { items: SellerAttentionItem[] }) {
     <>
       {shown.map((item) => {
         const [id, en] = attentionLabels[item.kind]!;
+        const line = attentionContext(item, locale);
         // "/" is dapurLink's answer for "no Dapur screen for this": Hari ini is already where we are.
         const route = dapurLink(item.href);
         const link = route !== "/";
@@ -656,7 +657,7 @@ function ActionCards({ items }: { items: SellerAttentionItem[] }) {
           <Card tone="attention" style={link ? { flexDirection: "row", alignItems: "center" } : undefined}>
             <View testID={`attention-body-${item.id}`} style={{ flex: link ? 1 : undefined, gap: 10 }}>
               <Text style={{ fontFamily: fontFor("800") }}>{t(id, en)}</Text>
-              {attentionContext(item, locale) ? <Text variant="caption">{attentionContext(item, locale)}</Text> : null}
+              {line ? <Text variant="caption">{line}</Text> : null}
             </View>
             {link ? <Ionicons name="chevron-forward" size={18} color={c.muted} /> : null}
           </Card>

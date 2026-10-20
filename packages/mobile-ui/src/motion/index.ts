@@ -1,4 +1,4 @@
-export * from "./useReduced";
+export { useReduced } from "./useReduced";
 export * from "./useHaptic";
 export * from "./PressableScale";
 export * from "./FadeSwap";

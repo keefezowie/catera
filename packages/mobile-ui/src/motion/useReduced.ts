@@ -10,6 +10,7 @@ import { useReducedMotion } from "react-native-reanimated";
 let live: boolean | null = null;
 const subscribers = new Set<() => void>();
 let started = false;
+let subscription: { remove?: () => void } | undefined;
 
 function set(next: boolean) {
   if (live === next) return;
@@ -20,7 +21,7 @@ function set(next: boolean) {
 function start() {
   if (started) return;
   started = true;
-  AccessibilityInfo.addEventListener("reduceMotionChanged", set);
+  subscription = AccessibilityInfo.addEventListener("reduceMotionChanged", set);
   Promise.resolve(AccessibilityInfo.isReduceMotionEnabled?.())
     .then((on) => {
       // Only a "reduce" is taken from the read: "off" is what Reanimated already reported, and an event wins over a late read.
@@ -43,7 +44,9 @@ export function useReduced(): boolean {
 }
 
 /** Tests only: forget the live value and the listener so the next mount starts from scratch. */
-export function resetReducedMotionStore() {
+export function __resetReducedMotionStoreForTests() {
+  subscription?.remove?.();
+  subscription = undefined;
   live = null;
   started = false;
   subscribers.clear();
