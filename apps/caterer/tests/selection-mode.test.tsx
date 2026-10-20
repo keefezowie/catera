@@ -16,6 +16,12 @@ import { lastConfirm, resetSheets, SheetHost, type Opened } from "./sheet-host";
 
 jest.mock("expo-router", () => require("./sheet-host").routerModule);
 jest.mock("@catera/mobile-ui", () => require("./sheet-host").mobileUiModule());
+/** The phone the screen is drawn on; a test sets it. */
+let mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1 };
+jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
+  __esModule: true,
+  default: () => mockWindow,
+}));
 jest.mock("expo-print", () => ({ printAsync: jest.fn(async () => undefined) }));
 jest.mock("expo-image-picker", () => ({
   requestCameraPermissionsAsync: jest.fn(async () => ({ granted: true })),
@@ -42,6 +48,7 @@ jest.mock("../src/today/offline", () => ({
 const TODAY = "2026-10-08";
 const owner = { id: "u-1", role: "owner", name: "Bu Rina", catererId: "k-1" };
 beforeEach(() => {
+  mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1 };
   jest.useFakeTimers({
     now: new Date("2026-10-08T03:00:00Z"),
     doNotFake: [
@@ -470,3 +477,48 @@ describe("every awaiting command button is busy while it waits", () => {
 async function lastConfirmReady() {
   await waitFor(() => expect(confirmAsked()).toBe(true));
 }
+
+describe("narrow width and large text (360dp, font scale 1.3)", () => {
+  const phone = (width: number, fontScale: number) => {
+    mockWindow = { width, height: 760, scale: 3, fontScale };
+  };
+  const flat = (node: { props: { style?: unknown } }) => Object.assign({}, ...[node.props.style].flat(5).filter(Boolean));
+
+  async function openProof() {
+    const day = dayWith([out, out, cooking, waiting]);
+    renderToday(runtimeFor(() => day));
+    await pilih();
+    fireEvent.press(stopBox(/Bu Sari/));
+    fireEvent.press(stopBox(/Keluarga Hartono/));
+    fireEvent.press(screen.getByRole("button", { name: "Sampai (2)" }));
+    await screen.findByText("Foto bukti sampai");
+    return day;
+  }
+
+  it("the proof tile stacks its camera button under the names so no word is split", async () => {
+    phone(360, 1.3);
+    const day = await openProof();
+    const tile = screen.getByTestId(`proof-tile-${day.deliveries[0].id}`);
+    expect(flat(tile).flexDirection).toBe("column");
+  });
+
+  it("the proof tile stays a row at the default text size", async () => {
+    phone(411, 1);
+    const day = await openProof();
+    expect(flat(screen.getByTestId(`proof-tile-${day.deliveries[0].id}`)).flexDirection).toBe("row");
+  });
+
+  it("the Berangkat and Sampai buttons stack so Berangkat (n) stays on one line", async () => {
+    phone(360, 1.3);
+    renderToday(runtimeFor(() => dayWith([cooking, cooking, out, waiting])));
+    await pilih();
+    expect(flat(screen.getByTestId("selection-actions")).flexDirection).toBe("column");
+  });
+
+  it("the buttons share a row at the default text size", async () => {
+    phone(411, 1);
+    renderToday(runtimeFor(() => dayWith([cooking, cooking, out, waiting])));
+    await pilih();
+    expect(flat(screen.getByTestId("selection-actions")).flexDirection).toBe("row");
+  });
+});

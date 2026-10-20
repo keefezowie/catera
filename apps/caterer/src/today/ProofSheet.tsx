@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { View } from "react-native";
+import { useWindowDimensions, View } from "react-native";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -45,12 +45,15 @@ function Tile({
 }) {
   const { t } = useMobile();
   const c = useColors();
+  // At large text or on a narrow phone the button would squeeze the names into broken words: it goes under them.
+  const { width, fontScale } = useWindowDimensions();
+  const stacked = fontScale >= 1.2 || width < 340;
   return (
     <View
       testID={`proof-tile-${stop.deliveryId}`}
       style={{
-        flexDirection: "row",
-        alignItems: "center",
+        flexDirection: stacked ? "column" : "row",
+        alignItems: stacked ? "stretch" : "center",
         gap: 12,
         padding: 12,
         borderRadius: 12,
@@ -59,6 +62,7 @@ function Tile({
         backgroundColor: c.surface,
       }}
     >
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 12, flexShrink: 1, flex: stacked ? undefined : 1 }}>
       <View
         style={{
           width: 64,
@@ -82,7 +86,7 @@ function Tile({
           <Ionicons name="camera-outline" size={26} color={c.muted} />
         )}
       </View>
-      <View style={{ flex: 1, gap: 2 }}>
+      <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
         <Text style={{ fontFamily: fontFor("800") }}>{stop.name}</Text>
         <Text variant="caption">{t(`${stop.portions} porsi · ${stop.packageName}`, `${plural(stop.portions, "portion")} · ${stop.packageName}`)}</Text>
         {/* A missing photo is a to-do on the tile, in words: bold charcoal, never a danger caption. */}
@@ -93,6 +97,7 @@ function Tile({
               ? t("Foto siap", "Photo ready")
               : t("Belum ada foto", "No photo yet")}
         </Text>
+      </View>
       </View>
       <Button
         variant="secondary"

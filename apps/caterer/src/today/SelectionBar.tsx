@@ -1,4 +1,4 @@
-import { View } from "react-native";
+import { useWindowDimensions, View } from "react-native";
 import { router } from "expo-router";
 import { errorLabel, type KitchenSession, type SellerOperationsState } from "@catera/domain";
 import { useMobile, useTrack } from "@catera/mobile-core";
@@ -30,6 +30,7 @@ export function SelectionBar({
   onFailed: () => void;
 }) {
   const { t, locale, command } = useMobile();
+  const { width, fontScale } = useWindowDimensions();
   const track = useTrack();
   const haptic = useHaptic();
   const confirm = useConfirm();
@@ -76,21 +77,23 @@ export function SelectionBar({
     router.push(proofHref(arrive.map((s) => s.deliveryId), meal, date) as never);
   };
 
+  // Large text or a narrow phone: the buttons stack so "Berangkat (n)" keeps one line.
+  const stacked = fontScale >= 1.2 || width < 340;
   return (
     <View testID="selection-bar" style={{ gap: 8 }}>
       {selection.selected.size === 0 ? (
         <Text variant="caption">{t("Pilih pengantaran dulu.", "Select deliveries first.")}</Text>
       ) : null}
-      <View style={{ flexDirection: "row", gap: 8 }}>
+      <View testID="selection-actions" style={{ flexDirection: stacked ? "column" : "row", gap: 8 }}>
         <Button
-          style={{ flex: 1 }}
+          style={stacked ? undefined : { flex: 1 }}
           label={t(`Berangkat (${depart.length})`, `Leave (${depart.length})`)}
           disabled={!depart.length}
           busy={busy}
           onPress={() => void leave()}
         />
         <Button
-          style={{ flex: 1 }}
+          style={stacked ? undefined : { flex: 1 }}
           variant="secondary"
           label={t(`Sampai (${arrive.length})`, `Arrived (${arrive.length})`)}
           disabled={!arrive.length || busy}
