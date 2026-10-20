@@ -1,8 +1,8 @@
-import { useWindowDimensions, View } from "react-native";
+import { View } from "react-native";
 import { router } from "expo-router";
 import { errorLabel, type KitchenSession, type SellerOperationsState } from "@catera/domain";
 import { useMobile, useTrack } from "@catera/mobile-core";
-import { Button, Text, useBusy, useConfirm, useHaptic, useToast } from "@catera/mobile-ui";
+import { Button, Text, useBusy, useConfirm, useHaptic, useStackedLayout, useToast } from "@catera/mobile-ui";
 import { parkDay } from "./ExceptionSheet";
 import { proofHref } from "./ProofSheet";
 import { selectedFor, type Selection } from "./selection";
@@ -30,7 +30,6 @@ export function SelectionBar({
   onFailed: () => void;
 }) {
   const { t, locale, command } = useMobile();
-  const { width, fontScale } = useWindowDimensions();
   const track = useTrack();
   const haptic = useHaptic();
   const confirm = useConfirm();
@@ -78,7 +77,7 @@ export function SelectionBar({
   };
 
   // Large text or a narrow phone: the buttons stack so "Berangkat (n)" keeps one line.
-  const stacked = fontScale >= 1.2 || width < 340;
+  const stacked = useStackedLayout(340);
   return (
     <View testID="selection-bar" style={{ gap: 8 }}>
       {selection.selected.size === 0 ? (

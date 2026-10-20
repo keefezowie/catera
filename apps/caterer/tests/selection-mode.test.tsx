@@ -502,7 +502,13 @@ describe("narrow width and large text (360dp, font scale 1.3)", () => {
     expect(flat(tile).flexDirection).toBe("column");
   });
 
-  it("the proof tile stays a row at the default text size", async () => {
+  it.each([[360, 1.15], [360, 1], [320, 1]])("the proof tile stacks at %idp, font scale %f", async (w, f) => {
+    phone(w, f);
+    const day = await openProof();
+    expect(flat(screen.getByTestId(`proof-tile-${day.deliveries[0].id}`)).flexDirection).toBe("column");
+  });
+
+  it("the proof tile is a row on a wide phone at the default text size", async () => {
     phone(411, 1);
     const day = await openProof();
     expect(flat(screen.getByTestId(`proof-tile-${day.deliveries[0].id}`)).flexDirection).toBe("row");
@@ -515,8 +521,15 @@ describe("narrow width and large text (360dp, font scale 1.3)", () => {
     expect(flat(screen.getByTestId("selection-actions")).flexDirection).toBe("column");
   });
 
-  it("the buttons share a row at the default text size", async () => {
-    phone(411, 1);
+  it.each([[360, 1.15], [411, 1.3], [320, 1]])("the buttons stack at %idp, font scale %f", async (w, f) => {
+    phone(w, f);
+    renderToday(runtimeFor(() => dayWith([cooking, cooking, out, waiting])));
+    await pilih();
+    expect(flat(screen.getByTestId("selection-actions")).flexDirection).toBe("column");
+  });
+
+  it.each([[360, 1], [411, 1.2]])("the buttons share a row at %idp, font scale %f", async (w, f) => {
+    phone(w, f);
     renderToday(runtimeFor(() => dayWith([cooking, cooking, out, waiting])));
     await pilih();
     expect(flat(screen.getByTestId("selection-actions")).flexDirection).toBe("row");

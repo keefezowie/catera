@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useWindowDimensions, View } from "react-native";
+import { View } from "react-native";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -15,6 +15,7 @@ import {
   Text,
   useBusy,
   useColors,
+  useStackedLayout,
   useToast,
 } from "@catera/mobile-ui";
 import { Frame, takeParkedDay } from "./ExceptionSheet";
@@ -46,8 +47,7 @@ function Tile({
   const { t } = useMobile();
   const c = useColors();
   // At large text or on a narrow phone the button would squeeze the names into broken words: it goes under them.
-  const { width, fontScale } = useWindowDimensions();
-  const stacked = fontScale >= 1.2 || width < 340;
+  const stacked = useStackedLayout(400);
   return (
     <View
       testID={`proof-tile-${stop.deliveryId}`}
@@ -63,41 +63,41 @@ function Tile({
       }}
     >
       <View style={{ flexDirection: "row", alignItems: "center", gap: 12, flexShrink: 1, flex: stacked ? undefined : 1 }}>
-      <View
-        style={{
-          width: 64,
-          height: 64,
-          borderRadius: 10,
-          overflow: "hidden",
-          backgroundColor: c.sage,
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        {photo ? (
-          <Image
-            testID={`proof-photo-${stop.deliveryId}`}
-            source={{ uri: photo.uri }}
-            contentFit="cover"
-            style={{ width: 64, height: 64 }}
-            accessibilityLabel={`${t("Foto bukti", "Proof photo")}: ${stop.name}`}
-          />
-        ) : (
-          <Ionicons name="camera-outline" size={26} color={c.muted} />
-        )}
-      </View>
-      <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-        <Text style={{ fontFamily: fontFor("800") }}>{stop.name}</Text>
-        <Text variant="caption">{t(`${stop.portions} porsi · ${stop.packageName}`, `${plural(stop.portions, "portion")} · ${stop.packageName}`)}</Text>
-        {/* A missing photo is a to-do on the tile, in words: bold charcoal, never a danger caption. */}
-        <Text testID={`proof-state-${stop.deliveryId}`} variant="caption" style={{ color: c.charcoal, fontFamily: fontFor("700") }}>
-          {failed
-            ? t("Foto belum terkirim", "Photo not sent")
-            : photo
-              ? t("Foto siap", "Photo ready")
-              : t("Belum ada foto", "No photo yet")}
-        </Text>
-      </View>
+        <View
+          style={{
+            width: 64,
+            height: 64,
+            borderRadius: 10,
+            overflow: "hidden",
+            backgroundColor: c.sage,
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          {photo ? (
+            <Image
+              testID={`proof-photo-${stop.deliveryId}`}
+              source={{ uri: photo.uri }}
+              contentFit="cover"
+              style={{ width: 64, height: 64 }}
+              accessibilityLabel={`${t("Foto bukti", "Proof photo")}: ${stop.name}`}
+            />
+          ) : (
+            <Ionicons name="camera-outline" size={26} color={c.muted} />
+          )}
+        </View>
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text style={{ fontFamily: fontFor("800") }}>{stop.name}</Text>
+          <Text variant="caption">{t(`${stop.portions} porsi · ${stop.packageName}`, `${plural(stop.portions, "portion")} · ${stop.packageName}`)}</Text>
+          {/* A missing photo is a to-do on the tile, in words: bold charcoal, never a danger caption. */}
+          <Text testID={`proof-state-${stop.deliveryId}`} variant="caption" style={{ color: c.charcoal, fontFamily: fontFor("700") }}>
+            {failed
+              ? t("Foto belum terkirim", "Photo not sent")
+              : photo
+                ? t("Foto siap", "Photo ready")
+                : t("Belum ada foto", "No photo yet")}
+          </Text>
+        </View>
       </View>
       <Button
         variant="secondary"
