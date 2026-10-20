@@ -569,6 +569,52 @@ describe("Beli / Perpanjang", () => {
     expect(router.push).not.toHaveBeenCalledWith("/pembelian/alamat");
   });
 
+  it("falls back to a remaining address when the chosen one is removed in Kelola alamat", async () => {
+    const rt = server();
+    function Remove() {
+      const { useMobile } = require("@catera/mobile-core") as typeof import("@catera/mobile-core");
+      const { command } = useMobile();
+      return (
+        <ReactNative.Pressable accessibilityRole="button" accessibilityLabel="hapus-rumah" onPress={() => void command("address.delete", { addressId: "a-2" })}>
+          <ReactNative.Text>x</ReactNative.Text>
+        </ReactNative.Pressable>
+      );
+    }
+    wrap(rt, withChoices(<><BuyScreen packageId="p-rumahan" /><Remove /></>));
+    await bayarReady();
+    fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" }));
+    fireEvent.press(within(await screen.findByTestId("choice-sheet")).getByRole("radio", { name: /Rumah/ }));
+    expect(await screen.findByText(/^Diantar ke Rumah/)).toBeTruthy();
+    // Rumah is removed; the next read of the customer no longer lists it.
+    (rt.api.customer as jest.Mock).mockImplementation(async () => ({ subscriptions: [current], deliveries: [], addresses: [kantor], notifications: [], cases: [] }));
+    fireEvent.press(screen.getByRole("button", { name: "hapus-rumah" }));
+    expect(await screen.findByText(/^Diantar ke Kantor/)).toBeTruthy();
+    expect(screen.queryByText("Belum ada alamat pengantaran.")).toBeNull();
+    await bayarReady();
+  });
+
+  it("shows the empty address state when the chosen address was the last one removed", async () => {
+    const rt = server();
+    function Remove() {
+      const { useMobile } = require("@catera/mobile-core") as typeof import("@catera/mobile-core");
+      const { command } = useMobile();
+      return (
+        <ReactNative.Pressable accessibilityRole="button" accessibilityLabel="hapus" onPress={() => void command("address.delete", {})}>
+          <ReactNative.Text>x</ReactNative.Text>
+        </ReactNative.Pressable>
+      );
+    }
+    wrap(rt, withChoices(<><BuyScreen packageId="p-rumahan" /><Remove /></>));
+    await bayarReady();
+    fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" }));
+    fireEvent.press(within(await screen.findByTestId("choice-sheet")).getByRole("radio", { name: /Rumah/ }));
+    expect(await screen.findByText(/^Diantar ke Rumah/)).toBeTruthy();
+    (rt.api.customer as jest.Mock).mockImplementation(async () => ({ subscriptions: [current], deliveries: [], addresses: [], notifications: [], cases: [] }));
+    fireEvent.press(screen.getByRole("button", { name: "hapus" }));
+    expect(await screen.findByText(/Belum ada alamat pengantaran/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Bayar" })).toBeDisabled();
+  });
+
   it("cycle options give a selection haptic", async () => {
     wrap(server(), <BuyScreen packageId="p-rumahan" />);
     await bayarReady();

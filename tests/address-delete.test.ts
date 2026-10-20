@@ -286,3 +286,38 @@ it("the stayed line names the deadline whenever a kitchen missed it, also beside
     "3 deliveries stay at the old address until 20 Oct. Hijau Kitchen does not deliver to the new address, and some deliveries are past the change deadline.",
   );
 });
+
+it("the kitchen's customer read never carries an archived address", async () => {
+  const user = await customer();
+  const home = await address(user, "Rumah");
+  const office = await address(user, "Kantor");
+  await buy(user, P[0], home);
+  const record = async () =>
+    (await read("seller-customers", { id: K[0], search: "Sintetis" }, U.owner)).customers.find((c: any) => c.user_id === user);
+  expect((await record()).address.id).toBe(home);
+  await cmd("address.replace", { fromAddressId: home, toAddressId: office }, user);
+  expect(await listed(user)).toEqual([office]);
+  const detail = await read("seller-customers", { id: K[0], customerRecordId: (await record()).id }, U.owner);
+  expect(detail.customers[0].address).toMatchObject({ id: office, label: "Kantor" });
+  expect((await record()).address.id).toBe(office);
+  // With no live address left the read answers an empty address, not the archived one.
+  await q("update v1.delivery_days set status='cancelled' where address->>'id'=$1", [office]);
+  await cmd("address.delete", { addressId: office }, user);
+  expect((await record()).address).toEqual({});
+});
+
+it("a kitchen never reads an address the customer used only with another kitchen", async () => {
+  const user = await customer();
+  const home = await address(user, "Rumah");
+  const office = await address(user, "Kantor");
+  await buy(user, P[0], home);
+  await buy(user, P[1], office);
+  await q("update v1.delivery_days set status='cancelled' where address->>'id'=$1", [home]);
+  await cmd("address.delete", { addressId: home }, user);
+  for (const reader of [U.owner, U.staff]) {
+    const rows = (await read("seller-customers", { id: K[0], search: "Sintetis" }, reader)).customers.filter((c: any) => c.user_id === user);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].address).toEqual({});
+    expect(JSON.stringify(rows)).not.toContain(office);
+  }
+});

@@ -356,9 +356,9 @@ export function ChangeDaySheet({
             <SheetFooter>
               {error ? <FormError message={error} failureKey={failures} /> : null}
               <Button
-                label={addressId ? t(`Antar ke ${label}`, `Deliver to ${label}`) : t("Pilih alamat", "Choose an address")}
+                label={chosen ? t(`Antar ke ${label}`, `Deliver to ${label}`) : t("Pilih alamat", "Choose an address")}
                 busy={sending}
-                disabled={!addressId}
+                disabled={!chosen}
                 onPress={() => void sendAddress()}
               />
             </SheetFooter>

@@ -164,6 +164,18 @@ it("asks to turn on payments before the first renewal", async () => {
   expect(runtime.api.command).not.toHaveBeenCalled();
 });
 
+it("lists the live address under Alamat antar and no card when the customer has none left", async () => {
+  const live = { id: "a-kantor", label: "Kantor", line: "Jl. Kantor 5", area: "Tebet" };
+  const first = wrap(runtimeWith("approved", true, [customer("c-01", "Andre Kusuma", [sub(2)], { user_id: "u-a", address: live })]), <CustomerDetail id="c-01" />);
+  expect(await screen.findByText("Alamat antar")).toBeTruthy();
+  expect(screen.getByText("Jl. Kantor 5, Tebet")).toBeTruthy();
+  first.unmount();
+  // The server answers an empty address once every address was removed.
+  wrap(runtimeWith("approved", true, [customer("c-01", "Andre Kusuma", [sub(2)], { user_id: "u-a", address: {} as never })]), <CustomerDetail id="c-01" />);
+  expect(await screen.findByText("Kirim tautan perpanjang")).toBeTruthy();
+  expect(screen.queryByText("Alamat antar")).toBeNull();
+});
+
 describe("Pelanggan mood header", () => {
   const MALAM = () => new Date("2026-10-08T08:00:00Z");
   const flat = (node: { props: { style?: unknown } }) => (StyleSheet.flatten(node.props.style as never) ?? {}) as Record<string, unknown>;

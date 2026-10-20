@@ -114,11 +114,13 @@ export function CustomerDetail({ id, title }: { id: string; title?: string }) {
         {c.phone ? (
           <Button variant="secondary" label={t("Chat WhatsApp", "WhatsApp chat")} onPress={() => void Linking.openURL(whatsappUrl("", c.phone!))} />
         ) : null}
-        <Card>
-          <Text variant="label">{t("Alamat antar", "Delivery address")}</Text>
-          <Text>{[c.address.line, c.address.area].filter(Boolean).join(", ")}</Text>
-          {c.address.instructions ? <Text variant="caption">{c.address.instructions}</Text> : null}
-        </Card>
+        {c.address.line || c.address.area ? (
+          <Card>
+            <Text variant="label">{t("Alamat antar", "Delivery address")}</Text>
+            <Text>{[c.address.line, c.address.area].filter(Boolean).join(", ")}</Text>
+            {c.address.instructions ? <Text variant="caption">{c.address.instructions}</Text> : null}
+          </Card>
+        ) : null}
         {shown
           .filter((s) => s.deliveries.length)
           .map((s) => (

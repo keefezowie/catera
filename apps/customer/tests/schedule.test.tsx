@@ -773,6 +773,20 @@ describe("Ubah hari sheet", () => {
     );
   });
 
+  it("goes back to a disabled Pilih alamat when the chosen address is removed from the list", async () => {
+    const runtime = runtimeWith(stateOf([flexible]), available);
+    const view = renderWith(runtime, <ChangeDaySheet delivery={flexible} addresses={[home, rumah, jauh]} mode="address" onClose={jest.fn()} />);
+    fireEvent.press(await screen.findByRole("button", { name: /Rumah/ }));
+    expect(screen.getByRole("button", { name: "Antar ke Rumah" })).toBeEnabled();
+    view.rerender(
+      <MobileProvider runtime={runtime} linkMapper={customerLink}>
+        <ChangeDaySheet delivery={flexible} addresses={[home, jauh]} mode="address" onClose={jest.fn()} />
+      </MobileProvider>,
+    );
+    const button = await screen.findByRole("button", { name: "Pilih alamat" });
+    expect(button.props.accessibilityState.disabled).toBe(true);
+  });
+
   it("scrolls the address list with the native sheet's own body, never a scroller inside it", async () => {
     renderSheet(flexible, runtimeWith(stateOf([flexible]), available));
     fireEvent.press(await screen.findByRole("tab", { name: "Ganti alamat" }));

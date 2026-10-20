@@ -95,7 +95,10 @@ export function BuyScreen({
 
   const offer = renew ? ctx?.offers.find((o) => o.id === ctx.packageId) : (loaded.data?.offer ?? undefined);
   const addresses = customer.data?.addresses ?? [];
-  const chosenId = addressId ?? (renew ? ctx?.addressId : null) ?? addresses[0]?.id ?? null;
+  // A choice made here counts only while the customer still has that address: one removed in Kelola alamat falls back
+  // to the screen's own first pick.
+  const kept = addressId && addresses.some((a) => a.id === addressId) ? addressId : null;
+  const chosenId = kept ?? (renew ? ctx?.addressId : null) ?? addresses[0]?.id ?? null;
   const address =
     addresses.find((a) => a.id === chosenId) ?? (ctx?.address?.id === chosenId ? ctx?.address : undefined);
   const current = customer.data?.subscriptions.find((s) => s.id === renewFrom);
