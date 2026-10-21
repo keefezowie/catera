@@ -94,15 +94,14 @@ function useKeyboard(): { up: boolean; height: number } {
 /**
  * How much of an Android form sheet's bottom the tab bar draws over: in a tab's stack the bottom sheet sits inside the
  * tab host, under the Material 3 navigation bar (80dp, `ANDROID_TAB_BAR`) and the system inset it pays. iOS presents
- * every sheet above the tab bar, a root-stack sheet has no bar under it, and while the keyboard is up it covers the bar:
- * then 0. react-native-screens 4.26 gives JS no reading of the bar's laid-out height, so this is the bar's Material
+ * every sheet above the tab bar, a root-stack sheet has no bar under it, and react-native-screens 4.26 gives JS no reading of the bar's laid-out height, so this is the bar's Material
  * height, grown with the font scale's label line (`androidTabBarHeight`), plus the inset measured on the phone.
  */
-function useTabBarOverSheet(os: string | undefined, keyboardUp: boolean): number {
+function useTabBarOverSheet(os: string | undefined): number {
   const insets = useSafeAreaInsets();
   const navigation = useScreenNavigation();
   const { fontScale } = useWindowDimensions();
-  if (os === "ios" || keyboardUp || !insideTabs(navigation as Parameters<typeof insideTabs>[0])) return 0;
+  if (os === "ios" || !insideTabs(navigation as Parameters<typeof insideTabs>[0])) return 0;
   return androidTabBarHeight(fontScale) + insets.bottom;
 }
 
@@ -277,7 +276,9 @@ export function SheetBody({
   const palette = useColors();
   const ios = os === "ios";
   const { up, height: keyboard } = useKeyboard();
-  const bar = useTabBarOverSheet(os, up);
+  const tabBar = useTabBarOverSheet(os);
+  // While the keyboard is up it covers the bar, so the frame no longer gives it room as a margin ...
+  const bar = up ? 0 : tabBar;
   const frame = useRef<View>(null);
   const [slot, setSlot] = useState<ReactNode>(null);
   const pinned = footer ?? slot;
@@ -287,11 +288,14 @@ export function SheetBody({
   // Inside the tabs the bar's share is 0 only while the keyboard is up, and the sheet is not a root one then.
   // The reported height stops at the navigation bar (ime.bottom minus the system bars) while the sheet reaches the
   // window bottom, so the bar's inset is added to end at the keyboard's top.
-  const keyboardLift = os === "android" && keyboard > 0 ? keyboard + insets.bottom : 0;
+  // A tab-stack sheet's parent already ends above the bar (measured on the phone: with the keyboard up the frame stopped
+  // exactly one bar above the keyboard), so the bar's share is part of the distance to the keyboard's top: it is taken off.
+  const keyboardLift = os === "android" && keyboard > 0 ? Math.max(0, keyboard + insets.bottom - tabBar) : 0;
   // The frame holds the scroll view and the footer, so both are lifted by what is measured.
   const [footerHeight, setFooterHeight] = useState(SHEET_FOOTER_GUESS);
   const scroller = useRef<ScrollView>(null);
   const footerSeen = useRef<{ inline: boolean; h: number } | null>(null);
+  const bodyHeight = useRef(0);
   const { below, short } = useSheetHiddenBelow(
     os === "android" && !insideTabs(navigation as Parameters<typeof insideTabs>[0]),
     frame,
@@ -311,19 +315,20 @@ export function SheetBody({
     <View
       testID="sheet-footer"
       onLayout={(e) => {
-        const h = e.nativeEvent.layout.height;
+        const { y, height: h } = e.nativeEvent.layout;
         if (!(h > 0)) return;
         if (!inline) setFooterHeight((was) => (was === h ? was : h));
-        // Inline, a footer that grows (an error above the action) is scrolled into view.
+        // Inline, a footer that grows (an error above the action) is scrolled to: its top, where the error sits, goes to the
+        // top of the body, or, when the body is taller than the footer, the whole footer is brought in at the bottom.
         const was = footerSeen.current;
         footerSeen.current = { inline, h };
-        if (inline && was?.inline && was.h !== h) scroller.current?.scrollToEnd({ animated: true });
+        if (inline && was?.inline && was.h !== h) scroller.current?.scrollTo({ y: Math.max(0, bodyHeight.current > h ? y + h - bodyHeight.current : y), animated: true });
       }}
       style={{
         paddingHorizontal: sheetSidePadding(os),
         paddingTop: 12,
         // The tab bar and the keyboard already clear the system inset; the screen's edge does not, so the footer pays it there.
-        paddingBottom: (bar > 0 || keyboardLift > 0 || iosLift > 0 ? 0 : insets.bottom) + 16,
+        paddingBottom: (bar > 0 || (os === "android" && keyboard > 0) || iosLift > 0 ? 0 : insets.bottom) + 16,
         gap: 12,
         borderTopWidth: StyleSheet.hairlineWidth,
         borderTopColor: palette.line,
@@ -343,6 +348,9 @@ export function SheetBody({
           ref={scroller}
           testID="sheet-body"
           style={{ flex: 1 }}
+          onLayout={(e) => {
+            bodyHeight.current = e.nativeEvent.layout.height;
+          }}
           automaticallyAdjustKeyboardInsets={ios && !hasFooter}
           keyboardShouldPersistTaps="handled"
           // Android: a drag on the form scrolls it, rather than dragging the bottom sheet.

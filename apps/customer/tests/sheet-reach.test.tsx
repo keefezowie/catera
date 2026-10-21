@@ -44,6 +44,8 @@ const inFrame = (f: ReturnType<typeof frame>, node: ReactNode) => (
   </SafeAreaFrameContext.Provider>
 );
 
+/** The tab bar at the test window's font scale (80 plus a 16 label line) and the 34 inset the tests give. */
+const TAB_BAR = 96 + 34;
 const marginOf = () => StyleSheet.flatten(screen.getByTestId("sheet-frame").props.style).marginBottom ?? 0;
 const settle = (ms = 100) =>
   act(async () => {
@@ -496,9 +498,10 @@ describe("a form sheet's last button clears the gesture bar", () => {
       expect(marginOf()).toBe(454);
     });
 
-    it("an inline footer that grows (a submit error) is scrolled into view", async () => {
+    it("an inline footer that grows (a submit error) is scrolled so its top, where the error sits, is at the top of the body", async () => {
       mockMeasure({ top: bodyTop(), height: 800 });
       const keyboard = kbMock();
+      const scrollTo = jest.fn();
       const scrollToEnd = jest.fn();
       render(inFrame(FRAME, <SheetBody os="android" footer={<Text>Kirim</Text>}>{null}</SheetBody>));
       await settle(1000);
@@ -509,13 +512,23 @@ describe("a form sheet's last button clears the gesture bar", () => {
       const body = screen.getByTestId("sheet-body");
       expect(within(body).getByText("Kirim")).toBeTruthy();
       const footer = screen.getByTestId("sheet-footer");
-      // The ref the component holds is the scroll view's instance: stand in for its method.
-      jest.spyOn(require("react-native").ScrollView.prototype, "scrollToEnd").mockImplementation(scrollToEnd);
-      const fire = (h: number) => fireEvent(footer, "layout", { nativeEvent: { layout: { x: 0, y: 0, width: 400, height: h } } });
-      fire(80);
+      // The ref the component holds is the scroll view's instance: stand in for its methods.
+      const proto = require("react-native").ScrollView.prototype;
+      jest.spyOn(proto, "scrollTo").mockImplementation(scrollTo);
+      jest.spyOn(proto, "scrollToEnd").mockImplementation(scrollToEnd);
+      // The body is 200 tall: shorter than the grown footer (260), so the footer's top is the target.
+      fireEvent(body, "layout", { nativeEvent: { layout: { x: 0, y: 0, width: 400, height: 200 } } });
+      const fire = (y: number, h: number) =>
+        fireEvent(footer, "layout", { nativeEvent: { layout: { x: 0, y, width: 400, height: h } } });
+      fire(400, 80);
+      expect(scrollTo).not.toHaveBeenCalled();
+      fire(400, 260);
+      expect(scrollTo).toHaveBeenLastCalledWith({ y: 400, animated: true });
       expect(scrollToEnd).not.toHaveBeenCalled();
-      fire(120);
-      expect(scrollToEnd).toHaveBeenCalled();
+      // A body taller than the footer shows the whole footer, not a scroll past its top.
+      fireEvent(body, "layout", { nativeEvent: { layout: { x: 0, y: 0, width: 400, height: 300 } } });
+      fire(400, 120);
+      expect(scrollTo).toHaveBeenLastCalledWith({ y: 400 + 120 - 300, animated: true });
     });
 
     it("a tab-stack sheet with too little room above the keyboard keeps its action inside the scroll view", async () => {
@@ -532,7 +545,7 @@ describe("a form sheet's last button clears the gesture bar", () => {
         keyboard.keyboardDidShow?.(shown);
       });
       await settle(1000);
-      expect(marginOf()).toBe(454);
+      expect(marginOf()).toBe(454 - TAB_BAR);
       expect(within(screen.getByTestId("sheet-body")).getByText("Balas")).toBeTruthy();
       await act(async () => {
         keyboard.keyboardDidHide?.();
@@ -556,12 +569,12 @@ describe("a form sheet's last button clears the gesture bar", () => {
       await act(async () => {
         keyboard.keyboardDidShow?.({ endCoordinates: { height: 300, screenY: 600 } });
       });
-      expect(marginOf()).toBe(300 + 34);
+      // The tab sheet's parent already ends above the bar (96 plus the 34 inset): the lift is the keyboard's less the bar.
+      expect(marginOf()).toBe(300 + 34 - TAB_BAR);
       await act(async () => {
         keyboard.keyboardDidHide?.();
       });
-      expect(marginOf()).toBeGreaterThan(0);
-      expect(marginOf()).not.toBe(300 + 34);
+      expect(marginOf()).toBe(TAB_BAR);
     });
   });
 });
