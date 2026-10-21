@@ -529,6 +529,26 @@ describe("Jadwal", () => {
     expect(StyleSheet.flatten(screen.getByRole("button", { name: /Makan Siang Rumahan/ }).props.style).opacity).toBe(0.7);
   });
 
+  it("shows Ditandai sampai on the row of a meal Dapur marked arrived, and keeps Gagal diantar for a failed one", async () => {
+    const meal = (status: string) => ({ meal: "lunch", status, departed_at: "2026-10-06T03:00:00Z", arrived_at: "2026-10-06T03:20:00Z" });
+    const marked = stateOf([delivery("d-marked", "2026-10-06", {}, { meals: [meal("out_for_delivery")] })]);
+    renderWith(runtimeWith(marked), <Jadwal />);
+    await gridReady();
+    fireEvent.press(dayButton("Selasa 6 Oktober"));
+    expect(within(screen.getByRole("button", { name: /Makan Siang Rumahan/ })).getByText(/Ditandai sampai/)).toBeTruthy();
+  });
+
+  it("keeps Gagal diantar on the row of a failed meal that carries arrived stamps", async () => {
+    const meal = { meal: "lunch", status: "issue", departed_at: "2026-10-06T03:00:00Z", arrived_at: "2026-10-06T03:20:00Z" };
+    const failedRow = stateOf([delivery("d-failed2", "2026-10-06", {}, { meals: [meal] })]);
+    renderWith(runtimeWith(failedRow), <Jadwal />);
+    await gridReady();
+    fireEvent.press(dayButton("Selasa 6 Oktober"));
+    const row = screen.getByRole("button", { name: /Makan Siang Rumahan/ });
+    expect(within(row).getByText(/Gagal diantar/)).toBeTruthy();
+    expect(within(row).queryByText(/Ditandai sampai/)).toBeNull();
+  });
+
   it("says a meal the caterer could not deliver was not delivered, and marks no coverage", async () => {
     const failed = stateOf([delivery("d-failed", "2026-10-06", { status: "issue" })]);
     renderWith(runtimeWith(failed), <Jadwal />);

@@ -101,8 +101,8 @@ function CountCard({ ops, session }: { ops: SellerOperationsState; session: Kitc
   const caption = (
     <Text testID="session-count-caption" variant="caption" style={{ color: palette.heroMeta }}>
       {meal === "lunch"
-        ? t(`porsi siang · ${addresses} alamat`, `lunch portions · ${addresses} addresses`)
-        : t(`porsi malam · ${addresses} alamat`, `dinner portions · ${addresses} addresses`)}
+        ? t(`porsi siang · ${addresses} alamat`, `lunch portions · ${plural(addresses, "address", "addresses")}`)
+        : t(`porsi malam · ${addresses} alamat`, `dinner portions · ${plural(addresses, "address", "addresses")}`)}
     </Text>
   );
   return (

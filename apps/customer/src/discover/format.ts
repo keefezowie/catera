@@ -1,4 +1,5 @@
 import type { Locale, Offer } from "@catera/domain";
+import { plural } from "@catera/mobile-core";
 
 /** The catalog may one day carry a distance; until it does, cards simply leave it out. */
 export type CatalogOffer = Offer & { distanceKm?: number | null };
@@ -40,6 +41,6 @@ export function ratingText(offer: Offer, locale: Locale, t: (id: string, en: str
   const rating = offer.rating.toFixed(1);
   return t(
     `${locale === "en" ? rating : rating.replace(".", ",")} dari ${offer.reviewCount} ulasan`,
-    `${rating} from ${offer.reviewCount} reviews`,
+    `${rating} from ${plural(offer.reviewCount, "review")}`,
   );
 }

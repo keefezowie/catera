@@ -5,8 +5,10 @@ import { router } from "expo-router";
 import {
   calendarDays,
   jakartaDay,
+  mealJourney,
   mealLabel,
   MEALS,
+  statusLabel,
   windowStartMinutes,
   type CustomerState,
   type Delivery,
@@ -202,7 +204,7 @@ function SignedInJadwal() {
             {day.length ? (
               <Card style={{ padding: 4, gap: 0 }}>
                 {day.map(({ d, m }, i) => (
-                  <MealRow key={`${d.id}:${m.meal}`} delivery={d} meal={m.meal} status={m.status} first={i === 0} apiBase={runtime.apiBase} />
+                  <MealRow key={`${d.id}:${m.meal}`} delivery={d} meal={m.meal} status={m.status} marked={mealJourney(m).stage === "arrived"} first={i === 0} apiBase={runtime.apiBase} />
                 ))}
               </Card>
             ) : (
@@ -219,12 +221,15 @@ function MealRow({
   delivery: d,
   meal,
   status,
+  marked,
   first,
   apiBase,
 }: {
   delivery: Delivery;
   meal: "lunch" | "dinner";
   status: string;
+  /** The caterer marked it arrived and the customer has not confirmed: the same rule as the day screen. */
+  marked: boolean;
   first: boolean;
   apiBase: string;
 }) {
@@ -235,9 +240,11 @@ function MealRow({
   const state =
     status === "delivered"
       ? t("Sudah sampai", "Arrived")
-      : failed(status)
-        ? t("Gagal diantar", "Not delivered")
-        : "";
+      : marked
+        ? statusLabel("arrived", locale)
+        : failed(status)
+          ? t("Gagal diantar", "Not delivered")
+          : "";
   const sub = [mealLabel(meal, locale), d.offer.windows?.[meal], state].filter(Boolean).join(" · ");
   return (
     <PressableRow

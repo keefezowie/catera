@@ -141,7 +141,7 @@ export function ProofSheet({ ids, meal, date }: { ids: string[]; meal: KitchenMe
     closed.current = true;
     router.back();
     toast.show({
-      message: t(`${stops.length} pengantaran ditandai sampai`, `${stops.length} deliveries marked as arrived`),
+      message: t(`${stops.length} pengantaran ditandai sampai`, `${plural(stops.length, "delivery", "deliveries")} marked as arrived`),
       tone: "success",
     });
   }, [saved, stops.length, toast, t]);

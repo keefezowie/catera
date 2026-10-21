@@ -156,3 +156,27 @@ describe("push copy migration", () => {
     expect(database).toContain("20261014130000_push_copy.sql");
   });
 });
+
+describe("English counts pluralise", () => {
+  // Indonesian has no plural, so only the English side matters: a bare `${n} noun-s` is wrong when n is 1.
+  // Counts that are only reached for 3 or more (a day list after the 1 and 2 cases, a route cut at its limit) stay.
+  const REACHED_ONLY_ABOVE_ONE = [
+    "Menus for ${days.length} days saved",
+    "Choose menus for ${dates.length} days",
+    "first ${route.count} addresses",
+    "${MAX_IMAGES} photos",
+    "${notSent.length} photos were not sent",
+    "${plates.length} deliveries.",
+    "plates.length > 1",
+    "Package not chosen",
+    "${mealWordEn} packages",
+    "${subscription.portions} portions",
+  ];
+  test("no bare count before a plural noun", () => {
+    const bare = scan(
+      /`[^`]*\$\{[^}]+\} (addresses|deliveries|photos|rows|reviews|portions|days|customers|packages|meals|items)\b[^`]*`/,
+      (f) => f.startsWith("apps/"),
+    ).filter((h) => !/plural\(|=== 1/.test(h.text) && !REACHED_ONLY_ABOVE_ONE.some((ok) => h.text.includes(ok)));
+    expect(names(bare)).toEqual([]);
+  });
+});

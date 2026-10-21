@@ -194,7 +194,7 @@ export function ImportAssistant() {
         }
       }
       setRows((current) => current?.map((r) => (flagged.has(r.n) ? { ...r, needsReview: true, reason: flagged.get(r.n)! } : r)) ?? null);
-      setError(flagged.size ? t(`${flagged.size} baris perlu dicek sebelum disimpan.`, `${flagged.size} rows need checking before saving.`) : message(fail(e)));
+      setError(flagged.size ? t(`${flagged.size} baris perlu dicek sebelum disimpan.`, `${plural(flagged.size, "row")} ${flagged.size === 1 ? "needs" : "need"} checking before saving.`) : message(fail(e)));
     } finally {
       savingRef.current = false;
       setBusy("");
