@@ -1016,6 +1016,22 @@ describe("Hari: Ada masalah", () => {
     expect(screen.queryByText(/Sedang diantar/)).toBeNull();
   });
 
+  it("keeps Gagal diantar for a failed meal even when it has departed and arrived stamps", async () => {
+    await show(
+      delivery("d-today", "2026-10-07", {}, {
+        meals: [
+          {
+            meal: "lunch",
+            status: "issue",
+            departed_at: "2026-10-07T03:00:00Z",
+            arrived_at: "2026-10-07T03:20:00Z",
+          },
+        ],
+      }),
+    );
+    expect(screen.getByText(/Gagal diantar/)).toBeTruthy();
+  });
+
   it("still says on the way for a meal that left and was not marked arrived", async () => {
     await show(delivery("d-today", "2026-10-07", { status: "out_for_delivery" }));
     expect(screen.getByText(/Sedang diantar/)).toBeTruthy();

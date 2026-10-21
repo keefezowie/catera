@@ -29,14 +29,14 @@ import {
 } from "./fixtures";
 import { goOffline, keptLine } from "./offline";
 
-/** Rows that carry an href open through openLink; its tab handling is covered in navigation.test, so here it opens the
- * path the way a push does. */
 /** The phone the screen is drawn on; a test sets it to try another width or text size. */
 let mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1 };
 jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
   __esModule: true,
   default: () => mockWindow,
 }));
+/** Rows that carry an href open through openLink; its tab handling is covered in navigation.test, so here it opens the
+ * path the way a push does. */
 jest.mock("../src/nav", () => ({
   ...jest.requireActual("../src/nav"),
   openLink: (path: string) => require("expo-router").router.push(path),
@@ -373,7 +373,8 @@ describe("Perlu kamu urus", () => {
     }
   });
 
-  it("keeps the action beside the text on a wide phone at the default text size", async () => {
+  it("keeps the action beside the text on a 360dp phone at the default text size", async () => {
+    mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1 };
     mount(demo().runtime);
     const list = within(await screen.findByTestId("waiting-list"));
     for (const row of list.getAllByTestId("waiting-row"))

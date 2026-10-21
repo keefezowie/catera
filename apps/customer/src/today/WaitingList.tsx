@@ -99,7 +99,7 @@ export function WaitingList({
   const styles = useStyles();
   const track = useTrack();
   // Large text or a narrow phone: the action word drops under the text so the package name keeps whole-word lines.
-  const stacked = useStackedLayout(400);
+  const stacked = useStackedLayout(340);
   // A row leaves after its action (a menu chosen, a plan renewed, a review given) and the rest move up. Rows never
   // enter on their own, and the saved offline copy never animates (Decision A).
   const motion = useRowMotion();
@@ -199,10 +199,10 @@ export function WaitingList({
     }
   }
 
-  /* forest: action (the row's action word) */
   const action = (row: Row) => (
     <Text
       testID="waiting-action"
+      /* forest: action (the row's action word) */
       style={[styles.action, { color: row.urgent ? c.charcoal : c.forest }, stacked && { marginTop: 4 }]}
     >
       {row.action}
@@ -225,7 +225,7 @@ export function WaitingList({
               <View style={styles.icon}>
                 <Ionicons name={row.icon} size={18} color={c.forest} />
               </View>
-              <View testID="waiting-text" style={{ flex: 1, flexShrink: 1, gap: 2 }}>
+              <View testID="waiting-text" style={{ flex: 1, gap: 2 }}>
                 <Text testID="waiting-title" style={styles.title}>
                   {row.title}
                 </Text>
