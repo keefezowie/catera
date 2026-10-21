@@ -25,13 +25,13 @@ jest.mock("expo-secure-store", () => {
 });
 // expo-crypto's native module is absent under Jest; Node's UUID is equivalent here.
 // expo-image draws through a native view. The stand-in is a host View that keeps every prop, so a test reads the
-// `source`, `transition` and style it was given; `prefetch` is a spy for the mascot warm-up.
+// `source`, `transition` and style it was given; `loadAsync` is a spy for the mascot warm-up.
 jest.mock("expo-image", () => {
   const { createElement } = require("react");
   const { View } = require("react-native");
   const Image = (props) => createElement(View, props);
   Image.displayName = "ExpoImage";
-  Image.prefetch = jest.fn(() => Promise.resolve(true));
+  Image.loadAsync = jest.fn((source) => Promise.resolve({ __ref: source }));
   return { Image };
 });
 jest.mock("expo-crypto", () => ({ randomUUID: () => require("node:crypto").randomUUID() }));

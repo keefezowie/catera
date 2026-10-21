@@ -33,6 +33,7 @@ jest.mock("expo-image", () => {
   const { View } = require("react-native");
   const Image = (props: Record<string, unknown>) => createElement(View, props);
   Image.displayName = "ExpoImage";
+  Image.loadAsync = jest.fn(() => Promise.resolve({}));
   return { Image };
 });
 jest.mock("expo-image-manipulator", () => ({ ImageManipulator: { manipulate: jest.fn() }, SaveFormat: { JPEG: "jpeg" } }));

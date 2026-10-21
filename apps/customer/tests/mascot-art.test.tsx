@@ -91,32 +91,32 @@ describe("MascotArt", () => {
         canvas: height,
         canvasWidth: width,
       });
-      expect(screen.getByTestId("mascot-art-image", hidden).props.contentFit).toBe("contain");
+      expect(screen.getByTestId("mascot-art-image", hidden).props.contentFit).toBe("fill");
       expect(sourceOf("mascot-art-image")).toContain(`phase-f/runtime/mascot-${pose}.png`);
     },
   );
 
-  it("cross-dissolves the still in, and draws it at once under reduced motion", () => {
+  it("draws at once on mount, dissolves only when the pose changes, and never under reduced motion", () => {
     const view = render(<MascotArt pose="tidur" size={120} />);
-    const transition = screen.getByTestId("mascot-art-image", hidden).props.transition;
-    expect(transition).toBeGreaterThan(0);
-    expect(transition).toBeLessThanOrEqual(300);
+    expect(screen.getByTestId("mascot-art-image", hidden).props.transition).toBe(0);
+    view.rerender(<MascotArt pose="membaca" size={120} />);
+    expect(screen.getByTestId("mascot-art-image", hidden).props.transition).toBe(200);
     view.unmount();
     jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
-    render(<MascotArt pose="tidur" size={120} />);
+    const reduced = render(<MascotArt pose="tidur" size={120} />);
+    reduced.rerender(<MascotArt pose="membaca" size={120} />);
     expect(screen.getByTestId("mascot-art-image", hidden).props.transition).toBe(0);
   });
 
-  it("warms every runtime still once, on the first mount, so a pose swap never cold-decodes", () => {
+  it("loads every runtime still once through expo-image, then draws from the ref", async () => {
     const { Image } = require("expo-image");
-    // Jest's asset transform has no uri; a device resolves each require to one.
-    jest.spyOn(ReactNative.Image, "resolveAssetSource").mockImplementation((m: never) => ({ uri: `asset://${JSON.stringify(m)}` }) as never);
     __resetMascotWarmForTests();
     const view = render(<MascotArt pose="tidur" size={120} />);
+    await act(async () => {});
     view.rerender(<MascotArt pose="membaca" size={120} />);
     render(<MascotArt pose="bingung" size={120} />);
-    expect(Image.prefetch).toHaveBeenCalledTimes(1);
-    expect(Image.prefetch.mock.calls[0][0]).toHaveLength(mascotPoses.length);
+    expect(Image.loadAsync).toHaveBeenCalledTimes(mascotPoses.length);
+    expect(screen.getAllByTestId("mascot-art-image", hidden)[0].props.source.__ref).toBeDefined();
   });
 
   it("draws the same file in the dark theme", async () => {

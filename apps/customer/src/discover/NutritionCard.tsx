@@ -59,8 +59,10 @@ const VALUE_EM = 0.6;
 const LABEL_EM = 0.55;
 const LABEL_SIZE = 12;
 const GAP = 8;
-/** The screen width less the page and card padding: a 360dp screen gives the 288dp row. */
-const ROW_INSET = 72;
+/** screenBody's maxWidth (components.tsx), the widest the page column gets. */
+const PAGE_MAX_WIDTH = 760;
+/** screenBody padding 20 + 20, card padding 16 + 16 and the card's 1dp borders: a 360dp screen gives a 286dp row. */
+const ROW_INSET = 74;
 /** Value sizes: the heading step on iOS, one step down for ranges that need it, and Android's compact value. */
 const IOS_VALUE = 21;
 const IOS_RANGE_VALUE = 17;
@@ -78,9 +80,9 @@ export function NutritionCard({ offer, os = process.env.EXPO_OS }: { offer: Offe
   const styles = useStyles();
   const { fontScale, width: screenWidth } = useWindowDimensions();
   const [measured, setMeasured] = useState(0);
-  // Before the first layout event the row is estimated from the screen (page and card padding off), so the first
+  // Before the first layout event the row is estimated from the screen (page and card padding off, the page column capped), so the first
   // frame already has the right column count; the measured width replaces it.
-  const width = measured || Math.max(0, screenWidth - ROW_INSET);
+  const width = measured || Math.max(0, Math.min(screenWidth, PAGE_MAX_WIDTH) - ROW_INSET);
   const metrics = filledMetrics(offer, locale);
   if (!metrics.length) return null;
   const ios = os === "ios";

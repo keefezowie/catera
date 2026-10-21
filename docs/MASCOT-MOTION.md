@@ -41,7 +41,7 @@ Both native apps draw the mascot from `packages/mobile-ui` (`src/brand/` and `sr
 | Piece | File | What it does |
 | --- | --- | --- |
 | `MascotLoading` | `brand/MascotLoading.tsx` | The waiting loop with a task line. Default size 140. `startup` fills the theme canvas and sets the line in the system font. |
-| `MascotArt` | `brand/MascotArt.tsx` | One of seven stills (`merayakan`, `membaca`, `tidur`, `bingung`, `melambai`, `mencari`, `memasak`) at one optical size: visible height equals `size`, frame width follows the pose. Static. |
+| `MascotArt` | `brand/MascotArt.tsx` | One of seven stills (`merayakan`, `membaca`, `tidur`, `bingung`, `melambai`, `mencari`, `memasak`) at one optical size: visible height equals `size`, frame width follows the pose. Drawn by expo-image from refs warmed once per session (`Image.loadAsync`), so a state swap shows a decoded image. A mount draws at once; a pose change on a mounted art cross-dissolves over `nativeMotion.control` (200 ms), instant under reduced motion. |
 | `StateArt` | `brand/StateArt.tsx` | A still above an empty or error title, sized by `stateArtSize`. `held` keeps its box with the mascot invisible. |
 | `SuccessRig` | `brand/SuccessRig.tsx` | The seven-layer success rig, played once. |
 | `SuccessBeat` | `SuccessBeat.tsx` | The rig in front of a code-drawn disc (`SuccessRing`), a five-sparkle burst (`Sparkle`), the facts, the haptic and optional confetti. |

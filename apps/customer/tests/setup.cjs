@@ -18,13 +18,13 @@ jest.mock("react-native-reanimated", () => {
 jest.mock("react-native-qrcode-svg", () => ({ __esModule: true, default: () => null }));
 jest.mock("react-native-safe-area-context", () => require("react-native-safe-area-context/jest/mock").default);
 // expo-image draws through a native view. The stand-in is a host View that keeps every prop, so a test reads the
-// `source`, `transition` and style it was given; `prefetch` is a spy for the mascot warm-up.
+// `source`, `transition` and style it was given; `loadAsync` is a spy for the mascot warm-up.
 jest.mock("expo-image", () => {
   const { createElement } = require("react");
   const { View } = require("react-native");
   const Image = (props) => createElement(View, props);
   Image.displayName = "ExpoImage";
-  Image.prefetch = jest.fn(() => Promise.resolve(true));
+  Image.loadAsync = jest.fn((source) => Promise.resolve({ __ref: source }));
   return { Image };
 });
 jest.mock("expo-haptics", () => ({

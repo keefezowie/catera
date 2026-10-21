@@ -27,7 +27,7 @@ export * from "./CheckRow";
 export * from "./StopRow";
 export * from "./StickyAction";
 export * from "./HeroPager";
-export * from "./brand/MascotArt";
+export { MascotArt, mascotArtFrame, type MascotPose } from "./brand/MascotArt";
 export * from "./brand/StateArt";
 export * from "./brand/SuccessRig";
 export * from "./brand/MascotReading";
