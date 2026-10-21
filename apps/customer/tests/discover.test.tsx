@@ -18,6 +18,12 @@ import { AreaSheet } from "../src/discover/area";
 import { offer } from "./fixtures";
 import { SheetHost } from "./sheetHost";
 
+// Passes through; lets a test count how often the page reads the committed mood (once per render of a reader).
+jest.mock("@catera/mobile-ui", () => {
+  const actual = jest.requireActual("@catera/mobile-ui");
+  return { ...actual, useMood: jest.fn(actual.useMood) };
+});
+
 let mockParams: Record<string, string> = {};
 jest.mock("expo-router", () => ({
   router: { push: jest.fn(), replace: jest.fn(), back: jest.fn(), canGoBack: jest.fn(() => true) },
@@ -609,6 +615,31 @@ describe("Jelajah mood header", () => {
       await gate;
     });
     expect(title()).toBe("Makan malam\nminggu depan?");
+  });
+
+  it("an arc press while Jelajah is mounted renders the page once, in the transition", async () => {
+    const mobileUi = jest.requireMock("@catera/mobile-ui") as { useMood: jest.Mock; MoodArc: typeof import("@catera/mobile-ui").MoodArc };
+    jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("light");
+    const ends = {
+      siang: { title: "Siang", detail: "11.00", label: "Makan siang" },
+      malam: { title: "Malam", detail: "17.00", label: "Makan malam" },
+    };
+    render(
+      <ThemeProvider storageKey="jelajah-render-test">
+        <MoodProvider now={SIANG_NOW}>
+          <mobileUi.MoodArc {...ends} />
+          <MobileProvider runtime={runtimeWith()} linkMapper={customerLink}>
+            <Jelajah />
+          </MobileProvider>
+        </MoodProvider>
+      </ThemeProvider>,
+    );
+    await screen.findByText("Menu Sehat Premium");
+    await act(async () => undefined);
+    // Jelajah's committed-mood readers: the page and its title.
+    mobileUi.useMood.mockClear();
+    fireEvent.press(screen.getByRole("tab", { name: "Makan malam, 17.00" }));
+    expect(mobileUi.useMood.mock.calls.length).toBe(2);
   });
 
   it("keeps a combined package under the Malam tab", async () => {

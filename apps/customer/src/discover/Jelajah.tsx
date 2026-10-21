@@ -56,15 +56,17 @@ function JelajahTitle() {
 function MealButton({
   label,
   icon,
-  selected,
+  value,
   onPress,
 }: {
   label: string;
   icon: "sunny" | "moon";
-  selected: boolean;
+  value: "siang" | "malam";
   onPress: () => void;
 }) {
   const palette = useMoodColors();
+  // Read here, not in the page: the tab answers the press in the urgent pass without re-rendering the list.
+  const selected = useMoodIntent() === value;
   const ink = selected ? palette.toggleActive : palette.headerMeta;
   return (
     <PressableScale
@@ -109,7 +111,6 @@ function Browse({ area, onArea }: { area: string | null; onArea: (value: string)
   const c = useColors();
   const palette = useMoodColors();
   const { mood, setMood } = useMood();
-  const asked = useMoodIntent();
   // The meal buttons are the mood toggle, so the list always follows the mood, wherever it was changed.
   const meal = mood === "siang" ? "lunch" : "dinner";
   const styles = useStyles();
@@ -219,8 +220,8 @@ function Browse({ area, onArea }: { area: string | null; onArea: (value: string)
           title={<JelajahTitle />}
         >
           <View accessibilityRole="tablist" accessibilityLabel={t("Waktu makan", "Meal time")} style={{ flexDirection: "row", gap: 10 }}>
-            <MealButton label={t("Siang", "Lunch")} icon="sunny" selected={asked === "siang"} onPress={() => setMood("siang")} />
-            <MealButton label={t("Malam", "Dinner")} icon="moon" selected={asked === "malam"} onPress={() => setMood("malam")} />
+            <MealButton label={t("Siang", "Lunch")} icon="sunny" value="siang" onPress={() => setMood("siang")} />
+            <MealButton label={t("Malam", "Dinner")} icon="moon" value="malam" onPress={() => setMood("malam")} />
           </View>
           <View
             style={{
