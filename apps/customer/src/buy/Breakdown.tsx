@@ -147,6 +147,7 @@ export function renewalLine(
   startDate: string,
   currentEnd: string | null | undefined,
   blockingEnd: string | null | undefined,
+  blockingName: string | null | undefined,
   weekdays: number[],
   today: string,
   locale: Locale,
@@ -158,6 +159,9 @@ export function renewalLine(
     return t(`Mulai ${label}, tepat setelah paket sekarang`, `Starts ${label}, right after your current package`);
   }
   const end = shortDate(named, locale);
+  if (blockingName && named === blockingEnd) {
+    return t(`Mulai ${label}. ${blockingName} masih berjalan sampai ${end}.`, `Starts ${label}. ${blockingName} is still running until ${end}.`);
+  }
   return t(
     `Mulai ${label}. Paket ini masih berjalan sampai ${end}.`,
     `Starts ${label}. This package is still running until ${end}.`,
@@ -173,6 +177,7 @@ export function StartLine({
   renew,
   currentEnd,
   blockingEnd,
+  blockingName,
   today,
   quote,
   dimmed,
@@ -185,8 +190,10 @@ export function StartLine({
   renew: boolean;
   /** The last day of the package being renewed. */
   currentEnd?: string | null;
-  /** The latest end, before the start, of the customer's plans of this package. */
+  /** The latest end, before the start, of the customer's plans at this caterer. */
   blockingEnd?: string | null;
+  /** The name of the blocking plan when it is another package of the same caterer. */
+  blockingName?: string | null;
   /** Today in Jakarta (YYYY-MM-DD). */
   today: string;
   quote: Quote | null;
@@ -206,7 +213,7 @@ export function StartLine({
         {!startDate
           ? t("Belum ada tanggal yang bisa dipesan.", "No bookable date yet.")
           : renew
-            ? renewalLine(label, startDate, currentEnd, blockingEnd, weekdays, today, locale, t)
+            ? renewalLine(label, startDate, currentEnd, blockingEnd, blockingName, weekdays, today, locale, t)
             : label}
       </Text>
       {quote && last ? (

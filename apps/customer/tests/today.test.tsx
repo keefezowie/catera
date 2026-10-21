@@ -188,7 +188,7 @@ it("says a meal the caterer could not deliver is not coming, with chat and a rep
       customerState({ status: "issue", departed_at: `${TODAY}T03:42:00Z` }, { catererPhone: "+6281200000001" }),
     ),
   );
-  expect(await screen.findByText("Tidak bisa diantar hari ini")).toBeTruthy();
+  expect((await screen.findAllByText("Gagal diantar")).length).toBeGreaterThan(0);
   expect(screen.queryByRole("button", { name: "Sudah sampai" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Belum" })).toBeNull();
   // The plate's own chat, the only one on Beranda.
@@ -740,7 +740,7 @@ describe("Beranda mood", () => {
 
     it.each([
       [{ status: "out_for_delivery" }, "Sedang diantar"],
-      [{ status: "issue" }, "Tidak bisa diantar hari ini"],
+      [{ status: "issue" }, "Gagal diantar"],
     ])("says %j in the row too", async (lunch, sentence) => {
       mount(runtimeWith(async () => earlyLunch(lunch)), { now: MALAM_NOW });
       await screen.findByTestId("plate-hero");
@@ -1269,7 +1269,7 @@ describe("Beranda mood", () => {
     ] as const)("shows the warning stop and Gagal diantar for a %s plate, next to its message", async (_name, meal, step) => {
       mount(runtimeWith(async () => lunchToday(meal as unknown as Partial<DeliveryMeal>)));
       const h = await hero();
-      expect(h.getByText("Tidak bisa diantar hari ini")).toBeTruthy();
+      expect(h.getAllByText("Gagal diantar")).toHaveLength(2);
       expect(within(h.getByTestId("rantang-track")).getByText("Gagal diantar")).toBeTruthy();
       expect(h.getByTestId("rantang-track").props.accessibilityLabel).toBe(`Pesanan: Gagal diantar, langkah ${step} dari 4`);
       expect(screen.queryByTestId("rantang-track-stop-3-warn", { includeHiddenElements: true })).not.toBeNull();

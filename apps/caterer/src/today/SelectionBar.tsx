@@ -42,13 +42,13 @@ export function SelectionBar({
   const [busy, leave] = useBusy(async (again?: string[]) => {
     if (!again && !depart.length) return;
     const go = !!again || await confirm({
-      title: t(`Berangkat dengan ${depart.length} pengantaran?`, `Leave with ${depart.length} ${depart.length === 1 ? "delivery" : "deliveries"}?`),
+      title: t(`Berangkat dengan ${depart.length} pengantaran?`, `Head out with ${depart.length} ${depart.length === 1 ? "delivery" : "deliveries"}?`),
       message: t(
         "Pelanggan yang memakai aplikasi Catera dapat notifikasi saat kamu berangkat.",
         "Customers using the Catera app get a notification when you head out.",
       ),
       cancelLabel: t("Batal", "Cancel"),
-      confirmLabel: t("Berangkat", "Leave"),
+      confirmLabel: t("Berangkat", "Head out"),
       icon: "rantang",
     });
     if (!go) return;
@@ -86,7 +86,7 @@ export function SelectionBar({
       <View testID="selection-actions" style={{ flexDirection: stacked ? "column" : "row", gap: 8 }}>
         <Button
           style={stacked ? undefined : { flex: 1 }}
-          label={t(`Berangkat (${depart.length})`, `Leave (${depart.length})`)}
+          label={t(`Berangkat (${depart.length})`, `Head out (${depart.length})`)}
           disabled={!depart.length}
           busy={busy}
           onPress={() => void leave()}

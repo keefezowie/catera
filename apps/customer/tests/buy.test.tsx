@@ -361,6 +361,32 @@ describe("Beli / Perpanjang", () => {
     expect(await screen.findByText("Mulai Selasa 10 Nov. Paket ini masih berjalan sampai Senin 9 Nov.")).toBeTruthy();
   });
 
+  it("names a plan of another package at the same caterer when its end decides the start", async () => {
+    const dua = subscription({
+      id: "s-8",
+      package_id: "p-dua-pekan",
+      ends_on: "2026-11-20",
+      snapshot: { offer: offer({ id: "p-dua-pekan", name: "Rumah Rasa Dua Pekan" }), total: 150000 } as unknown as Quote,
+    });
+    const runtime = server({ context: { startDate: "2026-11-23" }, subscriptions: [current, dua] });
+    wrap(runtime, <BuyScreen renewFrom="s-1" />);
+    expect(await screen.findByText("Mulai Senin 23 Nov. Rumah Rasa Dua Pekan masih berjalan sampai Jumat 20 Nov.")).toBeTruthy();
+    expect(screen.queryByText(/Paket ini masih berjalan/)).toBeNull();
+  });
+
+  it("ignores plans of another caterer when naming the blocking plan", async () => {
+    const other = subscription({
+      id: "s-7",
+      package_id: "p-lain",
+      ends_on: "2026-11-20",
+      snapshot: { offer: offer({ id: "p-lain", catererId: "k-2", name: "Paket Lain" }), total: 150000 } as unknown as Quote,
+    });
+    const runtime = server({ context: { startDate: "2026-10-20" }, subscriptions: [current, other] });
+    wrap(runtime, <BuyScreen renewFrom="s-1" />);
+    expect(await screen.findByText("Mulai Selasa 20 Okt. Paket ini masih berjalan sampai Jumat 16 Okt.")).toBeTruthy();
+    expect(screen.queryByText(/Paket Lain/)).toBeNull();
+  });
+
   it("renewing a plan that already ended never says it is still running", async () => {
     const ended = subscription({ id: "s-1", package_id: "p-rumahan", status: "completed", starts_on: "2026-09-14", ends_on: "2026-10-05", remaining: 0 });
     const runtime = server({ context: { startDate: "2026-10-08" }, subscriptions: [ended] });

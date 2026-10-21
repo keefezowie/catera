@@ -535,7 +535,7 @@ describe("Jadwal", () => {
     await gridReady();
     fireEvent.press(dayButton("Selasa 6 Oktober"));
     const row = screen.getByRole("button", { name: /Makan Siang Rumahan/ });
-    expect(within(row).getByText(/Tidak bisa diantar/)).toBeTruthy();
+    expect(within(row).getByText(/Gagal diantar/)).toBeTruthy();
     // The day looks like a day without deliveries: no coverage in its label, no photo, dashed outline or dot.
     // It was just picked: the state says so, and the label says nothing about a meal.
     expect(dayButton("Selasa 6 Oktober").props.accessibilityLabel).toBe("Selasa 6 Oktober");

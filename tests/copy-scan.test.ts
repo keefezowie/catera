@@ -109,6 +109,13 @@ describe("native copy glossary", () => {
     const generic = scan(/Belum berhasil\. Coba lagi\./);
     expect(generic.length).toBeLessThanOrEqual(2);
   });
+  test("a failed delivery reads \"Gagal diantar\" everywhere", () => {
+    expect(names(scan(/Tidak bisa diantar|Couldn't be delivered/))).toEqual([]);
+  });
+  test("English Dapur copy uses the English button names, not the Indonesian ones", () => {
+    // The English side of each pair: Sampai is "Arrived", Berangkat is "Head out".
+    expect(names(scan(/Mark (it )?Sampai|Mark Berangkat|Leave/, (f) => f.startsWith("apps/caterer/")))).toEqual([]);
+  });
   test("calques are gone", () => {
     expect(names(scan(/Leave to deliver|Try retyping/))).toEqual([]);
   });

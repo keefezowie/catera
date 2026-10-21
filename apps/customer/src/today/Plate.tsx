@@ -106,7 +106,7 @@ export const sentences = (p: PlateData, t: (id: string, en: string) => string): 
       return [first, at ? t(`pukul ${at}`, `at ${at}`) : ""];
     }
     case "failed":
-      return [t("Tidak bisa diantar hari ini", "Couldn't be delivered today"), ""];
+      return [t("Gagal diantar", "Not delivered"), ""];
     case "reported": {
       const status = p.issue?.status;
       return [

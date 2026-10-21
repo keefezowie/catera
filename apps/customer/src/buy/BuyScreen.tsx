@@ -109,15 +109,24 @@ export function BuyScreen({
       (initial.startDate && offer && purchaseStartAvailable(offer, initial.startDate, now) ? initial.startDate : null) ??
       choices[0] ??
       null);
-  // The plans of this package that end before a renewal starts: the latest one is what the start waits for.
-  const blockingEnd =
+  // The caterer's plans that end before a renewal starts: the server counts every plan at the same caterer, so the latest
+  // end among them is what the start waits for. A plan of another package is named; the renewed package is "this package".
+  const catererOf = (s: { snapshot?: { offer?: { catererId?: string } } | null }) => s.snapshot?.offer?.catererId;
+  const blocking =
     renew && startDate && current
-      ? ((customer.data?.subscriptions ?? [])
-          .filter((s) => s.package_id === current.package_id && s.status !== "cancelled" && s.ends_on < startDate)
-          .map((s) => s.ends_on)
-          .sort()
-          .pop() ?? null)
+      ? (customer.data?.subscriptions ?? [])
+          .filter(
+            (s) =>
+              s.status !== "cancelled" &&
+              s.ends_on < startDate &&
+              (catererOf(current) ? catererOf(s) === catererOf(current) : s.package_id === current.package_id),
+          )
+          .sort((x, y) => (x.ends_on < y.ends_on ? -1 : x.ends_on > y.ends_on ? 1 : x.id === current.id ? 1 : -1))
+          .pop() ?? null
       : null;
+  const blockingEnd = blocking?.ends_on ?? null;
+  const blockingName =
+    blocking && blocking.package_id !== current?.package_id ? (blocking.snapshot?.offer?.name ?? null) : null;
   const qty = portions ?? (renew ? ctx?.portions : null) ?? 1;
   const maxQty = trial ? offer?.trialMax || 100 : 100;
   const lengths = offer ? durationOptions(offer) : [];
@@ -278,6 +287,7 @@ export function BuyScreen({
           renew={renew}
           currentEnd={current?.ends_on ?? null}
           blockingEnd={blockingEnd}
+          blockingName={blockingName}
           today={jakartaDay(now)}
           quote={shown}
           dimmed={quote.pending}

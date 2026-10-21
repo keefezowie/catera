@@ -218,7 +218,7 @@ export function DeliveryOrder({
             <Text variant="caption">
               {t(
                 "Tandai Sampai dengan foto bukti. Pelanggan lalu mengonfirmasi, dan tanpa laporan pengantaran ditandai sampai otomatis.",
-                "Mark Sampai with a proof photo. The customer then confirms, and with no report the delivery is marked as arrived automatically.",
+                "Mark Arrived with a proof photo. The customer then confirms, and with no report the delivery is marked as arrived automatically.",
               )}
             </Text>
           ) : null}

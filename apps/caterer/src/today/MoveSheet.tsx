@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import { router } from "expo-router";
-import { errorLabel, jakartaDay, kitchenSession, monthOf, type DeliveryAvailability, type KitchenMeal } from "@catera/domain";
+import { errorLabel, jakartaDay, kitchenSession, monthOf, shortDate, type DeliveryAvailability, type KitchenMeal } from "@catera/domain";
 import { useData, useMobile, plural } from "@catera/mobile-core";
 import {
   CalendarSheet,
@@ -137,7 +137,6 @@ export function MoveSheet({ id, meal, date }: { id: string; meal: KitchenMeal; d
     );
   }
 
-  const sheetDate = (d: string) => new Intl.DateTimeFormat(locale === "en" ? "en-GB" : "id-ID", { day: "numeric", month: "long", timeZone: "UTC" }).format(new Date(`${d}T00:00:00Z`));
   return (
     <CalendarSheet
       month={monthOf(date)}
@@ -147,7 +146,7 @@ export function MoveSheet({ id, meal, date }: { id: string; meal: KitchenMeal; d
       context={context ? `${title} · ${context}` : title}
       note={t("Pelanggan yang memakai aplikasi diberi tahu.", "Customers who use the app get notified.")}
       onPick={() => undefined}
-      confirmLabel={(d) => t(`Pindah ke ${sheetDate(d)}`, `Move to ${sheetDate(d)}`)}
+      confirmLabel={(d) => t(`Pindah ke ${shortDate(d, locale)}`, `Move to ${shortDate(d, locale)}`)}
       staff
       confirmDisabled={reason.trim().length < MIN_REASON}
       extra={

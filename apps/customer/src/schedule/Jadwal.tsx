@@ -236,7 +236,7 @@ function MealRow({
     status === "delivered"
       ? t("Sudah sampai", "Arrived")
       : failed(status)
-        ? t("Tidak bisa diantar", "Couldn't be delivered")
+        ? t("Gagal diantar", "Not delivered")
         : "";
   const sub = [mealLabel(meal, locale), d.offer.windows?.[meal], state].filter(Boolean).join(" · ");
   return (

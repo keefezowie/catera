@@ -498,7 +498,7 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
             <Text testID="day-kept" variant="caption">
               {t(
                 "Ini data terakhir yang tersimpan. Mulai masak dan Berangkat kembali setelah data diperbarui.",
-                "This is the last data saved. Start cooking and Leave come back once the data is refreshed.",
+                "This is the last data saved. The Start cooking and Head out buttons come back once the data is refreshed.",
               )}
             </Text>
           ) : null}

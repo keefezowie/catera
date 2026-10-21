@@ -311,9 +311,9 @@ describe("Pindah tanggal: the calendar", () => {
     fireEvent.press(screen.getByTestId("calendar-day-2026-10-14"));
     expect(within(screen.getByTestId("calendar-caption")).getByText(/Dapur libur/)).toBeTruthy();
     fireEvent.press(screen.getByTestId("calendar-day-2026-10-12"));
-    const move = () => screen.getByRole("button", { name: /^Pindah ke 12/ });
+    const move = () => screen.getByRole("button", { name: "Pindah ke Senin 12 Okt" });
     // "Pindah ke …" is pinned in the sheet's footer, not in the scrolling content.
-    expect(within(screen.getByTestId("sheet-footer")).getByRole("button", { name: /^Pindah ke 12/ })).toBeTruthy();
+    expect(within(screen.getByTestId("sheet-footer")).getByRole("button", { name: "Pindah ke Senin 12 Okt" })).toBeTruthy();
     expect(move().props.accessibilityState.disabled).toBe(true);
     fireEvent.changeText(screen.getByLabelText("Alasan"), "Dapur tutup sehari");
     expect(move().props.accessibilityState.disabled).toBe(false);
