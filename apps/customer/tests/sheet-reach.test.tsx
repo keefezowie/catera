@@ -1,4 +1,4 @@
-import { Dimensions, Keyboard, StyleSheet, View } from "react-native";
+import { AppState, Dimensions, Keyboard, StyleSheet, View } from "react-native";
 import type { ReactNode } from "react";
 import { act, fireEvent, render, screen, within } from "@testing-library/react-native";
 import { SafeAreaFrameContext, SafeAreaInsetsContext } from "react-native-safe-area-context";
@@ -716,6 +716,7 @@ describe("a form sheet's last button clears the gesture bar", () => {
         expect(marginOf()).toBe(TAB_BAR);
         position.height = FRAME.height - TAB_BAR - 300;
         await act(async () => {
+          nav.emit("blur");
           nav.emit("focus");
         });
         await settle(1500);
@@ -727,6 +728,7 @@ describe("a form sheet's last button clears the gesture bar", () => {
         const nav = open();
         await settle(1000);
         await act(async () => {
+          nav.emit("blur");
           nav.emit("focus");
         });
         await settle(1500);
@@ -740,10 +742,106 @@ describe("a form sheet's last button clears the gesture bar", () => {
         expect(marginOf()).toBe(0);
         position.height = FRAME.height - 300;
         await act(async () => {
+          nav.emit("blur");
           nav.emit("focus");
         });
         await settle(1500);
         expect(marginOf()).toBe(TAB_BAR);
+      });
+
+      it("a focus without a blur before it (the sheet's own opening focus) does not measure", async () => {
+        position.height = FRAME.height - 300;
+        const spy = mockMeasure(position);
+        const nav = fakeNavigation("tab");
+        render(withFooter(<Text>Balas</Text>, nav));
+        await settle(1000);
+        const calls = spy.mock.calls.length;
+        await act(async () => {
+          nav.emit("focus");
+        });
+        await settle(1500);
+        expect(spy.mock.calls.length).toBe(calls);
+      });
+
+      it("coming back from the background re-measures once the sheet has settled", async () => {
+        position.height = FRAME.height - 300;
+        let change: ((s: string) => void) | undefined;
+        jest.spyOn(AppState, "addEventListener").mockImplementation(((_t: string, h: (s: string) => void) => {
+          change = h;
+          return { remove: () => {} };
+        }) as never);
+        open();
+        position.height = FRAME.height - TAB_BAR - 300;
+        await act(async () => {
+          change?.("active");
+        });
+        await settle(30);
+        expect(marginOf()).toBe(TAB_BAR);
+        await settle(1000);
+        expect(marginOf()).toBe(0);
+        position.height = FRAME.height - 300;
+        await act(async () => {
+          change?.("active");
+        });
+        await settle(1500);
+        expect(marginOf()).toBe(TAB_BAR);
+      });
+    });
+
+    describe("a root-stack sheet's opening", () => {
+      const clamped = (position: { top: number; height: number }) =>
+        jest
+          .spyOn(View.prototype as unknown as { measureInWindow: () => void }, "measureInWindow")
+          .mockImplementation(((cb: (x: number, y: number, w: number, h: number) => void) =>
+            cb(0, position.top, 400, Math.max(0, position.height - marginOf()))) as never);
+      const openRoot = (position: { top: number; height: number }) => {
+        clamped(position);
+        const nav = fakeNavigation();
+        render(inFrame(FRAME, <NavigationContext.Provider value={nav.navigation as never}><SheetBody os="android">{null}</SheetBody></NavigationContext.Provider>));
+        return nav;
+      };
+
+      it("the opening focus while the sheet is still below the edge does not change the margin", async () => {
+        const nav = openRoot({ top: 934, height: 800 });
+        await act(async () => {
+          nav.emit("focus");
+        });
+        await settle(100);
+        expect(marginOf()).toBe(0);
+      });
+
+      it("the margin settles normally after transitionEnd once the sheet has risen", async () => {
+        const position = { top: 934, height: 800 };
+        const nav = openRoot(position);
+        await act(async () => {
+          nav.emit("focus");
+        });
+        await settle(100);
+        position.top = bodyTop();
+        await act(async () => {
+          nav.emit("transitionEnd");
+        });
+        await settle(1000);
+        expect(marginOf()).toBe(200);
+      });
+
+      it("an oversized margin that leaves no height recovers on the next measure", async () => {
+        const position = { top: bodyTop(), height: 800 };
+        const nav = openRoot(position);
+        await settle(1000);
+        expect(marginOf()).toBe(200);
+        position.top = 934;
+        await act(async () => {
+          nav.emit("sheetDetentChange", { data: { stable: true } });
+        });
+        await settle(100);
+        expect(marginOf()).toBe(820);
+        position.top = bodyTop();
+        await act(async () => {
+          nav.emit("transitionEnd");
+        });
+        for (let i = 0; i < 10; i++) await settle(100);
+        expect(marginOf()).toBe(200);
       });
     });
   });

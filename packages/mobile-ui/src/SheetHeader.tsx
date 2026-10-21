@@ -1,5 +1,5 @@
 import { Children, createContext, isValidElement, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
-import { AccessibilityInfo, Keyboard, ScrollView, StyleSheet, Text as RNText, useWindowDimensions, View } from "react-native";
+import { AccessibilityInfo, AppState, Keyboard, ScrollView, StyleSheet, Text as RNText, useWindowDimensions, View } from "react-native";
 import { useSafeAreaFrame, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "./components";
 import { HeaderIconButton } from "./HeaderIconButton";
@@ -179,6 +179,11 @@ function useSheetHiddenBelow(
   const measuredSize = useRef<string>("");
   const keyboardChanged = useRef(0);
   const movingRef = useRef(false);
+  // The sheet has had a settled reading, and has been left (blurred) since: only then does a focus mean "back to the tab".
+  // The opening focus comes while the sheet still slides in, and measuring then reads a frame of the slide.
+  const settledOnce = useRef(false);
+  const blurred = useRef(false);
+  const recoveries = useRef(0);
   useEffect(() => {
     if (!track) return;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -188,7 +193,19 @@ function useSheetHiddenBelow(
       const host = view as unknown as Partial<Pick<View, "measureInWindow">> | null;
       if (!host?.measureInWindow) return;
       host.measureInWindow((_x: number, top: number, _w: number, height: number) => {
-        if (!Number.isFinite(top) || !Number.isFinite(height) || height <= 0) return;
+        if (!Number.isFinite(top) || !Number.isFinite(height)) return;
+        if (height <= 0) {
+          // The margin left the scroll view no height: it was read mid-slide and is oversized. Drop it and read again (a
+          // few times at most: the scroll view only shows the smaller margin once it has rendered).
+          if ((marginRef.current > keyboardRef.current || recoveries.current > 0) && recoveries.current < 3) {
+            recoveries.current += 1;
+            lastBelow.current = { up: 0, down: 0 };
+            marginRef.current = keyboardRef.current;
+            setMeasured((was) => (was.below === 0 ? was : { ...was, below: 0 }));
+            later(fromDetent);
+          }
+          return;
+        }
         // The screen's edge in the same window space as `top`; the frame's height only while no root reference exists.
         measureWindowEdge((edge) => {
           // A move that is still going on is settled by its own stable event, not by a timer that ran in the middle of it.
@@ -201,6 +218,8 @@ function useSheetHiddenBelow(
           lastBelow.current[lifted > 0 ? "up" : "down"] = next;
           clearTimeout(stuck);
           movingRef.current = false;
+          settledOnce.current = true;
+          recoveries.current = 0;
           setMoving(false);
           // A tab sheet's frame should end at the bar's top. At the large detent, after a tab switch or a keyboard, the native
           // frame can sit shifted up by the bar, which the bar margin then doubles: the margin only fills the gap that is
@@ -238,13 +257,28 @@ function useSheetHiddenBelow(
     measuredSize.current = size;
     // Coming back to the tab: the native sheet is laid out again, possibly shifted up by the bar, and no other event says
     // so. Read again, and twice more as the shift can land late.
-    const back = navigation?.addListener("focus" as never, () => {
+    const remeasure = () => {
       later();
       clearTimeout(settled);
       clearTimeout(settledLate);
       settled = setTimeout(() => measure(false), 450);
       settledLate = setTimeout(() => measure(false), 1200);
+    };
+    const away = navigation?.addListener("blur" as never, () => {
+      blurred.current = true;
     });
+    const back = navigation?.addListener("focus" as never, () => {
+      if (!settledOnce.current || !blurred.current) return;
+      blurred.current = false;
+      remeasure();
+    });
+    // The app resumed from the background: the native shift can have changed with no event to say so.
+    const resumed =
+      !active && tabBar > 0
+        ? AppState.addEventListener("change", (state) => {
+            if (state === "active" && settledOnce.current) remeasure();
+          })
+        : undefined;
     const done = navigation?.addListener("transitionEnd" as never, () => later());
     const detent = navigation?.addListener("sheetDetentChange" as never, (e: { data?: { stable?: boolean } }) => {
       if (e.data?.stable === false) {
@@ -263,6 +297,8 @@ function useSheetHiddenBelow(
       clearTimeout(settledLate);
       clearTimeout(stuck);
       back?.();
+      away?.();
+      resumed?.remove();
       done?.();
       detent?.();
     };
