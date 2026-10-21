@@ -200,6 +200,8 @@ The sidecar’s eight-step OKLCH strips are synthesized panel aids, not addition
 
 ### Native dark theme
 
+**Superseded in part by colour direction K (Phase G, October 13, 2026):** `canvas`, `surface`, `line`, `muted`, `tabBar`, `tabIndicator`, `forest` and `forestDeep` changed, and light no longer equals the web values for those keys. The table below is the October 9 record; the values in use are in Colour revision (Phase G), October 2026.
+
 The native apps have a real dark theme, defined as `nativeThemes.dark` beside `nativeThemes.light` in `@catera/design-tokens`. Both palettes use the same keys as the web `colors` plus `controlRing`, `tabBar`, `tabIndicator` and `disabledFill`; light reuses the web values unchanged, and the four added keys are native only. The keys name roles by their light-mode hue, so dark mode inverts the forest and cream pair: forest (headings, selected fills, primary buttons) becomes cream-white, and cream (text on forest, the attention card) becomes forest. A primary button is therefore a cream fill with forest text in dark mode. The dark body is neutral charcoal, never dark green: brand green appears only where the inverted `cream` role puts it, such as the attention card.
 
 | Key | Light | Dark |
@@ -395,7 +397,7 @@ The [finish verdict](https://github.com/keefezowie/catera/blob/525a1392797097f09
 
 ### Native motion
 
-Native motion is a smaller system than the web's and shares its timing vocabulary through `nativeMotion` in `@catera/design-tokens`: control 120ms, selection 180ms, content 220ms and feature 320ms, with the same `cubic-bezier(.16, 1, .3, 1)` ease. Press feedback is a spring (damping 18, stiffness 260) rather than a timed curve.
+Native motion is a smaller system than the web's and shares its timing vocabulary through `nativeMotion` in `@catera/design-tokens`: control 120ms, selection 180ms, content 220ms and feature 320ms, with the same `cubic-bezier(.16, 1, .3, 1)` ease. Press feedback is a spring (damping 18, stiffness 260) rather than a timed curve. **Superseded by Phase G ("Even slower", October 13, 2026):** control 200ms, selection 340ms, content 440ms, feature 680ms, ease `cubic-bezier(.33, 1, .68, 1)`, spring damping 22 and stiffness 120, on native and web together. Every duration below that names its token runs at the token's new value (see Native Phase G, Motion).
 
 Controls (buttons, chips, segmented options, stepper buttons, round buttons, stars, reactions, radio picks) use `PressableScale`: they compress to 0.97 on press-in, return on release, and fire a haptic (`tap` for actions, `select` for choices; `success` and `warning` are reserved for outcomes; a disabled control fires none). Tappable rows and cards that open something use `PressableRow`: an instant 0.7 dim while pressed, no scale, no ripple and no haptic, identical with and without reduced motion. Phase D's one exception, Beranda's running plan line as a `PressableScale` row (I1), left with the plan lines in Phase E; Beranda's plans row and "Menunggu Anda" rows are `PressableRow`s. No raw `Pressable` remains in native app sources; every tappable gives press feedback. `FadeSwap` fades in new content when its key changes. Pushes, modals and tab switches use the platform's own transitions, with no custom stack or tab-switch animation, and pushed screens use the platform's own header (see Native navigation and chrome).
 
@@ -512,6 +514,8 @@ Owner decisions of October 9, 2026 ("Go with E", on top of the D2 direction and 
 
 ### Mood tokens
 
+**Superseded by colour direction K (Phase G, October 13, 2026):** the values below are the October 9 record. The mood tokens in use are in Colour revision (Phase G), October 2026, Mood tokens.
+
 `nativeMood[theme][mood]` in `@catera/design-tokens` is the only place mood hex values live (no literal hex in `apps/caterer` or `packages/mobile-ui/src`).
 
 | Key | Light Siang | Light Malam | Dark Siang | Dark Malam |
@@ -550,18 +554,18 @@ The day arc (`MoodArc`: dashed track, sun and moon markers, an active disc; sinc
 All timings come from `nativeMotion` and only transform and opacity animate.
 
 - **Mood switch.** The header, hero, Dapur count card and status band fills cross-fade over 220ms by animating the opacity of two stacked fills (one shared `MoodFill`, so they share a curve and a clock); on Beranda the arc's active disc travels to the other end of the arc over 320ms and cross-fades its glyph; where `MoodToggle` remains (Dapur Hari ini, Dapur Menu) its pill slides over 180ms; a `select` haptic fires. The body and the tab bar do not move or change. Title, toggle and disc colours snap while the fill fades (accepted).
-- **Reduced motion** makes every one of these instant. The setting is read when the app starts, so it applies after the next launch.
+- **Reduced motion** makes every one of these instant. The setting is read when the app starts, so it applies after the next launch. **Superseded by Phase G (GC-F2):** the setting is read live and applies at once.
 - No entrance animation and no stagger for the calendar, lists or catalogues (unchanged rule). Nothing loops. **Superseded in part by Phase F:** rows the user's own action inserts or removes animate (Decision A), and the mascot loop and the skeleton pulse loop while something waits (see Native polish (Phase F), What Phase F supersedes).
 
 ### Components and behaviour (rulings of October 9, 2026)
 
 - **Toggles.** `MoodToggle` is a `tablist` of two equal-width `tab`s with `selected` state, a 48dp hit area and translated labels ("Siang" and "Malam"; "Lunch" and "Dinner" in English). It appears on Dapur Hari ini and, as the two large meal buttons, on Jelajah; Beranda's switch is the day arc (below). Dapur Menu uses the same mood to choose which meal it edits. A single-meal package shows its own meal in Dapur Menu whatever the mood, with its caption (B5).
 - **Day arc switch (Beranda, Phase E).** `MoodArc` under the headline is the Siang/Malam switch (owner: "clear and obvious for the user without being too much"): a `tablist` of two `tab`s with `selected` state, one per end of the dashed half ellipse, reading and writing the mood like `MoodToggle`. Each end is a 96dp column (23dp top padding, a 50dp marker holding a 44dp ring, a 13/16 bold title and a 12/15 detail line), so each target is at least 48dp both ways and the block is 104dp at font scale 1.0 (113dp at 1.3 on 360dp). Both ends wear the same-size 1.5dp `markerIdle` idle ring with a `markerIdle` glyph, so both read as buttons; the chosen end is covered by the 44dp `markerActive` disc carrying its glyph in `onToggleActive` (at least 3:1, enforced), from the first frame. The chosen end gives no press feedback and no haptic; the idle end compresses and fires `select`. The detail line is the window start ("11.00") for one delivery of that meal today, "{n} antaran" for several and "Tidak ada" for none, and each end is labelled "Makan siang, {detail}" / "Makan malam, {detail}". Labels wrap under their marker (`maxWidth` is the column) and never truncate. With the arc, `MoodHeader` draws no toggle in its top row, which holds the date alone (`packages/mobile-ui/src/brand/MoodArc.tsx`; evidence: `mood-arc.test.tsx`).
-- **Beranda (Phase E, the order approved on the canvas `HomeFull`, audit 006).** From the top: the mood header (the date as its meta line, or "Berikutnya {label}" when nothing is left today; the headline; the day arc), the hero or the hero pager, the offline or error line, the other-meal row, the "Paket selesai" recap, "Menunggu Anda", "Menu besok", "Berikutnya", the plans row, and nothing after it. Every count comes from the customer read (R-17), and a menu that is not set never shows a dish name (`apps/customer/src/today/Beranda.tsx`; sections from `packages/domain/src/home.ts`; evidence: `beranda-sections.test.tsx`, `tests/home.test.ts`).
+- **Beranda (Phase E, the order approved on the canvas `HomeFull`, audit 006).** From the top: the mood header (the date as its meta line, or "Berikutnya {label}" when nothing is left today; the headline; the day arc), the hero or the hero pager, the offline or error line, the other-meal row, the "Paket selesai" recap, "Perlu kamu urus" (formerly "Menunggu Anda"), "Menu besok", "Berikutnya", the plans row, and nothing after it. Every count comes from the customer read (R-17), and a menu that is not set never shows a dish name (`apps/customer/src/today/Beranda.tsx`; sections from `packages/domain/src/home.ts`; evidence: `beranda-sections.test.tsx`, `tests/home.test.ts`).
   - **Headline.** "Siang ini," and then, for one delivery of the chosen meal, its main dish lowercased (`Plate.lead`, the story's rule: the main-dish category, else the cover dish, else the first in composition order), or the package name in its own casing while the menu is not set; for several, "{n} antaran."; for none, "tidak ada antaran." with a meta line naming the next delivery (B6). The Malam forms likewise. With no deliveries at all, the existing empty state stays. While the other meal's plate is still to come, the meta line keeps its date.
   - **Hero pager.** When the chosen meal has two or more deliveries today, the hero becomes `HeroPager`: equal hero cards, each the pager width minus 64 with a 12 gap, snapping per card with the next card peeking, stretched to the tallest card, so no delivery is demoted to a different card. Under them, dots (the current one 20 wide in `forest`, the others 8 in `secondaryBorder`, no width animation) and "1 dari 2" (12/16 bold, tabular, `forest`). Screen readers get one adjustable control labelled with the meal ("Makan siang") whose value is "{i} dari {n}, {katerer}"; increment and decrement move the pager, and nothing is announced on top. One delivery keeps the single hero with no counter (`packages/mobile-ui/src/HeroPager.tsx`). The hero's "Sudah sampai" and "Belum" share their row 2:1 and wrap on a narrow card at a large font. At 360dp and font scale 1.3 with the demo strip, these actions sit below the fold (accepted: the page scrolls).
   - **Other-meal row.** A 54dp ring, "Malam ini · {window}" or "· {n} antaran" for several, and the main dish (`lead`, else the package name). It carries the status sentence of a plate that needs the customer, and a tap switches the mood.
-  - **Menunggu Anda.** Everything that waits on the customer, as one bordered list (radius 16, 1dp `line`, `surface`, no shadow) of `PressableRow`s at least 64dp tall, each with a 36dp `sage` icon circle, a 15/20 title, a 12/16 muted tabular detail and one action word, in this order: menus ("Pilih menu Selasa 13 Okt", "Pilih menu Rabu dan Kamis" or "Pilih menu {n} hari", with "{paket} · sebelum {deadline}" and "Pilih", opening the soonest due day); renewals ("{paket}, sisa {n} hari", with "{katerer} · harga terakhir {Rp} per porsi" and "Perpanjang", which counts `renew_started`); trials ("{paket} selesai hari ini", "… besok", "… {Senin 12 Okt}" or, once ended, "{paket} sudah selesai", with "{katerer} · paket coba" and "Paket penuh"); and the review ("Bagaimana {katerer} selama ini?", with "Nilai", which opens the review form in a `Sheet`). "Perpanjang" is the only action word in sunrise ink, the screen's one accent; the others are forest. Offline there are no menu rows and no review; a failed action feed drops only the menu rows. The section is hidden when empty. It replaces the renewal and trial cards, the menu-due rows and the inline review prompt (`apps/customer/src/today/WaitingList.tsx`).
+  - **Perlu kamu urus** ("Needs you"; "Menunggu Anda" until Phase G). Everything that waits on the customer, as one bordered list (radius 16, 1dp `line`, `surface`, no shadow) of `PressableRow`s at least 64dp tall, each with a 36dp `sage` icon circle, a 15/20 title, a 12/16 muted tabular detail and one action word, in this order: menus ("Pilih menu Selasa 13 Okt", "Pilih menu Rabu dan Kamis" or "Pilih menu {n} hari", with "{paket} · sebelum {deadline}" and "Pilih", opening the soonest due day); renewals ("{paket}, sisa {n} hari", with "{katerer} · harga terakhir {Rp} per porsi" and "Perpanjang", which counts `renew_started`); trials ("{paket} selesai hari ini", "… besok", "… {Senin 12 Okt}" or, once ended, "{paket} sudah selesai", with "{katerer} · paket coba" and "Beli paket", which opens the package; "Paket penuh" before Phase G); and the review ("Bagaimana {katerer} selama ini?", with "Nilai", which opens the review form sheet). "Perpanjang" is the only urgent action word and is charcoal; the others are forest (colour direction K, `98af208e`; `WaitingList.tsx:75, 206`). It was sunrise ink before Phase G. Below 340dp of effective width the action word drops under the row's text (see Native Phase G, Narrow widths). Offline there are no menu rows and no review; a failed action feed drops only the menu rows. The section is hidden when empty. It replaces the renewal and trial cards, the menu-due rows and the inline review prompt (`apps/customer/src/today/WaitingList.tsx`).
   - **Berikutnya.** The next three days that have a delivery, grouped by day: one label ("Besok, Sabtu 10 Okt") with "{n} antaran", then one row per meal and plan with a 40dp ring, the main dish or "Menu belum ditentukan", "Siang · {paket} · {katerer}" and a chevron, opening `/hari/{id}`. Lunch comes before dinner, then window order. The rows carry no change deadline; the Menu besok row and the day screen keep theirs (`UpcomingDays.tsx`).
   - **Plans row.** One bordered row: "{n} paket aktif" (tabular) with up to three overlapping package photos and the caterers, opening Paket saya (`/paket-saya`, inside the tab, `Screen nativeTitle="Paket aktif"`). Paket saya lists every active plan, sorted by name and then start date; two active plans with the same name carry their dates ("13–26 Okt", a one-day plan "10 Okt"), in Akun's "Paket aktif" too, because both use `PlanList` (`PlansRow.tsx`, `apps/customer/src/plan/PlanList.tsx`). Chat with the caterer moved from Beranda's plan lines to the plan detail's header.
 - **Beranda hero track.** The hero shows a rantang track under the dishes: a lunchbox marker on three stops (Dimasak, Diantar, Sampai) and one caption line that says what is true now ("Terjadwal", "Dimasak 08.10", "Berangkat 10.42", "Sampai", "Tercatat sampai" when nobody tapped and the system closed the meal). The stage follows fulfilment status and timestamps, never the clock, so a meal the kitchen never tapped stays "Terjadwal". The track appears on the hero only, never on the other-meal row, and it is hidden for a failed plate, a reported plate and a meal marked as a problem, which keep their own message. The "Berangkat {jam}" chip that used to sit on the photo is removed, because the caption carries the departure time. Reachability (ruling on Phase D Task 1): production's nightly auto-close only closes days before today (`v1.auto_deliver`, `supabase/migrations/20261008102000_delivery_depart.sql:46`), so "Tercatat sampai" is not reachable on Beranda in production, and the demo has no state for it either (see Demo states). The wording is covered by Jest (`today.test.tsx` "says Tercatat sampai when nobody tapped and the system closed the meal"); the reachability is a release note for the owner, not a Phase D fix.
@@ -725,7 +729,7 @@ There is no dark splash until real transparent artwork exists. The splash stays 
   - **Controller rulings on review.** A cancelled plan's detail reads "Paket dibatalkan" with its date range, no action and no upcoming list, and any other unknown status reads as not found (Task 3). Paid is final on the iOS edge swipe too, through `gestureEnabled: false` set by the screen while paid (Task 5).
   - **Controller rulings on the gate and the final review (October 10, 2026).** The recap's seen mark waits for Beranda to be in front, and a one-day plan shows one date on the plan detail hero and the recap (gate fixes). "Visit" means one Beranda mount (M1). Plan detail "Berikutnya" lists today first while a meal is still on its way, and a failed or reported meal today is not on its way (I3 and its fix wave); the residual "1 hari lagi" beside "Tidak ada antaran mendatang." on a plan's last evening is parked. The Beranda plan-line label names the caterer and the days left (I4). "Perpanjang" counts `renew_started` (deferred row 11). The paid exits dismiss to the tabs (I2, see D7). The Beranda plan line stays a `PressableScale` row, recorded as the exception to the `PressableRow` rule (I1). Phase E removed Beranda's plan lines, so I1 and I4 no longer apply there. The renewal screen's "tepat setelah paket sekarang" when the start is pushed past other plans is parked for the owner (it predates Phase D).
 
-Dials: customer ENERGY 2 / RHYTHM 2 / MOTION 2 and Dapur ENERGY 1 / RHYTHM 1 / MOTION 1 (plus press micro-feedback), unchanged. The identity motif is the day arc and the lunchbox; the one accent is sunrise ink.
+Dials: customer ENERGY 2 / RHYTHM 2 / MOTION 2 and Dapur ENERGY 1 / RHYTHM 1 / MOTION 1 (plus press micro-feedback), unchanged. The identity motif is the day arc and the lunchbox; the one accent is sunrise ink (since Phase G, only on the tracker's current stop; see Colour revision (Phase G), October 2026).
 
 ### Evidence and limits
 
@@ -791,7 +795,7 @@ Photos fade in from the theme `sage` ground (see Native motion), Jadwal keeps th
 
 Light `tabBar` `#F2ECDF` and light `tabIndicator` `#BFD8BB` (on the new bar, `#CFE3CC` stood only 1.15:1 off it). Android keeps the native 56dp top bar. Past the Paket photo the bar takes the Android scrolled tone like every pushed screen. iOS keeps automatic insets on every `Screen`, and the mood header pays no top inset there. Aktifkan and Impor are modals. The Alamat and Bantuan copies live at `/pembelian/*`. A push tap on a cold screen above the tabs opens at once. The plan detail has a trailing chat button. Predictive back and the Android hide stay report-only until a device spike passes. Beranda's hero actions below the fold at 360dp and font scale 1.3 with the demo strip are accepted.
 
-Dials are unchanged: customer ENERGY 2 / RHYTHM 2 / MOTION 2, Dapur ENERGY 1 / RHYTHM 1 / MOTION 1 (plus press micro-feedback). The identity motif stays the day arc and the lunchbox; the one accent stays sunrise ink ("Perpanjang" on Beranda).
+Dials are unchanged: customer ENERGY 2 / RHYTHM 2 / MOTION 2, Dapur ENERGY 1 / RHYTHM 1 / MOTION 1 (plus press micro-feedback). The identity motif stays the day arc and the lunchbox; the one accent stays sunrise ink ("Perpanjang" on Beranda until Phase G; since colour direction K the accent is the tracker's current stop and "Perpanjang" is charcoal).
 
 ### Evidence and limits
 
@@ -842,7 +846,7 @@ Three tiers, one job each. **There is no full-screen spinner, and a screen never
 ### Pengaturan
 
 - **Routes and entry.** `pengaturan` is pushed inside the tab stack of each app: Akun for customers; for Dapur, Usaha for owners and a gear beside the Menu toggle for helpers (the route is unguarded). A trailing gear `HeaderIconButton` on the tab root and a "Pengaturan" row at the end of Akun and Usaha open it. Signed-out customers reach it from Akun. Native title "Pengaturan". Akun and Usaha no longer hold a language, theme, notification or sign-out control.
-- **Rows.** iOS inset grouped sections, Android Material list with forest subheaders (`SettingsSection`, `SettingsRow`, `SettingsSwitchRow`). Sections: **Notifikasi** (signed in), **Aplikasi** (Bahasa and Tampilan, each with its value and a choice sheet), **Tentang** (Versi aplikasi from `expo-constants`, selectable; "Syarat dan privasi", which reads "Segera hadir" because the web has no terms page to open, a recorded TODO), then **Keluar** in the danger ink. Tampilan's sheet shows three thumbnails (Sistem, Terang, Gelap; Android wording "Ikuti sistem"). A choice applies at once and closes the sheet.
+- **Rows.** iOS inset grouped sections, Android Material list with forest subheaders (`SettingsSection`, `SettingsRow`, `SettingsSwitchRow`). Sections: **Notifikasi** (signed in), **Aplikasi** (Bahasa and Tampilan, each with its value and a choice sheet), **Tentang** (Versi aplikasi from `expo-constants`, selectable; "Syarat dan privasi", which reads "Segera hadir" because the web has no terms page to open, a recorded TODO; since Phase G (G15) it opens the web page `/syarat-dan-privasi`, a labelled placeholder until the owner supplies the text), then **Keluar** in the danger ink. Tampilan's sheet shows three thumbnails (Sistem, Terang, Gelap; Android wording "Ikuti sistem"). A choice applies at once and closes the sheet.
 - **Truthful switch** (`usePushSwitch`, `packages/mobile-core/src/push.ts`). States: `on`, `off`, `denied`, `unavailable` (Expo Go) and `loading`. The phone's permission wins: a blocked phone is never on, and shows "Izinkan notifikasi di Pengaturan ponsel" with "Buka Pengaturan". The state is read on focus and when the app returns to the foreground, so a permission changed outside the app shows at once. On asks for permission, registers the phone (`device.register`) and stores the flag `push.<actorId>`. Off removes this phone's token through the new `device.unregister` command and clears the flag. A failure puts the switch back where it truly was and shows the error toast "Belum berhasil. Coba lagi." Callers must catch both changes.
 - **Keluar lets go of this phone.** `logout()` first sends `device.unregister` with this phone's token, best effort: a failure or 3000ms (`RELEASE_PUSH_MS`) never blocks sign-out, and a failed attempt keeps the flag. The row reads busy (dimmed to 0.45, a trailing indicator) and ignores a second tap, and Dapur's customer-account gate has the same guard. The customer app then pops every tab to its root (`goToTab("index", { everyTab: true })`).
 - **Backend.** `device.unregister { token }` returns `{ removed: 0 | 1 }`, deletes only the caller's own row, is idempotent and answers `UNAUTHORIZED` when signed out (`supabase/migrations/20261011090000_device_unregister.sql`; the demo backend applies the same rule).
@@ -865,7 +869,7 @@ Three tiers, one job each. **There is no full-screen spinner, and a screen never
 - **Unsaved guards** (`useUnsavedGuard`). Back, Close or a swipe with typed text opens one confirm sheet, "Buang {laporan|alamat|permintaan|ulasan|catatan|balasan}?", with "Yang sudah Anda tulis akan hilang." (customer) or "... kamu tulis ..." (Dapur), "Buang" in danger and "Lanjut menulis". With nothing typed the sheet closes and the parent stays. **Android swipe limit:** react-native-screens 4.26.2 Android sheets ignore `preventNativeDismiss`, so a swipe closes without asking. The typed text is kept as an in-memory draft keyed by actor and subject, restored on reopen and dropped on send or Buang. Android two-detent sheets expand to the top detent while the keyboard is up.
 - **Cold links open over a parent.** Customer `sheetParent` (`apps/customer/src/nav.ts`): `/masalah/{id}` over its Hari, `/ubah-hari/{id}` over `/hari/{id}`, `/alamat-form` over `/alamat`, `/bantuan-form` over `/bantuan`, `/pengaturan/bahasa` and `/pengaturan/tampilan` over `/pengaturan`, `/ulasan/{id}` over Beranda, `/area` over Jelajah. A link to a sheet already on top replaces it. Dapur names the tab group from `SCREEN_TAB` in `redirectSystemPath`, so staff following an owner link land on Hari ini and a cold `/pengaturan` lands in `(index)`.
 - **What moved.** Customer: Ada masalah (the sent page became the toast "Laporan terkirim" with "Lihat"), Alamat add and edit, the two Bantuan forms, Ubah hari, the review form, Beli's address and start-date pickers, and the Jelajah area choice. Dapur: Tim (invite code card on `sage`, "Bagikan undangan"), the report reply, stop exceptions and the import row editor. Both: Bahasa and Tampilan. These stay pages: plan detail, Hari, Pilih menu, package detail, Paket saya, the Alamat and Bantuan lists, the Menu day editor, Pelanggan detail, Uang, Aktifkan and Impor.
-- **Not built.** Address delete. No `address.delete` command exists, so there is no delete and no "Alamat dihapus" toast.
+- **Not built.** Address delete. No `address.delete` command exists, so there is no delete and no "Alamat dihapus" toast. **Superseded by Phase G (G13):** address delete and move are built (see Native Phase G, Address delete and move).
 
 ### Feedback
 
@@ -910,7 +914,7 @@ Four sizes, picked by the weight of the outcome: a **beat** for a milestone, a *
 
 ### The Dapur MOTION 2 dial
 
-Owner decision of October 10, 2026. Dapur is ENERGY 1 / RHYTHM 1 / MOTION 2 (plus press micro-feedback), and the customer app stays ENERGY 2 / RHYTHM 2 / MOTION 2. Dapur gets the customer vocabulary: skeletons, toasts, outcome beats, insert and remove motion, and mascot art in empty and error states. It keeps its restraint elsewhere: rows and money totals stay still, nothing staggers, Pelanggan filters and pulls swap without motion, and the count card keeps one height. The identity motif stays the day arc and the lunchbox, and the one accent stays sunrise ink.
+Owner decision of October 10, 2026. Dapur is ENERGY 1 / RHYTHM 1 / MOTION 2 (plus press micro-feedback), and the customer app stays ENERGY 2 / RHYTHM 2 / MOTION 2. Dapur gets the customer vocabulary: skeletons, toasts, outcome beats, insert and remove motion, and mascot art in empty and error states. It keeps its restraint elsewhere: rows and money totals stay still, nothing staggers, Pelanggan filters and pulls swap without motion, and the count card keeps one height. The identity motif stays the day arc and the lunchbox, and the one accent stays sunrise ink (since Phase G, only on the tracker's current stop).
 
 ### Owner decisions, October 10 and 11, 2026
 
@@ -921,3 +925,354 @@ Owner decision of October 10, 2026. Dapur is ENERGY 1 / RHYTHM 1 / MOTION 2 (plu
 ### Evidence and limits
 
 Covered by Jest, Vitest and typecheck at `7cf0f23d`: root 786, customer 1245 and Dapur 520 tests, a clean `npm run build`, `npm run test:postgres` and `packages/brand/verify-phase-f.mjs` (23 files, no failures), including `tests/native-contrast.test.ts`, `tests/native-theme-guard.test.ts`, `tests/brand-phase-f.test.ts`, `tests/device-unregister.test.ts` and the apps' `launch`, `skeletons`, `settings`, `sheets` (Dapur: `dapur-sheets`), `feedback`, `empty-states`, `nutrition` and `import` suites. The `device.unregister` concurrency scenario is in `tests/postgres-concurrency.mjs`. **Not verified on a device:** everything on iOS (large-title sheets, keyboard in sheets, toast placement, the confirm sheet over a tab-stack sheet), the Android form-sheet go/no-go checks (Task 9 (a) to (e)), the native splash and icons on both platforms, the Android 12 splash mask, predictive back, the confetti box, `RowSwap`'s skipped exits, the real push switch states (Expo Go reports `unavailable`), TalkBack and VoiceOver reading, and font scale 1.3 at 360dp. The follow-up audit lists each check, and the Phase G kickoff carries them forward.
+
+## Colour revision (Phase G), October 2026
+
+Owner decision of October 13, 2026: direction K, "Today's palette, used with restraint" ([Phase G spec](docs/superpowers/specs/2026-10-13-native-phase-g-design.md), section 2), built in `98af208e` and `15413164`. The owner reopened the palette on October 13, turned down directions A to J, and asked for colour to be spent the way top apps spend it. That decision overrides the AGENTS.md sentence "preserve the latest approved palette" for how the hues are used. The hues themselves are unchanged: Forest `#163D2E`, Sunrise `#F47B2A`, Sunrise ink `#9B4309`, Cream `#FFF7E9` and Charcoal `#2E2E2E`, so the artwork needs no recolour. AGENTS.md is the owner's file and still carries the old sentence; whether to amend it is the owner's call (spec section 14.1).
+
+This section covers the native apps only. The web keeps the frontmatter palette.
+
+### What it supersedes
+
+- The `nativeThemes` values for the keys in the theme table below, and the light-equals-web rule of Native dark theme and Native theme, October 9, 2026: light `canvas`, `line`, `muted`, `tabBar` and `tabIndicator` now differ from the web `colors`.
+- The whole mood table under Native mood and theme, Mood tokens. Siang and Malam are now a faint header tint plus the sun or moon mark. The Malam pattern is gone (`pattern: null`).
+- Dark mode's forest and cream inversion for `forest`: dark `forest` is now forest light `#9CCBAE`, not cream. Dark `cream` stays `#163D2E`, so a dark primary button is a mint fill with a forest label.
+- Every rule that puts Sunrise or Sunrise ink on a price, a review star, a heart, a calendar mark, a photo ring, a sticker border, a delivery note or an action word. "Perpanjang" on Beranda is charcoal like the other action words; "the one accent is sunrise ink" now means the tracker's current stop (see rule 4).
+- The status bar's mood rule. The glyphs follow the theme alone (`statusBarStyle`, `packages/mobile-ui/src/mood.tsx:99-107`): dark glyphs in light, light glyphs in dark, whatever the mood.
+
+### The seven rules
+
+From 30 Mobbin iOS screens (`output/native-review/phase-g/palette/mobbin-colour-restraint.md`): the median screen spends about 2 percent of its area on the brand colour, structural screens 0 to 4 percent, checkouts 4 to 13 percent, and only four screens reach 15 percent, each one deliberate moment.
+
+1. **Neutral ground and bars.** The page, the headers and the tab bar are cream and neutral steps in light and charcoal steps in dark. Forest and Sunrise never fill a surface behind content.
+2. **One filled brand control per screen.** Forest fills only the primary button: the hero button, `StickyAction`, a sheet's main action. Secondary actions are outlined or text.
+3. **Selection is a small mark.** Forest marks the active tab, the selected segment (ring and label), the chosen calendar date and the today ring. The saved heart is a selection, so it is forest too.
+4. **The tracker is ink.** The line and the stops reached use the hero ink. `stopActive` (Sunrise ink in light, Sunrise in dark) marks the current stop and nothing else.
+5. **Personality comes from photos and the mascot.** The meal photo leads the meal card.
+6. **One branded moment per screen.** Paket selesai and the payment confirmation: the mascot on the `#FFEFD9` success disc above the one forest button. Nothing else paints a coloured block.
+7. **Prices and warnings speak their own language.** A price is bold charcoal. A warning is `heroWarn` on the hero or `danger` off it, always with an icon and words, never the brand accent.
+
+### Theme tokens (`nativeThemes`, K)
+
+`packages/design-tokens/src/index.ts:108-151`. Keys not listed keep their earlier value (light from the web `colors`): `sunrise`, `sunriseInk`, `sage`, `charcoal`, `cream`, `scheduled`, `danger`, `fieldBorder`, `secondaryBorder`, `attentionBorder`, `controlRing`, `disabledFill` and the three toast keys.
+
+| Key | Light | Dark | Was (light / dark) |
+| --- | --- | --- | --- |
+| `canvas` | `#E4DED1` | `#151514` | `#FDFAF3` / `#151514` |
+| `surface` | `#FFFEFA` | `#292927` | `#FFFEFA` / `#232321` |
+| `line` | `#D3CEC1` | `#3A3A37` | `#E2E3D8` / `#34332F` |
+| `muted` | `#555B54` | `#B5B2AA` | `#60675F` / `#B5B2AA` |
+| `tabBar` | `#FFF7E9` | `#292927` | `#F2ECDF` / `#1E1E1C` |
+| `tabIndicator` | `#D3CEC1` | `#444441` | `#BFD8BB` / `#163D2E` |
+| `forest` | `#163D2E` | `#9CCBAE` | `#163D2E` / `#FFF7E9` |
+| `forestDeep` | `#0C2C20` | `#7FB093` | `#0C2C20` / `#E9E3D6` |
+| `overlayInk` (new) | `#1B1B1A` | `#1B1B1A` | none |
+| `photoGround` (new) | `#2E2E2E` | `#2E2E2E` | none |
+
+`overlayInk` is the neutral photo overlay and `photoGround` the ground of a photo that failed to load; they differ by at most 2:1, so a failed photo shows no band. The Android tab pill (`tabIndicator`) is a neutral pill, not a sage block (spec open item 14.3, closed this way in `98af208e`). The photo scrim is `nativePhoto` (`index.ts:254-259`): a ramp from 0 at the top of the photo to 0.3 at the bottom, a text block ramping 0 to 0.72 over 26dp, and the "⋮" corner button on its own 0.66 ground. The flat 0.66 overlay and the old `scrimSoft` are gone.
+
+### Mood tokens (`nativeMood`, K)
+
+`index.ts:171-215`. The mood is only the header tint: within a theme, every key except `header` is the same for Siang and Malam.
+
+| Key | Light Siang | Light Malam | Dark Siang | Dark Malam |
+| --- | --- | --- | --- | --- |
+| `header` | `#FFF7E9` | `#F3F6EF` | `#2E2B25` | `#2A2D27` |
+| `headerText` | `#2E2E2E` | `#2E2E2E` | `#F5F1E8` | `#F5F1E8` |
+| `headerMeta` | `#555B54` | `#555B54` | `#B5B2AA` | `#B5B2AA` |
+| `toggleTrack` | `#FFFEFA` | `#FFFEFA` | `#292927` | `#292927` |
+| `toggleActive` | `#163D2E` | `#163D2E` | `#9CCBAE` | `#9CCBAE` |
+| `onToggleActive` | `#FFFEFA` | `#FFFEFA` | `#292927` | `#292927` |
+| `arcTrack` (decorative) | `#C9C6BA` | `#C9C6BA` | `#4E4C47` | `#4E4C47` |
+| `markerActive` | `#2E2E2E` | `#2E2E2E` | `#F5F1E8` | `#F5F1E8` |
+| `markerIdle` | `#858D80` | `#858D80` | `#8A8780` | `#8A8780` |
+| `todayRing` | `#163D2E` | `#163D2E` | `#9CCBAE` | `#9CCBAE` |
+| `hero` | `surface` (`#FFFEFA`) | `surface` | `surface` (`#292927`) | `surface` |
+| `heroText` / `heroMeta` | `#2E2E2E` / `#555B54` | same | `#F5F1E8` / `#B5B2AA` | same |
+| `heroShadow` | `0 6px 18px rgba(46,46,46,0.10)` | same | `0 6px 18px rgba(0,0,0,0.35)` | same |
+| `heroWarn` (new) | `#A33024` | `#A33024` | `#FF8F80` | `#FF8F80` |
+| `heroEdge` (new) | `#C9C6BA` | `#C9C6BA` | `#4E4C47` | `#4E4C47` |
+| `stopActive` (new) | `#9B4309` | `#9B4309` | `#F47B2A` | `#F47B2A` |
+| `pattern` | none | none | none | none |
+
+`nativeArt.successDisc` is the literal `#FFEFD9` (`index.ts:223`), because it used to read the light Siang header, which K changed. The success ring stays Sunrise ink and the sparkles keep Sunrise and Sunrise ink (`index.ts:221-233`).
+
+Derived steps, each added because a pair failed with the base hex (spec section 2.4): the page neutral `#E4DED1` (the old canvas sat 1.03:1 under a white card), the pale sage Malam header `#F3F6EF`, muted deep `#555B54` (`#60675F` is 4.35:1 on the new page), the card edge `#C9C6BA`, the dark card `#292927`, the dark warm header `#2E2B25`, the dark card edge `#4E4C47`, forest light `#9CCBAE` (forest itself is 1.21:1 on the dark card) and the overlay ink `#1B1B1A`.
+
+### Surfaces
+
+- **Meal card and hero.** One plain lifted card: the `hero` fill, the food photo first, a 1.5dp `heroEdge`, and the soft `heroShadow`. Package and list cards use `surface` on the new canvas (1.33:1) with no border.
+- **Hero button** (the hero and the Dapur count card): forest fill, cream label, no edge.
+- **Search field:** `surface` fill, edge `#858D80` light and `#8A8780` dark, placeholder `muted`.
+- **Demo strip:** `canvas` fill and `muted` text (`95d4eaf0`).
+- **Photo rings** (`PhotoRing`, `packages/mobile-ui/src/PhotoRing.tsx:93`): a selected ring is forest, a dinner ring charcoal, a lunch ring `controlRing` grey. The earlier sunrise-ink lunch ring and forest dinner ring are retired.
+- **Headings and titles** read charcoal, not forest: the iOS large and inline titles, the Android bar title and the Android first-line `nativeTitle` (`packages/mobile-ui/src/nativeHeader.ts:42-49`, `components.tsx:645`), superseding the forest titles under Native navigation and chrome. The iOS back tint stays forest. Forest is text only on lines marked as a selection, an action or an accent (`tests/native-theme-guard.test.ts:245-268`), and no `Text` variant reads forest (`:275`).
+
+### Contrast result: 156 of 156 pairs pass
+
+The pair list is 39 per look in four looks, computed from the hex values in `output/native-review/phase-g/palette/directions-v2.json` by `output/native-review/phase-g/scripts/palette-directions-v2.cjs`. The shipped palette of October 12 fails 34 of 144 on the same rules (12 pairs were added after audit 009). Rules: text at least 4.5:1 with no large-text exception; a control boundary that is the only cue (the hero button edge, the Gagal diantar stop) at least 3:1; adjacent surfaces at least 1.2:1, or a named edge token at least 1.5:1 against the outer ground; a failed photo shows no band (overlay and ground within 2:1); the scrim has no straight edge.
+
+| Group | Lowest ratio in any look | Minimum |
+| --- | --- | --- |
+| Text on its surface (header, hero, card, tab bar, field, strip, button label) | 5.2 (demo strip text, light) | 4.5 |
+| Component boundaries (search field, track, idle marker, hero button, Gagal diantar stop) | 3.14 (search field on the header, light Malam) | 3 |
+| Adjacent surfaces | 1.23 (mood header on the canvas, light Malam) | 1.2 |
+| Hero on the mood header (the edge carries it) | 1.03 raw; edge 1.57 to 1.65 | 1.5 edge |
+| Failed-photo band against the overlay | 1.21 | at most 2 |
+| Scrim edge across a loaded photo | a ramp from 0, no straight edge | pass |
+
+Outside the 156: the current tracker stop on the meal card is 6.5:1 in light and 5.35:1 in dark (at least 3); a bold charcoal price is 13.46:1 light and 12.93:1 dark; `heroWarn` on the hero is 6.92:1 light and 6.59:1 dark; the forest button label is 11.33:1 light and 6.64:1 dark.
+
+`tests/native-contrast.test.ts` enforces the same rules from the token objects, not from the script: the exact K values (`:27-97`), 37 ratio pairs per look plus the failed-photo band rule (`:151-177`; the comment at `:155-156` maps them to the spec's 39), and the component rules (`:182-247`: the current stop at least 3:1 on the hero, prices, `heroWarn`, the derived dark `forestDeep`, the tab pill at least 1.4:1 off the bar, the lunch and dinner rings, the danger confirm, the toast, and every text colour on every fill).
+
+### The Sunrise spend
+
+After Phase G, Sunrise and Sunrise ink are read only by the tracker's current stop (`stopActive`, `RantangTrack.tsx:432`), `nativeArt` (the success ring, the reading highlight, the sparkles), the confetti file and the launch hand-off sparkles. `tests/native-theme-guard.test.ts:128-141` fails when any other native source reads `sunrise` or `sunriseInk` (allowed: `RantangTrack.tsx`, `Confetti.tsx`, `LaunchCover.tsx`; `nativeArt` lives in the tokens package, outside the scan). No guard restricts who reads `stopActive`; today only `RantangTrack` does. Other guards in the same file: no card is filled in forest (`:145`), the Malam pattern is gone (`:158`), and no loose error text (`:170-234`, see Errors).
+
+## Native Phase G, October 2026
+
+Owner feedback of October 12, 2026 (FB1 to FB11) and the owner's picks of October 13, built as Phase G ([spec](docs/superpowers/specs/2026-10-13-native-phase-g-design.md), [plan](docs/superpowers/plans/2026-10-13-native-phase-g.md)) from `456d5bd4` to `ff9a9b6e`, and gated on the Android emulator in Expo Go with the demo backend (gates g7-g1a to g-c-11, captures under `output/native-review/phase-g/gates/`). Decisions, reviews and attempt counts are in the ledger, `.superpowers/sdd/2026-10-12-native-phase-g/progress.md`. This section is the contract for motion, loading, errors, the tracker, the calendar, delivery confirmation, Data akun, addresses, form sheets and copy in both native apps; the colour contract is the section above. Dials are unchanged: customer ENERGY 2 / RHYTHM 2 / MOTION 2, Dapur ENERGY 1 / RHYTHM 1 / MOTION 2.
+
+### What Phase G supersedes
+
+- **Colour.** The mood table, the dark `forest` inversion, every Sunrise accent outside the tracker's current stop, and the mood-driven status bar (see Colour revision (Phase G), October 2026).
+- **Durations.** The motion numbers in Native motion, Mood motion, Web motion, Native polish (Phase F) and MASCOT-MOTION.md that name a token now run at the token's new value (see Motion).
+- **The three-stop rantang track** of Phase C and its 320ms slide. The track has four stops (see Tracker).
+- **"Tercatat sampai"** and its Phase C reachability note. The words are "Ditandai sampai otomatis", and auto-confirm makes them reachable on the same day.
+- **"Arrival is recorded automatically"** in Dapur (rulings C7 and the line under the order). The kitchen marks Sampai with a photo and the customer confirms; the system closes the meal only after two hours, or the next morning.
+- **Phase F sheets:** every form with a field now opens above the tabs, and its primary action is pinned (see Form sheets). "Kirim laporan" and the other main buttons no longer scroll with the form.
+- **Phase F "Not built. Address delete."** It is built (see Address delete and move).
+- **Phase F Pengaturan:** "Syarat dan privasi" opens a page instead of reading "Segera hadir".
+- **Phase F Loading:** the SMS code check uses a busy button, not the mascot (see Loading).
+- **Phase F toast vocabulary** gains "Baris dihapus" with "Urungkan" (deleting an Impor row, 5 seconds, announced; G1a), "Alamat dihapus", "{n} pengantaran ditandai sampai" and the error toast with "Coba lagi".
+- **Mood motion's "The setting is read when the app starts".** Reduced motion is read live.
+- **Copy** quoted in earlier sections, listed under Strings this file quotes that changed.
+
+### Motion: "Even slower"
+
+Owner pick of October 13, 2026 (the owner found the animations too fast and asked for a calmer pace, then picked the third column of `output/native-review/phase-g/motion/relaxed-motion.md`), built in `98af208e`. Native and web change together.
+
+| Token | Was | Now |
+| --- | --- | --- |
+| `control` | 120ms | 200ms |
+| `selection` | 180ms | 340ms |
+| `content` | 220ms | 440ms |
+| `feature` | 320ms | 680ms |
+| `ease` | `cubic-bezier(.16, 1, .3, 1)` | `cubic-bezier(.33, 1, .68, 1)` |
+| `spring` | damping 18, stiffness 260 (ratio 0.56) | damping 22, stiffness 120 (ratio 1.0, no overshoot) |
+
+Sources: `nativeMotion` (`packages/design-tokens/src/index.ts:45-52`) and `webMotion` (`apps/web/src/lib/motion.ts:2-9`; its web-only `exit` ease `cubic-bezier(.4,0,1,1)` stays). `tests/native-motion-tokens.test.ts` keeps the two equal, pins the values, checks the durations rise and checks the spring is critically damped within 0.02. Every rule above that names a duration by its token (for example "over 220ms (`content`)") now runs at the new value of that token; the token is the contract, the old number is history. The older shared `motion` export (180ms on the old ease, `index.ts:40-43`) still feeds the web `--ease` variable and is not part of this change.
+
+- **Press.** `PressableScale` springs to 0.97 and back on `nativeMotion.spring` (`packages/mobile-ui/src/motion/PressableScale.tsx:52, 57`). The scale starts on press-down, so the response is immediate; only the settle is slower (about 0.4s). The reduced-motion dim to 0.85 runs over `control`.
+- **Heart.** `HEART_BURST_MS` is `nativeMotion.feature`, 680ms (`SaveHeart.tsx:23`; it was 380). The heart rises to 1.22 over `control` and springs back on the new spring. Saved and outline hearts are both forest (rule 3); the burst dots alternate `forest` and `forestDeep`.
+- **Tracker.** The stage change animates over `feature` (680ms) on the new ease (see Tracker).
+- **Toast.** Enters over `content` (440ms) with a 12dp travel and leaves over `control` (200ms) (`Toast.tsx:211-215`).
+- **Fixed numbers that do not follow the pace.** The sheet title focus fallback is `SHEET_FOCUS_FALLBACK_MS` 400 and its second try `SHEET_FOCUS_SETTLE_MS` 250 (`packages/mobile-ui/src/sheets.ts:26-27`), so the pace can never delay TalkBack focus. The skeleton pulse (two 700ms halves), the mascot loop (2400ms) and reveal (300ms), the busy-button delay (150ms) and the success beat's own timings stay as they were (see [MASCOT-MOTION.md](docs/MASCOT-MOTION.md)).
+- **LaunchCover** still runs on `feature`, so the cold-start hand-off is now 680ms (`LaunchCover.tsx:83-84`). It never blocks input. The spec asked the gate to judge whether it feels slower than the splash; that judgement is owed to the G20 device gate, and the cover moves to `content` if it fails.
+
+Unchanged: no loops except the mascot and the skeleton pulse while something waits; the tracker moves only on a stage change; transform and opacity only; reduced motion is instant; Decision A (no motion on a first load, refresh, pull, search, filter, tab return or mood switch). **Reduced motion is now live:** `useReduced` reads a shared store fed by the system's reduce-motion change event, so turning the setting on or off applies at once, not after the next launch (GC-F2, `ae585c22`, `74c3c81d`). The Mood motion line "The setting is read when the app starts" is superseded.
+
+### Loading: the busy button joins the inline tier
+
+The Phase F loading tiers stand, with one change: a command that waits on the server shows a busy button, not the mascot (owner pick for FB1, October 13, 2026).
+
+- **Busy button** (`Button busy`, `packages/mobile-ui/src/components.tsx:107-187`). The label is replaced by a small spinner in the label colour after `BUSY_DELAY_MS` 150ms, so a fast answer never flashes it; once shown it stays until the answer. The label stays in the layout at opacity 0, so the button keeps its width and height. It ignores presses and fires no haptic while busy, `accessibilityState.busy` is true and the label stays the accessible name. Reduced motion keeps the spinner, because it shows a wait, not decoration. `useBusy` (`useBusy.ts:8-34`) drops a second press while one is in flight. `StickyAction` passes its `busy` through to `Button`.
+- **Where.** Every call site that awaits a command in both apps, including the SMS code check on Masuk, which now keeps the code on screen with a busy button instead of the "Memeriksa kode…" mascot screen. The mascot stays only for requests that run long: the import assistant reading files, Bayar's payment check and the claim link (and the launch gate).
+- **The tier table** gains the busy button as an inline loader beside `StickyAction`, the Menu upload tile and pull to refresh. The no-spinner scans now allow an `ActivityIndicator` only inside `components.tsx` and `settings/SettingsRows.tsx` in `mobile-ui` (customer, `apps/customer/tests/no-spinner.test.tsx:16, 54-55`), and in Dapur only the Menu upload tile's `photo-spinner` (`apps/caterer/tests/no-spinner.test.tsx:29-55`).
+
+### Errors
+
+Errors are never loose small text (FB8). Four owners, and a scan that fails on anything else.
+
+- **`ConnectionBanner`** (`packages/mobile-ui/src/ConnectionBanner.tsx`). Shows only when NetInfo reports the phone offline (`isConnected` or `isInternetReachable` false), and nothing until NetInfo first answers, so an online phone never reads it. At the top of the content under the header: a `cloud-offline-outline` icon in `danger`, the title "Tidak ada koneksi" ("No connection") in bold `danger`, and, when a copy is on screen, "Menampilkan data terakhir, {HH.MM}" ("Showing data from {HH.MM}"), then a "Coba lagi" text button. A `surface` card with a 1dp `line` edge and radius 12. A polite live region; iOS announces it once per offline spell. Back online, it calls its retry once by itself. Placed on Beranda, the plan detail and Dapur Hari ini (`Beranda.tsx:464`, `PlanDetail.tsx:192`, `TodayScreen.tsx:488-491`). It replaces the loose "Terakhir diperbarui HH.MM · tidak ada koneksi" caption and Dapur's "tidak ada sinyal" line.
+- **`StaleCopy`** (customer only, `apps/customer/src/staleCopy.tsx:32-46`). When the phone is online but the read failed and a kept copy is on screen: a `FormError` with "Belum bisa memperbarui. Menampilkan data terakhir, {HH.MM}." ("Couldn't refresh. Showing data from {HH.MM}.") and a busy "Coba lagi". Beranda and the plan detail (`Beranda.tsx:467`, `PlanDetail.tsx:193`). Before this, an online failure fell back to the kept copy in silence.
+- **`FormError`** (`packages/mobile-ui/src/FormError.tsx`). A callout at the form's action: an `alert-circle` icon and selectable text in `danger` on a `surface` card with a `line` edge, with an optional "Coba lagi". A polite live region on Android, `announceForAccessibility` on iOS; a repeated failure is re-read through `failureKey`. In a form sheet it sits in the pinned footer and is scrolled into view when the footer is inline (see Form sheets).
+- **`ReadError`** moved from Dapur into `packages/mobile-ui/src/ReadError.tsx` (Dapur keeps a re-export). A failed read in `danger` with "Coba lagi"; `art` adds the `bingung` mascot above it where the failure replaces the page. Both apps use it wherever nothing is cached.
+- **Non-form action failures** are an error toast with "Coba lagi": "Belum bisa menandai berangkat. Coba lagi." and "Belum bisa menandai Dimasak. Coba lagi." on Dapur Hari ini and the selection bar (`TodayScreen.tsx:203-215`, `SelectionBar.tsx:62-68`), and the customer's "Sudah sampai" (`Plate.tsx:303-319`, message from the error code, falling back to "Belum tersimpan. Coba lagi."). Marking Sampai is the exception: its failure is a `FormError` in the proof-photo sheet, "Belum bisa menandai sampai. Coba lagi." (`ProofSheet.tsx:226-228`), because the sheet stays open with the photos.
+- **The scan.** `tests/native-theme-guard.test.ts:170-234` fails on any `danger` or warning text outside its owners: `FormError`, `Field`'s error, `ReadError`, `ConnectionBanner`, the Keluar row and `RantangTrack`'s "Gagal diantar". `LEGACY_BARE_ERRORS` is empty.
+- The generic "Belum berhasil. Coba lagi." now says what failed in most places; `tests/copy-scan.test.ts` allows it at most twice.
+
+### Tracker
+
+`RantangTrack` (`packages/mobile-ui/src/RantangTrack.tsx`) has four stops (FB9, FB10; `bb4fc11a`): Terjadwal, Dimasak, Diantar and Sampai ("Scheduled", "Cooking", "On the way", "Arrived"), at 0, a third, two thirds and the end. It supersedes the three-stop track of Phase C (kitchen, road, door).
+
+- **Glyphs.** One code-drawn glyph per stop in the stroke style of `brand/Rantang.tsx`: a calendar, a pot, a motorbike and a house (`:38`). No icon library. The lunchbox marker still rides the line above them.
+- **Colour.** Reached stops fill with the hero ink, the current stop is larger (1.14) with a 2.5 ring in `stopActive`, the only Sunrise on the screen, and later stops are outlined in `heroMeta`. The line is ink and fills to the current stop.
+- **Marked as arrived, waiting for the customer.** The last stop is half filled and the caption reads "Ditandai sampai, menunggu konfirmasimu" ("Marked as arrived, waiting for you to confirm"); the kitchen's caption reads "Ditandai sampai, menunggu konfirmasi pelanggan" (`packages/domain/src/journey.ts:65-93`).
+- **Gagal diantar.** A warning stop with a 2.5 `heroWarn` ring and an alert glyph, a dashed last segment in `heroWarn`, and the words "Gagal diantar" in `heroWarn` (`:202-219, 254-272, 459-478`). Never a silent fallback to a normal stop.
+- **Motion.** On a stage change the marker slides, the line fill grows as a `scaleX` from its left edge and the stop disc scales, over `feature` (680ms) on the Catera ease. Nothing moves on first paint, refresh, pull or tab return, nothing loops, and everything is instant under reduced motion (`:162-178`).
+- **Screen readers** hear one sentence, "Pesanan: {tahap}, langkah {n} dari 4" ("Order: {stage}, step {n} of 4"), with the caption as its value; the stops are decorative (`:196-214`).
+- **Dapur** uses the same component on the count card, with counts under each stop. After a first round of departures the line fills to the furthest stage reached.
+- **Captions.** The journey caption table of Phase C stands, with "Ditandai sampai otomatis" ("Marked as arrived automatically") for a meal the system closed, replacing "Tercatat sampai", and the two waiting captions above. `statusLabel` reads "Sampai", "Ditandai sampai" and "Gagal diantar" ("Arrived", "Marked as arrived", "Not delivered"; `packages/domain/src/index.ts:539-584`).
+
+### Calendar sheet
+
+`CalendarSheet` and its body `CalendarPanel` (`packages/mobile-ui/src/CalendarSheet.tsx`; FB6, `4af785bd`) replace the customer's date chips in Ubah hari and Dapur's free-text "Tanggal baru (TTTT-BB-HH)" field in Pindah tanggal. Both open at the large detent in the root stack. The buy flow's start-date chips stay chips.
+
+- **Grid.** A Monday-first month of six weeks with "Bulan sebelumnya" and "Bulan berikutnya", clamped to the allowed window (the arrows dim to 0.35 at the ends). Tabular figures. The current delivery day has a 1.5 forest outline; the chosen day a 2 forest ring with a `line` fill and a bold forest number (rule 3: a mark, not a block). An unavailable day is muted and struck through; tapping it reads its reason in a polite caption, "{tanggal}: {alasan}": "Penuh", "Terisi", "Dapur libur" or "Lewat batas waktu" ("Full", "Booked", "Kitchen closed", "Past the cutoff"), mapped from the server codes `CAPACITY`, `DUPLICATE_DATE`/`OVERLAP`, `INVALID_DATE` and `CUTOFF`.
+- **Action.** The pinned footer button reads "Pindah ke {Senin 12 Okt}" ("Move to ..."), or "Pindah tanggal" until a new day is chosen, and is busy while the move runs. A failure is a `FormError`, "Belum bisa pindah tanggal. Coba lagi.".
+- **Two voices.** The `staff` prop switches the lines to the kitchen's point of view (GC-F2, `f9f98f66`, `74c3c81d`):
+
+| Moment | Customer | Dapur (`staff`) |
+| --- | --- | --- |
+| Prompt | "Pilih hari baru untuk pengantaranmu." ("Choose a new day for your delivery.") | "Pilih hari baru untuk pengantaran pelanggan." ("Choose a new day for the customer's delivery.") |
+| No open day | "Belum ada hari lain yang bisa kamu pilih di rentang ini." | "Belum ada hari lain yang bisa dipilih di rentang ini." ("No other day is open in this range.") |
+| Tapping the current day | "Ini hari pengantaranmu sekarang." | "Ini hari pengantaran pelanggan sekarang." ("This is the customer's delivery day now.") |
+
+- **Dapur extras.** The consequence line "Pelanggan yang memakai aplikasi diberi tahu." ("Customers who use the app get notified."), which replaces the untrue "Pelanggan diberi tahu", and an "Alasan" field (`apps/caterer/src/today/MoveSheet.tsx:141-160`). Dapur reads availability through `deliveryAvailability`, which serves staff. The stop sheet hands over to the calendar only after its own native dismissal (`handoff.ts`, `9927b67c`; gate g-c-6 PASS on the race).
+
+### Delivery confirmation: arrived, proof photo, auto-confirm
+
+The kitchen marks a stop Sampai with a proof photo and the customer confirms (FB3 and FB11; `abc9a6f3`, `a4cff03a`; migrations `20261014090000_delivery_arrive.sql` and `20261014091000_delivery_depart_subset.sql`).
+
+- **Data.** No new status. A fulfilment gains `arrived_at`, `arrived_by` and `arrived_photo`, and a meal marked Sampai stays `out_for_delivery` until it is confirmed. A trigger clears the three when the meal goes back to out for delivery or is marked "Gagal diantar". `delivery.arrive {catererId, date, meal, fulfillmentIds, photos}` is staff-only, Jakarta today only, one photo per stop, idempotent, in one transaction with row locks, and queues the customer push "Pesananmu sudah diantar. Sudah diterima?". The older status commands can no longer set `delivered` directly (`NOT_ALLOWED`). The web workspace's delivered button marks Sampai and waits for the customer too.
+- **Dapur selection** ("Urutan antar"). "Pilih" turns on circles per stop with "Pilih semua" and "Lepas semua" per area, and a bottom bar with "Berangkat ({n})" and "Sampai ({n})" ("Head out ({n})", "Arrived ({n})"); "Selesai" leaves selection. Stops already past an action cannot be chosen for it. Once some stops have left, the sticky footer reads "Berangkat semua sisa · {n} porsi". Repeated departures are the rounds; there are no named rounds (D4). `delivery.depart` takes the same optional subset and still pushes each customer once.
+- **Proof photo sheet** (`apps/caterer/src/today/ProofSheet.tsx`, large detent). Titled "Foto bukti sampai" with "Foto tiap alamat, urutan bebas. Pelanggan melihatnya saat diminta konfirmasi.". One tile per selected stop in a vertical list (the spec's grid became a list so a long name keeps whole words): a 64dp thumbnail, the stop, its state ("Belum ada foto", "Foto siap", "Foto belum terkirim") and a camera button "Ambil foto" or "Ganti foto". Photos are shrunk before upload, in any order. "Sampai ({n})" stays disabled with the reason "Ambil foto untuk {n} alamat lagi." until every stop has a photo, and is busy while sending. A failed upload keeps the other photos. Success toasts "{n} pengantaran ditandai sampai".
+- **Storage.** A private bucket, `catera-v1-proof`, at `{catererId}/{dayId}/{meal}/{uuid}.{ext}`; only that stop's customer and that caterer's staff can read a photo (`v1.can_read_proof`). Upload through `POST /api/uploads/proof`, read through `GET /api/proof`, which redirects to a five-minute signed URL. Demo mode keeps the bytes on disk and serves a flat synthetic image when a file is missing. Release steps: [RUNBOOK](docs/RUNBOOK.md), section 15.
+- **Customer hero.** For a meal marked Sampai and not yet confirmed (`PlateState` `arrived_unconfirmed`), the hero says "Dapur menandai pesananmu sudah sampai" with "Sudah diterima?" under it, the kitchen's photo (96dp, radius 12, labelled "Foto dari dapur saat pesanan sampai") beside "Sudah sampai" (primary, busy while it sends) and "Belum", which opens the "Belum sampai" report (`Plate.tsx:96-100, 284-301, 382-388, 493-536`). Gate g-c-6 PASS.
+- **Auto-confirm.** `v1.auto_confirm_arrived` closes a meal marked Sampai two or more hours earlier with `confirmed_by = 'auto'`, unless the customer reported a problem after the arrival or any report is still open. The next-morning `v1.auto_deliver` backstop stays. Both run from `/api/jobs`, which the repository schedules once a day at 09.00 Jakarta (`vercel.json`), so the two hours hold only once the hosted scheduler runs it more often (RUNBOOK section 15). `confirmed_by = 'caterer'` stays unused.
+- **"Ditandai sampai otomatis".** A meal the system closed reads "Ditandai sampai otomatis" ("Marked as arrived automatically") on the plate and the track, replacing "Tercatat sampai" (owner pick against the recommendation). The Phase C reachability note changes with it: production now closes meals on the same day through auto-confirm, so the wording is reachable on Beranda once the scheduler runs.
+- **Dapur copy.** Under the order: "Tandai Sampai dengan foto bukti. Pelanggan lalu mengonfirmasi, dan tanpa laporan pengantaran ditandai sampai otomatis." (`DeliveryOrder.tsx:218-221`). Semua beres reads "Semua pengantaran sudah ditandai sampai." or "{d} ditandai sampai, {f} ditandai Gagal diantar." (`TodayScreen.tsx:318-320`).
+- **Pushes at the event.** Every delivery stage pushes the customer right after the command (Dimasak, Berangkat, Sampai waiting for confirmation, Gagal diantar, and a Pindah tanggal by the kitchen), queued by triggers and deduplicated per customer, caterer, date, meal, stage and trip (`20261014110000_push_events.sql:1-9`), with a scheduled backstop. Caterer pushes are titled "Catera Dapur", customer pushes "Catera" (`apps/web/src/lib/push-dispatch.ts:14-15`). Device delivery is NOT VERIFIED until a development build has FCM V1 and APNs credentials.
+
+### Data akun
+
+A "Data akun" page in both apps (FB5; `a8692d88`, `797d7088`, `c916745b`, `f59710ba`), with inline editors rather than one sheet per field.
+
+- **Entry.** Customer: the first row of Akun and an "Akun" section in Pengaturan (signed in only). Dapur: Pengaturan.
+- **Rows.** Nama (`profile.update`, own row only, in a transaction); Nomor HP (a code to the new number, then the change; real SMS needs the production SMS credentials and is NOT VERIFIED, demo simulates it); Email (a confirmation link); Kata sandi (only for an email account, with reauthentication); Hapus akun in the danger tone, reading "Permintaan sudah terkirim" while a request is open. Demo mode says so on the page: "Demo (data contoh): nomor HP, email, dan kata sandi hanya disimulasikan.".
+- **Hapus akun, customer** (a root form sheet, `apps/customer/src/account/HapusAkun.tsx`). "Permintaan ini dikirim ke tim Catera. Akunmu belum dihapus sampai tim memeriksanya." With a running plan the request still goes through (owner pick): the sheet names the plans ("Kamu masih punya paket yang berjalan: {nama}.") and says "Paket yang masih berjalan diselesaikan dulu oleh tim Catera. Kami hubungi kamu soal sisa harinya sebelum akun dihapus." It promises no timing. Sent: "Permintaan hapus akun terkirim" and "Akunmu belum dihapus. Tim Catera memeriksa permintaan ini lebih dulu."
+- **Dapur.** The same rows, plus "Ubah nama atau kontak dapur" for owners only: a request to Catera with its status, "Tim Catera yang mengubahnya. Tulis apa yang perlu diganti." (D5). Dapur's Hapus akun is a fit sheet: "Tim Catera memproses permintaan ini. Pelanggan dan pengantaran yang masih berjalan diselesaikan dulu bersama tim. Kami hubungi kamu soal sisanya sebelum akun dihapus."
+- Pengaturan itself moved into `packages/mobile-ui` (`37e6636f`), and its "Syarat dan privasi" row opens the web page `/syarat-dan-privasi`, a labelled placeholder (G15); Dapur opens it with `Linking.openURL`.
+
+### Address delete and move
+
+Built in G13 (`345bf940`, `62e30279`, `abb339e7`; migration `20261014120000_address_delete_replace.sql`), Opus-built because it changes tenant-authorized state. It supersedes "Not built. Address delete." under Phase F.
+
+- **In use** means a delivery day dated today or later, not delivered or cancelled, that carries the address, or a pending checkout with it. `address.delete` refuses such an address with `ADDRESS_IN_USE`; an unused address is soft-deleted (`archived_at`) after one confirm, "Hapus alamat ini?", and the toast "Alamat dihapus".
+- **In use, move first.** The sheet "Alamat masih dipakai" says "Alamat ini masih dipakai untuk {n} pengantaran, {13 Okt} sampai {31 Okt}." (`packages/domain/src/address-use.ts:43-57`) and offers "Pindahkan ke alamat lain", then "Pindahkan ke alamat mana?" (or "Tambah alamat baru"). `address.replace` moves the scheduled days before the cutoff whose kitchen covers the new area, keeping the per-caterer lock, the live `COVERAGE` check and the one-day cutoff; the days that stay are counted with their reason and date. The old address is archived once nothing uses it. The result reads "{n} pengantaran dipindahkan" with "Lihat jadwal". A failure toasts "Alamat belum terhapus." with "Coba lagi". A pending payment blocks it: "Alamat ini masih dipakai untuk pembayaran yang belum selesai. Coba lagi setelah dibayar atau kedaluwarsa."
+- **An archived address is never used again.** Checkout, quote, address save, the delivery address change and Dapur's import refuse it, and the reads leave it out. Editing an address stays as it was.
+- **Dapur shows the live address, never an archived one** (GC-F7, `2b24b99f`; migration `20261020100000_customer_live_address.sql`). Dapur's customer record keeps a copy of the first plan's address. When that copy names an address the customer has since archived, the `seller-customers` read answers the address of the record's next delivery day still to come, else nothing. It never reads the customer's wider address book, so staff see only addresses the customer gave that kitchen. Pelanggan detail hides the "Alamat antar" card when there is no address. In the customer app, Beli drops a picked address that was removed and falls back to the renewal address, then the first address; Ubah hari does the same. Gate g-c-6 PASS ("Kantor" shown after the move).
+
+### Form sheets
+
+How a form sheet behaves, built across G1b to GC-F14 and gated on the Android emulator (gates g1b-2, g-c-2 to g-c-11; captures under `output/native-review/phase-g/gates/`). Owner decision of October 20, 2026: "pin the primary action in a form-sheet footer". Product rules first, then the mechanism. Everything lives in `packages/mobile-ui/src/SheetHeader.tsx` ("SH" below), which holds `SheetHeader`, `SheetBody`, `SheetFooter`, `SheetFitBody` and the measuring hooks.
+
+**What the person sees**
+
+- **Forms with fields open above the tabs.** Ada masalah, Ubah hari, the review form, Alamat (both copies), Bantuan (both copies) and Hapus akun in the customer app, and Impor's row editor and Pindah tanggal in Dapur, are root-stack form sheets (`apps/customer/src/nav.ts:84-86`; the `/pembelian/*` copies at `apps/customer/app/_layout.tsx:115-116`; `apps/caterer/app/_layout.tsx:102, 107`). TalkBack lands on the sheet title, never on the demo strip or the backdrop (gates g1b-2 and g-c-4). Choice, action and confirm sheets, the Dapur reply (`balas`) and the stop sheet (`atur-antaran`) stay in the tab stack. This supersedes the Phase F rule that every sheet lives in its own tab.
+- **The primary action is pinned.** A root-stack form sheet keeps its main button in a footer under the scrolling content, above the gesture bar, at every detent and font size. It never scrolls away and the bar never covers it (owner decision, October 20, 2026; built in `74d2fc13`, gate g-c-5 PASS at font scale 1.0 and 1.3, light and dark, 360dp).
+
+| Sheet | Pinned footer |
+| --- | --- |
+| Ada masalah (`/masalah/{id}`) | "Kirim laporan"; no footer once the day already has a report |
+| Review (`/ulasan/{id}`) | "Kirim ulasan" with the text button "Nanti saja" |
+| Alamat (`/alamat-form`, `/pembelian/alamat-form`) | "Simpan alamat" |
+| Bantuan (`/bantuan-form`, `/pembelian/bantuan-form`) | "Kirim permintaan" (none without a plan), or "Kirim ke Catera" when escalating |
+| Hapus akun (customer) | "Kirim permintaan hapus akun" with "Batal"; "Selesai" once sent |
+| Ubah hari | "Pindah ke {tanggal}" (date mode) or "Antar ke {label}" ("Pilih alamat" before a choice) |
+| Dapur Pindah tanggal | "Pindah ke {tanggal}", "Pindah tanggal" until a day is chosen |
+| Dapur Impor row editor | "Selesai" |
+
+- **What stays in the content.** A destructive or secondary action scrolls with the form: "Hapus baris ini" in the Impor row editor (`apps/caterer/src/import/RowEditor.tsx:128, 183-201`). A secondary text button that belongs to the decision ("Nanti saja", "Batal") sits in the footer beside the primary one. Tab-stack sheets keep their actions in the content: "Tandai gagal diantar" in the stop sheet, "Balas" and "Tandai selesai" in the reply sheet. The Dapur Hapus akun is a fit sheet (`SheetFitBody`) with no pinned footer.
+- **The footer rides the keyboard.** With the keyboard up the footer sits at the keyboard's top, so the focused field and the action are both visible (g-c-8 PASS: the Impor footer at the keyboard top, no over-lift).
+- **When there is no room, the footer goes inline.** If the sheet stays at the 0.6 detent under the keyboard and the body would be shorter than 120dp, the footer moves to the end of the scroll content until the keyboard goes, then pins again. This happens only in Expo Go: the real build (debugOptimized, `react-native-screens` from `node_modules`) expands the sheet to the large detent at any font scale (gate g-c-8). The inline footer is a safety net, accepted by controller decision on GC-F8.
+- **An error is never hidden.** When a `FormError` or a busy state appears in an inline footer, the sheet scrolls so the footer is in view (gates g-c-9 and g-c-10 PASS, including an Enter-submit error). A keyboard flip on its own never scrolls the sheet, so the first focus keeps the field in view.
+- **Tab-stack sheets end at the tab bar in every state.** Opening, dragging to the large detent, the keyboard rising and hiding, a tab switch and back, and backgrounding and resuming all leave the sheet's bottom on the tab bar's top, with no band and no overlap (gate g-c-11 ALL PASS at font scale 1.0, 1.3 and 3-button navigation).
+
+**Mechanism**
+
+- **The footer slot.** `SheetBody` takes a `footer` prop, or a `SheetFooter` anywhere inside it hands its children up through context (SH:489-504; it renders in place outside a `SheetBody`). SH:461-483: a frame view holds the scroll view, then the footer as a sibling after it, so the footer is outside the scroll content and after it in reading order. The footer has a hairline top border on `surface`, 12 top padding and the bottom inset plus 16 when nothing else covers the gesture bar (SH:426-457). On iOS the scroll view adjusts its own keyboard inset only when there is no footer; with one, the footer lifts by the keyboard height (SH:423, 469).
+- **The frame carries the lift.** The frame's bottom margin is `bar + lift + iosLift` (SH:461), where `lift = below + keyboardLift` (SH:421): `below` is how far the sheet hangs past the window's bottom edge, and `keyboardLift` is `max(0, keyboard + insets.bottom - tabBar)` on Android (SH:381). The two add because the keyboard covers the window's bottom, not the sheet's (GC-F6).
+- **One coordinate space.** `WindowEdge` (`packages/mobile-ui/src/windowEdge.tsx`) is an invisible full-window view mounted inside the `SafeAreaProvider` of both apps (`apps/customer/app/_layout.tsx:196`, `apps/caterer/app/_layout.tsx:177`). `measureWindowEdge` gives its bottom from `measureInWindow`, the same space the sheet frame is measured in. The window height from `useSafeAreaFrame` is only a fallback (SH:178, 210-214). The earlier reference mixed spaces and came out one status bar short (gate g-c-4 logs: edge 864 against window 914.29 minus a 50.29 status bar).
+- **Settled readings.** The hook remembers the last trusted reading for keyboard up and keyboard down, and ignores timer readings while the detent is moving (`sheetDetentChange` with `stable` false, a 1000ms stuck guard), so a first focus during the detent change does not over-lift (SH:158-169, 212, 283-291). Re-measures run 50ms after a keyboard change (and 450ms for tab sheets), on a window size change and on `transitionEnd`.
+- **Inline mode.** `short` is true when the keyboard is up, the reading is trusted and `frame - (below + keyboard) < footerHeight + 120` (SH:308, `SHEET_MIN_BODY` 120 at SH:328). The footer then renders inside the scroll view (SH:425, 481). `footerKey` (SH:312-325) fingerprints the footer's element types, `message` props and text, and only a change of that key, not a keyboard change, arms the scroll to the footer (SH:387-400, 437-440). Known limit: an identical error shown twice does not change the key, so it does not scroll again.
+- **Tab-stack fit, measured, not computed.** The tab bar height is `80 + max(0, ceil(16 × (fontScale − 1)))` plus the bottom inset (`toastAnchor.ts:31, 40-42`; SH:100-106), and `barFit` measures how much of it the sheet must clear in every state (SH:227-231). With the keyboard up the frame is measured ending about 104dp (the bar plus its inset) higher than the bar-only model predicts, so `keyboardLift` subtracts the tab bar. That is an empirical fit from g-c-8; why the keyboard-up frame ends higher is unexplained (comment at SH:374-380). Re-measures run at 50, 450 and 1200ms after a tab returns, only once the sheet has settled and after a blur (so the opening focus never measures mid-slide); a reading with no height recovers up to three times; and the app's return to the foreground re-measures tab sheets (SH:184-185, 197-207, 260-281).
+- **TalkBack.** The title gets focus on the sheet's present (`transitionEnd`) and again 250ms later, with a 400ms fallback when no present is reported (`useSheetTitleFocus`, SH:28-55; `sheets.ts:26-27`). On Android the sheet backdrop is not important for accessibility, through `patches/react-native-screens+4.26.2.patch` on `DimmingView.kt` (owner decision of October 17; root `patch-package` 8.0.1 with a `postinstall`). A tap outside still closes the sheet.
+- **Detents.** Forms open at `[0.6, 1]`; Ubah hari, Dapur Pindah tanggal and the Dapur proof-photo sheet (`sampai`) at the large detent only (`packages/mobile-ui/src/nativeHeader.ts:70-72`).
+- **Held context line.** With `holdContextLine` the context is one line with the full text as its spoken label, and not selectable, because a selectable Android text view does not ellipsize (SH:600-603).
+
+### Narrow widths
+
+`useStackedLayout(threshold)` and `isNarrow` (`packages/mobile-ui/src/stackedLayout.ts:4-14`) stack a row's parts when the effective width, `width / fontScale`, is below a threshold. Effective width catches 360dp at font scale 1.15 as well as a small phone at 1.0.
+
+| Where | Threshold | What stacks |
+| --- | --- | --- |
+| Dapur proof-photo tiles (`ProofSheet.tsx:50`) | 400 | The camera button goes under the stop name, so a long name never breaks mid-word |
+| Dapur selection bar (`SelectionBar.tsx:80`) | 340 | "Berangkat (n)" and "Sampai (n)" stack |
+| Dapur count card (`TodayScreen.tsx:100`) | 340 | The caption takes the full width under the figures |
+| Beranda "Perlu kamu urus" (`WaitingList.tsx:102`) | 340 | The action word goes under the row's text |
+
+Gates g-c-4 and g-c-9 PASS at 360dp with font scale 1.0, 1.15 and 1.3, and 393dp at 1.15. The Jadwal photo cell keeps its own rule (`fontScale < 1.3` shows the photo).
+
+### Copy glossary
+
+Indonesian first, English through `t(id, en)`, no em dashes, no slang ("gak", "aja", "banget", "dong"), full verbs (spec section 6; G18, `a8ca0695`, `d2a98101`, `bb044f66`, with GC-F9 and GC-F13). `tests/copy-scan.test.ts` fails on every retired word below in both apps and the push bodies.
+
+| Topic | Use | Retired |
+| --- | --- | --- |
+| Register, both apps | "kamu", or no pronoun where the sentence works without it ("pengantaranmu", "Akunmu") | "Anda" |
+| A delivery (noun) | "pengantaran" ("3 pengantaran", "tidak ada pengantaran.") | "antaran" as a noun; "pengiriman" is never used. The verb stays: "Berangkat antar", "Urutan antar", "Antar HH.MM" |
+| The business | "katering" | "katerer" in anything a customer sees |
+| Second Dapur role | "staf dapur" ("kitchen staff"); the stored value is unchanged | "Pembantu", visible "helper" |
+| Beranda section | "Perlu kamu urus" ("Needs you") | "Menunggu Anda", "Menunggu kamu", "Waiting on you" |
+| Dapur move | "Pindah tanggal" ("Move date"), spoken labels too | "Pindah hari", "Move the day" |
+| Phone | "HP" | "ponsel" |
+| Dapur package button | "Terbitkan paket" ("Publish package") | "Simpan paket" |
+| Meal closed by the system | "Ditandai sampai otomatis" ("Marked as arrived automatically") | "Tercatat sampai", "Recorded as arrived" |
+| Failed delivery | "Gagal diantar" ("Not delivered") everywhere, including Jadwal and the plate; the hero says "Pesananmu gagal diantar" so the header and the track never repeat each other | "Tidak bisa diantar", "Couldn't be delivered" |
+| Demo label | "Demo (data contoh)" ("Demo (sample data)") | "Demo · data sintetis", "synthetic data" |
+| Jelajah search | "Cari menu atau katering…" | the invented "Bu Rini" |
+| Push title, caterer | "Catera Dapur"; customer pushes stay "Catera" | |
+| Formal words | direct verbs | "Silakan", "terlebih dahulu", "tidak dapat", "Please" |
+| Dapur English actions | "Head out" for Berangkat and "Arrived" for Sampai ("Head out now?", "Head out ({n})", "Arrived ({n})") | "Mark Sampai", "Mark Berangkat", "Leave…", "Leave to deliver" |
+| English counts | `plural(count, singular, plural?)` (`packages/mobile-core/src/plural.ts:5`) in every English count with a number: "1 address", "2 addresses", "1 portion" | "1 addresses" and other unpluralised counts; the scan's plural check is at `tests/copy-scan.test.ts:161-183` |
+| Review time (Aktifkan) | "Tim Catera biasanya memeriksa dalam 1 sampai 2 hari kerja." | kept by the owner against the recommendation; a timing the system cannot back (R-17) |
+| Renewal start | "Mulai {Selasa 13 Okt}, tepat setelah paket sekarang" only when the start really is the next delivery day; "Mulai {tanggal}. Paket ini masih berjalan sampai {tanggal}." when the same package pushes it; "Mulai {tanggal}. Paketmu {nama} masih berjalan sampai {tanggal}." when another package at the same caterer does; plain "Mulai {tanggal}" for a plan already finished (`apps/customer/src/buy/Breakdown.tsx:145-168`) | the unconditional "tepat setelah paket sekarang" |
+
+### Strings this file quotes that changed in Phase G
+
+Where an earlier section quotes the left column, the right column is what the apps say now. The earlier sections are kept as the record of their phase.
+
+| Earlier wording | Now | Where |
+| --- | --- | --- |
+| "Menunggu Anda" | "Perlu kamu urus" ("Needs you") | `apps/customer/src/today/WaitingList.tsx:214` |
+| "Paket penuh" (trial row action) | "Beli paket" | `WaitingList.tsx:183` |
+| "{n} antaran." / "tidak ada antaran." (Beranda headline) and "{n} antaran" (arc detail, Berikutnya day label) | "{n} pengantaran." / "tidak ada pengantaran." and "{n} pengantaran" | `Beranda.tsx:210-224, 251`, `UpcomingDays.tsx:33` |
+| "Tercatat sampai" / "Recorded as arrived" | "Ditandai sampai otomatis" / "Marked as arrived automatically" | `packages/domain/src/journey.ts:90`, `Plate.tsx:105` |
+| "{jendela} · belum ada catatan dari dapur" / "Belum ada catatan dari dapur" | "{jendela} · belum ada kabar dari dapur" / "Belum ada kabar dari dapur" | `Plate.tsx:158-159` |
+| "Sudah lewat batas ubah" (Menu besok row and story, Dapur Menu closed day) | "Sudah tidak bisa diubah"; "Masih bisa diubah" when the day can change but no time is known | `TomorrowRow.tsx:20-26`, `TomorrowStory.tsx:217-222`, `MenuWeek.tsx:599` |
+| "Menu belum diisi oleh {katerer}" | "{katering} belum mengisi menunya" | `TomorrowStory.tsx:215` |
+| "Belum ada antaran besok." | "Belum ada pengantaran besok." | `TomorrowStory.tsx:144` |
+| "Tidak ada antaran mendatang." | "Belum ada pengantaran berikutnya." | `PlanDetail.tsx:301` |
+| "Terakhir diperbarui HH.MM · tidak ada koneksi" | `ConnectionBanner` offline, `StaleCopy` online (see Errors) | |
+| "Jadwal antar Anda sudah tersimpan." | "Jadwal antar sudah kami simpan." | `PaidOutcome.tsx:92` |
+| "Centang hanya catatan dapur, tidak dikirim ke pelanggan." | "Centang ini cuma catatan dapur. Pelanggan tidak melihatnya." | `CookingList.tsx:37` |
+| "Pelanggan melihat status Dimasak." | "Pelanggan akan melihat status Dimasak." | `TodayScreen.tsx:232` |
+| "Laporkan masalah atau pindah hari: {name}" / "Pindah hari: {name}" | "Laporkan masalah atau pindah tanggal: {name}" / "Pindah tanggal: {name}" ("Report a problem or move the date", "Move date") | `DeliveryOrder.tsx:89-96` |
+| "Pengantaran tercatat sampai otomatis, kecuali kamu laporkan masalah di alamatnya." | "Tandai Sampai dengan foto bukti. Pelanggan lalu mengonfirmasi, dan tanpa laporan pengantaran ditandai sampai otomatis." | `DeliveryOrder.tsx:218-221` |
+| "Semua antaran tercatat sampai." / "{d} tercatat sampai, {f} ditandai Gagal diantar." | "Semua pengantaran sudah ditandai sampai." / "{d} ditandai sampai, {f} ditandai Gagal diantar." | `TodayScreen.tsx:318-320` |
+| "{n} antaran makan {siang\|malam} ditandai Gagal diantar." | "{n} pengantaran makan {siang\|malam} ditandai Gagal diantar." | `TodayScreen.tsx:542-546` |
+| "Simpan laporan" (stop sheet) | "Tandai gagal diantar" | `ExceptionSheet.tsx:233` |
+| "Tinggalkan perubahan?" (Pilih menu) | "Buang pilihan menu?" with "Pilihan yang belum disimpan akan hilang." | `ChooseMenu.tsx:115-117` |
+| "Yang sudah Anda tulis akan hilang." | "Yang sudah kamu tulis akan hilang." in both apps | `packages/mobile-ui/src/sheets.ts:296-306` |
+| "Menyiapkan Catera untuk Anda…" | "Menyiapkan Catera…" ("Getting Catera ready…"); Dapur "Menyiapkan dapur kamu…" | `apps/customer/app/_layout.tsx:72, 166`, `apps/caterer/app/_layout.tsx:75, 147` |
+| "Memeriksa kode…" (mascot) | a busy button on the code screen | see Loading |
+| "Izinkan notifikasi di Pengaturan ponsel" | "Izinkan notifikasi di Pengaturan HP" | `packages/mobile-ui/src/settings/Pengaturan.tsx:40` |
+| "Segera hadir" (Syarat dan privasi) | opens `/syarat-dan-privasi` | `Pengaturan.tsx:120` |
+| "Demo · data sintetis" | "Demo (data contoh)" | both `app/_layout.tsx` (customer `:80`, Dapur `:84`) |
+| "Pelanggan diberi tahu" (Dapur move) | "Pelanggan yang memakai aplikasi diberi tahu." | `MoveSheet.tsx:147`, `ExceptionSheet.tsx:222` |
+| "Belum berhasil. Coba lagi." (generic) | a line that names what failed, for example "Belum bisa menandai berangkat. Coba lagi." | see Errors |
+
+### Owner decisions, October 13 to 20, 2026
+
+- **October 13.** Palette K; motion "Even slower"; native sheets kept with the TalkBack focus fixed; no confirm on deleting an Impor row, an "Urungkan" toast instead; a busy button for the code check; proof photos per stop with the action waiting for every photo; Hapus akun with a running plan goes through and the Catera team settles the plan; the copy table (with "pengantaran", "Ditandai sampai otomatis" and "1 sampai 2 hari kerja" kept against the recommendation); a paid "tambah porsi" top-up parked for Phase H.
+- **October 17.** The tab-stack action sheet's backdrop is kept out of TalkBack with a `patch-package` patch on `react-native-screens` 4.26.2, and `patch-package` is approved as a new dependency.
+- **October 20.** Pin the primary action in a form-sheet footer.
+- **Controller rulings** (each stated where it applies): forms with fields move to the root stack (the spec 4.1 fallback, after gate g1b); the inline footer is accepted as the Expo Go safety net; "Perpanjang" stays charcoal; the Beranda waiting row stacks only below 340 effective width; the proof sheet's list instead of a grid.
+
+### Evidence and limits
+
+Covered by Jest, Vitest and typecheck at `ff9a9b6e` (`npm test` 1043, customer Jest 1453, Dapur Jest 613 at the last full runs recorded in the ledger), `npm run build` and `npm run test:postgres` with the new scenarios (arrive against confirm, arrive against a report, double arrive, auto-confirm against a late report, overlapping departures, address delete against checkout, address replace against cook), including `tests/native-contrast.test.ts`, `tests/native-theme-guard.test.ts`, `tests/native-motion-tokens.test.ts`, `tests/copy-scan.test.ts` and `tests/app-config.test.ts`. On the Android emulator (API 36, Expo Go, demo backend; light and dark, 360dp at font scale 1.0 and 1.3) the gates passed the tracker, the calendar, selection and proof photos with camera and upload, the arrived-unconfirmed hero, the banner, `ReadError`, `FormError`, Data akun, address delete and move, the form sheets in every state listed above (g-c-11 ALL PASS), live reduced motion, and TalkBack on the sheet titles and the action sheet backdrop (the backdrop on a debugOptimized build).
+
+**Not verified on a device:** everything on iOS (no Mac); real push delivery (needs a development build with FCM V1 and APNs); real SMS for the phone change; the hosted scheduler and so the two-hour auto-confirm on the hosted project; the production proof photo path through `/api/proof`'s redirect; whether LaunchCover at 680ms and the slower press settle feel late (owed to the G20 gate); Coba lagi on a busy button; some English plurals (proof, import, review counts). **Known limits:** an identical `FormError` shown twice does not scroll the inline footer again; after a failed submit, keyboard focus can land on an earlier chip (Phase H); the inline footer remount loses TalkBack focus on the pinned and inline switch; the tab-stack sheet's keyboard fit is empirical. The hosted UAT backend lacks the Phase G migrations, so the UAT APKs cannot show these flows end to end (RUNBOOK section 15). This is not a device or release approval.

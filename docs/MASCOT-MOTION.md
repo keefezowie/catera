@@ -49,18 +49,20 @@ Both native apps draw the mascot from `packages/mobile-ui` (`src/brand/` and `sr
 
 ### Timings against the `nativeMotion` tokens
 
-`nativeMotion`: `control` 120, `selection` 180, `content` 220, `feature` 320 ms, ease `cubic-bezier(.16, 1, .3, 1)`. Transform and opacity only. The rig timelines use the Catera ease, solved as a worklet, but their segment times are the rig's own recipe (`rig.json`, `motionRecipes`), so only some line up with a token.
+`nativeMotion` since Phase G ("Even slower", owner pick of October 13, 2026, `98af208e`): `control` 200, `selection` 340, `content` 440, `feature` 680 ms, ease `cubic-bezier(.33, 1, .68, 1)`, spring damping 22 and stiffness 120 (critically damped). Before Phase G they were 120, 180, 220 and 320 ms on `cubic-bezier(.16, 1, .3, 1)` with a damping 18, stiffness 260 spring. Transform and opacity only. Rows tied to a token moved with it; the rig's own segment times did not change. The rig timelines use the Catera ease, solved as a worklet, but their segment times are the rig's own recipe (`rig.json`, `motionRecipes`), so only some line up with a token.
 
 | Piece | Timing | Token relation |
 | --- | --- | --- |
 | `MascotLoading` loop | 2400ms linear loop (`mascotMotion.duration`); reveal after 300ms (`mascotMotion.delay`); a 4 rise at size 160 scaled to `size`, 1.5 degree tilt, one blink, gentle sparkle | A waiting loop and a reveal delay, not tokens. It is one of the two loops allowed (with the skeleton pulse), only while something waits. |
-| `StateArt` `held` change | Opacity only, over `content` 220 on the Catera ease | `content`. No entering or exiting animation, so the art leaves with its section. |
+| `StateArt` `held` change | Opacity only, over `content` (440 since Phase G) on the Catera ease | `content`. No entering or exiting animation, so the art leaves with its section. |
 | `SuccessRig` | 1200ms total (`SUCCESS_RIG_MS`): squash to 96% 0 to 120, spring back 120 to 240, hop 6% of the rig height with the lid opening 12 degrees 120 to 420, fall 420 to 560, land 98% then 100% 560 to 700, badge 0.6 to 1.07 to 1 and opacity 0 to 1 between 300 and 620, sparkle layer 0.8 to 1 and out 450 to 1050; rest from 1050 | The 120ms squash equals `control`. The other segments are rig values. |
 | `SuccessRing` disc | 0.35 to 1 over 420ms (`SUCCESS_RING_MS`) | Spec value, between `content` and `feature`. |
 | `SuccessBeat` burst | Five sparkles from 70 to 112dp, 450 to 1050ms (600ms), Catera ease | Spec value. |
-| `SuccessBeat` facts | Title and children fade up 8dp from 620ms (`SUCCESS_FACTS_AT`) over `content` 220 | `content`. |
+| `SuccessBeat` facts | Title and children fade up 8dp from 620ms (`SUCCESS_FACTS_AT`) over `content` (440 since Phase G, so they settle at 1060ms instead of 840ms) | `content`. |
 | `MascotReading` | 2400ms linear loop (`READING_LOOP_MS`): eyes travel 0.67% of the canvas and the magnifier swings 4 degrees on a cosine, a blink to 0.16 at 45 to 55% for each eye about its own pivot, the paper highlight 0 to 1 to 0 at 40, 50, 55 and 65% | A waiting loop, not a token. |
-| `LaunchCover` (not a mascot piece) | The splash mark scales 1 to 1.04 and fades over 320ms | `feature`. |
+| `LaunchCover` (not a mascot piece) | The splash mark scales 1 to 1.04 and fades over `feature`, 680ms since Phase G (`LaunchCover.tsx:83-84`; was 320) | `feature`. Whether 680ms feels slower than the splash it follows is a device judgement owed to the G20 gate; if it does, the cover moves to `content`. The doc comment at `LaunchCover.tsx:43` still says 320ms. |
+| `SaveHeart` burst (not a mascot piece) | The heart rises to 1.22 over `control` and springs back on `nativeMotion.spring`; five dots travel to 31dp and fade within `HEART_BURST_MS`, which is `feature`, 680ms (`SaveHeart.tsx:21-23, 90-93`; was 380ms, a fixed number) | `control`, `feature` and the spring. Unsave is instant. Both hearts are forest since Phase G; the dots alternate `forest` and `forestDeep`. |
+| `RantangTrack` stage change (not a mascot piece) | On a stage change the marker slides, the progress bar grows as a `scaleX` from the left edge, the warning dash fades and the reached stop's disc scales 1 to 1.14, all over `feature` 680ms on the Catera ease (`RantangTrack.tsx:162-178`). Nothing animates on first paint, refresh, pull or tab return, and nothing loops. | `feature`. Was 320ms with a three-stop track before Phase G. |
 
 ### Reduced motion
 
@@ -71,6 +73,7 @@ Both native apps draw the mascot from `packages/mobile-ui` (`src/brand/` and `sr
 | `SuccessRig` | Shows the `mascot-merayakan` still at the same size, never moves, and still calls `onDone` once per play. |
 | `SuccessBeat` | `mascot-merayakan` at 180 and the facts. No disc, no burst, no confetti. The haptic and the announcement are kept. |
 | `MascotReading` | The `mascot-membaca` still. |
+| `RantangTrack` | Every value is set at once: the marker, the bar, the dash and the stop discs jump to the new stage (`RantangTrack.tsx:162-165`). Since Phase G (GC-F2) the reduced-motion setting is read live, so a change in the phone's settings applies at once. |
 
 ### Haptics and announcements
 

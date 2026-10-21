@@ -221,3 +221,33 @@ Until one of these is set up, arrival reminders and the 3-days-left renewal push
 **App build environment.** `EXPO_PUBLIC_API_URL` (the deployed web origin the app calls) and `EXPO_PUBLIC_CATERA_WEB_HOST` (the host that serves `/claim` and `/renew`, without scheme; without it the build has no app links).
 
 **Verify** on an Android device with the release build: a `/claim` and a `/renew` link open the app, a departure push and an arrival reminder arrive and open Beranda, and a 3-days-left plan gets one renewal push.
+
+## 15. Native Phase G (October 2026)
+
+Phase G adds the customer-confirmed arrival with a proof photo, stop selection in Dapur, account changes, address delete and move, and pushes sent at the event. Contract: DESIGN.md, Native Phase G. Nothing below has been applied to a hosted project from this repository.
+
+**Migrations the hosted UAT backend is missing.** The hosted UAT project behind the UAT APKs lacks the G3, G4, G5, G13 and G18 migrations and `20261020100000_customer_live_address.sql`, so the UAT APKs show Phase G screens over an older backend. Run `supabase migration list` first, check that every earlier local migration is already applied, then apply these in this order:
+
+| Task | Migration |
+|---|---|
+| G3 delivery state | `20261014090000_delivery_arrive.sql`, `20261014091000_delivery_depart_subset.sql` |
+| G4 account commands | `20261014100000_profile_update.sql` |
+| G5 push at the event | `20261014110000_push_events.sql` |
+| G13 address delete and move | `20261014120000_address_delete_replace.sql` |
+| G18 copy | `20261014130000_push_copy.sql` |
+| GC-F7 live address in Dapur | `20261020100000_customer_live_address.sql` |
+
+`20261014130000_push_copy.sql` patches the live push function bodies and checks its own anchors afterwards; a hosted database whose bodies differ from the repository fails loudly on those checks, which is intended. Never edit an applied migration. The local demo backend loads migrations only when its data folder is created, so a gate after any of these needs a new `CATERA_DEMO_DATA_DIR`.
+
+**Hosted scheduler.** Two jobs carry Phase G timing, and neither is scheduled on the hosted project yet:
+
+1. `GET /api/jobs` (Bearer `CRON_SECRET`, section 6) now first runs `delivery.autoConfirm`, which closes a meal marked Sampai two or more hours ago with no customer answer and no open report (`v1.auto_confirm_arrived`, `confirmed_by = 'auto'`), and then the next-morning `delivery.autoDeliver` backstop (`apps/web/src/app/api/jobs/route.ts:40-43`). The two-hour confirmation is only as prompt as this job. The repository's only schedule for it is the Vercel cron in `vercel.json`, `0 2 * * *`, once a day at 09.00 Asia/Jakarta, so on the hosted project a meal marked Sampai is closed automatically at the next 09.00 run, not two hours later. Schedule `/api/jobs` every few minutes on the hosted project (a Vercel plan that allows it, or `pg_cron` with `pg_net` as below) to make the two-hour rule real.
+2. `GET /api/jobs/push` retries stage pushes that the send at the event missed (section 14). On the hosted project, schedule Supabase `pg_cron` with `pg_net` to call it every 5 minutes with the Bearer header and the secret in Vault. Use the GitHub workflow only where `pg_cron` or `pg_net` is not allowed.
+
+Record the schedule, the first successful run of each job and its response counters in section 10. Whether `pg_cron` and `pg_net` are allowed on the hosted plan is unconfirmed (spec open item 14.9).
+
+**Proof photo storage.** `20261014090000_delivery_arrive.sql` creates the private bucket `catera-v1-proof` (not public, 8 MiB limit, PNG, JPEG and WebP only) where the storage schema exists. Objects live at `{catererId}/{dayId}/{meal}/{uuid}.{ext}`. A storage read policy lets an authenticated user read an object only when `v1.can_read_proof` says they are that stop's customer or that caterer's staff. Uploads go through `POST /api/uploads/proof`, which checks the kitchen's right to the slot, validates the image bytes on the server and writes without overwrite. Reads go through `GET /api/proof`, which checks the caller, signs the path for five minutes and redirects there (302); demo mode serves the bytes kept on disk. Verify on the hosted project: the bucket exists and is private, a customer reads only their own stop's photo, staff of another caterer are refused, an unsigned or expired link fails, and an upload over 8 MiB or of another type is refused. The production upload path was NOT VERIFIED on a device.
+
+**EAS project ids, unconfirmed.** Each app config falls back to its own id when `EXPO_PUBLIC_EAS_PROJECT_ID` is unset: the customer app `17010cc0-9bc3-40c7-b8c5-62b6a2f6b0e0` (`apps/customer/app.config.ts:69-71`) and Catera Dapur `1c3f597c-4cba-498d-9d14-48b9c5ebafcc` (`apps/caterer/app.config.ts:51`). The root `app.json` id that G5 removed was `f5259168-4993-48b8-9071-a25cfe03ca7b`. The owner has not confirmed which ids belong to the real EAS account (spec open item 14.8). Confirm them in the EAS dashboard before any push or store build; a wrong id registers push tokens to a project the server cannot reach. `tests/app-config.test.ts` checks only that the two differ and are present.
+
+**Other inputs still owed.** Real SMS for the phone change in Data akun (demo simulates it), FCM V1 and APNs credentials for push on a device, and the owner's text for the "Syarat dan privasi" page, which is a labelled placeholder until then.
