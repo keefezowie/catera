@@ -31,6 +31,12 @@ import { goOffline, keptLine } from "./offline";
 
 /** Rows that carry an href open through openLink; its tab handling is covered in navigation.test, so here it opens the
  * path the way a push does. */
+/** The phone the screen is drawn on; a test sets it to try another width or text size. */
+let mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1 };
+jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
+  __esModule: true,
+  default: () => mockWindow,
+}));
 jest.mock("../src/nav", () => ({
   ...jest.requireActual("../src/nav"),
   openLink: (path: string) => require("expo-router").router.push(path),
@@ -140,6 +146,7 @@ function pin(now: Date) {
 }
 
 afterEach(() => {
+  mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1 };
   jest.useRealTimers();
   jest.restoreAllMocks();
 });
@@ -354,6 +361,23 @@ describe("Perlu kamu urus", () => {
     await waitFor(() => expect(usage.mock.calls.filter(([n]) => n === "renew_started")).toHaveLength(1));
     fireEvent.press(rows[4]);
     expect(router.push).toHaveBeenLastCalledWith("/paket/p-s-coba-1?title=Coba%20Nasi%20Bakar");
+  });
+
+  it("stacks the action under the text at 360dp and font scale 1.3, so a package name wraps whole words", async () => {
+    mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
+    mount(demo().runtime);
+    const list = within(await screen.findByTestId("waiting-list"));
+    for (const row of list.getAllByTestId("waiting-row")) {
+      const text = within(row).getByTestId("waiting-text");
+      expect(within(text).getByTestId("waiting-action")).toBeTruthy();
+    }
+  });
+
+  it("keeps the action beside the text on a wide phone at the default text size", async () => {
+    mount(demo().runtime);
+    const list = within(await screen.findByTestId("waiting-list"));
+    for (const row of list.getAllByTestId("waiting-row"))
+      expect(within(within(row).getByTestId("waiting-text")).queryByTestId("waiting-action")).toBeNull();
   });
 
   it("the renewal row calls its price the last price, never the renewal's", async () => {

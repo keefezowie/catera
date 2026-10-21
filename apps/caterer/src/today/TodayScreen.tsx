@@ -42,6 +42,7 @@ import {
   useHaptic,
   useMood,
   useMoodColors,
+  useStackedLayout,
 } from "@catera/mobile-ui";
 import { jakartaClock } from "./exceptions";
 import { cacheSession, loadCachedDay, saveCachedDay } from "./offline";
@@ -96,6 +97,14 @@ function CountCard({ ops, session }: { ops: SellerOperationsState; session: Kitc
   // The window opens with the first row still being served: a failed or cancelled row's hours do not count.
   const served = new Set(session.stops.map((s) => s.deliveryId));
   const start = sessionStart({ ...ops, deliveries: ops.deliveries.filter((d) => served.has(d.id)) }, meal);
+  const stacked = useStackedLayout(340);
+  const caption = (
+    <Text testID="session-count-caption" variant="caption" style={{ color: palette.heroMeta }}>
+      {meal === "lunch"
+        ? t(`porsi siang · ${addresses} alamat`, `lunch portions · ${addresses} addresses`)
+        : t(`porsi malam · ${addresses} alamat`, `dinner portions · ${addresses} addresses`)}
+    </Text>
+  );
   return (
     <View
       testID="session-count"
@@ -110,11 +119,7 @@ function CountCard({ ops, session }: { ops: SellerOperationsState; session: Kitc
           <Text variant="number" style={{ color: palette.heroText }}>
             {String(portions)}
           </Text>
-          <Text testID="session-count-caption" variant="caption" style={{ color: palette.heroMeta }}>
-            {meal === "lunch"
-              ? t(`porsi siang · ${addresses} alamat`, `lunch portions · ${addresses} addresses`)
-              : t(`porsi malam · ${addresses} alamat`, `dinner portions · ${addresses} addresses`)}
-          </Text>
+          {stacked ? null : caption}
         </View>
         {/* The cooking mascot's slot, in the numbers row between the portions and "Antar": `[numbers][slot][Antar]`.
             After "Mulai masak", while the whole session cooks, the mascot stands in it at about the numbers' own
@@ -133,6 +138,8 @@ function CountCard({ ops, session }: { ops: SellerOperationsState; session: Kitc
           </Text>
         ) : null}
       </View>
+      {/* Large text or a narrow phone: the caption leaves the numbers' column for the card's full width. */}
+      {stacked ? caption : null}
       <RantangTrack
         stage={trackStage(session.journey)}
         caption={journeyCaption(session.journey, locale, "kitchen") ?? undefined}

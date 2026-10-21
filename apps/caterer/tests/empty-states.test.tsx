@@ -301,6 +301,16 @@ describe("the cooking session", () => {
     for (const pose of POSES.filter((p) => p !== "memasak")) expect(screen.queryByTestId(`mascot-${pose}`, hidden)).toBeNull();
   });
 
+  it("gives the caption the card's full width on a 360dp phone at font scale 1.3, so it does not wrap to four lines", async () => {
+    mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
+    render(wrap(runtimeWith({ sellerOperations: jest.fn(async () => day("preparing")) }), <TodayScreen />));
+    const card = await screen.findByTestId("session-count");
+    const caption = await within(card).findByTestId("session-count-caption", hidden);
+    expect(within(within(card).getByTestId("session-count-numbers", hidden)).queryByTestId("session-count-caption", hidden)).toBeNull();
+    expect(within(within(card).getByTestId("session-count-row", hidden)).queryByTestId("session-count-caption", hidden)).toBeNull();
+    expect(caption.props.children).toMatch(/porsi siang|lunch portions/);
+  });
+
   it("shrinks it to 58 on a 360dp phone at font scale 1.3", async () => {
     mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
     render(wrap(runtimeWith({ sellerOperations: jest.fn(async () => day("preparing")) }), <TodayScreen />));

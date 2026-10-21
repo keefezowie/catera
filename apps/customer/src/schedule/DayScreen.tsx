@@ -1,7 +1,7 @@
 import { Image, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { pushSheet } from "../nav";
-import { mealLabel, reportableMeals, shortDate, statusLabel, type Delivery } from "@catera/domain";
+import { mealJourney, mealLabel, reportableMeals, shortDate, statusLabel, type Delivery } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
 import { Button, Card, FadeSwap, linkTitle, ReadError, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
@@ -96,7 +96,7 @@ function Day({ id }: { id: string }) {
           <Card key={m.meal} style={{ flexDirection: "row", alignItems: "flex-start", gap: 4 }}>
             <View style={{ flex: 1, gap: 4 }}>
               <Text variant="label" style={{ fontVariant: ["tabular-nums"] }}>
-                {mealLabel(m.meal, locale)} · {d.offer.windows?.[m.meal]} · {statusLabel(m.status, locale)}
+                {mealLabel(m.meal, locale)} · {d.offer.windows?.[m.meal]} · {statusLabel(mealJourney(m).stage === "arrived" ? "arrived" : m.status, locale)}
               </Text>
               {dishesOf(d, m.meal) ? <Text>{dishesOf(d, m.meal)}</Text> : null}
             </View>

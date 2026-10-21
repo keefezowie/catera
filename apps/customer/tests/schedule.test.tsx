@@ -999,6 +999,28 @@ describe("Hari: Ada masalah", () => {
     expect(router.push).toHaveBeenCalledWith("/masalah/d-today?meal=lunch");
   });
 
+  it("says a meal the kitchen marked arrived is marked arrived, the same state Beranda reads, never on the way", async () => {
+    await show(
+      delivery("d-today", "2026-10-07", {}, {
+        meals: [
+          {
+            meal: "lunch",
+            status: "out_for_delivery",
+            departed_at: "2026-10-07T03:00:00Z",
+            arrived_at: "2026-10-07T03:20:00Z",
+          },
+        ],
+      }),
+    );
+    expect(screen.getByText(/Ditandai sampai/)).toBeTruthy();
+    expect(screen.queryByText(/Sedang diantar/)).toBeNull();
+  });
+
+  it("still says on the way for a meal that left and was not marked arrived", async () => {
+    await show(delivery("d-today", "2026-10-07", { status: "out_for_delivery" }));
+    expect(screen.getByText(/Sedang diantar/)).toBeTruthy();
+  });
+
   it("is offered today once the window has started", async () => {
     await show(open("d-today", "2026-10-07", { offer: offer({ windows: { lunch: "09.30–11.00", dinner: "17.00–19.00" } }) }));
     expect(report()).toBeTruthy();
