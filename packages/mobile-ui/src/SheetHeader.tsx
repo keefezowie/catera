@@ -169,9 +169,7 @@ function useSheetHiddenBelow(
   const below = trusted ? measured.below : Math.min(remembered, measured.below);
   // Inside the tabs there is no hidden-below to find, but the room above the keyboard is still read.
   const track = active || keyboard > 0 || tabBar > 0;
-  // A tab sheet is measured only once the keyboard has come and gone; a first open keeps the bar's own height.
-  const keyboardSeen = useRef(false);
-  if (keyboard > 0) keyboardSeen.current = true;
+  // A tab sheet keeps the bar's own height until its first reading, then follows what is measured (the bar margin fit).
   const marginRef = useRef(0);
   // Kept equal to what is rendered, so a measure never works from a margin the scroll view no longer has.
   marginRef.current = below + keyboard;
@@ -204,10 +202,11 @@ function useSheetHiddenBelow(
           clearTimeout(stuck);
           movingRef.current = false;
           setMoving(false);
-          // A tab sheet's frame should end at the bar's top. After the keyboard has come and gone it can stay shifted up
-          // by the bar, which the bar margin then doubles: the margin only fills the gap that is really there.
+          // A tab sheet's frame should end at the bar's top. At the large detent, after a tab switch or a keyboard, the native
+          // frame can sit shifted up by the bar, which the bar margin then doubles: the margin only fills the gap that is
+          // really there. Read in every state, not only after a keyboard (g-c-10).
           let barFit: number | null = null;
-          if (!active && tabBar > 0 && barShown.current >= 0 && keyboardSeen.current) {
+          if (!active && tabBar > 0 && barShown.current >= 0) {
             const unmargined = top + height + Math.max(0, barShown.current) + marginRef.current;
             barFit = Math.min(tabBar, Math.max(0, Math.round(unmargined - edgeBottom + tabBar)));
           }
@@ -220,6 +219,7 @@ function useSheetHiddenBelow(
       });
     };
     let settled: ReturnType<typeof setTimeout> | undefined;
+    let settledLate: ReturnType<typeof setTimeout> | undefined;
     const later = (fromDetent = false) => {
       clearTimeout(timer);
       timer = setTimeout(() => measure(fromDetent), 50);
@@ -236,6 +236,15 @@ function useSheetHiddenBelow(
     const size = `${width}x${windowHeight}`;
     if (measuredSize.current && measuredSize.current !== size) later();
     measuredSize.current = size;
+    // Coming back to the tab: the native sheet is laid out again, possibly shifted up by the bar, and no other event says
+    // so. Read again, and twice more as the shift can land late.
+    const back = navigation?.addListener("focus" as never, () => {
+      later();
+      clearTimeout(settled);
+      clearTimeout(settledLate);
+      settled = setTimeout(() => measure(false), 450);
+      settledLate = setTimeout(() => measure(false), 1200);
+    });
     const done = navigation?.addListener("transitionEnd" as never, () => later());
     const detent = navigation?.addListener("sheetDetentChange" as never, (e: { data?: { stable?: boolean } }) => {
       if (e.data?.stable === false) {
@@ -251,7 +260,9 @@ function useSheetHiddenBelow(
       clearTimeout(fallback);
       clearTimeout(timer);
       clearTimeout(settled);
+      clearTimeout(settledLate);
       clearTimeout(stuck);
+      back?.();
       done?.();
       detent?.();
     };
@@ -328,8 +339,9 @@ export function SheetBody({
   // measured the frame ending 104dp (the bar plus its inset) above the keyboard's top. Without the keyboard the sheet
   // reaches the window bottom and the JS bar margin lifts it; why the keyboard-up frame ends higher is unexplained. The
   // fit depends on `androidTabBarHeight(fontScale)` plus the inset matching the real bar. g-c-9 found the shift can outlast the
-  // keyboard (the frame then ended 104dp above the bar), so after a keyboard change the tab sheet is measured and the bar margin
-  // is trimmed to the gap that is really there (`barFit`).
+  // keyboard, and g-c-10 that it is not keyboard-specific (at the large detent after a tab switch the frame ends a bar
+  // above the window bottom), so the tab sheet is always measured, after the keyboard, a detent move, a window change and
+  // a return to the tab, and the bar margin is trimmed to the gap that is really there (`barFit`).
   const keyboardLift = os === "android" && keyboard > 0 ? Math.max(0, keyboard + insets.bottom - tabBar) : 0;
   // The frame holds the scroll view and the footer, so both are lifted by what is measured.
   const [footerHeight, setFooterHeight] = useState(SHEET_FOOTER_GUESS);

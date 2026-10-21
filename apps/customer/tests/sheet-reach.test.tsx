@@ -690,5 +690,61 @@ describe("a form sheet's last button clears the gesture bar", () => {
         expect(m.after).toBe(0);
       });
     });
+
+    describe("a tab-stack sheet with no keyboard at all", () => {
+      // At the large detent the native frame can end one bar above the window bottom, after a tab switch or on a fresh open.
+      const position = { top: 300, height: FRAME.height - 300 };
+      const open = () => {
+        mockMeasure(position);
+        const nav = fakeNavigation("tab");
+        render(withFooter(<Text>Balas</Text>, nav));
+        return nav;
+      };
+
+      it("a fresh open at large that is already shifted up by the bar fits without a keyboard", async () => {
+        position.height = FRAME.height - TAB_BAR - 300;
+        open();
+        expect(marginOf()).toBe(TAB_BAR);
+        await settle(1000);
+        expect(marginOf()).toBe(0);
+      });
+
+      it("coming back to the tab at large measures again and drops the doubled margin", async () => {
+        position.height = FRAME.height - 300;
+        const nav = open();
+        await settle(1000);
+        expect(marginOf()).toBe(TAB_BAR);
+        position.height = FRAME.height - TAB_BAR - 300;
+        await act(async () => {
+          nav.emit("focus");
+        });
+        await settle(1500);
+        expect(marginOf()).toBe(0);
+      });
+
+      it("a frame that reaches the window bottom keeps the bar margin, also after a tab switch", async () => {
+        position.height = FRAME.height - 300;
+        const nav = open();
+        await settle(1000);
+        await act(async () => {
+          nav.emit("focus");
+        });
+        await settle(1500);
+        expect(marginOf()).toBe(TAB_BAR);
+      });
+
+      it("a shift that is gone after the next tab switch gives the bar margin back", async () => {
+        position.height = FRAME.height - TAB_BAR - 300;
+        const nav = open();
+        await settle(1000);
+        expect(marginOf()).toBe(0);
+        position.height = FRAME.height - 300;
+        await act(async () => {
+          nav.emit("focus");
+        });
+        await settle(1500);
+        expect(marginOf()).toBe(TAB_BAR);
+      });
+    });
   });
 });
