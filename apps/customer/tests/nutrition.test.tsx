@@ -162,6 +162,16 @@ describe("NutritionCard", () => {
     dims.mockRestore();
   });
 
+  it("before the row is measured, a narrow large-text screen already starts at two by two", async () => {
+    const dims = jest.spyOn(require("react-native"), "useWindowDimensions");
+    dims.mockReturnValue({ width: 360, height: 760, scale: 3, fontScale: 1.3 });
+    card(full, "android");
+    await screen.findByText("Gizi per porsi");
+    // No layout event yet: the first frame is already the final grid, never four cut tiles.
+    expect(screen.getAllByTestId("gizi-row")).toHaveLength(2);
+    dims.mockRestore();
+  });
+
   it("a calorie range reads 580–640", async () => {
     let view = card(calorieRange, "ios");
     expect(await screen.findByText("580–640 kkal")).toBeTruthy();

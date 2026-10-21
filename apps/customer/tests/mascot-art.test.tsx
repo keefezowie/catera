@@ -16,6 +16,7 @@ import {
   ThemeProvider,
   type MascotPose,
 } from "@catera/mobile-ui";
+import { __resetMascotWarmForTests } from "../../../packages/mobile-ui/src/brand/MascotArt";
 import { mascotPoses, readingRig, readingRigBox, stillRuntime, successRigBox, visibleBox } from "../../../packages/brand/phaseF";
 
 jest.mock("expo-secure-store", () => ({
@@ -90,10 +91,33 @@ describe("MascotArt", () => {
         canvas: height,
         canvasWidth: width,
       });
-      expect(screen.getByTestId("mascot-art-image", hidden).props.resizeMode).toBe("stretch");
+      expect(screen.getByTestId("mascot-art-image", hidden).props.contentFit).toBe("contain");
       expect(sourceOf("mascot-art-image")).toContain(`phase-f/runtime/mascot-${pose}.png`);
     },
   );
+
+  it("cross-dissolves the still in, and draws it at once under reduced motion", () => {
+    const view = render(<MascotArt pose="tidur" size={120} />);
+    const transition = screen.getByTestId("mascot-art-image", hidden).props.transition;
+    expect(transition).toBeGreaterThan(0);
+    expect(transition).toBeLessThanOrEqual(300);
+    view.unmount();
+    jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
+    render(<MascotArt pose="tidur" size={120} />);
+    expect(screen.getByTestId("mascot-art-image", hidden).props.transition).toBe(0);
+  });
+
+  it("warms every runtime still once, on the first mount, so a pose swap never cold-decodes", () => {
+    const { Image } = require("expo-image");
+    // Jest's asset transform has no uri; a device resolves each require to one.
+    jest.spyOn(ReactNative.Image, "resolveAssetSource").mockImplementation((m: never) => ({ uri: `asset://${JSON.stringify(m)}` }) as never);
+    __resetMascotWarmForTests();
+    const view = render(<MascotArt pose="tidur" size={120} />);
+    view.rerender(<MascotArt pose="membaca" size={120} />);
+    render(<MascotArt pose="bingung" size={120} />);
+    expect(Image.prefetch).toHaveBeenCalledTimes(1);
+    expect(Image.prefetch.mock.calls[0][0]).toHaveLength(mascotPoses.length);
+  });
 
   it("draws the same file in the dark theme", async () => {
     jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");

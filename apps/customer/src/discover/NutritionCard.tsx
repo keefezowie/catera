@@ -59,6 +59,8 @@ const VALUE_EM = 0.6;
 const LABEL_EM = 0.55;
 const LABEL_SIZE = 12;
 const GAP = 8;
+/** The screen width less the page and card padding: a 360dp screen gives the 288dp row. */
+const ROW_INSET = 72;
 /** Value sizes: the heading step on iOS, one step down for ranges that need it, and Android's compact value. */
 const IOS_VALUE = 21;
 const IOS_RANGE_VALUE = 17;
@@ -74,8 +76,11 @@ const ANDROID_VALUE = 18;
 export function NutritionCard({ offer, os = process.env.EXPO_OS }: { offer: Offer; os?: string }) {
   const { t, locale } = useMobile();
   const styles = useStyles();
-  const { fontScale } = useWindowDimensions();
-  const [width, setWidth] = useState(0);
+  const { fontScale, width: screenWidth } = useWindowDimensions();
+  const [measured, setMeasured] = useState(0);
+  // Before the first layout event the row is estimated from the screen (page and card padding off), so the first
+  // frame already has the right column count; the measured width replaces it.
+  const width = measured || Math.max(0, screenWidth - ROW_INSET);
   const metrics = filledMetrics(offer, locale);
   if (!metrics.length) return null;
   const ios = os === "ios";
@@ -93,7 +98,7 @@ export function NutritionCard({ offer, os = process.env.EXPO_OS }: { offer: Offe
         (m) => Math.max(m.value.length * valueSize * VALUE_EM, m.caption.length * LABEL_SIZE * LABEL_EM) * fontScale + pad * 2,
       ),
     );
-  const fits = (cols: number, valueSize: number) => !width || cols * need(valueSize) + (cols - 1) * GAP <= width;
+  const fits = (cols: number, valueSize: number) => cols * need(valueSize) + (cols - 1) * GAP <= width;
   // iOS keeps two by two: ranges ("610–640 kkal") that do not fit at the 21 heading step down once to 17 (the card
   // title's size) before a single column, which is left for larger text. Android keeps its 18 and goes 4, 2, 1.
   const hasRange = metrics.some((m) => m.amount.includes("–"));
@@ -109,7 +114,7 @@ export function NutritionCard({ offer, os = process.env.EXPO_OS }: { offer: Offe
       <Text variant="heading" style={styles.title}>
         {t("Gizi per porsi", "Nutrition per portion")}
       </Text>
-      <View testID="gizi-grid" style={{ gap: GAP }} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
+      <View testID="gizi-grid" style={{ gap: GAP }} onLayout={(e) => setMeasured(e.nativeEvent.layout.width)}>
         {rows.map((row, r) => (
           <View key={r} testID="gizi-row" style={styles.row}>
             {row.map((m) => (

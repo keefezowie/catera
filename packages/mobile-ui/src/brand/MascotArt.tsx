@@ -1,4 +1,8 @@
-import { Image, View } from "react-native";
+import { useEffect } from "react";
+import { Image as NativeImage, View } from "react-native";
+import { Image } from "expo-image";
+import { nativeMotion } from "@catera/design-tokens";
+import { useReduced } from "../motion";
 import { stillRuntime, type MascotPose, type PhaseFBox } from "../../../brand/phaseF";
 import { decorative } from "./decorative";
 
@@ -18,6 +22,26 @@ const stills: Record<MascotPose, number> = {
   memasak: require("../../../brand/assets/phase-f/runtime/mascot-memasak.png"),
 };
 
+let warmed = false;
+/**
+ * Fetches and decodes all seven stills into expo-image's cache the first time any mascot mounts, so a later state swap
+ * (Jadwal's empty month to its tidur pose) draws in the same frame instead of after a cold decode. A failed warm-up is
+ * harmless: the still then loads when it is drawn.
+ */
+function warmStills() {
+  if (warmed) return;
+  warmed = true;
+  const uris = Object.values(stills)
+    .map((module) => NativeImage.resolveAssetSource(module)?.uri)
+    .filter((uri): uri is string => !!uri);
+  if (uris.length) Promise.resolve(Image.prefetch(uris)).catch(() => {});
+}
+
+/** Tests only: forget that the stills were warmed. */
+export function __resetMascotWarmForTests() {
+  warmed = false;
+}
+
 /**
  * Where an image sits so that its visible box is exactly `size` tall: the image is drawn `canvas` points tall and
  * `canvasWidth` wide (`aspect` is its width over height, 1 for the square rig canvases), the box's top meets the
@@ -36,6 +60,8 @@ export function mascotArtFrame(box: PhaseFBox, size: number, aspect = 1) {
  * frame would cut the drawing). The same file is shown in the light and the dark theme.
  */
 export function MascotArt({ pose, size }: { pose: MascotPose; size: number }) {
+  const reduced = useReduced();
+  useEffect(warmStills, []);
   const { box, aspect } = stillRuntime[pose];
   const frame = mascotArtFrame(box, size, aspect);
   return (
@@ -43,9 +69,9 @@ export function MascotArt({ pose, size }: { pose: MascotPose; size: number }) {
       <Image
         testID="mascot-art-image"
         source={stills[pose]}
-        fadeDuration={0}
-        // The style carries the crop's true aspect; the file's whole-pixel size can differ from it by under a pixel.
-        resizeMode="stretch"
+        contentFit="contain"
+        transition={reduced ? 0 : nativeMotion.control}
+        // The style carries the crop's true aspect, so "contain" fills it: the file's whole-pixel size can differ from it by under a pixel.
         style={{ position: "absolute", left: frame.left, top: frame.top, width: frame.canvasWidth, height: frame.canvas }}
       />
     </View>
