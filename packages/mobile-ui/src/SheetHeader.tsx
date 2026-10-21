@@ -288,8 +288,10 @@ export function SheetBody({
   // Inside the tabs the bar's share is 0 only while the keyboard is up, and the sheet is not a root one then.
   // The reported height stops at the navigation bar (ime.bottom minus the system bars) while the sheet reaches the
   // window bottom, so the bar's inset is added to end at the keyboard's top.
-  // A tab-stack sheet's parent already ends above the bar (measured on the phone: with the keyboard up the frame stopped
-  // exactly one bar above the keyboard), so the bar's share is part of the distance to the keyboard's top: it is taken off.
+  // In a tab's stack the bar's share is taken off the lift. This is an empirical fit for the keyboard-up case: g-c-8
+  // measured the frame ending 104dp (the bar plus its inset) above the keyboard's top. Without the keyboard the sheet
+  // reaches the window bottom and the JS bar margin lifts it; why the keyboard-up frame ends higher is unexplained. The
+  // fit depends on `androidTabBarHeight(fontScale)` plus the inset matching the real bar.
   const keyboardLift = os === "android" && keyboard > 0 ? Math.max(0, keyboard + insets.bottom - tabBar) : 0;
   // The frame holds the scroll view and the footer, so both are lifted by what is measured.
   const [footerHeight, setFooterHeight] = useState(SHEET_FOOTER_GUESS);
@@ -322,7 +324,9 @@ export function SheetBody({
         // top of the body, or, when the body is taller than the footer, the whole footer is brought in at the bottom.
         const was = footerSeen.current;
         footerSeen.current = { inline, h };
-        if (inline && was?.inline && was.h !== h) scroller.current?.scrollTo({ y: Math.max(0, bodyHeight.current > h ? y + h - bodyHeight.current : y), animated: true });
+        // A footer that grew until it no longer fit pinned (an error flipped it inline) lands scrolled the same way.
+        const grew = was ? (was.inline ? was.h !== h : h > was.h) : false;
+        if (inline && grew) scroller.current?.scrollTo({ y: Math.max(0, bodyHeight.current > h ? y + h - bodyHeight.current : y), animated: true });
       }}
       style={{
         paddingHorizontal: sheetSidePadding(os),

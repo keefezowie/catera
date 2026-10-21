@@ -531,6 +531,29 @@ describe("a form sheet's last button clears the gesture bar", () => {
       expect(scrollTo).toHaveBeenLastCalledWith({ y: 400 + 120 - 300, animated: true });
     });
 
+    it("a pinned footer that grows until it flips inline lands scrolled to its top", async () => {
+      mockMeasure({ top: bodyTop(), height: 800 });
+      const keyboard = kbMock();
+      const scrollTo = jest.fn();
+      render(inFrame(FRAME, <SheetBody os="android" footer={<Text>Kirim</Text>}>{null}</SheetBody>));
+      await settle(1000);
+      const fire = (y: number, h: number) =>
+        fireEvent(screen.getByTestId("sheet-footer"), "layout", { nativeEvent: { layout: { x: 0, y, width: 400, height: h } } });
+      fire(0, 80);
+      await act(async () => {
+        keyboard.keyboardDidShow?.(shown);
+      });
+      await settle(1000);
+      expect(within(screen.getByTestId("sheet-body")).getByText("Kirim")).toBeTruthy();
+      jest.spyOn(require("react-native").ScrollView.prototype, "scrollTo").mockImplementation(scrollTo);
+      // The error made it taller than the pinned footer was: it lands scrolled to its top.
+      fire(300, 120);
+      expect(scrollTo).toHaveBeenLastCalledWith({ y: 300, animated: true });
+      // The same height again is not a reason to scroll.
+      fire(300, 120);
+      expect(scrollTo).toHaveBeenCalledTimes(1);
+    });
+
     it("a tab-stack sheet with too little room above the keyboard keeps its action inside the scroll view", async () => {
       mockMeasure({ top: 300, height: 500 });
       const nav = fakeNavigation("tab");
