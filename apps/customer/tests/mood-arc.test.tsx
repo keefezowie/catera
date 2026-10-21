@@ -466,7 +466,44 @@ describe("the press answers before the page commits", () => {
     expect(screen.getByTestId("page").props.children).toBe("malam");
   });
 
-  it("keeps the single-plate hero mounted across the Siang / Malam switch", async () => {
+  it("renders a useMood() consumer once per press, in the transition, not again in the urgent lane", () => {
+    jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
+    let renders = 0;
+    function Page() {
+      useMood();
+      renders += 1;
+      return null;
+    }
+    mount(
+      <>
+        <MoodArc {...ENDS} />
+        <Page />
+      </>,
+    );
+    layout();
+    renders = 0;
+    fireEvent.press(screen.getByRole("tab", { name: "Makan malam, 17.00" }));
+    expect(renders).toBe(1);
+  });
+
+  it("a toggle asked twice before the commit follows the latest ask, so two taps return to Siang", () => {
+    jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
+    let setMood: ReturnType<typeof useMood>["setMood"] = () => {};
+    let mood = "";
+    function Probe() {
+      ({ setMood } = useMood());
+      mood = useMood().mood;
+      return null;
+    }
+    mount(<Probe />);
+    act(() => {
+      setMood((m) => (m === "siang" ? "malam" : "siang"));
+      setMood((m) => (m === "siang" ? "malam" : "siang"));
+    });
+    expect(mood).toBe("siang");
+  });
+
+  it("guards that the single-plate hero stays mounted across the Siang / Malam switch", async () => {
     const dual = offer({
       meal: "both",
       menus: [

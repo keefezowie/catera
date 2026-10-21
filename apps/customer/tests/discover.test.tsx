@@ -1,5 +1,6 @@
 import * as ReactNative from "react-native";
 import { ActivityIndicator, ScrollView, StyleSheet } from "react-native";
+import { Suspense } from "react";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
@@ -573,6 +574,41 @@ describe("Jelajah mood header", () => {
     act(() => setMoodOutside("siang"));
     expect(screen.getByText("Menu Sehat Premium")).toBeTruthy();
     expect(screen.queryByText("Makan Malam Nabati")).toBeNull();
+  });
+
+  it("selects the pressed meal tab at once, while the list and title still show the committed meal", async () => {
+    let open = false;
+    let release: () => void = () => {};
+    const gate = new Promise<void>((r) => (release = r));
+    // A heavy sibling that cannot render Malam yet: the transition that commits the mood waits for it.
+    function Heavy() {
+      if (useMood().mood === "malam" && !open) throw gate;
+      return null;
+    }
+    jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("light");
+    render(
+      <ThemeProvider storageKey="jelajah-intent-test">
+        <MoodProvider now={SIANG_NOW}>
+          <Suspense fallback={null}>
+            <Heavy />
+          </Suspense>
+          <MobileProvider runtime={runtimeWith()} linkMapper={customerLink}>
+            <Jelajah />
+          </MobileProvider>
+        </MoodProvider>
+      </ThemeProvider>,
+    );
+    await screen.findByText("Menu Sehat Premium");
+    fireEvent.press(header().getByRole("tab", { name: "Malam" }));
+    expect(header().getByRole("tab", { name: "Malam" }).props.accessibilityState.selected).toBe(true);
+    expect(header().getByRole("tab", { name: "Siang" }).props.accessibilityState.selected).toBe(false);
+    expect(title()).toBe("Makan siang\nminggu depan?");
+    open = true;
+    await act(async () => {
+      release();
+      await gate;
+    });
+    expect(title()).toBe("Makan malam\nminggu depan?");
   });
 
   it("keeps a combined package under the Malam tab", async () => {

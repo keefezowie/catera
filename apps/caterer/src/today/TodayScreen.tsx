@@ -576,7 +576,7 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
                           `See dinner · ${plural(otherSession.portions, "portion")}`,
                         )
                   }
-                  onPress={() => setMood(mood === "siang" ? "malam" : "siang")}
+                  onPress={() => setMood((m) => (m === "siang" ? "malam" : "siang"))}
                 />
               ) : null}
             </Card>

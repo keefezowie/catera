@@ -21,6 +21,7 @@ import {
   themedStyles,
   useColors,
   useMood,
+  useMoodIntent,
   useMoodColors,
 } from "@catera/mobile-ui";
 import { topTags } from "./categories";
@@ -108,6 +109,7 @@ function Browse({ area, onArea }: { area: string | null; onArea: (value: string)
   const c = useColors();
   const palette = useMoodColors();
   const { mood, setMood } = useMood();
+  const asked = useMoodIntent();
   // The meal buttons are the mood toggle, so the list always follows the mood, wherever it was changed.
   const meal = mood === "siang" ? "lunch" : "dinner";
   const styles = useStyles();
@@ -217,8 +219,8 @@ function Browse({ area, onArea }: { area: string | null; onArea: (value: string)
           title={<JelajahTitle />}
         >
           <View accessibilityRole="tablist" accessibilityLabel={t("Waktu makan", "Meal time")} style={{ flexDirection: "row", gap: 10 }}>
-            <MealButton label={t("Siang", "Lunch")} icon="sunny" selected={mood === "siang"} onPress={() => setMood("siang")} />
-            <MealButton label={t("Malam", "Dinner")} icon="moon" selected={mood === "malam"} onPress={() => setMood("malam")} />
+            <MealButton label={t("Siang", "Lunch")} icon="sunny" selected={asked === "siang"} onPress={() => setMood("siang")} />
+            <MealButton label={t("Malam", "Dinner")} icon="moon" selected={asked === "malam"} onPress={() => setMood("malam")} />
           </View>
           <View
             style={{
@@ -313,7 +315,7 @@ function Browse({ area, onArea }: { area: string | null; onArea: (value: string)
                 <Button
                   variant="secondary"
                   label={mood === "siang" ? t("Lihat makan malam", "See dinner") : t("Lihat makan siang", "See lunch")}
-                  onPress={() => setMood(mood === "siang" ? "malam" : "siang")}
+                  onPress={() => setMood((m) => (m === "siang" ? "malam" : "siang"))}
                 />
               </View>
             ) : items.length === 0 ? (
