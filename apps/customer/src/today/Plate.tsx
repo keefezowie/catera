@@ -145,6 +145,8 @@ export function heroSentences(
     (p.state === "scheduled" && !!p.window && !!p.addressLabel) ||
     (p.state === "on_the_way" && !!p.window && !jakartaClock(p.journey.departedAt));
   if (trackShown && promotes) return [capitalise(second), ""];
+  // The track caption already says "Gagal diantar", so the headline is a sentence instead of the same two words.
+  if (trackShown && p.state === "failed") return [t("Pesananmu gagal diantar", "Your order wasn't delivered"), ""];
   // With no time to promote the header keeps the truthful state, even though the caption says it too: data written
   // by the app always carries `confirmed_at`, so this only shows on malformed data.
   if (trackShown && p.state === "arrived" && p.journey.arrivedBy === "auto")
@@ -263,7 +265,7 @@ function PlateContent({
     hero && plate.state !== "failed" && plate.state !== "reported" ? journeyCaption(plate.journey, locale) : null;
   // A failed meal keeps the track, with its warning stop: it has an honest place on it. A reported one does not.
   const showTrack = hero && plate.state !== "reported" && (!!caption || plate.state === "failed");
-  const [sentence, second] = hero ? heroSentences(plate, t, !!caption) : sentences(plate, t);
+  const [sentence, second] = hero ? heroSentences(plate, t, showTrack) : sentences(plate, t);
   const { deliveryId, meal: mealKey, journey } = plate;
   // A meal nobody tapped has no journey to look at yet, and stale offline data is not a view of today.
   // In the pager only the card in view counts; the peeking one counts once it is swiped to.

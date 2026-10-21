@@ -188,7 +188,7 @@ it("says a meal the caterer could not deliver is not coming, with chat and a rep
       customerState({ status: "issue", departed_at: `${TODAY}T03:42:00Z` }, { catererPhone: "+6281200000001" }),
     ),
   );
-  expect((await screen.findAllByText("Gagal diantar")).length).toBeGreaterThan(0);
+  expect(await screen.findByText("Pesananmu gagal diantar")).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Sudah sampai" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Belum" })).toBeNull();
   // The plate's own chat, the only one on Beranda.
@@ -1269,7 +1269,8 @@ describe("Beranda mood", () => {
     ] as const)("shows the warning stop and Gagal diantar for a %s plate, next to its message", async (_name, meal, step) => {
       mount(runtimeWith(async () => lunchToday(meal as unknown as Partial<DeliveryMeal>)));
       const h = await hero();
-      expect(h.getAllByText("Gagal diantar")).toHaveLength(2);
+      expect(h.getByText("Pesananmu gagal diantar")).toBeTruthy();
+      expect(h.getAllByText("Gagal diantar")).toHaveLength(1);
       expect(within(h.getByTestId("rantang-track")).getByText("Gagal diantar")).toBeTruthy();
       expect(h.getByTestId("rantang-track").props.accessibilityLabel).toBe(`Pesanan: Gagal diantar, langkah ${step} dari 4`);
       expect(screen.queryByTestId("rantang-track-stop-3-warn", { includeHiddenElements: true })).not.toBeNull();

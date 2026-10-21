@@ -370,7 +370,7 @@ describe("Beli / Perpanjang", () => {
     });
     const runtime = server({ context: { startDate: "2026-11-23" }, subscriptions: [current, dua] });
     wrap(runtime, <BuyScreen renewFrom="s-1" />);
-    expect(await screen.findByText("Mulai Senin 23 Nov. Rumah Rasa Dua Pekan masih berjalan sampai Jumat 20 Nov.")).toBeTruthy();
+    expect(await screen.findByText("Mulai Senin 23 Nov. Paketmu Rumah Rasa Dua Pekan masih berjalan sampai Jumat 20 Nov.")).toBeTruthy();
     expect(screen.queryByText(/Paket ini masih berjalan/)).toBeNull();
   });
 
@@ -381,10 +381,27 @@ describe("Beli / Perpanjang", () => {
       ends_on: "2026-11-20",
       snapshot: { offer: offer({ id: "p-lain", catererId: "k-2", name: "Paket Lain" }), total: 150000 } as unknown as Quote,
     });
-    const runtime = server({ context: { startDate: "2026-10-20" }, subscriptions: [current, other] });
+    const runtime = server({ context: { startDate: "2026-11-23" }, subscriptions: [current, other] });
     wrap(runtime, <BuyScreen renewFrom="s-1" />);
-    expect(await screen.findByText("Mulai Selasa 20 Okt. Paket ini masih berjalan sampai Jumat 16 Okt.")).toBeTruthy();
+    expect(await screen.findByText("Mulai Senin 23 Nov. Paket ini masih berjalan sampai Jumat 16 Okt.")).toBeTruthy();
     expect(screen.queryByText(/Paket Lain/)).toBeNull();
+  });
+
+  it("falls back to the same package when the renewed plan's snapshot has no caterer id", async () => {
+    const bare = (id: string, pkg: string, end: string) =>
+      subscription({
+        id,
+        package_id: pkg,
+        ends_on: end,
+        snapshot: { offer: { ...offer({ id: pkg, name: "Nama " + pkg }), catererId: undefined }, total: 150000 } as unknown as Quote,
+      });
+    const runtime = server({
+      context: { startDate: "2026-11-23" },
+      subscriptions: [bare("s-1", "p-rumahan", "2026-10-16"), bare("s-6", "p-lain", "2026-11-20")],
+    });
+    wrap(runtime, <BuyScreen renewFrom="s-1" />);
+    expect(await screen.findByText("Mulai Senin 23 Nov. Paket ini masih berjalan sampai Jumat 16 Okt.")).toBeTruthy();
+    expect(screen.queryByText(/Nama p-lain/)).toBeNull();
   });
 
   it("renewing a plan that already ended never says it is still running", async () => {

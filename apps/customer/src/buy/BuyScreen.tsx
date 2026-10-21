@@ -121,7 +121,7 @@ export function BuyScreen({
               s.ends_on < startDate &&
               (catererOf(current) ? catererOf(s) === catererOf(current) : s.package_id === current.package_id),
           )
-          .sort((x, y) => (x.ends_on < y.ends_on ? -1 : x.ends_on > y.ends_on ? 1 : x.id === current.id ? 1 : -1))
+          .sort((x, y) => (x.ends_on < y.ends_on ? -1 : x.ends_on > y.ends_on ? 1 : x.id === current.id ? 1 : y.id === current.id ? -1 : 0))
           .pop() ?? null
       : null;
   const blockingEnd = blocking?.ends_on ?? null;

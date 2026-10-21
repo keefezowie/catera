@@ -160,7 +160,7 @@ export function renewalLine(
   }
   const end = shortDate(named, locale);
   if (blockingName && named === blockingEnd) {
-    return t(`Mulai ${label}. ${blockingName} masih berjalan sampai ${end}.`, `Starts ${label}. ${blockingName} is still running until ${end}.`);
+    return t(`Mulai ${label}. Paketmu ${blockingName} masih berjalan sampai ${end}.`, `Starts ${label}. Your ${blockingName} plan is still running until ${end}.`);
   }
   return t(
     `Mulai ${label}. Paket ini masih berjalan sampai ${end}.`,
