@@ -11,7 +11,7 @@ import { useMobile } from "@catera/mobile-core";
 import { Button, Card, fontFor, Text, useColors } from "@catera/mobile-ui";
 import { CookingList } from "./CookingList";
 import type { Ticks } from "./ticks";
-import { DeliveryOrder } from "./DeliveryOrder";
+import { DeliveryOrder, type RouteView } from "./DeliveryOrder";
 import type { Selection } from "./selection";
 
 /**
@@ -77,10 +77,11 @@ export function SessionCard({
   report,
   caterer,
   selection,
+  route,
 }: {
   ops: SellerOperationsState;
   session: KitchenSession;
-  /** The kitchen's id, which keys the checklist ticks stored on this phone. */
+  /** The checklist ticks, owned by the screen so a stage change does not read them again. */
   ticks: Ticks;
   meal: KitchenMeal;
   date: string;
@@ -88,6 +89,8 @@ export function SessionCard({
   caterer: string;
   /** "Pilih" mode for the delivery order, owned by the screen. */
   selection?: Selection;
+  /** The order's expanded list and next WhatsApp part, owned by the screen like `ticks` and `selection`. */
+  route?: RouteView;
 }) {
   const { t, actor } = useMobile();
   const c = useColors();
@@ -155,9 +158,9 @@ export function SessionCard({
           </View>
         </>
       )}
-      {/* One order per meal: its expanded list and WhatsApp part belong to the meal they were opened on. The checklist is
-          not keyed, so its ticks stay loaded and do not re-animate when the mood switches. */}
-      <DeliveryOrder key={meal} ops={ops} stops={stops} meal={meal} date={date} report={report} caterer={caterer} selection={selection} />
+      {/* One order per meal: its expanded list and WhatsApp part belong to the day and meal they were opened on (the
+          screen keeps them by `${date}:${meal}`, so a stage change does not reset them). */}
+      <DeliveryOrder key={meal} ops={ops} stops={stops} meal={meal} date={date} report={report} caterer={caterer} selection={selection} view={route} />
     </Card>
   );
 }

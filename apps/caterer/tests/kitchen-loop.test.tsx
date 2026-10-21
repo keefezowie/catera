@@ -990,3 +990,51 @@ describe("Semua beres", () => {
     await waitFor(() => expect(screen.queryByText("Semua beres hari ini")).toBeNull());
   });
 });
+
+describe("Hari ini across a stage change", () => {
+  // A long note on every stop splits the route's WhatsApp text into several parts.
+  const longRoute = (meals: MealState[]) => {
+    const day = kitchenDay(meals);
+    day.deliveries = day.deliveries.map((d) => ({ ...d, address: { ...d.address, instructions: "pagar hijau ".repeat(60) } }));
+    return day;
+  };
+
+  it("keeps the route part reached and the expanded stop list through Mulai masak and Berangkat antar", async () => {
+    const share = jest.spyOn(Share, "share").mockResolvedValue({ action: "sharedAction" });
+    let served = longRoute([scheduled]);
+    renderToday(runtimeWith(async () => served));
+    fireEvent.press(await screen.findByText("Lihat 1 alamat lainnya"));
+    expect(screen.getByTestId("stop-4")).toBeTruthy();
+    fireEvent.press(screen.getByText("Bagikan rute ke WhatsApp"));
+    await screen.findByText("Bagikan bagian 2");
+    const part1 = share.mock.calls[0][0].message;
+
+    served = longRoute([cooking]);
+    fireEvent.press(screen.getByRole("button", { name: "Mulai masak" }));
+    await lastConfirm().press("Mulai");
+    await screen.findByText("Berangkat antar · 34 porsi");
+    // The day re-keyed for the new stage; the next share is still part 2 and all four stops still show.
+    expect(screen.getByText("Bagikan bagian 2")).toBeTruthy();
+    expect(screen.getByTestId("stop-4")).toBeTruthy();
+    fireEvent.press(screen.getByText("Bagikan bagian 2"));
+    await waitFor(() => expect(share).toHaveBeenCalledTimes(2));
+    expect(share.mock.calls[1][0].message).not.toBe(part1);
+    share.mockRestore();
+  });
+
+  it("keeps the checklist ticks through Mulai masak without reading them again", async () => {
+    let served = kitchenDay([scheduled]);
+    renderToday(runtimeWith(async () => served));
+    fireEvent.press(await screen.findByLabelText("6× Telur balado"));
+    await waitFor(() => expect(screen.getByLabelText("6× Telur balado").props.accessibilityState?.checked).toBe(true));
+    const reads = (SecureStore.getItemAsync as jest.Mock).mock.calls.filter(([k]) => String(k).includes("ticks.")).length;
+
+    served = kitchenDay([cooking]);
+    fireEvent.press(screen.getByRole("button", { name: "Mulai masak" }));
+    await lastConfirm().press("Mulai");
+    await screen.findByText("Berangkat antar · 34 porsi");
+    // Checked in the very render the new stage appears in: no unticked frame while a fresh read runs.
+    expect(screen.getByLabelText("6× Telur balado").props.accessibilityState?.checked).toBe(true);
+    expect((SecureStore.getItemAsync as jest.Mock).mock.calls.filter(([k]) => String(k).includes("ticks.")).length).toBe(reads);
+  });
+});

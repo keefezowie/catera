@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useLayoutEffect, useRef, type ReactNode } from "react";
 import type { StyleProp, ViewStyle } from "react-native";
 import Animated, { Easing, FadeIn } from "react-native-reanimated";
 import { nativeMotion } from "@catera/design-tokens";
@@ -41,7 +41,9 @@ export function FadeSwap({
     };
   }
   const { entering } = decided.current;
-  useEffect(() => {
+  // Set in the commit itself, before any passive effect: a re-key landing in the same tick as the first paint still
+  // counts as a swap and fades.
+  useLayoutEffect(() => {
     mounted.current = true;
   }, []);
   return (

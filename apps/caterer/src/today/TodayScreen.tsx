@@ -50,6 +50,7 @@ import { SelectionBar } from "./SelectionBar";
 import { useStopSelection } from "./selection";
 import { SessionCard } from "./SessionCard";
 import { useTicks } from "./ticks";
+import { useRouteView } from "./DeliveryOrder";
 import { replyHref } from "../hrefs";
 import { dapurLink } from "../links";
 import { openLink } from "../nav";
@@ -365,6 +366,9 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
   // The checklist's ticks live here, above the day's FadeSwap: a stage change or a mood switch re-keys the swap and mounts
   // the card afresh, and the ticks must not be re-read (and blink unticked) each time.
   const ticks = useTicks(catererId, date, meal);
+  // The order's expanded list and next WhatsApp part live here for the same reason: a caterer who shared part 1 and then
+  // tapped Mulai masak or Berangkat antar sends part 2 next, not part 1 again.
+  const route = useRouteView(`${date}:${meal}`);
   // The session is worked out once here: the count card, the checklist, the order and the footer all read it, so they
   // agree on which rows count (a stop marked "Gagal diantar" or a cancelled one is in none of them).
   const now = new Date();
@@ -484,15 +488,17 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
         </MoodHeader>
       }
     >
+      {/* The banner decides for itself when the phone is offline; with a kept copy it names the time of that copy. It
+          sits above the day's FadeSwap so a mood or stage change does not remount it (blank until NetInfo answers
+          again, and announced again on iOS). */}
+      <ConnectionBanner
+        lastSeen={day.data?.savedAt ? new Date(day.data.savedAt) : undefined}
+        onRetry={() => void pull()}
+      />
       <FadeSwap
         swapKey={`${loading ? "loading" : "day"}-${date}-${mood}-${done ? "done" : (session?.journey.stage ?? "none")}`}
       >
         <View style={{ gap: 16 }}>
-          {/* The banner decides for itself when the phone is offline; with a kept copy it names the time of that copy. */}
-          <ConnectionBanner
-            lastSeen={day.data?.savedAt ? new Date(day.data.savedAt) : undefined}
-            onRetry={() => void pull()}
-          />
           {day.fromCache && day.loading ? (
             // The kept copy shows while the fresh read runs; its actions stay hidden until that lands.
             <Text testID="day-refreshing" variant="caption">
@@ -534,6 +540,7 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
               report={day.data?.savedAt ? null : offset === "0" ? "today" : "tomorrow"}
               caterer={ops.caterer.name}
               selection={selection}
+              route={route}
             />
           ) : ops && (failedCount > 0 || otherSession) ? (
             <Card tone="sage">

@@ -20,6 +20,26 @@ const ROUTE_LIMIT = 10;
 /** The width of the number badge and its gap in `StopRow`, so a note lines up under the name. */
 const NOTE_INDENT = 40;
 
+/** How much of the order is open: every stop shown (`all`), and the WhatsApp part the next share sends (`part`). */
+export type RouteView = { all: boolean; part: number; showAll(): void; setPart(part: number): void };
+
+/**
+ * The order's view state for one day and meal, reset when `resetKey` changes. Hari ini holds it above its FadeSwap: a
+ * stage change re-keys the swap and mounts the order afresh, and a caterer who shared part 1 and then tapped Berangkat
+ * antar must not send part 1 again.
+ */
+export function useRouteView(resetKey: string): RouteView {
+  const [all, setAll] = useState(false);
+  const [part, setPart] = useState(0);
+  const [keyed, setKeyed] = useState(resetKey);
+  if (keyed !== resetKey) {
+    setKeyed(resetKey);
+    setAll(false);
+    setPart(0);
+  }
+  return { all, part, showAll: () => setAll(true), setPart };
+}
+
 /** Move it, on today or tomorrow, while the cutoff is ahead. */
 const movable = (ops: SellerOperationsState, stop: Stop) =>
   canMoveDelivery(ops.deliveries.find((d) => d.id === stop.deliveryId));
@@ -44,6 +64,7 @@ export function DeliveryOrder({
   report,
   caterer,
   selection,
+  view,
 }: {
   ops: SellerOperationsState;
   stops: Stop[];
@@ -54,11 +75,14 @@ export function DeliveryOrder({
   caterer: string;
   /** "Pilih" mode, owned by the screen so its bottom bar can read it. Left out, the list has no selection. */
   selection?: Selection;
+  /** The expanded list and the next WhatsApp part, owned by the screen so they outlive a stage change. Left out, the
+   * order keeps its own. */
+  view?: RouteView;
 }) {
   const { t, locale, actor } = useMobile();
   const c = useColors();
-  const [all, setAll] = useState(false);
-  const [part, setPart] = useState(0);
+  const own = useRouteView(`${date}:${meal}`);
+  const { all, part, showAll, setPart } = view ?? own;
   const parts = routeShareText(stops, { date, meal, caterer }, locale);
   // A same-day revision can shorten the route under a part index already advanced past its end.
   const at = Math.min(part, Math.max(parts.length - 1, 0));
@@ -186,7 +210,7 @@ export function DeliveryOrder({
                   ? t("Lihat 1 alamat lainnya", "Show 1 more address")
                   : t(`Lihat ${hidden} alamat lainnya`, `Show ${hidden} more addresses`)
               }
-              onPress={() => setAll(true)}
+              onPress={showAll}
             />
           ) : null}
           {picking ? null : <View style={{ gap: 8 }}>
