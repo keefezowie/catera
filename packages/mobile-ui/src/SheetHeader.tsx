@@ -136,22 +136,42 @@ export function sheetHiddenBelow({
  * `sheetHiddenBelow`). It measures after the sheet has risen, each time it settles on a detent and each time the window
  * changes size (rotation, split screen), against the root frame's height; 0 when inactive.
  */
-function useSheetHiddenBelow(active: boolean, ref: RefObject<{ measureInWindow?: unknown } | null>, keyboard = 0): number {
+function useSheetHiddenBelow(
+  active: boolean,
+  ref: RefObject<{ measureInWindow?: unknown } | null>,
+  keyboard = 0,
+  footerHeight = 0,
+): { below: number; short: boolean } {
   const navigation = useScreenNavigation();
-  const [margin, setMargin] = useState(0);
-  // The margin the scroll view has now: what is below the edge plus the keyboard's lift (it measures against it).
+  // What the last settled measure found: the part of the frame below the edge, the frame's height without margin, and the keyboard lift
+  // it was measured with.
+  const [measured, setMeasured] = useState({ below: 0, frame: 0, keyboard: 0 });
+  // The detent is moving (react-native-screens reported an unstable state): what is measured now is a frame of the move.
+  const [moving, setMoving] = useState(false);
+  // The last settled reading with the keyboard up and with it down, so a keyboard change does not carry the other's.
+  const lastBelow = useRef({ up: 0, down: 0 });
+  const keyboardRef = useRef(keyboard);
+  keyboardRef.current = keyboard;
+  // A reading is trusted when the sheet is not moving and it was taken with the keyboard the sheet has now. Until then
+  // (the keyboard just came or left, the sheet is still sliding to its other detent) the last settled reading for this
+  // keyboard state stands in, never the other state's: the form detent's hidden-below added to a full keyboard lift
+  // lifted the footer about 285dp too high for 300ms while the sheet rose.
+  const trusted = !moving && measured.keyboard === keyboard;
+  const below = trusted ? measured.below : keyboard > 0 ? lastBelow.current.up : lastBelow.current.down;
   const marginRef = useRef(0);
   // Kept equal to what is rendered, so a measure never works from a margin the scroll view no longer has.
-  marginRef.current = margin + keyboard;
+  marginRef.current = below + keyboard;
   // The root view's frame is the one `measureInWindow` reports in. `useWindowDimensions` can differ from it by the
   // navigation bar on Android 14 and older, which would count that bar twice.
   const { width, height: windowHeight } = useSafeAreaFrame();
   const measuredSize = useRef<string>("");
   const keyboardChanged = useRef(0);
+  const movingRef = useRef(false);
   useEffect(() => {
     if (!active) return;
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const measure = () => {
+    let stuck: ReturnType<typeof setTimeout> | undefined;
+    const measure = (fromDetent: boolean) => {
       const view = ref.current;
       const host = view as unknown as Partial<Pick<View, "measureInWindow">> | null;
       if (!host?.measureInWindow) return;
@@ -159,17 +179,28 @@ function useSheetHiddenBelow(active: boolean, ref: RefObject<{ measureInWindow?:
         if (!Number.isFinite(top) || !Number.isFinite(height) || height <= 0) return;
         // The screen's edge in the same window space as `top`; the frame's height only while no root reference exists.
         measureWindowEdge((edge) => {
+          // A move that is still going on is settled by its own stable event, not by a timer that ran in the middle of it.
+          if (movingRef.current && !fromDetent) return;
           const edgeBottom = edge ?? windowHeight;
           const next = sheetHiddenBelow({ top, height, margin: marginRef.current, windowHeight: edgeBottom });
-          setMargin((was) => (was === next ? was : next));
+          const lifted = keyboardRef.current;
+          // The frame's height with no margin, so it is the same whatever margin it was read under.
+          const full = height + marginRef.current;
+          lastBelow.current[lifted > 0 ? "up" : "down"] = next;
+          clearTimeout(stuck);
+          movingRef.current = false;
+          setMoving(false);
+          setMeasured((was) =>
+            was.below === next && was.frame === full && was.keyboard === lifted ? was : { below: next, frame: full, keyboard: lifted },
+          );
         });
       });
     };
-    const later = () => {
+    const later = (fromDetent = false) => {
       clearTimeout(timer);
-      timer = setTimeout(measure, 50);
+      timer = setTimeout(() => measure(fromDetent), 50);
     };
-    const fallback = setTimeout(measure, SHEET_MEASURE_FALLBACK_MS);
+    const fallback = setTimeout(() => measure(true), SHEET_MEASURE_FALLBACK_MS);
     // A new window size moves the sheet and its scroll view: measure again once the layout has followed.
     // The keyboard rising or leaving moves the sheet too (it expands to its top detent): measure again after it settles.
     if (keyboardChanged.current !== keyboard) {
@@ -179,19 +210,35 @@ function useSheetHiddenBelow(active: boolean, ref: RefObject<{ measureInWindow?:
     const size = `${width}x${windowHeight}`;
     if (measuredSize.current && measuredSize.current !== size) later();
     measuredSize.current = size;
-    const done = navigation?.addListener("transitionEnd" as never, later);
+    const done = navigation?.addListener("transitionEnd" as never, () => later());
     const detent = navigation?.addListener("sheetDetentChange" as never, (e: { data?: { stable?: boolean } }) => {
-      if (e.data?.stable !== false) later();
+      if (e.data?.stable === false) {
+        // The sheet is sliding to another detent: hold the last settled reading until it stops. A stop that is never
+        // reported is read after a second.
+        movingRef.current = true;
+        setMoving(true);
+        clearTimeout(stuck);
+        stuck = setTimeout(() => measure(true), 1000);
+      } else later(true);
     });
     return () => {
       clearTimeout(fallback);
       clearTimeout(timer);
+      clearTimeout(stuck);
       done?.();
       detent?.();
     };
   }, [active, navigation, ref, width, windowHeight, keyboard]);
-  return active ? margin : 0;
+  // With the keyboard up the frame ends at its top. When the sheet stays at its form detent that leaves less than a
+  // body and a pinned footer need, so the footer joins the scroll content instead and the field keeps its room.
+  const short = active && keyboard > 0 && trusted && measured.frame > 0 && measured.frame - (below + keyboard) < footerHeight + SHEET_MIN_BODY;
+  return { below: active ? below : 0, short };
 }
+
+/** The least height a scroll view is worth beside a pinned footer: a field with its label. */
+const SHEET_MIN_BODY = 120;
+/** A pinned footer's height before it has been laid out: a 52 button, the 12 and 16 padding. */
+const SHEET_FOOTER_GUESS = 96;
 
 /** The side padding of a `SheetBody`: 20 on iOS, 24 on Android. */
 export const sheetSidePadding = (os = process.env.EXPO_OS) => (os === "ios" ? 20 : 24);
@@ -237,7 +284,13 @@ export function SheetBody({
   // window bottom, so the bar's inset is added to end at the keyboard's top.
   const keyboardLift = os === "android" && keyboard > 0 ? keyboard + insets.bottom : 0;
   // The frame holds the scroll view and the footer, so both are lifted by what is measured.
-  const below = useSheetHiddenBelow(os === "android" && !insideTabs(navigation as Parameters<typeof insideTabs>[0]), frame, keyboardLift);
+  const footerHeight = useRef(SHEET_FOOTER_GUESS);
+  const { below, short } = useSheetHiddenBelow(
+    os === "android" && !insideTabs(navigation as Parameters<typeof insideTabs>[0]),
+    frame,
+    keyboardLift,
+    footerHeight.current,
+  );
   // While the keyboard is up an Android frame ends at its top, so the focused field scrolls into view above it.
   // `below` is how far the frame's unlifted bottom still lies under the screen's edge (measured with the keyboard's
   // lift counted), and the keyboard sits above that edge, so the two add: a sheet that reaches 50dp past the edge with
@@ -245,6 +298,30 @@ export function SheetBody({
   const lift = below + keyboardLift;
   // iOS: a sheet is not resized for the keyboard, so a pinned footer rides on it (the scroll view then needs no inset of its own).
   const iosLift = ios && hasFooter ? keyboard : 0;
+  // The sheet stayed at its form detent under the keyboard: the footer scrolls after the content instead of being pinned.
+  const inline = hasFooter && short;
+  const footerView = hasFooter ? (
+    <View
+      testID="sheet-footer"
+      onLayout={(e) => {
+        if (!inline && e.nativeEvent.layout.height > 0) footerHeight.current = e.nativeEvent.layout.height;
+      }}
+      style={{
+        paddingHorizontal: sheetSidePadding(os),
+        paddingTop: 12,
+        // The tab bar and the keyboard already clear the system inset; the screen's edge does not, so the footer pays it there.
+        paddingBottom: (bar > 0 || keyboardLift > 0 || iosLift > 0 ? 0 : insets.bottom) + 16,
+        gap: 12,
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: palette.line,
+        backgroundColor: palette.surface,
+        // Inside the scroll content it spans the padded width.
+        ...(inline ? { marginHorizontal: -sheetSidePadding(os), marginTop: 4 } : null),
+      }}
+    >
+      {pinned}
+    </View>
+  ) : null;
   return (
     <SheetFooterContext.Provider value={setSlot}>
       {/* The bar pays the system inset itself, so a sheet that ends above it keeps only the 24 foot. */}
@@ -259,29 +336,14 @@ export function SheetBody({
           contentContainerStyle={{
             paddingHorizontal: sheetSidePadding(os),
             paddingTop: 4,
-            paddingBottom: hasFooter ? 16 : (bar ? 0 : insets.bottom) + 24,
+            paddingBottom: hasFooter ? (inline ? 0 : 16) : (bar ? 0 : insets.bottom) + 24,
             gap: 16,
           }}
         >
           {children}
+          {inline ? footerView : null}
         </ScrollView>
-        {hasFooter ? (
-          <View
-            testID="sheet-footer"
-            style={{
-              paddingHorizontal: sheetSidePadding(os),
-              paddingTop: 12,
-              // The tab bar and the keyboard already clear the system inset; the screen's edge does not, so the footer pays it there.
-              paddingBottom: (bar > 0 || keyboardLift > 0 || iosLift > 0 ? 0 : insets.bottom) + 16,
-              gap: 12,
-              borderTopWidth: StyleSheet.hairlineWidth,
-              borderTopColor: palette.line,
-              backgroundColor: palette.surface,
-            }}
-          >
-            {pinned}
-          </View>
-        ) : null}
+        {inline ? null : footerView}
       </View>
     </SheetFooterContext.Provider>
   );

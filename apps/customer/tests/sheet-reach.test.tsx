@@ -354,6 +354,72 @@ describe("a form sheet's last button clears the gesture bar", () => {
       expect(marginOf()).toBe(50);
     });
 
+    it("first focus: the form detent's hidden-below is not added to the keyboard while the sheet is still rising", async () => {
+      // Dapur import row editor: opens at the form detent (200 below the edge), the keyboard lifts it to the top detent.
+      const position = { top: bodyTop(), height: 800 };
+      mockMeasure(position);
+      const nav = fakeNavigation();
+      const keyboard: Record<string, (e?: unknown) => void> = {};
+      jest.spyOn(Keyboard, "addListener").mockImplementation(((event: string, cb: (e?: unknown) => void) => {
+        keyboard[event] = cb;
+        return { remove: () => undefined };
+      }) as never);
+      render(
+        inFrame(FRAME, <NavigationContext.Provider value={nav.navigation as never}>
+          <SheetBody os="android" footer={<Text>Selesai</Text>}>{null}</SheetBody>
+        </NavigationContext.Provider>),
+      );
+      await settle(1000);
+      expect(marginOf()).toBe(200);
+      const lift = 420 + 34;
+      const seen: number[] = [];
+      nav.emit("sheetDetentChange", { data: { stable: false } });
+      await act(async () => {
+        keyboard.keyboardDidShow?.({ endCoordinates: { height: 420, screenY: 500 } });
+      });
+      seen.push(marginOf());
+      // Mid-rise: the sheet is still 120 below the edge when the 50 ms measure runs.
+      position.top = FRAME.height - 800 + 120;
+      await settle(60);
+      seen.push(marginOf());
+      await settle(300);
+      seen.push(marginOf());
+      expect(Math.max(...seen)).toBeLessThanOrEqual(lift + 8);
+      position.top = FRAME.height - 800;
+      nav.emit("sheetDetentChange", { data: { stable: true } });
+      await settle(100);
+      expect(marginOf()).toBe(lift);
+    });
+
+    it("a sheet that stays at the form detent under the keyboard ends at the keyboard's top and keeps its action inside the scroll view", async () => {
+      // The sheet does not expand (customer alamat, masalah, ulasan at font scale 1.0): 200 of it stays below the edge.
+      mockMeasure({ top: bodyTop(), height: 800 });
+      const keyboard: Record<string, (e?: unknown) => void> = {};
+      jest.spyOn(Keyboard, "addListener").mockImplementation(((event: string, cb: (e?: unknown) => void) => {
+        keyboard[event] = cb;
+        return { remove: () => undefined };
+      }) as never);
+      render(inFrame(FRAME, <SheetBody os="android" footer={<Text>Nanti saja</Text>}>{null}</SheetBody>));
+      await settle(1000);
+      expect(within(screen.getByTestId("sheet-body")).queryByText("Nanti saja")).toBeNull();
+      expect(within(screen.getByTestId("sheet-frame")).getByText("Nanti saja")).toBeTruthy();
+      await act(async () => {
+        keyboard.keyboardDidShow?.({ endCoordinates: { height: 420, screenY: 500 } });
+      });
+      await settle(1000);
+      // The frame still ends at the keyboard's top ...
+      expect(marginOf()).toBe(200 + 420 + 34);
+      // ... but what is left above it is too short for a body and a pinned footer: the action scrolls with the field.
+      expect(within(screen.getByTestId("sheet-body")).getByText("Nanti saja")).toBeTruthy();
+      await act(async () => {
+        keyboard.keyboardDidHide?.();
+      });
+      await settle(1000);
+      expect(marginOf()).toBe(200);
+      expect(within(screen.getByTestId("sheet-body")).queryByText("Nanti saja")).toBeNull();
+      expect(within(screen.getByTestId("sheet-frame")).getByText("Nanti saja")).toBeTruthy();
+    });
+
     it("a tab-stack sheet also ends at the keyboard's top, and returns when it hides", async () => {
       const nav = fakeNavigation("tab");
       const keyboard: Record<string, (e?: unknown) => void> = {};
