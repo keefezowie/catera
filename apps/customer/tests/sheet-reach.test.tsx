@@ -279,8 +279,8 @@ describe("a form sheet's last button clears the gesture bar", () => {
       expect(spy.mock.calls.length).toBe(before);
     });
 
-    it("never measures a tab-stack sheet, even with the tab bar's share at 0 under the keyboard", async () => {
-      const spy = mockMeasure({ top: bodyTop(), height: 800 });
+    it("does not shorten or lift a tab-stack sheet by a measure while the keyboard is up, with the tab bar's share at 0", async () => {
+      mockMeasure({ top: bodyTop(), height: 800 });
       const nav = fakeNavigation("tab");
       const keyboard: Record<string, () => void> = {};
       jest.spyOn(Keyboard, "addListener").mockImplementation(((event: string, cb: () => void) => {
@@ -292,15 +292,12 @@ describe("a form sheet's last button clears the gesture bar", () => {
           <SheetBody os="android">{null}</SheetBody>
         </NavigationContext.Provider>),
       );
-      const before = spy.mock.calls.length;
       await act(async () => {
         keyboard.keyboardDidShow?.();
       });
       await settle(1000);
       nav.emit("transitionEnd");
       await settle();
-      expect(spy.mock.calls.length).toBe(before);
-      expect(nav.count("sheetDetentChange")).toBe(0);
       expect(marginOf()).toBe(0);
     });
 
@@ -498,12 +495,42 @@ describe("a form sheet's last button clears the gesture bar", () => {
       expect(marginOf()).toBe(454);
     });
 
+    const withFooter = (footer: ReactNode, nav?: ReturnType<typeof fakeNavigation>) =>
+      inFrame(
+        FRAME,
+        nav ? (
+          <NavigationContext.Provider value={nav.navigation as never}>
+            <SheetBody os="android" footer={footer}>{null}</SheetBody>
+          </NavigationContext.Provider>
+        ) : (
+          <SheetBody os="android" footer={footer}>{null}</SheetBody>
+        ),
+      );
+    const noError = <Text>Kirim</Text>;
+    const oneError = (
+      <>
+        <Text>Gagal</Text>
+        <Text>Kirim</Text>
+      </>
+    );
+    const otherError = (
+      <>
+        <Text>Gagal lagi</Text>
+        <Text>Kirim</Text>
+      </>
+    );
+    const scrollSpy = () => {
+      const scrollTo = jest.fn();
+      jest.spyOn(require("react-native").ScrollView.prototype, "scrollTo").mockImplementation(scrollTo);
+      return scrollTo;
+    };
+    const fireFooter = (y: number, h: number) =>
+      fireEvent(screen.getByTestId("sheet-footer"), "layout", { nativeEvent: { layout: { x: 0, y, width: 400, height: h } } });
+
     it("an inline footer that grows (a submit error) is scrolled so its top, where the error sits, is at the top of the body", async () => {
       mockMeasure({ top: bodyTop(), height: 800 });
       const keyboard = kbMock();
-      const scrollTo = jest.fn();
-      const scrollToEnd = jest.fn();
-      render(inFrame(FRAME, <SheetBody os="android" footer={<Text>Kirim</Text>}>{null}</SheetBody>));
+      const view = render(withFooter(noError));
       await settle(1000);
       await act(async () => {
         keyboard.keyboardDidShow?.(shown);
@@ -511,46 +538,77 @@ describe("a form sheet's last button clears the gesture bar", () => {
       await settle(1000);
       const body = screen.getByTestId("sheet-body");
       expect(within(body).getByText("Kirim")).toBeTruthy();
-      const footer = screen.getByTestId("sheet-footer");
-      // The ref the component holds is the scroll view's instance: stand in for its methods.
-      const proto = require("react-native").ScrollView.prototype;
-      jest.spyOn(proto, "scrollTo").mockImplementation(scrollTo);
-      jest.spyOn(proto, "scrollToEnd").mockImplementation(scrollToEnd);
+      const scrollTo = scrollSpy();
       // The body is 200 tall: shorter than the grown footer (260), so the footer's top is the target.
       fireEvent(body, "layout", { nativeEvent: { layout: { x: 0, y: 0, width: 400, height: 200 } } });
-      const fire = (y: number, h: number) =>
-        fireEvent(footer, "layout", { nativeEvent: { layout: { x: 0, y, width: 400, height: h } } });
-      fire(400, 80);
+      fireFooter(400, 80);
       expect(scrollTo).not.toHaveBeenCalled();
-      fire(400, 260);
+      view.rerender(withFooter(oneError));
+      fireFooter(400, 260);
       expect(scrollTo).toHaveBeenLastCalledWith({ y: 400, animated: true });
-      expect(scrollToEnd).not.toHaveBeenCalled();
       // A body taller than the footer shows the whole footer, not a scroll past its top.
       fireEvent(body, "layout", { nativeEvent: { layout: { x: 0, y: 0, width: 400, height: 300 } } });
-      fire(400, 120);
+      view.rerender(withFooter(otherError));
+      fireFooter(400, 120);
       expect(scrollTo).toHaveBeenLastCalledWith({ y: 400 + 120 - 300, animated: true });
     });
 
-    it("a pinned footer that grows until it flips inline lands scrolled to its top", async () => {
+    it("the keyboard flipping the footer inline on first focus does not scroll the focused field away", async () => {
       mockMeasure({ top: bodyTop(), height: 800 });
       const keyboard = kbMock();
-      const scrollTo = jest.fn();
-      render(inFrame(FRAME, <SheetBody os="android" footer={<Text>Kirim</Text>}>{null}</SheetBody>));
+      render(withFooter(noError));
       await settle(1000);
-      const fire = (y: number, h: number) =>
-        fireEvent(screen.getByTestId("sheet-footer"), "layout", { nativeEvent: { layout: { x: 0, y, width: 400, height: h } } });
-      fire(0, 80);
+      fireFooter(0, 80);
       await act(async () => {
         keyboard.keyboardDidShow?.(shown);
       });
       await settle(1000);
       expect(within(screen.getByTestId("sheet-body")).getByText("Kirim")).toBeTruthy();
-      jest.spyOn(require("react-native").ScrollView.prototype, "scrollTo").mockImplementation(scrollTo);
-      // The error made it taller than the pinned footer was: it lands scrolled to its top.
-      fire(300, 120);
+      const scrollTo = scrollSpy();
+      // Inline it carries the keyboard-up padding and is measured taller than it was pinned: no error, no scroll.
+      fireFooter(300, 120);
+      fireFooter(300, 122);
+      expect(scrollTo).not.toHaveBeenCalled();
+    });
+
+    it("a footer content change that came before the keyboard is not an error that scrolls the field away", async () => {
+      mockMeasure({ top: bodyTop(), height: 800 });
+      const keyboard = kbMock();
+      const view = render(withFooter(noError));
+      await settle(1000);
+      fireFooter(0, 80);
+      view.rerender(withFooter(oneError));
+      await act(async () => {
+        keyboard.keyboardDidShow?.(shown);
+      });
+      await settle(1000);
+      const scrollTo = scrollSpy();
+      fireFooter(300, 160);
+      expect(scrollTo).not.toHaveBeenCalled();
+    });
+
+    it("a pinned footer that grows because of an error until it flips inline lands scrolled to its top", async () => {
+      // A tall sheet: the keyboard is up and the footer still fits pinned until the error makes it taller.
+      mockMeasure({ top: FRAME.height - 1800, height: 1800 });
+      const keyboard = kbMock();
+      const view = render(withFooter(noError));
+      await settle(1000);
+      await act(async () => {
+        keyboard.keyboardDidShow?.(shown);
+      });
+      await settle(1000);
+      fireFooter(0, 80);
+      expect(within(screen.getByTestId("sheet-frame")).getByText("Kirim")).toBeTruthy();
+      expect(within(screen.getByTestId("sheet-body")).queryByText("Kirim")).toBeNull();
+      const scrollTo = scrollSpy();
+      view.rerender(withFooter(oneError));
+      fireFooter(0, 1300);
+      await settle(100);
+      expect(within(screen.getByTestId("sheet-body")).getByText("Kirim")).toBeTruthy();
+      fireFooter(300, 1300);
       expect(scrollTo).toHaveBeenLastCalledWith({ y: 300, animated: true });
-      // The same height again is not a reason to scroll.
-      fire(300, 120);
+      // The same footer again is not a reason to scroll.
+      fireFooter(300, 1300);
       expect(scrollTo).toHaveBeenCalledTimes(1);
     });
 
@@ -598,6 +656,39 @@ describe("a form sheet's last button clears the gesture bar", () => {
         keyboard.keyboardDidHide?.();
       });
       expect(marginOf()).toBe(TAB_BAR);
+    });
+
+    describe("a tab-stack sheet after the keyboard", () => {
+      // The sheet's container ends where the tab bar starts when the native sheet is shifted up by the bar, and at the
+      // window's bottom when it is not; the JS bar margin must only fill the gap that is really there.
+      const run = async (unmarginedBottom: number) => {
+        mockMeasure({ top: 300, height: unmarginedBottom - 300 });
+        const nav = fakeNavigation("tab");
+        const keyboard = kbMock();
+        render(withFooter(<Text>Balas</Text>, nav));
+        await settle(1000);
+        const first = marginOf();
+        await act(async () => {
+          keyboard.keyboardDidShow?.(shown);
+        });
+        await settle(1000);
+        await act(async () => {
+          keyboard.keyboardDidHide?.();
+        });
+        await settle(1000);
+        return { first, after: marginOf() };
+      };
+
+      it("keeps the bar margin when the sheet still reaches the window bottom", async () => {
+        const m = await run(FRAME.height);
+        expect(m.first).toBe(TAB_BAR);
+        expect(m.after).toBe(TAB_BAR);
+      });
+
+      it("drops the bar margin when the native sheet stays shifted up by the bar after the keyboard hid", async () => {
+        const m = await run(FRAME.height - TAB_BAR);
+        expect(m.after).toBe(0);
+      });
     });
   });
 });

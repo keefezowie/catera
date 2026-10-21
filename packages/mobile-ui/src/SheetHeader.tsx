@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { Children, createContext, isValidElement, useContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { AccessibilityInfo, Keyboard, ScrollView, StyleSheet, Text as RNText, useWindowDimensions, View } from "react-native";
 import { useSafeAreaFrame, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Text } from "./components";
@@ -140,11 +140,18 @@ function useSheetHiddenBelow(
   ref: RefObject<{ measureInWindow?: unknown } | null>,
   keyboard = 0,
   footerHeight = 0,
-): { below: number; short: boolean } {
+  tabBar = 0,
+  barShown: { current: number } = { current: 0 },
+): { below: number; short: boolean; barFit: number | null } {
   const navigation = useScreenNavigation();
   // What the last settled measure found: the part of the frame below the edge, the frame's height without margin, and the keyboard lift
   // it was measured with.
-  const [measured, setMeasured] = useState({ below: 0, frame: 0, keyboard: 0 });
+  const [measured, setMeasured] = useState<{ below: number; frame: number; keyboard: number; barFit: number | null }>({
+    below: 0,
+    frame: 0,
+    keyboard: 0,
+    barFit: null,
+  });
   // The detent is moving (react-native-screens reported an unstable state): what is measured now is a frame of the move.
   const [moving, setMoving] = useState(false);
   // The last settled reading with the keyboard up and with it down, so a keyboard change does not carry the other's.
@@ -161,7 +168,10 @@ function useSheetHiddenBelow(
   const remembered = keyboard > 0 ? lastBelow.current.up : lastBelow.current.down;
   const below = trusted ? measured.below : Math.min(remembered, measured.below);
   // Inside the tabs there is no hidden-below to find, but the room above the keyboard is still read.
-  const track = active || keyboard > 0;
+  const track = active || keyboard > 0 || tabBar > 0;
+  // A tab sheet is measured only once the keyboard has come and gone; a first open keeps the bar's own height.
+  const keyboardSeen = useRef(false);
+  if (keyboard > 0) keyboardSeen.current = true;
   const marginRef = useRef(0);
   // Kept equal to what is rendered, so a measure never works from a margin the scroll view no longer has.
   marginRef.current = below + keyboard;
@@ -194,12 +204,22 @@ function useSheetHiddenBelow(
           clearTimeout(stuck);
           movingRef.current = false;
           setMoving(false);
+          // A tab sheet's frame should end at the bar's top. After the keyboard has come and gone it can stay shifted up
+          // by the bar, which the bar margin then doubles: the margin only fills the gap that is really there.
+          let barFit: number | null = null;
+          if (!active && tabBar > 0 && barShown.current >= 0 && keyboardSeen.current) {
+            const unmargined = top + height + Math.max(0, barShown.current) + marginRef.current;
+            barFit = Math.min(tabBar, Math.max(0, Math.round(unmargined - edgeBottom + tabBar)));
+          }
           setMeasured((was) =>
-            was.below === next && was.frame === full && was.keyboard === lifted ? was : { below: next, frame: full, keyboard: lifted },
+            was.below === next && was.frame === full && was.keyboard === lifted && was.barFit === barFit
+              ? was
+              : { below: next, frame: full, keyboard: lifted, barFit },
           );
         });
       });
     };
+    let settled: ReturnType<typeof setTimeout> | undefined;
     const later = (fromDetent = false) => {
       clearTimeout(timer);
       timer = setTimeout(() => measure(fromDetent), 50);
@@ -210,6 +230,8 @@ function useSheetHiddenBelow(
     if (keyboardChanged.current !== keyboard) {
       keyboardChanged.current = keyboard;
       later();
+      // A tab sheet's native shift can land after the first reading: read once more when the keyboard's slide is over.
+      if (!active) settled = setTimeout(() => measure(false), 450);
     }
     const size = `${width}x${windowHeight}`;
     if (measuredSize.current && measuredSize.current !== size) later();
@@ -228,15 +250,31 @@ function useSheetHiddenBelow(
     return () => {
       clearTimeout(fallback);
       clearTimeout(timer);
+      clearTimeout(settled);
       clearTimeout(stuck);
       done?.();
       detent?.();
     };
-  }, [active, track, navigation, ref, width, windowHeight, keyboard]);
+  }, [active, track, navigation, ref, width, windowHeight, keyboard, tabBar]);
   // With the keyboard up the frame ends at its top. When the sheet stays at its form detent that leaves less than a
   // body and a pinned footer need, so the footer joins the scroll content instead and the field keeps its room.
   const short = keyboard > 0 && trusted && measured.frame > 0 && measured.frame - (below + keyboard) < footerHeight + SHEET_MIN_BODY;
-  return { below: active ? below : 0, short };
+  return { below: active ? below : 0, short, barFit: keyboard > 0 || measured.keyboard > 0 ? null : measured.barFit };
+}
+
+/**
+ * A cheap fingerprint of a footer's content: its elements and the text in them. It changes when an error line appears,
+ * changes its words or goes, and not when only the layout around the footer moves.
+ */
+function footerKey(node: ReactNode): string {
+  if (node == null || typeof node === "boolean") return "";
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(footerKey).join("|");
+  if (!isValidElement(node)) return "";
+  const props = node.props as { children?: ReactNode; message?: unknown };
+  const type = typeof node.type === "string" ? node.type : (node.type as { name?: string }).name ?? "";
+  const own = typeof props.message === "string" ? props.message : "";
+  return `<${type}:${own}>${Children.toArray(props.children).map(footerKey).join("|")}`;
 }
 
 /** The least height a scroll view is worth beside a pinned footer: a field with its label. */
@@ -277,8 +315,6 @@ export function SheetBody({
   const ios = os === "ios";
   const { up, height: keyboard } = useKeyboard();
   const tabBar = useTabBarOverSheet(os);
-  // While the keyboard is up it covers the bar, so the frame no longer gives it room as a margin ...
-  const bar = up ? 0 : tabBar;
   const frame = useRef<View>(null);
   const [slot, setSlot] = useState<ReactNode>(null);
   const pinned = footer ?? slot;
@@ -291,19 +327,45 @@ export function SheetBody({
   // In a tab's stack the bar's share is taken off the lift. This is an empirical fit for the keyboard-up case: g-c-8
   // measured the frame ending 104dp (the bar plus its inset) above the keyboard's top. Without the keyboard the sheet
   // reaches the window bottom and the JS bar margin lifts it; why the keyboard-up frame ends higher is unexplained. The
-  // fit depends on `androidTabBarHeight(fontScale)` plus the inset matching the real bar.
+  // fit depends on `androidTabBarHeight(fontScale)` plus the inset matching the real bar. g-c-9 found the shift can outlast the
+  // keyboard (the frame then ended 104dp above the bar), so after a keyboard change the tab sheet is measured and the bar margin
+  // is trimmed to the gap that is really there (`barFit`).
   const keyboardLift = os === "android" && keyboard > 0 ? Math.max(0, keyboard + insets.bottom - tabBar) : 0;
   // The frame holds the scroll view and the footer, so both are lifted by what is measured.
   const [footerHeight, setFooterHeight] = useState(SHEET_FOOTER_GUESS);
   const scroller = useRef<ScrollView>(null);
-  const footerSeen = useRef<{ inline: boolean; h: number } | null>(null);
+  // The footer's content changed (an error came or went) and no keyboard change has come since: only then is an inline
+  // footer worth a scroll. A keyboard that flips the footer inline lays it out too, and the focused field must stay.
+  const contentChanged = useRef(false);
+  const lastKey = useRef(footerKey(pinned));
+  const lastKeyboard = useRef(keyboard);
+  useLayoutEffect(() => {
+    if (lastKeyboard.current !== keyboard) {
+      lastKeyboard.current = keyboard;
+      contentChanged.current = false;
+    }
+    const key = footerKey(pinned);
+    if (lastKey.current !== key) {
+      lastKey.current = key;
+      contentChanged.current = true;
+    }
+  });
   const bodyHeight = useRef(0);
-  const { below, short } = useSheetHiddenBelow(
+  const barShown = useRef(0);
+  const { below, short, barFit } = useSheetHiddenBelow(
     os === "android" && !insideTabs(navigation as Parameters<typeof insideTabs>[0]),
     frame,
     keyboardLift,
     footerHeight,
+    tabBar,
+    barShown,
   );
+  // While the keyboard is up it covers the bar, so the frame no longer gives it room as a margin ...
+  // ... and after it hid, the bar's margin is what a measure of the frame found missing (see `useSheetHiddenBelow`).
+  const bar = up ? 0 : barFit ?? tabBar;
+  // The bar's share is still "there" when it measured 0: only the keyboard hides it. -1 tells a measure the keyboard is up.
+  const barThere = tabBar > 0 && !up;
+  barShown.current = up ? -1 : bar;
   // While the keyboard is up an Android frame ends at its top, so the focused field scrolls into view above it.
   // `below` is how far the frame's unlifted bottom still lies under the screen's edge (measured with the keyboard's
   // lift counted), and the keyboard sits above that edge, so the two add: a sheet that reaches 50dp past the edge with
@@ -322,17 +384,18 @@ export function SheetBody({
         if (!inline) setFooterHeight((was) => (was === h ? was : h));
         // Inline, a footer that grows (an error above the action) is scrolled to: its top, where the error sits, goes to the
         // top of the body, or, when the body is taller than the footer, the whole footer is brought in at the bottom.
-        const was = footerSeen.current;
-        footerSeen.current = { inline, h };
-        // A footer that grew until it no longer fit pinned (an error flipped it inline) lands scrolled the same way.
-        const grew = was ? (was.inline ? was.h !== h : h > was.h) : false;
-        if (inline && grew) scroller.current?.scrollTo({ y: Math.max(0, bodyHeight.current > h ? y + h - bodyHeight.current : y), animated: true });
+        // An error that flipped a pinned footer inline lands scrolled the same way: the first inline layout after the
+        // footer's content changed. A keyboard that flipped it (no content change) never scrolls: the field stays in view.
+        if (inline && contentChanged.current) {
+          contentChanged.current = false;
+          scroller.current?.scrollTo({ y: Math.max(0, bodyHeight.current > h ? y + h - bodyHeight.current : y), animated: true });
+        }
       }}
       style={{
         paddingHorizontal: sheetSidePadding(os),
         paddingTop: 12,
         // The tab bar and the keyboard already clear the system inset; the screen's edge does not, so the footer pays it there.
-        paddingBottom: (bar > 0 || (os === "android" && keyboard > 0) || iosLift > 0 ? 0 : insets.bottom) + 16,
+        paddingBottom: (barThere || (os === "android" && keyboard > 0) || iosLift > 0 ? 0 : insets.bottom) + 16,
         gap: 12,
         borderTopWidth: StyleSheet.hairlineWidth,
         borderTopColor: palette.line,
@@ -362,7 +425,7 @@ export function SheetBody({
           contentContainerStyle={{
             paddingHorizontal: sheetSidePadding(os),
             paddingTop: 4,
-            paddingBottom: hasFooter ? (inline ? 0 : 16) : (bar ? 0 : insets.bottom) + 24,
+            paddingBottom: hasFooter ? (inline ? 0 : 16) : (barThere ? 0 : insets.bottom) + 24,
             gap: 16,
           }}
         >
