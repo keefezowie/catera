@@ -1,14 +1,14 @@
-import { fireEvent, render, screen, within } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, within } from "@testing-library/react-native";
 import * as ReactNative from "react-native";
 import { StyleSheet } from "react-native";
-import type { ReactElement } from "react";
+import { Suspense, type ReactElement } from "react";
 import * as Haptics from "expo-haptics";
 import * as Reanimated from "react-native-reanimated";
 import * as SecureStore from "expo-secure-store";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { type CustomerState, type Offer } from "@catera/domain";
 import { nativeMood } from "@catera/design-tokens";
-import { MoodArc, MoodHeader, MoodProvider, MoodToggle, ThemeProvider } from "@catera/mobile-ui";
+import { MoodArc, MoodHeader, MoodProvider, MoodToggle, ThemeProvider, useMood } from "@catera/mobile-ui";
 import { Beranda } from "../src/today/Beranda";
 import { customerLink } from "../src/links";
 import { customerState, delivery, offer, TODAY } from "./fixtures";
@@ -426,5 +426,81 @@ describe("Beranda header", () => {
     fireEvent.press(screen.getByRole("tab", { name: "Makan malam, 17.00" }));
     expect(title()).toBe("Malam ini,\nsate ayam madura.");
     expect(Haptics.selectionAsync).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("the press answers before the page commits", () => {
+  it("moves the arc and the tab state on press while the page still shows the old mood, then the page follows", async () => {
+    jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
+    let open = false;
+    let release: () => void = () => {};
+    const gate = new Promise<void>((r) => (release = r));
+    // Stands for the heavy page: it cannot render Malam until the gate opens, so the commit of the mood waits.
+    function Page() {
+      const { mood } = useMood();
+      if (mood === "malam" && !open) throw gate;
+      return <ReactNative.Text testID="page">{mood}</ReactNative.Text>;
+    }
+    mount(
+      <>
+        <MoodArc {...ENDS} />
+        <Suspense fallback={<ReactNative.Text testID="fallback">wait</ReactNative.Text>}>
+          <Page />
+        </Suspense>
+      </>,
+    );
+    layout();
+    expect(screen.getByTestId("page").props.children).toBe("siang");
+    fireEvent.press(screen.getByRole("tab", { name: "Makan malam, 17.00" }));
+    // The arc answered: the disc is at the moon end and the Malam tab is selected, with no fallback shown.
+    expect(discAt().x).toBe(320 - 48 - 22);
+    expect(screen.getByRole("tab", { name: "Makan malam, 17.00" }).props.accessibilityState).toMatchObject({ selected: true });
+    // The page has not committed Malam yet; the Siang page stays up rather than blanking.
+    expect(screen.getByTestId("page").props.children).toBe("siang");
+    expect(screen.queryByTestId("fallback")).toBeNull();
+    open = true;
+    await act(async () => {
+      release();
+      await gate;
+    });
+    expect(screen.getByTestId("page").props.children).toBe("malam");
+  });
+
+  it("keeps the single-plate hero mounted across the Siang / Malam switch", async () => {
+    const dual = offer({
+      meal: "both",
+      menus: [
+        { meal: "lunch", name: "A", description: "", image: "", items: [{ id: "l-1", name: "Ayam bakar madu" }] },
+        { meal: "dinner", name: "B", description: "", image: "", items: [{ id: "d-1", name: "Sate ayam madura" }] },
+      ] as unknown as Offer["menus"],
+    });
+    const state = customerState(null);
+    state.deliveries.unshift(
+      delivery("d-both", TODAY, {}, {
+        offer: dual,
+        meals: [
+          { meal: "lunch", status: "scheduled" },
+          { meal: "dinner", status: "scheduled" },
+        ],
+      }),
+    );
+    const runtime = createMobileRuntime({ apiUrl: "https://api.example.test", storagePrefix: "catera" });
+    runtime.api = {
+      ...runtime.api,
+      me: jest.fn(async () => ({ actor: { id: "u-c1", role: "customer", name: "Rani Contoh" }, demo: false })),
+      customer: jest.fn(async () => state),
+      customerActions: jest.fn(async () => ({ total: 0, items: [] })),
+      catalog: jest.fn(async () => ({ items: [], nextCursor: null })),
+      command: jest.fn(async () => ({})),
+    } as unknown as MobileRuntime["api"];
+    mount(
+      <MobileProvider runtime={runtime} linkMapper={customerLink}>
+        <Beranda />
+      </MobileProvider>,
+    );
+    const before = (await screen.findByTestId("plate-hero")).instance;
+    fireEvent.press(screen.getByRole("tab", { name: "Makan malam, 17.00" }));
+    expect(screen.getByTestId("home-title").props.children).toBe("Malam ini,\nsate ayam madura.");
+    expect(screen.getByTestId("plate-hero").instance).toBe(before);
   });
 });

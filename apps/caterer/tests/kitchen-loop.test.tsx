@@ -12,6 +12,7 @@ import { ExceptionSheet } from "../src/today/ExceptionSheet";
 import { TodayScreen } from "../src/today/TodayScreen";
 import { dishKey } from "../src/today/ticks";
 import { canvasDay, report } from "./fixtures";
+import { spyFades } from "./fade";
 import { confirm, lastConfirm, resetSheets, SheetHost } from "./sheet-host";
 
 // The clock is pinned to Thursday 8 Oct 2026, 10.00 Jakarta. Only the clock: timers and microtasks keep running.
@@ -870,18 +871,35 @@ describe("the order across the stages", () => {
     expect(await screen.findByText("Gagal diantar")).toBeTruthy();
   });
 
-  it("fades the body when the stage changes", async () => {
+  it("changes stage in place: Berangkat antar does not fade the day's body, a date change does", async () => {
     let served = kitchenDay([cooking]);
-    renderToday(runtimeWith(async () => served));
+    renderToday(runtimeWith(async (_id, date) => ({ ...served, date })));
     await screen.findByText("Daftar masak");
-    const timing = jest.spyOn(Reanimated, "withTiming");
+    const fades = spyFades();
     served = kitchenDay([departed]);
     fireEvent.press(await screen.findByText("Berangkat antar · 34 porsi"));
     await lastConfirm().press("Berangkat");
     expect(await screen.findByText("Dapur Bu Rina · Sedang diantar", {}, { timeout: 10000 })).toBeTruthy();
     expect(screen.queryByText("Daftar masak")).toBeNull();
-    expect(timing).toHaveBeenCalledWith(1, expect.objectContaining({ duration: 440 }));
-    timing.mockRestore();
+    // The stage moved the track and the footer in place; no block entered.
+    expect(fades.mock.calls).toHaveLength(0);
+    // A different day is different content: it fades.
+    fireEvent.press(screen.getByRole("button", { name: /, ganti hari$/ }));
+    await screen.findByText("Dapur Bu Rina · Besok");
+    await waitFor(() => expect(fades.mock.calls.length).toBeGreaterThan(0));
+    fades.mockRestore();
+  }, 30000);
+
+  it("Mulai masak does not fade the session block", async () => {
+    let served = kitchenDay([scheduled]);
+    renderToday(runtimeWith(async () => served));
+    fireEvent.press(await screen.findByText("Mulai masak"));
+    const fades = spyFades();
+    served = kitchenDay([cooking]);
+    await lastConfirm().press("Mulai");
+    await waitFor(() => expect(screen.queryByText("Mulai masak")).toBeNull());
+    expect(fades.mock.calls).toHaveLength(0);
+    fades.mockRestore();
   }, 30000);
 });
 

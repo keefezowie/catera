@@ -363,8 +363,8 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
   // One session at a time: the mood picks the meal, and the other one is a tap away when this one is empty.
   const meal: KitchenMeal = mood === "siang" ? "lunch" : "dinner";
   const other: KitchenMeal = meal === "lunch" ? "dinner" : "lunch";
-  // The checklist's ticks live here, above the day's FadeSwap: a stage change or a mood switch re-keys the swap and mounts
-  // the card afresh, and the ticks must not be re-read (and blink unticked) each time.
+  // The checklist's ticks live here, above the day's FadeSwap, so they belong to the day and meal and are never re-read
+  // (and blink unticked) when a card changes in place.
   const ticks = useTicks(catererId, date, meal);
   // The order's expanded list and next WhatsApp part live here for the same reason: a caterer who shared part 1 and then
   // tapped Mulai masak or Berangkat antar sends part 2 next, not part 1 again.
@@ -489,15 +489,16 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
       }
     >
       {/* The banner decides for itself when the phone is offline; with a kept copy it names the time of that copy. It
-          sits above the day's FadeSwap so a mood or stage change does not remount it (blank until NetInfo answers
+          sits above the day's FadeSwap so a day change does not remount it (blank until NetInfo answers
           again, and announced again on iOS). */}
       <ConnectionBanner
         lastSeen={day.data?.savedAt ? new Date(day.data.savedAt) : undefined}
         onRetry={() => void pull()}
       />
-      <FadeSwap
-        swapKey={`${loading ? "loading" : "day"}-${date}-${mood}-${done ? "done" : (session?.journey.stage ?? "none")}`}
-      >
+      {/* Only a different day (or the first read landing) is new content and fades. A stage change (Mulai masak, Berangkat
+          antar, Semua beres) or the Siang / Malam switch is the same day answering a tap: its parts change in place,
+          so the body neither fades from zero nor blanks for a frame. */}
+      <FadeSwap swapKey={`${loading ? "loading" : "day"}-${date}`}>
         <View style={{ gap: 16 }}>
           {day.fromCache && day.loading ? (
             // The kept copy shows while the fresh read runs; its actions stay hidden until that lands.

@@ -9,7 +9,7 @@ import { DEMO_STRIP_HEIGHT } from "./DemoStrip";
 import { useMoodProgress } from "./brand/useMoodProgress";
 import { Text } from "./components";
 import { MoodFill } from "./MoodFill";
-import { statusBarStyle, useMood, useMoodColors, useMoodLabels } from "./mood";
+import { statusBarStyle, useMood, useMoodColors, useMoodIntent, useMoodLabels } from "./mood";
 import { PressableScale } from "./motion";
 import { ScreenStatusBar } from "./ScreenStatusBar";
 import { moodHeaderTopInset, ScreenHeaderContext } from "./screenInsets";
@@ -35,7 +35,8 @@ const TAB_PADDING = 12;
  * pill is the same size on either one and never overhangs the narrower tab.
  */
 export function MoodToggle() {
-  const { mood, setMood } = useMood();
+  const { setMood } = useMood();
+  const mood = useMoodIntent();
   const labels = useMoodLabels();
   const palette = useMoodColors();
   const { progress, target, reduced } = useMoodProgress(nativeMotion.selection);
