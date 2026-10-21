@@ -49,6 +49,7 @@ import { cacheSession, loadCachedDay, saveCachedDay } from "./offline";
 import { SelectionBar } from "./SelectionBar";
 import { useStopSelection } from "./selection";
 import { SessionCard } from "./SessionCard";
+import { useTicks } from "./ticks";
 import { replyHref } from "../hrefs";
 import { dapurLink } from "../links";
 import { openLink } from "../nav";
@@ -361,6 +362,9 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
   // One session at a time: the mood picks the meal, and the other one is a tap away when this one is empty.
   const meal: KitchenMeal = mood === "siang" ? "lunch" : "dinner";
   const other: KitchenMeal = meal === "lunch" ? "dinner" : "lunch";
+  // The checklist's ticks live here, above the day's FadeSwap: a stage change or a mood switch re-keys the swap and mounts
+  // the card afresh, and the ticks must not be re-read (and blink unticked) each time.
+  const ticks = useTicks(catererId, date, meal);
   // The session is worked out once here: the count card, the checklist, the order and the footer all read it, so they
   // agree on which rows count (a stop marked "Gagal diantar" or a cancelled one is in none of them).
   const now = new Date();
@@ -524,7 +528,7 @@ export function TodayScreen({ date: target }: { date?: string } = {}) {
             <SessionCard
               ops={ops}
               session={session}
-              catererId={catererId}
+              ticks={ticks}
               meal={meal}
               date={date}
               report={day.data?.savedAt ? null : offset === "0" ? "today" : "tomorrow"}

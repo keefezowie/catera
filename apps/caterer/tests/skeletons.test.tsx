@@ -1,5 +1,6 @@
 import { act, render, screen, waitFor, within } from "@testing-library/react-native";
 import type { ReactElement, ReactNode } from "react";
+import { spyFades } from "./fade";
 import * as ReactNative from "react-native";
 import { StyleSheet, Text as RNText } from "react-native";
 import * as Reanimated from "react-native-reanimated";
@@ -446,7 +447,7 @@ describe("Menu", () => {
   it("the day card's skeleton stays in place when the packages arrive, so it fades in once", async () => {
     const ops = held<unknown>();
     const month = held<unknown>();
-    const timing = jest.spyOn(Reanimated, "withTiming");
+    const timing = spyFades();
     renderWith(runtimeWith(owner, { sellerOperations: ops.fn, menuMonth: month.fn }), <MenuWeek />);
     const day = await screen.findByTestId("menu-skeleton-day", { includeHiddenElements: true });
     await act(async () => ops.answer(menuOps()));
@@ -466,7 +467,7 @@ describe("Menu", () => {
 
   it("a kitchen with no packages yet fades its empty state in from the skeleton", async () => {
     const ops = held<unknown>();
-    const timing = jest.spyOn(Reanimated, "withTiming");
+    const timing = spyFades();
     renderWith(runtimeWith(owner, { sellerOperations: ops.fn }), <MenuWeek />);
     expect(await screen.findByLabelText("Memuat menu")).toBeTruthy();
     await act(async () => ops.answer({ ...menuOps(), offers: [] }));
@@ -537,7 +538,7 @@ describe("Pelanggan", () => {
     for (const chip of chips) expect(flat(chip).height).toBe(48);
     expect(screen.getByRole("button", { name: "+ Pelanggan lama" })).toBeTruthy();
     expect(screen.queryByText("Memuat pelanggan…")).toBeNull();
-    const timing = jest.spyOn(Reanimated, "withTiming");
+    const timing = spyFades();
     await act(async () => read.answer({ customers: [customer, { ...customer, id: "c-02", name: "Dewi" }], total: 2, packages: [] }));
     expect(await screen.findByText("Andre Kusuma")).toBeTruthy();
     expect(skeletonNames()).toEqual([]);

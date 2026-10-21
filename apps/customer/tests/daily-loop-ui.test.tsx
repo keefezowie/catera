@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text as RNText } from "react-native";
 import type { ComponentProps, ReactElement } from "react";
 import * as Haptics from "expo-haptics";
 import * as Reanimated from "react-native-reanimated";
+import { spyFades } from "./fade";
 import { nativeMood, nativeMotion, nativeThemes } from "@catera/design-tokens";
 import {
   CheckRow,
@@ -84,20 +85,34 @@ describe("Rantang", () => {
 // RantangTrack is covered by rantang-track.test.tsx.
 
 describe("FadeSwap", () => {
-  // The wrapper is the nearest ancestor of the child that carries an opacity (the fade), so its style is read there.
-  const wrapperStyle = (id: string) => {
+  // The wrapper is the nearest Animated.View above the child: the fade layer, keyed on the swap key.
+  const wrapperNode = (id: string) => {
     let node = byId(id).parent;
-    while (node && StyleSheet.flatten(node.props.style)?.opacity === undefined) node = node.parent;
-    return StyleSheet.flatten(node?.props.style);
+    while (node && node.type !== Reanimated.default.View) node = node.parent;
+    return node!;
   };
+  const wrapperStyle = (id: string) => StyleSheet.flatten(wrapperNode(id).props.style) ?? {};
+  const swap = (key: string, child = "Isi") => (
+    <FadeSwap swapKey={key}>
+      <RNText testID="swap-child">{child}</RNText>
+    </FadeSwap>
+  );
+  // The same providers `mount` puts around its tree, so a rerender updates the FadeSwap instead of remounting it.
+  const tree = (key: string, child?: string) => (
+    <ThemeProvider storageKey="daily-loop-test">
+      <MoodProvider now={SIANG_NOW}>{swap(key, child)}</MoodProvider>
+    </ThemeProvider>
+  );
 
-  it("forwards a style to its wrapper, under the fade", () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it("forwards a style to its wrapper", () => {
     mount(
       <FadeSwap swapKey="a" style={{ flex: 1 }}>
         <RNText testID="swap-child">Isi</RNText>
       </FadeSwap>,
     );
-    expect(wrapperStyle("swap-child")).toMatchObject({ flex: 1, opacity: 1 });
+    expect(wrapperStyle("swap-child")).toMatchObject({ flex: 1 });
   });
 
   it("does not make the wrapper fill by default", () => {
@@ -106,9 +121,29 @@ describe("FadeSwap", () => {
         <RNText testID="swap-child">Isi</RNText>
       </FadeSwap>,
     );
-    const style = wrapperStyle("swap-child");
-    expect(style).toMatchObject({ opacity: 1 });
-    expect(style.flex).toBeUndefined();
+    expect(wrapperStyle("swap-child").flex).toBeUndefined();
+  });
+
+  it("fades fresh content in with a layout animation: none on the first key, one per key change, none when reduced", () => {
+    const fades = spyFades();
+    const view = mount(swap("loading"));
+    // The first key does not fade, and the fade is not a shared value written after the commit.
+    expect(fades.mock.calls).toHaveLength(0);
+    const first = wrapperNode("swap-child");
+    view.rerender(tree("ready"));
+    // The wrapper is keyed on the swap key: the fresh content mounts inside a new wrapper that is born hidden.
+    expect(wrapperNode("swap-child")).not.toBe(first);
+    expect(fades.mock.calls).toHaveLength(1);
+    // A re-render with the same key keeps the same wrapper and builds no new animation.
+    const second = wrapperNode("swap-child");
+    view.rerender(tree("ready", "Isi lagi"));
+    expect(wrapperNode("swap-child")).toBe(second);
+    expect(fades.mock.calls).toHaveLength(1);
+    // Reduced motion swaps at once.
+    jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
+    view.rerender(tree("other"));
+    expect(wrapperNode("swap-child")).not.toBe(second);
+    expect(fades.mock.calls).toHaveLength(1);
   });
 
   it("lets the story viewer's part fill the content region", () => {

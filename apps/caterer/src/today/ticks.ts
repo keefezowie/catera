@@ -36,7 +36,9 @@ function dropPast(store: TickStore): TickStore {
  * under `ticks.<catererId>` (never sent to the server), read once, and written whole on each toggle, which also drops
  * the dates before today. Nothing reads them to allow or block an action. A failed read or write only loses the note.
  */
-export function useTicks(catererId: string, date: string, meal: Meal): { ticked: Set<string>; toggle: (dish: string) => void } {
+export type Ticks = { ticked: Set<string>; toggle: (dish: string) => void };
+
+export function useTicks(catererId: string, date: string, meal: Meal): Ticks {
   const { runtime } = useMobile();
   const key = runtime.storageKey(`ticks.${catererId}`);
   const [store, setStore] = useState<TickStore>({});

@@ -7,6 +7,7 @@ import { nativeMood, nativeMotion, nativeThemes } from "@catera/design-tokens";
 import * as SecureStore from "expo-secure-store";
 import { FadeSwap, MoodProvider, SheetHeader, SkeletonGroup, ThemeProvider } from "@catera/mobile-ui";
 import type { CustomerState } from "@catera/domain";
+import { spyFades } from "./fade";
 import { Beranda } from "../src/today/Beranda";
 import { HERO_OVERLAP } from "../src/today/Plate";
 import { Jadwal } from "../src/schedule/Jadwal";
@@ -171,7 +172,7 @@ describe("Beranda", () => {
     expect(before[0].props.swapKey).toBe("loading");
     expect(inside(skeleton, before[0])).toBe(true);
 
-    const timing = jest.spyOn(Reanimated, "withTiming");
+    const timing = spyFades();
     await act(async () => read.resolve(customerState({ status: "scheduled" })));
     const hero = await screen.findByTestId("plate-hero");
     const after = screen.UNSAFE_getAllByType(FadeSwap);
@@ -526,7 +527,7 @@ describe("finding 2 and 9: a kept copy refreshes in place", () => {
     const before = headerHeight(screen.getByTestId("mood-header"));
     expect(screen.UNSAFE_getByType(FadeSwap).props.swapKey).toBe("kept");
 
-    const timing = jest.spyOn(Reanimated, "withTiming");
+    const timing = spyFades();
     await act(async () => fresh.resolve(customerState({ status: "scheduled" })));
     await waitFor(() => expect(screen.queryByText("Memperbarui…")).toBeNull());
     expect(headerHeight(screen.getByTestId("mood-header"))).toEqual(before);
@@ -548,7 +549,7 @@ describe("finding 4: nothing running", () => {
     // Both reads start together.
     await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
     expect(runtime.api.catalog).toHaveBeenCalledWith("?limit=3");
-    const timing = jest.spyOn(Reanimated, "withTiming");
+    const timing = spyFades();
     const fades = () => timing.mock.calls.filter(([to, c]) => to === 1 && c?.duration === nativeMotion.content);
 
     await act(async () => home.resolve(nothing));
@@ -704,7 +705,7 @@ describe("findings 6 to 8: the swap and the skeleton's frame", () => {
     // Past the session check: the screen's own read is out.
     await waitFor(() => expect(api[read]).toHaveBeenCalled());
     await waitFor(() => expect(screen.UNSAFE_getAllByType(FadeSwap)[0].props.swapKey).toBe("loading"));
-    const timing = jest.spyOn(Reanimated, "withTiming");
+    const timing = spyFades();
     await act(async () => resolve());
     await landed();
     expect(screen.UNSAFE_getAllByType(FadeSwap)[0].props.swapKey).toBe("ready");
@@ -811,7 +812,7 @@ describe("findings 6 to 8: the swap and the skeleton's frame", () => {
 /* Fix round 2 (re-review N2 and N3; N1 sits with the Paket fade tests above). */
 
 describe("fix round 2", () => {
-  const contentFades = (timing: jest.SpyInstance) =>
+  const contentFades = (timing: { mock: { calls: unknown[][] } }) =>
     timing.mock.calls.filter(([to, c]) => to === 1 && c?.duration === nativeMotion.content);
 
   it("Bayar keeps one mascot from the first read into the checking stage: no remount, no fade (N2)", async () => {
@@ -843,7 +844,7 @@ describe("fix round 2", () => {
     const before = screen.getByTestId("mascot-loading");
     expect(screen.UNSAFE_getAllByType(FadeSwap)[0].props.swapKey).toBe("checking");
 
-    const timing = jest.spyOn(Reanimated, "withTiming");
+    const timing = spyFades();
     await act(async () => read.resolve(checking));
     await screen.findByText("Jangan bayar lagi. Kami sedang mengecek statusnya.");
     // The same mascot is still drawn: a new one would hide for its 300ms entry delay, and a fade would blank it.
@@ -876,7 +877,7 @@ describe("fix round 2", () => {
 
     // The last plan ends: a command bumps the revision, every read runs again, and the home read comes back empty.
     customer.mockImplementation(async () => nothing);
-    const timing = jest.spyOn(Reanimated, "withTiming");
+    const timing = spyFades();
     await act(async () => {
       await mobile.command("subscription.cancel", { id: "s-1" });
     });
@@ -1000,7 +1001,7 @@ describe("Ada masalah sheet after the rebase", () => {
     renderAt(runtime, <ReportProblem />, SIANG);
     await waitFor(() => expect(screen.UNSAFE_getAllByType(FadeSwap)[0].props.swapKey).toBe("loading"));
     expect(screen.getByRole("progressbar", { name: "Memuat pengantaran" })).toBeTruthy();
-    const timing = jest.spyOn(Reanimated, "withTiming");
+    const timing = spyFades();
     await act(async () => me.resolve({ actor: null, demo: false }));
     expect(await screen.findByRole("button", { name: "Masuk" })).toBeTruthy();
     expect(screen.UNSAFE_getAllByType(FadeSwap)[0].props.swapKey).toBe("signin");

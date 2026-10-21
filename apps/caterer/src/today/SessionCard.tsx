@@ -10,6 +10,7 @@ import {
 import { useMobile } from "@catera/mobile-core";
 import { Button, Card, fontFor, Text, useColors } from "@catera/mobile-ui";
 import { CookingList } from "./CookingList";
+import type { Ticks } from "./ticks";
 import { DeliveryOrder } from "./DeliveryOrder";
 import type { Selection } from "./selection";
 
@@ -70,7 +71,7 @@ function Row({ label, value }: { label: string; value: number }) {
 export function SessionCard({
   ops,
   session,
-  catererId,
+  ticks,
   meal,
   date,
   report,
@@ -80,7 +81,7 @@ export function SessionCard({
   ops: SellerOperationsState;
   session: KitchenSession;
   /** The kitchen's id, which keys the checklist ticks stored on this phone. */
-  catererId: string;
+  ticks: Ticks;
   meal: KitchenMeal;
   date: string;
   report: "today" | "tomorrow" | null;
@@ -114,7 +115,7 @@ export function SessionCard({
           </View>
           {recap.byDish.length || missing.length ? (
             <View>
-              <CookingList session={session} catererId={catererId} date={date} />
+              <CookingList session={session} ticks={ticks} />
               {missing.map((m) => (
                 <View key={m.packageId} style={{ paddingTop: 8, alignItems: "flex-start" }}>
                   {/* A to-do status, not an error: bold charcoal, never a bare danger caption (spec 5.2). */}

@@ -8,6 +8,7 @@ import * as SecureStore from "expo-secure-store";
 import * as Haptics from "expo-haptics";
 import { addDays, currency, type Checkout, type Quote, type RenewalContext } from "@catera/domain";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
+import { spyFades } from "./fade";
 import * as Reanimated from "react-native-reanimated";
 import { nativeMotion, nativeThemes } from "@catera/design-tokens";
 import { FadeSwap, fonts, MoodProvider, ThemeProvider } from "@catera/mobile-ui";
@@ -1448,7 +1449,7 @@ describe("Beli waits (Task 5 fix round 1)", () => {
     wrap(runtime, <BuyScreen packageId="p-rumahan" />);
     await waitFor(() => expect(screen.UNSAFE_getAllByType(FadeSwap)[0].props.swapKey).toBe("loading"));
     expect(screen.getByRole("progressbar", { name: "Memuat paket" })).toBeTruthy();
-    const timing = jest.spyOn(Reanimated, "withTiming");
+    const timing = spyFades();
     await act(async () => release());
     expect(await screen.findByText("Dengan membayar, kamu setuju dengan Ketentuan Catera.")).toBeTruthy();
     expect(screen.UNSAFE_getAllByType(FadeSwap)[0].props.swapKey).toBe("ready");

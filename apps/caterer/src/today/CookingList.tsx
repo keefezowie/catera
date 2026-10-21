@@ -2,7 +2,7 @@ import { View } from "react-native";
 import { type KitchenSession } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
 import { CheckRow, Text } from "@catera/mobile-ui";
-import { dishKey, useTicks } from "./ticks";
+import { dishKey, type Ticks } from "./ticks";
 
 /**
  * "Daftar masak": one checkable row per dish of the session's recap, with its photo (or the meal's icon) and how many
@@ -10,9 +10,9 @@ import { dishKey, useTicks } from "./ticks";
  * row only turns muted and struck through, with its photo dimmed. A session with no dishes yet shows the heading alone and the caller's lines about
  * the menus nobody has filled in follow it.
  */
-export function CookingList({ session, catererId, date }: { session: KitchenSession; catererId: string; date: string }) {
+export function CookingList({ session, ticks }: { session: KitchenSession; ticks: Ticks }) {
   const { t } = useMobile();
-  const { ticked, toggle } = useTicks(catererId, date, session.meal);
+  const { ticked, toggle } = ticks;
   const dishes = session.recap.byDish;
   return (
     <View testID="cooking-list">
