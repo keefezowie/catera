@@ -10,7 +10,7 @@ Read [PRODUCT.md](../PRODUCT.md) and [DESIGN.md](../DESIGN.md) for the approved 
 | Customer and seller journeys | [Meal calendar](MEAL-CALENDAR.md), [Saved discovery](SAVED-DISCOVERY.md), [approved Saved brief](SAVED-DISCOVERY-BRIEF.md), [seller operations](SELLER-OPERATIONS.md), [setup and unperformed study](CATERER-SETUP-SIMPLIFICATION.md) |
 | Payments and settlement | [Direct payments](DOKU-DIRECT-PAYMENTS.md), [DOKU sandbox](DOKU-SANDBOX-INTEGRATION.md), [QRIS acceptance](QRIS-SANDBOX-ACCEPTANCE-2026-09-22.md), [multi-cycle contract](MULTI-CYCLE-PURCHASES.md), [paid seller pilot](PAID-SELLER-PILOT.md) |
 | Synthetic environments | [Hosted demo](HOSTED-DEMO.md), [baseline and recovery](V1-DEMO-BASELINE.md), [catalog](CLEAN-CATALOG.md), [image credits](CLEAN-CATALOG-IMAGE-CREDITS.md), [settlement fixtures](SETTLEMENT-MOCK-DATA.md), [browser fixtures](RUNBOOK.md#13-isolated-browser-fixtures-and-carried-forward-gates) |
-| Native and artwork | [Current native backlog](CATERA-V1-NATIVE-PARITY-BACKLOG.md), [native setup](../apps/customer/README.md), [brand provenance](../packages/brand/README.md), [mascot motion](MASCOT-MOTION.md) |
+| Native and artwork | [Current native backlog](CATERA-V1-NATIVE-PARITY-BACKLOG.md), [native setup](../apps/customer/README.md), [brand provenance](../packages/brand/README.md), [mascot motion](MASCOT-MOTION.md), [store preview storyboard (draft)](STORE-PREVIEW-STORYBOARD.md) |
 | Report follow-up | [Slack checkpoint and unresolved cases](SLACK-BUGS.md) |
 
 ## Historical records

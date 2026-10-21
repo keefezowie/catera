@@ -1,0 +1,26 @@
+{
+  "name": "@catera/store-preview",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "fonts": "node scripts/sync-fonts.mjs",
+    "prestudio": "npm run fonts",
+    "studio": "remotion studio src/index.ts",
+    "prerender": "npm run fonts",
+    "render": "remotion render src/index.ts",
+    "prestill": "npm run fonts",
+    "still": "remotion still src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@catera/design-tokens": "1.0.0",
+    "@remotion/cli": "4.0.533",
+    "@remotion/fonts": "4.0.533",
+    "@remotion/media": "4.0.533",
+    "@remotion/transitions": "4.0.533",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "remotion": "4.0.533"
+  }
+}

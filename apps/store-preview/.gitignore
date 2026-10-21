@@ -1,0 +1,6 @@
+# Raw screen recordings and renders stay local: they are large and may show data that has not been checked.
+public/takes/*
+!public/takes/README.md
+# Copied from packages/brand by scripts/sync-fonts.mjs.
+public/fonts/
+out/
