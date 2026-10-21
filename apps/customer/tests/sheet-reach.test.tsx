@@ -1,6 +1,6 @@
 import { Dimensions, Keyboard, StyleSheet, View } from "react-native";
 import type { ReactNode } from "react";
-import { act, render, screen, within } from "@testing-library/react-native";
+import { act, fireEvent, render, screen, within } from "@testing-library/react-native";
 import { SafeAreaFrameContext, SafeAreaInsetsContext } from "react-native-safe-area-context";
 import { NavigationContext } from "expo-router/react-navigation";
 import { Text } from "react-native";
@@ -418,6 +418,127 @@ describe("a form sheet's last button clears the gesture bar", () => {
       expect(marginOf()).toBe(200);
       expect(within(screen.getByTestId("sheet-body")).queryByText("Nanti saja")).toBeNull();
       expect(within(screen.getByTestId("sheet-frame")).getByText("Nanti saja")).toBeTruthy();
+    });
+
+    const kbMock = () => {
+      const keyboard: Record<string, (e?: unknown) => void> = {};
+      jest.spyOn(Keyboard, "addListener").mockImplementation(((event: string, cb: (e?: unknown) => void) => {
+        keyboard[event] = cb;
+        return { remove: () => undefined };
+      }) as never);
+      return keyboard;
+    };
+    const shown = { endCoordinates: { height: 420, screenY: 500 } };
+
+    it("hiding the keyboard while the sheet stays at its top detent does not bring back the form detent's hidden-below", async () => {
+      const position = { top: bodyTop(), height: 800 };
+      mockMeasure(position);
+      const nav = fakeNavigation();
+      const keyboard = kbMock();
+      render(
+        inFrame(FRAME, <NavigationContext.Provider value={nav.navigation as never}>
+          <SheetBody os="android" footer={<Text>Selesai</Text>}>{null}</SheetBody>
+        </NavigationContext.Provider>),
+      );
+      await settle(1000);
+      expect(marginOf()).toBe(200);
+      nav.emit("sheetDetentChange", { data: { stable: false } });
+      await act(async () => {
+        keyboard.keyboardDidShow?.(shown);
+      });
+      position.top = FRAME.height - 800;
+      nav.emit("sheetDetentChange", { data: { stable: true } });
+      await settle(100);
+      expect(marginOf()).toBe(454);
+      const seen: number[] = [];
+      await act(async () => {
+        keyboard.keyboardDidHide?.();
+      });
+      seen.push(marginOf());
+      await settle(30);
+      seen.push(marginOf());
+      await settle(300);
+      seen.push(marginOf());
+      expect(Math.max(...seen)).toBeLessThanOrEqual(8);
+    });
+
+    it("a second focus after the sheet was dragged to its top detent is lifted by the keyboard alone", async () => {
+      const position = { top: bodyTop(), height: 800 };
+      mockMeasure(position);
+      const nav = fakeNavigation();
+      const keyboard = kbMock();
+      render(
+        inFrame(FRAME, <NavigationContext.Provider value={nav.navigation as never}>
+          <SheetBody os="android" footer={<Text>Kirim</Text>}>{null}</SheetBody>
+        </NavigationContext.Provider>),
+      );
+      await settle(1000);
+      await act(async () => {
+        keyboard.keyboardDidShow?.(shown);
+      });
+      await settle(1000);
+      expect(marginOf()).toBe(200 + 454);
+      await act(async () => {
+        keyboard.keyboardDidHide?.();
+      });
+      await settle(1000);
+      expect(marginOf()).toBe(200);
+      nav.emit("sheetDetentChange", { data: { stable: false } });
+      position.top = FRAME.height - 800;
+      nav.emit("sheetDetentChange", { data: { stable: true } });
+      await settle(100);
+      expect(marginOf()).toBe(0);
+      await act(async () => {
+        keyboard.keyboardDidShow?.(shown);
+      });
+      expect(marginOf()).toBeLessThanOrEqual(454 + 8);
+      await settle(1000);
+      expect(marginOf()).toBe(454);
+    });
+
+    it("an inline footer that grows (a submit error) is scrolled into view", async () => {
+      mockMeasure({ top: bodyTop(), height: 800 });
+      const keyboard = kbMock();
+      const scrollToEnd = jest.fn();
+      render(inFrame(FRAME, <SheetBody os="android" footer={<Text>Kirim</Text>}>{null}</SheetBody>));
+      await settle(1000);
+      await act(async () => {
+        keyboard.keyboardDidShow?.(shown);
+      });
+      await settle(1000);
+      const body = screen.getByTestId("sheet-body");
+      expect(within(body).getByText("Kirim")).toBeTruthy();
+      const footer = screen.getByTestId("sheet-footer");
+      // The ref the component holds is the scroll view's instance: stand in for its method.
+      jest.spyOn(require("react-native").ScrollView.prototype, "scrollToEnd").mockImplementation(scrollToEnd);
+      const fire = (h: number) => fireEvent(footer, "layout", { nativeEvent: { layout: { x: 0, y: 0, width: 400, height: h } } });
+      fire(80);
+      expect(scrollToEnd).not.toHaveBeenCalled();
+      fire(120);
+      expect(scrollToEnd).toHaveBeenCalled();
+    });
+
+    it("a tab-stack sheet with too little room above the keyboard keeps its action inside the scroll view", async () => {
+      mockMeasure({ top: 300, height: 500 });
+      const nav = fakeNavigation("tab");
+      const keyboard = kbMock();
+      render(
+        inFrame(FRAME, <NavigationContext.Provider value={nav.navigation as never}>
+          <SheetBody os="android" footer={<Text>Balas</Text>}>{null}</SheetBody>
+        </NavigationContext.Provider>),
+      );
+      expect(within(screen.getByTestId("sheet-frame")).getByText("Balas")).toBeTruthy();
+      await act(async () => {
+        keyboard.keyboardDidShow?.(shown);
+      });
+      await settle(1000);
+      expect(marginOf()).toBe(454);
+      expect(within(screen.getByTestId("sheet-body")).getByText("Balas")).toBeTruthy();
+      await act(async () => {
+        keyboard.keyboardDidHide?.();
+      });
+      await settle(1000);
+      expect(within(screen.getByTestId("sheet-body")).queryByText("Balas")).toBeNull();
     });
 
     it("a tab-stack sheet also ends at the keyboard's top, and returns when it hides", async () => {

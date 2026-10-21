@@ -157,7 +157,12 @@ function useSheetHiddenBelow(
   // keyboard state stands in, never the other state's: the form detent's hidden-below added to a full keyboard lift
   // lifted the footer about 285dp too high for 300ms while the sheet rose.
   const trusted = !moving && measured.keyboard === keyboard;
-  const below = trusted ? measured.below : keyboard > 0 ? lastBelow.current.up : lastBelow.current.down;
+  // The stand-in is the smaller of that and the latest settled reading, which knows the detent the sheet is at: the
+  // remembered value alone brought back the form detent's 200dp after the sheet had risen. Under-lifting is the safe side.
+  const remembered = keyboard > 0 ? lastBelow.current.up : lastBelow.current.down;
+  const below = trusted ? measured.below : Math.min(remembered, measured.below);
+  // Inside the tabs there is no hidden-below to find, but the room above the keyboard is still read.
+  const track = active || keyboard > 0;
   const marginRef = useRef(0);
   // Kept equal to what is rendered, so a measure never works from a margin the scroll view no longer has.
   marginRef.current = below + keyboard;
@@ -168,7 +173,7 @@ function useSheetHiddenBelow(
   const keyboardChanged = useRef(0);
   const movingRef = useRef(false);
   useEffect(() => {
-    if (!active) return;
+    if (!track) return;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let stuck: ReturnType<typeof setTimeout> | undefined;
     const measure = (fromDetent: boolean) => {
@@ -182,7 +187,7 @@ function useSheetHiddenBelow(
           // A move that is still going on is settled by its own stable event, not by a timer that ran in the middle of it.
           if (movingRef.current && !fromDetent) return;
           const edgeBottom = edge ?? windowHeight;
-          const next = sheetHiddenBelow({ top, height, margin: marginRef.current, windowHeight: edgeBottom });
+          const next = active ? sheetHiddenBelow({ top, height, margin: marginRef.current, windowHeight: edgeBottom }) : 0;
           const lifted = keyboardRef.current;
           // The frame's height with no margin, so it is the same whatever margin it was read under.
           const full = height + marginRef.current;
@@ -228,10 +233,10 @@ function useSheetHiddenBelow(
       done?.();
       detent?.();
     };
-  }, [active, navigation, ref, width, windowHeight, keyboard]);
+  }, [active, track, navigation, ref, width, windowHeight, keyboard]);
   // With the keyboard up the frame ends at its top. When the sheet stays at its form detent that leaves less than a
   // body and a pinned footer need, so the footer joins the scroll content instead and the field keeps its room.
-  const short = active && keyboard > 0 && trusted && measured.frame > 0 && measured.frame - (below + keyboard) < footerHeight + SHEET_MIN_BODY;
+  const short = keyboard > 0 && trusted && measured.frame > 0 && measured.frame - (below + keyboard) < footerHeight + SHEET_MIN_BODY;
   return { below: active ? below : 0, short };
 }
 
@@ -284,12 +289,14 @@ export function SheetBody({
   // window bottom, so the bar's inset is added to end at the keyboard's top.
   const keyboardLift = os === "android" && keyboard > 0 ? keyboard + insets.bottom : 0;
   // The frame holds the scroll view and the footer, so both are lifted by what is measured.
-  const footerHeight = useRef(SHEET_FOOTER_GUESS);
+  const [footerHeight, setFooterHeight] = useState(SHEET_FOOTER_GUESS);
+  const scroller = useRef<ScrollView>(null);
+  const footerSeen = useRef<{ inline: boolean; h: number } | null>(null);
   const { below, short } = useSheetHiddenBelow(
     os === "android" && !insideTabs(navigation as Parameters<typeof insideTabs>[0]),
     frame,
     keyboardLift,
-    footerHeight.current,
+    footerHeight,
   );
   // While the keyboard is up an Android frame ends at its top, so the focused field scrolls into view above it.
   // `below` is how far the frame's unlifted bottom still lies under the screen's edge (measured with the keyboard's
@@ -304,7 +311,13 @@ export function SheetBody({
     <View
       testID="sheet-footer"
       onLayout={(e) => {
-        if (!inline && e.nativeEvent.layout.height > 0) footerHeight.current = e.nativeEvent.layout.height;
+        const h = e.nativeEvent.layout.height;
+        if (!(h > 0)) return;
+        if (!inline) setFooterHeight((was) => (was === h ? was : h));
+        // Inline, a footer that grows (an error above the action) is scrolled into view.
+        const was = footerSeen.current;
+        footerSeen.current = { inline, h };
+        if (inline && was?.inline && was.h !== h) scroller.current?.scrollToEnd({ animated: true });
       }}
       style={{
         paddingHorizontal: sheetSidePadding(os),
@@ -327,6 +340,7 @@ export function SheetBody({
       {/* The bar pays the system inset itself, so a sheet that ends above it keeps only the 24 foot. */}
       <View ref={frame} testID="sheet-frame" style={{ flex: 1, marginBottom: bar + lift + iosLift }}>
         <ScrollView
+          ref={scroller}
           testID="sheet-body"
           style={{ flex: 1 }}
           automaticallyAdjustKeyboardInsets={ios && !hasFooter}
