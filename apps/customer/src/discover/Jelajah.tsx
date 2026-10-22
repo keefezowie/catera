@@ -22,7 +22,7 @@ import {
   useScreenMargin,
 } from "@catera/mobile-ui";
 import { topTags } from "./categories";
-import { ChipRowFrame } from "./ChipRow";
+import { BODY_GAP, ChipRowFrame } from "./ChipRow";
 import { FilterChip } from "./FilterChip";
 import { MealSegment } from "./MealSegment";
 import { PackageCard } from "./PackageCard";
@@ -223,7 +223,7 @@ function Browse({ area, onArea }: { area: string | null; onArea: (value: string)
     >
       {/* The chips and the grid arrive together from one skeleton, as one block. The chips filter what the read
           returned, so before it there is nothing for them to narrow. */}
-      <FadeSwap swapKey={waiting ? "loading" : "ready"} style={{ gap: 16 }}>
+      <FadeSwap swapKey={waiting ? "loading" : "ready"} style={{ gap: BODY_GAP }}>
         {waiting ? (
           <JelajahSkeleton />
         ) : (

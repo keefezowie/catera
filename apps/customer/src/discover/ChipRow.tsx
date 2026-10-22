@@ -3,6 +3,9 @@ import { View } from "react-native";
 import { nativeLayout } from "@catera/design-tokens";
 import { useScreenMargin } from "@catera/mobile-ui";
 
+/** The gap between the blocks of Jelajah's body: the chip row, the grid, and the states. */
+export const BODY_GAP = 16;
+
 /** The chip row is 44 tall (the touch target), with the 34 chips centred in it: 5 above and 5 below. */
 export const CHIP_ROW_HEIGHT = nativeLayout.control.icon;
 export const CHIP_ROW_SLOP = (nativeLayout.control.icon - nativeLayout.control.chip) / 2;

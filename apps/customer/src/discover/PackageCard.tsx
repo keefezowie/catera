@@ -1,5 +1,5 @@
 import { Image, View } from "react-native";
-import { currency, perMealPrice, priceUnitLabel } from "@catera/domain";
+import { currency, perMealPrice } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
 import { nativeLayout } from "@catera/design-tokens";
 import { fontFor, PressableRow, SaveHeart, Text, themedStyles } from "@catera/mobile-ui";
@@ -38,7 +38,6 @@ export function PackageCard({
 }) {
   const { runtime, t, locale } = useMobile();
   const styles = useStyles();
-  const { note } = priceUnitLabel(offer, locale);
   // Every tile has this line, so tiles in a row keep one structure: "± 610 kkal · coba 1 hari", the calories alone when
   // there is no trial, or "Belum bisa dicoba" when there is neither.
   const kcal = calorieHint(offer, locale);
@@ -76,7 +75,6 @@ export function PackageCard({
               </Text>
               <Text variant="meta">{t("/ makan", "/ meal")}</Text>
             </View>
-            {note ? <Text variant="meta">{note}</Text> : null}
             <Text variant="meta" style={{ fontVariant: ["tabular-nums"] }}>
               {meta}
             </Text>

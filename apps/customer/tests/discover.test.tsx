@@ -8,13 +8,14 @@ import { currency, shortDate, startDates, type Offer } from "@catera/domain";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { nativeMood, nativeThemes } from "@catera/design-tokens";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { FadeSwap, fonts, LayoutScaleProvider, MoodProvider, ThemeProvider, useMood } from "@catera/mobile-ui";
+import { androidTabBarHeight, DEMO_STRIP_HEIGHT, FadeSwap, fonts, LayoutScaleProvider, MoodProvider, ThemeProvider, useMood } from "@catera/mobile-ui";
 import { customerLink } from "../src/links";
 import { topTags } from "../src/discover/categories";
 import { Jelajah } from "../src/discover/Jelajah";
 import { PackageDetail } from "../src/discover/PackageDetail";
 import { SavedList } from "../src/discover/SavedList";
 import { AreaSheet } from "../src/discover/area";
+import { BODY_GAP } from "../src/discover/ChipRow";
 import { offer } from "./fixtures";
 import { SheetHost } from "./sheetHost";
 
@@ -251,12 +252,13 @@ describe("Jelajah", () => {
     expect(screen.queryByText("2 kali makan / hari")).toBeNull();
   });
 
-  it("combined offer shows 2 kali makan / hari and its per-meal price", async () => {
+  it("combined offer shows its per-meal price on the tile; the 2 meals a day is on the package page", async () => {
     const both = offer({ id: "p-dua", name: "Siang dan Malam", meal: "both", price: 60000 });
     wrap(runtimeWith(customer, { catalog: jest.fn(async () => ({ items: [both], nextCursor: null })) }), <Jelajah />);
     await screen.findByText("Siang dan Malam");
     expect(screen.getByText("/ makan")).toBeTruthy();
-    expect(screen.getByText("2 kali makan / hari")).toBeTruthy();
+    // The tile has no note line: name, caterer, price and meta only.
+    expect(screen.queryByText("2 kali makan / hari")).toBeNull();
     expect(screen.getByText(currency(30000, "id"))).toBeTruthy();
     expect(screen.queryByText(/60\.000/)).toBeNull();
   });
@@ -879,42 +881,79 @@ describe("Jelajah mood header", () => {
       for (const name of ["Paket A", "Paket B", "Paket C"]) expect(within(metaOf(name)).getAllByText(/./)).toHaveLength(3);
     });
 
-    it("fits the first two tile rows above the tab bar at 412x915, measured from the rendered styles", async () => {
-      mockWindow = { width: 412, height: 915, scale: 2.625, fontScale: 1 };
-      mount(runtimeWith());
-      await screen.findByText("Menu Sehat Premium");
-      const st = (id: string) => flat(screen.getByTestId(id));
-      // Header stack, top to bottom (the 8 above the row is the plain header's own; the status inset and demo strip come
-      // from the device and are added below).
-      const header = screen.getByTestId("jelajah-header").props.style as { paddingTop: number };
-      const row = st("mood-header-row").minHeight as number;
-      const headerGap = st("mood-header-content").gap as number;
-      const titleLine = st("jelajah-title").lineHeight as number;
-      const searchTop = st("jelajah-search").marginTop as number;
-      const search = st("jelajah-search").minHeight as number;
-      const headerBottom = header.paddingTop + row + headerGap + titleLine + headerGap + searchTop + search;
-      expect(headerBottom).toBe(8 + 44 + 8 + 30 + 8 + 8 + 44); // 150
-      // The body adds its 16; the chip row is pulled up so its chips are 12 under the search, and pushes the grid 16
-      // under the chips.
-      const bodyTop = (st("screen-body").paddingTop as number) ?? 16;
-      const frame = st("chip-row-frame");
-      const gridTop = headerBottom + bodyTop + (frame.marginTop as number) + (frame.height as number) + (frame.marginBottom as number) + 16;
-      expect(headerBottom + bodyTop + (frame.marginTop as number) + 5).toBe(headerBottom + 12); // chips 12 under the search
-      expect(gridTop).toBe(212);
-      // A tile at 412dp: two columns of (412 - 2 x 16 - 12) / 2 = 184, a 4:3 photo (138), the body's 8, the name group
-      // (a 22 line, or 44 for two, plus 2 and the 18 caterer), 8, and the cost group (the 22 price, 2, the 18 meta).
-      const column = (412 - 2 * 16 - 12) / 2;
-      const photo = column / (4 / 3);
-      const tile = (nameLines: number) => photo + 8 + (22 * nameLines + 2 + 18) + 8 + (22 + 2 + 18);
-      const rowGap = st("package-grid").rowGap as number;
-      const worst = gridTop + tile(2) + rowGap + tile(2);
-      const typical = gridTop + tile(1) + rowGap + tile(1);
-      // The screen's usable bottom is 915 less the 80 tab bar, and the top inset (a 28 status bar and the 24 demo strip)
-      // comes off the same height.
-      const inset = 28 + 24;
-      const limit = 915 - 80 - inset;
-      expect(typical).toBeLessThanOrEqual(limit);
-      expect(worst).toBeLessThanOrEqual(limit);
+    it("fits four tiles (two rows, even with two-line names) above the tab bar on a Pixel 8 in production", async () => {
+      // The device, as the gate measured it: 412 x 915 dp, a 50 dp status inset, and the Android tab bar (80 plus the
+      // 24 dp navigation inset) from y = 811. Demo builds add the 24 dp demo strip above everything.
+      const DEVICE = { width: 412, height: 915, statusInset: 50, tabBar: androidTabBarHeight(1) + 24, demoStrip: DEMO_STRIP_HEIGHT };
+      mockWindow = { width: DEVICE.width, height: DEVICE.height, scale: 2.625, fontScale: 1 };
+      const offers = ["A", "B", "C", "D"].map((k) => ({ ...pricey, id: "p-" + k, name: "Paket " + k + " dengan nama yang sangat panjang sekali" }));
+      mount(runtimeWith(customer, { catalog: jest.fn(async () => ({ items: offers, nextCursor: null })) }));
+      await screen.findByText("Paket A dengan nama yang sangat panjang sekali");
+      // Every number below is read from the rendered styles; a missing one fails the test instead of defaulting.
+      const need = (node: { props: { style?: unknown } }, key: string): number => {
+        const value = flat(node)[key];
+        if (typeof value !== "number") throw new Error(`style ${key} is missing or not a number: ${String(value)}`);
+        return value;
+      };
+      const byId = (id: string) => screen.getByTestId(id);
+
+      // Header, top to bottom, under the status inset.
+      const headerTop = need(byId("jelajah-header"), "paddingTop");
+      const row = need(byId("mood-header-row"), "minHeight");
+      const headerGap = need(byId("mood-header-content"), "gap");
+      const title = need(byId("jelajah-title"), "lineHeight");
+      const searchTop = need(byId("jelajah-search"), "marginTop");
+      const search = need(byId("jelajah-search"), "minHeight");
+      const headerBottom = headerTop + row + headerGap + title + headerGap + searchTop + search;
+      expect(headerBottom).toBe(150); // 8 + 44 + 8 + 30 + 8 + 8 + 44
+
+      // Body: its own top padding, then the chip frame, then the gap to the grid.
+      const bodyTop = need(byId("screen-body"), "paddingTop");
+      const margin = need(byId("screen-body"), "paddingHorizontal");
+      const frame = byId("chip-row-frame");
+      const chip = need(byId("meal-track"), "height");
+      const frameTop = need(frame, "marginTop");
+      const frameHeight = need(frame, "height");
+      const frameBottom = need(frame, "marginBottom");
+      // The chips are centred in the frame: this much frame sits above them.
+      const above = (frameHeight - chip) / 2;
+      // The chips are 12 under the search, and the grid 16 under the chips.
+      expect(bodyTop + frameTop + above).toBe(12);
+      const gridTop = headerBottom + bodyTop + frameTop + frameHeight + frameBottom + BODY_GAP;
+      expect(gridTop - (headerBottom + 12) - chip).toBe(16);
+
+      // A tile: the photo from the column width, the body's padding and gap, the two groups.
+      const grid = byId("package-grid");
+      const columnGap = need(grid, "columnGap");
+      const rowGap = need(grid, "rowGap");
+      const column = (DEVICE.width - 2 * margin - columnGap) / 2;
+      const tile = within(screen.getAllByTestId("package-tile")[0]);
+      const photo = column / need(tile.getByTestId("package-photo"), "aspectRatio");
+      const body = tile.getByTestId("tile-body");
+      const [who, cost] = tile.getAllByTestId("tile-group");
+      const nameText = tile.getByText("Paket A dengan nama yang sangat panjang sekali");
+      const lines = nameText.props.numberOfLines as number;
+      expect(lines).toBe(2);
+      const name = need(nameText, "lineHeight");
+      const caterer = need(tile.getByText("Dapur Sehat"), "lineHeight");
+      const price = need(tile.getByText(/^Rp/), "lineHeight");
+      const meta = need(tile.getByText("Belum bisa dicoba"), "lineHeight");
+      // The tile is four text lines at most (name up to 2, caterer, price, meta): no note line.
+      expect(within(cost).getAllByText(/./)).toHaveLength(3);
+      const tileHeight = (nameLines: number) =>
+        photo + need(body, "paddingTop") + (name * nameLines + need(who, "gap") + caterer) + need(body, "gap") + (price + need(cost, "gap") + meta);
+      const twoRows = (nameLines: number) => gridTop + tileHeight(nameLines) + rowGap + tileHeight(nameLines);
+
+      const tabBarTop = DEVICE.height - DEVICE.tabBar;
+      expect(tabBarTop).toBe(811);
+      const production = (nameLines: number) => DEVICE.statusInset + twoRows(nameLines);
+      // Production: two rows of two tiles fit above the tab bar with one-line and with two-line names.
+      expect(production(1)).toBeLessThanOrEqual(tabBarTop);
+      expect(production(lines)).toBeLessThanOrEqual(tabBarTop);
+      // Demo mode adds the strip: one-line rows still fit (29 spare), two-line rows overrun by 15; recorded here and in the report.
+      const demo = (nameLines: number) => DEVICE.demoStrip + production(nameLines);
+      expect(tabBarTop - demo(1)).toBeGreaterThanOrEqual(0);
+      expect({ production1: tabBarTop - production(1), production2: tabBarTop - production(lines), demo1: tabBarTop - demo(1), demo2: tabBarTop - demo(lines) }).toEqual({ production1: 53, production2: 9, demo1: 29, demo2: -15 });
     });
 
     it("keeps two columns on a 360dp phone at the default text size", async () => {
