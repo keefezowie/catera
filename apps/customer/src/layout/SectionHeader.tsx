@@ -14,7 +14,7 @@ export function SectionHeader({
   const styles = useStyles();
   return (
     <View testID="section-header" style={styles.row}>
-      <Text variant="section" style={styles.title}>
+      <Text variant="section" accessibilityRole="header" style={styles.title}>
         {title}
       </Text>
       {action ? (

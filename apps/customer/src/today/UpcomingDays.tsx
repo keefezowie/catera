@@ -1,90 +1,149 @@
 import { View } from "react-native";
-import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
-import type { UpcomingDay } from "@catera/domain";
+import { WEEK_HEADER, type StoryPart, type UpcomingDay, type UpcomingMeal } from "@catera/domain";
+import { nativeLayout } from "@catera/design-tokens";
 import { useMobile } from "@catera/mobile-core";
-import { fonts, PhotoRing, PressableRow, Text, themedStyles, useColors } from "@catera/mobile-ui";
+import { Text, themedStyles } from "@catera/mobile-ui";
 import { dayHref } from "../hrefs";
-import { photoUri } from "./Plate";
-import { SectionTitle } from "./WaitingList";
+import { ListCard, MediaRow, SectionHeader, Thumb } from "../layout";
+import { goToTab } from "../nav";
+import { DayBlocks, mealWord } from "./DayBlocks";
+import { photoUri } from "./photoUri";
+import { SECTION_LEAD } from "./sectionGap";
+
+/** The most days Berikutnya shows, whatever the plans; "Lihat jadwal" has the rest. */
+export const UPCOMING_DAYS = 3;
+
+/** The date column of a one-delivery row. */
+const DATE_COLUMN = 36;
+
+/** Tomorrow's delivery parts in the story's own order, so a block can open the story at the part it shows. */
+export type TomorrowParts = { date: string; parts: Pick<StoryPart, "deliveryId" | "meal">[] };
 
 /**
- * "Berikutnya": the next days that have a delivery, each under one label with its count ("Senin 12 Okt", "3 antaran"),
- * then one row per meal and plan: the photo ring (grey for lunch, ink for dinner), the dish or "Menu belum
- * ditentukan", and "Siang · {paket} · {katerer}". A row opens that day.
+ * "Berikutnya" (spec 3.1 item 5): the next delivery days, at most three, under a `section` heading with "Lihat jadwal".
+ * While every shown day has one delivery they are one card of 72 rows (the weekday over the day number, the dish photo,
+ * the dish and when it comes). A day with two or more makes every day a block of tiles (`DayBlocks`). Tomorrow opens
+ * the tomorrow story at the part it shows; any other day opens its day sheet. What the caps leave out stays reachable:
+ * "+n lagi" opens the delivery's day (or the story part, or the schedule when the rest are several deliveries), and
+ * "Lihat jadwal" the Jadwal tab.
  */
-export function UpcomingDays({ days, apiBase }: { days: UpcomingDay[]; apiBase: string }) {
+export function UpcomingDays({
+  days,
+  apiBase,
+  tomorrow,
+}: {
+  days: UpcomingDay[];
+  apiBase: string;
+  tomorrow: TomorrowParts | null;
+}) {
   const { t, locale } = useMobile();
-  const c = useColors();
   const styles = useStyles();
-  if (!days.length) return null;
+  const shown = days.slice(0, UPCOMING_DAYS);
+  if (!shown.length) return null;
+
+  /** The story part a tomorrow delivery is, or null for any other day. */
+  const storyPart = (day: UpcomingDay, meal: UpcomingMeal) =>
+    tomorrow?.date === day.date
+      ? Math.max(0, tomorrow.parts.findIndex((p) => p.deliveryId === meal.deliveryId && p.meal === meal.meal))
+      : null;
+  const open = (day: UpcomingDay, meal: UpcomingMeal) => {
+    const part = storyPart(day, meal);
+    router.push((part === null ? dayHref(meal.deliveryId, day.date, locale) : `/tomorrow?part=${part}`) as never);
+  };
+  const more = (day: UpcomingDay, hidden: UpcomingMeal[]) => {
+    const first = hidden[0];
+    const part = storyPart(day, first);
+    // The story pages through every part, so its first hidden one reaches the rest. Elsewhere one delivery has its own
+    // sheet; several have none to share, so the schedule is the way to all of them.
+    if (part !== null) router.push(`/tomorrow?part=${part}` as never);
+    else if (hidden.every((m) => m.deliveryId === first.deliveryId))
+      router.push(dayHref(first.deliveryId, day.date, locale) as never);
+    else goToTab("jadwal");
+  };
+
+  const single = shown.every((d) => d.meals.length === 1);
   return (
-    <View testID="upcoming-days" style={{ gap: 10 }}>
-      <SectionTitle>{t("Berikutnya", "Coming up")}</SectionTitle>
-      {days.map((day) => {
-        const n = day.meals.length;
-        return (
-          <View key={day.date}>
-            <View style={styles.dayRow}>
-              <Text testID="upcoming-day-label" style={styles.dayLabel}>
-                {day.label}
-              </Text>
-              <Text testID="upcoming-day-count" variant="caption" style={styles.count}>
-                {t(`${n} pengantaran`, n === 1 ? "1 delivery" : `${n} deliveries`)}
-              </Text>
-            </View>
-            {day.meals.map((m, i) => {
-              const dish = m.lead ?? t("Menu belum diisi", "Menu not set yet");
-              const meal = m.meal === "dinner" ? t("Malam", "Dinner") : t("Siang", "Lunch");
-              const line = [meal, m.packageName, m.catererName].filter(Boolean).join(" · ");
-              return (
-                <PressableRow
-                  key={`${m.deliveryId}:${m.meal}`}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${day.label}, ${dish}, ${line}`}
-                  onPress={() => router.push(dayHref(m.deliveryId, day.date, locale) as never)}
-                  style={[styles.row, i > 0 && styles.divider]}
-                >
-                  {/* The row is the button and speaks for the ring. */}
-                  <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-                    <PhotoRing
-                      uri={m.image ? photoUri(m.image, apiBase) : ""}
-                      size={40}
-                      ring={m.meal === "dinner" ? "dinner" : "lunch"}
-                      accessibilityLabel={dish}
-                    />
-                  </View>
-                  <View style={{ flex: 1, gap: 2 }}>
-                    <Text style={m.lead ? styles.dish : styles.unset}>{dish}</Text>
-                    <Text variant="caption" style={styles.line}>
-                      {line}
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color={c.muted} />
-                </PressableRow>
-              );
-            })}
-          </View>
-        );
-      })}
+    <View testID="upcoming-days" style={styles.section}>
+      <SectionHeader
+        title={t("Berikutnya", "Coming up")}
+        action={{ label: t("Lihat jadwal", "See schedule"), onPress: () => goToTab("jadwal") }}
+      />
+      {single ? (
+        <ListCard inset={DATE_COLUMN + nativeLayout.space.md}>
+          {shown.map((day) => (
+            <DayRow
+              key={day.date}
+              day={day}
+              meal={day.meals[0]}
+              tomorrow={tomorrow?.date === day.date}
+              apiBase={apiBase}
+              onOpen={open}
+            />
+          ))}
+        </ListCard>
+      ) : (
+        <DayBlocks days={shown} apiBase={apiBase} onOpen={open} onMore={more} />
+      )}
     </View>
   );
 }
 
-const useStyles = themedStyles((c) => ({
-  dayRow: {
-    flexDirection: "row",
-    alignItems: "baseline",
-    justifyContent: "space-between",
-    gap: 12,
-    paddingVertical: 4,
-  },
-  dayLabel: { flexShrink: 1, fontSize: 13, lineHeight: 18, fontFamily: fonts.bold, color: c.charcoal },
-  count: { fontSize: 12, lineHeight: 16, color: c.muted, fontVariant: ["tabular-nums"] },
-  row: { minHeight: 60, flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8 },
-  divider: { borderTopWidth: 1, borderTopColor: c.line },
-  dish: { fontSize: 14, lineHeight: 20, fontFamily: fonts.bold, color: c.charcoal },
-  // A menu not set yet is said plainly, never as a dish name.
-  unset: { fontSize: 14, lineHeight: 20, fontFamily: fonts.semibold, color: c.muted },
-  line: { fontSize: 12, lineHeight: 16 },
+/** One day with one delivery: the date column, the 56 photo (dashed while the menu is not set), the dish and its line. */
+function DayRow({
+  day,
+  meal,
+  tomorrow,
+  apiBase,
+  onOpen,
+}: {
+  day: UpcomingDay;
+  meal: UpcomingMeal;
+  tomorrow: boolean;
+  apiBase: string;
+  onOpen: (day: UpcomingDay, meal: UpcomingMeal) => void;
+}) {
+  const { t, locale } = useMobile();
+  const styles = useStyles();
+  const id = `upcoming-row-${meal.deliveryId}-${meal.meal}`;
+  const notSet = meal.lead === null;
+  const dish = meal.lead ?? t("Menu belum diisi", "Menu not set yet");
+  const when = [mealWord(meal.meal, t), meal.window].filter(Boolean).join(" ");
+  // A dish not chosen yet says whose kitchen it is: there is no dish to tell the row apart by.
+  const line = [tomorrow ? t("Besok", "Tomorrow") : null, when, notSet ? meal.catererName : null]
+    .filter(Boolean)
+    .join(" · ");
+  const weekday = WEEK_HEADER[locale][(new Date(`${day.date}T00:00:00Z`).getUTCDay() + 6) % 7];
+  return (
+    <MediaRow
+      testID={id}
+      leading={
+        <View style={styles.lead}>
+          <View testID="upcoming-date" style={styles.date}>
+            <Text variant="meta">{weekday}</Text>
+            <Text variant="section" style={styles.figures}>
+              {Number(day.date.slice(8))}
+            </Text>
+          </View>
+          <Thumb
+            uri={notSet || !meal.image ? null : photoUri(meal.image, apiBase)}
+            notSet={notSet}
+            testID={`${id}-thumb`}
+          />
+        </View>
+      }
+      title={dish}
+      meta={line}
+      wrap
+      accessibilityLabel={`${day.label}, ${dish}, ${line}`}
+      onPress={() => onOpen(day, meal)}
+    />
+  );
+}
+
+const useStyles = themedStyles(() => ({
+  section: { marginTop: SECTION_LEAD },
+  lead: { flexDirection: "row", alignItems: "center", gap: nativeLayout.space.md },
+  date: { width: DATE_COLUMN, alignItems: "center" },
+  figures: { fontVariant: ["tabular-nums"] },
 }));

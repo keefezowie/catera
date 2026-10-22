@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { AccessibilityInfo, View } from "react-native";
-import * as SecureStore from "expo-secure-store";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import {
   activePlans,
@@ -9,11 +8,12 @@ import {
   mealPlates,
   recapCandidates,
   todayPlates,
+  tomorrowStory,
   upcomingDays,
   type CustomerState,
   type Plate as PlateData,
 } from "@catera/domain";
-import { useData, useMobile, type MobileRuntime } from "@catera/mobile-core";
+import { useData, useMobile } from "@catera/mobile-core";
 import {
   ConnectionBanner,
   FadeSwap,
@@ -36,64 +36,20 @@ import { stopStatuses } from "./stopStatus";
 import { StatusStops, type StopInfo } from "./StatusStops";
 import { RecapCard } from "./RecapCard";
 import { StaleCopy } from "../staleCopy";
-import { WaitingList } from "./WaitingList";
+import { LiveSlot } from "./LiveSlot";
 import { UpcomingDays } from "./UpcomingDays";
 import { PlansRow } from "./PlansRow";
-import { TomorrowEntry } from "../tomorrow/TomorrowRow";
 import { BerandaSkeleton } from "../skeletons";
 import { usePullToRefresh } from "../refresh";
-import { forgetCachedCustomer, loadCachedCustomer, saveCachedCustomer } from "./offline";
+import { keptCustomer, loadCustomer } from "./customerRead";
 
 // The band's overlap lives in `heroBand.ts` so the skeleton can read it without importing this screen back.
 export { HERO_BAND_OVERLAP };
 
-/** A customer read; `savedAt` is set when it is the copy this phone kept, not a fresh answer. */
-type LoadedCustomer = { data: CustomerState; savedAt: string | null };
-
 /**
- * Whether this phone still holds `actorId`'s session. Logout deletes the stored actor first, before it forgets the kept
- * copies and signs out, so a missing or different stored actor means the session this read began in has ended.
+ * Beranda: today's plate (or plates), the one thing that waits on the customer (a live slot), the next days (at most
+ * three) and the running plans, each block 32 under the last.
  */
-async function stillSignedIn(runtime: MobileRuntime, actorId: string): Promise<boolean> {
-  const stored = await SecureStore.getItemAsync(runtime.storageKey("actor")).catch(() => null);
-  try {
-    return !!stored && (JSON.parse(stored) as { id?: string }).id === actorId;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Keeps a fresh read for the next launch, only while its session lasts. A read still out when the person taps Keluar
- * must not write back the copy logout just forgot: it is not saved once the session has ended, and a save that raced
- * logout's first step is taken back. (A save that lands before logout deletes the stored actor is cleared by logout
- * itself, which forgets the copies after that step.)
- */
-async function keepCustomer(runtime: MobileRuntime, actorId: string, data: CustomerState): Promise<void> {
-  if (!(await stillSignedIn(runtime, actorId))) return;
-  await saveCachedCustomer(actorId, { savedAt: new Date().toISOString(), data });
-  if (!(await stillSignedIn(runtime, actorId))) await forgetCachedCustomer(actorId);
-}
-
-async function loadCustomer(runtime: MobileRuntime, actorId: string): Promise<LoadedCustomer> {
-  try {
-    const data = await runtime.api.customer();
-    await keepCustomer(runtime, actorId, data);
-    return { data, savedAt: null };
-  } catch (e) {
-    const cached = await keptCustomer(actorId);
-    if (cached) return cached;
-    throw e;
-  }
-}
-
-/** The last confirmed read this phone kept for this account, painted at launch while the fresh read runs. */
-async function keptCustomer(actorId: string): Promise<LoadedCustomer | null> {
-  const cached = await loadCachedCustomer(actorId);
-  return cached ? { data: cached.data, savedAt: cached.savedAt } : null;
-}
-
-/** Beranda: today's plate (or plates), what waits on the customer, the next days and the running plans. */
 export function Beranda() {
   const { actor, ready } = useMobile();
   // Before the session is known the page is already the first read's: its loading header and skeleton.
@@ -338,6 +294,9 @@ function SignedInHome({ actorId }: { actorId: string }) {
   // The status line sits in the hero's body when one plate leads, under the pager when several do, and alone under the
   // band when none does.
   const statusLine = (onHero: boolean) => <StatusStops lunch={stops.lunch} dinner={stops.dinner} onHero={onHero} />;
+  // Tomorrow's deliveries in the story's order: its block in Berikutnya opens the story at the part it shows.
+  const story = tomorrowStory(state, now, locale);
+  const tomorrow = story ? { date: story.date, parts: story.parts } : null;
   const next = days[0];
   const nextLabel = next?.label ?? "";
   // "Berikutnya" names a later day, so it is only true when nothing else is left today.
@@ -426,12 +385,9 @@ function SignedInHome({ actorId }: { actorId: string }) {
         {/* A copy kept while the phone is online means the read failed: say how old it is, never let it pass as current. */}
         <StaleCopy savedAt={savedAt} onRetry={home.reload} />
         {recap}
-        <WaitingList state={state} actions={actions.data?.items ?? null} offline={!!savedAt} now={now} />
-        <TomorrowEntry state={state} now={now} />
-        <UpcomingDays days={days} apiBase={runtime.apiBase} />
-        {plans ? (
-          <PlansRow count={plans.count} caterers={plans.caterers} images={plans.images} apiBase={runtime.apiBase} />
-        ) : null}
+        <LiveSlot state={state} actions={actions.data?.items ?? null} offline={!!savedAt} now={now} />
+        <UpcomingDays days={days} apiBase={runtime.apiBase} tomorrow={tomorrow} />
+        <PlansRow subscriptions={state.subscriptions} today={today} apiBase={runtime.apiBase} />
       </FadeSwap>
     </Screen>
   );

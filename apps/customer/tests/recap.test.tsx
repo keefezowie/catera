@@ -134,13 +134,13 @@ const mount = (runtime: MobileRuntime) =>
 /** Lets the session read and the storage reads land inside act, so a test never ends mid-update. */
 const settle = () => act(async () => void (await new Promise((r) => setTimeout(r, 10))));
 
-/** The plans row at the end of Beranda, standing for the running plans. */
-const PLANS_ROW = "1 paket aktif, Dapur Contoh";
+/** The plans block at the end of Beranda ("Paket kamu"), one row for the one running plan. */
+const PLANS = "plans";
 
 /** Beranda with the plans row on screen, and every storage read settled. */
 async function home(runtime: MobileRuntime) {
   const view = mount(runtime);
-  await screen.findByRole("button", { name: PLANS_ROW });
+  await screen.findByTestId(PLANS);
   await settle();
   return view;
 }
@@ -172,7 +172,7 @@ describe("the Paket selesai recap", () => {
     expect(card.queryByText(/porsi|kali makan|hari antar/)).toBeNull();
     // The page order as text; the pull-to-refresh element on the scroll view is a React element, not page content.
     const tree = JSON.stringify(screen.toJSON(), (key, value) => (key === "refreshControl" ? undefined : value));
-    expect(tree.indexOf("Paket selesai")).toBeLessThan(tree.indexOf("1 paket aktif"));
+    expect(tree.indexOf("Paket selesai")).toBeLessThan(tree.indexOf("Paket kamu"));
   });
 
   it("writes the seen mark on its first render and stays for the rest of the visit; the next visit has no card", async () => {
@@ -242,7 +242,7 @@ describe("the Paket selesai recap", () => {
     await home(runtimeWith(async () => stateWith([livePlan(), endedPlan()])));
     fireEvent.press(screen.getByRole("button", { name: "Tutup" }));
     expect(screen.queryByTestId("recap-card")).toBeNull();
-    expect(screen.getByRole("button", { name: PLANS_ROW })).toBeTruthy();
+    expect(screen.getByTestId("plan-row-s-1")).toBeTruthy();
   });
 
   it("Lanjutkan paket opens the renewal and counts renew_started on each tap", async () => {
@@ -338,21 +338,21 @@ describe("the Paket selesai recap", () => {
     expect(card.getByText("Mon 21 Sep to Wed 7 Oct")).toBeTruthy();
     expect(card.getByRole("button", { name: "Continue this plan" })).toBeTruthy();
     expect(card.getByRole("button", { name: "Close" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "1 active plan, Dapur Contoh" })).toBeTruthy();
+    expect(within(screen.getByTestId(PLANS)).getByText("Your plans")).toBeTruthy();
     await settle();
   });
 });
 
-describe("the plans row", () => {
-  it("is one button of at least 48dp that opens Paket saya", async () => {
+describe("the plans block", () => {
+  it("a plan is a 72 row button that opens the plan", async () => {
     await home(runtimeWith(async () => stateWith([livePlan()])));
-    const row = screen.getByRole("button", { name: PLANS_ROW });
-    expect(StyleSheet.flatten(row.props.style).minHeight).toBeGreaterThanOrEqual(48);
+    const row = screen.getByTestId("plan-row-s-1");
+    expect(StyleSheet.flatten(row.props.style).minHeight).toBeGreaterThanOrEqual(72);
     fireEvent.press(row);
-    expect(router.push).toHaveBeenCalledWith("/paket-saya");
+    expect(router.push).toHaveBeenCalledWith("/subscriptions/s-1?title=Makan%20Siang%20Rumahan");
   });
 
-  it("counts every running plan in one row, with no line per plan", async () => {
+  it("lists every running plan as a row", async () => {
     const second = subscription({
       id: "s-2",
       snapshot: { offer: offer({ name: "Makan Malam Hemat" }), total: 150000 } as unknown as Subscription["snapshot"],
@@ -361,8 +361,9 @@ describe("the plans row", () => {
       remaining: 9,
     });
     mount(runtimeWith(async () => stateWith([livePlan(), second])));
-    // Both plans share a kitchen, so it is named once.
-    expect(await screen.findByRole("button", { name: "2 paket aktif, Dapur Contoh" })).toBeTruthy();
+    const plans = within(await screen.findByTestId(PLANS));
+    expect(plans.getByTestId("plan-row-s-1")).toBeTruthy();
+    expect(plans.getByTestId("plan-row-s-2")).toBeTruthy();
     expect(screen.queryByText(/lihat detail paket/)).toBeNull();
     await waitFor(() => expect(screen.queryByTestId("recap-card")).toBeNull());
     await settle();

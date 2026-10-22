@@ -3,7 +3,7 @@ import * as ReactNative from "react-native";
 import { ActivityIndicator, StyleSheet } from "react-native";
 import * as Reanimated from "react-native-reanimated";
 import { createMobileRuntime, MobileProvider, useMobile, type MobileRuntime } from "@catera/mobile-core";
-import { nativeMood, nativeMotion, nativeThemes } from "@catera/design-tokens";
+import { nativeLayout, nativeMood, nativeMotion, nativeThemes } from "@catera/design-tokens";
 import * as SecureStore from "expo-secure-store";
 import { FadeSwap, LayoutScaleProvider, MoodProvider, SheetHeader, SkeletonGroup, ThemeProvider } from "@catera/mobile-ui";
 import { jakartaDay, monthOf, monthWeeks, type CustomerState } from "@catera/domain";
@@ -305,7 +305,7 @@ describe("states", () => {
         // The photo block has its height from the 4:3 ratio, not a number.
         expect(blocks.find((b) => b.aspectRatio !== undefined)?.backgroundColor).toBe(nativeMood[scheme][mood].arcTrack);
         expect(nativeMood[scheme][mood].arcTrack).not.toBe(nativeMood[scheme][mood].hero);
-        expect(blocks.find((b) => b.height === 54)?.backgroundColor).toBe(nativeThemes[scheme].sage);
+        expect(blocks.find((b) => b.height === 56)?.backgroundColor).toBe(nativeThemes[scheme].sage);
       });
 
   it("under reduced motion the skeleton holds still: no pulse starts", async () => {
@@ -360,8 +360,10 @@ describe("states", () => {
       .getByTestId("beranda-skeleton")
       .findAll((n) => typeof n.type === "string" && typeof flat(n).height === "number")
       .map((n) => flat(n).height as number);
-    // The 54 ring of a 60 row and the hero's 30 dish line, in dp; they do not scale with text.
-    expect(blocks).toContain(54);
+    // The 56 thumb of a 72 row, the 40 glyph circle of the live slot and the hero's 30 dish line, in dp; they do not
+    // scale with text.
+    expect(blocks).toContain(56);
+    expect(blocks).toContain(40);
     expect(blocks).toContain(30);
     const skeletonPhoto = flat(screen.getByTestId("beranda-skeleton-photo"));
     await act(async () => read.resolve(customerState({ status: "scheduled" }, { past: [] })));
@@ -370,6 +372,28 @@ describe("states", () => {
     expect(photo.aspectRatio).toBeCloseTo(4 / 3, 6);
     for (const key of ["aspectRatio", "margin", "borderTopLeftRadius", "borderTopRightRadius"] as const)
       expect(photo[key]).toBe(skeletonPhoto[key]);
+  });
+});
+
+describe("Beranda skeleton, below the hero", () => {
+  it("is the live slot and one Berikutnya card of 72 rows, on the loaded geometry", async () => {
+    const runtime = runtimeWith({ customer: jest.fn(() => new Promise(() => undefined)) });
+    renderWith(runtime, <Beranda />);
+    await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
+    const live = flat(screen.getByTestId("beranda-skeleton-live"));
+    expect(live).toMatchObject({ minHeight: nativeLayout.row.media, borderRadius: nativeLayout.radius.card, marginTop: 16 });
+    const days = screen.getByTestId("beranda-skeleton-days");
+    expect(flat(days).marginTop).toBe(16);
+    // The heading is one section line (26) high, 12 above the card.
+    const heading = flat(within(days).getByTestId("beranda-skeleton-days-heading"));
+    expect(heading).toMatchObject({ height: 26, marginBottom: nativeLayout.headingGap });
+    const rows = within(days).getAllByTestId("beranda-skeleton-row");
+    expect(rows).toHaveLength(2);
+    for (const row of rows) expect(flat(row).minHeight).toBe(nativeLayout.row.media);
+    const thumbs = within(days).getAllByTestId("beranda-skeleton-thumb");
+    expect(flat(thumbs[0])).toMatchObject({ width: 56, height: 56, borderRadius: nativeLayout.radius.thumb });
+    // Nothing of the old 60 rows or 10 gaps is left.
+    expect(screen.getByTestId("beranda-skeleton").findAll((n) => typeof n.type === "string" && flat(n).minHeight === 60)).toHaveLength(0);
   });
 });
 

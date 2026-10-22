@@ -20,6 +20,7 @@ export function MediaRow({
   trailing,
   onPress,
   wrap = false,
+  accessibilityLabel,
   testID,
 }: {
   image?: string | null;
@@ -30,6 +31,8 @@ export function MediaRow({
   trailing?: ReactNode | "chevron";
   onPress?: () => void;
   wrap?: boolean | "title";
+  /** What a screen reader says for the row, when its own texts read badly in a row (a date column, a thumb). */
+  accessibilityLabel?: string;
   testID?: string;
 }) {
   const c = useColors();
@@ -57,7 +60,13 @@ export function MediaRow({
     </>
   );
   return onPress ? (
-    <PressableRow testID={testID} accessibilityRole="button" onPress={onPress} style={styles.row}>
+    <PressableRow
+      testID={testID}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      onPress={onPress}
+      style={styles.row}
+    >
       {body}
     </PressableRow>
   ) : (

@@ -35,6 +35,8 @@ export type UpcomingMeal = {
   /** The menu's cover photo once the menu is set, else the package photo; "" when there is neither. */
   image: string;
   menuSet: boolean;
+  /** The package's service window for this meal ("11.00–13.00"); "" when it names none. */
+  window: string;
   /** When changes close ("besok 17.00"), or null once they have or the day cannot move. */
   changeUntil: string | null;
 };
@@ -66,6 +68,7 @@ export function upcomingDays(state: CustomerState, now: Date, days: number, loca
           // A menu that is not set can still carry a template photo; the package photo is the truth then.
           image: menuCoverImage(set ? menu : null, d.offer.image ?? ""),
           menuSet: set,
+          window: d.offer.windows?.[meal] ?? "",
           changeUntil,
         },
       };

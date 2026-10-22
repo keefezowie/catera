@@ -57,6 +57,8 @@ export default function TabStack({ segment }: { segment: string }) {
       <Stack.Screen name="disimpan" options={{ title: t("Disimpan", "Saved") }} />
       {/* Its name is the screen's `nativeTitle`: the iOS large title, the first content line on Android. */}
       <Stack.Screen name="paket-saya" options={contentTitled(t("Paket saya", "My plans"))} />
+      {/* The whole waiting list behind Beranda's live slot ("n hal lainnya"); the native title is its name. */}
+      <Stack.Screen name="perlu-diurus" options={contentTitled(t("Perlu kamu urus", "Needs you"))} />
       <Stack.Screen name="saved" options={{ headerShown: false }} />
       <Stack.Screen name="notifications" options={{ title: t("Notifikasi", "Notifications") }} />
       <Stack.Screen name="pengaturan" options={contentTitled(t("Pengaturan", "Settings"))} />

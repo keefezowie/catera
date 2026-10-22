@@ -439,7 +439,7 @@ describe("Beranda hero, band and status line", () => {
     expect(flatOf(screen.getByTestId("mood-header")).paddingBottom).toBe(16);
     // The shown meal's label is forest, the other's ink.
     expect(flatOf(screen.getByText("Malam")).color).toBe(nativeThemes.light.forest);
-    expect(flatOf(screen.getByText("Siang 11.00–13.00")).color).toBe(nativeThemes.light.charcoal);
+    expect(flatOf(within(screen.getByTestId("status-stop-lunch")).getByText("Siang 11.00–13.00")).color).toBe(nativeThemes.light.charcoal);
   });
 
   it("two plates of the chosen meal keep the pager, with one status line under it", async () => {

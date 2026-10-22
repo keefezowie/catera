@@ -61,6 +61,7 @@ jest.mock("../src/account/AuthCallback", () => ({ AuthCallback: mockStub("Verifi
 jest.mock("../src/buy/BuyScreen", () => ({ BuyScreen: mockStub("Beli") }));
 jest.mock("../src/claim/ClaimScreen", () => ({ ClaimScreen: mockStub("Klaim") }));
 jest.mock("../src/tomorrow/TomorrowStory", () => ({ TomorrowStoryScreen: mockStub("Cerita") }));
+jest.mock("../src/today/PerluDiurus", () => ({ PerluDiurus: mockStub("Perlu kamu urus") }));
 /** Bayar after payment: the real paid footer, for a plan whose menus the customer picks. */
 jest.mock("../src/buy/PaymentScreen", () => ({
   PaymentScreen: () =>
@@ -174,6 +175,18 @@ describe("each tab keeps its own stack", () => {
       expect(stack(group)).not.toContain("hari/[id]");
       app.unmount();
     }
+  });
+
+  it("Perlu kamu urus, the full waiting list, pushes onto Beranda's stack and goes back to it", () => {
+    const app = mount("/");
+    act(() => router.push("/perlu-diurus"));
+    expect(root()).toEqual(["(tabs)"]);
+    expect(tab()).toBe("(index)");
+    expect(stack("(index)")).toEqual(["index", "perlu-diurus"]);
+    act(() => router.back());
+    expect(app.getPathname()).toBe("/");
+    expect(stack("(index)")).toEqual(["index"]);
+    app.unmount();
   });
 
   it("a push tap on a cold start opens the screen inside Beranda with Back to Beranda", () => {

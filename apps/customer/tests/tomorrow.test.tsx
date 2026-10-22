@@ -269,15 +269,23 @@ describe("Menu besok row", () => {
     expect(router.push).toHaveBeenLastCalledWith("/tomorrow?part=0");
   });
 
-  it("is on Beranda when tomorrow has a delivery and absent when it has none", async () => {
+  it("is no longer a row on Beranda: tomorrow is a Berikutnya block that opens the story", async () => {
     pinClock(BEFORE_CUTOFF);
     const view = wrap(runtimeWith(async () => bothState()), <Beranda />);
-    expect(await screen.findByText("Menu besok")).toBeTruthy();
-    expect(screen.getAllByTestId("photo-ring")).toHaveLength(2);
+    const days = within(await screen.findByTestId("upcoming-days"));
+    expect(screen.queryByText("Menu besok")).toBeNull();
+    expect(screen.queryByTestId("tomorrow-row")).toBeNull();
+    expect(screen.queryAllByTestId("photo-ring")).toHaveLength(0);
+    // Two deliveries tomorrow, so its block: a tile each, the dinner opening the story at its own part.
+    expect(days.getByText(/^Besok, /)).toBeTruthy();
+    fireEvent.press(days.getByRole("button", { name: /^Sate ayam madura, Malam/ }));
+    expect(router.push).toHaveBeenLastCalledWith("/tomorrow?part=1");
+    fireEvent.press(days.getByRole("button", { name: /^Ayam bakar madu, Siang/ }));
+    expect(router.push).toHaveBeenLastCalledWith("/tomorrow?part=0");
     view.unmount();
     wrap(runtimeWith(async () => noTomorrowState()), <Beranda />);
-    await screen.findByTestId("plans-row");
-    expect(screen.queryByText("Menu besok")).toBeNull();
+    await screen.findByTestId("plans");
+    expect(screen.queryByText(/^Besok, /)).toBeNull();
   });
 
   it("gives two lunches on one day one ring each", async () => {

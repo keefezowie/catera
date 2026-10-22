@@ -1,94 +1,134 @@
-import { Image, View } from "react-native";
-import Ionicons from "@expo/vector-icons/Ionicons";
+import { ScrollView, View } from "react-native";
+import { Image } from "expo-image";
 import { router } from "expo-router";
+import { addDays, planLabel, type Subscription } from "@catera/domain";
+import { nativeLayout } from "@catera/design-tokens";
 import { useMobile } from "@catera/mobile-core";
-import { fonts, PressableRow, Text, themedStyles, useColors } from "@catera/mobile-ui";
-import { photoUri } from "./Plate";
+import { PressableRow, Text, themedStyles, useScreenMargin } from "@catera/mobile-ui";
+import { planHref } from "../hrefs";
+import { ListCard, MediaRow, SectionHeader } from "../layout";
+import { photoUri } from "./photoUri";
+import { SECTION_LEAD } from "./sectionGap";
 
-const THUMB = 34;
+/** A rail card's width: two and a bit fit a phone, so the next one peeks and says there are more. */
+export const PLAN_CARD_WIDTH = 168;
+
+type Translate = (id: string, en: string) => string;
+
+/** "selesai besok", "selesai hari ini", else "sisa 6 hari": when a running plan ends. */
+function endLine(s: Subscription, today: string, t: Translate): string {
+  if (s.ends_on === today) return t("selesai hari ini", "ends today");
+  if (s.ends_on === addDays(today, 1)) return t("selesai besok", "ends tomorrow");
+  return t(`sisa ${s.remaining} hari`, `${s.remaining} ${s.remaining === 1 ? "day" : "days"} left`);
+}
 
 /**
- * The last thing on Beranda: one bordered row for every running plan, with up to three overlapping package photos,
- * "{n} paket aktif" and the kitchens. It opens Paket saya, where each plan has its own row.
+ * "Paket kamu" (spec 3.1 item 6), the last block of Beranda: every running plan, the one ending first leading.
+ * One or two plans are one card of 72 rows (the plan's photo, its name, "caterer · sisa n hari", a chevron). Three or
+ * more are "n paket aktif" with "Lihat semua" (Paket saya) over a rail of 168 wide cards, so a customer with eight plans
+ * still scrolls past a screen, not eight rows. A row or card opens its plan. Hidden with no running plan.
  */
 export function PlansRow({
-  count,
-  caterers,
-  images,
+  subscriptions,
+  today,
   apiBase,
 }: {
-  count: number;
-  caterers: string[];
-  images: string[];
+  /** The customer's plans; the running ones are listed. */
+  subscriptions: Subscription[];
+  today: string;
   apiBase: string;
 }) {
-  const { t } = useMobile();
-  const c = useColors();
+  const { t, locale } = useMobile();
   const styles = useStyles();
-  if (!count) return null;
-  const title = t(`${count} paket aktif`, count === 1 ? "1 active plan" : `${count} active plans`);
-  const kitchens = caterers.join(", ");
-  return (
-    <PressableRow
-      testID="plans-row"
-      accessibilityRole="button"
-      accessibilityLabel={kitchens ? `${title}, ${kitchens}` : title}
-      onPress={() => router.push("/paket-saya" as never)}
-      style={styles.card}
-    >
-      {images.length ? (
-        <View style={styles.thumbs} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          {images.slice(0, 3).map((src, i) => (
-            <View key={src} testID="plans-thumb" style={[styles.thumb, i > 0 && { marginLeft: -10 }]}>
-              <Image
-                accessibilityIgnoresInvertColors
-                source={{ uri: photoUri(src, apiBase) }}
-                resizeMode="cover"
-                style={{ width: THUMB - 4, height: THUMB - 4, borderRadius: (THUMB - 4) / 2 }}
-              />
-            </View>
+  const margin = useScreenMargin();
+  const active = subscriptions
+    .filter((s) => s.status === "active")
+    .sort(
+      (a, b) =>
+        a.ends_on.localeCompare(b.ends_on) ||
+        (a.snapshot?.offer?.name ?? "").localeCompare(b.snapshot?.offer?.name ?? "", locale),
+    );
+  if (!active.length) return null;
+  const open = (s: Subscription) => router.push(planHref(s.id, s.snapshot.offer.name) as never);
+  const label = (s: Subscription) => planLabel(s, subscriptions, locale);
+  const line = (s: Subscription) => `${s.snapshot.offer.caterer} · ${endLine(s, today, t)}`;
+
+  if (active.length < 3)
+    return (
+      <View testID="plans" style={styles.section}>
+        <SectionHeader title={t("Paket kamu", "Your plans")} />
+        <ListCard>
+          {active.map((s) => (
+            <MediaRow
+              key={s.id}
+              testID={`plan-row-${s.id}`}
+              image={s.snapshot.offer.image ? photoUri(s.snapshot.offer.image, apiBase) : null}
+              title={label(s)}
+              meta={line(s)}
+              trailing="chevron"
+              wrap
+              onPress={() => open(s)}
+            />
           ))}
-        </View>
-      ) : null}
-      <View style={{ flex: 1, gap: 2 }}>
-        <Text style={styles.title}>{title}</Text>
-        {kitchens ? (
-          <Text variant="caption" style={styles.caterers}>
-            {kitchens}
-          </Text>
-        ) : null}
+        </ListCard>
       </View>
-      <Ionicons name="chevron-forward" size={18} color={c.muted} />
-    </PressableRow>
+    );
+
+  const count = active.length;
+  return (
+    <View testID="plans" style={styles.section}>
+      <SectionHeader
+        title={t(`${count} paket aktif`, `${count} active plans`)}
+        action={{ label: t("Lihat semua", "See all"), onPress: () => router.push("/paket-saya" as never) }}
+      />
+      {/* The rail runs to the screen's edges and starts at its margin. */}
+      <ScrollView
+        testID="plans-rail"
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={{ marginHorizontal: -margin }}
+        contentContainerStyle={{ paddingHorizontal: margin, gap: nativeLayout.groupGap }}
+      >
+        {active.map((s) => {
+          const id = `plan-card-${s.id}`;
+          const image = s.snapshot.offer.image;
+          return (
+            <PressableRow
+              key={s.id}
+              testID={id}
+              accessibilityRole="button"
+              accessibilityLabel={`${label(s)}, ${line(s)}`}
+              onPress={() => open(s)}
+              style={styles.card}
+            >
+              <View testID={`${id}-photo`} style={styles.photo}>
+                {image ? (
+                  <Image source={{ uri: photoUri(image, apiBase) }} contentFit="cover" style={styles.fill} accessible={false} />
+                ) : null}
+              </View>
+              <View style={styles.text}>
+                <Text variant="bodyStrong">{label(s)}</Text>
+                <Text variant="meta" numberOfLines={2}>
+                  {line(s)}
+                </Text>
+              </View>
+            </PressableRow>
+          );
+        })}
+      </ScrollView>
+    </View>
   );
 }
 
 const useStyles = themedStyles((c) => ({
-  // A body card on theme colours, like the waiting list: a border, no shadow.
-  card: {
-    minHeight: 64,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderRadius: 16,
-    borderCurve: "continuous",
-    borderWidth: 1,
-    borderColor: c.line,
-    backgroundColor: c.surface,
-  },
-  thumbs: { flexDirection: "row", alignItems: "center" },
-  // A 2dp ring in the card's own colour keeps the overlapping photos apart.
-  thumb: {
-    width: THUMB,
-    height: THUMB,
-    borderRadius: THUMB / 2,
-    padding: 2,
-    backgroundColor: c.surface,
+  section: { marginTop: SECTION_LEAD },
+  card: { width: PLAN_CARD_WIDTH, gap: nativeLayout.space.sm },
+  photo: {
+    aspectRatio: nativeLayout.ratio.card,
+    borderRadius: nativeLayout.radius.control,
     overflow: "hidden",
+    backgroundColor: c.sage,
   },
-  // "8 paket aktif" is a count, so its digits are tabular.
-  title: { fontSize: 15, lineHeight: 20, fontFamily: fonts.bold, color: c.charcoal, fontVariant: ["tabular-nums"] },
-  caterers: { fontSize: 12, lineHeight: 16 },
+  fill: { width: "100%", height: "100%" },
+  text: { minWidth: 0 },
 }));

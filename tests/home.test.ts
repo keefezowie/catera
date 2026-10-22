@@ -170,6 +170,12 @@ describe("upcomingDays", () => {
     expect(upcomingDays(s, NOW, 1, "id").map((d) => d.date)).toEqual([tomorrow]);
   });
 
+  it("each meal carries the package window it is served in", () => {
+    const other = offer({ id: "p2", name: "Katering Sehat", caterer: "Dapur Ani", windows: { lunch: "11.00–13.00", dinner: "18.30–20.00" } });
+    const [first] = upcomingDays(state([delivery(day(1), [lunch(), dinner()], {}, other)]), NOW, 3, "id");
+    expect(first.meals.map((m) => m.window)).toEqual(["11.00–13.00", "18.30–20.00"]);
+  });
+
   it("a menu not yet set shows no dish and the package photo", () => {
     const pending = offer({ menus: [menu("lunch", { selectionStatus: "pending", image: "https://img/template.jpg" })] });
     const [first] = upcomingDays(state([delivery(day(1), [lunch()], {}, pending)]), NOW, 3, "id");

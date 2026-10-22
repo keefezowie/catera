@@ -1,5 +1,5 @@
 import type { ReactNode, Ref } from "react";
-import { useWindowDimensions, View, type DimensionValue } from "react-native";
+import { useWindowDimensions, View, type DimensionValue, type ViewStyle } from "react-native";
 import type { Locale } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
 import { nativeLayout } from "@catera/design-tokens";
@@ -23,6 +23,7 @@ import { PackageGrid, useGridCell } from "./discover/PackageGrid";
 import { planPhotoFrame } from "./plan/heroFrame";
 import { HERO_BAND_RISE } from "./today/heroBand";
 import { TILE_MIN_HEIGHT } from "./account/AkunTiles";
+import { SECTION_LEAD } from "./today/sectionGap";
 import { HERO_RADIUS as BERANDA_HERO_RADIUS, heroPhotoFrame } from "./today/Plate";
 import { STATUS_HALO, STATUS_LABEL_LINE, STATUS_META_LINE, STATUS_ROW } from "./today/StatusStops";
 
@@ -104,25 +105,89 @@ export function BerandaSkeleton() {
             </View>
           </View>
         </BerandaHeroFrame>
-        <View style={{ gap: 10 }}>
-          <SkeletonRow />
-          <SkeletonRow />
+        {/* Below the hero: the live slot (a 72 row card) and Berikutnya (its heading line over a card of 72 rows), each
+            leading by the 16 the page body's gap does not give, as the loaded blocks do. */}
+        <ListCardFrame testID="beranda-skeleton-live" style={{ marginTop: SECTION_LEAD, minHeight: nativeLayout.row.media }}>
+          <MediaPlaceholder glyph />
+        </ListCardFrame>
+        <View testID="beranda-skeleton-days" style={{ marginTop: SECTION_LEAD }}>
+          <View testID="beranda-skeleton-days-heading" style={{ height: 26, marginBottom: nativeLayout.headingGap, justifyContent: "center" }}>
+            <Skeleton width="38%" height={18} />
+          </View>
+          <ListCardFrame>
+            <MediaPlaceholder />
+            <MediaPlaceholder />
+          </ListCardFrame>
         </View>
       </View>
     </SkeletonGroup>
   );
 }
 
-/** A 60dp row: a 54dp round photo and two lines, the shape of the other-meal row and a Berikutnya day. */
-function SkeletonRow() {
+/** A surface card of skeleton rows, the shape of `ListCard` (rows are 72, so the page does not move when it lands). */
+function ListCardFrame({ children, testID, style }: { children: ReactNode; testID?: string; style?: ViewStyle }) {
+  const c = useColors();
   return (
-    <View style={{ minHeight: 60, flexDirection: "row", alignItems: "center", gap: 12 }}>
-      <Skeleton width={54} height={54} radius={27} />
-      <View style={{ flex: 1, gap: 8 }}>
-        <Skeleton width="40%" height={12} />
+    <View
+      testID={testID}
+      style={[
+        {
+          backgroundColor: c.surface,
+          borderRadius: nativeLayout.radius.card,
+          paddingHorizontal: nativeLayout.cardPadding,
+        },
+        style,
+      ]}
+    >
+      {children}
+    </View>
+  );
+}
+
+/** A 72 row: a 56 thumb (or the live slot's 40 glyph circle) and two lines, the shape of `MediaRow` and the waiting rows. */
+function MediaPlaceholder({ glyph = false, testID = "beranda-skeleton-row" }: { glyph?: boolean; testID?: string }) {
+  return (
+    <View
+      testID={testID}
+      style={{
+        minHeight: nativeLayout.row.media,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: nativeLayout.space.md,
+        paddingVertical: nativeLayout.space.sm,
+      }}
+    >
+      {glyph ? (
+        <Skeleton width={40} height={40} radius={20} />
+      ) : (
+        <View testID="beranda-skeleton-thumb" style={{ width: 56, height: 56, borderRadius: nativeLayout.radius.thumb, overflow: "hidden" }}>
+          <Skeleton width={56} height={56} radius={nativeLayout.radius.thumb} />
+        </View>
+      )}
+      <View style={{ flex: 1, gap: nativeLayout.space.sm }}>
         <Skeleton width="64%" height={16} />
+        <Skeleton width="40%" height={12} />
       </View>
     </View>
+  );
+}
+
+/**
+ * "Perlu kamu urus" while it loads: a card of 72 rows, each a 40 glyph circle and two lines, the shape of the loaded
+ * waiting rows.
+ */
+export function WaitingSkeleton({ rows = 3 }: { rows?: number }) {
+  const { t } = useMobile();
+  return (
+    <SkeletonGroup label={t("Memuat daftar", "Loading list")}>
+      <View testID="waiting-skeleton">
+        <ListCardFrame>
+          {Array.from({ length: rows }, (_, i) => (
+            <MediaPlaceholder key={i} glyph testID="waiting-skeleton-row" />
+          ))}
+        </ListCardFrame>
+      </View>
+    </SkeletonGroup>
   );
 }
 

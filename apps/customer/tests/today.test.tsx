@@ -20,7 +20,9 @@ import { nativeMood, nativeThemes } from "@catera/design-tokens";
 import { FadeSwap, MoodProvider, ThemeProvider } from "@catera/mobile-ui";
 import * as Reanimated from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
+import type { ReactNode } from "react";
 import { Beranda } from "../src/today/Beranda";
+import { PerluDiurus } from "../src/today/PerluDiurus";
 import { sentences } from "../src/today/Plate";
 import { customerLink } from "../src/links";
 import { Masuk } from "../src/account/Masuk";
@@ -82,13 +84,16 @@ function runtimeWith(
   return runtime;
 }
 
-const renderHome = (runtime: MobileRuntime) =>
+const renderHome = (runtime: MobileRuntime, node: ReactNode = <Beranda />) =>
   render(
     <MobileProvider runtime={runtime} linkMapper={customerLink}>
-      <Beranda />
+      {node}
       <SheetHost routes={SHEETS} onParams={toParams} />
     </MobileProvider>,
   );
+
+/** The full waiting list ("Perlu kamu urus"): the review row lives there, behind Beranda's "n hal lainnya". */
+const renderList = (runtime: MobileRuntime) => renderHome(runtime, <PerluDiurus />);
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -176,7 +181,7 @@ it("offers a private reaction after arrival", async () => {
 it("has no per-plan lines: a scheduled day offers no chat on Beranda, the plans row stands for the plans", async () => {
   // Chat katering stays on a failed plate, the day screen and the report screen (Phase E Task 10).
   renderHome(runtimeWith(async () => customerState({ status: "scheduled" }, { catererPhone: "+6281200000001" })));
-  expect(await screen.findByTestId("plans-row")).toBeTruthy();
+  expect(await screen.findByTestId("plans")).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Chat katering" })).toBeNull();
   expect(screen.queryByText(/lihat detail paket/)).toBeNull();
 });
@@ -200,11 +205,12 @@ it("says a meal the caterer could not deliver is not coming, with chat and a rep
 
 it("lists the next days as rows, each naming its main dish", async () => {
   renderHome(runtimeWith(async () => customerState({ status: "scheduled" })));
-  expect(await screen.findByText(/^Besok, /)).toBeTruthy();
+  expect(await screen.findByText(/^Besok · /)).toBeTruthy();
   const days = within(screen.getByTestId("upcoming-days"));
   expect(days.getAllByText("Ayam bakar madu")).toHaveLength(3);
-  // Three days, no change deadline on the rows (the Menu besok row keeps tomorrow's).
-  expect(days.getAllByTestId("upcoming-day-label")).toHaveLength(3);
+  // Three days, one delivery each: three rows of one card, none for the fourth day, and no change deadline on them.
+  expect(days.getAllByTestId(/^upcoming-row-d-next-[123]-lunch$/)).toHaveLength(3);
+  expect(days.queryByTestId("upcoming-row-d-next-4-lunch")).toBeNull();
   expect(days.queryByText(/Bisa diubah sampai/)).toBeNull();
 });
 
@@ -249,7 +255,7 @@ it("signed-in Beranda error shows the message in danger with a Coba lagi text bu
   expect(StyleSheet.flatten(retry.props.style).backgroundColor).not.toBe(nativeThemes.light.forest);
   fail = false;
   fireEvent.press(retry);
-  expect(await screen.findByText(/^Besok, /)).toBeTruthy();
+  expect(await screen.findByText(/^Besok · /)).toBeTruthy();
   expect(screen.queryByTestId("home-error")).toBeNull();
 });
 
@@ -275,17 +281,18 @@ it("EmptyHome prices a combined package per meal, not per day", async () => {
   expect(screen.queryByText(/per hari/)).toBeNull();
 });
 
-it("upcoming rows name the meal, the package and the caterer", async () => {
+it("upcoming rows name the meal and its window, tomorrow first as Besok", async () => {
   renderHome(runtimeWith(async () => customerState({ status: "scheduled" })));
-  await screen.findByText(/^Besok, /);
-  expect(screen.getAllByText("Siang · Makan Siang Rumahan · Dapur Contoh")).toHaveLength(3);
+  expect(await screen.findByText("Besok · Siang 11.00–13.00")).toBeTruthy();
+  expect(within(screen.getByTestId("upcoming-days")).getAllByText("Siang 11.00–13.00")).toHaveLength(2);
 });
 
 it("empty upcoming row says Menu belum diisi", async () => {
   const state = customerState(null);
   state.deliveries[0] = delivery("d-empty", addDays(TODAY, 1), {}, { offer: offer({ menus: [] }) });
   renderHome(runtimeWith(async () => state));
-  await screen.findByText(/^Besok, /);
+  // The kitchen stands in for the dish that is not chosen yet.
+  expect(await screen.findByText("Besok · Siang 11.00–13.00 · Dapur Contoh")).toBeTruthy();
   expect(screen.getAllByText("Menu belum diisi")).toHaveLength(1);
 });
 
@@ -300,8 +307,9 @@ it("hides the renewal row once the plan has been renewed", async () => {
   const state = customerState(null, { subscription: { remaining: 2 } });
   state.subscriptions.push({ ...state.subscriptions[0], id: "s-2", renewed_from: "s-1", remaining: 5 });
   renderHome(runtimeWith(async () => state));
-  await screen.findByTestId("plans-row");
-  expect(screen.queryByText(/sisa 2 hari/)).toBeNull();
+  await screen.findByTestId("plans");
+  expect(screen.queryByText("Makan Siang Rumahan, sisa 2 hari")).toBeNull();
+  expect(screen.queryByTestId("live-slot")).toBeNull();
   expect(screen.queryByRole("button", { name: /Perpanjang$/ })).toBeNull();
 });
 
@@ -339,7 +347,7 @@ it("asks for a review once near the end", async () => {
   const runtime = runtimeWith(async () =>
     customerState(null, { subscription: { remaining: 2 }, past: [past] }),
   );
-  renderHome(runtime);
+  renderList(runtime);
   // The row opens the form as a sheet route over Beranda, where "Nanti saja" puts it off for good.
   fireEvent.press(await screen.findByText("Bagaimana Dapur Contoh selama ini?"));
   expect(router.push).toHaveBeenCalledWith("/ulasan/s-1");
@@ -353,7 +361,7 @@ it("sends the review with the existing review.save payload", async () => {
   const runtime = runtimeWith(async () =>
     customerState(null, { subscription: { remaining: 2 }, past: [past] }),
   );
-  renderHome(runtime);
+  renderList(runtime);
   fireEvent.press(await screen.findByText("Bagaimana Dapur Contoh selama ini?"));
   fireEvent.press(await screen.findByRole("button", { name: "4 bintang" }));
   fireEvent.changeText(screen.getByLabelText("Cerita singkat (opsional)"), "Enak dan tepat waktu");
@@ -532,7 +540,7 @@ describe("design tokens", () => {
 
   it("unselected star is outlined and muted", async () => {
     const past = delivery("d-past", addDays(TODAY, -1), { status: "delivered" }, { status: "delivered" });
-    renderHome(runtimeWith(async () => customerState(null, { subscription: { remaining: 2 }, past: [past] })));
+    renderList(runtimeWith(async () => customerState(null, { subscription: { remaining: 2 }, past: [past] })));
     fireEvent.press(await screen.findByText("Bagaimana Dapur Contoh selama ini?"));
     fireEvent.press(await screen.findByRole("button", { name: "3 bintang" }));
     const glyph = (n: number) => {
@@ -553,7 +561,7 @@ describe("design tokens", () => {
   const touch = { nativeEvent: { touches: [], changedTouches: [] }, persist() {} };
   it("upcoming row dims on press", async () => {
     renderHome(runtimeWith(async () => customerState({ status: "scheduled" })));
-    await screen.findByText(/^Besok, /);
+    await screen.findByText(/^Besok · /);
     const row = () => screen.getByRole("button", { name: /^Besok, / });
     expect(StyleSheet.flatten(row().props.style).opacity).toBeUndefined();
     fireEvent(row(), "responderGrant", touch);

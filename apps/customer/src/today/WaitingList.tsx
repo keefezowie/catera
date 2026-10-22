@@ -1,4 +1,4 @@
-import { useEffect, useState, type ComponentProps } from "react";
+import { useEffect, useState, type ComponentProps, type ReactNode } from "react";
 import { View } from "react-native";
 import Animated from "react-native-reanimated";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -16,34 +16,19 @@ import {
   type Subscription,
   type WaitingItem,
 } from "@catera/domain";
+import { nativeLayout } from "@catera/design-tokens";
 import { useMobile, useTrack } from "@catera/mobile-core";
-import {
-  fonts,
-  PressableRow,
-  Text,
-  themedStyles,
-  useColors,
-  useRowMotion,
-  useStackedLayout,
-} from "@catera/mobile-ui";
+import { PressableRow, Text, themedStyles, useColors, useRowMotion, useStackedLayout } from "@catera/mobile-ui";
 import { customerLink } from "../links";
 import { openLink, pushSheet } from "../nav";
 import { packageHref } from "../hrefs";
+import { GLYPH_INSET, ListCard } from "../layout";
+import { GLYPH_CIRCLE } from "../layout/metrics";
 import { weekdayName } from "../schedule/dates";
 import { onReviewMarked } from "./reviewMark";
 
 type Translate = (id: string, en: string) => string;
 type IconName = ComponentProps<typeof Ionicons>["name"];
-
-/** An 18pt forest section title on Beranda ("Perlu kamu urus", "Berikutnya"). */
-export function SectionTitle({ children }: { children: string }) {
-  const styles = useStyles();
-  return (
-    <Text accessibilityRole="header" style={styles.sectionTitle}>
-      {children}
-    </Text>
-  );
-}
 
 /** "Pilih menu Selasa 13 Okt", "Pilih menu Rabu dan Kamis", "Pilih menu 3 hari". */
 function menuTitle(dates: string[], t: Translate): string {
@@ -66,7 +51,8 @@ function trialTitle(s: Subscription, today: string, t: Translate): string {
   return t(`${name} selesai ${shortDate(s.ends_on, "id")}`, `${name} ends on ${shortDate(s.ends_on, "en")}`);
 }
 
-type Row = {
+/** One thing that waits on the customer: the words, the one action it offers and what that does. */
+export type WaitingRow = {
   key: string;
   icon: IconName;
   title: string;
@@ -78,11 +64,12 @@ type Row = {
 };
 
 /**
- * "Perlu kamu urus": everything that waits on the customer, as one bordered list with one action word per row, in the
- * domain's order (menus to choose, plans to renew, trials ending, then the review). Hidden when nothing waits. The
- * saved offline copy gives no menu rows (they come from the action read) and no review (it cannot be sent).
+ * Everything that waits on the customer as rows, in the domain's order (menus to choose, plans to renew, trials ending,
+ * then the review). The saved offline copy gives no menu rows (they come from the action read) and no review (it cannot
+ * be sent), and a review row stays away until its dismissal mark has been read. Beranda's live slot takes the first row
+ * and counts the rest; the full list shows them all.
  */
-export function WaitingList({
+export function useWaitingRows({
   state,
   actions,
   offline,
@@ -93,17 +80,9 @@ export function WaitingList({
   actions: CustomerActionItem[] | null;
   offline: boolean;
   now: Date;
-}) {
+}): WaitingRow[] {
   const { runtime, t, locale } = useMobile();
-  const c = useColors();
-  const styles = useStyles();
   const track = useTrack();
-  // Large text or a narrow phone: the action word drops under the text so the package name keeps whole-word lines.
-  const stacked = useStackedLayout(340);
-  // A row leaves after its action (a menu chosen, a plan renewed, a review given) and the rest move up. Rows never
-  // enter on their own, and the saved offline copy never animates (Decision A).
-  const motion = useRowMotion();
-  const rowMotion = offline ? {} : { exiting: motion.exiting, layout: motion.layout };
   const items = waitingItems(state, offline ? null : actions, now);
   const review = offline ? undefined : items.find((i) => i.kind === "review")?.subscription;
   const reviewKey = review ? runtime.storageKey(`review.${review.id}`) : "";
@@ -127,14 +106,8 @@ export function WaitingList({
   }, [reviewKey]);
 
   const today = jakartaDay(now);
-  const rows: Row[] = [];
-  for (const item of items) {
-    const row = rowFor(item);
-    if (row) rows.push(row);
-  }
-  if (!rows.length) return null;
 
-  function rowFor(item: WaitingItem): Row | null {
+  function rowFor(item: WaitingItem): WaitingRow | null {
     switch (item.kind) {
       case "menu": {
         const deadline = item.deadline ? changeDeadline(item.deadline, now, locale) : null;
@@ -199,81 +172,120 @@ export function WaitingList({
     }
   }
 
-  const action = (row: Row) => (
+  const rows: WaitingRow[] = [];
+  for (const item of items) {
+    const row = rowFor(item);
+    if (row) rows.push(row);
+  }
+  return rows;
+}
+
+/** The soft tone circle that names a row's kind; the action word, not the glyph, carries the weight. */
+export function WaitingGlyph({ icon }: { icon: IconName }) {
+  const c = useColors();
+  const styles = useStyles();
+  return (
+    <View style={styles.glyph}>
+      <Ionicons name={icon} size={20} color={c.forest} />
+    </View>
+  );
+}
+
+/**
+ * A row's one action word. It sits beside the text, or under it (`stacked`: large text or a narrow phone) so the package
+ * name keeps whole-word lines.
+ */
+export function WaitingAction({ row, stacked }: { row: WaitingRow; stacked: boolean }) {
+  const c = useColors();
+  return (
     <Text
       testID="waiting-action"
+      variant="bodyStrong"
       /* forest: action (the row's action word) */
-      style={[styles.action, { color: row.urgent ? c.charcoal : c.forest }, stacked && { marginTop: 4 }]}
+      style={[{ color: row.urgent ? c.charcoal : c.forest }, stacked && { marginTop: nativeLayout.space.xs }]}
     >
       {row.action}
     </Text>
   );
+}
+
+/**
+ * "Perlu kamu urus", the whole list (the pushed screen behind Beranda's "n hal lainnya"): every waiting row in one card
+ * of 72 rows with one action word each. When nothing waits it shows `empty`, if given.
+ */
+export function WaitingList({
+  state,
+  actions,
+  offline,
+  now,
+  empty = null,
+}: {
+  state: CustomerState;
+  /** The action read; null while it failed, never loaded, or the screen shows the saved copy. */
+  actions: CustomerActionItem[] | null;
+  offline: boolean;
+  now: Date;
+  /** What stands where the list would be when nothing waits (the full list says so; Beranda shows nothing). */
+  empty?: ReactNode;
+}) {
+  const styles = useStyles();
+  // Large text or a narrow phone: the action word drops under the text so the package name keeps whole-word lines.
+  const stacked = useStackedLayout(340);
+  // A row leaves after its action (a menu chosen, a plan renewed, a review given) and the rest move up. Rows never
+  // enter on their own, and the saved offline copy never animates (Decision A).
+  const motion = useRowMotion();
+  const rowMotion = offline ? {} : { exiting: motion.exiting, layout: motion.layout };
+  const rows = useWaitingRows({ state, actions, offline, now });
+  if (!rows.length) return <>{empty}</>;
 
   return (
-    <View style={{ gap: 10 }}>
-      <SectionTitle>{t("Perlu kamu urus", "Needs you")}</SectionTitle>
-      <View testID="waiting-list" style={styles.card}>
-        {rows.map((row, i) => (
+    <View testID="waiting-list">
+      <ListCard inset={GLYPH_INSET}>
+        {rows.map((row) => (
           <Animated.View key={row.key} testID="waiting-row-motion" {...rowMotion}>
             <PressableRow
               testID="waiting-row"
               accessibilityRole="button"
               accessibilityLabel={`${row.title}, ${row.detail}, ${row.action}`}
               onPress={row.onPress}
-              style={[styles.row, i > 0 && styles.divider]}
+              style={styles.row}
             >
-              <View style={styles.icon}>
-                <Ionicons name={row.icon} size={18} color={c.forest} />
-              </View>
-              <View testID="waiting-text" style={{ flex: 1, gap: 2 }}>
-                <Text testID="waiting-title" style={styles.title}>
+              <WaitingGlyph icon={row.icon} />
+              <View testID="waiting-text" style={styles.text}>
+                {/* Titles carry counts ("sisa 3 hari", "Pilih menu 2 hari"), so their digits are tabular like the detail's. */}
+                <Text testID="waiting-title" variant="rowTitle" style={styles.figures}>
                   {row.title}
                 </Text>
-                <Text variant="caption" style={styles.detail}>
+                <Text variant="meta" style={styles.figures}>
                   {row.detail}
                 </Text>
-                {stacked ? action(row) : null}
+                {stacked ? <WaitingAction row={row} stacked /> : null}
               </View>
-              {stacked ? null : action(row)}
+              {stacked ? null : <WaitingAction row={row} stacked={false} />}
             </PressableRow>
           </Animated.View>
         ))}
-      </View>
+      </ListCard>
     </View>
   );
 }
 
 const useStyles = themedStyles((c) => ({
-  sectionTitle: { fontSize: 18, lineHeight: 24, fontFamily: fonts.bold, color: c.charcoal },
-  // A body card on theme colours: a border, no shadow (the hero is the screen's one raised surface).
-  card: {
-    borderRadius: 16,
-    borderCurve: "continuous",
-    borderWidth: 1,
-    borderColor: c.line,
-    backgroundColor: c.surface,
-    overflow: "hidden",
-  },
   row: {
-    minHeight: 64,
+    minHeight: nativeLayout.row.media,
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    gap: nativeLayout.space.md,
+    paddingVertical: nativeLayout.space.sm,
   },
-  divider: { borderTopWidth: 1, borderTopColor: c.line },
-  // A soft tonal circle, not a filled badge: the icon names the kind of row, the action word carries the weight.
-  icon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+  text: { flex: 1, minWidth: 0 },
+  figures: { fontVariant: ["tabular-nums"] },
+  glyph: {
+    width: GLYPH_CIRCLE,
+    height: GLYPH_CIRCLE,
+    borderRadius: GLYPH_CIRCLE / 2,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: c.sage,
   },
-  // Titles carry counts ("sisa 3 hari", "Pilih menu 2 hari"), so their digits are tabular like the detail's.
-  title: { fontSize: 15, lineHeight: 20, fontFamily: fonts.bold, color: c.charcoal, fontVariant: ["tabular-nums"] },
-  detail: { fontSize: 12, lineHeight: 16, fontVariant: ["tabular-nums"] },
-  action: { fontSize: 13, lineHeight: 18, fontFamily: fonts.bold },
 }));
