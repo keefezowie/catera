@@ -8,7 +8,7 @@ import { currency, shortDate, startDates, type Offer } from "@catera/domain";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { nativeMood, nativeThemes } from "@catera/design-tokens";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { LayoutScaleProvider, MoodProvider, ThemeProvider, useMood } from "@catera/mobile-ui";
+import { FadeSwap, fonts, LayoutScaleProvider, MoodProvider, ThemeProvider, useMood } from "@catera/mobile-ui";
 import { customerLink } from "../src/links";
 import { topTags } from "../src/discover/categories";
 import { Jelajah } from "../src/discover/Jelajah";
@@ -980,9 +980,11 @@ describe("Paket", () => {
     wrap(runtime, <PackageDetail />);
     expect(await screen.findByText("Dapur Sehat, Tebet. 4,8 dari 23 ulasan")).toBeTruthy();
     expect(screen.getByText("Masakan rumahan sehari-hari.")).toBeTruthy();
-    expect(screen.getByText("Diantar")).toBeTruthy();
-    expect(screen.getByText("Ubah hari")).toBeTruthy();
-    expect(screen.getByText("Pengantaran termasuk")).toBeTruthy();
+    // The facts are icon rows now, each one sentence (the label and value table is gone).
+    expect(screen.getByText("Pengantaran")).toBeTruthy();
+    expect(screen.getByText(/^Sen–Jum, 17.00–19.00$|^Sen–Jum, 11.00–13.00$/)).toBeTruthy();
+    expect(screen.getByText("Ubah hari sampai 17.00, sehari sebelumnya")).toBeTruthy();
+    expect(screen.getByText("Ongkir sudah termasuk")).toBeTruthy();
     expect(screen.getByText("Per sekali makan")).toBeTruthy();
     expect(screen.getByText(/45\.000/)).toBeTruthy();
     // A price is read as text, never announced as a heading.
@@ -1012,10 +1014,9 @@ describe("Paket", () => {
     mockParams = { id: "p-dua" };
     const both = offer({ id: "p-dua", name: "Siang dan Malam", meal: "both", price: 60000 });
     wrap(runtimeWith(customer, { offer: jest.fn(async () => ({ offer: both })) }), <PackageDetail />);
-    expect(await screen.findByText("Per sekali makan")).toBeTruthy();
-    expect(screen.queryByText("Per porsi")).toBeNull();
+    expect(await screen.findByText("Per sekali makan · 2 kali makan / hari")).toBeTruthy();
     expect(screen.getByText(/30\.000/)).toBeTruthy();
-    expect(screen.getByText("2 kali makan / hari")).toBeTruthy();
+    expect(screen.queryByText("Per porsi")).toBeNull();
   });
 
   it("package detail shows earliest start and no Cara kerja", async () => {
@@ -1023,8 +1024,7 @@ describe("Paket", () => {
     wrap(runtimeWith(), <PackageDetail />);
     await screen.findByText("Isi paket");
     const first = startDates(cheap, new Date(), 1)[0];
-    expect(screen.getByText("Mulai paling cepat")).toBeTruthy();
-    expect(screen.getByText(shortDate(first, "id"))).toBeTruthy();
+    expect(screen.getByText(`Mulai paling cepat ${shortDate(first, "id")}`)).toBeTruthy();
     expect(screen.queryByText("Cara kerja Catera")).toBeNull();
     expect(screen.queryByText("Bayar sekali di depan")).toBeNull();
   });
@@ -1034,7 +1034,7 @@ describe("Paket", () => {
     const closed = offer({ id: "p-tutup", name: "Paket Tutup", weekdays: [] });
     wrap(runtimeWith(customer, { offer: jest.fn(async () => ({ offer: closed })) }), <PackageDetail />);
     await screen.findByText("Isi paket");
-    expect(screen.queryByText("Mulai paling cepat")).toBeNull();
+    expect(screen.queryByText(/Mulai paling cepat/)).toBeNull();
   });
 
   it("heart on the detail goes to sign-in and back to the package", async () => {
@@ -1072,6 +1072,186 @@ describe("Paket", () => {
     await screen.findByRole("button", { name: "Coba lagi" });
     expect(nativeTitle()).toBe("Paket");
     expect(screen.queryByText("Promo Palsu")).toBeNull();
+  });
+});
+
+describe("Paket on the layout scale (v2)", () => {
+  const withNutrition = offer({
+    id: "p-gizi",
+    name: "Rantang Nusantara",
+    caterer: "Dapur Senja",
+    areas: ["Jakarta Selatan"],
+    description: "Paket siang dan malam selama 10 hari kerja.",
+    price: 65000,
+    meal: "both",
+    nutrition: { caloriesKcal: { min: 610, max: 640 }, proteinG: { min: 29, max: 30 }, carbsG: { min: 76, max: 82 }, fatG: { min: 19, max: 21 } },
+    menus: [
+      { meal: "lunch", name: "", description: "", image: "", contentModel: "slots", composition: [{ id: "g1", slots: 1, name: "Nasi" }, { id: "g2", slots: 1, name: "Lauk" }], items: [{ id: "i1", groupId: "g1", name: "Nasi putih" }] },
+      { meal: "dinner", name: "", description: "", image: "", contentModel: "slots", composition: [{ id: "g1", slots: 1, name: "Nasi" }, { id: "g2", slots: 2, name: "Lauk" }], items: [{ id: "i2", groupId: "g1", name: "Nasi putih" }] },
+    ] as unknown as Offer["menus"],
+  });
+  const wrapV2 = (runtime: MobileRuntime, ui: React.ReactElement) =>
+    render(
+      <LayoutScaleProvider value="v2">
+        <MoodProvider now={SIANG_NOW}>
+          <MobileProvider runtime={runtime} linkMapper={customerLink}>
+            {ui}
+          </MobileProvider>
+        </MoodProvider>
+      </LayoutScaleProvider>,
+    );
+  const open = async (o: Offer = withNutrition, over: Record<string, unknown> = {}) => {
+    mockParams = { id: o.id };
+    wrapV2(runtimeWith(customer, { offer: jest.fn(async () => ({ offer: o })), ...over }), <PackageDetail />);
+    await screen.findByTestId("paket-name");
+  };
+
+  it("the hero is 4:3 and bleeds by the 16 margin, not the classic 20", async () => {
+    await open();
+    expect(flat(screen.getByTestId("paket-hero"))).toMatchObject({ aspectRatio: 4 / 3, marginHorizontal: -16, marginTop: -16 });
+    const swap = flat(screen.UNSAFE_getAllByType(FadeSwap)[0]);
+    expect([swap.marginHorizontal, swap.paddingHorizontal]).toEqual([-16, 16]);
+  });
+
+  it("the heart is a 44 surface circle at the photo's foot", async () => {
+    await open();
+    const heart = flat(screen.getByRole("button", { name: "Simpan Rantang Nusantara" }));
+    expect(heart).toMatchObject({ width: 44, height: 44, borderRadius: 22, position: "absolute", bottom: 12, right: 16 });
+    expect(heart.borderWidth).toBe(0);
+  });
+
+  it("the name is heroTitle and the caterer line is meta", async () => {
+    await open();
+    expect(flat(screen.getByText("Rantang Nusantara"))).toMatchObject({ fontSize: 24, lineHeight: 30, fontFamily: fonts.bold });
+    expect(flat(screen.getByText(/^Dapur Senja, Jakarta Selatan\./))).toMatchObject({ fontSize: 13, lineHeight: 18 });
+  });
+
+  it("the stat strip comes before the description, carbs and fat as one meta line", async () => {
+    await open();
+    expect(screen.getByTestId("stat-strip")).toBeTruthy();
+    expect(screen.getByText("Karbo 76–82 g · Lemak 19–21 g per porsi")).toBeTruthy();
+    const tree = JSON.stringify(screen.toJSON());
+    expect(tree.indexOf("stat-strip")).toBeLessThan(tree.indexOf("Paket siang dan malam selama 10 hari kerja."));
+    expect(flat(screen.getByText("Paket siang dan malam selama 10 hari kerja."))).toMatchObject({ fontSize: 15, lineHeight: 22 });
+  });
+
+  it("Isi paket is a section heading over one card of 72 rows, a 40 circle on the mood tint", async () => {
+    await open();
+    expect(flat(screen.getByText("Isi paket"))).toMatchObject({ fontSize: 20, lineHeight: 26 });
+    const rows = screen.getAllByTestId(/^paket-meal-(lunch|dinner)$/);
+    expect(rows.map((r) => r.props.testID)).toEqual(["paket-meal-lunch", "paket-meal-dinner"]);
+    for (const r of rows) expect(flat(r).minHeight).toBe(72);
+    expect(flat(screen.getByTestId("paket-meal-lunch-glyph"))).toMatchObject({ width: 40, height: 40, borderRadius: 20, backgroundColor: nativeMood.light.siang.header });
+    expect(flat(screen.getByTestId("paket-meal-dinner-glyph")).backgroundColor).toBe(nativeMood.light.malam.header);
+    expect(flat(screen.getByText("Makan siang"))).toMatchObject({ fontSize: 17, lineHeight: 22, fontFamily: fonts.semibold });
+    expect(flat(screen.getByText("1 Nasi · 1 Lauk"))).toMatchObject({ fontSize: 13, lineHeight: 18 });
+    expect(screen.getByText("1 Nasi · 2 Lauk")).toBeTruthy();
+    // One card, no per-meal boxes with borders.
+    expect(screen.getAllByTestId("list-card")).toHaveLength(1);
+    expect(flat(rows[0]).borderWidth).toBeUndefined();
+  });
+
+  it("a one-meal package has one row", async () => {
+    await open(offer({ id: "p-satu", name: "Nasi Ayam", nutrition: null }));
+    expect(screen.getAllByTestId(/^paket-meal-(lunch|dinner)$/)).toHaveLength(1);
+  });
+
+  it("Pengantaran is a section of 48 icon rows set in bodyL", async () => {
+    await open();
+    expect(flat(screen.getByText("Pengantaran"))).toMatchObject({ fontSize: 20, lineHeight: 26 });
+    const rows = screen.getAllByTestId("paket-info");
+    expect(rows).toHaveLength(4);
+    for (const r of rows) {
+      expect(flat(r).minHeight).toBe(48);
+      expect(flat(within(r).getByTestId("paket-info-glyph"))).toMatchObject({ width: 20, height: 20 });
+    }
+    const texts = rows.map((r) => within(r).UNSAFE_getAllByType(ReactNative.Text).at(-1)!);
+    for (const text of texts) expect(flat(text)).toMatchObject({ fontSize: 15, lineHeight: 22 });
+    expect(texts[0].props.children).toBe("Sen–Jum, 11.00–13.00 · 17.00–19.00");
+    expect(texts[1].props.children).toBe("Ubah hari sampai 17.00, sehari sebelumnya");
+    expect(texts[2].props.children).toBe("Ongkir sudah termasuk");
+    expect(String(texts[3].props.children)).toMatch(/^Mulai paling cepat /);
+    // Nothing is cut to one line: the rows grow at large text.
+    for (const text of texts) expect(text.props.numberOfLines).toBeUndefined();
+  });
+
+  it("with no bookable day the earliest start row is left out", async () => {
+    await open(offer({ id: "p-tutup", name: "Paket Tutup", weekdays: [] }));
+    expect(screen.getAllByTestId("paket-info")).toHaveLength(3);
+    expect(screen.queryByText(/Mulai paling cepat/)).toBeNull();
+  });
+
+  it("the sections sit 32 apart", async () => {
+    await open();
+    for (const id of ["paket-isi", "paket-antar"]) expect(flat(screen.getByTestId(id)).marginTop).toBe(16);
+  });
+
+  it("the footer shows the price in section 800 with its meta unit, and two 50 buttons", async () => {
+    await open(offer({ id: "p-murah", name: "Nasi Ayam Bakar", price: 25000, trialPrice: 20000, trialMax: 1 }));
+    const price = within(screen.getByTestId("paket-price")).getByText(/^Rp/);
+    expect(flat(price)).toMatchObject({ fontSize: 20, lineHeight: 26, fontFamily: fonts.extrabold, fontVariant: ["tabular-nums"] });
+    expect(flat(within(screen.getByTestId("paket-price")).getByText("Per sekali makan"))).toMatchObject({ fontSize: 13, lineHeight: 18 });
+    for (const b of within(screen.getByTestId("paket-footer")).getAllByRole("button")) {
+      expect(flat(b)).toMatchObject({ minHeight: 50, borderRadius: 25 });
+    }
+    // 16 around the 50 buttons makes the 82 bar, with no hairline above it.
+    const footer = flat(screen.getByTestId("screen-footer"));
+    expect([footer.padding, footer.paddingBottom, footer.borderTopWidth]).toEqual([16, 16, 0]);
+  });
+
+  it("a combined day keeps the unit and its note on one meta line", async () => {
+    await open();
+    expect(screen.getByText("Per sekali makan · 2 kali makan / hari")).toBeTruthy();
+  });
+
+  it("the reviews keep their block as tone cards without borders", async () => {
+    await open(withNutrition, {
+      request: jest.fn(async () => [{ id: "r1", customer: "Dewi", rating: 5, body: "Enak sekali." }]),
+    });
+    expect(await screen.findByText("Dewi · 5/5")).toBeTruthy();
+    expect(screen.getByText("Enak sekali.")).toBeTruthy();
+    expect(flat(screen.getByText("Ulasan"))).toMatchObject({ fontSize: 20, lineHeight: 26 });
+    expect(flat(screen.getByTestId("paket-review")).borderWidth).toBeUndefined();
+  });
+
+  it("in the dark theme and in Malam the surfaces and the meal tints come from the dark palette", async () => {
+    const scheme = jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
+    try {
+      mockParams = { id: withNutrition.id };
+      render(
+        <LayoutScaleProvider value="v2">
+          <ThemeProvider storageKey="paket-dark">
+            <MoodProvider now={MALAM_NOW}>
+              <MobileProvider runtime={runtimeWith(customer, { offer: jest.fn(async () => ({ offer: withNutrition })) })} linkMapper={customerLink}>
+                <PackageDetail />
+              </MobileProvider>
+            </MoodProvider>
+          </ThemeProvider>
+        </LayoutScaleProvider>,
+      );
+      await screen.findByTestId("paket-name");
+      expect(flat(screen.getByTestId("stat-strip")).backgroundColor).toBe(nativeThemes.dark.surface);
+      expect(flat(screen.getByTestId("paket-meal-lunch-glyph")).backgroundColor).toBe(nativeMood.dark.siang.header);
+      expect(flat(screen.getByTestId("paket-meal-dinner-glyph")).backgroundColor).toBe(nativeMood.dark.malam.header);
+      expect(flat(screen.getByText("Rantang Nusantara")).color).toBe(nativeThemes.dark.charcoal);
+      expect(flat(screen.getByText("kkal")).color).toBe(nativeThemes.dark.muted);
+    } finally {
+      scheme.mockRestore();
+    }
+  });
+
+  it("at font scale 1.3 on 360dp the footer wraps instead of clipping and the rows keep their full text", async () => {
+    mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
+    try {
+      await open(offer({ id: "p-murah", name: "Nasi Ayam Bakar", price: 25000, trialPrice: 20000, trialMax: 1 }));
+      expect(flat(screen.getByTestId("paket-footer"))).toMatchObject({ flexWrap: "wrap" });
+      expect(screen.getByRole("button", { name: "Pilih jadwal" })).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Coba 1 hari" })).toBeTruthy();
+      for (const r of screen.getAllByTestId("paket-info"))
+        for (const text of within(r).UNSAFE_getAllByType(ReactNative.Text)) expect(text.props.numberOfLines).toBeUndefined();
+    } finally {
+      mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1 };
+    }
   });
 });
 

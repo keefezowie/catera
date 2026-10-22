@@ -12,6 +12,7 @@ import { GLYPH_BARE, GLYPH_CIRCLE } from "./metrics";
 export function GlyphRow({
   glyph,
   bare = false,
+  tone,
   title,
   meta,
   trailing,
@@ -21,6 +22,8 @@ export function GlyphRow({
 }: {
   glyph: ReactNode;
   bare?: boolean;
+  /** The circle's fill where it is not the plain `sage` tone (a meal's mood tint). */
+  tone?: string;
   title: string;
   meta?: string;
   trailing?: ReactNode;
@@ -32,7 +35,7 @@ export function GlyphRow({
   const bareGlyph = bare || minHeight === nativeLayout.row.info;
   const body = (
     <>
-      <View testID={testID ? `${testID}-glyph` : undefined} style={bareGlyph ? styles.bare : styles.circle}>{glyph}</View>
+      <View testID={testID ? `${testID}-glyph` : undefined} style={bareGlyph ? styles.bare : [styles.circle, tone ? { backgroundColor: tone } : null]}>{glyph}</View>
       <View style={styles.text}>
         <Text variant="rowTitle" numberOfLines={1}>
           {title}

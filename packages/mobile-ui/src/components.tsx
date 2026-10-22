@@ -573,18 +573,20 @@ export function Screen({
  */
 export function ScreenFooter({ children, os = process.env.EXPO_OS }: { children: ReactNode; os?: string }) {
   const styles = useStyles();
+  const v2 = useV2Styles();
+  const scaled = useLayoutScale() === "v2";
   const bottomEdge = useScreenBottomEdge();
   const [height, setHeight] = useState<number>();
   useToastAnchor(height === undefined ? null : { bottom: bottomEdge + height });
   const onLayout = (e: LayoutChangeEvent) => setHeight(e.nativeEvent.layout.height);
   if (os === "ios")
     return (
-      <SafeAreaView testID="screen-footer" edges={["bottom"]} style={styles.footer} onLayout={onLayout}>
+      <SafeAreaView testID="screen-footer" edges={["bottom"]} style={[styles.footer, scaled && v2.footer]} onLayout={onLayout}>
         {children}
       </SafeAreaView>
     );
   return (
-    <View testID="screen-footer" style={styles.footer} onLayout={onLayout}>
+    <View testID="screen-footer" style={[styles.footer, scaled && v2.footer]} onLayout={onLayout}>
       {children}
     </View>
   );
@@ -639,6 +641,8 @@ const useV2Styles = themedStyles(() => ({
   // gives up that 1px so the content still sits 16 in.
   card: { borderWidth: 0, borderRadius: nativeLayout.radius.card, padding: nativeLayout.cardPadding, gap: nativeLayout.groupGap },
   cardAttention: { borderWidth: 1, padding: nativeLayout.cardPadding - 1 },
+  // 16 around a 50 button makes the 82 bar; it stands off the canvas by its tone, with no hairline above it.
+  footer: { paddingBottom: nativeLayout.cardPadding, borderTopWidth: 0 },
 }));
 
 const useStyles = themedStyles((c) => ({

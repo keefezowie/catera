@@ -5,7 +5,7 @@ import * as Reanimated from "react-native-reanimated";
 import { createMobileRuntime, MobileProvider, useMobile, type MobileRuntime } from "@catera/mobile-core";
 import { nativeMood, nativeMotion, nativeThemes } from "@catera/design-tokens";
 import * as SecureStore from "expo-secure-store";
-import { FadeSwap, MoodProvider, SheetHeader, SkeletonGroup, ThemeProvider } from "@catera/mobile-ui";
+import { FadeSwap, LayoutScaleProvider, MoodProvider, SheetHeader, SkeletonGroup, ThemeProvider } from "@catera/mobile-ui";
 import { jakartaDay, monthOf, monthWeeks, type CustomerState } from "@catera/domain";
 import { spyFades } from "./fade";
 import { Beranda } from "../src/today/Beranda";
@@ -786,9 +786,9 @@ describe("findings 6 to 8: the swap and the skeleton's frame", () => {
     expect([swap.marginTop, swap.paddingTop, swap.marginHorizontal, swap.paddingHorizontal]).toEqual([-16, 16, -20, 20]);
     // The photo is pulled out by exactly that padding, so its edges are the block's own edges, and the heart on it
     // (16 from the photo's right) is inside the block, where Android delivers its touches.
-    // The photo: the block's child with its own height and the -20 pull (the block's own view has no height).
+    // The photo: the 4:3 block with the -20 pull (the block's own view has no ratio).
     const photo = node.findAll(
-      (n) => typeof n.type === "string" && flat(n)?.marginHorizontal === -20 && typeof flat(n)?.height === "number",
+      (n) => typeof n.type === "string" && flat(n)?.marginHorizontal === -20 && typeof flat(n)?.aspectRatio === "number",
     )[0];
     expect([flat(photo).marginHorizontal, flat(photo).marginTop]).toEqual([
       -(swap.paddingHorizontal as number),
@@ -798,6 +798,40 @@ describe("findings 6 to 8: the swap and the skeleton's frame", () => {
     const heart = screen.getByRole("button", { name: /Simpan/ });
     expect(inside(heart, photo)).toBe(true);
     expect(inside(heart, node)).toBe(true);
+  });
+
+  it("Paket on the layout scale pulls its photo out by the 16 margin, not the classic 20", async () => {
+    mockParams = { id: "p-rumahan" };
+    render(
+      <LayoutScaleProvider value="v2">
+        <MobileProvider
+          runtime={runtimeWith({ offer: jest.fn(async () => ({ offer: offer() })), request: jest.fn(async () => []) })}
+          linkMapper={customerLink}
+        >
+          <PackageDetail />
+        </MobileProvider>
+      </LayoutScaleProvider>,
+    );
+    await screen.findByTestId("paket-name");
+    const swap = flat(screen.UNSAFE_getAllByType(FadeSwap)[0]);
+    expect([swap.marginTop, swap.paddingTop, swap.marginHorizontal, swap.paddingHorizontal]).toEqual([-16, 16, -16, 16]);
+    expect([flat(screen.getByTestId("paket-hero")).marginHorizontal, flat(screen.getByTestId("paket-hero")).marginTop]).toEqual([-16, -16]);
+  });
+
+  it("the Paket skeleton keeps the loaded page's geometry: 4:3 photo, 76 strip, one card of 72 rows", async () => {
+    mockParams = { id: "p-rumahan" };
+    render(
+      <LayoutScaleProvider value="v2">
+        <MobileProvider runtime={runtimeWith({ offer: jest.fn(() => new Promise(() => undefined)), request: jest.fn(async () => []) })} linkMapper={customerLink}>
+          <PackageDetail />
+        </MobileProvider>
+      </LayoutScaleProvider>,
+    );
+    await screen.findByTestId("package-skeleton");
+    expect(flat(screen.getByTestId("package-skeleton-hero"))).toMatchObject({ aspectRatio: 4 / 3, borderRadius: 16 });
+    expect(flat(screen.getByTestId("package-skeleton-strip"))).toMatchObject({ height: 76, borderRadius: 16 });
+    expect(flat(screen.getByTestId("package-skeleton-rows"))).toMatchObject({ height: 144, borderRadius: 16 });
+    expect(screen.getAllByRole("progressbar")).toHaveLength(1);
   });
 
   it("Pilih menu fades from its skeleton into the page", async () => {

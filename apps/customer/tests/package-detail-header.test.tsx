@@ -1,14 +1,20 @@
 import { ActivityIndicator, StatusBar, StyleSheet } from "react-native";
 import { fireEvent, render, screen, within } from "@testing-library/react-native";
+import { router } from "expo-router";
 import { NavigationContext } from "expo-router/react-navigation";
 import { nativeThemes } from "@catera/design-tokens";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
-import { MoodProvider } from "@catera/mobile-ui";
+import { LayoutScaleProvider, MoodProvider } from "@catera/mobile-ui";
 import { customerLink } from "../src/links";
 import { goToTab } from "../src/nav";
-import { PackageDetail, PHOTO_PASSED } from "../src/discover/PackageDetail";
+import { PackageDetail, photoPassed } from "../src/discover/PackageDetail";
 import { offer } from "./fixtures";
 
+/** A 411dp phone: the 4:3 photo is 308 tall. */
+jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
+  __esModule: true,
+  default: () => ({ width: 411, height: 860, scale: 3, fontScale: 1 }),
+}));
 let mockParams: Record<string, string> = {};
 /** Tab changes and leaving a screen above the tabs go through nav (navigation.test covers them on the real router). */
 jest.mock("../src/nav", () => ({ ...jest.requireActual("../src/nav"), goToTab: jest.fn(), leaveFor: jest.fn() }));
@@ -56,11 +62,13 @@ function runtimeWith(read: (id: string) => Promise<{ offer: unknown }>): MobileR
 const navigation = { setOptions: jest.fn(), isFocused: () => true, addListener: () => () => undefined };
 const tree = (runtime: MobileRuntime) => (
   <NavigationContext.Provider value={navigation as never}>
-    <MoodProvider now={MALAM}>
-      <MobileProvider runtime={runtime} linkMapper={customerLink}>
-        <PackageDetail />
-      </MobileProvider>
-    </MoodProvider>
+    <LayoutScaleProvider value="v2">
+      <MoodProvider now={MALAM}>
+        <MobileProvider runtime={runtime} linkMapper={customerLink}>
+          <PackageDetail />
+        </MobileProvider>
+      </MoodProvider>
+    </LayoutScaleProvider>
   </NavigationContext.Provider>
 );
 const wrap = (runtime: MobileRuntime) => render(tree(runtime));
@@ -126,9 +134,11 @@ describe("Paket with its photo (ruling B3: the photo is the header)", () => {
       headerShadowVisible: false,
       headerStyle: { backgroundColor: "transparent" },
       headerTintColor: nativeThemes.light.cream,
+      headerLeft: expect.any(Function),
     });
     expect(screen.queryByTestId("screen-native-title")).toBeNull();
-    // No back of its own on the photo: the bar's platform back sits on the scrim.
+    // The back on the photo is a 44 surface circle in the bar's leading slot (the platform's own returns past the photo).
+    const options = navigation.setOptions.mock.calls.at(-1)![0] as { headerLeft: () => React.ReactElement };
     expect(screen.queryByRole("button", { name: "Kembali" })).toBeNull();
     const scrim = screen.getByTestId("paket-photo-scrim");
     expect(flat(scrim)).toMatchObject({ position: "absolute", top: 0, left: 0, right: 0 });
@@ -137,6 +147,13 @@ describe("Paket with its photo (ruling B3: the photo is the header)", () => {
     const heart = screen.getByRole("button", { name: "Simpan Nasi Ayam Bakar" });
     expect(flat(heart)).toMatchObject({ position: "absolute", bottom: 12, right: 16 });
     expect(screen.getByText("Nasi Ayam Bakar")).toBeTruthy();
+    // The bar's back, drawn on its own (the stack renders it): a 44 surface circle that goes back.
+    render(<MoodProvider now={MALAM}>{options.headerLeft()}</MoodProvider>);
+    const back = screen.getByRole("button", { name: "Kembali" });
+    expect(flat(back)).toMatchObject({ width: 44, height: 44, borderRadius: 22 });
+    expect(flat(back).borderWidth).toBeUndefined();
+    fireEvent.press(back);
+    expect(router.back).toHaveBeenCalled();
   });
 
   it("turns the bar opaque on the canvas once the photo has scrolled away, and back over the photo", async () => {
@@ -152,18 +169,20 @@ describe("Paket with its photo (ruling B3: the photo is the header)", () => {
       headerShadowVisible: false,
       headerStyle: { backgroundColor: "transparent" },
       headerTintColor: nativeThemes.light.cream,
+      headerLeft: expect.any(Function),
     };
     expect(lightGlyphs()).toBe(true);
-    // 250dp of photo below the status bar, less the 56dp Android bar: still over the photo just before the foot.
-    expect(PHOTO_PASSED).toBe(250 - 56);
+    // The 4:3 photo is 308 tall on a 411 phone, with no status bar inset here; less the 56dp Android bar it is passed at 252.
+    const PHOTO_PASSED = photoPassed(411, 0);
+    expect(PHOTO_PASSED).toBe(308 - 56);
     at(PHOTO_PASSED - 1);
     expect(navigation.setOptions).toHaveBeenLastCalledWith(overPhoto);
-    // The scrim rides under the bar while the photo scrolls beneath it, and stops at the photo's foot (250 - 140).
+    // The scrim rides under the bar while the photo scrolls beneath it, and stops at the photo's foot (308 - 140).
     const scrimShift = () => (flat(screen.getByTestId("paket-photo-scrim")).transform as { translateY: number }[])[0].translateY;
     at(60);
     expect(scrimShift()).toBe(60);
     at(PHOTO_PASSED - 1);
-    expect(scrimShift()).toBe(110);
+    expect(scrimShift()).toBe(308 - 140);
     // The name line sits 400dp down the page, 32dp tall.
     const name = screen.getByTestId("paket-name");
     let block = name.parent;
@@ -180,6 +199,8 @@ describe("Paket with its photo (ruling B3: the photo is the header)", () => {
       ...overPhoto,
       headerStyle: { backgroundColor: nativeThemes.light.tabBar },
       headerTintColor: nativeThemes.light.charcoal,
+      // Past the photo the platform's own back returns.
+      headerLeft: undefined,
     };
     expect(nativeThemes.light.tabBar).toBe("#FFF7E9");
     expect(navigation.setOptions).toHaveBeenLastCalledWith(onCanvas);
@@ -202,6 +223,7 @@ describe("Paket with its photo (ruling B3: the photo is the header)", () => {
     const view = wrap(runtime);
     expect(await screen.findByRole("button", { name: "Pilih jadwal" })).toBeTruthy();
     expect(navigation.setOptions).toHaveBeenLastCalledWith(expect.objectContaining({ headerTransparent: true }));
+    const PHOTO_PASSED = photoPassed(411, 0);
     // Scrolled past the photo first, so the bar is opaque when the photo state is left.
     fireEvent.scroll(screen.getByTestId("screen-scroll"), { nativeEvent: { contentOffset: { x: 0, y: PHOTO_PASSED + 10 } } });
     expect(navigation.setOptions).toHaveBeenLastCalledWith(
@@ -217,6 +239,7 @@ describe("Paket with its photo (ruling B3: the photo is the header)", () => {
       headerShadowVisible: false,
       headerStyle: { backgroundColor: nativeThemes.light.canvas },
       headerTintColor: nativeThemes.light.charcoal,
+      headerLeft: undefined,
       headerTitle: "",
     });
     // Back to the first package: its photo leads again and the bar starts over the photo, not where it was left.
@@ -230,6 +253,7 @@ describe("Paket with its photo (ruling B3: the photo is the header)", () => {
       headerShadowVisible: false,
       headerStyle: { backgroundColor: "transparent" },
       headerTintColor: nativeThemes.light.cream,
+      headerLeft: expect.any(Function),
     });
     expect(view.UNSAFE_queryAllByType(StatusBar).some((s) => s.props.barStyle === "light-content")).toBe(true);
   });

@@ -358,21 +358,27 @@ export function JadwalCellsSkeleton({ month, locale }: { month: string; locale: 
 }
 
 /**
- * A package before its photo can lead the page (Paket opened from a link): the photo, the name and caterer, the price
- * and three lines of what the package holds.
+ * A package before its photo can lead the page (Paket opened from a link), in the loaded page's own geometry: the 4:3
+ * photo, the name and caterer lines, the 76 stat strip (card padding, the 26 number and the 18 label), then the
+ * "Isi paket" heading and its one card of two 72 rows, with the sections 32 apart.
  */
 export function PackageSkeleton() {
   const { t } = useMobile();
+  const card = nativeLayout.radius.card;
+  const strip = nativeLayout.cardPadding * 2 + 26 + 18;
   return (
     <SkeletonGroup label={t("Memuat paket", "Loading package")}>
-      <View testID="package-skeleton" style={{ gap: 16 }}>
-        <Skeleton height={196} radius={16} />
-        <View style={{ gap: 8 }}>
-          <Skeleton width="76%" height={28} />
-          <Skeleton width="48%" height={16} />
+      <View testID="package-skeleton" style={{ gap: nativeLayout.space.lg }}>
+        <Skeleton testID="package-skeleton-hero" aspectRatio={nativeLayout.ratio.hero} radius={card} />
+        <View style={{ gap: nativeLayout.space.xs }}>
+          <Skeleton width="64%" height={30} />
+          <Skeleton width="48%" height={18} />
         </View>
-        <Skeleton width="36%" height={24} />
-        <Rows count={3} />
+        <Skeleton testID="package-skeleton-strip" height={strip} radius={card} />
+        <View style={{ gap: nativeLayout.headingGap, marginTop: nativeLayout.space.lg }}>
+          <Skeleton width="36%" height={26} />
+          <Skeleton testID="package-skeleton-rows" height={nativeLayout.row.media * 2} radius={card} />
+        </View>
       </View>
     </SkeletonGroup>
   );

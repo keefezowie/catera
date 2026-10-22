@@ -3,10 +3,10 @@ import { StyleSheet } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import type { Offer } from "@catera/domain";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
-import { MoodProvider } from "@catera/mobile-ui";
+import { fonts, LayoutScaleProvider, MoodProvider } from "@catera/mobile-ui";
 import { customerLink } from "../src/links";
 import { Jelajah } from "../src/discover/Jelajah";
-import { NutritionCard } from "../src/discover/NutritionCard";
+import { StatStrip } from "../src/discover/NutritionCard";
 import { PackageDetail } from "../src/discover/PackageDetail";
 import { offer } from "./fixtures";
 
@@ -73,13 +73,15 @@ function runtimeWith(): MobileRuntime {
 const SIANG_NOW = () => new Date("2026-10-09T07:59:00Z");
 const wrap = (ui: React.ReactElement) =>
   render(
-    <MoodProvider now={SIANG_NOW}>
-      <MobileProvider runtime={runtimeWith()} linkMapper={customerLink}>
-        {ui}
-      </MobileProvider>
-    </MoodProvider>,
+    <LayoutScaleProvider value="v2">
+      <MoodProvider now={SIANG_NOW}>
+        <MobileProvider runtime={runtimeWith()} linkMapper={customerLink}>
+          {ui}
+        </MobileProvider>
+      </MoodProvider>
+    </LayoutScaleProvider>,
   );
-const card = (o: Offer, os: "ios" | "android") => wrap(<NutritionCard offer={o} os={os} />);
+const strip = (o: Offer) => wrap(<StatStrip offer={o} />);
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -87,175 +89,116 @@ beforeEach(() => {
   (SecureStore as unknown as { __store: Map<string, string> }).__store.clear();
 });
 
-describe("NutritionCard", () => {
-  it("the card shows filled metrics with units and the caption", async () => {
-    // iOS: a label over each value, two by two. Jest compiles the Android build, so iOS is pinned through `os`.
-    let view = card(full, "ios");
-    expect(await screen.findByText("Gizi per porsi")).toBeTruthy();
-    for (const [label, value] of [
-      ["Kalori", "620 kkal"],
-      ["Protein", "32 g"],
-      ["Karbohidrat", "78 g"],
-      ["Lemak", "20 g"],
-    ]) {
-      expect(screen.getByText(label)).toBeTruthy();
-      expect(screen.getByText(value)).toBeTruthy();
-    }
-    expect(screen.getByText("Perkiraan dari katering. Bisa berbeda tiap menu.")).toBeTruthy();
-    expect(screen.getAllByTestId("gizi-row")).toHaveLength(2);
-    // Order is Kalori, Protein, Karbohidrat, Lemak; each tile reads as one phrase.
-    expect(screen.getAllByTestId("gizi-tile").map((t) => t.props.accessibilityLabel)).toEqual([
-      "Kalori 620 kkal",
-      "Protein 32 g",
-      "Karbohidrat 78 g",
-      "Lemak 20 g",
-    ]);
-    // Values are tabular numbers.
-    expect(StyleSheet.flatten(screen.getByText("620 kkal").props.style).fontVariant).toEqual(["tabular-nums"]);
-    view.unmount();
+describe("StatStrip", () => {
+  const cells = () => within(screen.getByTestId("stat-strip")).getAllByTestId("stat-cell");
+  const labels = () => cells().map((c) => c.props.accessibilityLabel);
+  const flat = (n: { props: { style?: unknown } }) => StyleSheet.flatten(n.props.style as never) as Record<string, unknown>;
 
-    // Android: four compact tiles in one row, the value over a short label ("Karbo"), the calorie unit as its label.
-    view = card(full, "android");
-    await screen.findByText("Gizi per porsi");
-    expect(screen.getAllByTestId("gizi-row")).toHaveLength(1);
-    for (const text of ["620", "kkal", "32 g", "Protein", "78 g", "Karbo", "20 g", "Lemak"]) expect(screen.getByText(text)).toBeTruthy();
-    expect(screen.queryByText("Karbohidrat")).toBeNull();
-    expect(screen.getAllByTestId("gizi-tile").map((t) => t.props.accessibilityLabel)).toEqual([
-      "Kalori 620 kkal",
-      "Protein 32 g",
-      "Karbohidrat 78 g",
-      "Lemak 20 g",
-    ]);
-    view.unmount();
+  it("one card of up to three cells: kkal, protein and meals a day, the numbers section 800 over a meta label", async () => {
+    strip(full);
+    expect(await screen.findByTestId("stat-strip")).toBeTruthy();
+    expect(labels()).toEqual(["620 kkal", "32 g protein", "1× makan sehari"]);
+    // One card (radius 16, padding 16, three columns), not a grid of tiles.
+    expect(flat(screen.getByTestId("stat-strip"))).toMatchObject({ flexDirection: "row", borderRadius: 16, padding: 16 });
+    expect(screen.queryByTestId("gizi-row")).toBeNull();
+    expect(screen.queryByTestId("gizi-tile")).toBeNull();
+    // The number: section (20/26) at 800, tabular. The label: meta (13/18).
+    expect(flat(screen.getByText("620"))).toMatchObject({ fontSize: 20, lineHeight: 26, fontFamily: fonts.extrabold, fontVariant: ["tabular-nums"] });
+    expect(flat(screen.getByText("kkal"))).toMatchObject({ fontSize: 13, lineHeight: 18 });
+    expect(screen.getByText("32 g")).toBeTruthy();
+    expect(screen.getByText("protein")).toBeTruthy();
+    expect(screen.getByText("1×")).toBeTruthy();
+    expect(screen.getByText("makan sehari")).toBeTruthy();
   });
 
-  it("zero is shown and an empty metric is not", async () => {
-    card(zeroFat, "ios");
-    expect(await screen.findByText("0 g")).toBeTruthy();
-    expect(screen.getByText("Lemak")).toBeTruthy();
-    expect(screen.queryByText("Karbohidrat")).toBeNull();
-    expect(screen.getAllByTestId("gizi-tile")).toHaveLength(3);
-    // No unavailable mark either: the empty metric is simply left out.
+  it("carbs and fat are one meta line under the strip, with the caterer's caveat", async () => {
+    strip(full);
+    const line = await screen.findByText("Karbo 78 g · Lemak 20 g per porsi");
+    expect(flat(line)).toMatchObject({ fontSize: 13, lineHeight: 18 });
+    expect(screen.getByText("Perkiraan dari katering. Bisa berbeda tiap menu.")).toBeTruthy();
+    expect(screen.queryByText("Gizi per porsi")).toBeNull();
+  });
+
+  it("a combined day reads 2× makan sehari", async () => {
+    strip(offer({ id: "p-dua", name: "Siang dan Malam", meal: "both", nutrition: { caloriesKcal: 600, proteinG: 30 } }));
+    await screen.findByTestId("stat-strip");
+    expect(labels()).toEqual(["600 kkal", "30 g protein", "2× makan sehari"]);
+  });
+
+  it("ranges read 610–640 and carbs and fat keep theirs", async () => {
+    strip(range);
+    await screen.findByTestId("stat-strip");
+    expect(labels()).toEqual(["610–640 kkal", "29–30 g protein", "1× makan sehari"]);
+    expect(screen.getByText("Karbo 76–82 g · Lemak 19–21 g per porsi")).toBeTruthy();
+  });
+
+  it("an empty metric is left out", async () => {
+    strip(noCarbs);
+    expect(await screen.findByText("Lemak 22 g per porsi")).toBeTruthy();
+    expect(screen.queryByText(/Karbo/)).toBeNull();
     expect(screen.queryByText("—")).toBeNull();
   });
 
-  it("only calories shows one tile", async () => {
-    card(caloriesOnly, "android");
-    expect(await screen.findByText("540")).toBeTruthy();
-    expect(screen.getAllByTestId("gizi-tile")).toHaveLength(1);
+  it("zero fat is a value", async () => {
+    strip(zeroFat);
+    expect(await screen.findByText("Lemak 0 g per porsi")).toBeTruthy();
   });
 
-  it("at large text the Android tiles wrap two by two instead of truncating", async () => {
-    // Jest has no layout engine: the grid's measured width is handed in through its layout event. 288 is a 360dp
-    // screen less the page and card padding.
-    const dims = jest.spyOn(require("react-native"), "useWindowDimensions");
-    dims.mockReturnValue({ width: 360, height: 760, scale: 3, fontScale: 1.3 });
-    card(full, "android");
-    await screen.findByText("Gizi per porsi");
-    act(() => {
-      fireEvent(screen.getByTestId("gizi-grid"), "layout", { nativeEvent: { layout: { x: 0, y: 0, width: 288, height: 80 } } });
-    });
-    expect(screen.getAllByTestId("gizi-row")).toHaveLength(2);
-    // No value or label is ever cut to one line with an ellipsis.
-    for (const tile of screen.getAllByTestId("gizi-tile"))
-      for (const text of within(tile).UNSAFE_getAllByType(require("react-native").Text)) expect(text.props.numberOfLines).toBeUndefined();
-    dims.mockRestore();
+  it("only calories gives two cells (kkal and meals a day) and no carbs line", async () => {
+    strip(caloriesOnly);
+    await screen.findByTestId("stat-strip");
+    expect(labels()).toEqual(["540 kkal", "1× makan sehari"]);
+    expect(screen.queryByText(/per porsi/)).toBeNull();
   });
 
-  it("before the row is measured, a narrow large-text screen already starts at two by two", async () => {
-    const dims = jest.spyOn(require("react-native"), "useWindowDimensions");
-    dims.mockReturnValue({ width: 360, height: 760, scale: 3, fontScale: 1.3 });
-    card(full, "android");
-    await screen.findByText("Gizi per porsi");
-    // No layout event yet: the first frame is already the final grid, never four cut tiles.
-    expect(screen.getAllByTestId("gizi-row")).toHaveLength(2);
-    dims.mockRestore();
+  it("only carbs and fat leave the strip out but keep their line", async () => {
+    strip(offer({ id: "p-karbo", name: "Karbo", nutrition: { carbsG: 50, fatG: 10 } }));
+    expect(await screen.findByText("Karbo 50 g · Lemak 10 g per porsi")).toBeTruthy();
+    expect(screen.queryByTestId("stat-strip")).toBeNull();
   });
 
-  it("a calorie range reads 580–640", async () => {
-    let view = card(calorieRange, "ios");
-    expect(await screen.findByText("580–640 kkal")).toBeTruthy();
-    view.unmount();
-    // Rantang Nusantara from the seed: every metric is a range, on both platforms.
-    view = card(range, "ios");
-    for (const value of ["610–640 kkal", "29–30 g", "76–82 g", "19–21 g"]) expect(await screen.findByText(value)).toBeTruthy();
-    view.unmount();
-    view = card(range, "android");
-    for (const value of ["610–640", "29–30 g", "76–82 g", "19–21 g"]) expect(await screen.findByText(value)).toBeTruthy();
-    expect(screen.getAllByTestId("gizi-tile").map((t) => t.props.accessibilityLabel)).toEqual([
-      "Kalori 610–640 kkal",
-      "Protein 29–30 g",
-      "Karbohidrat 76–82 g",
-      "Lemak 19–21 g",
-    ]);
-    view.unmount();
-    mockParams = { id: "p-rantang" };
-    wrap(<PackageDetail />);
-    expect(await screen.findByText("610–640 kkal · 29–30 g protein per porsi")).toBeTruthy();
-  });
-
-  it("on iOS all-range tiles stay two by two at normal text on a 390pt phone", async () => {
-    const dims = jest.spyOn(require("react-native"), "useWindowDimensions");
-    // 316 is a 390pt screen less the page padding (20 each side), the card border and its padding (1 and 16 each side).
-    const layout = () =>
-      act(() => {
-        fireEvent(screen.getByTestId("gizi-grid"), "layout", { nativeEvent: { layout: { x: 0, y: 0, width: 316, height: 120 } } });
-      });
-    dims.mockReturnValue({ width: 390, height: 844, scale: 3, fontScale: 1 });
-    let view = card(range, "ios");
-    await screen.findByText("610–640 kkal");
-    layout();
-    expect(screen.getAllByTestId("gizi-row").map((r) => within(r).getAllByTestId("gizi-tile").length)).toEqual([2, 2]);
-    // The range values take the next step down the ramp (17/24) so the pairs fit; nothing is cut.
-    for (const value of ["610–640 kkal", "29–30 g", "76–82 g", "19–21 g"])
-      expect(StyleSheet.flatten(screen.getByText(value).props.style)).toMatchObject({ fontSize: 17, lineHeight: 24, fontVariant: ["tabular-nums"] });
-    for (const text of screen.UNSAFE_getAllByType(require("react-native").Text)) expect(text.props.numberOfLines).toBeUndefined();
-    view.unmount();
-
-    // Single values keep the full 21/28 heading.
-    view = card(full, "ios");
-    await screen.findByText("620 kkal");
-    layout();
-    expect(screen.getAllByTestId("gizi-row")).toHaveLength(2);
-    expect(StyleSheet.flatten(screen.getByText("620 kkal").props.style).fontSize).toBe(21);
-    view.unmount();
-
-    // At larger text the ranges fall back to one column at the full size rather than shrinking further.
-    dims.mockReturnValue({ width: 390, height: 844, scale: 3, fontScale: 1.3 });
-    card(range, "ios");
-    await screen.findByText("610–640 kkal");
-    layout();
-    expect(screen.getAllByTestId("gizi-row")).toHaveLength(4);
-    expect(StyleSheet.flatten(screen.getByText("610–640 kkal").props.style).fontSize).toBe(21);
-    dims.mockRestore();
-  });
-
-  it("no metrics, no card and no line", async () => {
-    const view = card(none, "ios");
-    expect(screen.queryByText("Gizi per porsi")).toBeNull();
+  it("no metrics, no strip, no line and no caveat", async () => {
+    const view = strip(none);
+    expect(screen.queryByTestId("stat-strip")).toBeNull();
+    expect(screen.queryByText(/Perkiraan dari katering/)).toBeNull();
     view.unmount();
     mockParams = { id: "p-sambal" };
     wrap(<PackageDetail />);
     expect(await screen.findByText("Ayam Sambal Rumahan")).toBeTruthy();
-    expect(screen.queryByText("Gizi per porsi")).toBeNull();
-    expect(screen.queryByText(/protein per porsi$/)).toBeNull();
+    expect(screen.queryByTestId("stat-strip")).toBeNull();
+    expect(screen.queryByText(/per porsi/)).toBeNull();
+  });
+
+  it("at large text on a 360dp phone the cells stack under each other and nothing is cut", async () => {
+    const dims = jest.spyOn(require("react-native"), "useWindowDimensions");
+    dims.mockReturnValue({ width: 360, height: 760, scale: 3, fontScale: 1.3 });
+    const view = strip(range);
+    await screen.findByTestId("stat-strip");
+    expect(flat(screen.getByTestId("stat-strip")).flexDirection).toBe("column");
+    expect(cells()).toHaveLength(3);
+    for (const text of screen.getByTestId("stat-strip").findAll((n) => n.type === require("react-native").Text))
+      expect(text.props.numberOfLines).toBeUndefined();
+    view.unmount();
+    dims.mockReturnValue({ width: 412, height: 860, scale: 3, fontScale: 1 });
+    strip(range);
+    expect(flat(screen.getByTestId("stat-strip")).flexDirection).toBe("row");
+    dims.mockRestore();
   });
 });
 
 describe("Paket", () => {
-  it("shows the gizi card after the package contents and the line under the name", async () => {
+  it("shows the strip and the carbs line, and no 'kkal · protein per porsi' line under the name", async () => {
     mockParams = { id: "p-ayam" };
     wrap(<PackageDetail />);
-    expect(await screen.findByText("620 kkal · 32 g protein per porsi")).toBeTruthy();
-    expect(screen.getByText("Gizi per porsi")).toBeTruthy();
-    expect(screen.getByText("Perkiraan dari katering. Bisa berbeda tiap menu.")).toBeTruthy();
+    expect(await screen.findByTestId("stat-strip")).toBeTruthy();
+    expect(screen.getByText("Karbo 78 g · Lemak 20 g per porsi")).toBeTruthy();
+    expect(screen.queryByText("620 kkal · 32 g protein per porsi")).toBeNull();
   });
 
-  it("the line needs both calories and protein", async () => {
+  it("a calorie-only package still shows its strip", async () => {
     mockParams = { id: "p-kalori" };
     wrap(<PackageDetail />);
-    expect(await screen.findByText("Gizi per porsi")).toBeTruthy();
-    expect(screen.queryByText(/protein per porsi$/)).toBeNull();
+    expect(await screen.findByTestId("stat-strip")).toBeTruthy();
   });
 });
 

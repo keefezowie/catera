@@ -3,10 +3,12 @@ import {
   Animated,
   Image,
   StyleSheet,
+  useWindowDimensions,
   View,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from "react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -21,7 +23,7 @@ import {
   startDates,
   type Offer,
 } from "@catera/domain";
-import { nativeThemes } from "@catera/design-tokens";
+import { nativeLayout, nativeThemes } from "@catera/design-tokens";
 import { useData, useMobile } from "@catera/mobile-core";
 import {
   Button,
@@ -29,6 +31,7 @@ import {
   FormError,
   linkTitle,
   nativeHeaderOptions,
+  PressableScale,
   ReadError,
   SaveHeart,
   Screen,
@@ -36,14 +39,18 @@ import {
   Text,
   themedStyles,
   useColors,
+  useMoodColors,
+  useScreenMargin,
   useScreenNavigation,
 } from "@catera/mobile-ui";
 import { photoUri } from "../today/Plate";
 import { dayRange, ratingText } from "./format";
-import { NutritionCard, nutritionLine } from "./NutritionCard";
+import { StatStrip } from "./NutritionCard";
 import { useSaved } from "./saved";
 import { goToTab } from "../nav";
 import { PackageSkeleton } from "../skeletons";
+import { GLYPH_INSET, GlyphRow, ListCard, SectionHeader } from "../layout";
+import { GLYPH_BARE } from "../layout/metrics";
 
 type Review = { id: string; customer: string; rating: number; body: string };
 
@@ -63,17 +70,41 @@ const PHOTO_HEADER = {
   headerTintColor: ink.cream,
 } as const;
 
-/** The photo's visible height below the status bar. */
-const PHOTO = 250;
+/** `Screen`'s body is at most this wide, so the photo is too. */
+const PAGE_MAX_WIDTH = 760;
+/** The 4:3 photo's whole height on a screen `width` wide, status bar included (the photo runs under it). */
+const heroHeightFor = (width: number) => Math.round(Math.min(width, PAGE_MAX_WIDTH) / nativeLayout.ratio.hero);
 /**
  * The bar's own height below the status bar: iOS's inline bar (large titles are off here) and the Android toolbar at
  * the theme's `actionBarSize`, measured at 56dp on the emulator.
  */
 const BAR = process.env.EXPO_OS === "ios" ? 44 : 56;
-/** Once the photo's foot has scrolled under the bar's foot, the bar stands on the canvas instead of the photo. */
-export const PHOTO_PASSED = PHOTO - BAR;
+/**
+ * Once the photo's foot has scrolled under the bar's foot, the bar stands on the canvas instead of the photo: the
+ * scroll offset at which that happens, for a screen `width` wide with a status bar `topInset` tall.
+ */
+export const photoPassed = (width: number, topInset: number) => heroHeightFor(width) - topInset - BAR;
 /** The scrim's height from the photo's top edge. */
 const SCRIM = 140;
+
+/**
+ * The back on the photo (spec 3.4): a 44 surface circle in the bar's leading slot, on the scrim. It stands in for the
+ * platform's back only while the bar is over the photo; once the bar turns opaque the platform's own returns.
+ */
+function PhotoBack({ label }: { label: string }) {
+  const c = useColors();
+  const styles = useStyles();
+  return (
+    <PressableScale
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={() => (router.canGoBack() ? router.back() : goToTab("jelajah"))}
+      style={styles.back}
+    >
+      <Ionicons name={process.env.EXPO_OS === "ios" ? "chevron-back" : "arrow-back"} size={22} color={c.charcoal} />
+    </PressableScale>
+  );
+}
 
 /** Paket: one package in full, with the way into Pilih jadwal (or a one-day trial). */
 export function PackageDetail() {
@@ -82,6 +113,10 @@ export function PackageDetail() {
   const { runtime, t, locale, demo } = useMobile();
   const c = useColors();
   const styles = useStyles();
+  const margin = useScreenMargin();
+  const { width: screenWidth } = useWindowDimensions();
+  const siang = useMoodColors("siang").header;
+  const malam = useMoodColors("malam").header;
   const saved = useSaved(`/paket/${id}`);
   const loaded = useData<{ offer: Offer | null }>(`paket:${id}`, () => runtime.api.offer(id));
   const reviews = useData<Review[]>(`reviews:${id}`, () => runtime.api.request<Review[]>(`reviews/${id}`));
@@ -91,6 +126,7 @@ export function PackageDetail() {
   const photoHeader = !!o;
   const name = o?.name ?? "";
   const stackHeader = useMemo(() => nativeHeaderOptions({ palette: c, demo }), [c, demo]);
+  const headerLeft = useMemo(() => () => <PhotoBack label={t("Kembali", "Back")} />, [t]);
   // Over the photo the bar is transparent with light ink. Once the photo has scrolled away the light ink would sit on
   // the cream page, so the bar turns opaque (the canvas on iOS, the scrolled surface-container tone on Android) with the
   // theme's tint and hands the status bar back to the theme; it takes the package name once the name line has scrolled under it, as a content title does. Scrolling back
@@ -111,12 +147,13 @@ export function PackageDetail() {
         pastPhoto
           ? {
               ...PHOTO_HEADER,
+              headerLeft: undefined,
               headerTitle: stage === "named" ? name : "",
               // Past the photo the page has scrolled, so Android takes Material's scrolled tone like every pushed screen.
               headerStyle: { backgroundColor: process.env.EXPO_OS === "ios" ? c.canvas : c.tabBar },
               headerTintColor: stackHeader.headerTintColor,
             }
-          : PHOTO_HEADER,
+          : { ...PHOTO_HEADER, headerLeft },
       );
       return;
     }
@@ -132,19 +169,21 @@ export function PackageDetail() {
       headerShadowVisible: stackHeader.headerShadowVisible,
       headerStyle: stackHeader.headerStyle,
       headerTintColor: stackHeader.headerTintColor,
+      headerLeft: undefined,
       // Android's content title starts the bar empty and takes it on scroll; iOS reads the route's `title`.
       headerTitle: process.env.EXPO_OS === "ios" ? undefined : "",
     });
-  }, [navigation, photoHeader, pastPhoto, stage, name, c.canvas, c.tabBar, stackHeader]);
+  }, [navigation, photoHeader, pastPhoto, stage, name, c.canvas, c.tabBar, stackHeader, headerLeft]);
   // The scrim stays under the bar while the photo scrolls beneath it, so the light back arrow never lands on a bright
   // part of the photo; it stops at the photo's foot.
-  const heroHeight = PHOTO + (demo ? 0 : insets.top);
+  const topInset = demo ? 0 : insets.top;
+  const heroHeight = heroHeightFor(screenWidth);
   const scrimShift = useRef(new Animated.Value(0)).current;
   const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const y = e.nativeEvent.contentOffset.y;
     scrimShift.setValue(Math.min(Math.max(y, 0), heroHeight - SCRIM));
     // The bar's foot in content terms is the scroll offset plus the bar (and the status bar it covers).
-    const next = y < PHOTO_PASSED ? "photo" : y + heroHeight - PHOTO + BAR >= nameEnd.current ? "named" : "canvas";
+    const next = y < heroHeight - topInset - BAR ? "photo" : y + topInset + BAR >= nameEnd.current ? "named" : "canvas";
     if (next === stageRef.current) return;
     stageRef.current = next;
     setStage(next);
@@ -187,7 +226,7 @@ export function PackageDetail() {
   const shown = (reviews.data ?? []).slice(0, 3);
   const { note } = priceUnitLabel(o, locale);
   const earliest = startDates(o, new Date(), 1)[0];
-  const gizi = nutritionLine(o, locale);
+  const cutoff = o.cutoff.slice(0, 5);
   return (
     <Screen
       bleed
@@ -197,15 +236,14 @@ export function PackageDetail() {
         // text, under each other) instead of drawing over it. Nothing in the row shrinks below its own text.
         <View testID="paket-footer" style={styles.footer}>
           <View testID="paket-price" style={styles.price}>
-            <Text variant="caption">{t("Per sekali makan", "Per meal")}</Text>
             <Text
-              variant="title"
+              variant="section"
               accessibilityRole="text"
-              style={{ fontSize: 20, lineHeight: 26, color: c.charcoal, fontVariant: ["tabular-nums"] }}
+              style={{ fontWeight: "800", fontVariant: ["tabular-nums"] }}
             >
               {currency(perMealPrice(o), locale)}
             </Text>
-            {note ? <Text variant="caption">{note}</Text> : null}
+            <Text variant="meta">{[t("Per sekali makan", "Per meal"), note].filter(Boolean).join(" · ")}</Text>
           </View>
           <View testID="paket-actions" style={styles.actions}>
             {o.trialPrice ? (
@@ -226,15 +264,15 @@ export function PackageDetail() {
       }
     >
       {/* One block that fades in from the skeleton (the loading page's FadeSwap). It covers the body's whole box (its
-          top and both sides) and carries the body's 16 and 20 as padding, so the photo's -16 and -20 pulls and the name
+          top and both sides) and carries the body's 16 and margin as padding, so the photo's pulls and the name
           block's measured offset are what they are in the body. No part of the photo, and none of the heart on it, sits
           outside its parent (where an Android touch would not reach and the fade's layer would clip it). */}
       <FadeSwap
         swapKey="ready"
-        style={{ gap: 16, marginTop: -16, paddingTop: 16, marginHorizontal: -20, paddingHorizontal: 20 }}
+        style={{ gap: 16, marginTop: -16, paddingTop: 16, marginHorizontal: -margin, paddingHorizontal: margin }}
       >
-        {/* The photo now runs under the status bar too, so it grows by that inset and keeps its visible height. */}
-        <View style={[styles.hero, { height: heroHeight }]}>
+        {/* The photo runs under the status bar too: 4:3 over the page's whole width. */}
+        <View testID="paket-hero" style={[styles.hero, { marginHorizontal: -margin }]}>
           {o.image ? (
             <Image
               accessibilityIgnoresInvertColors
@@ -257,14 +295,14 @@ export function PackageDetail() {
             canSave={saved.signedIn}
             label={isSaved ? t(`Hapus ${o.name} dari simpanan`, `Remove ${o.name} from saved`) : t(`Simpan ${o.name}`, `Save ${o.name}`)}
             onToggle={() => void saved.toggle(o.id)}
-            style={styles.heart}
+            style={[styles.heart, { right: margin }]}
           />
         </View>
 
         {/* The name block starts at the page's top in content terms (the photo and this block share one parent), so its
             frame plus the name line's foot is where the bar takes the name. */}
         <View
-          style={{ gap: 6 }}
+          style={{ gap: nativeLayout.space.xs }}
           onLayout={(e) => {
             nameBlockY.current = e.nativeEvent.layout.y;
             nameEnd.current = nameBlockY.current + nameLineEnd.current;
@@ -277,67 +315,69 @@ export function PackageDetail() {
               nameEnd.current = nameBlockY.current + nameLineEnd.current;
             }}
           >
-            <Text variant="title" style={{ fontSize: 26, lineHeight: 32 }}>
-              {o.name}
-            </Text>
+            <Text variant="heroTitle">{o.name}</Text>
           </View>
-          <Text variant="caption" style={{ fontSize: 13, lineHeight: 18 }}>
+          <Text variant="meta">
             {`${[o.caterer, o.areas[0]].filter(Boolean).join(", ")}. ${ratingText(o, locale, t)}`}
           </Text>
-          {gizi ? (
-            <Text variant="label" style={{ fontSize: 14, lineHeight: 20, fontVariant: ["tabular-nums"] }}>
-              {gizi}
-            </Text>
-          ) : null}
           {saved.error ? <FormError message={saved.error} /> : null}
         </View>
-        {o.description ? <Text>{o.description}</Text> : null}
 
-        <View style={{ gap: 10 }}>
-          <Text variant="heading">{t("Isi paket", "What is included")}</Text>
-          {o.menus.map((m) => (
-            <View key={m.meal} style={styles.meal}>
-              <Text variant="label">
-                {mealLabel(m.meal, locale)} · {menuSourceLabel(m, locale)}
-              </Text>
-              {m.composition?.length ? <Text>{compositionPreview(m, o.packageType, locale)}</Text> : null}
-              {menuSummary(m, locale) !== menuSourceLabel(m, locale) ? (
-                <Text variant="caption" style={{ fontSize: 13, lineHeight: 18 }}>
-                  {menuSummary(m, locale)}
-                </Text>
-              ) : null}
-            </View>
-          ))}
+        <StatStrip offer={o} />
+        {o.description ? <Text variant="bodyL">{o.description}</Text> : null}
+
+        {/* Each section sits 32 below the one above: the body's 16 gap plus this 16. */}
+        <View testID="paket-isi" style={styles.section}>
+          <SectionHeader title={t("Isi paket", "What is included")} />
+          <ListCard inset={GLYPH_INSET}>
+            {o.menus.map((m) => (
+              <GlyphRow
+                key={m.meal}
+                testID={`paket-meal-${m.meal}`}
+                minHeight={nativeLayout.row.media}
+                tone={m.meal === "dinner" ? malam : siang}
+                glyph={<Ionicons name={m.meal === "dinner" ? "moon-outline" : "sunny-outline"} size={GLYPH_BARE} color={c.charcoal} />}
+                title={mealLabel(m.meal, locale)}
+                meta={compositionPreview(m, o.packageType, locale)}
+              />
+            ))}
+          </ListCard>
         </View>
 
-        <NutritionCard offer={o} />
-
-        <View style={styles.facts}>
-          <Fact label={t("Diantar", "Delivered")} value={`${dayRange(o.weekdays, locale)}, ${windows}`} />
-          <Fact
-            label={t("Ubah hari", "Change a day")}
-            value={t(
-              `Sampai ${o.cutoff.slice(0, 5).replace(":", ".")}, sehari sebelumnya`,
-              `Until ${o.cutoff.slice(0, 5)} the day before`,
-            )}
-          />
-          <Fact label={t("Ongkir", "Delivery fee")} value={t("Pengantaran termasuk", "Delivery included")} />
-          {earliest ? (
-            <Fact label={t("Mulai paling cepat", "Earliest start")} value={shortDate(earliest, locale)} />
-          ) : null}
+        <View testID="paket-antar" style={styles.section}>
+          <SectionHeader title={t("Pengantaran", "Delivery")} />
+          <View style={styles.infoRows}>
+            <InfoRow icon="bicycle-outline" text={`${dayRange(o.weekdays, locale)}, ${windows}`} />
+            <InfoRow
+              icon="time-outline"
+              text={t(
+                `Ubah hari sampai ${cutoff.replace(":", ".")}, sehari sebelumnya`,
+                `Change a day until ${cutoff} the day before`,
+              )}
+            />
+            <InfoRow icon="pricetag-outline" text={t("Ongkir sudah termasuk", "Delivery included")} />
+            {earliest ? (
+              <InfoRow
+                icon="calendar-outline"
+                text={`${t("Mulai paling cepat", "Earliest start")} ${shortDate(earliest, locale)}`}
+              />
+            ) : null}
+          </View>
         </View>
 
         {shown.length ? (
-          <View style={{ gap: 10 }}>
-            <Text variant="heading">{t("Ulasan", "Reviews")}</Text>
-            {shown.map((r) => (
-              <View key={r.id} style={styles.meal}>
-                <Text variant="label">
-                  {r.customer} · {r.rating}/5
-                </Text>
-                {r.body ? <Text>{r.body}</Text> : null}
-              </View>
-            ))}
+          <View testID="paket-reviews" style={styles.section}>
+            <SectionHeader title={t("Ulasan", "Reviews")} />
+            <ListCard inset={0}>
+              {shown.map((r) => (
+                <View key={r.id} testID="paket-review" style={styles.review}>
+                  <Text variant="bodyStrong">
+                    {r.customer} · {r.rating}/5
+                  </Text>
+                  {r.body ? <Text variant="bodyL">{r.body}</Text> : null}
+                </View>
+              ))}
+            </ListCard>
           </View>
         ) : null}
       </FadeSwap>
@@ -345,22 +385,25 @@ export function PackageDetail() {
   );
 }
 
-function Fact({ label, value }: { label: string; value: string }) {
+/** A 48 info row: the bare 20 glyph and a `bodyL` line that wraps rather than truncates. */
+function InfoRow({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: string }) {
+  const c = useColors();
   const styles = useStyles();
   return (
-    <View style={styles.fact}>
-      <Text variant="label" style={styles.factLabel}>
-        {label}
+    <View testID="paket-info" style={styles.info}>
+      <View testID="paket-info-glyph" style={styles.infoGlyph}>
+        <Ionicons name={icon} size={GLYPH_BARE} color={c.muted} />
+      </View>
+      <Text variant="bodyL" style={styles.infoText}>
+        {text}
       </Text>
-      <Text style={{ flex: 1 }}>{value}</Text>
     </View>
   );
 }
 
 const useStyles = themedStyles((c) => ({
   hero: {
-    height: 250,
-    marginHorizontal: -20,
+    aspectRatio: nativeLayout.ratio.hero,
     marginTop: -16,
     backgroundColor: c.sage,
   },
@@ -373,19 +416,37 @@ const useStyles = themedStyles((c) => ({
     height: SCRIM,
     experimental_backgroundImage: "linear-gradient(rgba(27,27,26,0.6), rgba(27,27,26,0))",
   },
-  // At the photo's foot, clear of the bar's back button at the top.
-  heart: { position: "absolute", bottom: 12, right: 16 },
-  meal: {
-    gap: 4,
-    padding: 14,
-    borderRadius: 14,
+  // A 44 surface circle at the photo's foot (its right edge is the page margin, set where it is drawn), clear of the
+  // bar's back at the top. It overrides the heart's own 48 disc and hairline.
+  heart: {
+    position: "absolute",
+    bottom: 12,
+    width: nativeLayout.control.icon,
+    height: nativeLayout.control.icon,
+    borderRadius: nativeLayout.control.icon / 2,
+    borderWidth: 0,
     backgroundColor: c.surface,
-    borderWidth: 1,
-    borderColor: c.line,
   },
-  facts: { gap: 10, paddingVertical: 4 },
-  fact: { flexDirection: "row", gap: 12 },
-  factLabel: { width: "32%", minWidth: 100, flexShrink: 0 },
+  back: {
+    width: nativeLayout.control.icon,
+    height: nativeLayout.control.icon,
+    borderRadius: nativeLayout.control.icon / 2,
+    backgroundColor: c.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  section: { marginTop: nativeLayout.space.lg },
+  review: { gap: nativeLayout.space.xs, paddingVertical: nativeLayout.space.md },
+  infoRows: { gap: nativeLayout.space.xs },
+  info: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: nativeLayout.space.md,
+    minHeight: nativeLayout.row.info,
+    paddingVertical: nativeLayout.space.sm,
+  },
+  infoGlyph: { width: GLYPH_BARE, height: GLYPH_BARE, alignItems: "center", justifyContent: "center" },
+  infoText: { flex: 1, minWidth: 0 },
   // A wrapping row: price first, then the buttons, "Pilih jadwal" last at the trailing edge on whichever line it lands.
   // Yoga breaks a line on each child's own width, measured at most the row's width, so a child that cannot shrink moves
   // to the next line instead of drawing over its neighbour; `maxWidth` keeps a very long one inside the row.
@@ -409,5 +470,5 @@ const useStyles = themedStyles((c) => ({
     justifyContent: "flex-end",
     gap: 8,
   },
-  action: { paddingHorizontal: 14 },
+  action: { paddingHorizontal: nativeLayout.space.lg },
 }));

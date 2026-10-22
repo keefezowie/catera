@@ -120,6 +120,15 @@ describe("layout blocks", () => {
     expect(flat(screen.getByTestId("g-glyph"))).toMatchObject({ width: 40, height: 40 });
   });
 
+  it("GlyphRow takes a tone for its circle (a meal's mood tint) and leaves a bare glyph alone", () => {
+    const { rerender } = render(<GlyphRow testID="g" glyph={<Text>*</Text>} title="Makan siang" minHeight={72} tone="#FFF7E9" />);
+    expect(flat(screen.getByTestId("g-glyph")).backgroundColor).toBe("#FFF7E9");
+    rerender(<GlyphRow testID="g" glyph={<Text>*</Text>} title="Makan siang" minHeight={72} />);
+    expect(flat(screen.getByTestId("g-glyph")).backgroundColor).toBe(nativeThemes.light.sage);
+    rerender(<GlyphRow testID="g" glyph={<Text>*</Text>} title="Makan siang" minHeight={48} tone="#FFF7E9" />);
+    expect(flat(screen.getByTestId("g-glyph")).backgroundColor).toBeUndefined();
+  });
+
   it("GlyphRow bare gives the 20 glyph at any height", () => {
     render(<GlyphRow testID="g" bare glyph={<Text>*</Text>} title="Alamat" />);
     expect(flat(screen.getByTestId("g-glyph"))).toMatchObject({ width: 20, height: 20 });
