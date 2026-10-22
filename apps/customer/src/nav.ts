@@ -77,13 +77,23 @@ export function sheetParent(path: string): string | null {
 }
 
 /**
- * The form sheets that live in the root stack (`app/masalah`, `app/ubah-hari`, `app/ulasan`, `app/alamat-form`,
- * `app/bantuan-form`, `app/hapus-akun`), not in a tab's stack. A tab-stack sheet is drawn inside the tab host on Android, where the dimming
- * view takes TalkBack's first focus and the tab bar covers the form. Their URLs did not change.
+ * The form sheets that live in the root stack (`app/hari`, `app/masalah`, `app/ubah-hari`, `app/ulasan`,
+ * `app/alamat-form`, `app/bantuan-form`, `app/hapus-akun`), not in a tab's stack. A tab-stack sheet is drawn inside the
+ * tab host on Android, where the dimming view takes TalkBack's first focus and the tab bar covers the form (the day
+ * sheet's actions sat under it). Their URLs did not change.
  */
 export function isRootSheet(path: string): boolean {
-  return /^\/(?:(?:masalah|ubah-hari|ulasan)\/[^/?#]+|alamat-form|bantuan-form|hapus-akun)\/?$/.test(pathname(path));
+  return /^\/(?:(?:hari|masalah|ubah-hari|ulasan)\/[^/?#]+|alamat-form|bantuan-form|hapus-akun)\/?$/.test(pathname(path));
 }
+
+/**
+ * The day sheet (`/hari/{id}`): a root-stack form sheet that opens over the screen in front, in any tab. Opened cold it
+ * has no tab under it, so Beranda opens first (`coldParent`).
+ */
+export const isDaySheet = (path: string) => /^\/hari\/[^/?#]+\/?$/.test(pathname(path));
+
+/** Where a sheet route opens from when no tabs are mounted yet: its parent page, or Beranda for the day sheet. */
+const coldParent = (path: string) => sheetParent(path) ?? (isDaySheet(path) ? "/" : null);
 
 /** The array-group layout gets its own segment, `(jadwal)`; this is the tab it hosts. */
 export function tabOfSegment(segment: string): Tab {
@@ -94,7 +104,8 @@ export function tabOfSegment(segment: string): Tab {
 /** Where a sheet's parent opens from outside the tabs: a tab root by its group (`ROOT_HREF`), any other page as is. */
 const parentHref = (parent: string) => {
   const tab = tabOfPath(parent);
-  return tab ? ROOT_HREF[tab] : parent;
+  // A day sheet has no tab of its own to open as a parent: Beranda is opened and the sheets open over it.
+  return tab ? ROOT_HREF[tab] : isDaySheet(parent) ? ROOT_HREF.index : parent;
 };
 
 /** A path without its query and hash. */
@@ -236,6 +247,8 @@ function openInTab(found: { root: State; at: number; tabs: State }, path: string
   // up. The link waits for that answer instead of opening its page behind the sheet.
   const after = tabsInRoot();
   if (after && after.root.index > after.at) return openWhenClear(path);
+  // The day is a sheet over whatever is in front, in any tab; the screens above the tabs have just closed.
+  if (isDaySheet(path)) return router.push(path as never);
   const group = found.tabs.routes[found.tabs.index]?.name ?? "(index)";
   const inTab = (href: string) => `/(tabs)/${group}${href.startsWith("/") ? href : `/${href}`}` as never;
   const parent = sheetParent(path);
@@ -248,7 +261,10 @@ function openInTab(found: { root: State; at: number; tabs: State }, path: string
   // A form sheet lives in the root stack: its parent page opens in the tab first, the sheet above the tabs. One that
   // was already open (Ada masalah that sent the person to Masuk) went with the screens above the tabs just now.
   if (parent && isRootSheet(path)) {
-    if (!onTop(found, group, parent)) router.push(inTab(parent));
+    // Ada masalah and Ubah hari sit over the day sheet, itself a root sheet: it closed with the screens above the tabs and
+    // opens again under them. Any other parent page opens in the tab.
+    if (isDaySheet(parent)) router.push(parent as never);
+    else if (!onTop(found, group, parent)) router.push(inTab(parent));
     return router.push(path as never);
   }
   if (parent && onTop(found, group, pathname(path))) return router.replace(inTab(path));
@@ -312,6 +328,11 @@ export function closeSheetFor(path: string) {
 function parentOpen(found: { tabs: State }, path: string): boolean {
   const parent = sheetParent(path);
   if (!parent) return true;
+  // The day sheet is a root route: it is "open" while it is anywhere in the root stack (Masuk sits above it).
+  if (isDaySheet(parent)) {
+    const id = decodeURIComponent(pathname(parent).split("/")[2] ?? "");
+    return !!appStack()?.routes.some((r) => r.name === "hari/[id]" && (r as Route & { params?: { id?: unknown } }).params?.id === id);
+  }
   const group = found.tabs.routes[found.tabs.index]?.name ?? "(index)";
   const tab = tabOfPath(parent);
   return tab ? group === `(${tab})` : onTop(found, group, parent);
@@ -362,7 +383,7 @@ export function systemPath(link: string, initial = false): string {
   const tab = tabOfPath(path) ?? LEGACY_ROOTS[pathname(path).slice(1).replace(/\/+$/, "")] ?? null;
   // "/" already opens Beranda: it is the first tab.
   if (tab) return tab !== "index" ? ROOT_HREF[tab] : url;
-  const parent = initial ? sheetParent(path) : null;
+  const parent = initial ? coldParent(path) : null;
   if (parent) {
     pending = path;
     return parentHref(parent);
@@ -409,7 +430,7 @@ export function leaveFor(path: string) {
     return openInTab(found, path);
   }
   // With no tabs under it, a sheet route opens its parent page in Beranda and then itself, once the tabs are up.
-  const parent = sheetParent(path);
+  const parent = coldParent(path);
   if (parent) pending = path;
   router.replace((parent ? parentHref(parent) : path) as never, { withAnchor: true });
 }

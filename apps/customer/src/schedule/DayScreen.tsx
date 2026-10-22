@@ -2,7 +2,7 @@ import { useEffect, useRef, type ReactNode, type RefObject } from "react";
 import { AccessibilityInfo, Image, type Text as RNText, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useLocalSearchParams } from "expo-router";
-import { pushSheet } from "../nav";
+import { closeSheetFor, pushSheet } from "../nav";
 import {
   canChangeDay,
   changeDeadline,
@@ -158,13 +158,13 @@ function Day({ id, carried }: { id: string; carried: string | undefined }) {
     address: () => pushSheet(`/ubah-hari/${id64}?mode=address` as never),
     chat: () => openCatererChat(catererPhoneOf(d)),
     report: (meal) => pushSheet(`/masalah/${id64}?meal=${meal}` as never),
-    // The menu is a page in the tab's stack: it replaces the day sheet, which would otherwise stay up over it (on iOS a
-    // pushed page can open hidden behind the sheet).
+    // The menu is a page of the tab under this sheet: the sheet closes and the page opens there (`closeSheetFor`), so it is
+    // never opened behind a sheet that stays up.
     menu: (meal) =>
-      router.replace(
-        (picks
+      closeSheetFor(
+        picks
           ? `/subscriptions/${d.subscription_id}/menu?date=${d.service_date}&meal=${meal}`
-          : packageHref(d.offer.id, d.offer.name)) as never,
+          : packageHref(d.offer.id, d.offer.name),
       ),
   };
   const actions: DayAction[] = dayVisibleActions(d, now, t).map(({ key, label, meal }) => ({

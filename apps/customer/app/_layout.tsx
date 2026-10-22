@@ -119,6 +119,8 @@ function Navigation() {
               TalkBack lands on its title and the bar never covers "Kirim laporan" (spec 4.1 fallback). Their URLs are
               unchanged; `openLink` opens the page each sits over first (`sheetParent`): Ada masalah and Ubah hari over
               their Hari, the address and help forms over Alamat and Bantuan, the review over Beranda. */}
+          {/* The day opens at three quarters and expands; it covers the tab bar, so its actions are never under it. */}
+          <Stack.Screen name="hari/[id]" options={sheetOptions({ detents: "day", palette })} />
           <Stack.Screen name="masalah/[id]" options={sheetOptions({ detents: "form", palette })} />
           {/* The calendar needs the room of the large detent. */}
           <Stack.Screen name="ubah-hari/[id]" options={sheetOptions({ detents: "large", palette })} />

@@ -148,9 +148,20 @@ const tabsState = () => rootStack().routes.find((r) => r.name === "(tabs)")?.sta
 const stack = (group: string) => tabsState()?.routes.find((r) => r.name === group)?.state?.routes.map((r) => r.name) ?? [];
 /** A form sheet is a root-stack route above the tabs; the page it opened over stays in the tab. */
 const overHari = (sheet = "masalah/[id]") => {
-  expect(stack("(index)")).toEqual(["index", "hari/[id]"]);
-  expect(root()).toEqual(["(tabs)", sheet]);
+  expect(stack("(index)")).toEqual(["index"]);
+  expect(root()).toEqual(["(tabs)", "hari/[id]", sheet]);
 };
+/** The day is a root-stack form sheet over the tab page it was opened from (Beranda here). */
+const atHari = () => {
+  expect(stack("(index)")).toEqual(["index"]);
+  expect(root()).toEqual(["(tabs)", "hari/[id]"]);
+};
+/** Opens the day over Beranda the way a row does: a push of its link. */
+async function mountDay(id: string) {
+  const app = await mount("/");
+  await go(() => router.push("/hari/" + id));
+  return app;
+}
 const go = async (work: () => void) => {
   act(work);
   await act(async () => {});
@@ -187,7 +198,7 @@ beforeEach(() => {
 
 describe("sheet routes", () => {
   it("masalah is a form sheet with the form detents", async () => {
-    const app = await mount("/hari/d-today");
+    const app = await mountDay("d-today");
     await go(() => router.push("/masalah/d-today?meal=lunch"));
     overHari();
     const sheet = screenOf("masalah/[id]");
@@ -218,14 +229,16 @@ describe("sheet routes", () => {
     expect(tabLayout).toContain('name="area"');
   });
 
-  it("Hari is a day sheet declared by its tab's stack (three quarters, then full), never the root layout", async () => {
+  it("Hari is a day sheet declared by the root layout (three quarters, then full) so it covers the tab bar, and no tab stack declares it", async () => {
     const rootLayout = readFileSync(join(APP, "_layout.tsx"), "utf8");
     const tabLayout = readFileSync(join(APP, "(tabs)", "(index,jadwal,jelajah,akun)", "_layout.tsx"), "utf8");
-    expect(tabLayout).toContain('name="hari/[id]" options={sheetOptions({ detents: "day"');
-    expect(rootLayout).not.toContain('name="hari/[id]"');
-    // The deep link keeps its place in the tab: the tab root behind the day, the day a form sheet.
-    const app = await mount("/hari/d-today");
-    expect(stack("(index)")).toEqual(["index", "hari/[id]"]);
+    expect(rootLayout).toContain('name="hari/[id]" options={sheetOptions({ detents: "day"');
+    expect(tabLayout).not.toContain('name="hari/[id]"');
+    // One route: the tab group has no copy of it.
+    expect(Object.keys(appRoutes()).filter((key) => key.split("/").slice(-2).join("/") === "hari/[id]")).toEqual(["hari/[id]"]);
+    // The day is a form sheet over the tab page in front.
+    const app = await mountDay("d-today");
+    atHari();
     const day = screenOf("hari/[id]");
     expect(day.props.stackPresentation).toBe("formSheet");
     expect(day.props.sheetAllowedDetents).toEqual([0.75, 1]);
@@ -236,7 +249,7 @@ describe("sheet routes", () => {
   it("a root-stack Ada masalah still sends the screen reader to its title, after the present and again after the settle", async () => {
     const focus = jest.spyOn(AccessibilityInfo, "sendAccessibilityEvent").mockImplementation(() => {});
     try {
-      const app = await mount("/hari/d-today");
+      const app = await mountDay("d-today");
       focus.mockClear();
       jest.useFakeTimers();
       await go(() => router.push("/masalah/d-today?meal=lunch"));
@@ -320,12 +333,12 @@ describe("useConfirm", () => {
   it("a confirm that leaves without beforeRemove still answers false, and the guarded sheet can then close", async () => {
     const back = hardwareBack();
     try {
-      const app = await mount("/hari/d-today");
+      const app = await mountDay("d-today");
       await go(() => router.push("/masalah/d-today?meal=lunch"));
       fireEvent.changeText(screen.getByLabelText("Catatan (boleh dikosongkan)"), "Nasinya basi");
       await act(async () => {});
       await go(() => void back.press());
-      expect(root()).toEqual(["(tabs)", "masalah/[id]", "konfirmasi"]);
+      expect(root()).toEqual(["(tabs)", "hari/[id]", "masalah/[id]", "konfirmasi"]);
       // The confirm route goes without any action (the container's state is reset), so no beforeRemove reaches it.
       const { store } = require("expo-router/build/global-state/store");
       const ref = store.navigationRef.current;
@@ -338,10 +351,9 @@ describe("useConfirm", () => {
       overHari();
       // The question was answered (false), so the next close asks again instead of being held forever.
       await go(() => void back.press());
-      expect(root()).toEqual(["(tabs)", "masalah/[id]", "konfirmasi"]);
+      expect(root()).toEqual(["(tabs)", "hari/[id]", "masalah/[id]", "konfirmasi"]);
       await go(() => fireEvent.press(screen.getByRole("button", { name: "Buang" })));
-      expect(root()).toEqual(["(tabs)"]);
-      expect(stack("(index)")).toEqual(["index", "hari/[id]"]);
+      atHari();
       app.unmount();
     } finally {
       back.restore();
@@ -566,7 +578,7 @@ describe("sheet states", () => {
 describe("Ada masalah as a sheet", () => {
   const typeNote = (text: string) => fireEvent.changeText(screen.getByLabelText("Catatan (boleh dikosongkan)"), text);
   async function onHari() {
-    const app = await mount("/hari/d-today");
+    const app = await mountDay("d-today");
     await go(() => router.push("/masalah/d-today?meal=lunch"));
     overHari();
     return app;
@@ -579,8 +591,8 @@ describe("Ada masalah as a sheet", () => {
       let app = await onHari();
       expect(screenOf("masalah/[id]").props.preventNativeDismiss).toBeFalsy();
       await go(() => void back.press());
-      expect(stack("(index)")).toEqual(["index", "hari/[id]"]);
-      expect(root()).toEqual(["(tabs)"]);
+      atHari();
+      expect(root()).toEqual(["(tabs)", "hari/[id]"]);
       app.unmount();
 
       // Typed text: the iOS swipe is held and back asks first.
@@ -589,9 +601,8 @@ describe("Ada masalah as a sheet", () => {
       await act(async () => {});
       expect(screenOf("masalah/[id]").props.preventNativeDismiss).toBe(true);
       await go(() => void back.press());
-      expect(root()).toEqual(["(tabs)", "masalah/[id]", "konfirmasi"]);
-      expect(stack("(index)")).toEqual(["index", "hari/[id]"]);
-      expect(screen.getByRole("header", { name: "Buang laporan?" })).toBeTruthy();
+      expect(root()).toEqual(["(tabs)", "hari/[id]", "masalah/[id]", "konfirmasi"]);
+            expect(screen.getByRole("header", { name: "Buang laporan?" })).toBeTruthy();
       expect(screen.getByText("Yang sudah kamu tulis akan hilang.")).toBeTruthy();
       // Keep writing: the sheet and the text stay.
       await go(() => fireEvent.press(screen.getByRole("button", { name: "Lanjut menulis" })));
@@ -601,8 +612,8 @@ describe("Ada masalah as a sheet", () => {
       await go(() => void back.press());
       expect(screen.getAllByRole("header", { name: "Buang laporan?" })).toHaveLength(1);
       await go(() => fireEvent.press(screen.getByRole("button", { name: "Buang" })));
-      expect(root()).toEqual(["(tabs)"]);
-      expect(stack("(index)")).toEqual(["index", "hari/[id]"]);
+      expect(root()).toEqual(["(tabs)", "hari/[id]"]);
+      atHari();
       app.unmount();
     } finally {
       back.restore();
@@ -623,13 +634,13 @@ describe("Ada masalah as a sheet", () => {
     await act(async () => {});
     // Close at the leading edge of the iOS title row goes back, and asks first.
     await go(() => router.back());
-    expect(root()).toEqual(["(tabs)", "masalah/[id]", "konfirmasi"]);
+    expect(root()).toEqual(["(tabs)", "hari/[id]", "masalah/[id]", "konfirmasi"]);
     await go(() => fireEvent.press(screen.getByRole("button", { name: "Lanjut menulis" })));
     overHari();
     await go(() => router.back());
-    expect(root()).toEqual(["(tabs)", "masalah/[id]", "konfirmasi"]);
+    expect(root()).toEqual(["(tabs)", "hari/[id]", "masalah/[id]", "konfirmasi"]);
     await go(() => fireEvent.press(screen.getByRole("button", { name: "Buang" })));
-    expect(stack("(index)")).toEqual(["index", "hari/[id]"]);
+    atHari();
     app.unmount();
   });
 
@@ -638,11 +649,12 @@ describe("Ada masalah as a sheet", () => {
     typeNote("Kurang sambal");
     await act(async () => {});
     await go(() => openLink("/hari/d-next-1"));
-    expect(root()).toEqual(["(tabs)", "masalah/[id]", "konfirmasi"]);
-    expect(stack("(index)")).toEqual(["index", "hari/[id]"]);
-    await go(() => fireEvent.press(screen.getByRole("button", { name: "Buang" })));
-    expect(root()).toEqual(["(tabs)"]);
-    expect(stack("(index)")).toEqual(["index", "hari/[id]", "hari/[id]"]);
+    expect(root()).toEqual(["(tabs)", "hari/[id]", "masalah/[id]", "konfirmasi"]);
+        await go(() => fireEvent.press(screen.getByRole("button", { name: "Buang" })));
+    // The report closed with its day; the day the link names opens in their place.
+    expect(root()).toEqual(["(tabs)", "hari/[id]"]);
+    expect(rootStack().routes.at(-1)!.params).toMatchObject({ id: "d-next-1" });
+    expect(stack("(index)")).toEqual(["index"]);
     app.unmount();
   });
 
@@ -659,8 +671,8 @@ describe("Ada masalah as a sheet", () => {
     // Closing the report later (discarding) must not open the old link out of the blue.
     await go(() => router.back());
     await go(() => fireEvent.press(screen.getByRole("button", { name: "Buang" })));
-    expect(root()).toEqual(["(tabs)"]);
-    expect(stack("(index)")).toEqual(["index", "hari/[id]"]);
+    expect(root()).toEqual(["(tabs)", "hari/[id]"]);
+    atHari();
     app.unmount();
   });
 
@@ -682,8 +694,8 @@ describe("Ada masalah as a sheet", () => {
     await act(async () => {});
     // Android's bottom sheet cannot be held, so the sheet is gone; blocking it now would leave a route on no screen.
     await swipeAway("masalah/[id]");
-    expect(stack("(index)")).toEqual(["index", "hari/[id]"]);
-    expect(root()).toEqual(["(tabs)"]);
+    atHari();
+    expect(root()).toEqual(["(tabs)", "hari/[id]"]);
     await go(() => router.push("/masalah/d-today?meal=lunch"));
     expect(screen.getByLabelText("Catatan (boleh dikosongkan)").props.value).toBe("Lauknya kurang");
     app.unmount();
@@ -726,7 +738,7 @@ describe("Ada masalah as a sheet", () => {
       expect(screen.getByLabelText("Catatan (boleh dikosongkan)").props.value).toBe("Lauknya kurang");
       await go(() => void back.press());
       await go(() => fireEvent.press(screen.getByRole("button", { name: "Buang" })));
-      expect(stack("(index)")).toEqual(["index", "hari/[id]"]);
+      atHari();
       app.unmount();
     } finally {
       mockSession.actor = signedIn;
@@ -743,8 +755,8 @@ describe("Ada masalah as a sheet", () => {
       await go(() => fireEvent.press(screen.getByRole("button", { name: "Kirim laporan" })));
       await act(async () => {});
       expect(mockCommand).toHaveBeenCalledTimes(1);
-      expect(root()).toEqual(["(tabs)"]);
-      expect(stack("(index)")).toEqual(["index", "hari/[id]"]);
+      expect(root()).toEqual(["(tabs)", "hari/[id]"]);
+      atHari();
       expect(screen.getByText("Laporan terkirim")).toBeTruthy();
       // The sent note is not kept as a draft: Ada masalah for that day opens empty.
       await go(() => router.push("/masalah/d-today?meal=lunch"));

@@ -9,6 +9,7 @@ import { act, fireEvent, renderRouter, screen, within } from "expo-router/testin
 import { nativeThemes } from "@catera/design-tokens";
 import { SHEET_CLOSE_MS } from "@catera/mobile-ui";
 import { addDays, jakartaDay, shortDate, type CustomerState, type Delivery } from "@catera/domain";
+import { systemPath } from "../src/nav";
 import { dayActionInput, dayHasActions } from "../src/schedule/dayActions";
 import { customerState, delivery, subscription } from "./fixtures";
 
@@ -184,10 +185,15 @@ const rootStack = () => {
 const root = () => rootStack().routes.map((r) => r.name);
 const tabsState = () => rootStack().routes.find((r) => r.name === "(tabs)")?.state;
 const stack = (group: string) => tabsState()?.routes.find((r) => r.name === group)?.state?.routes.map((r) => r.name) ?? [];
-/** A form sheet is a root-stack route above the tabs; the page it opened over stays in its tab. */
+/** The day is a root-stack form sheet over the tab page in front (Beranda here). */
+const atHari = () => {
+  expect(stack("(index)")).toEqual(["index"]);
+  expect(root()).toEqual(["(tabs)", "hari/[id]"]);
+};
+/** A form sheet over the day sheet: both are root-stack routes above the tabs; the page under them stays in its tab. */
 const overDay = (sheet: string) => {
-  expect(stack("(index)")).toEqual(["index", "hari/[id]"]);
-  expect(root()).toEqual(["(tabs)", sheet]);
+  expect(stack("(index)")).toEqual(["index"]);
+  expect(root()).toEqual(["(tabs)", "hari/[id]", sheet]);
 };
 /** A form sheet opened from the day's "…" on Beranda: over Beranda itself, no Hari between. */
 const overHome = (sheet: string) => {
@@ -202,6 +208,12 @@ const go = async (work: () => void) => {
   act(work);
   await act(async () => {});
 };
+/** Opens the day over Beranda the way a row does: a push of its link. */
+async function mountDay(id: string) {
+  const app = await mount("/");
+  await go(() => router.push("/hari/" + id));
+  return app;
+}
 type Host = { type: unknown; props: Record<string, unknown> };
 const screenOf = (route: string) => {
   const found = (screen.UNSAFE_root.findAll((n) => n.type === "RNSScreen") as unknown as Host[])
@@ -335,7 +347,7 @@ describe("routes", () => {
   it("each short task opens as a form sheet", async () => {
     answer("ubah-hari:d1", stateWith([open("d1", addDays(TODAY, 2))]));
     answer("ulasan:s-1", stateWith([]));
-    const app = await mount("/hari/d1");
+    const app = await mount("/");
     for (const [path, route, detents] of [
       // Ubah hari holds a month calendar, so it opens at the large detent.
       ["/ubah-hari/d1", "ubah-hari/[id]", "large"],
@@ -386,7 +398,7 @@ describe("routes", () => {
         const s = screenOf(route);
         return { route, presentation: s.props.stackPresentation, animation: s.props.stackAnimation };
       };
-      const app = await mount("/hari/d1");
+      const app = await mount("/");
       for (const [path, route] of [
         ["/ubah-hari/d1", "ubah-hari/[id]"],
         ["/ulasan/s-1", "ulasan/[id]"],
@@ -414,12 +426,15 @@ describe("routes", () => {
 });
 
 describe("the day's actions", () => {
-  it("Hari is a form sheet in its tab's stack that opens at three quarters and expands, over the page that opened it", async () => {
+  it("Hari is a root-stack form sheet that opens at three quarters and expands, covering the tab bar, over the page that opened it", async () => {
     answer("day:d1", stateWith([open("d1", addDays(TODAY, 2))]));
-    const app = await mount("/hari/d1");
-    // A cold link keeps the tab root behind the day, as before; only the presentation changed.
-    expect(stack("(index)")).toEqual(["index", "hari/[id]"]);
-    expect(root()).toEqual(["(tabs)"]);
+    // A cold link opens Beranda with the day over it: the tab root is behind the sheet.
+    const cold = await mount(systemPath("/hari/d1", true));
+    await act(async () => {});
+    atHari();
+    cold.unmount();
+    const app = await mountDay("d1");
+    atHari();
     expectSheet("hari/[id]", "day");
     // It has no title row and no stack header: the day's own line is the first text, a header for the screen reader.
     expect(screen.getByRole("header", { name: new RegExp(`^${shortDate(addDays(TODAY, 2), "id")}`) })).toBeTruthy();
@@ -431,7 +446,7 @@ describe("the day's actions", () => {
     const d = open("d1", addDays(TODAY, 2));
     answer("day:d1", stateWith([d]));
     // The caterer picks and the menu is set: the package page.
-    let app = await mount("/hari/d1");
+    let app = await mountDay("d1");
     await go(() => fireEvent.press(screen.getByRole("button", { name: "Lihat menu" })));
     expect(stack("(index)")).toEqual(["index", "paket/[id]"]);
     expect(root()).toEqual(["(tabs)"]);
@@ -439,7 +454,7 @@ describe("the day's actions", () => {
     // A pick-your-own package: the menu choice.
     const picks = { ...d, offer: { ...d.offer, menuSelectionMode: "customer" } } as Delivery;
     answer("day:d1", stateWith([picks]));
-    app = await mount("/hari/d1");
+    app = await mountDay("d1");
     await go(() => fireEvent.press(screen.getByRole("button", { name: "Pilih menu" })));
     expect(stack("(index)")).toEqual(["index", "pilih-menu/[id]"]);
     expect(root()).toEqual(["(tabs)"]);
@@ -452,7 +467,7 @@ describe("the day's actions", () => {
     const fresh = { ...d, cutoff_at: new Date(Date.now() + 3600_000).toISOString() };
     answer("day:d1", stateWith([fresh]));
     answer("ubah-hari:d1", stateWith([fresh]));
-    let app = await mount("/hari/d1");
+    let app = await mountDay("d1");
     expect(["Ubah hari", "Lihat menu", "Ada masalah", "Chat", "Ganti alamat"].filter((name) => screen.queryByRole("button", { name }))).toEqual([
       "Ubah hari",
       "Lihat menu",
@@ -465,7 +480,7 @@ describe("the day's actions", () => {
     await go(() => fireEvent.press(screen.getByRole("button", { name: "Ada masalah" })));
     overDay("masalah/[id]");
     app.unmount();
-    app = await mount("/hari/d1");
+    app = await mountDay("d1");
     await go(() => fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" })));
     overDay("ubah-hari/[id]");
     expect(screen.getByRole("tab", { name: "Ganti alamat" }).props.accessibilityState.selected).toBe(true);
@@ -609,7 +624,7 @@ describe("outcomes", () => {
     answer("day:d1", stateWith([d]));
     answer("ubah-hari:d1", stateWith([d]));
     answer(`availability:d1:${TODAY}`, [{ date: target, available: true, reason: null, remaining: 3 }]);
-    const app = await mount("/hari/d1");
+    const app = await mountDay("d1");
     await go(() => fireEvent.press(screen.getByRole("button", { name: "Ubah hari" })));
     overDay("ubah-hari/[id]");
     // The sheet's title is the day, its context the package and caterer.
@@ -620,7 +635,7 @@ describe("outcomes", () => {
     await go(() => fireEvent.press(screen.getByRole("button", { name: `Pindah ke ${shortDate(target, "id")}` })));
     expect(mockCommand).toHaveBeenCalledWith("delivery.reschedule", { id: "d1", version: 1, date: target, kind: "reschedule" });
     await act(async () => {});
-    expect(stack("(index)")).toEqual(["index", "hari/[id]"]);
+    atHari();
     expect(screen.getByText(`Pengantaran pindah ke ${shortDate(target, "id")}`)).toBeTruthy();
     app.unmount();
   });
@@ -874,7 +889,7 @@ describe("states", () => {
     // A day that offers every action to the person it belongs to: today, before the cutoff, on its way, with the
     // caterer's number. Signed out, none of it is shown or offered.
     answer("day:d1", stateWith([open("d1", TODAY, {}, { status: "out_for_delivery" })]));
-    const app = await mount("/hari/d1");
+    const app = await mountDay("d1");
     expect(within(screenOf("hari/[id]") as never).getByRole("button", { name: "Masuk" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /^Pilihan untuk / })).toBeNull();
     expect(screen.queryByTestId("header-more")).toBeNull();

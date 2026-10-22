@@ -13,6 +13,7 @@ import { Jadwal } from "../src/schedule/Jadwal";
 import { ChangeDaySheet } from "../src/schedule/ChangeDaySheet";
 import { DayScreen } from "../src/schedule/DayScreen";
 import { customerLink } from "../src/links";
+import { closeSheetFor } from "../src/nav";
 import { SHEET_FOCUS_FALLBACK_MS, SHEET_FOCUS_SETTLE_MS } from "@catera/mobile-ui";
 import { ACTION_CIRCLE, DAY_ACTION_GAP, DAY_ACTIONS_PAD, DAY_GAP, DAY_MEAL_GAP } from "../src/schedule/dayMetrics";
 import { delivery, offer, subscription } from "./fixtures";
@@ -23,6 +24,9 @@ jest.mock("expo-router", () => ({
   Link: () => null,
   useLocalSearchParams: () => mockParams,
 }));
+// The day sheet closes itself and opens a page of the tab under it through the navigation helper; without a navigator
+// that helper has nothing to act on, so these tests read what it was asked to open.
+jest.mock("../src/nav", () => ({ ...jest.requireActual("../src/nav"), closeSheetFor: jest.fn() }));
 jest.mock("expo-notifications", () => ({
   setNotificationHandler: jest.fn(),
   addNotificationReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
@@ -1287,15 +1291,15 @@ describe("Hari", () => {
       expect(screen.getByRole("button", { name: "Pilih menu" })).toBeTruthy();
       expect(screen.queryByRole("button", { name: "Lihat menu" })).toBeNull();
       fireEvent.press(screen.getByRole("button", { name: "Pilih menu" }));
-      // The page replaces the day sheet; it is never pushed under it.
-      expect(router.replace).toHaveBeenLastCalledWith("/subscriptions/s-1/menu?date=2026-10-08&meal=lunch");
+      // The sheet closes and the page opens in the tab under it; it is never pushed under a sheet that stays up.
+      expect(closeSheetFor).toHaveBeenLastCalledWith("/subscriptions/s-1/menu?date=2026-10-08&meal=lunch");
       expect(router.push).not.toHaveBeenCalled();
       view.unmount();
       // The caterer picks and the menu is set: Lihat menu opens the package.
       await showDay(open("d-next", "2026-10-08"));
       expect(screen.queryByRole("button", { name: "Pilih menu" })).toBeNull();
       fireEvent.press(screen.getByRole("button", { name: "Lihat menu" }));
-      expect(router.replace).toHaveBeenLastCalledWith(`/paket/p-rumahan?title=${encodeURIComponent("Makan Siang Rumahan")}`);
+      expect(closeSheetFor).toHaveBeenLastCalledWith(`/paket/p-rumahan?title=${encodeURIComponent("Makan Siang Rumahan")}`);
       expect(router.push).not.toHaveBeenCalled();
     });
 
@@ -1511,6 +1515,25 @@ describe("Hari", () => {
       for (const label of ["Ubah hari", "Lihat menu", "Chat", "Ganti alamat"]) {
         expect(screen.getByText(label).props.numberOfLines).toBeUndefined();
       }
+    });
+
+    it("keeps the address and the actions inside the sheet's scrolling body, so at 0.75 and font scale 1.3 they scroll into reach", async () => {
+      mockWidth = 360;
+      mockFontScale = 1.3;
+      await showDay(four());
+      const body = screen.getByTestId("sheet-body");
+      // Everything under the photo is content of the scroll view: nothing is pinned, fixed in height or clipped by the sheet.
+      expect(within(body).getByTestId("day-address")).toBeTruthy();
+      expect(within(body).getByTestId("day-actions")).toBeTruthy();
+      expect(screen.queryByTestId("sheet-footer")).toBeNull();
+      expect(body.props.nestedScrollEnabled).toBe(true);
+      const style = StyleSheet.flatten(body.props.contentContainerStyle) as Record<string, unknown>;
+      expect(style.height).toBeUndefined();
+      expect(style.maxHeight).toBeUndefined();
+      // The rows grow with the text instead of being cut.
+      for (const label of ["Ubah hari", "Lihat menu", "Chat", "Ganti alamat"]) expect(screen.getByText(label).props.numberOfLines).toBeUndefined();
+      expect(flat(screen.getByTestId("day-address")).minHeight).toBe(56);
+      expect(flat(screen.getByTestId("day-address")).height).toBeUndefined();
     });
 
     it("wraps at font scale 1.3 and keeps the circles 56", async () => {
