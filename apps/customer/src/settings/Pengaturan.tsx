@@ -1,23 +1,9 @@
 import { router } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import { useMobile } from "@catera/mobile-core";
-import { HeaderIconButton, Pengaturan as SharedPengaturan, useMoodColors } from "@catera/mobile-ui";
+import { Pengaturan as SharedPengaturan } from "@catera/mobile-ui";
 import { DataAkunEntry } from "../account/DataAkun";
 import { goToTab } from "../nav";
-
-/** The gear at the end of Akun's header row; it reads the mood header's text colour. */
-export function SettingsGear() {
-  const { t } = useMobile();
-  const mood = useMoodColors();
-  return (
-    <HeaderIconButton
-      icon="settings"
-      label={t("Pengaturan", "Settings")}
-      tint={mood.headerText}
-      onPress={() => router.push("/pengaturan" as never)}
-    />
-  );
-}
 
 /** The customer app's Pengaturan: the shared screen with its notification line and its way back to sign-in. */
 export function Pengaturan() {

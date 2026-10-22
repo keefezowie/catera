@@ -21,7 +21,7 @@ import { SavedList } from "../src/discover/SavedList";
 import { ReportList } from "../src/help/ReportList";
 import { customerLink } from "../src/links";
 import { PlanDetailScreen } from "../src/plan/PlanDetail";
-import { PaketSaya, PlanList } from "../src/plan/PlanList";
+import { PaketSaya } from "../src/plan/PlanList";
 import { ChooseMenu } from "../src/schedule/ChooseMenu";
 import { DayScreen } from "../src/schedule/DayScreen";
 import { Jadwal } from "../src/schedule/Jadwal";
@@ -384,7 +384,7 @@ const STATES: State[] = [
     action: "Coba lagi",
   },
   {
-    name: "Paket aktif that could not load",
+    name: "Paket saya that could not load",
     pose: "bingung",
     runtime: () => runtimeWith({ customer: jest.fn(async () => Promise.reject(offline())) }),
     ui: <PaketSaya />,
@@ -472,13 +472,6 @@ describe("each empty and error state shows its pose and keeps its copy and actio
     // The rows are the weeks the month needs (the frame grows only below them, to hold the message).
     expect(within(frame).getAllByTestId("month-week", hidden)).toHaveLength(monthWeeks(monthOf(jakartaDay(new Date()))).length);
     expect(within(frame).getByRole("button", { name: "Coba lagi" })).toBeTruthy();
-  });
-
-  it("keeps Akun's embedded plan list the compact line when its read fails: the page around it still stands", async () => {
-    const reload = jest.fn(async () => undefined);
-    render(wrap(runtimeWith(), <PlanList customer={{ data: null, loading: false, error: "Belum bisa memuat.", reload }} />));
-    expect(await screen.findByRole("button", { name: "Coba lagi" })).toBeTruthy();
-    for (const pose of POSES) expect(screen.queryByTestId(`mascot-${pose}`, hidden)).toBeNull();
   });
 });
 

@@ -1,11 +1,12 @@
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react-native";
+import * as ReactNative from "react-native";
 import { StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import * as Notifications from "expo-notifications";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
-import { nativeMood } from "@catera/design-tokens";
+import { nativeMood, nativeThemes } from "@catera/design-tokens";
 import { MoodProvider, ThemeProvider, ToastProvider } from "@catera/mobile-ui";
 import { addDays, type CustomerActionItem, type CustomerState } from "@catera/domain";
 import { Akun } from "../src/account/Akun";
@@ -17,7 +18,7 @@ import { BahasaSheet, TampilanSheet } from "../src/settings/ChoiceSheets";
 import { Beranda } from "../src/today/Beranda";
 import { customerLink } from "../src/links";
 import { AddressForm } from "../src/account/AddressForm";
-import { customerState, subscription, offer, TODAY } from "./fixtures";
+import { customerState, eightPlans, subscription, offer, TODAY } from "./fixtures";
 import { SheetHost } from "./sheetHost";
 
 let mockParams: Record<string, string> = {};
@@ -123,47 +124,198 @@ beforeEach(() => {
   (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: "undetermined" });
 });
 
-describe("Akun", () => {
-  it("Akun lists packages and opens its account rows", async () => {
-    const runtime = runtimeWith(
-      {
-        subscriptions: [
-          subscription(),
-          subscription({
-            id: "s-old",
-            status: "completed",
-            remaining: 0,
-            snapshot: { offer: offer({ name: "Paket Lama" }), total: 90000 } as never,
-          }),
-        ],
-      },
-      { phone: "6281234567890" },
-    );
-    renderWith(runtime, <Akun />);
-    expect(await screen.findByText("Rani Contoh")).toBeTruthy();
-    expect(await screen.findByText("0812-3456-7890")).toBeTruthy();
-    expect(await screen.findByText("Makan Siang Rumahan")).toBeTruthy();
-    expect(screen.getByText("Dapur Contoh · 6 hari lagi")).toBeTruthy();
-    expect(screen.queryByText("Paket Lama")).toBeNull();
-    fireEvent.press(screen.getByText("Makan Siang Rumahan"));
-    // The link carries the name, so the plan's header is final on its first frame.
-    expect(router.push).toHaveBeenCalledWith("/subscriptions/s-1?title=Makan%20Siang%20Rumahan");
+/** The phone the screen is drawn on; a test sets it to try another width or text size. */
+let mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1 };
+jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
+  __esModule: true,
+  default: () => mockWindow,
+}));
 
+const flat = (node: { props: { style?: unknown } }) => StyleSheet.flatten(node.props.style as never) as Record<string, unknown>;
+const address = (id: string, label: string) => ({
+  id,
+  label,
+  line: "Jl. Contoh No. 1",
+  area: "Jakarta Selatan",
+  city: "Jakarta",
+  instructions: "",
+  version: 1,
+});
+
+describe("Akun", () => {
+  beforeEach(() => {
+    mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1 };
+  });
+
+  const finished = () =>
+    subscription({
+      id: "s-old",
+      status: "completed",
+      remaining: 0,
+      snapshot: { offer: offer({ name: "Paket Lama" }), total: 90000 } as never,
+    });
+
+  it("opens with the initials avatar and the name in heroTitle, with the phone under it and no settings gear", async () => {
+    renderWith(runtimeWith({}, { phone: "6281234567890" }), <Akun />);
+    const header = await screen.findByTestId("akun-header");
+    const avatar = within(header).getByTestId("akun-avatar");
+    expect(flat(avatar)).toMatchObject({ width: 56, height: 56, borderRadius: 28 });
+    expect(within(avatar).getByText("RC")).toBeTruthy();
+    const name = within(header).getByText("Rani Contoh");
+    expect(name.props.accessibilityRole).toBe("header");
+    expect(flat(name)).toMatchObject({ fontSize: 24, lineHeight: 30 });
+    expect(await within(header).findByText("0812-3456-7890")).toBeTruthy();
+    expect(within(header).queryByRole("button")).toBeNull();
+  });
+
+  it("takes one initial for a one-word name", async () => {
+    renderWith(runtimeWith({}, { actor: { id: "u-2", role: "customer", name: "Rani" } }), <Akun />);
+    expect(within(await screen.findByTestId("akun-avatar")).getByText("R")).toBeTruthy();
+  });
+
+  it("shows three shortcut tiles, each with its label over its count, that open Paket saya, Alamat and Riwayat", async () => {
+    renderWith(
+      runtimeWith({ subscriptions: [subscription(), finished()], addresses: [address("a-1", "Kantor"), address("a-2", "Rumah")] }),
+      <Akun />,
+    );
+    const paket = await screen.findByTestId("akun-tile-paket");
+    expect(within(paket).getByText("Paket saya")).toBeTruthy();
+    // Only the running plan counts; the finished one is not "aktif".
+    expect(await within(paket).findByText("1 aktif")).toBeTruthy();
+    const alamat = screen.getByTestId("akun-tile-alamat");
+    expect(within(alamat).getByText("2 tersimpan")).toBeTruthy();
+    const riwayat = screen.getByTestId("akun-tile-riwayat");
+    expect(within(riwayat).getByText("Riwayat")).toBeTruthy();
+    expect(within(riwayat).getByText("Pembayaran")).toBeTruthy();
+    // Gap 8, radius 16, at least 96 tall; the label is bodyStrong and the count is meta.
+    for (const tile of [paket, alamat, riwayat]) expect(flat(tile)).toMatchObject({ minHeight: 96, borderRadius: 16 });
+    expect(flat(screen.getByTestId("akun-tiles"))).toMatchObject({ columnGap: 8, rowGap: 8 });
+    expect(flat(within(paket).getByText("Paket saya"))).toMatchObject({ fontSize: 15, lineHeight: 22 });
+    expect(flat(within(paket).getByText("1 aktif"))).toMatchObject({ fontSize: 13, lineHeight: 18 });
+    fireEvent.press(paket);
+    expect(router.push).toHaveBeenLastCalledWith("/paket-saya");
+    fireEvent.press(alamat);
+    expect(router.push).toHaveBeenLastCalledWith("/alamat");
+    fireEvent.press(riwayat);
+    expect(router.push).toHaveBeenLastCalledWith("/pembayaran");
+  });
+
+  it("says Tidak ada for no running plan and no saved address", async () => {
+    renderWith(runtimeWith({ subscriptions: [finished()], addresses: [] }), <Akun />);
+    expect(await within(await screen.findByTestId("akun-tile-paket")).findByText("Tidak ada")).toBeTruthy();
+    expect(within(screen.getByTestId("akun-tile-alamat")).getByText("Tidak ada")).toBeTruthy();
+  });
+
+  it("counts eight running plans", async () => {
+    renderWith(runtimeWith(eightPlans()), <Akun />);
+    expect(await within(await screen.findByTestId("akun-tile-paket")).findByText("8 aktif")).toBeTruthy();
+  });
+
+  it("keeps the tiles reachable without counts when the plan read fails", async () => {
+    const failing = async () => Promise.reject(Object.assign(new Error("REQUEST_FAILED"), { code: "REQUEST_FAILED" }));
+    const runtime = runtimeWith(failing);
+    renderWith(runtime, <Akun />);
+    const paket = await screen.findByTestId("akun-tile-paket");
+    await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
+    await act(async () => {});
+    expect(within(paket).queryByText(/aktif|Tidak ada/)).toBeNull();
+    expect(within(screen.getByTestId("akun-tile-alamat")).queryByText(/tersimpan|Tidak ada/)).toBeNull();
+    fireEvent.press(paket);
+    expect(router.push).toHaveBeenLastCalledWith("/paket-saya");
+  });
+
+  it("lists Data akun, Disimpan, Notifikasi and Bantuan dan laporan in one card of 56 rows, and Pengaturan in a card of its own", async () => {
+    renderWith(runtimeWith({}), <Akun />);
+    await screen.findByTestId("akun-tiles");
+    expect(screen.getAllByTestId("list-card")).toHaveLength(2);
+    const [rows, settings] = screen.getAllByTestId("list-card");
+    const names = within(rows)
+      .getAllByRole("button")
+      .map((b) => within(b).getByText(/[A-Za-z]/).props.children);
+    expect(names).toEqual(["Data akun", "Disimpan", "Notifikasi", "Bantuan dan laporan"]);
     for (const [label, href] of [
-      ["Alamat", "/alamat"],
+      ["Data akun", "/data-akun"],
       ["Disimpan", "/disimpan"],
-      ["Riwayat pembayaran", "/pembayaran"],
-      ["Bantuan dan laporan", "/bantuan"],
       ["Notifikasi", "/notifications"],
+      ["Bantuan dan laporan", "/bantuan"],
     ]) {
-      fireEvent.press(screen.getByRole("button", { name: new RegExp(`^${label}`) }));
+      fireEvent.press(within(rows).getByText(label));
       expect(router.push).toHaveBeenLastCalledWith(href);
     }
-    // Keluar moved to Pengaturan (settings.test), the last row here.
-    const rows = screen.getAllByRole("button", { name: "Pengaturan" });
-    fireEvent.press(rows[rows.length - 1]);
+    for (const row of within(rows).getAllByRole("button")) expect(flat(row)).toMatchObject({ minHeight: 56 });
+    // Pengaturan sits apart and says what it holds.
+    expect(within(settings).getByText("Pengaturan")).toBeTruthy();
+    expect(within(settings).getByText("Bahasa, tampilan")).toBeTruthy();
+    fireEvent.press(within(settings).getByText("Pengaturan"));
     expect(router.push).toHaveBeenLastCalledWith("/pengaturan");
+    // Alamat and Riwayat are tiles now, not rows; no Keluar here.
+    expect(within(rows).queryByText("Alamat")).toBeNull();
+    expect(screen.queryByText("Riwayat pembayaran")).toBeNull();
     expect(screen.queryByRole("button", { name: "Keluar" })).toBeNull();
+  });
+
+  it("holds no plan rows: active plans live in Paket saya", async () => {
+    renderWith(runtimeWith({ subscriptions: [subscription(), finished()] }), <Akun />);
+    expect(await screen.findByText("1 aktif")).toBeTruthy();
+    expect(screen.queryByText("Makan Siang Rumahan")).toBeNull();
+    expect(screen.queryByText("Dapur Contoh · 6 hari lagi")).toBeNull();
+    expect(screen.queryByText("Paket Lama")).toBeNull();
+    expect(screen.queryByText("Paket aktif")).toBeNull();
+  });
+
+  it("stacks the tiles in one column and lets every label wrap at 360dp and font scale 1.3", async () => {
+    mockWindow = { width: 360, height: 800, scale: 3, fontScale: 1.3 };
+    renderWith(runtimeWith(eightPlans(), { phone: "6281234567890" }), <Akun />);
+    await screen.findByTestId("akun-tiles");
+    expect(flat(screen.getByTestId("akun-tiles")).flexDirection).toBe("column");
+    // Nothing a tile or a row must show is cut to one line.
+    for (const id of ["akun-tile-paket", "akun-tile-alamat", "akun-tile-riwayat"]) {
+      for (const text of within(screen.getByTestId(id)).getAllByText(/./)) expect(text.props.numberOfLines).toBeUndefined();
+    }
+    for (const row of within(screen.getAllByTestId("list-card")[0]).getAllByRole("button"))
+      for (const text of within(row).getAllByText(/./)) expect(text.props.numberOfLines).toBeUndefined();
+  });
+
+  it("keeps three columns at 411dp and font scale 1.3 and at 360dp and font scale 1", async () => {
+    for (const w of [
+      { width: 411, height: 860, scale: 3, fontScale: 1.3 },
+      { width: 360, height: 800, scale: 3, fontScale: 1 },
+    ]) {
+      mockWindow = w;
+      const view = renderWith(runtimeWith({}), <Akun />);
+      await screen.findByTestId("akun-tiles");
+      expect(flat(screen.getByTestId("akun-tiles")).flexDirection).toBe("row");
+      view.unmount();
+    }
+  });
+
+  it("takes the dark theme's surface for the tiles and the cards, and its ink for the labels", async () => {
+    const scheme = jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
+    const dark = nativeThemes.dark;
+    render(
+      <ThemeProvider storageKey="akun-dark-test">
+        <MobileProvider runtime={runtimeWith({})} linkMapper={customerLink}>
+          <Akun />
+        </MobileProvider>
+      </ThemeProvider>,
+    );
+    const paket = await screen.findByTestId("akun-tile-paket");
+    expect(flat(paket).backgroundColor).toBe(dark.surface);
+    expect(flat(within(paket).getByText("Paket saya")).color).toBe(dark.charcoal);
+    expect(flat(screen.getAllByTestId("list-card")[0]).backgroundColor).toBe(dark.surface);
+    scheme.mockRestore();
+  });
+
+  it("reads the tiles in English", async () => {
+    (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.locale", "en");
+    renderWith(runtimeWith({ subscriptions: [subscription()], addresses: [address("a-1", "Kantor")] }), <Akun />);
+    const paket = await screen.findByTestId("akun-tile-paket");
+    expect(within(paket).getByText("My plans")).toBeTruthy();
+    expect(await within(paket).findByText("1 active")).toBeTruthy();
+    expect(within(screen.getByTestId("akun-tile-alamat")).getByText("Addresses")).toBeTruthy();
+    expect(within(screen.getByTestId("akun-tile-alamat")).getByText("1 saved")).toBeTruthy();
+    expect(within(screen.getByTestId("akun-tile-riwayat")).getByText("History")).toBeTruthy();
+    expect(within(screen.getByTestId("akun-tile-riwayat")).getByText("Payments")).toBeTruthy();
   });
 
   it("language switch changes copy to English", async () => {
@@ -175,40 +327,18 @@ describe("Akun", () => {
         <BahasaSheet />
       </>,
     );
-    expect(await screen.findByRole("button", { name: /^Riwayat pembayaran/ })).toBeTruthy();
+    expect(await screen.findByText("Paket saya")).toBeTruthy();
     fireEvent.press(screen.getByRole("radio", { name: "English" }));
-    expect(await screen.findByRole("button", { name: /^Payment history/ })).toBeTruthy();
-    expect(screen.getAllByRole("button", { name: "Settings" })).toHaveLength(2);
-    // The same words as Beranda's plans row and Paket saya: plans, never packages.
-    expect(screen.getByText("Active plans")).toBeTruthy();
-    expect(screen.queryByText(/active packages/i)).toBeNull();
+    expect(await screen.findByText("My plans")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^Settings/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^Help and reports/ })).toBeTruthy();
     expect(SecureStore.setItemAsync).toHaveBeenCalledWith("catera.locale", "en");
-  });
-
-  it("English remaining days are singular for one day and plural otherwise", async () => {
-    renderWith(
-      runtimeWith({
-        subscriptions: [
-          subscription({ remaining: 1 }),
-          subscription({ id: "s-2", remaining: 6, snapshot: { offer: offer({ name: "Paket Dua" }), total: 90000 } as never }),
-        ],
-      }),
-      <>
-        <Akun />
-        <BahasaSheet />
-      </>,
-    );
-    expect(await screen.findByText("Dapur Contoh · 1 hari lagi")).toBeTruthy();
-    fireEvent.press(screen.getByRole("radio", { name: "English" }));
-    expect(await screen.findByText("Dapur Contoh · 1 day to go")).toBeTruthy();
-    expect(screen.getByText("Dapur Contoh · 6 days to go")).toBeTruthy();
-    expect(screen.queryByText(/1 days/)).toBeNull();
   });
 
   it("shows no caterer or admin workspace links", async () => {
     renderWith(runtimeWith({}, { actor: { id: "u-o1", role: "owner", name: "Pemilik Contoh" } }), <Akun />);
     expect(await screen.findByText("Pemilik Contoh")).toBeTruthy();
-    expect(screen.getAllByRole("button", { name: "Pengaturan" })).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: /^Pengaturan/ })).toHaveLength(1);
     expect(screen.queryByText(/ruang kerja|Catera Admin|workspace/i)).toBeNull();
   });
 
@@ -222,7 +352,8 @@ describe("Akun", () => {
     );
     fireEvent.press(await screen.findByRole("button", { name: "Masuk" }));
     expect(router.push).toHaveBeenCalledWith({ pathname: "/login", params: { next: "/akun" } });
-    fireEvent.press(screen.getAllByRole("button", { name: "Pengaturan" })[1]);
+    expect(screen.getAllByRole("button", { name: /^Pengaturan/ })).toHaveLength(1);
+    fireEvent.press(screen.getByRole("button", { name: /^Pengaturan/ }));
     expect(router.push).toHaveBeenLastCalledWith("/pengaturan");
     fireEvent.press(screen.getByRole("radio", { name: "English" }));
     expect(await screen.findByRole("button", { name: "Sign in" })).toBeTruthy();
@@ -642,9 +773,9 @@ describe("Akun mood header", () => {
     expect(flat(name).color).toBe("#2E2E2E");
     expect(await within(header).findByText("0812-3456-7890")).toBeTruthy();
     expect(screen.queryByRole("tab", { name: "Malam" })).toBeNull();
-    // The rows below stay on the page, outside the header.
-    expect(within(header).queryByText("Paket aktif")).toBeNull();
-    expect(screen.getByText("Paket aktif")).toBeTruthy();
+    // The tiles below stay on the page, outside the header.
+    expect(within(header).queryByTestId("akun-tiles")).toBeNull();
+    expect(screen.getByTestId("akun-tiles")).toBeTruthy();
   });
 
   it("keeps the Siang header fill before 15.00", async () => {
@@ -669,6 +800,8 @@ describe("Akun mood header", () => {
     const header = await screen.findByTestId("akun-header");
     expect(within(header).getByText("Akun")).toBeTruthy();
     expect(flat(within(header).getByText("Akun")).color).toBe("#2E2E2E");
+    // The settings gear is gone: Pengaturan is its row below the sign-in button.
+    expect(within(header).queryByRole("button")).toBeNull();
     expect(screen.getByRole("button", { name: "Masuk" })).toBeTruthy();
   });
 });

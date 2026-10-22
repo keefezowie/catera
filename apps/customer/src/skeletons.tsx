@@ -22,6 +22,7 @@ import { MealSegment } from "./discover/MealSegment";
 import { PackageGrid, useGridCell } from "./discover/PackageGrid";
 import { planPhotoFrame } from "./plan/heroFrame";
 import { HERO_BAND_RISE } from "./today/heroBand";
+import { TILE_MIN_HEIGHT } from "./account/AkunTiles";
 import { HERO_RADIUS as BERANDA_HERO_RADIUS, heroPhotoFrame } from "./today/Plate";
 import { STATUS_HALO, STATUS_LABEL_LINE, STATUS_META_LINE, STATUS_ROW } from "./today/StatusStops";
 
@@ -295,7 +296,100 @@ export function PlanSkeleton() {
 }
 
 /**
- * A list's rows (Paket aktif, Alamat, Riwayat pembayaran, Bantuan, Notifikasi): `rows` rows at the shared `Row`'s 52
+ * Paket saya's data area: the "Aktif" heading (the section's 26 line) over a card of two 72 rows with their 56 photo.
+ * It reads the loaded page's own constants (section gap, heading gap, card radius and padding, row and thumb sizes).
+ */
+export function PlanListSkeleton() {
+  const { t } = useMobile();
+  const c = useColors();
+  return (
+    <SkeletonGroup label={t("Memuat paket", "Loading plans")}>
+      <View testID="plan-list-skeleton">
+        <View style={{ height: 26, justifyContent: "center", marginBottom: nativeLayout.headingGap }}>
+          <Skeleton width={72} height={18} />
+        </View>
+        <View
+          style={{
+            backgroundColor: c.surface,
+            borderRadius: nativeLayout.radius.card,
+            paddingHorizontal: nativeLayout.cardPadding,
+            overflow: "hidden",
+          }}
+        >
+          {[0, 1].map((i) => (
+            <View key={i}>
+              {i > 0 ? <View style={{ height: 1, backgroundColor: c.line, marginLeft: nativeLayout.thumb.sm + nativeLayout.space.md }} /> : null}
+              <View
+                testID="plan-list-skeleton-row"
+                style={{
+                  minHeight: nativeLayout.row.media,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: nativeLayout.space.md,
+                  paddingVertical: nativeLayout.space.sm,
+                }}
+              >
+                <Skeleton width={nativeLayout.thumb.sm} height={nativeLayout.thumb.sm} radius={nativeLayout.radius.thumb} />
+                <View style={{ flex: 1, gap: nativeLayout.space.sm }}>
+                  <Skeleton width={i % 2 ? "52%" : "64%"} height={16} />
+                  <Skeleton width={i % 2 ? "38%" : "46%"} height={12} />
+                </View>
+              </View>
+            </View>
+          ))}
+        </View>
+      </View>
+    </SkeletonGroup>
+  );
+}
+
+/**
+ * Akun's body while the session is not yet known: the three shortcut tiles (96 tall, gap 8), the card of four 56 rows
+ * and Pengaturan's card of one, at the loaded sections' own gaps (32 between the tiles and the cards, 16 between the
+ * cards). The header (avatar and name) is chrome and renders at once.
+ */
+export function AkunSkeleton() {
+  const { t } = useMobile();
+  const c = useColors();
+  const card = {
+    backgroundColor: c.surface,
+    borderRadius: nativeLayout.radius.card,
+    paddingHorizontal: nativeLayout.cardPadding,
+    overflow: "hidden" as const,
+  };
+  const row = (key: number, first: boolean) => (
+    <View key={key}>
+      {first ? null : <View style={{ height: 1, backgroundColor: c.line, marginLeft: 20 + nativeLayout.space.md }} />}
+      <View
+        testID="akun-skeleton-row"
+        style={{ minHeight: nativeLayout.row.single, flexDirection: "row", alignItems: "center", gap: nativeLayout.space.md, paddingVertical: nativeLayout.space.sm }}
+      >
+        <Skeleton width={20} height={20} radius={10} />
+        <Skeleton width={key % 2 ? "42%" : "56%"} height={16} />
+      </View>
+    </View>
+  );
+  return (
+    <SkeletonGroup label={t("Memuat akun", "Loading account")}>
+      <View testID="akun-skeleton" style={{ gap: nativeLayout.sectionGap }}>
+        <View testID="akun-skeleton-tiles" style={{ flexDirection: "row", gap: nativeLayout.groupGap }}>
+          {[0, 1, 2].map((i) => (
+            <View key={i} style={{ flex: 1 }}>
+              <Skeleton height={TILE_MIN_HEIGHT} radius={nativeLayout.radius.card} />
+            </View>
+          ))}
+        </View>
+        <View style={{ gap: nativeLayout.space.lg }}>
+          <View style={card}>{[0, 1, 2, 3].map((i) => row(i, i === 0))}</View>
+          <View style={card}>{row(0, true)}</View>
+        </View>
+      </View>
+    </SkeletonGroup>
+  );
+}
+
+/**
+ * A list's rows (Alamat, Riwayat pembayaran, Bantuan, Notifikasi): `rows` rows at the shared `Row`'s 52
  * minimum, a bold line over a caption, with the loaded list's dividers. `label` names what loads ("Memuat riwayat").
  */
 export function ListSkeleton({ rows, label }: { rows: number; label?: string }) {

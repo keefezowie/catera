@@ -10,7 +10,6 @@ import { nativeThemes } from "@catera/design-tokens";
 import { MoodProvider, ThemeProvider } from "@catera/mobile-ui";
 import { Beranda } from "../src/today/Beranda";
 import { ReviewRoute } from "../src/today/ReviewSheet";
-import { PaketSaya } from "../src/plan/PlanList";
 import { customerLink } from "../src/links";
 import { SheetHost } from "./sheetHost";
 import * as offline from "../src/today/offline";
@@ -635,61 +634,5 @@ describe("the plans row and Paket saya", () => {
     const { runtime } = runtimeWith(async () => onePlanOneMeal());
     mount(runtime);
     expect(within(await screen.findByTestId("plans-row")).getByText("1 active plan")).toBeTruthy();
-  });
-
-  it("duplicate plan names show their dates", async () => {
-    const { runtime } = runtimeWith(async () => eightPlans());
-    mount(runtime, { node: <PaketSaya /> });
-    expect(await screen.findByText("Makan Siang Kantor · 5–16 Okt")).toBeTruthy();
-    expect(screen.getByText("Makan Siang Kantor · 19–30 Okt")).toBeTruthy();
-    // A unique name keeps its own.
-    expect(screen.getByText("Makan Siang Rumahan")).toBeTruthy();
-    expect(within(screen.getByTestId("screen-native-title")).getByText("Paket aktif")).toBeTruthy();
-    fireEvent.press(screen.getByText("Makan Siang Kantor · 19–30 Okt"));
-    expect(router.push).toHaveBeenCalledWith("/subscriptions/s-b?title=Makan%20Siang%20Kantor");
-  });
-
-  it("Paket saya lists plans by name, then by start date, so twin names sit together", async () => {
-    const state = eightPlans();
-    const later = state.subscriptions.find((s) => s.id === "s-b")!;
-    const earlier = state.subscriptions.find((s) => s.id === "s-a")!;
-    // The read gives the later twin first and the earlier one last, with every other plan in between.
-    state.subscriptions = [later, ...state.subscriptions.filter((s) => s !== later && s !== earlier), earlier];
-    mount(runtimeWith(async () => state).runtime, { node: <PaketSaya /> });
-    await screen.findByText("Makan Siang Kantor · 5–16 Okt");
-    const names = screen
-      .getAllByText(/^(Bento|Makan|Nasi|Paket (Keluarga|Sehat))/)
-      .map((n) => n.props.children as string);
-    expect(names).toEqual([
-      "Bento Anak",
-      "Makan Malam Hemat",
-      "Makan Siang Kantor · 5–16 Okt",
-      "Makan Siang Kantor · 19–30 Okt",
-      "Makan Siang Rumahan",
-      "Nasi Bakar",
-      "Paket Keluarga",
-      "Paket Sehat",
-    ]);
-  });
-
-  it("reads Active plans and No active plans. in English", async () => {
-    (SecureStore as unknown as { __store: Map<string, string> }).__store.set("catera.locale", "en");
-    const empty = { ...eightPlans(), subscriptions: [], deliveries: [] };
-    mount(runtimeWith(async () => empty).runtime, { node: <PaketSaya /> });
-    expect(await screen.findByText("No active plans.")).toBeTruthy();
-    expect(within(screen.getByTestId("screen-native-title")).getByText("Active plans")).toBeTruthy();
-  });
-
-  it("Paket saya says so when the read fails, and reads again", async () => {
-    let fail = true;
-    const { runtime } = runtimeWith(async () => {
-      if (fail) throw Object.assign(new Error("REQUEST_FAILED"), { code: "REQUEST_FAILED" });
-      return eightPlans();
-    });
-    mount(runtime, { node: <PaketSaya /> });
-    const retry = await screen.findByRole("button", { name: "Coba lagi" });
-    fail = false;
-    fireEvent.press(retry);
-    expect(await screen.findByText("Makan Siang Rumahan")).toBeTruthy();
   });
 });

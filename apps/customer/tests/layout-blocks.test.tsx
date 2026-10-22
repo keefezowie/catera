@@ -135,6 +135,14 @@ describe("layout blocks", () => {
     expect(flat(screen.getByTestId("g-glyph")).backgroundColor).toBeUndefined();
   });
 
+  it("GlyphRow keeps its title and meta to one line unless it wraps", () => {
+    const { rerender } = render(<GlyphRow testID="g" glyph={<Text>*</Text>} title="Bantuan dan laporan" meta="Pesan" />);
+    expect(screen.getByText("Bantuan dan laporan").props.numberOfLines).toBe(1);
+    rerender(<GlyphRow testID="g" wrap glyph={<Text>*</Text>} title="Bantuan dan laporan" meta="Pesan" />);
+    expect(screen.getByText("Bantuan dan laporan").props.numberOfLines).toBeUndefined();
+    expect(screen.getByText("Pesan").props.numberOfLines).toBeUndefined();
+  });
+
   it("GlyphRow bare gives the 20 glyph at any height", () => {
     render(<GlyphRow testID="g" bare glyph={<Text>*</Text>} title="Alamat" />);
     expect(flat(screen.getByTestId("g-glyph"))).toMatchObject({ width: 20, height: 20 });

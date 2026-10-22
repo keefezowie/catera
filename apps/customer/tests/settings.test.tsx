@@ -137,14 +137,13 @@ describe("Pengaturan entry", () => {
   it("Akun has a Pengaturan entry and no inline Bahasa or Tampilan", async () => {
     renderWith(runtimeWith(), <Akun />);
     expect(await screen.findByText("Rani Contoh")).toBeTruthy();
-    const entries = screen.getAllByRole("button", { name: "Pengaturan" });
-    // The gear in the header and the last row of the page.
-    expect(entries).toHaveLength(2);
-    expect(within(screen.getByTestId("akun-header")).getByRole("button", { name: "Pengaturan" })).toBeTruthy();
-    for (const entry of entries) {
-      fireEvent.press(entry);
-      expect(router.push).toHaveBeenLastCalledWith("/pengaturan");
-    }
+    const entries = screen.getAllByRole("button", { name: /^Pengaturan/ });
+    // The card row at the foot of the page is the only way in: the header's gear is gone.
+    expect(entries).toHaveLength(1);
+    expect(within(screen.getByTestId("akun-header")).queryByRole("button")).toBeNull();
+    expect(within(entries[0]).getByText("Bahasa, tampilan")).toBeTruthy();
+    fireEvent.press(entries[0]);
+    expect(router.push).toHaveBeenLastCalledWith("/pengaturan");
     expect(screen.queryByText("Bahasa")).toBeNull();
     expect(screen.queryByText("Tampilan")).toBeNull();
     expect(screen.queryByRole("tab", { name: "English" })).toBeNull();
@@ -156,7 +155,7 @@ describe("Pengaturan entry", () => {
   it("signed-out Akun keeps the Pengaturan entry", async () => {
     renderWith(runtimeWith({ actor: null }), <Akun />);
     expect(await screen.findByRole("button", { name: "Masuk" })).toBeTruthy();
-    expect(screen.getAllByRole("button", { name: "Pengaturan" })).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: /^Pengaturan/ })).toHaveLength(1);
     expect(screen.queryByRole("tab", { name: "English" })).toBeNull();
   });
 });

@@ -711,16 +711,38 @@ describe("finding 5: every screen's first read waits as its own skeleton", () =>
     renderWith(runtimeWith({ me: jest.fn(pending), customer: jest.fn(pending) }), <Akun />);
     expect(await screen.findByRole("progressbar", { name: "Memuat akun" })).toBeTruthy();
     expect(screen.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
-    // The line under the name is reserved at the body line's 23, as the loaded header keeps it.
+    // The line under the name is reserved at the meta line's 18, as the loaded header keeps it.
     const header = screen.getByTestId("mood-header");
-    expect(flat(within(header).getByTestId("akun-contact")).minHeight).toBe(23);
+    expect(flat(within(header).getByTestId("akun-contact")).minHeight).toBe(18);
+  });
+
+  it("Akun's wait is the loaded body's shape: three 96 tiles, the card of four 56 rows and Pengaturan's card", async () => {
+    renderWith(runtimeWith({ me: jest.fn(pending), customer: jest.fn(pending) }), <Akun />);
+    await screen.findByRole("progressbar", { name: "Memuat akun" });
+    const tiles = screen.getByTestId("akun-skeleton-tiles");
+    expect(flat(tiles)).toMatchObject({ flexDirection: "row", gap: 8 });
+    expect(within(tiles).UNSAFE_getAllByProps({ height: 96 }).length).toBeGreaterThanOrEqual(3);
+    const rows = screen.getAllByTestId("akun-skeleton-row");
+    expect(rows).toHaveLength(5);
+    for (const row of rows) expect(flat(row)).toMatchObject({ minHeight: 56 });
+    expect(flat(screen.getByTestId("akun-skeleton"))).toMatchObject({ gap: 32 });
+    // The header holds the avatar's place (56 round) and the name's, and carries no gear.
+    expect(within(screen.getByTestId("mood-header")).queryByRole("button")).toBeNull();
+  });
+
+  it("Paket saya's wait is the Aktif heading over a card of two 72 rows with a 56 photo", async () => {
+    renderWith(runtimeWith({ customer: jest.fn(pending) }), <PaketSaya />);
+    await screen.findByRole("progressbar", { name: "Memuat paket" });
+    const rows = screen.getAllByTestId("plan-list-skeleton-row");
+    expect(rows).toHaveLength(2);
+    for (const row of rows) expect(flat(row)).toMatchObject({ minHeight: 72 });
   });
 
   it("Akun keeps the contact line's height once the account is known (finding 10)", async () => {
     renderWith(runtimeWith({ customer: jest.fn(pending) }), <Akun />);
     await screen.findByText("Rani Contoh");
     const header = screen.getByTestId("akun-header");
-    expect(flat(within(header).getByTestId("akun-contact")).minHeight).toBe(23);
+    expect(flat(within(header).getByTestId("akun-contact")).minHeight).toBe(18);
   });
 
   it("Jelajah's area waits inside a skeleton group, breathing with the list (finding 11)", async () => {

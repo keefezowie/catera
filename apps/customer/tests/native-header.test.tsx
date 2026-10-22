@@ -255,6 +255,20 @@ describe("native headers on pushed screens", () => {
   });
 });
 
+describe("Paket saya", () => {
+  it("is titled Paket saya: the first content line of the page on Android and the route's own title on iOS", async () => {
+    mockSession.actor = { id: "u1", role: "customer", name: "Rani Contoh" };
+    answer("paket-saya:customer", { data: customerState(null), savedAt: null });
+    await mount("/");
+    await go(() => goToTab("akun"));
+    await go(() => router.push("/paket-saya"));
+    const line = screen.getAllByTestId("screen-native-title").at(-1)!;
+    expect(within(line).getByText("Paket saya")).toBeTruthy();
+    expect(screen.queryByText("Paket aktif")).toBeNull();
+    expect(contentTitled("Paket saya", "ios")).toEqual({ title: "Paket saya" });
+  });
+});
+
 describe("plan titles", () => {
   const LONG = "Paket Makan Siang Rumahan Sehat Sekeluarga Lima Hari";
   const plan = () =>
@@ -495,6 +509,18 @@ describe("tab roots", () => {
     const pushed = screen.getAllByTestId("screen-scroll").at(-1)!;
     expect(within(pushed).queryAllByTestId("mood-header-row")).toHaveLength(0);
     expect(pushed.props.contentInsetAdjustmentBehavior).toBe("automatic");
+  });
+
+  it("Akun's top row holds the avatar and the name, and no settings gear", async () => {
+    await everyTab();
+    const row = moodHeaders()
+      .map(({ row: r }) => r)
+      .find((r) => within(r as never).queryByTestId("akun-avatar", { includeHiddenElements: true }));
+    if (!row) throw new Error("Akun has no avatar in its header's top row");
+    expect(within(row as never).getByText("RC", { includeHiddenElements: true })).toBeTruthy();
+    expect(within(row as never).getByText("Rani Contoh", { includeHiddenElements: true })).toBeTruthy();
+    expect(within(row as never).queryAllByRole("button", { includeHiddenElements: true })).toHaveLength(0);
+    expect(StyleSheet.flatten((row as unknown as Host).props.style)).toMatchObject({ minHeight: 48 });
   });
 
   it("no tab root repeats its own tab name in the meta line", async () => {

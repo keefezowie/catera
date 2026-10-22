@@ -7,7 +7,8 @@ import { GLYPH_BARE, GLYPH_CIRCLE } from "./metrics";
 /**
  * A row led by a glyph: a 40 circle on a tone, or with `bare` the 20 glyph alone. 56 tall by default, 72 for a row
  * with two lines of meta, 48 for an info row. A 48 row always draws the bare glyph: a 40 circle plus the 8 vertical
- * padding would make it 56. Without `onPress` it is not a button.
+ * padding would make it 56. Without `onPress` it is not a button. `wrap` lets the title grow past one line (the
+ * row grows too) for a row whose words must all show at large text.
  */
 export function GlyphRow({
   glyph,
@@ -18,6 +19,7 @@ export function GlyphRow({
   trailing,
   onPress,
   minHeight = nativeLayout.row.single,
+  wrap = false,
   testID,
 }: {
   glyph: ReactNode;
@@ -29,6 +31,7 @@ export function GlyphRow({
   trailing?: ReactNode;
   onPress?: () => void;
   minHeight?: 56 | 72 | 48;
+  wrap?: boolean;
   testID?: string;
 }) {
   const styles = useStyles();
@@ -37,7 +40,7 @@ export function GlyphRow({
     <>
       <View testID={testID ? `${testID}-glyph` : undefined} style={bareGlyph ? styles.bare : [styles.circle, tone ? { backgroundColor: tone } : null]}>{glyph}</View>
       <View style={styles.text}>
-        <Text variant="rowTitle" numberOfLines={1}>
+        <Text variant="rowTitle" numberOfLines={wrap ? undefined : 1}>
           {title}
         </Text>
         {meta ? <Text variant="meta">{meta}</Text> : null}
