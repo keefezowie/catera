@@ -352,6 +352,8 @@ export function Stepper({
   increaseLabel,
   min = 0,
   max = 30,
+  leading,
+  testID,
 }: {
   label: string;
   /** Translated accessibility labels, e.g. "Kurangi Porsi per hari" / "Tambah Porsi per hari". */
@@ -361,11 +363,17 @@ export function Stepper({
   onChange: (n: number) => void;
   min?: number;
   max?: number;
+  /** A glyph circle ahead of the label, for a row in a list card (v2 only: Dapur passes none). */
+  leading?: ReactNode;
+  testID?: string;
 }) {
   const styles = useStyles();
+  const v2 = useV2Styles();
+  const scaled = useLayoutScale() === "v2";
   return (
-    <View style={styles.stepper}>
-      <RNText style={[styles.body, { flex: 1, fontFamily: fontFor("600") }]}>{label}</RNText>
+    <View testID={testID} style={[styles.stepper, scaled && v2.stepper]}>
+      {leading}
+      <RNText style={[styles.body, { flex: 1, fontFamily: fontFor("600") }, scaled && v2.stepLabel]}>{label}</RNText>
       <PressableScale
         accessibilityRole="button"
         accessibilityLabel={decreaseLabel}
@@ -373,11 +381,11 @@ export function Stepper({
         disabled={value <= min}
         haptic="select"
         onPress={() => onChange(value - 1)}
-        style={styles.stepButton}
+        style={[styles.stepButton, scaled && v2.stepButton]}
       >
         <RNText style={styles.stepGlyph}>−</RNText>
       </PressableScale>
-      <RNText style={[styles.body, { width: 24, textAlign: "center", fontFamily: fontFor("800") }]}>
+      <RNText style={[styles.body, { width: 24, textAlign: "center", fontFamily: fontFor("800") }, scaled && v2.stepValue]}>
         {value}
       </RNText>
       <PressableScale
@@ -387,7 +395,7 @@ export function Stepper({
         disabled={value >= max}
         haptic="select"
         onPress={() => onChange(value + 1)}
-        style={styles.stepButton}
+        style={[styles.stepButton, scaled && v2.stepButton]}
       >
         <RNText style={styles.stepGlyph}>+</RNText>
       </PressableScale>
@@ -633,7 +641,7 @@ const useCardTones = themedStyles((c) => ({
 }));
 
 /** The v2 overrides: laid over the classic styles by `useLayoutScale() === "v2"`, so Dapur never reads them. */
-const useV2Styles = themedStyles(() => ({
+const useV2Styles = themedStyles((c) => ({
   button: { minHeight: nativeLayout.control.button, borderRadius: nativeLayout.control.button / 2 },
   chip: { minHeight: nativeLayout.control.chip, borderRadius: nativeLayout.control.chip / 2 },
   // The 34 segment inside the 4 padding makes a 42 track, so the track rounds at 21.
@@ -645,7 +653,14 @@ const useV2Styles = themedStyles(() => ({
   card: { borderWidth: 0, borderRadius: nativeLayout.radius.card, padding: nativeLayout.cardPadding, gap: nativeLayout.groupGap },
   cardAttention: { borderWidth: 1, padding: nativeLayout.cardPadding - 1 },
   // 16 around a 50 button makes the 82 bar; it stands off the canvas by its tone, with no hairline above it.
-  footer: { paddingBottom: nativeLayout.cardPadding, borderTopWidth: 0 },
+  // The bar is filled with the canvas tone, not the card surface: a card that scrolls under it then stays cut off by a
+  // visible tone step (1.33:1) where a surface-coloured bar would swallow its edge, and no hairline is needed.
+  footer: { paddingBottom: nativeLayout.cardPadding, borderTopWidth: 0, backgroundColor: c.canvas },
+  // A stepper row inside a list card: the card pads the sides, the 44 buttons are circles on the glyph tone.
+  stepper: { minHeight: nativeLayout.row.single, paddingLeft: 0, paddingRight: 0, paddingVertical: 6, gap: nativeLayout.space.md },
+  stepLabel: { fontSize: 15, lineHeight: 22, minWidth: 0 },
+  stepButton: { width: nativeLayout.control.icon, height: nativeLayout.control.icon, borderRadius: nativeLayout.control.icon / 2, backgroundColor: c.sage },
+  stepValue: { fontSize: 17, lineHeight: 22, width: 28 },
 }));
 
 const useStyles = themedStyles((c) => ({

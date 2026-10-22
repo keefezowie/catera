@@ -19,11 +19,14 @@ import {
   type RenewalContext,
 } from "@catera/domain";
 import { plural, useData, useMobile } from "@catera/mobile-core";
-import { Button, FadeSwap, fontFor, FormError, Screen, Stepper, Text, themedStyles, useColors } from "@catera/mobile-ui";
+import { nativeLayout } from "@catera/design-tokens";
+import { Button, FadeSwap, fontFor, FormError, Screen, Stepper, Text, themedStyles, useStackedLayout } from "@catera/mobile-ui";
 import { Breakdown, LengthOptions, percent, StartLine } from "./Breakdown";
-import { NoLongerSold, PayWith, PendingPayment, Retry, Terms } from "./BuyParts";
+import { BuySummary, FieldGlyph, FieldRow, NoLongerSold, PayWith, PendingPayment, Retry, Terms } from "./BuyParts";
+import { FOOTER_STACK_BELOW, PAY_MIN_WIDTH } from "./metrics";
 import { useQuote, type BuyPayload } from "./useQuote";
 import { useChoice } from "../choice";
+import { GLYPH_INSET, ListCard, SectionHeader } from "../layout";
 import { FLOW_HREF } from "../nav";
 import { BreakdownSkeleton, BuySkeleton } from "../skeletons";
 
@@ -34,7 +37,6 @@ const whole = (v: string | undefined, max: number) => {
   const n = Math.trunc(Number(v));
   return n >= 1 && n <= max ? n : null;
 };
-const tabular = { fontVariant: ["tabular-nums" as const] };
 
 /** Beli and Perpanjang on one screen: sensible defaults, the server's full price, then Bayar. */
 export function BuyScreen({
@@ -49,8 +51,9 @@ export function BuyScreen({
   initial?: BuyInitial;
 }) {
   const { runtime, actor, ready, t, locale, command } = useMobile();
-  const c = useColors();
   const styles = useStyles();
+  // The amount and Bayar share a row while they fit; at large text on a narrow phone they stack.
+  const stacked = useStackedLayout(FOOTER_STACK_BELOW);
   const renew = !!renewFrom;
   const query = new URLSearchParams({ ...(trial ? { trial: "1" } : {}), ...initial }).toString();
   const here = `${renew ? `/renew/${encodeURIComponent(renewFrom)}` : `/beli/${encodeURIComponent(packageId)}`}${query ? `?${query}` : ""}`;
@@ -251,16 +254,12 @@ export function BuyScreen({
 
   const shown = quote.shown;
   const footer = (
-    <View style={{ gap: 8 }}>
+    <View style={{ gap: nativeLayout.groupGap }}>
       {error ? <FormError message={error} failureKey={failures} /> : null}
-      <View style={styles.footer}>
-        <View style={{ flex: 1 }}>
-          <Text variant="caption">Total</Text>
-          <Text
-            variant="title"
-            accessibilityRole="text"
-            style={[{ fontSize: 22, lineHeight: 28, color: c.charcoal }, tabular, quote.pending && { opacity: 0.45 }]}
-          >
+      <View testID="buy-footer-row" style={[styles.footer, stacked && styles.footerStacked]}>
+        <View style={stacked ? undefined : styles.total}>
+          <Text variant="meta">Total</Text>
+          <Text variant="section" accessibilityRole="text" style={[styles.amount, quote.pending && { opacity: 0.45 }]}>
             {shown ? currency(shown.total, locale) : "-"}
           </Text>
         </View>
@@ -270,101 +269,148 @@ export function BuyScreen({
           busy={busy}
           disabled={!quote.ready || !payable || !!pendingCheckout || (renew && !context.data)}
           onPress={() => void submit()}
-          style={{ flex: 1 }}
+          style={stacked ? styles.payStacked : styles.pay}
         />
       </View>
     </View>
   );
+  // Rincian shows once there is a price, one on its way or a reason there is none.
+  const pricing = !!shown || quote.pending || !!quote.error;
 
   return (
     <Screen footer={footer} nativeTitle={renew ? t(`Perpanjang ${offer.name}`, `Renew ${offer.name}`) : offer.name}>
-      <FadeSwap swapKey="ready" style={{ gap: 16 }}>
-        {loadError ? <Retry message={loadError} onRetry={reloadAll} t={t} /> : null}
-        {pendingCheckout ? <PendingPayment checkoutId={pendingCheckout} t={t} /> : null}
+      <FadeSwap swapKey="ready" style={{ gap: nativeLayout.sectionGap }}>
+        <View style={{ gap: nativeLayout.space.xl }}>
+          {loadError ? <Retry message={loadError} onRetry={reloadAll} t={t} /> : null}
+          {pendingCheckout ? <PendingPayment checkoutId={pendingCheckout} t={t} /> : null}
 
-        <StartLine
-          startDate={startDate}
-          renew={renew}
-          currentEnd={current?.ends_on ?? null}
-          blockingEnd={blockingEnd}
-          blockingName={blockingName}
-          today={jakartaDay(now)}
-          quote={shown}
-          dimmed={quote.pending}
-          weekdays={offer.weekdays}
-          onChange={choices.length > 1 ? () => void pickStart() : undefined}
-          locale={locale}
-          t={t}
-        />
+          <BuySummary offer={offer} trial={trial} apiBase={runtime.apiBase} locale={locale} />
 
-        <View style={{ gap: 8 }}>
-          <Text variant="label">{t("Lama paket", "Package length")}</Text>
-          {trial ? (
-            <Text>{t("1 hari, coba dulu", "1 day, as a trial")}</Text>
-          ) : lengths.length === 1 ? (
-            <Text>{t(`${offer.days * lengths[0].cycles} hari`, plural(offer.days * lengths[0].cycles, "day"))}</Text>
-          ) : (
-            <LengthOptions
-              value={cycles}
-              onChange={setCycles}
-              options={lengths.map((d) => ({
-                cycles: d.cycles,
-                label:
-                  t(`${offer.days * d.cycles} hari`, plural(offer.days * d.cycles, "day")) +
-                  (d.discountPercent ? t(` · Hemat ${percent(d.discountPercent, locale)}`, ` · Save ${percent(d.discountPercent, locale)}`) : ""),
-              }))}
-            />
-          )}
-        </View>
-
-        <View style={styles.box}>
-          <Stepper label={t("Porsi per hari", "Portions per day")} decreaseLabel={t("Kurangi Porsi per hari", "Decrease Portions per day")} increaseLabel={t("Tambah Porsi per hari", "Increase Portions per day")} value={qty} onChange={setPortions} min={1} max={maxQty} />
-          <View style={styles.address}>
-            <Text variant="caption" style={{ flex: 1 }} numberOfLines={2}>
-              {address
-                ? t(`Diantar ke ${address.label} · ${address.line}`, `Delivered to ${address.label} · ${address.line}`)
-                : t("Belum ada alamat pengantaran.", "No delivery address yet.")}
-            </Text>
-            <Button
-              variant="text"
-              label={address ? t("Ganti", "Change") : t("Tambah alamat", "Add address")}
-              accessibilityLabel={address ? t("Ganti alamat", "Change address") : undefined}
-              onPress={() => (address ? void pickAddress() : router.push(FLOW_HREF.alamat as never))}
-            />
+          <View style={{ gap: nativeLayout.groupGap }}>
+            <ListCard inset={GLYPH_INSET}>
+              <StartLine
+                startDate={startDate}
+                renew={renew}
+                currentEnd={current?.ends_on ?? null}
+                blockingEnd={blockingEnd}
+                blockingName={blockingName}
+                today={jakartaDay(now)}
+                quote={shown}
+                dimmed={quote.pending}
+                weekdays={offer.weekdays}
+                onChange={choices.length > 1 ? () => void pickStart() : undefined}
+                locale={locale}
+                t={t}
+              />
+              {trial || lengths.length === 1 ? (
+                <FieldRow id="length" icon="time-outline" minHeight={nativeLayout.row.single}>
+                  <Text variant="meta">{t("Lama paket", "Package length")}</Text>
+                  <Text variant="bodyStrong">
+                    {trial
+                      ? t("1 hari, coba dulu", "1 day, as a trial")
+                      : t(`${offer.days * lengths[0].cycles} hari`, plural(offer.days * lengths[0].cycles, "day"))}
+                  </Text>
+                </FieldRow>
+              ) : (
+                <FieldRow
+                  id="length"
+                  icon="time-outline"
+                  minHeight={nativeLayout.row.single}
+                  below={
+                    <LengthOptions
+                      value={cycles}
+                      onChange={setCycles}
+                      options={lengths.map((d) => ({
+                        cycles: d.cycles,
+                        label:
+                          t(`${offer.days * d.cycles} hari`, plural(offer.days * d.cycles, "day")) +
+                          (d.discountPercent ? t(` · Hemat ${percent(d.discountPercent, locale)}`, ` · Save ${percent(d.discountPercent, locale)}`) : ""),
+                      }))}
+                    />
+                  }
+                >
+                  <Text variant="meta">{t("Lama paket", "Package length")}</Text>
+                </FieldRow>
+              )}
+              <Stepper
+                testID="buy-row-portions"
+                leading={<FieldGlyph id="portions" icon="restaurant-outline" />}
+                label={t("Porsi per hari", "Portions per day")}
+                decreaseLabel={t("Kurangi Porsi per hari", "Decrease Portions per day")}
+                increaseLabel={t("Tambah Porsi per hari", "Increase Portions per day")}
+                value={qty}
+                onChange={setPortions}
+                min={1}
+                max={maxQty}
+              />
+              <FieldRow
+                id="address"
+                icon="location-outline"
+                minHeight={nativeLayout.row.media}
+                trailing={
+                  <Button
+                    variant="text"
+                    label={address ? t("Ganti", "Change") : t("Tambah alamat", "Add address")}
+                    accessibilityLabel={address ? t("Ganti alamat", "Change address") : undefined}
+                    onPress={() => (address ? void pickAddress() : router.push(FLOW_HREF.alamat as never))}
+                  />
+                }
+              >
+                <Text variant="meta">{t("Diantar ke", "Delivered to")}</Text>
+                {address ? (
+                  <>
+                    <Text variant="bodyStrong">{address.label}</Text>
+                    <Text variant="meta">{address.line}</Text>
+                  </>
+                ) : (
+                  <Text variant="bodyStrong">{t("Belum ada alamat pengantaran.", "No delivery address yet.")}</Text>
+                )}
+              </FieldRow>
+            </ListCard>
+            {blocked ? <FormError message={blocked} /> : null}
           </View>
         </View>
-        {blocked ? <FormError message={blocked} /> : null}
 
-        {shown ? <Breakdown quote={shown} dimmed={quote.pending} locale={locale} t={t} /> : null}
-        {!shown && quote.pending ? <BreakdownSkeleton /> : null}
-        {quote.error ? (
-          running ? (
-            <View style={{ gap: 8 }}>
-              <Text>
-                {t(`Paket ini masih berjalan sampai ${shortDate(running.endsOn, locale)}.`, `This package is still running until ${shortDate(running.endsOn, locale)}.`)}
-              </Text>
-              <Button
-                variant="primary"
-                label={t(`Mulai ${shortDate(running.start, locale)}`, `Start ${shortDate(running.start, locale)}`)}
-                onPress={() => setStart(running.start)}
-              />
+        {pricing ? (
+          <View>
+            <SectionHeader title={t("Rincian", "Breakdown")} />
+            <View style={{ gap: nativeLayout.space.md }}>
+              {shown ? <Breakdown quote={shown} dimmed={quote.pending} locale={locale} t={t} /> : null}
+              {!shown && quote.pending ? <BreakdownSkeleton /> : null}
+              {quote.error ? (
+                running ? (
+                  <View style={{ gap: nativeLayout.groupGap }}>
+                    <Text>
+                      {t(`Paket ini masih berjalan sampai ${shortDate(running.endsOn, locale)}.`, `This package is still running until ${shortDate(running.endsOn, locale)}.`)}
+                    </Text>
+                    <Button
+                      variant="primary"
+                      label={t(`Mulai ${shortDate(running.start, locale)}`, `Start ${shortDate(running.start, locale)}`)}
+                      onPress={() => setStart(running.start)}
+                    />
+                  </View>
+                ) : (
+                  <Retry message={quote.error} label={t("Hitung ulang", "Recalculate")} onRetry={quote.retry} t={t} />
+                )
+              ) : null}
             </View>
-          ) : (
-            <Retry message={quote.error} label={t("Hitung ulang", "Recalculate")} onRetry={quote.retry} t={t} />
-          )
+          </View>
         ) : null}
 
-        <PayWith availability={pay} chosen={chosenMethod} onChoose={setMethod} t={t} />
-        <Terms apiBase={runtime.apiBase} t={t} />
+        <View style={{ gap: nativeLayout.space.md }}>
+          <PayWith section availability={pay} chosen={chosenMethod} onChoose={setMethod} t={t} />
+          <Terms apiBase={runtime.apiBase} t={t} />
+        </View>
       </FadeSwap>
     </Screen>
   );
 }
 
-const useStyles = themedStyles((c) => ({
-  strong: { fontFamily: fontFor("800"), color: c.charcoal },
-  inline: { alignSelf: "flex-start" },
-  box: { borderWidth: 1, borderColor: c.line, borderRadius: 16, backgroundColor: c.surface, paddingBottom: 8 },
-  address: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14 },
-  footer: { flexDirection: "row", alignItems: "center", gap: 12 },
+const useStyles = themedStyles(() => ({
+  footer: { flexDirection: "row", alignItems: "center", gap: nativeLayout.space.md },
+  footerStacked: { flexDirection: "column", alignItems: "stretch" },
+  total: { flex: 1, minWidth: 0 },
+  amount: { fontFamily: fontFor("800"), fontVariant: ["tabular-nums"] },
+  pay: { minWidth: PAY_MIN_WIDTH },
+  payStacked: { alignSelf: "stretch" },
 }));

@@ -24,6 +24,7 @@ import { PackageGrid, useGridCell } from "./discover/PackageGrid";
 import { planPhotoFrame } from "./plan/heroFrame";
 import { HERO_BAND_RISE } from "./today/heroBand";
 import { TILE_MIN_HEIGHT } from "./account/AkunTiles";
+import { BREAKDOWN_PAD, BREAKDOWN_ROW, BREAKDOWN_SKELETON_ROWS, FIELDS_HEIGHT, SUMMARY_HEIGHT } from "./buy/metrics";
 import { SECTION_LEAD } from "./today/sectionGap";
 import { HERO_RADIUS as BERANDA_HERO_RADIUS, heroPhotoFrame } from "./today/Plate";
 import { STATUS_HALO, STATUS_LABEL_LINE, STATUS_META_LINE, STATUS_ROW } from "./today/StatusStops";
@@ -602,42 +603,68 @@ export function PackageSkeleton() {
   );
 }
 
-/** Beli and Perpanjang: the package's line, then the choices (address, portions, start, length) as rows. */
+/**
+ * Rincian's card while the price is worked out: three rows of 40 inside the card's 8 and 16 padding, a label line at the
+ * left and an amount at the right, as the loaded rows lay out.
+ */
+function BreakdownCard({ testID }: { testID?: string }) {
+  const c = useColors();
+  return (
+    <View
+      testID={testID}
+      style={{
+        backgroundColor: c.surface,
+        borderRadius: nativeLayout.radius.card,
+        paddingHorizontal: nativeLayout.cardPadding,
+        paddingVertical: BREAKDOWN_PAD,
+      }}
+    >
+      {Array.from({ length: BREAKDOWN_SKELETON_ROWS }, (_, i) => (
+        <View
+          key={i}
+          testID="breakdown-skeleton-row"
+          style={{ minHeight: BREAKDOWN_ROW, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: nativeLayout.space.md }}
+        >
+          <Skeleton width={i === 0 ? "52%" : "34%"} height={15} />
+          <Skeleton width="24%" height={15} />
+        </View>
+      ))}
+    </View>
+  );
+}
+
+/**
+ * Beli and Perpanjang: the summary card (a 64 photo in 12 padding, 88 tall), the choices card (Mulai 72, Lama paket 56,
+ * Porsi 56, Diantar ke 72 and the separators between them), then Rincian's heading and rows. Every size reads Buy's own
+ * metrics, so the page lands where the skeleton stood.
+ */
 export function BuySkeleton() {
   const { t } = useMobile();
+  const card = nativeLayout.radius.card;
   return (
     <SkeletonGroup label={t("Memuat paket", "Loading package")}>
-      <View testID="buy-skeleton" style={{ gap: 16 }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-          <Skeleton width={64} height={64} radius={12} />
-          <View style={{ flex: 1, gap: 8 }}>
-            <Skeleton width="70%" height={20} />
-            <Skeleton width="44%" height={12} />
-          </View>
+      <View testID="buy-skeleton" style={{ gap: nativeLayout.sectionGap }}>
+        <View style={{ gap: nativeLayout.space.xl }}>
+          <Skeleton testID="buy-skeleton-summary" height={SUMMARY_HEIGHT} radius={card} />
+          <Skeleton testID="buy-skeleton-fields" height={FIELDS_HEIGHT} radius={card} />
         </View>
-        <Rows count={4} />
+        <View>
+          <View style={{ marginBottom: nativeLayout.headingGap }}>
+            <Skeleton width="30%" height={26} />
+          </View>
+          <BreakdownCard />
+        </View>
       </View>
     </SkeletonGroup>
   );
 }
 
-/** The price breakdown while the server prices the first choice: a line per charge, then the total. */
+/** The price breakdown while the server prices the first choice: Rincian's card of three rows. */
 export function BreakdownSkeleton() {
   const { t } = useMobile();
   return (
     <SkeletonGroup label={t("Menghitung harga", "Working out the price")}>
-      <View testID="breakdown-skeleton" style={{ gap: 10 }}>
-        {[0, 1, 2].map((i) => (
-          <View key={i} style={{ flexDirection: "row", justifyContent: "space-between" }}>
-            <Skeleton width="44%" height={14} />
-            <Skeleton width="24%" height={14} />
-          </View>
-        ))}
-        <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-          <Skeleton width="30%" height={20} />
-          <Skeleton width="34%" height={20} />
-        </View>
-      </View>
+      <BreakdownCard testID="breakdown-skeleton" />
     </SkeletonGroup>
   );
 }

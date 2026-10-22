@@ -740,6 +740,64 @@ describe("layout scale", () => {
     expect(flat(screen.getByTestId("screen-body")).paddingHorizontal).toBe(16);
   });
 
+  it("v2 geometry: the footer is filled with the canvas, not the card surface, with 16 under it and no hairline", () => {
+    // A surface-coloured bar would swallow the edge of a card scrolling under it; the canvas fill keeps a visible tone step.
+    render(
+      <LayoutScaleProvider value="v2">
+        <ScreenFooter>
+          <Text>Kaki</Text>
+        </ScreenFooter>
+      </LayoutScaleProvider>,
+    );
+    const footer = flat(screen.getByTestId("screen-footer"));
+    expect(footer).toMatchObject({ backgroundColor: nativeThemes.light.canvas, paddingBottom: 16, borderTopWidth: 0 });
+    expect(footer.backgroundColor).not.toBe(nativeThemes.light.surface);
+  });
+
+  it("v2 geometry: the stepper's buttons are 44 circles on the glyph tone and a leading node sits before the label", () => {
+    render(
+      <LayoutScaleProvider value="v2">
+        <Stepper
+          testID="stepper"
+          leading={<Text>Ikon</Text>}
+          label="Porsi"
+          value={2}
+          onChange={() => {}}
+          decreaseLabel="Decrease Porsi"
+          increaseLabel="Increase Porsi"
+        />
+      </LayoutScaleProvider>,
+    );
+    expect(flat(screen.getByRole("button", { name: "Decrease Porsi" }))).toMatchObject({
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: nativeThemes.light.sage,
+    });
+    expect(flat(screen.getByRole("button", { name: "Increase Porsi" }))).toMatchObject({ width: 44, height: 44 });
+    expect(flat(screen.getByTestId("stepper")).minHeight).toBe(56);
+    expect(within(screen.getByTestId("stepper")).getByText("Ikon")).toBeTruthy();
+  });
+
+  it("classic geometry: the footer keeps the surface fill and its hairline, and the stepper its 48 buttons", () => {
+    render(
+      <>
+        <ScreenFooter>
+          <Text>Kaki</Text>
+        </ScreenFooter>
+        <Stepper label="Porsi" value={2} onChange={() => {}} decreaseLabel="Decrease Porsi" increaseLabel="Increase Porsi" />
+      </>,
+    );
+    expect(flat(screen.getByTestId("screen-footer"))).toMatchObject({
+      backgroundColor: nativeThemes.light.surface,
+      paddingBottom: 20,
+      borderTopWidth: 1,
+    });
+    const less = flat(screen.getByRole("button", { name: "Decrease Porsi" }));
+    expect(less).toMatchObject({ width: 48, height: 48 });
+    expect(less.backgroundColor).toBeUndefined();
+  });
+
   it("v2 geometry: the new type ladder", () => {
     render(
       <>

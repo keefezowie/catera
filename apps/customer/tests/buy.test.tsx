@@ -11,7 +11,7 @@ import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera
 import { spyFades } from "./fade";
 import * as Reanimated from "react-native-reanimated";
 import { nativeMotion, nativeThemes } from "@catera/design-tokens";
-import { FadeSwap, fonts, MoodProvider, ThemeProvider } from "@catera/mobile-ui";
+import { FadeSwap, fonts, LayoutScaleProvider, MoodProvider, ThemeProvider } from "@catera/mobile-ui";
 import { NavigationContext, NavigationRouteContext } from "expo-router/react-navigation";
 import { customerLink } from "../src/links";
 import { goToTab, leaveFor } from "../src/nav";
@@ -83,6 +83,17 @@ jest.mock("../src/nav", () => ({ ...jest.requireActual("../src/nav"), goToTab: j
 jest.mock("expo-crypto", () => ({ randomUUID: () => require("node:crypto").randomUUID() }));
 jest.mock("expo-clipboard", () => ({ setStringAsync: jest.fn(async () => true) }));
 jest.mock("expo-web-browser", () => ({ openBrowserAsync: jest.fn(async () => ({ type: "dismiss" })) }));
+
+/**
+ * The phone the screen is drawn on. The default is jest's own (750 wide, font scale 2) so the older tests keep the
+ * window they always ran in; the layout tests below set their own.
+ */
+const JEST_WINDOW = { width: 750, height: 1334, scale: 2, fontScale: 2 };
+let mockWindow = JEST_WINDOW;
+jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
+  __esModule: true,
+  default: () => mockWindow,
+}));
 
 /** Wednesday 7 Oct 2026, 10.00 in Jakarta: before the 17.00 cutoff for Thursday. Only Date is faked. */
 const NOW = new Date("2026-10-07T03:00:00Z");
@@ -191,6 +202,7 @@ function server({
   startFails = false,
   pkg = paket,
   subscriptions = [current],
+  addresses = [kantor, rumah] as (typeof kantor)[],
 } = {}) {
   let stored = checkout;
   const paid = (c: Checkout): Checkout => ({
@@ -206,7 +218,7 @@ function server({
     usage: jest.fn(async () => undefined),
     me: jest.fn(async () => ({ actor, demo })),
     offer: jest.fn(async (id: string) => ({ offer: id === pkg.id ? pkg : null })),
-    customer: jest.fn(async () => ({ subscriptions, deliveries: [], addresses: [kantor, rumah], notifications: [], cases: [] })),
+    customer: jest.fn(async () => ({ subscriptions, deliveries: [], addresses, notifications: [], cases: [] })),
     request: jest.fn(async (path: string) => {
       if (path === "payment-methods")
         return { mode, availableMethods: mode === "direct" ? ["QRIS", "VIRTUAL_ACCOUNT_BRI"] : [] };
@@ -307,10 +319,14 @@ const withChoices = (ui: React.ReactElement) => (
 );
 
 const commands = (runtime: MobileRuntime) => (runtime.api.command as jest.Mock).mock.calls;
+/** The Diantar ke row names this address (its label, or the empty-address sentence). */
+const deliveredTo = (text: string) =>
+  waitFor(() => expect(within(screen.getByTestId("buy-row-address")).getByText(text)).toBeTruthy());
 const bayarReady = () => waitFor(() => expect(screen.getByRole("button", { name: "Bayar" })).toBeEnabled());
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockWindow = JEST_WINDOW;
   (SecureStore as unknown as { __store: Map<string, string> }).__store.clear();
 });
 
@@ -605,7 +621,7 @@ describe("Beli / Perpanjang", () => {
     fireEvent.press(sheet.getByRole("radio", { name: /Rumah/ }));
     // The sheet closes and Beli shows the chosen address; the purchase never left.
     await waitFor(() => expect(screen.queryByTestId("choice-sheet")).toBeNull());
-    expect(await screen.findByText(/^Diantar ke Rumah/)).toBeTruthy();
+    await deliveredTo("Rumah");
     // Kelola alamat opens Alamat over the purchase in the picker's own place (a replace, not a push after it closes).
     fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" }));
     fireEvent.press(within(await screen.findByTestId("choice-sheet")).getByRole("button", { name: "Kelola alamat" }));
@@ -628,11 +644,11 @@ describe("Beli / Perpanjang", () => {
     await bayarReady();
     fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" }));
     fireEvent.press(within(await screen.findByTestId("choice-sheet")).getByRole("radio", { name: /Rumah/ }));
-    expect(await screen.findByText(/^Diantar ke Rumah/)).toBeTruthy();
+    await deliveredTo("Rumah");
     // Rumah is removed; the next read of the customer no longer lists it.
     (rt.api.customer as jest.Mock).mockImplementation(async () => ({ subscriptions: [current], deliveries: [], addresses: [kantor], notifications: [], cases: [] }));
     fireEvent.press(screen.getByRole("button", { name: "hapus-rumah" }));
-    expect(await screen.findByText(/^Diantar ke Kantor/)).toBeTruthy();
+    await deliveredTo("Kantor");
     expect(screen.queryByText("Belum ada alamat pengantaran.")).toBeNull();
     await bayarReady();
   });
@@ -652,10 +668,10 @@ describe("Beli / Perpanjang", () => {
     await bayarReady();
     fireEvent.press(screen.getByRole("button", { name: "Ganti alamat" }));
     fireEvent.press(within(await screen.findByTestId("choice-sheet")).getByRole("radio", { name: /Rumah/ }));
-    expect(await screen.findByText(/^Diantar ke Rumah/)).toBeTruthy();
+    await deliveredTo("Rumah");
     (rt.api.customer as jest.Mock).mockImplementation(async () => ({ subscriptions: [current], deliveries: [], addresses: [], notifications: [], cases: [] }));
     fireEvent.press(screen.getByRole("button", { name: "hapus" }));
-    expect(await screen.findByText(/Belum ada alamat pengantaran/)).toBeTruthy();
+    await deliveredTo("Belum ada alamat pengantaran.");
     expect(screen.getByRole("button", { name: "Bayar" })).toBeDisabled();
   });
 
@@ -1454,5 +1470,259 @@ describe("Beli waits (Task 5 fix round 1)", () => {
     expect(await screen.findByText("Dengan membayar, kamu setuju dengan Ketentuan Catera.")).toBeTruthy();
     expect(screen.UNSAFE_getAllByType(FadeSwap)[0].props.swapKey).toBe("ready");
     expect(timing.mock.calls.filter(([to, c]) => to === 1 && c?.duration === nativeMotion.content)).not.toHaveLength(0);
+  });
+});
+
+describe("Beli layout (customer layout spec 3.7)", () => {
+  const flat = (node: { props: { style?: unknown } }) => (StyleSheet.flatten(node.props.style as never) ?? {}) as Record<string, unknown>;
+  const PHONE = { width: 411, height: 860, scale: 3, fontScale: 1 };
+  const SMALL_LARGE_TEXT = { width: 360, height: 800, scale: 3, fontScale: 1.3 };
+  const wrapV2 = (runtime: MobileRuntime, ui: React.ReactElement) =>
+    render(
+      <LayoutScaleProvider value="v2">
+        <MobileProvider runtime={runtime} linkMapper={customerLink}>
+          {ui}
+        </MobileProvider>
+      </LayoutScaleProvider>,
+    );
+  const open = async (runtime = server(), ui: React.ReactElement = <BuyScreen packageId="p-rumahan" />) => {
+    mockWindow = PHONE;
+    wrapV2(runtime, ui);
+    await bayarReady();
+    return runtime;
+  };
+
+  it("leads with a summary card: a 64 photo, the name in rowTitle, the caterer and the price in meta", async () => {
+    await open();
+    const card = screen.getByTestId("buy-summary");
+    expect(flat(within(card).getByTestId("buy-summary-thumb"))).toMatchObject({ width: 64, height: 64, borderRadius: 8 });
+    expect(flat(within(card).getByText("Makan Siang Rumahan"))).toMatchObject({ fontSize: 17, lineHeight: 22, fontFamily: fonts.semibold });
+    const caterer = within(card).getByText("Dapur Contoh · makan siang");
+    expect(flat(caterer)).toMatchObject({ fontSize: 13, lineHeight: 18, color: nativeThemes.light.muted });
+    expect(flat(within(card).getByText(`${currency(28000, "id")} / sekali makan`))).toMatchObject({ fontSize: 13 });
+    expect(flat(card)).toMatchObject({ backgroundColor: nativeThemes.light.surface, borderRadius: 16 });
+  });
+
+  it("puts the four choices in one card of glyph rows: Mulai 72, Lama paket, Porsi 56, Diantar ke 72", async () => {
+    await open();
+    expect(screen.getAllByTestId("list-card")).toHaveLength(1);
+    const card = screen.getByTestId("list-card");
+    for (const id of ["buy-row-start", "buy-row-length", "buy-row-portions", "buy-row-address"]) expect(within(card).getByTestId(id)).toBeTruthy();
+    expect(flat(screen.getByTestId("buy-row-start")).minHeight).toBe(72);
+    expect(flat(screen.getByTestId("buy-row-portions")).minHeight).toBe(56);
+    expect(flat(screen.getByTestId("buy-row-address")).minHeight).toBe(72);
+    // Each row leads with a 40 glyph circle.
+    for (const id of ["start", "length", "portions", "address"])
+      expect(flat(screen.getByTestId(`buy-row-${id}-glyph`))).toMatchObject({ width: 40, height: 40, borderRadius: 20 });
+  });
+
+  it("Mulai names the date in bodyStrong with its range in meta and a trailing Ubah", async () => {
+    await open();
+    const row = within(screen.getByTestId("buy-row-start"));
+    expect(flat(row.getByText("Mulai"))).toMatchObject({ fontSize: 13, lineHeight: 18 });
+    expect(flat(row.getByText("Kamis 8 Okt"))).toMatchObject({ fontSize: 15, lineHeight: 22, fontFamily: fonts.semibold });
+    expect(flat(row.getByText(/^20 hari antar, Senin–Jumat, sampai /))).toMatchObject({ fontSize: 13 });
+    // The visible word is Ubah; a screen reader still hears what it changes.
+    expect(row.getByText("Ubah")).toBeTruthy();
+    expect(row.getByRole("button", { name: "Ganti tanggal mulai" })).toBeTruthy();
+  });
+
+  it("Lama paket keeps the length options when the package offers several lengths", async () => {
+    await open();
+    const row = within(screen.getByTestId("buy-row-length"));
+    expect(flat(row.getByText("Lama paket"))).toMatchObject({ fontSize: 13 });
+    expect(row.getByRole("radio", { name: "20 hari" }).props.accessibilityState.checked).toBe(true);
+    expect(row.getByRole("radio", { name: "40 hari · Hemat 5%" })).toBeTruthy();
+  });
+
+  it("Lama paket is a plain value for a single length and for a trial", async () => {
+    const single = offer({ id: "p-rumahan", name: "Makan Siang Rumahan", days: 20, price: 28000 });
+    mockWindow = PHONE;
+    const one = wrapV2(server({ pkg: single }), <BuyScreen packageId="p-rumahan" />);
+    await bayarReady();
+    let row = within(screen.getByTestId("buy-row-length"));
+    expect(flat(row.getByText("20 hari"))).toMatchObject({ fontSize: 15, fontFamily: fonts.semibold });
+    expect(row.queryAllByRole("radio")).toHaveLength(0);
+    expect(flat(screen.getByTestId("buy-row-length")).minHeight).toBe(56);
+    one.unmount();
+
+    wrapV2(server(), <BuyScreen packageId="p-rumahan" trial />);
+    await bayarReady();
+    row = within(screen.getByTestId("buy-row-length"));
+    expect(row.getByText("1 hari, coba dulu")).toBeTruthy();
+    expect(row.queryAllByRole("radio")).toHaveLength(0);
+    // The summary quotes the trial price, per meal like the catalogue.
+    expect(within(screen.getByTestId("buy-summary")).getByText(`${currency(30000, "id")} / sekali makan`)).toBeTruthy();
+  });
+
+  it("Porsi per hari carries a stepper whose buttons are 44 targets", async () => {
+    const runtime = await open();
+    const row = within(screen.getByTestId("buy-row-portions"));
+    expect(flat(row.getByText("Porsi per hari"))).toMatchObject({ fontSize: 15, fontFamily: fonts.semibold });
+    for (const name of ["Kurangi Porsi per hari", "Tambah Porsi per hari"])
+      expect(flat(row.getByRole("button", { name }))).toMatchObject({ width: 44, height: 44 });
+    fireEvent.press(row.getByRole("button", { name: "Tambah Porsi per hari" }));
+    await waitFor(() => expect(runtime.api.quote).toHaveBeenLastCalledWith(expect.objectContaining({ portions: 2 })));
+  });
+
+  it("Diantar ke shows the address label and line with a trailing Ganti", async () => {
+    await open();
+    const row = within(screen.getByTestId("buy-row-address"));
+    expect(flat(row.getByText("Diantar ke"))).toMatchObject({ fontSize: 13 });
+    expect(flat(row.getByText("Kantor"))).toMatchObject({ fontSize: 15, fontFamily: fonts.semibold });
+    expect(flat(row.getByText("Jl. Contoh No. 1"))).toMatchObject({ fontSize: 13 });
+    expect(row.getByText("Ganti")).toBeTruthy();
+    expect(row.getByRole("button", { name: "Ganti alamat" })).toBeTruthy();
+  });
+
+  it("without an address Diantar ke says so and offers Tambah alamat, with Bayar off and the reason shown", async () => {
+    mockWindow = PHONE;
+    wrapV2(server({ addresses: [] }), <BuyScreen packageId="p-rumahan" />);
+    const row = within(await screen.findByTestId("buy-row-address"));
+    expect(await row.findByText("Belum ada alamat pengantaran.")).toBeTruthy();
+    expect(flat(screen.getByTestId("buy-row-address")).minHeight).toBe(72);
+    fireEvent.press(row.getByRole("button", { name: "Tambah alamat" }));
+    expect(router.push).toHaveBeenCalledWith("/pembelian/alamat");
+    expect(screen.getByText("Tambahkan alamat pengantaran dulu.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Bayar" })).toBeDisabled();
+    // Nothing is priced, so there is no Rincian to show.
+    expect(screen.queryByRole("header", { name: "Rincian" })).toBeNull();
+  });
+
+  it("an address outside the caterer's area is a blocked line under the choices", async () => {
+    mockWindow = PHONE;
+    wrapV2(server({ addresses: [rumah] }), <BuyScreen packageId="p-rumahan" />);
+    expect(await screen.findByText("Alamat ini di luar jangkauan Dapur Contoh. Pilih alamat lain.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Bayar" })).toBeDisabled();
+    expect(screen.queryByRole("header", { name: "Rincian" })).toBeNull();
+  });
+
+  it("Rincian is a section over a card of 40 rows in bodyL, every line verbatim from the quote", async () => {
+    await open();
+    const heading = screen.getByRole("header", { name: "Rincian" });
+    expect(flat(heading)).toMatchObject({ fontSize: 20, lineHeight: 26 });
+    const rows = screen.getAllByTestId("buy-breakdown-row");
+    expect(rows.length).toBeGreaterThanOrEqual(3);
+    for (const row of rows) expect(flat(row).minHeight).toBe(40);
+    const label = screen.getByText("Biaya layanan");
+    expect(flat(label)).toMatchObject({ fontSize: 15, lineHeight: 22, fontFamily: fonts.regular });
+    expect(flat(screen.getByText(currency(2500, "id")))).toMatchObject({ fontSize: 15, lineHeight: 22 });
+    expect(flat(screen.getByTestId("buy-breakdown"))).toMatchObject({ backgroundColor: nativeThemes.light.surface, borderRadius: 16 });
+  });
+
+  it("Bayar dengan is a section over the payment card, then the terms in meta", async () => {
+    await open();
+    expect(flat(screen.getByRole("header", { name: "Bayar dengan" }))).toMatchObject({ fontSize: 20, lineHeight: 26 });
+    expect(screen.getByText("QRIS")).toBeTruthy();
+    const terms = screen.getByText("Dengan membayar, kamu setuju dengan Ketentuan Catera.");
+    expect(flat(terms)).toMatchObject({ fontSize: 13, lineHeight: 18 });
+  });
+
+  it("the footer shows Total in meta over the amount in section 800 and a 50 round Bayar at the right", async () => {
+    await open();
+    const footer = within(screen.getByTestId("screen-footer"));
+    expect(flat(footer.getByText("Total"))).toMatchObject({ fontSize: 13, lineHeight: 18, color: nativeThemes.light.muted });
+    const amount = footer.getByText(totalOf());
+    expect(flat(amount)).toMatchObject({ fontSize: 20, lineHeight: 26, fontFamily: fonts.extrabold });
+    // A price is read as text, never as a heading.
+    expect(amount.props.accessibilityRole).toBe("text");
+    const pay = footer.getByRole("button", { name: "Bayar" });
+    expect(flat(pay)).toMatchObject({ minHeight: 50, borderRadius: 25, backgroundColor: nativeThemes.light.forest });
+    expect(flat(screen.getByTestId("buy-footer-row")).flexDirection).toBe("row");
+  });
+
+  it("the footer's amount and Bayar stack at 360dp and font scale 1.3, and every row's words wrap", async () => {
+    mockWindow = SMALL_LARGE_TEXT;
+    wrapV2(server(), <BuyScreen packageId="p-rumahan" />);
+    await bayarReady();
+    expect(flat(screen.getByTestId("buy-footer-row")).flexDirection).toBe("column");
+    const pay = within(screen.getByTestId("screen-footer")).getByRole("button", { name: "Bayar" });
+    expect(flat(pay).alignSelf).toBe("stretch");
+    for (const id of ["buy-row-start", "buy-row-address"])
+      for (const text of within(screen.getByTestId(id)).getAllByText(/./)) expect(text.props.numberOfLines).toBeUndefined();
+    expect(within(screen.getByTestId("buy-summary")).getByText("Makan Siang Rumahan").props.numberOfLines).toBeUndefined();
+  });
+
+  it("the footer stands off the canvas by tone and has no hairline, so a card scrolling under it stays cut by an edge", async () => {
+    await open();
+    const footer = flat(screen.getByTestId("screen-footer"));
+    expect(footer).toMatchObject({ backgroundColor: nativeThemes.light.canvas, paddingBottom: 16, borderTopWidth: 0 });
+    expect(footer.backgroundColor).not.toBe(nativeThemes.light.surface);
+  });
+
+  it("reads the dark theme's surface for the cards and its canvas for the footer", async () => {
+    const scheme = jest.spyOn(ReactNative, "useColorScheme").mockReturnValue("dark");
+    mockWindow = PHONE;
+    const dark = nativeThemes.dark;
+    render(
+      <ThemeProvider storageKey="buy-dark-test">
+        <LayoutScaleProvider value="v2">
+          <MobileProvider runtime={server()} linkMapper={customerLink}>
+            <BuyScreen packageId="p-rumahan" />
+          </MobileProvider>
+        </LayoutScaleProvider>
+      </ThemeProvider>,
+    );
+    await bayarReady();
+    expect(flat(screen.getByTestId("buy-summary")).backgroundColor).toBe(dark.surface);
+    expect(flat(screen.getByTestId("list-card")).backgroundColor).toBe(dark.surface);
+    expect(flat(screen.getByTestId("buy-breakdown")).backgroundColor).toBe(dark.surface);
+    expect(flat(screen.getByTestId("screen-footer")).backgroundColor).toBe(dark.canvas);
+    expect(flat(within(screen.getByTestId("screen-footer")).getByText("Total")).color).toBe(dark.muted);
+    scheme.mockRestore();
+  });
+
+  it("a renewal that still waits for payment keeps its attention card above the summary", async () => {
+    mockWindow = PHONE;
+    wrapV2(server({ context: { pendingCheckoutId: "ck-9" } }), <BuyScreen renewFrom="s-1" />);
+    const card = await screen.findByTestId("buy-pending");
+    expect(flat(card)).toMatchObject({ borderWidth: 1, borderColor: nativeThemes.light.attentionBorder });
+    expect(within(card).getByRole("button", { name: "Lanjutkan pembayaran" })).toBeTruthy();
+    expect(screen.getByTestId("buy-summary")).toBeTruthy();
+  });
+
+  it("while the price is worked out, Rincian holds a skeleton of three 40 rows", async () => {
+    const runtime = server();
+    (runtime.api.quote as jest.Mock).mockImplementation(() => new Promise(() => undefined));
+    mockWindow = PHONE;
+    wrapV2(runtime, <BuyScreen packageId="p-rumahan" />);
+    expect(await screen.findByTestId("breakdown-skeleton")).toBeTruthy();
+    expect(screen.getByRole("header", { name: "Rincian" })).toBeTruthy();
+    const rows = screen.getAllByTestId("breakdown-skeleton-row");
+    expect(rows).toHaveLength(3);
+    for (const row of rows) expect(flat(row).minHeight).toBe(40);
+  });
+
+  it("the page skeleton reads the loaded geometry: an 88 summary, the field rows and the Rincian rows", async () => {
+    const runtime = server();
+    (runtime.api.offer as jest.Mock).mockImplementation(() => new Promise(() => undefined));
+    mockWindow = PHONE;
+    wrapV2(runtime, <BuyScreen packageId="p-rumahan" />);
+    expect(await screen.findByTestId("buy-skeleton")).toBeTruthy();
+    expect(flat(screen.getByTestId("buy-skeleton-summary")).height).toBe(88);
+    expect(flat(screen.getByTestId("buy-skeleton-fields")).height).toBe(72 + 56 + 56 + 72 + 3);
+    for (const row of screen.getAllByTestId("breakdown-skeleton-row")) expect(flat(row).minHeight).toBe(40);
+  });
+
+  it("a failed price keeps Rincian with the recalculate action", async () => {
+    const runtime = server();
+    (runtime.api.quote as jest.Mock).mockRejectedValueOnce(Object.assign(new Error("CAPACITY"), { code: "CAPACITY" }));
+    mockWindow = PHONE;
+    wrapV2(runtime, <BuyScreen packageId="p-rumahan" />);
+    expect(await screen.findByRole("button", { name: "Hitung ulang" })).toBeTruthy();
+    expect(screen.getByRole("header", { name: "Rincian" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Bayar" })).toBeDisabled();
+  });
+
+  it("a package that still runs offers its next start inside Rincian, as a 50 button", async () => {
+    const running = subscription({ id: "s-1", package_id: "p-rumahan", ends_on: "2026-10-15" });
+    const runtime = server({ subscriptions: [running] });
+    (runtime.api.quote as jest.Mock).mockRejectedValueOnce(Object.assign(new Error("OVERLAP"), { code: "OVERLAP" }));
+    mockWindow = PHONE;
+    wrapV2(runtime, <BuyScreen packageId="p-rumahan" />);
+    expect(await screen.findByText("Paket ini masih berjalan sampai Kamis 15 Okt.")).toBeTruthy();
+    const start = screen.getByRole("button", { name: /Mulai Jumat 16 Okt/ });
+    expect(flat(start)).toMatchObject({ minHeight: 50 });
+    expect(screen.getByRole("header", { name: "Rincian" })).toBeTruthy();
   });
 });

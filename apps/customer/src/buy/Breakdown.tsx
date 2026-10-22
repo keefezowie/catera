@@ -2,7 +2,10 @@ import type { ReactNode } from "react";
 import { View } from "react-native";
 import { currency, firstOperatingDayAfter, shortDate, type Locale, type Quote } from "@catera/domain";
 import { plural } from "@catera/mobile-core";
-import { Button, fontFor, PressableScale, Text, themedStyles, useColors } from "@catera/mobile-ui";
+import { nativeLayout } from "@catera/design-tokens";
+import { Button, fontFor, PressableScale, Text, themedStyles } from "@catera/mobile-ui";
+import { FieldRow } from "./BuyParts";
+import { BREAKDOWN_PAD, BREAKDOWN_ROW } from "./metrics";
 
 const FULL_DAYS = {
   id: ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"],
@@ -38,7 +41,6 @@ export function LengthOptions({
   value: number;
   onChange: (cycles: number) => void;
 }) {
-  const c = useColors();
   const styles = useStyles();
   return (
     <View accessibilityRole="radiogroup" style={styles.options}>
@@ -54,7 +56,7 @@ export function LengthOptions({
             onPress={() => onChange(o.cycles)}
             style={[styles.option, on ? styles.optionOn : styles.optionOff]}
           >
-            <Text style={[styles.optionLabel, { color: on ? c.cream : c.charcoal }]}>{o.label}</Text>
+            <Text style={[styles.optionLabel, on ? styles.optionLabelOn : null]}>{o.label}</Text>
           </PressableScale>
         );
       })}
@@ -62,17 +64,21 @@ export function LengthOptions({
   );
 }
 
-function Row({ label, value, tone }: { label: string; value: ReactNode; tone?: string }) {
+function Row({ label, value }: { label: string; value: ReactNode }) {
   const styles = useStyles();
   return (
-    <View style={styles.row}>
-      <Text style={[styles.rowLabel, tone ? { color: tone } : null, tabular]}>{label}</Text>
-      <Text style={[styles.rowValue, tone ? { color: tone } : null, tabular]}>{value}</Text>
+    <View testID="buy-breakdown-row" style={styles.row}>
+      <Text variant="bodyL" style={[styles.rowLabel, tabular]}>
+        {label}
+      </Text>
+      <Text variant="bodyL" style={[styles.rowValue, tabular]}>
+        {value}
+      </Text>
     </View>
   );
 }
 
-/** Every line verbatim from the server quote; nothing here is computed from prices. */
+/** "Rincian": every line verbatim from the server quote, as rows of 40 in `bodyL`; nothing here is computed from prices. */
 export function Breakdown({
   quote,
   dimmed,
@@ -84,13 +90,12 @@ export function Breakdown({
   locale: Locale;
   t: (id: string, en: string) => string;
 }) {
-  const c = useColors();
   const styles = useStyles();
   const days = quote.dates.length;
   const unit = quote.trial ? (quote.offer.trialPrice ?? quote.offer.price) : quote.offer.price;
   const minus = (n: number) => `−${currency(n, locale)}`;
   return (
-    <View style={[styles.breakdown, dimmed && { opacity: 0.45 }]} accessibilityLabel={t("Rincian harga", "Price breakdown")}>
+    <View testID="buy-breakdown" style={[styles.breakdown, dimmed && { opacity: 0.45 }]} accessibilityLabel={t("Rincian harga", "Price breakdown")}>
       <Row
         label={t(
           `${days} hari × ${quote.portions} porsi × ${currency(unit, locale)}`,
@@ -105,7 +110,6 @@ export function Breakdown({
             `Save ${percent(quote.discountPercent, locale)} for ${plural(quote.portions, "portion")}`,
           )}
           value={minus(quote.discount)}
-          tone={c.charcoal}
         />
       ) : null}
       {quote.durationDiscount ? (
@@ -115,10 +119,9 @@ export function Breakdown({
             `Save ${percent(quote.durationDiscountPercent ?? 0, locale)} for ${plural(days, "day")}`,
           )}
           value={minus(quote.durationDiscount)}
-          tone={c.charcoal}
         />
       ) : null}
-      {quote.promotion > 0 ? <Row label={t("Promo", "Promotion")} value={minus(quote.promotion)} tone={c.charcoal} /> : null}
+      {quote.promotion > 0 ? <Row label={t("Promo", "Promotion")} value={minus(quote.promotion)} /> : null}
       <Row label={t("Biaya layanan", "Service fee")} value={currency(quote.serviceFee, locale)} />
       <Row label={t("Pengantaran", "Delivery")} value={t("Termasuk", "Included")} />
     </View>
@@ -130,11 +133,18 @@ const useStyles = themedStyles((c) => ({
   option: { flex: 1, minHeight: 56, borderRadius: 12, paddingHorizontal: 12, justifyContent: "center" },
   optionOn: { backgroundColor: c.forest },
   optionOff: { borderWidth: 1, borderColor: c.secondaryBorder, backgroundColor: c.surface },
-  optionLabel: { fontSize: 15, fontFamily: fontFor("700") },
-  breakdown: { gap: 10, paddingVertical: 4 },
-  row: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
-  rowLabel: { flex: 1, color: c.charcoal },
-  rowValue: { color: c.charcoal, fontFamily: fontFor("600") },
+  optionLabel: { fontSize: 15, fontFamily: fontFor("700"), color: c.charcoal },
+  optionLabelOn: { color: c.cream },
+  // A surface card of rows like the choices above it: it stands off the canvas by tone, with no border.
+  breakdown: {
+    backgroundColor: c.surface,
+    borderRadius: nativeLayout.radius.card,
+    paddingHorizontal: nativeLayout.cardPadding,
+    paddingVertical: BREAKDOWN_PAD,
+  },
+  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: nativeLayout.space.md, minHeight: BREAKDOWN_ROW },
+  rowLabel: { flex: 1, minWidth: 0 },
+  rowValue: { flexShrink: 0, textAlign: "right" },
 }));
 
 /**
@@ -203,13 +213,21 @@ export function StartLine({
   locale: Locale;
   t: (id: string, en: string) => string;
 }) {
-  const c = useColors();
   const last = quote?.dates[quote.dates.length - 1];
   const label = startDate ? shortDate(startDate, locale) : "";
   return (
-    <View style={{ gap: 4 }}>
-      {renew && startDate ? null : <Text variant="caption">{t("Mulai", "Starts")}</Text>}
-      <Text style={{ fontFamily: fontFor("800"), color: c.charcoal }}>
+    <FieldRow
+      id="start"
+      icon="calendar-outline"
+      minHeight={nativeLayout.row.media}
+      trailing={
+        onChange ? (
+          <Button variant="text" label={t("Ubah", "Change")} accessibilityLabel={t("Ganti tanggal mulai", "Change start date")} onPress={onChange} />
+        ) : null
+      }
+    >
+      {renew && startDate ? null : <Text variant="meta">{t("Mulai", "Starts")}</Text>}
+      <Text variant="bodyStrong">
         {!startDate
           ? t("Belum ada tanggal yang bisa dipesan.", "No bookable date yet.")
           : renew
@@ -217,16 +235,13 @@ export function StartLine({
             : label}
       </Text>
       {quote && last ? (
-        <Text variant="caption" style={[tabular, dimmed && { opacity: 0.45 }]}>
+        <Text variant="meta" style={[tabular, dimmed && { opacity: 0.45 }]}>
           {t(
             `${quote.dates.length} hari antar, ${fullDayRange(weekdays, locale)}, sampai ${shortDate(last, locale)}`,
             `${plural(quote.dates.length, "delivery day")}, ${fullDayRange(weekdays, locale)}, until ${shortDate(last, locale)}`,
           )}
         </Text>
       ) : null}
-      {onChange ? (
-        <Button variant="text" label={t("Ganti tanggal mulai", "Change start date")} onPress={onChange} style={{ alignSelf: "flex-start" }} />
-      ) : null}
-    </View>
+    </FieldRow>
   );
 }

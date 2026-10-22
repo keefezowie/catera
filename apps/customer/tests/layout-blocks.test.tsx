@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react-native";
 import { StyleSheet } from "react-native";
 import { Text } from "@catera/mobile-ui";
 import { nativeLayout, nativeThemes } from "@catera/design-tokens";
-import { BARE_GLYPH_INSET, GLYPH_INSET, GlyphRow, ListCard, MEDIA_INSET, MediaRow, SectionHeader, Thumb } from "../src/layout";
+import { BARE_GLYPH_INSET, GLYPH_INSET, GlyphCircle, GlyphRow, ListCard, MEDIA_INSET, MediaRow, SectionHeader, Thumb } from "../src/layout";
 
 const flat = (el: { props: { style?: unknown } }) => StyleSheet.flatten(el.props.style as never);
 
@@ -169,5 +169,14 @@ describe("layout blocks", () => {
       </ListCard>,
     );
     expect(flat(screen.getByTestId("list-card-separator")).marginLeft).toBe(MEDIA_INSET);
+  });
+
+  it("GlyphCircle is the 40 circle on the glyph tone that a hand-built row leads with", () => {
+    render(
+      <GlyphCircle testID="circle">
+        <Text>g</Text>
+      </GlyphCircle>,
+    );
+    expect(flat(screen.getByTestId("circle"))).toMatchObject({ width: 40, height: 40, borderRadius: 20, backgroundColor: nativeThemes.light.sage });
   });
 });
