@@ -1,15 +1,15 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { calendarDays, jakartaDay, type CustomerState } from "@catera/domain";
+import { addDays, calendarDays, jakartaDay, type CustomerState } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
 import { nativeLayout } from "@catera/design-tokens";
 import { FadeSwap, MoodHeader, PressableScale, ReadError, Screen, StateArt, Text, useMoodColors } from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
 import { usePullToRefresh } from "../refresh";
 import { JadwalCellsSkeleton } from "../skeletons";
-import { CalendarLegend, MonthFrame, MonthGrid, useGridBleed } from "./MonthGrid";
-import { monthOf, monthRange, monthTitle, monthWeeks, shiftMonth } from "./dates";
+import { CalendarLegend, MonthFrame, MonthGrid } from "./MonthGrid";
+import { monthFullWeeks, monthOf, monthReadRange, monthTitle, shiftMonth } from "./dates";
 import { WeekAgenda } from "./WeekAgenda";
 
 /** The legend explains the cells and claims nothing about the month, so it holds its place in every state. */
@@ -27,7 +27,7 @@ function Legend() {
 
 /**
  * The month band's title row: the month in `heroTitle` and, once there is a session, the two 44 chevrons. The header
- * pads its row by 20, so both ends pull out to the screen margin the agenda below uses (16 under `v2`).
+ * already insets its row by the screen margin, so the title lines up with the agenda below.
  */
 function MonthBar({
   month,
@@ -42,19 +42,16 @@ function MonthBar({
 }) {
   const { locale } = useMobile();
   const mood = useMoodColors();
-  const bleed = useGridBleed();
   return (
     <MoodHeader
       testID={testID}
       meta={
-        <View style={{ marginLeft: bleed }}>
-          <Text variant="heroTitle" style={{ color: mood.headerText }}>
-            {monthTitle(month, locale)}
-          </Text>
-        </View>
+        <Text variant="heroTitle" style={{ color: mood.headerText }}>
+          {monthTitle(month, locale)}
+        </Text>
       }
       title={null}
-      trailing={chevrons ? <View style={{ marginRight: bleed }}>{chevrons}</View> : undefined}
+      trailing={chevrons}
     >
       {children}
     </MoodHeader>
@@ -87,27 +84,28 @@ export function Jadwal() {
 function SignedInJadwal() {
   const { runtime, t, locale } = useMobile();
   const mood = useMoodColors();
-  const bleed = useGridBleed();
   const today = jakartaDay(new Date());
   const [month, setMonth] = useState(monthOf(today));
   const [selected, setSelected] = useState(today);
-  const { from, to } = monthRange(month);
+  // Whole weeks: from the Monday of the month's first week to the Sunday of its last, so the agenda for a week that
+  // straddles two months is complete. The grid still draws only the month's own days.
+  const { from, to } = monthReadRange(month);
   const data = useData(`jadwal:${month}`, () => runtime.api.customer(`?from=${from}&to=${to}`));
   const state: CustomerState | null = data.data;
   const pull = usePullToRefresh(data.reload);
 
-  const deliveries = useMemo(() => state?.deliveries.filter((d) => monthOf(d.service_date) === month) ?? [], [state, month]);
+  const deliveries = useMemo(() => state?.deliveries ?? [], [state]);
   const days = useMemo(() => calendarDays(deliveries), [deliveries]);
-  // No meal comes this month: every delivery is cancelled, or every meal of it is.
-  const monthEmpty = !deliveries.some((d) => d.status !== "cancelled" && (d.meals ?? []).some((m) => m.status !== "cancelled"));
+  // No meal comes this month: every delivery of its own days is cancelled, or every meal of it is.
+  const monthEmpty = !deliveries.some(
+    (d) => monthOf(d.service_date) === month && d.status !== "cancelled" && (d.meals ?? []).some((m) => m.status !== "cancelled"),
+  );
 
-  // The week of the selected day, cut at the month's edge (the month is what was read), and the one after it, which is
-  // the next month's first week when this one is the last.
-  const weeks = monthWeeks(month);
+  // The whole week of the selected day, and the one after it (a Monday in the next month when this is the last row).
+  const weeks = monthFullWeeks(month);
   const row = Math.max(0, weeks.findIndex((w) => w.includes(selected)));
-  const datesOf = (w: (string | null)[]) => w.filter((d): d is string => d != null);
-  const week = datesOf(weeks[row]);
-  const next = datesOf(weeks[row + 1] ?? monthWeeks(shiftMonth(month, 1))[0]);
+  const week = weeks[row];
+  const next = week.map((d) => addDays(d, 7));
 
   // Moving the month picks today in it, or its first day; a week opened from the agenda picks its own first day.
   const goToMonth = (m: string) => {
@@ -149,11 +147,9 @@ function SignedInJadwal() {
           {/* The loaded grid and the frame that stands in for it while the month loads (a skeleton circle per day) are
               the same height: the weekday row and the month's own week rows, and the legend stays below. A month that
               could not be read keeps room for its message. The month fades in from its skeleton as one block. The grid
-              pulls out past the header's padding by the bleed, so the fade's box pulls out with it: every cell stays
-              inside its parent, where a tap on an edge cell still reaches it. */}
+              spans the header's content width. */}
           <FadeSwap
             swapKey={state ? `${month}:ready` : data.error ? `${month}:error` : `${month}:loading`}
-            style={{ marginHorizontal: bleed, paddingHorizontal: -bleed }}
           >
             {state ? (
               <MonthGrid month={month} today={today} selected={selected} days={days} locale={locale} onSelect={setSelected} />

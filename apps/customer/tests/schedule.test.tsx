@@ -271,15 +271,17 @@ describe("Jadwal", () => {
       expect(flat(circle("Rabu 7 Oktober")).backgroundColor).toBeUndefined();
     });
 
-    it("marks a delivery day with a 6 dot under the number, muted once the day is past", async () => {
+    it("marks a delivery day with a 6 ink dot under the circle, muted once the day is past", async () => {
       renderV2(runtimeWith(coverage), <Jadwal />);
       await gridReady();
       // The 9th and 10th are ahead, the 7th is today, the 5th is past.
       for (const date of ["Jumat 9 Oktober", "Sabtu 10 Oktober"])
-        expect(flat(inCell(date, "cell-dot")!)).toMatchObject({ width: 6, height: 6, borderRadius: 3, backgroundColor: siang.headerMeta });
+        expect(flat(inCell(date, "cell-dot")!)).toMatchObject({ width: 6, height: 6, borderRadius: 3, backgroundColor: siang.headerText });
       expect(flat(inCell("Senin 5 Oktober", "cell-dot")!)).toMatchObject({ width: 6, height: 6, backgroundColor: siang.markerIdle });
-      // A selected day draws the dot in the number's own colour, so it shows on the fill.
-      expect(flat(inCell("Rabu 7 Oktober", "cell-dot")!).backgroundColor).toBe(siang.onToggleActive);
+      // The dot sits below the circle, outside its fill, so a selected day keeps the same ink dot and it shows on the header.
+      expect(flat(inCell("Rabu 7 Oktober", "cell-dot")!).backgroundColor).toBe(siang.headerText);
+      expect(within(circle("Rabu 7 Oktober")).queryByTestId("cell-dot", hidden)).toBeNull();
+      expect(within(circle("Jumat 9 Oktober")).queryByTestId("cell-dot", hidden)).toBeNull();
       // A day with no meal is only its number.
       expect(inCell("Minggu 11 Oktober", "cell-dot")).toBeNull();
       expect(inCell("Minggu 11 Oktober", "cell-unset-ring")).toBeNull();
@@ -310,25 +312,34 @@ describe("Jadwal", () => {
       renderV2(runtimeWith(coverage), <Jadwal />);
       await gridReady();
       const header = screen.getByTestId("jadwal-header");
-      const grid = flat(within(header).getByTestId("month-grid"));
-      // The header pads 20dp; the grid pulls out 4dp, so the days sit 16dp from the screen edge, like the agenda.
-      const side = (flat(within(header).getByTestId("mood-header-content")).paddingHorizontal as number) + (grid.marginHorizontal as number);
+      const grid = within(header).getByTestId("month-grid");
+      // The header insets its content by the 16 margin and the grid fills it as is: the days sit 16dp from the screen
+      // edge, like the agenda below.
+      expect(grid.props.style).toBeUndefined();
+      const side = flat(within(header).getByTestId("mood-header-content")).paddingHorizontal as number;
       expect(side).toBe(16);
       expect(2 * side + 7 * 44).toBeLessThanOrEqual(360);
       expect(flat(dayButton("Jumat 9 Oktober")).width).toBeUndefined();
       for (const row of within(header).getAllByTestId("month-week")) expect(flat(row).width).toBeUndefined();
-      expect(grid.width).toBeUndefined();
     });
 
-    it("keeps the number and dot inside the 32 circle at font scale 1.3", async () => {
+    it("keeps the dot out of the circle's flow at font scale 1.3, so a larger number never pushes it out", async () => {
       mockFontScale = 1.3;
       renderV2(runtimeWith(coverage), <Jadwal />);
       await gridReady();
+      for (const date of ["Jumat 9 Oktober", "Rabu 7 Oktober"]) {
+        // Unselected (the 9th) and selected (today): the dot is a sibling of the circle, absolutely placed at the cell's foot.
+        expect(flat(inCell(date, "cell-dot-slot")!)).toMatchObject({ position: "absolute", bottom: 0 });
+        expect(inCell(date, "cell-dot")).toBeTruthy();
+        expect(within(circle(date)).queryByTestId("cell-dot", hidden)).toBeNull();
+        // The circle is the cell's first 32; the dot takes the last 6 of the 40.
+        expect(flat(circle(date)).height).toBe(32);
+        expect(flat(dayButton(date)).justifyContent).toBe("flex-start");
+      }
       const number = within(dayButton("Jumat 9 Oktober")).getByText("9");
-      // Capped so number, gap and dot (20 + 2 + 6) stay inside 32.
       expect(number.props.maxFontSizeMultiplier).toBeLessThanOrEqual(1.3);
-      expect(flat(number).lineHeight).toBeLessThanOrEqual(20);
-      expect(inCell("Jumat 9 Oktober", "cell-dot")).toBeTruthy();
+      // The number is the circle's only child in flow, centred: a taller line grows inside the 32, never past it.
+      expect(flat(number).lineHeight).toBeLessThanOrEqual(32);
     });
 
     it("under Malam the ring, the selected circle and the dots are the Malam tokens", async () => {
@@ -343,7 +354,7 @@ describe("Jadwal", () => {
       expect(malam.toggleActive).toBe("#163D2E");
       fireEvent.press(dayButton("Kamis 8 Oktober"));
       expect(flat(circle("Rabu 7 Oktober")).borderColor).toBe(malam.todayRing);
-      expect(flat(inCell("Jumat 9 Oktober", "cell-dot")!).backgroundColor).toBe(malam.headerMeta);
+      expect(flat(inCell("Jumat 9 Oktober", "cell-dot")!).backgroundColor).toBe(malam.headerText);
     });
 
     it("in dark, the selected circle is the lifted green and its number the dark card colour", async () => {
@@ -359,7 +370,7 @@ describe("Jadwal", () => {
         const dark = nativeMood.dark.siang;
         expect(flat(circle("Rabu 7 Oktober")).backgroundColor).toBe(dark.toggleActive);
         expect(flat(within(dayButton("Rabu 7 Oktober")).getByText("7")).color).toBe(dark.onToggleActive);
-        expect(flat(inCell("Jumat 9 Oktober", "cell-dot")!).backgroundColor).toBe(dark.headerMeta);
+        expect(flat(inCell("Jumat 9 Oktober", "cell-dot")!).backgroundColor).toBe(dark.headerText);
       } finally {
         scheme.mockRestore();
       }
@@ -413,7 +424,7 @@ describe("Jadwal", () => {
       const unset = within(screen.getByTestId("legend-unset"));
       expect(flat(delivery.getByText("Ada pengantaran"))).toMatchObject({ fontSize: 13, lineHeight: 18, color: siang.headerMeta });
       expect(flat(unset.getByText("Menu belum diisi")).fontSize).toBe(13);
-      expect(flat(delivery.getByTestId("legend-delivery-swatch"))).toMatchObject({ width: 6, height: 6, borderRadius: 3, backgroundColor: siang.headerMeta });
+      expect(flat(delivery.getByTestId("legend-delivery-swatch"))).toMatchObject({ width: 6, height: 6, borderRadius: 3, backgroundColor: siang.headerText });
       expect(flat(unset.getByTestId("legend-unset-swatch"))).toMatchObject({ width: 6, height: 6, borderRadius: 3, borderWidth: 1.5, borderColor: siang.markerIdle });
       // The old photo, moon and arrived explanations are gone with their cells.
       for (const gone of ["Foto menu", "Ada makan malam", "Diantar", "Dipindah"]) expect(within(header).queryByText(gone)).toBeNull();
@@ -506,7 +517,7 @@ describe("Jadwal", () => {
       await gridReady();
       fireEvent.press(dayButton("Selasa 13 Oktober"));
       const heading = screen.getByTestId("agenda-heading");
-      expect(within(heading).getByText("Minggu 12–18 Okt")).toBeTruthy();
+      expect(within(heading).getByText("Pekan 12–18 Okt")).toBeTruthy();
       expect(within(heading).queryByText("Minggu ini")).toBeNull();
       expect(screen.getAllByTestId(/^agenda-day-/).map((n) => n.props.testID)).toEqual(["agenda-day-2026-10-13"]);
       expect(within(agendaDay("2026-10-13")!).getByText("Selasa 13 Okt")).toBeTruthy();
@@ -534,24 +545,82 @@ describe("Jadwal", () => {
       const next = screen.getByRole("button", { name: "Minggu depan, 12–18 Okt" });
       expect(flat(next).minHeight).toBe(56);
       fireEvent.press(next);
-      expect(within(screen.getByTestId("agenda-heading")).getByText("Minggu 12–18 Okt")).toBeTruthy();
+      expect(within(screen.getByTestId("agenda-heading")).getByText("Pekan 12–18 Okt")).toBeTruthy();
       expect(agendaDay("2026-10-13")).toBeTruthy();
       expect(screen.getByRole("button", { name: "Minggu depan, 19–25 Okt" })).toBeTruthy();
     });
 
-    it("the last link of a month opens the next month's first week and loads it", async () => {
+    it("shows a week that straddles two months whole, from the Monday to the Sunday", async () => {
+      const straddle = stateOf([
+        ...coverage.deliveries,
+        delivery("d-oct30", "2026-10-30", {}, {}),
+        delivery("d-nov1", "2026-11-01", {}, { offer: offer({ name: "Nasi Uduk Minggu" }) }),
+      ]);
+      const runtime = runtimeWith(straddle);
+      renderV2(runtime, <Jadwal />);
+      await gridReady();
+      // The read covers the Monday of the first week to the Sunday of the last: 28 Sep to 1 Nov for October 2026.
+      expect(runtime.api.customer).toHaveBeenCalledWith("?from=2026-09-28&to=2026-11-01");
+      fireEvent.press(dayButton("Rabu 28 Oktober"));
+      const heading = screen.getByTestId("agenda-heading");
+      expect(within(heading).getByText("Pekan 26 Okt–1 Nov")).toBeTruthy();
+      // Never "Minggu <date>": that reads as Sunday.
+      expect(within(heading).queryByText(/^Minggu /)).toBeNull();
+      expect(screen.getAllByTestId(/^agenda-day-/).map((n) => n.props.testID)).toEqual(["agenda-day-2026-10-30", "agenda-day-2026-11-01"]);
+      expect(within(agendaDay("2026-11-01")!).getByText("Minggu 1 Nov")).toBeTruthy();
+      expect(within(screen.getByTestId("agenda-row-d-nov1-lunch")).getByText("Nasi Uduk Minggu")).toBeTruthy();
+      // Friday and Sunday have meals, so the empty line names only the other days.
+      expect(screen.getByText("Senin, Selasa, Rabu, Kamis, dan Sabtu tidak ada pengantaran")).toBeTruthy();
+      // The grid still draws only October's own days.
+      expect(screen.queryByRole("button", { name: /^Minggu 1 November/ })).toBeNull();
+      expect(within(screen.getByTestId("month-grid")).getAllByTestId("cell-circle")).toHaveLength(31);
+    });
+
+    it("the last week's link opens the next week in the next month and loads it whole", async () => {
       const runtime = runtimeWith(coverage);
       renderV2(runtime, <Jadwal />);
       await gridReady();
       fireEvent.press(dayButton("Rabu 28 Oktober"));
-      // 26 to 31 October: the Sunday, 1 November, belongs to the next month's read.
-      expect(within(screen.getByTestId("agenda-heading")).getByText("Minggu 26–31 Okt")).toBeTruthy();
-      fireEvent.press(screen.getByRole("button", { name: "Minggu depan, 1 Nov" }));
+      fireEvent.press(screen.getByRole("button", { name: "Minggu depan, 2–8 Nov" }));
       expect(await screen.findByText("November 2026")).toBeTruthy();
-      await waitFor(() => expect(runtime.api.customer).toHaveBeenCalledWith("?from=2026-11-01&to=2026-11-30"));
-      // The chosen week is kept across the month change: 1 November is selected.
-      await screen.findByRole("button", { name: /^Minggu 1 November/ });
-      expect(dayButton("Minggu 1 November").props.accessibilityState.selected).toBe(true);
+      // November 2026 starts on a Sunday: from the Monday 26 Oct to the Sunday 6 Dec.
+      await waitFor(() => expect(runtime.api.customer).toHaveBeenCalledWith("?from=2026-10-26&to=2026-12-06"));
+      // The chosen week is kept across the month change: Monday 2 November is selected.
+      await screen.findByRole("button", { name: /^Senin 2 November/ });
+      expect(dayButton("Senin 2 November").props.accessibilityState.selected).toBe(true);
+      expect(within(screen.getByTestId("agenda-heading")).getByText("Pekan 2–8 Nov")).toBeTruthy();
+    });
+
+    it("puts the range of this week on the heading's row, and counts meals in the other weeks' heading", async () => {
+      renderV2(runtimeWith(coverage), <Jadwal />);
+      await gridReady();
+      const heading = screen.getByTestId("agenda-heading");
+      expect(flat(heading)).toMatchObject({ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" });
+      expect(within(heading).getByText("5–11 Okt")).toBeTruthy();
+      fireEvent.press(dayButton("Selasa 13 Oktober"));
+      // The 13th has lunch and dinner: two meals, two deliveries.
+      expect(within(screen.getByTestId("agenda-heading")).getByText("2 pengantaran")).toBeTruthy();
+    });
+
+    it("counts deliveries in English", async () => {
+      (require("expo-secure-store") as { __store: Map<string, string> }).__store.set("catera.locale", "en");
+      renderV2(runtimeWith(coverage), <Jadwal />);
+      await gridReady();
+      fireEvent.press(await screen.findByRole("button", { name: /^Tuesday 13 October/ }));
+      const heading = within(screen.getByTestId("agenda-heading"));
+      expect(heading.getByText("Week of 12–18 Oct")).toBeTruthy();
+      expect(heading.getByText("2 deliveries")).toBeTruthy();
+    });
+
+    it("draws the empty days as a surface card of at least 56", async () => {
+      renderV2(runtimeWith(coverage), <Jadwal />);
+      await gridReady();
+      expect(flat(screen.getByTestId("agenda-empty-days"))).toMatchObject({
+        backgroundColor: nativeThemes.light.surface,
+        borderRadius: 16,
+        paddingHorizontal: 16,
+        minHeight: 56,
+      });
     });
 
     it("opens a meal on its day: the row pushes the day screen", async () => {
@@ -629,11 +698,11 @@ describe("Jadwal", () => {
   });
 
   describe("loading and reading", () => {
-    it("loads the shown month by Jakarta dates", async () => {
+    it("loads the shown month's whole weeks by Jakarta dates", async () => {
       const runtime = runtimeWith(month);
       renderV2(runtime, <Jadwal />);
       await gridReady();
-      expect(runtime.api.customer).toHaveBeenCalledWith("?from=2026-10-01&to=2026-10-31");
+      expect(runtime.api.customer).toHaveBeenCalledWith("?from=2026-09-28&to=2026-11-01");
     });
 
     // Unknown data is never drawn as an uncovered month: with nothing loaded the header shows the empty frame, with no
@@ -735,7 +804,7 @@ describe("Jadwal", () => {
       renderV2(runtime, <Jadwal />);
       fireEvent.press(await screen.findByRole("button", { name: "Bulan berikutnya" }));
       expect(await screen.findByText("November 2026")).toBeTruthy();
-      await waitFor(() => expect(runtime.api.customer).toHaveBeenCalledWith("?from=2026-11-01&to=2026-11-30"));
+      await waitFor(() => expect(runtime.api.customer).toHaveBeenCalledWith("?from=2026-10-26&to=2026-12-06"));
       expect((await screen.findByRole("button", { name: /^Minggu 1 November/ })).props.accessibilityState.selected).toBe(true);
     });
 

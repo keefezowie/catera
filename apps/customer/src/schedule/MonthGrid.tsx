@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { StyleSheet, Text as RNText, View } from "react-native";
 import type { CalendarDay, Locale } from "@catera/domain";
-import { fontFor, PressableScale, Text, useMoodColors, useScreenMargin } from "@catera/mobile-ui";
+import { fontFor, PressableScale, Text, useMoodColors } from "@catera/mobile-ui";
 import { longDay, monthWeeks, WEEK_HEADER } from "./dates";
 
 type Props = {
@@ -28,17 +28,6 @@ const UNSET_RING = 1.5;
 const NUMBER_MAX_SCALE = 1.3;
 /** A month that could not be read keeps room for its mascot, message and retry, whatever weeks the month has. */
 const ERROR_ROWS = 6;
-/** `MoodHeader` pads its content by this much on each side. */
-const HEADER_PADDING = 20;
-
-/**
- * How far the grid pulls out of the header's padding so its days sit one screen margin (16 under `v2`) from the screen
- * edge, in line with the agenda below. It is 0 where the margin is the header's own 20.
- */
-export function useGridBleed(): number {
-  return -(HEADER_PADDING - useScreenMargin());
-}
-
 /** The meals a day covers, lunch first. */
 const covered = (day: CalendarDay | undefined) => [day?.lunch, day?.dinner].filter((m) => m != null);
 
@@ -63,8 +52,10 @@ function dayLabel(date: string, locale: Locale, day: CalendarDay | undefined, to
 /**
  * One month, Monday first, drawn on the mood header: only the weeks the month needs (5 or 6, or 4). A day is its
  * number in a 32 circle: filled forest when selected (the number then in the card colour), ringed in forest when it is
- * today. A delivery day carries a 6 dot under the number (muted once it is past); a day whose menu is not set carries
- * a 6 ring of the same size instead. Everything reads the mood palette because the grid sits on the header.
+ * today. A delivery day carries a 6 dot under the circle (ink; muted once it is past); a day whose menu is not set
+ * carries a 6 ring of the same size instead. The dot is positioned absolutely at the cell's foot, outside the circle,
+ * so a larger font grows the number inside the circle without moving or hiding it, and the selected fill never covers
+ * it. The grid spans the header's content width, which is already inset by the screen margin (16 under `v2`).
  */
 export function MonthGrid({ month, today, selected, days, locale, onSelect }: Props) {
   const weeks = monthWeeks(month);
@@ -117,9 +108,9 @@ function DayCell({
   accessibilityLabel: string;
 }) {
   const mood = useMoodColors();
-  // The dot sits inside the circle, so on the selected fill it takes the number's own colour.
   const ink = selected ? mood.onToggleActive : mood.headerText;
-  const dot = selected ? mood.onToggleActive : past ? mood.markerIdle : mood.headerMeta;
+  // The dot sits below the circle, on the header, so it is ink (muted once past) selected or not.
+  const dot = past ? mood.markerIdle : mood.headerText;
   return (
     <PressableScale
       accessibilityRole="button"
@@ -129,7 +120,7 @@ function DayCell({
       onPress={onPress}
       // The cell is 40 tall by spec; the slop lifts its target to 44 without moving the rows.
       hitSlop={{ top: 2, bottom: 2 }}
-      style={[slot, { minWidth: CELL_MIN_WIDTH }]}
+      style={[cellSlot, { minWidth: CELL_MIN_WIDTH }]}
     >
       <View
         testID="cell-circle"
@@ -139,7 +130,6 @@ function DayCell({
           borderRadius: DAY_CIRCLE / 2,
           alignItems: "center",
           justifyContent: "center",
-          gap: 2,
           ...(selected ? { backgroundColor: mood.toggleActive } : null),
           ...(today ? { borderWidth: TODAY_RING, borderColor: mood.todayRing } : null),
         }}
@@ -151,24 +141,19 @@ function DayCell({
         >
           {String(day)}
         </RNText>
-        {/* The slot is always there, so a day without a dot keeps its number on the same line as its neighbours. */}
-        <View style={{ height: DOT, justifyContent: "center" }}>
-          {delivery && menuSet ? (
-            <View testID="cell-dot" style={{ width: DOT, height: DOT, borderRadius: DOT / 2, backgroundColor: dot }} />
-          ) : null}
-          {delivery && !menuSet ? (
-            <View
-              testID="cell-unset-ring"
-              style={{
-                width: DOT,
-                height: DOT,
-                borderRadius: DOT / 2,
-                borderWidth: UNSET_RING,
-                borderColor: selected ? mood.onToggleActive : mood.markerIdle,
-              }}
-            />
-          ) : null}
-        </View>
+      </View>
+      {/* Out of flow, at the cell's foot: the circle (32 from the top) and this 6 (the last 6 of the 40) never compete for
+          room, at any font size, and selecting a day does not move the dot. */}
+      <View testID="cell-dot-slot" pointerEvents="none" style={{ position: "absolute", left: 0, right: 0, bottom: 0, alignItems: "center" }}>
+        {delivery && menuSet ? (
+          <View testID="cell-dot" style={{ width: DOT, height: DOT, borderRadius: DOT / 2, backgroundColor: dot }} />
+        ) : null}
+        {delivery && !menuSet ? (
+          <View
+            testID="cell-unset-ring"
+            style={{ width: DOT, height: DOT, borderRadius: DOT / 2, borderWidth: UNSET_RING, borderColor: mood.markerIdle }}
+          />
+        ) : null}
       </View>
     </PressableScale>
   );
@@ -199,7 +184,7 @@ export function MonthFrame({
         <View key={row} testID="month-week" style={weekRow}>
           {cell
             ? week.map((date, col) => (
-                <View key={col} style={[slot, { minWidth: CELL_MIN_WIDTH }]}>
+                <View key={col} style={cellSlot}>
                   {date ? cell(date) : null}
                 </View>
               ))
@@ -216,6 +201,8 @@ export function MonthFrame({
 }
 
 const slot = { flex: 1, minWidth: CELL_MIN_WIDTH, height: MONTH_CELL, alignItems: "center", justifyContent: "center" } as const;
+/** A day's cell: the 32 circle at the top, the last 6 of the 40 left for the dot. The skeleton's slots are the same. */
+const cellSlot = { flex: 1, minWidth: CELL_MIN_WIDTH, height: MONTH_CELL, alignItems: "center", justifyContent: "flex-start" } as const;
 const weekRow = { flexDirection: "row", height: MONTH_CELL } as const;
 
 /**
@@ -234,9 +221,8 @@ function Frame({
   minRowsHeight?: number;
 }) {
   const mood = useMoodColors();
-  const bleed = useGridBleed();
   return (
-    <View testID={testID} style={{ marginHorizontal: bleed }}>
+    <View testID={testID}>
       <View testID="month-weekdays" style={{ minHeight: WEEKDAY_ROW, flexDirection: "row", alignItems: "center" }}>
         {WEEK_HEADER[locale].map((name) => (
           <View key={name} style={{ flex: 1, minWidth: CELL_MIN_WIDTH, alignItems: "center" }}>
@@ -266,7 +252,7 @@ export function CalendarLegend({ labels }: { labels: { delivery: string; unset: 
       <View testID="legend-delivery" style={item}>
         <View
           testID="legend-delivery-swatch"
-          style={{ width: DOT, height: DOT, borderRadius: DOT / 2, backgroundColor: mood.headerMeta }}
+          style={{ width: DOT, height: DOT, borderRadius: DOT / 2, backgroundColor: mood.headerText }}
         />
         <Text variant="meta" style={label}>
           {labels.delivery}

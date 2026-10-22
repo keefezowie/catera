@@ -29,10 +29,7 @@ type Item = { d: Delivery; m: ReturnType<typeof served>[number] };
 /** "Senin 5 Okt": the weekday and the short date, the spec's day label. */
 const dayName = (date: string, locale: Locale) => `${weekdayName(date, locale)} ${Number(date.slice(8))} ${monthName(date, locale)}`;
 
-/**
- * "5–11 Okt", or "26 Okt–1 Nov" across a month, or "1 Nov" for one day. A week is cut at the month's edge (the month is
- * what was read), so its days always share a month.
- */
+/** "5–11 Okt", or "26 Okt–1 Nov" for a week that straddles two months. */
 export function rangeLabel(dates: string[], locale: Locale): string {
   const first = dates[0];
   const last = dates[dates.length - 1];
@@ -53,8 +50,8 @@ function nameList(names: string[], locale: Locale): string {
 /**
  * Jadwal's agenda under the month (spec 3.2 item 2): one block per delivery day of the selected day's week, in order,
  * each a card of 72 meal rows under a `bodyStrong` day label; the days with nothing fold into one muted row; the last
- * row opens the next week. `week` and `next` are the month's own days (a week is cut at the month's edge, so a day
- * outside the month read is never reported as empty).
+ * row opens the next week. `week` and `next` are whole Monday-to-Sunday weeks; the read window covers the whole week, so
+ * a day in the neighbouring month is real data and never reported as empty by mistake.
  */
 export function WeekAgenda({
   week,
@@ -96,12 +93,11 @@ export function WeekAgenda({
   const range = rangeLabel(week, locale);
   const thisWeek = week.includes(today);
 
+  // Each meal is one delivery.
   const meta = thisWeek
     ? range
     : count
-      ? locale === "en"
-        ? `${count} ${count === 1 ? "delivery" : "deliveries"}`
-        : `${count} pengantaran`
+      ? t(`${count} pengantaran`, `${count} ${count === 1 ? "delivery" : "deliveries"}`)
       : null;
   const emptyLine =
     empty.length === week.length
@@ -141,7 +137,9 @@ export function WeekAgenda({
   return (
     <View testID="week-agenda">
       <View testID="agenda-heading" style={styles.heading}>
-        <Text variant="section">{thisWeek ? t("Minggu ini", "This week") : t(`Minggu ${range}`, `Week ${range}`)}</Text>
+        <Text variant="section" style={{ flexShrink: 1 }}>
+          {thisWeek ? t("Minggu ini", "This week") : t(`Pekan ${range}`, `Week of ${range}`)}
+        </Text>
         {meta ? <Text variant="meta">{meta}</Text> : null}
       </View>
       <View style={styles.body}>
@@ -182,11 +180,23 @@ export function WeekAgenda({
 
 const useStyles = themedStyles((c) => ({
   // heading to content 12, a day block's label to its card 8, between blocks 24, between the agenda's parts 16.
-  heading: { gap: 2, marginBottom: nativeLayout.headingGap },
+  heading: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "baseline",
+    columnGap: nativeLayout.space.md,
+    marginBottom: nativeLayout.headingGap,
+  },
   body: { gap: nativeLayout.space.lg },
   blocks: { gap: nativeLayout.space.xl },
   block: { gap: nativeLayout.groupGap },
-  empty: { minHeight: nativeLayout.row.single, justifyContent: "center" },
+  empty: {
+    minHeight: nativeLayout.row.single,
+    justifyContent: "center",
+    paddingHorizontal: nativeLayout.cardPadding,
+    borderRadius: nativeLayout.radius.card,
+    backgroundColor: c.surface,
+  },
   next: {
     minHeight: nativeLayout.row.single,
     flexDirection: "row",
