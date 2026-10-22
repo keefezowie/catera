@@ -383,7 +383,7 @@ describe("the heart", () => {
     const runtime = savedRuntime();
     wrap(runtime, <Jelajah />);
     const heart = await screen.findByRole("button", { name: "Simpan Nasi Ayam Bakar" });
-    expect(flat(heart)).toMatchObject({ width: 48, height: 48 });
+    expect(flat(heart)).toMatchObject({ width: 44, height: 44 });
     fireEvent.press(heart);
     // The pop: scale up to 1.22, then a spring back to 1; the five dots burst within 680ms.
     expect(sequence).toHaveBeenCalledWith(1.22, 1);
@@ -396,7 +396,7 @@ describe("the heart", () => {
       (timing.mock.calls.find(([, config]) => (config as { duration?: number })?.duration === duration)?.[1] as { easing?: unknown })?.easing;
     expect(easingOf(200)).toBeDefined();
     expect(easingOf(680)).toBe(easingOf(200));
-    // They burst out past the 48dp disc (radius 24), not inside its rim; the control itself stays 48dp.
+    // They burst out well past the 32dp disc (radius 16) the tile heart draws, not inside its rim; the control itself is 44dp.
     for (const dot of screen.getAllByTestId("heart-dot", { includeHiddenElements: true })) {
       const [{ translateX }, { translateY }] = flat(dot).transform as [{ translateX: number }, { translateY: number }];
       const reach = Math.hypot(translateX, translateY);

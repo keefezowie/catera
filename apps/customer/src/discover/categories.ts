@@ -1,11 +1,11 @@
 import type { Offer } from "@catera/domain";
 
-/** A meal is not a category: the meal buttons already own it, so these tags never become a circle. */
+/** A meal is not a category: the Siang / Malam segment already owns it, so these tags never become a chip. */
 const MEAL_TAG = /makan siang|makan malam|siang & malam/i;
 
 /**
- * The Jelajah category circles come from what caterers really tagged, not from a list written here. The most frequent
- * tags across the loaded packages (a tag counts once per package), ties in alphabetical order, each shown with the
+ * The Jelajah category chips come from what caterers really tagged, not from a list written here. The most frequent
+ * tags across the loaded packages (a tag counts once per package), ties in alphabetical order, each carried with the
  * photo of the first package that carries it and has a photo (a package without one never blanks a circle).
  */
 export function topTags(offers: Offer[], max: number): { tag: string; image: string }[] {

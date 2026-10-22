@@ -221,10 +221,13 @@ export function Chip({
   label,
   selected,
   onPress,
+  accessibilityLabel,
 }: {
   label: string;
   selected: boolean;
   onPress: () => void;
+  /** When the spoken name needs more than the visible label ("Kategori Sehat" for "Sehat"). */
+  accessibilityLabel?: string;
 }) {
   const c = useColors();
   const styles = useStyles();
@@ -233,6 +236,7 @@ export function Chip({
   return (
     <PressableScale
       accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
       accessibilityState={{ selected }}
       haptic="select"
       onPress={onPress}

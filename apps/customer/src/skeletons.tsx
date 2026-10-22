@@ -2,8 +2,10 @@ import type { ReactNode } from "react";
 import { View } from "react-native";
 import type { Locale } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
+import { nativeLayout } from "@catera/design-tokens";
 import { MoodFill, Skeleton, SkeletonGroup, useColors } from "@catera/mobile-ui";
 import { DAY_CIRCLE, MonthFrame } from "./schedule/MonthGrid";
+import { PackageGrid, useGridCell } from "./discover/PackageGrid";
 import { HERO_OVERLAP } from "./today/Plate";
 
 /**
@@ -71,49 +73,45 @@ function SkeletonRow() {
   );
 }
 
+/** One package tile while it loads: the 4:3 photo over the name, caterer and price lines. */
+function TileSkeleton({ testID }: { testID: string }) {
+  const cell = useGridCell();
+  return (
+    <View testID={testID} style={cell}>
+      <Skeleton aspectRatio={nativeLayout.ratio.tile} radius={nativeLayout.radius.control} />
+      <View style={{ paddingTop: nativeLayout.space.sm, gap: nativeLayout.space.sm }}>
+        <Skeleton width="85%" height={16} />
+        <Skeleton width="55%" height={12} />
+        <Skeleton width="45%" height={16} />
+      </View>
+    </View>
+  );
+}
+
+/** Skeleton tiles in a grid skeleton (Jelajah, Disimpan): four, the 2 by 2 that fills the first screen (at one column they stack). */
+const GRID_SKELETON_TILES = 4;
+
 /**
- * Jelajah's data area: the category circles (66 with their name), the two filter chips (48) and three package rows (a
- * 112 square photo beside the name, the caterer line and the price), each row in the loaded row's bordered card.
+ * Jelajah's data area: the chip row (the meal segment and two filter chips, 34 tall) and the tile grid, each tile a 4:3
+ * photo over the name, caterer and price lines. It reads the loaded grid's own constants (the layout scale, the grid's
+ * gaps and cell), so it is the shape of the loaded page.
  */
 export function JelajahSkeleton() {
   const { t } = useMobile();
-  const c = useColors();
+  const chip = nativeLayout.control.chip;
   return (
     <SkeletonGroup label={t("Memuat paket", "Loading packages")}>
       <View testID="jelajah-skeleton" style={{ gap: 16 }}>
-        <View style={{ flexDirection: "row", gap: 8, overflow: "hidden" }}>
-          {[0, 1, 2, 3].map((i) => (
-            <View key={i} style={{ width: 82, alignItems: "center", gap: 6 }}>
-              <Skeleton width={66} height={66} radius={33} />
-              <Skeleton width={48} height={12} />
-            </View>
+        <View testID="jelajah-skeleton-chips" style={{ flexDirection: "row", gap: nativeLayout.space.sm }}>
+          <Skeleton width={128} height={chip} radius={chip / 2} />
+          <Skeleton width={132} height={chip} radius={chip / 2} />
+          <Skeleton width={112} height={chip} radius={chip / 2} />
+        </View>
+        <PackageGrid testID="jelajah-skeleton-grid">
+          {Array.from({ length: GRID_SKELETON_TILES }, (_, i) => (
+            <TileSkeleton key={i} testID="jelajah-skeleton-tile" />
           ))}
-        </View>
-        <View style={{ flexDirection: "row", gap: 8 }}>
-          <Skeleton width={150} height={48} radius={9} />
-          <Skeleton width={140} height={48} radius={9} />
-        </View>
-        {[0, 1, 2].map((i) => (
-          <View
-            key={i}
-            style={{
-              flexDirection: "row",
-              borderRadius: 16,
-              borderCurve: "continuous",
-              overflow: "hidden",
-              borderWidth: 1,
-              borderColor: c.line,
-              backgroundColor: c.surface,
-            }}
-          >
-            <Skeleton width={112} height={112} radius={0} />
-            <View style={{ flex: 1, padding: 12, gap: 10 }}>
-              <Skeleton width="80%" height={20} />
-              <Skeleton width="60%" height={12} />
-              <Skeleton width="45%" height={20} />
-            </View>
-          </View>
-        ))}
+        </PackageGrid>
       </View>
     </SkeletonGroup>
   );
@@ -150,33 +148,17 @@ export function OffersSkeleton() {
   );
 }
 
-/** Disimpan: two of the tall package cards it lists (the 196 photo over the name, the price and the caterer line). */
+/** Disimpan: the first four tiles of the saved grid, the loaded list's own two column grid (4:3 photo, name, caterer, price). */
 export function SavedSkeleton() {
   const { t } = useMobile();
-  const c = useColors();
   return (
     <SkeletonGroup label={t("Memuat paket tersimpan", "Loading saved packages")}>
       <View testID="saved-skeleton" style={{ gap: 16 }}>
-        {[0, 1].map((i) => (
-          <View
-            key={i}
-            style={{
-              borderRadius: 16,
-              borderCurve: "continuous",
-              overflow: "hidden",
-              borderWidth: 1,
-              borderColor: c.line,
-              backgroundColor: c.surface,
-            }}
-          >
-            <Skeleton height={196} radius={0} />
-            <View style={{ padding: 14, gap: 10 }}>
-              <Skeleton width="70%" height={20} />
-              <Skeleton width="40%" height={20} />
-              <Skeleton width="56%" height={12} />
-            </View>
-          </View>
-        ))}
+        <PackageGrid testID="saved-skeleton-grid">
+          {Array.from({ length: GRID_SKELETON_TILES }, (_, i) => (
+            <TileSkeleton key={i} testID="saved-skeleton-tile" />
+          ))}
+        </PackageGrid>
       </View>
     </SkeletonGroup>
   );

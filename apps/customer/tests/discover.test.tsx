@@ -7,7 +7,7 @@ import * as Haptics from "expo-haptics";
 import { currency, shortDate, startDates, type Offer } from "@catera/domain";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { nativeMood, nativeThemes } from "@catera/design-tokens";
-import { MoodProvider, ThemeProvider, useMood } from "@catera/mobile-ui";
+import { LayoutScaleProvider, MoodProvider, ThemeProvider, useMood } from "@catera/mobile-ui";
 import { customerLink } from "../src/links";
 import { topTags } from "../src/discover/categories";
 import { Jelajah } from "../src/discover/Jelajah";
@@ -16,6 +16,13 @@ import { SavedList } from "../src/discover/SavedList";
 import { AreaSheet } from "../src/discover/area";
 import { offer } from "./fixtures";
 import { SheetHost } from "./sheetHost";
+
+/** The phone the screen is drawn on; a test sets it to try another width or text size. */
+let mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1 };
+jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({
+  __esModule: true,
+  default: () => mockWindow,
+}));
 
 let mockParams: Record<string, string> = {};
 jest.mock("expo-router", () => ({
@@ -88,7 +95,7 @@ function savedServer(initial: string[] = [], fail = false) {
 const SIANG_NOW = () => new Date("2026-10-09T07:59:00Z"); // 14:59 WIB
 const MALAM_NOW = () => new Date("2026-10-09T08:00:00Z"); // 15:00 WIB
 
-// The mood is part of what Jelajah shows (the meal buttons are the mood toggle), so every screen here has a provider
+// The mood is part of what Jelajah shows (the meal segment is the mood toggle), so every screen here has a provider
 // that opens in Siang, like the app does before 15:00.
 const wrap = (runtime: MobileRuntime, ui: React.ReactElement) =>
   render(
@@ -109,12 +116,15 @@ const jelajahWithArea = (
   </>
 );
 
+const flat = (node: { props: { style?: unknown } }) => StyleSheet.flatten(node.props.style as never) as Record<string, unknown>;
+
 const lastCatalogQuery = (runtime: MobileRuntime) =>
   String((runtime.api.catalog as jest.Mock).mock.calls.at(-1)![0]);
 
 beforeEach(() => {
   jest.clearAllMocks();
   mockParams = {};
+  mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1 };
   (SecureStore as unknown as { __store: Map<string, string> }).__store.clear();
 });
 
@@ -160,7 +170,7 @@ describe("Jelajah", () => {
     await screen.findByText("Menu Sehat Premium");
     fireEvent.press(screen.getByRole("button", { name: "Bisa coba 1 hari" }));
     expect(screen.queryByText("Menu Sehat Premium")).toBeNull();
-    expect(screen.getByText("Bisa coba 1 hari dulu")).toBeTruthy();
+    expect(screen.getByText("coba 1 hari")).toBeTruthy();
   });
 
   it("toggling a chip never asks the server again or shows the spinner", async () => {
@@ -177,13 +187,24 @@ describe("Jelajah", () => {
     expect(lastCatalogQuery(runtime)).toBe("?limit=100");
   });
 
-  it("every chip and the area control is at least 48 points tall", async () => {
-    wrap(runtimeWith(), <Jelajah />);
+  it("every chip and the area control is 34 points tall with a 44 point hit area", async () => {
+    render(
+      <LayoutScaleProvider value="v2">
+        <MoodProvider now={SIANG_NOW}>
+          <MobileProvider runtime={runtimeWith()} linkMapper={customerLink}>
+            <Jelajah />
+          </MobileProvider>
+        </MoodProvider>
+      </LayoutScaleProvider>,
+    );
     await screen.findByText("Menu Sehat Premium");
     for (const name of ["Siang", "Malam", "Di bawah Rp30.000", "Bisa coba 1 hari", "Pilih area pengantaran"]) {
       const role = name === "Siang" || name === "Malam" ? "tab" : "button";
-      const style = StyleSheet.flatten(screen.getByRole(role, { name }).props.style);
-      expect(style.minHeight).toBeGreaterThanOrEqual(48);
+      const node = screen.getByRole(role, { name });
+      const style = StyleSheet.flatten(node.props.style);
+      expect(style.minHeight).toBe(34);
+      const slop = node.props.hitSlop as { top: number; bottom: number };
+      expect(34 + slop.top + slop.bottom).toBeGreaterThanOrEqual(44);
     }
   });
 
@@ -209,13 +230,13 @@ describe("Jelajah", () => {
     expect((runtime.api.catalog as jest.Mock).mock.calls.length).toBe(calls);
   });
 
-  it("single-meal offer shows only / sekali makan", async () => {
+  it("single-meal offer shows only / makan", async () => {
     wrap(runtimeWith(), <Jelajah />);
     await screen.findByText("Menu Sehat Premium");
     // Two lunch packages on Siang; the dinner one shows on Malam.
-    expect(screen.getAllByText("/ sekali makan")).toHaveLength(2);
+    expect(screen.getAllByText("/ makan")).toHaveLength(2);
     fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
-    expect(screen.getAllByText("/ sekali makan")).toHaveLength(1);
+    expect(screen.getAllByText("/ makan")).toHaveLength(1);
     expect(screen.queryByText("2 kali makan / hari")).toBeNull();
   });
 
@@ -223,7 +244,7 @@ describe("Jelajah", () => {
     const both = offer({ id: "p-dua", name: "Siang dan Malam", meal: "both", price: 60000 });
     wrap(runtimeWith(customer, { catalog: jest.fn(async () => ({ items: [both], nextCursor: null })) }), <Jelajah />);
     await screen.findByText("Siang dan Malam");
-    expect(screen.getByText("/ sekali makan")).toBeTruthy();
+    expect(screen.getByText("/ makan")).toBeTruthy();
     expect(screen.getByText("2 kali makan / hari")).toBeTruthy();
     expect(screen.getByText(currency(30000, "id"))).toBeTruthy();
     expect(screen.queryByText(/60\.000/)).toBeNull();
@@ -232,7 +253,7 @@ describe("Jelajah", () => {
   it("shows the caterer line without inventing a distance", async () => {
     wrap(runtimeWith(), <Jelajah />);
     await screen.findByText("Nasi Ayam Bakar");
-    expect(screen.getAllByText("Dapur Contoh. Sen–Jum siang").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Dapur Contoh").length).toBeGreaterThan(0);
     expect(screen.queryByText(/km/)).toBeNull();
   });
 
@@ -241,7 +262,7 @@ describe("Jelajah", () => {
       catalog: jest.fn(async () => ({ items: [{ ...cheap, distanceKm: 2.4 }], nextCursor: null })),
     });
     wrap(runtime, <Jelajah />);
-    expect(await screen.findByText("Dapur Contoh, 2,4 km. Sen–Jum siang")).toBeTruthy();
+    expect(await screen.findByText("Dapur Contoh, 2,4 km")).toBeTruthy();
   });
 
   it("remembers the delivery area in SecureStore and sends it to the catalog", async () => {
@@ -476,13 +497,15 @@ describe("Jelajah mood header", () => {
   function mount(runtime: MobileRuntime, { now = SIANG_NOW, scheme = "light" as "light" | "dark" } = {}) {
     jest.spyOn(ReactNative, "useColorScheme").mockReturnValue(scheme);
     return render(
-      <ThemeProvider storageKey="jelajah-mood-test">
-        <MoodProvider now={now}>
-          <MobileProvider runtime={runtime} linkMapper={customerLink}>
-            <Jelajah />
-          </MobileProvider>
-        </MoodProvider>
-      </ThemeProvider>,
+      <LayoutScaleProvider value="v2">
+        <ThemeProvider storageKey="jelajah-mood-test">
+          <MoodProvider now={now}>
+            <MobileProvider runtime={runtime} linkMapper={customerLink}>
+              <Jelajah />
+            </MobileProvider>
+          </MoodProvider>
+        </ThemeProvider>
+      </LayoutScaleProvider>,
     );
   }
 
@@ -498,12 +521,15 @@ describe("Jelajah mood header", () => {
 
   afterEach(() => jest.restoreAllMocks());
 
-  it("shows the area line, the title and the search field in the header", async () => {
+  it("shows the area chip, the heart, the one-line title and the 44 point search pill in the header", async () => {
     mount(runtimeWith());
     await screen.findByText("Menu Sehat Premium");
     expect(header().getByRole("button", { name: "Pilih area pengantaran" })).toBeTruthy();
     expect(header().getByText("Pilih area")).toBeTruthy();
-    expect(title()).toBe("Makan siang\nminggu depan?");
+    expect(flat(screen.getByTestId("jelajah-title"))).toMatchObject({ fontSize: 24, lineHeight: 30 });
+    expect(flat(header().getByRole("button", { name: "Paket disimpan" }))).toMatchObject({ width: 44, height: 44 });
+    expect(flat(screen.getByTestId("jelajah-search"))).toMatchObject({ minHeight: 44 });
+    expect(title()).toBe("Makan siang minggu depan?");
     expect(header().getByPlaceholderText("Cari menu atau katering…")).toBeTruthy();
     expect(header().getByRole("button", { name: "Paket disimpan" })).toBeTruthy();
   });
@@ -511,37 +537,59 @@ describe("Jelajah mood header", () => {
   it("names the Malam meal in the title when the mood is Malam", async () => {
     mount(runtimeWith(), { now: MALAM_NOW });
     await screen.findByText("Makan Malam Nabati");
-    expect(title()).toBe("Makan malam\nminggu depan?");
+    expect(title()).toBe("Makan malam minggu depan?");
   });
 
-  it("has two 60 point meal tabs in a tablist that are the mood toggle and the meal filter", async () => {
+  it("has no 60 point meal buttons in the header: Siang and Malam are a 34 point segment that is the mood and the meal filter", async () => {
     mount(runtimeWith());
     await screen.findByText("Menu Sehat Premium");
-    expect(title()).toBe("Makan siang\nminggu depan?");
-    expect(screen.UNSAFE_getByProps({ accessibilityRole: "tablist" }).props.accessibilityLabel).toBe("Waktu makan");
+    expect(title()).toBe("Makan siang minggu depan?");
+    expect(header().queryByRole("tab")).toBeNull();
+    const segment = screen.getByTestId("meal-segment");
+    expect(segment.props.accessibilityRole).toBe("tablist");
+    expect(segment.props.accessibilityLabel).toBe("Waktu makan");
+    expect(flat(segment).height).toBe(34);
     for (const name of ["Siang", "Malam"]) {
-      expect(flat(header().getByRole("tab", { name })).minHeight).toBeGreaterThanOrEqual(60);
+      expect(within(segment).getByRole("tab", { name })).toBeTruthy();
+      expect(flat(screen.getByRole("tab", { name })).minHeight).toBe(34);
     }
-    expect(header().getByRole("tab", { name: "Siang" }).props.accessibilityState.selected).toBe(true);
-    expect(header().getByRole("tab", { name: "Malam" }).props.accessibilityState.selected).toBe(false);
-    fireEvent.press(header().getByRole("tab", { name: "Malam" }));
+    expect(screen.getByRole("tab", { name: "Siang" }).props.accessibilityState.selected).toBe(true);
+    expect(screen.getByRole("tab", { name: "Malam" }).props.accessibilityState.selected).toBe(false);
+    fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
     // The list keeps dinner and combined packages only, and the title follows.
     expect(screen.queryByText("Menu Sehat Premium")).toBeNull();
     expect(screen.getByText("Makan Malam Nabati")).toBeTruthy();
-    expect(header().getByRole("tab", { name: "Malam" }).props.accessibilityState.selected).toBe(true);
-    expect(header().getByRole("tab", { name: "Siang" }).props.accessibilityState.selected).toBe(false);
-    expect(title()).toBe("Makan malam\nminggu depan?");
-    fireEvent.press(header().getByRole("tab", { name: "Siang" }));
-    expect(title()).toBe("Makan siang\nminggu depan?");
+    expect(screen.getByRole("tab", { name: "Malam" }).props.accessibilityState.selected).toBe(true);
+    expect(screen.getByRole("tab", { name: "Siang" }).props.accessibilityState.selected).toBe(false);
+    expect(title()).toBe("Makan malam minggu depan?");
+    fireEvent.press(screen.getByRole("tab", { name: "Siang" }));
+    expect(title()).toBe("Makan siang minggu depan?");
     expect(screen.getByText("Menu Sehat Premium")).toBeTruthy();
     expect(screen.queryByText("Makan Malam Nabati")).toBeNull();
+  });
+
+  it("puts the meal segment first in the one chip row, then the filter chips, then the categories", async () => {
+    mount(taggedRuntime());
+    await screen.findByText("Menu Sehat Premium");
+    const row = screen.getByTestId("chip-row");
+    expect(row.props.horizontal).toBe(true);
+    // The segment's own two tabs are tabs, not buttons; the buttons after it are the filters, then the categories.
+    expect(within(row).getByTestId("meal-segment")).toBeTruthy();
+    const names = within(row)
+      .getAllByRole("button")
+      .map((b) => b.props.accessibilityLabel ?? within(b).getByText(/./).props.children);
+    expect(names).toEqual(["Di bawah Rp30.000", "Bisa coba 1 hari", "Kategori Sehat", "Kategori Rumahan"]);
+    // The segment leads the row: it comes before the first filter chip in the tree.
+    const tree = JSON.stringify(screen.toJSON());
+    expect(tree.indexOf('"testID":"meal-segment"')).toBeGreaterThan(tree.indexOf('"testID":"chip-row"'));
+    expect(tree.indexOf('"testID":"meal-segment"')).toBeLessThan(tree.indexOf("Di bawah Rp30.000"));
   });
 
   it("opens on Malam with the Malam tab selected and the lunch packages hidden", async () => {
     mount(runtimeWith(), { now: MALAM_NOW });
     await screen.findByText("Makan Malam Nabati");
-    expect(header().getByRole("tab", { name: "Malam" }).props.accessibilityState.selected).toBe(true);
-    expect(header().getByRole("tab", { name: "Siang" }).props.accessibilityState.selected).toBe(false);
+    expect(screen.getByRole("tab", { name: "Malam" }).props.accessibilityState.selected).toBe(true);
+    expect(screen.getByRole("tab", { name: "Siang" }).props.accessibilityState.selected).toBe(false);
     expect(screen.queryByText("Menu Sehat Premium")).toBeNull();
     expect(screen.queryByText("Nasi Ayam Bakar")).toBeNull();
   });
@@ -565,9 +613,9 @@ describe("Jelajah mood header", () => {
     );
     await screen.findByText("Menu Sehat Premium");
     act(() => setMoodOutside("malam"));
-    expect(header().getByRole("tab", { name: "Malam" }).props.accessibilityState.selected).toBe(true);
-    expect(header().getByRole("tab", { name: "Siang" }).props.accessibilityState.selected).toBe(false);
-    expect(title()).toBe("Makan malam\nminggu depan?");
+    expect(screen.getByRole("tab", { name: "Malam" }).props.accessibilityState.selected).toBe(true);
+    expect(screen.getByRole("tab", { name: "Siang" }).props.accessibilityState.selected).toBe(false);
+    expect(title()).toBe("Makan malam minggu depan?");
     expect(screen.queryByText("Menu Sehat Premium")).toBeNull();
     expect(screen.getByText("Makan Malam Nabati")).toBeTruthy();
     act(() => setMoodOutside("siang"));
@@ -581,7 +629,7 @@ describe("Jelajah mood header", () => {
     mount(runtime);
     await screen.findByText("Siang dan Malam");
     expect(screen.getByText("Nasi Ayam Bakar")).toBeTruthy();
-    fireEvent.press(header().getByRole("tab", { name: "Malam" }));
+    fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
     expect(screen.getByText("Siang dan Malam")).toBeTruthy();
     expect(screen.queryByText("Nasi Ayam Bakar")).toBeNull();
   });
@@ -596,6 +644,7 @@ describe("Jelajah mood header", () => {
     expect(screen.getByRole("button", { name: "Di bawah Rp30.000" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Bisa coba 1 hari" })).toBeTruthy();
     expect(within(screen.getByTestId("jelajah-header")).queryByRole("button", { name: "Bisa coba 1 hari" })).toBeNull();
+    expect(within(screen.getByTestId("jelajah-header")).queryByRole("tab")).toBeNull();
   });
 
   it("paints the header from the mood palette and the search text on it", async () => {
@@ -607,27 +656,26 @@ describe("Jelajah mood header", () => {
     expect(flat(screen.getByTestId("mood-fill-malam")).backgroundColor).toBe(palette.header);
   });
 
-  it("draws the selected Malam tab as a card-coloured pill with a toggleActive ring and label, and the idle one headerMeta on toggleTrack", async () => {
+  it("draws the selected meal with a 1.5 forest ring and a forest label, and the idle one with no ring", async () => {
     mount(runtimeWith(), { now: MALAM_NOW });
     await screen.findByText("Makan Malam Nabati");
-    const palette = nativeMood.light.malam;
-    const selected = header().getByRole("tab", { name: "Malam" });
-    const idle = header().getByRole("tab", { name: "Siang" });
-    // Direction K: a pill in the card colour with a forest ring and label.
-    expect(flat(selected)).toMatchObject({ backgroundColor: palette.onToggleActive, borderWidth: 2, borderColor: palette.toggleActive });
-    expect(flat(within(selected).getByText("Malam")).color).toBe(palette.toggleActive);
-    expect(flat(idle).backgroundColor).toBe(palette.toggleTrack);
-    expect(flat(within(idle).getByText("Siang")).color).toBe(palette.headerMeta);
+    const selected = screen.getByRole("tab", { name: "Malam" });
+    const idle = screen.getByRole("tab", { name: "Siang" });
+    expect(flat(selected)).toMatchObject({ borderWidth: 1.5, borderColor: nativeThemes.light.forest });
+    expect(flat(within(selected).getByText("Malam")).color).toBe(nativeThemes.light.forest);
+    expect(flat(idle).borderColor).toBe("transparent");
+    expect(flat(within(idle).getByText("Siang")).color).not.toBe(nativeThemes.light.forest);
   });
 
   describe("category circles", () => {
-    it("renders a PhotoRing per top tag, without the meal tags", async () => {
+    it("renders a 34 point chip per top tag, without the meal tags and with no photo ring", async () => {
       mount(taggedRuntime());
       await screen.findByText("Menu Sehat Premium");
       expect(screen.getByRole("button", { name: "Kategori Sehat" })).toBeTruthy();
       expect(screen.getByRole("button", { name: "Kategori Rumahan" })).toBeTruthy();
       expect(screen.queryByRole("button", { name: /Kategori Makan malam/ })).toBeNull();
-      expect(screen.getAllByTestId("photo-ring")).toHaveLength(2);
+      expect(screen.queryByTestId("photo-ring", { includeHiddenElements: true })).toBeNull();
+      expect(flat(screen.getByRole("button", { name: "Kategori Sehat" })).minHeight).toBe(34);
     });
 
     it("filters by the tapped tag, marks it selected, and clears on a second tap", async () => {
@@ -638,16 +686,14 @@ describe("Jelajah mood header", () => {
       expect(screen.queryByText("Menu Sehat Premium")).toBeNull();
       expect(screen.getByRole("button", { name: "Kategori Rumahan" }).props.accessibilityState.selected).toBe(true);
       expect(screen.getByRole("button", { name: "Kategori Sehat" }).props.accessibilityState.selected).toBe(false);
-      // The active tag is a selection, so its ring is forest (direction K rule 3); the others draw none.
-      const ringOf = (name: string) =>
-        StyleSheet.flatten(within(screen.getByRole("button", { name })).getByTestId("photo-ring", { includeHiddenElements: true }).props.style);
-      expect(ringOf("Kategori Rumahan").borderColor).toBe(nativeThemes.light.forest);
-      expect(ringOf("Kategori Sehat").borderColor).toBe("transparent");
+      // The active tag is a selection, so its chip is forest (direction K rule 3); the others are not.
+      expect(flat(screen.getByRole("button", { name: "Kategori Rumahan" })).backgroundColor).toBe(nativeThemes.light.forest);
+      expect(flat(screen.getByRole("button", { name: "Kategori Sehat" })).backgroundColor).not.toBe(nativeThemes.light.forest);
       // The tag carries over to the other meal: the dinner package is tagged Rumahan too.
-      fireEvent.press(header().getByRole("tab", { name: "Malam" }));
+      fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
       expect(screen.getByText("Makan Malam Nabati")).toBeTruthy();
       expect(screen.queryByText("Nasi Ayam Bakar")).toBeNull();
-      fireEvent.press(header().getByRole("tab", { name: "Siang" }));
+      fireEvent.press(screen.getByRole("tab", { name: "Siang" }));
       fireEvent.press(screen.getByRole("button", { name: "Kategori Rumahan" }));
       expect(screen.getByText("Menu Sehat Premium")).toBeTruthy();
       expect(screen.getByRole("button", { name: "Kategori Rumahan" }).props.accessibilityState.selected).toBe(false);
@@ -669,7 +715,7 @@ describe("Jelajah mood header", () => {
     it("Hapus pilihan clears the tag and the chips but never the meal, which is the mood", async () => {
       mount(taggedRuntime());
       await screen.findByText("Menu Sehat Premium");
-      fireEvent.press(header().getByRole("tab", { name: "Malam" }));
+      fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
       fireEvent.press(screen.getByRole("button", { name: "Kategori Rumahan" }));
       // The dinner package has no one-day trial, so the list is empty and offers the way out.
       fireEvent.press(screen.getByRole("button", { name: "Bisa coba 1 hari" }));
@@ -679,8 +725,8 @@ describe("Jelajah mood header", () => {
       expect(screen.queryByText("Menu Sehat Premium")).toBeNull();
       expect(screen.getByRole("button", { name: "Kategori Rumahan" }).props.accessibilityState.selected).toBe(false);
       expect(screen.getByRole("button", { name: "Bisa coba 1 hari" }).props.accessibilityState.selected).toBe(false);
-      expect(header().getByRole("tab", { name: "Malam" }).props.accessibilityState.selected).toBe(true);
-      expect(title()).toBe("Makan malam\nminggu depan?");
+      expect(screen.getByRole("tab", { name: "Malam" }).props.accessibilityState.selected).toBe(true);
+      expect(title()).toBe("Makan malam minggu depan?");
     });
 
     it("suspends a tag the other meal lacks and brings it back selected on the way back", async () => {
@@ -692,11 +738,11 @@ describe("Jelajah mood header", () => {
       await screen.findByText("Paket Pedas");
       fireEvent.press(screen.getByRole("button", { name: "Kategori Sehat" }));
       expect(screen.queryByText("Paket Pedas")).toBeNull();
-      fireEvent.press(header().getByRole("tab", { name: "Malam" }));
+      fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
       // Nothing on Malam carries Sehat: no circle, and the list is not filtered by it.
       expect(screen.queryByRole("button", { name: "Kategori Sehat" })).toBeNull();
       expect(screen.getByText("Makan Malam Nabati")).toBeTruthy();
-      fireEvent.press(header().getByRole("tab", { name: "Siang" }));
+      fireEvent.press(screen.getByRole("tab", { name: "Siang" }));
       expect(screen.getByRole("button", { name: "Kategori Sehat" }).props.accessibilityState.selected).toBe(true);
       expect(screen.queryByText("Paket Pedas")).toBeNull();
       expect(screen.getByText("Menu Sehat Premium")).toBeTruthy();
@@ -708,7 +754,7 @@ describe("Jelajah mood header", () => {
       expect(screen.getByRole("button", { name: "Kategori Sehat" })).toBeTruthy();
       expect(screen.getByRole("button", { name: "Kategori Rumahan" })).toBeTruthy();
       fireEvent.press(screen.getByRole("button", { name: "Kategori Sehat" }));
-      fireEvent.press(header().getByRole("tab", { name: "Malam" }));
+      fireEvent.press(screen.getByRole("tab", { name: "Malam" }));
       // Sehat has no dinner package: its circle goes, and with it the filter.
       expect(screen.queryByRole("button", { name: "Kategori Sehat" })).toBeNull();
       expect(screen.getByRole("button", { name: "Kategori Rumahan" })).toBeTruthy();
@@ -719,36 +765,95 @@ describe("Jelajah mood header", () => {
       mount(runtimeWith());
       await screen.findByText("Menu Sehat Premium");
       expect(screen.queryByRole("button", { name: /^Kategori / })).toBeNull();
-      expect(screen.queryByTestId("photo-ring")).toBeNull();
     });
 
-    it("keeps every circle at least 48 points to tap", async () => {
+    it("keeps every category chip a 44 point target", async () => {
       mount(taggedRuntime());
       await screen.findByText("Menu Sehat Premium");
-      const style = flat(screen.getByRole("button", { name: "Kategori Sehat" }));
-      expect(style.minHeight).toBeGreaterThanOrEqual(48);
-      expect(style.minWidth).toBeGreaterThanOrEqual(48);
+      const chip = screen.getByRole("button", { name: "Kategori Sehat" });
+      const slop = chip.props.hitSlop;
+      expect(flat(chip).minHeight + slop.top + slop.bottom).toBeGreaterThanOrEqual(44);
     });
   });
 
-  describe("rows", () => {
-    it("renders each package as a row card with a 112 point photo and the price unit", async () => {
+  describe("grid", () => {
+    const cellOf = (name: string) => within(screen.getByRole("button", { name: new RegExp("^" + name + ",") }));
+
+    it("lays the packages out as a two column grid with a 12 column gap and a 20 row gap", async () => {
+      mount(runtimeWith());
+      await screen.findByText("Menu Sehat Premium");
+      const grid = screen.getByTestId("package-grid");
+      expect(flat(grid)).toMatchObject({ flexDirection: "row", flexWrap: "wrap", columnGap: 12, rowGap: 20 });
+      // The two lunch packages; the dinner one waits behind the Malam tab. Two columns: a 40 percent basis that grows.
+      const cells = screen.getAllByTestId("package-cell");
+      expect(cells).toHaveLength(2);
+      for (const cell of cells) expect(flat(cell)).toMatchObject({ flexBasis: "40%", flexGrow: 1, maxWidth: "50%" });
+    });
+
+    it("keeps a lone last tile one column wide, with a spacer beside it", async () => {
+      mount(runtimeWith(customer, { catalog: jest.fn(async () => ({ items: [cheap, pricey, { ...cheap, id: "p-3", name: "Paket Tiga" }], nextCursor: null })) }));
+      await screen.findByText("Paket Tiga");
+      expect(screen.getAllByTestId("package-cell")).toHaveLength(3);
+      expect(screen.getAllByTestId("package-cell-spacer")).toHaveLength(1);
+    });
+
+    it("draws each tile with a 4:3 photo, radius 12, no border, and the heart a 44 point target", async () => {
       mount(runtimeWith());
       await screen.findByText("Menu Sehat Premium");
       const photos = screen.getAllByTestId("package-photo");
-      // The two lunch packages; the dinner one waits behind the Malam tab.
       expect(photos).toHaveLength(2);
-      expect(flat(photos[0])).toMatchObject({ width: 112, height: 112 });
-      expect(screen.getAllByText("/ sekali makan")).toHaveLength(2);
-      // B2: the caterer, the delivery days and the meal, with no start date.
-      expect(screen.getAllByText("Dapur Contoh. Sen–Jum siang").length).toBeGreaterThan(0);
-      expect(screen.queryByText(/Mulai/)).toBeNull();
+      expect(flat(photos[0])).toMatchObject({ aspectRatio: 4 / 3, borderRadius: 12 });
+      expect(flat(photos[0]).height).toBeUndefined();
+      const tile = screen.getAllByTestId("package-tile")[0];
+      // No card behind a tile: no fill, no border.
+      expect(tile.props.style).toBeUndefined();
+      const heart = screen.getByRole("button", { name: "Simpan Nasi Ayam Bakar" });
+      expect(flat(heart)).toMatchObject({ width: 44, height: 44 });
+      expect(flat(within(heart).getByTestId("save-heart-disc"))).toMatchObject({ width: 32, height: 32 });
     });
 
-    it("keeps the heart a 48 point button on the row", async () => {
+    it("sets the name over two lines, the caterer on one, and the price with a short unit", async () => {
       mount(runtimeWith());
-      const heart = await screen.findByRole("button", { name: "Simpan Nasi Ayam Bakar" });
-      expect(flat(heart)).toMatchObject({ width: 48, height: 48 });
+      await screen.findByText("Menu Sehat Premium");
+      expect(screen.getByText("Menu Sehat Premium").props.numberOfLines).toBe(2);
+      // The tile names the caterer only: the delivery days and the meal are on the package page.
+      const caterer = screen.getByText("Dapur Sehat");
+      expect(caterer.props.numberOfLines).toBe(1);
+      expect(screen.queryByText(/Sen–Jum/)).toBeNull();
+      expect(screen.queryByText(/Mulai/)).toBeNull();
+      expect(screen.getAllByText("/ makan")).toHaveLength(2);
+      expect(flat(screen.getAllByText("/ makan")[0]).fontSize).toBe(13);
+    });
+
+    it("shows the calorie estimate and the one-day trial on one meta line", async () => {
+      const full = { ...cheap, nutrition: { caloriesKcal: 610 } } as typeof cheap;
+      mount(runtimeWith(customer, { catalog: jest.fn(async () => ({ items: [full, pricey], nextCursor: null })) }));
+      await screen.findByText("Menu Sehat Premium");
+      expect(screen.getByText("± 610 kkal · coba 1 hari")).toBeTruthy();
+      // A package with neither has no meta line at all.
+      expect(cellOf("Menu Sehat Premium").queryByText(/kkal|coba/)).toBeNull();
+    });
+
+    it("keeps two columns on a 360dp phone at the default text size", async () => {
+      mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1 };
+      mount(runtimeWith());
+      await screen.findByText("Menu Sehat Premium");
+      for (const cell of screen.getAllByTestId("package-cell")) expect(flat(cell).flexBasis).toBe("40%");
+    });
+
+    it("falls back to one column on a 360dp phone at font scale 1.3, so names wrap whole words", async () => {
+      mockWindow = { width: 360, height: 760, scale: 3, fontScale: 1.3 };
+      mount(runtimeWith());
+      await screen.findByText("Menu Sehat Premium");
+      for (const cell of screen.getAllByTestId("package-cell")) expect(flat(cell)).toMatchObject({ flexBasis: "100%", flexGrow: 1 });
+      expect(screen.queryByTestId("package-cell-spacer")).toBeNull();
+    });
+
+    it("keeps two columns at font scale 1.3 on a 411dp phone", async () => {
+      mockWindow = { width: 411, height: 860, scale: 3, fontScale: 1.3 };
+      mount(runtimeWith());
+      await screen.findByText("Menu Sehat Premium");
+      for (const cell of screen.getAllByTestId("package-cell")) expect(flat(cell).flexBasis).toBe("40%");
     });
   });
 
@@ -758,7 +863,7 @@ describe("Jelajah mood header", () => {
       mount(runtime, { now: MALAM_NOW });
       expect(await screen.findByText("Belum ada paket.")).toBeTruthy();
       expect(screen.queryByRole("button", { name: "Lihat makan siang" })).toBeNull();
-      expect(title()).toBe("Makan malam\nminggu depan?");
+      expect(title()).toBe("Makan malam minggu depan?");
     });
 
     it("shows the error with a retry under the header", async () => {
@@ -767,7 +872,7 @@ describe("Jelajah mood header", () => {
       });
       mount(runtimeWith(customer, { catalog }), { now: MALAM_NOW });
       expect(await screen.findByRole("button", { name: "Coba lagi" })).toBeTruthy();
-      expect(title()).toBe("Makan malam\nminggu depan?");
+      expect(title()).toBe("Makan malam minggu depan?");
       expect(header().getByPlaceholderText("Cari menu atau katering…")).toBeTruthy();
     });
 
@@ -775,11 +880,13 @@ describe("Jelajah mood header", () => {
       const catalog = jest.fn(() => new Promise<never>(() => {}));
       const view = mount(runtimeWith(customer, { catalog }), { now: MALAM_NOW });
       await waitFor(() => expect(catalog).toHaveBeenCalled());
-      // One wait for the whole data area: circles, chips and rows as one progress bar, and no spinner.
+      // One wait for the whole data area: chips and tiles as one progress bar, and no spinner.
       expect(screen.getByTestId("jelajah-skeleton")).toBeTruthy();
+      expect(screen.getByTestId("jelajah-skeleton-grid")).toBeTruthy();
+      expect(screen.getAllByTestId("jelajah-skeleton-tile")).toHaveLength(4);
       expect(screen.getByRole("progressbar", { name: "Memuat paket" })).toBeTruthy();
       expect(view.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
-      expect(title()).toBe("Makan malam\nminggu depan?");
+      expect(title()).toBe("Makan malam minggu depan?");
     });
   });
 });
@@ -963,6 +1070,27 @@ describe("Disimpan", () => {
     await act(async () => {});
     expect(screen.queryByText("Nasi Ayam Bakar")).toBeNull();
     expect(screen.getByText("Menu Sehat Premium")).toBeTruthy();
+  });
+
+  it("lists the saved packages as the same two column tile grid", async () => {
+    wrap(runtimeWith(customer, savedServer(["p-murah", "p-mahal"])), <SavedList />);
+    await screen.findByText("Nasi Ayam Bakar");
+    expect(flat(screen.getByTestId("package-grid"))).toMatchObject({ flexWrap: "wrap", columnGap: 12, rowGap: 20 });
+    expect(screen.getAllByTestId("package-tile")).toHaveLength(2);
+    for (const photo of screen.getAllByTestId("package-photo")) expect(flat(photo)).toMatchObject({ aspectRatio: 4 / 3, borderRadius: 12 });
+    expect(flat(screen.getByRole("button", { name: "Hapus Nasi Ayam Bakar dari simpanan" }))).toMatchObject({ width: 44, height: 44 });
+  });
+
+  it("while the saved list loads, its skeleton is the tile grid's shape: four 4:3 tiles in the same grid", async () => {
+    wrap(runtimeWith(customer, { savedPackages: jest.fn(() => new Promise(() => undefined)) }), <SavedList />);
+    const skeleton = await screen.findByTestId("saved-skeleton");
+    expect(skeleton).toBeTruthy();
+    expect(flat(screen.getByTestId("saved-skeleton-grid"))).toMatchObject({ flexWrap: "wrap", columnGap: 12, rowGap: 20 });
+    const tiles = screen.getAllByTestId("saved-skeleton-tile");
+    expect(tiles).toHaveLength(4);
+    for (const tile of tiles) expect(flat(tile)).toMatchObject({ flexBasis: "40%", flexGrow: 1 });
+    expect((tiles[0].children[0] as unknown as { props: Record<string, unknown> }).props).toMatchObject({ aspectRatio: 4 / 3, radius: 12 });
+    expect(screen.getByRole("progressbar", { name: "Memuat paket tersimpan" })).toBeTruthy();
   });
 
   it("keeps the package listed and says so when removing fails", async () => {

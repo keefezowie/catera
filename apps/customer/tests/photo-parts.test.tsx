@@ -52,7 +52,7 @@ describe("PhotoRing", () => {
     });
   });
 
-  // Direction K rule 3: forest is the selection (the active Jelajah tag). The meal cue stays neutral and the two meals
+  // Direction K rule 3: forest is the selection (a selected ring). The meal cue stays neutral and the two meals
   // read at least 3:1 apart in both themes (charcoal on forest was 1.13:1).
   it("keeps forest for the selected ring and tells lunch from dinner in neutral rings", () => {
     const view = render(<PhotoRing {...base} size={66} ring="selected" />);

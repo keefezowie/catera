@@ -69,13 +69,16 @@ export function SkeletonGroup({ label, children }: { label?: string; children: R
 export function Skeleton({
   width = "100%",
   height,
+  aspectRatio,
   radius = 8,
   onMood = false,
   onHero = false,
   testID,
 }: {
   width?: DimensionValue;
-  height: number;
+  /** A fixed height, or an `aspectRatio` (width over height) for a block as wide as its column. */
+  height?: number;
+  aspectRatio?: number;
   radius?: number;
   onMood?: boolean;
   onHero?: boolean;
@@ -90,7 +93,7 @@ export function Skeleton({
     <Animated.View
       testID={testID}
       style={[
-        { width, height, borderRadius: radius, borderCurve: "continuous", backgroundColor: fill },
+        { width, height, aspectRatio, borderRadius: radius, borderCurve: "continuous", backgroundColor: fill },
         animated,
       ]}
     />

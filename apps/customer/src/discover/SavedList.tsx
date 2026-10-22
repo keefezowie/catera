@@ -18,12 +18,13 @@ import {
 } from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
 import { PackageCard } from "./PackageCard";
+import { PackageGrid, useGridCell } from "./PackageGrid";
 import { useSaved } from "./saved";
 import { packageHref } from "../hrefs";
 import { goToTab } from "../nav";
 import { SavedSkeleton } from "../skeletons";
 
-/** Disimpan: the packages the customer hearted, on the same card as Jelajah. */
+/** Disimpan: the packages the customer hearted, as the same two column tile grid as Jelajah. */
 export function SavedList() {
   const { actor, ready, t } = useMobile();
   // The scrolling Screen, as when loaded: iOS insets its scroll view below the large title, so the skeleton is never
@@ -41,6 +42,7 @@ export function SavedList() {
 function Saved() {
   const { t } = useMobile();
   const c = useColors();
+  const cell = useGridCell();
   const saved = useSaved("/disimpan");
   // A removal leaves and the rest close up; Urungkan brings the row back as one the customer inserted. The list's
   // first load enters as one block (Decision A), and so does each page "Lihat lebih banyak" loads: its rows are
@@ -53,9 +55,10 @@ function Saved() {
   const rowMotion = useListMotion(saved.loading ? null : saved.items.map((i) => i.packageId), pageArrived);
   const pageEnter = useBlockEnter();
   const row = (item: (typeof saved.items)[number]) => (
-    <Animated.View key={item.packageId} testID="saved-row" {...rowMotion(item.packageId)}>
+    <Animated.View key={item.packageId} testID="saved-row" style={cell} {...rowMotion(item.packageId)}>
       {item.offer ? (
         <PackageCard
+          layout="tile"
           offer={item.offer}
           saved
           canSave={saved.signedIn}
@@ -99,8 +102,8 @@ function Saved() {
         ) : (
           saved.pages.map((page, n) =>
             page.length ? (
-              <Animated.View key={n} testID="saved-page" entering={n ? pageEnter : undefined} style={{ gap: 16 }}>
-                {page.map(row)}
+              <Animated.View key={n} testID="saved-page" entering={n ? pageEnter : undefined}>
+                <PackageGrid>{page.map(row)}</PackageGrid>
               </Animated.View>
             ) : null,
           )

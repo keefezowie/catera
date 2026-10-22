@@ -65,12 +65,15 @@ export function SaveHeart({
   onToggle,
   label,
   canSave = true,
+  compact = false,
   style,
 }: {
   saved: boolean;
   onToggle: () => void;
   label: string;
   canSave?: boolean;
+  /** A 44dp target with a 32dp surface disc and a 20 glyph, for a package tile's corner; the default is the 48dp disc. */
+  compact?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
   const c = useColors();
@@ -106,20 +109,21 @@ export function SaveHeart({
       accessibilityState={{ selected: saved }}
       haptic="none"
       onPress={press}
-      style={[styles.round, style]}
+      style={[compact ? styles.target : styles.round, style]}
     >
       {burstShown && !reduced ? (
-        <View {...decorative} pointerEvents="none" style={styles.burst}>
+        <View {...decorative} pointerEvents="none" style={compact ? styles.burstCompact : styles.burst}>
           {DOT_ANGLES.map((angle, i) => (
             <Dot key={angle} angle={angle} progress={burst} color={i % 2 ? c.forestDeep : c.forest} />
           ))}
         </View>
       ) : null}
+      {compact ? <View testID="save-heart-disc" pointerEvents="none" style={styles.disc} /> : null}
       <Animated.View style={heart}>
         <Ionicons
           testID="save-heart-icon"
           name={saved ? "heart" : "heart-outline"}
-          size={22}
+          size={compact ? 20 : 22}
           color={c.forest}
         />
       </Animated.View>
@@ -140,4 +144,9 @@ const useStyles = themedStyles((c) => ({
     justifyContent: "center",
   },
   burst: { position: "absolute", left: -1, top: -1, width: 48, height: 48 },
+  // The compact target is 44, so the same 48 burst box sits 2 outside it to keep its centre on the heart.
+  burstCompact: { position: "absolute", left: -2, top: -2, width: 48, height: 48 },
+  // A tile's heart: a 44 touch target around a 32 surface disc, so it reads on any photo without a hairline.
+  target: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  disc: { position: "absolute", width: 32, height: 32, borderRadius: 16, backgroundColor: c.surface },
 }));

@@ -1,26 +1,35 @@
 import { Image, View } from "react-native";
 import { currency, perMealPrice, priceUnitLabel } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
-import { PressableRow, SaveHeart, Text, themedStyles, useColors } from "@catera/mobile-ui";
+import { nativeLayout } from "@catera/design-tokens";
+import { PressableRow, SaveHeart, Text, themedStyles } from "@catera/mobile-ui";
 import { photoUri } from "../today/Plate";
-import { cardLine, type CatalogOffer } from "./format";
+import { type CatalogOffer } from "./format";
 import { calorieHint } from "./NutritionCard";
 
+/** "Dapur Contoh" or, when the catalogue carries a distance, "Dapur Contoh, 2,4 km". */
+function catererLine(offer: CatalogOffer, locale: string): string {
+  if (typeof offer.distanceKm !== "number") return offer.caterer;
+  const text = String(Math.round(offer.distanceKm * 10) / 10);
+  return `${offer.caterer}, ${locale === "en" ? text : text.replace(".", ",")} km`;
+}
+
 /**
- * A package as food first: photo, name, price per portion, who cooks and when. The default is the tall photo card;
- * `layout="row"` is the Jelajah list row, a 112 point square photo beside the name, the caterer line and the price.
+ * A package as one tile of the two column grid (Jelajah and Disimpan): a 4:3 photo with the heart in its corner, the
+ * name over up to two lines, the caterer, the price per meal, and one meta line with the calorie estimate and the
+ * one-day trial when there are any. The tile has no card behind it; the grid sets its width.
  */
 export function PackageCard({
   offer,
   saved,
-  layout,
   onOpen,
   onToggleSaved,
   canSave,
 }: {
   offer: CatalogOffer;
   saved: boolean;
-  layout?: "row";
+  /** The tile is the only layout; callers may still name it. */
+  layout?: "tile";
   onOpen: () => void;
   onToggleSaved: () => void;
   /** False when a heart press cannot save here (signed out), so it neither pops nor buzzes. Required, so a new caller
@@ -28,99 +37,66 @@ export function PackageCard({
   canSave: boolean;
 }) {
   const { runtime, t, locale } = useMobile();
-  const c = useColors();
   const styles = useStyles();
-  const { unit, note } = priceUnitLabel(offer, locale);
-  const row = layout === "row";
-  const kcal = row ? calorieHint(offer, locale) : null;
-  const photoStyle = row ? styles.rowPhoto : styles.photo;
-  const price = (
-    <>
-      <View style={styles.price}>
-        <Text variant="heading" style={{ color: c.charcoal, fontVariant: ["tabular-nums"] }}>
-          {currency(perMealPrice(offer), locale)}
-        </Text>
-        <Text variant="caption">{unit}</Text>
-      </View>
-      {note ? <Text variant="caption">{note}</Text> : null}
-    </>
-  );
-  const line = (
-    <Text variant="caption" style={{ fontSize: 13 }}>
-      {cardLine(offer, locale)}
-    </Text>
-  );
+  const { note } = priceUnitLabel(offer, locale);
+  const meta = [calorieHint(offer, locale), offer.trialPrice ? t("coba 1 hari", "1-day trial") : null]
+    .filter(Boolean)
+    .join(" · ");
   return (
-    <View style={row ? styles.rowCard : styles.card}>
-      <PressableRow
-        accessibilityRole="button"
-        accessibilityLabel={`${offer.name}, ${offer.caterer}`}
-        onPress={onOpen}
-        style={row ? styles.rowPress : undefined}
-      >
+    <View testID="package-tile">
+      <PressableRow accessibilityRole="button" accessibilityLabel={`${offer.name}, ${offer.caterer}`} onPress={onOpen}>
         {offer.image ? (
           <Image
             testID="package-photo"
             accessibilityIgnoresInvertColors
             source={{ uri: photoUri(offer.image, runtime.apiBase) }}
-            style={photoStyle}
+            style={styles.photo}
             resizeMode="cover"
           />
         ) : (
-          <View testID="package-photo" style={photoStyle} />
+          <View testID="package-photo" style={styles.photo} />
         )}
-        <View style={row ? styles.rowBody : styles.body}>
-          {/* The heart rides over the top right corner of a row, so its first line stays clear of it. */}
-          <Text variant="heading" numberOfLines={row ? undefined : 2} style={row ? { paddingRight: 44 } : undefined}>
+        <View style={styles.body}>
+          <Text variant="bodyStrong" numberOfLines={2}>
             {offer.name}
           </Text>
-          {/* A row reads name, who and when, then the price; the tall card keeps its price right under the name. */}
-          {row ? line : price}
-          {row ? price : line}
-          {/* A row adds the caterer's calorie estimate after its price, when there is one. */}
-          {row && kcal ? (
-            <Text variant="caption" style={{ fontSize: 13, fontVariant: ["tabular-nums"] }}>
-              {kcal}
+          <Text variant="meta" numberOfLines={1}>
+            {catererLine(offer, locale)}
+          </Text>
+          <View style={styles.price}>
+            <Text variant="bodyStrong" style={{ fontWeight: "700", fontVariant: ["tabular-nums"] }}>
+              {currency(perMealPrice(offer), locale)}
             </Text>
-          ) : null}
-          {offer.trialPrice ? (
-            <Text variant="label">
-              {t("Bisa coba 1 hari dulu", "One-day trial available")}
+            <Text variant="meta">{t("/ makan", "/ meal")}</Text>
+          </View>
+          {note ? <Text variant="meta">{note}</Text> : null}
+          {meta ? (
+            <Text variant="meta" style={{ fontVariant: ["tabular-nums"] }}>
+              {meta}
             </Text>
           ) : null}
         </View>
       </PressableRow>
       <SaveHeart
+        compact
         saved={saved}
         canSave={canSave}
         label={saved ? t(`Hapus ${offer.name} dari simpanan`, `Remove ${offer.name} from saved`) : t(`Simpan ${offer.name}`, `Save ${offer.name}`)}
         onToggle={onToggleSaved}
-        style={{ position: "absolute", top: row ? 4 : 10, right: row ? 4 : 10 }}
+        style={{ position: "absolute", top: 2, right: 2 }}
       />
     </View>
   );
 }
 
 const useStyles = themedStyles((c) => ({
-  rowCard: {
-    borderRadius: 16,
+  photo: {
+    width: "100%",
+    aspectRatio: nativeLayout.ratio.tile,
+    borderRadius: nativeLayout.radius.control,
     borderCurve: "continuous",
-    overflow: "hidden",
-    backgroundColor: c.surface,
-    borderWidth: 1,
-    borderColor: c.line,
+    backgroundColor: c.sage,
   },
-  rowPress: { flexDirection: "row", alignItems: "stretch" },
-  rowPhoto: { width: 112, height: 112, backgroundColor: c.sage },
-  rowBody: { flex: 1, minWidth: 0, padding: 12, gap: 4 },
-  card: {
-    borderRadius: 16,
-    overflow: "hidden",
-    backgroundColor: c.surface,
-    borderWidth: 1,
-    borderColor: c.line,
-  },
-  photo: { height: 196, width: "100%", backgroundColor: c.sage },
-  body: { padding: 14, gap: 4 },
-  price: { flexDirection: "row", alignItems: "baseline", gap: 6 },
+  body: { paddingTop: nativeLayout.space.sm, gap: nativeLayout.space.xs },
+  price: { flexDirection: "row", alignItems: "baseline", gap: nativeLayout.space.xs },
 }));

@@ -212,7 +212,7 @@ describe("MoodArc", () => {
     expect(flat("mood-arc-disc-glyph-malam").transform).toBeUndefined();
   });
 
-  it("follows a switch made elsewhere (the Jelajah meal buttons are the same mood)", () => {
+  it("follows a switch made elsewhere (the Jelajah meal segment is the same mood)", () => {
     jest.spyOn(Reanimated, "useReducedMotion").mockReturnValue(true);
     mount(
       <>
