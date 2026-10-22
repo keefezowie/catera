@@ -1,5 +1,4 @@
 import { View } from "react-native";
-import Ionicons from "@expo/vector-icons/Ionicons";
 import {
   mealJourney,
   monthName,
@@ -15,7 +14,7 @@ import { useMobile } from "@catera/mobile-core";
 import { nativeLayout } from "@catera/design-tokens";
 import { PressableRow, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { router } from "expo-router";
-import { ListCard, MediaRow } from "../layout";
+import { DecorativeIcon, ListCard, MediaRow } from "../layout";
 import { dayHref } from "../hrefs";
 import { photoUri } from "../today/Plate";
 
@@ -165,13 +164,14 @@ export function WeekAgenda({
         <PressableRow
           testID="agenda-next-week"
           accessibilityRole="button"
+          accessibilityLabel={t(`Minggu depan, ${rangeLabel(next, locale)}`, `Next week, ${rangeLabel(next, locale)}`)}
           onPress={() => onOpenWeek(next[0])}
           style={styles.next}
         >
           <Text variant="rowTitle" style={{ flex: 1 }}>
             {t(`Minggu depan, ${rangeLabel(next, locale)}`, `Next week, ${rangeLabel(next, locale)}`)}
           </Text>
-          <Ionicons name="chevron-forward" size={20} color={c.muted} />
+          <DecorativeIcon name="chevron-forward" size={20} color={c.muted} />
         </PressableRow>
       </View>
     </View>

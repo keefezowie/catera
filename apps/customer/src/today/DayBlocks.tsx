@@ -1,11 +1,11 @@
 import { View } from "react-native";
 import { Image } from "expo-image";
-import Ionicons from "@expo/vector-icons/Ionicons";
 import type { UpcomingDay, UpcomingMeal } from "@catera/domain";
 import { nativeLayout } from "@catera/design-tokens";
 import { useMobile } from "@catera/mobile-core";
 import { PressableRow, Text, themedStyles, useColors, useStackedLayout } from "@catera/mobile-ui";
 import { photoUri } from "./photoUri";
+import { DecorativeIcon, rowLabel } from "../layout";
 
 /** The most delivery tiles a day shows; the rest are "+n lagi". */
 export const TILES_PER_DAY = 2;
@@ -125,13 +125,13 @@ function Tile({
     <PressableRow
       testID={id}
       accessibilityRole="button"
-      accessibilityLabel={`${dish}, ${line}`}
+      accessibilityLabel={rowLabel(dish, line)}
       onPress={onPress}
       style={[styles.tile, !stacked && styles.tileColumn]}
     >
       {meal.lead === null ? (
         <View testID={`${id}-photo-not-set`} style={[styles.photo, styles.notSet]}>
-          <Ionicons name="restaurant-outline" size={24} color={c.controlRing} />
+          <DecorativeIcon name="restaurant-outline" size={24} color={c.controlRing} />
         </View>
       ) : (
         <View testID={`${id}-photo`} style={[styles.photo, { backgroundColor: c.sage }]}>

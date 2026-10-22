@@ -6,7 +6,7 @@ import { currency, mealLabel, perMealPrice, priceUnitLabel, type DirectPaymentMe
 import { nativeLayout } from "@catera/design-tokens";
 import { Button, Card, fontFor, FormError, ReadError, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { packageHref } from "../hrefs";
-import { GlyphCircle, SectionHeader, Thumb } from "../layout";
+import { DecorativeIcon, GlyphCircle, SectionHeader, Thumb } from "../layout";
 import { goToTab, leaveFor } from "../nav";
 import { photoUri } from "../today/photoUri";
 import { SUMMARY_PAD, THREE_LINE_PAD } from "./metrics";
@@ -154,7 +154,7 @@ export function FieldGlyph({ id, icon }: { id: string; icon: keyof typeof Ionico
   const c = useColors();
   return (
     <GlyphCircle testID={`buy-row-${id}-glyph`}>
-      <Ionicons name={icon} size={20} color={c.charcoal} />
+      <DecorativeIcon name={icon} size={20} color={c.charcoal} />
     </GlyphCircle>
   );
 }

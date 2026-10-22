@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
 import { View } from "react-native";
-import Ionicons from "@expo/vector-icons/Ionicons";
 import { nativeLayout } from "@catera/design-tokens";
 import { PressableRow, Text, themedStyles, useColors } from "@catera/mobile-ui";
+import { DecorativeIcon } from "./DecorativeIcon";
+import { rowLabel } from "./rowLabel";
 import { Thumb } from "./Thumb";
 
 /**
@@ -31,7 +32,7 @@ export function MediaRow({
   trailing?: ReactNode | "chevron";
   onPress?: () => void;
   wrap?: boolean | "title";
-  /** What a screen reader says for the row, when its own texts read badly in a row (a date column, a thumb). */
+  /** What a screen reader says for the row; by default its title and meta (`rowLabel`). Pass one when the row's own texts read badly (a date column). */
   accessibilityLabel?: string;
   testID?: string;
 }) {
@@ -52,7 +53,7 @@ export function MediaRow({
       </View>
       {trailing === "chevron" ? (
         <View testID={testID ? `${testID}-chevron` : undefined}>
-          <Ionicons name="chevron-forward" size={20} color={c.muted} />
+          <DecorativeIcon name="chevron-forward" size={20} color={c.muted} />
         </View>
       ) : (
         trailing
@@ -63,7 +64,7 @@ export function MediaRow({
     <PressableRow
       testID={testID}
       accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel}
+      accessibilityLabel={accessibilityLabel ?? rowLabel(title, meta)}
       onPress={onPress}
       style={styles.row}
     >

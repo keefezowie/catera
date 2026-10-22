@@ -3,6 +3,7 @@ import { View } from "react-native";
 import { nativeLayout } from "@catera/design-tokens";
 import { PressableRow, Text, themedStyles } from "@catera/mobile-ui";
 import { GLYPH_BARE, GLYPH_CIRCLE } from "./metrics";
+import { rowLabel } from "./rowLabel";
 
 /**
  * A row led by a glyph: a 40 circle on a tone, or with `bare` the 20 glyph alone. 56 tall by default, 72 for a row
@@ -38,7 +39,15 @@ export function GlyphRow({
   const bareGlyph = bare || minHeight === nativeLayout.row.info;
   const body = (
     <>
-      <View testID={testID ? `${testID}-glyph` : undefined} style={bareGlyph ? styles.bare : [styles.circle, tone ? { backgroundColor: tone } : null]}>{glyph}</View>
+      {/* Decorative: the row names itself from its title and meta, so the glyph adds no part to its label. */}
+      <View
+        testID={testID ? `${testID}-glyph` : undefined}
+        style={bareGlyph ? styles.bare : [styles.circle, tone ? { backgroundColor: tone } : null]}
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      >
+        {glyph}
+      </View>
       <View style={styles.text}>
         <Text variant="rowTitle" numberOfLines={wrap ? undefined : 1}>
           {title}
@@ -50,7 +59,7 @@ export function GlyphRow({
   );
   const style = [styles.row, { minHeight }];
   return onPress ? (
-    <PressableRow testID={testID} accessibilityRole="button" onPress={onPress} style={style}>
+    <PressableRow testID={testID} accessibilityRole="button" accessibilityLabel={rowLabel(title, meta)} onPress={onPress} style={style}>
       {body}
     </PressableRow>
   ) : (

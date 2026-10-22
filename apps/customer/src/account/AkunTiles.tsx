@@ -5,6 +5,7 @@ import { router } from "expo-router";
 import { nativeLayout } from "@catera/design-tokens";
 import { useMobile } from "@catera/mobile-core";
 import { PressableRow, Skeleton, SkeletonGroup, Text, themedStyles, useColors, useStackedLayout } from "@catera/mobile-ui";
+import { DecorativeIcon, rowLabel } from "../layout";
 
 /** A shortcut tile is at least this tall (spec 3.5); its words push it taller rather than being cut. */
 export const TILE_MIN_HEIGHT = 96;
@@ -13,11 +14,11 @@ export const TILE_PADDING = nativeLayout.space.md;
 /** The count line under a tile's label is one `meta` line high (13/18), reserved while the count loads. */
 export const TILE_COUNT_LINE = 18;
 /**
- * The effective width (`width / fontScale`) under which the tiles stack in one column: a 360dp phone at font scale 1.3
- * is 277, where a third of the row would leave about 55dp for "tersimpan". 411dp at 1.3 is 316 and 360dp at 1.0 is 360,
- * so both keep three columns.
+ * The effective width (`width / fontScale`) under which the tiles stack in one column. A third of the row at 316 (412dp
+ * at font scale 1.3) leaves about 90dp, where "Pembayaran" broke mid-word; 360dp at 277 is worse. 412dp and 360dp at
+ * font scale 1.0 (412 and 360) keep three columns.
  */
-export const TILES_STACK_BELOW = 300;
+export const TILES_STACK_BELOW = 340;
 
 type Glyph = ComponentProps<typeof Ionicons>["name"];
 
@@ -50,11 +51,11 @@ function Tile({
     <PressableRow
       testID={testID}
       accessibilityRole="button"
-      accessibilityLabel={text ? `${label}, ${text}` : label}
+      accessibilityLabel={rowLabel(label, text)}
       onPress={() => router.push(href as never)}
       style={[styles.tile, stacked ? styles.tileStacked : styles.tileColumn]}
     >
-      <Ionicons name={glyph} size={24} color={c.charcoal} />
+      <DecorativeIcon name={glyph} size={24} color={c.charcoal} />
       <View style={styles.words}>
         <Text variant="bodyStrong">{label}</Text>
         {count.kind === "text" ? <Text variant="meta">{count.text}</Text> : null}
@@ -131,8 +132,8 @@ const useStyles = themedStyles((c) => ({
   },
   // Three columns share the row equally; the glyph sits over the words, which sit at the tile's foot.
   tileColumn: { flex: 1, flexBasis: 0, justifyContent: "space-between", gap: nativeLayout.space.sm },
-  // One column: the glyph beside the words.
-  tileStacked: { flexDirection: "row", alignItems: "center", gap: nativeLayout.space.md },
+  // One column: the glyph beside the words, a 72 row (a tile of three columns is 96 tall for its glyph over its words).
+  tileStacked: { flexDirection: "row", alignItems: "center", gap: nativeLayout.space.md, minHeight: nativeLayout.row.media },
   words: { flexShrink: 1, minWidth: 0 },
   wait: { height: TILE_COUNT_LINE, justifyContent: "center" },
 }));

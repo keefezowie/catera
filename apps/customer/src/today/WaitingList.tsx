@@ -22,7 +22,7 @@ import { PressableRow, Text, themedStyles, useColors, useRowMotion, useStackedLa
 import { customerLink } from "../links";
 import { openLink, pushSheet } from "../nav";
 import { packageHref } from "../hrefs";
-import { GLYPH_INSET, ListCard } from "../layout";
+import { DecorativeIcon, GLYPH_INSET, ListCard } from "../layout";
 import { GLYPH_CIRCLE } from "../layout/metrics";
 import { weekdayName } from "../schedule/dates";
 import { onReviewMarked } from "./reviewMark";
@@ -186,7 +186,7 @@ export function WaitingGlyph({ icon }: { icon: IconName }) {
   const styles = useStyles();
   return (
     <View style={styles.glyph}>
-      <Ionicons name={icon} size={20} color={c.forest} />
+      <DecorativeIcon name={icon} size={20} color={c.forest} />
     </View>
   );
 }

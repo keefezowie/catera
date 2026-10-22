@@ -49,7 +49,7 @@ import { StatStrip } from "./NutritionCard";
 import { useSaved } from "./saved";
 import { goToTab } from "../nav";
 import { PackageSkeleton } from "../skeletons";
-import { GLYPH_INSET, GlyphRow, ListCard, SectionHeader } from "../layout";
+import { DecorativeIcon, GLYPH_INSET, GlyphRow, ListCard, SectionHeader } from "../layout";
 import { GLYPH_BARE } from "../layout/metrics";
 
 type Review = { id: string; customer: string; rating: number; body: string };
@@ -336,7 +336,7 @@ export function PackageDetail() {
                 testID={`paket-meal-${m.meal}`}
                 minHeight={nativeLayout.row.media}
                 tone={m.meal === "dinner" ? malam : siang}
-                glyph={<Ionicons name={m.meal === "dinner" ? "moon-outline" : "sunny-outline"} size={GLYPH_BARE} color={c.charcoal} />}
+                glyph={<DecorativeIcon name={m.meal === "dinner" ? "moon-outline" : "sunny-outline"} size={GLYPH_BARE} color={c.charcoal} />}
                 title={mealLabel(m.meal, locale)}
                 meta={compositionPreview(m, o.packageType, locale)}
               />
@@ -392,7 +392,7 @@ function InfoRow({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: s
   return (
     <View testID="paket-info" style={styles.info}>
       <View testID="paket-info-glyph" style={styles.infoGlyph}>
-        <Ionicons name={icon} size={GLYPH_BARE} color={c.muted} />
+        <DecorativeIcon name={icon} size={GLYPH_BARE} color={c.muted} />
       </View>
       <Text variant="bodyL" style={styles.infoText}>
         {text}

@@ -5,7 +5,7 @@ import { nativeLayout } from "@catera/design-tokens";
 import { useMobile } from "@catera/mobile-core";
 import { Text, themedStyles } from "@catera/mobile-ui";
 import { dayHref } from "../hrefs";
-import { ListCard, MediaRow, SectionHeader, Thumb } from "../layout";
+import { ListCard, MediaRow, rowLabel, SectionHeader, Thumb } from "../layout";
 import { goToTab } from "../nav";
 import { DayBlocks, mealWord } from "./DayBlocks";
 import { photoUri } from "./photoUri";
@@ -136,7 +136,7 @@ function DayRow({
       title={dish}
       meta={line}
       wrap
-      accessibilityLabel={`${day.label}, ${dish}, ${line}`}
+      accessibilityLabel={rowLabel(day.label, dish, line)}
       onPress={() => onOpen(day, meal)}
     />
   );

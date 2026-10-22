@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { View } from "react-native";
-import Ionicons from "@expo/vector-icons/Ionicons";
 import { fontFor, PressableRow, Text, themedStyles, useColors } from "@catera/mobile-ui";
+import { DecorativeIcon, rowLabel } from "../layout";
 
 /** One plain list row (52pt tall): a label, an optional value and a chevron when it opens something. */
 export function Row({
@@ -37,14 +37,14 @@ export function Row({
         </Text>
       ) : null}
       {children}
-      {onPress ? <Ionicons name="chevron-forward" size={18} color={c.muted} /> : null}
+      {onPress ? <DecorativeIcon name="chevron-forward" size={18} color={c.muted} /> : null}
     </>
   );
   if (!onPress) return <View style={[styles.row, !first && styles.divider]}>{body}</View>;
   return (
     <PressableRow
       accessibilityRole="button"
-      accessibilityLabel={value ? `${label}, ${value}` : label}
+      accessibilityLabel={rowLabel(label, value)}
       onPress={onPress}
       style={[styles.row, !first && styles.divider]}
     >

@@ -1249,8 +1249,8 @@ describe("Paket on the layout scale (v2)", () => {
     const rows = screen.getAllByTestId(/^paket-meal-(lunch|dinner)$/);
     expect(rows.map((r) => r.props.testID)).toEqual(["paket-meal-lunch", "paket-meal-dinner"]);
     for (const r of rows) expect(flat(r).minHeight).toBe(72);
-    expect(flat(screen.getByTestId("paket-meal-lunch-glyph"))).toMatchObject({ width: 40, height: 40, borderRadius: 20, backgroundColor: nativeMood.light.siang.header });
-    expect(flat(screen.getByTestId("paket-meal-dinner-glyph")).backgroundColor).toBe(nativeMood.light.malam.header);
+    expect(flat(screen.getByTestId("paket-meal-lunch-glyph", { includeHiddenElements: true }))).toMatchObject({ width: 40, height: 40, borderRadius: 20, backgroundColor: nativeMood.light.siang.header });
+    expect(flat(screen.getByTestId("paket-meal-dinner-glyph", { includeHiddenElements: true })).backgroundColor).toBe(nativeMood.light.malam.header);
     expect(flat(screen.getByText("Makan siang"))).toMatchObject({ fontSize: 17, lineHeight: 22, fontFamily: fonts.semibold });
     expect(flat(screen.getByText("1 Nasi · 1 Lauk"))).toMatchObject({ fontSize: 13, lineHeight: 18 });
     expect(screen.getByText("1 Nasi · 2 Lauk")).toBeTruthy();
@@ -1339,8 +1339,8 @@ describe("Paket on the layout scale (v2)", () => {
       );
       await screen.findByTestId("paket-name");
       expect(flat(screen.getByTestId("stat-strip")).backgroundColor).toBe(nativeThemes.dark.surface);
-      expect(flat(screen.getByTestId("paket-meal-lunch-glyph")).backgroundColor).toBe(nativeMood.dark.siang.header);
-      expect(flat(screen.getByTestId("paket-meal-dinner-glyph")).backgroundColor).toBe(nativeMood.dark.malam.header);
+      expect(flat(screen.getByTestId("paket-meal-lunch-glyph", { includeHiddenElements: true })).backgroundColor).toBe(nativeMood.dark.siang.header);
+      expect(flat(screen.getByTestId("paket-meal-dinner-glyph", { includeHiddenElements: true })).backgroundColor).toBe(nativeMood.dark.malam.header);
       expect(flat(screen.getByText("Rantang Nusantara")).color).toBe(nativeThemes.dark.charcoal);
       expect(flat(screen.getByText("kkal")).color).toBe(nativeThemes.dark.muted);
     } finally {

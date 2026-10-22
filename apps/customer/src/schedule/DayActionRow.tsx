@@ -2,6 +2,7 @@ import { View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { PressableScale, Text, themedStyles, useColors, useStackedLayout } from "@catera/mobile-ui";
 import { ACTION_CIRCLE, DAY_ACTION_GAP, DAY_ACTIONS_PAD } from "./dayMetrics";
+import { DecorativeIcon } from "../layout";
 
 /** What a day offers, in the order the row shows it. */
 export type DayActionKey = "change" | "menu" | "report" | "chat" | "address";
@@ -56,7 +57,7 @@ export function DayActions({ actions }: { actions: DayAction[] }) {
           ]}
         >
           <View testID={`day-action-circle-${action.key}`} style={styles.circle}>
-            <Ionicons name={ICON[action.key]} size={24} color={c.charcoal} />
+            <DecorativeIcon name={ICON[action.key]} size={24} color={c.charcoal} />
           </View>
           <Text variant="meta" style={styles.label}>
             {action.label}

@@ -1201,6 +1201,36 @@ describe("Hari", () => {
     expect(meal && flat(meal as never)).toMatchObject({ gap: DAY_MEAL_GAP });
   });
 
+  it("puts the actions directly under the first meal's state line, before the address well and any further meal", async () => {
+    // One meal: photo, the meal, the actions, then the address.
+    let view = await showDay(open("d-next", "2026-10-08", { catererPhone: "+6281200000001" } as Partial<Delivery>));
+    let tree = JSON.stringify(screen.toJSON());
+    let at = (needle: string) => tree.indexOf(needle);
+    expect(at("day-photo")).toBeGreaterThan(-1);
+    expect(at("day-state-lunch")).toBeGreaterThan(at("day-photo"));
+    expect(at("day-actions")).toBeGreaterThan(at("day-state-lunch"));
+    expect(at("day-address")).toBeGreaterThan(at("day-actions"));
+    view.unmount();
+    // Lunch and dinner: the row comes after lunch, before dinner's block and the address well.
+    const both = delivery("d-both", "2026-10-08", {}, {
+      meals: [
+        { meal: "lunch", status: "scheduled" },
+        { meal: "dinner", status: "scheduled" },
+      ],
+      offer: offer({ meal: "both", menus: [menuOf("lunch", "", [{ id: "l-1", name: "Ayam bakar madu" }]), menuOf("dinner", "", [{ id: "d-1", name: "Soto betawi" }])] }),
+    } as unknown as Partial<Delivery>);
+    view = await showDay(both);
+    tree = JSON.stringify(screen.toJSON());
+    at = (needle: string) => tree.indexOf(needle);
+    expect(at("day-actions")).toBeGreaterThan(at("day-state-lunch"));
+    expect(at("Soto betawi")).toBeGreaterThan(at("day-actions"));
+    expect(at("day-state-dinner")).toBeGreaterThan(at("Soto betawi"));
+    expect(at("day-address")).toBeGreaterThan(at("day-state-dinner"));
+    // The row is drawn once.
+    expect(screen.getAllByTestId("day-actions")).toHaveLength(1);
+    view.unmount();
+  });
+
   it("has no per-meal ⋮, no pinned Ubah hari footer and no text link: the actions are circles in the body", async () => {
     await showDay(delivery("d-today", "2026-10-07", { status: "out_for_delivery" }, { catererPhone: "+6281200000001" } as Partial<Delivery>));
     expect(screen.queryByRole("button", { name: /^Pilihan untuk / })).toBeNull();

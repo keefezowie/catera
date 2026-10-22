@@ -2,9 +2,75 @@ import { fireEvent, render, screen } from "@testing-library/react-native";
 import { StyleSheet } from "react-native";
 import { Text } from "@catera/mobile-ui";
 import { nativeLayout, nativeThemes } from "@catera/design-tokens";
-import { BARE_GLYPH_INSET, GLYPH_INSET, GlyphCircle, GlyphRow, ListCard, MEDIA_INSET, MediaRow, SectionHeader, Thumb } from "../src/layout";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import {
+  BARE_GLYPH_INSET,
+  DecorativeIcon,
+  GLYPH_INSET,
+  GlyphCircle,
+  GlyphRow,
+  ListCard,
+  MEDIA_INSET,
+  MediaRow,
+  rowLabel,
+  SectionHeader,
+  Thumb,
+} from "../src/layout";
+import { wellFormedLabel } from "./labels";
 
 const flat = (el: { props: { style?: unknown } }) => StyleSheet.flatten(el.props.style as never);
+
+describe("row labels for a screen reader", () => {
+  it("rowLabel joins the non-empty parts and leaves no empty one", () => {
+    expect(rowLabel("Data akun", undefined)).toBe("Data akun");
+    expect(rowLabel("Senin 26 Okt", "", "1 hari lagi")).toBe("Senin 26 Okt, 1 hari lagi");
+    expect(rowLabel(" Riwayat ", null, false, "Pembayaran ")).toBe("Riwayat, Pembayaran");
+    expect(rowLabel("", " ", undefined)).toBe("");
+    for (const label of [rowLabel("a", "b"), rowLabel("a"), rowLabel("x", undefined, "z")]) expect(wellFormedLabel(label)).toBe(true);
+    for (const bad of [", Data akun, ", "Senin 26 Okt, , 1 hari lagi", "Senin,", ""]) expect(wellFormedLabel(bad)).toBe(false);
+  });
+
+  it("a GlyphRow button is named by its title and meta alone; its glyph is hidden from the reader", () => {
+    const view = render(
+      <GlyphRow
+        testID="row"
+        glyph={<Ionicons name="person-outline" size={20} />}
+        trailing={<DecorativeIcon name="chevron-forward" size={20} />}
+        title="Data akun"
+        onPress={() => {}}
+      />,
+    );
+    expect(screen.getByTestId("row").props.accessibilityLabel).toBe("Data akun");
+    expect(screen.getByTestId("row-glyph", { includeHiddenElements: true }).props).toMatchObject({
+      accessibilityElementsHidden: true,
+      importantForAccessibility: "no-hide-descendants",
+    });
+    view.rerender(<GlyphRow testID="row" glyph={null} title="Pengaturan" meta="Bahasa, tampilan" onPress={() => {}} />);
+    expect(screen.getByTestId("row").props.accessibilityLabel).toBe("Pengaturan, Bahasa, tampilan");
+  });
+
+  it("a MediaRow button is named by its title and meta unless it is given a label; its chevron and placeholder glyph are hidden", () => {
+    const view = render(<MediaRow testID="row" title="Makan Siang Rumahan" meta="" notSet trailing="chevron" onPress={() => {}} />);
+    const label = screen.getByTestId("row").props.accessibilityLabel as string;
+    expect(label).toBe("Makan Siang Rumahan");
+    expect(wellFormedLabel(label)).toBe(true);
+    for (const id of ["row-chevron", "row-thumb-not-set"]) {
+      const glyph = screen.getByTestId(id).findByProps({ accessibilityElementsHidden: true });
+      expect(glyph.props.importantForAccessibility).toBe("no");
+    }
+    view.rerender(<MediaRow testID="row" title="Kamis" meta="Siang 11.00" accessibilityLabel="Kamis 22 Okt, Siang" onPress={() => {}} />);
+    expect(screen.getByTestId("row").props.accessibilityLabel).toBe("Kamis 22 Okt, Siang");
+  });
+
+  it("DecorativeIcon is hidden on both platforms", () => {
+    render(<DecorativeIcon name="location-outline" size={20} testID="pin" />);
+    expect(screen.getByTestId("pin", { includeHiddenElements: true }).props).toMatchObject({
+      accessible: false,
+      importantForAccessibility: "no",
+      accessibilityElementsHidden: true,
+    });
+  });
+});
 
 describe("layout blocks", () => {
   it("MediaRow is 72 tall with a 56 thumb and one-line title and meta", () => {
@@ -118,21 +184,21 @@ describe("layout blocks", () => {
       <GlyphRow testID="g" glyph={<Text>*</Text>} title="Alamat" minHeight={minHeight} />
     );
     const { rerender } = render(row(48));
-    expect(flat(screen.getByTestId("g-glyph"))).toMatchObject({ width: 20, height: 20 });
-    expect(flat(screen.getByTestId("g-glyph")).backgroundColor).toBeUndefined();
+    expect(flat(screen.getByTestId("g-glyph", { includeHiddenElements: true }))).toMatchObject({ width: 20, height: 20 });
+    expect(flat(screen.getByTestId("g-glyph", { includeHiddenElements: true })).backgroundColor).toBeUndefined();
     rerender(row(56));
-    expect(flat(screen.getByTestId("g-glyph"))).toMatchObject({ width: 40, height: 40, borderRadius: 20 });
+    expect(flat(screen.getByTestId("g-glyph", { includeHiddenElements: true }))).toMatchObject({ width: 40, height: 40, borderRadius: 20 });
     rerender(row(72));
-    expect(flat(screen.getByTestId("g-glyph"))).toMatchObject({ width: 40, height: 40 });
+    expect(flat(screen.getByTestId("g-glyph", { includeHiddenElements: true }))).toMatchObject({ width: 40, height: 40 });
   });
 
   it("GlyphRow takes a tone for its circle (a meal's mood tint) and leaves a bare glyph alone", () => {
     const { rerender } = render(<GlyphRow testID="g" glyph={<Text>*</Text>} title="Makan siang" minHeight={72} tone="#FFF7E9" />);
-    expect(flat(screen.getByTestId("g-glyph")).backgroundColor).toBe("#FFF7E9");
+    expect(flat(screen.getByTestId("g-glyph", { includeHiddenElements: true })).backgroundColor).toBe("#FFF7E9");
     rerender(<GlyphRow testID="g" glyph={<Text>*</Text>} title="Makan siang" minHeight={72} />);
-    expect(flat(screen.getByTestId("g-glyph")).backgroundColor).toBe(nativeThemes.light.sage);
+    expect(flat(screen.getByTestId("g-glyph", { includeHiddenElements: true })).backgroundColor).toBe(nativeThemes.light.sage);
     rerender(<GlyphRow testID="g" glyph={<Text>*</Text>} title="Makan siang" minHeight={48} tone="#FFF7E9" />);
-    expect(flat(screen.getByTestId("g-glyph")).backgroundColor).toBeUndefined();
+    expect(flat(screen.getByTestId("g-glyph", { includeHiddenElements: true })).backgroundColor).toBeUndefined();
   });
 
   it("GlyphRow keeps its title and meta to one line unless it wraps", () => {
@@ -145,7 +211,7 @@ describe("layout blocks", () => {
 
   it("GlyphRow bare gives the 20 glyph at any height", () => {
     render(<GlyphRow testID="g" bare glyph={<Text>*</Text>} title="Alamat" />);
-    expect(flat(screen.getByTestId("g-glyph"))).toMatchObject({ width: 20, height: 20 });
+    expect(flat(screen.getByTestId("g-glyph", { includeHiddenElements: true }))).toMatchObject({ width: 20, height: 20 });
   });
 
   it("the ListCard insets follow the thumb, the circle and the bare glyph plus the 12 gap", () => {

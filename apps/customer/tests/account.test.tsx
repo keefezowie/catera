@@ -10,6 +10,8 @@ import { nativeMood, nativeThemes } from "@catera/design-tokens";
 import { MoodProvider, ThemeProvider, ToastProvider } from "@catera/mobile-ui";
 import { addDays, type CustomerActionItem, type CustomerState } from "@catera/domain";
 import { Akun } from "../src/account/Akun";
+import { TILES_STACK_BELOW } from "../src/account/AkunTiles";
+import { wellFormedLabel } from "./labels";
 import { Addresses } from "../src/account/Addresses";
 import { Payments } from "../src/account/Payments";
 import { NotificationsScreen } from "../src/account/Notifications";
@@ -276,9 +278,22 @@ describe("Akun", () => {
       for (const text of within(row).getAllByText(/./)) expect(text.props.numberOfLines).toBeUndefined();
   });
 
-  it("keeps three columns at 411dp and font scale 1.3 and at 360dp and font scale 1", async () => {
+  it("stacks the tiles at 412dp and font scale 1.3 (effective width 316): 72 rows with the glyph beside the words", async () => {
+    mockWindow = { width: 412, height: 860, scale: 3, fontScale: 1.3 };
+    renderWith(runtimeWith(eightPlans(), { phone: "6281234567890" }), <Akun />);
+    await screen.findByTestId("akun-tiles");
+    expect(TILES_STACK_BELOW).toBe(340);
+    expect(flat(screen.getByTestId("akun-tiles")).flexDirection).toBe("column");
+    for (const id of ["akun-tile-paket", "akun-tile-alamat", "akun-tile-riwayat"]) {
+      expect(flat(screen.getByTestId(id))).toMatchObject({ flexDirection: "row", alignItems: "center", minHeight: 72 });
+    }
+    // "Pembayaran" has the width of the tile, so it is no longer broken mid-word.
+    expect(within(screen.getByTestId("akun-tile-riwayat")).getByText("Pembayaran").props.numberOfLines).toBeUndefined();
+  });
+
+  it("keeps three columns at 412dp and font scale 1 and at 360dp and font scale 1", async () => {
     for (const w of [
-      { width: 411, height: 860, scale: 3, fontScale: 1.3 },
+      { width: 412, height: 860, scale: 3, fontScale: 1 },
       { width: 360, height: 800, scale: 3, fontScale: 1 },
     ]) {
       mockWindow = w;
@@ -287,6 +302,16 @@ describe("Akun", () => {
       expect(flat(screen.getByTestId("akun-tiles")).flexDirection).toBe("row");
       view.unmount();
     }
+  });
+
+  it("names its tiles and rows from their non-empty parts: no glyph, leading, trailing or doubled separator", async () => {
+    renderWith(runtimeWith(eightPlans(), { phone: "6281234567890" }), <Akun />);
+    await screen.findByTestId("akun-tiles");
+    const labels = screen.getAllByRole("button").map((b) => b.props.accessibilityLabel as string | undefined).filter(Boolean) as string[];
+    expect(labels.length).toBeGreaterThan(5);
+    for (const label of labels) expect({ label, ok: wellFormedLabel(label) }).toEqual({ label, ok: true });
+    expect(screen.getByRole("button", { name: "Data akun" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Riwayat, Pembayaran" })).toBeTruthy();
   });
 
   it("takes the dark theme's surface for the tiles and the cards, and its ink for the labels", async () => {

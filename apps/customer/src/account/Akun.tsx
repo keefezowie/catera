@@ -8,7 +8,7 @@ import { MoodHeader, Screen, Skeleton, SkeletonGroup, Text, themedStyles, useCol
 import { localPhone } from "./localPhone";
 import { AkunTiles } from "./AkunTiles";
 import { SignInFirst } from "./SignInFirst";
-import { BARE_GLYPH_INSET, GlyphRow, ListCard } from "../layout";
+import { BARE_GLYPH_INSET, DecorativeIcon, GlyphRow, ListCard } from "../layout";
 import { AkunSkeleton } from "../skeletons";
 
 export { localPhone };
@@ -88,10 +88,10 @@ function AccountRow({ glyph, title, meta, href }: { glyph: Glyph; title: string;
     <GlyphRow
       bare
       wrap
-      glyph={<Ionicons name={glyph} size={20} color={c.muted} />}
+      glyph={<DecorativeIcon name={glyph} size={20} color={c.muted} />}
       title={title}
       meta={meta}
-      trailing={<Ionicons name="chevron-forward" size={20} color={c.muted} />}
+      trailing={<DecorativeIcon name="chevron-forward" size={20} color={c.muted} />}
       onPress={() => router.push(href as never)}
     />
   );

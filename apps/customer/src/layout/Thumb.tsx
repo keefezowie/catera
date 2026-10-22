@@ -1,8 +1,8 @@
 import { View } from "react-native";
 import { Image } from "expo-image";
-import Ionicons from "@expo/vector-icons/Ionicons";
 import { nativeLayout } from "@catera/design-tokens";
 import { themedStyles, useColors } from "@catera/mobile-ui";
+import { DecorativeIcon } from "./DecorativeIcon";
 
 /**
  * A square dish photo: 56 (rows) or 64 (rich rows), radius 8. `notSet` is a menu the person has not chosen yet: a
@@ -26,7 +26,7 @@ export function Thumb({
   if (notSet) {
     return (
       <View testID={`${testID}-not-set`} style={[styles.tile, styles.notSet, box]}>
-        <Ionicons name="restaurant-outline" size={Math.round(size * 0.4)} color={c.controlRing} />
+        <DecorativeIcon name="restaurant-outline" size={Math.round(size * 0.4)} color={c.controlRing} />
       </View>
     );
   }

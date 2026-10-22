@@ -1,6 +1,5 @@
-import { useEffect, useRef, type ReactNode, type RefObject } from "react";
+import { Fragment, useEffect, useRef, type ReactNode, type RefObject } from "react";
 import { AccessibilityInfo, Image, type Text as RNText, View } from "react-native";
-import Ionicons from "@expo/vector-icons/Ionicons";
 import { router, useLocalSearchParams } from "expo-router";
 import { closeSheetFor, pushSheet } from "../nav";
 import {
@@ -45,6 +44,7 @@ import {
   DAY_WELL_MIN,
   DAY_WELL_RADIUS,
 } from "./dayMetrics";
+import { DecorativeIcon } from "../layout";
 
 /**
  * One delivery day, a form sheet over the page that opened it. Under the handle the first text is the day's own line
@@ -207,43 +207,47 @@ function Day({ id, carried }: { id: string; carried: string | undefined }) {
             const first = i === 0;
             const key = block.meal ?? "day";
             return (
-              <View key={key} style={{ gap: DAY_MEAL_GAP }}>
-                {/* The first block's line names the sheet to a screen reader: the full day, then the meal. */}
-                <View
-                  ref={first ? (focus as unknown as RefObject<View>) : undefined}
-                  accessible={first}
-                  accessibilityRole={first ? "header" : undefined}
-                  accessibilityLabel={first ? [spoken, mealName, d.offer.caterer].filter(Boolean).join(", ") : undefined}
-                >
-                  <Text variant="meta">{meta}</Text>
-                </View>
-                <Text variant="heroTitle">
-                  {block.meal ? dishes?.title || t("Menu belum diisi", "Menu not set yet") : d.offer.name}
-                </Text>
-                {dishes?.sides.length ? <Text variant="bodyL">{dishes.sides.join(", ")}</Text> : null}
-                {line ? (
-                  <View style={styles.state}>
-                    <View
-                      testID={`day-state-dot-${key}`}
-                      style={[styles.dot, { backgroundColor: block.status === "issue" ? c.danger : c.muted }]}
-                    />
-                    <Text variant="meta" testID={`day-state-${key}`} style={[styles.stateText, { fontVariant: ["tabular-nums"] }]}>
-                      {line}
-                    </Text>
+              <Fragment key={key}>
+                <View style={{ gap: DAY_MEAL_GAP }}>
+                  {/* The first block's line names the sheet to a screen reader: the full day, then the meal. */}
+                  <View
+                    ref={first ? (focus as unknown as RefObject<View>) : undefined}
+                    accessible={first}
+                    accessibilityRole={first ? "header" : undefined}
+                    accessibilityLabel={first ? [spoken, mealName, d.offer.caterer].filter(Boolean).join(", ") : undefined}
+                  >
+                    <Text variant="meta">{meta}</Text>
                   </View>
-                ) : null}
-              </View>
+                  <Text variant="heroTitle">
+                    {block.meal ? dishes?.title || t("Menu belum diisi", "Menu not set yet") : d.offer.name}
+                  </Text>
+                  {dishes?.sides.length ? <Text variant="bodyL">{dishes.sides.join(", ")}</Text> : null}
+                  {line ? (
+                    <View style={styles.state}>
+                      <View
+                        testID={`day-state-dot-${key}`}
+                        style={[styles.dot, { backgroundColor: block.status === "issue" ? c.danger : c.muted }]}
+                      />
+                      <Text variant="meta" testID={`day-state-${key}`} style={[styles.stateText, { fontVariant: ["tabular-nums"] }]}>
+                        {line}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+                {/* The day's actions sit directly under the first meal's state line, before the address and any further meal, so
+                    they are in view at the sheet's first detent (a second meal or the address would push them off it). */}
+                {first ? <DayActions actions={actions} /> : null}
+              </Fragment>
             );
           })}
           <View testID="day-address" style={styles.well}>
-            <Ionicons name="location-outline" size={20} color={c.charcoal} />
+            <DecorativeIcon name="location-outline" size={20} color={c.charcoal} />
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text variant="meta">{t("Diantar ke", "Delivered to")}</Text>
               <Text variant="bodyL">{[d.address.label, d.address.line, d.address.area].filter(Boolean).join(" · ")}</Text>
               {d.address.instructions ? <Text variant="meta">{d.address.instructions}</Text> : null}
             </View>
           </View>
-          <DayActions actions={actions} />
         </>
       )}
     </Sheet>

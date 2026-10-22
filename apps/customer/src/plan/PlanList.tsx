@@ -1,12 +1,11 @@
 import { View } from "react-native";
-import Ionicons from "@expo/vector-icons/Ionicons";
 import { router } from "expo-router";
 import { nativeLayout } from "@catera/design-tokens";
 import { planLabel, shortDate, type CustomerState, type Subscription } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
 import { FadeSwap, ReadError, Screen, Text, themedStyles, useColors } from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
-import { ListCard, MediaRow } from "../layout";
+import { DecorativeIcon, ListCard, MediaRow } from "../layout";
 import { remainingLabel } from "../remaining";
 import { planHref } from "../hrefs";
 import { usePullToRefresh } from "../refresh";
@@ -71,7 +70,7 @@ function PlanSections({
       image={s.snapshot.offer.image ? photoUri(s.snapshot.offer.image, runtime.apiBase) : null}
       title={s.status === "active" ? planLabel(s, all, locale) : s.snapshot.offer.name}
       meta={meta}
-      trailing={<Ionicons name="chevron-forward" size={20} color={c.muted} />}
+      trailing={<DecorativeIcon name="chevron-forward" size={20} color={c.muted} />}
       onPress={() => router.push(planHref(s.id, s.snapshot.offer.name) as never)}
     />
   );
