@@ -3,7 +3,7 @@ import { View } from "react-native";
 import type { Locale } from "@catera/domain";
 import { useMobile } from "@catera/mobile-core";
 import { MoodFill, Skeleton, SkeletonGroup, useColors } from "@catera/mobile-ui";
-import { MonthFrame } from "./schedule/MonthGrid";
+import { DAY_CIRCLE, MonthFrame } from "./schedule/MonthGrid";
 import { HERO_OVERLAP } from "./today/Plate";
 
 /**
@@ -289,9 +289,10 @@ export function ChooseMenuSkeleton() {
 }
 
 /**
- * Jadwal's month while it loads: the loaded grid's own frame (weekday names, six 52 week rows, so the header keeps one
- * height in every state) with a cell for each day of `month` at the photo cell's size and radius. The cells sit on the
- * mood header, so they read its toggle track. Nothing about the days is drawn: no number, no photo, no ring.
+ * Jadwal's month while it loads: the loaded grid's own frame (weekday names, the month's week rows at `MONTH_CELL`, so
+ * the header keeps one height in every state) with a `DAY_CIRCLE` circle for each day of `month`, the size of the
+ * circle the loaded day draws. The circles sit on the mood header, so they read its toggle track. Nothing about the
+ * days is drawn: no number, no dot, no ring.
  */
 export function JadwalCellsSkeleton({ month, locale }: { month: string; locale: Locale }) {
   const { t } = useMobile();
@@ -300,7 +301,7 @@ export function JadwalCellsSkeleton({ month, locale }: { month: string; locale: 
       <MonthFrame
         locale={locale}
         month={month}
-        cell={() => <Skeleton testID="jadwal-skeleton-cell" onMood height={52} radius={12} />}
+        cell={() => <Skeleton testID="jadwal-skeleton-cell" onMood width={DAY_CIRCLE} height={DAY_CIRCLE} radius={DAY_CIRCLE / 2} />}
       />
     </SkeletonGroup>
   );

@@ -5,7 +5,7 @@ import { StyleSheet, Text } from "react-native";
 import * as Reanimated from "react-native-reanimated";
 import { nativeMotion } from "@catera/design-tokens";
 import { ApiError } from "@catera/api-client";
-import { addDays, type ClaimPreview, type CustomerState } from "@catera/domain";
+import { addDays, jakartaDay, monthOf, monthWeeks, type ClaimPreview, type CustomerState } from "@catera/domain";
 import { createMobileRuntime, MobileProvider, type MobileRuntime } from "@catera/mobile-core";
 import { MoodProvider, ThemeProvider, type MascotPose } from "@catera/mobile-ui";
 import ClaimRoute from "../app/claim/[token]";
@@ -174,7 +174,7 @@ const STATES: State[] = [
     pose: "tidur",
     runtime: () => runtimeWith({ customer: jest.fn(async () => ({ ...customerState(null), deliveries: [] })) }),
     ui: <Jadwal />,
-    copy: ["Tidak ada pengantaran di hari ini."],
+    copy: ["Tidak ada pengantaran di minggu ini"],
   },
   {
     name: "Notifikasi with no updates",
@@ -465,11 +465,12 @@ describe("each empty and error state shows its pose and keeps its copy and actio
     expect(artHeight(art)).toBe(120);
   });
 
-  it("puts Jadwal's failed month art inside the month frame, which keeps its six week rows", async () => {
+  it("puts Jadwal's failed month art inside the month frame, which keeps the month's week rows", async () => {
     const art = await open(state("a Jadwal month that could not load"));
     const frame = screen.getByTestId("month-frame", hidden);
     expect(within(frame).getByTestId("mascot-bingung", hidden)).toBe(art);
-    expect(within(frame).getAllByTestId("month-week", hidden)).toHaveLength(6);
+    // The rows are the weeks the month needs (the frame grows only below them, to hold the message).
+    expect(within(frame).getAllByTestId("month-week", hidden)).toHaveLength(monthWeeks(monthOf(jakartaDay(new Date()))).length);
     expect(within(frame).getByRole("button", { name: "Coba lagi" })).toBeTruthy();
   });
 

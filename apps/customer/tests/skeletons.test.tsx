@@ -6,11 +6,12 @@ import { createMobileRuntime, MobileProvider, useMobile, type MobileRuntime } fr
 import { nativeMood, nativeMotion, nativeThemes } from "@catera/design-tokens";
 import * as SecureStore from "expo-secure-store";
 import { FadeSwap, MoodProvider, SheetHeader, SkeletonGroup, ThemeProvider } from "@catera/mobile-ui";
-import type { CustomerState } from "@catera/domain";
+import { jakartaDay, monthOf, monthWeeks, type CustomerState } from "@catera/domain";
 import { spyFades } from "./fade";
 import { Beranda } from "../src/today/Beranda";
 import { HERO_OVERLAP } from "../src/today/Plate";
 import { Jadwal } from "../src/schedule/Jadwal";
+import { DAY_CIRCLE, MONTH_CELL, WEEKDAY_ROW } from "../src/schedule/MonthGrid";
 import { PaymentScreen } from "../src/buy/PaymentScreen";
 import { Masuk } from "../src/account/Masuk";
 import { PaketSaya } from "../src/plan/PlanList";
@@ -213,7 +214,7 @@ describe("Beranda", () => {
 });
 
 describe("Jadwal", () => {
-  it("Jadwal loading draws skeleton cells inside the six-row frame", async () => {
+  it("Jadwal loading draws skeleton circles inside the month's own week rows", async () => {
     const runtime = runtimeWith({ customer: jest.fn(() => new Promise(() => undefined)) });
     renderWith(runtime, <Jadwal />);
     await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
@@ -221,17 +222,19 @@ describe("Jadwal", () => {
     const frame = within(header).getByTestId("month-frame");
     const wait = within(header).getByRole("progressbar", { name: "Memuat jadwal" });
     expect(inside(frame, wait)).toBe(true);
+    // Only the weeks this month needs, each at the loaded cell's 40: the frame reads the grid's own constants.
     const rows = within(frame).getAllByTestId("month-week");
-    expect(rows).toHaveLength(6);
-    for (const row of rows) expect(flat(row).height).toBe(52);
-    // A cell for each day of this month, at the loaded cell's size, and no day drawn as if it were known.
+    expect(rows).toHaveLength(monthWeeks(monthOf(jakartaDay(new Date()))).length);
+    for (const row of rows) expect(flat(row).height).toBe(MONTH_CELL);
+    expect(flat(within(frame).getByTestId("month-weekdays")).minHeight).toBe(WEEKDAY_ROW);
+    // A circle for each day of this month, at the loaded day's 32 circle, and no day drawn as if it were known.
     const cells = within(frame).getAllByTestId("jadwal-skeleton-cell");
     const now = new Date();
     const days = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0)).getUTCDate();
     expect(cells.length).toBeGreaterThanOrEqual(28);
     expect(cells.length).toBeLessThanOrEqual(31);
     expect([days - 1, days, days + 1]).toContain(cells.length);
-    for (const cell of cells) expect(flat(cell).height).toBe(52);
+    for (const cell of cells) expect(flat(cell)).toMatchObject({ width: DAY_CIRCLE, height: DAY_CIRCLE, borderRadius: DAY_CIRCLE / 2 });
     expect(screen.queryByText("Memuat…")).toBeNull();
     expect(screen.UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
   });

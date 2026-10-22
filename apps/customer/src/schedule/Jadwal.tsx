@@ -1,46 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
-import { Image, View } from "react-native";
+import { useMemo, useState, type ReactNode } from "react";
+import { View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { router } from "expo-router";
-import {
-  calendarDays,
-  jakartaDay,
-  mealJourney,
-  mealLabel,
-  MEALS,
-  statusLabel,
-  windowStartMinutes,
-  type CustomerState,
-  type Delivery,
-} from "@catera/domain";
+import { calendarDays, jakartaDay, type CustomerState } from "@catera/domain";
 import { useData, useMobile } from "@catera/mobile-core";
-import {
-  Card,
-  FadeSwap,
-  fontFor,
-  MoodHeader,
-  PressableRow,
-  PressableScale,
-  ReadError,
-  Screen,
-  StateArt,
-  Text,
-  themedStyles,
-  useColors,
-  useMoodColors,
-} from "@catera/mobile-ui";
+import { nativeLayout } from "@catera/design-tokens";
+import { FadeSwap, MoodHeader, PressableScale, ReadError, Screen, StateArt, Text, useMoodColors } from "@catera/mobile-ui";
 import { SignInFirst } from "../account/SignInFirst";
-import { dayHref } from "../hrefs";
 import { usePullToRefresh } from "../refresh";
 import { JadwalCellsSkeleton } from "../skeletons";
-import { photoUri } from "../today/Plate";
-import { BLEED, CalendarLegend, MonthFrame, MonthGrid } from "./MonthGrid";
-import { longDay, monthOf, monthRange, monthTitle, shiftMonth } from "./dates";
-
-const live = (d: Delivery) => d.status !== "cancelled";
-const served = (d: Delivery) => (d.meals ?? []).filter((m) => m.status !== "cancelled");
-/** The caterer marked the meal "Gagal diantar": it did not come and is not coming. */
-const failed = (status: string) => status === "issue";
+import { CalendarLegend, MonthFrame, MonthGrid, useGridBleed } from "./MonthGrid";
+import { monthOf, monthRange, monthTitle, monthWeeks, shiftMonth } from "./dates";
+import { WeekAgenda } from "./WeekAgenda";
 
 /** The legend explains the cells and claims nothing about the month, so it holds its place in every state. */
 function Legend() {
@@ -48,15 +18,50 @@ function Legend() {
   return (
     <CalendarLegend
       labels={{
-        photo: t("Foto menu", "Menu photo"),
+        delivery: t("Ada pengantaran", "Delivery"),
         unset: t("Menu belum diisi", "Menu not set"),
-        dinner: t("Ada makan malam", "Dinner too"),
       }}
     />
   );
 }
 
-/** Jadwal: the month at a glance and the meals of the day you tap. */
+/**
+ * The month band's title row: the month in `heroTitle` and, once there is a session, the two 44 chevrons. The header
+ * pads its row by 20, so both ends pull out to the screen margin the agenda below uses (16 under `v2`).
+ */
+function MonthBar({
+  month,
+  chevrons,
+  testID,
+  children,
+}: {
+  month: string;
+  chevrons?: ReactNode;
+  testID?: string;
+  children: ReactNode;
+}) {
+  const { locale } = useMobile();
+  const mood = useMoodColors();
+  const bleed = useGridBleed();
+  return (
+    <MoodHeader
+      testID={testID}
+      meta={
+        <View style={{ marginLeft: bleed }}>
+          <Text variant="heroTitle" style={{ color: mood.headerText }}>
+            {monthTitle(month, locale)}
+          </Text>
+        </View>
+      }
+      title={null}
+      trailing={chevrons ? <View style={{ marginRight: bleed }}>{chevrons}</View> : undefined}
+    >
+      {children}
+    </MoodHeader>
+  );
+}
+
+/** Jadwal: the month at a glance and the week you are looking at. */
 export function Jadwal() {
   const { actor, ready, t, locale } = useMobile();
   // Before the session is known, the header and this month's frame are already in place; only the cells wait.
@@ -65,10 +70,10 @@ export function Jadwal() {
     return (
       <Screen
         header={
-          <MoodHeader title={monthTitle(month, locale)}>
+          <MonthBar month={month}>
             <JadwalCellsSkeleton month={month} locale={locale} />
             <Legend />
-          </MoodHeader>
+          </MonthBar>
         }
       >
         {null}
@@ -81,9 +86,8 @@ export function Jadwal() {
 
 function SignedInJadwal() {
   const { runtime, t, locale } = useMobile();
-  const c = useColors();
   const mood = useMoodColors();
-  const styles = useStyles();
+  const bleed = useGridBleed();
   const today = jakartaDay(new Date());
   const [month, setMonth] = useState(monthOf(today));
   const [selected, setSelected] = useState(today);
@@ -92,40 +96,45 @@ function SignedInJadwal() {
   const state: CustomerState | null = data.data;
   const pull = usePullToRefresh(data.reload);
 
-  useEffect(() => {
-    setSelected(monthOf(today) === month ? today : `${month}-01`);
-  }, [month]);
-
   const deliveries = useMemo(() => state?.deliveries.filter((d) => monthOf(d.service_date) === month) ?? [], [state, month]);
   const days = useMemo(() => calendarDays(deliveries), [deliveries]);
   // No meal comes this month: every delivery is cancelled, or every meal of it is.
-  const monthEmpty = !deliveries.some((d) => live(d) && served(d).length > 0);
-  const day = deliveries
-    .filter((d) => d.service_date === selected && live(d))
-    .flatMap((d) => served(d).map((m) => ({ d, m })))
-    // Lunch before dinner, then by service window when several caterers serve the same meal.
-    .sort(
-      (a, b) =>
-        MEALS.indexOf(a.m.meal) - MEALS.indexOf(b.m.meal) ||
-        windowStartMinutes(a.d.offer, a.m.meal) - windowStartMinutes(b.d.offer, b.m.meal),
-    );
+  const monthEmpty = !deliveries.some((d) => d.status !== "cancelled" && (d.meals ?? []).some((m) => m.status !== "cancelled"));
+
+  // The week of the selected day, cut at the month's edge (the month is what was read), and the one after it, which is
+  // the next month's first week when this one is the last.
+  const weeks = monthWeeks(month);
+  const row = Math.max(0, weeks.findIndex((w) => w.includes(selected)));
+  const datesOf = (w: (string | null)[]) => w.filter((d): d is string => d != null);
+  const week = datesOf(weeks[row]);
+  const next = datesOf(weeks[row + 1] ?? monthWeeks(shiftMonth(month, 1))[0]);
+
+  // Moving the month picks today in it, or its first day; a week opened from the agenda picks its own first day.
+  const goToMonth = (m: string) => {
+    setMonth(m);
+    setSelected(monthOf(today) === m ? today : `${m}-01`);
+  };
+  const openWeek = (first: string) => {
+    setMonth(monthOf(first));
+    setSelected(first);
+  };
 
   // The month moves from the header's trailing slot. The chevrons sit on the header, so they read its mood text colour.
   const chevrons = (
-    <View style={styles.monthBar}>
+    <View style={{ flexDirection: "row", alignItems: "center" }}>
       <PressableScale
         accessibilityRole="button"
         accessibilityLabel={t("Bulan sebelumnya", "Previous month")}
-        onPress={() => setMonth(shiftMonth(month, -1))}
-        style={styles.arrow}
+        onPress={() => goToMonth(shiftMonth(month, -1))}
+        style={arrow}
       >
         <Ionicons name="chevron-back" size={22} color={mood.headerText} />
       </PressableScale>
       <PressableScale
         accessibilityRole="button"
         accessibilityLabel={t("Bulan berikutnya", "Next month")}
-        onPress={() => setMonth(shiftMonth(month, 1))}
-        style={styles.arrow}
+        onPress={() => goToMonth(shiftMonth(month, 1))}
+        style={arrow}
       >
         <Ionicons name="chevron-forward" size={22} color={mood.headerText} />
       </PressableScale>
@@ -135,33 +144,24 @@ function SignedInJadwal() {
   return (
     <Screen
       header={
-        // The tab bar already names this tab, so the row holds only the month arrows.
-        <MoodHeader testID="jadwal-header" title={monthTitle(month, locale)} trailing={chevrons}>
-          {/* The header is the same height in all three states: the loaded grid, and the frame that stands in for it
-              while the month loads (with a skeleton cell per day) or after a failed read, are all six week rows tall,
-              and the legend stays below. The month fades in from its skeleton as one block. The grid pulls out past
-              the header's padding by BLEED, so the fade's box pulls out with it: every cell stays inside its parent,
-              where a tap on an edge cell still reaches it. */}
+        // The tab bar already names this tab, so the row holds the month and its arrows.
+        <MonthBar testID="jadwal-header" month={month} chevrons={chevrons}>
+          {/* The loaded grid and the frame that stands in for it while the month loads (a skeleton circle per day) are
+              the same height: the weekday row and the month's own week rows, and the legend stays below. A month that
+              could not be read keeps room for its message. The month fades in from its skeleton as one block. The grid
+              pulls out past the header's padding by the bleed, so the fade's box pulls out with it: every cell stays
+              inside its parent, where a tap on an edge cell still reaches it. */}
           <FadeSwap
             swapKey={state ? `${month}:ready` : data.error ? `${month}:error` : `${month}:loading`}
-            style={{ marginHorizontal: BLEED, paddingHorizontal: -BLEED }}
+            style={{ marginHorizontal: bleed, paddingHorizontal: -bleed }}
           >
             {state ? (
-              <MonthGrid
-                month={month}
-                today={today}
-                selected={selected}
-                days={days}
-                apiBase={runtime.apiBase}
-                locale={locale}
-                onSelect={setSelected}
-              />
+              <MonthGrid month={month} today={today} selected={selected} days={days} locale={locale} onSelect={setSelected} />
             ) : data.error ? (
               // Nothing is known about this month yet, so the frame says that instead of drawing its days as empty. The
               // failed read is the month, so the puzzled mascot leads it (spec 7.2), inside the frame: the art (120, or
-              // 96 on a 360dp phone at font scale 1.3), the message and the 48dp retry fit its six 52dp week rows, so
-              // the header keeps its height.
-              <MonthFrame locale={locale}>
+              // 96 on a 360dp phone at font scale 1.3), the message and the 48dp retry fit its six 40dp rows.
+              <MonthFrame month={month} locale={locale}>
                 <View style={{ gap: 4, alignItems: "center" }}>
                   <StateArt pose="bingung" style={{ marginBottom: 8 }} />
                   <Text selectable style={{ color: mood.headerText, textAlign: "center" }}>
@@ -184,32 +184,32 @@ function SignedInJadwal() {
             )}
           </FadeSwap>
           <Legend />
-        </MoodHeader>
+        </MonthBar>
       }
-      // Pulling down reads this month again; the grid and the day stay on screen until it answers.
+      // Pulling down reads this month again; the grid and the agenda stay on screen until it answers.
       refreshControl={state ? pull : undefined}
     >
-      {/* The chosen day fades in with the month: this and the grid's FadeSwap swap on the same read, over the same
-          time. While the month is read the panel is empty rather than a second skeleton. */}
-      <FadeSwap swapKey={state ? "ready" : "loading"} style={{ gap: 16 }}>
+      {/* The agenda fades in with the month: this and the grid's FadeSwap swap on the same read, over the same time.
+          While the month is read the panel is empty rather than a second skeleton. */}
+      <FadeSwap swapKey={state ? "ready" : "loading"} style={{ gap: nativeLayout.space.lg }}>
         {state ? (
           <>
             {data.error ? (
               // A refresh failed but the month is on screen: the error stays with its retry in the page.
               <ReadError message={data.error} onRetry={() => void data.reload()} />
             ) : null}
-            {/* A month with no meals at all: the resting mascot sits above the day, which says there is nothing. */}
+            {/* A month with no meals at all: the resting mascot sits above the agenda, which says there is nothing. */}
             {monthEmpty ? <StateArt pose="tidur" /> : null}
-            <Text variant="label">{longDay(selected, locale)}</Text>
-            {day.length ? (
-              <Card style={{ padding: 4, gap: 0 }}>
-                {day.map(({ d, m }, i) => (
-                  <MealRow key={`${d.id}:${m.meal}`} delivery={d} meal={m.meal} status={m.status} marked={mealJourney(m).stage === "arrived"} first={i === 0} apiBase={runtime.apiBase} />
-                ))}
-              </Card>
-            ) : (
-              <Text style={{ color: c.muted }}>{t("Tidak ada pengantaran di hari ini.", "No delivery on this day.")}</Text>
-            )}
+            <WeekAgenda
+              week={week}
+              next={next}
+              today={today}
+              deliveries={deliveries}
+              days={days}
+              apiBase={runtime.apiBase}
+              locale={locale}
+              onOpenWeek={openWeek}
+            />
           </>
         ) : null}
       </FadeSwap>
@@ -217,62 +217,9 @@ function SignedInJadwal() {
   );
 }
 
-function MealRow({
-  delivery: d,
-  meal,
-  status,
-  marked,
-  first,
-  apiBase,
-}: {
-  delivery: Delivery;
-  meal: "lunch" | "dinner";
-  status: string;
-  /** The caterer marked it arrived and the customer has not confirmed: the same rule as the day screen. */
-  marked: boolean;
-  first: boolean;
-  apiBase: string;
-}) {
-  const { t, locale } = useMobile();
-  const c = useColors();
-  const styles = useStyles();
-  const image = d.offer.menus?.find((m) => m.meal === meal)?.image || d.offer.image;
-  const state =
-    status === "delivered"
-      ? t("Sudah sampai", "Arrived")
-      : marked
-        ? statusLabel("arrived", locale)
-        : failed(status)
-          ? t("Gagal diantar", "Not delivered")
-          : "";
-  const sub = [mealLabel(meal, locale), d.offer.windows?.[meal], state].filter(Boolean).join(" · ");
-  return (
-    <PressableRow
-      accessibilityRole="button"
-      accessibilityLabel={`${d.offer.name}, ${sub}`}
-      onPress={() => router.push(dayHref(d.id, d.service_date, locale) as never)}
-      style={[styles.meal, !first && styles.divider]}
-    >
-      {image ? (
-        <Image source={{ uri: photoUri(image, apiBase) }} style={styles.photo} accessibilityIgnoresInvertColors />
-      ) : (
-        <View style={styles.photo} />
-      )}
-      <View style={{ flex: 1, gap: 2 }}>
-        <Text style={{ fontFamily: fontFor("700") }}>{d.offer.name}</Text>
-        <Text variant="caption" style={{ fontVariant: ["tabular-nums"] }}>
-          {sub}
-        </Text>
-      </View>
-      <Ionicons name="chevron-forward" size={18} color={c.muted} />
-    </PressableRow>
-  );
-}
-
-const useStyles = themedStyles((c) => ({
-  monthBar: { flexDirection: "row", alignItems: "center" },
-  arrow: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
-  meal: { minHeight: 72, flexDirection: "row", alignItems: "center", gap: 12, padding: 8 },
-  divider: { borderTopWidth: 1, borderTopColor: c.line },
-  photo: { width: 56, height: 56, borderRadius: 10, backgroundColor: c.sage },
-}));
+const arrow = {
+  width: nativeLayout.control.icon,
+  height: nativeLayout.control.icon,
+  alignItems: "center",
+  justifyContent: "center",
+} as const;

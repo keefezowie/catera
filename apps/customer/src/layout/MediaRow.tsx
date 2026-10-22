@@ -7,7 +7,8 @@ import { Thumb } from "./Thumb";
 
 /**
  * Two lines beside a 56 thumb (72 tall): `rowTitle` and `meta`, one line each. `leading` replaces the thumb; `notSet`
- * draws the dashed thumb; `trailing` is a node or `"chevron"`. Without `onPress` it is not a button.
+ * draws the dashed thumb; `trailing` is a node or `"chevron"`. Without `onPress` it is not a button. `wrap` lets both
+ * lines grow past one line (the row grows too) for a row whose words must all show, like a state at large text.
  */
 export function MediaRow({
   image,
@@ -17,6 +18,7 @@ export function MediaRow({
   meta,
   trailing,
   onPress,
+  wrap = false,
   testID,
 }: {
   image?: string | null;
@@ -26,6 +28,7 @@ export function MediaRow({
   meta?: string;
   trailing?: ReactNode | "chevron";
   onPress?: () => void;
+  wrap?: boolean;
   testID?: string;
 }) {
   const c = useColors();
@@ -34,11 +37,11 @@ export function MediaRow({
     <>
       {leading ?? <Thumb uri={image} notSet={notSet} testID={testID ? `${testID}-thumb` : "thumb"} />}
       <View style={styles.text}>
-        <Text variant="rowTitle" numberOfLines={1}>
+        <Text variant="rowTitle" numberOfLines={wrap ? undefined : 1}>
           {title}
         </Text>
         {meta ? (
-          <Text variant="meta" numberOfLines={1}>
+          <Text variant="meta" numberOfLines={wrap ? undefined : 1}>
             {meta}
           </Text>
         ) : null}

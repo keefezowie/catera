@@ -213,16 +213,14 @@ describe("photos", () => {
   });
 });
 
-/** The height a frame declares: the weekday row, then the week rows, with the gaps between them. */
+/** The height a frame declares: the weekday row, then the week rows, which have no gaps between them. */
 function frameHeight(frame: ReturnType<typeof screen.getByTestId>) {
-  const gap = flat(frame).gap as number;
-  const weekdays = within(frame).getByTestId("month-weekdays");
-  const label = flat(within(weekdays).getByText("Sen"));
-  const weekdayRow = (label.lineHeight as number) + 2 * (label.paddingVertical as number);
+  const weekdayRow = flat(within(frame).getByTestId("month-weekdays")).minHeight as number;
   const body = within(frame).getByTestId("month-weeks");
   const rows = within(body).getAllByTestId("month-week");
   const rowsHeight = rows.reduce((sum, row) => sum + (flat(row).height as number), 0);
-  return { rows: rows.length, height: weekdayRow + gap + rowsHeight + (flat(body).gap as number) * (rows.length - 1) };
+  expect(body.props.style?.gap).toBeUndefined();
+  return { rows: rows.length, height: weekdayRow + rowsHeight };
 }
 
 describe("Jadwal", () => {
@@ -233,13 +231,13 @@ describe("Jadwal", () => {
     await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
     const header = screen.getByTestId("jadwal-header");
     const frame = within(header).getByTestId("month-frame");
-    // Skeleton cells sit inside the frame's weeks, one per day of the month, with no day drawn.
+    // Skeleton circles sit inside the frame's weeks, one per day of the month, with no day drawn.
     expect(within(frame).getAllByTestId("jadwal-skeleton-cell")).toHaveLength(31);
     expect(within(frame).UNSAFE_queryAllByType(ActivityIndicator)).toHaveLength(0);
     expect(screen.queryByRole("button", { name: /^Rabu 7 Oktober/ })).toBeNull();
     const loading = frameHeight(frame);
     // The legend explains the cells and says nothing about this month, so it holds its place below the frame too.
-    expect(within(header).getByText("Foto menu")).toBeTruthy();
+    expect(within(header).getByText("Ada pengantaran")).toBeTruthy();
 
     await act(async () => resolve(october));
     const grid = await within(screen.getByTestId("jadwal-header")).findByTestId("month-grid");
@@ -247,15 +245,15 @@ describe("Jadwal", () => {
     expect(screen.queryByTestId("jadwal-skeleton-cell")).toBeNull();
     const loaded = frameHeight(grid);
 
-    // Six week rows in both, fixed at the cell height: 28 + 2 + 6 x 52 + 5 x 2.
-    expect(loading.rows).toBe(6);
-    expect(loaded.rows).toBe(6);
-    expect(loading.height).toBe(352);
+    // October 2026 needs five week rows in both, fixed at the 40 cell: 20 + 5 x 40.
+    expect(loading.rows).toBe(5);
+    expect(loaded.rows).toBe(5);
+    expect(loading.height).toBe(220);
     expect(loaded.height).toBe(loading.height);
-    expect(within(screen.getByTestId("jadwal-header")).getByText("Foto menu")).toBeTruthy();
+    expect(within(screen.getByTestId("jadwal-header")).getByText("Ada pengantaran")).toBeTruthy();
   });
 
-  it("a month that could not be read keeps the same frame, with its message and Coba lagi inside it", async () => {
+  it("a month that could not be read keeps its own week rows, with room for its message and Coba lagi inside them", async () => {
     const runtime = runtimeWith(async () => october);
     (runtime.api.customer as jest.Mock).mockRejectedValueOnce(Object.assign(new Error("slow"), { code: "REQUEST_TIMEOUT" }));
     renderWith(runtime, <Jadwal />);
@@ -264,18 +262,29 @@ describe("Jadwal", () => {
     const frame = within(header).getByTestId("month-frame");
     expect(within(frame).getByRole("button", { name: "Coba lagi" })).toBe(retry);
     expect(within(frame).getByText("Terlalu lama menunggu jawaban. Cek koneksi lalu coba lagi.")).toBeTruthy();
-    expect(frameHeight(frame)).toEqual({ rows: 6, height: 352 });
+    // The rows grow to six 40s so the mascot, the message and the 48 retry fit, whatever the month.
+    expect(frameHeight(frame).rows).toBe(5);
+    expect(flat(within(frame).getByTestId("month-weeks")).minHeight).toBe(240);
     expect(screen.queryByTestId("month-grid")).toBeNull();
   });
 
-  it("a four-week month is drawn at the same six-week height", async () => {
-    // February 2027 starts on a Monday and has 28 days: four weeks of its own.
-    jest.setSystemTime(new Date("2027-02-10T03:00:00Z"));
+  it.each([
+    ["2027-02-10T03:00:00Z", "Februari 2027", 4],
+    ["2026-08-10T03:00:00Z", "Agustus 2026", 6],
+  ])("draws only the weeks %s needs, and its skeleton is the same height", async (now, title, weeks) => {
+    // February 2027 starts on a Monday and has 28 days: four weeks of its own. August 2026 starts on a Saturday: six.
+    jest.setSystemTime(new Date(now));
     try {
-      renderWith(runtimeWith(async () => ({ ...october, deliveries: [] })), <Jadwal />);
+      let resolve: (state: CustomerState) => void = () => {};
+      const runtime = runtimeWith(() => new Promise<CustomerState>((r) => (resolve = r)));
+      renderWith(runtime, <Jadwal />);
+      await waitFor(() => expect(runtime.api.customer).toHaveBeenCalled());
+      const loading = frameHeight(screen.getByTestId("month-frame"));
+      await act(async () => resolve({ ...october, deliveries: [] }));
       const grid = await screen.findByTestId("month-grid");
-      expect(within(screen.getByTestId("jadwal-header")).getByText("Februari 2027")).toBeTruthy();
-      expect(frameHeight(grid)).toEqual({ rows: 6, height: 352 });
+      expect(within(screen.getByTestId("jadwal-header")).getByText(title)).toBeTruthy();
+      expect(frameHeight(grid)).toEqual({ rows: weeks, height: 20 + weeks * 40 });
+      expect(loading).toEqual(frameHeight(grid));
     } finally {
       jest.setSystemTime(new Date("2026-10-07T03:00:00Z"));
     }
